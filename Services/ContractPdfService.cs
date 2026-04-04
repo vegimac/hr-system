@@ -42,7 +42,6 @@ public class ContractPdfService
     private const string Yellow = "#FFC72C";
     private const string Dark   = "#27251F";
 
-    // Briefkopf-Bilder (lazy-loaded beim ersten Aufruf)
     private static byte[]? _bannerBytes;
     private static byte[]? _lineBytes;
 
@@ -68,16 +67,14 @@ public class ContractPdfService
         bool isMTP  = d.EmploymentModel == "MTP";
         bool isFix  = d.EmploymentModel == "FIX";
         bool isFixM = d.EmploymentModel == "FIX-M";
-        bool isHourly  = isUTP || isMTP;
-        bool isFixed    = d.ContractEndDate.HasValue;
-        bool hasProba   = d.ProbationMonths is > 0;
-        int  vacWeeks   = (int)(d.DefaultVacationWeeks ?? 5);
-        int  vacDays    = vacWeeks * 7;
-        string emp      = $"{d.Salutation} {d.FirstName} {d.LastName}".Trim();
+        bool isFixed  = d.ContractEndDate.HasValue;
+        bool hasProba = d.ProbationMonths is > 0;
+        int  vacWeeks = (int)(d.DefaultVacationWeeks ?? 5);
+        int  vacDays  = vacWeeks * 7;
+        string emp    = $"{d.Salutation} {d.FirstName} {d.LastName}".Trim();
 
-        // Wochenstunden: bei FIX/FIX-M aus Pensum ableiten falls nicht explizit gesetzt
-        decimal pct          = d.EmploymentPercentage ?? 100m;
-        decimal fixWeeklyH   = Math.Round(pct / 100m * (decimal)(d.WeeklyHours ?? 42m), 1);
+        decimal pct        = d.EmploymentPercentage ?? 100m;
+        decimal fixWeeklyH = Math.Round(pct / 100m * (decimal)(d.WeeklyHours ?? 42m), 1);
 
         string titleText = isFixM
             ? "Arbeitsvertrag f\u00fcr Mitarbeiter* im Restaurant Management ( Vollzeit )"
@@ -88,7 +85,7 @@ public class ContractPdfService
                     : "Arbeitsvertrag f\u00fcr Mitarbeiter* im Stundenlohn ( Teilzeit )";
 
         string footerBase = isFixM ? "Vollzeitvertrag Management"
-            : isFix             ? "Vollzeitvertrag"
+            : isFix ? "Vollzeitvertrag"
             : "Vertrag im Stundenlohn";
 
         bool isMinor = d.DateOfBirth.HasValue &&
@@ -97,7 +94,7 @@ public class ContractPdfService
         return Document.Create(container =>
         {
             // ══════════════════════════════════════════════
-            // SEITE 1 – Abschnitte 1–8
+            // SEITE 1 – Abschnitte 1–7 (inkl. 13. Monatslohn Text)
             // ══════════════════════════════════════════════
             container.Page(page =>
             {
@@ -106,15 +103,10 @@ public class ContractPdfService
                 page.MarginBottom(0.8f, Unit.Centimetre);
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
                 page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark));
-
-                // ── Banner im Header, Titel als erstes Content-Element
                 page.Header().Image(BannerBytes).FitWidth();
-
-                page.Content().PaddingTop(1).Column(col =>
+                page.Content().PaddingTop(0).Column(col =>
                 {
-                    // Titel ohne gelben Hintergrund
-                    col.Item().PaddingBottom(2)
-                        .AlignCenter()
+                    col.Item().PaddingBottom(2).AlignCenter()
                         .Text(titleText).Bold().FontSize(10.5f).FontColor(Dark);
 
                     col.Item().PaddingBottom(3).Column(p =>
@@ -151,8 +143,8 @@ public class ContractPdfService
                     if (isFixM)
                     {
                         col.Item().Element(c => P(c,
-                            $"Der Mitarbeiter wird an seinem Arbeitsort im McDonald\u2019s Restaurant in {d.WorkLocation}, " +
-                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied des McDonald\u2019s Managements ist der Mitarbeiter " +
+                            $"Der Mitarbeiter wird an seinem Arbeitsort im Restaurant in {d.WorkLocation}, " +
+                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied des Managements ist der Mitarbeiter " +
                             "einverstanden, je nach Bedarf, weitere seiner Funktion angemessene Aufgaben zu \u00fcbernehmen " +
                             "und unter Ber\u00fccksichtigung der pers\u00f6nlichen und famili\u00e4ren Verh\u00e4ltnisse " +
                             "an einem anderen Arbeitsort oder an einem anderen Restaurant eingesetzt zu werden."));
@@ -160,34 +152,33 @@ public class ContractPdfService
                     else if (isMTP || isUTP)
                     {
                         col.Item().Element(c => P(c,
-                            $"Der Mitarbeiter wird an seinem Arbeitsort im McDonald\u2019s Restaurant in {d.WorkLocation}, " +
-                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied der McDonald\u2019s Crew k\u00f6nnen " +
-                            "ihm alle Arbeitsstationen im Rahmen des Rotationsprinzips von McDonald\u2019s zugewiesen werden. " +
+                            $"Der Mitarbeiter wird an seinem Arbeitsort im Restaurant in {d.WorkLocation}, " +
+                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied der Crew k\u00f6nnen " +
+                            "ihm alle Arbeitsstationen im Rahmen des Rotationsprinzips zugewiesen werden. " +
                             "Darin inbegriffen sind interne und externe Reinigungs- und Aufr\u00e4umarbeiten. " +
-                            $"Der Mitarbeiter kann vom Arbeitgeber im zumutbaren Rahmen in einem anderen McDonald\u2019s Restaurant eingesetzt werden."));
+                            "Der Mitarbeiter kann vom Arbeitgeber im zumutbaren Rahmen in einem anderen Restaurant eingesetzt werden."));
                     }
                     else if (isFix)
                     {
                         col.Item().Element(c => P(c,
-                            $"Der Mitarbeiter wird an seinem Arbeitsort im McDonald\u2019s Restaurant in {d.WorkLocation}, " +
-                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied der McDonald\u2019s Crew k\u00f6nnen " +
-                            "ihm alle Arbeitsstationen im Rahmen des Rotationsprinzips von McDonald\u2019s zugewiesen werden. " +
+                            $"Der Mitarbeiter wird an seinem Arbeitsort im Restaurant in {d.WorkLocation}, " +
+                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied der Crew k\u00f6nnen " +
+                            "ihm alle Arbeitsstationen im Rahmen des Rotationsprinzips zugewiesen werden. " +
                             "Darin inbegriffen sind interne und externe Reinigungs- und Aufr\u00e4umarbeiten. " +
-                            $"Der Mitarbeiter kann vom Arbeitgeber im zumutbaren Rahmen in einem anderen McDonald\u2019s Restaurant eingesetzt werden."));
+                            "Der Mitarbeiter kann vom Arbeitgeber im zumutbaren Rahmen in einem anderen Restaurant eingesetzt werden."));
                     }
                     else
                     {
-                        // FIX-M Management
                         col.Item().Element(c => P(c,
-                            $"Der Mitarbeiter wird an seinem Arbeitsort im McDonald\u2019s Restaurant in {d.WorkLocation}, " +
-                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied des McDonald\u2019s Managements ist der Mitarbeiter " +
+                            $"Der Mitarbeiter wird an seinem Arbeitsort im Restaurant in {d.WorkLocation}, " +
+                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied des Managements ist der Mitarbeiter " +
                             "einverstanden, je nach Bedarf, weitere seiner Funktion angemessene Aufgaben zu \u00fcbernehmen " +
                             "und unter Ber\u00fccksichtigung der pers\u00f6nlichen und famili\u00e4ren Verh\u00e4ltnisse " +
                             "an einem anderen Arbeitsort oder an einem anderen Restaurant eingesetzt zu werden."));
                     }
                     col.Item().Element(c => P(c,
                         $"Der Mitarbeiter tritt seine Stelle am {d.ContractStartDate:dd.MM.yyyy} an."));
-                    col.Item().PaddingTop(2).Element(c => P(c,
+                    col.Item().Element(c => P(c,
                         "Falls der Mitarbeiter eine Arbeitsbewilligung ben\u00f6tigt, tritt dieser Vertrag erst in Kraft, " +
                         "wenn diese definitiv erteilt ist."));
 
@@ -217,7 +208,7 @@ public class ContractPdfService
                         "den \u201eAllgemeinen Arbeitsbedingungen\u201c verwiesen."));
 
                     // 5.
-                    col.Item().Element(c => T(c, (isMTP) ? "5. Arbeitszeit" : "5. Arbeitszeit/Ferien/Feiertage"));
+                    col.Item().Element(c => T(c, isMTP ? "5. Arbeitszeit" : "5. Arbeitszeit/Ferien/Feiertage"));
                     if (isFixM)
                     {
                         col.Item().Element(c => P(c,
@@ -292,7 +283,6 @@ public class ContractPdfService
                     }
                     else
                     {
-                        // UTP – korrekter Text gemäss Excel
                         col.Item().Element(c => P(c,
                             $"Das durchschnittliche Pensum soll vom Arbeitsvolumen niedrig und \u00fcberschaubar bleiben, " +
                             $"d.h. durchschnittlich innerhalb eines Kalenderjahres (bzw. der jeweiligen Vertragsdauer pro rata temporis) " +
@@ -334,12 +324,21 @@ public class ContractPdfService
                             col.Item().PaddingTop(2).Text(txt =>
                             {
                                 txt.Span("Der feste Bruttolohn (ohne 13. Monatslohn) betr\u00e4gt CHF  ").Bold();
-                                txt.Span(CHF(effectiveSalary)).Bold().FontSize(11);
+                                txt.Span(CHF(effectiveSalary)).Bold().FontSize(9.5f);
                                 if (isPartTime)
                                     txt.Span($"  ({pct:0}% von {CHF(d.MonthlySalary)})").Bold();
                                 txt.Span("  pro Monat.").Bold();
                             });
                         }
+                        // 13. Monatslohn Text gehoert zu Punkt 7 - auf Seite 1
+                        col.Item().Element(c => P(c,
+                            "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
+                            "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
+                            "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
+                            "aufgel\u00f6st wird. Die Lohnauszahlung mit \u00fcbersichtlicher Lohnabrechnung erfolgt " +
+                            "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
+                        col.Item().Element(c => P(c,
+                            "Kinderzulagen werden gem\u00e4ss den gesetzlichen Bestimmungen ausgerichtet."));
                     }
                     else // UTP / MTP
                     {
@@ -379,8 +378,6 @@ public class ContractPdfService
                                 LohnRow($"+ Feiertage ({hol_pct:0.##}%)", feiertag);
                                 LohnRow($"+ 13. Monatslohn ({th_pct:0.##}%)", dreiz, "(wird erst nach der Probezeit angerechnet und ausbezahlt)");
                             });
-
-                            // Monatsbetrag auf Seite 1 (MTP)
                             if (isMTP && d.GuaranteedHoursPerWeek.HasValue)
                             {
                                 decimal monthlyAmount = Math.Round(d.GuaranteedHoursPerWeek.Value * (52m / 12m) * totOhne, 2);
@@ -395,7 +392,6 @@ public class ContractPdfService
                                     t.Span(" )").Bold().FontSize(10f);
                                 });
                             }
-                            // UTP: Ferien-Konto-Text direkt nach Lohntabelle
                             if (isUTP)
                             {
                                 col.Item().PaddingTop(4).Element(c => P(c,
@@ -403,10 +399,18 @@ public class ContractPdfService
                                     "vom Arbeitgeber zur\u00fcckbehalten und erst beim tats\u00e4chlichen Ferienbezug " +
                                     "(im Verh\u00e4ltnis von deren Dauer zum ganzen j\u00e4hrlichen Ferienanspruch) ausbezahlt."));
                             }
+                            // 13. Monatslohn auch bei UTP/MTP auf Seite 1
+                            col.Item().PaddingTop(4).Element(c => P(c,
+                                "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
+                                "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
+                                "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
+                                "aufgel\u00f6st wird. Die Lohnauszahlung mit \u00fcbersichtlicher Lohnabrechnung erfolgt " +
+                                "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
+                            col.Item().Element(c => P(c,
+                                "Kinderzulagen werden gem\u00e4ss den gesetzlichen Bestimmungen ausgerichtet."));
                         }
                     }
                 });
-
                 page.Footer().AlignCenter().Text(
                     "*Der Begriff \"Mitarbeiter\" umfasst ebenfalls die Mitarbeiterinnen. " +
                     "Aus Gr\u00fcnden der Einfachheit wird auf eine Differenzierung.")
@@ -423,13 +427,10 @@ public class ContractPdfService
                 page.MarginBottom(0.8f, Unit.Centimetre);
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
                 page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark));
-
-                // Seite 2: voller Banner, gelbe Linie abschneiden
                 page.Header().Image(BannerBytes).FitWidth();
-
                 page.Content().PaddingTop(4).Column(col =>
                 {
-                    // Fortsetzung von Seite 1 – Mehrstunden (nur MTP)
+                    // MTP Mehrstunden
                     if (isMTP)
                     {
                         col.Item().Element(c => P(c,
@@ -448,16 +449,6 @@ public class ContractPdfService
                             "abgegolten und monatlich ausbezahlt (Art. 18 L-GAV)."));
                     }
 
-                    // Fortsetzung von Seite 1 – 13. Monatslohn
-                    col.Item().Element(c => P(c,
-                        "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
-                        "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
-                        "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
-                        "aufgel\u00f6st wird. Die Lohnauszahlung mit \u00fcbersichtlicher Lohnabrechnung erfolgt " +
-                        "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
-                    col.Item().PaddingBottom(4).Element(c => P(c,
-                        "Kinderzulagen werden gem\u00e4ss den gesetzlichen Bestimmungen ausgerichtet."));
-
                     // 8.
                     col.Item().Element(c => T(c, "8. Arbeitgeberweisungen, Hygiene"));
                     col.Item().Element(c => P(c,
@@ -465,7 +456,7 @@ public class ContractPdfService
                         "Kleidung/Uniform tragen. W\u00e4hrend den Arbeitspausen kann sich der Mitarbeiter am " +
                         "Arbeitsort auf seine Kosten verpflegen (verg\u00fcstigte Mitarbeiterpreise)."));
                     col.Item().Element(c => P(c,
-                        "Die allgemeinen McDonald\u2019s Richtlinien f\u00fcr Hygiene, Gesundheit und pers\u00f6nliches " +
+                        "Die allgemeinen Richtlinien f\u00fcr Hygiene, Gesundheit und pers\u00f6nliches " +
                         "Verhalten am Arbeitsplatz werden dem Mitarbeiter nach Stellenantritt ausf\u00fchrlich " +
                         "erl\u00e4utert und sind zwingend einzuhalten. Erg\u00e4nzend wird auf die Restaurant Reglement verwiesen."));
 
@@ -530,7 +521,7 @@ public class ContractPdfService
                         "Informationsbl\u00e4tter ausgeh\u00e4ndigt, in der jeweils g\u00fcltigen Form bzw. Version:"));
                     col.Item().PaddingLeft(6).Text("- die Hygienerichtlinien");
                     col.Item().PaddingLeft(6).Text("- die Richtlinie \u201eZum Schutz der pers\u00f6nlichen Integrit\u00e4t\u201c");
-                    col.Item().PaddingLeft(6).Text("- McDonald\u2019s Franchise Privacy Notice bzw. die Human Ressources Datenschutzerkl\u00e4rung");
+                    col.Item().PaddingLeft(6).Text("- Privacy Notice bzw. die Human Ressources Datenschutzerkl\u00e4rung");
                     col.Item().PaddingLeft(6).Text("- das Versicherungsmerkblatt");
                     col.Item().PaddingLeft(6).Text("- das Informationsblatt \u201eMutterschutz\u201c");
                     col.Item().PaddingTop(4).Element(c => P(c,
@@ -539,7 +530,6 @@ public class ContractPdfService
                         "die Kenntnisnahme und das Einverst\u00e4ndnis mit den integrierenden " +
                         "Vertragsbestandteilen sowie den ausgeh\u00e4ndigten Weisungen und Richtlinien."));
 
-                    // Unterschriften
                     col.Item().PaddingTop(12).Row(row =>
                     {
                         row.RelativeItem().Column(c =>
@@ -568,7 +558,6 @@ public class ContractPdfService
                         });
                     });
                 });
-
                 page.Footer().Column(f =>
                 {
                     f.Item().LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
@@ -589,9 +578,7 @@ public class ContractPdfService
                 page.MarginBottom(1.5f, Unit.Centimetre);
                 page.MarginHorizontal(2f, Unit.Centimetre);
                 page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark));
-
                 page.Header().Image(BannerBytes).FitWidth();
-
                 page.Content().PaddingTop(10).Column(col =>
                 {
                     col.Item().Table(tbl =>
@@ -607,7 +594,6 @@ public class ContractPdfService
                         Row2("Mitarbeiter*:", emp);
                         Row2("Restaurant:", d.WorkLocation);
                     });
-
                     col.Item().PaddingTop(8).Text(
                         "Wenn der Mitarbeiter vor hat, seine Stunden- und/oder Tagesverf\u00fcgbarkeit abzu\u00e4ndern, " +
                         "muss er im dazu zur Verf\u00fcgung stehenden markt\u00fcblichen HR Reporting System einen " +
@@ -616,21 +602,16 @@ public class ContractPdfService
                         "Bestandteil des Vertrages. Jede \u00c4nderung der verf\u00fcgbaren Arbeitszeiten kann eine " +
                         "Ab\u00e4nderung des Durchschnitts, der normalerweise durch den Mitarbeiter absolvierten Stunden, " +
                         "mit sich bringen.");
-
                     col.Item().PaddingTop(8).Row(r =>
                     {
                         r.ConstantItem(14).Height(14).Border(1).BorderColor(Dark);
-                        r.RelativeItem().PaddingLeft(4).AlignMiddle()
-                            .Text("a) uneingeschr\u00e4nkte Verf\u00fcgbarkeit**");
+                        r.RelativeItem().PaddingLeft(4).AlignMiddle().Text("a) uneingeschr\u00e4nkte Verf\u00fcgbarkeit**");
                     });
                     col.Item().PaddingTop(3).Row(r =>
                     {
                         r.ConstantItem(14).Height(14).Border(1).BorderColor(Dark);
-                        r.RelativeItem().PaddingLeft(4).AlignMiddle()
-                            .Text("b) gem\u00e4ss unten stehender Tabelle:**");
+                        r.RelativeItem().PaddingLeft(4).AlignMiddle().Text("b) gem\u00e4ss unten stehender Tabelle:**");
                     });
-
-                    // Tabelle
                     col.Item().PaddingTop(6).Table(tbl =>
                     {
                         tbl.ColumnsDefinition(c =>
@@ -638,15 +619,12 @@ public class ContractPdfService
                             c.ConstantColumn(65);
                             for (int i = 0; i < 7; i++) c.RelativeColumn();
                         });
-
                         void H(string txt) =>
                             tbl.Cell().Background(Yellow).Border(0.5f).BorderColor(Dark)
                                 .Padding(3).AlignCenter().Text(txt).Bold().FontSize(9.5f);
-
                         H("Zeit");
                         foreach (var day in new[] { "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag" })
                             H(day);
-
                         for (int r2 = 0; r2 < 7; r2++)
                         {
                             tbl.Cell().Border(0.5f).BorderColor(Colors.Grey.Medium).Height(16);
@@ -654,20 +632,16 @@ public class ContractPdfService
                                 tbl.Cell().Border(0.5f).BorderColor(Colors.Grey.Medium).Height(16);
                         }
                     });
-
                     col.Item().PaddingTop(6).Row(r =>
                     {
                         r.ConstantItem(14).Height(14).Border(1).BorderColor(Dark);
-                        r.RelativeItem().PaddingLeft(4).AlignMiddle()
-                            .Text("a) G\u00fcltig f\u00fcr eine unbefristete Dauer**");
+                        r.RelativeItem().PaddingLeft(4).AlignMiddle().Text("a) G\u00fcltig f\u00fcr eine unbefristete Dauer**");
                     });
                     col.Item().PaddingTop(3).Row(r =>
                     {
                         r.ConstantItem(14).Height(14).Border(1).BorderColor(Dark);
-                        r.RelativeItem().PaddingLeft(4).AlignMiddle()
-                            .Text("b) G\u00fcltig f\u00fcr die Zeit vom**                    bis");
+                        r.RelativeItem().PaddingLeft(4).AlignMiddle().Text("b) G\u00fcltig f\u00fcr die Zeit vom**                    bis");
                     });
-
                     col.Item().PaddingTop(6).Text(
                         "Wenn der Mitarbeiter nicht in der Lage ist, die Arbeitsstunden w\u00e4hrend den Tagen, " +
                         "welche in diesem Dokument festgelegt sind, zu absolvieren, hat er nicht das Recht darauf, " +
@@ -688,10 +662,8 @@ public class ContractPdfService
                         "und Beratung obligatorisch. Die Kosten einer medizinischen Untersuchung und Beratung wegen " +
                         "Nachtarbeit gehen zu Lasten des Arbeitgebers, sofern sie nicht von einer Versicherung " +
                         "\u00fcbernommen werden.");
-
                     col.Item().PaddingTop(6).Text("Bemerkungen").Bold();
                     col.Item().Border(0.5f).BorderColor(Yellow).Background(Yellow).MinHeight(50).Text("");
-
                     col.Item().PaddingTop(14).Row(row =>
                     {
                         row.RelativeItem().Column(c =>
@@ -719,14 +691,12 @@ public class ContractPdfService
                             c.Item().PaddingTop(3).Text($"{d.FirstName} {d.LastName}");
                         });
                     });
-
                     col.Item().PaddingTop(10).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
                     col.Item().PaddingTop(2)
                         .Text("*Der Begriff \u00abMitarbeiter\u00bb umfasst ebenfalls die Mitarbeiterinnen. " +
                               "Aus Gr\u00fcnden der Einfachheit wird auf eine Differenzierung im Text verzichtet.")
                         .FontSize(7).Italic();
                 });
-
                 page.Footer().AlignRight()
                     .Text($"{footerBase} vom {d.ContractDate:dd.MM.yy}  Seite 3").FontSize(7);
             });
@@ -741,9 +711,7 @@ public class ContractPdfService
                 page.MarginBottom(1.5f, Unit.Centimetre);
                 page.MarginHorizontal(2f, Unit.Centimetre);
                 page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark));
-
                 page.Header().Image(BannerBytes).FitWidth();
-
                 page.Content().PaddingTop(6).Column(col =>
                 {
                     col.Item().Element(c => T(c, "1. Information f\u00fcr Frauen \u201eim geb\u00e4rf\u00e4higen\u201c Alter"));
@@ -774,7 +742,6 @@ public class ContractPdfService
                         "Schwangere Frauen und stillende M\u00fctter m\u00fcssen sich unter geeigneten Bedingungen " +
                         "hinlegen und ausruhen k\u00f6nnen. Hierf\u00fcr sollte mindestens eine Liege, wenn m\u00f6glich " +
                         "in einem ruhigen Raum vorhanden sein."));
-
                     col.Item().Element(c => T(c, "2. Gef\u00e4hrdungen"));
                     col.Item().Element(c => P(c,
                         "Gef\u00e4hrliche und beschwerliche Arbeiten. Als gef\u00e4hrliche und beschwerliche Arbeiten " +
@@ -792,7 +759,6 @@ public class ContractPdfService
                         "Arbeiten in Arbeitszeitsystemen, die erfahrungsgem\u00e4ss zu einer starken Belastung f\u00fchren"
                     })
                         col.Item().PaddingLeft(8).Text($"\u2022  {b}").FontSize(8.5f);
-
                     col.Item().Element(c => T(c, "3. Besch\u00e4ftigungserleichterung"));
                     col.Item().Element(c => P(c,
                         "Bei haupts\u00e4chlich stehend zu verrichtender T\u00e4tigkeit sind schwangeren Frauen ab dem " +
@@ -800,7 +766,6 @@ public class ContractPdfService
                         "Stunde zus\u00e4tzlich zu den Pausen eine Kurzpause von 10 Minuten zu gew\u00e4hren. Ab dem " +
                         "sechsten Schwangerschaftsmonat sind stehende T\u00e4tigkeiten auf insgesamt 4 Stunden pro Tag " +
                         "zu beschr\u00e4nken."));
-
                     col.Item().Element(c => T(c, "4. Zeitliche Regelungen"));
                     col.Item().PaddingTop(2).Text("Absolutes Besch\u00e4ftigungsverbot:").FontSize(8.5f);
                     foreach (var b in new[] {
@@ -809,7 +774,6 @@ public class ContractPdfService
                         "Keine Abend- und Nachtarbeit (20.00 \u2013 6.00 Uhr) 8 Wochen vor dem errechneten Geburtstermin."
                     })
                         col.Item().PaddingLeft(8).Text($"\u2022  {b}").FontSize(8.5f);
-
                     col.Item().Element(c => T(c, "5. Zus\u00e4tzliche Auflagen:"));
                     col.Item().PaddingLeft(8).Text(
                         "\u2022  W\u00e4hrend der Schwangerschaft und der 9.\u201316. Woche nach der Entbindung sowie " +
@@ -823,13 +787,10 @@ public class ContractPdfService
                     col.Item().PaddingLeft(20).Text(
                         "\u2022  Stillzeit ausserhalb des Arbeitsortes ist zur H\u00e4lfte als Arbeitszeit anzurechnen.")
                         .FontSize(8.5f);
-
                     col.Item().Element(c => T(c, "6. Weiterf\u00fchrende Unterlagen"));
                     col.Item().Element(c => P(c,
                         "Zum Thema Mutterschutz und als Eigenstudium finden Sie weitere Informationsmittel auf der " +
                         "Homepage des SECO unter dem Themenblock \u00abSchwangere und Stillende\u00bb."));
-
-                    // Unterschriften
                     col.Item().PaddingTop(12).Row(row =>
                     {
                         row.RelativeItem().Column(c =>
@@ -858,7 +819,6 @@ public class ContractPdfService
                         });
                     });
                 });
-
                 page.Footer().AlignCenter()
                     .Text($"Beilage Information Mutterschutz  Seite 4").FontSize(7);
             });
@@ -868,9 +828,9 @@ public class ContractPdfService
 
     // Titelzeile einer Sektion
     private static void T(IContainer c, string title) =>
-        c.PaddingTop(4).Text(title).Bold().FontSize(9f);
+        c.PaddingTop(3).Text(title).Bold().FontSize(9.5f);
 
     // Normaler Absatz – Blocksatz
     private static void P(IContainer c, string text) =>
-        c.PaddingTop(1).Text(text).FontSize(9f).Justify();
+        c.PaddingTop(1).Text(text).FontSize(9.5f).Justify();
 }

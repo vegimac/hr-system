@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HrSystem.Models;
 
@@ -7,7 +8,10 @@ public class CompanyProfile
     public int Id { get; set; }
 
     public string CompanyName { get; set; } = "";
+
+    [Column("branch_name")]
     public string? BranchName { get; set; }
+
     public string? RestaurantCode { get; set; }
 
     public string? Street { get; set; }
@@ -41,10 +45,8 @@ public class CompanyProfile
 
     public List<CompanySignatory> Signatories { get; set; } = new();
 
-    /// <summary>
-    /// Gibt den vollständigen Anzeigenamen zurück: "CompanyName BranchName" oder nur "CompanyName"
-    /// </summary>
     [JsonIgnore]
+    [NotMapped]
     public string FullDisplayName =>
         string.IsNullOrWhiteSpace(BranchName)
             ? CompanyName
