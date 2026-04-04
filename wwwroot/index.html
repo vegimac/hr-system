@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR System – Vertrag erfassen</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 24px;
+            max-width: 1250px;
+            color: #222;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .top-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .section {
+            margin-top: 24px;
+            padding: 18px;
+            border: 1px solid #d9d9d9;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+
+        .section-title {
+            margin: 0 0 14px 0;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 12px 16px;
+            align-items: center;
+        }
+
+        label {
+            font-weight: 600;
+        }
+
+        input, select, button, textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 9px 10px;
+            font-size: 15px;
+            border: 1px solid #bfbfbf;
+            border-radius: 8px;
+            background: white;
+        }
+
+        textarea {
+            min-height: 180px;
+            resize: vertical;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            background: #1769e0;
+            color: white;
+            font-weight: 600;
+        }
+
+        button.secondary {
+            background: #666;
+        }
+
+        button:hover {
+            opacity: 0.95;
+        }
+
+        .readonly {
+            padding: 10px;
+            background: #efefef;
+            border-radius: 8px;
+            min-height: 20px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .status-box {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #cfcfcf;
+            background: white;
+        }
+
+        .status-ok {
+            background: #f1fff3;
+            border-color: #2e7d32;
+        }
+
+        .status-warn {
+            background: #fff3f3;
+            border-color: #c62828;
+        }
+
+        .status-info {
+            background: #fffaf0;
+            border-color: #b26a00;
+        }
+
+        .ok {
+            color: #1b7a2f;
+            font-weight: bold;
+        }
+
+        .warn {
+            color: #c62828;
+            font-weight: bold;
+        }
+
+        .info {
+            color: #b26a00;
+            font-weight: bold;
+        }
+
+        .muted {
+            color: #666;
+        }
+
+        .top-buttons {
+            margin-top: 18px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .dropzone {
+            border: 2px dashed #999;
+            border-radius: 10px;
+            padding: 20px;
+            background: #fafafa;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+
+        .dropzone.dragover {
+            border-color: #1769e0;
+            background: #eef5ff;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #555;
+            word-break: break-word;
+        }
+
+        .small {
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>HR System – Vertrag erfassen</h1>
+
+    <div class="top-layout">
+        <div class="section">
+            <div class="section-title">Mitarbeiter</div>
+            <div class="grid">
+                <label for="employeeId">Mitarbeiter auswählen</label>
+                <select id="employeeId">
+                    <option value="">Lade Mitarbeitende...</option>
+                </select>
+
+                <label for="jobGroupCode">Funktion</label>
+                <select id="jobGroupCode">
+                    <option value="">Lade Funktionen...</option>
+                </select>
+
+                <label for="educationLevelCode">Ausbildung</label>
+                <select id="educationLevelCode">
+                    <option value="">Lade Ausbildung...</option>
+                </select>
+
+                <label for="nationalityId">Nationalität</label>
+                <select id="nationalityId">
+                    <option value="">Lade Nationalitäten...</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Mitarbeiter-Import</div>
+
+            <div id="dropzone" class="dropzone">
+                CSV-Datei hierhin ziehen
+                <div class="small muted" style="margin-top: 8px;">oder klicken, um eine Datei auszuwählen</div>
+            </div>
+
+            <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+
+            <div id="importFileName" class="file-name">Keine Datei ausgewählt.</div>
+
+            <div class="top-buttons">
+                <button type="button" onclick="uploadEmployeeCsv()">CSV importieren</button>
+            </div>
+
+            <div id="importResult" style="margin-top: 12px;">Noch kein Import ausgeführt.</div>
+        </div>
+    </div>
+
+    <div id="snapshotBanner" class="section" style="display:none; background:#fff9e6; border-left:4px solid #f5a623; padding: 16px 20px;">
+        <div class="section-title" style="margin-bottom:8px;">Import-Vorschlag aus CSV</div>
+        <div class="grid" id="snapshotContent"></div>
+        <div style="margin-top:12px;">
+            <button type="button" onclick="applySnapshot()">Vorschlag übernehmen</button>
+            <button type="button" onclick="dismissSnapshot()" style="margin-left:8px; background:#ccc; color:#333;">Schliessen</button>
+        </div>
+    </div>
+
+    <div style="display:none">
+        <div id="companyNameDisplay"></div>
+        <div id="normalWeeklyHoursDisplay"></div>
+        <div id="maxPartTimeHoursDisplay"></div>
+        <div id="holdBackVacationPayoutDisplay"></div>
+        <div id="payrollPeriodStartDayDisplay"></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Vertragsgrundlagen</div>
+        <div class="grid">
+            <label for="existingContract">Besteht schon ein Vertrag?</label>
+            <select id="existingContract">
+                <option value="no" selected>Nein</option>
+                <option value="yes">Ja</option>
+            </select>
+
+            <label for="createdDate">Vertrag erstellt am</label>
+            <input type="date" id="createdDate">
+
+            <label for="startDate">Vertrag beginnt am</label>
+            <input type="date" id="startDate">
+
+            <label for="employmentModel">Vertragstyp</label>
+            <select id="employmentModel">
+                <option value="UTP" selected>UTP – Stundenlohn Teilzeit</option>
+                <option value="MTP">MTP – Garantiertes Mindest-Teilzeitpensum</option>
+                <option value="FIX">FIX – Festpensum (50–100%)</option>
+                <option value="FIX-M">FIX-M – Management (50–100%)</option>
+            </select>
+
+            <label for="fixedTermYesNo">Befristeter Vertrag</label>
+            <select id="fixedTermYesNo">
+                <option value="no" selected>Nein</option>
+                <option value="yes">Ja</option>
+            </select>
+
+            <div id="fixedTermMonthsLabel">
+                <label for="fixedTermMonths">Befristungsdauer (Monate)</label>
+            </div>
+            <div id="fixedTermMonthsField">
+                <select id="fixedTermMonths">
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6" selected>6</option>
+                </select>
+            </div>
+
+            <div id="calculatedEndDateLabel">
+                <label>Vertragsende (berechnet)</label>
+            </div>
+            <div id="calculatedEndDateField">
+                <div id="calculatedEndDate" class="readonly"></div>
+            </div>
+
+            <label for="probationYesNo">Probezeit</label>
+            <select id="probationYesNo">
+                <option value="yes" selected>Ja</option>
+                <option value="no">Nein</option>
+            </select>
+
+            <div id="probationMonthsLabel">
+                <label for="probationMonths">Probezeit Monate</label>
+            </div>
+            <div id="probationMonthsField">
+                <select id="probationMonths">
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                </select>
+            </div>
+
+            <div id="probationEndDateLabel">
+                <label>Ende der Probezeit</label>
+            </div>
+            <div id="probationEndDateField">
+                <div id="probationEndDate" class="readonly"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Lohn / Modell</div>
+        <div class="grid">
+            <label for="salaryType">Lohnart</label>
+            <input type="text" id="salaryType" readonly value="hourly">
+
+            <div id="hourlyRateLabel">
+                <label for="hourlyRate">Stundenlohn</label>
+            </div>
+            <div id="hourlyRateField">
+                <input type="number" id="hourlyRate" step="0.01">
+            </div>
+
+            <div id="monthlySalaryLabel" class="hidden">
+                <label for="monthlySalary">Monatslohn</label>
+            </div>
+            <div id="monthlySalaryField" class="hidden">
+                <input type="number" id="monthlySalary" step="0.01">
+            </div>
+
+            <div id="percentageLabel" class="hidden">
+                <label for="percentage">Pensum %</label>
+            </div>
+            <div id="percentageField" class="hidden">
+                <select id="percentage">
+                    <option value="50">50%</option>
+                    <option value="60">60%</option>
+                    <option value="70">70%</option>
+                    <option value="80" selected>80%</option>
+                    <option value="90">90%</option>
+                    <option value="100">100%</option>
+                </select>
+            </div>
+
+            <div id="guaranteedHoursLabel" class="hidden">
+                <label for="guaranteedHours">Garantierte Stunden / Woche</label>
+            </div>
+            <div id="guaranteedHoursField" class="hidden">
+                <input type="number" id="guaranteedHours" step="1" min="0" value="18">
+            </div>
+        </div>
+
+        <div class="top-buttons">
+            <button type="button" onclick="applyMinimumWageSuggestion()">Mindestlohn übernehmen</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Live-Prüfung</div>
+        <div id="liveResult">Noch keine Prüfung durchgeführt.</div>
+
+        <div id="minimumWageStatusBox" class="status-box hidden">
+            <div id="minimumWageSummary"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Speichern &amp; PDF</div>
+        <div class="top-buttons">
+            <button type="button" onclick="saveEmployment()">Anstellung speichern</button>
+            <button type="button" onclick="downloadContractPdf()" id="btnPdf" style="background:#e65c00;" disabled>
+                📄 Vertrag als PDF herunterladen
+            </button>
+        </div>
+        <div id="saveResult" style="margin-top: 12px;">Noch nicht gespeichert.</div>
+    </div>
+
+    <script>
+        const fixedCompanyProfileId = 1;
+        let selectedCompanyProfile = null;
+        let selectedCsvFile = null;
+        let lastComplianceResult = null;
+
+        async function init() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('createdDate').value = today;
+            document.getElementById('startDate').value = today;
+
+            setupDropzone();
+
+            await loadEmployees();
+            await loadJobGroups();
+            await loadEducationLevels();
+            await loadNationalities();
+            await loadCompanyProfile();
+
+            updateForm();
+            await checkLive();
+
+            wireEvents();
+        }
+
+        function wireEvents() {
+            document.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('change', async () => {
+                    if (el.id === 'employeeId') {
+                        await loadSnapshot(el.value);
+                    }
+                    updateForm();
+                    await checkLive();
+                });
+
+                el.addEventListener('input', async () => {
+                    updateForm();
+                    await checkLive();
+                });
+            });
+        }
+
+        async function loadEmployees() {
+            const select = document.getElementById('employeeId');
+            select.innerHTML = '<option value="">Lade Mitarbeitende...</option>';
+
+            try {
+                const response = await fetch(`/api/employees/lookup/company/${fixedCompanyProfileId}`);
+                const data = await response.json();
+
+                select.innerHTML = '';
+
+                data.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.id ?? item.Id;
+                    option.textContent = item.displayName ?? item.DisplayName;
+                    select.appendChild(option);
+                });
+
+                if (select.options.length === 0) {
+                    select.innerHTML = '<option value="">Keine Mitarbeitenden gefunden</option>';
+                }
+            } catch (error) {
+                console.error(error);
+                select.innerHTML = '<option value="">Fehler beim Laden</option>';
+            }
+        }
+
+        // ── Import-Snapshot Banner ────────────────────────────────────────
+        let currentSnapshot = null;
+        let nationalityCodeToId = {}; // code (z.B. "CH") → id (numerisch)
+
+        async function loadSnapshot(employeeId) {
+            const banner = document.getElementById('snapshotBanner');
+            if (!employeeId) {
+                banner.style.display = 'none';
+                currentSnapshot = null;
+                return;
+            }
+            try {
+                const res = await fetch(`/api/employeeimportsnapshot/latest/${employeeId}`);
+                if (!res.ok) {
+                    banner.style.display = 'none';
+                    currentSnapshot = null;
+                    return;
+                }
+                currentSnapshot = await res.json();
+                showSnapshotBanner(currentSnapshot);
+            } catch (e) {
+                banner.style.display = 'none';
+                currentSnapshot = null;
+            }
+        }
+
+        function showSnapshotBanner(snap) {
+            const banner = document.getElementById('snapshotBanner');
+            const content = document.getElementById('snapshotContent');
+            const rows = [];
+
+            if (snap.jobTitle)        rows.push(`<label>Funktion (Import)</label><div class="readonly">${snap.jobTitle}</div>`);
+            if (snap.employmentModel) rows.push(`<label>Vertragstyp</label><div class="readonly">${snap.employmentModel}</div>`);
+            if (snap.hourlyRate)      rows.push(`<label>Stundenlohn</label><div class="readonly">CHF ${Number(snap.hourlyRate).toFixed(2)}</div>`);
+            if (snap.monthlySalary)   rows.push(`<label>Monatslohn</label><div class="readonly">CHF ${Number(snap.monthlySalary).toFixed(2)}</div>`);
+            if (snap.weeklyHours)     rows.push(`<label>Wochenstunden</label><div class="readonly">${snap.weeklyHours} Std./Woche</div>`);
+            if (snap.jobGroupCode)    rows.push(`<label>Funktionsgruppe</label><div class="readonly">${snap.jobGroupCode}</div>`);
+            const nc = snap.nationalityCode ?? snap.NationalityCode;
+            if (nc) rows.push(`<label>Nationalität</label><div class="readonly">${nc}</div>`);
+
+            if (rows.length === 0) { banner.style.display = 'none'; return; }
+            content.innerHTML = rows.join('');
+            banner.style.display = 'block';
+        }
+
+        function applySnapshot() {
+            if (!currentSnapshot) return;
+
+            const snap = currentSnapshot;
+
+            if (snap.employmentModel) {
+                const em = document.getElementById('employmentModel');
+                if (em) em.value = snap.employmentModel;
+            }
+            if (snap.jobGroupCode) {
+                const jg = document.getElementById('jobGroupCode');
+                if (jg) jg.value = snap.jobGroupCode;
+            }
+            if (snap.hourlyRate) {
+                const hr = document.getElementById('hourlyRate');
+                if (hr) hr.value = Number(snap.hourlyRate).toFixed(2);
+            }
+            if (snap.monthlySalary) {
+                const ms = document.getElementById('monthlySalary');
+                if (ms) ms.value = Number(snap.monthlySalary).toFixed(2);
+            }
+            const guaranteedVal = snap.guaranteedHoursPerWeek ?? snap.weeklyHours;
+            if (guaranteedVal) {
+                const wh = document.getElementById('guaranteedHours');
+                if (wh) wh.value = Math.round(guaranteedVal);
+            }
+            // Nationalität: Code (z.B. "CH") → numerische ID im Dropdown
+            const natCode = (snap.nationalityCode ?? snap.NationalityCode ?? '').toUpperCase();
+            if (natCode) {
+                const natId = nationalityCodeToId[natCode];
+                if (natId !== undefined) {
+                    const nat = document.getElementById('nationalityId');
+                    if (nat) nat.value = natId;
+                }
+            }
+
+            updateForm();
+            checkLive();
+            dismissSnapshot();
+        }
+
+        function dismissSnapshot() {
+            document.getElementById('snapshotBanner').style.display = 'none';
+        }
+        // ─────────────────────────────────────────────────────────────────
+
+        async function loadJobGroups() {
+            const select = document.getElementById('jobGroupCode');
+            select.innerHTML = '<option value="">Lade Funktionen...</option>';
+
+            try {
+                const response = await fetch('/api/jobgroups');
+                const data = await response.json();
+
+                select.innerHTML = '';
+
+                data.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.code ?? item.Code;
+                    option.textContent = item.displayName ?? item.DisplayName ?? item.code ?? item.Code;
+                    select.appendChild(option);
+                });
+
+                if (select.options.length === 0) {
+                    select.innerHTML = '<option value="">Keine Funktionen gefunden</option>';
+                }
+            } catch (error) {
+                console.error(error);
+                select.innerHTML = '<option value="">Fehler beim Laden</option>';
+            }
+        }
+
+        async function loadEducationLevels() {
+            const select = document.getElementById('educationLevelCode');
+            select.innerHTML = '<option value="">Lade Ausbildung...</option>';
+
+            try {
+                const response = await fetch('/api/educationlevels');
+                const data = await response.json();
+
+                select.innerHTML = '';
+
+                const sortOrder = ['Ia', 'Ib', 'II', 'IIIa', 'IIIb', 'VI'];
+                data.sort((a, b) => {
+                    const codeA = a.code ?? a.Code ?? '';
+                    const codeB = b.code ?? b.Code ?? '';
+                    const iA = sortOrder.indexOf(codeA);
+                    const iB = sortOrder.indexOf(codeB);
+                    if (iA === -1 && iB === -1) return codeA.localeCompare(codeB);
+                    if (iA === -1) return 1;
+                    if (iB === -1) return -1;
+                    return iA - iB;
+                });
+
+                data.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.code ?? item.Code;
+                    option.textContent = item.name ?? item.Name ?? item.code ?? item.Code;
+                    select.appendChild(option);
+                });
+
+                if (select.options.length === 0) {
+                    select.innerHTML = '<option value="">Keine Ausbildung gefunden</option>';
+                } else {
+                    // Standardmässig Ia vorselektieren
+                    const iaOption = Array.from(select.options).find(o => o.value === 'Ia');
+                    if (iaOption) select.value = 'Ia';
+                }
+            } catch (error) {
+                console.error(error);
+                select.innerHTML = '<option value="">Fehler beim Laden</option>';
+            }
+        }
+
+        async function loadNationalities() {
+            const select = document.getElementById('nationalityId');
+            select.innerHTML = '<option value="">Lade Nationalitäten...</option>';
+
+            try {
+                const response = await fetch('/api/nationalities');
+                const data = await response.json();
+
+                select.innerHTML = '';
+                nationalityCodeToId = {};
+
+                data.forEach(item => {
+                    const id   = item.id   ?? item.Id;
+                    const code = item.code ?? item.Code;
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = item.name ?? item.Name ?? code;
+                    select.appendChild(option);
+                    if (code) nationalityCodeToId[code.toUpperCase()] = id;
+                });
+
+                if (select.options.length === 0) {
+                    select.innerHTML = '<option value="">Keine Nationalitäten gefunden</option>';
+                }
+            } catch (error) {
+                console.error(error);
+                select.innerHTML = '<option value="">Fehler beim Laden</option>';
+            }
+        }
+
+        async function loadCompanyProfile() {
+            try {
+                const response = await fetch('/api/companyprofiles');
+                const companies = await response.json();
+                selectedCompanyProfile = companies.find(c => c.id === fixedCompanyProfileId) || null;
+
+                document.getElementById('companyNameDisplay').innerText = selectedCompanyProfile?.companyName ?? '-';
+                document.getElementById('normalWeeklyHoursDisplay').innerText = selectedCompanyProfile?.normalWeeklyHours ?? '-';
+                document.getElementById('maxPartTimeHoursDisplay').innerText = selectedCompanyProfile?.maxPartTimeHoursPerWeek ?? '-';
+                document.getElementById('holdBackVacationPayoutDisplay').innerText = selectedCompanyProfile?.holdBackVacationPayout ? 'Ja' : 'Nein';
+                document.getElementById('payrollPeriodStartDayDisplay').innerText = selectedCompanyProfile?.payrollPeriodStartDay ?? '-';
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function showElement(id, visible) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (visible) el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        }
+
+        function updateForm() {
+            const model = document.getElementById('employmentModel').value;
+            const salaryTypeInput = document.getElementById('salaryType');
+
+            showElement('hourlyRateLabel', false);
+            showElement('hourlyRateField', false);
+            showElement('monthlySalaryLabel', false);
+            showElement('monthlySalaryField', false);
+            showElement('percentageLabel', false);
+            showElement('percentageField', false);
+            showElement('guaranteedHoursLabel', false);
+            showElement('guaranteedHoursField', false);
+
+            if (model === 'UTP') {
+                salaryTypeInput.value = 'hourly';
+                showElement('hourlyRateLabel', true);
+                showElement('hourlyRateField', true);
+            }
+
+            if (model === 'MTP') {
+                salaryTypeInput.value = 'hourly';
+                showElement('hourlyRateLabel', true);
+                showElement('hourlyRateField', true);
+                showElement('guaranteedHoursLabel', true);
+                showElement('guaranteedHoursField', true);
+            }
+
+            if (model === 'FIX' || model === 'FIX-M') {
+                salaryTypeInput.value = 'monthly';
+                showElement('monthlySalaryLabel', true);
+                showElement('monthlySalaryField', true);
+                showElement('percentageLabel', true);
+                showElement('percentageField', true);
+            }
+
+            updateContractRules();
+            calculateContractEndDate();
+            calculateProbationEndDate();
+        }
+
+        function updateContractRules() {
+            const existingContract = document.getElementById('existingContract').value;
+            const probationYesNo = document.getElementById('probationYesNo');
+            const fixedTermYesNo = document.getElementById('fixedTermYesNo');
+
+            if (existingContract === 'yes') {
+                probationYesNo.value = 'no';
+                probationYesNo.disabled = true;
+                fixedTermYesNo.value = 'no';
+                fixedTermYesNo.disabled = true;
+            } else {
+                probationYesNo.disabled = false;
+                fixedTermYesNo.disabled = false;
+            }
+
+            const probationVisible = probationYesNo.value === 'yes';
+            showElement('probationMonthsLabel', probationVisible);
+            showElement('probationMonthsField', probationVisible);
+            showElement('probationEndDateLabel', probationVisible);
+            showElement('probationEndDateField', probationVisible);
+
+            const fixedTermVisible = fixedTermYesNo.value === 'yes';
+            showElement('fixedTermMonthsLabel', fixedTermVisible);
+            showElement('fixedTermMonthsField', fixedTermVisible);
+            showElement('calculatedEndDateLabel', fixedTermVisible);
+            showElement('calculatedEndDateField', fixedTermVisible);
+
+            if (!probationVisible) {
+                document.getElementById('probationEndDate').innerText = '';
+            }
+
+            if (!fixedTermVisible) {
+                document.getElementById('calculatedEndDate').innerText = '';
+            }
+        }
+
+        function addMonths(date, months) {
+            const d = new Date(date);
+            const day = d.getDate();
+            d.setMonth(d.getMonth() + months);
+            if (d.getDate() < day) d.setDate(0);
+            return d;
+        }
+
+        function formatDate(date) {
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function lastDayOfMonth(date) {
+            return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        }
+
+        function calculateContractEndDate() {
+            const fixedTermYesNo = document.getElementById('fixedTermYesNo').value;
+            const startDateValue = document.getElementById('startDate').value;
+            const monthsValue = parseInt(document.getElementById('fixedTermMonths').value || '0', 10);
+            const model = document.getElementById('employmentModel').value;
+            const target = document.getElementById('calculatedEndDate');
+
+            if (fixedTermYesNo !== 'yes' || !startDateValue || !monthsValue) {
+                target.innerText = '';
+                return null;
+            }
+
+            const startDate = new Date(startDateValue);
+            const rawEnd = addMonths(startDate, monthsValue);
+            rawEnd.setDate(rawEnd.getDate() - 1);
+
+            let calculatedEnd = new Date(rawEnd);
+
+            if (model === 'FIX') {
+                const endOfRawMonth = lastDayOfMonth(rawEnd);
+                if (endOfRawMonth <= rawEnd) calculatedEnd = endOfRawMonth;
+                else calculatedEnd = new Date(rawEnd.getFullYear(), rawEnd.getMonth(), 0);
+            } else {
+                calculatedEnd = rawEnd;
+            }
+
+            target.innerText = formatDate(calculatedEnd);
+            return calculatedEnd;
+        }
+
+        function calculateProbationEndDate() {
+            const probationYesNo = document.getElementById('probationYesNo').value;
+            const startDateValue = document.getElementById('startDate').value;
+            const monthsValue = parseInt(document.getElementById('probationMonths').value || '0', 10);
+            const target = document.getElementById('probationEndDate');
+
+            if (probationYesNo !== 'yes' || !startDateValue) {
+                target.innerText = '';
+                return null;
+            }
+
+            const startDate = new Date(startDateValue);
+            const end = addMonths(startDate, monthsValue);
+            end.setDate(end.getDate() - 1);
+            target.innerText = formatDate(end);
+            return end;
+        }
+
+        function formatMoney(value) {
+            if (value === null || value === undefined || value === '') return '-';
+            return `CHF ${Number(value).toFixed(2)}`;
+        }
+
+        function renderMinimumWageStatus(result, salaryType) {
+            const box = document.getElementById('minimumWageStatusBox');
+            const summary = document.getElementById('minimumWageSummary');
+
+            if (!result) {
+                box.className = 'status-box hidden';
+                summary.innerHTML = '';
+                return;
+            }
+
+            box.className = 'status-box';
+            box.classList.remove('hidden');
+
+            let html = '';
+
+            if (salaryType === 'hourly') {
+                html += `<div><strong>Mindest-Stundenlohn:</strong> ${formatMoney(result.minimumHourlyRate)}</div>`;
+                html += `<div><strong>Aktueller Stundenlohn:</strong> ${formatMoney(result.currentHourlyRate)}</div>`;
+            }
+
+            if (salaryType === 'monthly') {
+                html += `<div><strong>Mindest-Monatslohn:</strong> ${formatMoney(result.minimumMonthlySalary)}</div>`;
+                html += `<div><strong>Aktueller Monatslohn:</strong> ${formatMoney(result.currentMonthlySalary)}</div>`;
+            }
+
+            if (result.difference !== undefined && result.difference !== null) {
+                html += `<div><strong>Differenz:</strong> ${formatMoney(result.difference)}</div>`;
+            }
+
+            if (result.status === 'UNDERPAID') {
+                box.classList.add('status-warn');
+                html += `<div class="warn">Lohn zu tief</div>`;
+                if (result.warningMessage) html += `<div>${result.warningMessage}</div>`;
+            } else if (result.status === 'OK') {
+                const diff = Number(result.difference ?? 0);
+
+                if (diff > 0) {
+                    box.classList.add('status-info');
+                    html += `<div class="info">Lohn zu hoch</div>`;
+                } else {
+                    box.classList.add('status-ok');
+                    html += `<div class="ok">Lohn ist in Ordnung</div>`;
+                }
+            } else {
+                box.classList.add('status-info');
+                html += `<div class="info">${result.warningMessage ?? 'Noch keine vollständige Prüfung möglich.'}</div>`;
+            }
+
+            summary.innerHTML = html;
+        }
+
+        async function checkLive() {
+            const startDate = document.getElementById('startDate').value;
+            const jobGroupCode = document.getElementById('jobGroupCode').value;
+            const educationLevelCode = document.getElementById('educationLevelCode').value;
+            const employmentModel = document.getElementById('employmentModel').value;
+            const salaryType = document.getElementById('salaryType').value;
+            const hourlyRateValue = document.getElementById('hourlyRate').value;
+            const monthlySalaryValue = document.getElementById('monthlySalary').value;
+            const guaranteedHoursValue = document.getElementById('guaranteedHours').value;
+
+            const resultDiv = document.getElementById('liveResult');
+
+            if (!startDate || !jobGroupCode || !educationLevelCode) {
+                resultDiv.innerHTML = 'Bitte Vertragsbeginn, Funktion und Ausbildung erfassen.';
+                renderMinimumWageStatus(null, salaryType);
+                return;
+            }
+
+            let html = '';
+
+            if (selectedCompanyProfile) {
+                html += `<p><strong>Betrieb:</strong> ${selectedCompanyProfile.companyName}</p>`;
+                html += `<p><strong>Wochenstunden Betrieb:</strong> ${selectedCompanyProfile.normalWeeklyHours ?? '-'}</p>`;
+            }
+
+            if (employmentModel === 'MTP') {
+                const hours = parseInt(guaranteedHoursValue || '0', 10);
+                if (!Number.isInteger(hours) || hours <= 0) {
+                    html += `<p class="warn">Bitte ganze garantierte Stunden erfassen.</p>`;
+                } else {
+                    if (hours < 17) html += `<p class="warn">MTP: Mindestens 17 Stunden/Woche empfohlen.</p>`;
+                    if (hours >= 33) html += `<p class="info">Hinweis: Ab 33 Stunden wäre ein FIX-Vertrag oft sinnvoller.</p>`;
+                }
+            }
+
+            const percentageEl = document.getElementById('percentage');
+            const employmentPercentage = percentageEl && percentageEl.closest('.hidden') == null
+                ? parseFloat(percentageEl.value || '100')
+                : 100;
+
+            const body = {
+                jobGroupCode,
+                educationLevelCode,
+                effectiveDate: startDate,
+                employmentModel,
+                employmentPercentage,
+                hourlyRate: salaryType === 'hourly' && hourlyRateValue ? parseFloat(hourlyRateValue) : null,
+                monthlySalary: salaryType === 'monthly' && monthlySalaryValue ? parseFloat(monthlySalaryValue) : null
+            };
+
+            try {
+                const response = await fetch('/api/compliance/check-live', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const result = await response.json();
+                lastComplianceResult = result;
+
+                html += `<p><strong>Status:</strong> ${result.status}</p>`;
+
+                if (result.minimumHourlyRate != null) {
+                    html += `<p><strong>Mindest-Stundenlohn:</strong> ${formatMoney(result.minimumHourlyRate)}</p>`;
+                }
+
+                if (result.currentHourlyRate != null) {
+                    html += `<p><strong>Aktueller Stundenlohn:</strong> ${formatMoney(result.currentHourlyRate)}</p>`;
+                }
+
+                if (result.minimumMonthlySalary != null) {
+                    const pct = result.employmentPercentage ?? 100;
+                    if (pct < 100 && result.minimumMonthlySalaryFte != null) {
+                        html += `<p><strong>Mindest-Monatslohn:</strong> ${formatMoney(result.minimumMonthlySalary)} <span class="muted">(${pct}% von ${formatMoney(result.minimumMonthlySalaryFte)})</span></p>`;
+                    } else {
+                        html += `<p><strong>Mindest-Monatslohn:</strong> ${formatMoney(result.minimumMonthlySalary)}</p>`;
+                    }
+                }
+
+                if (result.currentMonthlySalary != null) {
+                    const pct = result.employmentPercentage ?? 100;
+                    if (pct < 100 && result.currentMonthlySalaryFte != null) {
+                        html += `<p><strong>Aktueller Monatslohn:</strong> ${formatMoney(result.currentMonthlySalary)} <span class="muted">(${pct}% von ${formatMoney(result.currentMonthlySalaryFte)})</span></p>`;
+                    } else {
+                        html += `<p><strong>Aktueller Monatslohn:</strong> ${formatMoney(result.currentMonthlySalary)}</p>`;
+                    }
+                }
+
+                if (result.difference != null) {
+                    html += `<p><strong>Differenz:</strong> ${formatMoney(result.difference)}</p>`;
+                }
+
+                resultDiv.innerHTML = html;
+                renderMinimumWageStatus(result, salaryType);
+            } catch (error) {
+                console.error(error);
+                resultDiv.innerHTML = '<span class="warn">Fehler bei der Live-Prüfung.</span>';
+                renderMinimumWageStatus(null, salaryType);
+            }
+        }
+
+        function applyMinimumWageSuggestion() {
+            if (!lastComplianceResult) return;
+
+            const salaryType = document.getElementById('salaryType').value;
+
+            if (salaryType === 'hourly' && lastComplianceResult.minimumHourlyRate != null) {
+                document.getElementById('hourlyRate').value = Number(lastComplianceResult.minimumHourlyRate).toFixed(2);
+            }
+
+            if (salaryType === 'monthly') {
+                // Immer den 100%-Basissatz ins Feld schreiben (FTE)
+                const fte = lastComplianceResult.minimumMonthlySalaryFte ?? lastComplianceResult.minimumMonthlySalary;
+                if (fte != null) {
+                    document.getElementById('monthlySalary').value = Number(fte).toFixed(2);
+                }
+            }
+
+            checkLive();
+        }
+
+        async function saveEmployment() {
+            const employeeId = parseInt(document.getElementById('employeeId').value, 10);
+
+            if (!employeeId) {
+                document.getElementById('saveResult').innerHTML = '<span class="warn">Bitte zuerst einen Mitarbeiter auswählen.</span>';
+                return;
+            }
+
+            const employmentModel = document.getElementById('employmentModel').value;
+            const salaryType = document.getElementById('salaryType').value;
+            const startDate = document.getElementById('startDate').value;
+            const jobGroupCode = document.getElementById('jobGroupCode').value;
+            const fixedTermYesNo = document.getElementById('fixedTermYesNo').value;
+            const probationYesNo = document.getElementById('probationYesNo').value;
+
+            const payload = {
+                employeeId: employeeId,
+                companyProfileId: fixedCompanyProfileId,
+                employmentModel: employmentModel,
+                salaryType: salaryType,
+                contractStartDate: startDate,
+                contractEndDate: fixedTermYesNo === 'yes' ? document.getElementById('calculatedEndDate').innerText || null : null,
+                jobTitle: jobGroupCode,
+                contractType: fixedTermYesNo === 'yes' ? 'befristet' : 'unbefristet',
+                employmentPercentage: (employmentModel === 'FIX' || employmentModel === 'FIX-M') ? parseFloat(document.getElementById('percentage').value) : null,
+                weeklyHours: employmentModel === 'MTP' ? parseFloat(document.getElementById('guaranteedHours').value || '0') : null,
+                guaranteedHoursPerWeek: employmentModel === 'MTP' ? parseFloat(document.getElementById('guaranteedHours').value || '0') : null,
+                monthlySalary: salaryType === 'monthly' ? parseFloat(document.getElementById('monthlySalary').value || '0') : null,
+                hourlyRate: salaryType === 'hourly' ? parseFloat(document.getElementById('hourlyRate').value || '0') : null,
+                vacationPercent: salaryType === 'hourly' ? 10.64 : null,
+                holidayPercent: salaryType === 'hourly' ? 3.5 : null,
+                thirteenthSalaryPercent: salaryType === 'hourly' ? 8.33 : null,
+                vacationPaymentMode: selectedCompanyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary',
+                probationPeriodMonths: probationYesNo === 'yes' ? parseInt(document.getElementById('probationMonths').value || '0', 10) : null,
+                probationEndDate: probationYesNo === 'yes' ? document.getElementById('probationEndDate').innerText || null : null,
+                isActive: true
+            };
+
+            try {
+                const response = await fetch('/api/employments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    document.getElementById('saveResult').innerHTML = `<span class="warn">Fehler beim Speichern: ${text}</span>`;
+                    return;
+                }
+
+                const result = await response.json();
+                const newId = result.id;
+                document.getElementById('saveResult').innerHTML =
+                    `<span class="ok">Anstellung gespeichert. ID: ${newId}</span>`;
+                // PDF-Button aktivieren
+                const btnPdf = document.getElementById('btnPdf');
+                btnPdf.disabled = false;
+                btnPdf.dataset.employmentId = newId;
+            } catch (error) {
+                console.error(error);
+                document.getElementById('saveResult').innerHTML = '<span class="warn">Technischer Fehler beim Speichern.</span>';
+            }
+        }
+
+        async function downloadContractPdf() {
+            const btnPdf = document.getElementById('btnPdf');
+            const employmentId = btnPdf.dataset.employmentId;
+            if (!employmentId) return;
+
+            btnPdf.textContent = '⏳ PDF wird erstellt…';
+            btnPdf.disabled = true;
+
+            try {
+                const response = await fetch(`/api/contracts/employment/${employmentId}/pdf`);
+                if (!response.ok) {
+                    const text = await response.text();
+                    alert('Fehler beim PDF-Erstellen: ' + text);
+                    return;
+                }
+                const blob = await response.blob();
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                const cd   = response.headers.get('Content-Disposition') || '';
+                const match = cd.match(/filename="?([^"]+)"?/);
+                a.download = match ? match[1] : 'Vertrag.pdf';
+                a.href = url;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Technischer Fehler: ' + err.message);
+            } finally {
+                btnPdf.textContent = '📄 Vertrag als PDF herunterladen';
+                btnPdf.disabled = false;
+            }
+        }
+
+        function setupDropzone() {
+            const dropzone = document.getElementById('dropzone');
+            const fileInput = document.getElementById('csvFileInput');
+
+            dropzone.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                setSelectedCsvFile(file);
+            });
+
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+
+                const file = e.dataTransfer.files && e.dataTransfer.files[0]
+                    ? e.dataTransfer.files[0]
+                    : null;
+
+                setSelectedCsvFile(file);
+            });
+        }
+
+        function setSelectedCsvFile(file) {
+            selectedCsvFile = file ?? null;
+            document.getElementById('importFileName').innerText =
+                selectedCsvFile ? `Ausgewählt: ${selectedCsvFile.name}` : 'Keine Datei ausgewählt.';
+        }
+
+        async function uploadEmployeeCsv() {
+            const resultBox = document.getElementById('importResult');
+
+            if (!selectedCsvFile) {
+                resultBox.innerHTML = '<span class="warn">Bitte zuerst eine CSV-Datei auswählen.</span>';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', selectedCsvFile);
+
+            resultBox.innerHTML = '<span class="info">Import läuft...</span>';
+
+            try {
+                const response = await fetch(`/api/employeeimport/upload/${fixedCompanyProfileId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const text = await response.text();
+
+                if (!response.ok) {
+                    resultBox.innerHTML = `<span class="warn">Fehler beim Import: ${text}</span>`;
+                    return;
+                }
+
+                const result = JSON.parse(text);
+
+                resultBox.innerHTML = `
+                    <div class="ok">Import erfolgreich.</div>
+                    <div><strong>Restaurant:</strong> ${result.restaurantCode ?? '-'}</div>
+                    <div><strong>Importierte Zeilen:</strong> ${result.importedRows ?? 0}</div>
+                    <div><strong>Neu:</strong> ${result.inserted ?? 0}</div>
+                    <div><strong>Aktualisiert:</strong> ${result.updated ?? 0}</div>
+                    <div><strong>Reaktiviert:</strong> ${result.reactivated ?? 0}</div>
+                    <div><strong>Inaktiv gesetzt:</strong> ${result.deactivated ?? 0}</div>
+                    ${result.message ? `<div class="info">${result.message}</div>` : ''}
+                `;
+
+                await loadEmployees();
+            } catch (error) {
+                console.error(error);
+                resultBox.innerHTML = '<span class="warn">Technischer Fehler beim Import.</span>';
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

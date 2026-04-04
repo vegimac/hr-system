@@ -1,0 +1,29 @@
+@hr_system_HostAddress = http://localhost:5046
+
+GET {{hr_system_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+POST {{hr_system_HostAddress}}/api/employees
+Content-Type: application/json
+
+{
+  "employeeNumber": "1002",
+  "salutation": "Herr",
+  "firstName": "Peter",
+  "lastName": "Beispiel",
+  "street": "Bahnhofstrasse",
+  "houseNumber": "12",
+  "zipCode": "8001",
+  "city": "Zürich",
+  "country": "Schweiz",
+  "dateOfBirth": "1995-05-10",
+  "nationality": "Schweiz",
+  "languageCode": "de",
+  "phoneMobile": "0791234567",
+  "email": "peter.beispiel@test.ch",
+  "entryDate": "2026-04-01",
+  "isActive": true
+}
+
+###
