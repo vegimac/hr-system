@@ -41,7 +41,38 @@ public class CompanyProfile
 
     public int? SelectedContractTemplateId { get; set; }
 
+    // NEU: Lohnzuschläge
+    public decimal? DefaultVacationPercent5Weeks { get; set; } = 10.64m;
+    public decimal? DefaultVacationPercent6Weeks { get; set; } = 13.04m;
+    public decimal? DefaultHolidayPercent { get; set; } = 2.27m;
+
+    // Nachtstunden-Grenzen (Format "HH:mm", z.B. "00:00" und "07:00")
+    public string? NightStartTime { get; set; } = "00:00";
+    public string? NightEndTime   { get; set; } = "07:00";
+
     public bool IsActive { get; set; } = true;
+
+    // ── Zwischenverdienst / Behörden ─────────────────────────────────────────
+    /// <summary>BUR-Nummer (Betriebseinheitenregister), Format CH-XXX.X.XXX.XXX-X</summary>
+    public string? BurNummer { get; set; }
+
+    /// <summary>UID-Nummer (Unternehmens-Identifikationsnummer), Format CHE-XXX.XXX.XXX</summary>
+    public string? UidNummer { get; set; }
+
+    /// <summary>NOGA-Branchen-Code (2–5 Stellen)</summary>
+    public string? BranchenCode { get; set; }
+
+    /// <summary>Name und Nummer der AHV-Ausgleichskasse</summary>
+    public string? AhvKasse { get; set; }
+
+    /// <summary>Name des BVG-Versicherers</summary>
+    public string? BvgVersicherer { get; set; }
+
+    /// <summary>Gesamtarbeitsvertrag (GAV) dem der Betrieb unterstellt ist</summary>
+    public string? GavName { get; set; }
+
+    /// <summary>true = Betrieb ist einem GAV unterstellt</summary>
+    public bool IstGav { get; set; } = false;
 
     public List<CompanySignatory> Signatories { get; set; } = new();
 

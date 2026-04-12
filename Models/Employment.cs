@@ -25,7 +25,8 @@ public class Employment
     public decimal? WeeklyHours { get; set; }
     public decimal? GuaranteedHoursPerWeek { get; set; }
 
-    public decimal? MonthlySalary { get; set; }
+    public decimal? MonthlySalaryFte { get; set; }   // 100%-Lohn (Vollpensum-Referenz)
+    public decimal? MonthlySalary { get; set; }       // tatsächlicher Lohn (nach Pensum)
     public decimal? HourlyRate { get; set; }
 
     public decimal? VacationPercent { get; set; }

@@ -94,6 +94,11 @@ public class EmployeeImportController : ControllerBase
                     Salutation = FirstNonEmpty(
                         GetValue(fields, headerMap, "Anrede")
                     ),
+                    // NEU: Gender aus CSV einlesen
+                    Gender = MapGender(FirstNonEmpty(
+                        GetValue(fields, headerMap, "Geschlecht"),
+                        GetValue(fields, headerMap, "Gender")
+                    )),
                     FirstName = FirstNonEmpty(
                         GetValue(fields, headerMap, "Vorname"),
                         GetValue(fields, headerMap, "First name")
@@ -136,7 +141,7 @@ public class EmployeeImportController : ControllerBase
                     Nationality = FirstNonEmpty(
                         GetValue(fields, headerMap, "Nationalität"),
                         GetValue(fields, headerMap, "Nationality"),
-                        "CH" // Default: Schweiz
+                        "CH"
                     ),
                     EntryDate = ParseDate(FirstNonEmpty(
                         GetValue(fields, headerMap, "Datum der Betriebszugehörigkeit"),
@@ -156,7 +161,6 @@ public class EmployeeImportController : ControllerBase
                         GetValue(fields, headerMap, "EXPIRATN_DT"),
                         GetValue(fields, headerMap, "Visa expiration date")
                     )),
-
                     JobGroupCodeSuggestion = MapImportedJobGroup(FirstNonEmpty(
                         GetValue(fields, headerMap, "Funktion"),
                         GetValue(fields, headerMap, "Funktionen"),
@@ -190,7 +194,15 @@ public class EmployeeImportController : ControllerBase
                             GetValue(fields, headerMap, "Hourly rate"),
                             GetValue(fields, headerMap, "Stundenlohn")))
                         : null,
-                    MonthlySalarySuggestion = !IsHourlyModel(MapImportedEmploymentModel(
+                    // Pensum aus CSV (z.B. "80" oder "80.00")
+                    EmploymentPercentageSuggestion = ParseDecimal(FirstNonEmpty(
+                        GetValue(fields, headerMap, "Pensum"),
+                        GetValue(fields, headerMap, "Employment percentage"),
+                        GetValue(fields, headerMap, "FTE percent"),
+                        GetValue(fields, headerMap, "Percentage")
+                    )),
+                    // 100%-Lohn aus CSV (FTE = Full-Time Equivalent)
+                    MonthlySalaryFteSuggestion = !IsHourlyModel(MapImportedEmploymentModel(
                         FirstNonEmpty(GetValue(fields, headerMap, "Contract type")),
                         FirstNonEmpty(
                             GetValue(fields, headerMap, "Group memberships"),
@@ -298,6 +310,10 @@ public class EmployeeImportController : ControllerBase
             employee.PermitTypeId = ResolvePermitTypeId(row.PermitTypeRaw, permitTypes);
             employee.PermitExpiryDate = row.PermitExpiryDate;
 
+            // NEU: Gender auf dem Employee speichern
+            if (!string.IsNullOrWhiteSpace(row.Gender))
+                employee.Gender = row.Gender;
+
             await SaveSnapshotAsync(employee, row);
         }
 
@@ -343,11 +359,13 @@ public class EmployeeImportController : ControllerBase
         _context.EmployeeImportSnapshots.Add(new EmployeeImportSnapshot
         {
             EmployeeId = employee.Id,
+            Gender = row.Gender,   // NEU
             JobGroupCode = row.JobGroupCodeSuggestion,
             JobTitle = row.JobTitleSuggestion,
             EmploymentModel = row.EmploymentModelSuggestion,
             ContractType = row.ContractTypeSuggestion,
             HourlyRate = row.HourlyRateSuggestion,
+            MonthlySalaryFte = row.MonthlySalaryFteSuggestion,
             MonthlySalary = row.MonthlySalarySuggestion,
             WeeklyHours = row.WeeklyHoursSuggestion,
             NationalityCode = row.Nationality,
@@ -399,6 +417,21 @@ public class EmployeeImportController : ControllerBase
     private static string? NullIfEmpty(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    // NEU: Gender mappen (female/male aus CSV → normalisiert speichern)
+    private static string? MapGender(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "female"    => "female",
+            "male"      => "male",
+            "weiblich"  => "female",
+            "männlich"  => "male",
+            "w"         => "female",
+            "m"         => "male",
+            _           => null
+        };
     }
 
     private static DateTime? ParseDate(string? value)
@@ -527,25 +560,21 @@ public class EmployeeImportController : ControllerBase
     private static string MapImportedJobGroup(string? rawFunction)
     {
         if (string.IsNullOrWhiteSpace(rawFunction))
-            return "CREW"; // Default wenn leer
+            return "CREW";
 
         var value = rawFunction.Trim().ToLowerInvariant();
 
-        // Restaurant Manager (höchste Stufe zuerst prüfen)
         if (value.Contains("restaurant manager") || value.Contains("store manager"))
             return "REST_MANAGER";
 
-        // 1. Assistent (vor "2. Assistent" prüfen wegen Substring)
         if (value.Contains("1. assistent") || value.Contains("1.assistent") ||
             value.Contains("first assistant") || value.Contains("erster assistent"))
             return "ASST_1";
 
-        // 2. Assistent
         if (value.Contains("2. assistent") || value.Contains("2.assistent") ||
             value.Contains("second assistant") || value.Contains("zweiter assistent"))
             return "ASST_2";
 
-        // Supervisor → Swing Manager Niveau
         if (value.Contains("supervisor"))
             return "SWING";
 
@@ -561,24 +590,19 @@ public class EmployeeImportController : ControllerBase
         if (value.Contains("crew"))
             return "CREW";
 
-        return "CREW"; // Fallback für unbekannte Funktionen
+        return "CREW";
     }
 
     private static string? MapImportedEmploymentModel(string? contractType, string? groupMembership)
     {
         var ct = (contractType ?? "").Trim().ToLowerInvariant();
 
-        // MTP/TPM → MTP (Garantiertes Mindest-Teilzeitpensum)
         if (ct.Contains("mtp") || ct.Contains("tpm"))
             return "MTP";
 
-        // Flex → UTP (reiner Stundenlohn, keine garantierten Stunden)
         if (ct.Contains("flex"))
             return "UTP";
 
-        // Fix: Unterscheidung FIX vs FIX-M anhand Group memberships
-        // Leer oder "Employee"/"Empolye" → FIX (normaler Festpensum-Vertrag)
-        // Alles andere (Shift Manager, Store Manager, Supervisor …) → FIX-M
         if (ct.Contains("fix") || ct.Contains("full"))
         {
             return IsManagementGroup(groupMembership) ? "FIX-M" : "FIX";
@@ -590,9 +614,9 @@ public class EmployeeImportController : ControllerBase
     private static bool IsManagementGroup(string? groupMembership)
     {
         var g = (groupMembership ?? "").Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(g))           return false; // leer → kein Management
-        if (g.Contains("empolye") || g.Contains("employee")) return false; // Tippfehler-tolerant
-        return true; // alles andere = Management (Shift Manager, Store Manager, Supervisor …)
+        if (string.IsNullOrWhiteSpace(g))            return false;
+        if (g.Contains("empolye") || g.Contains("employee")) return false;
+        return true;
     }
 
     private static bool IsHourlyModel(string? model)
@@ -606,7 +630,6 @@ public class EmployeeImportController : ControllerBase
         if (string.IsNullOrWhiteSpace(value))
             return null;
 
-        // Extract leading number from strings like "17 Stunden/Woche" or "42 Stunden/Woche" or just "17"
         var match = Regex.Match(value.Trim(), @"^(\d+(?:[.,]\d+)?)");
         if (match.Success)
         {
@@ -641,6 +664,7 @@ public class EmployeeImportController : ControllerBase
     {
         public string EmployeeNumber { get; set; } = "";
         public string? Salutation { get; set; }
+        public string? Gender { get; set; }        // NEU
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? Address { get; set; }
@@ -662,7 +686,13 @@ public class EmployeeImportController : ControllerBase
         public string? EmploymentModelSuggestion { get; set; }
         public string? ContractTypeSuggestion { get; set; }
         public decimal? HourlyRateSuggestion { get; set; }
-        public decimal? MonthlySalarySuggestion { get; set; }
+        public decimal? MonthlySalaryFteSuggestion { get; set; }   // 100%-Lohn aus CSV
+        public decimal? EmploymentPercentageSuggestion { get; set; } // Pensum %
+        // Tatsächlicher Lohn = FTE × Pensum (wird in SaveSnapshotAsync berechnet)
+        public decimal? MonthlySalarySuggestion =>
+            MonthlySalaryFteSuggestion.HasValue && EmploymentPercentageSuggestion.HasValue
+                ? Math.Round(MonthlySalaryFteSuggestion.Value * EmploymentPercentageSuggestion.Value / 100m, 2)
+                : MonthlySalaryFteSuggestion;  // Fallback: wenn kein Pensum, FTE direkt verwenden
         public decimal? WeeklyHoursSuggestion { get; set; }
     }
 }

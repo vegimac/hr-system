@@ -34,7 +34,8 @@ public record ContractPdfInput(
     decimal? GuaranteedHoursPerWeek,
     decimal? VacationPercent,
     decimal? HolidayPercent,
-    decimal? ThirteenthSalaryPercent
+    decimal? ThirteenthSalaryPercent,
+    string? Gender
 );
 
 public class ContractPdfService
@@ -43,13 +44,9 @@ public class ContractPdfService
     private const string Dark   = "#27251F";
 
     private static byte[]? _bannerBytes;
-    private static byte[]? _lineBytes;
 
     private static byte[] BannerBytes => _bannerBytes ??=
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "letterhead_banner.png"));
-
-    private static byte[] LineBytes => _lineBytes ??=
-        File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "letterhead_line.png"));
 
     private static string CHF(decimal? v)
     {
@@ -69,12 +66,25 @@ public class ContractPdfService
         bool isFixM = d.EmploymentModel == "FIX-M";
         bool isFixed  = d.ContractEndDate.HasValue;
         bool hasProba = d.ProbationMonths is > 0;
-        int  vacWeeks = (int)(d.DefaultVacationWeeks ?? 5);
-        int  vacDays  = vacWeeks * 7;
+        // Ferienwochen basierend auf Alter am Vertragsbeginn
+        int vacWeeks;
+        if (d.DateOfBirth.HasValue)
+        {
+            var age = d.ContractStartDate.Year - d.DateOfBirth.Value.Year;
+            if (d.ContractStartDate < d.DateOfBirth.Value.AddYears(age)) age--;
+            vacWeeks = age >= 50 ? 6 : (int)(d.DefaultVacationWeeks ?? 5);
+        }
+        else
+        {
+            vacWeeks = (int)(d.DefaultVacationWeeks ?? 5);
+        }
+        int vacDays = vacWeeks * 7;
         string emp    = $"{d.Salutation} {d.FirstName} {d.LastName}".Trim();
 
         decimal pct        = d.EmploymentPercentage ?? 100m;
         decimal fixWeeklyH = Math.Round(pct / 100m * (decimal)(d.WeeklyHours ?? 42m), 1);
+        float sizeTitle = 10f;
+        float sizeText  = 9.5f;
 
         string titleText = isFixM
             ? "Arbeitsvertrag f\u00fcr Mitarbeiter* im Restaurant Management ( Vollzeit )"
@@ -94,22 +104,31 @@ public class ContractPdfService
         return Document.Create(container =>
         {
             // ══════════════════════════════════════════════
-            // SEITE 1 – Abschnitte 1–7 (inkl. 13. Monatslohn Text)
+            // SEITE 1 – Abschnitte 1–7
             // ══════════════════════════════════════════════
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginTop(0.3f, Unit.Centimetre);
-                page.MarginBottom(0.8f, Unit.Centimetre);
+                page.MarginTop(0.5f, Unit.Centimetre);
+                page.MarginBottom(0.5f, Unit.Centimetre);
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark));
-                page.Header().Image(BannerBytes).FitWidth();
-                page.Content().PaddingTop(0).Column(col =>
-                {
-                    col.Item().PaddingBottom(2).AlignCenter()
-                        .Text(titleText).Bold().FontSize(10.5f).FontColor(Dark);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(isMTP ? 8f : 11f).LineHeight(isMTP ? 1.05f : 1.3f).FontColor(Dark));
 
-                    col.Item().PaddingBottom(3).Column(p =>
+                // Header: Titel wird ÜBER das Banner-Bild gelegt
+                // NACHHER:
+                page.Header().Height(38).Layers(layers =>
+                {
+                    layers.Layer().Image(BannerBytes).FitWidth();
+                    layers.PrimaryLayer()
+                        .PaddingHorizontal(10)
+                        .PaddingTop(10)
+                        .Text(titleText).Bold().FontSize(11f).FontColor(Dark);
+                });
+
+                page.Content().PaddingTop(isMTP ? 1 : 6).Column(col =>
+                {
+                    // Parteien
+                    col.Item().PaddingBottom(4).Column(p =>
                     {
                         p.Item().Text("zwischen").Italic();
                         p.Item().PaddingTop(2).Row(r =>
@@ -144,7 +163,7 @@ public class ContractPdfService
                     {
                         col.Item().Element(c => P(c,
                             $"Der Mitarbeiter wird an seinem Arbeitsort im Restaurant in {d.WorkLocation}, " +
-                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied des Managements ist der Mitarbeiter " +
+                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied des McDonald's Managements ist der Mitarbeiter " +
                             "einverstanden, je nach Bedarf, weitere seiner Funktion angemessene Aufgaben zu \u00fcbernehmen " +
                             "und unter Ber\u00fccksichtigung der pers\u00f6nlichen und famili\u00e4ren Verh\u00e4ltnisse " +
                             "an einem anderen Arbeitsort oder an einem anderen Restaurant eingesetzt zu werden."));
@@ -171,7 +190,7 @@ public class ContractPdfService
                     {
                         col.Item().Element(c => P(c,
                             $"Der Mitarbeiter wird an seinem Arbeitsort im Restaurant in {d.WorkLocation}, " +
-                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied des Managements ist der Mitarbeiter " +
+                            $"eingesetzt als \u2018{d.JobTitle}\u2019. Als Mitglied des McDonald'sManagements ist der Mitarbeiter " +
                             "einverstanden, je nach Bedarf, weitere seiner Funktion angemessene Aufgaben zu \u00fcbernehmen " +
                             "und unter Ber\u00fccksichtigung der pers\u00f6nlichen und famili\u00e4ren Verh\u00e4ltnisse " +
                             "an einem anderen Arbeitsort oder an einem anderen Restaurant eingesetzt zu werden."));
@@ -204,7 +223,7 @@ public class ContractPdfService
                     col.Item().Element(c => P(c,
                         "Nach Ablauf der Probezeit betr\u00e4gt die K\u00fcndigungsfrist 1 Monat auf ein Monatsende " +
                         "im ersten bis f\u00fcnften Arbeitsjahr, und ab dem sechsten Arbeitsjahr mit einer Frist von " +
-                        "2 Monaten. Im \u00fcbrigen wird dazu auf den L-GAV sowie auf das entsprechende Kapitel in " +
+                        "2 Monaten. Im \u00dcbrigen wird dazu auf den L-GAV sowie auf das entsprechende Kapitel in " +
                         "den \u201eAllgemeinen Arbeitsbedingungen\u201c verwiesen."));
 
                     // 5.
@@ -220,7 +239,7 @@ public class ContractPdfService
                             "Diese Arbeitszeiten sind als Durchschnittswerte in einem Zeitraum von 12 Monaten bzw. der " +
                             "effektiven Dauer des Arbeitsverh\u00e4ltnisses einzuhalten und schliessen Mehr- und " +
                             "Minderstunden pro Woche nicht aus. Im Rahmen des Zumutbaren ist der Mitarbeiter " +
-                            "verpflichtet, Mehrstunden zu leisten, beziehungsweise Vorkompensationen zu akzeptieren."));
+                            "verpflichtet, Mehrstunden zu leisten, beziehungsweise Vorarbeit zu akzeptieren."));
                         col.Item().Element(c => P(c,
                             "Mehrstunden sind w\u00e4hrend des Arbeitsverh\u00e4ltnisses sobald als m\u00f6glich 1:1 zu " +
                             "kompensieren, sp\u00e4testens innert 12 Monaten auf Anordnung des Arbeitgebers; dies gilt " +
@@ -234,13 +253,13 @@ public class ContractPdfService
                         col.Item().Element(c => P(c,
                             $"Die durchschnittliche w\u00f6chentliche Arbeitszeit betr\u00e4gt {fixWeeklyH:0} " +
                             $"Stunden ({(pct >= 100m ? "Vollzeitpensum" : $"{pct:0}% Pensum")}) bei {vacWeeks} Wochen Ferien ({vacDays} Kalendertage). " +
-                            "Ab dem Tag des 50. Geburtstages, erhalten die Mitarbeiter 6 Wochen Ferien (42 Kalendertage). " +
+                            "Ab dem Tag des 50. Geburtstages erhalten die Mitarbeiter 6 Wochen Ferien (42 Kalendertage). " +
                             "Es werden j\u00e4hrlich 6 Feiertage gew\u00e4hrt."));
                         col.Item().Element(c => P(c,
                             "Diese Arbeitszeiten sind als Durchschnittswerte in einem Zeitraum von 12 Monaten bzw. der " +
                             "effektiven Dauer des Arbeitsverh\u00e4ltnisses einzuhalten und schliessen Mehr- und " +
                             "Minderstunden pro Woche nicht aus. Im Rahmen des Zumutbaren ist der Mitarbeiter " +
-                            "verpflichtet, Mehrstunden zu leisten, beziehungsweise Vorkompensationen zu akzeptieren."));
+                            "verpflichtet, Mehrstunden zu leisten, beziehungsweise Vorarbeit zu akzeptieren."));
                         col.Item().Element(c => P(c,
                             "Mehrstunden sind w\u00e4hrend des Arbeitsverh\u00e4ltnisses sobald als m\u00f6glich 1:1 zu " +
                             "kompensieren, sp\u00e4testens innert 12 Monaten auf Anordnung des Arbeitgebers; dies gilt " +
@@ -323,17 +342,16 @@ public class ContractPdfService
                             bool isPartTime = pct < 100m;
                             col.Item().PaddingTop(2).Text(txt =>
                             {
-                                txt.Span("Der feste Bruttolohn (ohne 13. Monatslohn) betr\u00e4gt CHF  ").Bold();
-                                txt.Span(CHF(effectiveSalary)).Bold().FontSize(9.5f);
+                                txt.Span("Der feste Bruttolohn (ohne 13. Monatslohn) betr\u00e4gt CHF  ").Bold().FontSize(10f);
+                                txt.Span(CHF(effectiveSalary)).Bold().FontSize(10f);
                                 if (isPartTime)
-                                    txt.Span($"  ({pct:0}% von {CHF(d.MonthlySalary)})").Bold();
-                                txt.Span("  pro Monat.").Bold();
+                                    txt.Span($"  ({pct:0}% von {CHF(d.MonthlySalary)})").Bold().FontSize(9f);
+                                txt.Span("  pro Monat.").Bold().FontSize(10f);
                             });
                         }
-                        // 13. Monatslohn Text gehoert zu Punkt 7 - auf Seite 1
                         col.Item().Element(c => P(c,
                             "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
-                            "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
+                            "Kapitel 7.4 des Reglements \u201eAllgemeinen Arbeitsbedingungen\u201c. Der Anspruch auf den " +
                             "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
                             "aufgel\u00f6st wird. Die Lohnauszahlung mit \u00fcbersichtlicher Lohnabrechnung erfolgt " +
                             "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
@@ -370,7 +388,6 @@ public class ContractPdfService
                                     if (bold) { tbl.Cell().Text(desc).Bold().FontSize(9f); tbl.Cell().Text("CHF").Bold().FontSize(9f); tbl.Cell().Text(CHF(val)).Bold().FontSize(9f); tbl.Cell().Text(note).FontSize(9f); }
                                     else      { tbl.Cell().Text(desc).FontSize(9f); tbl.Cell().Text("CHF").FontSize(9f); tbl.Cell().Text(CHF(val)).FontSize(9f); tbl.Cell().Text(note).Italic().FontSize(8f); }
                                 }
-                                void EmptyRow() { for (int i = 0; i < 4; i++) tbl.Cell().PaddingTop(2).Text(""); }
                                 LohnRow("Total brutto inkl. 13. Monatslohn", totMit, bold: true);
                                 LohnRow("Total brutto ohne Ferienanteil", totOhne, "(regelm\u00e4ssig ausgezahltes Sal\u00e4r)");
                                 LohnRow("Der Stundenlohn betr\u00e4gt :", base_);
@@ -399,12 +416,11 @@ public class ContractPdfService
                                     "vom Arbeitgeber zur\u00fcckbehalten und erst beim tats\u00e4chlichen Ferienbezug " +
                                     "(im Verh\u00e4ltnis von deren Dauer zum ganzen j\u00e4hrlichen Ferienanspruch) ausbezahlt."));
                             }
-                            // 13. Monatslohn auch bei UTP/MTP auf Seite 1
                             col.Item().PaddingTop(4).Element(c => P(c,
                                 "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
                                 "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
                                 "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
-                                "aufgel\u00f6st wird. Die Lohnauszahlung mit \u00fcbersichtlicher Lohnabrechnung erfolgt " +
+                                "aufgel\u00f6st wird. Die Lohnauszahlung mit einer \u00fcbersichtlichen Lohnabrechnung erfolgt " +
                                 "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
                             col.Item().Element(c => P(c,
                                 "Kinderzulagen werden gem\u00e4ss den gesetzlichen Bestimmungen ausgerichtet."));
@@ -437,7 +453,7 @@ public class ContractPdfService
                             "F\u00fcr jede dar\u00fcber hinaus geleistete Arbeitsstunde (vorbeh\u00e4ltlich Mehrstunden " +
                             "zwecks Kompensation der Minusstunden) werden:"));
                         col.Item().PaddingLeft(6).Element(c => P(c,
-                            $"- CHF {CHF(isMTP ? d.HourlyRate : d.HourlyRate)}  " +
+                            $"- CHF {CHF(d.HourlyRate)}  " +
                             "pro Stunde (gem\u00e4ss Normalstundenlohnansatz) plus die Zulagen wie oben ausbezahlt."));
                         col.Item().PaddingLeft(6).Element(c => P(c,
                             $"- Ferien auf dem Ferienkonto monatlich gutgeschrieben, {d.VacationPercent:0.##}% " +
@@ -454,11 +470,11 @@ public class ContractPdfService
                     col.Item().Element(c => P(c,
                         "Der Mitarbeiter muss w\u00e4hrend der Arbeitszeit die an seinem Arbeitsort vorgeschriebene " +
                         "Kleidung/Uniform tragen. W\u00e4hrend den Arbeitspausen kann sich der Mitarbeiter am " +
-                        "Arbeitsort auf seine Kosten verpflegen (verg\u00fcstigte Mitarbeiterpreise)."));
+                        "Arbeitsort auf seine Kosten verpflegen (verg\u00fcnstigte Mitarbeiterpreise)."));
                     col.Item().Element(c => P(c,
-                        "Die allgemeinen Richtlinien f\u00fcr Hygiene, Gesundheit und pers\u00f6nliches " +
+                        "Die allgemeinen McDonald's Richtlinien f\u00fcr Hygiene, Gesundheit und pers\u00f6nliches " +
                         "Verhalten am Arbeitsplatz werden dem Mitarbeiter nach Stellenantritt ausf\u00fchrlich " +
-                        "erl\u00e4utert und sind zwingend einzuhalten. Erg\u00e4nzend wird auf die Restaurant Reglement verwiesen."));
+                        "erl\u00e4utert und sind zwingend einzuhalten. Erg\u00e4nzend wird auf das Restaurant Reglement verwiesen."));
 
                     // 9.
                     col.Item().Element(c => T(c, "9. Hinweise zu den Versicherungen"));
@@ -521,7 +537,7 @@ public class ContractPdfService
                         "Informationsbl\u00e4tter ausgeh\u00e4ndigt, in der jeweils g\u00fcltigen Form bzw. Version:"));
                     col.Item().PaddingLeft(6).Text("- die Hygienerichtlinien");
                     col.Item().PaddingLeft(6).Text("- die Richtlinie \u201eZum Schutz der pers\u00f6nlichen Integrit\u00e4t\u201c");
-                    col.Item().PaddingLeft(6).Text("- Privacy Notice bzw. die Human Ressources Datenschutzerkl\u00e4rung");
+                    col.Item().PaddingLeft(6).Text("- McDonald's Franchise Privacy Notice bzw. die Human Ressources Datenschutzerkl\u00e4rung");
                     col.Item().PaddingLeft(6).Text("- das Versicherungsmerkblatt");
                     col.Item().PaddingLeft(6).Text("- das Informationsblatt \u201eMutterschutz\u201c");
                     col.Item().PaddingTop(4).Element(c => P(c,
@@ -542,11 +558,11 @@ public class ContractPdfService
                         });
                         if (isMinor)
                         {
-                            row.RelativeItem().Column(c =>
+                            row.ConstantItem(150).Column(c =>
                             {
-                                c.Item().Text("Unterschrift des Erziehungsberechtigten").AlignCenter();
-                                c.Item().PaddingTop(2).Text("Ort und Datum:").AlignCenter();
-                                c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
+                                c.Item().Text("Unterschrift des Erziehungsberechtigten");
+                                c.Item().PaddingTop(2).Text("Ort und Datum:");
+                                c.Item().PaddingTop(34).PaddingRight(10).LineHorizontal(0.5f).LineColor(Dark);
                             });
                         }
                         row.RelativeItem().Column(c =>
@@ -575,7 +591,7 @@ public class ContractPdfService
             {
                 page.Size(PageSizes.A4);
                 page.MarginTop(1.5f, Unit.Centimetre);
-                page.MarginBottom(1.5f, Unit.Centimetre);
+                page.MarginBottom(0.5f, Unit.Centimetre);
                 page.MarginHorizontal(2f, Unit.Centimetre);
                 page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark));
                 page.Header().Image(BannerBytes).FitWidth();
@@ -663,7 +679,7 @@ public class ContractPdfService
                         "Nachtarbeit gehen zu Lasten des Arbeitgebers, sofern sie nicht von einer Versicherung " +
                         "\u00fcbernommen werden.");
                     col.Item().PaddingTop(6).Text("Bemerkungen").Bold();
-                    col.Item().Border(0.5f).BorderColor(Yellow).Background(Yellow).MinHeight(50).Text("");
+                    col.Item().PaddingTop(4).Border(0.5f).BorderColor(Dark).MinHeight(90).Text("");
                     col.Item().PaddingTop(14).Row(row =>
                     {
                         row.RelativeItem().Column(c =>
@@ -676,11 +692,11 @@ public class ContractPdfService
                         });
                         if (isMinor)
                         {
-                            row.RelativeItem().Column(c =>
+                            row.ConstantItem(150).Column(c =>
                             {
-                                c.Item().Text("Unterschrift des Erziehungsberechtigten").AlignCenter();
-                                c.Item().PaddingTop(2).Text("Ort und Datum:").AlignCenter();
-                                c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
+                                c.Item().Text("Unterschrift des Erziehungsberechtigten");
+                                c.Item().PaddingTop(2).Text("Ort und Datum:");
+                                c.Item().PaddingTop(34).PaddingRight(10).LineHorizontal(0.5f).LineColor(Dark);
                             });
                         }
                         row.RelativeItem().Column(c =>
@@ -691,146 +707,110 @@ public class ContractPdfService
                             c.Item().PaddingTop(3).Text($"{d.FirstName} {d.LastName}");
                         });
                     });
-                    col.Item().PaddingTop(10).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
-                    col.Item().PaddingTop(2)
-                        .Text("*Der Begriff \u00abMitarbeiter\u00bb umfasst ebenfalls die Mitarbeiterinnen. " +
-                              "Aus Gr\u00fcnden der Einfachheit wird auf eine Differenzierung im Text verzichtet.")
-                        .FontSize(7).Italic();
+                    // NACHHER (im Footer):
+                    page.Footer().Column(f =>
+                    {
+                        f.Item().PaddingTop(8).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
+                        f.Item().PaddingTop(2)
+                            .Text("*Der Begriff \u00abMitarbeiter\u00bb umfasst ebenfalls die Mitarbeiterinnen. " +
+                                    "Aus Gr\u00fcnden der Einfachheit wird auf eine Differenzierung im Text verzichtet.")
+                            .FontSize(7).Italic();
+                    });
                 });
-                page.Footer().AlignRight()
-                    .Text($"{footerBase} vom {d.ContractDate:dd.MM.yy}  Seite 3").FontSize(7);
+
             });
 
             // ══════════════════════════════════════════════
             // SEITE 4 – Informationsblatt Mutterschutz
+            // NUR für weibliche Mitarbeitende
             // ══════════════════════════════════════════════
-            container.Page(page =>
+            if (d.Gender == "female")
             {
-                page.Size(PageSizes.A4);
-                page.MarginTop(1.5f, Unit.Centimetre);
-                page.MarginBottom(1.5f, Unit.Centimetre);
-                page.MarginHorizontal(2f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark));
-                page.Header().Image(BannerBytes).FitWidth();
-                page.Content().PaddingTop(6).Column(col =>
+                container.Page(page =>
                 {
-                    col.Item().Element(c => T(c, "1. Information f\u00fcr Frauen \u201eim geb\u00e4rf\u00e4higen\u201c Alter"));
-                    col.Item().Element(c => P(c,
-                        "Gem\u00e4ss gesetzlicher Regelung muss der Arbeitgeber Frauen im geb\u00e4rf\u00e4higen Alter " +
-                        "bei Stellenantritt \u00fcber allf\u00e4llige arbeitsplatzbezogene Gefahren w\u00e4hrend einer " +
-                        "Schwangerschaft informieren."));
-                    col.Item().Element(c => P(c,
-                        "Das Risiko einer Sch\u00e4digung des ungeborenen Kindes ist in den ersten drei " +
-                        "Schwangerschaftsmonaten am gr\u00f6ssten. Wird eine Schwangerschaft vermutet oder nachgewiesen, " +
-                        "sollte die Mitarbeiterin dies deshalb umgehend dem Vorgesetzten mitteilen, damit allf\u00e4llige " +
-                        "Risiken bei der weiteren Besch\u00e4ftigung beurteilt und besprochen werden k\u00f6nnen."));
-                    col.Item().Element(c => P(c,
-                        "Kann im Falle einer Schwangerschaft eine gef\u00e4hrliche gesundheitliche Belastung f\u00fcr " +
-                        "Mutter und Kind nur durch zus\u00e4tzliche Schutzmassnahmen ausgeschaltet werden, m\u00fcssen " +
-                        "diese regelm\u00e4ssig \u00fcberpr\u00fcft werden. Stellt sich dabei heraus, dass das Schutzziel " +
-                        "nicht erreicht wird, darf die betroffene Frau in diesem Bereich nicht mehr arbeiten."));
-                    col.Item().Element(c => P(c,
-                        "Zur Sicherung der Wirksamkeit der Schutzmassnahmen soll die behandelnde \u00c4rztin regelm\u00e4ssig " +
-                        "den Gesundheitszustand der schwangeren Frau oder der stillenden Mutter \u00fcberpr\u00fcfen. " +
-                        "Er teilt der betroffenen Arbeitnehmerin und dem Arbeitgeber das Ergebnis der Beurteilung mit, " +
-                        "damit der Arbeitgeber n\u00f6tigenfalls die erforderlichen Massnahmen treffen kann."));
-                    col.Item().Element(c => P(c,
-                        "Bei gef\u00e4hrlichen oder beschwerlichen Arbeiten hat der Arbeitgeber eine schwangere Frau " +
-                        "oder eine stillende Mutter an einen f\u00fcr sie ungef\u00e4hrlichen und gleichwertigen " +
-                        "Arbeitsplatz zu versetzen."));
-                    col.Item().Element(c => P(c,
-                        "Schwangere Frauen und stillende M\u00fctter m\u00fcssen sich unter geeigneten Bedingungen " +
-                        "hinlegen und ausruhen k\u00f6nnen. Hierf\u00fcr sollte mindestens eine Liege, wenn m\u00f6glich " +
-                        "in einem ruhigen Raum vorhanden sein."));
-                    col.Item().Element(c => T(c, "2. Gef\u00e4hrdungen"));
-                    col.Item().Element(c => P(c,
-                        "Gef\u00e4hrliche und beschwerliche Arbeiten. Als gef\u00e4hrliche und beschwerliche Arbeiten " +
-                        "f\u00fcr schwangere Frauen und stillende M\u00fctter gelten alle Arbeiten, die sich " +
-                        "erfahrungsgem\u00e4ss nachteilig auf die Gesundheit dieser Frauen und ihrer Kinder auswirken."));
-                    col.Item().Element(c => P(c, "Folgende Arbeiten gelten als gef\u00e4hrlich oder beschwerlich:"));
-                    foreach (var b in new[] {
-                        "Bewegen schwerer Lasten",
-                        "Bewegungen und K\u00f6rperhaltungen, die zu vorzeitiger Erm\u00fcdung f\u00fchren",
-                        "Arbeiten, die mit \u00e4usseren Krafteinwirkungen wie St\u00f6ssen, Ersch\u00fctterungen oder Vibrationen verbunden sind",
-                        "Arbeiten bei K\u00e4lte, Hitze oder N\u00e4sse",
-                        "Physikalische Risiken (L\u00e4rm, Strahlung, Druck)",
-                        "Chemische Risiken",
-                        "Biologische Risiken",
-                        "Arbeiten in Arbeitszeitsystemen, die erfahrungsgem\u00e4ss zu einer starken Belastung f\u00fchren"
-                    })
-                        col.Item().PaddingLeft(8).Text($"\u2022  {b}").FontSize(8.5f);
-                    col.Item().Element(c => T(c, "3. Besch\u00e4ftigungserleichterung"));
-                    col.Item().Element(c => P(c,
-                        "Bei haupts\u00e4chlich stehend zu verrichtender T\u00e4tigkeit sind schwangeren Frauen ab dem " +
-                        "vierten Schwangerschaftsmonat eine t\u00e4gliche Ruhezeit von 12 Stunden und nach jeder zweiten " +
-                        "Stunde zus\u00e4tzlich zu den Pausen eine Kurzpause von 10 Minuten zu gew\u00e4hren. Ab dem " +
-                        "sechsten Schwangerschaftsmonat sind stehende T\u00e4tigkeiten auf insgesamt 4 Stunden pro Tag " +
-                        "zu beschr\u00e4nken."));
-                    col.Item().Element(c => T(c, "4. Zeitliche Regelungen"));
-                    col.Item().PaddingTop(2).Text("Absolutes Besch\u00e4ftigungsverbot:").FontSize(8.5f);
-                    foreach (var b in new[] {
-                        "Eine schwangere Frau darf nicht mehr als 9 Arbeitsstunden pro Tag arbeiten.",
-                        "Keine Besch\u00e4ftigung nach der Geburt bis 8 Wochen nach der Entbindung.",
-                        "Keine Abend- und Nachtarbeit (20.00 \u2013 6.00 Uhr) 8 Wochen vor dem errechneten Geburtstermin."
-                    })
-                        col.Item().PaddingLeft(8).Text($"\u2022  {b}").FontSize(8.5f);
-                    col.Item().Element(c => T(c, "5. Zus\u00e4tzliche Auflagen:"));
-                    col.Item().PaddingLeft(8).Text(
-                        "\u2022  W\u00e4hrend der Schwangerschaft und der 9.\u201316. Woche nach der Entbindung sowie " +
-                        "w\u00e4hrend der Stillzeit ist eine Besch\u00e4ftigung nur mit dem Einverst\u00e4ndnis der " +
-                        "werdenden oder stillenden Mutter m\u00f6glich. Auf ihr Verlangen sind diese Frauen von Arbeiten " +
-                        "zu befreien, die f\u00fcr sie beschwerlich sind (Art. 64 Abs. 1 ArGV 1).").FontSize(8.5f);
-                    col.Item().PaddingLeft(8).PaddingTop(2)
-                        .Text("\u2022  W\u00e4hrend des ersten Lebensjahres ist das Stillen zu erm\u00f6glichen:")
-                        .FontSize(8.5f);
-                    col.Item().PaddingLeft(20).Text("\u2022  Stillzeit am Arbeitsort ist Arbeitszeit;").FontSize(8.5f);
-                    col.Item().PaddingLeft(20).Text(
-                        "\u2022  Stillzeit ausserhalb des Arbeitsortes ist zur H\u00e4lfte als Arbeitszeit anzurechnen.")
-                        .FontSize(8.5f);
-                    col.Item().Element(c => T(c, "6. Weiterf\u00fchrende Unterlagen"));
-                    col.Item().Element(c => P(c,
-                        "Zum Thema Mutterschutz und als Eigenstudium finden Sie weitere Informationsmittel auf der " +
-                        "Homepage des SECO unter dem Themenblock \u00abSchwangere und Stillende\u00bb."));
-                    col.Item().PaddingTop(12).Row(row =>
+                    page.Size(PageSizes.A4);
+                    page.MarginTop(1.5f, Unit.Centimetre);
+                    page.MarginBottom(1.5f, Unit.Centimetre);
+                    page.MarginHorizontal(2f, Unit.Centimetre);
+                    page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(sizeText).FontColor(Dark));
+                    page.Header().Image(BannerBytes).FitWidth();
+                    page.Content().PaddingTop(6).Column(col =>
                     {
-                        row.RelativeItem().Column(c =>
-                        {
-                            c.Item().Text("Mitarbeiterin informiert:").Bold();
-                            c.Item().PaddingTop(2).Text($"{d.SignatureCity}, {d.ContractDate:dd.MM.yyyy}");
-                            c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text(d.SignatoryName);
-                            c.Item().Text(d.SignatoryTitle);
-                        });
-                        if (isMinor)
+                        col.Item().Element(c => T(c, "1. Information f\u00fcr Frauen \u201eim geb\u00e4rf\u00e4higen\u201c Alter", sizeTitle));
+                        col.Item().Element(c => P(c, "Gem\u00e4ss gesetzlicher Regelung muss der Arbeitgeber Frauen im geb\u00e4rf\u00e4higen Alter bei Stellenantritt \u00fcber allf\u00e4llige arbeitsplatzbezogene Gefahren w\u00e4hrend einer Schwangerschaft informieren.", sizeText));
+                        col.Item().Element(c => P(c, "Das Risiko einer Sch\u00e4digung des ungeborenen Kindes ist in den ersten drei Schwangerschaftsmonaten am gr\u00f6ssten. Wird eine Schwangerschaft vermutet oder nachgewiesen, sollte die Mitarbeiterin dies deshalb umgehend dem Vorgesetzten mitteilen, damit allf\u00e4llige Risiken bei der weiteren Besch\u00e4ftigung beurteilt und besprochen werden k\u00f6nnen.", sizeText));
+                        col.Item().Element(c => P(c, "Kann im Falle einer Schwangerschaft eine gef\u00e4hrliche gesundheitliche Belastung f\u00fcr Mutter und Kind nur durch zus\u00e4tzliche Schutzmassnahmen ausgeschaltet werden, m\u00fcssen diese regelm\u00e4ssig \u00fcberpr\u00fcft werden. Stellt sich dabei heraus, dass das Schutzziel nicht erreicht wird, darf die betroffene Frau in diesem Bereich nicht mehr arbeiten.", sizeText));
+                        col.Item().Element(c => P(c, "Zur Sicherung der Wirksamkeit der Schutzmassnahmen soll die behandelnde \u00c4rztin regelm\u00e4ssig den Gesundheitszustand der schwangeren Frau oder der stillenden Mutter \u00fcberpr\u00fcfen. Er teilt der betroffenen Arbeitnehmerin und dem Arbeitgeber das Ergebnis der Beurteilung mit, damit der Arbeitgeber n\u00f6tigenfalls die erforderlichen Massnahmen treffen kann.", sizeText));
+                        col.Item().Element(c => P(c, "Bei gef\u00e4hrlichen oder beschwerlichen Arbeiten hat der Arbeitgeber eine schwangere Frau oder eine stillende Mutter an einen f\u00fcr sie ungef\u00e4hrlichen und gleichwertigen Arbeitsplatz zu versetzen.", sizeText));
+                        col.Item().Element(c => P(c, "Schwangere Frauen und stillende M\u00fctter m\u00fcssen sich unter geeigneten Bedingungen hinlegen und ausruhen k\u00f6nnen. Hierf\u00fcr sollte mindestens eine Liege, wenn m\u00f6glich in einem ruhigen Raum vorhanden sein.", sizeText));
+                        col.Item().Element(c => T(c, "2. Gef\u00e4hrdungen", sizeTitle));
+                        col.Item().Element(c => P(c, "Gef\u00e4hrliche und beschwerliche Arbeiten. Als gef\u00e4hrliche und beschwerliche Arbeiten f\u00fcr schwangere Frauen und stillende M\u00fctter gelten alle Arbeiten, die sich erfahrungsgem\u00e4ss nachteilig auf die Gesundheit dieser Frauen und ihrer Kinder auswirken.", sizeText));
+                        col.Item().Element(c => P(c, "Folgende Arbeiten gelten als gef\u00e4hrlich oder beschwerlich:", sizeText));
+                        foreach (var b in new[] {
+                            "Bewegen schwerer Lasten",
+                            "Bewegungen und K\u00f6rperhaltungen, die zu vorzeitiger Erm\u00fcdung f\u00fchren",
+                            "Arbeiten, die mit \u00e4usseren Krafteinwirkungen wie St\u00f6ssen, Ersch\u00fctterungen oder Vibrationen verbunden sind",
+                            "Arbeiten bei K\u00e4lte, Hitze oder N\u00e4sse",
+                            "Physikalische Risiken (L\u00e4rm, Strahlung, Druck)",
+                            "Chemische Risiken",
+                            "Biologische Risiken",
+                            "Arbeiten in Arbeitszeitsystemen, die erfahrungsgem\u00e4ss zu einer starken Belastung f\u00fchren"
+                        })
+                            col.Item().PaddingLeft(8).Text($"\u2022  {b}").FontSize(sizeText);
+                        col.Item().Element(c => T(c, "3. Besch\u00e4ftigungserleichterung", sizeTitle));
+                        col.Item().Element(c => P(c, "Bei haupts\u00e4chlich stehend zu verrichtender T\u00e4tigkeit sind schwangeren Frauen ab dem vierten Schwangerschaftsmonat eine t\u00e4gliche Ruhezeit von 12 Stunden und nach jeder zweiten Stunde zus\u00e4tzlich zu den Pausen eine Kurzpause von 10 Minuten zu gew\u00e4hren. Ab dem sechsten Schwangerschaftsmonat sind stehende T\u00e4tigkeiten auf insgesamt 4 Stunden pro Tag zu beschr\u00e4nken.", sizeText));
+                        col.Item().Element(c => T(c, "4. Zeitliche Regelungen", sizeTitle));
+                        col.Item().PaddingTop(2).Text("Absolutes Besch\u00e4ftigungsverbot:").FontSize(sizeText);
+                        foreach (var b in new[] {
+                            "Eine schwangere Frau darf nicht mehr als 9 Arbeitsstunden pro Tag arbeiten.",
+                            "Keine Besch\u00e4ftigung nach der Geburt bis 8 Wochen nach der Entbindung.",
+                            "Keine Abend- und Nachtarbeit (20.00 \u2013 6.00 Uhr) 8 Wochen vor dem errechneten Geburtstermin."
+                        })
+                            col.Item().PaddingLeft(8).Text($"\u2022  {b}").FontSize(sizeText);
+                        col.Item().Element(c => T(c, "5. Zus\u00e4tzliche Auflagen:", sizeTitle));
+                        col.Item().PaddingLeft(8).Text("\u2022  W\u00e4hrend der Schwangerschaft und der 9.\u201316. Woche nach der Entbindung sowie w\u00e4hrend der Stillzeit ist eine Besch\u00e4ftigung nur mit dem Einverst\u00e4ndnis der werdenden oder stillenden Mutter m\u00f6glich. Auf ihr Verlangen sind diese Frauen von Arbeiten zu befreien, die f\u00fcr sie beschwerlich sind (Art. 64 Abs. 1 ArGV 1).").FontSize(sizeText);
+                        col.Item().PaddingLeft(8).PaddingTop(2).Text("\u2022  W\u00e4hrend des ersten Lebensjahres ist das Stillen zu erm\u00f6glichen:").FontSize(sizeText);
+                        col.Item().PaddingLeft(20).Text("\u2022  Stillzeit am Arbeitsort ist Arbeitszeit;").FontSize(sizeText);
+                        col.Item().PaddingLeft(20).Text("\u2022  Stillzeit ausserhalb des Arbeitsortes ist zur H\u00e4lfte als Arbeitszeit anzurechnen.").FontSize(sizeText);
+                        col.Item().Element(c => T(c, "6. Weiterf\u00fchrende Unterlagen", sizeTitle));
+                        col.Item().Element(c => P(c, "Zum Thema Mutterschutz und als Eigenstudium finden Sie weitere Informationsmittel auf der Homepage des SECO unter dem Themenblock \u00abSchwangere und Stillende\u00bb.", sizeText));
+                        col.Item().PaddingTop(12).Row(row =>
                         {
                             row.RelativeItem().Column(c =>
                             {
-                                c.Item().Text("Unterschrift des Erziehungsberechtigten").AlignCenter();
-                                c.Item().PaddingTop(2).Text("Ort und Datum:").AlignCenter();
+                                c.Item().Text("Mitarbeiterin informiert:").Bold();
+                                c.Item().PaddingTop(2).Text($"{d.SignatureCity}, {d.ContractDate:dd.MM.yyyy}");
                                 c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
+                                c.Item().PaddingTop(3).Text(d.SignatoryName);
+                                c.Item().Text(d.SignatoryTitle);
                             });
-                        }
-                        row.RelativeItem().Column(c =>
-                        {
-                            c.Item().Text("Mitarbeiterin").Bold();
-                            c.Item().PaddingTop(2).Text("Ort und Datum:");
-                            c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text($"{d.FirstName} {d.LastName}");
+                            if (isMinor)
+                            {
+                                row.ConstantItem(150).Column(c =>
+                                {
+                                    c.Item().Text("Unterschrift des Erziehungsberechtigten");
+                                    c.Item().PaddingTop(2).Text("Ort und Datum:");
+                                    c.Item().PaddingTop(34).PaddingRight(10).LineHorizontal(0.5f).LineColor(Dark);
+                                });
+                            }
+                                row.RelativeItem().Column(c =>
+                            {
+                                c.Item().Text("Mitarbeiterin").Bold();
+                                c.Item().PaddingTop(2).Text("Ort und Datum:");
+                                c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
+                                c.Item().PaddingTop(3).Text($"{d.FirstName} {d.LastName}");
+                            });
                         });
                     });
-                });
-                page.Footer().AlignCenter()
-                    .Text($"Beilage Information Mutterschutz  Seite 4").FontSize(7);
-            });
+                }); // Ende container.Page Seite 4
+            } // Ende if (d.Gender == "female")
 
         }).GeneratePdf();
     }
 
-    // Titelzeile einer Sektion
-    private static void T(IContainer c, string title) =>
-        c.PaddingTop(3).Text(title).Bold().FontSize(9.5f);
+   private static void T(IContainer c, string title, float size = 9.5f) =>
+    c.PaddingTop(3).Text(title).Bold().FontSize(size);
 
-    // Normaler Absatz – Blocksatz
-    private static void P(IContainer c, string text) =>
-        c.PaddingTop(1).Text(text).FontSize(9.5f).Justify();
+private static void P(IContainer c, string text, float size = 9f) =>
+    c.PaddingTop(1).Text(text).FontSize(size).Justify();
 }

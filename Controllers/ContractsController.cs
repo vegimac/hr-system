@@ -89,7 +89,8 @@ public class ContractsController : ControllerBase
             GuaranteedHoursPerWeek:  employment.GuaranteedHoursPerWeek,
             VacationPercent:         employment.VacationPercent,
             HolidayPercent:          employment.HolidayPercent,
-            ThirteenthSalaryPercent: employment.ThirteenthSalaryPercent
+            ThirteenthSalaryPercent: employment.ThirteenthSalaryPercent,
+            Gender:                  employee.Gender  // NEU
         );
 
         var pdfBytes = new ContractPdfService().Generate(input);

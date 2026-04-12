@@ -11,7 +11,8 @@ public class EmployeeImportSnapshot
     public string? ContractType { get; set; }
 
     public decimal? HourlyRate { get; set; }
-    public decimal? MonthlySalary { get; set; }
+    public decimal? MonthlySalaryFte { get; set; }   // 100%-Lohn aus Import
+    public decimal? MonthlySalary { get; set; }       // tatsächlicher Lohn (nach Pensum)
     public decimal? WeeklyHours { get; set; }
 
     public string? JobTitle { get; set; }
@@ -23,4 +24,5 @@ public class EmployeeImportSnapshot
     public bool IsActive { get; set; } = true;
 
     public Employee? Employee { get; set; }
+    public string? Gender { get; set; }
 }

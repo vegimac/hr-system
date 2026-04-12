@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 namespace HrSystem.Models;
 
 public class Employee
@@ -35,10 +36,25 @@ public class Employee
     public int? PermitTypeId { get; set; }
     public DateTime? PermitExpiryDate { get; set; }
 
+    /// <summary>
+    /// Datum ab dem der Mitarbeiter von der Quellensteuer befreit ist.
+    /// Null = QST-pflichtig (solange Nationalität ≠ CH).
+    /// Wird gesetzt, sobald der MA einen C-Ausweis oder CH-Bürgerrecht erhält.
+    /// </summary>
+    public DateOnly? QuellensteuerBefreitAb { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public PermitType? PermitType { get; set; }
     public Nationality? NationalityRef { get; set; }
 
     public List<Employment> Employments { get; set; } = new();
+    public string? Gender { get; set; }
+
+    /// <summary>AHV-Versichertennummer, Format 756.XXXX.XXXX.XX</summary>
+    public string? SocialSecurityNumber { get; set; }
+
+    /// <summary>Zivilstand: ledig | verheiratet | geschieden | verwitwet | eingetragene_partnerschaft | aufgeloeste_partnerschaft</summary>
+    [Column("marital_status")]
+    public string? Zivilstand { get; set; }
 }

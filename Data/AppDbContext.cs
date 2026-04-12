@@ -22,6 +22,18 @@ public class AppDbContext : DbContext
     public DbSet<Nationality> Nationalities => Set<Nationality>();
     public DbSet<EmployeeImportSnapshot> EmployeeImportSnapshots => Set<EmployeeImportSnapshot>();
     public DbSet<ContractText> ContractTexts => Set<ContractText>();
+    public DbSet<AppUser> AppUsers => Set<AppUser>();
+    public DbSet<UserBranchAccess> UserBranchAccesses => Set<UserBranchAccess>();
+    public DbSet<EmployeeFamilyMember> EmployeeFamilyMembers => Set<EmployeeFamilyMember>();
+    public DbSet<EmployeeTimeEntry> EmployeeTimeEntries => Set<EmployeeTimeEntry>();
+    public DbSet<Absence> Absences => Set<Absence>();
+    public DbSet<DeductionRule> DeductionRules => Set<DeductionRule>();
+    public DbSet<PayrollSaldo> PayrollSaldos => Set<PayrollSaldo>();
+    public DbSet<EmployeeQuellensteuer> EmployeeQuellensteuer => Set<EmployeeQuellensteuer>();
+    public DbSet<LohnZulagTyp> LohnZulagTypen => Set<LohnZulagTyp>();
+    public DbSet<LohnZulage> LohnZulagen => Set<LohnZulage>();
+    public DbSet<AbsenzTyp> AbsenzTypen => Set<AbsenzTyp>();
+    public DbSet<EmployeeArbeitslosigkeit> EmployeeArbeitslosigkeiten => Set<EmployeeArbeitslosigkeit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,6 +44,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeNumber).HasColumnName("employee_number");
             entity.Property(e => e.Salutation).HasColumnName("salutation");
+            entity.Property(e => e.Gender).HasColumnName("gender");  // NEU
             entity.Property(e => e.FirstName).HasColumnName("first_name");
             entity.Property(e => e.LastName).HasColumnName("last_name");
             entity.Property(e => e.Street).HasColumnName("street");
@@ -49,7 +62,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ExitDate).HasColumnName("exit_date").HasColumnType("date");
             entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");
             entity.Property(e => e.PermitExpiryDate).HasColumnName("permit_expiry_date").HasColumnType("date");
+            entity.Property(e => e.QuellensteuerBefreitAb).HasColumnName("quellensteuer_befreit_ab").HasColumnType("date");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
+           entity.Property(e => e.SocialSecurityNumber).HasColumnName("social_security_number").HasMaxLength(20);
+            entity.Property(e => e.Zivilstand).HasColumnName("marital_status").HasMaxLength(40);
             entity.HasOne(e => e.PermitType).WithMany().HasForeignKey(e => e.PermitTypeId);
             entity.HasOne(e => e.NationalityRef).WithMany().HasForeignKey(e => e.NationalityId);
         });
@@ -70,6 +86,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmploymentPercentage).HasColumnName("employment_percentage");
             entity.Property(e => e.WeeklyHours).HasColumnName("weekly_hours");
             entity.Property(e => e.GuaranteedHoursPerWeek).HasColumnName("guaranteed_hours_per_week");
+            entity.Property(e => e.MonthlySalaryFte).HasColumnName("monthly_salary_fte");
             entity.Property(e => e.MonthlySalary).HasColumnName("monthly_salary");
             entity.Property(e => e.HourlyRate).HasColumnName("hourly_rate");
             entity.Property(e => e.VacationPercent).HasColumnName("vacation_percent");
@@ -110,7 +127,19 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MinimumWageUnder18Monthly).HasColumnName("minimum_wage_under_18_monthly");
             entity.Property(e => e.MinimumWageUnder18Hourly).HasColumnName("minimum_wage_under_18_hourly");
             entity.Property(e => e.SelectedContractTemplateId).HasColumnName("selected_contract_template_id");
+            entity.Property(e => e.DefaultVacationPercent5Weeks).HasColumnName("default_vacation_percent_5weeks");
+            entity.Property(e => e.DefaultVacationPercent6Weeks).HasColumnName("default_vacation_percent_6weeks");
+            entity.Property(e => e.DefaultHolidayPercent).HasColumnName("default_holiday_percent");    
+            entity.Property(e => e.NightStartTime).HasColumnName("night_start_time").HasMaxLength(5);
+            entity.Property(e => e.NightEndTime).HasColumnName("night_end_time").HasMaxLength(5);
             entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.BurNummer).HasColumnName("bur_nummer").HasMaxLength(20);
+            entity.Property(e => e.UidNummer).HasColumnName("uid_nummer").HasMaxLength(20);
+            entity.Property(e => e.BranchenCode).HasColumnName("branchen_code").HasMaxLength(10);
+            entity.Property(e => e.AhvKasse).HasColumnName("ahv_kasse").HasMaxLength(100);
+            entity.Property(e => e.BvgVersicherer).HasColumnName("bvg_versicherer").HasMaxLength(100);
+            entity.Property(e => e.GavName).HasColumnName("gav_name").HasMaxLength(100);
+            entity.Property(e => e.IstGav).HasColumnName("ist_gav");
         });
 
         modelBuilder.Entity<CompanySignatory>(entity =>
@@ -219,12 +248,110 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmploymentModel).HasColumnName("employment_model");
             entity.Property(e => e.ContractType).HasColumnName("contract_type");
             entity.Property(e => e.HourlyRate).HasColumnName("hourly_rate");
+            entity.Property(e => e.MonthlySalaryFte).HasColumnName("monthly_salary_fte");
             entity.Property(e => e.MonthlySalary).HasColumnName("monthly_salary");
             entity.Property(e => e.WeeklyHours).HasColumnName("weekly_hours");
             entity.Property(e => e.JobTitle).HasColumnName("job_title");
             entity.Property(e => e.NationalityCode).HasColumnName("nationality_code");
+            entity.Property(e => e.Gender).HasColumnName("gender");  // NEU
             entity.Property(e => e.ImportedAt).HasColumnName("imported_at");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        // ── AppUser ────────────────────────────────────────────────────────
+        modelBuilder.Entity<AppUser>(entity =>
+        {
+            entity.ToTable("app_user");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Username).HasColumnName("username");
+            entity.Property(e => e.Email).HasColumnName("email");
+            entity.Property(e => e.PasswordHash).HasColumnName("password_hash");
+            entity.Property(e => e.Role).HasColumnName("role");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+        });
+
+        // ── UserBranchAccess ───────────────────────────────────────────────
+        modelBuilder.Entity<UserBranchAccess>(entity =>
+        {
+            entity.ToTable("user_branch_access");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.HasOne(e => e.User).WithMany(e => e.BranchAccess).HasForeignKey(e => e.UserId);
+            entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
+        });
+
+        // ── EmployeeFamilyMember ───────────────────────────────────────────
+        modelBuilder.Entity<EmployeeFamilyMember>(entity =>
+        {
+            entity.ToTable("employee_family_member");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.MemberType).HasColumnName("member_type");
+            entity.Property(e => e.Gender).HasColumnName("gender");
+            entity.Property(e => e.FamilyStatus).HasColumnName("family_status");
+            entity.Property(e => e.LastName).HasColumnName("last_name");
+            entity.Property(e => e.MaidenName).HasColumnName("maiden_name");
+            entity.Property(e => e.FirstName).HasColumnName("first_name");
+            entity.Property(e => e.SocialSecurityNumber).HasColumnName("social_security_number");
+            entity.Property(e => e.LivesInSwitzerland).HasColumnName("lives_in_switzerland");
+            entity.Property(e => e.DateOfBirth).HasColumnName("date_of_birth").HasColumnType("date");
+            entity.Property(e => e.DateOfDeath).HasColumnName("date_of_death").HasColumnType("date");
+            entity.Property(e => e.Allowance1Until).HasColumnName("allowance_1_until").HasColumnType("date");
+            entity.Property(e => e.Allowance2Until).HasColumnName("allowance_2_until").HasColumnType("date");
+            entity.Property(e => e.Allowance3Until).HasColumnName("allowance_3_until").HasColumnType("date");
+            entity.Property(e => e.AlternativeAddressId).HasColumnName("alternative_address_id");
+            entity.Property(e => e.QstDeductibleFrom).HasColumnName("qst_deductible_from").HasColumnType("date");
+            entity.Property(e => e.QstDeductibleUntil).HasColumnName("qst_deductible_until").HasColumnType("date");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        // ── EmployeeTimeEntry ──────────────────────────────────────────────
+        modelBuilder.Entity<EmployeeTimeEntry>(entity =>
+        {
+            entity.ToTable("employee_time_entry");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.EntryDate).HasColumnName("entry_date").HasColumnType("date");
+            entity.Property(e => e.TimeIn).HasColumnName("time_in");
+            entity.Property(e => e.TimeOut).HasColumnName("time_out");
+            entity.Property(e => e.Comment).HasColumnName("comment");
+            entity.Property(e => e.DurationHours).HasColumnName("duration_hours").HasColumnType("numeric(6,2)");
+            entity.Property(e => e.NightHours).HasColumnName("night_hours").HasColumnType("numeric(6,2)");
+            entity.Property(e => e.TotalHours).HasColumnName("total_hours").HasColumnType("numeric(6,2)");
+            entity.Property(e => e.Source).HasColumnName("source").HasMaxLength(50).HasDefaultValue("manual");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.OriginalTimeIn).HasColumnName("original_time_in");
+            entity.Property(e => e.OriginalTimeOut).HasColumnName("original_time_out");
+            entity.Property(e => e.EditedBy).HasColumnName("edited_by").HasMaxLength(100);
+            entity.Property(e => e.EditedAt).HasColumnName("edited_at");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        // ── Absence ────────────────────────────────────────────────────────
+        modelBuilder.Entity<Absence>(entity =>
+        {
+            entity.ToTable("absence");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.AbsenceType).HasColumnName("absence_type").HasMaxLength(20);
+            entity.Property(e => e.DateFrom).HasColumnName("date_from").HasColumnType("date");
+            entity.Property(e => e.DateTo).HasColumnName("date_to").HasColumnType("date");
+            entity.Property(e => e.WorkedDays).HasColumnName("worked_days");
+            entity.Property(e => e.HoursCredited).HasColumnName("hours_credited").HasColumnType("numeric(8,2)");
+            entity.Property(e => e.Notes).HasColumnName("notes");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
         });
 
@@ -242,6 +369,163 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
             entity.HasIndex(e => new { e.TextKey, e.LanguageCode }).HasDatabaseName("IX_contract_text_key_lang");
+        });
+
+        // ── DeductionRule ──────────────────────────────────────────────────
+        modelBuilder.Entity<DeductionRule>(entity =>
+        {
+            entity.ToTable("deduction_rule");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.CategoryCode).HasColumnName("category_code").HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.CategoryName).HasColumnName("category_name").HasMaxLength(100).HasDefaultValue("");
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100);
+            entity.Property(e => e.Type).HasColumnName("type").HasMaxLength(20).HasDefaultValue("percent");
+            entity.Property(e => e.Rate).HasColumnName("rate").HasColumnType("numeric(8,4)");
+            entity.Property(e => e.BasisType).HasColumnName("basis_type").HasMaxLength(20).HasDefaultValue("gross");
+            entity.Property(e => e.CoordinationDeduction).HasColumnName("coordination_deduction").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.MinAge).HasColumnName("min_age");
+            entity.Property(e => e.MaxAge).HasColumnName("max_age");
+            entity.Property(e => e.FreibetragMonthly).HasColumnName("freibetrag_monthly").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.OnlyQuellensteuer).HasColumnName("only_quellensteuer").HasDefaultValue(false);
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
+            entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
+        });
+
+        // ── PayrollSaldo ───────────────────────────────────────────────────
+        modelBuilder.Entity<PayrollSaldo>(entity =>
+        {
+            entity.ToTable("payroll_saldo");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.PeriodYear).HasColumnName("period_year");
+            entity.Property(e => e.PeriodMonth).HasColumnName("period_month");
+            entity.Property(e => e.HourSaldo).HasColumnName("hour_saldo").HasColumnType("numeric(8,2)");
+            entity.Property(e => e.NachtSaldo).HasColumnName("nacht_saldo").HasColumnType("numeric(8,2)");
+            entity.Property(e => e.NightHoursWorked).HasColumnName("night_hours_worked").HasColumnType("numeric(8,2)");
+            entity.Property(e => e.FerienGeldSaldo).HasColumnName("ferien_geld_saldo").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.FerienTageSaldo).HasColumnName("ferien_tage_saldo").HasColumnType("numeric(8,4)");
+            entity.Property(e => e.ThirteenthMonthMonthly).HasColumnName("thirteenth_month_monthly").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.ThirteenthMonthAccumulated).HasColumnName("thirteenth_month_accumulated").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.GrossAmount).HasColumnName("gross_amount").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.NetAmount).HasColumnName("net_amount").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("draft");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasIndex(e => new { e.EmployeeId, e.PeriodYear, e.PeriodMonth }).HasDatabaseName("IX_payroll_saldo_emp_period");
+        });
+
+        // ── AbsenzTyp ──────────────────────────────────────────────────────
+        modelBuilder.Entity<AbsenzTyp>(entity =>
+        {
+            entity.ToTable("absenz_typ");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(20);
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(100);
+            entity.Property(e => e.Zeitgutschrift).HasColumnName("zeitgutschrift").HasDefaultValue(true);
+            entity.Property(e => e.GutschriftModus).HasColumnName("gutschrift_modus").HasMaxLength(5);
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
+            entity.Property(e => e.Aktiv).HasColumnName("aktiv").HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.HasIndex(e => e.Code).HasDatabaseName("IX_absenz_typ_code").IsUnique();
+        });
+
+        // ── LohnZulagTyp ───────────────────────────────────────────────────
+        modelBuilder.Entity<LohnZulagTyp>(entity =>
+        {
+            entity.ToTable("lohn_zulag_typ");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(100);
+            entity.Property(e => e.Typ).HasColumnName("typ").HasMaxLength(10).HasDefaultValue("ZULAGE");
+            entity.Property(e => e.SvPflichtig).HasColumnName("sv_pflichtig").HasDefaultValue(false);
+            entity.Property(e => e.QstPflichtig).HasColumnName("qst_pflichtig").HasDefaultValue(false);
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
+            entity.Property(e => e.Aktiv).HasColumnName("aktiv").HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+        });
+
+        // ── LohnZulage ─────────────────────────────────────────────────────
+        modelBuilder.Entity<LohnZulage>(entity =>
+        {
+            entity.ToTable("lohn_zulage");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Periode).HasColumnName("periode").HasMaxLength(7);
+            entity.Property(e => e.TypId).HasColumnName("typ_id");
+            entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasOne(e => e.Typ).WithMany().HasForeignKey(e => e.TypId);
+            entity.HasIndex(e => new { e.EmployeeId, e.Periode }).HasDatabaseName("IX_lohn_zulage_emp_periode");
+        });
+
+        modelBuilder.Entity<EmployeeQuellensteuer>(entity =>
+        {
+            entity.ToTable("employee_quellensteuer");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.Steuerkanton).HasColumnName("steuerkanton").HasMaxLength(10);
+            entity.Property(e => e.SteuerkantonName).HasColumnName("steuerkanton_name").HasMaxLength(100);
+            entity.Property(e => e.QstGemeinde).HasColumnName("qst_gemeinde").HasMaxLength(100);
+            entity.Property(e => e.QstGemeindeBfsNr).HasColumnName("qst_gemeinde_bfs_nr");
+            entity.Property(e => e.TarifvorschlagQst).HasColumnName("tarifvorschlag_qst").HasDefaultValue(true);
+            entity.Property(e => e.TarifCode).HasColumnName("tarif_code").HasMaxLength(10);
+            entity.Property(e => e.TarifBezeichnung).HasColumnName("tarif_bezeichnung").HasMaxLength(200);
+            entity.Property(e => e.AnzahlKinder).HasColumnName("anzahl_kinder").HasDefaultValue(0);
+            entity.Property(e => e.Kirchensteuer).HasColumnName("kirchensteuer").HasDefaultValue(false);
+            entity.Property(e => e.QstCode).HasColumnName("qst_code").HasMaxLength(10);
+            entity.Property(e => e.SpezielBewilligt).HasColumnName("speziell_bewilligt").HasDefaultValue(false);
+            entity.Property(e => e.Kategorie).HasColumnName("kategorie").HasMaxLength(100);
+            entity.Property(e => e.Prozentsatz).HasColumnName("prozentsatz").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.MindestlohnSatzbestimmung).HasColumnName("mindestlohn_satzbestimmung").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.PartnerEmployeeId).HasColumnName("partner_employee_id");
+            entity.Property(e => e.PartnerEinkommenVon).HasColumnName("partner_einkommen_von").HasColumnType("date");
+            entity.Property(e => e.PartnerEinkommenBis).HasColumnName("partner_einkommen_bis").HasColumnType("date");
+            entity.Property(e => e.ArbeitsortKanton).HasColumnName("arbeitsort_kanton").HasMaxLength(10);
+            entity.Property(e => e.WeitereBeschaftigungen).HasColumnName("weitere_beschaeftigungen").HasDefaultValue(false);
+            entity.Property(e => e.GesamtpensumWeitereAg).HasColumnName("gesamtpensum_weitere_ag").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.GesamteinkommenWeitereAg).HasColumnName("gesamteinkommen_weitere_ag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Halbfamilie).HasColumnName("halbfamilie").HasMaxLength(100);
+            entity.Property(e => e.WohnsitzAusland).HasColumnName("wohnsitz_ausland").HasMaxLength(100);
+            entity.Property(e => e.Wohnsitzstaat).HasColumnName("wohnsitzstaat").HasMaxLength(10);
+            entity.Property(e => e.AdresseAusland).HasColumnName("adresse_ausland").HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom }).HasDatabaseName("IX_emp_qst_emp_valid");
+        });
+
+        // ── EmployeeArbeitslosigkeit ───────────────────────────────────────
+        modelBuilder.Entity<EmployeeArbeitslosigkeit>(entity =>
+        {
+            entity.ToTable("employee_arbeitslosigkeit");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.AngemeldetSeit).HasColumnName("angemeldet_seit").HasColumnType("date");
+            entity.Property(e => e.AbgemeldetAm).HasColumnName("abgemeldet_am").HasColumnType("date");
+            entity.Property(e => e.RavStelle).HasColumnName("rav_stelle").HasMaxLength(100);
+            entity.Property(e => e.RavKundennummer).HasColumnName("rav_kundennummer").HasMaxLength(50);
+            entity.Property(e => e.Arbeitslosenkasse).HasColumnName("arbeitslosenkasse").HasMaxLength(100);
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
         });
     }
 }
