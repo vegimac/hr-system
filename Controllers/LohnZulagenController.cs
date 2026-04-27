@@ -15,88 +15,36 @@ public class LohnZulagenController : ControllerBase
     public LohnZulagenController(AppDbContext db) => _db = db;
 
     // ═══════════════════════════════════════════════════════
-    //  TYPEN  (Stammdaten)
+    //  LOHNPOSITIONEN ALS TYP-KATALOG  (für Zulagen/Abzüge-Dropdown)
     // ═══════════════════════════════════════════════════════
 
-    /// <summary>Alle aktiven Typen (für Dropdown-Listen)</summary>
+    /// <summary>
+    /// Aktive Lohnpositionen vom Typ ZULAGE oder ABZUG — für das Erfassungs-Dropdown.
+    /// </summary>
     [HttpGet("lohn-zulag-typen")]
-    public async Task<IActionResult> GetTypen()
+    public async Task<IActionResult> GetZulagTypen()
     {
-        var list = await _db.LohnZulagTypen
-            .Where(t => t.Aktiv)
-            .OrderBy(t => t.SortOrder)
-            .ThenBy(t => t.Bezeichnung)
-            .Select(t => new
+        var list = await _db.Lohnpositionen
+            .Where(l => l.IsActive && (l.Typ == "ZULAGE" || l.Typ == "ABZUG"))
+            .OrderBy(l => l.SortOrder)
+            .ThenBy(l => l.Code)
+            .Select(l => new
             {
-                t.Id, t.Bezeichnung, t.Typ, t.SvPflichtig, t.QstPflichtig, t.SortOrder, t.Aktiv
+                l.Id,
+                l.Code,
+                l.Bezeichnung,
+                l.Typ,
+                l.AhvAlvPflichtig,
+                l.NbuvPflichtig,
+                l.KtgPflichtig,
+                l.BvgPflichtig,
+                l.QstPflichtig,
+                SvPflichtig = l.AhvAlvPflichtig || l.NbuvPflichtig || l.KtgPflichtig || l.BvgPflichtig,
+                l.SortOrder,
+                Aktiv       = l.IsActive
             })
             .ToListAsync();
         return Ok(list);
-    }
-
-    /// <summary>Alle Typen inkl. inaktiver (für Admin-Verwaltung)</summary>
-    [HttpGet("lohn-zulag-typen/all")]
-    public async Task<IActionResult> GetTypenAll()
-    {
-        var list = await _db.LohnZulagTypen
-            .OrderBy(t => t.SortOrder)
-            .ThenBy(t => t.Bezeichnung)
-            .Select(t => new
-            {
-                t.Id, t.Bezeichnung, t.Typ, t.SvPflichtig, t.QstPflichtig, t.SortOrder, t.Aktiv
-            })
-            .ToListAsync();
-        return Ok(list);
-    }
-
-    /// <summary>Neuen Typ anlegen</summary>
-    [HttpPost("lohn-zulag-typen")]
-    public async Task<IActionResult> CreateTyp([FromBody] LohnZulagTypDto dto)
-    {
-        var typ = new LohnZulagTyp
-        {
-            Bezeichnung  = dto.Bezeichnung.Trim(),
-            Typ          = dto.Typ == "ABZUG" ? "ABZUG" : "ZULAGE",
-            SvPflichtig  = dto.SvPflichtig,
-            QstPflichtig = dto.QstPflichtig,
-            SortOrder    = dto.SortOrder,
-            Aktiv        = true,
-            CreatedAt    = DateTime.UtcNow
-        };
-        _db.LohnZulagTypen.Add(typ);
-        await _db.SaveChangesAsync();
-        return Ok(new { typ.Id, typ.Bezeichnung, typ.Typ, typ.SvPflichtig, typ.QstPflichtig, typ.SortOrder, typ.Aktiv });
-    }
-
-    /// <summary>Typ bearbeiten</summary>
-    [HttpPut("lohn-zulag-typen/{id}")]
-    public async Task<IActionResult> UpdateTyp(int id, [FromBody] LohnZulagTypDto dto)
-    {
-        var typ = await _db.LohnZulagTypen.FindAsync(id);
-        if (typ is null) return NotFound();
-
-        typ.Bezeichnung  = dto.Bezeichnung.Trim();
-        typ.Typ          = dto.Typ == "ABZUG" ? "ABZUG" : "ZULAGE";
-        typ.SvPflichtig  = dto.SvPflichtig;
-        typ.QstPflichtig = dto.QstPflichtig;
-        typ.SortOrder    = dto.SortOrder;
-        typ.Aktiv        = dto.Aktiv;
-
-        await _db.SaveChangesAsync();
-        return Ok(new { typ.Id, typ.Bezeichnung, typ.Typ, typ.SvPflichtig, typ.QstPflichtig, typ.SortOrder, typ.Aktiv });
-    }
-
-    /// <summary>Typ (de)aktivieren</summary>
-    [HttpDelete("lohn-zulag-typen/{id}")]
-    public async Task<IActionResult> DeleteTyp(int id)
-    {
-        var typ = await _db.LohnZulagTypen.FindAsync(id);
-        if (typ is null) return NotFound();
-
-        // Weich-Löschen: deaktivieren statt physisch löschen
-        typ.Aktiv = false;
-        await _db.SaveChangesAsync();
-        return Ok();
     }
 
     // ═══════════════════════════════════════════════════════
@@ -108,20 +56,24 @@ public class LohnZulagenController : ControllerBase
     public async Task<IActionResult> GetZulagen(int employeeId, string periode)
     {
         var list = await _db.LohnZulagen
-            .Include(z => z.Typ)
+            .Include(z => z.Lohnposition)
             .Where(z => z.EmployeeId == employeeId && z.Periode == periode)
-            .OrderBy(z => z.Typ!.SortOrder)
+            .OrderBy(z => z.Lohnposition!.SortOrder)
             .ThenBy(z => z.CreatedAt)
             .Select(z => new
             {
                 z.Id,
                 z.EmployeeId,
                 z.Periode,
-                z.TypId,
-                TypBezeichnung  = z.Typ!.Bezeichnung,
-                TypTyp          = z.Typ.Typ,
-                SvPflichtig     = z.Typ.SvPflichtig,
-                QstPflichtig    = z.Typ.QstPflichtig,
+                LohnpositionId          = z.LohnpositionId,
+                LohnpositionCode        = z.Lohnposition!.Code,
+                LohnpositionBezeichnung = z.Lohnposition.Bezeichnung,
+                Typ                     = z.Lohnposition.Typ,
+                AhvAlvPflichtig         = z.Lohnposition.AhvAlvPflichtig,
+                NbuvPflichtig           = z.Lohnposition.NbuvPflichtig,
+                KtgPflichtig            = z.Lohnposition.KtgPflichtig,
+                BvgPflichtig            = z.Lohnposition.BvgPflichtig,
+                QstPflichtig            = z.Lohnposition.QstPflichtig,
                 z.Betrag,
                 z.Bemerkung,
                 z.CreatedAt
@@ -134,41 +86,42 @@ public class LohnZulagenController : ControllerBase
     [HttpPost("lohn-zulagen")]
     public async Task<IActionResult> CreateZulage([FromBody] LohnZulageDto dto)
     {
-        // Periode-Format validieren
         if (dto.Periode.Length != 7 || dto.Periode[4] != '-')
             return BadRequest("Periode muss im Format YYYY-MM sein.");
         if (dto.Betrag <= 0)
             return BadRequest("Betrag muss grösser als 0 sein.");
 
-        var typ = await _db.LohnZulagTypen.FindAsync(dto.TypId);
-        if (typ is null) return BadRequest("Unbekannter Typ.");
+        var lp = await _db.Lohnpositionen.FindAsync(dto.LohnpositionId);
+        if (lp is null) return BadRequest("Unbekannte Lohnposition.");
+        if (lp.Typ != "ZULAGE" && lp.Typ != "ABZUG")
+            return BadRequest("Lohnposition muss Typ ZULAGE oder ABZUG haben.");
 
         var entry = new LohnZulage
         {
-            EmployeeId = dto.EmployeeId,
-            Periode    = dto.Periode,
-            TypId      = dto.TypId,
-            Betrag     = Math.Round(dto.Betrag, 2),
-            Bemerkung  = dto.Bemerkung?.Trim(),
-            CreatedAt  = DateTime.UtcNow,
-            UpdatedAt  = DateTime.UtcNow
+            EmployeeId    = dto.EmployeeId,
+            Periode       = dto.Periode,
+            LohnpositionId = dto.LohnpositionId,
+            Betrag        = Math.Round(dto.Betrag, 2),
+            Bemerkung     = dto.Bemerkung?.Trim(),
+            CreatedAt     = DateTime.UtcNow,
+            UpdatedAt     = DateTime.UtcNow
         };
         _db.LohnZulagen.Add(entry);
         await _db.SaveChangesAsync();
 
         return Ok(new
         {
-            entry.Id,
-            entry.EmployeeId,
-            entry.Periode,
-            entry.TypId,
-            TypBezeichnung = typ.Bezeichnung,
-            TypTyp         = typ.Typ,
-            SvPflichtig    = typ.SvPflichtig,
-            QstPflichtig   = typ.QstPflichtig,
-            entry.Betrag,
-            entry.Bemerkung,
-            entry.CreatedAt
+            entry.Id, entry.EmployeeId, entry.Periode,
+            LohnpositionId          = lp.Id,
+            LohnpositionCode        = lp.Code,
+            LohnpositionBezeichnung = lp.Bezeichnung,
+            Typ                     = lp.Typ,
+            AhvAlvPflichtig         = lp.AhvAlvPflichtig,
+            NbuvPflichtig           = lp.NbuvPflichtig,
+            KtgPflichtig            = lp.KtgPflichtig,
+            BvgPflichtig            = lp.BvgPflichtig,
+            QstPflichtig            = lp.QstPflichtig,
+            entry.Betrag, entry.Bemerkung, entry.CreatedAt
         });
     }
 
@@ -176,9 +129,10 @@ public class LohnZulagenController : ControllerBase
     [HttpPut("lohn-zulagen/{id}")]
     public async Task<IActionResult> UpdateZulage(int id, [FromBody] LohnZulageUpdateDto dto)
     {
-        var entry = await _db.LohnZulagen.Include(z => z.Typ).FirstOrDefaultAsync(z => z.Id == id);
+        var entry = await _db.LohnZulagen
+            .Include(z => z.Lohnposition)
+            .FirstOrDefaultAsync(z => z.Id == id);
         if (entry is null) return NotFound();
-
         if (dto.Betrag <= 0) return BadRequest("Betrag muss grösser als 0 sein.");
 
         entry.Betrag    = Math.Round(dto.Betrag, 2);
@@ -188,11 +142,16 @@ public class LohnZulagenController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new
         {
-            entry.Id, entry.EmployeeId, entry.Periode, entry.TypId,
-            TypBezeichnung = entry.Typ!.Bezeichnung,
-            TypTyp         = entry.Typ.Typ,
-            SvPflichtig    = entry.Typ.SvPflichtig,
-            QstPflichtig   = entry.Typ.QstPflichtig,
+            entry.Id, entry.EmployeeId, entry.Periode,
+            LohnpositionId          = entry.Lohnposition!.Id,
+            LohnpositionCode        = entry.Lohnposition.Code,
+            LohnpositionBezeichnung = entry.Lohnposition.Bezeichnung,
+            Typ                     = entry.Lohnposition.Typ,
+            AhvAlvPflichtig         = entry.Lohnposition.AhvAlvPflichtig,
+            NbuvPflichtig           = entry.Lohnposition.NbuvPflichtig,
+            KtgPflichtig            = entry.Lohnposition.KtgPflichtig,
+            BvgPflichtig            = entry.Lohnposition.BvgPflichtig,
+            QstPflichtig            = entry.Lohnposition.QstPflichtig,
             entry.Betrag, entry.Bemerkung, entry.CreatedAt
         });
     }
@@ -211,19 +170,10 @@ public class LohnZulagenController : ControllerBase
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
 
-public record LohnZulagTypDto(
-    string  Bezeichnung,
-    string  Typ,
-    bool    SvPflichtig,
-    bool    QstPflichtig,
-    int     SortOrder,
-    bool    Aktiv = true
-);
-
 public record LohnZulageDto(
     int     EmployeeId,
     string  Periode,
-    int     TypId,
+    int     LohnpositionId,
     decimal Betrag,
     string? Bemerkung
 );

@@ -1,0 +1,15 @@
+iid;bic;name;ort;strasse;plz
+09000;POFICHBEXXX;PostFinance AG;Bern;Mingerstrasse 20;3030
+00230;UBSWCHZH80A;UBS Switzerland AG;Zürich;Bahnhofstrasse 45;8001
+00700;ZKBKCHZZ80A;Zürcher Kantonalbank;Zürich;Bahnhofstrasse 9;8001
+04835;RAIFCH22XXX;Raiffeisen Schweiz;St. Gallen;Raiffeisenplatz;9001
+08731;CRESCHZZ80A;Credit Suisse (Schweiz) AG;Zürich;Paradeplatz 8;8001
+08390;BCVLCH2LXXX;Banque Cantonale Vaudoise;Lausanne;Place St-François 14;1003
+08079;BKCHCH22XXX;Berner Kantonalbank BEKB;Bern;Bundesplatz 8;3001
+00784;BEKBCH22XXX;Basler Kantonalbank;Basel;Spiegelgasse 2;4001
+00774;KBSOCH22XXX;Kantonalbank Schwyz;Schwyz;Bahnhofstrasse 3;6430
+00228;MIGRCHZZXXX;Migros Bank AG;Zürich;Seidengasse 12;8021
+30000;POFICHBEXXX;PostFinance AG (QR-IBAN);Bern;Mingerstrasse 20;3030
+30808;BCVLCH2LXXX;Banque Cantonale Vaudoise (QR-IBAN);Lausanne;Place St-François 14;1003
+30762;UBSWCHZH80A;UBS Switzerland AG (QR-IBAN);Zürich;Bahnhofstrasse 45;8001
+30700;ZKBKCHZZ80A;Zürcher Kantonalbank (QR-IBAN);Zürich;Bahnhofstrasse 9;8001

@@ -1,0 +1,2 @@
+-- Diese Migration wird nicht mehr benötigt — wir nutzen Filename-basierte
+-- Duplikat-Erkennung statt SHA-256 Content-Hash. Datei kann gelöscht werden.

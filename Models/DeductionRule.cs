@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace HrSystem.Models;
 
 /// <summary>
@@ -50,11 +52,28 @@ public class DeductionRule
     /// <summary>Gilt nur für Mitarbeiter mit Quellensteuer-Pflicht</summary>
     public bool OnlyQuellensteuer { get; set; } = false;
 
+    /// <summary>
+    /// Vertragstyp-Filter: NULL = alle Modelle, 'FIX-M' = nur Management-Kader.
+    /// Wird aus social_insurance_rate.employment_model_code übernommen.
+    /// </summary>
+    public string? EmploymentModelCode { get; set; }
+
     public DateOnly ValidFrom { get; set; } = new DateOnly(2026, 1, 1);
     public DateOnly? ValidTo { get; set; }
 
     public int SortOrder { get; set; } = 99;
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Transient: effektiver Satz für die Anzeige auf dem Lohnzettel.
+    /// Wird nur gesetzt, wenn die echte Rate ein CHF-Betrag ist (Type=fixed),
+    /// aber trotzdem ein Prozent-Äquivalent angezeigt werden soll — etwa
+    /// bei Quellensteuer: der Tarif liefert einen CHF-Betrag, der Satz
+    /// für die Prozent-Spalte kommt aber separat aus dem Tarif.
+    /// Nicht in der Datenbank.
+    /// </summary>
+    [NotMapped]
+    public decimal? DisplayRatePercent { get; set; }
 
     public CompanyProfile? CompanyProfile { get; set; }
 }

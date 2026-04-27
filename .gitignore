@@ -4,3 +4,14 @@ appsettings.Development.json
 *.user
 .DS_Store
 *.zip
+
+# Build-Output
+publish/
+*.tar.gz
+
+# Sensible Daten — NICHT committen!
+Data/documents/
+
+# Backups
+*.backup
+wwwroot/index.html.backup

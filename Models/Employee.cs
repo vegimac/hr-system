@@ -17,6 +17,9 @@ public class Employee
     public string? City { get; set; }
     public string? Country { get; set; }
 
+    /// <summary>Wohnkanton als 2-Zeichen-Code (ZH, BE, AG, ...). NULL = nicht gepflegt.</summary>
+    public string? CantonCode { get; set; }
+
     public DateTime? DateOfBirth { get; set; }
 
     // alter Textwert vorläufig behalten
@@ -55,6 +58,7 @@ public class Employee
     public string? SocialSecurityNumber { get; set; }
 
     /// <summary>Zivilstand: ledig | verheiratet | geschieden | verwitwet | eingetragene_partnerschaft | aufgeloeste_partnerschaft</summary>
+    /// 
     [Column("marital_status")]
-    public string? Zivilstand { get; set; }
+    public string? MaritalStatus { get; set; }
 }

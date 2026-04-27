@@ -28,6 +28,7 @@ public record ContractPdfInput(
     DateTime? ContractEndDate,
     int? ProbationMonths,
     decimal? MonthlySalary,
+    decimal? MonthlySalaryFte,
     decimal? HourlyRate,
     decimal? EmploymentPercentage,
     decimal? WeeklyHours,
@@ -338,14 +339,14 @@ public class ContractPdfService
                         col.Item().Element(c => T(c, "7. Lohn"));
                         if (d.MonthlySalary.HasValue)
                         {
-                            decimal effectiveSalary = Math.Round(d.MonthlySalary.Value * pct / 100m, 2);
+                            // Werte direkt aus DB – keine Berechnung hier
                             bool isPartTime = pct < 100m;
                             col.Item().PaddingTop(2).Text(txt =>
                             {
                                 txt.Span("Der feste Bruttolohn (ohne 13. Monatslohn) betr\u00e4gt CHF  ").Bold().FontSize(10f);
-                                txt.Span(CHF(effectiveSalary)).Bold().FontSize(10f);
-                                if (isPartTime)
-                                    txt.Span($"  ({pct:0}% von {CHF(d.MonthlySalary)})").Bold().FontSize(9f);
+                                txt.Span(CHF(d.MonthlySalary)).Bold().FontSize(10f);
+                                if (isPartTime && d.MonthlySalaryFte.HasValue)
+                                    txt.Span($"  ({pct:0}% von {CHF(d.MonthlySalaryFte)})").Bold().FontSize(9f);
                                 txt.Span("  pro Monat.").Bold().FontSize(10f);
                             });
                         }
@@ -546,13 +547,13 @@ public class ContractPdfService
                         "die Kenntnisnahme und das Einverst\u00e4ndnis mit den integrierenden " +
                         "Vertragsbestandteilen sowie den ausgeh\u00e4ndigten Weisungen und Richtlinien."));
 
-                    col.Item().PaddingTop(12).Row(row =>
+                    col.Item().PaddingTop(12).ShowEntire().Row(row =>
                     {
                         row.RelativeItem().Column(c =>
                         {
                             c.Item().Text("Der Arbeitgeber:").Bold();
                             c.Item().PaddingTop(2).Text($"{d.SignatureCity}, {d.ContractDate:dd.MM.yyyy}");
-                            c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
+                            c.Item().PaddingTop(60).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
                             c.Item().PaddingTop(3).Text(d.SignatoryName);
                             c.Item().Text(d.SignatoryTitle);
                         });
@@ -562,14 +563,14 @@ public class ContractPdfService
                             {
                                 c.Item().Text("Unterschrift des Erziehungsberechtigten");
                                 c.Item().PaddingTop(2).Text("Ort und Datum:");
-                                c.Item().PaddingTop(34).PaddingRight(10).LineHorizontal(0.5f).LineColor(Dark);
+                                c.Item().PaddingTop(49).PaddingRight(10).LineHorizontal(0.5f).LineColor(Dark);
                             });
                         }
                         row.RelativeItem().Column(c =>
                         {
                             c.Item().Text("Der Mitarbeiter:").Bold();
                             c.Item().PaddingTop(2).Text("Ort und Datum:");
-                            c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
+                            c.Item().PaddingTop(60).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
                             c.Item().PaddingTop(3).Text($"{d.FirstName} {d.LastName}");
                         });
                     });
@@ -590,7 +591,7 @@ public class ContractPdfService
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginTop(1.5f, Unit.Centimetre);
+                page.MarginTop(0.3f, Unit.Centimetre);
                 page.MarginBottom(0.5f, Unit.Centimetre);
                 page.MarginHorizontal(2f, Unit.Centimetre);
                 page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark));
@@ -680,13 +681,13 @@ public class ContractPdfService
                         "\u00fcbernommen werden.");
                     col.Item().PaddingTop(6).Text("Bemerkungen").Bold();
                     col.Item().PaddingTop(4).Border(0.5f).BorderColor(Dark).MinHeight(90).Text("");
-                    col.Item().PaddingTop(14).Row(row =>
+                    col.Item().PaddingTop(14).ShowEntire().Row(row =>
                     {
                         row.RelativeItem().Column(c =>
                         {
                             c.Item().Text("Der Arbeitgeber:").Bold();
                             c.Item().PaddingTop(2).Text($"{d.SignatureCity}, {d.ContractDate:dd.MM.yyyy}");
-                            c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
+                            c.Item().PaddingTop(60).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
                             c.Item().PaddingTop(3).Text(d.SignatoryName);
                             c.Item().Text(d.SignatoryTitle);
                         });
@@ -696,14 +697,14 @@ public class ContractPdfService
                             {
                                 c.Item().Text("Unterschrift des Erziehungsberechtigten");
                                 c.Item().PaddingTop(2).Text("Ort und Datum:");
-                                c.Item().PaddingTop(34).PaddingRight(10).LineHorizontal(0.5f).LineColor(Dark);
+                                c.Item().PaddingTop(49).PaddingRight(10).LineHorizontal(0.5f).LineColor(Dark);
                             });
                         }
                         row.RelativeItem().Column(c =>
                         {
                             c.Item().Text("Der Mitarbeiter:").Bold();
                             c.Item().PaddingTop(2).Text("Ort und Datum:");
-                            c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
+                            c.Item().PaddingTop(60).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
                             c.Item().PaddingTop(3).Text($"{d.FirstName} {d.LastName}");
                         });
                     });
@@ -729,7 +730,7 @@ public class ContractPdfService
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    page.MarginTop(1.5f, Unit.Centimetre);
+                    page.MarginTop(0.3f, Unit.Centimetre);
                     page.MarginBottom(1.5f, Unit.Centimetre);
                     page.MarginHorizontal(2f, Unit.Centimetre);
                     page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(sizeText).FontColor(Dark));
@@ -774,13 +775,13 @@ public class ContractPdfService
                         col.Item().PaddingLeft(20).Text("\u2022  Stillzeit ausserhalb des Arbeitsortes ist zur H\u00e4lfte als Arbeitszeit anzurechnen.").FontSize(sizeText);
                         col.Item().Element(c => T(c, "6. Weiterf\u00fchrende Unterlagen", sizeTitle));
                         col.Item().Element(c => P(c, "Zum Thema Mutterschutz und als Eigenstudium finden Sie weitere Informationsmittel auf der Homepage des SECO unter dem Themenblock \u00abSchwangere und Stillende\u00bb.", sizeText));
-                        col.Item().PaddingTop(12).Row(row =>
+                        col.Item().PaddingTop(12).ShowEntire().Row(row =>
                         {
                             row.RelativeItem().Column(c =>
                             {
                                 c.Item().Text("Mitarbeiterin informiert:").Bold();
                                 c.Item().PaddingTop(2).Text($"{d.SignatureCity}, {d.ContractDate:dd.MM.yyyy}");
-                                c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
+                                c.Item().PaddingTop(60).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
                                 c.Item().PaddingTop(3).Text(d.SignatoryName);
                                 c.Item().Text(d.SignatoryTitle);
                             });
@@ -790,14 +791,14 @@ public class ContractPdfService
                                 {
                                     c.Item().Text("Unterschrift des Erziehungsberechtigten");
                                     c.Item().PaddingTop(2).Text("Ort und Datum:");
-                                    c.Item().PaddingTop(34).PaddingRight(10).LineHorizontal(0.5f).LineColor(Dark);
+                                    c.Item().PaddingTop(49).PaddingRight(10).LineHorizontal(0.5f).LineColor(Dark);
                                 });
                             }
                                 row.RelativeItem().Column(c =>
                             {
                                 c.Item().Text("Mitarbeiterin").Bold();
                                 c.Item().PaddingTop(2).Text("Ort und Datum:");
-                                c.Item().PaddingTop(45).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
+                                c.Item().PaddingTop(60).PaddingRight(20).LineHorizontal(0.5f).LineColor(Dark);
                                 c.Item().PaddingTop(3).Text($"{d.FirstName} {d.LastName}");
                             });
                         });

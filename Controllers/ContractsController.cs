@@ -36,19 +36,20 @@ public class ContractsController : ControllerBase
         if (employment == null) return NotFound("Employment not found.");
         if (employment.CompanyProfileId == null) return BadRequest("No company profile.");
 
+        // Neu: ohne .Include(c => c.Signatories)
         var company = await _context.CompanyProfiles
-            .Include(c => c.Signatories)
             .FirstOrDefaultAsync(c => c.Id == employment.CompanyProfileId.Value);
         if (company == null) return BadRequest("Company profile not found.");
 
         var employee = employment.Employee;
         if (employee == null) return BadRequest("Employee not found.");
 
-        var signatory = company.Signatories
-            .Where(s => s.IsActive)
-            .OrderByDescending(s => s.IsDefault)
-            .ThenBy(s => s.LastName)
-            .FirstOrDefault();
+        // Neu: Unterzeichner aus UserBranchAccess laden
+        var signatory = await _context.UserBranchAccesses
+            .Include(s => s.User)
+            .Where(s => s.CompanyProfileId == employment.CompanyProfileId.Value
+                     && s.IsDefault == true)
+            .FirstOrDefaultAsync();
 
         var salaryType = employment.SalaryType ?? GetSalaryType(employment.EmploymentModel);
         var jobTitleDisplay = await GetJobTitleDisplayName(_context, employment.JobTitle, "de") ?? employment.JobTitle ?? "";
@@ -62,7 +63,10 @@ public class ContractsController : ControllerBase
             CompanyName:             company.FullDisplayName,
             CompanyAddress:          companyAddress,
             WorkLocation:            company.WorkLocation ?? "",
-            SignatoryName:           signatory != null ? $"{signatory.FirstName} {signatory.LastName}" : "",
+            // Neu: Name und Funktion aus UserBranchAccess + User
+            SignatoryName:           signatory != null
+                                         ? $"{signatory.User.FirstName} {signatory.User.LastName}".Trim()
+                                         : "",
             SignatoryTitle:          signatory?.FunctionTitle ?? "",
             SignatureCity:           company.City ?? "",
             ContractDate:            DateTime.Today,
@@ -82,6 +86,7 @@ public class ContractsController : ControllerBase
             ContractEndDate:         employment.ContractEndDate,
             ProbationMonths:         employment.ProbationPeriodMonths,
             MonthlySalary:           employment.MonthlySalary,
+            MonthlySalaryFte:        employment.MonthlySalaryFte,
             HourlyRate:              employment.HourlyRate,
             EmploymentPercentage:    employment.EmploymentPercentage,
             WeeklyHours:             employment.EmploymentModel == "MTP"
@@ -90,7 +95,7 @@ public class ContractsController : ControllerBase
             VacationPercent:         employment.VacationPercent,
             HolidayPercent:          employment.HolidayPercent,
             ThirteenthSalaryPercent: employment.ThirteenthSalaryPercent,
-            Gender:                  employee.Gender  // NEU
+            Gender:                  employee.Gender
         );
 
         var pdfBytes = new ContractPdfService().Generate(input);
@@ -107,8 +112,8 @@ public class ContractsController : ControllerBase
         if (employment == null) return NotFound("Employment not found.");
         if (employment.CompanyProfileId == null) return BadRequest("No company profile.");
 
+        // Neu: ohne .Include(c => c.Signatories)
         var company = await _context.CompanyProfiles
-            .Include(c => c.Signatories)
             .FirstOrDefaultAsync(c => c.Id == employment.CompanyProfileId.Value);
         if (company == null) return BadRequest("Company profile not found.");
 

@@ -817,7 +817,7 @@
                 </div>
                 <div class="nav-section">
                     <div class="nav-label">Datenimport</div>
-                    <div class="nav-item" data-page="import" onclick="showPage('import')">
+                    <div class="nav-item" data-page="import" onclick="openImportTool()">
                         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         Import
                     </div>
@@ -927,11 +927,30 @@
             <div class="page" id="page-vertraege">
                 <div class="page-head"><div>
                     <h1 class="page-title">Verträge</h1>
-                    <p class="page-sub">Arbeitsverträge erfassen und als PDF herunterladen</p>
+                    <p class="page-sub">Arbeitsverträge verwalten und erfassen</p>
                 </div></div>
-                <div class="page-body">
-                    <div class="contract-wrap" id="contractWrap"><!-- injected --></div>
-                    <div id="contractHistory" style="display:none;margin-top:0"></div>
+                <div class="page-body" style="padding:0;overflow:hidden">
+                    <div class="emp-layout">
+                        <!-- Liste links -->
+                        <div class="emp-list-panel">
+                            <div class="emp-list-search">
+                                <input class="emp-search-input" id="vtSearch" type="text" placeholder="Suchen..." oninput="filterVtList()">
+                            </div>
+                            <div class="emp-list-scroll" id="vtList">
+                                <div class="emp-no-selection" style="height:200px">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    <span>Wird geladen...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Detail rechts -->
+                        <div class="emp-detail-panel" id="vtDetailPanel">
+                            <div class="emp-no-selection" style="height:100%">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                <span>Mitarbeiter auswählen</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1086,12 +1105,27 @@
             <!-- FILIALEN -->
             <div class="page" id="page-filialen">
                 <div class="page-head"><div><h1 class="page-title">Filialen</h1><p class="page-sub">Alle McDonald's Standorte</p></div></div>
-                <div class="page-body">
-                    <div class="card">
-                        <div class="tbl-wrap"><table>
-                            <thead><tr><th>Code</th><th>Name</th><th>Strasse</th><th>PLZ / Ort</th><th>Telefon</th><th>E-Mail</th><th>Nacht Beginn</th><th>Nacht Ende</th><th></th></tr></thead>
-                            <tbody id="filialenTbody"><tr><td colspan="9" style="text-align:center;padding:28px;color:#94a3b8">Lade...</td></tr></tbody>
-                        </table></div>
+                <div class="page-body" style="padding:0;overflow:hidden">
+                    <div class="emp-layout">
+                        <!-- Liste links -->
+                        <div class="emp-list-panel">
+                            <div class="emp-list-search">
+                                <input class="emp-search-input" id="filialenSearch" type="text" placeholder="Suchen..." oninput="filterFilialenList()">
+                            </div>
+                            <div class="emp-list-scroll" id="filialenList">
+                                <div class="emp-no-selection" style="height:200px">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                    <span>Wird geladen...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Detail rechts -->
+                        <div class="emp-detail-panel" id="filialenDetailPanel">
+                            <div class="emp-no-selection" style="height:100%">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                <span>Filiale auswählen</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1560,12 +1594,22 @@
             <div id="userModalAlert"></div>
             <div class="f-grid">
                 <div class="f-group">
-                    <label class="f-label">Name</label>
-                    <input type="text" class="f-input" id="umName" placeholder="z.B. Maria Müller">
+                    <label class="f-label">Vorname</label>
+                    <input type="text" class="f-input" id="umFirstName" placeholder="Maria">
                 </div>
+                <div class="f-group">
+                    <label class="f-label">Nachname</label>
+                    <input type="text" class="f-input" id="umLastName" placeholder="Müller">
+                </div>
+            </div>
+            <div class="f-grid">
                 <div class="f-group">
                     <label class="f-label">E-Mail</label>
                     <input type="email" class="f-input" id="umEmail" placeholder="maria@schaub.ch">
+                </div>
+                <div class="f-group">
+                    <label class="f-label">Telefon</label>
+                    <input type="tel" class="f-input" id="umPhone" placeholder="+41 79 123 45 67">
                 </div>
             </div>
             <div class="f-grid">
@@ -1613,9 +1657,10 @@ let authToken = localStorage.getItem('hrToken');
 let allBranches = [];
 let editingUserId = null;
 let currentBranchId = null;
+let currentPageName = 'dashboard';
 
 // Contract page state
-let fixedCompanyProfileId = 1;
+let fixedCompanyProfileId = null;
 let selectedCompanyProfile = null;
 let selectedCsvFile = null;
 let lastComplianceResult = null;
@@ -1673,6 +1718,22 @@ function doLogout() {
 
 function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
 
+function openImportTool() {
+    if (!authToken) { alert('Bitte zuerst anmelden.'); return; }
+    if (!fixedCompanyProfileId) {
+        alert('Bitte zuerst eine Filiale auswählen bevor Sie den Import starten.');
+        return;
+    }
+    const branch = allBranches.find(b => b.id === fixedCompanyProfileId);
+    const branchName = branch ? `${branch.restaurantCode||''} – ${branch.branchName||branch.companyName||''}` : '';
+    const restaurantCode = branch?.restaurantCode || '';
+    const url = 'import.html?token=' + encodeURIComponent(authToken)
+              + '&branchId=' + fixedCompanyProfileId
+              + '&branchName=' + encodeURIComponent(branchName)
+              + '&storeNumber=' + encodeURIComponent(restaurantCode);
+    window.open(url, '_blank');
+}
+
 // ══════════════════════════════════════════════
 // STARTUP
 // ══════════════════════════════════════════════
@@ -1701,12 +1762,14 @@ function roleName(r) { return r === 'admin' ? 'Administrator' : r === 'superuser
 // NAVIGATION
 // ══════════════════════════════════════════════
 function showPage(name) {
+    currentPageName = name;
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('page-' + name)?.classList.add('active');
     document.querySelector(`[data-page="${name}"]`)?.classList.add('active');
     if (name === 'benutzer') loadUsers();
     if (name === 'filialen') loadFilialen();
+    if (name === 'vertraege') loadVtList();
     if (name === 'qst-tarife') loadQstTarifeStatus();
     if (name === 'mitarbeiter') loadMitarbeiterList();
     if (name === 'lohn') initLohnPage();
@@ -1727,9 +1790,10 @@ async function loadAllBranches() {
 function populateBranchSelector() {
     const sel = document.getElementById('branchSelect');
     sel.innerHTML = '<option value="">Alle Filialen</option>';
-    const visible = currentUser.branches === 'all'
+    const visible = (currentUser.branches === 'all'
         ? allBranches
-        : allBranches.filter(b => currentUser.branches?.some(ub => ub.id === b.id));
+        : allBranches.filter(b => currentUser.branches?.some(ub => ub.id === b.id))
+    ).slice().sort((a, b) => parseInt(a.restaurantCode||'9999',10) - parseInt(b.restaurantCode||'9999',10));
     visible.forEach(b => {
         const o = document.createElement('option');
         o.value = b.id;
@@ -1741,7 +1805,21 @@ function populateBranchSelector() {
 
 function onBranchChange() {
     currentBranchId = document.getElementById('branchSelect').value || null;
-    if (currentBranchId) fixedCompanyProfileId = parseInt(currentBranchId);
+    fixedCompanyProfileId = currentBranchId ? parseInt(currentBranchId) : null;
+
+    if (currentPageName === 'mitarbeiter') {
+        selectedEmp = null;
+        const se = document.getElementById('empSearch'); if (se) se.value = '';
+        const p = document.getElementById('empDetailPanel');
+        if (p) p.innerHTML = '<div class="emp-no-selection" style="height:100%"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Mitarbeiter auswählen</span></div>';
+        loadMitarbeiterList();
+    } else if (currentPageName === 'vertraege') {
+        selectedVtEmployee = null;
+        const se = document.getElementById('vtSearch'); if (se) se.value = '';
+        const p = document.getElementById('vtDetailPanel');
+        if (p) p.innerHTML = '<div class="emp-no-selection" style="height:100%"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Mitarbeiter auswählen</span></div>';
+        loadVtList();
+    }
 }
 
 // ══════════════════════════════════════════════
@@ -1781,26 +1859,292 @@ async function loadDashboard() {
 // ══════════════════════════════════════════════
 // FILIALEN
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// FILIALEN – Liste + Detail-Panel
+// ══════════════════════════════════════════════
+let selectedBranch = null;
+
 function loadFilialen() {
-    const tbody = document.getElementById('filialenTbody');
-    tbody.innerHTML = '';
-    allBranches.forEach(b => {
-        tbody.innerHTML += `<tr>
-            <td><span class="badge b-code">${b.restaurantCode || '–'}</span></td>
-            <td style="font-weight:600">${b.branchName || b.companyName}</td>
-            <td>${[b.street, b.houseNumber].filter(Boolean).join(' ') || '–'}</td>
-            <td>${[b.zipCode, b.city].filter(Boolean).join(' ') || '–'}</td>
-            <td>${b.phone || '–'}</td>
-            <td style="color:#64748b">${b.email || '–'}</td>
-            <td style="font-variant-numeric:tabular-nums;font-weight:600">${b.nightStartTime || '00:00'}</td>
-            <td style="font-variant-numeric:tabular-nums;font-weight:600">${b.nightEndTime || '07:00'}</td>
-            <td style="white-space:nowrap;display:flex;gap:6px">
-                <button class="btn btn-outline" style="font-size:12px;padding:4px 10px" onclick="openNightHoursModal(${b.id}, '${b.nightStartTime || '00:00'}', '${b.nightEndTime || '07:00'}')">✎ Nacht</button>
-                <button class="btn btn-outline" style="font-size:12px;padding:4px 10px;color:#0f172a" onclick="openDeductionDrawer(${b.id}, '${(b.branchName || b.companyName).replace(/'/g,'\\')}')">⊕ Abzüge</button>
-                <button class="btn btn-outline" style="font-size:12px;padding:4px 10px;color:#1d4ed8" onclick="openAlvDatenModal(${b.id})">ALV</button>
-            </td>
-        </tr>`;
+    renderFilialenList(allBranches);
+}
+
+function renderFilialenList(branches) {
+    const listEl = document.getElementById('filialenList');
+    if (!listEl) return;
+    if (!branches || !branches.length) {
+        listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Keine Filialen</div>';
+        return;
+    }
+    listEl.innerHTML = branches.map(b => {
+        const name = b.branchName || b.companyName || '–';
+        const code = b.restaurantCode || '';
+        const city = b.city || '';
+        const isActive = selectedBranch && selectedBranch.id === b.id;
+        return `<div class="emp-list-item ${isActive ? 'active' : ''}" onclick="selectFiliale(${b.id})">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px">
+                <div style="width:34px;height:34px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#475569;flex-shrink:0">${code}</div>
+                <div style="flex:1;min-width:0">
+                    <div class="emp-list-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+                    <div class="emp-list-nr">${city}</div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterFilialenList() {
+    const q = (document.getElementById('filialenSearch')?.value || '').toLowerCase();
+    const filtered = q ? allBranches.filter(b => {
+        const name = (b.branchName || b.companyName || '').toLowerCase();
+        const code = (b.restaurantCode || '').toLowerCase();
+        return name.includes(q) || code.includes(q);
+    }) : allBranches;
+    renderFilialenList(filtered);
+}
+
+async function selectFiliale(id) {
+    selectedBranch = allBranches.find(b => b.id === id) || null;
+    renderFilialenList(allBranches);
+    if (!selectedBranch) return;
+    renderFilialenDetail(selectedBranch);
+    await loadSignatories(id);
+}
+
+function fField(label, value) {
+    const v = (value !== null && value !== undefined && value !== '') ? value : '–';
+    return `<div class="emp-field">
+        <div class="emp-field-label">${label}</div>
+        <div class="emp-field-value" style="font-size:14px;color:#0f172a">${v}</div>
+    </div>`;
+}
+
+function renderFilialenDetail(b) {
+    const panel = document.getElementById('filialenDetailPanel');
+    if (!panel) return;
+    const name = b.branchName || b.companyName || '–';
+    const nightStart = b.nightStartTime || '00:00';
+    const nightEnd   = b.nightEndTime   || '07:00';
+    panel.innerHTML = `
+    <div class="emp-detail-header">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+            <div>
+                <div class="emp-detail-name">${name}</div>
+                <div class="emp-detail-meta">Code: ${b.restaurantCode || '–'} &nbsp;·&nbsp; ${[b.zipCode, b.city].filter(Boolean).join(' ') || '–'}</div>
+            </div>
+        </div>
+        <div class="emp-detail-tabs">
+            <div class="emp-tab active" data-ftab="f-stamm"         onclick="switchFilialenTab('f-stamm')">Stammdaten</div>
+            <div class="emp-tab"        data-ftab="f-unterzeichner"  onclick="switchFilialenTab('f-unterzeichner')">Unterzeichner</div>
+            <div class="emp-tab"        data-ftab="f-abzuege"        onclick="switchFilialenTab('f-abzuege')">Abzüge</div>
+            <div class="emp-tab"        data-ftab="f-einstellungen"  onclick="switchFilialenTab('f-einstellungen')">Einstellungen</div>
+        </div>
+    </div>
+    <div class="emp-detail-body">
+        <!-- TAB: Stammdaten -->
+        <div class="emp-tab-content active" id="fil-tab-f-stamm">
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                Stammdaten
+                <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openAlvDatenModal(${b.id})">✎ Bearbeiten</button>
+            </div>
+            <div class="emp-field-grid">
+                ${fField('Name',            b.companyName)}
+                ${fField('Code',            b.restaurantCode)}
+                ${fField('Strasse',         [b.street, b.houseNumber].filter(Boolean).join(' '))}
+                ${fField('PLZ / Ort',       [b.zipCode, b.city].filter(Boolean).join(' '))}
+                ${fField('Telefon',         b.phone)}
+                ${fField('E-Mail',          b.email)}
+                ${fField('BUR-Nummer',      b.burNummer)}
+                ${fField('UID-Nummer',      b.uidNummer)}
+                ${fField('AHV-Kasse',       b.ahvKasse)}
+                ${fField('BVG-Versicherer', b.bvgVersicherer)}
+                ${fField('GAV',             b.istGav ? (b.gavName || 'Ja') : 'Nein')}
+                ${fField('Branchen-Code',   b.branchenCode)}
+            </div>
+        </div>
+
+        <!-- TAB: Unterzeichner -->
+        <div class="emp-tab-content" id="fil-tab-f-unterzeichner">
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                Unterzeichner
+                <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openSignatoryForm(null)">+ Hinzufügen</button>
+            </div>
+            <div id="signatoryList"><div style="color:#94a3b8;padding:20px;text-align:center">Wird geladen...</div></div>
+            <div id="signatoryForm" style="display:none;margin-top:20px;padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
+                <div style="font-weight:600;margin-bottom:14px" id="signatoryFormTitle">Unterzeichner hinzufügen</div>
+                <div class="emp-field-grid">
+                    <div class="emp-field" style="grid-column:1/-1">
+                        <div class="emp-field-label">Benutzer auswählen</div>
+                        <select id="sig-userId" class="ef-input">
+                            <option value="">– Benutzer wählen –</option>
+                        </select>
+                    </div>
+                    <div class="emp-field"><div class="emp-field-label">Funktion</div><input id="sig-function" class="ef-input" placeholder="z.B. Geschäftsführer/in"></div>
+                    <div class="emp-field"><div class="emp-field-label">Rolle</div>
+                        <select id="sig-role" class="ef-input">
+                            <option value="">– keine –</option>
+                            <option value="GESCHAEFTSFUEHRER">Geschäftsführer/in</option>
+                            <option value="HR_VERANTWORTLICH">HR-Verantwortlich</option>
+                            <option value="REGIONALLEITER">Regionalleiter/in</option>
+                            <option value="BUCHHALTUNG">Buchhaltung</option>
+                            <option value="SONSTIGES">Sonstiges</option>
+                        </select>
+                    </div>
+                    <div class="emp-field"><div class="emp-field-label">Standard</div>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                            <input type="checkbox" id="sig-isDefault" style="width:16px;height:16px">
+                            <span style="font-size:13px;color:#64748b">Allgemeiner Unterzeichner</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:14px">
+                    <button class="btn btn-primary" style="font-size:13px;padding:6px 18px" onclick="saveSignatory()">Speichern</button>
+                    <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px" onclick="closeSignatoryForm()">Abbrechen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Abzüge -->
+        <div class="emp-tab-content" id="fil-tab-f-abzuege">
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                Abzüge
+                <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openDeductionDrawer(${b.id}, encodeURI('${name.replace(/'/g,"\'")}'))">✎ Bearbeiten</button>
+            </div>
+            <div style="color:#64748b;font-size:13px;padding:20px 0">Klicken Sie auf "Bearbeiten" um die Abzüge zu verwalten.</div>
+        </div>
+
+        <!-- TAB: Einstellungen -->
+        <div class="emp-tab-content" id="fil-tab-f-einstellungen">
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                Einstellungen
+                <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openNightHoursModal(${b.id}, '${nightStart}', '${nightEnd}')">✎ Nachtzeiten</button>
+            </div>
+            <div class="emp-field-grid">
+                ${fField('Nacht Beginn',          nightStart)}
+                ${fField('Nacht Ende',            nightEnd)}
+                ${fField('Normale Wochenstunden', b.normalWeeklyHours)}
+                ${fField('Lohnperiode Start-Tag', b.payrollPeriodStartDay)}
+                ${fField('Ferien % (5 Wochen)',   b.defaultVacationPercent5Weeks)}
+                ${fField('Ferien % (6 Wochen)',   b.defaultVacationPercent6Weeks)}
+                ${fField('Feiertag %',            b.defaultHolidayPercent)}
+            </div>
+        </div>
+    </div>`;
+}
+
+function switchFilialenTab(tab) {
+    document.querySelectorAll('#filialenDetailPanel .emp-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.ftab === tab);
     });
+    document.querySelectorAll('#filialenDetailPanel .emp-tab-content').forEach(c => {
+        c.classList.toggle('active', c.id === 'fil-tab-' + tab);
+    });
+}
+
+// ── Unterzeichner ──────────────────────────────────
+const roleLabels = { GESCHAEFTSFUEHRER:'Geschäftsführer/in', HR_VERANTWORTLICH:'HR-Verantwortlich', BUCHHALTUNG:'Buchhaltung', SONSTIGES:'Sonstiges' };
+
+// ── Unterzeichner via user_branch_access ──────────────────────────────
+let editingSignatoryId = null;
+
+async function loadSignatories(companyId) {
+    const el = document.getElementById('signatoryList');
+    if (!el) return;
+    try {
+        const res = await fetch(`/api/userbranch/company/${companyId}`, { headers: ah() });
+        if (!res.ok) { el.innerHTML = '<div style="color:#dc2626;padding:12px">Fehler beim Laden.</div>'; return; }
+        renderSignatoryList(await res.json());
+    } catch { el.innerHTML = '<div style="color:#dc2626;padding:12px">Verbindungsfehler.</div>'; }
+}
+
+function renderSignatoryList(list) {
+    const el = document.getElementById('signatoryList');
+    if (!el) return;
+    if (!list.length) { el.innerHTML = '<div style="color:#94a3b8;padding:20px;text-align:center">Noch keine Benutzer zugewiesen.</div>'; return; }
+    el.innerHTML = list.map(s => {
+        const name = s.user?.firstName ? `${s.user.firstName} ${s.user.lastName||''}`.trim() : s.user?.username || '–';
+        const initials = ((s.user?.firstName||'')[0]||'') + ((s.user?.lastName||'')[0]||'');
+        return `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9">
+            <div style="width:36px;height:36px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#475569;flex-shrink:0">${initials.toUpperCase()}</div>
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:13px">${name}</div>
+                <div style="font-size:12px;color:#64748b">${s.functionTitle || s.user?.email || '–'}</div>
+                ${s.user?.phone ? `<div style="font-size:11px;color:#94a3b8">${s.user.phone}</div>` : ''}
+            </div>
+            <div style="flex-shrink:0;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+                ${s.role ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#eff6ff;color:#1d4ed8">${roleLabels[s.role]||s.role}</span>` : ''}
+                ${s.isDefault ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0fdf4;color:#15803d">Allgemein</span>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+                <button class="btn btn-outline" style="font-size:12px;padding:3px 10px" onclick='openSignatoryForm(${JSON.stringify(s)})'>✎</button>
+                <button class="btn btn-outline" style="font-size:12px;padding:3px 10px;color:#dc2626" onclick="deleteSignatory(${s.id})">✕</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function openSignatoryForm(s) {
+    editingSignatoryId = s ? s.id : null;
+    document.getElementById('signatoryFormTitle').textContent = s ? 'Zuweisung bearbeiten' : 'Benutzer zuweisen';
+
+    // Benutzer-Dropdown laden
+    const sel = document.getElementById('sig-userId');
+    sel.innerHTML = '<option value="">– Benutzer wählen –</option>';
+    try {
+        const res = await fetch('/api/users', { headers: ah() });
+        if (res.ok) {
+            const users = await res.json();
+            users.filter(u => u.isActive).forEach(u => {
+                const name = u.firstName ? `${u.firstName} ${u.lastName||''}`.trim() : u.username;
+                const opt = document.createElement('option');
+                opt.value = u.id;
+                opt.textContent = name + (u.email ? ` (${u.email})` : '');
+                sel.appendChild(opt);
+            });
+        }
+    } catch {}
+
+    sel.value = s?.userId || s?.user?.id || '';
+    document.getElementById('sig-function').value    = s?.functionTitle || '';
+    document.getElementById('sig-role').value        = s?.role          || '';
+    document.getElementById('sig-isDefault').checked = s?.isDefault     || false;
+    document.getElementById('signatoryForm').style.display = 'block';
+    document.getElementById('signatoryForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeSignatoryForm() {
+    document.getElementById('signatoryForm').style.display = 'none';
+    editingSignatoryId = null;
+}
+
+async function saveSignatory() {
+    if (!selectedBranch) return;
+    const userId = parseInt(document.getElementById('sig-userId').value);
+    if (!userId) { alert('Bitte einen Benutzer auswählen.'); return; }
+    const payload = {
+        userId,
+        companyProfileId: selectedBranch.id,
+        functionTitle: document.getElementById('sig-function').value.trim() || null,
+        role:          document.getElementById('sig-role').value             || null,
+        isDefault:     document.getElementById('sig-isDefault').checked,
+    };
+    try {
+        const url    = editingSignatoryId ? `/api/userbranch/${editingSignatoryId}` : '/api/userbranch';
+        const method = editingSignatoryId ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!res.ok) { alert('Fehler beim Speichern.'); return; }
+        closeSignatoryForm();
+        await loadSignatories(selectedBranch.id);
+    } catch { alert('Verbindungsfehler.'); }
+}
+
+async function deleteSignatory(id) {
+    if (!confirm('Zuweisung wirklich entfernen?')) return;
+    try {
+        const res = await fetch(`/api/userbranch/${id}`, { method: 'DELETE', headers: ah() });
+        if (!res.ok) { alert('Fehler beim Löschen.'); return; }
+        await loadSignatories(selectedBranch.id);
+    } catch { alert('Verbindungsfehler.'); }
 }
 
 // ── ALV-Daten Modal ───────────────────────────────
@@ -1841,6 +2185,13 @@ async function saveAlvDaten() {
             body: JSON.stringify(payload)
         });
         if (!res.ok) { alert('Fehler beim Speichern.'); return; }
+        // Lokale Kopie + Detail-Panel aktualisieren
+        const b = allBranches.find(x => x.id === alvModalBranchId);
+        if (b) { Object.assign(b, payload); }
+        if (selectedBranch?.id === alvModalBranchId) {
+            Object.assign(selectedBranch, payload);
+            renderFilialenDetail(selectedBranch);
+        }
         closeAlvDatenModal();
     } catch { alert('Verbindungsfehler.'); }
 }
@@ -1874,6 +2225,11 @@ async function saveNightHours() {
         if (selectedCompanyProfile?.id === nightHoursModalBranchId) {
             selectedCompanyProfile.nightStartTime = start;
             selectedCompanyProfile.nightEndTime   = end;
+        }
+        if (selectedBranch?.id === nightHoursModalBranchId) {
+            selectedBranch.nightStartTime = start;
+            selectedBranch.nightEndTime   = end;
+            renderFilialenDetail(selectedBranch);
         }
         closeNightHoursModal();
         loadFilialen();
@@ -2381,8 +2737,11 @@ async function loadUsers() {
             tbody.innerHTML += `<tr>
                 <td>
                     <div style="display:flex;align-items:center;gap:9px">
-                        <div style="width:30px;height:30px;background:#e2e8f0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#475569;flex-shrink:0">${(u.username||'?')[0].toUpperCase()}</div>
-                        <span style="font-weight:600">${u.username}</span>
+                        <div style="width:30px;height:30px;background:#e2e8f0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#475569;flex-shrink:0">${((u.firstName||u.username||'?')[0]).toUpperCase()}</div>
+                        <div>
+                            <div style="font-weight:600">${u.firstName ? u.firstName + ' ' + (u.lastName||'') : u.username}</div>
+                            ${u.phone ? `<div style="font-size:11px;color:#94a3b8">${u.phone}</div>` : ''}
+                        </div>
                     </div>
                 </td>
                 <td style="color:#64748b">${u.email}</td>
@@ -2428,22 +2787,26 @@ function openUserModal(userId = null) {
         fetch('/api/users', { headers: ah() }).then(r => r.json()).then(users => {
             const u = users.find(x => x.id === userId);
             if (!u) return;
-            document.getElementById('umName').value = u.username;
-            document.getElementById('umEmail').value = u.email;
-            document.getElementById('umPassword').value = '';
-            document.getElementById('umRole').value = u.role;
-            document.getElementById('umActive').value = u.isActive.toString();
+            document.getElementById('umFirstName').value = u.firstName || '';
+            document.getElementById('umLastName').value  = u.lastName  || '';
+            document.getElementById('umEmail').value     = u.email;
+            document.getElementById('umPhone').value     = u.phone     || '';
+            document.getElementById('umPassword').value  = '';
+            document.getElementById('umRole').value      = u.role;
+            document.getElementById('umActive').value    = u.isActive.toString();
             const ids = u.branches?.map(b => b.id) || [];
             document.querySelectorAll('#umBranches input[type=checkbox]').forEach(cb => {
                 cb.checked = ids.includes(parseInt(cb.value));
             });
         });
     } else {
-        document.getElementById('umName').value = '';
-        document.getElementById('umEmail').value = '';
-        document.getElementById('umPassword').value = '';
-        document.getElementById('umRole').value = 'user';
-        document.getElementById('umActive').value = 'true';
+        document.getElementById('umFirstName').value = '';
+        document.getElementById('umLastName').value  = '';
+        document.getElementById('umEmail').value     = '';
+        document.getElementById('umPhone').value     = '';
+        document.getElementById('umPassword').value  = '';
+        document.getElementById('umRole').value      = 'user';
+        document.getElementById('umActive').value    = 'true';
     }
     document.getElementById('userModalBg').classList.add('open');
 }
@@ -2453,14 +2816,17 @@ function closeUserModal() { document.getElementById('userModalBg').classList.rem
 async function saveUser() {
     const alertEl = document.getElementById('userModalAlert');
     alertEl.innerHTML = '';
-    const username = document.getElementById('umName').value.trim();
-    const email = document.getElementById('umEmail').value.trim();
-    const password = document.getElementById('umPassword').value;
-    const role = document.getElementById('umRole').value;
-    const isActive = document.getElementById('umActive').value === 'true';
+    const firstName = document.getElementById('umFirstName').value.trim();
+    const lastName  = document.getElementById('umLastName').value.trim();
+    const email     = document.getElementById('umEmail').value.trim();
+    const phone     = document.getElementById('umPhone').value.trim() || null;
+    const password  = document.getElementById('umPassword').value;
+    const role      = document.getElementById('umRole').value;
+    const isActive  = document.getElementById('umActive').value === 'true';
     const branchIds = Array.from(document.querySelectorAll('#umBranches input:checked')).map(cb => parseInt(cb.value));
+    const username  = `${firstName} ${lastName}`.trim() || email;
 
-    if (!username || !email) { alertEl.innerHTML = '<div class="alert alert-err">Bitte Name und E-Mail ausfüllen.</div>'; return; }
+    if (!firstName || !lastName || !email) { alertEl.innerHTML = '<div class="alert alert-err">Bitte Vor-/Nachname und E-Mail ausfüllen.</div>'; return; }
     if (!editingUserId && !password) { alertEl.innerHTML = '<div class="alert alert-err">Bitte ein Passwort eingeben.</div>'; return; }
 
     try {
@@ -2468,12 +2834,12 @@ async function saveUser() {
         if (editingUserId) {
             res = await fetch(`/api/users/${editingUserId}`, {
                 method: 'PUT', headers: ah(),
-                body: JSON.stringify({ username, email, password: password || null, role, isActive, branchIds })
+                body: JSON.stringify({ username, firstName, lastName, phone, email, password: password || null, role, isActive, branchIds })
             });
         } else {
             res = await fetch('/api/users', {
                 method: 'POST', headers: ah(),
-                body: JSON.stringify({ username, email, password, role, branchIds })
+                body: JSON.stringify({ username, firstName, lastName, phone, email, password, role, branchIds })
             });
         }
         if (!res.ok) {
@@ -2504,8 +2870,323 @@ function showPageAlert(elId, msg, type) {
 // ══════════════════════════════════════════════
 // CONTRACT PAGE
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// VERTRÄGE – Liste + Detail
+// ══════════════════════════════════════════════
+let allEmpData = [];
+let selectedEmp = null;
+let allVtEmployees = [];
+let selectedVtEmployee = null;
+
+// ── MITARBEITER LIST ─────────────────────────────────
+async function loadMitarbeiterList() {
+    const listEl = document.getElementById('empList');
+    if (!listEl) return;
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Lade...</div>';
+    try {
+        const res = await fetch('/api/employees', { headers: ah(), cache: 'no-store' });
+        const emps = await res.json();
+        let filtered = emps.filter(e => e.isActive);
+        // Filialfilter: nur wenn eine Filiale explizit gewählt ist
+        if (fixedCompanyProfileId) {
+            filtered = filtered.filter(e =>
+                e.employments?.some(v => Number(v.companyProfileId) === Number(fixedCompanyProfileId))
+            );
+        }
+        allEmpData = filtered.sort((a, b) =>
+            (a.lastName||'').localeCompare(b.lastName||'', 'de')
+        );
+        renderEmpList(allEmpData);
+    } catch(e) {
+        listEl.innerHTML = `<div style="padding:20px;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`;
+    }
+}
+
+function renderEmpList(employees) {
+    const listEl = document.getElementById('empList');
+    if (!listEl) return;
+    if (!employees.length) {
+        listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Keine Mitarbeiter gefunden</div>';
+        return;
+    }
+    listEl.innerHTML = employees.map(e => {
+        const initials = ((e.firstName||'')[0]||'') + ((e.lastName||'')[0]||'');
+        const isFemale = e.gender === 'female';
+        const isSelected = selectedEmp?.id === e.id;
+        const model = e.employments?.find(v => v.isActive)?.employmentModel || '';
+        const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+        return `<div class="emp-list-item ${isSelected ? 'active' : ''}" onclick="selectEmployee(${e.id})">
+            <div class="emp-avatar ${isFemale ? 'female' : ''}">${initials}</div>
+            <div>
+                <div class="emp-list-name">${e.firstName} ${e.lastName}</div>
+                <div class="emp-list-nr">${e.employeeNumber || ''}</div>
+            </div>
+            ${model ? `<span style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:${modelColor[model]||'#f1f5f9'};flex-shrink:0">${model}</span>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function filterEmployeeList() {
+    const q = document.getElementById('empSearch')?.value.toLowerCase().trim() || '';
+    if (!q) { renderEmpList(allEmpData); return; }
+    renderEmpList(allEmpData.filter(e =>
+        `${e.firstName} ${e.lastName}`.toLowerCase().includes(q) ||
+        (e.employeeNumber||'').includes(q)
+    ));
+}
+
+async function selectEmployee(id) {
+    selectedEmp = allEmpData.find(e => e.id === id) || null;
+    renderEmpList(allEmpData.filter(e => {
+        const q = document.getElementById('empSearch')?.value.toLowerCase().trim() || '';
+        return !q || `${e.firstName} ${e.lastName}`.toLowerCase().includes(q) || (e.employeeNumber||'').includes(q);
+    }));
+    if (!selectedEmp) return;
+    const panel = document.getElementById('empDetailPanel');
+    if (!panel) return;
+    // Load contracts
+    let contracts = [];
+    try {
+        const r = await fetch(`/api/employments/employee/${id}`, { headers: ah() });
+        if (r.ok) contracts = await r.json();
+    } catch {}
+    renderEmpDetail(selectedEmp, contracts, panel);
+}
+
+function renderEmpDetail(emp, contracts, panel) {
+    const name = `${emp.firstName} ${emp.lastName}`.trim();
+    const active = contracts.filter(c => c.isActive).sort((a,b) =>
+        new Date(b.contractStartDate) - new Date(a.contractStartDate))[0];
+    panel.innerHTML = `
+    <div class="emp-detail-header">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+            <div class="emp-detail-name">${name}</div>
+        </div>
+        <div class="emp-detail-meta">Personal-Nr. ${emp.employeeNumber || '–'} &nbsp;·&nbsp; ${contracts.length} Vertrag${contracts.length !== 1 ? 'e' : ''}</div>
+        <div class="emp-detail-tabs">
+            <div class="emp-tab active" onclick="empSwitchTab(this,'empTabPersonal')">Personal</div>
+            <div class="emp-tab" onclick="empSwitchTab(this,'empTabVertraege')">Verträge</div>
+        </div>
+    </div>
+    <div class="emp-detail-body">
+        <div class="emp-tab-content active" id="empTabPersonal">
+            <div class="emp-section-title">Persönliche Daten</div>
+            <div class="emp-field-grid">
+                ${empField('Vorname', emp.firstName)}
+                ${empField('Nachname', emp.lastName)}
+                ${empField('Geburtsdatum', emp.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString('de-CH') : '–')}
+                ${empField('Geschlecht', emp.gender === 'female' ? 'Weiblich' : emp.gender === 'male' ? 'Männlich' : '–')}
+                ${empField('E-Mail', emp.email)}
+                ${empField('Telefon', emp.phone)}
+                ${empField('Adresse', emp.address)}
+                ${empField('PLZ / Ort', [emp.postalCode, emp.city].filter(Boolean).join(' '))}
+                ${empField('Region', emp.region)}
+                ${empField('Nationalität', emp.nationality?.name || '–')}
+                ${empField('AHV-Nummer', emp.ahvNumber)}
+                ${empField('Im Betrieb seit', emp.hiredDate ? new Date(emp.hiredDate).toLocaleDateString('de-CH') : '–')}
+            </div>
+        </div>
+        <div class="emp-tab-content" id="empTabVertraege">
+            <div class="emp-section-title">Verträge</div>
+            ${contracts.length ? contracts.sort((a,b) => new Date(b.contractStartDate)-new Date(a.contractStartDate)).map(c => `
+            <div style="background:${c.isActive?'#f0fdf4':'#f8fafc'};border:1px solid ${c.isActive?'#bbf7d0':'#e2e8f0'};border-radius:10px;padding:14px 16px;margin-bottom:10px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <span style="font-weight:600;font-size:13px">${c.employmentModel} – ${c.jobTitle||'–'}</span>
+                    ${c.isActive ? '<span style="font-size:11px;background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-weight:600">Aktiv</span>' : '<span style="font-size:11px;background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:10px">Inaktiv</span>'}
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:#64748b">
+                    <div>Von: <b style="color:#374151">${new Date(c.contractStartDate).toLocaleDateString('de-CH')}</b></div>
+                    <div>Bis: <b style="color:#374151">${c.contractEndDate ? new Date(c.contractEndDate).toLocaleDateString('de-CH') : 'Unbefristet'}</b></div>
+                    ${c.hourlyRate ? `<div>Stundenlohn: <b style="color:#374151">CHF ${Number(c.hourlyRate).toFixed(2)}</b></div>` : ''}
+                    ${c.monthlySalary ? `<div>Monatslohn: <b style="color:#374151">CHF ${Number(c.monthlySalary).toFixed(2)}</b></div>` : ''}
+                    ${c.employmentPercentage ? `<div>Pensum: <b style="color:#374151">${c.employmentPercentage}%</b></div>` : ''}
+                    ${c.guaranteedHoursPerWeek ? `<div>Garantierte Std.: <b style="color:#374151">${c.guaranteedHoursPerWeek}h/Wo</b></div>` : ''}
+                </div>
+            </div>`).join('') : '<div style="color:#94a3b8;font-size:13px">Keine Verträge vorhanden</div>'}
+        </div>
+    </div>`;
+}
+
+function empField(label, value) {
+    return `<div class="emp-field">
+        <div class="emp-field-label">${label}</div>
+        <div class="emp-field-value ${!value ? 'empty' : ''}">${value || '–'}</div>
+    </div>`;
+}
+
+function empSwitchTab(el, tabId) {
+    el.closest('.emp-detail-header').querySelectorAll('.emp-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    const body = el.closest('.emp-detail-panel')?.querySelector('.emp-detail-body');
+    body?.querySelectorAll('.emp-tab-content').forEach(t => t.classList.remove('active'));
+    body?.querySelector('#' + tabId)?.classList.add('active');
+}
+
+async function loadVtList() {
+    const listEl = document.getElementById('vtList');
+    if (!listEl) return;
+    try {
+        const res = await fetch('/api/employees', { headers: ah() });
+        const emps = await res.json();
+        let filtered = emps.filter(e => e.isActive && e.employments?.length > 0);
+        // Filialfilter: nur wenn eine Filiale explizit gewählt ist
+        if (fixedCompanyProfileId) {
+            filtered = filtered.filter(e =>
+                e.employments?.some(v => Number(v.companyProfileId) === Number(fixedCompanyProfileId))
+            );
+        }
+        allVtEmployees = filtered;
+        renderVtList(allVtEmployees);
+    } catch(e) {
+        listEl.innerHTML = `<div style="padding:20px;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`;
+    }
+}
+
+function renderVtList(employees) {
+    const listEl = document.getElementById('vtList');
+    if (!listEl) return;
+    if (!employees.length) {
+        listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Keine Mitarbeiter</div>';
+        return;
+    }
+    listEl.innerHTML = employees.map(e => {
+        const active = (e.employments || []).find(v => !v.contractEndDate) || (e.employments||[])[0];
+        const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+        const model = active?.employmentModel || '';
+        const isSelected = selectedVtEmployee?.id === e.id;
+        return `<div class="emp-list-item ${isSelected ? 'active' : ''}" onclick="selectVtEmployee(${e.id})">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px">
+                <div style="width:34px;height:34px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#475569;flex-shrink:0">
+                    ${((e.firstName||'')[0]||'') + ((e.lastName||'')[0]||'')}
+                </div>
+                <div style="flex:1;min-width:0">
+                    <div class="emp-list-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.firstName} ${e.lastName}</div>
+                    <div class="emp-list-nr">${e.employeeNumber || ''}</div>
+                </div>
+                ${model ? `<span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:${modelColor[model]||'#f1f5f9'};flex-shrink:0">${model}</span>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterVtList() {
+    const q = (document.getElementById('vtSearch')?.value || '').toLowerCase();
+    const filtered = q ? allVtEmployees.filter(e => {
+        const name = `${e.firstName} ${e.lastName}`.toLowerCase();
+        return name.includes(q) || (e.employeeNumber||'').includes(q);
+    }) : allVtEmployees;
+    renderVtList(filtered);
+}
+
+async function selectVtEmployee(id) {
+    selectedVtEmployee = allVtEmployees.find(e => e.id === id) || null;
+    renderVtList(allVtEmployees);
+    if (!selectedVtEmployee) return;
+    renderVtDetail(selectedVtEmployee);
+}
+
+function renderVtDetail(emp) {
+    const panel = document.getElementById('vtDetailPanel');
+    if (!panel) return;
+    const name = `${emp.firstName} ${emp.lastName}`.trim();
+    const fmt = d => d ? new Date(d).toLocaleDateString('de-CH') : '–';
+    const modelLabel = { UTP:'Stundenlohn (UTP)', MTP:'Mindestpensum (MTP)', FIX:'Festpensum (FIX)', 'FIX-M':'Management (FIX-M)' };
+    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+
+    const contracts = (emp.employments || []).sort((a,b) => {
+        // Aktiv (kein Enddatum) zuerst
+        const aActive = !a.contractEndDate ? 1 : 0;
+        const bActive = !b.contractEndDate ? 1 : 0;
+        if (bActive !== aActive) return bActive - aActive;
+        // Dann nach Startdatum absteigend
+        return (b.contractStartDate||'') > (a.contractStartDate||'') ? 1 : -1;
+    });
+
+    const contractCards = contracts.map(c => {
+        const isActive = !c.contractEndDate;
+        const lohn = c.salaryType === 'monthly' && c.monthlySalary
+            ? `CHF ${Number(c.monthlySalary).toFixed(2)} / Monat`
+            : c.hourlyRate ? `CHF ${Number(c.hourlyRate).toFixed(2)} / Stunde` : '–';
+        const pensum = c.employmentPercentage != null ? `${c.employmentPercentage} %`
+                     : c.weeklyHours != null ? `${c.weeklyHours} h / Woche` : '–';
+        return `
+        <div style="border:1px solid ${isActive ? '#bfdbfe' : '#e2e8f0'};border-radius:10px;padding:16px;margin-bottom:12px;background:${isActive ? '#eff6ff' : '#fafafa'}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${modelColor[c.employmentModel]||'#f1f5f9'}">${modelLabel[c.employmentModel]||c.employmentModel||'–'}</span>
+                    ${isActive ? '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#dcfce7;color:#15803d">● Aktiv</span>' : '<span style="font-size:11px;color:#94a3b8;padding:3px 10px;border-radius:10px;background:#f1f5f9">Abgeschlossen</span>'}
+                </div>
+                <button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick="downloadContractPdfById(${emp.id}, ${c.id})">📄 PDF</button>
+            </div>
+            <div class="emp-field-grid">
+                ${vtField('Von', fmt(c.contractStartDate))}
+                ${vtField('Bis', isActive ? '<em style="color:#94a3b8">offen</em>' : fmt(c.contractEndDate))}
+                ${vtField('Stellenbezeichnung', c.jobTitle)}
+                ${vtField('Pensum', pensum)}
+                ${vtField('Lohn', lohn)}
+                ${c.vacationPercent != null ? vtField('Ferien %', c.vacationPercent + ' %') : ''}
+                ${c.holidayPercent != null ? vtField('Feiertag %', c.holidayPercent + ' %') : ''}
+                ${c.thirteenthSalaryPercent != null ? vtField('13. ML %', c.thirteenthSalaryPercent + ' %') : ''}
+                ${c.probationEndDate ? vtField('Probezeit bis', fmt(c.probationEndDate)) : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    panel.innerHTML = `
+    <div class="emp-detail-header">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+            <div>
+                <div class="emp-detail-name">${name}</div>
+                <div class="emp-detail-meta">Personal-Nr. ${emp.employeeNumber || '–'} &nbsp;·&nbsp; ${contracts.length} Vertrag${contracts.length !== 1 ? 'e' : ''}</div>
+            </div>
+            <div style="display:flex;gap:8px">
+                    <button class="btn btn-outline" style="font-size:12px;padding:5px 14px;white-space:nowrap" onclick="openVtImport(${emp.id}, '${emp.employeeNumber}')">📥 CSV importieren</button>
+                    <button class="btn btn-primary" style="font-size:12px;padding:5px 14px;white-space:nowrap" onclick="openNewContractForEmp(${emp.id})">+ Neuer Vertrag</button>
+                </div>
+        </div>
+    </div>
+    <div class="emp-detail-body">
+        ${contractCards || '<div style="color:#94a3b8;padding:20px;text-align:center">Keine Verträge vorhanden.</div>'}
+    </div>`;
+}
+
+function vtField(label, value) {
+    if (!value && value !== 0) return '';
+    return `<div class="emp-field">
+        <div class="emp-field-label">${label}</div>
+        <div class="emp-field-value" style="font-size:14px;color:#0f172a">${value}</div>
+    </div>`;
+}
+
+function openNewContractForEmp(employeeId) {
+    // Wechsle zur Vertrags-Erfassung und wähle den MA vor
+    showPage('vertraege-neu');
+    // TODO: Mitarbeiter vorselektieren
+}
+
+async function downloadContractPdfById(employeeId, contractId) {
+    const btn = event?.target;
+    if (btn) { btn.textContent = '⏳…'; btn.disabled = true; }
+    try {
+        const res = await fetch(`/api/contracts/employment/${contractId}/pdf`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (!res.ok) { alert('Fehler beim PDF: ' + await res.text()); return; }
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const cd   = res.headers.get('Content-Disposition') || '';
+        const match = cd.match(/filename="?([^"]+)"?/);
+        a.download = match ? match[1] : 'Vertrag.pdf';
+        a.href = url; a.click(); URL.revokeObjectURL(url);
+    } catch (err) { alert('Fehler: ' + err.message); }
+    finally { if (btn) { btn.textContent = '📄 PDF'; btn.disabled = false; } }
+}
+
 function buildContractPage() {
-    document.getElementById('contractWrap').innerHTML = `
+    const contractWrap = document.getElementById('contractWrap');
+    if (!contractWrap) return;
+    contractWrap.innerHTML = `
         <div class="c-top">
             <div class="c-section">
                 <div class="c-section-title">Mitarbeiter</div>
@@ -2520,6 +3201,16 @@ function buildContractPage() {
                     <select id="nationalityId" onchange="onNationalityChange()"><option value="">Lade...</option></select>
                     <label>Geschlecht</label>
                     <div id="genderDisplay" class="c-readonly">–</div>
+                    <label>Zivilstand</label>
+                    <select id="zivilstandSelect" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;background:#f8fafc">
+                        <option value="">– bitte wählen –</option>
+                        <option value="ledig">Ledig</option>
+                        <option value="verheiratet">Verheiratet</option>
+                        <option value="geschieden">Geschieden</option>
+                        <option value="verwitwet">Verwitwet</option>
+                        <option value="eingetragene_partnerschaft">Eingetragene Partnerschaft</option>
+                        <option value="aufgeloeste_partnerschaft">Aufgelöste Partnerschaft</option>
+                    </select>
                     <div id="qstBefreitLabel" style="display:none"><label>QST befreit ab</label></div>
                     <div id="qstBefreitField" style="display:none">
                         <input type="date" id="quellensteuerBefreitAb" style="width:100%">
@@ -2677,7 +3368,8 @@ async function loadEmployees() {
     if (!sel) return;
     sel.innerHTML = '<option value="">Lade...</option>';
     try {
-        const res = await fetch(`/api/employees/lookup/company/${fixedCompanyProfileId}`, { headers: ah() });
+        const url = fixedCompanyProfileId ? `/api/employees/lookup/company/${fixedCompanyProfileId}` : '/api/employees';
+        const res = await fetch(url, { headers: ah() });
         const data = await res.json();
         sel.innerHTML = '';
         employeeGenderMap = {}; employeeDateOfBirthMap = {};
@@ -2712,6 +3404,9 @@ async function loadSnapshot(employeeId) {
         const empRes = await fetch(`/api/employees/${employeeId}`, { headers: ah() });
         if (empRes.ok) {
             const emp = await empRes.json();
+            // Zivilstand setzen
+            const zivilSel = document.getElementById('zivilstandSelect');
+            if (zivilSel) zivilSel.value = emp.maritalStatus ?? emp.zivilstand ?? '';
             // Nationalität setzen
             if (emp.nationalityId) { const natSel = document.getElementById('nationalityId'); if (natSel) natSel.value = emp.nationalityId; }
             // QST-Befreit-Datum setzen
@@ -2897,10 +3592,12 @@ async function saveEmployeeData() {
     const natId   = parseInt(document.getElementById('nationalityId')?.value) || null;
     const befreit = document.getElementById('quellensteuerBefreitAb')?.value || null;
 
+    const zivilstand = document.getElementById('zivilstandSelect')?.value || null;
     const payload = {
         nationalityId:              natId,
         quellensteuerBefreitAbSet:  true,
         quellensteuerBefreitAb:     befreit,
+        maritalStatus:              zivilstand,
     };
 
     const res = await fetch(`/api/employees/${empId}`, {
@@ -3169,6 +3866,206 @@ async function uploadEmployeeCsv() {
         if (resultBox) resultBox.innerHTML = `<div class="txt-ok">Import erfolgreich.</div><div>Importiert: ${result.importedRows ?? 0} | Neu: ${result.inserted ?? 0} | Aktualisiert: ${result.updated ?? 0} | Reaktiviert: ${result.reactivated ?? 0} | Inaktiv: ${result.deactivated ?? 0}</div>${result.message ? `<div class="txt-info">${result.message}</div>` : ''}`;
         await loadEmployees();
     } catch { if (resultBox) resultBox.innerHTML = '<span class="txt-warn">Technischer Fehler.</span>'; }
+}
+
+
+// ══════════════════════════════════════════════
+// VERTRAGS-IMPORT (pro Mitarbeiter)
+// ══════════════════════════════════════════════
+let vtImportEmployeeId   = null;
+let vtImportEmployeeNr   = null;
+let vtImportFile         = null;
+let vtImportSnapshotData = null;
+
+function openVtImport(empId, empNr) {
+    vtImportEmployeeId   = empId;
+    vtImportEmployeeNr   = empNr;
+    vtImportFile         = null;
+    vtImportSnapshotData = null;
+    document.getElementById('vtImportEmpName').textContent = 
+        selectedVtEmployee ? `${selectedVtEmployee.firstName} ${selectedVtEmployee.lastName}` : '';
+    document.getElementById('vtImportAlert').innerHTML   = '';
+    document.getElementById('vtImportPreview').style.display = 'none';
+    document.getElementById('vtImportPreview').innerHTML = '';
+    document.getElementById('vtImportConfirmBtn').style.display = 'none';
+    document.getElementById('vtImportDropZone').style.display = 'block';
+    document.getElementById('vtImportFile').value = '';
+    document.getElementById('vtImportModalBg').style.display = 'flex';
+}
+
+function closeVtImport() {
+    document.getElementById('vtImportModalBg').style.display = 'none';
+}
+
+function vtImportHandleDrop(event) {
+    event.preventDefault();
+    document.getElementById('vtImportDropZone').style.borderColor = '#cbd5e1';
+    const file = event.dataTransfer.files[0];
+    if (file && file.name.endsWith('.csv')) vtImportFileChosen(file);
+    else document.getElementById('vtImportAlert').innerHTML = '<div class="alert alert-err">Bitte eine CSV-Datei verwenden.</div>';
+}
+
+async function vtImportFileChosen(file) {
+    if (!file) return;
+    vtImportFile = file;
+    const alertEl   = document.getElementById('vtImportAlert');
+    const previewEl = document.getElementById('vtImportPreview');
+    alertEl.innerHTML = '<div style="color:#64748b">Datei wird analysiert...</div>';
+    previewEl.style.display = 'none';
+    document.getElementById('vtImportConfirmBtn').style.display = 'none';
+
+    try {
+        // CSV hochladen und Snapshot für diesen MA laden
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`/api/employeeimport/upload/${currentBranchId || 1}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: formData
+        });
+        if (!res.ok) { alertEl.innerHTML = `<div class="alert alert-err">Fehler beim Import: ${await res.text()}</div>`; return; }
+
+        // Snapshot für diesen Mitarbeiter laden
+        const snapRes = await fetch(`/api/employeeimportsnapshot/latest/${vtImportEmployeeId}`, { headers: ah() });
+        if (!snapRes.ok) {
+            alertEl.innerHTML = '<div class="alert alert-err">Kein Eintrag für diesen Mitarbeiter in der CSV gefunden.</div>';
+            return;
+        }
+        vtImportSnapshotData = await snapRes.json();
+        alertEl.innerHTML = '';
+
+        // Vorschau anzeigen
+        const s = vtImportSnapshotData;
+        const isFix = s.employmentModel === 'FIX' || s.employmentModel === 'FIX-M';
+        const pct = s.employmentPercentage ?? (isFix && s.weeklyHours ? Math.round(s.weeklyHours) : null);
+        const calcSalary = isFix && s.monthlySalaryFte && pct
+            ? Math.round(s.monthlySalaryFte * pct / 100 * 100) / 100 : s.monthlySalary;
+
+        previewEl.innerHTML = `
+            <div style="font-weight:600;margin-bottom:10px;color:#0f172a">Gefundener Vertrag:</div>
+            <div class="emp-field-grid">
+                ${s.employmentModel ? `<div class="emp-field"><div class="emp-field-label">Vertragsmodell</div><div class="emp-field-value">${s.employmentModel}</div></div>` : ''}
+                ${s.jobTitle        ? `<div class="emp-field"><div class="emp-field-label">Stellenbezeichnung</div><div class="emp-field-value">${s.jobTitle}</div></div>` : ''}
+                ${s.hourlyRate      ? `<div class="emp-field"><div class="emp-field-label">Stundenlohn</div><div class="emp-field-value">CHF ${Number(s.hourlyRate).toFixed(2)}</div></div>` : ''}
+                ${s.monthlySalaryFte ? `<div class="emp-field"><div class="emp-field-label">Monatslohn 100%</div><div class="emp-field-value">CHF ${Number(s.monthlySalaryFte).toFixed(2)}</div></div>` : ''}
+                ${pct != null       ? `<div class="emp-field"><div class="emp-field-label">Pensum</div><div class="emp-field-value">${pct} %</div></div>` : s.weeklyHours ? `<div class="emp-field"><div class="emp-field-label">Wochenstunden</div><div class="emp-field-value">${s.weeklyHours} h</div></div>` : ''}
+                ${calcSalary && s.monthlySalaryFte && Math.abs(calcSalary - s.monthlySalaryFte) > 0.01
+                    ? `<div class="emp-field"><div class="emp-field-label">Monatslohn ${pct}%</div><div class="emp-field-value" style="font-weight:600;color:#0f172a">CHF ${Number(calcSalary).toFixed(2)}</div></div>` : ''}
+                ${s.contractEndDate
+                    ? `<div class="emp-field"><div class="emp-field-label">Vertragsende</div><div class="emp-field-value" style="color:#dc2626;font-weight:600">${new Date(s.contractEndDate).toLocaleDateString('de-CH')} (befristet)</div></div>`
+                    : `<div class="emp-field"><div class="emp-field-label">Vertragstyp</div><div class="emp-field-value">Unbefristet</div></div>`}
+                ${s.jobGroupCode    ? `<div class="emp-field"><div class="emp-field-label">Funktionsgruppe</div><div class="emp-field-value">${s.jobGroupCode}</div></div>` : ''}
+            </div>
+            <div id="vtImportCompliance" style="margin-top:14px"></div>`;
+        previewEl.style.display = 'block';
+        document.getElementById('vtImportConfirmBtn').style.display = 'inline-flex';
+        document.getElementById('vtImportDropZone').style.display = 'none';
+
+        // Mindestlohn-Check
+        if (s.jobGroupCode) {
+            try {
+                const emp = selectedVtEmployee;
+                const edLevel = emp?.educationLevelCode || s.educationLevelCode || 'I';
+                const salaryType = (s.employmentModel === 'FIX' || s.employmentModel === 'FIX-M') ? 'monthly' : 'hourly';
+                const body = {
+                    jobGroupCode: s.jobGroupCode,
+                    educationLevelCode: edLevel,
+                    effectiveDate: new Date().toISOString().split('T')[0],
+                    employmentModel: s.employmentModel,
+                    employmentPercentage: pct ?? 100,
+                    hourlyRate: salaryType === 'hourly' && s.hourlyRate ? parseFloat(s.hourlyRate) : null,
+                    monthlySalary: salaryType === 'monthly' && calcSalary ? parseFloat(calcSalary) : null
+                };
+                const compRes = await fetch('/api/compliance/check-live', { method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                if (compRes.ok) {
+                    const cr = await compRes.json();
+                    const ok = cr.status === 'OK' || cr.status === 'ok';
+                    const color = ok ? '#15803d' : '#dc2626';
+                    const bg    = ok ? '#f0fdf4' : '#fef2f2';
+                    let cHtml = `<div style="padding:10px 14px;border-radius:8px;background:${bg};border:1px solid ${ok?'#bbf7d0':'#fecaca'}">`;
+                    cHtml += `<div style="font-weight:600;color:${color};margin-bottom:4px">${ok ? '✅ Mindestlohn eingehalten' : '⚠️ Mindestlohn unterschritten – bitte Lohn korrigieren'}</div>`;
+                    if (cr.minimumMonthlySalary != null) cHtml += `<div style="font-size:12px;color:#64748b">Mindest-Monatslohn: CHF ${Number(cr.minimumMonthlySalary).toFixed(2)}${pct < 100 && cr.minimumMonthlySalaryFte ? ` (${pct}% von CHF ${Number(cr.minimumMonthlySalaryFte).toFixed(2)})` : ''}</div>`;
+                    if (cr.minimumHourlyRate != null) cHtml += `<div style="font-size:12px;color:#64748b">Mindest-Stundenlohn: CHF ${Number(cr.minimumHourlyRate).toFixed(2)}</div>`;
+                    if (!ok && cr.difference != null) cHtml += `<div style="font-size:12px;color:#dc2626;font-weight:600">Differenz: CHF ${Number(cr.difference).toFixed(2)}</div>`;
+                    cHtml += '</div>';
+                    document.getElementById('vtImportCompliance').innerHTML = cHtml;
+                    // Import blockieren wenn Mindestlohn unterschritten
+                    if (!ok) {
+                        const confirmBtn = document.getElementById('vtImportConfirmBtn');
+                        confirmBtn.disabled = true;
+                        confirmBtn.style.opacity = '0.4';
+                        confirmBtn.style.cursor = 'not-allowed';
+                        confirmBtn.title = 'Mindestlohn unterschritten – bitte Lohn zuerst korrigieren';
+                    }
+                } else {
+                    document.getElementById('vtImportCompliance').innerHTML =
+                        `<div style="padding:10px 14px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:12px">⚠️ Compliance-Check nicht verfügbar (HTTP ${compRes.status})</div>`;
+                }
+            } catch(compErr) {
+                document.getElementById('vtImportCompliance').innerHTML =
+                    `<div style="padding:10px 14px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:12px">⚠️ Compliance-Check Fehler: ${compErr.message}</div>`;
+            }
+        }
+    } catch(e) {
+        alertEl.innerHTML = `<div class="alert alert-err">Fehler: ${e.message}</div>`;
+    }
+}
+
+async function confirmVtImport() {
+    if (!vtImportSnapshotData || !vtImportEmployeeId) return;
+    const btn = document.getElementById('vtImportConfirmBtn');
+    btn.textContent = '⏳ Wird importiert...'; btn.disabled = true;
+    try {
+        // Vertrag aus Snapshot erstellen
+        const s = vtImportSnapshotData;
+        const isFix = s.employmentModel === 'FIX' || s.employmentModel === 'FIX-M';
+        // Pensum: aus employmentPercentage oder weeklyHours (wenn FIX)
+        const pct = s.employmentPercentage ?? (isFix && s.weeklyHours ? Math.round(s.weeklyHours) : null);
+        // Lohn: FTE × Pensum neu berechnen
+        const monthlySalary = isFix && s.monthlySalaryFte && pct
+            ? Math.round(s.monthlySalaryFte * pct / 100 * 100) / 100
+            : s.monthlySalary;
+        const isBefristet = !!s.contractEndDate;
+        const payload = {
+            employeeId:          vtImportEmployeeId,
+            companyProfileId:    currentBranchId || 1,
+            employmentModel:     s.employmentModel,
+            salaryType:          isFix ? 'monthly' : 'hourly',
+            contractStartDate:   new Date().toISOString().split('T')[0],
+            jobTitle:            s.jobTitle,
+            weeklyHours:         isFix ? null : s.weeklyHours,
+            guaranteedHoursPerWeek: s.guaranteedHoursPerWeek,
+            hourlyRate:          s.hourlyRate,
+            monthlySalary:       monthlySalary,
+            monthlySalaryFte:    s.monthlySalaryFte,
+            employmentPercentage: isFix ? pct : null,
+            contractType:        isBefristet ? 'befristet' : 'unbefristet',
+            contractEndDate:     isBefristet ? new Date(s.contractEndDate).toISOString().split('T')[0] : null,
+            contractEndDateSet:  true,
+            isActive:            true,
+        };
+        const res = await fetch('/api/employments', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) { 
+            document.getElementById('vtImportAlert').innerHTML = `<div class="alert alert-err">Fehler: ${await res.text()}</div>`;
+            return; 
+        }
+        closeVtImport();
+        // MA neu laden und Detail aktualisieren
+        const empRes = await fetch('/api/employees', { headers: ah() });
+        const emps = await empRes.json();
+        allVtEmployees = emps.filter(e => e.isActive && e.employments?.length > 0);
+        selectedVtEmployee = allVtEmployees.find(e => e.id === vtImportEmployeeId);
+        if (selectedVtEmployee) renderVtDetail(selectedVtEmployee);
+        renderVtList(allVtEmployees);
+    } catch(e) {
+        document.getElementById('vtImportAlert').innerHTML = `<div class="alert alert-err">Fehler: ${e.message}</div>`;
+    } finally {
+        btn.textContent = 'Vertrag importieren'; btn.disabled = false;
+    }
 }
 
 // ══════════════════════════════════════════════
@@ -4435,5 +5332,32 @@ async function saveZulagTyp() {
 </div>
 </div>
 
+
+<!-- ── Vertrags-Import Modal ────────────────────────── -->
+<div class="modal-bg" id="vtImportModalBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center">
+    <div class="modal" style="max-width:520px;width:90%">
+        <div class="modal-hd">
+            <span class="modal-hd-title">CSV importieren für <span id="vtImportEmpName"></span></span>
+            <button class="modal-x" onclick="closeVtImport()">×</button>
+        </div>
+        <div class="modal-body">
+            <div id="vtImportAlert"></div>
+            <div id="vtImportDropZone" style="border:2px dashed #cbd5e1;border-radius:10px;padding:32px;text-align:center;cursor:pointer;color:#64748b"
+                onclick="document.getElementById('vtImportFile').click()"
+                ondragover="event.preventDefault();this.style.borderColor='#3b82f6'"
+                ondragleave="this.style.borderColor='#cbd5e1'"
+                ondrop="vtImportHandleDrop(event)">
+                <div style="font-size:24px;margin-bottom:8px">📂</div>
+                <div>CSV-Datei hierhin ziehen oder klicken</div>
+            </div>
+            <input type="file" id="vtImportFile" accept=".csv" style="display:none" onchange="vtImportFileChosen(this.files[0])">
+            <div id="vtImportPreview" style="display:none;margin-top:16px"></div>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-outline" onclick="closeVtImport()">Abbrechen</button>
+            <button class="btn btn-primary" id="vtImportConfirmBtn" style="display:none" onclick="confirmVtImport()">Vertrag importieren</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

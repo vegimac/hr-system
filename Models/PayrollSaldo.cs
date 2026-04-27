@@ -47,6 +47,13 @@ public class PayrollSaldo
     /// </summary>
     public decimal FerienTageSaldo { get; set; } = 0;
 
+    /// <summary>
+    /// Feiertag-Tage-Saldo (nur FIX / FIX-M).
+    /// Monatliche Gutschrift +0.5 Tage; Abzug bei FEIERTAG-Absenz (anteilig
+    /// nach Prozent: 100% = 1 Tag, 50% = 0.5 Tag usw.). Für MTP/UTP bleibt 0.
+    /// </summary>
+    public decimal FeiertagTageSaldo { get; set; } = 0;
+
     /// <summary>Bruttolohn dieser Periode</summary>
     public decimal GrossAmount { get; set; } = 0;
 

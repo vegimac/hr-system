@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schaub HR – Datenimport</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; min-height: 100vh; }
+
+/* LOGIN */
+#loginScreen {
+    position: fixed; inset: 0;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.login-card { background: white; border-radius: 20px; padding: 48px; width: 420px; box-shadow: 0 32px 64px rgba(0,0,0,0.35); }
+.login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 36px; }
+.login-brand-icon { width: 48px; height: 48px; background: #3b82f6; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 20px; }
+.login-brand-name { font-size: 22px; font-weight: 800; }
+.login-brand-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.login-title { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+.login-sub { color: #64748b; font-size: 14px; margin-bottom: 32px; }
+.login-field { margin-bottom: 20px; }
+.login-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 7px; }
+.login-input { width: 100%; padding: 11px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 15px; font-family: inherit; outline: none; transition: all 0.2s; }
+.login-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+.login-btn { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 4px; }
+.login-btn:hover { background: #2563eb; }
+.login-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; border-radius: 8px; padding: 11px 14px; font-size: 13px; margin-bottom: 18px; display: none; }
+
+/* APP */
+#app { display: none; }
+.topbar { background: #0f172a; padding: 14px 32px; display: flex; align-items: center; gap: 16px; }
+.topbar-brand { display: flex; align-items: center; gap: 10px; }
+.topbar-icon { width: 32px; height: 32px; background: #3b82f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 14px; }
+.topbar-name { color: white; font-weight: 700; font-size: 15px; }
+.topbar-sub { color: #475569; font-size: 11px; }
+.topbar-logout { margin-left: auto; padding: 6px 14px; background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 7px; color: #94a3b8; cursor: pointer; font-size: 12px; font-family: inherit; }
+.topbar-logout:hover { border-color: rgba(255,255,255,0.3); color: #e2e8f0; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+.page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.page-sub { color: #64748b; font-size: 13px; margin-bottom: 28px; }
+
+/* UPLOAD ZONE */
+.upload-card { background: white; border-radius: 14px; border: 1px solid #e2e8f0; padding: 32px; margin-bottom: 24px; }
+.upload-zone {
+    border: 2px dashed #cbd5e1; border-radius: 12px; padding: 48px 24px;
+    text-align: center; cursor: pointer; transition: all 0.2s; color: #64748b;
+}
+.upload-zone:hover, .upload-zone.drag-over { border-color: #3b82f6; background: #eff6ff; }
+.upload-zone-icon { font-size: 40px; margin-bottom: 12px; }
+.upload-zone-text { font-size: 15px; font-weight: 500; margin-bottom: 6px; color: #374151; }
+.upload-zone-sub { font-size: 13px; color: #94a3b8; }
+
+/* RESULTS */
+.results-card { background: white; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 24px; }
+.results-header { padding: 18px 24px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+.results-title { font-size: 16px; font-weight: 700; }
+.results-stats { display: flex; gap: 16px; }
+.stat-pill { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.stat-new { background: #eff6ff; color: #1d4ed8; }
+.stat-update { background: #f0fdf4; color: #15803d; }
+.stat-contract { background: #fef3c7; color: #92400e; }
+.stat-skip { background: #f1f5f9; color: #64748b; }
+
+/* ROW ITEMS */
+.row-item { border-bottom: 1px solid #f1f5f9; padding: 16px 24px; }
+.row-item:last-child { border-bottom: none; }
+.row-header { display: flex; align-items: center; gap: 12px; margin-bottom: 0; cursor: pointer; }
+.row-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.row-avatar.new-emp { background: #dbeafe; color: #1d4ed8; }
+.row-avatar.existing { background: #dcfce7; color: #15803d; }
+.row-avatar.contract { background: #fef3c7; color: #92400e; }
+.row-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+.row-meta { font-size: 12px; color: #64748b; margin-top: 1px; }
+.row-badges { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-new { background: #eff6ff; color: #1d4ed8; }
+.badge-addr { background: #f0fdf4; color: #15803d; }
+.badge-contract { background: #fef3c7; color: #92400e; }
+.badge-skip { background: #fef2f2; color: #dc2626; }
+.row-chevron { color: #94a3b8; font-size: 16px; transition: transform 0.2s; margin-left: 8px; }
+.row-chevron.open { transform: rotate(90deg); }
+
+.row-detail { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #f8fafc; }
+.row-detail.open { display: block; }
+
+/* CHANGES */
+.changes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.change-item { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; }
+.change-label { font-size: 11px; font-weight: 600; color: #92400e; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+.change-from { font-size: 12px; color: #dc2626; text-decoration: line-through; }
+.change-to { font-size: 13px; font-weight: 600; color: #15803d; }
+
+/* CONTRACT FORM */
+.contract-form { background: #f8fafc; border-radius: 10px; padding: 16px; margin-top: 12px; }
+.contract-form-title { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 12px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-label { font-size: 12px; font-weight: 600; color: #374151; }
+.form-label .required { color: #dc2626; }
+.form-input, .form-select {
+    padding: 8px 11px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s; background: white;
+}
+.form-input:focus, .form-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.08); }
+.form-input.prefilled { background: #f0fdf4; border-color: #bbf7d0; }
+.form-input[readonly] { background: #f8fafc; color: #64748b; cursor: default; }
+
+/* COMPLIANCE */
+.compliance-box { border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 13px; }
+.compliance-ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+.compliance-err { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+.compliance-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.compliance-loading { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+
+/* ACTION BUTTONS */
+.row-actions { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; }
+.btn-primary { background: #3b82f6; color: white; }
+.btn-primary:hover:not(:disabled) { background: #2563eb; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-outline { background: white; color: #374151; border: 1px solid #d1d5db; }
+.btn-outline:hover { background: #f9fafb; }
+.btn-success { background: #16a34a; color: white; }
+.btn-success:hover { background: #15803d; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+
+/* STATUS ICONS */
+.status-done { color: #16a34a; font-size: 18px; }
+.status-err { color: #dc2626; font-size: 18px; }
+.status-pending { color: #f59e0b; font-size: 18px; }
+
+/* SUMMARY BAR */
+.summary-bar { background: white; border-radius: 14px; border: 1px solid #e2e8f0; padding: 20px 24px; margin-bottom: 24px; display: flex; align-items: center; gap: 24px; }
+.summary-item { text-align: center; }
+.summary-num { font-size: 28px; font-weight: 700; line-height: 1; }
+.summary-label { font-size: 11px; color: #64748b; margin-top: 3px; }
+.summary-divider { width: 1px; height: 40px; background: #e2e8f0; }
+.btn-run-all { margin-left: auto; }
+
+/* PROGRESS */
+.progress-bar-wrap { background: #e2e8f0; border-radius: 10px; height: 6px; margin-top: 8px; overflow: hidden; }
+.progress-bar { height: 100%; background: #3b82f6; border-radius: 10px; transition: width 0.3s; }
+
+/* ALERTS */
+.alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+.alert-err { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.alert-ok { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.alert-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+
+.skip-reason { font-size: 12px; color: #dc2626; margin-top: 6px; }
+
+/* Address-only rows */
+.addr-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+.addr-field { background: #f8fafc; border-radius: 6px; padding: 6px 10px; }
+.addr-field-label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; }
+.addr-field-value { font-size: 12px; color: #374151; font-weight: 500; margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" style="display:none">
+    <div class="login-card">
+        <div class="login-brand">
+            <div class="login-brand-icon">S</div>
+            <div>
+                <div class="login-brand-name">Schaub HR</div>
+                <div class="login-brand-sub">Datenimport</div>
+            </div>
+        </div>
+        <div class="login-title">Einloggen</div>
+        <div class="login-sub">Bitte mit HR-Zugangsdaten anmelden</div>
+        <div class="login-error" id="loginError"></div>
+        <div class="login-field">
+            <label class="login-label">E-Mail</label>
+            <input class="login-input" type="email" id="loginEmail" placeholder="email@example.com">
+        </div>
+        <div class="login-field">
+            <label class="login-label">Passwort</label>
+            <input class="login-input" type="password" id="loginPassword" placeholder="••••••••">
+        </div>
+        <button class="login-btn" onclick="doLogin()">Einloggen</button>
+    </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-icon">S</div>
+            <div>
+                <div class="topbar-name">Schaub HR</div>
+                <div class="topbar-sub">Datenimport</div>
+            </div>
+        </div>
+        <a href="index.html" class="topbar-logout" style="text-decoration:none">← Zurück zum HR System</a>
+    <button class="topbar-logout" onclick="doLogout()">Abmelden</button>
+    </div>
+
+    <div class="container">
+        <div class="page-title">📥 Mitarbeiter-Import</div>
+        <div class="page-sub">CSV aus easy@work importieren – Personaldaten werden automatisch aktualisiert, Vertragsänderungen müssen bestätigt werden.</div>
+        <div id="branchBanner" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:18px">🏪</span>
+            <div>
+                <div style="font-size:13px;font-weight:700;color:#1d4ed8" id="branchBannerName">Keine Filiale gewählt</div>
+                <div style="font-size:11px;color:#64748b">Nur Mitarbeiter dieser Filiale werden importiert</div>
+            </div>
+        </div>
+
+        <!-- UPLOAD -->
+        <div class="upload-card" id="uploadSection">
+            <div class="upload-zone" id="uploadZone"
+                onclick="document.getElementById('csvFile').click()"
+                ondragover="event.preventDefault();this.classList.add('drag-over')"
+                ondragleave="this.classList.remove('drag-over')"
+                ondrop="handleDrop(event)">
+                <div class="upload-zone-icon">📂</div>
+                <div class="upload-zone-text">CSV-Datei hierhin ziehen oder klicken</div>
+                <div class="upload-zone-sub">Export aus easy@work (UTF-8 CSV)</div>
+            </div>
+            <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleFile(this.files[0])">
+            <div id="uploadAlert" style="margin-top:12px"></div>
+        </div>
+
+        <!-- SUMMARY -->
+        <div class="summary-bar" id="summaryBar" style="display:none">
+            <div class="summary-item">
+                <div class="summary-num" id="sumTotal" style="color:#0f172a">0</div>
+                <div class="summary-label">Total Zeilen</div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+                <div class="summary-num" id="sumNew" style="color:#1d4ed8">0</div>
+                <div class="summary-label">Neue MA</div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+                <div class="summary-num" id="sumAddr" style="color:#15803d">0</div>
+                <div class="summary-label">Adress-Update</div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+                <div class="summary-num" id="sumContract" style="color:#92400e">0</div>
+                <div class="summary-label">Vertragsänderung</div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+                <div class="summary-num" id="sumSkip" style="color:#dc2626">0</div>
+                <div class="summary-label">Übersprungen</div>
+            </div>
+            <button class="btn btn-primary btn-run-all" id="btnRunAll" onclick="runAll()">▶ Adressdaten importieren</button>
+            <button class="btn btn-outline" id="btnRunAllNew" onclick="runAllNew()" style="display:none">👤 Alle neuen MA anlegen</button>
+        </div>
+
+        <!-- RESULTS -->
+        <div id="resultsSection" style="display:none">
+            <div class="results-card" id="skipSection" style="display:none">
+                <div class="results-header">
+                    <div class="results-title">⛔ Übersprungen (keine Nummer)</div>
+                </div>
+                <div id="skipList"></div>
+            </div>
+
+            <div class="results-card" id="newSection" style="display:none">
+                <div class="results-header">
+                    <div class="results-title">🆕 Neue Mitarbeiter</div>
+                </div>
+                <div id="newList"></div>
+            </div>
+
+            <div class="results-card" id="contractSection" style="display:none">
+                <div class="results-header">
+                    <div class="results-title">📋 Vertragsänderungen</div>
+                </div>
+                <div id="contractList"></div>
+            </div>
+
+            <div class="results-card" id="addrSection" style="display:none">
+                <div class="results-header">
+                    <div class="results-title">✅ Adress-Updates (werden automatisch importiert)</div>
+                </div>
+                <div id="addrList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── AUTH ──────────────────────────────────────────────
+// Token from URL param (passed from index.html) or localStorage
+const _urlParams = new URLSearchParams(window.location.search);
+const _urlToken = _urlParams.get('token');
+const _urlBranchId = _urlParams.get('branchId');
+const _urlBranchName = _urlParams.get('branchName') ? decodeURIComponent(_urlParams.get('branchName')) : '';
+const _urlStoreNumber = _urlParams.get('storeNumber') ? decodeURIComponent(_urlParams.get('storeNumber')) : '';
+if (_urlToken) localStorage.setItem('hrToken', _urlToken);
+if (_urlBranchId) localStorage.setItem('hrBranchId', _urlBranchId);
+if (_urlBranchName) localStorage.setItem('hrBranchName', _urlBranchName);
+if (_urlStoreNumber) localStorage.setItem('hrStoreNumber', _urlStoreNumber);
+let authToken = localStorage.getItem('hrToken');
+let activeBranchId = parseInt(_urlBranchId || localStorage.getItem('hrBranchId') || '0') || null;
+let activeBranchName = _urlBranchName || localStorage.getItem('hrBranchName') || '';
+let activeStoreNumber = _urlStoreNumber || localStorage.getItem('hrStoreNumber') || '';
+let currentUser = null;
+let allEmployees = [], jobGroups = [], educationLevels = [], nationalities = [], companyProfileId = 1;
+let parsedRows = [];
+let rowStates = {}; // rowIndex → { status, employeeId, contractDone }
+
+function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
+
+async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pw    = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password: pw })
+        });
+        if (!res.ok) { errEl.textContent = 'Falsche E-Mail oder Passwort.'; errEl.style.display = 'block'; return; }
+        const data = await res.json();
+        authToken = data.token;
+        localStorage.setItem('hrToken', authToken);
+        startApp();
+    } catch(e) {
+        errEl.textContent = 'Verbindungsfehler: ' + e.message; errEl.style.display = 'block';
+    }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function doLogout() {
+    authToken = null; localStorage.removeItem('hrToken');
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+}
+
+async function checkAuth() {
+    if (!authToken) return false;
+    try {
+        const res = await fetch('/api/auth/me', { headers: ah() });
+        if (!res.ok) { authToken = null; localStorage.removeItem('hrToken'); return false; }
+        currentUser = await res.json();
+        return true;
+    } catch { return false; }
+}
+
+async function init() {
+    // Token aus URL → direkt einloggen ohne API-Check
+    if (_urlToken) { startApp(); return; }
+    // Gespeicherter Token → prüfen
+    const ok = await checkAuth();
+    if (ok) { startApp(); }
+    else {
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('app').style.display = 'none';
+    }
+}
+
+async function startApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    // Show branch banner
+    const banner = document.getElementById('branchBannerName');
+    if (banner) {
+        if (activeBranchName) {
+            banner.textContent = activeBranchName;
+            banner.parentElement.style.background = '#f0fdf4';
+            banner.parentElement.style.borderColor = '#bbf7d0';
+            banner.style.color = '#15803d';
+        } else {
+            banner.textContent = '⚠ Keine Filiale gewählt – bitte Import über Hauptmenü starten';
+            banner.parentElement.style.background = '#fef2f2';
+            banner.parentElement.style.borderColor = '#fecaca';
+            banner.style.color = '#dc2626';
+        }
+    }
+    // Preload – Fehler ignorieren damit App trotzdem startet
+    try {
+        await Promise.all([loadEmployees(), loadJobGroups(), loadEducationLevels(), loadNationalities(), loadCompanyProfile()]);
+        if (activeBranchId) companyProfileId = activeBranchId;
+    } catch(e) {
+        console.warn('Preload Fehler:', e);
+    }
+}
+
+async function loadEmployees() {
+    try {
+        const res = await fetch('/api/employees', { headers: ah() });
+        allEmployees = await res.json();
+    } catch { allEmployees = []; }
+}
+
+async function loadJobGroups() {
+    try {
+        const r = await fetch('/api/jobgroups', { headers: ah() });
+        jobGroups = await r.json();
+    } catch { jobGroups = []; }
+}
+
+let companyProfile = null;
+let allBranches = [];
+async function loadCompanyProfile() {
+    try {
+        const r = await fetch('/api/companyprofiles', { headers: ah() });
+        allBranches = await r.json();
+        if (allBranches[0]) { companyProfileId = allBranches[0].id; companyProfile = allBranches[0]; }
+    } catch {}
+}
+
+function getBranchIdByStoreNumber(storeNumber) {
+    if (!storeNumber) return companyProfileId;
+    const num = String(storeNumber).trim();
+    const numInt = parseInt(num, 10); // 75 oder 058 → 58 oder 75
+    const branch = allBranches.find(b => {
+        const code = String(b.restaurantCode||'').trim();
+        return code === num || parseInt(code, 10) === numInt;
+    });
+    return branch?.id ?? companyProfileId;
+}
+
+async function loadEducationLevels() {
+    try {
+        const res = await fetch('/api/educationlevels', { headers: ah() });
+        const data = await res.json();
+        const order = ['Ia', 'Ib', 'II', 'IIIa', 'IIIb', 'IV'];
+        educationLevels = data.sort((a, b) => {
+            const cA = a.code || a.Code || '';
+            const cB = b.code || b.Code || '';
+            const iA = order.indexOf(cA);
+            const iB = order.indexOf(cB);
+            if (iA === -1 && iB === -1) return cA.localeCompare(cB);
+            if (iA === -1) return 1;
+            if (iB === -1) return -1;
+            return iA - iB;
+        });
+    } catch { educationLevels = []; }
+}
+
+async function loadNationalities() {
+    try {
+        const res = await fetch('/api/nationalities', { headers: ah() });
+        nationalities = await res.json();
+    } catch { nationalities = []; }
+}
+
+// ── CSV PARSING ───────────────────────────────────────
+function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('uploadZone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.csv')) handleFile(file);
+    else showUploadAlert('Bitte eine CSV-Datei verwenden.', 'err');
+}
+
+function handleFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => parseCSV(e.target.result);
+    reader.readAsText(file, 'UTF-8');
+}
+
+function parseCSV(text) {
+    // Remove BOM
+    text = text.replace(/^\uFEFF/, '');
+    const lines = text.split('\n').filter(l => l.trim());
+    if (lines.length < 2) { showUploadAlert('CSV ist leer oder hat keine Daten.', 'err'); return; }
+
+    const headers = parseCSVLine(lines[0]);
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+        const vals = parseCSVLine(lines[i]);
+        if (vals.length < 3) continue;
+        const row = {};
+        headers.forEach((h, idx) => { row[h.trim()] = (vals[idx] || '').trim(); });
+        rows.push(row);
+    }
+
+    parsedRows = rows;
+    analyzeRows();
+}
+
+function parseCSVLine(line) {
+    const result = []; let cur = ''; let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQuote = !inQuote; }
+        else if (ch === ',' && !inQuote) { result.push(cur); cur = ''; }
+        else { cur += ch; }
+    }
+    result.push(cur);
+    return result;
+}
+
+// ── ANALYSIS ──────────────────────────────────────────
+function fmtDe(str) {
+    if (!str) return '–';
+    const d = new Date(str);
+    if (isNaN(d)) return str;
+    return d.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatPhone(raw) {
+    if (!raw) return '';
+    // Remove all non-digits
+    let digits = raw.replace(/\D/g, '');
+    // Already starts with 41 (Switzerland) → add +
+    if (digits.startsWith('41') && digits.length === 11) {
+        // +41 XX XXX XX XX
+        return '+' + digits.slice(0,2) + ' ' + digits.slice(2,4) + ' ' + digits.slice(4,7) + ' ' + digits.slice(7,9) + ' ' + digits.slice(9,11);
+    }
+    // Starts with 0 → replace with +41
+    if (digits.startsWith('0') && digits.length === 10) {
+        digits = '41' + digits.slice(1);
+        return '+' + digits.slice(0,2) + ' ' + digits.slice(2,4) + ' ' + digits.slice(4,7) + ' ' + digits.slice(7,9) + ' ' + digits.slice(9,11);
+    }
+    return raw; // return as-is if unknown format
+}
+
+function get(row, ...keys) {
+    for (const k of keys) {
+        if (row[k] !== undefined && row[k] !== '') return row[k];
+    }
+    return '';
+}
+
+// Funktionen (Rolle) die FIX-M ergeben
+const FIX_M_ROLES = ['ASSIST_1', 'ASSIST_2', 'REST_MANAGER', 'SHIFT_LEADER_1_6', 'SHIFT_LEADER_7_PLUS'];
+
+function mapContractType(row) {
+    const ct = get(row, 'Contract type').toUpperCase().trim();
+    const rolle = get(row, 'Funktionen').toUpperCase().trim();
+    const isFixM = FIX_M_ROLES.some(r => rolle.includes(r));
+
+    // Normalisierung: FLEX → UTP, MTP/TPM → MTP
+    if (ct === 'FLEX')     return 'UTP';
+    if (ct === 'MTP/TPM')  return 'MTP';
+    if (ct.includes('FIX')) return isFixM ? 'FIX-M' : 'FIX';
+    if (ct.includes('MTP')) return 'MTP';
+    if (ct.includes('UTP')) return 'UTP';
+    return 'UTP'; // Fallback
+}
+
+function parseAnzahl(row) {
+    const a = get(row, 'Anzahl');
+    // "80%" → percentage
+    const pctMatch = a.match(/(\d+)\s*%/);
+    if (pctMatch) return { type: 'percentage', value: parseInt(pctMatch[1]) };
+    // "25 Stunden/Woche" or "25h"
+    const hMatch = a.match(/(\d+(\.\d+)?)\s*(Stunden|h|Std)/i);
+    if (hMatch) return { type: 'hours', value: parseFloat(hMatch[1]) };
+    // plain number
+    const num = parseFloat(a);
+    if (!isNaN(num)) return { type: 'number', value: num };
+    return null;
+}
+
+function contractChangedVsCurrent(row, currentContract) {
+    if (!currentContract) return true; // no contract = needs one
+    const changes = [];
+
+    const newModel = mapContractType(row);
+    if (currentContract.employmentModel && currentContract.employmentModel !== newModel) {
+        changes.push({ field: 'Vertragstyp', from: currentContract.employmentModel, to: newModel });
+    }
+
+    // 'Funktion' = Stellenbezeichnung/jobTitle. 'Funktionen' = Rolle (Manager etc.) → nur für FIX-M
+    const newFn = get(row, 'Funktion');
+    const oldFn = currentContract.jobTitle || '';
+    if (newFn && oldFn && newFn.toLowerCase() !== oldFn.toLowerCase()) {
+        changes.push({ field: 'Funktion', from: oldFn, to: newFn });
+    }
+
+    const hasBis = !!get(row, 'Bis');
+    const wasFixed = !!(currentContract.contractEndDate);
+    if (hasBis !== wasFixed) {
+        changes.push({ field: 'Vertragsart', from: wasFixed ? 'Befristet' : 'Unbefristet', to: hasBis ? 'Befristet' : 'Unbefristet' });
+    }
+
+    return changes.length > 0 ? changes : false;
+}
+
+async function analyzeRows() {
+    showUploadAlert('Analysiere ' + parsedRows.length + ' Zeilen...', 'info');
+    await loadEmployees(); // refresh
+
+    const skipped = [], newEmps = [], contracts = [], addrOnly = [];
+    rowStates = {};
+
+    for (let i = 0; i < parsedRows.length; i++) {
+        const row = parsedRows[i];
+        const nr = get(row, 'Nummer');
+
+        if (!nr) {
+            skipped.push({ idx: i, row, reason: 'Keine Personalnummer' });
+            rowStates[i] = { status: 'skip' };
+            continue;
+        }
+
+        // Filialfilter: Store number muss zur aktiven Filiale passen
+        if (activeStoreNumber) {
+            const rowStore = String(get(row, 'Store number', 'Store Number')).trim();
+            if (rowStore && parseInt(rowStore,10) !== parseInt(activeStoreNumber,10)) {
+                skipped.push({ idx: i, row, reason: `Andere Filiale (Store ${rowStore})` });
+                rowStates[i] = { status: 'skip' };
+                continue;
+            }
+        }
+
+        const existingEmp = allEmployees.find(e =>
+            String(e.employeeNumber || e.employee_number || '').trim() === String(nr).trim()
+        );
+
+        if (!existingEmp) {
+            newEmps.push({ idx: i, row });
+            rowStates[i] = { status: 'new' };
+            continue;
+        }
+
+        rowStates[i] = { status: 'existing', employeeId: existingEmp.id };
+
+        // Neuer Vertrag nur wenn Von-Datum noch nicht in DB existiert
+        const vonDate = formatDate(get(row, 'Von'));
+        let empContracts = [];
+        try {
+            const res = await fetch(`/api/employments/employee/${existingEmp.id}`, { headers: ah() });
+            if (res.ok) empContracts = await res.json();
+        } catch {}
+
+        // Kein neuer Vertrag wenn bereits ein Vertrag mit gleichem ODER neuerem Datum existiert
+        const dateExists = vonDate && empContracts.some(c =>
+            c.contractStartDate && c.contractStartDate.slice(0, 10) >= vonDate
+        );
+
+        if (!dateExists && vonDate) {
+            contracts.push({ idx: i, row, employeeId: existingEmp.id, existingEmp });
+            rowStates[i] = { status: 'contract', employeeId: existingEmp.id };
+        } else {
+            // Sonderfall: nur der Lohn hat sich gegenüber dem aktiven Vertrag
+            // geändert ("Pay rate from" liegt nach dem aktuellen ContractStartDate).
+            // Dann als Vertragsänderung mit übernommenen Werten vorschlagen.
+            const payRateFromIso = formatDate(get(row, 'Pay rate from'));
+            // Referenz-Vertrag: der letzte Vertrag vor Pay-rate-from. Wir nehmen
+            // bewusst NICHT nur offene Verträge – wenn beim letzten Import der
+            // Folge-Vertrag manuell in der DB gelöscht wurde, steht der alte
+            // noch mit ContractEndDate drin (Auto-Close-Effekt). Trotzdem soll
+            // die Lohnänderung erkannt werden.
+            let activeContract = null;
+            if (payRateFromIso) {
+                activeContract = empContracts
+                    .filter(c => c.contractStartDate
+                              && c.contractStartDate.toString().slice(0, 10) < payRateFromIso)
+                    .sort((a, b) => b.contractStartDate.toString()
+                                     .localeCompare(a.contractStartDate.toString()))[0] || null;
+            }
+            let isSalaryChange = false;
+            if (activeContract && payRateFromIso) {
+                const csvFte = parseFloat((get(row, 'Salary (FTE)') || '').toString().replace(',', '.')) || 0;
+                const csvTarif = parseFloat((get(row, 'Tarifsatz') || get(row, 'Tarife') || '').toString().replace(',', '.')) || 0;
+                const activeFte = parseFloat(activeContract.monthlySalaryFte || 0);
+                const activeTarif = parseFloat(activeContract.hourlyRate || 0);
+                const lohnGeaendert =
+                    (csvFte > 0 && Math.abs(csvFte - activeFte) > 0.01) ||
+                    (csvTarif > 0 && Math.abs(csvTarif - activeTarif) > 0.01);
+                const activeStartIso = (activeContract.contractStartDate || '').toString().slice(0, 10);
+                const payRateNach = activeStartIso && payRateFromIso > activeStartIso;
+                // Pay-rate-Datum darf nicht schon als Vertragsbeginn existieren
+                const payRateExists = empContracts.some(c =>
+                    c.contractStartDate && c.contractStartDate.toString().slice(0, 10) === payRateFromIso);
+                if (lohnGeaendert && payRateNach && !payRateExists) {
+                    isSalaryChange = true;
+                }
+            }
+
+            if (isSalaryChange) {
+                contracts.push({
+                    idx: i, row, employeeId: existingEmp.id, existingEmp,
+                    isSalaryChange: true,
+                    activeContract,
+                    payRateFromIso
+                });
+                // Auch in rowStates hinterlegen, damit saveContractChange später
+                // alle Felder aus dem alten Vertrag übernehmen kann
+                // (Ferien %, Feiertag %, 13. ML %, Vacation-Mode, WeeklyHours).
+                rowStates[i] = {
+                    status: 'contract',
+                    employeeId: existingEmp.id,
+                    isSalaryChange: true,
+                    activeContract
+                };
+                continue;
+            }
+
+            // Sonst nur Adress-Änderung
+            const addrFields = [
+                { csv: get(row,'Adresse'),      db: existingEmp?.address || '' },
+                { csv: get(row,'Postleitzahl'),  db: existingEmp?.postalCode || '' },
+                { csv: get(row,'Stadt'),         db: existingEmp?.city || '' },
+                { csv: get(row,'Region'),        db: existingEmp?.region || '' },
+                { csv: get(row,'E-Mail'),        db: existingEmp?.email || '' },
+                { csv: get(row,'Telefon'),       db: existingEmp?.phone || '' },
+            ];
+            const hasAddrChange = addrFields.some(f => f.csv && f.db && f.csv.trim().toLowerCase() !== f.db.trim().toLowerCase());
+            addrOnly.push({ idx: i, row, employeeId: existingEmp.id, existingEmp, hasAddrChange });
+            rowStates[i] = { status: 'addr', employeeId: existingEmp.id };
+        }
+    }
+
+    document.getElementById('uploadAlert').innerHTML = '';
+    renderSummary(skipped, newEmps, contracts, addrOnly);
+    renderResults(skipped, newEmps, contracts, addrOnly);
+}
+
+function renderSummary(skipped, newEmps, contracts, addrOnly) {
+    document.getElementById('sumTotal').textContent = parsedRows.length;
+    document.getElementById('sumNew').textContent = newEmps.length;
+    document.getElementById('btnRunAllNew').style.display = newEmps.length ? '' : 'none';
+    document.getElementById('sumAddr').textContent = addrOnly.filter(a => a.hasAddrChange).length;
+    document.getElementById('sumContract').textContent = contracts.length;
+    document.getElementById('sumSkip').textContent = skipped.length;
+    document.getElementById('summaryBar').style.display = 'flex';
+}
+
+// ── RENDER ────────────────────────────────────────────
+function renderResults(skipped, newEmps, contracts, addrOnly) {
+    document.getElementById('resultsSection').style.display = 'block';
+
+    // SKIPPED
+    const skipSec = document.getElementById('skipSection');
+    const skipList = document.getElementById('skipList');
+    if (skipped.length) {
+        skipSec.style.display = 'block';
+        skipList.innerHTML = skipped.map(s => `
+            <div class="row-item">
+                <div class="row-header">
+                    <div class="row-avatar new-emp" style="background:#fecaca;color:#991b1b">⛔</div>
+                    <div>
+                        <div class="row-name">${get(s.row,'Vorname')} ${get(s.row,'Nachname') || '(unbekannt)'}</div>
+                        <div class="skip-reason">${s.reason}</div>
+                    </div>
+                    <div class="row-badges"><span class="badge badge-skip">Übersprungen</span></div>
+                </div>
+            </div>`).join('');
+    }
+
+    // Sortier-Helper: alphabetisch nach Vorname (lokalebewusst)
+    const byVorname = (a, b) => {
+        const va = (get(a.row, 'Vorname') || '').trim();
+        const vb = (get(b.row, 'Vorname') || '').trim();
+        return va.localeCompare(vb, 'de', { sensitivity: 'base' });
+    };
+
+    // NEW EMPLOYEES
+    const newSec = document.getElementById('newSection');
+    const newList = document.getElementById('newList');
+    if (newEmps.length) {
+        newSec.style.display = 'block';
+        newList.innerHTML = [...newEmps].sort(byVorname).map(e => renderNewRow(e)).join('');
+    }
+
+    // CONTRACT CHANGES
+    const contractSec = document.getElementById('contractSection');
+    const contractList = document.getElementById('contractList');
+    if (contracts.length) {
+        contractSec.style.display = 'block';
+        contractList.innerHTML = [...contracts].sort(byVorname).map(c => renderContractRow(c)).join('');
+    }
+
+    // ADDR ONLY
+    const addrSec = document.getElementById('addrSection');
+    const addrList = document.getElementById('addrList');
+    if (addrOnly.length) {
+        addrSec.style.display = 'block';
+        const addrChanged = addrOnly.filter(a => a.hasAddrChange);
+        addrList.innerHTML = addrChanged.length
+            ? [...addrChanged].sort(byVorname).map(a => renderAddrRow(a)).join('')
+            : '<div style="padding:16px 24px;color:#64748b;font-size:13px">Keine Adressänderungen gefunden.</div>';
+    }
+}
+
+function initials(row) {
+    return ((get(row,'Vorname')[0]||'') + (get(row,'Nachname')[0]||'')).toUpperCase();
+}
+
+
+function contractFormHtml(idx, row, hasExistingContract, activeContract = null, payRateFromIso = null) {
+    const isSalaryChange = !!activeContract && !!payRateFromIso;
+    // Bei reiner Lohnänderung: Vertragsbeginn = Pay rate from, sonst CSV-Von
+    const csvDate = formatDate(get(row, 'Von'));
+    const today = new Date().toISOString().split('T')[0];
+    const startDate = isSalaryChange ? payRateFromIso : (csvDate || today);
+    const isPast = false;
+    // Lohnwerte: bei Lohnänderung kommen die NEUEN Werte aus dem CSV (das ist
+    // ja die Änderung), alle anderen Vertragsdaten aus dem activeContract.
+    const csvTarif = get(row, 'Tarife', 'Tarifsatz').replace(',', '.');
+    const csvFte = get(row, 'Salary (FTE)').replace(',', '.');
+    const anzahl = parseAnzahl(row);
+    // Bei Lohnänderung: Pensum, Stunden, Befristung aus dem aktiven Vertrag
+    // übernehmen (sollen ja gleich bleiben). Bei Neuvertrag: aus CSV.
+    const prefillPensum = isSalaryChange
+        ? (activeContract.employmentPercentage ?? 100)
+        : (anzahl?.type === 'percentage' ? anzahl.value : 100);
+    const prefillGuarHours = isSalaryChange
+        ? (activeContract.guaranteedHoursPerWeek ?? '')
+        : (anzahl?.type === 'hours' ? anzahl.value : '');
+    const prefillSalaryFte = isSalaryChange
+        ? (csvFte || activeContract.monthlySalaryFte || '')
+        : csvFte;
+    const prefillHourly = isSalaryChange
+        ? (csvTarif || activeContract.hourlyRate || '')
+        : csvTarif;
+    // Bei Lohnänderung: bestehendes Vertragsende übernehmen (falls befristet),
+    // sonst CSV-Bis verwenden.
+    const bis = isSalaryChange
+        ? (activeContract.contractEndDate ? activeContract.contractEndDate.toString().slice(0, 10) : '')
+        : formatDate(get(row, 'Bis'));
+
+    // Map CSV Funktion → job_group code for preselection
+    const FUNKTION_TO_JG = {
+        '1ST ASSISTANT':'ASST_1','2ND ASSISTANT':'ASST_2','ASSISTANT TRAINEE':'SHIFT_LEADER_1_6',
+        'OWNER OPERATOR TRAINEE':'CREW','CREW':'CREW','CREW TRAINER':'HOST_CT',
+        'GUEST EXPERIENCE LEADER':'HOST_CT','HOSTESS / HOST':'HOST_CT','HOSTESS':'HOST_CT',
+        'NIGHT CLEANER':'CREW','INTERN':'CREW','FIELD TRAINER':'HOST_CT',
+        'RESTAURANT MANAGER - NEVEAU 1':'REST_MANAGER','RESTAURANT MANAGER - NIVEAU 1':'REST_MANAGER',
+        'RESTAURANT MANAGER - NIVEAU 2':'REST_MANAGER','SHIFT COORDINATOR':'SHIFT_LEADER_7_PLUS',
+        'SHIFT LEADER':'SHIFT_LEADER_1_6','MANAGER':'REST_MANAGER',
+        'RESTAURANT MANAGER':'REST_MANAGER','STORE MANAGER':'REST_MANAGER',
+    };
+    // Bei reiner Lohnänderung: Vertragsmodell und Funktion aus dem aktiven
+    // Vertrag übernehmen (gleich bleiben), nicht aus CSV neu interpretieren.
+    const suggestedModel = isSalaryChange
+        ? (activeContract.employmentModel || mapContractType(row))
+        : mapContractType(row);
+    const csvFunktionUpper = get(row, 'Funktion').toUpperCase().trim();
+    const suggestedJg = isSalaryChange
+        ? (activeContract.jobGroupCode || FUNKTION_TO_JG[csvFunktionUpper] || '')
+        : (FUNKTION_TO_JG[csvFunktionUpper] || '');
+
+    const jgOpts = jobGroups.map(j => {
+        const code = j.code || j.Code || '';
+        const name = j.displayName || j.DisplayName || code;
+        const sel = code === suggestedJg ? 'selected' : '';
+        return `<option value="${code}" ${sel}>${name}</option>`;
+    }).join('');
+
+    const edOpts = educationLevels.map(e => {
+        const code = e.code || e.Code || '';
+        const name = e.name || e.Name || code;
+        return `<option value="${code}">${name}</option>`;
+    }).join('');
+
+    // Build CSV info for display
+    const csvModel = suggestedModel;
+    const csvFunktion = get(row, 'Funktion');
+    const csvVon = fmtDe(get(row, 'Von'));
+    const csvBisRaw = get(row, 'Bis');
+    const csvBis = csvBisRaw ? fmtDe(csvBisRaw) : 'Unbefristet';
+    const csvTarifDisplay = get(row, 'Tarife', 'Tarifsatz').replace(',', '.');
+    const csvFteDisplay = get(row, 'Salary (FTE)').replace(',', '.');
+    const csvAnzahl = get(row, 'Anzahl');
+    const csvStore = get(row, 'Store name') || get(row, 'Store number');
+
+    // Info-Banner: bei Lohnänderung Vergleich alt → neu, sonst CSV-Übersicht
+    const banner = isSalaryChange
+        ? (() => {
+            const oldFte   = activeContract.monthlySalaryFte;
+            const oldHrly  = activeContract.hourlyRate;
+            const newFte   = parseFloat((csvFteDisplay || '0').toString()) || 0;
+            const newHrly  = parseFloat((csvTarifDisplay || '0').toString()) || 0;
+            const diffRow = (label, oldV, newV, isMoney) => {
+                const fmt = v => isMoney ? 'CHF ' + Number(v).toFixed(2) : v;
+                if (!oldV && !newV) return '';
+                const changed = Math.abs((Number(oldV)||0) - (Number(newV)||0)) > 0.01;
+                return `
+                <div style="display:flex;justify-content:space-between;padding:4px 0">
+                    <span style="color:#64748b;font-size:12px">${label}</span>
+                    <span style="font-size:13px">
+                        <span style="color:#94a3b8;text-decoration:line-through">${oldV ? fmt(oldV) : '–'}</span>
+                        <span style="margin:0 8px;color:#94a3b8">→</span>
+                        <span style="color:${changed ? '#15803d' : '#1e293b'};font-weight:600">${newV ? fmt(newV) : '–'}</span>
+                    </span>
+                </div>`;
+            };
+            return `
+            <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 16px;margin-bottom:12px">
+                <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">💰 Lohnänderung — alle übrigen Vertragsdaten bleiben</div>
+                ${(suggestedModel === 'UTP' || suggestedModel === 'MTP')
+                    ? diffRow('Stundenlohn', oldHrly, newHrly, true)
+                    : diffRow('Monatslohn 100%', oldFte, newFte, true)}
+                <div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid #fcd34d;margin-top:6px;padding-top:8px">
+                    <span style="color:#64748b;font-size:12px">Gültig ab</span>
+                    <span style="font-size:13px;color:#0f172a;font-weight:600">${fmtDe(payRateFromIso)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:4px 0">
+                    <span style="color:#64748b;font-size:12px">Vertragstyp · Funktion</span>
+                    <span style="font-size:13px;color:#475569">${suggestedModel} · ${activeContract.jobTitle ?? '–'}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:4px 0">
+                    <span style="color:#64748b;font-size:12px">Übernommen</span>
+                    <span style="font-size:12px;color:#475569">
+                        Pensum ${activeContract.employmentPercentage ?? '–'}%
+                        ${activeContract.vacationPercent != null ? ' · Ferien ' + activeContract.vacationPercent + '%' : ''}
+                        ${activeContract.holidayPercent != null ? ' · Feiertag ' + activeContract.holidayPercent + '%' : ''}
+                        ${activeContract.thirteenthSalaryPercent != null ? ' · 13. ML ' + activeContract.thirteenthSalaryPercent + '%' : ''}
+                    </span>
+                </div>
+            </div>`;
+        })()
+        : `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:12px">
+            <div style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Vertragsdaten aus CSV</div>
+            <div class="addr-fields">
+                ${addrField('Vertragstyp', csvModel)}
+                ${addrField('Funktion', csvFunktion)}
+                ${addrField('Von', csvVon)}
+                ${addrField('Bis', csvBis)}
+                ${csvTarifDisplay && (csvModel==='UTP'||csvModel==='MTP') ? addrField('Stundenlohn', 'CHF ' + csvTarifDisplay) : ''}
+                ${csvFteDisplay && (csvModel==='FIX'||csvModel==='FIX-M') ? addrField('Monatslohn 100%', 'CHF ' + csvFteDisplay) : ''}
+                ${csvAnzahl ? addrField('Pensum/Stunden', csvAnzahl) : ''}
+                ${csvStore ? addrField('Filiale', csvStore) : ''}
+            </div>
+        </div>`;
+
+    return `
+    ${banner}
+    <div class="contract-form">
+        <div class="contract-form-title">📋 Neuer Vertrag erfassen</div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">Vertragsmodell <span class="required">*</span></label>
+                <select class="form-select" id="model-${idx}" onchange="onModelChange(${idx})">
+                    <option value="">– Bitte wählen –</option>
+                    <option value="UTP" ${suggestedModel==='UTP'?'selected':''}>UTP – Stundenlohn</option>
+                    <option value="MTP" ${suggestedModel==='MTP'?'selected':''}>MTP – Stundenlohn garantiert</option>
+                    <option value="FIX" ${suggestedModel==='FIX'?'selected':''}>FIX – Fixlohn</option>
+                    <option value="FIX-M" ${suggestedModel==='FIX-M'?'selected':''}>FIX-M – Fixlohn Management</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Funktion <span class="required">*</span></label>
+                <select class="form-select" id="jobGroup-${idx}" onchange="triggerComplianceCheck(${idx})">
+                    <option value="">– Bitte wählen –</option>
+                    ${jgOpts}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ausbildungsniveau <span class="required">*</span></label>
+                <select class="form-select" id="edLevel-${idx}" onchange="triggerComplianceCheck(${idx})">
+                    <option value="">– Bitte wählen –</option>
+                    ${edOpts}
+                </select>
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1">
+                <label class="form-label">Vertragsbeginn <span class="required">*</span></label>
+                <input class="form-input prefilled" type="date" id="startDate-${idx}" value="${startDate}" onchange="onStartDateChange(${idx})">
+                <div id="periodWarn-${idx}" style="display:none;margin-top:8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e">
+                    <div style="font-weight:600;margin-bottom:6px">⚠️ Vertragsbeginn nicht auf Periodenstart</div>
+                    <div id="periodWarnText-${idx}" style="margin-bottom:8px;color:#78350f"></div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        <button type="button" class="btn btn-sm" style="background:#fff;border:1px solid #fcd34d;color:#92400e;padding:4px 10px;font-size:12px;border-radius:6px" onclick="shiftToPeriodStart(${idx}, 'prev')">← Auf vorigen Periodenstart</button>
+                        <button type="button" class="btn btn-sm" style="background:#fff;border:1px solid #fcd34d;color:#92400e;padding:4px 10px;font-size:12px;border-radius:6px" onclick="shiftToPeriodStart(${idx}, 'next')">Auf nächsten Periodenstart →</button>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group" id="hourlyGroup-${idx}" style="display:none">
+                <label class="form-label">Stundenlohn (CHF)</label>
+                <input class="form-input prefilled" type="text" inputmode="decimal" id="hourlyRate-${idx}" value="${prefillHourly}" oninput="this.value=this.value.replace(',','.');calcMtpSalary(${idx});triggerComplianceCheck(${idx})">
+            </div>
+            <div class="form-group" id="hoursGroup-${idx}" style="display:none">
+                <label class="form-label">Garantierte Std./Woche</label>
+                <input class="form-input prefilled" type="number" step="0.5" id="guarHours-${idx}" value="${prefillGuarHours}" oninput="calcMtpSalary(${idx})">
+            </div>
+            <div class="form-group" id="mtpSalaryGroup-${idx}" style="display:none">
+                <label class="form-label">Gerechneter Monatslohn</label>
+                <div id="mtpSalary-${idx}" style="padding:9px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:13px;font-weight:600;color:#15803d;min-height:38px"></div>
+                <div class="form-hint">Std./Woche × Stundenlohn × 52 / 12</div>
+            </div>
+            <div class="form-group" id="salaryFteGroup-${idx}" style="display:none">
+                <label class="form-label">Monatslohn 100% (CHF)</label>
+                <input class="form-input prefilled" type="number" step="0.05" id="salaryFte-${idx}" value="${prefillSalaryFte}" oninput="recalcSalary(${idx})">
+            </div>
+            <div class="form-group" id="pensumGroup-${idx}" style="display:none">
+                <label class="form-label">Pensum (%)</label>
+                <input class="form-input prefilled" type="number" step="1" min="1" max="100" id="pensum-${idx}" value="${prefillPensum}" oninput="recalcSalary(${idx})">
+            </div>
+            <div class="form-group" id="salaryActualGroup-${idx}" style="display:none">
+                <label class="form-label">Monatslohn effektiv (CHF)</label>
+                <input class="form-input" type="number" step="0.05" id="salaryActual-${idx}" value="${get(row,'Salary (actual)').replace(',','.')}" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Probezeit ${hasExistingContract ? '<span style="font-size:11px;color:#94a3b8">(nicht möglich – bestehender Vertrag)</span>' : ''}</label>
+                <select class="form-select" id="probation-${idx}" onchange="calcProbationEnd(${idx})" ${hasExistingContract ? 'disabled style="opacity:0.5"' : ''}>
+                    <option value="0">Keine Probezeit</option>
+                    <option value="1">1 Monat</option>
+                    <option value="2">2 Monate</option>
+                    <option value="3">3 Monate</option>
+                </select>
+            </div>
+            <div class="form-group" id="probEndGroup-${idx}" style="display:none">
+                <label class="form-label">Probezeit-Ende</label>
+                <input class="form-input" type="text" id="probEnd-${idx}" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Befristeter Vertrag ${hasExistingContract ? '<span style="font-size:11px;color:#94a3b8">(nicht möglich – bestehender Vertrag)</span>' : ''}</label>
+                <select class="form-select" id="fixedTerm-${idx}" onchange="toggleEndDate(${idx})" ${hasExistingContract ? 'disabled style="opacity:0.5"' : ''}>
+                    <option value="no">Unbefristet</option>
+                    <option value="yes" ${!hasExistingContract&&bis?'selected':''}>Befristet</option>
+                </select>
+            </div>
+            <div class="form-group" id="endDateGroup-${idx}" style="${bis?'':'display:none'}">
+                <label class="form-label">Vertragsende <span style="font-size:11px;color:#94a3b8">(max. 6 Monate)</span></label>
+                <input class="form-input prefilled" type="date" id="endDate-${idx}" value="${bis}" onchange="validateEndDate(${idx})">
+                <div id="endDateErr-${idx}" style="font-size:11px;color:#dc2626;margin-top:2px;display:none">⚠ Maximale Vertragsdauer: 6 Monate</div>
+            </div>
+        </div>
+        <div id="compliance-${idx}" style="margin-top:10px"></div>
+    </div>`;
+}
+
+function onModelChange(idx) {
+    const model = document.getElementById(`model-${idx}`)?.value;
+    const isFix = model === 'FIX' || model === 'FIX-M';
+    const isMtp = model === 'MTP';
+    const isUtp = model === 'UTP';
+    const show = (id, v) => { const el = document.getElementById(id); if (el) el.style.display = v ? '' : 'none'; };
+    show(`hourlyGroup-${idx}`, (isMtp || isUtp) && !!model);
+    show(`hoursGroup-${idx}`, isMtp);
+    show(`mtpSalaryGroup-${idx}`, isMtp);
+    show(`salaryFteGroup-${idx}`, isFix);
+    show(`pensumGroup-${idx}`, isFix);
+    show(`salaryActualGroup-${idx}`, isFix);
+    if (isFix) recalcSalary(idx);
+    if (isMtp) calcMtpSalary(idx);
+    triggerComplianceCheck(idx);
+}
+
+function calcMtpSalary(idx) {
+    const hours = parseFloat(document.getElementById(`guarHours-${idx}`)?.value || '0');
+    const rate  = parseFloat((document.getElementById(`hourlyRate-${idx}`)?.value || '0').replace(',', '.'));
+    const el    = document.getElementById(`mtpSalary-${idx}`);
+    if (el && hours && rate) {
+        const monthly = Math.round(hours * rate * 52 / 12 * 100) / 100;
+        el.textContent = 'CHF ' + monthly.toFixed(2) + ' / Monat';
+    } else if (el) {
+        el.textContent = '';
+    }
+}
+
+function validateEndDate(idx) {
+    const start = document.getElementById(`startDate-${idx}`)?.value;
+    const end   = document.getElementById(`endDate-${idx}`)?.value;
+    const errEl = document.getElementById(`endDateErr-${idx}`);
+    const btn   = document.getElementById(`btnSave-${idx}`);
+    if (!start || !end || !errEl) return;
+    const maxEnd = new Date(start);
+    maxEnd.setMonth(maxEnd.getMonth() + 6);
+    const isOver = new Date(end) > maxEnd;
+    errEl.style.display = isOver ? '' : 'none';
+    if (btn) btn.disabled = isOver;
+}
+
+function toggleEndDate(idx) {
+    const isFixed = document.getElementById(`fixedTerm-${idx}`)?.value === 'yes';
+    const el = document.getElementById(`endDateGroup-${idx}`);
+    if (el) el.style.display = isFixed ? '' : 'none';
+    // Vertragsende-Vorschlag: Startdatum + 6 Monate
+    if (isFixed) {
+        const endEl = document.getElementById(`endDate-${idx}`);
+        if (endEl && !endEl.value) {
+            const start = document.getElementById(`startDate-${idx}`)?.value;
+            if (start) {
+                const d = new Date(start);
+                d.setMonth(d.getMonth() + 6);
+                d.setDate(d.getDate() - 1);
+                endEl.value = d.toISOString().split('T')[0];
+            }
+        }
+    }
+}
+
+function calcProbationEnd(idx) {
+    const months = parseInt(document.getElementById(`probation-${idx}`)?.value || '0');
+    const start = document.getElementById(`startDate-${idx}`)?.value;
+    const grp = document.getElementById(`probEndGroup-${idx}`);
+    if (grp) grp.style.display = months > 0 ? '' : 'none';
+    if (months > 0 && start) {
+        const d = new Date(start);
+        d.setMonth(d.getMonth() + months);
+        d.setDate(d.getDate() - 1);
+        const el = document.getElementById(`probEnd-${idx}`);
+        if (el) el.value = d.toLocaleDateString('de-CH');
+    }
+}
+
+function renderNewRow(e) {
+    const { idx, row } = e;
+    return `
+    <div class="row-item" id="row-${idx}">
+        <div class="row-header" onclick="toggleDetail(${idx})">
+            <div class="row-avatar new-emp">${initials(row)}</div>
+            <div>
+                <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
+                <div class="row-meta">Nr. ${get(row,'Nummer')} · Neuer Mitarbeiter</div>
+            </div>
+            <div class="row-badges">
+                <span class="badge badge-new">Neu</span>
+                <span class="badge badge-contract">Vertrag erforderlich</span>
+            </div>
+            <span class="row-chevron" id="chev-${idx}">›</span>
+        </div>
+        <div class="row-detail" id="detail-${idx}">
+            <div id="rowAlert-${idx}"></div>
+            <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Personaldaten</div>
+            <div class="addr-fields" style="margin-bottom:16px">
+                ${addrField('Vorname', get(row,'Vorname'))}
+                ${addrField('Nachname', get(row,'Nachname'))}
+                ${addrField('Geburtsdatum', fmtDe(get(row,'Geburtsdatum')))}
+                ${addrField('E-Mail', get(row,'E-Mail'))}
+                ${addrField('Telefon', formatPhone(get(row,'Telefon')))}
+                ${addrField('Adresse', get(row,'Adresse'))}
+                ${addrField('PLZ', get(row,'Postleitzahl'))}
+                ${addrField('Stadt', get(row,'Stadt'))}
+                ${addrField('Nationalität', get(row,'Nationalität'))}
+            </div>
+            ${contractFormHtml(idx, row, false)}
+            <div class="row-actions">
+                <div id="rowStatus-${idx}"></div>
+                <button class="btn btn-primary" id="btnSave-${idx}" onclick="saveNewEmployee(${idx})" disabled>💾 Mitarbeiter & Vertrag anlegen</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderContractRow(c) {
+    const { idx, row, employeeId, existingEmp, isSalaryChange, activeContract, payRateFromIso } = c;
+    const hasExistingContract = !!existingEmp;
+    const vonDate = isSalaryChange
+        ? payRateFromIso
+        : formatDate(get(row, 'Von'));
+    const badgeHtml = isSalaryChange
+        ? `<span class="badge badge-contract" style="background:#fef3c7;color:#92400e">Lohnänderung</span>`
+        : `<span class="badge badge-contract">Neuer Vertrag</span>`;
+    const subline = isSalaryChange
+        ? `Nr. ${get(row,'Nummer')} · Neuer Lohn ab ${fmtDe(payRateFromIso)} (alte Vertragsdaten übernommen)`
+        : `Nr. ${get(row,'Nummer')} · Neues Vertragsdatum: ${vonDate || '–'}`;
+
+    return `
+    <div class="row-item" id="row-${idx}">
+        <div class="row-header" onclick="toggleDetail(${idx})">
+            <div class="row-avatar contract">${initials(row)}</div>
+            <div>
+                <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
+                <div class="row-meta">${subline}</div>
+            </div>
+            <div class="row-badges">
+                ${badgeHtml}
+            </div>
+            <span class="row-chevron" id="chev-${idx}">›</span>
+        </div>
+        <div class="row-detail" id="detail-${idx}">
+            <div id="rowAlert-${idx}"></div>
+            <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Personaldaten aus CSV</div>
+            <div class="addr-fields" style="margin-bottom:16px">
+                ${addrField('Vorname', get(row,'Vorname'))}
+                ${addrField('Nachname', get(row,'Nachname'))}
+                ${addrField('Geburtsdatum', fmtDe(get(row,'Geburtsdatum')))}
+                ${addrField('E-Mail', get(row,'E-Mail'))}
+                ${addrField('Telefon', formatPhone(get(row,'Telefon')))}
+                ${addrField('Adresse', get(row,'Adresse'))}
+                ${addrField('PLZ', get(row,'Postleitzahl'))}
+                ${addrField('Stadt', get(row,'Stadt'))}
+                ${addrField('Nationalität', get(row,'Nationalität'))}
+            </div>
+            ${contractFormHtml(idx, row, true, activeContract, payRateFromIso)}
+            <div class="row-actions">
+                <div id="rowStatus-${idx}"></div>
+                <button class="btn btn-primary" id="btnSave-${idx}" onclick="saveContractChange(${idx}, ${employeeId})" disabled>${isSalaryChange ? '💰 Lohnänderung erfassen' : '📋 Vertrag erstellen'}</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderAddrRow(a) {
+    const { idx, row, employeeId, existingEmp } = a;
+    // Compare fields: CSV vs existing employee
+    const fields = [
+        { label: 'Adresse',      csv: get(row,'Adresse'),       db: existingEmp?.address || '' },
+        { label: 'PLZ',          csv: get(row,'Postleitzahl'),   db: existingEmp?.postalCode || '' },
+        { label: 'Stadt',        csv: get(row,'Stadt'),          db: existingEmp?.city || '' },
+        { label: 'Region',       csv: get(row,'Region'),         db: existingEmp?.region || '' },
+        { label: 'E-Mail',       csv: get(row,'E-Mail'),         db: existingEmp?.email || '' },
+        { label: 'Telefon',      csv: formatPhone(get(row,'Telefon')),  db: existingEmp?.phone || '' },
+    ];
+    const diffs = fields.filter(f => f.csv && f.db && f.csv.trim().toLowerCase() !== f.db.trim().toLowerCase());
+    const diffCount = diffs.length;
+    return `
+    <div class="row-item" id="row-${idx}">
+        <div class="row-header" onclick="toggleDetail(${idx})">
+            <div class="row-avatar existing">${initials(row)}</div>
+            <div>
+                <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
+                <div class="row-meta">Nr. ${get(row,'Nummer')} · ${get(row,'Adresse')}, ${get(row,'Postleitzahl')} ${get(row,'Stadt')}</div>
+            </div>
+            <div class="row-badges">
+                ${diffCount ? `<span class="badge" style="background:#fef3c7;color:#92400e">${diffCount} Änderung${diffCount>1?'en':''}</span>` : '<span class="badge badge-addr">Keine Änderung</span>'}
+                <span class="badge badge-addr" id="addrBadge-${idx}">Wird importiert</span>
+            </div>
+            <span class="row-chevron" id="chev-${idx}">›</span>
+        </div>
+        <div class="row-detail" id="detail-${idx}">
+            ${diffCount ? `
+            <div style="font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Änderungen</div>
+            <div class="changes-grid" style="margin-bottom:14px">
+                ${diffs.map(f => `
+                <div class="change-item">
+                    <div class="change-label">${f.label}</div>
+                    <div class="change-from">${f.db}</div>
+                    <div class="change-to">→ ${f.csv}</div>
+                </div>`).join('')}
+            </div>` : '<div style="font-size:13px;color:#64748b;margin-bottom:12px">Keine Adressänderungen – Daten werden trotzdem synchronisiert.</div>'}
+            <div class="addr-fields">
+                ${fields.map(f => addrField(f.label, f.csv)).join('')}
+            </div>
+            <div id="rowStatus-${idx}" style="margin-top:8px"></div>
+        </div>
+    </div>`;
+}
+
+function addrField(label, value) {
+    return `<div class="addr-field"><div class="addr-field-label">${label}</div><div class="addr-field-value">${value || '–'}</div></div>`;
+}
+
+// ── UI HELPERS ────────────────────────────────────────
+function toggleDetail(idx) {
+    const detail = document.getElementById(`detail-${idx}`);
+    const chev   = document.getElementById(`chev-${idx}`);
+    const open   = detail.classList.toggle('open');
+    if (chev) chev.classList.toggle('open', open);
+    if (open) {
+        onModelChange(idx);
+        calcMtpSalary(idx);
+        recalcSalary(idx);
+        checkPeriodStart(idx);
+        triggerComplianceCheck(idx);
+    }
+}
+
+function showUploadAlert(msg, type) {
+    document.getElementById('uploadAlert').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+}
+
+function formatDate(str) {
+    if (!str) return '';
+    // Try ISO or various formats
+    const d = new Date(str);
+    if (!isNaN(d)) return d.toISOString().split('T')[0];
+    return '';
+}
+
+function onModelChange(idx) {
+    const model = document.getElementById(`model-${idx}`)?.value;
+    const isFix = model === 'FIX' || model === 'FIX-M';
+    const show = (id, visible) => { const el = document.getElementById(id); if (el) el.style.display = visible ? '' : 'none'; };
+    show(`hourlyGroup-${idx}`, !isFix);
+    show(`hoursGroup-${idx}`, model === 'MTP');
+    show(`salaryFteGroup-${idx}`, isFix);
+    show(`pensumGroup-${idx}`, isFix);
+    show(`salaryActualGroup-${idx}`, isFix);
+    triggerComplianceCheck(idx);
+}
+
+function recalcSalary(idx) {
+    const fte   = parseFloat(document.getElementById(`salaryFte-${idx}`)?.value || '0');
+    const pct   = parseFloat(document.getElementById(`pensum-${idx}`)?.value || '100');
+    const actual = document.getElementById(`salaryActual-${idx}`);
+    if (actual && fte && pct) {
+        actual.value = (Math.round(fte * pct / 100 * 100) / 100).toFixed(2);
+    }
+    triggerComplianceCheck(idx);
+}
+
+// ── PERIOD-START-WARNUNG ──────────────────────────────
+// Prüft, ob das Vertragsbeginn-Datum auf dem Periodenstart (standardmässig
+// der 21.) liegt. Falls nein, Hinweisbox mit Buttons zum Verschieben anzeigen.
+function onStartDateChange(idx) {
+    checkPeriodStart(idx);
+    triggerComplianceCheck(idx);
+}
+
+function checkPeriodStart(idx) {
+    const el      = document.getElementById(`startDate-${idx}`);
+    const warnEl  = document.getElementById(`periodWarn-${idx}`);
+    const textEl  = document.getElementById(`periodWarnText-${idx}`);
+    if (!el || !warnEl || !textEl) return;
+    const startIso = el.value;
+    if (!startIso) { warnEl.style.display = 'none'; return; }
+
+    const periodStartDay = companyProfile?.payrollPeriodStartDay ?? 21;
+    const d = new Date(startIso + 'T12:00:00');
+    if (d.getDate() === periodStartDay) {
+        warnEl.style.display = 'none';
+        return;
+    }
+    // Nicht am Periodenstart → Vorschläge berechnen
+    const prev = prevPeriodStart(d, periodStartDay);
+    const next = nextPeriodStart(d, periodStartDay);
+    textEl.textContent = `Aktueller Vertragsbeginn ${fmtDe(startIso)} liegt mitten in der Lohnperiode `
+        + `(Periode beginnt jeweils am ${periodStartDay}.). Das führt zu geteilten Löhnen. `
+        + `Vorschlag: auf vorigen Periodenstart (${fmtDe(isoOf(prev))}) oder nächsten (${fmtDe(isoOf(next))}) verschieben.`;
+    warnEl.style.display = '';
+}
+
+function shiftToPeriodStart(idx, direction) {
+    const el = document.getElementById(`startDate-${idx}`);
+    if (!el || !el.value) return;
+    const periodStartDay = companyProfile?.payrollPeriodStartDay ?? 21;
+    const d = new Date(el.value + 'T12:00:00');
+    const target = direction === 'prev'
+        ? prevPeriodStart(d, periodStartDay)
+        : nextPeriodStart(d, periodStartDay);
+    el.value = isoOf(target);
+    checkPeriodStart(idx);
+    triggerComplianceCheck(idx);
+}
+
+function prevPeriodStart(d, day) {
+    // letzter Periodenstart <= d
+    const m = new Date(d.getFullYear(), d.getMonth(), day, 12, 0, 0);
+    if (m <= d) return m;
+    return new Date(d.getFullYear(), d.getMonth() - 1, day, 12, 0, 0);
+}
+
+function nextPeriodStart(d, day) {
+    // nächster Periodenstart > d
+    const m = new Date(d.getFullYear(), d.getMonth(), day, 12, 0, 0);
+    if (m > d) return m;
+    return new Date(d.getFullYear(), d.getMonth() + 1, day, 12, 0, 0);
+}
+
+function isoOf(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+// ── COMPLIANCE CHECK ──────────────────────────────────
+let complianceTimers = {};
+function triggerComplianceCheck(idx) {
+    clearTimeout(complianceTimers[idx]);
+    complianceTimers[idx] = setTimeout(() => runComplianceCheck(idx), 600);
+}
+
+async function runComplianceCheck(idx) {
+    const edLevel = document.getElementById(`edLevel-${idx}`)?.value;
+    const model   = document.getElementById(`model-${idx}`)?.value;
+    const row     = parsedRows[idx];
+    const box     = document.getElementById(`compliance-${idx}`);
+    const btn     = document.getElementById(`btnSave-${idx}`);
+    if (!box) return;
+
+    if (!edLevel) {
+        box.innerHTML = `<div class="compliance-box compliance-warn">⚠️ Bitte Ausbildungsniveau wählen für Mindestlohn-Prüfung</div>`;
+        return;
+    }
+
+    const isFix = model === 'FIX' || model === 'FIX-M';
+    const pct   = parseFloat(document.getElementById(`pensum-${idx}`)?.value || '100');
+    const startDate = document.getElementById(`startDate-${idx}`)?.value || new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    // Zukunft → Vertragsdatum (neuer Mindestlohn), Vergangenheit → heute
+    const isFuture = startDate > today;
+    const effectiveDate = isFuture ? startDate : today;
+
+    let hourlyRate = null, monthlySalary = null;
+    if (isFix) {
+        // Backend berechnet selbst: MonthlySalary × pct → schicke FTE (100%) Wert
+        monthlySalary = parseFloat(document.getElementById(`salaryFte-${idx}`)?.value || '0') || null;
+    } else {
+        const hrRaw = document.getElementById(`hourlyRate-${idx}`)?.value || '0';
+        hourlyRate = parseFloat(hrRaw.replace(',', '.')) || null;
+    }
+
+    // Mapping CSV 'Funktion' (Stellenbezeichnung) → DB job_group_code
+    // Quelle: Umwandlung_funktion.xlsx
+    const FUNKTION_MAP = {
+        '1ST ASSISTANT':                    'ASST_1',
+        '2ND ASSISTANT':                    'ASST_2',
+        'ASSISTANT TRAINEE':                'SHIFT_LEADER_1_6',
+        'OWNER OPERATOR TRAINEE':           'CREW',
+        'APPRENTI-/E SPÉCIALISTE EN RES':   'CREW',
+        'CREW':                             'CREW',
+        'CREW TRAINER':                     'HOST_CT',
+        'GUEST EXPERIENCE LEADER':          'HOST_CT',
+        'HOSTESS / HOST':                   'HOST_CT',
+        'HOSTESS':                          'HOST_CT',
+        'NIGHT CLEANER':                    'CREW',
+        'INTERN':                           'CREW',
+        'FIELD TRAINER':                    'HOST_CT',
+        'RESTAURANT MANAGER - NEVEAU 1':    'REST_MANAGER',
+        'RESTAURANT MANAGER - NIVEAU 1':    'REST_MANAGER',
+        'RESTAURANT MANAGER - NIVEAU 2':    'REST_MANAGER',
+        'SHIFT COORDINATOR':                'SHIFT_LEADER_7_PLUS',
+        'SHIFT LEADER':                     'SHIFT_LEADER_1_6',
+        // Fallbacks aus 'Funktionen' Feld
+        'MANAGER':                          'REST_MANAGER',
+        'RESTAURANT MANAGER':               'REST_MANAGER',
+        'STORE MANAGER':                    'REST_MANAGER',
+        'EMPOLYE':                          'CREW',
+        'EMPLOYEE':                         'CREW',
+    };
+    // Zuerst 'Funktion' (Stellenbezeichnung) mappen, dann 'Funktionen' als Fallback
+    const funktionRaw = get(row, 'Funktion').toUpperCase().trim();
+    const funktionenRaw = get(row, 'Funktionen').toUpperCase().trim();
+    // jobGroupCode: zuerst aus Formular (job_groups dropdown), dann Mapping als Fallback
+    const jobGroupCode = document.getElementById(`jobGroup-${idx}`)?.value || FUNKTION_MAP[funktionRaw] || FUNKTION_MAP[funktionenRaw] || 'CREW';
+
+    const pastInfo = (!isFuture && startDate < today)
+        ? `<div class="compliance-box compliance-warn" style="margin-bottom:6px">ℹ️ Vertragsbeginn in der Vergangenheit – aktuell gültiger Mindestlohn wird verwendet.</div>`
+        : '';
+    box.innerHTML = pastInfo + `<div class="compliance-box compliance-loading">⏳ Mindestlohn wird geprüft...</div>`;
+
+    try {
+        const body = {
+            jobGroupCode,
+            educationLevelCode: edLevel,
+            effectiveDate: effectiveDate,
+            employmentModel: model,
+            employmentPercentage: pct,
+            hourlyRate,
+            monthlySalary
+        };
+        const res = await fetch('/api/compliance/check-live', { method: 'POST', headers: ah(), body: JSON.stringify(body) });
+        if (!res.ok) {
+            box.innerHTML = pastInfo + `<div class="compliance-box compliance-warn">⚠️ Compliance-Check nicht verfügbar (HTTP ${res.status})</div>`;
+            return;
+        }
+        const cr = await res.json();
+        const underpaid = cr.status === 'UNDERPAID';
+        const ok = cr.status === 'OK' || cr.status === 'ok';
+
+        // Mindestlohn vorschlagen wenn Feld noch leer
+        if (isFix) {
+            const fteEl = document.getElementById(`salaryFte-${idx}`);
+            if (fteEl && (!fteEl.value || parseFloat(fteEl.value) === 0) && cr.minimumMonthlySalaryFte != null) {
+                fteEl.value = Number(cr.minimumMonthlySalaryFte).toFixed(2);
+                recalcSalary(idx);
+            }
+        } else {
+            const hrEl = document.getElementById(`hourlyRate-${idx}`);
+            if (hrEl && (!hrEl.value || parseFloat(hrEl.value) === 0) && cr.minimumHourlyRate != null) {
+                hrEl.value = Number(cr.minimumHourlyRate).toFixed(2);
+                calcMtpSalary(idx);
+            }
+        }
+        const overpaid = ok && cr.difference != null && Number(cr.difference) > 0;
+
+        let boxClass = underpaid ? 'compliance-err' : 'compliance-ok';
+        let html = `<div class="compliance-box ${boxClass}">`;
+
+        // Status-Zeile
+        if (underpaid) {
+            html += `<div style="font-weight:600;margin-bottom:6px">⚠️ Mindestlohn unterschritten – bitte Lohn korrigieren</div>`;
+        } else if (overpaid) {
+            html += `<div style="font-weight:600;margin-bottom:6px">✅ Mindestlohn eingehalten (Lohn über Minimum)</div>`;
+        } else {
+            html += `<div style="font-weight:600;margin-bottom:6px">✅ Mindestlohn eingehalten</div>`;
+        }
+
+        // Mindestlohn immer anzeigen
+        if (cr.minimumMonthlySalary != null) {
+            const minFte = cr.minimumMonthlySalaryFte ?? cr.minimumMonthlySalary;
+            const minEff = cr.minimumMonthlySalary;
+            html += `<div style="font-size:12px">Mindest-Monatslohn: CHF ${Number(minEff).toFixed(2)}`;
+            if (pct < 100 && cr.minimumMonthlySalaryFte) html += ` (${pct}% von CHF ${Number(minFte).toFixed(2)})`;
+            html += `</div>`;
+        }
+        if (cr.minimumHourlyRate != null) {
+            html += `<div style="font-size:12px">Mindest-Stundenlohn: CHF ${Number(cr.minimumHourlyRate).toFixed(2)}</div>`;
+        }
+
+        // Differenz
+        if (cr.difference != null) {
+            const diff = Number(cr.difference);
+            if (diff < 0) {
+                html += `<div style="font-size:12px;font-weight:600;color:#dc2626">Fehlbetrag: CHF ${Math.abs(diff).toFixed(2)}</div>`;
+            } else if (diff > 0) {
+                html += `<div style="font-size:12px;color:#15803d">Über Minimum: CHF ${diff.toFixed(2)}</div>`;
+            }
+        }
+
+        if (isFuture) html += `<div style="font-size:12px;color:#1d4ed8;margin-top:4px">Geprüft per Vertragsbeginn: ${startDate}</div>`;
+        html += '</div>';
+        box.innerHTML = pastInfo + html;
+
+        // Zu tief → Button sperren, zu hoch → erlauben
+        if (btn) { btn.disabled = underpaid; }
+    } catch(e) {
+        box.innerHTML = pastInfo + `<div class="compliance-box compliance-warn">⚠️ Compliance-Check Fehler: ${e.message}</div>`;
+    }
+}
+
+// ── BUILD PERSONAL DATA PAYLOAD ───────────────────────
+function buildPersonPayload(row) {
+    const natCode = get(row, 'Nationalität').toUpperCase();
+    const nat = nationalities.find(n => (n.code||n.Code||'').toUpperCase() === natCode);
+    const genderRaw = get(row, 'Geschlecht').toLowerCase();
+    const gender = genderRaw === 'female' || genderRaw === 'weiblich' ? 'female' :
+                   genderRaw === 'male'   || genderRaw === 'männlich' ? 'male' : null;
+    return {
+        firstName:       get(row, 'Vorname'),
+        lastName:        get(row, 'Nachname'),
+        email:           get(row, 'E-Mail'),
+        phone:           formatPhone(get(row, 'Telefon')) || null,
+        address:         get(row, 'Adresse') || null,
+        city:            get(row, 'Stadt') || null,
+        postalCode:      get(row, 'Postleitzahl') || null,
+        region:          get(row, 'Region') || null,
+        dateOfBirth:     formatDate(get(row, 'Geburtsdatum')) || null,
+        gender:          gender,
+        nationalityId:   nat?.id ?? nat?.Id ?? null,
+        employeeNumber:  get(row, 'Nummer'),   // maps to employee_number in DB
+        hiredDate:       formatDate(get(row, 'Datum der Betriebszugehörigkeit')) || null,
+        familyCare:      get(row, 'Familienbetreuung') === '1' || get(row, 'Familienbetreuung').toLowerCase() === 'true',
+    };
+}
+
+function buildContractPayload(idx, employeeId, row) {
+    const model   = document.getElementById(`model-${idx}`)?.value;
+    const isFix   = model === 'FIX' || model === 'FIX-M';
+    const pct     = parseFloat(document.getElementById(`pensum-${idx}`)?.value || '100');
+    // Vertragsbeginn im Formular kann angepasst werden, default = heute
+    const startDate = document.getElementById(`startDate-${idx}`)?.value || new Date().toISOString().split('T')[0];
+    const endDate   = document.getElementById(`endDate-${idx}`)?.value || null;
+    const fte     = parseFloat(document.getElementById(`salaryFte-${idx}`)?.value || '0') || null;
+    const actual  = parseFloat(document.getElementById(`salaryActual-${idx}`)?.value || '0') || null;
+    const hourly  = parseFloat((document.getElementById(`hourlyRate-${idx}`)?.value || '0').replace(',', '.')) || null;
+    const guar    = parseFloat(document.getElementById(`guarHours-${idx}`)?.value || '0') || null;
+    const jobTitle = document.getElementById(`jobGroup-${idx}`)?.value || get(row, 'Funktion') || '';
+
+    // Probezeit
+    const probMonths = parseInt(document.getElementById(`probation-${idx}`)?.value || '0');
+    let probEndDate = null;
+    if (probMonths > 0 && startDate) {
+        const d = new Date(startDate);
+        d.setMonth(d.getMonth() + probMonths);
+        d.setDate(d.getDate() - 1);
+        probEndDate = d.toISOString().split('T')[0];
+    }
+    // Befristung
+    const isFixedTerm = document.getElementById(`fixedTerm-${idx}`)?.value === 'yes';
+    const fixedEndDate = isFixedTerm ? (document.getElementById(`endDate-${idx}`)?.value || null) : null;
+
+    // Bei reiner Lohnänderung: alle nicht im Formular sichtbaren Felder aus
+    // dem aktiven Vertrag übernehmen (Ferien %, Feiertag %, 13. ML %, etc.)
+    const isSalaryChange = !!rowStates[idx]?.isSalaryChange;
+    const active = rowStates[idx]?.activeContract;
+
+    // Ferienberechnung: bei Lohnänderung → alten Wert, sonst Geburtsdatum aus CSV
+    const dob = formatDate(get(row, 'Geburtsdatum'));
+    const isHourly = !isFix;
+    let vacPct, holPct, thirteenthPct, vacPayMode;
+    if (isSalaryChange && active) {
+        // Alle Entgelt-Prozente aus dem aktiven Vertrag übernehmen
+        vacPct         = active.vacationPercent ?? (isHourly ? getVacationPct(dob, startDate) : null);
+        holPct         = active.holidayPercent ?? (isHourly ? (companyProfile?.defaultHolidayPercent ?? 2.27) : null);
+        thirteenthPct  = active.thirteenthSalaryPercent ?? (isHourly ? 8.33 : null);
+        vacPayMode     = active.vacationPaymentMode
+                        ?? (isHourly ? (companyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary') : null);
+    } else {
+        vacPct         = isHourly ? getVacationPct(dob, startDate) : null;
+        holPct         = isHourly ? (companyProfile?.defaultHolidayPercent ?? 2.27) : null;
+        thirteenthPct  = isHourly ? 8.33 : null;
+        vacPayMode     = isHourly ? (companyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary') : null;
+    }
+
+    // Weitere Felder, die nicht im Formular liegen, aber bei Lohnänderung
+    // erhalten bleiben müssen:
+    const weeklyHours = isSalaryChange && active ? (active.weeklyHours ?? null) : null;
+
+    // Filiale: bei Lohnänderung → aus aktivem Vertrag, sonst aus CSV
+    const storeNum = get(row, 'Store number', 'Store Number');
+    const branchId = isSalaryChange && active?.companyProfileId
+        ? active.companyProfileId
+        : (getBranchIdByStoreNumber(storeNum) || companyProfileId || 1);
+
+    return {
+        employeeId,
+        companyProfileId:       branchId,
+        employmentModel:        model,
+        salaryType:             isFix ? 'monthly' : 'hourly',
+        contractStartDate:      startDate,
+        contractEndDate:        fixedEndDate,
+        contractEndDateSet:     true,
+        contractType:           isFixedTerm ? 'befristet' : 'unbefristet',
+        jobTitle,
+        hourlyRate:             isFix ? null : hourly,
+        monthlySalary:          isFix ? actual : null,
+        monthlySalaryFte:       isFix ? fte : null,
+        employmentPercentage:   isFix ? pct : null,
+        weeklyHours,
+        guaranteedHoursPerWeek: model === 'MTP' ? guar : null,
+        probationPeriodMonths:  probMonths > 0 ? probMonths : null,
+        probationEndDate:       probEndDate,
+        vacationPercent:        vacPct,
+        holidayPercent:         holPct,
+        thirteenthSalaryPercent: thirteenthPct,
+        vacationPaymentMode:    vacPayMode,
+        isActive:               true,
+    };
+}
+
+// ── SAVE NEW EMPLOYEE ─────────────────────────────────
+// ── VACATION PERCENT ─────────────────────────────────
+function getVacationPct(dateOfBirth, startDate) {
+    const vac5 = companyProfile?.defaultVacationPercent5Weeks ?? 10.64;
+    const vac6 = companyProfile?.defaultVacationPercent6Weeks ?? 13.04;
+    if (!dateOfBirth || !startDate) return vac5;
+    const birth = new Date(dateOfBirth);
+    const start = new Date(startDate);
+    let age = start.getFullYear() - birth.getFullYear();
+    if (start < new Date(start.getFullYear(), birth.getMonth(), birth.getDate())) age--;
+    return age >= 50 ? vac6 : vac5;
+}
+
+// ── PDF DOWNLOAD ─────────────────────────────────────
+async function downloadPdf(employmentId, btnId) {
+    const btn = document.getElementById(btnId);
+    if (btn) { btn.textContent = '⏳ PDF wird erstellt...'; btn.disabled = true; }
+    try {
+        const res = await fetch(`/api/contracts/employment/${employmentId}/pdf`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const cd = res.headers.get('content-disposition') || '';
+        const match = cd.match(/filename="?([^"]+)"?/);
+        const a = document.createElement('a');
+        a.download = match ? match[1] : 'Vertrag.pdf';
+        a.href = url; a.click(); URL.revokeObjectURL(url);
+    } catch(e) {
+        alert('PDF Fehler: ' + e.message);
+    } finally {
+        if (btn) { btn.textContent = '📄 Vertrag als PDF'; btn.disabled = false; }
+    }
+}
+
+function showPdfButton(idx, employmentId) {
+    const statusEl = document.getElementById(`rowStatus-${idx}`);
+    if (!statusEl || !employmentId) return;
+    const pdfBtn = document.createElement('button');
+    pdfBtn.id = `pdfBtn-${idx}`;
+    pdfBtn.className = 'btn btn-outline';
+    pdfBtn.style.marginLeft = '8px';
+    pdfBtn.innerHTML = '📄 Vertrag als PDF';
+    pdfBtn.onclick = () => downloadPdf(employmentId, `pdfBtn-${idx}`);
+    statusEl.appendChild(pdfBtn);
+}
+
+async function saveNewEmployee(idx) {
+    const row = parsedRows[idx];
+    const edLevel = document.getElementById(`edLevel-${idx}`)?.value;
+    const alertEl = document.getElementById(`rowAlert-${idx}`);
+    const btn     = document.getElementById(`btnSave-${idx}`);
+    const statusEl = document.getElementById(`rowStatus-${idx}`);
+
+    const jg = document.getElementById(`jobGroup-${idx}`)?.value;
+    if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
+    if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
+    if (!document.getElementById(`startDate-${idx}`)?.value) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Vertragsbeginn angeben.</div>`; return; }
+
+    btn.disabled = true; btn.textContent = '⏳ Wird gespeichert...';
+    alertEl.innerHTML = '';
+
+    try {
+        // 1. Neuen Mitarbeiter anlegen
+        const personPayload = buildPersonPayload(row);
+        const empRes = await fetch('/api/employees', {
+            method: 'POST', headers: ah(), body: JSON.stringify(personPayload)
+        });
+        if (!empRes.ok) throw new Error('Mitarbeiter anlegen: ' + await empRes.text());
+        const newEmp = await empRes.json();
+        const empId = newEmp.id;
+
+        // 2. Vertrag erstellen
+        const contractPayload = buildContractPayload(idx, empId, row);
+        const ctRes = await fetch('/api/employments', {
+            method: 'POST', headers: ah(), body: JSON.stringify(contractPayload)
+        });
+        if (!ctRes.ok) throw new Error('Vertrag erstellen: ' + await ctRes.text());
+        const ctResult = await ctRes.json();
+        const newEmpId = ctResult.employment?.id ?? ctResult.id ?? null;
+
+        statusEl.innerHTML = `<span class="status-done">✅ Mitarbeiter angelegt & Vertrag erstellt</span>`;
+        btn.style.display = 'none';
+        document.getElementById(`row-${idx}`).style.background = '#f0fdf4';
+        rowStates[idx].done = true;
+        showPdfButton(idx, newEmpId);
+        await loadEmployees();
+    } catch(e) {
+        alertEl.innerHTML = `<div class="alert alert-err">Fehler: ${e.message}</div>`;
+        btn.disabled = false; btn.textContent = '💾 Mitarbeiter anlegen & Vertrag erstellen';
+    }
+}
+
+// ── SAVE CONTRACT CHANGE ──────────────────────────────
+async function saveContractChange(idx, employeeId) {
+    const row     = parsedRows[idx];
+    const edLevel = document.getElementById(`edLevel-${idx}`)?.value;
+    const alertEl = document.getElementById(`rowAlert-${idx}`);
+    const btn     = document.getElementById(`btnSave-${idx}`);
+    const statusEl = document.getElementById(`rowStatus-${idx}`);
+
+    const jg = document.getElementById(`jobGroup-${idx}`)?.value;
+    if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
+    if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
+
+    btn.disabled = true; btn.textContent = '⏳ Wird gespeichert...';
+    alertEl.innerHTML = '';
+
+    try {
+        // 1. Personaldaten updaten
+        const personPayload = buildPersonPayload(row);
+        await fetch(`/api/employees/${employeeId}`, {
+            method: 'PUT', headers: ah(), body: JSON.stringify(personPayload)
+        });
+
+        // 2. Neuen Vertrag erstellen
+        const contractPayload = buildContractPayload(idx, employeeId, row);
+        const ctRes = await fetch('/api/employments', {
+            method: 'POST', headers: ah(), body: JSON.stringify(contractPayload)
+        });
+        if (!ctRes.ok) throw new Error('Vertrag erstellen: ' + await ctRes.text());
+        const ctResult = await ctRes.json();
+        const savedId = ctResult.employment?.id ?? ctResult.id ?? null;
+
+        statusEl.innerHTML = `<span class="status-done">✅ Adressdaten & neuer Vertrag gespeichert</span>`;
+        btn.style.display = 'none';
+        document.getElementById(`row-${idx}`).style.background = '#f0fdf4';
+        rowStates[idx].done = true;
+        showPdfButton(idx, savedId);
+    } catch(e) {
+        alertEl.innerHTML = `<div class="alert alert-err">Fehler: ${e.message}</div>`;
+        btn.disabled = false; btn.textContent = '📋 Neuen Vertrag erstellen';
+    }
+}
+
+// ── RUN ALL (addr-only) ───────────────────────────────
+async function runAllNew() {
+    const btn = document.getElementById('btnRunAllNew');
+    btn.disabled = true; btn.textContent = '⏳ Wird angelegt...';
+    let done = 0, errors = 0;
+    for (let i = 0; i < parsedRows.length; i++) {
+        if (rowStates[i]?.status !== 'new' || rowStates[i]?.done) continue;
+        try {
+            const res = await fetch('/api/employees', {
+                method: 'POST', headers: ah(), body: JSON.stringify(buildPersonPayload(parsedRows[i]))
+            });
+            if (res.ok) {
+                done++; rowStates[i].done = true;
+                const rowEl = document.getElementById(`row-${i}`);
+                if (rowEl) rowEl.style.opacity = '0.5';
+                const statusEl = document.getElementById(`rowStatus-${i}`);
+                if (statusEl) statusEl.innerHTML = `<span style="color:#16a34a;font-size:12px">✅ Angelegt – Vertrag noch ausstehend</span>`;
+            } else { errors++; }
+        } catch { errors++; }
+    }
+    await loadEmployees();
+    btn.textContent = `✅ ${done} angelegt${errors ? `, ${errors} Fehler` : ''} – Verträge bitte einzeln erfassen`;
+    setTimeout(() => { btn.disabled = false; btn.textContent = '👤 Alle neuen MA anlegen'; }, 5000);
+}
+
+async function runAll() {
+    const btn = document.getElementById('btnRunAll');
+    btn.disabled = true; btn.textContent = '⏳ Wird verarbeitet...';
+
+    let done = 0, errors = 0;
+    for (let i = 0; i < parsedRows.length; i++) {
+        if (rowStates[i]?.status !== 'addr') continue;
+        if (rowStates[i]?.done) continue;
+        const row = parsedRows[i];
+        const empId = rowStates[i].employeeId;
+        try {
+            const payload = buildPersonPayload(row);
+            const res = await fetch(`/api/employees/${empId}`, {
+                method: 'PUT', headers: ah(), body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                rowStates[i].done = true; done++;
+                const badge = document.getElementById(`addrBadge-${i}`);
+                const status = document.getElementById(`rowStatus-${i}`);
+                if (badge) { badge.textContent = '✅ Importiert'; badge.style.background = '#dcfce7'; }
+                if (status) status.innerHTML = `<span class="status-done">✅ Adressdaten aktualisiert</span>`;
+                document.getElementById(`row-${i}`)?.style && (document.getElementById(`row-${i}`).style.background = '#f0fdf4');
+            } else { errors++; }
+        } catch { errors++; }
+    }
+
+    btn.textContent = `✅ ${done} aktualisiert${errors ? `, ${errors} Fehler` : ''}`;
+    setTimeout(() => { btn.disabled = false; btn.textContent = '▶ Alle verarbeiten'; }, 4000);
+}
+
+init();
+</script>
+</body>
+</html>

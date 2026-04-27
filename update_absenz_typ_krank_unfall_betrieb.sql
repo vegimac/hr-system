@@ -1,0 +1,18 @@
+-- ====================================================================
+-- HINWEIS: Diese Migration NICHT einspielen.
+-- ====================================================================
+-- Die zuerst angenommene Regel "KRANK/UNFALL für FIX/FIX-M auf BETRIEB"
+-- war falsch. Richtige Logik (Walter, 24.04.2026):
+--
+--   KRANK/UNFALL bleiben auf basis_stunden='VERTRAG' (wie bisher)
+--   - MTP:       VERTRAG → GuaranteedHoursPerWeek (1/5 davon)
+--   - FIX/FIX-M: VERTRAG → Frontend nutzt trotzdem Betriebs-Wochenzeit,
+--                weil die Typ-Code-spezifische Regel (nur FERIEN/FEIERTAG
+--                sind pensum-adjustiert) im calcAbsHoursPreview lebt.
+--
+-- DB bleibt also unverändert für KRANK/UNFALL (basis_stunden='VERTRAG').
+-- Nur FEIERTAG muss noch auf VERTRAG umgestellt werden — siehe
+-- update_absenz_typ_feiertag_vertrag.sql.
+-- ====================================================================
+
+-- Nothing to do. Leave this file as documentation of the dead end.

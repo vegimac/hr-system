@@ -26,6 +26,13 @@ public class LohnZulagTyp
     /// </summary>
     public bool QstPflichtig { get; set; } = false;
 
+    /// <summary>
+    /// Optionale Verknüpfung zum Lohnraster (Lohnposition.Code, z.B. "190.1").
+    /// Wenn gesetzt → granulare SV-Flags aus Lohnposition werden verwendet.
+    /// Wenn null    → Fallback auf binäres SvPflichtig-Flag (Rückwärtskompatibilität).
+    /// </summary>
+    public string? LohnpositionCode { get; set; }
+
     public int SortOrder { get; set; } = 99;
     public bool Aktiv { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

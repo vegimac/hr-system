@@ -93,11 +93,17 @@ public class ZwischenverdienistController : ControllerBase
             .OrderByDescending(e => e.ContractStartDate)
             .FirstOrDefaultAsync();
 
-        // Standard-Unterzeichner (Verantwortliche Ansprechperson)
-        var signatory = await _db.CompanySignatories
-            .Where(s => s.CompanyProfileId == companyProfileId && s.IsActive)
-            .OrderByDescending(s => s.IsDefault)
-            .FirstOrDefaultAsync();
+        // Unterzeichner: HR-Verantwortliche aus user_branch_access
+        // Priorität: HR_VERANTWORTLICH → IsDefault → erster aktiver Benutzer
+        var branchUsers = await _db.UserBranchAccesses
+            .Include(uba => uba.User)
+            .Where(uba => uba.CompanyProfileId == companyProfileId && uba.User.IsActive)
+            .ToListAsync();
+        var signatoryUser = branchUsers.FirstOrDefault(uba => uba.Role == "HR_VERANTWORTLICH")
+                         ?? branchUsers.FirstOrDefault(uba => uba.IsDefault)
+                         ?? branchUsers.FirstOrDefault();
+        // signatory auf null setzen da wir nur noch user_branch_access verwenden
+        CompanySignatory? signatory = null;
 
         var company = await _db.CompanyProfiles.FindAsync(companyProfileId);
         if (company is null) return NotFound("Firmenprofil nicht gefunden");
@@ -208,7 +214,7 @@ public class ZwischenverdienistController : ControllerBase
             Geburtsdatum         = employee.DateOfBirth.HasValue
                                     ? employee.DateOfBirth.Value.ToString("dd.MM.yyyy")
                                     : "",
-            Zivilstand           = FormatZivilstand(employee.Zivilstand),
+            Zivilstand           = FormatZivilstand(employee.MaritalStatus),
             Monat                = month.ToString("D2"),
             Jahr                 = year.ToString(),
             AusgeuebteTaetigkeit = employment?.JobTitle,
@@ -256,12 +262,12 @@ public class ZwischenverdienistController : ControllerBase
             OrtDatum               = $"{company.City}, {DateTime.Today:dd.MM.yyyy}",
             ArbeitgeberAdresse     = arbGeberAdresse,
             UidNummer              = company.UidNummer,
-            TelNummer              = company.Phone,
-            Email                  = company.Email,
+            TelNummer              = signatoryUser?.User.Phone ?? company.Phone,
+            Email                  = signatoryUser?.User.Email ?? company.Email,
             BurNummer              = company.BurNummer,
             BranchenCode           = company.BranchenCode,
-            AnsprechpersonName     = signatory?.LastName,
-            AnsprechpersonVorname  = signatory?.FirstName,
+            AnsprechpersonName     = signatoryUser?.User.LastName ?? signatory?.LastName,
+            AnsprechpersonVorname  = signatoryUser?.User.FirstName ?? signatory?.FirstName,
         };
 
         byte[] pdfBytes = _pdfService.Generate(data);

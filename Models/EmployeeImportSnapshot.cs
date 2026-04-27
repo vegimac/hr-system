@@ -15,6 +15,12 @@ public class EmployeeImportSnapshot
     public decimal? MonthlySalary { get; set; }       // tatsächlicher Lohn (nach Pensum)
     public decimal? WeeklyHours { get; set; }
 
+    /// <summary>Pensum in % (z.B. 80 für 80%) – aus Anzahl-Spalte wenn "80%" steht</summary>
+    public decimal? EmploymentPercentage { get; set; }
+
+    /// <summary>Vertragsende – wenn gesetzt = befristet</summary>
+    public DateOnly? ContractEndDate { get; set; }
+
     public string? JobTitle { get; set; }
 
     public string? NationalityCode { get; set; }

@@ -24,6 +24,7 @@ public class EmployeeTimeEntry
     // Audit-Felder: werden beim ersten Bearbeiten gesetzt
     public DateTime? OriginalTimeIn  { get; set; }
     public DateTime? OriginalTimeOut { get; set; }
+    public string?   OriginalComment { get; set; }
     public string?   EditedBy        { get; set; }
     public DateTime? EditedAt        { get; set; }
 

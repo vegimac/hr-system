@@ -49,6 +49,25 @@ public class EmployeeTimeEntriesController : ControllerBase
         return Ok(entries);
     }
 
+    // GET /api/employees/{employeeId}/timeentries/periods
+    // Liefert alle Jahre/Monate, in denen für diesen MA Einträge existieren (neueste zuerst)
+    [HttpGet("periods")]
+    public async Task<IActionResult> GetPeriods(int employeeId)
+    {
+        var periods = await _db.EmployeeTimeEntries
+            .Where(t => t.EmployeeId == employeeId)
+            .GroupBy(t => new { t.EntryDate.Year, t.EntryDate.Month })
+            .Select(g => new {
+                year  = g.Key.Year,
+                month = g.Key.Month,
+                count = g.Count()
+            })
+            .OrderByDescending(x => x.year)
+            .ThenByDescending(x => x.month)
+            .ToListAsync();
+        return Ok(periods);
+    }
+
     // GET /api/employees/{employeeId}/timeentries/{id}
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int employeeId, int id)
@@ -67,10 +86,10 @@ public class EmployeeTimeEntriesController : ControllerBase
         dto.CreatedAt  = DateTime.UtcNow;
         dto.UpdatedAt  = DateTime.UtcNow;
 
-        // PostgreSQL timestamptz erfordert Kind=Utc
-        dto.TimeIn  = DateTime.SpecifyKind(dto.TimeIn, DateTimeKind.Utc);
+        // Stempelzeiten werden als Lokalzeit gespeichert (timestamp ohne TZ).
+        dto.TimeIn  = DateTime.SpecifyKind(dto.TimeIn, DateTimeKind.Unspecified);
         if (dto.TimeOut.HasValue)
-            dto.TimeOut = DateTime.SpecifyKind(dto.TimeOut.Value, DateTimeKind.Utc);
+            dto.TimeOut = DateTime.SpecifyKind(dto.TimeOut.Value, DateTimeKind.Unspecified);
 
         // Auto-calculate DurationHours if not supplied
         if (dto.DurationHours == null && dto.TimeOut.HasValue)
@@ -93,27 +112,28 @@ public class EmployeeTimeEntriesController : ControllerBase
             .FirstOrDefaultAsync(t => t.Id == id && t.EmployeeId == employeeId);
         if (entry is null) return NotFound();
 
-        // Audit: Originalwerte beim ersten Bearbeiten sichern (explizit UTC)
+        // Audit: Originalwerte beim ersten Bearbeiten sichern (Lokalzeit)
         if (entry.EditedBy is null)
         {
-            entry.OriginalTimeIn  = DateTime.SpecifyKind(entry.TimeIn, DateTimeKind.Utc);
+            entry.OriginalTimeIn  = DateTime.SpecifyKind(entry.TimeIn, DateTimeKind.Unspecified);
             entry.OriginalTimeOut = entry.TimeOut.HasValue
-                ? DateTime.SpecifyKind(entry.TimeOut.Value, DateTimeKind.Utc)
+                ? DateTime.SpecifyKind(entry.TimeOut.Value, DateTimeKind.Unspecified)
                 : (DateTime?)null;
+            entry.OriginalComment = entry.Comment;
         }
 
         entry.EntryDate      = dto.EntryDate;
-        entry.TimeIn         = DateTime.SpecifyKind(dto.TimeIn, DateTimeKind.Utc);
+        entry.TimeIn         = DateTime.SpecifyKind(dto.TimeIn, DateTimeKind.Unspecified);
         entry.TimeOut        = dto.TimeOut.HasValue
-            ? DateTime.SpecifyKind(dto.TimeOut.Value, DateTimeKind.Utc)
+            ? DateTime.SpecifyKind(dto.TimeOut.Value, DateTimeKind.Unspecified)
             : (DateTime?)null;
         entry.Comment        = dto.Comment;
         entry.NightHours     = dto.NightHours;
-        entry.UpdatedAt      = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+        entry.UpdatedAt      = DateTime.UtcNow;
 
         // Audit: wer hat wann geändert (Name aus JWT-Claim)
         entry.EditedBy = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "Unbekannt";
-        entry.EditedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+        entry.EditedAt = DateTime.UtcNow;
 
         // Recalculate duration
         if (entry.TimeOut.HasValue)
@@ -143,7 +163,7 @@ public class EmployeeTimeEntriesController : ControllerBase
             entry.TimeIn, entry.TimeOut, entry.Comment,
             entry.DurationHours, entry.NightHours, entry.TotalHours,
             entry.Source, entry.CreatedAt, entry.UpdatedAt,
-            entry.OriginalTimeIn, entry.OriginalTimeOut,
+            entry.OriginalTimeIn, entry.OriginalTimeOut, entry.OriginalComment,
             entry.EditedBy, entry.EditedAt
         });
     }

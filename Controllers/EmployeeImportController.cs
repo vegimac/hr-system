@@ -149,7 +149,9 @@ public class EmployeeImportController : ControllerBase
                         GetValue(fields, headerMap, "Von")
                     )),
                     ExitDate = ParseDate(FirstNonEmpty(
-                        GetValue(fields, headerMap, "Austrittsdatum"),
+                        GetValue(fields, headerMap, "Austrittsdatum")
+                    )),
+                    ContractEndDate = ParseDate(FirstNonEmpty(
                         GetValue(fields, headerMap, "Bis")
                     )),
                     PermitTypeRaw = FirstNonEmpty(
@@ -180,9 +182,10 @@ public class EmployeeImportController : ControllerBase
                             GetValue(fields, headerMap, "Group membership"),
                             GetValue(fields, headerMap, "Member group"))
                     ),
-                    ContractTypeSuggestion = FirstNonEmpty(
-                        GetValue(fields, headerMap, "Contract type")
-                    ),
+                    ContractTypeSuggestion = MapContractType(FirstNonEmpty(
+                        GetValue(fields, headerMap, "Contract type"),
+                        GetValue(fields, headerMap, "Vertragstyp")
+                    )),
                     HourlyRateSuggestion = IsHourlyModel(MapImportedEmploymentModel(
                         FirstNonEmpty(GetValue(fields, headerMap, "Contract type")),
                         FirstNonEmpty(
@@ -202,6 +205,7 @@ public class EmployeeImportController : ControllerBase
                         GetValue(fields, headerMap, "Percentage")
                     )),
                     // 100%-Lohn aus CSV (FTE = Full-Time Equivalent)
+                    // Priorität: explizite FTE-Spalten vor generischen Lohn-Spalten
                     MonthlySalaryFteSuggestion = !IsHourlyModel(MapImportedEmploymentModel(
                         FirstNonEmpty(GetValue(fields, headerMap, "Contract type")),
                         FirstNonEmpty(
@@ -209,11 +213,18 @@ public class EmployeeImportController : ControllerBase
                             GetValue(fields, headerMap, "Group membership"),
                             GetValue(fields, headerMap, "Member group"))))
                         ? ParseDecimal(FirstNonEmpty(
-                            GetValue(fields, headerMap, "Tarife"),
                             GetValue(fields, headerMap, "Salary (FTE)"),
+                            GetValue(fields, headerMap, "Tarife"),
                             GetValue(fields, headerMap, "Monatslohn")))
                         : null,
-                    WeeklyHoursSuggestion = ParseWeeklyHours(FirstNonEmpty(
+                    WeeklyHoursSuggestion = ParseAnzahlHours(FirstNonEmpty(
+                        GetValue(fields, headerMap, "Anzahl"),
+                        GetValue(fields, headerMap, "Anzahl Stunden"),
+                        GetValue(fields, headerMap, "Weekly hours"),
+                        GetValue(fields, headerMap, "Hours")
+                    )),
+                    // Pensum aus Anzahl-Spalte wenn Wert % enthält
+                    EmploymentPercentageFromAnzahl = ParseAnzahlPercent(FirstNonEmpty(
                         GetValue(fields, headerMap, "Anzahl"),
                         GetValue(fields, headerMap, "Anzahl Stunden"),
                         GetValue(fields, headerMap, "Weekly hours"),
@@ -368,6 +379,8 @@ public class EmployeeImportController : ControllerBase
             MonthlySalaryFte = row.MonthlySalaryFteSuggestion,
             MonthlySalary = row.MonthlySalarySuggestion,
             WeeklyHours = row.WeeklyHoursSuggestion,
+            EmploymentPercentage = row.EmploymentPercentageSuggestion ?? row.EmploymentPercentageFromAnzahl,
+            ContractEndDate = row.ContractEndDate.HasValue ? DateOnly.FromDateTime(row.ContractEndDate.Value) : null,
             NationalityCode = row.Nationality,
             ImportedAt = DateTime.UtcNow,
             IsActive = true
@@ -611,6 +624,16 @@ public class EmployeeImportController : ControllerBase
         return "UTP";
     }
 
+    /// <summary>Vertragstyp: befristet oder unbefristet</summary>
+    private static string? MapContractType(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "unbefristet";
+        var v = value.Trim().ToLowerInvariant();
+        if (v.Contains("befrist") && !v.Contains("un")) return "befristet";
+        // Fix, MTP, Flex, UTP etc. → unbefristet
+        return "unbefristet";
+    }
+
     private static bool IsManagementGroup(string? groupMembership)
     {
         var g = (groupMembership ?? "").Trim().ToLowerInvariant();
@@ -638,6 +661,30 @@ public class EmployeeImportController : ControllerBase
                 return h;
         }
 
+        return null;
+    }
+
+    /// <summary>Anzahl-Spalte: nur Stunden zurückgeben (wenn kein % vorhanden)</summary>
+    private static decimal? ParseAnzahlHours(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        // Wenn % enthalten → ist Pensum, nicht Stunden
+        if (value.Contains('%')) return null;
+        return ParseWeeklyHours(value);
+    }
+
+    /// <summary>Anzahl-Spalte: Prozent zurückgeben wenn Wert % enthält (z.B. "80%")</summary>
+    private static decimal? ParseAnzahlPercent(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (!value.Contains('%')) return null;
+        var match = Regex.Match(value.Trim(), @"(\d+(?:[.,]\d+)?)");
+        if (match.Success)
+        {
+            var numStr = match.Groups[1].Value.Replace(",", ".");
+            if (decimal.TryParse(numStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var p))
+                return p;
+        }
         return null;
     }
 
@@ -678,6 +725,7 @@ public class EmployeeImportController : ControllerBase
         public string? Nationality { get; set; }
         public DateTime? EntryDate { get; set; }
         public DateTime? ExitDate { get; set; }
+        public DateTime? ContractEndDate { get; set; }
         public string? PermitTypeRaw { get; set; }
         public DateTime? PermitExpiryDate { get; set; }
 
@@ -689,10 +737,18 @@ public class EmployeeImportController : ControllerBase
         public decimal? MonthlySalaryFteSuggestion { get; set; }   // 100%-Lohn aus CSV
         public decimal? EmploymentPercentageSuggestion { get; set; } // Pensum %
         // Tatsächlicher Lohn = FTE × Pensum (wird in SaveSnapshotAsync berechnet)
-        public decimal? MonthlySalarySuggestion =>
-            MonthlySalaryFteSuggestion.HasValue && EmploymentPercentageSuggestion.HasValue
-                ? Math.Round(MonthlySalaryFteSuggestion.Value * EmploymentPercentageSuggestion.Value / 100m, 2)
-                : MonthlySalaryFteSuggestion;  // Fallback: wenn kein Pensum, FTE direkt verwenden
+        public decimal? MonthlySalarySuggestion
+        {
+            get
+            {
+                var pct = EmploymentPercentageSuggestion ?? EmploymentPercentageFromAnzahl;
+                if (MonthlySalaryFteSuggestion.HasValue && pct.HasValue)
+                    return Math.Round(MonthlySalaryFteSuggestion.Value * pct.Value / 100m, 2);
+                return MonthlySalaryFteSuggestion; // Fallback: FTE direkt wenn kein Pensum
+            }
+        }
         public decimal? WeeklyHoursSuggestion { get; set; }
+        /// <summary>Pensum % aus Anzahl-Spalte wenn Wert "80%" etc. enthält</summary>
+        public decimal? EmploymentPercentageFromAnzahl { get; set; }
     }
 }

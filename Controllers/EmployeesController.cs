@@ -79,6 +79,7 @@ public class EmployeesController : ControllerBase
     {
         var employee = await _context.Employees
             .Include(e => e.Employments.OrderByDescending(c => c.ContractStartDate))
+            .Include(e => e.PermitType)
             .FirstOrDefaultAsync(e => e.Id == id);
 
         if (employee == null)
@@ -111,10 +112,25 @@ public class EmployeesController : ControllerBase
             employee.ExitDate,
             employee.IsActive,
             employee.PermitTypeId,
+            permitType = employee.PermitType == null ? null : new {
+                employee.PermitType.Id,
+                employee.PermitType.Code,
+                employee.PermitType.Description
+            },
+            permitTypeCode = employee.PermitType?.Code,
+            permitTypeDescription = employee.PermitType?.Description,
             employee.PermitExpiryDate,
             employee.QuellensteuerBefreitAb,
             employee.SocialSecurityNumber,
-            employee.Zivilstand,
+            employee.MaritalStatus,
+
+            // ── Adresse (werden u.a. im QST-Modal angezeigt) ─────────────
+            employee.Street,
+            employee.HouseNumber,
+            employee.ZipCode,
+            employee.City,
+            employee.Country,
+            employee.CantonCode,
 
             // ── Felder aus aktivem Vertrag (flach) ───────────────────────
             employmentModel        = active?.EmploymentModel,
@@ -174,6 +190,7 @@ public class EmployeesController : ControllerBase
         if (dto.ZipCode     is not null) employee.ZipCode     = dto.ZipCode     == "" ? null : dto.ZipCode;
         if (dto.City        is not null) employee.City        = dto.City        == "" ? null : dto.City;
         if (dto.Country     is not null) employee.Country     = dto.Country     == "" ? null : dto.Country;
+        if (dto.CantonCode  is not null) employee.CantonCode  = dto.CantonCode  == "" ? null : dto.CantonCode.ToUpperInvariant();
 
         // ── Aufenthalt ────────────────────────────────────────────────────
         if (dto.PermitTypeId.HasValue)     employee.PermitTypeId     = dto.PermitTypeId == 0 ? null : dto.PermitTypeId;
@@ -186,7 +203,7 @@ public class EmployeesController : ControllerBase
 
         // ── ALV / Zwischenverdienst ───────────────────────────────────────
         if (dto.AhvNummer  is not null) employee.SocialSecurityNumber = dto.AhvNummer == "" ? null : dto.AhvNummer;
-        if (dto.Zivilstand is not null) employee.Zivilstand = dto.Zivilstand == "" ? null : dto.Zivilstand;
+        if (dto.MaritalStatus is not null) employee.MaritalStatus = dto.MaritalStatus == "" ? null : dto.MaritalStatus;
 
         await _context.SaveChangesAsync();
         return Ok(employee);
@@ -254,6 +271,7 @@ public class EmployeeUpdateDto
     public string?   ZipCode     { get; set; }
     public string?   City        { get; set; }
     public string?   Country     { get; set; }
+    public string?   CantonCode  { get; set; }
 
     // Aufenthalt
     public int?      PermitTypeId     { get; set; }
@@ -270,7 +288,7 @@ public class EmployeeUpdateDto
 
     // ALV / Zwischenverdienst
     public string? AhvNummer  { get; set; }
-    public string? Zivilstand { get; set; }
+    public string? MaritalStatus { get; set; }
 }
 
 /// <summary>DTO für Updates auf Employment-Vertragsdaten.</summary>

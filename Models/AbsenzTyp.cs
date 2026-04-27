@@ -29,6 +29,56 @@ public class AbsenzTyp
     /// </summary>
     public string? GutschriftModus { get; set; }
 
+    /// <summary>
+    /// true = UTP-Mitarbeiter erhalten die Stunden dieser Absenz als Stundenlohn
+    /// ausbezahlt (z. B. NACHT_KOMP). Default false (generelle UTP-Regel: keine
+    /// Gutschrift).
+    /// </summary>
+    public bool UtpAuszahlung { get; set; } = false;
+
+    /// <summary>
+    /// Welcher Saldo wird durch diese Absenz reduziert?
+    ///   NACHT_STUNDEN = Nacht-Saldo (NACHT_KOMP)
+    ///   FERIEN_TAGE   = Ferien-Tage-Saldo (FERIEN)
+    ///   null          = reduziert keinen Saldo
+    /// </summary>
+    public string? ReduziertSaldo { get; set; }
+
+    /// <summary>
+    /// Basis für die 1/5- oder 1/7-Berechnung der Zeitgutschrift:
+    ///   BETRIEB = Normal-Wochenstunden der Filiale (CompanyProfile)
+    ///   VERTRAG = Für MTP: GuaranteedHoursPerWeek; für andere Modelle
+    ///             Fallback auf Betrieb.
+    /// </summary>
+    public string BasisStunden { get; set; } = "BETRIEB";
+
+    /// <summary>
+    /// Lohnposition-Code für die Auszahlung dieser Absenz (z.B. "70" für
+    /// Krankheits-Karenzentschädigung, "2" für Festlohn für bezogene Ferien).
+    /// Null = keine Auszahlungs-Lohnposition (z.B. SCHULUNG → nur Saldo).
+    /// </summary>
+    public string? LohnpositionAuszahlungCode { get; set; }
+
+    /// <summary>
+    /// Lohnposition-Code für die Lohnkürzung dieser Absenz (z.B. "75" für
+    /// Korrektur Krankheit, "65" für Korrektur Unfall).
+    /// Null = keine Kürzung.
+    /// </summary>
+    public string? LohnpositionKuerzungCode { get; set; }
+
+    /// <summary>
+    /// Verbuchungsmuster auf der Lohnabrechnung:
+    ///   SPLIT     = nur Auszahlung-Code, Festlohn wird intern um den Betrag
+    ///               reduziert und als separate Zeile angezeigt
+    ///               (Mirus-Style für Ferien, Feiertag).
+    ///   KORREKTUR = beide Codes, Festlohn bleibt voll, Lohnkürzung als
+    ///               negative Zeile + Auszahlung als positive Zeile
+    ///               (Mirus-Style für Krank, Unfall).
+    ///   KEIN      = keine Lohnpositionen, nur Saldo-Wirkung
+    ///               (Schulung, Militär ohne Lohn).
+    /// </summary>
+    public string Pattern { get; set; } = "KEIN";
+
     public int SortOrder { get; set; } = 99;
     public bool Aktiv { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

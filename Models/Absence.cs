@@ -18,8 +18,14 @@ public class Absence
     /// </summary>
     public string? WorkedDays { get; set; }
 
-    /// <summary>Berechnete Stunden (immer positiv gespeichert).</summary>
+    /// <summary>Berechnete Stunden (immer positiv gespeichert, inkl. Prozent-Reduktion).</summary>
     public decimal HoursCredited { get; set; }
+
+    /// <summary>
+    /// Ausfall-Prozent (1–100). 100 = voll krank/abwesend, 50 = halb krank etc.
+    /// Wird auf Stunden- und Lohn-Berechnung multiplikativ angewendet.
+    /// </summary>
+    public decimal Prozent { get; set; } = 100;
 
     public string? Notes { get; set; }
 

@@ -32,6 +32,13 @@ public class CompanyProfile
     public bool AllowFirst3Months8PercentReduction { get; set; } = false;
     public bool HoldBackVacationPayout { get; set; } = true;
 
+    /// <summary>
+    /// Bemerkungstext am Ende der Lohnabrechnung (Fussnote).
+    /// Bearbeitbar pro Filiale. Default = leerer Text.
+    /// </summary>
+    [Column("pdf_footer_text")]
+    public string? PdfFooterText { get; set; }
+
     public int? NoticePeriodDuringProbationDays { get; set; }
     public int? NoticePeriodAfterProbationMonths { get; set; }
     public int? NoticePeriodFromTenthYearMonths { get; set; }
@@ -49,6 +56,25 @@ public class CompanyProfile
     // Nachtstunden-Grenzen (Format "HH:mm", z.B. "00:00" und "07:00")
     public string? NightStartTime { get; set; } = "00:00";
     public string? NightEndTime   { get; set; } = "07:00";
+
+    /// <summary>
+    /// Anzahl 13.-ML-Auszahlungen pro Jahr.
+    ///   12 = monatlich (Default)
+    ///    4 = quartalsweise (Auszahlung in den Monaten 3, 6, 9, 12)
+    ///    2 = halbjährlich  (Auszahlung in den Monaten 6, 12)
+    ///    1 = jährlich      (Auszahlung nur im Dezember)
+    /// Wirkt für FIX/FIX-M/MTP. UTP wird immer monatlich ausbezahlt.
+    /// </summary>
+    public int ThirteenthMonthPayoutsPerYear { get; set; } = 12;
+
+    /// <summary>
+    /// Wenn true: bei UTP- und MTP-Mitarbeitenden wird im Dezember-Lohnlauf
+    /// das gesamte aktuelle Ferien-Geld-Saldo automatisch ausbezahlt
+    /// (Lohnposition 195.3 "Ferien-Geld-Auszahlung"). Saldo geht auf 0.
+    /// Bei Austritt mid-year weiterhin manuelle Buchung über 195.3-Zulage.
+    /// FIX/FIX-M haben kein Ferien-Geld-Saldo — Flag wirkt dort nicht.
+    /// </summary>
+    public bool AutoFerienGeldAuszahlungDezember { get; set; } = true;
 
     public bool IsActive { get; set; } = true;
 
@@ -74,7 +100,62 @@ public class CompanyProfile
     /// <summary>true = Betrieb ist einem GAV unterstellt</summary>
     public bool IstGav { get; set; } = false;
 
-    public List<CompanySignatory> Signatories { get; set; } = new();
+    // ── Krankheits-Karenz ──────────────────────────────────────────────────
+    /// <summary>
+    /// Basis für das Karenzjahr:
+    ///   ARBEITSJAHR  = ab MA-Eintrittsdatum (Default)
+    ///   KALENDERJAHR = 01.01. – 31.12.
+    /// </summary>
+    public string KarenzjahrBasis { get; set; } = "ARBEITSJAHR";
+
+    /// <summary>
+    /// Maximale Karenztage Krankheit pro Jahr mit erhöhter Lohnfortzahlung (z.B. 14).
+    /// Danach reduziert (z.B. auf 80%).
+    /// </summary>
+    public decimal KarenzTageMax { get; set; } = 14m;
+
+    /// <summary>
+    /// Maximale Karenztage Unfall pro Jahr mit erhöhter Lohnfortzahlung (Default 2).
+    /// Berechnung identisch zu Krankheit — nur die Tage-Grenze ist typ. kleiner.
+    /// </summary>
+    public decimal KarenzTageMaxUnfall { get; set; } = 2m;
+
+    /// <summary>
+    /// Dauer der BVG-Wartefrist in KALENDERMONATEN (Default 3). Während
+    /// dieser Zeit bleibt die BVG-Basis auf 100%-Lohn, auch wenn der MA
+    /// nur 88%/80% erhält. Danach greift die Beitragsbefreiung (je nach
+    /// AU-Grad). Krankheit und Unfall werden separat gezählt, da sie
+    /// durch unterschiedliche Versicherungen abgedeckt sind.
+    /// Quelle: GastroSocial-Merkblatt zur Arbeitsunfähigkeit (2025).
+    /// </summary>
+    public int BvgWartefristMonate { get; set; } = 3;
+
+    // ── L-GAV-Vollzugsbeitrag (Jahresabrechnung) ──────────────────────────
+    /// <summary>
+    /// Wenn true: der L-GAV-Beitrag wird im Trigger-Monat oder im ersten
+    /// Lohn nach Eintritt automatisch als Abzug (Lohnposition 600.24)
+    /// eingefügt. Default true.
+    /// </summary>
+    public bool LgavAktiv { get; set; } = true;
+
+    /// <summary>
+    /// Monat (1-12) in dem der jährliche L-GAV-Abzug erfolgt. Default 1
+    /// (Januar). Neue MA bekommen den Beitrag in ihrer ersten Lohnperiode,
+    /// falls ihr Eintritt nach diesem Monat liegt.
+    /// </summary>
+    public int LgavTriggerMonat { get; set; } = 1;
+
+    /// <summary>
+    /// Voller Beitrag für FIX, FIX-M, und MTP mit > 50% Pensum
+    /// UND > 6 Monaten Anstellung. Default 99.00 CHF.
+    /// </summary>
+    public decimal LgavBeitragVoll { get; set; } = 99m;
+
+    /// <summary>
+    /// Reduzierter Beitrag für MTP ≤ 50% Pensum, MTP mit Anstellung ≤ 6 Mt.,
+    /// und alle UTP. Default 49.50 CHF.
+    /// </summary>
+    public decimal LgavBeitragReduziert { get; set; } = 49.5m;
 
     [JsonIgnore]
     [NotMapped]
