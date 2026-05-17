@@ -7,7 +7,7 @@
     <RootNamespace>hr_system</RootNamespace>
     <!-- publish/, bin/, obj/ NIE als Source aufnehmen.
          Sonst frisst sich `dotnet publish -o ./publish` rekursiv selbst auf. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);publish/**;bin/**;obj/**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);publish/**;bin/**;obj/**;hr-system.Tests\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

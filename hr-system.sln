@@ -1,8 +1,10 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "hr-system", "hr-system.csproj", "{5E427082-04D1-05C9-E221-3FDDC1C46F7E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "hr-system.Tests", "hr-system.Tests\hr-system.Tests.csproj", "{C5095C5E-FD5C-4F45-B51B-6D82B9A0898B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -14,6 +16,10 @@ Global
 		{5E427082-04D1-05C9-E221-3FDDC1C46F7E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5E427082-04D1-05C9-E221-3FDDC1C46F7E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5E427082-04D1-05C9-E221-3FDDC1C46F7E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5095C5E-FD5C-4F45-B51B-6D82B9A0898B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5095C5E-FD5C-4F45-B51B-6D82B9A0898B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5095C5E-FD5C-4F45-B51B-6D82B9A0898B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5095C5E-FD5C-4F45-B51B-6D82B9A0898B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
