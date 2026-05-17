@@ -106,6 +106,7 @@ public class EmployeeImportArchivedController : ControllerBase
         int colGender    = Get("Geschlecht");
         int colAhv       = Get("AHV Nummer");
         int colNat       = Get("Nationalität");
+        int colMarital   = Get("Familienstand");
 
         // Vertrags-Felder (für Voll-Migration)
         int colFunktion       = Get("Funktion");
@@ -183,7 +184,20 @@ public class EmployeeImportArchivedController : ControllerBase
             // Im Standard-Modus: Bis in Zukunft ⇒ trotzdem als ausgetreten behandeln (alt!)
             // Im Voll-Migration: aktive MA bleiben aktiv
 
-            // Validierung
+            // Komplett leere Zeile (Trailing-Newline am Datei-Ende, Mirus-Export-
+            // Artefakt) stillschweigend überspringen — nicht als "Ungültig"
+            // reporten, das ist verwirrend.
+            bool isCompletelyEmpty = string.IsNullOrEmpty(p.FirstName)
+                                  && string.IsNullOrEmpty(p.LastName)
+                                  && string.IsNullOrEmpty(p.EmployeeNumber)
+                                  && p.DateOfBirth is null
+                                  && string.IsNullOrEmpty(p.BranchCode);
+            if (isCompletelyEmpty)
+            {
+                continue;   // gar nicht in die Vorschau aufnehmen
+            }
+
+            // Validierung — Pflichtfelder fehlen
             if (string.IsNullOrEmpty(p.FirstName) || string.IsNullOrEmpty(p.LastName) || p.DateOfBirth is null)
             {
                 p.Action = "skip-invalid";
@@ -271,6 +285,7 @@ public class EmployeeImportArchivedController : ControllerBase
                         var csvNat     = Get0(colNat);
                         var csvAhv     = Get0(colAhv);
                         var csvGender  = NormalizeGender(Get0(colGender));
+                        var csvMarital = NormalizeMaritalStatus(Get0(colMarital));
 
                         bool overwrite = fullMigration;
                         if ((overwrite && !string.IsNullOrWhiteSpace(csvAdresse)) || string.IsNullOrWhiteSpace(emp.Street))    emp.Street    = csvAdresse;
@@ -281,12 +296,23 @@ public class EmployeeImportArchivedController : ControllerBase
                         if ((overwrite && !string.IsNullOrWhiteSpace(csvNat))     || string.IsNullOrWhiteSpace(emp.Nationality)) emp.Nationality = csvNat;
                         if ((overwrite && !string.IsNullOrWhiteSpace(csvAhv))     || string.IsNullOrWhiteSpace(emp.SocialSecurityNumber)) emp.SocialSecurityNumber = csvAhv;
                         if ((overwrite && csvGender != null)                       || emp.Gender == null) emp.Gender = csvGender;
+                        if ((overwrite && !string.IsNullOrWhiteSpace(csvMarital)) || string.IsNullOrWhiteSpace(emp.MaritalStatus)) emp.MaritalStatus = csvMarital;
                         if (emp.EntryDate == null || (overwrite && (p.EntryDate ?? betrZugehU).HasValue))
                             emp.EntryDate = (p.EntryDate ?? betrZugehU)?.ToDateTime(TimeOnly.MinValue);
 
-                        // Bis-Datum + Aktiv-Flag setzen
-                        emp.ExitDate = p.ExitDate?.ToDateTime(TimeOnly.MinValue);
-                        emp.IsActive = isActive;
+                        // Bis-Datum + Aktiv-Flag NUR ändern, wenn der MA aktuell
+                        // KEINEN offenen oder zukünftigen Vertrag in einer anderen
+                        // Filiale hat. Sonst würde ein historischer Archiv-Eintrag
+                        // einen aktuell beschäftigten MA fälschlich auf inaktiv setzen.
+                        var hasOpenContract = await _db.Employments.AnyAsync(em =>
+                            em.EmployeeId == emp.Id
+                         && (em.ContractEndDate == null
+                          || em.ContractEndDate >= DateTime.UtcNow.Date));
+                        if (!hasOpenContract)
+                        {
+                            emp.ExitDate = p.ExitDate?.ToDateTime(TimeOnly.MinValue);
+                            emp.IsActive = isActive;
+                        }
                         if (string.IsNullOrWhiteSpace(emp.Country)) emp.Country = "CH";
 
                         // Employment für diese Filiale ergänzen, falls noch keines da
@@ -374,6 +400,7 @@ public class EmployeeImportArchivedController : ControllerBase
                     PhoneMobile = Get0(colTel),
                     Email = Get0(colEmail),
                     Nationality = Get0(colNat),
+                    MaritalStatus = NormalizeMaritalStatus(Get0(colMarital)),
                     SocialSecurityNumber = Get0(colAhv),
                     EntryDate = (p.EntryDate ?? betrZugehDate)?.ToDateTime(TimeOnly.MinValue),
                     ExitDate  = p.ExitDate.HasValue ? p.ExitDate.Value.ToDateTime(TimeOnly.MinValue) : null,
@@ -463,6 +490,26 @@ public class EmployeeImportArchivedController : ControllerBase
         if (s == "male" || s == "m" || s == "männlich") return "male";
         if (s == "female" || s == "f" || s == "weiblich") return "female";
         return null;
+    }
+
+    /// <summary>
+    /// Mappt easy@work-Familienstand-Klartext (z.B. "Verheiratet") auf den
+    /// internen Code des Frontend-Dropdowns (z.B. "verheiratet").
+    /// Spiegel von EmployeeImportController.MapMaritalStatus.
+    /// </summary>
+    private static string? NormalizeMaritalStatus(string s)
+    {
+        return s?.Trim().ToLowerInvariant() switch
+        {
+            "unbekannt" or "unknown"                                  => "unbekannt",
+            "ledig" or "single"                                       => "ledig",
+            "verheiratet" or "married"                                => "verheiratet",
+            "geschieden" or "divorced"                                => "geschieden",
+            "verwitwet" or "widowed"                                  => "verwitwet",
+            "getrennt" or "separated"                                 => "getrennt",
+            "eingetragene partnerschaft" or "eingetr. partnerschaft" or "registered partnership" => "eingetragene_partnerschaft",
+            _ => null
+        };
     }
 
     /// <summary>

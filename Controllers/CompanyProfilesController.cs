@@ -84,6 +84,8 @@ public class CompanyProfilesController : ControllerBase
     public record NightHoursDto(string NightStartTime, string NightEndTime);
 
     // PATCH /api/companyprofiles/{id}/alv
+    // Legacy-Endpoint, bleibt aus Rückwärtskompatibilität — neuer Code soll
+    // /stammdaten verwenden, der alle Stammdaten in einem Rutsch updated.
     [HttpPatch("{id:int}/alv")]
     public async Task<IActionResult> UpdateAlvDaten(int id, [FromBody] AlvDatenDto dto)
     {
@@ -110,24 +112,197 @@ public class CompanyProfilesController : ControllerBase
         string? GavName
     );
 
-    // PATCH /api/companyprofiles/{id}/thirteenth-payouts
-    [HttpPatch("{id:int}/thirteenth-payouts")]
-    public async Task<IActionResult> UpdateThirteenthPayouts(int id, [FromBody] ThirteenthPayoutsDto dto)
+    // PATCH /api/companyprofiles/{id}/stammdaten
+    // Vollständige Filial-Stammdaten (Adresse, Kontakt, Kanton, Sozialvers.,
+    // GAV, BUR/Branchen-Code) in einem Rutsch. Ersetzt den ALV-Sub-Modal-Flow
+    // — die UI öffnet jetzt EIN Stammdaten-Modal.
+    [HttpPatch("{id:int}/stammdaten")]
+    public async Task<IActionResult> UpdateStammdaten(int id, [FromBody] CompanyStammdatenDto dto)
     {
-        if (dto.PayoutsPerYear != 12 && dto.PayoutsPerYear != 4
-            && dto.PayoutsPerYear != 2 && dto.PayoutsPerYear != 1)
-            return BadRequest(new { message = "Erlaubte Werte: 12, 4, 2 oder 1." });
-
         var profile = await _context.CompanyProfiles.FindAsync(id);
         if (profile is null) return NotFound();
 
-        profile.ThirteenthMonthPayoutsPerYear = dto.PayoutsPerYear;
-        await _context.SaveChangesAsync();
+        // Adresse
+        profile.CompanyName    = string.IsNullOrWhiteSpace(dto.CompanyName)    ? profile.CompanyName : dto.CompanyName.Trim();
+        profile.BranchName     = string.IsNullOrWhiteSpace(dto.BranchName)     ? null : dto.BranchName.Trim();
+        profile.RestaurantCode = string.IsNullOrWhiteSpace(dto.RestaurantCode) ? null : dto.RestaurantCode.Trim();
+        profile.Street         = string.IsNullOrWhiteSpace(dto.Street)         ? null : dto.Street.Trim();
+        profile.HouseNumber    = string.IsNullOrWhiteSpace(dto.HouseNumber)    ? null : dto.HouseNumber.Trim();
+        profile.ZipCode        = string.IsNullOrWhiteSpace(dto.ZipCode)        ? null : dto.ZipCode.Trim();
+        profile.City           = string.IsNullOrWhiteSpace(dto.City)           ? null : dto.City.Trim();
+        profile.Country        = string.IsNullOrWhiteSpace(dto.Country)        ? null : dto.Country.Trim();
 
+        // Standort-Kanton (für Familienzulagen)
+        if (string.IsNullOrWhiteSpace(dto.KantonCode))
+        {
+            profile.KantonCode = null;
+        }
+        else
+        {
+            var k = dto.KantonCode.Trim().ToUpperInvariant();
+            if (k.Length != 2)
+                return BadRequest(new { message = "Kanton-Code muss exakt 2 Zeichen haben (z.B. LU, AG, BE)." });
+            profile.KantonCode = k;
+        }
+
+        // Kontakt
+        profile.Phone = string.IsNullOrWhiteSpace(dto.Phone) ? null : dto.Phone.Trim();
+        profile.Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim();
+
+        // ALV / Sozialversicherungen / GAV
+        profile.BurNummer      = string.IsNullOrWhiteSpace(dto.BurNummer)      ? null : dto.BurNummer.Trim();
+        profile.UidNummer      = string.IsNullOrWhiteSpace(dto.UidNummer)      ? null : dto.UidNummer.Trim();
+        profile.BranchenCode   = string.IsNullOrWhiteSpace(dto.BranchenCode)   ? null : dto.BranchenCode.Trim();
+        profile.AhvKasse       = string.IsNullOrWhiteSpace(dto.AhvKasse)       ? null : dto.AhvKasse.Trim();
+        profile.BvgVersicherer = string.IsNullOrWhiteSpace(dto.BvgVersicherer) ? null : dto.BvgVersicherer.Trim();
+        profile.IstGav         = dto.IstGav ?? profile.IstGav;
+        profile.GavName        = string.IsNullOrWhiteSpace(dto.GavName)        ? null : dto.GavName.Trim();
+
+        // Lohnausweis-Standardwerte (Walter 13.05.2026: pro Filiale konfigurierbar)
+        if (dto.LohnausweisBoxFFreierTransport.HasValue)
+            profile.LohnausweisBoxFFreierTransport = dto.LohnausweisBoxFFreierTransport.Value;
+        if (dto.LohnausweisBoxGKantineGratis.HasValue)
+            profile.LohnausweisBoxGKantineGratis = dto.LohnausweisBoxGKantineGratis.Value;
+        // Pos. 2.1: null = keine Verpflegungs-Pauschale (Crew zahlt 50%)
+        profile.LohnausweisPos21VerpflegungMonat = dto.LohnausweisPos21VerpflegungMonat;
+
+        await _context.SaveChangesAsync();
         return Ok(profile);
     }
 
-    public record ThirteenthPayoutsDto(int PayoutsPerYear);
+    public record CompanyStammdatenDto(
+        string?  CompanyName,
+        string?  BranchName,
+        string?  RestaurantCode,
+        string?  Street,
+        string?  HouseNumber,
+        string?  ZipCode,
+        string?  City,
+        string?  Country,
+        string?  KantonCode,
+        string?  Phone,
+        string?  Email,
+        string?  BurNummer,
+        string?  UidNummer,
+        string?  BranchenCode,
+        string?  AhvKasse,
+        string?  BvgVersicherer,
+        bool?    IstGav,
+        string?  GavName,
+        // Lohnausweis-Standardwerte
+        bool?    LohnausweisBoxFFreierTransport,
+        bool?    LohnausweisBoxGKantineGratis,
+        decimal? LohnausweisPos21VerpflegungMonat
+    );
+
+    // PATCH /api/companyprofiles/{id}/bank
+    // Filial-Bankverbindung (Auftraggeber-Konto fürs DTA / Lohnlauf).
+    [HttpPatch("{id:int}/bank")]
+    public async Task<IActionResult> UpdateBank(int id, [FromBody] CompanyBankDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+
+        profile.Iban     = string.IsNullOrWhiteSpace(dto.Iban)
+                              ? null
+                              : dto.Iban.Replace(" ", "").ToUpperInvariant();
+        profile.Bic      = string.IsNullOrWhiteSpace(dto.Bic)
+                              ? null
+                              : dto.Bic.Replace(" ", "").ToUpperInvariant();
+        profile.BankName = string.IsNullOrWhiteSpace(dto.BankName)
+                              ? null
+                              : dto.BankName.Trim();
+        await _context.SaveChangesAsync();
+        return Ok(profile);
+    }
+
+    public record CompanyBankDto(
+        string? Iban,
+        string? Bic,
+        string? BankName
+    );
+
+    // SSL-Nummern werden über /api/companyprofiles/{id}/ssl
+    // (CompanyProfileSslController) verwaltet — eine SSL pro (Filiale, Kanton).
+
+    // PATCH /api/companyprofiles/{id}/kanton
+    // Standort-Kanton der Filiale (für Familienzulagen-Berechnung).
+    // Wird im Filial-Edit-Modal als Dropdown gepflegt.
+    [HttpPatch("{id:int}/kanton")]
+    public async Task<IActionResult> UpdateKanton(int id, [FromBody] CompanyKantonDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(dto.KantonCode))
+        {
+            profile.KantonCode = null;
+        }
+        else
+        {
+            var k = dto.KantonCode.Trim().ToUpperInvariant();
+            if (k.Length != 2)
+                return BadRequest(new { message = "Kanton-Code muss exakt 2 Zeichen haben (z.B. LU, AG, BE)." });
+            profile.KantonCode = k;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { id = profile.Id, kantonCode = profile.KantonCode });
+    }
+
+    public record CompanyKantonDto(string? KantonCode);
+
+    // PATCH /api/companyprofiles/{id}/thirteenth-payouts
+    // Akzeptiert entweder eine Monatsliste (Months: int[]) oder die Legacy-
+    // PayoutsPerYear-Kodierung. Mindestens eines muss gesetzt sein.
+    [HttpPatch("{id:int}/thirteenth-payouts")]
+    public async Task<IActionResult> UpdateThirteenthPayouts(int id, [FromBody] ThirteenthPayoutsDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+
+        // Neue Monats-Liste hat Vorrang
+        if (dto.Months is { Length: > 0 })
+        {
+            // Validierung: Werte müssen 1-12 sein, eindeutig, sortiert
+            var monthSet = dto.Months
+                .Where(m => m >= 1 && m <= 12)
+                .Distinct()
+                .OrderBy(m => m)
+                .ToArray();
+            if (monthSet.Length == 0)
+                return BadRequest(new { message = "Mindestens ein Auszahlungsmonat (1-12) muss gewählt sein." });
+
+            profile.ThirteenthMonthPayoutMonths = string.Join(",", monthSet);
+            // Legacy-Feld synchron halten falls einer der Standard-Rhythmen
+            profile.ThirteenthMonthPayoutsPerYear = monthSet.Length == 12 ? 12
+                                                  : monthSet.Length == 4  ? 4
+                                                  : monthSet.Length == 2  ? 2
+                                                  : monthSet.Length == 1  ? 1
+                                                  : monthSet.Length;   // sonst nur die Anzahl als Hinweis
+        }
+        else
+        {
+            // Legacy-Pfad: Anzahl pro Jahr
+            if (dto.PayoutsPerYear != 12 && dto.PayoutsPerYear != 4
+                && dto.PayoutsPerYear != 2 && dto.PayoutsPerYear != 1)
+                return BadRequest(new { message = "Erlaubte Werte: 12, 4, 2 oder 1." });
+
+            profile.ThirteenthMonthPayoutsPerYear = dto.PayoutsPerYear;
+            profile.ThirteenthMonthPayoutMonths   = dto.PayoutsPerYear switch
+            {
+                1  => "12",
+                2  => "6,12",
+                4  => "3,6,9,12",
+                _  => "1,2,3,4,5,6,7,8,9,10,11,12"
+            };
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(profile);
+    }
+
+    public record ThirteenthPayoutsDto(int PayoutsPerYear, int[]? Months = null);
 
     // PATCH /api/companyprofiles/{id}/auto-ferien-geld-dezember
     // Schaltet die automatische Jahresend-Auszahlung des Ferien-Geld-Saldos
@@ -212,4 +387,122 @@ public class CompanyProfilesController : ControllerBase
         decimal  KarenzTageMax,
         decimal? KarenzTageMaxUnfall,
         int?     BvgWartefristMonate);
+
+    // PATCH /api/companyprofiles/{id}/akonto-prozent
+    // Akonto-Prozentsätze (Walter Regel 3/4 + 5/6):
+    //   • AkontoProzentFix    — für FIX/FIX-M, Default 80 %
+    //   • AkontoProzentHourly — für UTP/MTP,   Default 100 %
+    // Beide optional im DTO; nur gesetzte Werte werden übernommen.
+    [HttpPatch("{id:int}/akonto-prozent")]
+    public async Task<IActionResult> UpdateAkontoProzent(int id, [FromBody] AkontoProzentDto dto)
+    {
+        if (dto.AkontoProzentFix.HasValue
+            && (dto.AkontoProzentFix.Value < 0 || dto.AkontoProzentFix.Value > 100))
+            return BadRequest(new { message = "AkontoProzentFix muss zwischen 0 und 100 liegen." });
+        if (dto.AkontoProzentHourly.HasValue
+            && (dto.AkontoProzentHourly.Value < 0 || dto.AkontoProzentHourly.Value > 100))
+            return BadRequest(new { message = "AkontoProzentHourly muss zwischen 0 und 100 liegen." });
+
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+
+        if (dto.AkontoProzentFix.HasValue)
+            profile.AkontoProzentFix    = Math.Round(dto.AkontoProzentFix.Value,    2);
+        if (dto.AkontoProzentHourly.HasValue)
+            profile.AkontoProzentHourly = Math.Round(dto.AkontoProzentHourly.Value, 2);
+        await _context.SaveChangesAsync();
+
+        return Ok(profile);
+    }
+
+    public record AkontoProzentDto(decimal? AkontoProzentFix, decimal? AkontoProzentHourly);
+
+    // POST /api/companyprofiles/{id}/copy-einstellungen-to-all
+    // Kopiert den kompletten Einstellungen-Block dieser Filiale auf ALLE
+    // anderen Filialen (Walter-Vorgabe 15.05.2026) — Nachtzeiten, Ferien-/
+    // Feiertags-Vorgaben, Karenz, L-GAV, Akonto-%, 13.-ML-Monate UND die
+    // Akonto-Termine des übergebenen Jahres. Es wird der GESPEICHERTE Stand
+    // der Quell-Filiale übertragen; die Ziel-Filialen werden überschrieben.
+    [HttpPost("{id:int}/copy-einstellungen-to-all")]
+    public async Task<IActionResult> CopyEinstellungenToAll(int id, [FromBody] CopyEinstellungenDto dto)
+    {
+        var source = await _context.CompanyProfiles.FindAsync(id);
+        if (source is null) return NotFound();
+
+        var targets = await _context.CompanyProfiles
+            .Where(c => c.Id != id)
+            .ToListAsync();
+
+        foreach (var t in targets)
+        {
+            // ── Arbeitszeit + Ferien-/Feiertags-Vorgaben ──
+            t.NightStartTime               = source.NightStartTime;
+            t.NightEndTime                 = source.NightEndTime;
+            t.NormalWeeklyHours            = source.NormalWeeklyHours;
+            t.DefaultVacationPercent5Weeks = source.DefaultVacationPercent5Weeks;
+            t.DefaultVacationPercent6Weeks = source.DefaultVacationPercent6Weeks;
+            t.DefaultHolidayPercent        = source.DefaultHolidayPercent;
+            // ── 13. ML + Ferien-Geld Dezember ──
+            t.ThirteenthMonthPayoutMonths     = source.ThirteenthMonthPayoutMonths;
+            t.ThirteenthMonthPayoutsPerYear   = source.ThirteenthMonthPayoutsPerYear;
+            t.AutoFerienGeldAuszahlungDezember = source.AutoFerienGeldAuszahlungDezember;
+            // ── Karenz ──
+            t.KarenzjahrBasis      = source.KarenzjahrBasis;
+            t.KarenzTageMax        = source.KarenzTageMax;
+            t.KarenzTageMaxUnfall  = source.KarenzTageMaxUnfall;
+            t.BvgWartefristMonate  = source.BvgWartefristMonate;
+            // ── L-GAV ──
+            t.LgavAktiv            = source.LgavAktiv;
+            t.LgavTriggerMonat     = source.LgavTriggerMonat;
+            t.LgavBeitragVoll      = source.LgavBeitragVoll;
+            t.LgavBeitragReduziert = source.LgavBeitragReduziert;
+            // ── Akonto-Lohn ──
+            t.AkontoProzentFix     = source.AkontoProzentFix;
+            t.AkontoProzentHourly  = source.AkontoProzentHourly;
+        }
+
+        // ── Akonto-Termine des Jahres kopieren (Upsert pro Ziel/Monat) ──
+        var sourceTermine = await _context.AkontoTermine
+            .Where(at => at.CompanyProfileId == id && at.Year == dto.Year)
+            .ToListAsync();
+
+        if (sourceTermine.Count > 0)
+        {
+            var targetIds = targets.Select(t => t.Id).ToList();
+            var existingTargetTermine = await _context.AkontoTermine
+                .Where(at => targetIds.Contains(at.CompanyProfileId) && at.Year == dto.Year)
+                .ToListAsync();
+
+            foreach (var t in targets)
+            {
+                foreach (var st in sourceTermine)
+                {
+                    var row = existingTargetTermine.FirstOrDefault(
+                        x => x.CompanyProfileId == t.Id && x.Month == st.Month);
+                    if (row == null)
+                    {
+                        _context.AkontoTermine.Add(new AkontoTermin
+                        {
+                            CompanyProfileId = t.Id,
+                            Year             = dto.Year,
+                            Month            = st.Month,
+                            PayoutDate       = st.PayoutDate,
+                            CreatedAt        = DateTime.UtcNow,
+                            UpdatedAt        = DateTime.UtcNow
+                        });
+                    }
+                    else
+                    {
+                        row.PayoutDate = st.PayoutDate;
+                        row.UpdatedAt  = DateTime.UtcNow;
+                    }
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { branchesUpdated = targets.Count, termineCopied = sourceTermine.Count });
+    }
+
+    public record CopyEinstellungenDto(int Year);
 }

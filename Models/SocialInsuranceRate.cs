@@ -8,7 +8,7 @@ public class SocialInsuranceRate
     public string?  Description           { get; set; }
     public decimal  Rate                  { get; set; }          // Prozentsatz AN-Anteil
     public string   BasisType             { get; set; } = "gross"; // gross | bvg_basis | coord_deduction
-    public string?  EmploymentModelCode   { get; set; }            // NULL = alle | PARTTIME | MTP | FIX | FIX-M
+    public string?  EmploymentModelCode   { get; set; }            // NULL = alle | UTP | MTP | FIX | FIX-M
     public int?     MinAge                { get; set; }
     public int?     MaxAge                { get; set; }
     public decimal? FreibetragMonthly     { get; set; }          // AHV 65+

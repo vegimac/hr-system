@@ -40,6 +40,14 @@ public class Employee
     public DateTime? PermitExpiryDate { get; set; }
 
     /// <summary>
+    /// ZEMIS-Nummer (Zentrales Migrationsinformationssystem).
+    /// Bleibt während des ganzen Aufenthalts in der Schweiz gleich, auch wenn
+    /// die Bewilligung wechselt (B → C → CH). Daher als personenbezogene
+    /// Stammdaten und nicht bei der Bewilligung gepflegt.
+    /// </summary>
+    public string? ZemisNumber { get; set; }
+
+    /// <summary>
     /// Datum ab dem der Mitarbeiter von der Quellensteuer befreit ist.
     /// Null = QST-pflichtig (solange Nationalität ≠ CH).
     /// Wird gesetzt, sobald der MA einen C-Ausweis oder CH-Bürgerrecht erhält.
@@ -47,6 +55,34 @@ public class Employee
     public DateOnly? QuellensteuerBefreitAb { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// True = MA wird im HR-System geführt (z.B. weil er als Vorgesetzter im
+    /// Stempelsystem oder einem anderen Drittsystem benötigt wird), aber NICHT
+    /// im Lohn-Tab gerechnet. Beispiel: Restaurant-Manager der über McDonald's-
+    /// Zentrale bezahlt wird, aber Stempelzeiten der Crew freigeben muss.
+    /// Auswirkungen: Lohn-Tab listet ihn nicht auf, kein Lohnzettel, keine
+    /// QST-Anmeldung, kein 13. ML — kein Payroll-Touchpoint. Beim CSV-Re-
+    /// Import wird die Flag NICHT überschrieben.
+    /// Setzbar nur durch admin / superuser.
+    /// </summary>
+    public bool IsPayrollExcluded { get; set; } = false;
+
+    /// <summary>
+    /// Manueller KTG/UVG-Tagessatz (100 %) für Legacy-MA aus dem alten
+    /// Lohnsystem. Wenn gesetzt: übersteuert die Auto-Berechnung des
+    /// KtgTagessatzService. Die 88-/80-%-Stufen werden weiterhin daraus
+    /// abgeleitet (× 0.88 bzw. × 0.80). NULL = Auto-Berechnung.
+    /// </summary>
+    public decimal? KtgTagessatzManuell { get; set; }
+
+    /// <summary>
+    /// Walter-Migration: true wenn die Karenzfrist (88 %) beim Wechsel
+    /// vom alten Lohnsystem bereits abgelaufen ist. Bei Setzen wird im
+    /// KTG/UVG-Tab kein 88-%-Schritt mehr angezeigt — die Versicherung
+    /// startet direkt mit 80 %.
+    /// </summary>
+    public bool KtgKarenzAbgeschlossen { get; set; } = false;
 
     public PermitType? PermitType { get; set; }
     public Nationality? NationalityRef { get; set; }
@@ -57,8 +93,46 @@ public class Employee
     /// <summary>AHV-Versichertennummer, Format 756.XXXX.XXXX.XX</summary>
     public string? SocialSecurityNumber { get; set; }
 
-    /// <summary>Zivilstand: ledig | verheiratet | geschieden | verwitwet | eingetragene_partnerschaft | aufgeloeste_partnerschaft</summary>
-    /// 
+    /// <summary>
+    /// Zivilstand. Mögliche Werte:
+    ///   ledig | verheiratet | getrennt | geschieden | verwitwet
+    ///   | eingetragene_partnerschaft | aufgeloeste_partnerschaft
+    ///
+    /// Hinweis "getrennt": rechtlich ist man bis zur Scheidung weiterhin
+    /// verheiratet. Wir führen "getrennt" als Convenience-Wert für die UI,
+    /// damit Walter es schnell auswählen kann; die QST-Anmeldung mappt
+    /// es intern als "verheiratet + Trennung Ja" (siehe QstAnmeldungController).
+    /// </summary>
     [Column("marital_status")]
     public string? MaritalStatus { get; set; }
+
+    /// <summary>Datum, ab dem der aktuelle Zivilstand gilt (Heirat, Scheidung, Verwitwung).</summary>
+    [Column("marital_status_since")]
+    public DateOnly? MaritalStatusSince { get; set; }
+
+    /// <summary>Getrennt lebend seit … (NULL = nicht getrennt). Persönliche Information,
+    /// hat aber Auswirkung auf den QST-Tarif (verheiratet+getrennt = anderer Tarif).</summary>
+    [Column("separated_since")]
+    public DateOnly? SeparatedSince { get; set; }
+
+    /// <summary>Konfession: evangelisch_reformiert | roemisch_katholisch | christ_katholisch | andere | keine.
+    /// Allgemeines persönliches Datum (auch für Statistik / Kirchensteuer).</summary>
+    [Column("religion")]
+    public string? Religion { get; set; }
+
+    /// <summary>Briefanrede für Korrespondenz-Vorlagen (z.B. "Sehr geehrte Frau Muster").
+    /// Wenn leer, wird zur Laufzeit aus Anrede + Nachname gebildet.</summary>
+    [Column("letter_salutation")]
+    public string? LetterSalutation { get; set; }
+
+    /// <summary>Heimatort (für Schweizer Bürger). Auf Lohnausweis bei
+    /// Schweizer-Nationalität anstelle Wohnort möglich.</summary>
+    [Column("place_of_origin")]
+    public string? PlaceOfOrigin { get; set; }
+
+    // Hinweis: LivesInKonkubinat, HasJointParentalCare, PaysAlimonyAdultChildren,
+    // HasHigherIncomeThanPartner, IsGrenzgaenger, IsWochenaufenthalter sind in
+    // EmployeeQuellensteuer (zeitlich versionierter QST-Eintrag) gewandert,
+    // weil sie ausschliesslich für die QST-Tarifbestimmung relevant sind und sich
+    // mit Lebenslagen ändern können (Heirat, Trennung, Geburt eines Kindes …).
 }

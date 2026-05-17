@@ -3,6 +3,8 @@ using HrSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 using System.Globalization;
 using System.IO.Compression;
 using System.Security.Claims;
@@ -12,13 +14,19 @@ using System.Text.RegularExpressions;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Importiert Dokumente aus einem d.velop-Export (CSV-Metadaten + ZIP mit PDFs).
+/// Importiert Dokumente aus einem d.velop-Export (Metadaten als CSV oder XLSX
+/// + ZIP mit den eigentlichen Dokumenten).
 /// Match-Logik:
 ///   - Mitarbeiter via Vorname + Nachname + Geburtsdatum (matcht "alt"-suffixed)
 ///   - Filiale via "Mandant"-Spalte (z.B. "58 McDonald's Restaurant Oftringen" → 058)
 ///   - Kategorie via "Kategorie"-Spalte (Prefix "HR: " entfernen)
 ///   - Typ via passende Sub-Spalte ("Dokumenttyp Absenzen" etc.)
 ///   - File via XG-ID aus "Dokument-ID" → Match in ZIP-Filenames
+///
+/// Format-Erkennung: CSV (Semikolon-getrennt, UTF-8) ODER XLSX (Sheet
+/// "ExcelExport" oder erstes Sheet) — automatisch via Datei-Endung. Beide
+/// liefern dieselben Spalten-Header, der Parser baut intern eine einheitliche
+/// rows-Struktur, der Rest der Logik ist Format-agnostisch.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -75,25 +83,56 @@ public class DvelopImportController : ControllerBase
         [FromForm] IFormFile csvFile,
         [FromForm] IFormFile zipFile,
         [FromForm] int employeeId,
-        [FromForm] bool dryRun = true)
+        [FromForm] bool dryRun = true,
+        [FromForm] string? rowOverrides = null)
     {
         if (employeeId <= 0) return BadRequest("Mitarbeiter muss vor dem Import ausgewählt werden.");
         var selectedEmp = await _db.Employees.FindAsync(employeeId);
         if (selectedEmp == null) return BadRequest("Gewählter Mitarbeiter nicht gefunden.");
-        if (csvFile == null || csvFile.Length == 0) return BadRequest("CSV fehlt.");
+        if (csvFile == null || csvFile.Length == 0) return BadRequest("Metadaten-Datei (CSV oder XLSX) fehlt.");
         if (zipFile == null || zipFile.Length == 0) return BadRequest("ZIP fehlt.");
+
+        // Per-Row MA-Overrides aus dem Frontend: Walter kann im Preview pro
+        // Datei einen anderen MA wählen als den global ausgewählten. Format:
+        // JSON-Map { "XG00010269": 1379, "XG00003684": 1387, … }.
+        // Kein Override für eine Zeile → Fallback auf selectedEmp.
+        Dictionary<string, int> overrides = new(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(rowOverrides))
+        {
+            try
+            {
+                var parsed = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, int>>(rowOverrides!);
+                if (parsed != null) overrides = new Dictionary<string, int>(parsed, StringComparer.OrdinalIgnoreCase);
+            }
+            catch { /* ignorieren — defekte JSON heisst einfach „keine Overrides" */ }
+        }
+        // Alle übergebenen Override-MAs einmal vorab laden, damit wir pro Row
+        // nicht einzeln in die DB müssen. Plus Cache für BranchCode-Lookup.
+        var overrideEmps = overrides.Values.Distinct().ToList();
+        var overrideEmpsById = overrideEmps.Count > 0
+            ? await _db.Employees
+                .Include(e => e.Employments).ThenInclude(em => em.CompanyProfile)
+                .Where(e => overrideEmps.Contains(e.Id))
+                .ToDictionaryAsync(e => e.Id)
+            : new Dictionary<int, Employee>();
 
         var result = new DvelopResult { DryRun = dryRun };
 
-        // CSV einlesen
-        using var sr = new StreamReader(csvFile.OpenReadStream(), Encoding.UTF8);
-        var csvLines = new List<string>();
-        string? cl;
-        while ((cl = await sr.ReadLineAsync()) != null) csvLines.Add(cl);
-        if (csvLines.Count < 2) return BadRequest("CSV ist leer oder unvollständig.");
+        // Metadaten einlesen — CSV (Semikolon) oder XLSX. Endung entscheidet,
+        // bei .xlsx fällt der Parser zurück auf NPOI-XSSFWorkbook, sonst CSV.
+        List<string> headers;
+        List<List<string>> dataRows;
+        try
+        {
+            (headers, dataRows) = ReadMetadataFile(csvFile);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Metadaten-Datei konnte nicht gelesen werden: {ex.Message}");
+        }
+        if (headers.Count == 0 || dataRows.Count == 0)
+            return BadRequest("Metadaten-Datei ist leer oder unvollständig.");
 
-        // CSV verwendet Semikolon
-        var headers = ParseCsvLine(csvLines[0], ';');
         var idx = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < headers.Count; i++) idx[headers[i].Trim('﻿', '"', ' ')] = i;
 
@@ -118,7 +157,7 @@ public class DvelopImportController : ControllerBase
         int colGroesse     = Get("Größe");
 
         if (colDokId < 0 || colVorname < 0 || colNachname < 0 || colGebDatum < 0 || colKategorie < 0)
-            return BadRequest("CSV hat nicht die erwarteten Spalten (Dokument-ID, Vorname, Nachname, Geburtsdatum, Kategorie).");
+            return BadRequest("Metadaten-Datei hat nicht die erwarteten Spalten (Dokument-ID, Vorname, Nachname, Geburtsdatum, Kategorie).");
 
         // ZIP indexieren: XG-ID → Entry. Endung egal (PDF, DOC, DOCX, JPG, …).
         // Wichtig: Manche d.velop-Filenames enthalten MEHRERE XG-IDs (z.B.
@@ -158,15 +197,15 @@ public class DvelopImportController : ControllerBase
             .Select(d => new { d.EmployeeId, d.FilenameOriginal })
             .ToListAsync();
 
-        result.TotalRows = csvLines.Count - 1;
+        result.TotalRows = dataRows.Count;
 
-        for (int i = 1; i < csvLines.Count; i++)
+        for (int i = 0; i < dataRows.Count; i++)
         {
-            var fields = ParseCsvLine(csvLines[i], ';');
-            string F(int c) => c >= 0 && c < fields.Count ? fields[c].Trim() : "";
+            var fields = dataRows[i];
+            string F(int c) => c >= 0 && c < fields.Count ? (fields[c] ?? "").Trim() : "";
 
             var row = new DvelopRow {
-                RowNum = i,
+                RowNum = i + 1,   // 1-basiert für UI-Anzeige (Zeile 1 = erste Datenzeile)
                 XgId = F(colDokId).Trim('"'),
                 Filename = F(colDateiname).Trim('"'),
                 EmployeeName = $"{F(colVorname)} {F(colNachname)}".Trim(),
@@ -182,13 +221,20 @@ public class DvelopImportController : ControllerBase
                 if (dateMatch.Success) row.DateOfBirth = ParseDate(dateMatch.Value);
             }
 
-            // Alle Zeilen gehen zum gewählten MA (Walter importiert pro Mitarbeiter).
-            // Sanity-Check: stimmen Name-Felder im CSV mit dem ausgewählten MA überein?
-            row.EmployeeId = selectedEmp.Id;
+            // Ziel-MA bestimmen: per-Row-Override aus dem Preview > globaler
+            // selectedEmp. Walter kann in der Preview-Tabelle pro Datei einen
+            // anderen MA wählen, alle anderen gehen wie gewohnt zu selectedEmp.
+            Employee targetEmp = selectedEmp;
+            if (overrides.TryGetValue(row.XgId, out var overrideEmpId)
+                && overrideEmpsById.TryGetValue(overrideEmpId, out var ovEmp))
+            {
+                targetEmp = ovEmp;
+            }
+            row.EmployeeId = targetEmp.Id;
             var csvVorname = F(colVorname);
             var csvNachname = F(colNachname);
             bool sanityWarning = !string.IsNullOrEmpty(csvVorname) &&
-                                 !selectedEmp.FirstName.Equals(csvVorname, StringComparison.OrdinalIgnoreCase);
+                                 !targetEmp.FirstName.Equals(csvVorname, StringComparison.OrdinalIgnoreCase);
 
             // 2) Filiale aus Mandant ("58 McDonald's Restaurant Oftringen" → 058)
             var mandant = F(colMandant);
@@ -264,9 +310,9 @@ public class DvelopImportController : ControllerBase
                 continue;
             }
 
-            // 5) Duplikat-Check (Employee + Original-Filename)
+            // 5) Duplikat-Check (Employee + Original-Filename) — pro tatsächlichem Ziel-MA
             var fnOrig = string.IsNullOrEmpty(row.Filename) ? entry.Name : row.Filename;
-            if (existingDocs.Any(d => d.EmployeeId == selectedEmp.Id && d.FilenameOriginal == fnOrig))
+            if (existingDocs.Any(d => d.EmployeeId == targetEmp.Id && d.FilenameOriginal == fnOrig))
             {
                 row.Action = "skip-duplicate";
                 row.Reason = $"Schon vorhanden: {fnOrig}";
@@ -278,14 +324,14 @@ public class DvelopImportController : ControllerBase
             // 6) Importieren!
             row.Action = "create";
             if (sanityWarning)
-                row.Reason = $"Hinweis: CSV-Name ({csvVorname} {csvNachname}) ≠ ausgewählter MA ({selectedEmp.FirstName} {selectedEmp.LastName})";
+                row.Reason = $"Hinweis: CSV-Name ({csvVorname} {csvNachname}) ≠ Ziel-MA ({targetEmp.FirstName} {targetEmp.LastName})";
             if (!dryRun)
             {
                 var ext = Path.GetExtension(fnOrig);
                 if (string.IsNullOrEmpty(ext)) ext = ".pdf";
                 var storageName = Guid.NewGuid().ToString("N") + ext;
 
-                var empDir = Path.Combine(_storagePath, row.BranchCode!, selectedEmp.Id.ToString());
+                var empDir = Path.Combine(_storagePath, row.BranchCode!, targetEmp.Id.ToString());
                 Directory.CreateDirectory(empDir);
                 var fullPath = Path.Combine(empDir, storageName);
 
@@ -296,7 +342,7 @@ public class DvelopImportController : ControllerBase
                 }
 
                 var doc = new EmployeeDokument {
-                    EmployeeId = selectedEmp.Id,
+                    EmployeeId = targetEmp.Id,
                     DokumentTypId = typ.Id,
                     BranchCode = row.BranchCode,
                     FilenameOriginal = fnOrig,
@@ -312,7 +358,7 @@ public class DvelopImportController : ControllerBase
                 await _db.SaveChangesAsync();
 
                 // In existing-Cache aufnehmen für nachfolgende Zeilen
-                existingDocs.Add(new { EmployeeId = selectedEmp.Id, FilenameOriginal = fnOrig });
+                existingDocs.Add(new { EmployeeId = targetEmp.Id, FilenameOriginal = fnOrig });
             }
             result.Imported++;
             result.Preview.Add(row);
@@ -324,6 +370,99 @@ public class DvelopImportController : ControllerBase
     // ──────────────────────────────────────────────────────────────────
     // Helpers
     // ──────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Liest die Metadaten-Datei (CSV oder XLSX) und liefert (Header-Zeile,
+    /// Daten-Zeilen). Format wird via Datei-Endung erkannt — .xlsx geht
+    /// durch NPOI-XSSFWorkbook (erstes Sheet, idR. „ExcelExport"), alles
+    /// andere wird als CSV mit Semikolon-Separator gelesen (UTF-8).
+    /// </summary>
+    private static (List<string> Headers, List<List<string>> Rows) ReadMetadataFile(IFormFile file)
+    {
+        var name = (file.FileName ?? "").ToLowerInvariant();
+        if (name.EndsWith(".xlsx") || name.EndsWith(".xlsm"))
+            return ReadXlsx(file);
+        return ReadCsv(file);
+    }
+
+    private static (List<string> Headers, List<List<string>> Rows) ReadCsv(IFormFile file)
+    {
+        using var sr = new StreamReader(file.OpenReadStream(), Encoding.UTF8);
+        var lines = new List<string>();
+        string? cl;
+        while ((cl = sr.ReadLine()) != null) lines.Add(cl);
+
+        var headers = lines.Count > 0 ? ParseCsvLine(lines[0], ';') : new List<string>();
+        var rows    = new List<List<string>>();
+        for (int i = 1; i < lines.Count; i++)
+            rows.Add(ParseCsvLine(lines[i], ';'));
+        return (headers, rows);
+    }
+
+    private static (List<string> Headers, List<List<string>> Rows) ReadXlsx(IFormFile file)
+    {
+        using var stream = file.OpenReadStream();
+        using var wb = new XSSFWorkbook(stream);
+        // Bevorzugt das „ExcelExport"-Sheet (d.velop-Export-Default), sonst Sheet 0.
+        ISheet? sheet = null;
+        for (int s = 0; s < wb.NumberOfSheets; s++)
+        {
+            var sh = wb.GetSheetAt(s);
+            if (string.Equals(sh.SheetName, "ExcelExport", StringComparison.OrdinalIgnoreCase))
+            { sheet = sh; break; }
+        }
+        sheet ??= wb.GetSheetAt(0);
+        if (sheet == null) return (new List<string>(), new List<List<string>>());
+
+        var headerRow = sheet.GetRow(0);
+        var headers = new List<string>();
+        if (headerRow != null)
+        {
+            for (int c = 0; c < headerRow.LastCellNum; c++)
+                headers.Add((headerRow.GetCell(c)?.ToString() ?? "").Trim());
+        }
+
+        var rows = new List<List<string>>();
+        for (int r = 1; r <= sheet.LastRowNum; r++)
+        {
+            var row = sheet.GetRow(r);
+            if (row == null) { rows.Add(new List<string>()); continue; }
+            var fields = new List<string>(headers.Count);
+            for (int c = 0; c < headers.Count; c++)
+            {
+                var cell = row.GetCell(c);
+                fields.Add(CellToString(cell));
+            }
+            // Komplett-leere Zeile überspringen (XLSX hat oft Trail-Empty-Rows)
+            if (fields.All(string.IsNullOrWhiteSpace)) continue;
+            rows.Add(fields);
+        }
+        return (headers, rows);
+    }
+
+    /// <summary>
+    /// Robustes Cell-zu-String — bei Datums-Cells nutzen wir das ISO-Format
+    /// damit ParseDate() die Werte ohne Locale-Tricks erkennt. Numerische
+    /// Cells werden ohne Tausender-Trenner ausgegeben.
+    /// </summary>
+    private static string CellToString(ICell? cell)
+    {
+        if (cell == null) return "";
+        return cell.CellType switch
+        {
+            CellType.String  => cell.StringCellValue ?? "",
+            CellType.Boolean => cell.BooleanCellValue ? "true" : "false",
+            CellType.Numeric => DateUtil.IsCellDateFormatted(cell)
+                                  ? (cell.DateCellValue?.ToString("yyyy-MM-dd HH:mm:ss") ?? "")
+                                  : cell.NumericCellValue.ToString(CultureInfo.InvariantCulture),
+            CellType.Formula => cell.CachedFormulaResultType == CellType.Numeric
+                                  ? cell.NumericCellValue.ToString(CultureInfo.InvariantCulture)
+                                  : (cell.StringCellValue ?? ""),
+            CellType.Blank   => "",
+            _ => cell.ToString() ?? ""
+        };
+    }
+
     private static List<string> ParseCsvLine(string line, char sep)
     {
         var result = new List<string>();

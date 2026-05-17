@@ -21,6 +21,14 @@ public class Employment
     public string? JobTitle { get; set; }
     public string? ContractType { get; set; }
 
+    /// <summary>
+    /// Gastronomische Ausbildungsstufe (L-GAV-Code: Ia, Ib, II, IIIa, IIIb, IV).
+    /// Wird beim Vertrag gespeichert, weil bei einer Ausbildungs-Änderung sowieso
+    /// ein neuer Vertrag entsteht. Treibt zusammen mit JobTitle (= JobGroupCode)
+    /// und EmploymentModel den Mindestlohn-Lookup in MinimumWageRulesNew.
+    /// </summary>
+    public string? EducationLevelCode { get; set; }
+
     public decimal? EmploymentPercentage { get; set; }
     public decimal? WeeklyHours { get; set; }
     public decimal? GuaranteedHoursPerWeek { get; set; }

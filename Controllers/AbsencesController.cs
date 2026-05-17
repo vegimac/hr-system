@@ -178,11 +178,14 @@ public class AbsencesController : ControllerBase
             .Where(p => profileIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id);
 
-        // Pro confirmed-Periode: Zeitraum berechnen, auf berührte Tage prüfen
+        // Pro confirmed-Periode: Zeitraum berechnen, auf berührte Tage prüfen.
+        // Akonto-Lohn-Modell (Walter-Vorgabe 15.05.2026): die Lohnperiode ist
+        // immer der Kalendermonat — startDay fix 1, der Legacy-Wert
+        // PayrollPeriodStartDay wird nicht mehr ausgewertet.
         foreach (var c in confirmed)
         {
-            if (!profiles.TryGetValue(c.CompanyProfileId, out var profile)) continue;
-            int startDay = profile.PayrollPeriodStartDay ?? 1;
+            if (!profiles.TryGetValue(c.CompanyProfileId, out _)) continue;
+            int startDay = 1;
             var (from, to) = CalcPeriodRange(startDay, c.PeriodYear, c.PeriodMonth);
             if (touchedDays.Any(d => d >= from && d <= to))
             {

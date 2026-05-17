@@ -87,6 +87,25 @@ public class EmployeeQuellensteuer
     /// <summary>Adresse im Ausland (Freitext)</summary>
     public string? AdresseAusland { get; set; }
 
+    // ── Tarif-relevante Stammdaten (für Anmeldung & Tarifbestimmung) ─────────
+    /// <summary>Lebt im Konkubinat (ohne Trauschein zusammenlebend).</summary>
+    public bool LivesInKonkubinat { get; set; } = false;
+
+    /// <summary>Übt gemeinsam mit Partner die elterliche Sorge aus.</summary>
+    public bool HasJointParentalCare { get; set; } = false;
+
+    /// <summary>Zahlt Unterhalt für volljährige Kinder.</summary>
+    public bool PaysAlimonyAdultChildren { get; set; } = false;
+
+    /// <summary>Erzielt höheres Bruttoerwerbseinkommen als Partner (Elterntarif H/M).</summary>
+    public bool HasHigherIncomeThanPartner { get; set; } = false;
+
+    /// <summary>Grenzgänger/in mit täglicher Rückkehr.</summary>
+    public bool IsGrenzgaenger { get; set; } = false;
+
+    /// <summary>Wochenaufenthalter/in mit wöchentlicher Rückkehr.</summary>
+    public bool IsWochenaufenthalter { get; set; } = false;
+
     // ── Audit ────────────────────────────────────────────────────────────────
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

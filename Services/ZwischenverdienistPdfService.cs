@@ -1,7 +1,14 @@
 using HrSystem.Models;
 using iText.Forms;
 using iText.Forms.Fields;
+using iText.IO.Font.Constants;
+using iText.IO.Image;
+using iText.Kernel.Colors;
+using iText.Kernel.Font;
+using iText.Kernel.Geom;
 using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Annot;
+using iText.Kernel.Pdf.Canvas;
 
 namespace HrSystem.Services;
 
@@ -35,9 +42,21 @@ public class ZwischenverdienistPdfService
         { 31, "2.68" },
     };
 
-    public byte[] Generate(ZwischenverdienistData d)
+    /// <summary>
+    /// Generiert das ALV-Bescheinigungs-PDF.
+    /// </summary>
+    /// <param name="d">DTO mit allen Feldwerten.</param>
+    /// <param name="signaturePng">Optional: PNG/JPG-Bytes der Unterschrift des
+    /// eingeloggten Users. Wird oberhalb des Datums-Feldes auf Seite 3
+    /// (Ort/Datum) platziert; darunter wird der Klarname als gedruckte Zeile
+    /// gerendert. Null = Stelle bleibt leer (User hat keine hinterlegt).</param>
+    /// <param name="signerName">Klarname des Unterzeichners.</param>
+    public byte[] Generate(
+        ZwischenverdienistData d,
+        byte[]? signaturePng = null,
+        string? signerName = null)
     {
-        string templatePath = Path.Combine(
+        string templatePath = System.IO.Path.Combine(
             _env.ContentRootPath, "Assets", "Forms", "Zwischenverdienst_AcroForm.pdf");
 
         using var ms     = new MemoryStream();
@@ -69,11 +88,10 @@ public class ZwischenverdienistPdfService
         Set(form, "1.35",         d.AusgeuebteTaetigkeit);
 
         // ── Seite 1: Angaben zum Arbeitgeber ─────────────────────────────────
-        var adressParts = (d.ArbeitgeberAdresse ?? "").Split(',', 3,
-            StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        string arbName = adressParts.Length > 1
-            ? $"{adressParts[0]} {adressParts[adressParts.Length - 1]}"
-            : adressParts.Length > 0 ? adressParts[0] : "";
+        // Vollständige Filial-Anschrift im Feld "Name des Arbeitgebers":
+        // "Schaub Restaurants GmbH, Äussere Luzernerstrasse 13, 4665 Oftringen"
+        // Komma → Komma+Space, damit's auf einer Zeile lesbar bleibt.
+        string arbName = (d.ArbeitgeberAdresse ?? "").Replace(", ", ", ").Trim();
         Set(form, "1.4", arbName);
         Set(form, "Textfeld 103", d.BurNummer);
         // UID: "CHE-262.373.037" → nur Ziffern ohne Prefix → "262373037"
@@ -121,31 +139,52 @@ public class ZwischenverdienistPdfService
 
         // ── Seite 2: Abschnitt 8 – Vereinbartes Bruttoeinkommen ──────────────
         if (d.MonatslohnCHF.HasValue)
-            Set(form, "1.65", FormatChf(d.MonatslohnCHF.Value));
+            SetRight(form, "1.65", FormatChf(d.MonatslohnCHF.Value));
         if (d.StundenlohnCHF.HasValue)
-            Set(form, "1.72", FormatChf(d.StundenlohnCHF.Value));
+        {
+            // Bei Stundenlohn: Grundlohn + Feiertag + Ferien + 13.ML + Bruttolohn pro Stunde
+            decimal stdGrundlohn = d.StundenlohnCHF.Value;
+            decimal stdFeiertag  = d.StundenlohnFeiertagCHF ?? 0;
+            decimal stdFerien    = d.StundenlohnFerienCHF   ?? 0;
+            decimal stdDreizehn  = d.StundenlohnDreizehnCHF ?? 0;
+            decimal stdBrutto    = d.StundenlohnBruttoCHF   ?? (stdGrundlohn + stdFeiertag + stdFerien + stdDreizehn);
+
+            SetRight(form, "1.72", FormatChf(stdGrundlohn));        // Grundlohn
+            if (stdFeiertag > 0) SetRight(form, "1.73", FormatChf(stdFeiertag));   // Feiertagsentschädigung
+            if (stdFerien   > 0) SetRight(form, "1.74", FormatChf(stdFerien));     // Ferienentschädigung
+            if (stdDreizehn > 0) SetRight(form, "1.75", FormatChf(stdDreizehn));   // 13. Monatslohn
+            if (stdBrutto   > 0) SetRight(form, "1.82", FormatChf(stdBrutto));     // Bruttolohn (pro Stunde)
+        }
 
         // ── Seite 2: Abschnitt 9 – Zusammensetzung des Bruttoeinkommens ──────
-        Set(form, "1.85", FormatNum(d.TotalStunden));
+        SetRight(form, "1.85", FormatNum(d.TotalStunden));
 
-        Set(form, "4.141", FormatChf2(d.Grundlohn));
+        SetRight(form, "4.141", FormatChf2(d.Grundlohn));
 
         if (d.FeiertagsprozentString is not null)
         {
-            Set(form, "4.139", d.FeiertagsprozentString.TrimEnd('%'));
-            Set(form, "4.140", FormatChf2(d.FeiertagsCHF));
+            SetRight(form, "4.139", d.FeiertagsprozentString.TrimEnd('%'));
+            SetRight(form, "4.140", FormatChf2(d.FeiertagsCHF));
         }
         if (d.FerienprozentString is not null)
         {
-            Set(form, "4.147", d.FerienprozentString.TrimEnd('%'));
-            Set(form, "4.143", FormatChf2(d.FerienCHF));
+            SetRight(form, "4.147", d.FerienprozentString.TrimEnd('%'));
+            SetRight(form, "4.143", FormatChf2(d.FerienCHF));
         }
         if (d.DreizehnterProzentString is not null)
         {
-            Set(form, "4.146", d.DreizehnterProzentString.TrimEnd('%'));
-            Set(form, "4.142", FormatChf2(d.DreizehnterCHF));
+            SetRight(form, "4.146", d.DreizehnterProzentString.TrimEnd('%'));
+            SetRight(form, "4.142", FormatChf2(d.DreizehnterCHF));
         }
-        Set(form, "4.154", FormatChf2(d.BruttolohnTotal));
+        // Taggeldleistungen (Krank/Unfall-Karenz via KTG-Tagessatz)
+        // 4.144 = CHF-Betrag, 4.145 = "welche?"-Beschreibung
+        if (d.TaggeldleistungenCHF.HasValue && d.TaggeldleistungenCHF.Value > 0)
+        {
+            SetRight(form, "4.144", FormatChf2(d.TaggeldleistungenCHF));
+            if (!string.IsNullOrEmpty(d.TaggeldleistungenWelche))
+                Set(form, "4.145", d.TaggeldleistungenWelche);  // Text → linksbündig
+        }
+        SetRight(form, "4.154", FormatChf2(d.BruttolohnTotal));
 
         // ── Seite 3: Frage 11 – BVG ──────────────────────────────────────────
         bool bvgJa = !string.IsNullOrWhiteSpace(d.BvgVersicherer) || d.BvgErhoben == true;
@@ -182,8 +221,90 @@ public class ZwischenverdienistPdfService
             Set(form, "Textfeld 95", datumDigits);  // → "12042026"
         }
 
+        // ── Signatur einbetten (Konvention wie QST: User der's generiert) ──
+        // Anker: Ort-Feld "5.17" auf Seite 3 (links, Ort/Datum-Zeile).
+        // Bild UNTERHALB davon platziert — landet im "Unterschrift"-Kasten.
+        // Klarname direkt UNTER dem Bild.
+        if (signaturePng != null && signaturePng.Length > 0)
+        {
+            EmbedSignature(pdf, form, "5.17", signaturePng, signerName ?? "");
+        }
+
         pdf.Close();
         return ms.ToArray();
+    }
+
+    // ── Signatur-Embedding (gleiche Logik wie QstAnmeldungPdfService) ────────
+    // Layout: Bild im Unterschrift-Kasten unter dem Ort-Feld;
+    // Klarname direkt unter dem Bild.
+    //   SigOffsetY = Y-Verschiebung des Bild-Unterrand relativ zur Anker-
+    //                Feld-UNTERkante (negativ = unterhalb).
+    private const float SigOffsetX = 0f;
+    private const float SigOffsetY = -55f;   // 55 pt unterhalb des Ort-Feldes
+    private const float SigWidth   = 130f;
+    private const float SigHeight  = 32f;
+
+    private static void EmbedSignature(
+        PdfDocument pdf, PdfAcroForm form, string anchorFieldName,
+        byte[] signatureBytes, string signerName)
+    {
+        PdfFormField? anchor = null;
+        try { anchor = form.GetField(anchorFieldName); } catch { }
+        if (anchor == null) return;
+
+        var widgets = anchor.GetWidgets();
+        if (widgets == null || widgets.Count == 0) return;
+
+        var widget = widgets[0];
+        var rectArr = widget.GetRectangle();
+        if (rectArr == null) return;
+        var anchorRect = rectArr.ToRectangle();
+
+        // Seite des Widgets ermitteln (Annotation → Page-Lookup).
+        PdfPage? widgetPage = null;
+        for (int i = 1; i <= pdf.GetNumberOfPages(); i++)
+        {
+            var page = pdf.GetPage(i);
+            foreach (var an in page.GetAnnotations())
+            {
+                if (an.GetPdfObject() == widget.GetPdfObject())
+                {
+                    widgetPage = page;
+                    break;
+                }
+            }
+            if (widgetPage != null) break;
+        }
+        if (widgetPage == null) widgetPage = pdf.GetPage(pdf.GetNumberOfPages());
+
+        float x = anchorRect.GetLeft()   + SigOffsetX;
+        float y = anchorRect.GetBottom() + SigOffsetY;
+        var imgRect = new Rectangle(x, y, SigWidth, SigHeight);
+
+        var canvas = new PdfCanvas(widgetPage);
+        try
+        {
+            var imgData = ImageDataFactory.Create(signatureBytes);
+            canvas.AddImageFittedIntoRectangle(imgData, imgRect, false);
+        }
+        catch { /* defektes Bild → Klarname trotzdem rendern */ }
+
+        if (!string.IsNullOrWhiteSpace(signerName))
+        {
+            try
+            {
+                var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+                canvas.SaveState();
+                canvas.SetFillColor(ColorConstants.BLACK);
+                canvas.BeginText()
+                      .SetFontAndSize(font, 7.5f)
+                      .MoveText(x + 2, y - 9)    // 9 pt unter der Bild-Unterkante
+                      .ShowText(signerName)
+                      .EndText();
+                canvas.RestoreState();
+            }
+            catch { }
+        }
     }
 
     // ── Hilfsmethoden ────────────────────────────────────────────────────────
@@ -194,6 +315,16 @@ public class ZwischenverdienistPdfService
         var field = form.GetField(fieldName);
         if (field is null) return;
         field.SetValue(value);
+    }
+
+    /// <summary>Wie Set, aber rechtsbündig (für CHF-/Zahlen-Felder).</summary>
+    private static void SetRight(PdfAcroForm form, string fieldName, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        var field = form.GetField(fieldName);
+        if (field is null) return;
+        field.SetValue(value);
+        field.SetJustification(iText.Layout.Properties.TextAlignment.RIGHT);
     }
 
     private static void SetRadio(PdfAcroForm form, string fieldName, string value)
@@ -247,6 +378,12 @@ public class ZwischenverdienistData
     public decimal? MehrStundenProMonat         { get; set; }
 
     public decimal? StundenlohnCHF              { get; set; }
+    /// <summary>Pro-Stunde-Felder in Punkt 8 "Bei Stundenlohn"</summary>
+    public decimal? StundenlohnFeiertagCHF      { get; set; }
+    public decimal? StundenlohnFerienCHF        { get; set; }
+    public decimal? StundenlohnDreizehnCHF      { get; set; }
+    public decimal? StundenlohnBruttoCHF        { get; set; }
+
     public decimal? MonatslohnCHF               { get; set; }
     public decimal? TotalStunden                { get; set; }
     public decimal? BruttolohnTotal             { get; set; }
@@ -257,6 +394,8 @@ public class ZwischenverdienistData
     public decimal? FerienCHF                   { get; set; }
     public string? DreizehnterProzentString     { get; set; }
     public decimal? DreizehnterCHF              { get; set; }
+    public decimal? TaggeldleistungenCHF        { get; set; }
+    public string?  TaggeldleistungenWelche     { get; set; }
 
     public bool? DreizehnterJahresendAuszahlung { get; set; }
     public bool? BvgErhoben                     { get; set; }

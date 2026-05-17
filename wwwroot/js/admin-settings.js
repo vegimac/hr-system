@@ -14,17 +14,36 @@ async function loadBehoerden() {
             tbody.innerHTML = '<tr><td colspan="6" style="padding:28px;text-align:center;color:#94a3b8;font-style:italic">Noch keine Behörden erfasst</td></tr>';
             return;
         }
-        const typLabel = { BETREIBUNGSAMT: 'Betreibungsamt', SOZIALAMT: 'Sozialamt', ANDERE: 'Andere' };
+        const typLabel = {
+            BETREIBUNGSAMT: 'Betreibungsamt',
+            SOZIALAMT:      'Sozialamt',
+            STEUERAMT:      'Steueramt (QST)',
+            ANDERE:         'Andere'
+        };
+        // Farbcode pro Typ — Steueramt grün, damit sich QST-Behörden visuell von
+        // Betreibungs- (lila) und Sozialämtern (gleiche Default-Farbe) abheben.
+        const typBadge = {
+            BETREIBUNGSAMT: 'background:#e0e7ff;color:#4338ca',
+            SOZIALAMT:      'background:#fef3c7;color:#92400e',
+            STEUERAMT:      'background:#dcfce7;color:#166534',
+            ANDERE:         'background:#f1f5f9;color:#475569'
+        };
         tbody.innerHTML = list.map(b => {
             const address = [b.adresse1, b.adresse2, b.adresse3, `${b.plz||''} ${b.ort||''}`.trim()].filter(Boolean).join(', ');
-            const iban = b.qrIban && b.qrIban !== b.iban
-                ? `<div style="font-family:monospace;font-size:11px">${b.iban || '—'}</div><div style="font-family:monospace;font-size:11px;color:#6d28d9">QR: ${b.qrIban}</div>`
-                : `<span style="font-family:monospace;font-size:12px">${b.iban || '—'}</span>`;
+            // Steueramt: statt IBAN den Sachbearbeiter zeigen
+            const isSteuer = b.typ === 'STEUERAMT';
+            const detailCol = isSteuer
+                ? (b.kontaktperson
+                    ? `<div style="font-size:12px">${b.kontaktperson}${b.kontaktpersonRolle ? ` <span style="color:#94a3b8">· ${b.kontaktpersonRolle}</span>` : ''}</div>${b.kantonCode ? `<div style="font-size:11px;color:#16a34a;font-weight:600">Kt. ${b.kantonCode}</div>` : ''}`
+                    : (b.kantonCode ? `<span style="font-size:11px;color:#16a34a;font-weight:600">Kt. ${b.kantonCode}</span>` : '<span style="color:#cbd5e1">—</span>'))
+                : (b.qrIban && b.qrIban !== b.iban
+                    ? `<div style="font-family:monospace;font-size:11px">${b.iban || '—'}</div><div style="font-family:monospace;font-size:11px;color:#6d28d9">QR: ${b.qrIban}</div>`
+                    : `<span style="font-family:monospace;font-size:12px">${b.iban || '—'}</span>`);
             return `<tr style="${!b.isActive ? 'opacity:0.5;' : ''}border-bottom:1px solid #f1f5f9">
                 <td style="padding:10px 14px;font-weight:500">${b.name}</td>
-                <td style="padding:10px 14px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#e0e7ff;color:#4338ca">${typLabel[b.typ] ?? b.typ}</span></td>
+                <td style="padding:10px 14px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;${typBadge[b.typ] ?? typBadge.ANDERE}">${typLabel[b.typ] ?? b.typ}</span></td>
                 <td style="padding:10px 14px;color:#64748b">${address || '—'}</td>
-                <td style="padding:10px 14px">${iban}</td>
+                <td style="padding:10px 14px">${detailCol}</td>
                 <td style="padding:10px 14px;text-align:center">
                     <span style="font-size:11px;padding:2px 8px;border-radius:10px;${b.isActive ? 'background:#dcfce7;color:#166534' : 'background:#f1f5f9;color:#64748b'}">${b.isActive ? 'Aktiv' : 'Inaktiv'}</span>
                 </td>
@@ -46,13 +65,18 @@ function openBehoerdeModal(existing) {
     document.getElementById('beId').value        = d.id ?? '';
     document.getElementById('beName').value      = d.name ?? '';
     document.getElementById('beTyp').value       = d.typ ?? 'BETREIBUNGSAMT';
+    document.getElementById('beKantonCode').value = d.kantonCode ?? '';
     document.getElementById('beAdresse1').value  = d.adresse1 ?? '';
     document.getElementById('beAdresse2').value  = d.adresse2 ?? '';
     document.getElementById('beAdresse3').value  = d.adresse3 ?? '';
     document.getElementById('bePlz').value       = d.plz ?? '';
     document.getElementById('beOrt').value       = d.ort ?? '';
+    document.getElementById('beKontaktperson').value      = d.kontaktperson      ?? '';
+    document.getElementById('beKontaktpersonRolle').value = d.kontaktpersonRolle ?? '';
+    document.getElementById('beErreichbarkeit').value     = d.erreichbarkeit     ?? '';
     document.getElementById('beTelefon').value   = d.telefon ?? '';
     document.getElementById('beEmail').value     = d.email ?? '';
+    document.getElementById('beWebseite').value  = d.webseite ?? '';
     const ibanEl   = document.getElementById('beIban');
     const qrIbanEl = document.getElementById('beQrIban');
     ibanEl.value   = d.iban   ?? '';
@@ -62,20 +86,72 @@ function openBehoerdeModal(existing) {
     document.getElementById('beBic').value       = d.bic ?? '';
     document.getElementById('beBankName').value  = d.bankName ?? '';
     document.getElementById('beIsActive').checked = d.isActive ?? true;
+    // Felder typ-abhängig ein-/ausblenden (Kanton-Pflicht, Bank-Block ausblenden bei Steueramt)
+    onBehoerdeTypChange();
+}
+
+// Bei Typ=STEUERAMT: Kanton ist Pflicht, Bankverbindung wird ausgeblendet.
+// Bei den anderen Typen: Kanton optional, Bankverbindung sichtbar.
+function onBehoerdeTypChange() {
+    const typ        = document.getElementById('beTyp')?.value;
+    const kantonWrap = document.getElementById('beKantonField');
+    const bankWrap   = document.getElementById('beBankSection');
+    const isSteuer   = typ === 'STEUERAMT';
+    if (kantonWrap) kantonWrap.style.display = isSteuer ? 'block' : 'none';
+    if (bankWrap)   bankWrap.style.display   = isSteuer ? 'none'  : 'block';
 }
 
 function closeBehoerdeModal() {
     document.getElementById('behoerdeModal').style.display = 'none';
 }
 
+// PLZ-Lookup im Behörden-Modal: füllt Ort + (optional) Datalist mit
+// Vorschlägen, wenn mehrere Gemeinden zur PLZ passen.
+async function bePlzLookup(rawPlz) {
+    const plz   = (rawPlz ?? '').toString().trim();
+    const ortEl = document.getElementById('beOrt');
+    const list  = document.getElementById('bePlzCityList');
+    const hint  = document.getElementById('bePlzHint');
+    if (!ortEl || !/^\d{4}$/.test(plz)) { if (hint) hint.innerHTML = ''; return; }
+    try {
+        const res = await fetch(`/api/swiss-locations/by-plz?plz=${encodeURIComponent(plz)}`, { headers: ah() });
+        if (!res.ok) return;
+        const locs = await res.json();
+        if (!Array.isArray(locs) || locs.length === 0) {
+            if (hint) hint.innerHTML = `<span style="color:#b45309">⚠ PLZ ${plz} nicht gefunden — bitte manuell eintragen.</span>`;
+            return;
+        }
+        if (locs.length === 1) {
+            ortEl.value = locs[0].gemeindename;
+            if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${locs[0].gemeindename} (${locs[0].kantonskuerzel})</span>`;
+            if (list) list.innerHTML = '';
+            return;
+        }
+        // Mehrere Treffer → Datalist mit Vorschlägen, Ort bleibt leer/aktuell
+        if (list) {
+            list.innerHTML = locs.map(l => `<option value="${l.gemeindename}">${l.kantonskuerzel}</option>`).join('');
+        }
+        if (hint) hint.innerHTML = `<span style="color:#0369a1">${locs.length} Gemeinden — bitte im Ort-Feld auswählen oder tippen.</span>`;
+    } catch { /* still */ }
+}
+
 async function saveBehoerde() {
-    const id = document.getElementById('beId').value;
+    const id   = document.getElementById('beId').value;
     const name = document.getElementById('beName').value.trim();
+    const typ  = document.getElementById('beTyp').value;
     if (!name) { alert('Bitte Name eingeben.'); return; }
 
-    // IBAN / QR-IBAN validieren (falls eingegeben). Bei ungültig: nachfragen.
-    const ibanRaw   = document.getElementById('beIban').value.trim();
-    const qrIbanRaw = document.getElementById('beQrIban').value.trim();
+    // STEUERAMT braucht zwingend Kanton, sonst kann das QST-Modul es nicht
+    // automatisch zur Filiale zuordnen.
+    const kantonCode = document.getElementById('beKantonCode').value.trim();
+    if (typ === 'STEUERAMT' && !kantonCode) {
+        alert('Bei Typ "Steueramt" ist der Kanton Pflicht — sonst kann das QST-Modul das Amt nicht der Filiale zuordnen.');
+        return;
+    }
+
+    // IBAN / QR-IBAN validieren (falls eingegeben) — nur bei nicht-STEUERAMT relevant.
+    const ibanRaw   = typ === 'STEUERAMT' ? '' : document.getElementById('beIban').value.trim();
+    const qrIbanRaw = typ === 'STEUERAMT' ? '' : document.getElementById('beQrIban').value.trim();
     if (ibanRaw) {
         const r = validateIban(ibanRaw, 'IBAN');
         if (!r.valid && !confirm(`IBAN scheint ungültig:\n${r.error}\n\nTrotzdem speichern?`)) return;
@@ -87,19 +163,24 @@ async function saveBehoerde() {
 
     const body = {
         name,
-        typ:      document.getElementById('beTyp').value,
-        adresse1: document.getElementById('beAdresse1').value.trim() || null,
-        adresse2: document.getElementById('beAdresse2').value.trim() || null,
-        adresse3: document.getElementById('beAdresse3').value.trim() || null,
-        plz:      document.getElementById('bePlz').value.trim()     || null,
-        ort:      document.getElementById('beOrt').value.trim()     || null,
-        telefon:  document.getElementById('beTelefon').value.trim() || null,
-        email:    document.getElementById('beEmail').value.trim()   || null,
-        iban:     document.getElementById('beIban').value.trim()    || null,
-        qrIban:   document.getElementById('beQrIban').value.trim()  || null,
-        bic:      document.getElementById('beBic').value.trim()     || null,
-        bankName: document.getElementById('beBankName').value.trim()|| null,
-        isActive: document.getElementById('beIsActive').checked
+        typ,
+        kantonCode:         kantonCode || null,
+        adresse1:           document.getElementById('beAdresse1').value.trim() || null,
+        adresse2:           document.getElementById('beAdresse2').value.trim() || null,
+        adresse3:           document.getElementById('beAdresse3').value.trim() || null,
+        plz:                document.getElementById('bePlz').value.trim()     || null,
+        ort:                document.getElementById('beOrt').value.trim()     || null,
+        telefon:            document.getElementById('beTelefon').value.trim() || null,
+        email:              document.getElementById('beEmail').value.trim()   || null,
+        kontaktperson:      document.getElementById('beKontaktperson').value.trim()      || null,
+        kontaktpersonRolle: document.getElementById('beKontaktpersonRolle').value.trim() || null,
+        erreichbarkeit:     document.getElementById('beErreichbarkeit').value.trim()     || null,
+        webseite:           document.getElementById('beWebseite').value.trim()           || null,
+        iban:               ibanRaw   || null,
+        qrIban:             qrIbanRaw || null,
+        bic:                typ === 'STEUERAMT' ? null : (document.getElementById('beBic').value.trim()      || null),
+        bankName:           typ === 'STEUERAMT' ? null : (document.getElementById('beBankName').value.trim() || null),
+        isActive:           document.getElementById('beIsActive').checked
     };
 
     try {
@@ -586,6 +667,8 @@ function openAbsenzTypForm(t) {
     document.getElementById('atBasisStunden').value   = d.basisStunden   ?? 'BETRIEB';
     document.getElementById('atReduziertSaldo').value = d.reduziertSaldo ?? '';
     document.getElementById('atUtpAuszahlung').checked = d.utpAuszahlung ?? false;
+    const zvSel = document.getElementById('atZvKuerzel');
+    if (zvSel) zvSel.value = d.zwischenverdienstKuerzel ?? '';
     document.getElementById('absenzTypForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -624,6 +707,7 @@ async function saveAbsenzTyp() {
     const basisStunden   = document.getElementById('atBasisStunden').value || 'BETRIEB';
     const reduziertRaw   = document.getElementById('atReduziertSaldo').value;
     const utpAuszahlung  = document.getElementById('atUtpAuszahlung').checked;
+    const zvKuerzelRaw   = document.getElementById('atZvKuerzel')?.value || '';
 
     const body = {
         code, bezeichnung: bez, zeitgutschrift: zg,
@@ -632,7 +716,8 @@ async function saveAbsenzTyp() {
         aktiv: document.getElementById('atAktiv').checked,
         basisStunden,
         reduziertSaldo: reduziertRaw === '' ? null : reduziertRaw,
-        utpAuszahlung
+        utpAuszahlung,
+        zwischenverdienstKuerzel: zvKuerzelRaw === '' ? null : zvKuerzelRaw
     };
 
     try {
@@ -1265,3 +1350,214 @@ async function vtDelete(id) {
     }
 }
 
+// ══════════════════════════════════════════════
+// FAMILIENZULAGEN-TARIFE
+// ══════════════════════════════════════════════
+// Kantonale FAK-Sätze. Massgeblich nach Standort der Filiale —
+// CompanyProfile.kantonCode steuert, welcher Tarif greift.
+let fzAllTarife = [];
+
+async function fzLoad() {
+    const tbody = document.getElementById('fzTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:30px;text-align:center;color:#94a3b8">Wird geladen…</td></tr>';
+    try {
+        const res = await fetch('/api/familienzulagen-tarife', { headers: ah() });
+        if (!res.ok) {
+            tbody.innerHTML = '<tr><td colspan="11" style="color:#dc2626;padding:12px">Fehler beim Laden.</td></tr>';
+            return;
+        }
+        fzAllTarife = await res.json();
+
+        // Kantons-Filter füllen aus den Daten
+        const kantonSel = document.getElementById('fzFilterKanton');
+        if (kantonSel) {
+            const cur = kantonSel.value;
+            const kantons = [...new Set(fzAllTarife.map(t => t.kantonCode))].sort();
+            kantonSel.innerHTML = '<option value="">Alle Kantone</option>'
+                + kantons.map(k => `<option value="${k}">${k}</option>`).join('');
+            kantonSel.value = cur;
+        }
+        fzRender();
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="11" style="color:#dc2626;padding:12px">Verbindungsfehler: ${e.message}</td></tr>`;
+    }
+}
+
+function fzRender() {
+    const tbody = document.getElementById('fzTableBody');
+    if (!tbody) return;
+    const kantonF = document.getElementById('fzFilterKanton')?.value || '';
+    const showInact = document.getElementById('fzShowInactive')?.checked ?? false;
+    const infoEl = document.getElementById('fzInfo');
+
+    let rows = fzAllTarife.slice();
+    if (kantonF) rows = rows.filter(r => r.kantonCode === kantonF);
+    if (!showInact) rows = rows.filter(r => r.isActive);
+
+    if (infoEl) infoEl.textContent = `${rows.length} Tarif${rows.length !== 1 ? 'e' : ''} angezeigt`;
+
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="11" style="padding:30px;text-align:center;color:#94a3b8;font-style:italic">Keine Tarife — bitte oben rechts «+ Neuer Tarif» klicken.</td></tr>';
+        return;
+    }
+
+    const fmtDate = d => d ? d.substring(0, 10).split('-').reverse().join('.') : '–';
+    const fmtChf  = v => v == null ? '<span style="color:#cbd5e1">—</span>' : Number(v).toFixed(2);
+    const fmtInt  = v => v == null ? '<span style="color:#cbd5e1">—</span>' : v;
+    // Satz 2 mit Schwellen-Annotation: "260 ab 12J." oder "385 ab 18J." oder "411 ab 3.K."
+    const fmtSatz2KZ = r => {
+        if (r.kinderzulageSatz2 == null) return '<span style="color:#cbd5e1">—</span>';
+        const v = Number(r.kinderzulageSatz2).toFixed(2);
+        if (r.kinderzulageSatz2AbAlter != null)   return `${v} <span style="color:#94a3b8;font-size:11px">ab ${r.kinderzulageSatz2AbAlter}J.</span>`;
+        if (r.schwelleSatz2AnzahlKinder != null)  return `${v} <span style="color:#94a3b8;font-size:11px">ab ${r.schwelleSatz2AnzahlKinder}.K.</span>`;
+        return v;
+    };
+    const fmtSatz2AZ = r => {
+        if (r.ausbildungszulageSatz2 == null) return '<span style="color:#cbd5e1">—</span>';
+        const v = Number(r.ausbildungszulageSatz2).toFixed(2);
+        if (r.ausbildungszulageSatz2AbAlter != null) return `${v} <span style="color:#94a3b8;font-size:11px">ab ${r.ausbildungszulageSatz2AbAlter}J.</span>`;
+        if (r.schwelleSatz2AnzahlKinder != null)     return `${v} <span style="color:#94a3b8;font-size:11px">ab ${r.schwelleSatz2AnzahlKinder}.K.</span>`;
+        return v;
+    };
+
+    tbody.innerHTML = rows.map(r => `
+        <tr style="${!r.isActive ? 'opacity:0.45;' : ''}">
+            <td style="padding:10px 14px"><span style="font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:12px;background:#fce7f3;color:#9d174d">${r.kantonCode}</span></td>
+            <td style="padding:10px 14px;color:#475569;font-size:12px">${fmtDate(r.validFrom)}</td>
+            <td style="padding:10px 14px;color:#475569;font-size:12px">${fmtDate(r.validTo)}</td>
+            <td style="padding:10px 14px;text-align:right;font-variant-numeric:tabular-nums;color:#0f172a;font-weight:600">${fmtChf(r.kinderzulageSatz1)}</td>
+            <td style="padding:10px 14px;text-align:right;font-variant-numeric:tabular-nums;color:#475569">${fmtSatz2KZ(r)}</td>
+            <td style="padding:10px 14px;text-align:right;font-variant-numeric:tabular-nums;color:#0f172a;font-weight:600">${fmtChf(r.ausbildungszulageSatz1)}</td>
+            <td style="padding:10px 14px;text-align:right;font-variant-numeric:tabular-nums;color:#475569">${fmtSatz2AZ(r)}</td>
+            <td style="padding:10px 14px;text-align:center;color:#475569;font-size:12px">${fmtInt(r.schwelleSatz2AnzahlKinder)}</td>
+            <td style="padding:10px 14px;text-align:right;font-variant-numeric:tabular-nums;color:#475569;font-size:12px">${fmtChf(r.mindesterwerbseinkommenJahr)}</td>
+            <td style="padding:10px 14px;text-align:center">
+                <span style="font-size:11px;padding:2px 9px;border-radius:10px;${r.isActive ? 'background:#dcfce7;color:#166534' : 'background:#f1f5f9;color:#64748b'}">${r.isActive ? 'Aktiv' : 'Inaktiv'}</span>
+            </td>
+            <td style="padding:10px 14px;text-align:right">
+                <button class="btn btn-sm btn-secondary" onclick='fzOpenForm(${JSON.stringify(r).replace(/'/g, "&apos;")})'>Bearbeiten</button>
+            </td>
+        </tr>`).join('');
+}
+
+function fzOpenForm(tarif) {
+    const isNew = !tarif;
+    document.getElementById('fzFormTitle').textContent = isNew ? 'Neuer Familienzulagen-Tarif' : `Tarif bearbeiten — ${tarif.kantonCode}`;
+    document.getElementById('fzId').value              = tarif?.id ?? '';
+    document.getElementById('fzKantonCode').value      = tarif?.kantonCode ?? '';
+    document.getElementById('fzValidFrom').value       = tarif?.validFrom ? tarif.validFrom.substring(0, 10) : '';
+    document.getElementById('fzValidTo').value         = tarif?.validTo   ? tarif.validTo.substring(0, 10)   : '';
+    document.getElementById('fzKzSatz1').value         = tarif?.kinderzulageSatz1 ?? '';
+    document.getElementById('fzKzSatz2').value         = tarif?.kinderzulageSatz2 ?? '';
+    document.getElementById('fzKzSatz2AbAlter').value  = tarif?.kinderzulageSatz2AbAlter ?? '';
+    document.getElementById('fzAzSatz1').value         = tarif?.ausbildungszulageSatz1 ?? '';
+    document.getElementById('fzAzSatz2').value         = tarif?.ausbildungszulageSatz2 ?? '';
+    document.getElementById('fzAzSatz2AbAlter').value  = tarif?.ausbildungszulageSatz2AbAlter ?? '';
+    document.getElementById('fzSchwelle').value          = tarif?.schwelleSatz2AnzahlKinder ?? '';
+    document.getElementById('fzMinEinkommen').value      = tarif?.mindesterwerbseinkommenJahr ?? '';
+    document.getElementById('fzMinEinkommenMonat').value = tarif?.mindesterwerbseinkommenMonat ?? '';
+    document.getElementById('fzGeburtszulage').value     = tarif?.geburtszulageBetrag ?? '';
+    document.getElementById('fzAdoptionszulage').value   = tarif?.adoptionszulageBetrag ?? '';
+    document.getElementById('fzAlterKinder').value     = tarif?.altersGrenzeKinder ?? 16;
+    document.getElementById('fzAlterAusb').value       = tarif?.altersGrenzeAusbildung ?? 25;
+    document.getElementById('fzQuelle').value          = tarif?.quelle ?? '';
+    document.getElementById('fzBemerkung').value       = tarif?.bemerkung ?? '';
+    document.getElementById('fzIsActive').checked      = tarif?.isActive ?? true;
+    document.getElementById('fzDeleteBtn').style.display = isNew ? 'none' : 'inline-flex';
+    document.getElementById('fzFormOverlay').style.display = 'block';
+    document.getElementById('fzFormPanel').style.display   = 'block';
+}
+
+function fzCloseForm() {
+    document.getElementById('fzFormOverlay').style.display = 'none';
+    document.getElementById('fzFormPanel').style.display   = 'none';
+}
+
+async function fzSave(event) {
+    event.preventDefault();
+    const submitBtn = event.target?.querySelector?.('button[type="submit"]');
+    if (submitBtn) {
+        if (submitBtn.disabled) return;
+        submitBtn.disabled = true;
+        submitBtn.dataset.originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Speichere…';
+    }
+
+    const id = document.getElementById('fzId').value;
+    const parseNum = (elId) => {
+        const v = document.getElementById(elId).value.trim();
+        return v === '' ? null : parseFloat(v);
+    };
+    const parseIntOpt = (elId) => {
+        const v = document.getElementById(elId).value.trim();
+        return v === '' ? null : parseInt(v, 10);
+    };
+
+    const body = {
+        kantonCode:                    document.getElementById('fzKantonCode').value || null,
+        validFrom:                     document.getElementById('fzValidFrom').value || null,
+        validTo:                       document.getElementById('fzValidTo').value || null,
+        kinderzulageSatz1:             parseNum('fzKzSatz1'),
+        kinderzulageSatz2:             parseNum('fzKzSatz2'),
+        kinderzulageSatz2AbAlter:      parseIntOpt('fzKzSatz2AbAlter'),
+        ausbildungszulageSatz1:        parseNum('fzAzSatz1'),
+        ausbildungszulageSatz2:        parseNum('fzAzSatz2'),
+        ausbildungszulageSatz2AbAlter: parseIntOpt('fzAzSatz2AbAlter'),
+        schwelleSatz2AnzahlKinder:     parseIntOpt('fzSchwelle'),
+        mindesterwerbseinkommenJahr:   parseNum('fzMinEinkommen'),
+        mindesterwerbseinkommenMonat:  parseNum('fzMinEinkommenMonat'),
+        geburtszulageBetrag:           parseNum('fzGeburtszulage'),
+        adoptionszulageBetrag:         parseNum('fzAdoptionszulage'),
+        altersGrenzeKinder:            parseIntOpt('fzAlterKinder'),
+        altersGrenzeAusbildung:        parseIntOpt('fzAlterAusb'),
+        quelle:                        document.getElementById('fzQuelle').value.trim() || null,
+        bemerkung:                     document.getElementById('fzBemerkung').value.trim() || null,
+        isActive:                      document.getElementById('fzIsActive').checked,
+    };
+
+    try {
+        const url    = id ? `/api/familienzulagen-tarife/${id}` : '/api/familienzulagen-tarife';
+        const method = id ? 'PUT' : 'POST';
+        const res    = await fetch(url, {
+            method,
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => null);
+            alert(j?.error || j?.message || 'Fehler beim Speichern.');
+            return;
+        }
+        fzCloseForm();
+        await fzLoad();
+    } catch (e) {
+        alert(`Verbindungsfehler: ${e.message}`);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            if (submitBtn.dataset.originalText) submitBtn.textContent = submitBtn.dataset.originalText;
+        }
+    }
+}
+
+async function fzDelete() {
+    const id = document.getElementById('fzId').value;
+    if (!id) return;
+    if (!confirm('Diesen Tarif wirklich löschen?\n\nFalls der Tarif bereits in einem Lohnlauf verwendet wurde, lieber als inaktiv markieren statt zu löschen.')) return;
+    try {
+        const res = await fetch(`/api/familienzulagen-tarife/${id}`, {
+            method: 'DELETE',
+            headers: ah(),
+        });
+        if (!res.ok && res.status !== 204) {
+            const j = await res.json().catch(() => null);
+            alert(j?.error || j?.message || 'Fehler beim Löschen.');
+            return;
+        }
+        fzCloseForm();
+        await fzLoad();
+    } catch (e) {
+        alert(`Verbindungsfehler: ${e.message}`);
+    }
+}

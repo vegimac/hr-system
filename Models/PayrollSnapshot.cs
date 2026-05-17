@@ -29,6 +29,15 @@ public class PayrollSnapshot
     public decimal FerienGeldSaldo       { get; set; }  // Feriengeldsaldo per Ende dieser Periode
 
     /// <summary>
+    /// Bereits per Akonto ausbezahlter Betrag für diese Periode (Akonto-Lohn-
+    /// Modell). Der Definitivlauf zieht diesen Wert vom berechneten Netto ab
+    /// → Restzahlung. 0 = kein Akonto erfasst (z.B. MA in Probezeit / Austritt
+    /// geplant, oder Akonto-Lauf für diesen Monat nicht durchgeführt).
+    /// Siehe AKONTO-LOHN-PLAN.md.
+    /// </summary>
+    public decimal AkontoBereitsAusbezahlt { get; set; } = 0;
+
+    /// <summary>
     /// Wird true sobald die Periode abgeschlossen ist. Davor: editierbar (re-confirm möglich).
     /// Nach Abschluss: kein Update mehr erlaubt.
     /// </summary>

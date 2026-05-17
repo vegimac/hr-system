@@ -52,6 +52,8 @@ public class PayrollController : ControllerBase
             .Include(e => e.NationalityRef)
             .FirstOrDefaultAsync(e => e.Id == employeeId);
         if (employee is null) return NotFound("Mitarbeiter nicht gefunden.");
+        if (employee.IsPayrollExcluded)
+            return BadRequest(new { message = "Dieser Mitarbeiter ist als ‚Kein Lohn' markiert und wird nicht abgerechnet." });
 
         var company = await _db.CompanyProfiles.FindAsync(companyProfileId);
         if (company is null) return NotFound("Filiale nicht gefunden.");
@@ -60,17 +62,42 @@ public class PayrollController : ControllerBase
         // Wichtig: Periode muss VOR der Vertragsauswahl berechnet werden,
         // damit wir den Vertrag laden können, der in dieser Periode gültig
         // war (nicht den neuesten verfügbaren).
-        int startDay = company.PayrollPeriodStartDay ?? 1;
-        var (periodFrom, periodToFull) = CalcPeriod(startDay, year, month);
+        //
+        // Quelle der Wahrheit (in dieser Reihenfolge):
+        //   1. Existierender PayrollPeriode-Eintrag für (Year, Month)
+        //      → nutzt direkt PeriodFrom/PeriodTo (z.B. nach Periodenwechsel
+        //        wurden die Perioden bereits korrekt mit den neuen Daten erstellt)
+        //   2. Aktive PayrollPeriodeConfig (latest valid für Year/Month)
+        //   3. Legacy-Feld CompanyProfile.PayrollPeriodStartDay (Default 1)
+        //
+        // Bisher wurde nur (3) verwendet — das hat dazu geführt, dass nach
+        // einem Periodenwechsel die Lohnberechnung weiter nach dem alten
+        // Schema gerechnet hat. Sursee-Bug 04/2026.
+        var existingPeriod = await _db.PayrollPerioden
+            .Where(p => p.CompanyProfileId == companyProfileId
+                     && p.Year == year && p.Month == month && !p.IsTransition)
+            .FirstOrDefaultAsync();
+
+        DateOnly periodFrom, periodToFull;
+        if (existingPeriod != null)
+        {
+            periodFrom   = existingPeriod.PeriodFrom;
+            periodToFull = existingPeriod.PeriodTo;
+        }
+        else
+        {
+            // Akonto-Lohn-Modell (Walter-Vorgabe 15.05.2026): die Lohnperiode
+            // ist IMMER der Kalendermonat. Die alte Periodenregel
+            // (PayrollPeriodeConfig / Legacy CompanyProfile.PayrollPeriodStartDay)
+            // wird nicht mehr ausgewertet. Bestehende (Alt-)Perioden behalten
+            // ihre gespeicherten Daten über den existingPeriod-Zweig oben.
+            (periodFrom, periodToFull) = CalcPeriod(1, year, month);
+        }
         int normalPeriodDays = periodToFull.DayNumber - periodFrom.DayNumber + 1;
 
         // Bemerkungstext für die Lohnabrechnung (Periode-spezifisch falls
         // vorhanden, sonst Filial-Default)
-        string? periodeFooterText = await _db.PayrollPerioden
-            .Where(p => p.CompanyProfileId == companyProfileId
-                     && p.Year == year && p.Month == month && !p.IsTransition)
-            .Select(p => p.PdfFooterText)
-            .FirstOrDefaultAsync();
+        string? periodeFooterText = existingPeriod?.PdfFooterText;
 
         // ── Den Vertrag laden, der in DIESER Periode gültig war ──────────
         // Regel: ContractStartDate <= periodToFull UND
@@ -89,25 +116,44 @@ public class PayrollController : ControllerBase
         if (emp is null) return NotFound(
             $"Kein in der Lohnperiode {periodFrom:dd.MM.yyyy}–{periodToFull:dd.MM.yyyy} gültiger Vertrag gefunden.");
 
-        // ── Austritt in der Periode? → Kurzperiode bis ContractEndDate ─────
+        // ── Kurzperiode wegen Austritt UND/ODER Eintritt in der Periode ─────
         // Gesetzliche Regel CH: Arbeitsverhältnis endet auf Monatsende.
         // Wenn ContractEndDate (z.B. 31.3.) vor dem regulären Periodenende
         // (20.4.) liegt, wird der Monatslohn anteilig per Tagessatz-Formel
         // (MonthlySalary × 12 / 365 × Tage) berechnet. Prozent-basierte
         // Positionen (13. ML, Ferien, Feiertag) skalieren automatisch mit.
+        // Genauso bei Mid-Period-Eintritt: Vertragsbeginn nach Periodenanfang
+        // → ab Vertragsbeginn rechnen, gleiche Tages-Pro-Rata.
         DateOnly periodTo = periodToFull;
+        DateOnly periodEffectiveFrom = periodFrom;     // ggf. nach hinten verschoben bei Mid-Period-Eintritt
         bool isShortPeriod = false;
+        bool shortReasonStart = false;                  // Kurzperiode wg. Eintritt
+        bool shortReasonEnd   = false;                  // Kurzperiode wg. Austritt
         int shortPeriodDays = normalPeriodDays;
 
+        // Eintritt mid-period?
+        var startDateOnly = DateOnly.FromDateTime(emp.ContractStartDate);
+        if (startDateOnly > periodFrom)
+        {
+            periodEffectiveFrom = startDateOnly;
+            isShortPeriod = true;
+            shortReasonStart = true;
+        }
+
+        // Austritt mid-period?
         if (emp.ContractEndDate.HasValue)
         {
             var endDateOnly = DateOnly.FromDateTime(emp.ContractEndDate.Value);
-            if (endDateOnly >= periodFrom && endDateOnly < periodToFull)
+            if (endDateOnly >= periodEffectiveFrom && endDateOnly < periodToFull)
             {
                 periodTo = endDateOnly;
                 isShortPeriod = true;
-                shortPeriodDays = periodTo.DayNumber - periodFrom.DayNumber + 1;
+                shortReasonEnd = true;
             }
+        }
+        if (isShortPeriod)
+        {
+            shortPeriodDays = periodTo.DayNumber - periodEffectiveFrom.DayNumber + 1;
         }
 
         // ── Stempelzeiten laden ────────────────────────────────────────────
@@ -217,7 +263,7 @@ public class PayrollController : ControllerBase
         }
 
         // Vertragstyp des Mitarbeiters (für BVG_ZUSATZ-Filter)
-        string? empModelCode = emp.EmploymentModel; // PARTTIME | MTP | FIX | FIX-M
+        string? empModelCode = emp.EmploymentModel; // UTP | MTP | FIX | FIX-M
 
         // Altersfilter + QST-Filter + Vertragstyp-Filter in Memory anwenden
         var deductions = allRules
@@ -245,6 +291,33 @@ public class PayrollController : ControllerBase
         decimal vormonatFerienGeld   = prevSaldo?.FerienGeldSaldo  ?? 0;
         decimal vormonatFerienTage   = prevSaldo?.FerienTageSaldo  ?? 0;
         decimal prevThirteenth       = prevSaldo?.ThirteenthMonthAccumulated ?? 0;
+
+        // ── SALDO-VORTRAG (Migrations-Initialwerte) ────────────────────
+        // Wenn keine Vorperiode existiert (= MA neu im System) UND für die
+        // aktuelle Periode Vortrag-Buchungen erfasst sind, werden diese als
+        // Initial-Vormonat-Saldi verwendet. Dadurch starten die Saldi mit
+        // den Werten aus dem Vorsystem statt bei 0. Idempotent: bei einer
+        // Neuberechnung der Migrations-Periode greifen die Vortrag-Werte
+        // erneut, da prevSaldo weiterhin null ist.
+        var aktuellePeriode = $"{year}-{month:D2}";
+        var vortragLookup = prevSaldo == null
+            ? await _db.LohnZulagen
+                .Include(z => z.Lohnposition)
+                .Where(z => z.EmployeeId == employeeId
+                         && z.Periode == aktuellePeriode
+                         && z.Lohnposition!.Kategorie == "Saldo-Vortrag")
+                .ToDictionaryAsync(z => z.Lohnposition!.Code, z => z.Betrag)
+            : new Dictionary<string, decimal>();
+        if (vortragLookup.Count > 0)
+        {
+            if (vortragLookup.TryGetValue("901", out var v901)) vormonatHourSaldo  = v901;
+            if (vortragLookup.TryGetValue("903", out var v903)) vormonatFerienTage = v903;
+            if (vortragLookup.TryGetValue("904", out var v904)) vormonatNachtSaldo = v904;
+            if (vortragLookup.TryGetValue("905", out var v905)) vormonatFerienGeld = v905;
+            if (vortragLookup.TryGetValue("906", out var v906)) prevThirteenth     = v906;
+            // 902 (Feiertag-Tage-Saldo) wird weiter unten injiziert,
+            // direkt vor der Feiertag-Saldo-Berechnung — siehe dort.
+        }
 
         // ── KTG/UVG: Krankheit + Unfall Absenzen laden ─────────────────────────
         var krankAbsenzen  = absences.Where(a => a.AbsenceType == "KRANK").ToList();
@@ -278,6 +351,15 @@ public class PayrollController : ControllerBase
         decimal vacationPct   = emp.VacationPercent  ?? 0;
         decimal holidayPct    = emp.HolidayPercent   ?? 0;
         decimal thirteenthPct = emp.ThirteenthSalaryPercent ?? 0;
+
+        // ── Probezeit-Sperre für 13. ML (L-GAV Art. 12 Ziffer 2) ───────────
+        // Während der Probezeit besteht kein Anspruch auf 13. ML (entfällt
+        // bei Auflösung in Probezeit). Daher in keiner Vertragsart auszahlen,
+        // auch nicht in MTP/FIX-Auszahlungsmonaten. Stattdessen akkumulieren —
+        // und beim ersten Lohn nach Probezeit-Ende nachzahlen (UTP)
+        // bzw. beim nächsten Auszahlungsmonat (MTP/FIX/FIX-M).
+        bool isInProbation = emp.ProbationEndDate.HasValue
+                          && DateOnly.FromDateTime(emp.ProbationEndDate.Value) >= periodTo;
 
         // ── Ferien-% Auto-Upgrade ab Alter 50 (CH-GAV-Standard) ────────────
         // Mitarbeiter ab vollendetem 50. Lebensjahr haben Anspruch auf 6 Wochen
@@ -316,6 +398,18 @@ public class PayrollController : ControllerBase
         decimal nachtKompStunden      = 0;   // reduzieren Nacht-Saldo
         decimal utpAuszahlungStunden  = 0;   // UTP: als Stundenlohn auszahlen (z. B. NACHT_KOMP)
         decimal ferienStundenMtp      = 0;   // MTP: Ferien-Anteil für 10.6-Lohnzeile separat ausweisen
+
+        // Aufschlüsselung der Absenz-Stunden pro AbsenceType — für die
+        // Anzeige im Lohnzettel ("gestempelt 168.71 + Krank 8.4 + Feiertag
+        // 16.8 + …"). Enthält nur Zeitgutschrift-Anteile, keine
+        // Feiertag/UTP-Auszahlung-Anteile (die sind im normalen Lohn-Block
+        // separat).
+        var absenzBreakdown = new Dictionary<string, decimal>();
+        void AddBreakdown(string type, decimal hours)
+        {
+            if (hours <= 0) return;
+            absenzBreakdown[type] = (absenzBreakdown.TryGetValue(type, out var prev) ? prev : 0m) + hours;
+        }
 
         // Helper: berechne Zeitgutschrift dynamisch aus den AbsenzTyp-Regeln
         // statt aus dem gespeicherten HoursCredited. So passen sich historische
@@ -401,6 +495,7 @@ public class PayrollController : ControllerBase
                 // FIX/FIX-M: Feiertage sind durch den Monatslohn abgedeckt.
                 // → als normale Gutschrift zählen, damit der Stunden-Saldo nicht negativ wird.
                 absenzGutschrift += hours;
+                AddBreakdown(a.AbsenceType, hours);
             }
             else if (a.AbsenceType == "FEIERTAG" || !typCfg.Zeitgutschrift)
             {
@@ -411,6 +506,7 @@ public class PayrollController : ControllerBase
             {
                 // Alle anderen Typen mit Zeitgutschrift (KRANK, UNFALL, SCHULUNG, MILITAER etc.)
                 absenzGutschrift += hours;
+                AddBreakdown(a.AbsenceType, hours);
             }
         }
 
@@ -447,7 +543,19 @@ public class PayrollController : ControllerBase
         // Monatliche Gutschrift: +0.5 Tage (fix); Abzug bei FEIERTAG-Absenz
         // anteilig nach Prozent (100% → 1 Tag, 50% → 0.5 Tag). Andere Modelle:
         // Feld bleibt 0 — sie bekommen Feiertage separat über 50.1/MTP-Logik.
+        //
+        // Bei FIX/FIX-M wird der Feiertag-Saldo NICHT in Geld ausbezahlt,
+        // sondern muss als Tage bezogen werden (analog Ferien-Tage-Saldo).
+        // Daher kein Auszahlungs-Mechanismus, nur Saldo-Tracking.
+        //
+        // Vortrag-Injection: bei Migration aus Vorsystem wird der Anfangs-
+        // Saldo aus Lohnposition 902 ("Vortrag Feiertag-Saldo (Tage)") als
+        // initialer Vormonat verwendet, sofern noch kein PayrollSaldo der
+        // Vorperiode existiert. Greift nur bei FIX/FIX-M, da andere
+        // Vertragsmodelle das Feld nicht nutzen.
         decimal vormonatFeiertagTage   = prevSaldo?.FeiertagTageSaldo ?? 0m;
+        if (prevSaldo == null && vortragLookup.TryGetValue("902", out var v902))
+            vormonatFeiertagTage = v902;
         decimal feiertagTageAccrual    = 0m;
         decimal feiertagTageGenommen   = 0m;
         if (isFIX)
@@ -502,6 +610,175 @@ public class PayrollController : ControllerBase
             .ThenBy(r => r.CreatedAt)
             .ToListAsync();
 
+        // ── Familienzulagen (FAK) als synthetische Einträge ─────────────────
+        // Walter-Anforderung: Familienzulagen automatisch auf den Lohn, sobald
+        // pro Kind in family_member_allowance ein Eintrag mit MonthlyAmount
+        // hinterlegt ist. Auszahlung bleibt streng manuell — ohne Eintrag mit
+        // ValidFrom/ValidTo wird nichts ausgezahlt (FAK-Entscheid abwarten).
+        //
+        // SV-Behandlung steckt in den Lohnpositionen 190.1/190.2 (siehe
+        // add_familienzulagen_lohnpositionen.sql): nicht AHV/ALV/NBU/KTG/BVG-
+        // pflichtig, aber QST-pflichtig.
+        //
+        // Mindesteinkommen-Check (GastroSocial-Bedingung): wenn der MA in
+        // diesem Monat unter dem AHV-pflichtigen Mindesteinkommen bleibt
+        // (LU = 630 CHF), wird die FAK NICHT ausgezahlt — Lohnzeile bleibt
+        // mit Betrag 0 und Hinweistext drin, damit Walter den Anspruch
+        // weiterhin sieht und manuell nachzahlen kann wenn der Brutto in
+        // einem Folgemonat wieder erreicht wird.
+        //
+        // Pro-Rata: aktuell voller Monatsbetrag wenn der Allowance-Eintrag
+        // irgendwann in der Periode aktiv war. Mid-Period-Tarifwechsel
+        // (z.B. Kind wird 12 in LU) → Walter legt zwei Einträge an, beide
+        // zählen anteilig. Eine Tagesgenaue Aufteilung machen wir später.
+        var familienzulagenRaw = await (
+            from a in _db.FamilyMemberAllowances
+            join m in _db.EmployeeFamilyMembers on a.FamilyMemberId equals m.Id
+            where m.EmployeeId == employeeId
+               && a.MonthlyAmount > 0m
+               && a.ValidFrom <= periodTo
+               && (a.ValidTo == null || a.ValidTo >= periodFrom)
+            select new {
+                AllowanceId    = a.Id,
+                MonthlyAmount  = a.MonthlyAmount,
+                AllowanceType  = a.AllowanceType,    // "KZ" | "AZ" | NULL
+                ValidFrom      = a.ValidFrom,
+                ValidTo        = a.ValidTo,
+                Note           = a.Note,
+                ChildFirstName = m.FirstName,
+                ChildLastName  = m.LastName,
+                ChildBirth     = m.DateOfBirth,
+                CreatedAt      = a.CreatedAt
+            }
+        ).ToListAsync();
+
+        // Lohnpositionen 190.1 (KZ) / 190.2 (AZ) / 190.3 (GZ+AdoptZ) holen —
+        // falls eine Migration nicht ausgeführt wurde, fällt die jeweilige
+        // FAK-Art still aus (kein Crash, aber auch keine Lohnzeile).
+        var lpKz = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == "190.1" && l.IsActive);
+        var lpAz = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == "190.2" && l.IsActive);
+        var lpGz = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == "190.3" && l.IsActive);
+
+        // ── Mindesteinkommen-Check ─────────────────────────────────────────
+        // Tarif für die Filiale (Standort-Kanton) zur Periode laden und
+        // approximativen AHV-Brutto schätzen (Vertrag-Festlohn bzw. effektiv
+        // gestempelte Stunden × Stundenlohn bei UTP). Wenn Schwelle
+        // unterschritten → fakSuppressed=true, Synthetics werden mit
+        // Betrag 0 und Hinweistext erstellt (statt komplett ausgelassen).
+        FamilienzulagenTarif? fakTarif = null;
+        if (familienzulagenRaw.Count > 0 && !string.IsNullOrWhiteSpace(company.KantonCode))
+        {
+            fakTarif = await _db.FamilienzulagenTarife
+                .Where(t => t.IsActive
+                         && t.KantonCode == company.KantonCode
+                         && t.ValidFrom <= periodTo
+                         && (t.ValidTo == null || t.ValidTo >= periodFrom))
+                .OrderByDescending(t => t.ValidFrom)
+                .FirstOrDefaultAsync();
+        }
+
+        // Schwellwert: bevorzugt Monats-Wert, sonst Jahres-Wert / 12
+        decimal? mindesteinkommenMonatThreshold = fakTarif?.MindesterwerbseinkommenMonat
+            ?? (fakTarif?.MindesterwerbseinkommenJahr.HasValue == true
+                ? Math.Round(fakTarif.MindesterwerbseinkommenJahr!.Value / 12m, 2)
+                : (decimal?)null);
+
+        // Approximation des AHV-Brutto für den Check.
+        // UTP / MTP (Stundenlohn-Modelle): workedHours × hourlyRate.
+        //   Wichtig: MTP hat MonthlySalary = null — dort darf auf KEINEN Fall
+        //   der Monatslohn als Basis genommen werden (sonst greift fälschlich
+        //   die FAK-Sperre auch bei normal arbeitenden MTP-MA).
+        // FIX / FIX-M: vertraglicher Monatslohn.
+        decimal estimatedAhvBruttoForFak;
+        if (isFIX)
+            estimatedAhvBruttoForFak = emp.MonthlySalary ?? 0m;
+        else
+            estimatedAhvBruttoForFak = Math.Round(workedHours * hourlyRate, 2);
+
+        bool fakSuppressed = mindesteinkommenMonatThreshold.HasValue
+                          && familienzulagenRaw.Count > 0
+                          && estimatedAhvBruttoForFak < mindesteinkommenMonatThreshold.Value;
+
+        var familienzulagenSynth = new List<LohnZulage>();
+        foreach (var fa in familienzulagenRaw)
+        {
+            // AllowanceType-Auflösung:
+            //   "GZ" / "AdoptZ"  → einmalige Geburts-/Adoptionszulage (190.3)
+            //   "AZ"             → Ausbildungszulage (190.2)
+            //   "KZ" / NULL      → Kinderzulage (190.1)
+            //   bei NULL und Kind ≥16 J. → AZ-Heuristik
+            bool istGz = string.Equals(fa.AllowanceType, "GZ",     StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(fa.AllowanceType, "AdoptZ", StringComparison.OrdinalIgnoreCase);
+            bool istAz = !istGz && string.Equals(fa.AllowanceType, "AZ", StringComparison.OrdinalIgnoreCase);
+            if (!istGz && string.IsNullOrWhiteSpace(fa.AllowanceType) && fa.ChildBirth.HasValue)
+            {
+                var ageAtPeriodEnd = periodTo.Year - fa.ChildBirth.Value.Year
+                    - (periodTo.Month < fa.ChildBirth.Value.Month
+                       || (periodTo.Month == fa.ChildBirth.Value.Month && periodTo.Day < fa.ChildBirth.Value.Day) ? 1 : 0);
+                if (ageAtPeriodEnd >= 16) istAz = true;
+            }
+
+            Lohnposition? lp;
+            if (istGz)      lp = lpGz;
+            else if (istAz) lp = lpAz;
+            else            lp = lpKz;
+            if (lp == null) continue;   // Migration nicht ausgeführt → still überspringen
+
+            // Bemerkung: Kindesname + Alter zur Periode (z.B. "Arman, 15 J.")
+            // Bei GZ/AdoptZ explizit den Zulagen-Typ voranstellen.
+            var name = string.Join(" ",
+                new[] { fa.ChildFirstName, fa.ChildLastName }.Where(s => !string.IsNullOrWhiteSpace(s)));
+            string ageSuffix = "";
+            if (fa.ChildBirth.HasValue)
+            {
+                var age = periodTo.Year - fa.ChildBirth.Value.Year
+                    - (periodTo.Month < fa.ChildBirth.Value.Month
+                       || (periodTo.Month == fa.ChildBirth.Value.Month && periodTo.Day < fa.ChildBirth.Value.Day) ? 1 : 0);
+                ageSuffix = $", {age} J.";
+            }
+
+            string bemerkung;
+            bool istAdoptZ = string.Equals(fa.AllowanceType, "AdoptZ", StringComparison.OrdinalIgnoreCase);
+            if (istGz)
+            {
+                // 190.3 ist eine Sammelposition für Geburt + Adoption — der
+                // konkrete Anlass steht in der Bemerkung.
+                string anlass = istAdoptZ ? "Adoption" : "Geburt";
+                bemerkung = !string.IsNullOrWhiteSpace(name) ? $"{anlass} {name}{ageSuffix}" : anlass;
+            }
+            else if (!string.IsNullOrWhiteSpace(name))
+            {
+                bemerkung = $"{name}{ageSuffix}";
+            }
+            else
+            {
+                bemerkung = istAz ? "Ausbildungszulage" : "Kinderzulage";
+            }
+
+            decimal betrag;
+            if (fakSuppressed)
+            {
+                betrag = 0m;
+                bemerkung += " – Lohn zu tief";
+            }
+            else
+            {
+                betrag = Math.Round(fa.MonthlyAmount, 2);
+            }
+
+            familienzulagenSynth.Add(new LohnZulage
+            {
+                Id             = -1_000_000 - fa.AllowanceId, // grosser Negativ-Bereich → kein Konflikt mit RecurringWage-IDs
+                EmployeeId     = employeeId,
+                Periode        = periodeStr,
+                LohnpositionId = lp.Id,
+                Lohnposition   = lp,
+                Betrag         = betrag,
+                Bemerkung      = bemerkung,
+                CreatedAt      = fa.CreatedAt
+            });
+        }
+
         var zulagenEntries = einmaligeZulagen
             .Concat(wiederkehrendeRaw.Select(r => new LohnZulage
             {
@@ -514,6 +791,7 @@ public class PayrollController : ControllerBase
                 Bemerkung      = r.Bemerkung,
                 CreatedAt      = r.CreatedAt
             }))
+            .Concat(familienzulagenSynth)
             .OrderBy(z => z.Lohnposition!.SortOrder)
             .ThenBy(z => z.CreatedAt)
             .ToList();
@@ -529,6 +807,35 @@ public class PayrollController : ControllerBase
             .OrderBy(la => la.ValidFrom)
             .ThenBy(la => la.Id)
             .ToListAsync();
+
+        // ── Bankverbindungen des MA laden (für Auszahlungs-Sektion im PDF) ──
+        // Im Perioden-Zeitraum gültige Konten, Hauptbank zuerst.
+        var bankAccounts = await _db.EmployeeBankAccounts
+            .Where(b => b.EmployeeId == employeeId
+                     && b.ValidFrom <= periodTo
+                     && (b.ValidTo == null || b.ValidTo >= periodFrom))
+            .OrderByDescending(b => b.IsHauptbank)
+            .ThenBy(b => b.ValidFrom)
+            .ThenBy(b => b.Id)
+            .ToListAsync();
+
+        // Fallback: war zur Periode keine Bankverbindung erfasst, aber der MA
+        // hat heute ein aktives Konto (z.B. nachträglich erfasst, abweichender
+        // Empfänger heute eingetragen, ValidFrom = heute), dann dieses für die
+        // Auszahlungs-Sektion verwenden — sonst stünde auf dem Lohnzettel
+        // "keine Bankverbindung" obwohl die Bankdaten längst hinterlegt sind.
+        if (bankAccounts.Count == 0)
+        {
+            var heute = DateOnly.FromDateTime(DateTime.Today);
+            bankAccounts = await _db.EmployeeBankAccounts
+                .Where(b => b.EmployeeId == employeeId
+                         && b.ValidFrom <= heute
+                         && (b.ValidTo == null || b.ValidTo >= heute))
+                .OrderByDescending(b => b.IsHauptbank)
+                .ThenBy(b => b.ValidFrom)
+                .ThenBy(b => b.Id)
+                .ToListAsync();
+        }
 
         // ── Lohnposition-Katalog + flag-basiertes Basis-Tracking ──────────
         // Die Feiertags-/Ferien-/13.-ML-Basis wird aus den Beträgen pro
@@ -570,7 +877,14 @@ public class PayrollController : ControllerBase
         // Per-SV-Typ Zulage-Deltas (für separate SV-Basen)
         decimal deltaAhv = 0, deltaNbuv = 0, deltaKtg = 0, deltaBvg = 0, deltaQst = 0;
 
-        foreach (var z in zulagenEntries.Where(z => z.Lohnposition!.Typ == "ZULAGE"))
+        // Saldo-Vortrag-Lohnpositionen (Codes 901-906, Kategorie "Saldo-Vortrag")
+        // werden im Lohnzettel separat als Saldo-Initialwerte behandelt — sie
+        // fliessen weder in den Bruttolohn noch in die "Weitere Zahlungen"
+        // Sektion ein. Stattdessen erscheinen sie in der Saldi-Übersicht als
+        // initialer Vormonat-Saldo. Helper für saubere Filterung.
+        bool IsVortrag(LohnZulage z) => z.Lohnposition?.Kategorie == "Saldo-Vortrag";
+
+        foreach (var z in zulagenEntries.Where(z => z.Lohnposition!.Typ == "ZULAGE" && !IsVortrag(z)))
         {
             decimal b  = Math.Round(z.Betrag, 2);
             var     lp = z.Lohnposition!;
@@ -614,9 +928,11 @@ public class PayrollController : ControllerBase
         }
 
         // Nicht-SV-pflichtige Zulagen → separate Zeilen nach Nettolohn (Spesen etc.)
+        // Vortrag-Lohnpositionen werden hier explizit ausgefiltert — sie sind
+        // KEINE Auszahlung sondern reine Saldo-Eröffnung.
         var zulagenExtraLines = new List<object>();
         decimal zulagenExtraTotal = 0;
-        foreach (var z in zulagenEntries.Where(z => z.Lohnposition!.Typ == "ZULAGE"))
+        foreach (var z in zulagenEntries.Where(z => z.Lohnposition!.Typ == "ZULAGE" && !IsVortrag(z)))
         {
             var lp2 = z.Lohnposition!;
             bool anyFlag2 = lp2.AhvAlvPflichtig || lp2.NbuvPflichtig || lp2.KtgPflichtig
@@ -628,16 +944,41 @@ public class PayrollController : ControllerBase
             zulagenExtraTotal += b;
         }
 
-        // Abzüge → separate Zeilen nach Nettolohn (immer post-netto, kein SV-Einfluss)
-        var abzuegeExtraLines = new List<object>();
-        decimal abzuegeExtraTotal = 0;
-        foreach (var z in zulagenEntries.Where(z => z.Lohnposition!.Typ == "ABZUG"))
+        // Saldo-Vortrag separat einsammeln — nur für die Saldi-Übersicht im
+        // Lohnzettel (Initial-Vormonat). Wird im Result-Block übergeben.
+        var vortragEntries = zulagenEntries.Where(IsVortrag).ToList();
+        decimal vortragZeit       = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "901")?.Betrag ?? 0;
+        decimal vortragFeiertag   = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "902")?.Betrag ?? 0;
+        decimal vortragFerien     = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "903")?.Betrag ?? 0;
+        decimal vortragNacht      = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "904")?.Betrag ?? 0;
+        decimal vortragFerienGeld = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "905")?.Betrag ?? 0;
+        decimal vortrag13Ml       = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "906")?.Betrag ?? 0;
+        bool   hatVortrag         = vortragEntries.Any();
+
+        // Lohnpositions-Abzüge (z. B. LGAV-Beitrag): NICHT SV-pflichtig, aber
+        // echte Lohnabzüge → laufen mit den SV-Abzügen in den Total-Abzüge-
+        // Block (vor Nettolohn). Reduzieren dadurch den Nettolohn direkt.
+        // Werden in BuildResult an abzugResult angehängt und in totalAbzuege
+        // mitgerechnet.
+        var lohnposAbzugLines  = new List<object>();
+        decimal lohnposAbzugTotal = 0;
+        foreach (var z in zulagenEntries.Where(z => z.Lohnposition!.Typ == "ABZUG" && !IsVortrag(z)))
         {
             decimal b  = Math.Round(z.Betrag, 2);
             var     lp = z.Lohnposition!;
-            abzuegeExtraLines.Add(new { bezeichnung = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : ""), betrag = -b });
-            abzuegeExtraTotal += b;
+            lohnposAbzugLines.Add(new {
+                bezeichnung = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : ""),
+                prozent     = (decimal?)null,
+                basis       = (decimal?)null,
+                betrag      = -b
+            });
+            lohnposAbzugTotal += b;
         }
+
+        // "Weitere Abzüge" (nach Netto) — wird unten von der Lohnabtretungs-
+        // Schleife befüllt. Reine Auszahlungs-Routing-Einträge.
+        var abzuegeExtraLines = new List<object>();
+        decimal abzuegeExtraTotal = 0;
 
         var lohnLines  = new List<object>();
         var abzugLines = new List<object>();
@@ -677,6 +1018,16 @@ public class PayrollController : ControllerBase
             employeeId, companyProfileId, periodFrom, periodTo, "KRANK");
         var unfallBreakdown = await _karenz.GetPeriodBreakdownAsync(
             employeeId, companyProfileId, periodFrom, periodTo, "UNFALL");
+
+        // Walter-Override (10.05.2026): Wenn beim MA "Karenz bereits
+        // abgeschlossen" gesetzt ist (Legacy-Migration aus altem System),
+        // dann verlassen ALLE Tage direkt die Karenz → durchgehend 80%.
+        // Wir mutieren die Records via 'with { InKarenz = false }'.
+        if (employee.KtgKarenzAbgeschlossen)
+        {
+            krankBreakdown  = krankBreakdown .Select(t => t with { InKarenz = false }).ToList();
+            unfallBreakdown = unfallBreakdown.Select(t => t with { InKarenz = false }).ToList();
+        }
 
         if (isMTP)
         {
@@ -744,7 +1095,12 @@ public class PayrollController : ControllerBase
                 // Label bei Ferien-Kürzung um Hinweis erweitern
                 string mtpFestlohnLabel;
                 if (isShortPeriod) {
-                    mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – Austritt {periodTo:dd.MM.yyyy})";
+                    string reasonTxt = (shortReasonStart && shortReasonEnd)
+                        ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy} / Austritt {periodTo:dd.MM.yyyy}"
+                        : shortReasonStart
+                            ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy}"
+                            : $"Austritt {periodTo:dd.MM.yyyy}";
+                    mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – {reasonTxt})";
                 } else if (mtpFerienTage > 0) {
                     mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} (gekürzt um {Math.Round(mtpFerienTage, 2)} Ferientage × CHF {mtpTagessatz:F2})";
                 } else {
@@ -936,25 +1292,32 @@ public class PayrollController : ControllerBase
                 AddAmount("3", feiertagEnt);  // Basis-Tracking (Festlohn Feiertage MTP)
             }
 
-            // ── MTP Ferien-Auszahlung aus FerienGeldSaldo (Walter-Formel) ─
-            // Regel: Ferien dürfen NIE im Voraus bezogen werden — Auszahlung
-            // erfolgt nur aus dem Vormonats-Saldo (was bereits angesammelt
-            // war), nicht aus dem aktuellen Accrual.
-            //   Auszahlung = (vormonatGeld / vormonatTage) × bezogene Tage
-            // Cap: nie mehr als der vorhandene Vormonats-Saldo.
+            // ── MTP Ferien-Auszahlung anteilsmässig aus Pott (Walter 09.05.2026) ─
+            // Regel-Update gegenüber älterer Version: der Pott schliesst den
+            // **aktuellen Monat** ein — sowohl beim CHF-Saldo als auch bei den
+            // Tagen. Damit kann ein MA Ferien beziehen sobald genug Tage im
+            // Pott sind (inkl. dem diesen Monat akkumulierten Anteil).
             //
-            // Wenn Vormonat = 0 (neuer MA): keine Auszahlung. Operator
-            // sollte Ferien erst nach Aufbau des Saldos zulassen, oder am
-            // Jahresende läuft sowieso die Auto-Auszahlung in Dezember.
+            //   Pott CHF   = vormonatFerienGeld + ferienEnt (akkumuliert akt.)
+            //   Pott Tage  = vormonatFerienTage + ferienTageAccrual
+            //   Tagessatz  = Pott CHF / Pott Tage
+            //   Auszahlung = Tagessatz × bezogene Tage diesen Monat
+            //
+            // Beispiel: 800 + 200 CHF / (8 + 2) Tage = 100/Tag, 6 Tage bezogen
+            //   → 600 CHF Auszahlung.
+            //
+            // Cap: Pott CHF (kein Vorbezug über den Pott hinaus).
+            decimal pottFerienGeldChf   = vormonatFerienGeld + ferienEnt;
+            decimal pottFerienGeldTage  = vormonatFerienTage + ferienTageAccrual;
             decimal mtpFerienAuszahlungBetrag = 0;
             decimal mtpAvgTagessatz           = 0;
-            if (mtpFerienTage > 0 && vormonatFerienTage > 0 && vormonatFerienGeld > 0)
+            if (mtpFerienTage > 0 && pottFerienGeldTage > 0 && pottFerienGeldChf > 0)
             {
-                mtpAvgTagessatz = vormonatFerienGeld / vormonatFerienTage;
+                mtpAvgTagessatz = pottFerienGeldChf / pottFerienGeldTage;
                 mtpFerienAuszahlungBetrag = Math.Round(mtpAvgTagessatz * mtpFerienTage, 2);
-                // Cap: nie mehr als der Vormonats-Saldo (kein Vorbezug)
-                if (mtpFerienAuszahlungBetrag > vormonatFerienGeld)
-                    mtpFerienAuszahlungBetrag = vormonatFerienGeld;
+                // Cap: nie mehr als der gesamte Pott (Saldo bleibt ≥ 0)
+                if (mtpFerienAuszahlungBetrag > pottFerienGeldChf)
+                    mtpFerienAuszahlungBetrag = Math.Round(pottFerienGeldChf, 2);
             }
 
             if (mtpFerienAuszahlungBetrag > 0)
@@ -971,9 +1334,9 @@ public class PayrollController : ControllerBase
                 AddAmount("2", mtpFerienAuszahlungBetrag);
             }
 
-            // Ferien-Geld-Saldo neu: Vormonat + Accrual − Auszahlung
+            // Ferien-Geld-Saldo neu: Pott − Auszahlung (Pott = Vormonat + Accrual)
             // Bleibt durch Cap immer ≥ 0 (Saldo wird nie negativ).
-            ferienGeldSaldoNeu  = Math.Round(vormonatFerienGeld + ferienEnt - mtpFerienAuszahlungBetrag, 2);
+            ferienGeldSaldoNeu  = Math.Round(pottFerienGeldChf - mtpFerienAuszahlungBetrag, 2);
             ferienGeldAuszahlung = mtpFerienAuszahlungBetrag;
 
             // Manuelle Ferien-Geld-Saldo-Auszahlung (Code 195.3): reduziert
@@ -1018,31 +1381,61 @@ public class PayrollController : ControllerBase
             totalLohn += zulagenSvTotal;
 
             // ── 13. Monatslohn: Auszahlung oder Rückstellung je Firmen-Rhythmus ─
-            // Basis für die aktuelle Monats-Akkumulation: totalLohn inkl.
-            // SV-pflichtiger Zulagen (ohne 13. ML selbst).
-            bool isPayoutMonthMtp = IsThirteenthPayoutMonth(company.ThirteenthMonthPayoutsPerYear, month);
+            // Basis = Summe aller Lohnpositionen mit Flag "Basis für 13. Monatslohn"
+            // (ZaehltAlsBasis13ml = true). Voll Daten-getrieben — Walter steuert
+            // pro Lohnposition in der Admin-UI ob sie zählt.
+            // Probezeit überdrückt die Auszahlung — siehe isInProbation oben.
+            bool isPayoutMonthMtp = IsThirteenthPayoutMonth(company, month) && !isInProbation;
             decimal dreizehnterMtp = 0;
             decimal thirteenthPctForSaldo  = thirteenthPct;   // Wird akkumuliert …
             decimal prevThirteenthForSaldo = prevThirteenth;
+            decimal mtp13Basis = SumByFlag(lp => lp.ZaehltAlsBasis13ml);
+            // Display-Werte für die Saldi-Sektion im Auszahlungsmonat:
+            // Vormonat / Aktueller Zuwachs / Bezogen / Saldo. Werden nur in
+            // Auszahlungsmonaten gefüllt, sonst null.
+            decimal? thirteenthPrevForDisplay     = null;
+            decimal? thirteenthAccrualForDisplay  = null;
+            decimal? thirteenthPayoutForDisplay   = null;
             if (thirteenthPct > 0 && isPayoutMonthMtp)
             {
-                // … ausser im Auszahlungsmonat: Vormonats-Saldo + akt. Zuwachs ausbezahlen.
-                decimal currentAccrual = Math.Round(totalLohn * thirteenthPct / 100m, 2);
+                // MTP-Auszahlung: prevThirteenth (aufgelaufener Saldo bis
+                // Vormonat) + currentAccrual (aktueller Monat). Saldo wird
+                // komplett geleert. Für Buchhaltungs-/Abacus-Export werden
+                // beide Anteile als SEPARATE Lohnpositions-Zeilen gerendert,
+                // damit FIBU-Kontierung sie unterscheiden kann (aktueller
+                // Aufwand vs. Saldo-Auflösung).
+                decimal currentAccrual = Math.Round(mtp13Basis * thirteenthPct / 100m, 2);
                 dreizehnterMtp = Math.Round(prevThirteenth + currentAccrual, 2);
-                if (dreizehnterMtp > 0)
+                if (currentAccrual > 0)
                 {
                     lohnLines.Add(new {
-                        bezeichnung = prevThirteenth > 0
-                            ? $"13. Monatslohn (inkl. CHF {prevThirteenth:F2} Saldo)"
-                            : "13. Monatslohn",
+                        bezeichnung = "13. Monatslohn (akt. Monat)",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
-                        basis       = (decimal?)Math.Round(totalLohn, 2),
-                        betrag      = dreizehnterMtp,
-                        accrued     = (decimal?)dreizehnterMtp
+                        basis       = (decimal?)Math.Round(mtp13Basis, 2),
+                        betrag      = currentAccrual,
+                        accrued     = (decimal?)currentAccrual
                     });
-                    totalLohn += dreizehnterMtp;
+                    totalLohn += currentAccrual;
                 }
+                if (prevThirteenth > 0)
+                {
+                    lohnLines.Add(new {
+                        bezeichnung = "13. Monatslohn (Saldo-Auszahlung)",
+                        anzahl      = (decimal?)null,
+                        prozent     = (decimal?)null,
+                        basis       = (decimal?)null,
+                        betrag      = prevThirteenth,
+                        accrued     = (decimal?)prevThirteenth
+                    });
+                    totalLohn += prevThirteenth;
+                }
+                // Display-Werte für Saldi-Sektion: Vormonat, aktueller Zuwachs,
+                // Bezogen-Betrag — Saldo neu = 0 (wird im Frontend rekonstruiert).
+                thirteenthPrevForDisplay    = prevThirteenth;
+                thirteenthAccrualForDisplay = currentAccrual;
+                thirteenthPayoutForDisplay  = dreizehnterMtp;
+
                 thirteenthPctForSaldo  = 0;   // Saldo geleert, keine weitere Rückstellung
                 prevThirteenthForSaldo = 0;
             }
@@ -1053,14 +1446,14 @@ public class PayrollController : ControllerBase
                 // Ferienentschädigung. So sieht der MA monatlich, wie sich der
                 // 13.-ML akkumuliert. Der Betrag wandert über thirteenthPctForSaldo
                 // weiter in den Saldo-Block "Rückst. 13. Monatslohn".
-                decimal currentAccrual = Math.Round(totalLohn * thirteenthPct / 100m, 2);
+                decimal currentAccrual = Math.Round(mtp13Basis * thirteenthPct / 100m, 2);
                 if (currentAccrual > 0)
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
-                        basis       = (decimal?)Math.Round(totalLohn, 2),
+                        basis       = (decimal?)Math.Round(mtp13Basis, 2),
                         betrag      = 0m,                 // keine Auszahlung
                         accrued     = (decimal?)currentAccrual
                     });
@@ -1115,12 +1508,17 @@ public class PayrollController : ControllerBase
                                          mainLohnMtp + deltaQst  + dreizehnterMtp);
 
             // ── Quellensteuer-Abzug (MTP) ─────────────────────────────────
-            var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom);
+            // Wie UTP: nur Hochrechnen wenn Nebenbeschäftigung gemeldet
+            // (siehe ausführlicher Kommentar im UTP-Block).
+            decimal? satzBruttoMtp = ComputeSatzBruttoForNebenjob(
+                qstEinstellung, svBasesMtp.Qst, workedHours, company);
+            var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp);
             if (qstRule is not null) deductions.Add(qstRule);
 
             var result = BuildResult(employee, emp, company, year, month, periodFrom, periodTo,
                 lohnLines, abzugLines, deductions, totalLohn, svBasesMtp,
                 zulagenExtraLines, zulagenExtraTotal, abzuegeExtraLines, abzuegeExtraTotal,
+                lohnposAbzugLines, lohnposAbzugTotal,
                 new SaldoBlock(
                     VormonatHourSaldo:    vormonatHourSaldo,
                     NeuerHourSaldo:       neuerSaldo,
@@ -1128,6 +1526,7 @@ public class PayrollController : ControllerBase
                     SollStunden:          sollStunden,
                     Mehrstunden:          mehrstundenAus,
                     AbsenzGutschrift:     absenzGutschrift,
+                    AbsenzBreakdown:      absenzBreakdown,
                     SollStundenVoll:        sollStundenVoll,
                     SollFerienReduktion:    Math.Round(ferienStundenAequivalent, 2),
                     GuaranteedHoursPerWeek: guaranteedH,
@@ -1152,8 +1551,12 @@ public class PayrollController : ControllerBase
                     FeiertagTageGenommen: feiertagTageGenommen,
                     FeiertagTageSaldoNeu: feiertagTageSaldoNeu,
                     ThirteenthPct:        thirteenthPctForSaldo,
-                    PrevThirteenth:       prevThirteenthForSaldo),
-                lohnAssignments, usingDefaultDeductions, periodeFooterText: periodeFooterText);
+                    PrevThirteenth:       prevThirteenthForSaldo,
+                    Basis13ml:            mtp13Basis,
+                    ThirteenthPrevForDisplay:    thirteenthPrevForDisplay,
+                    ThirteenthAccrualForDisplay: thirteenthAccrualForDisplay,
+                    ThirteenthPayout:            thirteenthPayoutForDisplay),
+                lohnAssignments, bankAccounts, usingDefaultDeductions, periodeFooterText: periodeFooterText);
             return Ok(result);
         }
         else if (isUTP)
@@ -1263,23 +1666,66 @@ public class PayrollController : ControllerBase
             lohnLines.AddRange(zulagenSvLines);
             totalLohn += zulagenSvTotal;
 
-            // ── 13. Monatslohn monatlich auszahlen (UTP) ───────────────────
+            // ── 13. Monatslohn (UTP) ────────────────────────────────────────
+            // Standard: monatlich auszahlen. Basis = Summe aller Lohnpositionen
+            // mit Flag "Basis für 13. Monatslohn" (ZaehltAlsBasis13ml = true).
+            //
+            // Probezeit-Regel (L-GAV Art. 12 Ziffer 2): während Probezeit NICHT
+            // auszahlen, in Saldo akkumulieren. Beim ersten Lohn nach Probezeit-
+            // Ende den aufgelaufenen Saldo + aktuellen Monat zusammen ausschütten.
             decimal dreizehnterUtp = 0;
+            decimal prevThirteenthForSaldoUtp = prevThirteenth;
             if (thirteenthPct > 0)
             {
-                decimal basis13 = totalLohn;
-                dreizehnterUtp = Math.Round(basis13 * thirteenthPct / 100m, 2);
-                if (dreizehnterUtp > 0)
+                decimal basis13 = SumByFlag(lp => lp.ZaehltAlsBasis13ml);
+                decimal currentAccrual = Math.Round(basis13 * thirteenthPct / 100m, 2);
+
+                if (isInProbation)
                 {
-                    lohnLines.Add(new {
-                        bezeichnung = "13. Monatslohn",
-                        anzahl      = (decimal?)null,
-                        prozent     = (decimal?)thirteenthPct,
-                        basis       = (decimal?)Math.Round(basis13, 2),
-                        betrag      = dreizehnterUtp,
-                        accrued     = (decimal?)dreizehnterUtp
-                    });
-                    totalLohn += dreizehnterUtp;
+                    // Akkumulieren, nicht auszahlen.
+                    if (currentAccrual > 0)
+                    {
+                        lohnLines.Add(new {
+                            bezeichnung = "13. Monatslohn (Probezeit – akkumuliert)",
+                            anzahl      = (decimal?)null,
+                            prozent     = (decimal?)thirteenthPct,
+                            basis       = (decimal?)Math.Round(basis13, 2),
+                            betrag      = 0m,
+                            accrued     = (decimal?)currentAccrual
+                        });
+                    }
+                    prevThirteenthForSaldoUtp = Math.Round(prevThirteenth + currentAccrual, 2);
+                }
+                else
+                {
+                    // Aktueller Monat: regulär monatlich.
+                    if (currentAccrual > 0)
+                    {
+                        lohnLines.Add(new {
+                            bezeichnung = "13. Monatslohn",
+                            anzahl      = (decimal?)null,
+                            prozent     = (decimal?)thirteenthPct,
+                            basis       = (decimal?)Math.Round(basis13, 2),
+                            betrag      = currentAccrual,
+                            accrued     = (decimal?)currentAccrual
+                        });
+                        totalLohn += currentAccrual;
+                    }
+                    // Saldo aus vorheriger Probezeit jetzt nachzahlen.
+                    if (prevThirteenth > 0)
+                    {
+                        lohnLines.Add(new {
+                            bezeichnung = "13. Monatslohn (Saldo-Nachzahlung Probezeit)",
+                            anzahl      = (decimal?)null,
+                            prozent     = (decimal?)null,
+                            basis       = (decimal?)null,
+                            betrag      = prevThirteenth,
+                            accrued     = (decimal?)prevThirteenth
+                        });
+                        totalLohn += prevThirteenth;
+                    }
+                    dreizehnterUtp = Math.Round(currentAccrual + prevThirteenth, 2);
+                    prevThirteenthForSaldoUtp = 0;   // Saldo geleert
                 }
             }
 
@@ -1432,13 +1878,31 @@ public class PayrollController : ControllerBase
                                          mainLohnUtp + deltaQst  + dreizehnterUtp);
 
             // ── Quellensteuer-Abzug (UTP) ─────────────────────────────────
-            var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom);
+            // Schweizer ESTV-Wegleitung (Kreisschreiben 45):
+            //   Variante A — NUR 1 Arbeitgeber, keine Nebenbeschäftigung:
+            //     Satzbestimmender Lohn = AHV-Lohn (IST-Brutto direkt).
+            //     Keine Hochrechnung. Tarif aus Tabelle bei IST-Brutto;
+            //     bei niedrigem Brutto greift der kantonale Mindestbetrag.
+            //
+            //   Variante B — Mehrere Arbeitgeber (Nebenbeschäftigung):
+            //     Hochrechnung auf Gesamtpensum bzw. 100%.
+            //
+            // Steuerung über qst.WeitereBeschaftigungen + GesamtpensumWeitereAg
+            // im QST-Eintrag.
+            decimal? satzBruttoUtp = ComputeSatzBruttoForNebenjob(
+                qstEinstellung, svBasesUtp.Qst, workedHours, company);
+            var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp);
             if (qstRuleUtp is not null) deductions.Add(qstRuleUtp);
 
-            // UTP: 13. ML monatlich ausbezahlt → keine Rückstellung mehr
+            // UTP: 13. ML standardmässig monatlich ausbezahlt. Während Probezeit
+            // wandert er aber in den Saldo (siehe oben) — daher prevThirteenth-
+            // Forwarding via prevThirteenthForSaldoUtp und ThirteenthPct
+            // gesetzt, damit beim nächsten Periodenwechsel die Saldo-Vortrag-
+            // Logik funktioniert.
             var result = BuildResult(employee, emp, company, year, month, periodFrom, periodTo,
                 lohnLines, abzugLines, deductions, totalLohn, svBasesUtp,
                 zulagenExtraLines, zulagenExtraTotal, abzuegeExtraLines, abzuegeExtraTotal,
+                lohnposAbzugLines, lohnposAbzugTotal,
                 new SaldoBlock(
                     VormonatHourSaldo:    0,
                     NeuerHourSaldo:       0,
@@ -1463,11 +1927,11 @@ public class PayrollController : ControllerBase
                     FeiertagTageAccrual:  feiertagTageAccrual,
                     FeiertagTageGenommen: feiertagTageGenommen,
                     FeiertagTageSaldoNeu: feiertagTageSaldoNeu,
-                    ThirteenthPct:        0m,
-                    PrevThirteenth:       prevThirteenth,
+                    ThirteenthPct:        isInProbation ? thirteenthPct : 0m,
+                    PrevThirteenth:       prevThirteenthForSaldoUtp,
                     FerienKuerzungVorschlag:     kuerzungVorschlag,
                     FerienKuerzungVorschlagTage: kuerzungVorschlagTage),
-                lohnAssignments, usingDefaultDeductions, periodeFooterText: periodeFooterText);
+                lohnAssignments, bankAccounts, usingDefaultDeductions, periodeFooterText: periodeFooterText);
             return Ok(result);
         }
         else // FIX / FIX-M – Monatslohn + Stunden-Saldo (Soll/Ist), kein Mehrstunden-Auszahlung
@@ -1478,15 +1942,20 @@ public class PayrollController : ControllerBase
             decimal monthSalaryFull = emp.MonthlySalary ?? Math.Round((emp.MonthlySalaryFte ?? 0) * pct / 100m, 2);
             decimal fteSalary       = emp.MonthlySalaryFte ?? (pct > 0 ? Math.Round(monthSalaryFull * 100m / pct, 2) : monthSalaryFull);
 
-            // Bei Austritt innerhalb der Periode: Monatslohn per Tagessatz-Formel
+            // Bei Eintritt/Austritt innerhalb der Periode: Monatslohn per Tagessatz-Formel
             //   Tagessatz = MonthlySalary × 12 / 365
             //   Lohn      = Tagessatz × Kalendertage der Kurzperiode
             decimal monthSalary = isShortPeriod
                 ? Math.Round(monthSalaryFull * 12m / 365m * shortPeriodDays, 2)
                 : monthSalaryFull;
 
+            string fixReasonTxt = (shortReasonStart && shortReasonEnd)
+                ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy} / Austritt {periodTo:dd.MM.yyyy}"
+                : shortReasonStart
+                    ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy}"
+                    : $"Austritt {periodTo:dd.MM.yyyy}";
             string monatslohnLabel = isShortPeriod
-                ? $"Monatslohn ({shortPeriodDays} von {normalPeriodDays} Tagen – Austritt {periodTo:dd.MM.yyyy})"
+                ? $"Monatslohn ({shortPeriodDays} von {normalPeriodDays} Tagen – {fixReasonTxt})"
                 : "Monatslohn";
 
             // ── FIX/FIX-M Festlohn-Split (Mirus-Style) ────────────────────
@@ -1689,30 +2158,73 @@ public class PayrollController : ControllerBase
             totalLohn += zulagenSvTotal;
 
             // ── 13. Monatslohn: Auszahlung oder Rückstellung je Firmen-Rhythmus ─
-            bool isPayoutMonthFix = IsThirteenthPayoutMonth(company.ThirteenthMonthPayoutsPerYear, month);
+            // Basis = Summe aller Lohnpositionen mit Flag "Basis für 13. Monatslohn"
+            // (ZaehltAlsBasis13ml = true). Voll Daten-getrieben — Walter steuert
+            // pro Lohnposition in der Admin-UI ob sie zählt.
+            // Probezeit überdrückt die Auszahlung — siehe isInProbation oben.
+            bool isPayoutMonthFix = IsThirteenthPayoutMonth(company, month) && !isInProbation;
             decimal dreizehnterFix = 0;
             decimal thirteenthPctForSaldoFix  = thirteenthPct;
             decimal prevThirteenthForSaldoFix = prevThirteenth;
+            decimal fix13Basis = SumByFlag(lp => lp.ZaehltAlsBasis13ml);
+            // Display-Werte für Saldi-Sektion im Auszahlungsmonat (FIX/FIX-M)
+            decimal? fix13PrevForDisplay    = null;
+            decimal? fix13AccrualForDisplay = null;
+            decimal? fix13PayoutForDisplay  = null;
             if (thirteenthPct > 0 && isPayoutMonthFix)
             {
-                decimal currentAccrual = Math.Round(totalLohn * thirteenthPct / 100m, 2);
+                // FIX/FIX-M-Auszahlung: identisches Splitting wie MTP. Aktueller
+                // Monatsanteil und Saldo-Auszahlung als getrennte Lohnposition-
+                // Zeilen, damit FIBU/Abacus-Export sie unterscheiden kann.
+                decimal currentAccrual = Math.Round(fix13Basis * thirteenthPct / 100m, 2);
                 dreizehnterFix = Math.Round(prevThirteenth + currentAccrual, 2);
-                if (dreizehnterFix > 0)
+                fix13PrevForDisplay    = prevThirteenth;
+                fix13AccrualForDisplay = currentAccrual;
+                fix13PayoutForDisplay  = dreizehnterFix;
+                if (currentAccrual > 0)
                 {
                     lohnLines.Add(new {
-                        bezeichnung = prevThirteenth > 0
-                            ? $"13. Monatslohn (inkl. CHF {prevThirteenth:F2} Saldo)"
-                            : "13. Monatslohn",
+                        bezeichnung = "13. Monatslohn (akt. Monat)",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
-                        basis       = (decimal?)Math.Round(totalLohn, 2),
-                        betrag      = dreizehnterFix,
-                        accrued     = (decimal?)dreizehnterFix
+                        basis       = (decimal?)Math.Round(fix13Basis, 2),
+                        betrag      = currentAccrual,
+                        accrued     = (decimal?)currentAccrual
                     });
-                    totalLohn += dreizehnterFix;
+                    totalLohn += currentAccrual;
+                }
+                if (prevThirteenth > 0)
+                {
+                    lohnLines.Add(new {
+                        bezeichnung = "13. Monatslohn (Saldo-Auszahlung)",
+                        anzahl      = (decimal?)null,
+                        prozent     = (decimal?)null,
+                        basis       = (decimal?)null,
+                        betrag      = prevThirteenth,
+                        accrued     = (decimal?)prevThirteenth
+                    });
+                    totalLohn += prevThirteenth;
                 }
                 thirteenthPctForSaldoFix  = 0;
                 prevThirteenthForSaldoFix = 0;
+            }
+            else if (thirteenthPct > 0)
+            {
+                // Nicht-Auszahlungsmonat: 13.-ML-Zuwachs als reine Berechnungs-Zeile
+                // anzeigen (betrag=0, accrued=currentAccrual) — analog MTP.
+                // So sieht der MA monatlich, wie sich der 13.-ML akkumuliert.
+                decimal currentAccrual = Math.Round(fix13Basis * thirteenthPct / 100m, 2);
+                if (currentAccrual > 0)
+                {
+                    lohnLines.Add(new {
+                        bezeichnung = "13. Monatslohn",
+                        anzahl      = (decimal?)null,
+                        prozent     = (decimal?)thirteenthPct,
+                        basis       = (decimal?)Math.Round(fix13Basis, 2),
+                        betrag      = 0m,                 // keine Auszahlung
+                        accrued     = (decimal?)currentAccrual
+                    });
+                }
             }
 
             // ── Krankheit: 80%-Gutschrift (nach Karenz, nach 13. ML) ──────
@@ -1761,12 +2273,18 @@ public class PayrollController : ControllerBase
                                           mainLohnFix + deltaQst  + dreizehnterFix);
 
             // ── Quellensteuer-Abzug (FIX) ─────────────────────────────────
-            var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom);
+            // Wie UTP: nur Hochrechnen wenn Nebenbeschäftigung gemeldet.
+            // Bei FIX wird in der Hochrechnungs-Logik das Pensum genutzt.
+            decimal? satzBruttoFix = ComputeSatzBruttoForNebenjob(
+                qstEinstellung, svBasesFix.Qst, workedHours: 0, company,
+                pensumPct: emp.EmploymentPercentage);
+            var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom, satzBruttoFix);
             if (qstRuleFix is not null) deductions.Add(qstRuleFix);
 
             var result = BuildResult(employee, emp, company, year, month, periodFrom, periodTo,
                 lohnLines, abzugLines, deductions, totalLohn, svBasesFix,
                 zulagenExtraLines, zulagenExtraTotal, abzuegeExtraLines, abzuegeExtraTotal,
+                lohnposAbzugLines, lohnposAbzugTotal,
                 new SaldoBlock(
                     VormonatHourSaldo:    vormonatHourSaldo,
                     NeuerHourSaldo:       neuerHourSaldoFix,
@@ -1774,6 +2292,7 @@ public class PayrollController : ControllerBase
                     SollStunden:          sollStundenFix,
                     Mehrstunden:          0,
                     AbsenzGutschrift:     absenzGutschrift,
+                    AbsenzBreakdown:      absenzBreakdown,
                     NightHours:           nightHours,
                     NightBonus:           nightBonus,
                     NachtKompStunden:     nachtKompStunden,
@@ -1794,9 +2313,13 @@ public class PayrollController : ControllerBase
                     FeiertagTageSaldoNeu: feiertagTageSaldoNeu,
                     ThirteenthPct:        thirteenthPctForSaldoFix,
                     PrevThirteenth:       prevThirteenthForSaldoFix,
+                    ThirteenthPrevForDisplay:    fix13PrevForDisplay,
+                    ThirteenthAccrualForDisplay: fix13AccrualForDisplay,
+                    ThirteenthPayout:            fix13PayoutForDisplay,
                     FerienKuerzungVorschlag:     kuerzungVorschlag,
-                    FerienKuerzungVorschlagTage: kuerzungVorschlagTage),
-                lohnAssignments, usingDefaultDeductions, periodeFooterText: periodeFooterText);
+                    FerienKuerzungVorschlagTage: kuerzungVorschlagTage,
+                    Basis13ml:            fix13Basis),
+                lohnAssignments, bankAccounts, usingDefaultDeductions, periodeFooterText: periodeFooterText);
             return Ok(result);
         }
       } // end try
@@ -1878,13 +2401,48 @@ public class PayrollController : ControllerBase
         [FromQuery] int month,
         [FromQuery] int companyProfileId)
     {
-        // Berechnung über bestehende Calculate-Logik holen
-        var calcResult = await Calculate(employeeId, year, month, companyProfileId);
-        if (calcResult is not OkObjectResult ok || ok.Value is null)
-            return calcResult;  // Fehler oder NotFound durchreichen
+        // Bei abgeschlossenen / provisorisch abgeschlossenen Perioden: aus dem
+        // eingefrorenen Snapshot regenerieren (deterministische Daten + Datum).
+        // Sonst Live-Berechnung wie bisher.
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId
+                                   && p.Year == year
+                                   && p.Month == month
+                                   && !p.IsTransition);
+        PayrollSnapshot? snapshot = null;
+        if (periode != null)
+        {
+            snapshot = await _db.PayrollSnapshots
+                .FirstOrDefaultAsync(s => s.PayrollPeriodeId == periode.Id
+                                       && s.EmployeeId == employeeId);
+        }
 
-        // Result-Objekt → JSON → JsonElement (der PdfService braucht JsonElement)
-        var json = System.Text.Json.JsonSerializer.SerializeToElement(ok.Value);
+        System.Text.Json.JsonElement json;
+        if (snapshot != null && periode != null
+            && (periode.Status == "abgeschlossen" || periode.Status == "provisorisch_abgeschlossen"))
+        {
+            // Aus Snapshot — eingefrorene Werte. printDate wird auf das
+            // Periode-Abschluss-Datum gesetzt damit alle Belege einer Periode
+            // dasselbe „Erstellt am"-Datum tragen.
+            var node = System.Text.Json.Nodes.JsonNode.Parse(snapshot.SlipJson)!.AsObject();
+            DateTime? frozenDate = periode.Status == "abgeschlossen"
+                ? periode.AbgeschlossenAm
+                : periode.ProvisorischAbgeschlossenAm;
+            if (frozenDate.HasValue)
+            {
+                node["printDate"] = frozenDate.Value.ToLocalTime().ToString("dd.MM.yyyy");
+            }
+            json = System.Text.Json.JsonSerializer.SerializeToElement(node);
+        }
+        else
+        {
+            // Offen oder kein Snapshot → Live-Berechnung wie bisher
+            var calcResult = await Calculate(employeeId, year, month, companyProfileId);
+            if (calcResult is not OkObjectResult ok || ok.Value is null)
+                return calcResult;  // Fehler oder NotFound durchreichen
+            json = System.Text.Json.JsonSerializer.SerializeToElement(ok.Value);
+        }
+
         var pdf = _payrollPdf.Generate(json);
 
         var employee = await _db.Employees.FindAsync(employeeId);
@@ -1914,6 +2472,31 @@ public class PayrollController : ControllerBase
     [HttpPost("confirm")]
     public async Task<IActionResult> ConfirmPayroll([FromBody] ConfirmPayrollDto dto)
     {
+        // 0) Sequenz-Pflicht (Walter-Vorgabe 16.05.2026): sobald der Akonto-Lauf
+        // für diese Periode begonnen wurde, muss er erst AUSBEZAHLT sein, bevor
+        // der Definitivlohn bestätigt werden darf. Sonst wäre die Restzahlungs-
+        // Berechnung (Netto − Akonto) instabil — der Akonto-Betrag könnte sich
+        // ja noch ändern. Backend-Guard ist hier die zweite Verteidigungslinie;
+        // das Frontend versteckt den Bestätigen-Button bereits (#lohnDefinitivLockBanner).
+        //
+        // OFFEN (= Akonto nie gestartet) bleibt erlaubt — Walter kann den
+        // Akonto-Workflow bewusst überspringen und direkt definitiv abrechnen
+        // (z.B. für Vor-Akonto-Perioden oder Filialen ohne Akonto-Termin).
+        var akontoPeriode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == dto.CompanyProfileId
+                                   && p.Year  == dto.Year
+                                   && p.Month == dto.Month);
+        if (akontoPeriode != null
+            && akontoPeriode.AkontoStatus != "AUSBEZAHLT"
+            && akontoPeriode.AkontoStatus != "OFFEN")
+        {
+            return Conflict(new {
+                error = $"Definitivlohn kann erst bestätigt werden, wenn der Akonto-Lauf "
+                      + $"für {dto.Month:00}/{dto.Year} AUSBEZAHLT ist "
+                      + $"(aktueller Akonto-Status: {akontoPeriode.AkontoStatus})."
+            });
+        }
+
         // 1) Snapshot-Schutz: abgeschlossene Periode → kein Update
         var snapshot = await _db.PayrollSnapshots
             .Include(s => s.Periode)
@@ -2095,7 +2678,14 @@ public class PayrollController : ControllerBase
                                    && s.PeriodMonth      == dto.Month
                                    && s.CompanyProfileId == dto.CompanyProfileId);
 
-        // 3) Schutz: abgeschlossene Periode kann nicht wieder eröffnet werden
+        // 3) Schutz: definitiv abgeschlossene Periode kann nicht wieder eröffnet werden.
+        // Bei "provisorisch_abgeschlossen" muss zuerst die Periode via
+        // /api/payroll-perioden/{id}/zurueck-an-gf zurückgegeben werden, dann
+        // ist Reopen einzelner Saldi wieder möglich (durch HR/Admin).
+        if (snapshot?.Periode != null && snapshot.Periode.Status == "abgeschlossen")
+            return Conflict(new { error = "Lohnperiode ist definitiv abgeschlossen. Wieder-Eröffnen nur durch Admin via Lohnlauf-Wiederöffnen." });
+        if (snapshot?.Periode != null && snapshot.Periode.Status == "provisorisch_abgeschlossen")
+            return Conflict(new { error = "Lohnperiode ist provisorisch abgeschlossen — bitte zuerst über HR-Bereich → Lohnlauf an GF zurückgeben." });
         if (snapshot?.IsFinal == true)
             return Conflict(new { error = "Lohnperiode ist abgeschlossen. Wieder-Eröffnen nicht mehr möglich." });
 
@@ -2145,8 +2735,10 @@ public class PayrollController : ControllerBase
             saldo.UpdatedAt = DateTime.UtcNow;
         }
 
-        // 7) Snapshot NICHT löschen — bleibt als Referenz erhalten,
-        //    wird beim nächsten Confirm mit neuen Werten überschrieben.
+        // 7) Snapshot löschen — sonst zählt der MA in loadLohnList weiter als
+        //    "bestätigt" (grüner Haken bleibt). Beim nächsten Confirm wird ein
+        //    neuer Snapshot mit den aktuellen Werten erzeugt.
+        _db.PayrollSnapshots.Remove(snapshot);
 
         await _db.SaveChangesAsync();
         return Ok(new { message = "Lohnzettel wieder eröffnet. Absenzen und Zulagen können erneut bearbeitet werden." });
@@ -2324,43 +2916,93 @@ public class PayrollController : ControllerBase
         EmployeeQuellensteuer? einstellung,
         decimal bruttolohn,
         int companyProfileId,
-        DateOnly periodFrom)
+        DateOnly periodFrom,
+        decimal? satzbestimmenderBrutto = null)
     {
         if (einstellung is null
             || string.IsNullOrEmpty(einstellung.Steuerkanton)
             || string.IsNullOrEmpty(einstellung.TarifCode))
             return null;
 
+        // ── Satzbestimmender Lohn ──────────────────────────────────────────
+        // Reihenfolge:
+        //   1. einstellung.MindestlohnSatzbestimmung (manuell gepflegt; z.B. 4500 CHF
+        //      für Crew). Hat absoluten Vorrang weil bewusst gesetzt.
+        //   2. Vom Aufrufer übergebener Wert (für UTP über Stunden-Hochrechnung
+        //      bzw. FIX/MTP über Pensum-Hochrechnung).
+        //   3. Fallback: der Brutto selbst → keine Hochrechnung.
+        decimal satzBrutto = einstellung.MindestlohnSatzbestimmung
+            ?? satzbestimmenderBrutto
+            ?? bruttolohn;
+        // Schutz: nie unter den IST-Brutto fallen (sonst wäre Steuer < eigentlich
+        // geschuldete; satzbestimmend MUSS ≥ IST-Brutto sein).
+        if (satzBrutto < bruttolohn) satzBrutto = bruttolohn;
+
         decimal qstBetrag;
 
         if (einstellung.Prozentsatz.HasValue)
         {
-            // Manuell überschriebener Prozentsatz
+            // Manuell überschriebener Prozentsatz — direkt auf IST-Brutto.
             qstBetrag = Math.Round(bruttolohn * einstellung.Prozentsatz.Value / 100m, 2);
         }
         else
         {
-            // Dynamisch aus ESTV-Tarifdatei
-            decimal? betrag = _tarifService.GetSteuerBetrag(
+            // Dynamisch aus ESTV-Tarifdatei: Steuersatz wird zum SATZBESTIMMENDEN
+            // Lohn ermittelt, danach auf den IST-Brutto angewendet. So zahlt
+            // ein Stundenlöhner mit 13h/Mt nicht 0% (weil Brutto unter QST-Mindest),
+            // sondern den Satz seines Vollzeit-Äquivalents.
+            decimal? satzPctTarif = _tarifService.GetSteuersatzProzent(
                 einstellung.Steuerkanton,
                 einstellung.TarifCode,
                 einstellung.AnzahlKinder,
                 einstellung.Kirchensteuer,
-                bruttolohn);
-            if (betrag is null || betrag.Value <= 0) return null;
-            qstBetrag = betrag.Value;
+                satzBrutto);
+            if (satzPctTarif is null) return null;
+            qstBetrag = Math.Round(bruttolohn * satzPctTarif.Value / 100m, 2);
+        }
+
+        // ── Kantonaler Mindestbetrag ──────────────────────────────────────
+        // Manche Kantone (z.B. LU) schreiben einen monatlichen Mindestabzug
+        // vor: wenn überhaupt QST anfällt, mindestens X CHF/Monat.
+        // Quelle für LU: steuern.lu.ch — "Der monatliche Mindestabzug
+        // beträgt CHF 13.00".
+        // WICHTIG: Mindestbetrag wird VOR dem "qstBetrag <= 0"-Return angewendet,
+        // damit auch bei sehr niedrigen IST-Brutto (= 0% in der Tarif-Tabelle
+        // bei den ersten Stufen) der Mindestbetrag greift, solange der MA
+        // QST-pflichtig ist (nicht-CH-Nationalität, nicht befreit).
+        var mindest = _tarifService.GetMindestbetrag(einstellung.Steuerkanton);
+        if (mindest.HasValue && qstBetrag < mindest.Value && bruttolohn > 0)
+        {
+            qstBetrag = mindest.Value;
         }
 
         if (qstBetrag <= 0) return null;
 
-        // Satz für Anzeige (best-effort; null wenn kein Tarif)
-        decimal? satzPct = einstellung.Prozentsatz
-            ?? _tarifService.GetSteuersatzProzent(
+        // Satz für Anzeige (best-effort; null wenn kein Tarif). Gilt der
+        // satzbestimmende Brutto, weil der Aufzulisten-Steuersatz auf dem
+        // Lohnzettel der ist, der für die Berechnung verwendet wurde.
+        // Falls Mindestbetrag gegriffen hat, weicht der effektive Satz
+        // (= qstBetrag/bruttolohn) ggf. vom Tarif-Satz ab — dann zeigen
+        // wir den effektiven, damit's auf dem Lohnzettel rechnerisch stimmt.
+        decimal? satzPct;
+        if (einstellung.Prozentsatz.HasValue)
+        {
+            satzPct = einstellung.Prozentsatz;
+        }
+        else if (mindest.HasValue && qstBetrag == mindest.Value && bruttolohn > 0)
+        {
+            // Mindestbetrag aktiv → Satz aus Mindestbetrag/Brutto
+            satzPct = Math.Round(qstBetrag / bruttolohn * 100m, 2);
+        }
+        else
+        {
+            satzPct = _tarifService.GetSteuersatzProzent(
                 einstellung.Steuerkanton,
                 einstellung.TarifCode,
                 einstellung.AnzahlKinder,
                 einstellung.Kirchensteuer,
-                bruttolohn);
+                satzBrutto);
+        }
 
         string qstCode     = einstellung.QstCode ?? $"{einstellung.TarifCode}{einstellung.AnzahlKinder}{(einstellung.Kirchensteuer ? 'Y' : 'N')}";
 
@@ -2390,8 +3032,10 @@ public class PayrollController : ControllerBase
         List<DeductionRule> deductions, decimal totalLohn, SvBases svBases,
         List<object> zulagenExtraLines, decimal zulagenExtraTotal,
         List<object> abzuegeExtraLines, decimal abzuegeExtraTotal,
+        List<object> lohnposAbzugLines, decimal lohnposAbzugTotal,
         SaldoBlock saldo,
         List<EmployeeLohnAssignment> lohnAssignments,
+        List<EmployeeBankAccount> bankAccounts,
         bool usingDefaultDeductions = false,
         string? periodeFooterText = null)
     {
@@ -2446,6 +3090,16 @@ public class PayrollController : ControllerBase
             });
         }
 
+        // ── Lohnpositions-Abzüge (z. B. LGAV) an Total Abzüge anhängen ──
+        // Diese Abzüge sind nicht SV-pflichtig, aber echte Lohnabzüge und
+        // reduzieren daher den Nettolohn (wie AHV/ALV/...). Werden im PDF
+        // im selben Block wie SV-Abzüge gerendert.
+        foreach (var lp in lohnposAbzugLines)
+        {
+            abzugResult.Add(lp);
+        }
+        totalAbzuege -= lohnposAbzugTotal;   // betrag ist negativ → Total wird kleiner
+
         // Schlussresultat: nur Nettolohn und Auszahlungsbetrag werden auf 0.05
         // gerundet. Total Lohn und Total Abzüge bleiben auf 2 Dezimalen.
         decimal nettolohn = Round05(totalLohn + totalAbzuege);
@@ -2456,6 +3110,10 @@ public class PayrollController : ControllerBase
         // Werden als Zeilen in abzuegeExtraLines angefügt und reduzieren
         // damit automatisch den Auszahlungsbetrag.
         var lohnAbtretungResults = new List<object>();
+        // Auszahlungs-Empfänger für die "Auszahlung an"-Sektion am PDF-Ende.
+        // Behörden (Sozialamt/Betreibungsamt) werden hier direkt eingetragen,
+        // MA-Bankkonten kommen nach der auszahlungsbetrag-Berechnung dazu.
+        var auszahlungEmpfaenger = new List<object>();
         decimal verbleibenderNetto = nettolohn;
         foreach (var la in lohnAssignments)
         {
@@ -2483,12 +3141,101 @@ public class PayrollController : ControllerBase
                 bezeichnung  = la.Bezeichnung,
                 betrag       = ueber
             });
+
+            auszahlungEmpfaenger.Add(new {
+                typ      = "BEHOERDE",
+                label    = $"{la.Bezeichnung} an {amtName}",
+                iban     = la.Behoerde?.QrIban ?? la.Behoerde?.Iban,
+                bankName = la.Behoerde?.BankName,
+                referenz = !string.IsNullOrWhiteSpace(la.ZahlungsReferenz)
+                              ? la.ZahlungsReferenz
+                              : la.ReferenzAmt,
+                betrag   = ueber,
+                warning  = string.IsNullOrWhiteSpace(la.Behoerde?.QrIban ?? la.Behoerde?.Iban)
+            });
         }
 
         decimal auszahlungsbetrag = Round05(nettolohn + zulagenExtraTotal - abzuegeExtraTotal);
 
-        // 13. ML: Rückstellung intern auf 2 Dezimalen; Summe ist Saldo-Wert
-        decimal thirteenthMonthly     = saldo.ThirteenthPct > 0 ? Math.Round(totalLohn * saldo.ThirteenthPct / 100m, 2) : 0;
+        // ── Auszahlungs-Empfänger: MA-Bankkonten ──────────────────────────
+        // Verteilt den Auszahlungsbetrag auf 1+ Bankverbindungen des MA.
+        // AufteilungTyp pro Konto:
+        //   FIXBETRAG        → fester CHF-Betrag aus AufteilungWert
+        //   PROZENT          → X % vom Auszahlungsbetrag
+        //   NETTO_ABZUEGLICH → Auszahlungsbetrag minus X CHF
+        //   VOLL (Default)   → Hauptbank bekommt den Rest
+        // Reihenfolge: erst Nicht-Hauptbank-Splits, dann Hauptbank = Rest.
+        if (bankAccounts.Count == 0)
+        {
+            auszahlungEmpfaenger.Add(new {
+                typ      = "BANK",
+                label    = "Mitarbeiter (keine Bankverbindung erfasst)",
+                iban     = (string?)null,
+                bankName = (string?)null,
+                referenz = (string?)null,
+                betrag   = auszahlungsbetrag,
+                warning  = true
+            });
+        }
+        else if (auszahlungsbetrag > 0)
+        {
+            string MaBankLabel(EmployeeBankAccount b)
+            {
+                var maName  = $"{employee.FirstName} {employee.LastName}".Trim();
+                var inhaber = string.IsNullOrWhiteSpace(b.Kontoinhaber) ? maName : b.Kontoinhaber!;
+                return string.IsNullOrWhiteSpace(b.BankName)
+                    ? inhaber
+                    : $"{inhaber} ({b.BankName})";
+            }
+
+            var hauptbank = bankAccounts.FirstOrDefault(b => b.IsHauptbank) ?? bankAccounts.First();
+            var others    = bankAccounts.Where(b => b.Id != hauptbank.Id).ToList();
+            decimal rest  = auszahlungsbetrag;
+
+            foreach (var b in others)
+            {
+                decimal val = Math.Max(0, b.AufteilungWert ?? 0);
+                decimal anteil = (b.AufteilungTyp ?? "VOLL").ToUpperInvariant() switch
+                {
+                    "FIXBETRAG"        => Math.Min(rest, val),
+                    "PROZENT"          => Math.Round(val / 100m * auszahlungsbetrag, 2),
+                    "NETTO_ABZUEGLICH" => Math.Max(0, auszahlungsbetrag - val),
+                    _                  => 0   // VOLL → Hauptbank bekommt es
+                };
+                anteil = Math.Min(anteil, Math.Max(0, rest));
+                if (anteil <= 0) continue;
+
+                auszahlungEmpfaenger.Add(new {
+                    typ      = "BANK",
+                    label    = MaBankLabel(b),
+                    iban     = b.Iban,
+                    bankName = b.BankName,
+                    referenz = b.Zahlungsreferenz,
+                    betrag   = anteil,
+                    warning  = false
+                });
+                rest -= anteil;
+            }
+
+            // Hauptbank bekommt den Rest (oder den ganzen Betrag, wenn keine Splits).
+            if (rest > 0)
+            {
+                auszahlungEmpfaenger.Add(new {
+                    typ      = "BANK",
+                    label    = MaBankLabel(hauptbank),
+                    iban     = hauptbank.Iban,
+                    bankName = hauptbank.BankName,
+                    referenz = hauptbank.Zahlungsreferenz,
+                    betrag   = rest,
+                    warning  = false
+                });
+            }
+        }
+
+        // 13. ML: Rückstellung intern auf 2 Dezimalen; Summe ist Saldo-Wert.
+        // Basis = Summe aller Lohnpositionen mit ZaehltAlsBasis13ml = true
+        // (im Controller via SumByFlag berechnet).
+        decimal thirteenthMonthly     = saldo.ThirteenthPct > 0 ? Math.Round(saldo.Basis13ml * saldo.ThirteenthPct / 100m, 2) : 0;
         decimal thirteenthAccumulated = Math.Round(saldo.PrevThirteenth + thirteenthMonthly, 2);
 
         var monthNames = new[] { "", "Januar", "Februar", "März", "April", "Mai", "Juni",
@@ -2535,11 +3282,23 @@ public class PayrollController : ControllerBase
             lohnAbtretungen     = lohnAbtretungResults,  // für Confirm: bereits_abgezogen aktualisieren
             auszahlungsbetrag,
 
+            // Auszahlungs-Empfänger (für PDF-Sektion am Ende):
+            //   typ = BANK | BEHOERDE
+            //   label, iban, bankName, referenz, betrag, warning (bool)
+            auszahlungEmpfaenger,
+
             // Stunden-Info
             workedHours        = Math.Round(saldo.WorkedHours, 2),
             sollStunden        = Math.Round(saldo.SollStunden, 2),
             mehrstunden        = Math.Round(saldo.Mehrstunden, 2),
             absenzGutschrift   = Math.Round(saldo.AbsenzGutschrift, 2),
+            // Aufschlüsselung der Gutschrift pro AbsenceType — Frontend zeigt
+            // statt "Absenz 42.00" einzeln "Krank 8.40 + Feiertag 33.60 + …"
+            absenzBreakdown    = saldo.AbsenzBreakdown is null
+                                    ? new Dictionary<string, decimal>()
+                                    : saldo.AbsenzBreakdown.ToDictionary(
+                                        kv => kv.Key,
+                                        kv => Math.Round(kv.Value, 2)),
             vormonatHourSaldo  = saldo.VormonatHourSaldo,
             neuerHourSaldo     = saldo.NeuerHourSaldo,
             // Optional: Soll-Berechnungs-Erläuterung (MTP)
@@ -2559,6 +3318,11 @@ public class PayrollController : ControllerBase
             thirteenthMonthly,
             thirteenthAccumulated,
             prevThirteenth     = saldo.PrevThirteenth,
+            // Auszahlungs-Display (gefüllt nur in Auszahlungsmonaten —
+            // Saldi-Sektion zeigt dann Vormonat / Aktuell / Bezogen / 0)
+            thirteenthPayout            = saldo.ThirteenthPayout,
+            thirteenthPrevForDisplay    = saldo.ThirteenthPrevForDisplay,
+            thirteenthAccrualForDisplay = saldo.ThirteenthAccrualForDisplay,
 
             // Modell
             employmentModel = emp.EmploymentModel,
@@ -2683,20 +3447,99 @@ public class PayrollController : ControllerBase
 
     /// <summary>
     /// Bestimmt ob in diesem Monat der angesammelte 13.-ML-Saldo ausbezahlt wird.
-    /// Konfigurierbar pro Firmenprofil (ThirteenthMonthPayoutsPerYear):
-    ///   12 = monatlich (jeden Monat Auszahlung)
-    ///    4 = quartalsweise (Mt 3, 6, 9, 12)
-    ///    2 = halbjährlich  (Mt 6, 12)
-    ///    1 = jährlich      (nur Mt 12)
+    /// Primär aus dem CSV-Feld ThirteenthMonthPayoutMonths (z.B. "6,12" für
+    /// halbjährlich). Falls leer/null, Legacy-Fallback auf den alten
+    /// ThirteenthMonthPayoutsPerYear-Integer.
     /// </summary>
-    private static bool IsThirteenthPayoutMonth(int payoutsPerYear, int month) =>
-        payoutsPerYear switch
+    private static bool IsThirteenthPayoutMonth(CompanyProfile company, int month)
+    {
+        // Primär: CSV-Liste der Auszahlungsmonate
+        if (!string.IsNullOrWhiteSpace(company.ThirteenthMonthPayoutMonths))
+        {
+            foreach (var part in company.ThirteenthMonthPayoutMonths.Split(',',
+                         StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (int.TryParse(part, out var m) && m == month) return true;
+            }
+            return false;
+        }
+        // Legacy-Fallback: alte Anzahl-pro-Jahr-Kodierung
+        return company.ThirteenthMonthPayoutsPerYear switch
         {
             4  => month == 3 || month == 6 || month == 9 || month == 12,
             2  => month == 6 || month == 12,
             1  => month == 12,
             _  => true   // 12 oder unbekannt → immer monatlich
         };
+    }
+
+    /// <summary>
+    /// Ermittelt den satzbestimmenden Bruttolohn für die Quellensteuer nach
+    /// Schweizer ESTV-Wegleitung (Kreisschreiben 45):
+    ///
+    /// Variante A — KEINE Nebenbeschäftigung (Standardfall):
+    ///   Satzbestimmender Lohn = AHV-Lohn (IST-Brutto) → null zurück, damit
+    ///   ComputeQstDeduction den IST-Brutto direkt nimmt.
+    ///
+    /// Variante B — Nebenbeschäftigung gemeldet (qst.WeitereBeschaftigungen):
+    ///   B1) Gesamtpensum bekannt → Brutto × 100/Gesamtpensum
+    ///   B2) Gesamteinkommen bekannt → IST-Brutto + GesamteinkommenWeitereAg
+    ///   B3) Weder Pensum noch Einkommen → Hochrechnung auf 100%:
+    ///        - bei Stundenlöhner: × 180h/IST-Stunden
+    ///        - bei Festlohn: × 100/Pensum
+    /// </summary>
+    private static decimal? ComputeSatzBruttoForNebenjob(
+        EmployeeQuellensteuer? qst,
+        decimal bruttolohn,
+        decimal workedHours,
+        CompanyProfile company,
+        decimal? pensumPct = null)
+    {
+        // Variante A: keine Nebenbeschäftigung → kein Hochrechnen
+        if (qst is null || !qst.WeitereBeschaftigungen)
+            return null;
+
+        // B1: Gesamtpensum aller AGs bekannt
+        if (qst.GesamtpensumWeitereAg.HasValue && qst.GesamtpensumWeitereAg.Value > 0)
+        {
+            // GesamtpensumWeitereAg ist das Pensum bei den ANDEREN AGs.
+            // Eigenes Pensum kommt vom Vertrag oder wird aus Stundenanteil ermittelt.
+            decimal eigenesPensum = pensumPct ?? EstimatePensumFromStunden(workedHours, company);
+            decimal gesamtPensum = eigenesPensum + qst.GesamtpensumWeitereAg.Value;
+            if (gesamtPensum >= 100m) return null; // Vollpensum erreicht → kein Hochrechnen
+            if (eigenesPensum > 0)
+                return Math.Round(bruttolohn * gesamtPensum / eigenesPensum, 2);
+        }
+
+        // B2: Gesamteinkommen aller AGs bekannt
+        if (qst.GesamteinkommenWeitereAg.HasValue && qst.GesamteinkommenWeitereAg.Value > 0)
+        {
+            return Math.Round(bruttolohn + qst.GesamteinkommenWeitereAg.Value, 2);
+        }
+
+        // B3: Hochrechnung auf 100%
+        if (workedHours > 0)
+        {
+            // Stundenlöhner: Umrechnung auf 180h/Monat (ESTV-Vorgabe)
+            return Math.Round(bruttolohn * 180m / workedHours, 2);
+        }
+        if (pensumPct.HasValue && pensumPct.Value > 0 && pensumPct.Value < 100)
+        {
+            // Festlohn: Umrechnung über Pensum
+            return Math.Round(bruttolohn * 100m / pensumPct.Value, 2);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Schätzt das Pensum eines Stundenlöhners aus den IST-Stunden für
+    /// den Monat (gegen Vollzeit 180h gemäss ESTV-Vorgabe).
+    /// </summary>
+    private static decimal EstimatePensumFromStunden(decimal workedHours, CompanyProfile company)
+    {
+        if (workedHours <= 0) return 0;
+        return Math.Min(100m, Math.Round(workedHours / 180m * 100m, 2));
+    }
 
     private static (DateOnly from, DateOnly to) CalcPeriod(int startDay, int year, int month)
     {
@@ -2872,6 +3715,16 @@ public class PayrollController : ControllerBase
         decimal ThirteenthPct,
         decimal PrevThirteenth,
 
+        // ── 13. Monatslohn — Auszahlungs-Details (für Saldi-Anzeige im
+        //    Auszahlungsmonat, damit Walter Vormonat / Aktuell / Bezogen /
+        //    Saldo sehen kann statt nur "alles 0"): ──────────────────────
+        decimal? ThirteenthPrevForDisplay   = null,   // Saldo VOR der Auszahlung
+        decimal? ThirteenthAccrualForDisplay = null,  // aktueller Monatszuwachs
+        decimal? ThirteenthPayout            = null,  // ausbezahlter Betrag
+
+        // ── Absenz-Aufschlüsselung pro AbsenceType (für Anzeige im Lohnzettel) ──
+        Dictionary<string, decimal>? AbsenzBreakdown = null,
+
         // ── Optional: Soll-Berechnungs-Details für Anzeige im Lohnzettel ──
         decimal? SollStundenVoll = null,             // vor Ferien-Reduktion
         decimal? SollFerienReduktion = null,         // GuarH/7 × Ferientage
@@ -2880,7 +3733,11 @@ public class PayrollController : ControllerBase
 
         // ── Optional: Ferien-Kürzungs-Vorschlag (Art. 329b OR) ────────────
         FerienKuerzungResult? FerienKuerzungVorschlag = null,
-        decimal? FerienKuerzungVorschlagTage = null
+        decimal? FerienKuerzungVorschlagTage = null,
+
+        // ── 13.-ML-Basis (für Saldo-Berechnung: Summe aller Lohnpositionen
+        //    mit Flag ZaehltAlsBasis13ml = true; via SumByFlag im Controller) ──
+        decimal Basis13ml = 0
     );
 }
 

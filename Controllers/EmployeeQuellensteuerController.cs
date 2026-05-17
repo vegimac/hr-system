@@ -107,6 +107,17 @@ public class EmployeeQuellensteuerController : ControllerBase
         entry.WohnsitzAusland            = dto.WohnsitzAusland;
         entry.Wohnsitzstaat              = dto.Wohnsitzstaat;
         entry.AdresseAusland             = dto.AdresseAusland;
+
+        // Tarif-relevante Stammdaten (für Anmeldung & Tarifbestimmung).
+        // Sind nicht im MA-Stamm — gehören hier hin, weil sie sich mit
+        // Lebenslagen ändern und über ValidFrom/ValidTo historisiert werden.
+        entry.LivesInKonkubinat          = dto.LivesInKonkubinat;
+        entry.HasJointParentalCare       = dto.HasJointParentalCare;
+        entry.PaysAlimonyAdultChildren   = dto.PaysAlimonyAdultChildren;
+        entry.HasHigherIncomeThanPartner = dto.HasHigherIncomeThanPartner;
+        entry.IsGrenzgaenger             = dto.IsGrenzgaenger;
+        entry.IsWochenaufenthalter       = dto.IsWochenaufenthalter;
+
         entry.UpdatedAt                  = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
 
         await _db.SaveChangesAsync();

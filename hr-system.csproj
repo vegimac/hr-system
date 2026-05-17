@@ -5,6 +5,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>hr_system</RootNamespace>
+    <!-- publish/, bin/, obj/ NIE als Source aufnehmen.
+         Sonst frisst sich `dotnet publish -o ./publish` rekursiv selbst auf. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);publish/**;bin/**;obj/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,6 +32,15 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="itext7" Version="8.0.5" />
     <PackageReference Include="itext7.bouncy-castle-adapter" Version="8.0.5" />
+    <!-- ImageSharp 2.x ist Apache-2.0-lizenziert (v3+ ist eine Split-License,
+         die für kommerziellen Einsatz eine bezahlte Lizenz braucht). -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="2.1.10" />
+    <!-- NPOI: Excel-Lese-Library für Mirus-Lohnabrechnungs-XLS-Import.
+         Liest .xls und .xlsx — wir brauchen .xls (Mirus-Export-Format). -->
+    <PackageReference Include="NPOI" Version="2.7.1" />
+    <!-- MailKit/MimeKit: SMTP-Versand für MA-Postfach-Benachrichtigungen
+         (Lohnzettel-Bereit, eingehende Dokumente). Stable, Microsoft-empfohlen. -->
+    <PackageReference Include="MailKit" Version="4.7.1.1" />
   </ItemGroup>
 
 </Project>

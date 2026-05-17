@@ -26,7 +26,19 @@ public class EmployeeFamilyMembersController : ControllerBase
             .ThenBy(m => m.DateOfBirth)
             .ToListAsync();
 
-        return Ok(members);
+        // Adress-IDs einsammeln und in einem Rutsch laden — damit das Frontend
+        // die abweichende Adresse als Badge / im Modal anzeigen kann.
+        var altIds = members.Where(m => m.AlternativeAddressId.HasValue)
+                            .Select(m => m.AlternativeAddressId!.Value)
+                            .Distinct()
+                            .ToList();
+        var altAddrs = altIds.Count == 0
+            ? new Dictionary<int, EmployeeAddress>()
+            : await _context.EmployeeAddresses
+                .Where(a => altIds.Contains(a.Id))
+                .ToDictionaryAsync(a => a.Id);
+
+        return Ok(members.Select(m => ProjectMember(m, altAddrs.GetValueOrDefault(m.AlternativeAddressId ?? 0))));
     }
 
     // GET /api/employees/{employeeId}/family/{id}
@@ -37,8 +49,54 @@ public class EmployeeFamilyMembersController : ControllerBase
             .FirstOrDefaultAsync(m => m.Id == id && m.EmployeeId == employeeId);
 
         if (member == null) return NotFound();
-        return Ok(member);
+        EmployeeAddress? alt = null;
+        if (member.AlternativeAddressId.HasValue)
+            alt = await _context.EmployeeAddresses.FirstOrDefaultAsync(a => a.Id == member.AlternativeAddressId.Value);
+        return Ok(ProjectMember(member, alt));
     }
+
+    /// <summary>
+    /// Projektion: Member-Felder (alle) + zusätzlich altAddress mit den
+    /// wichtigsten Adress-Feldern für die Anzeige im Frontend.
+    /// </summary>
+    private static object ProjectMember(EmployeeFamilyMember m, EmployeeAddress? alt) => new
+    {
+        m.Id,
+        m.EmployeeId,
+        m.MemberType,
+        m.Gender,
+        m.FamilyStatus,
+        m.LastName,
+        m.MaidenName,
+        m.FirstName,
+        m.SocialSecurityNumber,
+        m.LivesInSwitzerland,
+        m.DateOfBirth,
+        m.DateOfDeath,
+        m.Allowance1Until,
+        m.Allowance2Until,
+        m.Allowance3Until,
+        m.AlternativeAddressId,
+        m.QstDeductibleFrom,
+        m.QstDeductibleUntil,
+        m.PermitTypeId,
+        m.PermitExpiryDate,
+        m.ZemisNumber,
+        m.NationalityId,
+        m.CreatedAt,
+        m.UpdatedAt,
+        alternativeAddress = alt == null ? null : new {
+            alt.Id,
+            alt.Description,
+            alt.Street,
+            alt.Street2,
+            alt.PoBox,
+            alt.ZipCode,
+            alt.City,
+            alt.Canton,
+            alt.Country,
+        }
+    };
 
     // POST /api/employees/{employeeId}/family
     [HttpPost]
@@ -47,6 +105,10 @@ public class EmployeeFamilyMembersController : ControllerBase
         member.EmployeeId = employeeId;
         member.CreatedAt = DateTime.UtcNow;
         member.UpdatedAt = DateTime.UtcNow;
+
+        // AlternativeAddressId nur akzeptieren, wenn die Zusatzadresse
+        // tatsächlich zum gleichen MA gehört (Schutz vor Cross-MA-IDs).
+        member.AlternativeAddressId = await ValidateAlternativeAddressAsync(employeeId, member.AlternativeAddressId);
 
         _context.EmployeeFamilyMembers.Add(member);
         await _context.SaveChangesAsync();
@@ -76,12 +138,29 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.Allowance1Until      = member.Allowance1Until;
         existing.Allowance2Until      = member.Allowance2Until;
         existing.Allowance3Until      = member.Allowance3Until;
+        existing.AlternativeAddressId = await ValidateAlternativeAddressAsync(employeeId, member.AlternativeAddressId);
         existing.QstDeductibleFrom    = member.QstDeductibleFrom;
         existing.QstDeductibleUntil   = member.QstDeductibleUntil;
+        existing.PermitTypeId         = member.PermitTypeId;
+        existing.PermitExpiryDate     = member.PermitExpiryDate;
+        existing.ZemisNumber          = string.IsNullOrWhiteSpace(member.ZemisNumber) ? null : member.ZemisNumber.Trim();
+        existing.NationalityId        = member.NationalityId;
         existing.UpdatedAt            = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
         return Ok(existing);
+    }
+
+    /// <summary>
+    /// Schutz: nimmt AlternativeAddressId nur an, wenn die referenzierte
+    /// Zusatzadresse tatsächlich zum selben MA gehört. Sonst NULL.
+    /// </summary>
+    private async Task<int?> ValidateAlternativeAddressAsync(int employeeId, int? altId)
+    {
+        if (!altId.HasValue) return null;
+        var ok = await _context.EmployeeAddresses
+            .AnyAsync(a => a.Id == altId.Value && a.EmployeeId == employeeId);
+        return ok ? altId : null;
     }
 
     // DELETE /api/employees/{employeeId}/family/{id}

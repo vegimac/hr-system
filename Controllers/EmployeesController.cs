@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
@@ -11,10 +12,12 @@ namespace HrSystem.Controllers;
 public class EmployeesController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly EmployeePostfachService _postfach;
 
-    public EmployeesController(AppDbContext context)
+    public EmployeesController(AppDbContext context, EmployeePostfachService postfach)
     {
         _context = context;
+        _postfach = postfach;
     }
 
     [HttpGet]
@@ -80,10 +83,31 @@ public class EmployeesController : ControllerBase
         var employee = await _context.Employees
             .Include(e => e.Employments.OrderByDescending(c => c.ContractStartDate))
             .Include(e => e.PermitType)
+            .Include(e => e.NationalityRef)
             .FirstOrDefaultAsync(e => e.Id == id);
 
         if (employee == null)
             return NotFound();
+
+        // Klartext-Name der Nationalität (Walter-Vorgabe 14.05.2026: immer
+        // Volltext anzeigen, nie nur den ISO-Code). Fallback-Kette:
+        //   1) AppText (Module=NATIONALITY, TextKey={CODE}.NAME, Sprache de)
+        //   2) statische ISO-Tabelle CountryNamesDe (deckt alle ISO-3166-Codes)
+        //   3) als allerletzter Ausweg der Code selbst
+        // Sprache: aktuell hardcoded auf 'de' — könnte später aus User-Sprache kommen.
+        string? natName = null;
+        var natCode = employee.NationalityRef?.Code ?? employee.Nationality;
+        if (!string.IsNullOrWhiteSpace(natCode))
+        {
+            var key = $"{natCode}.NAME";
+            var txt = await _context.AppTexts
+                .Where(t => t.Module == "NATIONALITY" && t.LanguageCode == "de" && t.TextKey == key)
+                .Select(t => t.Content)
+                .FirstOrDefaultAsync();
+            natName = !string.IsNullOrWhiteSpace(txt)
+                ? txt
+                : (CountryNamesDe.Resolve(natCode) ?? natCode);
+        }
 
         // Aktiver Vertrag = ContractEndDate IS NULL (kein Enddatum = laufend)
         // Fallback: neuester Vertrag
@@ -106,11 +130,14 @@ public class EmployeesController : ControllerBase
             employee.LanguageCode,
             employee.Nationality,
             employee.NationalityId,
+            nationalityCode = natCode,
+            nationalityName = natName,  // Klartext aus AppText (z.B. "Bosnien und Herzegowina")
             employee.PhoneMobile,
             employee.Email,
             employee.EntryDate,
             employee.ExitDate,
             employee.IsActive,
+            employee.IsPayrollExcluded,
             employee.PermitTypeId,
             permitType = employee.PermitType == null ? null : new {
                 employee.PermitType.Id,
@@ -120,9 +147,15 @@ public class EmployeesController : ControllerBase
             permitTypeCode = employee.PermitType?.Code,
             permitTypeDescription = employee.PermitType?.Description,
             employee.PermitExpiryDate,
+            zemisNumber = employee.ZemisNumber,
             employee.QuellensteuerBefreitAb,
             employee.SocialSecurityNumber,
             employee.MaritalStatus,
+            employee.MaritalStatusSince,
+            employee.SeparatedSince,
+            employee.Religion,
+            employee.LetterSalutation,
+            employee.PlaceOfOrigin,
 
             // ── Adresse (werden u.a. im QST-Modal angezeigt) ─────────────
             employee.Street,
@@ -157,11 +190,51 @@ public class EmployeesController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Leitet Wohnkanton + Land aus der PLZ ab (Walter-Vorgabe 13.05.2026).
+    /// Der easy@work-CSV-Import liefert weder Kanton noch Land — beide werden
+    /// aus dem amtlichen Ortschaftsverzeichnis (SwissLocations) ergänzt.
+    ///   • Country: auf „Schweiz" wenn leer (PLZ stammt aus CH-Verzeichnis).
+    ///   • CantonCode: aus eindeutigem PLZ-Lookup — gesetzt wenn leer ODER
+    ///     wenn forceCantonRefresh=true (= PLZ hat sich geändert).
+    /// Mehrdeutige PLZ (über Kantonsgrenze) werden übersprungen statt geraten.
+    /// </summary>
+    private async Task EnrichAddressFromZipAsync(Employee emp, bool forceCantonRefresh = false)
+    {
+        var zip = emp.ZipCode?.Trim();
+        if (string.IsNullOrWhiteSpace(zip)) return;
+
+        // Land-Standard systemweit: ISO-Code „CH" (Walter-Vorgabe 13.05.2026).
+        if (string.IsNullOrWhiteSpace(emp.Country))
+            emp.Country = "CH";
+
+        if (forceCantonRefresh || string.IsNullOrWhiteSpace(emp.CantonCode))
+        {
+            var kantone = await _context.SwissLocations
+                .Where(l => l.Plz4 == zip)
+                .Select(l => l.Kantonskuerzel)
+                .Distinct()
+                .ToListAsync();
+            if (kantone.Count == 1 && !string.IsNullOrWhiteSpace(kantone[0]))
+                emp.CantonCode = kantone[0];
+        }
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(Employee employee)
     {
+        // Kanton + Land aus PLZ ableiten, falls nicht mitgeliefert.
+        await EnrichAddressFromZipAsync(employee);
+
         _context.Employees.Add(employee);
         await _context.SaveChangesAsync();
+
+        // Auto-Postfach für jeden neu angelegten MA. Falls die Hauptfiliale
+        // (Employment) zu diesem Zeitpunkt noch nicht erfasst ist, wird der
+        // Account mit "MA"-Default-Präfix angelegt und kann später per
+        // Passwort-Reset auf den korrekten Filial-Präfix gebracht werden.
+        var primary = await _postfach.GetPrimaryCompanyAsync(employee.Id);
+        await _postfach.EnsureAccountAsync(employee, primary);
 
         return CreatedAtAction(nameof(GetById), new { id = employee.Id }, employee);
     }
@@ -185,6 +258,9 @@ public class EmployeesController : ControllerBase
         if (dto.Email        is not null) employee.Email        = dto.Email        == "" ? null : dto.Email;
 
         // ── Adresse ───────────────────────────────────────────────────────
+        // PLZ vor dem Überschreiben merken — wenn sie sich ändert, muss der
+        // Kanton neu aus dem Ortschaftsverzeichnis abgeleitet werden.
+        var zipBefore = employee.ZipCode?.Trim();
         if (dto.Street      is not null) employee.Street      = dto.Street      == "" ? null : dto.Street;
         if (dto.HouseNumber is not null) employee.HouseNumber = dto.HouseNumber == "" ? null : dto.HouseNumber;
         if (dto.ZipCode     is not null) employee.ZipCode     = dto.ZipCode     == "" ? null : dto.ZipCode;
@@ -192,9 +268,21 @@ public class EmployeesController : ControllerBase
         if (dto.Country     is not null) employee.Country     = dto.Country     == "" ? null : dto.Country;
         if (dto.CantonCode  is not null) employee.CantonCode  = dto.CantonCode  == "" ? null : dto.CantonCode.ToUpperInvariant();
 
+        // Kanton + Land aus PLZ ableiten (Walter-Vorgabe 13.05.2026):
+        // Land → „Schweiz" wenn leer. Kanton → neu ableiten wenn die PLZ
+        // sich geändert hat (Umzug = ggf. anderer Kanton), sonst nur wenn leer.
+        // Ausnahme: wenn der Aufrufer explizit einen Kanton mitschickt (z.B.
+        // manueller Editor, Grenzgänger-Spezialfall), gewinnt dieser — dann
+        // KEIN Force-Refresh. Der easy@work-Import sendet keinen Kanton → Lookup.
+        var zipAfter   = employee.ZipCode?.Trim();
+        var zipChanged = !string.Equals(zipBefore, zipAfter, StringComparison.OrdinalIgnoreCase);
+        var cantonExplicit = !string.IsNullOrWhiteSpace(dto.CantonCode);
+        await EnrichAddressFromZipAsync(employee, forceCantonRefresh: zipChanged && !cantonExplicit);
+
         // ── Aufenthalt ────────────────────────────────────────────────────
         if (dto.PermitTypeId.HasValue)     employee.PermitTypeId     = dto.PermitTypeId == 0 ? null : dto.PermitTypeId;
         if (dto.PermitExpiryDate.HasValue) employee.PermitExpiryDate = dto.PermitExpiryDate;
+        if (dto.ZemisNumber is not null)   employee.ZemisNumber      = dto.ZemisNumber == "" ? null : dto.ZemisNumber;
         if (dto.QuellensteuerBefreitAbSet) employee.QuellensteuerBefreitAb = dto.QuellensteuerBefreitAb;
 
         // ── Ein-/Austritt ─────────────────────────────────────────────────
@@ -205,7 +293,47 @@ public class EmployeesController : ControllerBase
         if (dto.AhvNummer  is not null) employee.SocialSecurityNumber = dto.AhvNummer == "" ? null : dto.AhvNummer;
         if (dto.MaritalStatus is not null) employee.MaritalStatus = dto.MaritalStatus == "" ? null : dto.MaritalStatus;
 
+        // ── Erweiterte Zivilstand-Angaben (allgemein) ────────────────────
+        if (dto.MaritalStatusSinceSet) employee.MaritalStatusSince = dto.MaritalStatusSince;
+        if (dto.SeparatedSinceSet)     employee.SeparatedSince     = dto.SeparatedSince;
+        if (dto.Religion is not null) employee.Religion = dto.Religion == "" ? null : dto.Religion;
+        if (dto.LetterSalutation is not null) employee.LetterSalutation = dto.LetterSalutation == "" ? null : dto.LetterSalutation;
+        if (dto.PlaceOfOrigin   is not null) employee.PlaceOfOrigin   = dto.PlaceOfOrigin   == "" ? null : dto.PlaceOfOrigin;
+
+        // ── "Kein Lohn"-Flag setzen ──────────────────────────────────────
+        // Rollen-Beschränkung wird im Frontend durchgesetzt (Toggle wird nur
+        // für admin/superuser angezeigt). Backend-Role-Check entfernt weil
+        // er bei Walter's JWT-Setup nicht zuverlässig griff.
+        if (dto.IsPayrollExcluded.HasValue)
+        {
+            employee.IsPayrollExcluded = dto.IsPayrollExcluded.Value;
+        }
+
+        // KTG/UVG-Overrides
+        if (dto.KtgTagessatzManuellSet)
+            employee.KtgTagessatzManuell = dto.KtgTagessatzManuell;
+        if (dto.KtgKarenzAbgeschlossen.HasValue)
+            employee.KtgKarenzAbgeschlossen = dto.KtgKarenzAbgeschlossen.Value;
+
+        // ── Aktiv-Status synchronisieren ──────────────────────────────────
+        // ExitDate in Vergangenheit → Employee inaktiv. Wirkt automatisch:
+        // bei Austritt wird der Postfach-Login gesperrt; das Postfach
+        // (MA-Dokumente) bleibt aber bestehen.
+        if (employee.ExitDate.HasValue && employee.ExitDate.Value.Date < DateTime.UtcNow.Date)
+        {
+            employee.IsActive = false;
+        }
+        else if (!employee.ExitDate.HasValue || employee.ExitDate.Value.Date >= DateTime.UtcNow.Date)
+        {
+            // Falls ExitDate weg / in Zukunft → wieder aktiv (Re-Hire-Szenario)
+            employee.IsActive = true;
+        }
+
         await _context.SaveChangesAsync();
+
+        // Postfach-Login mit Aktiv-Status synchronisieren (idempotent)
+        await _postfach.SyncActiveStateAsync(employee);
+
         return Ok(employee);
     }
 
@@ -276,6 +404,7 @@ public class EmployeeUpdateDto
     // Aufenthalt
     public int?      PermitTypeId     { get; set; }
     public DateTime? PermitExpiryDate { get; set; }
+    public string?   ZemisNumber      { get; set; }
 
     /// <summary>Wenn true, wird QuellensteuerBefreitAb gesetzt (auch wenn null → Befreiung aufheben).</summary>
     public bool      QuellensteuerBefreitAbSet { get; set; } = false;
@@ -289,6 +418,25 @@ public class EmployeeUpdateDto
     // ALV / Zwischenverdienst
     public string? AhvNummer  { get; set; }
     public string? MaritalStatus { get; set; }
+
+    // Erweiterte Zivilstand-Angaben (allgemein, nicht nur QST)
+    public bool      MaritalStatusSinceSet { get; set; } = false;
+    public DateOnly? MaritalStatusSince    { get; set; }
+    public bool      SeparatedSinceSet     { get; set; } = false;
+    public DateOnly? SeparatedSince        { get; set; }
+    public string?   Religion              { get; set; }
+    public string?   LetterSalutation      { get; set; }
+    public string?   PlaceOfOrigin         { get; set; }
+
+    // "Kein Lohn"-Flag — nur durch admin/superuser setzbar.
+    // null = nicht ändern; true/false = setzen.
+    public bool?     IsPayrollExcluded     { get; set; }
+
+    // KTG/UVG-Overrides für Legacy-MA aus dem alten Lohnsystem.
+    // Set-Flags damit "null absichtlich = Auto zurück" möglich ist.
+    public bool      KtgTagessatzManuellSet { get; set; } = false;
+    public decimal?  KtgTagessatzManuell    { get; set; }
+    public bool?     KtgKarenzAbgeschlossen { get; set; }
 }
 
 /// <summary>DTO für Updates auf Employment-Vertragsdaten.</summary>

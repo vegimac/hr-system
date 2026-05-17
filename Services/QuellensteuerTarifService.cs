@@ -63,6 +63,27 @@ public class QuellensteuerTarifService
         return Math.Round(bruttolohnCHF * bp / 10000m, 2, MidpointRounding.AwayFromZero);
     }
 
+    /// <summary>
+    /// Kantonaler Mindestbetrag der monatlichen Quellensteuer.
+    /// Quelle: jeweilige Kantons-Wegleitung. Wenn QST überhaupt anfällt,
+    /// muss mindestens dieser Betrag abgezogen werden.
+    ///
+    /// Aktuell hinterlegt:
+    ///   LU — CHF 13.00/Monat (steuern.lu.ch: "Der monatliche Mindestabzug
+    ///        beträgt CHF 13.00")
+    ///
+    /// Andere Kantone: hier ergänzen sobald wir die offizielle Regel kennen.
+    /// Walter: bitte beim Test in jedem Kanton einmal mit Mirus vergleichen.
+    /// </summary>
+    public decimal? GetMindestbetrag(string kanton)
+    {
+        return kanton?.Trim().ToUpperInvariant() switch
+        {
+            "LU" => 13.00m,
+            _    => null
+        };
+    }
+
     /// <summary>Gibt alle verfügbaren Kantone zurück.</summary>
     public IReadOnlyList<string> GetVerfuegbareKantone(int? jahr = null)
     {

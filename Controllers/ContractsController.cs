@@ -121,30 +121,63 @@ public class ContractsController : ControllerBase
         if (employee == null) return BadRequest("Employee not found.");
 
         var checkDate = employment.ContractStartDate;
-        var educationHistory = await _context.EmployeeEducationHistories
-            .Include(eh => eh.EducationLevel)
-            .Where(eh => eh.EmployeeId == employee.Id && eh.IsActive
-                      && eh.ValidFrom <= checkDate && (eh.ValidTo == null || eh.ValidTo >= checkDate))
-            .OrderByDescending(eh => eh.ValidFrom)
-            .FirstOrDefaultAsync();
+        // Walter-Architektur: EducationLevelCode kommt vom Vertrag selbst.
+        // Falls leer (Alt-Vertrag vor der Migration) → auf alte EmployeeEducationHistory
+        // zurückfallen, damit historische PDFs nicht plötzlich „NOT_CHECKED" zeigen.
+        string? educationLevelCode = employment.EducationLevelCode;
+        int? educationLevelId = null;
+        if (!string.IsNullOrWhiteSpace(educationLevelCode))
+        {
+            educationLevelId = await _context.EducationLevels
+                .Where(el => el.Code == educationLevelCode && el.IsActive)
+                .Select(el => (int?)el.Id)
+                .FirstOrDefaultAsync();
+        }
+        if (educationLevelId == null)
+        {
+            var educationHistory = await _context.EmployeeEducationHistories
+                .Include(eh => eh.EducationLevel)
+                .Where(eh => eh.EmployeeId == employee.Id && eh.IsActive
+                          && eh.ValidFrom <= checkDate && (eh.ValidTo == null || eh.ValidTo >= checkDate))
+                .OrderByDescending(eh => eh.ValidFrom)
+                .FirstOrDefaultAsync();
+            if (educationHistory?.EducationLevel != null)
+            {
+                educationLevelCode ??= educationHistory.EducationLevel.Code;
+                educationLevelId    = educationHistory.EducationLevelId;
+            }
+        }
 
-        string? educationLevelCode = null;
         decimal? minimumWage = null, currentWage = null, difference = null;
         string complianceStatus = "NOT_CHECKED";
         string? warningMessage = null;
 
-        if (educationHistory?.EducationLevel != null && !string.IsNullOrWhiteSpace(employment.JobTitle))
+        if (educationLevelId.HasValue && !string.IsNullOrWhiteSpace(employment.JobTitle))
         {
-            educationLevelCode = educationHistory.EducationLevel.Code;
             var salaryType2 = employment.SalaryType ?? GetSalaryType(employment.EmploymentModel);
-            var rule = await _context.MinimumWageRulesNew
+
+            // Alter zum Vertrags-Stichtag (für altersabhängige Regeln, z.B. unter 18)
+            int? ageAtCheck = null;
+            if (employee.DateOfBirth.HasValue)
+            {
+                var bd = employee.DateOfBirth.Value;
+                int age = checkDate.Year - bd.Year;
+                if (checkDate < new DateTime(checkDate.Year, bd.Month, bd.Day)) age--;
+                ageAtCheck = age;
+            }
+
+            var candidates = await _context.MinimumWageRulesNew
                 .Where(r => r.IsActive && r.JobGroupCode == employment.JobTitle
                          && r.EmploymentModelCode == MapEmploymentModel(employment.EmploymentModel)
-                         && r.EducationLevelId == educationHistory.EducationLevelId
+                         && r.EducationLevelId == educationLevelId
                          && r.SalaryType == salaryType2
-                         && r.ValidFrom <= checkDate && (r.ValidTo == null || r.ValidTo >= checkDate))
-                .OrderByDescending(r => r.ValidFrom)
-                .FirstOrDefaultAsync();
+                         && r.ValidFrom <= checkDate && (r.ValidTo == null || r.ValidTo >= checkDate)
+                         && (r.AgeMax == null
+                             || (ageAtCheck != null && ageAtCheck <= r.AgeMax)))
+                .OrderBy(r => r.AgeMax == null ? int.MaxValue : r.AgeMax)   // NULLS LAST
+                .ThenByDescending(r => r.ValidFrom)
+                .ToListAsync();
+            var rule = candidates.FirstOrDefault();
 
             if (rule != null)
             {
@@ -169,10 +202,14 @@ public class ContractsController : ControllerBase
         });
     }
 
+    // 1:1-Mapping (Mindestlohn-DB nutzt seit der Migration die gleichen Codes wie
+    // im Frontend: UTP / MTP / FIX / FIX-M). Legacy-Werte trotzdem unterstützen.
     private static string MapEmploymentModel(string? model) =>
         (model ?? "").ToUpperInvariant() switch
         {
-            "UTP" => "PARTTIME", "MTP" => "MTP", "FIX" => "FULLTIME", "FIX-M" => "FIX-M", _ => "PARTTIME"
+            "UTP" => "UTP", "MTP" => "MTP", "FIX" => "FIX", "FIX-M" => "FIX-M",
+            "PARTTIME" => "UTP", "FULLTIME" => "FIX", "FLEX" => "UTP",
+            _ => "UTP"
         };
 
     private static string GetSalaryType(string? m) =>

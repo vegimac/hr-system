@@ -20,6 +20,24 @@ public class CompanyProfile
     public string? City { get; set; }
     public string? Country { get; set; }
 
+    /// <summary>
+    /// Standort-Kanton der Filiale (2-Zeichen-Code: LU, AG, BE, …).
+    /// Massgeblich für die Familienzulagen-Berechnung (FAK richtet sich
+    /// nach Betriebsstandort, NICHT nach Wohnort des MA wie die QST).
+    /// Optional — wird im Filial-Edit-Modal gepflegt und kann via
+    /// PLZ-Lookup vorgeschlagen werden.
+    /// </summary>
+    [Column("kanton_code")]
+    public string? KantonCode { get; set; }
+
+    /// <summary>
+    /// Präfix für das Initial-Passwort der Mitarbeiter-Postfach-Accounts
+    /// dieser Filiale. Typisch 2 Zeichen (z.B. "Su" für Sursee).
+    /// Initial-Passwort = LoginPasswordPrefix + EmployeeNumber.
+    /// </summary>
+    [Column("login_password_prefix")]
+    public string? LoginPasswordPrefix { get; set; }
+
     public string? Phone { get; set; }
     public string? Email { get; set; }
 
@@ -58,14 +76,23 @@ public class CompanyProfile
     public string? NightEndTime   { get; set; } = "07:00";
 
     /// <summary>
-    /// Anzahl 13.-ML-Auszahlungen pro Jahr.
-    ///   12 = monatlich (Default)
-    ///    4 = quartalsweise (Auszahlung in den Monaten 3, 6, 9, 12)
-    ///    2 = halbjährlich  (Auszahlung in den Monaten 6, 12)
-    ///    1 = jährlich      (Auszahlung nur im Dezember)
-    /// Wirkt für FIX/FIX-M/MTP. UTP wird immer monatlich ausbezahlt.
+    /// Legacy: Anzahl 13.-ML-Auszahlungen pro Jahr. Bleibt für Rückwärts-
+    /// Kompatibilität liegen; primär gilt jetzt ThirteenthMonthPayoutMonths.
     /// </summary>
     public int ThirteenthMonthPayoutsPerYear { get; set; } = 12;
+
+    /// <summary>
+    /// Auszahlungsmonate des 13. Monatslohns als CSV-String, z.B. "6,12"
+    /// oder "1,2,3,4,5,6,7,8,9,10,11,12" für monatlich. Definiert in
+    /// welchen Monaten der akkumulierte 13.-ML-Saldo ausbezahlt wird.
+    /// Wirkt für FIX/FIX-M/MTP. UTP wird immer monatlich abgerechnet.
+    /// Auszahlungs-Logik unterscheidet sich zwischen den Modellen:
+    ///   • MTP    → Auszahlung = nur prevThirteenth (Saldo bis Vormonat),
+    ///              aktueller Monat geht in nächste Periode
+    ///   • FIX/FIX-M → Auszahlung = prevThirteenth + currentAccrual
+    ///                 (inkl. aktueller Monat)
+    /// </summary>
+    public string? ThirteenthMonthPayoutMonths { get; set; }
 
     /// <summary>
     /// Wenn true: bei UTP- und MTP-Mitarbeitenden wird im Dezember-Lohnlauf
@@ -76,7 +103,44 @@ public class CompanyProfile
     /// </summary>
     public bool AutoFerienGeldAuszahlungDezember { get; set; } = true;
 
+    /// <summary>
+    /// Lohnausweis Box F (Form 11 dfe): "Unentgeltliche Beförderung
+    /// zwischen Wohn- und Arbeitsort". Bei McDonald's typischerweise false
+    /// (kein Werks-Bus).
+    /// </summary>
+    public bool LohnausweisBoxFFreierTransport { get; set; } = false;
+
+    /// <summary>
+    /// Lohnausweis Box G: "Kantinenverpflegung / Lunch-Checks". TRUE wenn
+    /// MA unentgeltlich Verpflegung erhalten. Bei Schaub Restaurants
+    /// false, weil die Crew 50% des Crew-Meal-Preises bezahlt — keine
+    /// unentgeltliche Leistung im Sinn des Lohnausweises.
+    /// </summary>
+    public bool LohnausweisBoxGKantineGratis { get; set; } = false;
+
+    /// <summary>
+    /// Lohnausweis Position 2.1 Verpflegung/Unterkunft (Geldwert pro
+    /// Monat in CHF). Bei korrekter 50%-Beteiligung der MA = 0; falls
+    /// eine Filiale Standard-Restbetrag deklariert (über ESTV-Pauschale
+    /// von CHF 645/Monat hinaus), hier eintragen.
+    /// </summary>
+    public decimal? LohnausweisPos21VerpflegungMonat { get; set; }
+
     public bool IsActive { get; set; } = true;
+
+    // ── Bankverbindung der Filiale (Auftraggeber-Konto für DTA / Lohnlauf) ──
+    /// <summary>
+    /// IBAN des Filial-Lohnkontos. Wird beim DTA (pain.001) als Auftraggeber-
+    /// Konto verwendet — von hier geht der Sammelauftrag an die Hausbank,
+    /// von dort werden alle MA-Löhne ausbezahlt.
+    /// </summary>
+    public string? Iban { get; set; }
+
+    /// <summary>BIC der Filial-Hausbank (z.B. POFICHBEXXX für PostFinance, RAIFCH22XXX für Raiffeisen).</summary>
+    public string? Bic { get; set; }
+
+    /// <summary>Name der Hausbank (z.B. "PostFinance AG", "Raiffeisenbank Sursee"). Optional, automatisch via IID-Lookup gefüllt.</summary>
+    public string? BankName { get; set; }
 
     // ── Zwischenverdienst / Behörden ─────────────────────────────────────────
     /// <summary>BUR-Nummer (Betriebseinheitenregister), Format CH-XXX.X.XXX.XXX-X</summary>
@@ -87,6 +151,14 @@ public class CompanyProfile
 
     /// <summary>NOGA-Branchen-Code (2–5 Stellen)</summary>
     public string? BranchenCode { get; set; }
+
+    /// <summary>
+    /// SSL-Nummern der Filiale. Eine SSL-Nummer pro Kanton, in dem die
+    /// Filiale quellensteuerpflichtige Mitarbeitende beschäftigt — die
+    /// Nummer wird jeweils vom kantonalen Steueramt vergeben und ist
+    /// kanton- UND filialspezifisch (siehe <see cref="CompanyProfileSsl"/>).
+    /// </summary>
+    public List<CompanyProfileSsl> SslNummern { get; set; } = new();
 
     /// <summary>Name und Nummer der AHV-Ausgleichskasse</summary>
     public string? AhvKasse { get; set; }
@@ -156,6 +228,23 @@ public class CompanyProfile
     /// und alle UTP. Default 49.50 CHF.
     /// </summary>
     public decimal LgavBeitragReduziert { get; set; } = 49.5m;
+
+    // ── Akonto-Lohn ────────────────────────────────────────────────────────
+    /// <summary>
+    /// Akonto-Prozentsatz für FIX/FIX-M (Akonto-Lohn-Modell). Das Akonto für
+    /// FIX/FIX-M = AkontoProzentFix % des voraussichtlich ausbezahlten
+    /// Monatslohns. Default 80 %, pro Filiale im Einstellungen-Tab änderbar.
+    /// Siehe AKONTO-LOHN-PLAN.md, Abschnitt 2.2 / 4.4.
+    /// </summary>
+    public decimal AkontoProzentFix { get; set; } = 80m;
+
+    /// <summary>
+    /// Akonto-Prozentsatz für UTP/MTP (Walter-Vorgabe 16.05.2026, Regel 5/6).
+    /// Wird angewendet auf (gestempelte Stunden × Rate + Ferien-Pott − SV-Abzüge).
+    /// Default 100 % = voller Anspruch wird ausbezahlt. Konservativer Wert (z.B.
+    /// 95 %) baut einen Sicherheitspuffer falls Stempelzeiten noch korrigiert werden.
+    /// </summary>
+    public decimal AkontoProzentHourly { get; set; } = 100m;
 
     [JsonIgnore]
     [NotMapped]

@@ -9,6 +9,152 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; min-height: 100vh; }
 
+/* ── DARK MODE — wird via URL-Param ?theme=dark ausgelöst ─────────── */
+body.theme-dark { background: #0f172a !important; color: #e2e8f0 !important; }
+body.theme-dark .topbar { background: #0f172a !important; border-bottom: 1px solid #334155 !important; }
+body.theme-dark .page-title { color: #f1f5f9 !important; }
+body.theme-dark .page-sub   { color: #94a3b8 !important; }
+
+/* Filiale-Banner: gleiche Optik wie der Datenimport-Banner in index.html
+   — dunkler Card-Hintergrund mit dezent-blauem Rahmen, hellem Label
+   und voll lesbarem Select. */
+body.theme-dark #branchBanner {
+    background: #1e293b !important;
+    border-color: #1e3a8a !important;
+    color: #e2e8f0 !important;
+}
+body.theme-dark #branchBanner label { color: #93c5fd !important; }
+body.theme-dark #importBranchSelect {
+    background: #0f172a !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+}
+
+/* Karten + Listen-Container */
+body.theme-dark .upload-card,
+body.theme-dark .results-card,
+body.theme-dark .summary-bar,
+body.theme-dark .contract-form {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+body.theme-dark .results-header { border-bottom-color: #334155 !important; }
+body.theme-dark .results-title  { color: #f1f5f9 !important; }
+body.theme-dark .summary-num    { color: #f1f5f9 !important; }
+body.theme-dark .summary-label  { color: #94a3b8 !important; }
+body.theme-dark .summary-divider { background: #334155 !important; }
+body.theme-dark .contract-form-title { color: #f1f5f9 !important; }
+
+/* Drop-Zone — saturierter Deep-Navy-Look, gleicher Stil wie die
+   Datenimport-Drop-Zonen in index.html. Der Bereich soll als
+   "fokussierte Aktionsfläche" erkennbar sein, nicht als unauffälliger
+   Container. */
+body.theme-dark .upload-zone {
+    background: #172554 !important;
+    border-color: #3b82f6 !important;
+    color: #cbd5e1 !important;
+}
+body.theme-dark .upload-zone:hover,
+body.theme-dark .upload-zone.drag-over {
+    border-color: #60a5fa !important;
+    background: #1e3a8a !important;
+}
+body.theme-dark .upload-zone-text { color: #f1f5f9 !important; }
+body.theme-dark .upload-zone-sub  { color: #cbd5e1 !important; }
+
+/* Row Items (Liste der Importzeilen) */
+body.theme-dark .row-item { border-bottom-color: #334155 !important; }
+body.theme-dark .row-name { color: #f1f5f9 !important; }
+body.theme-dark .row-meta { color: #94a3b8 !important; }
+body.theme-dark .row-chevron { color: #94a3b8 !important; }
+body.theme-dark .row-detail { border-top-color: #334155 !important; }
+body.theme-dark .row-avatar.new-emp  { background: #172554 !important; color: #93c5fd !important; }
+body.theme-dark .row-avatar.existing { background: #064e3b !important; color: #6ee7b7 !important; }
+body.theme-dark .row-avatar.contract { background: #422006 !important; color: #fcd34d !important; }
+body.theme-dark .badge-new      { background: #172554 !important; color: #93c5fd !important; }
+body.theme-dark .badge-addr     { background: #064e3b !important; color: #6ee7b7 !important; }
+body.theme-dark .badge-contract { background: #422006 !important; color: #fcd34d !important; }
+body.theme-dark .badge-skip     { background: #450a0a !important; color: #fca5a5 !important; }
+
+/* Form-Felder im Vertrag-Subform */
+body.theme-dark .form-label { color: #cbd5e1 !important; }
+body.theme-dark .form-hint  { color: #94a3b8 !important; }
+body.theme-dark .form-input,
+body.theme-dark .form-select,
+body.theme-dark input,
+body.theme-dark select,
+body.theme-dark textarea {
+    background: #334155 !important;
+    color: #f1f5f9 !important;
+    border-color: #475569 !important;
+}
+body.theme-dark .form-input.prefilled  { background: #064e3b !important; border-color: #047857 !important; }
+body.theme-dark .form-input[readonly]  { background: #0f172a !important; color: #94a3b8 !important; border-color: #334155 !important; }
+
+/* Compliance-Boxen im Importer */
+body.theme-dark .compliance-ok      { background: #064e3b !important; border-color: #047857 !important; color: #6ee7b7 !important; }
+body.theme-dark .compliance-err     { background: #450a0a !important; border-color: #b91c1c !important; color: #fca5a5 !important; }
+body.theme-dark .compliance-warn    { background: #422006 !important; border-color: #d97706 !important; color: #fcd34d !important; }
+body.theme-dark .compliance-loading { background: #172554 !important; border-color: #2563eb !important; color: #93c5fd !important; }
+
+/* Change-Items (Vertragsänderung-Vorschau) */
+body.theme-dark .change-item   { background: #422006 !important; border-color: #d97706 !important; }
+body.theme-dark .change-label  { color: #fcd34d !important; }
+body.theme-dark .change-from   { color: #fca5a5 !important; }
+body.theme-dark .change-to     { color: #6ee7b7 !important; }
+
+/* Adress-Felder in der Detail-Ansicht */
+body.theme-dark .addr-field        { background: #0f172a !important; }
+body.theme-dark .addr-field-label  { color: #64748b !important; }
+body.theme-dark .addr-field-value  { color: #e2e8f0 !important; }
+
+/* Buttons */
+body.theme-dark .btn-outline {
+    background: #334155 !important;
+    color: #e2e8f0 !important;
+    border-color: #475569 !important;
+}
+body.theme-dark .btn-outline:hover { background: #475569 !important; }
+
+/* Alerts */
+body.theme-dark .alert-err  { background: #450a0a !important; color: #fca5a5 !important; border-color: #b91c1c !important; }
+body.theme-dark .alert-ok   { background: #064e3b !important; color: #6ee7b7 !important; border-color: #047857 !important; }
+body.theme-dark .alert-info { background: #172554 !important; color: #93c5fd !important; border-color: #2563eb !important; }
+
+/* Stat-Pills (oben rechts in der Results-Header) */
+body.theme-dark .stat-new      { background: #172554 !important; color: #93c5fd !important; }
+body.theme-dark .stat-update   { background: #064e3b !important; color: #6ee7b7 !important; }
+body.theme-dark .stat-contract { background: #422006 !important; color: #fcd34d !important; }
+body.theme-dark .stat-skip     { background: #334155 !important; color: #cbd5e1 !important; }
+
+/* Progress + Skip-Reason */
+body.theme-dark .progress-bar-wrap { background: #334155 !important; }
+body.theme-dark .skip-reason       { color: #fca5a5 !important; }
+
+/* Inline-Style Catch-All: Pastellfarben in branchBanner und ähnlichen
+   Hardcoded-Stellen werden auf dunkle Pendants gemappt — gleiche
+   Strategie wie in index.html. */
+body.theme-dark [style*="background:#eff6ff"],
+body.theme-dark [style*="background: #eff6ff"] { background: #172554 !important; color: #93c5fd !important; }
+body.theme-dark [style*="background:#dbeafe"]  { background: #172554 !important; color: #93c5fd !important; }
+body.theme-dark [style*="border:1px solid #bfdbfe"],
+body.theme-dark [style*="border:1.5px solid #bfdbfe"] { border-color: #1e3a8a !important; }
+body.theme-dark [style*="background:white"],
+body.theme-dark [style*="background: white"],
+body.theme-dark [style$="background:#fff"],
+body.theme-dark [style*="background:#ffffff"] { background: #1e293b !important; color: #e2e8f0 !important; }
+body.theme-dark [style*="color:#1d4ed8"] { color: #93c5fd !important; }
+body.theme-dark [style*="color:#0f172a"] { color: #f1f5f9 !important; }
+body.theme-dark [style*="color:#374151"] { color: #f1f5f9 !important; }
+body.theme-dark [style*="color:#475569"] { color: #e2e8f0 !important; }
+body.theme-dark [style*="color:#64748b"] { color: #cbd5e1 !important; }
+
+/* Tabellen */
+body.theme-dark table { color: #e2e8f0; }
+body.theme-dark th { background: #0f172a !important; color: #94a3b8 !important; border-color: #334155 !important; }
+body.theme-dark td { border-color: #334155 !important; color: #f1f5f9 !important; }
+
 /* LOGIN */
 #loginScreen {
     position: fixed; inset: 0;
@@ -67,9 +213,9 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; mi
 .stat-skip { background: #f1f5f9; color: #64748b; }
 
 /* ROW ITEMS */
-.row-item { border-bottom: 1px solid #f1f5f9; padding: 16px 24px; }
+.row-item { border-bottom: 1px solid #f1f5f9; padding: 10px 18px; }
 .row-item:last-child { border-bottom: none; }
-.row-header { display: flex; align-items: center; gap: 12px; margin-bottom: 0; cursor: pointer; }
+.row-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0; cursor: pointer; }
 .row-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
 .row-avatar.new-emp { background: #dbeafe; color: #1d4ed8; }
 .row-avatar.existing { background: #dcfce7; color: #15803d; }
@@ -85,7 +231,7 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; mi
 .row-chevron { color: #94a3b8; font-size: 16px; transition: transform 0.2s; margin-left: 8px; }
 .row-chevron.open { transform: rotate(90deg); }
 
-.row-detail { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #f8fafc; }
+.row-detail { display: none; margin-top: 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
 .row-detail.open { display: block; }
 
 /* CHANGES */
@@ -96,19 +242,22 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; mi
 .change-to { font-size: 13px; font-weight: 600; color: #15803d; }
 
 /* CONTRACT FORM */
-.contract-form { background: #f8fafc; border-radius: 10px; padding: 16px; margin-top: 12px; }
-.contract-form-title { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 12px; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-group { display: flex; flex-direction: column; gap: 4px; }
-.form-label { font-size: 12px; font-weight: 600; color: #374151; }
+.contract-form { background: #ffffff; border-radius: 10px; padding: 12px 14px; margin-top: 10px; border: 1px solid #e2e8f0; }
+.contract-form-title { font-size: 12.5px; font-weight: 700; color: #374151; margin-bottom: 10px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 10px; }
+.form-group { display: flex; flex-direction: column; gap: 3px; }
+.form-label { font-size: 11px; font-weight: 600; color: #475569; }
 .form-label .required { color: #dc2626; }
 .form-input, .form-select {
-    padding: 8px 11px; border: 1.5px solid #e2e8f0; border-radius: 8px;
-    font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s; background: white;
+    padding: 6px 9px; border: 1.5px solid #cbd5e1; border-radius: 6px;
+    font-size: 12.5px; line-height: 1.3; font-family: inherit; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s; background: #ffffff;
 }
-.form-input:focus, .form-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.08); }
-.form-input.prefilled { background: #f0fdf4; border-color: #bbf7d0; }
-.form-input[readonly] { background: #f8fafc; color: #64748b; cursor: default; }
+.form-input:hover, .form-select:hover { border-color: #94a3b8; }
+.form-input:focus, .form-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.form-input.prefilled { background: #f0fdf4; border-color: #86efac; }
+.form-input[readonly] { background: #f1f5f9; color: #64748b; cursor: default; border-color: #e2e8f0; }
+.form-hint { font-size: 10.5px; color: #64748b; margin-top: 2px; }
 
 /* COMPLIANCE */
 .compliance-box { border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 13px; }
@@ -155,10 +304,10 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; mi
 .skip-reason { font-size: 12px; color: #dc2626; margin-top: 6px; }
 
 /* Address-only rows */
-.addr-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
-.addr-field { background: #f8fafc; border-radius: 6px; padding: 6px 10px; }
-.addr-field-label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; }
-.addr-field-value { font-size: 12px; color: #374151; font-weight: 500; margin-top: 1px; }
+.addr-fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 6px; margin-top: 6px; }
+.addr-field { background: #f8fafc; border-radius: 4px; padding: 4px 8px; }
+.addr-field-label { font-size: 9.5px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em; }
+.addr-field-value { font-size: 11.5px; color: #1e293b; font-weight: 500; margin-top: 1px; line-height: 1.3; }
 </style>
 </head>
 <body>
@@ -198,18 +347,27 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; mi
                 <div class="topbar-sub">Datenimport</div>
             </div>
         </div>
-        <a href="index.html" class="topbar-logout" style="text-decoration:none">← Zurück zum HR System</a>
-    <button class="topbar-logout" onclick="doLogout()">Abmelden</button>
+        <a href="index.html" style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:9px 18px;background:#3b82f6;color:white;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;transition:background .15s">
+            <span style="font-size:14px">←</span> Zurück zum HR System
+        </a>
+        <!-- "Abmelden" entfernt (Walter-Vorgabe 14.05.2026) — Logout liegt
+             jetzt zentral oben rechts im #langSwitcher des HR-Systems, der
+             als Floating-Widget auch über diesem (eingebetteten) Importer
+             schwebt. doLogout() bleibt als Funktion erhalten. -->
     </div>
 
     <div class="container">
         <div class="page-title">📥 Mitarbeiter-Import</div>
         <div class="page-sub">CSV aus easy@work importieren – Personaldaten werden automatisch aktualisiert, Vertragsänderungen müssen bestätigt werden.</div>
-        <div id="branchBanner" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:10px">
-            <span style="font-size:18px">🏪</span>
-            <div>
-                <div style="font-size:13px;font-weight:700;color:#1d4ed8" id="branchBannerName">Keine Filiale gewählt</div>
-                <div style="font-size:11px;color:#64748b">Nur Mitarbeiter dieser Filiale werden importiert</div>
+        <div id="branchBanner" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px">
+            <span style="font-size:20px">🏪</span>
+            <div style="flex:1">
+                <label for="importBranchSelect" style="display:block;font-size:11px;font-weight:600;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Filiale wählen</label>
+                <select id="importBranchSelect" onchange="onImportBranchChange()"
+                        style="width:100%;max-width:420px;padding:8px 12px;border:1.5px solid #bfdbfe;border-radius:8px;font-size:14px;font-weight:600;color:#0f172a;background:white;cursor:pointer;outline:none">
+                    <option value="">— Lade Filialen... —</option>
+                </select>
+                <div style="font-size:11px;color:#64748b;margin-top:4px">Nur Mitarbeiter dieser Filiale werden importiert</div>
             </div>
         </div>
 
@@ -251,11 +409,27 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; mi
             </div>
             <div class="summary-divider"></div>
             <div class="summary-item">
+                <div class="summary-num" id="sumInactive" style="color:#92400e">0</div>
+                <div class="summary-label">Personaldossier</div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
                 <div class="summary-num" id="sumSkip" style="color:#dc2626">0</div>
                 <div class="summary-label">Übersprungen</div>
             </div>
-            <button class="btn btn-primary btn-run-all" id="btnRunAll" onclick="runAll()">▶ Adressdaten importieren</button>
+            <button class="btn btn-primary btn-run-all" id="btnAutoImport" onclick="runAutoImportAll()" style="background:#16a34a">🚀 Alle erfassbaren automatisch importieren</button>
+            <button class="btn btn-outline" id="btnRunAll" onclick="runAll()" style="display:none">▶ Adressdaten importieren</button>
             <button class="btn btn-outline" id="btnRunAllNew" onclick="runAllNew()" style="display:none">👤 Alle neuen MA anlegen</button>
+        </div>
+        <!-- Auto-Import Progress -->
+        <div id="autoImportProgress" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="font-weight:600;color:#1d4ed8" id="autoImportStatus">Importiere...</div>
+                <div style="font-size:13px;color:#64748b" id="autoImportCounter">0 / 0</div>
+            </div>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar" id="autoImportBar" style="width:0%"></div>
+            </div>
         </div>
 
         <!-- RESULTS -->
@@ -287,6 +461,16 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; mi
                 </div>
                 <div id="addrList"></div>
             </div>
+
+            <!-- Inaktive MA → reines Personaldossier (Bis-Datum in der
+                 Vergangenheit). Kein Vertrag, kein Lohn-Check. -->
+            <div class="results-card" id="inactiveSection" style="display:none">
+                <div class="results-header">
+                    <div class="results-title">📁 Personaldossier (inaktiv, ohne Vertrag)</div>
+                    <div style="font-size:12px;color:#94a3b8">Bis-Datum in der Vergangenheit — Stammdaten werden ohne Lohn-Vertrag angelegt.</div>
+                </div>
+                <div id="inactiveList"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -295,6 +479,10 @@ body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; mi
 // ── AUTH ──────────────────────────────────────────────
 // Token from URL param (passed from index.html) or localStorage
 const _urlParams = new URLSearchParams(window.location.search);
+// Theme aus URL-Parameter übernehmen (vom HR-System mitgeliefert).
+if (_urlParams.get('theme') === 'dark') {
+    document.body.classList.add('theme-dark');
+}
 const _urlToken = _urlParams.get('token');
 const _urlBranchId = _urlParams.get('branchId');
 const _urlBranchName = _urlParams.get('branchName') ? decodeURIComponent(_urlParams.get('branchName')) : '';
@@ -368,28 +556,57 @@ async function init() {
 async function startApp() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    // Show branch banner
-    const banner = document.getElementById('branchBannerName');
-    if (banner) {
-        if (activeBranchName) {
-            banner.textContent = activeBranchName;
-            banner.parentElement.style.background = '#f0fdf4';
-            banner.parentElement.style.borderColor = '#bbf7d0';
-            banner.style.color = '#15803d';
-        } else {
-            banner.textContent = '⚠ Keine Filiale gewählt – bitte Import über Hauptmenü starten';
-            banner.parentElement.style.background = '#fef2f2';
-            banner.parentElement.style.borderColor = '#fecaca';
-            banner.style.color = '#dc2626';
-        }
-    }
     // Preload – Fehler ignorieren damit App trotzdem startet
     try {
         await Promise.all([loadEmployees(), loadJobGroups(), loadEducationLevels(), loadNationalities(), loadCompanyProfile()]);
         if (activeBranchId) companyProfileId = activeBranchId;
+        populateImportBranchSelect();
     } catch(e) {
         console.warn('Preload Fehler:', e);
     }
+}
+
+// Filiale-Dropdown im Import-Banner mit allen Filialen befüllen.
+function populateImportBranchSelect() {
+    const sel = document.getElementById('importBranchSelect');
+    if (!sel) return;
+    if (!allBranches || !allBranches.length) {
+        sel.innerHTML = '<option value="">— Keine Filialen verfügbar —</option>';
+        return;
+    }
+    const sorted = [...allBranches].sort((a, b) =>
+        (a.restaurantCode || '').localeCompare(b.restaurantCode || '')
+    );
+    sel.innerHTML = sorted.map(b => {
+        const code = b.restaurantCode || '';
+        const name = b.branchName || b.companyName || '';
+        return `<option value="${b.id}">${code ? code + ' – ' : ''}${name}</option>`;
+    }).join('');
+    // aktive Filiale aus URL-Parameter / localStorage vorselektieren
+    if (companyProfileId) sel.value = String(companyProfileId);
+    // Hint-Text & State synchronisieren
+    onImportBranchChange();
+}
+
+function onImportBranchChange() {
+    const sel = document.getElementById('importBranchSelect');
+    if (!sel) return;
+    const id = parseInt(sel.value, 10) || null;
+    if (!id) return;
+    companyProfileId   = id;
+    activeBranchId     = id;
+    const branch = (allBranches || []).find(b => b.id === id);
+    if (branch) {
+        companyProfile     = branch;
+        activeStoreNumber  = branch.restaurantCode || '';
+        activeBranchName   = `${branch.restaurantCode || ''} – ${branch.branchName || branch.companyName || ''}`;
+    }
+    // Bestehende Snapshots/Analysen verwerfen, weil sie zu einer anderen Filiale gehörten
+    parsedRows = [];
+    rowStates = {};
+    document.getElementById('summaryBar').style.display = 'none';
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('uploadSection').style.display = '';
 }
 
 async function loadEmployees() {
@@ -508,21 +725,43 @@ function fmtDe(str) {
     return d.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+// Normalisiert beliebige CH-Telefon-Schreibweisen auf "+41 79 333 44 55".
+// Akzeptiert: "762954538" (9-stellig, ohne Vorwahl), "0762954538" (10-stellig
+// mit 0), "41762954538" (11-stellig), "0041762954538" (12-stellig), jeweils
+// mit/ohne "+", Leerzeichen, "/", "-", "(0)" usw.
 function formatPhone(raw) {
     if (!raw) return '';
-    // Remove all non-digits
-    let digits = raw.replace(/\D/g, '');
-    // Already starts with 41 (Switzerland) → add +
-    if (digits.startsWith('41') && digits.length === 11) {
-        // +41 XX XXX XX XX
-        return '+' + digits.slice(0,2) + ' ' + digits.slice(2,4) + ' ' + digits.slice(4,7) + ' ' + digits.slice(7,9) + ' ' + digits.slice(9,11);
+    let digits = String(raw).replace(/\D/g, '');
+    if (!digits) return '';
+    // Internationale Präfixe SEQUENZIELL abschälen, bis die 9-stellige
+    // CH-Nummer übrig bleibt. Reihenfolge wichtig — manche Nummern haben
+    // gleich mehrere Präfixe (z.B. "+410763037034" = +41 UND 0).
+    if (digits.startsWith('0041')) digits = digits.slice(4);
+    if (digits.startsWith('41') && digits.length > 9) digits = digits.slice(2);
+    if (digits.startsWith('0') && digits.length === 10) digits = digits.slice(1);
+    // Jetzt sollte eine saubere 9-stellige CH-Nummer übrig sein (z.B. 762954538).
+    // Gültige CH-Nummern beginnen ohne Vorwahl-0 mit 2–9 — beginnt sie mit 0
+    // oder 1, ist die Quell-Nummer unvollständig/fehlerhaft → Rohwert behalten.
+    if (digits.length === 9 && /^[2-9]/.test(digits)) {
+        return '+41 ' + digits.slice(0,2) + ' ' + digits.slice(2,5) + ' ' + digits.slice(5,7) + ' ' + digits.slice(7,9);
     }
-    // Starts with 0 → replace with +41
-    if (digits.startsWith('0') && digits.length === 10) {
-        digits = '41' + digits.slice(1);
-        return '+' + digits.slice(0,2) + ' ' + digits.slice(2,4) + ' ' + digits.slice(4,7) + ' ' + digits.slice(7,9) + ' ' + digits.slice(9,11);
-    }
-    return raw; // return as-is if unknown format
+    // Unbekanntes/ausländisches Format → unverändert zurück (lieber Rohwert
+    // als Datenverlust — z.B. +387… Bosnien).
+    return raw;
+}
+
+// Splittet "Buchslistrasse 2" → { street: "Buchslistrasse", house: "2" }.
+// easy@work liefert Strasse + Hausnummer in EINER Spalte ("Adresse") —
+// das Backend hat aber getrennte Felder Street/HouseNumber. Ohne Split
+// landet die Hausnummer doppelt: einmal in der Strasse, einmal im
+// Hausnummer-Feld (Stale-Wert eines früheren Imports). Spiegelt die
+// Backend-Regex SplitStreetAndHouseNumber (EmployeeStammdatenImportController).
+function splitStreetHouse(raw) {
+    if (!raw) return { street: '', house: '' };
+    const trimmed = String(raw).trim();
+    const m = trimmed.match(/^(.+?)\s+(\d+\s*[a-zA-Z]?(?:[-–]\d+\s*[a-zA-Z]?)?)\s*$/);
+    if (m) return { street: m[1].trim(), house: m[2].trim() };
+    return { street: trimmed, house: '' };
 }
 
 function get(row, ...keys) {
@@ -532,21 +771,136 @@ function get(row, ...keys) {
     return '';
 }
 
-// Funktionen (Rolle) die FIX-M ergeben
-const FIX_M_ROLES = ['ASSIST_1', 'ASSIST_2', 'REST_MANAGER', 'SHIFT_LEADER_1_6', 'SHIFT_LEADER_7_PLUS'];
+// Mapping CSV "Funktion" / "Funktionen" → DB job_group_code
+// (Quelle: Umwandlung_funktion.xlsx). Global, weil sowohl mapContractType
+// als auch runComplianceCheck dasselbe Mapping brauchen.
+const FUNKTION_MAP = {
+    '1ST ASSISTANT':                    'ASST_1',
+    '2ND ASSISTANT':                    'ASST_2',
+    'ASSISTANT TRAINEE':                'SHIFT_LEADER_1_6',
+    'OWNER OPERATOR TRAINEE':           'CREW',
+    'APPRENTI-/E SPÉCIALISTE EN RES':   'CREW',
+    'CREW':                             'CREW',
+    'CREW TRAINER':                     'HOST_CT',
+    'GUEST EXPERIENCE LEADER':          'HOST_CT',
+    'HOSTESS / HOST':                   'HOST_CT',
+    'HOSTESS':                          'HOST_CT',
+    'NIGHT CLEANER':                    'CREW',
+    'INTERN':                           'CREW',
+    'FIELD TRAINER':                    'HOST_CT',
+    'RESTAURANT MANAGER - NEVEAU 1':    'REST_MANAGER',
+    'RESTAURANT MANAGER - NIVEAU 1':    'REST_MANAGER',
+    'RESTAURANT MANAGER - NIVEAU 2':    'REST_MANAGER',
+    // Empfehlung: in easy@work zwei klar benannte Funktionen anlegen,
+    // damit das Mapping deterministisch bleibt — kein Raten anhand
+    // Eintrittsdatum + Erfahrung mehr.
+    'SHIFT COORDINATOR 1-6 MT.':        'SHIFT_LEADER_1_6',
+    'SHIFT COORDINATOR 1-6 MT':         'SHIFT_LEADER_1_6',
+    'SHIFT COORDINATOR 1-6 MONATE':     'SHIFT_LEADER_1_6',
+    'SHIFT COORDINATOR 7+ MT.':         'SHIFT_LEADER_7_PLUS',
+    'SHIFT COORDINATOR 7+ MT':          'SHIFT_LEADER_7_PLUS',
+    'SHIFT COORDINATOR 7+ MONATE':      'SHIFT_LEADER_7_PLUS',
+    'SHIFT COORDINATOR AB 7 MT.':       'SHIFT_LEADER_7_PLUS',
+    'SHIFT COORDINATOR AB 7 MT':        'SHIFT_LEADER_7_PLUS',
+    'SHIFT COORDINATOR':                'SHIFT_LEADER_7_PLUS',  // Default-Fallback
+    'SHIFT LEADER':                     'SHIFT_LEADER_1_6',
+    // Fallbacks aus 'Funktionen' Feld (kürzere Klartext-Varianten)
+    'MANAGER':                          'REST_MANAGER',
+    'RESTAURANT MANAGER':               'REST_MANAGER',
+    'STORE MANAGER':                    'REST_MANAGER',
+    'EMPOLYE':                          'CREW',
+    'EMPLOYEE':                         'CREW'
+};
 
+// DB-Codes, die zu FIX-M (Festlohn Management) führen.
+const FIX_M_ROLES = ['ASST_1', 'ASST_2', 'REST_MANAGER', 'SHIFT_LEADER_1_6', 'SHIFT_LEADER_7_PLUS'];
+
+// CCNT-Qualifikation aus easy@work-CSV → unsere Ausbildungsstufe (L-GAV-Code).
+// Erkennt Variants wie "1", "1 Avec examen professionnel", "1- Avec…" etc.
+function mapCcntToEduLevel(raw) {
+    const s = (raw || '').trim();
+    if (!s) return 'Ia';
+    const num = (s.match(/^(\d+)/) || [])[1];
+    switch (num) {
+        case '1': return 'IV';
+        case '2': return 'IIIb';
+        case '3': return 'IIIa';
+        case '4': return 'II';
+        case '5': return 'Ia';
+        default:  return 'Ia';
+    }
+}
+
+// Phantom-MA = Supervisor (kein Vertrag, IsPayrollExcluded=true).
+// Wird zur differenzierten Anzeige im UI und im Auto-Import benutzt.
+function isPhantomRow(row) {
+    const grpRaw = get(row, 'Group memberships') || get(row, 'Group membership') || get(row, 'Member group');
+    return (grpRaw || '').toLowerCase().includes('supervisor');
+}
+
+// JobGroup eines Mitarbeiters bestimmen.
+//
+// Walter-Regel (siehe CLAUDE.md): Group memberships ist die Primärquelle —
+// Funktion ist nur Fallback. Mapping siehe ResolveClassification im Backend.
+//   Group membership            JobGroup
+//   ──────────────────────────────────────────────
+//   Store Manager               REST_MANAGER
+//   Shift Manager+              SHIFT_LEADER_7_PLUS
+//   Shift Manager-              SHIFT_LEADER_1_6
+//   Supervisor                  null  (Phantom-MA, kein Vertrag)
+//   Employee / leer / sonst     CREW (oder HOST_CT/SWING via Funktion)
+function resolveJobGroupCode(row) {
+    const grpRaw = get(row, 'Group memberships') || get(row, 'Group membership') || get(row, 'Member group');
+    const grp = (grpRaw || '').toLowerCase().trim();
+
+    // 1) Supervisor → kein Vertrag, kein JobGroup (Phantom-MA wird im Backend
+    //    als IsPayrollExcluded angelegt).
+    if (grp.includes('supervisor')) return null;
+
+    // 2) Manager-Gruppen: deterministisch aus Group memberships.
+    if (grp.includes('store manager')) return 'REST_MANAGER';
+    if (grp.includes('shift manager')) {
+        const isPlus = grp.includes('+') || grp.includes('plus');
+        return isPlus ? 'SHIFT_LEADER_7_PLUS' : 'SHIFT_LEADER_1_6';
+    }
+
+    // 3) Funktion-basierter Fallback für 1./2. Assistent (haben in easy@work
+    //    keine eigene Group membership) und für Spezialrollen (HOST_CT/SWING).
+    const fn = get(row, 'Funktion').toUpperCase().trim();
+    const fne = get(row, 'Funktionen').toUpperCase().trim();
+    const fromFunktion = FUNKTION_MAP[fn] || FUNKTION_MAP[fne];
+    if (fromFunktion === 'ASST_1' || fromFunktion === 'ASST_2' || fromFunktion === 'REST_MANAGER')
+        return fromFunktion;
+    if (fromFunktion === 'HOST_CT' || fromFunktion === 'SWING')
+        return fromFunktion;
+
+    // 4) Default: Employee / leer → CREW
+    return 'CREW';
+}
+
+// Vertragsmodell aus Group memberships + Pay frequency × Contract type.
+// Manager-Gruppen → IMMER FIX-M. CREW: Pay frequency=month → FIX, hour+MTP → MTP, hour+Flex/leer → UTP.
 function mapContractType(row) {
-    const ct = get(row, 'Contract type').toUpperCase().trim();
-    const rolle = get(row, 'Funktionen').toUpperCase().trim();
-    const isFixM = FIX_M_ROLES.some(r => rolle.includes(r));
+    const code = resolveJobGroupCode(row);
 
-    // Normalisierung: FLEX → UTP, MTP/TPM → MTP
-    if (ct === 'FLEX')     return 'UTP';
-    if (ct === 'MTP/TPM')  return 'MTP';
-    if (ct.includes('FIX')) return isFixM ? 'FIX-M' : 'FIX';
-    if (ct.includes('MTP')) return 'MTP';
-    if (ct.includes('UTP')) return 'UTP';
-    return 'UTP'; // Fallback
+    // Phantom-MA (Supervisor) hat keinen Vertrag.
+    if (code === null) return '';
+
+    // Manager-Rolle (FIX_M_ROLES) → IMMER FIX-M, egal was im CSV steht.
+    const isFixM = FIX_M_ROLES.includes(code);
+    if (isFixM) return 'FIX-M';
+
+    // CREW (oder HOST_CT/SWING) — Pay frequency × Contract type
+    const ct = get(row, 'Contract type').toLowerCase().trim();
+    let pf = get(row, 'Pay frequency').toLowerCase().trim();
+
+    // Pay frequency-Default ableiten: Contract type=Fix → month; sonst hour
+    if (!pf) pf = (ct.includes('fix') || ct.includes('full')) ? 'month' : 'hour';
+
+    if (pf.startsWith('month') || pf.startsWith('monat')) return 'FIX';
+    if (ct.includes('mtp') || ct.includes('tpm'))         return 'MTP';
+    // hour + Flex / leer / unbekannt → UTP (Default)
+    return 'UTP';
 }
 
 function parseAnzahl(row) {
@@ -592,8 +946,54 @@ async function analyzeRows() {
     showUploadAlert('Analysiere ' + parsedRows.length + ' Zeilen...', 'info');
     await loadEmployees(); // refresh
 
-    const skipped = [], newEmps = [], contracts = [], addrOnly = [];
+    // Filial-Vorprüfung: Welche Store-Nummern sind in der CSV vertreten?
+    // Wenn die aktive Filiale nicht dabei ist → klare Fehlermeldung statt
+    // stille "alle übersprungen"-Zustand.
+    if (activeStoreNumber) {
+        const csvStores = new Set();
+        for (const r of parsedRows) {
+            const s = String(get(r, 'Store number', 'Store Number') || '').trim();
+            if (s) csvStores.add(parseInt(s, 10));
+        }
+        const activeNum = parseInt(activeStoreNumber, 10);
+        if (csvStores.size && !csvStores.has(activeNum)) {
+            // Versuche, zu jeder CSV-Store-Nr den Filial-Namen zu finden
+            const found = [...csvStores].map(n => {
+                const b = (allBranches || []).find(x => parseInt(x.restaurantCode || '0', 10) === n);
+                return b ? `${n} – ${b.branchName || b.companyName}` : `${n}`;
+            }).join(', ');
+            const wrongMsg =
+                `<div class="alert alert-err" style="font-size:14px;line-height:1.5">
+                    <div style="font-weight:700;margin-bottom:6px">⚠️ Falsche Filiale ausgewählt</div>
+                    <div>Die CSV enthält Mitarbeiter aus <strong>${found}</strong>, du hast aber die Filiale
+                    <strong>${activeBranchName || activeNum}</strong> aktiviert.</div>
+                    <div style="margin-top:6px">Bitte oben im Banner die richtige Filiale auswählen, oder eine andere CSV hochladen.</div>
+                </div>`;
+            document.getElementById('uploadAlert').innerHTML = wrongMsg;
+            // Vorschau-Bereiche zurücksetzen
+            document.getElementById('summaryBar').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            return;
+        }
+    }
+
+    const skipped = [], newEmps = [], contracts = [], addrOnly = [], inactive = [];
     rowStates = {};
+
+    // Pro Personalnummer aggregieren: hat der MA mind. eine offene Zeile?
+    // (Bis leer ODER Bis >= heute). Walter-Regel: MA mit Bis-Datum in der
+    // Vergangenheit sind inaktiv (Karteileiche) — sie werden mit Stammdaten
+    // ins HR-System übernommen, aber OHNE Vertrag und OHNE Lohn-Check.
+    const todayIso = new Date().toISOString().slice(0,10);
+    const isActiveByNr = {};
+    for (const row of parsedRows) {
+        const nr = (get(row, 'Nummer') || '').trim();
+        if (!nr) continue;
+        const bisIso = formatDate(get(row, 'Bis')); // -> YYYY-MM-DD oder ''
+        const open = !bisIso || bisIso >= todayIso;
+        if (open) isActiveByNr[nr] = true;
+        else if (!(nr in isActiveByNr)) isActiveByNr[nr] = false;
+    }
 
     for (let i = 0; i < parsedRows.length; i++) {
         const row = parsedRows[i];
@@ -613,6 +1013,20 @@ async function analyzeRows() {
                 rowStates[i] = { status: 'skip' };
                 continue;
             }
+        }
+
+        // Inaktiv-Bucket: MA mit allen Bis-Daten in der Vergangenheit
+        // → reines Personaldossier, kein Vertrag, kein Lohn-Check.
+        if (isActiveByNr[String(nr).trim()] === false) {
+            const existingEmpInactive = allEmployees.find(e =>
+                String(e.employeeNumber || e.employee_number || '').trim() === String(nr).trim()
+            );
+            inactive.push({ idx: i, row, existingEmp: existingEmpInactive || null });
+            rowStates[i] = {
+                status: 'inactive',
+                employeeId: existingEmpInactive?.id || null
+            };
+            continue;
         }
 
         const existingEmp = allEmployees.find(e =>
@@ -663,13 +1077,20 @@ async function analyzeRows() {
             }
             let isSalaryChange = false;
             if (activeContract && payRateFromIso) {
-                const csvFte = parseFloat((get(row, 'Salary (FTE)') || '').toString().replace(',', '.')) || 0;
-                const csvTarif = parseFloat((get(row, 'Tarifsatz') || get(row, 'Tarife') || '').toString().replace(',', '.')) || 0;
-                const activeFte = parseFloat(activeContract.monthlySalaryFte || 0);
-                const activeTarif = parseFloat(activeContract.hourlyRate || 0);
-                const lohnGeaendert =
-                    (csvFte > 0 && Math.abs(csvFte - activeFte) > 0.01) ||
-                    (csvTarif > 0 && Math.abs(csvTarif - activeTarif) > 0.01);
+                // Pro Vertragsmodell nur den RELEVANTEN Lohn vergleichen:
+                //   FIX/FIX-M: 100%-Monatslohn (aus Salary (actual) hochgerechnet via Pensum)
+                //   UTP/MTP:   Stundenlohn (Tarifsatz)
+                const activeModel = (activeContract.employmentModel || '').toUpperCase();
+                const isFixModel  = activeModel === 'FIX' || activeModel === 'FIX-M';
+                const csvSalaryActual = parseFloat((get(row, 'Salary (actual)') || '').toString().replace(',', '.')) || 0;
+                const csvTarif        = parseFloat((get(row, 'Tarife') || '').toString().replace(',', '.')) || 0;
+                const activePensum    = parseFloat(activeContract.employmentPercentage || 100) || 100;
+                const csvFte100       = csvSalaryActual > 0 ? (csvSalaryActual / activePensum * 100) : 0;
+                const activeFte       = parseFloat(activeContract.monthlySalaryFte || 0);
+                const activeTarif     = parseFloat(activeContract.hourlyRate || 0);
+                const lohnGeaendert = isFixModel
+                    ? (csvFte100 > 0 && Math.abs(csvFte100 - activeFte) > 0.5)
+                    : (csvTarif > 0 && Math.abs(csvTarif - activeTarif) > 0.01);
                 const activeStartIso = (activeContract.contractStartDate || '').toString().slice(0, 10);
                 const payRateNach = activeStartIso && payRateFromIso > activeStartIso;
                 // Pay-rate-Datum darf nicht schon als Vertragsbeginn existieren
@@ -699,45 +1120,116 @@ async function analyzeRows() {
                 continue;
             }
 
-            // Sonst nur Adress-Änderung
+            // Sonst nur Adress-Änderung.
+            // Feldnamen müssen den Employee-Model-Properties entsprechen
+            // (street/zipCode/phoneMobile — NICHT address/postalCode/phone).
+            // Änderung = CSV hat einen Wert, der sich vom DB-Wert unterscheidet
+            // (DB leer ODER abweichend) — Walter-Vorgabe 13.05.2026.
+            // "Adresse" wird in Strasse + Hausnummer gesplittet — getrennt
+            // mit den DB-Feldern vergleichen (sonst meldet "Buchslistrasse 2"
+            // vs DB-Strasse "Buchslistrasse" immer eine Scheinänderung).
+            const csvAddr = splitStreetHouse(get(row,'Adresse'));
             const addrFields = [
-                { csv: get(row,'Adresse'),      db: existingEmp?.address || '' },
-                { csv: get(row,'Postleitzahl'),  db: existingEmp?.postalCode || '' },
-                { csv: get(row,'Stadt'),         db: existingEmp?.city || '' },
-                { csv: get(row,'Region'),        db: existingEmp?.region || '' },
-                { csv: get(row,'E-Mail'),        db: existingEmp?.email || '' },
-                { csv: get(row,'Telefon'),       db: existingEmp?.phone || '' },
+                { csv: csvAddr.street,           db: existingEmp?.street      || '' },
+                { csv: csvAddr.house,            db: existingEmp?.houseNumber || '' },
+                { csv: get(row,'Postleitzahl'),  db: existingEmp?.zipCode     || '' },
+                { csv: get(row,'Stadt'),         db: existingEmp?.city        || '' },
+                { csv: get(row,'E-Mail'),        db: existingEmp?.email       || '' },
+                { csv: formatPhone(get(row,'Telefon')), db: existingEmp?.phoneMobile || '' },
             ];
-            const hasAddrChange = addrFields.some(f => f.csv && f.db && f.csv.trim().toLowerCase() !== f.db.trim().toLowerCase());
+            const hasAddrChange = addrFields.some(f => {
+                const csv = (f.csv || '').trim();
+                const db  = (f.db  || '').trim();
+                return csv.length > 0 && csv.toLowerCase() !== db.toLowerCase();
+            });
             addrOnly.push({ idx: i, row, employeeId: existingEmp.id, existingEmp, hasAddrChange });
             rowStates[i] = { status: 'addr', employeeId: existingEmp.id };
         }
     }
 
     document.getElementById('uploadAlert').innerHTML = '';
-    renderSummary(skipped, newEmps, contracts, addrOnly);
-    renderResults(skipped, newEmps, contracts, addrOnly);
+    renderSummary(skipped, newEmps, contracts, addrOnly, inactive);
+    renderResults(skipped, newEmps, contracts, addrOnly, inactive);
 }
 
-function renderSummary(skipped, newEmps, contracts, addrOnly) {
+function renderSummary(skipped, newEmps, contracts, addrOnly, inactive = []) {
     document.getElementById('sumTotal').textContent = parsedRows.length;
     document.getElementById('sumNew').textContent = newEmps.length;
-    document.getElementById('btnRunAllNew').style.display = newEmps.length ? '' : 'none';
-    document.getElementById('sumAddr').textContent = addrOnly.filter(a => a.hasAddrChange).length;
+    // "Adress-Update" zählt ALLE bestehenden MA — bei jedem Import werden
+    // Adresse/Telefon/Eintrittsdatum überschrieben, nicht nur bei erkannter
+    // Änderung (Walter-Vorgabe: überschreiben bei jedem Import).
+    document.getElementById('sumAddr').textContent = addrOnly.length;
     document.getElementById('sumContract').textContent = contracts.length;
     document.getElementById('sumSkip').textContent = skipped.length;
+    // Inaktiv-Bucket optional in Summary (Karteileiche / Personaldossier)
+    const sumInactiveEl = document.getElementById('sumInactive');
+    if (sumInactiveEl) sumInactiveEl.textContent = inactive.length;
     document.getElementById('summaryBar').style.display = 'flex';
+
+    // Ein-Button-Prinzip (Walter-Vorgabe 14.05.2026): der grüne
+    // "Alle erfassbaren automatisch importieren"-Button (btnAutoImport)
+    // erledigt ALLES in einem Klick — Neuanlagen, Verträge, Phantom-MA,
+    // inaktive Dossiers UND Adress-/Telefon-/Eintrittsdatum-Updates
+    // bestehender MA. Die früheren Zusatz-Buttons bleiben als Funktion
+    // (runAll / runAllNew) erhalten, werden aber nicht mehr angezeigt.
+    const btnAddr = document.getElementById('btnRunAll');
+    const btnNew  = document.getElementById('btnRunAllNew');
+    if (btnAddr) btnAddr.style.display = 'none';
+    if (btnNew)  btnNew.style.display  = 'none';
+}
+
+// Render-Helper für die „Inaktiv / Personaldossier"-Liste. Zeigt MA mit
+// Bis-Datum in der Vergangenheit als Karteileiche — Stammdaten ja, Vertrag
+// nein. Zustand kommt aus rowStates[i].status === 'inactive'.
+function renderInactiveRow(e) {
+    const { idx, row, existingEmp } = e;
+    const bisFmt = fmtDe(get(row, 'Bis')) || '–';
+    const isExisting = !!existingEmp;
+    return `
+    <div class="row-item" id="row-${idx}">
+        <div class="row-header">
+            <div class="row-avatar new-emp" style="background:#e2e8f0;color:#475569">📁</div>
+            <div>
+                <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
+                <div class="row-meta">Nr. ${get(row,'Nummer')} · Ausgetreten am ${bisFmt}</div>
+            </div>
+            <div class="row-badges">
+                <span class="badge" style="background:#e2e8f0;color:#475569">${isExisting ? 'Existiert' : 'Neu'}</span>
+                <span class="badge" style="background:#fef3c7;color:#92400e">📁 Personaldossier</span>
+            </div>
+            <div id="rowStatus-${idx}" style="margin-left:auto;font-size:12px;color:#64748b"></div>
+        </div>
+    </div>`;
 }
 
 // ── RENDER ────────────────────────────────────────────
-function renderResults(skipped, newEmps, contracts, addrOnly) {
+function renderResults(skipped, newEmps, contracts, addrOnly, inactive = []) {
     document.getElementById('resultsSection').style.display = 'block';
 
-    // SKIPPED
+    // SKIPPED — standardmässig eingeklappt (für die Vertragsverwaltung uninteressant).
+    // Header bleibt sichtbar mit Zähler; Liste wird per Klick aufgeklappt.
     const skipSec = document.getElementById('skipSection');
     const skipList = document.getElementById('skipList');
     if (skipped.length) {
         skipSec.style.display = 'block';
+        // Header umbauen mit Toggle
+        const header = skipSec.querySelector('.results-header');
+        if (header) {
+            header.style.cursor = 'pointer';
+            header.onclick = () => {
+                const collapsed = skipList.style.display === 'none';
+                skipList.style.display = collapsed ? 'block' : 'none';
+                const chev = header.querySelector('.skip-chev');
+                if (chev) chev.textContent = collapsed ? '▾' : '▸';
+            };
+            header.innerHTML = `
+                <div class="results-title">
+                    <span class="skip-chev" style="display:inline-block;width:14px;color:#94a3b8">▸</span>
+                    ⛔ Übersprungen (${skipped.length})
+                </div>
+                <div style="font-size:12px;color:#94a3b8">Klicken zum Anzeigen</div>`;
+        }
+        skipList.style.display = 'none';
         skipList.innerHTML = skipped.map(s => `
             <div class="row-item">
                 <div class="row-header">
@@ -772,17 +1264,38 @@ function renderResults(skipped, newEmps, contracts, addrOnly) {
     if (contracts.length) {
         contractSec.style.display = 'block';
         contractList.innerHTML = [...contracts].sort(byVorname).map(c => renderContractRow(c)).join('');
+        // Auto-Trigger Compliance-Check pro Zeile, damit der Mindestlohn-Default
+        // direkt eingefüllt wird (Ausbildungsniveau ist mit "Ia" vorbelegt → reicht für die API).
+        contracts.forEach(c => {
+            const idx = c.idx;
+            if (typeof triggerComplianceCheck === 'function') triggerComplianceCheck(idx);
+        });
     }
 
-    // ADDR ONLY
+    // ADDR ONLY — ALLE bestehenden MA anzeigen (nicht nur die mit erkannter
+    // Änderung): der Auto-Import überschreibt bei jedem Lauf Adresse/Telefon/
+    // Eintrittsdatum aller bestehenden MA. Geänderte Zeilen tragen ein
+    // "Änderung"-Badge, unveränderte ein "Keine Änderung"-Badge.
     const addrSec = document.getElementById('addrSection');
     const addrList = document.getElementById('addrList');
     if (addrOnly.length) {
         addrSec.style.display = 'block';
-        const addrChanged = addrOnly.filter(a => a.hasAddrChange);
-        addrList.innerHTML = addrChanged.length
-            ? [...addrChanged].sort(byVorname).map(a => renderAddrRow(a)).join('')
-            : '<div style="padding:16px 24px;color:#64748b;font-size:13px">Keine Adressänderungen gefunden.</div>';
+        addrList.innerHTML = [...addrOnly].sort(byVorname).map(a => renderAddrRow(a)).join('');
+    }
+
+    // INACTIVE / PERSONALDOSSIER
+    // Walter-Regel: MA mit Bis-Datum in der Vergangenheit kommen mit Stammdaten
+    // ins HR-System (für Personaldossier / LSE / Statistik), aber OHNE Vertrag
+    // und OHNE Lohn-Check. Auto-Import legt sie als IsActive=false an.
+    const inactiveSec = document.getElementById('inactiveSection');
+    const inactiveList = document.getElementById('inactiveList');
+    if (inactiveSec && inactiveList) {
+        if (inactive.length) {
+            inactiveSec.style.display = 'block';
+            inactiveList.innerHTML = [...inactive].sort(byVorname).map(e => renderInactiveRow(e)).join('');
+        } else {
+            inactiveSec.style.display = 'none';
+        }
     }
 }
 
@@ -798,11 +1311,15 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
     const today = new Date().toISOString().split('T')[0];
     const startDate = isSalaryChange ? payRateFromIso : (csvDate || today);
     const isPast = false;
-    // Lohnwerte: bei Lohnänderung kommen die NEUEN Werte aus dem CSV (das ist
-    // ja die Änderung), alle anderen Vertragsdaten aus dem activeContract.
-    const csvTarif = get(row, 'Tarife', 'Tarifsatz').replace(',', '.');
-    const csvFte = get(row, 'Salary (FTE)').replace(',', '.');
+    // Lohn-Quellen je Vertragsmodell (Schaub-Logik):
+    //   • UTP / MTP   → "Tarife" (Stundenlohn)
+    //   • FIX / FIX-M → "Salary (actual)" = Pensum-Lohn (z.B. 80%-Wert);
+    //     wir arbeiten mit 100%-Lohn → hochrechnen via Pensum.
+    //   "Salary (FTE)" und "Tarifsatz" werden im neuen Modell nicht mehr verwendet.
+    const csvTarif        = (get(row, 'Tarife') || '').replace(',', '.');
+    const csvSalaryActual = (get(row, 'Salary (actual)') || '').replace(',', '.');
     const anzahl = parseAnzahl(row);
+
     // Bei Lohnänderung: Pensum, Stunden, Befristung aus dem aktiven Vertrag
     // übernehmen (sollen ja gleich bleiben). Bei Neuvertrag: aus CSV.
     const prefillPensum = isSalaryChange
@@ -811,9 +1328,17 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
     const prefillGuarHours = isSalaryChange
         ? (activeContract.guaranteedHoursPerWeek ?? '')
         : (anzahl?.type === 'hours' ? anzahl.value : '');
+
+    // FIX/FIX-M: Salary (actual) auf 100% hochrechnen
+    // = salary_actual / pensum × 100 (gerundet auf 0.05 CHF)
+    const pensumForCalc = Number(prefillPensum) || 100;
+    const salaryActualNum = parseFloat(csvSalaryActual) || 0;
+    const salaryFteCalc = salaryActualNum > 0 && pensumForCalc > 0
+        ? (Math.round(salaryActualNum / pensumForCalc * 100 * 20) / 20).toFixed(2)
+        : '';
     const prefillSalaryFte = isSalaryChange
-        ? (csvFte || activeContract.monthlySalaryFte || '')
-        : csvFte;
+        ? (salaryFteCalc || activeContract.monthlySalaryFte || '')
+        : salaryFteCalc;
     const prefillHourly = isSalaryChange
         ? (csvTarif || activeContract.hourlyRate || '')
         : csvTarif;
@@ -823,26 +1348,14 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
         ? (activeContract.contractEndDate ? activeContract.contractEndDate.toString().slice(0, 10) : '')
         : formatDate(get(row, 'Bis'));
 
-    // Map CSV Funktion → job_group code for preselection
-    const FUNKTION_TO_JG = {
-        '1ST ASSISTANT':'ASST_1','2ND ASSISTANT':'ASST_2','ASSISTANT TRAINEE':'SHIFT_LEADER_1_6',
-        'OWNER OPERATOR TRAINEE':'CREW','CREW':'CREW','CREW TRAINER':'HOST_CT',
-        'GUEST EXPERIENCE LEADER':'HOST_CT','HOSTESS / HOST':'HOST_CT','HOSTESS':'HOST_CT',
-        'NIGHT CLEANER':'CREW','INTERN':'CREW','FIELD TRAINER':'HOST_CT',
-        'RESTAURANT MANAGER - NEVEAU 1':'REST_MANAGER','RESTAURANT MANAGER - NIVEAU 1':'REST_MANAGER',
-        'RESTAURANT MANAGER - NIVEAU 2':'REST_MANAGER','SHIFT COORDINATOR':'SHIFT_LEADER_7_PLUS',
-        'SHIFT LEADER':'SHIFT_LEADER_1_6','MANAGER':'REST_MANAGER',
-        'RESTAURANT MANAGER':'REST_MANAGER','STORE MANAGER':'REST_MANAGER',
-    };
     // Bei reiner Lohnänderung: Vertragsmodell und Funktion aus dem aktiven
     // Vertrag übernehmen (gleich bleiben), nicht aus CSV neu interpretieren.
     const suggestedModel = isSalaryChange
         ? (activeContract.employmentModel || mapContractType(row))
         : mapContractType(row);
-    const csvFunktionUpper = get(row, 'Funktion').toUpperCase().trim();
     const suggestedJg = isSalaryChange
-        ? (activeContract.jobGroupCode || FUNKTION_TO_JG[csvFunktionUpper] || '')
-        : (FUNKTION_TO_JG[csvFunktionUpper] || '');
+        ? (activeContract.jobGroupCode || resolveJobGroupCode(row) || '')
+        : (resolveJobGroupCode(row) || '');
 
     const jgOpts = jobGroups.map(j => {
         const code = j.code || j.Code || '';
@@ -851,10 +1364,18 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
         return `<option value="${code}" ${sel}>${name}</option>`;
     }).join('');
 
+    // Ausbildungsniveau aus CSV-Spalte "Qualification CCNT" mappen:
+    //   1 Avec examen professionnel → IV
+    //   2 Avec CFC + 6 jours        → IIIb
+    //   3 Avec CFC                  → IIIa
+    //   4 Avec AFP                  → II
+    //   5 Sans qualification / leer / unbekannt → Ia (Default)
+    const suggestedEdu = mapCcntToEduLevel(get(row, 'Qualification CCNT'));
     const edOpts = educationLevels.map(e => {
         const code = e.code || e.Code || '';
         const name = e.name || e.Name || code;
-        return `<option value="${code}">${name}</option>`;
+        const sel  = code === suggestedEdu ? 'selected' : '';
+        return `<option value="${code}" ${sel}>${name}</option>`;
     }).join('');
 
     // Build CSV info for display
@@ -863,8 +1384,8 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
     const csvVon = fmtDe(get(row, 'Von'));
     const csvBisRaw = get(row, 'Bis');
     const csvBis = csvBisRaw ? fmtDe(csvBisRaw) : 'Unbefristet';
-    const csvTarifDisplay = get(row, 'Tarife', 'Tarifsatz').replace(',', '.');
-    const csvFteDisplay = get(row, 'Salary (FTE)').replace(',', '.');
+    const csvTarifDisplay = csvTarif;
+    const csvFteDisplay = salaryFteCalc;  // berechnet aus Salary (actual) × 100/Pensum
     const csvAnzahl = get(row, 'Anzahl');
     const csvStore = get(row, 'Store name') || get(row, 'Store number');
 
@@ -878,30 +1399,38 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
             const diffRow = (label, oldV, newV, isMoney) => {
                 const fmt = v => isMoney ? 'CHF ' + Number(v).toFixed(2) : v;
                 if (!oldV && !newV) return '';
-                const changed = Math.abs((Number(oldV)||0) - (Number(newV)||0)) > 0.01;
+                const oldNum = Number(oldV) || 0;
+                const newNum = Number(newV) || 0;
+                const changed = Math.abs(oldNum - newNum) > 0.01;
+                // Wenn der CSV-Wert NIEDRIGER als der DB-Wert ist (= ungewollte
+                // Lohnreduktion aus easy@work), wird er ignoriert. Anzeige umkehren:
+                // CSV-Wert durchgestrichen, DB-Wert grün als geltender Wert.
+                const csvIgnored = newNum > 0 && oldNum > 0 && newNum < oldNum;
+                const struckVal  = csvIgnored ? newV : oldV;
+                const validVal   = csvIgnored ? oldV : newV;
                 return `
-                <div style="display:flex;justify-content:space-between;padding:4px 0">
-                    <span style="color:#64748b;font-size:12px">${label}</span>
-                    <span style="font-size:13px">
-                        <span style="color:#94a3b8;text-decoration:line-through">${oldV ? fmt(oldV) : '–'}</span>
-                        <span style="margin:0 8px;color:#94a3b8">→</span>
-                        <span style="color:${changed ? '#15803d' : '#1e293b'};font-weight:600">${newV ? fmt(newV) : '–'}</span>
+                <div style="display:flex;justify-content:space-between;padding:2px 0">
+                    <span style="color:#64748b;font-size:11.5px">${label}</span>
+                    <span style="font-size:12.5px">
+                        <span style="color:#94a3b8;text-decoration:line-through">${struckVal ? fmt(struckVal) : '–'}</span>
+                        <span style="margin:0 6px;color:#94a3b8">→</span>
+                        <span style="color:${changed ? '#15803d' : '#1e293b'};font-weight:600">${validVal ? fmt(validVal) : '–'}</span>
                     </span>
                 </div>`;
             };
             return `
-            <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 16px;margin-bottom:12px">
-                <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">💰 Lohnänderung — alle übrigen Vertragsdaten bleiben</div>
+            <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin-bottom:10px">
+                <div style="font-size:10.5px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">💰 Lohnänderung — alle übrigen Vertragsdaten bleiben</div>
                 ${(suggestedModel === 'UTP' || suggestedModel === 'MTP')
                     ? diffRow('Stundenlohn', oldHrly, newHrly, true)
                     : diffRow('Monatslohn 100%', oldFte, newFte, true)}
-                <div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid #fcd34d;margin-top:6px;padding-top:8px">
-                    <span style="color:#64748b;font-size:12px">Gültig ab</span>
-                    <span style="font-size:13px;color:#0f172a;font-weight:600">${fmtDe(payRateFromIso)}</span>
+                <div style="display:flex;justify-content:space-between;padding:2px 0;border-top:1px solid #fcd34d;margin-top:4px;padding-top:5px">
+                    <span style="color:#64748b;font-size:11.5px">Gültig ab</span>
+                    <span style="font-size:12.5px;color:#0f172a;font-weight:600">${fmtDe(payRateFromIso)}</span>
                 </div>
-                <div style="display:flex;justify-content:space-between;padding:4px 0">
-                    <span style="color:#64748b;font-size:12px">Vertragstyp · Funktion</span>
-                    <span style="font-size:13px;color:#475569">${suggestedModel} · ${activeContract.jobTitle ?? '–'}</span>
+                <div style="display:flex;justify-content:space-between;padding:2px 0">
+                    <span style="color:#64748b;font-size:11.5px">Vertragstyp · Funktion</span>
+                    <span style="font-size:12.5px;color:#475569">${suggestedModel} · ${activeContract.jobTitle ?? '–'}</span>
                 </div>
                 <div style="display:flex;justify-content:space-between;padding:4px 0">
                     <span style="color:#64748b;font-size:12px">Übernommen</span>
@@ -914,8 +1443,8 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
                 </div>
             </div>`;
         })()
-        : `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:12px">
-            <div style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Vertragsdaten aus CSV</div>
+        : `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:10px">
+            <div style="font-size:10.5px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Vertragsdaten aus CSV</div>
             <div class="addr-fields">
                 ${addrField('Vertragstyp', csvModel)}
                 ${addrField('Funktion', csvFunktion)}
@@ -960,14 +1489,9 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
             <div class="form-group" style="grid-column: 1 / -1">
                 <label class="form-label">Vertragsbeginn <span class="required">*</span></label>
                 <input class="form-input prefilled" type="date" id="startDate-${idx}" value="${startDate}" onchange="onStartDateChange(${idx})">
-                <div id="periodWarn-${idx}" style="display:none;margin-top:8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e">
-                    <div style="font-weight:600;margin-bottom:6px">⚠️ Vertragsbeginn nicht auf Periodenstart</div>
-                    <div id="periodWarnText-${idx}" style="margin-bottom:8px;color:#78350f"></div>
-                    <div style="display:flex;gap:6px;flex-wrap:wrap">
-                        <button type="button" class="btn btn-sm" style="background:#fff;border:1px solid #fcd34d;color:#92400e;padding:4px 10px;font-size:12px;border-radius:6px" onclick="shiftToPeriodStart(${idx}, 'prev')">← Auf vorigen Periodenstart</button>
-                        <button type="button" class="btn btn-sm" style="background:#fff;border:1px solid #fcd34d;color:#92400e;padding:4px 10px;font-size:12px;border-radius:6px" onclick="shiftToPeriodStart(${idx}, 'next')">Auf nächsten Periodenstart →</button>
-                    </div>
-                </div>
+                <!-- Periodenstart-Warnung entfernt (Walter 16.05.2026, Etappe 5f):
+                     Lohnperiode ist immer der Kalendermonat (1.-31.). Verträge können
+                     mitten im Monat starten — wird anteilig abgerechnet. -->
             </div>
             <div class="form-group" id="hourlyGroup-${idx}" style="display:none">
                 <label class="form-label">Stundenlohn (CHF)</label>
@@ -1101,6 +1625,15 @@ function calcProbationEnd(idx) {
 
 function renderNewRow(e) {
     const { idx, row } = e;
+    const modelCode = mapContractType(row);
+    const isPhantom = isPhantomRow(row);
+    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+    // Phantom-MA (Supervisor) ist KEIN Fehler — eigene gelbe Badge.
+    const modelPill = modelCode
+        ? `<span class="badge" style="background:${modelColor[modelCode]||'#f1f5f9'};color:#0f172a">${modelCode}</span>`
+        : isPhantom
+            ? `<span class="badge" style="background:#fef3c7;color:#92400e">⛔ MA ohne Lohn</span>`
+            : `<span class="badge" style="background:#fee2e2;color:#b91c1c">⚠️ kein Vertrag</span>`;
     return `
     <div class="row-item" id="row-${idx}">
         <div class="row-header" onclick="toggleDetail(${idx})">
@@ -1111,7 +1644,8 @@ function renderNewRow(e) {
             </div>
             <div class="row-badges">
                 <span class="badge badge-new">Neu</span>
-                <span class="badge badge-contract">Vertrag erforderlich</span>
+                ${isPhantom ? '' : '<span class="badge badge-contract">Vertrag erforderlich</span>'}
+                ${modelPill}
             </div>
             <span class="row-chevron" id="chev-${idx}">›</span>
         </div>
@@ -1124,18 +1658,105 @@ function renderNewRow(e) {
                 ${addrField('Geburtsdatum', fmtDe(get(row,'Geburtsdatum')))}
                 ${addrField('E-Mail', get(row,'E-Mail'))}
                 ${addrField('Telefon', formatPhone(get(row,'Telefon')))}
-                ${addrField('Adresse', get(row,'Adresse'))}
+                ${addrField('Strasse', splitStreetHouse(get(row,'Adresse')).street)}
+                ${addrField('Hausnummer', splitStreetHouse(get(row,'Adresse')).house)}
                 ${addrField('PLZ', get(row,'Postleitzahl'))}
                 ${addrField('Stadt', get(row,'Stadt'))}
                 ${addrField('Nationalität', get(row,'Nationalität'))}
             </div>
-            ${contractFormHtml(idx, row, false)}
+            ${isPhantom ? `
+                <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
+                    <strong>⛔ MA ohne Lohn</strong> — Phantom-MA für easy@work-Zugang (Group memberships = „Supervisor"). Wird im HR-System geführt, aber NICHT im Lohn abgerechnet — kein Vertrag, kein Mindestlohn-Check.
+                </div>
+            ` : contractFormHtml(idx, row, false)}
             <div class="row-actions">
                 <div id="rowStatus-${idx}"></div>
-                <button class="btn btn-primary" id="btnSave-${idx}" onclick="saveNewEmployee(${idx})" disabled>💾 Mitarbeiter & Vertrag anlegen</button>
+                ${isPhantom
+                    ? `<button class="btn btn-primary" id="btnSave-${idx}" onclick="saveNewPhantom(${idx})">💾 MA ohne Lohn anlegen</button>`
+                    : `<button class="btn btn-primary" id="btnSave-${idx}" onclick="saveNewEmployee(${idx})" disabled>💾 Mitarbeiter & Vertrag anlegen</button>`}
             </div>
         </div>
     </div>`;
+}
+
+// Phantom-MA (Supervisor) anlegen — nur Mitarbeiter-Datensatz, kein Vertrag.
+async function saveNewPhantom(idx) {
+    const row    = parsedRows[idx];
+    const btn    = document.getElementById(`btnSave-${idx}`);
+    const alertEl= document.getElementById(`rowAlert-${idx}`);
+    btn.disabled = true; btn.textContent = '⏳ Wird gespeichert...';
+    alertEl.innerHTML = '';
+    try {
+        const payload = buildPersonPayload(row);
+        const res = await fetch('/api/employees', {
+            method: 'POST', headers: ah(), body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(await res.text());
+        markRowDone(idx, 'MA ohne Lohn angelegt (Phantom)', null);
+        await loadEmployees();
+    } catch(e) {
+        alertEl.innerHTML = `<div class="alert alert-err">Fehler: ${e.message}</div>`;
+        btn.disabled = false; btn.textContent = '💾 MA ohne Lohn anlegen';
+    }
+}
+
+// Erfasste Zeile als erledigt markieren: grünes Badge, Detail einklappen,
+// Status-Text + Schliessen-Button. Wird von saveNewEmployee und saveContractChange genutzt.
+function markRowDone(idx, statusText, savedEmploymentId) {
+    const row     = document.getElementById(`row-${idx}`);
+    const detail  = document.getElementById(`detail-${idx}`);
+    const chev    = document.getElementById(`chev-${idx}`);
+    const badges  = row?.querySelector('.row-badges');
+    const statusEl= document.getElementById(`rowStatus-${idx}`);
+    const btn     = document.getElementById(`btnSave-${idx}`);
+
+    if (row) row.style.background = '#f0fdf4';
+    if (detail) { detail.classList.remove('open'); detail.style.display = 'none'; }
+    if (chev) chev.classList.remove('open');
+    if (badges) {
+        // Modell-Pille aus dem aktuell gewählten Vertragsmodell beibehalten
+        const modelCode = document.getElementById(`model-${idx}`)?.value || '';
+        const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+        const modelPill = modelCode
+            ? ` <span class="badge" style="background:${modelColor[modelCode]||'#f1f5f9'};color:#0f172a">${modelCode}</span>`
+            : '';
+        badges.innerHTML = `<span class="badge" style="background:#dcfce7;color:#15803d">✅ Erfasst</span>${modelPill}`;
+    }
+    if (btn) btn.style.display = 'none';
+    if (statusEl) {
+        const pdfHtml = savedEmploymentId
+            ? ` <button class="btn btn-outline" style="margin-left:8px;padding:3px 10px;font-size:12px" onclick="downloadContractPdf(${savedEmploymentId})">📄 Vertrag als PDF</button>`
+            : '';
+        statusEl.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span class="status-done">✅ ${statusText}</span>
+            <div>
+              ${pdfHtml}
+              <button class="btn btn-outline" style="margin-left:8px;padding:3px 10px;font-size:12px" onclick="dismissRow(${idx})">✕ Schliessen</button>
+            </div>
+          </div>`;
+    }
+    rowStates[idx] = { ...(rowStates[idx]||{}), done: true, savedEmploymentId };
+}
+
+// Erledigte Zeile ganz aus der Liste entfernen.
+function dismissRow(idx) {
+    const row = document.getElementById(`row-${idx}`);
+    if (row) row.style.display = 'none';
+}
+
+async function downloadContractPdf(employmentId) {
+    try {
+        const res = await fetch(`/api/contracts/employment/${employmentId}/pdf`, { headers: ah() });
+        if (!res.ok) { alert('PDF-Fehler: ' + await res.text()); return; }
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const cd   = res.headers.get('Content-Disposition') || '';
+        const m    = cd.match(/filename="?([^"]+)"?/);
+        a.download = m ? m[1] : 'Vertrag.pdf';
+        a.href = url; a.click(); URL.revokeObjectURL(url);
+    } catch(e) { alert('Fehler: ' + e.message); }
 }
 
 function renderContractRow(c) {
@@ -1144,9 +1765,21 @@ function renderContractRow(c) {
     const vonDate = isSalaryChange
         ? payRateFromIso
         : formatDate(get(row, 'Von'));
-    const badgeHtml = isSalaryChange
+    // Vertragsmodell-Pille: aus aktivem Vertrag bei Lohnänderung, sonst aus Mapping
+    const modelCode = isSalaryChange
+        ? (activeContract?.employmentModel || mapContractType(row))
+        : mapContractType(row);
+    const isPhantom = isPhantomRow(row);
+    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+    const modelPill = modelCode
+        ? `<span class="badge" style="background:${modelColor[modelCode]||'#f1f5f9'};color:#0f172a">${modelCode}</span>`
+        : isPhantom
+            ? `<span class="badge" style="background:#fef3c7;color:#92400e">⛔ MA ohne Lohn</span>`
+            : `<span class="badge" style="background:#fee2e2;color:#b91c1c">⚠️ kein Vertrag</span>`;
+    const badgeHtml = (isSalaryChange
         ? `<span class="badge badge-contract" style="background:#fef3c7;color:#92400e">Lohnänderung</span>`
-        : `<span class="badge badge-contract">Neuer Vertrag</span>`;
+        : `<span class="badge badge-contract">Neuer Vertrag</span>`)
+        + ' ' + modelPill;
     const subline = isSalaryChange
         ? `Nr. ${get(row,'Nummer')} · Neuer Lohn ab ${fmtDe(payRateFromIso)} (alte Vertragsdaten übernommen)`
         : `Nr. ${get(row,'Nummer')} · Neues Vertragsdatum: ${vonDate || '–'}`;
@@ -1166,14 +1799,15 @@ function renderContractRow(c) {
         </div>
         <div class="row-detail" id="detail-${idx}">
             <div id="rowAlert-${idx}"></div>
-            <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Personaldaten aus CSV</div>
-            <div class="addr-fields" style="margin-bottom:16px">
+            <div style="font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Personaldaten aus CSV</div>
+            <div class="addr-fields" style="margin-bottom:10px">
                 ${addrField('Vorname', get(row,'Vorname'))}
                 ${addrField('Nachname', get(row,'Nachname'))}
                 ${addrField('Geburtsdatum', fmtDe(get(row,'Geburtsdatum')))}
                 ${addrField('E-Mail', get(row,'E-Mail'))}
                 ${addrField('Telefon', formatPhone(get(row,'Telefon')))}
-                ${addrField('Adresse', get(row,'Adresse'))}
+                ${addrField('Strasse', splitStreetHouse(get(row,'Adresse')).street)}
+                ${addrField('Hausnummer', splitStreetHouse(get(row,'Adresse')).house)}
                 ${addrField('PLZ', get(row,'Postleitzahl'))}
                 ${addrField('Stadt', get(row,'Stadt'))}
                 ${addrField('Nationalität', get(row,'Nationalität'))}
@@ -1189,16 +1823,26 @@ function renderContractRow(c) {
 
 function renderAddrRow(a) {
     const { idx, row, employeeId, existingEmp } = a;
-    // Compare fields: CSV vs existing employee
+    // Compare fields: CSV vs existing employee.
+    // Feldnamen MÜSSEN den Employee-Model-Properties entsprechen
+    // (street/zipCode/phoneMobile — NICHT address/postalCode/phone).
+    const csvAddr = splitStreetHouse(get(row,'Adresse'));
     const fields = [
-        { label: 'Adresse',      csv: get(row,'Adresse'),       db: existingEmp?.address || '' },
-        { label: 'PLZ',          csv: get(row,'Postleitzahl'),   db: existingEmp?.postalCode || '' },
+        { label: 'Strasse',      csv: csvAddr.street,            db: existingEmp?.street || '' },
+        { label: 'Hausnummer',   csv: csvAddr.house,             db: existingEmp?.houseNumber || '' },
+        { label: 'PLZ',          csv: get(row,'Postleitzahl'),   db: existingEmp?.zipCode || '' },
         { label: 'Stadt',        csv: get(row,'Stadt'),          db: existingEmp?.city || '' },
         { label: 'Region',       csv: get(row,'Region'),         db: existingEmp?.region || '' },
         { label: 'E-Mail',       csv: get(row,'E-Mail'),         db: existingEmp?.email || '' },
-        { label: 'Telefon',      csv: formatPhone(get(row,'Telefon')),  db: existingEmp?.phone || '' },
+        { label: 'Telefon',      csv: formatPhone(get(row,'Telefon')),  db: existingEmp?.phoneMobile || '' },
     ];
-    const diffs = fields.filter(f => f.csv && f.db && f.csv.trim().toLowerCase() !== f.db.trim().toLowerCase());
+    // Änderung = CSV hat einen Wert, der sich vom DB-Wert unterscheidet
+    // (DB leer ODER abweichend) — Walter-Vorgabe 13.05.2026.
+    const diffs = fields.filter(f => {
+        const csv = (f.csv || '').trim();
+        const db  = (f.db  || '').trim();
+        return csv.length > 0 && csv.toLowerCase() !== db.toLowerCase();
+    });
     const diffCount = diffs.length;
     return `
     <div class="row-item" id="row-${idx}">
@@ -1286,63 +1930,16 @@ function recalcSalary(idx) {
     triggerComplianceCheck(idx);
 }
 
-// ── PERIOD-START-WARNUNG ──────────────────────────────
-// Prüft, ob das Vertragsbeginn-Datum auf dem Periodenstart (standardmässig
-// der 21.) liegt. Falls nein, Hinweisbox mit Buttons zum Verschieben anzeigen.
+// ── PERIOD-START-WARNUNG (Walter 16.05.2026, Etappe 5f: entfernt) ─────
+// Lohnperiode = immer Kalendermonat (1.-31.). Verträge können legitim
+// mitten im Monat starten — wird im PayrollController anteilig abgerechnet.
+// onStartDateChange triggert nur noch den Compliance-Check, die alten
+// Periodenstart-Funktionen sind No-Ops (Aufrufer dürfen weiter existieren).
 function onStartDateChange(idx) {
-    checkPeriodStart(idx);
     triggerComplianceCheck(idx);
 }
-
-function checkPeriodStart(idx) {
-    const el      = document.getElementById(`startDate-${idx}`);
-    const warnEl  = document.getElementById(`periodWarn-${idx}`);
-    const textEl  = document.getElementById(`periodWarnText-${idx}`);
-    if (!el || !warnEl || !textEl) return;
-    const startIso = el.value;
-    if (!startIso) { warnEl.style.display = 'none'; return; }
-
-    const periodStartDay = companyProfile?.payrollPeriodStartDay ?? 21;
-    const d = new Date(startIso + 'T12:00:00');
-    if (d.getDate() === periodStartDay) {
-        warnEl.style.display = 'none';
-        return;
-    }
-    // Nicht am Periodenstart → Vorschläge berechnen
-    const prev = prevPeriodStart(d, periodStartDay);
-    const next = nextPeriodStart(d, periodStartDay);
-    textEl.textContent = `Aktueller Vertragsbeginn ${fmtDe(startIso)} liegt mitten in der Lohnperiode `
-        + `(Periode beginnt jeweils am ${periodStartDay}.). Das führt zu geteilten Löhnen. `
-        + `Vorschlag: auf vorigen Periodenstart (${fmtDe(isoOf(prev))}) oder nächsten (${fmtDe(isoOf(next))}) verschieben.`;
-    warnEl.style.display = '';
-}
-
-function shiftToPeriodStart(idx, direction) {
-    const el = document.getElementById(`startDate-${idx}`);
-    if (!el || !el.value) return;
-    const periodStartDay = companyProfile?.payrollPeriodStartDay ?? 21;
-    const d = new Date(el.value + 'T12:00:00');
-    const target = direction === 'prev'
-        ? prevPeriodStart(d, periodStartDay)
-        : nextPeriodStart(d, periodStartDay);
-    el.value = isoOf(target);
-    checkPeriodStart(idx);
-    triggerComplianceCheck(idx);
-}
-
-function prevPeriodStart(d, day) {
-    // letzter Periodenstart <= d
-    const m = new Date(d.getFullYear(), d.getMonth(), day, 12, 0, 0);
-    if (m <= d) return m;
-    return new Date(d.getFullYear(), d.getMonth() - 1, day, 12, 0, 0);
-}
-
-function nextPeriodStart(d, day) {
-    // nächster Periodenstart > d
-    const m = new Date(d.getFullYear(), d.getMonth(), day, 12, 0, 0);
-    if (m > d) return m;
-    return new Date(d.getFullYear(), d.getMonth() + 1, day, 12, 0, 0);
-}
+function checkPeriodStart(_idx)   { /* No-Op — alte Periodenregel weggefallen */ }
+function shiftToPeriodStart(_i,_d) { /* No-Op — alte Periodenregel weggefallen */ }
 
 function isoOf(d) {
     const y = d.getFullYear();
@@ -1388,44 +1985,21 @@ async function runComplianceCheck(idx) {
         hourlyRate = parseFloat(hrRaw.replace(',', '.')) || null;
     }
 
-    // Mapping CSV 'Funktion' (Stellenbezeichnung) → DB job_group_code
-    // Quelle: Umwandlung_funktion.xlsx
-    const FUNKTION_MAP = {
-        '1ST ASSISTANT':                    'ASST_1',
-        '2ND ASSISTANT':                    'ASST_2',
-        'ASSISTANT TRAINEE':                'SHIFT_LEADER_1_6',
-        'OWNER OPERATOR TRAINEE':           'CREW',
-        'APPRENTI-/E SPÉCIALISTE EN RES':   'CREW',
-        'CREW':                             'CREW',
-        'CREW TRAINER':                     'HOST_CT',
-        'GUEST EXPERIENCE LEADER':          'HOST_CT',
-        'HOSTESS / HOST':                   'HOST_CT',
-        'HOSTESS':                          'HOST_CT',
-        'NIGHT CLEANER':                    'CREW',
-        'INTERN':                           'CREW',
-        'FIELD TRAINER':                    'HOST_CT',
-        'RESTAURANT MANAGER - NEVEAU 1':    'REST_MANAGER',
-        'RESTAURANT MANAGER - NIVEAU 1':    'REST_MANAGER',
-        'RESTAURANT MANAGER - NIVEAU 2':    'REST_MANAGER',
-        'SHIFT COORDINATOR':                'SHIFT_LEADER_7_PLUS',
-        'SHIFT LEADER':                     'SHIFT_LEADER_1_6',
-        // Fallbacks aus 'Funktionen' Feld
-        'MANAGER':                          'REST_MANAGER',
-        'RESTAURANT MANAGER':               'REST_MANAGER',
-        'STORE MANAGER':                    'REST_MANAGER',
-        'EMPOLYE':                          'CREW',
-        'EMPLOYEE':                         'CREW',
-    };
-    // Zuerst 'Funktion' (Stellenbezeichnung) mappen, dann 'Funktionen' als Fallback
-    const funktionRaw = get(row, 'Funktion').toUpperCase().trim();
-    const funktionenRaw = get(row, 'Funktionen').toUpperCase().trim();
     // jobGroupCode: zuerst aus Formular (job_groups dropdown), dann Mapping als Fallback
-    const jobGroupCode = document.getElementById(`jobGroup-${idx}`)?.value || FUNKTION_MAP[funktionRaw] || FUNKTION_MAP[funktionenRaw] || 'CREW';
+    const jobGroupCode = document.getElementById(`jobGroup-${idx}`)?.value
+        || resolveJobGroupCode(row)
+        || 'CREW';
 
     const pastInfo = (!isFuture && startDate < today)
         ? `<div class="compliance-box compliance-warn" style="margin-bottom:6px">ℹ️ Vertragsbeginn in der Vergangenheit – aktuell gültiger Mindestlohn wird verwendet.</div>`
         : '';
     box.innerHTML = pastInfo + `<div class="compliance-box compliance-loading">⏳ Mindestlohn wird geprüft...</div>`;
+
+    // Geburtsdatum aus CSV-Zeile für altersabhängige Mindestlohn-Regel
+    // (z.B. unter 18 Jahre → reduzierter Stundensatz).
+    const birthDate = (typeof formatDate === 'function')
+        ? (formatDate(get(row, 'Geburtsdatum')) || null)
+        : null;
 
     try {
         const body = {
@@ -1435,7 +2009,8 @@ async function runComplianceCheck(idx) {
             employmentModel: model,
             employmentPercentage: pct,
             hourlyRate,
-            monthlySalary
+            monthlySalary,
+            birthDate
         };
         const res = await fetch('/api/compliance/check-live', { method: 'POST', headers: ah(), body: JSON.stringify(body) });
         if (!res.ok) {
@@ -1445,19 +2020,42 @@ async function runComplianceCheck(idx) {
         const cr = await res.json();
         const underpaid = cr.status === 'UNDERPAID';
         const ok = cr.status === 'OK' || cr.status === 'ok';
+        const noRule = cr.status === 'NO_RULE';
 
-        // Mindestlohn vorschlagen wenn Feld noch leer
+        // Frühe Spezialbehandlung: keine Regel in DB → klare Meldung statt leerem Lohnfeld
+        if (noRule) {
+            box.innerHTML = pastInfo + `
+              <div class="compliance-box compliance-warn">
+                <div style="font-weight:600;margin-bottom:4px">⚠️ Keine Mindestlohnregel hinterlegt</div>
+                <div style="font-size:12px">Kombination: ${model} · ${jobGroupCode} · ${edLevel}<br>
+                Bitte Lohn manuell eintragen oder Regel in den Stammdaten ergänzen.</div>
+              </div>`;
+            return;
+        }
+
+        // Mindestlohn-Default: Feld ist leer ODER der CSV-Wert liegt UNTER dem
+        // Mindestlohn → automatisch auf Mindestlohn anheben (Schutz vor easy@work-
+        // Daten, die aus alten Lohnstufen stammen). User kann nachträglich manuell
+        // höheren Wert eintragen.
         if (isFix) {
             const fteEl = document.getElementById(`salaryFte-${idx}`);
-            if (fteEl && (!fteEl.value || parseFloat(fteEl.value) === 0) && cr.minimumMonthlySalaryFte != null) {
-                fteEl.value = Number(cr.minimumMonthlySalaryFte).toFixed(2);
-                recalcSalary(idx);
+            if (fteEl && cr.minimumMonthlySalaryFte != null) {
+                const cur = parseFloat(fteEl.value) || 0;
+                const min = Number(cr.minimumMonthlySalaryFte);
+                if (cur === 0 || cur < min) {
+                    fteEl.value = min.toFixed(2);
+                    recalcSalary(idx);
+                }
             }
         } else {
             const hrEl = document.getElementById(`hourlyRate-${idx}`);
-            if (hrEl && (!hrEl.value || parseFloat(hrEl.value) === 0) && cr.minimumHourlyRate != null) {
-                hrEl.value = Number(cr.minimumHourlyRate).toFixed(2);
-                calcMtpSalary(idx);
+            if (hrEl && cr.minimumHourlyRate != null) {
+                const cur = parseFloat((hrEl.value || '').replace(',', '.')) || 0;
+                const min = Number(cr.minimumHourlyRate);
+                if (cur === 0 || cur < min) {
+                    hrEl.value = min.toFixed(2);
+                    calcMtpSalary(idx);
+                }
             }
         }
         const overpaid = ok && cr.difference != null && Number(cr.difference) > 0;
@@ -1514,21 +2112,59 @@ function buildPersonPayload(row) {
     const genderRaw = get(row, 'Geschlecht').toLowerCase();
     const gender = genderRaw === 'female' || genderRaw === 'weiblich' ? 'female' :
                    genderRaw === 'male'   || genderRaw === 'männlich' ? 'male' : null;
+    // Anrede aus CSV oder fallback aus Geschlecht — analog Backend.
+    const salutationRaw = (get(row, 'Anrede') || '').trim();
+    const salutation = salutationRaw
+        ? salutationRaw
+        : (gender === 'female' ? 'Frau' : (gender === 'male' ? 'Herr' : null));
+    // Eintrittsdatum (Walter-Vorgabe 13.05.2026): "Von" IST das Eintrittsdatum.
+    // Ist "Von" leer, wird fix auf 01.01.2024 gesetzt — kein Rückgriff mehr auf
+    // "Datum der Betriebszugehörigkeit"/"Eintrittsdatum".
+    const entryDate = formatDate(get(row, 'Von')) || '2024-01-01';
+
+    // Bis-Datum-Logik (Walter-Vorgabe 13.05.2026):
+    //   • "Bis" in der VERGANGENHEIT → Austrittsdatum (MA ausgetreten)
+    //   • "Bis" in der ZUKUNFT       → befristeter Vertrag, KEIN Austritt
+    //                                  (wird über Employment.contractEndDate
+    //                                   abgebildet, nicht über exitDate)
+    //   • "Bis" leer                 → unbefristet, kein Austritt
+    const bisIso   = formatDate(get(row, 'Bis'));
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const exitDate = (bisIso && bisIso < todayIso) ? bisIso : null;
+
+    // Adresse: easy@work liefert Strasse + Hausnummer kombiniert in "Adresse".
+    // Aufsplitten, damit Backend-Felder Street/HouseNumber sauber getrennt
+    // gefüllt werden. houseNumber wird NUR mitgesendet wenn die CSV überhaupt
+    // eine Adresse hat — dann aber immer (ggf. ''), damit ein veralteter
+    // Hausnummer-Wert aus einem früheren Import überschrieben/geleert wird.
+    const addrRaw = get(row, 'Adresse');
+    const addr    = splitStreetHouse(addrRaw);
+
     return {
         firstName:       get(row, 'Vorname'),
         lastName:        get(row, 'Nachname'),
+        salutation:      salutation,
         email:           get(row, 'E-Mail'),
-        phone:           formatPhone(get(row, 'Telefon')) || null,
-        address:         get(row, 'Adresse') || null,
+        // Backend-Property heisst PhoneMobile (Employee-Model + EmployeeUpdateDto).
+        phoneMobile:     formatPhone(get(row, 'Telefon')) || null,
+        street:          addr.street || null,
+        houseNumber:     addrRaw ? addr.house : null,
         city:            get(row, 'Stadt') || null,
-        postalCode:      get(row, 'Postleitzahl') || null,
-        region:          get(row, 'Region') || null,
+        zipCode:         get(row, 'Postleitzahl') || null,
         dateOfBirth:     formatDate(get(row, 'Geburtsdatum')) || null,
         gender:          gender,
         nationalityId:   nat?.id ?? nat?.Id ?? null,
         employeeNumber:  get(row, 'Nummer'),   // maps to employee_number in DB
-        hiredDate:       formatDate(get(row, 'Datum der Betriebszugehörigkeit')) || null,
+        // Backend-Property heisst EntryDate (nicht hiredDate!).
+        entryDate:       entryDate,
+        // Austrittsdatum nur wenn "Bis" in der Vergangenheit. ExitDateSet-Flag
+        // ist für den PUT-Pfad nötig (EmployeeUpdateDto), beim POST harmlos.
+        exitDate:        exitDate,
+        exitDateSet:     true,
         familyCare:      get(row, 'Familienbetreuung') === '1' || get(row, 'Familienbetreuung').toLowerCase() === 'true',
+        // Phantom-MA-Markierung mit ans Backend geben — Walter-Regel:
+        // Supervisor = MA ohne Lohn, kein Vertrag.
+        isPayrollExcluded: isPhantomRow(row)
     };
 }
 
@@ -1544,6 +2180,7 @@ function buildContractPayload(idx, employeeId, row) {
     const hourly  = parseFloat((document.getElementById(`hourlyRate-${idx}`)?.value || '0').replace(',', '.')) || null;
     const guar    = parseFloat(document.getElementById(`guarHours-${idx}`)?.value || '0') || null;
     const jobTitle = document.getElementById(`jobGroup-${idx}`)?.value || get(row, 'Funktion') || '';
+    const educationLevelCode = document.getElementById(`edLevel-${idx}`)?.value || 'Ia';
 
     // Probezeit
     const probMonths = parseInt(document.getElementById(`probation-${idx}`)?.value || '0');
@@ -1571,13 +2208,17 @@ function buildContractPayload(idx, employeeId, row) {
         // Alle Entgelt-Prozente aus dem aktiven Vertrag übernehmen
         vacPct         = active.vacationPercent ?? (isHourly ? getVacationPct(dob, startDate) : null);
         holPct         = active.holidayPercent ?? (isHourly ? (companyProfile?.defaultHolidayPercent ?? 2.27) : null);
-        thirteenthPct  = active.thirteenthSalaryPercent ?? (isHourly ? 8.33 : null);
+        // 13. ML wird bei ALLEN Modellen mit 8.33% akkumuliert. Auszahlungs-
+        // Logik unterscheidet sich (UTP monatlich, MTP/FIX/FIX-M nur in
+        // Auszahlungsmonaten) — die wird vom PayrollController gesteuert.
+        thirteenthPct  = active.thirteenthSalaryPercent ?? 8.33;
         vacPayMode     = active.vacationPaymentMode
                         ?? (isHourly ? (companyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary') : null);
     } else {
         vacPct         = isHourly ? getVacationPct(dob, startDate) : null;
         holPct         = isHourly ? (companyProfile?.defaultHolidayPercent ?? 2.27) : null;
-        thirteenthPct  = isHourly ? 8.33 : null;
+        // 13. ML wird bei ALLEN Modellen mit 8.33% akkumuliert (siehe oben).
+        thirteenthPct  = 8.33;
         vacPayMode     = isHourly ? (companyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary') : null;
     }
 
@@ -1601,6 +2242,7 @@ function buildContractPayload(idx, employeeId, row) {
         contractEndDateSet:     true,
         contractType:           isFixedTerm ? 'befristet' : 'unbefristet',
         jobTitle,
+        educationLevelCode,
         hourlyRate:             isFix ? null : hourly,
         monthlySalary:          isFix ? actual : null,
         monthlySalaryFte:       isFix ? fte : null,
@@ -1699,11 +2341,7 @@ async function saveNewEmployee(idx) {
         const ctResult = await ctRes.json();
         const newEmpId = ctResult.employment?.id ?? ctResult.id ?? null;
 
-        statusEl.innerHTML = `<span class="status-done">✅ Mitarbeiter angelegt & Vertrag erstellt</span>`;
-        btn.style.display = 'none';
-        document.getElementById(`row-${idx}`).style.background = '#f0fdf4';
-        rowStates[idx].done = true;
-        showPdfButton(idx, newEmpId);
+        markRowDone(idx, 'Mitarbeiter angelegt & Vertrag erstellt', newEmpId);
         await loadEmployees();
     } catch(e) {
         alertEl.innerHTML = `<div class="alert alert-err">Fehler: ${e.message}</div>`;
@@ -1742,11 +2380,7 @@ async function saveContractChange(idx, employeeId) {
         const ctResult = await ctRes.json();
         const savedId = ctResult.employment?.id ?? ctResult.id ?? null;
 
-        statusEl.innerHTML = `<span class="status-done">✅ Adressdaten & neuer Vertrag gespeichert</span>`;
-        btn.style.display = 'none';
-        document.getElementById(`row-${idx}`).style.background = '#f0fdf4';
-        rowStates[idx].done = true;
-        showPdfButton(idx, savedId);
+        markRowDone(idx, 'Adressdaten & neuer Vertrag gespeichert', savedId);
     } catch(e) {
         alertEl.innerHTML = `<div class="alert alert-err">Fehler: ${e.message}</div>`;
         btn.disabled = false; btn.textContent = '📋 Neuen Vertrag erstellen';
@@ -1778,6 +2412,214 @@ async function runAllNew() {
     setTimeout(() => { btn.disabled = false; btn.textContent = '👤 Alle neuen MA anlegen'; }, 5000);
 }
 
+// ── BULK AUTO-IMPORT ──────────────────────────────────
+// Verarbeitet alle erfassbaren Vertragsänderungen + neuen MA in einem Rutsch.
+// Voraussetzung pro Zeile: Vertragsmodell erkannt (mapContractType != '') und
+// Funktion mappbar (resolveJobGroupCode != null). Compliance-Check setzt
+// automatisch den Mindestlohn als Default, falls Lohnfeld leer/zu tief.
+async function runAutoImportAll() {
+    // Welche Zeilen sind aktuell offen?
+    const openRows = [];
+    for (let i = 0; i < parsedRows.length; i++) {
+        const st = rowStates[i];
+        if (!st || st.done) continue;
+        // Ein-Button-Prinzip (Walter-Vorgabe 14.05.2026): der Auto-Import
+        // erledigt ALLES in einem Schritt — aktive Neue, Vertragsänderungen,
+        // Phantom (Supervisor), inaktive (Personaldossier) UND Adress-/
+        // Kontaktdaten-Updates bestehender MA ('addr').
+        if (!['new', 'contract', 'inactive', 'addr'].includes(st.status)) continue;
+        openRows.push({ idx: i, row: parsedRows[i], state: st });
+    }
+    if (!openRows.length) {
+        alert('Keine offenen Zeilen zum Importieren.');
+        return;
+    }
+    // Aufteilen in: Auto (Vertrag) / Phantom (Supervisor) / Inaktiv
+    // (Personaldossier) / Addr (bestehende MA, nur Stammdaten) / Manual
+    const auto = [], phantom = [], inactive = [], addr = [], manual = [];
+    for (const r of openRows) {
+        if (r.state.status === 'addr')     { addr.push(r);     continue; }
+        if (r.state.status === 'inactive') { inactive.push(r); continue; }
+        if (isPhantomRow(r.row))           { phantom.push(r);  continue; }
+        const model = mapContractType(r.row);
+        const jg    = resolveJobGroupCode(r.row);
+        if (model && jg) auto.push(r);
+        else manual.push(r);
+    }
+    // Bestätigung
+    let msg = `🚀 Auto-Import\n\n`;
+    msg += `${auto.length} Vertrag/Verträge können automatisch erfasst werden.\n`;
+    if (phantom.length)  msg += `${phantom.length} Phantom-MA (Supervisor) — werden als „MA ohne Lohn" angelegt, ohne Vertrag.\n`;
+    if (inactive.length) msg += `${inactive.length} Personaldossier (inaktiv, Bis < heute) — werden mit Stammdaten ohne Vertrag/Lohn angelegt.\n`;
+    if (addr.length)     msg += `${addr.length} bestehende MA — Adresse, Telefon und Eintrittsdatum werden aktualisiert.\n`;
+    if (manual.length)   msg += `${manual.length} benötigen manuelle Bearbeitung (kein Vertragsmodell oder unbekannte Funktion).\n\n`;
+    msg += `Mindestlohn wird automatisch als Default eingesetzt, wenn das CSV-Feld leer ist oder unter dem Mindestlohn liegt.\n\n`;
+    msg += `Fortfahren?`;
+    if (!confirm(msg)) return;
+
+    // Progress-UI vorbereiten
+    const progEl   = document.getElementById('autoImportProgress');
+    const statusEl = document.getElementById('autoImportStatus');
+    const countEl  = document.getElementById('autoImportCounter');
+    const barEl    = document.getElementById('autoImportBar');
+    const autoBtn  = document.getElementById('btnAutoImport');
+    progEl.style.display = '';
+    autoBtn.disabled = true;
+    autoBtn.style.opacity = '0.5';
+
+    let done = 0, errors = 0, phantomDone = 0, inactiveDone = 0, addrDone = 0;
+    const createdEmploymentIds = [];
+
+    // Auto-Liste = nur Verträge. Phantom-Liste = Supervisor (nur MA-Datensatz,
+    // ohne Vertrag — IsPayrollExcluded=true). Inaktiv-Liste = Personaldossier
+    // (Bis < heute, IsActive=false, kein Vertrag). Addr-Liste = bestehende MA
+    // (nur Stammdaten/Kontakt aktualisieren, kein Vertrag).
+    const totalSteps = auto.length + phantom.length + inactive.length + addr.length;
+    let stepIdx = 0;
+
+    for (let i = 0; i < auto.length; i++) {
+        const r = auto[i];
+        stepIdx++;
+        statusEl.textContent = `Erfasse: ${get(r.row, 'Vorname')} ${get(r.row, 'Nachname')}`;
+        countEl.textContent  = `${stepIdx} / ${totalSteps}`;
+        barEl.style.width    = ((stepIdx / Math.max(totalSteps, 1)) * 100).toFixed(0) + '%';
+
+        try {
+            // Detail-Bereich öffnen, damit DOM-Elemente existieren (für saveContractChange/saveNewEmployee)
+            const detail = document.getElementById(`detail-${r.idx}`);
+            if (detail) detail.classList.add('open');
+            // Mindestlohn-Default setzen (synchron via runComplianceCheck)
+            try { await runComplianceCheck(r.idx); } catch {}
+            // Save-Button aktivieren wenn er disabled war
+            const btn = document.getElementById(`btnSave-${r.idx}`);
+            if (btn) btn.disabled = false;
+            // Speichern je nach Typ
+            if (r.state.status === 'contract') {
+                await saveContractChange(r.idx, r.state.employeeId);
+            } else {
+                await saveNewEmployee(r.idx);
+            }
+            // Wenn gespeichert wurde, ist rowStates[idx].done=true und wir merken uns die ID
+            if (rowStates[r.idx]?.done) {
+                done++;
+                if (rowStates[r.idx]?.savedEmploymentId) createdEmploymentIds.push(rowStates[r.idx].savedEmploymentId);
+            } else {
+                errors++;
+            }
+        } catch (e) {
+            console.error('Auto-Import-Fehler bei idx', r.idx, e);
+            errors++;
+        }
+    }
+
+    // Phantom-MA: nur Mitarbeiter-Datensatz anlegen (kein Vertrag, kein
+    // Compliance-Check, kein Lohn). Backend setzt IsPayrollExcluded=true
+    // anhand des Payload-Flags.
+    for (let i = 0; i < phantom.length; i++) {
+        const r = phantom[i];
+        stepIdx++;
+        statusEl.textContent = `Phantom-MA: ${get(r.row, 'Vorname')} ${get(r.row, 'Nachname')}`;
+        countEl.textContent  = `${stepIdx} / ${totalSteps}`;
+        barEl.style.width    = ((stepIdx / Math.max(totalSteps, 1)) * 100).toFixed(0) + '%';
+
+        try {
+            const payload = buildPersonPayload(r.row);
+            const res = await fetch('/api/employees', {
+                method: 'POST', headers: ah(), body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error(await res.text());
+            // markRowDone aktualisiert UI / rowStates
+            if (typeof markRowDone === 'function') {
+                markRowDone(r.idx, 'MA ohne Lohn angelegt (Phantom)', null);
+            } else {
+                rowStates[r.idx].done = true;
+            }
+            phantomDone++;
+        } catch (e) {
+            console.error('Phantom-Import-Fehler bei idx', r.idx, e);
+            errors++;
+        }
+    }
+
+    // Inaktive MA (Bis < heute) → Personaldossier. Stammdaten anlegen, Backend
+    // setzt IsActive=false + ExitDate aus dem Payload. Kein Vertrag, kein Lohn.
+    for (let i = 0; i < inactive.length; i++) {
+        const r = inactive[i];
+        stepIdx++;
+        statusEl.textContent = `Personaldossier: ${get(r.row, 'Vorname')} ${get(r.row, 'Nachname')}`;
+        countEl.textContent  = `${stepIdx} / ${totalSteps}`;
+        barEl.style.width    = ((stepIdx / Math.max(totalSteps, 1)) * 100).toFixed(0) + '%';
+
+        try {
+            const payload = buildPersonPayload(r.row);
+            // Inaktiv-Markierung + Bis-Datum mitsenden, damit der Mitarbeiter
+            // direkt korrekt als Karteileiche abgelegt wird.
+            payload.isActive = false;
+            payload.exitDate = formatDate(get(r.row, 'Bis')) || null;
+
+            // Bestehende MA → PUT, neue → POST.
+            const empId = r.state?.employeeId;
+            const url    = empId ? `/api/employees/${empId}` : '/api/employees';
+            const method = empId ? 'PUT' : 'POST';
+            const res = await fetch(url, {
+                method, headers: ah(), body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error(await res.text());
+
+            if (typeof markRowDone === 'function') {
+                markRowDone(r.idx, 'Personaldossier angelegt (inaktiv)', null);
+            } else {
+                rowStates[r.idx].done = true;
+            }
+            inactiveDone++;
+        } catch (e) {
+            console.error('Inaktiv-Import-Fehler bei idx', r.idx, e);
+            errors++;
+        }
+    }
+
+    // Bestehende MA → nur Stammdaten/Kontakt aktualisieren (Adresse, Telefon,
+    // Eintrittsdatum). Kein Vertrag, kein Compliance-Check. PUT auf den
+    // generischen Employee-Endpoint überschreibt die Kontaktfelder.
+    for (let i = 0; i < addr.length; i++) {
+        const r = addr[i];
+        stepIdx++;
+        statusEl.textContent = `Stammdaten: ${get(r.row, 'Vorname')} ${get(r.row, 'Nachname')}`;
+        countEl.textContent  = `${stepIdx} / ${totalSteps}`;
+        barEl.style.width    = ((stepIdx / Math.max(totalSteps, 1)) * 100).toFixed(0) + '%';
+
+        try {
+            const payload = buildPersonPayload(r.row);
+            const res = await fetch(`/api/employees/${r.state.employeeId}`, {
+                method: 'PUT', headers: ah(), body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error(await res.text());
+
+            rowStates[r.idx].done = true;
+            const badge  = document.getElementById(`addrBadge-${r.idx}`);
+            const status = document.getElementById(`rowStatus-${r.idx}`);
+            if (badge)  { badge.textContent = '✅ Importiert'; badge.style.background = '#dcfce7'; }
+            if (status) status.innerHTML = `<span class="status-done">✅ Stammdaten aktualisiert</span>`;
+            const rowEl = document.getElementById(`row-${r.idx}`);
+            if (rowEl) rowEl.style.background = '#f0fdf4';
+            addrDone++;
+        } catch (e) {
+            console.error('Adress-Import-Fehler bei idx', r.idx, e);
+            errors++;
+        }
+    }
+
+    barEl.style.width = '100%';
+    const phantomNote  = phantomDone  ? ` · ${phantomDone} Phantom-MA`  : '';
+    const inactiveNote = inactiveDone ? ` · ${inactiveDone} Personaldossier` : '';
+    const addrNote     = addrDone     ? ` · ${addrDone} Stammdaten aktualisiert` : '';
+    statusEl.textContent = `✅ ${done} erfasst${phantomNote}${inactiveNote}${addrNote}${errors ? ` · ${errors} Fehler` : ''}${manual.length ? ` · ${manual.length} manuell zu erledigen` : ''}`;
+    countEl.textContent  = `${done + phantomDone + inactiveDone + addrDone} / ${totalSteps}`;
+    autoBtn.style.display = 'none';
+    setTimeout(() => { autoBtn.disabled = false; autoBtn.style.opacity = '1'; }, 5000);
+}
+
+// ── RUN ALL (Adress-Updates) ──────────────────────────
 async function runAll() {
     const btn = document.getElementById('btnRunAll');
     btn.disabled = true; btn.textContent = '⏳ Wird verarbeitet...';

@@ -58,6 +58,31 @@ public class KtgTagessatzService
             return null;
         }
 
+        // Manuelle Overrides aus dem Employee laden — Walter-Vorgabe (10.05.2026)
+        // für Legacy-MA aus dem alten Lohnsystem.
+        var emp = await _db.Employees.FindAsync(employeeId);
+        decimal? manuell           = emp?.KtgTagessatzManuell;
+        bool     karenzAbgeschlossen = emp?.KtgKarenzAbgeschlossen ?? false;
+
+        // Wenn manueller Tagessatz gesetzt: NICHT mehr auto-rechnen,
+        // sondern direkt zurückgeben (88/80 daraus ableiten).
+        if (manuell.HasValue && manuell.Value > 0)
+        {
+            var vertragsStartM = DateOnly.FromDateTime(employment.ContractStartDate);
+            var s100 = Math.Round(manuell.Value, 2);
+            return new KtgTagessatzResult(
+                Regel:          "MANUELL",
+                VertragsModell: (employment.EmploymentModel ?? "").ToUpperInvariant(),
+                AnzahlPerioden: 0,
+                VertragsStart:  vertragsStartM,
+                Tagessatz100:   s100,
+                Tagessatz88:    karenzAbgeschlossen ? 0m : Math.Round(s100 * 0.88m, 2),
+                Tagessatz80:    Math.Round(s100 * 0.80m, 2),
+                KarenzAbgeschlossen: karenzAbgeschlossen,
+                Breakdown:      new KtgBreakdown { Hinweis = "Manueller Tagessatz — übersteuert die Auto-Berechnung (z.B. aus altem Lohnsystem übernommen)." }
+            );
+        }
+
         var company = employment.CompanyProfile
                     ?? await _db.CompanyProfiles.FirstOrDefaultAsync(c => c.Id == companyProfileId);
         if (company is null) return null;
@@ -124,9 +149,13 @@ public class KtgTagessatzService
             AnzahlPerioden: anzahlPerioden,
             VertragsStart:  vertragsStart,
             Tagessatz100:   tagessatz100,
-            Tagessatz88:    Math.Round(tagessatz100 * 0.88m, 2),
+            // Bei "Karenz bereits abgeschlossen" wird der 88%-Schritt
+            // nicht mehr ausgewiesen — die Versicherung startet direkt
+            // mit dem Meldebetrag (80%).
+            Tagessatz88:    karenzAbgeschlossen ? 0m : Math.Round(tagessatz100 * 0.88m, 2),
             Tagessatz80:    Math.Round(tagessatz100 * 0.80m, 2),
-            Breakdown:      breakdown
+            Breakdown:      breakdown,
+            KarenzAbgeschlossen: karenzAbgeschlossen
         );
     }
 
@@ -286,11 +315,15 @@ public record KtgTagessatzResult(
     decimal      Tagessatz100,
     decimal      Tagessatz88,
     decimal      Tagessatz80,
-    KtgBreakdown Breakdown
+    KtgBreakdown Breakdown,
+    bool         KarenzAbgeschlossen = false
 );
 
 public class KtgBreakdown
 {
+    /// <summary>Optionaler Klartext-Hinweis (z.B. "manuell übersteuert").</summary>
+    public string?  Hinweis { get; set; }
+
     // Allgemein
     public decimal? FerienPct      { get; set; }
     public decimal? FeiertagPct    { get; set; }

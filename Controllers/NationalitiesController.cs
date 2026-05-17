@@ -1,4 +1,5 @@
 using HrSystem.Data;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,7 +40,9 @@ public class NationalitiesController : ControllerBase
             {
                 id = n.Id,
                 code = n.Code,
-                name = text?.Content ?? n.Code // fallback
+                // Volltext (Walter-Vorgabe 14.05.2026): AppText → statische
+                // ISO-Tabelle → Code als allerletzter Ausweg.
+                name = text?.Content ?? CountryNamesDe.Resolve(n.Code) ?? n.Code
             };
         });
 
@@ -69,7 +72,7 @@ public class NationalitiesController : ControllerBase
             return new
             {
                 id = n.Id,
-                displayName = text?.Content ?? n.Code
+                displayName = text?.Content ?? CountryNamesDe.Resolve(n.Code) ?? n.Code
             };
         });
 
@@ -98,7 +101,7 @@ public class NationalitiesController : ControllerBase
         {
             id = nationality.Id,
             code = nationality.Code,
-            name = text?.Content ?? nationality.Code
+            name = text?.Content ?? CountryNamesDe.Resolve(nationality.Code) ?? nationality.Code
         });
     }
 }

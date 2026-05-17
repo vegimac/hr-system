@@ -126,19 +126,24 @@ public class PayrollPdfService
 
                     // ── Stunden-Übersicht (MTP/FIX) ──
                     col.Item().PaddingTop(10).Element(e => RenderStundenBlock(e, slip));
-
-                    // ── Saldi ──
-                    col.Item().PaddingTop(8).Element(e => RenderSaldiBlock(e, slip));
                 });
 
-                // ── Page-Fussnote: nur Periode-Bemerkung (keine Seitenzahl) ──
-                if (!string.IsNullOrWhiteSpace(footerText))
+                // ── Footer: Saldi + Auszahlung + horizontale Linie + Periode-Bemerkung ──
+                // Saldi und Auszahlung werden in den Footer-Bereich gerendert,
+                // damit sie auch bei kurzem Lohnzettel ganz unten an der Seite
+                // direkt über der Trennlinie und der Periode-Bemerkung stehen.
+                page.Footer().Column(fcol =>
                 {
-                    page.Footer()
-                        .BorderTop(0.5f).BorderColor(Dark).PaddingTop(4)
-                        .Text(footerText)
-                        .FontSize(8.5f).FontColor(Dark).Italic();
-                }
+                    fcol.Item().Element(e => RenderSaldiBlock(e, slip));
+                    fcol.Item().PaddingTop(8).Element(e => RenderAuszahlungBlock(e, slip));
+                    if (!string.IsNullOrWhiteSpace(footerText))
+                    {
+                        fcol.Item()
+                            .BorderTop(0.5f).BorderColor(Dark).PaddingTop(4)
+                            .Text(footerText)
+                            .FontSize(8.5f).FontColor(Dark).Italic();
+                    }
+                });
             });
         }).GeneratePdf();
     }
@@ -318,10 +323,18 @@ public class PayrollPdfService
         var ferienTageSaldo = GetDecimal(slip, "ferienTageSaldoNeu");
         var ferienGeldSaldo = GetDecimal(slip, "ferienGeldSaldoNeu");
         var feiertagSaldo   = GetDecimal(slip, "feiertagTageSaldoNeu");
+        var nachtSaldo      = GetDecimal(slip, "neuerNachtSaldo");
         var thirteen        = GetDecimal(slip, "thirteenthAccumulated");
 
+        // 13. ML-Saldo gibt es nur bei MTP / FIX / FIX-M (UTP wird monatlich
+        // ausbezahlt, kein akkumulierter Saldo). Bei diesen Modellen IMMER
+        // zeigen, auch bei Saldo 0 — analog HTML-Lohnbeleg, Walter-Vorgabe.
+        var modelUpper = (GetString(slip, "employmentModel") ?? "").ToUpperInvariant();
+        bool show13Saldo = modelUpper == "MTP" || modelUpper == "FIX" || modelUpper == "FIX-M";
+
         bool hasSaldi = (ferienTageSaldo ?? 0) != 0 || (ferienGeldSaldo ?? 0) != 0
-                     || (feiertagSaldo ?? 0) != 0 || (thirteen ?? 0) != 0;
+                     || (feiertagSaldo ?? 0) != 0 || (nachtSaldo ?? 0) != 0
+                     || (thirteen ?? 0) != 0 || show13Saldo;
         if (!hasSaldi) return;
 
         c.Table(t =>
@@ -342,6 +355,19 @@ public class PayrollPdfService
                 Cell(h.Cell(), "Bezogen",   right: true, head: true);
                 Cell(h.Cell(), "Saldo",     right: true, head: true);
             });
+
+            // Nacht-Saldo (Stunden) — alle Vertragstypen
+            if ((nachtSaldo ?? 0) != 0 || GetDecimal(slip, "nightBonus") > 0)
+            {
+                var vor = GetDecimal(slip, "vormonatNachtSaldo");
+                var acc = GetDecimal(slip, "nightBonus");
+                var bez = GetDecimal(slip, "nachtKompStunden");
+                Cell(t.Cell(), "Nacht-Saldo (Stunden)", left: true, color: Dark);
+                Cell(t.Cell(), Num(vor), right: true, color: Muted);
+                Cell(t.Cell(), acc > 0 ? "+" + Num(acc) : "—", right: true, color: acc > 0 ? Green : Muted);
+                Cell(t.Cell(), bez > 0 ? "-" + Num(bez) : "—", right: true, color: bez > 0 ? Red : Muted);
+                Cell(t.Cell(), Num(nachtSaldo), right: true, bold: true, color: Dark);
+            }
 
             if ((ferienTageSaldo ?? 0) != 0 || GetDecimal(slip, "ferienTageAccrual") > 0)
             {
@@ -382,17 +408,108 @@ public class PayrollPdfService
                 Cell(t.Cell(), Num(feiertagSaldo), right: true, bold: true, color: Dark);
             }
 
-            if ((thirteen ?? 0) != 0)
+            // 13. Monatslohn-Saldo (MTP/FIX/FIX-M) — Auszahlungsmonat-Logik
+            // analog HTML: bei payout > 0 zeigt Bezogen den Auszahlungsbetrag
+            // und Saldo neu = 0; sonst Vormonat + Zuwachs = Saldo neu.
+            if (show13Saldo)
             {
-                var prev = GetDecimal(slip, "prevThirteenth");
-                var monthly = GetDecimal(slip, "thirteenthMonthly");
-                Cell(t.Cell(), "Rückst. 13. Monatslohn (CHF)", left: true);
-                Cell(t.Cell(), CHF(prev), right: true, color: Muted);
-                Cell(t.Cell(), "+" + CHF(monthly), right: true, color: Green);
-                Cell(t.Cell(), "—", right: true, color: Muted);
-                Cell(t.Cell(), CHF(thirteen), right: true, bold: true);
+                var payout = GetDecimal(slip, "thirteenthPayout") ?? 0;
+                if (payout > 0)
+                {
+                    var prevDisp    = GetDecimal(slip, "thirteenthPrevForDisplay")    ?? 0;
+                    var accrualDisp = GetDecimal(slip, "thirteenthAccrualForDisplay") ?? 0;
+                    Cell(t.Cell(), "Rückst. 13. Monatslohn (CHF)", left: true);
+                    Cell(t.Cell(), CHF(prevDisp), right: true, color: Muted);
+                    Cell(t.Cell(), "+" + CHF(accrualDisp), right: true, color: Green);
+                    Cell(t.Cell(), "-" + CHF(payout), right: true, color: Red);
+                    Cell(t.Cell(), CHF(0), right: true, bold: true);
+                }
+                else
+                {
+                    var monthly = GetDecimal(slip, "thirteenthMonthly") ?? 0;
+                    var accumulated = thirteen ?? 0;
+                    var prev = Math.Round(accumulated - monthly, 2);
+                    if (prev < 0) prev = 0;
+                    Cell(t.Cell(), "Rückst. 13. Monatslohn (CHF)", left: true);
+                    Cell(t.Cell(), CHF(prev), right: true, color: Muted);
+                    Cell(t.Cell(), monthly > 0 ? "+" + CHF(monthly) : "—", right: true,
+                        color: monthly > 0 ? Green : Muted);
+                    Cell(t.Cell(), "—", right: true, color: Muted);
+                    Cell(t.Cell(), CHF(accumulated), right: true, bold: true);
+                }
             }
         });
+    }
+
+    private static void RenderAuszahlungBlock(IContainer c, JsonElement slip)
+    {
+        var empfaenger = TryGetArray(slip, "auszahlungEmpfaenger");
+        if (!empfaenger.HasValue || empfaenger.Value.GetArrayLength() == 0) return;
+
+        // Format IBAN in 4er-Gruppen für lesbare Anzeige (CH00 1234 5678 ...).
+        static string FormatIban(string? iban)
+        {
+            if (string.IsNullOrWhiteSpace(iban)) return "";
+            var clean = new string(iban!.Where(ch => !char.IsWhiteSpace(ch)).ToArray()).ToUpperInvariant();
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < clean.Length; i++)
+            {
+                if (i > 0 && i % 4 == 0) sb.Append(' ');
+                sb.Append(clean[i]);
+            }
+            return sb.ToString();
+        }
+
+        c.Table(t =>
+        {
+            t.ColumnsDefinition(cd =>
+            {
+                cd.RelativeColumn(3);   // Empfänger
+                cd.RelativeColumn(3);   // IBAN
+                cd.RelativeColumn(1);   // Betrag
+            });
+
+            // Kein Tabellen-Header, kein Total — auf User-Wunsch nur die
+            // Empfänger-Zeilen, kompakt direkt vor der Footer-Trennlinie.
+            // Schrift kleiner (8.5pt), Beträge nicht fett — reine Info.
+            foreach (var entry in empfaenger.Value.EnumerateArray())
+            {
+                var label   = GetString(entry, "label");
+                var iban    = GetString(entry, "iban");
+                var betrag  = GetDecimal(entry, "betrag");
+                var warning = entry.TryGetProperty("warning", out var w)
+                              && w.ValueKind == JsonValueKind.True;
+                var referenz = GetString(entry, "referenz");
+
+                AuszahlCell(t.Cell(), label, left: true, color: warning ? "#B00000" : null);
+                AuszahlCell(t.Cell(),
+                    string.IsNullOrWhiteSpace(iban)
+                        ? (warning ? "— keine IBAN —" : "")
+                        : FormatIban(iban),
+                    left: true,
+                    color: warning ? "#B00000" : null);
+                AuszahlCell(t.Cell(), CHF(betrag), right: true);
+
+                // Optional: Zahlungsreferenz unter dem Empfänger anzeigen
+                if (!string.IsNullOrWhiteSpace(referenz))
+                {
+                    AuszahlCell(t.Cell().PaddingLeft(0), $"Ref.: {referenz}", left: true, color: Muted);
+                    t.Cell().ColumnSpan(2).Text("");
+                }
+            }
+        });
+    }
+
+    // Kompakte Variante von Cell() für die Auszahlungs-Sektion: kleinere
+    // Schrift (8.5pt), kein Bold, weniger vertikales Padding.
+    private static void AuszahlCell(IContainer cell, string text,
+        bool left = false, bool right = false, string? color = null)
+    {
+        var c = cell.PaddingVertical(1);
+        if (right) c = c.PaddingRight(2).AlignRight();
+        else c = c.AlignLeft();
+        var span = c.Text(text ?? "").FontSize(8.5f);
+        if (!string.IsNullOrEmpty(color)) span.FontColor(color);
     }
 
     // ─── Cell-Helper ─────────────────────────────────────────────────

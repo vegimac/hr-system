@@ -45,6 +45,7 @@ public class BehoerdenController : ControllerBase
         {
             Name      = dto.Name.Trim(),
             Typ       = (dto.Typ ?? "BETREIBUNGSAMT").Trim().ToUpper(),
+            KantonCode         = NormalizeKanton(dto.KantonCode),
             Adresse1  = dto.Adresse1?.Trim(),
             Adresse2  = dto.Adresse2?.Trim(),
             Adresse3  = dto.Adresse3?.Trim(),
@@ -52,6 +53,10 @@ public class BehoerdenController : ControllerBase
             Ort       = dto.Ort?.Trim(),
             Telefon   = dto.Telefon?.Trim(),
             Email     = dto.Email?.Trim(),
+            Kontaktperson      = dto.Kontaktperson?.Trim(),
+            KontaktpersonRolle = dto.KontaktpersonRolle?.Trim(),
+            Erreichbarkeit     = dto.Erreichbarkeit?.Trim(),
+            Webseite           = dto.Webseite?.Trim(),
             Iban      = NormalizeIban(dto.Iban),
             QrIban    = NormalizeIban(dto.QrIban),
             Bic       = dto.Bic?.Trim(),
@@ -76,6 +81,7 @@ public class BehoerdenController : ControllerBase
 
         entry.Name      = dto.Name.Trim();
         entry.Typ       = (dto.Typ ?? "BETREIBUNGSAMT").Trim().ToUpper();
+        entry.KantonCode         = NormalizeKanton(dto.KantonCode);
         entry.Adresse1  = dto.Adresse1?.Trim();
         entry.Adresse2  = dto.Adresse2?.Trim();
         entry.Adresse3  = dto.Adresse3?.Trim();
@@ -83,6 +89,10 @@ public class BehoerdenController : ControllerBase
         entry.Ort       = dto.Ort?.Trim();
         entry.Telefon   = dto.Telefon?.Trim();
         entry.Email     = dto.Email?.Trim();
+        entry.Kontaktperson      = dto.Kontaktperson?.Trim();
+        entry.KontaktpersonRolle = dto.KontaktpersonRolle?.Trim();
+        entry.Erreichbarkeit     = dto.Erreichbarkeit?.Trim();
+        entry.Webseite           = dto.Webseite?.Trim();
         entry.Iban      = NormalizeIban(dto.Iban);
         entry.QrIban    = NormalizeIban(dto.QrIban);
         entry.Bic       = dto.Bic?.Trim();
@@ -117,8 +127,17 @@ public class BehoerdenController : ControllerBase
     private static string? Validate(BehoerdeDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Name)) return "Name ist erforderlich.";
-        if (dto.Typ != null && dto.Typ != "BETREIBUNGSAMT" && dto.Typ != "SOZIALAMT" && dto.Typ != "ANDERE")
-            return "Typ: erlaubt sind BETREIBUNGSAMT, SOZIALAMT, ANDERE.";
+        if (dto.Typ != null
+            && dto.Typ != "BETREIBUNGSAMT"
+            && dto.Typ != "SOZIALAMT"
+            && dto.Typ != "STEUERAMT"
+            && dto.Typ != "ANDERE")
+            return "Typ: erlaubt sind BETREIBUNGSAMT, SOZIALAMT, STEUERAMT, ANDERE.";
+        // Bei STEUERAMT muss der Kanton bekannt sein, damit das QST-Formular
+        // automatisch das richtige Steueramt zur Filiale finden kann.
+        if (string.Equals(dto.Typ, "STEUERAMT", StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(dto.KantonCode))
+            return "Kanton-Code ist bei STEUERAMT erforderlich (z.B. LU, AG).";
         return null;
     }
 
@@ -129,30 +148,42 @@ public class BehoerdenController : ControllerBase
         return iban.Replace(" ", "").ToUpper();
     }
 
+    private static string? NormalizeKanton(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return null;
+        return code.Trim().ToUpper();
+    }
+
     private static object MapToDto(Behoerde b) => new
     {
-        id        = b.Id,
-        name      = b.Name,
-        typ       = b.Typ,
-        adresse1  = b.Adresse1,
-        adresse2  = b.Adresse2,
-        adresse3  = b.Adresse3,
-        plz       = b.Plz,
-        ort       = b.Ort,
-        telefon   = b.Telefon,
-        email     = b.Email,
-        iban      = b.Iban,
-        qrIban    = b.QrIban,
-        bic       = b.Bic,
-        bankName  = b.BankName,
-        isActive  = b.IsActive,
-        createdAt = b.CreatedAt
+        id                 = b.Id,
+        name               = b.Name,
+        typ                = b.Typ,
+        kantonCode         = b.KantonCode,
+        adresse1           = b.Adresse1,
+        adresse2           = b.Adresse2,
+        adresse3           = b.Adresse3,
+        plz                = b.Plz,
+        ort                = b.Ort,
+        telefon            = b.Telefon,
+        email              = b.Email,
+        kontaktperson      = b.Kontaktperson,
+        kontaktpersonRolle = b.KontaktpersonRolle,
+        erreichbarkeit     = b.Erreichbarkeit,
+        webseite           = b.Webseite,
+        iban               = b.Iban,
+        qrIban             = b.QrIban,
+        bic                = b.Bic,
+        bankName           = b.BankName,
+        isActive           = b.IsActive,
+        createdAt          = b.CreatedAt
     };
 }
 
 public record BehoerdeDto(
     string  Name,
     string? Typ,
+    string? KantonCode,
     string? Adresse1,
     string? Adresse2,
     string? Adresse3,
@@ -160,6 +191,10 @@ public record BehoerdeDto(
     string? Ort,
     string? Telefon,
     string? Email,
+    string? Kontaktperson,
+    string? KontaktpersonRolle,
+    string? Erreichbarkeit,
+    string? Webseite,
     string? Iban,
     string? QrIban,
     string? Bic,

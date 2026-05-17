@@ -56,11 +56,64 @@ public class DocumentsController : ControllerBase
             k.Name,
             k.SortOrder,
             typen = typen.Where(t => t.KategorieId == k.Id)
-                         .Select(t => new { t.Id, t.Name, t.SortOrder })
+                         .Select(t => new { t.Id, t.Name, t.SortOrder, t.LinkedFieldCode })
                          .ToList()
         });
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Liefert die Liste aller Field-Codes, für die ein MA mindestens ein
+    /// Dokument hat. Wird beim Rendern der MA-Detail-Maske geladen, um zu
+    /// entscheiden welche Stammdaten-Felder den 📎-Button bekommen.
+    /// </summary>
+    [HttpGet("linked-codes-for-employee")]
+    public async Task<IActionResult> GetLinkedCodesForEmployee([FromQuery] int employeeId)
+    {
+        var codes = await _db.EmployeeDokumente
+            .Where(d => d.EmployeeId == employeeId)
+            .Join(_db.DokumentTypen.Where(t => t.LinkedFieldCode != null && t.Aktiv),
+                  d => d.DokumentTypId, t => t.Id, (d, t) => t.LinkedFieldCode!)
+            .Distinct()
+            .ToListAsync();
+        return Ok(codes);
+    }
+
+    /// <summary>
+    /// Findet das neueste Dokument eines MA für einen bestimmten Field-Code
+    /// (permit, passport, ahv_card, bank_card, etc.). Wird von der MA-Detail-
+    /// Maske genutzt, um neben Stammdaten-Feldern den 📎-Button zu zeigen.
+    /// </summary>
+    [HttpGet("by-field")]
+    public async Task<IActionResult> GetByField(
+        [FromQuery] int employeeId,
+        [FromQuery] string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return BadRequest("Field-Code fehlt.");
+
+        var doc = await _db.EmployeeDokumente
+            .Where(d => d.EmployeeId == employeeId
+                     && _db.DokumentTypen
+                          .Where(t => t.LinkedFieldCode == code && t.Aktiv)
+                          .Select(t => t.Id)
+                          .Contains(d.DokumentTypId))
+            .OrderByDescending(d => d.HochgeladenAm)
+            .Select(d => new {
+                d.Id,
+                d.FilenameOriginal,
+                d.MimeType,
+                d.GroesseBytes,
+                d.HochgeladenAm,
+                d.Bemerkung,
+                d.GueltigVon,
+                d.GueltigBis
+            })
+            .FirstOrDefaultAsync();
+
+        if (doc == null) return NotFound();
+        return Ok(doc);
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -287,6 +340,13 @@ public class DocumentsController : ControllerBase
         public string? Bemerkung { get; set; }
         public DateOnly? GueltigVon { get; set; }
         public DateOnly? GueltigBis { get; set; }
+        /// <summary>
+        /// Optional: Dokument einem anderen MA zuweisen. Beim Wechsel wird die
+        /// Datei auch physisch in den neuen MA-Ordner verschoben. Filiale
+        /// (BranchCode) wird automatisch nachgezogen wenn der neue MA in einer
+        /// anderen Filiale ist (erster aktiver Vertrag).
+        /// </summary>
+        public int? EmployeeId { get; set; }
     }
 
     [HttpPut("{id:int}")]
@@ -301,6 +361,54 @@ public class DocumentsController : ControllerBase
             if (!typExists) return BadRequest("Dokument-Typ nicht gefunden.");
             doc.DokumentTypId = dto.DokumentTypId.Value;
         }
+
+        // MA-Reassignment: nur wenn EmployeeId gesetzt UND anders als aktuell.
+        // Datei wird physisch verschoben, BranchCode wird automatisch
+        // angepasst (neuer MA → erster aktiver Vertrag → Filiale).
+        if (dto.EmployeeId.HasValue && dto.EmployeeId.Value != doc.EmployeeId)
+        {
+            var newEmp = await _db.Employees
+                .Include(e => e.Employments)
+                .ThenInclude(em => em.CompanyProfile)
+                .FirstOrDefaultAsync(e => e.Id == dto.EmployeeId.Value);
+            if (newEmp == null) return BadRequest("Ziel-Mitarbeiter nicht gefunden.");
+
+            var oldPath = ResolveFilePath(doc);
+            var newBranchCode = newEmp.Employments
+                .Where(em => em.IsActive && em.CompanyProfile != null)
+                .Select(em => em.CompanyProfile!.RestaurantCode)
+                .FirstOrDefault()
+                ?? doc.BranchCode;   // Fallback: alten BranchCode behalten
+
+            // Neuen Pfad bauen + Ordner sicherstellen
+            var newDir = string.IsNullOrEmpty(newBranchCode)
+                ? Path.Combine(_storagePath, newEmp.Id.ToString())
+                : Path.Combine(_storagePath, newBranchCode, newEmp.Id.ToString());
+            Directory.CreateDirectory(newDir);
+            var newPath = Path.Combine(newDir, doc.FilenameStorage);
+
+            // Datei physisch verschieben (wenn vorhanden)
+            try
+            {
+                if (oldPath != null && System.IO.File.Exists(oldPath))
+                {
+                    if (!string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (System.IO.File.Exists(newPath))
+                            System.IO.File.Delete(newPath);
+                        System.IO.File.Move(oldPath, newPath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Datei konnte nicht verschoben werden: {ex.Message}");
+            }
+
+            doc.EmployeeId = newEmp.Id;
+            doc.BranchCode = newBranchCode;
+        }
+
         doc.Bemerkung  = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim();
         doc.GueltigVon = dto.GueltigVon;
         doc.GueltigBis = dto.GueltigBis;
@@ -404,7 +512,7 @@ public class DocumentsController : ControllerBase
             anzahlDokumente = typen.Where(t => t.KategorieId == k.Id)
                                    .Sum(t => usageByTyp.GetValueOrDefault(t.Id, 0)),
             typen = typen.Where(t => t.KategorieId == k.Id).Select(t => new {
-                t.Id, t.Name, t.SortOrder, t.Aktiv,
+                t.Id, t.Name, t.SortOrder, t.Aktiv, t.LinkedFieldCode,
                 anzahlDokumente = usageByTyp.GetValueOrDefault(t.Id, 0)
             }).ToList()
         });
@@ -462,6 +570,9 @@ public class DocumentsController : ControllerBase
         public string Name { get; set; } = "";
         public int? SortOrder { get; set; }
         public bool? Aktiv { get; set; }
+        /// <summary>Optionaler Field-Code für Verknüpfung mit MA-Stammdaten.
+        /// Leerstring oder null = keine Verknüpfung.</summary>
+        public string? LinkedFieldCode { get; set; }
     }
 
     [HttpPost("admin/typ")]
@@ -475,7 +586,8 @@ public class DocumentsController : ControllerBase
             KategorieId = dto.KategorieId.Value,
             Name = dto.Name.Trim(),
             SortOrder = dto.SortOrder ?? 99,
-            Aktiv = dto.Aktiv ?? true
+            Aktiv = dto.Aktiv ?? true,
+            LinkedFieldCode = string.IsNullOrWhiteSpace(dto.LinkedFieldCode) ? null : dto.LinkedFieldCode!.Trim()
         };
         _db.DokumentTypen.Add(t);
         await _db.SaveChangesAsync();
@@ -495,6 +607,10 @@ public class DocumentsController : ControllerBase
         if (!string.IsNullOrWhiteSpace(dto.Name)) t.Name = dto.Name.Trim();
         if (dto.SortOrder.HasValue) t.SortOrder = dto.SortOrder.Value;
         if (dto.Aktiv.HasValue)     t.Aktiv     = dto.Aktiv.Value;
+        // LinkedFieldCode: leerer String (vom UI Dropdown "— keine —") = bewusst auf null setzen.
+        // Property nicht im DTO = unverändert lassen (haben wir nicht: DTO ist immer voll geschickt).
+        // Hier setzen wir bei JEDEM PUT, weil das Frontend immer den aktuellen Wert mitschickt.
+        t.LinkedFieldCode = string.IsNullOrWhiteSpace(dto.LinkedFieldCode) ? null : dto.LinkedFieldCode!.Trim();
         await _db.SaveChangesAsync();
         return Ok();
     }
@@ -511,6 +627,138 @@ public class DocumentsController : ControllerBase
         _db.DokumentTypen.Remove(t);
         await _db.SaveChangesAsync();
         return Ok();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // AUDIT: Filial-Mismatch zwischen Dateiname und BranchCode
+    // ──────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Verdachtsfälle: Dateiname enthält den Namen einer ANDEREN Filiale als
+    /// die, in der das Dokument abgelegt ist. Walter-Anwendungsfall: aus
+    /// d.velop archivierte Dokumente wo der Mandant nicht zum Inhalt passt
+    /// (Dokument wurde unter falscher Filiale abgelegt).
+    ///
+    /// Match-Logik: Filial-Name (z.B. „Hendschiken") als ganzes Wort,
+    /// case-insensitive, im FilenameOriginal — und der BranchCode des Doku
+    /// gehört NICHT zu dieser Filiale. Standard-Wörter wie „McDonald" werden
+    /// ignoriert (kommen in vielen Dateinamen vor).
+    /// </summary>
+    public class AuditMismatch
+    {
+        public int     DocId { get; set; }
+        public int     EmployeeId { get; set; }
+        public string  EmployeeName { get; set; } = "";
+        public string  EmployeeFirstName { get; set; } = "";
+        public string? EmployeeNumber { get; set; }
+        public string? CurrentBranchCode { get; set; }
+        public string? CurrentBranchName { get; set; }
+        public List<string> SuspectedBranchCodes { get; set; } = new();
+        public string? Filename { get; set; }
+        public string? Kategorie { get; set; }
+        public string? Typ { get; set; }
+    }
+
+    [HttpGet("audit/branch-mismatch")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> AuditBranchMismatch()
+    {
+        // Branches mit Name + Code laden
+        var branches = await _db.CompanyProfiles
+            .Where(c => !string.IsNullOrEmpty(c.RestaurantCode) && !string.IsNullOrEmpty(c.BranchName))
+            .Select(c => new { Code = c.RestaurantCode!, Name = c.BranchName! })
+            .ToListAsync();
+        if (branches.Count == 0)
+            return Ok(new { total = 0, mismatches = new List<AuditMismatch>() });
+
+        // Lowercase-Form für Vergleich vorbereiten
+        var branchKeys = branches
+            .Select(b => new { b.Code, NameLower = b.Name.ToLowerInvariant().Trim() })
+            .ToList();
+
+        // Lookup-Maps (kein .Include, da EmployeeDokument keine Navigations
+        // zu Employee/DokumentTyp hat — wir machen die Joins manuell)
+        var empById = await _db.Employees
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+            .ToDictionaryAsync(e => e.Id);
+        var typById = await _db.DokumentTypen
+            .Select(t => new { t.Id, t.Name, t.KategorieId })
+            .ToDictionaryAsync(t => t.Id);
+        var katById = await _db.DokumentKategorien
+            .Select(k => new { k.Id, k.Name })
+            .ToDictionaryAsync(k => k.Id);
+
+        // Statistik: alle Dokumente in der DB zählen, dann nur die mit
+        // Branch+Filename untersuchen (alle anderen können wir mangels
+        // Vergleichsdaten nicht prüfen).
+        var totalDocs    = await _db.EmployeeDokumente.CountAsync();
+        var docsNoBranch = await _db.EmployeeDokumente
+            .CountAsync(d => string.IsNullOrEmpty(d.BranchCode));
+        var docsNoFile   = await _db.EmployeeDokumente
+            .CountAsync(d => string.IsNullOrEmpty(d.FilenameOriginal));
+
+        var docs = await _db.EmployeeDokumente
+            .Where(d => !string.IsNullOrEmpty(d.BranchCode)
+                     && !string.IsNullOrEmpty(d.FilenameOriginal))
+            .Select(d => new {
+                d.Id, d.EmployeeId, d.DokumentTypId, d.BranchCode, d.FilenameOriginal
+            })
+            .ToListAsync();
+        var examined = docs.Count;
+
+        var mismatches = new List<AuditMismatch>();
+        foreach (var d in docs)
+        {
+            var fnLower = (d.FilenameOriginal ?? "").ToLowerInvariant();
+            var currentBranchName = branches.FirstOrDefault(b => b.Code == d.BranchCode)?.Name;
+            var currentLower = (currentBranchName ?? "").ToLowerInvariant().Trim();
+
+            var hits = branchKeys
+                .Where(bk => !string.Equals(bk.Code, d.BranchCode, StringComparison.OrdinalIgnoreCase)
+                          && !string.Equals(bk.NameLower, currentLower, StringComparison.OrdinalIgnoreCase)
+                          && bk.NameLower.Length >= 4   // zu kurz = false-positive risk
+                          && fnLower.Contains(bk.NameLower))
+                .Select(bk => bk.Code)
+                .Distinct()
+                .ToList();
+
+            if (hits.Count == 0) continue;
+
+            empById.TryGetValue(d.EmployeeId, out var emp);
+            typById.TryGetValue(d.DokumentTypId, out var typ);
+            string? katName = null;
+            if (typ != null && katById.TryGetValue(typ.KategorieId, out var kat)) katName = kat.Name;
+
+            mismatches.Add(new AuditMismatch {
+                DocId = d.Id,
+                EmployeeId = d.EmployeeId,
+                EmployeeFirstName = emp?.FirstName ?? "",
+                EmployeeName = $"{emp?.FirstName} {emp?.LastName}".Trim(),
+                EmployeeNumber = emp?.EmployeeNumber,
+                CurrentBranchCode = d.BranchCode,
+                CurrentBranchName = currentBranchName,
+                SuspectedBranchCodes = hits,
+                Filename = d.FilenameOriginal,
+                Kategorie = katName,
+                Typ = typ?.Name
+            });
+        }
+
+        // Vorname-Sortierung (Konvention im System)
+        var sorted = mismatches
+            .OrderBy(m => m.EmployeeFirstName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(m => m.EmployeeName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Ok(new {
+            total            = sorted.Count,
+            totalDocs        = totalDocs,
+            examined         = examined,
+            skippedNoBranch  = docsNoBranch,
+            skippedNoFile    = docsNoFile,
+            branchesScanned  = branches.Count,
+            mismatches       = sorted
+        });
     }
 
     // ──────────────────────────────────────────────────────────────────────

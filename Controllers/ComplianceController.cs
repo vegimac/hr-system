@@ -40,7 +40,24 @@ public class ComplianceController : ControllerBase
         var employmentModelCode = MapEmploymentModel(request.EmploymentModel);
         var salaryType = GetSalaryType(request.EmploymentModel);
 
-        var rule = await _context.MinimumWageRulesNew
+        // Alter zum Stichtag berechnen (für altersabhängige Regeln, z.B. unter 18)
+        int? ageAtEffective = null;
+        if (request.BirthDate.HasValue)
+        {
+            var bd = request.BirthDate.Value;
+            var ed = request.EffectiveDate;
+            int age = ed.Year - bd.Year;
+            if (ed < new DateTime(ed.Year, bd.Month, bd.Day)) age--;
+            ageAtEffective = age;
+        }
+
+        // Regel-Lookup mit Alters-Filter:
+        //   age_max IS NULL                → gilt immer
+        //   age_max gesetzt + Alter ≤ max  → gilt für diesen MA
+        //   age_max gesetzt + Alter > max  → ausgeschlossen
+        // Order: spezifischste Regel (niedrigster age_max) zuerst → Jugendliche
+        // bekommen die altersspezifische Regel, Erwachsene die Default-Regel.
+        var candidates = await _context.MinimumWageRulesNew
             .Where(r =>
                 r.IsActive &&
                 r.JobGroupCode == request.JobGroupCode &&
@@ -48,9 +65,13 @@ public class ComplianceController : ControllerBase
                 r.EducationLevelId == educationLevel.Id &&
                 r.SalaryType == salaryType &&
                 r.ValidFrom <= request.EffectiveDate &&
-                (r.ValidTo == null || r.ValidTo >= request.EffectiveDate))
-            .OrderByDescending(r => r.ValidFrom)
-            .FirstOrDefaultAsync();
+                (r.ValidTo == null || r.ValidTo >= request.EffectiveDate) &&
+                (r.AgeMax == null
+                    || (ageAtEffective != null && ageAtEffective <= r.AgeMax)))
+            .OrderBy(r => r.AgeMax == null ? int.MaxValue : r.AgeMax)   // NULLS LAST
+            .ThenByDescending(r => r.ValidFrom)
+            .ToListAsync();
+        var rule = candidates.FirstOrDefault();
 
         if (rule == null)
         {
@@ -156,20 +177,23 @@ public class ComplianceController : ControllerBase
         });
     }
 
+    // Vertragsmodell-Code für Mindestlohn-Lookup. Seit der DB-Migration sind die
+    // Codes 1:1 wie im Frontend (UTP / MTP / FIX / FIX-M). Legacy-Werte (FLEX, GMTP,
+    // PARTTIME, FULLTIME) werden weiterhin gemappt für Rückwärts-Kompatibilität.
     private static string MapEmploymentModel(string model)
     {
         return model.ToUpperInvariant() switch
         {
-            "UTP"      => "PARTTIME",  // bestehende Regeln nutzen PARTTIME
+            "UTP"      => "UTP",
             "MTP"      => "MTP",
-            "FIX"      => "FULLTIME",  // bestehende Regeln nutzen FULLTIME
-            "FIX-M"    => "FIX-M",     // neue Management-Regeln
-            // Legacy
-            "FLEX"     => "PARTTIME",
+            "FIX"      => "FIX",
+            "FIX-M"    => "FIX-M",
+            // Legacy-Mappings
+            "FLEX"     => "UTP",
             "GMTP"     => "MTP",
-            "FULLTIME" => "FULLTIME",
-            "PARTTIME" => "PARTTIME",
-            _          => "PARTTIME"
+            "PARTTIME" => "UTP",
+            "FULLTIME" => "FIX",
+            _          => "UTP"
         };
     }
 

@@ -32,6 +32,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<QuellensteuerTarifService>();
 // Zwischenverdienist-PDF-Service
 builder.Services.AddScoped<ZwischenverdienistPdfService>();
+// Quellensteuer-Anmeldeformular-PDF-Service (kantonal, aktuell SO-Template)
+builder.Services.AddScoped<QstAnmeldungPdfService>();
+// Lohnausweis-PDF-Service (ESTV Form 11 dfe — jährlicher Lohnausweis)
+builder.Services.AddScoped<LohnausweisBarcodeService>();
+builder.Services.AddScoped<LohnausweisPdfService>();
 // KTG/UVG-Tagessatz-Service (Regel A/B nach Spezialistenvorgabe)
 builder.Services.AddScoped<KtgTagessatzService>();
 // Krankheits-Karenz-Service (zentrale Logik: Karenzjahr + Tag-für-Tag-Kumulation)
@@ -40,12 +45,43 @@ builder.Services.AddScoped<KarenzService>();
 builder.Services.AddScoped<FerienKuerzungService>();
 // PDF-Generator für Lohnabrechnung
 builder.Services.AddScoped<PayrollPdfService>();
+// Lohnlauf-Orchestrator (Vorab-PDF, DTA-Generierung, Vorbedingungen-Check)
+builder.Services.AddScoped<LohnlaufService>();
+// Akonto-Lohn-Berechnung (Vorab-Auszahlung Mitte Monat — Walter-Vorgabe).
+builder.Services.AddScoped<AkontoLaufService>();
+// pain.001-XML-Generator (ISO 20022) für DTA-Zahlungsexport
+builder.Services.AddScoped<Iso20022PainService>();
 // Sperrfrist-Service: Kündigungsschutz nach Art. 336c OR bei AU
 builder.Services.AddScoped<SperrfristService>();
 // L-GAV-Beitrag: automatischer Jahresabzug nach Vertragstyp/Pensum
 builder.Services.AddScoped<LgavBeitragService>();
 // Bank-Lookup: IBAN → Bank-Stammdaten aus Data/bank_master.csv (SIX-Liste)
 builder.Services.AddSingleton<BankLookupService>();
+// MA-Postfach: Login-Account-Verwaltung pro Mitarbeiter
+builder.Services.AddScoped<EmployeePostfachService>();
+// AES-Helper für verschlüsselte Secrets in der DB (z.B. SMTP-Passwort)
+builder.Services.AddSingleton<SimpleAesService>();
+// BFS-LSE-Export (Lohnstrukturerhebung)
+builder.Services.AddScoped<LseExportService>();
+// Dashboard-Cockpit (Alarme: Bewilligungen, Probezeit, Verträge, Jubiläen ...)
+builder.Services.AddScoped<DashboardService>();
+// SMTP-Versand für MA-Postfach-Benachrichtigungen (Lohnzettel-Bereit etc.)
+builder.Services.AddScoped<EmailService>();
+
+// Request-Size-Limits hochsetzen — Mirus-Stempelzeiten-PDFs für grosse
+// Filialen können >50 MB sein. Die Kestrel-Default-Grenze (30 MB) und
+// FormOptions-Default (128 MB) müssen explizit gesetzt werden, sonst
+// schlagen die [RequestSizeLimit(...)]-Attribute auf den Endpoints fehl.
+builder.WebHost.ConfigureKestrel(opts =>
+{
+    opts.Limits.MaxRequestBodySize = 300_000_000;   // 300 MB
+});
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = 300_000_000;
+    o.ValueLengthLimit         = int.MaxValue;
+    o.MultipartHeadersLengthLimit = int.MaxValue;
+});
 
 // Controller / API
 builder.Services.AddControllers();
@@ -366,6 +402,21 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS phone      VARCHAR(50);
     ");
 
+    // ── Super-Admin-Schutz (Walter-Vorgabe 15.05.2026) ────────────────────
+    // Ein Super-Admin-Account kann nicht gelöscht werden, und nur ein
+    // Super-Admin darf Administratoren löschen. Wird ausschliesslich per SQL
+    // gesetzt — kein API-Pfad ändert dieses Flag.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE app_user
+        ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN NOT NULL DEFAULT false;
+
+        -- Walter Schaub als Super-Admin markieren (idempotent).
+        UPDATE app_user
+           SET is_super_admin = true
+         WHERE LOWER(email) = 'walter.schaub@gmail.com'
+           AND is_super_admin = false;
+    ");
+
     // ── Firmenprofil: ALV-Felder ──────────────────────────────────────────
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE company_profile
@@ -465,6 +516,30 @@ using (var scope = app.Services.CreateScope())
         SET    dreijehnter_ml_pflichtig = true
         WHERE  kategorie = 'Bonus'
            AND dreijehnter_ml_pflichtig = false;
+    ");
+
+    // ── Lohnposition: ZaehltAlsBasis13ml-Default für Standard-Positionen ──
+    // Damit der 13.-ML-Akkumulator die regulären Lohnarten (Festlohn,
+    // Stundenlohn, Karenz etc.) automatisch in die Basis nimmt. Wirkt nur,
+    // wenn das Flag noch nicht manuell gesetzt wurde (idempotent: NULL-Sicher).
+    db.Database.ExecuteSqlRaw(@"
+        UPDATE lohnposition
+        SET    zaehlt_als_basis_13ml = true
+        WHERE  code IN (
+            '10',     -- Festlohn
+            '2',      -- Festlohn für bezogene Ferien
+            '3',      -- Festlohn für bezogene Feiertage
+            '4',      -- Zusatzstunden (MTP)
+            '20',     -- Stundenlohn
+            '22',     -- Stundenlohn Ferien
+            '50',     -- Ausbezahlte Feiertage (UTP)
+            '60',     -- Unfall (Karenzentschädigung)
+            '65',     -- Korrektur Unfall
+            '70',     -- Krankheit (Karenzentschädigung)
+            '75',     -- Korrektur Krankheit
+            '195.3'   -- Ferien-Geld-Auszahlung
+        )
+          AND zaehlt_als_basis_13ml = false;
     ");
 
     // ── Payroll-Perioden-Konfiguration ────────────────────────────────────
@@ -613,23 +688,13 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS employment_model_code VARCHAR(20);
     ");
 
-    // Migration: alte falsche BVG-Bänder + NBUV bereinigen, falls neue Version noch nicht eingespielt
-    db.Database.ExecuteSqlRaw(@"
-        DELETE FROM social_insurance_rate
-        WHERE valid_from = '2026-01-01'
-          AND NOT EXISTS (
-              SELECT 1 FROM social_insurance_rate AS chk
-              WHERE chk.code = 'KTG' AND chk.valid_from = '2026-01-01'
-          );
-    ");
-
-    // BVG 65+ entfernen (Rentner zahlen bei McDonald's keine BVG-Beiträge)
-    db.Database.ExecuteSqlRaw(@"
-        DELETE FROM social_insurance_rate
-        WHERE code = 'BVG' AND min_age = 65 AND valid_from = '2026-01-01';
-    ");
-
-    // Seed v2: GastroSocial Uno Basis 2026 + Kaderlösung Zusatz (McD)
+    // Erst-Installations-Seed: GastroSocial Uno Basis 2026 + Kaderlösung Zusatz (McD).
+    // WICHTIG: Läuft NUR wenn die Tabelle komplett leer ist (gleiches Muster wie der
+    // lohnposition-Seed). Früher hing der Guard an einer einzigen Sentinel-Zeile
+    // (code='KTG' AND valid_from='2026-01-01'); wurde diese Zeile gelöscht oder ihr
+    // Datum im UI geändert, hat der Seed bei JEDEM Start alle 11 Sätze erneut
+    // eingefügt → Dubletten. Im laufenden Betrieb werden die SV-Sätze über das UI
+    // (/api/social-insurance-rates) gepflegt, NICHT über diesen Seed.
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO social_insurance_rate
             (code, name, description, rate, basis_type, employment_model_code,
@@ -700,10 +765,36 @@ using (var scope = app.Services.CreateScope())
         ) AS v(code, name, description, rate, basis_type, employment_model_code,
                min_age, max_age, freibetrag_monthly, coordination_deduction,
                valid_from, sort_order, is_active)
-        WHERE NOT EXISTS (
-            SELECT 1 FROM social_insurance_rate
-            WHERE code = 'KTG' AND valid_from = '2026-01-01'
-        );
+        WHERE NOT EXISTS (SELECT 1 FROM social_insurance_rate);
+    ");
+
+    // Schutz gegen künftige Dubletten: Unique-Index auf den fachlichen Schlüssel
+    // (identisch mit dem Duplikat-Check in SocialInsuranceRatesController.Create).
+    // COALESCE, weil min_age/max_age/employment_model_code NULL sein dürfen und
+    // Postgres NULLs in Unique-Indizes sonst als verschieden behandelt.
+    // Defensiv: wird nur angelegt wenn aktuell keine Dubletten existieren — so
+    // crasht der Startup nicht, falls die Alt-Daten noch nicht bereinigt sind
+    // (Bereinigung läuft einmalig über migrations-archive/fix_social_insurance_rate_dedup.sql).
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM (
+                    SELECT 1 FROM social_insurance_rate
+                    GROUP BY code, valid_from, COALESCE(min_age, -1),
+                             COALESCE(max_age, -1), COALESCE(employment_model_code, ''),
+                             basis_type, only_quellensteuer
+                    HAVING COUNT(*) > 1
+                ) dup
+            ) THEN
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_social_insurance_rate_natural
+                ON social_insurance_rate (
+                    code, valid_from, COALESCE(min_age, -1),
+                    COALESCE(max_age, -1), COALESCE(employment_model_code, ''),
+                    basis_type, only_quellensteuer
+                );
+            END IF;
+        END $$;
     ");
 
     // ── KTG/UVG: Karenz-Tracking + 6-Monats-Durchschnitt ───────────────────
@@ -732,6 +823,255 @@ using (var scope = app.Services.CreateScope())
             updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             UNIQUE(employee_id, company_profile_id, berechnet_per_year, berechnet_per_month)
         );
+    ");
+
+    // ── AbsenzTyp: Zwischenverdienst-Kürzel ───────────────────────────────
+    // Buchstaben-Kürzel für das offizielle ALK-Zwischenverdienst-Formular.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE absenz_typ
+        ADD COLUMN IF NOT EXISTS zwischenverdienst_kuerzel VARCHAR(2);
+    ");
+
+    // ── Mailbox / Posteingang pro Filiale ─────────────────────────────────
+    // Geschäftsführer laden Dokumente hoch (Arztzeugnisse, unterschriebene
+    // Verträge etc.), Admin/Superuser sortieren sie in die MA-Personalakte
+    // (employee_dokument) ein oder löschen sie.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS mailbox_document (
+            id                  SERIAL PRIMARY KEY,
+            company_profile_id  INTEGER NOT NULL REFERENCES company_profile(id) ON DELETE CASCADE,
+            uploaded_by         INTEGER REFERENCES app_user(id) ON DELETE SET NULL,
+            uploaded_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            original_filename   TEXT NOT NULL,
+            storage_filename    TEXT NOT NULL,
+            mime_type           TEXT,
+            file_size_bytes     BIGINT,
+            bemerkung           TEXT,
+            employee_id         INTEGER REFERENCES employee(id) ON DELETE SET NULL,
+            notify_user_id      INTEGER REFERENCES app_user(id) ON DELETE SET NULL,
+            CONSTRAINT mailbox_document_unique_storage UNIQUE (storage_filename)
+        );
+        CREATE INDEX IF NOT EXISTS IX_mailbox_branch_uploaded
+            ON mailbox_document (company_profile_id, uploaded_at DESC);
+    ");
+
+    // Persönliche Stammdaten (Zivilstand-Detail + Konfession) am Mitarbeiter
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee
+            ADD COLUMN IF NOT EXISTS marital_status_since           DATE,
+            ADD COLUMN IF NOT EXISTS separated_since                DATE,
+            ADD COLUMN IF NOT EXISTS religion                        TEXT;
+    ");
+
+    // Behoerde: zusätzliche Stammdaten für Kontaktperson + Kanton-Verknüpfung.
+    // KantonCode wird gebraucht, um beim QST-Anmeldeformular automatisch das
+    // Steueramt zur Kanton-spezifischen Filiale zu finden.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE behoerde
+            ADD COLUMN IF NOT EXISTS kanton_code         VARCHAR(2),
+            ADD COLUMN IF NOT EXISTS kontaktperson       VARCHAR(150),
+            ADD COLUMN IF NOT EXISTS kontaktperson_rolle VARCHAR(100),
+            ADD COLUMN IF NOT EXISTS erreichbarkeit      VARCHAR(150),
+            ADD COLUMN IF NOT EXISTS webseite            VARCHAR(300);
+    ");
+
+    // Familienzulagen pro Familienmitglied, zeitlich versioniert (Von/Bis/Monatsbetrag).
+    // Ersetzt die alten Allowance1/2/3Until-Slots auf employee_family_member.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS family_member_allowance (
+            id                SERIAL PRIMARY KEY,
+            family_member_id  INTEGER     NOT NULL REFERENCES employee_family_member(id) ON DELETE CASCADE,
+            valid_from        DATE        NOT NULL,
+            valid_to          DATE,
+            monthly_amount    NUMERIC(10,2) NOT NULL DEFAULT 0,
+            allowance_type    VARCHAR(20),
+            note              TEXT,
+            created_at        TIMESTAMP   NOT NULL DEFAULT NOW(),
+            updated_at        TIMESTAMP   NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS ix_family_member_allowance_member
+            ON family_member_allowance(family_member_id);
+    ");
+
+    // SSL-Nummern pro (Filiale, Kanton) — eigene Tabelle, weil ein Arbeitgeber
+    // sich in jedem Kanton, in dem er QST-pflichtige MA beschäftigt, separat
+    // anmelden muss und dort eine eigene Nummer erhält. Eine Filiale kann
+    // also mehrere SSLs haben, eine pro Kanton.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS company_profile_ssl (
+            id                  SERIAL PRIMARY KEY,
+            company_profile_id  INTEGER     NOT NULL REFERENCES company_profile(id) ON DELETE CASCADE,
+            kanton_code         VARCHAR(2)  NOT NULL,
+            ssl_nummer          VARCHAR(30) NOT NULL,
+            bemerkung           TEXT,
+            created_at          TIMESTAMP   NOT NULL DEFAULT NOW(),
+            updated_at          TIMESTAMP   NOT NULL DEFAULT NOW()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ix_company_profile_ssl_filiale_kanton
+            ON company_profile_ssl(company_profile_id, kanton_code);
+    ");
+
+    // Falls die alte einzelne ssl_nummer-Spalte aus früherer Iteration noch da ist:
+    // Daten in die neue Tabelle migrieren (Kanton bleibt vorerst leer — Walter muss
+    // einmal pro Filiale festlegen, für welchen Kanton die Nummer galt) und dann droppen.
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                 WHERE table_name='company_profile' AND column_name='ssl_nummer'
+            ) THEN
+                ALTER TABLE company_profile DROP COLUMN ssl_nummer;
+            END IF;
+        END$$;
+    ");
+
+    // QST-Tarif-relevante Stammdaten an employee_quellensteuer (versioniert via valid_from/to)
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_quellensteuer
+            ADD COLUMN IF NOT EXISTS lives_in_konkubinat            BOOLEAN NOT NULL DEFAULT false,
+            ADD COLUMN IF NOT EXISTS has_joint_parental_care        BOOLEAN NOT NULL DEFAULT false,
+            ADD COLUMN IF NOT EXISTS pays_alimony_adult_children    BOOLEAN NOT NULL DEFAULT false,
+            ADD COLUMN IF NOT EXISTS has_higher_income_than_partner BOOLEAN NOT NULL DEFAULT false,
+            ADD COLUMN IF NOT EXISTS is_grenzgaenger                 BOOLEAN NOT NULL DEFAULT false,
+            ADD COLUMN IF NOT EXISTS is_wochenaufenthalter           BOOLEAN NOT NULL DEFAULT false;
+    ");
+
+    // Falls die alten Employee-Spalten noch existieren (von früherer Version):
+    // Daten in den aktuellsten QST-Eintrag des MA übertragen, dann Spalten entfernen.
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        DECLARE col_exists BOOLEAN;
+        BEGIN
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                 WHERE table_name='employee' AND column_name='lives_in_konkubinat'
+            ) INTO col_exists;
+            IF col_exists THEN
+                -- übertrage in den jeweils aktuellsten (kein valid_to oder neuestes) QST-Eintrag
+                UPDATE employee_quellensteuer eq
+                   SET lives_in_konkubinat            = e.lives_in_konkubinat,
+                       has_joint_parental_care        = e.has_joint_parental_care,
+                       pays_alimony_adult_children    = e.pays_alimony_adult_children,
+                       has_higher_income_than_partner = e.has_higher_income_than_partner,
+                       is_grenzgaenger                = e.is_grenzgaenger,
+                       is_wochenaufenthalter          = e.is_wochenaufenthalter
+                  FROM employee e
+                 WHERE eq.employee_id = e.id
+                   AND eq.id = (
+                       SELECT id FROM employee_quellensteuer
+                        WHERE employee_id = e.id
+                        ORDER BY valid_from DESC LIMIT 1
+                   );
+
+                ALTER TABLE employee
+                  DROP COLUMN IF EXISTS lives_in_konkubinat,
+                  DROP COLUMN IF EXISTS has_joint_parental_care,
+                  DROP COLUMN IF EXISTS pays_alimony_adult_children,
+                  DROP COLUMN IF EXISTS has_higher_income_than_partner,
+                  DROP COLUMN IF EXISTS is_grenzgaenger,
+                  DROP COLUMN IF EXISTS is_wochenaufenthalter;
+            END IF;
+        END$$;
+    ");
+
+    // Erweiterung: Postfach-Typ (BRANCH/HR/ADMIN) und HR-Team-Flag für User
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE app_user
+            ADD COLUMN IF NOT EXISTS is_hr_team BOOLEAN NOT NULL DEFAULT false;
+
+        ALTER TABLE mailbox_document
+            ADD COLUMN IF NOT EXISTS target_type TEXT NOT NULL DEFAULT 'BRANCH';
+        CREATE INDEX IF NOT EXISTS IX_mailbox_target_type
+            ON mailbox_document (target_type, uploaded_at DESC);
+
+        -- Pat Wackernagel initial als HR-Team-Mitglied markieren (idempotent)
+        UPDATE app_user
+           SET is_hr_team = true
+         WHERE LOWER(email) = 'pat@srgmbh.ch'
+            OR LOWER(username) LIKE 'pat%walckernagel%'
+            OR LOWER(username) LIKE 'patricia%walckernagel%';
+
+        -- Bestehende Dokumente, die per notify_user_id an Admin/HR adressiert
+        -- waren, in den richtigen Postfach-Typ verschieben.
+        -- (Idempotent: wirkt nur auf target_type='BRANCH' und nur wenn Empfänger gesetzt.)
+        UPDATE mailbox_document md
+           SET target_type = 'ADMIN'
+          FROM app_user u
+         WHERE md.notify_user_id = u.id
+           AND u.role = 'admin'
+           AND md.target_type = 'BRANCH';
+
+        UPDATE mailbox_document md
+           SET target_type = 'HR'
+          FROM app_user u
+         WHERE md.notify_user_id = u.id
+           AND u.is_hr_team = true
+           AND md.target_type = 'BRANCH';
+    ");
+
+    // Seed: Default-Kürzel basierend auf Code (idempotent — nur wenn NULL)
+    db.Database.ExecuteSqlRaw(@"
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'A' WHERE code = 'FERIEN'        AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'B' WHERE code = 'KRANK'         AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'B' WHERE code = 'SCHWANGER'     AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'C' WHERE code = 'UNFALL'        AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'D' WHERE code = 'MUTTER'        AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'D' WHERE code = 'VATERSCHAFT'   AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'D' WHERE code = 'BETREUUNG'     AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'E' WHERE code = 'MILITAER'      AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'E' WHERE code = 'ZIVIL'         AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'E' WHERE code = 'ZIVILSCHUTZ'   AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'F' WHERE code = 'BETRIEBSFERIEN' AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'G' WHERE code = 'UNBEZ_URLAUB'  AND zwischenverdienst_kuerzel IS NULL;
+        UPDATE absenz_typ SET zwischenverdienst_kuerzel = 'G' WHERE code = 'UTP'           AND zwischenverdienst_kuerzel IS NULL;
+    ");
+
+    // Seed: Mutter-/Vaterschaftsurlaub als kombinierter Absenz-Typ (Walter-Vorgabe
+    // 15.05.2026 — der Dienstplan-Code „MV" fasst beide zusammen). Verhalten wie
+    // Krank: Zeitgutschrift Ja, 1/5 Arbeitstag, Basis Betrieb. Lohnpositionen
+    // bleiben offen (Pattern KEIN) — die Auszahlung läuft separat über die
+    // EO-Erstattung; die Stundengutschrift sorgt für korrekte Saldi.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO absenz_typ
+            (code, bezeichnung, zeitgutschrift, gutschrift_modus, utp_auszahlung,
+             basis_stunden, pattern, sort_order, aktiv, zwischenverdienst_kuerzel)
+        SELECT 'MUTT_VATER', 'Mutter-/Vaterschaftsurlaub', true, '1/5', false,
+               'BETRIEB', 'KEIN', 45, true, 'D'
+        WHERE NOT EXISTS (SELECT 1 FROM absenz_typ WHERE code = 'MUTT_VATER');
+    ");
+
+    // Seed: Frei-Kompensation (Plus-Stunden-Verbrauch) — Walter-Vorgabe
+    // 15.05.2026. Dienstplan-Code „FK" = bezahlter freier Tag, der aus
+    // bestehenden Plus-Stunden gespeist wird. Konfig:
+    //   Zeitgutschrift = false  → keine zusätzliche Saldo-Gutschrift
+    //   Pattern        = KEIN   → keine Lohn-Position (Festlohn deckt's bei FIX/MTP)
+    // Effekt: Sollstunden für den Tag werden NICHT zusätzlich gutgeschrieben,
+    // die Plus-Stunden im Saldo werden über die normale Soll/Ist-Differenz
+    // verbraucht. Verhalten ähnlich UNBEZ_URLAUB, aber semantisch separat.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO absenz_typ
+            (code, bezeichnung, zeitgutschrift, gutschrift_modus, utp_auszahlung,
+             basis_stunden, pattern, sort_order, aktiv, zwischenverdienst_kuerzel)
+        SELECT 'FREI_KOMP', 'Frei-Kompensation', false, NULL, false,
+               'BETRIEB', 'KEIN', 35, true, NULL
+        WHERE NOT EXISTS (SELECT 1 FROM absenz_typ WHERE code = 'FREI_KOMP');
+    ");
+
+    // Seed: Bezahlte Absenz (Walter-Vorgabe 15.05.2026). Dienstplan-Code „ZF".
+    // Volle Zeitgutschrift 1/5 wie ein Krankheitstag — der Tag zählt voll als
+    // Soll-Stunden, ohne Lohnabzug. Sinnvoll für Arzt-/Behördentermine, Trauer-
+    // tag, Hochzeit etc. Konfig spiegelt KRANK ohne Karenz-/KTG-Mechanik:
+    //   Zeitgutschrift = true, Modus = 1/5, Basis = Betrieb
+    //   UtpAuszahlung  = false (analog KRANK — UTP wird ggf. manuell ausbezahlt)
+    //   Pattern        = KEIN  (Festlohn deckt's bei FIX/MTP, keine Lohnposition)
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO absenz_typ
+            (code, bezeichnung, zeitgutschrift, gutschrift_modus, utp_auszahlung,
+             basis_stunden, pattern, sort_order, aktiv, zwischenverdienst_kuerzel)
+        SELECT 'BEZ_ABSENZ', 'Bezahlte Absenz', true, '1/5', false,
+               'BETRIEB', 'KEIN', 37, true, NULL
+        WHERE NOT EXISTS (SELECT 1 FROM absenz_typ WHERE code = 'BEZ_ABSENZ');
     ");
 }
 

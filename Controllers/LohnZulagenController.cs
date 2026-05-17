@@ -20,12 +20,16 @@ public class LohnZulagenController : ControllerBase
 
     /// <summary>
     /// Aktive Lohnpositionen vom Typ ZULAGE oder ABZUG — für das Erfassungs-Dropdown.
+    /// Saldo-Vortrag-Lohnpositionen (Codes 901–906) werden ausgefiltert,
+    /// da sie nicht als reguläre Zulagen verwendet werden sollen.
     /// </summary>
     [HttpGet("lohn-zulag-typen")]
     public async Task<IActionResult> GetZulagTypen()
     {
         var list = await _db.Lohnpositionen
-            .Where(l => l.IsActive && (l.Typ == "ZULAGE" || l.Typ == "ABZUG"))
+            .Where(l => l.IsActive
+                     && (l.Typ == "ZULAGE" || l.Typ == "ABZUG")
+                     && l.Kategorie != "Saldo-Vortrag")
             .OrderBy(l => l.SortOrder)
             .ThenBy(l => l.Code)
             .Select(l => new
@@ -51,13 +55,20 @@ public class LohnZulagenController : ControllerBase
     //  EINTRÄGE  (pro Mitarbeiter + Periode)
     // ═══════════════════════════════════════════════════════
 
-    /// <summary>Alle Einträge eines Mitarbeiters für eine Periode (YYYY-MM)</summary>
+    /// <summary>Alle Einträge eines Mitarbeiters für eine Periode (YYYY-MM).
+    /// Saldo-Vortrag-Einträge (Codes 901–906, Kategorie "Saldo-Vortrag")
+    /// werden hier ausgefiltert — sie werden über den separaten
+    /// SaldoVortragController verwaltet und sollen nicht doppelt in der
+    /// Lohn-Page-Zulagen-Liste auftauchen, wo sie irrtümlich als
+    /// reguläre Zulagen erscheinen würden.</summary>
     [HttpGet("lohn-zulagen/{employeeId}/{periode}")]
     public async Task<IActionResult> GetZulagen(int employeeId, string periode)
     {
         var list = await _db.LohnZulagen
             .Include(z => z.Lohnposition)
-            .Where(z => z.EmployeeId == employeeId && z.Periode == periode)
+            .Where(z => z.EmployeeId == employeeId
+                     && z.Periode    == periode
+                     && z.Lohnposition!.Kategorie != "Saldo-Vortrag")
             .OrderBy(z => z.Lohnposition!.SortOrder)
             .ThenBy(z => z.CreatedAt)
             .Select(z => new

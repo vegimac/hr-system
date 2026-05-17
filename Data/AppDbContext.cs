@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<Employment> Employments => Set<Employment>();
     public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
+    public DbSet<CompanyProfileBankAccount> CompanyProfileBankAccounts => Set<CompanyProfileBankAccount>();
     public DbSet<EducationLevel> EducationLevels => Set<EducationLevel>();
     public DbSet<EmployeeEducationHistory> EmployeeEducationHistories => Set<EmployeeEducationHistory>();
     public DbSet<PermitType> PermitTypes => Set<PermitType>();
@@ -24,6 +25,8 @@ public class AppDbContext : DbContext
     public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<UserBranchAccess> UserBranchAccesses => Set<UserBranchAccess>();
     public DbSet<EmployeeFamilyMember> EmployeeFamilyMembers => Set<EmployeeFamilyMember>();
+    public DbSet<EmployeeAddress> EmployeeAddresses => Set<EmployeeAddress>();
+    public DbSet<FamilyMemberAllowance> FamilyMemberAllowances => Set<FamilyMemberAllowance>();
     public DbSet<EmployeeTimeEntry> EmployeeTimeEntries => Set<EmployeeTimeEntry>();
     public DbSet<Absence> Absences => Set<Absence>();
     public DbSet<PayrollSaldo> PayrollSaldos => Set<PayrollSaldo>();
@@ -36,6 +39,8 @@ public class AppDbContext : DbContext
     public DbSet<EmploymentModelComponent> EmploymentModelComponents => Set<EmploymentModelComponent>();
     public DbSet<SwissLocation> SwissLocations => Set<SwissLocation>();
     public DbSet<Behoerde> Behoerden => Set<Behoerde>();
+    public DbSet<CompanyProfileSsl> CompanyProfileSsls => Set<CompanyProfileSsl>();
+    public DbSet<FamilienzulagenTarif> FamilienzulagenTarife => Set<FamilienzulagenTarif>();
     public DbSet<EmployeeLohnAssignment> EmployeeLohnAssignments => Set<EmployeeLohnAssignment>();
     public DbSet<AbsenzTyp> AbsenzTypen => Set<AbsenzTyp>();
     public DbSet<EmployeeArbeitslosigkeit> EmployeeArbeitslosigkeiten => Set<EmployeeArbeitslosigkeit>();
@@ -44,13 +49,19 @@ public class AppDbContext : DbContext
     public DbSet<VertragstypLohnposition> VertragstypLohnpositionen => Set<VertragstypLohnposition>();
     public DbSet<PayrollPeriodeConfig>  PayrollPeriodeConfigs  => Set<PayrollPeriodeConfig>();
     public DbSet<PayrollPeriode>        PayrollPerioden        => Set<PayrollPeriode>();
+    public DbSet<PayrollPeriodeAudit>   PayrollPeriodeAudits   => Set<PayrollPeriodeAudit>();
     public DbSet<PayrollSnapshot>       PayrollSnapshots       => Set<PayrollSnapshot>();
     public DbSet<PayrollLohnAbtretungEntry> PayrollLohnAbtretungEntries => Set<PayrollLohnAbtretungEntry>();
+    public DbSet<AkontoTermin>          AkontoTermine          => Set<AkontoTermin>();
+    public DbSet<AkontoZahlung>         AkontoZahlungen        => Set<AkontoZahlung>();
     public DbSet<BankMaster>                BankMasters                 => Set<BankMaster>();
     public DbSet<EmployeeBankAccount>       EmployeeBankAccounts        => Set<EmployeeBankAccount>();
     public DbSet<DokumentKategorie>         DokumentKategorien          => Set<DokumentKategorie>();
     public DbSet<DokumentTyp>               DokumentTypen               => Set<DokumentTyp>();
     public DbSet<EmployeeDokument>          EmployeeDokumente           => Set<EmployeeDokument>();
+    public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
+    public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
+    public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -80,10 +91,19 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ExitDate).HasColumnName("exit_date").HasColumnType("date");
             entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");
             entity.Property(e => e.PermitExpiryDate).HasColumnName("permit_expiry_date").HasColumnType("date");
+            entity.Property(e => e.ZemisNumber).HasColumnName("zemis_number").HasMaxLength(50);
             entity.Property(e => e.QuellensteuerBefreitAb).HasColumnName("quellensteuer_befreit_ab").HasColumnType("date");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.IsPayrollExcluded).HasColumnName("is_payroll_excluded").HasDefaultValue(false);
+            entity.Property(e => e.KtgTagessatzManuell).HasColumnName("ktg_tagessatz_manuell").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.KtgKarenzAbgeschlossen).HasColumnName("ktg_karenz_abgeschlossen").HasDefaultValue(false);
             entity.Property(e => e.SocialSecurityNumber).HasColumnName("social_security_number").HasMaxLength(20);
             entity.Property(e => e.MaritalStatus).HasColumnName("marital_status").HasMaxLength(40);
+            entity.Property(e => e.MaritalStatusSince).HasColumnName("marital_status_since").HasColumnType("date");
+            entity.Property(e => e.SeparatedSince).HasColumnName("separated_since").HasColumnType("date");
+            entity.Property(e => e.Religion).HasColumnName("religion").HasMaxLength(40);
+            entity.Property(e => e.LetterSalutation).HasColumnName("letter_salutation").HasMaxLength(200);
+            entity.Property(e => e.PlaceOfOrigin).HasColumnName("place_of_origin").HasMaxLength(150);
             entity.HasOne(e => e.PermitType).WithMany().HasForeignKey(e => e.PermitTypeId);
             entity.HasOne(e => e.NationalityRef).WithMany().HasForeignKey(e => e.NationalityId);
         });
@@ -101,6 +121,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ContractEndDate).HasColumnName("contract_end_date").HasColumnType("date");
             entity.Property(e => e.JobTitle).HasColumnName("job_title");
             entity.Property(e => e.ContractType).HasColumnName("contract_type");
+            entity.Property(e => e.EducationLevelCode).HasColumnName("education_level_code").HasMaxLength(10);
             entity.Property(e => e.EmploymentPercentage).HasColumnName("employment_percentage");
             entity.Property(e => e.WeeklyHours).HasColumnName("weekly_hours");
             entity.Property(e => e.GuaranteedHoursPerWeek).HasColumnName("guaranteed_hours_per_week");
@@ -130,6 +151,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ZipCode).HasColumnName("zip_code");
             entity.Property(e => e.City).HasColumnName("city");
             entity.Property(e => e.Country).HasColumnName("country");
+            entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2);
+            entity.Property(e => e.LoginPasswordPrefix).HasColumnName("login_password_prefix").HasMaxLength(5);
             entity.Property(e => e.Phone).HasColumnName("phone");
             entity.Property(e => e.Email).HasColumnName("email");
             entity.Property(e => e.NormalWeeklyHours).HasColumnName("normal_weekly_hours");
@@ -151,7 +174,11 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NightStartTime).HasColumnName("night_start_time").HasMaxLength(5);
             entity.Property(e => e.NightEndTime).HasColumnName("night_end_time").HasMaxLength(5);
             entity.Property(e => e.ThirteenthMonthPayoutsPerYear).HasColumnName("thirteenth_month_payouts_per_year").HasDefaultValue(12);
+            entity.Property(e => e.ThirteenthMonthPayoutMonths).HasColumnName("thirteenth_month_payout_months").HasMaxLength(40);
             entity.Property(e => e.AutoFerienGeldAuszahlungDezember).HasColumnName("auto_ferien_geld_auszahlung_dezember").HasDefaultValue(true);
+            entity.Property(e => e.LohnausweisBoxFFreierTransport).HasColumnName("lohnausweis_box_f_freier_transport").HasDefaultValue(false);
+            entity.Property(e => e.LohnausweisBoxGKantineGratis).HasColumnName("lohnausweis_box_g_kantine_gratis").HasDefaultValue(false);
+            entity.Property(e => e.LohnausweisPos21VerpflegungMonat).HasColumnName("lohnausweis_pos_2_1_verpflegung_monat").HasColumnType("numeric(10,2)");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.BurNummer).HasColumnName("bur_nummer").HasMaxLength(20);
             entity.Property(e => e.UidNummer).HasColumnName("uid_nummer").HasMaxLength(20);
@@ -168,6 +195,34 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LgavTriggerMonat).HasColumnName("lgav_trigger_monat").HasDefaultValue(1);
             entity.Property(e => e.LgavBeitragVoll).HasColumnName("lgav_beitrag_voll").HasColumnType("numeric(8,2)").HasDefaultValue(99m);
             entity.Property(e => e.LgavBeitragReduziert).HasColumnName("lgav_beitrag_reduziert").HasColumnType("numeric(8,2)").HasDefaultValue(49.5m);
+            entity.Property(e => e.AkontoProzentFix).HasColumnName("akonto_prozent_fix").HasColumnType("numeric(5,2)").HasDefaultValue(80m);
+            entity.Property(e => e.AkontoProzentHourly).HasColumnName("akonto_prozent_hourly").HasColumnType("numeric(5,2)").HasDefaultValue(100m);
+            // Legacy-Bankverbindungs-Felder (vor Multi-Bank-Refactor). Bleiben
+            // für Backward-Compat in der DB, werden vom UI nicht mehr genutzt.
+            entity.Property(e => e.Iban).HasColumnName("iban").HasMaxLength(34);
+            entity.Property(e => e.Bic).HasColumnName("bic").HasMaxLength(15);
+            entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(200);
+        });
+
+        // ── CompanyProfileBankAccount ───────────────────────────────────────
+        modelBuilder.Entity<CompanyProfileBankAccount>(entity =>
+        {
+            entity.ToTable("company_profile_bank_account");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Iban).HasColumnName("iban").HasMaxLength(34);
+            entity.Property(e => e.Bic).HasColumnName("bic").HasMaxLength(15);
+            entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(200);
+            entity.Property(e => e.IsMain).HasColumnName("is_main").HasDefaultValue(true);
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
+            entity.HasIndex(e => new { e.CompanyProfileId, e.ValidFrom, e.ValidTo })
+                  .HasDatabaseName("idx_cpba_period");
         });
 
         modelBuilder.Entity<EducationLevel>(entity =>
@@ -218,6 +273,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.AgeMax).HasColumnName("age_max");
             entity.HasOne(e => e.EducationLevel).WithMany().HasForeignKey(e => e.EducationLevelId);
         });
 
@@ -292,6 +348,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Role).HasColumnName("role");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.IsHrTeam).HasColumnName("is_hr_team");
+            entity.Property(e => e.IsSuperAdmin).HasColumnName("is_super_admin").HasDefaultValue(false);
+            entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+            entity.Property(e => e.SignaturePng).HasColumnName("signature_png");
+            entity.Property(e => e.Theme).HasColumnName("theme").HasMaxLength(20).HasDefaultValue("light");
+            entity.Property(e => e.PreferredLanguage).HasColumnName("preferred_language").HasMaxLength(5).HasDefaultValue("de");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.MustChangePassword).HasColumnName("must_change_password").HasDefaultValue(false);
+            entity.Property(e => e.FailedLoginCount).HasColumnName("failed_login_count").HasDefaultValue(0);
+            entity.Property(e => e.LockedUntil).HasColumnName("locked_until");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── UserBranchAccess ───────────────────────────────────────────────
@@ -332,9 +399,69 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AlternativeAddressId).HasColumnName("alternative_address_id");
             entity.Property(e => e.QstDeductibleFrom).HasColumnName("qst_deductible_from").HasColumnType("date");
             entity.Property(e => e.QstDeductibleUntil).HasColumnName("qst_deductible_until").HasColumnType("date");
+            entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");
+            entity.Property(e => e.PermitExpiryDate).HasColumnName("permit_expiry_date").HasColumnType("date");
+            entity.Property(e => e.ZemisNumber).HasColumnName("zemis_number").HasMaxLength(40);
+            entity.Property(e => e.NationalityId).HasColumnName("nationality_id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasOne(e => e.PermitType).WithMany().HasForeignKey(e => e.PermitTypeId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.NationalityRef).WithMany().HasForeignKey(e => e.NationalityId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── EmployeeAddress ────────────────────────────────────────────────
+        // Zusatz-Adressen pro MA (Korrespondenz, Ferienwohnung, Sozialamt, ...).
+        // Hauptadresse bleibt direkt am Employee (für QST/Wohnkanton-Logik).
+        modelBuilder.Entity<EmployeeAddress>(entity =>
+        {
+            entity.ToTable("employee_address");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.AddressType).HasColumnName("address_type").HasMaxLength(50);
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(150);
+            entity.Property(e => e.Street).HasColumnName("street").HasMaxLength(150);
+            entity.Property(e => e.Street2).HasColumnName("street2").HasMaxLength(150);
+            entity.Property(e => e.PoBox).HasColumnName("po_box").HasMaxLength(50);
+            entity.Property(e => e.ZipCode).HasColumnName("zip_code").HasMaxLength(10);
+            entity.Property(e => e.City).HasColumnName("city").HasMaxLength(100);
+            entity.Property(e => e.BfsNumber).HasColumnName("bfs_number").HasMaxLength(10);
+            entity.Property(e => e.Canton).HasColumnName("canton").HasMaxLength(50);
+            entity.Property(e => e.Country).HasColumnName("country").HasMaxLength(100);
+            entity.Property(e => e.Phone).HasColumnName("phone").HasMaxLength(50);
+            entity.Property(e => e.Phone2).HasColumnName("phone2").HasMaxLength(50);
+            entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(150);
+            entity.Property(e => e.IncamailDisabled).HasColumnName("incamail_disabled");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(e => e.EmployeeId);
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        // ── FamilyMemberAllowance ──────────────────────────────────────────
+        // Versionierte Familienzulagen: pro (Familienmitglied, Gültigkeitsperiode)
+        // ein Eintrag mit Monatsbetrag. Lebenslagen-Änderungen → neuer Eintrag
+        // mit neuem ValidFrom (alter Eintrag bekommt ValidTo am Vortag).
+        modelBuilder.Entity<FamilyMemberAllowance>(entity =>
+        {
+            entity.ToTable("family_member_allowance");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FamilyMemberId).HasColumnName("family_member_id");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.MonthlyAmount).HasColumnName("monthly_amount").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.AllowanceType).HasColumnName("allowance_type").HasMaxLength(20);
+            entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne(e => e.FamilyMember)
+                  .WithMany(m => m.Allowances)
+                  .HasForeignKey(e => e.FamilyMemberId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.FamilyMemberId);
         });
 
         // ── EmployeeTimeEntry ──────────────────────────────────────────────
@@ -479,6 +606,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
             entity.Property(e => e.Aktiv).HasColumnName("aktiv").HasDefaultValue(true);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.ZwischenverdienstKuerzel).HasColumnName("zwischenverdienst_kuerzel").HasMaxLength(2);
             entity.HasIndex(e => e.Code).HasDatabaseName("IX_absenz_typ_code").IsUnique();
         });
 
@@ -505,6 +633,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
             entity.Property(e => e.Aktiv).HasColumnName("aktiv").HasDefaultValue(true);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.LinkedFieldCode).HasColumnName("linked_field_code").HasMaxLength(50);
         });
 
         // ── EmployeeDokument ─────────────────────────────────────────────────
@@ -527,6 +656,30 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HochgeladenAm).HasColumnName("hochgeladen_am");
             entity.HasIndex(e => e.EmployeeId);
             entity.HasIndex(e => e.DokumentTypId);
+        });
+
+        // ── MailboxDocument (Posteingang pro Filiale) ────────────────────────
+        modelBuilder.Entity<MailboxDocument>(entity =>
+        {
+            entity.ToTable("mailbox_document");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.UploadedBy).HasColumnName("uploaded_by");
+            entity.Property(e => e.UploadedAt).HasColumnName("uploaded_at");
+            entity.Property(e => e.OriginalFilename).HasColumnName("original_filename");
+            entity.Property(e => e.StorageFilename).HasColumnName("storage_filename");
+            entity.Property(e => e.MimeType).HasColumnName("mime_type");
+            entity.Property(e => e.FileSizeBytes).HasColumnName("file_size_bytes");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.NotifyUserId).HasColumnName("notify_user_id");
+            entity.Property(e => e.TargetType).HasColumnName("target_type");
+            entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
+            entity.HasOne(e => e.Uploader).WithMany().HasForeignKey(e => e.UploadedBy);
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasOne(e => e.NotifyUser).WithMany().HasForeignKey(e => e.NotifyUserId);
+            entity.HasIndex(e => new { e.CompanyProfileId, e.UploadedAt });
         });
 
         // ── VertragstypLohnposition ──────────────────────────────────────────
@@ -637,6 +790,61 @@ public class AppDbContext : DbContext
                   .HasDatabaseName("swiss_location_plz_bfs_unique");
         });
 
+        // ── CompanyProfileSsl ──────────────────────────────────────────────
+        // Eine SSL-Nummer pro (Filiale, Kanton). Eine Filiale kann mehrere SSLs
+        // haben (eine pro Kanton, in dem sie QST-pflichtige MA beschäftigt).
+        modelBuilder.Entity<CompanyProfileSsl>(entity =>
+        {
+            entity.ToTable("company_profile_ssl");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2);
+            entity.Property(e => e.SslNummer).HasColumnName("ssl_nummer").HasMaxLength(30);
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung").HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            // Eindeutigkeit: pro Filiale-Kanton-Kombination genau ein Eintrag.
+            entity.HasIndex(e => new { e.CompanyProfileId, e.KantonCode }).IsUnique();
+            entity.HasOne(e => e.CompanyProfile)
+                  .WithMany(p => p.SslNummern)
+                  .HasForeignKey(e => e.CompanyProfileId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── FamilienzulagenTarif ───────────────────────────────────────────
+        // Kantonale FAK-Sätze, versioniert über (kanton_code, valid_from).
+        // Wirkt im Lohnlauf nach company_profile.kanton_code (Standort der
+        // Filiale) — NICHT nach Wohnsitz des MA wie die QST.
+        modelBuilder.Entity<FamilienzulagenTarif>(entity =>
+        {
+            entity.ToTable("familienzulagen_tarif");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2).IsRequired();
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.KinderzulageSatz1).HasColumnName("kinderzulage_satz1").HasColumnType("numeric(8,2)");
+            entity.Property(e => e.KinderzulageSatz2).HasColumnName("kinderzulage_satz2").HasColumnType("numeric(8,2)");
+            entity.Property(e => e.KinderzulageSatz2AbAlter).HasColumnName("kinderzulage_satz2_ab_alter");
+            entity.Property(e => e.AusbildungszulageSatz1).HasColumnName("ausbildungszulage_satz1").HasColumnType("numeric(8,2)");
+            entity.Property(e => e.AusbildungszulageSatz2).HasColumnName("ausbildungszulage_satz2").HasColumnType("numeric(8,2)");
+            entity.Property(e => e.AusbildungszulageSatz2AbAlter).HasColumnName("ausbildungszulage_satz2_ab_alter");
+            entity.Property(e => e.SchwelleSatz2AnzahlKinder).HasColumnName("schwelle_satz2_anzahl_kinder");
+            entity.Property(e => e.MindesterwerbseinkommenJahr).HasColumnName("mindesterwerbseinkommen_jahr").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.MindesterwerbseinkommenMonat).HasColumnName("mindesterwerbseinkommen_monat").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.GeburtszulageBetrag).HasColumnName("geburtszulage_betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.AdoptionszulageBetrag).HasColumnName("adoptionszulage_betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.AltersGrenzeKinder).HasColumnName("alters_grenze_kinder").HasDefaultValue(16);
+            entity.Property(e => e.AltersGrenzeAusbildung).HasColumnName("alters_grenze_ausbildung").HasDefaultValue(25);
+            entity.Property(e => e.Quelle).HasColumnName("quelle").HasMaxLength(200);
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(e => new { e.KantonCode, e.ValidFrom }).IsUnique();
+        });
+
         // ── Behoerde ───────────────────────────────────────────────────────
         modelBuilder.Entity<Behoerde>(entity =>
         {
@@ -645,6 +853,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200);
             entity.Property(e => e.Typ).HasColumnName("typ").HasMaxLength(30).HasDefaultValue("BETREIBUNGSAMT");
+            entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2);
             entity.Property(e => e.Adresse1).HasColumnName("adresse1").HasMaxLength(200);
             entity.Property(e => e.Adresse2).HasColumnName("adresse2").HasMaxLength(200);
             entity.Property(e => e.Adresse3).HasColumnName("adresse3").HasMaxLength(200);
@@ -652,6 +861,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Ort).HasColumnName("ort").HasMaxLength(100);
             entity.Property(e => e.Telefon).HasColumnName("telefon").HasMaxLength(30);
             entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(200);
+            entity.Property(e => e.Kontaktperson).HasColumnName("kontaktperson").HasMaxLength(150);
+            entity.Property(e => e.KontaktpersonRolle).HasColumnName("kontaktperson_rolle").HasMaxLength(100);
+            entity.Property(e => e.Erreichbarkeit).HasColumnName("erreichbarkeit").HasMaxLength(150);
+            entity.Property(e => e.Webseite).HasColumnName("webseite").HasMaxLength(300);
             entity.Property(e => e.Iban).HasColumnName("iban").HasMaxLength(34);
             entity.Property(e => e.QrIban).HasColumnName("qr_iban").HasMaxLength(34);
             entity.Property(e => e.Bic).HasColumnName("bic").HasMaxLength(20);
@@ -753,6 +966,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Bic).HasColumnName("bic").HasMaxLength(15);
             entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(200);
             entity.Property(e => e.Kontoinhaber).HasColumnName("kontoinhaber").HasMaxLength(200);
+            entity.Property(e => e.KontoinhaberStrasse).HasColumnName("kontoinhaber_strasse").HasMaxLength(200);
+            entity.Property(e => e.KontoinhaberPlz).HasColumnName("kontoinhaber_plz").HasMaxLength(20);
+            entity.Property(e => e.KontoinhaberOrt).HasColumnName("kontoinhaber_ort").HasMaxLength(120);
+            entity.Property(e => e.KontoinhaberLand).HasColumnName("kontoinhaber_land").HasMaxLength(2);
             entity.Property(e => e.Zahlungsreferenz).HasColumnName("zahlungsreferenz").HasMaxLength(50);
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.IsHauptbank).HasColumnName("is_hauptbank").HasDefaultValue(true);
@@ -800,6 +1017,13 @@ public class AppDbContext : DbContext
             entity.Property(e => e.WohnsitzAusland).HasColumnName("wohnsitz_ausland").HasMaxLength(100);
             entity.Property(e => e.Wohnsitzstaat).HasColumnName("wohnsitzstaat").HasMaxLength(10);
             entity.Property(e => e.AdresseAusland).HasColumnName("adresse_ausland").HasMaxLength(500);
+            // Tarif-Stammdaten (für Anmeldung & Tarifbestimmung)
+            entity.Property(e => e.LivesInKonkubinat).HasColumnName("lives_in_konkubinat");
+            entity.Property(e => e.HasJointParentalCare).HasColumnName("has_joint_parental_care");
+            entity.Property(e => e.PaysAlimonyAdultChildren).HasColumnName("pays_alimony_adult_children");
+            entity.Property(e => e.HasHigherIncomeThanPartner).HasColumnName("has_higher_income_than_partner");
+            entity.Property(e => e.IsGrenzgaenger).HasColumnName("is_grenzgaenger");
+            entity.Property(e => e.IsWochenaufenthalter).HasColumnName("is_wochenaufenthalter");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
@@ -897,13 +1121,44 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PeriodTo).HasColumnName("period_to").HasColumnType("date");
             entity.Property(e => e.Label).HasColumnName("label").HasMaxLength(100);
             entity.Property(e => e.IsTransition).HasColumnName("is_transition").HasDefaultValue(false);
-            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("offen");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(40).HasDefaultValue("offen");
             entity.Property(e => e.AbgeschlossenAm).HasColumnName("abgeschlossen_am");
             entity.Property(e => e.AbgeschlossenVon).HasColumnName("abgeschlossen_von");
+            entity.Property(e => e.ProvisorischAbgeschlossenAm).HasColumnName("provisorisch_abgeschlossen_am");
+            entity.Property(e => e.ProvisorischAbgeschlossenVon).HasColumnName("provisorisch_abgeschlossen_von");
+            entity.Property(e => e.Auszahlungsdatum).HasColumnName("auszahlungsdatum").HasColumnType("date");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.PdfFooterText).HasColumnName("pdf_footer_text");
+            // Akonto-Workflow (Walter-Vorgabe 16.05.2026) — eigener Status-Strang.
+            entity.Property(e => e.AkontoStatus).HasColumnName("akonto_status").HasMaxLength(30).HasDefaultValue("OFFEN");
+            entity.Property(e => e.AkontoGfStartedAt).HasColumnName("akonto_gf_started_at");
+            entity.Property(e => e.AkontoGfStartedBy).HasColumnName("akonto_gf_started_by");
+            entity.Property(e => e.AkontoGfSentAt).HasColumnName("akonto_gf_sent_at");
+            entity.Property(e => e.AkontoGfSentBy).HasColumnName("akonto_gf_sent_by");
+            entity.Property(e => e.AkontoHrFreigegebenAt).HasColumnName("akonto_hr_freigegeben_at");
+            entity.Property(e => e.AkontoHrFreigegebenBy).HasColumnName("akonto_hr_freigegeben_by");
+            entity.Property(e => e.AkontoAusbezahltAt).HasColumnName("akonto_ausbezahlt_at");
+            entity.Property(e => e.AkontoAusbezahltBy).HasColumnName("akonto_ausbezahlt_by");
+            entity.Property(e => e.AkontoDtaRunId).HasColumnName("akonto_dta_run_id");
             entity.HasOne(e => e.Company).WithMany().HasForeignKey(e => e.CompanyProfileId);
             entity.HasOne(e => e.Config).WithMany().HasForeignKey(e => e.ConfigId);
+        });
+
+        // ── PayrollPeriodeAudit ────────────────────────────────────────────
+        modelBuilder.Entity<PayrollPeriodeAudit>(entity =>
+        {
+            entity.ToTable("payroll_periode_audit");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.PayrollPeriodeId).HasColumnName("payroll_periode_id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.UserName).HasColumnName("user_name").HasMaxLength(200);
+            entity.Property(e => e.Action).HasColumnName("action").HasMaxLength(40);
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.HasOne(e => e.PayrollPeriode).WithMany().HasForeignKey(e => e.PayrollPeriodeId);
+            entity.HasIndex(e => new { e.PayrollPeriodeId, e.CreatedAt })
+                  .HasDatabaseName("idx_ppa_periode_time");
         });
 
         // ── PayrollSnapshot ────────────────────────────────────────────────
@@ -923,6 +1178,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.QstBetrag).HasColumnName("qst_betrag").HasColumnType("numeric(10,2)");
             entity.Property(e => e.ThirteenthAccumulated).HasColumnName("thirteenth_accumulated").HasColumnType("numeric(10,2)");
             entity.Property(e => e.FerienGeldSaldo).HasColumnName("ferien_geld_saldo").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.AkontoBereitsAusbezahlt).HasColumnName("akonto_bereits_ausbezahlt").HasColumnType("numeric(10,2)").HasDefaultValue(0m);
             entity.Property(e => e.IsFinal).HasColumnName("is_final").HasDefaultValue(false);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
@@ -930,6 +1186,58 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.PayrollPeriodeId, e.EmployeeId })
                   .IsUnique().HasDatabaseName("UX_payroll_snapshot_periode_emp");
+        });
+
+        // ── AkontoTermin (Akonto-Lohn) ─────────────────────────────────────
+        modelBuilder.Entity<AkontoTermin>(entity =>
+        {
+            entity.ToTable("akonto_termin");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Year).HasColumnName("year");
+            entity.Property(e => e.Month).HasColumnName("month");
+            entity.Property(e => e.PayoutDate).HasColumnName("payout_date").HasColumnType("date");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne(e => e.Company).WithMany().HasForeignKey(e => e.CompanyProfileId);
+            entity.HasIndex(e => new { e.CompanyProfileId, e.Year, e.Month })
+                  .IsUnique().HasDatabaseName("UX_akonto_termin_branch_year_month");
+        });
+
+        // ── AkontoZahlung (Akonto-Lohn) ────────────────────────────────────
+        modelBuilder.Entity<AkontoZahlung>(entity =>
+        {
+            entity.ToTable("akonto_zahlung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.PeriodYear).HasColumnName("period_year");
+            entity.Property(e => e.PeriodMonth).HasColumnName("period_month");
+            entity.Property(e => e.PayoutDate).HasColumnName("payout_date").HasColumnType("date");
+            entity.Property(e => e.GeschaetzterBrutto).HasColumnName("geschaetzter_brutto").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.FeriengeldAnteil).HasColumnName("feriengeld_anteil").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.GeschaetzteAbzuege).HasColumnName("geschaetzte_abzuege").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.PfaendungAbzug).HasColumnName("pfaendung_abzug").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.NettoAkonto).HasColumnName("netto_akonto").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("BERECHNET");
+            entity.Property(e => e.DtaRunId).HasColumnName("dta_run_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            // 4-Augen-Workflow (Walter-Vorgabe 16.05.2026) — GF-Freigabe + Korrektur-Kommentare.
+            entity.Property(e => e.GfFreigegebenAt).HasColumnName("gf_freigegeben_at");
+            entity.Property(e => e.GfFreigegebenBy).HasColumnName("gf_freigegeben_by");
+            entity.Property(e => e.KommentarGf).HasColumnName("kommentar_gf");
+            entity.Property(e => e.KommentarHr).HasColumnName("kommentar_hr");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasOne(e => e.Company).WithMany().HasForeignKey(e => e.CompanyProfileId);
+            entity.HasOne(e => e.GfFreigegebenByUser).WithMany()
+                  .HasForeignKey(e => e.GfFreigegebenBy).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => new { e.CompanyProfileId, e.PeriodYear, e.PeriodMonth })
+                  .HasDatabaseName("idx_akonto_zahlung_branch_period");
+            entity.HasIndex(e => new { e.EmployeeId, e.PeriodYear, e.PeriodMonth })
+                  .IsUnique().HasDatabaseName("UX_akonto_zahlung_emp_period");
         });
 
         // ── EmployeeArbeitslosigkeit ───────────────────────────────────────
@@ -948,6 +1256,42 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        // ── EmployeePermitHistory ──────────────────────────────────────────
+        modelBuilder.Entity<EmployeePermitHistory>(entity =>
+        {
+            entity.ToTable("employee_permit_history");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.PermitExpiryDate).HasColumnName("permit_expiry_date").HasColumnType("date");
+            entity.Property(e => e.Note).HasColumnName("note");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasOne(e => e.PermitType).WithMany().HasForeignKey(e => e.PermitTypeId);
+        });
+
+        // ── SmtpSetting (Singleton, Id=1) ──────────────────────────────────
+        modelBuilder.Entity<SmtpSetting>(entity =>
+        {
+            entity.ToTable("smtp_setting");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Host).HasColumnName("host").HasMaxLength(200);
+            entity.Property(e => e.Port).HasColumnName("port");
+            entity.Property(e => e.Username).HasColumnName("username").HasMaxLength(200);
+            entity.Property(e => e.PasswordEncrypted).HasColumnName("password_encrypted");
+            entity.Property(e => e.FromName).HasColumnName("from_name").HasMaxLength(200);
+            entity.Property(e => e.FromAddress).HasColumnName("from_address").HasMaxLength(200);
+            entity.Property(e => e.TestRedirectTo).HasColumnName("test_redirect_to").HasMaxLength(200);
+            entity.Property(e => e.SiteUrl).HasColumnName("site_url").HasMaxLength(300);
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
         });
     }
 }

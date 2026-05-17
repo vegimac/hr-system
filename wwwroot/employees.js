@@ -11,13 +11,97 @@ let activeEmpTab = 'personal';
 let _empAllRaw = [];
 let _empFilter = 'aktiv';
 
+// Spezial-Filter (Datenqualität-Checks) — quer zum Aktiv/Inaktiv-Status.
+// Aktuell aktiv: '' (kein Spezialfilter) | 'no-bank' (ohne Bankverbindung).
+// Erweiterbar: einfach neuen Eintrag in EMP_SPECIAL_FILTERS registrieren —
+// jede Funktion erhält den MA und liefert true wenn er die Bedingung erfüllt
+// und damit IN der gefilterten Liste bleiben soll.
+let _empSpecialFilter = '';
+// Cache für "no-bank": Set der MA-IDs MIT aktiver Bankverbindung (lazy geladen
+// beim ersten Aktivieren des Filters, danach pro Session gecached).
+let _empIdsWithActiveBank = null;
+
+// Filter-Registry — ein Eintrag pro Spezialfilter-Option im Dropdown.
+// `predicate` liefert true für MA, die im Resultat bleiben sollen.
+// `prepare`  optional: async Initialisierung (z.B. Cache befüllen).
+const EMP_SPECIAL_FILTERS = {
+    'no-bank': {
+        prepare: async () => {
+            if (_empIdsWithActiveBank !== null) return;
+            try {
+                const r = await fetch('/api/employee-bank-accounts/active-employee-ids',
+                                       { headers: ah(), cache: 'no-store' });
+                _empIdsWithActiveBank = r.ok
+                    ? new Set((await r.json()).map(Number))
+                    : new Set();
+            } catch { _empIdsWithActiveBank = new Set(); }
+        },
+        predicate: (e) => !(_empIdsWithActiveBank && _empIdsWithActiveBank.has(Number(e.id)))
+    }
+    // Weitere Filter hier ergänzen, z.B.:
+    //   'no-ahv':         { predicate: e => !e.socialSecurityNumber },
+    //   'permit-expired': { predicate: e => e.permitExpiryDate && new Date(e.permitExpiryDate) < new Date() },
+};
+
+// Tabs in genau der Reihenfolge wie im Markup (für ←/→-Navigation)
+// Adressen wurden in den "Persönliche Angaben"-Tab integriert (ein MA hat in
+// der Praxis nur eine Adresse — separate Tab unnötig).
+const _empTabsOrder = ['personal', 'familie', 'bank', 'quellensteuer',
+                       'stempelzeiten', 'absenzen', 'ktg', 'dokumente'];
+
+// Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
+let _stempelGlobalPeriodeId = null;
+let _stempelGlobalYear      = null;
+let _stempelGlobalMonth     = null;
+
+// Keyboard-Navigation (einmalig gebunden):
+// ↑/↓ = vorheriger/nächster MA, ←/→ = vorheriger/nächster Tab
+document.addEventListener('keydown', e => {
+    // Nur reagieren wenn wir auf der Mitarbeiter-Seite sind
+    const onEmpPage = document.getElementById('page-mitarbeiter')?.classList.contains('active');
+    if (!onEmpPage) return;
+    // Nicht reagieren wenn der Fokus in einem Eingabefeld ist
+    const t = e.target;
+    const tag = (t?.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || t?.isContentEditable) return;
+    // Nicht reagieren wenn ein Modal/Drawer offen ist
+    const drawerOpen = document.querySelector('.drawer-open, [id$="Drawer"][style*="display:block"], [id$="Modal"][style*="display:flex"]');
+    if (drawerOpen) return;
+    // Nicht reagieren wenn Cmd/Ctrl/Alt gedrückt ist
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!allEmployees.length) return;
+        const idx = allEmployees.findIndex(x => x.id === selectedEmployeeId);
+        let next = idx;
+        if (e.key === 'ArrowDown') next = idx < 0 ? 0 : Math.min(idx + 1, allEmployees.length - 1);
+        if (e.key === 'ArrowUp')   next = idx < 0 ? 0 : Math.max(idx - 1, 0);
+        if (next !== idx && allEmployees[next]) {
+            e.preventDefault();
+            selectEmployee(allEmployees[next].id);
+            // gewählten MA in den sichtbaren Bereich scrollen
+            setTimeout(() => {
+                document.querySelector('.emp-list-item.active')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }, 50);
+        }
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (!selectedEmployeeId) return;
+        const idx = _empTabsOrder.indexOf(activeEmpTab);
+        let next = idx;
+        if (e.key === 'ArrowRight') next = Math.min(idx + 1, _empTabsOrder.length - 1);
+        if (e.key === 'ArrowLeft')  next = Math.max(idx - 1, 0);
+        if (next !== idx) {
+            e.preventDefault();
+            switchEmpTab(_empTabsOrder[next]);
+        }
+    }
+});
+
 // ── Liste laden ────────────────────────────────
 async function loadMitarbeiterList() {
-    // Falls vorher der Dokumente-Tab aktiv war: Layout zurücksetzen,
-    // damit die Mitarbeiter-Liste links wieder sichtbar wird.
-    const empLayout = document.querySelector('.emp-layout');
-    if (empLayout) empLayout.classList.remove('emp-layout-dokumente');
-
+    // (früherer emp-layout-dokumente-Reset entfernt — die MA-Liste bleibt
+    // jetzt auf allen Sub-Tabs sichtbar, das spezielle Doku-Layout wurde
+    // abgeschafft.)
     try {
         const res = await fetch('/api/employees', { headers: ah(), cache: 'no-store' });
         if (!res.ok) return;
@@ -31,14 +115,40 @@ async function loadMitarbeiterList() {
 
 /// Wendet den Aktiv-Filter + Filial-Filter an und rendert die Liste neu.
 function applyEmpFilter() {
+    // "alt"-Suffix in der Personalnummer = archiviert (unabhängig vom is_active-Flag).
+    // Fängt Daten-Inkonsistenzen aus Voll-Migrationen ab (Bis-Datum in Zukunft
+    // → is_active=true, aber Nummer "...alt" markiert MA als ehemalig).
+    const isArchivedAlt = e => (e.employeeNumber || '').toLowerCase().endsWith('alt');
+    const isActiveEffective = e => e.isActive && !isArchivedAlt(e);
+
     let filtered = _empAllRaw;
-    if (_empFilter === 'aktiv')   filtered = filtered.filter(e => e.isActive);
-    if (_empFilter === 'inaktiv') filtered = filtered.filter(e => !e.isActive);
+    if (_empFilter === 'aktiv')   filtered = filtered.filter(isActiveEffective);
+    if (_empFilter === 'inaktiv') filtered = filtered.filter(e => !isActiveEffective(e));
+
+    // Spezial-Filter (Datenqualitäts-Checks) — wirkt zusätzlich zum Aktiv-Status.
+    if (_empSpecialFilter && EMP_SPECIAL_FILTERS[_empSpecialFilter]) {
+        filtered = filtered.filter(EMP_SPECIAL_FILTERS[_empSpecialFilter].predicate);
+    }
 
     if (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
-        filtered = filtered.filter(e =>
-            e.employments?.some(v => Number(v.companyProfileId) === Number(fixedCompanyProfileId))
-        );
+        const cpid = Number(fixedCompanyProfileId);
+        // Restaurant-Code → Personalnummer-Präfix (058 → "58", 075 → "75", 104 → "104")
+        const branch = (typeof allBranches !== 'undefined' ? allBranches : []).find(b => b.id === cpid);
+        const restCode = (branch?.restaurantCode || '').replace(/^0+/, '');  // führende Nullen weg
+        filtered = filtered.filter(e => {
+            const emps = e.employments || [];
+            // Treffer: mindestens ein Vertrag in dieser Filiale
+            const matchBranch = emps.some(v => Number(v.companyProfileId) === cpid);
+            if (matchBranch) return true;
+            // Legacy-Fallback: alle Verträge ohne Filial-Zuordnung → in jeder Filiale anzeigen
+            if (emps.length && emps.every(v => !v.companyProfileId)) return true;
+            // MA OHNE Verträge: anzeigen, wenn die Personalnummer zum Filial-Präfix passt
+            // (z.B. 750xxx → Sursee). So tauchen frisch importierte MA ohne Vertrag auf.
+            if (!emps.length && restCode && (e.employeeNumber || '').replace(/alt$/i, '').startsWith(restCode)) {
+                return true;
+            }
+            return false;
+        });
     }
 
     allEmployees = filtered.sort((a, b) => {
@@ -48,6 +158,32 @@ function applyEmpFilter() {
     });
     // Aktuelle Suche erneut anwenden
     filterEmployeeList();
+
+    // Bei Filial-Wechsel: wenn der bisher gewählte MA nicht mehr in der
+    // gefilterten Liste ist, Selektion zurücksetzen (Detail-Panel würde sonst
+    // den MA der vorherigen Filiale weiter zeigen — Walter-Feedback 13.05.2026).
+    if (selectedEmployeeId && !allEmployees.find(e => e.id === selectedEmployeeId)) {
+        selectedEmployeeId = null;
+        selectedEmployee   = null;
+        const panel = document.getElementById('empDetailPanel');
+        if (panel) {
+            panel.innerHTML = '<div class="emp-no-selection" style="height:100%"><span>Mitarbeiter auswählen</span></div>';
+        }
+    }
+
+    // Selektion vom Verträge-Tab übernehmen wenn dort einer markiert ist und
+    // hier noch keiner — so bleibt der gewählte MA beim Tab-Wechsel selektiert.
+    if (!selectedEmployeeId && typeof selectedVtEmployee !== 'undefined' && selectedVtEmployee?.id) {
+        if (allEmployees.find(e => e.id === selectedVtEmployee.id)) {
+            selectEmployee(selectedVtEmployee.id);
+        }
+    }
+    // Default-Auswahl: wenn nach allen Filtern noch kein MA selektiert ist und
+    // die Liste nicht leer ist, ersten MA aktivieren — dann sieht Walter beim
+    // Reinklicken sofort Daten statt „Mitarbeiter auswählen".
+    if (!selectedEmployeeId && allEmployees.length > 0) {
+        selectEmployee(allEmployees[0].id);
+    }
 }
 
 /// Schaltet zwischen Aktive / Inaktive / Alle um (von den Buttons aufgerufen).
@@ -64,6 +200,25 @@ function setEmpFilter(mode) {
     applyEmpFilter();
 }
 
+/// Spezial-Filter setzen (Dropdown). Lädt bei Bedarf den passenden Cache
+/// (z.B. Bankverbindungs-IDs) bevor neu gefiltert wird.
+async function setEmpSpecialFilter(value) {
+    _empSpecialFilter = value || '';
+    const cfg = EMP_SPECIAL_FILTERS[_empSpecialFilter];
+    if (cfg && typeof cfg.prepare === 'function') {
+        await cfg.prepare();
+    }
+    // Visuelles Feedback: aktiv = blauer Rahmen + heller Hintergrund.
+    const sel = document.getElementById('empSpecialFilter');
+    if (sel) {
+        sel.style.borderColor = _empSpecialFilter ? '#3b82f6' : '#e2e8f0';
+        sel.style.background  = _empSpecialFilter ? '#eff6ff' : '#f8fafc';
+        sel.style.color       = _empSpecialFilter ? '#1d4ed8' : '#475569';
+        sel.style.fontWeight  = _empSpecialFilter ? '600' : '400';
+    }
+    applyEmpFilter();
+}
+
 // ── Liste rendern ──────────────────────────────
 function renderEmployeeList(employees) {
     const el = document.getElementById('empList');
@@ -71,19 +226,55 @@ function renderEmployeeList(employees) {
         el.innerHTML = '<div class="emp-no-selection" style="height:200px"><span>Keine Mitarbeiter gefunden</span></div>';
         return;
     }
+    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
     el.innerHTML = employees.map(e => {
         const name = ((e.firstName ?? '') + ' ' + (e.lastName ?? '')).trim() || '–';
         const initials = getInitials(e.firstName, e.lastName);
         const isFemale = (e.gender ?? '').toLowerCase().startsWith('w') || (e.gender ?? '').toLowerCase() === 'female';
         const active = e.id === selectedEmployeeId ? 'active' : '';
-        const isInactive = !e.isActive;
+        // "alt"-Suffix → archiviert; konsistent mit applyEmpFilter
+        const isArchivedAlt = (e.employeeNumber || '').toLowerCase().endsWith('alt');
+        const isInactive = !e.isActive || isArchivedAlt;
+        // Modell-Pille (FIX, FIX-M, MTP, UTP) — Walter-Bug 16.05.2026:
+        // die frühere Strict-Filterung (matchEmps NUR aus dem aktiven Filial-
+        // companyProfileId) hat Legacy-Verträge ohne CompanyProfileId und MA
+        // mit Verträgen in anderen Filialen alle als "kein Vertrag" markiert,
+        // obwohl sie eigentlich einen aktiven Vertrag haben. Neu: Fallback-
+        // Kette zu allen Verträgen des MA, sodass "kein Vertrag" nur dann
+        // erscheint, wenn der MA wirklich KEIN Employment hat.
+        const cpidActive = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+                           ? Number(fixedCompanyProfileId) : null;
+        const allEmps    = e.employments || [];
+        const filialEmps = cpidActive
+            ? allEmps.filter(v => Number(v.companyProfileId) === cpidActive)
+            : allEmps;
+        const model = filialEmps.find(v => v.isActive)?.employmentModel  // aktiver Vertrag in dieser Filiale
+                   || allEmps.find(v => v.isActive)?.employmentModel     // aktiver Vertrag irgendwo
+                   || filialEmps[0]?.employmentModel                     // erster Vertrag in dieser Filiale
+                   || allEmps[0]?.employmentModel                        // erster Vertrag überhaupt
+                   || '';
+        let modelBadge = '';
+        if (model) {
+            modelBadge = `<span style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:${modelColor[model]||'#f1f5f9'};flex-shrink:0;align-self:center">${model}</span>`;
+        } else if (!isInactive) {
+            // aktiv aber ohne Vertrag (kein einziges Employment in der DB) → roter Hinweis
+            modelBadge = `<span style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:#fee2e2;color:#b91c1c;flex-shrink:0;align-self:center">kein Vertrag</span>`;
+        }
+        // "Kein Lohn"-Pille direkt nach dem Modell-Badge (oder als alleiniges
+        // Badge wenn Modell fehlt) — gelb-orange, sticht hervor damit klar ist:
+        // dieser MA wird hier nicht abgerechnet.
+        let kepLohnBadge = '';
+        if (e.isPayrollExcluded) {
+            kepLohnBadge = `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:8px;background:#fef3c7;color:#92400e;flex-shrink:0;align-self:center;${modelBadge ? 'margin-left:4px' : 'margin-left:auto'}">kein Lohn</span>`;
+        }
         return `
         <div class="emp-list-item ${active}" onclick="selectEmployee(${e.id})"${isInactive ? ' style="opacity:0.65"' : ''}>
             <div class="emp-avatar ${isFemale ? 'female' : ''}">${initials}</div>
-            <div>
+            <div style="flex:1;min-width:0">
                 <div class="emp-list-name">${name}${isInactive ? ' <span style="color:#94a3b8;font-weight:400;font-size:11px">(inaktiv)</span>' : ''}</div>
                 <div class="emp-list-nr">${e.employeeNumber ?? ''}</div>
             </div>
+            ${modelBadge}${kepLohnBadge}
         </div>`;
     }).join('');
 }
@@ -120,8 +311,27 @@ async function selectEmployee(id) {
         if (!res.ok) return;
         const emp = await res.json();
         selectedEmployee = emp;
+        // Verknüpfte Dokument-Field-Codes parallel laden, damit die 📎-Buttons
+        // direkt im ersten Render der MA-Maske erscheinen.
+        try {
+            const lnk = await fetch(`/api/documents/linked-codes-for-employee?employeeId=${id}`, { headers: ah() });
+            window._linkedDocCodes = lnk.ok ? new Set(await lnk.json()) : new Set();
+        } catch { window._linkedDocCodes = new Set(); }
         renderEmployeeDetail(emp);
     } catch {}
+}
+
+// i18n-Helper: kurz und bequem für die JS-generierten Labels.
+// Greift auf window.i18n falls geladen, sonst Fallback auf das deutsche
+// Default (zweites Argument). So bleibt die Maske auch bei i18n-Lade-
+// Race noch sinnvoll bedient.
+function _t(key, fallbackDe) {
+    if (!window.i18n || !window.i18n.t) return fallbackDe;
+    const v = window.i18n.t(key);
+    // i18n.t() gibt bei fehlendem Key den Key selbst zurück — in diesem Fall
+    // den deutschen Inline-Default verwenden, damit nichts wie "ma.field.foo"
+    // in der UI auftaucht.
+    return (v === key) ? fallbackDe : v;
 }
 
 // ── Detail rendern ─────────────────────────────
@@ -129,7 +339,7 @@ function renderEmployeeDetail(emp) {
     const panel = document.getElementById('empDetailPanel');
     const name = ((emp.firstName ?? '') + ' ' + (emp.lastName ?? '')).trim() || '–';
     const entry = emp.entryDate ? formatDate(emp.entryDate) : '–';
-    const exit  = emp.exitDate  ? formatDate(emp.exitDate)  : 'Aktiv';
+    const exit  = emp.exitDate  ? formatDate(emp.exitDate)  : _t('ma.detail.statusActive', 'Aktiv');
     const nr    = emp.employeeNumber ?? '–';
 
     panel.innerHTML = `
@@ -137,103 +347,128 @@ function renderEmployeeDetail(emp) {
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
             <div>
                 <div class="emp-detail-name">${name}</div>
-                <div class="emp-detail-meta">Personal-Nr. ${nr} &nbsp;·&nbsp; Eintritt: ${entry} &nbsp;·&nbsp; ${emp.exitDate ? 'Austritt: ' + exit : '<span style="color:#22c55e">● Aktiv</span>'}</div>
+                <div class="emp-detail-meta">${_t('ma.detail.persNr','Personal-Nr.')} ${nr} &nbsp;·&nbsp; ${_t('ma.detail.entryDate','Eintritt')}: ${entry} &nbsp;·&nbsp; ${emp.exitDate ? _t('ma.detail.exitDate','Austritt') + ': ' + exit : '<span style="color:#22c55e">● ' + _t('ma.detail.statusActive','Aktiv') + '</span>'}</div>
             </div>
-            <button class="btn-emp-edit" style="margin-top:4px;white-space:nowrap;flex-shrink:0" onclick="startEmpEdit()">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Bearbeiten
-            </button>
+            <!-- Header-Actions: Postfach-Passwort-Reset (Walter-Vorgabe
+                 14.05.2026 — direkt oben statt im Bank-Tab) + Bearbeiten.
+                 startEmpEdit() ersetzt den Inhalt dieses Containers durch
+                 Speichern/Abbrechen. Postfach-Button nur für nicht-Phantom-MA. -->
+            <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:4px;flex-shrink:0">
+                ${!emp.isPayrollExcluded ? `
+                <button class="btn-emp-edit" style="white-space:nowrap"
+                        title="${_t('ma.detail.postfachResetHint','Setzt das Postfach-Passwort des Mitarbeiters auf das Initial-Passwort zurück')}"
+                        onclick="postfachResetPassword(${emp.id})">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    ${_t('ma.detail.postfachReset','Postfach-Passwort')}
+                </button>` : ''}
+                <button id="btnEmpEdit" class="btn-emp-edit" style="white-space:nowrap" onclick="startEmpEdit()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    ${_t('ma.detail.edit','Bearbeiten')}
+                </button>
+            </div>
         </div>
         <div class="emp-detail-tabs">
-            <div class="emp-tab active" data-tab="personal"   onclick="switchEmpTab('personal')">Persönliche Angaben</div>
-            <div class="emp-tab"        data-tab="adressen"   onclick="switchEmpTab('adressen')">Adressen</div>
-            <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')">Familie</div>
-            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')">Quellensteuer</div>
-            <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">Stempelzeiten</div>
-            <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')" style="line-height:1.2;text-align:center">Absenzen<br>Zulagen<br>Abzüge</div>
-            <div class="emp-tab"        data-tab="formulare"  onclick="switchEmpTab('formulare')">Formulare</div>
-            <div class="emp-tab"        data-tab="ktg"        onclick="switchEmpTab('ktg')">KTG/UVG</div>
-            <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')">Dokumente</div>
+            <div class="emp-tab active" data-tab="personal"   onclick="switchEmpTab('personal')">${_t('ma.tab.personal','Persönliche Angaben')}</div>
+            <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')">${_t('ma.tab.family','Familie')}</div>
+            <div class="emp-tab"        data-tab="bank"       onclick="switchEmpTab('bank')">${_t('ma.tab.bank','Bank')}</div>
+            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')">${_t('ma.tab.qst','Quellensteuer')}</div>
+            <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
+            <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')" style="line-height:1.2;text-align:center">${_t('ma.tab.absences','Absenzen Zulagen Abzüge').replace(/\s+/g,'<br>')}</div>
+            <div class="emp-tab"        data-tab="ktg"        onclick="switchEmpTab('ktg')">${_t('ma.tab.ktg','KTG/UVG')}</div>
+            <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')">${_t('ma.tab.docs','Dokumente')}</div>
         </div>
     </div>
     <div class="emp-detail-body">
         <!-- TAB: Persönliche Angaben -->
         <div class="emp-tab-content active" id="emp-tab-personal">
-            <div class="emp-section-title">Personalien</div>
+            <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
             <div class="emp-field-grid-3">
-                ${field('Nachname',       emp.lastName)}
-                ${field('Vorname',        emp.firstName)}
-                ${field('Kurzname',       emp.shortName)}
-                ${field('Ledigname',      emp.maidenName)}
-                ${field('Geburtsdatum',   emp.dateOfBirth ? formatDate(emp.dateOfBirth) : null)}
-                ${field('Geschlecht',     emp.gender)}
-                ${field('AHV-Nummer',     emp.socialSecurityNumber)}
-                ${field('Zivilstand',     emp.zivilstand ?? emp.maritalStatus)}
-                ${field('Sprache',        emp.languageCode)}
-                ${field('Anrede',         emp.salutation)}
-                ${field('Briefanrede',    emp.letterSalutation)}
-                ${field('Heimatort',      emp.placeOfOrigin)}
-                ${field('Konfession',     emp.religion)}
-                ${field('Nationalität',   emp.nationality)}
+                ${field(_t('ma.field.firstName','Vorname'),       emp.firstName)}
+                ${field(_t('ma.field.lastName','Nachname'),       emp.lastName)}
+                ${field(_t('ma.field.maidenName','Ledigname'),    emp.maidenName)}
+                ${field(_t('ma.field.shortName','Kurzname'),      emp.shortName)}
+                ${field(_t('ma.field.dob','Geburtsdatum'),        emp.dateOfBirth ? `${formatDate(emp.dateOfBirth)} <span style="color:#94a3b8;font-weight:400">(${calcAge(emp.dateOfBirth)} J.)</span>` : null, 'birth_cert')}
+                ${field(_t('ma.field.gender','Geschlecht'),       formatGender(emp.gender))}
+                ${field(_t('ma.field.ahv','AHV-Nummer'),          emp.socialSecurityNumber, 'ahv_card')}
+                ${field(_t('ma.field.zemis','ZEMIS-Nr.'),         emp.zemisNumber)}
+                ${field(_t('ma.field.maritalStatus','Zivilstand'),formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus), 'marriage_cert')}
+                ${field(_t('ma.field.maritalSince','Zivilstand seit'), emp.maritalStatusSince ? formatDate(emp.maritalStatusSince) : null)}
+                ${field(_t('ma.field.language','Sprache'),        formatLanguage(emp.languageCode))}
+                ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation))}
+                ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation)}
+                ${field(_t('ma.field.placeOfOrigin','Heimatort'), emp.placeOfOrigin)}
+                ${field(_t('ma.field.religion','Konfession'),     emp.religion)}
+                ${field(_t('ma.field.nationality','Nationalität'),
+                    emp.nationalityName
+                        ? (emp.nationalityCode && emp.nationalityCode !== emp.nationalityName
+                            ? `${emp.nationalityName} <span style="color:#94a3b8;font-weight:400;font-size:11.5px">(${emp.nationalityCode})</span>`
+                            : emp.nationalityName)
+                        : (emp.nationalityCode ?? emp.nationality ?? null),
+                    'passport')}
             </div>
-            <div class="emp-section-title">Aufenthalt</div>
+            <div class="emp-section-title">${_t('ma.section.address','Adresse')}</div>
             <div class="emp-field-grid-3">
-                ${field('Bewilligung',       emp.permitType
-                    ? `${emp.permitType.code}${emp.permitType.description ? ' — ' + emp.permitType.description : ''}`
-                    : (emp.permitTypeId ? 'Typ ' + emp.permitTypeId : null))}
-                ${field('Gültig bis',        emp.permitExpiryDate ? formatDate(emp.permitExpiryDate) : null)}
-                ${field('ZEMIS-Nr.',         emp.zemisNumber)}
+                ${field(_t('ma.field.street','Strasse'),          emp.street)}
+                ${field(_t('ma.field.houseNumber','Hausnummer'),  emp.houseNumber)}
+                ${field(_t('ma.field.zipCode','PLZ'),             emp.zipCode)}
+                ${field(_t('ma.field.city','Ort'),                emp.city)}
+                ${field(_t('ma.field.canton','Kanton'),           emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null)}
+                ${field(_t('ma.field.country','Land'),            emp.country)}
             </div>
-            <div class="emp-section-title">Arbeitsverhältnis</div>
+            <div class="emp-section-title">${_t('ma.section.contact','Kontakt')}</div>
             <div class="emp-field-grid-3">
-                ${field('Personal-Nr.',      emp.employeeNumber)}
-                ${field('Eintritt',          emp.entryDate ? formatDate(emp.entryDate) : null)}
-                ${field('Austritt',          emp.exitDate  ? formatDate(emp.exitDate)  : null)}
-                ${field('Modell',            emp.employmentModel)}
-                ${field('Pensum',            emp.employmentPercentage != null ? emp.employmentPercentage + ' %' : null)}
-                ${field('Wochenstunden',     emp.weeklyHours != null ? emp.weeklyHours + ' h' : null)}
-                ${field('Vertragsbeginn',    emp.contractStartDate ? formatDate(emp.contractStartDate) : null)}
-                ${field('Vertragsart',       emp.employmentModel === 'MTP' && emp.guaranteedHoursPerWeek != null
-                    ? (emp.contractType ? emp.contractType + ' · ' + emp.guaranteedHoursPerWeek + ' Std./Woche' : emp.guaranteedHoursPerWeek + ' Std./Woche')
-                    : emp.contractType)}
-                ${emp.employmentModel !== 'UTP' && emp.hourlyRate != null
-                    ? field('Stundenlohn', 'CHF ' + Number(emp.hourlyRate).toFixed(2))
-                    : emp.monthlySalary != null
-                    ? field('Monatslohn', 'CHF ' + Number(emp.monthlySalary).toFixed(2))
-                    : ''}
-            </div>
-        </div>
-
-        <!-- TAB: Adressen -->
-        <div class="emp-tab-content" id="emp-tab-adressen">
-            <div class="emp-section-title">Hauptadresse</div>
-            <div class="emp-field-grid-3">
-                ${field('Strasse',      emp.street ? emp.street + (emp.houseNumber ? ' ' + emp.houseNumber : '') : null)}
-                ${field('Strasse 2',    emp.street2)}
-                ${field('Postfach',     emp.poBox)}
-                ${field('PLZ / Ort',    emp.zipCode ? emp.zipCode + ' ' + (emp.city ?? '') : emp.city)}
-                ${field('BFS-Nr.',      emp.bfsNumber)}
-                ${field('Kanton',       emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null)}
-                ${field('Land',         emp.country)}
-            </div>
-            <div class="emp-section-title">Kontakt</div>
-            <div class="emp-field-grid-3">
-                ${field('Telefon',      emp.phoneMobile)}
-                ${field('Telefon 2',    emp.phone2)}
-                ${field('E-Mail',       emp.email)}
-                ${field('IncaMail',     emp.incamailDisabled ? 'Deaktiviert' : 'Aktiv')}
+                ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile)}
+                ${field(_t('ma.field.email','E-Mail'),            emp.email)}
             </div>
 
+            <div class="emp-section-title">Anstellung</div>
+            <div class="emp-field-grid-3">
+                ${field('Eintrittsdatum', emp.entryDate ? formatDate(emp.entryDate) : null)}
+                ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null)}
+            </div>
+
+            <!-- Bei MA „ohne Lohn" (IsPayrollExcluded — Phantom-MA für easy@work-
+                 Zugang wie Supervisor) keine Bewilligung, keine Bank, keine
+                 Zusatzadressen anzeigen. Diese Personen haben keinen Vertrag und
+                 brauchen für die Lohn- und Compliance-Pipeline nichts davon. -->
+            ${!emp.isPayrollExcluded ? `
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                <span>Bankverbindung</span>
-                <button class="btn-emp-add" onclick="openBankAccountModal(null)">
+                <span>${_t('ma.section.permit','Aufenthalt')}</span>
+                ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser') ? `
+                <button class="btn-emp-add" onclick="openPermitHistoryModal(null)">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Neue Bankverbindung
+                    ${_t('ma.btn.newPermit','Neue Bewilligung')}
+                </button>` : ''}
+            </div>
+            <div class="emp-field-grid-3">
+                ${field(_t('ma.field.permitCurrent','Aktuelle Bewilligung'), emp.permitType
+                    ? `${emp.permitType.code}${emp.permitType.description ? ' — ' + emp.permitType.description : ''}`
+                    : (emp.permitTypeId ? 'Typ ' + emp.permitTypeId : null), 'permit')}
+                <div class="emp-field"><div class="emp-field-label">${_t('ma.field.validFrom','Gültig ab')}</div><div class="emp-field-value" id="permitValidFromInline">–</div></div>
+                ${field(_t('ma.field.validTo','Gültig bis'), emp.permitExpiryDate ? formatDate(emp.permitExpiryDate) : null)}
+            </div>
+            <div id="permitHistoryContent" style="margin-top:8px">
+                <div class="emp-placeholder"><span>Verlauf wird geladen…</span></div>
+            </div>
+
+            <!-- Bankverbindung + Postfach-Zugang sind in den eigenen Tab
+                 „Bank & Postfach" gewandert (Walter-Vorgabe 14.05.2026) —
+                 hier im Personal-Tab nur noch Aufenthalt + Weitere Adressen. -->
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+                <span>${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
+                <button class="btn-emp-add" onclick="openEmployeeAddressModal(null)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    ${_t('ma.btn.addAddress','Adresse hinzufügen')}
                 </button>
             </div>
-            <div id="bankAccountsContent">
+            <div id="otherAddressesContent">
                 <div class="emp-placeholder"><span>Wird geladen…</span></div>
             </div>
+            ` : `
+            <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
+                <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.desc','Phantom-MA für easy@work-Zugang. Bewilligung, Bankverbindung, Zusatzadressen und persönliches Postfach werden nicht angezeigt — dieser MA hat keinen Vertrag, keine Lohnzahlung und nutzt das Postfach der Geschäftsführung/HR.')}
+            </div>
+            `}
         </div>
 
         <!-- TAB: Familie -->
@@ -241,9 +476,47 @@ function renderEmployeeDetail(emp) {
             <div id="familieContent">
                 <div class="emp-placeholder">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    <span>Wird geladen...</span>
+                    <span>${_t('ma.loading','Wird geladen...')}</span>
                 </div>
             </div>
+        </div>
+
+        <!-- TAB: Bank & Postfach (Walter-Vorgabe 14.05.2026 — aus dem
+             Personal-Tab ausgelagert, damit die Seite nicht so lang ist) -->
+        <div class="emp-tab-content" id="emp-tab-bank">
+            ${!emp.isPayrollExcluded ? `
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                <span style="display:inline-flex;align-items:center;gap:8px">
+                    ${_t('ma.section.bank','Bankverbindung')}
+                    <button title="Verknüpfte Dokumente öffnen (Bankkarte / IBAN-Beleg)"
+                            onclick="openLinkedDoc('bank_card')"
+                            style="background:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#dbeafe' : '#f1f5f9'};border:1px solid ${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#93c5fd' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#1d4ed8' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <line x1="10" y1="9" x2="8" y2="9"/>
+                        </svg>
+                        <span>Doku</span>
+                    </button>
+                </span>
+                <button class="btn-emp-add" onclick="openBankAccountModal(null)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    ${_t('ma.btn.newBank','Neue Bankverbindung')}
+                </button>
+            </div>
+            <div id="bankAccountsContent">
+                <div class="emp-placeholder"><span>Wird geladen…</span></div>
+            </div>
+            <!-- Postfach-Zugang ist nicht mehr hier — der Passwort-Reset
+                 sitzt jetzt als Button oben im Detail-Header neben „Bearbeiten"
+                 (Walter-Vorgabe 14.05.2026). -->
+            ` : `
+            <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
+                <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.bankDesc','Phantom-MA für easy@work-Zugang. Bankverbindung wird nicht angezeigt — dieser MA hat keinen Vertrag und keine Lohnzahlung.')}
+            </div>
+            `}
         </div>
 
         <!-- TAB: Quellensteuer -->
@@ -251,7 +524,7 @@ function renderEmployeeDetail(emp) {
             <div id="quellensteuerContent">
                 <div class="emp-placeholder">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                    <span>Wird geladen...</span>
+                    <span>${_t('ma.loading','Wird geladen...')}</span>
                 </div>
             </div>
         </div>
@@ -261,7 +534,7 @@ function renderEmployeeDetail(emp) {
             <div id="stempelzeitenContent">
                 <div class="emp-placeholder">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <span>Bitte wählen Sie einen Mitarbeiter</span>
+                    <span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span>
                 </div>
             </div>
         </div>
@@ -269,11 +542,11 @@ function renderEmployeeDetail(emp) {
         <!-- TAB: Absenzen / Zulagen / Abzüge -->
         <div class="emp-tab-content" id="emp-tab-absenzen">
             <!-- Bereich 1: Absenzen -->
-            <div class="emp-section-title">Absenzen</div>
+            <div class="emp-section-title">${_t('abs.section.absences','Absenzen')}</div>
             <div id="absenzenContent">
                 <div class="emp-placeholder">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <span>Bitte wählen Sie einen Mitarbeiter</span>
+                    <span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span>
                 </div>
             </div>
 
@@ -282,11 +555,11 @@ function renderEmployeeDetail(emp) {
 
             <!-- Bereich 2: Wiederkehrende Zulagen &amp; Abzüge -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                <span>Wiederkehrende Zulagen &amp; Abzüge</span>
-                <span style="font-size:11px;font-weight:400;color:#94a3b8">Werden bei jedem Lohnlauf im Gültigkeitszeitraum automatisch verrechnet</span>
+                <span>${_t('abs.section.recurring','Wiederkehrende Zulagen &amp; Abzüge')}</span>
+                <span style="font-size:11px;font-weight:400;color:#94a3b8">${_t('abs.section.recurringHint','Werden bei jedem Lohnlauf im Gültigkeitszeitraum automatisch verrechnet')}</span>
             </div>
             <div id="recurringWagesContent">
-                <div class="emp-placeholder"><span>Bitte wählen Sie einen Mitarbeiter</span></div>
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span></div>
             </div>
 
             <!-- Trennung -->
@@ -294,28 +567,21 @@ function renderEmployeeDetail(emp) {
 
             <!-- Bereich 3: Lohnabtretungen (Pfändung / Sozialamt) -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                <span>Lohnabtretungen</span>
-                <span style="font-size:11px;font-weight:400;color:#94a3b8">Lohnpfändung oder Abtretung an Sozialamt — nach Netto berechnet</span>
+                <span>${_t('abs.section.lohnabtretung','Lohnabtretungen')}</span>
+                <span style="font-size:11px;font-weight:400;color:#94a3b8">${(window.i18n && i18n.getLang && i18n.getLang() === 'en') ? 'Wage garnishment or assignment to social welfare — calculated on net pay' : 'Lohnpfändung oder Abtretung an Sozialamt — nach Netto berechnet'}</span>
             </div>
             <div id="lohnAssignmentsContent">
-                <div class="emp-placeholder"><span>Bitte wählen Sie einen Mitarbeiter</span></div>
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span></div>
             </div>
         </div>
 
-<!-- TAB: KTG/UVG Durchschnitt -->
+<!-- TAB: KTG/UVG (inkl. RAV-/ALV-Meldungen) -->
         <div class="emp-tab-content" id="emp-tab-ktg">
-            <div id="ktgDurchschnittContent">
-                <div style="padding:40px;text-align:center;color:#94a3b8">Wird geladen...</div>
-            </div>
-        </div>
-
-<!-- TAB: Formulare -->
-        <div class="emp-tab-content" id="emp-tab-formulare">
-
-          <!-- Arbeitslosigkeit -->
+          <!-- Arbeitslosigkeit (ALV-Meldungen) — verschoben aus dem alten Formulare-Tab.
+               Thematisch passt's zu KTG/UVG, da es um Versicherungs-/Behörden-Status geht. -->
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h3 style="margin:0;font-size:14px;font-weight:600">Arbeitslosigkeit (ALV-Meldungen)</h3>
-            <button class="btn-primary" onclick="openArbeitslosigkeitForm()">+ Periode erfassen</button>
+            <h3 style="margin:0;font-size:14px;font-weight:600">${(window.i18n && i18n.getLang && i18n.getLang() === 'en') ? 'Unemployment (ALV registration)' : 'Arbeitslosigkeit (ALV-Meldungen)'}</h3>
+            <button class="btn-primary" onclick="openArbeitslosigkeitForm()">${(window.i18n && i18n.getLang && i18n.getLang() === 'en') ? '+ New period' : '+ Periode erfassen'}</button>
           </div>
           <div id="arbeitslosigkeitAlert"></div>
           <div id="arbeitslosigkeitInlineForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px">
@@ -345,45 +611,27 @@ function renderEmployeeDetail(emp) {
               <button class="btn-secondary" onclick="closeArbeitslosigkeitForm()">Abbrechen</button>
             </div>
           </div>
-          <div id="arbeitslosigkeitList" style="margin-bottom:32px"></div>
+          <div id="arbeitslosigkeitList" style="margin-bottom:24px"></div>
 
-          <!-- Zwischenverdienst-Bescheinigung -->
-          <h3 style="font-size:14px;font-weight:600;margin-bottom:10px;border-top:1px solid #e2e8f0;padding-top:16px">
-            Bescheinigung Zwischenverdienst (ALV 716.105)
-          </h3>
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
-            <label style="font-size:12px;font-weight:500">Monat
-              <select id="zvMonat" class="form-control" style="margin-top:4px;width:130px">
-                <option value="1">Januar</option><option value="2">Februar</option>
-                <option value="3">März</option><option value="4">April</option>
-                <option value="5">Mai</option><option value="6">Juni</option>
-                <option value="7">Juli</option><option value="8">August</option>
-                <option value="9">September</option><option value="10">Oktober</option>
-                <option value="11">November</option><option value="12">Dezember</option>
-              </select>
-            </label>
-            <label style="font-size:12px;font-weight:500">Jahr
-              <input type="number" id="zvJahr" class="form-control" value="${new Date().getFullYear()}" min="2020" max="2099" style="margin-top:4px;width:90px">
-            </label>
-            <button class="btn-primary" onclick="generateZwischenverdienst()" style="margin-bottom:1px">
-              PDF generieren
-            </button>
+          <!-- KTG-/UVG-Durchschnitt (Tagessatz nach Spezialistenvorgabe) -->
+          <div id="ktgDurchschnittContent">
+            <div style="padding:40px;text-align:center;color:#94a3b8">${_t('ma.loading','Wird geladen...')}</div>
           </div>
-          <p style="font-size:11px;color:#94a3b8;margin-top:8px">
-            Das PDF wird mit den erfassten Stempelzeiten und Absenzen des gewählten Monats vorausgefüllt.
-            AHV-Nr. und Zivilstand müssen unter «Persönliche Angaben» hinterlegt sein.
-          </p>
         </div>
 
 <!-- TAB: Dokumente -->
         <div class="emp-tab-content" id="emp-tab-dokumente">
             <div id="empTabDokumente">
-                <div class="emp-placeholder" style="height:200px">Dokumente werden geladen…</div>
+                <div class="emp-placeholder" style="height:200px">${_t('ma.loading','Wird geladen...')}</div>
             </div>
         </div>
     </div>`;
 
-    activeEmpTab = 'personal';
+    // Tab-Persistenz: vorher aktiven Tab wiederherstellen statt zurück auf "personal".
+    // Wenn Walter z.B. "Familie" angezeigt hat und einen anderen MA wählt, bleibt
+    // er auf "Familie". switchEmpTab triggert den passenden loadXxx()-Aufruf
+    // (Bankverbindung beim personal-Tab, Familie beim familie-Tab usw.).
+    switchEmpTab(activeEmpTab || 'personal');
 }
 
 // ── Tab wechseln ───────────────────────────────
@@ -393,18 +641,41 @@ function switchEmpTab(tab) {
         t.classList.toggle('active', t.dataset.tab === tab));
     document.querySelectorAll('.emp-tab-content').forEach(c =>
         c.classList.toggle('active', c.id === 'emp-tab-' + tab));
-    if (tab === 'adressen'       && selectedEmployeeId) loadBankAccountsTab(selectedEmployeeId);
+    // Personal-Tab: Bewilligungs-Verlauf + Weitere Adressen.
+    // Bank & Postfach sind ein eigener Tab (Walter-Vorgabe 14.05.2026).
+    // Bei MA „ohne Lohn" (IsPayrollExcluded — Phantom-MA wie Supervisor) werden
+    // Bank, Zusatzadressen, Bewilligungs-Verlauf UND Postfach-Zugang im UI gar
+    // nicht gerendert — sie nutzen das Postfach der GF/HR, kein eigenes — wir
+    // laden also nichts davon.
+    if (tab === 'personal'       && selectedEmployeeId) {
+        const isExcluded = !!selectedEmployee?.isPayrollExcluded;
+        if (!isExcluded) {
+            loadEmployeeAddressesTab(selectedEmployeeId);
+            loadPermitHistory(selectedEmployeeId);
+        }
+    }
+    if (tab === 'bank'           && selectedEmployeeId) {
+        const isExcluded = !!selectedEmployee?.isPayrollExcluded;
+        if (!isExcluded) loadBankAccountsTab(selectedEmployeeId);
+    }
     if (tab === 'familie'        && selectedEmployeeId) loadFamilieTab(selectedEmployeeId);
     if (tab === 'quellensteuer'  && selectedEmployeeId) loadQuellensteuerTab(selectedEmployeeId);
     if (tab === 'stempelzeiten'  && selectedEmployeeId) loadStempelzeitenTab(selectedEmployeeId);
     if (tab === 'absenzen'       && selectedEmployeeId) { loadAbsenzenTab(selectedEmployeeId); loadRecurringWagesTab(selectedEmployeeId); loadLohnAssignmentsTab(selectedEmployeeId); }
-    if (tab === 'formulare'      && selectedEmployeeId) loadFormulareTab(selectedEmployeeId);
-    if (tab === 'ktg'            && selectedEmployeeId) loadKtgTab(selectedEmployeeId);
+    if (tab === 'ktg'            && selectedEmployeeId) {
+        loadKtgTab(selectedEmployeeId);
+        // ALV-Meldungen sind jetzt im KTG/UVG-Tab integriert (alter Formulare-Tab entfernt).
+        if (typeof loadFormulareTab === 'function') loadFormulareTab(selectedEmployeeId);
+    }
     if (tab === 'dokumente'      && selectedEmployeeId) loadEmpDokumente(selectedEmployeeId);
 
-    // Volle Breite für Dokumente-Tab: Mitarbeiterliste ausblenden
+    // MA-Liste links bleibt jetzt auf ALLEN Sub-Tabs sichtbar (auch Dokumente).
+    // Walter wollte konsistentes Verhalten zu Stempelzeiten — schnelles
+    // Wechseln zwischen MA ohne Tab zu verlassen. Frühere Sonderbehandlung
+    // mit emp-layout-dokumente entfernt; falls die Klasse von einer alten
+    // Code-Stelle noch dranhängt, hier defensiv weg.
     const empLayout = document.querySelector('.emp-layout');
-    if (empLayout) empLayout.classList.toggle('emp-layout-dokumente', tab === 'dokumente');
+    if (empLayout) empLayout.classList.remove('emp-layout-dokumente');
 }
 
 // ══════════════════════════════════════════════
@@ -502,7 +773,9 @@ async function openQstFromTab(entryId) {
             ? `${emp.permitType.code}${emp.permitType.description ? ' — ' + emp.permitType.description : ''}`
             : (emp.permitTypeId ? 'Typ ' + emp.permitTypeId : '–'));
     setTxt('qstWohnortDisplay',   [emp.zipCode, emp.city].filter(Boolean).join(' ') || '–');
-    setTxt('qstNatDisplay',       emp.nationality ?? '–');
+    // Nationalität immer als Volltext (Walter-Vorgabe 14.05.2026) — der
+    // Backend liefert nationalityName als Klartext (AppText → ISO-Tabelle).
+    setTxt('qstNatDisplay',       emp.nationalityName ?? emp.nationality ?? '–');
     const _ktName = (typeof kantonNameFor === 'function') ? kantonNameFor(emp.cantonCode) : null;
     setTxt('qstKantonDisplay',    emp.cantonCode ? (_ktName ? `${emp.cantonCode} — ${_ktName}` : emp.cantonCode) : '–');
     setTxt('qstZivilstandDisplay', emp.maritalStatus ?? '–');
@@ -566,7 +839,7 @@ function renderFamilieTab(el, members, employeeId) {
     <div class="emp-familie-toolbar">
         <button class="btn-emp-add" onclick="openFamilyModal(null)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Hinzufügen
+            ${_t('famTab.add','Hinzufügen')}
         </button>
     </div>`;
 
@@ -574,7 +847,7 @@ function renderFamilieTab(el, members, employeeId) {
         el.innerHTML = toolbar + `
         <div class="emp-placeholder">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            <span>Keine Familienangehörigen erfasst</span>
+            <span>${_t('famTab.empty','Keine Familienangehörigen erfasst')}</span>
         </div>`;
         return;
     }
@@ -596,23 +869,45 @@ function renderFamilieTab(el, members, employeeId) {
     };
     let html = toolbar;
 
+    // Display-Label für Mitglieds-Typen (mit Plural für „Kinder").
+    const typeLabel = (type, count) => {
+        const isEn = window.i18n && window.i18n.getLang && i18n.getLang() === 'en';
+        if (type === 'Kind' && count > 1) return isEn ? 'Children' : 'Kinder';
+        return _t('fam.value.type.' + type, type);
+    };
+    const yearsLabel = window.i18n && window.i18n.getLang && i18n.getLang() === 'en' ? 'years' : 'Jahre';
+
     typeOrder.forEach(type => {
         if (!groups[type]) return;
-        const sectionTitle = type === 'Kind' && groups[type].length > 1 ? 'Kinder' : type;
+        const sectionTitle = typeLabel(type, groups[type].length);
         html += `<div class="emp-section-title" style="margin-top:14px">${sectionTitle}</div>`;
         html += `<div style="display:flex;flex-direction:column;gap:4px">`;
         groups[type].forEach(m => {
             const name = ((m.firstName ?? '') + ' ' + (m.lastName ?? '')).trim() || '–';
             const dob  = m.dateOfBirth ? formatDate(m.dateOfBirth) : '';
             const age  = m.dateOfBirth ? calcAge(m.dateOfBirth) : null;
-            const meta = dob ? `${dob}${age !== null ? ' · ' + age + ' Jahre' : ''}` : '';
+            const meta = dob ? `${dob}${age !== null ? ' · ' + age + ' ' + yearsLabel : ''}` : '';
             const b    = typeBadge[type] ?? typeBadge.Sonstige;
+
+            // Adress-Badge: erscheint nur wenn das Familienmitglied eine
+            // abweichende Adresse aus den Zusatzadressen des MA hat.
+            let addrBadge = '';
+            if (m.alternativeAddress) {
+                const a = m.alternativeAddress;
+                const ort = [a.zipCode, a.city].filter(Boolean).join(' ');
+                const land = a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : '';
+                const tip  = [a.description, [a.street, a.street2].filter(Boolean).join(' / '), ort, land].filter(Boolean).join(' · ');
+                const short = ort || a.description || a.country || 'andere Adresse';
+                addrBadge = `<span title="${esc(tip)}" style="font-size:11px;color:#0369a1;background:#e0f2fe;padding:2px 8px;border-radius:10px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px">📍 ${esc(short)}</span>`;
+            }
+
             html += `
             <div onclick="showFamilyDetailPopup(${m.id})"
                  style="display:flex;align-items:center;gap:12px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;background:white;cursor:pointer;transition:background .15s"
                  onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:${b.bg};color:${b.color};white-space:nowrap">${type}</span>
+                <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:${b.bg};color:${b.color};white-space:nowrap">${_t('fam.value.type.' + type, type)}</span>
                 <span style="font-weight:600;color:#0f172a;flex:1">${esc(name)}</span>
+                ${addrBadge}
                 <span style="font-size:12.5px;color:#64748b;white-space:nowrap">${meta}</span>
                 <button onclick="event.stopPropagation();openFamilyModal(${JSON.stringify(m).replace(/"/g, '&quot;')})"
                         style="background:none;border:none;cursor:pointer;color:#64748b;padding:4px 8px;border-radius:6px;font-size:13px" title="Bearbeiten">✎</button>
@@ -632,7 +927,9 @@ function showFamilyDetailPopup(memberId) {
     const name = ((m.firstName ?? '') + ' ' + (m.lastName ?? '')).trim() || '–';
     const dob  = m.dateOfBirth ? formatDate(m.dateOfBirth) : '–';
     const age  = m.dateOfBirth ? calcAge(m.dateOfBirth) : null;
-    const subtitle = `${m.memberType}${age !== null ? ' · ' + dob + ' (' + age + ' Jahre)' : ''}`;
+    const yearsLbl = window.i18n && i18n.getLang && i18n.getLang() === 'en' ? 'years' : 'Jahre';
+    const memberTypeLbl = _t('fam.value.type.' + m.memberType, m.memberType);
+    const subtitle = `${memberTypeLbl}${age !== null ? ' · ' + dob + ' (' + age + ' ' + yearsLbl + ')' : ''}`;
 
     const row = (label, value) => `
         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9">
@@ -651,17 +948,14 @@ function showFamilyDetailPopup(memberId) {
                     <button onclick="closeFamilyDetailPopup()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;padding:4px 8px">✕</button>
                 </div>
                 <div style="padding:14px 22px">
-                    ${row('AHV-Nummer',     m.socialSecurityNumber || '–')}
-                    ${row('In der Schweiz', m.livesInSwitzerland ? 'Ja' : 'Nein')}
-                    ${row('Zulage 1 bis',   m.allowance1Until ? formatMonthYear(m.allowance1Until) : '–')}
-                    ${row('Zulage 2 bis',   m.allowance2Until ? formatMonthYear(m.allowance2Until) : '–')}
-                    ${row('Zulage 3 bis',   m.allowance3Until ? formatMonthYear(m.allowance3Until) : '–')}
-                    ${row('QST ab',         m.qstDeductibleFrom  ? formatDate(m.qstDeductibleFrom)  : '–')}
-                    ${row('QST bis',        m.qstDeductibleUntil ? formatDate(m.qstDeductibleUntil) : '–')}
+                    ${row(_t('fam.field.ahv','AHV-Nummer'),     m.socialSecurityNumber || '–')}
+                    ${row(_t('fam.field.livesInCh','In der Schweiz lebend'), m.livesInSwitzerland ? (i18n.getLang && i18n.getLang() === 'en' ? 'Yes' : 'Ja') : (i18n.getLang && i18n.getLang() === 'en' ? 'No' : 'Nein'))}
+                    ${row(_t('fam.field.qstFrom','QST ab'),     m.qstDeductibleFrom  ? formatDate(m.qstDeductibleFrom)  : '–')}
+                    ${row(_t('fam.field.qstUntil','QST bis'),   m.qstDeductibleUntil ? formatDate(m.qstDeductibleUntil) : '–')}
                 </div>
                 <div style="padding:14px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px">
-                    <button onclick="closeFamilyDetailPopup();openFamilyModal(${JSON.stringify(m).replace(/"/g, '&quot;')})" style="background:#2563eb;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">✎ Bearbeiten</button>
-                    <button onclick="closeFamilyDetailPopup()" style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Schliessen</button>
+                    <button onclick="closeFamilyDetailPopup();openFamilyModal(${JSON.stringify(m).replace(/"/g, '&quot;')})" style="background:#2563eb;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">✎ ${_t('docs.btn.edit','Bearbeiten')}</button>
+                    <button onclick="closeFamilyDetailPopup()" style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">${_t('common.close','Schliessen')}</button>
                 </div>
             </div>
         </div>`;
@@ -689,6 +983,25 @@ function calcAge(dateStr) {
     return age;
 }
 
+// Live-Anzeige neben „Geburtsdatum" im Familienangehöriger-Modal — Alter
+// wird mit aktuellem Datum berechnet (Walter-Vorgabe).
+function updateFmAgeDisplay() {
+    const dob = document.getElementById('fmDateOfBirth')?.value;
+    const dispEl = document.getElementById('fmAgeDisplay');
+    if (!dispEl) return;
+    const age = dob ? calcAge(dob) : null;
+    dispEl.textContent = age != null ? `(${age} J.)` : '';
+}
+
+// Analog für das MA-Edit-Modal — Alter neben dem Geburtsdatum-Input.
+function updateEfDobAgeDisplay() {
+    const dob = document.getElementById('ef-dob')?.value;
+    const dispEl = document.getElementById('ef-dob-age');
+    if (!dispEl) return;
+    const age = dob ? calcAge(dob) : null;
+    dispEl.textContent = age != null ? `(${age} J.)` : '';
+}
+
 function formatMonthYear(dateStr) {
     if (!dateStr) return '–';
     const d = new Date(dateStr);
@@ -696,13 +1009,198 @@ function formatMonthYear(dateStr) {
     return d.toLocaleDateString('de-CH', { month: '2-digit', year: 'numeric' });
 }
 
+// ── AHV-Nummer-Validierung ──────────────────────────────────────────────
+// Schweizer Sozialversicherungsnummer (NNSS) im EAN-13-Format:
+//   - 13 Ziffern, beginnt mit 756 (CH)
+//   - Letzte Ziffer = Prüfziffer aus den ersten 12
+//   - EAN-13: Position 1,3,5,…×1, Position 2,4,6,…×3, Summe mod 10
+function validateAhvNummer(input) {
+    if (!input || !input.trim()) return { valid: null };  // leer = kein Fehler
+    const digits = input.replace(/\D/g, '');
+    if (digits.length !== 13) {
+        return { valid: false, error: `Muss 13 Ziffern haben (aktuell ${digits.length})` };
+    }
+    if (!digits.startsWith('756')) {
+        return { valid: false, error: 'Muss mit 756 beginnen (CH-Code)' };
+    }
+    // EAN-13 Prüfziffer auf den ersten 12 Ziffern
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+        const d = parseInt(digits[i], 10);
+        sum += (i % 2 === 0) ? d : d * 3;
+    }
+    const expected = (10 - sum % 10) % 10;
+    const actual   = parseInt(digits[12], 10);
+    if (expected !== actual) {
+        return {
+            valid: false,
+            error: `Prüfziffer falsch (erwartet ${expected}, eingegeben ${actual})`
+        };
+    }
+    // Normalisiert: "756.XXXX.XXXX.XX"
+    return {
+        valid: true,
+        normalized: `${digits.slice(0,3)}.${digits.slice(3,7)}.${digits.slice(7,11)}.${digits.slice(11)}`
+    };
+}
+
+// Hängt Validierungs-Status an ein Input-Feld + sein Status-Element.
+// onBlur=true: bei gültiger AHV-Nr automatisch ins Standard-Format normalisieren
+// (756.XXXX.XXXX.XX), damit die Anzeige konsistent ist.
+function validateAhvField(inputEl, onBlur) {
+    const statusEl = document.getElementById(inputEl.id + '-status');
+    if (!statusEl) return;
+    const result = validateAhvNummer(inputEl.value);
+    if (result.valid === null) {
+        statusEl.textContent = '';
+        inputEl.style.borderColor = '';
+        return;
+    }
+    if (result.valid) {
+        statusEl.textContent = '✓ AHV-Nr. gültig';
+        statusEl.style.color = '#15803d';
+        inputEl.style.borderColor = '#86efac';
+        if (onBlur) inputEl.value = result.normalized;
+    } else {
+        statusEl.textContent = '✗ ' + result.error;
+        statusEl.style.color = '#dc2626';
+        inputEl.style.borderColor = '#fca5a5';
+    }
+}
+
 // ── Hilfsfunktionen ────────────────────────────
-function field(label, value) {
+// Optional 3. Argument: Field-Code (permit, passport, ahv_card, ...).
+// Wenn ein verknüpftes Dokument für diesen MA existiert, erscheint ein
+// 📎-Button rechts vom Wert. Klick öffnet das neueste Dokument im Preview.
+function field(label, value, linkedCode) {
     const empty = !value || value === 'null' || value === 'undefined';
+    // Doku-Button erscheint sobald ein linkedCode gesetzt ist — egal ob für
+    // diesen MA aktuell ein Dokument existiert. Wenn keins vorhanden ist,
+    // landet der User im (leeren) Filter und kann direkt hochladen.
+    // Färbung: aktiv-blau wenn Dokument vorhanden, dezent-grau wenn nicht.
+    const hasDoc = linkedCode && window._linkedDocCodes && window._linkedDocCodes.has(linkedCode);
+    let docBtn = '';
+    if (linkedCode) {
+        const styleActive   = "background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8";
+        const styleInactive = "background:#f1f5f9;border:1px solid #e2e8f0;color:#94a3b8";
+        const tooltip = hasDoc ? 'Verknüpfte Dokumente öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen';
+        docBtn = `<button class="emp-field-docbtn" title="${tooltip}"
+                   onclick="openLinkedDoc('${linkedCode}')"
+                   style="margin-left:8px;${hasDoc ? styleActive : styleInactive};border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;transition:all .15s">
+                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                     <polyline points="14 2 14 8 20 8"/>
+                     <line x1="16" y1="13" x2="8" y2="13"/>
+                     <line x1="16" y1="17" x2="8" y2="17"/>
+                     <line x1="10" y1="9" x2="8" y2="9"/>
+                   </svg>
+                   <span>Doku</span>
+               </button>`;
+    }
     return `<div class="emp-field">
         <div class="emp-field-label">${label}</div>
-        <div class="emp-field-value${empty ? ' empty' : ''}">${empty ? '–' : value}</div>
+        <div class="emp-field-value${empty ? ' empty' : ''}">${empty ? '–' : value}${docBtn}</div>
     </div>`;
+}
+
+// Klick auf 📎: springt in den Dokumente-Tab des MA und filtert auf den
+// passenden Dokument-Typ. So sieht der User ALLE Dokumente dieses Typs
+// (auch wenn mehrere vorhanden oder unsauber abgelegt) und kann das
+// richtige selbst auswählen.
+async function openLinkedDoc(code) {
+    if (!selectedEmployeeId) return;
+    // Auf Dokumente-Tab umschalten — triggert loadEmpDokumente().
+    if (typeof switchEmpTab === 'function') switchEmpTab('dokumente');
+
+    // Warten bis _dokState.taxonomy geladen ist (loadEmpDokumente ist async).
+    // Achtung: _dokState ist mit `let` in index.html deklariert → NICHT auf
+    // window verfügbar. Wir holen die Taxonomie deshalb über die API direkt
+    // (gleiche URL die auch der Dokumente-Tab nutzt).
+    let taxonomy = null;
+    try {
+        const r = await fetch('/api/documents/taxonomie', { headers: ah() });
+        if (r.ok) taxonomy = await r.json();
+    } catch {}
+    if (!taxonomy || taxonomy.length === 0) {
+        alert('Dokumenten-Struktur konnte nicht geladen werden.');
+        return;
+    }
+
+    // Ersten Typ mit passendem linked_field_code suchen.
+    let matchedTyp = null, matchedKat = null;
+    for (const k of taxonomy) {
+        const t = (k.typen || []).find(x => x.linkedFieldCode === code);
+        if (t) { matchedTyp = t; matchedKat = k; break; }
+    }
+    if (!matchedTyp) {
+        alert('Kein Dokument-Typ mit dieser Verknüpfung gefunden.\n'
+            + 'Bitte unter Systemeinstellungen → Dokument-Struktur einen Typ '
+            + 'mit dem passenden Code anlegen.');
+        return;
+    }
+
+    // Warten bis loadEmpDokumente die Liste fertig geladen hat — sonst
+    // überschreibt sein renderDokumenteUi unseren Filter wieder.
+    let attempts = 0;
+    while (!document.getElementById('empTabDokumente')
+            ?.querySelector('.dok-tree-node')
+           && attempts < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        attempts++;
+    }
+
+    // Filter setzen — gleiche Funktion wie im Tree-Klick.
+    if (typeof dokSelectType === 'function') {
+        dokSelectType(matchedTyp.id, matchedKat.id);
+    }
+}
+
+// Sprung aus einer Krank-/Unfall-Absenz direkt in den Dokumente-Tab, gefiltert
+// auf den Dokument-Typ „Arztzeugnis". Anders als openLinkedDoc() matcht es über
+// den Typ-NAMEN (nicht über linked_field_code) — der Typ „Arztzeugnis" ist im
+// Standard-Dokumentenraster (Kategorie Absenzen) fix vorhanden.
+async function openAbsenceArztzeugnis() {
+    if (!selectedEmployeeId) return;
+    // Auf Dokumente-Tab umschalten — triggert loadEmpDokumente().
+    if (typeof switchEmpTab === 'function') switchEmpTab('dokumente');
+
+    let taxonomy = null;
+    try {
+        const r = await fetch('/api/documents/taxonomie', { headers: ah() });
+        if (r.ok) taxonomy = await r.json();
+    } catch {}
+    if (!taxonomy || taxonomy.length === 0) {
+        alert('Dokumenten-Struktur konnte nicht geladen werden.');
+        return;
+    }
+
+    // Ersten Typ suchen, dessen Name „Arztzeugnis" enthält (case-insensitive).
+    let matchedTyp = null, matchedKat = null;
+    for (const k of taxonomy) {
+        const t = (k.typen || []).find(x => (x.name || '').toLowerCase().includes('arztzeugnis'));
+        if (t) { matchedTyp = t; matchedKat = k; break; }
+    }
+    if (!matchedTyp) {
+        alert('Kein Dokument-Typ „Arztzeugnis" gefunden.\n'
+            + 'Bitte unter Systemeinstellungen → Dokument-Struktur einen Typ '
+            + 'namens „Arztzeugnis" anlegen.');
+        return;
+    }
+
+    // Warten bis loadEmpDokumente die Tree-Liste fertig gerendert hat — sonst
+    // überschreibt sein renderDokumenteUi unseren Filter wieder.
+    let attempts = 0;
+    while (!document.getElementById('empTabDokumente')
+            ?.querySelector('.dok-tree-node')
+           && attempts < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        attempts++;
+    }
+
+    // Filter setzen — gleiche Funktion wie im Tree-Klick.
+    if (typeof dokSelectType === 'function') {
+        dokSelectType(matchedTyp.id, matchedKat.id);
+    }
 }
 
 function getInitials(first, last) {
@@ -716,6 +1214,52 @@ function formatDate(dateStr) {
     const d = new Date(dateStr);
     if (isNaN(d)) return dateStr;
     return d.toLocaleDateString('de-CH');
+}
+
+// Geschlecht-Code (female/male/m/w) → menschen-lesbares Label.
+// Übersetzung folgt der UI-Sprache (i18n); Default ist Deutsch falls i18n
+// noch nicht geladen ist. Edit-Modal-Dropdown bleibt mit englischen
+// value-Codes (female/male) — wir mappen nur die Anzeige.
+function formatGender(g) {
+    if (!g) return null;
+    const v = String(g).toLowerCase();
+    if (v === 'female' || v === 'f' || v.startsWith('w')) return _t('ma.value.gender.female','Weiblich');
+    if (v === 'male'   || v === 'm' || v.startsWith('m')) return _t('ma.value.gender.male',  'Männlich');
+    return g;
+}
+
+// Zivilstand-Code (ledig/verheiratet/...) → Anzeige-Label.
+// Backend speichert lowercase ohne Umlaute; UI zeigt mit korrekter Schreibweise
+// und in EN/DE.
+function formatMaritalStatus(s) {
+    if (!s) return null;
+    const key = 'ma.value.maritalStatus.' + String(s).toLowerCase().trim();
+    if (window.i18n && window.i18n.t) {
+        const v = window.i18n.t(key);
+        if (v && v !== key) return v;   // gefunden
+    }
+    // Fallback: ersten Buchstaben gross
+    return String(s).charAt(0).toUpperCase() + String(s).slice(1);
+}
+
+// Sprach-Code (de/fr/it/en) → Anzeige-Label in der UI-Sprache.
+function formatLanguage(code) {
+    if (!code) return null;
+    const key = 'ma.value.language.' + String(code).toLowerCase().trim();
+    if (window.i18n && window.i18n.t) {
+        const v = window.i18n.t(key);
+        if (v && v !== key) return v;
+    }
+    return code;
+}
+
+// Anrede (Herr/Frau, ggf. lowercase aus DB) → Display.
+function formatSalutation(s) {
+    if (!s) return null;
+    const v = String(s).toLowerCase().trim();
+    if (v === 'herr' || v === 'mr' || v === 'mr.') return _t('ma.value.salutation.herr','Herr');
+    if (v === 'frau' || v === 'ms' || v === 'mrs.' || v === 'ms.') return _t('ma.value.salutation.frau','Frau');
+    return s;
 }
 
 // ══════════════════════════════════════════════
@@ -741,121 +1285,241 @@ async function getPermitTypes() {
     return _permitTypeCache;
 }
 
+// Nationalitäten-Cache (analog zu PermitTypes). Wird einmalig geladen und
+// für den Nationalitäten-Dropdown im Edit-Formular wiederverwendet.
+let _nationalityCache = null;
+async function getNationalities() {
+    if (_nationalityCache) return _nationalityCache;
+    try {
+        const res = await fetch('/api/nationalities', { headers: ah() });
+        if (res.ok) {
+            _nationalityCache = await res.json();
+        } else {
+            console.error('Nationalitäten konnten nicht geladen werden:', res.status);
+            _nationalityCache = [];
+        }
+    } catch (e) {
+        console.error('Fehler beim Laden der Nationalitäten:', e);
+        _nationalityCache = [];
+    }
+    return _nationalityCache;
+}
+
 async function startEmpEdit() {
     if (!selectedEmployee) return;
     const emp = selectedEmployee;
 
-    // Permit-Types aus DB laden
-    const permitTypes = await getPermitTypes();
+    // Permit-Types und Nationalitäten parallel aus DB laden
+    const [permitTypes, nationalities] = await Promise.all([
+        getPermitTypes(),
+        getNationalities()
+    ]);
 
-    // Personal-Tab mit Formularfeldern ersetzen
+    // Personal-Tab mit Formularfeldern ersetzen — Adresse, Kontakt und
+    // Bankverbindung sind nun ebenfalls im Personal-Tab integriert.
     const personalTab = document.getElementById('emp-tab-personal');
-    if (personalTab) personalTab.innerHTML = buildEmpEditPersonal(emp, permitTypes);
+    if (personalTab) personalTab.innerHTML = buildEmpEditPersonal(emp, permitTypes, nationalities);
 
-    // Adressen-Tab mit Formularfeldern ersetzen
-    const adressenTab = document.getElementById('emp-tab-adressen');
-    if (adressenTab) adressenTab.innerHTML = buildEmpEditAdressen(emp);
+    // "Weitere Adressen"-Liste laden — der Container otherAddressesContent
+    // ist jetzt auch im Edit-Mode vorhanden, damit Zusatzadressen weiterhin
+    // erfasst werden können (Walter-Bug: schien "verloren" zu sein).
+    // Bank + Postfach sind NICHT mehr im Edit-Formular — eigener Tab.
+    if (selectedEmployeeId) {
+        loadEmployeeAddressesTab(selectedEmployeeId);
+        loadPermitHistory(selectedEmployeeId);
+    }
 
-    // Header-Button durch Speichern/Abbrechen ersetzen
-    const btn = document.querySelector('.emp-detail-header .btn-emp-edit');
-    if (btn) btn.outerHTML = `
-        <div style="display:flex;gap:8px;margin-top:4px;flex-shrink:0">
-            <button class="btn-primary" style="padding:6px 16px;font-size:13px" onclick="saveEmpEdit()">Speichern</button>
-            <button class="btn-secondary" style="padding:6px 14px;font-size:13px" onclick="cancelEmpEdit()">Abbrechen</button>
-        </div>`;
+    // Header-Actions (Postfach + Bearbeiten) durch Speichern/Abbrechen
+    // ersetzen — der Container #empHeaderActions ist flex, die Buttons
+    // fliessen also direkt ein. cancelEmpEdit/saveEmpEdit rendern das
+    // Detail komplett neu, dann sind die Original-Buttons wieder da.
+    const actions = document.getElementById('empHeaderActions');
+    if (actions) actions.innerHTML = `
+        <button class="btn-primary" style="padding:6px 16px;font-size:13px" onclick="saveEmpEdit()">${_t('ma.btn.save','Speichern')}</button>
+        <button class="btn-secondary" style="padding:6px 14px;font-size:13px" onclick="cancelEmpEdit()">${_t('ma.btn.cancel','Abbrechen')}</button>`;
 }
 
-function buildEmpEditPersonal(emp, permitTypes = []) {
+function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     const permitOptions = permitTypes
         .filter(p => p.isActive !== false)
         .map(p => `<option value="${p.id}" ${emp.permitTypeId == p.id ? 'selected' : ""}>${p.description ?? p.code}</option>`)
         .join("");
+    // Nationalitäten-Optionen — id, code, name. Die meisten User wollen nach
+    // Land suchen, daher zeigen wir den Namen primär; Code sekundär falls
+    // unterschiedlich (z.B. "Schweiz" vs CH).
+    const nationalityOptions = (nationalities || [])
+        .filter(n => n.isActive !== false)
+        .map(n => {
+            const id    = n.id   ?? n.Id;
+            const code  = n.code ?? n.Code ?? '';
+            const name  = n.name ?? n.Name ?? code;
+            const sel   = (emp.nationalityId == id) ? 'selected' : '';
+            return `<option value="${id}" ${sel}>${name}${code && code !== name ? ' (' + code + ')' : ''}</option>`;
+        }).join('');
     const isMtp = emp.employmentModel === 'MTP';
     const isFix = emp.employmentModel === 'FIX' || emp.employmentModel === 'FIX-M';
     return `
-    <div class="emp-section-title">Personalien</div>
-    <div class="emp-field-grid">
-        ${eField('Nachname',   `<input id="ef-lastName"   class="ef-input" value="${esc(emp.lastName)}">`)}
-        ${eField('Vorname',    `<input id="ef-firstName"  class="ef-input" value="${esc(emp.firstName)}">`)}
-        ${eField('Kurzname',   `<input id="ef-shortName"  class="ef-input" value="${esc(emp.shortName)}">`)}
-        ${eField('Ledigname',  `<input id="ef-maidenName" class="ef-input" value="${esc(emp.maidenName)}">`)}
-        ${eField('Geburtsdatum', `<input id="ef-dob" class="ef-input" type="date" value="${toDateInput(emp.dateOfBirth)}">`)}
-        ${eField('Geschlecht', `<select id="ef-gender" class="ef-input">
+    <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
+    <div class="emp-field-grid-3">
+        ${eField(_t('ma.field.firstName','Vorname'),    `<input id="ef-firstName"  class="ef-input" value="${esc(emp.firstName)}">`)}
+        ${eField(_t('ma.field.lastName','Nachname'),    `<input id="ef-lastName"   class="ef-input" value="${esc(emp.lastName)}">`)}
+        ${eField(_t('ma.field.maidenName','Ledigname'), `<input id="ef-maidenName" class="ef-input" value="${esc(emp.maidenName)}">`)}
+        ${eField(_t('ma.field.shortName','Kurzname'),   `<input id="ef-shortName"  class="ef-input" value="${esc(emp.shortName)}">`)}
+        ${eField(`${_t('ma.field.dob','Geburtsdatum')} <span id="ef-dob-age" style="font-weight:400;color:#94a3b8;margin-left:6px">${emp.dateOfBirth ? '(' + calcAge(emp.dateOfBirth) + ' J.)' : ''}</span>`, `<input id="ef-dob" class="ef-input" type="date" value="${toDateInput(emp.dateOfBirth)}" oninput="updateEfDobAgeDisplay()">`)}
+        ${eField(_t('ma.field.gender','Geschlecht'), `<select id="ef-gender" class="ef-input">
             <option value="">–</option>
-            <option value="female" ${emp.gender==='female'?'selected':''}>Weiblich</option>
-            <option value="male"   ${emp.gender==='male'  ?'selected':''}>Männlich</option>
+            <option value="female" ${emp.gender==='female'?'selected':''}>${_t('ma.value.gender.female','Weiblich')}</option>
+            <option value="male"   ${emp.gender==='male'  ?'selected':''}>${_t('ma.value.gender.male','Männlich')}</option>
         </select>`)}
-        ${eField('AHV-Nummer', `<input id="ef-ahvNummer" class="ef-input" placeholder="756.XXXX.XXXX.XX" value="${esc(emp.socialSecurityNumber)}">`)}
-        ${eField('Zivilstand', `<select id="ef-zivilstand" class="ef-input">
+        ${eField(_t('ma.field.ahv','AHV-Nummer'), `<input id="ef-ahvNummer" class="ef-input" placeholder="756.XXXX.XXXX.XX"
+                value="${esc(emp.socialSecurityNumber)}"
+                oninput="validateAhvField(this)" onblur="validateAhvField(this, true)">
+            <div id="ef-ahvNummer-status" style="font-size:11px;line-height:1.1"></div>`)}
+        ${eField(_t('ma.field.zemis','ZEMIS-Nr.'), `<input id="ef-zemisNumber" class="ef-input" placeholder="${_t('ma.placeholder.zemis','z.B. 22952410')}" value="${esc(emp.zemisNumber)}">`)}
+        ${eField(_t('ma.field.maritalStatus','Zivilstand'), `<select id="ef-zivilstand" class="ef-input">
             <option value="">–</option>
-            <option value="ledig"                      ${emp.zivilstand==='ledig'                      ?'selected':''}>Ledig</option>
-            <option value="verheiratet"                ${emp.zivilstand==='verheiratet'                ?'selected':''}>Verheiratet</option>
-            <option value="geschieden"                 ${emp.zivilstand==='geschieden'                 ?'selected':''}>Geschieden</option>
-            <option value="verwitwet"                  ${emp.zivilstand==='verwitwet'                  ?'selected':''}>Verwitwet</option>
-            <option value="eingetragene_partnerschaft" ${emp.zivilstand==='eingetragene_partnerschaft' ?'selected':''}>Eingetr. Partnerschaft</option>
-            <option value="aufgeloeste_partnerschaft"  ${emp.zivilstand==='aufgeloeste_partnerschaft'  ?'selected':''}>Aufgel. Partnerschaft</option>
+            <option value="unbekannt"                  ${(emp.zivilstand ?? emp.maritalStatus)==='unbekannt'                  ?'selected':''}>${_t('ma.value.maritalStatus.unbekannt','Unbekannt')}</option>
+            <option value="ledig"                      ${(emp.zivilstand ?? emp.maritalStatus)==='ledig'                      ?'selected':''}>${_t('ma.value.maritalStatus.ledig','Ledig')}</option>
+            <option value="verheiratet"                ${(emp.zivilstand ?? emp.maritalStatus)==='verheiratet'                ?'selected':''}>${_t('ma.value.maritalStatus.verheiratet','Verheiratet')}</option>
+            <option value="geschieden"                 ${(emp.zivilstand ?? emp.maritalStatus)==='geschieden'                 ?'selected':''}>${_t('ma.value.maritalStatus.geschieden','Geschieden')}</option>
+            <option value="verwitwet"                  ${(emp.zivilstand ?? emp.maritalStatus)==='verwitwet'                  ?'selected':''}>${_t('ma.value.maritalStatus.verwitwet','Verwitwet')}</option>
+            <option value="getrennt"                   ${(emp.zivilstand ?? emp.maritalStatus)==='getrennt'                   ?'selected':''}>${_t('ma.value.maritalStatus.getrennt','Getrennt')}</option>
+            <option value="eingetragene_partnerschaft" ${(emp.zivilstand ?? emp.maritalStatus)==='eingetragene_partnerschaft' ?'selected':''}>${_t('ma.value.maritalStatus.eingetragene_partnerschaft','Eingetragene Partnerschaft')}</option>
         </select>`)}
-        ${eField('Sprache', `<select id="ef-lang" class="ef-input">
+        ${eField(_t('ma.field.maritalSince','Zivilstand seit'), `<input id="ef-maritalStatusSince" class="ef-input" type="date" value="${toDateInput(emp.maritalStatusSince)}">`)}
+        ${eField(_t('ma.field.language','Sprache'), `<select id="ef-lang" class="ef-input">
             <option value="">–</option>
-            <option value="de" ${emp.languageCode==='de'?'selected':''}>Deutsch</option>
-            <option value="fr" ${emp.languageCode==='fr'?'selected':''}>Französisch</option>
-            <option value="it" ${emp.languageCode==='it'?'selected':''}>Italienisch</option>
-            <option value="en" ${emp.languageCode==='en'?'selected':''}>Englisch</option>
+            <option value="de" ${emp.languageCode==='de'?'selected':''}>${_t('ma.value.language.de','Deutsch')}</option>
+            <option value="fr" ${emp.languageCode==='fr'?'selected':''}>${_t('ma.value.language.fr','Französisch')}</option>
+            <option value="it" ${emp.languageCode==='it'?'selected':''}>${_t('ma.value.language.it','Italienisch')}</option>
+            <option value="en" ${emp.languageCode==='en'?'selected':''}>${_t('ma.value.language.en','Englisch')}</option>
         </select>`)}
-        ${eField('Anrede', `<select id="ef-salutation" class="ef-input">
+        ${eField(_t('ma.field.salutation','Anrede'), `<select id="ef-salutation" class="ef-input">
             <option value="">–</option>
-            <option value="Herr"   ${emp.salutation==='Herr'  ?'selected':''}>Herr</option>
-            <option value="Frau"   ${emp.salutation==='Frau'  ?'selected':''}>Frau</option>
-            <option value="Divers" ${emp.salutation==='Divers'?'selected':''}>Divers</option>
+            <option value="Herr"   ${emp.salutation==='Herr'  ?'selected':''}>${_t('ma.value.salutation.herr','Herr')}</option>
+            <option value="Frau"   ${emp.salutation==='Frau'  ?'selected':''}>${_t('ma.value.salutation.frau','Frau')}</option>
+            <option value="Divers" ${emp.salutation==='Divers'?'selected':''}>${_t('ma.value.salutation.divers','Divers')}</option>
         </select>`)}
-        ${eField('Telefon', `<input id="ef-phone" class="ef-input" type="tel"   value="${esc(emp.phoneMobile)}">`)}
-        ${eField('E-Mail',  `<input id="ef-email" class="ef-input" type="email" value="${esc(emp.email)}">`)}
+        ${eField(_t('ma.field.letterSalutation','Briefanrede'), `<input id="ef-letterSalutation" class="ef-input" value="${esc(emp.letterSalutation)}" placeholder="${_t('ma.placeholder.letterSalutation','z.B. Sehr geehrte Frau Muster')}">`)}
+        ${eField(_t('ma.field.placeOfOrigin','Heimatort'), `<input id="ef-placeOfOrigin" class="ef-input" value="${esc(emp.placeOfOrigin)}" placeholder="${_t('ma.placeholder.placeOfOrigin','für CH-Bürger')}">`)}
+        ${eField(_t('ma.field.religion','Konfession'), `<select id="ef-religion" class="ef-input">
+            <option value="">–</option>
+            <option value="evangelisch_reformiert" ${emp.religion==='evangelisch_reformiert'?'selected':''}>${_t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert')}</option>
+            <option value="roemisch_katholisch"    ${emp.religion==='roemisch_katholisch'   ?'selected':''}>${_t('ma.value.religion.roemisch_katholisch','Röm.-katholisch')}</option>
+            <option value="christ_katholisch"      ${emp.religion==='christ_katholisch'     ?'selected':''}>${_t('ma.value.religion.christ_katholisch','Christ-katholisch')}</option>
+            <option value="andere"                 ${emp.religion==='andere'                ?'selected':''}>${_t('ma.value.religion.andere','Andere')}</option>
+            <option value="keine"                  ${emp.religion==='keine'                 ?'selected':''}>${_t('ma.value.religion.keine','Keine')}</option>
+        </select>`)}
+        ${eField(_t('ma.field.nationality','Nationalität'), `<select id="ef-nationalityId" class="ef-input">
+            <option value="">–</option>
+            ${nationalityOptions}
+        </select>`)}
     </div>
 
-    <div class="emp-section-title">Aufenthalt</div>
-    <div class="emp-field-grid">
-        ${eField('Bewilligung', `<select id="ef-permitType" class="ef-input">
-            <option value="0">–</option>
-            ${permitOptions}
-        </select>`)}
-        ${eField('Gültig bis', `<input id="ef-permitExpiry" class="ef-input" type="date" value="${toDateInput(emp.permitExpiryDate)}">`)}
-    </div>
-
-    <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-        Arbeitsverhältnis
-        <span style="font-size:11px;font-weight:400;color:#94a3b8">Wird im Modul Vertrag bearbeitet</span>
-    </div>
-    <div class="emp-field-grid">
-        ${field('Eintritt',        emp.entryDate ? formatDate(emp.entryDate) : null)}
-        ${field('Austritt',        emp.exitDate  ? formatDate(emp.exitDate)  : null)}
-        ${field('Modell',          emp.employmentModel)}
-        ${field('Stellenbezeichnung', emp.jobTitle)}
-        ${field('Pensum (%)',      emp.employmentPercentage != null ? emp.employmentPercentage + ' %' : null)}
-        ${field('Wochenstunden',   emp.weeklyHours != null ? emp.weeklyHours + ' h' : null)}
-        ${emp.hourlyRate  != null ? field('Stundenlohn', 'CHF ' + Number(emp.hourlyRate).toFixed(2))  : ''}
-        ${emp.monthlySalary != null ? field('Monatslohn', 'CHF ' + Number(emp.monthlySalary).toFixed(2)) : ''}
-        ${field('Vertragsbeginn',  emp.contractStartDate ? formatDate(emp.contractStartDate) : null)}
-    </div>`;
-}
-
-function buildEmpEditAdressen(emp) {
-    return `
-    <div class="emp-section-title">Hauptadresse</div>
-    <div class="emp-field-grid">
-        ${eField('Strasse',      `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}">`)}
-        ${eField('Hausnummer',   `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}">`)}
-        ${eField('PLZ',          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" onblur="plzLookup(this.value)" onkeyup="if(this.value.length===4)plzLookup(this.value)">`)}
-        ${eField('Ort',          `<input id="ef-city" class="ef-input" value="${esc(emp.city)}">`)}
-        ${eField('Kanton',       renderKantonSelect('ef-canton', emp.cantonCode))}
-        ${eField('Land',         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}">`)}
+    <div class="emp-section-title">${_t('ma.section.address','Adresse')}</div>
+    <div class="emp-field-grid-3">
+        ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}">`)}
+        ${eField(_t('ma.field.houseNumber','Hausnummer'), `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}">`)}
+        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" onblur="plzLookup(this.value)" onkeyup="if(this.value.length===4)plzLookup(this.value)">`)}
+        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(emp.city)}">`)}
+        ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode))}
+        ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}">`)}
     </div>
     <div id="ef-plz-hint" style="font-size:12px;margin-top:-6px;margin-bottom:10px"></div>
-    <div class="emp-section-title">Kontakt</div>
-    <div class="emp-field-grid">
-        ${eField('Telefon', `<input id="ef-phone2" class="ef-input" type="tel" value="${esc(emp.phoneMobile)}" placeholder="+41 79 …">`)}
-        ${eField('E-Mail',  `<input id="ef-email2" class="ef-input" type="email" value="${esc(emp.email)}">`)}
-    </div>`;
+
+    <div class="emp-section-title">${_t('ma.section.contact','Kontakt')}</div>
+    <div class="emp-field-grid-3">
+        ${eField(_t('ma.field.phone','Telefon'), `<input id="ef-phone" class="ef-input" type="tel"   value="${esc(emp.phoneMobile)}" placeholder="${_t('ma.placeholder.phone','+41 79 …')}">`)}
+        ${eField(_t('ma.field.email','E-Mail'),  `<input id="ef-email" class="ef-input" type="email" value="${esc(emp.email)}">`)}
+    </div>
+
+    <div class="emp-section-title">${_t('ma.section.anstellung','Anstellung')}</div>
+    <div class="emp-field-grid-3">
+        ${eField(`${_t('ma.field.entryDate','Eintrittsdatum')} <span style="font-weight:400;color:#94a3b8;margin-left:6px">${_t('ma.field.entryDateHint','(Datum der Betriebszugehörigkeit)')}</span>`,
+            `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}">`)}
+        ${eField(`${_t('ma.field.exitDate','Austrittsdatum')} <span style="font-weight:400;color:#94a3b8;margin-left:6px">${_t('ma.field.exitDateHint','(leer = aktiv)')}</span>`,
+            `<input id="ef-exit"  class="ef-input" type="date" value="${toDateInput(emp.exitDate)}">`)}
+    </div>
+    <div style="margin:4px 0 16px;font-size:11.5px;color:#64748b;line-height:1.45">
+        ${_t('ma.entryDate.hint','Eintrittsdatum wird benötigt für: Sperrfrist-Berechnung (Art. 336c OR), Karenzjahr-Berechnung (Krank/Unfall), Ferien-Kürzung (Art. 329b OR), Dienstjubiläen.')}
+    </div>
+
+    <!-- Versteckte Felder für Backwards-Compat: Edit-Save sendet sie immer noch,
+         aber sie sind read-only und werden vom History-Sync ohnehin überschrieben.
+         Bei „MA ohne Lohn" (IsPayrollExcluded) ist die Aufenthalts-Sektion
+         ausgeblendet — die Hidden-Inputs bleiben aber bestehen, damit der
+         Save-Handler den DB-Wert nicht versehentlich auf 0/null setzt. -->
+    <input type="hidden" id="ef-permitType" value="${emp.permitTypeId ?? 0}">
+    <input type="hidden" id="ef-permitExpiry" value="${toDateInput(emp.permitExpiryDate)}">
+
+    ${!emp.isPayrollExcluded ? `
+    <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>${_t('ma.section.permit','Aufenthalt')}</span>
+        <button type="button" class="btn-emp-add" onclick="openPermitHistoryModal(null)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            ${_t('ma.btn.newPermit','Neue Bewilligung')}
+        </button>
+    </div>
+    <div class="emp-field-grid-3">
+        ${field(_t('ma.field.permitCurrent','Aktuelle Bewilligung'), emp.permitType
+            ? `${emp.permitType.code}${emp.permitType.description ? ' — ' + emp.permitType.description : ''}`
+            : (emp.permitTypeId ? 'Typ ' + emp.permitTypeId : null))}
+        <div class="emp-field"><div class="emp-field-label">${_t('ma.field.validFrom','Gültig ab')}</div><div class="emp-field-value" id="permitValidFromInline">–</div></div>
+        ${field(_t('ma.field.validTo','Gültig bis'), emp.permitExpiryDate ? formatDate(emp.permitExpiryDate) : null)}
+    </div>
+    <div id="permitHistoryContent" style="margin-top:6px">
+        <div class="emp-placeholder"><span>${_t('ma.loading','Wird geladen…')}</span></div>
+    </div>
+
+    <div style="margin:8px 0 16px;padding:10px 12px;background:#f1f5f9;border-left:3px solid #94a3b8;border-radius:4px;font-size:12px;color:#475569">
+        ${_t('ma.qstHint','Quellensteuer-spezifische Angaben (Konkubinat, gemeinsame elterliche Sorge, Unterhaltszahlungen, höheres Einkommen, Grenzgänger/Wochenaufenthalter) werden im Modul Quellensteuer zeitlich versioniert gepflegt und nicht hier als allgemeine Personaldaten.')}
+    </div>
+    ` : `
+    <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
+        <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.editDesc','Phantom-MA für easy@work-Zugang. Bewilligung und Zusatzadressen werden hier nicht angeboten, da dieser MA keinen Vertrag und keine Lohnzahlung hat. Über die Checkbox „Kein Lohn" unten kann die Markierung wieder aufgehoben werden.')}
+    </div>
+    `}
+
+    <!-- Arbeitsverhältnis-Sektion (Eintritt, Modell, Pensum, Stundenlohn) wurde
+         entfernt — wird im Verträge-Tab gepflegt. Eintrittsdatum + Personal-Nr.
+         stehen ohnehin im MA-Detail-Header. -->
+
+    ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser') ? `
+    <div class="emp-section-title">${_t('ma.section.lohn','Lohn')}</div>
+    <div style="padding:10px 14px;background:${emp.isPayrollExcluded ? '#fef3c7' : '#f8fafc'};border:1px solid ${emp.isPayrollExcluded ? '#fde68a' : '#e2e8f0'};border-radius:8px">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+            <input type="checkbox" id="ef-isPayrollExcluded"
+                   ${emp.isPayrollExcluded ? 'checked' : ''}
+                   style="margin-top:3px;width:16px;height:16px;flex-shrink:0">
+            <div style="font-size:13px;color:#0f172a">
+                <b>${_t('ma.payrollExcluded.title','Kein Lohn')}</b> <span style="color:#94a3b8;font-weight:400;font-size:11.5px">${_t('ma.payrollExcluded.role','(Admin / HR-Verantwortliche)')}</span>
+                <div style="font-size:11.5px;color:#64748b;margin-top:3px;line-height:1.45">
+                    ${_t('ma.payrollExcluded.desc','MA wird im System geführt (Stempelsystem, Vorgesetzter-Referenz, Posteingang) — aber NICHT im Lohn-Tab abgerechnet. Beim CSV-Re-Import bleibt diese Markierung erhalten.')}
+                </div>
+            </div>
+        </label>
+    </div>` : ''}
+
+    ${!emp.isPayrollExcluded ? `
+    <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+        <span>${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
+        <button type="button" class="btn-emp-add" onclick="openEmployeeAddressModal(null)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            ${_t('ma.btn.addAddress','Adresse hinzufügen')}
+        </button>
+    </div>
+    <div id="otherAddressesContent">
+        <div class="emp-placeholder"><span>${_t('ma.loading','Wird geladen…')}</span></div>
+    </div>
+    ` : ''}`;
+    // Hinweis: Bankverbindung + Postfach-Zugang sind NICHT mehr im Edit-Formular —
+    // sie leben im eigenen Tab „Bank & Postfach" (Walter-Vorgabe 14.05.2026)
+    // und werden dort über eigene Modals/Buttons gepflegt, nicht über das
+    // Personal-Edit-Formular.
 }
+
+// (buildEmpEditAdressen wurde entfernt — Adresse + Kontakt sind jetzt
+// im Personal-Edit-Formular integriert.)
 
 // Hilfshelfer: Edit-Feld
 function eField(label, inputHtml) {
@@ -956,29 +1620,55 @@ async function plzLookup(rawPlz) {
         return;
     }
 
-    // Mehrere Gemeinden → Auswahl-Dropdown im Hint-Bereich
-    // (nicht am Ort-Feld selbst, damit manuelles Eintragen weiter möglich ist)
-    const opts = locs.map(l => `<option value="${esc(l.gemeindename)}" data-kanton="${l.kantonskuerzel}">${esc(l.gemeindename)} (${l.kantonskuerzel})</option>`).join('');
-    hint.innerHTML = `
-        <span style="color:#475569">Mehrere Gemeinden für PLZ ${plz} — bitte auswählen:</span>
-        <select id="ef-plz-choice" class="ef-input" style="margin-left:8px;padding:4px 8px;font-size:12.5px">
-            <option value="" disabled selected>— wählen —</option>
-            ${opts}
-        </select>`;
+    // Mehrere Gemeinden → Combobox im Ort-Feld via HTML5-<datalist>.
+    // Walter klickt im Ort-Feld auf das Pfeil-Symbol und sieht die Liste,
+    // kann aber jederzeit auch frei tippen (und "off-list"-Werte eingeben).
+    // Wenn der getippte/gewählte Wert zu einer Gemeinde matcht, wird der
+    // Kanton automatisch synchronisiert.
+    bindDatalistToCityInput(cityInput, kantonSelect, null, locs, plz, hint);
+}
 
-    const sel = document.getElementById('ef-plz-choice');
-    // Falls der aktuelle Ort in der Liste ist, gleich vorwählen
-    const preMatch = locs.find(l => l.gemeindename === cityInput.value);
-    if (preMatch) {
-        sel.value = preMatch.gemeindename;
-        kantonSelect.value = preMatch.kantonskuerzel;
+// Hilfsfunktion: hängt eine <datalist> ans Ort-Input und installiert einen
+// input-Handler, der Kanton (und ggf. BFS-Nr.) bei einem Treffer aktualisiert.
+function bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint) {
+    if (!cityEl) return;
+    const dlId = (cityEl.id || 'plz') + '-datalist';
+
+    // Bestehende datalist (von früherer PLZ-Eingabe) entfernen
+    const old = document.getElementById(dlId);
+    if (old) old.remove();
+
+    const dl = document.createElement('datalist');
+    dl.id = dlId;
+    dl.innerHTML = locs.map(l => {
+        const bfs = l.bfsNr ?? l.bfsNumber ?? l.bfs_number ?? '';
+        return `<option value="${esc(l.gemeindename)}" data-kanton="${l.kantonskuerzel}" data-bfs="${bfs}">${l.kantonskuerzel}</option>`;
+    }).join('');
+    cityEl.setAttribute('list', dlId);
+    cityEl.parentElement?.appendChild(dl);
+
+    // Wenn aktueller Wert schon einer der Treffer ist → Kanton/BFS sofort syncen
+    const pre = locs.find(l => l.gemeindename === cityEl.value);
+    if (pre) {
+        if (cantonEl) cantonEl.value = pre.kantonskuerzel;
+        if (bfsEl)    bfsEl.value    = pre.bfsNr ?? pre.bfsNumber ?? pre.bfs_number ?? '';
     }
-    sel.onchange = () => {
-        const opt = sel.options[sel.selectedIndex];
-        const kt  = opt?.dataset?.kanton;
-        cityInput.value = sel.value;
-        if (kt) kantonSelect.value = kt;
+
+    // Bei jeder Änderung im Ort-Feld den Kanton aktualisieren falls Match
+    cityEl.oninput = () => {
+        const match = locs.find(l => l.gemeindename === cityEl.value);
+        if (match) {
+            if (cantonEl) cantonEl.value = match.kantonskuerzel;
+            if (bfsEl)    bfsEl.value    = match.bfsNr ?? match.bfsNumber ?? match.bfs_number ?? '';
+        }
     };
+
+    if (hint) {
+        hint.innerHTML = pre
+            ? `<span style="color:#16a34a">✓ ${esc(pre.gemeindename)} (${pre.kantonskuerzel})</span>
+               <span style="color:#94a3b8;font-size:11.5px;margin-left:6px">— ${locs.length} Gemeinden für PLZ ${plz}; Ort-Feld öffnen für andere Auswahl.</span>`
+            : `<span style="color:#475569">PLZ ${plz} → ${locs.length} Gemeinden — im Ort-Feld auswählen oder frei tippen.</span>`;
+    }
 }
 
 function cancelEmpEdit() {
@@ -987,6 +1677,22 @@ function cancelEmpEdit() {
 
 async function saveEmpEdit() {
     if (!selectedEmployeeId || !selectedEmployee) return;
+
+    // AHV-Nr-Prüfziffer-Check: blockt Save wenn AHV-Nr eingegeben aber ungültig.
+    const ahvInput = document.getElementById('ef-ahvNummer');
+    if (ahvInput && ahvInput.value.trim()) {
+        const ahvCheck = validateAhvNummer(ahvInput.value);
+        if (ahvCheck.valid === false) {
+            alert('AHV-Nr. ist nicht gültig:\n' + ahvCheck.error
+                + '\n\nBitte korrigieren oder Feld leer lassen.');
+            ahvInput.focus();
+            return;
+        }
+        if (ahvCheck.valid === true) {
+            // In normalisiertem Format speichern (756.XXXX.XXXX.XX)
+            ahvInput.value = ahvCheck.normalized;
+        }
+    }
 
     const emp = selectedEmployee;
 
@@ -999,10 +1705,8 @@ async function saveEmpEdit() {
         gender:       document.getElementById('ef-gender')?.value       || null,
         dateOfBirth:  document.getElementById('ef-dob')?.value          || null,
         languageCode: document.getElementById('ef-lang')?.value         || null,
-        phoneMobile:  document.getElementById('ef-phone')?.value
-                   || document.getElementById('ef-phone2')?.value       || null,
-        email:        document.getElementById('ef-email')?.value
-                   || document.getElementById('ef-email2')?.value       || null,
+        phoneMobile:  document.getElementById('ef-phone')?.value || null,
+        email:        document.getElementById('ef-email')?.value || null,
         street:       document.getElementById('ef-street')?.value       || null,
         houseNumber:  document.getElementById('ef-houseNr')?.value      || null,
         zipCode:      document.getElementById('ef-zip')?.value          || null,
@@ -1011,13 +1715,41 @@ async function saveEmpEdit() {
         cantonCode:   document.getElementById('ef-canton')?.value       || null,
         permitTypeId: parseInt(document.getElementById('ef-permitType')?.value) || 0,
         permitExpiryDate: document.getElementById('ef-permitExpiry')?.value || null,
+        nationalityId: parseInt(document.getElementById('ef-nationalityId')?.value) || null,
+        zemisNumber:  document.getElementById('ef-zemisNumber')?.value?.trim() || null,
         entryDate:    document.getElementById('ef-entry')?.value        || null,
         exitDateSet:  true,
         exitDate:     exitVal || null,
         socialSecurityNumber: document.getElementById('ef-ahvNummer')?.value || null,
+        ahvNummer:    document.getElementById('ef-ahvNummer')?.value    || null,
         shortName:    document.getElementById('ef-shortName')?.value    || null,
         zivilstand:   document.getElementById('ef-zivilstand')?.value   || null,
+        maritalStatus:document.getElementById('ef-zivilstand')?.value   || null,
+
+        // Erweiterte Zivilstand-Angaben (allgemein, nicht QST-spezifisch).
+        // QST-spezifische Felder (Konkubinat, gemeinsame elterliche Sorge,
+        // Unterhalt, höheres Einkommen, Grenzgänger, Wochenaufenthalter)
+        // werden im Modul Quellensteuer zeitlich versioniert gepflegt.
+        maritalStatusSinceSet: true,
+        maritalStatusSince:    document.getElementById('ef-maritalStatusSince')?.value || null,
+        // separatedSince-Feld wurde aus dem UI entfernt (Walter: „Getrennt"
+        // ist bereits ein Zivilstand, separates Datum überflüssig). Wir
+        // senden separatedSinceSet=false, damit der Backend-Handler das
+        // Feld unverändert lässt.
+        separatedSinceSet:     false,
+        separatedSince:        null,
+        religion:              document.getElementById('ef-religion')?.value || null,
+        letterSalutation:      document.getElementById('ef-letterSalutation')?.value?.trim() || null,
+        placeOfOrigin:         document.getElementById('ef-placeOfOrigin')?.value?.trim() || null,
     };
+
+    // "Kein Lohn"-Flag — nur senden wenn der Toggle im Formular existiert
+    // (= aktueller User ist admin / superuser; sonst rendert das Feld nicht).
+    // Wird auf Backend-Seite zusätzlich rolle-geprüft.
+    const payrollExclChk = document.getElementById('ef-isPayrollExcluded');
+    if (payrollExclChk) {
+        empPayload.isPayrollExcluded = payrollExclChk.checked;
+    }
 
     try {
         // Nur Stammdaten speichern – Vertragsdaten werden im Modul Vertrag bearbeitet
@@ -1078,7 +1810,13 @@ function openFamilyModal(member) {
     editingFamilyMemberId = member ? member.id : null;
 
     document.getElementById('familyModalTitle').textContent =
-        member ? 'Familienangehöriger bearbeiten' : 'Familienangehörigen hinzufügen';
+        member ? _t('fam.modalTitleEdit','Familienangehöriger bearbeiten')
+               : _t('fam.modalTitleNew','Familienangehörigen hinzufügen');
+
+    // Statische Strings die wir per data-i18n im Modal markiert haben jetzt
+    // einmal anwenden — das Modal wurde via .style.display=flex „geöffnet",
+    // i18n.applyAll() rendert alle data-i18n-Elemente in die aktuelle Sprache.
+    if (window.i18n && window.i18n.applyAll) window.i18n.applyAll(document.getElementById('familyModal'));
 
     // Felder befüllen oder leeren
     document.getElementById('fmMemberType').value      = member?.memberType         ?? 'Kind';
@@ -1087,15 +1825,161 @@ function openFamilyModal(member) {
     document.getElementById('fmLastName').value        = member?.lastName           ?? '';
     document.getElementById('fmMaidenName').value      = member?.maidenName         ?? '';
     document.getElementById('fmDateOfBirth').value     = toDateInput(member?.dateOfBirth);
+    updateFmAgeDisplay();
     document.getElementById('fmSocialSecurity').value  = member?.socialSecurityNumber ?? '';
     document.getElementById('fmLivesInSwitzerland').checked = member?.livesInSwitzerland ?? false;
-    document.getElementById('fmAllowance1').value      = toMonthInput(member?.allowance1Until);
-    document.getElementById('fmAllowance2').value      = toMonthInput(member?.allowance2Until);
-    document.getElementById('fmAllowance3').value      = toMonthInput(member?.allowance3Until);
     document.getElementById('fmQstFrom').value         = toDateInput(member?.qstDeductibleFrom);
     document.getElementById('fmQstUntil').value        = toDateInput(member?.qstDeductibleUntil);
 
+    // ── Aufenthalt + Nationalität: Permit-Types + Nationalitäten füllen
+    //    (gleiche Listen wie beim MA-Edit-Modal). Vorausgewählt wird der
+    //    bestehende Wert oder leer.
+    fmFillPermitAndNationalitySelects(
+        member?.permitTypeId ?? null,
+        member?.nationalityId ?? null
+    );
+    document.getElementById('fmPermitExpiry').value = toDateInput(member?.permitExpiryDate);
+    document.getElementById('fmZemisNumber').value  = member?.zemisNumber ?? '';
+
+    // ── Adresse: Radio-Modus + Dropdown der MA-Zusatzadressen befüllen
+    fmRefreshAddressUi(member?.alternativeAddressId ?? null);
+
+    // Zulagen-Liste laden (nur bei Edit — bei neuem Familienmitglied gibt's
+    // noch keine ID, daher Hinweis "erst nach Speichern verfügbar").
+    const allowanceList = document.getElementById('fmAllowanceList');
+    const allowanceAddBtn = document.getElementById('fmAllowanceAddBtn');
+    if (member?.id) {
+        allowanceAddBtn.style.display = 'inline-block';
+        loadFamilyAllowances(member.id);
+    } else {
+        allowanceAddBtn.style.display = 'none';
+        if (allowanceList) allowanceList.innerHTML = '<span style="color:#94a3b8;font-style:italic">Erst nach dem ersten Speichern können Zulagen erfasst werden.</span>';
+    }
+
     document.getElementById('familyModal').style.display = 'flex';
+}
+
+// Permit-Typen + Nationalitäten ins Familienmitglied-Modal laden.
+// Selbe Datenquellen wie im MA-Edit-Modal — wir cachen via getPermitTypes()
+// + getNationalities() um nicht bei jedem Modal-Open neu zu fetchen.
+async function fmFillPermitAndNationalitySelects(currentPermitTypeId, currentNationalityId) {
+    const permitSel = document.getElementById('fmPermitTypeId');
+    const natSel    = document.getElementById('fmNationalityId');
+    if (permitSel) {
+        try {
+            const types = await getPermitTypes();
+            permitSel.innerHTML = '<option value="">– keine / CH-Bürger –</option>'
+                + (types || [])
+                    .filter(p => p.isActive !== false)
+                    .map(p => {
+                        const sel = (currentPermitTypeId == p.id) ? 'selected' : '';
+                        return `<option value="${p.id}" ${sel}>${p.description ?? p.code}</option>`;
+                    }).join('');
+        } catch { /* ignore */ }
+    }
+    if (natSel) {
+        try {
+            const nats = await getNationalities();
+            natSel.innerHTML = '<option value="">–</option>'
+                + (nats || [])
+                    .filter(n => n.isActive !== false)
+                    .map(n => {
+                        const id    = n.id   ?? n.Id;
+                        const code  = n.code ?? n.Code ?? '';
+                        const name  = n.name ?? n.Name ?? code;
+                        const sel   = (currentNationalityId == id) ? 'selected' : '';
+                        return `<option value="${id}" ${sel}>${name}${code && code !== name ? ' (' + code + ')' : ''}</option>`;
+                    }).join('');
+        } catch { /* ignore */ }
+    }
+}
+
+// ── Adresse-Auswahl im Familienmitglied-Modal ──────────────────────────
+// Zeigt entweder "Lebt beim MA" (Hauptadresse) oder "Andere Adresse"
+// (Dropdown der employee_address des MA). Dropdown wird live aus dem
+// Backend befüllt — beim Speichern legen wir alternativeAddressId mit.
+async function fmRefreshAddressUi(currentAlternativeAddressId) {
+    const sameRadio = document.getElementById('fmAddrSameAsEmp');
+    const altRadio  = document.getElementById('fmAddrAlt');
+    const summaryEl = document.getElementById('fmAddrEmpSummary');
+    const altBox    = document.getElementById('fmAddrAltBox');
+    const select    = document.getElementById('fmAlternativeAddressId');
+    const hintEl    = document.getElementById('fmAddrAltHint');
+
+    // Hauptadresse-Zusammenfassung anzeigen (vom geladenen MA-Datensatz)
+    const emp = selectedEmployee;
+    if (summaryEl && emp) {
+        const parts = [
+            [emp.street, emp.houseNumber].filter(Boolean).join(' '),
+            [emp.zipCode, emp.city].filter(Boolean).join(' '),
+            emp.country && emp.country.toLowerCase() !== 'schweiz' ? emp.country : null,
+        ].filter(Boolean);
+        summaryEl.textContent = parts.length ? parts.join(', ') : '— keine Hauptadresse erfasst —';
+    }
+
+    // Zusatzadressen des MA laden und Dropdown füllen
+    if (select && selectedEmployeeId) {
+        select.innerHTML = '<option value="">— Adresse wählen —</option>';
+        try {
+            const res = await fetch(`/api/employees/${selectedEmployeeId}/addresses`, { headers: ah() });
+            if (res.ok) {
+                const list = await res.json();
+                list.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    const summary = [
+                        a.description || null,
+                        [a.street, a.houseNumber].filter(Boolean).join(' '),
+                        [a.zipCode, a.city].filter(Boolean).join(' '),
+                        a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : null,
+                    ].filter(Boolean).join(' · ');
+                    opt.textContent = summary || `Adresse #${a.id}`;
+                    select.appendChild(opt);
+                });
+                if (hintEl) {
+                    hintEl.textContent = list.length === 0
+                        ? 'Noch keine Zusatzadressen beim Mitarbeiter — über «+ Neue Zusatzadresse» eine anlegen.'
+                        : '';
+                }
+            } else if (hintEl) {
+                hintEl.textContent = '';
+            }
+        } catch { /* still */ }
+    }
+
+    // Initial-Modus setzen
+    const useAlt = !!currentAlternativeAddressId;
+    if (sameRadio && altRadio) {
+        sameRadio.checked = !useAlt;
+        altRadio.checked  = useAlt;
+    }
+    if (altBox) altBox.style.display = useAlt ? 'block' : 'none';
+    if (select && currentAlternativeAddressId) select.value = String(currentAlternativeAddressId);
+}
+
+function fmAddrModeChanged() {
+    const useAlt = document.getElementById('fmAddrAlt')?.checked;
+    const altBox = document.getElementById('fmAddrAltBox');
+    if (altBox) altBox.style.display = useAlt ? 'block' : 'none';
+    if (!useAlt) {
+        // Auswahl beim Wechsel zurück auf "Hauptadresse" zurücksetzen,
+        // damit kein verwaister AlternativeAddressId mitgespeichert wird.
+        const sel = document.getElementById('fmAlternativeAddressId');
+        if (sel) sel.value = '';
+    }
+}
+
+// "+ Neue Zusatzadresse" im Familie-Modal: öffnet das bestehende
+// Mitarbeiter-Adress-Modal. Nach Speichern dort wird die Liste hier
+// neu geladen und die neue Adresse als Default ausgewählt.
+function openEmployeeAddressModalFromFamily() {
+    if (!selectedEmployeeId) {
+        alert('Mitarbeiter zuerst laden.');
+        return;
+    }
+    // Hook: nach erfolgreichem Speichern im Adress-Modal → unsere Liste auffrischen
+    window._fmReloadAddressesAfterSave = true;
+    openEmployeeAddressModal(null);
 }
 
 function closeFamilyModal() {
@@ -1106,6 +1990,17 @@ function closeFamilyModal() {
 async function saveFamilyMember() {
     if (!selectedEmployeeId) return;
 
+    // Adress-Modus: "alt" = abweichende Adresse aus den Zusatzadressen des MA.
+    // Wenn "same" oder leeres Dropdown → AlternativeAddressId = null
+    const addrUseAlt = document.getElementById('fmAddrAlt')?.checked;
+    const addrSelVal = document.getElementById('fmAlternativeAddressId')?.value || '';
+    const alternativeAddressId = (addrUseAlt && addrSelVal) ? parseInt(addrSelVal, 10) : null;
+
+    // Aufenthalt + Nationalität: leer = null. Permit-Type-Id und
+    // Nationality-Id sind FK in der DB.
+    const permitTypeId   = parseInt(document.getElementById('fmPermitTypeId').value, 10);
+    const nationalityId  = parseInt(document.getElementById('fmNationalityId').value, 10);
+
     const payload = {
         memberType:             document.getElementById('fmMemberType').value         || 'Kind',
         gender:                 document.getElementById('fmGender').value             || null,
@@ -1115,11 +2010,14 @@ async function saveFamilyMember() {
         dateOfBirth:            document.getElementById('fmDateOfBirth').value        || null,
         socialSecurityNumber:   document.getElementById('fmSocialSecurity').value     || null,
         livesInSwitzerland:     document.getElementById('fmLivesInSwitzerland').checked,
-        allowance1Until:        monthInputToDate(document.getElementById('fmAllowance1').value),
-        allowance2Until:        monthInputToDate(document.getElementById('fmAllowance2').value),
-        allowance3Until:        monthInputToDate(document.getElementById('fmAllowance3').value),
+        alternativeAddressId,
         qstDeductibleFrom:      document.getElementById('fmQstFrom').value            || null,
         qstDeductibleUntil:     document.getElementById('fmQstUntil').value           || null,
+        permitTypeId:           Number.isFinite(permitTypeId) && permitTypeId > 0 ? permitTypeId : null,
+        permitExpiryDate:       document.getElementById('fmPermitExpiry').value       || null,
+        zemisNumber:            (document.getElementById('fmZemisNumber').value || '').trim() || null,
+        nationalityId:          Number.isFinite(nationalityId) && nationalityId > 0 ? nationalityId : null,
+        // Zulagen werden separat über /api/family-members/{id}/allowances verwaltet.
     };
 
     const isEdit = editingFamilyMemberId !== null;
@@ -1156,6 +2054,144 @@ async function deleteFamilyMember(id) {
         loadFamilieTab(selectedEmployeeId);
     } catch {
         alert('Verbindungsfehler.');
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FAMILIENZULAGEN (versioniert pro Familienmitglied)
+// ══════════════════════════════════════════════════════════════════
+
+const _ALLOWANCE_TYPE_LABEL = {
+    KZ: 'Kinderzulage', AZ: 'Ausbildungszulage',
+    GZ: 'Geburtszulage', AdoptZ: 'Adoptionszulage',
+    HZ: 'Haushaltszulage', SONSTIGE: 'Sonstige'
+};
+
+async function loadFamilyAllowances(familyMemberId) {
+    const el = document.getElementById('fmAllowanceList');
+    if (!el) return;
+    el.innerHTML = '<span style="color:#94a3b8">Wird geladen…</span>';
+    try {
+        const res = await fetch(`/api/family-members/${familyMemberId}/allowances`, { headers: ah() });
+        if (!res.ok) { el.innerHTML = '<span style="color:#dc2626">Fehler beim Laden.</span>'; return; }
+        const list = await res.json();
+        if (!list.length) {
+            el.innerHTML = '<span style="color:#94a3b8;font-style:italic">Keine Zulagen erfasst.</span>';
+            return;
+        }
+        el.innerHTML = `
+            <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                <thead>
+                    <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:10.5px;letter-spacing:.04em">
+                        <th style="padding:6px 8px;text-align:left;font-weight:600">VON</th>
+                        <th style="padding:6px 8px;text-align:left;font-weight:600">BIS</th>
+                        <th style="padding:6px 8px;text-align:right;font-weight:600">CHF/MT.</th>
+                        <th style="padding:6px 8px;text-align:left;font-weight:600">ART</th>
+                        <th style="padding:6px 8px;text-align:right;font-weight:600">AKT.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                ${list.map(a => `
+                    <tr style="border-bottom:1px solid #f1f5f9">
+                        <td style="padding:6px 8px">${formatDate(a.validFrom)}</td>
+                        <td style="padding:6px 8px">${a.validTo ? formatDate(a.validTo) : '<span style="color:#16a34a">offen</span>'}</td>
+                        <td style="padding:6px 8px;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace">${Number(a.monthlyAmount).toFixed(2)}</td>
+                        <td style="padding:6px 8px;color:#64748b">${a.allowanceType ? (a.allowanceType + ' — ' + (_ALLOWANCE_TYPE_LABEL[a.allowanceType] || '')) : '–'}</td>
+                        <td style="padding:6px 8px;text-align:right">
+                            <button onclick='openAllowanceModal(${JSON.stringify(a)})' style="background:#f1f5f9;border:none;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;margin-right:3px">✏️</button>
+                        </td>
+                    </tr>
+                `).join('')}
+                </tbody>
+            </table>`;
+    } catch (e) {
+        el.innerHTML = `<span style="color:#dc2626">Fehler: ${e.message}</span>`;
+    }
+}
+
+function openAllowanceModal(existing) {
+    if (!editingFamilyMemberId) {
+        alert('Bitte zuerst das Familienmitglied speichern.');
+        return;
+    }
+    const d = (typeof existing === 'object' && existing !== null) ? existing : {};
+    document.getElementById('alId').value           = d.id ?? '';
+    document.getElementById('alValidFrom').value    = d.validFrom ?? '';
+    document.getElementById('alValidTo').value      = d.validTo   ?? '';
+    document.getElementById('alMonthlyAmount').value = d.monthlyAmount ?? '';
+    document.getElementById('alAllowanceType').value = d.allowanceType ?? '';
+    document.getElementById('alNote').value         = d.note ?? '';
+    document.getElementById('alError').textContent  = '';
+    document.getElementById('allowanceModalTitle').textContent = d.id ? 'Zulage bearbeiten' : 'Zulage hinzufügen';
+    document.getElementById('alDeleteBtn').style.display = d.id ? 'inline-block' : 'none';
+    document.getElementById('allowanceModal').style.display = 'flex';
+}
+
+function closeAllowanceModal() {
+    document.getElementById('allowanceModal').style.display = 'none';
+}
+
+async function saveAllowance() {
+    const err = document.getElementById('alError');
+    err.textContent = '';
+    const id = document.getElementById('alId').value;
+    const validFrom = document.getElementById('alValidFrom').value;
+    const validTo   = document.getElementById('alValidTo').value;
+    const monthly   = parseFloat(document.getElementById('alMonthlyAmount').value);
+    const allowanceType = document.getElementById('alAllowanceType').value || null;
+    const note      = document.getElementById('alNote').value.trim() || null;
+
+    if (!validFrom)        { err.textContent = 'Gültig ab ist Pflicht.';        return; }
+    if (!Number.isFinite(monthly) || monthly < 0) {
+        err.textContent = 'Monatsbetrag ungültig.'; return;
+    }
+    if (validTo && validTo < validFrom) {
+        err.textContent = 'Gültig bis darf nicht vor Gültig ab liegen.'; return;
+    }
+
+    const payload = {
+        validFrom,
+        validTo: validTo || null,
+        monthlyAmount: monthly,
+        allowanceType,
+        note,
+    };
+
+    try {
+        const url    = id
+            ? `/api/family-members/${editingFamilyMemberId}/allowances/${id}`
+            : `/api/family-members/${editingFamilyMemberId}/allowances`;
+        const method = id ? 'PUT' : 'POST';
+        const res    = await fetch(url, {
+            method,
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            err.textContent = e.error || 'Fehler beim Speichern.';
+            return;
+        }
+        closeAllowanceModal();
+        loadFamilyAllowances(editingFamilyMemberId);
+    } catch (e) {
+        err.textContent = 'Verbindungsfehler: ' + e.message;
+    }
+}
+
+async function deleteAllowance() {
+    const id = document.getElementById('alId').value;
+    if (!id || !editingFamilyMemberId) return;
+    if (!confirm('Diese Zulagen-Position wirklich löschen?')) return;
+    try {
+        const res = await fetch(`/api/family-members/${editingFamilyMemberId}/allowances/${id}`, {
+            method: 'DELETE', headers: ah()
+        });
+        if (!res.ok) { alert('Fehler beim Löschen.'); return; }
+        closeAllowanceModal();
+        loadFamilyAllowances(editingFamilyMemberId);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
     }
 }
 
@@ -1313,13 +2349,16 @@ function toTimeInput(dateTimeStr) {
 // ════════════════════════════════════════════════════════════════
 
 const ABSENCE_LABELS = {
-    KRANK:      { label: 'Krankheit',         color: 'abs-type-krank'    },
-    UNFALL:     { label: 'Unfall',            color: 'abs-type-unfall'   },
-    SCHULUNG:   { label: 'Schulung',          color: 'abs-type-schulung' },
-    FERIEN:     { label: 'Ferien',            color: 'abs-type-ferien'   },
-    NACHT_KOMP: { label: 'Nacht-Kompensation', color: 'abs-type-nacht'  },
-    MILITAER:   { label: 'Militär',           color: 'abs-type-schulung' },
-    FEIERTAG:   { label: 'Feiertag',          color: 'abs-type-ferien'   },
+    KRANK:      { label: 'Krankheit',                 color: 'abs-type-krank'    },
+    UNFALL:     { label: 'Unfall',                    color: 'abs-type-unfall'   },
+    SCHULUNG:   { label: 'Schulung',                  color: 'abs-type-schulung' },
+    FERIEN:     { label: 'Ferien',                    color: 'abs-type-ferien'   },
+    NACHT_KOMP: { label: 'Nacht-Kompensation',        color: 'abs-type-nacht'    },
+    MILITAER:   { label: 'Militär',                   color: 'abs-type-schulung' },
+    FEIERTAG:   { label: 'Feiertag',                  color: 'abs-type-feiertag' },
+    MUTT_VATER: { label: 'Mutter-/Vaterschaftsurlaub', color: 'abs-type-krank'   },
+    FREI_KOMP:  { label: 'Frei-Kompensation',          color: 'abs-type-nacht'   },
+    BEZ_ABSENZ: { label: 'Bezahlte Absenz',            color: 'abs-type-schulung'},
 };
 
 async function loadAbsenzenTab(employeeId) {
@@ -1364,13 +2403,14 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
             const typBadge = prozent < 100
                 ? `${meta.label} <span style="font-size:10px;opacity:0.85;font-weight:600">${prozent}%</span>`
                 : meta.label;
-            const days   = a.workedDays ? JSON.parse(a.workedDays) : [];
-            const dayStr = days.length
-                ? days.map(d => {
-                    const dt = new Date(d + 'T00:00:00');
-                    return dt.toLocaleDateString('de-CH', { weekday: 'short', day: '2-digit', month: '2-digit' });
-                  }).join(', ')
-                : '–';
+            // Anzahl Kalendertage von .. bis (inklusive)
+            let tageStr = '–';
+            if (a.dateFrom && a.dateTo) {
+                const dFrom = new Date(a.dateFrom + 'T00:00:00');
+                const dTo   = new Date(a.dateTo   + 'T00:00:00');
+                const days  = Math.floor((dTo - dFrom) / 86400000) + 1;
+                if (days > 0) tageStr = `${days} ${days === 1 ? 'Tag' : 'Tage'}`;
+            }
 
             // Für FERIEN MTP = Abzug, sonst Gutschrift
             let hoursCell = '–';
@@ -1383,13 +2423,27 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
                              <span class="abs-hours-label">${label}</span>`;
             }
 
+            // Krank-/Unfall-Absenzen: direkter Sprung zum Arztzeugnis im
+            // Dokumente-Tab (Walter-Vorgabe 15.05.2026).
+            const docBtn = (a.absenceType === 'KRANK' || a.absenceType === 'UNFALL')
+                ? `<button class="btn-stamp-edit" title="Arztzeugnis im Dokumente-Tab öffnen"
+                           onclick="openAbsenceArztzeugnis()" style="color:#1d4ed8">
+                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                         <polyline points="14 2 14 8 20 8"/>
+                         <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
+                       </svg>
+                   </button>`
+                : '';
+
             rows += `<tr>
                 <td><span class="abs-type-badge ${meta.color}">${typBadge}</span></td>
                 <td>${fmtDate(a.dateFrom)} – ${fmtDate(a.dateTo)}</td>
-                <td class="abs-days-cell">${dayStr}</td>
+                <td style="white-space:nowrap;color:#475569;font-variant-numeric:tabular-nums">${tageStr}</td>
                 <td>${hoursCell}</td>
                 <td class="abs-notes">${a.notes ?? ''}</td>
                 <td class="abs-actions">
+                    ${docBtn}
                     <button class="btn-stamp-edit" onclick='openAbsenceModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>✎</button>
                     <button class="btn-stamp-del"  onclick="deleteAbsence(${a.id})">✕</button>
                 </td>
@@ -1629,11 +2683,50 @@ async function openAbsenceModal(existing) {
         `<option value="${t.code}" ${t.code === currentVal ? 'selected' : ''}>${t.bezeichnung}</option>`
     ).join('');
 
-    // Reset form — bei neuer Absenz: heutiges Datum in Von/Bis vorbelegen
+    // Aktive Lohnperiode der MA-Filiale ermitteln, um die Datums-Auswahl auf
+    // diese Periode zu begrenzen (Walter-Wunsch: nicht versehentlich in eine
+    // andere Periode erfassen). Beim Edit lassen wir's offen, weil die
+    // bestehende Absenz auch ausserhalb der heutigen Periode liegen kann.
+    const isNewAbs = !existing;
+    let absPeriodFrom = '', absPeriodTo = '';
+    if (isNewAbs) {
+        const cid = (typeof selectedEmployee !== 'undefined' && selectedEmployee?.companyProfileId)
+                  ?? (typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
+        if (cid) {
+            try {
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const y = parseInt(todayIso.slice(0, 4), 10);
+                const m = parseInt(todayIso.slice(5, 7), 10);
+                const r = await fetch(`/api/payroll-perioden/current?companyProfileId=${cid}&year=${y}&month=${m}`,
+                    { headers: { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` } });
+                if (r.ok) {
+                    const txt = await r.text();
+                    if (txt && txt.trim() && txt.trim() !== 'null') {
+                        const p = JSON.parse(txt);
+                        absPeriodFrom = (p.periodFrom || '').slice(0, 10);
+                        absPeriodTo   = (p.periodTo   || '').slice(0, 10);
+                    }
+                }
+            } catch {}
+        }
+    }
+    const fromEl = document.getElementById('absDateFrom');
+    const toEl   = document.getElementById('absDateTo');
+    fromEl.min = absPeriodFrom || '';
+    fromEl.max = absPeriodTo   || '';
+    toEl.min   = absPeriodFrom || '';
+    toEl.max   = absPeriodTo   || '';
+
+    // Reset form — bei neuer Absenz: heutiges Datum (oder periodFrom falls
+    // heute ausserhalb der Periode liegt) in Von/Bis vorbelegen.
     const today = new Date().toISOString().slice(0, 10);
+    let defaultDate = today;
+    if (absPeriodFrom && absPeriodTo && (today < absPeriodFrom || today > absPeriodTo)) {
+        defaultDate = absPeriodFrom;
+    }
     document.getElementById('absTypeSelect').value   = currentVal;
-    document.getElementById('absDateFrom').value      = existing?.dateFrom ?? today;
-    document.getElementById('absDateTo').value        = existing?.dateTo   ?? today;
+    document.getElementById('absDateFrom').value      = existing?.dateFrom ?? defaultDate;
+    document.getElementById('absDateTo').value        = existing?.dateTo   ?? defaultDate;
     document.getElementById('absProzent').value       = existing?.prozent ?? 100;
     document.getElementById('absNotes').value         = existing?.notes ?? '';
     document.getElementById('absModalTitle').textContent = existing ? 'Absenz bearbeiten' : 'Absenz erfassen';
@@ -1787,20 +2880,19 @@ async function calcAbsHoursPreview() {
     const basisStunden   = typCfg?.basisStunden    ?? 'BETRIEB';
     const reduziertSaldo = typCfg?.reduziertSaldo  ?? null;
 
-    // FIX/FIX-M bei FEIERTAG: Walter-Regel — Zeitgutschrift 1/7 vom Wochensoll
-    // (unabhängig von der AbsenzTyp-Config, weil FEIERTAG global auf "wird
-    // ausbezahlt" steht, damit MTP-Logik funktioniert; MTP wurde oben schon
-    // per early-return abgefangen).
-    if ((empModel === 'FIX' || empModel === 'FIX-M') && type === 'FEIERTAG') {
-        modus = '1/7';
-        hatGutschrift = true;
-    }
+    // FIX/FIX-M bei FEIERTAG: AbsenzTyp-Konfig (gutschriftModus aus
+    // Datenbank) wird jetzt respektiert — vorher hartkodiert auf 1/7,
+    // war Legacy-Regel die obsolete ist seit der Saldo-Mechanik. Zusätzlich
+    // erscheint im Hinweis der Saldo-Bezug (Feiertag-Saldo wird im
+    // PayrollController-Block automatisch um die bezogenen Tage reduziert).
 
-    // MTP bei FEIERTAG: keine Zeitgutschrift — Feiertage werden monatlich
-    // über die Festlohn-Position ausbezahlt (Lohnposition 10.3), daher kein
-    // Eintrag in den Arbeitsstunden-Saldo.
-    if (empModel === 'MTP' && type === 'FEIERTAG') {
-        previewEl.innerHTML = '<span class="abs-hours-label">MTP: Feiertag ist im Monatslohn enthalten (kein Saldo-Eintrag)</span>';
+    // MTP/UTP bei FEIERTAG: keine Zeitgutschrift, kein Saldo. Beide sind
+    // stundenbasierte Modelle (UTP rein nach gestempelten Stunden, MTP mit
+    // garantiertem Mindestpensum). Feiertagentschädigung wird als % auf den
+    // Stundenlohn berechnet und jeden Monat mit dem Lohn ausbezahlt — daher
+    // kein Eintrag in den Arbeitsstunden-Saldo und kein Feiertag-Tage-Saldo.
+    if ((empModel === 'MTP' || empModel === 'UTP') && type === 'FEIERTAG') {
+        previewEl.innerHTML = `<span class="abs-hours-label">${empModel}: Feiertagentschädigung wird als % monatlich mit dem Lohn ausbezahlt (kein Saldo-Eintrag)</span>`;
         previewEl.dataset.hours = '0';
         return;
     }
@@ -1858,7 +2950,7 @@ async function calcAbsHoursPreview() {
 
     // UTP: nur Typen mit UtpAuszahlung-Flag bekommen etwas
     if (empModel === 'UTP' && !utpAuszahlung) {
-        previewEl.innerHTML = '<span class="abs-hours-label">UTP: keine automatische Stundengutschrift für diesen Typ</span>';
+        previewEl.innerHTML = '<span class="abs-hours-label">UTP: keine automatische Stundengutschrift für diesen Typ — kann pro Absenz-Typ aktiviert werden (Systemeinstellungen → Absenz-Typen → „UTP als Stundenlohn auszahlen")</span>';
         previewEl.dataset.hours = '0';
         return;
     }
@@ -1887,6 +2979,17 @@ async function calcAbsHoursPreview() {
         hint  = `<span class="abs-hours-pos">+${hours.toFixed(2)} h</span> <span class="abs-hours-label">Gutschrift (${count} Tag${count>1?'e':''} × ${weeklyH.toFixed(2)} h ÷ 5${pSuffix})</span>`;
     }
 
+    // FEIERTAG bei FIX/FIX-M: zusätzlicher Hinweis dass der Feiertag-Saldo
+    // um die bezogenen Tage reduziert wird (zusätzlich zur Stunden-Gutschrift).
+    if (type === 'FEIERTAG' && (empModel === 'FIX' || empModel === 'FIX-M')) {
+        hint += `<br><span class="abs-hours-label" style="color:#b45309">→ Feiertag-Saldo wird um ${count} Tag${count>1?'e':''} reduziert</span>`;
+    }
+    // FERIEN für FIX/FIX-M: zusätzlich Ferien-Tage-Saldo-Reduktion erwähnen
+    // (UTP/MTP wurde oben schon per early-return abgefangen).
+    if (type === 'FERIEN' && (empModel === 'FIX' || empModel === 'FIX-M')) {
+        hint += `<br><span class="abs-hours-label" style="color:#15803d">→ Ferien-Tage-Saldo wird um ${count} Tag${count>1?'e':''} reduziert</span>`;
+    }
+
     previewEl.innerHTML = hint;
     previewEl.dataset.hours = hours.toFixed(2);
 }
@@ -1901,6 +3004,24 @@ async function saveAbsence() {
     if (!dateFrom || !dateTo || dateFrom > dateTo) {
         alert('Bitte gültigen Zeitraum eingeben.');
         return;
+    }
+
+    // Soft-Validierung: bei Neu-Erfassung innerhalb der aktiven Lohnperiode bleiben.
+    // Beim Edit nicht prüfen — bestehende Absenzen können älter als die heutige
+    // Periode sein.
+    if (!editId) {
+        const fromInput = document.getElementById('absDateFrom');
+        const toInput   = document.getElementById('absDateTo');
+        const min = fromInput?.min || '';
+        const max = fromInput?.max || toInput?.max || '';
+        if (min && (dateFrom < min || dateTo < min)) {
+            alert(`Datum liegt vor dem Lohnperiode-Beginn (${min}). Bitte ein Datum innerhalb der aktiven Periode wählen.`);
+            return;
+        }
+        if (max && (dateFrom > max || dateTo > max)) {
+            alert(`Datum liegt nach dem Lohnperiode-Ende (${max}). Bitte ein Datum innerhalb der aktiven Periode wählen.`);
+            return;
+        }
     }
 
     const workedDays   = getAbsWorkedDays();
@@ -2610,17 +3731,46 @@ async function loadStempelzeitenTab(employeeId) {
     }
     el._stempelPerioden = perioden;
 
-    // Default: neueste Periode
+    // ── Default: aktuelle Lohnperiode (die heute enthält) ─────────────
+    // Statt "neueste Periode" (= zukünftige Perioden zuerst) nehmen wir
+    // die Periode, die heute enthält. Das ist die "lebende" Periode für
+    // die der User aktuell stempelt.
+    // Persistenz über MA-Wechsel: globale Variable _stempelGlobalPeriodeId
     if (!el._stempelPeriodeId && perioden.length > 0) {
-        el._stempelPeriodeId = perioden[0].id;
+        // 1. Falls global ein Wert gesetzt UND in dieser Liste vorhanden → übernehmen
+        if (typeof _stempelGlobalPeriodeId !== 'undefined' && _stempelGlobalPeriodeId
+            && perioden.some(p => p.id === _stempelGlobalPeriodeId)) {
+            el._stempelPeriodeId = _stempelGlobalPeriodeId;
+        } else {
+            // 2. Periode finden, die heute enthält
+            const today = new Date().toISOString().slice(0, 10); // "yyyy-mm-dd"
+            const cur = perioden.find(p => {
+                const from = (p.periodFrom || '').slice(0, 10);
+                const to   = (p.periodTo   || '').slice(0, 10);
+                return from && to && from <= today && today <= to;
+            });
+            if (cur) {
+                el._stempelPeriodeId = cur.id;
+            } else {
+                // 3. Fallback: jüngste Periode die NICHT in der Zukunft liegt
+                const past = perioden.filter(p => (p.periodFrom || '').slice(0, 10) <= today);
+                el._stempelPeriodeId = (past[0] || perioden[0]).id;
+            }
+        }
     }
 
     // Fallback: wenn keine Perioden existieren, nutze Kalendermonat
     const useKalender = perioden.length === 0;
     if (useKalender && (!el._stempelYear || !el._stempelMonth)) {
-        const now = new Date();
-        el._stempelYear  = now.getFullYear();
-        el._stempelMonth = now.getMonth() + 1;
+        // Globale Persistenz für Kalender-Modus
+        if (typeof _stempelGlobalYear !== 'undefined' && _stempelGlobalYear) {
+            el._stempelYear  = _stempelGlobalYear;
+            el._stempelMonth = _stempelGlobalMonth;
+        } else {
+            const now = new Date();
+            el._stempelYear  = now.getFullYear();
+            el._stempelMonth = now.getMonth() + 1;
+        }
     }
 
     let filterHtml;
@@ -2680,10 +3830,14 @@ function stempelChangePeriod() {
     const perSel = document.getElementById('stempelPeriodeSel');
     if (perSel) {
         el._stempelPeriodeId = parseInt(perSel.value, 10);
+        // Auswahl global persistieren — bleibt beim MA-Wechsel erhalten
+        _stempelGlobalPeriodeId = el._stempelPeriodeId;
     } else {
         // Kalendermonat-Fallback
         el._stempelYear  = parseInt(document.getElementById('stempelYearSel').value, 10);
         el._stempelMonth = parseInt(document.getElementById('stempelMonthSel').value, 10);
+        _stempelGlobalYear  = el._stempelYear;
+        _stempelGlobalMonth = el._stempelMonth;
     }
     stempelLadeEintraege(selectedEmployeeId);
 }
@@ -2913,6 +4067,14 @@ function stempelRenderForm(row) {
     const inVal   = row.timeIn    ? stempelFmtTime(row.timeIn)  : '';
     const outVal  = row.timeOut   ? stempelFmtTime(row.timeOut) : '';
     const nightVal = row.nightHours != null ? row.nightHours : '';
+    // Datum-Min/Max: Lohnperiode begrenzt die Datum-Auswahl beim Neu-Erfassen.
+    // Beim Edit lassen wir's ohne Begrenzung (legacy-Daten könnten ausserhalb
+    // der aktiven Periode liegen — wir wollen sie editieren können).
+    const dateMinAttr = (isNew && row._periodFrom) ? ` min="${row._periodFrom}"` : '';
+    const dateMaxAttr = (isNew && row._periodTo)   ? ` max="${row._periodTo}"`   : '';
+    const periodHint  = (isNew && row._periodFrom && row._periodTo)
+        ? `<div style="font-size:10.5px;color:#64748b;margin-top:2px">innerhalb ${row._periodFrom.slice(8,10)}.${row._periodFrom.slice(5,7)}.${row._periodFrom.slice(2,4)}–${row._periodTo.slice(8,10)}.${row._periodTo.slice(5,7)}.${row._periodTo.slice(2,4)}</div>`
+        : '';
 
     // Import-Kommentar = originalComment falls schon einmal bearbeitet, sonst comment (wenn Source=import)
     const importKommentar = row.originalComment
@@ -2951,7 +4113,8 @@ function stempelRenderForm(row) {
             ${infoHtml}
             <div style="display:grid;grid-template-columns:1fr 110px 110px 110px 1.5fr;gap:10px">
                 <label style="font-size:11px;color:#64748b">Datum
-                    <input type="date" id="stempelFormDate" value="${dateVal}" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;margin-top:2px">
+                    <input type="date" id="stempelFormDate" value="${dateVal}"${dateMinAttr}${dateMaxAttr} style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;margin-top:2px">
+                    ${periodHint}
                 </label>
                 <label style="font-size:11px;color:#64748b">In (HH:MM)
                     <input type="time" id="stempelFormIn" value="${inVal}" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;margin-top:2px">
@@ -2976,10 +4139,40 @@ function stempelRenderForm(row) {
 function stempelStartNew() {
     const el = document.getElementById('stempelEditRow');
     if (!el) return;
-    const y = document.getElementById('stempelYearSel')?.value;
-    const m = document.getElementById('stempelMonthSel')?.value;
-    const defaultDate = `${y}-${String(m).padStart(2,'0')}-${String(new Date().getUTCDate()).padStart(2,'0')}`;
-    el.innerHTML = stempelRenderForm({ entryDate: defaultDate });
+    // Aktive Periode ermitteln. Der State lebt auf #stempelzeitenContent
+    // (nicht #empTab-stempelzeiten). Plus Fallback über globale Variable
+    // _stempelGlobalPeriodeId und über das selektierte Periode-<select>.
+    let periodFrom = null, periodTo = null;
+    const stateEl  = document.getElementById('stempelzeitenContent');
+    const perioden = (stateEl && Array.isArray(stateEl._stempelPerioden))
+                      ? stateEl._stempelPerioden : [];
+    let activePeriodId = stateEl?._stempelPeriodeId
+                       ?? (typeof _stempelGlobalPeriodeId !== 'undefined' ? _stempelGlobalPeriodeId : null);
+    // Falls noch nicht gesetzt: aktuell selektierte Option im Dropdown nehmen.
+    if (!activePeriodId) {
+        const perSel = document.getElementById('stempelPeriodeSel');
+        if (perSel?.value) activePeriodId = parseInt(perSel.value, 10);
+    }
+    if (activePeriodId && perioden.length) {
+        const p = perioden.find(x => x.id === activePeriodId);
+        if (p) {
+            periodFrom = (p.periodFrom || '').slice(0, 10);
+            periodTo   = (p.periodTo   || '').slice(0, 10);
+        }
+    }
+    if (!periodFrom || !periodTo) {
+        // Fallback Kalender-Modus: Monat als Periode behandeln
+        const y = parseInt(document.getElementById('stempelYearSel')?.value, 10);
+        const m = parseInt(document.getElementById('stempelMonthSel')?.value, 10);
+        if (y && m) {
+            periodFrom = `${y}-${String(m).padStart(2,'0')}-01`;
+            const lastDay = new Date(y, m, 0).getDate();
+            periodTo = `${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+        }
+    }
+    // Default-Datum: erster Tag der gewählten Periode (Walter-Wunsch).
+    const defaultDate = periodFrom || new Date().toISOString().slice(0, 10);
+    el.innerHTML = stempelRenderForm({ entryDate: defaultDate, _periodFrom: periodFrom, _periodTo: periodTo });
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -3007,6 +4200,21 @@ async function stempelSaveForm(id) {
     if (!dateVal || !inVal) {
         alert('Datum und In-Zeit sind Pflicht.');
         return;
+    }
+    // Soft-Validierung: bei Neu-Erfassung innerhalb der aktiven Lohnperiode bleiben.
+    // Beim Edit nicht prüfen — Legacy-Einträge können ausserhalb liegen.
+    if (!id) {
+        const dInput = document.getElementById('stempelFormDate');
+        const min = dInput?.min || '';
+        const max = dInput?.max || '';
+        if (min && dateVal < min) {
+            alert(`Datum liegt vor dem Lohnperiode-Beginn (${min}). Bitte ein Datum innerhalb der aktiven Periode wählen.`);
+            return;
+        }
+        if (max && dateVal > max) {
+            alert(`Datum liegt nach dem Lohnperiode-Ende (${max}). Bitte ein Datum innerhalb der aktiven Periode wählen.`);
+            return;
+        }
     }
     // Bei Bearbeitung ist ein Grund der Änderung Pflicht
     if (id && !comVal.trim()) {
@@ -3118,9 +4326,11 @@ async function loadKtgTab(employeeId) {
 
         // Vertragsstart-Datum aus ISO-String
         const vs   = d.vertragsStart ? new Date(d.vertragsStart).toLocaleDateString('de-CH') : '—';
-        const badge = d.regel === 'A'
-            ? `<span style="background:#fef3c7;color:#92400e;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">REGEL A · Hochrechnung</span>`
-            : `<span style="background:#dbeafe;color:#1e40af;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">REGEL B · Durchschnitt</span>`;
+        const badge = d.regel === 'MANUELL'
+            ? `<span style="background:#fee2e2;color:#991b1b;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">MANUELL · aus altem Lohnsystem</span>`
+            : d.regel === 'A'
+                ? `<span style="background:#fef3c7;color:#92400e;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">REGEL A · Hochrechnung</span>`
+                : `<span style="background:#dbeafe;color:#1e40af;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">REGEL B · Durchschnitt</span>`;
 
         // Hilfs-Renderer für Monatsliste (bei Regel A nur Info, bei Regel B Berechnungsgrundlage)
         const renderMonate = (titel, istBerechnungsbasis) => {
@@ -3217,21 +4427,113 @@ async function loadKtgTab(employeeId) {
                             <td style="padding:10px 12px;font-size:13px;color:#334155">100 %</td>
                             <td style="padding:10px 12px;font-size:13px;text-align:right;font-family:monospace">CHF ${fmt(d.tagessatz100)}</td>
                         </tr>
+                        ${d.karenzAbgeschlossen ? `
+                        <tr style="border-top:1px solid #f1f5f9;background:#f1f5f9">
+                            <td colspan="2" style="padding:8px 12px;font-size:11.5px;color:#64748b;font-style:italic">88 % — Karenzfrist (übersprungen: bereits im alten System abgelaufen)</td>
+                        </tr>
+                        ` : `
                         <tr style="border-top:1px solid #f1f5f9;background:#fef3c7">
                             <td style="padding:10px 12px;font-size:13px;font-weight:600;color:#92400e">88 % — Karenzfrist</td>
                             <td style="padding:10px 12px;font-size:14px;text-align:right;font-family:monospace;font-weight:700;color:#92400e">CHF ${fmt(d.tagessatz88)}</td>
                         </tr>
+                        `}
                         <tr style="border-top:1px solid #f1f5f9;background:#dcfce7">
                             <td style="padding:10px 12px;font-size:13px;font-weight:600;color:#15803d">80 % — Meldebetrag Versicherung</td>
                             <td style="padding:10px 12px;font-size:14px;text-align:right;font-family:monospace;font-weight:700;color:#15803d">CHF ${fmt(d.tagessatz80)}</td>
                         </tr>
                     </tbody>
                 </table>
+                <div style="margin-top:10px;display:flex;justify-content:flex-end">
+                    <button class="btn btn-outline" style="font-size:11.5px;padding:5px 12px" onclick="openKtgOverrideModal(${selectedEmployee?.id || 0}, ${d.tagessatz100 || 0}, ${d.karenzAbgeschlossen ? 'true' : 'false'}, '${d.regel === 'MANUELL' ? d.tagessatz100 : ''}')">
+                        ✎ Tagessatz übersteuern…
+                    </button>
+                </div>
 
                 ${breakdownHtml}
             </div>`;
     } catch(e) {
         el.innerHTML = `<div style="padding:20px;color:#dc2626">Fehler: ${e.message}</div>`;
+    }
+}
+
+// ══════════════════════════════════════════════
+// KTG/UVG-Tagessatz: Manueller Override
+// Walter-Vorgabe: Legacy-MA aus altem Lohnsystem hat u.U. schon einen
+// errechneten Tagessatz (Versicherer-Standard). Plus: Karenz kann
+// bereits abgelaufen sein → direkt 80% Meldebetrag.
+// ══════════════════════════════════════════════
+function openKtgOverrideModal(employeeId, autoTagessatz100, karenzAbgeschlossen, manuellExisting) {
+    if (!employeeId) { alert('Kein Mitarbeiter ausgewählt.'); return; }
+    const manuellVal = manuellExisting && manuellExisting !== '0'
+        ? Number(manuellExisting).toFixed(2) : '';
+    const html = `
+        <div id="ktgOvBackdrop" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px"
+             onclick="if(event.target===this) closeKtgOverrideModal()">
+            <div style="background:#fff;border-radius:12px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden">
+                <div style="padding:16px 22px;border-bottom:1px solid #e2e8f0">
+                    <div style="font-size:15px;font-weight:700;color:#1e293b">KTG/UVG-Tagessatz übersteuern</div>
+                    <div style="font-size:12px;color:#64748b;margin-top:2px">Auto-Berechnung: CHF ${Number(autoTagessatz100).toFixed(2)} / Tag (100 %)</div>
+                </div>
+                <div style="padding:18px 22px">
+                    <label style="font-size:12px;font-weight:600;color:#374151;display:block">Manueller Tagessatz 100 % (CHF)</label>
+                    <input type="number" step="0.01" min="0" id="ktgOvManuell" value="${manuellVal}"
+                           placeholder="z.B. 36.25"
+                           style="width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:14px;margin-top:4px">
+                    <div style="font-size:11px;color:#64748b;margin-top:3px">Leer lassen = Auto-Berechnung verwenden. Die 88-/80-%-Stufen werden aus diesem Wert abgeleitet.</div>
+
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:18px;cursor:pointer">
+                        <input type="checkbox" id="ktgOvKarenz" ${karenzAbgeschlossen ? 'checked' : ''}>
+                        <span>
+                            <span style="font-size:13px;font-weight:600;color:#0f172a">Karenz bereits abgeschlossen</span>
+                            <span style="display:block;font-size:11.5px;color:#64748b;margin-top:2px">Im alten Lohnsystem wurde die Karenzfrist bereits durchlaufen — die Versicherung zahlt direkt 80 % (Meldebetrag), kein 88 %-Schritt mehr.</span>
+                        </span>
+                    </label>
+
+                    <div id="ktgOvError" style="color:#dc2626;font-size:12px;margin-top:12px"></div>
+                </div>
+                <div style="padding:14px 22px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:10px">
+                    <button class="btn btn-outline" onclick="closeKtgOverrideModal()">Abbrechen</button>
+                    <button class="btn btn-primary" onclick="saveKtgOverride(${employeeId})">Speichern</button>
+                </div>
+            </div>
+        </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeKtgOverrideModal() {
+    document.getElementById('ktgOvBackdrop')?.remove();
+}
+
+async function saveKtgOverride(employeeId) {
+    const errEl    = document.getElementById('ktgOvError');
+    const manRaw   = document.getElementById('ktgOvManuell').value.trim();
+    const karenz   = document.getElementById('ktgOvKarenz').checked;
+    let manVal = null;
+    if (manRaw !== '') {
+        manVal = parseFloat(manRaw);
+        if (!Number.isFinite(manVal) || manVal < 0) {
+            errEl.textContent = 'Ungültiger Betrag.'; return;
+        }
+    }
+    try {
+        const res = await fetch(`/api/employees/${employeeId}`, {
+            method: 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ktgTagessatzManuellSet: true,
+                ktgTagessatzManuell:    manVal,
+                ktgKarenzAbgeschlossen: karenz
+            })
+        });
+        if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error || e.message || `HTTP ${res.status}`); }
+        closeKtgOverrideModal();
+        if (typeof showToast === 'function') {
+            showToast(manVal !== null ? 'Manueller Tagessatz gespeichert' : 'Auto-Berechnung wieder aktiv', 'success');
+        }
+        // KTG-Tab neu laden
+        if (typeof loadKtgTab === 'function') loadKtgTab(employeeId);
+    } catch (e) {
+        errEl.textContent = e.message;
     }
 }
 
@@ -3247,6 +4549,9 @@ async function loadFormulareTab(employeeId) {
         selMonat.value = now.getMonth() + 1;
         selMonat._initialized = true;
     }
+
+    // (QST-Anmeldung braucht keinen Filial-Picker mehr — Filiale + Kanton
+    //  werden im Backend automatisch aus den MA-Daten ermittelt.)
 
     // Arbeitslosigkeits-Einträge laden
     try {
@@ -3361,6 +4666,16 @@ async function generateZwischenverdienst() {
     window.open(url, '_blank');
 }
 
+// ── QST-Anmeldeformular generieren ──────────────────────────────────────
+// Keine Parameter mehr nötig: das Backend ermittelt die Filiale aus dem
+// aktiven Arbeitsverhältnis des MA und den Kanton aus dem aktiven QST-Eintrag
+// (Wohnsitz-Kanton). Walter wollte die manuelle Auswahl loswerden, weil
+// beides eindeutig aus den MA-Daten herleitbar ist.
+async function generateQstAnmeldung() {
+    if (!selectedEmployeeId) return;
+    window.open(`/api/qst-anmeldung/${selectedEmployeeId}/pdf`, '_blank');
+}
+
 // ══════════════════════════════════════════════════════════════════
 // BANKVERBINDUNG (pro MA, mit Historie)
 // ══════════════════════════════════════════════════════════════════
@@ -3447,13 +4762,21 @@ function openBankAccountModal(existing) {
     if (!modal) return;
     modal.style.display = 'flex';
     modal.dataset.editId = existing?.id ?? '';
-    document.getElementById('baModalTitle').textContent = existing ? 'Bankverbindung bearbeiten' : 'Bankverbindung erfassen';
+    document.getElementById('baModalTitle').textContent = existing
+        ? _t('bank.modalTitleEdit','Bankverbindung bearbeiten')
+        : _t('bank.modalTitleNew','Bankverbindung erfassen');
+    if (window.i18n && window.i18n.applyAll) window.i18n.applyAll(modal);
 
     const today = new Date().toISOString().slice(0, 10);
     document.getElementById('baIban').value     = existing?.iban ?? '';
     document.getElementById('baBic').value      = existing?.bic ?? '';
     document.getElementById('baBankName').value = existing?.bankName ?? '';
     document.getElementById('baKontoinhaber').value = existing?.kontoinhaber ?? '';
+    document.getElementById('baKontoinhaberStrasse').value = existing?.kontoinhaberStrasse ?? '';
+    document.getElementById('baKontoinhaberPlz').value = existing?.kontoinhaberPlz ?? '';
+    document.getElementById('baKontoinhaberOrt').value = existing?.kontoinhaberOrt ?? '';
+    document.getElementById('baKontoinhaberLand').value = existing?.kontoinhaberLand ?? '';
+    onKontoinhaberChange();   // Adressblock je nach Kontoinhaber ein-/ausblenden
     document.getElementById('baZahlungsreferenz').value = existing?.zahlungsreferenz ?? '';
     document.getElementById('baBemerkung').value = existing?.bemerkung ?? '';
     document.getElementById('baValidFrom').value = existing?.validFrom ?? today;
@@ -3495,6 +4818,16 @@ function onAufteilungTypChange() {
 function closeBankAccountModal() {
     const modal = document.getElementById('bankAccountModal');
     if (modal) { modal.style.display = 'none'; modal.dataset.editId = ''; }
+}
+
+/// Empfänger-Adressblock ein-/ausblenden je nachdem ob ein abweichender
+/// Kontoinhaber/Empfänger gesetzt ist. Bei Revolut/Wise muss die volle
+/// Adresse erfasst sein, sonst akzeptiert die Schweizer Bank die SEPA-Zahlung
+/// nicht.
+function onKontoinhaberChange() {
+    const k = document.getElementById('baKontoinhaber')?.value.trim() || '';
+    const wrap = document.getElementById('baKontoinhaberAddrWrap');
+    if (wrap) wrap.style.display = k.length > 0 ? 'block' : 'none';
 }
 
 // MA-Variante der IBAN-Validierung: nutzt validateIban() aus admin-settings.js
@@ -3546,6 +4879,40 @@ async function saveBankAccount() {
         if (!r.valid && !confirm(`Die IBAN scheint ungültig:\n${r.error}\n\nTrotzdem speichern?`)) return;
     }
 
+    // Sicherheits-Check: Bemerkung wie „Lohnzahlung Iksarenko Maryna 756.5352.1067.16"
+    // gegen den aktuell selektierten MA gegenprüfen. Schützt vor dem Fall,
+    // dass man am falschen MA-Tab landet und versehentlich das Konto eines
+    // anderen MA erfasst (Bug: ORS-Service-Konto landete bei Medine statt
+    // bei Maryna). Prüfung in dieser Reihenfolge — die erste eindeutige
+    // Diskrepanz löst eine Warnung aus, der Nutzer muss bestätigen.
+    const bemerkungVal = document.getElementById('baBemerkung').value.trim();
+    if (bemerkungVal && selectedEmployee) {
+        const maFirst = (selectedEmployee.firstName || '').trim();
+        const maLast  = (selectedEmployee.lastName  || '').trim();
+        const maAhv   = (selectedEmployee.socialSecurityNumber || '').replace(/\s+/g, '');
+
+        // 1. AHV-Match — eindeutigster Fingerabdruck.
+        const ahvMatch = bemerkungVal.match(/756\.\d{4}\.\d{4}\.\d{2}/);
+        if (ahvMatch && maAhv && ahvMatch[0] !== maAhv) {
+            const msg = `Achtung: Die Bemerkung enthält die AHV-Nummer ${ahvMatch[0]}, der aktuell ausgewählte MA ${maFirst} ${maLast} hat aber AHV ${maAhv}.\n\nWird das Konto wirklich diesem MA zugeordnet?`;
+            if (!confirm(msg)) return;
+        }
+        // 2. Name-Match — Bemerkung beginnt typisch mit "Lohnzahlung X Y".
+        else {
+            const nameRe = /(?:Lohnzahlung|Lohn|Salär|Salaire)\s+([A-ZÄÖÜa-zäöü][\wäöüÄÖÜß'’-]+)\s+([A-ZÄÖÜa-zäöü][\wäöüÄÖÜß'’-]+)/u;
+            const nm = bemerkungVal.match(nameRe);
+            if (nm && maFirst && maLast) {
+                const a = (nm[1] + ' ' + nm[2]).toLowerCase();
+                const b = (maFirst + ' ' + maLast).toLowerCase();
+                const bSwap = (maLast + ' ' + maFirst).toLowerCase();
+                if (a !== b && a !== bSwap) {
+                    const msg = `Achtung: Die Bemerkung enthält den Namen „${nm[1]} ${nm[2]}", der ausgewählte MA heisst aber ${maFirst} ${maLast}.\n\nWird das Konto wirklich diesem MA zugeordnet?`;
+                    if (!confirm(msg)) return;
+                }
+            }
+        }
+    }
+
     const aufteilungTyp  = document.getElementById('baAufteilungTyp').value;
     const aufteilungWertRaw = document.getElementById('baAufteilungWert').value;
     const aufteilungWert = (aufteilungTyp !== 'VOLL' && aufteilungWertRaw) ? parseFloat(aufteilungWertRaw) : null;
@@ -3557,18 +4924,22 @@ async function saveBankAccount() {
     }
 
     const body = {
-        employeeId:       selectedEmployeeId,
+        employeeId:           selectedEmployeeId,
         iban,
-        bic:              document.getElementById('baBic').value.trim() || null,
-        bankName:         document.getElementById('baBankName').value.trim() || null,
-        kontoinhaber:     document.getElementById('baKontoinhaber').value.trim() || null,
-        zahlungsreferenz: document.getElementById('baZahlungsreferenz').value.trim() || null,
-        bemerkung:        document.getElementById('baBemerkung').value.trim() || null,
-        isHauptbank:      document.getElementById('baIsHauptbank').checked,
+        bic:                  document.getElementById('baBic').value.trim() || null,
+        bankName:             document.getElementById('baBankName').value.trim() || null,
+        kontoinhaber:         document.getElementById('baKontoinhaber').value.trim() || null,
+        kontoinhaberStrasse:  document.getElementById('baKontoinhaberStrasse').value.trim() || null,
+        kontoinhaberPlz:      document.getElementById('baKontoinhaberPlz').value.trim() || null,
+        kontoinhaberOrt:      document.getElementById('baKontoinhaberOrt').value.trim() || null,
+        kontoinhaberLand:    (document.getElementById('baKontoinhaberLand').value.trim().toUpperCase() || null),
+        zahlungsreferenz:     document.getElementById('baZahlungsreferenz').value.trim() || null,
+        bemerkung:            document.getElementById('baBemerkung').value.trim() || null,
+        isHauptbank:          document.getElementById('baIsHauptbank').checked,
         aufteilungTyp,
         aufteilungWert,
-        validFrom:        from,
-        validTo:          to || null
+        validFrom:            from,
+        validTo:              to || null
     };
     try {
         const url    = editId ? `/api/employee-bank-accounts/${editId}` : '/api/employee-bank-accounts';
@@ -3586,6 +4957,9 @@ async function saveBankAccount() {
         }
         closeBankAccountModal();
         loadBankAccountsTab(selectedEmployeeId);
+        // Spezialfilter "ohne Bankverbindung" hat einen MA-ID-Cache —
+        // beim nächsten Aktivieren neu vom Server holen.
+        _empIdsWithActiveBank = null;
     } catch(e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -3597,5 +4971,753 @@ async function deleteBankAccount(id) {
         const res = await fetch(`/api/employee-bank-accounts/${id}`, { method: 'DELETE', headers: ah() });
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
         loadBankAccountsTab(selectedEmployeeId);
+        _empIdsWithActiveBank = null;  // Cache invalidieren (siehe saveBankAccount)
     } catch(e) { alert('Verbindungsfehler: ' + e.message); }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// EMPLOYEE-ADRESSEN (Korrespondenz, Ferienwohnung, Sozialamt, ...)
+// Hauptadresse bleibt direkt am Employee (für QST/Wohnkanton-Logik).
+// ════════════════════════════════════════════════════════════════════
+
+const EMP_ADDRESS_TYPES = [
+    'Korrespondenzadresse',
+    'Ferienwohnung',
+    'Sozialamt',
+    'Arbeitgeber',
+    'Notfallkontakt',
+    'Postanschrift',
+    'Zweitwohnsitz',
+    'Auslandsadresse',
+    'Sonstige'
+];
+
+// PLZ-Lookup im Bankkonto-Modal („abweichender Empfänger") — füllt Ort
+// und setzt Land=CH bei einer 4-stelligen CH-PLZ. Bei ausländischer PLZ
+// (Land bereits gesetzt und ≠ CH) wird nichts gemacht.
+async function baKontoinhaberPlzLookup(rawPlz) {
+    const plz   = (rawPlz ?? '').toString().trim();
+    const ortEl = document.getElementById('baKontoinhaberOrt');
+    const landEl= document.getElementById('baKontoinhaberLand');
+    const list  = document.getElementById('baKontoinhaberCityList');
+    if (!ortEl) return;
+    if (!/^\d{4}$/.test(plz)) return;
+    const land = (landEl?.value ?? '').trim().toUpperCase();
+    if (land && land !== 'CH') return;   // ausländisch — Schweizer-Lookup übergehen
+    try {
+        const res = await fetch(`/api/swiss-locations/by-plz?plz=${encodeURIComponent(plz)}`, { headers: ah() });
+        if (!res.ok) return;
+        const locs = await res.json();
+        if (!Array.isArray(locs) || locs.length === 0) return;
+        if (locs.length === 1) {
+            ortEl.value  = locs[0].gemeindename;
+            if (landEl && !landEl.value.trim()) landEl.value = 'CH';
+            if (list) list.innerHTML = '';
+            return;
+        }
+        if (list) {
+            list.innerHTML = locs.map(l => `<option value="${l.gemeindename}">${l.kantonskuerzel}</option>`).join('');
+        }
+        if (landEl && !landEl.value.trim()) landEl.value = 'CH';
+    } catch { /* still */ }
+}
+
+// Generischer PLZ-Lookup für beliebige Field-IDs (Hauptadresse hat eigene Funktion).
+async function plzLookupGeneric(rawPlz, cityId, cantonId, bfsId, hintId) {
+    const plz = (rawPlz ?? '').toString().trim();
+    const cityEl   = document.getElementById(cityId);
+    const cantonEl = document.getElementById(cantonId);
+    const bfsEl    = bfsId ? document.getElementById(bfsId) : null;
+    const hint     = document.getElementById(hintId);
+    if (!cityEl || !cantonEl) return;
+
+    if (!/^\d{4}$/.test(plz)) { if (hint) hint.innerHTML = ''; return; }
+
+    let locs = _plzLookupCache.get(plz);
+    if (!locs) {
+        try {
+            const res = await fetch(`/api/swiss-locations/by-plz?plz=${encodeURIComponent(plz)}`, { headers: ah() });
+            if (!res.ok) return;
+            locs = await res.json();
+            _plzLookupCache.set(plz, locs);
+        } catch { return; }
+    }
+
+    if (!locs.length) {
+        if (hint) hint.innerHTML = `<span style="color:#b45309">⚠ PLZ ${plz} nicht gefunden — bitte manuell eintragen.</span>`;
+        return;
+    }
+    if (locs.length === 1) {
+        const l = locs[0];
+        cityEl.value   = l.gemeindename;
+        cantonEl.value = l.kantonskuerzel;
+        if (bfsEl) bfsEl.value = l.bfsNr ?? l.bfsNumber ?? l.bfs_number ?? '';
+        if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${l.gemeindename} (${l.kantonskuerzel})</span>`;
+        return;
+    }
+    // Mehrere Treffer → Combobox im Ort-Feld via HTML5-<datalist>.
+    // Gleiche UX wie bei der Hauptadresse: User klickt im Ort-Feld auf
+    // den Pfeil und sieht die Vorschläge, kann aber frei tippen.
+    bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint);
+}
+
+async function loadEmployeeAddressesTab(employeeId) {
+    const el = document.getElementById('otherAddressesContent');
+    if (!el) return;
+    el.innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/addresses`, { headers: ah() });
+        if (!res.ok) { el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>'; return; }
+        const list = await res.json();
+        renderEmployeeAddressesList(el, list);
+    } catch {
+        el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>';
+    }
+}
+
+function renderEmployeeAddressesList(el, list) {
+    if (!Array.isArray(list) || list.length === 0) {
+        el.innerHTML = '<div style="padding:12px;color:#94a3b8;font-style:italic;font-size:13px">Keine Zusatzadressen erfasst.</div>';
+        return;
+    }
+    const fmtDate = d => d ? new Date(d).toLocaleDateString('de-CH') : '';
+    const rows = list.map(a => {
+        const lines = [];
+        if (a.description) lines.push(a.description);
+        if (a.street)      lines.push(a.street + (a.street2 ? ' / ' + a.street2 : ''));
+        if (a.poBox)       lines.push('Postfach ' + a.poBox);
+        const ort = [a.zipCode, a.city].filter(Boolean).join(' ');
+        if (ort) lines.push(ort + (a.canton ? ' (' + a.canton + ')' : ''));
+        // Land nur anzeigen wenn es NICHT die Schweiz ist (Standard = "CH").
+        // Beide Schreibweisen abfangen, falls noch Altdaten "Schweiz" enthalten.
+        if (a.country && a.country !== 'CH' && a.country !== 'Schweiz') lines.push(a.country);
+        const contactLine = [a.phone, a.email].filter(Boolean).join(' · ');
+        if (contactLine) lines.push(contactLine);
+
+        return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:8px;background:#fafafa">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${a.addressType || 'Adresse'}</span>
+                    ${a.validFrom ? `<span style="font-size:11px;color:#64748b">gültig ab ${fmtDate(a.validFrom)}</span>` : ''}
+                </div>
+                <div style="display:flex;gap:6px">
+                    <button class="btn-stamp-edit" onclick='openEmployeeAddressModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>✎</button>
+                    <button class="btn-stamp-edit" style="color:#b91c1c" onclick="deleteEmployeeAddress(${a.id})">🗑</button>
+                </div>
+            </div>
+            <div style="font-size:13px;color:#0f172a;line-height:1.5">
+                ${lines.length ? lines.map(l => `<div>${l}</div>`).join('') : '<div style="color:#94a3b8;font-style:italic">Keine Detail-Angaben</div>'}
+            </div>
+        </div>`;
+    }).join('');
+    el.innerHTML = rows;
+}
+
+let _empAddrEditing = null;  // null = neu, sonst die zu editierende Adresse
+
+function openEmployeeAddressModal(existing) {
+    _empAddrEditing = existing || null;
+    const isNew = !existing;
+    let modal = document.getElementById('empAddressModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'empAddressModal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 16px';
+        document.body.appendChild(modal);
+    }
+    const a = existing || { addressType: 'Korrespondenzadresse', country: 'CH' };
+    const optTypes = EMP_ADDRESS_TYPES.map(t =>
+        `<option value="${t}" ${t === a.addressType ? 'selected' : ''}>${t}</option>`
+    ).join('');
+
+    modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,0.25);margin:auto">
+        <div style="padding:14px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:700;color:#1e293b">${isNew ? _t('addr.modalTitleNew','Adresse hinzufügen') : _t('addr.modalTitleEdit','Adresse bearbeiten')}</div>
+            <button onclick="closeEmployeeAddressModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8">✕</button>
+        </div>
+        <div style="padding:18px 22px">
+            <div class="emp-section-title">${_t('addr.field.description','Beschreibung')}</div>
+            <div class="emp-field-grid">
+                ${eField(_t('addr.field.description','Adresstyp') + ' *', `<select id="empAddr-type" class="ef-input">${optTypes}</select>`)}
+                ${eField(_t('addr.field.validFrom','Gültig ab'), `<input id="empAddr-validFrom" class="ef-input" type="date" value="${a.validFrom ? String(a.validFrom).slice(0,10) : ''}">`)}
+                ${eField(_t('addr.field.description','Bezeichnung'), `<input id="empAddr-description" class="ef-input" value="${esc(a.description)}" placeholder="${_t('addr.field.descriptionHint','z.B. Sozialdienst Sursee, Eltern, …')}">`)}
+            </div>
+
+            <div class="emp-section-title">${_t('ma.section.address','Adresse')}</div>
+            <div class="emp-field-grid">
+                ${eField(_t('addr.field.street','Strasse'),  `<input id="empAddr-street"  class="ef-input" value="${esc(a.street)}">`)}
+                ${eField(_t('addr.field.street2','Strasse 2'), `<input id="empAddr-street2" class="ef-input" value="${esc(a.street2)}">`)}
+                ${eField(_t('addr.field.poBox','Postfach'),  `<input id="empAddr-poBox"   class="ef-input" value="${esc(a.poBox)}">`)}
+                ${eField(_t('addr.field.zipCode','PLZ'),     `<input id="empAddr-zip" class="ef-input" value="${esc(a.zipCode)}" inputmode="numeric" maxlength="4" onblur="plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')" onkeyup="if(this.value.length===4)plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')">`)}
+                ${eField(_t('addr.field.city','Ort'),        `<input id="empAddr-city" class="ef-input" value="${esc(a.city)}">`)}
+                ${eField('BFS-Nr.',                          `<input id="empAddr-bfs"  class="ef-input" value="${esc(a.bfsNumber)}">`)}
+                ${eField(_t('addr.field.canton','Kanton'),   renderKantonSelect('empAddr-canton', a.canton))}
+                ${eField(_t('addr.field.country','Land'),    `<input id="empAddr-country" class="ef-input" value="${esc(a.country ?? 'CH')}">`)}
+            </div>
+            <div id="empAddr-plz-hint" style="font-size:12px;margin-top:-6px;margin-bottom:10px"></div>
+
+            <div class="emp-section-title">${_t('ma.section.contact','Kontakt')}</div>
+            <div class="emp-field-grid">
+                ${eField(_t('ma.field.phone','Telefon'),     `<input id="empAddr-phone"  class="ef-input" type="tel" value="${esc(a.phone)}" placeholder="+41 …">`)}
+                ${eField(_t('ma.field.phone','Telefon') + ' 2', `<input id="empAddr-phone2" class="ef-input" type="tel" value="${esc(a.phone2)}">`)}
+                ${eField(_t('ma.field.email','E-Mail'),      `<input id="empAddr-email"  class="ef-input" type="email" value="${esc(a.email)}">`)}
+                ${eField('IncaMail', `<label style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:13px;color:#475569;cursor:pointer">
+                    <input type="checkbox" id="empAddr-incamailDisabled" ${a.incamailDisabled ? 'checked' : ''}>
+                    Kein IncaMail
+                </label>`)}
+            </div>
+
+            <div id="empAddr-error" style="color:#dc2626;font-size:12px;margin:8px 0"></div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #f1f5f9;padding-top:14px;margin-top:6px">
+                <button class="btn btn-outline" onclick="closeEmployeeAddressModal()">${_t('addr.btn.cancel','Abbrechen')}</button>
+                ${isNew ? '' : `<button class="btn btn-outline" style="border-color:#fca5a5;color:#b91c1c" onclick="deleteEmployeeAddress(${a.id})">🗑 ${_t('addr.btn.delete','Löschen')}</button>`}
+                <button class="btn btn-primary" onclick="saveEmployeeAddress()">${_t('addr.btn.save','Speichern')}</button>
+            </div>
+        </div>
+    </div>`;
+    modal.style.display = 'flex';
+}
+
+function closeEmployeeAddressModal() {
+    const m = document.getElementById('empAddressModal');
+    if (m) m.style.display = 'none';
+    _empAddrEditing = null;
+}
+
+async function saveEmployeeAddress() {
+    if (!selectedEmployeeId) return;
+    const errEl = document.getElementById('empAddr-error');
+    errEl.textContent = '';
+
+    const val = id => (document.getElementById(id)?.value || '').trim();
+    const payload = {
+        addressType:      val('empAddr-type') || 'Korrespondenzadresse',
+        validFrom:        val('empAddr-validFrom') || null,
+        description:      val('empAddr-description') || null,
+        street:           val('empAddr-street') || null,
+        street2:          val('empAddr-street2') || null,
+        poBox:            val('empAddr-poBox') || null,
+        bfsNumber:        val('empAddr-bfs') || null,
+        zipCode:          val('empAddr-zip') || null,
+        city:             val('empAddr-city') || null,
+        canton:           val('empAddr-canton') || null,
+        country:          val('empAddr-country') || 'CH',
+        phone:            val('empAddr-phone') || null,
+        phone2:           val('empAddr-phone2') || null,
+        email:            val('empAddr-email') || null,
+        incamailDisabled: document.getElementById('empAddr-incamailDisabled')?.checked || false
+    };
+
+    try {
+        const isNew = !_empAddrEditing;
+        const url = isNew
+            ? `/api/employees/${selectedEmployeeId}/addresses`
+            : `/api/employees/${selectedEmployeeId}/addresses/${_empAddrEditing.id}`;
+        const res = await fetch(url, {
+            method: isNew ? 'POST' : 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            let msg = 'Fehler beim Speichern (' + res.status + ').';
+            try { const j = await res.json(); msg = j.error || j.message || msg; } catch {}
+            errEl.textContent = msg;
+            return;
+        }
+        const saved = await res.json().catch(() => null);
+        closeEmployeeAddressModal();
+        loadEmployeeAddressesTab(selectedEmployeeId);
+
+        // Hook: wenn das Familie-Modal die "+ Neue Zusatzadresse" ausgelöst
+        // hat, refreshen wir dort das Dropdown und wählen die neue Adresse aus.
+        if (window._fmReloadAddressesAfterSave) {
+            window._fmReloadAddressesAfterSave = false;
+            // "Andere Adresse"-Modus aktivieren und neue ID vorbelegen
+            const altRadio = document.getElementById('fmAddrAlt');
+            if (altRadio) altRadio.checked = true;
+            await fmRefreshAddressUi(saved?.id ?? null);
+        }
+    } catch(e) {
+        errEl.textContent = 'Verbindungsfehler: ' + e.message;
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// POSTFACH-ZUGANG (Login-Account des Mitarbeiters)
+// Ein Block im Personal-Tab zeigt den Account-Status. Backoffice kann nur
+// das Passwort zurücksetzen — niemand sieht das vom MA gewechselte Passwort
+// (bcrypt-Hash). Initial-Passwort wird einmalig in einem Modal gezeigt.
+// ════════════════════════════════════════════════════════════════════
+
+async function loadPostfachAccountBlock(employeeId) {
+    const el = document.getElementById('postfachAccountBlock');
+    if (!el || !employeeId) return;
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/postfach-account`, { headers: ah() });
+        if (!res.ok) {
+            el.innerHTML = '<div style="padding:12px;color:#dc2626;font-size:12.5px">Status nicht abrufbar.</div>';
+            return;
+        }
+        const s = await res.json();
+        renderPostfachAccountBlock(el, s);
+    } catch (e) {
+        el.innerHTML = `<div style="padding:12px;color:#dc2626;font-size:12.5px">Verbindungsfehler: ${esc(e.message)}</div>`;
+    }
+}
+
+function renderPostfachAccountBlock(el, s) {
+    if (!s) { el.innerHTML = ''; return; }
+
+    const fmtDt = d => d ? new Date(d).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' }) : '–';
+
+    // Status-Badge
+    let statusBadge;
+    if (!s.exists) {
+        statusBadge = `<span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:10px;background:#fef3c7;color:#92400e">Kein Account</span>`;
+    } else if (!s.employeeIsActive) {
+        statusBadge = `<span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:10px;background:#fee2e2;color:#991b1b">Gesperrt — MA inaktiv</span>`;
+    } else if (s.locked) {
+        statusBadge = `<span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:10px;background:#fef3c7;color:#92400e">Gesperrt bis ${fmtDt(s.lockedUntil)}</span>`;
+    } else if (!s.isActive) {
+        statusBadge = `<span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:10px;background:#fee2e2;color:#991b1b">Account inaktiv</span>`;
+    } else {
+        statusBadge = `<span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:10px;background:#dcfce7;color:#166534">● Aktiv</span>`;
+    }
+
+    const lastLogin = s.lastLoginAt
+        ? `Letzter Login: <b>${fmtDt(s.lastLoginAt)}</b>`
+        : `<span style="color:#94a3b8">Noch nie eingeloggt</span>`;
+
+    // Buttons (nur sinnvoll wenn Account existiert und MA aktiv ist)
+    let buttons = '';
+    if (s.exists && s.employeeIsActive) {
+        buttons += `<button class="btn-emp-add" style="background:#3b82f6;color:#fff" onclick="postfachResetPassword(${s.employeeId})">
+                        Passwort zurücksetzen
+                    </button>`;
+        if (s.locked) {
+            buttons += `<button class="btn-emp-add" style="background:#fff;color:#475569;border:1px solid #cbd5e1;margin-left:6px" onclick="postfachUnlock(${s.employeeId})">
+                            Sperre aufheben
+                        </button>`;
+        }
+    } else if (!s.exists && s.employeeIsActive) {
+        // Sollte normalerweise nicht passieren (Auto-Erstellung beim Anlegen)
+        // — Backfill-Button als Notlösung.
+        buttons += `<button class="btn-emp-add" style="background:#3b82f6;color:#fff" onclick="postfachResetPassword(${s.employeeId})">
+                        Account jetzt erstellen
+                    </button>`;
+    }
+
+    el.innerHTML = `
+    <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;background:#f8fafc">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:#0f172a">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:16px">📬</span>
+                    <span style="font-weight:600">Persönliches Postfach</span>
+                    ${statusBadge}
+                </div>
+                <div style="font-size:12px;color:#64748b">
+                    Benutzername: <b style="color:#0f172a">${s.employeeNumber || '–'}</b> &nbsp;·&nbsp; ${lastLogin}
+                    ${s.failedLoginCount > 0 ? ` &nbsp;·&nbsp; <span style="color:#b45309">${s.failedLoginCount} Fehlversuche</span>` : ''}
+                </div>
+            </div>
+            <div style="display:flex;gap:6px">${buttons}</div>
+        </div>
+        <div style="font-size:11.5px;color:#94a3b8;margin-top:8px;line-height:1.4">
+            Das aktuelle Passwort des MA ist nicht einsehbar — nur ein Reset auf das Initial-Passwort ist möglich. Beim ersten Login wird der MA aufgefordert ein neues Passwort zu setzen.
+        </div>
+    </div>`;
+}
+
+async function postfachResetPassword(employeeId) {
+    if (!employeeId) return;
+    if (!confirm('Passwort zurücksetzen?\n\nDer MA muss beim nächsten Login ein neues Passwort setzen. Das aktuelle Passwort wird verworfen.')) return;
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/postfach-account/reset-password`, {
+            method: 'POST',
+            headers: ah(),
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => null);
+            alert(j?.message || 'Fehler beim Zurücksetzen.');
+            return;
+        }
+        const data = await res.json();
+        showInitialPasswordModal(data.username, data.initialPassword);
+        await loadPostfachAccountBlock(employeeId);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+async function postfachUnlock(employeeId) {
+    if (!employeeId) return;
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/postfach-account/unlock`, {
+            method: 'POST',
+            headers: ah(),
+        });
+        if (!res.ok) { alert('Fehler beim Aufheben der Sperre.'); return; }
+        await loadPostfachAccountBlock(employeeId);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// Bulk: Postfach für alle aktiven MA erstellen (einmaliger Backfill nach
+// Phase-1-Deploy). Idempotent — bestehende Accounts werden übersprungen.
+async function postfachBackfillRun() {
+    if (!confirm(
+        'Postfach-Backfill ausführen?\n\n' +
+        'Für alle aktiven Mitarbeiter ohne Postfach-Account wird einer mit Initial-' +
+        'Passwort (Filial-Präfix + Personalnummer) angelegt. Bestehende Accounts ' +
+        'bleiben unverändert.\n\n' +
+        'Vorgang ist idempotent und kann mehrfach ausgeführt werden.'
+    )) return;
+
+    try {
+        const res = await fetch('/api/admin/postfach-backfill', {
+            method: 'POST',
+            headers: ah(),
+        });
+        if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+                alert('Backfill ist nur für Admins möglich.');
+                return;
+            }
+            const j = await res.json().catch(() => null);
+            alert(j?.message || 'Fehler beim Backfill.');
+            return;
+        }
+        const data = await res.json();
+        const errLines = (data.errors || []).map(e => `• ${esc(e)}`).join('<br>');
+        alert(
+            `Postfach-Backfill abgeschlossen:\n\n` +
+            `MA geprüft:        ${data.scanned}\n` +
+            `Accounts erstellt: ${data.created}\n` +
+            `Übersprungen:      ${data.skipped}\n` +
+            (errLines ? `Fehler: ${data.errors.length}\n` : 'Keine Fehler.')
+        );
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// Modal das nach Reset einmalig das Initial-Passwort zeigt — mit Copy-Button.
+// Nach Schliessen ist das Passwort weg (nicht persistent gespeichert ausser
+// als bcrypt-Hash). Walter notiert oder schickt es dem MA.
+function showInitialPasswordModal(username, password) {
+    let overlay = document.getElementById('initialPwOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'initialPwOverlay';
+        overlay.style = 'display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:5000;align-items:center;justify-content:center;padding:20px';
+        document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:14px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,0.28);overflow:hidden">
+            <div style="padding:18px 22px;background:linear-gradient(180deg,#dbeafe,#fff);border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">📬</span>
+                <div>
+                    <div style="font-weight:700;font-size:15px;color:#0f172a">Initial-Passwort gesetzt</div>
+                    <div style="font-size:12px;color:#64748b">Einmalig sichtbar — bitte jetzt notieren oder dem MA übergeben</div>
+                </div>
+            </div>
+            <div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+                <div>
+                    <div style="font-size:11.5px;font-weight:600;color:#475569;margin-bottom:5px">Benutzername</div>
+                    <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#0f172a;background:#f1f5f9;padding:8px 12px;border-radius:8px">${esc(username)}</div>
+                </div>
+                <div>
+                    <div style="font-size:11.5px;font-weight:600;color:#475569;margin-bottom:5px">Initial-Passwort</div>
+                    <div style="display:flex;gap:6px">
+                        <div style="flex:1;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;font-weight:600;color:#0f172a;background:#f1f5f9;padding:8px 12px;border-radius:8px">${esc(password)}</div>
+                        <button onclick="navigator.clipboard.writeText('${esc(password)}').then(()=>this.textContent='✓ Kopiert')"
+                                style="background:#3b82f6;color:#fff;border:none;padding:0 14px;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;white-space:nowrap">Kopieren</button>
+                    </div>
+                </div>
+                <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;line-height:1.5">
+                    <strong>Wichtig:</strong> Beim ersten Login muss der MA dieses Passwort wechseln. Sobald dieses Fenster geschlossen ist, kann das Passwort nicht mehr eingesehen werden — nur ein erneuter Reset ist möglich.
+                </div>
+            </div>
+            <div style="padding:14px 22px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end">
+                <button onclick="document.getElementById('initialPwOverlay').style.display='none'"
+                        style="background:#0f172a;color:#fff;border:none;padding:9px 22px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">Schliessen</button>
+            </div>
+        </div>`;
+    overlay.style.display = 'flex';
+}
+
+async function deleteEmployeeAddress(addrId) {
+    if (!selectedEmployeeId || !addrId) return;
+    if (!confirm('Adresse wirklich löschen?')) return;
+    try {
+        const res = await fetch(`/api/employees/${selectedEmployeeId}/addresses/${addrId}`, {
+            method: 'DELETE', headers: ah()
+        });
+        if (!res.ok) { alert('Fehler beim Löschen.'); return; }
+        closeEmployeeAddressModal();
+        loadEmployeeAddressesTab(selectedEmployeeId);
+    } catch(e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// BEWILLIGUNGS-VERLAUF (employee_permit_history)
+// ──────────────────────────────────────────────────────────────────────
+// Aktuelle Bewilligung wird auf employee.permit_type_id /
+// permit_expiry_date vom Backend automatisch synchronisiert (jener
+// History-Eintrag der heute gilt). Verlauf wird unter dem Aufenthalt-
+// Block angezeigt. Modal für CREATE/UPDATE/DELETE — Backend ist
+// /api/employees/{id}/permit-history.
+//
+// Spezialfall „Einbürgerung": Bewilligung-Dropdown auf „— keine —" lassen
+// (permit_type_id = NULL), Notiz „Einbürgerung am ...". Im MA-Stamm
+// zusätzlich Nationalität auf CH wechseln.
+// ══════════════════════════════════════════════════════════════════════
+let _permitHistoryCache = [];
+
+async function loadPermitHistory(employeeId) {
+    const container = document.getElementById('permitHistoryContent');
+    if (!container) return;
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/permit-history`, { headers: ah() });
+        if (!res.ok) {
+            container.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden des Verlaufs</span></div>';
+            return;
+        }
+        _permitHistoryCache = await res.json();
+        renderPermitHistory(_permitHistoryCache);
+    } catch (e) {
+        container.innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler: ' + esc(e.message) + '</span></div>';
+    }
+}
+
+function renderPermitHistory(entries) {
+    const container = document.getElementById('permitHistoryContent');
+    const inlineFrom = document.getElementById('permitValidFromInline');
+
+    // 1) "Gültig ab" der aktuellen Bewilligung in den Aufenthalt-Block injizieren
+    if (inlineFrom) {
+        const cur = (entries || []).find(h => h.isCurrent)
+                 ?? (entries || []).find(h => !h.validTo);
+        inlineFrom.textContent = cur && cur.validFrom ? formatDate(cur.validFrom) : '–';
+    }
+
+    if (!container) return;
+    if (!entries || entries.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const isAdmin = (currentUser?.role === 'admin' || currentUser?.role === 'superuser');
+    const today = new Date().toISOString().slice(0,10);
+
+    // Verlauf-Liste: nur die NICHT-aktuellen Einträge — der aktuelle Eintrag
+    // ist schon im Aufenthalt-Block oben sichtbar.
+    const past = entries.filter(h => !h.isCurrent);
+
+    if (past.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const rowsHtml = past.map(h => {
+        const fromTxt   = h.validFrom ? formatDate(h.validFrom) : '–';
+        const toTxt     = h.validTo   ? formatDate(h.validTo)   : '<span style="color:#15803d;font-weight:600">aktuell</span>';
+        const expiryTxt = h.permitExpiryDate ? formatDate(h.permitExpiryDate) : '–';
+        const code      = h.permitCode || (h.permitTypeId ? 'Typ ' + h.permitTypeId : '<span style="color:#94a3b8">— keine —</span>');
+        const desc      = h.permitDescription ? ' <span style="color:#94a3b8;font-size:11px">— ' + esc(h.permitDescription) + '</span>' : '';
+        const noteTxt   = h.note ? `<div style="font-size:11.5px;color:#64748b;margin-top:3px">${esc(h.note)}</div>` : '';
+        return `
+        <div style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa;margin-bottom:5px;display:flex;align-items:center;gap:12px">
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:600;color:#475569;font-size:12.5px">${code}${desc}</div>
+                <div style="font-size:11.5px;color:#64748b;margin-top:1px">
+                    ${fromTxt} – ${toTxt}
+                    ${h.permitExpiryDate ? ` · Ablauf ${expiryTxt}` : ''}
+                </div>
+                ${noteTxt}
+            </div>
+            ${isAdmin ? `
+            <div style="display:flex;gap:5px;flex-shrink:0">
+                <button class="btn-emp-add" style="padding:4px 7px" onclick='openPermitHistoryModal(${h.id})' title="Bearbeiten">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn-emp-add" style="padding:4px 7px;background:#fee2e2;border-color:#fca5a5;color:#991b1b" onclick='deletePermitHistoryEntry(${h.id})' title="Löschen">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+                </button>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+
+    // Verlauf standardmässig zugeklappt — nur kleiner Toggle-Link.
+    container.innerHTML = `
+        <div style="margin-top:6px">
+            <button onclick="togglePermitHistory()"
+                    style="background:none;border:none;color:#64748b;font-size:11.5px;cursor:pointer;padding:4px 0;display:inline-flex;align-items:center;gap:5px"
+                    id="permitHistoryToggleBtn">
+                <span id="permitHistoryToggleIcon">▸</span>
+                <span>Verlauf anzeigen (${past.length})</span>
+            </button>
+            <div id="permitHistoryListInner" style="display:none;margin-top:6px">
+                ${rowsHtml}
+            </div>
+        </div>`;
+}
+
+function togglePermitHistory() {
+    const inner = document.getElementById('permitHistoryListInner');
+    const icon  = document.getElementById('permitHistoryToggleIcon');
+    const btn   = document.getElementById('permitHistoryToggleBtn');
+    if (!inner) return;
+    const open = inner.style.display !== 'none';
+    inner.style.display = open ? 'none' : 'block';
+    if (icon) icon.textContent = open ? '▸' : '▾';
+    if (btn) {
+        const span = btn.querySelector('span:last-child');
+        if (span) {
+            const count = inner.children.length;
+            span.textContent = open ? `Verlauf anzeigen (${count})` : `Verlauf ausblenden`;
+        }
+    }
+}
+
+async function openPermitHistoryModal(entryId) {
+    if (!selectedEmployeeId) return;
+    const permitTypes = await getPermitTypes();
+    const entry = entryId ? (_permitHistoryCache.find(h => h.id === entryId) || null) : null;
+    const isEdit = entry !== null;
+    const today = new Date().toISOString().slice(0,10);
+
+    const permitOptions = permitTypes
+        .filter(p => p.isActive !== false)
+        .map(p => `<option value="${p.id}" ${entry && entry.permitTypeId === p.id ? 'selected' : ''}>${p.description ?? p.code}</option>`)
+        .join('');
+
+    // Modal-Container: einmal anlegen, dann immer wiederverwenden
+    let modal = document.getElementById('permitHistoryModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'permitHistoryModal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:14px;max-width:540px;width:100%;max-height:90vh;overflow:auto;padding:22px 24px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                <h3 style="margin:0;font-size:18px;color:#0f172a">${isEdit ? _t('permit.modalTitleEdit','Bewilligung bearbeiten') : _t('permit.modalTitleNew','Neue Bewilligung')}</h3>
+                <button onclick="closePermitHistoryModal()" style="background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer">×</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">
+                <div style="grid-column:1 / -1">
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${_t('permit.field.type','Bewilligung')}</label>
+                    <select id="phf-permitType" style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                        <option value="">${_t('fam.field.permitDefault','— keine (Einbürgerung / CH-Bürger) —')}</option>
+                        ${permitOptions}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${_t('permit.field.validFrom','Gültig ab')} *</label>
+                    <input id="phf-validFrom" type="date" value="${entry?.validFrom ?? today}"
+                           style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                </div>
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">
+                        ${_t('permit.field.validTo','Gültig bis')}
+                    </label>
+                    <input id="phf-validTo" type="date" value="${entry?.validTo ?? ''}"
+                           style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                </div>
+                <div style="grid-column:1 / -1">
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">
+                        ${_t('permit.field.expiryDate','Ablauf der Bewilligung')}
+                    </label>
+                    <input id="phf-expiry" type="date" value="${entry?.permitExpiryDate ?? ''}"
+                           style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                </div>
+                <div style="grid-column:1 / -1">
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${_t('permit.field.note','Notiz')}</label>
+                    <textarea id="phf-note" rows="2"
+                              style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;font-family:inherit">${entry?.note ? esc(entry.note).replace(/&quot;/g,'"') : ''}</textarea>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0">
+                <button onclick="closePermitHistoryModal()"
+                        style="padding:9px 16px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#475569;cursor:pointer;font-size:13px">${_t('permit.btn.cancel','Abbrechen')}</button>
+                <button class="btn-primary" onclick="savePermitHistoryEntry(${entry?.id ?? 'null'})"
+                        style="padding:9px 18px;font-size:13px">${_t('permit.btn.save','Speichern')}</button>
+            </div>
+            <div id="phf-error" style="margin-top:10px;color:#b91c1c;font-size:12.5px"></div>
+        </div>`;
+    modal.style.display = 'flex';
+}
+
+function closePermitHistoryModal() {
+    const m = document.getElementById('permitHistoryModal');
+    if (m) m.style.display = 'none';
+}
+
+async function savePermitHistoryEntry(entryId) {
+    if (!selectedEmployeeId) return;
+    const permitTypeRaw = document.getElementById('phf-permitType').value;
+    const dto = {
+        permitTypeId:     permitTypeRaw ? parseInt(permitTypeRaw) : null,
+        validFrom:        document.getElementById('phf-validFrom').value,
+        validTo:          document.getElementById('phf-validTo').value || null,
+        permitExpiryDate: document.getElementById('phf-expiry').value || null,
+        note:             document.getElementById('phf-note').value.trim() || null
+    };
+    const errEl = document.getElementById('phf-error');
+    errEl.textContent = '';
+    if (!dto.validFrom) { errEl.textContent = 'Gültig ab ist Pflicht.'; return; }
+    if (dto.validTo && dto.validTo < dto.validFrom) { errEl.textContent = 'Gültig bis darf nicht vor Gültig ab liegen.'; return; }
+
+    try {
+        const url = entryId
+            ? `/api/employees/${selectedEmployeeId}/permit-history/${entryId}`
+            : `/api/employees/${selectedEmployeeId}/permit-history`;
+        const res = await fetch(url, {
+            method: entryId ? 'PUT' : 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(dto)
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            errEl.textContent = j.error || ('Fehler beim Speichern (' + res.status + ')');
+            return;
+        }
+        closePermitHistoryModal();
+        await loadPermitHistory(selectedEmployeeId);
+        // MA-Stammdaten neu laden, damit aktuelle Bewilligung in Header/Display
+        // den frisch synchronisierten Stand zeigt.
+        if (typeof loadSelectedEmployeeAndRender === 'function') {
+            await loadSelectedEmployeeAndRender();
+        } else if (typeof loadMitarbeiterList === 'function') {
+            await loadMitarbeiterList();
+        }
+    } catch (e) {
+        errEl.textContent = 'Verbindungsfehler: ' + e.message;
+    }
+}
+
+async function deletePermitHistoryEntry(entryId) {
+    if (!selectedEmployeeId || !entryId) return;
+    if (!confirm('Diesen Bewilligungs-Eintrag wirklich löschen?\n\nDie aktuelle Bewilligung wird automatisch neu berechnet.')) return;
+    try {
+        const res = await fetch(`/api/employees/${selectedEmployeeId}/permit-history/${entryId}`, {
+            method: 'DELETE', headers: ah()
+        });
+        if (!res.ok) { alert('Fehler beim Löschen.'); return; }
+        await loadPermitHistory(selectedEmployeeId);
+        if (typeof loadSelectedEmployeeAndRender === 'function') {
+            await loadSelectedEmployeeAndRender();
+        } else if (typeof loadMitarbeiterList === 'function') {
+            await loadMitarbeiterList();
+        }
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
 }

@@ -18,5 +18,12 @@ public class MinimumWageRuleNew
 
     public bool IsActive { get; set; }
 
+    /// <summary>
+    /// Maximales Alter (inklusiv). NULL = keine Altersgrenze.
+    /// Beispiel: AgeMax=17 → Regel gilt bis zum 18. Geburtstag.
+    /// L-GAV Anhang II hat Sonderregeln für Jugendliche.
+    /// </summary>
+    public int? AgeMax { get; set; }
+
     public EducationLevel? EducationLevel { get; set; }
 }

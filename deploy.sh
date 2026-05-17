@@ -16,7 +16,11 @@ TARBALL="$HOME/hr-system-publish.tar.gz"
 cd "$PROJECT_DIR"
 
 echo "── 1/4 dotnet publish ──"
-dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish
+# Vorher publish-Ordner löschen, sonst nestet sich dotnet rekursiv hinein
+# (Warning NETSDK1194 + 'path too long' bei der .sln + -o-Kombination).
+# Explizit .csproj angeben, NICHT die .sln.
+rm -rf ./publish
+dotnet publish hr-system.csproj -c Release -r linux-x64 --self-contained false -o ./publish
 
 echo "── 2/4 Tar packen ──"
 tar -czf "$TARBALL" -C ./publish .

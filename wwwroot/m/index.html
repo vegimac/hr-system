@@ -1,0 +1,1831 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    <title>Schaub HR — Posteingang</title>
+    <link rel="manifest" href="/m/manifest.json">
+    <link rel="apple-touch-icon" href="/m/icon-192.png">
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            margin: 0; padding: 0;
+            height: 100%; min-height: 100vh; min-height: 100dvh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            overscroll-behavior-y: none;
+        }
+        body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+
+        /* Layout */
+        .screen { display: none; min-height: 100vh; min-height: 100dvh; }
+        .screen.active { display: flex; flex-direction: column; }
+
+        /* Header */
+        .header {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 16px;
+            display: flex; align-items: center; gap: 12px;
+            position: sticky; top: 0; z-index: 10;
+        }
+        .header-title { font-size: 17px; font-weight: 600; flex: 1; }
+        .header-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        .icon-btn {
+            background: none; border: none; padding: 8px;
+            border-radius: 8px; cursor: pointer;
+            font-size: 20px; color: var(--text-muted);
+        }
+        .icon-btn:active { background: #f1f5f9; }
+
+        /* Main */
+        .main { flex: 1; padding: 16px; }
+
+        /* Login */
+        #screenLogin { background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); justify-content: center; align-items: center; }
+        .login-card {
+            background: white; border-radius: 16px;
+            width: 100%; max-width: 380px;
+            padding: 28px 22px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+            margin: 16px;
+        }
+        .login-brand {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 24px;
+        }
+        .login-icon {
+            width: 38px; height: 38px; border-radius: 10px;
+            background: var(--primary); color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 17px;
+        }
+        .login-name { font-size: 18px; font-weight: 700; }
+        .login-sub { font-size: 11px; color: var(--text-muted); }
+        .login-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+        .login-hint { color: var(--text-muted); font-size: 13px; margin-bottom: 22px; }
+
+        /* Forms */
+        .field { margin-bottom: 14px; }
+        .label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #374151; }
+        .input, textarea, select {
+            width: 100%; padding: 13px 14px;
+            border: 1.5px solid var(--border); border-radius: 10px;
+            font-size: 16px; /* >=16px to prevent iOS-zoom */
+            background: white; color: var(--text);
+            font-family: inherit;
+            outline: none; transition: border 0.15s;
+        }
+        .input:focus, textarea:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+        }
+        textarea { resize: vertical; min-height: 80px; }
+
+        /* Buttons */
+        .btn {
+            width: 100%; padding: 14px;
+            background: var(--primary); color: white; border: none;
+            border-radius: 10px; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: background 0.15s;
+        }
+        .btn:active { background: var(--primary-hover); }
+        .btn:disabled { opacity: 0.5; }
+        .btn-secondary { background: white; color: var(--text); border: 1.5px solid var(--border); }
+        .btn-secondary:active { background: #f8fafc; }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+
+        /* Errors / messages */
+        .error {
+            background: #fef2f2; color: #b91c1c;
+            padding: 10px 12px; border-radius: 8px;
+            font-size: 13px; margin-bottom: 14px;
+            display: none;
+        }
+        .error.show { display: block; }
+
+        /* Branch picker */
+        .branch-card {
+            background: white;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .branch-card:active { background: #f8fafc; border-color: var(--primary); }
+        .branch-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: #dbeafe; color: var(--primary);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .branch-name { font-size: 15px; font-weight: 600; }
+        .branch-code { font-size: 12px; color: var(--text-muted); }
+
+        /* Posteingang list */
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+        .empty-text { font-size: 14px; }
+
+        .doc-list { display: flex; flex-direction: column; gap: 10px; }
+        .doc-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex; gap: 12px; align-items: flex-start;
+        }
+        .doc-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            background: #fee2e2; color: #dc2626;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700;
+            flex-shrink: 0;
+        }
+        .doc-icon.img { background: #dcfce7; color: #16a34a; }
+        .doc-info { flex: 1; min-width: 0; }
+        .doc-name {
+            font-size: 14px; font-weight: 600; color: var(--text);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .doc-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .doc-bemerkung { font-size: 13px; color: var(--text); margin-top: 6px; }
+
+        /* FAB */
+        .fab {
+            position: fixed; bottom: calc(20px + env(safe-area-inset-bottom)); right: 16px;
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            background: var(--primary); color: white; border: none;
+            font-size: 28px;
+            box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 20;
+        }
+        .fab:active { background: var(--primary-hover); transform: scale(0.95); }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none; z-index: 50;
+            justify-content: center; align-items: flex-end;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 16px 16px 0 0;
+            width: 100%; max-width: 600px;
+            max-height: 92vh; overflow-y: auto;
+            padding: 20px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+        }
+        .modal-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+        .modal-title { flex: 1; font-size: 18px; font-weight: 700; }
+
+        /* Loading */
+        .loading {
+            display: flex; justify-content: center; align-items: center;
+            padding: 40px; color: var(--text-muted);
+        }
+        .spinner {
+            width: 24px; height: 24px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .spinner.lg { width: 42px; height: 42px; border-width: 4px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Phase 2: Scanner ─────────────────────────────────────── */
+
+        /* Action chooser (when + tapped) */
+        .action-chooser { display: flex; flex-direction: column; gap: 12px; }
+        .action-card {
+            display: flex; align-items: center; gap: 14px;
+            padding: 18px;
+            background: white;
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .action-card:active { background: #f1f5f9; transform: scale(0.98); }
+        .action-icon {
+            width: 48px; height: 48px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 26px;
+            flex-shrink: 0;
+        }
+        .action-icon.scan { background: #dbeafe; }
+        .action-icon.file { background: #fef3c7; }
+        .action-text { flex: 1; }
+        .action-title { font-size: 15px; font-weight: 600; }
+        .action-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+        /* Scanner Screen — Fullscreen */
+        #screenScanner {
+            background: black;
+            color: white;
+            position: fixed; inset: 0;
+            z-index: 100;
+            padding: 0;
+        }
+        #screenScanner.active { display: flex; flex-direction: column; }
+        .scanner-stage {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: black;
+        }
+        #scanVideo {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: contain;
+            background: black;
+        }
+        #scanOverlay {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+        }
+        .scanner-top {
+            position: absolute; top: 0; left: 0; right: 0;
+            padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(180deg, rgba(0,0,0,0.6), transparent);
+            z-index: 5;
+        }
+        .scan-x {
+            background: rgba(0,0,0,0.4); color: white;
+            border: none; border-radius: 50%;
+            width: 40px; height: 40px;
+            font-size: 22px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .scan-x:active { background: rgba(0,0,0,0.7); }
+        .scan-info {
+            background: rgba(0,0,0,0.4);
+            padding: 6px 14px; border-radius: 99px;
+            font-size: 13px; font-weight: 600;
+        }
+        .scan-info.detected { background: rgba(16,185,129,0.85); }
+
+        /* Scanner Bottom Bar */
+        .scanner-bottom {
+            background: black;
+            padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+            display: flex; align-items: center; gap: 12px;
+        }
+        .scan-thumbs {
+            flex: 1; display: flex; gap: 8px; overflow-x: auto;
+            min-height: 56px; align-items: center;
+        }
+        .scan-thumbs::-webkit-scrollbar { display: none; }
+        .scan-thumb {
+            position: relative;
+            width: 56px; height: 56px;
+            border-radius: 6px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: #333;
+            border: 2px solid transparent;
+        }
+        .scan-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .scan-thumb-x {
+            position: absolute; top: -4px; right: -4px;
+            background: var(--danger); color: white;
+            border: none; border-radius: 50%;
+            width: 18px; height: 18px;
+            font-size: 11px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        .scan-shutter {
+            width: 68px; height: 68px;
+            border-radius: 50%;
+            background: white;
+            border: 4px solid white;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.4);
+            cursor: pointer;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .scan-shutter:active { transform: scale(0.92); }
+        .scan-shutter::after {
+            content: ''; position: absolute; inset: 4px;
+            border-radius: 50%; background: white;
+            border: 2px solid black;
+        }
+        .scan-shutter:disabled { opacity: 0.4; }
+        .scan-done {
+            background: var(--primary); color: white;
+            border: none; border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .scan-done:disabled { background: #475569; cursor: not-allowed; }
+
+        /* Scanner Loading-Overlay (CV-Library laden, oder Capture-Verarbeitung) */
+        .scan-loading {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center; align-items: center;
+            flex-direction: column; gap: 14px;
+            z-index: 10;
+            color: white;
+            text-align: center; padding: 20px;
+        }
+        .scan-loading.show { display: flex; }
+        .scan-loading-text { font-size: 14px; }
+
+        /* Capture Flash Effect */
+        .scan-flash {
+            position: absolute; inset: 0;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 4;
+        }
+        .scan-flash.active {
+            animation: flashAnim 0.3s ease-out;
+        }
+        @keyframes flashAnim {
+            0% { opacity: 0; }
+            30% { opacity: 0.85; }
+            100% { opacity: 0; }
+        }
+
+        /* Page count badge */
+        .page-badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            border-radius: 99px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-left: 6px;
+        }
+
+        /* Review screen — Eckpunkt-Justierung nach Auslöser */
+        #screenReview {
+            background: black; color: white;
+            position: fixed; inset: 0;
+            z-index: 100; padding: 0;
+        }
+        #screenReview.active { display: flex; flex-direction: column; }
+        #reviewPhoto {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            background: black;
+        }
+        #reviewOverlay {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            background: transparent;
+            touch-action: none;
+        }
+        .review-hint {
+            position: absolute; bottom: 12px; left: 12px; right: 12px;
+            text-align: center; font-size: 12px;
+            color: rgba(255,255,255,0.7);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+            pointer-events: none;
+            z-index: 5;
+        }
+        .review-bottom {
+            background: black;
+            padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+            display: flex; align-items: center; gap: 10px;
+            justify-content: space-between;
+        }
+        .review-btn {
+            border: none; border-radius: 10px;
+            padding: 14px 20px;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer;
+            min-width: 100px;
+        }
+        .review-btn.cancel { background: #475569; color: white; }
+        .review-btn.accept { background: #10b981; color: white; }
+
+        /* Pending file preview in upload modal */
+        .pending-file {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            margin-bottom: 14px;
+        }
+        .pending-file-icon {
+            width: 40px; height: 40px;
+            background: white; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 12px; color: var(--primary);
+        }
+        .pending-file-info { flex: 1; min-width: 0; }
+        .pending-file-name {
+            font-size: 14px; font-weight: 600;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .pending-file-meta { font-size: 12px; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+<!-- ───────── Login ───────── -->
+<div id="screenLogin" class="screen">
+    <div class="login-card">
+        <div class="login-brand">
+            <div class="login-icon">S</div>
+            <div>
+                <div class="login-name">Schaub HR</div>
+                <div class="login-sub">Mobile Posteingang</div>
+            </div>
+        </div>
+        <div class="login-title">Anmelden</div>
+        <div class="login-hint">Mit deinem Schaub-HR-Konto</div>
+        <div class="error" id="loginError"></div>
+        <div class="field">
+            <label class="label" for="loginEmail">E-Mail</label>
+            <input class="input" id="loginEmail" type="email" autocomplete="email" inputmode="email" autocapitalize="none">
+        </div>
+        <div class="field">
+            <label class="label" for="loginPass">Passwort</label>
+            <input class="input" id="loginPass" type="password" autocomplete="current-password">
+        </div>
+        <button class="btn" onclick="doLogin()">Anmelden</button>
+    </div>
+</div>
+
+<!-- ───────── Filiale wählen ───────── -->
+<div id="screenBranches" class="screen">
+    <div class="header">
+        <div>
+            <div class="header-title">Filiale wählen</div>
+            <div class="header-sub" id="branchesUserName">…</div>
+        </div>
+        <button class="icon-btn" onclick="logout()" title="Abmelden">⏻</button>
+    </div>
+    <div class="main">
+        <div id="branchesList"></div>
+    </div>
+</div>
+
+<!-- ───────── Posteingang ───────── -->
+<div id="screenInbox" class="screen">
+    <div class="header">
+        <button class="icon-btn" id="backToBranches" onclick="showBranches()" style="display:none">←</button>
+        <div style="flex:1">
+            <div class="header-title" id="inboxBranchName">Posteingang</div>
+            <div class="header-sub" id="inboxUserName">…</div>
+        </div>
+        <button class="icon-btn" onclick="loadInbox()" title="Aktualisieren">↻</button>
+        <button class="icon-btn" onclick="logout()" title="Abmelden">⏻</button>
+    </div>
+    <div class="main">
+        <div id="inboxList"></div>
+    </div>
+    <button class="fab" onclick="openUpload()" title="Dokument hochladen">+</button>
+</div>
+
+<!-- ───────── Action Chooser Modal (+ getappt) ───────── -->
+<div class="modal-overlay" id="actionModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Dokument hinzufügen</div>
+            <button class="icon-btn" onclick="closeAction()">✕</button>
+        </div>
+        <div class="action-chooser">
+            <label class="action-card" for="filePickerInput">
+                <div class="action-icon file">📁</div>
+                <div class="action-text">
+                    <div class="action-title">Datei wählen</div>
+                    <div class="action-sub">PDF oder Foto vom Handy</div>
+                </div>
+                <div style="color:var(--text-muted)">›</div>
+            </label>
+            <input id="filePickerInput" type="file" accept="application/pdf,image/*" style="display:none" onchange="onFilePicked(event)">
+
+            <div style="background:#f1f5f9;border-radius:12px;padding:14px;margin-top:8px;font-size:13px;line-height:1.5;color:var(--text-muted)">
+                <div style="font-weight:600;color:var(--text);margin-bottom:6px">📷 Mit Genius Scan</div>
+                Scanne Dokumente in Genius Scan und schicke sie via <b>WebDAV</b> direkt in den richtigen Empfänger-Ordner. Setup im Hauptprogramm unter <i>Einstellungen → Mein Profil</i>.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ───────── Scanner Fullscreen ───────── -->
+<div id="screenScanner" class="screen">
+    <div class="scanner-stage">
+        <video id="scanVideo" autoplay playsinline muted></video>
+        <canvas id="scanOverlay"></canvas>
+        <div class="scan-flash" id="scanFlash"></div>
+
+        <div class="scanner-top">
+            <button class="scan-x" onclick="cancelScanner()" title="Abbrechen">✕</button>
+            <div class="scan-info" id="scanStatus">Lade Scanner…</div>
+            <div style="width:40px"></div>
+        </div>
+
+        <div class="scan-loading" id="scanLoading">
+            <div class="spinner lg"></div>
+            <div class="scan-loading-text" id="scanLoadingText">Scanner wird geladen…<br><small style="opacity:0.7">(einmalig, ca. 9 MB — beim ersten Aufruf)</small></div>
+        </div>
+    </div>
+
+    <div class="scanner-bottom">
+        <div class="scan-thumbs" id="scanThumbs"></div>
+        <button class="scan-shutter" id="scanShutter" onclick="captureFrame()" title="Foto aufnehmen"></button>
+        <button class="scan-done" id="scanDone" onclick="finishScanning()" disabled>Fertig</button>
+    </div>
+</div>
+
+<!-- ───────── Review Screen (Eckpunkte korrigieren) ───────── -->
+<div id="screenReview" class="screen">
+    <div class="scanner-stage">
+        <canvas id="reviewPhoto"></canvas>
+        <canvas id="reviewOverlay"></canvas>
+
+        <div class="scanner-top">
+            <button class="scan-x" onclick="cancelReview()" title="Abbrechen">✕</button>
+            <div class="scan-info">Ecken anpassen</div>
+            <div style="width:40px"></div>
+        </div>
+
+        <div class="review-hint">Ziehe die Eckpunkte an die Kanten des Dokuments</div>
+    </div>
+
+    <div class="review-bottom">
+        <button class="review-btn cancel" onclick="cancelReview()">Erneut</button>
+        <button class="review-btn accept" onclick="acceptReview()">Übernehmen ✓</button>
+    </div>
+</div>
+
+<!-- ───────── Upload Modal (Bemerkung + Empfänger + senden) ───────── -->
+<div class="modal-overlay" id="uploadModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Hochladen</div>
+            <button class="icon-btn" onclick="closeUpload()">✕</button>
+        </div>
+        <div class="error" id="uploadError"></div>
+
+        <div id="pendingFileBox" class="pending-file" style="display:none">
+            <div class="pending-file-icon" id="pendingFileIcon">PDF</div>
+            <div class="pending-file-info">
+                <div class="pending-file-name" id="pendingFileName">—</div>
+                <div class="pending-file-meta" id="pendingFileMeta">—</div>
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="label">Bemerkung (optional)</label>
+            <textarea class="input" id="uploadBemerkung" placeholder="z.B. Arztzeugnis Maria, August"></textarea>
+        </div>
+
+        <div class="field">
+            <label class="label">An Empfänger benachrichtigen (optional)</label>
+            <select class="input" id="uploadNotify">
+                <option value="">— Niemand —</option>
+            </select>
+        </div>
+
+        <button class="btn" id="uploadBtn" onclick="doUpload()">Hochladen</button>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// Schaub HR Mobile — Phase 1: Posteingang + Upload
+// (Phase 2 = Kamera-Scanner, kommt als nächstes)
+// ═══════════════════════════════════════════════════════════════════
+
+let authToken = localStorage.getItem('hrToken');
+let currentUser = null;
+let currentBranch = null; // {id, name, code}
+
+// ── API Helpers ────────────────────────────────────────────────────
+function authHeaders(extra = {}) {
+    return { 'Authorization': `Bearer ${authToken}`, ...extra };
+}
+async function api(path, opts = {}) {
+    const headers = { ...authHeaders(), 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    const res = await fetch(path, { ...opts, headers });
+    if (res.status === 401) {
+        logout();
+        throw new Error('Nicht angemeldet');
+    }
+    return res;
+}
+
+// ── Screen Management ─────────────────────────────────────────────
+function show(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+}
+
+// ── Login ─────────────────────────────────────────────────────────
+async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass = document.getElementById('loginPass').value;
+    const err = document.getElementById('loginError');
+    err.classList.remove('show');
+
+    if (!email || !pass) {
+        err.textContent = 'E-Mail und Passwort eingeben.';
+        err.classList.add('show');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password: pass })
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            err.textContent = e.message || 'Login fehlgeschlagen.';
+            err.classList.add('show');
+            return;
+        }
+        const data = await res.json();
+        authToken = data.token;
+        localStorage.setItem('hrToken', authToken);
+        currentUser = data.user;
+        document.getElementById('loginPass').value = '';
+        afterLogin();
+    } catch (e) {
+        err.textContent = 'Netzwerk-Fehler. Bitte erneut versuchen.';
+        err.classList.add('show');
+    }
+}
+
+function logout() {
+    authToken = null;
+    currentUser = null;
+    currentBranch = null;
+    localStorage.removeItem('hrToken');
+    localStorage.removeItem('hrMobileBranchId');
+    show('screenLogin');
+}
+
+// ── Bootstrap nach Login ──────────────────────────────────────────
+// currentBranch wird hier zum allgemeinen "Postfach":
+//   { type: 'BRANCH'|'HR'|'ADMIN', companyProfileId, name, code, count }
+let _availablePostfaecher = [];
+
+async function afterLogin() {
+    if (!currentUser) {
+        try {
+            const res = await api('/api/auth/me');
+            if (!res.ok) { logout(); return; }
+            currentUser = await res.json();
+        } catch (e) { logout(); return; }
+    }
+
+    const userName = ((currentUser.firstName || '') + ' ' + (currentUser.lastName || '')).trim() || currentUser.username || currentUser.email;
+    document.getElementById('branchesUserName').textContent = userName;
+    document.getElementById('inboxUserName').textContent = userName;
+
+    await loadPostfaecher();
+}
+
+async function loadPostfaecher(forcePicker = false) {
+    try {
+        const res = await api('/api/mailbox/postfaecher');
+        if (!res.ok) throw new Error();
+        _availablePostfaecher = await res.json();
+    } catch (e) {
+        showError('Postfächer konnten nicht geladen werden.');
+        return;
+    }
+
+    if (_availablePostfaecher.length === 0) {
+        showError('Du hast keinen Zugriff auf ein Postfach. Bitte beim Admin melden.');
+        return;
+    }
+
+    if (_availablePostfaecher.length === 1) {
+        currentBranch = postfachKey(_availablePostfaecher[0]);
+        showInbox();
+        return;
+    }
+
+    if (!forcePicker) {
+        const savedKey = localStorage.getItem('hrMobilePostfach');
+        const found = savedKey && _availablePostfaecher.find(p => postfachId(p) === savedKey);
+        if (found) {
+            currentBranch = postfachKey(found);
+            showInbox();
+            return;
+        }
+    }
+
+    renderPostfaecher(_availablePostfaecher);
+    show('screenBranches');
+}
+
+// "Postfach-Key" ist das Objekt das wir in currentBranch speichern
+function postfachKey(p) {
+    return {
+        type: p.type,
+        companyProfileId: p.companyProfileId,
+        name: p.name,
+        code: p.code,
+    };
+}
+// "Postfach-ID" ist ein eindeutiger String zum Persistieren in localStorage
+function postfachId(p) {
+    return p.type === 'BRANCH' ? `BRANCH:${p.companyProfileId}` : p.type;
+}
+
+function renderPostfaecher(list) {
+    const c = document.getElementById('branchesList');
+    if (!list || list.length === 0) {
+        c.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Keine Postfächer verfügbar</div></div>';
+        return;
+    }
+    const branchOpts = list.filter(p => p.type === 'BRANCH');
+    const hrOpts     = list.filter(p => p.type === 'HR');
+    const adminOpts  = list.filter(p => p.type === 'ADMIN');
+
+    let html = '';
+    if (branchOpts.length) {
+        html += '<div style="font-size:12px;color:var(--text-muted);margin:8px 4px 6px">Filialen</div>';
+        html += branchOpts.map(p => postfachCard(p, '🏢')).join('');
+    }
+    if (hrOpts.length) {
+        html += '<div style="font-size:12px;color:var(--text-muted);margin:14px 4px 6px">Geteilt</div>';
+        html += hrOpts.map(p => postfachCard(p, '👥')).join('');
+    }
+    if (adminOpts.length) {
+        html += '<div style="font-size:12px;color:var(--text-muted);margin:14px 4px 6px">Admin</div>';
+        html += adminOpts.map(p => postfachCard(p, '🛡️')).join('');
+    }
+    c.innerHTML = html;
+}
+
+function postfachCard(p, icon) {
+    const id = postfachId(p);
+    const sub = p.type === 'BRANCH' ? (p.code || '') : (p.type === 'HR' ? 'gemeinsam' : 'nur Admin');
+    const cnt = p.count > 0 ? `<span style="background:var(--primary);color:white;border-radius:99px;padding:2px 8px;font-size:11px;font-weight:700;margin-left:6px">${p.count}</span>` : '';
+    return `
+        <div class="branch-card" onclick="selectPostfach('${id}')">
+            <div class="branch-icon">${icon}</div>
+            <div style="flex:1;min-width:0">
+                <div class="branch-name">${escapeHtml(p.name)}${cnt}</div>
+                ${sub ? `<div class="branch-code">${escapeHtml(sub)}</div>` : ''}
+            </div>
+            <div style="color:var(--text-muted)">›</div>
+        </div>
+    `;
+}
+
+function selectPostfach(id) {
+    const p = _availablePostfaecher.find(x => postfachId(x) === id);
+    if (!p) return;
+    currentBranch = postfachKey(p);
+    localStorage.setItem('hrMobilePostfach', id);
+    showInbox();
+}
+
+function showBranches() {
+    loadPostfaecher(true);
+}
+
+// Backward-compat: falls alte Aufrufe noch existieren
+async function loadAllBranches(forcePicker = false) { return loadPostfaecher(forcePicker); }
+function selectBranch(id, name, code) {
+    currentBranch = { type: 'BRANCH', companyProfileId: id, name, code };
+    localStorage.setItem('hrMobilePostfach', `BRANCH:${id}`);
+    showInbox();
+}
+function renderBranches(branches) {
+    // Wenn alte Aufrufe noch existieren, mappe auf das neue Schema
+    const list = (branches || []).map(b => ({
+        type: 'BRANCH', companyProfileId: b.id, name: b.name, code: b.code, count: 0
+    }));
+    renderPostfaecher(list);
+}
+
+// ── Inbox ──────────────────────────────────────────────────────────
+async function showInbox() {
+    if (!currentBranch) return;
+    document.getElementById('inboxBranchName').textContent = currentBranch.name;
+    const hasMultiple = (_availablePostfaecher || []).length > 1;
+    document.getElementById('backToBranches').style.display = hasMultiple ? 'inline-flex' : 'none';
+    show('screenInbox');
+    await loadInbox();
+    await loadNotifyOptions();
+}
+
+function _postfachQuery() {
+    const t = currentBranch.type || 'BRANCH';
+    if (t === 'BRANCH') return `type=BRANCH&companyProfileId=${currentBranch.companyProfileId || currentBranch.id}`;
+    return `type=${t}`;
+}
+
+async function loadInbox() {
+    const c = document.getElementById('inboxList');
+    c.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    try {
+        const res = await api(`/api/mailbox?${_postfachQuery()}`);
+        if (!res.ok) throw new Error();
+        const docs = await res.json();
+        if (!docs || docs.length === 0) {
+            c.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Posteingang ist leer.<br><br>Drück auf <b>+</b> um ein Dokument hochzuladen.</div></div>';
+            return;
+        }
+        c.innerHTML = '<div class="doc-list">' + docs.map(d => renderDocCard(d)).join('') + '</div>';
+    } catch (e) {
+        c.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Posteingang konnte nicht geladen werden.</div></div>';
+    }
+}
+
+function renderDocCard(d) {
+    const isImg = (d.mimeType || '').startsWith('image/');
+    const ext = (d.originalFilename || '').split('.').pop().toUpperCase().slice(0, 4);
+    const icon = isImg ? `<div class="doc-icon img">IMG</div>` : `<div class="doc-icon">${escapeHtml(ext || 'PDF')}</div>`;
+    const date = new Date(d.uploadedAt).toLocaleDateString('de-CH', { day: '2-digit', month: 'short', year: 'numeric' });
+    const size = formatBytes(d.fileSizeBytes || 0);
+    const uploader = d.uploader ? d.uploader.name : '';
+    return `
+        <div class="doc-card" onclick="openDocPreview(${d.id})">
+            ${icon}
+            <div class="doc-info">
+                <div class="doc-name">${escapeHtml(d.originalFilename)}</div>
+                <div class="doc-meta">${date} · ${size}${uploader ? ' · ' + escapeHtml(uploader) : ''}</div>
+                ${d.bemerkung ? `<div class="doc-bemerkung">${escapeHtml(d.bemerkung)}</div>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function openDocPreview(id) {
+    // Phase 1: einfach Download triggern
+    const url = `/api/mailbox/${id}/preview`;
+    const a = document.createElement('a');
+    a.href = url + '?token=' + encodeURIComponent(authToken); // (falls token-via-query supportet wird; sonst per fetch+blob)
+    // Fallback: fetch + blob
+    fetch(url, { headers: authHeaders() })
+        .then(r => r.blob())
+        .then(blob => {
+            const objUrl = URL.createObjectURL(blob);
+            window.open(objUrl, '_blank');
+        });
+}
+
+// ── Upload ────────────────────────────────────────────────────────
+async function loadNotifyOptions() {
+    const sel = document.getElementById('uploadNotify');
+    if (sel.options.length > 1) return; // schon geladen
+    try {
+        const res = await api('/api/mailbox/notify-recipients');
+        if (!res.ok) return;
+        const users = await res.json();
+        users.forEach(u => {
+            const o = document.createElement('option');
+            o.value = u.id;
+            o.textContent = `${u.name || u.username} (${u.role})`;
+            sel.appendChild(o);
+        });
+    } catch (e) {}
+}
+
+// ── Action Chooser (Scan / Datei) ─────────────────────────────────
+let pendingFile = null; // File oder Blob, der hochgeladen werden soll
+
+function openUpload() {
+    // Action-Chooser zuerst anzeigen
+    document.getElementById('actionModal').classList.add('show');
+}
+function closeAction() {
+    document.getElementById('actionModal').classList.remove('show');
+    document.getElementById('filePickerInput').value = '';
+}
+
+function onFilePicked(ev) {
+    const file = ev.target.files[0];
+    if (!file) return;
+    pendingFile = file;
+    closeAction();
+    showUploadFinalize();
+}
+
+function showUploadFinalize() {
+    if (!pendingFile) return;
+    const isPdf = (pendingFile.type || '').includes('pdf') || (pendingFile.name || '').toLowerCase().endsWith('.pdf');
+    document.getElementById('pendingFileIcon').textContent = isPdf ? 'PDF' : 'IMG';
+    document.getElementById('pendingFileName').textContent = pendingFile.name || 'Dokument.pdf';
+    document.getElementById('pendingFileMeta').textContent = formatBytes(pendingFile.size);
+    document.getElementById('pendingFileBox').style.display = 'flex';
+
+    document.getElementById('uploadError').classList.remove('show');
+    document.getElementById('uploadBemerkung').value = '';
+    document.getElementById('uploadNotify').value = '';
+    document.getElementById('uploadModal').classList.add('show');
+}
+function closeUpload() {
+    document.getElementById('uploadModal').classList.remove('show');
+    pendingFile = null;
+}
+
+async function doUpload() {
+    const bemerkung = document.getElementById('uploadBemerkung').value;
+    const notifyId = document.getElementById('uploadNotify').value;
+    const err = document.getElementById('uploadError');
+    err.classList.remove('show');
+
+    if (!pendingFile) {
+        err.textContent = 'Keine Datei zum Hochladen.';
+        err.classList.add('show');
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('file', pendingFile, pendingFile.name || 'scan.pdf');
+    const t = currentBranch.type || 'BRANCH';
+    fd.append('targetType', t);
+    if (t === 'BRANCH') fd.append('companyProfileId', currentBranch.companyProfileId || currentBranch.id);
+    if (bemerkung) fd.append('bemerkung', bemerkung);
+    if (notifyId) fd.append('notifyUserId', notifyId);
+
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true; btn.textContent = 'Hochladen…';
+
+    try {
+        const res = await fetch('/api/mailbox/upload', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: fd
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.error || 'Upload fehlgeschlagen.');
+        }
+        closeUpload();
+        await loadInbox();
+    } catch (e) {
+        err.textContent = e.message;
+        err.classList.add('show');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Hochladen';
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 2: Scanner — Live-Kantenerkennung + Multi-Page-PDF
+// ═══════════════════════════════════════════════════════════════════
+
+// Scanner-Zustand
+let scanStream = null;        // MediaStream (Kamera)
+let scanPages = [];           // [{ canvas, dataUrl }]
+let scanLoopRaf = null;       // requestAnimationFrame ID
+let scanCv = null;            // OpenCV namespace, wenn geladen
+let scanScanner = null;       // jscanify-Instanz
+let scanLastCorners = null;   // geglättete (smoothed) Ecken aus dem Live-Loop
+let scanSmoothBuf = null;     // intern für EMA-Smoothing
+let scanLibsLoaded = false;
+let scanLibsLoading = false;
+
+// Review-Zustand (manuelle Eckpunkt-Justierung)
+let reviewCanvas = null;      // das aufgenommene Original-Frame (canvas)
+let reviewCorners = null;     // {topLeftCorner,...} — vom User editierbar
+let reviewActiveDrag = null;  // welche Ecke wird grad gezogen?
+
+// CDN-URLs für die schweren Libs (alle auf jsdelivr für konsistente
+// Verfügbarkeit + gute Mobile-Performance via cloudflare-Edge)
+const URL_OPENCV   = 'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0-release.1/dist/opencv.js';
+const URL_JSCANIFY = 'https://cdn.jsdelivr.net/gh/ColonelParrot/jscanify@master/src/jscanify.min.js';
+const URL_PDFLIB   = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+
+// Lazy-load die OpenCV/jscanify/pdf-lib Libraries (~9 MB).
+// Wir verwenden Polling auf cv.imread statt Module.onRuntimeInitialized — das
+// ist über alle OpenCV-Versionen hinweg robust und funktioniert auch in
+// iOS Safari ohne Extras.
+async function loadScannerLibs(progressFn) {
+    if (scanLibsLoaded) return true;
+    if (scanLibsLoading) {
+        while (scanLibsLoading) await new Promise(r => setTimeout(r, 100));
+        return scanLibsLoaded;
+    }
+    scanLibsLoading = true;
+    const setMsg = (m) => { if (progressFn) progressFn(m); };
+    try {
+        // 1. pdf-lib (klein, ~700 KB)
+        setMsg('Lade PDF-Library…');
+        await loadScript(URL_PDFLIB);
+        if (!window.PDFLib) throw new Error('pdf-lib geladen, aber window.PDFLib fehlt.');
+
+        // 2. OpenCV.js (gross, ~9 MB)
+        setMsg('Lade Vision-Library (~9 MB)…');
+        await loadScript(URL_OPENCV);
+
+        // 3. Auf vollständige Initialisierung warten (cv.imread muss da sein)
+        setMsg('Initialisiere Vision-Library…');
+        await waitForCvReady(60000);
+        scanCv = window.cv;
+
+        // 4. jscanify
+        setMsg('Lade Scanner-Logik…');
+        await loadScript(URL_JSCANIFY);
+        if (!window.jscanify) throw new Error('jscanify geladen, aber window.jscanify fehlt.');
+        scanScanner = new window.jscanify();
+
+        scanLibsLoaded = true;
+        return true;
+    } catch (e) {
+        console.error('Scanner-Libs laden fehlgeschlagen:', e);
+        setMsg('⚠️ ' + (e.message || 'Laden fehlgeschlagen.'));
+        return false;
+    } finally {
+        scanLibsLoading = false;
+    }
+}
+
+// Wartet, bis OpenCV.js voll initialisiert ist. OpenCV.js benutzt Emscripten —
+// nach dem <script>-Load dauert es noch eine Weile, bis cv.imread wirklich
+// existiert. Wir pollen alle 50 ms.
+function waitForCvReady(timeoutMs) {
+    return new Promise((resolve, reject) => {
+        const start = Date.now();
+        const poll = () => {
+            if (window.cv && typeof window.cv.imread === 'function') {
+                resolve();
+            } else if (Date.now() - start > timeoutMs) {
+                reject(new Error('OpenCV-Init Timeout (' + (timeoutMs/1000) + 's).'));
+            } else {
+                setTimeout(poll, 50);
+            }
+        };
+        poll();
+    });
+}
+
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Script-Fehler: ' + src));
+        document.head.appendChild(s);
+    });
+}
+
+// ── Scanner starten ───────────────────────────────────────────────
+async function startScanner() {
+    closeAction();
+    scanPages = [];
+    scanLastCorners = null;
+    scanSmoothBuf = null;
+    updateScanThumbs();
+    document.getElementById('scanDone').disabled = true;
+    document.getElementById('scanShutter').disabled = true;
+    document.getElementById('scanStatus').textContent = 'Lade Scanner…';
+
+    show('screenScanner');
+    document.getElementById('scanLoading').classList.add('show');
+    document.getElementById('scanLoadingText').innerHTML = 'Scanner wird geladen…<br><small style="opacity:0.7">(einmalig, ca. 9 MB — beim ersten Aufruf)</small>';
+
+    // 1. Kamera-Stream öffnen
+    try {
+        scanStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: 'environment' },
+                width:  { ideal: 1920 },
+                height: { ideal: 1080 }
+            },
+            audio: false
+        });
+    } catch (e) {
+        console.error('Kamera-Zugriff fehlgeschlagen:', e);
+        document.getElementById('scanLoadingText').innerHTML = '⚠️ Kein Kamera-Zugriff.<br><small style="opacity:0.7">Bitte in den Browser-Einstellungen erlauben.</small>';
+        return;
+    }
+    const video = document.getElementById('scanVideo');
+    video.srcObject = scanStream;
+    await new Promise(r => video.onloadedmetadata = r);
+    video.play();
+
+    // 2. Libraries lazy-laden (parallel zur Kamera)
+    const setLoading = (msg) => {
+        document.getElementById('scanLoadingText').innerHTML = msg + '<br><small style="opacity:0.7">(einmalig — nächstes Mal sofort)</small>';
+    };
+    const ok = await loadScannerLibs(setLoading);
+    if (!ok) {
+        // Fehlermeldung wurde schon von loadScannerLibs gesetzt
+        return;
+    }
+
+    document.getElementById('scanLoading').classList.remove('show');
+    document.getElementById('scanShutter').disabled = false;
+    document.getElementById('scanStatus').textContent = 'Halte Dokument vor die Kamera';
+
+    // 3. Live-Detection-Loop starten
+    startDetectionLoop();
+}
+
+function startDetectionLoop() {
+    const video = document.getElementById('scanVideo');
+    const overlay = document.getElementById('scanOverlay');
+    const ctx = overlay.getContext('2d');
+
+    // Hilf-Canvas zum Frame-Capturen für jscanify
+    const work = document.createElement('canvas');
+
+    // Detection-Throttling: nicht jeden Frame, nur alle ~200ms (Performance + Stabilität)
+    let lastRun = 0;
+    const RUN_INTERVAL_MS = 180;
+
+    function loop() {
+        if (!scanStream) return;
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+        if (vw && vh) {
+            const rect = video.getBoundingClientRect();
+            // Overlay-Canvas in Stage-Grösse (CSS-Pixels)
+            if (overlay.width !== rect.width)  overlay.width  = rect.width;
+            if (overlay.height !== rect.height) overlay.height = rect.height;
+
+            const now = performance.now();
+            if (now - lastRun >= RUN_INTERVAL_MS) {
+                lastRun = now;
+                // Frame in Work-Canvas (Video-Auflösung) zeichnen
+                work.width = vw;
+                work.height = vh;
+                work.getContext('2d').drawImage(video, 0, 0, vw, vh);
+
+                let src = null, contour = null;
+                try {
+                    src = scanCv.imread(work);
+                    contour = scanScanner.findPaperContour(src);
+                    if (contour && !isEmptyMat(contour)) {
+                        const rawCorners = findRobustCorners(contour);
+                        if (rawCorners && validCorners(rawCorners, vw, vh)) {
+                            // EMA-Smoothing — beruhigt den grünen Rahmen
+                            const smoothed = smoothCorners(rawCorners);
+                            scanLastCorners = smoothed;
+                            drawDetectedRect(ctx, overlay.width, overlay.height, smoothed, vw, vh);
+                            document.getElementById('scanStatus').textContent = 'Dokument erkannt';
+                            document.getElementById('scanStatus').classList.add('detected');
+                        } else {
+                            scanLastCorners = null;
+                            scanSmoothBuf = null;
+                            ctx.clearRect(0, 0, overlay.width, overlay.height);
+                            document.getElementById('scanStatus').textContent = 'Halte Dokument flach vor die Kamera';
+                            document.getElementById('scanStatus').classList.remove('detected');
+                        }
+                    } else {
+                        scanLastCorners = null;
+                        scanSmoothBuf = null;
+                        ctx.clearRect(0, 0, overlay.width, overlay.height);
+                        document.getElementById('scanStatus').textContent = 'Halte Dokument flach vor die Kamera';
+                        document.getElementById('scanStatus').classList.remove('detected');
+                    }
+                } catch (err) {
+                    // Detection-Fehler still ignorieren — nächster Frame
+                } finally {
+                    if (src) src.delete();
+                    if (contour && contour.delete) contour.delete();
+                }
+            }
+        }
+        scanLoopRaf = requestAnimationFrame(loop);
+    }
+    loop();
+}
+
+function isEmptyMat(m) {
+    try { return !m || (m.rows === 0 && m.cols === 0); } catch(e) { return true; }
+}
+
+// Robuste Eckpunkt-Findung:
+//   1. cv.approxPolyDP versucht, die Kontur auf ein 4-Eck zu vereinfachen.
+//      Funktioniert sehr stabil, wenn die Kontur ungefähr rechteckig ist —
+//      ist deutlich robuster als jscanifys "farthest-from-center"-Heuristik,
+//      die bei Fingern/Schatten an der unteren Kante kippt.
+//   2. Falls keine 4-Vertex-Approximation gelingt → Fallback auf
+//      jscanify.getCornerPoints (dann eben mit den unteren Ecken-Macken).
+function findRobustCorners(contour) {
+    const cv = scanCv;
+    try {
+        const peri = cv.arcLength(contour, true);
+        // Mehrere Toleranzen probieren — kleinste, die genau 4 Vertices liefert, gewinnt
+        for (let factor = 0.015; factor <= 0.06; factor += 0.005) {
+            const approx = new cv.Mat();
+            cv.approxPolyDP(contour, approx, factor * peri, true);
+            if (approx.rows === 4) {
+                const pts = [];
+                for (let i = 0; i < 4; i++) {
+                    pts.push({ x: approx.data32S[i * 2], y: approx.data32S[i * 2 + 1] });
+                }
+                approx.delete();
+                return sortCornersByPosition(pts);
+            }
+            approx.delete();
+        }
+    } catch (e) {
+        console.warn('approxPolyDP fehlgeschlagen:', e);
+    }
+    // Fallback: jscanify-Heuristik
+    try {
+        return scanScanner.getCornerPoints(contour);
+    } catch (e) {
+        return null;
+    }
+}
+
+// Sortiert 4 Punkte zu {topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner}.
+// Trick:
+//   x+y → minimal beim oberen-linken (klein,klein) und maximal beim unteren-rechten (gross,gross)
+//   y-x → minimal beim oberen-rechten (klein-gross=neg) und maximal beim unteren-linken (gross-klein=pos)
+// Funktioniert auch bei rotierten Vierecken solange's "rechteckig-ish" ist.
+function sortCornersByPosition(pts) {
+    const sums  = pts.map(p => p.x + p.y);
+    const diffs = pts.map(p => p.y - p.x);
+    const tlIdx = sums.indexOf(Math.min(...sums));
+    const brIdx = sums.indexOf(Math.max(...sums));
+    const trIdx = diffs.indexOf(Math.min(...diffs));
+    const blIdx = diffs.indexOf(Math.max(...diffs));
+    // Dürfen nicht alle übereinstimmen — sonst war die Annahme falsch
+    const set = new Set([tlIdx, trIdx, brIdx, blIdx]);
+    if (set.size !== 4) return null;
+    return {
+        topLeftCorner:     pts[tlIdx],
+        topRightCorner:    pts[trIdx],
+        bottomLeftCorner:  pts[blIdx],
+        bottomRightCorner: pts[brIdx],
+    };
+}
+
+// EMA-Smoothing der Eckpunkte — beruhigt den Live-Rahmen.
+// Bei grossen Sprüngen (>100 px) wird zurückgesetzt, damit's nicht hinterherhinkt.
+function smoothCorners(newCorners) {
+    const ALPHA = 0.30;        // Glättungsfaktor: 0=träge, 1=keine Glättung
+    const RESET_JUMP = 100;    // Pixel-Schwelle für "Bewegung > Smoothing-Reset"
+
+    const keys = ['topLeftCorner', 'topRightCorner', 'bottomLeftCorner', 'bottomRightCorner'];
+
+    if (!scanSmoothBuf) {
+        scanSmoothBuf = {};
+        keys.forEach(k => { scanSmoothBuf[k] = { x: newCorners[k].x, y: newCorners[k].y }; });
+        return JSON.parse(JSON.stringify(scanSmoothBuf));
+    }
+
+    // Sprung-Detection
+    let maxJump = 0;
+    keys.forEach(k => {
+        const dx = newCorners[k].x - scanSmoothBuf[k].x;
+        const dy = newCorners[k].y - scanSmoothBuf[k].y;
+        const d = Math.hypot(dx, dy);
+        if (d > maxJump) maxJump = d;
+    });
+
+    if (maxJump > RESET_JUMP) {
+        // grosser Sprung → komplett übernehmen, kein Lag
+        keys.forEach(k => { scanSmoothBuf[k] = { x: newCorners[k].x, y: newCorners[k].y }; });
+    } else {
+        // sanfte EMA-Mischung
+        keys.forEach(k => {
+            scanSmoothBuf[k].x = ALPHA * newCorners[k].x + (1 - ALPHA) * scanSmoothBuf[k].x;
+            scanSmoothBuf[k].y = ALPHA * newCorners[k].y + (1 - ALPHA) * scanSmoothBuf[k].y;
+        });
+    }
+    return JSON.parse(JSON.stringify(scanSmoothBuf));
+}
+
+// Validiert, dass die 4 Eckpunkte sinnvoll sind (nicht zu klein, alle vorhanden)
+function validCorners(c, vw, vh) {
+    if (!c || !c.topLeftCorner || !c.topRightCorner || !c.bottomLeftCorner || !c.bottomRightCorner) return false;
+    const pts = [c.topLeftCorner, c.topRightCorner, c.bottomRightCorner, c.bottomLeftCorner];
+    if (pts.some(p => isNaN(p.x) || isNaN(p.y))) return false;
+    // Mindest-Fläche: das erkannte Polygon sollte mind. 12% des Bildes ausmachen
+    const area = polygonArea(pts);
+    const minArea = vw * vh * 0.12;
+    return area >= minArea;
+}
+
+function polygonArea(pts) {
+    let s = 0;
+    for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        s += a.x * b.y - b.x * a.y;
+    }
+    return Math.abs(s) / 2;
+}
+
+// Mappt Video-Pixel-Koordinaten auf Canvas-Overlay-Koordinaten und zeichnet Polygon
+function drawDetectedRect(ctx, cw, ch, corners, vw, vh) {
+    ctx.clearRect(0, 0, cw, ch);
+    const points = [
+        corners.topLeftCorner,
+        corners.topRightCorner,
+        corners.bottomRightCorner,
+        corners.bottomLeftCorner,
+    ];
+
+    // object-fit:contain → Letterbox-Berechnung
+    const vidAspect = vw / vh;
+    const ctnAspect = cw / ch;
+    let drawW, drawH, offsetX, offsetY;
+    if (ctnAspect > vidAspect) {
+        drawH = ch;
+        drawW = ch * vidAspect;
+        offsetX = (cw - drawW) / 2;
+        offsetY = 0;
+    } else {
+        drawW = cw;
+        drawH = cw / vidAspect;
+        offsetX = 0;
+        offsetY = (ch - drawH) / 2;
+    }
+    const sx = drawW / vw, sy = drawH / vh;
+
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 4;
+    ctx.fillStyle = 'rgba(16,185,129,0.20)';
+    ctx.beginPath();
+    points.forEach((p, i) => {
+        const x = offsetX + p.x * sx;
+        const y = offsetY + p.y * sy;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Eck-Punkte
+    ctx.fillStyle = 'white';
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 2;
+    points.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(offsetX + p.x * sx, offsetY + p.y * sy, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    });
+}
+
+// ── Foto aufnehmen → Review-Screen mit Drag-Eckpunkten ────────────
+function captureFrame() {
+    const video = document.getElementById('scanVideo');
+    if (!video.videoWidth) return;
+
+    // Flash-Effekt
+    const flash = document.getElementById('scanFlash');
+    flash.classList.remove('active');
+    void flash.offsetWidth; // reflow
+    flash.classList.add('active');
+
+    // 1. Frame einfrieren
+    const work = document.createElement('canvas');
+    work.width = video.videoWidth;
+    work.height = video.videoHeight;
+    work.getContext('2d').drawImage(video, 0, 0);
+
+    // 2. Eckpunkte als Vorschlag holen — bevorzugt aus dem Live-Loop
+    let corners = scanLastCorners ? cloneCorners(scanLastCorners) : null;
+
+    if (!corners) {
+        // Fallback: frisch detecten
+        let src = null, contour = null;
+        try {
+            src = scanCv.imread(work);
+            contour = scanScanner.findPaperContour(src);
+            if (contour && !isEmptyMat(contour)) {
+                const c = findRobustCorners(contour);
+                if (c && validCorners(c, work.width, work.height)) corners = c;
+            }
+        } catch (e) { /* ignore */ }
+        finally {
+            if (src) src.delete();
+            if (contour && contour.delete) contour.delete();
+        }
+    }
+
+    // 3. Wenn keine Detection ging → Default-Vorschlag (10% Inset-Rechteck)
+    if (!corners) {
+        corners = {
+            topLeftCorner:     { x: work.width * 0.10, y: work.height * 0.10 },
+            topRightCorner:    { x: work.width * 0.90, y: work.height * 0.10 },
+            bottomRightCorner: { x: work.width * 0.90, y: work.height * 0.90 },
+            bottomLeftCorner:  { x: work.width * 0.10, y: work.height * 0.90 },
+        };
+    }
+
+    reviewCanvas = work;
+    reviewCorners = corners;
+    show('screenReview');
+    drawReviewView();
+    setupReviewDrag();
+}
+
+function cloneCorners(c) {
+    return {
+        topLeftCorner:     { x: c.topLeftCorner.x,     y: c.topLeftCorner.y },
+        topRightCorner:    { x: c.topRightCorner.x,    y: c.topRightCorner.y },
+        bottomLeftCorner:  { x: c.bottomLeftCorner.x,  y: c.bottomLeftCorner.y },
+        bottomRightCorner: { x: c.bottomRightCorner.x, y: c.bottomRightCorner.y },
+    };
+}
+
+// ── Review-Bildschirm zeichnen ────────────────────────────────────
+function drawReviewView() {
+    const photo = document.getElementById('reviewPhoto');
+    const overlay = document.getElementById('reviewOverlay');
+    const stage = photo.parentElement;
+    const rect = stage.getBoundingClientRect();
+
+    photo.width  = rect.width;
+    photo.height = rect.height;
+    overlay.width  = rect.width;
+    overlay.height = rect.height;
+
+    const vw = reviewCanvas.width;
+    const vh = reviewCanvas.height;
+    const layout = letterboxLayout(rect.width, rect.height, vw, vh);
+
+    // 1. Foto zeichnen (mit Letterbox)
+    const ctx = photo.getContext('2d');
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, photo.width, photo.height);
+    ctx.drawImage(reviewCanvas, layout.offsetX, layout.offsetY, layout.drawW, layout.drawH);
+
+    // 2. Eckpunkte + Polygon im Overlay
+    const octx = overlay.getContext('2d');
+    drawCornerHandles(octx, overlay.width, overlay.height, reviewCorners, layout);
+
+    // Layout für Drag-Handler speichern
+    overlay._layout = layout;
+}
+
+function letterboxLayout(cw, ch, vw, vh) {
+    const vidAspect = vw / vh;
+    const ctnAspect = cw / ch;
+    let drawW, drawH, offsetX, offsetY;
+    if (ctnAspect > vidAspect) {
+        drawH = ch; drawW = ch * vidAspect;
+        offsetX = (cw - drawW) / 2; offsetY = 0;
+    } else {
+        drawW = cw; drawH = cw / vidAspect;
+        offsetX = 0; offsetY = (ch - drawH) / 2;
+    }
+    return { drawW, drawH, offsetX, offsetY, vw, vh, scale: drawW / vw };
+}
+
+function drawCornerHandles(ctx, cw, ch, corners, layout) {
+    ctx.clearRect(0, 0, cw, ch);
+
+    const pts = [
+        corners.topLeftCorner,
+        corners.topRightCorner,
+        corners.bottomRightCorner,
+        corners.bottomLeftCorner,
+    ];
+    const px = (p) => layout.offsetX + p.x * layout.scale;
+    const py = (p) => layout.offsetY + p.y * layout.scale;
+
+    // Polygon-Füllung + Kontur
+    ctx.fillStyle = 'rgba(16,185,129,0.18)';
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+        if (i === 0) ctx.moveTo(px(p), py(p));
+        else ctx.lineTo(px(p), py(p));
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Drag-Handles — gross genug für Finger
+    pts.forEach(p => {
+        const x = px(p), y = py(p);
+        // Aussenring
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.beginPath();
+        ctx.arc(x, y, 18, 0, Math.PI * 2);
+        ctx.fill();
+        // Innenring grün
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(x, y, 9, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+function setupReviewDrag() {
+    const overlay = document.getElementById('reviewOverlay');
+
+    // Vorhandene Handler entfernen falls nochmal aufgerufen
+    if (overlay._handlers) {
+        const h = overlay._handlers;
+        overlay.removeEventListener('touchstart', h.start);
+        overlay.removeEventListener('touchmove',  h.move);
+        overlay.removeEventListener('touchend',   h.end);
+        overlay.removeEventListener('mousedown',  h.start);
+        window.removeEventListener('mousemove',   h.move);
+        window.removeEventListener('mouseup',     h.end);
+    }
+
+    const getPos = (e) => {
+        const rect = overlay.getBoundingClientRect();
+        const t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+        return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    };
+
+    const findClosestCorner = (pos) => {
+        const layout = overlay._layout;
+        if (!layout) return null;
+        const keys = ['topLeftCorner', 'topRightCorner', 'bottomRightCorner', 'bottomLeftCorner'];
+        let closest = null, minDist = 60; // grosse Touch-Toleranz für Finger
+        keys.forEach(k => {
+            const p = reviewCorners[k];
+            const dx = layout.offsetX + p.x * layout.scale - pos.x;
+            const dy = layout.offsetY + p.y * layout.scale - pos.y;
+            const d = Math.hypot(dx, dy);
+            if (d < minDist) { minDist = d; closest = k; }
+        });
+        return closest;
+    };
+
+    const onStart = (e) => {
+        const corner = findClosestCorner(getPos(e));
+        if (corner) {
+            reviewActiveDrag = corner;
+            e.preventDefault();
+        }
+    };
+    const onMove = (e) => {
+        if (!reviewActiveDrag) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        const layout = overlay._layout;
+        let imgX = (pos.x - layout.offsetX) / layout.scale;
+        let imgY = (pos.y - layout.offsetY) / layout.scale;
+        imgX = Math.max(0, Math.min(layout.vw, imgX));
+        imgY = Math.max(0, Math.min(layout.vh, imgY));
+        reviewCorners[reviewActiveDrag].x = imgX;
+        reviewCorners[reviewActiveDrag].y = imgY;
+        // Nur Overlay neu zeichnen (Foto bleibt) — performance
+        const overlay2 = document.getElementById('reviewOverlay');
+        const octx = overlay2.getContext('2d');
+        drawCornerHandles(octx, overlay2.width, overlay2.height, reviewCorners, layout);
+    };
+    const onEnd = () => { reviewActiveDrag = null; };
+
+    overlay._handlers = { start: onStart, move: onMove, end: onEnd };
+    overlay.addEventListener('touchstart', onStart, { passive: false });
+    overlay.addEventListener('touchmove',  onMove,  { passive: false });
+    overlay.addEventListener('touchend',   onEnd);
+    overlay.addEventListener('mousedown',  onStart);
+    window.addEventListener('mousemove',   onMove);
+    window.addEventListener('mouseup',     onEnd);
+}
+
+function cancelReview() {
+    reviewCanvas = null;
+    reviewCorners = null;
+    reviewActiveDrag = null;
+    show('screenScanner');
+}
+
+function acceptReview() {
+    if (!reviewCanvas || !reviewCorners) return;
+
+    let resultCanvas = null;
+    try {
+        const dim = paperDims(reviewCorners);
+        resultCanvas = scanScanner.extractPaper(reviewCanvas, dim.w, dim.h, reviewCorners);
+    } catch (err) {
+        console.warn('extractPaper mit User-Ecken fehlgeschlagen:', err);
+    }
+    if (!resultCanvas) resultCanvas = reviewCanvas;
+
+    enhanceContrast(resultCanvas);
+
+    const dataUrl = resultCanvas.toDataURL('image/jpeg', 0.85);
+    scanPages.push({ canvas: resultCanvas, dataUrl });
+    updateScanThumbs();
+    document.getElementById('scanDone').disabled = false;
+    document.getElementById('scanDone').textContent = 'Fertig (' + scanPages.length + ')';
+
+    reviewCanvas = null;
+    reviewCorners = null;
+    reviewActiveDrag = null;
+    show('screenScanner');
+}
+
+// Berechnet sinnvolle Ausgabe-Auflösung aus den erkannten Eckpunkten
+// (basierend auf den gemittelten Längen der Seiten — vermeidet Verzerrung)
+function paperDims(c) {
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const top    = dist(c.topLeftCorner, c.topRightCorner);
+    const bottom = dist(c.bottomLeftCorner, c.bottomRightCorner);
+    const left   = dist(c.topLeftCorner, c.bottomLeftCorner);
+    const right  = dist(c.topRightCorner, c.bottomRightCorner);
+    const w = Math.round(Math.max(top, bottom));
+    const h = Math.round(Math.max(left, right));
+    // Auf vernünftige Grenzen klemmen (verhindert riesige Output-Canvas)
+    const maxSide = 2200;
+    const scale = Math.min(1, maxSide / Math.max(w, h));
+    return { w: Math.max(800, Math.round(w * scale)), h: Math.max(800, Math.round(h * scale)) };
+}
+
+// Histogramm-Strecken: hellster Punkt → weiss, dunkelster → schwarz
+// Bei Dokumenten macht das aus einem grau-ish-Foto ein sauberes Schwarz-auf-Weiss
+function enhanceContrast(canvas) {
+    try {
+        const ctx = canvas.getContext('2d');
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const d = img.data;
+
+        // 1. Sparse-Sampling für Histogramm (Performance)
+        const samples = [];
+        for (let i = 0; i < d.length; i += 4 * 200) {
+            samples.push(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+        }
+        samples.sort((a, b) => a - b);
+        const blackPoint = samples[Math.floor(samples.length * 0.03)] || 20;
+        const whitePoint = samples[Math.floor(samples.length * 0.97)] || 230;
+        const range = Math.max(50, whitePoint - blackPoint);
+        const scale = 255 / range;
+
+        // 2. Gamma leicht erhöhen → Mittel-Töne aufhellen (Papier weisser, Schrift bleibt scharf)
+        const gamma = 0.92;
+        const lut = new Uint8ClampedArray(256);
+        for (let v = 0; v < 256; v++) {
+            const stretched = Math.max(0, Math.min(255, (v - blackPoint) * scale));
+            lut[v] = Math.round(255 * Math.pow(stretched / 255, gamma));
+        }
+
+        for (let i = 0; i < d.length; i += 4) {
+            d[i]     = lut[d[i]];
+            d[i + 1] = lut[d[i + 1]];
+            d[i + 2] = lut[d[i + 2]];
+        }
+        ctx.putImageData(img, 0, 0);
+    } catch (e) { console.warn('enhanceContrast fehlgeschlagen:', e); }
+}
+
+function updateScanThumbs() {
+    const c = document.getElementById('scanThumbs');
+    if (!scanPages.length) { c.innerHTML = ''; return; }
+    c.innerHTML = scanPages.map((p, i) => `
+        <div class="scan-thumb">
+            <img src="${p.dataUrl}" alt="Seite ${i+1}">
+            <button class="scan-thumb-x" onclick="removeScanPage(${i})" title="Seite löschen">✕</button>
+        </div>
+    `).join('');
+    // Auto-scroll ans Ende
+    c.scrollLeft = c.scrollWidth;
+}
+
+function removeScanPage(idx) {
+    scanPages.splice(idx, 1);
+    updateScanThumbs();
+    document.getElementById('scanDone').disabled = scanPages.length === 0;
+    document.getElementById('scanDone').textContent = scanPages.length ? 'Fertig (' + scanPages.length + ')' : 'Fertig';
+}
+
+// ── Scanner schliessen ────────────────────────────────────────────
+function stopCameraStream() {
+    if (scanStream) {
+        scanStream.getTracks().forEach(t => t.stop());
+        scanStream = null;
+    }
+    if (scanLoopRaf) {
+        cancelAnimationFrame(scanLoopRaf);
+        scanLoopRaf = null;
+    }
+}
+
+function cancelScanner() {
+    if (scanPages.length > 0) {
+        if (!confirm('Aufgenommene Seiten verwerfen?')) return;
+    }
+    stopCameraStream();
+    scanPages = [];
+    showInbox();
+}
+
+// ── Fertig: PDF zusammenbauen, dann zum Upload-Modal ───────────────
+async function finishScanning() {
+    if (!scanPages.length) return;
+    const status = document.getElementById('scanStatus');
+    document.getElementById('scanLoading').classList.add('show');
+    document.getElementById('scanLoadingText').textContent = 'PDF wird zusammengebaut…';
+
+    try {
+        const pdfBytes = await buildPdfFromPages(scanPages);
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        // Filename mit Datum + Uhrzeit
+        const now = new Date();
+        const ts = now.toISOString().slice(0,16).replace('T','_').replace(':','-');
+        const filename = `Scan_${ts}.pdf`;
+        // pendingFile setzen (Blob mit name als File-ähnlich)
+        pendingFile = new File([blob], filename, { type: 'application/pdf' });
+
+        stopCameraStream();
+        scanPages = [];
+        showInbox();
+        showUploadFinalize();
+    } catch (e) {
+        console.error('PDF-Erstellung fehlgeschlagen:', e);
+        document.getElementById('scanLoadingText').textContent = '⚠️ PDF konnte nicht erstellt werden.';
+        setTimeout(() => document.getElementById('scanLoading').classList.remove('show'), 2000);
+    }
+}
+
+async function buildPdfFromPages(pages) {
+    const { PDFDocument } = window.PDFLib;
+    const doc = await PDFDocument.create();
+
+    for (const page of pages) {
+        // Canvas → JPEG-Bytes (kleiner als PNG)
+        const blob = await new Promise(r => page.canvas.toBlob(r, 'image/jpeg', 0.85));
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        const img = await doc.embedJpg(bytes);
+
+        // A4-Portrait in Punkten: 595 x 842
+        const pageW = 595, pageH = 842;
+        const pdfPage = doc.addPage([pageW, pageH]);
+
+        // Bild proportional einpassen
+        const ratio = Math.min(pageW / img.width, pageH / img.height);
+        const w = img.width * ratio;
+        const h = img.height * ratio;
+        pdfPage.drawImage(img, {
+            x: (pageW - w) / 2,
+            y: (pageH - h) / 2,
+            width: w, height: h
+        });
+    }
+
+    return await doc.save();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+function formatBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(0) + ' KB';
+    return (b / 1024 / 1024).toFixed(1) + ' MB';
+}
+function showError(msg) {
+    alert(msg);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────
+document.getElementById('loginPass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+});
+
+(async function boot() {
+    if (!authToken) {
+        show('screenLogin');
+        return;
+    }
+    // Token vorhanden → me holen, dann weiter
+    try {
+        const res = await api('/api/auth/me');
+        if (!res.ok) { logout(); return; }
+        currentUser = await res.json();
+        await afterLogin();
+    } catch (e) { logout(); }
+})();
+</script>
+</body>
+</html>

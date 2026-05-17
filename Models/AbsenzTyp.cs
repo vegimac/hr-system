@@ -82,4 +82,17 @@ public class AbsenzTyp
     public int SortOrder { get; set; } = 99;
     public bool Aktiv { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Buchstaben-Kürzel im offiziellen ALK-Zwischenverdienst-Formular:
+    ///   A = Ferien
+    ///   B = Krankheit, Schwangerschaft
+    ///   C = Unfall
+    ///   D = Mutterschaftsurlaub, Urlaub des andern Elternteils, Betreuungsurlaub
+    ///   E = Militär, Zivildienst oder Zivilschutz
+    ///   F = Betriebsferien
+    ///   G = Unbezahlte Absenzen (Default für nicht spezifizierte)
+    /// Null = wird nicht im Tagesraster eingetragen.
+    /// </summary>
+    public string? ZwischenverdienstKuerzel { get; set; }
 }

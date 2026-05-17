@@ -55,8 +55,17 @@ public class BankLookupService
         if (clean.Length < 9) return null;
         if (!clean.StartsWith("CH") && !clean.StartsWith("LI")) return null;
 
-        var iid = clean.Substring(4, 5);
-        return _byIid.TryGetValue(iid, out var info) ? info : null;
+        // Position 4–8 = 5-stelliger Bank-Clearing-Code mit Leading Zeros (z.B. "00778").
+        // Die bank_master-Tabelle speichert die kanonische Form OHNE Leading Zeros
+        // (z.B. "778" für Luzerner Kantonalbank, "9000" für PostFinance).
+        // Daher 5-stellig zuerst probieren (Filial-Match wie "77813" Sursee),
+        // dann progressiv führende Nullen entfernen.
+        var iidRaw = clean.Substring(4, 5);
+        if (_byIid.TryGetValue(iidRaw, out var info)) return info;
+        var iidTrimmed = iidRaw.TrimStart('0');
+        if (iidTrimmed.Length > 0 && iidTrimmed != iidRaw &&
+            _byIid.TryGetValue(iidTrimmed, out info)) return info;
+        return null;
     }
 
     /// <summary>Cache neu befüllen — nach CSV-Import oder manueller Änderung.</summary>

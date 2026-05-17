@@ -1,0 +1,220 @@
+using System.Globalization;
+using System.Text;
+using System.Xml.Linq;
+
+namespace HrSystem.Services;
+
+/// <summary>
+/// Generiert pain.001.001.09-XML (ISO 20022 Customer Credit Transfer
+/// Initiation) gemäss Swiss Payment Standards (SIX). Wird vom Lohnlauf-DTA
+/// verwendet — ein XML-File für die MA-Auszahlungen, ein zweites für
+/// Lohnabtretungs-Empfänger (Behörden).
+///
+/// Vereinfachung: Wir verwenden den Schweizer Inland-Standard (kein SEPA-
+/// SvcLvl, kein LclInstrm). Die Hausbank verarbeitet sowohl CH-IBAN- als
+/// auch ausländische IBANs (Revolut/Wise) korrekt — bei letzteren gibt es
+/// die volle Cdtr-Adresse mit, wie's beim manuellen Erfassen in Mirus auch
+/// üblich war.
+/// </summary>
+public class Iso20022PainService
+{
+    private static readonly XNamespace Ns =
+        "urn:iso:std:iso:20022:tech:xsd:pain.001.001.09";
+
+    public record PaymentInstruction(
+        string EndToEndId,
+        decimal Amount,                  // CHF
+        string  CreditorName,            // z.B. "Hans Müller" oder "Revolut Bank UAB"
+        string? CreditorStreet,          // Strasse + Hausnummer
+        string? CreditorPostalCode,
+        string? CreditorCity,
+        string  CreditorCountry,         // ISO-3166-1 alpha-2 (CH/LT/DE/...)
+        string  CreditorIban,
+        string? CreditorBic,
+        string? RemittanceInfo           // Zahlungsgrund/Reference
+    );
+
+    public record DtaRequest(
+        string  MessageId,                // Unique pro Generierung
+        DateTime CreationDateTime,
+        string  InitiatorName,            // Auftraggeber-Name
+        string? InitiatorStreet,
+        string? InitiatorPostalCode,
+        string? InitiatorCity,
+        string  InitiatorCountry,         // CH
+        DateOnly ExecutionDate,           // Auszahlungsdatum
+        string  DebtorName,
+        string  DebtorIban,
+        string? DebtorBic,
+        IReadOnlyList<PaymentInstruction> Payments
+    );
+
+    public byte[] Generate(DtaRequest req)
+    {
+        if (req.Payments.Count == 0)
+            throw new InvalidOperationException("Keine Zahlungen — DTA leer.");
+
+        var doc = new XDocument(
+            new XDeclaration("1.0", "UTF-8", null),
+            new XElement(Ns + "Document",
+                new XAttribute(XNamespace.Xmlns + "xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                BuildCstmrCdtTrfInitn(req)
+            )
+        );
+
+        using var ms = new MemoryStream();
+        using (var writer = new StreamWriter(ms, new UTF8Encoding(false)))
+        {
+            doc.Save(writer);
+        }
+        return ms.ToArray();
+    }
+
+    private XElement BuildCstmrCdtTrfInitn(DtaRequest req)
+    {
+        decimal total = 0;
+        foreach (var p in req.Payments) total += p.Amount;
+        total = Math.Round(total, 2);
+
+        return new XElement(Ns + "CstmrCdtTrfInitn",
+            BuildGroupHeader(req, total),
+            BuildPaymentInfo(req, total)
+        );
+    }
+
+    private XElement BuildGroupHeader(DtaRequest req, decimal total) =>
+        new(Ns + "GrpHdr",
+            new XElement(Ns + "MsgId",   Truncate(req.MessageId, 35)),
+            new XElement(Ns + "CreDtTm", req.CreationDateTime.ToString("yyyy-MM-ddTHH:mm:ss")),
+            new XElement(Ns + "NbOfTxs", req.Payments.Count.ToString(CultureInfo.InvariantCulture)),
+            new XElement(Ns + "CtrlSum", FmtAmount(total)),
+            new XElement(Ns + "InitgPty",
+                new XElement(Ns + "Nm", Truncate(req.InitiatorName, 70)),
+                BuildPostalAddress(req.InitiatorStreet, req.InitiatorPostalCode, req.InitiatorCity, req.InitiatorCountry)
+            )
+        );
+
+    private XElement BuildPaymentInfo(DtaRequest req, decimal total)
+    {
+        var pmtInf = new XElement(Ns + "PmtInf",
+            new XElement(Ns + "PmtInfId",  Truncate(req.MessageId + "-1", 35)),
+            new XElement(Ns + "PmtMtd",    "TRF"),
+            new XElement(Ns + "BtchBookg", "true"),
+            new XElement(Ns + "NbOfTxs",   req.Payments.Count.ToString(CultureInfo.InvariantCulture)),
+            new XElement(Ns + "CtrlSum",   FmtAmount(total)),
+            new XElement(Ns + "PmtTpInf",
+                new XElement(Ns + "SvcLvl", new XElement(Ns + "Prtry", "CH01"))   // Schweizer Inland-Zahlung
+            ),
+            new XElement(Ns + "ReqdExctnDt",
+                new XElement(Ns + "Dt", req.ExecutionDate.ToString("yyyy-MM-dd"))
+            ),
+            new XElement(Ns + "Dbtr",
+                new XElement(Ns + "Nm", Truncate(req.DebtorName, 70)),
+                BuildPostalAddress(req.InitiatorStreet, req.InitiatorPostalCode, req.InitiatorCity, req.InitiatorCountry)
+            ),
+            new XElement(Ns + "DbtrAcct",
+                new XElement(Ns + "Id", new XElement(Ns + "IBAN", NormalizeIban(req.DebtorIban))),
+                new XElement(Ns + "Ccy", "CHF")
+            ),
+            BuildAgent(req.DebtorBic, isDebtor: true)
+        );
+
+        foreach (var p in req.Payments)
+            pmtInf.Add(BuildTransaction(p));
+
+        return pmtInf;
+    }
+
+    private XElement BuildTransaction(PaymentInstruction p)
+    {
+        var tx = new XElement(Ns + "CdtTrfTxInf",
+            new XElement(Ns + "PmtId",
+                new XElement(Ns + "InstrId",    Truncate(p.EndToEndId, 35)),
+                new XElement(Ns + "EndToEndId", Truncate(p.EndToEndId, 35))
+            ),
+            new XElement(Ns + "Amt",
+                new XElement(Ns + "InstdAmt",
+                    new XAttribute("Ccy", "CHF"),
+                    FmtAmount(p.Amount)
+                )
+            )
+        );
+
+        // Cdtr-Bank: nur wenn BIC bekannt — pain.001 erlaubt fehlende CdtrAgt
+        if (!string.IsNullOrWhiteSpace(p.CreditorBic))
+            tx.Add(BuildAgent(p.CreditorBic, isDebtor: false));
+
+        // Cdtr (Empfänger) mit Adresse
+        var cdtr = new XElement(Ns + "Cdtr",
+            new XElement(Ns + "Nm", Truncate(p.CreditorName, 70))
+        );
+        var addr = BuildPostalAddress(p.CreditorStreet, p.CreditorPostalCode, p.CreditorCity, p.CreditorCountry);
+        if (addr != null) cdtr.Add(addr);
+        tx.Add(cdtr);
+
+        // CdtrAcct (IBAN)
+        tx.Add(new XElement(Ns + "CdtrAcct",
+            new XElement(Ns + "Id", new XElement(Ns + "IBAN", NormalizeIban(p.CreditorIban)))
+        ));
+
+        // RmtInf (Zahlungsgrund)
+        if (!string.IsNullOrWhiteSpace(p.RemittanceInfo))
+        {
+            tx.Add(new XElement(Ns + "RmtInf",
+                new XElement(Ns + "Ustrd", Truncate(p.RemittanceInfo!, 140))
+            ));
+        }
+
+        return tx;
+    }
+
+    private XElement BuildAgent(string? bic, bool isDebtor)
+    {
+        var elementName = isDebtor ? "DbtrAgt" : "CdtrAgt";
+        var inner = new XElement(Ns + "FinInstnId");
+        if (!string.IsNullOrWhiteSpace(bic))
+        {
+            inner.Add(new XElement(Ns + "BICFI", bic.Trim().ToUpperInvariant()));
+        }
+        else
+        {
+            // Falls kein BIC: "OTHR" als Fallback erlaubt (z.B. wenn IBAN ohne BIC)
+            inner.Add(new XElement(Ns + "Othr", new XElement(Ns + "Id", "NOTPROVIDED")));
+        }
+        return new XElement(Ns + elementName, inner);
+    }
+
+    private XElement? BuildPostalAddress(string? street, string? plz, string? city, string country)
+    {
+        if (string.IsNullOrWhiteSpace(street)
+            && string.IsNullOrWhiteSpace(plz)
+            && string.IsNullOrWhiteSpace(city)
+            && string.IsNullOrWhiteSpace(country))
+            return null;
+
+        var addr = new XElement(Ns + "PstlAdr");
+        if (!string.IsNullOrWhiteSpace(street))
+        {
+            // Strasse: sofern Hausnummer vorhanden, am Ende. Wir geben hier
+            // die ganze Strasse-Zeile als StrtNm und nutzen kein BldgNb
+            // separat — das Schema erlaubt das.
+            addr.Add(new XElement(Ns + "StrtNm", Truncate(street, 70)));
+        }
+        if (!string.IsNullOrWhiteSpace(plz))
+            addr.Add(new XElement(Ns + "PstCd", Truncate(plz, 16)));
+        if (!string.IsNullOrWhiteSpace(city))
+            addr.Add(new XElement(Ns + "TwnNm", Truncate(city, 35)));
+        if (!string.IsNullOrWhiteSpace(country))
+            addr.Add(new XElement(Ns + "Ctry", country.Trim().ToUpperInvariant()));
+        return addr;
+    }
+
+    private static string NormalizeIban(string iban)
+        => new string(iban.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpperInvariant();
+
+    private static string FmtAmount(decimal v)
+        => v.ToString("F2", CultureInfo.InvariantCulture);
+
+    private static string Truncate(string s, int max)
+        => string.IsNullOrEmpty(s) || s.Length <= max ? s : s.Substring(0, max);
+}

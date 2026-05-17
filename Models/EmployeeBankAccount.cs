@@ -14,8 +14,24 @@ public class EmployeeBankAccount
     public string?   Bic              { get; set; }
     public string?   BankName         { get; set; }
 
-    /// <summary>NULL = MA selbst. Gesetzt bei abweichendem Kontoinhaber.</summary>
-    public string?   Kontoinhaber     { get; set; }
+    /// <summary>
+    /// NULL = MA selbst. Gesetzt bei abweichendem Kontoinhaber/Empfänger.
+    /// Praxisfall: Revolut/Wise/N26 — Kontoinhaber = "Revolut Bank UAB" mit
+    /// LT-Adresse, der MA-Name geht in <see cref="Zahlungsreferenz"/>
+    /// (Zahlungsgrund) damit die Schweizer Bank die SEPA-Zahlung akzeptiert.
+    /// </summary>
+    public string?   Kontoinhaber          { get; set; }
+
+    /// <summary>Adresse Strasse des abweichenden Empfängers (für DTA-Cdtr).</summary>
+    public string?   KontoinhaberStrasse   { get; set; }
+
+    /// <summary>PLZ des Empfängers — auch ausländische Formate zulässig (z.B. "08130").</summary>
+    public string?   KontoinhaberPlz       { get; set; }
+
+    public string?   KontoinhaberOrt       { get; set; }
+
+    /// <summary>ISO-3166-1 alpha-2 Ländercode (z.B. "LT", "DE", "CH").</summary>
+    public string?   KontoinhaberLand      { get; set; }
 
     public string?   Zahlungsreferenz { get; set; }
     public string?   Bemerkung        { get; set; }

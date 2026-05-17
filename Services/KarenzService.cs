@@ -289,9 +289,9 @@ public class KarenzService
     /// Ergebnis. Krank- und Unfall-Kumulation laufen getrennt: z.B. 2 Tage
     /// Unfall verbrauchen NICHT die 14 Tage Krank.
     ///
-    /// Wichtig: arbeitet mit Lohnperioden (z.B. 21.01.–20.02.), nicht mit
-    /// Kalendermonaten. Der Aufrufer muss die echten Perioden-Grenzen
-    /// liefern (im PayrollController aus CompanyProfile.PayrollPeriodStartDay).
+    /// Lohnperiode = Kalendermonat (Walter 16.05.2026, Akonto-Lohn-Modell).
+    /// Der Aufrufer übergibt PeriodFrom/PeriodTo direkt — Legacy-Lookup über
+    /// CompanyProfile.PayrollPeriodStartDay ist weggefallen.
     ///
     /// Default-Absenz-Typ: Krankheit. Für Unfall "UNFALL" übergeben.
     /// </summary>

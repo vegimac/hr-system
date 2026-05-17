@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -120,22 +121,16 @@ public class EmploymentsController : ControllerBase
 
         // Berechnungs-Stichtag: Ende der letzten geschlossenen Periode bzw.
         // Vertragsbeginn (falls noch keine Periode abgerechnet).
-        // Für die Stunden-Projektion: vom Stichtag bis exitDate.
+        // Lohnperiode = Kalendermonat (Walter 16.05.2026, Etappe 5f) — Stichtag =
+        // letzter Tag des PeriodMonth. PayrollPeriodStartDay (Legacy) wird nicht
+        // mehr ausgewertet.
         var company = employment.CompanyProfile;
-        int startDay = company?.PayrollPeriodStartDay ?? 1;
         DateOnly fromDate;
         if (lastSaldo != null)
         {
-            // Letzte Periode endete am Tag vor Periodenstart des Folgemonats.
-            // Für startDay=21: PeriodMonth=3 → Periode 21.2.-20.3., nächste Periode beginnt 21.3.
-            int year = lastSaldo.PeriodYear;
+            int year  = lastSaldo.PeriodYear;
             int month = lastSaldo.PeriodMonth;
-            // Folge-Periode startet am startDay des AKTUELLEN Monats (PeriodMonth bezeichnet das Auszahlungs-Monat,
-            // was der Periode vom 21. des Vormonats bis 20. des Auszahlungs-Monats entspricht).
-            // → Stichtag = 20. des PeriodMonth (Ende der letzten Periode).
-            fromDate = startDay > 1
-                ? new DateOnly(year, month, startDay - 1)
-                : new DateOnly(year, month, DateTime.DaysInMonth(year, month));
+            fromDate = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
         }
         else
         {
@@ -278,11 +273,14 @@ public class EmploymentsController : ControllerBase
         var existing = await _context.Employments.FindAsync(id);
         if (existing == null) return NotFound();
 
-        // Nur aktive Verträge dürfen bearbeitet werden
-        if (existing.ContractEndDate != null)
-            return BadRequest(new { error = "Abgeschlossene Verträge können nicht mehr bearbeitet werden." });
-
-        // Felder übernehmen (ContractStartDate und EmployeeId bleiben)
+        // ContractStartDate, ContractEndDate, ContractType etc. sind editierbar —
+        // Walter braucht das z.B. um eine falsche Lohn-Eingabe nach dem CSV-Import
+        // nachträglich zu korrigieren oder ein Austrittsdatum anzupassen.
+        // EmployeeId und CompanyProfileId bleiben unverändert (Vertrag bleibt
+        // demselben MA in derselben Filiale zugewiesen).
+        if (dto.ContractStartDate != default)
+            existing.ContractStartDate  = dto.ContractStartDate;
+        existing.ContractEndDate        = dto.ContractEndDate;
         existing.EmploymentModel        = dto.EmploymentModel;
         existing.SalaryType             = dto.SalaryType;
         existing.ContractType           = dto.ContractType;
@@ -302,9 +300,94 @@ public class EmploymentsController : ControllerBase
         existing.VacationPaymentMode    = dto.VacationPaymentMode;
         existing.ProbationPeriodMonths  = dto.ProbationPeriodMonths;
         existing.ProbationEndDate       = dto.ProbationEndDate;
+        existing.IsActive               = dto.IsActive;
 
         await _context.SaveChangesAsync();
         return Ok(existing);
+    }
+
+    // DELETE /api/employments/{id} — Vertrag endgültig löschen.
+    // Nur für admin/superuser; primär für Tests / Korrekturen vor Lohnabrechnung.
+    // Mit ?force=true wird auch dann gelöscht, wenn schon Lohn-Snapshots existieren.
+    [Authorize(Roles = "admin,superuser")]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, [FromQuery] bool force = false)
+    {
+        var employment = await _context.Employments.FindAsync(id);
+        if (employment == null)
+            return NotFound(new { error = "Vertrag nicht gefunden." });
+
+        // Sicherheits-Check: Existieren bereits abgeschlossene Lohnabrechnungen für
+        // diesen MA in der Vertragsperiode? Wenn ja, ohne ?force=true blockieren —
+        // der Lohnzettel referenziert sonst auf einen gelöschten Vertrag.
+        var startDateOnly = DateOnly.FromDateTime(employment.ContractStartDate);
+        var endDateOnly   = employment.ContractEndDate.HasValue
+            ? (DateOnly?)DateOnly.FromDateTime(employment.ContractEndDate.Value)
+            : null;
+
+        var hasFinalPayroll = await (
+            from snap in _context.PayrollSnapshots
+            join per in _context.PayrollPerioden on snap.PayrollPeriodeId equals per.Id
+            where snap.EmployeeId == employment.EmployeeId
+               && snap.IsFinal
+               && per.PeriodTo   >= startDateOnly
+               && (endDateOnly == null || per.PeriodFrom <= endDateOnly)
+            select snap.Id
+        ).AnyAsync();
+
+        if (hasFinalPayroll && !force)
+        {
+            return Conflict(new
+            {
+                error = "Für diesen Mitarbeiter bestehen bereits abgeschlossene Lohnabrechnungen "
+                      + "in der Vertragsperiode. Mit ?force=true kann trotzdem gelöscht werden.",
+                requiresForce = true
+            });
+        }
+
+        _context.Employments.Remove(employment);
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, deletedId = id, forced = hasFinalPayroll });
+    }
+
+    // GET /api/employments/unassigned-count — Anzahl Verträge ohne Filial-Zuordnung.
+    // Diagnose-Hilfe: zeigt wie viele Legacy-Datensätze noch keine company_profile_id haben.
+    [Authorize(Roles = "admin,superuser")]
+    [HttpGet("unassigned-count")]
+    public async Task<IActionResult> UnassignedCount()
+    {
+        var count = await _context.Employments.CountAsync(e => e.CompanyProfileId == null);
+        return Ok(new { unassigned = count });
+    }
+
+    // POST /api/employments/assign-unassigned/{companyProfileId} — Massnahme:
+    // alle Verträge ohne Filial-Zuordnung werden der angegebenen Filiale zugeordnet.
+    // Nutzung: Nach Filial-Wechsel die Sicht auf "Sursee" stellen, dann diesen Aufruf
+    // → alle MA mit unzugewiesenen Verträgen werden zu Sursee zugeordnet.
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("assign-unassigned/{companyProfileId:int}")]
+    public async Task<IActionResult> AssignUnassigned(int companyProfileId)
+    {
+        var company = await _context.CompanyProfiles.FindAsync(companyProfileId);
+        if (company == null)
+            return NotFound(new { error = "Filiale nicht gefunden." });
+
+        var orphans = await _context.Employments
+            .Where(e => e.CompanyProfileId == null)
+            .ToListAsync();
+
+        foreach (var emp in orphans)
+        {
+            emp.CompanyProfileId = companyProfileId;
+        }
+        await _context.SaveChangesAsync();
+        return Ok(new
+        {
+            success = true,
+            assigned = orphans.Count,
+            companyProfileId,
+            companyName = company.CompanyName
+        });
     }
 
 }

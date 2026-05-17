@@ -29,6 +29,25 @@ public class EmployeeBankAccountsController : ControllerBase
         return Ok(list);
     }
 
+    /// <summary>
+    /// Liefert die IDs aller Mitarbeiter mit einer per heute gültigen
+    /// Bankverbindung — Frontend nutzt das Komplement für den Filter
+    /// "MA ohne Bankverbindung" auf der Mitarbeiter-Maske.
+    /// </summary>
+    // GET /api/employee-bank-accounts/active-employee-ids
+    [HttpGet("active-employee-ids")]
+    public async Task<IActionResult> GetActiveEmployeeIds()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var ids = await _db.EmployeeBankAccounts
+            .Where(b => b.ValidFrom <= today
+                     && (b.ValidTo == null || b.ValidTo >= today))
+            .Select(b => b.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+        return Ok(ids);
+    }
+
     // POST /api/employee-bank-accounts
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] EmployeeBankAccountDto dto)
@@ -38,13 +57,17 @@ public class EmployeeBankAccountsController : ControllerBase
 
         var entry = new EmployeeBankAccount
         {
-            EmployeeId       = dto.EmployeeId,
-            Iban             = NormalizeIban(dto.Iban)!,
-            Bic              = NormalizeBic(dto.Bic),
-            BankName         = dto.BankName?.Trim(),
-            Kontoinhaber     = dto.Kontoinhaber?.Trim(),
-            Zahlungsreferenz = dto.Zahlungsreferenz?.Trim(),
-            Bemerkung        = dto.Bemerkung?.Trim(),
+            EmployeeId           = dto.EmployeeId,
+            Iban                 = NormalizeIban(dto.Iban)!,
+            Bic                  = NormalizeBic(dto.Bic),
+            BankName             = dto.BankName?.Trim(),
+            Kontoinhaber         = dto.Kontoinhaber?.Trim(),
+            KontoinhaberStrasse  = dto.KontoinhaberStrasse?.Trim(),
+            KontoinhaberPlz      = dto.KontoinhaberPlz?.Trim(),
+            KontoinhaberOrt      = dto.KontoinhaberOrt?.Trim(),
+            KontoinhaberLand     = NormalizeCountry(dto.KontoinhaberLand),
+            Zahlungsreferenz     = dto.Zahlungsreferenz?.Trim(),
+            Bemerkung            = dto.Bemerkung?.Trim(),
             IsHauptbank      = dto.IsHauptbank ?? true,
             AufteilungTyp    = NormalizeAufteilungTyp(dto.AufteilungTyp),
             AufteilungWert   = dto.AufteilungWert,
@@ -69,12 +92,16 @@ public class EmployeeBankAccountsController : ControllerBase
         var err = Validate(dto);
         if (err != null) return BadRequest(new { message = err });
 
-        entry.Iban             = NormalizeIban(dto.Iban)!;
-        entry.Bic              = NormalizeBic(dto.Bic);
-        entry.BankName         = dto.BankName?.Trim();
-        entry.Kontoinhaber     = dto.Kontoinhaber?.Trim();
-        entry.Zahlungsreferenz = dto.Zahlungsreferenz?.Trim();
-        entry.Bemerkung        = dto.Bemerkung?.Trim();
+        entry.Iban                 = NormalizeIban(dto.Iban)!;
+        entry.Bic                  = NormalizeBic(dto.Bic);
+        entry.BankName             = dto.BankName?.Trim();
+        entry.Kontoinhaber         = dto.Kontoinhaber?.Trim();
+        entry.KontoinhaberStrasse  = dto.KontoinhaberStrasse?.Trim();
+        entry.KontoinhaberPlz      = dto.KontoinhaberPlz?.Trim();
+        entry.KontoinhaberOrt      = dto.KontoinhaberOrt?.Trim();
+        entry.KontoinhaberLand     = NormalizeCountry(dto.KontoinhaberLand);
+        entry.Zahlungsreferenz     = dto.Zahlungsreferenz?.Trim();
+        entry.Bemerkung            = dto.Bemerkung?.Trim();
         entry.IsHauptbank      = dto.IsHauptbank ?? entry.IsHauptbank;
         entry.AufteilungTyp    = NormalizeAufteilungTyp(dto.AufteilungTyp);
         entry.AufteilungWert   = dto.AufteilungWert;
@@ -157,23 +184,34 @@ public class EmployeeBankAccountsController : ControllerBase
         if (string.IsNullOrWhiteSpace(bic)) return null;
         return bic.Replace(" ", "").ToUpperInvariant();
     }
+    /// <summary>ISO-3166-1 alpha-2 normalisieren — 2 Buchstaben, gross.</summary>
+    private static string? NormalizeCountry(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return null;
+        var c = code.Trim().ToUpperInvariant();
+        return c.Length == 2 ? c : null;
+    }
 
     private static object MapToDto(EmployeeBankAccount b) => new
     {
-        id               = b.Id,
-        employeeId       = b.EmployeeId,
-        iban             = b.Iban,
-        bic              = b.Bic,
-        bankName         = b.BankName,
-        kontoinhaber     = b.Kontoinhaber,
-        zahlungsreferenz = b.Zahlungsreferenz,
-        bemerkung        = b.Bemerkung,
-        isHauptbank      = b.IsHauptbank,
-        aufteilungTyp    = b.AufteilungTyp,
-        aufteilungWert   = b.AufteilungWert,
-        validFrom        = b.ValidFrom.ToString("yyyy-MM-dd"),
-        validTo          = b.ValidTo?.ToString("yyyy-MM-dd"),
-        createdAt        = b.CreatedAt
+        id                  = b.Id,
+        employeeId          = b.EmployeeId,
+        iban                = b.Iban,
+        bic                 = b.Bic,
+        bankName            = b.BankName,
+        kontoinhaber        = b.Kontoinhaber,
+        kontoinhaberStrasse = b.KontoinhaberStrasse,
+        kontoinhaberPlz     = b.KontoinhaberPlz,
+        kontoinhaberOrt     = b.KontoinhaberOrt,
+        kontoinhaberLand    = b.KontoinhaberLand,
+        zahlungsreferenz    = b.Zahlungsreferenz,
+        bemerkung           = b.Bemerkung,
+        isHauptbank         = b.IsHauptbank,
+        aufteilungTyp       = b.AufteilungTyp,
+        aufteilungWert      = b.AufteilungWert,
+        validFrom           = b.ValidFrom.ToString("yyyy-MM-dd"),
+        validTo             = b.ValidTo?.ToString("yyyy-MM-dd"),
+        createdAt           = b.CreatedAt
     };
 }
 
@@ -183,6 +221,10 @@ public record EmployeeBankAccountDto(
     string? Bic,
     string? BankName,
     string? Kontoinhaber,
+    string? KontoinhaberStrasse,
+    string? KontoinhaberPlz,
+    string? KontoinhaberOrt,
+    string? KontoinhaberLand,
     string? Zahlungsreferenz,
     string? Bemerkung,
     bool?   IsHauptbank,

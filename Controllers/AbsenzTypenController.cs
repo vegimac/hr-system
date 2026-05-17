@@ -23,7 +23,7 @@ public class AbsenzTypenController : ControllerBase
             .OrderBy(t => t.SortOrder)
             .Select(t => new {
                 t.Id, t.Code, t.Bezeichnung, t.Zeitgutschrift, t.GutschriftModus,
-                t.UtpAuszahlung, t.ReduziertSaldo, t.BasisStunden, t.SortOrder
+                t.UtpAuszahlung, t.ReduziertSaldo, t.BasisStunden, t.SortOrder, t.ZwischenverdienstKuerzel
             })
             .ToListAsync();
         return Ok(list);
@@ -37,7 +37,7 @@ public class AbsenzTypenController : ControllerBase
             .OrderBy(t => t.SortOrder)
             .Select(t => new {
                 t.Id, t.Code, t.Bezeichnung, t.Zeitgutschrift, t.GutschriftModus,
-                t.UtpAuszahlung, t.ReduziertSaldo, t.BasisStunden, t.SortOrder, t.Aktiv
+                t.UtpAuszahlung, t.ReduziertSaldo, t.BasisStunden, t.SortOrder, t.Aktiv, t.ZwischenverdienstKuerzel
             })
             .ToListAsync();
         return Ok(list);
@@ -69,11 +69,14 @@ public class AbsenzTypenController : ControllerBase
         typ.BasisStunden     = string.IsNullOrWhiteSpace(dto.BasisStunden)   ? "BETRIEB" : dto.BasisStunden;
         typ.SortOrder        = dto.SortOrder;
         typ.Aktiv            = dto.Aktiv;
+        typ.ZwischenverdienstKuerzel = string.IsNullOrWhiteSpace(dto.ZwischenverdienstKuerzel)
+            ? null
+            : dto.ZwischenverdienstKuerzel.ToUpper().Trim();
 
         await _db.SaveChangesAsync();
         return Ok(new {
             typ.Id, typ.Code, typ.Bezeichnung, typ.Zeitgutschrift, typ.GutschriftModus,
-            typ.UtpAuszahlung, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv
+            typ.UtpAuszahlung, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv, typ.ZwischenverdienstKuerzel
         });
     }
 
@@ -99,13 +102,16 @@ public class AbsenzTypenController : ControllerBase
             BasisStunden    = string.IsNullOrWhiteSpace(dto.BasisStunden)   ? "BETRIEB" : dto.BasisStunden,
             SortOrder       = dto.SortOrder,
             Aktiv           = true,
-            CreatedAt       = DateTime.UtcNow
+            CreatedAt       = DateTime.UtcNow,
+            ZwischenverdienstKuerzel = string.IsNullOrWhiteSpace(dto.ZwischenverdienstKuerzel)
+                ? null
+                : dto.ZwischenverdienstKuerzel.ToUpper().Trim()
         };
         _db.AbsenzTypen.Add(typ);
         await _db.SaveChangesAsync();
         return Ok(new {
             typ.Id, typ.Code, typ.Bezeichnung, typ.Zeitgutschrift, typ.GutschriftModus,
-            typ.UtpAuszahlung, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv
+            typ.UtpAuszahlung, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv, typ.ZwischenverdienstKuerzel
         });
     }
 
@@ -131,8 +137,9 @@ public record AbsenzTypDto(
     bool    Zeitgutschrift,
     string? GutschriftModus,
     int     SortOrder,
-    bool    Aktiv           = true,
-    bool    UtpAuszahlung   = false,
-    string? ReduziertSaldo  = null,
-    string? BasisStunden    = "BETRIEB"
+    bool    Aktiv                    = true,
+    bool    UtpAuszahlung            = false,
+    string? ReduziertSaldo           = null,
+    string? BasisStunden             = "BETRIEB",
+    string? ZwischenverdienstKuerzel = null
 );

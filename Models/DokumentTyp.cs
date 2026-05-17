@@ -14,4 +14,12 @@ public class DokumentTyp
     public int SortOrder { get; set; } = 99;
     public bool Aktiv { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Optionale Verknüpfung mit einem Stammdaten-Feld in der MA-Maske
+    /// (permit, passport, ahv_card, bank_card, etc.). Wenn gesetzt, erscheint
+    /// neben diesem Feld ein 📎-Button, der das neueste Dokument dieses Typs
+    /// für den MA öffnet. NULL = keine Verknüpfung (Default).
+    /// </summary>
+    public string? LinkedFieldCode { get; set; }
 }
