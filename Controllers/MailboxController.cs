@@ -12,7 +12,14 @@ namespace HrSystem.Controllers;
 /// (Arztzeugnisse, unterschriebene Verträge etc.), Admin/Superuser
 /// sortieren sie in die MA-Personalakte ein oder löschen sie.
 /// </summary>
-[Authorize]
+// KEIN klassenweites [Authorize] (Walter-Vorgabe 20.05.2026): die globale
+// DefaultPolicy/FallbackPolicy (admin,superuser,user) greift bereits für jede
+// Methode OHNE eigenes Attribut → die nicht annotierten Methoden (postfaecher,
+// count, notify-recipients, upload, delete) sind damit HR-only. Die MA-Methoden
+// (GET, ma-outbox, ma-upload, download, preview) tragen ein eigenes
+// [Authorize(Roles="...,employee")] und prüfen die Eigentümerschaft selbst.
+// Ein klassenweites [Authorize] würde via UND-Verknüpfung die employee-Freigabe
+// auf Methodenebene wieder aushebeln — daher bewusst weggelassen.
 [ApiController]
 [Route("api/mailbox")]
 public class MailboxController : ControllerBase
@@ -33,6 +40,7 @@ public class MailboxController : ControllerBase
     // ── GET: Liste der Dokumente eines Postfachs ──────────────────────────
     // type = "BRANCH" (default, mit companyProfileId) | "HR" | "ADMIN"
     [HttpGet]
+    [Authorize(Roles = "admin,superuser,user,employee")]   // MA sieht NUR eigenes EMPLOYEE-Postfach (selfAccess-Check unten)
     public async Task<IActionResult> GetForPostfach(
         [FromQuery] int? companyProfileId,
         [FromQuery] int? employeeId,
@@ -290,6 +298,7 @@ public class MailboxController : ControllerBase
     // angezeigt — der MA hat damit Übersicht über seine Sendungen an
     // Geschäftsführung und HR.
     [HttpGet("ma-outbox")]
+    [Authorize(Roles = "admin,superuser,user,employee")]   // filtert auf UploadedBy == eigener User
     public async Task<IActionResult> MaOutbox()
     {
         var uid = GetCurrentUserId();
@@ -329,6 +338,7 @@ public class MailboxController : ControllerBase
     // Auth-Token), der MA kann nur Datei + Empfänger-Typ + optionale
     // Bemerkung wählen.
     [HttpPost("ma-upload")]
+    [Authorize(Roles = "admin,superuser,user,employee")]   // setzt EmployeeId/Filiale serverseitig aus Token
     [DisableRequestSizeLimit]
     [RequestFormLimits(MultipartBodyLengthLimit = 20_000_000)] // 20 MB
     public async Task<IActionResult> MaUpload(
@@ -420,6 +430,7 @@ public class MailboxController : ControllerBase
 
     // ── GET: Dokument herunterladen ───────────────────────────────────────
     [HttpGet("{id}/download")]
+    [Authorize(Roles = "admin,superuser,user,employee")]   // UserCanViewDocumentAsync prüft Eigentümerschaft
     public async Task<IActionResult> Download(int id)
     {
         var doc = await _db.MailboxDocuments.FindAsync(id);
@@ -436,6 +447,7 @@ public class MailboxController : ControllerBase
 
     // ── GET: Dokument inline anzeigen (für Vorschau-Modal) ────────────────
     [HttpGet("{id}/preview")]
+    [Authorize(Roles = "admin,superuser,user,employee")]   // UserCanViewDocumentAsync prüft Eigentümerschaft
     public async Task<IActionResult> Preview(int id)
     {
         var doc = await _db.MailboxDocuments.FindAsync(id);

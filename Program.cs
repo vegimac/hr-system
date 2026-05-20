@@ -26,7 +26,35 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.Zero
         };
     });
-builder.Services.AddAuthorization();
+// Secure-by-default (Walter-Vorgabe 20.05.2026): JEDER Controller/Endpoint
+// verlangt einen authentifizierten User — AUSSER er ist explizit mit
+// [AllowAnonymous] markiert (aktuell: AuthController.Login = Token-Ausgabe inkl.
+// MA-Postfach-Login, WebDavController = eigene HTTP-Basic-Auth, UsersController
+// Signatur-Bild für <img src>). Damit sind auch Controller OHNE explizites
+// [Authorize] geschützt (vorher waren u.a. /api/payroll/* und /api/employees
+// offen). [Authorize(Roles=...)] auf einzelnen Endpoints greift weiterhin
+// zusätzlich. Statische Dateien (SPA, import.html, JS) laufen über
+// UseStaticFiles und sind von der Policy NICHT betroffen.
+builder.Services.AddAuthorization(options =>
+{
+    // HR-Default (Walter-Vorgabe 20.05.2026): eingeloggt UND Rolle
+    // admin/superuser/user. Gilt für ALLE Endpoints mit plain [Authorize]
+    // (DefaultPolicy) UND ohne jegliches Auth-Attribut (FallbackPolicy).
+    // Damit ist die MA-Rolle "employee" standardmässig ausgesperrt — ein
+    // Mitarbeiter mit Postfach-Login kann KEINE HR-/Lohn-Endpunkte mehr lesen.
+    // "employee" wird NUR auf den explizit fürs MA-Postfach gedachten Endpoints
+    // wieder zugelassen ([Authorize(Roles="admin,superuser,user,employee")] auf
+    // AuthController.Me/ChangePassword + den MA-Mailbox-Methoden, die alle die
+    // Eigentümerschaft selbst prüfen). Endpoints mit eigener, strengerer Policy
+    // ([Authorize(Roles="admin,superuser")] o.ä.) bleiben unverändert.
+    // [AllowAnonymous] (Login, WebDAV, Signatur-Bild) sticht alles.
+    var hrPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .RequireRole("admin", "superuser", "user")
+        .Build();
+    options.DefaultPolicy  = hrPolicy;
+    options.FallbackPolicy = hrPolicy;
+});
 
 // Quellensteuer-Tarifdienst (Singleton: Dateien werden einmal beim Start eingelesen)
 builder.Services.AddSingleton<QuellensteuerTarifService>();

@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
@@ -24,6 +25,11 @@ namespace HrSystem.Controllers;
 /// Authentifizierung: HTTP Basic mit E-Mail-Adresse oder Username + HR-Passwort.
 /// </summary>
 [ApiController]
+// WebDAV macht seine EIGENE HTTP-Basic-Authentifizierung intern (E-Mail/Username
+// + HR-Passwort, siehe unten). Daher von der globalen JWT-FallbackPolicy
+// ausnehmen — sonst würde der 401-JWT-Check vor der Basic-Auth greifen und
+// Scan-Apps könnten sich gar nicht erst anmelden.
+[AllowAnonymous]
 public class WebDavController : ControllerBase
 {
     private readonly AppDbContext _db;

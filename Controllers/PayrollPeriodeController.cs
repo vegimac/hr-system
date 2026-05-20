@@ -66,6 +66,13 @@ public class PayrollPeriodeController : ControllerBase
                 p.AkontoGfSentAt,
                 p.AkontoHrFreigegebenAt,
                 p.AkontoAusbezahltAt,
+                // Bank-Ausführungsdatum (ReqdExctnDt im DTA) je Strang — für die
+                // Anzeige des Zahldatums + den Admin-Reset-Lock im Lohnperioden-Modul
+                // (Walter-Vorgabe 20.05.2026). Roh als DateOnly? zurückgeben
+                // (System.Text.Json serialisiert als "yyyy-MM-dd"); das Frontend
+                // (fmtDateDe) formatiert auf TT.MM.JJJJ.
+                p.Auszahlungsdatum,
+                p.AkontoAuszahlungsdatum,
                 AkontoCount = _db.AkontoZahlungen
                     .Count(a => a.CompanyProfileId == p.CompanyProfileId
                              && a.PeriodYear  == p.Year

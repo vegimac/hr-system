@@ -50,8 +50,16 @@ public class LohnEditLockService
     /// </summary>
     public async Task<DateOnly?> GetFirstAllowedDateAsync(
         ClaimsPrincipal? user,
-        int companyProfileId)
+        int companyProfileId,
+        bool includeAkonto = true)
     {
+        // includeAkonto=false (Walter-Vorgabe 20.05.2026): nur der DEFINITIV-
+        // Strang sperrt. Wird vom Saldo-Vortrag (Eröffnungs-Saldi/Migration)
+        // genutzt: die Saldi sind der Input für den Definitivlohn und müssen
+        // editierbar bleiben, solange der Januar-Definitivlauf nicht
+        // abgeschlossen ist — der Akonto ist nur eine Schätzung, die im
+        // Definitivlauf ohnehin verrechnet wird. Für ALLE anderen Edits
+        // (Absenzen, Stempel, Zulagen, …) bleibt includeAkonto=true (Default).
         // Walter-Vorgabe 17.05.2026 (final): KEIN Bypass — auch nicht für
         // admin/superuser. Lohn-relevante Edits sind in einer in-Verarbeitung-
         // oder abgeschlossenen Periode für JEDEN gesperrt. Der Admin muss die
@@ -77,9 +85,10 @@ public class LohnEditLockService
             .Where(p =>
                 p.Status == "provisorisch_abgeschlossen" ||
                 p.Status == "abgeschlossen" ||
-                p.AkontoStatus == "BEI_HR" ||
-                p.AkontoStatus == "HR_FREIGEGEBEN" ||
-                p.AkontoStatus == "AUSBEZAHLT")
+                (includeAkonto && (
+                    p.AkontoStatus == "BEI_HR" ||
+                    p.AkontoStatus == "HR_FREIGEGEBEN" ||
+                    p.AkontoStatus == "AUSBEZAHLT")))
             .OrderByDescending(p => p.Year).ThenByDescending(p => p.Month)
             .Select(p => new { p.Year, p.Month })
             .FirstOrDefaultAsync();
@@ -90,26 +99,31 @@ public class LohnEditLockService
         // != BERECHNET ebenfalls eine in-Verarbeitung-Periode an. Walter
         // 17.05.2026: königliche Kontrolle = beide Quellen verodert nehmen,
         // späteste gewinnt.
-        var fromAkonto = await _db.AkontoZahlungen
-            .Where(a => a.CompanyProfileId == companyProfileId)
-            .Where(a => a.Status == "FREIGEGEBEN_GF"
-                     || a.Status == "HR_BESTAETIGT"
-                     || a.Status == "AUSBEZAHLT")
-            .OrderByDescending(a => a.PeriodYear).ThenByDescending(a => a.PeriodMonth)
-            .Select(a => new { Year = a.PeriodYear, Month = a.PeriodMonth })
-            .FirstOrDefaultAsync();
-
         // Späteste der beiden Quellen
         (int Year, int Month)? winner = null;
         if (fromPeriode is not null)
             winner = (fromPeriode.Year, fromPeriode.Month);
-        if (fromAkonto is not null)
+
+        // QUELLE 2 nur prüfen, wenn der Akonto-Strang mitsperren soll
+        // (für Saldo-Vortrag: includeAkonto=false → übersprungen).
+        if (includeAkonto)
         {
-            if (winner is null
-                || fromAkonto.Year > winner.Value.Year
-                || (fromAkonto.Year == winner.Value.Year && fromAkonto.Month > winner.Value.Month))
+            var fromAkonto = await _db.AkontoZahlungen
+                .Where(a => a.CompanyProfileId == companyProfileId)
+                .Where(a => a.Status == "FREIGEGEBEN_GF"
+                         || a.Status == "HR_BESTAETIGT"
+                         || a.Status == "AUSBEZAHLT")
+                .OrderByDescending(a => a.PeriodYear).ThenByDescending(a => a.PeriodMonth)
+                .Select(a => new { Year = a.PeriodYear, Month = a.PeriodMonth })
+                .FirstOrDefaultAsync();
+            if (fromAkonto is not null)
             {
-                winner = (fromAkonto.Year, fromAkonto.Month);
+                if (winner is null
+                    || fromAkonto.Year > winner.Value.Year
+                    || (fromAkonto.Year == winner.Value.Year && fromAkonto.Month > winner.Value.Month))
+                {
+                    winner = (fromAkonto.Year, fromAkonto.Month);
+                }
             }
         }
 

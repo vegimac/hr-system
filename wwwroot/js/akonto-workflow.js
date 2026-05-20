@@ -23,6 +23,7 @@ let _akWfData = null;           // /status-Response-Cache
 let _akWfSelectedId = null;     // aktuell ausgewähltes akonto_zahlung.id im Detail
 let _akWfEmpMap = null;         // empId → vollständiges Employee-Objekt (für Modell-Badge + QST-Button im MA-Listen-Render — analog loadLohnList in payroll.js)
 let _akWfQstIds = null;         // Set<empId> mit aktivem QST-Eintrag — bestimmt ob der QST-Shortcut neben dem MA-Namen gezeigt wird (Walter 18.05.2026: NUR wo wirklich QST hinterlegt ist; B-Permit kann auch QST-befreit sein)
+let _akWfAutoStarting = false;  // In-Flight-Guard fürs Auto-Vorbereiten (Walter 20.05.2026) — verhindert Doppelauslösung im async-Fenster
 
 // Bedeutung der Status-Werte (Doppelmoppel zur Anzeige im UI)
 const _AK_STATUS = {
@@ -54,6 +55,61 @@ function _akFmtTs(ts) {
     const d = new Date(ts);
     if (isNaN(d)) return ts;
     return d.toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+// ── Datums-Picker mit Kalender (Walter-Vorgabe 20.05.2026) ────────────────
+// Ersetzt das alte prompt() mit ISO-Format beim DTA-Auszahlungsdatum. Zeigt
+// einen nativen Kalender (<input type="date">), nur Zukunft wählbar (min =
+// morgen). Der Kalender zeigt das Datum in Browser-Locale (de-CH = TT.MM.JJJJ);
+// der zurückgegebene Wert ist ISO 'YYYY-MM-DD', weil das Backend (ReqdExctnDt)
+// das so erwartet. Promise: resolve(ISO) bei OK, resolve(null) bei Abbruch.
+// Liegt in akonto-workflow.js (lädt vor payroll.js) → für BEIDE Läufe nutzbar.
+function _isoLocalDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function askPayoutDate({ title = 'Auszahlungsdatum', message = '', defaultIso = '', minIso = '' } = {}) {
+    return new Promise(resolve => {
+        const ov = document.createElement('div');
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:99999;display:flex;align-items:center;justify-content:center';
+        const box = document.createElement('div');
+        box.className = 'card';   // erbt automatisch das Dark-Theme (body.theme-dark .card)
+        box.style.cssText = 'width:440px;max-width:92vw;padding:24px;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,0.35);color-scheme:light dark';
+        box.innerHTML = `
+            <div style="font-size:16px;font-weight:700;margin-bottom:8px">${title}</div>
+            ${message ? `<div style="font-size:13px;color:#64748b;line-height:1.5;margin-bottom:16px">${message}</div>` : ''}
+            <input type="date" id="_payoutDateInput" value="${defaultIso}" ${minIso ? `min="${minIso}"` : ''}
+                   style="width:100%;font-size:15px;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:9px;box-sizing:border-box;color-scheme:light dark">
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+                <button type="button" id="_payoutCancel" class="btn btn-outline">Abbrechen</button>
+                <button type="button" id="_payoutOk" class="btn btn-primary">OK</button>
+            </div>`;
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+        const inp = box.querySelector('#_payoutDateInput');
+        let done = false;
+        const onKey = e => { if (e.key === 'Escape') close(null); };
+        const close = (val) => {
+            if (done) return; done = true;
+            document.removeEventListener('keydown', onKey);
+            try { document.body.removeChild(ov); } catch {}
+            resolve(val);
+        };
+        box.querySelector('#_payoutCancel').onclick = () => close(null);
+        box.querySelector('#_payoutOk').onclick = () => {
+            const v = inp.value;
+            if (!v) { inp.style.borderColor = '#ef4444'; inp.focus(); return; }
+            if (minIso && v < minIso) {
+                inp.style.borderColor = '#ef4444';
+                alert('Bitte ein Datum in der Zukunft wählen (frühestens ' +
+                      minIso.slice(8,10) + '.' + minIso.slice(5,7) + '.' + minIso.slice(0,4) + ').');
+                return;
+            }
+            close(v);
+        };
+        ov.addEventListener('click', e => { if (e.target === ov) close(null); });
+        document.addEventListener('keydown', onKey);
+        setTimeout(() => { try { inp.focus(); if (inp.showPicker) inp.showPicker(); } catch {} }, 60);
+    });
 }
 
 // ── Rolle ermitteln (für Sichtbarkeit der HR-Buttons) ─────────────────────
@@ -460,6 +516,22 @@ async function akWfRefresh() {
         // automatisch neu gerendert. Ohne diesen expliziten Aufruf bleiben
         // „+ Erfassen" / ✎ / 🗑 sichtbar obwohl der Lock greifen müsste.
         _akWfApplyZulagenLock();
+
+        // Auto-Vorbereiten (Walter-Vorgabe 20.05.2026): eine OFFENE Akonto-
+        // Periode ohne berechnete Zahlungen wird beim Öffnen automatisch
+        // vorbereitet — kein manueller „Akonto vorbereiten"-Klick mehr nötig,
+        // der Bildschirm füllt sich sofort. Fire-and-forget: akWfStart() ruft
+        // intern akWfRefresh() → danach ist der Status IN_BEARBEITUNG_GF und
+        // diese Bedingung greift nicht mehr (kein Loop). Schlägt akWfStart fehl
+        // (z.B. Sequenz-Sperre), bleibt der bereits gerenderte „Akonto
+        // vorbereiten"-Button als Fallback stehen. Der Stichtag wird in
+        // akWfStart automatisch ermittelt (Akonto-Termin / Tag 23).
+        if (_akWfData.akontoStatus === 'OFFEN'
+            && (_akWfData.zahlungen || []).length === 0
+            && !_akWfAutoStarting) {
+            _akWfAutoStarting = true;
+            Promise.resolve(akWfStart()).finally(() => { _akWfAutoStarting = false; });
+        }
     } catch (e) {
         if (bar) bar.innerHTML = _akWfAlert('Verbindungsfehler: ' + e.message, 'err');
     }
@@ -1225,22 +1297,19 @@ async function akWfAuszahlen() {
 
     // Schritt 0: Bank-Ausführungsdatum erfragen (geht ins DTA als ReqdExctnDt
     // und wird in PayrollPeriode.AkontoAuszahlungsdatum persistiert).
-    // Default: morgen (banküblicher Next-Business-Day-Standard).
+    // Default: morgen (banküblicher Next-Business-Day-Standard). Kalender-Picker,
+    // nur Zukunft wählbar (Walter-Vorgabe 20.05.2026 — kein ISO-prompt mehr).
+    const isoToday   = _isoLocalDate(new Date());
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const isoTomorrow = tomorrow.toISOString().slice(0, 10);
-    const input = prompt(
-        'AUSZAHLUNGSDATUM erfassen (= Bank-Ausführungsdatum im DTA)\n\n' +
-        'Wann soll die Bank die Akonto-Beträge ausführen?\n' +
-        'Format: YYYY-MM-DD (z.B. 2026-01-27)\n\n' +
-        'Default: morgen.',
-        isoTomorrow
-    );
-    if (!input) return;
-    const auszahlungsdatum = input.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(auszahlungsdatum)) {
-        alert('Ungültiges Datum. Format: YYYY-MM-DD'); return;
-    }
+    const isoTomorrow = _isoLocalDate(tomorrow);
+    const auszahlungsdatum = await askPayoutDate({
+        title: 'Auszahlungsdatum erfassen',
+        message: 'Wann soll die Bank die Akonto-Beträge ausführen?<br>(= Bank-Ausführungsdatum / ReqdExctnDt im DTA)<br>Heute ist möglich (Bankannahme bis 15:00).',
+        defaultIso: isoTomorrow,
+        minIso:     isoToday,
+    });
+    if (!auszahlungsdatum) return;
 
     // Schritt 1: DTA-Datei herunterladen
     if (!confirm(

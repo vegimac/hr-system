@@ -36,6 +36,7 @@ public class AuthController : ControllerBase
     // MA-Postfach-Accounts). Frontend kann beides ans gleiche Feld senden.
     public record LoginRequest(string Email, string Password);
 
+    [AllowAnonymous]   // Token-Ausgabe (HR-User + MA-Postfach-Login) — muss ohne Login erreichbar sein
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
@@ -135,7 +136,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("me")]
-    [Authorize]
+    [Authorize(Roles = "admin,superuser,user,employee")]   // auch MA-Postfach (Rolle employee) braucht /me
     public async Task<IActionResult> Me()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -220,7 +221,7 @@ public class AuthController : ControllerBase
     /// MustChangePassword wird auf false gesetzt). Mindestlänge 8 Zeichen.
     /// </summary>
     [HttpPost("change-password")]
-    [Authorize]
+    [Authorize(Roles = "admin,superuser,user,employee")]   // MA muss Initial-Passwort wechseln können
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
     {
         if (req == null || string.IsNullOrWhiteSpace(req.CurrentPassword) || string.IsNullOrWhiteSpace(req.NewPassword))

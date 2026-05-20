@@ -432,7 +432,16 @@ async function loadLohnList() {
     if (!companyId) return;
 
     const listEl = document.getElementById('lohnEmpList');
-    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Lade…</div>';
+    // Walter-Vorgabe 20.05.2026 („genau wie Akonto", kein Sprung nach oben):
+    //   1) Aktuelle Scroll-Position merken und nach dem Neuaufbau wieder setzen,
+    //      damit die Liste beim Refresh NICHT an den Anfang reisst.
+    //   2) Den „Lade…"-Platzhalter NUR zeigen, wenn die Liste leer ist (erster
+    //      Aufruf). Bei einem Refresh bleibt die alte Liste sichtbar bis die
+    //      neue fertig gerendert ist — sonst blitzt sie leer auf (= Flackern).
+    const _prevScroll = listEl.scrollTop || 0;
+    if (!listEl.querySelector('.lohn-emp-row')) {
+        listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Lade…</div>';
+    }
 
     const cid = parseInt(companyId);
     const y   = parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
@@ -655,6 +664,13 @@ async function loadLohnList() {
                 </div>`;
             listEl.appendChild(row);
         });
+
+        // Scroll-Position des Refresh wiederherstellen (Walter 20.05.2026):
+        // der Rebuild via innerHTML='' setzt scrollTop auf 0 — ohne diese Zeile
+        // springt die Liste bei jedem Bestätigen kurz nach oben und scrollt dann
+        // wieder runter. Mit der Wiederherstellung bleibt sie ruhig stehen und
+        // nur der Auto-Sprung (scrollIntoView) bewegt den Cursor sanft nach unten.
+        listEl.scrollTop = _prevScroll;
 
         // Auto-Select beim Öffnen der Seite. WICHTIG (Walter-Vorgabe 20.05.2026,
         // „genau wie Akonto"): KEIN force-scroll-to-top mehr! Die frühere Zeile
@@ -1479,6 +1495,10 @@ async function confirmLohn() {
                 svBasisBvg:                  s.svBasisBvg         ?? 0,
                 qstBetrag:                   s.qstBetrag          ?? 0,
                 slipJson:                    JSON.stringify(s),
+                // Server rechnet jetzt selbst nach (Sicherheit) — die Beträge
+                // oben dienen nur noch als Referenz. Die EINZIGE Entscheidung,
+                // die der Server braucht: ob die Ferien-Kürzung angewendet wurde.
+                applyFerienKuerzung:         !!s.ferienKuerzungAngewendet,
                 lohnAbtretungen:             (s.lohnAbtretungen ?? []).map(l => ({ assignmentId: l.assignmentId, betrag: l.betrag }))
             })
         });
@@ -2090,22 +2110,19 @@ async function lohnLohnbelegeDispatch() {
 
     // Walter-Vorgabe 19.05.2026: Bank-Ausführungsdatum (ReqdExctnDt) wird
     // vor dem DTA-Download erfasst und in PayrollPeriode.Auszahlungsdatum
-    // persistiert. Default: morgen.
+    // persistiert. Default: morgen. Kalender-Picker, nur Zukunft wählbar
+    // (Walter-Vorgabe 20.05.2026 — kein ISO-prompt mehr).
+    const isoToday    = _isoLocalDate(new Date());
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const isoTomorrow = tomorrow.toISOString().slice(0, 10);
-    const input = prompt(
-        'AUSZAHLUNGSDATUM erfassen (= Bank-Ausführungsdatum im DTA)\n\n' +
-        'Wann soll die Bank die Löhne ausführen?\n' +
-        'Format: YYYY-MM-DD (z.B. 2026-02-01)\n\n' +
-        'Default: morgen.',
-        isoTomorrow
-    );
-    if (!input) return;
-    const auszahlungsdatum = input.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(auszahlungsdatum)) {
-        alert('Ungültiges Datum. Format: YYYY-MM-DD'); return;
-    }
+    const isoTomorrow = _isoLocalDate(tomorrow);
+    const auszahlungsdatum = await askPayoutDate({
+        title: 'Auszahlungsdatum erfassen',
+        message: 'Wann soll die Bank die Löhne ausführen?<br>(= Bank-Ausführungsdatum / ReqdExctnDt im DTA)<br>Heute ist möglich (Bankannahme bis 15:00).',
+        defaultIso: isoTomorrow,
+        minIso:     isoToday,
+    });
+    if (!auszahlungsdatum) return;
     const dateDe = `${auszahlungsdatum.slice(8,10)}.${auszahlungsdatum.slice(5,7)}.${auszahlungsdatum.slice(0,4)}`;
 
     // Walter-Vorgabe 19.05.2026: atomic-Versand. Backend wirft sonst weil DTA

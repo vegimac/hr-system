@@ -2517,6 +2517,59 @@ public class PayrollController : ControllerBase
         if (snapshot?.IsFinal == true)
             return Conflict(new { error = "Lohnperiode ist abgeschlossen. Keine Änderungen mehr möglich." });
 
+        // ── Server-autoritativ nachrechnen (Walter-Vorgabe 20.05.2026, Security) ──
+        // NIE Beträge aus dem Request-Body übernehmen — ein manipulierter POST
+        // dürfte sonst falsche Löhne speichern. Wir rechnen den Lohnzettel mit
+        // DERSELBEN Logik wie GET /calculate neu und speichern AUSSCHLIESSLICH die
+        // Server-Werte. Die einzige GF-Entscheidung — Ferien-Kürzung anwenden
+        // (Art. 329b OR) — kommt als Flag dto.ApplyFerienKuerzung und wird hier
+        // mit dem server-berechneten Vorschlag reproduziert. Geldbeträge
+        // (Brutto/Netto/SV/QST) sind von dieser Entscheidung NICHT betroffen.
+        var calcAction = await Calculate(dto.EmployeeId, dto.Year, dto.Month, dto.CompanyProfileId);
+        if (calcAction is not OkObjectResult okCalc || okCalc.Value is null)
+            return calcAction;   // Berechnungs-Fehler (NotFound/BadRequest) 1:1 durchreichen
+
+        var _camelOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var srvNode = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(okCalc.Value, _camelOpts))!;
+
+        if (srvNode["pausiert"] is { } pausNode && pausNode.GetValueKind() == JsonValueKind.True)
+            return Conflict(new { error = "Mitarbeiter ist in diesem Monat über die KTG-Versicherung abgerechnet (Pause) — keine Bestätigung möglich." });
+
+        decimal SrvDec(string key)
+        {
+            var n = srvNode[key];
+            return n != null && n.GetValueKind() == JsonValueKind.Number ? n.GetValue<decimal>() : 0m;
+        }
+        decimal srvGross    = SrvDec("totalLohn");
+        decimal srvNet      = SrvDec("nettolohn");
+        decimal srvAhv      = SrvDec("svBasisAhv");
+        decimal srvBvg      = SrvDec("svBasisBvg");
+        decimal srvQst      = SrvDec("qstBetrag");
+        decimal srvHour     = SrvDec("neuerHourSaldo");
+        decimal srvNacht    = SrvDec("neuerNachtSaldo");
+        decimal srvNight    = SrvDec("nightHours");
+        decimal srvFerGeld  = SrvDec("ferienGeldSaldoNeu");
+        decimal srvFerTageBase = SrvDec("ferienTageSaldoNeu");
+        decimal srvFeiertag = SrvDec("feiertagTageSaldoNeu");
+        decimal srv13Month  = SrvDec("thirteenthMonthly");
+        decimal srv13Acc    = SrvDec("thirteenthAccumulated");
+
+        // Ferien-Kürzungs-Vorschlag (nested: ferienKuerzung.vorschlagTage)
+        decimal srvVorschlagTage = 0m;
+        var kuerzNode = srvNode["ferienKuerzung"];
+        if (kuerzNode != null && kuerzNode["vorschlagTage"] is { } vtNode && vtNode.GetValueKind() == JsonValueKind.Number)
+            srvVorschlagTage = vtNode.GetValue<decimal>();
+        decimal srvFerTage = dto.ApplyFerienKuerzung
+            ? Math.Round(srvFerTageBase - srvVorschlagTage, 4)
+            : srvFerTageBase;
+
+        // Slip-JSON server-autoritativ + GF-Entscheidung einpatchen, damit der
+        // gespeicherte Lohnzettel (PDF/Lohnausweis) zum gespeicherten Saldo passt.
+        srvNode["ferienTageSaldoNeu"]           = srvFerTage;
+        srvNode["ferienKuerzungAngewendet"]     = dto.ApplyFerienKuerzung;
+        srvNode["ferienKuerzungAngewendetTage"] = dto.ApplyFerienKuerzung ? srvVorschlagTage : 0m;
+        string srvSlipJson = srvNode.ToJsonString();
+
         // 2) Saldo speichern (identisch wie /save)
         var saldo = await _db.PayrollSaldos
             .FirstOrDefaultAsync(s => s.EmployeeId    == dto.EmployeeId
@@ -2535,16 +2588,17 @@ public class PayrollController : ControllerBase
             };
             _db.PayrollSaldos.Add(saldo);
         }
-        saldo.HourSaldo                  = dto.HourSaldo;
-        saldo.NachtSaldo                 = dto.NachtSaldo;
-        saldo.NightHoursWorked           = dto.NightHoursWorked;
-        saldo.FerienGeldSaldo            = dto.FerienGeldSaldo;
-        saldo.FerienTageSaldo            = dto.FerienTageSaldo;
-        saldo.FeiertagTageSaldo          = dto.FeiertagTageSaldo;
-        saldo.ThirteenthMonthMonthly     = dto.ThirteenthMonthMonthly;
-        saldo.ThirteenthMonthAccumulated = dto.ThirteenthMonthAccumulated;
-        saldo.GrossAmount                = dto.GrossAmount;
-        saldo.NetAmount                  = dto.NetAmount;
+        // Server-Werte (NICHT dto.*) — siehe autoritative Nachrechnung oben.
+        saldo.HourSaldo                  = srvHour;
+        saldo.NachtSaldo                 = srvNacht;
+        saldo.NightHoursWorked           = srvNight;
+        saldo.FerienGeldSaldo            = srvFerGeld;
+        saldo.FerienTageSaldo            = srvFerTage;
+        saldo.FeiertagTageSaldo          = srvFeiertag;
+        saldo.ThirteenthMonthMonthly     = srv13Month;
+        saldo.ThirteenthMonthAccumulated = srv13Acc;
+        saldo.GrossAmount                = srvGross;
+        saldo.NetAmount                  = srvNet;
         saldo.Status                     = "confirmed";
         saldo.UpdatedAt                  = DateTime.UtcNow;
 
@@ -2560,14 +2614,15 @@ public class PayrollController : ControllerBase
             };
             _db.PayrollSnapshots.Add(snapshot);
         }
-        snapshot.SlipJson               = dto.SlipJson;
-        snapshot.Brutto                 = dto.GrossAmount;
-        snapshot.Netto                  = dto.NetAmount;
-        snapshot.SvBasisAhv             = dto.SvBasisAhv;
-        snapshot.SvBasisBvg             = dto.SvBasisBvg;
-        snapshot.QstBetrag              = dto.QstBetrag;
-        snapshot.ThirteenthAccumulated  = dto.ThirteenthMonthAccumulated;
-        snapshot.FerienGeldSaldo        = dto.FerienGeldSaldo;
+        // Server-Werte + server-autoritatives Slip-JSON (NICHT dto.*).
+        snapshot.SlipJson               = srvSlipJson;
+        snapshot.Brutto                 = srvGross;
+        snapshot.Netto                  = srvNet;
+        snapshot.SvBasisAhv             = srvAhv;
+        snapshot.SvBasisBvg             = srvBvg;
+        snapshot.QstBetrag              = srvQst;
+        snapshot.ThirteenthAccumulated  = srv13Acc;
+        snapshot.FerienGeldSaldo        = srvFerGeld;
         snapshot.UpdatedAt              = DateTime.UtcNow;
 
         // 4-Augen-Workflow Walter-Vorgabe 19.05.2026 — Confirm = GF-Freigabe
@@ -3857,7 +3912,11 @@ public record ConfirmPayrollDto(
     decimal SvBasisAhv, decimal SvBasisBvg, decimal QstBetrag,
     string SlipJson,
     LohnAbtretungConfirmDto[]? LohnAbtretungen = null,
-    decimal FeiertagTageSaldo = 0m);
+    decimal FeiertagTageSaldo = 0m,
+    // Walter-Vorgabe 20.05.2026: einzige GF-Entscheidung, die der Server beim
+    // autoritativen Nachrechnen nicht selbst ableiten kann — Ferien-Kürzung
+    // (Art. 329b OR) anwenden ja/nein. Alle Geldbeträge rechnet der Server selbst.
+    bool ApplyFerienKuerzung = false);
 
 public record LohnAbtretungConfirmDto(int AssignmentId, decimal Betrag);
 

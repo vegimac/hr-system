@@ -97,11 +97,26 @@ async function perLoadPerioden() {
             // Kombi-Zelle: zwei Pillen untereinander
             const statusCell = `<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start">${akBadge}${defBadge}</div>`;
 
-            const abschlussAm = p.abgeschlossenAm
-                ? new Date(p.abgeschlossenAm).toLocaleDateString('de-CH')
-                : (p.akontoAusbezahltAt
-                    ? new Date(p.akontoAusbezahltAt).toLocaleDateString('de-CH') + ' (Ak.)'
-                    : '–');
+            // Zahldatum DTA (Bank-Ausführungsdatum) je Strang anzeigen
+            // (Walter-Vorgabe 20.05.2026): Akonto aus akontoAuszahlungsdatum,
+            // Definitiv aus auszahlungsdatum. Fallback auf das jeweilige
+            // „ausbezahlt/abgeschlossen am" für Alt-Perioden ohne Datum.
+            const akontoZahl = (akS === 'AUSBEZAHLT')
+                ? (p.akontoAuszahlungsdatum
+                    ? fmtDateDe(p.akontoAuszahlungsdatum)
+                    : (p.akontoAusbezahltAt ? new Date(p.akontoAusbezahltAt).toLocaleDateString('de-CH') : null))
+                : null;
+            const defZahl = isAbgeschlossen
+                ? (p.auszahlungsdatum
+                    ? fmtDateDe(p.auszahlungsdatum)
+                    : (p.abgeschlossenAm ? new Date(p.abgeschlossenAm).toLocaleDateString('de-CH') : null))
+                : null;
+            const abschlussCell = (akontoZahl || defZahl)
+                ? `<div style="display:flex;flex-direction:column;gap:2px;font-size:11.5px;color:#475569">
+                       ${akontoZahl ? `<span title="Akonto: Bank-Ausführungsdatum DTA">💸 Akonto: <b>${akontoZahl}</b></span>` : ''}
+                       ${defZahl    ? `<span title="Definitivlohn: Bank-Ausführungsdatum DTA">🧾 Lohn: <b>${defZahl}</b></span>` : ''}
+                   </div>`
+                : '<span style="color:#94a3b8">–</span>';
 
             // Löschen-Button: nur wenn ALLES offen ist.
             // Walter-Vorgabe 17.05.2026: Akonto-Status muss OFFEN sein,
@@ -134,6 +149,17 @@ async function perLoadPerioden() {
                             title="Akonto-Workflow dieser Periode komplett zurücksetzen — danach sind Lohn-Edits wieder möglich">↺ Akonto zurücksetzen</button>`
                 : '';
 
+            // Definitiv-Rücknahme (admin-only, Walter-Vorgabe 20.05.2026):
+            // erscheint bei abgeschlossenen Perioden. Holt die Periode zurück
+            // auf 'provisorisch_abgeschlossen' UND entfernt die Lohnzettel aus
+            // den MA-Postfächern (genau wie in der ersten Version). Backend ist
+            // gated: nur bis zum DTA-Zahldatum, danach 409 PAYOUT_DATE_REACHED.
+            const defWiederOeffnenBtn = (isAdmin && isAbgeschlossen)
+                ? `<button class="btn btn-sm btn-outline" style="color:#b91c1c;border-color:#fca5a5;background:#fef2f2"
+                            onclick="perWiederOeffnen(${p.id},'${(p.label || '').replace(/'/g, "\\'")}')"
+                            title="Definitiv-Abschluss zurücknehmen — zurück auf 'provisorisch', Lohnzettel aus MA-Postfächern entfernen. Nur bis zum DTA-Zahldatum möglich.">↩ Def. zurücknehmen</button>`
+                : '';
+
             // Akonto-DTA-Download (Walter 17.05.2026, Phase 3d): bei AUSBEZAHLT
             // kann das pain.001-XML jederzeit re-downloaded werden.
             const akontoDtaBtn = (akS === 'AUSBEZAHLT')
@@ -151,7 +177,7 @@ async function perLoadPerioden() {
                 : '';
 
             const actions = isAbgeschlossen
-                ? `${akontoListeBtn}${akontoDtaBtn}<button class="btn btn-sm btn-outline" onclick="perShowSnapshots(${p.id},'${p.label}')">Details</button>`
+                ? `${akontoListeBtn}${akontoDtaBtn}${defWiederOeffnenBtn}<button class="btn btn-sm btn-outline" onclick="perShowSnapshots(${p.id},'${p.label}')">Details</button>`
                 : `${abschliessenBtn}
                    ${akontoListeBtn}
                    ${akontoDtaBtn}
@@ -165,7 +191,7 @@ async function perLoadPerioden() {
                 <td style="text-align:center">${p.snapshotCount}</td>
                 <td style="text-align:center;color:${p.finalCount === p.snapshotCount && p.snapshotCount > 0 ? '#16a34a' : '#94a3b8'};font-weight:600">${p.finalCount}</td>
                 <td>${statusCell}</td>
-                <td style="font-size:12px;color:#64748b">${abschlussAm}</td>
+                <td style="font-size:12px;color:#64748b">${abschlussCell}</td>
                 <td style="display:flex;gap:6px;flex-wrap:wrap">${actions}</td>
             </tr>`;
         }).join('');
@@ -430,6 +456,50 @@ async function perAkontoReset(cpId, year, month, label) {
         perLoadPerioden();
     } catch(e) {
         alert('Zurücksetzen fehlgeschlagen: ' + e.message);
+    }
+}
+
+// ── Definitiv-Rücknahme (Admin, Walter-Vorgabe 20.05.2026) ──────────────
+// Holt eine abgeschlossene Periode zurück auf 'provisorisch_abgeschlossen'
+// und entfernt die Lohnzettel aus den MA-Postfächern (genau wie in der ersten
+// Version). Backend (/wieder-oeffnen, admin-only) ist gated: nur bis zum
+// DTA-Zahldatum (auszahlungsdatum) — danach 409 PAYOUT_DATE_REACHED.
+async function perWiederOeffnen(periodeId, label) {
+    if (!confirm(
+        `Definitiv-Abschluss für «${label}» zurücknehmen?\n\n` +
+        `Konsequenzen:\n` +
+        `  • Periode geht zurück auf "provisorisch abgeschlossen"\n` +
+        `  • Die Lohnzettel werden aus den MA-Postfächern entfernt\n` +
+        `  • HR-Bestätigungen bleiben erhalten — nur der DTA-Versand muss erneut\n` +
+        `  • Audit-Eintrag wird geschrieben`
+    )) return;
+
+    // Pflicht-Bestätigung: DTA bei der Bank gelöscht — sonst Doppelzahlung.
+    if (!confirm(
+        'WICHTIG: Hast du den DTA bei der Bank gelöscht oder storniert?\n\n' +
+        '✓ JA → Rücknahme wird durchgeführt.\n' +
+        '✗ NEIN → Vorgang abbrechen.\n\n' +
+        'Die Rücknahme ist NUR bis zum DTA-Zahldatum möglich — danach hat die\n' +
+        'Bank die Löhne ausgeführt und die Periode ist betoniert.'
+    )) return;
+
+    try {
+        const userId = (typeof currentUser !== 'undefined' && currentUser?.id) ? currentUser.id : 0;
+        const res = await fetch(`/api/payroll-perioden/${periodeId}/wieder-oeffnen`, {
+            method:  'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ userId, bemerkung: 'Admin-Rücknahme via Lohnperioden-Modul' })
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            if (e.error === 'PAYOUT_DATE_REACHED') { alert('⛔ ' + e.message); return; }
+            throw new Error(e.message || e.error || `HTTP ${res.status}`);
+        }
+        if (window.lohnEditLock) window.lohnEditLock.invalidateCache();
+        showToast(`Definitiv-Abschluss «${label}» zurückgenommen — Lohnzettel aus MA-Postfächern entfernt.`, 'success');
+        perLoadPerioden();
+    } catch(e) {
+        alert('Rücknahme fehlgeschlagen: ' + e.message);
     }
 }
 

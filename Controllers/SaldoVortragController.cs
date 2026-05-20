@@ -160,7 +160,7 @@ public class SaldoVortragController : ControllerBase
         {
             var branchId     = await GetEmployeeBranchAsync(employeeId);
             var firstAllowed = branchId.HasValue
-                ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+                ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value, includeAkonto: false)
                 : null;
             var periodStart  = new DateOnly(yr, mn, 1);
             if (firstAllowed.HasValue && periodStart < firstAllowed.Value)
@@ -279,7 +279,7 @@ public class SaldoVortragController : ControllerBase
         // bereits in Verarbeitung ist (Saldi sind dann schon verrechnet).
         var branchIdD     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowedD = branchIdD.HasValue
-            ? await _editLock.GetFirstAllowedDateAsync(User, branchIdD.Value)
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchIdD.Value, includeAkonto: false)
             : null;
         if (firstAllowedD.HasValue)
         {
