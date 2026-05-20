@@ -87,6 +87,7 @@ builder.Services.AddScoped<Iso20022PainService>();
 builder.Services.AddScoped<SperrfristService>();
 // L-GAV-Beitrag: automatischer Jahresabzug nach Vertragstyp/Pensum
 builder.Services.AddScoped<LgavBeitragService>();
+builder.Services.AddScoped<PayrollCalculationEngine>();
 // Bank-Lookup: IBAN → Bank-Stammdaten aus Data/bank_master.csv (SIX-Liste)
 builder.Services.AddSingleton<BankLookupService>();
 // MA-Postfach: Login-Account-Verwaltung pro Mitarbeiter

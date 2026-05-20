@@ -44,6 +44,37 @@ Data/AppDbContext.cs              ←── Postgres-Mapping aller ~50 Entities
 Models/*.cs (48 Stück)
 ```
 
+### Lohn-Berechnung: Schichtung (Walter-Vorgabe 20.05.2026)
+
+Der frühere Monolith `PayrollController.cs` (~3'900 Zeilen) wurde in drei Dateien entflochten — gleiche Logik, nur getrennt nach Verantwortung. Bei Änderungen an der Lohn-Mathematik IMMER hier ansetzen, nicht im Controller:
+
+```
+Controllers/PayrollController.cs (~720 Z)   ←── nur noch HTTP-Endpoints (dünn)
+   Calculate() → delegiert an _calcEngine.CalculateAsync(...)
+   SaveSaldo / Confirm / Reopen / PDF / Saldo / HR-Bestätigen / KTG / Snapshot
+        │ ruft auf (DI: PayrollCalculationEngine, AddScoped in Program.cs)
+        ▼
+Services/PayrollCalculationEngine.cs (~2'490 Z)  ←── die Berechnungs-Orchestrierung
+   CalculateAsync()  — Datenladen + UTP/MTP/FIX-Zweige + Dezember-Jahresausgleich
+   ComputeQstDeduction() (private)  — Quellensteuer-Abzug
+   Gibt IActionResult zurück (new OkObjectResult/NotFoundObjectResult/...),
+   damit Endpoint + ConfirmPayroll + GetPdf ihr .Value unverändert lesen.
+        │ ruft auf (using static)
+        ▼
+Services/PayrollCalculationService.cs (~750 Z)  ←── reine statische Rechen-Helfer
+   public static class PayrollCalculations:
+   BuildResult (SV/QST/Abzug-Engine), CalcFerienGeld, BuildSwissStandardDeductions,
+   Round05, IsThirteenthPayoutMonth, ComputeSatzBruttoForNebenjob,
+   EstimatePensumFromStunden, CalcPeriod, PrevPeriod,
+   ScaleAbsenceHoursToPeriod, CountAbsenceDaysInPeriod
+
+Controllers/PayrollModels.cs (~130 Z)  ←── Records + Request-DTOs
+   SvBases, SaldoBlock (namespace HrSystem.Controllers — von Engine via using importiert),
+   SaveSaldoDto, ConfirmPayrollDto, LohnAbtretungConfirmDto, ReopenPayrollDto
+```
+
+Wichtig: `PayrollCalculations` ist statisch und seiteneffektfrei (alle Daten als Parameter) — DAS ist die unit-testbare Schicht (v.a. `BuildResult`). `PayrollCalculationEngine` ist DB-gekoppelt (injizierte `_db` + `_tarifService`/`_ktgService`/`_karenz`/`_lgav`/`_ferienKuerzung`). Beim Bau neuer Lohn-Logik: reine Rechnung → `PayrollCalculations`; DB-/Service-gekoppelte Orchestrierung → `PayrollCalculationEngine`; nur Routing/Auth → Controller.
+
 ### Frontend-Eigenheiten (wichtig!)
 
 - `wwwroot/index.html` ist die Haupt-App. **Alle wichtigen Module** sind hier (Verträge, Lohn, Quellensteuer, Posteingang, Filialen, Lohnpositionen, Periode-Config, etc.). Sehr lange Datei — bei Änderungen mit `grep`/`Read` gezielt suchen, nie blind editieren.
