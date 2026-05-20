@@ -563,6 +563,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PayrollSaldo>(entity =>
         {
             entity.ToTable("payroll_saldo");
+            entity.UseXminAsConcurrencyToken();   // Optimistic Concurrency (Walter 20.05.2026): parallele Änderungen → DbUpdateConcurrencyException → 409
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
@@ -583,7 +584,13 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
-            entity.HasIndex(e => new { e.EmployeeId, e.PeriodYear, e.PeriodMonth }).HasDatabaseName("IX_payroll_saldo_emp_period");
+            // Natürlicher Schlüssel: EIN Saldo pro MA PRO FILIALE pro Periode.
+            // company_profile_id MUSS rein — MA in mehreren Filialen hätten sonst
+            // kollidierende Saldi, und der Upsert (FirstOrDefault) griffe willkürlich
+            // einen (Walter-Vorgabe 20.05.2026). UNIQUE erzwingt die Eindeutigkeit.
+            entity.HasIndex(e => new { e.EmployeeId, e.CompanyProfileId, e.PeriodYear, e.PeriodMonth })
+                  .IsUnique()
+                  .HasDatabaseName("ux_payroll_saldo_emp_branch_period");
         });
 
         // ── AbsenzTyp ──────────────────────────────────────────────────────
@@ -1045,6 +1052,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MaxAge).HasColumnName("max_age");
             entity.Property(e => e.FreibetragMonthly).HasColumnName("freibetrag_monthly").HasColumnType("numeric(10,2)");
             entity.Property(e => e.CoordinationDeduction).HasColumnName("coordination_deduction").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.MaxBaseMonthly).HasColumnName("max_base_monthly").HasColumnType("numeric(10,2)");
             entity.Property(e => e.OnlyQuellensteuer).HasColumnName("only_quellensteuer").HasDefaultValue(false);
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
@@ -1092,6 +1100,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PayrollPeriode>(entity =>
         {
             entity.ToTable("payroll_periode");
+            entity.UseXminAsConcurrencyToken();   // Optimistic Concurrency (Walter 20.05.2026)
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
@@ -1144,6 +1153,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PayrollSnapshot>(entity =>
         {
             entity.ToTable("payroll_snapshot");
+            entity.UseXminAsConcurrencyToken();   // Optimistic Concurrency (Walter 20.05.2026)
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.PayrollPeriodeId).HasColumnName("payroll_periode_id");
@@ -1196,6 +1206,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<AkontoZahlung>(entity =>
         {
             entity.ToTable("akonto_zahlung");
+            entity.UseXminAsConcurrencyToken();   // Optimistic Concurrency (Walter 20.05.2026)
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");

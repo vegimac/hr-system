@@ -42,7 +42,7 @@ public class SocialInsuranceRatesController : ControllerBase
         {
             r.Id, r.Code, r.Name, r.Description, r.Rate, r.BasisType,
             r.EmploymentModelCode, r.MinAge, r.MaxAge,
-            r.FreibetragMonthly, r.CoordinationDeduction,
+            r.FreibetragMonthly, r.CoordinationDeduction, r.MaxBaseMonthly,
             r.OnlyQuellensteuer, r.ValidFrom, r.ValidTo,
             r.SortOrder, r.IsActive, r.CreatedAt,
             inLohnVerwendet = frozenPerioden.Any(p =>
@@ -138,6 +138,7 @@ public class SocialInsuranceRatesController : ControllerBase
         rate.MaxAge                = dto.MaxAge;
         rate.FreibetragMonthly     = dto.FreibetragMonthly;
         rate.CoordinationDeduction = dto.CoordinationDeduction;
+        rate.MaxBaseMonthly        = dto.MaxBaseMonthly;
         rate.OnlyQuellensteuer     = dto.OnlyQuellensteuer;
         rate.ValidFrom             = dto.ValidFrom;
         rate.ValidTo               = dto.ValidTo;
@@ -193,6 +194,7 @@ public class SocialInsuranceRatesController : ControllerBase
             MaxAge                = oldRate.MaxAge,
             FreibetragMonthly     = dto.FreibetragMonthly ?? oldRate.FreibetragMonthly,
             CoordinationDeduction = dto.CoordinationDeduction ?? oldRate.CoordinationDeduction,
+            MaxBaseMonthly        = dto.MaxBaseMonthly ?? oldRate.MaxBaseMonthly,
             OnlyQuellensteuer     = oldRate.OnlyQuellensteuer,
             ValidFrom             = dto.ValidFrom,
             ValidTo               = dto.ValidTo,

@@ -13,6 +13,7 @@ public class SocialInsuranceRate
     public int?     MaxAge                { get; set; }
     public decimal? FreibetragMonthly     { get; set; }          // AHV 65+
     public decimal? CoordinationDeduction { get; set; }          // BVG Koordinationsabzug/Mt.
+    public decimal? MaxBaseMonthly        { get; set; }          // Höchstlohn/Mt. (ALV+NBU: 148'200/Jahr = 12'350/Mt.); NULL = unbegrenzt
     public bool     OnlyQuellensteuer     { get; set; }
     public DateOnly ValidFrom             { get; set; }
     public DateOnly? ValidTo              { get; set; }

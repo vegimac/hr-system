@@ -124,7 +124,8 @@ public class AkontoController : ControllerBase
         AkontoLaufService.AkontoVorschauResponse data;
         try
         {
-            data = await _service.PreviewAsync(req.CompanyProfileId, req.Year, req.Month, st);
+            // Commit = bewusster Schreib-Pfad → LGAV-Eintrag persistieren.
+            data = await _service.PreviewAsync(req.CompanyProfileId, req.Year, req.Month, st, persistLgav: true);
         }
         catch (InvalidOperationException ex)
         {

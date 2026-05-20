@@ -80,6 +80,34 @@ public class PayrollController : ControllerBase
         decimal   akontoBereitsAusbezahlt      = akontoAusbezahlt != null ? Math.Round(akontoAusbezahlt.NettoAkonto, 2) : 0m;
         DateOnly? akontoBereitsAusbezahltDatum = akontoAusbezahlt?.PayoutDate;
 
+        // ── Dezember-Jahresausgleich für gedeckelte SV (ALV/NBU) ───────────
+        // Walter-Vorgabe 20.05.2026: ALV und NBU sind nur bis CHF 148'200/Jahr
+        // (= 12'350/Mt.) beitragspflichtig. Im Dezember rechnen wir auf
+        // JAHRESBASIS ab (Aufrollverfahren), weil zum Dezemberlohn noch Boni
+        // hinzukommen — die flache Monatsdeckelung würde den Bonus fälschlich
+        // kappen ODER (bei tiefen Vormonaten) zu wenig verbeitragen. Dazu
+        // brauchen wir die AHV/ALV-Basis ALLER Vormonate (Jan–Nov) desselben
+        // Jahres. SvBasisAhv ist UNGEDECKELT gespeichert → dient als Proxy für
+        // ALV UND NBU (NBU-Basis ≈ AHV-Basis). Schaub Restaurants GmbH ist EIN
+        // Arbeitgeber (eine AHV-Abrechnung) über alle Filialen → Summe über
+        // ALLE Filialen des MA, nicht nur die aktuelle. STORNIERTE Snapshots
+        // zählen nicht. NULL ausserhalb Dezember = flache Monatsdeckelung wie
+        // bisher. Leere Liste (Dezember ohne Vormonate, z.B. Eintritt im Dez)
+        // = Jahresausgleich gegen Jahres-Höchstlohn ab 0.
+        List<decimal>? ytdSvBasesDez = null;
+        if (month == 12)
+        {
+            ytdSvBasesDez = await (
+                from s in _db.PayrollSnapshots
+                join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+                where s.EmployeeId == employeeId
+                   && p.Year == year
+                   && p.Month >= 1 && p.Month <= 11
+                   && s.Status != "STORNIERT"
+                select s.SvBasisAhv
+            ).ToListAsync();
+        }
+
         // ── Lohnperiode berechnen ──────────────────────────────────────────
         // Wichtig: Periode muss VOR der Vertragsauswahl berechnet werden,
         // damit wir den Vertrag laden können, der in dieser Periode gültig
@@ -252,6 +280,7 @@ public class PayrollController : ControllerBase
                 MaxAge                = r.MaxAge,
                 FreibetragMonthly     = r.FreibetragMonthly,
                 CoordinationDeduction = r.CoordinationDeduction,
+                MaxBaseMonthly        = r.MaxBaseMonthly,
                 OnlyQuellensteuer     = r.OnlyQuellensteuer,
                 EmploymentModelCode   = r.EmploymentModelCode,
                 ValidFrom             = r.ValidFrom,
@@ -1562,7 +1591,8 @@ public class PayrollController : ControllerBase
                 lohnAssignments, bankAccounts, usingDefaultDeductions,
                 periodeFooterText: periodeFooterText,
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
-                akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum);
+                akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
+                ytdSvBasesDezember: ytdSvBasesDez);
             return Ok(result);
         }
         else if (isUTP)
@@ -1940,7 +1970,8 @@ public class PayrollController : ControllerBase
                 lohnAssignments, bankAccounts, usingDefaultDeductions,
                 periodeFooterText: periodeFooterText,
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
-                akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum);
+                akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
+                ytdSvBasesDezember: ytdSvBasesDez);
             return Ok(result);
         }
         else // FIX / FIX-M – Monatslohn + Stunden-Saldo (Soll/Ist), kein Mehrstunden-Auszahlung
@@ -2331,7 +2362,8 @@ public class PayrollController : ControllerBase
                 lohnAssignments, bankAccounts, usingDefaultDeductions,
                 periodeFooterText: periodeFooterText,
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
-                akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum);
+                akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
+                ytdSvBasesDezember: ytdSvBasesDez);
             return Ok(result);
         }
       } // end try
@@ -3180,7 +3212,12 @@ public class PayrollController : ControllerBase
         // abzuegeExtraLines ein und reduziert den auszahlungsbetrag entsprechend.
         // Werte werden vom Calculate-Endpoint async geladen und durchgereicht.
         decimal akontoBereitsAusbezahlt = 0m,
-        DateOnly? akontoBereitsAusbezahltDatum = null)
+        DateOnly? akontoBereitsAusbezahltDatum = null,
+        // Dezember-Jahresausgleich für gedeckelte SV (ALV/NBU): AHV/ALV-Basen
+        // Jan–Nov desselben Jahres (ungedeckelt, Proxy auch für NBU). NUR im
+        // Dezember gesetzt (sonst null = flache Monatsdeckelung). Leere Liste =
+        // Dezember ohne Vormonate (z.B. MA-Eintritt im Dezember).
+        List<decimal>? ytdSvBasesDezember = null)
     {
         // Abzüge berechnen
         decimal totalAbzuege = 0;
@@ -3212,6 +3249,44 @@ public class PayrollController : ControllerBase
             if (d.FreibetragMonthly is > 0)
                 basis = Math.Max(0, basis - d.FreibetragMonthly.Value);
 
+            // Höchstlohn-Deckelung (Walter-Vorgabe 20.05.2026): ALV + NBU sind nur
+            // bis CHF 148'200/Jahr = 12'350/Mt. beitragspflichtig. NULL =
+            // unbegrenzt (AHV/IV/EO → kommt hier nie rein).
+            //   • Normaler Monat: flache Monatsdeckelung basis = min(basis, 12'350).
+            //   • Dezember (Jahresausgleich/Aufrollverfahren, Walter-Vorgabe
+            //     20.05.2026): auf JAHRESBASIS abrechnen, weil im Dezember Boni
+            //     zum Lohn hinzukommen. Die effektiv beitragspflichtige
+            //     Dezember-Basis ist die Lücke zwischen dem Jahres-Höchstlohn
+            //     (12'350×12 = 148'200) und dem, was Jan–Nov bereits gedeckelt
+            //     verbeitragt wurde:
+            //        jahresPflichtig   = min(Σ(Jan–Nov ungedeckelt) + Dez-Basis, 148'200)
+            //        bereitsVerbeitragt = Σ min(SvBasisAhv_m, 12'350)   (Jan–Nov)
+            //        Dez-Basis         = max(0, jahresPflichtig − bereitsVerbeitragt)
+            //     So zahlt ein Gutverdiener mit Dezember-Bonus exakt auf
+            //     148'200/Jahr — nicht zu wenig (flache Deckelung hätte den Bonus
+            //     gekappt) und nicht zu viel. Untergrenze 0; eine Obergrenze auf
+            //     die Dezember-Brutto-Basis wird bewusst NICHT gesetzt, damit ein
+            //     in Vormonaten über den Monats-Höchstlohn hinaus unterdeckelter
+            //     Betrag im Dezember sauber nachverbeitragt wird (Beweis: Dez-Basis
+            //     ≤ jahresPflichtig ≤ 148'200, und ≥ 0).
+            bool dezAusgleich = false;
+            if (d.MaxBaseMonthly is > 0)
+            {
+                decimal cap = d.MaxBaseMonthly.Value;
+                if (ytdSvBasesDezember is not null)   // Dezember → Jahresausgleich
+                {
+                    decimal ytdGross     = ytdSvBasesDezember.Sum();
+                    decimal ytdGedeckelt = ytdSvBasesDezember.Sum(b => Math.Min(b, cap));
+                    decimal jahresPflichtig = Math.Min(ytdGross + basis, cap * 12m);
+                    basis = Math.Max(0m, jahresPflichtig - ytdGedeckelt);
+                    dezAusgleich = true;
+                }
+                else                                  // normaler Monat → flache Deckelung
+                {
+                    basis = Math.Min(basis, cap);
+                }
+            }
+
             // Abzug-Betrag: auf 2 Dezimalen (0.05-Rundung erst auf Schlussresultat)
             decimal betrag = d.Type == "fixed"
                 ? -Math.Round(d.Rate, 2)
@@ -3219,11 +3294,15 @@ public class PayrollController : ControllerBase
 
             totalAbzuege += betrag;
             if (d.CategoryCode == "QST") qstBetragOut += Math.Abs(betrag);
+            string abzugBezeichnung = d.FreibetragMonthly is > 0
+                ? $"{d.Name} (−CHF {d.FreibetragMonthly:F2} Freibetrag)"
+                : d.Name;
+            // Transparenz: im Dezember ist die ALV/NBU-Basis aufgerollt → kennzeichnen
+            if (dezAusgleich) abzugBezeichnung += " (Jahresausgleich)";
+
             abzugResult.Add(new
             {
-                bezeichnung = d.FreibetragMonthly is > 0
-                    ? $"{d.Name} (−CHF {d.FreibetragMonthly:F2} Freibetrag)"
-                    : d.Name,
+                bezeichnung = abzugBezeichnung,
                 // Prozent: zuerst DisplayRatePercent (z.B. QST mit Tarif-Satz),
                 // sonst die echte Rate bei Type=percent, sonst null.
                 prozent     = d.DisplayRatePercent
@@ -3579,7 +3658,7 @@ public class PayrollController : ControllerBase
                 SortOrder           = 20,
                 IsActive            = true,
             },
-            // ALV Arbeitnehmer (bis Höchstlohn; vereinfacht: kein Höchstlohn-Check)
+            // ALV Arbeitnehmer (bis Höchstlohn CHF 148'200/Jahr = 12'350/Mt.)
             new DeductionRule
             {
                 Id                  = -3,
@@ -3593,6 +3672,7 @@ public class PayrollController : ControllerBase
                 MinAge              = 18,
                 MaxAge              = 64,
                 FreibetragMonthly   = null,
+                MaxBaseMonthly      = 12350m,   // Höchstlohn 148'200/Jahr ÷ 12
                 ValidFrom           = validFrom,
                 SortOrder           = 30,
                 IsActive            = true,

@@ -1074,6 +1074,7 @@ function svOpenForm(rate, mode) {
     document.getElementById('svMaxAge').value        = rate?.maxAge ?? '';
     document.getElementById('svFreibetrag').value    = rate?.freibetragMonthly ?? '';
     document.getElementById('svCoordDeduction').value = rate?.coordinationDeduction ?? '';
+    document.getElementById('svMaxBase').value        = rate?.maxBaseMonthly ?? '';
     // Bei „Neu ab" das ValidFrom-Feld bewusst LEER lassen, damit der User
     // bewusst ein Datum eingeben muss; Vorgänger-ValidFrom wäre missverständlich.
     if (_svFormMode === 'new-version') {
@@ -1142,6 +1143,7 @@ async function svSave(event) {
         maxAge:                parseIntOpt('svMaxAge'),
         freibetragMonthly:     parseNum('svFreibetrag'),
         coordinationDeduction: parseNum('svCoordDeduction'),
+        maxBaseMonthly:        parseNum('svMaxBase'),
         onlyQuellensteuer:     document.getElementById('svOnlyQst').checked,
         validFrom:             document.getElementById('svValidFrom').value,
         validTo:               document.getElementById('svValidTo').value || null,

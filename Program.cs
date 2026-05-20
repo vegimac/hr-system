@@ -1077,6 +1077,34 @@ using (var scope = app.Services.CreateScope())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// Optimistic-Concurrency-Handler (Walter-Vorgabe 20.05.2026): ändern zwei
+// Requests dieselbe Zeile der Workflow-Tabellen (payroll_snapshot/_saldo/
+// _periode, akonto_zahlung) parallel, wirft EF wegen xmin-Token-Mismatch eine
+// DbUpdateConcurrencyException. Die fangen wir GLOBAL ab und liefern 409 statt
+// 500 — kein still verlorenes Update mehr, das Frontend kann „bitte neu laden"
+// zeigen. Muss VOR UseRouting/MapControllers stehen, damit es die Controller umhüllt.
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        if (!context.Response.HasStarted)
+        {
+            context.Response.Clear();
+            context.Response.StatusCode = 409;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error   = "CONCURRENCY_CONFLICT",
+                message = "Diese Daten wurden zwischenzeitlich von jemand anderem geändert. Bitte die Seite neu laden und erneut versuchen."
+            });
+        }
+    }
+});
+
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

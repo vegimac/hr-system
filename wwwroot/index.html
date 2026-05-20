@@ -4542,6 +4542,14 @@
 
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
                             <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Höchstlohn/Mt. (CHF)</label>
+                                <input id="svMaxBase" type="number" step="0.01" min="0" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">ALV/NBU: 12'350 (= 148'200/Jahr). Leer = unbegrenzt (z.B. AHV).</div>
+                            </div>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                            <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gültig ab *</label>
                                 <input id="svValidFrom" type="date" required style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                             </div>
@@ -7399,7 +7407,7 @@ function onBranchChange() {
 <script src="js/import-stempelzeiten.js?v=20260509b"></script>
 <script src="js/payroll.js?v=20260520m"></script>
 <script src="js/payroll-perioden.js?v=20260520b"></script>
-<script src="js/admin-settings.js?v=20260518a"></script>
+<script src="js/admin-settings.js?v=20260520a"></script>
 <script src="js/lohn-edit-lock.js?v=20260517a"></script>
 <script src="js/i18n.js?v=20260518b"></script>
 <!-- FAMILIEN MODAL -->

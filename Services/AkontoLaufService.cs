@@ -71,8 +71,15 @@ public class AkontoLaufService
         decimal TotalNetto,
         List<AkontoRowDto> Rows);
 
+    // persistLgav (Walter-Vorgabe 20.05.2026): steuert, ob der LGAV-Auto-Eintrag
+    // (LohnZulage Code 140) in die DB geschrieben wird. Default FALSE → die
+    // Vorschau ist READ-ONLY (keine Daten-Änderung beim blossen Anschauen).
+    // Nur die bewussten Commit-Pfade (Akonto-Start, Commit) übergeben TRUE.
+    // EnsureAsync ist ohnehin idempotent (legt pro MA/Jahr höchstens einen
+    // Eintrag an), aber eine Vorschau soll grundsätzlich nichts persistieren.
     public async Task<AkontoVorschauResponse> PreviewAsync(
-        int companyProfileId, int year, int month, DateOnly stichtag)
+        int companyProfileId, int year, int month, DateOnly stichtag,
+        bool persistLgav = false)
     {
         var profile = await _db.CompanyProfiles.FindAsync(companyProfileId)
             ?? throw new InvalidOperationException("Filiale nicht gefunden.");
@@ -152,17 +159,22 @@ public class AkontoLaufService
         // LohnZulage mit Code 140 für den MA + Periode ein (idempotent). Damit
         // taucht der LGAV-Beitrag automatisch in der Akonto-Liste der manuellen
         // Zulagen/Abzüge auf und reduziert das Akonto entsprechend.
-        foreach (var e in employees)
+        // NUR im Commit-Pfad (persistLgav=true) persistieren — die reine Vorschau
+        // schreibt nichts (Walter-Vorgabe 20.05.2026).
+        if (persistLgav)
         {
-            var emp = e.Employments
-                .Where(x => x.CompanyProfileId == companyProfileId && x.IsActive)
-                .Where(x => DateOnly.FromDateTime(x.ContractStartDate) <= periodTo)
-                .Where(x => !x.ContractEndDate.HasValue
-                         || DateOnly.FromDateTime(x.ContractEndDate.Value) >= periodFrom)
-                .OrderByDescending(x => x.ContractStartDate)
-                .FirstOrDefault();
-            if (emp == null) continue;
-            await _lgav.EnsureAsync(e, emp, profile, year, month, periodFrom, periodTo);
+            foreach (var e in employees)
+            {
+                var emp = e.Employments
+                    .Where(x => x.CompanyProfileId == companyProfileId && x.IsActive)
+                    .Where(x => DateOnly.FromDateTime(x.ContractStartDate) <= periodTo)
+                    .Where(x => !x.ContractEndDate.HasValue
+                             || DateOnly.FromDateTime(x.ContractEndDate.Value) >= periodFrom)
+                    .OrderByDescending(x => x.ContractStartDate)
+                    .FirstOrDefault();
+                if (emp == null) continue;
+                await _lgav.EnsureAsync(e, emp, profile, year, month, periodFrom, periodTo);
+            }
         }
 
         // Manuelle Zulagen/Abzüge für diese Periode (Walter-Vorgabe 19.05.2026)

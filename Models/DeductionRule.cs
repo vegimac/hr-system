@@ -49,6 +49,15 @@ public class DeductionRule
     /// </summary>
     public decimal? FreibetragMonthly { get; set; }
 
+    /// <summary>
+    /// Monatlicher Höchstlohn für die Beitragsbasis (ALV/NBU: CHF 12'350/Mt. =
+    /// 148'200/Jahr). Ist gesetzt, wird die Basis auf diesen Wert gedeckelt
+    /// (basis = min(basis, MaxBaseMonthly)). NULL = unbegrenzt (AHV/IV/EO).
+    /// Transient — kommt aus social_insurance_rate.max_base_monthly.
+    /// </summary>
+    [NotMapped]
+    public decimal? MaxBaseMonthly { get; set; }
+
     /// <summary>Gilt nur für Mitarbeiter mit Quellensteuer-Pflicht</summary>
     public bool OnlyQuellensteuer { get; set; } = false;
 

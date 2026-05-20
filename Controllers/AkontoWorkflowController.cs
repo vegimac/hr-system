@@ -193,7 +193,8 @@ public class AkontoWorkflowController : ControllerBase
         AkontoLaufService.AkontoVorschauResponse data;
         try
         {
-            data = await _service.PreviewAsync(req.CompanyProfileId, req.Year, req.Month, stichtag);
+            // Start = bewusster Commit-Pfad (GF bereitet vor) → LGAV-Eintrag persistieren.
+            data = await _service.PreviewAsync(req.CompanyProfileId, req.Year, req.Month, stichtag, persistLgav: true);
         }
         catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
 

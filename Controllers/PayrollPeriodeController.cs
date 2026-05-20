@@ -331,14 +331,14 @@ public class PayrollPeriodeController : ControllerBase
 
         periode.Status                       = "provisorisch_abgeschlossen";
         periode.ProvisorischAbgeschlossenAm  = DateTime.UtcNow;
-        periode.ProvisorischAbgeschlossenVon = dto.UserId;
+        periode.ProvisorischAbgeschlossenVon = GetUserId();
 
-        await AddAuditAsync(periode.Id, dto.UserId, "PROVISORISCH_ABGESCHLOSSEN", null);
+        await AddAuditAsync(periode.Id, GetUserId(), "PROVISORISCH_ABGESCHLOSSEN", null);
         await _db.SaveChangesAsync();
 
         // Vorab-PDF generieren + ins HR-Posteingang ablegen. Schlägt nicht
         // den Periode-Abschluss fehl wenn was schief geht — nur Console-Log.
-        await _lohnlaufSvc.TrySendVorabPdfToHrAsync(periode.Id, dto.UserId);
+        await _lohnlaufSvc.TrySendVorabPdfToHrAsync(periode.Id, GetUserId());
 
         return Ok(new {
             message    = $"Periode '{periode.Label}' provisorisch abgeschlossen. {periode.Snapshots.Count} Lohnzettel finalisiert. Vorab-PDF wurde ins HR-Postfach abgelegt.",
@@ -380,7 +380,7 @@ public class PayrollPeriodeController : ControllerBase
 
         periode.Status            = "abgeschlossen";
         periode.AbgeschlossenAm   = DateTime.UtcNow;
-        periode.AbgeschlossenVon  = dto.UserId;
+        periode.AbgeschlossenVon  = GetUserId();
         periode.Auszahlungsdatum  = auszahlung;
 
         // Walter-Vorgabe 19.05.2026: JETZT erst Snapshots einfrieren.
@@ -395,7 +395,7 @@ public class PayrollPeriodeController : ControllerBase
             snap.UpdatedAt = DateTime.UtcNow;
         }
 
-        await AddAuditAsync(periode.Id, dto.UserId, "DEFINITIV_ABGESCHLOSSEN",
+        await AddAuditAsync(periode.Id, GetUserId(), "DEFINITIV_ABGESCHLOSSEN",
                              $"Auszahlungsdatum: {auszahlung:dd.MM.yyyy}");
         await _db.SaveChangesAsync();
 
@@ -404,7 +404,7 @@ public class PayrollPeriodeController : ControllerBase
         // im journalctl geloggt; der Definitiv-Abschluss bleibt erfolgreich.
         // Bei Re-Open + erneutem Abschluss werden alte Lohnzettel ersetzt.
         // PDF-Erstellung ist schnell (paar Sekunden für 50 MA), wir warten ab.
-        await _lohnlaufSvc.TryDispatchLohnzettelToMaPostfaecherAsync(periode.Id, dto.UserId);
+        await _lohnlaufSvc.TryDispatchLohnzettelToMaPostfaecherAsync(periode.Id, GetUserId());
 
         // ── E-Mail-Versand als Hintergrund-Task ──────────────────────────
         // Mit 500ms Delay pro MA + SMTP-Roundtrip dauert das bei 50 MA gut
@@ -483,7 +483,7 @@ public class PayrollPeriodeController : ControllerBase
         periode.ProvisorischAbgeschlossenAm  = null;
         periode.ProvisorischAbgeschlossenVon = null;
 
-        await AddAuditAsync(periode.Id, dto.UserId, "ZURUECK_AN_GF", dto.Bemerkung);
+        await AddAuditAsync(periode.Id, GetUserId(), "ZURUECK_AN_GF", dto.Bemerkung);
         await _db.SaveChangesAsync();
 
         return Ok(new {
@@ -545,7 +545,7 @@ public class PayrollPeriodeController : ControllerBase
             snap.UpdatedAt = DateTime.UtcNow;
         }
 
-        await AddAuditAsync(periode.Id, dto.UserId, "WIEDER_GEOEFFNET", dto.Bemerkung);
+        await AddAuditAsync(periode.Id, GetUserId(), "WIEDER_GEOEFFNET", dto.Bemerkung);
         await _db.SaveChangesAsync();
 
         // ── Lohnzettel aus MA-Postfächern entfernen ──
@@ -599,6 +599,18 @@ public class PayrollPeriodeController : ControllerBase
             Bemerkung        = bemerkung,
             CreatedAt        = DateTime.UtcNow
         });
+    }
+
+    /// <summary>
+    /// Aktuelle User-ID aus dem JWT-Token (NameIdentifier-Claim). Security
+    /// (Walter-Vorgabe 20.05.2026): Audit- und „abgeschlossen_von"-Felder dürfen
+    /// NIE aus dem Request-Body kommen — sonst kann sich jeder als jemand anderes
+    /// ausgeben. Ein im Request-Body mitgesendetes UserId-Feld wird ignoriert.
+    /// </summary>
+    private int GetUserId()
+    {
+        var v = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(v, out var id) ? id : 0;
     }
 
     // GET /api/payroll-perioden/{id}/snapshots  – alle Snapshots einer Periode
