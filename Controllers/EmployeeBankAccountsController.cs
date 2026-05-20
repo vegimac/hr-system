@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,24 +9,64 @@ namespace HrSystem.Controllers;
 
 /// <summary>
 /// Bankverbindungen pro Mitarbeiter (mit Historie).
+///
+/// Walter-Vorgabe 17.05.2026: Sobald eine Bankverbindung in einem Lohnlauf
+/// verwendet wurde (= ValidFrom liegt vor dem FirstAllowedDate der Filiale),
+/// darf sie nicht mehr editiert oder gelöscht werden. Stattdessen muss eine
+/// NEUE Bankverbindung mit aktuellem ValidFrom erfasst werden — die alte
+/// bleibt unverändert bestehen.
 /// </summary>
 [Authorize]
 [ApiController]
 [Route("api/employee-bank-accounts")]
 public class EmployeeBankAccountsController : ControllerBase
 {
-    private readonly AppDbContext _db;
-    public EmployeeBankAccountsController(AppDbContext db) => _db = db;
+    private readonly AppDbContext        _db;
+    private readonly LohnEditLockService _editLock;
+    public EmployeeBankAccountsController(AppDbContext db, LohnEditLockService editLock)
+    {
+        _db       = db;
+        _editLock = editLock;
+    }
+
+    /// <summary>
+    /// Filiale des MA (jüngster aktiver Vertrag) — null wenn kein Vertrag.
+    /// </summary>
+    private Task<int?> GetEmployeeBranchAsync(int employeeId)
+        => _db.Employees
+            .Where(e => e.Id == employeeId)
+            .SelectMany(e => e.Employments)
+            .Where(x => x.IsActive)
+            .OrderByDescending(x => x.ContractStartDate)
+            .Select(x => (int?)x.CompanyProfileId)
+            .FirstOrDefaultAsync();
+
+    /// <summary>
+    /// Prüft ob die Bankverbindung b „in Lohn verwendet" wurde:
+    /// b.ValidFrom liegt vor dem FirstAllowedDate der Filiale.
+    /// Für admin/superuser ist FirstAllowedDate null → immer false (Bypass).
+    /// </summary>
+    private async Task<bool> IsInLohnVerwendetAsync(EmployeeBankAccount b, DateOnly? firstAllowed)
+    {
+        if (firstAllowed is null) return false;
+        return b.ValidFrom < firstAllowed.Value;
+    }
 
     // GET /api/employee-bank-accounts/employee/{id}
     [HttpGet("employee/{employeeId:int}")]
     public async Task<IActionResult> GetByEmployee(int employeeId)
     {
-        var list = await _db.EmployeeBankAccounts
+        var branchId      = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowed  = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            : null;
+
+        var entries = await _db.EmployeeBankAccounts
             .Where(b => b.EmployeeId == employeeId)
             .OrderByDescending(b => b.ValidFrom)
-            .Select(b => MapToDto(b))
             .ToListAsync();
+
+        var list = entries.Select(b => MapToDto(b, firstAllowed)).ToList();
         return Ok(list);
     }
 
@@ -55,6 +96,40 @@ public class EmployeeBankAccountsController : ControllerBase
         var err = Validate(dto);
         if (err != null) return BadRequest(new { message = err });
 
+        // Walter-Vorgabe 17.05.2026: eine neue Bankverbindung darf nicht
+        // rückwirkend in einer Periode beginnen, die schon in Verarbeitung
+        // ist. Der "Neu ab"-Pfad muss zum frühesten erlaubten Tag der Filiale
+        // passen oder später. admin/superuser werden im Service bypassed.
+        var newFrom      = DateOnly.Parse(dto.ValidFrom);
+        var branchId     = await GetEmployeeBranchAsync(dto.EmployeeId);
+        var firstAllowed = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            : null;
+        if (firstAllowed.HasValue && newFrom < firstAllowed.Value)
+        {
+            return Conflict(new
+            {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"'Gültig ab {newFrom:dd.MM.yyyy}' liegt in einer bereits in Verarbeitung befindlichen Lohnperiode. " +
+                                   $"Frühestes erlaubtes 'Gültig ab': {firstAllowed.Value:dd.MM.yyyy}.",
+                firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+            });
+        }
+
+        // Walter-Vorgabe 18.05.2026: wenn der MA noch keine andere als
+        // Hauptbank markierte aktive Bank hat, ist die neue Bank
+        // automatisch Hauptbank — auch wenn dto.IsHauptbank false ist.
+        // Verhindert die "Phantom-Bank ohne Markierung"-Falle, die im DTA
+        // und in der Akonto-Liste zu fehlenden IBANs führt.
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var hasOtherHauptbank = await _db.EmployeeBankAccounts.AnyAsync(b =>
+            b.EmployeeId == dto.EmployeeId
+            && b.IsHauptbank
+            && b.ValidFrom <= today
+            && (b.ValidTo == null || b.ValidTo >= today));
+        var resolvedIsHauptbank = dto.IsHauptbank ?? !hasOtherHauptbank;
+        if (!hasOtherHauptbank) resolvedIsHauptbank = true;
+
         var entry = new EmployeeBankAccount
         {
             EmployeeId           = dto.EmployeeId,
@@ -68,7 +143,7 @@ public class EmployeeBankAccountsController : ControllerBase
             KontoinhaberLand     = NormalizeCountry(dto.KontoinhaberLand),
             Zahlungsreferenz     = dto.Zahlungsreferenz?.Trim(),
             Bemerkung            = dto.Bemerkung?.Trim(),
-            IsHauptbank      = dto.IsHauptbank ?? true,
+            IsHauptbank      = resolvedIsHauptbank,
             AufteilungTyp    = NormalizeAufteilungTyp(dto.AufteilungTyp),
             AufteilungWert   = dto.AufteilungWert,
             ValidFrom        = DateOnly.Parse(dto.ValidFrom),
@@ -88,6 +163,24 @@ public class EmployeeBankAccountsController : ControllerBase
     {
         var entry = await _db.EmployeeBankAccounts.FindAsync(id);
         if (entry == null) return NotFound();
+
+        // Lohnlauf-Schutz: Bankverbindung darf nicht editiert werden, wenn sie
+        // schon in einem Lohnlauf verwendet wurde. Stattdessen: neue Bankver-
+        // bindung mit aktuellem ValidFrom erfassen.
+        var branchId     = await GetEmployeeBranchAsync(entry.EmployeeId);
+        var firstAllowed = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            : null;
+        if (await IsInLohnVerwendetAsync(entry, firstAllowed))
+        {
+            return Conflict(new
+            {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Diese Bankverbindung wurde bereits in einem Lohnlauf verwendet (gültig ab {entry.ValidFrom:dd.MM.yyyy}). " +
+                                   $"Bitte über '+ Neue Bankverbindung' eine neue Verbindung erfassen.",
+                firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
+            });
+        }
 
         var err = Validate(dto);
         if (err != null) return BadRequest(new { message = err });
@@ -120,6 +213,22 @@ public class EmployeeBankAccountsController : ControllerBase
     {
         var entry = await _db.EmployeeBankAccounts.FindAsync(id);
         if (entry == null) return NotFound();
+
+        // Lohnlauf-Schutz: kein Löschen wenn schon in einem Lohnlauf verwendet.
+        var branchId     = await GetEmployeeBranchAsync(entry.EmployeeId);
+        var firstAllowed = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            : null;
+        if (await IsInLohnVerwendetAsync(entry, firstAllowed))
+        {
+            return Conflict(new
+            {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Diese Bankverbindung wurde bereits in einem Lohnlauf verwendet (gültig ab {entry.ValidFrom:dd.MM.yyyy}) und kann nicht gelöscht werden.",
+                firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
+            });
+        }
+
         _db.EmployeeBankAccounts.Remove(entry);
         await _db.SaveChangesAsync();
         return Ok();
@@ -192,7 +301,7 @@ public class EmployeeBankAccountsController : ControllerBase
         return c.Length == 2 ? c : null;
     }
 
-    private static object MapToDto(EmployeeBankAccount b) => new
+    private static object MapToDto(EmployeeBankAccount b, DateOnly? firstAllowed = null) => new
     {
         id                  = b.Id,
         employeeId          = b.EmployeeId,
@@ -211,6 +320,10 @@ public class EmployeeBankAccountsController : ControllerBase
         aufteilungWert      = b.AufteilungWert,
         validFrom           = b.ValidFrom.ToString("yyyy-MM-dd"),
         validTo             = b.ValidTo?.ToString("yyyy-MM-dd"),
+        // True wenn ValidFrom < FirstAllowedDate (Filiale hat schon einen
+        // Lohnlauf für diese oder eine spätere Periode laufen lassen). Bei
+        // admin/superuser ist FirstAllowedDate null → immer false.
+        inLohnVerwendet     = firstAllowed.HasValue && b.ValidFrom < firstAllowed.Value,
         createdAt           = b.CreatedAt
     };
 }

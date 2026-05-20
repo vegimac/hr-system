@@ -49,6 +49,10 @@ builder.Services.AddScoped<PayrollPdfService>();
 builder.Services.AddScoped<LohnlaufService>();
 // Akonto-Lohn-Berechnung (Vorab-Auszahlung Mitte Monat — Walter-Vorgabe).
 builder.Services.AddScoped<AkontoLaufService>();
+// Akonto-Zahlungsliste als PDF (Begleitliste zum DTA, Buchhaltungs-Beleg).
+builder.Services.AddScoped<AkontoListePdfService>();
+// Edit-Sperre während HR Lohnlauf prüft (Walter-Vorgabe 17.05.2026, Variante 2).
+builder.Services.AddScoped<LohnEditLockService>();
 // pain.001-XML-Generator (ISO 20022) für DTA-Zahlungsexport
 builder.Services.AddScoped<Iso20022PainService>();
 // Sperrfrist-Service: Kündigungsschutz nach Art. 336c OR bei AU
@@ -542,41 +546,25 @@ using (var scope = app.Services.CreateScope())
           AND zaehlt_als_basis_13ml = false;
     ");
 
-    // ── Payroll-Perioden-Konfiguration ────────────────────────────────────
-    db.Database.ExecuteSqlRaw(@"
-        CREATE TABLE IF NOT EXISTS payroll_periode_config (
-            id                   SERIAL PRIMARY KEY,
-            company_profile_id   INTEGER NOT NULL REFERENCES company_profile(id) ON DELETE CASCADE,
-            from_day             INTEGER NOT NULL DEFAULT 1,
-            to_day               INTEGER NOT NULL DEFAULT 31,
-            valid_from_year      INTEGER NOT NULL,
-            valid_from_month     INTEGER NOT NULL DEFAULT 1,
-            is_locked            BOOLEAN NOT NULL DEFAULT false,
-            created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            UNIQUE(company_profile_id, valid_from_year, valid_from_month)
-        );
-    ");
-
     // ── Konkrete Lohnperioden ─────────────────────────────────────────────
+    // Walter-Vorgabe 20.05.2026: Lohnperiode = IMMER Kalendermonat. Keine
+    // Periodenregel-Konfiguration, keine Übergangs-Lohnläufe mehr.
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS payroll_periode (
             id                   SERIAL PRIMARY KEY,
             company_profile_id   INTEGER NOT NULL REFERENCES company_profile(id) ON DELETE CASCADE,
-            config_id            INTEGER REFERENCES payroll_periode_config(id),
             year                 INTEGER NOT NULL,
             month                INTEGER NOT NULL,
             period_from          DATE    NOT NULL,
             period_to            DATE    NOT NULL,
             label                VARCHAR(100) NOT NULL DEFAULT '',
-            is_transition        BOOLEAN NOT NULL DEFAULT false,
             status               VARCHAR(20)  NOT NULL DEFAULT 'offen',
             abgeschlossen_am     TIMESTAMPTZ,
             abgeschlossen_von    INTEGER,
             created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
         CREATE UNIQUE INDEX IF NOT EXISTS UX_payroll_periode_branch_year_month
-            ON payroll_periode(company_profile_id, year, month)
-            WHERE is_transition = false;
+            ON payroll_periode(company_profile_id, year, month);
     ");
 
     // ── Lohnzettel-Snapshots ──────────────────────────────────────────────
@@ -601,49 +589,31 @@ using (var scope = app.Services.CreateScope())
         );
     ");
 
-    // ── Perioden-Datumskorrrektur: falsch angelegte 1-31 Perioden neu berechnen ──
-    // Wenn payroll_periode_config fehlt aber company_profile.payroll_period_start_day != 1/null,
-    // wurden die Perioden mit period_from = 1. des Monats angelegt (falscher Fallback).
-    // Diese Migration korrigiert period_from/period_to für alle Perioden deren Filiale
-    // einen PayrollPeriodStartDay != 1 hat UND noch keine payroll_periode_config hat.
+    // ── Walter-Vorgabe 20.05.2026: Lohnperiode = IMMER Kalendermonat ──────
+    // Die frühere Periodenregel (payroll_periode_config, Starttag 21/1,
+    // Übergangs-Lohnläufe) ist entfernt. Beim Startup normalisieren wir die
+    // Datumsgrenzen aller noch nicht eingefrorenen Perioden auf 1.–letzter Tag
+    // und droppen den alten Schema-Ballast (config_id, is_transition,
+    // payroll_period_start_day, payroll_periode_config).
     db.Database.ExecuteSqlRaw(@"
-        DO $$
-        DECLARE
-            r RECORD;
-            sd INTEGER;
-            new_from DATE;
-            new_to   DATE;
-        BEGIN
-            FOR r IN
-                SELECT pp.id, pp.company_profile_id, pp.year, pp.month,
-                       pp.period_from, pp.period_to
-                FROM   payroll_periode pp
-                WHERE  pp.config_id IS NULL
-                  AND  pp.is_transition = false
-                  AND  NOT EXISTS (
-                      SELECT 1 FROM payroll_snapshot ps WHERE ps.payroll_periode_id = pp.id
-                  )
-            LOOP
-                SELECT COALESCE(cp.payroll_period_start_day, 1)
-                INTO   sd
-                FROM   company_profile cp
-                WHERE  cp.id = r.company_profile_id;
+        -- Offene/provisorische Perioden ohne Snapshots auf Kalendermonat ziehen.
+        UPDATE payroll_periode pp
+        SET    period_from = make_date(pp.year, pp.month, 1),
+               period_to   = (make_date(pp.year, pp.month, 1) + interval '1 month - 1 day')::date
+        WHERE  NOT EXISTS (SELECT 1 FROM payroll_snapshot ps WHERE ps.payroll_periode_id = pp.id);
 
-                IF sd > 1 THEN
-                    -- Datum neu berechnen
-                    new_to   := make_date(r.year, r.month, sd - 1);
-                    IF r.month = 1 THEN
-                        new_from := make_date(r.year - 1, 12, LEAST(sd, 31));
-                    ELSE
-                        new_from := make_date(r.year, r.month - 1,
-                                       LEAST(sd, date_part('day', (date_trunc('month', make_date(r.year, r.month, 1)) - interval '1 day'))::int));
-                    END IF;
-                    UPDATE payroll_periode
-                    SET    period_from = new_from, period_to = new_to
-                    WHERE  id = r.id;
-                END IF;
-            END LOOP;
-        END $$;
+        -- Schema-Ballast der alten Periodenflexibilität droppen (idempotent).
+        -- DROP COLUMN is_transition entfernt automatisch den partiellen
+        -- UNIQUE-Index (WHERE is_transition=false), daher danach neu anlegen.
+        ALTER TABLE payroll_periode  DROP COLUMN IF EXISTS config_id;
+        ALTER TABLE payroll_periode  DROP COLUMN IF EXISTS is_transition;
+        ALTER TABLE company_profile  DROP COLUMN IF EXISTS payroll_period_start_day;
+        DROP TABLE IF EXISTS payroll_periode_config;
+
+        -- Vollständigen UNIQUE-Index sicherstellen (1 Periode pro Filiale+Monat).
+        DROP INDEX IF EXISTS UX_payroll_periode_branch_year_month;
+        CREATE UNIQUE INDEX IF NOT EXISTS UX_payroll_periode_branch_year_month
+            ON payroll_periode(company_profile_id, year, month);
     ");
 
     // ── Arbeitslosigkeit ──────────────────────────────────────────────────

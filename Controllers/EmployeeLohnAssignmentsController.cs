@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,20 +17,37 @@ namespace HrSystem.Controllers;
 [Route("api/employee-lohn-assignments")]
 public class EmployeeLohnAssignmentsController : ControllerBase
 {
-    private readonly AppDbContext _db;
-    public EmployeeLohnAssignmentsController(AppDbContext db) => _db = db;
+    private readonly AppDbContext        _db;
+    private readonly LohnEditLockService _editLock;
+    public EmployeeLohnAssignmentsController(AppDbContext db, LohnEditLockService editLock)
+    {
+        _db = db; _editLock = editLock;
+    }
+
+    private Task<int?> GetEmployeeBranchAsync(int employeeId)
+        => _db.Employees
+            .Where(e => e.Id == employeeId)
+            .SelectMany(e => e.Employments)
+            .Where(x => x.IsActive)
+            .OrderByDescending(x => x.ContractStartDate)
+            .Select(x => (int?)x.CompanyProfileId)
+            .FirstOrDefaultAsync();
 
     // GET /api/employee-lohn-assignments/{employeeId}
     [HttpGet("{employeeId:int}")]
     public async Task<IActionResult> GetByEmployee(int employeeId)
     {
-        var list = await _db.EmployeeLohnAssignments
+        var branchId     = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowed = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            : null;
+
+        var entries = await _db.EmployeeLohnAssignments
             .Include(a => a.Behoerde)
             .Where(a => a.EmployeeId == employeeId)
             .OrderBy(a => a.ValidFrom)
-            .Select(a => MapToDto(a))
             .ToListAsync();
-        return Ok(list);
+        return Ok(entries.Select(a => MapToDto(a, firstAllowed)).ToList());
     }
 
     [HttpPost]
@@ -37,6 +55,20 @@ public class EmployeeLohnAssignmentsController : ControllerBase
     {
         var err = await ValidateAsync(dto);
         if (err != null) return BadRequest(err);
+
+        var newFrom      = DateOnly.Parse(dto.ValidFrom);
+        var branchId     = await GetEmployeeBranchAsync(dto.EmployeeId);
+        var firstAllowed = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            : null;
+        if (firstAllowed.HasValue && newFrom < firstAllowed.Value)
+        {
+            return Conflict(new {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"'Gültig ab {newFrom:dd.MM.yyyy}' liegt in einer bereits in Verarbeitung befindlichen Lohnperiode. Frühestes erlaubtes 'Gültig ab': {firstAllowed.Value:dd.MM.yyyy}.",
+                firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+            });
+        }
 
         var entry = new EmployeeLohnAssignment
         {
@@ -60,7 +92,7 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         var saved = await _db.EmployeeLohnAssignments
             .Include(a => a.Behoerde)
             .FirstAsync(a => a.Id == entry.Id);
-        return Ok(MapToDto(saved));
+        return Ok(MapToDto(saved, firstAllowed));
     }
 
     [HttpPut("{id:int}")]
@@ -68,6 +100,19 @@ public class EmployeeLohnAssignmentsController : ControllerBase
     {
         var entry = await _db.EmployeeLohnAssignments.FindAsync(id);
         if (entry == null) return NotFound();
+
+        var branchIdU     = await GetEmployeeBranchAsync(entry.EmployeeId);
+        var firstAllowedU = branchIdU.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchIdU.Value)
+            : null;
+        if (firstAllowedU.HasValue && entry.ValidFrom < firstAllowedU.Value)
+        {
+            return Conflict(new {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Diese Lohnabtretung (gültig ab {entry.ValidFrom:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet. Bitte einen neuen Eintrag ab frühestens {firstAllowedU:dd.MM.yyyy} anlegen.",
+                firstAllowedDate = firstAllowedU?.ToString("yyyy-MM-dd")
+            });
+        }
 
         var err = await ValidateAsync(dto);
         if (err != null) return BadRequest(err);
@@ -88,7 +133,7 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         var reloaded = await _db.EmployeeLohnAssignments
             .Include(a => a.Behoerde)
             .FirstAsync(a => a.Id == entry.Id);
-        return Ok(MapToDto(reloaded));
+        return Ok(MapToDto(reloaded, firstAllowedU));
     }
 
     [HttpDelete("{id:int}")]
@@ -96,6 +141,20 @@ public class EmployeeLohnAssignmentsController : ControllerBase
     {
         var entry = await _db.EmployeeLohnAssignments.FindAsync(id);
         if (entry == null) return NotFound();
+
+        var branchIdD     = await GetEmployeeBranchAsync(entry.EmployeeId);
+        var firstAllowedD = branchIdD.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchIdD.Value)
+            : null;
+        if (firstAllowedD.HasValue && entry.ValidFrom < firstAllowedD.Value)
+        {
+            return Conflict(new {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Diese Lohnabtretung (gültig ab {entry.ValidFrom:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet und kann nicht gelöscht werden.",
+                firstAllowedDate = firstAllowedD?.ToString("yyyy-MM-dd")
+            });
+        }
+
         _db.EmployeeLohnAssignments.Remove(entry);
         await _db.SaveChangesAsync();
         return Ok();
@@ -119,7 +178,7 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         return null;
     }
 
-    private static object MapToDto(EmployeeLohnAssignment a) => new
+    private static object MapToDto(EmployeeLohnAssignment a, DateOnly? firstAllowed = null) => new
     {
         id               = a.Id,
         employeeId       = a.EmployeeId,
@@ -136,7 +195,8 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         referenzAmt      = a.ReferenzAmt,
         zahlungsReferenz = a.ZahlungsReferenz,
         bemerkung        = a.Bemerkung,
-        createdAt        = a.CreatedAt
+        createdAt        = a.CreatedAt,
+        inLohnVerwendet  = firstAllowed.HasValue && a.ValidFrom < firstAllowed.Value
     };
 }
 

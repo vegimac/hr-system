@@ -22,6 +22,7 @@ let _akWfMode = _loadPersistedLohnMode();    // 'definitiv' | 'akonto'
 let _akWfData = null;           // /status-Response-Cache
 let _akWfSelectedId = null;     // aktuell ausgewähltes akonto_zahlung.id im Detail
 let _akWfEmpMap = null;         // empId → vollständiges Employee-Objekt (für Modell-Badge + QST-Button im MA-Listen-Render — analog loadLohnList in payroll.js)
+let _akWfQstIds = null;         // Set<empId> mit aktivem QST-Eintrag — bestimmt ob der QST-Shortcut neben dem MA-Namen gezeigt wird (Walter 18.05.2026: NUR wo wirklich QST hinterlegt ist; B-Permit kann auch QST-befreit sein)
 
 // Bedeutung der Status-Werte (Doppelmoppel zur Anzeige im UI)
 const _AK_STATUS = {
@@ -34,6 +35,7 @@ const _AK_STATUS = {
 const _AK_BLATT_STATUS = {
     BERECHNET:      { label: 'berechnet',         color: '#92400e', bg: '#fef3c7' },
     FREIGEGEBEN_GF: { label: '✓ GF freigegeben',  color: '#15803d', bg: '#dcfce7' },
+    HR_BESTAETIGT:  { label: '✓ HR-bestätigt',    color: '#1e40af', bg: '#dbeafe' },
     AUSBEZAHLT:     { label: 'ausbezahlt',        color: '#7c2d12', bg: '#fed7aa' },
     STORNIERT:      { label: 'storniert',         color: '#b91c1c', bg: '#fee2e2' },
 };
@@ -91,8 +93,14 @@ function setLohnMode(mode) {
         if (akView)  akView.style.display  = 'none';
         if (hint)    hint.textContent      = '';
         if (topAk)  topAk.style.display  = 'none';
-        // topDef + perBanner werden vom loadLohnSlip/loadLohnPeriodBanner-Flow
-        // im Definitivlauf wieder aktiviert.
+        // Walter-Vorgabe 20.05.2026: Definitivlauf läuft jetzt über dieselbe
+        // Single-Refresh-Architektur wie der Akonto-Tab. Die alte statische
+        // Button-Zeile (topDef) + die alte Status-Pille im Toolbar (perBanner)
+        // bleiben dauerhaft aus — Status + Buttons rendert _lohnWfRenderStatusBar
+        // in #lohnDefinitivStatusBar.
+        if (topDef)    topDef.style.display    = 'none';
+        if (perBanner) perBanner.style.display = 'none';
+        if (typeof loadLohnList === 'function') loadLohnList();
     }
     _akWfUpdateTopActions();
     _checkDefinitivLock();
@@ -390,10 +398,20 @@ async function akWfRefresh() {
         // "berechnet" hängen obwohl der DB-Status schon FREIGEGEBEN_GF ist
         // (Walter-Bug 16.05.2026).
         const ts = Date.now();
-        const [r, rEmp] = await Promise.all([
+        // Periode für den QST-Aktivitäts-Check: Kalendermonat (Walter 18.05.2026 —
+        // Akonto-Lohn-Modell verwendet immer den Kalendermonat als Lohnperiode).
+        // QST-Eintrag muss IRGENDWO in der Periode aktiv sein, nicht nur heute —
+        // sonst wären MA, deren QST am Periodenanfang abgelaufen ist, falsch
+        // gefiltert.
+        const periodFromIso = `${year}-${String(month).padStart(2,'0')}-01`;
+        const lastDay       = new Date(year, month, 0).getDate();
+        const periodToIso   = `${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+
+        const [r, rEmp, rQst] = await Promise.all([
             fetch(`/api/akonto/workflow/status?companyProfileId=${branchId}&year=${year}&month=${month}&_=${ts}`,
                   { headers: ah(), cache: 'no-store' }),
             fetch(`/api/employees`, { headers: ah() }),
+            fetch(`/api/employee-quellensteuer/active-employee-ids?from=${periodFromIso}&to=${periodToIso}`, { headers: ah() }),
         ]);
         if (!r.ok) {
             if (bar) bar.innerHTML = _akWfAlert('Fehler beim Laden des Akonto-Status (HTTP ' + r.status + ').', 'err');
@@ -405,6 +423,16 @@ async function akWfRefresh() {
             try {
                 const emps = await rEmp.json();
                 (emps || []).forEach(e => { _akWfEmpMap[e.id] = e; });
+            } catch {}
+        }
+        // QST-aktive MA-IDs als Set — bestimmt ob der QST-Shortcut neben
+        // dem Modell-Badge gezeigt wird. Bei Fehler/Timeout = leeres Set
+        // (Button verschwindet überall, kein Crash).
+        _akWfQstIds = new Set();
+        if (rQst.ok) {
+            try {
+                const ids = await rQst.json();
+                (ids || []).forEach(id => _akWfQstIds.add(id));
             } catch {}
         }
         _akWfRenderStatusBar();
@@ -425,6 +453,13 @@ async function akWfRefresh() {
         } else {
             _akAusEmpty();
         }
+        // Walter 19.05.2026: nach jedem Refresh die Zulagen-Sperre neu
+        // anwenden — der akontoStatus kann sich grade gewechselt haben
+        // (z.B. HR_FREIGEGEBEN → AUSBEZAHLT nach DTA-Klick), und die mittlere
+        // Zulagen-Card wird beim Re-Load eines bereits selektierten MA NICHT
+        // automatisch neu gerendert. Ohne diesen expliziten Aufruf bleiben
+        // „+ Erfassen" / ✎ / 🗑 sichtbar obwohl der Lock greifen müsste.
+        _akWfApplyZulagenLock();
     } catch (e) {
         if (bar) bar.innerHTML = _akWfAlert('Verbindungsfehler: ' + e.message, 'err');
     }
@@ -451,16 +486,36 @@ function _akWfRenderStatusBar() {
     const d = _akWfData;
     const meta = _AK_STATUS[d.akontoStatus] || _AK_STATUS.OFFEN;
     const isHr = _akIsHr();
-    const counts = `${d.countFreigegebenGf || 0}/${d.countTotal || 0} freigegeben`;
+    // Counter zeigt den jeweils relevanten Workflow-Schritt:
+    //   IN_BEARBEITUNG_GF → GF-Freigabe-Fortschritt
+    //   BEI_HR            → HR-Bestätigungs-Fortschritt
+    const counts = (d.akontoStatus === 'BEI_HR' || d.akontoStatus === 'HR_FREIGEGEBEN' || d.akontoStatus === 'AUSBEZAHLT')
+        ? `${d.countHrBestaetigt || 0}/${d.countTotal || 0} HR-bestätigt`
+        : `${d.countFreigegebenGf || 0}/${d.countTotal || 0} freigegeben`;
 
-    // Aktionen je Status + Rolle — kompakte Inline-Buttons.
-    // Walter 16.05.2026: ALLE Akonto-Buttons in dieser Zeile zusammen
-    // (Periode-Aktionen + per-MA-Aktionen für den aktuell selektierten MA).
+    // Aktionen je Status + Rolle — kompakte Inline-Buttons (Walter 17.05.2026,
+    // konsolidiert auf einer Seite für GF + HR). Pro Rolle werden andere
+    // Aktionen eingeblendet; GF sieht bei BEI_HR/höher die Lock-Pille, HR
+    // sieht die Bearbeitungs-Knöpfe.
     const sel = (d.zahlungen || []).find(z => z.id === _akWfSelectedId);
+
+    // ─ GF Per-MA-Aktionen ─
     const perMaFreigeben = (d.akontoStatus === 'IN_BEARBEITUNG_GF' && sel?.status === 'BERECHNET')
         ? `<button class="btn btn-primary btn-sm" onclick="akWfFreigeben(${sel.id})">✓ Lohnblatt freigeben</button>` : '';
     const perMaZurueckziehen = (d.akontoStatus === 'IN_BEARBEITUNG_GF' && sel?.status === 'FREIGEGEBEN_GF')
         ? `<button class="btn btn-outline btn-sm" onclick="akWfZurueckziehen(${sel.id})" style="color:#b91c1c;border-color:#fecaca">↶ Freigabe zurückziehen</button>` : '';
+
+    // ─ HR Per-MA-Aktionen (Walter 17.05.2026, erweitert 19.05.2026) ─
+    // HR-Bestätigen/Zurückziehen/Override sind bis AUSBEZAHLT erlaubt — auch
+    // im Zwischen-Status HR_FREIGEGEBEN können einzelne Korrekturen noch
+    // gemacht werden, solange der DTA-Klick nicht gefallen ist.
+    const hrPhase = (d.akontoStatus === 'BEI_HR' || d.akontoStatus === 'HR_FREIGEGEBEN');
+    const hrMaBestaetigen = (isHr && hrPhase && sel?.status === 'FREIGEGEBEN_GF')
+        ? `<button class="btn btn-primary btn-sm" onclick="akWfHrBestaetigen(${sel.id})">✓ HR-bestätigen</button>` : '';
+    const hrMaZurueck = (isHr && hrPhase && sel?.status === 'HR_BESTAETIGT')
+        ? `<button class="btn btn-outline btn-sm" onclick="akWfHrZurueckziehen(${sel.id})" style="color:#b91c1c;border-color:#fecaca">↶ HR-Bestätigung zurückziehen</button>` : '';
+    const hrMaOverride = (isHr && hrPhase && (sel?.status === 'FREIGEGEBEN_GF' || sel?.status === 'HR_BESTAETIGT'))
+        ? `<button class="btn btn-outline btn-sm" onclick="akWfHrOverride(${sel.id}, ${sel.nettoAkonto || 0})" title="Netto-Akonto-Betrag korrigieren">✎ ändern</button>` : '';
 
     let actions = '';
     switch (d.akontoStatus) {
@@ -468,28 +523,38 @@ function _akWfRenderStatusBar() {
             actions = `<button class="btn btn-primary btn-sm" onclick="akWfStart()">📅 Akonto vorbereiten</button>`;
             break;
         case 'IN_BEARBEITUNG_GF':
-            // per-MA-Aktionen ZUERST (Walter klickt häufiger), dann Periode-Aktionen
             actions = `${perMaFreigeben}${perMaZurueckziehen}
                        <button class="btn btn-outline btn-sm" onclick="akWfStart()" title="Werte neu berechnen — freigegebene Blätter bleiben">↻ Neu berechnen</button>
                        <button class="btn btn-success btn-sm" onclick="akWfAnHrSenden()" ${(d.countFreigegebenGf || 0) < (d.countTotal || 0) ? 'disabled' : ''}>An HR senden →</button>`;
             break;
         case 'BEI_HR':
             if (isHr) {
-                actions = `<button class="btn btn-outline btn-sm" onclick="akWfZurueckAnGf()" style="color:#b91c1c;border-color:#fecaca">↩ Zurück an GF</button>
-                           <button class="btn btn-success btn-sm" onclick="akWfHrFreigabe()">✓ HR-Freigabe</button>`;
+                // HR-Aktionen: per-MA HR-bestätigen + Override + Zurück an GF.
+                // HR-Freigabe-Pauschal-Knopf nicht mehr — die Periode springt
+                // automatisch auf HR_FREIGEGEBEN sobald alle MA HR-bestätigt sind.
+                actions = `${hrMaBestaetigen}${hrMaZurueck}${hrMaOverride}
+                           <button class="btn btn-outline btn-sm" onclick="akWfZurueckAnGf()" style="color:#b45309;border-color:#fcd34d">↩ Zurück an GF</button>`;
             } else {
-                actions = `<span style="color:#94a3b8;font-size:11px;font-style:italic">wartet auf HR</span>`;
+                // GF: nur Anzeige der Sperre
+                actions = `<span style="color:#b45309;font-size:11.5px;font-weight:600;background:#fef3c7;padding:3px 9px;border-radius:8px">🔒 Bei HR — keine Änderungen möglich</span>`;
             }
             break;
         case 'HR_FREIGEGEBEN':
             if (isHr) {
-                actions = `<button class="btn btn-primary btn-sm" onclick="akWfAuszahlen()" style="background:#7c2d12;border-color:#7c2d12">💰 Akonto auszahlen</button>`;
+                // HR kann bis zum DTA-Klick noch einzelne MA korrigieren:
+                // HR-Bestätigung zurückziehen, Override, Neu bestätigen.
+                // Erst der Klick auf "Akonto auszahlen (DTA)" sperrt alles final.
+                actions = `${hrMaBestaetigen}${hrMaZurueck}${hrMaOverride}
+                           <button class="btn btn-outline btn-sm" onclick="akWfZurueckAnGf()" style="color:#b45309;border-color:#fcd34d" title="Gesamte Periode zurück an GF (alle Bestätigungen aufheben)">↩ Zurück an GF</button>
+                           <button class="btn btn-success btn-sm" onclick="akWfAuszahlen()">💰 Akonto auszahlen (DTA)</button>`;
             } else {
-                actions = `<span style="color:#94a3b8;font-size:11px;font-style:italic">wartet auf Auszahlung</span>`;
+                actions = `<span style="color:#166534;font-size:11.5px;font-weight:600;background:#dcfce7;padding:3px 9px;border-radius:8px">🔒 HR-freigegeben — wartet auf Auszahlung</span>`;
             }
             break;
         case 'AUSBEZAHLT':
-            actions = `<span style="color:#7c2d12;font-size:11px;font-weight:600">ausbezahlt ${_akFmtTs(d.akontoAusbezahltAt)}</span>`;
+            actions = `<button class="btn btn-outline btn-sm" onclick="akWfDownloadDta()" style="color:#0369a1;border-color:#7dd3fc" title="pain.001-XML für die Bank">📥 DTA-File</button>
+                       <button class="btn btn-outline btn-sm" onclick="akWfDownloadListePdf()" style="color:#0369a1;border-color:#7dd3fc" title="Akonto-Zahlungsliste als PDF (Begleitliste, Buchhaltungs-Beleg)">📄 Akonto-Liste</button>
+                       <span style="color:#15803d;font-size:11.5px;font-weight:600;background:#bbf7d0;padding:3px 9px;border-radius:8px">🔒 Ausbezahlt ${_akFmtTs(d.akontoAusbezahltAt)} — Admin-Reopen via Lohnperioden-Modul</span>`;
             break;
     }
 
@@ -540,14 +605,17 @@ function _akWfRenderMaList() {
     z.forEach(r => {
         const meta = _AK_BLATT_STATUS[r.status] || _AK_BLATT_STATUS.BERECHNET;
         const isSelected = r.id === _akWfSelectedId;
-        const isFreigegeben = r.status === 'FREIGEGEBEN_GF';
-        const isAusbezahlt  = r.status === 'AUSBEZAHLT';
-        const isDone = isFreigegeben || isAusbezahlt;
+
+        // 4-Augen-Prinzip — Walter 17.05.2026: zwei Häkchen, GF (grün) + HR (blau).
+        //   gfDone = GF hat freigegeben (Status >= FREIGEGEBEN_GF)
+        //   hrDone = HR hat bestätigt   (Status >= HR_BESTAETIGT)
+        //   isAusbezahlt = DTA gelaufen (Status = AUSBEZAHLT)
+        const gfDone       = r.status === 'FREIGEGEBEN_GF' || r.status === 'HR_BESTAETIGT' || r.status === 'AUSBEZAHLT';
+        const hrDone       = r.status === 'HR_BESTAETIGT' || r.status === 'AUSBEZAHLT';
+        const isAusbezahlt = r.status === 'AUSBEZAHLT';
 
         // Vollständiges Employee-Objekt für Modell-Badge + QST-Button
         const full = _akWfEmpMap?.[r.employeeId] || {};
-        // Modell: bevorzugt aus dem aktuell aktiven Vertrag dieser Filiale,
-        // sonst aus dem ersten aktiven Vertrag des MA.
         const branchId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) || null;
         const employments = full.employments || [];
         const empCurrent = employments.find(v => v.companyProfileId === branchId && v.isActive)
@@ -558,7 +626,11 @@ function _akWfRenderMaList() {
 
         const initials = ((r.firstName||'')[0]||'') + ((r.lastName||'')[0]||'');
         const warn = !r.bankAccountCount ? ` <span title="Keine aktive Bankverbindung" style="color:#b91c1c">⚠</span>` : '';
-        const hrNote = r.kommentarHr ? ` <span title="HR-Notiz: ${(r.kommentarHr||'').replace(/"/g,'&quot;')}" style="color:#b91c1c">📝</span>` : '';
+        const hrNote = r.kommentarHr
+            ? (r.status === 'BERECHNET'
+                ? ` <span title="HR-Notiz: ${(r.kommentarHr||'').replace(/"/g,'&quot;')}" style="color:#b45309">📝</span>`
+                : ` <span title="HR-Notiz (Historie): ${(r.kommentarHr||'').replace(/"/g,'&quot;')}" style="color:#94a3b8;font-size:11px">📝</span>`)
+            : '';
 
         const row = document.createElement('div');
         row.className = 'lohn-emp-row';
@@ -567,24 +639,44 @@ function _akWfRenderMaList() {
         row.dataset.akontoId = r.id;
         row.onclick = () => akWfSelectMa(r.id);
 
-        // Subline-Layout 1:1 wie Definitivlauf (Walter 16.05.2026):
-        //   fertig → grüner Text "Lohn freigegeben"
-        //   sonst → graue Personalnummer
-        // Kein "·"-Separator, kein doppelter Inhalt.
-        const sublineColor = isDone ? '#16a34a' : '#94a3b8';
-        const sublineText  = isDone ? (isAusbezahlt ? 'Akonto ausbezahlt' : 'Lohn freigegeben') : (r.employeeNumber || '');
+        // Subline: zeigt den höchsten erreichten Schritt
+        let sublineText, sublineColor;
+        if (isAusbezahlt)     { sublineText = 'Akonto ausbezahlt'; sublineColor = '#7c2d12'; }
+        else if (hrDone)      { sublineText = 'HR-bestätigt';      sublineColor = '#1e40af'; }
+        else if (gfDone)      { sublineText = 'GF freigegeben';    sublineColor = '#16a34a'; }
+        else                  { sublineText = r.employeeNumber || ''; sublineColor = '#94a3b8'; }
+
+        // Avatar — bei Doppel-Häkchen (hrDone, isAusbezahlt) zwei ✓ in einem
+        // farbigen Kreis, bei nur GF ein einzelnes Häkchen, sonst Initialen.
+        let avatarHtml;
+        if (isAusbezahlt) {
+            avatarHtml = `<div title="GF freigegeben + HR bestätigt + ausbezahlt" style="width:34px;height:34px;border-radius:50%;background:#fed7aa;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#7c2d12;flex-shrink:0;line-height:1">✓✓</div>`;
+        } else if (hrDone) {
+            avatarHtml = `<div title="GF freigegeben + HR-bestätigt" style="width:34px;height:34px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#1e40af;flex-shrink:0;line-height:1">✓✓</div>`;
+        } else if (gfDone) {
+            avatarHtml = `<div title="GF freigegeben — wartet auf HR" style="width:34px;height:34px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#166534;flex-shrink:0">✓</div>`;
+        } else {
+            avatarHtml = `<div style="width:34px;height:34px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#475569;flex-shrink:0">${initials.toUpperCase()}</div>`;
+        }
 
         row.innerHTML = `
-            <div style="width:34px;height:34px;border-radius:50%;background:${isDone?'#dcfce7':'#e2e8f0'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:${isDone?'#166534':'#475569'};flex-shrink:0">
-                ${isDone ? '✓' : initials.toUpperCase()}
-            </div>
+            ${avatarHtml}
             <div style="flex:1;min-width:0">
                 <div class="lohn-emp-name" style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.firstName} ${r.lastName}${warn}${hrNote}</div>
                 <div class="lohn-emp-nr" style="font-size:11px;color:${sublineColor}">${sublineText}</div>
             </div>
-            ${model ? `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:${modelColor[model]||'#f1f5f9'}">${model}</span>` : ''}
-            <button class="ak-qst-btn" title="Quellensteuer erfassen"
-                    style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer;color:#475569;flex-shrink:0">QST</button>`;
+            <!-- Walter 18.05.2026: Vertrags-Badge IMMER links, QST-Button IMMER
+                 rechts, beide in einem Slot mit fester Breite damit die Spalten
+                 über alle Zeilen aligniert sind — auch wenn QST fehlt. -->
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100px;flex-shrink:0">
+                <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:${modelColor[model]||'#f1f5f9'};min-width:40px;text-align:center">${model || ''}</span>
+                <span style="width:38px;display:flex;justify-content:flex-end">
+                ${(_akWfQstIds && _akWfQstIds.has(r.employeeId))
+                    ? `<button class="ak-qst-btn" title="Quellensteuer bearbeiten"
+                            style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer;color:#475569;flex-shrink:0">QST</button>`
+                    : ''}
+                </span>
+            </div>`;
 
         // QST-Button: gleicher Modal-Aufruf wie im Definitivlauf (openQstModal).
         // Per addEventListener verdrahtet, damit das komplexe Argument-Objekt
@@ -616,6 +708,117 @@ function akWfSelectMa(id) {
     _akWfRenderStatusBar(); // per-MA-Aktionen (Freigeben/Zurückziehen) neu rendern
     _akWfUpdateTopActions();
     akWfLoadDetail(id);     // Rich-Detail asynchron nachladen
+
+    // Walter-Vorgabe 19.05.2026: MA-Info-Card + Zulagen/Abzüge-Card auch im
+    // Akonto-Tab anzeigen — gleiche UI wie Definitivlauf. Wir greifen auf
+    // die existierenden payroll.js-Funktionen zurück (showLohnVertragInfo,
+    // lzInit) die jetzt in BEIDE Card-Sets (lohn* + akWf*) schreiben.
+    //
+    // year/month/companyProfileId kommen aus den globalen Lohn-Selects
+    // (lohnYearSelect/lohnMonthSelect/fixedCompanyProfileId) — die Status-
+    // Response enthält diese Felder nicht.
+    const zahlung = (_akWfData?.zahlungen || []).find(z => z.id === id);
+    const empId   = zahlung?.employeeId;
+    const empFull = empId && _akWfEmpMap ? _akWfEmpMap[empId] : null;
+    if (empFull && typeof showLohnVertragInfo === 'function') {
+        try { showLohnVertragInfo(empFull); } catch (e) { console.error('showLohnVertragInfo failed', e); }
+    }
+    // Zulagen-Card unconditionally sichtbar machen — auch wenn lzInit selbst
+    // scheitern sollte, soll der „+ Erfassen"-Button für den User erreichbar
+    // bleiben (vorheriger Walter-Bug: Panel blieb display:none stecken).
+    const akWfP = document.getElementById('akWfZulagenPanel');
+    if (akWfP) akWfP.style.display = 'block';
+    if (empId && typeof lzInit === 'function') {
+        const cid   = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) || null;
+        const year  = parseInt(document.getElementById('lohnYearSelect')?.value)  || null;
+        const month = parseInt(document.getElementById('lohnMonthSelect')?.value) || null;
+        if (cid && year && month) {
+            // lzInit ist async — wir await NICHT (akWfSelectMa ist sync für
+            // schnelle UI-Reaktion), aber Promise.resolve() hängt unsere
+            // Lock-Anwendung an das Ende der lzInit-Promise-Kette an.
+            try {
+                Promise.resolve(lzInit(empId, cid, year, month)).then(_akWfApplyZulagenLock);
+            } catch (e) { console.error('lzInit failed', e); }
+        } else {
+            console.warn('akonto-workflow: lzInit nicht aufgerufen — cid/year/month fehlen', { cid, year, month });
+        }
+    }
+    // Walter 19.05.2026: zusätzlich SOFORT die Lock-Sperre anwenden (greift
+    // auf den „+ Erfassen"-Button im statischen Card-Header, der unabhängig
+    // von lzInit existiert). Wenn lzLoad später Zeilen rendert, ruft es die
+    // Lock-Funktion erneut auf, damit auch ✏️/🗑 verarbeitet werden.
+    _akWfApplyZulagenLock();
+}
+
+function _akWfApplyZulagenLock() {
+    // Walter-Vorgabe 19.05.2026: Zulagen/Abzüge sind nur in bestimmten Phasen
+    // editierbar — sonst Edit-Buttons ausblenden + Lock-Hinweis anzeigen.
+    //
+    // Status-Matrix (Walter-Vorgabe 19.05.2026 — Stand nach 22:30 Korrektur):
+    //   Akonto:    OFFEN/IN_BEARBEITUNG_GF         → jeder darf
+    //              BEI_HR / HR_FREIGEGEBEN         → nur admin/superuser
+    //                                                (HR darf bis zum DTA-Klick
+    //                                                noch Zulagen erfassen +
+    //                                                MA zurückziehen!)
+    //              AUSBEZAHLT                      → niemand
+    //   Definitiv: offen                           → jeder darf
+    //              provisorisch_abgeschlossen      → nur admin/superuser
+    //              abgeschlossen                   → niemand
+    //
+    // Walter-Bug 19.05.2026: vorher schloss HR_FREIGEGEBEN sofort — Walter
+    // konnte aber nach „HR-Final" noch keine Korrekturen mehr machen, bevor
+    // er auf „Akonto auszahlen (DTA)" klickt. Jetzt locked nur AUSBEZAHLT.
+    const akStatus = _akWfData?.akontoStatus || 'OFFEN';
+    const defStatus = window._currentLohnPeriode?.status || 'offen';
+    const isHr = _akIsHr();
+
+    const akGf       = (akStatus === 'OFFEN' || akStatus === 'IN_BEARBEITUNG_GF');
+    const akHrPhase  = (akStatus === 'BEI_HR' || akStatus === 'HR_FREIGEGEBEN');
+    const akCanEdit  = akGf || (akHrPhase && isHr);
+    const defOpen    = (defStatus === 'offen');
+    const defCanEdit = defOpen || (defStatus === 'provisorisch_abgeschlossen' && isHr);
+    // Strengste Sperre gewinnt: beide Quellen müssen erlauben damit Edit ok.
+    const canEdit = akCanEdit && defCanEdit;
+
+    // Lock-Hinweis: priorisiere den restriktiveren Status für die Anzeige
+    let lockMsg = '';
+    if (defStatus === 'abgeschlossen')                                lockMsg = '🔒 Lohn definitiv abgeschlossen — keine Änderungen möglich';
+    else if (akStatus === 'AUSBEZAHLT')                               lockMsg = '🔒 Akonto ausbezahlt — keine Änderungen möglich';
+    else if (akHrPhase && !isHr)                                       lockMsg = '🔒 Bei HR — keine Änderungen möglich';
+    else if (defStatus === 'provisorisch_abgeschlossen' && !isHr)     lockMsg = '🔒 Bei HR — keine Änderungen möglich';
+
+    // „+ Erfassen"-Buttons togglen (beide Tabs)
+    document.querySelectorAll(
+        '#akWfZulagenPanel button.btn-primary, #lohnZulagenPanel button.btn-primary'
+    ).forEach(btn => {
+        if ((btn.textContent || '').trim().startsWith('+')) {
+            btn.style.display = canEdit ? '' : 'none';
+        }
+    });
+
+    // Pro Zeile: ✏️ und 🗑 togglen
+    document.querySelectorAll(
+        '#akWfZulagenList button, #lohnZulagenList button'
+    ).forEach(b => { b.style.display = canEdit ? '' : 'none'; });
+
+    // Lock-Hinweis im Card-Header (Akonto-Tab) — ersetzt den „+ Erfassen"-Slot.
+    // ID 'akWfZulagenLockHint' wird hier dynamisch verwaltet, damit der
+    // Hinweis bei Status-Wechsel automatisch verschwindet.
+    const akHeader = document.querySelector('#akWfZulagenPanel > div:first-child');
+    if (akHeader) {
+        let hint = document.getElementById('akWfZulagenLockHint');
+        if (!canEdit && lockMsg) {
+            if (!hint) {
+                hint = document.createElement('span');
+                hint.id = 'akWfZulagenLockHint';
+                hint.style.cssText = 'font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;background:#fef3c7;color:#92400e;white-space:nowrap';
+                akHeader.appendChild(hint);
+            }
+            hint.textContent = lockMsg;
+        } else if (hint) {
+            hint.remove();
+        }
+    }
 }
 
 // Live-Filter über die Akonto-MA-Liste (analog filterLohnEmpList in payroll.js).
@@ -684,10 +887,19 @@ function _akWfRenderRichDetail(d) {
     const e = d.employee || {};
     const b  = d.berechnung || {};
 
+    // HR-Notiz nur "akut" anzeigen wenn sie noch nicht beantwortet ist
+    // (Status BERECHNET = GF muss reagieren). Sobald GF freigegeben hat oder
+    // weiter — Notiz blasser als Historie. Farbe immer gelb (Info), nicht rot.
+    const hrNoticeActive = d.kommentarHr && d.status === 'BERECHNET';
     const hrNotice = d.kommentarHr
-        ? `<div style="margin:0 20px 12px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:7px;font-size:12.5px;color:#b91c1c">
-               <b>HR-Notiz:</b> ${d.kommentarHr}
-           </div>` : '';
+        ? (hrNoticeActive
+            ? `<div style="margin:0 20px 12px;padding:8px 12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:7px;font-size:12.5px;color:#78350f">
+                   <b>📝 HR-Notiz:</b> ${d.kommentarHr}
+               </div>`
+            : `<div style="margin:0 20px 10px;padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:11.5px;color:#64748b">
+                   <b>HR-Notiz (Historie):</b> ${d.kommentarHr}
+               </div>`)
+        : '';
     const gfFreigabe = d.gfFreigegebenAt
         ? `<div style="margin-top:8px;font-size:11.5px;color:#15803d">✓ Freigegeben am ${_akFmtTs(d.gfFreigegebenAt)}</div>` : '';
 
@@ -698,7 +910,11 @@ function _akWfRenderRichDetail(d) {
     // Loopback rechnen).
     const model = (d.vertrag?.employmentModel || '').toUpperCase();
     const isFix = (model === 'FIX' || model === 'FIX-M');
-    const akontoProzentFix = Number(d.akontoProzentFix ?? 80);
+    // Walter-Vorgabe 18.05.2026: FIX und FIX-M haben getrennte Prozent-Sätze.
+    // FIX-M (Manager) liegt höher (Default 90 %) als FIX (Default 80 %).
+    const akontoProzentFix = model === 'FIX-M'
+        ? Number(d.akontoProzentFixM ?? 90)
+        : Number(d.akontoProzentFix  ?? 80);
 
     // Eindeutige IDs pro Lohnblatt — verhindert Konflikte falls der User
     // schnell zwischen MA wechselt und alte Mount-Points noch im DOM hängen.
@@ -707,14 +923,16 @@ function _akWfRenderRichDetail(d) {
     const akontoNettoMountId  = `akontoNettoZeile_${d.id}`;
 
     content.innerHTML = `
-        <!-- Akonto-Header (oben fixiert, Status-Badge + Audit) -->
-        <div style="padding:18px 20px;border-bottom:1px solid #f1f5f9;background:#fafafa">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-                <div>
-                    <div style="font-weight:700;font-size:17px;color:#0f172a">${e.firstName || ''} ${e.lastName || ''}</div>
-                    <div style="font-size:11.5px;color:#94a3b8;margin-top:2px">Personal-Nr. ${e.employeeNumber || '–'} · Periode ${_akFmtDate(d.periodFrom)} – ${_akFmtDate(d.periodTo)} · Akonto-Stichtag ${_akFmtDate(d.payoutDate)}</div>
+        <!-- Akonto-Header (oben fixiert, Status-Badge + Audit) — Walter
+             19.05.2026: MA-Name entfernt (steht schon in der Vertrag-Info-Card
+             mittig sowie in der MA-Liste links), nur noch Pers-Nr + Periode +
+             Stichtag + Status-Pille. -->
+        <div style="padding:8px 18px;border-bottom:1px solid #f1f5f9;background:#fafafa">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div style="font-size:11.5px;color:#475569;white-space:nowrap">
+                    Pers-Nr. ${e.employeeNumber || '–'} · ${_akFmtDate(d.periodFrom)} – ${_akFmtDate(d.periodTo)} · Stichtag ${_akFmtDate(d.payoutDate)}
                 </div>
-                <span style="background:${status.bg};color:${status.color};padding:4px 10px;border-radius:8px;font-weight:700;font-size:12px;white-space:nowrap">${status.label}</span>
+                <span style="background:${status.bg};color:${status.color};padding:3px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">${status.label}</span>
             </div>
             ${gfFreigabe}
         </div>
@@ -730,19 +948,18 @@ function _akWfRenderRichDetail(d) {
         </div>
 
         <!-- Akonto-Berechnungs-Box: was JETZT bei der Akonto-Zahlung fliesst.
-             Walter-Vorgabe 16.05.2026 (universell für alle Modelle): eine
-             einzige Zeile "X% von voraussichtlichem Auszahlungsbetrag = CHF YYY".
-             Wert wird nach dem Slip-Load durch _akWfSyncFixFromSlip() final
-             ausgefüllt + serverseitig synchronisiert. Bei bereits freigegebenen
-             Lohnblättern ist der Wert eingefroren — UX-Hinweis macht das klar. -->
-        <div id="${akontoFixBoxMountId}" style="padding:14px 20px;background:#f8fafc;border-top:2px solid #0f172a">
-            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap">
+             Walter-Vorgabe 19.05.2026: Box hat dieselbe max-width wie der
+             Lohnzettel oben (860px) — der CHF-Betrag rechts landet damit
+             optisch in der gleichen Spalte wie „Ausbezahlt" / „Auszahlungs-
+             betrag" oben. -->
+        <div id="${akontoFixBoxMountId}" style="border-top:2px solid #0f172a;background:#f8fafc">
+            <div style="max-width:860px;padding:8px 22px;display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap">
                 <div style="font-size:14px;color:#0f172a">
                     <b>${akontoProzentFix}%</b> von voraussichtlichem Auszahlungsbetrag
                 </div>
                 <div id="${akontoNettoMountId}" style="font-size:20px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums">${_akFmtChf(b.nettoAkonto)}</div>
             </div>
-            <div style="margin-top:4px;font-size:11px;color:#94a3b8">
+            <div style="max-width:860px;padding:0 22px 8px;font-size:11px;color:#94a3b8">
                 ${d.status === 'BERECHNET'
                     ? 'wird nach Lohnzettel-Vorschau aktualisiert…'
                     : (d.status === 'FREIGEGEBEN_GF'
@@ -995,12 +1212,250 @@ async function akWfHrFreigabe() {
     const month = parseInt(document.getElementById('lohnMonthSelect').value, 10);
     await _akWfPost('/hr-freigabe', { companyProfileId: branchId, year, month });
 }
+// Walter-Vorgabe 19.05.2026: Auszahlen läuft in 2 Schritten.
+// 1) DTA herunterladen → User sendet manuell an die Bank
+// 2) Bestätigung "DTA an Bank gesendet?" → erst dann Status AUSBEZAHLT
+// Nach AUSBEZAHLT kann nur der Admin am gleichen Tag noch zurücksetzen
+// (siehe AkontoWorkflowController.ResetPeriode → PAYOUT_DATE_REACHED).
 async function akWfAuszahlen() {
-    if (!confirm('Akonto auszahlen?\n\nHINWEIS: DTA-Generierung (pain.001) folgt in Phase 3d — bis dahin musst du die Bank-Zahlung manuell anstossen.\n\nDie Lohnblätter werden auf AUSBEZAHLT gesetzt und sind danach unveränderlich.')) return;
     const branchId = fixedCompanyProfileId;
     const year  = parseInt(document.getElementById('lohnYearSelect').value, 10);
     const month = parseInt(document.getElementById('lohnMonthSelect').value, 10);
-    await _akWfPost('/auszahlen', { companyProfileId: branchId, year, month });
+    if (!branchId || !year || !month) { alert('Filiale und Periode wählen.'); return; }
+
+    // Schritt 0: Bank-Ausführungsdatum erfragen (geht ins DTA als ReqdExctnDt
+    // und wird in PayrollPeriode.AkontoAuszahlungsdatum persistiert).
+    // Default: morgen (banküblicher Next-Business-Day-Standard).
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isoTomorrow = tomorrow.toISOString().slice(0, 10);
+    const input = prompt(
+        'AUSZAHLUNGSDATUM erfassen (= Bank-Ausführungsdatum im DTA)\n\n' +
+        'Wann soll die Bank die Akonto-Beträge ausführen?\n' +
+        'Format: YYYY-MM-DD (z.B. 2026-01-27)\n\n' +
+        'Default: morgen.',
+        isoTomorrow
+    );
+    if (!input) return;
+    const auszahlungsdatum = input.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(auszahlungsdatum)) {
+        alert('Ungültiges Datum. Format: YYYY-MM-DD'); return;
+    }
+
+    // Schritt 1: DTA-Datei herunterladen
+    if (!confirm(
+        'SCHRITT 1 von 2 — DTA erstellen\n\n' +
+        `Bank-Ausführungsdatum: ${auszahlungsdatum.slice(8,10)}.${auszahlungsdatum.slice(5,7)}.${auszahlungsdatum.slice(0,4)}\n\n` +
+        'Der DTA (pain.001-XML) wird jetzt heruntergeladen.\n' +
+        'Sende ihn anschliessend manuell an deine Bank.\n\n' +
+        '→ Weiter mit Download?'
+    )) return;
+    // DTA-Download (das Datum wird vom Backend aus AkontoAuszahlungsdatum
+    // gelesen — wir setzen es daher VOR dem Download via /auszahlen-Endpoint.
+    // Da /auszahlen aber den Status auf AUSBEZAHLT setzt, muss erst die
+    // Bestätigung kommen. Trick: wir schicken das Datum zusammen mit dem
+    // POST /auszahlen — der Download passiert NACH dem Bestätigen.
+    // Anderer Ansatz: zwei Modal-Schritte, dazwischen Live-Download.
+    // → Pragmatisch: wir schicken das Datum mit dem POST /auszahlen
+    //   und der DTA-Download passiert direkt im Anschluss daran.
+    if (!confirm(
+        'SCHRITT 2 von 2 — Akonto auszahlen und DTA generieren?\n\n' +
+        'Mit JA:\n' +
+        '• Periode wird auf AUSBEZAHLT gesetzt (eingefroren)\n' +
+        '• Bank-Ausführungsdatum wird in der Periode hinterlegt\n' +
+        '• DTA-XML wird sofort heruntergeladen\n' +
+        '• Sende den DTA an deine Bank\n\n' +
+        `Reset durch Admin nur bis zum ${auszahlungsdatum.slice(8,10)}.${auszahlungsdatum.slice(5,7)}.${auszahlungsdatum.slice(0,4)} möglich.\n\n` +
+        'Wirklich auszahlen?'
+    )) return;
+
+    await _akWfPost('/auszahlen', {
+        companyProfileId: branchId, year, month,
+        auszahlungsdatum
+    });
+
+    // Nach erfolgreichem Status-Wechsel: DTA herunterladen
+    await new Promise(r => setTimeout(r, 400));
+    await akWfDownloadDta();
+}
+
+async function akWfDownloadDta() {
+    const branchId = fixedCompanyProfileId;
+    const year  = parseInt(document.getElementById('lohnYearSelect').value, 10);
+    const month = parseInt(document.getElementById('lohnMonthSelect').value, 10);
+    await _akWfDownloadFile(
+        `/api/akonto/workflow/dta?companyProfileId=${branchId}&year=${year}&month=${month}`,
+        `Akonto_DTA_${branchId}_${year}-${String(month).padStart(2,'0')}.xml`
+    );
+}
+
+// Walter 19.05.2026: Akonto-Liste wird nicht mehr direkt heruntergeladen,
+// sondern in einem Vorschau-Modal mit iframe angezeigt — mit Druck- und
+// Download-Buttons (analog QST-Anmeldung). Bessere UX: Walter sieht erst was
+// drin ist, druckt direkt oder lädt als Backup runter.
+let _akWfListePdfBlobUrl = null;
+let _akWfListePdfFilename = 'Akonto_Liste.pdf';
+
+async function akWfDownloadListePdf() {
+    const branchId = fixedCompanyProfileId;
+    const year  = parseInt(document.getElementById('lohnYearSelect').value, 10);
+    const month = parseInt(document.getElementById('lohnMonthSelect').value, 10);
+    if (!branchId || !year || !month) { alert('Filiale und Periode wählen.'); return; }
+
+    try {
+        const r = await fetch(
+            `/api/akonto/workflow/liste-pdf?companyProfileId=${branchId}&year=${year}&month=${month}`,
+            { headers: { Authorization: 'Bearer ' + (localStorage.hrToken || '') } }
+        );
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('PDF-Generierung fehlgeschlagen: ' + (j.error || `HTTP ${r.status}`));
+            return;
+        }
+        const blob = await r.blob();
+        // alte Blob-URL freigeben falls vorhanden
+        if (_akWfListePdfBlobUrl) { URL.revokeObjectURL(_akWfListePdfBlobUrl); }
+        _akWfListePdfBlobUrl  = URL.createObjectURL(blob);
+        _akWfListePdfFilename = `Akonto_Liste_${branchId}_${year}-${String(month).padStart(2,'0')}.pdf`;
+
+        // Modal-Header: Filiale + Periode. Filialname kommt aus dem
+        // Sidebar-Selektor (selected option text) — kein zusätzlicher API-Call.
+        const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+        const branchSel = document.getElementById('branchSelect');
+        const branchName = branchSel?.options?.[branchSel.selectedIndex]?.text || `Filiale ${branchId}`;
+        const title = document.getElementById('akWfListePdfTitle');
+        if (title) title.textContent = `${branchName} · ${months[month-1]} ${year}`;
+
+        const frame = document.getElementById('akWfListePdfFrame');
+        if (frame) frame.src = _akWfListePdfBlobUrl;
+        const modal = document.getElementById('akWfListePdfModal');
+        if (modal) modal.style.display = 'block';
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+function akWfListePdfClose() {
+    const modal = document.getElementById('akWfListePdfModal');
+    if (modal) modal.style.display = 'none';
+    const frame = document.getElementById('akWfListePdfFrame');
+    if (frame) frame.src = 'about:blank';
+    if (_akWfListePdfBlobUrl) {
+        URL.revokeObjectURL(_akWfListePdfBlobUrl);
+        _akWfListePdfBlobUrl = null;
+    }
+}
+
+function akWfListePdfDownload() {
+    if (!_akWfListePdfBlobUrl) return;
+    const a = document.createElement('a');
+    a.href = _akWfListePdfBlobUrl;
+    a.download = _akWfListePdfFilename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+
+function akWfListePdfPrint() {
+    const f = document.getElementById('akWfListePdfFrame');
+    if (!f || !f.contentWindow) return;
+    try {
+        f.contentWindow.focus();
+        f.contentWindow.print();
+    } catch (e) {
+        alert('Drucken fehlgeschlagen: ' + (e?.message || e));
+    }
+}
+
+// Generischer Download-Helper für Blob-Endpoints (DTA-XML, Liste-PDF).
+async function _akWfDownloadFile(url, filename) {
+    try {
+        const r = await fetch(url, {
+            headers: { Authorization: 'Bearer ' + (localStorage.hrToken || '') }
+        });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('Download fehlgeschlagen: ' + (j.error || `HTTP ${r.status}`));
+            return;
+        }
+        const blob = await r.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// ── Per-MA HR-Aktionen (Walter 17.05.2026, konsolidiert in eine Seite) ──
+// Diese drei werden im Akonto-Tab angezeigt wenn der eingeloggte User HR ist
+// und die Periode in BEI_HR liegt. Pendants zum GF "Freigeben / Zurückziehen".
+
+async function akWfHrBestaetigen(zahlungId) {
+    try {
+        const r = await fetch(`/api/akonto/workflow/hr-bestaetigen/${zahlungId}`, {
+            method: 'POST', headers: ah()
+        });
+        if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error || `HTTP ${r.status}`); }
+        if (typeof showToast === 'function') showToast('HR-bestätigt.', 'success');
+        await akWfRefresh();
+        // Auto-Sprung zum nächsten noch nicht HR-bestätigten MA. Walter
+        // 18.05.2026: scrollen damit die neu selektierte Zeile sichtbar ist
+        // — sonst rutscht der ausgewählte MA aus dem Viewport wenn HR-bestätigte
+        // oberhalb stehen bleiben.
+        const z = _akWfData?.zahlungen || [];
+        if (z.length) {
+            const idx = z.findIndex(x => x.id === zahlungId);
+            const order = [];
+            for (let i = idx + 1; i < z.length; i++) order.push(z[i]);
+            for (let i = 0; i <= idx;   i++)         order.push(z[i]);
+            const next = order.find(x => x.status === 'FREIGEGEBEN_GF');
+            if (next) {
+                akWfSelectMa(next.id);
+                setTimeout(() => {
+                    document.querySelector('#akontoMaList .lohn-emp-active')
+                            ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }, 50);
+            }
+        }
+        akWfBadgeRefresh();
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+async function akWfHrZurueckziehen(zahlungId) {
+    if (!confirm('HR-Bestätigung zurückziehen?')) return;
+    try {
+        const r = await fetch(`/api/akonto/workflow/hr-zurueckziehen/${zahlungId}`, {
+            method: 'POST', headers: ah()
+        });
+        if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error || `HTTP ${r.status}`); }
+        if (typeof showToast === 'function') showToast('HR-Bestätigung zurückgezogen.', 'success');
+        await akWfRefresh();
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+async function akWfHrOverride(zahlungId, altBetrag) {
+    const neuStr = prompt(`Neuer Netto-Akonto-Betrag (alt: CHF ${altBetrag}):`, String(altBetrag));
+    if (neuStr === null) return;
+    const neu = parseFloat(String(neuStr).replace(/[^\d.,-]/g, '').replace(',', '.'));
+    if (!Number.isFinite(neu) || neu < 0) { alert('Ungültiger Betrag.'); return; }
+    const grund = prompt('Grund der Korrektur (wird im Audit gespeichert):');
+    if (!grund || !grund.trim()) { alert('Grund ist Pflicht.'); return; }
+    try {
+        const r = await fetch(`/api/akonto/workflow/hr-override/${zahlungId}`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ neuerNettoAkonto: neu, grund: grund.trim() })
+        });
+        if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error || `HTTP ${r.status}`); }
+        if (typeof showToast === 'function') showToast('Akonto korrigiert.', 'success');
+        await akWfRefresh();
+    } catch (e) { alert('Korrektur fehlgeschlagen: ' + e.message); }
 }
 
 async function _akWfPost(path, body) {

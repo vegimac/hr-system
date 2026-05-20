@@ -318,6 +318,15 @@ async function saveQstEntry() {
     const method = qstCurrentEntryId ? 'PUT' : 'POST';
 
     const res = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    // Lohnlauf-Sperre: 409 LOHN_EDIT_LOCKED → klare Meldung statt Backend-Text.
+    if (res.status === 409) {
+        const body = await res.clone().json().catch(() => ({}));
+        if (body && body.error === 'LOHN_EDIT_LOCKED') {
+            resultEl.innerHTML = `<span style="color:#dc2626">${body.message}</span>`;
+            if (window.lohnEditLock) window.lohnEditLock.invalidateCache();
+            return;
+        }
+    }
     if (!res.ok) { resultEl.innerHTML = `<span style="color:#dc2626">Fehler: ${await res.text()}</span>`; return; }
 
     const saved = await res.json();

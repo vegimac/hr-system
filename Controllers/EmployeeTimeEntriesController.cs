@@ -5,12 +5,36 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Controllers;
 
+/// <summary>
+/// Stempelzeiten: READ-ONLY in Cowork (Walter-Vorgabe 17.05.2026).
+///
+/// Die Quelle der Wahrheit ist easy@work — sämtliche Erfassung, Korrektur
+/// und Löschung passiert dort. Cowork zeigt die importierten Stempelzeiten
+/// nur an. Der Import-Pfad (siehe <c>ImportController.ImportStempelzeiten</c>
+/// und <c>ImportMonatlich</c>) schreibt direkt über _db und ist davon
+/// nicht betroffen — der ist admin/superuser-only und idempotent.
+///
+/// Konkrete Konsequenz: POST/PUT/DELETE auf diesem Controller liefern
+/// HTTP 403 mit klarer Meldung. Auch admin/superuser sind blockiert —
+/// für Korrekturen geht der Weg über easy@work + Re-Import.
+/// </summary>
 [ApiController]
 [Route("api/employees/{employeeId:int}/timeentries")]
 public class EmployeeTimeEntriesController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public EmployeeTimeEntriesController(AppDbContext db) => _db = db;
+    public EmployeeTimeEntriesController(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    private static IActionResult ReadOnlyResponse() => new ObjectResult(new
+    {
+        error   = "STEMPELZEITEN_READONLY",
+        message = "Stempelzeiten werden in easy@work verwaltet — in Cowork nur Anzeige. " +
+                  "Für Korrekturen bitte in easy@work erfassen und anschliessend Stempelzeiten neu importieren."
+    })
+    { StatusCode = StatusCodes.Status403Forbidden };
 
     // GET /api/employees/{employeeId}/timeentries?dateFrom=2026-02-21&dateTo=2026-03-20
     // GET /api/employees/{employeeId}/timeentries?year=2026&month=3  (calendar month fallback)
@@ -78,106 +102,19 @@ public class EmployeeTimeEntriesController : ControllerBase
     }
 
     // POST /api/employees/{employeeId}/timeentries
+    // READ-ONLY: easy@work ist die Quelle der Wahrheit. Manuelle Erfassung
+    // in Cowork ist nicht erlaubt — auch nicht für admin/superuser.
     [HttpPost]
-    public async Task<IActionResult> Create(int employeeId, [FromBody] EmployeeTimeEntry dto)
-    {
-        dto.EmployeeId = employeeId;
-        dto.Source     = "manual";
-        dto.CreatedAt  = DateTime.UtcNow;
-        dto.UpdatedAt  = DateTime.UtcNow;
+    public IActionResult Create(int employeeId, [FromBody] EmployeeTimeEntry dto)
+        => ReadOnlyResponse();
 
-        // Stempelzeiten werden als Lokalzeit gespeichert (timestamp ohne TZ).
-        dto.TimeIn  = DateTime.SpecifyKind(dto.TimeIn, DateTimeKind.Unspecified);
-        if (dto.TimeOut.HasValue)
-            dto.TimeOut = DateTime.SpecifyKind(dto.TimeOut.Value, DateTimeKind.Unspecified);
-
-        // Auto-calculate DurationHours if not supplied
-        if (dto.DurationHours == null && dto.TimeOut.HasValue)
-        {
-            var span = dto.TimeOut.Value - dto.TimeIn;
-            dto.DurationHours = (decimal)Math.Round(span.TotalHours, 2);
-            dto.TotalHours    = dto.DurationHours + (dto.NightHours ?? 0);
-        }
-
-        _db.EmployeeTimeEntries.Add(dto);
-        await _db.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { employeeId, id = dto.Id }, dto);
-    }
-
-    // PUT /api/employees/{employeeId}/timeentries/{id}
+    // PUT /api/employees/{employeeId}/timeentries/{id} — siehe POST.
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int employeeId, int id, [FromBody] EmployeeTimeEntry dto)
-    {
-        var entry = await _db.EmployeeTimeEntries
-            .FirstOrDefaultAsync(t => t.Id == id && t.EmployeeId == employeeId);
-        if (entry is null) return NotFound();
+    public IActionResult Update(int employeeId, int id, [FromBody] EmployeeTimeEntry dto)
+        => ReadOnlyResponse();
 
-        // Audit: Originalwerte beim ersten Bearbeiten sichern (Lokalzeit)
-        if (entry.EditedBy is null)
-        {
-            entry.OriginalTimeIn  = DateTime.SpecifyKind(entry.TimeIn, DateTimeKind.Unspecified);
-            entry.OriginalTimeOut = entry.TimeOut.HasValue
-                ? DateTime.SpecifyKind(entry.TimeOut.Value, DateTimeKind.Unspecified)
-                : (DateTime?)null;
-            entry.OriginalComment = entry.Comment;
-        }
-
-        entry.EntryDate      = dto.EntryDate;
-        entry.TimeIn         = DateTime.SpecifyKind(dto.TimeIn, DateTimeKind.Unspecified);
-        entry.TimeOut        = dto.TimeOut.HasValue
-            ? DateTime.SpecifyKind(dto.TimeOut.Value, DateTimeKind.Unspecified)
-            : (DateTime?)null;
-        entry.Comment        = dto.Comment;
-        entry.NightHours     = dto.NightHours;
-        entry.UpdatedAt      = DateTime.UtcNow;
-
-        // Audit: wer hat wann geändert (Name aus JWT-Claim)
-        entry.EditedBy = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "Unbekannt";
-        entry.EditedAt = DateTime.UtcNow;
-
-        // Recalculate duration
-        if (entry.TimeOut.HasValue)
-        {
-            var span = entry.TimeOut.Value - entry.TimeIn;
-            entry.DurationHours = (decimal)Math.Round(span.TotalHours, 2);
-            entry.TotalHours    = entry.DurationHours + (entry.NightHours ?? 0);
-        }
-        else
-        {
-            entry.DurationHours = dto.DurationHours;
-            entry.TotalHours    = dto.TotalHours;
-        }
-
-        try
-        {
-            await _db.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message });
-        }
-
-        // Navigation property ignorieren beim Zurückgeben
-        return Ok(new {
-            entry.Id, entry.EmployeeId, entry.EntryDate,
-            entry.TimeIn, entry.TimeOut, entry.Comment,
-            entry.DurationHours, entry.NightHours, entry.TotalHours,
-            entry.Source, entry.CreatedAt, entry.UpdatedAt,
-            entry.OriginalTimeIn, entry.OriginalTimeOut, entry.OriginalComment,
-            entry.EditedBy, entry.EditedAt
-        });
-    }
-
-    // DELETE /api/employees/{employeeId}/timeentries/{id}
+    // DELETE /api/employees/{employeeId}/timeentries/{id} — siehe POST.
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int employeeId, int id)
-    {
-        var entry = await _db.EmployeeTimeEntries
-            .FirstOrDefaultAsync(t => t.Id == id && t.EmployeeId == employeeId);
-        if (entry is null) return NotFound();
-
-        _db.EmployeeTimeEntries.Remove(entry);
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
+    public IActionResult Delete(int employeeId, int id)
+        => ReadOnlyResponse();
 }

@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -29,8 +30,22 @@ namespace HrSystem.Controllers;
 [Route("api/saldo-vortrag")]
 public class SaldoVortragController : ControllerBase
 {
-    private readonly AppDbContext _db;
-    public SaldoVortragController(AppDbContext db) => _db = db;
+    private readonly AppDbContext        _db;
+    private readonly LohnEditLockService _editLock;
+    public SaldoVortragController(AppDbContext db, LohnEditLockService editLock)
+    {
+        _db = db; _editLock = editLock;
+    }
+
+    /// <summary>Filiale des MA (jüngster aktiver Vertrag).</summary>
+    private Task<int?> GetEmployeeBranchAsync(int employeeId)
+        => _db.Employees
+            .Where(e => e.Id == employeeId)
+            .SelectMany(e => e.Employments)
+            .Where(x => x.IsActive)
+            .OrderByDescending(x => x.ContractStartDate)
+            .Select(x => (int?)x.CompanyProfileId)
+            .FirstOrDefaultAsync();
 
     // Lohnposition-Codes (siehe add_saldo_vortrag.sql)
     private const string CodeZeit         = "901";
@@ -137,6 +152,27 @@ public class SaldoVortragController : ControllerBase
         if (dto.Periode.Length != 7 || dto.Periode[4] != '-')
             return BadRequest("Periode muss im Format YYYY-MM sein.");
 
+        // Walter 17.05.2026: Vortrag-Periode darf nicht in einem schon
+        // verarbeiteten Monat liegen. Saldi sind Eröffnungswerte und müssen
+        // VOR der ersten Lohnberechnung der Folgeperiode stehen.
+        if (int.TryParse(dto.Periode[..4], out var yr) &&
+            int.TryParse(dto.Periode[5..], out var mn))
+        {
+            var branchId     = await GetEmployeeBranchAsync(employeeId);
+            var firstAllowed = branchId.HasValue
+                ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+                : null;
+            var periodStart  = new DateOnly(yr, mn, 1);
+            if (firstAllowed.HasValue && periodStart < firstAllowed.Value)
+            {
+                return Conflict(new {
+                    error            = "LOHN_EDIT_LOCKED",
+                    message          = $"Saldo-Vortrag-Periode {dto.Periode} liegt in einer bereits in Verarbeitung befindlichen Lohnperiode. Frühestes erlaubtes Datum: {firstAllowed.Value:dd.MM.yyyy}.",
+                    firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+                });
+            }
+        }
+
         // MA inkl. Verträge laden (für Vertragstyp-basierte Relevanz-Filterung)
         var emp = await _db.Employees
             .Include(e => e.Employments)
@@ -238,6 +274,32 @@ public class SaldoVortragController : ControllerBase
 
         if (entries.Count == 0)
             return Ok(new { deleted = 0 });
+
+        // Walter 17.05.2026: Vortrag-Löschen blockieren wenn die Periode
+        // bereits in Verarbeitung ist (Saldi sind dann schon verrechnet).
+        var branchIdD     = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowedD = branchIdD.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchIdD.Value)
+            : null;
+        if (firstAllowedD.HasValue)
+        {
+            // Periode des ältesten Vortrag-Eintrags prüfen
+            var oldestPer = entries.Select(e => e.Periode).Min();
+            if (!string.IsNullOrEmpty(oldestPer)
+                && int.TryParse(oldestPer[..4], out var yr2)
+                && int.TryParse(oldestPer[5..], out var mn2))
+            {
+                var periodStart = new DateOnly(yr2, mn2, 1);
+                if (periodStart < firstAllowedD.Value)
+                {
+                    return Conflict(new {
+                        error            = "LOHN_EDIT_LOCKED",
+                        message          = $"Saldo-Vortrag in Periode {oldestPer} wurde bereits in einem Lohnlauf verwendet und kann nicht gelöscht werden.",
+                        firstAllowedDate = firstAllowedD?.ToString("yyyy-MM-dd")
+                    });
+                }
+            }
+        }
 
         _db.LohnZulagen.RemoveRange(entries);
         await _db.SaveChangesAsync();

@@ -43,6 +43,38 @@ public class PayrollSnapshot
     /// </summary>
     public bool IsFinal { get; set; } = false;
 
+    /// <summary>
+    /// Per-MA-Status im 4-Augen-Workflow (Walter-Vorgabe 19.05.2026, analog
+    /// AkontoZahlung.Status). Ersetzt das frühere binäre „Snapshot vorhanden
+    /// = bestätigt"-Schema und ermöglicht GF → HR Workflow.
+    ///
+    ///   BERECHNET       — Slip berechnet, GF noch nicht freigegeben
+    ///                     (Snapshot existiert noch nicht oder wurde aus
+    ///                     FREIGEGEBEN_GF zurückgezogen)
+    ///   FREIGEGEBEN_GF  — GF hat „Lohn bestätigen" geklickt
+    ///   HR_BESTAETIGT   — HR hat per-MA bestätigt
+    ///   ABGESCHLOSSEN   — Periode definitiv abgeschlossen (immutable)
+    ///   STORNIERT       — nach Abschluss rückgerollt (mit Audit)
+    /// </summary>
+    // Walter 19.05.2026: Default geändert von FREIGEGEBEN_GF auf BERECHNET.
+    // Der frühere Default sorgte dafür, dass neu erstellte Snapshots fälschlich
+    // als „GF-bestätigt" markiert waren — sichtbar als ✓-Häkchen pro MA im
+    // Definitiv-Tab nach dem Akonto-Lauf, obwohl GF nichts geklickt hat. Der
+    // Confirm-Endpoint hebt den Status erst NACH dem „Lohn bestätigen"-Klick
+    // auf FREIGEGEBEN_GF.
+    public string Status { get; set; } = "BERECHNET";
+
+    /// <summary>Wann der GF dieses Lohnblatt freigegeben hat (NULL = noch nicht).</summary>
+    public DateTime? GfFreigegebenAt { get; set; }
+    public int?      GfFreigegebenBy { get; set; }
+    /// <summary>Wann HR das Lohnblatt bestätigt hat.</summary>
+    public DateTime? HrBestaetigtAt { get; set; }
+    public int?      HrBestaetigtBy { get; set; }
+    /// <summary>Notiz vom GF (z.B. bei ungewöhnlicher Konstellation).</summary>
+    public string?   KommentarGf { get; set; }
+    /// <summary>Notiz von HR (z.B. wenn HR mit Begründung zurückschickt).</summary>
+    public string?   KommentarHr { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

@@ -14,7 +14,12 @@ public class SocialInsuranceRatesController : ControllerBase
     private readonly AppDbContext _db;
     public SocialInsuranceRatesController(AppDbContext db) => _db = db;
 
-    // GET – alle Sätze (aktiv + inaktiv), sortiert
+    // GET – alle Sätze (aktiv + inaktiv), sortiert.
+    // Liefert pro Zeile ein Flag `inLohnVerwendet` mit dem das Frontend
+    // entscheidet, ob „Bearbeiten" gesperrt sein muss (Walter-Vorgabe
+    // 18.05.2026: sobald ein abgeschlossener oder bei HR liegender Lohnlauf
+    // den Satz verwendet hat, darf er nicht mehr direkt geändert werden —
+    // stattdessen muss „Neu ab" eine Nachfolge-Version anlegen).
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -23,7 +28,42 @@ public class SocialInsuranceRatesController : ControllerBase
             .ThenBy(r => r.Code)
             .ThenBy(r => r.ValidFrom)
             .ToListAsync();
-        return Ok(rates);
+
+        // Alle „eingefrorenen" Perioden vorladen — entweder Definitiv-Status
+        // != offen ODER Akonto-Status jenseits der GF-Bearbeitung.
+        var frozenPerioden = await _db.PayrollPerioden
+            .Where(p => p.Status != "offen"
+                     || (p.AkontoStatus != "OFFEN"
+                      && p.AkontoStatus != "IN_BEARBEITUNG_GF"))
+            .Select(p => new { p.PeriodFrom, p.PeriodTo })
+            .ToListAsync();
+
+        var result = rates.Select(r => new
+        {
+            r.Id, r.Code, r.Name, r.Description, r.Rate, r.BasisType,
+            r.EmploymentModelCode, r.MinAge, r.MaxAge,
+            r.FreibetragMonthly, r.CoordinationDeduction,
+            r.OnlyQuellensteuer, r.ValidFrom, r.ValidTo,
+            r.SortOrder, r.IsActive, r.CreatedAt,
+            inLohnVerwendet = frozenPerioden.Any(p =>
+                r.ValidFrom <= p.PeriodTo
+             && (r.ValidTo == null || r.ValidTo >= p.PeriodFrom))
+        });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Prüft, ob ein konkreter SV-Satz schon in einem nicht-offenen
+    /// Lohnlauf (Definitiv != offen ODER Akonto NOT IN OFFEN/IN_BEARBEITUNG_GF)
+    /// verwendet wurde. Wird vom Update- und Neu-Version-Pfad aufgerufen.
+    /// </summary>
+    private async Task<bool> IsRateInLohnVerwendetAsync(SocialInsuranceRate rate)
+    {
+        return await _db.PayrollPerioden.AnyAsync(p =>
+            (p.Status != "offen"
+                || (p.AkontoStatus != "OFFEN" && p.AkontoStatus != "IN_BEARBEITUNG_GF"))
+         && rate.ValidFrom <= p.PeriodTo
+         && (rate.ValidTo == null || rate.ValidTo >= p.PeriodFrom));
     }
 
     // GET – nur aktuell gültige Sätze für ein bestimmtes Datum
@@ -70,12 +110,23 @@ public class SocialInsuranceRatesController : ControllerBase
         return Ok(dto);
     }
 
-    // PUT – Satz aktualisieren
+    // PUT – Satz aktualisieren.
+    // Sperre: wenn der Satz in einer eingefrorenen Periode liegt, wird 409
+    // zurückgegeben; der User muss stattdessen „Neu ab" verwenden.
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] SocialInsuranceRate dto)
     {
         var rate = await _db.SocialInsuranceRates.FindAsync(id);
         if (rate is null) return NotFound();
+
+        if (await IsRateInLohnVerwendetAsync(rate))
+        {
+            return Conflict(new
+            {
+                error   = "SV_RATE_LOCKED",
+                message = "Dieser SV-Satz wurde bereits in einer Lohnabrechnung verwendet - Direkt-Bearbeiten ist gesperrt. Bitte 'Neu ab' verwenden, um eine Nachfolge-Version mit neuem Gueltig-ab-Datum anzulegen."
+            });
+        }
 
         rate.Code                  = dto.Code;
         rate.Name                  = dto.Name;
@@ -95,6 +146,66 @@ public class SocialInsuranceRatesController : ControllerBase
 
         await _db.SaveChangesAsync();
         return Ok(rate);
+    }
+
+    /// <summary>
+    /// Versionierung: legt eine Nachfolge-Zeile mit neuem Gültig-ab an und
+    /// begrenzt den Vorgänger atomisch auf ValidTo = neu.ValidFrom − 1 Tag.
+    /// Walter-Vorgabe 18.05.2026 — Standard-Pattern für versionierte Stammdaten
+    /// wie Bank/Vertrag/QST.
+    /// </summary>
+    [HttpPost("{id:int}/new-version")]
+    public async Task<IActionResult> CreateNewVersion(int id, [FromBody] SocialInsuranceRate dto)
+    {
+        var oldRate = await _db.SocialInsuranceRates.FindAsync(id);
+        if (oldRate is null) return NotFound();
+
+        if (dto.ValidFrom <= oldRate.ValidFrom)
+            return BadRequest(new
+            {
+                error   = "INVALID_VALID_FROM",
+                message = $"Das neue Gültig-ab ({dto.ValidFrom:yyyy-MM-dd}) muss nach dem alten ({oldRate.ValidFrom:yyyy-MM-dd}) liegen."
+            });
+
+        // Falls Vorgänger schon eine ValidTo hat und das neue ValidFrom danach liegt,
+        // entstünde eine Lücke — auch erlaubt, aber transparent halten.
+        if (oldRate.ValidTo.HasValue && dto.ValidFrom > oldRate.ValidTo.Value.AddDays(1))
+        {
+            // Kein Fehler — Lücke kann gewollt sein (z.B. Pause in der Pflicht).
+        }
+
+        // Vorgänger atomisch begrenzen
+        oldRate.ValidTo = dto.ValidFrom.AddDays(-1);
+
+        // Neue Zeile mit den übermittelten Werten (Schlüsselfelder dürfen
+        // sich nicht ändern — sonst wäre's kein Nachfolger sondern ein
+        // anderer Satz; daher aus oldRate übernehmen, nur Rate und „Soft-Felder"
+        // sowie Datum aus dto).
+        var newRate = new SocialInsuranceRate
+        {
+            Code                  = oldRate.Code,
+            Name                  = string.IsNullOrWhiteSpace(dto.Name) ? oldRate.Name : dto.Name,
+            Description           = dto.Description ?? oldRate.Description,
+            Rate                  = dto.Rate,
+            BasisType             = oldRate.BasisType,
+            EmploymentModelCode   = oldRate.EmploymentModelCode,
+            MinAge                = oldRate.MinAge,
+            MaxAge                = oldRate.MaxAge,
+            FreibetragMonthly     = dto.FreibetragMonthly ?? oldRate.FreibetragMonthly,
+            CoordinationDeduction = dto.CoordinationDeduction ?? oldRate.CoordinationDeduction,
+            OnlyQuellensteuer     = oldRate.OnlyQuellensteuer,
+            ValidFrom             = dto.ValidFrom,
+            ValidTo               = dto.ValidTo,
+            SortOrder             = dto.SortOrder == 0 ? oldRate.SortOrder : dto.SortOrder,
+            IsActive              = true,
+            CreatedAt             = DateTime.UtcNow,
+        };
+        _db.SocialInsuranceRates.Add(newRate);
+
+        // SaveChangesAsync läuft in EF Core implizit als Transaktion
+        // (alle Änderungen werden in einem DB-Roundtrip committet).
+        await _db.SaveChangesAsync();
+        return Ok(newRate);
     }
 
     // DELETE – soft-delete

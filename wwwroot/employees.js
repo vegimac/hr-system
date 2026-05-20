@@ -17,9 +17,25 @@ let _empFilter = 'aktiv';
 // jede Funktion erhält den MA und liefert true wenn er die Bedingung erfüllt
 // und damit IN der gefilterten Liste bleiben soll.
 let _empSpecialFilter = '';
-// Cache für "no-bank": Set der MA-IDs MIT aktiver Bankverbindung (lazy geladen
-// beim ersten Aktivieren des Filters, danach pro Session gecached).
-let _empIdsWithActiveBank = null;
+// Caches für Spezialfilter — lazy geladen beim ersten Aktivieren.
+let _empIdsWithActiveBank   = null;   // MA-IDs mit aktiver Bankverbindung
+let _empIdsWithActiveQst    = null;   // MA-IDs mit aktivem QST-Tarif
+let _empIdsWithPermitHistory = null;  // MA-IDs mit MINDESTENS einem Permit-History-Eintrag
+
+// Hilfsfunktion: hat der MA aktuell einen gültigen Vertrag?
+// = mindestens ein Employment mit ContractStartDate <= heute und
+// (ContractEndDate ist null ODER ContractEndDate >= heute).
+function _empHasActiveContract(e) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return (e.employments || []).some(emp => {
+        if (!emp.contractStartDate) return false;
+        const from = new Date(emp.contractStartDate);
+        if (from > today) return false;
+        if (!emp.contractEndDate) return true;
+        const to = new Date(emp.contractEndDate);
+        return to >= today;
+    });
+}
 
 // Filter-Registry — ein Eintrag pro Spezialfilter-Option im Dropdown.
 // `predicate` liefert true für MA, die im Resultat bleiben sollen.
@@ -37,10 +53,58 @@ const EMP_SPECIAL_FILTERS = {
             } catch { _empIdsWithActiveBank = new Set(); }
         },
         predicate: (e) => !(_empIdsWithActiveBank && _empIdsWithActiveBank.has(Number(e.id)))
-    }
-    // Weitere Filter hier ergänzen, z.B.:
-    //   'no-ahv':         { predicate: e => !e.socialSecurityNumber },
-    //   'permit-expired': { predicate: e => e.permitExpiryDate && new Date(e.permitExpiryDate) < new Date() },
+    },
+    // Keine Bewilligung erfasst (Walter 18.05.2026).
+    // Ausländer (Nationalität ≠ CH), die noch NIE einen Permit-History-Eintrag
+    // hatten. Abgelaufene Bewilligungen sind ein anderer Fall (siehe
+    // permit-expired und Dashboard) und werden hier nicht angezeigt.
+    'no-permit': {
+        prepare: async () => {
+            if (_empIdsWithPermitHistory !== null) return;
+            try {
+                const r = await fetch('/api/employee-permit-history/employee-ids-with-history',
+                                       { headers: ah(), cache: 'no-store' });
+                _empIdsWithPermitHistory = r.ok
+                    ? new Set((await r.json()).map(Number))
+                    : new Set();
+            } catch { _empIdsWithPermitHistory = new Set(); }
+        },
+        predicate: (e) => {
+            const nat = (e.nationalityCode || e.nationality || '').toUpperCase();
+            if (nat === 'CH' || nat === '') return false;
+            return !_empIdsWithPermitHistory || !_empIdsWithPermitHistory.has(Number(e.id));
+        }
+    },
+    // Bewilligung abgelaufen — PermitExpiryDate liegt in der Vergangenheit.
+    // Walter 18.05.2026: MA hat einen Bewilligungs-Eintrag, der nicht mehr
+    // gültig ist und erneuert werden muss.
+    'permit-expired': {
+        predicate: (e) => {
+            if (!e.permitExpiryDate) return false;
+            const exp = new Date(e.permitExpiryDate);
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            return exp < today;
+        }
+    },
+    // Quellensteuerpflichtig — hat per heute einen aktiven QST-Eintrag (Walter 18.05.2026).
+    'qst-pflichtig': {
+        prepare: async () => {
+            if (_empIdsWithActiveQst !== null) return;
+            try {
+                const r = await fetch('/api/employee-quellensteuer/active-employee-ids',
+                                       { headers: ah(), cache: 'no-store' });
+                _empIdsWithActiveQst = r.ok
+                    ? new Set((await r.json()).map(Number))
+                    : new Set();
+            } catch { _empIdsWithActiveQst = new Set(); }
+        },
+        predicate: (e) => _empIdsWithActiveQst && _empIdsWithActiveQst.has(Number(e.id))
+    },
+    // Ohne gültigen Vertrag heute (Walter 18.05.2026).
+    // MA als Personalakte (Phantom-MA) oder zwischen zwei Verträgen.
+    'no-contract': {
+        predicate: (e) => !_empHasActiveContract(e)
+    },
 };
 
 // Tabs in genau der Reihenfolge wie im Markup (für ←/→-Navigation)
@@ -425,13 +489,25 @@ function renderEmployeeDetail(emp) {
             <div class="emp-field-grid-3">
                 ${field('Eintrittsdatum', emp.entryDate ? formatDate(emp.entryDate) : null)}
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null)}
+                ${(() => {
+                    // Walter-Vorgabe 18.05.2026: Aktiv-Status hier im Read-Only-View
+                    // explizit zeigen — Walter setzt ihn bewusst manuell, kein Auto-Sync
+                    // aus ExitDate mehr.
+                    const aktiv = !!emp.isActive;
+                    const html = aktiv
+                        ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ aktiv</span>`
+                        : `<span style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">⊘ inaktiv</span>`;
+                    return `<div class="emp-field"><div class="emp-field-label">Status</div><div class="emp-field-value">${html}</div></div>`;
+                })()}
             </div>
 
             <!-- Bei MA „ohne Lohn" (IsPayrollExcluded — Phantom-MA für easy@work-
                  Zugang wie Supervisor) keine Bewilligung, keine Bank, keine
                  Zusatzadressen anzeigen. Diese Personen haben keinen Vertrag und
-                 brauchen für die Lohn- und Compliance-Pipeline nichts davon. -->
-            ${!emp.isPayrollExcluded ? `
+                 brauchen für die Lohn- und Compliance-Pipeline nichts davon.
+                 Walter 18.05.2026: ZUSÄTZLICH den Aufenthalt-Block für Schweizer
+                 Bürger ausblenden — die brauchen keine Bewilligung. -->
+            ${(!emp.isPayrollExcluded && (emp.nationalityCode || emp.nationality || '').toUpperCase() !== 'CH') ? `
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 <span>${_t('ma.section.permit','Aufenthalt')}</span>
                 ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser') ? `
@@ -743,10 +819,12 @@ function renderQuellensteuerTab(el, entries) {
                         Kanton <strong>${kanton}</strong> · Code <strong>${code}</strong> · ${kinder} Kinder · ${kirche}${pct}${gemeinde}
                     </div>
                 </div>
-                <button class="btn-emp-edit" onclick="openQstFromTab(${e.id})">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    Bearbeiten
-                </button>
+                ${e.inLohnVerwendet
+                    ? `<span title="Dieser QST-Eintrag wurde bereits in einem Lohnlauf verwendet und ist nicht mehr editierbar. Für Änderungen: '+ Neuer Eintrag' oben." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
+                    : `<button class="btn-emp-edit" onclick="openQstFromTab(${e.id})">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Bearbeiten
+                       </button>`}
             </div>
         </div>`;
     });
@@ -825,13 +903,27 @@ async function loadFamilieTab(employeeId) {
         const res = await fetch(`/api/employees/${employeeId}/family`, { headers: ah() });
         if (!res.ok) { el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden</span></div>'; return; }
         const members = await res.json();
-        renderFamilieTab(el, members, employeeId);
+        // Walter 18.05.2026: Zulagen pro Kind vorab parallel laden für die
+        // Inline-Darstellung (analog Bank-Liste).
+        const kinder = members.filter(m => m.memberType === 'Kind');
+        const allowanceMap = {};
+        if (kinder.length) {
+            await Promise.all(kinder.map(async k => {
+                try {
+                    const r = await fetch(`/api/family-members/${k.id}/allowances`, { headers: ah() });
+                    allowanceMap[k.id] = r.ok ? await r.json() : [];
+                } catch {
+                    allowanceMap[k.id] = [];
+                }
+            }));
+        }
+        renderFamilieTab(el, members, employeeId, allowanceMap);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler</span></div>';
     }
 }
 
-function renderFamilieTab(el, members, employeeId) {
+function renderFamilieTab(el, members, employeeId, allowanceMap = {}) {
     // Cache für Detail-Popup-Lookup
     window._familyMembersCache = members;
 
@@ -901,19 +993,75 @@ function renderFamilieTab(el, members, employeeId) {
                 addrBadge = `<span title="${esc(tip)}" style="font-size:11px;color:#0369a1;background:#e0f2fe;padding:2px 8px;border-radius:10px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px">📍 ${esc(short)}</span>`;
             }
 
-            html += `
-            <div onclick="showFamilyDetailPopup(${m.id})"
-                 style="display:flex;align-items:center;gap:12px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;background:white;cursor:pointer;transition:background .15s"
+            // Header-Zeile (gleich für alle Familienmitglieder). Walter
+            // 18.05.2026: Klick auf den Header öffnet direkt das Edit-Modal —
+            // das Read-Only-Detail-Popup ist seit der Inline-Zulagen-Ansicht
+            // redundant (showFamilyDetailPopup bleibt im Code als Backup).
+            const memberJson = JSON.stringify(m).replace(/"/g, '&quot;');
+            const headerRow = `
+            <div onclick="openFamilyModal(${memberJson})"
+                 style="display:flex;align-items:center;gap:12px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:${type === 'Kind' ? '8px 8px 0 0' : '8px'};background:white;cursor:pointer;transition:background .15s"
                  onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
                 <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:${b.bg};color:${b.color};white-space:nowrap">${_t('fam.value.type.' + type, type)}</span>
                 <span style="font-weight:600;color:#0f172a;flex:1">${esc(name)}</span>
                 ${addrBadge}
                 <span style="font-size:12.5px;color:#64748b;white-space:nowrap">${meta}</span>
-                <button onclick="event.stopPropagation();openFamilyModal(${JSON.stringify(m).replace(/"/g, '&quot;')})"
+                <button onclick="event.stopPropagation();openFamilyModal(${memberJson})"
                         style="background:none;border:none;cursor:pointer;color:#64748b;padding:4px 8px;border-radius:6px;font-size:13px" title="Bearbeiten">✎</button>
                 <button onclick="event.stopPropagation();deleteFamilyMember(${m.id})"
                         style="background:none;border:none;cursor:pointer;color:#dc2626;padding:4px 8px;border-radius:6px;font-size:13px" title="Löschen">🗑</button>
             </div>`;
+
+            // Bei Kindern: Inline-Zulagen-Liste darunter (Walter-Vorgabe 18.05.2026).
+            // Analog zur Bank-Liste — Zulagen pro Kind direkt sichtbar mit Von/Bis.
+            let kindAllowancesBlock = '';
+            if (type === 'Kind') {
+                const allowances = allowanceMap[m.id] || [];
+                const allowanceRows = allowances.length === 0
+                    ? `<div style="padding:10px 14px;color:#94a3b8;font-style:italic;font-size:12px">Noch keine Zulagen erfasst.</div>`
+                    : `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                         <thead>
+                           <tr style="color:#64748b;font-size:10.5px;letter-spacing:.04em;background:#fafbfc">
+                             <th style="padding:6px 14px;text-align:left;font-weight:600">VON</th>
+                             <th style="padding:6px 14px;text-align:left;font-weight:600">BIS</th>
+                             <th style="padding:6px 14px;text-align:right;font-weight:600">CHF/MT.</th>
+                             <th style="padding:6px 14px;text-align:left;font-weight:600">ART</th>
+                             <th style="padding:6px 14px;text-align:right;font-weight:600"></th>
+                           </tr>
+                         </thead>
+                         <tbody>
+                         ${allowances.map(a => {
+                             const artLabel = a.allowanceType
+                                 ? `${a.allowanceType}${(_ALLOWANCE_TYPE_LABEL && _ALLOWANCE_TYPE_LABEL[a.allowanceType]) ? ' — ' + _ALLOWANCE_TYPE_LABEL[a.allowanceType] : ''}`
+                                 : '–';
+                             const bisStr = a.validTo ? formatDate(a.validTo) : '<span style="color:#16a34a">offen</span>';
+                             const locked = a.inLohnVerwendet === true;
+                             return `
+                             <tr style="border-top:1px solid #f1f5f9">
+                               <td style="padding:7px 14px">${formatDate(a.validFrom)}</td>
+                               <td style="padding:7px 14px">${bisStr}</td>
+                               <td style="padding:7px 14px;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace">${Number(a.monthlyAmount).toFixed(2)}</td>
+                               <td style="padding:7px 14px;color:#475569">${artLabel}</td>
+                               <td style="padding:5px 14px;text-align:right;white-space:nowrap">
+                                 ${locked
+                                   ? `<span title="Zulage in Lohn verwendet — nicht editierbar" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:3px 10px;border-radius:12px;cursor:help">🔒 In Lohn verwendet</span>`
+                                   : `<button onclick="event.stopPropagation();openAllowanceFromCard(${m.id}, ${JSON.stringify(a).replace(/"/g, '&quot;')})" style="background:#f1f5f9;border:none;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer" title="Bearbeiten">✎</button>`}
+                               </td>
+                             </tr>`;
+                         }).join('')}
+                         </tbody>
+                       </table>`;
+                kindAllowancesBlock = `
+                <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;background:white">
+                  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:#fafbfc;border-bottom:1px solid #f1f5f9">
+                    <span style="font-size:10.5px;font-weight:700;color:#64748b;letter-spacing:.04em">ZULAGEN</span>
+                    <button onclick="openAllowanceFromCard(${m.id}, null)" style="background:#2563eb;color:white;border:none;padding:3px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">+ Zulage</button>
+                  </div>
+                  ${allowanceRows}
+                </div>`;
+            }
+
+            html += headerRow + kindAllowancesBlock;
         });
         html += `</div>`;
     });
@@ -1437,8 +1585,19 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <div class="emp-field-grid-3">
         ${eField(`${_t('ma.field.entryDate','Eintrittsdatum')} <span style="font-weight:400;color:#94a3b8;margin-left:6px">${_t('ma.field.entryDateHint','(Datum der Betriebszugehörigkeit)')}</span>`,
             `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}">`)}
-        ${eField(`${_t('ma.field.exitDate','Austrittsdatum')} <span style="font-weight:400;color:#94a3b8;margin-left:6px">${_t('ma.field.exitDateHint','(leer = aktiv)')}</span>`,
+        ${eField(`${_t('ma.field.exitDate','Austrittsdatum')}`,
             `<input id="ef-exit"  class="ef-input" type="date" value="${toDateInput(emp.exitDate)}">`)}
+        <!-- Walter-Vorgabe 18.05.2026: Aktiv-Flag ist NICHT mehr automatisch
+             aus dem ExitDate abgeleitet. Walter entscheidet bewusst — ein MA
+             mit Austritt mitten im Monat bleibt aktiv bis nach dem letzten
+             Lohnlauf, dann wird der Haken hier manuell entfernt. -->
+        ${eField(`${_t('ma.field.isActive','Aktiv')} <span style="font-weight:400;color:#94a3b8;margin-left:6px">${_t('ma.field.isActiveHint','(Postfach + Listen)')}</span>`,
+            `<label style="display:flex;align-items:center;gap:8px;height:36px;cursor:pointer">
+                 <input id="ef-isactive" type="checkbox" ${emp.isActive ? 'checked' : ''}
+                        onchange="onIsActiveChange(this, ${emp.id})"
+                        style="width:18px;height:18px;cursor:pointer">
+                 <span id="ef-isactive-label" style="font-size:12px;color:#475569">${emp.isActive ? _t('ma.field.isActiveYes','aktiv') : _t('ma.field.isActiveNo','inaktiv')}</span>
+             </label>`)}
     </div>
     <div style="margin:4px 0 16px;font-size:11.5px;color:#64748b;line-height:1.45">
         ${_t('ma.entryDate.hint','Eintrittsdatum wird benötigt für: Sperrfrist-Berechnung (Art. 336c OR), Karenzjahr-Berechnung (Krank/Unfall), Ferien-Kürzung (Art. 329b OR), Dienstjubiläen.')}
@@ -1452,7 +1611,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <input type="hidden" id="ef-permitType" value="${emp.permitTypeId ?? 0}">
     <input type="hidden" id="ef-permitExpiry" value="${toDateInput(emp.permitExpiryDate)}">
 
-    ${!emp.isPayrollExcluded ? `
+    ${(!emp.isPayrollExcluded && (emp.nationalityCode || emp.nationality || '').toUpperCase() !== 'CH') ? `
     <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>${_t('ma.section.permit','Aufenthalt')}</span>
         <button type="button" class="btn-emp-add" onclick="openPermitHistoryModal(null)">
@@ -1675,6 +1834,54 @@ function cancelEmpEdit() {
     if (selectedEmployee) renderEmployeeDetail(selectedEmployee);
 }
 
+// Walter-Vorgabe 18.05.2026: Aktiv-Checkbox prüft beim Entfernen des Hakens
+// SOFORT (nicht erst beim Speichern) ob es offene Lohnperioden mit Daten gibt.
+// Bei Sperre: Checkbox zurücksetzen + Klartext-Hinweis mit Grund (welche
+// Periode, Stempelzeiten und/oder Absenz-Typen mit Datumsbereich).
+async function onIsActiveChange(cb, empId) {
+    // Label live nachziehen — gleicher visueller Effekt wie vorher
+    const lbl = document.getElementById('ef-isactive-label');
+    if (lbl) lbl.textContent = cb.checked ? 'aktiv' : 'inaktiv';
+
+    // Aktivieren ist immer erlaubt — Lock greift nur beim Inaktivsetzen.
+    if (cb.checked) return;
+
+    try {
+        const res = await fetch(`/api/employees/${empId}/deactivate-check`,
+                                { headers: ah(), cache: 'no-store' });
+        if (!res.ok) {
+            console.warn('deactivate-check HTTP', res.status);
+            return;
+        }
+        const data = await res.json();
+        if (data.canDeactivate) return;
+
+        // Detail-Meldung aus blockers zusammenbauen — eine Karte je Periode,
+        // mit Stempelzeit-Count und Absenz-Zeilen (Typ + Datumsbereich).
+        const fmt = d => d ? d.substring(8,10) + '.' + d.substring(5,7) + '.' + d.substring(0,4) : '';
+        const lines = (data.blockers || []).map(b => {
+            const parts = [];
+            if (b.timeEntriesCount > 0)
+                parts.push(`• ${b.timeEntriesCount} Stempel-Eintrag(e)`);
+            (b.absences || []).forEach(a => {
+                const typLabel = ({KRANK:'Krankheit',UNFALL:'Unfall',FERIEN:'Ferien',
+                                   SCHULUNG:'Schulung',MUTT_VATER:'Mutter-/Vaterschaft'})[a.type] || a.type;
+                parts.push(`• ${typLabel} ${fmt(a.dateFrom)} – ${fmt(a.dateTo)}`);
+            });
+            return `Lohnperiode '${b.periodLabel}' (${fmt(b.periodFrom)} – ${fmt(b.periodTo)}):\n${parts.join('\n')}`;
+        }).join('\n\n');
+
+        alert(`MA kann nicht inaktiv gesetzt werden.\n\n${lines}\n\nBitte zuerst den Lohnlauf abschliessen oder die blockierenden Daten löschen.`);
+        // Checkbox zurück auf "aktiv" — der MA bleibt im Form-State aktiv
+        cb.checked = true;
+        if (lbl) lbl.textContent = 'aktiv';
+    } catch (e) {
+        console.error('deactivate-check', e);
+        // Bei Netzwerkfehler nicht blockieren — der Save-Endpoint wirft sonst
+        // sowieso noch die 409 wenn Daten im Weg sind.
+    }
+}
+
 async function saveEmpEdit() {
     if (!selectedEmployeeId || !selectedEmployee) return;
 
@@ -1720,6 +1927,9 @@ async function saveEmpEdit() {
         entryDate:    document.getElementById('ef-entry')?.value        || null,
         exitDateSet:  true,
         exitDate:     exitVal || null,
+        // Walter-Vorgabe 18.05.2026: Aktiv-Flag bewusst gesetzt vom UI,
+        // KEIN Auto-Sync mehr aus ExitDate (Backend nimmt diesen Wert 1:1).
+        isActive:     document.getElementById('ef-isactive')?.checked === true,
         socialSecurityNumber: document.getElementById('ef-ahvNummer')?.value || null,
         ahvNummer:    document.getElementById('ef-ahvNummer')?.value    || null,
         shortName:    document.getElementById('ef-shortName')?.value    || null,
@@ -1762,8 +1972,21 @@ async function saveEmpEdit() {
         ];
 
         const results = await Promise.all(requests);
-        if (results.some(r => !r.ok)) {
-            alert('Fehler beim Speichern. Bitte erneut versuchen.');
+        const failed = results.find(r => !r.ok);
+        if (failed) {
+            // Walter-Bug 18.05.2026: bei 409 (z.B. MA_HAS_OPEN_PERIOD_DATA beim
+            // Inaktiv-Setzen) bekommt der User jetzt die Klartext-Meldung statt
+            // einem generischen „Fehler". Beim Re-Aktivieren des Häkchens muss
+            // der User selber zuerst den Lohnlauf abschliessen.
+            let msg = 'Fehler beim Speichern. Bitte erneut versuchen.';
+            try {
+                const json = await failed.clone().json();
+                msg = json.message || json.error || msg;
+            } catch {
+                const txt = await failed.text().catch(() => '');
+                if (txt) msg = txt;
+            }
+            alert(msg);
             return;
         }
 
@@ -1844,17 +2067,19 @@ function openFamilyModal(member) {
     // ── Adresse: Radio-Modus + Dropdown der MA-Zusatzadressen befüllen
     fmRefreshAddressUi(member?.alternativeAddressId ?? null);
 
-    // Zulagen-Liste laden (nur bei Edit — bei neuem Familienmitglied gibt's
-    // noch keine ID, daher Hinweis "erst nach Speichern verfügbar").
+    // Zulagen-Block ist seit 18.05.2026 aus dem Modal entfernt (Walter:
+    // Zulagen leben jetzt INLINE pro Kind in der Familie-Tab). Der
+    // versteckte Mount-Point #fmAllowanceList bleibt für Backwards-Compat,
+    // wird aber nicht mehr aktiv befüllt. Null-Checks aufs Add-Button-
+    // Element, weil das DOM-Element nicht mehr existiert.
     const allowanceList = document.getElementById('fmAllowanceList');
     const allowanceAddBtn = document.getElementById('fmAllowanceAddBtn');
-    if (member?.id) {
-        allowanceAddBtn.style.display = 'inline-block';
+    if (member?.id && allowanceList) {
+        // Nur laden falls jemand das Element via DevTools sichtbar gemacht hat
+        // (kein normaler User-Pfad).
         loadFamilyAllowances(member.id);
-    } else {
-        allowanceAddBtn.style.display = 'none';
-        if (allowanceList) allowanceList.innerHTML = '<span style="color:#94a3b8;font-style:italic">Erst nach dem ersten Speichern können Zulagen erfasst werden.</span>';
     }
+    if (allowanceAddBtn) allowanceAddBtn.style.display = member?.id ? 'inline-block' : 'none';
 
     document.getElementById('familyModal').style.display = 'flex';
 }
@@ -2109,6 +2334,13 @@ async function loadFamilyAllowances(familyMemberId) {
     }
 }
 
+// Walter 18.05.2026: direktes Öffnen der Zulagen-Erfassung aus der Familie-
+// Liste — ohne über das Familienmember-Edit-Modal gehen zu müssen.
+function openAllowanceFromCard(familyMemberId, existing) {
+    editingFamilyMemberId = familyMemberId;
+    openAllowanceModal(existing);
+}
+
 function openAllowanceModal(existing) {
     if (!editingFamilyMemberId) {
         alert('Bitte zuerst das Familienmitglied speichern.');
@@ -2167,6 +2399,7 @@ async function saveAllowance() {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             const e = await res.json().catch(() => ({}));
             err.textContent = e.error || 'Fehler beim Speichern.';
@@ -2174,6 +2407,11 @@ async function saveAllowance() {
         }
         closeAllowanceModal();
         loadFamilyAllowances(editingFamilyMemberId);
+        // Walter 18.05.2026: Familie-Tab neu laden, damit die Inline-Zulagen
+        // in der Kind-Card aktualisiert sind.
+        if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId) {
+            loadFamilieTab(selectedEmployeeId);
+        }
     } catch (e) {
         err.textContent = 'Verbindungsfehler: ' + e.message;
     }
@@ -2187,9 +2425,13 @@ async function deleteAllowance() {
         const res = await fetch(`/api/family-members/${editingFamilyMemberId}/allowances/${id}`, {
             method: 'DELETE', headers: ah()
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
         closeAllowanceModal();
         loadFamilyAllowances(editingFamilyMemberId);
+        if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId) {
+            loadFamilieTab(selectedEmployeeId);
+        }
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -2257,13 +2499,14 @@ function updateAutoNightHours() {
 
 // ── Modal: Eintrag hinzufügen / bearbeiten ─────
 
-function openTimeEntryModal(entry) {
+async function openTimeEntryModal(entry) {
     editingTimeEntryId = entry ? entry.id : null;
     document.getElementById('timeEntryModalTitle').textContent =
         entry ? 'Stempelzeit bearbeiten' : 'Stempelzeit hinzufügen';
 
     const today = localIso(new Date());
-    document.getElementById('teDate').value     = entry ? toDateInput(entry.entryDate ?? entry.entry_date) : today;
+    const dateEl = document.getElementById('teDate');
+    dateEl.value     = entry ? toDateInput(entry.entryDate ?? entry.entry_date) : today;
     document.getElementById('teTimeIn').value   = entry ? toTimeInput(entry.timeIn  ?? entry.time_in)  : '';
     document.getElementById('teTimeOut').value  = entry ? toTimeInput(entry.timeOut ?? entry.time_out) : '';
     document.getElementById('teNight').value    = entry?.nightHours ?? 0;
@@ -2272,6 +2515,13 @@ function openTimeEntryModal(entry) {
     // Nachtstunden neu berechnen, wenn Zeiten vorhanden
     if (document.getElementById('teTimeIn').value && document.getElementById('teTimeOut').value) {
         updateAutoNightHours();
+    }
+
+    // Lohnlauf-Sperre: min-date setzen, damit User gesperrte Tage gar nicht
+    // auswählen kann. Holt sich den State async für die Filiale des MA.
+    if (window.lohnEditLock && typeof fixedCompanyProfileId !== 'undefined') {
+        const state = await window.lohnEditLock.loadState(fixedCompanyProfileId);
+        window.lohnEditLock.applyToDateInput(dateEl, state);
     }
 
     document.getElementById('timeEntryModal').style.display = 'flex';
@@ -2311,6 +2561,7 @@ async function saveTimeEntry() {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             let msg = `Fehler beim Speichern (HTTP ${res.status})`;
             try { const e = await res.json(); msg += '\n' + (e.error ?? '') + (e.inner ? '\n' + e.inner : ''); } catch {}
@@ -2330,6 +2581,7 @@ async function deleteTimeEntry(id) {
             method: 'DELETE',
             headers: ah()
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
         loadStempelzeitenTab(selectedEmployeeId);
     } catch {
@@ -2369,25 +2621,34 @@ async function loadAbsenzenTab(employeeId) {
         const activeEmp = selectedEmployee?.employments?.find(e => e.isActive)
                        ?? selectedEmployee?.employments?.[0];
         const cpId      = activeEmp?.companyProfileId;
+        // Fallback für Lock-Lookup: wenn der MA keinen Vertrag mit
+        // companyProfileId hat (Legacy-Daten / Phantom-MA), nimm den global
+        // gewählten Filial-Selektor — sonst greift die Sperre nicht.
+        const cpIdForLock = cpId || (typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
 
-        const [absRes, karenzRes, sperrRes] = await Promise.all([
+        const [absRes, karenzRes, sperrRes, lockState] = await Promise.all([
             fetch(`/api/absences/employee/${employeeId}`, { headers: ah() }),
             cpId
                 ? fetch(`/api/absences/employee/${employeeId}/karenz-history?companyProfileId=${cpId}`, { headers: ah() })
                 : Promise.resolve(null),
             fetch(`/api/absences/employee/${employeeId}/sperrfrist`, { headers: ah() }),
+            // Lohnlauf-Sperre: pro Filiale FirstAllowedDate holen — pro Absenz
+            // wird entschieden ob Edit/Delete-Buttons gezeigt werden.
+            cpIdForLock && window.lohnEditLock
+                ? window.lohnEditLock.loadState(cpIdForLock)
+                : Promise.resolve(null),
         ]);
         if (!absRes.ok) throw new Error();
         const absences      = await absRes.json();
         const karenzHistory = karenzRes && karenzRes.ok ? await karenzRes.json() : [];
         const sperrfrist    = sperrRes && sperrRes.ok ? await sperrRes.json() : null;
-        renderAbsenzenList(el, absences, employeeId, karenzHistory, sperrfrist);
+        renderAbsenzenList(el, absences, employeeId, karenzHistory, sperrfrist, lockState);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>';
     }
 }
 
-function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrfrist = null) {
+function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrfrist = null, lockState = null) {
     const empModel = selectedEmployee?.employmentModel ?? '';
     const noHours  = empModel === 'UTP';
     const sperrHtml  = renderSperrfristPanel(sperrfrist);
@@ -2436,6 +2697,15 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
                    </button>`
                 : '';
 
+            // Lohnlauf-Sperre: Absenz liegt in einer in-Verarbeitung-Periode
+            // wenn DateFrom ODER DateTo vor dem firstAllowedDate liegt.
+            const firstAllowed = lockState && lockState.firstAllowedDate;
+            const isLocked     = firstAllowed && (a.dateFrom < firstAllowed || a.dateTo < firstAllowed);
+            const actionsHtml  = isLocked
+                ? `<span title="Diese Absenz liegt in einer bereits verarbeiteten Lohnperiode und ist nicht mehr editierbar." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
+                : `<button class="btn-stamp-edit" onclick='openAbsenceModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>✎</button>
+                   <button class="btn-stamp-del"  onclick="deleteAbsence(${a.id})">✕</button>`;
+
             rows += `<tr>
                 <td><span class="abs-type-badge ${meta.color}">${typBadge}</span></td>
                 <td>${fmtDate(a.dateFrom)} – ${fmtDate(a.dateTo)}</td>
@@ -2444,8 +2714,7 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
                 <td class="abs-notes">${a.notes ?? ''}</td>
                 <td class="abs-actions">
                     ${docBtn}
-                    <button class="btn-stamp-edit" onclick='openAbsenceModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>✎</button>
-                    <button class="btn-stamp-del"  onclick="deleteAbsence(${a.id})">✕</button>
+                    ${actionsHtml}
                 </td>
             </tr>`;
         });
@@ -3051,6 +3320,8 @@ async function saveAbsence() {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
+        // Lohnlauf-Sperre? Zeigt Toast und bricht ab.
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             let msg = 'Fehler beim Speichern.';
             try { const j = await res.json(); if (j.message) msg = j.message; } catch {}
@@ -3068,6 +3339,8 @@ async function deleteAbsence(id) {
     if (!confirm('Absenz wirklich löschen?')) return;
     try {
         const res = await fetch(`/api/absences/${id}`, { method: 'DELETE', headers: ah() });
+        // Lohnlauf-Sperre? Zeigt Toast und bricht ab.
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             let msg = 'Fehler beim Löschen.';
             try { const j = await res.json(); if (j.message) msg = j.message; } catch {}
@@ -3220,6 +3493,7 @@ async function saveRecurringWage() {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             const err = await res.text();
             alert('Fehler beim Speichern: ' + err);
@@ -3236,6 +3510,7 @@ async function deleteRecurringWage(id) {
     if (!confirm('Eintrag wirklich löschen?')) return;
     try {
         const res = await fetch(`/api/employee-recurring-wages/${id}`, { method: 'DELETE', headers: ah() });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
         loadRecurringWagesTab(selectedEmployeeId);
     } catch {
@@ -3402,6 +3677,7 @@ async function saveLohnAssignment() {
         const url = editId ? `/api/employee-lohn-assignments/${editId}` : '/api/employee-lohn-assignments';
         const method = editId ? 'PUT' : 'POST';
         const res = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { const err = await res.text(); alert('Fehler beim Speichern: ' + err); return; }
         closeLohnAssignmentModal();
         loadLohnAssignmentsTab(selectedEmployeeId);
@@ -3414,6 +3690,7 @@ async function deleteLohnAssignment(id) {
     if (!confirm('Lohnabtretung wirklich löschen?')) return;
     try {
         const res = await fetch(`/api/employee-lohn-assignments/${id}`, { method: 'DELETE', headers: ah() });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
         loadLohnAssignmentsTab(selectedEmployeeId);
     } catch {
@@ -3803,12 +4080,13 @@ async function loadStempelzeitenTab(employeeId) {
                 <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="stempelChangePeriod()">&#8635; Aktualisieren</button>
                 <div id="stempelCount" style="margin-left:auto;font-size:12px;color:#64748b"></div>
             </div>
-            <!-- Fix-Bereich: Neu-Button -->
-            <div style="flex-shrink:0">
-                <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="stempelStartNew()">+ Neuer Eintrag</button>
+            <!-- Read-Only-Hinweis: Stempelzeiten werden ausschliesslich in easy@work gepflegt -->
+            <div style="flex-shrink:0;font-size:12px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px">
+                <span style="font-size:14px">ℹ️</span>
+                <span>Stempelzeiten werden in <strong>easy@work</strong> verwaltet. In Cowork nur Anzeige — für Korrekturen bitte in easy@work erfassen und Stempelzeiten neu importieren.</span>
             </div>
-            <!-- Fix-Bereich: Edit-Form -->
-            <div id="stempelEditRow" style="flex-shrink:0"></div>
+            <!-- Edit-Form bleibt im DOM als Backup, wird aber nicht mehr aufgerufen -->
+            <div id="stempelEditRow" style="flex-shrink:0;display:none"></div>
             <!-- Scroll-Bereich: Liste -->
             <div id="stempelListe" style="flex:1;overflow-y:auto;min-height:100px;border-top:1px solid #e2e8f0;padding-top:6px">
                 <div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>
@@ -3893,8 +4171,20 @@ async function stempelLadeEintraege(employeeId) {
     }
 
     try {
-        const res = await fetch(url,
-            { headers: { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` } });
+        // Lohnlauf-Sperre parallel zur Stempel-Liste laden — Buttons werden
+        // pro Zeile konditional gerendert, je nachdem ob das Datum im
+        // gesperrten Bereich liegt.
+        const activeEmp = selectedEmployee?.employments?.find(e => e.isActive)
+                       ?? selectedEmployee?.employments?.[0];
+        const cpId      = activeEmp?.companyProfileId;
+        const cpIdForLock = cpId || (typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
+
+        const [res, lockState] = await Promise.all([
+            fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` } }),
+            cpIdForLock && window.lohnEditLock
+                ? window.lohnEditLock.loadState(cpIdForLock)
+                : Promise.resolve(null)
+        ]);
         if (!res.ok) {
             listEl.innerHTML = `<div style="padding:20px;color:#dc2626;font-size:13px">Fehler ${res.status}</div>`;
             return;
@@ -3908,7 +4198,7 @@ async function stempelLadeEintraege(employeeId) {
                 : `${rows.length} Eintrag${rows.length === 1 ? '' : 'e'} · ${labelHint}`;
         }
 
-        stempelRenderTable(rows, employeeId);
+        stempelRenderTable(rows, employeeId, lockState);
 
         // Wenn leer: Shortcut-Buttons zu Monaten mit Einträgen nachladen
         if (rows.length === 0) stempelLadeQuickNav(employeeId);
@@ -3969,7 +4259,7 @@ function stempelJumpTo(year, month) {
     stempelChangePeriod();
 }
 
-function stempelRenderTable(rows, employeeId) {
+function stempelRenderTable(rows, employeeId, lockState = null) {
     const listEl = document.getElementById('stempelListe');
     if (!listEl) return;
 
@@ -3981,6 +4271,7 @@ function stempelRenderTable(rows, employeeId) {
     });
 
     const esc = (s) => s == null ? '' : String(s).replace(/</g,'&lt;');
+    const firstAllowed = lockState && lockState.firstAllowedDate;
 
     const trs = rows.map(r => {
         const wasEdited = !!r.editedBy;
@@ -3991,6 +4282,9 @@ function stempelRenderTable(rows, employeeId) {
             ? `${esc(r.comment || '')}${r.comment ? ' · ' : ''}<span style="color:#64748b">geändert ${new Date(r.editedAt).toLocaleDateString('de-CH')} von ${esc(r.editedBy)}</span>`
             : esc(r.comment);
 
+        // Stempelzeiten sind read-only (Walter-Vorgabe 17.05.2026): keine
+        // Edit-/Löschen-Buttons mehr — easy@work ist die Quelle der Wahrheit.
+
         const mainRow = `
             <tr style="border-top:1px solid #f1f5f9" data-row-id="${r.id}">
                 <td style="padding:8px 10px;font-size:12px;color:#475569;vertical-align:top">${stempelFmtDate(r.entryDate)}</td>
@@ -4000,10 +4294,6 @@ function stempelRenderTable(rows, employeeId) {
                 <td style="padding:8px 10px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;color:${Number(r.nightHours||0)>0?'#1d4ed8':'#94a3b8'}">${stempelFmtHours(r.nightHours)}</td>
                 <td style="padding:8px 10px;font-size:12px;color:#64748b;vertical-align:top">${korrekturKommentar}</td>
                 <td style="padding:8px 10px;font-size:11px;color:#94a3b8;vertical-align:top">${r.source || ''}</td>
-                <td style="padding:6px 8px;text-align:right;white-space:nowrap;vertical-align:top">
-                    <button onclick="stempelStartEdit(${r.id})" style="background:none;border:none;cursor:pointer;padding:4px;color:#3b82f6" title="Bearbeiten">&#9998;</button>
-                    <button onclick="stempelDelete(${r.id})" style="background:none;border:none;cursor:pointer;padding:4px;color:#dc2626" title="Löschen">&#10005;</button>
-                </td>
             </tr>`;
 
         if (!wasEdited) return mainRow;
@@ -4017,23 +4307,19 @@ function stempelRenderTable(rows, employeeId) {
                 <td colspan="2"></td>
                 <td style="padding:4px 10px;font-size:11px;color:#92400e;vertical-align:top;font-style:italic">${esc(r.originalComment || '')}</td>
                 <td style="padding:4px 10px;font-size:10px;color:#b45309;vertical-align:top">import</td>
-                <td></td>
             </tr>`;
 
         return mainRow + origRow;
     }).join('');
 
     const empty = rows.length === 0
-        ? `<tr><td colspan="8" style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">
+        ? `<tr><td colspan="7" style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">
             Keine Einträge in dieser Periode.
             <div id="stempelQuickNav" style="margin-top:12px"></div>
-            <div style="margin-top:10px;font-size:12px">Oder klick oben auf „+ Neuer Eintrag" um einen Eintrag zu erfassen.</div>
+            <div style="margin-top:10px;font-size:12px">Stempelzeiten werden in easy@work erfasst und über „Datenimport → Stempelzeiten" importiert.</div>
         </td></tr>`
         : '';
 
-    // Hinweis: Neuer-Eintrag-Button und Edit-Form leben jetzt außerhalb
-    // von #stempelListe (in loadStempelzeitenTab), damit sie fix bleiben
-    // und nur die Tabelle scrollt.
     listEl.innerHTML = `
         <table style="width:100%;border-collapse:collapse;background:#fff">
             <thead>
@@ -4045,7 +4331,6 @@ function stempelRenderTable(rows, employeeId) {
                     <th style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">NACHT (h)</th>
                     <th style="padding:8px 10px;text-align:left;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">KOMMENTAR</th>
                     <th style="padding:8px 10px;text-align:left;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">QUELLE</th>
-                    <th style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">AKTION</th>
                 </tr>
             </thead>
             <tbody>${trs}${empty}</tbody>
@@ -4054,7 +4339,7 @@ function stempelRenderTable(rows, employeeId) {
                     <td colspan="3" style="padding:10px;font-weight:700;font-size:12px;color:#1d4ed8;background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3">Summe</td>
                     <td style="padding:10px;text-align:right;font-family:monospace;font-weight:700;font-size:13px;color:#1d4ed8;background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3">${stempelFmtHours(sumH)}</td>
                     <td style="padding:10px;text-align:right;font-family:monospace;font-weight:700;font-size:13px;color:#1d4ed8;background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3">${stempelFmtHours(sumN)}</td>
-                    <td colspan="3" style="background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3"></td>
+                    <td colspan="2" style="background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3"></td>
                 </tr>
             </tfoot>` : ''}
         </table>`;
@@ -4254,6 +4539,7 @@ async function stempelSaveForm(id) {
             },
             body: JSON.stringify(body)
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             const err = await res.text();
             alert('Fehler: ' + err);
@@ -4274,6 +4560,7 @@ async function stempelDelete(id) {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` }
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok && res.status !== 204) {
             alert('Fehler beim Löschen.');
             return;
@@ -4734,8 +5021,10 @@ function renderBankAccountsList(el, list) {
             <td style="padding:10px 14px;text-align:center">${status}</td>
             <td style="padding:10px 14px;color:#94a3b8;font-size:12px">${b.bemerkung ?? ''}</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">
-                <button class="btn-stamp-edit" onclick='openBankAccountModal(${JSON.stringify(b).replace(/'/g,"&#39;")})'>✎</button>
-                <button class="btn-stamp-del"  onclick="deleteBankAccount(${b.id})">✕</button>
+                ${b.inLohnVerwendet
+                    ? `<span title="Diese Bankverbindung wurde bereits in einem Lohnlauf verwendet und ist nicht mehr editierbar. Für Änderungen: '+ Neue Bankverbindung' oben rechts." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
+                    : `<button class="btn-stamp-edit" onclick='openBankAccountModal(${JSON.stringify(b).replace(/'/g,"&#39;")})'>✎</button>
+                       <button class="btn-stamp-del"  onclick="deleteBankAccount(${b.id})">✕</button>`}
             </td>
         </tr>`;
     }).join('');
@@ -4757,7 +5046,7 @@ function formatIbanDisplay(iban) {
     return clean.replace(/(.{4})/g, '$1 ').trim();
 }
 
-function openBankAccountModal(existing) {
+async function openBankAccountModal(existing) {
     const modal = document.getElementById('bankAccountModal');
     if (!modal) return;
     modal.style.display = 'flex';
@@ -4779,8 +5068,23 @@ function openBankAccountModal(existing) {
     onKontoinhaberChange();   // Adressblock je nach Kontoinhaber ein-/ausblenden
     document.getElementById('baZahlungsreferenz').value = existing?.zahlungsreferenz ?? '';
     document.getElementById('baBemerkung').value = existing?.bemerkung ?? '';
-    document.getElementById('baValidFrom').value = existing?.validFrom ?? today;
+    const validFromEl = document.getElementById('baValidFrom');
+    validFromEl.value = existing?.validFrom ?? today;
     document.getElementById('baValidTo').value   = existing?.validTo ?? '';
+
+    // Lohnlauf-Sperre: min-Date für ValidFrom auf erstes freies Datum setzen.
+    // Beim Edit lassen wir's offen (das alte ValidFrom darf nicht künstlich
+    // nach vorne springen — der existing-Datensatz ist sowieso nur editierbar
+    // wenn die Bank NICHT inLohnVerwendet ist, sonst wird der Bleistift gar
+    // nicht angezeigt).
+    if (window.lohnEditLock && !existing && typeof fixedCompanyProfileId !== 'undefined') {
+        const state = await window.lohnEditLock.loadState(fixedCompanyProfileId);
+        window.lohnEditLock.applyToDateInput(validFromEl, state);
+        // Default ggf. nach vorne ziehen
+        if (state.firstAllowedDate && validFromEl.value < state.firstAllowedDate) {
+            validFromEl.value = state.firstAllowedDate;
+        }
+    }
     document.getElementById('baIsHauptbank').checked = existing?.isHauptbank ?? true;
     document.getElementById('baAufteilungTyp').value = existing?.aufteilungTyp ?? 'VOLL';
     document.getElementById('baAufteilungWert').value = existing?.aufteilungWert ?? '';
@@ -4949,6 +5253,7 @@ async function saveBankAccount() {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             let msg = 'Fehler beim Speichern.';
             try { const j = await res.json(); if (j.message) msg = j.message; } catch {}
@@ -4969,6 +5274,7 @@ async function deleteBankAccount(id) {
     if (!confirm('Bankverbindung wirklich löschen?')) return;
     try {
         const res = await fetch(`/api/employee-bank-accounts/${id}`, { method: 'DELETE', headers: ah() });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
         loadBankAccountsTab(selectedEmployeeId);
         _empIdsWithActiveBank = null;  // Cache invalidieren (siehe saveBankAccount)
@@ -5370,10 +5676,12 @@ async function postfachUnlock(employeeId) {
 async function postfachBackfillRun() {
     if (!confirm(
         'Postfach-Backfill ausführen?\n\n' +
-        'Für alle aktiven Mitarbeiter ohne Postfach-Account wird einer mit Initial-' +
-        'Passwort (Filial-Präfix + Personalnummer) angelegt. Bestehende Accounts ' +
-        'bleiben unverändert.\n\n' +
-        'Vorgang ist idempotent und kann mehrfach ausgeführt werden.'
+        'Für alle aktiven Mitarbeiter ohne Postfach-Account wird einer angelegt.\n' +
+        '  • Username = Personalnummer\n' +
+        '  • Initial-Passwort = Personalnummer (= Username)\n' +
+        '  • Beim ersten Login muss der MA das Passwort zwingend wechseln.\n\n' +
+        'Bestehende Accounts bleiben unverändert. Vorgang ist idempotent und ' +
+        'kann beliebig oft ausgeführt werden.'
     )) return;
 
     try {
@@ -5684,6 +5992,7 @@ async function savePermitHistoryEntry(entryId) {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(dto)
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             const j = await res.json().catch(() => ({}));
             errEl.textContent = j.error || ('Fehler beim Speichern (' + res.status + ')');
@@ -5710,6 +6019,7 @@ async function deletePermitHistoryEntry(entryId) {
         const res = await fetch(`/api/employees/${selectedEmployeeId}/permit-history/${entryId}`, {
             method: 'DELETE', headers: ah()
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
         await loadPermitHistory(selectedEmployeeId);
         if (typeof loadSelectedEmployeeAndRender === 'function') {

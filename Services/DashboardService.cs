@@ -187,6 +187,52 @@ public class DashboardService
             });
         }
 
+        // ── 3b) Austritt erfasst, aber MA noch aktiv (Walter 18.05.2026) ──
+        // Walter pflegt das Aktiv-Flag bewusst manuell — der Auto-Sync aus
+        // ExitDate wurde entfernt. Damit MA aus letzten Lohnzetteln nicht
+        // versehentlich aktiv bleiben, zeigen wir hier eine Reminder-Liste.
+        // Hinweis erscheint sobald ExitDate erreicht ist; Walter entscheidet
+        // wann er den Haken in der MA-Maske wegnimmt (typisch: nach der
+        // letzten Lohnabrechnung des Monats).
+        var exitPendingQ = _db.Employees
+            .Where(e => e.IsActive
+                     && e.ExitDate.HasValue
+                     && e.ExitDate.Value.Date <= now
+                     && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+        if (companyProfileId.HasValue)
+        {
+            // MA hat in einer der Filialen einen Vertrag → filtere auf passende.
+            exitPendingQ = exitPendingQ.Where(e =>
+                e.Employments.Any(em => em.CompanyProfileId == companyProfileId.Value));
+        }
+        var exitPendingList = await exitPendingQ.ToListAsync();
+        foreach (var e in exitPendingList)
+        {
+            var exitDate = e.ExitDate!.Value;
+            var daysAfter = (now - exitDate.Date).Days;
+            alerts.Add(new DashboardAlert
+            {
+                Category = "exit_pending_active",
+                // Nach 30 Tagen kritisch — bis dahin nur Hinweis.
+                Severity = daysAfter > 30 ? "critical" : "warning",
+                Title    = $"Austritt am {exitDate:dd.MM.yyyy} — MA noch aktiv",
+                TitleKey = "alert.exit.pending_active",
+                TitleArgs = new Dictionary<string, object> { ["date"] = exitDate.ToString("dd.MM.yyyy") },
+                Subtitle = $"{e.FirstName} {e.LastName} · Personalnr. {e.EmployeeNumber} · {daysAfter} Tag(e) nach Austritt",
+                SubtitleKey  = "subtitle.exitPendingActive",
+                SubtitleArgs = new Dictionary<string, object> {
+                    ["name"] = $"{e.FirstName} {e.LastName}".Trim(),
+                    ["empNr"] = e.EmployeeNumber,
+                    ["days"] = daysAfter
+                },
+                DueDate  = exitDate,
+                DaysUntil = -daysAfter,
+                EmployeeId     = e.Id,
+                EmployeeNumber = e.EmployeeNumber,
+                EmployeeName   = $"{e.FirstName} {e.LastName}".Trim()
+            });
+        }
+
         // ── 4) Lohnperioden warten auf Aktion ──────────────────────────────
         var lohnQ = _db.PayrollPerioden
             .Include(p => p.Company)

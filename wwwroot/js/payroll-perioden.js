@@ -71,40 +71,102 @@ async function perLoadPerioden() {
 
         tbody.innerHTML = list.map(p => {
             const isAbgeschlossen = p.status === 'abgeschlossen';
-            const statusBadge = isAbgeschlossen
-                ? `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">Abgeschlossen</span>`
-                : `<span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">Offen</span>`;
+            const isProvisorisch  = p.status === 'provisorisch_abgeschlossen';
+
+            // Definitivlauf-Pille
+            let defBadge;
+            if (isAbgeschlossen)
+                defBadge = `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600" title="Definitivlauf vollständig abgeschlossen">Def. abgeschlossen</span>`;
+            else if (isProvisorisch)
+                defBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600" title="Definitivlauf wartet auf HR-Abschluss">Def. bei HR</span>`;
+            else
+                defBadge = `<span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">Def. offen</span>`;
+
+            // Akonto-Pille (neue Anzeige): zeigt den parallelen Akonto-Workflow-Status
+            const akS = (p.akontoStatus || 'OFFEN').toUpperCase();
+            const akontoMap = {
+                'OFFEN':              { lbl: 'Akonto offen',   bg: '#f1f5f9', fg: '#64748b' },
+                'IN_BEARBEITUNG_GF':  { lbl: 'Akonto bei GF',  bg: '#e0f2fe', fg: '#0369a1' },
+                'BEI_HR':             { lbl: 'Akonto bei HR',  bg: '#fef3c7', fg: '#92400e' },
+                'HR_FREIGEGEBEN':     { lbl: 'Akonto HR-frei', bg: '#dbeafe', fg: '#1e40af' },
+                'AUSBEZAHLT':         { lbl: 'Akonto bezahlt', bg: '#dcfce7', fg: '#166534' }
+            };
+            const akI = akontoMap[akS] || akontoMap['OFFEN'];
+            const akBadge = `<span style="background:${akI.bg};color:${akI.fg};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600" title="Akonto-Workflow-Status">${akI.lbl}</span>`;
+
+            // Kombi-Zelle: zwei Pillen untereinander
+            const statusCell = `<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start">${akBadge}${defBadge}</div>`;
 
             const abschlussAm = p.abgeschlossenAm
                 ? new Date(p.abgeschlossenAm).toLocaleDateString('de-CH')
-                : '–';
+                : (p.akontoAusbezahltAt
+                    ? new Date(p.akontoAusbezahltAt).toLocaleDateString('de-CH') + ' (Ak.)'
+                    : '–');
 
-            // Löschen-Button: nur bei status='offen' UND keine bestätigten
-            // Lohnzettel. Erlaubt dem Admin/Superuser, eine versehentlich
-            // angelegte Periode zu entfernen. Bei vorhandenen Snapshots
-            // blockt das Backend ohnehin → wir blenden den Button schon im
-            // UI aus, damit der User nicht ins offene Messer läuft.
-            const canDelete = !isAbgeschlossen
+            // Löschen-Button: nur wenn ALLES offen ist.
+            // Walter-Vorgabe 17.05.2026: Akonto-Status muss OFFEN sein,
+            // sonst hängen Akonto-Datensätze + Workflow-Audit dran.
+            const akontoOffen = akS === 'OFFEN';
+            const canDelete   = !isAbgeschlossen
+                              && !isProvisorisch
                               && p.status === 'offen'
-                              && (p.snapshotCount || 0) === 0;
+                              && akontoOffen
+                              && (p.snapshotCount || 0) === 0
+                              && (p.akontoCount  || 0) === 0;
             const deleteBtn = canDelete
                 ? ` <button class="btn btn-sm btn-outline" style="color:#b91c1c;border-color:#fca5a5"
                             onclick="perDelete(${p.id},'${(p.label || '').replace(/'/g, "\\'")}')">🗑 Löschen</button>`
                 : '';
+
+            // Abschliessen-Button: nur bei vollem Definitiv-Offen sinnvoll
+            const abschliessenBtn = (!isAbgeschlossen && !isProvisorisch)
+                ? `<button class="btn btn-sm btn-outline" style="color:#0284c7;border-color:#7dd3fc" onclick="perAbschliessen(${p.id},'${p.label}')">Abschliessen</button>`
+                : '';
+
+            // Akonto-Reset-Button (admin-only, Walter-Vorgabe 17.05.2026):
+            // erscheint wenn AkontoStatus != OFFEN. Setzt die Periode aktiv
+            // zurück damit lohnrelevante Edits wieder möglich werden. Audit-
+            // Trail wird im Backend geschrieben.
+            const isAdmin = (typeof currentUser !== 'undefined' && currentUser?.role === 'admin');
+            const akontoResetBtn = (isAdmin && !akontoOffen)
+                ? `<button class="btn btn-sm btn-outline" style="color:#92400e;border-color:#fcd34d;background:#fffbeb"
+                            onclick="perAkontoReset(${p.companyProfileId},${p.year},${p.month},'${(p.label || '').replace(/'/g, "\\'")}')"
+                            title="Akonto-Workflow dieser Periode komplett zurücksetzen — danach sind Lohn-Edits wieder möglich">↺ Akonto zurücksetzen</button>`
+                : '';
+
+            // Akonto-DTA-Download (Walter 17.05.2026, Phase 3d): bei AUSBEZAHLT
+            // kann das pain.001-XML jederzeit re-downloaded werden.
+            const akontoDtaBtn = (akS === 'AUSBEZAHLT')
+                ? `<button class="btn btn-sm btn-outline" style="color:#0369a1;border-color:#7dd3fc"
+                            onclick="perAkontoDtaDownload(${p.companyProfileId},${p.year},${p.month})"
+                            title="pain.001-DTA-File für diesen Akonto-Lauf herunterladen">📥 Akonto-DTA</button>`
+                : '';
+            // Akonto-Liste als PDF (Walter 18.05.2026): Begleitliste zum DTA,
+            // Buchhaltungs-Beleg. Verfügbar sobald der Akonto-Workflow gestartet
+            // wurde (auch in der HR-Kontrolle, nicht nur nach AUSBEZAHLT).
+            const akontoListeBtn = (akS !== 'OFFEN')
+                ? `<button class="btn btn-sm btn-outline" style="color:#0369a1;border-color:#7dd3fc"
+                            onclick="perAkontoListePdf(${p.companyProfileId},${p.year},${p.month})"
+                            title="Akonto-Zahlungsliste als PDF herunterladen">📄 Akonto-Liste</button>`
+                : '';
+
             const actions = isAbgeschlossen
-                ? `<button class="btn btn-sm btn-outline" onclick="perShowSnapshots(${p.id},'${p.label}')">Details</button>`
-                : `<button class="btn btn-sm btn-outline" style="color:#0284c7;border-color:#7dd3fc" onclick="perAbschliessen(${p.id},'${p.label}')">Abschliessen</button>
+                ? `${akontoListeBtn}${akontoDtaBtn}<button class="btn btn-sm btn-outline" onclick="perShowSnapshots(${p.id},'${p.label}')">Details</button>`
+                : `${abschliessenBtn}
+                   ${akontoListeBtn}
+                   ${akontoDtaBtn}
+                   ${akontoResetBtn}
                    <button class="btn btn-sm btn-outline" onclick="perShowSnapshots(${p.id},'${p.label}')">Details</button>${deleteBtn}`;
 
             return `<tr>
-                <td style="font-weight:600">${p.label}${p.isTransition ? ' <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px">Übergang</span>' : ''}</td>
+                <td style="font-weight:600">${p.label}</td>
                 <td>${fmtDateDe(p.periodFrom)}</td>
                 <td>${fmtDateDe(p.periodTo)}</td>
                 <td style="text-align:center">${p.snapshotCount}</td>
                 <td style="text-align:center;color:${p.finalCount === p.snapshotCount && p.snapshotCount > 0 ? '#16a34a' : '#94a3b8'};font-weight:600">${p.finalCount}</td>
-                <td>${statusBadge}</td>
+                <td>${statusCell}</td>
                 <td style="font-size:12px;color:#64748b">${abschlussAm}</td>
-                <td style="display:flex;gap:6px">${actions}</td>
+                <td style="display:flex;gap:6px;flex-wrap:wrap">${actions}</td>
             </tr>`;
         }).join('');
     } catch(e) {
@@ -123,7 +185,7 @@ async function perOpenNewModal() {
     let existingMonths = new Set();
     try {
         const r = await fetch(`/api/payroll-perioden?companyProfileId=${cid}&year=${year}`, { headers: ah() });
-        if (r.ok) { const list = await r.json(); list.forEach(p => { if (!p.isTransition) existingMonths.add(p.month); }); }
+        if (r.ok) { const list = await r.json(); list.forEach(p => existingMonths.add(p.month)); }
     } catch {}
 
     // Modal aufbauen
@@ -186,19 +248,10 @@ async function perCreateMonth(cid, year, month) {
             body: JSON.stringify({ companyProfileId: cid, year, month, label: null })
         });
         if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error || e.message || 'Fehler'); }
-        const r = await res.json().catch(() => ({}));
-        // Übergangs-Info anzeigen: entweder die geöffnete Periode IST eine
-        // Übergangsperiode (Truncation) oder es wurde zusätzlich eine
-        // Übergangsperiode erzeugt (Gap-Fill).
-        if (r.isTransition || r.extraTransitionPeriode) {
-            const msg = r.transition || 'Übergangsperiode automatisch erzeugt.';
-            const detail = r.extraTransitionPeriode
-                ? `\n\nZusätzliche Übergangsperiode: ${r.extraTransitionPeriode.label} (${fmtDateDe(r.extraTransitionPeriode.periodFrom)} – ${fmtDateDe(r.extraTransitionPeriode.periodTo)})`
-                : '';
-            alert(`${monthNames[month]} ${year} angelegt — als Übergangsperiode.\n\n${msg}${detail}`);
-        } else {
-            showToast(`${monthNames[month]} ${year} angelegt`, 'success');
-        }
+        await res.json().catch(() => ({}));
+        // Walter-Vorgabe 20.05.2026: keine Übergangsperioden mehr — Periode
+        // ist immer der Kalendermonat.
+        showToast(`${monthNames[month]} ${year} angelegt`, 'success');
         document.getElementById('perNewModal')?.remove();
         perLoadPerioden();
     } catch(e) { alert(e.message); }
@@ -267,6 +320,117 @@ async function perDelete(periodeId, label) {
         showToast(`Periode «${label}» gelöscht`, 'success');
         perLoadPerioden();
     } catch(e) { alert('Löschen fehlgeschlagen: ' + e.message); }
+}
+
+// ── Akonto-Zahlungsliste-PDF (Walter 18.05.2026) ─────────────────────────
+// Begleitliste zum DTA + Buchhaltungs-Beleg. On-demand generiert.
+async function perAkontoListePdf(cpId, year, month) {
+    try {
+        const r = await fetch(`/api/akonto/workflow/liste-pdf?companyProfileId=${cpId}&year=${year}&month=${month}`, {
+            headers: { Authorization: 'Bearer ' + (localStorage.hrToken || '') }
+        });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('PDF-Download fehlgeschlagen: ' + (j.error || `HTTP ${r.status}`));
+            return;
+        }
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Akonto_Liste_${cpId}_${year}-${String(month).padStart(2,'0')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// ── Akonto-DTA-Download (Walter 17.05.2026, Phase 3d) ────────────────────
+// On-demand-Generierung des pain.001-XML aus der DB. Re-Download jederzeit
+// möglich solange Periode AUSBEZAHLT ist.
+async function perAkontoDtaDownload(cpId, year, month) {
+    try {
+        const r = await fetch(`/api/akonto/workflow/dta?companyProfileId=${cpId}&year=${year}&month=${month}`, {
+            headers: { Authorization: 'Bearer ' + (localStorage.hrToken || '') }
+        });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('DTA-Download fehlgeschlagen: ' + (j.error || `HTTP ${r.status}`));
+            return;
+        }
+        const blob = await r.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url;
+        a.download = `Akonto_DTA_${cpId}_${year}-${String(month).padStart(2,'0')}.xml`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// ── Akonto-Reset (Admin-Notfall, Walter-Vorgabe 17.05.2026) ─────────────
+// Setzt den Akonto-Workflow einer Periode komplett zurück auf OFFEN.
+// Voraussetzung damit der GF (und alle anderen) wieder lohnrelevante Daten
+// dieser Periode editieren dürfen — sonst greift der LohnEditLockService.
+async function perAkontoReset(cpId, year, month, label) {
+    const warn =
+        `Akonto-Workflow für «${label}» wirklich KOMPLETT zurücksetzen?\n\n` +
+        `Konsequenzen:\n` +
+        `  • Alle berechneten / freigegebenen Akonto-Lohnzettel werden gelöscht\n` +
+        `  • Bereits AUSBEZAHLTE Zahlungen werden auf STORNIERT gesetzt (Beleg bleibt)\n` +
+        `  • Der Status der Periode geht zurück auf OFFEN\n` +
+        `  • Audit-Eintrag wird geschrieben\n\n` +
+        `Danach kann der GF die Akonto-Vorbereitung neu starten und lohnrelevante Edits werden wieder zugelassen.`;
+    if (!confirm(warn)) return;
+
+    // Walter-Vorgabe 19.05.2026: Pflicht-Bestätigung dass der DTA bei der
+    // Bank gelöscht wurde — sonst läuft die Akonto-Zahlung doppelt. Backend
+    // sperrt zusätzlich nach dem Klick-Datum (PAYOUT_DATE_REACHED).
+    if (!confirm(
+        'Hast du den DTA bei der Bank gelöscht oder storniert?\n\n' +
+        '✓ JA → Reset wird durchgeführt.\n' +
+        '✗ NEIN → Vorgang abbrechen.\n\n' +
+        'Der Reset ist NUR am Tag der Auszahlung möglich — danach hat die Bank\n' +
+        'die Zahlungen ausgeführt und die Periode ist betoniert.'
+    )) return;
+
+    const grund = prompt('Bitte den Grund für das Zurücksetzen erfassen (wird im Audit gespeichert):', '');
+    if (grund === null) return;          // User hat abgebrochen
+    if (!grund.trim()) { alert('Grund ist Pflichtfeld.'); return; }
+
+    try {
+        const res = await fetch('/api/akonto/workflow/reset-periode', {
+            method:  'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                companyProfileId: cpId,
+                year, month,
+                grund: grund.trim()
+            })
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            // Zahldatum-Lock (PAYOUT_DATE_REACHED) klar erkennbar machen
+            if (e.error === 'PAYOUT_DATE_REACHED') {
+                alert('⛔ ' + e.message);
+                return;
+            }
+            throw new Error(e.error || e.message || `HTTP ${res.status}`);
+        }
+        const r = await res.json();
+        if (window.lohnEditLock) window.lohnEditLock.invalidateCache();
+        showToast(`Akonto «${label}» zurückgesetzt (${r.gelöscht ?? 0} gelöscht, ${r.storniert ?? 0} storniert)`, 'success');
+        perLoadPerioden();
+    } catch(e) {
+        alert('Zurücksetzen fehlgeschlagen: ' + e.message);
+    }
 }
 
 async function perShowSnapshots(periodeId, label) {

@@ -75,6 +75,7 @@ window.i18n = (function () {
         'dash.cat.permitExpiring':   { de: 'Bewilligungen laufen ab', en: 'Permits expiring' },
         'dash.cat.qstMissing':       { de: 'QST-Anmeldung fehlt',   en: 'Withholding tax filing missing' },
         'dash.cat.contractEnding':   { de: 'Vertrag läuft aus',     en: 'Contract ending' },
+        'dash.cat.exitPendingActive':{ de: 'Austritt offen — MA noch aktiv', en: 'Exit pending — employee still active' },
         'dash.cat.probationEnding':  { de: 'Probezeit endet',       en: 'Probation ending' },
         'dash.cat.birthday':         { de: 'Geburtstage',           en: 'Birthdays' },
         'dash.cat.anniversary':      { de: 'Dienstjubiläen',        en: 'Service anniversaries' },
@@ -113,6 +114,8 @@ window.i18n = (function () {
                                              en: 'Probation period ends in {days} days' },
         'alert.contract.ends_in_days':    { de: 'Befristeter Vertrag endet in {days} Tagen',
                                              en: 'Fixed-term contract ends in {days} days' },
+        'alert.exit.pending_active':      { de: 'Austritt am {date} — MA noch aktiv',
+                                             en: 'Exit on {date} — employee still active' },
         'alert.payroll.waits_for_final':  { de: 'Lohn {monthName} {year} wartet auf Definitiv-Abschluss',
                                              en: 'Payroll {monthName} {year} awaiting final close' },
         'alert.birthday.today':           { de: '🎂 Heute Geburtstag — {age} Jahre',
@@ -139,6 +142,8 @@ window.i18n = (function () {
                                              en: 'Branch: {code} — {name}' },
         'subtitle.minWageDetails':        { de: '{name} · {model}/{jobGrp} · Aktuell {current}{unit}, Minimum {minimum}{unit}',
                                              en: '{name} · {model}/{jobGrp} · Current {current}{unit}, minimum {minimum}{unit}' },
+        'subtitle.exitPendingActive':     { de: '{name} · Personalnr. {empNr} · {days} Tag(e) nach Austritt',
+                                             en: '{name} · Personnel #{empNr} · {days} day(s) after exit' },
 
         // ── Relative Datums-Phrasen (frontend-only) ──
         'relative.daysOverdue':           { de: '{days} Tage überfällig',

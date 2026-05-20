@@ -23,6 +23,14 @@ async function deleteContract(employeeId, contractId, startDateIso) {
         let res = await callDelete(false);
         if (res.status === 409) {
             const body = await res.json().catch(() => ({}));
+            // LOHN_EDIT_LOCKED ist NICHT mit ?force=true umgehbar — zeigt
+            // klare Meldung und bricht ab. Nur das hasFinalPayroll-409
+            // bietet force-Option.
+            if (body.error === 'LOHN_EDIT_LOCKED') {
+                if (typeof showToast === 'function') showToast(body.message, 'error');
+                else alert(body.message);
+                return;
+            }
             const msg = body.error || _t('vt.err.payrollExists');
             if (!confirm(_t('vt.err.confirmForceDelete', { msg }))) return;
             res = await callDelete(true);
@@ -488,6 +496,16 @@ async function saveContractEdit() {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+        // Lohnlauf-Sperre: 409 LOHN_EDIT_LOCKED → klare Meldung im Modal,
+        // kein Retry mit Force.
+        if (res.status === 409) {
+            const body = await res.clone().json().catch(() => ({}));
+            if (body && body.error === 'LOHN_EDIT_LOCKED') {
+                errEl.textContent = body.message || 'Vertrag in einer verarbeiteten Periode — keine Änderungen möglich.';
+                if (window.lohnEditLock) window.lohnEditLock.invalidateCache();
+                return;
+            }
+        }
         if (!res.ok) {
             const txt = await res.text().catch(() => '');
             let msg = 'Fehler ' + res.status;
@@ -1144,6 +1162,14 @@ async function saveEmployment() {
     };
     try {
         const res = await fetch('/api/employments', { method: 'POST', headers: ah(), body: JSON.stringify(payload) });
+        // Lohnlauf-Sperre: rückwirkender Vertragsbeginn → 409
+        if (res.status === 409) {
+            const body = await res.clone().json().catch(() => ({}));
+            if (body && body.error === 'LOHN_EDIT_LOCKED') {
+                if (saveResult) saveResult.innerHTML = `<span class="txt-warn">${body.message}</span>`;
+                return;
+            }
+        }
         if (!res.ok) { const text = await res.text(); if (saveResult) saveResult.innerHTML = `<span class="txt-warn">Fehler: ${text}</span>`; return; }
         const result = await res.json();
         const newId = result.employment?.id ?? result.id;
@@ -1344,7 +1370,14 @@ async function confirmVtImport() {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (!res.ok) { 
+        if (res.status === 409) {
+            const body = await res.clone().json().catch(() => ({}));
+            if (body && body.error === 'LOHN_EDIT_LOCKED') {
+                document.getElementById('vtImportAlert').innerHTML = `<div class="alert alert-err">${body.message}</div>`;
+                return;
+            }
+        }
+        if (!res.ok) {
             document.getElementById('vtImportAlert').innerHTML = `<div class="alert alert-err">Fehler: ${await res.text()}</div>`;
             return; 
         }

@@ -25,6 +25,7 @@ const DASH_CATEGORY_META = {
     permit_expiring:        { i18nKey: 'dash.cat.permitExpiring',   label: 'Bewilligungen',          icon: '🪪', color: '#b91c1c' },
     probation_end:          { i18nKey: 'dash.cat.probationEnding',  label: 'Probezeit',              icon: '📋', color: '#92400e' },
     contract_end:           { i18nKey: 'dash.cat.contractEnding',   label: 'Vertragsende',           icon: '📅', color: '#92400e' },
+    exit_pending_active:    { i18nKey: 'dash.cat.exitPendingActive',label: 'Austritt offen',         icon: '🚪', color: '#b91c1c' },
     lohn_provisorisch:      { i18nKey: 'dash.cat.payrollOpen',      label: 'Lohnlauf',               icon: '💰', color: '#0369a1' },
     birthday:               { i18nKey: 'dash.cat.birthday',         label: 'Geburtstage',            icon: '🎂', color: '#9333ea' },
     anniversary:            { i18nKey: 'dash.cat.anniversary',      label: 'Dienstjubiläen',         icon: '🎉', color: '#15803d' }

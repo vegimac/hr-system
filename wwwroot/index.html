@@ -1808,17 +1808,20 @@
         /* Kompakt-Modus: Schriften wie im Original, aber Padding/Margins
            und Line-Heights deutlich reduziert. Macht den Lohnzettel
            kompakter ohne Lesbarkeit zu opfern. */
-        .ls-wrap { padding:14px 22px;font-size:13px;color:#1e293b;max-width:860px;line-height:1.35; }
-        .ls-header { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px; }
-        .ls-company { font-size:12px;line-height:1.4;color:#334155; }
-        .ls-title-center { font-size:16px;font-weight:700;color:#1e293b;text-align:right; }
-        .ls-recipient { font-size:13px;line-height:1.4;margin-bottom:8px; }
-        .ls-date-line { font-size:13px;margin-bottom:2px; }
-        .ls-period-label { font-size:13px;font-weight:600;margin-bottom:6px; }
+        /* Walter 19.05.2026: enger als Original, aber Schrift wieder etwas
+           grösser (Walter-Update: MA-Name aus Header ist raus → mehr Platz
+           → Lesbarkeit über Kompaktheit). */
+        .ls-wrap { padding:6px 18px 4px;font-size:13px;color:#1e293b;max-width:860px;line-height:1.25; }
+        .ls-header { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px; }
+        .ls-company { font-size:12px;line-height:1.3;color:#334155; }
+        .ls-title-center { font-size:15px;font-weight:700;color:#1e293b;text-align:right; }
+        .ls-recipient { font-size:13px;line-height:1.3;margin-bottom:5px; }
+        .ls-date-line { font-size:13px;margin-bottom:1px; }
+        .ls-period-label { font-size:13px;font-weight:600;margin-bottom:4px; }
         .ls-table { width:100%;border-collapse:collapse;font-size:12.5px; }
-        .ls-table th { text-align:left;border-bottom:1px solid #1e293b;padding:3px 5px;font-size:11px;font-weight:600;color:#475569; }
+        .ls-table th { text-align:left;border-bottom:1px solid #1e293b;padding:2px 5px;font-size:11px;font-weight:600;color:#475569; }
         .ls-table th.ls-num, .ls-table th.ls-amt { text-align:right; }
-        .ls-table td { padding:2px 5px;vertical-align:top;line-height:1.3; }
+        .ls-table td { padding:1px 5px;vertical-align:top;line-height:1.25; }
         .ls-desc { width:auto;white-space:nowrap; }
         .ls-num  { width:1%;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:12px; }
         .ls-amt  { width:1%;text-align:right;font-variant-numeric:tabular-nums;font-weight:500;white-space:nowrap;padding-left:12px; }
@@ -1826,9 +1829,9 @@
         .ls-total-row td { font-weight:700;border-top:1px solid #e2e8f0;padding-top:2px; }
         .ls-netto-row td { font-weight:700;font-size:14px;border-top:2px solid #1e293b;padding-top:3px;padding-bottom:2px; }
         .ls-col-hd th { border-bottom:1px solid #e2e8f0;padding:3px 5px 1px;font-size:10.5px;font-weight:500;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px; }
-        .ls-hours-box { margin-top:10px;background:#f8fafc;border-radius:8px;padding:8px 12px;font-size:12px; }
+        .ls-hours-box { margin-top:6px;background:#f8fafc;border-radius:6px;padding:6px 10px;font-size:12px; }
         .ls-hours-row { display:flex;justify-content:space-between;padding:1px 0;color:#475569; }
-        .ls-thirteenth { margin-top:8px;border-top:1px solid #e2e8f0;padding-top:6px;font-size:12px;line-height:1.5;color:#475569; }
+        .ls-thirteenth { margin-top:5px;border-top:1px solid #e2e8f0;padding-top:4px;font-size:12px;line-height:1.4;color:#475569; }
         .stamp-abs-hours { font-size: 12px; font-weight: 600; color: #16a34a; margin-left: 8px; }
         .btn-stamp-edit, .btn-stamp-del {
             border: none; border-radius: 5px; padding: 3px 7px; cursor: pointer; font-size: 13px;
@@ -2256,8 +2259,12 @@
                                 <select id="empSpecialFilter"
                                         onchange="setEmpSpecialFilter(this.value)"
                                         style="width:100%;padding:5px 8px;font-size:11.5px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer">
-                                    <option value="" data-i18n="ma.filter.allEmployees">Alle Mitarbeiter (kein Spezialfilter)</option>
-                                    <option value="no-bank" data-i18n="ma.filter.noBank">Ohne Bankverbindung</option>
+                                    <option value="">Alle Mitarbeiter</option>
+                                    <option value="no-bank">Ohne Bankverbindung</option>
+                                    <option value="no-permit">Keine Bewilligung</option>
+                                    <option value="permit-expired">Bewilligung abgelaufen</option>
+                                    <option value="qst-pflichtig">Quellensteuerpflichtig</option>
+                                    <option value="no-contract">Ohne Vertrag</option>
                                 </select>
                             </div>
                             <div class="emp-list-scroll" id="empList">
@@ -2415,6 +2422,18 @@
                         <div class="emp-list-panel">
                             <div class="emp-list-search">
                                 <input class="emp-search-input" id="vtSearch" type="text" data-i18n-placeholder="vt.search" placeholder="Suchen..." oninput="filterVtList()">
+                            </div>
+                            <!-- Aktiv/Inaktiv/Alle-Filter analog Mitarbeiter-Liste
+                                 (Walter-Vorgabe 18.05.2026: auch in Verträge-Page
+                                 möglich, weil ein MA evtl. noch nachträglich einen
+                                 Vertrag braucht trotz Austritt in der Vergangenheit). -->
+                            <div style="display:flex;gap:0;padding:0 12px 8px;border-bottom:1px solid #e2e8f0">
+                                <button id="vtFilterAktiv"   onclick="setVtFilter('aktiv')"
+                                    style="flex:1;padding:6px 8px;font-size:11.5px;font-weight:600;background:#3b82f6;color:white;border:none;border-radius:6px 0 0 6px;cursor:pointer">Aktive</button>
+                                <button id="vtFilterInaktiv" onclick="setVtFilter('inaktiv')"
+                                    style="flex:1;padding:6px 8px;font-size:11.5px;font-weight:600;background:#f1f5f9;color:#475569;border:none;cursor:pointer">Inaktive</button>
+                                <button id="vtFilterAlle"    onclick="setVtFilter('alle')"
+                                    style="flex:1;padding:6px 8px;font-size:11.5px;font-weight:600;background:#f1f5f9;color:#475569;border:none;border-radius:0 6px 6px 0;cursor:pointer">Alle</button>
                             </div>
                             <div class="emp-list-scroll" id="vtList">
                                 <div class="emp-no-selection" style="height:200px">
@@ -2638,26 +2657,57 @@
                             <select id="lohnYearSelect"  class="f-input" style="height:30px;font-size:13px;padding:2px 8px;max-width:80px" onchange="loadLohnSlipFromPanel()"></select>
                         </div>
 
-                        <!-- Definitiv-Periodenbanner (Status-Pille + Bemerkung-Button) —
-                             nur im Definitiv-Modus sichtbar, im Akonto-Modus ausgeblendet -->
+                        <!-- Definitiv-Status (Pille + Counter + Bemerkung) — nur Anzeige.
+                             Die Aktionen (An HR senden etc.) sitzen rechts in lohnTopActions
+                             bei den anderen GF/HR-Buttons (Walter-Vorgabe 20.05.2026). -->
                         <div id="lohnPeriodBanner" style="display:none"></div>
 
                         <span id="lohnModeHint" style="display:none"></span><!-- Hint-Text deaktiviert; setLohnMode setzt ihn weiterhin, hier permanent versteckt -->
 
-                        <!-- Aktions-Block rechts -->
-                        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    </div><!-- /Toolbar-Zeile (Modus + Filiale + Periode + Status-Info) -->
+
+                    <!-- Aktions-Zeile (Walter-Vorgabe 20.05.2026): eigene Zeile UNTER
+                         der Toolbar, rechtsbündig. NIE in die oberste Toolbar-Zeile
+                         rechts — dort verdeckt der position:fixed #langSwitcher
+                         (Sprache/Dunkel) die Buttons. -->
+                    <div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
                             <div id="lohnTopActions" style="display:none;gap:8px;align-items:center;flex-wrap:wrap">
                                 <button class="btn btn-outline" onclick="exportLohnPdf()">PDF</button>
+                                <!-- Walter-Vorgabe 18.05.2026: Sammel-Aktionen
+                                     gehören in den GF/HR-Lohnlauf (page-lohn) —
+                                     Lohnperioden-Modul bleibt admin-only. Beide
+                                     Buttons sind nur sichtbar wenn die Periode
+                                     den jeweiligen Stand erreicht hat (Logik
+                                     in payroll.js → llDefinitivUpdateActions). -->
+                                <button id="btnLohnVorabPdf" class="btn btn-outline" onclick="lohnDownloadVorabPdf()" style="display:none;color:#0369a1;border-color:#7dd3fc" title="Alle Lohnbelege der Periode in einem PDF (4-Augen-Kontrolle, Buchhaltung)">📋 Alle Lohnbelege</button>
+                                <button id="btnLohnDtaMa" class="btn btn-outline" onclick="lohnDownloadDtaMa()" style="display:none;color:#0369a1;border-color:#7dd3fc" title="pain.001-XML für die Bank (Lohnzahlungen)">📥 DTA-File</button>
                                 <button id="btnLohnReopen" class="btn btn-outline" onclick="reopenLohn()" style="display:none;color:#b91c1c;border-color:#fecaca">↻ Wieder eröffnen</button>
                                 <button id="btnLohnBestaetigen" class="btn btn-primary" onclick="confirmLohn()">✓ Lohn bestätigen</button>
+                                <!-- GF-Aktion: Periode an HR senden (sichtbar wenn offen + alle bestätigt).
+                                     Walter-Vorgabe 20.05.2026: gehört zu den GF-Aktionsbuttons, nicht
+                                     oben in die Status-Zeile neben den Sprach-/Theme-Schalter. -->
+                                <button id="btnLohnAnHrSenden" class="btn btn-success" onclick="lohnAnHrSendenAktuell()" style="display:none">An HR senden →</button>
+                                <!-- HR-Aktionen (Walter-Vorgabe 19.05.2026, analog Akonto):
+                                     sichtbar wenn Periode provisorisch_abgeschlossen UND admin/superuser.
+                                     Der „Definitiv abschliessen + DTA"-Button öffnet jetzt das
+                                     Lohnbelege-Modal — dort sieht HR die Belege und löst den
+                                     Versand mit „💰 DTA erstellen + an MA versenden" aus. -->
+                                <button id="btnLohnZurueckAnGf" class="btn btn-outline" onclick="lohnZurueckAnGf()" style="display:none;color:#b91c1c;border-color:#fecaca">↩ Zurück an GF</button>
+                                <!-- HR per-MA: bestätigen + zurückziehen (analog Akonto) -->
+                                <button id="btnLohnHrBestaetigen" class="btn btn-primary" onclick="lohnHrBestaetigen()" style="display:none">✓ HR-bestätigen</button>
+                                <button id="btnLohnHrZurueckziehen" class="btn btn-outline" onclick="lohnHrZurueckziehen()" style="display:none;color:#b91c1c;border-color:#fecaca">↶ HR-Bestätigung zurückziehen</button>
+                                <button id="btnLohnDefinitivAbschliessen" class="btn btn-success" onclick="lohnOpenLohnbelegeModal()" style="display:none" title="Alle Lohnbelege ansehen, drucken und an MA versenden">📑 Lohnbelege + DTA</button>
+                                <!-- Sichtbar nur wenn Periode bereits 'abgeschlossen' — Re-Open
+                                     liegt im Lohnperioden-Modul, aber Vorschau bleibt für HR
+                                     erreichbar. -->
+                                <button id="btnLohnLohnbelegeView" class="btn btn-outline" onclick="lohnOpenLohnbelegeModal()" style="display:none" title="Alle Lohnbelege ansehen / drucken / DTA neu generieren">📑 Lohnbelege ansehen</button>
                             </div>
                             <div id="lohnTopActionsAkonto" style="display:none;gap:8px;align-items:center;flex-wrap:wrap">
                                 <button id="btnAkontoZurueckziehen" class="btn btn-outline" onclick="akWfFreigabeAktuell(false)" style="display:none;color:#b91c1c;border-color:#fecaca">↶ Zurückziehen</button>
                                 <button id="btnAkontoFreigeben"     class="btn btn-primary" onclick="akWfFreigabeAktuell(true)"  style="display:none">✓ Freigeben</button>
                             </div>
                             <button class="btn btn-outline" onclick="lohnTopRefresh()" title="Aktualisieren">&#8635;</button>
-                        </div>
-                    </div>
+                    </div><!-- /Aktions-Zeile -->
 
                     <!-- Sequenz-Banner: zeigt die älteste offene Periode wenn Walter
                          eine spätere wählt (Walter-Vorgabe 16.05.2026 — keine Lücken). -->
@@ -2669,6 +2719,13 @@
 
                     <!-- ═══ DEFINITIV-VIEW (Default — bisheriger Lohnlauf) ═══ -->
                     <div id="lohnDefinitivView">
+                    <!-- Status-Header dynamisch (Walter-Vorgabe 20.05.2026): Periode-
+                         Status-Pille + Counter + ALLE Aktionsbuttons werden hier in
+                         EINER Funktion gerendert (_lohnWfRenderStatusBar in payroll.js)
+                         — exakt analog zum Akonto-Tab (akontoStatusBar). Damit gibt es
+                         nur noch EINE Stelle für Button-Sichtbarkeit; die früher
+                         verstreute Logik (loadLohnSlip + loadLohnPeriodBanner) entfällt. -->
+                    <div id="lohnDefinitivStatusBar" style="margin-bottom:8px"></div>
                     <!-- Drei-Spalten-Layout: MA-Liste | Vertrag + Zulagen | Lohnzettel -->
                     <div style="display:grid;grid-template-columns:270px 340px 1fr;gap:16px;align-items:start">
 
@@ -2703,27 +2760,11 @@
                                     <button class="btn btn-sm btn-primary" onclick="lzOpenForm()">+ Erfassen</button>
                                 </div>
                                 <div id="lohnZulagenList" style="padding:0 18px"></div>
-                                <div id="lohnZulagenForm" style="display:none;padding:14px 18px;background:#f8fafc;border-top:1px solid #e2e8f0">
-                                    <div style="display:grid;grid-template-columns:1fr 130px;gap:10px;margin-bottom:10px">
-                                        <div>
-                                            <label class="f-label">Lohnposition</label>
-                                            <select id="lzLpSel" class="f-input"></select>
-                                        </div>
-                                        <div>
-                                            <label class="f-label">Betrag CHF</label>
-                                            <input type="number" id="lzBetrag" class="f-input" min="0.05" step="0.05" placeholder="0.00">
-                                        </div>
-                                    </div>
-                                    <div style="margin-bottom:10px">
-                                        <label class="f-label">Bemerkung <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
-                                        <input type="text" id="lzBemerkung" class="f-input" placeholder="z.B. 250 km × CHF 0.70">
-                                    </div>
-                                    <input type="hidden" id="lzEditId">
-                                    <div style="display:flex;gap:8px">
-                                        <button class="btn btn-primary" onclick="lzSave()">Speichern</button>
-                                        <button class="btn btn-secondary" onclick="lzCloseForm()">Abbrechen</button>
-                                    </div>
-                                </div>
+                                <!-- Walter 19.05.2026: das Erfassungs-Formular wurde
+                                     aus dieser Card ausgelagert in einen globalen Modal
+                                     (siehe unten lohnZulagenForm-Modal) — damit kann
+                                     der Akonto-Tab dieselbe Form benutzen ohne sie
+                                     duplizieren zu müssen. -->
                             </div>
 
                         </div><!-- /Spalte 2 -->
@@ -2750,9 +2791,10 @@
                         <!-- Status-Header dynamisch: Periode-Status-Badge + Action-Buttons je Stufe -->
                         <div id="akontoStatusBar" style="margin-bottom:8px"></div>
 
-                        <!-- 2-Spalten-Layout: Lohnblatt-Liste links, Detail rechts -->
-                        <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start">
-                            <!-- Lohnblatt-Liste (selbe Optik wie Definitivlauf — Walter 16.05.2026) -->
+                        <!-- 3-Spalten-Layout analog Definitivlauf (Walter 19.05.2026):
+                             MA-Liste | Vertrag-Info + Zulagen/Abzüge | Lohnzettel + Akonto-Box -->
+                        <div style="display:grid;grid-template-columns:270px 340px 1fr;gap:16px;align-items:start">
+                            <!-- Spalte 1: Lohnblatt-Liste -->
                             <div class="card" style="padding:0;overflow:hidden">
                                 <div style="padding:14px 16px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
                                     <div style="font-weight:600;font-size:13px;color:#475569">Mitarbeiter</div>
@@ -2766,7 +2808,29 @@
                                 </div>
                             </div>
 
-                            <!-- Detail-Panel rechts -->
+                            <!-- Spalte 2: Vertrag-Info + Zulagen/Abzüge (Akonto-Variante) -->
+                            <div style="display:flex;flex-direction:column;gap:14px">
+                                <div class="card" id="akWfVertragPanel" style="display:none;padding:16px">
+                                    <div style="font-weight:700;font-size:13px;color:#0f172a;margin-bottom:12px" id="akWfVertragName">–</div>
+                                    <div id="akWfVertragInfo" style="font-size:12px;color:#64748b;line-height:1.8"></div>
+                                </div>
+                                <div class="card" id="akWfVertragEmpty" style="padding:28px;text-align:center;color:#94a3b8">
+                                    <div style="font-size:28px;margin-bottom:6px">👤</div>
+                                    <div style="font-size:13px">Mitarbeiter auswählen</div>
+                                </div>
+                                <!-- Zulagen & Abzüge — gleiche Logik wie Definitiv,
+                                     ruft die existierende lzOpenForm/lzSave-Funktionen
+                                     auf, die intern auf lohnCurrentSlip + Periode arbeiten. -->
+                                <div class="card" id="akWfZulagenPanel" style="display:none;padding:0;overflow:hidden">
+                                    <div style="padding:13px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+                                        <div style="font-weight:600;font-size:13px;color:#475569">Zulagen &amp; Abzüge</div>
+                                        <button class="btn btn-sm btn-primary" onclick="lzOpenForm()">+ Erfassen</button>
+                                    </div>
+                                    <div id="akWfZulagenList" style="padding:0 18px"></div>
+                                </div>
+                            </div>
+
+                            <!-- Spalte 3: Detail-Panel mit Slip + Akonto-Box -->
                             <div>
                                 <div id="akontoDetailEmpty" class="card" style="padding:28px;display:flex;align-items:center;justify-content:center;min-height:300px">
                                     <div style="text-align:center;color:#94a3b8">
@@ -2781,6 +2845,96 @@
                         </div>
                     </div><!-- /lohnAkontoView -->
 
+                </div>
+            </div>
+
+            <!-- Definitivlauf Lohnbelege PDF-Vorschau-Modal (Walter-Vorgabe 19.05.2026):
+                 nach HR-bestätigung im Definitivlauf werden alle Lohnbelege als
+                 zusammengeführtes PDF in einem grossen Modal angezeigt. Footer
+                 enthält Drucken/Speichern UND den finalen Versand-Button (DTA
+                 erstellen + an MA versenden). Endpoint /api/lohnlauf/{id}/vorab-pdf
+                 liefert das gemerged PDF; /api/payroll-perioden/{id}/definitiv-
+                 abschliessen löst den Versand aus (Postfach + E-Mail). -->
+            <div id="lohnLohnbelegePdfModal" style="display:none;position:fixed;inset:0;z-index:1600;background:rgba(0,0,0,0.55)">
+                <div style="position:absolute;top:3vh;left:5vw;right:5vw;bottom:3vh;background:white;border-radius:12px;box-shadow:0 25px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
+                        <div>
+                            <div style="font-size:15px;font-weight:700;color:#0f172a">Lohnbelege Definitivlauf</div>
+                            <div id="lohnLohnbelegePdfTitle" style="font-size:12px;color:#64748b;margin-top:2px">–</div>
+                        </div>
+                        <button onclick="lohnLohnbelegePdfClose()" style="background:transparent;border:none;cursor:pointer;font-size:22px;color:#64748b;padding:4px 10px">×</button>
+                    </div>
+                    <div style="flex:1;background:#1e293b;display:flex;align-items:center;justify-content:center;overflow:hidden">
+                        <iframe id="lohnLohnbelegePdfFrame" style="width:100%;height:100%;border:none;background:white" title="Lohnbelege Vorschau"></iframe>
+                    </div>
+                    <div id="lohnLohnbelegeDispatchInfo" style="display:none;padding:10px 20px;border-top:1px solid #fde68a;background:#fffbeb;color:#78350f;font-size:12px;line-height:1.5">
+                        <b>⚠ Test-Modus aktiv:</b> E-Mails an die Mitarbeiter werden umgeleitet (Empfänger im Subject-Prefix
+                        sichtbar). Lohnbelege werden ins MA-Postfach abgelegt. Erst nach Freigabe des Test-Redirects in den
+                        SMTP-Einstellungen gehen die E-Mails an die echten MA-Adressen.
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid #e2e8f0;background:white;flex-wrap:wrap">
+                        <button class="btn btn-outline" onclick="lohnLohnbelegePdfDownload()">⬇ Vorab-PDF speichern</button>
+                        <button class="btn btn-outline" onclick="lohnLohnbelegePdfPrint()">🖨 Drucken</button>
+                        <button class="btn btn-outline" onclick="lohnDtaMaDownload()" title="pain.001-XML der MA-Lohnauszahlungen">📥 DTA-Datei</button>
+                        <span style="flex:1"></span>
+                        <button id="btnLohnLohnbelegeDispatch" class="btn btn-success" onclick="lohnLohnbelegeDispatch()" title="DTA erstellen, Lohnbelege ins MA-Postfach ablegen und E-Mail an MA senden">💰 DTA erstellen + an MA versenden</button>
+                        <button class="btn btn-outline" onclick="lohnLohnbelegePdfClose()">Schliessen</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Akonto-Liste PDF-Vorschau-Modal (Walter-Vorgabe 19.05.2026):
+                 statt direktem Download wird die Akonto-Liste in einem iframe
+                 angezeigt — mit Druck- und Download-Buttons. Analog QST-Modal. -->
+            <div id="akWfListePdfModal" style="display:none;position:fixed;inset:0;z-index:1600;background:rgba(0,0,0,0.55)">
+                <div style="position:absolute;top:3vh;left:5vw;right:5vw;bottom:3vh;background:white;border-radius:12px;box-shadow:0 25px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
+                        <div>
+                            <div style="font-size:15px;font-weight:700;color:#0f172a">Akonto-Zahlungsliste</div>
+                            <div id="akWfListePdfTitle" style="font-size:12px;color:#64748b;margin-top:2px">–</div>
+                        </div>
+                        <button onclick="akWfListePdfClose()" style="background:transparent;border:none;cursor:pointer;font-size:22px;color:#64748b;padding:4px 10px">×</button>
+                    </div>
+                    <div style="flex:1;background:#1e293b;display:flex;align-items:center;justify-content:center;overflow:hidden">
+                        <iframe id="akWfListePdfFrame" style="width:100%;height:100%;border:none;background:white" title="Akonto-Liste Vorschau"></iframe>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #e2e8f0;background:white">
+                        <button class="btn btn-outline" onclick="akWfListePdfDownload()">⬇ Speichern</button>
+                        <button class="btn btn-outline" onclick="akWfListePdfPrint()">🖨 Drucken</button>
+                        <button class="btn btn-outline" onclick="akWfListePdfClose()">Schliessen</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Globales Zulagen-Erfassungs-Modal (Walter-Vorgabe 19.05.2026):
+                 wird sowohl vom Definitiv- als auch vom Akonto-Tab via lzOpenForm
+                 aufgerufen. Position:fixed mit Overlay, damit das Modal egal in
+                 welchem Tab über dem Content erscheint. -->
+            <div id="lohnZulagenFormOverlay"
+                 style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.35);z-index:1500;align-items:center;justify-content:center;padding:20px"
+                 onclick="if(event.target===this) lzCloseForm()">
+                <div id="lohnZulagenForm"
+                     style="display:none;width:480px;max-width:100%;background:#fff;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,0.18);padding:18px 22px">
+                    <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:12px">Zulage / Abzug erfassen</div>
+                    <div style="display:grid;grid-template-columns:1fr 130px;gap:10px;margin-bottom:10px">
+                        <div>
+                            <label class="f-label">Lohnposition</label>
+                            <select id="lzLpSel" class="f-input"></select>
+                        </div>
+                        <div>
+                            <label class="f-label">Betrag CHF</label>
+                            <input type="number" id="lzBetrag" class="f-input" min="0.05" step="0.05" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:14px">
+                        <label class="f-label">Bemerkung <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+                        <input type="text" id="lzBemerkung" class="f-input" placeholder="z.B. 250 km × CHF 0.70">
+                    </div>
+                    <input type="hidden" id="lzEditId">
+                    <div style="display:flex;gap:8px;justify-content:flex-end">
+                        <button class="btn btn-secondary" onclick="lzCloseForm()">Abbrechen</button>
+                        <button class="btn btn-primary" onclick="lzSave()">Speichern</button>
+                    </div>
                 </div>
             </div>
 
@@ -2982,28 +3136,13 @@
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:12px">
 
-                    <!-- AKTIVE Card: Saldi-Vortrag (Migration vom alten System) -->
-                    <div class="hr-card" style="opacity:1;cursor:pointer" onclick="showPage('lohnlauf')">
-                        <div class="hr-card-head">
-                            <div class="hr-card-icon" style="background:#fef3c7;color:#92400e">
-                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1v22M5 6l14 0M5 12l14 0M5 18l14 0M9 1c0 6 0 16 0 22M15 1c0 6 0 16 0 22"/></svg>
-                            </div>
-                            <div>
-                                <div class="hr-card-title" data-i18n="hr.card.lohnlauf">Lohnlauf</div>
-                                <div class="hr-card-status" style="color:#92400e" data-i18n="hr.status.active">✓ aktiv — Vorabkontrolle, DTA, Abschluss</div>
-                            </div>
-                        </div>
-                        <ul>
-                            <li data-i18n-html="hr.lohnlauf.li1"><b>Vorab-PDF</b> aller Lohnbelege als 4-Augen-Kontrolle</li>
-                            <li data-i18n-html="hr.lohnlauf.li2"><b>An GF senden</b> via Posteingang zur Schlusskontrolle</li>
-                            <li data-i18n-html="hr.lohnlauf.li3"><b>Korrektur-Loop</b> falls GF Anpassungen wünscht</li>
-                            <li data-i18n-html="hr.lohnlauf.li4"><b>Definitiver Abschluss</b> + DTA-Generierung (pain.001)</li>
-                            <li data-i18n-html="hr.lohnlauf.li5"><b>Audit-Log</b> für jeden Status-Übergang</li>
-                            <li style="color:#64748b;font-size:11.5px;margin-top:6px" data-i18n="hr.lohnlauf.note">
-                                Voraussetzung: GF hat alle Lohnzettel bestätigt + provisorischen Abschluss gemacht.
-                            </li>
-                        </ul>
-                    </div>
+                    <!-- Card „Lohnlauf" entfernt (Walter-Vorgabe 18.05.2026):
+                         Sammel-Aktionen (Vorab-PDF, DTA) sind jetzt direkt im
+                         GF/HR-Lohnlauf (page-lohn) verfügbar — Top-Bar im
+                         Definitiv-Tab. Karte würde nur in den gleichen Modul
+                         führen den GF + HR sowieso über die Sidebar haben.
+                         page-lohnlauf + hr-saldi-lohnlauf.js bleiben als Dead
+                         Code im Repo (kein UI-Verweis mehr). -->
 
                     <!-- AKTIVE Card: Jahres-Lohnausweis (ESTV Form 11 dfe) -->
                     <div class="hr-card" style="opacity:1;cursor:pointer" onclick="showPage('lohnausweis')">
@@ -3059,25 +3198,12 @@
                         </ul>
                     </div>
 
-                    <!-- AKTIVE Card: Akonto-Lohn-Lauf (Phase 3 — AKONTO-LOHN-PLAN.md) -->
-                    <div class="hr-card" style="opacity:1;cursor:pointer" onclick="showPage('akonto-lauf')">
-                        <div class="hr-card-head">
-                            <div class="hr-card-icon" style="background:#fef3c7;color:#a16207">
-                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/><path d="M9 17l-3-2M15 17l3-2" stroke-linecap="round"/></svg>
-                            </div>
-                            <div>
-                                <div class="hr-card-title">Akonto-Lohn-Lauf</div>
-                                <div class="hr-card-status" style="color:#a16207">✓ aktiv — Vorauszahlung Mitte Monat (Phase 3a–c)</div>
-                            </div>
-                        </div>
-                        <ul>
-                            <li><b>UTP/MTP</b>: gestempelte Stunden bis Stichtag × Ansatz + Feriengeld → 100 % des Netto</li>
-                            <li><b>FIX/FIX-M</b>: voraussichtlicher Monatslohn × Filial-% (Default 80 %)</li>
-                            <li><b>Eligibility</b>: kein Akonto bei Probezeit, geplantem Austritt, Krank/Unfall/Mutter-Vater</li>
-                            <li><b>Pfändung</b>: Akonto = min(Netto, Freigrenze); Freigrenze 0 → kein Akonto</li>
-                            <li><b>Vorschau + Erfassen</b>; DTA-Generierung (pain.001) folgt in Phase 3d</li>
-                        </ul>
-                    </div>
+                    <!-- ENTFERNT 17.05.2026 (Walter-Vorgabe): Alte 'Akonto-Lohn-Lauf'-Karte raus.
+                         Der Akonto-Workflow lebt jetzt komplett im Lohnverwaltung-Modul
+                         (GF-Seite, akonto-workflow.js: Erfassen, GF-Freigabe pro MA, 'An HR senden')
+                         und im HR-Modul 'Lohnlauf' (Tab 'Akonto', HR-Seite: HR-Freigabe,
+                         Direkt-Korrekturen, DTA, Reopen). page-akonto-lauf bleibt im DOM als
+                         Backup-Code, wird aber nicht mehr verlinkt. -->
 
                     <!-- AKTIVE Card: Absenz-Auswertung (Krank/Unfall/Mutter-Vater pro Filiale + Jahr) -->
                     <div class="hr-card" style="opacity:1;cursor:pointer" onclick="showPage('absence-report')">
@@ -3336,7 +3462,7 @@
                         </div>
                         <div>
                             <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:4px" data-i18n="ll.field.month">Monat</label>
-                            <select id="llMonthSelect" class="f-input" onchange="llLoadStatus()" style="width:100%">
+                            <select id="llMonthSelect" class="f-input" onchange="llPeriodChanged()" style="width:100%">
                                 <option value="1" data-i18n="month.1">Januar</option><option value="2" data-i18n="month.2">Februar</option><option value="3" data-i18n="month.3">März</option>
                                 <option value="4" data-i18n="month.4">April</option><option value="5" data-i18n="month.5">Mai</option><option value="6" data-i18n="month.6">Juni</option>
                                 <option value="7" data-i18n="month.7">Juli</option><option value="8" data-i18n="month.8">August</option><option value="9" data-i18n="month.9">September</option>
@@ -3345,14 +3471,70 @@
                         </div>
                         <div>
                             <label style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:4px" data-i18n="ll.field.year">Jahr</label>
-                            <select id="llYearSelect" class="f-input" onchange="llLoadStatus()" style="width:100%"></select>
+                            <select id="llYearSelect" class="f-input" onchange="llPeriodChanged()" style="width:100%"></select>
                         </div>
                     </div>
                 </div>
 
-                <div id="llStatusCockpit"><div style="padding:30px;text-align:center;color:#94a3b8" data-i18n="ll.hint.pickBranchLong">Bitte oben links eine Filiale wählen…</div></div>
+                <!-- Tab-Bar: Akonto / Definitivlauf (Walter-Vorgabe 17.05.2026)
+                     Beide Tabs teilen sich oben Periode-Wahl (Filiale/Monat/Jahr).
+                     Tab-State persistent in localStorage.hrLohnlaufTab (Default 'akonto'). -->
+                <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:14px">
+                    <button id="llTabAkontoBtn" onclick="llSwitchTab('akonto')"
+                            style="background:none;border:none;border-bottom:3px solid transparent;padding:10px 18px;font-size:14px;font-weight:600;color:#64748b;cursor:pointer;margin-bottom:-2px">
+                        📅 Akonto-Lauf
+                    </button>
+                    <button id="llTabDefinitivBtn" onclick="llSwitchTab('definitiv')"
+                            style="background:none;border:none;border-bottom:3px solid transparent;padding:10px 18px;font-size:14px;font-weight:600;color:#64748b;cursor:pointer;margin-bottom:-2px">
+                        🧾 Definitivlauf
+                    </button>
+                </div>
 
-                <div id="llAuditLog" style="margin-top:18px"></div>
+                <!-- ───── Tab 1: Akonto-Lauf (HR-Sicht) ─────
+                     Walter 17.05.2026: HR sieht 1:1 die GF-Sicht (MA-Liste links,
+                     voller Lohnzettel rechts) plus die HR-Aktionen oben + pro MA
+                     ein ✎-Button für die Netto-Korrektur. Loader/Renderer in
+                     hr-saldi-lohnlauf.js → llLoadAkontoTab(). -->
+                <div id="llAkontoView" style="display:none">
+                    <!-- Status-Zeile oben: Periode-Status + Counter + HR-Periode-Aktionen -->
+                    <div id="llAkontoStatusBar" style="margin-bottom:10px"></div>
+
+                    <!-- 3-Spalten-Layout: links MA-Liste, rechts MA-Detail (Lohnzettel + Akonto-Box) -->
+                    <div style="display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start">
+                        <!-- MA-Liste links -->
+                        <div class="card" style="padding:10px">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                                <div style="font-size:13px;font-weight:700;color:#0f172a">Mitarbeiter</div>
+                                <span id="llAkListCount" style="font-size:11px;color:#94a3b8"></span>
+                            </div>
+                            <div style="margin-bottom:8px">
+                                <input id="llAkEmpSearch" class="f-input" placeholder="Suchen…" oninput="llAkFilterMaList()"
+                                       style="width:100%;font-size:13px" title="Tastatur: ↑/↓ navigiert">
+                            </div>
+                            <div id="llAkMaList" style="max-height:calc(100vh - 320px);overflow-y:auto">
+                                <div style="padding:28px;text-align:center;color:#94a3b8;font-size:13px">Lädt…</div>
+                            </div>
+                        </div>
+
+                        <!-- MA-Detail rechts: leerer Platzhalter ODER Detail-Card -->
+                        <div>
+                            <div id="llAkDetailEmpty" class="card" style="padding:28px;display:flex;align-items:center;justify-content:center;min-height:300px">
+                                <div style="text-align:center;color:#94a3b8;font-size:13px">
+                                    Wähle links einen Mitarbeiter aus, um den Lohnzettel zu sehen.
+                                </div>
+                            </div>
+                            <div id="llAkDetailCard" class="card" style="display:none;padding:0;overflow:hidden">
+                                <div id="llAkDetailContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ───── Tab 2: Definitivlauf (bestehend, unverändert) ───── -->
+                <div id="llDefinitivView" style="display:none">
+                    <div id="llStatusCockpit"><div style="padding:30px;text-align:center;color:#94a3b8" data-i18n="ll.hint.pickBranchLong">Bitte oben links eine Filiale wählen…</div></div>
+                    <div id="llAuditLog" style="margin-top:18px"></div>
+                </div>
             </div>
 
             <!-- QST-ANMELDUNG (HR-Modul) -->
@@ -4224,11 +4406,12 @@
                     <h1 class="page-title">SV-Sätze</h1>
                     <p class="page-sub">Globale Sozialversicherungssätze (AHV, ALV, NBUV, BVG) — gelten für alle Filialen</p>
                 </div>
-                <button class="btn-primary" onclick="svOpenForm(null)" style="margin-top:4px">+ Neuer Satz</button>
                 </div>
                 <div class="page-body">
 
-                    <!-- Filter -->
+                    <!-- Filter + Aktion (Walter-Vorgabe 18.05.2026: „Neu"-Button hierher,
+                         weil im page-head der globale langSwitcher (top:14,right:18,z:1500)
+                         den ursprünglichen Button überdeckte). -->
                     <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
                         <select id="svFilterCode" onchange="svRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
                             <option value="">Alle Typen</option>
@@ -4243,6 +4426,7 @@
                             <input type="checkbox" id="svShowInactive" onchange="svRender()" style="cursor:pointer"> Inaktive anzeigen
                         </label>
                         <span id="svInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
+                        <button class="btn-primary" onclick="svOpenForm(null)">+ Neuer Satz</button>
                     </div>
 
                     <!-- Tabelle -->
@@ -4279,6 +4463,12 @@
                     </div>
                     <form id="svForm" onsubmit="svSave(event)">
                         <input type="hidden" id="svId">
+
+                        <!-- Walter-Vorgabe 18.05.2026: Hinweis-Box wird nur bei
+                             „Neu ab"-Modus von svOpenForm() befüllt + sichtbar
+                             gemacht — erklärt, dass der Vorgänger automatisch
+                             begrenzt wird. -->
+                        <div id="svFormHint" style="display:none;padding:10px 12px;background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;font-size:12px;color:#1e40af;margin-bottom:16px;line-height:1.4"></div>
 
                         <div style="margin-bottom:14px">
                             <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Typ *</label>
@@ -6898,10 +7088,16 @@ async function startApp() {
         });
     }
 
-    // Bereichs-Sichtbarkeit nach Rolle steuern
-    const role     = currentUser.role;
-    const isAdmin  = role === 'admin';
-    const canLohn  = role === 'admin' || role === 'superuser';
+    // Bereichs-Sichtbarkeit nach Rolle steuern (Walter-Vorgabe 17.05.2026).
+    const role        = currentUser.role;
+    const isAdmin     = role === 'admin';
+    const isHrTeam    = role === 'admin' || role === 'superuser';
+    // GF (Rolle 'user') braucht das Lohn-Modul für den Akonto-Workflow:
+    // er bestätigt pro MA das Akonto-Lohnblatt und schickt an HR. Innerhalb
+    // des Moduls werden HR-Aktionen für ihn ausgeblendet — das ist
+    // separat in akonto-workflow.js geregelt.
+    const isMaPostfach = role === 'employee';
+    const canLohn      = !isMaPostfach;
 
     // Systemeinstellungen: nur admin
     document.querySelectorAll('.admin-only-section').forEach(el => {
@@ -6911,13 +7107,13 @@ async function startApp() {
     document.querySelectorAll('.import-section').forEach(el => {
         el.style.display = isAdmin ? 'block' : 'none';
     });
-    // Finanzen/Lohn: admin + superuser
+    // Finanzen/Lohn: admin + superuser + GF (für Akonto-Bestätigung)
     document.querySelectorAll('.finance-section').forEach(el => {
         el.style.display = canLohn ? 'block' : 'none';
     });
-    // HR-Bereich: admin + superuser (Pat & Co.)
+    // HR-Bereich: nur admin + superuser (Pat & Co.) — GF nicht
     document.querySelectorAll('.hr-section').forEach(el => {
-        el.style.display = canLohn ? 'block' : 'none';
+        el.style.display = isHrTeam ? 'block' : 'none';
     });
 
     await loadAllBranches();
@@ -6946,6 +7142,10 @@ function showPage(name) {
     document.getElementById('page-' + name)?.classList.add('active');
     const navPage = _adminSubPages.includes(name) ? 'admin-hub' : name;
     document.querySelector(`[data-page="${navPage}"]`)?.classList.add('active');
+    // Dashboard frisch laden bei jedem Aufruf — sonst hängt eine veraltete
+    // Liste fest, z.B. nach manuellem Setzen von Aktiv/Inaktiv im MA-Detail
+    // (Walter-Bug 18.05.2026).
+    if (name === 'dashboard') loadDashboard();
     if (name === 'benutzer') loadUsers();
     if (name === 'filialen') loadFilialen();
     if (name === 'vertraege') loadVtList();
@@ -7174,33 +7374,34 @@ function onBranchChange() {
 </script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
-<script src="js/dashboard.js?v=20260509b"></script>
+<script src="js/dashboard.js?v=20260518a"></script>
 <script src="js/permit-import.js?v=20260509b"></script>
 <script src="js/family-children-import.js?v=20260509b"></script>
 <script src="js/stammdaten-import.js?v=20260509b"></script>
 <script src="js/roster-absence-import.js?v=20260515a"></script>
 <script src="js/absence-report.js?v=20260515c"></script>
 <script src="js/akonto-lauf.js?v=20260516a"></script>
-<script src="js/akonto-workflow.js?v=20260516t"></script>
+<script src="js/akonto-workflow.js?v=20260520a"></script>
 <script src="js/dok-audit.js?v=20260509b"></script>
-<script src="js/branches-detail.js?v=20260516a"></script>
+<script src="js/branches-detail.js?v=20260518a"></script>
 <script src="js/branch-modals.js?v=20260509b"></script>
 <script src="js/deductions.js?v=20260509b"></script>
-<script src="js/qst-modal.js?v=20260509b"></script>
+<script src="js/qst-modal.js?v=20260517a"></script>
 <script src="js/users.js?v=20260509b"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
 <script src="js/documents.js?v=20260509b"></script>
 <script src="js/dvelop-import.js?v=20260509b"></script>
 <script src="js/bank-import.js?v=20260509b"></script>
 <script src="js/archive-import.js?v=20260509b"></script>
-<script src="js/dok-struktur.js?v=20260509b"></script>
-<script src="js/austritt.js?v=20260509b"></script>
-<script src="js/contracts-edit.js?v=20260509b"></script>
+<script src="js/dok-struktur.js?v=20260518b"></script>
+<script src="js/austritt.js?v=20260517a"></script>
+<script src="js/contracts-edit.js?v=20260517a"></script>
 <script src="js/import-stempelzeiten.js?v=20260509b"></script>
-<script src="js/payroll.js?v=20260516b"></script>
-<script src="js/payroll-perioden.js?v=20260509b"></script>
-<script src="js/admin-settings.js"></script>
-<script src="js/i18n.js?v=20260509a"></script>
+<script src="js/payroll.js?v=20260520i"></script>
+<script src="js/payroll-perioden.js?v=20260518a"></script>
+<script src="js/admin-settings.js?v=20260518a"></script>
+<script src="js/lohn-edit-lock.js?v=20260517a"></script>
+<script src="js/i18n.js?v=20260518b"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">
     <div class="family-modal-box">
@@ -7330,13 +7531,13 @@ function onBranchChange() {
                 </div>
             </div>
 
-            <div class="fmf-section" style="display:flex;align-items:center;justify-content:space-between">
-                <span data-i18n="fam.section.allowances">Zulagen</span>
-                <button type="button" id="fmAllowanceAddBtn" onclick="openAllowanceModal(null)" data-i18n="fam.allowances.add" style="font-size:11px;padding:4px 10px;border-radius:6px;border:none;background:#2563eb;color:#fff;cursor:pointer;font-weight:600">+ Hinzufügen</button>
-            </div>
-            <div id="fmAllowanceList" style="font-size:12.5px;color:#475569">
-                <span style="color:#94a3b8;font-style:italic" data-i18n="fam.allowances.firstSave">Erst nach dem ersten Speichern verfügbar.</span>
-            </div>
+            <!-- Walter 18.05.2026: Zulagen-Block aus dem Familienmember-Modal
+                 entfernt — Zulagen werden jetzt INLINE pro Kind in der
+                 Familie-Tab gerendert (renderFamilieTab + Promise.all). Die
+                 versteckte DIV bleibt im DOM, weil loadFamilyAllowances() sie
+                 als Mount-Point benutzt wenn das Modal doch geöffnet wird
+                 (Code-Pfad bleibt unverändert für Rückwärtskompatibilität). -->
+            <div id="fmAllowanceList" style="display:none"></div>
 
             <div class="fmf-section" data-i18n="fam.section.qst">Quellensteuer (QST)</div>
             <div class="fmf-row">
@@ -7453,7 +7654,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260516a"></script>
+<script src="employees.js?v=20260518m"></script>
 
 <!-- ABSENZ MODAL -->
 <div id="absenceModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:flex-start;justify-content:center;z-index:2000;overflow-y:auto;padding:40px 16px;">
@@ -8097,7 +8298,7 @@ function onBranchChange() {
 <!-- ═══════════════ MODUL-SCRIPTS Block 2 (Phase A) ═══════════════ -->
 <script src="js/posteingang.js?v=20260509b"></script>
 <script src="js/hr-rav.js?v=20260509b"></script>
-<script src="js/hr-saldi-lohnlauf.js?v=20260509b"></script>
+<script src="js/hr-saldi-lohnlauf.js?v=20260517d"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260509b"></script>
 <script src="js/hr-lohnausweis.js?v=20260512a"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->

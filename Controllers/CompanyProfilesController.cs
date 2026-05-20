@@ -390,15 +390,19 @@ public class CompanyProfilesController : ControllerBase
 
     // PATCH /api/companyprofiles/{id}/akonto-prozent
     // Akonto-Prozentsätze (Walter Regel 3/4 + 5/6):
-    //   • AkontoProzentFix    — für FIX/FIX-M, Default 80 %
-    //   • AkontoProzentHourly — für UTP/MTP,   Default 100 %
-    // Beide optional im DTO; nur gesetzte Werte werden übernommen.
+    //   • AkontoProzentFix    — für FIX,        Default 80 %
+    //   • AkontoProzentFixM   — für FIX-M,      Default 90 % (Walter 18.05.2026)
+    //   • AkontoProzentHourly — für UTP/MTP,    Default 100 %
+    // Alle drei optional im DTO; nur gesetzte Werte werden übernommen.
     [HttpPatch("{id:int}/akonto-prozent")]
     public async Task<IActionResult> UpdateAkontoProzent(int id, [FromBody] AkontoProzentDto dto)
     {
         if (dto.AkontoProzentFix.HasValue
             && (dto.AkontoProzentFix.Value < 0 || dto.AkontoProzentFix.Value > 100))
             return BadRequest(new { message = "AkontoProzentFix muss zwischen 0 und 100 liegen." });
+        if (dto.AkontoProzentFixM.HasValue
+            && (dto.AkontoProzentFixM.Value < 0 || dto.AkontoProzentFixM.Value > 100))
+            return BadRequest(new { message = "AkontoProzentFixM muss zwischen 0 und 100 liegen." });
         if (dto.AkontoProzentHourly.HasValue
             && (dto.AkontoProzentHourly.Value < 0 || dto.AkontoProzentHourly.Value > 100))
             return BadRequest(new { message = "AkontoProzentHourly muss zwischen 0 und 100 liegen." });
@@ -408,6 +412,8 @@ public class CompanyProfilesController : ControllerBase
 
         if (dto.AkontoProzentFix.HasValue)
             profile.AkontoProzentFix    = Math.Round(dto.AkontoProzentFix.Value,    2);
+        if (dto.AkontoProzentFixM.HasValue)
+            profile.AkontoProzentFixM   = Math.Round(dto.AkontoProzentFixM.Value,   2);
         if (dto.AkontoProzentHourly.HasValue)
             profile.AkontoProzentHourly = Math.Round(dto.AkontoProzentHourly.Value, 2);
         await _context.SaveChangesAsync();
@@ -415,7 +421,10 @@ public class CompanyProfilesController : ControllerBase
         return Ok(profile);
     }
 
-    public record AkontoProzentDto(decimal? AkontoProzentFix, decimal? AkontoProzentHourly);
+    public record AkontoProzentDto(
+        decimal? AkontoProzentFix,
+        decimal? AkontoProzentFixM,
+        decimal? AkontoProzentHourly);
 
     // POST /api/companyprofiles/{id}/copy-einstellungen-to-all
     // Kopiert den kompletten Einstellungen-Block dieser Filiale auf ALLE
@@ -458,6 +467,7 @@ public class CompanyProfilesController : ControllerBase
             t.LgavBeitragReduziert = source.LgavBeitragReduziert;
             // ── Akonto-Lohn ──
             t.AkontoProzentFix     = source.AkontoProzentFix;
+            t.AkontoProzentFixM    = source.AkontoProzentFixM;
             t.AkontoProzentHourly  = source.AkontoProzentHourly;
         }
 

@@ -22,117 +22,13 @@ public class PayrollPeriodeController : ControllerBase
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    //  PERIODEN-KONFIGURATION
-    // ══════════════════════════════════════════════════════════════════════════
-
-    // GET /api/payroll-perioden/config?companyProfileId=X
-    [HttpGet("config")]
-    public async Task<IActionResult> GetConfig([FromQuery] int companyProfileId)
-    {
-        var cfg = await _db.PayrollPeriodeConfigs
-            .Where(c => c.CompanyProfileId == companyProfileId)
-            .OrderByDescending(c => c.ValidFromYear)
-            .ThenByDescending(c => c.ValidFromMonth)
-            .FirstOrDefaultAsync();
-
-        if (cfg is null)
-            return Ok(null);
-
-        return Ok(new {
-            cfg.Id,
-            cfg.CompanyProfileId,
-            cfg.FromDay,
-            cfg.ToDay,
-            cfg.ValidFromYear,
-            cfg.ValidFromMonth,
-            cfg.IsLocked,
-            cfg.CreatedAt
-        });
-    }
-
-    // GET /api/payroll-perioden/config/all?companyProfileId=X  – alle Konfigs (Historie)
-    [HttpGet("config/all")]
-    public async Task<IActionResult> GetAllConfigs([FromQuery] int companyProfileId)
-    {
-        var cfgs = await _db.PayrollPeriodeConfigs
-            .Where(c => c.CompanyProfileId == companyProfileId)
-            .OrderByDescending(c => c.ValidFromYear)
-            .ThenByDescending(c => c.ValidFromMonth)
-            .Select(c => new {
-                c.Id, c.CompanyProfileId, c.FromDay, c.ToDay,
-                c.ValidFromYear, c.ValidFromMonth, c.IsLocked, c.CreatedAt
-            })
-            .ToListAsync();
-
-        return Ok(cfgs);
-    }
-
-    // POST /api/payroll-perioden/config  – neue Konfiguration anlegen ODER
-    // bestehende noch ungesperrte Config für dasselbe Year/Month aktualisieren.
-    [HttpPost("config")]
-    public async Task<IActionResult> CreateConfig([FromBody] CreatePeriodeConfigDto dto)
-    {
-        // Existiert eine Config für genau dieses Year/Month?
-        var existing = await _db.PayrollPeriodeConfigs
-            .Where(c => c.CompanyProfileId == dto.CompanyProfileId
-                     && c.ValidFromYear == dto.ValidFromYear
-                     && c.ValidFromMonth == dto.ValidFromMonth)
-            .FirstOrDefaultAsync();
-
-        if (existing is not null)
-        {
-            // Wenn gesperrt → wirklich blockieren (es gibt schon Perioden, die
-            // diese Regel referenzieren — Walter müsste sie erst löschen).
-            if (existing.IsLocked)
-                return Conflict(new { error = "Diese Periodenregel ist gesperrt, weil bereits Lohnperioden damit angelegt sind. Lösche die betroffene(n) Periode(n) zuerst." });
-
-            // Sonst: einfach in-place aktualisieren. Spart eine Duplikat-Zeile
-            // mit identischem Year/Month und vermeidet UNIQUE-Konflikte.
-            existing.FromDay = dto.FromDay;
-            existing.ToDay   = dto.ToDay;
-            await _db.SaveChangesAsync();
-
-            return Ok(new {
-                existing.Id,
-                existing.FromDay,
-                existing.ToDay,
-                existing.ValidFromYear,
-                existing.ValidFromMonth,
-                existing.IsLocked,
-                updated = true
-            });
-        }
-
-        // Prüfe ob aktuelle (jüngste) Config gesperrt UND Werte identisch sind
-        // → dann gibt's nichts zu tun.
-        var current = await _db.PayrollPeriodeConfigs
-            .Where(c => c.CompanyProfileId == dto.CompanyProfileId)
-            .OrderByDescending(c => c.ValidFromYear)
-            .ThenByDescending(c => c.ValidFromMonth)
-            .FirstOrDefaultAsync();
-
-        if (current is not null && current.IsLocked
-            && current.FromDay == dto.FromDay && current.ToDay == dto.ToDay)
-            return BadRequest(new { error = "Die aktuelle Konfiguration ist identisch und gesperrt. Keine Änderung nötig." });
-
-        var cfg = new PayrollPeriodeConfig
-        {
-            CompanyProfileId = dto.CompanyProfileId,
-            FromDay          = dto.FromDay,
-            ToDay            = dto.ToDay,
-            ValidFromYear    = dto.ValidFromYear,
-            ValidFromMonth   = dto.ValidFromMonth,
-            IsLocked         = false
-        };
-        _db.PayrollPeriodeConfigs.Add(cfg);
-        await _db.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetConfig), new { companyProfileId = dto.CompanyProfileId },
-            new { cfg.Id, cfg.FromDay, cfg.ToDay, cfg.ValidFromYear, cfg.ValidFromMonth, cfg.IsLocked, updated = false });
-    }
-
-    // ══════════════════════════════════════════════════════════════════════════
     //  PERIODEN  (konkrete Lohnperioden)
+    //
+    //  Walter-Vorgabe 20.05.2026: Die Lohnperiode ist IMMER der Kalendermonat
+    //  (1.–letzter Tag). Die frühere Periodenregel-Konfiguration
+    //  (PayrollPeriodeConfig, Starttag 21/1, Übergangs-Lohnläufe) ist komplett
+    //  entfernt — gesetzliche Berechnungen (QST, ALV, AHV) laufen ohnehin
+    //  kalendermonatlich, und der Akonto-Lauf deckt die Zahlung vor Monatsende ab.
     // ══════════════════════════════════════════════════════════════════════════
 
     // GET /api/payroll-perioden?companyProfileId=X&year=Y
@@ -151,15 +47,30 @@ public class PayrollPeriodeController : ControllerBase
             .OrderByDescending(p => p.Year)
             .ThenByDescending(p => p.Month)
             .Select(p => new {
-                p.Id, p.CompanyProfileId, p.ConfigId,
+                p.Id, p.CompanyProfileId,
                 p.Year, p.Month, p.Label,
                 PeriodFrom = p.PeriodFrom.ToString("yyyy-MM-dd"),
                 PeriodTo   = p.PeriodTo.ToString("yyyy-MM-dd"),
-                p.IsTransition, p.Status,
+                p.Status,
                 p.AbgeschlossenAm, p.AbgeschlossenVon,
                 p.CreatedAt,
                 SnapshotCount = p.Snapshots.Count,
-                FinalCount    = p.Snapshots.Count(s => s.IsFinal)
+                FinalCount    = p.Snapshots.Count(s => s.IsFinal),
+                // Akonto-Workflow (Walter-Vorgabe 17.05.2026): pro Periode
+                // gibt's einen parallelen Akonto-Status + Counter wieviele
+                // MA-Lohnblätter schon berechnet sind. Wird im UI zusammen
+                // mit dem Definitiv-Status als zweite Pille gezeigt, damit
+                // sichtbar ist welche Periode "in Verarbeitung" ist.
+                p.AkontoStatus,
+                p.AkontoGfStartedAt,
+                p.AkontoGfSentAt,
+                p.AkontoHrFreigegebenAt,
+                p.AkontoAusbezahltAt,
+                AkontoCount = _db.AkontoZahlungen
+                    .Count(a => a.CompanyProfileId == p.CompanyProfileId
+                             && a.PeriodYear  == p.Year
+                             && a.PeriodMonth == p.Month
+                             && a.Status      != "STORNIERT")
             })
             .ToListAsync();
 
@@ -177,11 +88,11 @@ public class PayrollPeriodeController : ControllerBase
         if (p is null) return NotFound();
 
         return Ok(new {
-            p.Id, p.CompanyProfileId, p.ConfigId,
+            p.Id, p.CompanyProfileId,
             p.Year, p.Month, p.Label,
             PeriodFrom = p.PeriodFrom.ToString("yyyy-MM-dd"),
             PeriodTo   = p.PeriodTo.ToString("yyyy-MM-dd"),
-            p.IsTransition, p.Status,
+            p.Status,
             p.AbgeschlossenAm, p.AbgeschlossenVon,
             p.CreatedAt,
             p.PdfFooterText,
@@ -202,18 +113,17 @@ public class PayrollPeriodeController : ControllerBase
             .Include(p => p.Snapshots)
             .Where(p => p.CompanyProfileId == companyProfileId
                      && p.Year == year
-                     && p.Month == month
-                     && !p.IsTransition)
+                     && p.Month == month)
             .FirstOrDefaultAsync();
 
         if (p is null) return Ok(null);
 
         return Ok(new {
-            p.Id, p.CompanyProfileId, p.ConfigId,
+            p.Id, p.CompanyProfileId,
             p.Year, p.Month, p.Label,
             PeriodFrom = p.PeriodFrom.ToString("yyyy-MM-dd"),
             PeriodTo   = p.PeriodTo.ToString("yyyy-MM-dd"),
-            p.IsTransition, p.Status,
+            p.Status,
             p.AbgeschlossenAm, p.AbgeschlossenVon,
             p.CreatedAt,
             p.PdfFooterText,
@@ -226,76 +136,31 @@ public class PayrollPeriodeController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreatePeriode([FromBody] CreatePeriodeDto dto)
     {
-        // Doppel-Check: existiert bereits eine normale Periode für diesen Monat?
+        // Doppel-Check: existiert bereits eine Periode für diesen Monat?
         var existing = await _db.PayrollPerioden
             .FirstOrDefaultAsync(p => p.CompanyProfileId == dto.CompanyProfileId
                                    && p.Year  == dto.Year
-                                   && p.Month == dto.Month
-                                   && !p.IsTransition);
+                                   && p.Month == dto.Month);
         if (existing is not null)
             return Conflict(new { message = $"Periode {dto.Month}/{dto.Year} existiert bereits.", id = existing.Id });
 
-        // Aktuelle Config laden — die für diesen Year/Month GÜLTIGE Config,
-        // nicht einfach die neueste. Bei Walter's 1-31→21-20-Wechsel zum
-        // Jan 2027 könnte schon ein Eintrag "21-20 ab Jan 2027" existieren,
-        // während für Dez 2026 noch die 1-31-Regel greift.
-        var cfg = await GetActiveConfigAsync(dto.CompanyProfileId, dto.Year, dto.Month);
-
-        // Fallback (Walter 16.05.2026, Etappe 5f): Lohnperiode = immer
-        // Kalendermonat. PayrollPeriodStartDay (Legacy) wird nicht mehr
-        // ausgewertet. Default-Config FromDay=1/ToDay=31 nur damit die FK
-        // payroll_periode.config_id einen gültigen Eintrag hat.
-        if (cfg is null)
-        {
-            cfg = new PayrollPeriodeConfig
-            {
-                CompanyProfileId = dto.CompanyProfileId,
-                FromDay          = 1,
-                ToDay            = 31,
-                ValidFromYear    = dto.Year,
-                ValidFromMonth   = 1,
-                IsLocked         = false
-            };
-            _db.PayrollPeriodeConfigs.Add(cfg);
-            await _db.SaveChangesAsync();
-        }
-
-        // ── Lohnperiode = IMMER Kalendermonat (Walter-Vorgabe 15.05.2026,
-        //    Akonto-Lohn-Modell). Die frühere Periodenregel + die Übergangs-/
-        //    Lücken-Logik (Regelwechsel 21.–20. ↔ 1.–31.) entfällt — neue
-        //    Perioden sind ausnahmslos 1.–Letzter des Monats. Bestehende
-        //    Alt-Perioden behalten ihre gespeicherten Daten; dieser Pfad
-        //    erzeugt nur NEUE Perioden. CalcPeriodDates / ConfigShort bleiben
-        //    als toter Code erhalten.
+        // Walter-Vorgabe 20.05.2026: Lohnperiode = IMMER Kalendermonat
+        // (1.–Letzter des Monats). Keine Periodenregel-Konfiguration mehr,
+        // keine Übergangs-Lohnläufe.
         var plannedFrom = new DateOnly(dto.Year, dto.Month, 1);
         var plannedTo   = new DateOnly(dto.Year, dto.Month, DateTime.DaysInMonth(dto.Year, dto.Month));
-
-        bool isTransition = false;                 // bleibt immer false (Kalendermonat)
-        PayrollPeriode? extraTransition = null;    // keine Übergangsperiode mehr nötig
-        string? transitionInfo = null;
 
         var periode = new PayrollPeriode
         {
             CompanyProfileId = dto.CompanyProfileId,
-            ConfigId         = cfg.Id,
             Year             = dto.Year,
             Month            = dto.Month,
             PeriodFrom       = plannedFrom,
             PeriodTo         = plannedTo,
-            Label            = isTransition
-                ? $"{(dto.Label ?? FormatLabel(dto.Year, dto.Month))} (Übergang)"
-                : (dto.Label ?? FormatLabel(dto.Year, dto.Month)),
-            IsTransition     = isTransition,
+            Label            = dto.Label ?? FormatLabel(dto.Year, dto.Month),
             Status           = "offen"
         };
         _db.PayrollPerioden.Add(periode);
-
-        // Config sperren sobald erste Periode angelegt wird
-        if (cfg is not null && !cfg.IsLocked)
-        {
-            cfg.IsLocked = true;
-        }
-
         await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetPeriode), new { id = periode.Id },
@@ -303,40 +168,8 @@ public class PayrollPeriodeController : ControllerBase
                 periode.Id, periode.Year, periode.Month, periode.Label,
                 PeriodFrom = periode.PeriodFrom.ToString("yyyy-MM-dd"),
                 PeriodTo   = periode.PeriodTo.ToString("yyyy-MM-dd"),
-                periode.Status,
-                periode.IsTransition,
-                transition = transitionInfo,
-                extraTransitionPeriode = extraTransition == null ? null : new {
-                    extraTransition.Id, extraTransition.Year, extraTransition.Month, extraTransition.Label,
-                    PeriodFrom = extraTransition.PeriodFrom.ToString("yyyy-MM-dd"),
-                    PeriodTo   = extraTransition.PeriodTo.ToString("yyyy-MM-dd"),
-                    extraTransition.IsTransition
-                }
+                periode.Status
             });
-    }
-
-    /// <summary>
-    /// Liefert die aktive Config für die gegebene (Year, Month). Wenn mehrere
-    /// Configs existieren (Walter-Szenario: 1-31 ab Jan 2026, 21-20 ab Jan 2027),
-    /// die mit dem höchsten ValidFromYear/Month, das noch ≤ (Year, Month) ist.
-    /// </summary>
-    private async Task<PayrollPeriodeConfig?> GetActiveConfigAsync(int companyProfileId, int year, int month)
-    {
-        return await _db.PayrollPeriodeConfigs
-            .Where(c => c.CompanyProfileId == companyProfileId
-                     && (c.ValidFromYear < year
-                         || (c.ValidFromYear == year && c.ValidFromMonth <= month)))
-            .OrderByDescending(c => c.ValidFromYear)
-            .ThenByDescending(c => c.ValidFromMonth)
-            .FirstOrDefaultAsync();
-    }
-
-    /// <summary>Kurz-Darstellung "21.–20." einer (eventuell rückbezogenen) Config.</summary>
-    private static string ConfigShort(PayrollPeriode prevPeriode)
-    {
-        // Heuristik aus den Datumsgrenzen der Vorperiode: zeigt nur den Tag
-        // an, nicht den Monat — reine UI-Beschriftung, nicht für Berechnungen.
-        return $"{prevPeriode.PeriodFrom.Day}.–{prevPeriode.PeriodTo.Day}.";
     }
 
     // POST /api/payroll-perioden/{id}/abschliessen
@@ -361,9 +194,6 @@ public class PayrollPeriodeController : ControllerBase
     ///   • Keine Snapshots (bestätigte Lohnzettel) vorhanden
     ///   • Keine PayrollSaldi mit Status='confirmed' für diese Year/Month/Filiale
     /// Cascade: PayrollPeriodeAudit-Einträge werden mit gelöscht.
-    /// Bonus: wenn nach dem Delete keine Periode mehr für dieselbe Config
-    /// existiert, wird die Config entsperrt (IsLocked=false) — damit kann
-    /// der User den FromDay/ToDay-Bereich wieder anpassen.
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize(Roles = "admin,superuser")]
@@ -409,33 +239,13 @@ public class PayrollPeriodeController : ControllerBase
         if (saldiToDelete.Count > 0) _db.PayrollSaldos.RemoveRange(saldiToDelete);
         var saldiDeleted = saldiToDelete.Count;
 
-        var configId         = periode.ConfigId;
         var companyProfileId = periode.CompanyProfileId;
         _db.PayrollPerioden.Remove(periode);
         await _db.SaveChangesAsync();
 
-        // Config entsperren falls keine Periode mehr existiert, die diese Config nutzt.
-        bool configUnlocked = false;
-        if (configId.HasValue)
-        {
-            var stillUsed = await _db.PayrollPerioden
-                .AnyAsync(p => p.ConfigId == configId.Value);
-            if (!stillUsed)
-            {
-                var cfg = await _db.PayrollPeriodeConfigs.FindAsync(configId.Value);
-                if (cfg != null && cfg.IsLocked)
-                {
-                    cfg.IsLocked = false;
-                    await _db.SaveChangesAsync();
-                    configUnlocked = true;
-                }
-            }
-        }
-
         return Ok(new {
             deletedPeriodeId = id,
             companyProfileId,
-            configUnlocked,
             saldiDeleted,
             auditDeleted = auditRows.Count
         });
@@ -502,10 +312,13 @@ public class PayrollPeriodeController : ControllerBase
             });
         }
 
-        // Snapshots finalisieren — Lohnzettel sind ab jetzt eingefroren.
+        // Walter-Vorgabe 19.05.2026: IsFinal NICHT mehr beim „An HR senden"
+        // setzen — HR muss in der Phase provisorisch_abgeschlossen noch jeden
+        // Snapshot einzeln HR-bestätigen können, evtl. zurückziehen, korrigieren.
+        // IsFinal wird erst beim DefinitivAbschliessen (= DTA an Bank gesendet)
+        // gesetzt. UpdatedAt-Touch reicht hier für den Audit.
         foreach (var snap in periode.Snapshots)
         {
-            snap.IsFinal   = true;
             snap.UpdatedAt = DateTime.UtcNow;
         }
 
@@ -539,10 +352,21 @@ public class PayrollPeriodeController : ControllerBase
     [Authorize(Roles = "admin,superuser")]
     public async Task<IActionResult> DefinitivAbschliessen(int id, [FromBody] DefinitivAbschliessenDto dto)
     {
-        var periode = await _db.PayrollPerioden.FindAsync(id);
+        var periode = await _db.PayrollPerioden
+            .Include(p => p.Snapshots)
+            .FirstOrDefaultAsync(p => p.Id == id);
         if (periode is null) return NotFound(new { message = "Periode nicht gefunden." });
         if (periode.Status != "provisorisch_abgeschlossen")
             return Conflict(new { message = $"Periode ist im Status '{periode.Status}' — definitiver Abschluss nur aus 'provisorisch_abgeschlossen' möglich." });
+
+        // Walter-Vorgabe 20.05.2026: DTA-Versand erst wenn HR ALLE MA bestätigt
+        // hat — analog Akonto (Auszahlen nur in HR_FREIGEGEBEN). Defense in
+        // depth: das Frontend versteckt den Button schon, hier wird's hart
+        // durchgesetzt (verhindert Race / direkten API-Aufruf).
+        var nichtHrBestaetigt = periode.Snapshots
+            .Count(s => s.Status != "HR_BESTAETIGT" && s.Status != "ABGESCHLOSSEN");
+        if (nichtHrBestaetigt > 0)
+            return Conflict(new { message = $"Es sind noch {nichtHrBestaetigt} Lohnzettel nicht HR-bestätigt. Bitte zuerst alle Lohnzettel HR-bestätigen, dann den DTA-Versand auslösen." });
 
         if (!DateOnly.TryParse(dto.Auszahlungsdatum, out var auszahlung))
             return BadRequest(new { message = "Auszahlungsdatum ungültig (Format: YYYY-MM-DD)." });
@@ -551,6 +375,18 @@ public class PayrollPeriodeController : ControllerBase
         periode.AbgeschlossenAm   = DateTime.UtcNow;
         periode.AbgeschlossenVon  = dto.UserId;
         periode.Auszahlungsdatum  = auszahlung;
+
+        // Walter-Vorgabe 19.05.2026: JETZT erst Snapshots einfrieren.
+        // IsFinal=true + Status=ABGESCHLOSSEN. Alle HR_BESTAETIGT-Snapshots
+        // werden zu ABGESCHLOSSEN; falls jemand noch FREIGEGEBEN_GF hat (sollte
+        // eigentlich nicht passieren, weil das Frontend den DTA-Klick erst
+        // nach allen HR-Bestätigungen erlaubt), ebenfalls auf ABGESCHLOSSEN.
+        foreach (var snap in periode.Snapshots)
+        {
+            snap.Status    = "ABGESCHLOSSEN";
+            snap.IsFinal   = true;
+            snap.UpdatedAt = DateTime.UtcNow;
+        }
 
         await AddAuditAsync(periode.Id, dto.UserId, "DEFINITIV_ABGESCHLOSSEN",
                              $"Auszahlungsdatum: {auszahlung:dd.MM.yyyy}");
@@ -609,10 +445,31 @@ public class PayrollPeriodeController : ControllerBase
         if (periode.Status != "provisorisch_abgeschlossen")
             return Conflict(new { message = $"Periode ist im Status '{periode.Status}' — Zurückgeben nur aus 'provisorisch_abgeschlossen' möglich." });
 
+        // Walter-Bugfix 19.05.2026: bei Rückgabe an GF muss auch der per-MA
+        // Status sauber zurückgerollt werden. Sonst sieht der GF in der
+        // MA-Liste alle Häkchen (FREIGEGEBEN_GF / HR_BESTAETIGT) obwohl die
+        // Periode wieder offen ist — und kann nichts mehr „bestätigen", weil
+        // alles schon als bestätigt wirkt.
+        // Zusätzlich: PayrollSaldo.status zurück auf 'draft', sonst zeigt das
+        // Frontend „bereits bestätigt" obwohl der Snapshot BERECHNET ist.
         foreach (var snap in periode.Snapshots)
         {
-            snap.IsFinal   = false;
-            snap.UpdatedAt = DateTime.UtcNow;
+            snap.IsFinal           = false;
+            snap.Status            = "BERECHNET";
+            snap.GfFreigegebenAt   = null;
+            snap.GfFreigegebenBy   = null;
+            snap.HrBestaetigtAt    = null;
+            snap.HrBestaetigtBy    = null;
+            snap.UpdatedAt         = DateTime.UtcNow;
+        }
+        var saldosToReset = await _db.PayrollSaldos
+            .Where(s => s.CompanyProfileId == periode.CompanyProfileId
+                     && s.PeriodYear == periode.Year && s.PeriodMonth == periode.Month)
+            .ToListAsync();
+        foreach (var sld in saldosToReset)
+        {
+            sld.Status    = "draft";
+            sld.UpdatedAt = DateTime.UtcNow;
         }
 
         periode.Status                       = "offen";
@@ -640,16 +497,46 @@ public class PayrollPeriodeController : ControllerBase
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> WiederOeffnen(int id, [FromBody] WiederOeffnenDto dto)
     {
-        var periode = await _db.PayrollPerioden.FindAsync(id);
+        var periode = await _db.PayrollPerioden
+            .Include(p => p.Snapshots)
+            .FirstOrDefaultAsync(p => p.Id == id);
         if (periode is null) return NotFound(new { message = "Periode nicht gefunden." });
         if (periode.Status != "abgeschlossen")
             return Conflict(new { message = $"Periode ist im Status '{periode.Status}' — Wiedereröffnung nur aus 'abgeschlossen' möglich." });
+
+        // Walter-Vorgabe 19.05.2026: Reset NUR bis zum Zahldatum DTA. Sobald
+        // das Auszahlungsdatum erreicht ist, hat die Bank den DTA verarbeitet
+        // und die Periode ist betoniert. Notfall-Eingriff danach NUR via Code
+        // (direkter DB-Eingriff durch Entwickler).
+        if (periode.Auszahlungsdatum.HasValue
+            && DateOnly.FromDateTime(DateTime.UtcNow) > periode.Auszahlungsdatum.Value)
+        {
+            return Conflict(new {
+                error   = "PAYOUT_DATE_REACHED",
+                message = $"Zahldatum DTA ({periode.Auszahlungsdatum:dd.MM.yyyy}) ist erreicht — Wiedereröffnung nicht mehr möglich. " +
+                          "Die Bank hat den DTA verarbeitet, die Periode ist endgültig abgeschlossen."
+            });
+        }
 
         periode.Status            = "provisorisch_abgeschlossen";
         periode.AbgeschlossenAm   = null;
         periode.AbgeschlossenVon  = null;
         // Auszahlungsdatum bleibt — falls HR es nochmal definitiv abschliesst,
         // wird es überschrieben.
+
+        // Walter-Bugfix 19.05.2026: Snapshots, die als ABGESCHLOSSEN markiert
+        // waren, zurück auf HR_BESTAETIGT (HR-Bestätigungen bleiben erhalten,
+        // nur der finale „Versand"-Klick muss neu erfolgen). Wenn HR weiter
+        // zurück will, geht's via /zurueck-an-gf → dort wird auf BERECHNET
+        // rückgerollt. IsFinal=false damit der Lock greift wie bei einer
+        // normalen provisorisch-Periode.
+        foreach (var snap in periode.Snapshots)
+        {
+            if (snap.Status == "ABGESCHLOSSEN")
+                snap.Status = "HR_BESTAETIGT";
+            snap.IsFinal   = false;
+            snap.UpdatedAt = DateTime.UtcNow;
+        }
 
         await AddAuditAsync(periode.Id, dto.UserId, "WIEDER_GEOEFFNET", dto.Bemerkung);
         await _db.SaveChangesAsync();
@@ -728,6 +615,10 @@ public class PayrollPeriodeController : ControllerBase
                 s.ThirteenthAccumulated,
                 s.FerienGeldSaldo,
                 s.IsFinal,
+                s.Status,
+                s.GfFreigegebenAt, s.GfFreigegebenBy,
+                s.HrBestaetigtAt,  s.HrBestaetigtBy,
+                s.KommentarGf,     s.KommentarHr,
                 s.CreatedAt,
                 s.UpdatedAt
             })
@@ -783,23 +674,6 @@ public class PayrollPeriodeController : ControllerBase
     //  HELPER
     // ══════════════════════════════════════════════════════════════════════════
 
-    private static (DateOnly from, DateOnly to) CalcPeriodDates(int startDay, int year, int month)
-    {
-        if (startDay <= 1)
-        {
-            var from = new DateOnly(year, month, 1);
-            var to   = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
-            return (from, to);
-        }
-        // z.B. startDay=21: Periode 21.02–20.03 für Auszahlung März
-        var toDate   = new DateOnly(year, month, startDay - 1);
-        int prevYear = month == 1 ? year - 1 : year;
-        int prevMonth = month == 1 ? 12 : month - 1;
-        int clampedStart = Math.Min(startDay, DateTime.DaysInMonth(prevYear, prevMonth));
-        var fromDate = new DateOnly(prevYear, prevMonth, clampedStart);
-        return (fromDate, toDate);
-    }
-
     private static readonly string[] MonthNames = {
         "", "Januar", "Februar", "März", "April", "Mai", "Juni",
         "Juli", "August", "September", "Oktober", "November", "Dezember"
@@ -810,13 +684,6 @@ public class PayrollPeriodeController : ControllerBase
 }
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
-
-public record CreatePeriodeConfigDto(
-    int CompanyProfileId,
-    int FromDay,
-    int ToDay,
-    int ValidFromYear,
-    int ValidFromMonth);
 
 public record CreatePeriodeDto(
     int CompanyProfileId,

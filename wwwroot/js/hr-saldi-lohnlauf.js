@@ -14,6 +14,43 @@
 let _llCurrentPeriodeId = null;
 let _llCurrentStatus    = null;
 let _llVorabPdfBlobUrl  = null;
+// Tab-State (Walter-Vorgabe 17.05.2026): 'akonto' oder 'definitiv'.
+// Persistent in localStorage, Default 'akonto' (Akonto-Lauf kommt zeitlich
+// zuerst — Mitte Monat. Definitivlauf läuft am Monatsende).
+let _llTab = (() => {
+    try { return localStorage.getItem('hrLohnlaufTab') || 'akonto'; }
+    catch { return 'akonto'; }
+})();
+
+// Tab umschalten: setzt internen State, persistiert in localStorage,
+// blendet die richtige View ein und triggert deren Loader.
+function llSwitchTab(name) {
+    _llTab = (name === 'definitiv') ? 'definitiv' : 'akonto';
+    try { localStorage.setItem('hrLohnlaufTab', _llTab); } catch {}
+    _llUpdateTabUi();
+    // Beide Tabs hängen am gleichen Periode-Picker — Inhalt neu laden,
+    // damit der eben sichtbare Tab aktuelle Daten zeigt.
+    if (_llTab === 'akonto')    llLoadAkontoTab();
+    else                         llLoadStatus();
+}
+
+// Tab-Pillen-Styles aktualisieren und Views ein-/ausblenden.
+function _llUpdateTabUi() {
+    const akBtn  = document.getElementById('llTabAkontoBtn');
+    const defBtn = document.getElementById('llTabDefinitivBtn');
+    const akView = document.getElementById('llAkontoView');
+    const dfView = document.getElementById('llDefinitivView');
+    if (!akBtn || !defBtn || !akView || !dfView) return;
+
+    const isAk = (_llTab === 'akonto');
+    // Aktiver Tab: blauer Border-Bottom + dunkler Text.
+    akBtn.style.borderBottomColor = isAk ? '#0369a1' : 'transparent';
+    akBtn.style.color             = isAk ? '#0f172a' : '#64748b';
+    defBtn.style.borderBottomColor = isAk ? 'transparent' : '#0369a1';
+    defBtn.style.color             = isAk ? '#64748b' : '#0f172a';
+    akView.style.display = isAk ? '' : 'none';
+    dfView.style.display = isAk ? 'none' : '';
+}
 
 function llInit() {
     // Hidden Filial-Select wird vom globalen Selektor (oben links) gespeist.
@@ -38,7 +75,11 @@ function llInit() {
 
     document.getElementById('llAuditLog').innerHTML = '';
 
-    // Aktuelle Filiale aus globalem Selektor übernehmen und Status laden.
+    // Tab-State aus localStorage anwenden (Default 'akonto').
+    _llUpdateTabUi();
+
+    // Aktuelle Filiale aus globalem Selektor übernehmen und Inhalt des
+    // aktiven Tabs laden.
     llSyncFromGlobalBranch();
 }
 
@@ -80,7 +121,9 @@ async function llSyncFromGlobalBranch() {
     // Älteste nicht-abgeschlossene Periode finden und Monat/Jahr darauf setzen
     await llSetDefaultPeriode(parseInt(cid));
 
-    llLoadStatus();
+    // Aktiven Tab laden (Default Akonto).
+    if (_llTab === 'akonto') llLoadAkontoTab();
+    else                      llLoadStatus();
 }
 
 // Setzt die Monat/Jahr-Auswahl auf die älteste nicht-abgeschlossene Periode
@@ -113,7 +156,471 @@ async function llSetDefaultPeriode(companyProfileId) {
     } catch { /* ignorieren — bleibt aktueller Monat */ }
 }
 
-function llBranchChanged() { llLoadStatus(); }
+function llBranchChanged() {
+    if (_llTab === 'akonto') llLoadAkontoTab();
+    else                      llLoadStatus();
+}
+
+// Onchange-Hook der gemeinsamen Periode-Selects (Monat/Jahr) — lädt den
+// gerade aktiven Tab neu. Beide Tabs teilen sich Filiale/Monat/Jahr.
+function llPeriodChanged() {
+    if (_llTab === 'akonto') llLoadAkontoTab();
+    else                      llLoadStatus();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Akonto-Tab (HR-Sicht) — HR sieht den Akonto-Lauf der gewählten Filiale +
+// Periode, kann pro MA den Netto-Akonto direkt überschreiben (mit Grund),
+// die Periode an GF zurückgeben, freigeben oder auszahlen.
+//
+// Endpoints:
+//   GET  /api/akonto/workflow/status              → Periode + Zahlungen
+//   POST /api/akonto/workflow/hr-override/{id}    → Netto-Korrektur (BEI_HR)
+//   POST /api/akonto/workflow/zurueck-an-gf       → Periode zurück an GF
+//   POST /api/akonto/workflow/hr-freigabe         → HR-Freigabe
+//   POST /api/akonto/workflow/auszahlen           → Auszahlen (DTA)
+// ══════════════════════════════════════════════════════════════════════
+
+let _llAkontoData    = null;   // letzte Antwort von /status
+let _llAkSelectedId  = null;   // aktuell selektierte Akonto-Zahlung-Id
+let _llAkSlipReqToken = 0;     // Race-Schutz beim schnellen MA-Wechsel
+
+async function llLoadAkontoTab() {
+    const bar   = document.getElementById('llAkontoStatusBar');
+    const list  = document.getElementById('llAkMaList');
+    if (!bar || !list) return;
+
+    const cid   = document.getElementById('llBranchSelect').value;
+    const year  = document.getElementById('llYearSelect').value;
+    const month = document.getElementById('llMonthSelect').value;
+    if (!cid) {
+        bar.innerHTML  = '';
+        list.innerHTML = `<div style="padding:28px;text-align:center;color:#94a3b8;font-size:13px">Filiale oben links wählen…</div>`;
+        _llAkSetEmpty();
+        return;
+    }
+    list.innerHTML = `<div style="padding:28px;text-align:center;color:#94a3b8;font-size:13px">Lädt…</div>`;
+
+    try {
+        const r = await fetch(
+            `/api/akonto/workflow/status?companyProfileId=${cid}&year=${year}&month=${month}&_=${Date.now()}`,
+            { headers: ah(), cache: 'no-store' }
+        );
+        if (!r.ok) {
+            bar.innerHTML = `<div style="padding:10px 14px;background:#fee2e2;color:#b91c1c;border-radius:7px;font-size:13px">Fehler beim Laden (HTTP ${r.status}).</div>`;
+            list.innerHTML = '';
+            return;
+        }
+        _llAkontoData = await r.json();
+        _llAkRenderStatusBar(_llAkontoData, parseInt(year), parseInt(month));
+        _llAkRenderMaList();
+
+        // Auto-Select wie im GF-Workspace: alte Selektion behalten falls noch da,
+        // sonst ersten MA wählen.
+        const zList = _llAkontoData.zahlungen || [];
+        if (_llAkSelectedId) {
+            const stillThere = zList.find(z => z.id === _llAkSelectedId);
+            if (stillThere)            llAkSelectMa(_llAkSelectedId);
+            else if (zList.length > 0) llAkSelectMa(zList[0].id);
+            else                       _llAkSetEmpty();
+        } else if (zList.length > 0) {
+            llAkSelectMa(zList[0].id);
+        } else {
+            _llAkSetEmpty();
+        }
+    } catch (e) {
+        bar.innerHTML = `<div style="padding:10px 14px;background:#fee2e2;color:#b91c1c;border-radius:7px;font-size:13px">Verbindungsfehler: ${e.message}</div>`;
+    }
+}
+
+// ── Status-Bar oben (Status + Counter + HR-Periode-Aktionen) ───────────
+function _llAkRenderStatusBar(data, year, month) {
+    const bar = document.getElementById('llAkontoStatusBar');
+    if (!bar) return;
+
+    const isAdmin     = currentUser?.role === 'admin';
+    const isSuperUser = currentUser?.role === 'superuser';
+    const isHr        = isAdmin || isSuperUser;
+
+    // OFFEN: noch keine Akonto-Periode → kein MA-Detail
+    if (!data || !data.akontoStatus || data.akontoStatus === 'OFFEN') {
+        const monatStr = String(month).padStart(2, '0') + '.' + year;
+        bar.innerHTML = `
+        <div class="card" style="padding:16px">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <span style="background:#e0f2fe;color:#0369a1;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:700">OFFEN</span>
+                <div style="font-size:13.5px;color:#475569">Akonto-Lauf ${monatStr} wurde vom GF noch nicht gestartet.</div>
+            </div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:6px">
+                Sobald der GF in der Lohnverwaltung „Akonto vorbereiten" gedrückt und alle Lohnblätter freigegeben hat, erscheinen sie hier zur HR-Kontrolle.
+            </div>
+        </div>`;
+        return;
+    }
+
+    const statusMap = {
+        IN_BEARBEITUNG_GF: { txt: 'In Bearbeitung (GF)', bg: '#fef3c7', col: '#92400e' },
+        BEI_HR:            { txt: 'Bei HR',              bg: '#dbeafe', col: '#1e40af' },
+        HR_FREIGEGEBEN:    { txt: 'HR-freigegeben',      bg: '#dcfce7', col: '#166534' },
+        AUSBEZAHLT:        { txt: 'Ausbezahlt',          bg: '#bbf7d0', col: '#15803d' },
+    };
+    const st = statusMap[data.akontoStatus] || { txt: data.akontoStatus, bg: '#f1f5f9', col: '#475569' };
+
+    const zahlungen   = Array.isArray(data.zahlungen) ? data.zahlungen : [];
+    const total       = zahlungen.length;
+    const hrBestaetigtCnt = zahlungen.filter(z => z.status === 'HR_BESTAETIGT' || z.status === 'AUSBEZAHLT').length;
+    const ausbezahltCnt   = zahlungen.filter(z => z.status === 'AUSBEZAHLT').length;
+    const fmtChf = n => 'CHF ' + (Math.round((parseFloat(n)||0) * 100) / 100).toLocaleString('de-CH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    const sumNetto = zahlungen.reduce((s, z) => s + (parseFloat(z.nettoAkonto) || 0), 0);
+    const allDone  = total > 0 && hrBestaetigtCnt === total;
+
+    let actionsHtml = '';
+    if (data.akontoStatus === 'IN_BEARBEITUNG_GF') {
+        actionsHtml = `<span style="color:#92400e;font-size:11.5px;font-weight:600;background:#fef3c7;padding:3px 9px;border-radius:8px">⏳ Wartet auf GF</span>`;
+    } else if (data.akontoStatus === 'BEI_HR' && isHr) {
+        // Walter 17.05.2026: kein Pauschal-„HR-Freigabe"-Button mehr — HR
+        // bestätigt jeden MA einzeln (siehe Detail-Panel). Sobald alle MA
+        // HR_BESTAETIGT sind, springt die Periode automatisch auf
+        // HR_FREIGEGEBEN und der DTA-Button erscheint.
+        actionsHtml = `
+            <button class="btn btn-outline" onclick="llAkontoZurueckAnGf()" style="font-size:13px;padding:7px 12px;color:#dc2626;border-color:#fca5a5">↩ Alles zurück an GF</button>
+            <span style="font-size:11.5px;color:#92400e;background:#fef3c7;padding:3px 9px;border-radius:8px">Pro MA „✓ HR-bestätigen" — DTA wird frei wenn ${total} / ${total}</span>`;
+    } else if (data.akontoStatus === 'HR_FREIGEGEBEN' && isHr) {
+        actionsHtml = `<button class="btn btn-primary" onclick="llAkontoAuszahlen()" style="font-size:13px;padding:7px 12px;background:#0369a1;border-color:#0369a1">💰 Akonto auszahlen (DTA)</button>`;
+    } else if (data.akontoStatus === 'AUSBEZAHLT') {
+        const dt = data.akontoAusbezahltAt ? new Date(data.akontoAusbezahltAt).toLocaleString('de-CH') : '–';
+        actionsHtml = `<span style="color:#15803d;font-size:11.5px;font-weight:600;background:#bbf7d0;padding:3px 9px;border-radius:8px">✅ Ausbezahlt ${dt} (${ausbezahltCnt} MA)</span>`;
+    }
+
+    bar.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 4px">
+        <div style="font-size:15px;font-weight:700;color:#0f172a">Akonto ${String(month).padStart(2,'0')}.${year}</div>
+        <span style="background:${st.bg};color:${st.col};padding:4px 12px;border-radius:14px;font-size:12px;font-weight:700">${st.txt}</span>
+        <span style="font-size:12.5px;color:#64748b">${hrBestaetigtCnt}/${total} HR-bestätigt · Summe ${fmtChf(sumNetto)}</span>
+        <span style="display:inline-flex;gap:8px;flex-wrap:wrap;margin-left:auto">${actionsHtml}</span>
+    </div>`;
+}
+
+// ── MA-Liste links (analog GF-Workspace) ───────────────────────────────
+function _llAkRenderMaList() {
+    const el = document.getElementById('llAkMaList');
+    const cntEl = document.getElementById('llAkListCount');
+    if (!el || !_llAkontoData) return;
+
+    const zahlungen = Array.isArray(_llAkontoData.zahlungen) ? _llAkontoData.zahlungen : [];
+    if (cntEl) cntEl.textContent = zahlungen.length ? `${zahlungen.length} MA` : '';
+    if (!zahlungen.length) {
+        el.innerHTML = `<div style="padding:28px;text-align:center;color:#94a3b8;font-size:13px">Keine Lohnzeilen</div>`;
+        return;
+    }
+    // CLAUDE.md-Konvention: nach Vorname sortieren
+    const sorted = [...zahlungen].sort((a, b) =>
+        (a.firstName||'').localeCompare(b.firstName||'') || (a.lastName||'').localeCompare(b.lastName||''));
+
+    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+    el.innerHTML = '';
+    sorted.forEach(r => {
+        const isSelected = r.id === _llAkSelectedId;
+        const isFreigegeben  = r.status === 'FREIGEGEBEN_GF';
+        const isHrBestaetigt = r.status === 'HR_BESTAETIGT';
+        const isAusbezahlt   = r.status === 'AUSBEZAHLT';
+        // Walter 17.05.2026: in der HR-Sicht zählt der grüne ✓-Avatar nur,
+        // wenn der MA von HR bestätigt (oder ausbezahlt) ist. FREIGEGEBEN_GF
+        // zeigt noch Initialen → klare Signal-Wirkung „muss noch von HR".
+        const isDone = isHrBestaetigt || isAusbezahlt;
+        const initials = ((r.firstName||'')[0]||'') + ((r.lastName||'')[0]||'');
+        const model = r.modell || '';
+
+        const row = document.createElement('div');
+        row.className = 'lohn-emp-row';
+        if (isSelected) row.classList.add('lohn-emp-active');
+        row.dataset.akontoId = r.id;
+        row.style.cursor = 'pointer';
+
+        const sub = isAusbezahlt    ? `<span style="color:#15803d;font-weight:600">Akonto ausbezahlt</span>`
+                  : isHrBestaetigt  ? `<span style="color:#15803d;font-weight:600">HR bestätigt</span>`
+                  : isFreigegeben   ? `<span style="color:#1e40af;font-weight:600">GF freigegeben – wartet auf HR</span>`
+                  : `<span style="color:#94a3b8">${r.employeeNumber||r.employeeId}</span>`;
+
+        const avatar = isDone
+            ? `<div style="width:34px;height:34px;border-radius:50%;background:#dcfce7;color:#166534;display:flex;align-items:center;justify-content:center;font-weight:700">✓</div>`
+            : `<div style="width:34px;height:34px;border-radius:50%;background:#f1f5f9;color:#475569;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">${initials}</div>`;
+
+        const modelBadge = model
+            ? `<span style="background:${modelColor[model]||'#f1f5f9'};color:#475569;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:600">${model}</span>`
+            : '';
+
+        const hrNote = r.kommentarHr
+            ? ` <span title="HR-Notiz: ${(r.kommentarHr||'').replace(/"/g,'&quot;')}" style="color:#b91c1c">📝</span>`
+            : '';
+
+        row.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;padding:6px 8px">
+                ${avatar}
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:600;color:#0f172a;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.firstName||''} ${r.lastName||''}${hrNote}</div>
+                    <div style="font-size:11.5px;margin-top:1px">${sub}</div>
+                </div>
+                ${modelBadge}
+            </div>`;
+        row.addEventListener('click', () => llAkSelectMa(r.id));
+        el.appendChild(row);
+    });
+    llAkFilterMaList();
+}
+
+// Live-Filter via Suchfeld oben
+function llAkFilterMaList() {
+    const q = (document.getElementById('llAkEmpSearch')?.value || '').trim().toLowerCase();
+    const list = document.getElementById('llAkMaList');
+    if (!list) return;
+    Array.from(list.children).forEach(row => {
+        if (!q) { row.style.display = ''; return; }
+        const txt = (row.textContent || '').toLowerCase();
+        row.style.display = txt.includes(q) ? '' : 'none';
+    });
+}
+
+// MA selektieren + Lohnzettel laden
+async function llAkSelectMa(zahlungId) {
+    _llAkSelectedId = zahlungId;
+    _llAkRenderMaList();   // Selektion-Highlight neu setzen
+
+    const z = (_llAkontoData?.zahlungen || []).find(x => x.id === zahlungId);
+    if (!z) { _llAkSetEmpty(); return; }
+
+    const empty = document.getElementById('llAkDetailEmpty');
+    const card  = document.getElementById('llAkDetailCard');
+    const cnt   = document.getElementById('llAkDetailContent');
+    if (!empty || !card || !cnt) return;
+    empty.style.display = 'none';
+    card.style.display  = '';
+
+    // Skeleton während des Ladens
+    cnt.innerHTML = `<div style="padding:28px;text-align:center;color:#94a3b8;font-size:13px">Lädt Lohnzettel…</div>`;
+
+    // Race-Token: bei schnellem MA-Wechsel verwerfen wir veraltete Antworten.
+    const reqToken = ++_llAkSlipReqToken;
+
+    const cid   = document.getElementById('llBranchSelect').value;
+    const year  = document.getElementById('llYearSelect').value;
+    const month = document.getElementById('llMonthSelect').value;
+
+    try {
+        const r = await fetch(
+            `/api/payroll/calculate?employeeId=${z.employeeId}&companyProfileId=${cid}&year=${year}&month=${month}&_=${Date.now()}`,
+            { headers: ah(), cache: 'no-store' }
+        );
+        if (reqToken !== _llAkSlipReqToken) return; // zwischenzeitlich anderer MA gewählt
+        if (!r.ok) {
+            cnt.innerHTML = `<div style="padding:18px;color:#dc2626">Lohnzettel-Vorschau fehlgeschlagen (HTTP ${r.status}).</div>`;
+            return;
+        }
+        const slip = await r.json();
+        _llAkRenderDetail(z, slip);
+    } catch (e) {
+        if (reqToken !== _llAkSlipReqToken) return;
+        cnt.innerHTML = `<div style="padding:18px;color:#dc2626">Fehler: ${e.message}</div>`;
+    }
+}
+
+function _llAkSetEmpty() {
+    const empty = document.getElementById('llAkDetailEmpty');
+    const card  = document.getElementById('llAkDetailCard');
+    if (empty) empty.style.display = '';
+    if (card)  card.style.display  = 'none';
+}
+
+// Rendert: Header (Name + Nr + Stati) → Lohnzettel (renderLohnSlip) →
+// Akonto-Box mit Netto-Betrag + ✎-Edit-Button (nur in BEI_HR + HR-User).
+function _llAkRenderDetail(z, slip) {
+    const cnt = document.getElementById('llAkDetailContent');
+    if (!cnt) return;
+
+    const isAdmin     = currentUser?.role === 'admin';
+    const isSuperUser = currentUser?.role === 'superuser';
+    const isHr        = isAdmin || isSuperUser;
+    const periodIsBeiHr = _llAkontoData?.akontoStatus === 'BEI_HR';
+    const periodIsHrFr  = _llAkontoData?.akontoStatus === 'HR_FREIGEGEBEN';
+    const editable      = periodIsBeiHr && isHr;
+
+    const isAusbezahlt   = z.status === 'AUSBEZAHLT';
+    const isHrBestaetigt = z.status === 'HR_BESTAETIGT';
+    const isFreigegeben  = z.status === 'FREIGEGEBEN_GF';
+    const stPill = isAusbezahlt
+        ? `<span style="background:#dcfce7;color:#166534;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">✓ ausbezahlt</span>`
+        : isHrBestaetigt
+            ? `<span style="background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">✓ HR bestätigt</span>`
+            : isFreigegeben
+                ? `<span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">GF freigegeben – wartet auf HR</span>`
+                : `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">berechnet</span>`;
+
+    const gfStamp = z.gfFreigegebenAt
+        ? `<span style="color:#15803d;font-size:11.5px">✓ GF freigegeben am ${new Date(z.gfFreigegebenAt).toLocaleString('de-CH')}</span>`
+        : '';
+
+    const fmtChf = n => 'CHF ' + (Math.round((parseFloat(n)||0) * 100) / 100).toLocaleString('de-CH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    // HR-Aktions-Buttons je nach Status (Walter 17.05.2026 — pro-MA-Workflow):
+    //  • FREIGEGEBEN_GF in BEI_HR  → „✓ HR-bestätigen"  + „✎ ändern"
+    //  • HR_BESTAETIGT  in BEI_HR  → „↶ HR-Bestätigung zurückziehen"  + „✎ ändern"
+    //  • HR_BESTAETIGT  in HR_FREIGEGEBEN (alle durch) → noch zurückziehbar, kein ändern (Periode-Lock)
+    //  • AUSBEZAHLT → keine Aktionen
+    let hrActions = '';
+    if (isHr && periodIsBeiHr) {
+        if (isFreigegeben) {
+            hrActions = `
+                <button class="btn btn-outline" onclick="llAkontoEditBetrag(${z.id}, ${z.nettoAkonto||0})" style="font-size:12px;padding:5px 12px">✎ ändern</button>
+                <button class="btn btn-primary" onclick="llAkHrBestaetigen(${z.id})" style="font-size:12px;padding:5px 14px;background:#15803d;border-color:#15803d">✓ HR-bestätigen</button>`;
+        } else if (isHrBestaetigt) {
+            hrActions = `
+                <button class="btn btn-outline" onclick="llAkontoEditBetrag(${z.id}, ${z.nettoAkonto||0})" style="font-size:12px;padding:5px 12px">✎ ändern</button>
+                <button class="btn btn-outline" onclick="llAkHrZurueckziehen(${z.id})" style="font-size:12px;padding:5px 12px;color:#b91c1c;border-color:#fecaca">↶ Bestätigung zurückziehen</button>`;
+        }
+    } else if (isHr && periodIsHrFr && isHrBestaetigt) {
+        hrActions = `<button class="btn btn-outline" onclick="llAkHrZurueckziehen(${z.id})" style="font-size:12px;padding:5px 12px;color:#b91c1c;border-color:#fecaca">↶ Bestätigung zurückziehen</button>`;
+    }
+
+    const lockHint = (isHr && !periodIsBeiHr && !periodIsHrFr)
+        ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">🔒 HR-Aktionen nur in Phase „Bei HR" / „HR-freigegeben" möglich.</div>`
+        : '';
+    const hrKomBox = z.kommentarHr
+        ? `<div style="margin-top:10px;padding:8px 12px;background:#fef3c7;border-left:3px solid #d97706;font-size:11.5px;color:#78350f;white-space:pre-wrap">${(z.kommentarHr||'').replace(/</g,'&lt;')}</div>`
+        : '';
+
+    cnt.innerHTML = `
+    <div style="padding:14px 18px 0 18px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+            <div style="font-size:16px;font-weight:700;color:#0f172a">${z.firstName||''} ${z.lastName||''}</div>
+            ${stPill}
+            <span style="font-size:12px;color:#94a3b8">Personal-Nr. ${z.employeeNumber||z.employeeId}</span>
+            <span style="margin-left:auto">${gfStamp}</span>
+        </div>
+        ${hrKomBox}
+    </div>
+    <div id="llAkSlipMount" style="padding:0 4px"></div>
+    <div style="padding:12px 18px 18px 18px;border-top:2px solid #0f172a;background:#f8fafc">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="font-size:13px;color:#475569">Netto-Akonto an MA</div>
+            <div style="font-size:18px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums">${fmtChf(z.nettoAkonto)}</div>
+            <span style="margin-left:auto;display:inline-flex;gap:8px;flex-wrap:wrap">${hrActions}</span>
+        </div>
+        ${lockHint}
+    </div>`;
+
+    // Lohnzettel rendern (gleicher Renderer wie GF / Definitivlauf)
+    const mount = document.getElementById('llAkSlipMount');
+    if (mount && typeof renderLohnSlip === 'function') {
+        renderLohnSlip(slip, mount);
+    }
+}
+
+// Pro-MA HR-Bestätigung (Walter 17.05.2026)
+async function llAkHrBestaetigen(zahlungId) {
+    try {
+        const r = await fetch(`/api/akonto/workflow/hr-bestaetigen/${zahlungId}`, {
+            method: 'POST', headers: ah()
+        });
+        if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error || `HTTP ${r.status}`); }
+        if (typeof showToast === 'function') showToast('HR-bestätigt.', 'success');
+        await llLoadAkontoTab();
+        // Auto-Sprung zum nächsten noch-zu-bestätigenden MA
+        const next = (_llAkontoData?.zahlungen || []).find(z => z.status === 'FREIGEGEBEN_GF');
+        if (next) llAkSelectMa(next.id);
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+async function llAkHrZurueckziehen(zahlungId) {
+    if (!confirm('HR-Bestätigung zurückziehen?')) return;
+    try {
+        const r = await fetch(`/api/akonto/workflow/hr-zurueckziehen/${zahlungId}`, {
+            method: 'POST', headers: ah()
+        });
+        if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error || `HTTP ${r.status}`); }
+        if (typeof showToast === 'function') showToast('HR-Bestätigung zurückgezogen.', 'success');
+        await llLoadAkontoTab();
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+// ── Aktionen ───────────────────────────────────────────────────────────
+
+async function llAkontoEditBetrag(zahlungId, altBetrag) {
+    const neuStr = prompt(`Neuer Netto-Akonto-Betrag (alt: CHF ${altBetrag}):`, String(altBetrag));
+    if (neuStr === null) return;
+    const neu = parseFloat(String(neuStr).replace(/[^\d.,-]/g, '').replace(',', '.'));
+    if (!Number.isFinite(neu) || neu < 0) { alert('Ungültiger Betrag.'); return; }
+    const grund = prompt('Grund der Korrektur (wird im Audit gespeichert):');
+    if (!grund || !grund.trim()) { alert('Grund ist Pflicht.'); return; }
+    try {
+        const r = await fetch(`/api/akonto/workflow/hr-override/${zahlungId}`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ neuerNettoAkonto: neu, grund: grund.trim() })
+        });
+        if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error || `HTTP ${r.status}`); }
+        if (typeof showToast === 'function') showToast('Akonto korrigiert.', 'success');
+        // Status + MA-Liste + aktueller MA-Detail neu laden (Auswahl bleibt
+        // dank _llAkSelectedId erhalten).
+        await llLoadAkontoTab();
+    } catch (e) { alert('Korrektur fehlgeschlagen: ' + e.message); }
+}
+
+async function llAkontoZurueckAnGf() {
+    const kommentar = prompt('Begründung für die Rücksendung an den GF:');
+    if (!kommentar || !kommentar.trim()) return;
+    const cid   = document.getElementById('llBranchSelect').value;
+    const year  = parseInt(document.getElementById('llYearSelect').value);
+    const month = parseInt(document.getElementById('llMonthSelect').value);
+    try {
+        const r = await fetch('/api/akonto/workflow/zurueck-an-gf', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyProfileId: parseInt(cid), year, month, kommentar: kommentar.trim() })
+        });
+        if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error || `HTTP ${r.status}`); }
+        if (typeof showToast === 'function') showToast('Periode zurück an GF.', 'success');
+        await llLoadAkontoTab();
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+// LEGACY: Pauschal-HR-Freigabe (Walter-Vorgabe 17.05.2026: durch pro-MA-Flow
+// ersetzt). Wird vom neuen UI nicht mehr aufgerufen. Backend-Endpoint bleibt
+// trotzdem (akzeptiert noch alte Clients und markiert dann alle FREIGEGEBEN_GF
+// als HR_BESTAETIGT).
+async function llAkontoHrFreigabe() {
+    if (!confirm('Pauschal HR-Freigabe (legacy)? Besser jeden MA einzeln bestätigen.')) return;
+    const cid   = document.getElementById('llBranchSelect').value;
+    const year  = parseInt(document.getElementById('llYearSelect').value);
+    const month = parseInt(document.getElementById('llMonthSelect').value);
+    try {
+        const r = await fetch('/api/akonto/workflow/hr-freigabe', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyProfileId: parseInt(cid), year, month })
+        });
+        if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error || `HTTP ${r.status}`); }
+        if (typeof showToast === 'function') showToast('HR-Freigabe (pauschal) erteilt.', 'success');
+        await llLoadAkontoTab();
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+async function llAkontoAuszahlen() {
+    if (!confirm('Akonto auszahlen? Datensätze werden eingefroren und können nur noch durch Admin wieder geöffnet werden.')) return;
+    const cid   = document.getElementById('llBranchSelect').value;
+    const year  = parseInt(document.getElementById('llYearSelect').value);
+    const month = parseInt(document.getElementById('llMonthSelect').value);
+    try {
+        const r = await fetch('/api/akonto/workflow/auszahlen', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyProfileId: parseInt(cid), year, month })
+        });
+        if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.error || `HTTP ${r.status}`); }
+        const res = await r.json();
+        if (typeof showToast === 'function') showToast(`Akonto ausbezahlt — ${res.countAusbezahlt} Datensätze.`, 'success');
+        await llLoadAkontoTab();
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
 
 async function llLoadStatus() {
     const cid   = document.getElementById('llBranchSelect').value;
@@ -437,14 +944,34 @@ async function llWiederOeffnen() {
     const _t = (k) => (window.i18n ? window.i18n.t(k) : k);
     const bemerkung = prompt(_t('ll.reopen.prompt'));
     if (!bemerkung) return;
-    if (!confirm(_t('ll.reopen.confirm'))) return;
+
+    // Walter-Vorgabe 19.05.2026: Pflicht-Bestätigung dass der DTA bei der
+    // Bank gelöscht wurde, sonst läuft die Zahlung doppelt. Backend prüft
+    // zusätzlich dass das Zahldatum DTA noch nicht erreicht ist — nach dem
+    // Datum ist auch der Admin-Reset gesperrt.
+    if (!confirm(
+        'ACHTUNG: Definitiv abgeschlossene Lohnperiode wieder eröffnen.\n\n' +
+        'Hast du den DTA bei der Bank gelöscht oder storniert?\n\n' +
+        '✓ JA → Periode wird auf "provisorisch_abgeschlossen" zurückgerollt,\n' +
+        '       Lohnzettel aus MA-Postfächern entfernt.\n' +
+        '✗ NEIN → Vorgang abbrechen.\n\n' +
+        'Diese Operation ist NACH dem Zahldatum DTA gesperrt.'
+    )) return;
+
     try {
         const r = await fetch(`/api/payroll-perioden/${_llCurrentPeriodeId}/wieder-oeffnen`, {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: currentUser?.id ?? 0, bemerkung })
         });
-        if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error(j.message || 'Fehler'); }
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            if (j.error === 'PAYOUT_DATE_REACHED') {
+                alert('⛔ ' + j.message);
+                return;
+            }
+            throw new Error(j.message || 'Fehler');
+        }
         showToast(_t('ll.reopen.toast'), 'success');
         await llLoadStatus();
     } catch (e) { alert(e.message); }
@@ -744,6 +1271,7 @@ async function svSaveVortrag() {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body:    JSON.stringify(dto)
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(r)) return;
         if (!r.ok) {
             const txt = await r.text();
             throw new Error(txt || ('HTTP ' + r.status));
@@ -764,6 +1292,7 @@ async function svDeleteVortrag() {
         const r = await fetch(`/api/saldo-vortrag/${_svCurrentEmployeeId}`, {
             method: 'DELETE', headers: ah()
         });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(r)) return;
         if (!r.ok) throw new Error('HTTP ' + r.status);
         svShowAlert('Vortrag entfernt.', 'ok');
         await svRefreshList();

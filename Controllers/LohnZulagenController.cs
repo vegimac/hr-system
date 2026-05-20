@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,8 +12,60 @@ namespace HrSystem.Controllers;
 [Route("api")]
 public class LohnZulagenController : ControllerBase
 {
-    private readonly AppDbContext _db;
-    public LohnZulagenController(AppDbContext db) => _db = db;
+    private readonly AppDbContext        _db;
+    private readonly LohnEditLockService _editLock;
+    public LohnZulagenController(AppDbContext db, LohnEditLockService editLock)
+    {
+        _db       = db;
+        _editLock = editLock;
+    }
+
+    /// <summary>
+    /// Lohnlauf-Lock-Check für eine Periode (YYYY-MM) eines MA — Zulagen-spezifisch.
+    ///
+    /// Walter-Vorgabe 19.05.2026: Zulagen/Abzüge (z.B. Vorschuss, Spesen) dürfen
+    /// während der GESAMTEN GF- UND HR-Bearbeitungsphase erfasst werden — nicht
+    /// nur in IN_BEARBEITUNG_GF wie der allgemeine LohnEditLock. Gesperrt sind
+    /// nur die finalen Stati:
+    ///   • Akonto-Status HR_FREIGEGEBEN oder AUSBEZAHLT
+    ///   • Definitivlauf provisorisch_abgeschlossen oder abgeschlossen
+    /// In allen anderen Stati (OFFEN, IN_BEARBEITUNG_GF, BEI_HR) ist Erfassung
+    /// erlaubt — der GF kann während seiner Phase erfassen, HR kann während
+    /// seiner Freigabe-Phase noch ergänzen.
+    /// </summary>
+    private async Task<IActionResult?> CheckLohnLockAsync(int employeeId, string periode)
+    {
+        if (periode.Length != 7 || periode[4] != '-') return null;
+        if (!int.TryParse(periode[..4], out var y))    return null;
+        if (!int.TryParse(periode[5..], out var m))    return null;
+
+        var branchId = await _db.Employees
+            .Where(e => e.Id == employeeId)
+            .SelectMany(e => e.Employments)
+            .Where(x => x.IsActive)
+            .OrderByDescending(x => x.ContractStartDate)
+            .Select(x => (int?)x.CompanyProfileId)
+            .FirstOrDefaultAsync();
+        if (branchId is null) return null;
+
+        var per = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == branchId.Value
+                                   && p.Year == y && p.Month == m);
+        if (per is null) return null;   // Periode existiert noch nicht → offen
+
+        var blockedDefinitiv = per.Status == "provisorisch_abgeschlossen"
+                            || per.Status == "abgeschlossen";
+        var blockedAkonto    = per.AkontoStatus == "HR_FREIGEGEBEN"
+                            || per.AkontoStatus == "AUSBEZAHLT";
+        if (!blockedDefinitiv && !blockedAkonto) return null;
+
+        var grund = blockedDefinitiv ? "Definitivlauf abgeschlossen" : "Akonto HR-freigegeben/ausbezahlt";
+        return Conflict(new
+        {
+            error = "LOHN_EDIT_LOCKED",
+            message = $"Periode {m:D2}/{y} - {grund}. Zulagen/Abzuege koennen nicht mehr erfasst werden.",
+        });
+    }
 
     // ═══════════════════════════════════════════════════════
     //  LOHNPOSITIONEN ALS TYP-KATALOG  (für Zulagen/Abzüge-Dropdown)
@@ -102,6 +155,10 @@ public class LohnZulagenController : ControllerBase
         if (dto.Betrag <= 0)
             return BadRequest("Betrag muss grösser als 0 sein.");
 
+        // Lohnlauf-Sperre: keine Zulage in einer in-Verarbeitung-Periode anlegen.
+        var locked = await CheckLohnLockAsync(dto.EmployeeId, dto.Periode);
+        if (locked != null) return locked;
+
         var lp = await _db.Lohnpositionen.FindAsync(dto.LohnpositionId);
         if (lp is null) return BadRequest("Unbekannte Lohnposition.");
         if (lp.Typ != "ZULAGE" && lp.Typ != "ABZUG")
@@ -146,6 +203,10 @@ public class LohnZulagenController : ControllerBase
         if (entry is null) return NotFound();
         if (dto.Betrag <= 0) return BadRequest("Betrag muss grösser als 0 sein.");
 
+        // Lohnlauf-Sperre: keine Änderung in einer in-Verarbeitung-Periode.
+        var locked = await CheckLohnLockAsync(entry.EmployeeId, entry.Periode);
+        if (locked != null) return locked;
+
         entry.Betrag    = Math.Round(dto.Betrag, 2);
         entry.Bemerkung = dto.Bemerkung?.Trim();
         entry.UpdatedAt = DateTime.UtcNow;
@@ -173,6 +234,11 @@ public class LohnZulagenController : ControllerBase
     {
         var entry = await _db.LohnZulagen.FindAsync(id);
         if (entry is null) return NotFound();
+
+        // Lohnlauf-Sperre: kein Löschen in einer in-Verarbeitung-Periode.
+        var locked = await CheckLohnLockAsync(entry.EmployeeId, entry.Periode);
+        if (locked != null) return locked;
+
         _db.LohnZulagen.Remove(entry);
         await _db.SaveChangesAsync();
         return Ok();

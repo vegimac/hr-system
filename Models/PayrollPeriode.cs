@@ -17,9 +17,6 @@ public class PayrollPeriode
 
     public int CompanyProfileId { get; set; }
 
-    /// <summary>FK auf die Perioden-Konfiguration (null bei Übergangs-Lohnläufen).</summary>
-    public int? ConfigId { get; set; }
-
     /// <summary>Auszahlungsjahr (Jahr in dem der Lohn ausbezahlt wird).</summary>
     public int Year { get; set; }
 
@@ -32,14 +29,8 @@ public class PayrollPeriode
     /// <summary>Letzter Tag dieser konkreten Periode, z.B. 2026-03-20.</summary>
     public DateOnly PeriodTo { get; set; }
 
-    /// <summary>Anzeige-Label, z.B. "März 2026" oder "Abschluss Dezember 2026".</summary>
+    /// <summary>Anzeige-Label, z.B. "März 2026".</summary>
     public string Label { get; set; } = "";
-
-    /// <summary>
-    /// true = Übergangs-Lohnlauf bei Periodenänderung (z.B. 21.12.–31.12. beim Wechsel auf 1.–31.).
-    /// Erlaubt zwei Perioden im gleichen Monat.
-    /// </summary>
-    public bool IsTransition { get; set; } = false;
 
     /// <summary>offen | provisorisch_abgeschlossen | abgeschlossen</summary>
     public string Status { get; set; } = "offen";
@@ -102,10 +93,16 @@ public class PayrollPeriode
     public DateTime? AkontoAusbezahltAt { get; set; }
     public int?      AkontoAusbezahltBy { get; set; }
 
+    /// <summary>
+    /// Bank-Ausführungsdatum des Akonto-DTA (= RequestedExecutionDate im pain.001).
+    /// Wird beim „DTA an Bank gesendet"-Bestätigungsschritt erfasst und im DTA-XML
+    /// verwendet. Reset-Lock prüft `heute > AkontoAuszahlungsdatum` → 409.
+    /// </summary>
+    public DateOnly? AkontoAuszahlungsdatum { get; set; }
+
     /// <summary>ID des Akonto-DTA-Laufs (pain.001). Wird in Etappe 2/3 verdrahtet.</summary>
     public int? AkontoDtaRunId { get; set; }
 
     public CompanyProfile? Company { get; set; }
-    public PayrollPeriodeConfig? Config { get; set; }
     public ICollection<PayrollSnapshot> Snapshots { get; set; } = new List<PayrollSnapshot>();
 }

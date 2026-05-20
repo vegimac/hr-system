@@ -12,7 +12,10 @@ namespace HrSystem.Services;
 ///
 /// Walter-Anforderung: keine separate Verwaltung — Postfach = Mitarbeiter-ID.
 ///   • Beim Anlegen eines MA wird der Account automatisch erzeugt.
-///   • Initial-Passwort = Filial-Präfix + EmployeeNumber (z.B. "Su750009").
+///   • Initial-Passwort = EmployeeNumber selbst (Walter-Vorgabe 17.05.2026,
+///     Variante B). MA muss sich nur EINE Sache merken (z.B. "750009"
+///     als Username UND als Initial-Passwort). Sicherheit kommt durch
+///     MustChangePassword=true, das beim ersten Login einen Wechsel erzwingt.
 ///   • Pflicht-Wechsel beim ersten Login.
 ///   • Bei MA-Inaktivität wird der Login-Zugang gesperrt (Account.IsActive=false),
 ///     das Postfach bleibt aber für 1 Jahr für HR/Admin einsehbar.
@@ -118,14 +121,17 @@ public class EmployeePostfachService
     }
 
     /// <summary>
-    /// Initial-Passwort: Präfix + EmployeeNumber. Falls die Filiale keinen
-    /// Präfix gepflegt hat → "MA" als Fallback.
+    /// Initial-Passwort = EmployeeNumber (Walter-Vorgabe 17.05.2026, Variante B).
+    /// Beispiel: MA mit Personalnummer "750009" → Username "750009", Initial-
+    /// Passwort "750009". MustChangePassword=true (gesetzt in EnsureAccount/
+    /// ResetPassword) erzwingt sofortigen Wechsel beim ersten Login.
+    /// CompanyProfile.LoginPasswordPrefix wird nicht mehr genutzt (Dead Code).
+    /// Der zweite Parameter bleibt aus Backwards-Compatibility, ist aber
+    /// jetzt irrelevant.
     /// </summary>
     private static string BuildInitialPassword(Employee emp, CompanyProfile? primaryCompany)
     {
-        var prefix = primaryCompany?.LoginPasswordPrefix?.Trim();
-        if (string.IsNullOrWhiteSpace(prefix)) prefix = "MA";
-        return prefix + (emp.EmployeeNumber ?? emp.Id.ToString());
+        return emp.EmployeeNumber ?? emp.Id.ToString();
     }
 
     /// <summary>

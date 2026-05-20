@@ -1018,12 +1018,24 @@ function svRender() {
         const modelBadge = r.employmentModelCode
             ? `<span style="font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:8px;background:#fef3c7;color:#92400e">${r.employmentModelCode}</span>`
             : '<span style="color:#cbd5e1;font-size:12px">alle</span>';
+        // Walter-Vorgabe 18.05.2026: in einem nicht-offenen Lohnlauf
+        // verwendete Sätze sind gesperrt — „Bearbeiten" deaktiviert, dafür
+        // „Neu ab" als Versionierungs-Workflow. Lock-Pille analog Bank/Vertrag.
+        const locked    = !!r.inLohnVerwendet;
+        const rateJson  = JSON.stringify(r).replace(/"/g,'&quot;');
+        const editBtn   = locked
+            ? `<button class="btn btn-sm btn-secondary" disabled title="In Lohn verwendet — nur Neu ab" style="opacity:0.4;cursor:not-allowed">Bearbeiten</button>`
+            : `<button class="btn btn-sm btn-secondary" onclick="svOpenForm(${rateJson}, 'edit')">Bearbeiten</button>`;
+        const newAbBtn  = `<button class="btn btn-sm btn-primary" onclick="svOpenForm(${rateJson}, 'new-version')" style="margin-left:6px">Neu ab</button>`;
+        const lockPill  = locked
+            ? `<span style="font-size:10px;padding:2px 7px;border-radius:9px;background:#fee2e2;color:#991b1b;margin-left:6px" title="In einem freigegebenen Lohnlauf verwendet">🔒 in Lohn</span>`
+            : '';
         return `<tr style="${!r.isActive ? 'opacity:0.45;' : ''}">
             <td style="padding:10px 14px;text-align:center;color:#64748b;font-variant-numeric:tabular-nums">${r.sortOrder ?? 99}</td>
             <td style="padding:10px 14px">
                 <span style="font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:12px;background:${col}22;color:${col}">${r.code}</span>
             </td>
-            <td style="padding:10px 14px;font-weight:500;color:#1e293b">${r.name}</td>
+            <td style="padding:10px 14px;font-weight:500;color:#1e293b">${r.name}${lockPill}</td>
             <td style="padding:10px 14px;text-align:right;font-weight:600;color:#0f172a">${rate.toFixed(3)} %</td>
             <td style="padding:10px 14px;color:#64748b;font-size:12px">${basisLabel[r.basisType] ?? r.basisType}</td>
             <td style="padding:10px 14px;text-align:center;color:#64748b;font-size:12px">${fmtAge(r.minAge, r.maxAge)}</td>
@@ -1033,16 +1045,24 @@ function svRender() {
             <td style="padding:10px 14px;text-align:center">
                 <span style="font-size:11px;padding:2px 9px;border-radius:10px;${r.isActive ? 'background:#dcfce7;color:#166534' : 'background:#f1f5f9;color:#64748b'}">${r.isActive ? 'Aktiv' : 'Inaktiv'}</span>
             </td>
-            <td style="padding:10px 14px;text-align:right">
-                <button class="btn btn-sm btn-secondary" onclick="svOpenForm(${JSON.stringify(r).replace(/"/g,'&quot;')})">Bearbeiten</button>
-            </td>
+            <td style="padding:10px 14px;text-align:right;white-space:nowrap">${editBtn}${newAbBtn}</td>
         </tr>`;
     }).join('');
 }
 
-function svOpenForm(rate) {
-    const isNew = !rate;
-    document.getElementById('svFormTitle').textContent = isNew ? 'Neuer SV-Satz' : 'SV-Satz bearbeiten';
+// Globaler Modus-Speicher: 'new' (frische Zeile), 'edit' (bestehende Zeile
+// ändern) oder 'new-version' (Nachfolger mit neuem Gültig-ab anlegen).
+let _svFormMode = 'new';
+
+function svOpenForm(rate, mode) {
+    _svFormMode = mode || (rate ? 'edit' : 'new');
+    const titleMap = {
+        'new':         'Neuer SV-Satz',
+        'edit':        'SV-Satz bearbeiten',
+        'new-version': `Neue Version ab — ${rate?.name ?? rate?.code ?? ''}`,
+    };
+    document.getElementById('svFormTitle').textContent = titleMap[_svFormMode];
+    // svId hält bei 'new-version' die ID des Vorgängers (für den POST /new-version-Endpoint)
     document.getElementById('svId').value            = rate?.id ?? '';
     document.getElementById('svCode').value            = rate?.code ?? 'AHV';
     document.getElementById('svName').value            = rate?.name ?? '';
@@ -1054,14 +1074,33 @@ function svOpenForm(rate) {
     document.getElementById('svMaxAge').value        = rate?.maxAge ?? '';
     document.getElementById('svFreibetrag').value    = rate?.freibetragMonthly ?? '';
     document.getElementById('svCoordDeduction').value = rate?.coordinationDeduction ?? '';
-    document.getElementById('svValidFrom').value     = rate?.validFrom ? rate.validFrom.substring(0, 10) : '';
-    document.getElementById('svValidTo').value       = rate?.validTo   ? rate.validTo.substring(0, 10)   : '';
+    // Bei „Neu ab" das ValidFrom-Feld bewusst LEER lassen, damit der User
+    // bewusst ein Datum eingeben muss; Vorgänger-ValidFrom wäre missverständlich.
+    if (_svFormMode === 'new-version') {
+        document.getElementById('svValidFrom').value = '';
+        document.getElementById('svValidTo').value   = '';   // Nachfolger ist meistens open-ended
+    } else {
+        document.getElementById('svValidFrom').value = rate?.validFrom ? rate.validFrom.substring(0, 10) : '';
+        document.getElementById('svValidTo').value   = rate?.validTo   ? rate.validTo.substring(0, 10)   : '';
+    }
     document.getElementById('svOnlyQst').checked     = rate?.onlyQuellensteuer ?? false;
     document.getElementById('svSortOrder').value     = rate?.sortOrder ?? 99;
     document.getElementById('svFormErr').style.display = 'none';
+
+    // „Neu ab"-Hinweis im Formular einblenden (per id-Anker, falls vorhanden)
+    const hint = document.getElementById('svFormHint');
+    if (hint) {
+        if (_svFormMode === 'new-version' && rate) {
+            hint.innerHTML = `Vorgänger <b>${rate.name}</b> (gültig ab ${rate.validFrom?.substring(0,10) ?? '?'}) wird beim Speichern automatisch begrenzt auf „neu&nbsp;ab&nbsp;−&nbsp;1&nbsp;Tag".`;
+            hint.style.display = 'block';
+        } else {
+            hint.style.display = 'none';
+        }
+    }
+
     document.getElementById('svFormOverlay').style.display = 'block';
     document.getElementById('svFormPanel').style.display   = 'block';
-    document.getElementById('svName').focus();
+    document.getElementById(_svFormMode === 'new-version' ? 'svValidFrom' : 'svName').focus();
 }
 
 function svCloseForm() {
@@ -1110,16 +1149,44 @@ async function svSave(event) {
         isActive:              true,
     };
 
-    if (!body.name) { errEl.textContent = 'Bitte eine Bezeichnung eingeben.'; errEl.style.display = 'block'; return; }
-    if (!body.validFrom) { errEl.textContent = 'Bitte ein Gültig-ab-Datum angeben.'; errEl.style.display = 'block'; return; }
+    if (!body.name) { errEl.textContent = 'Bitte eine Bezeichnung eingeben.'; errEl.style.display = 'block'; resetSubmitBtn(); return; }
+    if (!body.validFrom) { errEl.textContent = 'Bitte ein Gültig-ab-Datum angeben.'; errEl.style.display = 'block'; resetSubmitBtn(); return; }
+
+    function resetSubmitBtn() {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = submitBtn.dataset.originalText || 'Speichern';
+        }
+    }
 
     try {
-        const url    = id ? `/api/social-insurance-rates/${id}` : '/api/social-insurance-rates';
-        const method = id ? 'PUT' : 'POST';
-        const res    = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        // Modus-Dispatch:
+        //   'new'         → POST /api/social-insurance-rates
+        //   'edit'        → PUT  /api/social-insurance-rates/{id}
+        //   'new-version' → POST /api/social-insurance-rates/{id}/new-version
+        let url, method;
+        if (_svFormMode === 'new-version') {
+            url = `/api/social-insurance-rates/${id}/new-version`;
+            method = 'POST';
+        } else if (id) {
+            url = `/api/social-insurance-rates/${id}`;
+            method = 'PUT';
+        } else {
+            url = '/api/social-insurance-rates';
+            method = 'POST';
+        }
+        const res = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (!res.ok) {
-            const txt = await res.text().catch(() => '');
-            errEl.textContent = `Fehler beim Speichern${txt ? ': ' + txt : ''}.`;
+            // 409 = SV_RATE_LOCKED (bei direktem PUT auf einen verwendeten Satz)
+            // → Hinweis dass „Neu ab" zu verwenden ist
+            let msg = '';
+            try {
+                const json = await res.clone().json();
+                msg = json.message || json.error || '';
+            } catch {
+                msg = await res.text().catch(() => '');
+            }
+            errEl.textContent = msg || `Fehler beim Speichern (HTTP ${res.status}).`;
             errEl.style.display = 'block';
             return;
         }
@@ -1129,10 +1196,7 @@ async function svSave(event) {
         errEl.textContent = `Verbindungsfehler: ${e.message}`;
         errEl.style.display = 'block';
     } finally {
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = submitBtn.dataset.originalText || 'Speichern';
-        }
+        resetSubmitBtn();
     }
 }
 

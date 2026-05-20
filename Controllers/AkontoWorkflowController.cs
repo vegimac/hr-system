@@ -32,25 +32,31 @@ namespace HrSystem.Controllers;
 [Route("api/akonto/workflow")]
 public class AkontoWorkflowController : ControllerBase
 {
-    private readonly AppDbContext       _db;
-    private readonly AkontoLaufService  _service;
+    private readonly AppDbContext           _db;
+    private readonly AkontoLaufService      _service;
+    private readonly AkontoListePdfService  _listePdf;
     private readonly ILogger<AkontoWorkflowController> _log;
 
     public AkontoWorkflowController(AppDbContext db, AkontoLaufService service,
+                                    AkontoListePdfService listePdf,
                                     ILogger<AkontoWorkflowController> log)
     {
-        _db      = db;
-        _service = service;
-        _log     = log;
+        _db       = db;
+        _service  = service;
+        _listePdf = listePdf;
+        _log      = log;
     }
 
     // ── DTOs ────────────────────────────────────────────────────────────────
 
     public record WorkflowStartRequest(int CompanyProfileId, int Year, int Month, string Stichtag);
     public record PeriodRequest(int CompanyProfileId, int Year, int Month);
+    // Walter 19.05.2026: Auszahlen erfragt Bank-Ausführungsdatum (ReqdExctnDt).
+    public record AuszahlenRequest(int CompanyProfileId, int Year, int Month, string Auszahlungsdatum);
     public record ZurueckRequest(int CompanyProfileId, int Year, int Month, string Kommentar);
     public record KommentarRequest(string? Kommentar);
     public record SyncFixFromSlipRequest(decimal Auszahlungsbetrag);
+    public record HrOverrideRequest(decimal NeuerNettoAkonto, string Grund);
 
     // ── Status-Abfrage ──────────────────────────────────────────────────────
 
@@ -90,6 +96,14 @@ public class AkontoWorkflowController : ControllerBase
                 x.z.PayoutDate,
                 x.z.GfFreigegebenAt, x.z.GfFreigegebenBy,
                 x.z.KommentarGf, x.z.KommentarHr,
+                // Vertragsmodell (für HR-Tab-Badge): jüngster aktiver Vertrag in dieser Filiale.
+                Modell = _db.Employments
+                    .Where(em => em.EmployeeId == x.z.EmployeeId
+                              && em.CompanyProfileId == x.z.CompanyProfileId
+                              && em.IsActive)
+                    .OrderByDescending(em => em.ContractStartDate)
+                    .Select(em => em.EmploymentModel)
+                    .FirstOrDefault(),
                 // EmployeeBankAccount ist versionsbasiert (ValidFrom/ValidTo).
                 // „aktiv heute" = ValidFrom <= today AND (ValidTo IS NULL OR ValidTo >= today).
                 BankAccountCount = _db.EmployeeBankAccounts.Count(b =>
@@ -115,6 +129,7 @@ public class AkontoWorkflowController : ControllerBase
             zahlungen,
             countTotal          = zahlungen.Count,
             countFreigegebenGf  = zahlungen.Count(z => z.Status == "FREIGEGEBEN_GF"),
+            countHrBestaetigt   = zahlungen.Count(z => z.Status == "HR_BESTAETIGT"),
             countBerechnet      = zahlungen.Count(z => z.Status == "BERECHNET"),
             countAusbezahlt     = zahlungen.Count(z => z.Status == "AUSBEZAHLT"),
         });
@@ -144,8 +159,7 @@ public class AkontoWorkflowController : ControllerBase
         // wir legen NICHT mehr automatisch an, sonst entstehen Phantom-Perioden).
         var periode = await _db.PayrollPerioden
             .FirstOrDefaultAsync(p => p.CompanyProfileId == req.CompanyProfileId
-                                   && p.Year == req.Year && p.Month == req.Month
-                                   && !p.IsTransition);
+                                   && p.Year == req.Year && p.Month == req.Month);
         if (periode is null)
             return StatusCode(409, new {
                 error = $"Periode {req.Month:00}/{req.Year} ist nicht eröffnet. "
@@ -163,8 +177,17 @@ public class AkontoWorkflowController : ControllerBase
 
         if (periode.AkontoStatus == "AUSBEZAHLT")
             return StatusCode(409, new { error = "Periode ist bereits AUSBEZAHLT — Storno-Funktion nötig." });
-        if (periode.AkontoStatus == "BEI_HR" || periode.AkontoStatus == "HR_FREIGEGEBEN")
-            return StatusCode(409, new { error = $"Periode steht bei HR ({periode.AkontoStatus}) — bitte erst zurückholen lassen." });
+        // Walter-Vorgabe 19.05.2026: HR (admin/superuser) darf während der
+        // BEI_HR-Phase neu berechnen — z.B. nach Erfassen eines Vorschusses.
+        // Die Re-Berechnung lässt FREIGEGEBEN_GF / HR_BESTAETIGT-Datensätze
+        // intakt (siehe Logik weiter unten). GF bleibt während BEI_HR
+        // gesperrt — er muss die Periode erst zurückholen lassen.
+        var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
+        var isHr      = roleClaim == "admin" || roleClaim == "superuser";
+        if (periode.AkontoStatus == "HR_FREIGEGEBEN")
+            return StatusCode(409, new { error = "Periode ist HR-freigegeben — bitte erst zurückholen lassen." });
+        if (periode.AkontoStatus == "BEI_HR" && !isHr)
+            return StatusCode(409, new { error = "Periode steht bei HR — GF kann nicht neu berechnen. Bitte erst zurückholen lassen." });
 
         // 1) Vorschau frisch rechnen
         AkontoLaufService.AkontoVorschauResponse data;
@@ -338,7 +361,12 @@ public class AkontoWorkflowController : ControllerBase
         var profile = await _db.CompanyProfiles.FindAsync(z.CompanyProfileId);
         if (profile is null) return NotFound("Filiale nicht gefunden.");
 
-        var prozent = Math.Clamp(profile.AkontoProzentFix, 0m, 100m);
+        // Walter-Vorgabe 18.05.2026: FIX und FIX-M haben ab jetzt getrennte
+        // Prozent-Sätze. FIX-M (Manager) liegt höher (Default 90 %) als FIX
+        // (Default 80 %), weil Manager planbar hohe Festlöhne haben.
+        var prozent = model == "FIX-M"
+            ? Math.Clamp(profile.AkontoProzentFixM, 0m, 100m)
+            : Math.Clamp(profile.AkontoProzentFix,  0m, 100m);
         var rohWert = req.Auszahlungsbetrag * (prozent / 100m);
         // Auf CHF 10 abrunden (untere Grenze 0). Gleiches Rundungsverhalten
         // wie in AkontoLaufService.BuildRow Schritt 5.
@@ -356,7 +384,8 @@ public class AkontoWorkflowController : ControllerBase
 
         return Ok(new {
             z.Id, z.NettoAkonto, z.GeschaetzterBrutto, z.GeschaetzteAbzuege,
-            akontoProzentFix = prozent,
+            employmentModel = model,
+            akontoProzent   = prozent,
             auszahlungsbetrag = Math.Round(req.Auszahlungsbetrag, 2),
         });
     }
@@ -452,8 +481,96 @@ public class AkontoWorkflowController : ControllerBase
         return Ok(new { akontoStatus = periode.AkontoStatus });
     }
 
-    // ── HR: Final-Freigabe ──────────────────────────────────────────────────
+    // ── HR: pro-MA HR-Bestätigung (Walter-Vorgabe 17.05.2026) ───────────────
+    //
+    // 4-Augen-Symmetrie zum GF: HR bestätigt jeden Lohnzettel einzeln. Status
+    // pro MA wechselt FREIGEGEBEN_GF → HR_BESTAETIGT. Sobald ALLE MA der
+    // Periode HR_BESTAETIGT sind, transitioniert die Periode automatisch
+    // BEI_HR → HR_FREIGEGEBEN und der DTA-Button wird im UI frei.
+    //
+    [HttpPost("hr-bestaetigen/{id:int}")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> HrBestaetigen(int id)
+    {
+        var z = await _db.AkontoZahlungen.FirstOrDefaultAsync(x => x.Id == id);
+        if (z is null) return NotFound();
 
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == z.CompanyProfileId
+                                   && p.Year == z.PeriodYear && p.Month == z.PeriodMonth);
+        // Walter 19.05.2026: HR-Bestätigung auch im Zwischen-Status
+        // HR_FREIGEGEBEN erlauben — solange noch nicht AUSBEZAHLT ist,
+        // darf HR einzelne MA noch nachträglich bestätigen (nach einem
+        // Zurückziehen / Override). Erst der DTA-Klick sperrt final.
+        if (periode is null
+            || (periode.AkontoStatus != "BEI_HR" && periode.AkontoStatus != "HR_FREIGEGEBEN"))
+            return StatusCode(409, new { error = "HR-Bestätigung nur möglich solange noch nicht ausbezahlt (aktuell: "
+                                                + (periode?.AkontoStatus ?? "?") + ")." });
+        if (z.Status != "FREIGEGEBEN_GF")
+            return StatusCode(409, new { error = $"Lohnblatt muss FREIGEGEBEN_GF sein (aktuell: {z.Status})." });
+
+        z.Status     = "HR_BESTAETIGT";
+        z.UpdatedAt  = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        // Auto-Transit: wenn alle MA der Periode HR_BESTAETIGT sind,
+        // springt die Periode auf HR_FREIGEGEBEN (DTA-Button wird frei).
+        var offenCnt = await _db.AkontoZahlungen
+            .CountAsync(x => x.CompanyProfileId == z.CompanyProfileId
+                          && x.PeriodYear == z.PeriodYear && x.PeriodMonth == z.PeriodMonth
+                          && x.Status != "HR_BESTAETIGT" && x.Status != "AUSBEZAHLT");
+        if (offenCnt == 0 && periode.AkontoStatus != "HR_FREIGEGEBEN")
+        {
+            periode.AkontoStatus          = "HR_FREIGEGEBEN";
+            periode.AkontoHrFreigegebenAt = DateTime.UtcNow;
+            periode.AkontoHrFreigegebenBy = GetUserId();
+            await _db.SaveChangesAsync();
+        }
+
+        return Ok(new { z.Id, z.Status, periodeStatus = periode.AkontoStatus, offenCnt });
+    }
+
+    // Symmetrische Rücknahme: HR_BESTAETIGT zurück auf FREIGEGEBEN_GF.
+    // Falls die Periode bereits auf HR_FREIGEGEBEN war (alle MA durch), wird
+    // sie wieder auf BEI_HR zurückgesetzt — damit DTA blockiert ist solange
+    // mind. ein MA wieder offen ist.
+    [HttpPost("hr-zurueckziehen/{id:int}")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> HrZurueckziehen(int id)
+    {
+        var z = await _db.AkontoZahlungen.FirstOrDefaultAsync(x => x.Id == id);
+        if (z is null) return NotFound();
+
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == z.CompanyProfileId
+                                   && p.Year == z.PeriodYear && p.Month == z.PeriodMonth);
+        if (periode is null)
+            return StatusCode(409, new { error = "Periode nicht gefunden." });
+        if (periode.AkontoStatus != "BEI_HR" && periode.AkontoStatus != "HR_FREIGEGEBEN")
+            return StatusCode(409, new { error = "Rücknahme nur möglich solange noch nicht ausbezahlt." });
+        if (z.Status != "HR_BESTAETIGT")
+            return StatusCode(409, new { error = $"Lohnblatt ist nicht HR_BESTAETIGT (aktuell: {z.Status})." });
+
+        z.Status    = "FREIGEGEBEN_GF";
+        z.UpdatedAt = DateTime.UtcNow;
+        // Falls Periode war HR_FREIGEGEBEN: zurück auf BEI_HR.
+        if (periode.AkontoStatus == "HR_FREIGEGEBEN")
+        {
+            periode.AkontoStatus          = "BEI_HR";
+            periode.AkontoHrFreigegebenAt = null;
+            periode.AkontoHrFreigegebenBy = null;
+        }
+        await _db.SaveChangesAsync();
+
+        return Ok(new { z.Id, z.Status, periodeStatus = periode.AkontoStatus });
+    }
+
+    // ── HR: Pauschal-Freigabe (LEGACY — wird vom neuen pro-MA-Flow ersetzt) ─
+    //
+    // Der Endpoint bleibt funktional für Rückwärtskompatibilität (z.B. wenn
+    // alte Frontend-Versionen ihn noch aufrufen), markiert aber alle
+    // freigegebenen MA als HR_BESTAETIGT und setzt die Periode auf
+    // HR_FREIGEGEBEN. Das neue UI nutzt stattdessen pro-MA hr-bestaetigen.
     [HttpPost("hr-freigabe")]
     [Authorize(Roles = "admin,superuser")]
     public async Task<IActionResult> HrFreigabe([FromBody] PeriodRequest req)
@@ -464,11 +581,107 @@ public class AkontoWorkflowController : ControllerBase
         if (periode is null || periode.AkontoStatus != "BEI_HR")
             return StatusCode(409, new { error = "Periode muss BEI_HR sein." });
 
+        // Alle FREIGEGEBEN_GF-Lohnzeilen auf HR_BESTAETIGT setzen.
+        var rows = await _db.AkontoZahlungen
+            .Where(z => z.CompanyProfileId == req.CompanyProfileId
+                     && z.PeriodYear == req.Year && z.PeriodMonth == req.Month
+                     && z.Status == "FREIGEGEBEN_GF")
+            .ToListAsync();
+        var now = DateTime.UtcNow;
+        foreach (var z in rows)
+        {
+            z.Status    = "HR_BESTAETIGT";
+            z.UpdatedAt = now;
+        }
         periode.AkontoStatus           = "HR_FREIGEGEBEN";
-        periode.AkontoHrFreigegebenAt  = DateTime.UtcNow;
+        periode.AkontoHrFreigegebenAt  = now;
         periode.AkontoHrFreigegebenBy  = GetUserId();
         await _db.SaveChangesAsync();
-        return Ok(new { akontoStatus = periode.AkontoStatus });
+        return Ok(new { akontoStatus = periode.AkontoStatus, countHrBestaetigt = rows.Count });
+    }
+
+    // ── HR: Direkt-Korrektur des Netto-Akonto-Betrags pro MA ────────────────
+    //
+    // Walter-Vorgabe 17.05.2026: HR darf in der BEI_HR-Phase einzelne
+    // Akonto-Beträge direkt überschreiben (statt nur "Zurück an GF" zu
+    // schicken). Audit: vorheriger Wert + Grund + User + Zeit wird im
+    // KommentarHr-Feld konkateniert (kein Schema-Wandel nötig).
+    //
+    // Erlaubt nur solange die Periode BEI_HR ist. Sobald HR-Freigabe gesetzt
+    // (HR_FREIGEGEBEN) oder ausbezahlt (AUSBEZAHLT) ist, sind Korrekturen
+    // gesperrt — dann müsste HR via Reopen-Endpoint (Phase 3d) zurück.
+    //
+    [HttpPost("hr-override/{id:int}")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> HrOverride(int id, [FromBody] HrOverrideRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Grund))
+            return BadRequest(new { error = "Bitte einen Begründungs-Kommentar mitgeben." });
+        if (req.NeuerNettoAkonto < 0m)
+            return BadRequest(new { error = "Netto-Akonto darf nicht negativ sein." });
+
+        var z = await _db.AkontoZahlungen.FirstOrDefaultAsync(x => x.Id == id);
+        if (z is null) return NotFound();
+
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == z.CompanyProfileId
+                                   && p.Year == z.PeriodYear && p.Month == z.PeriodMonth);
+        // Walter 19.05.2026: HR-Override auch in HR_FREIGEGEBEN erlauben.
+        // Solange der DTA-Klick nicht gefallen ist (AUSBEZAHLT), darf HR
+        // einzelne Beträge nachbessern. Der MA fällt dann wie bisher auf
+        // FREIGEGEBEN_GF zurück und die Periode auf BEI_HR.
+        if (periode is null
+            || (periode.AkontoStatus != "BEI_HR" && periode.AkontoStatus != "HR_FREIGEGEBEN"))
+            return StatusCode(409, new { error = "HR-Korrektur nur möglich solange noch nicht ausbezahlt (aktuell: "
+                                                + (periode?.AkontoStatus ?? "?") + ")." });
+        if (z.Status == "AUSBEZAHLT")
+            return StatusCode(409, new { error = "Datensatz bereits AUSBEZAHLT — unveränderlich." });
+
+        // Auf CHF 10 abrunden — gleiches Rundungsverhalten wie bei der
+        // Auto-Berechnung in AkontoLaufService.
+        var neu = Math.Floor(req.NeuerNettoAkonto / 10m) * 10m;
+        var alt = z.NettoAkonto;
+        if (neu == alt)
+            return Ok(new { z.Id, z.NettoAkonto, unchanged = true });
+
+        // Audit-Eintrag an KommentarHr anhängen (chronologisch, mehrere
+        // Korrekturen bleiben sichtbar).
+        var userId = GetUserId();
+        var user   = await _db.AppUsers.FindAsync(userId);
+        var who    = user?.Username ?? user?.Email ?? $"User #{userId}";
+        var stamp  = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+        var audit  = $"[HR-Korrektur {stamp} {who}] CHF {alt:0.00} → CHF {neu:0.00} · {req.Grund.Trim()}";
+        z.KommentarHr = string.IsNullOrWhiteSpace(z.KommentarHr)
+                            ? audit
+                            : (z.KommentarHr + "\n" + audit);
+        z.NettoAkonto = neu;
+        // Falls schon HR_BESTAETIGT: zurück auf FREIGEGEBEN_GF, damit HR den
+        // korrigierten Wert nochmals bewusst bestätigen muss. Wenn dadurch
+        // die Periode aus HR_FREIGEGEBEN fällt, wird sie ebenfalls
+        // zurückgenommen (damit DTA blockiert).
+        if (z.Status == "HR_BESTAETIGT")
+        {
+            z.Status = "FREIGEGEBEN_GF";
+            if (periode.AkontoStatus == "HR_FREIGEGEBEN")
+            {
+                periode.AkontoStatus          = "BEI_HR";
+                periode.AkontoHrFreigegebenAt = null;
+                periode.AkontoHrFreigegebenBy = null;
+            }
+        }
+        z.UpdatedAt   = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        _log.LogInformation("[AkontoWorkflow] HR-Override Zahlung={Id}: {Alt} → {Neu} von User={U} ({Grund})",
+                           z.Id, alt, neu, userId, req.Grund);
+
+        return Ok(new {
+            z.Id,
+            altNettoAkonto = alt,
+            neuNettoAkonto = neu,
+            kommentarHr    = z.KommentarHr,
+            updatedAt      = z.UpdatedAt,
+        });
     }
 
     // ── HR: Auszahlen (DTA) ─────────────────────────────────────────────────
@@ -481,45 +694,119 @@ public class AkontoWorkflowController : ControllerBase
     /// </summary>
     [HttpPost("auszahlen")]
     [Authorize(Roles = "admin,superuser")]
-    public async Task<IActionResult> Auszahlen([FromBody] PeriodRequest req)
+    public async Task<IActionResult> Auszahlen([FromBody] AuszahlenRequest req)
     {
+        if (!DateOnly.TryParse(req.Auszahlungsdatum, out var auszahlungsdatum))
+            return BadRequest(new { error = "Auszahlungsdatum ungültig (Format: YYYY-MM-DD)." });
+        if (auszahlungsdatum < DateOnly.FromDateTime(DateTime.UtcNow.Date))
+            return BadRequest(new { error = "Auszahlungsdatum darf nicht in der Vergangenheit liegen." });
+
         var periode = await _db.PayrollPerioden
             .FirstOrDefaultAsync(p => p.CompanyProfileId == req.CompanyProfileId
                                    && p.Year == req.Year && p.Month == req.Month);
         if (periode is null || periode.AkontoStatus != "HR_FREIGEGEBEN")
             return StatusCode(409, new { error = "Periode muss HR_FREIGEGEBEN sein." });
 
-        // TODO Phase 3d: Iso20022PainService aufrufen, pain.001 generieren,
-        // DTA-Run-Datensatz anlegen, akonto_dta_run_id verdrahten.
-        int? dtaRunId = null;
-
+        // Walter-Vorgabe 17.05.2026: AUSBEZAHLT akzeptiert jetzt
+        // HR_BESTAETIGT (neuer pro-MA-Flow) UND FREIGEGEBEN_GF (Legacy für
+        // alte Datensätze, falls jemand alte Pauschal-Freigabe genutzt hat).
         var rows = await _db.AkontoZahlungen
             .Where(z => z.CompanyProfileId == req.CompanyProfileId
                      && z.PeriodYear == req.Year && z.PeriodMonth == req.Month
-                     && z.Status == "FREIGEGEBEN_GF")
+                     && (z.Status == "HR_BESTAETIGT" || z.Status == "FREIGEGEBEN_GF"))
             .ToListAsync();
         var userId = GetUserId();
         foreach (var z in rows)
         {
             z.Status    = "AUSBEZAHLT";
-            z.DtaRunId  = dtaRunId;
             z.UpdatedAt = DateTime.UtcNow;
         }
-        periode.AkontoStatus       = "AUSBEZAHLT";
-        periode.AkontoAusbezahltAt = DateTime.UtcNow;
-        periode.AkontoAusbezahltBy = userId;
-        periode.AkontoDtaRunId     = dtaRunId;
+        periode.AkontoStatus           = "AUSBEZAHLT";
+        periode.AkontoAusbezahltAt     = DateTime.UtcNow;
+        periode.AkontoAusbezahltBy     = userId;
+        periode.AkontoAuszahlungsdatum = auszahlungsdatum;
         await _db.SaveChangesAsync();
-        _log.LogInformation("[AkontoWorkflow] Auszahlen Filiale={CP} {Y}-{M}: {Count} Datensätze AUSBEZAHLT, DTA-Run={Dta}",
-                           req.CompanyProfileId, req.Year, req.Month, rows.Count, dtaRunId);
+        _log.LogInformation("[AkontoWorkflow] Auszahlen Filiale={CP} {Y}-{M}: {Count} Datensätze AUSBEZAHLT",
+                           req.CompanyProfileId, req.Year, req.Month, rows.Count);
+
+        // Phase 3d (Walter-Vorgabe 17.05.2026): Sanity-Check ob das DTA-XML
+        // generierbar wäre. Wir persistieren das File NICHT (on-demand-Download
+        // über GET /api/akonto/workflow/dta) — aber wir wollen sofort wissen
+        // ob's pain.001-mässig sauber kompiliert, damit Walter nicht stundenlang
+        // glaubt es sei alles ok und erst beim Download merkt dass ein MA keine
+        // Bank hat. Bei Problem: 500 mit Klartext + AKONTO-Status bleibt
+        // trotzdem AUSBEZAHLT (die Zahlung selbst ist immer noch gültig).
+        string? dtaWarning = null;
+        try
+        {
+            await _service.GenerateDtaAsync(req.CompanyProfileId, req.Year, req.Month);
+        }
+        catch (Exception ex)
+        {
+            dtaWarning = ex.Message;
+            _log.LogWarning("[AkontoWorkflow] DTA-Probe-Fehler: {Msg}", ex.Message);
+        }
+
         return Ok(new {
-            akontoStatus = periode.AkontoStatus,
+            akontoStatus    = periode.AkontoStatus,
             countAusbezahlt = rows.Count,
-            dtaRunId,
-            hinweis = dtaRunId is null
-                ? "DTA-Generierung folgt in Phase 3d — bitte Bank-Zahlung manuell anstossen."
-                : null,
+            dtaReady        = dtaWarning is null,
+            dtaWarning,
+            hinweis = dtaWarning is null
+                ? "DTA-File kann über '📥 DTA herunterladen' abgerufen werden."
+                : $"DTA-Generierung blockiert: {dtaWarning}",
         });
+    }
+
+    /// <summary>
+    /// Download des pain.001-XML für den Akonto-Lauf einer Periode.
+    /// On-demand generiert aus akonto_zahlung (Status AUSBEZAHLT) — kein
+    /// File-Storage. Re-Download via identischem GET. admin/superuser only.
+    /// </summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpGet("dta")]
+    public async Task<IActionResult> DownloadDta(
+        [FromQuery] int companyProfileId,
+        [FromQuery] int year,
+        [FromQuery] int month)
+    {
+        try
+        {
+            var bytes = await _service.GenerateDtaAsync(companyProfileId, year, month);
+            var filename = $"Akonto_DTA_{companyProfileId}_{year}-{month:D2}.xml";
+            Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
+            return File(bytes, "application/xml");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Akonto-Zahlungsliste als PDF (Walter-Vorgabe 18.05.2026).
+    /// Pro Filiale + Periode: alle Akonto-Auszahlungen in tabellarischer
+    /// Form als Begleitliste zum DTA und Buchhaltungs-Beleg. On-demand
+    /// generiert, Re-Download jederzeit möglich.
+    /// </summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpGet("liste-pdf")]
+    public async Task<IActionResult> DownloadListePdf(
+        [FromQuery] int companyProfileId,
+        [FromQuery] int year,
+        [FromQuery] int month)
+    {
+        try
+        {
+            var bytes = await _listePdf.GenerateAsync(companyProfileId, year, month);
+            var filename = $"Akonto_Liste_{companyProfileId}_{year}-{month:D2}.pdf";
+            Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
+            return File(bytes, "application/pdf");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -633,9 +920,11 @@ public class AkontoWorkflowController : ControllerBase
             z.PayoutDate, z.Status,
             z.GfFreigegebenAt, z.GfFreigegebenBy,
             z.KommentarGf, z.KommentarHr,
-            // Filial-Default für FIX/FIX-M-Akonto-Prozent (Frontend zeigt
-            // bei diesen Modellen die vereinfachte "X% × DefinitivNetto"-Zeile)
-            akontoProzentFix = profile?.AkontoProzentFix ?? 80m,
+            // Filial-Defaults für die Akonto-Prozente (Frontend zeigt bei
+            // FIX/FIX-M die vereinfachte "X% × DefinitivNetto"-Zeile).
+            // Seit Walter-Vorgabe 18.05.2026 getrennt für FIX und FIX-M.
+            akontoProzentFix  = profile?.AkontoProzentFix  ?? 80m,
+            akontoProzentFixM = profile?.AkontoProzentFixM ?? 90m,
         });
     }
 
@@ -709,7 +998,6 @@ public class AkontoWorkflowController : ControllerBase
 
         var oldest = await _db.PayrollPerioden
             .Where(p => p.CompanyProfileId == companyProfileId
-                     && !p.IsTransition
                      && (p.AkontoStatus != "AUSBEZAHLT" || p.Status != "abgeschlossen"))
             .OrderBy(p => p.Year).ThenBy(p => p.Month)
             .Select(p => new {
@@ -777,6 +1065,134 @@ public class AkontoWorkflowController : ControllerBase
         return Ok(list);
     }
 
+    // ── Periode zurücksetzen (Admin-Notfall, Walter-Vorgabe 17.05.2026) ────
+
+    public record ResetPeriodeRequest(int CompanyProfileId, int Year, int Month, string Grund);
+
+    /// <summary>
+    /// Admin-only: setzt eine laufende oder ausbezahlte Akonto-Periode komplett
+    /// auf OFFEN zurück. Konsequenzen:
+    ///   • Alle BERECHNET / FREIGEGEBEN_GF / HR_BESTAETIGT - Datensätze
+    ///     werden gelöscht (sind nur Vorbereitungswerte).
+    ///   • AUSBEZAHLT-Datensätze werden auf STORNIERT umgestempelt
+    ///     (Geld ist ja schon geflossen — der Eintrag bleibt als Beleg, der
+    ///     STORNIERT-Status verhindert eine Doppelverrechnung im Definitivlauf).
+    ///   • payroll_periode.akonto_status → OFFEN, alle Audit-Zeitstempel
+    ///     (Started/Sent/HrFreigegeben/Ausbezahlt) auf null.
+    ///   • Audit-Eintrag in payroll_periode_audit mit Action=AKONTO_RESET
+    ///     plus Grund.
+    ///
+    /// Erst NACH dem Reset können lohnrelevante Daten dieser Periode wieder
+    /// editiert werden (LohnEditLockService sieht dann AkontoStatus=OFFEN).
+    /// </summary>
+    [Authorize(Roles = "admin")]
+    [HttpPost("reset-periode")]
+    public async Task<IActionResult> ResetPeriode([FromBody] ResetPeriodeRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Grund))
+            return BadRequest(new { error = "Grund für das Zurücksetzen ist erforderlich (wird im Audit gespeichert)." });
+
+        if (!await CanAccessBranchAsync(req.CompanyProfileId))
+            return Forbid();
+
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == req.CompanyProfileId
+                                    && p.Year == req.Year && p.Month == req.Month);
+        if (periode is null)
+            return NotFound(new { error = $"Keine payroll_periode für Filiale {req.CompanyProfileId} {req.Year}-{req.Month} gefunden." });
+
+        if (periode.AkontoStatus == "OFFEN")
+            return Ok(new { message = "Periode war bereits OFFEN — nichts zu tun.", akontoStatus = periode.AkontoStatus });
+
+        // Walter-Vorgabe 19.05.2026: Reset NUR bis zum Bank-Ausführungsdatum
+        // (AkontoAuszahlungsdatum) — sobald das überschritten ist, hat die
+        // Bank den DTA verarbeitet und die Periode ist betoniert. Fallback
+        // für Alt-Daten ohne das Feld: Klick-Datum AkontoAusbezahltAt.Date.
+        if (periode.AkontoStatus == "AUSBEZAHLT")
+        {
+            var heute  = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+            var cutoff = periode.AkontoAuszahlungsdatum
+                       ?? (periode.AkontoAusbezahltAt.HasValue
+                              ? DateOnly.FromDateTime(periode.AkontoAusbezahltAt.Value.Date)
+                              : (DateOnly?)null);
+            if (cutoff.HasValue && heute > cutoff.Value)
+            {
+                return Conflict(new {
+                    error   = "PAYOUT_DATE_REACHED",
+                    message = $"Akonto-Zahldatum ({cutoff:dd.MM.yyyy}) ist erreicht — Reset nicht mehr möglich. " +
+                              "Die Bank hat den DTA inzwischen verarbeitet, die Akonto-Periode ist endgültig abgeschlossen."
+                });
+            }
+        }
+
+        // akonto_zahlung-Aufräumen
+        var zahlungen = await _db.AkontoZahlungen
+            .Where(z => z.CompanyProfileId == req.CompanyProfileId
+                     && z.PeriodYear  == req.Year
+                     && z.PeriodMonth == req.Month)
+            .ToListAsync();
+
+        int gelöscht = 0, storniert = 0;
+        foreach (var z in zahlungen)
+        {
+            if (z.Status == "AUSBEZAHLT")
+            {
+                // Geld ist geflossen — Eintrag bleibt als Beleg, aber wird
+                // als STORNIERT markiert damit der Definitivlauf ihn nicht
+                // als Vorauszahlung verrechnet.
+                z.Status = "STORNIERT";
+                storniert++;
+            }
+            else
+            {
+                _db.AkontoZahlungen.Remove(z);
+                gelöscht++;
+            }
+        }
+
+        // Periode zurücksetzen
+        var prev = new
+        {
+            Status = periode.AkontoStatus,
+            GfStartedAt    = periode.AkontoGfStartedAt,
+            GfSentAt       = periode.AkontoGfSentAt,
+            HrFreigegebenAt= periode.AkontoHrFreigegebenAt,
+            AusbezahltAt   = periode.AkontoAusbezahltAt,
+        };
+        periode.AkontoStatus           = "OFFEN";
+        periode.AkontoGfStartedAt      = null; periode.AkontoGfStartedBy      = null;
+        periode.AkontoGfSentAt         = null; periode.AkontoGfSentBy         = null;
+        periode.AkontoHrFreigegebenAt  = null; periode.AkontoHrFreigegebenBy  = null;
+        periode.AkontoAusbezahltAt     = null; periode.AkontoAusbezahltBy     = null;
+        periode.AkontoDtaRunId         = null;
+
+        // Audit-Eintrag
+        var userName = User.FindFirst(ClaimTypes.Name)?.Value ?? "Unbekannt";
+        _db.PayrollPeriodeAudits.Add(new PayrollPeriodeAudit
+        {
+            PayrollPeriodeId = periode.Id,
+            UserId           = GetUserId(),
+            UserName         = userName,
+            Action           = "AKONTO_RESET",
+            Bemerkung        = $"Vorheriger Status: {prev.Status}. Gelöschte Zahlungen: {gelöscht}, stornierte AUSBEZAHLT-Zahlungen: {storniert}. Grund: {req.Grund}",
+            CreatedAt        = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+
+        _log.LogWarning("[AkontoWorkflow] RESET Periode CP={CP} {Y}-{M} durch {User} — vorher={Prev}, gelöscht={D}, storniert={S}, Grund={Grund}",
+            req.CompanyProfileId, req.Year, req.Month, userName, prev.Status, gelöscht, storniert, req.Grund);
+
+        return Ok(new
+        {
+            message       = $"Akonto-Periode {req.Month:D2}/{req.Year} zurückgesetzt.",
+            akontoStatus  = periode.AkontoStatus,
+            gelöscht,
+            storniert,
+            grund         = req.Grund
+        });
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private int GetUserId() =>
@@ -808,7 +1224,6 @@ public class AkontoWorkflowController : ControllerBase
         // Älteste frühere Periode, die noch nicht beide Stufen abgeschlossen hat.
         var blocker = await _db.PayrollPerioden
             .Where(p => p.CompanyProfileId == companyProfileId
-                     && !p.IsTransition
                      && (p.Year * 12 + p.Month) < refMonth
                      && (p.AkontoStatus != "AUSBEZAHLT" || p.Status != "abgeschlossen"))
             .OrderBy(p => p.Year).ThenBy(p => p.Month)

@@ -47,7 +47,6 @@ public class AppDbContext : DbContext
     public DbSet<SocialInsuranceRate> SocialInsuranceRates => Set<SocialInsuranceRate>();
     public DbSet<Lohnposition> Lohnpositionen => Set<Lohnposition>();
     public DbSet<VertragstypLohnposition> VertragstypLohnpositionen => Set<VertragstypLohnposition>();
-    public DbSet<PayrollPeriodeConfig>  PayrollPeriodeConfigs  => Set<PayrollPeriodeConfig>();
     public DbSet<PayrollPeriode>        PayrollPerioden        => Set<PayrollPeriode>();
     public DbSet<PayrollPeriodeAudit>   PayrollPeriodeAudits   => Set<PayrollPeriodeAudit>();
     public DbSet<PayrollSnapshot>       PayrollSnapshots       => Set<PayrollSnapshot>();
@@ -158,7 +157,6 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NormalWeeklyHours).HasColumnName("normal_weekly_hours");
             entity.Property(e => e.DefaultVacationWeeks).HasColumnName("default_vacation_weeks");
             entity.Property(e => e.WorkLocation).HasColumnName("work_location");
-            entity.Property(e => e.PayrollPeriodStartDay).HasColumnName("payroll_period_start_day");
             entity.Property(e => e.MaxPartTimeHoursPerWeek).HasColumnName("max_part_time_hours_per_week");
             entity.Property(e => e.AllowFirst3Months8PercentReduction).HasColumnName("allow_first_3_months_8_percent_reduction");
             entity.Property(e => e.HoldBackVacationPayout).HasColumnName("hold_back_vacation_payout");
@@ -196,6 +194,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LgavBeitragVoll).HasColumnName("lgav_beitrag_voll").HasColumnType("numeric(8,2)").HasDefaultValue(99m);
             entity.Property(e => e.LgavBeitragReduziert).HasColumnName("lgav_beitrag_reduziert").HasColumnType("numeric(8,2)").HasDefaultValue(49.5m);
             entity.Property(e => e.AkontoProzentFix).HasColumnName("akonto_prozent_fix").HasColumnType("numeric(5,2)").HasDefaultValue(80m);
+            entity.Property(e => e.AkontoProzentFixM).HasColumnName("akonto_prozent_fix_m").HasColumnType("numeric(5,2)").HasDefaultValue(90m);
             entity.Property(e => e.AkontoProzentHourly).HasColumnName("akonto_prozent_hourly").HasColumnType("numeric(5,2)").HasDefaultValue(100m);
             // Legacy-Bankverbindungs-Felder (vor Multi-Bank-Refactor). Bleiben
             // für Backward-Compat in der DB, werden vom UI nicht mehr genutzt.
@@ -1089,24 +1088,6 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.Code).HasDatabaseName("IX_lohnposition_code").IsUnique();
         });
 
-        // ── PayrollPeriodeConfig ───────────────────────────────────────────
-        modelBuilder.Entity<PayrollPeriodeConfig>(entity =>
-        {
-            entity.ToTable("payroll_periode_config");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
-            entity.Property(e => e.FromDay).HasColumnName("from_day").HasDefaultValue(1);
-            entity.Property(e => e.ToDay).HasColumnName("to_day").HasDefaultValue(31);
-            entity.Property(e => e.ValidFromYear).HasColumnName("valid_from_year");
-            entity.Property(e => e.ValidFromMonth).HasColumnName("valid_from_month").HasDefaultValue(1);
-            entity.Property(e => e.IsLocked).HasColumnName("is_locked").HasDefaultValue(false);
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.HasOne(e => e.Company).WithMany().HasForeignKey(e => e.CompanyProfileId);
-            entity.HasIndex(e => new { e.CompanyProfileId, e.ValidFromYear, e.ValidFromMonth })
-                  .IsUnique().HasDatabaseName("UX_payroll_periode_config_branch_year_month");
-        });
-
         // ── PayrollPeriode ─────────────────────────────────────────────────
         modelBuilder.Entity<PayrollPeriode>(entity =>
         {
@@ -1114,13 +1095,11 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
-            entity.Property(e => e.ConfigId).HasColumnName("config_id");
             entity.Property(e => e.Year).HasColumnName("year");
             entity.Property(e => e.Month).HasColumnName("month");
             entity.Property(e => e.PeriodFrom).HasColumnName("period_from").HasColumnType("date");
             entity.Property(e => e.PeriodTo).HasColumnName("period_to").HasColumnType("date");
             entity.Property(e => e.Label).HasColumnName("label").HasMaxLength(100);
-            entity.Property(e => e.IsTransition).HasColumnName("is_transition").HasDefaultValue(false);
             entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(40).HasDefaultValue("offen");
             entity.Property(e => e.AbgeschlossenAm).HasColumnName("abgeschlossen_am");
             entity.Property(e => e.AbgeschlossenVon).HasColumnName("abgeschlossen_von");
@@ -1139,9 +1118,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AkontoHrFreigegebenBy).HasColumnName("akonto_hr_freigegeben_by");
             entity.Property(e => e.AkontoAusbezahltAt).HasColumnName("akonto_ausbezahlt_at");
             entity.Property(e => e.AkontoAusbezahltBy).HasColumnName("akonto_ausbezahlt_by");
+            entity.Property(e => e.AkontoAuszahlungsdatum).HasColumnName("akonto_auszahlungsdatum");
             entity.Property(e => e.AkontoDtaRunId).HasColumnName("akonto_dta_run_id");
             entity.HasOne(e => e.Company).WithMany().HasForeignKey(e => e.CompanyProfileId);
-            entity.HasOne(e => e.Config).WithMany().HasForeignKey(e => e.ConfigId);
         });
 
         // ── PayrollPeriodeAudit ────────────────────────────────────────────
@@ -1180,6 +1159,14 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FerienGeldSaldo).HasColumnName("ferien_geld_saldo").HasColumnType("numeric(10,2)");
             entity.Property(e => e.AkontoBereitsAusbezahlt).HasColumnName("akonto_bereits_ausbezahlt").HasColumnType("numeric(10,2)").HasDefaultValue(0m);
             entity.Property(e => e.IsFinal).HasColumnName("is_final").HasDefaultValue(false);
+            // 4-Augen-Workflow Walter 19.05.2026 — per-MA-Status analog AkontoZahlung
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("FREIGEGEBEN_GF");
+            entity.Property(e => e.GfFreigegebenAt).HasColumnName("gf_freigegeben_at");
+            entity.Property(e => e.GfFreigegebenBy).HasColumnName("gf_freigegeben_by");
+            entity.Property(e => e.HrBestaetigtAt).HasColumnName("hr_bestaetigt_at");
+            entity.Property(e => e.HrBestaetigtBy).HasColumnName("hr_bestaetigt_by");
+            entity.Property(e => e.KommentarGf).HasColumnName("kommentar_gf");
+            entity.Property(e => e.KommentarHr).HasColumnName("kommentar_hr");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasOne(e => e.Periode).WithMany(p => p.Snapshots).HasForeignKey(e => e.PayrollPeriodeId);

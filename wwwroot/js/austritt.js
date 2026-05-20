@@ -5,7 +5,7 @@
 // ═══════════════ AUSTRITT ERFASSEN ═══════════════
 let terminateCtx = { employeeId: null, employmentId: null, startDate: null };
 
-function openTerminateModal(employeeId, employmentId, startDate) {
+async function openTerminateModal(employeeId, employmentId, startDate) {
     terminateCtx = { employeeId, employmentId, startDate };
     const modal  = document.getElementById('terminateModal');
     const dateEl = document.getElementById('terminateDate');
@@ -24,6 +24,27 @@ function openTerminateModal(employeeId, employmentId, startDate) {
     if (subEl) subEl.textContent = emp ? `${emp.firstName} ${emp.lastName} · ${_t('vt.label.personalNr')} ${emp.employeeNumber || '–'}` : '';
     if (modal) modal.style.display = 'flex';
     if (window.i18n && window.i18n.applyAll) window.i18n.applyAll(modal);
+
+    // Walter-Vorgabe 17.05.2026: Austrittsdatum darf nicht in einer laufenden
+    // Lohnperiode liegen. min-date setzen damit User gar nicht erst falsch
+    // klicken kann; default ggf. nach vorne ziehen.
+    if (dateEl && window.lohnEditLock) {
+        const activeEmp = emp?.employments?.find(x => x.isActive) || emp?.employments?.[0];
+        const cpId = activeEmp?.companyProfileId
+                  || (typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
+        if (cpId) {
+            const state = await window.lohnEditLock.loadState(Number(cpId));
+            window.lohnEditLock.applyToDateInput(dateEl, state);
+            if (state.firstAllowedDate && dateEl.value && dateEl.value < state.firstAllowedDate) {
+                // Default war Ende aktueller Monat — wenn der in der gesperrten
+                // Periode liegt, springen wir auf Ende des nächsten freien Monats.
+                const fa = new Date(state.firstAllowedDate + 'T12:00:00');
+                const nextEnd = new Date(fa.getFullYear(), fa.getMonth() + 1, 0);
+                dateEl.value = isoLocalDate(nextEnd);
+            }
+        }
+    }
+
     checkTerminateDate();
 }
 
@@ -197,6 +218,15 @@ async function saveTerminate() {
             headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ exitDate })
         });
+        // Lohnlauf-Sperre: zeigt die Backend-Meldung direkt im Alert-Block.
+        if (res.status === 409) {
+            const body = await res.clone().json().catch(() => ({}));
+            if (body && body.error === 'LOHN_EDIT_LOCKED') {
+                alert.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px">${body.message}</div>`;
+                if (window.lohnEditLock) window.lohnEditLock.invalidateCache();
+                return;
+            }
+        }
         if (!res.ok) {
             const err = await res.json().catch(() => ({ error: _t('austritt.err.unknown') }));
             alert.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px">${_t('austritt.err.failed', { msg: err.error })}</div>`;

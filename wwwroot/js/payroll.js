@@ -20,7 +20,11 @@ async function lzInit(empId, compId, year, month) {
     _lzCurrentYear   = year;
     _lzCurrentMonth  = month;
 
-    document.getElementById('lohnZulagenPanel').style.display = 'block';
+    // Walter 19.05.2026: Card existiert in beiden Tabs (Definitiv + Akonto).
+    const lohnP = document.getElementById('lohnZulagenPanel');
+    const akWfP = document.getElementById('akWfZulagenPanel');
+    if (lohnP) lohnP.style.display = 'block';
+    if (akWfP) akWfP.style.display = 'block';
     lzCloseForm();
 
     // Lohnpositionen für Dropdown einmalig laden
@@ -35,8 +39,14 @@ async function lzInit(empId, compId, year, month) {
 }
 
 async function lzLoad() {
-    const listEl = document.getElementById('lohnZulagenList');
-    listEl.innerHTML = '<div style="padding:12px 0;color:#94a3b8;font-size:13px">Lade…</div>';
+    // Walter 19.05.2026: gleiches HTML in beide Listen schreiben (Definitiv + Akonto).
+    const listEls = [
+        document.getElementById('lohnZulagenList'),
+        document.getElementById('akWfZulagenList'),
+    ].filter(Boolean);
+    const setHtml = (html) => listEls.forEach(el => { el.innerHTML = html; });
+    if (listEls.length === 0) return;
+    setHtml('<div style="padding:12px 0;color:#94a3b8;font-size:13px">Lade…</div>');
     const periode = `${_lzCurrentYear}-${String(_lzCurrentMonth).padStart(2,'0')}`;
     try {
         const res = await fetch(`/api/lohn-zulagen/${_lzCurrentEmpId}/${periode}`, { headers: ah() });
@@ -46,10 +56,10 @@ async function lzLoad() {
         // (Anführungszeichen etc.) die im onclick-Attribut brechen würden.
         window._lzItems = list;
         if (!list.length) {
-            listEl.innerHTML = '<div style="padding:14px 0;color:#94a3b8;font-size:13px;font-style:italic">Keine Zulagen/Abzüge für diese Periode</div>';
+            setHtml('<div style="padding:14px 0;color:#94a3b8;font-size:13px;font-style:italic">Keine Zulagen/Abzüge für diese Periode</div>');
             return;
         }
-        listEl.innerHTML = list.map(z => {
+        const rowsHtml = list.map(z => {
             const isAbzug = z.typ === 'ABZUG';
             const bemEsc  = (z.bemerkung ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             const lpBezEsc = (z.lohnpositionBezeichnung ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -64,9 +74,14 @@ async function lzLoad() {
                 <button onclick="lzDelete(${z.id})" style="border:none;background:#fee2e2;color:#dc2626;padding:3px 9px;border-radius:6px;font-size:12px;cursor:pointer">🗑</button>
             </div>`;
         }).join('');
+        setHtml(rowsHtml);
     } catch(e) {
-        listEl.innerHTML = `<div style="padding:12px 0;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`;
+        setHtml(`<div style="padding:12px 0;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`);
     }
+    // Edit-Sperre für die Buttons anwenden (Walter 19.05.2026): GF darf
+    // während HR-Phase nichts mehr ändern, alle nach HR_FREIGEGEBEN nicht
+    // mehr. Die Logik liegt in akonto-workflow.js.
+    if (typeof _akWfApplyZulagenLock === 'function') _akWfApplyZulagenLock();
 }
 
 function lzEditById(id) {
@@ -87,6 +102,10 @@ function lzOpenForm() {
         ).join('');
     sel.value = '';
 
+    // Walter 19.05.2026: globaler Modal-Overlay statt eingebettetes Form,
+    // damit der Akonto-Tab dieselbe Maske nutzen kann.
+    const overlay = document.getElementById('lohnZulagenFormOverlay');
+    if (overlay) overlay.style.display = 'flex';
     document.getElementById('lohnZulagenForm').style.display = 'block';
     document.getElementById('lzLpSel').focus();
 }
@@ -103,14 +122,16 @@ function lzEdit(id, lpId, betrag, bem) {
         ).join('');
     sel.value = lpId;
 
-    // Panel und Formular sichtbar machen
-    document.getElementById('lohnZulagenPanel').style.display = 'block';
+    // Panel und Formular sichtbar machen (globaler Modal-Overlay, Walter 19.05.2026)
+    const overlay = document.getElementById('lohnZulagenFormOverlay');
+    if (overlay) overlay.style.display = 'flex';
     document.getElementById('lohnZulagenForm').style.display  = 'block';
-    document.getElementById('lohnZulagenForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function lzCloseForm() {
     document.getElementById('lohnZulagenForm').style.display = 'none';
+    const overlay = document.getElementById('lohnZulagenFormOverlay');
+    if (overlay) overlay.style.display = 'none';
 }
 
 async function lzSave() {
@@ -138,11 +159,19 @@ async function lzSave() {
                 body: JSON.stringify({ employeeId: _lzCurrentEmpId, periode, lohnpositionId: lpId, betrag, bemerkung: bem })
             });
         }
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { alert('Fehler beim Speichern.'); return; }
         lzCloseForm();
         await lzLoad();
-        // Lohnabrechnung neu berechnen
+        // Lohnabrechnung neu berechnen — sowohl Definitiv-Slip als auch (falls
+        // Akonto-Tab aktiv) den Akonto-Wert. Walter-Vorgabe 19.05.2026: nach
+        // Speichern einer Zulage/Abzug soll der User NICHT extra „↻ Neu berechnen"
+        // klicken müssen.
         loadLohnSlip(_lzCurrentEmpId, _lzCurrentCompId, _lzCurrentYear, _lzCurrentMonth);
+        if (typeof _akWfMode !== 'undefined' && _akWfMode === 'akonto'
+            && typeof akWfStart === 'function') {
+            try { await akWfStart(); } catch (e) { console.error('akWfStart nach lzSave', e); }
+        }
     } catch(e) { alert('Verbindungsfehler: ' + e.message); }
 }
 
@@ -150,6 +179,7 @@ async function lzDelete(id) {
     if (!confirm('Eintrag löschen?')) return;
     try {
         const res = await fetch(`/api/lohn-zulagen/${id}`, { method: 'DELETE', headers: ah() });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             const err = await res.text();
             alert('Fehler beim Löschen: ' + err);
@@ -157,6 +187,10 @@ async function lzDelete(id) {
         }
         await lzLoad();
         loadLohnSlip(_lzCurrentEmpId, _lzCurrentCompId, _lzCurrentYear, _lzCurrentMonth);
+        if (typeof _akWfMode !== 'undefined' && _akWfMode === 'akonto'
+            && typeof akWfStart === 'function') {
+            try { await akWfStart(); } catch (e) { console.error('akWfStart nach lzDelete', e); }
+        }
     } catch(e) { alert('Verbindungsfehler: ' + e.message); }
 }
 
@@ -256,6 +290,143 @@ function lzReset() {
 // ausgewählten MA gescrollt (nicht umgeordnet).
 let _lohnSelectedEmpId = null;
 
+// ══════════════════════════════════════════════════════════════════════
+// Definitiv-Workflow Single-Source-of-Truth (Walter-Vorgabe 20.05.2026)
+// ══════════════════════════════════════════════════════════════════════
+// Der Definitivlauf wird – wie vom Akonto-Lauf vorgegeben – über EINEN
+// State-Cache + EINE Render-Funktion gesteuert. Damit verschwindet die
+// früher verstreute Button-Logik (loadLohnSlip + loadLohnPeriodBanner +
+// loadLohnList), die ständig auseinanderlief.
+//
+// _lohnWfData spiegelt _akWfData aus akonto-workflow.js:
+//   { status, periode, periodeId, snapByEmp:{empId:{id,status}},
+//     gfConfirmed, hrConfirmed, activeTotal }
+// status = Periode-Status ('offen' | 'provisorisch_abgeschlossen' | 'abgeschlossen').
+// snapByEmp = Snapshot-Status je MA (BERECHNET/FREIGEGEBEN_GF/HR_BESTAETIGT/ABGESCHLOSSEN).
+let _lohnWfData = null;
+
+// Periode-Status-Optik (analog _AK_STATUS im Akonto-Tab).
+const _LOHN_STATUS = {
+    offen:                      { label: 'Offen',                       color: '#0369a1', bg: '#e0f2fe' },
+    provisorisch_abgeschlossen: { label: 'Provisorisch abgeschlossen',  color: '#92400e', bg: '#fef3c7' },
+    abgeschlossen:              { label: 'Abgeschlossen',               color: '#166534', bg: '#dcfce7' },
+};
+
+// Zeitstempel-Formatter für den Status-Trail (analog _akFmtTs).
+function _lohnFmtTs(ts) {
+    if (!ts) return '–';
+    const d = new Date(ts);
+    if (isNaN(d)) return ts;
+    return d.toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+// Einziger Refresh-Pfad des Definitivlaufs (analog akWfRefresh). loadLohnList
+// macht den eigentlichen Fetch (Periode + Snapshots + Mitarbeiter) und rendert
+// am Ende _lohnWfRenderStatusBar — daher ist dies ein dünner Wrapper, den die
+// Aktions-Handler nach jeder Aktion aufrufen.
+async function lohnWfRefresh() {
+    await loadLohnList();
+}
+
+// ── Status-Bar: zeigt Stufe + die nächsten Aktions-Buttons (EINZIGE Stelle) ──
+// Mirror von _akWfRenderStatusBar aus akonto-workflow.js. Rendert die
+// Status-Pille, den Fortschritts-Counter und ALLE Aktionsbuttons abhängig von:
+//   • Periode-Status (offen / provisorisch_abgeschlossen / abgeschlossen)
+//   • Snapshot-Status des aktuell selektierten MA (_lohnSelectedEmpId)
+//   • Rolle (GF = user, HR = admin/superuser)
+// KEINE Button-Sichtbarkeit darf irgendwo sonst gesetzt werden.
+function _lohnWfRenderStatusBar() {
+    const bar = document.getElementById('lohnDefinitivStatusBar');
+    if (!bar) return;
+    const d = _lohnWfData;
+    if (!d) { bar.innerHTML = ''; return; }
+
+    const meta  = _LOHN_STATUS[d.status] || _LOHN_STATUS.offen;
+    const isHr  = (typeof _akIsHr === 'function')
+        ? _akIsHr()
+        : ((typeof currentUser !== 'undefined' && currentUser?.role)
+            && (currentUser.role === 'admin' || currentUser.role === 'superuser'));
+    const total = d.activeTotal || 0;
+    const gf    = d.gfConfirmed || 0;
+    const hr    = d.hrConfirmed || 0;
+    const isOffen = d.status === 'offen';
+    const isProv  = d.status === 'provisorisch_abgeschlossen';
+    const isAbg   = d.status === 'abgeschlossen';
+
+    // Counter zeigt den jeweils relevanten Schritt (GF-Phase: GF-Fortschritt,
+    // HR-Phase: HR-Fortschritt) — analog Akonto-Tab.
+    const counts = (isProv || isAbg)
+        ? `${hr}/${total} HR-bestätigt`
+        : `${gf}/${total} bestätigt`;
+    const allGf = total > 0 && gf >= total;
+    const allHr = total > 0 && hr >= total;
+
+    // Snapshot-Status des aktuell selektierten MA → bestimmt die per-MA-Buttons.
+    const selStatus = (d.snapByEmp && _lohnSelectedEmpId != null
+        && d.snapByEmp[_lohnSelectedEmpId]?.status) || 'BERECHNET';
+
+    // ─ GF Per-MA-Aktionen (nur in offener Periode) ─
+    const perMaConfirm = (isOffen && selStatus === 'BERECHNET')
+        ? `<button class="btn btn-primary btn-sm" onclick="confirmLohn()">✓ Lohn bestätigen</button>` : '';
+    const perMaReopen = (isOffen && selStatus === 'FREIGEGEBEN_GF')
+        ? `<button class="btn btn-outline btn-sm" onclick="reopenLohn()" style="color:#b91c1c;border-color:#fecaca">↶ Wieder eröffnen</button>` : '';
+
+    // ─ HR Per-MA-Aktionen (nur in provisorisch_abgeschlossen, nur HR) ─
+    const hrMaBestaetigen = (isHr && isProv && selStatus === 'FREIGEGEBEN_GF')
+        ? `<button class="btn btn-primary btn-sm" onclick="lohnHrBestaetigen()">✓ HR-bestätigen</button>` : '';
+    const hrMaZurueck = (isHr && isProv && selStatus === 'HR_BESTAETIGT')
+        ? `<button class="btn btn-outline btn-sm" onclick="lohnHrZurueckziehen()" style="color:#b91c1c;border-color:#fecaca">↶ HR-Bestätigung zurückziehen</button>` : '';
+
+    // Gemeinsame Buttons
+    const pdfBtn = `<button class="btn btn-outline btn-sm" onclick="exportLohnPdf()">PDF</button>`;
+    const footerHasText = !!(d.periode?.pdfFooterText && d.periode.pdfFooterText.trim());
+    const bemBtn = (isOffen || isProv)
+        ? `<button class="btn btn-outline btn-sm" onclick="openPeriodeBemerkungModal()" style="color:${footerHasText ? '#15803d' : '#64748b'};font-size:11px">${footerHasText ? '✏️ Bemerkung' : '＋ Bemerkung'}</button>`
+        : '';
+
+    const lockPill = (txt, bg, color) =>
+        `<span style="color:${color};font-size:11.5px;font-weight:600;background:${bg};padding:3px 9px;border-radius:8px">${txt}</span>`;
+
+    let actions = '';
+    switch (d.status) {
+        case 'offen':
+            // GF-Phase: jeden MA bestätigen, dann an HR senden.
+            actions = `${perMaConfirm}${perMaReopen}${pdfBtn}
+                <button class="btn btn-success btn-sm" onclick="lohnAnHrSendenAktuell()" ${allGf ? '' : 'disabled'}>An HR senden →</button>`;
+            break;
+        case 'provisorisch_abgeschlossen':
+            if (isHr) {
+                // HR-Phase: jeden MA HR-bestätigen, dann Lohnbelege + DTA.
+                // „📑 Lohnbelege + DTA" erst aktiv wenn ALLE MA HR-bestätigt.
+                actions = `${hrMaBestaetigen}${hrMaZurueck}${pdfBtn}
+                    <button class="btn btn-outline btn-sm" onclick="lohnDownloadVorabPdf()" style="color:#0369a1;border-color:#7dd3fc" title="Alle Lohnbelege der Periode in einem PDF">📋 Alle Lohnbelege</button>
+                    <button class="btn btn-outline btn-sm" onclick="lohnZurueckAnGf()" style="color:#b45309;border-color:#fcd34d">↩ Zurück an GF</button>
+                    <button class="btn btn-success btn-sm" onclick="lohnOpenLohnbelegeModal()" ${allHr ? '' : 'disabled'} title="Alle Lohnbelege ansehen, drucken und an MA versenden">📑 Lohnbelege + DTA</button>`;
+            } else {
+                actions = lockPill('🔒 Bei HR — keine Änderungen möglich', '#fef3c7', '#b45309');
+            }
+            break;
+        case 'abgeschlossen':
+            actions = `${pdfBtn}
+                <button class="btn btn-outline btn-sm" onclick="lohnDownloadDtaMa()" style="color:#0369a1;border-color:#7dd3fc" title="pain.001-XML für die Bank">📥 DTA-File</button>
+                ${isHr ? `<button class="btn btn-outline btn-sm" onclick="lohnOpenLohnbelegeModal()" title="Alle Lohnbelege ansehen / drucken">📑 Lohnbelege ansehen</button>` : ''}
+                ${lockPill('🔒 Abgeschlossen — Admin-Reopen via Lohnperioden-Modul', '#dcfce7', '#15803d')}`;
+            break;
+    }
+
+    const trail = [
+        d.periode?.provisorischAbgeschlossenAt ? `Provisorisch: ${_lohnFmtTs(d.periode.provisorischAbgeschlossenAt)}` : null,
+        d.periode?.abgeschlossenAt             ? `Abgeschlossen: ${_lohnFmtTs(d.periode.abgeschlossenAt)}`           : null,
+    ].filter(x => x).join('\n');
+
+    bar.innerHTML = `
+        <div title="${trail}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 4px;font-size:12px">
+            <span style="background:${meta.bg};color:${meta.color};padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">${meta.label}</span>
+            ${total > 0 ? `<span style="color:#64748b;white-space:nowrap">${counts}</span>` : ''}
+            <span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:auto">${bemBtn}${actions}</span>
+        </div>`;
+}
+
 async function loadLohnList() {
     const companyId = document.getElementById('lohnBranchSelect').value;
     if (!companyId) return;
@@ -268,18 +439,60 @@ async function loadLohnList() {
     const m   = parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth()+1));
 
     try {
-        // Snapshots für diese Periode laden (um ✓ anzuzeigen)
-        let confirmedEmpIds = new Set();
+        // Snapshots für diese Periode laden — der Snapshot-Status entscheidet
+        // über die Häkchen-Anzeige (Walter 19.05.2026):
+        //   BERECHNET       → kein Häkchen (GF muss noch bestätigen)
+        //   FREIGEGEBEN_GF  → ✓ (GF-Bestätigung, wartet auf HR)
+        //   HR_BESTAETIGT   → ✓✓ (HR-Bestätigung, definitiv ready)
+        //   ABGESCHLOSSEN   → ✓✓ (Periode versendet)
+        // Reine Existenz des Snapshots reicht NICHT mehr aus — sonst wären
+        // alle MA mit Akonto-Vorberechnung sofort als bestätigt markiert.
+        let gfEmpIds = new Set();      // FREIGEGEBEN_GF + HR_BESTAETIGT + ABGESCHLOSSEN
+        let hrEmpIds = new Set();      // HR_BESTAETIGT + ABGESCHLOSSEN
+        // Single-Source-of-Truth (Walter-Vorgabe 20.05.2026): loadLohnList ist
+        // der EINZIGE Fetch-Pfad. Periode + Snapshots werden hier geladen und
+        // in _lohnWfData abgelegt — _lohnWfRenderStatusBar liest ausschliesslich
+        // daraus. So gibt es keine zweite Stelle mehr, die Status/Buttons ableitet.
+        let _pData = null;             // volles Periode-Objekt (status, pdfFooterText, …)
+        let _snapByEmp = {};           // empId → { id, status }
         try {
             const pRes = await fetch(`/api/payroll-perioden/current?companyProfileId=${cid}&year=${y}&month=${m}`, { headers: ah() });
-            const pData = pRes.ok ? await pRes.json() : null;
-            if (pData?.id) {
-                const snRes = await fetch(`/api/payroll-perioden/${pData.id}/snapshots`, { headers: ah() });
+            if (pRes.ok) {
+                const txt = await pRes.text();
+                if (txt && txt.trim() && txt.trim() !== 'null') { try { _pData = JSON.parse(txt); } catch {} }
+            }
+            if (_pData?.id) {
+                const snRes = await fetch(`/api/payroll-perioden/${_pData.id}/snapshots`, { headers: ah() });
                 if (snRes.ok) {
                     const snaps = await snRes.json();
-                    snaps.forEach(s => confirmedEmpIds.add(s.employeeId));
+                    snaps.forEach(s => {
+                        const st = s.status || 'BERECHNET';
+                        _snapByEmp[s.employeeId] = { id: s.id, status: st };
+                        if (st === 'FREIGEGEBEN_GF' || st === 'HR_BESTAETIGT' || st === 'ABGESCHLOSSEN') {
+                            gfEmpIds.add(s.employeeId);
+                        }
+                        if (st === 'HR_BESTAETIGT' || st === 'ABGESCHLOSSEN') {
+                            hrEmpIds.add(s.employeeId);
+                        }
+                    });
                 }
             }
+        } catch {}
+        // Kompatibilität: bisheriger Code verwendet confirmedEmpIds für „GF-bestätigt"
+        const confirmedEmpIds = gfEmpIds;
+
+        // QST-aktive MA-IDs für die Lohnperiode laden (Walter-Vorgabe
+        // 18.05.2026): der QST-Shortcut neben dem Modell-Badge erscheint
+        // NUR bei MA mit aktivem QST-Eintrag der die Lohnperiode überlappt.
+        // B-Permit kann auch QST-befreit sein → kein nationality-/permit-Filter,
+        // sondern hartes „QST-Datensatz vorhanden in der Periode".
+        const periodFromIso = `${y}-${String(m).padStart(2,'0')}-01`;
+        const lastDayQ      = new Date(y, m, 0).getDate();
+        const periodToIso   = `${y}-${String(m).padStart(2,'0')}-${String(lastDayQ).padStart(2,'0')}`;
+        let qstEmpIds = new Set();
+        try {
+            const qRes = await fetch(`/api/employee-quellensteuer/active-employee-ids?from=${periodFromIso}&to=${periodToIso}`, { headers: ah() });
+            if (qRes.ok) (await qRes.json() || []).forEach(id => qstEmpIds.add(id));
         } catch {}
 
         const res  = await fetch(`/api/employees`, { headers: ah() });
@@ -319,9 +532,30 @@ async function loadLohnList() {
             })
             .filter(Boolean);
 
+        // ── _lohnWfData füllen: EINZIGE Quelle für die Statusbar ──────────────
+        // Counts werden auf die aktiven MA dieser Filiale bezogen (Denominator
+        // = activeTotal) — ein Snapshot eines inzwischen inaktiven MA bläht den
+        // Counter nicht auf.
+        _lohnWfData = {
+            status:      _pData?.status || 'offen',
+            periode:     _pData,
+            periodeId:   _pData?.id || null,
+            snapByEmp:   _snapByEmp,
+            gfConfirmed: active.filter(e => gfEmpIds.has(e.id)).length,
+            hrConfirmed: active.filter(e => hrEmpIds.has(e.id)).length,
+            activeTotal: active.length,
+        };
+        window._currentLohnPeriode = _pData;
+        // Legacy-Chrome (alte Status-Pille im Toolbar-Banner + alte statische
+        // Button-Zeile) bleibt im Definitiv-Modus dauerhaft aus — alles läuft
+        // jetzt über #lohnDefinitivStatusBar.
+        const _legacyBanner = document.getElementById('lohnPeriodBanner'); if (_legacyBanner) _legacyBanner.style.display = 'none';
+        const _legacyTop    = document.getElementById('lohnTopActions');   if (_legacyTop)    _legacyTop.style.display    = 'none';
+
         listEl.innerHTML = '';
         if (active.length === 0) {
             listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Keine Mitarbeiter</div>';
+            _lohnWfRenderStatusBar();
             return;
         }
 
@@ -359,56 +593,97 @@ async function loadLohnList() {
         active.forEach(e => {
             const initials   = ((e.firstName||'')[0]||'') + ((e.lastName||'')[0]||'');
             const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
-            const isConfirmed = confirmedEmpIds.has(e.id);
+            // Drei-Stufen-Markierung analog Akonto-Tab:
+            //   HR-bestätigt (✓✓ blau) — wenn HR oder Periode-Abschluss durch
+            //   GF-bestätigt (✓ grün) — wenn GF freigegeben hat
+            //   Offen (Initialen grau) — wenn Snapshot noch BERECHNET ist oder gar nicht existiert
+            const isHrConfirmed = hrEmpIds.has(e.id);
+            const isGfConfirmed = gfEmpIds.has(e.id);
+            const isConfirmed   = isGfConfirmed;   // Legacy-Variable für Sortier-/Count-Logik
+            const statusIcon = isHrConfirmed ? '✓✓'
+                              : isGfConfirmed ? '✓'
+                              : initials.toUpperCase();
+            const statusBg   = isHrConfirmed ? '#dbeafe'
+                              : isGfConfirmed ? '#dcfce7'
+                              : '#e2e8f0';
+            const statusFg   = isHrConfirmed ? '#1e40af'
+                              : isGfConfirmed ? '#166534'
+                              : '#475569';
+            const statusText = isHrConfirmed ? 'HR-bestätigt'
+                              : isGfConfirmed ? 'GF bestätigt'
+                              : (e.employeeNumber || '');
+            const statusTextColor = isHrConfirmed ? '#1e40af'
+                                  : isGfConfirmed ? '#16a34a'
+                                  : '#94a3b8';
             const row = document.createElement('div');
             row.className = 'lohn-emp-row';
             if (e.id === _lohnSelectedEmpId) row.classList.add('lohn-emp-active');
             row.dataset.empId = e.id;
+            // MA-Auswahl mirror akWfSelectMa: KEIN voller Listen-Rebuild pro Klick
+            // (das verursachte Flackern). Nur Highlight + Status-Bar neu rendern
+            // (per-MA-Buttons für den neuen MA) + Lohnzettel direkt laden.
             row.onclick = () => {
                 _lohnSelectedEmpId = e.id;
                 localStorage.setItem(`lohnLastEmp_${cid}`, String(e.id));
                 highlightLohnEmp(row);
                 showLohnVertragInfo(e);
+                _lohnWfRenderStatusBar();
                 const year  = parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
                 const month = parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth()+1));
                 lzInit(e.id, cid, year, month);
-                loadLohnSlipFromPanel();
+                loadLohnSlip(e.id, cid, year, month);
             };
+            // Walter 18.05.2026: Vertrags-Badge IMMER links, QST-Button IMMER
+            // rechts in einem Slot mit fester Breite — so sind die Spalten
+            // über alle Zeilen aligniert auch wenn der QST-Button fehlt.
+            const hasQst = qstEmpIds.has(e.id);
+            const qstBtnHtml = hasQst
+                ? `<button title="Quellensteuer bearbeiten" onclick="event.stopPropagation();openQstModal(${e.id},${JSON.stringify({firstName:e.firstName,lastName:e.lastName,zipCode:e.zipCode,city:e.city,nationalityCode:e.nationalityRef?.code??e.nationality,permitTypeName:e.permitType?.name,zivilstand:e.zivilstand})})"
+                       style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer;color:#475569;flex-shrink:0">QST</button>`
+                : '';
             row.innerHTML = `
-                <div style="width:34px;height:34px;border-radius:50%;background:${isConfirmed?'#dcfce7':'#e2e8f0'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:${isConfirmed?'#166534':'#475569'};flex-shrink:0">
-                    ${isConfirmed ? '✓' : initials.toUpperCase()}
+                <div style="width:34px;height:34px;border-radius:50%;background:${statusBg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:${statusFg};flex-shrink:0">
+                    ${statusIcon}
                 </div>
                 <div style="flex:1;min-width:0">
                     <div class="lohn-emp-name" style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.firstName} ${e.lastName}</div>
-                    <div class="lohn-emp-nr" style="font-size:11px;color:${isConfirmed?'#16a34a':'#94a3b8'}">${isConfirmed ? 'Lohn bestätigt' : (e.employeeNumber || '')}</div>
+                    <div class="lohn-emp-nr" style="font-size:11px;color:${statusTextColor}">${statusText}</div>
                 </div>
-                <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:${modelColor[e.employmentModel]||'#f1f5f9'}">${e.employmentModel}</span>
-                <button title="Quellensteuer erfassen" onclick="event.stopPropagation();openQstModal(${e.id},${JSON.stringify({firstName:e.firstName,lastName:e.lastName,zipCode:e.zipCode,city:e.city,nationalityCode:e.nationalityRef?.code??e.nationality,permitTypeName:e.permitType?.name,zivilstand:e.zivilstand})})"
-                    style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer;color:#475569;flex-shrink:0" >QST</button>`;
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100px;flex-shrink:0">
+                    <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:${modelColor[e.employmentModel]||'#f1f5f9'};min-width:40px;text-align:center">${e.employmentModel || ''}</span>
+                    <span style="width:38px;display:flex;justify-content:flex-end">${qstBtnHtml}</span>
+                </div>`;
             listEl.appendChild(row);
         });
 
-        // Ausgewählten MA innerhalb der Liste nach oben scrollen (nicht umordnen)
-        // und den Detail-Panel/Lohnzettel automatisch laden, falls noch nichts
-        // gerendert ist. Das verhindert den leeren "Mitarbeiter auswählen"-Zustand
-        // beim ersten Seitenbesuch.
+        // Auto-Select beim Öffnen der Seite. WICHTIG (Walter-Vorgabe 20.05.2026,
+        // „genau wie Akonto"): KEIN force-scroll-to-top mehr! Die frühere Zeile
+        // `listEl.scrollTop += sel.getBoundingClientRect()...` riss die Liste bei
+        // JEDEM Refresh nach oben und zog den gerade bestätigten MA an den Anfang
+        // — beim Akonto-Tab gibt es das nicht. Dort scrollt AUSSCHLIESSLICH der
+        // Auto-Sprung (scrollIntoView block:'nearest'), sodass der Cursor nach
+        // unten wandert und die Liste erst mitscrollt, wenn er unten ankommt.
+        // Hier identisch: beim Refresh nicht scrollen; nur beim allerersten
+        // Seitenaufruf (Detail-Panel noch leer) den selektierten MA laden +
+        // sanft in den sichtbaren Bereich holen.
         if (_lohnSelectedEmpId) {
             const sel = listEl.querySelector(`.lohn-emp-row[data-emp-id="${_lohnSelectedEmpId}"]`);
             if (sel) {
-                listEl.scrollTop += sel.getBoundingClientRect().top - listEl.getBoundingClientRect().top;
-                // Trigger Detail-Load wenn das Vertrag-Panel noch nicht sichtbar ist
-                // (= frischer Seitenaufruf, noch kein MA manuell angeklickt worden).
                 const vertragPanel = document.getElementById('lohnVertragPanel');
                 if (vertragPanel && vertragPanel.style.display === 'none') {
                     sel.click();
+                    setTimeout(() => sel.scrollIntoView({ block: 'nearest' }), 50);
                 }
             }
         }
 
-        // Banner mit den aktuellen Zählern aktualisieren (Offen-Pille +
-        // X/Y bestätigt). Wird hier zentral aufgerufen, damit er nach
-        // jedem Lohn-Speichern / Bestätigen sofort stimmt.
-        loadLohnPeriodBanner(cid, y, m);
+        // Status-Bar rendern (EINZIGE Stelle für Pille + Counter + Buttons).
+        // Kein loadLohnPeriodBanner mehr — das ist jetzt nur noch ein Shim auf
+        // lohnWfRefresh und würde hier eine Endlosrekursion auslösen.
+        _lohnWfRenderStatusBar();
+        // Zulagen-Lock erneut anwenden — bei Status-Wechsel der Periode muss
+        // sich die Card-Sichtbarkeit (+ Erfassen / ✎ / 🗑) aktualisieren.
+        if (typeof _akWfApplyZulagenLock === 'function') _akWfApplyZulagenLock();
     } catch(e) {
         listEl.innerHTML = `<div style="padding:20px;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`;
     }
@@ -424,19 +699,34 @@ function filterLohnEmpList() {
 }
 
 function showLohnVertragInfo(emp) {
-    const panel     = document.getElementById('lohnVertragPanel');
-    const empty     = document.getElementById('lohnVertragEmpty');
-    const nameEl    = document.getElementById('lohnVertragName');
-    const infoEl    = document.getElementById('lohnVertragInfo');
-    const perPanel  = document.getElementById('lohnPeriodToolbar');
-    if (!panel) return;
+    // Walter 19.05.2026: Card wird gleichzeitig in Definitiv-Tab (lohn*) und
+    // Akonto-Tab (akWf*) gerendert, damit beide Bildschirme identisch wirken.
+    const targets = [
+        {
+            panel:  document.getElementById('lohnVertragPanel'),
+            empty:  document.getElementById('lohnVertragEmpty'),
+            nameEl: document.getElementById('lohnVertragName'),
+            infoEl: document.getElementById('lohnVertragInfo'),
+        },
+        {
+            panel:  document.getElementById('akWfVertragPanel'),
+            empty:  document.getElementById('akWfVertragEmpty'),
+            nameEl: document.getElementById('akWfVertragName'),
+            infoEl: document.getElementById('akWfVertragInfo'),
+        },
+    ].filter(t => t.panel);
+    const perPanel = document.getElementById('lohnPeriodToolbar');
+    if (targets.length === 0) return;
 
     const contract = (emp.employments || [])
         .filter(c => c.isActive)
         .sort((a,b) => (b.contractStartDate||'') > (a.contractStartDate||'') ? 1 : -1)[0];
 
     if (!contract) {
-        empty.style.display = 'block'; panel.style.display = 'none';
+        targets.forEach(t => {
+            if (t.empty) t.empty.style.display = 'block';
+            t.panel.style.display = 'none';
+        });
         if (perPanel) perPanel.style.display = 'none';
         return;
     }
@@ -448,10 +738,27 @@ function showLohnVertragInfo(emp) {
         ? `CHF ${Number(contract.monthlySalary).toFixed(2)} / Monat`
         : contract.hourlyRate ? `CHF ${Number(contract.hourlyRate).toFixed(2)} / Stunde` : '–';
 
-    nameEl.innerHTML = `${emp.firstName} ${emp.lastName}
-        <span style="margin-left:8px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px;background:${modelColor[contract.employmentModel]||'#f1f5f9'}">${modelLabel[contract.employmentModel]||contract.employmentModel}</span>`;
+    // Walter-Vorgabe 19.05.2026: Alter zum Periodenbeginn anzeigen — relevant
+    // für die Ferienanspruchs-Stufe (5 vs. 6 Wochen) und Mindestlohn-Alters-
+    // schwellen (z.B. unter 18 = Lehrlings-Satz). Wir nehmen die aktuell im
+    // Lohn-Tab gewählte Periode; wenn keine vorhanden, fallback heute.
+    const periodYear  = parseInt(document.getElementById('lohnYearSelect')?.value) || new Date().getFullYear();
+    const periodMonth = parseInt(document.getElementById('lohnMonthSelect')?.value) || (new Date().getMonth() + 1);
+    const periodStart = new Date(periodYear, periodMonth - 1, 1);
+    let alterStr = '–';
+    if (emp.dateOfBirth) {
+        const dob = new Date(emp.dateOfBirth);
+        let age = periodStart.getFullYear() - dob.getFullYear();
+        if (periodStart.getMonth() < dob.getMonth()
+            || (periodStart.getMonth() === dob.getMonth() && periodStart.getDate() < dob.getDate())) {
+            age--;
+        }
+        alterStr = `${age} J. (am ${periodStart.toLocaleDateString('de-CH')})`;
+    }
 
-    infoEl.innerHTML = `
+    const nameHtml = `${emp.firstName} ${emp.lastName}
+        <span style="margin-left:8px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px;background:${modelColor[contract.employmentModel]||'#f1f5f9'}">${modelLabel[contract.employmentModel]||contract.employmentModel}</span>`;
+    const infoHtml = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
             <div>Personal-Nr.: <b style="color:#374151">${emp.employeeNumber||'–'}</b></div>
             <div>Funktion: <b style="color:#374151">${contract.jobTitle||'–'}</b></div>
@@ -459,11 +766,15 @@ function showLohnVertragInfo(emp) {
             ${contract.guaranteedHoursPerWeek ? `<div>Garantiert: <b style="color:#374151">${contract.guaranteedHoursPerWeek} h/Wo</b></div>` : ''}
             ${contract.employmentPercentage ? `<div>Pensum: <b style="color:#374151">${contract.employmentPercentage}%</b></div>` : ''}
             <div>Vertrag seit: <b style="color:#374151">${fmt(contract.contractStartDate)}</b></div>
+            <div title="Alter zum Periodenbeginn — relevant für Ferienanspruch (5/6 Wochen) und Alters-Mindestlöhne">Alter: <b style="color:#374151">${alterStr}</b></div>
             ${contract.probationEndDate ? `<div style="color:#92400e">Probezeit bis: <b>${fmt(contract.probationEndDate)}</b></div>` : ''}
         </div>`;
-
-    empty.style.display = 'none';
-    panel.style.display = 'block';
+    targets.forEach(t => {
+        if (t.nameEl) t.nameEl.innerHTML = nameHtml;
+        if (t.infoEl) t.infoEl.innerHTML = infoHtml;
+        if (t.empty)  t.empty.style.display = 'none';
+        t.panel.style.display = 'block';
+    });
     if (perPanel) {
         perPanel.style.display = 'flex';
         // Monat/Jahr Dropdowns füllen falls noch leer
@@ -502,11 +813,12 @@ async function loadLohnSlipFromPanel() {
     // sortiert), und der selektierte MA bekommt die Active-Klasse + wird in den
     // sichtbaren Bereich gescrollt.
     const empId = _lohnSelectedEmpId;
-    // Mitarbeiterliste neu laden (Bestätigt-Badges aktualisieren).
+    // Single-Refresh: loadLohnList lädt Periode + Snapshots + MA, füllt
+    // _lohnWfData und rendert die Statusbar. KEIN separater
+    // loadLohnPeriodBanner-Aufruf mehr (das ist nur noch ein Shim hierauf).
     await loadLohnList();
     // Lohnzettel für die neue Periode neu berechnen
     if (empId) {
-        loadLohnPeriodBanner(cid, year, month);
         lzInit(empId, cid, year, month);
         loadLohnSlip(empId, cid, year, month);
     }
@@ -529,17 +841,9 @@ async function loadLohnSlip(employeeId, companyId, year, month) {
     document.getElementById('lohnSlip').innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">Berechne…</div>';
     document.getElementById('lohnSlipCard').style.display  = 'block';
     document.getElementById('lohnSlipEmpty').style.display = 'none';
-    // Top-Aktions-Buttons sichtbar machen (PDF / Reopen / Bestätigen)
-    const ta = document.getElementById('lohnTopActions');
-    if (ta) ta.style.display = 'flex';
-
-    // Sofort Default-Button-State setzen (Confirm sichtbar, Reopen versteckt),
-    // damit kein "Wieder eröffnen"-Button vom vorherigen MA hängen bleibt.
-    const btnBestReset   = document.getElementById('btnLohnBestaetigen');
-    const btnReopenReset = document.getElementById('btnLohnReopen');
-    if (btnBestReset)   btnBestReset.style.display   = '';
-    if (btnReopenReset) btnReopenReset.style.display = 'none';
-
+    // Aktionsbuttons werden NICHT mehr hier gesetzt — sie leben ausschliesslich
+    // in #lohnDefinitivStatusBar (_lohnWfRenderStatusBar). loadLohnSlip rendert
+    // nur noch den Lohnzettel selbst (Walter-Vorgabe 20.05.2026).
     const myToken = ++_lohnSlipReqToken;
 
     try {
@@ -573,67 +877,18 @@ async function loadLohnSlip(employeeId, companyId, year, month) {
                     </div>
                 </div>`;
             lohnCurrentSlip = null;
-            // Bestätigen-Button deaktivieren während Pause
-            const btn = document.getElementById('btnLohnBestaetigen');
-            if (btn) btn.disabled = true;
+            // Während KTG-Pause keine Abrechnung. confirmLohn() bricht bei
+            // lohnCurrentSlip==null sauber ab; die Statusbar bleibt sichtbar.
             return;
         }
         lohnCurrentSlip = { ...slip, employeeId, companyId, year, month };
-        const btn = document.getElementById('btnLohnBestaetigen');
-        if (btn) btn.disabled = false;
+        // Stale-Antwort verwerfen, falls inzwischen ein neuer Aufruf läuft.
+        if (myToken !== _lohnSlipReqToken) return;
         renderLohnSlip(slip);
-
-        // Saldo-Status prüfen → Confirm/Reopen-Button umschalten.
-        // Cache-Bypass + Race-Token: Browser darf KEIN gecachtes Saldo-Resultat
-        // einer früheren Periode zurückgeben, und falls inzwischen ein neuer
-        // loadLohnSlip-Aufruf passiert ist, dürfen wir nichts mehr setzen.
-        // Zusätzlich: Saldo zählt nur als 'confirmed', wenn auch ein Snapshot
-        // für diesen MA + diese Periode existiert (PayrollSaldo + Snapshot
-        // können theoretisch divergieren, dann ist Reopen NICHT angezeigt
-        // sondern Confirm, weil noch keine echte Bestätigung vorliegt).
-        try {
-            const ts = Date.now();
-            const [sRes, snapRes] = await Promise.all([
-                fetch(`/api/payroll/saldo?employeeId=${employeeId}&year=${year}&month=${month}&companyProfileId=${companyId}&_=${ts}`,
-                      { headers: ah(), cache: 'no-store' }),
-                fetch(`/api/payroll-perioden/current?companyProfileId=${companyId}&year=${year}&month=${month}&_=${ts}`,
-                      { headers: ah(), cache: 'no-store' })
-            ]);
-            // Stale-Antwort verwerfen, falls inzwischen ein neuer Aufruf läuft
-            if (myToken !== _lohnSlipReqToken) return;
-
-            const saldo = sRes.ok ? await sRes.json() : null;
-            let snapshotExists = false;
-            try {
-                const periode = snapRes.ok ? await snapRes.json() : null;
-                if (periode?.id) {
-                    const sn = await fetch(`/api/payroll-perioden/${periode.id}/snapshots?_=${ts}`,
-                                            { headers: ah(), cache: 'no-store' });
-                    if (sn.ok) {
-                        const arr = await sn.json();
-                        snapshotExists = Array.isArray(arr)
-                            && arr.some(x => x.employeeId === employeeId);
-                    }
-                }
-            } catch {}
-            if (myToken !== _lohnSlipReqToken) return;
-
-            // Als 'bestätigt' gilt nur: Saldo confirmed UND Snapshot vorhanden.
-            // Das verhindert false-positives durch Inkonsistenzen aus alten
-            // Datenbeständen (Saldo confirmed ohne Snapshot ist Recovery-Fall).
-            const isConfirmed = !!(saldo && saldo.status === 'confirmed' && snapshotExists);
-            const btnBest   = document.getElementById('btnLohnBestaetigen');
-            const btnReopen = document.getElementById('btnLohnReopen');
-            if (btnBest)   btnBest.style.display   = isConfirmed ? 'none' : '';
-            if (btnReopen) btnReopen.style.display = isConfirmed ? '' : 'none';
-        } catch {
-            // Bei Fehler explizit auf Default zurück (Confirm sichtbar)
-            if (myToken !== _lohnSlipReqToken) return;
-            const btnBest   = document.getElementById('btnLohnBestaetigen');
-            const btnReopen = document.getElementById('btnLohnReopen');
-            if (btnBest)   btnBest.style.display   = '';
-            if (btnReopen) btnReopen.style.display = 'none';
-        }
+        // Button-Sichtbarkeit kommt AUSSCHLIESSLICH aus _lohnWfRenderStatusBar
+        // (gespeist aus _lohnWfData). loadLohnSlip toggelt keine Buttons mehr —
+        // das war die Quelle der wiederkehrenden „Button fehlt / verdeckt"-Bugs
+        // (Walter-Vorgabe 20.05.2026: Definitiv = Akonto-Architektur).
     } catch(e) {
         document.getElementById('lohnSlip').innerHTML = `<div style="padding:40px;color:#dc2626">Fehler: ${e.message}</div>`;
     }
@@ -641,9 +896,16 @@ async function loadLohnSlip(employeeId, companyId, year, month) {
 
 // Toggle: Ferien-Kürzung anwenden (Stufe 2)
 // Wenn aktiviert: vom aktuellen Ferien-Tage-Saldo wird die vorgeschlagene
-// Kürzung abgezogen. Wird beim Speichern in PayrollSaldo persistiert.
+// Kürzung abgezogen. Beim nächsten „Lohn bestätigen" wird der reduzierte
+// ferienTageSaldoNeu (= s.ferienTageSaldoNeu, siehe confirmLohn) in
+// PayrollSaldo persistiert.
+//
+// Walter-Bug 18.05.2026: hier waren zwei Fehler drin —
+//   1) `window.currentLohnSlip` (undefined) statt `lohnCurrentSlip`
+//   2) Re-Render rief `renderLohnAbrechnung` (existiert nicht) statt `renderLohnSlip`
+// Resultat: Klick auf die Checkbox hatte sichtbar gar keinen Effekt.
 function toggleFerienKuerzung(checkbox, vorschlagTage) {
-    const slip = window.currentLohnSlip;
+    const slip = lohnCurrentSlip;
     if (!slip) return;
     if (checkbox.checked) {
         slip.ferienKuerzungAngewendet = true;
@@ -655,7 +917,7 @@ function toggleFerienKuerzung(checkbox, vorschlagTage) {
         slip.ferienTageSaldoNeu = (Number(slip.ferienTageSaldoNeu) || 0) + Number(vorschlagTage);
     }
     // Re-render damit der neue Saldo angezeigt wird
-    if (typeof renderLohnAbrechnung === 'function') renderLohnAbrechnung(slip);
+    if (typeof renderLohnSlip === 'function') renderLohnSlip(slip);
 }
 
 async function reopenLohn() {
@@ -683,10 +945,9 @@ async function reopenLohn() {
             throw new Error(err.error || err.message || 'Fehler beim Wieder-Eröffnen');
         }
         showToast('Lohnzettel wieder eröffnet ↻', 'success');
-        // Slip + MA-Liste neu laden
+        // Single-Refresh + Slip neu laden (Statusbar zeigt wieder „✓ bestätigen").
+        await lohnWfRefresh();
         await loadLohnSlip(s.employeeId, s.companyId, s.year, s.month);
-        await loadLohnList();
-        await loadLohnPeriodBanner(s.companyId, s.year, s.month);
     } catch(e) {
         alert(e.message);
     }
@@ -754,14 +1015,14 @@ function renderLohnSlip(s, targetEl) {
     const salutation = s.salutation === 'Frau' ? 'Frau' : s.salutation === 'Herr' ? 'Herr' : '';
 
     mount.innerHTML = `
-    <div class="ls-wrap" style="padding-top:4px;padding-bottom:6px">
+    <div class="ls-wrap" style="padding-top:2px;padding-bottom:3px">
         <!-- Header weggelassen (Walter 16.05.2026): Filiale + Periode + MA stehen
              bereits oben im Akonto-/Lohn-Header der Page. "Lohnabrechnung"-Titel
              ist visuell durch die Tabelle selbst klar. Volle Adresse + Druck-
              Header bleiben im PDF/PayrollPdfService für den Versand erhalten. -->
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;font-size:12px;color:#94a3b8">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;font-size:11.5px;color:#94a3b8">
             <span>${s.companyName} · ${s.periodLabel}</span>
-            <span style="font-weight:700;color:#1e293b;font-size:13px;letter-spacing:.3px">Lohnabrechnung</span>
+            <span style="font-weight:700;color:#1e293b;font-size:12.5px;letter-spacing:.3px">Lohnabrechnung</span>
         </div>
 
         <!-- Tabelle -->
@@ -786,7 +1047,7 @@ function renderLohnSlip(s, targetEl) {
                 </tr>
 
                 ${s.abzugLines.length > 0 ? `
-                <tr><td colspan="6" style="height:5px"></td></tr>
+                <tr><td colspan="6" style="height:3px"></td></tr>
                 <tr class="ls-section-hd">
                     <td colspan="5">Abzüge</td>
                     <td style="text-align:right">${s.usingDefaultDeductions ? '<span style="font-size:10px;font-weight:500;color:#b45309;background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:1px 6px">CH-Standard 2026</span>' : ''}</td>
@@ -800,7 +1061,7 @@ function renderLohnSlip(s, targetEl) {
                 ${s.usingDefaultDeductions ? `<tr><td colspan="6" style="font-size:10px;color:#92400e;padding:2px 8px 6px">⚠ Standardsätze AHV 5.3 % / ALV 1.1 % – bitte unter Filialen &gt; Abzüge konfigurieren</td></tr>` : ''}
                 ` : ''}
 
-                <tr><td colspan="6" style="height:5px"></td></tr>
+                <tr><td colspan="6" style="height:3px"></td></tr>
                 <tr class="ls-netto-row">
                     <td colspan="4" class="ls-desc">Nettolohn</td>
                     <td class="ls-amt"></td>
@@ -808,7 +1069,7 @@ function renderLohnSlip(s, targetEl) {
                 </tr>
 
                 ${(s.zulagenExtraLines?.length > 0 || s.abzuegeExtraLines?.length > 0) ? `
-                <tr><td colspan="6" style="height:4px"></td></tr>
+                <tr><td colspan="6" style="height:2px"></td></tr>
                 ${s.zulagenExtraLines?.length > 0 ? `
                 <tr class="ls-section-hd"><td colspan="6">Weitere Zahlungen</td></tr>
                 ${s.zulagenExtraLines.map(l => `
@@ -899,7 +1160,7 @@ function renderLohnSlip(s, targetEl) {
                 : '';
 
             return `
-            <table class="ls-table" style="margin-top:6px">
+            <table class="ls-table" style="margin-top:3px">
                 <thead>
                     <tr class="ls-col-hd">
                         <th style="text-align:left">Stunden-Übersicht</th>
@@ -1082,7 +1343,7 @@ function renderLohnSlip(s, targetEl) {
             }
 
             return `
-            <table class="ls-table" style="margin-top:6px">
+            <table class="ls-table" style="margin-top:3px">
                 <thead>
                     <tr class="ls-col-hd">
                         <th style="text-align:left">Saldi</th>
@@ -1159,7 +1420,7 @@ function renderLohnSlip(s, targetEl) {
             }).join('');
 
             return `
-            <table class="ls-table" style="margin-top:6px">
+            <table class="ls-table" style="margin-top:3px">
                 <thead>
                     <tr class="ls-col-hd">
                         <th style="text-align:left">Auszahlung an</th>
@@ -1226,16 +1487,97 @@ async function confirmLohn() {
             throw new Error(err.message || 'Fehler beim Bestätigen');
         }
         const result = await res.json();
-        // Mitarbeiterliste neu laden (Checkmark anzeigen)
-        await loadLohnList();
-        // Periode-Banner aktualisieren
-        await loadLohnPeriodBanner(cid, year, month);
+        // Walter-Vorgabe 20.05.2026: flüssig wie Akonto — KEIN voller
+        // loadLohnList()-Reload (der lädt /api/employees neu + scrollt doppelt).
+        // Stattdessen nur die eine Zeile im DOM auf „GF bestätigt" setzen,
+        // Banner-Counter aktualisieren, dann zum nächsten MA springen.
+        // Single-Refresh (analog Akonto): _lohnWfData + Liste + Statusbar neu.
+        await lohnWfRefresh();
         showToast('Lohn bestätigt ✓', 'success');
+        // Zum nächsten unbestätigten MA springen. Wenn keiner mehr offen ist,
+        // bleibt der aktuelle MA selektiert — die Statusbar zeigt jetzt „↶ Wieder
+        // eröffnen" (alles aus _lohnWfData, kein stale Button mehr möglich).
+        if (!_lohnJumpToNextUnconfirmed(s.employeeId, 'gf')) {
+            await loadLohnSlip(s.employeeId, cid, year, month);
+        }
     } catch(e) {
         alert(e.message);
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = '✓ Lohn bestätigen'; }
     }
+}
+
+/// Setzt eine MA-Zeile in der Liste ohne vollen Reload auf einen Bestätigt-
+/// Status (Walter-Vorgabe 20.05.2026 — flüssige Akonto-Mechanik). Aktualisiert
+/// nur Avatar-Icon/-Farbe + Untertext. Der Banner-Counter zählt unabhängig
+/// davon die echten Snapshot-Status (siehe loadLohnPeriodBanner).
+///   mode='gf' → grünes ✓  „GF bestätigt"
+///   mode='hr' → blaues ✓✓ „HR-bestätigt"
+function _lohnMarkRowConfirmed(empId, mode) {
+    const row = document.querySelector(`#lohnEmpList .lohn-emp-row[data-emp-id="${empId}"]`);
+    if (!row) return;
+    const avatar = row.firstElementChild;
+    const sub    = row.querySelector('.lohn-emp-nr');
+    if (mode === 'hr') {
+        if (avatar) { avatar.style.background = '#dbeafe'; avatar.style.color = '#1e40af'; avatar.textContent = '✓✓'; }
+        if (sub)    { sub.textContent = 'HR-bestätigt'; sub.style.color = '#1e40af'; }
+    } else {
+        if (avatar) { avatar.style.background = '#dcfce7'; avatar.style.color = '#166534'; avatar.textContent = '✓'; }
+        if (sub)    { sub.textContent = 'GF bestätigt'; sub.style.color = '#16a34a'; }
+    }
+}
+
+/// Auto-Sprung zum nächsten zu bearbeitenden MA nach einer Bestätigung
+/// (analog _akWfJumpToNextOpen). Sucht im aktuellen Render der MA-Liste den
+/// nächsten Eintrag der noch eine Aktion braucht und lädt direkt dessen Slip.
+/// Walter-Vorgabe 19.05.2026: KEIN .click() auf die Zeile (das würde
+/// loadLohnSlipFromPanel → loadLohnList re-triggern → Flackern), stattdessen
+/// nur Highlight + direkter loadLohnSlip-Aufruf.
+///
+/// mode='gf' (Default): nächster MA der NOCH GAR NICHT bestätigt ist.
+/// mode='hr':           nächster MA der GF-bestätigt, aber noch nicht HR-bestätigt ist.
+/// Beide Workflows (GF-Bestätigen + HR-Bestätigen) nutzen damit dieselbe
+/// flacker-freie Sprung-Mechanik — analog zum Akonto-Tab.
+/// Gibt true zurück wenn zu einem nächsten MA gesprungen wurde, sonst false
+/// (= alle erledigt, kein offener MA mehr). Der Aufrufer lädt dann den Slip
+/// des aktuellen MA neu, damit dessen Buttons nicht stale bleiben.
+function _lohnJumpToNextUnconfirmed(currentEmpId, mode = 'gf') {
+    const rows = Array.from(document.querySelectorAll('#lohnEmpList .lohn-emp-row'));
+    if (!rows.length) return false;
+    const statusText = row => (row.querySelector('.lohn-emp-nr')?.textContent || '').trim();
+    const needsAction = mode === 'hr'
+        // HR sucht MA die GF-bestätigt sind (= grünes ✓), aber noch nicht HR-bestätigt (✓✓).
+        ? (row => statusText(row).startsWith('GF bestätigt'))
+        // GF sucht MA ohne jegliches Häkchen.
+        : (row => {
+            const t = statusText(row);
+            return !(t.startsWith('GF bestätigt') || t.startsWith('HR-bestätigt') || t.startsWith('Lohn bestätigt'));
+          });
+    const idx = rows.findIndex(r => Number(r.dataset.empId) === Number(currentEmpId));
+    const order = [];
+    for (let i = idx + 1; i < rows.length; i++) order.push(rows[i]);
+    for (let i = 0; i <= idx; i++)              order.push(rows[i]);
+    const nextRow = order.find(needsAction);
+    if (!nextRow) return false;
+
+    const nextEmpId = Number(nextRow.dataset.empId);
+    if (!nextEmpId) return false;
+
+    // Walter-Bug 20.05.2026: Den KANONISCHEN Auswahl-Pfad benutzen — der
+    // Row-onclick (in loadLohnList) setzt in EINEM Schritt Selection +
+    // Highlight + Vertrag-Card (showLohnVertragInfo mit dem echten MA-Objekt
+    // aus der Closure) + Statusbar (_lohnWfRenderStatusBar) + Zulagen +
+    // Lohnzettel — alles konsistent, kein voller Listen-Rebuild, kein Flackern.
+    // Früher wurde das hier manuell nachgebaut, ABER ohne Statusbar-Re-Render
+    // (und mit dem nicht existierenden `_empAllRaw`): die per-MA-Buttons blieben
+    // auf dem vorherigen MA stehen (nach „HR-bestätigen" war nur noch
+    // „HR-Bestätigung zurückziehen" sichtbar) und die Vertrag-Card hing fest.
+    nextRow.click();
+
+    setTimeout(() => {
+        nextRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 50);
+    return true;
 }
 
 async function ensurePeriode(companyId, year, month) {
@@ -1263,7 +1605,14 @@ async function ensurePeriode(companyId, year, month) {
     return periode;
 }
 
+// Shim (Walter-Vorgabe 20.05.2026): loadLohnPeriodBanner ist nur noch ein Alias
+// auf den Single-Refresh des Definitivlaufs (lohnWfRefresh → loadLohnList →
+// _lohnWfRenderStatusBar). Die frühere Banner-/Button-Logik ist komplett in
+// _lohnWfRenderStatusBar gewandert — EINZIGE Stelle für Status + Buttons.
+// Alle Alt-Aufrufer (Aktions-Handler) funktionieren unverändert weiter.
 async function loadLohnPeriodBanner(companyId, year, month) {
+    return lohnWfRefresh();
+/* ===== TOTER ALT-CODE (bleibt zur Historie, wird nie erreicht) ============
     const banner = document.getElementById('lohnPeriodBanner');
     if (!banner) return;
     if (!companyId) { banner.style.display = 'none'; return; }
@@ -1290,31 +1639,110 @@ async function loadLohnPeriodBanner(companyId, year, month) {
         const pillBg    = isAbgeschlossen ? '#dcfce7' : isProvisorisch ? '#fef3c7' : '#e0f2fe';
         const pillColor = isAbgeschlossen ? '#166534' : isProvisorisch ? '#92400e' : '#0369a1';
 
-        // Kompakter Status-Zeile: nur Status-Pill + Bestätigungs-Zähler + Action.
-        // Periodenbezeichnung steht oben in der Monat-/Jahr-Auswahl, Datumsbereich
-        // bei Bedarf als Tooltip. Zähler nutzt die Werte aus loadLohnList
-        // (aktive MAs der Filiale) — konsistent mit der MA-Auswahl links.
-        const stats       = window._lohnStats || { confirmedCount: 0, activeTotal: 0 };
-        const confirmText = `${stats.confirmedCount}/${stats.activeTotal} bestätigt`;
-        const allBestaetigt = stats.activeTotal > 0 && stats.confirmedCount >= stats.activeTotal;
+        // Bestätigt-Zähler (Walter-Bugfix 20.05.2026): GF-bestätigte MA werden
+        // aus den ECHTEN Snapshot-Status gezählt (zuverlässig), NICHT aus dem
+        // client-seitigen _lohnStats.confirmedCount — der geriet nach dem
+        // „Zurück an GF"-Hin-und-Her aus dem Tritt, sodass „An HR senden" nicht
+        // mehr erschien. activeTotal (Anzahl aktiver MA der Filiale) kommt
+        // weiterhin aus loadLohnList, da es sich beim Bestätigen nicht ändert.
+        let gfConfirmed = 0, hrConfirmed = 0;
+        try {
+            const snRes = await fetch(`/api/payroll-perioden/${p.id}/snapshots`, { headers: ah() });
+            if (snRes.ok) {
+                const snaps = await snRes.json();
+                snaps.forEach(sn => {
+                    const st = sn.status || 'BERECHNET';
+                    if (st === 'FREIGEGEBEN_GF' || st === 'HR_BESTAETIGT' || st === 'ABGESCHLOSSEN') gfConfirmed++;
+                    if (st === 'HR_BESTAETIGT' || st === 'ABGESCHLOSSEN') hrConfirmed++;
+                });
+            }
+        } catch {}
+        const activeTotal = (window._lohnStats && window._lohnStats.activeTotal) || 0;
+        const stats       = { confirmedCount: gfConfirmed, activeTotal };
+        // GF-Phase (offen): Counter zeigt GF-Fortschritt. HR-Phase
+        // (provisorisch_abgeschlossen): Counter zeigt HR-Fortschritt — analog
+        // Akonto-Tab. So sieht HR sofort wie viele MA noch HR-bestätigt werden müssen.
+        const confirmText = isProvisorisch
+            ? `${hrConfirmed}/${activeTotal} HR-bestätigt`
+            : `${gfConfirmed}/${activeTotal} bestätigt`;
+        const allBestaetigt   = activeTotal > 0 && gfConfirmed >= activeTotal;   // GF: alle freigegeben → „An HR senden"
+        const allHrBestaetigt = activeTotal > 0 && hrConfirmed >= activeTotal;   // HR: alle bestätigt → „Lohnbelege + DTA"
 
-        // Abschluss-Button: nur wenn Periode offen UND alle Lohnzettel bestätigt
-        // (sonst wäre der Klick eh ein Backend-Fehler). Bei < 100% bestätigt
-        // erscheint stattdessen ein hellgrauer Hinweis-Text. Bei provisorisch_-
-        // abgeschlossen: keine Button — HR übernimmt im Lohnlauf-Modul.
+        // Abschluss-Button (Walter-Vorgabe 19.05.2026: Sprache + Workflow
+        // analog Akonto-Tab):
+        //   • offen + alle bestätigt        → „An HR senden →"  (GF-Aktion)
+        //   • offen + nicht alle bestätigt  → Hinweis „erst alle bestätigen"
+        //   • provisorisch_abgeschlossen    → 🔒 Bei HR (lokale Statusanzeige).
+        //     HR-Aktionen (Zurück an GF / Definitiv abschliessen) sind in der
+        //     oberen Toolbar — siehe lohnTopActions.
+        // Walter-Vorgabe 20.05.2026: Der „An HR senden"-Button ist KEIN Banner-
+        // Element mehr — er sitzt rechts bei den GF-Aktionsbuttons (lohnTopActions,
+        // #btnLohnAnHrSenden, weiter unten getoggelt). Im Banner bleibt nur die
+        // Info-Anzeige (Hinweis „erst alle bestätigen" bzw. „🔒 Bei HR").
         const abschlussBtn = isOffen
             ? (allBestaetigt
-                ? `<button class="btn btn-sm btn-outline" style="margin-left:auto;color:#0284c7;border-color:#7dd3fc;font-size:11px;padding:3px 10px"
-                    onclick="abschliessePeriode(${p.id},'${p.label}')">Provisorischer Lohnabschluss</button>`
-                : `<span style="margin-left:auto;font-size:11px;color:#94a3b8">Erst alle Lohnzettel bestätigen (${stats.activeTotal - stats.confirmedCount} ausstehend)</span>`)
+                ? ''
+                : `<span style="font-size:11px;color:#94a3b8">Erst alle Lohnzettel bestätigen (${stats.activeTotal - stats.confirmedCount} ausstehend)</span>`)
             : isProvisorisch
-                ? `<span style="margin-left:auto;font-size:11px;color:#92400e">Wartet auf HR — Lohnlauf läuft</span>`
+                ? (isHr
+                    // HR-Phase: Hinweis wie viele MA noch HR-bestätigt werden müssen.
+                    // Erst wenn alle durch sind, erscheint „Lohnbelege + DTA" (rechts).
+                    ? (allHrBestaetigt
+                        ? `<span style="font-size:11.5px;font-weight:600;color:#166534;background:#dcfce7;padding:3px 9px;border-radius:8px">✓ Alle HR-bestätigt — bereit für DTA</span>`
+                        : `<span style="font-size:11px;color:#94a3b8">Erst alle Lohnzettel HR-bestätigen (${activeTotal - hrConfirmed} ausstehend)</span>`)
+                    : `<span style="font-size:11.5px;font-weight:600;color:#92400e;background:#fef3c7;padding:3px 9px;border-radius:8px">🔒 Bei HR — keine Änderungen möglich</span>`)
                 : '';
 
         // Aktuellen Periode-Kontext im window-Objekt cachen, damit der
         // Bemerkungs-Button keine Argumente benötigt (vermeidet Escaping-
         // Probleme bei mehrzeiligen Texten mit Anführungszeichen).
         window._currentLohnPeriode = p;
+
+        // Sammel-Aktions-Buttons im Top-Bar einblenden (Walter-Vorgabe
+        // 18.05.2026 — gehören in den Lohnlauf, nicht ins admin-only
+        // Lohnperioden-Modul). Sichtbar je nach Status:
+        //   • Vorab-PDF (alle Lohnbelege) → ab provisorisch_abgeschlossen
+        //   • DTA-File (pain.001)        → erst nach definitiv abgeschlossen
+        const btnVorabPdf = document.getElementById('btnLohnVorabPdf');
+        const btnDtaMa    = document.getElementById('btnLohnDtaMa');
+        if (btnVorabPdf) btnVorabPdf.style.display = (isProvisorisch || isAbgeschlossen) ? '' : 'none';
+        if (btnDtaMa)    btnDtaMa.style.display    = isAbgeschlossen ? '' : 'none';
+
+        // HR-Aktionen (Walter 19.05.2026, analog Akonto-Tab) — sichtbar wenn
+        // Periode provisorisch_abgeschlossen UND User ist admin/superuser.
+        const isHr = (typeof currentUser !== 'undefined' && currentUser?.role)
+                        && (currentUser.role === 'admin' || currentUser.role === 'superuser');
+        // GF-Aktion „An HR senden" (rechts bei den Aktionsbuttons): sichtbar
+        // nur wenn Periode offen UND alle MA bestätigt sind.
+        const btnAnHr = document.getElementById('btnLohnAnHrSenden');
+        if (btnAnHr) btnAnHr.style.display = (isOffen && allBestaetigt) ? '' : 'none';
+
+        const btnZurueck    = document.getElementById('btnLohnZurueckAnGf');
+        const btnDefinitiv  = document.getElementById('btnLohnDefinitivAbschliessen');
+        const btnLbView     = document.getElementById('btnLohnLohnbelegeView');
+        if (btnZurueck)   btnZurueck.style.display   = (isProvisorisch && isHr) ? '' : 'none';
+        // „Lohnbelege + DTA" (= Versand) erst wenn HR ALLE MA bestätigt hat —
+        // analog Akonto, wo DTA erst im Status HR_FREIGEGEBEN erscheint.
+        if (btnDefinitiv) btnDefinitiv.style.display = (isProvisorisch && isHr && allHrBestaetigt) ? '' : 'none';
+        // Nach DTA-Klick: Periode ist 'abgeschlossen'. Belege bleiben für HR
+        // einsehbar (Druck/Re-Download), Versand-Button im Modal ist dann
+        // deaktiviert — der Re-Versand-Pfad geht über Re-Open.
+        if (btnLbView)    btnLbView.style.display    = (isAbgeschlossen && isHr) ? '' : 'none';
+
+        // GF-Lock auf per-MA-Aktionen: in provisorisch_abgeschlossen sieht GF
+        // weder „Lohn bestätigen" noch „Wieder eröffnen". Admin/superuser
+        // sehen das aber auch nicht — die nutzen die HR-Aktionen oben.
+        if (isProvisorisch || isAbgeschlossen) {
+            const bt = document.getElementById('btnLohnBestaetigen');
+            const rp = document.getElementById('btnLohnReopen');
+            if (bt) bt.style.display = 'none';
+            if (rp) rp.style.display = 'none';
+        }
+
+        // Zulagen-Lock erneut anwenden — bei Status-Wechsel der Periode muss
+        // sich die Card-Sichtbarkeit aktualisieren (Walter-Bug 19.05.2026:
+        // nach „An HR senden" konnte GF noch Zulagen erfassen).
+        if (typeof _akWfApplyZulagenLock === 'function') _akWfApplyZulagenLock();
         const footerHasText = !!(p.pdfFooterText && p.pdfFooterText.trim());
         const footerLabel   = footerHasText ? '✏️ Bemerkung bearbeiten' : '＋ Bemerkung erfassen';
         const footerColor   = footerHasText ? '#15803d' : '#64748b';
@@ -1327,15 +1755,410 @@ async function loadLohnPeriodBanner(companyId, year, month) {
                     ${statusLabel}
                 </span>
                 <span>${confirmText}</span>
+                ${abschlussBtn}
                 <button class="btn btn-sm btn-outline"
                         style="color:${footerColor};border-color:#e2e8f0;font-size:11px;padding:3px 10px"
                         onclick="openPeriodeBemerkungModal()">
                     ${footerLabel}
                 </button>
-                ${abschlussBtn}
             </div>`;
     } catch(e) {
         banner.style.display = 'none';
+    }
+===== ENDE TOTER ALT-CODE ===== */
+}
+
+// ── Sammel-Downloads (Vorab-PDF / Definitiv-DTA) ──────────────────────────
+// Walter-Vorgabe 18.05.2026: Lohnbeleg-Sammel-PDF + Definitiv-DTA werden
+// direkt aus dem GF/HR-Lohnlauf (page-lohn) abgerufen — kein Detour über
+// das admin-only Lohnperioden-Modul. Endpoints existieren schon
+// (/api/lohnlauf/{periodeId}/vorab-pdf bzw. /dta-ma).
+
+async function _lohnDownloadBlob(url, filenameHint) {
+    try {
+        const res = await fetch(url, { headers: ah() });
+        if (!res.ok) {
+            const txt = await res.text().catch(()=>'');
+            alert(`Download fehlgeschlagen (HTTP ${res.status}): ${txt || 'Unbekannter Fehler'}`);
+            return;
+        }
+        const blob = await res.blob();
+        const disp = res.headers.get('content-disposition') || '';
+        const m    = disp.match(/filename\*?=["']?(?:UTF-8''|)([^;"']+)/i);
+        const filename = (m && decodeURIComponent(m[1])) || filenameHint;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 200);
+    } catch (e) {
+        alert(`Download-Fehler: ${e.message}`);
+    }
+}
+
+async function lohnDownloadVorabPdf() {
+    const p = window._currentLohnPeriode;
+    if (!p?.id) { alert('Keine Periode aktiv.'); return; }
+    await _lohnDownloadBlob(
+        `/api/lohnlauf/${p.id}/vorab-pdf`,
+        `Lohnbelege_${p.label || (p.year + '-' + String(p.month).padStart(2,'0'))}.pdf`);
+}
+
+async function lohnDownloadDtaMa() {
+    const p = window._currentLohnPeriode;
+    if (!p?.id) { alert('Keine Periode aktiv.'); return; }
+    await _lohnDownloadBlob(
+        `/api/lohnlauf/${p.id}/dta-ma`,
+        `Lohn_DTA_${p.label || (p.year + '-' + String(p.month).padStart(2,'0'))}.xml`);
+}
+
+// ── HR-Aktionen Definitivlauf (Walter 19.05.2026, analog Akonto) ──
+// Beide Endpoints sind admin/superuser only (Backend-Guard auf
+// PayrollPeriodeController). Frontend zeigt die Buttons nur diese Rolle.
+
+async function lohnZurueckAnGf() {
+    const p = window._currentLohnPeriode;
+    if (!p?.id) { alert('Keine Periode aktiv.'); return; }
+    const grund = prompt('Begründung für GF (warum zurück?):');
+    if (grund === null || grund.trim() === '') return;
+
+    // Walter-Vorgabe 19.05.2026: Status entscheidet welcher Endpoint:
+    //   provisorisch_abgeschlossen → /zurueck-an-gf (HR holt zurück)
+    //   abgeschlossen              → /wieder-oeffnen (Admin-Reset)
+    // Frühere Frontend-Logik rief immer /wieder-oeffnen — das ergab 409.
+    const isAdminReset = (p.status === 'abgeschlossen');
+    const endpoint     = isAdminReset ? 'wieder-oeffnen' : 'zurueck-an-gf';
+
+    if (isAdminReset) {
+        // Pflicht-Bestätigung: Admin muss bestätigen dass der DTA bei der
+        // Bank gelöscht wurde — sonst kann die Auszahlung doppelt laufen.
+        const dtaGeloescht = confirm(
+            'ACHTUNG: Bereits abgeschlossene Periode wieder eröffnen.\n\n' +
+            'Hast du den DTA bei der Bank gelöscht oder storniert?\n\n' +
+            '✓ JA → Periode wird auf "provisorisch_abgeschlossen" zurückgerollt,\n' +
+            '       Lohnzettel aus MA-Postfächern entfernt.\n' +
+            '✗ NEIN → Vorgang abbrechen.\n\n' +
+            'Diese Operation ist NACH dem Zahldatum DTA gesperrt — die Bank hätte\n' +
+            'die Zahlungen bereits ausgeführt. Notfall-Eingriff nur über Entwickler.'
+        );
+        if (!dtaGeloescht) return;
+    }
+
+    try {
+        const userId = (typeof currentUser !== 'undefined' && currentUser?.id) ? currentUser.id : 0;
+        const res = await fetch(`/api/payroll-perioden/${p.id}/${endpoint}`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, bemerkung: grund })
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            // Backend-Sperre nach Zahldatum erkennbar machen
+            if (e.error === 'PAYOUT_DATE_REACHED') {
+                alert('⛔ ' + e.message);
+                return;
+            }
+            throw new Error(e.message || e.error || 'Fehler beim Zurückgeben');
+        }
+        showToast(isAdminReset ? 'Periode wieder eröffnet ↺' : 'Periode an GF zurückgegeben ↩', 'success');
+        await lohnWfRefresh();
+        const s = lohnCurrentSlip;
+        if (s) await loadLohnSlip(s.employeeId, s.companyId, s.year, s.month);
+    } catch (e) { alert(e.message); }
+}
+
+// Legacy: direkter Klick auf "Definitiv abschliessen" — der neue Flow geht
+// über lohnOpenLohnbelegeModal() → lohnLohnbelegeDispatch() im Modal.
+// Funktion bleibt für Rückwärtskompatibilität (falls noch irgendwo verlinkt).
+async function lohnDefinitivAbschliessen() {
+    return lohnOpenLohnbelegeModal();
+}
+
+// HR per-MA-Aktionen im Definitivlauf (Walter 19.05.2026, analog Akonto-Tab).
+// Backend-Endpoints existieren bereits unter /api/payroll/hr-bestaetigen/{snapshotId}
+// und /api/payroll/hr-zurueckziehen/{snapshotId}.
+async function lohnHrBestaetigen() {
+    const s = lohnCurrentSlip;
+    if (!s?.employeeId) return;
+    const cid = s.companyId, year = s.year, month = s.month;
+    // Snapshot-ID via aktueller Periode + employeeId nachschlagen
+    const snapId = await _lohnFindCurrentSnapshotId(s);
+    if (!snapId) { alert('Snapshot nicht gefunden.'); return; }
+    try {
+        const res = await fetch(`/api/payroll/hr-bestaetigen/${snapId}`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: '{}'
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.message || e.error || 'Fehler beim HR-Bestätigen');
+        }
+        // Walter-Vorgabe 20.05.2026: flüssig wie Akonto — KEIN voller
+        // loadLohnList()-Reload. Nur die Zeile auf „HR-bestätigt" (✓✓) setzen,
+        // Banner/Top-Bar aktualisieren, dann zum nächsten GF-bestätigten MA
+        // springen.
+        // Single-Refresh (analog Akonto): _lohnWfData + Liste + Statusbar neu.
+        await lohnWfRefresh();
+        showToast('HR-bestätigt ✓✓', 'success');
+        // Zum nächsten GF-bestätigten MA springen. Wenn keiner mehr offen ist
+        // (alle HR-bestätigt), bleibt der MA selektiert — die Statusbar zeigt
+        // dann „📑 Lohnbelege + DTA" (aus _lohnWfData, allHr=true).
+        if (!_lohnJumpToNextUnconfirmed(s.employeeId, 'hr')) {
+            await loadLohnSlip(s.employeeId, cid, year, month);
+        }
+    } catch (e) { alert(e.message); }
+}
+
+async function lohnHrZurueckziehen() {
+    const s = lohnCurrentSlip;
+    if (!s?.employeeId) return;
+    if (!confirm('HR-Bestätigung für dieses Lohnblatt zurückziehen?')) return;
+    const cid = s.companyId, year = s.year, month = s.month;
+    const snapId = await _lohnFindCurrentSnapshotId(s);
+    if (!snapId) { alert('Snapshot nicht gefunden.'); return; }
+    try {
+        const res = await fetch(`/api/payroll/hr-zurueckziehen/${snapId}`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: '{}'
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.message || e.error || 'Fehler beim Zurückziehen');
+        }
+        showToast('HR-Bestätigung zurückgezogen', 'success');
+        // Single-Refresh — MA bleibt selektiert, Statusbar zeigt wieder
+        // „✓ HR-bestätigen" (selStatus == FREIGEGEBEN_GF aus _lohnWfData).
+        await lohnWfRefresh();
+        await loadLohnSlip(s.employeeId, cid, year, month);
+    } catch (e) { alert(e.message); }
+}
+
+// Helper: Snapshot-ID des aktuellen MA in der aktuellen Periode finden.
+async function _lohnFindCurrentSnapshotId(s) {
+    try {
+        const pRes = await fetch(
+            `/api/payroll-perioden/current?companyProfileId=${s.companyId}&year=${s.year}&month=${s.month}`,
+            { headers: ah() });
+        const pData = pRes.ok ? await pRes.json() : null;
+        if (!pData?.id) return null;
+        const snRes = await fetch(`/api/payroll-perioden/${pData.id}/snapshots`, { headers: ah() });
+        if (!snRes.ok) return null;
+        const arr = await snRes.json();
+        const mine = (arr || []).find(x => x.employeeId === s.employeeId);
+        return mine?.id || null;
+    } catch { return null; }
+}
+
+// ─── Lohnbelege-Vorschau-Modal (Walter-Vorgabe 19.05.2026) ──────────────
+// Nach HR-Bestätigung im Definitivlauf zeigt das Modal alle Lohnbelege als
+// zusammengeführtes PDF (Endpoint /api/lohnlauf/{id}/vorab-pdf). Im Footer
+// kann HR die Belege drucken, das Vorab-PDF oder das DTA-File speichern und
+// — der Hauptschritt — den finalen Versand auslösen: „💰 DTA erstellen + an
+// MA versenden". Das ruft /api/payroll-perioden/{id}/definitiv-abschliessen,
+// der die Lohnzettel pro MA ins Postfach ablegt + E-Mails versendet (im
+// Test-Modus geht alles an die TestRedirectTo-Adresse aus den SMTP-Settings).
+let _lohnLohnbelegePdfBlobUrl = null;
+let _lohnLohnbelegePdfFilename = 'Lohnlauf_Vorab.pdf';
+let _lohnLohnbelegePeriodeId = null;
+
+async function lohnOpenLohnbelegeModal() {
+    const p = window._currentLohnPeriode;
+    if (!p?.id) { alert('Keine Periode aktiv.'); return; }
+    _lohnLohnbelegePeriodeId = p.id;
+
+    // Modal-Header bestücken
+    const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    const branchSel = document.getElementById('branchSelect');
+    const branchName = branchSel?.options?.[branchSel.selectedIndex]?.text || `Filiale ${p.companyProfileId || ''}`;
+    const monatLabel = p.month ? `${months[p.month-1]} ${p.year}` : (p.label || '');
+    const title = document.getElementById('lohnLohnbelegePdfTitle');
+    if (title) title.textContent = `${branchName} · ${monatLabel}`;
+
+    // Modal sofort öffnen (User sieht Lade-Spinner im iframe), PDF im Hintergrund holen
+    const modal = document.getElementById('lohnLohnbelegePdfModal');
+    if (modal) modal.style.display = 'block';
+
+    // Hinweis-Banner bei provisorisch_abgeschlossen (Versand noch ausstehend)
+    const info = document.getElementById('lohnLohnbelegeDispatchInfo');
+    if (info) info.style.display = (p.status === 'provisorisch_abgeschlossen') ? 'block' : 'none';
+
+    // Versand-Button nur in provisorisch_abgeschlossen aktiv
+    const btnDispatch = document.getElementById('btnLohnLohnbelegeDispatch');
+    if (btnDispatch) {
+        if (p.status === 'provisorisch_abgeschlossen') {
+            btnDispatch.style.display = '';
+            btnDispatch.disabled = false;
+            btnDispatch.textContent = '💰 DTA erstellen + an MA versenden';
+        } else {
+            // Status 'abgeschlossen' → Versand bereits durch, Re-Versand via Re-Open
+            btnDispatch.style.display = 'none';
+        }
+    }
+
+    // PDF laden
+    try {
+        const r = await fetch(`/api/lohnlauf/${p.id}/vorab-pdf`, {
+            headers: { Authorization: 'Bearer ' + (localStorage.hrToken || '') }
+        });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('Lohnbelege-PDF konnte nicht generiert werden: ' + (j.message || j.error || `HTTP ${r.status}`));
+            return;
+        }
+        const blob = await r.blob();
+        if (_lohnLohnbelegePdfBlobUrl) URL.revokeObjectURL(_lohnLohnbelegePdfBlobUrl);
+        _lohnLohnbelegePdfBlobUrl  = URL.createObjectURL(blob);
+        _lohnLohnbelegePdfFilename = `Lohnlauf_Vorab_${p.companyProfileId || ''}_${p.year}-${String(p.month).padStart(2,'0')}.pdf`;
+        const frame = document.getElementById('lohnLohnbelegePdfFrame');
+        if (frame) frame.src = _lohnLohnbelegePdfBlobUrl;
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+function lohnLohnbelegePdfClose() {
+    const modal = document.getElementById('lohnLohnbelegePdfModal');
+    if (modal) modal.style.display = 'none';
+    const frame = document.getElementById('lohnLohnbelegePdfFrame');
+    if (frame) frame.src = 'about:blank';
+    if (_lohnLohnbelegePdfBlobUrl) {
+        URL.revokeObjectURL(_lohnLohnbelegePdfBlobUrl);
+        _lohnLohnbelegePdfBlobUrl = null;
+    }
+    _lohnLohnbelegePeriodeId = null;
+}
+
+function lohnLohnbelegePdfDownload() {
+    if (!_lohnLohnbelegePdfBlobUrl) return;
+    const a = document.createElement('a');
+    a.href = _lohnLohnbelegePdfBlobUrl;
+    a.download = _lohnLohnbelegePdfFilename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+
+function lohnLohnbelegePdfPrint() {
+    const f = document.getElementById('lohnLohnbelegePdfFrame');
+    if (!f || !f.contentWindow) return;
+    try {
+        f.contentWindow.focus();
+        f.contentWindow.print();
+    } catch (e) {
+        alert('Drucken fehlgeschlagen: ' + (e?.message || e));
+    }
+}
+
+// DTA-XML herunterladen (pain.001 für die MA-Auszahlungen). Geht solange
+// die Periode mind. provisorisch_abgeschlossen ist (Snapshots eingefroren).
+async function lohnDtaMaDownload() {
+    const id = _lohnLohnbelegePeriodeId;
+    if (!id) { alert('Keine Periode aktiv.'); return; }
+    try {
+        const r = await fetch(`/api/lohnlauf/${id}/dta-ma`, {
+            headers: { Authorization: 'Bearer ' + (localStorage.hrToken || '') }
+        });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('DTA-Generierung fehlgeschlagen: ' + (j.message || j.error || `HTTP ${r.status}`));
+            return;
+        }
+        const blob = await r.blob();
+        const p = window._currentLohnPeriode || {};
+        const filename = `DTA_MA_${p.companyProfileId || ''}_${p.year || ''}-${String(p.month || 0).padStart(2,'0')}.xml`;
+        const u = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = u; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(u), 4000);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// Finaler Versand-Schritt: definitiv-abschliessen ruft im Backend
+// • Status → "abgeschlossen"
+// • Auszahlungsdatum setzen (heute, kann später per Re-Open angepasst werden)
+// • Lohnzettel pro MA ins Postfach
+// • E-Mail an MA (Fire-and-Forget, Test-Redirect via SMTP-Settings)
+async function lohnLohnbelegeDispatch() {
+    const id = _lohnLohnbelegePeriodeId;
+    if (!id) { alert('Keine Periode aktiv.'); return; }
+
+    // Walter-Vorgabe 19.05.2026: Bank-Ausführungsdatum (ReqdExctnDt) wird
+    // vor dem DTA-Download erfasst und in PayrollPeriode.Auszahlungsdatum
+    // persistiert. Default: morgen.
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isoTomorrow = tomorrow.toISOString().slice(0, 10);
+    const input = prompt(
+        'AUSZAHLUNGSDATUM erfassen (= Bank-Ausführungsdatum im DTA)\n\n' +
+        'Wann soll die Bank die Löhne ausführen?\n' +
+        'Format: YYYY-MM-DD (z.B. 2026-02-01)\n\n' +
+        'Default: morgen.',
+        isoTomorrow
+    );
+    if (!input) return;
+    const auszahlungsdatum = input.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(auszahlungsdatum)) {
+        alert('Ungültiges Datum. Format: YYYY-MM-DD'); return;
+    }
+    const dateDe = `${auszahlungsdatum.slice(8,10)}.${auszahlungsdatum.slice(5,7)}.${auszahlungsdatum.slice(0,4)}`;
+
+    // Walter-Vorgabe 19.05.2026: atomic-Versand. Backend wirft sonst weil DTA
+    // nur aus Status 'abgeschlossen' generiert werden kann — Reihenfolge ist
+    // also: erst Periode auf abgeschlossen setzen (inkl. Datum + MA-Versand),
+    // DANACH DTA herunterladen.
+    if (!confirm(
+        'DTA erstellen und an MA versenden?\n\n' +
+        `Bank-Ausführungsdatum: ${dateDe}\n\n` +
+        'Mit JA passiert folgendes (alles atomic):\n' +
+        '• Periode → "abgeschlossen", alle Lohnzettel eingefroren\n' +
+        '• Lohnzettel landen im MA-Postfach\n' +
+        '• E-Mail-Benachrichtigung an MA (Test-Modus: Mails an Test-Redirect-Adresse)\n' +
+        `• Bank-Ausführungsdatum ${dateDe} wird in der Periode hinterlegt\n` +
+        '• Anschliessend wird das DTA-XML automatisch heruntergeladen\n\n' +
+        `Reset durch Admin nur bis ${dateDe} möglich.\n\n` +
+        'Wirklich an MA versenden?'
+    )) return;
+
+    const btn = document.getElementById('btnLohnLohnbelegeDispatch');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Versende…'; }
+
+    try {
+        const userId = (typeof currentUser !== 'undefined' && currentUser?.id) ? currentUser.id : 0;
+        const res = await fetch(`/api/payroll-perioden/${id}/definitiv-abschliessen`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, auszahlungsdatum })
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.message || e.error || 'Fehler beim Versand');
+        }
+        const data = await res.json().catch(() => ({}));
+        showToast('Lohnbelege versendet ✓ — DTA wird heruntergeladen.', 'success');
+        if (data?.message) console.log('[lohnDispatch]', data.message);
+
+        // Modal-State aktualisieren: Versand-Banner weg, Versand-Button weg
+        const info = document.getElementById('lohnLohnbelegeDispatchInfo');
+        if (info) info.style.display = 'none';
+        if (btn) btn.style.display = 'none';
+
+        // Jetzt erst DTA-Download (Backend braucht Status 'abgeschlossen').
+        // Kurze Pause damit der Toast sichtbar bleibt.
+        await new Promise(r => setTimeout(r, 400));
+        await lohnDtaMaDownload();
+
+        // Status wird jetzt 'abgeschlossen' → Single-Refresh (Liste + Statusbar
+        // springen auf „Abgeschlossen", Buttons: DTA-File + Lohnbelege ansehen).
+        await lohnWfRefresh();
+    } catch (e) {
+        alert(e.message);
+        if (btn) { btn.disabled = false; btn.textContent = '💰 DTA erstellen + an MA versenden'; }
     }
 }
 
@@ -1393,11 +2216,16 @@ async function savePeriodeBemerkung(periodeId, text) {
         });
         if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || 'Fehler'); }
         showToast('Bemerkung gespeichert ✓', 'success');
-        const cid   = parseInt(document.getElementById('lohnBranchSelect').value);
-        const year  = parseInt(document.getElementById('lohnYearSelect').value);
-        const month = parseInt(document.getElementById('lohnMonthSelect').value);
-        await loadLohnPeriodBanner(cid, year, month);
+        await lohnWfRefresh();
     } catch(e) { alert(e.message); }
+}
+
+// GF-Button „An HR senden" aus der Aktionsleiste — nutzt die aktuell im
+// Banner gecachte Periode (window._currentLohnPeriode).
+function lohnAnHrSendenAktuell() {
+    const p = window._currentLohnPeriode;
+    if (!p?.id) { alert('Keine Periode aktiv.'); return; }
+    abschliessePeriode(p.id, p.label);
 }
 
 async function abschliessePeriode(periodeId, label) {
@@ -1411,11 +2239,9 @@ async function abschliessePeriode(periodeId, label) {
         if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || 'Fehler'); }
         const r = await res.json();
         showToast(r.message, 'success');
-        const cid   = parseInt(document.getElementById('lohnBranchSelect').value);
-        const year  = parseInt(document.getElementById('lohnYearSelect').value);
-        const month = parseInt(document.getElementById('lohnMonthSelect').value);
-        await loadLohnPeriodBanner(cid, year, month);
-        await loadLohnList();
+        // Single-Refresh: Statusbar springt von „Offen" auf „Provisorisch
+        // abgeschlossen", GF-Buttons verschwinden, HR-Buttons erscheinen.
+        await lohnWfRefresh();
     } catch(e) { alert(e.message); }
 }
 

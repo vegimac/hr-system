@@ -5,9 +5,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>hr_system</RootNamespace>
-    <!-- publish/, bin/, obj/ NIE als Source aufnehmen.
-         Sonst frisst sich `dotnet publish -o ./publish` rekursiv selbst auf. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);publish/**;bin/**;obj/**</DefaultItemExcludes>
+    <!-- publish/, bin/, obj/, Tests/ NIE als Source aufnehmen.
+         publish/* sonst rekursive Selbstfresserei beim `dotnet publish -o ./publish`.
+         Tests/* sonst zieht das Haupt-Projekt die Test-Files mit rein (statt
+         dass sie nur via Tests/hr-system.Tests.csproj kompiliert werden). -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);publish/**;bin/**;obj/**;Tests/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

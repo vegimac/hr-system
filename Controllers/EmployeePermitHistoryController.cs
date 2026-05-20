@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,8 +31,21 @@ namespace HrSystem.Controllers;
 [Route("api/employees/{employeeId:int}/permit-history")]
 public class EmployeePermitHistoryController : ControllerBase
 {
-    private readonly AppDbContext _db;
-    public EmployeePermitHistoryController(AppDbContext db) => _db = db;
+    private readonly AppDbContext        _db;
+    private readonly LohnEditLockService _editLock;
+    public EmployeePermitHistoryController(AppDbContext db, LohnEditLockService editLock)
+    {
+        _db = db; _editLock = editLock;
+    }
+
+    private Task<int?> GetEmployeeBranchAsync(int employeeId)
+        => _db.Employees
+            .Where(e => e.Id == employeeId)
+            .SelectMany(e => e.Employments)
+            .Where(x => x.IsActive)
+            .OrderByDescending(x => x.ContractStartDate)
+            .Select(x => (int?)x.CompanyProfileId)
+            .FirstOrDefaultAsync();
 
     public class PermitHistoryDto
     {
@@ -47,6 +61,7 @@ public class EmployeePermitHistoryController : ControllerBase
         public DateTime CreatedAt { get; set; }
         public int?     CreatedByUserId { get; set; }
         public bool     IsCurrent { get; set; }   // valid_to NULL und valid_from <= heute
+        public bool     InLohnVerwendet { get; set; }
     }
 
     public class PermitHistoryUpsertDto
@@ -56,6 +71,22 @@ public class EmployeePermitHistoryController : ControllerBase
         public DateOnly? ValidTo   { get; set; }
         public DateOnly? PermitExpiryDate { get; set; }
         public string?   Note { get; set; }
+    }
+
+    /// <summary>
+    /// Liefert die IDs aller Mitarbeiter mit MINDESTENS einem Permit-History-
+    /// Eintrag (egal ob aktuell gültig oder abgelaufen). Frontend nutzt das
+    /// für den Spezialfilter „Keine Bewilligung" → das Komplement.
+    /// Walter-Vorgabe 18.05.2026 — analog /api/employee-bank-accounts/active-employee-ids.
+    /// </summary>
+    [HttpGet("/api/employee-permit-history/employee-ids-with-history")]
+    public async Task<IActionResult> GetEmployeeIdsWithHistory()
+    {
+        var ids = await _db.EmployeePermitHistories
+            .Select(h => h.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+        return Ok(ids);
     }
 
     [HttpGet]
@@ -72,6 +103,11 @@ public class EmployeePermitHistoryController : ControllerBase
             .ThenByDescending(h => h.Id)
             .ToListAsync();
 
+        var branchId     = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowed = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            : null;
+
         var today = DateOnly.FromDateTime(DateTime.Today);
         var dtos = entries.Select(h => new PermitHistoryDto
         {
@@ -86,7 +122,8 @@ public class EmployeePermitHistoryController : ControllerBase
             Note              = h.Note,
             CreatedAt         = h.CreatedAt,
             CreatedByUserId   = h.CreatedByUserId,
-            IsCurrent         = h.ValidFrom <= today && (h.ValidTo == null || h.ValidTo >= today)
+            IsCurrent         = h.ValidFrom <= today && (h.ValidTo == null || h.ValidTo >= today),
+            InLohnVerwendet   = firstAllowed.HasValue && h.ValidFrom < firstAllowed.Value
         }).ToList();
 
         return Ok(dtos);
@@ -103,6 +140,20 @@ public class EmployeePermitHistoryController : ControllerBase
         {
             var pt = await _db.PermitTypes.FirstOrDefaultAsync(p => p.Id == dto.PermitTypeId.Value);
             if (pt == null) return BadRequest(new { error = "Bewilligungstyp nicht gefunden." });
+        }
+
+        // Walter 17.05.2026: ValidFrom darf nicht rückwirkend in verarbeitete Periode.
+        var branchId     = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowed = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            : null;
+        if (firstAllowed.HasValue && dto.ValidFrom < firstAllowed.Value)
+        {
+            return Conflict(new {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"'Gültig ab {dto.ValidFrom:dd.MM.yyyy}' liegt in einer bereits in Verarbeitung befindlichen Lohnperiode. Frühestes erlaubtes 'Gültig ab': {firstAllowed.Value:dd.MM.yyyy}.",
+                firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+            });
         }
 
         // Vorherigen offenen Eintrag (valid_to = NULL) automatisch schliessen,
@@ -147,6 +198,20 @@ public class EmployeePermitHistoryController : ControllerBase
             .FirstOrDefaultAsync(h => h.Id == id && h.EmployeeId == employeeId);
         if (entry == null) return NotFound();
 
+        // Walter 17.05.2026: bereits in Lohn verwendet → nicht editierbar.
+        var branchIdU     = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowedU = branchIdU.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchIdU.Value)
+            : null;
+        if (firstAllowedU.HasValue && entry.ValidFrom < firstAllowedU.Value)
+        {
+            return Conflict(new {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Dieser Bewilligungs-Eintrag (gültig ab {entry.ValidFrom:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet. Bitte einen neuen Eintrag ab frühestens {firstAllowedU:dd.MM.yyyy} anlegen.",
+                firstAllowedDate = firstAllowedU?.ToString("yyyy-MM-dd")
+            });
+        }
+
         if (dto.PermitTypeId.HasValue)
         {
             var pt = await _db.PermitTypes.FirstOrDefaultAsync(p => p.Id == dto.PermitTypeId.Value);
@@ -172,6 +237,19 @@ public class EmployeePermitHistoryController : ControllerBase
         var entry = await _db.EmployeePermitHistories
             .FirstOrDefaultAsync(h => h.Id == id && h.EmployeeId == employeeId);
         if (entry == null) return NotFound();
+
+        var branchIdD     = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowedD = branchIdD.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchIdD.Value)
+            : null;
+        if (firstAllowedD.HasValue && entry.ValidFrom < firstAllowedD.Value)
+        {
+            return Conflict(new {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Dieser Bewilligungs-Eintrag (gültig ab {entry.ValidFrom:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet und kann nicht gelöscht werden.",
+                firstAllowedDate = firstAllowedD?.ToString("yyyy-MM-dd")
+            });
+        }
 
         _db.EmployeePermitHistories.Remove(entry);
         await _db.SaveChangesAsync();

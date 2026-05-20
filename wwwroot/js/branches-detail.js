@@ -268,8 +268,10 @@ function renderFilialenDetail(b) {
 
             <div class="ein-group-title">Akonto-Lohn</div>
             <div class="emp-field-grid">
-                <div class="emp-field"><div class="emp-field-label">Akonto-% FIX / FIX-M</div>
+                <div class="emp-field"><div class="emp-field-label">Akonto-% FIX</div>
                     <div class="emp-field-value"><input type="number" id="einAkontoProzent" class="ef-input" min="0" max="100" step="1" value="${Number(b.akontoProzentFix ?? 80).toFixed(0)}"></div></div>
+                <div class="emp-field"><div class="emp-field-label">Akonto-% FIX-M</div>
+                    <div class="emp-field-value"><input type="number" id="einAkontoProzentFixM" class="ef-input" min="0" max="100" step="1" value="${Number(b.akontoProzentFixM ?? 90).toFixed(0)}"></div></div>
                 <div class="emp-field"><div class="emp-field-label">Akonto-% UTP / MTP</div>
                     <div class="emp-field-value"><input type="number" id="einAkontoProzentHourly" class="ef-input" min="0" max="100" step="1" value="${Number(b.akontoProzentHourly ?? 100).toFixed(0)}"></div></div>
             </div>
@@ -277,8 +279,9 @@ function renderFilialenDetail(b) {
                 <b>Akonto-Regeln (Walter 16.05.2026, fix):</b><br>
                 ① Kein Akonto wenn Vertragsende ≤ Periodenende.<br>
                 ② Kein Akonto bei Krankheit / Unfall / Mutterschaft am Stichtag.<br>
-                ③ FIX / FIX-M: <b>Akonto-% × Definitiv-Auszahlung</b>, abgerundet auf CHF 10.<br>
-                ④ UTP / MTP: <b>Akonto-% × (gestempelte Stunden × Stundenlohn + Ferien-Pott − SV-Abzüge)</b>, abgerundet auf CHF 10.<br>
+                ③ FIX: <b>Akonto-% (FIX) × Definitiv-Auszahlung</b>, abgerundet auf CHF 10.<br>
+                ④ FIX-M: <b>Akonto-% (FIX-M) × Definitiv-Auszahlung</b>, abgerundet auf CHF 10.<br>
+                ⑤ UTP / MTP: <b>Akonto-% (UTP/MTP) × (gestempelte Stunden × Stundenlohn + Ferien-Pott − SV-Abzüge)</b>, abgerundet auf CHF 10.<br>
                 <span style="color:#92400e">Ferien-Pott: nur bis Stichtag vollständig abgeschlossene Bezüge — anteilsmässig aus (Vormonats-Saldo + Akkumulation diesen Monat).</span>
             </div>
             <div style="margin-top:6px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px">
@@ -535,6 +538,7 @@ async function saveEinstellungen(branchId) {
     const lgavVoll     = Number(g('einLgavVoll')?.value);
     const lgavRed      = Number(g('einLgavRed')?.value);
     const akontoProzent       = Number(g('einAkontoProzent')?.value);
+    const akontoProzentFixM   = Number(g('einAkontoProzentFixM')?.value);
     const akontoProzentHourly = Number(g('einAkontoProzentHourly')?.value);
     const tpMonths     = [..._einTpMonths].sort((a, b) => a - b);
 
@@ -547,7 +551,8 @@ async function saveEinstellungen(branchId) {
     if (!(lgavMonat >= 1 && lgavMonat <= 12)) { alert('L-GAV Abzugs-Monat ungültig.'); return; }
     if (!Number.isFinite(lgavVoll) || lgavVoll < 0) { alert('L-GAV voller Beitrag ungültig.'); return; }
     if (!Number.isFinite(lgavRed)  || lgavRed  < 0) { alert('L-GAV reduzierter Beitrag ungültig.'); return; }
-    if (!Number.isFinite(akontoProzent) || akontoProzent < 0 || akontoProzent > 100) { alert('Akonto-% (FIX/FIX-M) muss zwischen 0 und 100 liegen.'); return; }
+    if (!Number.isFinite(akontoProzent) || akontoProzent < 0 || akontoProzent > 100) { alert('Akonto-% (FIX) muss zwischen 0 und 100 liegen.'); return; }
+    if (!Number.isFinite(akontoProzentFixM) || akontoProzentFixM < 0 || akontoProzentFixM > 100) { alert('Akonto-% (FIX-M) muss zwischen 0 und 100 liegen.'); return; }
     if (!Number.isFinite(akontoProzentHourly) || akontoProzentHourly < 0 || akontoProzentHourly > 100) { alert('Akonto-% (UTP/MTP) muss zwischen 0 und 100 liegen.'); return; }
     if (tpMonths.length === 0 && !confirm('Keine 13.-ML-Auszahlungsmonate gewählt — der 13. ML wird gar nicht ausbezahlt. Trotzdem speichern?')) return;
 
@@ -561,7 +566,7 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/karenz`,                      { method: 'PATCH', headers: H, body: JSON.stringify({ karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank, karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist }) }),
             fetch(`/api/companyprofiles/${branchId}/lgav`,                        { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) }),
             fetch(`/api/companyprofiles/${branchId}/thirteenth-payouts`,          { method: 'PATCH', headers: H, body: JSON.stringify({ months: tpMonths, payoutsPerYear: tpMonths.length || 12 }) }),
-            fetch(`/api/companyprofiles/${branchId}/akonto-prozent`,              { method: 'PATCH', headers: H, body: JSON.stringify({ akontoProzentFix: akontoProzent, akontoProzentHourly: akontoProzentHourly }) }),
+            fetch(`/api/companyprofiles/${branchId}/akonto-prozent`,              { method: 'PATCH', headers: H, body: JSON.stringify({ akontoProzentFix: akontoProzent, akontoProzentFixM: akontoProzentFixM, akontoProzentHourly: akontoProzentHourly }) }),
         ]);
         const failed = results.filter(r => !r.ok).length;
 
@@ -574,6 +579,7 @@ async function saveEinstellungen(branchId) {
             lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed,
             thirteenthMonthPayoutMonths: tpMonths.join(','), thirteenthMonthPayoutsPerYear: tpMonths.length || 12,
             akontoProzentFix: akontoProzent,
+            akontoProzentFixM: akontoProzentFixM,
             akontoProzentHourly: akontoProzentHourly,
         };
         const b = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === branchId);

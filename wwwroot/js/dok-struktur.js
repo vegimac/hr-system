@@ -333,14 +333,41 @@ function empSwitchTab(el, tabId) {
     body?.querySelector('#' + tabId)?.classList.add('active');
 }
 
+// Aktiv/Inaktiv-Filter für die Verträge-Liste (Walter 18.05.2026).
+// Wird vom Toolbar-Tab-Set unter der Suche gesetzt — 'aktiv' / 'inaktiv' / 'alle'.
+window._vtStatusFilter = window._vtStatusFilter || 'aktiv';
+
+function setVtFilter(mode) {
+    window._vtStatusFilter = mode;
+    const colorize = (id, on) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.background = on ? '#3b82f6' : '#f1f5f9';
+        el.style.color      = on ? 'white'   : '#475569';
+    };
+    colorize('vtFilterAktiv',   mode === 'aktiv');
+    colorize('vtFilterInaktiv', mode === 'inaktiv');
+    colorize('vtFilterAlle',    mode === 'alle');
+    loadVtList();
+}
+
 async function loadVtList() {
     const listEl = document.getElementById('vtList');
     if (!listEl) return;
     try {
         const res = await fetch('/api/employees', { headers: ah() });
         const emps = await res.json();
-        let filtered = emps.filter(e => e.isActive
-            && !((e.employeeNumber || '').toLowerCase().endsWith('alt')));
+        // Aktiv/Inaktiv/Alle — Default 'aktiv' (rückwärtskompatibel zum
+        // bisherigen Verhalten). `+alt`-MA (Archiv-Import-Suffix) bleiben in
+        // beiden Aktiv-Töpfen ausgeblendet, erscheinen aber unter „Alle".
+        const mode = window._vtStatusFilter || 'aktiv';
+        let filtered = emps.filter(e => {
+            const isAlt = (e.employeeNumber || '').toLowerCase().endsWith('alt');
+            if (mode === 'alle')    return true;
+            if (isAlt)              return false;
+            if (mode === 'inaktiv') return !e.isActive;
+            return e.isActive;   // 'aktiv'
+        });
         // Filialfilter: MA mit Vertrag in dieser Filiale ODER aktiv ohne Vertrag
         // mit passendem Personalnr-Präfix (für frisch importierte MA ohne Vertrag).
         if (fixedCompanyProfileId) {
@@ -426,12 +453,27 @@ async function selectVtEmployee(id) {
     renderVtDetail(selectedVtEmployee);
 }
 
-function renderVtDetail(emp) {
+async function renderVtDetail(emp) {
     const panel = document.getElementById('vtDetailPanel');
     if (!panel) return;
     const _t = (k, args) => (window.i18n ? (args ? window.i18n.tFormat(k, args) : window.i18n.t(k)) : k);
     const name = `${emp.firstName} ${emp.lastName}`.trim();
     const fmt = d => d ? new Date(d).toLocaleDateString('de-CH') : '–';
+
+    // Lohnlauf-Sperre für die MA-Filiale holen (Walter-Vorgabe 17.05.2026).
+    // Vertrag mit contractStartDate < firstAllowedDate ist "in Lohn verwendet"
+    // und kann nicht mehr editiert/gelöscht werden.
+    let firstAllowed = null;
+    if (window.lohnEditLock) {
+        const activeEmp = (emp.employments || []).find(x => x.isActive)
+                       || (emp.employments || [])[0];
+        const cpId = activeEmp?.companyProfileId
+                  || (typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
+        if (cpId) {
+            const state = await window.lohnEditLock.loadState(Number(cpId));
+            firstAllowed = state?.firstAllowedDate || null;
+        }
+    }
     const modelLabel = {
         UTP: _t('vt.model.utp'),
         MTP: _t('vt.model.mtp'),
@@ -527,15 +569,28 @@ function renderVtDetail(emp) {
                     <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${modelColor[c.employmentModel]||'#f1f5f9'}">${modelLabel[c.employmentModel]||c.employmentModel||'–'}</span>
                     ${isActive ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#dcfce7;color:#15803d">${_t('vt.badge.active')}</span>` : `<span style="font-size:11px;color:#94a3b8;padding:3px 10px;border-radius:10px;background:#f1f5f9">${_t('vt.badge.completed')}</span>`}
                 </div>
-                <div style="display:flex;gap:6px">
-                    <button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick='openContractEditModal(${JSON.stringify(c).replace(/"/g,"&quot;")})'>${_t('vt.btn.editIcon')}</button>
-                    ${isActive
-                        ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px;border-color:#fca5a5;color:#b91c1c" onclick="openTerminateModal(${emp.id}, ${c.id}, '${c.contractStartDate}')">${_t('vt.btn.terminateIcon')}</button>`
-                        : ''}
-                    <button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick="downloadContractPdfById(${emp.id}, ${c.id})">${_t('vt.btn.pdf')}</button>
-                    ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser')
-                        ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px;border-color:#fca5a5;color:#b91c1c;background:#fef2f2" onclick="deleteContract(${emp.id}, ${c.id}, '${c.contractStartDate}')" title="${_t('vt.btn.deleteTitle')}">${_t('vt.btn.deleteIcon')}</button>`
-                        : ''}
+                <div style="display:flex;gap:6px;align-items:center">
+                    ${(() => {
+                        // Vertrag ist "in Lohn verwendet" wenn contractStartDate
+                        // VOR dem firstAllowedDate liegt. Im Frontend selber
+                        // berechnet, damit es auch bei /api/employees klappt
+                        // (das Feld kommt nur über /api/employments mit).
+                        const startIso = (c.contractStartDate || '').slice(0, 10);
+                        const inLohn = c.inLohnVerwendet === true
+                                    || (firstAllowed && startIso && startIso < firstAllowed);
+                        if (inLohn) {
+                            return `<span title="Dieser Vertrag wurde bereits in einem Lohnlauf verwendet und kann nicht mehr editiert oder gelöscht werden. Für Änderungen einen neuen Vertrag ab dem nächsten freien Datum anlegen — der bestehende wird automatisch beendet." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>
+                                    ${isActive ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px;border-color:#fca5a5;color:#b91c1c" onclick="openTerminateModal(${emp.id}, ${c.id}, '${c.contractStartDate}')">${_t('vt.btn.terminateIcon')}</button>` : ''}
+                                    <button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick="downloadContractPdfById(${emp.id}, ${c.id})">${_t('vt.btn.pdf')}</button>`;
+                        }
+                        // Nicht in Lohn verwendet → Edit + Austritt + PDF + Löschen erlaubt
+                        return `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick='openContractEditModal(${JSON.stringify(c).replace(/"/g,"&quot;")})'>${_t('vt.btn.editIcon')}</button>
+                                ${isActive ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px;border-color:#fca5a5;color:#b91c1c" onclick="openTerminateModal(${emp.id}, ${c.id}, '${c.contractStartDate}')">${_t('vt.btn.terminateIcon')}</button>` : ''}
+                                <button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick="downloadContractPdfById(${emp.id}, ${c.id})">${_t('vt.btn.pdf')}</button>
+                                ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser')
+                                    ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px;border-color:#fca5a5;color:#b91c1c;background:#fef2f2" onclick="deleteContract(${emp.id}, ${c.id}, '${c.contractStartDate}')" title="${_t('vt.btn.deleteTitle')}">${_t('vt.btn.deleteIcon')}</button>`
+                                    : ''}`;
+                    })()}
                 </div>
             </div>
             <div class="emp-field-grid">

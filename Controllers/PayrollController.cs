@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using System.Text.Json;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +13,9 @@ namespace HrSystem.Controllers;
 [Route("api/payroll")]
 public class PayrollController : ControllerBase
 {
+    private int? GetUserIdOrNull() =>
+        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var v) ? v : (int?)null;
+
     private readonly AppDbContext _db;
     private readonly QuellensteuerTarifService _tarifService;
     private readonly KtgTagessatzService _ktgService;
@@ -58,41 +63,39 @@ public class PayrollController : ControllerBase
         var company = await _db.CompanyProfiles.FindAsync(companyProfileId);
         if (company is null) return NotFound("Filiale nicht gefunden.");
 
+        // ── Akonto-Verrechnung-Lookup (Walter-Vorgabe 17.05.2026) ──────────
+        // Wenn der Akonto-Lauf dieser Periode bereits AUSBEZAHLT ist, wird der
+        // ausbezahlte Netto-Betrag im Definitiv-Lohnzettel als „Akonto-
+        // Vorauszahlung vom dd.MM.yyyy"-Zeile unten ausgewiesen und vom
+        // auszahlungsbetrag abgezogen. Der Lookup passiert hier einmal und
+        // wird an BuildResult durchgereicht (das ist static und kann selber
+        // kein async-DB nutzen).
+        var akontoAusbezahlt = await _db.AkontoZahlungen
+            .Where(z => z.EmployeeId == employeeId
+                     && z.CompanyProfileId == companyProfileId
+                     && z.PeriodYear == year && z.PeriodMonth == month
+                     && z.Status == "AUSBEZAHLT")
+            .Select(z => new { z.NettoAkonto, z.PayoutDate })
+            .FirstOrDefaultAsync();
+        decimal   akontoBereitsAusbezahlt      = akontoAusbezahlt != null ? Math.Round(akontoAusbezahlt.NettoAkonto, 2) : 0m;
+        DateOnly? akontoBereitsAusbezahltDatum = akontoAusbezahlt?.PayoutDate;
+
         // ── Lohnperiode berechnen ──────────────────────────────────────────
         // Wichtig: Periode muss VOR der Vertragsauswahl berechnet werden,
         // damit wir den Vertrag laden können, der in dieser Periode gültig
         // war (nicht den neuesten verfügbaren).
         //
-        // Quelle der Wahrheit (in dieser Reihenfolge):
-        //   1. Existierender PayrollPeriode-Eintrag für (Year, Month)
-        //      → nutzt direkt PeriodFrom/PeriodTo (z.B. nach Periodenwechsel
-        //        wurden die Perioden bereits korrekt mit den neuen Daten erstellt)
-        //   2. Aktive PayrollPeriodeConfig (latest valid für Year/Month)
-        //   3. Legacy-Feld CompanyProfile.PayrollPeriodStartDay (Default 1)
-        //
-        // Bisher wurde nur (3) verwendet — das hat dazu geführt, dass nach
-        // einem Periodenwechsel die Lohnberechnung weiter nach dem alten
-        // Schema gerechnet hat. Sursee-Bug 04/2026.
+        // Walter-Vorgabe 20.05.2026: die Lohnperiode ist IMMER der Kalendermonat
+        // (1.–letzter Tag). Keine Periodenregel-Konfiguration mehr, kein Rückgriff
+        // auf gespeicherte PeriodFrom/PeriodTo (die könnten aus der alten 21.–20.-
+        // Ära stammen). Gesetzliche Berechnungen (QST, ALV, AHV) laufen ohnehin
+        // kalendermonatlich; der Akonto-Lauf deckt die Zahlung vor Monatsende ab.
         var existingPeriod = await _db.PayrollPerioden
             .Where(p => p.CompanyProfileId == companyProfileId
-                     && p.Year == year && p.Month == month && !p.IsTransition)
+                     && p.Year == year && p.Month == month)
             .FirstOrDefaultAsync();
 
-        DateOnly periodFrom, periodToFull;
-        if (existingPeriod != null)
-        {
-            periodFrom   = existingPeriod.PeriodFrom;
-            periodToFull = existingPeriod.PeriodTo;
-        }
-        else
-        {
-            // Akonto-Lohn-Modell (Walter-Vorgabe 15.05.2026): die Lohnperiode
-            // ist IMMER der Kalendermonat. Die alte Periodenregel
-            // (PayrollPeriodeConfig / Legacy CompanyProfile.PayrollPeriodStartDay)
-            // wird nicht mehr ausgewertet. Bestehende (Alt-)Perioden behalten
-            // ihre gespeicherten Daten über den existingPeriod-Zweig oben.
-            (periodFrom, periodToFull) = CalcPeriod(1, year, month);
-        }
+        var (periodFrom, periodToFull) = CalcPeriod(year, month);
         int normalPeriodDays = periodToFull.DayNumber - periodFrom.DayNumber + 1;
 
         // Bemerkungstext für die Lohnabrechnung (Periode-spezifisch falls
@@ -1556,7 +1559,10 @@ public class PayrollController : ControllerBase
                     ThirteenthPrevForDisplay:    thirteenthPrevForDisplay,
                     ThirteenthAccrualForDisplay: thirteenthAccrualForDisplay,
                     ThirteenthPayout:            thirteenthPayoutForDisplay),
-                lohnAssignments, bankAccounts, usingDefaultDeductions, periodeFooterText: periodeFooterText);
+                lohnAssignments, bankAccounts, usingDefaultDeductions,
+                periodeFooterText: periodeFooterText,
+                akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
+                akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum);
             return Ok(result);
         }
         else if (isUTP)
@@ -1931,7 +1937,10 @@ public class PayrollController : ControllerBase
                     PrevThirteenth:       prevThirteenthForSaldoUtp,
                     FerienKuerzungVorschlag:     kuerzungVorschlag,
                     FerienKuerzungVorschlagTage: kuerzungVorschlagTage),
-                lohnAssignments, bankAccounts, usingDefaultDeductions, periodeFooterText: periodeFooterText);
+                lohnAssignments, bankAccounts, usingDefaultDeductions,
+                periodeFooterText: periodeFooterText,
+                akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
+                akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum);
             return Ok(result);
         }
         else // FIX / FIX-M – Monatslohn + Stunden-Saldo (Soll/Ist), kein Mehrstunden-Auszahlung
@@ -2319,7 +2328,10 @@ public class PayrollController : ControllerBase
                     FerienKuerzungVorschlag:     kuerzungVorschlag,
                     FerienKuerzungVorschlagTage: kuerzungVorschlagTage,
                     Basis13ml:            fix13Basis),
-                lohnAssignments, bankAccounts, usingDefaultDeductions, periodeFooterText: periodeFooterText);
+                lohnAssignments, bankAccounts, usingDefaultDeductions,
+                periodeFooterText: periodeFooterText,
+                akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
+                akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum);
             return Ok(result);
         }
       } // end try
@@ -2407,8 +2419,7 @@ public class PayrollController : ControllerBase
         var periode = await _db.PayrollPerioden
             .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId
                                    && p.Year == year
-                                   && p.Month == month
-                                   && !p.IsTransition);
+                                   && p.Month == month);
         PayrollSnapshot? snapshot = null;
         if (periode != null)
         {
@@ -2559,6 +2570,31 @@ public class PayrollController : ControllerBase
         snapshot.FerienGeldSaldo        = dto.FerienGeldSaldo;
         snapshot.UpdatedAt              = DateTime.UtcNow;
 
+        // 4-Augen-Workflow Walter-Vorgabe 19.05.2026 — Confirm = GF-Freigabe
+        // pro MA. HR_BESTAETIGT bleibt unverändert wenn schon weitergerollt
+        // (re-confirm während HR-Phase würde sonst HR-Bestätigung verlieren).
+        // Hier nur „neu" oder von BERECHNET kommend → FREIGEGEBEN_GF.
+        if (snapshot.Status == "BERECHNET" || string.IsNullOrEmpty(snapshot.Status))
+        {
+            snapshot.Status = "FREIGEGEBEN_GF";
+            snapshot.GfFreigegebenAt = DateTime.UtcNow;
+            snapshot.GfFreigegebenBy = GetUserIdOrNull();
+        }
+
+        // Akonto-Bereits-Ausbezahlt-Feld pflegen (Walter-Vorgabe 17.05.2026):
+        // wenn ein Akonto-Lauf dieser Periode AUSBEZAHLT ist, persistieren wir
+        // den ausbezahlten Netto-Betrag im Snapshot — sowohl für die Audit-
+        // Spur als auch damit Jahresauswertungen (Lohnausweis, BFS-LSE) den
+        // Akonto-Anteil sauber separieren können.
+        var akZ = await _db.AkontoZahlungen
+            .Where(z => z.EmployeeId == dto.EmployeeId
+                     && z.CompanyProfileId == dto.CompanyProfileId
+                     && z.PeriodYear == dto.Year && z.PeriodMonth == dto.Month
+                     && z.Status == "AUSBEZAHLT")
+            .Select(z => (decimal?)z.NettoAkonto)
+            .FirstOrDefaultAsync();
+        snapshot.AkontoBereitsAusbezahlt = akZ ?? 0m;
+
         // KTG-Tagessatz wird on-demand im GET /api/payroll/ktg-tagessatz berechnet
         // (kein Cache mehr \u2014 ersetzt die fr\u00fchere 6-Monats-\u00d8-Logik)
 
@@ -2658,8 +2694,7 @@ public class PayrollController : ControllerBase
                      && s.CompanyProfileId == dto.CompanyProfileId
                      && s.Periode != null
                      && s.Periode.Year  == dto.Year
-                     && s.Periode.Month == dto.Month
-                     && !s.Periode.IsTransition)
+                     && s.Periode.Month == dto.Month)
             .OrderByDescending(s => s.UpdatedAt)
             .FirstOrDefaultAsync();
 
@@ -2742,6 +2777,53 @@ public class PayrollController : ControllerBase
 
         await _db.SaveChangesAsync();
         return Ok(new { message = "Lohnzettel wieder eröffnet. Absenzen und Zulagen können erneut bearbeitet werden." });
+    }
+
+    // ─── HR per-MA-Bestätigung (Walter 19.05.2026, analog Akonto) ──────────
+    // POST /api/payroll/hr-bestaetigen/{snapshotId} — admin/superuser only.
+    // Setzt PayrollSnapshot.Status = HR_BESTAETIGT für einen einzelnen
+    // Lohnzettel. Voraussetzung: Periode ist provisorisch_abgeschlossen,
+    // Snapshot-Status ist FREIGEGEBEN_GF.
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("hr-bestaetigen/{snapshotId:int}")]
+    public async Task<IActionResult> HrBestaetigen(int snapshotId)
+    {
+        var snap = await _db.PayrollSnapshots.Include(s => s.Periode)
+                            .FirstOrDefaultAsync(s => s.Id == snapshotId);
+        if (snap is null) return NotFound();
+        if (snap.IsFinal)  return Conflict(new { error = "Snapshot ist final — kann nicht mehr verändert werden." });
+        if (snap.Periode?.Status != "provisorisch_abgeschlossen")
+            return Conflict(new { error = "HR-Bestätigung nur in provisorisch abgeschlossener Periode möglich." });
+        if (snap.Status != "FREIGEGEBEN_GF")
+            return Conflict(new { error = $"Snapshot-Status ist {snap.Status} (erwartet FREIGEGEBEN_GF)." });
+
+        snap.Status         = "HR_BESTAETIGT";
+        snap.HrBestaetigtAt = DateTime.UtcNow;
+        snap.HrBestaetigtBy = GetUserIdOrNull();
+        snap.UpdatedAt      = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return Ok(new { snap.Id, snap.Status, snap.HrBestaetigtAt });
+    }
+
+    // POST /api/payroll/hr-zurueckziehen/{snapshotId} — admin/superuser only.
+    // Setzt HR_BESTAETIGT zurück auf FREIGEGEBEN_GF.
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("hr-zurueckziehen/{snapshotId:int}")]
+    public async Task<IActionResult> HrZurueckziehen(int snapshotId)
+    {
+        var snap = await _db.PayrollSnapshots.Include(s => s.Periode)
+                            .FirstOrDefaultAsync(s => s.Id == snapshotId);
+        if (snap is null) return NotFound();
+        if (snap.IsFinal) return Conflict(new { error = "Snapshot ist final." });
+        if (snap.Status != "HR_BESTAETIGT")
+            return Conflict(new { error = $"Snapshot-Status ist {snap.Status} (erwartet HR_BESTAETIGT)." });
+
+        snap.Status         = "FREIGEGEBEN_GF";
+        snap.HrBestaetigtAt = null;
+        snap.HrBestaetigtBy = null;
+        snap.UpdatedAt      = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return Ok(new { snap.Id, snap.Status });
     }
 
     // GET /api/payroll/ktg-tagessatz?employeeId=X&companyProfileId=Y
@@ -3037,7 +3119,13 @@ public class PayrollController : ControllerBase
         List<EmployeeLohnAssignment> lohnAssignments,
         List<EmployeeBankAccount> bankAccounts,
         bool usingDefaultDeductions = false,
-        string? periodeFooterText = null)
+        string? periodeFooterText = null,
+        // Akonto-Verrechnung (Walter-Vorgabe 17.05.2026): wenn der Akonto-Lauf
+        // dieser Periode bereits ausbezahlt ist, fügt BuildResult eine Zeile in
+        // abzuegeExtraLines ein und reduziert den auszahlungsbetrag entsprechend.
+        // Werte werden vom Calculate-Endpoint async geladen und durchgereicht.
+        decimal akontoBereitsAusbezahlt = 0m,
+        DateOnly? akontoBereitsAusbezahltDatum = null)
     {
         // Abzüge berechnen
         decimal totalAbzuege = 0;
@@ -3153,6 +3241,25 @@ public class PayrollController : ControllerBase
                 betrag   = ueber,
                 warning  = string.IsNullOrWhiteSpace(la.Behoerde?.QrIban ?? la.Behoerde?.Iban)
             });
+        }
+
+        // ── Akonto-Verrechnung (Walter-Vorgabe 17.05.2026) ─────────────────
+        // Wenn der Akonto-Lauf dieser Periode bereits ausbezahlt wurde, wird
+        // der ausbezahlte Akonto-Netto-Betrag hier als zusätzlicher Abzug nach
+        // Netto ausgewiesen — damit die Bank-Auszahlung exakt die Restzahlung
+        // ist und der Lohnzettel transparent zeigt, was schon Mitte Monat
+        // geflossen ist. Wert + Datum werden vom Calculate-Endpoint async
+        // geladen und als Parameter durchgereicht (BuildResult ist static).
+        if (akontoBereitsAusbezahlt > 0)
+        {
+            var akontoDat = akontoBereitsAusbezahltDatum?.ToString("dd.MM.yyyy") ?? "";
+            abzuegeExtraLines.Add(new {
+                bezeichnung = string.IsNullOrEmpty(akontoDat)
+                                ? "Akonto-Vorauszahlung"
+                                : $"Akonto-Vorauszahlung vom {akontoDat}",
+                betrag      = -akontoBereitsAusbezahlt
+            });
+            abzuegeExtraTotal += akontoBereitsAusbezahlt;
         }
 
         decimal auszahlungsbetrag = Round05(nettolohn + zulagenExtraTotal - abzuegeExtraTotal);
@@ -3541,21 +3648,12 @@ public class PayrollController : ControllerBase
         return Math.Min(100m, Math.Round(workedHours / 180m * 100m, 2));
     }
 
-    private static (DateOnly from, DateOnly to) CalcPeriod(int startDay, int year, int month)
+    // Walter-Vorgabe 20.05.2026: Lohnperiode = IMMER Kalendermonat (1.–letzter Tag).
+    private static (DateOnly from, DateOnly to) CalcPeriod(int year, int month)
     {
-        if (startDay <= 1)
-        {
-            var from = new DateOnly(year, month, 1);
-            var to   = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
-            return (from, to);
-        }
-        // z.B. startDay=21: Periode 21.02–20.03 für März
-        var toDate   = new DateOnly(year, month, startDay - 1);
-        var fromDate = startDay <= 28
-            ? new DateOnly(month == 1 ? year - 1 : year, month == 1 ? 12 : month - 1, startDay)
-            : new DateOnly(month == 1 ? year - 1 : year, month == 1 ? 12 : month - 1,
-                           Math.Min(startDay, DateTime.DaysInMonth(month == 1 ? year - 1 : year, month == 1 ? 12 : month - 1)));
-        return (fromDate, toDate);
+        var from = new DateOnly(year, month, 1);
+        var to   = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
+        return (from, to);
     }
 
     private static (int year, int month) PrevPeriod(int year, int month)

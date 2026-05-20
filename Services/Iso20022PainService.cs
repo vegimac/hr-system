@@ -83,38 +83,40 @@ public class Iso20022PainService
     }
 
     private XElement BuildGroupHeader(DtaRequest req, decimal total) =>
+        // SPS 2024-konform aufgeräumt (Walter 19.05.2026):
+        //   • InitgPty enthält NUR den Namen (PstlAdr ist verboten — siehe alter Bug-Report).
+        //   • CtrlSum entfällt — Schweizer Banken prüfen das nicht, A-Level übernimmt die Summen.
         new(Ns + "GrpHdr",
             new XElement(Ns + "MsgId",   Truncate(req.MessageId, 35)),
             new XElement(Ns + "CreDtTm", req.CreationDateTime.ToString("yyyy-MM-ddTHH:mm:ss")),
             new XElement(Ns + "NbOfTxs", req.Payments.Count.ToString(CultureInfo.InvariantCulture)),
-            new XElement(Ns + "CtrlSum", FmtAmount(total)),
             new XElement(Ns + "InitgPty",
-                new XElement(Ns + "Nm", Truncate(req.InitiatorName, 70)),
-                BuildPostalAddress(req.InitiatorStreet, req.InitiatorPostalCode, req.InitiatorCity, req.InitiatorCountry)
+                new XElement(Ns + "Nm", Truncate(req.InitiatorName, 70))
             )
         );
 
     private XElement BuildPaymentInfo(DtaRequest req, decimal total)
     {
+        // SPS 2024-konform (Walter 19.05.2026):
+        //   • CtrlSum entfällt (gleiches Argument wie GrpHdr — Banken prüfen nicht).
+        //   • PmtTpInf/SvcLvl/Prtry „CH01" entfällt — der GEFEG-Validator weist
+        //     darauf hin dass Prtry-Werte nur in Absprache mit der Bank gehören;
+        //     ohne SvcLvl wählt die Bank ihr Inland-Default-Verhalten (für CH-IBAN-
+        //     zu-CH-IBAN-Inlandzahlungen identisch zum CH01-Effekt).
+        //   • Dbtr/PstlAdr und DbtrAcct/Ccy waren schon weg (vorheriger Fix).
         var pmtInf = new XElement(Ns + "PmtInf",
             new XElement(Ns + "PmtInfId",  Truncate(req.MessageId + "-1", 35)),
             new XElement(Ns + "PmtMtd",    "TRF"),
             new XElement(Ns + "BtchBookg", "true"),
             new XElement(Ns + "NbOfTxs",   req.Payments.Count.ToString(CultureInfo.InvariantCulture)),
-            new XElement(Ns + "CtrlSum",   FmtAmount(total)),
-            new XElement(Ns + "PmtTpInf",
-                new XElement(Ns + "SvcLvl", new XElement(Ns + "Prtry", "CH01"))   // Schweizer Inland-Zahlung
-            ),
             new XElement(Ns + "ReqdExctnDt",
                 new XElement(Ns + "Dt", req.ExecutionDate.ToString("yyyy-MM-dd"))
             ),
             new XElement(Ns + "Dbtr",
-                new XElement(Ns + "Nm", Truncate(req.DebtorName, 70)),
-                BuildPostalAddress(req.InitiatorStreet, req.InitiatorPostalCode, req.InitiatorCity, req.InitiatorCountry)
+                new XElement(Ns + "Nm", Truncate(req.DebtorName, 70))
             ),
             new XElement(Ns + "DbtrAcct",
-                new XElement(Ns + "Id", new XElement(Ns + "IBAN", NormalizeIban(req.DebtorIban))),
-                new XElement(Ns + "Ccy", "CHF")
+                new XElement(Ns + "Id", new XElement(Ns + "IBAN", NormalizeIban(req.DebtorIban)))
             ),
             BuildAgent(req.DebtorBic, isDebtor: true)
         );
@@ -195,10 +197,16 @@ public class Iso20022PainService
         var addr = new XElement(Ns + "PstlAdr");
         if (!string.IsNullOrWhiteSpace(street))
         {
-            // Strasse: sofern Hausnummer vorhanden, am Ende. Wir geben hier
-            // die ganze Strasse-Zeile als StrtNm und nutzen kein BldgNb
-            // separat — das Schema erlaubt das.
-            addr.Add(new XElement(Ns + "StrtNm", Truncate(street, 70)));
+            // SPS 2024 D V1 (Schweizer Inlandzahlung): Strasse + Hausnummer
+            // getrennt — Banken können dann sauber abgleichen. Wir splitten
+            // den letzten alphanumerischen Block ab wenn er mit einer Ziffer
+            // beginnt (z.B. „Sonnenrainweg 5a" → StrtNm „Sonnenrainweg",
+            // BldgNb „5a"). Postfach / „ohne Hausnummer" → kompletter String
+            // bleibt im StrtNm. Walter-Fix 19.05.2026.
+            var (strtNm, bldgNb) = SplitStreet(street);
+            addr.Add(new XElement(Ns + "StrtNm", Truncate(strtNm, 70)));
+            if (!string.IsNullOrWhiteSpace(bldgNb))
+                addr.Add(new XElement(Ns + "BldgNb", Truncate(bldgNb, 16)));
         }
         if (!string.IsNullOrWhiteSpace(plz))
             addr.Add(new XElement(Ns + "PstCd", Truncate(plz, 16)));
@@ -207,6 +215,37 @@ public class Iso20022PainService
         if (!string.IsNullOrWhiteSpace(country))
             addr.Add(new XElement(Ns + "Ctry", country.Trim().ToUpperInvariant()));
         return addr;
+    }
+
+    /// <summary>
+    /// Splittet eine kombinierte Strassen-Zeile in StrtNm + BldgNb.
+    /// Regex: nimmt die letzte Ziffern-Sequenz am Stringende, optional gefolgt
+    /// von Buchstaben/`-`/`/`. Funktioniert MIT und OHNE Leerzeichen vor der
+    /// Hausnummer (Walter-Fix 19.05.2026 für Daten wie „Bernstrasse120b").
+    /// Beispiele:
+    ///   "Sonnenrainweg 5a"             → ("Sonnenrainweg",  "5a")
+    ///   "Äussere Luzernerstrasse 13"   → ("Äussere Luzernerstrasse", "13")
+    ///   "Bernstrasse120b"              → ("Bernstrasse",    "120b")
+    ///   "Postfach"                     → ("Postfach",       null)
+    ///   "Postfach 123"                 → ("Postfach",       "123")
+    ///   "Bahnhofstrasse 12, c/o Müller" → ("Bahnhofstrasse 12, c/o Müller", null)
+    /// </summary>
+    private static (string Street, string? Number) SplitStreet(string street)
+    {
+        var trimmed = street.Trim();
+        // ^(.+?)\s*(\d[\dA-Za-z\-/]*)$
+        //   Gruppe 1: alles vor der Hausnummer (lazy, damit Hausnummer maximal greift)
+        //   \s*    : optionales Leerzeichen
+        //   Gruppe 2: Hausnummer = Ziffer + optional Buchstaben/Ziffern/-/  am Stringende
+        var m = System.Text.RegularExpressions.Regex.Match(
+            trimmed,
+            @"^(.+?)\s*(\d[\dA-Za-z\-/]*)$");
+        if (!m.Success) return (trimmed, null);
+        var strt = m.Groups[1].Value.Trim();
+        var nb   = m.Groups[2].Value;
+        // Defensiv: leere Strasse oder rein-numerische „Strasse" → kein Split
+        if (string.IsNullOrWhiteSpace(strt)) return (trimmed, null);
+        return (strt, nb);
     }
 
     private static string NormalizeIban(string iban)

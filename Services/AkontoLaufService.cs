@@ -31,8 +31,15 @@ namespace HrSystem.Services;
 /// </summary>
 public class AkontoLaufService
 {
-    private readonly AppDbContext _db;
-    public AkontoLaufService(AppDbContext db) => _db = db;
+    private readonly AppDbContext        _db;
+    private readonly Iso20022PainService _painSvc;
+    private readonly LgavBeitragService  _lgav;
+    public AkontoLaufService(AppDbContext db, Iso20022PainService painSvc, LgavBeitragService lgav)
+    {
+        _db = db;
+        _painSvc = painSvc;
+        _lgav = lgav;
+    }
 
     public record AkontoRowDto(
         int     EmployeeId,
@@ -140,6 +147,36 @@ public class AkontoLaufService
             .ToDictionary(g => g.Key,
                           g => g.OrderByDescending(s => s.PeriodYear * 12 + s.PeriodMonth).First());
 
+        // LGAV-Auto-Eintrag pro MA (Walter-Vorgabe 19.05.2026): wenn der Filial-
+        // Trigger erreicht ist, fügt LgavBeitragService.EnsureAsync eine
+        // LohnZulage mit Code 140 für den MA + Periode ein (idempotent). Damit
+        // taucht der LGAV-Beitrag automatisch in der Akonto-Liste der manuellen
+        // Zulagen/Abzüge auf und reduziert das Akonto entsprechend.
+        foreach (var e in employees)
+        {
+            var emp = e.Employments
+                .Where(x => x.CompanyProfileId == companyProfileId && x.IsActive)
+                .Where(x => DateOnly.FromDateTime(x.ContractStartDate) <= periodTo)
+                .Where(x => !x.ContractEndDate.HasValue
+                         || DateOnly.FromDateTime(x.ContractEndDate.Value) >= periodFrom)
+                .OrderByDescending(x => x.ContractStartDate)
+                .FirstOrDefault();
+            if (emp == null) continue;
+            await _lgav.EnsureAsync(e, emp, profile, year, month, periodFrom, periodTo);
+        }
+
+        // Manuelle Zulagen/Abzüge für diese Periode (Walter-Vorgabe 19.05.2026)
+        // — werden im Akonto BEREITS berücksichtigt, nicht erst beim Definitiv-
+        // lauf. Format Periode: "yyyy-MM" wie in LohnZulage hinterlegt.
+        var periodKey = $"{year}-{month:D2}";
+        var manualZulagen = await _db.LohnZulagen
+            .Include(z => z.Lohnposition)
+            .Where(z => empIds.Contains(z.EmployeeId) && z.Periode == periodKey)
+            .ToListAsync();
+        var manualByEmp = manualZulagen
+            .GroupBy(z => z.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         var rows = new List<AkontoRowDto>();
         foreach (var e in employees)
         {
@@ -158,9 +195,11 @@ public class AkontoLaufService
             if (emp is null) continue;     // MA hat in dieser Periode keinen Vertrag → kein Akonto-Datensatz
 
             lastSaldoByEmp.TryGetValue(e.Id, out var lastSaldo);
+            manualByEmp.TryGetValue(e.Id, out var maZulagen);
 
             rows.Add(BuildRow(e, emp, profile, stichtag, periodFrom, periodTo,
-                              svRates, absences, timeEntries, assignments, lastSaldo));
+                              svRates, absences, timeEntries, assignments, lastSaldo,
+                              maZulagen ?? new List<LohnZulage>()));
         }
 
         // Sortierung nach Vorname (CLAUDE.md-Konvention für alle MA-Listen,
@@ -192,7 +231,8 @@ public class AkontoLaufService
         List<Absence> absences,
         List<EmployeeTimeEntry> timeEntries,
         List<EmployeeLohnAssignment> assignments,
-        PayrollSaldo? lastSaldo)
+        PayrollSaldo? lastSaldo,
+        List<LohnZulage> manualZulagen)
     {
         var model = (emp.EmploymentModel ?? "").ToUpperInvariant();
 
@@ -236,17 +276,38 @@ public class AkontoLaufService
                 break;
         }
 
-        // 3) Abzüge (SV + BVG, kein QST)
+        // 3) Manuelle Zulagen/Abzüge (Walter 19.05.2026): erfasst pro MA+Periode
+        //    via /api/lohn-zulagen. ZULAGE addiert zum Brutto (geht in SV-Basis),
+        //    ABZUG wird nach Netto verrechnet (NICHT SV-pflichtig, z.B. LGAV).
+        decimal zulagenSum = 0m;
+        decimal manuelleAbzuege = 0m;
+        foreach (var z in manualZulagen)
+        {
+            if (z.Lohnposition == null) continue;
+            if (z.Lohnposition.Typ == "ZULAGE")
+                zulagenSum += z.Betrag;
+            else if (z.Lohnposition.Typ == "ABZUG")
+                manuelleAbzuege += z.Betrag;
+        }
+        brutto += zulagenSum;
+        if (zulagenSum > 0)
+            bruttoErlaeuterung += $" + Zulagen CHF {zulagenSum:0.00}";
+
+        // 4) Abzüge (SV + BVG, kein QST)
         int? age = AgeAt(e.DateOfBirth, stichtag);
         decimal abzuege = ComputeDeductions(brutto, svRates, model, age);
 
-        // 4) Netto-Vorschlag — AkontoProzent je nach Modell-Familie
-        //    Regel 3/4: AkontoProzentFix (Default 80%)
-        //    Regel 5/6: AkontoProzentHourly (Default 100%)
-        decimal nettoVoll = brutto - abzuege;
-        decimal factor = (model == "FIX" || model == "FIX-M")
-            ? Math.Clamp(profile.AkontoProzentFix,    0m, 100m) / 100m
-            : Math.Clamp(profile.AkontoProzentHourly, 0m, 100m) / 100m;
+        // 5) Netto-Vorschlag — AkontoProzent je nach Modell
+        //    Regel 3:  FIX    → AkontoProzentFix    (Default 80%)
+        //    Regel 4:  FIX-M  → AkontoProzentFixM   (Default 90%, Walter 18.05.2026)
+        //    Regel 5/6: UTP/MTP → AkontoProzentHourly (Default 100%)
+        decimal nettoVoll = brutto - abzuege - manuelleAbzuege;
+        decimal factor = model switch
+        {
+            "FIX"   => Math.Clamp(profile.AkontoProzentFix,    0m, 100m) / 100m,
+            "FIX-M" => Math.Clamp(profile.AkontoProzentFixM,   0m, 100m) / 100m,
+            _       => Math.Clamp(profile.AkontoProzentHourly, 0m, 100m) / 100m,
+        };
         decimal nettoVor = nettoVoll * factor;
 
         // 5) Auf CHF 10 abrunden, untere Grenze 0
@@ -430,5 +491,172 @@ public class AkontoLaufService
         int age = stichtag.Year - d.Year;
         if (stichtag.Month < d.Month || (stichtag.Month == d.Month && stichtag.Day < d.Day)) age--;
         return age;
+    }
+
+    // ── DTA-Generierung (Walter-Vorgabe 17.05.2026, Phase 3d) ─────────────
+    //
+    // Erzeugt das pain.001-XML für den Akonto-Lauf einer Periode. Wie beim
+    // Definitivlauf (LohnlaufService.GenerateDtaMaAsync) on-demand — kein
+    // File-Storage. Re-Download via gleichem Endpoint, generiert frisch aus
+    // der DB. Voraussetzung: AkontoStatus = AUSBEZAHLT.
+    //
+    // Empfänger ist die HAUPTBANK des MA (akonto wird nicht aufgeteilt — der
+    // Netto-Akonto fliesst als Ganzes auf die Hauptbank). Wenn der MA einen
+    // abweichenden Empfänger gesetzt hat (Kontoinhaber/Adresse, z.B. Revolut),
+    // wird dessen Adresse als Cdtr verwendet — analog Definitivlauf.
+
+    public async Task<byte[]> GenerateDtaAsync(int companyProfileId, int year, int month)
+    {
+        var periode = await _db.PayrollPerioden
+            .Include(p => p.Company)
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId
+                                   && p.Year == year && p.Month == month);
+        if (periode is null)
+            throw new InvalidOperationException($"Periode {year}-{month:D2} für Filiale {companyProfileId} nicht gefunden.");
+        if (periode.Company is null)
+            throw new InvalidOperationException("Filiale-Stammdaten fehlen.");
+        if (periode.AkontoStatus != "AUSBEZAHLT")
+            throw new InvalidOperationException(
+                $"Akonto-Status ist '{periode.AkontoStatus}' — DTA nur aus AUSBEZAHLT generierbar.");
+
+        var zahlungen = await _db.AkontoZahlungen
+            .Where(z => z.CompanyProfileId == companyProfileId
+                     && z.PeriodYear == year && z.PeriodMonth == month
+                     && z.Status == "AUSBEZAHLT")
+            .OrderBy(z => z.EmployeeId)
+            .ToListAsync();
+
+        if (zahlungen.Count == 0)
+            throw new InvalidOperationException("Keine ausbezahlten Akonto-Datensätze — DTA leer.");
+
+        var empIds = zahlungen.Select(z => z.EmployeeId).Distinct().ToList();
+        var employees = await _db.Employees
+            .Where(e => empIds.Contains(e.Id))
+            .ToListAsync();
+        // Bankverbindung pro MA (zum Akonto-Zeitpunkt). Walter-Vorgabe
+        // 18.05.2026: bevorzugt Hauptbank, aber Fallback auf beliebige
+        // aktive Bank — sonst fällt ein MA mit nur einer (nicht als
+        // Hauptbank markierter) Bank komplett aus dem DTA raus.
+        var stichtag = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
+        var allBanks = await _db.EmployeeBankAccounts
+            .Where(b => empIds.Contains(b.EmployeeId)
+                     && b.ValidFrom <= stichtag
+                     && (b.ValidTo == null || b.ValidTo >= new DateOnly(year, month, 1)))
+            .OrderByDescending(b => b.IsHauptbank)
+            .ThenByDescending(b => b.ValidFrom)
+            .ToListAsync();
+        var banks = allBanks
+            .GroupBy(b => b.EmployeeId)
+            .Select(g => g.First())
+            .ToList();
+
+        // Filial-Hauptbank als Debtor
+        var dbtrBank = await _db.CompanyProfileBankAccounts
+            .Where(b => b.CompanyProfileId == companyProfileId
+                     && b.IsMain
+                     && b.ValidFrom <= stichtag
+                     && (b.ValidTo == null || b.ValidTo >= new DateOnly(year, month, 1)))
+            .OrderByDescending(b => b.ValidFrom)
+            .FirstOrDefaultAsync();
+        if (dbtrBank is null)
+            throw new InvalidOperationException(
+                "Filiale hat keine gültige Hauptbank für diese Periode. " +
+                "Bitte unter Filiale → Bankverbindungen erfassen + als Hauptbank markieren.");
+
+        var payments = new List<Iso20022PainService.PaymentInstruction>();
+        var skipped = new List<string>();
+        foreach (var z in zahlungen)
+        {
+            if (z.NettoAkonto <= 0) continue;
+            var emp = employees.FirstOrDefault(e => e.Id == z.EmployeeId);
+            if (emp is null) continue;
+            var bank = banks.FirstOrDefault(b => b.EmployeeId == z.EmployeeId);
+            if (bank is null)
+            {
+                skipped.Add($"{emp.FirstName} {emp.LastName} (keine Hauptbank)");
+                continue;
+            }
+
+            var maName = $"{emp.FirstName} {emp.LastName}".Trim();
+            string  cdtrName;
+            string? cdtrStreet, cdtrPlz, cdtrCity, cdtrCountry, cdtrBic;
+            string  rmtInf;
+
+            if (!string.IsNullOrWhiteSpace(bank.Kontoinhaber))
+            {
+                // Abweichender Empfänger (z.B. Revolut Bank UAB für Auslands-MA)
+                cdtrName    = bank.Kontoinhaber!;
+                cdtrStreet  = bank.KontoinhaberStrasse;
+                cdtrPlz     = bank.KontoinhaberPlz;
+                cdtrCity    = bank.KontoinhaberOrt;
+                cdtrCountry = string.IsNullOrWhiteSpace(bank.KontoinhaberLand) ? "CH" : bank.KontoinhaberLand!;
+                cdtrBic     = bank.Bic;
+                rmtInf      = $"Akonto {periode.Label ?? $"{month:D2}/{year}"} - {maName}";
+            }
+            else
+            {
+                // MA selbst
+                cdtrName   = maName;
+                cdtrStreet = string.IsNullOrWhiteSpace(emp.HouseNumber)
+                                 ? emp.Street
+                                 : $"{emp.Street} {emp.HouseNumber}".Trim();
+                cdtrPlz    = emp.ZipCode;
+                cdtrCity   = emp.City;
+                cdtrCountry = string.IsNullOrWhiteSpace(emp.Country) ? "CH" : emp.Country!;
+                cdtrBic    = bank.Bic;
+                rmtInf     = $"Akonto {periode.Label ?? $"{month:D2}/{year}"}";
+            }
+
+            payments.Add(new Iso20022PainService.PaymentInstruction(
+                EndToEndId:         $"AK{year}{month:D2}-{emp.Id}",
+                Amount:             Math.Round(z.NettoAkonto, 2),
+                CreditorName:       cdtrName,
+                CreditorStreet:     cdtrStreet,
+                CreditorPostalCode: cdtrPlz,
+                CreditorCity:       cdtrCity,
+                CreditorCountry:    cdtrCountry,
+                CreditorIban:       bank.Iban,
+                CreditorBic:        cdtrBic,
+                RemittanceInfo:     rmtInf
+            ));
+        }
+
+        if (payments.Count == 0)
+            throw new InvalidOperationException("Keine Akonto-Auszahlungen mit Bankverbindung — DTA leer." +
+                (skipped.Count > 0 ? $" Übersprungen: {string.Join(", ", skipped)}" : ""));
+
+        // Bank-Ausführungsdatum (ReqdExctnDt im pain.001):
+        // Walter-Vorgabe 19.05.2026 — explizites Feld AkontoAuszahlungsdatum
+        // wird beim „DTA an Bank senden"-Bestätigungsschritt erfasst und
+        // direkt im DTA verwendet. Fallback: AkontoAusbezahltAt.Date für alte
+        // Datensätze ohne das Feld; ansonsten heute.
+        var execDate = periode.AkontoAuszahlungsdatum
+                     ?? (periode.AkontoAusbezahltAt.HasValue
+                            ? DateOnly.FromDateTime(periode.AkontoAusbezahltAt.Value.ToLocalTime())
+                            : DateOnly.FromDateTime(DateTime.Today));
+
+        var initiator = string.IsNullOrWhiteSpace(periode.Company.BranchName)
+            ? periode.Company.CompanyName
+            : $"{periode.Company.CompanyName} {periode.Company.BranchName}";
+        var initStreet = string.IsNullOrWhiteSpace(periode.Company.HouseNumber)
+            ? periode.Company.Street
+            : $"{periode.Company.Street} {periode.Company.HouseNumber}".Trim();
+
+        var dtaReq = new Iso20022PainService.DtaRequest(
+            MessageId:           $"AKONTO-{periode.Id}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+            CreationDateTime:    DateTime.UtcNow,
+            InitiatorName:       initiator,
+            InitiatorStreet:     initStreet,
+            InitiatorPostalCode: periode.Company.ZipCode,
+            InitiatorCity:       periode.Company.City,
+            InitiatorCountry:    string.IsNullOrWhiteSpace(periode.Company.Country) ? "CH" : periode.Company.Country!,
+            ExecutionDate:       execDate,
+            DebtorName:          initiator,
+            DebtorIban:          dbtrBank.Iban,
+            DebtorBic:           dbtrBank.Bic,
+            Payments:            payments
+        );
+
+        return _painSvc.Generate(dtaReq);
     }
 }

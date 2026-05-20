@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,11 +11,31 @@ namespace HrSystem.Controllers;
 [Route("api/[controller]")]
 public class EmploymentsController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly AppDbContext        _context;
+    private readonly LohnEditLockService _editLock;
 
-    public EmploymentsController(AppDbContext context)
+    public EmploymentsController(AppDbContext context, LohnEditLockService editLock)
     {
-        _context = context;
+        _context  = context;
+        _editLock = editLock;
+    }
+
+    /// <summary>
+    /// Lohnlauf-Schutz für Verträge (Walter-Vorgabe 17.05.2026):
+    /// Ein Vertrag gilt als „in Lohnlauf verwendet", wenn sein
+    /// ContractStartDate VOR dem FirstAllowedDate der Filiale liegt.
+    /// Editieren/Löschen ist dann gesperrt — stattdessen muss ein NEUER
+    /// Vertrag (POST) mit ContractStartDate >= FirstAllowedDate angelegt
+    /// werden; der offene wird automatisch beendet.
+    /// admin/superuser werden im Service bypassed.
+    /// </summary>
+    private async Task<DateOnly?> GetFirstAllowedAsync(int companyProfileId)
+        => await _editLock.GetFirstAllowedDateAsync(User, companyProfileId);
+
+    private static bool IsInLohnVerwendet(Employment e, DateOnly? firstAllowed)
+    {
+        if (firstAllowed is null) return false;
+        return DateOnly.FromDateTime(e.ContractStartDate) < firstAllowed.Value;
     }
 
     // GET /api/employments — alle Verträge
@@ -51,7 +72,43 @@ public class EmploymentsController : ControllerBase
             .OrderByDescending(e => e.ContractStartDate)
             .ToListAsync();
 
-        return Ok(employments);
+        // Pro Filiale FirstAllowedDate cachen — ein MA hat oft Verträge in
+        // verschiedenen Filialen (z.B. nach Filialwechsel). Wir gruppieren
+        // damit der Lock-Service nicht pro Vertrag erneut gefragt wird.
+        // CompanyProfileId ist nullable — Legacy-Verträge ohne Filial-Zuordnung
+        // werden ohne Lock-Prüfung behandelt.
+        var firstAllowedByBranch = new Dictionary<int, DateOnly?>();
+        foreach (var branchId in employments
+                    .Where(e => e.CompanyProfileId.HasValue && e.CompanyProfileId.Value > 0)
+                    .Select(e => e.CompanyProfileId!.Value)
+                    .Distinct())
+        {
+            firstAllowedByBranch[branchId] = await GetFirstAllowedAsync(branchId);
+        }
+
+        // Anonymous-Objekt-Liste mit zusätzlichem inLohnVerwendet-Flag.
+        var result = employments.Select(e =>
+        {
+            DateOnly? fa = null;
+            if (e.CompanyProfileId.HasValue)
+                firstAllowedByBranch.TryGetValue(e.CompanyProfileId.Value, out fa);
+            return new
+            {
+                e.Id, e.EmployeeId, e.CompanyProfileId,
+                e.ContractStartDate, e.ContractEndDate,
+                e.EmploymentModel, e.SalaryType, e.ContractType,
+                e.JobTitle, e.EmploymentPercentage,
+                e.WeeklyHours, e.GuaranteedHoursPerWeek,
+                e.MonthlySalaryFte, e.MonthlySalary, e.HourlyRate,
+                e.VacationPercent, e.HolidayPercent, e.ThirteenthSalaryPercent,
+                e.VacationPaymentMode, e.ProbationPeriodMonths, e.ProbationEndDate,
+                e.IsActive,
+                inLohnVerwendet  = IsInLohnVerwendet(e, fa),
+                firstAllowedDate = fa?.ToString("yyyy-MM-dd")
+            };
+        }).ToList();
+
+        return Ok(result);
     }
 
     // POST /api/employments — neuer Vertrag (schliesst den offenen automatisch)
@@ -63,6 +120,26 @@ public class EmploymentsController : ControllerBase
 
         if (!employeeExists)
             return BadRequest(new { error = $"Mitarbeiter {employment.EmployeeId} nicht gefunden." });
+
+        // Walter-Vorgabe 17.05.2026: ContractStartDate eines neuen Vertrags
+        // darf NICHT rückwirkend in einer Periode liegen, die schon in
+        // Verarbeitung ist. Frühester Beginn = FirstAllowedDate (= 1 Tag
+        // nach letzter abgeschlossener oder in HR liegender Periode).
+        // admin/superuser werden im Service bypassed.
+        if (employment.CompanyProfileId.HasValue && employment.CompanyProfileId.Value > 0)
+        {
+            var firstAllowed = await GetFirstAllowedAsync(employment.CompanyProfileId.Value);
+            if (firstAllowed.HasValue && DateOnly.FromDateTime(employment.ContractStartDate) < firstAllowed.Value)
+            {
+                return Conflict(new
+                {
+                    error            = "LOHN_EDIT_LOCKED",
+                    message          = $"'Vertragsbeginn {employment.ContractStartDate:dd.MM.yyyy}' liegt in einer bereits in Verarbeitung befindlichen Lohnperiode. " +
+                                       $"Frühester Vertragsbeginn: {firstAllowed.Value:dd.MM.yyyy}.",
+                    firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+                });
+            }
+        }
 
         // Offenen Vertrag (ContractEndDate IS NULL) automatisch schliessen
         var openContract = await _context.Employments
@@ -226,6 +303,27 @@ public class EmploymentsController : ControllerBase
         if (exit < employment.ContractStartDate.Date)
             return BadRequest(new { error = "Austrittsdatum liegt vor Vertragsbeginn." });
 
+        // Walter-Vorgabe 17.05.2026: Austrittsdatum darf nicht in einer
+        // bereits in Verarbeitung befindlichen Lohnperiode liegen — sonst
+        // wäre die letzte Abrechnung schon gerechnet ohne dass das System
+        // vom Austritt wusste. Frühestes Austrittsdatum = FirstAllowedDate
+        // (= erster Tag der ersten noch offenen Periode). Wenn Walter den
+        // MA z.B. per 31.01.2026 austragen will und Januar bei HR liegt,
+        // muss er erst die Periode zurücksetzen.
+        DateOnly? firstAllowed = employment.CompanyProfileId.HasValue
+            ? await GetFirstAllowedAsync(employment.CompanyProfileId.Value)
+            : null;
+        if (firstAllowed.HasValue && DateOnly.FromDateTime(exit) < firstAllowed.Value)
+        {
+            return Conflict(new {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Austrittsdatum {exit:dd.MM.yyyy} liegt in einer bereits in Verarbeitung befindlichen Lohnperiode. " +
+                                   $"Frühestes erlaubtes Austrittsdatum: {firstAllowed.Value:dd.MM.yyyy}. " +
+                                   $"Falls der MA wirklich früher austritt, muss die laufende Periode erst zurückgesetzt werden.",
+                firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+            });
+        }
+
         employment.ContractEndDate = exit;
 
         // Employee.ExitDate spiegeln, damit der MA in Übersichten als
@@ -258,6 +356,24 @@ public class EmploymentsController : ControllerBase
         if (hasNewer)
             return BadRequest(new { error = "Es existiert bereits ein neuerer Vertrag. Vertrag kann nicht wieder geöffnet werden." });
 
+        // Walter 17.05.2026: Wieder-Öffnen ist tabu wenn das aktuelle Austritts-
+        // datum in einer bereits verarbeiteten Periode liegt — dann wurde der
+        // Austritt schon abgerechnet und das Wiederöffnen würde rückwirkend
+        // den Vertrag in einer geschlossenen Periode reaktivieren.
+        DateOnly? firstAllowed = employment.CompanyProfileId.HasValue
+            ? await GetFirstAllowedAsync(employment.CompanyProfileId.Value)
+            : null;
+        if (firstAllowed.HasValue
+            && employment.ContractEndDate.HasValue
+            && DateOnly.FromDateTime(employment.ContractEndDate.Value) < firstAllowed.Value)
+        {
+            return Conflict(new {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Austritt ist bereits in einer abgerechneten Periode (Austrittsdatum {employment.ContractEndDate:dd.MM.yyyy}). Reopen würde rückwirkend in einer geschlossenen Periode wirken.",
+                firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+            });
+        }
+
         employment.ContractEndDate = null;
         var employee = await _context.Employees.FindAsync(employment.EmployeeId);
         if (employee != null) employee.ExitDate = null;
@@ -272,6 +388,26 @@ public class EmploymentsController : ControllerBase
     {
         var existing = await _context.Employments.FindAsync(id);
         if (existing == null) return NotFound();
+
+        // Walter-Vorgabe 17.05.2026: Vertrag der bereits in einem Lohnlauf
+        // verwendet wurde, ist tabu für Edit. Stattdessen muss ein neuer
+        // Vertrag mit "Beginn ab X" angelegt werden — der schliesst den
+        // offenen automatisch ab (POST-Endpoint).
+        // Legacy-Verträge ohne CompanyProfileId können nicht geprüft werden
+        // (keine Filial-Zuordnung) — die werden ohne Lock-Check durchgelassen.
+        DateOnly? firstAllowed = existing.CompanyProfileId.HasValue
+            ? await GetFirstAllowedAsync(existing.CompanyProfileId.Value)
+            : null;
+        if (IsInLohnVerwendet(existing, firstAllowed))
+        {
+            return Conflict(new
+            {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Dieser Vertrag (Beginn {existing.ContractStartDate:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet. " +
+                                   $"Für Änderungen bitte einen neuen Vertrag ab frühestens {firstAllowed:dd.MM.yyyy} anlegen — der bestehende wird dann automatisch beendet.",
+                firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
+            });
+        }
 
         // ContractStartDate, ContractEndDate, ContractType etc. sind editierbar —
         // Walter braucht das z.B. um eine falsche Lohn-Eingabe nach dem CSV-Import
@@ -316,6 +452,24 @@ public class EmploymentsController : ControllerBase
         var employment = await _context.Employments.FindAsync(id);
         if (employment == null)
             return NotFound(new { error = "Vertrag nicht gefunden." });
+
+        // Walter-Vorgabe 17.05.2026: Vertrag in einem Lohnlauf-Lock → nicht
+        // löschbar. force=true bleibt für admin-Notfall-Korrekturen aus dem
+        // bestehenden hasFinalPayroll-Pfad erhalten (admin/superuser sind im
+        // Service ohnehin bypassed, also greift dieser Block für normale User).
+        // Legacy ohne CompanyProfileId → kein Lock-Check möglich.
+        DateOnly? firstAllowed = employment.CompanyProfileId.HasValue
+            ? await GetFirstAllowedAsync(employment.CompanyProfileId.Value)
+            : null;
+        if (IsInLohnVerwendet(employment, firstAllowed))
+        {
+            return Conflict(new
+            {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Dieser Vertrag (Beginn {employment.ContractStartDate:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet und kann nicht gelöscht werden.",
+                firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
+            });
+        }
 
         // Sicherheits-Check: Existieren bereits abgeschlossene Lohnabrechnungen für
         // diesen MA in der Vertragsperiode? Wenn ja, ohne ?force=true blockieren —

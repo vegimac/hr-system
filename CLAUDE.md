@@ -149,8 +149,11 @@ Beispiel: Saldo 800 + Akkumulation 200 = 1000 CHF / (8 + 2) = 10 Tage → 100 CH
 
 ### Lohnperioden
 
-- **Akonto-Lohn-Modell (Walter-Vorgabe 15./16.05.2026)**: die Lohnperiode ist **immer der Kalendermonat** (1.–31.). `payroll_periode_config`-Periodenregel-Tabelle + UI sind weg — `PayrollController`/`PayrollPeriodeController`/`AbsencesController` nehmen fix `startDay=1`. Konkrete Perioden weiterhin in `payroll_periode`.
-- Tabelle `payroll_periode_config` und FK `payroll_periode.config_id` bleiben für historische Daten erhalten, werden aber nicht mehr beschrieben/gelesen — kein UI, kein Periodenregel-Modal, kein Lohnperioden-Banner. Die Backend-Endpoints `/api/payroll-perioden/config*` sind toter Code-Pfad.
+- **Lohnperiode = IMMER Kalendermonat (Walter-Vorgabe 20.05.2026, final):** Die Periode ist ausnahmslos der Kalendermonat (1.–letzter Tag). Die frühere Periodenflexibilität (Starttag 21/1, Periodenregel-Konfiguration, Übergangs-Lohnläufe) ist **komplett entfernt** — Code, Schema und UI. Grund: gesetzliche Berechnungen (QST, ALV, AHV) laufen ohnehin kalendermonatlich; der Akonto-Lauf deckt die Zahlung vor Monatsende ab.
+  - **Entfernt:** Model `PayrollPeriodeConfig` + Tabelle `payroll_periode_config`, FK `payroll_periode.config_id`, `payroll_periode.is_transition`, `company_profile.payroll_period_start_day`, alle `config*`-Endpoints in `PayrollPeriodeController`, die Übergangs-/Transition-Logik. Migration: `migrations-archive/remove_periode_flexibility.sql` (Program.cs droppt das auch idempotent beim Startup).
+  - `CalcPeriod(year, month)` / `CalcPeriodRange(year, month)` geben immer 1.–letzter Tag (kein `startDay`-Parameter mehr). `PayrollController.Calculate` rechnet immer den Kalendermonat, ignoriert gespeicherte `PeriodFrom`/`PeriodTo` (die könnten aus der alten Ära stammen).
+  - **Kurzperioden-Pro-Rata** (anteiliger Lohn bei Ein-/Austritt mitten im Monat) bleibt erhalten — das ist gesetzlich korrekt, keine Periodenflexibilität.
+  - Konkrete Perioden weiterhin in `payroll_periode` (Spalten `period_from`/`period_to` bleiben, werden aber immer auf Kalendermonat gesetzt).
 - **Lohnverwaltung-Modus persistent + Default Akonto (Walter 16.05.2026):** der Akonto/Definitiv-Schalter speichert die Wahl in `localStorage.hrLohnMode`, Default `akonto` (Akonto-Lauf ist Mitte Monat und der häufigere Lauf). `_akWfMode` wird in `akonto-workflow.js` aus localStorage gelesen und bei jedem `setLohnMode()`-Aufruf zurückgeschrieben.
 - **Definitiv-Lock (Walter 16.05.2026):** Definitivlauf-Bestätigen ist gesperrt sobald der Akonto-Lauf der gleichen Periode + Filiale begonnen wurde aber noch nicht `AUSBEZAHLT` ist. Zulässige Status für Definitiv: `OFFEN` (Akonto bewusst übersprungen — Legacy/keine Akonto-Termine) und `AUSBEZAHLT`. Zwischenstati `IN_BEARBEITUNG_GF` / `BEI_HR` / `HR_FREIGEGEBEN` blockieren. Frontend: `_checkDefinitivLock()` in `akonto-workflow.js` zeigt `#lohnDefinitivLockBanner` + versteckt `#lohnTopActions`. Backend-Guard in `PayrollController.ConfirmPayroll` (vor dem Snapshot-Check) gibt 409 zurück. Wird bei Mode-Switch, Periode-Wechsel, Filial-Wechsel und Aktualisieren neu evaluiert.
 - **`akonto_zahlung.status` CHECK-Constraint:** muss alle vier Werte erlauben — `('BERECHNET', 'FREIGEGEBEN_GF', 'AUSBEZAHLT', 'STORNIERT')`. Die ursprüngliche Phase-1-Migration listete nur drei und sorgte für HTTP 500 beim Freigeben. Fix in `migrations-archive/fix_akonto_zahlung_status_check.sql`, in der Phase-2-Migration ist der `DROP CONSTRAINT IF EXISTS … ADD CONSTRAINT …`-Block jetzt mit drin.
@@ -165,6 +168,17 @@ Beispiel: Saldo 800 + Akkumulation 200 = 1000 CHF / (8 + 2) = 10 Tage → 100 CH
   - FIX/FIX-M-Berechnung in `AkontoLaufService` ist nur grobe Brutto-Schätzung (Monatslohn). Exakte Korrektur via `POST /api/akonto/workflow/sync-fix-from-slip/{id}` — Frontend ruft das beim Slip-Load auf, Backend setzt `NettoAkonto = AkontoProzentFix × auszahlungsbetrag / 100 / 10 * 10`. Sync-Endpoint ist auf FIX/FIX-M restringiert (für UTP/MTP wäre Loopback unnötig — die lokale Berechnung ist exakt).
   - Konfiguration pro Filiale: `CompanyProfile.AkontoProzentFix` (Default 80), `CompanyProfile.AkontoProzentHourly` (Default 100). UI im Filial-Einstellungen-Tab → Akonto-Block. PATCH-Endpoint `/api/companyprofiles/{id}/akonto-prozent` mit beiden optionalen Feldern.
   - Migration: `migrations-archive/add_akonto_prozent_hourly.sql`.
+- **GF + HR teilen sich eine einzige Lohn-Seite (Walter-Vorgabe 17.05.2026 final):** Das frühere HR-Lohnlauf-Modul (`page-lohnlauf` mit `hr-saldi-lohnlauf.js`) ist legacy. Sowohl der GF-Sidebar-Eintrag „Lohn" als auch die HR-Card „Lohnlauf" zeigen jetzt auf `page-lohn` (= `akonto-workflow.js` für Akonto-Tab + `payroll.js` für Definitivlauf-Tab). Innerhalb von `_akWfRenderStatusBar` entscheidet `_akIsHr()` welche Aktionen erscheinen: GF sieht „✓ Lohnblatt freigeben" / „An HR senden", HR sieht „✓ HR-bestätigen" pro MA / „↩ Zurück an GF" / „💰 Akonto auszahlen (DTA)" und kann pro MA mit „✎ ändern" den Netto-Akonto-Betrag korrigieren (über `/api/akonto/workflow/hr-override/{id}`). Counter oben zeigt je nach Status den passenden Schritt-Fortschritt: bei IN_BEARBEITUNG_GF „X/N freigegeben", ab BEI_HR „X/N HR-bestätigt". Auf der Akonto-Lohnzettel-MA-Liste hat die HR_BESTAETIGT-Statuspille die Farbe blau (`#1e40af` / `#dbeafe`) — visuell unterscheidbar von „GF freigegeben" (grün) und „ausbezahlt" (orange).
+- **HR-Modul Lohnlauf zweigeteilt (Walter-Vorgabe 17.05.2026, überholt seit Konsolidierung — Kommentar bleibt für Historie):** Die HR-Seite `page-lohnlauf` hat oben eine Tab-Bar mit zwei Tabs:
+  - **Tab „Akonto-Lauf"** (`#llAkontoView`): HR sieht alle Akonto-Lohnzeilen der Filiale + Periode, kann pro MA den Netto-Akonto-Betrag direkt überschreiben (✎-Button, nur im Status `BEI_HR`), Periode an GF zurückgeben, HR-Freigabe erteilen, auszahlen. Loader: `llLoadAkontoTab()` in `hr-saldi-lohnlauf.js`.
+  - **Tab „Definitivlauf"** (`#llDefinitivView`): wie bisher, unverändertes `llStatusCockpit` + `llAuditLog`.
+  - Beide Tabs teilen die Periode-Wahl (Filiale aus globalem Selektor, Monat/Jahr in `#llMonthSelect`/`#llYearSelect`). `onchange="llPeriodChanged()"` lädt nur den aktiven Tab neu. Tab-State persistiert in `localStorage.hrLohnlaufTab` (Default `akonto`).
+  - HR-Direktkorrektur: `POST /api/akonto/workflow/hr-override/{id}` mit `{ neuerNettoAkonto, grund }` — admin/superuser only, nur in `BEI_HR`-Phase. Audit (vorheriger Wert + Grund + User + Zeit) wird an `AkontoZahlung.KommentarHr` angehängt; kein DB-Schema-Wandel nötig.
+  - Alte „Akonto-Lohn-Lauf"-Karte (`onclick="showPage('akonto-lauf')"`) wurde aus dem HR-Bereich entfernt. `page-akonto-lauf` + `akonto-lauf.js` bleiben im Code als Backup, sind aber nicht mehr verlinkt.
+- **GF-Read-Only-Banner im Akonto-Modus (Walter-Vorgabe 17.05.2026):** sobald der Akonto-Status `BEI_HR` / `HR_FREIGEGEBEN` / `AUSBEZAHLT` ist UND der eingeloggte User KEIN admin/superuser, zeigt `_akWfRenderStatusBar` in `akonto-workflow.js` anstelle der Aktions-Buttons eine farbige Pille mit Schloss-Icon: „🔒 Bei HR — keine Änderungen möglich" / „🔒 HR-freigegeben — wartet auf Auszahlung" / „🔒 Ausbezahlt …". Backend-seitig sind alle per-MA-Edit-Endpoints (`freigeben`, `zurueckziehen`, `sync-fix-from-slip`) sowieso schon auf `IN_BEARBEITUNG_GF` restringiert; der Banner ist also nur UX-Klarheit. **Walter-Vorgabe 17.05.2026 (Verschärfung):** auch für admin/superuser werden im GF-Workspace (`page-lohn`) KEINE HR-Aktionen (Zurück an GF / HR-Freigabe / Auszahlen) mehr angezeigt. Die HR-Aktionen leben ausschliesslich im HR-Modul → Lohnlauf → Tab Akonto. Klare Trennung GF-Workspace vs HR-Modul.
+- **Akonto pro-MA HR-Bestätigung (Walter-Vorgabe 17.05.2026):** Neuer per-MA-Status `HR_BESTAETIGT` zwischen `FREIGEGEBEN_GF` und `AUSBEZAHLT`. Symmetrisch zum GF-Workflow bestätigt HR jeden Lohnzettel einzeln im HR-Akonto-Tab — kein Pauschal-Knopf mehr. Sobald ALLE MA der Periode HR_BESTAETIGT sind, springt die Periode automatisch von `BEI_HR` auf `HR_FREIGEGEBEN` und der DTA-Button erscheint. Endpoints: `POST /api/akonto/workflow/hr-bestaetigen/{id}` + `/hr-zurueckziehen/{id}` (beide admin/superuser only). HR-Override (`/hr-override/{id}`) setzt einen bereits HR_BESTAETIGT'en Datensatz automatisch zurück auf FREIGEGEBEN_GF (Re-Bestätigung nötig) und ggf. auch die Periode von HR_FREIGEGEBEN auf BEI_HR. Legacy-Pauschal-Endpoint `/hr-freigabe` bleibt für Rückwärtskompatibilität, markiert alle FREIGEGEBEN_GF als HR_BESTAETIGT. **CHECK-Constraint**: `akonto_zahlung.status` muss jetzt fünf Werte akzeptieren: `BERECHNET`, `FREIGEGEBEN_GF`, `HR_BESTAETIGT`, `AUSBEZAHLT`, `STORNIERT` — siehe `migrations-archive/add_akonto_status_hr_bestaetigt.sql`.
+- **Akonto-Verrechnung im Definitivlauf (Walter-Vorgabe 17.05.2026):** Wenn der Akonto-Lauf einer Periode bereits AUSBEZAHLT ist, fügt `PayrollController.Calculate` automatisch eine Zeile in `abzuegeExtraLines` ein: „Akonto-Vorauszahlung vom dd.MM.yyyy" mit dem Netto-Akonto als negativem Betrag. Der `auszahlungsbetrag` und alle Bankkonto-Splits reduzieren sich entsprechend — die Bank-Zahlung am Monatsende ist also die echte Restzahlung. Beim Definitiv-Abschluss (`ConfirmPayroll`) wird der Akonto-Wert zusätzlich in `PayrollSnapshot.AkontoBereitsAusbezahlt` persistiert (für Audit + Jahresauswertungen).
+- **Initial-Passwort = MA-Nummer (Walter-Vorgabe 17.05.2026, Variante B):** `Services/EmployeePostfachService.cs → BuildInitialPassword` gibt nur noch `EmployeeNumber` zurück (keine Filial-Präfixe mehr). Username und Initial-Passwort sind identisch (z.B. beide `750009`). Sicherheit kommt durch `MustChangePassword=true` — beim ersten Login wird ein Wechsel zwingend. `CompanyProfile.LoginPasswordPrefix` ist Dead Code.
 
 ### Importer-Klassifizierung (Backend ↔ Frontend gespiegelt)
 
@@ -214,6 +228,85 @@ Auto-Import auseinander:
 - Was NICHT übersetzt wird: PDFs (Lohnzettel, Arbeitsvertrag, QST-Anmeldung, Behördenformulare), E-Mails an MA, Domänen-Codes (UTP/MTP/FIX-M, JobGroups, Lohnpositions-Codes wie 901).
 - Default-Sprache: `de`. Phase-1-Scope: Top-Bar, Sidebar, Dashboard. Andere Pages werden in Folge-Phasen ergänzt — bis dahin bleiben sie DE.
 
+## Bearbeitungs-Status-Map (Walter-Vorgabe 19.05.2026 — single source of truth)
+
+Pro Lohnperiode gibt es **zwei** Workflows, jeder mit eigenem Status und klarer Rollentrennung. Alle UI-Buttons und alle Lock-Entscheidungen MÜSSEN sich nach diesem einen Status-Schema richten. Wenn ein UI-Verhalten nicht passt, ist es ein Bug.
+
+**Akonto-Workflow** (`payroll_periode.akonto_status` + `akonto_zahlung.status` pro MA):
+
+| Periode-Status | Snapshot-Status pro MA | Wer darf was | UI im Akonto-Tab |
+|---|---|---|---|
+| `OFFEN` | – (noch keine Zahlungen) | GF | „📅 Akonto vorbereiten" |
+| `IN_BEARBEITUNG_GF` | `BERECHNET` / `FREIGEGEBEN_GF` | GF bestätigt jeden MA | „✓ Freigeben" / „↶ Zurückziehen" / „An HR senden" |
+| `BEI_HR` | `FREIGEGEBEN_GF` / `HR_BESTAETIGT` | HR bestätigt jeden MA; GF **gesperrt** | HR: „✓ HR-bestätigen", „↶ Zurück an GF", „✎ ändern" |
+| `HR_FREIGEGEBEN` | alle `HR_BESTAETIGT` | HR korrigiert noch / klickt DTA; GF gesperrt | „💰 DTA auszahlen", + Per-MA-Override |
+| `AUSBEZAHLT` | alle `AUSBEZAHLT` | niemand mehr (Admin: Reset über Lohnperioden-Modul) | „📥 DTA-File", „📄 Liste" |
+
+**Definitiv-Workflow** (`payroll_periode.status` + `payroll_snapshot.status` pro MA):
+
+| Periode-Status | Snapshot-Status pro MA | Wer darf was | UI im Definitiv-Tab |
+|---|---|---|---|
+| `offen` | `BERECHNET` / `FREIGEGEBEN_GF` | GF bestätigt jeden MA | „✓ Lohn bestätigen" / „↶ Wieder eröffnen" / „An HR senden" |
+| `provisorisch_abgeschlossen` | `FREIGEGEBEN_GF` / `HR_BESTAETIGT` | HR bestätigt jeden MA; GF **gesperrt** | HR: „✓ HR-bestätigen", „↶ HR-Bestätigung zurückziehen", „↩ Zurück an GF", „📑 Lohnbelege + DTA" |
+| `abgeschlossen` | alle `ABGESCHLOSSEN` | niemand mehr (Admin: Wieder-Öffnen nur bis Zahldatum DTA) | „📑 Lohnbelege ansehen", „📥 DTA-File" |
+
+**GF-Sperre-Regel (final 19.05.2026):**
+- GF darf seine zwei Buttons („Lohn bestätigen" / „Wieder eröffnen") **NUR** sehen, wenn der Periode-Status `offen` bzw. `IN_BEARBEITUNG_GF` ist.
+- Sobald HR den Stab übernimmt (`BEI_HR` / `provisorisch_abgeschlossen` / `HR_FREIGEGEBEN`), sind GF-Buttons komplett unsichtbar. Auch wenn der einzelne MA-Snapshot noch FREIGEGEBEN_GF ist — der GF kommt da nicht mehr ran.
+- Frontend (Walter-Vorgabe 20.05.2026, **Definitiv = Akonto-Architektur**): Beide Workflows haben jetzt je **eine** zentrale Render-Funktion, die als EINZIGE Stelle Status-Pille + Counter + ALLE Aktionsbuttons zeichnet — gespeist aus EINEM State-Cache. Es darf NIRGENDS sonst Button-Sichtbarkeit gesetzt werden.
+  - **Akonto:** `akonto-workflow.js → _akWfRenderStatusBar()` (Cache `_akWfData`, geladen via `akWfRefresh` aus `/api/akonto/workflow/status`), rendert in `#akontoStatusBar`.
+  - **Definitiv:** `payroll.js → _lohnWfRenderStatusBar()` (Cache `_lohnWfData`, geladen via `lohnWfRefresh` → `loadLohnList` aus `/api/payroll-perioden/current` + `…/snapshots`), rendert in `#lohnDefinitivStatusBar`. `_lohnWfData = { status, periode, periodeId, snapByEmp:{empId:{id,status}}, gfConfirmed, hrConfirmed, activeTotal }`.
+  - `loadLohnSlip` rendert NUR noch den Lohnzettel (Berechnung + `renderLohnSlip`) — KEINE Button-Logik mehr. `loadLohnPeriodBanner` ist ein **Shim** auf `lohnWfRefresh` (Alt-Aufrufer funktionieren weiter). MA-Klick mirror `akWfSelectMa`: nur Highlight + `_lohnWfRenderStatusBar()` + `loadLohnSlip` (kein voller Listen-Rebuild pro Klick). Aktions-Handler (`confirmLohn`/`reopenLohn`/`lohnHrBestaetigen`/`lohnHrZurueckziehen`/`lohnZurueckAnGf`/`abschliessePeriode`/`savePeriodeBemerkung`) rufen nach der Aktion `lohnWfRefresh()`. Grund für den Rebau: die früher über `loadLohnSlip` + `loadLohnPeriodBanner` + `loadLohnList` verstreute Button-Logik lief ständig auseinander („Button fehlt / verdeckt"-Bugs).
+  - Die alte statische Button-Zeile `#lohnTopActions` + die alte Toolbar-Status-Pille `#lohnPeriodBanner` sind toter, dauerhaft versteckter DOM (bewusst erhalten, nicht mehr verdrahtet).
+
+**Übergänge zwischen den zwei Workflows:**
+- Beim Wechsel Akonto-AUSBEZAHLT → Definitivlauf-Start: `payroll_snapshot.status` muss auf `BERECHNET` initialisiert sein (der GF muss im Definitiv jeden MA neu bestätigen — der Akonto-Workflow hat damit nichts zu tun).
+- Beim `zurueck-an-gf` (Definitiv): alle Snapshots → `BERECHNET`, alle Saldos → `draft`.
+- Beim `wieder-oeffnen` (Definitiv abgeschlossen → provisorisch): Snapshots, die `ABGESCHLOSSEN` waren, → `HR_BESTAETIGT`. HR-Bestätigungen bleiben erhalten, nur der DTA-Klick muss erneut.
+
+**Zahldaten / Bank-Ausführungsdatum (Walter-Vorgabe 19.05.2026):** Beide Workflows erfassen vor dem DTA-Versand das Bank-Ausführungsdatum (ReqdExctnDt im pain.001). Default: morgen. Wird in der Periode persistiert und ist der Cutoff für den Admin-Reset:
+- Akonto → `payroll_periode.akonto_auszahlungsdatum` (neu — Migration: `migrations-archive/add_akonto_auszahlungsdatum.sql`)
+- Definitiv → `payroll_periode.auszahlungsdatum` (existiert)
+
+**DTA-Bestätigungs-Schritt (Walter-Vorgabe 19.05.2026):** Beide Workflows trennen das Erstellen des DTA vom Versand an die Bank. Klick auf den finalen Knopf läuft als 3-Schritt:
+- **Schritt 0**: Datum-Prompt → Bank-Ausführungsdatum erfassen (Default: morgen).
+- **Schritt 1**: Confirm-Dialog „DTA erstellen mit Ausführungsdatum xx.xx.xxxx" — DTA wird mit diesem Datum generiert + heruntergeladen.
+- **Schritt 2**: Confirm-Dialog „DTA an Bank gesendet?" — erst JA setzt den finalen Status (Akonto AUSBEZAHLT / Definitiv abgeschlossen) und triggert nachgelagerte Aktionen (Postfach-Ablage + E-Mail beim Definitivlauf).
+
+**Admin-Reset / Wieder-Eröffnen — Zahldatum-Lock:**
+- Definitiv: Admin (`role=admin`) öffnet `abgeschlossene` Periode via `/api/payroll-perioden/{id}/wieder-oeffnen`. **NUR bis `heute ≤ payroll_periode.auszahlungsdatum`** — danach 409 `PAYOUT_DATE_REACHED`.
+- Akonto: Admin setzt via `/api/akonto/workflow/reset-periode` zurück. **NUR bis `heute ≤ akonto_auszahlungsdatum`** — danach 409. (Fallback für Alt-Daten ohne Feld: `AkontoAusbezahltAt.Date`.)
+- **Pflicht-Bestätigung**: bevor das Frontend den Reset/Wieder-Eröffnen-Endpoint aufruft, MUSS der Admin eine zweite Confirm-Frage „Hast du den DTA bei der Bank gelöscht/storniert?" mit JA beantworten. Schützt vor Doppelzahlung.
+- **Nach dem Zahldatum**: kein Reset mehr möglich — nicht für Admin, nicht für HR, nicht für GF. Notfall-Eingriff nur über direkten DB-Eingriff durch Entwickler.
+
+## Lohnlauf-Edit-Sperre (Walter-Vorgabe 17.05.2026)
+
+Sobald ein Akonto- oder Definitivlauf einer Periode in HR-Verarbeitung oder bereits abgeschlossen ist, sind lohnrelevante datum-bezogene Edits **für JEDEN** (auch admin/superuser) gesperrt. Service: `Services/LohnEditLockService.cs`. Logik: spätestes (Year, Month) finden, das `Status != 'offen'` ODER `AkontoStatus NOT IN ('OFFEN', 'IN_BEARBEITUNG_GF')` ist — Edit-Datum muss > letzter Tag dieser Periode liegen (= FirstAllowedDate = 1. Tag des Folgemonats). `IN_BEARBEITUNG_GF` ist absichtlich NICHT gesperrt, damit der GF in der Vorbereitungsphase noch Stempel- und Absenz-Korrekturen vornehmen kann.
+
+**Kein Rollen-Bypass (Walter-Vorgabe final 17.05.2026):** auch admin/superuser sehen den Lock. Damit ein laufender Lohnlauf editiert werden kann, muss der Admin die Periode aktiv **zurücksetzen / wieder öffnen** — das zwingt eine bewusste Entscheidung mit Audit-Trail (Lohnzettel aus MA-Postfach raus, Akonto-Zahlungen storniert etc.) statt einer stillen Daten-Manipulation im Hintergrund. Reset-Endpoints:
+- Akonto: `POST /api/akonto/workflow/reset-periode` (admin-only, Body `{companyProfileId, year, month, grund}`) — setzt AkontoStatus auf OFFEN, löscht BERECHNET/FREIGEGEBEN_GF/HR_BESTAETIGT-Zahlungen, stempelt AUSBEZAHLT-Zahlungen auf STORNIERT (Beleg bleibt), Audit-Eintrag mit Aktion `AKONTO_RESET`.
+- Definitiv: `POST /api/payroll-perioden/{id}/wieder-oeffnen` (admin-only, existiert) — setzt Status auf provisorisch_abgeschlossen zurück, löscht Lohnzettel aus MA-Postfächern.
+Im Lohnperioden-Modul sehen Admins bei jeder Periode mit `akontoStatus != OFFEN` einen orangen Button „↺ Akonto zurücksetzen" mit Pflicht-Grund-Eingabe.
+
+Geschützte Endpoints (alle POST/PUT/DELETE, alle Rollen):
+- **Datum-bezogen**: `AbsencesController`, `LohnZulagenController` (Vorschuss-Rückzahlung wird hier abgebildet).
+- **Versioniert (`ValidFrom < FirstAllowedDate` = inLohnVerwendet)**: `EmployeeBankAccountsController`, `EmploymentsController`, `EmployeeQuellensteuerController`, `EmployeeRecurringWagesController`, `EmployeePermitHistoryController`, `EmployeeLohnAssignmentsController`, `FamilyMemberAllowancesController`.
+- **Periode-bezogen**: `SaldoVortragController` (Vortrag-Periode darf nicht rückwirkend).
+
+**Stempelzeiten** sind seit Walter-Vorgabe 17.05.2026 komplett **READ-ONLY**: `EmployeeTimeEntriesController` POST/PUT/DELETE liefern 403 mit Klartext-Meldung — Stempelzeiten kommen ausschliesslich aus easy@work via `ImportController.ImportStempelzeiten` / `ImportMonatlich`. Cowork zeigt sie nur an, Korrekturen passieren in easy@work und werden anschliessend neu importiert. Versionierte Daten (Verträge, Bankkonten, Bewilligungen, QST, EmployeeRecurringWages mit ValidFrom/ValidTo) gehören NICHT in den Lock — die haben eigene „neu ab"-Logik und werden separat behandelt (Walter: später, eigenes Thema).
+
+Bei Sperre → HTTP 409 mit `{ error: "LOHN_EDIT_LOCKED", message, firstAllowedDate }`. Frontend-Helper in `wwwroot/js/lohn-edit-lock.js` (global `window.lohnEditLock`): `loadState(branchId)`, `renderBanner(el, state)`, `applyToDateInput(input, state)`, `handleResponse(res)`. Frontend-Pattern: nach jedem `fetch()` bei Edit-Aktion `if (await lohnEditLock.handleResponse(res)) return;` vor dem normalen Fehler-Pfad. Beim Öffnen eines Date-Picker-Modals zusätzlich `applyToDateInput()` aufrufen, damit gesperrte Tage gar nicht erst auswählbar sind.
+
+GET-Endpoint: `/api/lohn-edit-lock/first-allowed-date?branchId=X` liefert `{ firstAllowedDate, reason }` — wird vom Frontend-Helper mit 5s-TTL gecacht.
+
+**Tests:** das Test-Projekt `Tests/hr-system.Tests.csproj` enthält Unit-Tests für `LohnEditLockService` (alle Bypass-Regeln, alle Status-Kombinationen, FirstAllowedDate-Berechnung, Filiale-Trennung) und einen **Audit-Test** (`EditLockEndpointAuditTests`), der alle Controller-Files scannt und sicherstellt, dass jeder POST/PUT/DELETE-Endpoint entweder `LohnEditLockService` einbindet ODER in der Whitelist `LOCK_IRRELEVANT_CONTROLLERS` mit Begründung steht. Wenn ein neuer Edit-Endpoint angelegt wird, der weder das eine noch das andere ist, schlägt der Test fehl — verhindert dass jemand "vergisst" einen Lock einzubauen. Lauf: `dotnet test Tests/hr-system.Tests.csproj`.
+
+**Workflow-Tests (Walter-Vorgabe 19.05.2026):** Vier zusätzliche Test-Files nageln die Lohnlauf-Workflows fest und verhindern Regressionen am 4-Augen-Prinzip:
+- `WorkflowSpecAuditTests.cs` — scannt die kritischen Code-Stellen (Defaults, IsFinal-Timing, PAYOUT_DATE_REACHED, ZurueckAnGf-Reset, Auszahlungsdatum-Persistierung) per Regex. Schlägt fehl wenn jemand den Default des PayrollSnapshot wieder auf FREIGEGEBEN_GF setzt oder IsFinal zu früh setzt.
+- `WorkflowDefaultsTests.cs` — neue PayrollSnapshot / AkontoZahlung / PayrollPeriode / PayrollSaldo haben die korrekten Status-Defaults (BERECHNET / BERECHNET / offen+OFFEN / draft).
+- `AkontoWorkflowTransitionTests.cs` — alle Status-Übergänge im Akonto: OFFEN → IN_BEARBEITUNG_GF → BEI_HR → HR_FREIGEGEBEN → AUSBEZAHLT, plus Auto-Transition wenn alle MA HR_BESTAETIGT sind, plus PAYOUT_DATE_REACHED am Tag nach Auszahlung.
+- `DefinitivWorkflowTransitionTests.cs` — alle Status-Übergänge im Definitivlauf: offen → provisorisch_abgeschlossen → abgeschlossen, inkl. der Invariante „provisorisch darf KEIN IsFinal=true setzen" (Walter-Bug 19.05.2026: blockierte HR-Bestätigung), Reset rollt Snapshot+Saldo sauber zurück, WiederOeffnen mappt ABGESCHLOSSEN-Snapshots auf HR_BESTAETIGT.
+
 ## Stolperfallen / wiederkehrende Bugs
 
 1. **Funktionen verschwinden bei Refactor.** Vor jedem Refactor SUCHEN ob es etwas Vergleichbares schon gibt — speziell:
@@ -253,7 +346,14 @@ Auto-Import auseinander:
   2. **Voll-Seiten mit Liste darunter** (Import-Seiten etc., Scroll-Container `.main`): Titel + Eingaben + Buttons in `<div class="sticky-page-head">` wrappen, die Ergebnis-Liste scrollt darunter. Umgesetzt für die 5 Admin-Import-Seiten (dvelop / bank / permit / family-children / stammdaten).
   3. **Fallback** ohne Tab-Leiste: `.sticky-section-head` (`position:sticky;top:0`, in `index.html`) auf die Button-Kopfzeile.
   Niemals Aktions-Buttons nur am Ende einer langen Liste platzieren. Bei jeder neuen oder überarbeiteten Seite mit Liste prüfen und anwenden.
-- **`Vorgaben/`-Ordner** enthält Domänen-Wissen (L-GAV, GastroSocial-Merkblätter, ESTV-Tarife, Mirus-Manual). Bei Geschäftslogik-Fragen DORT zuerst nachschlagen.
+- **UI-Standard: Sprache/Theme oben rechts, Aktionsbuttons NIE dorthin (Walter-Vorgabe 20.05.2026, gilt ÜBERALL):**
+  - Der Sprach-/Theme-Schalter (`#langSwitcher`: DE/EN-Flaggen + 🌙 Dunkel) ist `position:fixed` oben rechts auf JEDEM Screen. Er reserviert KEINEN Platz im Layout — Elemente fliessen darunter durch.
+  - **Folge-Regel:** Bedien-/Aktionsbuttons (Speichern, Bestätigen, An HR senden, DTA, PDF, Wieder eröffnen, Refresh …) dürfen NIEMALS in die oberste Header-/Toolbar-Zeile rechts platziert werden — dort verdeckt der schwebende `#langSwitcher` sie (wiederkehrender Bug 19./20.05.2026, mehrfach: „An HR senden" + „Lohn bestätigen" + DTA waren unsichtbar).
+  - **Standard-Platzierung:** Aktionsbuttons gehören in eine **eigene Zeile unterhalb der Titel-/Toolbar-Zeile** (rechtsbündig via `justify-content:flex-end` oder als eigene Statusleiste, links-beginnend). Gute Referenz-Implementierungen:
+    - **Verträge-Seite** (`page-vertraege`): „CSV importieren" + „+ Neuer Vertrag" rechts in der Content-Header-Zeile (unterhalb des globalen Sprach-/Theme-Schalters) — das Vorbild für Voll-Seiten mit Detail-Header.
+    - **`akontoStatusBar`**: eigene volle Status-/Aktionszeile über dem 3-Spalten-Grid — das Vorbild für Workflow-Seiten (Akonto + Definitiv).
+    - **Lohn-Aktionszeile** in `page-lohn`: eigene Zeile (`justify-content:flex-end`) direkt unter der Toolbar.
+    Beim Bau jeder neuen Seite eines dieser Muster einhalten — NIE Buttons in die oberste Zeile rechts.
 
 ## Externe Endpoints, die im Frontend gerne fehlen
 

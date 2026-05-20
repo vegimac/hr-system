@@ -9,14 +9,43 @@ namespace HrSystem.Controllers;
 [Route("api/absences")]
 public class AbsencesController : ControllerBase
 {
-    private readonly AppDbContext       _db;
-    private readonly KarenzService      _karenz;
-    private readonly SperrfristService  _sperrfrist;
-    public AbsencesController(AppDbContext db, KarenzService karenz, SperrfristService sperrfrist)
+    private readonly AppDbContext        _db;
+    private readonly KarenzService       _karenz;
+    private readonly SperrfristService   _sperrfrist;
+    private readonly LohnEditLockService _editLock;
+    public AbsencesController(AppDbContext db, KarenzService karenz, SperrfristService sperrfrist, LohnEditLockService editLock)
     {
         _db         = db;
         _karenz     = karenz;
         _sperrfrist = sperrfrist;
+        _editLock   = editLock;
+    }
+
+    /// <summary>
+    /// Prüft ob für (employeeId, dateRange) eine Lohnlauf-bedingte Sperre greift.
+    /// Resolved den ersten aktiven Vertrag des MA, um die richtige Filiale zu
+    /// finden. Liefert null wenn frei, sonst eine 409-Antwort.
+    /// </summary>
+    private async Task<IActionResult?> CheckLohnLockAsync(int employeeId, DateOnly from, DateOnly to)
+    {
+        var emp = await _db.Employees
+            .Where(e => e.Id == employeeId)
+            .Select(e => new
+            {
+                e.Id,
+                BranchId = e.Employments
+                    .Where(x => x.IsActive)
+                    .OrderByDescending(x => x.ContractStartDate)
+                    .Select(x => (int?)x.CompanyProfileId)
+                    .FirstOrDefault()
+            })
+            .FirstOrDefaultAsync();
+        if (emp?.BranchId is null) return null; // keine Filial-Zuordnung → kein Lock
+
+        var r = await _editLock.CheckRangeAsync(User, emp.BranchId.Value, from, to);
+        if (!r.Locked) return null;
+
+        return Conflict(new { error = "LOHN_EDIT_LOCKED", message = r.Reason, firstAllowedDate = r.FirstAllowedDate?.ToString("yyyy-MM-dd") });
     }
 
     // ── GET /api/absences/employee/{employeeId} ───────────────────────────
@@ -36,6 +65,11 @@ public class AbsencesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AbsenceDto dto)
     {
+        // Lohnlauf-Sperre: keine Absenz in einer Periode anlegen, die bei HR
+        // liegt oder bereits ausbezahlt/abgeschlossen ist.
+        var locked = await CheckLohnLockAsync(dto.EmployeeId, DateOnly.Parse(dto.DateFrom), DateOnly.Parse(dto.DateTo));
+        if (locked != null) return locked;
+
         var absence = new Absence
         {
             EmployeeId    = dto.EmployeeId,
@@ -62,6 +96,15 @@ public class AbsencesController : ControllerBase
     {
         var absence = await _db.Absences.FindAsync(id);
         if (absence == null) return NotFound();
+
+        // Lohnlauf-Sperre: alte UND neue Daten müssen ausserhalb gesperrter
+        // Perioden liegen. Prüft beide Zeiträume separat.
+        var newFrom = DateOnly.Parse(dto.DateFrom);
+        var newTo   = DateOnly.Parse(dto.DateTo);
+        var lock1   = await CheckLohnLockAsync(absence.EmployeeId, absence.DateFrom, absence.DateTo);
+        if (lock1 != null) return lock1;
+        var lock2   = await CheckLohnLockAsync(absence.EmployeeId, newFrom, newTo);
+        if (lock2 != null) return lock2;
 
         // Lock: Tage in bestätigten Lohnperioden dürfen nicht verändert werden.
         // Prüfung umfasst sowohl die alten als auch die neuen markierten Tage
@@ -136,6 +179,11 @@ public class AbsencesController : ControllerBase
         var absence = await _db.Absences.FindAsync(id);
         if (absence == null) return NotFound();
 
+        // Lohnlauf-Sperre: kein Löschen wenn die Absenz in einer in-Verarbeitung-
+        // oder abgeschlossenen Periode liegt.
+        var lockResult = await CheckLohnLockAsync(absence.EmployeeId, absence.DateFrom, absence.DateTo);
+        if (lockResult != null) return lockResult;
+
         // Lock: Löschen nicht erlaubt wenn markierte Tage in bestätigter Periode
         var lockError = await CheckNotInConfirmedPeriodAsync(absence, absence.WorkedDays,
             absence.DateFrom.ToString("yyyy-MM-dd"), absence.DateTo.ToString("yyyy-MM-dd"));
@@ -172,27 +220,15 @@ public class AbsencesController : ControllerBase
             .ToListAsync();
         if (confirmed.Count == 0) return null;
 
-        // Filial-Profile (für PayrollPeriodStartDay)
-        var profileIds = confirmed.Select(c => c.CompanyProfileId).Distinct().ToList();
-        var profiles = await _db.CompanyProfiles
-            .Where(p => profileIds.Contains(p.Id))
-            .ToDictionaryAsync(p => p.Id);
-
         // Pro confirmed-Periode: Zeitraum berechnen, auf berührte Tage prüfen.
-        // Akonto-Lohn-Modell (Walter-Vorgabe 15.05.2026): die Lohnperiode ist
-        // immer der Kalendermonat — startDay fix 1, der Legacy-Wert
-        // PayrollPeriodStartDay wird nicht mehr ausgewertet.
+        // Walter-Vorgabe 20.05.2026: die Lohnperiode ist IMMER der Kalendermonat
+        // (1.–letzter Tag).
         foreach (var c in confirmed)
         {
-            if (!profiles.TryGetValue(c.CompanyProfileId, out _)) continue;
-            int startDay = 1;
-            var (from, to) = CalcPeriodRange(startDay, c.PeriodYear, c.PeriodMonth);
+            var (from, to) = CalcPeriodRange(c.PeriodYear, c.PeriodMonth);
             if (touchedDays.Any(d => d >= from && d <= to))
             {
-                string periode = startDay <= 1
-                    ? $"{MonthName(c.PeriodMonth)} {c.PeriodYear}"
-                    : $"{from:dd.MM.yyyy}–{to:dd.MM.yyyy}";
-                return $"Diese Absenz berührt die bereits bestätigte Lohnperiode {periode}. " +
+                return $"Diese Absenz berührt die bereits bestätigte Lohnperiode {MonthName(c.PeriodMonth)} {c.PeriodYear}. " +
                        $"Bestätigte Perioden sind unveränderlich.";
             }
         }
@@ -219,20 +255,10 @@ public class AbsencesController : ControllerBase
         for (var d = from; d <= to; d = d.AddDays(1)) set.Add(d);
     }
 
-    private static (DateOnly from, DateOnly to) CalcPeriodRange(int startDay, int year, int month)
-    {
-        if (startDay <= 1)
-        {
-            return (new DateOnly(year, month, 1),
-                    new DateOnly(year, month, DateTime.DaysInMonth(year, month)));
-        }
-        var toDate   = new DateOnly(year, month, Math.Min(startDay - 1, DateTime.DaysInMonth(year, month)));
-        int prevYear = month == 1 ? year - 1 : year;
-        int prevMonth = month == 1 ? 12 : month - 1;
-        int prevMaxDay = DateTime.DaysInMonth(prevYear, prevMonth);
-        var fromDate = new DateOnly(prevYear, prevMonth, Math.Min(startDay, prevMaxDay));
-        return (fromDate, toDate);
-    }
+    // Walter-Vorgabe 20.05.2026: Lohnperiode = IMMER Kalendermonat (1.–letzter Tag).
+    private static (DateOnly from, DateOnly to) CalcPeriodRange(int year, int month)
+        => (new DateOnly(year, month, 1),
+            new DateOnly(year, month, DateTime.DaysInMonth(year, month)));
 
     private static string MonthName(int m) => m switch
     {

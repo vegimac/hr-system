@@ -45,7 +45,6 @@ public class CompanyProfile
     public int? DefaultVacationWeeks { get; set; }
     public string? WorkLocation { get; set; }
 
-    public int? PayrollPeriodStartDay { get; set; }
     public decimal? MaxPartTimeHoursPerWeek { get; set; }
     public bool AllowFirst3Months8PercentReduction { get; set; } = false;
     public bool HoldBackVacationPayout { get; set; } = true;
@@ -231,12 +230,19 @@ public class CompanyProfile
 
     // ── Akonto-Lohn ────────────────────────────────────────────────────────
     /// <summary>
-    /// Akonto-Prozentsatz für FIX/FIX-M (Akonto-Lohn-Modell). Das Akonto für
-    /// FIX/FIX-M = AkontoProzentFix % des voraussichtlich ausbezahlten
-    /// Monatslohns. Default 80 %, pro Filiale im Einstellungen-Tab änderbar.
-    /// Siehe AKONTO-LOHN-PLAN.md, Abschnitt 2.2 / 4.4.
+    /// Akonto-Prozentsatz für FIX (Akonto-Lohn-Modell). Das Akonto für FIX
+    /// = AkontoProzentFix % des voraussichtlich ausbezahlten Monatslohns.
+    /// Default 80 %, pro Filiale im Einstellungen-Tab änderbar. Siehe
+    /// AKONTO-LOHN-PLAN.md, Abschnitt 2.2 / 4.4.
     /// </summary>
     public decimal AkontoProzentFix { get; set; } = 80m;
+
+    /// <summary>
+    /// Akonto-Prozentsatz für FIX-M (Management-Festlohn) — separat von FIX,
+    /// da Manager planbare hohe Festlöhne haben und ein höheres Akonto
+    /// vertragen (Walter-Vorgabe 18.05.2026). Default 90 %.
+    /// </summary>
+    public decimal AkontoProzentFixM { get; set; } = 90m;
 
     /// <summary>
     /// Akonto-Prozentsatz für UTP/MTP (Walter-Vorgabe 16.05.2026, Regel 5/6).

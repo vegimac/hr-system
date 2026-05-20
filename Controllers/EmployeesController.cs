@@ -315,26 +315,178 @@ public class EmployeesController : ControllerBase
         if (dto.KtgKarenzAbgeschlossen.HasValue)
             employee.KtgKarenzAbgeschlossen = dto.KtgKarenzAbgeschlossen.Value;
 
-        // ── Aktiv-Status synchronisieren ──────────────────────────────────
-        // ExitDate in Vergangenheit → Employee inaktiv. Wirkt automatisch:
-        // bei Austritt wird der Postfach-Login gesperrt; das Postfach
-        // (MA-Dokumente) bleibt aber bestehen.
-        if (employee.ExitDate.HasValue && employee.ExitDate.Value.Date < DateTime.UtcNow.Date)
+        // ── Aktiv-Status ──────────────────────────────────────────────────
+        // Walter-Vorgabe 18.05.2026: KEIN Auto-Sync mehr aus ExitDate. Grund:
+        // ein MA der unerwartet mitten im Monat austritt bekommt Ende Monat
+        // trotzdem noch einen Lohn — also muss er aktiv bleiben bis Walter
+        // den Haken im UI explizit entfernt (nach dem letzten Lohnlauf).
+        //
+        // Der Massenimport (EmployeeImportController) hat seine eigene Logik
+        // für leere Filialen — die bleibt unverändert, weil dort beim ersten
+        // Import alle inaktiven MA vom CSV-Stand übernommen werden müssen.
+        //
+        // Sicherheits-Lock (Walter 18.05.2026): Setzen auf inaktiv ist nur
+        // erlaubt wenn KEINE offene Lohnperiode (Definitiv != abgeschlossen)
+        // existiert, in deren Zeitraum für diesen MA noch Stempelzeiten oder
+        // Absenzen erfasst sind. Sonst würde ein noch zu berechnender Lohn
+        // verlorengehen. Frontend ruft dieselbe Logik vorab via GET
+        // /api/employees/{id}/deactivate-check auf, damit der User die Sperre
+        // direkt beim Klick auf die Checkbox sieht.
+        if (dto.IsActive.HasValue)
         {
-            employee.IsActive = false;
-        }
-        else if (!employee.ExitDate.HasValue || employee.ExitDate.Value.Date >= DateTime.UtcNow.Date)
-        {
-            // Falls ExitDate weg / in Zukunft → wieder aktiv (Re-Hire-Szenario)
-            employee.IsActive = true;
+            if (employee.IsActive && !dto.IsActive.Value)
+            {
+                var blockers = await ComputeDeactivateBlockersAsync(id);
+                if (blockers.Count > 0)
+                {
+                    return Conflict(new
+                    {
+                        error   = "MA_HAS_OPEN_PERIOD_DATA",
+                        message = BuildBlockerMessage(blockers),
+                        blockers
+                    });
+                }
+            }
+            employee.IsActive = dto.IsActive.Value;
         }
 
         await _context.SaveChangesAsync();
 
-        // Postfach-Login mit Aktiv-Status synchronisieren (idempotent)
+        // Postfach-Login mit Aktiv-Status synchronisieren (idempotent).
+        // Greift jetzt nur noch wenn Walter den Haken bewusst geändert hat —
+        // beim reinen ExitDate-Setzen bleibt das Postfach offen.
         await _postfach.SyncActiveStateAsync(employee);
 
         return Ok(employee);
+    }
+
+    // GET /api/employees/{id}/deactivate-check
+    // Live-Check fürs Frontend (Walter-Vorgabe 18.05.2026): wird beim Klick
+    // auf die „Aktiv"-Checkbox im MA-Edit-Modal aufgerufen, bevor gespeichert
+    // wird. Antwort listet alle blockierenden Lohnperioden + den Grund je
+    // Periode (Stempelzeiten ja/nein, Absenz-Typen + Datumsbereiche). Damit
+    // sieht der User SOFORT warum Inaktiv-Setzen nicht geht.
+    [HttpGet("{id:int}/deactivate-check")]
+    public async Task<IActionResult> DeactivateCheck(int id)
+    {
+        var employee = await _context.Employees.FindAsync(id);
+        if (employee is null) return NotFound();
+        var blockers = await ComputeDeactivateBlockersAsync(id);
+        return Ok(new
+        {
+            employeeId     = id,
+            canDeactivate  = blockers.Count == 0,
+            blockers,
+            message        = blockers.Count == 0
+                                ? "MA kann inaktiv gesetzt werden."
+                                : BuildBlockerMessage(blockers)
+        });
+    }
+
+    /// <summary>
+    /// Sammelt alle blockierenden Lohnperioden für eine Inaktivsetzung
+    /// (Walter-Vorgabe 18.05.2026): pro noch nicht definitiv abgeschlossener
+    /// Periode in einer Filiale des MA prüfen, ob Stempelzeiten oder Absenzen
+    /// im Periode-Range hängen. Reine Liste, kein Fehlerzustand — die
+    /// Aufrufer (PUT-Endpoint + Live-Check) entscheiden ob 409 oder OK.
+    /// </summary>
+    private async Task<List<DeactivateBlocker>> ComputeDeactivateBlockersAsync(int employeeId)
+    {
+        var maFilialIds = await _context.Employments
+            .Where(em => em.EmployeeId == employeeId && em.CompanyProfileId.HasValue)
+            .Select(em => em.CompanyProfileId!.Value)
+            .Distinct()
+            .ToListAsync();
+
+        var openPeriods = await _context.PayrollPerioden
+            .Where(p => p.Status != "abgeschlossen"
+                     && maFilialIds.Contains(p.CompanyProfileId))
+            .OrderBy(p => p.PeriodFrom)
+            .ToListAsync();
+
+        var blockers = new List<DeactivateBlocker>();
+        foreach (var period in openPeriods)
+        {
+            var timeEntriesCount = await _context.EmployeeTimeEntries.CountAsync(t =>
+                t.EmployeeId == employeeId
+             && t.EntryDate >= period.PeriodFrom
+             && t.EntryDate <= period.PeriodTo);
+            var absencesInPeriod = await _context.Absences
+                .Where(a => a.EmployeeId == employeeId
+                         && a.DateFrom <= period.PeriodTo
+                         && a.DateTo   >= period.PeriodFrom)
+                .OrderBy(a => a.DateFrom)
+                .Select(a => new AbsenceSummary {
+                    Id        = a.Id,
+                    Type      = a.AbsenceType,
+                    DateFrom  = a.DateFrom,
+                    DateTo    = a.DateTo
+                })
+                .ToListAsync();
+            if (timeEntriesCount == 0 && absencesInPeriod.Count == 0) continue;
+
+            var periodLabel = string.IsNullOrWhiteSpace(period.Label)
+                ? $"{period.Year}-{period.Month:D2}"
+                : period.Label;
+
+            blockers.Add(new DeactivateBlocker
+            {
+                PeriodId         = period.Id,
+                PeriodLabel      = periodLabel,
+                PeriodFrom       = period.PeriodFrom,
+                PeriodTo         = period.PeriodTo,
+                TimeEntriesCount = timeEntriesCount,
+                Absences         = absencesInPeriod
+            });
+        }
+        return blockers;
+    }
+
+    private static string BuildBlockerMessage(List<DeactivateBlocker> blockers)
+    {
+        if (blockers.Count == 0) return string.Empty;
+        var b = blockers[0];
+        var arten = new List<string>();
+        if (b.TimeEntriesCount > 0) arten.Add($"{b.TimeEntriesCount} Stempel-Eintrag(e)");
+        if (b.Absences.Count > 0)
+        {
+            // Absenz-Typen zusammenfassen (z.B. "Krankheit" + "Ferien")
+            var typLabels = b.Absences
+                .Select(a => AbsenceTypeLabel(a.Type))
+                .Distinct()
+                .ToList();
+            arten.Add(string.Join(" / ", typLabels));
+        }
+        var artenText = string.Join(" + ", arten);
+        return $"MA kann nicht inaktiv gesetzt werden - in der noch offenen Lohnperiode '{b.PeriodLabel}' sind {artenText} erfasst. Bitte zuerst den Lohnlauf abschliessen oder die Daten loeschen.";
+    }
+
+    private static string AbsenceTypeLabel(string type) => type switch
+    {
+        "KRANK"      => "Krankheit",
+        "UNFALL"     => "Unfall",
+        "FERIEN"     => "Ferien",
+        "SCHULUNG"   => "Schulung",
+        "MUTT_VATER" => "Mutter-/Vaterschaft",
+        _            => type
+    };
+
+    public class DeactivateBlocker
+    {
+        public int      PeriodId         { get; set; }
+        public string   PeriodLabel      { get; set; } = "";
+        public DateOnly PeriodFrom       { get; set; }
+        public DateOnly PeriodTo         { get; set; }
+        public int      TimeEntriesCount { get; set; }
+        public List<AbsenceSummary> Absences { get; set; } = new();
+    }
+
+    public class AbsenceSummary
+    {
+        public int      Id       { get; set; }
+        public string   Type     { get; set; } = "";
+        public DateOnly DateFrom { get; set; }
+        public DateOnly DateTo   { get; set; }
     }
 
     // PUT /api/employees/{id}/employment/{employmentId} – Vertragsdaten aktualisieren
@@ -431,6 +583,13 @@ public class EmployeeUpdateDto
     // "Kein Lohn"-Flag — nur durch admin/superuser setzbar.
     // null = nicht ändern; true/false = setzen.
     public bool?     IsPayrollExcluded     { get; set; }
+
+    // Aktiv-Flag (Walter-Vorgabe 18.05.2026): explizit gesetzt vom UI,
+    // KEIN Auto-Sync mehr aus ExitDate. Grund: MA kann unerwartet mitten
+    // im Monat austreten, bekommt aber Ende Monat noch einen Lohn — also
+    // muss er bis nach dem letzten Lohnlauf aktiv bleiben.
+    // null = nicht ändern; true/false = setzen.
+    public bool?     IsActive              { get; set; }
 
     // KTG/UVG-Overrides für Legacy-MA aus dem alten Lohnsystem.
     // Set-Flags damit "null absichtlich = Auto zurück" möglich ist.
