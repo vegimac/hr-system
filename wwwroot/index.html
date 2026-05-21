@@ -115,6 +115,44 @@
         body.theme-dark td { border-color: #334155 !important; }
         body.theme-dark tr:hover td { background: #1e293b !important; }
 
+        /* ── Mindestlöhne (L-GAV) — kompakt, damit alles auf eine Seite passt ── */
+        .mw-section { margin-bottom: 10px; overflow: hidden; }
+        .mw-section-head {
+            padding: 7px 14px; font-weight: 600; font-size: 12.5px; color: #0f172a;
+            background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+        }
+        .mw-section-head .mw-unit { font-weight: 400; font-size: 11.5px; color: #94a3b8; margin-left: 7px; }
+        .mw-section-head.mw-youth { background: #fffbeb; border-bottom-color: #fde68a; color: #92400e; }
+        .mw-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .mw-table th {
+            padding: 5px 12px; text-align: right; font-weight: 600; font-size: 10px;
+            color: #64748b; border-bottom: 1px solid #e2e8f0; white-space: nowrap; line-height: 1.15;
+        }
+        .mw-table th.mw-th-row { text-align: left; }
+        .mw-table th .mw-sub { display: block; font-weight: 400; font-size: 9px; color: #cbd5e1; }
+        .mw-table td { padding: 4px 12px; border-bottom: 1px solid #f1f5f9; }
+        .mw-table tbody tr:last-child td { border-bottom: none; }
+        .mw-table tbody tr:hover { background: #f8fafc; }
+        .mw-row-label { color: #1e293b; font-weight: 500; white-space: nowrap; }
+        .mw-amount { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: #0f172a; cursor: pointer; }
+        .mw-amount span { display: inline-block; min-width: 56px; padding: 2px 8px; border-radius: 6px; transition: background .12s, color .12s, box-shadow .12s; }
+        .mw-amount:hover span { background: #eff6ff; color: #1d4ed8; box-shadow: inset 0 0 0 1px #bfdbfe; }
+        .mw-empty { text-align: right; color: #cbd5e1; }
+        .mw-badge { font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 6px; margin-left: 7px; letter-spacing: .02em; vertical-align: 1px; }
+        .mw-muted { color: #64748b; }
+
+        body.theme-dark .mw-section-head { background: #172033; color: #f1f5f9; border-color: #334155; }
+        body.theme-dark .mw-section-head.mw-youth { background: #2a2410; color: #fcd34d; border-bottom-color: #57430f; }
+        body.theme-dark .mw-table th { color: #94a3b8; border-color: #334155; }
+        body.theme-dark .mw-table th .mw-sub { color: #64748b; }
+        body.theme-dark .mw-table td { border-color: #1e293b; }
+        body.theme-dark .mw-table tbody tr:hover { background: #172033; }
+        body.theme-dark .mw-row-label { color: #e2e8f0; }
+        body.theme-dark .mw-amount { color: #f1f5f9; }
+        body.theme-dark .mw-amount:hover span { background: #1e3a8a; color: #fff; box-shadow: inset 0 0 0 1px #3b82f6; }
+        body.theme-dark .mw-empty { color: #475569; }
+        body.theme-dark .mw-muted { color: #94a3b8; }
+
         /* Search-Box, Filter, etc. — falls nicht durch input-Selektor abgedeckt */
         body.theme-dark .emp-search,
         body.theme-dark .lohn-search { background: #334155 !important; color: #f1f5f9 !important; border-color: #475569 !important; }
@@ -3012,6 +3050,13 @@
                         <div class="admin-card-title">SV-Sätze</div>
                         <div class="admin-card-desc">AHV, ALV, NBU, KTG, BVG — Prozentsätze</div>
                     </div>
+                    <div class="admin-card" onclick="showPage('mindestloehne')">
+                        <div class="admin-card-icon" style="background:#fef3c7;color:#92400e">
+                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M6 7l-3 5a3 3 0 0 0 6 0z"/><path d="M18 7l-3 5a3 3 0 0 0 6 0z"/><path d="M8 21h8"/></svg>
+                        </div>
+                        <div class="admin-card-title">Mindestlöhne</div>
+                        <div class="admin-card-desc">L-GAV Mindestlöhne nach Funktion, Modell und Ausbildung</div>
+                    </div>
                     <div class="admin-card" onclick="showPage('lohnpositionen')">
                         <div class="admin-card-icon" style="background:#ede9fe;color:#5b21b6">
                             <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
@@ -4581,6 +4626,25 @@
             </div>
 
             <!-- ═══ LOHNPOSITIONEN (LOHNRASTER) ═══ -->
+            <div class="page" id="page-mindestloehne">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Mindestlöhne</h1>
+                    <p class="page-sub">L-GAV Mindestlöhne nach Funktion, Modell und Ausbildung — versioniert (Änderung an beliebigem Stichtag)</p>
+                </div></div>
+                <div class="page-body">
+                    <div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+                        <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px">Stichtag
+                            <input type="date" id="mwStichtag" onchange="mwLoad()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;cursor:pointer">
+                            <input type="checkbox" id="mwShowAll" onchange="mwLoad()" style="cursor:pointer"> Alle Versionen anzeigen
+                        </label>
+                        <span id="mwInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
+                        <button class="btn-primary" onclick="mwOpenCopy()">+ Neue Sätze ab Datum</button>
+                    </div>
+                    <div id="mwContainer"></div>
+                </div>
+            </div>
             <div class="page" id="page-lohnpositionen">
                 <div class="page-head"><div>
                     <h1 class="page-title">Lohnpositionen</h1>
@@ -7137,7 +7201,7 @@ function roleName(r) { return r === 'admin' ? 'Administrator' : r === 'superuser
 // ══════════════════════════════════════════════
 // Mapping: Unterseiten → in Sidebar als "admin-hub" markieren, damit der
 // Systemeinstellungen-Eintrag aktiv bleibt wenn man in einem Admin-Bereich ist.
-const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen',
+const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne',
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','banken',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
                          'bank-import','permit-import','family-children-import','stammdaten-import','smtp-settings','filial-onboarding',
@@ -7187,6 +7251,7 @@ function showPage(name) {
     if (name === 'banken')       loadBanks();
     if (name === 'sv-saetze') loadSvSaetze();
     if (name === 'lohnpositionen') loadLohnpositionen();
+    if (name === 'mindestloehne') mwInit();
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
     if (name === 'qst-anmeldung') qstaInit();
@@ -7382,14 +7447,15 @@ function onBranchChange() {
 </script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
+<script src="js/save-blob.js?v=20260521a"></script>
 <script src="js/dashboard.js?v=20260518a"></script>
 <script src="js/permit-import.js?v=20260509b"></script>
 <script src="js/family-children-import.js?v=20260509b"></script>
 <script src="js/stammdaten-import.js?v=20260509b"></script>
 <script src="js/roster-absence-import.js?v=20260515a"></script>
-<script src="js/absence-report.js?v=20260515c"></script>
+<script src="js/absence-report.js?v=20260521a"></script>
 <script src="js/akonto-lauf.js?v=20260516a"></script>
-<script src="js/akonto-workflow.js?v=20260520d"></script>
+<script src="js/akonto-workflow.js?v=20260521a"></script>
 <script src="js/dok-audit.js?v=20260509b"></script>
 <script src="js/branches-detail.js?v=20260518a"></script>
 <script src="js/branch-modals.js?v=20260509b"></script>
@@ -7397,17 +7463,18 @@ function onBranchChange() {
 <script src="js/qst-modal.js?v=20260517a"></script>
 <script src="js/users.js?v=20260509b"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
-<script src="js/documents.js?v=20260509b"></script>
+<script src="js/documents.js?v=20260521a"></script>
 <script src="js/dvelop-import.js?v=20260509b"></script>
 <script src="js/bank-import.js?v=20260509b"></script>
 <script src="js/archive-import.js?v=20260509b"></script>
 <script src="js/dok-struktur.js?v=20260518b"></script>
-<script src="js/austritt.js?v=20260517a"></script>
-<script src="js/contracts-edit.js?v=20260517a"></script>
+<script src="js/austritt.js?v=20260521a"></script>
+<script src="js/contracts-edit.js?v=20260521a"></script>
 <script src="js/import-stempelzeiten.js?v=20260509b"></script>
-<script src="js/payroll.js?v=20260520m"></script>
-<script src="js/payroll-perioden.js?v=20260520b"></script>
+<script src="js/payroll.js?v=20260521a"></script>
+<script src="js/payroll-perioden.js?v=20260521a"></script>
 <script src="js/admin-settings.js?v=20260520a"></script>
+<script src="js/minimum-wages.js?v=20260520c"></script>
 <script src="js/lohn-edit-lock.js?v=20260517a"></script>
 <script src="js/i18n.js?v=20260518b"></script>
 <!-- FAMILIEN MODAL -->
@@ -8304,11 +8371,11 @@ function onBranchChange() {
      POSTEINGANG (Mailbox pro Filiale)
      ═══════════════════════════════════════════════════════════════════ -->
 <!-- ═══════════════ MODUL-SCRIPTS Block 2 (Phase A) ═══════════════ -->
-<script src="js/posteingang.js?v=20260509b"></script>
-<script src="js/hr-rav.js?v=20260509b"></script>
-<script src="js/hr-saldi-lohnlauf.js?v=20260517d"></script>
-<script src="js/hr-qst-anmeldung.js?v=20260509b"></script>
-<script src="js/hr-lohnausweis.js?v=20260512a"></script>
+<script src="js/posteingang.js?v=20260521a"></script>
+<script src="js/hr-rav.js?v=20260521a"></script>
+<script src="js/hr-saldi-lohnlauf.js?v=20260521a"></script>
+<script src="js/hr-qst-anmeldung.js?v=20260521a"></script>
+<script src="js/hr-lohnausweis.js?v=20260521a"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -8320,7 +8387,7 @@ function onBranchChange() {
 <!-- ═══════════════ MODUL-SCRIPTS Block 3 (Phase A) ═══════════════ -->
 <script src="js/keyboard-nav.js?v=20260516a"></script>
 <script src="js/smtp-settings.js?v=20260509b"></script>
-<script src="js/bfs-lse.js?v=20260509b"></script>
+<script src="js/bfs-lse.js?v=20260521a"></script>
 <script>init();</script>
 </body>
 </html>

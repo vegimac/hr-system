@@ -1189,11 +1189,10 @@ async function downloadContractPdf() {
     try {
         const res = await fetch(`/api/contracts/employment/${employmentId}/pdf`, { headers: { 'Authorization': `Bearer ${authToken}` } });
         if (!res.ok) { alert('Fehler beim PDF: ' + await res.text()); return; }
-        const blob = await res.blob(); const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
         const match = cd.match(/filename="?([^"]+)"?/);
-        a.download = match ? match[1] : 'Vertrag.pdf'; a.href = url; a.click(); URL.revokeObjectURL(url);
+        await saveBlobAsk(blob, match ? match[1] : 'Vertrag.pdf');
     } catch (err) { alert('Fehler: ' + err.message); }
     finally { if (btnPdf) { btnPdf.textContent = '📄 Vertrag als PDF'; btnPdf.disabled = false; } }
 }

@@ -361,14 +361,7 @@ async function perAkontoListePdf(cpId, year, month) {
             return;
         }
         const blob = await r.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Akonto_Liste_${cpId}_${year}-${String(month).padStart(2,'0')}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        await saveBlobAsk(blob, `Akonto_Liste_${cpId}_${year}-${String(month).padStart(2,'0')}.pdf`);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -388,14 +381,7 @@ async function perAkontoDtaDownload(cpId, year, month) {
             return;
         }
         const blob = await r.blob();
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href = url;
-        a.download = `Akonto_DTA_${cpId}_${year}-${String(month).padStart(2,'0')}.xml`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        await saveBlobAsk(blob, `Akonto_DTA_${cpId}_${year}-${String(month).padStart(2,'0')}.xml`);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }

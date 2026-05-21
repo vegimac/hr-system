@@ -81,7 +81,10 @@ public class LohnlaufController : ControllerBase
             var bytes = await _svc.GenerateDtaMaAsync(periodeId);
             Response.Headers.Append("Content-Disposition",
                 $"attachment; filename=\"DTA_MA_{periode.CompanyProfileId}_{periode.Year}-{periode.Month:D2}.xml\"");
-            return File(bytes, "application/xml");
+            // octet-stream statt application/xml: der Reverse-Proxy/WAF auf dem
+            // Server blockt XML-Antworten mit 403 (Walter-Bug 20.05.2026). Die
+            // Datei wird via Content-Disposition trotzdem als .xml gespeichert.
+            return File(bytes, "application/octet-stream");
         }
         catch (InvalidOperationException ex)
         {
@@ -103,7 +106,10 @@ public class LohnlaufController : ControllerBase
             var bytes = await _svc.GenerateDtaBehoerdenAsync(periodeId);
             Response.Headers.Append("Content-Disposition",
                 $"attachment; filename=\"DTA_Behoerden_{periode.CompanyProfileId}_{periode.Year}-{periode.Month:D2}.xml\"");
-            return File(bytes, "application/xml");
+            // octet-stream statt application/xml: der Reverse-Proxy/WAF auf dem
+            // Server blockt XML-Antworten mit 403 (Walter-Bug 20.05.2026). Die
+            // Datei wird via Content-Disposition trotzdem als .xml gespeichert.
+            return File(bytes, "application/octet-stream");
         }
         catch (InvalidOperationException ex)
         {

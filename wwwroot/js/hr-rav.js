@@ -157,12 +157,9 @@ function zviPdfClose() {
     _zviPdfEmpId = null;
 }
 
-function zviPdfDownload() {
-    if (!_zviPdfBlobUrl) return;
-    const a = document.createElement('a');
-    a.href = _zviPdfBlobUrl;
-    a.download = _zviPdfFilename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+async function zviPdfDownload() {
+    if (_zviPdfBlob) { await saveBlobAsk(_zviPdfBlob, _zviPdfFilename); return; }
+    await saveUrlAsk(_zviPdfBlobUrl, _zviPdfFilename);
 }
 
 function zviPdfPrint() {

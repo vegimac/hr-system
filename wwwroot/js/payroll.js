@@ -304,6 +304,10 @@ let _lohnSelectedEmpId = null;
 // status = Periode-Status ('offen' | 'provisorisch_abgeschlossen' | 'abgeschlossen').
 // snapByEmp = Snapshot-Status je MA (BERECHNET/FREIGEGEBEN_GF/HR_BESTAETIGT/ABGESCHLOSSEN).
 let _lohnWfData = null;
+// empId → { minimum, actual, unit, difference, message } für MA unter L-GAV-
+// Mindestlohn in der aktuellen Periode (Walter 20.05.2026). Speist Listen-⚠,
+// Status-Counter, Lohnzettel-Banner und die Bestätigen-Sperre.
+let _lohnMwUnderpaid = {};
 
 // Periode-Status-Optik (analog _AK_STATUS im Akonto-Tab).
 const _LOHN_STATUS = {
@@ -423,6 +427,7 @@ function _lohnWfRenderStatusBar() {
         <div title="${trail}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 4px;font-size:12px">
             <span style="background:${meta.bg};color:${meta.color};padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">${meta.label}</span>
             ${total > 0 ? `<span style="color:#64748b;white-space:nowrap">${counts}</span>` : ''}
+            ${d.mwUnderpaidCount > 0 ? `<span title="Diese MA können erst nach Lohnkorrektur bestätigt werden" style="color:#b91c1c;background:#fee2e2;padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">⚠ ${d.mwUnderpaidCount} unter Mindestlohn</span>` : ''}
             <span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:auto">${bemBtn}${actions}</span>
         </div>`;
 }
@@ -504,6 +509,14 @@ async function loadLohnList() {
             if (qRes.ok) (await qRes.json() || []).forEach(id => qstEmpIds.add(id));
         } catch {}
 
+        // Mindestlohn-Unterschreitungen der Periode (Walter 20.05.2026): markiert
+        // betroffene MA in der Liste + speist Banner/Counter/Bestätigen-Sperre.
+        _lohnMwUnderpaid = {};
+        try {
+            const mwRes = await fetch(`/api/minimum-wage-rules/check-period?companyProfileId=${cid}&year=${y}&month=${m}`, { headers: ah() });
+            if (mwRes.ok) (await mwRes.json() || []).forEach(u => { _lohnMwUnderpaid[u.employeeId] = u; });
+        } catch {}
+
         const res  = await fetch(`/api/employees`, { headers: ah() });
         const emps = await res.json();
 
@@ -553,6 +566,7 @@ async function loadLohnList() {
             gfConfirmed: active.filter(e => gfEmpIds.has(e.id)).length,
             hrConfirmed: active.filter(e => hrEmpIds.has(e.id)).length,
             activeTotal: active.length,
+            mwUnderpaidCount: active.filter(e => _lohnMwUnderpaid[e.id]).length,
         };
         window._currentLohnPeriode = _pData;
         // Legacy-Chrome (alte Status-Pille im Toolbar-Banner + alte statische
@@ -609,6 +623,11 @@ async function loadLohnList() {
             const isHrConfirmed = hrEmpIds.has(e.id);
             const isGfConfirmed = gfEmpIds.has(e.id);
             const isConfirmed   = isGfConfirmed;   // Legacy-Variable für Sortier-/Count-Logik
+            // Mindestlohn-Warnung (Walter 20.05.2026): ⚠ wenn unter L-GAV.
+            const mwWarn = _lohnMwUnderpaid[e.id];
+            const mwIcon = mwWarn
+                ? `<span title="${String(mwWarn.message || 'Lohn unter L-GAV-Mindestlohn').replace(/"/g,'&quot;')}" style="color:#dc2626;margin-left:5px;font-size:12px">⚠</span>`
+                : '';
             const statusIcon = isHrConfirmed ? '✓✓'
                               : isGfConfirmed ? '✓'
                               : initials.toUpperCase();
@@ -655,7 +674,7 @@ async function loadLohnList() {
                     ${statusIcon}
                 </div>
                 <div style="flex:1;min-width:0">
-                    <div class="lohn-emp-name" style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.firstName} ${e.lastName}</div>
+                    <div class="lohn-emp-name" style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.firstName} ${e.lastName}${mwIcon}</div>
                     <div class="lohn-emp-nr" style="font-size:11px;color:${statusTextColor}">${statusText}</div>
                 </div>
                 <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100px;flex-shrink:0">
@@ -1000,6 +1019,13 @@ async function jumpToMaForBankEntry(employeeId) {
 function renderLohnSlip(s, targetEl) {
     const mount = targetEl || document.getElementById('lohnSlip');
     if (!mount) return;
+    // Mindestlohn-Banner (Walter 20.05.2026): roter Hinweis wenn der aktuell
+    // gewählte MA unter dem L-GAV-Mindestlohn liegt. Quelle: _lohnMwUnderpaid
+    // (check-period). Bestätigen ist server- UND clientseitig gesperrt.
+    const _mwWarn = (typeof _lohnMwUnderpaid !== 'undefined') ? _lohnMwUnderpaid[_lohnSelectedEmpId] : null;
+    const _mwBanner = _mwWarn
+        ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">⚠ Mindestlohn unterschritten — Bestätigen gesperrt<div style="font-weight:400;margin-top:2px">${String(_mwWarn.message || '').replace(/</g,'&lt;')}</div></div>`
+        : '';
     // Helfer: "Gerechnet" — Wert wenn vorhanden und ungleich Betrag, sonst leer
     const renderAccrued = (l) => {
         const acc = l.accrued != null ? Number(l.accrued) : Number(l.betrag);
@@ -1032,6 +1058,7 @@ function renderLohnSlip(s, targetEl) {
 
     mount.innerHTML = `
     <div class="ls-wrap" style="padding-top:2px;padding-bottom:3px">
+        ${_mwBanner}
         <!-- Header weggelassen (Walter 16.05.2026): Filiale + Periode + MA stehen
              bereits oben im Akonto-/Lohn-Header der Page. "Lohnabrechnung"-Titel
              ist visuell durch die Tabelle selbst klar. Volle Adresse + Druck-
@@ -1458,6 +1485,15 @@ async function confirmLohn() {
     if (!lohnCurrentSlip) return;
     const s = lohnCurrentSlip;
 
+    // Mindestlohn-Sperre (Walter 20.05.2026): unter L-GAV → Bestätigen blockiert.
+    // Server blockt zusätzlich mit 409; dies ist nur die freundliche UX davor.
+    if (_lohnMwUnderpaid[s.employeeId]) {
+        alert('Bestätigen gesperrt — Mindestlohn unterschritten.\n\n'
+            + (_lohnMwUnderpaid[s.employeeId].message || 'Lohn unter L-GAV-Mindestlohn.')
+            + '\n\nBitte zuerst den Lohn im Vertrag korrigieren.');
+        return;
+    }
+
     // Periode holen oder erstellen
     const cid = s.companyId, year = s.year, month = s.month;
     let periode = await ensurePeriode(cid, year, month);
@@ -1794,6 +1830,10 @@ async function loadLohnPeriodBanner(companyId, year, month) {
 // das admin-only Lohnperioden-Modul. Endpoints existieren schon
 // (/api/lohnlauf/{periodeId}/vorab-pdf bzw. /dta-ma).
 
+// saveBlobAsk() + saveUrlAsk() leben jetzt zentral in js/save-blob.js
+// (Walter-Vorgabe 21.05.2026 — EINE kanonische Download-Stelle für das ganze
+// Programm). Hier nur noch genutzt, nicht mehr definiert.
+
 async function _lohnDownloadBlob(url, filenameHint) {
     try {
         const res = await fetch(url, { headers: ah() });
@@ -1806,12 +1846,7 @@ async function _lohnDownloadBlob(url, filenameHint) {
         const disp = res.headers.get('content-disposition') || '';
         const m    = disp.match(/filename\*?=["']?(?:UTF-8''|)([^;"']+)/i);
         const filename = (m && decodeURIComponent(m[1])) || filenameHint;
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 200);
+        await saveBlobAsk(blob, filename);
     } catch (e) {
         alert(`Download-Fehler: ${e.message}`);
     }
@@ -2051,14 +2086,8 @@ function lohnLohnbelegePdfClose() {
     _lohnLohnbelegePeriodeId = null;
 }
 
-function lohnLohnbelegePdfDownload() {
-    if (!_lohnLohnbelegePdfBlobUrl) return;
-    const a = document.createElement('a');
-    a.href = _lohnLohnbelegePdfBlobUrl;
-    a.download = _lohnLohnbelegePdfFilename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+async function lohnLohnbelegePdfDownload() {
+    await saveUrlAsk(_lohnLohnbelegePdfBlobUrl, _lohnLohnbelegePdfFilename);
 }
 
 function lohnLohnbelegePdfPrint() {
@@ -2089,11 +2118,7 @@ async function lohnDtaMaDownload() {
         const blob = await r.blob();
         const p = window._currentLohnPeriode || {};
         const filename = `DTA_MA_${p.companyProfileId || ''}_${p.year || ''}-${String(p.month || 0).padStart(2,'0')}.xml`;
-        const u = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = u; a.download = filename;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(u), 4000);
+        await saveBlobAsk(blob, filename);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -2329,12 +2354,9 @@ function lohnPdfClose() {
     _lohnPdfEmpId = null;
 }
 
-function lohnPdfDownload() {
-    if (!_lohnPdfBlobUrl) return;
-    const a = document.createElement('a');
-    a.href = _lohnPdfBlobUrl;
-    a.download = _lohnPdfFilename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+async function lohnPdfDownload() {
+    if (_lohnPdfBlob) { await saveBlobAsk(_lohnPdfBlob, _lohnPdfFilename); return; }
+    await saveUrlAsk(_lohnPdfBlobUrl, _lohnPdfFilename);
 }
 
 function lohnPdfPrint() {

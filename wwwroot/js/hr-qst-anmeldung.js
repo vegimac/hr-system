@@ -290,14 +290,9 @@ function qstaPdfClose() {
     _qstaPdfEmpId = null;
 }
 
-function qstaPdfDownload() {
-    if (!_qstaPdfBlobUrl) return;
-    const a = document.createElement('a');
-    a.href = _qstaPdfBlobUrl;
-    a.download = _qstaPdfFilename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+async function qstaPdfDownload() {
+    if (_qstaPdfBlob) { await saveBlobAsk(_qstaPdfBlob, _qstaPdfFilename); return; }
+    await saveUrlAsk(_qstaPdfBlobUrl, _qstaPdfFilename);
 }
 
 function qstaPdfPrint() {

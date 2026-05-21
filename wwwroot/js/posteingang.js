@@ -338,9 +338,7 @@ async function pbDownload(id) {
         const cd = r.headers.get('Content-Disposition') || '';
         const fnMatch = /filename="?([^"]+)"?/.exec(cd);
         const fn = fnMatch ? fnMatch[1] : `posteingang-${id}`;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = fn; a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        await saveBlobAsk(blob, fn);
     } catch (err) { alert('Download-Fehler: ' + err.message); }
 }
 

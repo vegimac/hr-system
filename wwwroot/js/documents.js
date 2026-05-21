@@ -523,13 +523,7 @@ function dokDownload(id) {
             const filename = m ? decodeURIComponent(m[1]) : 'download';
             return r.blob().then(blob => ({ blob, filename }));
         })
-        .then(({ blob, filename }) => {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = filename;
-            document.body.appendChild(a); a.click(); a.remove();
-            URL.revokeObjectURL(url);
-        })
+        .then(({ blob, filename }) => saveBlobAsk(blob, filename))
         .catch(err => alert('Download fehlgeschlagen: ' + err.message));
 }
 

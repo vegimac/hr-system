@@ -308,14 +308,7 @@ async function _arExport(format) {
         const m = /filename\*?=(?:UTF-8'')?["']?([^;"']+)["']?/i.exec(cd);
         const suffix = _arMode === 'cross' ? 'alle-filialen' : 'filiale';
         const filename = m ? decodeURIComponent(m[1]) : `absenz-auswertung-${suffix}-${year}.${format}`;
-        const downloadUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(downloadUrl);
+        await saveBlobAsk(blob, filename);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }

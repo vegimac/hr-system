@@ -35,15 +35,18 @@ public class AkontoWorkflowController : ControllerBase
     private readonly AppDbContext           _db;
     private readonly AkontoLaufService      _service;
     private readonly AkontoListePdfService  _listePdf;
+    private readonly MinimumWageCheckService _minWage;
     private readonly ILogger<AkontoWorkflowController> _log;
 
     public AkontoWorkflowController(AppDbContext db, AkontoLaufService service,
                                     AkontoListePdfService listePdf,
+                                    MinimumWageCheckService minWage,
                                     ILogger<AkontoWorkflowController> log)
     {
         _db       = db;
         _service  = service;
         _listePdf = listePdf;
+        _minWage  = minWage;
         _log      = log;
     }
 
@@ -225,7 +228,13 @@ public class AkontoWorkflowController : ControllerBase
                 }
                 if (existRec.Status == "AUSBEZAHLT")
                     continue;   // schon ausbezahlt, lassen
-                // BERECHNET → frische Werte rein
+                if (existRec.Status == "HR_BESTAETIGT")
+                    continue;   // HR-Bestätigung intakt lassen (Walter 19.05.2026)
+                // BERECHNET oder STORNIERT (nach Admin-Reset, Walter 20.05.2026)
+                // → frische Werte UND zurück auf BERECHNET (re)aktivieren. Sonst
+                //   bleibt ein vom Reset auf STORNIERT gestempelter MA hängen und
+                //   GF/HR können ihn nicht mehr freigeben.
+                existRec.Status            = "BERECHNET";
                 existRec.GeschaetzterBrutto = r.GeschaetzterBrutto;
                 existRec.GeschaetzteAbzuege = r.GeschaetzteAbzuege;
                 existRec.PfaendungAbzug     = r.PfaendungAbzug;
@@ -311,6 +320,34 @@ public class AkontoWorkflowController : ControllerBase
             return StatusCode(409, new { error = "Freigabe nur möglich solange Periode IN_BEARBEITUNG_GF ist." });
         if (z.Status == "AUSBEZAHLT")
             return StatusCode(409, new { error = "Datensatz bereits AUSBEZAHLT — unveränderlich." });
+
+        // Mindestlohn-Sperre (Walter-Vorgabe 20.05.2026): kein Akonto-Freigeben,
+        // wenn der vertragliche Lohn am Periodenende unter dem L-GAV-Mindestlohn
+        // liegt. Lohn aus dem Vertrag (server-autoritativ), nicht aus dem Request.
+        var mwTo     = new DateOnly(z.PeriodYear, z.PeriodMonth, DateTime.DaysInMonth(z.PeriodYear, z.PeriodMonth));
+        var mwFromDt = new DateTime(z.PeriodYear, z.PeriodMonth, 1);
+        var mwToDt   = mwTo.ToDateTime(TimeOnly.MinValue);
+        // DateTime-Vergleich (NICHT DateOnly.FromDateTime — das ist in EF/Npgsql
+        // nicht SQL-übersetzbar → 500). ContractStartDate ist DateTime (date-mid).
+        var mwEmp = await _db.Employments
+            .Where(e => e.EmployeeId == z.EmployeeId
+                     && e.IsActive
+                     && e.CompanyProfileId == z.CompanyProfileId
+                     && e.ContractStartDate <= mwToDt
+                     && (e.ContractEndDate == null || e.ContractEndDate >= mwFromDt))
+            .OrderByDescending(e => e.ContractStartDate)
+            .FirstOrDefaultAsync();
+        if (mwEmp != null)
+        {
+            var mwDob = await _db.Employees.Where(e => e.Id == z.EmployeeId)
+                .Select(e => e.DateOfBirth).FirstOrDefaultAsync();
+            var mwChk = await _minWage.CheckAsync(
+                mwEmp.JobTitle, mwEmp.EducationLevelCode, mwEmp.EmploymentModel,
+                mwEmp.EmploymentPercentage, mwEmp.HourlyRate, mwEmp.MonthlySalary,
+                mwDob, mwTo);
+            if (mwChk.Status == "UNDERPAID")
+                return StatusCode(409, new { error = "MINDESTLOHN_UNTERSCHRITTEN", message = mwChk.Message });
+        }
 
         z.Status            = "FREIGEGEBEN_GF";
         z.GfFreigegebenAt   = DateTime.UtcNow;
@@ -776,7 +813,10 @@ public class AkontoWorkflowController : ControllerBase
             var bytes = await _service.GenerateDtaAsync(companyProfileId, year, month);
             var filename = $"Akonto_DTA_{companyProfileId}_{year}-{month:D2}.xml";
             Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
-            return File(bytes, "application/xml");
+            // octet-stream statt application/xml: der Reverse-Proxy/WAF auf dem
+            // Server blockt XML-Antworten mit 403 (Walter-Bug 20.05.2026). Datei
+            // wird via Content-Disposition trotzdem als .xml gespeichert.
+            return File(bytes, "application/octet-stream");
         }
         catch (InvalidOperationException ex)
         {

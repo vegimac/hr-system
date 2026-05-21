@@ -369,15 +369,8 @@ async function laGeneratePdf() {
             return;
         }
         const blob = await r.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
         const name = (_laCurrentEmp.name || 'Lohnausweis').replace(/[^a-zA-Z0-9_-]/g, '_');
-        a.download = `Lohnausweis_${_laCurrentYear}_${name}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        await saveBlobAsk(blob, `Lohnausweis_${_laCurrentYear}_${name}.pdf`);
     } catch (ex) {
         alert('Fehler beim PDF-Generieren: ' + ex.message);
     }

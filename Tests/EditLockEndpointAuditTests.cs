@@ -62,6 +62,7 @@ public class EditLockEndpointAuditTests
         ["FamilienzulagenTarifeController"]= "Familienzulagen-Tarife (Kanton) — keine MA-Daten",
         ["ContractTextsController"]        = "Vertragstexte-Vorlagen — keine MA-Daten",
         ["SocialInsuranceRatesController"] = "SV-Sätze (AHV/ALV/NBU/KTG) — keine MA-Daten",
+        ["MinimumWageRulesController"]     = "L-GAV Mindestlohn-Sätze (Katalog, versioniert) — keine MA-Daten",
 
         // Firmen-Stammdaten — admin only, gehört nicht in den User-Lock
         ["CompanyProfilesController"]      = "Filial-Stammdaten — admin-only, kein User-Edit-Pfad",

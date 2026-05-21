@@ -829,12 +829,8 @@ function closeLlVorabPdf() {
     if (_llVorabPdfBlobUrl) { URL.revokeObjectURL(_llVorabPdfBlobUrl); _llVorabPdfBlobUrl = null; }
 }
 
-function llVorabPdfDownload() {
-    if (!_llVorabPdfBlobUrl) return;
-    const a = document.createElement('a');
-    a.href = _llVorabPdfBlobUrl;
-    a.download = `Lohnlauf_Vorab_${_llCurrentPeriodeId}.pdf`;
-    a.click();
+async function llVorabPdfDownload() {
+    await saveUrlAsk(_llVorabPdfBlobUrl, `Lohnlauf_Vorab_${_llCurrentPeriodeId}.pdf`);
 }
 
 function llVorabPdfPrint() {
@@ -862,12 +858,7 @@ async function llDownloadDta(typ) {
             return;
         }
         const blob = await r.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = objectUrl;
-        a.download = `DTA_${typ === 'ma' ? 'Mitarbeiter' : 'Behoerden'}_Periode_${_llCurrentPeriodeId}.xml`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        await saveBlobAsk(blob, `DTA_${typ === 'ma' ? 'Mitarbeiter' : 'Behoerden'}_Periode_${_llCurrentPeriodeId}.xml`);
         showToast(_t('ll.dta.toast'), 'success');
     } catch (e) {
         alert(_t('ll.dta.connError', { msg: e.message }));

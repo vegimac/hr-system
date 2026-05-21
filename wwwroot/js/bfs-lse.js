@@ -122,12 +122,7 @@ async function lseDownloadCsv() {
             return;
         }
         const blob = await r.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `LSE_${year}-${String(month).padStart(2,'0')}${_lseAllBranches ? '_alle' : ''}.csv`;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        await saveBlobAsk(blob, `LSE_${year}-${String(month).padStart(2,'0')}${_lseAllBranches ? '_alle' : ''}.csv`);
     } catch (e) {
         alert(_t('lse.dyn.netError', { msg: e.message }));
     }

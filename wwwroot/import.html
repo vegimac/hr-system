@@ -475,6 +475,8 @@ body.theme-dark td { border-color: #334155 !important; color: #f1f5f9 !important
     </div>
 </div>
 
+<!-- Kanonischer Download-Helfer: saveBlobAsk/saveUrlAsk (Walter 21.05.2026) -->
+<script src="js/save-blob.js?v=20260521a"></script>
 <script>
 // ── AUTH ──────────────────────────────────────────────
 // Token from URL param (passed from index.html) or localStorage
@@ -1750,12 +1752,9 @@ async function downloadContractPdf(employmentId) {
         const res = await fetch(`/api/contracts/employment/${employmentId}/pdf`, { headers: ah() });
         if (!res.ok) { alert('PDF-Fehler: ' + await res.text()); return; }
         const blob = await res.blob();
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
         const cd   = res.headers.get('Content-Disposition') || '';
         const m    = cd.match(/filename="?([^"]+)"?/);
-        a.download = m ? m[1] : 'Vertrag.pdf';
-        a.href = url; a.click(); URL.revokeObjectURL(url);
+        await saveBlobAsk(blob, m ? m[1] : 'Vertrag.pdf');
     } catch(e) { alert('Fehler: ' + e.message); }
 }
 
@@ -2282,12 +2281,9 @@ async function downloadPdf(employmentId, btnId) {
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
         const cd = res.headers.get('content-disposition') || '';
         const match = cd.match(/filename="?([^"]+)"?/);
-        const a = document.createElement('a');
-        a.download = match ? match[1] : 'Vertrag.pdf';
-        a.href = url; a.click(); URL.revokeObjectURL(url);
+        await saveBlobAsk(blob, match ? match[1] : 'Vertrag.pdf');
     } catch(e) {
         alert('PDF Fehler: ' + e.message);
     } finally {

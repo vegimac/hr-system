@@ -25,6 +25,7 @@ public class PayrollController : ControllerBase
     private readonly FerienKuerzungService _ferienKuerzung;
     private readonly PayrollPdfService _payrollPdf;
     private readonly PayrollCalculationEngine _calcEngine;
+    private readonly MinimumWageCheckService _minWage;
 
     public PayrollController(
         AppDbContext db,
@@ -34,7 +35,8 @@ public class PayrollController : ControllerBase
         LgavBeitragService lgav,
         FerienKuerzungService ferienKuerzung,
         PayrollPdfService payrollPdf,
-        PayrollCalculationEngine calcEngine)
+        PayrollCalculationEngine calcEngine,
+        MinimumWageCheckService minWage)
     {
         _db             = db;
         _tarifService   = tarifService;
@@ -44,6 +46,7 @@ public class PayrollController : ControllerBase
         _ferienKuerzung = ferienKuerzung;
         _payrollPdf     = payrollPdf;
         _calcEngine     = calcEngine;
+        _minWage        = minWage;
     }
 
     // GET /api/payroll/calculate?employeeId=X&year=Y&month=M&companyProfileId=Z
@@ -247,6 +250,37 @@ public class PayrollController : ControllerBase
 
         if (srvNode["pausiert"] is { } pausNode && pausNode.GetValueKind() == JsonValueKind.True)
             return Conflict(new { error = "Mitarbeiter ist in diesem Monat über die KTG-Versicherung abgerechnet (Pause) — keine Bestätigung möglich." });
+
+        // ── Mindestlohn-Sperre (Walter-Vorgabe 20.05.2026) ─────────────────────
+        // Liegt der vertragliche Lohn am Periodenende unter dem L-GAV-Mindestlohn,
+        // ist die Bestätigung HART gesperrt — erst Lohn korrigieren. Der Lohn wird
+        // aus dem in der Periode gültigen Vertrag genommen (server-autoritativ,
+        // nicht aus dem Request). Greift auch wenn ein NEUER Mindestlohn rückwirkend
+        // ab einem Datum gilt, das in diese Periode fällt.
+        var (mwFrom, mwTo) = CalcPeriod(dto.Year, dto.Month);
+        var mwFromDt = mwFrom.ToDateTime(TimeOnly.MinValue);
+        var mwToDt   = mwTo.ToDateTime(TimeOnly.MinValue);
+        // DateTime-Vergleich (NICHT DateOnly.FromDateTime — in EF/Npgsql nicht
+        // SQL-übersetzbar → 500). ContractStartDate ist DateTime (date-mid).
+        var mwEmp = await _db.Employments
+            .Where(e => e.EmployeeId == dto.EmployeeId
+                     && e.IsActive
+                     && e.CompanyProfileId == dto.CompanyProfileId
+                     && e.ContractStartDate <= mwToDt
+                     && (e.ContractEndDate == null || e.ContractEndDate >= mwFromDt))
+            .OrderByDescending(e => e.ContractStartDate)
+            .FirstOrDefaultAsync();
+        if (mwEmp != null)
+        {
+            var mwDob = await _db.Employees.Where(e => e.Id == dto.EmployeeId)
+                .Select(e => e.DateOfBirth).FirstOrDefaultAsync();
+            var mwChk = await _minWage.CheckAsync(
+                mwEmp.JobTitle, mwEmp.EducationLevelCode, mwEmp.EmploymentModel,
+                mwEmp.EmploymentPercentage, mwEmp.HourlyRate, mwEmp.MonthlySalary,
+                mwDob, mwTo);
+            if (mwChk.Status == "UNDERPAID")
+                return Conflict(new { error = "MINDESTLOHN_UNTERSCHRITTEN", message = mwChk.Message });
+        }
 
         decimal SrvDec(string key)
         {

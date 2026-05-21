@@ -463,12 +463,18 @@ async function akWfRefresh() {
         const lastDay       = new Date(year, month, 0).getDate();
         const periodToIso   = `${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
 
-        const [r, rEmp, rQst] = await Promise.all([
+        const [r, rEmp, rQst, rMw] = await Promise.all([
             fetch(`/api/akonto/workflow/status?companyProfileId=${branchId}&year=${year}&month=${month}&_=${ts}`,
                   { headers: ah(), cache: 'no-store' }),
             fetch(`/api/employees`, { headers: ah() }),
             fetch(`/api/employee-quellensteuer/active-employee-ids?from=${periodFromIso}&to=${periodToIso}`, { headers: ah() }),
+            fetch(`/api/minimum-wage-rules/check-period?companyProfileId=${branchId}&year=${year}&month=${month}`, { headers: ah() }),
         ]);
+        // Mindestlohn-Unterschreitungen der Periode (Walter 20.05.2026): markiert
+        // betroffene MA in der Liste + speist Banner/Counter/Freigabe-Sperre.
+        // Geteilt mit dem Definitivlauf (globales _lohnMwUnderpaid aus payroll.js).
+        _lohnMwUnderpaid = {};
+        if (rMw && rMw.ok) { try { (await rMw.json() || []).forEach(u => { _lohnMwUnderpaid[u.employeeId] = u; }); } catch {} }
         if (!r.ok) {
             if (bar) bar.innerHTML = _akWfAlert('Fehler beim Laden des Akonto-Status (HTTP ' + r.status + ').', 'err');
             return;
@@ -643,6 +649,7 @@ function _akWfRenderStatusBar() {
         <div title="${trail}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 4px;font-size:12px">
             <span style="background:${meta.bg};color:${meta.color};padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">${meta.label}</span>
             ${d.countTotal > 0 ? `<span style="color:#64748b;white-space:nowrap">${counts}</span>` : ''}
+            ${(() => { const c = (d.zahlungen||[]).filter(z => _lohnMwUnderpaid[z.employeeId]).length; return c > 0 ? `<span title="Diese MA können erst nach Lohnkorrektur freigegeben werden" style="color:#b91c1c;background:#fee2e2;padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">⚠ ${c} unter Mindestlohn</span>` : ''; })()}
             ${actions ? `<span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:auto">${actions}</span>` : ''}
         </div>`;
 }
@@ -698,6 +705,8 @@ function _akWfRenderMaList() {
 
         const initials = ((r.firstName||'')[0]||'') + ((r.lastName||'')[0]||'');
         const warn = !r.bankAccountCount ? ` <span title="Keine aktive Bankverbindung" style="color:#b91c1c">⚠</span>` : '';
+        const _mwW = (typeof _lohnMwUnderpaid !== 'undefined') ? _lohnMwUnderpaid[r.employeeId] : null;
+        const mwIcon = _mwW ? ` <span title="${String(_mwW.message||'Lohn unter L-GAV-Mindestlohn').replace(/"/g,'&quot;')}" style="color:#dc2626">⚠ Mindestlohn</span>` : '';
         const hrNote = r.kommentarHr
             ? (r.status === 'BERECHNET'
                 ? ` <span title="HR-Notiz: ${(r.kommentarHr||'').replace(/"/g,'&quot;')}" style="color:#b45309">📝</span>`
@@ -734,7 +743,7 @@ function _akWfRenderMaList() {
         row.innerHTML = `
             ${avatarHtml}
             <div style="flex:1;min-width:0">
-                <div class="lohn-emp-name" style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.firstName} ${r.lastName}${warn}${hrNote}</div>
+                <div class="lohn-emp-name" style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.firstName} ${r.lastName}${warn}${hrNote}${mwIcon}</div>
                 <div class="lohn-emp-nr" style="font-size:11px;color:${sublineColor}">${sublineText}</div>
             </div>
             <!-- Walter 18.05.2026: Vertrags-Badge IMMER links, QST-Button IMMER
@@ -775,6 +784,10 @@ function _akWfRenderMaList() {
 
 function akWfSelectMa(id) {
     _akWfSelectedId = id;
+    // employeeId für den Mindestlohn-Banner in renderLohnSlip mitführen
+    // (renderLohnSlip liest _lohnMwUnderpaid[_lohnSelectedEmpId]).
+    const _zSel = (_akWfData?.zahlungen || []).find(z => z.id === id);
+    if (_zSel) _lohnSelectedEmpId = _zSel.employeeId;
     _akWfRenderMaList();    // re-render für active-Highlight
     filterAkontoMaList();   // Sucher-Filter ggf. erneut anwenden
     _akWfRenderStatusBar(); // per-MA-Aktionen (Freigeben/Zurückziehen) neu rendern
@@ -1230,6 +1243,15 @@ async function akWfStart() {
 }
 
 async function akWfFreigeben(id) {
+    // Mindestlohn-Sperre (Walter 20.05.2026): unter L-GAV → Freigabe blockiert.
+    // Server blockt zusätzlich mit 409; dies ist die freundliche UX davor.
+    const _zChk = (_akWfData?.zahlungen || []).find(z => z.id === id);
+    if (_zChk && _lohnMwUnderpaid[_zChk.employeeId]) {
+        alert('Freigabe gesperrt — Mindestlohn unterschritten.\n\n'
+            + (_lohnMwUnderpaid[_zChk.employeeId].message || 'Lohn unter L-GAV-Mindestlohn.')
+            + '\n\nBitte zuerst den Lohn im Vertrag korrigieren.');
+        return;
+    }
     await _akWfPost(`/freigeben/${id}`, {});
     // Nach erfolgreicher Freigabe automatisch zum nächsten unbearbeiteten
     // MA springen (Walter 16.05.2026 — 44 MA pro Filiale, sonst zu viele
@@ -1415,14 +1437,8 @@ function akWfListePdfClose() {
     }
 }
 
-function akWfListePdfDownload() {
-    if (!_akWfListePdfBlobUrl) return;
-    const a = document.createElement('a');
-    a.href = _akWfListePdfBlobUrl;
-    a.download = _akWfListePdfFilename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+async function akWfListePdfDownload() {
+    await saveUrlAsk(_akWfListePdfBlobUrl, _akWfListePdfFilename);
 }
 
 function akWfListePdfPrint() {
@@ -1448,14 +1464,9 @@ async function _akWfDownloadFile(url, filename) {
             return;
         }
         const blob = await r.blob();
-        const objUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = objUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+        // „Speichern unter…"-Dialog statt stiller Auto-Download (Walter 20.05.2026).
+        // Gemeinsamer Helfer aus payroll.js.
+        await saveBlobAsk(blob, filename);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }

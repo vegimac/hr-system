@@ -72,9 +72,14 @@ public class Iso20022PainService
 
     private XElement BuildCstmrCdtTrfInitn(DtaRequest req)
     {
+        // CtrlSum = exakte Summe ALLER InstdAmt im File. Jeder Betrag wird VOR
+        // dem Aufsummieren auf 2 Nachkommastellen gerundet — exakt so wie er
+        // dann auch als InstdAmt ausgegeben wird (siehe BuildTransaction →
+        // FmtAmount(R2(p.Amount))). Dadurch kann die Kontrollsumme niemals von
+        // der Summe der Einzelpositionen abweichen.
         decimal total = 0;
-        foreach (var p in req.Payments) total += p.Amount;
-        total = Math.Round(total, 2);
+        foreach (var p in req.Payments) total += R2(p.Amount);
+        total = R2(total);
 
         return new XElement(Ns + "CstmrCdtTrfInitn",
             BuildGroupHeader(req, total),
@@ -83,13 +88,19 @@ public class Iso20022PainService
     }
 
     private XElement BuildGroupHeader(DtaRequest req, decimal total) =>
-        // SPS 2024-konform aufgeräumt (Walter 19.05.2026):
+        // SPS 2024-konform (Walter 21.05.2026):
         //   • InitgPty enthält NUR den Namen (PstlAdr ist verboten — siehe alter Bug-Report).
-        //   • CtrlSum entfällt — Schweizer Banken prüfen das nicht, A-Level übernimmt die Summen.
+        //   • CtrlSum WIEDER drin: die LUKB (und weitere Banken) interpretieren
+        //     eine FEHLENDE CtrlSum als 0.00 und melden dann „widersprüchliche
+        //     Kontrollsumme im Vergleich zum Datei-Inhalt". CtrlSum ist im
+        //     pain.001.001.09 optional, MUSS aber — wenn vorhanden — exakt der
+        //     Summe aller InstdAmt entsprechen. Reihenfolge: nach NbOfTxs,
+        //     vor InitgPty (Schema-Sequence).
         new(Ns + "GrpHdr",
             new XElement(Ns + "MsgId",   Truncate(req.MessageId, 35)),
             new XElement(Ns + "CreDtTm", req.CreationDateTime.ToString("yyyy-MM-ddTHH:mm:ss")),
             new XElement(Ns + "NbOfTxs", req.Payments.Count.ToString(CultureInfo.InvariantCulture)),
+            new XElement(Ns + "CtrlSum", FmtAmount(total)),
             new XElement(Ns + "InitgPty",
                 new XElement(Ns + "Nm", Truncate(req.InitiatorName, 70))
             )
@@ -97,8 +108,11 @@ public class Iso20022PainService
 
     private XElement BuildPaymentInfo(DtaRequest req, decimal total)
     {
-        // SPS 2024-konform (Walter 19.05.2026):
-        //   • CtrlSum entfällt (gleiches Argument wie GrpHdr — Banken prüfen nicht).
+        // SPS 2024-konform (Walter 21.05.2026):
+        //   • CtrlSum WIEDER drin (gleicher Grund wie GrpHdr) — auf PmtInf-Ebene
+        //     muss sie der Summe der InstdAmt innerhalb dieser PmtInf entsprechen.
+        //     Da es genau EINE PmtInf pro File gibt, ist das identisch mit der
+        //     GrpHdr-CtrlSum. Reihenfolge: nach NbOfTxs, vor ReqdExctnDt.
         //   • PmtTpInf/SvcLvl/Prtry „CH01" entfällt — der GEFEG-Validator weist
         //     darauf hin dass Prtry-Werte nur in Absprache mit der Bank gehören;
         //     ohne SvcLvl wählt die Bank ihr Inland-Default-Verhalten (für CH-IBAN-
@@ -109,6 +123,7 @@ public class Iso20022PainService
             new XElement(Ns + "PmtMtd",    "TRF"),
             new XElement(Ns + "BtchBookg", "true"),
             new XElement(Ns + "NbOfTxs",   req.Payments.Count.ToString(CultureInfo.InvariantCulture)),
+            new XElement(Ns + "CtrlSum",   FmtAmount(total)),
             new XElement(Ns + "ReqdExctnDt",
                 new XElement(Ns + "Dt", req.ExecutionDate.ToString("yyyy-MM-dd"))
             ),
@@ -137,7 +152,7 @@ public class Iso20022PainService
             new XElement(Ns + "Amt",
                 new XElement(Ns + "InstdAmt",
                     new XAttribute("Ccy", "CHF"),
-                    FmtAmount(p.Amount)
+                    FmtAmount(R2(p.Amount))
                 )
             )
         );
@@ -250,6 +265,12 @@ public class Iso20022PainService
 
     private static string NormalizeIban(string iban)
         => new string(iban.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpperInvariant();
+
+    // Auf 2 Nachkommastellen runden (kaufmännisch). Wird sowohl für jeden
+    // InstdAmt als auch für die CtrlSum-Aufsummierung verwendet, damit beide
+    // garantiert übereinstimmen.
+    private static decimal R2(decimal v)
+        => Math.Round(v, 2, MidpointRounding.AwayFromZero);
 
     private static string FmtAmount(decimal v)
         => v.ToString("F2", CultureInfo.InvariantCulture);
