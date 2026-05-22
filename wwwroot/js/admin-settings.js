@@ -1021,6 +1021,20 @@ function svRender() {
 
     const codeColor = { AHV: '#3b82f6', ALV: '#f59e0b', NBUV: '#10b981', KTG: '#06b6d4', BVG: '#8b5cf6', BVG_ZUSATZ: '#ec4899' };
     const basisLabel = { gross: 'Brutto', bvg_basis: 'BVG-Basis', coord_deduction: 'Koord.-Abzug' };
+    // Kompakte Grenzen-Zeile (Koordinationsabzug / Min / Max / Eintrittsschwelle /
+    // Höchstlohn) als kleine 2. Zeile in der Basis-Spalte — damit man BVG-Limits &
+    // Höchstlöhne auf einen Blick sieht, ohne ins Bearbeiten-Formular zu müssen.
+    const chf = v => Number(v).toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const svLimits = (r) => {
+        const parts = [];
+        if (r.coordinationDeduction != null) parts.push(`Koord. ${chf(r.coordinationDeduction)}`);
+        if (r.minBaseMonthly       != null) parts.push(`min ${chf(r.minBaseMonthly)}`);
+        if (r.maxBaseFlatMonthly   != null) parts.push(`max ${chf(r.maxBaseFlatMonthly)}`);
+        if (r.maxBaseMonthly       != null) parts.push(`Höchst. ${chf(r.maxBaseMonthly)}`);
+        if (r.entryThresholdYearly != null) parts.push(`Eintritt ${chf(r.entryThresholdYearly)}/J`);
+        if (r.freibetragMonthly    != null) parts.push(`Freibetr. ${chf(r.freibetragMonthly)}`);
+        return parts.length ? `<div style="font-size:10.5px;color:#94a3b8;margin-top:2px">${parts.join(' · ')}</div>` : '';
+    };
     // Datum IMMER TT.MM.JJJJ (Walter-Vorgabe, gilt überall). Backend liefert ISO.
     const fmtDate = d => {
         if (!d) return '–';
@@ -1074,7 +1088,7 @@ function svRender() {
             <td style="padding:10px 14px;font-weight:500;color:#1e293b;white-space:nowrap">${r.name}${lockPill}</td>
             <td style="padding:10px 14px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap">${rate.toFixed(3)} %</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#cbd5e1'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(3) + ' %' : '—'}</td>
-            <td style="padding:10px 14px;color:#64748b;font-size:12px;white-space:nowrap">${basisLabel[r.basisType] ?? r.basisType}</td>
+            <td style="padding:10px 14px;color:#64748b;font-size:12px;white-space:nowrap">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
             <td style="padding:10px 14px;text-align:center;color:#64748b;font-size:12px;white-space:nowrap">${fmtAge(r.minAge, r.maxAge)}</td>
             <td style="padding:10px 14px">${modelBadge}</td>
             <td style="padding:10px 14px;font-size:12px;white-space:nowrap">${(() => {
