@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
@@ -26,6 +27,9 @@ public class PayrollController : ControllerBase
     private readonly PayrollPdfService _payrollPdf;
     private readonly PayrollCalculationEngine _calcEngine;
     private readonly MinimumWageCheckService _minWage;
+    private readonly LohnSaldoListePdfService _saldoListePdf;
+    private readonly FibuJournalService _fibuJournal;
+    private readonly SnapshotRecomputeService _snapshotRecompute;
 
     public PayrollController(
         AppDbContext db,
@@ -36,7 +40,10 @@ public class PayrollController : ControllerBase
         FerienKuerzungService ferienKuerzung,
         PayrollPdfService payrollPdf,
         PayrollCalculationEngine calcEngine,
-        MinimumWageCheckService minWage)
+        MinimumWageCheckService minWage,
+        LohnSaldoListePdfService saldoListePdf,
+        FibuJournalService fibuJournal,
+        SnapshotRecomputeService snapshotRecompute)
     {
         _db             = db;
         _tarifService   = tarifService;
@@ -47,6 +54,160 @@ public class PayrollController : ControllerBase
         _payrollPdf     = payrollPdf;
         _calcEngine     = calcEngine;
         _minWage        = minWage;
+        _saldoListePdf  = saldoListePdf;
+        _fibuJournal    = fibuJournal;
+        _snapshotRecompute = snapshotRecompute;
+    }
+
+    // GET /api/payroll/fibu-journal?companyProfileId&year&month  → Fibu-Journal-PDF
+    // (Buchungsjournal aus den bestätigten Snapshots, Walter 22.05.2026). HR-only.
+    [HttpGet("fibu-journal")]
+    public async Task<IActionResult> FibuJournal(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        try
+        {
+            var pdf = await _fibuJournal.GeneratePdfAsync(companyProfileId, year, month);
+            return File(pdf, "application/pdf");
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+    }
+
+    // POST /api/payroll/refresh-snapshot-codes?companyProfileId&year&month  (admin-only)
+    // Wartung (Walter 22.05.2026): trägt die Fibu-Codes (categoryCode/code) in
+    // bestehende Snapshots nach — nötig fürs Fibu-Journal bei Perioden, die VOR
+    // dem Code-Feature bestätigt wurden.
+    //
+    // WICHTIG (amount-preserving): der frisch berechnete Slip dient NUR als
+    // Code-Quelle. Pro existierender Abzugs-/Lohnzeile wird per Bezeichnung die
+    // passende frische Zeile gesucht und NUR categoryCode/code übernommen — der
+    // gespeicherte `betrag` bleibt unangetastet. Würden wir die Arrays wholesale
+    // ersetzen, könnte ein seit dem Bestätigen veränderter Wert (z. B. LGAV, das
+    // EnsureAsync nachträglich pro MA ergänzt — EnsureAsync committet selbst) in
+    // den eingefrorenen Snapshot sickern → Durchlaufkonto 1920 ginge nicht mehr
+    // auf. Frozen bleibt frozen; das Journal spiegelt exakt das Bestätigte.
+    [HttpPost("refresh-snapshot-codes")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> RefreshSnapshotCodes(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId && p.Year == year && p.Month == month);
+        if (periode == null) return NotFound(new { error = "Periode nicht gefunden." });
+
+        var snaps = await _db.PayrollSnapshots
+            .Where(s => s.PayrollPeriodeId == periode.Id && s.Status != "STORNIERT")
+            .ToListAsync();
+
+        var camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        int updated = 0;
+        foreach (var s in snaps)
+        {
+            var calc = await _calcEngine.CalculateAsync(s.EmployeeId, year, month, companyProfileId);
+            if (calc is not OkObjectResult ok || ok.Value is null) continue;
+
+            JsonNode? fresh;
+            JsonNode? existing;
+            try { fresh    = JsonNode.Parse(JsonSerializer.Serialize(ok.Value, camel)); }
+            catch { continue; }
+            try { existing = JsonNode.Parse(string.IsNullOrWhiteSpace(s.SlipJson) ? "{}" : s.SlipJson); }
+            catch { continue; }
+            if (fresh is null || existing is null) continue;
+
+            bool changed = MergeLineCodes(existing["abzugLines"], fresh["abzugLines"]);
+            changed     |= MergeLineCodes(existing["lohnLines"],  fresh["lohnLines"]);
+            if (!changed) continue;
+
+            s.SlipJson  = existing.ToJsonString();
+            s.UpdatedAt = DateTime.UtcNow;
+            updated++;
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new { updated, total = snaps.Count });
+    }
+
+    // Überträgt categoryCode/code von den frischen Zeilen auf die bestehenden,
+    // gematcht über die Bezeichnung. Verändert KEINE Beträge. Liefert true, wenn
+    // mindestens ein Code gesetzt wurde.
+    private static bool MergeLineCodes(JsonNode? existingArr, JsonNode? freshArr)
+    {
+        if (existingArr is not JsonArray ex || freshArr is not JsonArray fr) return false;
+        bool changed = false;
+        foreach (var exNode in ex)
+        {
+            if (exNode is not JsonObject exObj) continue;
+            var bez = exObj["bezeichnung"]?.GetValue<string>();
+            if (string.IsNullOrEmpty(bez)) continue;
+
+            foreach (var frNode in fr)
+            {
+                if (frNode is not JsonObject frObj) continue;
+                if (frObj["bezeichnung"]?.GetValue<string>() != bez) continue;
+
+                if (exObj["categoryCode"] is null && frObj["categoryCode"] is JsonNode cc)
+                { exObj["categoryCode"] = cc.DeepClone(); changed = true; }
+                if (exObj["code"] is null && frObj["code"] is JsonNode cd)
+                { exObj["code"] = cd.DeepClone(); changed = true; }
+                break;
+            }
+        }
+        return changed;
+    }
+
+    // POST /api/payroll/recompute-snapshots?companyProfileId&year&month  (admin-only)
+    // Reparatur-Werkzeug (Walter 22.05.2026): rechnet jeden Snapshot der Periode
+    // via CalculateAsync NEU und überschreibt Brutto + Netto + SlipJson GEMEINSAM
+    // aus EINER frischen Rechnung. Der Workflow-Status bleibt.
+    //
+    // Anlass: ein früherer Refresh hatte NUR SlipJson überschrieben, nicht aber
+    // Brutto/Netto → Snapshot und Slip liefen auseinander (z.B. LGAV 2'970 im Slip
+    // vs. 2'123.94 im eingefrorenen Netto) → Durchlaufkonto 1920 ging nicht auf.
+    // Hier werden alle drei zusammen gesetzt, damit Brutto = Netto + Abzüge gilt.
+    //
+    // ACHTUNG: überschreibt die eingefrorenen Beträge mit der aktuellen Rechnung.
+    // Nur sinnvoll, wenn die Periode noch NICHT effektiv (DTA) ausbezahlt ist.
+    [HttpPost("recompute-snapshots")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> RecomputeSnapshots(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId && p.Year == year && p.Month == month);
+        if (periode == null) return NotFound(new { error = "Periode nicht gefunden." });
+
+        var total = await _db.PayrollSnapshots
+            .CountAsync(s => s.PayrollPeriodeId == periode.Id && s.Status != "STORNIERT");
+        var updated = await _snapshotRecompute.RecomputeAsync(companyProfileId, year, month);
+        return Ok(new { updated, total });
+    }
+
+    // ── Saldo-Listen zum Definitiv-Abschluss (Walter-Vorgabe 21.05.2026) ──────
+    // Zwei PDFs pro Filiale + Periode, on-demand aus den persistierten
+    // PayrollSaldo-Zeilen. „buchhaltung" = alle Saldi + Brutto/Netto + IBAN;
+    // „gf" = kompakte Übersicht (UTP ohne 13. ML). HR-only Rollen reichen
+    // (DefaultPolicy admin/superuser/user); read-only, kein Edit-Lock-Belang.
+    [HttpGet("saldo-liste-buchhaltung")]
+    public async Task<IActionResult> SaldoListeBuchhaltung(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        try
+        {
+            var pdf = await _saldoListePdf.GenerateBuchhaltungAsync(companyProfileId, year, month);
+            return File(pdf, "application/pdf");
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+    }
+
+    [HttpGet("saldo-liste-gf")]
+    public async Task<IActionResult> SaldoListeGf(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        try
+        {
+            var pdf = await _saldoListePdf.GenerateGfAsync(companyProfileId, year, month);
+            return File(pdf, "application/pdf");
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
     }
 
     // GET /api/payroll/calculate?employeeId=X&year=Y&month=M&companyProfileId=Z
@@ -272,6 +433,16 @@ public class PayrollController : ControllerBase
             .FirstOrDefaultAsync();
         if (mwEmp != null)
         {
+            // ── Lohnsumme-fehlt-Sperre (Walter-Vorgabe 21.05.2026) ──────────────
+            // Gültiger Vertrag aber KEINE Lohnsumme (FIX/FIX-M ohne Monatslohn,
+            // UTP/MTP ohne Stundenlohn) → der MA bekäme 0 Lohn (nur Abzüge,
+            // negativer Netto). Hart gesperrt, bis ein Lohn erfasst ist.
+            // Rule-unabhängig (greift auch wenn keine Mindestlohnregel existiert).
+            if (MinimumWageCheckService.IsLohnsummeMissing(
+                    mwEmp.EmploymentModel, mwEmp.MonthlySalary, mwEmp.MonthlySalaryFte, mwEmp.HourlyRate))
+                return Conflict(new { error = "LOHNSUMME_FEHLT",
+                    message = "Vertrag ohne Lohnsumme — bitte zuerst einen Lohn erfassen, bevor der Lohnlauf bestätigt wird." });
+
             var mwDob = await _db.Employees.Where(e => e.Id == dto.EmployeeId)
                 .Select(e => e.DateOfBirth).FirstOrDefaultAsync();
             var mwChk = await _minWage.CheckAsync(

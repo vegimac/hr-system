@@ -113,6 +113,18 @@ public static class PayrollCalculations
             if (d.FreibetragMonthly is > 0)
                 basis = Math.Max(0, basis - d.FreibetragMonthly.Value);
 
+            // BVG-Versicherungspflicht (Walter-Vorgabe 22.05.2026): nur auf BVG-Sätzen
+            // gesetzt. svBases.Bvg = BVG-pflichtiger Monats-Brutto (vor Koordination).
+            //   • Eintrittsschwelle: Jahreslohn (Monat × 12) < Schwelle → nicht
+            //     versichert → Basis 0 (kein BVG-Abzug). Monats-Abgrenzung wie Mirus.
+            //   • Min. koordinierte Basis: ist der MA versichert, zahlt er mind. auf
+            //     der Untergrenze (z.B. 315/Mt.) — auch wenn (Brutto − Koord.) kleiner
+            //     oder 0 ist. Reihenfolge: Schwelle → Min → (weiter unten) Max-Cap.
+            if (d.EntryThresholdYearly is > 0 && svBases.Bvg * 12m < d.EntryThresholdYearly.Value)
+                basis = 0;
+            else if (d.MinBaseMonthly is > 0 && svBases.Bvg > 0 && basis < d.MinBaseMonthly.Value)
+                basis = d.MinBaseMonthly.Value;
+
             // Höchstlohn-Deckelung (Walter-Vorgabe 20.05.2026): ALV + NBU sind nur
             // bis CHF 148'200/Jahr = 12'350/Mt. beitragspflichtig. NULL =
             // unbegrenzt (AHV/IV/EO → kommt hier nie rein).
@@ -151,10 +163,25 @@ public static class PayrollCalculations
                 }
             }
 
+            // Flacher Monats-Cap auf die (koordinierte) Basis OHNE Jahresausgleich
+            // (Walter-Vorgabe 22.05.2026): z.B. BVG Max. pflichtiger Betrag 5'355/Mt.
+            // Greift in JEDEM Monat gleich (auch Dezember) — BVG wird NICHT aufgerollt
+            // wie ALV/NBU. Wirkt auf AN-Abzug UND agBetrag (beide nutzen dieselbe basis).
+            if (d.MaxBaseFlatMonthly is > 0)
+                basis = Math.Min(basis, d.MaxBaseFlatMonthly.Value);
+
             // Abzug-Betrag: auf 2 Dezimalen (0.05-Rundung erst auf Schlussresultat)
             decimal betrag = d.Type == "fixed"
                 ? -Math.Round(d.Rate, 2)
                 : -Math.Round(basis * d.Rate / 100m, 2);
+
+            // AG-Beitrag (Walter 22.05.2026): mit DEMSELBEN Regel-Eintrag + derselben
+            // Basis wie der AN-Abzug → die richtige (alters-/modellgestaffelte) Stufe
+            // greift automatisch (wichtig bei BVG). Positiv (= AG-Aufwand). Wird im
+            // Fibu-Journal auf 4060/4061/4062 gebucht; berührt Konto 1920 NICHT.
+            decimal? agBetrag = (d.Type == "percent" && d.RateEmployer is > 0)
+                ? Math.Round(basis * d.RateEmployer.Value / 100m, 2)
+                : (decimal?)null;
 
             totalAbzuege += betrag;
             if (d.CategoryCode == "QST") qstBetragOut += Math.Abs(betrag);
@@ -167,12 +194,19 @@ public static class PayrollCalculations
             abzugResult.Add(new
             {
                 bezeichnung = abzugBezeichnung,
+                // Stabiler Code fürs Fibu-Journal (Walter 22.05.2026): die SV-/QST-
+                // Kategorie (AHV/ALV/NBUV/KTG/BVG/QST). Der Journal-Generator
+                // verlinkt darüber zum Kontoplan — kein Text-Matching.
+                categoryCode = d.CategoryCode,
                 // Prozent: zuerst DisplayRatePercent (z.B. QST mit Tarif-Satz),
                 // sonst die echte Rate bei Type=percent, sonst null.
                 prozent     = d.DisplayRatePercent
                               ?? (d.Type == "percent" ? (decimal?)d.Rate : null),
                 basis       = (decimal?)Math.Round(basis, 2),
-                betrag
+                betrag,
+                // AG-Anteil (positiv) fürs Fibu-Journal — pro Zeile mit korrekter
+                // Staffel-Stufe. NULL = kein AG-Anteil.
+                agBetrag
             });
         }
 

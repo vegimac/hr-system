@@ -649,7 +649,7 @@ function _akWfRenderStatusBar() {
         <div title="${trail}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 4px;font-size:12px">
             <span style="background:${meta.bg};color:${meta.color};padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">${meta.label}</span>
             ${d.countTotal > 0 ? `<span style="color:#64748b;white-space:nowrap">${counts}</span>` : ''}
-            ${(() => { const c = (d.zahlungen||[]).filter(z => _lohnMwUnderpaid[z.employeeId]).length; return c > 0 ? `<span title="Diese MA können erst nach Lohnkorrektur freigegeben werden" style="color:#b91c1c;background:#fee2e2;padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">⚠ ${c} unter Mindestlohn</span>` : ''; })()}
+            ${(() => { const c = (d.zahlungen||[]).filter(z => _lohnMwUnderpaid[z.employeeId]).length; return c > 0 ? `<span title="Diese MA können erst nach Lohnkorrektur freigegeben werden (unter Mindestlohn oder ohne Lohnsumme)" style="color:#b91c1c;background:#fee2e2;padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">⚠ ${c} mit Lohnproblem</span>` : ''; })()}
             ${actions ? `<span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:auto">${actions}</span>` : ''}
         </div>`;
 }
@@ -706,7 +706,8 @@ function _akWfRenderMaList() {
         const initials = ((r.firstName||'')[0]||'') + ((r.lastName||'')[0]||'');
         const warn = !r.bankAccountCount ? ` <span title="Keine aktive Bankverbindung" style="color:#b91c1c">⚠</span>` : '';
         const _mwW = (typeof _lohnMwUnderpaid !== 'undefined') ? _lohnMwUnderpaid[r.employeeId] : null;
-        const mwIcon = _mwW ? ` <span title="${String(_mwW.message||'Lohn unter L-GAV-Mindestlohn').replace(/"/g,'&quot;')}" style="color:#dc2626">⚠ Mindestlohn</span>` : '';
+        const _mwLbl = _mwW && _mwW.problem === 'NO_SALARY' ? '⚠ Lohn fehlt' : '⚠ Mindestlohn';
+        const mwIcon = _mwW ? ` <span title="${String(_mwW.message||'Lohnproblem im Vertrag').replace(/"/g,'&quot;')}" style="color:#dc2626">${_mwLbl}</span>` : '';
         const hrNote = r.kommentarHr
             ? (r.status === 'BERECHNET'
                 ? ` <span title="HR-Notiz: ${(r.kommentarHr||'').replace(/"/g,'&quot;')}" style="color:#b45309">📝</span>`
@@ -787,7 +788,12 @@ function akWfSelectMa(id) {
     // employeeId für den Mindestlohn-Banner in renderLohnSlip mitführen
     // (renderLohnSlip liest _lohnMwUnderpaid[_lohnSelectedEmpId]).
     const _zSel = (_akWfData?.zahlungen || []).find(z => z.id === id);
-    if (_zSel) _lohnSelectedEmpId = _zSel.employeeId;
+    if (_zSel) {
+        _lohnSelectedEmpId = _zSel.employeeId;
+        // Cross-Modul-Sprung (Walter 21.05.2026): zuletzt fokussierter MA, damit
+        // Mitarbeiter/Verträge beim Wechsel direkt auf diesen MA springen.
+        window.activeEmpId = _zSel.employeeId;
+    }
     _akWfRenderMaList();    // re-render für active-Highlight
     filterAkontoMaList();   // Sucher-Filter ggf. erneut anwenden
     _akWfRenderStatusBar(); // per-MA-Aktionen (Freigeben/Zurückziehen) neu rendern
@@ -1243,13 +1249,18 @@ async function akWfStart() {
 }
 
 async function akWfFreigeben(id) {
-    // Mindestlohn-Sperre (Walter 20.05.2026): unter L-GAV → Freigabe blockiert.
-    // Server blockt zusätzlich mit 409; dies ist die freundliche UX davor.
+    // Lohnproblem-Sperre (Walter 20./21.05.2026): unter L-GAV ODER ohne Lohnsumme
+    // → Freigabe blockiert. Server blockt zusätzlich mit 409; dies ist die
+    // freundliche UX davor.
     const _zChk = (_akWfData?.zahlungen || []).find(z => z.id === id);
-    if (_zChk && _lohnMwUnderpaid[_zChk.employeeId]) {
-        alert('Freigabe gesperrt — Mindestlohn unterschritten.\n\n'
-            + (_lohnMwUnderpaid[_zChk.employeeId].message || 'Lohn unter L-GAV-Mindestlohn.')
-            + '\n\nBitte zuerst den Lohn im Vertrag korrigieren.');
+    const _zProb = _zChk ? _lohnMwUnderpaid[_zChk.employeeId] : null;
+    if (_zProb) {
+        const head = _zProb.problem === 'NO_SALARY'
+            ? 'Freigabe gesperrt — Lohnsumme fehlt.'
+            : 'Freigabe gesperrt — Mindestlohn unterschritten.';
+        alert(head + '\n\n'
+            + (_zProb.message || 'Lohnproblem im Vertrag.')
+            + '\n\nBitte zuerst den Lohn im Vertrag erfassen/korrigieren.');
         return;
     }
     await _akWfPost(`/freigeben/${id}`, {});

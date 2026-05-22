@@ -173,6 +173,28 @@ public class MinimumWageRulesController : ControllerBase
         var underpaid = new List<object>();
         foreach (var em in byEmp)
         {
+            // Lohnsumme-fehlt zuerst (rule-unabhängig, Walter 21.05.2026): gültiger
+            // Vertrag ohne Monats-/Stundenlohn → der MA bekäme 0 Lohn. Wird mit
+            // problem="NO_SALARY" geliefert; das Frontend zeigt dasselbe ⚠/Banner
+            // wie beim Mindestlohn und sperrt das Bestätigen.
+            if (MinimumWageCheckService.IsLohnsummeMissing(
+                    em.EmploymentModel, em.MonthlySalary, em.MonthlySalaryFte, em.HourlyRate))
+            {
+                underpaid.Add(new
+                {
+                    employeeId = em.EmployeeId,
+                    firstName  = em.Employee!.FirstName,
+                    lastName   = em.Employee!.LastName,
+                    problem    = "NO_SALARY",
+                    Minimum    = (decimal?)null,
+                    Actual     = (decimal?)null,
+                    Unit       = (string?)null,
+                    Difference = (decimal?)null,
+                    Message    = "Vertrag ohne Lohnsumme — bitte zuerst einen Lohn erfassen."
+                });
+                continue;
+            }
+
             var chk = await _minWage.CheckAsync(
                 em.JobTitle, em.EducationLevelCode, em.EmploymentModel,
                 em.EmploymentPercentage, em.HourlyRate, em.MonthlySalary,
@@ -184,6 +206,7 @@ public class MinimumWageRulesController : ControllerBase
                     employeeId = em.EmployeeId,
                     firstName  = em.Employee!.FirstName,
                     lastName   = em.Employee!.LastName,
+                    problem    = "UNDERPAID",
                     chk.Minimum,
                     chk.Actual,
                     chk.Unit,

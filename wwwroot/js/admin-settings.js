@@ -971,19 +971,36 @@ let svAllRates = [];
 async function loadSvSaetze() {
     const tbody = document.getElementById('svTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="11" style="padding:30px;text-align:center;color:#94a3b8">Wird geladen…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" style="padding:30px;text-align:center;color:#94a3b8">Wird geladen…</td></tr>';
     try {
         const res = await fetch('/api/social-insurance-rates', { headers: ah() });
         if (!res.ok) {
-            tbody.innerHTML = '<tr><td colspan="11" style="color:#dc2626;padding:12px">Fehler beim Laden</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="13" style="color:#dc2626;padding:12px">Fehler beim Laden</td></tr>';
             return;
         }
         svAllRates = await res.json();
+        // Kontoplan dazuladen, um pro Fibu-Position das resultierende Konto
+        // LIVE anzuzeigen (nur Anzeige, nicht gespeichert — eine Quelle = Kontoplan).
+        try {
+            const kr = await fetch('/api/lohn-konto-mapping', { headers: ah() });
+            if (kr.ok) {
+                const km = await kr.json() || [];
+                svKontoByPos = {};
+                km.forEach(m => {
+                    // AN-Buchung der SV = Soll 1920 → Gegenkonto (Verbindlichkeit).
+                    if (svKontoByPos[m.position] == null && String(m.fibukonto) === '1920')
+                        svKontoByPos[m.position] = { soll: m.fibukonto, gegen: m.gegenkonto };
+                });
+                // Fallback: irgendeine Zeile der Position, falls keine 1920-AN-Zeile.
+                km.forEach(m => { if (svKontoByPos[m.position] == null) svKontoByPos[m.position] = { soll: m.fibukonto, gegen: m.gegenkonto }; });
+            }
+        } catch {}
         svRender();
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="11" style="color:#dc2626;padding:12px">Verbindungsfehler: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" style="color:#dc2626;padding:12px">Verbindungsfehler: ${e.message}</td></tr>`;
     }
 }
+let svKontoByPos = {};
 
 function svRender() {
     const tbody      = document.getElementById('svTableBody');
@@ -998,18 +1015,36 @@ function svRender() {
     if (infoEl) infoEl.textContent = `${rows.length} Satz${rows.length !== 1 ? 'sätze' : ''} angezeigt`;
 
     if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="11" style="padding:30px;text-align:center;color:#94a3b8;font-style:italic">Keine Einträge gefunden</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" style="padding:30px;text-align:center;color:#94a3b8;font-style:italic">Keine Einträge gefunden</td></tr>';
         return;
     }
 
     const codeColor = { AHV: '#3b82f6', ALV: '#f59e0b', NBUV: '#10b981', KTG: '#06b6d4', BVG: '#8b5cf6', BVG_ZUSATZ: '#ec4899' };
     const basisLabel = { gross: 'Brutto', bvg_basis: 'BVG-Basis', coord_deduction: 'Koord.-Abzug' };
-    const fmtDate = d => d ? d.substring(0, 10) : '–';
+    // Datum IMMER TT.MM.JJJJ (Walter-Vorgabe, gilt überall). Backend liefert ISO.
+    const fmtDate = d => {
+        if (!d) return '–';
+        const s = String(d).substring(0, 10);   // YYYY-MM-DD
+        return `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}`;
+    };
     const fmtAge = (mn, mx) => {
         if (mn != null && mx != null) return `${mn}–${mx}`;
         if (mn != null) return `ab ${mn}`;
         if (mx != null) return `bis ${mx}`;
         return '–';
+    };
+    // Datums-bewusster Status (Walter-Vorgabe 22.05.2026): „Aktiv" nur wenn der
+    // Satz HEUTE zeitlich gültig ist. IsActive=false → Inaktiv; valid_to in der
+    // Vergangenheit → Abgelaufen (z.B. von „Neu ab" abgelöste Vorversion);
+    // valid_from in der Zukunft → Künftig.
+    const _todayIso = new Date().toISOString().slice(0, 10);
+    const svStatus = (r) => {
+        if (!r.isActive) return { label: 'Inaktiv', bg: '#f1f5f9', fg: '#64748b', dim: true };
+        const vt = r.validTo   ? String(r.validTo).slice(0, 10)   : null;
+        const vf = r.validFrom ? String(r.validFrom).slice(0, 10) : null;
+        if (vt && vt < _todayIso) return { label: 'Abgelaufen', bg: '#f1f5f9', fg: '#94a3b8', dim: true };
+        if (vf && vf > _todayIso) return { label: 'Künftig',    bg: '#dbeafe', fg: '#1e40af', dim: false };
+        return { label: 'Aktiv', bg: '#dcfce7', fg: '#166534', dim: false };
     };
 
     tbody.innerHTML = rows.map(r => {
@@ -1030,20 +1065,28 @@ function svRender() {
         const lockPill  = locked
             ? `<span style="font-size:10px;padding:2px 7px;border-radius:9px;background:#fee2e2;color:#991b1b;margin-left:6px" title="In einem freigegebenen Lohnlauf verwendet">🔒 in Lohn</span>`
             : '';
-        return `<tr style="${!r.isActive ? 'opacity:0.45;' : ''}">
+        const st = svStatus(r);
+        return `<tr style="${st.dim ? 'opacity:0.5;' : ''}">
             <td style="padding:10px 14px;text-align:center;color:#64748b;font-variant-numeric:tabular-nums">${r.sortOrder ?? 99}</td>
             <td style="padding:10px 14px">
                 <span style="font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:12px;background:${col}22;color:${col}">${r.code}</span>
             </td>
-            <td style="padding:10px 14px;font-weight:500;color:#1e293b">${r.name}${lockPill}</td>
-            <td style="padding:10px 14px;text-align:right;font-weight:600;color:#0f172a">${rate.toFixed(3)} %</td>
-            <td style="padding:10px 14px;color:#64748b;font-size:12px">${basisLabel[r.basisType] ?? r.basisType}</td>
-            <td style="padding:10px 14px;text-align:center;color:#64748b;font-size:12px">${fmtAge(r.minAge, r.maxAge)}</td>
+            <td style="padding:10px 14px;font-weight:500;color:#1e293b;white-space:nowrap">${r.name}${lockPill}</td>
+            <td style="padding:10px 14px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap">${rate.toFixed(3)} %</td>
+            <td style="padding:10px 14px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#cbd5e1'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(3) + ' %' : '—'}</td>
+            <td style="padding:10px 14px;color:#64748b;font-size:12px;white-space:nowrap">${basisLabel[r.basisType] ?? r.basisType}</td>
+            <td style="padding:10px 14px;text-align:center;color:#64748b;font-size:12px;white-space:nowrap">${fmtAge(r.minAge, r.maxAge)}</td>
             <td style="padding:10px 14px">${modelBadge}</td>
-            <td style="padding:10px 14px;color:#64748b;font-size:12px">${fmtDate(r.validFrom)}</td>
-            <td style="padding:10px 14px;color:#64748b;font-size:12px">${fmtDate(r.validTo)}</td>
+            <td style="padding:10px 14px;font-size:12px;white-space:nowrap">${(() => {
+                if (r.fibuPosition == null) return '<span style="color:#cbd5e1">—</span>';
+                const k = svKontoByPos[r.fibuPosition];
+                const kontoTxt = k ? ` <span style="color:#94a3b8">→ ${k.gegen}</span>` : ' <span style="color:#f59e0b" title="Position nicht im Kontoplan">→ ?</span>';
+                return `<span style="font-weight:600;font-family:monospace">${r.fibuPosition}</span>${kontoTxt}`;
+            })()}</td>
+            <td style="padding:10px 14px;color:#64748b;font-size:12px;white-space:nowrap">${fmtDate(r.validFrom)}</td>
+            <td style="padding:10px 14px;color:#64748b;font-size:12px;white-space:nowrap">${fmtDate(r.validTo)}</td>
             <td style="padding:10px 14px;text-align:center">
-                <span style="font-size:11px;padding:2px 9px;border-radius:10px;${r.isActive ? 'background:#dcfce7;color:#166534' : 'background:#f1f5f9;color:#64748b'}">${r.isActive ? 'Aktiv' : 'Inaktiv'}</span>
+                <span style="font-size:11px;padding:2px 9px;border-radius:10px;white-space:nowrap;background:${st.bg};color:${st.fg}">${st.label}</span>
             </td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">${editBtn}${newAbBtn}</td>
         </tr>`;
@@ -1068,6 +1111,7 @@ function svOpenForm(rate, mode) {
     document.getElementById('svName').value            = rate?.name ?? '';
     document.getElementById('svDescription').value     = rate?.description ?? '';
     document.getElementById('svRate').value            = rate?.rate ?? '';
+    const _re = document.getElementById('svRateEmployer'); if (_re) _re.value = rate?.rateEmployer ?? '';
     document.getElementById('svBasisType').value       = rate?.basisType ?? 'gross';
     document.getElementById('svEmploymentModel').value = rate?.employmentModelCode ?? '';
     document.getElementById('svMinAge').value        = rate?.minAge ?? '';
@@ -1075,6 +1119,9 @@ function svOpenForm(rate, mode) {
     document.getElementById('svFreibetrag').value    = rate?.freibetragMonthly ?? '';
     document.getElementById('svCoordDeduction').value = rate?.coordinationDeduction ?? '';
     document.getElementById('svMaxBase').value        = rate?.maxBaseMonthly ?? '';
+    const _mbf = document.getElementById('svMaxBaseFlat'); if (_mbf) _mbf.value = rate?.maxBaseFlatMonthly ?? '';
+    const _mnb = document.getElementById('svMinBase'); if (_mnb) _mnb.value = rate?.minBaseMonthly ?? '';
+    const _ets = document.getElementById('svEntryThreshold'); if (_ets) _ets.value = rate?.entryThresholdYearly ?? '';
     // Bei „Neu ab" das ValidFrom-Feld bewusst LEER lassen, damit der User
     // bewusst ein Datum eingeben muss; Vorgänger-ValidFrom wäre missverständlich.
     if (_svFormMode === 'new-version') {
@@ -1086,6 +1133,7 @@ function svOpenForm(rate, mode) {
     }
     document.getElementById('svOnlyQst').checked     = rate?.onlyQuellensteuer ?? false;
     document.getElementById('svSortOrder').value     = rate?.sortOrder ?? 99;
+    const _fp = document.getElementById('svFibuPosition'); if (_fp) _fp.value = rate?.fibuPosition ?? '';
     document.getElementById('svFormErr').style.display = 'none';
 
     // „Neu ab"-Hinweis im Formular einblenden (per id-Anker, falls vorhanden)
@@ -1137,6 +1185,7 @@ async function svSave(event) {
         name:                  document.getElementById('svName').value.trim(),
         description:           document.getElementById('svDescription').value.trim() || null,
         rate:                  parseNum('svRate', 0),
+        rateEmployer:          parseNum('svRateEmployer'),
         basisType:             document.getElementById('svBasisType').value,
         employmentModelCode:   document.getElementById('svEmploymentModel').value || null,
         minAge:                parseIntOpt('svMinAge'),
@@ -1144,7 +1193,11 @@ async function svSave(event) {
         freibetragMonthly:     parseNum('svFreibetrag'),
         coordinationDeduction: parseNum('svCoordDeduction'),
         maxBaseMonthly:        parseNum('svMaxBase'),
+        maxBaseFlatMonthly:    parseNum('svMaxBaseFlat'),
+        minBaseMonthly:        parseNum('svMinBase'),
+        entryThresholdYearly:  parseNum('svEntryThreshold'),
         onlyQuellensteuer:     document.getElementById('svOnlyQst').checked,
+        fibuPosition:          parseIntOpt('svFibuPosition'),
         validFrom:             document.getElementById('svValidFrom').value,
         validTo:               document.getElementById('svValidTo').value || null,
         sortOrder:             parseInt(document.getElementById('svSortOrder').value, 10) || 99,

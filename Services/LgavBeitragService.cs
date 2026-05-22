@@ -28,7 +28,11 @@ namespace HrSystem.Services;
 public class LgavBeitragService
 {
     private readonly AppDbContext _db;
-    private const string LgavCode = "140";  // Mirus-style: LGAV-Beitrag
+    // Mirus-Position der LGAV-Lohnart (Walter-Vorgabe 22.05.2026): muss exakt
+    // der Kontoplan-Position entsprechen (lohn_konto_mapping 600.24 → Soll 1920 /
+    // Gegen 2023), damit das Fibu-Journal die LGAV-Abzüge verbuchen kann. Früher
+    // "140" — das traf keine Kontoplan-Zeile, alle LGAV-Zeilen wurden übersprungen.
+    private const string LgavCode = "600.24";
 
     public LgavBeitragService(AppDbContext db)
     {

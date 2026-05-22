@@ -40,10 +40,11 @@ public class SocialInsuranceRatesController : ControllerBase
 
         var result = rates.Select(r => new
         {
-            r.Id, r.Code, r.Name, r.Description, r.Rate, r.BasisType,
+            r.Id, r.Code, r.Name, r.Description, r.Rate, r.RateEmployer, r.BasisType,
             r.EmploymentModelCode, r.MinAge, r.MaxAge,
-            r.FreibetragMonthly, r.CoordinationDeduction, r.MaxBaseMonthly,
-            r.OnlyQuellensteuer, r.ValidFrom, r.ValidTo,
+            r.FreibetragMonthly, r.CoordinationDeduction, r.MaxBaseMonthly, r.MaxBaseFlatMonthly,
+            r.MinBaseMonthly, r.EntryThresholdYearly,
+            r.OnlyQuellensteuer, r.FibuPosition, r.ValidFrom, r.ValidTo,
             r.SortOrder, r.IsActive, r.CreatedAt,
             inLohnVerwendet = frozenPerioden.Any(p =>
                 r.ValidFrom <= p.PeriodTo
@@ -132,6 +133,7 @@ public class SocialInsuranceRatesController : ControllerBase
         rate.Name                  = dto.Name;
         rate.Description           = dto.Description;
         rate.Rate                  = dto.Rate;
+        rate.RateEmployer          = dto.RateEmployer;
         rate.BasisType             = dto.BasisType;
         rate.EmploymentModelCode   = dto.EmploymentModelCode;
         rate.MinAge                = dto.MinAge;
@@ -139,7 +141,11 @@ public class SocialInsuranceRatesController : ControllerBase
         rate.FreibetragMonthly     = dto.FreibetragMonthly;
         rate.CoordinationDeduction = dto.CoordinationDeduction;
         rate.MaxBaseMonthly        = dto.MaxBaseMonthly;
+        rate.MaxBaseFlatMonthly    = dto.MaxBaseFlatMonthly;
+        rate.MinBaseMonthly        = dto.MinBaseMonthly;
+        rate.EntryThresholdYearly  = dto.EntryThresholdYearly;
         rate.OnlyQuellensteuer     = dto.OnlyQuellensteuer;
+        rate.FibuPosition          = dto.FibuPosition;
         rate.ValidFrom             = dto.ValidFrom;
         rate.ValidTo               = dto.ValidTo;
         rate.SortOrder             = dto.SortOrder;
@@ -188,6 +194,7 @@ public class SocialInsuranceRatesController : ControllerBase
             Name                  = string.IsNullOrWhiteSpace(dto.Name) ? oldRate.Name : dto.Name,
             Description           = dto.Description ?? oldRate.Description,
             Rate                  = dto.Rate,
+            RateEmployer          = dto.RateEmployer ?? oldRate.RateEmployer,
             BasisType             = oldRate.BasisType,
             EmploymentModelCode   = oldRate.EmploymentModelCode,
             MinAge                = oldRate.MinAge,
@@ -195,7 +202,11 @@ public class SocialInsuranceRatesController : ControllerBase
             FreibetragMonthly     = dto.FreibetragMonthly ?? oldRate.FreibetragMonthly,
             CoordinationDeduction = dto.CoordinationDeduction ?? oldRate.CoordinationDeduction,
             MaxBaseMonthly        = dto.MaxBaseMonthly ?? oldRate.MaxBaseMonthly,
+            MaxBaseFlatMonthly    = dto.MaxBaseFlatMonthly ?? oldRate.MaxBaseFlatMonthly,
+            MinBaseMonthly        = dto.MinBaseMonthly ?? oldRate.MinBaseMonthly,
+            EntryThresholdYearly  = dto.EntryThresholdYearly ?? oldRate.EntryThresholdYearly,
             OnlyQuellensteuer     = oldRate.OnlyQuellensteuer,
+            FibuPosition          = dto.FibuPosition ?? oldRate.FibuPosition,
             ValidFrom             = dto.ValidFrom,
             ValidTo               = dto.ValidTo,
             SortOrder             = dto.SortOrder == 0 ? oldRate.SortOrder : dto.SortOrder,

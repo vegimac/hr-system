@@ -214,6 +214,10 @@ public class KarenzService
     /// Ermittelt die Karenz-Situation für ein Stichdatum (z. B. Lohnlauf-Start).
     /// Liefert Von/Bis des laufenden Karenzjahrs, bisher verbrauchte Tage,
     /// sowie das Grenz-Datum falls schon erreicht. Default-Absenz-Typ: Krankheit.
+    ///
+    /// Es werden NUR Absenztage bis und mit dem Stichdatum gezählt — zukünftige,
+    /// bereits erfasste Absenzen (z.B. Arztzeugnis für einen Folgemonat) fliessen
+    /// NICHT ein (Walter-Vorgabe 21.05.2026).
     /// </summary>
     public async Task<KarenzjahrInfo?> GetCurrentAsync(
         int employeeId, int companyProfileId, DateOnly datum, string absenceType = "KRANK")
@@ -226,11 +230,18 @@ public class KarenzService
         var (von, bis) = ComputeKarenzjahr(datum, employee, profile);
         decimal tageMax = TageMaxFor(profile, absenceType);
 
-        // Alle Absenzen des gewünschten Typs im Karenzjahr, chronologisch
+        // Walter-Vorgabe 21.05.2026: NUR Absenzen bis zum Stichdatum zählen —
+        // keine zukünftigen Tage (z.B. bereits erfasstes Arztzeugnis für einen
+        // Folgemonat). Die verbrauchten Karenz-Tage „zum Stichtag" dürfen nur
+        // das enthalten, was bis dahin tatsächlich angefallen ist.
+        // Obergrenze = datum (liegt per Konstruktion im Karenzjahr, also <= bis).
+        var zaehlBis = datum < bis ? datum : bis;
+
+        // Alle Absenzen des gewünschten Typs im Karenzjahr bis zum Stichtag
         var absenzen = await _db.Absences
             .Where(a => a.EmployeeId == employeeId
                      && a.AbsenceType == absenceType
-                     && a.DateFrom   <= bis
+                     && a.DateFrom   <= zaehlBis
                      && a.DateTo     >= von)
             .OrderBy(a => a.DateFrom)
             .ToListAsync();
@@ -246,8 +257,8 @@ public class KarenzService
             var days = Enumerable.Range(0, a.DateTo.DayNumber - a.DateFrom.DayNumber + 1)
                 .Select(i => a.DateFrom.AddDays(i))
                 .ToArray();
-            // Nur Tage im Karenzjahr
-            var daysInYear = days.Where(d => d >= von && d <= bis).OrderBy(d => d).ToArray();
+            // Nur Tage im Karenzjahr UND bis zum Stichtag (keine Zukunft)
+            var daysInYear = days.Where(d => d >= von && d <= zaehlBis).OrderBy(d => d).ToArray();
 
             foreach (var d in daysInYear)
             {

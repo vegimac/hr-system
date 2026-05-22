@@ -386,13 +386,18 @@ async function loadVtList() {
         allVtEmployees = filtered;
         renderVtList(allVtEmployees);
 
-        // Selektion vom Mitarbeiter-Tab übernehmen, falls dort einer gewählt ist
-        // und auch in der Verträge-Liste vorhanden ist (Filial-Filter beachten).
-        // Sonst Selektion vom letzten Verträge-Aufruf beibehalten.
-        const carryOverId = (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId)
-            ? selectedEmployeeId
-            : (selectedVtEmployee?.id || null);
-        if (carryOverId && allVtEmployees.find(e => e.id === carryOverId)) {
+        // Cross-Modul-Sprung (Walter 21.05.2026): zuerst der zuletzt fokussierte
+        // MA (window.activeEmpId — gesetzt im Lohnlauf/Mitarbeiter/Verträge), dann
+        // die Mitarbeiter-Tab-Auswahl, dann die letzte Verträge-Auswahl. Es wird
+        // der erste Kandidat genommen, der auch wirklich in der (filial-
+        // gefilterten) Verträge-Liste vorkommt.
+        const _vtCandidates = [
+            window.activeEmpId,
+            (typeof selectedEmployeeId !== 'undefined' ? selectedEmployeeId : null),
+            selectedVtEmployee?.id
+        ];
+        const carryOverId = _vtCandidates.find(id => id && allVtEmployees.find(e => e.id === id)) || null;
+        if (carryOverId) {
             selectVtEmployee(carryOverId);
         }
     } catch(e) {
@@ -448,7 +453,15 @@ function filterVtList() {
 
 async function selectVtEmployee(id) {
     selectedVtEmployee = allVtEmployees.find(e => e.id === id) || null;
+    // Cross-Modul-Sprung (Walter 21.05.2026): aktiver MA merken.
+    window.activeEmpId = id;
     renderVtList(allVtEmployees);
+    // Aktiven Eintrag in Sicht scrollen (sonst beim Cross-Modul-Sprung markiert
+    // aber off-screen). block:'nearest' scrollt nur wenn nötig.
+    const _vtActiveEl = document.querySelector('#vtList .emp-list-item.active');
+    if (_vtActiveEl && typeof _vtActiveEl.scrollIntoView === 'function') {
+        _vtActiveEl.scrollIntoView({ block: 'nearest' });
+    }
     if (!selectedVtEmployee) return;
     renderVtDetail(selectedVtEmployee);
 }

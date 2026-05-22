@@ -27,6 +27,16 @@ public class DeductionRule
     public decimal Rate { get; set; }
 
     /// <summary>
+    /// Arbeitgeber-Satz (%) für die AG-Sozialbeiträge im Fibu-Journal. NULL = kein
+    /// AG-Anteil. Transient — kommt aus social_insurance_rate.rate_employer. WICHTIG
+    /// bei alters-/modellgestaffelten Sätzen (z.B. BVG): der AG-Betrag wird hier in
+    /// der Engine mit demselben Regel-Eintrag wie der AN-Abzug berechnet, damit die
+    /// richtige Staffel-Stufe greift (das Journal kann das nicht zurückverfolgen).
+    /// </summary>
+    [NotMapped]
+    public decimal? RateEmployer { get; set; }
+
+    /// <summary>
     /// Berechnungsbasis:
     ///   "gross"  = auf Bruttolohn
     ///   "bvg"    = auf Bruttolohn minus Koordinationsabzug (monatl.)
@@ -57,6 +67,30 @@ public class DeductionRule
     /// </summary>
     [NotMapped]
     public decimal? MaxBaseMonthly { get; set; }
+
+    /// <summary>
+    /// Flacher Monats-Cap auf die (koordinierte) Basis OHNE Jahresausgleich —
+    /// z.B. BVG Max. pflichtiger Betrag 5'355/Mt. Anders als MaxBaseMonthly löst
+    /// dieser Cap KEIN Dezember-Aufrollverfahren aus (das gilt nur für ALV/NBU).
+    /// basis = min(basis, MaxBaseFlatMonthly). Transient (aus rate).
+    /// </summary>
+    [NotMapped]
+    public decimal? MaxBaseFlatMonthly { get; set; }
+
+    /// <summary>
+    /// Min. pflichtige (koordinierte) Basis/Mt. — z.B. BVG 315. Versicherte zahlen
+    /// mind. darauf, auch wenn (Brutto − Koordinationsabzug) kleiner ist. Transient.
+    /// </summary>
+    [NotMapped]
+    public decimal? MinBaseMonthly { get; set; }
+
+    /// <summary>
+    /// Eintrittsschwelle/Jahr — z.B. BVG 22'680. Liegt der hochgerechnete Jahreslohn
+    /// (Monats-Basis × 12) darunter, ist der MA nicht versichert → Basis = 0.
+    /// Transient.
+    /// </summary>
+    [NotMapped]
+    public decimal? EntryThresholdYearly { get; set; }
 
     /// <summary>Gilt nur für Mitarbeiter mit Quellensteuer-Pflicht</summary>
     public bool OnlyQuellensteuer { get; set; } = false;

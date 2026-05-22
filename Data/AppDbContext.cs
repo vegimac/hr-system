@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeTimeEntry> EmployeeTimeEntries => Set<EmployeeTimeEntry>();
     public DbSet<Absence> Absences => Set<Absence>();
     public DbSet<PayrollSaldo> PayrollSaldos => Set<PayrollSaldo>();
+    public DbSet<LohnKontoMapping> LohnKontoMappings => Set<LohnKontoMapping>();
     public DbSet<KrankheitKarenzSaldo> KrankheitKarenzSaldos => Set<KrankheitKarenzSaldo>();
     public DbSet<EmployeeLohnDurchschnitt> EmployeeLohnDurchschnitte => Set<EmployeeLohnDurchschnitt>();
     public DbSet<EmployeeQuellensteuer> EmployeeQuellensteuer => Set<EmployeeQuellensteuer>();
@@ -593,6 +594,27 @@ public class AppDbContext : DbContext
                   .HasDatabaseName("ux_payroll_saldo_emp_branch_period");
         });
 
+        // ── LohnKontoMapping (Kontoplan / Lohnart→Konten, Walter 22.05.2026) ──
+        modelBuilder.Entity<LohnKontoMapping>(entity =>
+        {
+            entity.ToTable("lohn_konto_mapping");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Position).HasColumnName("position");
+            entity.Property(e => e.SubPosition).HasColumnName("sub_position");
+            entity.Property(e => e.Fibukonto).HasColumnName("fibukonto").HasMaxLength(10);
+            entity.Property(e => e.Gegenkonto).HasColumnName("gegenkonto").HasMaxLength(10);
+            entity.Property(e => e.KostenstelleNr).HasColumnName("kostenstelle_nr").HasMaxLength(10);
+            entity.Property(e => e.KostenstelleName).HasColumnName("kostenstelle_name").HasMaxLength(60);
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(200);
+            entity.Property(e => e.IsVormonat).HasColumnName("is_vormonat").HasDefaultValue(false);
+            entity.Property(e => e.SollBuchung).HasColumnName("soll_buchung").HasDefaultValue(true);
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+        });
+
         // ── AbsenzTyp ──────────────────────────────────────────────────────
         modelBuilder.Entity<AbsenzTyp>(entity =>
         {
@@ -1053,7 +1075,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FreibetragMonthly).HasColumnName("freibetrag_monthly").HasColumnType("numeric(10,2)");
             entity.Property(e => e.CoordinationDeduction).HasColumnName("coordination_deduction").HasColumnType("numeric(10,2)");
             entity.Property(e => e.MaxBaseMonthly).HasColumnName("max_base_monthly").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.MaxBaseFlatMonthly).HasColumnName("max_base_flat_monthly").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.MinBaseMonthly).HasColumnName("min_base_monthly").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.EntryThresholdYearly).HasColumnName("entry_threshold_yearly").HasColumnType("numeric(10,2)");
             entity.Property(e => e.OnlyQuellensteuer).HasColumnName("only_quellensteuer").HasDefaultValue(false);
+            entity.Property(e => e.FibuPosition).HasColumnName("fibu_position");
+            entity.Property(e => e.RateEmployer).HasColumnName("rate_employer").HasColumnType("numeric(6,3)");
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);

@@ -13,12 +13,14 @@ public class PayrollPeriodeController : ControllerBase
     private readonly AppDbContext _db;
     private readonly HrSystem.Services.LohnlaufService _lohnlaufSvc;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly HrSystem.Services.SnapshotRecomputeService _snapshotRecompute;
 
-    public PayrollPeriodeController(AppDbContext db, HrSystem.Services.LohnlaufService lohnlaufSvc, IServiceScopeFactory scopeFactory)
+    public PayrollPeriodeController(AppDbContext db, HrSystem.Services.LohnlaufService lohnlaufSvc, IServiceScopeFactory scopeFactory, HrSystem.Services.SnapshotRecomputeService snapshotRecompute)
     {
         _lohnlaufSvc = lohnlaufSvc;
         _db = db;
         _scopeFactory = scopeFactory;
+        _snapshotRecompute = snapshotRecompute;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -486,10 +488,17 @@ public class PayrollPeriodeController : ControllerBase
         await AddAuditAsync(periode.Id, GetUserId(), "ZURUECK_AN_GF", dto.Bemerkung);
         await _db.SaveChangesAsync();
 
+        // Walter-Vorgabe 22.05.2026: Beim Zurückgeben an GF wird die Periode wieder
+        // editierbar — damit der Snapshot nicht veraltet (z.B. wenn jetzt ein Lohn
+        // korrigiert wird), alle Lohnzettel SOFORT frisch rechnen. So gilt immer
+        // Brutto = Netto + Abzüge und das Fibu-Journal/DTA stimmen.
+        var recomputed = await _snapshotRecompute.RecomputeAsync(periode.CompanyProfileId, periode.Year, periode.Month);
+
         return Ok(new {
             message   = $"Periode '{periode.Label}' wurde an den Geschäftsführer zurückgegeben.",
             periodeId = periode.Id,
-            status    = periode.Status
+            status    = periode.Status,
+            recomputed
         });
     }
 
@@ -556,10 +565,17 @@ public class PayrollPeriodeController : ControllerBase
         // automatisch wieder im Postfach.
         await _lohnlaufSvc.TryDeleteLohnzettelFromMaPostfaecherAsync(periode.Id);
 
+        // Walter-Vorgabe 22.05.2026: Wieder-Öffnen macht die Periode editierbar →
+        // Snapshots sofort frisch rechnen, damit sie nicht veralten, falls jetzt
+        // Korrekturen folgen. Verhindert das Auseinanderlaufen von Snapshot und
+        // Live-Rechnung (Fibu-Journal/DTA bleiben konsistent).
+        var recomputed = await _snapshotRecompute.RecomputeAsync(periode.CompanyProfileId, periode.Year, periode.Month);
+
         return Ok(new {
             message   = $"Periode '{periode.Label}' wurde wieder geöffnet (zurück auf provisorisch_abgeschlossen). Lohnzettel wurden aus den MA-Postfächern entfernt.",
             periodeId = periode.Id,
-            status    = periode.Status
+            status    = periode.Status,
+            recomputed
         });
     }
 

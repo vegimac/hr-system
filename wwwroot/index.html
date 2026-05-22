@@ -3064,6 +3064,13 @@
                         <div class="admin-card-title">Lohnpositionen</div>
                         <div class="admin-card-desc">Lohnarten, SV-Flags, Lohnausweis-Codes</div>
                     </div>
+                    <div class="admin-card" onclick="showPage('kontoplan')">
+                        <div class="admin-card-icon" style="background:#dcfce7;color:#166534">
+                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 21V9"/><path d="M14 13h4"/><path d="M14 17h4"/></svg>
+                        </div>
+                        <div class="admin-card-title">Kontoplan (Fibu)</div>
+                        <div class="admin-card-desc">Lohnart→Konten-Mapping für Fibu-Journal / Abacus</div>
+                    </div>
                     <div class="admin-card" onclick="showPage('qst-tarife')">
                         <div class="admin-card-icon" style="background:#fecaca;color:#991b1b">
                             <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 14l6-6"/><circle cx="9.5" cy="9.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14.5" r="1.5" fill="currentColor" stroke="none"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
@@ -4478,14 +4485,16 @@
                     <div class="card" style="overflow:hidden">
                         <table style="width:100%;border-collapse:collapse;font-size:13px">
                             <thead>
-                                <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0">
+                                <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;white-space:nowrap">
                                     <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569" title="Reihenfolge auf dem Lohnzettel">#</th>
                                     <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Typ</th>
                                     <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Bezeichnung</th>
                                     <th style="padding:10px 14px;text-align:right;font-weight:600;color:#475569">Satz AN %</th>
+                                    <th style="padding:10px 14px;text-align:right;font-weight:600;color:#475569" title="Arbeitgeber-Anteil für die AG-Sozialbeiträge im Fibu-Journal (leer = nicht gebucht)">Satz AG %</th>
                                     <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Basis</th>
                                     <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569">Alter</th>
                                     <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Vertragstyp</th>
+                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569" title="Fibu-Position (Mirus-Lohnart) → Konto aus Kontoplan">Fibu → Konto</th>
                                     <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Gültig ab</th>
                                     <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Gültig bis</th>
                                     <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569">Status</th>
@@ -4493,7 +4502,7 @@
                                 </tr>
                             </thead>
                             <tbody id="svTableBody">
-                                <tr><td colspan="11" style="padding:30px;text-align:center;color:#94a3b8">Lade...</td></tr>
+                                <tr><td colspan="13" style="padding:30px;text-align:center;color:#94a3b8">Lade...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -4548,10 +4557,14 @@
                             </select>
                         </div>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Satz AN % *</label>
                                 <input id="svRate" type="number" step="0.0001" min="0" max="100" required style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px" title="Arbeitgeber-Anteil fürs Fibu-Journal — leer lassen, wenn kein AG-Beitrag gebucht werden soll">Satz AG %</label>
+                                <input id="svRateEmployer" type="number" step="0.0001" min="0" max="100" placeholder="leer = nicht buchen" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Berechnungsbasis</label>
@@ -4589,7 +4602,25 @@
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Höchstlohn/Mt. (CHF)</label>
                                 <input id="svMaxBase" type="number" step="0.01" min="0" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">ALV/NBU: 12'350 (= 148'200/Jahr). Leer = unbegrenzt (z.B. AHV).</div>
+                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">ALV/NBU: 12'350 (= 148'200/Jahr), mit Dezember-Aufrollverfahren. Leer = unbegrenzt (z.B. AHV).</div>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Max. Basis/Mt. flach (CHF)</label>
+                                <input id="svMaxBaseFlat" type="number" step="0.01" min="0" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">BVG Max. pflichtiger Betrag: 5'355 (koordinierte Basis), flacher Monats-Cap ohne Jahresausgleich.</div>
+                            </div>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Min. Basis/Mt. (CHF)</label>
+                                <input id="svMinBase" type="number" step="0.01" min="0" placeholder="– (keine Untergrenze)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">BVG Min. pflichtige (koordinierte) Basis: 315. Versicherte zahlen mind. darauf.</div>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Eintrittsschwelle/Jahr (CHF)</label>
+                                <input id="svEntryThreshold" type="number" step="0.01" min="0" placeholder="– (keine Schwelle)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">BVG: 22'680. Jahreslohn (Monat × 12) drunter → nicht versichert.</div>
                             </div>
                         </div>
 
@@ -4608,6 +4639,12 @@
                             <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer">
                                 <input type="checkbox" id="svOnlyQst"> Nur für Quellensteuer-pflichtige MA
                             </label>
+                        </div>
+
+                        <div style="margin-bottom:20px">
+                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Fibu-Position (für Fibu-Journal / Abacus)</label>
+                            <input id="svFibuPosition" type="number" min="0" step="1" placeholder="z.B. 500" style="width:120px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                            <div style="font-size:11.5px;color:#94a3b8;margin-top:4px">Mirus-Lohnart-Nummer, die diesen SV-Satz mit dem Kontoplan verbindet (AHV→500, ALV→510, KTG→530, NBU→540, BVG→550, BVG-Zusatz→590). Leer = nicht verbucht.</div>
                         </div>
 
                         <div style="margin-bottom:20px">
@@ -4643,6 +4680,29 @@
                         <button class="btn-primary" onclick="mwOpenCopy()">+ Neue Sätze ab Datum</button>
                     </div>
                     <div id="mwContainer"></div>
+                </div>
+            </div>
+            <!-- ═══ KONTOPLAN (Lohnart→Konten-Mapping, Fibu/Abacus) ═══ -->
+            <div class="page" id="page-kontoplan">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Kontoplan (Fibu)</h1>
+                    <p class="page-sub">Lohnart→Konten-Mapping aus dem Mirus/McD-Buchungsschema — Grundlage für Fibu-Journal und Abacus-Export</p>
+                </div></div>
+                <div class="page-body">
+                    <div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+                        <input type="text" id="kpSearch" oninput="kpRender()" placeholder="Suchen (Konto, Position, Text)…" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+                        <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px">Kostenstelle
+                            <select id="kpKstFilter" onchange="kpRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
+                                <option value="">alle</option>
+                                <option value="100">100 Crew Fix (MTP/FIX)</option>
+                                <option value="200">200 Crew Flex (UTP)</option>
+                                <option value="300">300 Management</option>
+                                <option value="400">400 Gerant</option>
+                            </select>
+                        </label>
+                        <span id="kpInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
+                    </div>
+                    <div id="kpContainer"></div>
                 </div>
             </div>
             <div class="page" id="page-lohnpositionen">
@@ -7201,7 +7261,7 @@ function roleName(r) { return r === 'admin' ? 'Administrator' : r === 'superuser
 // ══════════════════════════════════════════════
 // Mapping: Unterseiten → in Sidebar als "admin-hub" markieren, damit der
 // Systemeinstellungen-Eintrag aktiv bleibt wenn man in einem Admin-Bereich ist.
-const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne',
+const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne','kontoplan',
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','banken',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
                          'bank-import','permit-import','family-children-import','stammdaten-import','smtp-settings','filial-onboarding',
@@ -7252,6 +7312,7 @@ function showPage(name) {
     if (name === 'sv-saetze') loadSvSaetze();
     if (name === 'lohnpositionen') loadLohnpositionen();
     if (name === 'mindestloehne') mwInit();
+    if (name === 'kontoplan') kpInit();
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
     if (name === 'qst-anmeldung') qstaInit();
@@ -7455,7 +7516,7 @@ function onBranchChange() {
 <script src="js/roster-absence-import.js?v=20260515a"></script>
 <script src="js/absence-report.js?v=20260521a"></script>
 <script src="js/akonto-lauf.js?v=20260516a"></script>
-<script src="js/akonto-workflow.js?v=20260521a"></script>
+<script src="js/akonto-workflow.js?v=20260521c"></script>
 <script src="js/dok-audit.js?v=20260509b"></script>
 <script src="js/branches-detail.js?v=20260518a"></script>
 <script src="js/branch-modals.js?v=20260509b"></script>
@@ -7467,14 +7528,15 @@ function onBranchChange() {
 <script src="js/dvelop-import.js?v=20260509b"></script>
 <script src="js/bank-import.js?v=20260509b"></script>
 <script src="js/archive-import.js?v=20260509b"></script>
-<script src="js/dok-struktur.js?v=20260518b"></script>
+<script src="js/dok-struktur.js?v=20260521d"></script>
 <script src="js/austritt.js?v=20260521a"></script>
 <script src="js/contracts-edit.js?v=20260521a"></script>
 <script src="js/import-stempelzeiten.js?v=20260509b"></script>
-<script src="js/payroll.js?v=20260521a"></script>
+<script src="js/payroll.js?v=20260522c"></script>
 <script src="js/payroll-perioden.js?v=20260521a"></script>
-<script src="js/admin-settings.js?v=20260520a"></script>
+<script src="js/admin-settings.js?v=20260522f"></script>
 <script src="js/minimum-wages.js?v=20260520c"></script>
+<script src="js/kontoplan.js?v=20260522b"></script>
 <script src="js/lohn-edit-lock.js?v=20260517a"></script>
 <script src="js/i18n.js?v=20260518b"></script>
 <!-- FAMILIEN MODAL -->
@@ -7729,7 +7791,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260518m"></script>
+<script src="employees.js?v=20260521d"></script>
 
 <!-- ABSENZ MODAL -->
 <div id="absenceModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:flex-start;justify-content:center;z-index:2000;overflow-y:auto;padding:40px 16px;">

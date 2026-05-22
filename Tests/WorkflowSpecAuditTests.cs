@@ -169,6 +169,38 @@ public class WorkflowSpecAuditTests
     }
 
     // ──────────────────────────────────────────────────────────────────
+    // 5. Snapshot-Frische (Walter-Vorgabe 22.05.2026): Zurückstellen UND
+    //    Wieder-Öffnen müssen die Snapshots neu rechnen, sonst veralten sie
+    //    (Brutto/Netto vs. SlipJson laufen auseinander → Fibu/DTA falsch).
+    // ──────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void ZurueckAnGf_RecomputesSnapshots()
+    {
+        var src = ReadAllText("Controllers/PayrollPeriodeController.cs");
+        var idx = src.IndexOf("public async Task<IActionResult> ZurueckAnGf(", StringComparison.Ordinal);
+        Assert.True(idx > 0);
+        var nextIdx = src.IndexOf("public async Task<IActionResult>", idx + 1, StringComparison.Ordinal);
+        if (nextIdx < 0) nextIdx = src.Length;
+        var block = src.Substring(idx, nextIdx - idx);
+
+        Assert.Contains("RecomputeAsync", block);
+    }
+
+    [Fact]
+    public void WiederOeffnen_RecomputesSnapshots()
+    {
+        var src = ReadAllText("Controllers/PayrollPeriodeController.cs");
+        var idx = src.IndexOf("public async Task<IActionResult> WiederOeffnen(", StringComparison.Ordinal);
+        Assert.True(idx > 0);
+        var nextIdx = src.IndexOf("public async Task<IActionResult>", idx + 1, StringComparison.Ordinal);
+        if (nextIdx < 0) nextIdx = src.Length;
+        var block = src.Substring(idx, nextIdx - idx);
+
+        Assert.Contains("RecomputeAsync", block);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
     // 5. Beide DTA-Auszahlen-Endpoints persistieren das Zahldatum.
     // ──────────────────────────────────────────────────────────────────
 

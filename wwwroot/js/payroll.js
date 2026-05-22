@@ -391,6 +391,26 @@ function _lohnWfRenderStatusBar() {
     const lockPill = (txt, bg, color) =>
         `<span style="color:${color};font-size:11.5px;font-weight:600;background:${bg};padding:3px 9px;border-radius:8px">${txt}</span>`;
 
+    // Saldo-Listen zum Abschluss (Walter-Vorgabe 21.05.2026): zwei PDFs der
+    // aktuellen Filiale+Periode — Buchhaltung (alle Saldi + Brutto/Netto + IBAN)
+    // und GF-Übersicht (kompakt, UTP ohne 13.). Nur ab provisorisch_abgeschlossen
+    // sinnvoll (Saldi sind bestätigt). Download über „Speichern unter…".
+    const saldoListen = `
+        <button class="btn btn-outline btn-sm" onclick="lohnSaldoListe('buchhaltung')" style="color:#7c3aed;border-color:#ddd6fe" title="Saldo-Liste für die Buchhaltung — alle Saldi, Brutto/Netto, IBAN">📊 Buchhaltung</button>
+        <button class="btn btn-outline btn-sm" onclick="lohnSaldoListe('gf')" style="color:#0f766e;border-color:#99f6e4" title="Saldi-Übersicht für den Geschäftsführer">📋 GF-Übersicht</button>
+        <button class="btn btn-outline btn-sm" onclick="lohnFibuJournal()" style="color:#166534;border-color:#bbf7d0" title="Fibu-Journal (Buchungssätze für die Buchhaltung / Abacus)">📒 Fibu-Journal</button>`;
+
+    // Admin-Wartung (Walter-Vorgabe 22.05.2026): trägt die Fibu-Codes
+    // (categoryCode/code) in bestehende Snapshot-SlipJsons nach, ohne Status/
+    // Beträge/Workflow anzutasten. Nötig für Alt-Perioden, die VOR dem
+    // Engine-Code-Tagging bestätigt wurden — damit das Fibu-Journal alle
+    // Abzugszeilen verbuchen kann, ohne alle MA neu durchschleusen zu müssen.
+    const isAdmin = (typeof currentUser !== 'undefined' && currentUser?.role === 'admin');
+    const adminRefresh = isAdmin
+        ? `<button class="btn btn-outline btn-sm" onclick="lohnRefreshCodes()" style="color:#a16207;border-color:#fde68a" title="Fibu-Codes in bestehende Lohnzettel nachtragen (Wartung — ändert keine Beträge/Status)">🔄 Codes nachtragen</button>
+           <button class="btn btn-outline btn-sm" onclick="lohnRecomputeSnapshots()" style="color:#9a3412;border-color:#fed7aa" title="Lohnzettel der Periode neu berechnen — überschreibt Brutto/Netto/Slip aus der aktuellen Rechnung (Status bleibt). Reparatur bei inkonsistenten Snapshots.">♻️ Snapshots neu berechnen</button>`
+        : '';
+
     let actions = '';
     switch (d.status) {
         case 'offen':
@@ -404,16 +424,18 @@ function _lohnWfRenderStatusBar() {
                 // „📑 Lohnbelege + DTA" erst aktiv wenn ALLE MA HR-bestätigt.
                 actions = `${hrMaBestaetigen}${hrMaZurueck}${pdfBtn}
                     <button class="btn btn-outline btn-sm" onclick="lohnDownloadVorabPdf()" style="color:#0369a1;border-color:#7dd3fc" title="Alle Lohnbelege der Periode in einem PDF">📋 Alle Lohnbelege</button>
+                    ${saldoListen}${adminRefresh}
                     <button class="btn btn-outline btn-sm" onclick="lohnZurueckAnGf()" style="color:#b45309;border-color:#fcd34d">↩ Zurück an GF</button>
                     <button class="btn btn-success btn-sm" onclick="lohnOpenLohnbelegeModal()" ${allHr ? '' : 'disabled'} title="Alle Lohnbelege ansehen, drucken und an MA versenden">📑 Lohnbelege + DTA</button>`;
             } else {
-                actions = lockPill('🔒 Bei HR — keine Änderungen möglich', '#fef3c7', '#b45309');
+                actions = lockPill('🔒 Bei HR — keine Änderungen möglich', '#fef3c7', '#b45309') + saldoListen;
             }
             break;
         case 'abgeschlossen':
             actions = `${pdfBtn}
                 <button class="btn btn-outline btn-sm" onclick="lohnDownloadDtaMa()" style="color:#0369a1;border-color:#7dd3fc" title="pain.001-XML für die Bank">📥 DTA-File</button>
                 ${isHr ? `<button class="btn btn-outline btn-sm" onclick="lohnOpenLohnbelegeModal()" title="Alle Lohnbelege ansehen / drucken">📑 Lohnbelege ansehen</button>` : ''}
+                ${saldoListen}${adminRefresh}
                 ${lockPill('🔒 Abgeschlossen — Admin-Reopen via Lohnperioden-Modul', '#dcfce7', '#15803d')}`;
             break;
     }
@@ -427,7 +449,7 @@ function _lohnWfRenderStatusBar() {
         <div title="${trail}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 4px;font-size:12px">
             <span style="background:${meta.bg};color:${meta.color};padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">${meta.label}</span>
             ${total > 0 ? `<span style="color:#64748b;white-space:nowrap">${counts}</span>` : ''}
-            ${d.mwUnderpaidCount > 0 ? `<span title="Diese MA können erst nach Lohnkorrektur bestätigt werden" style="color:#b91c1c;background:#fee2e2;padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">⚠ ${d.mwUnderpaidCount} unter Mindestlohn</span>` : ''}
+            ${d.mwUnderpaidCount > 0 ? `<span title="Diese MA können erst nach Lohnkorrektur bestätigt werden (unter Mindestlohn oder ohne Lohnsumme)" style="color:#b91c1c;background:#fee2e2;padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">⚠ ${d.mwUnderpaidCount} mit Lohnproblem</span>` : ''}
             <span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:auto">${bemBtn}${actions}</span>
         </div>`;
 }
@@ -652,6 +674,9 @@ async function loadLohnList() {
             // (per-MA-Buttons für den neuen MA) + Lohnzettel direkt laden.
             row.onclick = () => {
                 _lohnSelectedEmpId = e.id;
+                // Cross-Modul-Sprung (Walter 21.05.2026): zuletzt fokussierter MA
+                // → Mitarbeiter/Verträge springen beim Wechsel direkt dorthin.
+                window.activeEmpId = e.id;
                 localStorage.setItem(`lohnLastEmp_${cid}`, String(e.id));
                 highlightLohnEmp(row);
                 showLohnVertragInfo(e);
@@ -1023,8 +1048,11 @@ function renderLohnSlip(s, targetEl) {
     // gewählte MA unter dem L-GAV-Mindestlohn liegt. Quelle: _lohnMwUnderpaid
     // (check-period). Bestätigen ist server- UND clientseitig gesperrt.
     const _mwWarn = (typeof _lohnMwUnderpaid !== 'undefined') ? _lohnMwUnderpaid[_lohnSelectedEmpId] : null;
+    const _mwHead = _mwWarn && _mwWarn.problem === 'NO_SALARY'
+        ? '⚠ Lohnsumme fehlt — Bestätigen gesperrt'
+        : '⚠ Mindestlohn unterschritten — Bestätigen gesperrt';
     const _mwBanner = _mwWarn
-        ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">⚠ Mindestlohn unterschritten — Bestätigen gesperrt<div style="font-weight:400;margin-top:2px">${String(_mwWarn.message || '').replace(/</g,'&lt;')}</div></div>`
+        ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">${_mwHead}<div style="font-weight:400;margin-top:2px">${String(_mwWarn.message || '').replace(/</g,'&lt;')}</div></div>`
         : '';
     // Helfer: "Gerechnet" — Wert wenn vorhanden und ungleich Betrag, sonst leer
     const renderAccrued = (l) => {
@@ -1485,12 +1513,17 @@ async function confirmLohn() {
     if (!lohnCurrentSlip) return;
     const s = lohnCurrentSlip;
 
-    // Mindestlohn-Sperre (Walter 20.05.2026): unter L-GAV → Bestätigen blockiert.
-    // Server blockt zusätzlich mit 409; dies ist nur die freundliche UX davor.
-    if (_lohnMwUnderpaid[s.employeeId]) {
-        alert('Bestätigen gesperrt — Mindestlohn unterschritten.\n\n'
-            + (_lohnMwUnderpaid[s.employeeId].message || 'Lohn unter L-GAV-Mindestlohn.')
-            + '\n\nBitte zuerst den Lohn im Vertrag korrigieren.');
+    // Lohnproblem-Sperre (Walter 20./21.05.2026): unter L-GAV ODER ohne Lohnsumme
+    // → Bestätigen blockiert. Server blockt zusätzlich mit 409; dies ist nur die
+    // freundliche UX davor.
+    const _lohnProb = _lohnMwUnderpaid[s.employeeId];
+    if (_lohnProb) {
+        const head = _lohnProb.problem === 'NO_SALARY'
+            ? 'Bestätigen gesperrt — Lohnsumme fehlt.'
+            : 'Bestätigen gesperrt — Mindestlohn unterschritten.';
+        alert(head + '\n\n'
+            + (_lohnProb.message || 'Lohnproblem im Vertrag.')
+            + '\n\nBitte zuerst den Lohn im Vertrag erfassen/korrigieren.');
         return;
     }
 
@@ -1866,6 +1899,128 @@ async function lohnDownloadDtaMa() {
     await _lohnDownloadBlob(
         `/api/lohnlauf/${p.id}/dta-ma`,
         `Lohn_DTA_${p.label || (p.year + '-' + String(p.month).padStart(2,'0'))}.xml`);
+}
+
+// Saldo-Listen zum Definitiv-Abschluss (Walter 21.05.2026): zwei PDFs der
+// aktuellen Filiale+Periode. variant 'buchhaltung' = alle Saldi + Brutto/Netto
+// + IBAN; 'gf' = kompakte Übersicht (UTP ohne 13.). Download via Speichern-unter.
+async function lohnSaldoListe(variant) {
+    const p = window._currentLohnPeriode || {};
+    const cid = p.companyProfileId || document.getElementById('lohnBranchSelect')?.value;
+    const y   = p.year  || parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
+    const m   = p.month || parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth() + 1));
+    if (!cid) { alert('Keine Filiale/Periode aktiv.'); return; }
+    const ep    = variant === 'gf' ? 'saldo-liste-gf' : 'saldo-liste-buchhaltung';
+    const label = variant === 'gf' ? 'GF-Saldi-Uebersicht' : 'Lohn-Saldi-Buchhaltung';
+    const mm    = String(m).padStart(2, '0');
+    try {
+        const r = await fetch(
+            `/api/payroll/${ep}?companyProfileId=${cid}&year=${y}&month=${m}`,
+            { headers: ah() });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('PDF konnte nicht erstellt werden: ' + (j.error || `HTTP ${r.status}`));
+            return;
+        }
+        const blob = await r.blob();
+        await saveBlobAsk(blob, `${label}_${cid}_${y}-${mm}.pdf`);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// Fibu-Journal (Buchungssätze) der aktuellen Filiale+Periode — Walter 22.05.2026.
+async function lohnFibuJournal() {
+    const p = window._currentLohnPeriode || {};
+    const cid = p.companyProfileId || document.getElementById('lohnBranchSelect')?.value;
+    const y   = p.year  || parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
+    const m   = p.month || parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth() + 1));
+    if (!cid) { alert('Keine Filiale/Periode aktiv.'); return; }
+    const mm = String(m).padStart(2, '0');
+    try {
+        const r = await fetch(`/api/payroll/fibu-journal?companyProfileId=${cid}&year=${y}&month=${m}`, { headers: ah() });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('Fibu-Journal konnte nicht erstellt werden: ' + (j.error || `HTTP ${r.status}`));
+            return;
+        }
+        const blob = await r.blob();
+        await saveBlobAsk(blob, `Fibu-Journal_${cid}_${y}-${mm}.pdf`);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// Admin-Wartung (Walter 22.05.2026): trägt die Fibu-Codes (categoryCode/code)
+// in bestehende Snapshot-SlipJsons der aktuellen Filiale+Periode nach — für
+// Alt-Perioden, die VOR dem Engine-Code-Tagging bestätigt wurden. Ändert NUR
+// abzugLines/lohnLines; Status/Beträge/Workflow bleiben unangetastet, kein
+// Neu-Durchschleusen der MA nötig. Danach kann das Fibu-Journal alle
+// Abzugszeilen verbuchen (Konto 1920 → 0).
+async function lohnRefreshCodes() {
+    const p = window._currentLohnPeriode || {};
+    const cid = p.companyProfileId || document.getElementById('lohnBranchSelect')?.value;
+    const y   = p.year  || parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
+    const m   = p.month || parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth() + 1));
+    if (!cid) { alert('Keine Filiale/Periode aktiv.'); return; }
+    const mm = String(m).padStart(2, '0');
+    if (!confirm(
+        `Fibu-Codes für Periode ${mm}.${y} nachtragen?\n\n` +
+        'Die Lohnzettel werden neu berechnet und nur die Buchungs-Codes\n' +
+        '(für das Fibu-Journal) im Hintergrund nachgetragen.\n\n' +
+        'Beträge, Status und Workflow bleiben unverändert.')) return;
+    try {
+        const r = await fetch(
+            `/api/payroll/refresh-snapshot-codes?companyProfileId=${cid}&year=${y}&month=${m}`,
+            { method: 'POST', headers: ah() });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('Codes konnten nicht nachgetragen werden: ' + (j.error || `HTTP ${r.status}`));
+            return;
+        }
+        const j = await r.json().catch(() => ({}));
+        alert(`✓ Codes nachgetragen: ${j.updated ?? '?'} von ${j.total ?? '?'} Lohnzetteln aktualisiert.\n\n` +
+              'Du kannst das Fibu-Journal jetzt neu erstellen — Konto 1920 sollte aufgehen.');
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// Admin-Reparatur (Walter 22.05.2026): rechnet die Lohnzettel der Periode NEU und
+// überschreibt Brutto + Netto + SlipJson GEMEINSAM aus einer frischen Rechnung —
+// behebt inkonsistente Snapshots (z.B. wenn Slip-Abzüge und eingefrorenes Netto
+// auseinanderlaufen → Konto 1920 geht nicht auf). Workflow-Status bleibt; KEINE
+// 46-MA-Neubestätigung nötig. ACHTUNG: überschreibt die eingefrorenen Beträge.
+async function lohnRecomputeSnapshots() {
+    const p = window._currentLohnPeriode || {};
+    const cid = p.companyProfileId || document.getElementById('lohnBranchSelect')?.value;
+    const y   = p.year  || parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
+    const m   = p.month || parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth() + 1));
+    if (!cid) { alert('Keine Filiale/Periode aktiv.'); return; }
+    const mm = String(m).padStart(2, '0');
+    if (!confirm(
+        `Lohnzettel der Periode ${mm}.${y} NEU berechnen?\n\n` +
+        'Brutto, Netto und Lohnzettel werden aus der aktuellen Berechnung\n' +
+        'überschrieben (Status/Workflow bleiben). Reparatur bei inkonsistenten\n' +
+        'Snapshots.\n\n' +
+        '⚠ NUR ausführen, wenn die Periode noch NICHT bei der Bank ausbezahlt ist —\n' +
+        'die eingefrorenen Beträge werden überschrieben.')) return;
+    try {
+        const r = await fetch(
+            `/api/payroll/recompute-snapshots?companyProfileId=${cid}&year=${y}&month=${m}`,
+            { method: 'POST', headers: ah() });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('Neuberechnung fehlgeschlagen: ' + (j.error || `HTTP ${r.status}`));
+            return;
+        }
+        const j = await r.json().catch(() => ({}));
+        alert(`✓ ${j.updated ?? '?'} von ${j.total ?? '?'} Lohnzetteln neu berechnet.\n\n` +
+              'Erstelle das Fibu-Journal neu — Konto 1920 sollte jetzt aufgehen.');
+        if (typeof lohnWfRefresh === 'function') lohnWfRefresh();
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
 }
 
 // ── HR-Aktionen Definitivlauf (Walter 19.05.2026, analog Akonto) ──

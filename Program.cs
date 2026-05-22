@@ -79,6 +79,10 @@ builder.Services.AddScoped<LohnlaufService>();
 builder.Services.AddScoped<AkontoLaufService>();
 // Akonto-Zahlungsliste als PDF (Begleitliste zum DTA, Buchhaltungs-Beleg).
 builder.Services.AddScoped<AkontoListePdfService>();
+// Saldo-Listen zum Definitiv-Abschluss (Buchhaltung + GF) als PDF.
+builder.Services.AddScoped<LohnSaldoListePdfService>();
+// Fibu-Journal-Generator (Buchungsjournal aus den bestätigten Snapshots).
+builder.Services.AddScoped<FibuJournalService>();
 // Edit-Sperre während HR Lohnlauf prüft (Walter-Vorgabe 17.05.2026, Variante 2).
 builder.Services.AddScoped<LohnEditLockService>();
 // pain.001-XML-Generator (ISO 20022) für DTA-Zahlungsexport
@@ -88,6 +92,8 @@ builder.Services.AddScoped<SperrfristService>();
 // L-GAV-Beitrag: automatischer Jahresabzug nach Vertragstyp/Pensum
 builder.Services.AddScoped<LgavBeitragService>();
 builder.Services.AddScoped<PayrollCalculationEngine>();
+// Snapshot-Neuberechnung (hält offene Perioden frisch — Walter-Vorgabe 22.05.2026).
+builder.Services.AddScoped<SnapshotRecomputeService>();
 builder.Services.AddScoped<MinimumWageCheckService>();
 // Bank-Lookup: IBAN → Bank-Stammdaten aus Data/bank_master.csv (SIX-Liste)
 builder.Services.AddSingleton<BankLookupService>();

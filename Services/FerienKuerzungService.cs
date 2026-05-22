@@ -19,6 +19,12 @@ namespace HrSystem.Services;
 ///       Erst ab 3. Monat (90 Tage) → 1/12 pro vollem Monat.
 ///
 /// Dienstjahr wird ab Eintritt des Mitarbeiters gerechnet (anniversary-based).
+///
+/// WICHTIG (Walter-Vorgabe 21.05.2026): Gezählt werden NUR Absenztage vom
+/// Dienstjahr-Beginn bis zum Ende der AKTUELLEN Lohnperiode (periodEndDate).
+/// Zukünftige Absenzen (z.B. ein Arztzeugnis das in den Folgemonat reicht)
+/// zählen erst im jeweiligen Folge-Lohnlauf — sonst würde im Januar-Lohn schon
+/// die Februar-Krankheit den Ferienanspruch kürzen, was unzulässig ist.
 /// </summary>
 public class FerienKuerzungService
 {
@@ -37,10 +43,21 @@ public class FerienKuerzungService
         var hired = DateOnly.FromDateTime(employee.EntryDate.Value);
         var (jahrVon, jahrBis) = GetDienstjahr(hired, periodEndDate);
 
-        // Alle Absenzen im Dienstjahr laden
+        // Walter-Vorgabe 21.05.2026: Für die Ferien-Kürzung dürfen NUR Absenztage
+        // bis zum Ende der AKTUELLEN Lohnperiode zählen — keine zukünftigen Tage.
+        // Beispiel: im Januar-Lohn liegt ein Arztzeugnis für den ganzen Februar
+        // vor → die Februar-Tage dürfen jetzt NICHT mitgerechnet werden, sie
+        // fliessen erst in den Februar-Lohnlauf ein. Obergrenze der Zählung =
+        // min(Dienstjahr-Ende, Periodenende). periodEndDate liegt per Konstruktion
+        // immer im Dienstjahr, ist also praktisch die massgebende Grenze.
+        // (Untergrenze bleibt der Dienstjahr-Beginn jahrVon — Tage vor dem
+        //  Arbeitsjahr-Anniversary zählen ohnehin nicht.)
+        var zaehlBis = periodEndDate < jahrBis ? periodEndDate : jahrBis;
+
+        // Absenzen des Dienstjahres bis zum Periodenende laden
         var absences = await _db.Absences
             .Where(a => a.EmployeeId == employeeId
-                     && a.DateFrom <= jahrBis
+                     && a.DateFrom <= zaehlBis
                      && a.DateTo   >= jahrVon)
             .ToListAsync();
 
@@ -50,7 +67,7 @@ public class FerienKuerzungService
         decimal tageMutterschaft   = 0; // MUTTERSCHAFT (ohne EOG-Periode — heute vereinfacht)
         foreach (var a in absences)
         {
-            int t = TageInRange(a, jahrVon, jahrBis);
+            int t = TageInRange(a, jahrVon, zaehlBis);
             if (t == 0) continue;
 
             decimal effTage = t * (a.Prozent > 0 ? a.Prozent / 100m : 1m);

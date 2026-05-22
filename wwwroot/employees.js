@@ -235,6 +235,16 @@ function applyEmpFilter() {
         }
     }
 
+    // Cross-Modul-Sprung (Walter 21.05.2026): der zuletzt fokussierte MA
+    // (window.activeEmpId — gesetzt im Lohnlauf, Mitarbeiter UND Verträge) wird
+    // beim Betreten der Seite vorselektiert, sofern in der gefilterten Liste.
+    // Höchste Priorität: überschreibt eine veraltete Auswahl, damit der Wechsel
+    // z.B. aus dem Lohnlauf direkt auf diesen MA springt.
+    if (window.activeEmpId && window.activeEmpId !== selectedEmployeeId
+        && allEmployees.find(e => e.id === window.activeEmpId)) {
+        selectEmployee(window.activeEmpId);
+    }
+
     // Selektion vom Verträge-Tab übernehmen wenn dort einer markiert ist und
     // hier noch keiner — so bleibt der gewählte MA beim Tab-Wechsel selektiert.
     if (!selectedEmployeeId && typeof selectedVtEmployee !== 'undefined' && selectedVtEmployee?.id) {
@@ -357,6 +367,9 @@ function filterEmployeeList() {
 // ── Mitarbeiter auswählen ──────────────────────
 async function selectEmployee(id) {
     selectedEmployeeId = id;
+    // Cross-Modul-Sprung (Walter 21.05.2026): aktiver MA merken, damit
+    // Verträge/Lohnlauf-Wechsel auf denselben MA springen.
+    window.activeEmpId = id;
     // Aktiven Eintrag in Liste markieren
     document.querySelectorAll('.emp-list-item').forEach(el => {
         el.classList.toggle('active', parseInt(el.onclick?.toString().match(/\d+/)?.[0]) === id);
@@ -368,6 +381,14 @@ async function selectEmployee(id) {
         return name.includes(q.toLowerCase()) || (e.employeeNumber ?? '').toLowerCase().includes(q.toLowerCase());
     }) : allEmployees;
     renderEmployeeList(list);
+
+    // Aktiven Eintrag in Sicht scrollen (Walter 21.05.2026): nach einem Cross-
+    // Modul-Sprung steht der MA oft weit unten in der alphabetischen Liste und
+    // wäre sonst markiert, aber unsichtbar. block:'nearest' scrollt nur wenn nötig.
+    const _activeEl = document.querySelector('#empList .emp-list-item.active');
+    if (_activeEl && typeof _activeEl.scrollIntoView === 'function') {
+        _activeEl.scrollIntoView({ block: 'nearest' });
+    }
 
     // Detail laden
     try {

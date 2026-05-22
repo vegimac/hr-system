@@ -339,6 +339,14 @@ public class AkontoWorkflowController : ControllerBase
             .FirstOrDefaultAsync();
         if (mwEmp != null)
         {
+            // Lohnsumme-fehlt-Sperre (Walter-Vorgabe 21.05.2026): gültiger Vertrag
+            // ohne Lohnsumme → 0 Lohn. Hart gesperrt, rule-unabhängig. Analog
+            // zur Definitiv-Sperre in PayrollController.ConfirmPayroll.
+            if (MinimumWageCheckService.IsLohnsummeMissing(
+                    mwEmp.EmploymentModel, mwEmp.MonthlySalary, mwEmp.MonthlySalaryFte, mwEmp.HourlyRate))
+                return StatusCode(409, new { error = "LOHNSUMME_FEHLT",
+                    message = "Vertrag ohne Lohnsumme — bitte zuerst einen Lohn erfassen, bevor der Akonto-Lohnlauf freigegeben wird." });
+
             var mwDob = await _db.Employees.Where(e => e.Id == z.EmployeeId)
                 .Select(e => e.DateOfBirth).FirstOrDefaultAsync();
             var mwChk = await _minWage.CheckAsync(

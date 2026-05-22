@@ -242,7 +242,12 @@ public class PayrollCalculationEngine
         var globalRates = await _db.SocialInsuranceRates
             .Where(r => r.IsActive
                      && r.ValidFrom <= periodTo
-                     && (r.ValidTo == null || r.ValidTo >= periodFrom))
+                     && (r.ValidTo == null || r.ValidTo >= periodFrom)
+                     // AG-only-Sätze (Rate 0 + rate_employer gesetzt, z.B. FAK) sind
+                     // KEIN AN-Abzug → nicht in die AN-Berechnung aufnehmen, sonst
+                     // entstünde eine Phantom-„0.00"-Zeile im Lohnzettel. Sie werden
+                     // nur im Fibu-Journal als AG-Beitrag verbucht.
+                     && !(r.Rate == 0 && r.RateEmployer != null))
             .ToListAsync();
 
         // Deduplizieren: pro (Code + Altersband + Vertragsmodell + OnlyQst) nur
@@ -274,12 +279,16 @@ public class PayrollCalculationEngine
                 Name                  = r.Name,
                 Type                  = "percent",
                 Rate                  = r.Rate,
+                RateEmployer          = r.RateEmployer,
                 BasisType             = r.BasisType,
                 MinAge                = r.MinAge,
                 MaxAge                = r.MaxAge,
                 FreibetragMonthly     = r.FreibetragMonthly,
                 CoordinationDeduction = r.CoordinationDeduction,
                 MaxBaseMonthly        = r.MaxBaseMonthly,
+                MaxBaseFlatMonthly    = r.MaxBaseFlatMonthly,
+                MinBaseMonthly        = r.MinBaseMonthly,
+                EntryThresholdYearly  = r.EntryThresholdYearly,
                 OnlyQuellensteuer     = r.OnlyQuellensteuer,
                 EmploymentModelCode   = r.EmploymentModelCode,
                 ValidFrom             = r.ValidFrom,
@@ -999,6 +1008,7 @@ public class PayrollCalculationEngine
             var     lp = z.Lohnposition!;
             lohnposAbzugLines.Add(new {
                 bezeichnung = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : ""),
+                code        = lp.Code,   // Lohnpos-Code (z.B. "600.24" LGAV) fürs Fibu-Journal
                 prozent     = (decimal?)null,
                 basis       = (decimal?)null,
                 betrag      = -b

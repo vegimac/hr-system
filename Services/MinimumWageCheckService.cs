@@ -30,6 +30,27 @@ public class MinimumWageCheckService
     private readonly AppDbContext _db;
     public MinimumWageCheckService(AppDbContext db) => _db = db;
 
+    /// <summary>
+    /// Prüft ob ein aktiver Vertrag KEINE verwertbare Lohnsumme hat
+    /// (Walter-Vorgabe 21.05.2026). Rule-UNABHÄNGIG — greift auch wenn gar
+    /// keine Mindestlohnregel existiert. Spiegelt exakt die Logik der
+    /// Lohn-Engine (PayrollCalculationEngine):
+    ///   • FIX / FIX-M: Monatslohn nötig. Die Engine nimmt MonthlySalary, fällt
+    ///     auf MonthlySalaryFte × Pensum zurück → fehlt BEIDES, ist der Lohn 0.
+    ///   • UTP / MTP (und alles andere): Stundenlohn (HourlyRate) nötig.
+    /// true = Lohnsumme fehlt → Lohnlauf muss gesperrt werden.
+    /// </summary>
+    public static bool IsLohnsummeMissing(
+        string? employmentModel, decimal? monthlySalary, decimal? monthlySalaryFte, decimal? hourlyRate)
+    {
+        var model = (employmentModel ?? "").ToUpperInvariant();
+        bool isFix = model == "FIX" || model == "FIX-M";
+        if (isFix)
+            return !((monthlySalary ?? 0m) > 0m || (monthlySalaryFte ?? 0m) > 0m);
+        // UTP / MTP → Stundenlohn erforderlich
+        return !((hourlyRate ?? 0m) > 0m);
+    }
+
     public async Task<MinWageCheckResult> CheckAsync(
         string? jobGroupCode,
         string? educationLevelCode,
