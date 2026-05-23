@@ -87,6 +87,9 @@ async function loadDashboard() {
 
         // Alarm-Liste
         renderDashAlerts();
+
+        // Mindestlohn-Vertragsanpassung Warn-Banner (wage-adjustment.js)
+        if (typeof waLoadBanner === 'function') waLoadBanner('dashWageAdjustBanner');
     } catch(e) {
         container.innerHTML = `<div style="padding:30px;text-align:center;color:#dc2626">Netzwerkfehler: ${e.message}</div>`;
     }

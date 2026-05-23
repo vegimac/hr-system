@@ -525,6 +525,7 @@ public class DocumentsController : ControllerBase
         public bool? Aktiv { get; set; }
     }
 
+    [Authorize(Roles = "admin")]
     [HttpPost("admin/kategorie")]
     public async Task<IActionResult> CreateKategorie([FromBody] KategorieDto dto)
     {
@@ -539,6 +540,7 @@ public class DocumentsController : ControllerBase
         return Ok(new { k.Id });
     }
 
+    [Authorize(Roles = "admin")]
     [HttpPut("admin/kategorie/{id:int}")]
     public async Task<IActionResult> UpdateKategorie(int id, [FromBody] KategorieDto dto)
     {
@@ -551,6 +553,7 @@ public class DocumentsController : ControllerBase
         return Ok();
     }
 
+    [Authorize(Roles = "admin")]
     [HttpDelete("admin/kategorie/{id:int}")]
     public async Task<IActionResult> DeleteKategorie(int id)
     {
@@ -575,6 +578,7 @@ public class DocumentsController : ControllerBase
         public string? LinkedFieldCode { get; set; }
     }
 
+    [Authorize(Roles = "admin")]
     [HttpPost("admin/typ")]
     public async Task<IActionResult> CreateTyp([FromBody] TypDto dto)
     {
@@ -594,6 +598,7 @@ public class DocumentsController : ControllerBase
         return Ok(new { t.Id });
     }
 
+    [Authorize(Roles = "admin")]
     [HttpPut("admin/typ/{id:int}")]
     public async Task<IActionResult> UpdateTyp(int id, [FromBody] TypDto dto)
     {
@@ -615,6 +620,7 @@ public class DocumentsController : ControllerBase
         return Ok();
     }
 
+    [Authorize(Roles = "admin")]
     [HttpDelete("admin/typ/{id:int}")]
     public async Task<IActionResult> DeleteTyp(int id)
     {

@@ -354,6 +354,8 @@ function setVtFilter(mode) {
 async function loadVtList() {
     const listEl = document.getElementById('vtList');
     if (!listEl) return;
+    // Mindestlohn-Vertragsanpassung Warn-Banner (wage-adjustment.js)
+    if (typeof waLoadBanner === 'function') waLoadBanner('vtWageAdjustBanner');
     try {
         const res = await fetch('/api/employees', { headers: ah() });
         const emps = await res.json();

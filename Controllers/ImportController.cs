@@ -5,6 +5,7 @@ using HrSystem.Models;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +28,9 @@ public class ImportController : ControllerBase
 
     // POST /api/import/stempelzeiten/dedupe — löscht Duplikate, behält je
     // (employee_id, time_in) den Eintrag mit der niedrigsten Id.
+    // Sicherheit (Walter-Vorgabe 23.05.2026): Massen-Löschung nur admin.
+    // Die Stempel-IMPORTE bleiben für HR/GF offen (DefaultPolicy).
+    [Authorize(Roles = "admin")]
     [HttpPost("stempelzeiten/dedupe")]
     public async Task<IActionResult> DedupeStempelzeiten()
     {

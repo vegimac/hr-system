@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -85,6 +86,9 @@ public class UserBranchController : ControllerBase
     public record UbaRequest(int UserId, int CompanyProfileId, string? Role, string? FunctionTitle, bool IsDefault);
 
     // POST /api/userbranch
+    // Sicherheit (Walter-Vorgabe 23.05.2026): Filial-Zugriffe vergeben/ändern nur
+    // admin — sonst könnte sich ein `user` (GF) selbst Zugriff auf andere Filialen geben.
+    [Authorize(Roles = "admin")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] UbaRequest req)
     {
@@ -116,6 +120,7 @@ public class UserBranchController : ControllerBase
     }
 
     // PUT /api/userbranch/{id}
+    [Authorize(Roles = "admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UbaRequest req)
     {
@@ -130,6 +135,7 @@ public class UserBranchController : ControllerBase
     }
 
     // DELETE /api/userbranch/{id}
+    [Authorize(Roles = "admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

@@ -63,6 +63,7 @@ public class EditLockEndpointAuditTests
         ["ContractTextsController"]        = "Vertragstexte-Vorlagen — keine MA-Daten",
         ["SocialInsuranceRatesController"] = "SV-Sätze (AHV/ALV/NBU/KTG) — keine MA-Daten",
         ["MinimumWageRulesController"]     = "L-GAV Mindestlohn-Sätze (Katalog, versioniert) — keine MA-Daten",
+        ["BranchMinWageController"]        = "Kommunaler Mindestlohn pro Filiale (Katalog, versioniert) — keine MA-Daten",
         ["LohnKontoMappingController"]     = "Kontoplan / Lohnart→Konten-Mapping (Katalog) — keine MA-Daten",
 
         // Firmen-Stammdaten — admin only, gehört nicht in den User-Lock

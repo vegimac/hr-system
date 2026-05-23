@@ -25,5 +25,14 @@ public class MinimumWageRuleNew
     /// </summary>
     public int? AgeMax { get; set; }
 
+    /// <summary>
+    /// „Bestätigt" — nur für GEPLANTE (zukünftige) Sätze relevant (Walter-Vorgabe
+    /// 23.05.2026). Frisch via /copy erzeugte Folge-Sätze sind false (rot = noch
+    /// zu prüfen). Beim Speichern (PUT /{id}) wird true gesetzt. Frontend-Farbe:
+    /// rot = nicht bestätigt, grün = Betrag ≠ aktuell (geändert), orange = bestätigt
+    /// aber unverändert.
+    /// </summary>
+    public bool Confirmed { get; set; }
+
     public EducationLevel? EducationLevel { get; set; }
 }

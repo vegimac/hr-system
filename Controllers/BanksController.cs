@@ -65,6 +65,7 @@ public class BanksController : ControllerBase
     }
 
     // POST /api/banks — manuell einen Eintrag anlegen
+    [Authorize(Roles = "admin")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] BankMaster dto)
     {
@@ -81,6 +82,7 @@ public class BanksController : ControllerBase
     }
 
     // PUT /api/banks/{iid} — manuell bearbeiten
+    [Authorize(Roles = "admin")]
     [HttpPut("{iid}")]
     public async Task<IActionResult> Update(string iid, [FromBody] BankMaster dto)
     {
@@ -98,6 +100,7 @@ public class BanksController : ControllerBase
     }
 
     // DELETE /api/banks/{iid}
+    [Authorize(Roles = "admin")]
     [HttpDelete("{iid}")]
     public async Task<IActionResult> Delete(string iid)
     {

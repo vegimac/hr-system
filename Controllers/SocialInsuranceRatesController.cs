@@ -83,6 +83,7 @@ public class SocialInsuranceRatesController : ControllerBase
     }
 
     // POST – neuen Satz anlegen
+    [Authorize(Roles = "admin")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] SocialInsuranceRate dto)
     {
@@ -114,6 +115,7 @@ public class SocialInsuranceRatesController : ControllerBase
     // PUT – Satz aktualisieren.
     // Sperre: wenn der Satz in einer eingefrorenen Periode liegt, wird 409
     // zurückgegeben; der User muss stattdessen „Neu ab" verwenden.
+    [Authorize(Roles = "admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] SocialInsuranceRate dto)
     {
@@ -161,6 +163,7 @@ public class SocialInsuranceRatesController : ControllerBase
     /// Walter-Vorgabe 18.05.2026 — Standard-Pattern für versionierte Stammdaten
     /// wie Bank/Vertrag/QST.
     /// </summary>
+    [Authorize(Roles = "admin")]
     [HttpPost("{id:int}/new-version")]
     public async Task<IActionResult> CreateNewVersion(int id, [FromBody] SocialInsuranceRate dto)
     {
@@ -222,6 +225,7 @@ public class SocialInsuranceRatesController : ControllerBase
     }
 
     // DELETE – soft-delete
+    [Authorize(Roles = "admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

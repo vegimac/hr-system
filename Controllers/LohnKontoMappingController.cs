@@ -62,6 +62,7 @@ public class LohnKontoMappingController : ControllerBase
 
     // PUT /api/lohn-konto-mapping/{id}  → Konto-Korrektur (nur Konten + Text;
     // Schlüsselfelder Position/SubPos/Kostenstelle bleiben fix).
+    [Authorize(Roles = "admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] MappingEditDto dto)
     {

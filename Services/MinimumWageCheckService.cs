@@ -59,7 +59,8 @@ public class MinimumWageCheckService
         decimal? hourlyRate,
         decimal? monthlySalary,
         DateTime? dateOfBirth,
-        DateOnly effectiveDate)
+        DateOnly effectiveDate,
+        int? companyProfileId = null)
     {
         if (string.IsNullOrWhiteSpace(jobGroupCode) || string.IsNullOrWhiteSpace(employmentModel))
             return new MinWageCheckResult("NOT_CHECKED", null, null, null, null, null);
@@ -128,13 +129,53 @@ public class MinimumWageCheckService
             unit    = "/h";
         }
 
+        // ── Kommunaler Filial-Mindestlohn (übersteuert NACH OBEN) ────────────
+        // Walter-Vorgabe 23.05.2026: in manchen Städten gilt ein eigener
+        // Mindestlohn. Erfasst als JAHRESLOHN pro Filiale (branch_min_wage,
+        // versioniert). Monatslohn = Jahr/13, Stundenlohn = Jahr/52/Wochenstunden.
+        // Effektives Minimum = max(L-GAV, Filial-Floor) — senkt nie einen schon
+        // höheren L-GAV-Satz (z.B. Manager). Bei Jugendlichen nur, wenn der
+        // Filial-Eintrag das ausdrücklich vorsieht (applies_to_youth).
+        string minSource = "L-GAV-Mindestlohn";
+        DateTime minValidFrom = rule.ValidFrom;
+        if (companyProfileId.HasValue)
+        {
+            bool isYouth = age != null && age < 18;
+            var bmw = await _db.BranchMinWages
+                .Where(b => b.IsActive
+                         && b.CompanyProfileId == companyProfileId.Value
+                         && b.ValidFrom <= effDt
+                         && (b.ValidTo == null || b.ValidTo >= effDt))
+                .OrderByDescending(b => b.ValidFrom)
+                .FirstOrDefaultAsync();
+            if (bmw != null && (bmw.AppliesToYouth || !isYouth))
+            {
+                var weekly = (await _db.CompanyProfiles
+                    .Where(c => c.Id == companyProfileId.Value)
+                    .Select(c => c.NormalWeeklyHours)
+                    .FirstOrDefaultAsync()) ?? 42m;
+                if (weekly <= 0) weekly = 42m;
+
+                decimal cityFloor = salaryType == "monthly"
+                    ? Math.Round(bmw.AnnualSalary / 13m * ((employmentPercentage ?? 100m) / 100m), 2)
+                    : Math.Round(bmw.AnnualSalary / 52m / weekly, 2);
+
+                if (cityFloor > minimum)
+                {
+                    minimum      = cityFloor;
+                    minSource    = "kommunalen Mindestlohn dieser Filiale";
+                    minValidFrom = bmw.ValidFrom;
+                }
+            }
+        }
+
         if (actual == null)
             return new MinWageCheckResult("NOT_CHECKED", minimum, null, unit, null, "Lohn fehlt.");
 
         var diff = actual.Value - minimum;
         if (diff < 0)
         {
-            var msg = $"Lohn CHF {actual.Value:0.00}{unit} liegt CHF {Math.Abs(diff):0.00} unter dem L-GAV-Mindestlohn von CHF {minimum:0.00}{unit} (gültig ab {rule.ValidFrom:dd.MM.yyyy}).";
+            var msg = $"Lohn CHF {actual.Value:0.00}{unit} liegt CHF {Math.Abs(diff):0.00} unter dem {minSource} von CHF {minimum:0.00}{unit} (gültig ab {minValidFrom:dd.MM.yyyy}).";
             return new MinWageCheckResult("UNDERPAID", minimum, actual, unit, diff, msg);
         }
 

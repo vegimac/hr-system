@@ -141,6 +141,31 @@
         .mw-badge { font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 6px; margin-left: 7px; letter-spacing: .02em; vertical-align: 1px; }
         .mw-muted { color: #64748b; }
 
+        /* Geplante Sätze als eigene Spalte NEBEN der aktuellen (Variante B) */
+        .mw-scroll { overflow-x: auto; }
+        .mw-lock { font-size: 10px; opacity: .65; margin-right: 2px; }
+        .mw-edu-top { text-align: center; }
+        .mw-sub-cur { font-weight: 600; font-size: 9px; color: #94a3b8; }
+        .mw-sub-fut { font-weight: 700; font-size: 9px; color: #6d28d9; white-space: nowrap; }
+        /* Spalten-Tönung der Planungs-Spalte (Kopf + Zellen) */
+        .mw-table th.mw-fut-col, .mw-table td.mw-fut-col { background: #f5f3ff; }
+        .mw-table tbody tr:hover td.mw-fut-col { background: #ede9fe; }
+        /* aktueller Satz: gesperrt (im Lohnlauf verwendet) → hellgrau, read-only,
+           kein Schloss-Icon mehr (Spalte ist reine Referenz) */
+        .mw-amount.mw-cur-ro { cursor: default; color: #94a3b8; }
+        .mw-amount.mw-cur-ro:hover span { background: none; color: #94a3b8; box-shadow: none; }
+        /* gesperrte Zeile in der Versions-Tabelle (mit Schloss) → kein Hover-Edit */
+        .mw-amount.mw-locked { cursor: default; }
+        .mw-amount.mw-locked:hover span { background: none; color: #0f172a; box-shadow: none; }
+        /* geplanter Betrag: GRÜN = geändert, ORANGE = bestätigt&unverändert,
+           ROT = nicht bestätigt, „–" = keine Folge-Version */
+        .mw-amount.mw-fut-changed  span { color: #047857; font-weight: 700; }
+        .mw-amount.mw-fut-reviewed span { color: #d97706; font-weight: 600; }
+        .mw-amount.mw-fut-same     span { color: #dc2626; }
+        .mw-amount.mw-fut-none { cursor: default; color: #cbd5e1; }
+        .mw-amount.mw-fut-none:hover span { background: none; color: #cbd5e1; box-shadow: none; }
+        .mw-planhint { font-size: 11.5px; color: #6366f1; background: #eef2ff; border-bottom: 1px solid #e0e7ff; padding: 5px 12px; border-radius: 8px; }
+
         body.theme-dark .mw-section-head { background: #172033; color: #f1f5f9; border-color: #334155; }
         body.theme-dark .mw-section-head.mw-youth { background: #2a2410; color: #fcd34d; border-bottom-color: #57430f; }
         body.theme-dark .mw-table th { color: #94a3b8; border-color: #334155; }
@@ -152,6 +177,16 @@
         body.theme-dark .mw-amount:hover span { background: #1e3a8a; color: #fff; box-shadow: inset 0 0 0 1px #3b82f6; }
         body.theme-dark .mw-empty { color: #475569; }
         body.theme-dark .mw-muted { color: #94a3b8; }
+        body.theme-dark .mw-sub-cur { color: #64748b; }
+        body.theme-dark .mw-sub-fut { color: #c4b5fd; }
+        body.theme-dark .mw-table th.mw-fut-col, body.theme-dark .mw-table td.mw-fut-col { background: #211c33; }
+        body.theme-dark .mw-table tbody tr:hover td.mw-fut-col { background: #2d2547; }
+        body.theme-dark .mw-amount.mw-locked:hover span { background: none; color: #f1f5f9; box-shadow: none; }
+        body.theme-dark .mw-amount.mw-fut-changed  span { color: #34d399; }
+        body.theme-dark .mw-amount.mw-fut-reviewed span { color: #fbbf24; }
+        body.theme-dark .mw-amount.mw-fut-same     span { color: #f87171; }
+        body.theme-dark .mw-amount.mw-fut-none, body.theme-dark .mw-amount.mw-fut-none:hover span { color: #475569; background: none; box-shadow: none; }
+        body.theme-dark .mw-planhint { color: #a5b4fc; background: #1e293b; border-bottom-color: #334155; }
 
         /* Search-Box, Filter, etc. — falls nicht durch input-Selektor abgedeckt */
         body.theme-dark .emp-search,
@@ -2254,6 +2289,9 @@
                     <p class="page-sub" id="dashSubHeader" data-i18n="dash.subtitle">Bewilligungen, Probezeit, Verträge, Lohnläufe — alles auf einen Blick</p>
                 </div></div>
                 <div class="page-body">
+                    <!-- Mindestlohn-Vertragsanpassung Warn-Banner (wage-adjustment.js) -->
+                    <div id="dashWageAdjustBanner"></div>
+
                     <!-- Severity-Übersicht -->
                     <div id="dashSeverityRow" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px"></div>
 
@@ -2454,6 +2492,8 @@
                     <h1 class="page-title" data-i18n="vt.pageTitle">Verträge</h1>
                     <p class="page-sub" data-i18n="vt.pageSub">Arbeitsverträge verwalten und erfassen</p>
                 </div></div>
+                <!-- Mindestlohn-Vertragsanpassung Warn-Banner (wage-adjustment.js) -->
+                <div id="vtWageAdjustBanner" style="padding:0 16px"></div>
                 <div class="page-body" style="padding:0;overflow:hidden">
                     <div class="emp-layout">
                         <!-- Liste links -->
@@ -4670,14 +4710,14 @@
                 </div></div>
                 <div class="page-body">
                     <div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-                        <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px">Stichtag
-                            <input type="date" id="mwStichtag" onchange="mwLoad()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
-                        </label>
                         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;cursor:pointer">
-                            <input type="checkbox" id="mwShowAll" onchange="mwLoad()" style="cursor:pointer"> Alle Versionen anzeigen
+                            <input type="checkbox" id="mwShowAll" onchange="mwRender()" style="cursor:pointer"> Versionen mit Gültigkeit (aktuell + nächste)
                         </label>
                         <span id="mwInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
-                        <button class="btn-primary" onclick="mwOpenCopy()">+ Neue Sätze ab Datum</button>
+                        <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px" title="Datum, ab dem die neue Folge-Version (Kopie der aktuellen Sätze) gelten soll.">Neue Sätze ab
+                            <input type="date" id="mwCreateDate" style="padding:6px 10px;border:1px solid #c7d2fe;border-radius:8px;font-size:13px;background:#eef2ff">
+                        </label>
+                        <button id="mwCreateBtn" class="btn-primary" onclick="mwCreateGeneration()" title="Legt für das gewählte Datum eine vollständige Folge-Version an (Kopie der aktuellen Sätze, danach pro Zelle anpassbar).">+ Folge-Version anlegen</button>
                     </div>
                     <div id="mwContainer"></div>
                 </div>
@@ -7510,6 +7550,7 @@ function onBranchChange() {
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/save-blob.js?v=20260521a"></script>
 <script src="js/dashboard.js?v=20260518a"></script>
+<script src="js/wage-adjustment.js?v=20260523a"></script>
 <script src="js/permit-import.js?v=20260509b"></script>
 <script src="js/family-children-import.js?v=20260509b"></script>
 <script src="js/stammdaten-import.js?v=20260509b"></script>
@@ -7518,7 +7559,7 @@ function onBranchChange() {
 <script src="js/akonto-lauf.js?v=20260516a"></script>
 <script src="js/akonto-workflow.js?v=20260521c"></script>
 <script src="js/dok-audit.js?v=20260509b"></script>
-<script src="js/branches-detail.js?v=20260518a"></script>
+<script src="js/branches-detail.js?v=20260523b"></script>
 <script src="js/branch-modals.js?v=20260509b"></script>
 <script src="js/deductions.js?v=20260509b"></script>
 <script src="js/qst-modal.js?v=20260517a"></script>
@@ -7535,7 +7576,7 @@ function onBranchChange() {
 <script src="js/payroll.js?v=20260522c"></script>
 <script src="js/payroll-perioden.js?v=20260521a"></script>
 <script src="js/admin-settings.js?v=20260522g"></script>
-<script src="js/minimum-wages.js?v=20260520c"></script>
+<script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260522b"></script>
 <script src="js/lohn-edit-lock.js?v=20260517a"></script>
 <script src="js/i18n.js?v=20260518b"></script>

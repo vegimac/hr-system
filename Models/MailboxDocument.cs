@@ -26,6 +26,15 @@ public class MailboxDocument
     /// <summary>Optionale Beschreibung vom Uploader (z.B. „Arztzeugnis Maria, August").</summary>
     public string? Bemerkung { get; set; }
 
+    /// <summary>
+    /// Reine Text-Mitteilung statt Datei (Walter-Vorgabe 23.05.2026). Wenn gesetzt,
+    /// ist dieser Eintrag eine Nachricht ins MA-Postfach OHNE Anhang
+    /// (StorageFilename leer, MimeType null) — z.B. „Dein Stundenlohn steigt per
+    /// 01.01.2027 auf CHF 20.45." Das Frontend rendert solche Einträge als
+    /// Text-Notiz (kein Download/Preview). OriginalFilename dient als Titel.
+    /// </summary>
+    public string? MessageBody { get; set; }
+
     /// <summary>Optional: MA, auf den sich das Dokument bezieht.</summary>
     public int? EmployeeId { get; set; }
     public Employee? Employee { get; set; }

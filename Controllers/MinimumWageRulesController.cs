@@ -14,10 +14,17 @@ namespace HrSystem.Controllers;
 // versioniert über valid_from/valid_to — eine Lohnänderung kann an JEDEM Datum
 // greifen (1.1., 1.7., …), nicht nur zum Jahreswechsel.
 //
-// Lohn-Edit-Lock: NICHT relevant — das sind Katalog-/Stammdaten, kein MA-Lohn.
-// Eine Mindestlohn-Änderung verändert keine bereits abgeschlossene Abrechnung;
-// der Compliance-Check liest den am Vertrags-/Stichtag gültigen Satz.
-// (Im Audit-Test EditLockEndpointAuditTests entsprechend whitelisted.)
+// Lohn-Edit-Lock (der datum-basierte LohnEditLockService): NICHT relevant — das
+// sind Katalog-/Stammdaten, kein MA-Lohn. (Im Audit-Test EditLockEndpointAuditTests
+// entsprechend whitelisted.)
+//
+// ABER: ein wage-spezifischer „in Lohn verwendet"-Lock GILT (Walter-Vorgabe
+// 23.05.2026, analog SV-Sätze): ein Mindestlohn, dessen Gültigkeit eine
+// eingefrorene Lohnperiode überlappt, wurde in einem Lohnlauf verwendet und darf
+// NICHT mehr direkt geändert werden (PUT /{id} → 409 MINWAGE_LOCKED). Eine
+// notwendige Änderung läuft ausschliesslich über „Neue Sätze ab" (POST /copy =
+// neue Version ab Stichtag). So bleibt der Compliance-Check, der den am
+// Vertrags-/Stichtag gültigen Satz liest, für abgeschlossene Perioden stabil.
 // ============================================================================
 [ApiController]
 [Route("api/minimum-wage-rules")]
@@ -26,10 +33,22 @@ public class MinimumWageRulesController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly MinimumWageCheckService _minWage;
-    public MinimumWageRulesController(AppDbContext db, MinimumWageCheckService minWage)
+    private readonly LohnEditLockService _editLock;
+    public MinimumWageRulesController(AppDbContext db, MinimumWageCheckService minWage, LohnEditLockService editLock)
     {
         _db = db;
         _minWage = minWage;
+        _editLock = editLock;
+    }
+
+    // GET /api/minimum-wage-rules/first-allowed-date → frühestes Gültig-ab-Datum
+    // für eine neue Folge-Version (global über alle Filialen): 1. Tag des Monats
+    // nach der spätesten abgeschlossenen/in-Verarbeitung-Periode. NULL = frei.
+    [HttpGet("first-allowed-date")]
+    public async Task<IActionResult> FirstAllowedDate()
+    {
+        var d = await _editLock.GetGlobalFirstAllowedDateAsync();
+        return Ok(new { firstAllowedDate = d?.ToString("yyyy-MM-dd") });
     }
 
     // GET /api/minimum-wage-rules?date=2026-05-20  → am Stichtag gültige Sätze
@@ -54,39 +73,81 @@ public class MinimumWageRulesController : ControllerBase
             .ThenBy(r => r.EmploymentModelCode)
             .ThenBy(r => r.EducationLevelId)
             .ThenBy(r => r.ValidFrom)
-            .Select(r => new
-            {
-                r.Id,
-                r.JobGroupCode,
-                r.EmploymentModelCode,
-                r.EducationLevelId,
-                r.SalaryType,
-                r.Amount,
-                r.ValidFrom,
-                r.ValidTo,
-                r.IsActive,
-                r.AgeMax
-            })
             .ToListAsync();
 
-        return Ok(rules);
+        // „In Lohn verwendet" (Walter-Vorgabe 22.05.2026): ein Mindestlohn, dessen
+        // Gültigkeit eine eingefrorene Lohnperiode überlappt, gilt als verwendet →
+        // darf nicht mehr direkt geändert werden, nur über „Neu ab" (neue Version).
+        // Gleiche Logik wie SV-Sätze.
+        var frozen = await _db.PayrollPerioden
+            .Where(p => p.Status != "offen"
+                     || (p.AkontoStatus != "OFFEN" && p.AkontoStatus != "IN_BEARBEITUNG_GF"))
+            .Select(p => new { p.PeriodFrom, p.PeriodTo })
+            .ToListAsync();
+
+        var result = rules.Select(r => new
+        {
+            r.Id,
+            r.JobGroupCode,
+            r.EmploymentModelCode,
+            r.EducationLevelId,
+            r.SalaryType,
+            r.Amount,
+            r.ValidFrom,
+            r.ValidTo,
+            r.IsActive,
+            r.AgeMax,
+            r.Confirmed,
+            inLohnVerwendet = frozen.Any(p =>
+                DateOnly.FromDateTime(r.ValidFrom) <= p.PeriodTo
+             && (r.ValidTo == null || DateOnly.FromDateTime(r.ValidTo.Value) >= p.PeriodFrom))
+        });
+
+        return Ok(result);
+    }
+
+    // Prüft, ob eine Regel zeitlich eine eingefrorene Periode überlappt (= in einem
+    // Lohnlauf verwendet) → dann ist Direkt-Bearbeiten gesperrt (nur „Neu ab").
+    private async Task<bool> IsRuleInLohnVerwendetAsync(MinimumWageRuleNew rule)
+    {
+        var vf = DateOnly.FromDateTime(rule.ValidFrom);
+        DateOnly? vt = rule.ValidTo.HasValue ? DateOnly.FromDateTime(rule.ValidTo.Value) : (DateOnly?)null;
+        return await _db.PayrollPerioden.AnyAsync(p =>
+            (p.Status != "offen" || (p.AkontoStatus != "OFFEN" && p.AkontoStatus != "IN_BEARBEITUNG_GF"))
+            && vf <= p.PeriodTo
+            && (vt == null || vt >= p.PeriodFrom));
     }
 
     // PUT /api/minimum-wage-rules/{id}  — nur den Betrag ändern.
     // Bewusst NUR amount: Schlüsselfelder (Funktion/Modell/Ausbildung/Datum)
     // dürfen nicht nachträglich umgehängt werden — dafür gibt es /copy.
+    [Authorize(Roles = "admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateAmount(int id, [FromBody] MinWageAmountDto dto)
     {
         var rule = await _db.MinimumWageRulesNew.FindAsync(id);
         if (rule is null) return NotFound();
 
+        // In-Lohn-verwendet-Sperre (Walter-Vorgabe 23.05.2026): überlappt der Satz
+        // eine eingefrorene Lohnperiode, wurde er bereits abgerechnet → Direkt-Edit
+        // gesperrt, nur „Neue Sätze ab" (POST /copy). Gleiche Logik wie SV-Sätze.
+        if (await IsRuleInLohnVerwendetAsync(rule))
+            return Conflict(new
+            {
+                error   = "MINWAGE_LOCKED",
+                message = "Dieser Mindestlohn wurde bereits in einer Lohnabrechnung verwendet — Direkt-Bearbeiten ist gesperrt. Bitte 'Neue Sätze ab' verwenden, um eine Folge-Version mit neuem Gültig-ab-Datum anzulegen."
+            });
+
         if (dto.Amount < 0)
             return BadRequest(new { error = "Betrag darf nicht negativ sein." });
 
         rule.Amount = dto.Amount;
+        // Speichern = „bestätigt" (Walter-Vorgabe 23.05.2026). Ein geplanter Satz,
+        // der angeschaut/gespeichert wurde, gilt als geprüft → Frontend zeigt ihn
+        // grün (Betrag geändert) bzw. orange (unverändert) statt rot (unbestätigt).
+        rule.Confirmed = true;
         await _db.SaveChangesAsync();
-        return Ok(new { rule.Id, rule.Amount });
+        return Ok(new { rule.Id, rule.Amount, rule.Confirmed });
     }
 
     // POST /api/minimum-wage-rules/copy  — Body { effectiveDate: "2026-07-01" }
@@ -95,12 +156,26 @@ public class MinimumWageRulesController : ControllerBase
     // begrenzt; je eine Kopie mit valid_from = Stichtag, valid_to = NULL wird
     // angelegt. Danach kann der User die neuen Beträge anpassen.
     // Läuft als ein SaveChangesAsync = atomar (implizite Transaktion).
+    [Authorize(Roles = "admin")]
     [HttpPost("copy")]
     public async Task<IActionResult> Copy([FromBody] MinWageCopyDto dto)
     {
         var eff    = dto.EffectiveDate;
         var effDt  = eff.ToDateTime(TimeOnly.MinValue);
         var prevDt = eff.AddDays(-1).ToDateTime(TimeOnly.MinValue);
+
+        // Stichtag darf nicht in einer bereits abgeschlossenen/in Verarbeitung
+        // befindlichen Lohnperiode liegen (Walter-Vorgabe 23.05.2026, GLOBAL über
+        // alle Filialen — die Mindestlohn-Tabelle gilt für alle). Frühestes Datum
+        // = 1. Tag des Monats nach der spätesten gesperrten Periode irgendeiner Filiale.
+        var firstAllowed = await _editLock.GetGlobalFirstAllowedDateAsync();
+        if (firstAllowed.HasValue && eff < firstAllowed.Value)
+            return Conflict(new
+            {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Das Gültig-ab-Datum {eff:dd.MM.yyyy} liegt in einer bereits abgeschlossenen/verarbeiteten Lohnperiode. Frühestes erlaubtes Datum: {firstAllowed.Value:dd.MM.yyyy}.",
+                firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+            });
 
         // Duplikat-Schutz: noch keine Version mit genau diesem Gültig-ab.
         var alreadyExists = await _db.MinimumWageRulesNew.AnyAsync(r => r.ValidFrom == effDt);
@@ -198,7 +273,7 @@ public class MinimumWageRulesController : ControllerBase
             var chk = await _minWage.CheckAsync(
                 em.JobTitle, em.EducationLevelCode, em.EmploymentModel,
                 em.EmploymentPercentage, em.HourlyRate, em.MonthlySalary,
-                em.Employee!.DateOfBirth, periodTo);
+                em.Employee!.DateOfBirth, periodTo, companyProfileId);
             if (chk.Status == "UNDERPAID")
             {
                 underpaid.Add(new

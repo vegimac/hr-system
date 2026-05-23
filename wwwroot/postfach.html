@@ -802,8 +802,22 @@
 
         // Neueste zuerst
         docs.sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));
+        window._pfInbox = docs;   // für pfShowMessage-Lookup
 
         el.innerHTML = docs.map(d => {
+            // Reine Text-Mitteilung (kein Anhang) → als Notiz rendern.
+            if (d.messageBody && String(d.messageBody).trim().length > 0) {
+                const mTitle = esc(d.originalFilename || 'Mitteilung');
+                const mSub = esc(d.uploadedAt ? fmtDate(d.uploadedAt) : '');
+                return `<a class="pf-doc" href="javascript:void(0)" onclick="pfShowMessage(${d.id})">
+                    <div class="pf-doc-icon" style="background:#dbeafe;color:#1e40af">💬</div>
+                    <div class="pf-doc-body">
+                        <div class="pf-doc-title">${mTitle}</div>
+                        <div class="pf-doc-sub">${mSub}</div>
+                    </div>
+                    <div class="pf-doc-arrow">›</div>
+                </a>`;
+            }
             const titleRaw = d.bemerkung && d.bemerkung.trim().length > 0
                 ? d.bemerkung
                 : (d.originalFilename || 'Dokument');
@@ -818,6 +832,14 @@
                 <div class="pf-doc-arrow">›</div>
             </a>`;
         }).join('');
+    }
+
+    // Text-Mitteilung anzeigen (kein Download — Inhalt steht in messageBody).
+    function pfShowMessage(docId) {
+        const d = (window._pfInbox || []).find(x => x.id === docId);
+        if (!d) return;
+        const title = d.originalFilename || 'Mitteilung';
+        alert(title + '\n\n' + (d.messageBody || ''));
     }
 
     function renderOutbox(docs) {

@@ -106,6 +106,7 @@ public class MailboxController : ControllerBase
                 m.MimeType,
                 m.FileSizeBytes,
                 m.Bemerkung,
+                m.MessageBody,
                 m.UploadedAt,
                 m.TargetType,
                 m.CompanyProfileId,

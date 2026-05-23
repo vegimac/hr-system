@@ -60,6 +60,7 @@ public class AppDbContext : DbContext
     public DbSet<DokumentTyp>               DokumentTypen               => Set<DokumentTyp>();
     public DbSet<EmployeeDokument>          EmployeeDokumente           => Set<EmployeeDokument>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
+    public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
 
@@ -274,6 +275,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.AgeMax).HasColumnName("age_max");
+            entity.Property(e => e.Confirmed).HasColumnName("confirmed").HasDefaultValue(false);
             entity.HasOne(e => e.EducationLevel).WithMany().HasForeignKey(e => e.EducationLevelId);
         });
 
@@ -700,6 +702,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MimeType).HasColumnName("mime_type");
             entity.Property(e => e.FileSizeBytes).HasColumnName("file_size_bytes");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.MessageBody).HasColumnName("message_body");
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.NotifyUserId).HasColumnName("notify_user_id");
             entity.Property(e => e.TargetType).HasColumnName("target_type");
@@ -708,6 +711,22 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.NotifyUser).WithMany().HasForeignKey(e => e.NotifyUserId);
             entity.HasIndex(e => new { e.CompanyProfileId, e.UploadedAt });
+        });
+
+        // ── BranchMinWage (kommunaler Mindestlohn pro Filiale) ───────────────
+        modelBuilder.Entity<BranchMinWage>(entity =>
+        {
+            entity.ToTable("branch_min_wage");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.AnnualSalary).HasColumnName("annual_salary").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.AppliesToYouth).HasColumnName("applies_to_youth");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.HasIndex(e => new { e.CompanyProfileId, e.ValidFrom });
         });
 
         // ── VertragstypLohnposition ──────────────────────────────────────────

@@ -303,6 +303,10 @@ function renderFilialenDetail(b) {
                 <div id="einAkontoTermineGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px 10px"></div>
             </div>
 
+            <div class="ein-group-title">Gemeinde/Kanton Minimum Lohn
+                <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">— nur falls Gemeinde/Kanton einen eigenen Mindestlohn vorschreibt; übersteuert den L-GAV nach oben</span></div>
+            <div id="bmwBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>
+
             <!-- Periodenregel-Anzeige entfernt (Walter-Vorgabe 15.05.2026):
                  die Lohnperiode ist jetzt immer der Kalendermonat.
                  Der „Auf alle Filialen übertragen"-Button sitzt in der
@@ -317,6 +321,8 @@ function renderFilialenDetail(b) {
     einTpInit(b.thirteenthMonthPayoutMonths, b.thirteenthMonthPayoutsPerYear);
     // Akonto-Termine des aktuellen Jahres laden (Akonto-Lohn-Modell).
     loadAkontoTermine(b.id);
+    // Kommunalen Mindestlohn der Filiale laden (versioniert).
+    bmwInit(b.id);
     // Aktiven Tab beibehalten (Walter-Vorgabe 15.05.2026): wer in
     // „Einstellungen" steht und links die Filiale wechselt, bleibt in
     // „Einstellungen" — einfach von der neu gewählten Filiale.
@@ -1327,5 +1333,124 @@ async function saveThirteenthPayouts() {
         closeThirteenthPayoutsModal();
         loadFilialen();
     } catch { alert('Verbindungsfehler.'); }
+}
+
+// ── Kommunaler Mindestlohn pro Filiale (Walter-Vorgabe 23.05.2026) ──────────
+// Jahreslohn erfassen; Monat (÷13) und Stunde (÷52÷Wochenstunden) werden
+// gerechnet. Versioniert (Generationen). Übersteuert L-GAV nach oben.
+let _bmwBranch = null;
+let _bmwWeekly = 42;
+
+function bmwFmtDate(iso) {
+    if (!iso) return '–';
+    const s = String(iso).slice(0, 10);
+    return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4);
+}
+function bmwFmtAmt(v) {
+    return Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function bmwInit(branchId) {
+    _bmwBranch = branchId;
+    const el = document.getElementById('bmwBlock');
+    if (!el) return;
+    el.innerHTML = '<div style="font-size:12px;color:#94a3b8">Wird geladen…</div>';
+    try {
+        const r = await fetch(`/api/branch-min-wage?companyProfileId=${branchId}`, { headers: ah() });
+        if (!r.ok) {
+            el.innerHTML = r.status === 403
+                ? '<div style="font-size:12px;color:#92400e">Nur Admin/HR kann den kommunalen Mindestlohn verwalten.</div>'
+                : `<div style="font-size:12px;color:#dc2626">Fehler beim Laden (HTTP ${r.status}).</div>`;
+            return;
+        }
+        const d = await r.json();
+        _bmwWeekly = d.weeklyHours || 42;
+        bmwRender(d.items || []);
+    } catch (e) {
+        el.innerHTML = `<div style="font-size:12px;color:#dc2626">Fehler: ${e.message}</div>`;
+    }
+}
+
+function bmwRender(items) {
+    const el = document.getElementById('bmwBlock');
+    if (!el) return;
+    const weekly = _bmwWeekly;
+    const rows = items.map(it => {
+        const youth = it.appliesToYouth ? 'Ja' : 'Nein';
+        return `<tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:6px 10px;text-align:right;font-weight:600">${bmwFmtAmt(it.annualSalary)}</td>
+            <td style="padding:6px 10px;text-align:right;color:#475569">${bmwFmtAmt(it.monthly)}</td>
+            <td style="padding:6px 10px;text-align:right;color:#475569">${bmwFmtAmt(it.hourly)}</td>
+            <td style="padding:6px 10px;text-align:center">${youth}</td>
+            <td style="padding:6px 10px">${bmwFmtDate(it.validFrom)}</td>
+            <td style="padding:6px 10px">${it.validTo ? bmwFmtDate(it.validTo) : 'offen'}</td>
+            <td style="padding:6px 10px;text-align:right"><button class="btn btn-outline" style="font-size:11px;padding:3px 8px;color:#dc2626" onclick="bmwDelete(${it.id})">Löschen</button></td>
+        </tr>`;
+    }).join('');
+
+    const table = items.length ? `
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px">
+            <thead><tr style="color:#94a3b8;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid #e2e8f0">
+                <th style="padding:4px 10px;text-align:right">Jahreslohn</th>
+                <th style="padding:4px 10px;text-align:right">Monat (÷13)</th>
+                <th style="padding:4px 10px;text-align:right">Std (÷52÷${weekly})</th>
+                <th style="padding:4px 10px;text-align:center">Jugend</th>
+                <th style="padding:4px 10px;text-align:left">Gültig ab</th>
+                <th style="padding:4px 10px;text-align:left">Gültig bis</th>
+                <th></th>
+            </tr></thead><tbody>${rows}</tbody>
+        </table>`
+        : '<div style="font-size:12px;color:#64748b;margin-bottom:10px">Kein kommunaler Mindestlohn erfasst — diese Filiale verwendet den L-GAV-Mindestlohn.</div>';
+
+    const form = `
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:10px 12px">
+            <div><div style="font-size:11px;color:#64748b;margin-bottom:2px">Jahreslohn (CHF)</div>
+                <input type="number" id="bmwAnnual" class="ef-input" style="width:120px" min="0" step="100" placeholder="48000" oninput="bmwUpdateHint()"></div>
+            <div><div style="font-size:11px;color:#64748b;margin-bottom:2px">Gültig ab</div>
+                <input type="date" id="bmwValidFrom" class="ef-input" style="width:150px"></div>
+            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;margin-bottom:7px">
+                <input type="checkbox" id="bmwYouth"> auch für Jugendliche</label>
+            <button class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="bmwAdd()">+ Version hinzufügen</button>
+            <div id="bmwCalcHint" style="font-size:11.5px;color:#0369a1;flex-basis:100%"></div>
+        </div>`;
+
+    el.innerHTML = table + form;
+}
+
+function bmwUpdateHint() {
+    const a = parseFloat(document.getElementById('bmwAnnual')?.value);
+    const h = document.getElementById('bmwCalcHint');
+    if (!h) return;
+    if (isNaN(a) || a <= 0) { h.textContent = ''; return; }
+    const m = a / 13, hr = a / 52 / _bmwWeekly;
+    h.textContent = `→ ergibt Monatslohn ${bmwFmtAmt(m)} (÷13) · Stundenlohn ${bmwFmtAmt(hr)} (÷52÷${_bmwWeekly})`;
+}
+
+async function bmwAdd() {
+    const annual = parseFloat(document.getElementById('bmwAnnual')?.value);
+    const vf     = document.getElementById('bmwValidFrom')?.value;
+    const youth  = document.getElementById('bmwYouth')?.checked || false;
+    if (isNaN(annual) || annual <= 0) { showToast('Jahreslohn fehlt oder ungültig.', 'error'); return; }
+    if (!vf) { showToast('Gültig-ab-Datum fehlt.', 'error'); return; }
+    try {
+        const r = await fetch('/api/branch-min-wage', {
+            method: 'POST', headers: ah(),
+            body: JSON.stringify({ companyProfileId: _bmwBranch, annualSalary: annual, appliesToYouth: youth, validFrom: vf })
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { showToast(d.error || ('Fehler (HTTP ' + r.status + ')'), 'error'); return; }
+        showToast('Kommunaler Mindestlohn erfasst.', 'success');
+        bmwInit(_bmwBranch);
+    } catch (e) { showToast('Fehler: ' + e.message, 'error'); }
+}
+
+async function bmwDelete(id) {
+    if (!confirm('Diese Version des kommunalen Mindestlohns löschen?')) return;
+    try {
+        const r = await fetch('/api/branch-min-wage/' + id, { method: 'DELETE', headers: ah() });
+        if (!r.ok && r.status !== 204) { showToast('Löschen fehlgeschlagen (HTTP ' + r.status + ')', 'error'); return; }
+        showToast('Gelöscht.', 'success');
+        bmwInit(_bmwBranch);
+    } catch (e) { showToast('Fehler: ' + e.message, 'error'); }
 }
 

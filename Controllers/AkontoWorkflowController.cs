@@ -352,7 +352,7 @@ public class AkontoWorkflowController : ControllerBase
             var mwChk = await _minWage.CheckAsync(
                 mwEmp.JobTitle, mwEmp.EducationLevelCode, mwEmp.EmploymentModel,
                 mwEmp.EmploymentPercentage, mwEmp.HourlyRate, mwEmp.MonthlySalary,
-                mwDob, mwTo);
+                mwDob, mwTo, mwEmp.CompanyProfileId);
             if (mwChk.Status == "UNDERPAID")
                 return StatusCode(409, new { error = "MINDESTLOHN_UNTERSCHRITTEN", message = mwChk.Message });
         }

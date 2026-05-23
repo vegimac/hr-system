@@ -1,13 +1,17 @@
 using HrSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HrSystem.Controllers;
 
 /// <summary>
 /// Admin-Endpoints für den Import und Status der Quellensteuer-Tarifdateien.
+/// Sicherheit (Walter-Vorgabe 23.05.2026): kompletter QST-Tarif-Admin-Bereich
+/// nur für admin (Import/Reload ändern systemweite Tarife).
 /// </summary>
 [ApiController]
 [Route("api/admin/quellensteuer")]
+[Authorize(Roles = "admin")]
 public class QuellensteuerAdminController : ControllerBase
 {
     private readonly QuellensteuerTarifService _tarifService;

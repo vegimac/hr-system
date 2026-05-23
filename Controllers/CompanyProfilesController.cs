@@ -1,10 +1,15 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Controllers;
 
+// Sicherheit (Walter-Vorgabe 23.05.2026): Filial-Stammdaten/Einstellungen ändern
+// nur admin. GET (Liste/Detail) bleibt für alle Rollen offen (Filial-Selektor,
+// Anzeige) — daher KEIN klassenweites Rollen-Attribut, sondern [Authorize(Roles="admin")]
+// auf jedem schreibenden Endpunkt.
 [ApiController]
 [Route("api/[controller]")]
 public class CompanyProfilesController : ControllerBase
@@ -58,6 +63,7 @@ public class CompanyProfilesController : ControllerBase
         return Ok(profile);
     }
 
+    [Authorize(Roles = "admin")]
     [HttpPost]
     public async Task<IActionResult> Create(CompanyProfile profile)
     {
@@ -68,6 +74,7 @@ public class CompanyProfilesController : ControllerBase
     }
 
     // PATCH /api/companyprofiles/{id}/nighthours
+    [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/nighthours")]
     public async Task<IActionResult> UpdateNightHours(int id, [FromBody] NightHoursDto dto)
     {
@@ -86,6 +93,7 @@ public class CompanyProfilesController : ControllerBase
     // PATCH /api/companyprofiles/{id}/alv
     // Legacy-Endpoint, bleibt aus Rückwärtskompatibilität — neuer Code soll
     // /stammdaten verwenden, der alle Stammdaten in einem Rutsch updated.
+    [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/alv")]
     public async Task<IActionResult> UpdateAlvDaten(int id, [FromBody] AlvDatenDto dto)
     {
@@ -116,6 +124,7 @@ public class CompanyProfilesController : ControllerBase
     // Vollständige Filial-Stammdaten (Adresse, Kontakt, Kanton, Sozialvers.,
     // GAV, BUR/Branchen-Code) in einem Rutsch. Ersetzt den ALV-Sub-Modal-Flow
     // — die UI öffnet jetzt EIN Stammdaten-Modal.
+    [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/stammdaten")]
     public async Task<IActionResult> UpdateStammdaten(int id, [FromBody] CompanyStammdatenDto dto)
     {
@@ -197,6 +206,7 @@ public class CompanyProfilesController : ControllerBase
 
     // PATCH /api/companyprofiles/{id}/bank
     // Filial-Bankverbindung (Auftraggeber-Konto fürs DTA / Lohnlauf).
+    [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/bank")]
     public async Task<IActionResult> UpdateBank(int id, [FromBody] CompanyBankDto dto)
     {
@@ -228,6 +238,7 @@ public class CompanyProfilesController : ControllerBase
     // PATCH /api/companyprofiles/{id}/kanton
     // Standort-Kanton der Filiale (für Familienzulagen-Berechnung).
     // Wird im Filial-Edit-Modal als Dropdown gepflegt.
+    [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/kanton")]
     public async Task<IActionResult> UpdateKanton(int id, [FromBody] CompanyKantonDto dto)
     {
@@ -255,6 +266,7 @@ public class CompanyProfilesController : ControllerBase
     // PATCH /api/companyprofiles/{id}/thirteenth-payouts
     // Akzeptiert entweder eine Monatsliste (Months: int[]) oder die Legacy-
     // PayoutsPerYear-Kodierung. Mindestens eines muss gesetzt sein.
+    [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/thirteenth-payouts")]
     public async Task<IActionResult> UpdateThirteenthPayouts(int id, [FromBody] ThirteenthPayoutsDto dto)
     {
@@ -307,6 +319,7 @@ public class CompanyProfilesController : ControllerBase
     // PATCH /api/companyprofiles/{id}/auto-ferien-geld-dezember
     // Schaltet die automatische Jahresend-Auszahlung des Ferien-Geld-Saldos
     // (UTP/MTP) im Dezember an oder aus.
+    [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/auto-ferien-geld-dezember")]
     public async Task<IActionResult> UpdateAutoFerienGeldDezember(int id, [FromBody] AutoFerienGeldDezemberDto dto)
     {
@@ -320,6 +333,7 @@ public class CompanyProfilesController : ControllerBase
     public record AutoFerienGeldDezemberDto(bool Aktiv);
 
     // PATCH /api/companyprofiles/{id}/lgav
+    [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/lgav")]
     public async Task<IActionResult> UpdateLgav(int id, [FromBody] LgavDto dto)
     {
@@ -349,6 +363,7 @@ public class CompanyProfilesController : ControllerBase
         decimal LgavBeitragReduziert);
 
     // PATCH /api/companyprofiles/{id}/karenz
+    [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/karenz")]
     public async Task<IActionResult> UpdateKarenz(int id, [FromBody] KarenzDto dto)
     {
@@ -394,6 +409,7 @@ public class CompanyProfilesController : ControllerBase
     //   • AkontoProzentFixM   — für FIX-M,      Default 90 % (Walter 18.05.2026)
     //   • AkontoProzentHourly — für UTP/MTP,    Default 100 %
     // Alle drei optional im DTO; nur gesetzte Werte werden übernommen.
+    [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/akonto-prozent")]
     public async Task<IActionResult> UpdateAkontoProzent(int id, [FromBody] AkontoProzentDto dto)
     {
@@ -432,6 +448,7 @@ public class CompanyProfilesController : ControllerBase
     // Feiertags-Vorgaben, Karenz, L-GAV, Akonto-%, 13.-ML-Monate UND die
     // Akonto-Termine des übergebenen Jahres. Es wird der GESPEICHERTE Stand
     // der Quell-Filiale übertragen; die Ziel-Filialen werden überschrieben.
+    [Authorize(Roles = "admin")]
     [HttpPost("{id:int}/copy-einstellungen-to-all")]
     public async Task<IActionResult> CopyEinstellungenToAll(int id, [FromBody] CopyEinstellungenDto dto)
     {

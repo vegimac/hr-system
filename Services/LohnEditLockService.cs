@@ -134,6 +134,51 @@ public class LohnEditLockService
     }
 
     /// <summary>
+    /// GLOBALE Variante über ALLE Filialen (Walter-Vorgabe 23.05.2026) — für
+    /// global gültige Stammdaten wie L-GAV-Mindestlöhne. Ein global wirksamer
+    /// Satz darf nicht rückwirkend in eine Periode fallen, die in IRGENDEINER
+    /// Filiale schon abgeschlossen/in Verarbeitung ist. Resultat = 1. Tag des
+    /// Monats NACH der über alle Filialen SPÄTESTEN gesperrten Periode (= Maximum
+    /// der per-Filiale-FirstAllowedDates). Beispiel: Oftringen hat Januar
+    /// abgeschlossen, Sursee schon Februar → frühestes Datum 01.03. NULL = keine
+    /// Periode gesperrt → keine Schranke. Gleiche „in Verarbeitung"-Definition wie
+    /// GetFirstAllowedDateAsync, nur ohne Filial-Filter.
+    /// </summary>
+    public async Task<DateOnly?> GetGlobalFirstAllowedDateAsync()
+    {
+        var fromPeriode = await _db.PayrollPerioden
+            .Where(p =>
+                p.Status == "provisorisch_abgeschlossen" ||
+                p.Status == "abgeschlossen" ||
+                p.AkontoStatus == "BEI_HR" ||
+                p.AkontoStatus == "HR_FREIGEGEBEN" ||
+                p.AkontoStatus == "AUSBEZAHLT")
+            .OrderByDescending(p => p.Year).ThenByDescending(p => p.Month)
+            .Select(p => new { p.Year, p.Month })
+            .FirstOrDefaultAsync();
+
+        (int Year, int Month)? winner = fromPeriode is null ? null : (fromPeriode.Year, fromPeriode.Month);
+
+        var fromAkonto = await _db.AkontoZahlungen
+            .Where(a => a.Status == "FREIGEGEBEN_GF"
+                     || a.Status == "HR_BESTAETIGT"
+                     || a.Status == "AUSBEZAHLT")
+            .OrderByDescending(a => a.PeriodYear).ThenByDescending(a => a.PeriodMonth)
+            .Select(a => new { Year = a.PeriodYear, Month = a.PeriodMonth })
+            .FirstOrDefaultAsync();
+        if (fromAkonto is not null)
+        {
+            if (winner is null
+                || fromAkonto.Year > winner.Value.Year
+                || (fromAkonto.Year == winner.Value.Year && fromAkonto.Month > winner.Value.Month))
+                winner = (fromAkonto.Year, fromAkonto.Month);
+        }
+
+        if (winner is null) return null;
+        return new DateOnly(winner.Value.Year, winner.Value.Month, 1).AddMonths(1);
+    }
+
+    /// <summary>
     /// Prüft ob ein konkretes Datum gesperrt ist.
     /// </summary>
     public async Task<LockResult> CheckDateAsync(

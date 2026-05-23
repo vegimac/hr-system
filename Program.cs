@@ -95,6 +95,7 @@ builder.Services.AddScoped<PayrollCalculationEngine>();
 // Snapshot-Neuberechnung (hält offene Perioden frisch — Walter-Vorgabe 22.05.2026).
 builder.Services.AddScoped<SnapshotRecomputeService>();
 builder.Services.AddScoped<MinimumWageCheckService>();
+builder.Services.AddScoped<WageAdjustmentService>();
 // Bank-Lookup: IBAN → Bank-Stammdaten aus Data/bank_master.csv (SIX-Liste)
 builder.Services.AddSingleton<BankLookupService>();
 // MA-Postfach: Login-Account-Verwaltung pro Mitarbeiter
