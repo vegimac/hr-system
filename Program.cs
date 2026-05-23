@@ -1082,6 +1082,26 @@ using (var scope = app.Services.CreateScope())
     ");
 }
 
+// Security-Header (Walter-Vorgabe 23.05.2026): „einfache" Härtung, gilt für ALLE
+// Antworten (statische Dateien + API). Bewusst OHNE Content-Security-Policy — die
+// SPA nutzt viel Inline-JS/-CSS (onclick=…, <style>), eine echte CSP käme erst mit
+// einem Refactor (Handler auslagern + Nonces). Header werden ganz am Anfang der
+// Pipeline gesetzt, damit nichts an der Response schon „gestartet" ist.
+// Hinweis: dieselben Header NICHT zusätzlich in nginx setzen (sonst doppelt).
+// `server_tokens off` (nginx-Versionsnummer verstecken) bleibt nginx-seitig.
+app.Use(async (context, next) =>
+{
+    var h = context.Response.Headers;
+    h["X-Content-Type-Options"] = "nosniff";
+    h["X-Frame-Options"]        = "SAMEORIGIN";
+    h["Referrer-Policy"]        = "strict-origin-when-cross-origin";
+    h["Permissions-Policy"]     = "geolocation=(), microphone=(), camera=()";
+    // HSTS: vom Browser nur über HTTPS beachtet, daher unbedingt setzen (nginx
+    // terminiert TLS und proxyt HTTP an Kestrel — Request.IsHttps wäre hier false).
+    h["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+    await next();
+});
+
 // Statische Dateien / Startseite
 app.UseDefaultFiles();
 app.UseStaticFiles();
