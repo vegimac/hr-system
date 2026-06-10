@@ -65,6 +65,11 @@ public class MailboxController : ControllerBase
             if (!UserIsAdmin()) return Forbid();
             q = q.Where(m => m.TargetType == "ADMIN");
         }
+        else if (t == "BUCH")
+        {
+            if (!UserCanSeeBuchhaltung()) return Forbid();
+            q = q.Where(m => m.TargetType == "BUCH");
+        }
         else if (t == "EMPLOYEE")
         {
             if (employeeId == null) return BadRequest(new { error = "employeeId fehlt." });
@@ -163,6 +168,17 @@ public class MailboxController : ControllerBase
                 count = counts.Where(c => c.TargetType == "HR").Sum(c => c.count),
             });
         }
+        if (UserCanSeeBuchhaltung())
+        {
+            result.Add(new
+            {
+                type = "BUCH",
+                companyProfileId = (int?)null,
+                code = (string?)null,
+                name = "Buchhaltung",
+                count = counts.Where(c => c.TargetType == "BUCH").Sum(c => c.count),
+            });
+        }
         if (UserIsAdmin())
         {
             result.Add(new
@@ -191,11 +207,15 @@ public class MailboxController : ControllerBase
             ? await _db.MailboxDocuments.Where(m => m.TargetType == "HR").CountAsync()
             : 0;
 
+        var buchCount = UserCanSeeBuchhaltung()
+            ? await _db.MailboxDocuments.Where(m => m.TargetType == "BUCH").CountAsync()
+            : 0;
+
         var adminCount = UserIsAdmin()
             ? await _db.MailboxDocuments.Where(m => m.TargetType == "ADMIN").CountAsync()
             : 0;
 
-        return Ok(new { count = branchCount + hrCount + adminCount });
+        return Ok(new { count = branchCount + hrCount + buchCount + adminCount });
     }
 
     // ── GET: Empfänger-Dropdown (Admin/Superuser für Email-Benachrichtigung) ──
@@ -243,7 +263,7 @@ public class MailboxController : ControllerBase
             // Reinschicken erlaubt. Lese-Berechtigung wird beim Anzeigen geprüft.
             effectiveBranchId = companyProfileId.Value;
         }
-        else if (t == "HR" || t == "ADMIN")
+        else if (t == "HR" || t == "ADMIN" || t == "BUCH")
         {
             // Filial-ID = Sender-Filiale (für Herkunfts-Info)
             if (companyProfileId.HasValue)
@@ -545,6 +565,10 @@ public class MailboxController : ControllerBase
     private bool UserIsAdmin()
         => User.FindFirstValue(ClaimTypes.Role) == "admin";
 
+    /// <summary>Buchhaltungs-Postfach sichtbar für: Rolle buchhaltung + Admin.</summary>
+    private bool UserCanSeeBuchhaltung()
+        => UserIsAdmin() || User.IsInRole("buchhaltung");
+
     /// <summary>
     /// Darf der aktuelle User das Dokument sehen?
     ///   BRANCH → Filial-Zugriff via UserBranchAccess (oder Admin)
@@ -566,6 +590,7 @@ public class MailboxController : ControllerBase
         {
             "BRANCH"   => await UserHasBranchAccessAsync(doc.CompanyProfileId),
             "HR"       => await UserCanSeeHrAsync(),
+            "BUCH"     => UserCanSeeBuchhaltung(),
             "ADMIN"    => false, // Admin schon oben gehandhabt
             "EMPLOYEE" => await UserCanSeeEmployeeMailboxAsync(doc),
             _          => false,

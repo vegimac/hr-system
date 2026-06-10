@@ -104,7 +104,15 @@ public static class PayrollCalculations
                     "NBUV"         => svBases.Nbuv,
                     "KTG"          => svBases.Ktg,
                     "BVG"          => svBases.Bvg,
-                    _              => svBases.Ahv  // QST fixed → Betrag kommt aus ComputeQst; andere: AHV-Basis
+                    // Walter-Vorgabe 28.05.2026: QST muss die QST-Basis (inkl.
+                    // Familienzulagen) anzeigen, nicht die AHV-Basis. Der Abzugs-
+                    // BETRAG kommt zwar direkt aus ComputeQstDeduction (Type=fixed),
+                    // aber die im Lohnzettel gezeigte BASIS soll konsistent zu
+                    // dem sein, worauf gerechnet wurde — sonst wirkt der QST-
+                    // Abzug optisch falsch (0.7% × 2'479.86 ≠ −20.88, korrekt
+                    // ist 0.7% × 2'982.86 = −20.88).
+                    "QST"          => svBases.Qst,
+                    _              => svBases.Ahv
                 }
             };
 

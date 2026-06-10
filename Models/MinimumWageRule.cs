@@ -4,7 +4,20 @@ public class MinimumWageRuleNew
 {
     public int Id { get; set; }
 
+    /// <summary>
+    /// Legacy-Text-Spalte — hielt den JobGroupCode redundant. Bleibt
+    /// vorerst, wird beim Speichern aus <see cref="JobGroup"/>.Code synchron
+    /// gehalten (Walter-Vorgabe 26.05.2026: id-FK ist die Wahrheit). Kann
+    /// später per `ALTER TABLE … DROP COLUMN job_group_code` entfernt werden.
+    /// </summary>
     public string JobGroupCode { get; set; } = "";
+
+    /// <summary>
+    /// FK auf <c>job_group.id</c> — die saubere Referenz auf die Funktionsgruppe.
+    /// </summary>
+    public int? JobGroupId { get; set; }
+    public JobGroup? JobGroup { get; set; }
+
     public string EmploymentModelCode { get; set; } = "";
 
     public int EducationLevelId { get; set; }

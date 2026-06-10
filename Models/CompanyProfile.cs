@@ -42,6 +42,13 @@ public class CompanyProfile
     public string? Email { get; set; }
 
     public decimal? NormalWeeklyHours { get; set; }
+    /// <summary>
+    /// Maximale gestempelte Stunden pro Woche (Mo–So). Dient nur der
+    /// Anzeige-/Warnfunktion im Stempelzeiten-Tab (rote Warnung wenn das
+    /// Wochentotal der gestempelten Zeiten diesen Wert übersteigt). NULL =
+    /// keine Grenze / keine Warnung. (Walter-Vorgabe 24.05.2026)
+    /// </summary>
+    public decimal? MaxWeeklyHours { get; set; }
     public int? DefaultVacationWeeks { get; set; }
     public string? WorkLocation { get; set; }
 
@@ -69,6 +76,23 @@ public class CompanyProfile
     public decimal? DefaultVacationPercent5Weeks { get; set; } = 10.64m;
     public decimal? DefaultVacationPercent6Weeks { get; set; } = 13.04m;
     public decimal? DefaultHolidayPercent { get; set; } = 2.27m;
+
+    /// <summary>
+    /// Walter-Vorgabe 06.06.2026: Alter, ab dem die 6-Wochen-Ferien-Regel
+    /// greift. L-GAV-Standard = 50. Pro Filiale konfigurierbar, falls eine
+    /// Filiale grosszügiger sein will oder der L-GAV ändert. Engine prüft
+    /// in jeder Lohnperiode `dob.AddYears(VacationSixWeeksFromAge) <= periodTo`
+    /// und upgradet vacationPct auf DefaultVacationPercent6Weeks.
+    /// </summary>
+    public int VacationSixWeeksFromAge { get; set; } = 50;
+
+    /// <summary>
+    /// Walter-Vorgabe 06.06.2026: 13.-Monatslohn-% pro Filiale (L-GAV-Standard
+    /// = 8.33 %, monatlich akkumuliert). Engine + Arbeitsvertrags-PDF + Importer
+    /// fallen darauf zurück, wenn der Vertrag selbst keinen Wert hat. Vertrags-
+    /// Override greift weiterhin, falls explizit gesetzt (Sonderverträge).
+    /// </summary>
+    public decimal? DefaultThirteenthSalaryPercent { get; set; } = 8.33m;
 
     // Nachtstunden-Grenzen (Format "HH:mm", z.B. "00:00" und "07:00")
     public string? NightStartTime { get; set; } = "00:00";

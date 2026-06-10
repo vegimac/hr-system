@@ -34,11 +34,14 @@ public class AkontoLaufService
     private readonly AppDbContext        _db;
     private readonly Iso20022PainService _painSvc;
     private readonly LgavBeitragService  _lgav;
-    public AkontoLaufService(AppDbContext db, Iso20022PainService painSvc, LgavBeitragService lgav)
+    private readonly KtgTagessatzService _ktgTagessatz;
+    public AkontoLaufService(AppDbContext db, Iso20022PainService painSvc,
+                             LgavBeitragService lgav, KtgTagessatzService ktgTagessatz)
     {
         _db = db;
         _painSvc = painSvc;
         _lgav = lgav;
+        _ktgTagessatz = ktgTagessatz;
     }
 
     public record AkontoRowDto(
@@ -56,7 +59,11 @@ public class AkontoLaufService
         string  BruttoErlaeuterung,
         bool    IsEligible,
         string? AusschlussGrund,
-        bool    HasPfaendung);
+        bool    HasPfaendung,
+        // Walter-Vorgabe 28.05.2026: GF-Override gesetzt? (TRUE → Ineligibility
+        // wird ignoriert, Akonto wird trotzdem berechnet — AusschlussGrund
+        // bleibt aber als Warnung sichtbar.)
+        bool    ForcePayout = false);
 
     public record AkontoVorschauResponse(
         int     Year,
@@ -79,7 +86,12 @@ public class AkontoLaufService
     // Eintrag an), aber eine Vorschau soll grundsätzlich nichts persistieren.
     public async Task<AkontoVorschauResponse> PreviewAsync(
         int companyProfileId, int year, int month, DateOnly stichtag,
-        bool persistLgav = false)
+        bool persistLgav = false,
+        // Walter-Vorgabe 28.05.2026: Force-Payout-Overrides pro MA. Wenn TRUE
+        // für einen empId, wird der Eligibility-Check ignoriert und Brutto/Netto
+        // normal berechnet (z.B. „Krank am Stichtag aber Akonto trotzdem
+        // auszahlen, weil 3 Tage AG-Karenz fällig"). Default: leeres Dict.
+        IDictionary<int, bool>? forcePayoutByEmp = null)
     {
         var profile = await _db.CompanyProfiles.FindAsync(companyProfileId)
             ?? throw new InvalidOperationException("Filiale nicht gefunden.");
@@ -91,13 +103,22 @@ public class AkontoLaufService
         if (stichtag < periodFrom) stichtag = periodFrom;
         if (stichtag > periodTo)   stichtag = periodTo;
 
-        // MA der Filiale mit aktivem Employment. Phantom-MA (IsPayrollExcluded=true,
-        // z.B. Supervisor mit easy@work-Zugang ohne Lohn) bewusst ausschliessen —
-        // sie kriegen NIE einen Akonto (Walter-Vorgabe 16.05.2026).
+        // MA der Filiale mit Employment, das in der Periode gültig ist.
+        // Phantom-MA (IsPayrollExcluded=true, z.B. Supervisor mit easy@work-
+        // Zugang ohne Lohn) bewusst ausschliessen — sie kriegen NIE einen
+        // Akonto (Walter-Vorgabe 16.05.2026).
+        // Walter-Vorgabe 31.05.2026: KEIN IsActive-Filter mehr auf Employment —
+        // beim Austritt wird das Flag oft automatisch auf false gesetzt, der
+        // Vertrag gilt aber für den letzten Lohnmonat noch. Einzig massgeblich:
+        // ContractStartDate <= periodTo UND (ContractEndDate >= periodFrom).
         var employees = await _db.Employees
             .Include(e => e.Employments)
             .Where(e => !e.IsPayrollExcluded
-                     && e.Employments.Any(emp => emp.CompanyProfileId == companyProfileId && emp.IsActive))
+                     && e.Employments.Any(emp =>
+                            emp.CompanyProfileId == companyProfileId
+                         && emp.ContractStartDate <= periodTo.ToDateTime(TimeOnly.MinValue)
+                         && (emp.ContractEndDate == null
+                             || emp.ContractEndDate >= periodFrom.ToDateTime(TimeOnly.MinValue))))
             .ToListAsync();
         var empIds = employees.Select(e => e.Id).ToList();
 
@@ -165,8 +186,9 @@ public class AkontoLaufService
         {
             foreach (var e in employees)
             {
+                // Walter-Vorgabe 31.05.2026: KEIN IsActive-Filter (siehe oben).
                 var emp = e.Employments
-                    .Where(x => x.CompanyProfileId == companyProfileId && x.IsActive)
+                    .Where(x => x.CompanyProfileId == companyProfileId)
                     .Where(x => DateOnly.FromDateTime(x.ContractStartDate) <= periodTo)
                     .Where(x => !x.ContractEndDate.HasValue
                              || DateOnly.FromDateTime(x.ContractEndDate.Value) >= periodFrom)
@@ -189,6 +211,13 @@ public class AkontoLaufService
             .GroupBy(z => z.EmployeeId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // Walter-Vorgabe 28.05.2026: alle Filialen vorab laden, damit der
+        // Fehler-Pfad „Vertrag hängt an Filiale X" den Namen der fremden
+        // Filiale ohne N+1-Query nennen kann.
+        var allProfiles = await _db.CompanyProfiles
+            .Select(p => new { p.Id, p.CompanyName, p.RestaurantCode })
+            .ToDictionaryAsync(p => p.Id);
+
         var rows = new List<AkontoRowDto>();
         foreach (var e in employees)
         {
@@ -197,21 +226,95 @@ public class AkontoLaufService
             // der erst im Folgemonat beginnt oder schon vor der Periode endete
             // bekamen einen Akonto, obwohl die Lohnzettel-Vorschau "kein
             // gültiger Vertrag in der Periode" sagte).
+            // Walter-Vorgabe 31.05.2026: KEIN IsActive-Filter mehr — siehe
+            // Begründung beim oberen Employees-Filter (Austrittsmonat-Bug).
             var emp = e.Employments
-                .Where(x => x.CompanyProfileId == companyProfileId && x.IsActive)
+                .Where(x => x.CompanyProfileId == companyProfileId)
                 .Where(x => DateOnly.FromDateTime(x.ContractStartDate) <= periodTo)
                 .Where(x => !x.ContractEndDate.HasValue
                          || DateOnly.FromDateTime(x.ContractEndDate.Value) >= periodFrom)
                 .OrderByDescending(x => x.ContractStartDate)
                 .FirstOrDefault();
-            if (emp is null) continue;     // MA hat in dieser Periode keinen Vertrag → kein Akonto-Datensatz
+            if (emp is null)
+            {
+                // Walter-Vorgabe 28.05.2026: MA mit aktivem Vertrag in DIESER Filiale
+                // aber KEIN Vertrag in der Periode → trotzdem zeigen, mit klarer
+                // Fehlermeldung. Ausgetretene MA (ExitDate vor Periodenende) NICHT
+                // zeigen — die wurden bewusst beendet, keine Fehler-Anzeige nötig.
+                DateOnly? exit = e.ExitDate.HasValue
+                    ? DateOnly.FromDateTime(e.ExitDate.Value)
+                    : (DateOnly?)null;
+                if (exit.HasValue && exit.Value < periodFrom) continue;
+
+                // Walter-Vorgabe 28.05.2026 (Erweiterung): MA mit Zukunfts-Vertrag
+                // (Eintritt erst NACH der Periode) ebenfalls NICHT als Fehler zeigen.
+                // Beispiel: Eintritt 16.2.2026, Lohnlauf für Januar 2026 → MA war
+                // noch gar nicht da. Greift, wenn ALLE Verträge in dieser Filiale
+                // erst nach Periodenende beginnen.
+                // IsActive bewusst weggelassen (Walter-Vorgabe 31.05.2026): Vertragslebenszyklus
+                // ist datum-basiert. Hier zählt jeder Vertrag in dieser Filiale, der
+                // datums-mässig in die Zukunft fällt — IsActive ist irrelevant.
+                bool alleZukunftsVertrag = e.Employments
+                    .Where(x => x.CompanyProfileId == companyProfileId)
+                    .All(x => DateOnly.FromDateTime(x.ContractStartDate) > periodTo);
+                if (alleZukunftsVertrag) continue;
+
+                // Diagnostik: wenn dieser MA einen Vertrag in einer ANDEREN Filiale
+                // hat, das in der Meldung nennen — typisches Walter-Szenario
+                // (Personalnummer suggeriert Filiale X, aber Vertrag hängt an Y).
+                var fremderVertrag = e.Employments
+                    .Where(x => x.CompanyProfileId != companyProfileId
+                             && DateOnly.FromDateTime(x.ContractStartDate) <= periodTo
+                             && (!x.ContractEndDate.HasValue
+                                 || DateOnly.FromDateTime(x.ContractEndDate.Value) >= periodFrom))
+                    .OrderByDescending(x => x.ContractStartDate)
+                    .FirstOrDefault();
+                string reason;
+                if (fremderVertrag != null
+                    && fremderVertrag.CompanyProfileId.HasValue
+                    && allProfiles.TryGetValue(fremderVertrag.CompanyProfileId.Value, out var fpProfile))
+                {
+                    var fremdName = $"{fpProfile.RestaurantCode} {fpProfile.CompanyName}".Trim();
+                    reason = $"⚠ Vertrag hängt an Filiale \"{fremdName}\" - in dieser Filiale kein Vertrag";
+                }
+                else if (fremderVertrag != null)
+                {
+                    reason = $"⚠ Vertrag hängt an Filiale #{fremderVertrag.CompanyProfileId} - in dieser Filiale kein Vertrag";
+                }
+                else
+                {
+                    reason = "⚠ Kein gültiger Vertrag in dieser Periode - bitte Vertrag erfassen";
+                }
+
+                rows.Add(new AkontoRowDto(
+                    EmployeeId:          e.Id,
+                    EmployeeNumber:      e.EmployeeNumber,
+                    FirstName:           e.FirstName ?? "",
+                    LastName:            e.LastName ?? "",
+                    EmploymentModel:     "",
+                    EmploymentPercentage:null,
+                    GeschaetzterBrutto:  0m,
+                    GeschaetzteAbzuege:  0m,
+                    NettoVorPfaendung:   0m,
+                    PfaendungAbzug:      0m,
+                    NettoAkonto:         0m,
+                    BruttoErlaeuterung:  "",
+                    IsEligible:          false,
+                    AusschlussGrund:     reason,
+                    HasPfaendung:        false,
+                    ForcePayout:         false));
+                continue;
+            }
 
             lastSaldoByEmp.TryGetValue(e.Id, out var lastSaldo);
             manualByEmp.TryGetValue(e.Id, out var maZulagen);
+            bool forcePayout = forcePayoutByEmp != null
+                            && forcePayoutByEmp.TryGetValue(e.Id, out var fp) && fp;
 
-            rows.Add(BuildRow(e, emp, profile, stichtag, periodFrom, periodTo,
+            rows.Add(await BuildRow(e, emp, profile, stichtag, periodFrom, periodTo,
                               svRates, absences, timeEntries, assignments, lastSaldo,
-                              maZulagen ?? new List<LohnZulage>()));
+                              maZulagen ?? new List<LohnZulage>(),
+                              forcePayout: forcePayout));
         }
 
         // Sortierung nach Vorname (CLAUDE.md-Konvention für alle MA-Listen,
@@ -236,7 +339,7 @@ public class AkontoLaufService
 
     // ── Pro-MA-Berechnung ───────────────────────────────────────────────────
 
-    private AkontoRowDto BuildRow(
+    private async Task<AkontoRowDto> BuildRow(
         Employee e, Employment emp, CompanyProfile profile,
         DateOnly stichtag, DateOnly periodFrom, DateOnly periodTo,
         List<SocialInsuranceRate> svRates,
@@ -244,7 +347,9 @@ public class AkontoLaufService
         List<EmployeeTimeEntry> timeEntries,
         List<EmployeeLohnAssignment> assignments,
         PayrollSaldo? lastSaldo,
-        List<LohnZulage> manualZulagen)
+        List<LohnZulage> manualZulagen,
+        // Walter-Vorgabe 28.05.2026: GF-Override pro MA
+        bool forcePayout = false)
     {
         var model = (emp.EmploymentModel ?? "").ToUpperInvariant();
 
@@ -254,13 +359,16 @@ public class AkontoLaufService
         // Pfändung-Datensatz (auch wenn nicht eligible, fürs Anzeigen).
         var assignment = assignments.FirstOrDefault(la => la.EmployeeId == e.Id);
 
-        if (!isEligible)
+        // Walter-Vorgabe 28.05.2026: GF-Override — bei ineligible MA trotzdem
+        // berechnen, AusschlussGrund bleibt als Warnung sichtbar.
+        if (!isEligible && !forcePayout)
         {
             return new AkontoRowDto(
                 e.Id, e.EmployeeNumber, e.FirstName ?? "", e.LastName ?? "",
                 model, emp.EmploymentPercentage,
                 0m, 0m, 0m, 0m, 0m, "",
-                false, reason, assignment != null);
+                false, reason, assignment != null,
+                ForcePayout: false);
         }
 
         // 2) Brutto-Schätzung pro Modell
@@ -272,7 +380,45 @@ public class AkontoLaufService
             case "MTP":
                 // Regel 5/6: Stunden bis Stichtag × Rate + Ferien-Pott (nur abgeschlossene Bezüge)
                 (brutto, bruttoErlaeuterung) = ComputeBruttoHourly(
-                    e, emp, periodFrom, stichtag, timeEntries, absences, lastSaldo);
+                    e, emp, profile, periodFrom, periodTo, stichtag, timeEntries, absences, lastSaldo);
+                // Walter-Vorgabe 30.05.2026: bei UTP zusätzlich Krank-Karenz 88%
+                // (Tage VOR Stichtag × KTG-Tagessatz × 88%) und Feiertagentschädigung
+                // (% auf Brutto) ins Akonto-Brutto einrechnen. Diese Komponenten
+                // sind zum Stichtag bereits feststehend und der MA hat darauf
+                // einen festen Anspruch — sonst wäre der UTP-Akonto bei Krank-MA
+                // strukturell viel zu niedrig (Definitiv-Netto >> Akonto).
+                // MTP braucht das nicht: dort deckt der Garantie-Festlohn bereits
+                // die Krank/Feiertag-Komponenten ab (kein Lohn-Ausfall bei MTP).
+                if (model == "UTP")
+                {
+                    // Krank-Karenz 88% (nur Tage VOR Stichtag)
+                    decimal krankTageBisStichtag = absences
+                        .Where(a => a.EmployeeId == e.Id
+                                 && a.AbsenceType == "KRANK"
+                                 && a.DateFrom <= stichtag)
+                        .Sum(a => CountAbsenceTageBisStichtag(a, periodFrom, stichtag)
+                                  * (a.Prozent > 0 ? a.Prozent / 100m : 1m));
+                    if (krankTageBisStichtag > 0)
+                    {
+                        var ktg = await _ktgTagessatz.CalculateAsync(e.Id, profile.Id);
+                        decimal tagessatz100 = ktg?.Tagessatz100 ?? 0m;
+                        if (tagessatz100 > 0)
+                        {
+                            decimal karenz88 = Math.Round(krankTageBisStichtag * tagessatz100 * 0.88m, 2);
+                            brutto += karenz88;
+                            bruttoErlaeuterung += $" + Krank-Karenz {krankTageBisStichtag:0.00} Tg × CHF {tagessatz100:0.00} × 88% = CHF {karenz88:0.00}";
+                        }
+                    }
+                    // Feiertagentschädigung (% auf Brutto)
+                    // Walter-Vorgabe 06.06.2026 (Stufe 1b): nur noch Filial-Default
+                    decimal feiertagPct = profile.DefaultHolidayPercent ?? 2.27m;
+                    if (feiertagPct > 0)
+                    {
+                        decimal feiertagEnt = Math.Round(brutto * feiertagPct / 100m, 2);
+                        brutto += feiertagEnt;
+                        bruttoErlaeuterung += $" + Feiertag {feiertagPct:0.000}% = CHF {feiertagEnt:0.00}";
+                    }
+                }
                 break;
             case "FIX":
             case "FIX-M":
@@ -291,11 +437,20 @@ public class AkontoLaufService
         // 3) Manuelle Zulagen/Abzüge (Walter 19.05.2026): erfasst pro MA+Periode
         //    via /api/lohn-zulagen. ZULAGE addiert zum Brutto (geht in SV-Basis),
         //    ABZUG wird nach Netto verrechnet (NICHT SV-pflichtig, z.B. LGAV).
+        //
+        // Walter-Vorgabe 30.05.2026: Saldo-Vortrags-Lohnpositionen (Codes 901–906,
+        // Kategorie "Saldo-Vortrag") werden NICHT als Brutto-Zulage gezählt — sie
+        // sind reine Migrations-Einträge die nur die Saldi aufbauen (Ferien-Geld,
+        // 13. ML, Stunden-Saldo, Nacht-Saldo, Ferien-Tage-Saldo). Im Definitivlauf
+        // läuft das gleich (PayrollCalculationEngine schließt Kategorie =
+        // "Saldo-Vortrag" über IsVortrag aus). Vorher hat der Akonto-Lauf diese
+        // Vorträge fälschlich addiert → Brutto-Schätzung zu hoch → Über-Akonto.
         decimal zulagenSum = 0m;
         decimal manuelleAbzuege = 0m;
         foreach (var z in manualZulagen)
         {
             if (z.Lohnposition == null) continue;
+            if (z.Lohnposition.Kategorie == "Saldo-Vortrag") continue;  // nicht ins Brutto
             if (z.Lohnposition.Typ == "ZULAGE")
                 zulagenSum += z.Betrag;
             else if (z.Lohnposition.Typ == "ABZUG")
@@ -346,6 +501,17 @@ public class AkontoLaufService
             }
         }
 
+        // Walter-Vorgabe 28.05.2026: bei GF-Override behalten wir den ursprünglichen
+        // AusschlussGrund als Warnung sichtbar — IsEligible ist TRUE (Akonto wird
+        // berechnet), aber das Frontend kann die Warnung anzeigen ("trotzdem
+        // ausgezahlt obwohl Krank am Stichtag").
+        string? finalReason = reason;
+        bool    finalEligible = isEligible || forcePayout;
+        if (forcePayout && !isEligible && finalReason != null)
+        {
+            finalReason = $"⚠ Override aktiv: {finalReason}";
+        }
+
         return new AkontoRowDto(
             e.Id, e.EmployeeNumber, e.FirstName ?? "", e.LastName ?? "",
             model, emp.EmploymentPercentage,
@@ -355,9 +521,10 @@ public class AkontoLaufService
             Math.Round(pfaendungAbzug, 2),
             Math.Round(nettoAkonto, 2),
             bruttoErlaeuterung,
-            isEligible,
-            reason,
-            hasPfaendung);
+            finalEligible,
+            finalReason,
+            hasPfaendung,
+            ForcePayout: forcePayout);
     }
 
     // ── Eligibility ────────────────────────────────────────────────────────
@@ -415,38 +582,94 @@ public class AkontoLaufService
     // KEIN Voll-Tagessatz mehr (alter Bug: 6 Tage × WeeklyH/5 × HourlyRate
     // überschätzte den Definitiv-Tagessatz; jetzt wird der echte Pott-Ø-Satz
     // verwendet → Akonto kann nie höher sein als der Definitivlohn).
+    // Walter-Vorgabe 30.05.2026: zählt die Tage einer Absenz, die in
+    // [periodFrom..stichtag] liegen — analog CountAbsenceDaysInPeriod im
+    // PayrollCalculationService, aber mit Stichtag statt periodTo.
+    private static int CountAbsenceTageBisStichtag(Absence a, DateOnly periodFrom, DateOnly stichtag)
+    {
+        var from = a.DateFrom;
+        var to   = a.DateTo;
+        if (from < periodFrom) from = periodFrom;
+        if (to   > stichtag)   to   = stichtag;
+        if (to < from) return 0;
+        return to.DayNumber - from.DayNumber + 1;
+    }
+
     private static (decimal Brutto, string Erlaeuterung) ComputeBruttoHourly(
-        Employee e, Employment emp,
-        DateOnly periodFrom, DateOnly stichtag,
+        Employee e, Employment emp, CompanyProfile profile,
+        DateOnly periodFrom, DateOnly periodTo, DateOnly stichtag,
         List<EmployeeTimeEntry> timeEntries,
         List<Absence> absences,
         PayrollSaldo? lastSaldo)
     {
         decimal hourly = emp.HourlyRate ?? 0m;
-        decimal hours = (decimal)timeEntries
-            .Where(t => t.EmployeeId == e.Id)
-            .Sum(t => (double)(t.TotalHours ?? t.DurationHours ?? 0m));
-        decimal bruttoStunden = hours * hourly;
+        var model = (emp.EmploymentModel ?? "").ToUpperInvariant();
 
-        // Ferien-Pott (nur abgeschlossene Bezüge bis Stichtag) ──────────────
-        var empAbsences = absences.Where(a => a.EmployeeId == e.Id).ToList();
-        decimal bezogeneTage = FerienAuszahlungService
-            .SumAbgeschlosseneFerientageBisStichtag(empAbsences, periodFrom, stichtag);
+        // Walter-Vorgabe 30.05.2026: bei MTP wird das Akonto auf den GARANTIERTEN
+        // Pro-Rata-Festlohn der Periode gedeckelt — NICHT auf workedHours bis
+        // Stichtag (die könnten höher sein als am Monatsende → Über-Akonto →
+        // negativer Auszahlungsbetrag). Der Definitivlauf rechnet Mehrstunden,
+        // Pott-Auszahlung und Feiertag-Entschädigung exakt, da gibt es keinen
+        // Grund das Akonto damit aufzublähen.
+        //   MTP: brutto = (guaranteedH / 7 × Kalendertage) × Stundenlohn
+        //   UTP: brutto = workedHours_bis_Stichtag × Stundenlohn (bleibt)
+        decimal hours;
+        decimal bruttoStunden;
+        string hourErl;
+        if (model == "MTP")
+        {
+            decimal guarH = emp.GuaranteedHoursPerWeek ?? 0m;
+            // Anzahl Tage der vollen Lohnperiode (Kalendermonat)
+            int normalPeriodDays = new DateOnly(periodFrom.Year, periodFrom.Month, 1)
+                .AddMonths(1).AddDays(-1).Day;
+            decimal sollStunden = Math.Round(guarH / 7m * normalPeriodDays, 2);
+            hours          = sollStunden;
+            bruttoStunden  = Math.Round(sollStunden * hourly, 2);
+            hourErl        = $"{sollStunden:0.00}h Garantie ({guarH} h/Wo × {normalPeriodDays}/7) × CHF {hourly:0.00} = CHF {bruttoStunden:0.00}";
+        }
+        else
+        {
+            hours = (decimal)timeEntries
+                .Where(t => t.EmployeeId == e.Id)
+                .Sum(t => (double)(t.TotalHours ?? t.DurationHours ?? 0m));
+            bruttoStunden = hours * hourly;
+            hourErl       = $"{hours:0.00}h × CHF {hourly:0.00} = CHF {bruttoStunden:0.00}";
+        }
 
-        decimal vacationPct = emp.VacationPercent ?? 10.64m;
-        int vacationWeeks   = vacationPct >= 12.5m ? 6 : 5;
-        decimal vormonatChf  = lastSaldo?.FerienGeldSaldo ?? 0m;
-        decimal vormonatTage = lastSaldo?.FerienTageSaldo ?? 0m;
-        decimal accrualChf  = Math.Round(bruttoStunden * vacationPct / 100m, 2);
-        decimal accrualTage = Math.Round(vacationWeeks * 7m / 12m, 4);
+        // Ferien-Pott (Walter-Vorgabe 30.05.2026): bei MTP NICHT mehr vorgezogen
+        // — der Definitivlauf zahlt das exakt aus. Bei UTP bleibt der Pott-
+        // Vorzug, weil UTP-MA in Krankheitsmonaten oft KEIN Festlohn bekommen
+        // und auf das Pott-Geld angewiesen sind.
+        decimal pottAuszahlung = 0m, pottTagessatz = 0m, pottTageBezogen = 0m;
+        if (model != "MTP")
+        {
+            var empAbsences = absences.Where(a => a.EmployeeId == e.Id).ToList();
+            decimal bezogeneTage = FerienAuszahlungService
+                .SumAbgeschlosseneFerientageBisStichtag(empAbsences, periodFrom, stichtag);
+            // Walter-Vorgabe 06.06.2026 (Stufe 1b): aus der Filiale, altersaware
+            decimal vacationPct = profile.DefaultVacationPercent5Weeks ?? 10.64m;
+            if (e.DateOfBirth.HasValue)
+            {
+                var dob = DateOnly.FromDateTime(e.DateOfBirth.Value);
+                if (dob.AddYears(profile.VacationSixWeeksFromAge) <= periodTo)
+                    vacationPct = profile.DefaultVacationPercent6Weeks ?? 13.04m;
+            }
+            int vacationWeeks   = vacationPct >= 12.5m ? 6 : 5;
+            decimal vormonatChf  = lastSaldo?.FerienGeldSaldo ?? 0m;
+            decimal vormonatTage = lastSaldo?.FerienTageSaldo ?? 0m;
+            decimal accrualChf  = Math.Round(bruttoStunden * vacationPct / 100m, 2);
+            decimal accrualTage = Math.Round(vacationWeeks * 7m / 12m, 4);
+            var pott = FerienAuszahlungService.Compute(
+                vormonatChf, accrualChf, vormonatTage, accrualTage, bezogeneTage);
+            pottAuszahlung  = pott.AuszahlungChf;
+            pottTagessatz   = pott.Tagessatz;
+            pottTageBezogen = pott.BezogeneTage;
+        }
 
-        var pott = FerienAuszahlungService.Compute(
-            vormonatChf, accrualChf, vormonatTage, accrualTage, bezogeneTage);
-
-        decimal brutto = bruttoStunden + pott.AuszahlungChf;
-        string s = $"{hours:0.00}h × CHF {hourly:0.00} = CHF {bruttoStunden:0.00}"
-                 + (pott.AuszahlungChf > 0
-                     ? $" + Ferien-Pott {pott.BezogeneTage:0.00} Tg × Ø CHF {pott.Tagessatz:0.00} = CHF {pott.AuszahlungChf:0.00}"
+        decimal brutto = bruttoStunden + pottAuszahlung;
+        string s = hourErl
+                 + (pottAuszahlung > 0
+                     ? $" + Ferien-Pott {pottTageBezogen:0.00} Tg × Ø CHF {pottTagessatz:0.00} = CHF {pottAuszahlung:0.00}"
                      : "");
         return (brutto, s);
     }

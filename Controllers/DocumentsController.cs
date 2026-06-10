@@ -1,5 +1,7 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
+using iText.Kernel.Pdf;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,15 +16,17 @@ public class DocumentsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly string _storagePath;
+    private readonly OfficeToPdfService _officePdf;
 
     /// <summary>
     /// Storage-Pfad wird aus appsettings.json (Documents:StoragePath) gelesen.
     /// Default: "data/documents" relativ zum Content-Root.
     /// Auf dem Server via systemd-Environment "Documents__StoragePath=/var/data/hr-system/documents".
     /// </summary>
-    public DocumentsController(AppDbContext db, IConfiguration config, IWebHostEnvironment env)
+    public DocumentsController(AppDbContext db, IConfiguration config, IWebHostEnvironment env, OfficeToPdfService officePdf)
     {
         _db = db;
+        _officePdf = officePdf;
         var configured = config["Documents:StoragePath"];
         if (string.IsNullOrWhiteSpace(configured))
             configured = Path.Combine(env.ContentRootPath, "data", "documents");
@@ -146,7 +150,14 @@ public class DocumentsController : ControllerBase
                 d.GueltigVon,
                 d.GueltigBis,
                 d.HochgeladenAm,
-                d.HochgeladenVon
+                d.HochgeladenVon,
+                d.ErstelltAm,
+                d.GeaendertAm,
+                d.DateiGeaendertAm,
+                d.ZugriffAm,
+                d.GeaendertVon,
+                d.ZugriffVon,
+                d.DvelopDokumentId
             }
         ).ToListAsync();
 
@@ -172,7 +183,17 @@ public class DocumentsController : ControllerBase
         [FromForm] string? branchCode,
         [FromForm] string? bemerkung,
         [FromForm] DateOnly? gueltigVon,
-        [FromForm] DateOnly? gueltigBis)
+        [FromForm] DateOnly? gueltigBis,
+        // Walter-Vorgabe 06.06.2026: optionale d.velop-Metadaten — für den
+        // Schnell-Upload aus der „fehlende Dokumente"-Liste. Frontend sendet
+        // diese Felder als ISO-Strings; alle Sentinel-Werte (null/"") werden
+        // ignoriert und der Default greift (HochgeladenAm = jetzt).
+        [FromForm] DateTime? erstelltAm = null,
+        [FromForm] DateTime? geaendertAm = null,
+        [FromForm] DateTime? dateiGeaendertAm = null,
+        [FromForm] DateTime? zugriffAm = null,
+        [FromForm] string? geaendertVon = null,
+        [FromForm] string? dvelopDokumentId = null)
     {
         if (file is null || file.Length == 0)
             return BadRequest("Keine Datei hochgeladen.");
@@ -230,7 +251,16 @@ public class DocumentsController : ControllerBase
             GueltigVon       = gueltigVon,
             GueltigBis       = gueltigBis,
             HochgeladenVon   = GetCurrentUserId(),
-            HochgeladenAm    = DateTime.UtcNow
+            HochgeladenAm    = DateTime.UtcNow,
+            // Optionale d.velop-Metadaten (Walter 06.06.2026) — Kind=Unspecified
+            // damit Postgres `timestamp without time zone` (siehe DbContext-Mapping
+            // in der Backfill-Migration) sie ohne UTC-Konvertierung übernimmt.
+            ErstelltAm       = erstelltAm.HasValue       ? DateTime.SpecifyKind(erstelltAm.Value,       DateTimeKind.Unspecified) : (DateTime?)null,
+            GeaendertAm      = geaendertAm.HasValue      ? DateTime.SpecifyKind(geaendertAm.Value,      DateTimeKind.Unspecified) : (DateTime?)null,
+            DateiGeaendertAm = dateiGeaendertAm.HasValue ? DateTime.SpecifyKind(dateiGeaendertAm.Value, DateTimeKind.Unspecified) : (DateTime?)null,
+            ZugriffAm        = zugriffAm.HasValue        ? DateTime.SpecifyKind(zugriffAm.Value,        DateTimeKind.Unspecified) : (DateTime?)null,
+            GeaendertVon     = string.IsNullOrWhiteSpace(geaendertVon) ? null : geaendertVon.Trim(),
+            DvelopDokumentId = string.IsNullOrWhiteSpace(dvelopDokumentId) ? null : dvelopDokumentId.Trim()
         };
         _db.EmployeeDokumente.Add(doc);
         await _db.SaveChangesAsync();
@@ -297,6 +327,117 @@ public class DocumentsController : ControllerBase
     [HttpGet("preview/{id:int}")]
     public async Task<IActionResult> Preview(int id) => await ServeFile(id, asAttachment: false);
 
+    /// <summary>
+    /// Vorschau als PDF (Walter-Vorgabe 24.05.2026): PDFs werden direkt inline
+    /// ausgeliefert, Word/Office-Dokumente (.doc/.docx/.xls/.xlsx/.ppt/.pptx/
+    /// .odt/.ods/.odp/.rtf) via LibreOffice serverseitig nach PDF gewandelt und
+    /// inline geliefert — damit sie im Vorschaufenster der Dokumentenverwaltung
+    /// angezeigt werden können (der Browser kann Word nicht direkt rendern).
+    /// Andere Typen → 415 (Frontend zeigt „keine Vorschau möglich").
+    /// </summary>
+    [HttpGet("preview-pdf/{id:int}")]
+    public async Task<IActionResult> PreviewPdf(int id)
+    {
+        var doc = await _db.EmployeeDokumente.FindAsync(id);
+        if (doc is null) return NotFound();
+
+        var fullPath = ResolveFilePath(doc);
+        if (fullPath is null) return NotFound("Datei nicht im Storage gefunden.");
+
+        await TouchZugriffAsync(doc);   // Zugriffsdatum + wer (best-effort)
+
+        var ext = Path.GetExtension(doc.FilenameOriginal ?? "").ToLowerInvariant();
+
+        // Schon PDF → unverändert inline ausliefern.
+        if (ext == ".pdf" || doc.MimeType == "application/pdf")
+        {
+            var stream = System.IO.File.OpenRead(fullPath);
+            Response.Headers["Content-Disposition"] =
+                $"inline; filename=\"{Uri.EscapeDataString(doc.FilenameOriginal ?? "dokument.pdf")}\"";
+            return File(stream, "application/pdf");
+        }
+
+        // Office-Dokument → via LibreOffice nach PDF wandeln.
+        if (OfficeToPdfService.CanConvert(doc.FilenameOriginal))
+        {
+            byte[] input;
+            try { input = await System.IO.File.ReadAllBytesAsync(fullPath); }
+            catch { return NotFound("Datei konnte nicht gelesen werden."); }
+
+            var pdf = await _officePdf.ConvertToPdfAsync(input, doc.FilenameOriginal ?? ("datei" + ext));
+            if (pdf is null)
+                return StatusCode(500, new { error = "PDF-Konvertierung fehlgeschlagen. Ist LibreOffice auf dem Server installiert?" });
+
+            var name = Path.GetFileNameWithoutExtension(doc.FilenameOriginal ?? "dokument") + ".pdf";
+            Response.Headers["Content-Disposition"] = $"inline; filename=\"{Uri.EscapeDataString(name)}\"";
+            return File(pdf, "application/pdf");
+        }
+
+        // Nicht konvertierbar (z.B. ZIP) → kein PDF möglich.
+        return StatusCode(415, new { error = "Für diesen Dateityp ist keine PDF-Vorschau möglich." });
+    }
+
+    /// <summary>
+    /// Dreht ein PDF in 90°-Schritten (deg = 90 / 180 / 270 / -90) und speichert
+    /// die gedrehte Datei zurück (Walter-Vorgabe 24.05.2026). Setzt dabei
+    /// datei_geaendert_am + geaendert_von. Nur für echte PDF-Dokumente.
+    /// </summary>
+    [HttpPost("{id:int}/rotate")]
+    public async Task<IActionResult> Rotate(int id, [FromQuery] int deg = 90, [FromQuery] int page = 0)
+    {
+        var doc = await _db.EmployeeDokumente.FindAsync(id);
+        if (doc is null) return NotFound();
+
+        var ext = Path.GetExtension(doc.FilenameOriginal ?? "").ToLowerInvariant();
+        if (ext != ".pdf" && doc.MimeType != "application/pdf")
+            return BadRequest(new { error = "Drehen ist nur fuer PDF-Dateien moeglich." });
+
+        var fullPath = ResolveFilePath(doc);
+        if (fullPath is null) return NotFound("Datei nicht im Storage gefunden.");
+
+        // deg auf 0/90/180/270 normalisieren (negativ erlaubt: -90 = 270).
+        int delta = ((deg % 360) + 360) % 360;
+        if (delta == 0) return Ok(new { ok = true, unchanged = true });
+
+        try
+        {
+            var bytes = await System.IO.File.ReadAllBytesAsync(fullPath);
+            byte[] outBytes;
+            using (var reader = new PdfReader(new MemoryStream(bytes)))
+            using (var ms = new MemoryStream())
+            {
+                using (var writer = new PdfWriter(ms))
+                using (var pdf = new PdfDocument(reader, writer))
+                {
+                    int n = pdf.GetNumberOfPages();
+                    // page > 0 → nur diese eine Seite drehen; sonst alle Seiten.
+                    if (page > 0 && page > n)
+                        return BadRequest(new { error = $"Seite {page} existiert nicht (Dokument hat {n} Seiten)." });
+                    int from = page > 0 ? page : 1;
+                    int to   = page > 0 ? page : n;
+                    for (int i = from; i <= to; i++)
+                    {
+                        var pg = pdf.GetPage(i);
+                        int cur = pg.GetRotation();
+                        pg.SetRotation(((cur + delta) % 360 + 360) % 360);
+                    }
+                }
+                outBytes = ms.ToArray();
+            }
+            await System.IO.File.WriteAllBytesAsync(fullPath, outBytes);
+
+            doc.DateiGeaendertAm = DateTime.Now;
+            doc.GeaendertVon = await GetActorNameAsync();
+            await _db.SaveChangesAsync();
+
+            return Ok(new { ok = true, doc.DateiGeaendertAm, doc.GeaendertVon });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Drehen fehlgeschlagen: " + ex.Message });
+        }
+    }
+
     private async Task<IActionResult> ServeFile(int id, bool asAttachment)
     {
         var doc = await _db.EmployeeDokumente.FindAsync(id);
@@ -306,11 +447,43 @@ public class DocumentsController : ControllerBase
         if (fullPath is null)
             return NotFound("Datei nicht im Storage gefunden.");
 
+        await TouchZugriffAsync(doc);   // Zugriffsdatum + wer (best-effort)
+
         var stream = System.IO.File.OpenRead(fullPath);
         var contentDisposition = asAttachment ? "attachment" : "inline";
         Response.Headers["Content-Disposition"] =
             $"{contentDisposition}; filename=\"{Uri.EscapeDataString(doc.FilenameOriginal)}\"";
         return File(stream, doc.MimeType);
+    }
+
+    /// <summary>Anzeigename des eingeloggten Users (Vor+Nachname, Fallback Username).</summary>
+    private async Task<string?> GetActorNameAsync()
+    {
+        var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (int.TryParse(idStr, out var uid))
+        {
+            var u = await _db.AppUsers.Where(x => x.Id == uid)
+                .Select(x => new { x.FirstName, x.LastName, x.Username })
+                .FirstOrDefaultAsync();
+            if (u != null)
+            {
+                var full = $"{u.FirstName} {u.LastName}".Trim();
+                return string.IsNullOrWhiteSpace(full) ? u.Username : full;
+            }
+        }
+        return User.FindFirstValue(ClaimTypes.Name);
+    }
+
+    /// <summary>Setzt Zugriffsdatum + Zugriff-von. Best-effort — Fehler nie weiterreichen.</summary>
+    private async Task TouchZugriffAsync(EmployeeDokument doc)
+    {
+        try
+        {
+            doc.ZugriffAm  = DateTime.Now;
+            doc.ZugriffVon = await GetActorNameAsync();
+            await _db.SaveChangesAsync();
+        }
+        catch { /* Zugriffs-Stempel ist nicht kritisch */ }
     }
 
     /// <summary>

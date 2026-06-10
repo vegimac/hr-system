@@ -52,8 +52,11 @@ async function permitImportPreview() {
         }
         const data = await r.json();
         renderPermitImportPreview(data);
-        // Commit nur freischalten wenn mind. 1 Match-OK ist
-        document.getElementById('permitImportCommitBtn').disabled = data.matched === 0;
+        // Commit freischalten wenn entweder neue MA importierbar sind ODER
+        // MA mit bestehender Bewilligung existieren (über die Walter via Modus
+        // entscheidet).
+        const importable = (data.matched || 0) + (data.existingDiff || 0);
+        document.getElementById('permitImportCommitBtn').disabled = importable === 0;
     } catch (e) {
         showPageAlert('permitImportAlert', 'Netzwerkfehler: ' + e.message, 'error');
     }
@@ -62,15 +65,24 @@ async function permitImportPreview() {
 function renderPermitImportPreview(data) {
     const summary = document.getElementById('permitImportSummary');
     const preview = document.getElementById('permitImportPreview');
+    // Walter-Vorgabe 07.06.2026: zwei neue Status für „bestehende Bewilligung".
     summary.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
             <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:12px 14px;color:#1e40af">
                 <div style="font-size:24px;font-weight:700">${data.totalRows}</div>
                 <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">Zeilen total</div>
             </div>
             <div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:12px 14px;color:#166534">
                 <div style="font-size:24px;font-weight:700">${data.matched}</div>
-                <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">Übernehmbar</div>
+                <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">Neu importierbar</div>
+            </div>
+            <div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:12px 14px;color:#475569">
+                <div style="font-size:24px;font-weight:700">${data.existingSame || 0}</div>
+                <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">Identisch — übersprungen</div>
+            </div>
+            <div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:12px 14px;color:#854d0e">
+                <div style="font-size:24px;font-weight:700">${data.existingDiff || 0}</div>
+                <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">Bereits Bewilligung — Modus</div>
             </div>
             <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;color:#991b1b">
                 <div style="font-size:24px;font-weight:700">${data.noMatch}</div>
@@ -80,11 +92,31 @@ function renderPermitImportPreview(data) {
                 <div style="font-size:24px;font-weight:700">${data.unknown}</div>
                 <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">Unklar / fehlend</div>
             </div>
-        </div>`;
+        </div>
+        ${(data.existingDiff || 0) > 0 ? `
+        <div style="margin-top:14px;padding:12px 14px;background:#fef9c3;border:1px solid #fde047;border-radius:8px">
+            <div style="font-weight:700;color:#713f12;margin-bottom:6px">Wie sollen Bewilligungen für MA umgegangen werden, die <strong>bereits</strong> eine Bewilligung haben?</div>
+            <div style="display:flex;flex-direction:column;gap:6px;color:#422006;font-size:13px">
+                <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+                    <input type="radio" name="permitImportMode" value="STRICT" checked style="margin-top:3px">
+                    <span><strong>Überspringen</strong> — bestehende Bewilligungen bleiben unverändert (nur neue MA werden importiert).</span>
+                </label>
+                <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+                    <input type="radio" name="permitImportMode" value="APPEND" style="margin-top:3px">
+                    <span><strong>Beenden + neu anlegen</strong> — bestehender Eintrag wird auf Beginn-Datum −1 geschlossen, neuer Eintrag dahinter angelegt. Verlauf bleibt erhalten.</span>
+                </label>
+                <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+                    <input type="radio" name="permitImportMode" value="REPLACE" style="margin-top:3px">
+                    <span><strong>Ersetzen</strong> — gesamte Bewilligungs-History des MA wird gelöscht und durch den XLSX-Wert ersetzt. Verlauf geht verloren.</span>
+                </label>
+            </div>
+        </div>` : ''}`;
 
     const statusBadge = (s) => {
         const map = {
-            OK:             { bg:'#dcfce7', fg:'#166534', label:'OK' },
+            OK:             { bg:'#dcfce7', fg:'#166534', label:'NEU' },
+            EXISTING_SAME:  { bg:'#f1f5f9', fg:'#475569', label:'identisch' },
+            EXISTING_DIFF:  { bg:'#fef9c3', fg:'#854d0e', label:'bestehend' },
             NO_MATCH:       { bg:'#fee2e2', fg:'#991b1b', label:'MA fehlt' },
             UNKNOWN_PERMIT: { bg:'#fef3c7', fg:'#92400e', label:'Bew. unklar' },
             NO_DATE:        { bg:'#fef3c7', fg:'#92400e', label:'Datum fehlt' }
@@ -146,7 +178,15 @@ async function permitImportCommit() {
         showPageAlert('permitImportAlert', 'Bitte Beginn-Datum angeben.', 'error');
         return;
     }
-    if (!confirm('Bewilligungen jetzt importieren?\n\nBestehende Bewilligungs-Daten der MA werden mit den XLSX-Werten überschrieben. Verlaufseinträge werden aktualisiert oder neu angelegt.')) return;
+    // Walter-Vorgabe 07.06.2026: Modus für MA mit bestehender Bewilligung.
+    const modeEl = document.querySelector('input[name="permitImportMode"]:checked');
+    const existingMode = modeEl ? modeEl.value : 'STRICT';
+    const modeLabel = {
+        STRICT:  'Bestehende Bewilligungen werden ÜBERSPRUNGEN.',
+        APPEND:  'Bestehende Bewilligungen werden BEENDET (Bis = Beginn-Datum −1), neuer Eintrag dahinter.',
+        REPLACE: 'Bestehende Bewilligungs-History wird komplett GELÖSCHT und durch den XLSX-Wert ersetzt.'
+    }[existingMode];
+    if (!confirm(`Bewilligungen jetzt importieren?\n\n${modeLabel}\n\nMA ohne Bewilligung werden neu angelegt.`)) return;
 
     const btn = document.getElementById('permitImportCommitBtn');
     btn.disabled = true; btn.textContent = 'Importiere...';
@@ -154,6 +194,7 @@ async function permitImportCommit() {
     const fd = new FormData();
     fd.append('file', _permitImportFile);
     fd.append('validFrom', validFrom);
+    fd.append('existingMode', existingMode);
 
     try {
         const r = await fetch('/api/imports/permit/commit', {
@@ -166,8 +207,17 @@ async function permitImportCommit() {
             showPageAlert('permitImportAlert', 'Fehler: ' + (j.error || r.status), 'error');
             return;
         }
+        // Walter-Vorgabe 07.06.2026: detailliertere Bilanz, damit klar ist
+        // was passiert ist (REPLACE/APPEND/STRICT zählen separat).
+        const teile = [
+            `${j.updated} MA importiert`,
+            j.skipped ? `${j.skipped} übersprungen` : null,
+            j.replacedExisting ? `${j.replacedExisting} ersetzt` : null,
+            j.appendedExisting ? `${j.appendedExisting} verlängert` : null,
+            `${j.historyAdded} neue Verlaufseinträge`
+        ].filter(Boolean).join(' · ');
         showPageAlert('permitImportAlert',
-            `✓ Import erfolgreich. ${j.updated} MA aktualisiert, ${j.skipped} übersprungen, ${j.historyAdded} neue Verlaufseinträge, ${j.historyUpdated} Verlaufseinträge aktualisiert. Fenster wird in 2 Sekunden geschlossen…`,
+            `✓ Import erfolgreich (${existingMode}). ${teile}. Fenster wird in 2 Sekunden geschlossen…`,
             'success');
         // Walter-Vorgabe 13.05.2026: nach erfolgreichem Import zurück zur
         // Übersicht — User soll nicht manuell wegnavigieren müssen.

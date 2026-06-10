@@ -13,18 +13,35 @@ let _dokState = {
     selectedKategorieId: null,  // null = nicht auf Kategorie gefiltert
     selectedPostfach: false,    // true = "Persönliches Postfach"-Ansicht
     search: '',
-    expandedCats: new Set()     // welche Kategorien sind aufgeklappt
+    expandedCats: new Set(),    // welche Kategorien sind aufgeklappt
+    // Walter-Vorgabe 06.06.2026: Sortierung der Liste — neueste zuerst.
+    // sortCol ∈ 'beschreibung'|'erstellt'|'geaendert'|'zugriff'
+    sortCol: 'erstellt',
+    sortDir: 'desc'             // 'asc'|'desc'
 };
 
 async function loadEmpDokumente(employeeId) {
     const panel = document.getElementById('empTabDokumente');
     if (!panel) return;
+    // Walter-Vorgabe 26.05.2026: Audit-Modus — Filter (Kategorie/Typ/Postfach/
+    // Search/expandierte Kategorien) BLEIBEN beim MA-Wechsel erhalten, damit
+    // man die Belegschaft mit fixer Doku-Selektion durchscrollen kann. Nur
+    // beim ECHTEN ERSTEN Aufruf (Wechsel von einem anderen Modul her, ohne
+    // bisherigen empId) wird auf Default zurückgesetzt.
+    const isFirstLoad = _dokState.empId == null;
+    const isOtherEmp  = !isFirstLoad && _dokState.empId !== employeeId;
     _dokState.empId = employeeId;
-    _dokState.selectedTypId = null;
-    _dokState.selectedKategorieId = null;
-    _dokState.selectedPostfach = false;
-    _dokState.search = '';
-    _dokState.expandedCats = new Set();
+    if (isFirstLoad) {
+        _dokState.selectedTypId = null;
+        _dokState.selectedKategorieId = null;
+        _dokState.selectedPostfach = false;
+        _dokState.search = '';
+        _dokState.expandedCats = new Set();
+    } else if (isOtherEmp) {
+        // MA-Wechsel: Filter behalten, aber Suche zurücksetzen (Suchtext ist
+        // typischerweise MA-spezifisch — Dateiname/Bemerkung).
+        _dokState.search = '';
+    }
     panel.innerHTML = '<div class="emp-placeholder" style="height:200px">Lade Dokumente…</div>';
 
     try {
@@ -177,20 +194,25 @@ function renderDokumenteUi() {
     // Massen-Import nur für Admin/Superuser — normale Benutzer brauchen das nicht
     const canBulk = currentUser?.role === 'admin' || currentUser?.role === 'superuser';
     const tt = window._t || ((k,f) => f);
+    // Walter-Vorgabe 01.06.2026:
+    //   • „← Mitarbeiter" entfernt (Tab-Wechsel oben übernimmt Navigation).
+    //   • „+ Dokument hochladen" wandert in den Header (empTabActionBar) —
+    //     wird in employees.js switchEmpTab('dokumente') gesetzt.
     panel.innerHTML = `
     <div class="dok-toolbar">
-        <button onclick="dokBackToList()" title="Zurück zur Mitarbeiter-Liste"
-            style="background:#0f172a;color:white;border:none;padding:9px 18px;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
-            ${tt('docs.backToList','← Mitarbeiter')}
-        </button>
         <input type="text" class="dok-search" placeholder="${tt('docs.search','Suchen…')}"
                value="${search}" oninput="dokSetSearch(this.value)" style="flex:1">
-        <button class="dok-upload-btn" onclick="openDokUploadModal()">${tt('docs.btn.upload','+ Dokument hochladen')}</button>
     </div>
     <div class="dok-layout">
         <div class="dok-tree">${treeHtml}</div>
         <div class="dok-list">
-            <div class="dok-list-header">${header} <span style="color:#94a3b8;font-weight:400">(${filtered.length})</span></div>
+            <div class="dok-list-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div>${header} <span style="color:#94a3b8;font-weight:400">(${filtered.length})</span></div>
+                <button class="btn btn-primary" onclick="openDokUploadModal()"
+                        style="padding:6px 14px;font-size:13px;white-space:nowrap;flex-shrink:0">
+                    + Dokument hochladen
+                </button>
+            </div>
             ${listHtml}
         </div>
     </div>`;
@@ -206,14 +228,55 @@ function findTyp(id) {
 }
 
 function renderDokTable(docs, showCategoryColumns) {
-    const rows = docs.map(d => renderDokTableRow(d, showCategoryColumns)).join('');
+    // Walter-Vorgabe 06.06.2026: separate Spalten für Erstellt / Geändert /
+    // Geöffnet, klickbare Sortierung. Default = Erstellt absteigend (neueste
+    // zuerst). Leere Daten landen am Ende, egal in welcher Richtung.
+    const sorted = [...docs].sort((a, b) => dokCompare(a, b, _dokState.sortCol, _dokState.sortDir));
+    const rows = sorted.map(d => renderDokTableRow(d, showCategoryColumns)).join('');
+    const sortArrow = (col) => _dokState.sortCol === col
+        ? (_dokState.sortDir === 'asc' ? ' ▲' : ' ▼')
+        : '';
+    const sortableHead = (col, label) =>
+        `<th class="dok-sort-th" onclick="dokSort('${col}')" style="cursor:pointer;user-select:none">${label}${sortArrow(col)}</th>`;
     const colHeaders = showCategoryColumns
-        ? `<th>Kategorie</th><th>Typ</th><th>Beschreibung</th><th>Datum</th><th></th>`
-        : `<th>Beschreibung</th><th>Datum</th><th></th>`;
+        ? `<th>Kategorie</th><th>Typ</th>${sortableHead('beschreibung','Beschreibung')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}${sortableHead('zugriff','Geöffnet')}<th></th>`
+        : `${sortableHead('beschreibung','Beschreibung')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}${sortableHead('zugriff','Geöffnet')}<th></th>`;
     return `<table class="dok-table">
         <thead><tr>${colHeaders}</tr></thead>
         <tbody>${rows}</tbody>
     </table>`;
+}
+
+function dokSort(col) {
+    if (_dokState.sortCol === col) {
+        _dokState.sortDir = _dokState.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        _dokState.sortCol = col;
+        // Datums-Spalten starten absteigend (neueste zuerst), Text aufsteigend.
+        _dokState.sortDir = col === 'beschreibung' ? 'asc' : 'desc';
+    }
+    renderDokumenteUi();
+}
+
+function dokCompare(a, b, col, dir) {
+    const sign = dir === 'asc' ? 1 : -1;
+    if (col === 'beschreibung') {
+        const av = (a.bemerkung || a.filenameOriginal || '').toLowerCase();
+        const bv = (b.bemerkung || b.filenameOriginal || '').toLowerCase();
+        return av.localeCompare(bv, 'de') * sign;
+    }
+    // Datums-Spalten: leere Werte IMMER ans Ende, egal welche Richtung.
+    const keyMap = {
+        erstellt:  d => d.erstelltAm || d.gueltigVon || d.hochgeladenAm,
+        geaendert: d => d.geaendertAm,
+        zugriff:   d => d.zugriffAm
+    };
+    const av = keyMap[col](a) || '';
+    const bv = keyMap[col](b) || '';
+    if (!av && !bv) return 0;
+    if (!av) return 1;   // a leer → ans Ende
+    if (!bv) return -1;  // b leer → ans Ende
+    return av.localeCompare(bv) * sign;
 }
 
 /**
@@ -235,17 +298,17 @@ function dokCatSlug(name) {
 }
 
 function renderDokTableRow(d, showCategoryColumns) {
-    const sizeStr = d.groesseBytes > 1024*1024
-        ? (d.groesseBytes/1024/1024).toFixed(1) + ' MB'
-        : (d.groesseBytes/1024).toFixed(0) + ' KB';
     // Dokument-Datum = "Gültig von" (Datum auf dem Dokument).
     // Falls leer (alte Imports ohne von), Fallback auf Upload-Datum.
     const dateOpts = { day: '2-digit', month: '2-digit', year: 'numeric' };
-    const datum = d.gueltigVon
-        ? new Date(d.gueltigVon).toLocaleDateString('de-CH', dateOpts)
-        : new Date(d.hochgeladenAm).toLocaleDateString('de-CH', dateOpts);
+    // Liste-Spalte rechts = „Zuletzt geöffnet" (Zugriffsdatum). Eine Zeile pro
+    // Eintrag (Walter 24.05.2026); die übrigen Daten stehen im Vorschau-Panel.
     const isPdf = d.mimeType === 'application/pdf';
     const isImg = d.mimeType?.startsWith('image/');
+    // Office-Dokumente (Word/Excel/PowerPoint/ODF/RTF) sind jetzt ebenfalls
+    // klickbar — der Server wandelt sie für die Vorschau nach PDF.
+    const dokExt = ((d.filenameOriginal || '').toLowerCase().match(/\.[^.]+$/) || [''])[0];
+    const isOffice = ['.doc', '.docx', '.odt', '.rtf', '.xls', '.xlsx', '.ods', '.ppt', '.pptx', '.odp'].includes(dokExt);
 
     let expiryBadge = '';
     if (d.gueltigBis) {
@@ -257,28 +320,55 @@ function renderDokTableRow(d, showCategoryColumns) {
         else                 expiryBadge = `<span class="dok-expiry-badge dok-expiry-ok">Gültig bis ${gb.toLocaleDateString('de-CH', dateOpts)}</span>`;
     }
 
-    const icon = `<span class="dok-icon">${isPdf ? '📄' : isImg ? '🖼️' : '📎'}</span>`;
-    // Beschreibung = nur Bemerkung (oder Platzhalter); klickbar bei PDF/Bild für Vorschau
+    // Walter-Vorgabe 06.06.2026: farbige Dateityp-Pille (PDF rot, DOC blau,
+    // XLS grün, PPT orange, IMG hellblau, ZIP grau) — sofort erkennbar wie
+    // im d.velop. Emoji + separater grauer Text-Tag entfallen.
+    const ftClass = isPdf ? 'ft-pdf'
+        : (dokExt === '.doc' || dokExt === '.docx' || dokExt === '.odt' || dokExt === '.rtf') ? 'ft-doc'
+        : (dokExt === '.xls' || dokExt === '.xlsx' || dokExt === '.ods') ? 'ft-xls'
+        : (dokExt === '.ppt' || dokExt === '.pptx' || dokExt === '.odp') ? 'ft-ppt'
+        : isImg ? 'ft-img'
+        : dokExt === '.zip' ? 'ft-zip'
+        : 'ft-other';
+    const ftLabel = isPdf ? 'PDF'
+        : (dokExt === '.docx' || dokExt === '.doc' || dokExt === '.odt' || dokExt === '.rtf') ? 'DOC'
+        : (dokExt === '.xlsx' || dokExt === '.xls' || dokExt === '.ods') ? 'XLS'
+        : (dokExt === '.pptx' || dokExt === '.ppt' || dokExt === '.odp') ? 'PPT'
+        : isImg ? 'IMG'
+        : dokExt === '.zip' ? 'ZIP'
+        : (dokExt ? dokExt.slice(1).toUpperCase().slice(0, 4) : 'FILE');
+    const icon = `<span class="dok-ft ${ftClass}">${ftLabel}</span>`;
+    const typeTag = '';   // Tag entfällt — Pille zeigt schon den Typ
     const beschreibungInner = d.bemerkung
         ? `<b>${d.bemerkung}</b>`
         : '<span style="color:#cbd5e1">–</span>';
-    const metaLine = `<span class="dok-meta-inline">${sizeStr}${expiryBadge ? ' · ' + expiryBadge : ''}</span>`;
-    const clickable = isPdf || isImg;
+    // Walter-Vorgabe 06.06.2026: Daten kommen nicht mehr unter den Namen, sondern
+    // in eigene Spalten (Erstellt / Geändert / Geöffnet) — sortierbar im Header.
+    // Walter 06.06.2026 (final): 2-stelliges Jahr (`26` statt `2026`) damit die
+    // 3 Datumsspalten + Action-Buttons rechts ohne Cut-Off sichtbar bleiben.
+    const dateOptsShort = { day: '2-digit', month: '2-digit', year: '2-digit' };
+    const fmtD = (iso) => iso ? new Date(iso).toLocaleDateString('de-CH', dateOptsShort) : '–';
+    const erstelltIso = d.erstelltAm || d.gueltigVon || d.hochgeladenAm;
+    const clickable = isPdf || isImg || isOffice;
+    const titleAttr = (d.filenameOriginal || '').replace(/"/g,'&quot;');
     const description = clickable
-        ? `<span style="cursor:pointer;color:#1d4ed8;text-decoration:underline" title="Vorschau öffnen: ${d.filenameOriginal.replace(/"/g,'&quot;')}" onclick="dokOpenPreviewPanel(${d.id})">${icon}${beschreibungInner}</span><br>${metaLine}`
-        : `<span title="${d.filenameOriginal.replace(/"/g,'&quot;')}">${icon}${beschreibungInner}</span><br>${metaLine}`;
+        ? `<span class="dok-name-line" style="cursor:pointer;color:#1d4ed8;text-decoration:underline" title="Vorschau öffnen: ${titleAttr}" onclick="dokOpenPreviewPanel(${d.id})">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}`
+        : `<span class="dok-name-line" title="${titleAttr}">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}`;
+    const dateCells = `<td class="dok-date-cell">${fmtD(erstelltIso)}</td><td class="dok-date-cell">${fmtD(d.geaendertAm)}</td><td class="dok-date-cell">${fmtD(d.zugriffAm)}</td>`;
 
     // Download + Löschen nur für Admin/Superuser. Normaler Benutzer kann
     // Vorschau, Einzel-Upload, Bearbeiten — aber keine Datei lokal ziehen
     // und nichts löschen (Missbrauchs- und Datenverlust-Schutz).
     const canDownload  = currentUser?.role === 'admin' || currentUser?.role === 'superuser';
     const canDelete    = currentUser?.role === 'admin' || currentUser?.role === 'superuser';
+    // Walter-Vorgabe 09.06.2026: kein separater Stift mehr — Bearbeiten steht
+    // ohnehin im ⋮-Menü. Eine Aktion = eine Stelle, weniger visueller Lärm.
     const actions = `<div class="dok-actions">
-        ${canDownload ? `<button class="dok-action" onclick="dokDownload(${d.id})">Download</button>` : ''}
         <div class="dok-menu-wrap">
-            <button class="dok-menu-btn" onclick="dokToggleMenu(event, ${d.id})" title="Mehr Aktionen">⋮</button>
+            <button class="dok-menu-btn" onclick="dokToggleMenu(event, ${d.id})" title="Aktionen">⋮</button>
             <div class="dok-menu" id="dokMenu-${d.id}">
                 <button class="dok-menu-item" onclick="openDokEditModal(${d.id})">Bearbeiten</button>
+                ${canDownload ? `<button class="dok-menu-item" onclick="dokDownload(${d.id})">Herunterladen</button>` : ''}
                 ${canDelete ? `<button class="dok-menu-item danger" onclick="dokDelete(${d.id})">Löschen</button>` : ''}
             </div>
         </div>
@@ -290,13 +380,13 @@ function renderDokTableRow(d, showCategoryColumns) {
             <td><span class="dok-cat-pill cat-${catSlug}">${d.kategorieName}</span></td>
             <td>${d.dokumentTypName}</td>
             <td>${description}</td>
-            <td class="dok-td-date">${datum}</td>
+            ${dateCells}
             <td class="dok-td-actions">${actions}</td>
         </tr>`;
     }
     return `<tr>
         <td>${description}</td>
-        <td class="dok-td-date">${datum}</td>
+        ${dateCells}
         <td class="dok-td-actions">${actions}</td>
     </tr>`;
 }
@@ -400,42 +490,188 @@ async function dokOpenPreviewPanel(id) {
     const doc = _dokState.docs.find(d => d.id === id);
     if (!doc) return;
 
+    // „Zuletzt geöffnet" nachführen: Anschauen = Zugriff. Der Server stempelt
+    // zugriff_am beim /preview-Abruf; lokal gleich mitziehen und die Liste neu
+    // rendern, damit die Zeile sofort das aktuelle Datum zeigt (Walter 24.05.2026).
+    doc.zugriffAm = new Date().toISOString();
+    renderDokumenteUi();
+
     // Alte URL freigeben + Panel entfernen
     dokClosePreviewPanel();
 
-    // Loading-Skelett anzeigen während Fetch läuft
+    // Echte PDFs lassen sich drehen (Office-Vorschau wird generiert → nicht drehbar).
+    const _ext0 = ((doc.filenameOriginal || '').toLowerCase().match(/\.[^.]+$/) || [''])[0];
+    const isPdfDoc = doc.mimeType === 'application/pdf' || _ext0 === '.pdf';
+    const _officeExts0 = ['.doc', '.docx', '.odt', '.rtf', '.xls', '.xlsx', '.ods', '.ppt', '.pptx', '.odp'];
+    const _showsPdf = isPdfDoc || _officeExts0.includes(_ext0);   // wird als PDF im iframe gezeigt
+    const rotateBtns = isPdfDoc ? `
+                <input id="dokRotPage" type="number" min="1" placeholder="alle"
+                       title="Welche Seite drehen? Leer = alle Seiten"
+                       style="width:58px;padding:2px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;color:#475569;background:white">
+                <button onclick="dokRotatePdf(${doc.id}, -90)" title="Gegen Uhrzeigersinn drehen + speichern (Seite gemäss Feld, leer = alle)"
+                        style="background:none;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:15px;color:#475569;padding:1px 8px">↺</button>
+                <button onclick="dokRotatePdf(${doc.id}, 90)" title="Im Uhrzeigersinn drehen + speichern (Seite gemäss Feld, leer = alle)"
+                        style="background:none;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:15px;color:#475569;padding:1px 8px">↻</button>` : '';
+    // Drucken (nur bei PDF/Office-Vorschau) — ersetzt Chromes ausgeblendete Toolbar.
+    const printBtn = _showsPdf ? `
+                <button onclick="dokPreviewPrint()" title="Drucken"
+                        style="background:none;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:14px;color:#475569;padding:1px 8px">🖨</button>` : '';
+    // Walter-Vorgabe 09.06.2026: Zoom-Schieberegler in EIGENER Zeile (PDF + Bild),
+    // direkt unter dem Header — der Header ist bei PDF schon mit Print/Download/
+    // Seite-Input/2x Rotate/Close voll, der Slider würde rechts rausgeschnitten.
+    // Greift via dokPreviewApplyZoom() auf das eingebettete iframe/img.
+    const isImg0 = (doc.mimeType && doc.mimeType.startsWith('image/'))
+                || /\.(png|jpe?g|gif|webp|tiff?|bmp)$/i.test(doc.filenameOriginal || '');
+    const zoomBar = (_showsPdf || isImg0) ? `
+        <div id="dokPreviewZoomBar"
+             style="display:flex;align-items:center;gap:10px;padding:6px 14px;border-bottom:1px solid #e2e8f0;background:#fafbfc;flex-shrink:0">
+            <span style="font-size:11px;color:#64748b;font-weight:600">Zoom</span>
+            <input type="range" id="dokPreviewZoomSlider"
+                   min="50" max="300" step="10" value="100"
+                   oninput="dokPreviewZoomSet(this.value)"
+                   title="Zoom 50–300 %"
+                   style="flex:1;cursor:pointer;accent-color:#3b82f6">
+            <button onclick="dokPreviewZoomSet(100)" title="Auf Originalgrösse zurücksetzen"
+                    id="dokPreviewZoomLabel"
+                    style="background:white;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:11px;color:#475569;padding:2px 8px;min-width:48px;font-weight:600">100%</button>
+            <button onclick="dokPreviewOpenInTab()" title="In neuem Browser-Tab öffnen (volle Zoom-Kontrolle)"
+                    style="background:white;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:13px;color:#475569;padding:2px 8px">↗</button>
+        </div>` : '';
+    // Im Header KEINE Zoom-Knöpfe mehr (zoomBtns leer) — alles in der eigenen Bar.
+    const zoomBtns = '';
+    // Herunterladen direkt aus der Vorschau (admin/superuser) — der Download ist
+    // aus der Listen-Zeile rausgenommen (Walter 24.05.2026).
+    const _canDl = currentUser?.role === 'admin' || currentUser?.role === 'superuser';
+    const dlBtn = _canDl ? `
+                <button onclick="dokDownload(${doc.id})" title="Herunterladen"
+                        style="background:none;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:14px;color:#475569;padding:1px 8px">⬇</button>` : '';
+
+    // Walter-Vorgabe 27.05.2026 (Schritt 2): Vorschau-Panel schmaler —
+    // soll nicht über die Dokumenten-Liste schwappen, sondern nur die
+    // Vorschau-Spalte rechts einnehmen. Default-Breite ~30vw, max 50vw,
+    // damit es sich höchstens bis zum „Vertragsunterlagen"-Bereich
+    // ausdehnt aber die Liste sichtbar bleibt.
     const loading = `
     <div id="dokPreviewPanel" style="
-        position:fixed; top:5vh; left:2vw; width:42vw; height:90vh;
-        background:white; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,0.25);
+        position:fixed; top:0; right:0; width:30vw; height:100vh;
+        background:white; box-shadow:-8px 0 30px rgba(0,0,0,0.18);
         z-index:10000; display:flex; flex-direction:column; overflow:hidden;
+        min-width:340px; max-width:60vw;
+        transform:translateX(100%); transition:transform .22s ease-out;
     ">
+        <div id="dokPreviewResizeLeft" title="Breite ziehen"
+             style="position:absolute;left:0;top:0;bottom:0;width:6px;cursor:ew-resize;z-index:6;background:transparent"></div>
         <div id="dokPreviewHeader"
-             style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #e2e8f0;background:#f8fafc;cursor:move;user-select:none">
+             style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #e2e8f0;background:#f8fafc;cursor:move;user-select:none">
             <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#475569;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">
                 <span title="Zum Verschieben am Header ziehen" style="color:#94a3b8;font-size:14px">⠿</span>
                 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👁 ${doc.filenameOriginal}</span>
             </div>
-            <button onclick="dokClosePreviewPanel()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;padding:0 6px">×</button>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+                ${printBtn}
+                ${dlBtn}
+                ${rotateBtns}
+                <button onclick="dokClosePreviewPanel()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;padding:0 6px">×</button>
+            </div>
         </div>
+        ${zoomBar}
         <div id="dokPreviewBody" style="flex:1;overflow:auto;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px">
             Lädt…
         </div>
+        <div id="dokPreviewMeta" style="flex-shrink:0;padding:8px 14px;border-top:1px solid #e2e8f0;background:#f8fafc;font-size:11px;color:#475569;line-height:1.6;white-space:normal">
+            ${dokMetaFooter(doc)}
+        </div>
+        <div id="dokPreviewResize" title="Grösse ändern (Ecke unten-links)"
+             style="position:absolute;left:3px;bottom:1px;cursor:nesw-resize;z-index:4;color:#94a3b8;font-size:14px;line-height:1;user-select:none">◣</div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', loading);
-    // Header draggbar machen — Panel an beliebige Position ziehen
+    const _panel = document.getElementById('dokPreviewPanel');
+    // Zuletzt gewählte Breite merken + beim Öffnen wieder anwenden.
+    // Walter 27.05.2026 (Schritt 2): Sanity-Check — alte Werte aus der
+    // ersten Panel-Generation (bis 96vw) sind zu breit. Cap auf 60% des
+    // Viewports; alles darüber wird ignoriert (Default 30vw greift).
+    try {
+        const saved = JSON.parse(localStorage.getItem('dokPreviewSize') || 'null');
+        const maxAllowedW = window.innerWidth * 0.60;
+        if (_panel && saved) {
+            if (saved.w && saved.w >= 340 && saved.w <= maxAllowedW) {
+                _panel.style.width = saved.w + 'px';
+            } else if (saved.w && saved.w > maxAllowedW) {
+                // Alte zu-breite Werte verwerfen
+                try { localStorage.removeItem('dokPreviewSize'); } catch (_) {}
+            }
+            if (saved.h && saved.h >= 320 && saved.h <= window.innerHeight) {
+                _panel.style.height = saved.h + 'px';
+            }
+        }
+    } catch (_) {}
+    // Slide-In Animation: nach einem Frame transform:none setzen → Panel
+    // schiebt sanft von rechts rein.
+    requestAnimationFrame(() => {
+        if (_panel) _panel.style.transform = 'translateX(0)';
+    });
+    // Header draggbar machen — falls jemand das Panel doch umpositionieren will
     dokPreviewMakeDraggable();
+    // Anfasser unten links (Bottom-Left → Höhe + Links-Resize)
+    dokPreviewMakeResizable();
+    // Linker Rand → reine Breiten-Resize (gegen die Verankerung rechts).
+    dokPreviewMakeLeftResizable();
+    // Walter-Vorgabe 27.05.2026: Klick AUSSERHALB des Panels schliesst es.
+    // Wichtig: setTimeout(0) wartet bis der initiale Klick (der das Panel
+    // geoeffnet hat) durchgelaufen ist, sonst wuerde derselbe Klick sofort
+    // wieder schliessen. Den Listener-Reference wird auf dem Panel-Element
+    // abgelegt, damit dokClosePreviewPanel ihn entfernen kann.
+    setTimeout(() => {
+        const p = document.getElementById('dokPreviewPanel');
+        if (!p) return;
+        const handler = (e) => {
+            // Klick innerhalb des Panels selbst → nicht schliessen.
+            if (p.contains(e.target)) return;
+            // Klick auf ein anderes Dokument in der Liste → das andere
+            // Dokument oeffnet ein neues Panel und ersetzt das alte (siehe
+            // dokOpenPreviewPanel → dokClosePreviewPanel() ganz oben).
+            // Hier vorsorglich schliessen — der Listen-Klick startet danach
+            // ohnehin ein neues Panel.
+            dokClosePreviewPanel();
+        };
+        document.addEventListener('mousedown', handler, true);
+        p._dokOutsideClickHandler = handler;
+    }, 0);
 
     try {
-        const r = await fetch(`/api/documents/preview/${id}`, { headers: ah() });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const ext = ((doc.filenameOriginal || '').toLowerCase().match(/\.[^.]+$/) || [''])[0];
+        // Office-Typen, die LibreOffice serverseitig nach PDF wandelt.
+        const officeExts = ['.doc', '.docx', '.odt', '.rtf', '.xls', '.xlsx', '.ods', '.ppt', '.pptx', '.odp'];
+        const isPdf    = doc.mimeType === 'application/pdf' || ext === '.pdf';
+        const isImg    = (doc.mimeType && doc.mimeType.startsWith('image/')) ||
+                         ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'].includes(ext);
+        const isOffice = officeExts.includes(ext);
+
+        // Word/Office: Hinweis während der (1–3s dauernden) Server-Konvertierung.
+        if (isOffice) {
+            const b0 = document.getElementById('dokPreviewBody');
+            if (b0) b0.textContent = 'Dokument wird für die Vorschau in PDF umgewandelt…';
+        }
+
+        // Office → /preview-pdf (kommt als PDF zurück); sonst Original via /preview.
+        // cache:'no-store' → nach dem Drehen wird IMMER die frische (gedrehte)
+        // Datei geladen, nicht eine veraltete Browser-Cache-Version.
+        const endpoint = isOffice ? `/api/documents/preview-pdf/${id}` : `/api/documents/preview/${id}`;
+        const r = await fetch(endpoint, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) {
+            let msg = 'HTTP ' + r.status;
+            try { const j = await r.json(); if (j && j.error) msg = j.error; } catch (_) {}
+            throw new Error(msg);
+        }
         const blob = await r.blob();
         _dokPreviewUrl = URL.createObjectURL(blob);
 
-        const isPdf = doc.mimeType === 'application/pdf';
-        const isImg = doc.mimeType?.startsWith('image/');
-        const inner = isPdf
-            ? `<iframe src="${_dokPreviewUrl}" style="width:100%;height:100%;border:none;background:white"></iframe>`
+        const showAsPdf = isPdf || isOffice;   // Office kommt als PDF zurück
+        // #toolbar=0 blendet Chromes eigene PDF-Werkzeugleiste aus → keine
+        // verwirrende zweite (nicht speichernde) Dreh-Funktion mehr. Drehen +
+        // Drucken + Download laufen über die Buttons im Fensterkopf.
+        const inner = showAsPdf
+            ? `<iframe src="${_dokPreviewUrl}#toolbar=0" style="width:100%;height:100%;border:none;background:white"></iframe>`
             : isImg
                 ? `<img src="${_dokPreviewUrl}" style="max-width:100%;max-height:100%;display:block;margin:auto">`
                 : `<div style="padding:24px;text-align:center;color:#94a3b8">Vorschau für diesen Dateityp nicht verfügbar.</div>`;
@@ -446,10 +682,111 @@ async function dokOpenPreviewPanel(id) {
             body.style.padding = isImg ? '20px' : '0';
             body.innerHTML = inner;
         }
+        // Walter 09.06.2026: Zoom-Slider zurück auf 100 % bei jedem neuen Dok.
+        _dokPreviewZoom = 100;
+        const sl = document.getElementById('dokPreviewZoomSlider');
+        if (sl) sl.value = '100';
+        const lbl = document.getElementById('dokPreviewZoomLabel');
+        if (lbl) lbl.textContent = '100%';
     } catch (err) {
         const body = document.getElementById('dokPreviewBody');
         if (body) body.innerHTML = `<div style="color:#b91c1c;padding:24px;text-align:center">Fehler: ${err.message}</div>`;
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Walter-Vorgabe 09.06.2026: Zoom für das Vorschau-Panel.
+// ──────────────────────────────────────────────────────────────────────
+// PDF: iframe-Breite/-Höhe in Prozent wird vergrössert (Chrome-PDF-Viewer
+//      reagiert auf grössere Container-Grösse mit Auto-Fit), Body scrollt.
+// Bild: width/height am <img> direkt auf naturalSize × Zoom; max-Restriktion
+//       wird beim ersten Zoom ausgehängt, damit das Bild wirklich grösser
+//       als der Container werden kann (Body-Scrollbalken springt an).
+// ══════════════════════════════════════════════════════════════════════
+let _dokPreviewZoom = 100;   // Prozent
+
+function dokPreviewZoomSet(percent) {
+    _dokPreviewZoom = Math.max(50, Math.min(300, parseInt(percent) || 100));
+    const sl = document.getElementById('dokPreviewZoomSlider');
+    if (sl && sl.value !== String(_dokPreviewZoom)) sl.value = String(_dokPreviewZoom);
+    const lbl = document.getElementById('dokPreviewZoomLabel');
+    if (lbl) lbl.textContent = _dokPreviewZoom + '%';
+    dokPreviewApplyZoom();
+}
+
+function dokPreviewApplyZoom() {
+    const body = document.getElementById('dokPreviewBody');
+    if (!body) return;
+    const z = _dokPreviewZoom / 100;
+
+    // ─── BILD ────────────────────────────────────────────────────────
+    const img = body.querySelector('img');
+    if (img) {
+        if (!img.dataset.natW) {
+            // naturalWidth ist erst nach onload sicher gesetzt.
+            if (!img.complete || !img.naturalWidth) {
+                img.addEventListener('load', dokPreviewApplyZoom, { once: true });
+                return;
+            }
+            img.dataset.natW = img.naturalWidth;
+            img.dataset.natH = img.naturalHeight;
+            img.style.maxWidth = 'none';
+            img.style.maxHeight = 'none';
+            img.style.margin = '0';
+        }
+        img.style.width  = (parseInt(img.dataset.natW) * z) + 'px';
+        img.style.height = (parseInt(img.dataset.natH) * z) + 'px';
+        return;
+    }
+
+    // ─── PDF/Office (iframe) ─────────────────────────────────────────
+    // Chrome PDF-Viewer ignoriert iframe-Width-Änderungen (verschiebt das PDF
+    // nur, statt zu skalieren). Daher CSS-transform: scale(). Damit der Body-
+    // Scrollbalken greift, wickeln wir das iframe in einen Wrapper mit echter
+    // Pixel-Grösse (= Basis × Zoom). Transform-Origin top-left → Wrapper
+    // expandiert nach unten-rechts, Scrollbars stimmen.
+    const iframe = body.querySelector('iframe');
+    if (!iframe) return;
+
+    let wrap = body.querySelector('#dokPreviewZoomWrap');
+    if (!wrap) {
+        const rect = body.getBoundingClientRect();
+        // Padding des Body abziehen (bei PDF ist body padding: 0, bei IMG: 20)
+        const cs = getComputedStyle(body);
+        const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+        const padY = parseFloat(cs.paddingTop)  + parseFloat(cs.paddingBottom);
+        const baseW = Math.max(100, rect.width  - padX);
+        const baseH = Math.max(100, rect.height - padY);
+
+        wrap = document.createElement('div');
+        wrap.id = 'dokPreviewZoomWrap';
+        wrap.dataset.baseW = baseW;
+        wrap.dataset.baseH = baseH;
+        wrap.style.position = 'relative';
+        wrap.style.width  = baseW + 'px';
+        wrap.style.height = baseH + 'px';
+
+        iframe.parentNode.replaceChild(wrap, iframe);
+        wrap.appendChild(iframe);
+        iframe.style.position = 'absolute';
+        iframe.style.top  = '0';
+        iframe.style.left = '0';
+        iframe.style.transformOrigin = 'top left';
+        iframe.style.width  = baseW + 'px';
+        iframe.style.height = baseH + 'px';
+    }
+
+    const baseW = parseFloat(wrap.dataset.baseW);
+    const baseH = parseFloat(wrap.dataset.baseH);
+    iframe.style.transform = `scale(${z})`;
+    wrap.style.width  = (baseW * z) + 'px';
+    wrap.style.height = (baseH * z) + 'px';
+}
+
+function dokPreviewOpenInTab() {
+    if (!_dokPreviewUrl) return;
+    // Blob-URL in neuem Tab — dort funktioniert ⌘+/− nativ.
+    window.open(_dokPreviewUrl, '_blank');
 }
 
 function dokClosePreviewPanel() {
@@ -457,7 +794,78 @@ function dokClosePreviewPanel() {
         URL.revokeObjectURL(_dokPreviewUrl);
         _dokPreviewUrl = null;
     }
-    document.getElementById('dokPreviewPanel')?.remove();
+    // Outside-Click-Handler wieder entfernen (Walter 27.05.2026) und Panel weg
+    const _p = document.getElementById('dokPreviewPanel');
+    if (_p) {
+        if (_p._dokOutsideClickHandler) {
+            document.removeEventListener('mousedown', _p._dokOutsideClickHandler, true);
+            _p._dokOutsideClickHandler = null;
+        }
+        _p.remove();
+    }
+}
+
+// Metadaten-Fusszeile im Vorschau-Panel: Erstellt / Geändert / Datei geändert /
+// Zugriff + wer (Walter-Vorgabe 24.05.2026). Werte aus der GET-Projektion.
+function dokMetaFooter(doc) {
+    const fmt = (iso) => iso
+        ? new Date(iso).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+        : '–';
+    const cell = (label, val) => `<span style="margin-right:14px"><b style="color:#64748b">${label}:</b> ${val}</span>`;
+    let html =
+        cell('Erstellt', fmt(doc.erstelltAm)) +
+        cell('Geändert', fmt(doc.geaendertAm)) +
+        cell('Datei geändert', fmt(doc.dateiGeaendertAm)) +
+        cell('Zugriff', fmt(doc.zugriffAm));
+    if (doc.geaendertVon) html += cell('Geändert von', esc(doc.geaendertVon));
+    if (doc.zugriffVon)   html += cell('Zugriff von', esc(doc.zugriffVon));
+    return html;
+}
+
+// Druckt das aktuell im Vorschau-Panel gezeigte PDF (eigener Knopf, da Chromes
+// Toolbar via #toolbar=0 ausgeblendet ist).
+function dokPreviewPrint() {
+    const f = document.querySelector('#dokPreviewBody iframe');
+    if (!f || !f.contentWindow) { alert('Drucken nicht möglich.'); return; }
+    try { f.contentWindow.focus(); f.contentWindow.print(); }
+    catch (e) { alert('Drucken nicht möglich: ' + (e?.message || e)); }
+}
+
+// PDF drehen (deg = 90 / -90). Server dreht + speichert + setzt datei_geaendert_am,
+// danach Vorschau neu laden. Walter-Vorgabe 24.05.2026.
+async function dokRotatePdf(id, deg) {
+    // Optional: nur eine bestimmte Seite drehen (Feld leer = alle Seiten).
+    let pageParam = '';
+    const pgEl = document.getElementById('dokRotPage');
+    if (pgEl && pgEl.value.trim()) {
+        const p = parseInt(pgEl.value, 10);
+        if (Number.isInteger(p) && p > 0) pageParam = `&page=${p}`;
+    }
+    try {
+        const r = await fetch(`/api/documents/${id}/rotate?deg=${deg}${pageParam}`, { method: 'POST', headers: ah() });
+        if (!r.ok) {
+            let m = 'HTTP ' + r.status;
+            try { const j = await r.json(); if (j && j.error) m = j.error; } catch (_) {}
+            alert('Drehen fehlgeschlagen: ' + m);
+            return;
+        }
+        const res = await r.json().catch(() => ({}));
+        // Lokalen Cache aktualisieren, damit Footer + Liste das neue Datum zeigen.
+        const d = _dokState.docs.find(x => x.id === id);
+        if (d) {
+            if (res.dateiGeaendertAm) d.dateiGeaendertAm = res.dateiGeaendertAm;
+            if (res.geaendertVon)     d.geaendertVon     = res.geaendertVon;
+        }
+        // Klare Rückmeldung: die Drehung ist bereits gespeichert (kein extra Schritt).
+        if (typeof showToast === 'function') showToast('✓ Gedreht und gespeichert', 'success');
+        const keepPage = pgEl ? pgEl.value : '';
+        dokOpenPreviewPanel(id);   // Vorschau mit gedrehter (gespeicherter) Datei neu laden
+        // Eingegebene Seite über das Neuladen hinweg behalten.
+        const newPg = document.getElementById('dokRotPage');
+        if (newPg && keepPage) newPg.value = keepPage;
+    } catch (e) {
+        alert('Fehler: ' + e.message);
+    }
 }
 
 // Macht das Dokument-Vorschau-Panel verschiebbar (Drag am Header).
@@ -471,8 +879,9 @@ function dokPreviewMakeDraggable() {
     let dragging = false, offsetX = 0, offsetY = 0, shield = null;
 
     header.addEventListener('mousedown', (e) => {
-        // Nicht ziehen wenn auf den Schliessen-Button geklickt wird
-        if (e.target.tagName === 'BUTTON') return;
+        // Nicht ziehen wenn auf Bedien-Elemente geklickt wird (Buttons, Seiten-Feld).
+        // Sonst fängt preventDefault() den Klick ab und das Feld bekommt keinen Fokus.
+        if (['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
         const rect = panel.getBoundingClientRect();
         // Position auf top/left fixieren (war evtl. via vh/vw definiert)
         panel.style.top    = rect.top  + 'px';
@@ -514,6 +923,89 @@ function dokPreviewMakeDraggable() {
     document.addEventListener('mouseup',   onUp);
 }
 
+// Macht das Vorschau-Panel in der Grösse ziehbar (Anfasser ◢ unten rechts).
+// Eigener Handler statt CSS-resize, weil der PDF-iframe sonst die Mausbewegung
+// schluckt — gleiche Shield-Technik wie beim Verschieben. Gewählte Grösse wird
+// in localStorage gemerkt und beim nächsten Öffnen wieder angewendet.
+// Anfasser unten-LINKS: Breite (nach links wachsend) + Höhe.
+// Walter-Vorgabe 27.05.2026: Panel ist rechts verankert, daher muss
+// das Ziehen nach links die Breite vergrössern (gegen die rechte Kante).
+function dokPreviewMakeResizable() {
+    const panel  = document.getElementById('dokPreviewPanel');
+    const handle = document.getElementById('dokPreviewResize');
+    if (!panel || !handle) return;
+
+    let resizing = false, startX = 0, startY = 0, startW = 0, startH = 0, shield = null;
+
+    handle.addEventListener('mousedown', (e) => {
+        startX = e.clientX; startY = e.clientY;
+        startW = panel.offsetWidth; startH = panel.offsetHeight;
+        resizing = true;
+        shield = document.createElement('div');
+        shield.style.cssText = 'position:fixed;inset:0;z-index:10001;cursor:nesw-resize';
+        document.body.appendChild(shield);
+        e.preventDefault(); e.stopPropagation();
+    });
+
+    function onMove(e) {
+        if (!resizing) return;
+        // Bottom-Left: Mauszeiger geht nach LINKS → Breite NACH OBEN.
+        let w = startW + (startX - e.clientX);
+        let h = startH + (e.clientY - startY);
+        // Walter 27.05.2026: max 60vw — Liste muss sichtbar bleiben.
+        w = Math.max(340, Math.min(window.innerWidth  * 0.60, w));
+        h = Math.max(320, Math.min(window.innerHeight, h));
+        panel.style.width  = w + 'px';
+        panel.style.height = h + 'px';
+    }
+    function onUp() {
+        if (!resizing) return;
+        resizing = false;
+        if (shield) { shield.remove(); shield = null; }
+        try { localStorage.setItem('dokPreviewSize', JSON.stringify({ w: panel.offsetWidth, h: panel.offsetHeight })); } catch (_) {}
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+}
+
+// Linker Rand: reine Breite (gegen rechte Verankerung). Walter 27.05.2026
+function dokPreviewMakeLeftResizable() {
+    const panel  = document.getElementById('dokPreviewPanel');
+    const handle = document.getElementById('dokPreviewResizeLeft');
+    if (!panel || !handle) return;
+
+    let resizing = false, startX = 0, startW = 0, shield = null;
+
+    handle.addEventListener('mousedown', (e) => {
+        startX = e.clientX;
+        startW = panel.offsetWidth;
+        resizing = true;
+        shield = document.createElement('div');
+        shield.style.cssText = 'position:fixed;inset:0;z-index:10001;cursor:ew-resize';
+        document.body.appendChild(shield);
+        e.preventDefault(); e.stopPropagation();
+    });
+    function onMove(e) {
+        if (!resizing) return;
+        let w = startW + (startX - e.clientX);
+        // Walter 27.05.2026: max 60vw — Liste muss sichtbar bleiben.
+        w = Math.max(340, Math.min(window.innerWidth * 0.60, w));
+        panel.style.width = w + 'px';
+    }
+    function onUp() {
+        if (!resizing) return;
+        resizing = false;
+        if (shield) { shield.remove(); shield = null; }
+        try {
+            const prev = JSON.parse(localStorage.getItem('dokPreviewSize') || '{}');
+            prev.w = panel.offsetWidth;
+            localStorage.setItem('dokPreviewSize', JSON.stringify(prev));
+        } catch (_) {}
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+}
+
 function dokDownload(id) {
     fetch(`/api/documents/download/${id}`, { headers: ah() })
         .then(r => {
@@ -523,6 +1015,8 @@ function dokDownload(id) {
             const filename = m ? decodeURIComponent(m[1]) : 'download';
             return r.blob().then(blob => ({ blob, filename }));
         })
+        // Echter Download (Walter 24.05.2026): immer „Speichern unter…". Das
+        // Anschauen läuft über das Vorschau-Panel, der Download speichert direkt.
         .then(({ blob, filename }) => saveBlobAsk(blob, filename))
         .catch(err => alert('Download fehlgeschlagen: ' + err.message));
 }
@@ -682,66 +1176,77 @@ function openDokEditModal(id) {
     const escVal = (v) => (v ?? '').toString().replace(/"/g, '&quot;');
     const dateVal = (v) => v ? String(v).slice(0,10) : '';
 
-    // Wenn Preview-Panel offen ist (links): Modal rechts neben dem Panel platzieren
+    // Wenn Preview-Panel offen ist (links): Modal rechts neben dem Panel platzieren.
+    // Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input).
     const previewOpen = !!document.getElementById('dokPreviewPanel');
     const overlayStyle = previewOpen
         ? 'position:fixed;inset:0;background:rgba(15,23,42,0.25);z-index:9999;display:flex;align-items:center;justify-content:flex-end;padding-right:3vw;pointer-events:none'
-        : 'position:fixed;inset:0;background:rgba(15,23,42,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
-    const dialogStyle = previewOpen
-        ? 'background:white;border-radius:14px;width:520px;max-width:46vw;padding:22px 26px;box-shadow:0 20px 60px rgba(0,0,0,0.25);pointer-events:auto'
-        : 'background:white;border-radius:14px;width:520px;max-width:92vw;padding:22px 26px;box-shadow:0 20px 60px rgba(0,0,0,0.2)';
+        : 'position:fixed;inset:0;background:rgba(15,23,42,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    const boxExtra = previewOpen ? 'style="pointer-events:auto"' : '';
 
     const html = `
     <div id="dokEditOverlay" style="${overlayStyle}" onclick="if(event.target===this)closeDokEditModal()">
-      <div style="${dialogStyle}">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <h3 style="margin:0;font-size:17px;font-weight:700;color:#0f172a">Dokument bearbeiten</h3>
-          <button onclick="closeDokEditModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8">×</button>
+      <div class="ma-modal-box narrow" ${boxExtra}>
+        <div class="ma-modal-head">
+          <div>
+            <div class="ma-modal-title">Dokument bearbeiten</div>
+            <div class="ma-modal-sub" style="font-style:italic;word-break:break-all">${doc.filenameOriginal}</div>
+          </div>
+          <button class="ma-modal-close" onclick="closeDokEditModal()">✕</button>
         </div>
-        <div style="font-size:11.5px;color:#64748b;margin-bottom:16px;font-style:italic;word-break:break-all">${doc.filenameOriginal}</div>
-        <form class="dok-upload-form" onsubmit="event.preventDefault(); dokEditSave(${id});">
-          <!-- MA-Reassignment: optional. Default = aktueller MA. Beim Wechsel
-               wird die Datei physisch in den neuen MA-Ordner verschoben. -->
-          <div>
-            <label>Mitarbeiter <small style="font-weight:400;color:#94a3b8">(zum Verschieben — leer lassen wenn beim aktuellen MA bleiben soll)</small></label>
-            <input type="text" id="dokEditEmpInput" list="dokEditEmpList"
-                   placeholder="Aktuell zugeordnet · Hier suchen um zu verschieben"
-                   oninput="dokEditEmpInputChanged(this.value)"
-                   autocomplete="off">
-            <datalist id="dokEditEmpList"></datalist>
-            <div id="dokEditEmpStatus" style="font-size:11.5px;color:#64748b;margin-top:3px"></div>
-            <input type="hidden" id="dokEditNewEmpId" value="">
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div>
-              <label>Kategorie</label>
-              <select id="dokEditKatSelect" required onchange="dokEditKatChanged(this.value)">
-                ${kategorieOptionsHtml}
-              </select>
+        <form onsubmit="event.preventDefault(); dokEditSave(${id});">
+          <div class="ma-modal-body">
+            <!-- MA-Reassignment: optional. Default = aktueller MA. Beim Wechsel
+                 wird die Datei physisch in den neuen MA-Ordner verschoben. -->
+            <div class="emp-section-title">Mitarbeiter</div>
+            <div class="ma-grid cols-1">
+              <div class="ma-field">
+                <div class="ma-field-label">Mitarbeiter <span class="opt">(zum Verschieben — leer lassen wenn beim aktuellen MA bleiben soll)</span></div>
+                <input type="text" id="dokEditEmpInput" class="ma-input" list="dokEditEmpList"
+                       placeholder="Aktuell zugeordnet · Hier suchen um zu verschieben"
+                       oninput="dokEditEmpInputChanged(this.value)"
+                       autocomplete="off">
+                <datalist id="dokEditEmpList"></datalist>
+                <div id="dokEditEmpStatus" style="font-size:11.5px;color:#64748b;margin-top:3px"></div>
+                <input type="hidden" id="dokEditNewEmpId" value="">
+              </div>
             </div>
-            <div>
-              <label>Typ</label>
-              <select id="dokEditTypSelect" required></select>
+
+            <div class="emp-section-title">Kategorie &amp; Typ</div>
+            <div class="ma-grid cols-2">
+              <div class="ma-field">
+                <div class="ma-field-label">Kategorie</div>
+                <select id="dokEditKatSelect" class="ma-select" required onchange="dokEditKatChanged(this.value)">
+                  ${kategorieOptionsHtml}
+                </select>
+              </div>
+              <div class="ma-field">
+                <div class="ma-field-label">Typ</div>
+                <select id="dokEditTypSelect" class="ma-select" required></select>
+              </div>
             </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div>
-              <label>Gültig von <small style="font-weight:400;color:#94a3b8">(optional)</small></label>
-              <input type="date" id="dokEditGueltigVon" value="${dateVal(doc.gueltigVon)}">
+
+            <div class="emp-section-title">Gültigkeit &amp; Bemerkung</div>
+            <div class="ma-grid cols-2">
+              <div class="ma-field">
+                <div class="ma-field-label">Gültig von <span class="opt">(optional)</span></div>
+                <input type="date" id="dokEditGueltigVon" class="ma-input" value="${dateVal(doc.gueltigVon)}">
+              </div>
+              <div class="ma-field">
+                <div class="ma-field-label">Gültig bis <span class="opt">(optional)</span></div>
+                <input type="date" id="dokEditGueltigBis" class="ma-input" value="${dateVal(doc.gueltigBis)}">
+              </div>
+              <div class="ma-field" style="grid-column:span 2">
+                <div class="ma-field-label">Bemerkung <span class="opt">(optional)</span></div>
+                <textarea id="dokEditBemerkung" class="ma-textarea">${escVal(doc.bemerkung)}</textarea>
+              </div>
             </div>
-            <div>
-              <label>Gültig bis <small style="font-weight:400;color:#94a3b8">(optional)</small></label>
-              <input type="date" id="dokEditGueltigBis" value="${dateVal(doc.gueltigBis)}">
-            </div>
+
+            <div id="dokEditStatus" style="font-size:12px;color:#64748b;margin-top:6px"></div>
           </div>
-          <div>
-            <label>Bemerkung <small style="font-weight:400;color:#94a3b8">(optional)</small></label>
-            <textarea id="dokEditBemerkung">${escVal(doc.bemerkung)}</textarea>
-          </div>
-          <div id="dokEditStatus" style="font-size:12px;color:#64748b"></div>
-          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
-            <button type="button" onclick="closeDokEditModal()" style="padding:8px 14px;background:#f1f5f9;border:none;border-radius:7px;font-weight:500;cursor:pointer">Abbrechen</button>
-            <button type="submit" id="dokEditSaveBtn" style="padding:8px 18px;background:#3b82f6;color:white;border:none;border-radius:7px;font-weight:600;cursor:pointer">Speichern</button>
+          <div class="ma-modal-foot">
+            <button type="button" class="btn btn-outline" onclick="closeDokEditModal()">Abbrechen</button>
+            <button type="submit" id="dokEditSaveBtn" class="btn btn-primary">Speichern</button>
           </div>
         </form>
       </div>

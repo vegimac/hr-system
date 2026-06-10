@@ -1,0 +1,68 @@
+# Willkommen im HR-System
+
+Schön, dass du da bist. Diese Hilfe ist deine Anlaufstelle, wenn du irgendwo nicht mehr weiter weisst.
+
+## Was möchtest du tun?
+
+Drei der häufigsten Aufgaben — Klick führt direkt zur passenden Hilfe-Seite:
+
+- **Einen neuen Mitarbeiter anlegen** → [Mitarbeiter](#mitarbeiter)
+- **Den monatlichen Lohnlauf machen** → [Lohnlauf](#lohnlauf)
+- **Einen Vertrag ändern (Lohn, Pensum, Beendigung)** → [Verträge](#vertraege)
+- **Quellensteuer erfassen** → [Quellensteuer](#qst)
+- **Ein Dokument hochladen oder anschauen** → [Dokumente & Posteingang](#dokumente)
+- **Wer hat wann was geändert?** → [Aktivitäts-Log](#audit)
+- **Einen Mitarbeiter oder ein Dokument blitzschnell finden** → [Globale Suche](#suche)
+- **Wer darf was im Programm?** → [Rollen & Berechtigungen](#rollen)
+
+## Drei Tricks die dir den Tag retten
+
+**1. ⌘K (Mac) bzw. Ctrl-K (Windows)** — Globale Suche von überall. Tippe einen Namen, eine MA-Nummer, ein Dokument-Stichwort. Klick auf das Resultat = direkt am Ziel.
+
+**2. Das ❓ oben rechts** — Du bekommst die Hilfe zu **genau der Seite**, auf der du gerade bist. Bist du im Lohnlauf? Lohnlauf-Hilfe. Bist du in den Mitarbeitern? Mitarbeiter-Hilfe.
+
+**3. Dunkelmodus** — Der Mond-Knopf oben rechts. Schont die Augen wenn du abends noch arbeitest.
+
+## So funktioniert das Programm — der grosse Überblick
+
+**Mitarbeiter** sind der Mittelpunkt: jede Person hat Stammdaten, Verträge, Familie, Bank, Dokumente. Du verwaltest sie über den **Mitarbeiter-Tab**.
+
+**Verträge** definieren, wie viel ein MA verdient. Pro MA gibt's eine Versionsgeschichte — wenn der Lohn steigt, legst du einen neuen Vertrag an, statt den alten zu überschreiben. So kann das System rückwirkend Lohnzettel korrekt nachrechnen.
+
+**Lohnlauf** passiert zweimal pro Periode:
+- **Akonto** (Mitte Monat) — Voraus-Zahlung, basierend auf bisher gestempelten Stunden bzw. Festlohn.
+- **Definitiv** (Ende Monat) — endgültiger Lohnzettel mit allen Korrekturen.
+
+Beides folgt dem **4-Augen-Prinzip**: zuerst gibt der Geschäftsführer pro MA frei, dann bestätigt HR, dann geht das DTA-File zur Bank.
+
+**Quellensteuer** wird automatisch geprüft — wenn ein MA QST-pflichtig ist aber nichts erfasst, sperrt das System den Lohnlauf, bis du einen Tarif setzt.
+
+**Dokumente** sortierst du in Kategorien ein. PDF, Bild und Word/Excel werden direkt im Browser angezeigt — keine Software runterladen.
+
+**Posteingang** ist deine Eingangs-Schale: jede Filiale hat eine eigene, plus eine für HR und eine für Buchhaltung. Du nimmst Dokumente entgegen und sortierst sie zu MA.
+
+**Aktivitäts-Log** (nur Admin) — zeigt alle Änderungen mit User, Zeit und Detail. Dein Sicherheitsnetz.
+
+## Wichtige Konzepte in 30 Sekunden
+
+**Vertragsmodelle:**
+
+- **UTP** — Stundenlohn, keine Garantie. Aushilfen, flexible Einsätze.
+- **MTP** — Stundenlohn mit garantierten Wochenstunden.
+- **FIX** — Fixes Pensum, Monatslohn. Klassisches Anstellungsverhältnis.
+- **FIX-M** — Management. Festlohn, keine Stunden-Garantie nötig.
+
+**Periode = Kalendermonat.** Immer. Vom 1. bis zum letzten Tag.
+
+**Edit-Sperre:** Wenn der Lohnlauf einer Periode läuft, sind Stempelzeiten, Absenzen, Verträge etc. **dieser Periode gesperrt** — damit niemand dem Lohnlauf unter den Füssen Daten ändert. Erst nach Abschluss (oder Reset durch den Admin) wieder editierbar.
+
+## Wenn du nicht weiterweisst
+
+- **Roter Banner** auf einer Seite? → Klick drauf, der Text sagt was zu tun ist.
+- **Dashboard** zeigt dir alle offenen Probleme der gewählten Filiale auf einer Liste.
+- **Globale Suche ⌘K** findet alles, auch wenn du nicht mehr weisst, wo es war.
+- **❓ Hilfe** auf der aktuellen Seite — du landest dort, wo die Antwort steht.
+
+---
+
+> Diese Hilfe-Texte liegen als Markdown-Dateien unter `wwwroot/help/`. Wenn du etwas siehst, das verbessert werden sollte — sag Bescheid, ich passe es an.

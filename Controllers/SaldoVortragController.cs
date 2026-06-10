@@ -275,27 +275,34 @@ public class SaldoVortragController : ControllerBase
         if (entries.Count == 0)
             return Ok(new { deleted = 0 });
 
-        // Walter 17.05.2026: Vortrag-Löschen blockieren wenn die Periode
-        // bereits in Verarbeitung ist (Saldi sind dann schon verrechnet).
-        var branchIdD     = await GetEmployeeBranchAsync(employeeId);
-        var firstAllowedD = branchIdD.HasValue
-            ? await _editLock.GetFirstAllowedDateAsync(User, branchIdD.Value, includeAkonto: false)
-            : null;
-        if (firstAllowedD.HasValue)
+        // Walter-Vorgabe 24.05.2026: Vortrag-Löschen NUR blockieren, wenn die
+        // betroffene Periode im DEFINITIV-Lauf bereits ENDGÜLTIG "abgeschlossen"
+        // ist. provisorisch_abgeschlossen ODER ein laufender/abgeschlossener
+        // Akonto blockieren das Löschen NICHT — die Eröffnungssaldi sind der
+        // Input für den Definitivlohn und dürfen korrigiert/gelöscht werden,
+        // solange der Definitivlauf dieser Periode nicht final abgeschlossen ist.
+        // (Früher sperrte hier GetFirstAllowedDateAsync schon ab
+        // provisorisch_abgeschlossen — das war zu streng.)
+        var branchIdD = await GetEmployeeBranchAsync(employeeId);
+        if (branchIdD.HasValue)
         {
-            // Periode des ältesten Vortrag-Eintrags prüfen
-            var oldestPer = entries.Select(e => e.Periode).Min();
-            if (!string.IsNullOrEmpty(oldestPer)
-                && int.TryParse(oldestPer[..4], out var yr2)
-                && int.TryParse(oldestPer[5..], out var mn2))
+            foreach (var per in entries.Select(e => e.Periode).Distinct())
             {
-                var periodStart = new DateOnly(yr2, mn2, 1);
-                if (periodStart < firstAllowedD.Value)
+                if (string.IsNullOrEmpty(per) || per.Length != 7) continue;
+                if (!int.TryParse(per[..4], out var yr2) || !int.TryParse(per[5..], out var mn2)) continue;
+
+                var abgeschlossen = await _db.PayrollPerioden.AnyAsync(p =>
+                    p.CompanyProfileId == branchIdD.Value &&
+                    p.Year  == yr2 &&
+                    p.Month == mn2 &&
+                    p.Status == "abgeschlossen");
+
+                if (abgeschlossen)
                 {
                     return Conflict(new {
                         error            = "LOHN_EDIT_LOCKED",
-                        message          = $"Saldo-Vortrag in Periode {oldestPer} wurde bereits in einem Lohnlauf verwendet und kann nicht gelöscht werden.",
-                        firstAllowedDate = firstAllowedD?.ToString("yyyy-MM-dd")
+                        message          = $"Saldo-Vortrag in Periode {per} kann nicht gelöscht werden — der Definitiv-Lohnlauf dieser Periode ist bereits abgeschlossen. Bitte zuerst den Lohnlauf wieder öffnen.",
+                        firstAllowedDate = (string?)null
                     });
                 }
             }

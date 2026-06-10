@@ -36,13 +36,15 @@
     <PackageReference Include="itext7.bouncy-castle-adapter" Version="8.0.5" />
     <!-- ImageSharp 2.x ist Apache-2.0-lizenziert (v3+ ist eine Split-License,
          die für kommerziellen Einsatz eine bezahlte Lizenz braucht). -->
-    <PackageReference Include="SixLabors.ImageSharp" Version="2.1.10" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="2.1.11" />
     <!-- NPOI: Excel-Lese-Library für Mirus-Lohnabrechnungs-XLS-Import.
          Liest .xls und .xlsx — wir brauchen .xls (Mirus-Export-Format). -->
     <PackageReference Include="NPOI" Version="2.7.1" />
     <!-- MailKit/MimeKit: SMTP-Versand für MA-Postfach-Benachrichtigungen
-         (Lohnzettel-Bereit, eingehende Dokumente). Stable, Microsoft-empfohlen. -->
-    <PackageReference Include="MailKit" Version="4.7.1.1" />
+         (Lohnzettel-Bereit, eingehende Dokumente). Stable, Microsoft-empfohlen.
+         4.16.0 = Patch für GHSA-9j88-vvj5-vhgr (STARTTLS Response Injection /
+         SASL-Downgrade durch MitM; betraf alle Versionen < 4.16.0). -->
+    <PackageReference Include="MailKit" Version="4.16.0" />
   </ItemGroup>
 
 </Project>

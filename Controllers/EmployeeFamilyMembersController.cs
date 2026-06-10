@@ -20,7 +20,12 @@ public class EmployeeFamilyMembersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetByEmployee(int employeeId)
     {
+        // Walter-Vorgabe 07.06.2026: PermitType (Code + Description) mit-laden,
+        // damit das Frontend beim Ehepartner-Block den vollen Bewilligungs-Text
+        // anzeigen kann statt „Typ 7".
         var members = await _context.EmployeeFamilyMembers
+            .Include(m => m.PermitType)
+            .Include(m => m.NationalityRef)
             .Where(m => m.EmployeeId == employeeId)
             .OrderBy(m => m.MemberType)
             .ThenBy(m => m.DateOfBirth)
@@ -46,6 +51,8 @@ public class EmployeeFamilyMembersController : ControllerBase
     public async Task<IActionResult> GetById(int employeeId, int id)
     {
         var member = await _context.EmployeeFamilyMembers
+            .Include(m => m.PermitType)
+            .Include(m => m.NationalityRef)
             .FirstOrDefaultAsync(m => m.Id == id && m.EmployeeId == employeeId);
 
         if (member == null) return NotFound();
@@ -80,9 +87,18 @@ public class EmployeeFamilyMembersController : ControllerBase
         m.QstDeductibleFrom,
         m.QstDeductibleUntil,
         m.PermitTypeId,
+        // Walter-Vorgabe 07.06.2026: PermitType-Klartext mitliefern.
+        permitType = m.PermitType == null ? null : new {
+            id          = m.PermitType.Id,
+            code        = m.PermitType.Code,
+            description = m.PermitType.Description
+        },
         m.PermitExpiryDate,
         m.ZemisNumber,
         m.NationalityId,
+        // Walter-Vorgabe 07.06.2026: NationalityCode mitliefern, damit das
+        // Frontend „CH-Bürger" statt „ohne Bewilligung" anzeigen kann.
+        nationalityCode = m.NationalityRef?.Code,
         m.CreatedAt,
         m.UpdatedAt,
         alternativeAddress = alt == null ? null : new {

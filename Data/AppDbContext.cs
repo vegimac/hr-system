@@ -37,6 +37,7 @@ public class AppDbContext : DbContext
     public DbSet<LohnZulagTyp> LohnZulagTypen => Set<LohnZulagTyp>();
     public DbSet<LohnZulage> LohnZulagen => Set<LohnZulage>();
     public DbSet<EmployeeRecurringWage> EmployeeRecurringWages => Set<EmployeeRecurringWage>();
+    public DbSet<EmployeeBvgZusatzMember> EmployeeBvgZusatzMembers => Set<EmployeeBvgZusatzMember>();
     public DbSet<EmploymentModelComponent> EmploymentModelComponents => Set<EmploymentModelComponent>();
     public DbSet<SwissLocation> SwissLocations => Set<SwissLocation>();
     public DbSet<Behoerde> Behoerden => Set<Behoerde>();
@@ -50,6 +51,7 @@ public class AppDbContext : DbContext
     public DbSet<VertragstypLohnposition> VertragstypLohnpositionen => Set<VertragstypLohnposition>();
     public DbSet<PayrollPeriode>        PayrollPerioden        => Set<PayrollPeriode>();
     public DbSet<PayrollPeriodeAudit>   PayrollPeriodeAudits   => Set<PayrollPeriodeAudit>();
+    public DbSet<AuditLog>              AuditLogs              => Set<AuditLog>();
     public DbSet<PayrollSnapshot>       PayrollSnapshots       => Set<PayrollSnapshot>();
     public DbSet<PayrollLohnAbtretungEntry> PayrollLohnAbtretungEntries => Set<PayrollLohnAbtretungEntry>();
     public DbSet<AkontoTermin>          AkontoTermine          => Set<AkontoTermin>();
@@ -91,11 +93,23 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EntryDate).HasColumnName("entry_date").HasColumnType("date");
             entity.Property(e => e.ExitDate).HasColumnName("exit_date").HasColumnType("date");
             entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");
-            entity.Property(e => e.PermitExpiryDate).HasColumnName("permit_expiry_date").HasColumnType("date");
+            // permit_expiry_date entfernt 01.06.2026 — Dashboard liest jetzt
+            // EmployeePermitHistory.ValidTo des jüngsten Eintrags.
             entity.Property(e => e.ZemisNumber).HasColumnName("zemis_number").HasMaxLength(50);
             entity.Property(e => e.QuellensteuerBefreitAb).HasColumnName("quellensteuer_befreit_ab").HasColumnType("date");
+            // QST-Befreiung durch Steuerbehörde (Walter 26.05.2026)
+            entity.Property(e => e.QstBefreitDurchBehoerde).HasColumnName("qst_befreit_durch_behoerde").HasDefaultValue(false);
+            entity.Property(e => e.QstBefreiungDokumentId).HasColumnName("qst_befreiung_dokument_id");
+            entity.Property(e => e.QstBefreiungGueltigAb).HasColumnName("qst_befreiung_gueltig_ab").HasColumnType("date");
+            entity.Property(e => e.QstBefreiungGueltigBis).HasColumnName("qst_befreiung_gueltig_bis").HasColumnType("date");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.IsPayrollExcluded).HasColumnName("is_payroll_excluded").HasDefaultValue(false);
+            // Walter-Vorgabe 07.06.2026: Anstellungs-Felder aus Mirus-HR-Review.
+            // DB-Default beider Spalten = false, damit bestehende MA-Zeilen nicht
+            // unbemerkt geändert werden. Bei NEU angelegten MA via Code setzt das
+            // C#-Property LgavPflichtig=true (Schaub-Restaurants ist L-GAV-Branche).
+            entity.Property(e => e.LgavPflichtig).HasColumnName("lgav_pflichtig").HasDefaultValue(false);
+            entity.Property(e => e.TeilzeitUnter8hWoche).HasColumnName("teilzeit_unter_8h_woche").HasDefaultValue(false);
             entity.Property(e => e.KtgTagessatzManuell).HasColumnName("ktg_tagessatz_manuell").HasColumnType("numeric(10,2)");
             entity.Property(e => e.KtgKarenzAbgeschlossen).HasColumnName("ktg_karenz_abgeschlossen").HasDefaultValue(false);
             entity.Property(e => e.SocialSecurityNumber).HasColumnName("social_security_number").HasMaxLength(20);
@@ -121,6 +135,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ContractStartDate).HasColumnName("contract_start_date").HasColumnType("date");
             entity.Property(e => e.ContractEndDate).HasColumnName("contract_end_date").HasColumnType("date");
             entity.Property(e => e.JobTitle).HasColumnName("job_title");
+            entity.Property(e => e.JobGroupId).HasColumnName("job_group_id");
+            entity.HasOne(e => e.JobGroup).WithMany().HasForeignKey(e => e.JobGroupId);
             entity.Property(e => e.ContractType).HasColumnName("contract_type");
             entity.Property(e => e.EducationLevelCode).HasColumnName("education_level_code").HasMaxLength(10);
             entity.Property(e => e.EmploymentPercentage).HasColumnName("employment_percentage");
@@ -129,9 +145,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MonthlySalaryFte).HasColumnName("monthly_salary_fte");
             entity.Property(e => e.MonthlySalary).HasColumnName("monthly_salary");
             entity.Property(e => e.HourlyRate).HasColumnName("hourly_rate");
-            entity.Property(e => e.VacationPercent).HasColumnName("vacation_percent");
-            entity.Property(e => e.HolidayPercent).HasColumnName("holiday_percent");
-            entity.Property(e => e.ThirteenthSalaryPercent).HasColumnName("thirteenth_salary_percent");
+            // Walter-Vorgabe 06.06.2026 (Stufe 1b): VacationPercent, HolidayPercent,
+            // ThirteenthSalaryPercent sind aus dem Model entfernt und Spalten droppe
+            // ich via Migration `drop_employment_pct_fields.sql`. Werte kommen ab
+            // jetzt aus CompanyProfile.Default* + altersaware Engine-Logik.
             entity.Property(e => e.VacationPaymentMode).HasColumnName("vacation_payment_mode");
             entity.Property(e => e.ProbationPeriodMonths).HasColumnName("probation_period_months");
             entity.Property(e => e.ProbationEndDate).HasColumnName("probation_end_date").HasColumnType("date");
@@ -157,6 +174,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Phone).HasColumnName("phone");
             entity.Property(e => e.Email).HasColumnName("email");
             entity.Property(e => e.NormalWeeklyHours).HasColumnName("normal_weekly_hours");
+            entity.Property(e => e.MaxWeeklyHours).HasColumnName("max_weekly_hours").HasColumnType("numeric(5,2)");
             entity.Property(e => e.DefaultVacationWeeks).HasColumnName("default_vacation_weeks");
             entity.Property(e => e.WorkLocation).HasColumnName("work_location");
             entity.Property(e => e.MaxPartTimeHoursPerWeek).HasColumnName("max_part_time_hours_per_week");
@@ -171,6 +189,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.DefaultVacationPercent5Weeks).HasColumnName("default_vacation_percent_5weeks");
             entity.Property(e => e.DefaultVacationPercent6Weeks).HasColumnName("default_vacation_percent_6weeks");
             entity.Property(e => e.DefaultHolidayPercent).HasColumnName("default_holiday_percent");
+            entity.Property(e => e.VacationSixWeeksFromAge).HasColumnName("vacation_six_weeks_from_age").HasDefaultValue(50);
+            entity.Property(e => e.DefaultThirteenthSalaryPercent).HasColumnName("default_thirteenth_salary_percent");
             entity.Property(e => e.NightStartTime).HasColumnName("night_start_time").HasMaxLength(5);
             entity.Property(e => e.NightEndTime).HasColumnName("night_end_time").HasMaxLength(5);
             entity.Property(e => e.ThirteenthMonthPayoutsPerYear).HasColumnName("thirteenth_month_payouts_per_year").HasDefaultValue(12);
@@ -276,7 +296,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.AgeMax).HasColumnName("age_max");
             entity.Property(e => e.Confirmed).HasColumnName("confirmed").HasDefaultValue(false);
+            entity.Property(e => e.JobGroupId).HasColumnName("job_group_id");
             entity.HasOne(e => e.EducationLevel).WithMany().HasForeignKey(e => e.EducationLevelId);
+            entity.HasOne(e => e.JobGroup).WithMany().HasForeignKey(e => e.JobGroupId);
         });
 
         modelBuilder.Entity<JobGroup>(entity =>
@@ -309,6 +331,9 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Code).HasColumnName("code");
+            // Walter-Vorgabe 07.06.2026: optionaler Alternativ-Code (z.B. XZ
+            // für Kosovo aus Mirus). Wird beim Import zusätzlich gematcht.
+            entity.Property(e => e.Code2).HasColumnName("code2");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
         });
 
@@ -456,6 +481,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
             entity.Property(e => e.MonthlyAmount).HasColumnName("monthly_amount").HasColumnType("numeric(10,2)");
             entity.Property(e => e.AllowanceType).HasColumnName("allowance_type").HasMaxLength(20);
+            entity.Property(e => e.TarifSatzNr).HasColumnName("tarif_satz_nr");
             entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(500);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
@@ -684,6 +710,13 @@ public class AppDbContext : DbContext
             entity.Property(e => e.GueltigBis).HasColumnName("gueltig_bis").HasColumnType("date");
             entity.Property(e => e.HochgeladenVon).HasColumnName("hochgeladen_von");
             entity.Property(e => e.HochgeladenAm).HasColumnName("hochgeladen_am");
+            entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.DateiGeaendertAm).HasColumnName("datei_geaendert_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ZugriffAm).HasColumnName("zugriff_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.GeaendertVon).HasColumnName("geaendert_von");
+            entity.Property(e => e.ZugriffVon).HasColumnName("zugriff_von");
+            entity.Property(e => e.DvelopDokumentId).HasColumnName("dvelop_dokument_id").HasMaxLength(20);
             entity.HasIndex(e => e.EmployeeId);
             entity.HasIndex(e => e.DokumentTypId);
         });
@@ -797,6 +830,25 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Lohnposition).WithMany().HasForeignKey(e => e.LohnpositionId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom, e.ValidTo })
                   .HasDatabaseName("idx_employee_recurring_wage_period");
+        });
+
+        // ── EmployeeBvgZusatzMember ────────────────────────────────────────
+        // Walter-Vorgabe 26.05.2026: versionierte BVG-Zusatz-Mitgliedschaft
+        // pro MA (löst die hartcodierte EmploymentModelCode=FIX-M-Logik ab).
+        modelBuilder.Entity<EmployeeBvgZusatzMember>(entity =>
+        {
+            entity.ToTable("employee_bvg_zusatz_member");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom })
+                  .HasDatabaseName("ix_bvg_member_emp_period");
         });
 
         // ── EmploymentModelComponent ───────────────────────────────────────
@@ -1195,6 +1247,26 @@ public class AppDbContext : DbContext
                   .HasDatabaseName("idx_ppa_periode_time");
         });
 
+        // ── AuditLog ───────────────────────────────────────────────────────
+        // Walter-Vorgabe 27.05.2026: zentrales Audit fuer ALLE CRUD-Writes.
+        // Wird vom AuditSaveChangesInterceptor automatisch befuellt.
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.ToTable("audit_log");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.UserName).HasColumnName("user_name");
+            entity.Property(e => e.UserRole).HasColumnName("user_role");
+            entity.Property(e => e.EntityType).HasColumnName("entity_type");
+            entity.Property(e => e.EntityId).HasColumnName("entity_id");
+            entity.Property(e => e.Action).HasColumnName("action");
+            entity.Property(e => e.ChangesJson).HasColumnName("changes_json");
+            entity.Property(e => e.Route).HasColumnName("route");
+            entity.Property(e => e.IpAddress).HasColumnName("ip_address");
+        });
+
         // ── PayrollSnapshot ────────────────────────────────────────────────
         modelBuilder.Entity<PayrollSnapshot>(entity =>
         {
@@ -1274,6 +1346,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.GfFreigegebenBy).HasColumnName("gf_freigegeben_by");
             entity.Property(e => e.KommentarGf).HasColumnName("kommentar_gf");
             entity.Property(e => e.KommentarHr).HasColumnName("kommentar_hr");
+            // Walter-Vorgabe 28.05.2026: Ausschluss-Grund + GF-Override-Flag
+            entity.Property(e => e.ErrorReason).HasColumnName("error_reason");
+            entity.Property(e => e.ForcePayout).HasColumnName("force_payout").HasDefaultValue(false);
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.Company).WithMany().HasForeignKey(e => e.CompanyProfileId);
             entity.HasOne(e => e.GfFreigegebenByUser).WithMany()
@@ -1312,7 +1387,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
-            entity.Property(e => e.PermitExpiryDate).HasColumnName("permit_expiry_date").HasColumnType("date");
+            // permit_expiry_date entfernt 01.06.2026 — siehe Models/EmployeePermitHistory.cs.
             entity.Property(e => e.Note).HasColumnName("note");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");

@@ -68,6 +68,7 @@ async function pbInit() {
 
             const branchOpts = postfaecher.filter(p => p.type === 'BRANCH');
             const hrOpts     = postfaecher.filter(p => p.type === 'HR');
+            const buchOpts   = postfaecher.filter(p => p.type === 'BUCH');
             const adminOpts  = postfaecher.filter(p => p.type === 'ADMIN');
 
             let html = '<option value="">– wählen –</option>';
@@ -84,6 +85,14 @@ async function pbInit() {
                 hrOpts.forEach(p => {
                     const cnt = p.count > 0 ? ` (${p.count})` : '';
                     html += `<option value="HR">HR-Postfach${cnt}</option>`;
+                });
+                html += '</optgroup>';
+            }
+            if (buchOpts.length) {
+                html += '<optgroup label="Buchhaltung">';
+                buchOpts.forEach(p => {
+                    const cnt = p.count > 0 ? ` (${p.count})` : '';
+                    html += `<option value="BUCH">Buchhaltungs-Postfach${cnt}</option>`;
                 });
                 html += '</optgroup>';
             }
@@ -134,6 +143,7 @@ async function pbInit() {
 function pbParsePostfach(val) {
     if (!val) return null;
     if (val === 'HR') return { type: 'HR', companyProfileId: null };
+    if (val === 'BUCH') return { type: 'BUCH', companyProfileId: null };
     if (val === 'ADMIN') return { type: 'ADMIN', companyProfileId: null };
     if (val.startsWith('BRANCH:')) {
         return { type: 'BRANCH', companyProfileId: parseInt(val.substring(7)) };
@@ -221,6 +231,7 @@ async function pbOpenUpload() {
         const postfaecher = r.ok ? await r.json() : [];
         const branchOpts = postfaecher.filter(p => p.type === 'BRANCH');
         const hrOpts     = postfaecher.filter(p => p.type === 'HR');
+        const buchOpts   = postfaecher.filter(p => p.type === 'BUCH');
         const adminOpts  = postfaecher.filter(p => p.type === 'ADMIN');
         let html = '';
         if (branchOpts.length) {
@@ -233,6 +244,11 @@ async function pbOpenUpload() {
         if (hrOpts.length) {
             html += '<optgroup label="Geteilt">';
             hrOpts.forEach(p => { html += `<option value="HR">HR-Postfach</option>`; });
+            html += '</optgroup>';
+        }
+        if (buchOpts.length) {
+            html += '<optgroup label="Buchhaltung">';
+            buchOpts.forEach(p => { html += `<option value="BUCH">Buchhaltungs-Postfach</option>`; });
             html += '</optgroup>';
         }
         if (adminOpts.length) {
@@ -338,7 +354,8 @@ async function pbDownload(id) {
         const cd = r.headers.get('Content-Disposition') || '';
         const fnMatch = /filename="?([^"]+)"?/.exec(cd);
         const fn = fnMatch ? fnMatch[1] : `posteingang-${id}`;
-        await saveBlobAsk(blob, fn);
+        // PDF/Bilder → Vorschaufenster; andere Typen (Word/Excel…) → direkt speichern.
+        await previewFileModal(blob, fn);
     } catch (err) { alert('Download-Fehler: ' + err.message); }
 }
 

@@ -9,6 +9,9 @@ let qstCurrentEmployeeId = null;
 let qstCurrentEntryId    = null;
 let qstEmployeeData      = null;
 let qstAllEntries        = [];
+// Walter-Vorgabe 28.05.2026: Cache der MA-Kinder (mit QstDeductibleFrom/Until)
+// für den Auto-Zähler unter „Anzahl Kinder".
+let _qstFamilyKinder     = [];
 
 async function openQstModal(employeeId, employeeData) {
     qstCurrentEmployeeId = employeeId;
@@ -36,6 +39,18 @@ async function openQstModal(employeeId, employeeData) {
     // Ehepartner-Info aus Familie-Tab anzeigen
     loadQstPartnerInfo(employeeId);
 
+    // Walter-Vorgabe 28.05.2026: Familie-Kinder laden für den Auto-Zähler unter
+    // „Anzahl Kinder". Sequentiell, damit populateQstForm gleich darauf den Hint
+    // zeichnen kann.
+    await loadQstFamilyKinder(employeeId);
+    // ValidFrom-Trigger einmalig binden, damit beim Datums-Wechsel der Hint
+    // neu gerechnet wird (anderer Stichtag → ggf. anderer Auto-Wert).
+    const vfInp = document.getElementById('qstValidFrom');
+    if (vfInp && !vfInp.dataset.qstAutoBound) {
+        vfInp.addEventListener('change', qstUpdateAutoKinderHint);
+        vfInp.dataset.qstAutoBound = '1';
+    }
+
     // Aktuellen Eintrag laden und anzeigen
     const today = new Date().toISOString().slice(0, 10);
     const res = await fetch(`/api/employees/${employeeId}/quellensteuer/current?date=${today}`, { headers: ah() });
@@ -62,6 +77,83 @@ async function loadQstHistory(employeeId) {
     const res = await fetch(`/api/employees/${employeeId}/quellensteuer`, { headers: ah() });
     qstAllEntries = res.ok ? await res.json() : [];
     renderQstHistoryTabs();
+}
+
+// Walter-Vorgabe 28.05.2026: Lädt die Kinder des MA aus dem Familie-Tab und
+// cached sie für den Auto-Zähler unter „Anzahl Kinder". Pro Kind wertet das
+// Frontend Q-Steuer-Berechtigung (QstDeductibleFrom/Until) am Stichtag des
+// QST-Eintrags aus.
+async function loadQstFamilyKinder(employeeId) {
+    _qstFamilyKinder = [];
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/family`, { headers: ah() });
+        if (!res.ok) return;
+        const members = await res.json();
+        _qstFamilyKinder = (members || []).filter(m => m.memberType === 'Kind');
+    } catch { /* leerer Cache */ }
+}
+
+// Wie viele Kinder sind am gewählten Stichtag QST-abzugsberechtigt?
+// Regel: QstDeductibleFrom NULL ODER ≤ Stichtag, UND QstDeductibleUntil NULL
+// ODER ≥ Stichtag. Kinder ohne hinterlegten Zeitraum werden NICHT mitgezählt
+// (sonst würde jedes Kind ungewollt mitlaufen) — Walter muss bewusst die
+// QST-Daten im Familie-Tab pflegen.
+function qstAutoKinderCount(stichtagIso) {
+    if (!stichtagIso) return 0;
+    const s = stichtagIso.slice(0, 10);
+    return _qstFamilyKinder.filter(k => {
+        const f = (k.qstDeductibleFrom  || '').toString().slice(0, 10);
+        const u = (k.qstDeductibleUntil || '').toString().slice(0, 10);
+        if (!f && !u) return false;            // gar nichts gepflegt → nicht mitzählen
+        if (f && f > s) return false;          // noch nicht berechtigt
+        if (u && u < s) return false;          // nicht mehr berechtigt
+        return true;
+    }).length;
+}
+
+function qstFmtDe(iso) {
+    const s = (iso || '').toString().slice(0, 10);
+    if (s.length !== 10) return '';
+    return s.slice(8,10) + '.' + s.slice(5,7) + '.' + s.slice(0,4);
+}
+
+// Hint-Zeile unter „Anzahl Kinder": grün wenn manuell == auto,
+// rot mit „Auto übernehmen"-Button wenn Differenz.
+function qstUpdateAutoKinderHint() {
+    const inp  = document.getElementById('qstKinder');
+    const hint = document.getElementById('qstKinderAutoHint');
+    if (!inp || !hint) return;
+    const stichtag = document.getElementById('qstValidFrom')?.value || '';
+    if (!stichtag) { hint.innerHTML = ''; return; }
+    const auto   = qstAutoKinderCount(stichtag);
+    const manual = parseInt(inp.value || '0', 10) || 0;
+    const stichtagDe = qstFmtDe(stichtag);
+
+    // Keine MA-Familie geladen / keine Kinder im Familie-Tab gepflegt → dezenter
+    // Hinweis statt Auto-Wert, damit Walter nicht denkt es sei falsch berechnet.
+    if (!_qstFamilyKinder.length) {
+        hint.innerHTML = `<span style="color:#94a3b8">ℹ Keine Kinder im Familie-Tab erfasst.</span>`;
+        return;
+    }
+    if (manual === auto) {
+        hint.innerHTML = `<span style="color:#16a34a">✓ ${auto} Kind${auto===1?'':'er'} QST-abzugsberechtigt am ${stichtagDe} (aus Familie-Tab)</span>`;
+    } else {
+        hint.innerHTML = `
+            <span style="color:#dc2626">⚠ Auto: ${auto}, manuell eingetragen: ${manual}</span>
+            <button type="button" onclick="qstApplyAutoKinder()"
+                    style="margin-left:6px;background:#2563eb;color:#fff;border:none;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600">Auto übernehmen</button>`;
+    }
+}
+
+// Klick auf „Auto übernehmen": schreibt die berechnete Zahl ins Input + baut
+// den QST-Code neu auf.
+function qstApplyAutoKinder() {
+    const inp = document.getElementById('qstKinder');
+    const stichtag = document.getElementById('qstValidFrom')?.value || '';
+    if (!inp || !stichtag) return;
+    inp.value = qstAutoKinderCount(stichtag);
+    if (typeof buildQstCode === 'function') buildQstCode();
+    qstUpdateAutoKinderHint();
 }
 
 // Lädt den Ehepartner aus dem Familie-Tab und zeigt Name + Geburtsdatum
@@ -150,6 +242,15 @@ async function openQstEntry(id) {
     })();
     document.getElementById('qstValidFrom').value = validFromDefault;
 
+    // Walter-Vorgabe 28.05.2026: nach dem ValidFrom-Default die Anzahl Kinder
+    // aus der Familie neu rechnen (populateQstForm lief mit dem alten Datum).
+    if (_qstFamilyKinder.length) {
+        const auto = qstAutoKinderCount(validFromDefault);
+        document.getElementById('qstKinder').value = auto;
+        if (typeof buildQstCode === 'function') buildQstCode();
+        qstUpdateAutoKinderHint();
+    }
+
     // Auto-Fill Steuerkanton und Wohngemeinde aus der Wohnadresse des MA.
     // Fallback auf selectedEmployee (wenn aus dem Mitarbeiter-Tab geöffnet
     // und qstEmployeeData nicht gesetzt wurde).
@@ -222,6 +323,18 @@ function populateQstForm(entry) {
 
     toggleQstWeitere();
     document.getElementById('qstSaveResult').textContent = '';
+    // Walter-Vorgabe 28.05.2026: Auto-Kinder-Hint immer rendern. Bei NEU
+    // (kein entry) zusätzlich das Feld auf den berechneten Wert vorbefüllen,
+    // damit Walter nicht selbst zählen muss.
+    if (!entry) {
+        const stichtag = document.getElementById('qstValidFrom')?.value || '';
+        if (stichtag && _qstFamilyKinder.length) {
+            const auto = qstAutoKinderCount(stichtag);
+            document.getElementById('qstKinder').value = auto;
+            if (typeof buildQstCode === 'function') buildQstCode();
+        }
+    }
+    qstUpdateAutoKinderHint();
 }
 
 function onQstKantonChange() {

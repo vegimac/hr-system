@@ -97,12 +97,13 @@ public class WageAdjustmentService
         // (nicht DateOnly.FromDateTime — in EF/Npgsql nicht übersetzbar).
         var ems = await _db.Employments
             .Include(e => e.Employee)
+            .Include(e => e.JobGroup)   // FK-Code statt JobTitle (Walter 26.05.2026)
             .Where(e => e.IsActive
                      && e.CompanyProfileId == companyProfileId
                      && e.Employee != null
                      && e.Employee.IsActive
                      && !e.Employee.IsPayrollExcluded
-                     && e.JobTitle != null && e.JobTitle != ""
+                     && e.JobGroupId != null
                      && e.ContractStartDate <= effDt
                      && (e.ContractEndDate == null || e.ContractEndDate >= effDt))
             .ToListAsync();
@@ -126,7 +127,7 @@ public class WageAdjustmentService
             if (adjusted.Contains(em.EmployeeId)) continue;
 
             var chk = await _minWage.CheckAsync(
-                em.JobTitle, em.EducationLevelCode, em.EmploymentModel,
+                em.JobGroup?.Code, em.EducationLevelCode, em.EmploymentModel,
                 em.EmploymentPercentage, em.HourlyRate, em.MonthlySalary,
                 em.Employee!.DateOfBirth, effDate, companyProfileId);
             if (chk.Status != "UNDERPAID" || chk.Minimum == null) continue;
@@ -148,7 +149,7 @@ public class WageAdjustmentService
                 EmployeeId:          em.EmployeeId,
                 EmployeeName:        $"{em.Employee!.FirstName} {em.Employee!.LastName}".Trim(),
                 EmployeeNumber:      em.Employee!.EmployeeNumber,
-                JobGroupCode:        em.JobTitle,
+                JobGroupCode:        em.JobGroup?.Code ?? "",
                 EmploymentModel:     em.EmploymentModel,
                 EducationLevelCode:  em.EducationLevelCode,
                 Unit:                chk.Unit ?? "",
@@ -184,6 +185,7 @@ public class WageAdjustmentService
         {
             var src = await _db.Employments
                 .Include(e => e.Employee)
+                .Include(e => e.JobGroup)   // FK-Code für Recheck (Walter 26.05.2026)
                 .FirstOrDefaultAsync(e => e.Id == it.EmploymentId);
             if (src == null) { skipped.Add($"Vertrag {it.EmploymentId} nicht gefunden."); continue; }
             if (src.CompanyProfileId != companyProfileId)
@@ -200,7 +202,7 @@ public class WageAdjustmentService
 
             // Server-autoritative Gegenprüfung: neuer Lohn muss den Mindestlohn erreichen.
             var recheck = await _minWage.CheckAsync(
-                src.JobTitle, src.EducationLevelCode, src.EmploymentModel,
+                src.JobGroup?.Code, src.EducationLevelCode, src.EmploymentModel,
                 src.EmploymentPercentage,
                 monthly ? (decimal?)null : newActual,
                 monthly ? newActual : (decimal?)null,
@@ -220,11 +222,12 @@ public class WageAdjustmentService
             {
                 EmployeeId             = src.EmployeeId,
                 CompanyProfileId       = src.CompanyProfileId,
-                EmploymentModel        = src.EmploymentModel,
-                SalaryType             = src.SalaryType,
+                EmploymentModel        = src.EmploymentModel ?? "",
+                SalaryType             = src.SalaryType ?? "",
                 ContractStartDate      = effDt,
                 ContractEndDate        = null,
-                JobTitle               = src.JobTitle,
+                JobTitle               = src.JobTitle,       // Stellenbezeichnung free-text
+                JobGroupId             = src.JobGroupId,     // FK (Walter 26.05.2026)
                 ContractType           = src.ContractType,
                 EducationLevelCode     = src.EducationLevelCode,
                 EmploymentPercentage   = src.EmploymentPercentage,
@@ -233,9 +236,6 @@ public class WageAdjustmentService
                 MonthlySalaryFte       = monthly ? it.NewWage : src.MonthlySalaryFte,
                 MonthlySalary          = monthly ? newActual   : src.MonthlySalary,
                 HourlyRate             = monthly ? src.HourlyRate : it.NewWage,
-                VacationPercent        = src.VacationPercent,
-                HolidayPercent         = src.HolidayPercent,
-                ThirteenthSalaryPercent= src.ThirteenthSalaryPercent,
                 VacationPaymentMode    = src.VacationPaymentMode,
                 ProbationPeriodMonths  = src.ProbationPeriodMonths,
                 ProbationEndDate       = src.ProbationEndDate,

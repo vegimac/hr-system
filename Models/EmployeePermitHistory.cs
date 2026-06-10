@@ -15,10 +15,13 @@ public class EmployeePermitHistory
     public int Id { get; set; }
 
     public int EmployeeId { get; set; }
-    public int? PermitTypeId { get; set; }       // NULL = keine Bewilligung mehr (CH-Bürger)
+    public int? PermitTypeId { get; set; }       // NULL = keine Bewilligung mehr (CH-Bürger / Einbürgerung)
     public DateOnly  ValidFrom { get; set; }
-    public DateOnly? ValidTo   { get; set; }      // NULL = aktuell offen
-    public DateOnly? PermitExpiryDate { get; set; }
+    // Walter-Vorgabe 01.06.2026: ValidTo = behördliches Ablauf-Datum auf dem Ausweis.
+    // Bei normalen Bewilligungs-Einträgen IMMER gesetzt. NULL nur zulässig für
+    // CH-Bürger-/Einbürgerungs-Einträge (PermitTypeId IS NULL).
+    public DateOnly? ValidTo   { get; set; }
+    // PermitExpiryDate entfernt 01.06.2026 — war Duplikat von ValidTo.
     public string?   Note { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

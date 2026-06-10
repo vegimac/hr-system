@@ -383,7 +383,11 @@ public class EmployeeImportController : ControllerBase
             // Eintrittsdatum-Schutz-Block.
 
             employee.PermitTypeId = ResolvePermitTypeId(row.PermitTypeRaw, permitTypes);
-            employee.PermitExpiryDate = row.PermitExpiryDate;
+            // employee.PermitExpiryDate entfernt 01.06.2026 — Ablauf-Datum lebt
+            // jetzt ausschliesslich auf EmployeePermitHistory.ValidTo. Der CSV-
+            // Import liest die Spalte EXPIRATN_DT weiterhin in row.PermitExpiryDate
+            // ein, aber dieser Pfad legt KEINE History-Zeile an — dafür ist
+            // PermitImportController (Bewilligungsliste) zuständig.
 
             // NEU: Gender auf dem Employee speichern
             if (!string.IsNullOrWhiteSpace(row.Gender))

@@ -27,7 +27,12 @@ namespace HrSystem.Services;
 public class DashboardService
 {
     private readonly AppDbContext _db;
-    public DashboardService(AppDbContext db) => _db = db;
+    private readonly QstPflichtCheckService _qstCheck;
+    public DashboardService(AppDbContext db, QstPflichtCheckService qstCheck)
+    {
+        _db = db;
+        _qstCheck = qstCheck;
+    }
 
     public class DashboardAlert
     {
@@ -65,28 +70,58 @@ public class DashboardService
         var now = DateTime.Today;
 
         // ── 1) Bewilligungen die ablaufen ──────────────────────────────────
-        // Aktive MA der gewählten Filiale, mit gesetztem PermitExpiryDate
-        // in den nächsten 90 Tagen. Severity skaliert mit Dringlichkeit.
-        var empQuery = _db.Employees
-            .Include(e => e.PermitType)
-            .Include(e => e.Employments)
+        // Walter-Vorgabe 01.06.2026: Quelle ist jetzt ausschliesslich
+        // EmployeePermitHistory.ValidTo des jüngsten Eintrags pro MA.
+        // (Vorher: denormalisierte employee.permit_expiry_date — entfernt.)
+        // Severity skaliert mit Dringlichkeit. CH-/Einbürgerungs-Einträge
+        // (PermitTypeId IS NULL → ValidTo darf NULL sein) sind unbefristet
+        // und werden ignoriert.
+        var dueDateLimit = DateOnly.FromDateTime(now.AddDays(90));
+        var empBase = _db.Employees
             .Where(e => e.IsActive
-                     && e.PermitExpiryDate.HasValue
                      && !e.EmployeeNumber.ToLower().EndsWith("alt"));
         if (companyProfileId.HasValue)
         {
             var cpid = companyProfileId.Value;
-            empQuery = empQuery.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+            empBase = empBase.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
         }
-        var permitMa = await empQuery
-            .Where(e => e.PermitExpiryDate <= now.AddDays(90))
+        // Pro MA den jüngsten History-Eintrag mit PermitTypeId != NULL holen
+        // (= aktive Bewilligung). NUR der jüngste — dessen ValidTo ist das
+        // relevante Ablauf-Datum.
+        var maList = await empBase
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.ExitDate })
             .ToListAsync();
-        foreach (var e in permitMa)
+        var maIds = maList.Select(e => e.Id).ToList();
+        var histories = await _db.EmployeePermitHistories
+            .Include(h => h.PermitType)
+            .Where(h => maIds.Contains(h.EmployeeId) && h.PermitTypeId != null)
+            .ToListAsync();
+        var maById = maList.ToDictionary(m => m.Id);
+        // Walter-Vorgabe 07.06.2026: keine Warnung wenn die Bewilligung
+        // mindestens bis zum Austrittsdatum gültig ist — der MA verlässt
+        // die Firma vorher, eine Erneuerung wäre unnötig.
+        var youngestPerMa = histories
+            .GroupBy(h => h.EmployeeId)
+            .Select(g => g.OrderByDescending(x => x.ValidFrom).ThenByDescending(x => x.Id).First())
+            .Where(h => h.ValidTo.HasValue && h.ValidTo.Value <= dueDateLimit)
+            .Where(h =>
+            {
+                if (!maById.TryGetValue(h.EmployeeId, out var e)) return false;
+                if (e.ExitDate.HasValue)
+                {
+                    var exitDateOnly = DateOnly.FromDateTime(e.ExitDate.Value);
+                    if (h.ValidTo!.Value >= exitDateOnly) return false;
+                }
+                return true;
+            })
+            .ToList();
+        foreach (var h in youngestPerMa)
         {
-            var dueDate = e.PermitExpiryDate!.Value;
-            var days = (dueDate.Date - now).Days;
+            if (!maById.TryGetValue(h.EmployeeId, out var emp)) continue;
+            var dueDate = h.ValidTo!.Value.ToDateTime(TimeOnly.MinValue);
+            var days = (dueDate - now).Days;
             string severity = days < 0 ? "critical" : days <= 30 ? "critical" : days <= 60 ? "warning" : "info";
-            var permitCode = e.PermitType?.Code ?? "?";
+            var permitCode = h.PermitType?.Code ?? "?";
             alerts.Add(new DashboardAlert
             {
                 Category = "permit_expiring",
@@ -96,17 +131,17 @@ public class DashboardService
                     : $"Bewilligung {permitCode} läuft ab in {days} Tagen",
                 TitleKey = days < 0 ? "alert.permit.expired" : "alert.permit.expires_in_days",
                 TitleArgs = new Dictionary<string, object> { ["code"] = permitCode, ["days"] = days },
-                Subtitle = $"{e.FirstName} {e.LastName} · Personalnr. {e.EmployeeNumber}",
+                Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}",
                 SubtitleKey  = "subtitle.maPersonalnr",
                 SubtitleArgs = new Dictionary<string, object> {
-                    ["name"] = $"{e.FirstName} {e.LastName}".Trim(),
-                    ["empNr"] = e.EmployeeNumber
+                    ["name"] = $"{emp.FirstName} {emp.LastName}".Trim(),
+                    ["empNr"] = emp.EmployeeNumber
                 },
                 DueDate  = dueDate,
                 DaysUntil = days,
-                EmployeeId     = e.Id,
-                EmployeeNumber = e.EmployeeNumber,
-                EmployeeName   = $"{e.FirstName} {e.LastName}".Trim()
+                EmployeeId     = emp.Id,
+                EmployeeNumber = emp.EmployeeNumber,
+                EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
             });
         }
 
@@ -230,6 +265,45 @@ public class DashboardService
                 EmployeeId     = e.Id,
                 EmployeeNumber = e.EmployeeNumber,
                 EmployeeName   = $"{e.FirstName} {e.LastName}".Trim()
+            });
+        }
+
+        // ── 3c) QST-Pflicht offen (Walter-Vorgabe 26.05.2026) ─────────────
+        // Aktive MA, die weder Schweizer noch C-Ausweis-Inhaber noch von der
+        // Steuerbehörde befreit sind UND keinen Ehepartner mit CH/C haben UND
+        // keine QST-Erfassung am Stichtag (heute) — die blocken den nächsten
+        // Lohnlauf. Hier als Dashboard-Card sichtbar machen, damit Walter sie
+        // proaktiv klären kann.
+        var qstStichtag = DateOnly.FromDateTime(now);
+        var qstCandidatesQ = _db.Employees
+            .Where(e => e.IsActive && !e.IsPayrollExcluded
+                     && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+        if (companyProfileId.HasValue)
+            qstCandidatesQ = qstCandidatesQ.Where(e =>
+                e.Employments.Any(em => em.CompanyProfileId == companyProfileId.Value && em.IsActive));
+        var qstCandidateIds = await qstCandidatesQ.Select(e => e.Id).ToListAsync();
+        foreach (var empId in qstCandidateIds)
+        {
+            var r = await _qstCheck.CheckAsync(empId, qstStichtag);
+            if (!r.IsPflichtOffen) continue;
+
+            var emp = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
+            if (emp == null) continue;
+            alerts.Add(new DashboardAlert
+            {
+                Category = "qst_pflicht_offen",
+                Severity = "critical",
+                Title    = "QST-Pflicht offen — Lohnlauf gesperrt",
+                TitleKey = "alert.qst.pflicht_offen",
+                Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · kein Befreiungs-Grund, keine QST erfasst",
+                SubtitleKey = "subtitle.qstPflichtOffen",
+                SubtitleArgs = new Dictionary<string, object> {
+                    ["name"]  = $"{emp.FirstName} {emp.LastName}".Trim(),
+                    ["empNr"] = emp.EmployeeNumber
+                },
+                EmployeeId     = emp.Id,
+                EmployeeNumber = emp.EmployeeNumber,
+                EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
             });
         }
 
@@ -367,15 +441,35 @@ public class DashboardService
         // Verstößen ein critical-Alert pro MA. Bei null Verstößen aber mind.
         // einem geprüften Vertrag ein einzelner Info-Alert „Alle Mindestlöhne
         // ok" — Walter-Anforderung: die positive Meldung soll auch sichtbar sein.
+        // Walter-Vorgabe 28.05.2026: Stichtag fuer Lohn-/Compliance-Checks
+        // ist IMMER die ÄLTESTE noch offene Lohnperiode (= die naechste die
+        // verarbeitet wird) — NIE DateTime.Now. Grund: ein Mindestlohn-Check
+        // soll fuer den Lohnlauf relevant sein, nicht fuer „heute". Bei
+        // gefilterter Filiale die Periode dieser Filiale, sonst global.
+        // Wenn keine offene Periode existiert (alles abgeschlossen), Fallback
+        // auf heute.
+        var openPeriodQ = _db.PayrollPerioden.Where(p => p.Status != "abgeschlossen");
+        if (companyProfileId.HasValue)
+            openPeriodQ = openPeriodQ.Where(p => p.CompanyProfileId == companyProfileId.Value);
+        var earliestOpen = await openPeriodQ
+            .OrderBy(p => p.PeriodFrom)
+            .Select(p => (DateOnly?)p.PeriodFrom)
+            .FirstOrDefaultAsync();
+        var effectiveDt = earliestOpen.HasValue
+            ? earliestOpen.Value.ToDateTime(TimeOnly.MinValue)
+            : now;
+
         var mwQ = _db.Employments
             .Include(em => em.Employee)
+            .Include(em => em.JobGroup)   // FK-Code statt JobTitle (Walter 26.05.2026)
             .Where(em => em.IsActive
+                      && em.ContractStartDate.Date <= effectiveDt
+                      && (em.ContractEndDate == null || em.ContractEndDate.Value.Date >= effectiveDt)
                       && em.Employee != null
                       && em.Employee.IsActive
                       && !em.Employee.IsPayrollExcluded
                       && !em.Employee.EmployeeNumber.ToLower().EndsWith("alt")
-                      && em.JobTitle != null
-                      && em.JobTitle != "");
+                      && em.JobGroupId != null);
         if (companyProfileId.HasValue)
             mwQ = mwQ.Where(em => em.CompanyProfileId == companyProfileId.Value);
         var mwContracts = await mwQ.ToListAsync();
@@ -400,9 +494,14 @@ public class DashboardService
         foreach (var em in mwContracts)
         {
             var emp = em.Employee!;
-            // Effective-Date: bei alten Verträgen auf heute fallen, weil die DB
-            // typischerweise keine 2024er-Regeln mehr hat (analog Frontend-Logik).
-            var checkDate = em.ContractStartDate.Date >= now ? em.ContractStartDate.Date : now;
+            // Walter-Vorgabe 28.05.2026: Stichtag = effectiveDt (aelteste
+            // offene Lohnperiode), NICHT heute. Bei zukuenftigen Vertraegen
+            // (Vertragsbeginn liegt nach dem Stichtag) gilt der Vertragsbeginn
+            // selbst — so wird ein Lohn ab 1.1.2027 korrekt gegen den dann
+            // gueltigen Mindestlohn geprueft.
+            var checkDate = em.ContractStartDate.Date >= effectiveDt
+                ? em.ContractStartDate.Date
+                : effectiveDt;
 
             // Education Level kommt direkt vom Vertrag (Employment.EducationLevelCode).
             // Falls leer (Alt-Vertrag vor der Migration) → Default „Ia" annehmen.
@@ -430,7 +529,7 @@ public class DashboardService
             var salaryType = (modelCode == "FIX" || modelCode == "FIX-M") ? "monthly" : "hourly";
 
             var rule = rules
-                .Where(r => r.JobGroupCode == em.JobTitle
+                .Where(r => r.JobGroupCode == em.JobGroup!.Code
                          && r.EmploymentModelCode == modelCode
                          && r.EducationLevelId == eduLevelId
                          && r.SalaryType == salaryType

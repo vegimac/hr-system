@@ -57,15 +57,15 @@ async function perLoadPerioden() {
     const cid  = document.getElementById('perBranchSelect').value;
     const year = document.getElementById('perYearSelect').value;
     const tbody = document.getElementById('perTbody');
-    if (!cid) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:28px">Filiale wählen</td></tr>'; return; }
+    if (!cid) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:28px">Filiale wählen</td></tr>'; return; }
 
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:20px">Lade…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px">Lade…</td></tr>';
     try {
         const res  = await fetch(`/api/payroll-perioden?companyProfileId=${cid}&year=${year}`, { headers: ah() });
         const list = res.ok ? await res.json() : [];
 
         if (list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:28px">Keine Perioden für dieses Jahr</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:28px">Keine Perioden für dieses Jahr</td></tr>';
             return;
         }
 
@@ -184,19 +184,21 @@ async function perLoadPerioden() {
                    ${akontoResetBtn}
                    <button class="btn btn-sm btn-outline" onclick="perShowSnapshots(${p.id},'${p.label}')">Details</button>${deleteBtn}`;
 
+            // Zeitraum kompakt „1.1.–31.1." (ohne Jahr — steht ja in der Periode-Spalte).
+            const dm = (iso) => { const s = String(iso || ''); return parseInt(s.slice(8,10),10) + '.' + parseInt(s.slice(5,7),10) + '.'; };
+            const zeitraum = `${dm(p.periodFrom)}–${dm(p.periodTo)}`;
             return `<tr>
                 <td style="font-weight:600">${p.label}</td>
-                <td>${fmtDateDe(p.periodFrom)}</td>
-                <td>${fmtDateDe(p.periodTo)}</td>
+                <td style="white-space:nowrap">${zeitraum}</td>
                 <td style="text-align:center">${p.snapshotCount}</td>
                 <td style="text-align:center;color:${p.finalCount === p.snapshotCount && p.snapshotCount > 0 ? '#16a34a' : '#94a3b8'};font-weight:600">${p.finalCount}</td>
                 <td>${statusCell}</td>
                 <td style="font-size:12px;color:#64748b">${abschlussCell}</td>
-                <td style="display:flex;gap:6px;flex-wrap:wrap">${actions}</td>
+                <td style="white-space:nowrap"><div style="display:flex;gap:6px;flex-wrap:nowrap;align-items:center">${actions}</div></td>
             </tr>`;
         }).join('');
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="8" style="color:#dc2626;padding:20px">Fehler: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="color:#dc2626;padding:20px">Fehler: ${e.message}</td></tr>`;
     }
 }
 
@@ -361,7 +363,7 @@ async function perAkontoListePdf(cpId, year, month) {
             return;
         }
         const blob = await r.blob();
-        await saveBlobAsk(blob, `Akonto_Liste_${cpId}_${year}-${String(month).padStart(2,'0')}.pdf`);
+        await previewFileModal(blob, `Akonto_Liste_${cpId}_${year}-${String(month).padStart(2,'0')}.pdf`);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }

@@ -34,11 +34,14 @@ public class MinimumWageRulesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly MinimumWageCheckService _minWage;
     private readonly LohnEditLockService _editLock;
-    public MinimumWageRulesController(AppDbContext db, MinimumWageCheckService minWage, LohnEditLockService editLock)
+    private readonly QstPflichtCheckService _qstCheck;
+    public MinimumWageRulesController(AppDbContext db, MinimumWageCheckService minWage,
+                                      LohnEditLockService editLock, QstPflichtCheckService qstCheck)
     {
         _db = db;
         _minWage = minWage;
         _editLock = editLock;
+        _qstCheck = qstCheck;
     }
 
     // GET /api/minimum-wage-rules/first-allowed-date → frühestes Gültig-ab-Datum
@@ -195,7 +198,8 @@ public class MinimumWageRulesController : ControllerBase
             old.ValidTo = prevDt;                       // Vorgänger begrenzen
             _db.MinimumWageRulesNew.Add(new MinimumWageRuleNew
             {
-                JobGroupCode        = old.JobGroupCode,
+                JobGroupCode        = old.JobGroupCode,     // Legacy-Cache (sync zu JobGroupId)
+                JobGroupId          = old.JobGroupId,       // FK — Walter-Vorgabe 26.05.2026
                 EmploymentModelCode = old.EmploymentModelCode,
                 EducationLevelId    = old.EducationLevelId,
                 SalaryType          = old.SalaryType,
@@ -230,12 +234,13 @@ public class MinimumWageRulesController : ControllerBase
         // SQL-übersetzbar → 500). ContractStartDate ist DateTime (date-mid).
         var ems = await _db.Employments
             .Include(e => e.Employee)
+            .Include(e => e.JobGroup)   // FK-Code statt JobTitle (Walter 26.05.2026)
             .Where(e => e.IsActive
                      && e.CompanyProfileId == companyProfileId
                      && e.Employee != null
                      && e.Employee.IsActive
                      && !e.Employee.IsPayrollExcluded
-                     && e.JobTitle != null && e.JobTitle != ""
+                     && e.JobGroupId != null
                      && e.ContractStartDate <= periodToDt
                      && (e.ContractEndDate == null || e.ContractEndDate >= periodFromDt))
             .ToListAsync();
@@ -271,7 +276,7 @@ public class MinimumWageRulesController : ControllerBase
             }
 
             var chk = await _minWage.CheckAsync(
-                em.JobTitle, em.EducationLevelCode, em.EmploymentModel,
+                em.JobGroup?.Code, em.EducationLevelCode, em.EmploymentModel,
                 em.EmploymentPercentage, em.HourlyRate, em.MonthlySalary,
                 em.Employee!.DateOfBirth, periodTo, companyProfileId);
             if (chk.Status == "UNDERPAID")
@@ -287,6 +292,26 @@ public class MinimumWageRulesController : ControllerBase
                     chk.Unit,
                     chk.Difference,
                     chk.Message
+                });
+            }
+
+            // QST-Pflicht-Lücke (Walter-Vorgabe 26.05.2026) — wird neben
+            // UNDERPAID/NO_SALARY im selben „mit Lohnproblem"-Aggregat
+            // im Frontend angezeigt. problem="QST_OFFEN".
+            var qstChk = await _qstCheck.CheckAsync(em.EmployeeId, periodTo);
+            if (qstChk.IsPflichtOffen)
+            {
+                underpaid.Add(new
+                {
+                    employeeId = em.EmployeeId,
+                    firstName  = em.Employee!.FirstName,
+                    lastName   = em.Employee!.LastName,
+                    problem    = "QST_OFFEN",
+                    Minimum    = (decimal?)null,
+                    Actual     = (decimal?)null,
+                    Unit       = (string?)null,
+                    Difference = (decimal?)null,
+                    Message    = qstChk.Message
                 });
             }
         }

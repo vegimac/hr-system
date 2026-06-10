@@ -149,6 +149,16 @@ body.theme-dark [style*="color:#0f172a"] { color: #f1f5f9 !important; }
 body.theme-dark [style*="color:#374151"] { color: #f1f5f9 !important; }
 body.theme-dark [style*="color:#475569"] { color: #e2e8f0 !important; }
 body.theme-dark [style*="color:#64748b"] { color: #cbd5e1 !important; }
+body.theme-dark [style*="color:#1e293b"] { color: #f1f5f9 !important; }
+
+/* Amber-Palette (Lohnänderung-Card, UTP-Pille, "MA ohne Lohn"-Banner, Personaldossier-Badge) —
+   selbes Farbmuster wie .change-item / .compliance-warn / .badge-contract */
+body.theme-dark [style*="background:#fef3c7"] { background: #422006 !important; }
+body.theme-dark [style*="border:1px solid #fcd34d"],
+body.theme-dark [style*="border:1px solid #fbbf24"] { border-color: #d97706 !important; }
+body.theme-dark [style*="border-top:1px solid #fcd34d"] { border-top-color: #d97706 !important; }
+body.theme-dark [style*="color:#92400e"] { color: #fcd34d !important; }
+body.theme-dark [style*="color:#15803d"] { color: #4ade80 !important; }
 
 /* Tabellen */
 body.theme-dark table { color: #e2e8f0; }
@@ -477,6 +487,7 @@ body.theme-dark td { border-color: #334155 !important; color: #f1f5f9 !important
 
 <!-- Kanonischer Download-Helfer: saveBlobAsk/saveUrlAsk (Walter 21.05.2026) -->
 <script src="js/save-blob.js?v=20260521a"></script>
+<script src="js/file-preview.js?v=20260524a"></script>
 <script>
 // ── AUTH ──────────────────────────────────────────────
 // Token from URL param (passed from index.html) or localStorage
@@ -752,6 +763,43 @@ function formatPhone(raw) {
     return raw;
 }
 
+// CSV-Spalte „Region" → 2-Zeichen-Kanton-Code (NUR für den Diff-Vergleich
+// gegen den PLZ-abgeleiteten Kanton; im Payload wird CSV-Region NIE verwendet).
+// Walter-Vorgabe 06.06.2026: zeigt im Diff „⚠ Kanton in easy@work falsch",
+// wenn easy@work einen anderen Kanton hat als das PLZ-Verzeichnis.
+const KANTON_NAME_TO_CODE = {
+    'aargau':'AG','appenzell innerrhoden':'AI','appenzell ausserrhoden':'AR',
+    'bern':'BE','berne':'BE','basel-landschaft':'BL','basel-stadt':'BS',
+    'freiburg':'FR','fribourg':'FR','genf':'GE','genève':'GE','geneve':'GE',
+    'glarus':'GL','graubünden':'GR','graubunden':'GR','grigioni':'GR',
+    'jura':'JU','luzern':'LU','lucerne':'LU','neuenburg':'NE','neuchâtel':'NE','neuchatel':'NE',
+    'nidwalden':'NW','obwalden':'OW','st. gallen':'SG','st.gallen':'SG','sankt gallen':'SG',
+    'schaffhausen':'SH','solothurn':'SO','schwyz':'SZ','thurgau':'TG','tessin':'TI','ticino':'TI',
+    'uri':'UR','waadt':'VD','vaud':'VD','wallis':'VS','valais':'VS',
+    'zug':'ZG','zürich':'ZH','zurich':'ZH'
+};
+function mapRegionToCantonCode(raw) {
+    if (!raw) return '';
+    const key = String(raw).trim().toLowerCase();
+    if (KANTON_NAME_TO_CODE[key]) return KANTON_NAME_TO_CODE[key];
+    if (/^[A-Z]{2}$/.test(String(raw).trim().toUpperCase())) return String(raw).trim().toUpperCase();
+    return '';
+}
+
+// Globaler PLZ→Kanton-Lookup-Cache (gefüllt nach CSV-Parse, einmaliger Bulk-Call).
+// Mehrdeutige/unbekannte PLZ sind NICHT im Map → Diff zeigt dann keine Warnung.
+let plzKantonMap = new Map();
+async function loadPlzKantonMap(plzs) {
+    const unique = [...new Set(plzs.map(p => String(p || '').trim()).filter(Boolean))];
+    if (unique.length === 0) { plzKantonMap = new Map(); return; }
+    try {
+        const res = await fetch('/api/swiss-locations/cantons-by-plz?plzs=' + encodeURIComponent(unique.join(',')), { headers: ah() });
+        if (!res.ok) { plzKantonMap = new Map(); return; }
+        const obj = await res.json();
+        plzKantonMap = new Map(Object.entries(obj));
+    } catch { plzKantonMap = new Map(); }
+}
+
 // Splittet "Buchslistrasse 2" → { street: "Buchslistrasse", house: "2" }.
 // easy@work liefert Strasse + Hausnummer in EINER Spalte ("Adresse") —
 // das Backend hat aber getrennte Felder Street/HouseNumber. Ohne Split
@@ -947,6 +995,10 @@ function contractChangedVsCurrent(row, currentContract) {
 async function analyzeRows() {
     showUploadAlert('Analysiere ' + parsedRows.length + ' Zeilen...', 'info');
     await loadEmployees(); // refresh
+    // Walter-Vorgabe 06.06.2026: PLZ→Kanton Bulk-Lookup für das ganze CSV,
+    // damit der Diff „⚠ Kanton in easy@work falsch" anzeigen kann (CSV-Region
+    // gegen amtlichen PLZ-Kanton). Einmaliger Call, danach Map im RAM.
+    await loadPlzKantonMap(parsedRows.map(r => get(r, 'Postleitzahl')));
 
     // Filial-Vorprüfung: Welche Store-Nummern sind in der CSV vertreten?
     // Wenn die aktive Filiale nicht dabei ist → klare Fehlermeldung statt
@@ -1042,6 +1094,31 @@ async function analyzeRows() {
         }
 
         rowStates[i] = { status: 'existing', employeeId: existingEmp.id };
+
+        // Walter-Vorgabe 07.06.2026: MA, die in der DB bereits als „ohne Lohn"
+        // (IsPayrollExcluded = Phantom-MA wie Supervisor) markiert sind,
+        // bekommen NIE einen Vertrag — auch wenn das CSV ein neues
+        // „Pay rate from"-Datum mitliefert. Wir behandeln sie als addr-Update,
+        // damit Adresse/Telefon trotzdem aktuell bleiben.
+        if (existingEmp.isPayrollExcluded === true) {
+            const csvAddrPh = splitStreetHouse(get(row,'Adresse'));
+            const addrFieldsPh = [
+                { csv: csvAddrPh.street,         db: existingEmp?.street      || '' },
+                { csv: csvAddrPh.house,          db: existingEmp?.houseNumber || '' },
+                { csv: get(row,'Postleitzahl'),  db: existingEmp?.zipCode     || '' },
+                { csv: get(row,'Stadt'),         db: existingEmp?.city        || '' },
+                { csv: get(row,'E-Mail'),        db: existingEmp?.email       || '' },
+                { csv: formatPhone(get(row,'Telefon')), db: existingEmp?.phoneMobile || '' },
+            ];
+            const hasAddrChangePh = addrFieldsPh.some(f => {
+                const csv = (f.csv || '').trim();
+                const db  = (f.db  || '').trim();
+                return csv.length > 0 && csv.toLowerCase() !== db.toLowerCase();
+            });
+            addrOnly.push({ idx: i, row, employeeId: existingEmp.id, existingEmp, hasAddrChange: hasAddrChangePh, isPayrollExcluded: true });
+            rowStates[i] = { status: 'addr', employeeId: existingEmp.id, isPayrollExcluded: true };
+            continue;
+        }
 
         // Neuer Vertrag nur wenn Von-Datum noch nicht in DB existiert
         const vonDate = formatDate(get(row, 'Von'));
@@ -1438,9 +1515,7 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
                     <span style="color:#64748b;font-size:12px">Übernommen</span>
                     <span style="font-size:12px;color:#475569">
                         Pensum ${activeContract.employmentPercentage ?? '–'}%
-                        ${activeContract.vacationPercent != null ? ' · Ferien ' + activeContract.vacationPercent + '%' : ''}
-                        ${activeContract.holidayPercent != null ? ' · Feiertag ' + activeContract.holidayPercent + '%' : ''}
-                        ${activeContract.thirteenthSalaryPercent != null ? ' · 13. ML ' + activeContract.thirteenthSalaryPercent + '%' : ''}
+                        <span style="color:#94a3b8;margin-left:8px">· Ferien/Feiertag/13. ML aus Filiale</span>
                     </span>
                 </div>
             </div>`;
@@ -1754,7 +1829,7 @@ async function downloadContractPdf(employmentId) {
         const blob = await res.blob();
         const cd   = res.headers.get('Content-Disposition') || '';
         const m    = cd.match(/filename="?([^"]+)"?/);
-        await saveBlobAsk(blob, m ? m[1] : 'Vertrag.pdf');
+        await previewFileModal(blob, m ? m[1] : 'Vertrag.pdf');
     } catch(e) { alert('Fehler: ' + e.message); }
 }
 
@@ -1826,12 +1901,19 @@ function renderAddrRow(a) {
     // Feldnamen MÜSSEN den Employee-Model-Properties entsprechen
     // (street/zipCode/phoneMobile — NICHT address/postalCode/phone).
     const csvAddr = splitStreetHouse(get(row,'Adresse'));
+    // Walter-Vorgabe 06.06.2026: Kanton wird beim Save vom PLZ-Verzeichnis
+    // abgeleitet — CSV-Region wird IGNORIERT. Wenn easy@work einen Kanton
+    // hinterlegt hat, der nicht zur PLZ passt, zeigen wir das als Warnung im
+    // Diff („⚠ Kanton in easy@work falsch — wird auf XX korrigiert").
+    const csvPlz       = String(get(row,'Postleitzahl') || '').trim();
+    const csvRegionCode = mapRegionToCantonCode(get(row,'Region'));
+    const plzCanton    = plzKantonMap.get(csvPlz) || '';
+    const cantonMismatch = !!(plzCanton && csvRegionCode && plzCanton !== csvRegionCode);
     const fields = [
         { label: 'Strasse',      csv: csvAddr.street,            db: existingEmp?.street || '' },
         { label: 'Hausnummer',   csv: csvAddr.house,             db: existingEmp?.houseNumber || '' },
         { label: 'PLZ',          csv: get(row,'Postleitzahl'),   db: existingEmp?.zipCode || '' },
         { label: 'Stadt',        csv: get(row,'Stadt'),          db: existingEmp?.city || '' },
-        { label: 'Region',       csv: get(row,'Region'),         db: existingEmp?.region || '' },
         { label: 'E-Mail',       csv: get(row,'E-Mail'),         db: existingEmp?.email || '' },
         { label: 'Telefon',      csv: formatPhone(get(row,'Telefon')),  db: existingEmp?.phoneMobile || '' },
     ];
@@ -1853,11 +1935,19 @@ function renderAddrRow(a) {
             </div>
             <div class="row-badges">
                 ${diffCount ? `<span class="badge" style="background:#fef3c7;color:#92400e">${diffCount} Änderung${diffCount>1?'en':''}</span>` : '<span class="badge badge-addr">Keine Änderung</span>'}
+                ${cantonMismatch ? `<span class="badge" style="background:#fee2e2;color:#b91c1c" title="easy@work-Region (${get(row,'Region')}) passt nicht zur PLZ ${csvPlz} → Kanton ${plzCanton}">⚠ Kanton easy@work falsch</span>` : ''}
                 <span class="badge badge-addr" id="addrBadge-${idx}">Wird importiert</span>
             </div>
             <span class="row-chevron" id="chev-${idx}">›</span>
         </div>
         <div class="row-detail" id="detail-${idx}">
+            ${cantonMismatch ? `
+            <div style="margin-bottom:10px;padding:8px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;font-size:12.5px;color:#7f1d1d;line-height:1.45">
+                <b>⚠ Kanton in easy@work falsch.</b>
+                easy@work sagt <b>${get(row,'Region')}</b> (${csvRegionCode}),
+                das amtliche PLZ-Verzeichnis sagt <b>${plzCanton}</b> für PLZ ${csvPlz}.
+                Beim Import wird automatisch <b>${plzCanton}</b> übernommen — der CSV-Wert wird ignoriert.
+            </div>` : ''}
             ${diffCount ? `
             <div style="font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Änderungen</div>
             <div class="changes-grid" style="margin-bottom:14px">
@@ -2104,6 +2194,48 @@ async function runComplianceCheck(idx) {
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// Walter-Vorgabe 07.06.2026: IBAN aus easy@work-CSV (Spalte
+// INTL_BANK_ACCT_NBR1) als Bankverbindung anlegen. Wird nach jeder
+// MA-Anlage/-Aktualisierung aufgerufen. Backend macht Auto-Close
+// alter Bankverbindungen.
+// ══════════════════════════════════════════════════════════════════════
+async function maybeCreateBankAccountFromCsv(empId, row) {
+    if (!empId) return;
+    let iban = (get(row, 'INTL_BANK_ACCT_NBR1') || '').replace(/\s+/g, '').toUpperCase();
+    if (!iban || iban.length < 21) return;
+    // Schweizer IBAN-Format strikt: CH + 19 alphanum.
+    if (!/^CH\d{2}[A-Z0-9]{17}$/.test(iban)) return;
+
+    try {
+        // 1) Bereits beim MA hinterlegt? Dann skip.
+        const r = await fetch(`/api/employee-bank-accounts/employee/${empId}`, { headers: ah() });
+        if (r.ok) {
+            const existing = await r.json();
+            if (Array.isArray(existing) && existing.some(b =>
+                ((b.iban || '').replace(/\s+/g, '').toUpperCase()) === iban)) {
+                return;
+            }
+        }
+        // 2) Neue Bankverbindung anlegen. Auto-Close + Hauptbank-Re-Sync
+        //    passiert im Backend (EmployeeBankAccountsController).
+        await fetch('/api/employee-bank-accounts', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                employeeId:    empId,
+                iban:          iban,
+                isHauptbank:   true,
+                aufteilungTyp: 'VOLL',
+                validFrom:     new Date().toISOString().slice(0, 10),
+                bemerkung:     'Importiert aus easy@work-CSV (INTL_BANK_ACCT_NBR1)'
+            })
+        });
+    } catch {
+        // best-effort — Bank-Erfassung darf den MA-Import nicht blockieren.
+    }
+}
+
 // ── BUILD PERSONAL DATA PAYLOAD ───────────────────────
 function buildPersonPayload(row) {
     const natCode = get(row, 'Nationalität').toUpperCase();
@@ -2150,6 +2282,15 @@ function buildPersonPayload(row) {
         houseNumber:     addrRaw ? addr.house : null,
         city:            get(row, 'Stadt') || null,
         zipCode:         get(row, 'Postleitzahl') || null,
+        // Walter-Vorgabe 06.06.2026: CSV-Region (z.B. „Aargau") wird NICHT mehr
+        // übernommen — easy@work hat dort teilweise falsche Kantone hinterlegt
+        // (Beispiel: Langenthal/4900 = BE, easy@work sagte fälschlich AG). Der
+        // Kanton wird AUSSCHLIESSLICH aus dem amtlichen Schweizer Ortschafts-
+        // verzeichnis abgeleitet — siehe ForceCantonFromZip-Flag unten.
+        cantonCode:      null,
+        // Trigger im Backend: PLZ-Lookup IMMER (auch wenn PLZ unverändert) —
+        // korrigiert frühere CSV-Region-Falscheinträge automatisch.
+        forceCantonFromZip: true,
         dateOfBirth:     formatDate(get(row, 'Geburtsdatum')) || null,
         gender:          gender,
         nationalityId:   nat?.id ?? nat?.Id ?? null,
@@ -2163,7 +2304,12 @@ function buildPersonPayload(row) {
         familyCare:      get(row, 'Familienbetreuung') === '1' || get(row, 'Familienbetreuung').toLowerCase() === 'true',
         // Phantom-MA-Markierung mit ans Backend geben — Walter-Regel:
         // Supervisor = MA ohne Lohn, kein Vertrag.
-        isPayrollExcluded: isPhantomRow(row)
+        isPayrollExcluded: isPhantomRow(row),
+        // Walter-Vorgabe 07.06.2026: Default bei Neuerfassung — Schaub
+        // Restaurants ist L-GAV-Branche, daher Haken ein; <8h ist Sonderfall
+        // (NBU-befreit) und bleibt aus, bis Walter es manuell setzt.
+        lgavPflichtig:        true,
+        teilzeitUnter8hWoche: false
     };
 }
 
@@ -2199,27 +2345,13 @@ function buildContractPayload(idx, employeeId, row) {
     const isSalaryChange = !!rowStates[idx]?.isSalaryChange;
     const active = rowStates[idx]?.activeContract;
 
-    // Ferienberechnung: bei Lohnänderung → alten Wert, sonst Geburtsdatum aus CSV
-    const dob = formatDate(get(row, 'Geburtsdatum'));
+    // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
+    // sind aus dem Vertrag entfernt — kommen jetzt aus der Filiale.
     const isHourly = !isFix;
-    let vacPct, holPct, thirteenthPct, vacPayMode;
-    if (isSalaryChange && active) {
-        // Alle Entgelt-Prozente aus dem aktiven Vertrag übernehmen
-        vacPct         = active.vacationPercent ?? (isHourly ? getVacationPct(dob, startDate) : null);
-        holPct         = active.holidayPercent ?? (isHourly ? (companyProfile?.defaultHolidayPercent ?? 2.27) : null);
-        // 13. ML wird bei ALLEN Modellen mit 8.33% akkumuliert. Auszahlungs-
-        // Logik unterscheidet sich (UTP monatlich, MTP/FIX/FIX-M nur in
-        // Auszahlungsmonaten) — die wird vom PayrollController gesteuert.
-        thirteenthPct  = active.thirteenthSalaryPercent ?? 8.33;
-        vacPayMode     = active.vacationPaymentMode
-                        ?? (isHourly ? (companyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary') : null);
-    } else {
-        vacPct         = isHourly ? getVacationPct(dob, startDate) : null;
-        holPct         = isHourly ? (companyProfile?.defaultHolidayPercent ?? 2.27) : null;
-        // 13. ML wird bei ALLEN Modellen mit 8.33% akkumuliert (siehe oben).
-        thirteenthPct  = 8.33;
-        vacPayMode     = isHourly ? (companyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary') : null;
-    }
+    const vacPayMode = isSalaryChange && active
+        ? (active.vacationPaymentMode
+            ?? (isHourly ? (companyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary') : null))
+        : (isHourly ? (companyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary') : null);
 
     // Weitere Felder, die nicht im Formular liegen, aber bei Lohnänderung
     // erhalten bleiben müssen:
@@ -2250,9 +2382,6 @@ function buildContractPayload(idx, employeeId, row) {
         guaranteedHoursPerWeek: model === 'MTP' ? guar : null,
         probationPeriodMonths:  probMonths > 0 ? probMonths : null,
         probationEndDate:       probEndDate,
-        vacationPercent:        vacPct,
-        holidayPercent:         holPct,
-        thirteenthSalaryPercent: thirteenthPct,
         vacationPaymentMode:    vacPayMode,
         isActive:               true,
     };
@@ -2283,7 +2412,7 @@ async function downloadPdf(employmentId, btnId) {
         const blob = await res.blob();
         const cd = res.headers.get('content-disposition') || '';
         const match = cd.match(/filename="?([^"]+)"?/);
-        await saveBlobAsk(blob, match ? match[1] : 'Vertrag.pdf');
+        await previewFileModal(blob, match ? match[1] : 'Vertrag.pdf');
     } catch(e) {
         alert('PDF Fehler: ' + e.message);
     } finally {
@@ -2337,6 +2466,9 @@ async function saveNewEmployee(idx) {
         const ctResult = await ctRes.json();
         const newEmpId = ctResult.employment?.id ?? ctResult.id ?? null;
 
+        // 3. IBAN aus CSV (INTL_BANK_ACCT_NBR1) → Bankverbindung anlegen.
+        await maybeCreateBankAccountFromCsv(empId, row);
+
         markRowDone(idx, 'Mitarbeiter angelegt & Vertrag erstellt', newEmpId);
         await loadEmployees();
     } catch(e) {
@@ -2375,6 +2507,9 @@ async function saveContractChange(idx, employeeId) {
         if (!ctRes.ok) throw new Error('Vertrag erstellen: ' + await ctRes.text());
         const ctResult = await ctRes.json();
         const savedId = ctResult.employment?.id ?? ctResult.id ?? null;
+
+        // 3. IBAN aus CSV → Bankverbindung anlegen wenn neu.
+        await maybeCreateBankAccountFromCsv(employeeId, row);
 
         markRowDone(idx, 'Adressdaten & neuer Vertrag gespeichert', savedId);
     } catch(e) {
@@ -2590,6 +2725,9 @@ async function runAutoImportAll() {
                 method: 'PUT', headers: ah(), body: JSON.stringify(payload)
             });
             if (!res.ok) throw new Error(await res.text());
+
+            // IBAN aus CSV → Bankverbindung (falls neu, sonst skip).
+            await maybeCreateBankAccountFromCsv(r.state.employeeId, r.row);
 
             rowStates[r.idx].done = true;
             const badge  = document.getElementById(`addrBadge-${r.idx}`);

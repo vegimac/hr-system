@@ -8,9 +8,23 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// HttpContextAccessor — fuer den AuditSaveChangesInterceptor (User aus JWT).
+builder.Services.AddHttpContextAccessor();
+// Audit-Log-Interceptor (Walter 27.05.2026) — schreibt fuer JEDEN
+// SaveChanges eine audit_log-Zeile pro geaenderter Entitaet
+// (CREATE/UPDATE/DELETE). Singleton, weil zustandslos (zieht den User
+// per IHttpContextAccessor pro Aufruf).
+builder.Services.AddSingleton<HrSystem.Services.AuditSaveChangesInterceptor>();
+// Audit-Log-Cleanup (Walter 27.05.2026): Eintraege aelter als 6 Monate
+// werden automatisch geloescht. Laeuft im Hintergrund, einmal pro 24 h.
+builder.Services.AddHostedService<HrSystem.Services.AuditLogCleanupService>();
+
 // Datenbank
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.AddInterceptors(sp.GetRequiredService<HrSystem.Services.AuditSaveChangesInterceptor>());
+});
 
 // JWT-Authentifizierung
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "SchaUbHrSyStEmSeCrEtKeY2026!!SuperSecure";
@@ -95,6 +109,10 @@ builder.Services.AddScoped<PayrollCalculationEngine>();
 // Snapshot-Neuberechnung (hält offene Perioden frisch — Walter-Vorgabe 22.05.2026).
 builder.Services.AddScoped<SnapshotRecomputeService>();
 builder.Services.AddScoped<MinimumWageCheckService>();
+// QST-Pflicht-Prüfung (CH/C/Behörde/Ehepartner → blockt Lohnlauf bei Lücke)
+builder.Services.AddScoped<QstPflichtCheckService>();
+// FAK-Tarif-Auflösung: pro Periode Kinderzulagen-Betrag aus Tarif + Alter (Walter 28.05.2026)
+builder.Services.AddScoped<FamilienzulagenResolverService>();
 builder.Services.AddScoped<WageAdjustmentService>();
 // Bank-Lookup: IBAN → Bank-Stammdaten aus Data/bank_master.csv (SIX-Liste)
 builder.Services.AddSingleton<BankLookupService>();
@@ -108,6 +126,9 @@ builder.Services.AddScoped<LseExportService>();
 builder.Services.AddScoped<DashboardService>();
 // SMTP-Versand für MA-Postfach-Benachrichtigungen (Lohnzettel-Bereit etc.)
 builder.Services.AddScoped<EmailService>();
+// Word/Office → PDF-Vorschau via LibreOffice headless (Dokumentenverwaltung).
+// Zustandslos → Singleton. Setzt LibreOffice auf dem Server voraus.
+builder.Services.AddSingleton<OfficeToPdfService>();
 
 // Request-Size-Limits hochsetzen — Mirus-Stempelzeiten-PDFs für grosse
 // Filialen können >50 MB sein. Die Kestrel-Default-Grenze (30 MB) und
@@ -1104,7 +1125,14 @@ app.Use(async (context, next) =>
 
 // Statische Dateien / Startseite
 app.UseDefaultFiles();
-app.UseStaticFiles();
+// Walter-Vorgabe 27.05.2026: .md-Files (Hilfe-Texte unter wwwroot/help/)
+// muessen mit text/markdown ausgeliefert werden, sonst meldet der Browser
+// "Datei zum Download" statt im Helper-Panel anzuzeigen.
+var mdMime = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+mdMime.Mappings[".md"] = "text/markdown; charset=utf-8";
+app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions {
+    ContentTypeProvider = mdMime
+});
 
 // Optimistic-Concurrency-Handler (Walter-Vorgabe 20.05.2026): ändern zwei
 // Requests dieselbe Zeile der Workflow-Tabellen (payroll_snapshot/_saldo/

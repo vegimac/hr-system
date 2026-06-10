@@ -2,10 +2,110 @@
 // MITARBEITER VERWALTUNG
 // ══════════════════════════════════════════════
 
+// ── Adress-Feld-Validierung (Walter-Vorgabe 01.06.2026, global) ──────
+// Live-Filter beim Tippen + harte Save-Validierung. Global verfügbar
+// via window.validateZip / validateCity / validatePhone / validateEmail
+// / formatPhoneIntl für alle Adressmasken im ganzen Programm.
+//
+// Walter-Vorgabe 01.06.2026 (Erweiterung):
+//   • PLZ: nur Zahlen, bei Nicht-Zahl Eingabe → kurze Meldung (Toast).
+//   • Telefon: Format „+99 99 999 99 99" (z.B. +41 79 409 43 33).
+//     Wird beim Verlassen des Felds (onblur) automatisch formatiert.
+//   • E-Mail: Format-Check (rotes Border-Highlight bei ungültigem Format).
+
+// Kleine Toast-Funktion (lazy DOM, eine Instanz wieder verwendet).
+window._showValidationToast = function(msg) {
+    let el = document.getElementById('_validation_toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = '_validation_toast';
+        el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);'
+            + 'background:#dc2626;color:#fff;padding:10px 18px;border-radius:8px;'
+            + 'font-size:13px;font-weight:600;z-index:9999;box-shadow:0 8px 20px rgba(0,0,0,0.25);'
+            + 'opacity:0;transition:opacity .15s';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity = '1';
+    clearTimeout(window._validation_toast_timer);
+    window._validation_toast_timer = setTimeout(() => { el.style.opacity = '0'; }, 2200);
+};
+
+window.validateZip = function(el) {
+    // Schweizer PLZ = 4-stellig numerisch.
+    const before = el.value;
+    const cleaned = before.replace(/\D/g, '').slice(0, 4);
+    if (cleaned !== before) {
+        el._lastZipWarn = el._lastZipWarn || 0;
+        const now = Date.now();
+        if (now - el._lastZipWarn > 1500) {
+            window._showValidationToast('PLZ: nur Zahlen erlaubt.');
+            el._lastZipWarn = now;
+        }
+    }
+    el.value = cleaned;
+};
+window.validateCity = function(el) {
+    // Buchstaben + diakritische Zeichen + Leerzeichen + Bindestrich +
+    // Apostroph + Punkt (für Schweizer Ortsnamen wie La Chaux-de-Fonds,
+    // St. Gallen, Murten / Morat).
+    el.value = el.value.replace(/[^A-Za-zÀ-ÿ\s\-'\.]/g, '');
+};
+window.validatePhone = function(el) {
+    // Live-Tipp-Filter: erlaube nur valide Telefon-Zeichen.
+    el.value = el.value.replace(/[^0-9+\s()\-\/]/g, '');
+};
+window.formatPhoneIntl = function(raw) {
+    // Format „+99 99 999 99 99" (12 Ziffern: 2 Country + 9 lokal).
+    // Strippt alle Nicht-Zahlen, erkennt 00-Präfix und führende 0 (CH-lokal).
+    if (!raw) return '';
+    let digits = String(raw).replace(/\D/g, '');
+    if (!digits) return '';
+    // 00XXXXXXXXXXX → +XXXXXXXXXXX (00 = internationale Vorwahl)
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    // Wenn 10-stellig und mit 0 beginnt → lokales CH-Format, +41 prepend
+    if (digits.length === 10 && digits.startsWith('0')) {
+        digits = '41' + digits.slice(1);
+    }
+    // Wenn nur 9-stellig (z.B. „793090400") → CH-lokal ohne 0, +41 prepend
+    if (digits.length === 9 && /^[2-9]/.test(digits)) {
+        digits = '41' + digits;
+    }
+    // Erwartet jetzt 11 Ziffern (2 Country + 9 lokal). Aufteilung 2-2-3-2-2.
+    if (digits.length === 11) {
+        return '+' + digits.slice(0,2)
+             + ' ' + digits.slice(2,4)
+             + ' ' + digits.slice(4,7)
+             + ' ' + digits.slice(7,9)
+             + ' ' + digits.slice(9,11);
+    }
+    // Sonst: Rohwert mit + vor den Ziffern (besser als nichts).
+    return '+' + digits;
+};
+window.validatePhoneBlur = function(el) {
+    // onblur: harte Formatierung. Leer = OK.
+    if (!el.value || !el.value.trim()) return;
+    el.value = window.formatPhoneIntl(el.value);
+};
+window.validateEmail = function(el, showError) {
+    // E-Mail-Format-Check: nur bei blur (showError=true) eine Warnung
+    // anzeigen, beim Tippen nichts. Save-Validierung blockt zusätzlich.
+    if (!showError) { el.style.borderColor = ''; return; }
+    const v = (el.value || '').trim();
+    const ok = !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    el.style.borderColor = ok ? '' : '#dc2626';
+    if (!ok) window._showValidationToast('E-Mail-Format ungültig.');
+};
+
 let allEmployees = [];
 let selectedEmployeeId = null;
 let selectedEmployee   = null;   // Ganzes Mitarbeiter-Objekt (für Sollstunden etc.)
 let activeEmpTab = 'personal';
+
+// Austrittsdatum-Filter (greift NUR im Inaktive-Modus). Wenn gesetzt, zeigt
+// die Liste nur MA mit Austritt am oder nach diesem Datum. Walter-Vorgabe
+// 28.05.2026: schnell die jüngst Ausgetretenen finden.
+let _empExitDateAfter = '';
 
 // Aktiv-Filter & Cache aller MA (für "Aktive" / "Inaktive" / "Alle"-Toggle)
 let _empAllRaw = [];
@@ -111,7 +211,7 @@ const EMP_SPECIAL_FILTERS = {
 // Adressen wurden in den "Persönliche Angaben"-Tab integriert (ein MA hat in
 // der Praxis nur eine Adresse — separate Tab unnötig).
 const _empTabsOrder = ['personal', 'familie', 'bank', 'quellensteuer',
-                       'stempelzeiten', 'absenzen', 'ktg', 'dokumente'];
+                       'stempelzeiten', 'absenzen', 'zulagen', 'ktg', 'dokumente'];
 
 // Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
 let _stempelGlobalPeriodeId = null;
@@ -188,6 +288,17 @@ function applyEmpFilter() {
     let filtered = _empAllRaw;
     if (_empFilter === 'aktiv')   filtered = filtered.filter(isActiveEffective);
     if (_empFilter === 'inaktiv') filtered = filtered.filter(e => !isActiveEffective(e));
+
+    // Austrittsdatum-Filter — nur im Inaktive-Modus aktiv. Vergleicht ISO mit ISO
+    // (lexikalischer String-Compare reicht für YYYY-MM-DD). MA ohne Austrittsdatum
+    // fallen raus, sobald der Filter gesetzt ist.
+    if (_empFilter === 'inaktiv' && _empExitDateAfter) {
+        const cutoff = _empExitDateAfter; // bereits YYYY-MM-DD aus <input type="date">
+        filtered = filtered.filter(e => {
+            const x = (e.exitDate || '').slice(0, 10);
+            return x && x >= cutoff;
+        });
+    }
 
     // Spezial-Filter (Datenqualitäts-Checks) — wirkt zusätzlich zum Aktiv-Status.
     if (_empSpecialFilter && EMP_SPECIAL_FILTERS[_empSpecialFilter]) {
@@ -271,6 +382,33 @@ function setEmpFilter(mode) {
     if (a)   a.style.cssText  = (mode === 'aktiv'   ? styleActive : styleInactive) + ';border-radius:6px 0 0 6px';
     if (i)   i.style.cssText  =  mode === 'inaktiv' ? styleActive : styleInactive;
     if (all) all.style.cssText = (mode === 'alle'    ? styleActive : styleInactive) + ';border-radius:0 6px 6px 0';
+    // Austrittsdatum-Filter nur im Inaktive-Modus zeigen; beim Wechsel auf
+    // Aktive/Alle das Filter-Feld einklappen UND den Filter zurücksetzen
+    // (sonst bliebe ein verdeckter Filter aktiv, falls Walter wieder zurückwechselt).
+    const exitRow = document.getElementById('empExitDateFilterRow');
+    if (exitRow) exitRow.style.display = (mode === 'inaktiv') ? '' : 'none';
+    if (mode !== 'inaktiv' && _empExitDateAfter) {
+        _empExitDateAfter = '';
+        const inp = document.getElementById('empExitDateAfter');
+        if (inp) inp.value = '';
+    }
+    applyEmpFilter();
+}
+
+/// Austrittsdatum-Filter setzen (Date-Picker oder „×"-Reset). Wert kommt
+/// als YYYY-MM-DD aus dem nativen Date-Input — bei Reset leerer String.
+function setEmpExitDateAfter(val) {
+    _empExitDateAfter = (val || '').slice(0, 10);
+    const inp = document.getElementById('empExitDateAfter');
+    if (inp && inp.value !== _empExitDateAfter) inp.value = _empExitDateAfter;
+    // Visuelles Feedback: aktiv = blauer Rahmen + heller Hintergrund (analog
+    // empSpecialFilter), damit Walter sofort sieht, dass ein Filter greift.
+    if (inp) {
+        inp.style.borderColor = _empExitDateAfter ? '#3b82f6' : '#e2e8f0';
+        inp.style.background  = _empExitDateAfter ? '#eff6ff' : '#f8fafc';
+        inp.style.color       = _empExitDateAfter ? '#1d4ed8' : '#475569';
+        inp.style.fontWeight  = _empExitDateAfter ? '600' : '400';
+    }
     applyEmpFilter();
 }
 
@@ -403,6 +541,18 @@ async function selectEmployee(id) {
             window._linkedDocCodes = lnk.ok ? new Set(await lnk.json()) : new Set();
         } catch { window._linkedDocCodes = new Set(); }
         renderEmployeeDetail(emp);
+        // Walter-Vorgabe 07.06.2026: Mitarbeiterfoto im Header asynchron
+        // nachladen, sobald der Detail-Header gerendert ist.
+        loadEmployeePhoto(id);
+        // Walter-Vorgabe 26.05.2026 (Audit-Modus): nach MA-Wechsel den vorher
+        // aktiven Sub-Tab beibehalten — so kann man mit fixem Doku-Filter durch
+        // die Belegschaft scrollen und schauen ob die Ablage stimmt.
+        // renderEmployeeDetail() setzt das HTML auf Default-Tab „personal";
+        // wir korrigieren das hier, falls der User in einem anderen Tab war.
+        if (activeEmpTab && activeEmpTab !== 'personal'
+            && typeof switchEmpTab === 'function') {
+            switchEmpTab(activeEmpTab);
+        }
     } catch {}
 }
 
@@ -419,6 +569,57 @@ function _t(key, fallbackDe) {
     return (v === key) ? fallbackDe : v;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// Walter-Vorgabe 07.06.2026: Mitarbeiterfoto im Detail-Header.
+// ──────────────────────────────────────────────────────────────────────
+// Sobald in der Doku-Struktur ein Typ mit linked_field_code='employee_photo'
+// existiert (typisch: „Persönliche Angaben/Mitarbeiterfoto") und für den
+// MA ein Bild hochgeladen ist, wird es als runder Avatar links neben dem
+// Namen gezeigt. Sonst bleiben die Initialen stehen.
+// ══════════════════════════════════════════════════════════════════════
+let _empPhotoUrl = null;  // Object-URL — wird beim nächsten Laden revoked
+async function loadEmployeePhoto(empId) {
+    if (!empId) return;
+    const target = document.getElementById('empDetailPhoto');
+    if (!target) return;
+    // Vorherige Object-URL wieder freigeben (Memory-Leak-Schutz beim
+    // schnellen MA-Wechsel über die linke Liste).
+    if (_empPhotoUrl) {
+        try { URL.revokeObjectURL(_empPhotoUrl); } catch {}
+        _empPhotoUrl = null;
+    }
+    try {
+        const r = await fetch(`/api/documents/by-field?employeeId=${empId}&code=employee_photo`,
+                              { headers: ah() });
+        if (!r.ok) return;  // 404 = kein Foto, einfach Initialen lassen
+        const meta = await r.json();
+        if (!meta || !meta.id) return;
+        const mime = (meta.mimeType || '').toLowerCase();
+        if (!mime.startsWith('image/')) return;  // nur Bilder einbetten
+        // WICHTIG: Backend-Route ist /api/documents/preview/{id} —
+        // NICHT /api/documents/{id}/preview (häufiger Tippfehler, 404).
+        const img = await fetch(`/api/documents/preview/${meta.id}`,
+                                { headers: ah(), cache: 'no-store' });
+        if (!img.ok) return;
+        const blob = await img.blob();
+        _empPhotoUrl = URL.createObjectURL(blob);
+        // Falls inzwischen ein anderer MA aktiv ist (User hat schnell
+        // weitergeklickt), nicht in den falschen Container schreiben.
+        const stillThere = document.getElementById('empDetailPhoto');
+        if (!stillThere) {
+            try { URL.revokeObjectURL(_empPhotoUrl); } catch {}
+            _empPhotoUrl = null;
+            return;
+        }
+        stillThere.textContent = '';
+        stillThere.style.backgroundImage = `url("${_empPhotoUrl}")`;
+        stillThere.style.backgroundColor = 'transparent';
+        stillThere.title = meta.filenameOriginal || 'Mitarbeiterfoto';
+    } catch {
+        // Stillschweigend ignorieren — Initialen-Fallback ist schon im HTML.
+    }
+}
+
 // ── Detail rendern ─────────────────────────────
 function renderEmployeeDetail(emp) {
     const panel = document.getElementById('empDetailPanel');
@@ -426,27 +627,43 @@ function renderEmployeeDetail(emp) {
     const entry = emp.entryDate ? formatDate(emp.entryDate) : '–';
     const exit  = emp.exitDate  ? formatDate(emp.exitDate)  : _t('ma.detail.statusActive', 'Aktiv');
     const nr    = emp.employeeNumber ?? '–';
+    // Walter-Vorgabe 07.06.2026: Mitarbeiterfoto im Detail-Header.
+    // Initialen als Sofort-Fallback; das echte Foto wird asynchron via
+    // loadEmployeePhoto() nachgeladen, falls in der Doku-Struktur ein Typ
+    // mit linked_field_code='employee_photo' existiert und ein Bild da ist.
+    const initials = ((emp.firstName?.[0] ?? '') + (emp.lastName?.[0] ?? '')).toUpperCase() || '?';
+    const isFemale = (emp.gender || '').toLowerCase() === 'female' || (emp.salutation || '').toLowerCase() === 'frau';
 
     panel.innerHTML = `
     <div class="emp-detail-header">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-            <div>
-                <div class="emp-detail-name">${name}</div>
-                <div class="emp-detail-meta">${_t('ma.detail.persNr','Personal-Nr.')} ${nr} &nbsp;·&nbsp; ${_t('ma.detail.entryDate','Eintritt')}: ${entry} &nbsp;·&nbsp; ${emp.exitDate ? _t('ma.detail.exitDate','Austritt') + ': ' + exit : '<span style="color:#22c55e">● ' + _t('ma.detail.statusActive','Aktiv') + '</span>'}</div>
+            <div style="display:flex;align-items:center;gap:14px;min-width:0">
+                <div id="empDetailPhoto"
+                     class="emp-avatar ${isFemale ? 'female' : ''}"
+                     style="width:150px;height:150px;border-radius:50%;flex-shrink:0;background-size:cover;background-position:center;font-size:50px;display:flex;align-items:center;justify-content:center;overflow:hidden">${initials}</div>
+                <div style="min-width:0">
+                    <div class="emp-detail-name">${name}</div>
+                    <div class="emp-detail-meta">${_t('ma.detail.persNr','Personal-Nr.')} ${nr} &nbsp;·&nbsp; ${_t('ma.detail.entryDate','Eintritt')}: ${entry} &nbsp;·&nbsp; ${emp.exitDate ? _t('ma.detail.exitDate','Austritt') + ': ' + exit : '<span style="color:#22c55e">● ' + _t('ma.detail.statusActive','Aktiv') + '</span>'}</div>
+                </div>
             </div>
+            <!-- Tab-spezifischer „+ Neu"-Button (Walter-Vorgabe 01.06.2026):
+                 wird in switchEmpTab() pro Tab befüllt — z.B. Familie →
+                 + Familienmitglied. Sitzt links neben dem Bearbeiten-Block,
+                 damit alle Aktions-Buttons in einer sticky-Zeile zusammen sind. -->
+            <div id="empTabActionBar" style="display:flex;gap:8px;align-items:center;margin-top:4px"></div>
             <!-- Header-Actions: Postfach-Passwort-Reset (Walter-Vorgabe
                  14.05.2026 — direkt oben statt im Bank-Tab) + Bearbeiten.
                  startEmpEdit() ersetzt den Inhalt dieses Containers durch
                  Speichern/Abbrechen. Postfach-Button nur für nicht-Phantom-MA. -->
             <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:4px;flex-shrink:0">
                 ${!emp.isPayrollExcluded ? `
-                <button class="btn-emp-edit" style="white-space:nowrap"
+                <button class="btn-emp-edit btn-postfach" style="white-space:nowrap"
                         title="${_t('ma.detail.postfachResetHint','Setzt das Postfach-Passwort des Mitarbeiters auf das Initial-Passwort zurück')}"
                         onclick="postfachResetPassword(${emp.id})">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     ${_t('ma.detail.postfachReset','Postfach-Passwort')}
                 </button>` : ''}
-                <button id="btnEmpEdit" class="btn-emp-edit" style="white-space:nowrap" onclick="startEmpEdit()">
+                <button id="btnEmpEdit" class="btn-emp-edit btn-edit-blue" style="white-space:nowrap" onclick="startEmpEdit()">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     ${_t('ma.detail.edit','Bearbeiten')}
                 </button>
@@ -456,9 +673,10 @@ function renderEmployeeDetail(emp) {
             <div class="emp-tab active" data-tab="personal"   onclick="switchEmpTab('personal')">${_t('ma.tab.personal','Persönliche Angaben')}</div>
             <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')">${_t('ma.tab.family','Familie')}</div>
             <div class="emp-tab"        data-tab="bank"       onclick="switchEmpTab('bank')">${_t('ma.tab.bank','Bank')}</div>
-            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')">${_t('ma.tab.qst','Quellensteuer')}</div>
+            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')">${_t('ma.tab.permitQst','Bewilligung / QST')}</div>
             <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
-            <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')" style="line-height:1.2;text-align:center">${_t('ma.tab.absences','Absenzen Zulagen Abzüge').replace(/\s+/g,'<br>')}</div>
+            <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')">${_t('ma.tab.absencesOnly','Absenzen')}</div>
+            <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen<br>Abzüge')}</div>
             <div class="emp-tab"        data-tab="ktg"        onclick="switchEmpTab('ktg')">${_t('ma.tab.ktg','KTG/UVG')}</div>
             <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')">${_t('ma.tab.docs','Dokumente')}</div>
         </div>
@@ -491,23 +709,25 @@ function renderEmployeeDetail(emp) {
                         : (emp.nationalityCode ?? emp.nationality ?? null),
                     'passport')}
             </div>
-            <div class="emp-section-title">${_t('ma.section.address','Adresse')}</div>
-            <div class="emp-field-grid-3">
+            <!-- Walter-Vorgabe 26.05.2026: Adresse + Kontakt in DIE Personalien-
+                 Card eingebunden (keine eigenen Section-Titles mehr —
+                 platzsparend). Die Felder fügen sich nahtlos an die
+                 Personalien an. -->
+            <div class="emp-field-grid-3 emp-grid-attached">
                 ${field(_t('ma.field.street','Strasse'),          emp.street)}
                 ${field(_t('ma.field.houseNumber','Hausnummer'),  emp.houseNumber)}
                 ${field(_t('ma.field.zipCode','PLZ'),             emp.zipCode)}
                 ${field(_t('ma.field.city','Ort'),                emp.city)}
                 ${field(_t('ma.field.canton','Kanton'),           emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null)}
                 ${field(_t('ma.field.country','Land'),            emp.country)}
-            </div>
-            <div class="emp-section-title">${_t('ma.section.contact','Kontakt')}</div>
-            <div class="emp-field-grid-3">
                 ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile)}
                 ${field(_t('ma.field.email','E-Mail'),            emp.email)}
             </div>
 
             <div class="emp-section-title">Anstellung</div>
-            <div class="emp-field-grid-3">
+            <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
+                 die zwei Booleans (LGAV + <8h) rechts schmaler. -->
+            <div class="emp-field-grid" style="display:grid;grid-template-columns:1.1fr 1.1fr 1.1fr 0.75fr 0.85fr;gap:12px">
                 ${field('Eintrittsdatum', emp.entryDate ? formatDate(emp.entryDate) : null)}
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null)}
                 ${(() => {
@@ -520,6 +740,18 @@ function renderEmployeeDetail(emp) {
                         : `<span style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">⊘ inaktiv</span>`;
                     return `<div class="emp-field"><div class="emp-field-label">Status</div><div class="emp-field-value">${html}</div></div>`;
                 })()}
+                <div class="emp-field">
+                    <div class="emp-field-label">L-GAV</div>
+                    <div class="emp-field-value">${emp.lgavPflichtig
+                        ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ ja</span>`
+                        : `<span style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">nein</span>`}</div>
+                </div>
+                <div class="emp-field">
+                    <div class="emp-field-label">&lt; 8 h / Wo.</div>
+                    <div class="emp-field-value">${emp.teilzeitUnter8hWoche
+                        ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ keine NBU</span>`
+                        : `<span style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">nein</span>`}</div>
+                </div>
             </div>
 
             <!-- Bei MA „ohne Lohn" (IsPayrollExcluded — Phantom-MA für easy@work-
@@ -528,25 +760,50 @@ function renderEmployeeDetail(emp) {
                  brauchen für die Lohn- und Compliance-Pipeline nichts davon.
                  Walter 18.05.2026: ZUSÄTZLICH den Aufenthalt-Block für Schweizer
                  Bürger ausblenden — die brauchen keine Bewilligung. -->
-            ${(!emp.isPayrollExcluded && (emp.nationalityCode || emp.nationality || '').toUpperCase() !== 'CH') ? `
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                <span>${_t('ma.section.permit','Aufenthalt')}</span>
-                ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser') ? `
-                <button class="btn-emp-add" onclick="openPermitHistoryModal(null)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    ${_t('ma.btn.newPermit','Neue Bewilligung')}
-                </button>` : ''}
+            ${emp.isPayrollExcluded ? `
+            <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
+                <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.desc','Phantom-MA für easy@work-Zugang. Bewilligung, Bankverbindung, Zusatzadressen und persönliches Postfach werden nicht angezeigt — dieser MA hat keinen Vertrag, keine Lohnzahlung und nutzt das Postfach der Geschäftsführung/HR.')}
             </div>
-            <div class="emp-field-grid-3">
-                ${field(_t('ma.field.permitCurrent','Aktuelle Bewilligung'), emp.permitType
-                    ? `${emp.permitType.code}${emp.permitType.description ? ' — ' + emp.permitType.description : ''}`
-                    : (emp.permitTypeId ? 'Typ ' + emp.permitTypeId : null), 'permit')}
-                <div class="emp-field"><div class="emp-field-label">${_t('ma.field.validFrom','Gültig ab')}</div><div class="emp-field-value" id="permitValidFromInline">–</div></div>
-                ${field(_t('ma.field.validTo','Gültig bis'), emp.permitExpiryDate ? formatDate(emp.permitExpiryDate) : null)}
+            ` : `
+            ${((emp.nationalityCode || emp.nationality || '').toUpperCase() !== 'CH') ? `
+            <!-- Walter-Vorgabe 07.06.2026: kompakte Info-Zeile mit der neuesten
+                 Bewilligung. Pflege + Verlauf passieren im Tab Bewilligung/QST.
+                 Linkbutton springt direkt dorthin. Doku-Button greift auf die
+                 verknüpften Bewilligungs-Dokumente (linked_field_code='permit'). -->
+            ${(() => {
+                const hasDoc = window._linkedDocCodes && window._linkedDocCodes.has('permit');
+                const docBtn = `<button title="${hasDoc ? 'Verknüpftes Bewilligungs-Dokument öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen'}"
+                                       onclick="openLinkedDoc('permit')"
+                                       style="background:${hasDoc ? '#dbeafe' : '#f1f5f9'};border:1px solid ${hasDoc ? '#93c5fd' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${hasDoc ? '#1d4ed8' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
+                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                       <polyline points="14 2 14 8 20 8"/>
+                                       <line x1="16" y1="13" x2="8" y2="13"/>
+                                       <line x1="16" y1="17" x2="8" y2="17"/>
+                                       <line x1="10" y1="9" x2="8" y2="9"/>
+                                   </svg>
+                                   <span>Doku</span>
+                               </button>`;
+                return `
+                <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                    <span style="display:inline-flex;align-items:center;gap:8px">
+                        ${_t('ma.section.permit','Aufenthalt')}
+                        ${docBtn}
+                    </span>
+                    <button class="btn-emp-add" onclick="switchEmpTab('quellensteuer')" style="background:#f1f5f9;color:#475569;border-color:#cbd5e1">
+                        ${_t('ma.btn.gotoPermitTab','→ Bewilligungen pflegen')}
+                    </button>
+                </div>`;
+            })()}
+            <div style="padding:10px 14px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa;font-size:13px;color:#475569;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                ${emp.permitType
+                    ? `<div><span style="color:#94a3b8;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px">Aktuelle Bewilligung</span><div style="font-weight:600;color:#1e293b">${emp.permitType.code}${emp.permitType.description ? ' — ' + esc(emp.permitType.description) : ''}</div></div>`
+                    : `<div style="color:#94a3b8;font-style:italic">Keine Bewilligung erfasst</div>`}
+                ${emp.permitExpiryDate
+                    ? `<div><span style="color:#94a3b8;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px">Gültig bis</span><div style="font-weight:600;color:#1e293b">${formatDate(emp.permitExpiryDate)}</div></div>`
+                    : ''}
             </div>
-            <div id="permitHistoryContent" style="margin-top:8px">
-                <div class="emp-placeholder"><span>Verlauf wird geladen…</span></div>
-            </div>
+            ` : ''}
 
             <!-- Bankverbindung + Postfach-Zugang sind in den eigenen Tab
                  „Bank & Postfach" gewandert (Walter-Vorgabe 14.05.2026) —
@@ -560,10 +817,6 @@ function renderEmployeeDetail(emp) {
             </div>
             <div id="otherAddressesContent">
                 <div class="emp-placeholder"><span>Wird geladen…</span></div>
-            </div>
-            ` : `
-            <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
-                <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.desc','Phantom-MA für easy@work-Zugang. Bewilligung, Bankverbindung, Zusatzadressen und persönliches Postfach werden nicht angezeigt — dieser MA hat keinen Vertrag, keine Lohnzahlung und nutzt das Postfach der Geschäftsführung/HR.')}
             </div>
             `}
         </div>
@@ -598,8 +851,10 @@ function renderEmployeeDetail(emp) {
                         <span>Doku</span>
                     </button>
                 </span>
-                <button class="btn-emp-add" onclick="openBankAccountModal(null)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <!-- „+ Neue Bankverbindung" sitzt jetzt im Header (empTabActionBar,
+                     Walter-Vorgabe 01.06.2026) — Button hier ausgeblendet,
+                     bleibt für Layout-Rückwärtskompatibilität im DOM. -->
+                <button class="btn-emp-add" onclick="openBankAccountModal(null)" style="display:none">
                     ${_t('ma.btn.newBank','Neue Bankverbindung')}
                 </button>
             </div>
@@ -636,9 +891,10 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
 
-        <!-- TAB: Absenzen / Zulagen / Abzüge -->
+        <!-- TAB: Absenzen — Walter-Vorgabe 26.05.2026: vom alten kombinierten
+             „Absenzen Zulagen Abzüge"-Tab abgetrennt; Zulagen/Abzüge sind
+             jetzt ein eigener Tab. -->
         <div class="emp-tab-content" id="emp-tab-absenzen">
-            <!-- Bereich 1: Absenzen -->
             <div class="emp-section-title">${_t('abs.section.absences','Absenzen')}</div>
             <div id="absenzenContent">
                 <div class="emp-placeholder">
@@ -646,11 +902,11 @@ function renderEmployeeDetail(emp) {
                     <span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span>
                 </div>
             </div>
+        </div>
 
-            <!-- Trennung -->
-            <div style="height:1px;background:#e2e8f0;margin:28px 0"></div>
-
-            <!-- Bereich 2: Wiederkehrende Zulagen &amp; Abzüge -->
+        <!-- TAB: Zulagen & Abzüge -->
+        <div class="emp-tab-content" id="emp-tab-zulagen">
+            <!-- Bereich 1: Wiederkehrende Zulagen & Abzüge -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 <span>${_t('abs.section.recurring','Wiederkehrende Zulagen &amp; Abzüge')}</span>
                 <span style="font-size:11px;font-weight:400;color:#94a3b8">${_t('abs.section.recurringHint','Werden bei jedem Lohnlauf im Gültigkeitszeitraum automatisch verrechnet')}</span>
@@ -659,10 +915,9 @@ function renderEmployeeDetail(emp) {
                 <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span></div>
             </div>
 
-            <!-- Trennung -->
-            <div style="height:1px;background:#e2e8f0;margin:28px 0"></div>
+            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
 
-            <!-- Bereich 3: Lohnabtretungen (Pfändung / Sozialamt) -->
+            <!-- Bereich 2: Lohnabtretungen (Pfändung / Sozialamt) -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 <span>${_t('abs.section.lohnabtretung','Lohnabtretungen')}</span>
                 <span style="font-size:11px;font-weight:400;color:#94a3b8">${(window.i18n && i18n.getLang && i18n.getLang() === 'en') ? 'Wage garnishment or assignment to social welfare — calculated on net pay' : 'Lohnpfändung oder Abtretung an Sozialamt — nach Netto berechnet'}</span>
@@ -670,46 +925,29 @@ function renderEmployeeDetail(emp) {
             <div id="lohnAssignmentsContent">
                 <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span></div>
             </div>
+
+            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
+
+            <!-- Bereich 3: BVG-Zusatz-Mitgliedschaft (Walter-Vorgabe 26.05.2026):
+                 Belohnungs-Programm — Personalentscheid pro MA, versioniert.
+                 Walter-Vorgabe 26.05.2026 (nachträglich): ans Ende des Tabs
+                 verschoben — selten editiert, gehört untenhin. -->
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                <span>${_t('abs.section.bvgZusatz','BVG-Zusatz')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('abs.section.bvgZusatzHint','— Belohnungs-Programm, Personalentscheid pro MA')}</span></span>
+                <button class="btn-emp-add" onclick="openBvgZusatzModal(null)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    ${_t('abs.btn.newBvgZusatz','Mitgliedschaft erfassen')}
+                </button>
+            </div>
+            <div id="bvgZusatzContent">
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span></div>
+            </div>
         </div>
 
-<!-- TAB: KTG/UVG (inkl. RAV-/ALV-Meldungen) -->
+<!-- TAB: KTG/UVG -->
+<!-- Walter-Vorgabe 27.05.2026: Arbeitslosigkeit (ALV-Meldungen) hier entfernt
+     — wird im HR-Modul gepflegt, gehört nicht ins MA-Detail. -->
         <div class="emp-tab-content" id="emp-tab-ktg">
-          <!-- Arbeitslosigkeit (ALV-Meldungen) — verschoben aus dem alten Formulare-Tab.
-               Thematisch passt's zu KTG/UVG, da es um Versicherungs-/Behörden-Status geht. -->
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h3 style="margin:0;font-size:14px;font-weight:600">${(window.i18n && i18n.getLang && i18n.getLang() === 'en') ? 'Unemployment (ALV registration)' : 'Arbeitslosigkeit (ALV-Meldungen)'}</h3>
-            <button class="btn-primary" onclick="openArbeitslosigkeitForm()">${(window.i18n && i18n.getLang && i18n.getLang() === 'en') ? '+ New period' : '+ Periode erfassen'}</button>
-          </div>
-          <div id="arbeitslosigkeitAlert"></div>
-          <div id="arbeitslosigkeitInlineForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px">
-            <input type="hidden" id="alId">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-              <label style="font-size:12px;font-weight:500">Angemeldet seit *
-                <input type="date" id="alAngemeldetSeit" class="form-control" style="margin-top:4px">
-              </label>
-              <label style="font-size:12px;font-weight:500">Abgemeldet am (leer = noch aktiv)
-                <input type="date" id="alAbgemeldetAm" class="form-control" style="margin-top:4px">
-              </label>
-              <label style="font-size:12px;font-weight:500">RAV-Stelle
-                <input type="text" id="alRavStelle" class="form-control" placeholder="z.B. RAV Luzern" style="margin-top:4px">
-              </label>
-              <label style="font-size:12px;font-weight:500">Kundennummer RAV
-                <input type="text" id="alRavKundennummer" class="form-control" style="margin-top:4px">
-              </label>
-              <label style="font-size:12px;font-weight:500">Arbeitslosenkasse
-                <input type="text" id="alArbeitslosenkasse" class="form-control" placeholder="z.B. UNIA" style="margin-top:4px">
-              </label>
-              <label style="font-size:12px;font-weight:500">Bemerkung
-                <input type="text" id="alBemerkung" class="form-control" style="margin-top:4px">
-              </label>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn-primary" onclick="saveArbeitslosigkeit()">Speichern</button>
-              <button class="btn-secondary" onclick="closeArbeitslosigkeitForm()">Abbrechen</button>
-            </div>
-          </div>
-          <div id="arbeitslosigkeitList" style="margin-bottom:24px"></div>
-
           <!-- KTG-/UVG-Durchschnitt (Tagessatz nach Spezialistenvorgabe) -->
           <div id="ktgDurchschnittContent">
             <div style="padding:40px;text-align:center;color:#94a3b8">${_t('ma.loading','Wird geladen...')}</div>
@@ -738,6 +976,37 @@ function switchEmpTab(tab) {
         t.classList.toggle('active', t.dataset.tab === tab));
     document.querySelectorAll('.emp-tab-content').forEach(c =>
         c.classList.toggle('active', c.id === 'emp-tab-' + tab));
+    // Walter-Vorgabe 01.06.2026: Postfach-Passwort + Bearbeiten sind nur im
+    // Personal-Tab sinnvoll. In den anderen Tabs (Familie, Bank, QST, etc.)
+    // hat jede Karte ihren eigenen Edit-Button. Header-Buttons ausblenden.
+    const headerActions = document.getElementById('empHeaderActions');
+    if (headerActions) {
+        headerActions.style.display = (tab === 'personal') ? 'flex' : 'none';
+    }
+    // Tab-spezifischer „+ Neu"-Button im Header (Walter 01.06.2026, Standard
+    // wie Lohn-Tab: Aktionen oben sticky, nicht in der Liste unten).
+    const tabBar = document.getElementById('empTabActionBar');
+    if (tabBar) {
+        const isExcluded = !!selectedEmployee?.isPayrollExcluded;
+        const plusIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+        if (tab === 'familie' && !isExcluded) {
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openFamilyModal(null)">${plusIcon} ${_t('famTab.add','+ Familienmitglied')}</button>`;
+        } else if (tab === 'bank' && !isExcluded) {
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openBankAccountModal(null)">${plusIcon} ${_t('ma.btn.newBank','Neue Bankverbindung')}</button>`;
+        } else if (tab === 'quellensteuer') {
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openQstFromTab(null)">${plusIcon} Neuer Eintrag</button>`;
+        } else if (tab === 'absenzen') {
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openAbsenceModal(null)">${plusIcon} Absenz erfassen</button>`;
+        } else if (tab === 'dokumente') {
+            // Walter-Vorgabe 09.06.2026: „Dokument hochladen" sitzt jetzt im Doku-
+            // Body (rechts in der .dok-list-header-Zeile, auf Höhe des Kategorie-
+            // Pfads) — nicht mehr oben rechts im Tab-Action-Bar, wo er mit dem
+            // langSwitcher kollidierte.
+            tabBar.innerHTML = '';
+        } else {
+            tabBar.innerHTML = '';
+        }
+    }
     // Personal-Tab: Bewilligungs-Verlauf + Weitere Adressen.
     // Bank & Postfach sind ein eigener Tab (Walter-Vorgabe 14.05.2026).
     // Bei MA „ohne Lohn" (IsPayrollExcluded — Phantom-MA wie Supervisor) werden
@@ -758,11 +1027,18 @@ function switchEmpTab(tab) {
     if (tab === 'familie'        && selectedEmployeeId) loadFamilieTab(selectedEmployeeId);
     if (tab === 'quellensteuer'  && selectedEmployeeId) loadQuellensteuerTab(selectedEmployeeId);
     if (tab === 'stempelzeiten'  && selectedEmployeeId) loadStempelzeitenTab(selectedEmployeeId);
-    if (tab === 'absenzen'       && selectedEmployeeId) { loadAbsenzenTab(selectedEmployeeId); loadRecurringWagesTab(selectedEmployeeId); loadLohnAssignmentsTab(selectedEmployeeId); }
+    if (tab === 'absenzen'       && selectedEmployeeId) loadAbsenzenTab(selectedEmployeeId);
+    if (tab === 'zulagen'        && selectedEmployeeId) {
+        // Walter-Vorgabe 26.05.2026: BVG-Zusatz + Recurring + Lohnabtretungen
+        // teilen sich den neuen „Zulagen & Abzüge"-Tab.
+        if (typeof loadBvgZusatzTab === 'function') loadBvgZusatzTab(selectedEmployeeId);
+        loadRecurringWagesTab(selectedEmployeeId);
+        loadLohnAssignmentsTab(selectedEmployeeId);
+    }
     if (tab === 'ktg'            && selectedEmployeeId) {
+        // Walter-Vorgabe 27.05.2026: ALV-Meldungen (Arbeitslosigkeit) hier entfernt,
+        // weil sie im HR-Modul gepflegt werden. loadFormulareTab nicht mehr aufrufen.
         loadKtgTab(selectedEmployeeId);
-        // ALV-Meldungen sind jetzt im KTG/UVG-Tab integriert (alter Formulare-Tab entfernt).
-        if (typeof loadFormulareTab === 'function') loadFormulareTab(selectedEmployeeId);
     }
     if (tab === 'dokumente'      && selectedEmployeeId) loadEmpDokumente(selectedEmployeeId);
 
@@ -786,26 +1062,725 @@ async function loadQuellensteuerTab(employeeId) {
     if (!el) return;
     el.innerHTML = '<div class="emp-placeholder"><span>Wird geladen...</span></div>';
     try {
-        const res = await fetch(`/api/employees/${employeeId}/quellensteuer`, { headers: ah() });
-        if (!res.ok) { el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden</span></div>'; return; }
-        const entries = await res.json();
-        renderQuellensteuerTab(el, entries);
+        // Walter-Vorgabe 26.05.2026: Parallel den QST-Pflicht-Check holen.
+        // Walter-Vorgabe 07.06.2026: zusätzlich die Bewilligungs-Historie —
+        // sie wohnt jetzt im selben Tab, oben über den QST-Einträgen.
+        const [entriesRes, pflichtRes, permitsRes] = await Promise.all([
+            fetch(`/api/employees/${employeeId}/quellensteuer`, { headers: ah() }),
+            fetch(`/api/employees/${employeeId}/qst-pflicht`, { headers: ah() }),
+            fetch(`/api/employees/${employeeId}/permit-history`, { headers: ah() })
+        ]);
+        if (!entriesRes.ok) { el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden</span></div>'; return; }
+        const entries = await entriesRes.json();
+        // Walter-Vorgabe 07.06.2026: QST-Einträge in einen globalen Cache,
+        // damit das Permit-Modal den B→C-Hinweis prüfen kann.
+        window._empQstCache = entries;
+        const pflicht = pflichtRes.ok ? await pflichtRes.json() : null;
+        if (permitsRes.ok) {
+            _permitHistoryCache = await permitsRes.json();
+        }
+        renderQuellensteuerTab(el, entries, pflicht);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler</span></div>';
     }
 }
 
-function renderQuellensteuerTab(el, entries) {
+// Walter-Vorgabe 26.05.2026: Banner-Renderer für den QST-Pflicht-Status.
+// Drei Zustände: GRÜN befreit / ROT Pflicht offen / BLAU Pflicht + Erfassung.
+function renderQstPflichtBanner(pflicht) {
+    if (!pflicht) return '';
+    const empId = selectedEmployeeId;
+
+    if (pflicht.befreiungsGrund) {
+        // Befreit — grüner Banner mit Begründung
+        const grundText = {
+            'CH-Buerger': 'Schweizer Staatsbürger',
+            'C-Ausweis': 'C-Ausweis (Niederlassungsbewilligung)',
+            'Behoerde': 'Befreiung durch Steuerbehörde',
+            'Ehepartner-CH': 'Verheiratet mit Schweizer/in',
+            'Ehepartner-C': 'Verheiratet mit C-Ausweis-Inhaber'
+        }[pflicht.befreiungsGrund] || pflicht.befreiungsGrund;
+
+        // Gültig-bis-Info nur bei Behörden-Befreiung mit Ablaufdatum
+        const fmtBefDate = (iso) => {
+            if (!iso) return '';
+            const s = String(iso).slice(0, 10);
+            if (s.length !== 10) return '';
+            return s.slice(8,10) + '.' + s.slice(5,7) + '.' + s.slice(0,4);
+        };
+        let gueltigText = '';
+        if (pflicht.befreiungsGrund === 'Behoerde') {
+            const ab  = fmtBefDate(pflicht.befreiungsGueltigAb);
+            const bis = fmtBefDate(pflicht.befreiungsGueltigBis);
+            if (ab && bis)  gueltigText = ` · gültig ${ab}–${bis}`;
+            else if (ab)    gueltigText = ` · gültig ab ${ab}`;
+            else if (bis)   gueltigText = ` · gültig bis ${bis}`;
+        }
+
+        // Walter-Vorgabe 28.05.2026: bei Behörden-Befreiung das hinterlegte
+        // Bestätigungsschreiben direkt aus dem Banner per Side-Panel anschauen
+        // können (gleicher Mechanismus wie Dokumenten-Verwaltung).
+        const dokAnschauen = (pflicht.befreiungsGrund === 'Behoerde' && pflicht.befreiungsDokumentId)
+            ? `<button onclick="qstOpenBefreiungsDok(${empId}, ${pflicht.befreiungsDokumentId})" title="Bestätigungsschreiben im Vorschau-Panel rechts öffnen" style="background:#fff;border:1px solid #16a34a;color:#16a34a;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px">📄 Dokument anschauen</button>`
+            : '';
+        const aufheben = pflicht.befreiungsGrund === 'Behoerde'
+            ? `<button onclick="qstBefreiungAufheben(${empId})" style="background:transparent;border:1px solid #16a34a;color:#16a34a;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Befreiung aufheben</button>`
+            : '';
+        return `
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-left:4px solid #16a34a;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:18px">✅</span>
+            <div style="flex:1;min-width:200px">
+                <div style="font-weight:600;color:#166534;font-size:13px">Nicht QST-pflichtig</div>
+                <div style="color:#15803d;font-size:12px;margin-top:2px">${grundText}${gueltigText}</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
+                ${dokAnschauen}
+                ${aufheben}
+            </div>
+        </div>`;
+    }
+
+    if (pflicht.isPflichtOffen) {
+        // Rot — Pflicht offen, keine Erfassung
+        return `
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-left:4px solid #dc2626;border-radius:8px;padding:14px;margin-bottom:14px">
+            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+                <span style="font-size:20px">⚠️</span>
+                <div style="flex:1">
+                    <div style="font-weight:700;color:#991b1b;font-size:13px">QST-Pflicht offen — Lohnlauf gesperrt</div>
+                    <div style="color:#b91c1c;font-size:12px;margin-top:3px;line-height:1.45">
+                        ${pflicht.message}<br>
+                        <span style="color:#7f1d1d">Schweizer Praxis: lieber höchsten Tarif erfassen und ggf. zurückzahlen, als zu wenig abziehen.</span>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button onclick="openQstHoechsterTarif()" style="background:#dc2626;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
+                    🔴 Höchsten Tarif erfassen
+                </button>
+                <button onclick="openQstBefreiungModal()" style="background:#fff;border:1px solid #dc2626;color:#dc2626;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
+                    📄 Behörden-Befreiung erfassen
+                </button>
+            </div>
+        </div>`;
+    }
+
+    if (pflicht.isQstPflichtig && pflicht.hasErfassung) {
+        // Blau — Pflicht, Erfassung vorhanden — alles ok. Walter-Vorgabe
+        // 26.05.2026: trotzdem den Befreiungs-Button anbieten, falls der MA
+        // später eine Bestätigung von der Steuerbehörde erhält.
+        return `
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:16px">ℹ️</span>
+            <div style="color:#1e40af;font-size:12px;flex:1">QST-pflichtig — Erfassung vorhanden.</div>
+            <button onclick="openQstBefreiungModal()" style="background:#fff;border:1px solid #2563eb;color:#2563eb;padding:5px 10px;border-radius:5px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">
+                📄 Behörden-Befreiung erfassen
+            </button>
+        </div>`;
+    }
+
+    return '';
+}
+
+async function qstBefreiungAufheben(empId) {
+    if (!confirm('Soll die Behörden-Befreiung wirklich aufgehoben werden? Der MA wird danach wieder QST-pflichtig.')) return;
+    const res = await fetch(`/api/employees/${empId}/qst-befreiung`, {
+        method: 'PATCH', headers: { ...ah(), 'Content-Type':'application/json' },
+        body: JSON.stringify({ befreit: false })
+    });
+    if (await window.lohnEditLock.handleResponse(res)) return;
+    if (!res.ok) { alert('Fehler beim Aufheben.'); return; }
+    loadQuellensteuerTab(empId);
+}
+
+// Walter-Vorgabe 28.05.2026: hinterlegtes Befreiungs-Dokument aus dem QST-Tab-
+// Banner heraus im Vorschau-Side-Panel öffnen. dokOpenPreviewPanel kommt aus
+// documents.js und erwartet das Dokument in _dokState.docs. Wenn die Dokumenten-
+// Tab dieses MA noch nie geöffnet wurde, ist die Liste leer → erst lazy laden.
+async function qstOpenBefreiungsDok(empId, dokId) {
+    if (!dokId) return;
+    try {
+        const needsLoad = !_dokState || !_dokState.docs ||
+                          _dokState.empId !== empId ||
+                          !_dokState.docs.find(d => d.id === dokId);
+        if (needsLoad) {
+            const res = await fetch(`/api/documents/by-employee/${empId}`, { headers: ah() });
+            if (res.ok) {
+                _dokState.empId = empId;
+                _dokState.docs  = await res.json();
+            }
+        }
+    } catch { /* best-effort; dokOpenPreviewPanel rendert sonst nichts */ }
+    if (typeof dokOpenPreviewPanel === 'function') {
+        dokOpenPreviewPanel(dokId);
+    } else {
+        alert('Vorschau-Modul nicht geladen.');
+    }
+}
+
+// Schnell-Button: Höchsten Tarif erfassen → öffnet das normale QST-Modal mit
+// vorausgefüllten Werten (A0Y für ledig, C0Y für verheiratet — beide mit
+// Kirchensteuer, höchste Belastung in der jeweiligen Tarif-Gruppe).
+function openQstHoechsterTarif() {
+    if (!selectedEmployee) return;
+    const isVerheiratet = (selectedEmployee.maritalStatus || '').toLowerCase().includes('verheiratet')
+                       || (selectedEmployee.maritalStatus || '').toLowerCase().includes('partnerschaft');
+    const tarifCode = isVerheiratet ? 'C' : 'A';
+    openQstFromTab(null);
+    // Werte im Modal nach dem Öffnen setzen — Timeout damit das Modal-DOM bereit ist.
+    setTimeout(() => {
+        const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+        setVal('qstTarifCode',    tarifCode);
+        setVal('qstAnzahlKinder', '0');
+        const kirche = document.getElementById('qstKirchensteuer');
+        if (kirche) kirche.value = 'true';   // mit Kirchensteuer = höchste Belastung
+        if (typeof qstUpdatePreview === 'function') qstUpdatePreview();
+    }, 100);
+}
+
+// Behörden-Befreiung erfassen — Modal mit direktem Upload ODER bestehendem Doku
+async function openQstBefreiungModal() {
+    if (!selectedEmployeeId) return;
+    // Walter-Vorgabe 26.05.2026: Befreiungsschreiben direkt im Modal hochladbar.
+    // Parallel zur Datei-Auswahl bleibt die Möglichkeit, ein bereits hochgeladenes
+    // Dokument aus der Liste zu wählen.
+    const [dokRes, taxRes] = await Promise.all([
+        fetch(`/api/documents/by-employee/${selectedEmployeeId}`, { headers: ah() }),
+        fetch('/api/documents/taxonomie', { headers: ah() })
+    ]);
+    const dokumente = dokRes.ok ? await dokRes.json() : [];
+    const taxonomy  = taxRes.ok ? await taxRes.json() : [];
+
+    // Walter-Vorgabe 28.05.2026 (Teil 2): Typ-Picker beim Hochladen optisch
+    // wie die Dokumente-Verwaltung (Kategorie-Pill + Typ-Name, klickbare Zeilen)
+    // statt plain <select>. Reihenfolge: QST/Befreiungs-Typen zuerst (Treffer auf
+    // Typ-Namen wie „Quellensteuer Befreiung" — der liegt unter „Lohn / Arbeitszeit",
+    // nicht unter „Ämter & Behörden"), dann die übrigen Typen darunter.
+    const _allTypes = (taxonomy || []).flatMap(k =>
+        (k.typen || []).map(t => ({ id: t.id, name: t.name, katName: k.name, katId: k.id }))
+    );
+    const _isQstTyp = t =>
+        /befreiung|quellensteuer|qst|ämter|behörd|bestätigung/i.test(t.name + ' ' + t.katName);
+    const _typQst   = _allTypes.filter(_isQstTyp);
+    const _typRest  = _allTypes.filter(t => !_isQstTyp(t));
+    _typQst.sort((a, b) => a.name.localeCompare(b.name));
+    _typRest.sort((a, b) => (a.katName || '').localeCompare(b.katName || '') || a.name.localeCompare(b.name));
+    // Default-Auswahl: bevorzugt der Typ „Quellensteuer Befreiung" — sonst der
+    // erste QST-/Befreiungs-Typ. Wenn keiner existiert, bleibt die Auswahl leer.
+    const _defaultTyp = _typQst.find(t => /quellensteuer\s*befreiung|qst\s*befreiung/i.test(t.name))
+                     || _typQst.find(t => /befreiung/i.test(t.name))
+                     || _typQst[0]
+                     || null;
+
+    // Walter-Vorgabe 28.05.2026: Dokument-Picker wie Dokumente-Verwaltung —
+    // klickbare Tabelle mit Kategorie-Pill / Typ / Beschreibung+Datum statt
+    // plain <select>. Nutzt dieselben CSS-Klassen (.dok-table, .dok-cat-pill)
+    // und denselben Slug (dokCatSlug aus documents.js), damit das Modal
+    // visuell mit der Dokumenten-Verwaltung übereinstimmt.
+    const fmtDate = (iso) => {
+        if (!iso) return '–';
+        const s = String(iso).slice(0, 10);
+        if (s.length !== 10) return '–';
+        return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4);
+    };
+    const dokSorted = (dokumente || [])
+        .slice()
+        .sort((a, b) => String(b.geaendertAm || b.hochgeladenAm || '')
+                         .localeCompare(String(a.geaendertAm || a.hochgeladenAm || '')));
+    const isBehoerden = d =>
+        /ämter|behörd|quellensteuer|qst/i.test((d.kategorieName || '') + ' ' + (d.dokumentTypName || ''));
+    // Behörden/QST-Treffer zuerst, dann der Rest — innerhalb beider Gruppen
+    // bleibt die neueste-zuerst-Sortierung erhalten.
+    const dokOrdered = [
+        ...dokSorted.filter(isBehoerden),
+        ...dokSorted.filter(d => !isBehoerden(d)),
+    ];
+    const slug = (typeof dokCatSlug === 'function')
+        ? dokCatSlug
+        : (n => (n || '').toLowerCase()
+            .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
+            .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''));
+    const renderDokRow = d => {
+        const catSlug = slug(d.kategorieName);
+        const erstelltIso = d.erstelltAm || d.gueltigVon || d.hochgeladenAm;
+        const dateLine = `${fmtDate(erstelltIso)} · ${fmtDate(d.geaendertAm)} · ${fmtDate(d.zugriffAm)}`;
+        const ext = ((d.filenameOriginal || '').toLowerCase().match(/\.[^.]+$/) || [''])[0];
+        const isPdf = d.mimeType === 'application/pdf';
+        const isImg = (d.mimeType || '').startsWith('image/');
+        const icon  = isPdf ? '📄' : isImg ? '🖼️' : '📎';
+        const fname = esc(d.filenameOriginal || ('Dokument #' + d.id));
+        const bem   = d.bemerkung ? `<b>${esc(d.bemerkung)}</b>` : `<span style="color:#cbd5e1">${fname}</span>`;
+        const nameLine = d.bemerkung
+            ? `${icon} ${bem} <span style="color:#94a3b8;font-weight:400;font-size:11.5px">· ${fname}</span>`
+            : `${icon} ${bem}`;
+        return `<tr data-dok-id="${d.id}"
+                    data-dok-cat="${esc((d.kategorieName || '').toLowerCase())}"
+                    data-dok-search="${esc((d.filenameOriginal||'') + ' ' + (d.bemerkung||'') + ' ' + (d.kategorieName||'') + ' ' + (d.dokumentTypName||'')).toLowerCase()}"
+                    onclick="qstBefSelectDok(${d.id})"
+                    style="cursor:pointer">
+            <td><span class="dok-cat-pill cat-${catSlug}">${esc(d.kategorieName || '')}</span></td>
+            <td style="color:#475569">${esc(d.dokumentTypName || '')}</td>
+            <td>${nameLine}<br><span class="dok-meta-inline">${dateLine}</span></td>
+        </tr>`;
+    };
+    // Walter-Vorgabe 28.05.2026 (Teil 3): Oberkategorie-Chips über der Liste
+    // — wie der Kategorie-Tree links in der Dokumenten-Verwaltung. Reihenfolge
+    // wie in der Taxonomie selbst, Anzahl pro Kategorie in einem grauen Badge.
+    // Default-Chip „Alle" — sobald der User auf eine Kategorie klickt, blendet
+    // die Liste alles andere aus. Kombiniert mit dem Text-Filter darunter.
+    const catCounts = {};
+    dokOrdered.forEach(d => {
+        const k = d.kategorieName || '';
+        catCounts[k] = (catCounts[k] || 0) + 1;
+    });
+    const taxOrder = (taxonomy || []).map(k => k.name).filter(n => catCounts[n]);
+    // Eventuell vorhandene Kategorien, die NICHT in der Taxonomie stehen (Alt-Daten),
+    // hängen ans Ende, damit kein Doku im Filter verloren geht.
+    Object.keys(catCounts).forEach(n => { if (!taxOrder.includes(n)) taxOrder.push(n); });
+    const renderCatChip = (label, count, value, active) => {
+        const catSlug = value ? slug(value) : '';
+        const pillClass = value ? `dok-cat-pill cat-${catSlug}` : '';
+        const baseStyle = active
+            ? 'background:#0f172a;color:#fff;border:1px solid #0f172a'
+            : 'background:#fff;color:#0f172a;border:1px solid #e2e8f0';
+        // Wenn nicht aktiv UND eine Kategorie-Farbe existiert, zeigen wir die Pill
+        // mit der Original-Farbe (wie in der Doku-Verwaltung). Aktive Chip ist
+        // immer dunkel/weiss als klarer Selected-Marker.
+        if (active || !value) {
+            return `<button type="button" class="qst-bef-chip" data-cat="${esc((value||'').toLowerCase())}"
+                            onclick="qstBefFilterCat('${esc(value||'').replace(/'/g,'\\\'')}', this)"
+                            style="${baseStyle};padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                        ${esc(label)}
+                        <span style="background:${active ? 'rgba(255,255,255,.2)' : '#f1f5f9'};color:${active ? '#fff' : '#64748b'};padding:1px 6px;border-radius:999px;font-size:10.5px;font-weight:600">${count}</span>
+                    </button>`;
+        }
+        return `<button type="button" class="qst-bef-chip ${pillClass}" data-cat="${esc((value||'').toLowerCase())}"
+                        onclick="qstBefFilterCat('${esc(value||'').replace(/'/g,'\\\'')}', this)"
+                        style="padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:600;cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px">
+                    ${esc(label)}
+                    <span style="background:rgba(15,23,42,.08);color:#64748b;padding:1px 6px;border-radius:999px;font-size:10.5px;font-weight:600">${count}</span>
+                </button>`;
+    };
+    const dokChipsHtml = dokOrdered.length
+        ? `<div id="qstBefDokChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+             ${renderCatChip('Alle', dokOrdered.length, '', true)}
+             ${taxOrder.map(n => renderCatChip(n, catCounts[n], n, false)).join('')}
+           </div>`
+        : '';
+    const dokTableHtml = dokOrdered.length
+        ? `<div style="border:1px solid #e2e8f0;border-radius:6px;max-height:280px;overflow-y:auto;background:#fff">
+             <table class="dok-table" id="qstBefDokTable" style="font-size:12px">
+               <thead><tr><th style="width:160px">Kategorie</th><th style="width:130px">Typ</th><th>Beschreibung<div style="font-weight:400;font-size:10px;color:#94a3b8;margin-top:2px;text-transform:none;letter-spacing:0">Erstellt · Geändert · Geöffnet</div></th></tr></thead>
+               <tbody>${dokOrdered.map(renderDokRow).join('')}</tbody>
+             </table>
+           </div>
+           <div id="qstBefDokNoMatch" style="display:none;padding:14px;text-align:center;color:#94a3b8;font-size:12px">Kein Dokument entspricht der Auswahl.</div>`
+        : `<div style="padding:18px;text-align:center;color:#dc2626;font-size:12px;background:#fef2f2;border:1px dashed #fecaca;border-radius:6px">
+             ⚠ Bei diesem Mitarbeiter sind noch keine Dokumente hochgeladen. Bitte unter <strong>A</strong> direkt das Bestätigungsschreiben hochladen.
+           </div>`;
+    const dokSearchHtml = dokOrdered.length > 4
+        ? `<input type="text" id="qstBefDokSearch" placeholder="Filtern (Name, Bemerkung, Typ)…"
+                  oninput="qstBefDokApplyFilters()"
+                  style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;margin-bottom:8px">`
+        : '';
+    const dokSelectedLabel = dokOrdered.length
+        ? `<div id="qstBefDokSelected" style="font-size:11.5px;color:#94a3b8;margin-top:6px">Noch kein Dokument ausgewählt — Zeile anklicken.</div>`
+        : '';
+
+    // --- Typ-Picker (Option A) im gleichen Look wie der Doku-Picker ---
+    // Aufbau: 2-spaltige Tabelle mit Kategorie-Pill + Typ-Name. QST-/Befreiungs-
+    // relevante Typen sind oben gruppiert (visuell hervorgehoben), die übrigen
+    // Typen darunter zum Aufklappen, damit das Modal kompakt bleibt.
+    const renderTypRow = (t, opts) => {
+        const o = opts || {};
+        const catSlug = slug(t.katName);
+        const isDefault = _defaultTyp && _defaultTyp.id === t.id;
+        const sel = isDefault ? 'background:#dbeafe;outline:2px solid #2563eb;outline-offset:-2px' : '';
+        const hidden = o.hidden ? 'display:none' : '';
+        const extraClass = o.rest ? 'qst-typ-rest' : '';
+        const style = [hidden, 'cursor:pointer', sel].filter(Boolean).join(';');
+        return `<tr class="${extraClass}" data-typ-id="${t.id}" data-typ-search="${esc((t.name + ' ' + t.katName).toLowerCase())}"
+                    onclick="qstBefSelectTyp(${t.id})"
+                    style="${style}">
+            <td><span class="dok-cat-pill cat-${catSlug}">${esc(t.katName || '')}</span></td>
+            <td style="color:#0f172a;font-weight:${o.highlight ? 600 : 500}">${esc(t.name || '')}</td>
+        </tr>`;
+    };
+    const _hasRest = _typRest.length > 0;
+    const typTableHtml = _allTypes.length
+        ? `<div style="border:1px solid #e2e8f0;border-radius:6px;background:#fff;max-height:240px;overflow-y:auto">
+             <table class="dok-table" id="qstBefTypTable" style="font-size:12px">
+               <thead><tr><th style="width:180px">Kategorie</th><th>Typ</th></tr></thead>
+               <tbody>
+                 ${_typQst.length ? `<tr><td colspan="2" style="background:#f8fafc;color:#64748b;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:6px 12px">Für QST-Befreiung empfohlen</td></tr>` : ''}
+                 ${_typQst.map(t => renderTypRow(t, { highlight: true })).join('')}
+                 ${_hasRest ? `<tr id="qstBefTypRestToggleRow"><td colspan="2" style="padding:6px 12px;background:#f8fafc">
+                    <button type="button" id="qstBefTypRestToggle" onclick="qstBefTypToggleRest()"
+                            style="background:transparent;border:none;color:#2563eb;font-size:11.5px;cursor:pointer;font-weight:600">
+                        Weitere Typen anzeigen (${_typRest.length}) ▾
+                    </button></td></tr>` : ''}
+                 ${_typRest.map(t => renderTypRow(t, { hidden: true, rest: true })).join('')}
+               </tbody>
+             </table>
+           </div>
+           <input type="hidden" id="qstBefTyp" value="${_defaultTyp ? _defaultTyp.id : ''}">
+           <div id="qstBefTypSelected" style="font-size:11.5px;color:${_defaultTyp ? '#0f5132' : '#dc2626'};margin-top:6px">
+              ${_defaultTyp
+                ? `✓ ausgewählt: <b>${esc(_defaultTyp.name)}</b> <span style="color:#94a3b8">· ${esc(_defaultTyp.katName)}</span>`
+                : '⚠ Kein Doku-Typ verfügbar — bitte in der Dokument-Verwaltung anlegen.'}
+           </div>`
+        : `<input type="hidden" id="qstBefTyp" value="">
+           <div style="font-size:11.5px;color:#dc2626;padding:8px 0">⚠ Kein Doku-Typ verfügbar — bitte in der Dokument-Verwaltung anlegen.</div>`;
+
+    const html = `
+    <div id="qstBefreiungModal" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px"
+         onclick="if(event.target===this)document.getElementById('qstBefreiungModal').remove()">
+      <div style="background:#fff;border-radius:14px;max-width:780px;width:100%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.25);max-height:92vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div style="font-size:16px;font-weight:700;color:#0f172a">Behörden-Befreiung erfassen</div>
+            <button onclick="document.getElementById('qstBefreiungModal').remove()" style="background:transparent;border:none;font-size:20px;color:#64748b;cursor:pointer">×</button>
+        </div>
+        <div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:10px 12px;border-radius:6px;font-size:12px;color:#78350f;margin-bottom:16px">
+            Befreiung gilt nur mit gültigem Bestätigungsschreiben der Steuerbehörde. Datei direkt hochladen <strong>oder</strong> ein bereits abgelegtes Dokument verlinken.
+        </div>
+
+        <!-- Option A: Datei direkt hochladen -->
+        <div style="border:1px solid #cbd5e1;border-radius:8px;padding:14px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">A · Datei hochladen</div>
+            <input type="file" id="qstBefFile" accept=".pdf,image/*" style="width:100%;font-size:12.5px"
+                   onchange="qstBefFileChanged(this)">
+            <div id="qstBefFileLabel" style="font-size:11.5px;color:#64748b;margin-top:6px"></div>
+            <div style="margin-top:12px">
+                <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">Doku-Typ</label>
+                ${typTableHtml}
+            </div>
+        </div>
+
+        <div style="text-align:center;color:#94a3b8;font-size:11px;margin:8px 0;text-transform:uppercase;letter-spacing:.08em">— oder —</div>
+
+        <!-- Option B: Bestehendes Dokument auswählen -->
+        <div style="border:1px solid #cbd5e1;border-radius:8px;padding:14px;margin-bottom:16px">
+            <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">B · Bestehendes Dokument</div>
+            <input type="hidden" id="qstBefDok" value="">
+            ${dokChipsHtml}
+            ${dokSearchHtml}
+            ${dokTableHtml}
+            ${dokSelectedLabel}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+            <div>
+                <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">Gültig ab *</label>
+                <input type="date" id="qstBefAb" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:5px;font-size:13px">
+            </div>
+            <div>
+                <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">Gültig bis</label>
+                <input type="date" id="qstBefBis" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:5px;font-size:13px" placeholder="leer = unbefristet">
+            </div>
+        </div>
+        <div id="qstBefStatus" style="font-size:12px;color:#64748b;margin-bottom:10px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+            <button onclick="document.getElementById('qstBefreiungModal').remove()" style="background:#fff;border:1px solid #cbd5e1;color:#475569;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer">Abbrechen</button>
+            <button id="qstBefSaveBtn" onclick="qstBefreiungSpeichern()" style="background:#16a34a;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer">Befreiung speichern</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function qstBefFileChanged(input) {
+    const lbl = document.getElementById('qstBefFileLabel');
+    if (input.files && input.files[0]) {
+        const f = input.files[0];
+        lbl.textContent = `Ausgewählt: ${f.name} (${Math.round(f.size/1024)} KB)`;
+        // Bei Datei-Auswahl: Bestehendes-Doku-Picker zurücksetzen (Option A wins).
+        const hidden = document.getElementById('qstBefDok');
+        if (hidden) hidden.value = '';
+        document.querySelectorAll('#qstBefDokTable tr[data-dok-id]').forEach(tr => {
+            tr.style.background = '';
+            tr.style.outline = '';
+        });
+        const sel = document.getElementById('qstBefDokSelected');
+        if (sel) {
+            sel.innerHTML = 'Noch kein Dokument ausgewählt — Zeile anklicken.';
+            sel.style.color = '#94a3b8';
+        }
+    } else {
+        lbl.textContent = '';
+    }
+}
+
+// Walter-Vorgabe 28.05.2026: Dokument-Picker im qstBefreiungModal — Klick auf
+// Zeile setzt den verdeckten Wert + markiert die Zeile blau. Optionaler
+// Live-Filter darüber (Filename / Bemerkung / Kategorie / Typ).
+function qstBefSelectDok(dokId) {
+    const hidden = document.getElementById('qstBefDok');
+    if (hidden) hidden.value = String(dokId);
+    // Datei-Upload-Feld räumen (Option B wins)
+    const fileInp = document.getElementById('qstBefFile');
+    if (fileInp) fileInp.value = '';
+    const lbl = document.getElementById('qstBefFileLabel');
+    if (lbl) lbl.textContent = '';
+    // Zeile markieren
+    let picked = null;
+    document.querySelectorAll('#qstBefDokTable tr[data-dok-id]').forEach(tr => {
+        if (parseInt(tr.getAttribute('data-dok-id'), 10) === dokId) {
+            tr.style.background = '#dbeafe';
+            tr.style.outline = '2px solid #2563eb';
+            tr.style.outlineOffset = '-2px';
+            picked = tr;
+        } else {
+            tr.style.background = '';
+            tr.style.outline = '';
+        }
+    });
+    const sel = document.getElementById('qstBefDokSelected');
+    if (sel && picked) {
+        // Beschreibung der ausgewählten Zeile (Kategorie / Typ / Beschreibung)
+        const tds = picked.querySelectorAll('td');
+        const kat = tds[0] ? tds[0].innerText.trim() : '';
+        const typ = tds[1] ? tds[1].innerText.trim() : '';
+        const beschr = tds[2] ? tds[2].innerText.trim().split('\n')[0] : '';
+        sel.innerHTML = `✓ ausgewählt: <b>${esc(beschr)}</b> <span style="color:#94a3b8">· ${esc(kat)} / ${esc(typ)}</span>`;
+        sel.style.color = '#0f5132';
+    }
+}
+
+// Walter-Vorgabe 28.05.2026 (Teil 3): kombinierter Filter aus Kategorie-Chip
+// + Text-Suche. _qstBefDokCat hält den aktiven Chip-Wert (leer = „Alle").
+let _qstBefDokCat = '';
+function qstBefDokApplyFilters() {
+    const inp = document.getElementById('qstBefDokSearch');
+    const needle = (inp ? inp.value : '').toLowerCase().trim();
+    const cat = (_qstBefDokCat || '').toLowerCase();
+    let shown = 0;
+    document.querySelectorAll('#qstBefDokTable tr[data-dok-id]').forEach(tr => {
+        const hay   = tr.getAttribute('data-dok-search') || '';
+        const trCat = tr.getAttribute('data-dok-cat')    || '';
+        const okText = !needle || hay.includes(needle);
+        const okCat  = !cat    || trCat === cat;
+        const match  = okText && okCat;
+        tr.style.display = match ? '' : 'none';
+        if (match) shown++;
+    });
+    const empty = document.getElementById('qstBefDokNoMatch');
+    if (empty) empty.style.display = shown === 0 ? 'block' : 'none';
+}
+
+// Legacy-Alias — wird nicht mehr von neuen DOM-Listenern aufgerufen, bleibt
+// aber stehen falls externe Caller die alte Signatur erwarten.
+function qstBefFilterDok(_q) { qstBefDokApplyFilters(); }
+
+// Kategorie-Chip klicken: aktiven Chip markieren + Liste filtern.
+function qstBefFilterCat(catValue, btnEl) {
+    _qstBefDokCat = catValue || '';
+    // Chip-Highlights aktualisieren: aktive Chip dunkel-gefüllt, alle anderen
+    // zurück auf Original-Pill-Optik bzw. neutrale „Alle"-Optik.
+    const chips = document.querySelectorAll('#qstBefDokChips .qst-bef-chip');
+    chips.forEach(c => {
+        const isActive = c === btnEl;
+        const catAttr  = c.getAttribute('data-cat') || '';
+        const isAlle   = !catAttr;
+        // Klassen-Reset
+        c.className = 'qst-bef-chip';
+        if (isActive) {
+            c.style.background = '#0f172a';
+            c.style.color      = '#fff';
+            c.style.border     = '1px solid #0f172a';
+            const badge = c.querySelector('span');
+            if (badge) { badge.style.background = 'rgba(255,255,255,.2)'; badge.style.color = '#fff'; }
+        } else if (isAlle) {
+            c.style.background = '#fff';
+            c.style.color      = '#0f172a';
+            c.style.border     = '1px solid #e2e8f0';
+            const badge = c.querySelector('span');
+            if (badge) { badge.style.background = '#f1f5f9'; badge.style.color = '#64748b'; }
+        } else {
+            // Kategorie-Pill in Original-Farbe (via .dok-cat-pill CSS-Klasse)
+            const slugFn = (typeof dokCatSlug === 'function')
+                ? dokCatSlug
+                : (n => (n || '').toLowerCase()
+                    .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
+                    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''));
+            c.className = `qst-bef-chip dok-cat-pill cat-${slugFn(catAttr)}`;
+            c.style.background = '';
+            c.style.color      = '';
+            c.style.border     = '1px solid transparent';
+            const badge = c.querySelector('span');
+            if (badge) { badge.style.background = 'rgba(15,23,42,.08)'; badge.style.color = '#64748b'; }
+        }
+    });
+    qstBefDokApplyFilters();
+}
+
+// Walter-Vorgabe 28.05.2026: Typ-Picker (Option A) — Klick auf eine Zeile
+// markiert den gewählten Doku-Typ; identische Highlight-Optik wie der
+// Doku-Picker oben.
+function qstBefSelectTyp(typId) {
+    const hidden = document.getElementById('qstBefTyp');
+    if (hidden) hidden.value = String(typId);
+    let picked = null;
+    document.querySelectorAll('#qstBefTypTable tr[data-typ-id]').forEach(tr => {
+        if (parseInt(tr.getAttribute('data-typ-id'), 10) === typId) {
+            tr.style.background = '#dbeafe';
+            tr.style.outline = '2px solid #2563eb';
+            tr.style.outlineOffset = '-2px';
+            picked = tr;
+        } else {
+            tr.style.background = '';
+            tr.style.outline = '';
+        }
+    });
+    const sel = document.getElementById('qstBefTypSelected');
+    if (sel && picked) {
+        const tds = picked.querySelectorAll('td');
+        const kat = tds[0] ? tds[0].innerText.trim() : '';
+        const typ = tds[1] ? tds[1].innerText.trim() : '';
+        sel.innerHTML = `✓ ausgewählt: <b>${esc(typ)}</b> <span style="color:#94a3b8">· ${esc(kat)}</span>`;
+        sel.style.color = '#0f5132';
+    }
+}
+
+// Aufklapp-Toggle für die „weiteren Typen" unterhalb der QST-empfohlenen Liste.
+function qstBefTypToggleRest() {
+    const rows = document.querySelectorAll('#qstBefTypTable tr.qst-typ-rest');
+    const btn  = document.getElementById('qstBefTypRestToggle');
+    if (!rows.length) return;
+    const isHidden = rows[0].style.display === 'none';
+    rows.forEach(r => { r.style.display = isHidden ? '' : 'none'; });
+    if (btn) {
+        const total = rows.length;
+        btn.innerHTML = isHidden
+            ? `Weitere Typen ausblenden ▴`
+            : `Weitere Typen anzeigen (${total}) ▾`;
+    }
+}
+
+async function qstBefreiungSpeichern() {
+    const empId = selectedEmployeeId;
+    const fileInput = document.getElementById('qstBefFile');
+    const file = fileInput?.files?.[0] || null;
+    let dokId = parseInt(document.getElementById('qstBefDok').value || '0', 10);
+    const ab    = document.getElementById('qstBefAb').value;
+    const bis   = document.getElementById('qstBefBis').value;
+    const typId = parseInt(document.getElementById('qstBefTyp').value || '0', 10);
+    const statusEl = document.getElementById('qstBefStatus');
+    const saveBtn  = document.getElementById('qstBefSaveBtn');
+
+    if (!ab)             { alert('Bitte das Gültig-ab-Datum eintragen.'); return; }
+    if (!file && !dokId) { alert('Bitte eine Datei hochladen ODER ein bestehendes Dokument auswählen.'); return; }
+    if (file && !typId)  { alert('Bitte den Dokument-Typ wählen.'); return; }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Speichern…';
+
+    // Walter-Vorgabe 26.05.2026: Direkt-Upload — erst Datei hochladen, dann
+    // die zurückgekommene Dokument-ID an den Befreiungs-PATCH übergeben.
+    if (file) {
+        try {
+            statusEl.textContent = 'Datei wird hochgeladen…';
+            // Branch-Code des aktuellen MA aus dem aktiven Vertrag
+            const empBranch = selectedEmployee?.employments?.find(e => e.isActive)?.companyProfile?.restaurantCode
+                           ?? (typeof allBranches !== 'undefined'
+                               ? (allBranches.find(b => b.id === (selectedEmployee?.companyProfileId
+                                                                || fixedCompanyProfileId))?.restaurantCode)
+                               : null);
+            const form = new FormData();
+            form.append('file', file);
+            form.append('employeeId',   String(empId));
+            form.append('dokumentTypId', String(typId));
+            if (empBranch) form.append('branchCode', empBranch);
+            form.append('bemerkung', 'QST-Befreiung Bestätigungsschreiben');
+            // WICHTIG: KEIN ah() benutzen — das setzt Content-Type:application/json
+            // und der Browser kann dann den multipart/form-data-Boundary nicht mehr
+            // selbst setzen → Server meldet „The file field is required".
+            // Nur den Authorization-Header schicken (analog js/documents.js → dokUpload).
+            const upRes = await fetch('/api/documents/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${authToken}` },
+                body: form
+            });
+            if (!upRes.ok) {
+                const txt = await upRes.text().catch(() => '');
+                throw new Error(txt || 'Upload fehlgeschlagen');
+            }
+            const upBody = await upRes.json();
+            dokId = upBody.id;
+            statusEl.textContent = '';
+        } catch (e) {
+            statusEl.innerHTML = `<span style="color:#dc2626">${esc(e.message || 'Upload-Fehler')}</span>`;
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Befreiung speichern';
+            return;
+        }
+    }
+
+    const res = await fetch(`/api/employees/${empId}/qst-befreiung`, {
+        method: 'PATCH', headers: { ...ah(), 'Content-Type':'application/json' },
+        body: JSON.stringify({ befreit: true, dokumentId: dokId, gueltigAb: ab, gueltigBis: bis || null })
+    });
+    if (await window.lohnEditLock.handleResponse(res)) { saveBtn.disabled = false; saveBtn.textContent = 'Befreiung speichern'; return; }
+    if (!res.ok) {
+        const body = await res.clone().json().catch(() => ({}));
+        alert(body.message || 'Fehler beim Speichern.');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Befreiung speichern';
+        return;
+    }
+    document.getElementById('qstBefreiungModal').remove();
+    loadQuellensteuerTab(empId);
+}
+
+function renderQuellensteuerTab(el, entries, pflicht) {
+    // Walter-Vorgabe 26.05.2026: Pflicht-Banner OBEN (vor allem anderen).
+    const banner = renderQstPflichtBanner(pflicht);
+    // Walter-Vorgabe 07.06.2026: Bewilligungs-Liste wohnt jetzt OBEN im
+    // Bewilligung/QST-Tab — direkt unter dem Pflicht-Banner, vor den
+    // QST-Einträgen. Eigene Sektion mit eigenem „+ Neue Bewilligung"-Button.
+    const permitsHtml = renderPermitListHtml(_permitHistoryCache || []);
+    // Walter-Vorgabe 07.06.2026: Doku-Button neben „Bewilligungen" (analog
+    // Bank-Tab) — öffnet die Dokumenten-Verwaltung gefiltert auf den
+    // Permit-Dokument-Typ (linked_field_code='permit').
+    const permitHasDoc = window._linkedDocCodes && window._linkedDocCodes.has('permit');
+    const permitDocBtn = `<button title="${permitHasDoc ? 'Verknüpftes Bewilligungs-Dokument öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen'}"
+                                  onclick="openLinkedDoc('permit')"
+                                  style="background:${permitHasDoc ? '#dbeafe' : '#f1f5f9'};border:1px solid ${permitHasDoc ? '#93c5fd' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${permitHasDoc ? '#1d4ed8' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                  <polyline points="14 2 14 8 20 8"/>
+                                  <line x1="16" y1="13" x2="8" y2="13"/>
+                                  <line x1="16" y1="17" x2="8" y2="17"/>
+                                  <line x1="10" y1="9" x2="8" y2="9"/>
+                              </svg>
+                              <span>Doku</span>
+                          </button>`;
+    const permitsSection = `
+    <div style="margin-bottom:22px">
+        <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0">
+            <span style="display:inline-flex;align-items:center;gap:8px">
+                Bewilligungen
+                ${permitDocBtn}
+            </span>
+            ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser') ? `
+            <button class="btn-emp-add" onclick="openPermitHistoryModal(null)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Neue Bewilligung
+            </button>` : ''}
+        </div>
+        ${permitsHtml}
+    </div>
+    <div class="emp-section-title" style="margin-top:6px">Quellensteuer-Einträge</div>`;
+    // „+ Neuer Eintrag" sitzt jetzt im Header (empTabActionBar,
+    // Walter-Vorgabe 01.06.2026) — Toolbar hier versteckt.
     const toolbar = `
-    <div class="emp-familie-toolbar">
+    <div class="emp-familie-toolbar" style="display:none">
         <button class="btn-emp-add" onclick="openQstFromTab(null)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Neuer Eintrag
         </button>
     </div>`;
 
     if (!entries.length) {
-        el.innerHTML = toolbar + `
+        el.innerHTML = banner + permitsSection + toolbar + `
         <div class="emp-placeholder">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
             <span>Keine Quellensteuer-Einträge erfasst</span>
@@ -815,7 +1790,7 @@ function renderQuellensteuerTab(el, entries) {
 
     // Neueste zuerst
     const sorted = [...entries].sort((a, b) => (b.validFrom ?? '').localeCompare(a.validFrom ?? ''));
-    let html = toolbar;
+    let html = banner + permitsSection + toolbar;
 
     sorted.forEach(e => {
         const isCurrent = !e.validTo;
@@ -842,15 +1817,107 @@ function renderQuellensteuerTab(el, entries) {
                 </div>
                 ${e.inLohnVerwendet
                     ? `<span title="Dieser QST-Eintrag wurde bereits in einem Lohnlauf verwendet und ist nicht mehr editierbar. Für Änderungen: '+ Neuer Eintrag' oben." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
-                    : `<button class="btn-emp-edit" onclick="openQstFromTab(${e.id})">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        Bearbeiten
-                       </button>`}
+                    : `<div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
+                        <button class="dok-menu-btn" onclick="qstToggleMenu(event, ${e.id})" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="qstMenu-${e.id}">
+                            <button class="dok-menu-item" onclick="openQstFromTab(${e.id})">Bearbeiten</button>
+                            <button class="dok-menu-item danger" onclick="deleteQstEntry(${e.id})">Löschen</button>
+                        </div>
+                       </div>`}
             </div>
         </div>`;
     });
 
     el.innerHTML = html;
+}
+
+// Walter-Vorgabe 07.06.2026: QST-Eintrag löschen — gleiche UI-Logik wie
+// bei der Bewilligung. Backend prüft im Edit-Lock-Service ob der Eintrag
+// schon in einem Lohnlauf verwendet wurde.
+// Walter-Vorgabe 07.06.2026: Ehegatten-Dokument hochladen — nutzt den
+// normalen Doku-Upload-Dialog. Walter wählt im Modal selbst die Kategorie
+// (z.B. „Persönliche Angaben → Ehegatten Dokumente"). Damit ist die UI
+// unabhängig von der konkreten Dokument-Struktur — keine Hardcode-Codes,
+// die brechen wenn Walter die Struktur ändert.
+//
+// openDokUploadModal() returnt sofort, wenn _dokState.empId noch nicht
+// gesetzt ist. Wir laden daher zuerst die Doku-Daten des aktuellen MA
+// (befüllt _dokState.empId + _dokState.taxonomy), dann das Modal öffnen.
+async function fmOpenSpouseDocUpload() {
+    if (!selectedEmployeeId) {
+        alert('Bitte zuerst einen Mitarbeiter wählen.');
+        return;
+    }
+    if (typeof loadEmpDokumente === 'function') {
+        try { await loadEmpDokumente(selectedEmployeeId); } catch {}
+    }
+    // Walter-Vorgabe 07.06.2026 (Variante C+): Vorauswahl bevorzugt über
+    // linked_field_code='spouse' (in der Dokument-Struktur als „Ehegatte
+    // (Familie)" wählbar). Walter pflegt das einmal pro Dokument-Typ — z.B.
+    // „Ausweis Ehegatte" mit Verknüpfung 'spouse'. Beim Klick wird dann der
+    // passende TYP direkt vorausgewählt (nicht nur die Kategorie). Fallback:
+    // Name-Match „Ehegatte/Ehepartner/Spouse" auf Kategorie-Ebene. Bei keinem
+    // Treffer bleibt der Picker offen, Walter wählt selbst.
+    try {
+        const tax = (typeof _dokState !== 'undefined') ? _dokState.taxonomy : null;
+        if (Array.isArray(tax)) {
+            let foundTyp = null;
+            let foundKat = null;
+            for (const k of tax) {
+                for (const t of (k.typen || [])) {
+                    if (t.linkedFieldCode === 'spouse') {
+                        foundTyp = t;
+                        foundKat = k;
+                        break;
+                    }
+                }
+                if (foundTyp) break;
+            }
+            if (foundTyp) {
+                _dokState.selectedKategorieId = foundKat.id;
+                _dokState.selectedTypId = foundTyp.id;
+            } else {
+                // Fallback Name-Match auf Kategorie-Ebene
+                const cat = tax.find(k => {
+                    const n = (k.name || '').toLowerCase();
+                    return n.includes('ehegatte') || n.includes('ehepartner') || n.includes('spouse');
+                });
+                if (cat) {
+                    _dokState.selectedKategorieId = cat.id;
+                    _dokState.selectedTypId = null;
+                }
+            }
+        }
+    } catch {}
+    if (typeof openDokUploadModal === 'function') {
+        openDokUploadModal();
+    } else {
+        alert('Doku-Upload-Modal nicht geladen. Bitte Seite neu laden.');
+    }
+}
+
+async function deleteQstEntry(entryId) {
+    if (!selectedEmployeeId || !entryId) return;
+    if (!confirm('Diesen Quellensteuer-Eintrag wirklich löschen?\n\nDer aktuelle QST-Status wird automatisch neu ermittelt.')) return;
+    try {
+        const res = await fetch(`/api/employees/${selectedEmployeeId}/quellensteuer/${entryId}`, {
+            method: 'DELETE', headers: ah()
+        });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
+        if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            alert(j.message || j.error || 'Fehler beim Löschen.');
+            return;
+        }
+        if (typeof loadQuellensteuerTab === 'function') {
+            await loadQuellensteuerTab(selectedEmployeeId);
+        }
+        if (typeof selectEmployee === 'function') {
+            await selectEmployee(selectedEmployeeId);
+        }
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
 }
 
 async function openQstFromTab(entryId) {
@@ -948,8 +2015,11 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}) {
     // Cache für Detail-Popup-Lookup
     window._familyMembersCache = members;
 
+    // Walter-Vorgabe 01.06.2026: „+ Familienmitglied"-Button sitzt jetzt im
+    // Header-Bereich (empTabActionBar, von switchEmpTab befüllt) — nicht mehr
+    // hier im Body. Leere Toolbar bleibt für Layout-Konsistenz.
     const toolbar = `
-    <div class="emp-familie-toolbar">
+    <div class="emp-familie-toolbar" style="display:none">
         <button class="btn-emp-add" onclick="openFamilyModal(null)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             ${_t('famTab.add','Hinzufügen')}
@@ -994,13 +2064,77 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}) {
         if (!groups[type]) return;
         const sectionTitle = typeLabel(type, groups[type].length);
         html += `<div class="emp-section-title" style="margin-top:14px">${sectionTitle}</div>`;
-        html += `<div style="display:flex;flex-direction:column;gap:4px">`;
+        // Walter-Vorgabe 28.05.2026: deutlich mehr Abstand zwischen den
+        // Karten — speziell zwischen mehreren Kindern, die je einen eigenen
+        // Zulagen-Block tragen, sonst kleben sie aufeinander.
+        html += `<div style="display:flex;flex-direction:column;gap:14px">`;
         groups[type].forEach(m => {
             const name = ((m.firstName ?? '') + ' ' + (m.lastName ?? '')).trim() || '–';
             const dob  = m.dateOfBirth ? formatDate(m.dateOfBirth) : '';
             const age  = m.dateOfBirth ? calcAge(m.dateOfBirth) : null;
             const meta = dob ? `${dob}${age !== null ? ' · ' + age + ' ' + yearsLabel : ''}` : '';
             const b    = typeBadge[type] ?? typeBadge.Sonstige;
+
+            // Walter-Vorgabe 07.06.2026: Beim EHEPARTNER (nicht bei Kindern!)
+            // die Bewilligung + Ablaufdatum als Badge anzeigen, plus einen
+            // Doku-Button für die Ausweis-Kopie. Der Linked-Field-Code
+            // 'spouse_permit' kann in der Dokument-Struktur als eigener Typ
+            // gepflegt werden — analog 'permit' beim MA selbst.
+            let spousePermitBadge = '';
+            // Walter-Vorgabe 07.06.2026: Doku-Button beim Ehepartner-Eintrag.
+            // Robuste Variante: keine linked_field_code-Magie — Klick springt
+            // einfach in den Dokumente-Tab des MA, wo Walter die Ablage
+            // sieht und neue Dokumente hochladen kann.
+            let spouseDocBtn = '';
+            if (type === 'Ehepartner') {
+                // Walter-Vorgabe 07.06.2026: vollen Bewilligungs-Text anzeigen
+                // statt „Typ 7" — Code + Description aus PermitType.
+                const pCode = m.permitType?.code || null;
+                const pDesc = m.permitType?.description || null;
+                const pExp  = m.permitExpiryDate ? formatDate(m.permitExpiryDate) : null;
+                // Walter-Vorgabe 07.06.2026: Wenn der Ehepartner CH-Bürger ist
+                // (Nationalität=CH UND kein Permit erfasst), klare „CH-Bürger"-
+                // Anzeige statt verwirrendem „ohne Bewilligung".
+                const natCode = (m.nationalityCode || '').toUpperCase();
+                const isCh = natCode === 'CH';
+                if (pCode || pDesc || pExp) {
+                    let nameLabel;
+                    if (pCode && pDesc)      nameLabel = `${esc(pCode)} — ${esc(pDesc)}`;
+                    else if (pCode)          nameLabel = esc(pCode);
+                    else if (pDesc)          nameLabel = esc(pDesc);
+                    else                     nameLabel = '';
+                    const label = nameLabel
+                        ? (pExp ? `${nameLabel} bis ${pExp}` : nameLabel)
+                        : `bis ${pExp}`;
+                    spousePermitBadge = `<span title="Bewilligung Ehepartner" style="font-size:11.5px;font-weight:600;color:#fff;background:#7c3aed;border:1px solid #6d28d9;padding:3px 10px;border-radius:5px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px">📋 ${label}</span>`;
+                } else if (isCh) {
+                    spousePermitBadge = `<span title="CH-Bürger — keine Bewilligung nötig" style="font-size:11.5px;font-weight:600;color:#fff;background:#16a34a;border:1px solid #15803d;padding:3px 10px;border-radius:5px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px">🇨🇭 CH-Bürger</span>`;
+                } else {
+                    spousePermitBadge = `<span title="Keine Bewilligung erfasst" style="font-size:11.5px;font-weight:600;color:#fff;background:#ea580c;border:1px solid #c2410c;padding:3px 10px;border-radius:5px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px">⚠ Keine Bewilligung</span>`;
+                }
+                // Walter-Vorgabe 07.06.2026: Doku-Button im SELBEN Stil wie
+                // beim Aufenthalt-Block (blau gefüllt wenn Verknüpfung mit
+                // linked_field_code='spouse' in der Dokument-Struktur existiert
+                // und beim MA Dokumente abgelegt sind, grau wenn nicht).
+                // Klick springt direkt in den in der Doku-Struktur hinterlegten
+                // Ordner (gefiltert auf den Spouse-Typ). Wenn keine Verknüpfung
+                // existiert: einfach in den Dokumente-Tab.
+                const hasSpouseDoc = window._linkedDocCodes && window._linkedDocCodes.has('spouse');
+                const spouseAction = hasSpouseDoc
+                    ? `openLinkedDoc('spouse')`
+                    : `if(typeof switchEmpTab==='function'){switchEmpTab('dokumente');}`;
+                spouseDocBtn = `<button onclick="event.stopPropagation();${spouseAction}"
+                    title="${hasSpouseDoc ? 'Verknüpfte Ehegatten-Dokumente öffnen' : 'Zur Dokumenten-Verwaltung springen'}"
+                    style="background:${hasSpouseDoc ? '#dbeafe' : '#f1f5f9'};border:1px solid ${hasSpouseDoc ? '#93c5fd' : '#e2e8f0'};border-radius:6px;padding:3px 9px;cursor:pointer;color:${hasSpouseDoc ? '#1d4ed8' : '#94a3b8'};display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;line-height:1">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
+                      <line x1="10" y1="9" x2="8" y2="9"/>
+                    </svg>Doku
+                </button>`;
+            }
 
             // Adress-Badge: erscheint nur wenn das Familienmitglied eine
             // abweichende Adresse aus den Zusatzadressen des MA hat.
@@ -1011,78 +2145,99 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}) {
                 const land = a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : '';
                 const tip  = [a.description, [a.street, a.street2].filter(Boolean).join(' / '), ort, land].filter(Boolean).join(' · ');
                 const short = ort || a.description || a.country || 'andere Adresse';
-                addrBadge = `<span title="${esc(tip)}" style="font-size:11px;color:#0369a1;background:#e0f2fe;padding:2px 8px;border-radius:10px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px">📍 ${esc(short)}</span>`;
+                addrBadge = `<span title="${esc(tip)}" style="font-size:11px;color:#0369a1;background:#e0f2fe;padding:2px 8px;border-radius:3px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px">📍 ${esc(short)}</span>`;
             }
 
-            // Header-Zeile (gleich für alle Familienmitglieder). Walter
-            // 18.05.2026: Klick auf den Header öffnet direkt das Edit-Modal —
-            // das Read-Only-Detail-Popup ist seit der Inline-Zulagen-Ansicht
-            // redundant (showFamilyDetailPopup bleibt im Code als Backup).
+            // Walter-Vorgabe 27.05.2026: Familie-Tab im MA-Maske-Stil.
+            // Jedes Familienmitglied = EIN grauer Card-Container (slate-200,
+            // border-radius 4px wie .emp-field-grid). Innen: weisse Name-Box
+            // wie .emp-field-value, kein 8px-Rounding mehr.
+            // Walter-Vorgabe 27.05.2026 (zusätzlich): KEIN Typ-Badge vor dem
+            // Namen — der Section-Titel oben sagt schon „Ehepartner"/„Kinder",
+            // doppelte Beschriftung ist redundant. typeBadge bleibt im Code,
+            // wird aber im Header nicht mehr gerendert.
+            // Klick auf den Header öffnet das Edit-Modal.
             const memberJson = JSON.stringify(m).replace(/"/g, '&quot;');
             const headerRow = `
             <div onclick="openFamilyModal(${memberJson})"
-                 style="display:flex;align-items:center;gap:12px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:${type === 'Kind' ? '8px 8px 0 0' : '8px'};background:white;cursor:pointer;transition:background .15s"
-                 onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
-                <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:${b.bg};color:${b.color};white-space:nowrap">${_t('fam.value.type.' + type, type)}</span>
-                <span style="font-weight:600;color:#0f172a;flex:1">${esc(name)}</span>
+                 style="display:flex;align-items:center;gap:10px;padding:5px 10px;border:1px solid #94a3b8;border-radius:4px;background:#fff;cursor:pointer;transition:border-color .12s,box-shadow .12s;box-shadow:0 1px 2px rgba(15,23,42,0.08)"
+                 onmouseover="this.style.borderColor='#2563eb';this.style.boxShadow='0 2px 4px rgba(37,99,235,0.15)'" onmouseout="this.style.borderColor='#94a3b8';this.style.boxShadow='0 1px 2px rgba(15,23,42,0.08)'">
+                <span style="font-weight:600;color:#0f172a;flex:1;font-size:13.5px">${esc(name)}</span>
+                ${spousePermitBadge}
+                ${spouseDocBtn}
                 ${addrBadge}
                 <span style="font-size:12.5px;color:#64748b;white-space:nowrap">${meta}</span>
-                <button onclick="event.stopPropagation();openFamilyModal(${memberJson})"
-                        style="background:none;border:none;cursor:pointer;color:#64748b;padding:4px 8px;border-radius:6px;font-size:13px" title="Bearbeiten">✎</button>
-                <button onclick="event.stopPropagation();deleteFamilyMember(${m.id})"
-                        style="background:none;border:none;cursor:pointer;color:#dc2626;padding:4px 8px;border-radius:6px;font-size:13px" title="Löschen">🗑</button>
+                <div class="dok-menu-wrap" onclick="event.stopPropagation()">
+                    <button class="dok-menu-btn" onclick="famToggleMenu(event, ${m.id})" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="famMenu-${m.id}">
+                        <button class="dok-menu-item" onclick="openFamilyModal(${memberJson})">Bearbeiten</button>
+                        <button class="dok-menu-item danger" onclick="deleteFamilyMember(${m.id})">Löschen</button>
+                    </div>
+                </div>
             </div>`;
 
             // Bei Kindern: Inline-Zulagen-Liste darunter (Walter-Vorgabe 18.05.2026).
-            // Analog zur Bank-Liste — Zulagen pro Kind direkt sichtbar mit Von/Bis.
+            // Walter-Vorgabe 27.05.2026: Zulagen-Block + Header-Zeile in EINEM
+            // grauen Card-Container (emp-field-grid-Look) — wie die
+            // MA-Maske, statt zwei getrennten Cards.
             let kindAllowancesBlock = '';
             if (type === 'Kind') {
                 const allowances = allowanceMap[m.id] || [];
                 const allowanceRows = allowances.length === 0
-                    ? `<div style="padding:10px 14px;color:#94a3b8;font-style:italic;font-size:12px">Noch keine Zulagen erfasst.</div>`
-                    : `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
-                         <thead>
-                           <tr style="color:#64748b;font-size:10.5px;letter-spacing:.04em;background:#fafbfc">
-                             <th style="padding:6px 14px;text-align:left;font-weight:600">VON</th>
-                             <th style="padding:6px 14px;text-align:left;font-weight:600">BIS</th>
-                             <th style="padding:6px 14px;text-align:right;font-weight:600">CHF/MT.</th>
-                             <th style="padding:6px 14px;text-align:left;font-weight:600">ART</th>
-                             <th style="padding:6px 14px;text-align:right;font-weight:600"></th>
-                           </tr>
-                         </thead>
-                         <tbody>
-                         ${allowances.map(a => {
-                             const artLabel = a.allowanceType
-                                 ? `${a.allowanceType}${(_ALLOWANCE_TYPE_LABEL && _ALLOWANCE_TYPE_LABEL[a.allowanceType]) ? ' — ' + _ALLOWANCE_TYPE_LABEL[a.allowanceType] : ''}`
-                                 : '–';
-                             const bisStr = a.validTo ? formatDate(a.validTo) : '<span style="color:#16a34a">offen</span>';
-                             const locked = a.inLohnVerwendet === true;
-                             return `
-                             <tr style="border-top:1px solid #f1f5f9">
-                               <td style="padding:7px 14px">${formatDate(a.validFrom)}</td>
-                               <td style="padding:7px 14px">${bisStr}</td>
-                               <td style="padding:7px 14px;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace">${Number(a.monthlyAmount).toFixed(2)}</td>
-                               <td style="padding:7px 14px;color:#475569">${artLabel}</td>
-                               <td style="padding:5px 14px;text-align:right;white-space:nowrap">
-                                 ${locked
-                                   ? `<span title="Zulage in Lohn verwendet — nicht editierbar" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:3px 10px;border-radius:12px;cursor:help">🔒 In Lohn verwendet</span>`
-                                   : `<button onclick="event.stopPropagation();openAllowanceFromCard(${m.id}, ${JSON.stringify(a).replace(/"/g, '&quot;')})" style="background:#f1f5f9;border:none;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer" title="Bearbeiten">✎</button>`}
-                               </td>
-                             </tr>`;
-                         }).join('')}
-                         </tbody>
-                       </table>`;
+                    ? `<div style="padding:8px 10px;color:#94a3b8;font-style:italic;font-size:12px;background:#fff;border:1px dashed #cbd5e1;border-radius:4px">Noch keine Zulagen erfasst.</div>`
+                    : allowances.map(a => {
+                        const artLabel = a.allowanceType
+                            ? `${a.allowanceType}${(_ALLOWANCE_TYPE_LABEL && _ALLOWANCE_TYPE_LABEL[a.allowanceType]) ? ' — ' + _ALLOWANCE_TYPE_LABEL[a.allowanceType] : ''}`
+                            : '–';
+                        const bisStr = a.validTo ? formatDate(a.validTo) : '<span style="color:#16a34a;font-weight:600">offen</span>';
+                        const locked = a.inLohnVerwendet === true;
+                        const editBtn = locked
+                            ? `<span title="Zulage in Lohn verwendet — nicht editierbar" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:3px 10px;border-radius:3px;cursor:help">🔒 In Lohn verwendet</span>`
+                            : `<div class="dok-menu-wrap" onclick="event.stopPropagation()">
+                                  <button class="dok-menu-btn" onclick="allowToggleMenu(event, ${a.id})" title="Aktionen">⋮</button>
+                                  <div class="dok-menu" id="allowMenu-${a.id}">
+                                      <button class="dok-menu-item" onclick="openAllowanceFromCard(${m.id}, ${JSON.stringify(a).replace(/"/g, '&quot;')})">Bearbeiten</button>
+                                  </div>
+                               </div>`;
+                        return `
+                        <div style="display:grid;grid-template-columns:repeat(4,1fr) auto;gap:7px 10px;align-items:end;padding:7px 0">
+                            <div class="emp-field">
+                                <div class="emp-field-label">Von</div>
+                                <div class="emp-field-value">${formatDate(a.validFrom)}</div>
+                            </div>
+                            <div class="emp-field">
+                                <div class="emp-field-label">Bis</div>
+                                <div class="emp-field-value">${bisStr}</div>
+                            </div>
+                            <div class="emp-field">
+                                <div class="emp-field-label">CHF / Monat <span style="font-weight:400;color:#94a3b8;text-transform:none">aktuell</span></div>
+                                <div class="emp-field-value" style="font-family:ui-monospace,Menlo,Consolas,monospace" title="Live aus dem aktuell gültigen FAK-Tarif berechnet">${Number(a.monthlyAmount).toFixed(2)}</div>
+                            </div>
+                            <div class="emp-field">
+                                <div class="emp-field-label">Art</div>
+                                <div class="emp-field-value">${artLabel}</div>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:flex-end;height:27px">${editBtn}</div>
+                        </div>`;
+                    }).join('<div style="border-top:1px dashed #cbd5e1;margin:0"></div>');
                 kindAllowancesBlock = `
-                <div style="border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;background:white">
-                  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:#fafbfc;border-bottom:1px solid #f1f5f9">
-                    <span style="font-size:10.5px;font-weight:700;color:#64748b;letter-spacing:.04em">ZULAGEN</span>
-                    <button onclick="openAllowanceFromCard(${m.id}, null)" style="background:#2563eb;color:white;border:none;padding:3px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer">+ Zulage</button>
+                <div style="margin-top:4px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px 4px">
+                    <span style="font-size:10.5px;font-weight:800;color:#1e3a8a;letter-spacing:.08em;text-transform:uppercase">Zulagen</span>
+                    <button onclick="openAllowanceFromCard(${m.id}, null)" style="background:#2563eb;color:white;border:none;padding:4px 12px;border-radius:3px;font-size:11px;font-weight:600;cursor:pointer">+ Zulage</button>
                   </div>
                   ${allowanceRows}
                 </div>`;
             }
 
-            html += headerRow + kindAllowancesBlock;
+            // Walter-Vorgabe 27.05.2026: Mitglieder-Block als grauer Container
+            // (slate-200, kaum gerundete Ecken, wie .emp-field-grid). Bei
+            // Kindern enthält der Container Header + Zulagen-Block; bei
+            // anderen Typen nur den Header.
+            html += `<div style="background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:8px 10px 10px">
+                ${headerRow}
+                ${kindAllowancesBlock}
+            </div>`;
         });
         html += `</div>`;
     });
@@ -1160,6 +2315,22 @@ function updateFmAgeDisplay() {
     if (!dispEl) return;
     const age = dob ? calcAge(dob) : null;
     dispEl.textContent = age != null ? `(${age} J.)` : '';
+}
+
+// Walter-Vorgabe 28.05.2026: Wenn der User im Familien-Modal den Typ auf
+// Kind oder Ehepartner ändert UND das Nachname-Feld noch leer ist, mit dem
+// Nachnamen des MA vorbefüllen. Bei Mutter/Vater/Sonstige NICHT vorbefüllen
+// (die haben oft eigene Nachnamen). Wir überschreiben NIE einen schon vom
+// User eingetippten Wert — Vorbefüllen passiert nur wenn das Feld leer ist.
+function fmTypeChanged() {
+    const typeEl = document.getElementById('fmMemberType');
+    const lastEl = document.getElementById('fmLastName');
+    if (!typeEl || !lastEl) return;
+    const type = typeEl.value;
+    const maLast = (selectedEmployee?.lastName || '').trim();
+    if ((type === 'Kind' || type === 'Ehepartner') && maLast && !lastEl.value.trim()) {
+        lastEl.value = maLast;
+    }
 }
 
 // Analog für das MA-Edit-Modal — Alter neben dem Geburtsdatum-Input.
@@ -1322,6 +2493,18 @@ async function openLinkedDoc(code) {
     if (typeof dokSelectType === 'function') {
         dokSelectType(matchedTyp.id, matchedKat.id);
     }
+
+    // Walter-Vorgabe 07.06.2026: bei genau EINEM Dokument im gefilterten
+    // Typ direkt das Vorschau-Panel öffnen — spart einen Klick. Bei mehreren
+    // bleibt die Liste sichtbar (Walter wählt selbst).
+    try {
+        const docs = (typeof _dokState !== 'undefined' && Array.isArray(_dokState.docs))
+            ? _dokState.docs.filter(d => d.dokumentTypId === matchedTyp.id)
+            : [];
+        if (docs.length === 1 && typeof dokOpenPreviewPanel === 'function') {
+            dokOpenPreviewPanel(docs[0].id);
+        }
+    } catch {}
 }
 
 // Sprung aus einer Krank-/Unfall-Absenz direkt in den Dokumente-Tab, gefiltert
@@ -1370,6 +2553,18 @@ async function openAbsenceArztzeugnis() {
     if (typeof dokSelectType === 'function') {
         dokSelectType(matchedTyp.id, matchedKat.id);
     }
+
+    // Walter-Vorgabe 07.06.2026: bei genau EINEM Dokument im gefilterten
+    // Typ direkt das Vorschau-Panel öffnen — spart einen Klick. Bei mehreren
+    // bleibt die Liste sichtbar (Walter wählt selbst).
+    try {
+        const docs = (typeof _dokState !== 'undefined' && Array.isArray(_dokState.docs))
+            ? _dokState.docs.filter(d => d.dokumentTypId === matchedTyp.id)
+            : [];
+        if (docs.length === 1 && typeof dokOpenPreviewPanel === 'function') {
+            dokOpenPreviewPanel(docs[0].id);
+        }
+    } catch {}
 }
 
 function getInitials(first, last) {
@@ -1585,40 +2780,55 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
         </select>`)}
     </div>
 
-    <div class="emp-section-title">${_t('ma.section.address','Adresse')}</div>
-    <div class="emp-field-grid-3">
+    <!-- Walter 26.05.2026: Adresse + Kontakt in die Personalien-Card. -->
+    <div class="emp-field-grid-3 emp-grid-attached">
         ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}">`)}
         ${eField(_t('ma.field.houseNumber','Hausnummer'), `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}">`)}
-        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" onblur="plzLookup(this.value)" onkeyup="if(this.value.length===4)plzLookup(this.value)">`)}
-        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(emp.city)}">`)}
+        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" oninput="validateZip(this)" onblur="plzLookup(this.value)" onkeyup="if(this.value.length===4)plzLookup(this.value)">`)}
+        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(emp.city)}" oninput="validateCity(this)">`)}
         ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode))}
         ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}">`)}
+        ${eField(_t('ma.field.phone','Telefon'), `<input id="ef-phone" class="ef-input" type="tel"   value="${esc(emp.phoneMobile)}" placeholder="${_t('ma.placeholder.phone','+41 79 409 43 33')}" oninput="validatePhone(this)" onblur="validatePhoneBlur(this)">`)}
+        ${eField(_t('ma.field.email','E-Mail'),  `<input id="ef-email" class="ef-input" type="email" value="${esc(emp.email)}" oninput="validateEmail(this)" onblur="validateEmail(this, true)">`)}
     </div>
-    <div id="ef-plz-hint" style="font-size:12px;margin-top:-6px;margin-bottom:10px"></div>
-
-    <div class="emp-section-title">${_t('ma.section.contact','Kontakt')}</div>
-    <div class="emp-field-grid-3">
-        ${eField(_t('ma.field.phone','Telefon'), `<input id="ef-phone" class="ef-input" type="tel"   value="${esc(emp.phoneMobile)}" placeholder="${_t('ma.placeholder.phone','+41 79 …')}">`)}
-        ${eField(_t('ma.field.email','E-Mail'),  `<input id="ef-email" class="ef-input" type="email" value="${esc(emp.email)}">`)}
-    </div>
+    <div id="ef-plz-hint" style="font-size:12px;margin-top:-6px;margin-bottom:6px"></div>
 
     <div class="emp-section-title">${_t('ma.section.anstellung','Anstellung')}</div>
-    <div class="emp-field-grid-3">
-        ${eField(`${_t('ma.field.entryDate','Eintrittsdatum')} <span style="font-weight:400;color:#94a3b8;margin-left:6px">${_t('ma.field.entryDateHint','(Datum der Betriebszugehörigkeit)')}</span>`,
-            `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}">`)}
-        ${eField(`${_t('ma.field.exitDate','Austrittsdatum')}`,
+    <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile.
+         Eintritt/Austritt/Aktiv links, die zwei Booleans (L-GAV / <8 h)
+         rechts schmaler. -->
+    <div class="emp-field-grid" style="display:grid;grid-template-columns:1.1fr 1.1fr 1.1fr 0.75fr 0.85fr;gap:12px">
+        ${eField(_t('ma.field.entryDate','Eintrittsdatum'),
+            `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}">`,
+            _t('ma.field.entryDateHint','Datum der Betriebszugehörigkeit'))}
+        ${eField(_t('ma.field.exitDate','Austrittsdatum'),
             `<input id="ef-exit"  class="ef-input" type="date" value="${toDateInput(emp.exitDate)}">`)}
         <!-- Walter-Vorgabe 18.05.2026: Aktiv-Flag ist NICHT mehr automatisch
              aus dem ExitDate abgeleitet. Walter entscheidet bewusst — ein MA
              mit Austritt mitten im Monat bleibt aktiv bis nach dem letzten
              Lohnlauf, dann wird der Haken hier manuell entfernt. -->
-        ${eField(`${_t('ma.field.isActive','Aktiv')} <span style="font-weight:400;color:#94a3b8;margin-left:6px">${_t('ma.field.isActiveHint','(Postfach + Listen)')}</span>`,
-            `<label style="display:flex;align-items:center;gap:8px;height:36px;cursor:pointer">
+        ${eField(_t('ma.field.isActive','Aktiv'),
+            `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
                  <input id="ef-isactive" type="checkbox" ${emp.isActive ? 'checked' : ''}
                         onchange="onIsActiveChange(this, ${emp.id})"
-                        style="width:18px;height:18px;cursor:pointer">
+                        style="width:16px;height:16px;cursor:pointer;margin:0">
                  <span id="ef-isactive-label" style="font-size:12px;color:#475569">${emp.isActive ? _t('ma.field.isActiveYes','aktiv') : _t('ma.field.isActiveNo','inaktiv')}</span>
-             </label>`)}
+             </label>`,
+            _t('ma.field.isActiveHint','Postfach + Listen'))}
+        ${eField('L-GAV',
+            `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
+                 <input id="ef-lgavPflichtig" type="checkbox" ${emp.lgavPflichtig ? 'checked' : ''}
+                        style="width:16px;height:16px;cursor:pointer;margin:0">
+                 <span style="font-size:12px;color:#475569">pflichtig</span>
+             </label>`,
+            _t('ma.field.lgavPflichtigHint','Jährlicher Abzug im Lohnlauf'))}
+        ${eField('&lt; 8 h / Wo.',
+            `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
+                 <input id="ef-teilzeitUnter8h" type="checkbox" ${emp.teilzeitUnter8hWoche ? 'checked' : ''}
+                        style="width:16px;height:16px;cursor:pointer;margin:0">
+                 <span style="font-size:12px;color:#475569">keine NBU</span>
+             </label>`,
+            _t('ma.field.teilzeitUnter8hHint','Befreit von der NBU-Pflicht'))}
     </div>
     <div style="margin:4px 0 16px;font-size:11.5px;color:#64748b;line-height:1.45">
         ${_t('ma.entryDate.hint','Eintrittsdatum wird benötigt für: Sperrfrist-Berechnung (Art. 336c OR), Karenzjahr-Berechnung (Krank/Unfall), Ferien-Kürzung (Art. 329b OR), Dienstjubiläen.')}
@@ -1632,33 +2842,48 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <input type="hidden" id="ef-permitType" value="${emp.permitTypeId ?? 0}">
     <input type="hidden" id="ef-permitExpiry" value="${toDateInput(emp.permitExpiryDate)}">
 
-    ${(!emp.isPayrollExcluded && (emp.nationalityCode || emp.nationality || '').toUpperCase() !== 'CH') ? `
-    <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-        <span>${_t('ma.section.permit','Aufenthalt')}</span>
-        <button type="button" class="btn-emp-add" onclick="openPermitHistoryModal(null)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            ${_t('ma.btn.newPermit','Neue Bewilligung')}
-        </button>
-    </div>
-    <div class="emp-field-grid-3">
-        ${field(_t('ma.field.permitCurrent','Aktuelle Bewilligung'), emp.permitType
-            ? `${emp.permitType.code}${emp.permitType.description ? ' — ' + emp.permitType.description : ''}`
-            : (emp.permitTypeId ? 'Typ ' + emp.permitTypeId : null))}
-        <div class="emp-field"><div class="emp-field-label">${_t('ma.field.validFrom','Gültig ab')}</div><div class="emp-field-value" id="permitValidFromInline">–</div></div>
-        ${field(_t('ma.field.validTo','Gültig bis'), emp.permitExpiryDate ? formatDate(emp.permitExpiryDate) : null)}
-    </div>
-    <div id="permitHistoryContent" style="margin-top:6px">
-        <div class="emp-placeholder"><span>${_t('ma.loading','Wird geladen…')}</span></div>
-    </div>
-
-    <div style="margin:8px 0 16px;padding:10px 12px;background:#f1f5f9;border-left:3px solid #94a3b8;border-radius:4px;font-size:12px;color:#475569">
-        ${_t('ma.qstHint','Quellensteuer-spezifische Angaben (Konkubinat, gemeinsame elterliche Sorge, Unterhaltszahlungen, höheres Einkommen, Grenzgänger/Wochenaufenthalter) werden im Modul Quellensteuer zeitlich versioniert gepflegt und nicht hier als allgemeine Personaldaten.')}
-    </div>
-    ` : `
+    ${emp.isPayrollExcluded ? `
     <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
         <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.editDesc','Phantom-MA für easy@work-Zugang. Bewilligung und Zusatzadressen werden hier nicht angeboten, da dieser MA keinen Vertrag und keine Lohnzahlung hat. Über die Checkbox „Kein Lohn" unten kann die Markierung wieder aufgehoben werden.')}
     </div>
-    `}
+    ` : (((emp.nationalityCode || emp.nationality || '').toUpperCase() !== 'CH') ? `
+    <!-- Walter-Vorgabe 07.06.2026: kompakte Info-Zeile mit der neuesten
+         Bewilligung. Pflege passiert ausschliesslich im Tab Bewilligung/QST.
+         Doku-Button greift auf die verknüpften Bewilligungs-Dokumente. -->
+    ${(() => {
+        const hasDoc = window._linkedDocCodes && window._linkedDocCodes.has('permit');
+        const docBtn = `<button type="button" title="${hasDoc ? 'Verknüpftes Bewilligungs-Dokument öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen'}"
+                               onclick="openLinkedDoc('permit')"
+                               style="background:${hasDoc ? '#dbeafe' : '#f1f5f9'};border:1px solid ${hasDoc ? '#93c5fd' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${hasDoc ? '#1d4ed8' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
+                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                               <polyline points="14 2 14 8 20 8"/>
+                               <line x1="16" y1="13" x2="8" y2="13"/>
+                               <line x1="16" y1="17" x2="8" y2="17"/>
+                               <line x1="10" y1="9" x2="8" y2="9"/>
+                           </svg>
+                           <span>Doku</span>
+                       </button>`;
+        return `
+        <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span style="display:inline-flex;align-items:center;gap:8px">
+                ${_t('ma.section.permit','Aufenthalt')}
+                ${docBtn}
+            </span>
+            <button type="button" class="btn-emp-add" onclick="switchEmpTab('quellensteuer')" style="background:#f1f5f9;color:#475569;border-color:#cbd5e1">
+                ${_t('ma.btn.gotoPermitTab','→ Bewilligungen pflegen')}
+            </button>
+        </div>`;
+    })()}
+    <div style="padding:10px 14px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa;font-size:13px;color:#475569;display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+        ${emp.permitType
+            ? `<div><span style="color:#94a3b8;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px">Aktuelle Bewilligung</span><div style="font-weight:600;color:#1e293b">${emp.permitType.code}${emp.permitType.description ? ' — ' + esc(emp.permitType.description) : ''}</div></div>`
+            : `<div style="color:#94a3b8;font-style:italic">Keine Bewilligung erfasst</div>`}
+        ${emp.permitExpiryDate
+            ? `<div><span style="color:#94a3b8;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px">Gültig bis</span><div style="font-weight:600;color:#1e293b">${formatDate(emp.permitExpiryDate)}</div></div>`
+            : ''}
+    </div>
+    ` : '')}
 
     <!-- Arbeitsverhältnis-Sektion (Eintritt, Modell, Pensum, Stundenlohn) wurde
          entfernt — wird im Verträge-Tab gepflegt. Eintrittsdatum + Personal-Nr.
@@ -1702,10 +2927,11 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
 // im Personal-Edit-Formular integriert.)
 
 // Hilfshelfer: Edit-Feld
-function eField(label, inputHtml) {
+function eField(label, inputHtml, hint) {
     return `<div class="emp-field">
         <div class="emp-field-label">${label}</div>
         <div class="emp-field-value">${inputHtml}</div>
+        ${hint ? `<div class="emp-field-hint">${hint}</div>` : ''}
     </div>`;
 }
 
@@ -1925,6 +3151,25 @@ async function saveEmpEdit() {
     const emp = selectedEmployee;
 
     // ── Employee Stammdaten ──────────────────────────────────────────────
+    // Walter-Vorgabe 01.06.2026: harte Validierung Telefon/E-Mail/PLZ vor dem Save.
+    const _phoneRaw = document.getElementById('ef-phone')?.value || '';
+    const _phoneFmt = _phoneRaw ? window.formatPhoneIntl(_phoneRaw) : '';
+    if (_phoneRaw && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(_phoneFmt)) {
+        alert('Telefon-Format ungültig (erwartet +99 99 999 99 99, z.B. +41 79 409 43 33).');
+        return;
+    }
+    if (_phoneFmt) document.getElementById('ef-phone').value = _phoneFmt;
+    const _emailRaw = (document.getElementById('ef-email')?.value || '').trim();
+    if (_emailRaw && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_emailRaw)) {
+        alert('E-Mail-Adresse ist ungültig.');
+        return;
+    }
+    const _zipRaw = (document.getElementById('ef-zip')?.value || '').trim();
+    if (_zipRaw && !/^\d{4}$/.test(_zipRaw)) {
+        alert('PLZ muss 4-stellig numerisch sein.');
+        return;
+    }
+
     const exitVal = document.getElementById('ef-exit')?.value;
     const empPayload = {
         firstName:    document.getElementById('ef-firstName')?.value    || null,
@@ -1933,11 +3178,11 @@ async function saveEmpEdit() {
         gender:       document.getElementById('ef-gender')?.value       || null,
         dateOfBirth:  document.getElementById('ef-dob')?.value          || null,
         languageCode: document.getElementById('ef-lang')?.value         || null,
-        phoneMobile:  document.getElementById('ef-phone')?.value || null,
-        email:        document.getElementById('ef-email')?.value || null,
+        phoneMobile:  _phoneFmt || null,
+        email:        _emailRaw || null,
         street:       document.getElementById('ef-street')?.value       || null,
         houseNumber:  document.getElementById('ef-houseNr')?.value      || null,
-        zipCode:      document.getElementById('ef-zip')?.value          || null,
+        zipCode:      _zipRaw || null,
         city:         document.getElementById('ef-city')?.value         || null,
         country:      document.getElementById('ef-country')?.value      || null,
         cantonCode:   document.getElementById('ef-canton')?.value       || null,
@@ -1951,6 +3196,9 @@ async function saveEmpEdit() {
         // Walter-Vorgabe 18.05.2026: Aktiv-Flag bewusst gesetzt vom UI,
         // KEIN Auto-Sync mehr aus ExitDate (Backend nimmt diesen Wert 1:1).
         isActive:     document.getElementById('ef-isactive')?.checked === true,
+        // Walter-Vorgabe 07.06.2026: Anstellungs-Booleans aus der zweiten Zeile.
+        lgavPflichtig:        document.getElementById('ef-lgavPflichtig')?.checked === true,
+        teilzeitUnter8hWoche: document.getElementById('ef-teilzeitUnter8h')?.checked === true,
         socialSecurityNumber: document.getElementById('ef-ahvNummer')?.value || null,
         ahvNummer:    document.getElementById('ef-ahvNummer')?.value    || null,
         shortName:    document.getElementById('ef-shortName')?.value    || null,
@@ -1983,6 +3231,12 @@ async function saveEmpEdit() {
     }
 
     try {
+        // Walter-Vorgabe 07.06.2026: KEIN impliziter Permit-PUT mehr im
+        // MA-Save. Bewilligungen werden ausschliesslich über das Permit-
+        // Modal pro Listenzeile gepflegt — das verhindert strukturell die
+        // früheren Overlap-Bugs, bei denen der MA-Save unbemerkt eine
+        // Bewilligung mit-veränderte.
+
         // Nur Stammdaten speichern – Vertragsdaten werden im Modul Vertrag bearbeitet
         const requests = [
             fetch(`/api/employees/${selectedEmployeeId}`, {
@@ -2066,7 +3320,14 @@ function openFamilyModal(member) {
     document.getElementById('fmMemberType').value      = member?.memberType         ?? 'Kind';
     document.getElementById('fmGender').value          = member?.gender             ?? '';
     document.getElementById('fmFirstName').value       = member?.firstName          ?? '';
-    document.getElementById('fmLastName').value        = member?.lastName           ?? '';
+    // Walter-Vorgabe 28.05.2026: Bei NEU + Kind/Ehepartner den Nachnamen des MA
+    // vorbefüllen — kann der User natürlich überschreiben. Bei bestehenden
+    // Einträgen (Edit) den gespeicherten Wert übernehmen.
+    const _maLast = (selectedEmployee?.lastName || '').trim();
+    const _defaultType = member?.memberType ?? 'Kind';
+    const _prefillLast = (!member && _maLast && (_defaultType === 'Kind' || _defaultType === 'Ehepartner'))
+        ? _maLast : (member?.lastName ?? '');
+    document.getElementById('fmLastName').value        = _prefillLast;
     document.getElementById('fmMaidenName').value      = member?.maidenName         ?? '';
     document.getElementById('fmDateOfBirth').value     = toDateInput(member?.dateOfBirth);
     updateFmAgeDisplay();
@@ -2084,6 +3345,17 @@ function openFamilyModal(member) {
     );
     document.getElementById('fmPermitExpiry').value = toDateInput(member?.permitExpiryDate);
     document.getElementById('fmZemisNumber').value  = member?.zemisNumber ?? '';
+
+    // Walter-Vorgabe 07.06.2026: „Dokument hochladen"-Button NUR beim
+    // Ehepartner sichtbar — klickt auf den normalen Standard-Upload-Dialog
+    // (openDokUploadModal), wo Walter Kategorie + Typ frei wählt
+    // (typisch: „Persönliche Angaben / Ehegatten Dokumente"). Damit ist
+    // der Mechanismus unempfindlich gegen Änderungen in der Dokument-Struktur.
+    const docUploadBtn = document.getElementById('fmSpouseDocBtn');
+    const isSpouse = (member?.memberType ?? document.getElementById('fmType')?.value) === 'Ehepartner';
+    if (docUploadBtn) {
+        docUploadBtn.style.display = isSpouse ? 'inline-flex' : 'none';
+    }
 
     // ── Adresse: Radio-Modus + Dropdown der MA-Zusatzadressen befüllen
     fmRefreshAddressUi(member?.alternativeAddressId ?? null);
@@ -2344,7 +3616,12 @@ async function loadFamilyAllowances(familyMemberId) {
                         <td style="padding:6px 8px;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace">${Number(a.monthlyAmount).toFixed(2)}</td>
                         <td style="padding:6px 8px;color:#64748b">${a.allowanceType ? (a.allowanceType + ' — ' + (_ALLOWANCE_TYPE_LABEL[a.allowanceType] || '')) : '–'}</td>
                         <td style="padding:6px 8px;text-align:right">
-                            <button onclick='openAllowanceModal(${JSON.stringify(a)})' style="background:#f1f5f9;border:none;padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;margin-right:3px">✏️</button>
+                            <div class="dok-menu-wrap" style="display:inline-block">
+                                <button class="dok-menu-btn" onclick="allowToggleMenu(event, ${a.id})" title="Aktionen">⋮</button>
+                                <div class="dok-menu" id="allowMenu-${a.id}">
+                                    <button class="dok-menu-item" onclick='openAllowanceModal(${JSON.stringify(a)})'>Bearbeiten</button>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                 `).join('')}
@@ -2362,22 +3639,142 @@ function openAllowanceFromCard(familyMemberId, existing) {
     openAllowanceModal(existing);
 }
 
-function openAllowanceModal(existing) {
+// Walter-Vorgabe 28.05.2026 (v3): User erfasst pro Kind den KONKRETEN Tarif-
+// Satz (z.B. „KZ Satz 1") mit Gültig-ab/bis. Picker zeigt die im Tarif der
+// Filiale verfügbaren Sätze. Engine schaut pro Lohnperiode: welcher Eintrag
+// ist gültig + welcher Satz ist gewählt → holt aktuellen Wert aus Tarif.
+// Cache der zuletzt geladenen Tarif-Optionen pro Stichtag.
+let _alTarifOptionsByDate = { stichtag: '', list: [], tarifInfo: null };
+
+async function openAllowanceModal(existing) {
     if (!editingFamilyMemberId) {
         alert('Bitte zuerst das Familienmitglied speichern.');
         return;
     }
     const d = (typeof existing === 'object' && existing !== null) ? existing : {};
-    document.getElementById('alId').value           = d.id ?? '';
-    document.getElementById('alValidFrom').value    = d.validFrom ?? '';
-    document.getElementById('alValidTo').value      = d.validTo   ?? '';
-    document.getElementById('alMonthlyAmount').value = d.monthlyAmount ?? '';
+    document.getElementById('alId').value            = d.id ?? '';
+    document.getElementById('alValidFrom').value     = d.validFrom ?? '';
+    document.getElementById('alValidTo').value       = d.validTo   ?? '';
+    document.getElementById('alMonthlyAmount').value = (d.monthlyAmount ?? '0').toString();
     document.getElementById('alAllowanceType').value = d.allowanceType ?? '';
-    document.getElementById('alNote').value         = d.note ?? '';
-    document.getElementById('alError').textContent  = '';
+    document.getElementById('alTarifSatzNr').value   = (d.tarifSatzNr ?? '').toString();
+    document.getElementById('alNote').value          = d.note ?? '';
+    document.getElementById('alError').textContent   = '';
+    document.getElementById('alTarifHint').textContent = '';
+    const lblInfo = document.getElementById('alTarifInfoLbl');
+    if (lblInfo) lblInfo.textContent = '';
     document.getElementById('allowanceModalTitle').textContent = d.id ? 'Zulage bearbeiten' : 'Zulage hinzufügen';
     document.getElementById('alDeleteBtn').style.display = d.id ? 'inline-block' : 'none';
     document.getElementById('allowanceModal').style.display = 'flex';
+
+    // ValidFrom-Wechsel → Optionen neu laden (Tarif-Version könnte abweichen).
+    const vfInp = document.getElementById('alValidFrom');
+    if (vfInp && !vfInp.dataset.alBound) {
+        vfInp.addEventListener('change', () => alLoadTarifOptionsAndPreselect());
+        vfInp.dataset.alBound = '1';
+    }
+    await alLoadTarifOptionsAndPreselect();
+}
+
+// Holt die verfügbaren Tarif-Sätze (KZ Satz 1/2, AZ Satz 1/2, GZ, AdoptZ —
+// jeweils mit aktuellem Betrag) für die Filiale des MA am Stichtag = ValidFrom.
+// Baut den Dropdown auf, wählt bei Edit den zuvor gespeicherten Satz wieder
+// vor (Match nach allowanceType + tarifSatzNr).
+async function alLoadTarifOptionsAndPreselect() {
+    const pick = document.getElementById('alTarifPick');
+    const hint = document.getElementById('alTarifHint');
+    const lblInfo = document.getElementById('alTarifInfoLbl');
+    if (!pick) return;
+
+    const validFrom = document.getElementById('alValidFrom').value
+                  || new Date().toISOString().slice(0,10);
+    const cacheHit = _alTarifOptionsByDate.stichtag === validFrom;
+    let data = cacheHit ? { options: _alTarifOptionsByDate.list, ..._alTarifOptionsByDate.tarifInfo }
+                        : null;
+
+    if (!data) {
+        pick.innerHTML = '<option value="">– Tarif wird geladen … –</option>';
+        try {
+            const url = `/api/family-members/${editingFamilyMemberId}/allowances/tarif-options`
+                      + `?effectiveDate=${encodeURIComponent(validFrom)}`;
+            const res = await fetch(url, { headers: ah() });
+            if (!res.ok) {
+                pick.innerHTML = '<option value="">– Vorschau-Fehler –</option>';
+                hint.innerHTML = '<span style="color:#dc2626">⚠ Tarif konnte nicht geladen werden.</span>';
+                return;
+            }
+            data = await res.json();
+            _alTarifOptionsByDate = {
+                stichtag: validFrom,
+                list: data.options || [],
+                tarifInfo: {
+                    kantonCode: data.kantonCode,
+                    tarifValidFrom: data.tarifValidFrom,
+                    tarifValidTo: data.tarifValidTo
+                }
+            };
+        } catch {
+            pick.innerHTML = '<option value="">– Verbindungsfehler –</option>';
+            return;
+        }
+    }
+
+    if (lblInfo) lblInfo.textContent = data.kantonCode ? `· Tarif Filiale: ${data.kantonCode}` : '';
+    const opts = data.options || [];
+    if (opts.length === 0) {
+        pick.innerHTML = '<option value="">– Kein Tarif am Stichtag hinterlegt –</option>';
+        hint.innerHTML = `<span style="color:#dc2626">⚠ Für die Filiale ist am ${formatDate(validFrom)} kein FAK-Tarif aktiv. Bitte in Systemeinstellungen → Familienzulagen-Tarife anlegen.</span>`;
+        return;
+    }
+
+    // Vorauswahl bei Edit: zuerst (type + satz), sonst nur type, sonst nichts.
+    const selType = document.getElementById('alAllowanceType').value;
+    const selSatz = document.getElementById('alTarifSatzNr').value;
+    const matchKey = (o) => `${o.allowanceType}|${o.tarifSatzNr == null ? '' : o.tarifSatzNr}`;
+    const targetKey = `${selType}|${selSatz}`;
+    let preselectIdx = opts.findIndex(o => matchKey(o) === targetKey);
+    if (preselectIdx < 0 && selType) preselectIdx = opts.findIndex(o => o.allowanceType === selType);
+
+    pick.innerHTML = '<option value="">– Bitte wählen –</option>' +
+        opts.map((o, i) => {
+            const amt = Number(o.amount).toFixed(2);
+            return `<option value="${i}" ${i===preselectIdx?'selected':''}>${esc(o.label)} — ${amt} CHF/Mt</option>`;
+        }).join('');
+
+    if (preselectIdx >= 0) {
+        alRefreshResolvePreview();
+    } else {
+        hint.innerHTML = '<span style="color:#94a3b8">Bitte einen Satz auswählen — der aktuell gültige Betrag erscheint dann hier.</span>';
+    }
+}
+
+// Onchange-Handler des Pickers + ValidFrom: schreibt allowanceType + satzNr +
+// aktueller Betrag in die hidden Inputs UND zeigt die Live-Vorschau.
+async function alRefreshResolvePreview() {
+    const pick = document.getElementById('alTarifPick');
+    const hint = document.getElementById('alTarifHint');
+    if (!pick || !hint) return;
+
+    const opts = _alTarifOptionsByDate.list || [];
+    const idx = parseInt(pick.value, 10);
+    if (!Number.isFinite(idx) || idx < 0 || !opts[idx]) {
+        // Nichts gewählt — hidden Felder leeren
+        document.getElementById('alAllowanceType').value = '';
+        document.getElementById('alTarifSatzNr').value   = '';
+        document.getElementById('alMonthlyAmount').value = '0';
+        hint.innerHTML = '<span style="color:#94a3b8">Bitte einen Satz auswählen.</span>';
+        return;
+    }
+    const opt = opts[idx];
+    const amt = Number(opt.amount).toFixed(2);
+    document.getElementById('alAllowanceType').value = opt.allowanceType;
+    document.getElementById('alTarifSatzNr').value   = opt.tarifSatzNr == null ? '' : String(opt.tarifSatzNr);
+    document.getElementById('alMonthlyAmount').value = amt;
+
+    const info = _alTarifOptionsByDate.tarifInfo || {};
+    const gAb = info.tarifValidFrom ? formatDate(info.tarifValidFrom) : '–';
+    const gBis = info.tarifValidTo ? formatDate(info.tarifValidTo) : 'offen';
+    hint.innerHTML = `<span style="color:#16a34a">✓ <strong>${amt} CHF/Mt</strong></span> <span style="color:#64748b">· ${esc(opt.label)}, Tarif ${esc(info.kantonCode || '')} gültig ${gAb} – ${gBis}</span><br><span style="color:#94a3b8;font-size:10.5px">Der Lohnlauf holt den Betrag pro Periode aus dieser Systemtabelle — bei Tarif-Wechsel automatisch der neue Wert.</span>`;
 }
 
 function closeAllowanceModal() {
@@ -2392,11 +3789,16 @@ async function saveAllowance() {
     const validTo   = document.getElementById('alValidTo').value;
     const monthly   = parseFloat(document.getElementById('alMonthlyAmount').value);
     const allowanceType = document.getElementById('alAllowanceType').value || null;
+    const satzRaw   = document.getElementById('alTarifSatzNr').value;
+    const tarifSatzNr = satzRaw === '' ? null : parseInt(satzRaw, 10);
     const note      = document.getElementById('alNote').value.trim() || null;
 
     if (!validFrom)        { err.textContent = 'Gültig ab ist Pflicht.';        return; }
     if (!Number.isFinite(monthly) || monthly < 0) {
-        err.textContent = 'Monatsbetrag ungültig.'; return;
+        err.textContent = 'Bitte eine Zulage aus der Liste wählen.'; return;
+    }
+    if (!allowanceType) {
+        err.textContent = 'Bitte eine Zulage aus der Liste wählen.'; return;
     }
     if (validTo && validTo < validFrom) {
         err.textContent = 'Gültig bis darf nicht vor Gültig ab liegen.'; return;
@@ -2407,6 +3809,7 @@ async function saveAllowance() {
         validTo: validTo || null,
         monthlyAmount: monthly,
         allowanceType,
+        tarifSatzNr,
         note,
     };
 
@@ -2706,15 +4109,19 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
             }
 
             // Krank-/Unfall-Absenzen: direkter Sprung zum Arztzeugnis im
-            // Dokumente-Tab (Walter-Vorgabe 15.05.2026).
+            // Dokumente-Tab. Walter-Vorgabe 09.06.2026 (final): bleibt prominent
+            // mit Text „Doku" — das ist eine eigene Aktion (Sprung in den Doku-
+            // Tab), nicht „Edit/Delete dieser Zeile", deshalb NICHT ins ⋮-Menü.
             const docBtn = (a.absenceType === 'KRANK' || a.absenceType === 'UNFALL')
-                ? `<button class="btn-stamp-edit" title="Arztzeugnis im Dokumente-Tab öffnen"
-                           onclick="openAbsenceArztzeugnis()" style="color:#1d4ed8">
-                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                ? `<button title="Arztzeugnis im Dokumente-Tab öffnen"
+                           onclick="openAbsenceArztzeugnis()"
+                           style="background:#dbeafe;border:1px solid #93c5fd;cursor:pointer;color:#1d4ed8;padding:5px 10px;border-radius:6px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
+                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                          <polyline points="14 2 14 8 20 8"/>
                          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
                        </svg>
+                       <span>Doku</span>
                    </button>`
                 : '';
 
@@ -2722,10 +4129,17 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
             // wenn DateFrom ODER DateTo vor dem firstAllowedDate liegt.
             const firstAllowed = lockState && lockState.firstAllowedDate;
             const isLocked     = firstAllowed && (a.dateFrom < firstAllowed || a.dateTo < firstAllowed);
+            // Walter-Vorgabe 09.06.2026 (final): nur ⋮-Menü, kein extra Stift —
+            // Bearbeiten + Löschen leben im Menü.
             const actionsHtml  = isLocked
                 ? `<span title="Diese Absenz liegt in einer bereits verarbeiteten Lohnperiode und ist nicht mehr editierbar." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
-                : `<button class="btn-stamp-edit" onclick='openAbsenceModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>✎</button>
-                   <button class="btn-stamp-del"  onclick="deleteAbsence(${a.id})">✕</button>`;
+                : `<div class="dok-menu-wrap">
+                       <button class="dok-menu-btn" onclick="absToggleMenu(event, ${a.id})" title="Aktionen">⋮</button>
+                       <div class="dok-menu" id="absMenu-${a.id}">
+                           <button class="dok-menu-item" onclick='openAbsenceModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>Bearbeiten</button>
+                           <button class="dok-menu-item danger" onclick="deleteAbsence(${a.id})">Löschen</button>
+                       </div>
+                   </div>`;
 
             rows += `<tr>
                 <td><span class="abs-type-badge ${meta.color}">${typBadge}</span></td>
@@ -2744,11 +4158,9 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
     el.innerHTML = `
     ${sperrHtml}
     ${karenzHtml}
-    <div class="abs-toolbar">
-        <button class="btn-emp-add" onclick="openAbsenceModal(null)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Absenz erfassen
-        </button>
+    <!-- „Absenz erfassen" sitzt jetzt im Header (empTabActionBar) — Walter 01.06.2026 -->
+    <div class="abs-toolbar" style="display:none">
+        <button class="btn-emp-add" onclick="openAbsenceModal(null)">Absenz erfassen</button>
     </div>
     <table class="abs-table">
         <thead><tr>
@@ -2768,15 +4180,11 @@ function renderSperrfristPanel(info) {
     if (!info) return '';
 
     const wrap = (color, bg, border, title, body, extra = '') => `
-        <div style="background:${bg};border:1px solid ${border};border-radius:12px;padding:14px 18px;margin-bottom:14px">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-                <div style="flex:1;min-width:220px">
-                    <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.08em">Kündigungsschutz · Art. 336c OR</div>
-                    <div style="font-weight:600;font-size:14px;color:#0f172a;margin-top:3px">${title}</div>
-                    <div style="font-size:12px;color:#475569;margin-top:4px;line-height:1.5">${body}</div>
-                </div>
-                ${extra}
-            </div>
+        <div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:10px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13.5px">
+            <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">Kündigungsschutz · 336c OR</div>
+            <div style="font-weight:700;color:#0f172a;font-size:14px">${title}</div>
+            <div style="color:#475569;flex:1;min-width:220px">${body}</div>
+            ${extra}
         </div>`;
 
     const status = info.status;
@@ -2861,13 +4269,13 @@ function renderKarenzPanel(history) {
             ? `<span style="color:#b91c1c">Grenze am ${fmtDate(jInfo.grenzErreichtAm)}</span>`
             : `<span style="color:#64748b">nicht erreicht</span>`;
         const rows = j.krankheiten.map(k => `
-            <tr>
-                <td>${fmtDate(k.dateFrom)} – ${fmtDate(k.dateTo)}</td>
-                <td style="text-align:center">${k.tageImJahr}</td>
-                <td style="text-align:center">${Number(k.prozent).toFixed(0)}%</td>
-                <td style="text-align:right">${Number(k.karenztageInDiesemJahr).toFixed(2)}</td>
-                <td style="text-align:right;color:#64748b">${Number(k.kumuliertNach).toFixed(2)}</td>
-                <td style="color:#94a3b8;font-size:11px">${k.notes ?? ''}</td>
+            <tr style="line-height:1.2">
+                <td style="padding:2px 4px">${fmtDate(k.dateFrom)} – ${fmtDate(k.dateTo)}</td>
+                <td style="padding:2px 4px;text-align:center">${k.tageImJahr}</td>
+                <td style="padding:2px 4px;text-align:center">${Number(k.prozent).toFixed(0)}%</td>
+                <td style="padding:2px 4px;text-align:right">${Number(k.karenztageInDiesemJahr).toFixed(2)}</td>
+                <td style="padding:2px 4px;text-align:right;color:#64748b">${Number(k.kumuliertNach).toFixed(2)}</td>
+                <td style="padding:2px 4px;color:#94a3b8;font-size:11px">${k.notes ?? ''}</td>
             </tr>`).join('');
         return `
         <details style="margin-top:8px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc">
@@ -2878,12 +4286,12 @@ function renderKarenzPanel(history) {
             <div style="padding:0 14px 12px">
                 <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">
                     <thead><tr style="color:#64748b;text-align:left">
-                        <th style="padding:6px 4px">Zeitraum</th>
-                        <th style="padding:6px 4px;text-align:center">Tage</th>
-                        <th style="padding:6px 4px;text-align:center">%</th>
-                        <th style="padding:6px 4px;text-align:right">Karenztage</th>
-                        <th style="padding:6px 4px;text-align:right">Kumuliert</th>
-                        <th style="padding:6px 4px">Bemerkung</th>
+                        <th style="padding:2px 4px">Zeitraum</th>
+                        <th style="padding:2px 4px;text-align:center">Tage</th>
+                        <th style="padding:2px 4px;text-align:center">%</th>
+                        <th style="padding:2px 4px;text-align:right">Karenztage</th>
+                        <th style="padding:2px 4px;text-align:right">Kumuliert</th>
+                        <th style="padding:2px 4px">Bemerkung</th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
@@ -2892,47 +4300,43 @@ function renderKarenzPanel(history) {
     }).join('');
 
     const currentRows = current.krankheiten.map(k => `
-        <tr>
-            <td>${fmtDate(k.dateFrom)} – ${fmtDate(k.dateTo)}</td>
-            <td style="text-align:center">${k.tageImJahr}</td>
-            <td style="text-align:center">${Number(k.prozent).toFixed(0)}%</td>
-            <td style="text-align:right">${Number(k.karenztageInDiesemJahr).toFixed(2)}</td>
-            <td style="text-align:right;color:#64748b">${Number(k.kumuliertNach).toFixed(2)}</td>
+        <tr style="line-height:1.2">
+            <td style="padding:2px 4px">${fmtDate(k.dateFrom)} – ${fmtDate(k.dateTo)}</td>
+            <td style="padding:2px 4px;text-align:center">${k.tageImJahr}</td>
+            <td style="padding:2px 4px;text-align:center">${Number(k.prozent).toFixed(0)}%</td>
+            <td style="padding:2px 4px;text-align:right">${Number(k.karenztageInDiesemJahr).toFixed(2)}</td>
+            <td style="padding:2px 4px;text-align:right;color:#64748b">${Number(k.kumuliertNach).toFixed(2)}</td>
         </tr>`).join('');
 
     const currentTable = current.krankheiten.length > 0 ? `
-        <details style="margin-top:12px" open>
-            <summary style="cursor:pointer;font-size:12px;color:#475569">Krankheiten in diesem Karenzjahr (${current.krankheiten.length})</summary>
-            <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:6px">
+        <details style="margin-top:6px" open>
+            <summary style="cursor:pointer;font-size:11px;color:#475569">Krankheiten in diesem Karenzjahr (${current.krankheiten.length})</summary>
+            <table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:3px">
                 <thead><tr style="color:#64748b;text-align:left">
-                    <th style="padding:6px 4px">Zeitraum</th>
-                    <th style="padding:6px 4px;text-align:center">Tage</th>
-                    <th style="padding:6px 4px;text-align:center">%</th>
-                    <th style="padding:6px 4px;text-align:right">Karenztage</th>
-                    <th style="padding:6px 4px;text-align:right">Kumuliert</th>
+                    <th style="padding:2px 4px">Zeitraum</th>
+                    <th style="padding:2px 4px;text-align:center">Tage</th>
+                    <th style="padding:2px 4px;text-align:center">%</th>
+                    <th style="padding:2px 4px;text-align:right">Karenztage</th>
+                    <th style="padding:2px 4px;text-align:right">Kumuliert</th>
                 </tr></thead>
                 <tbody>${currentRows}</tbody>
             </table>
         </details>` : '';
 
     return `
-    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-            <div>
-                <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em">Krankheits-Karenz</div>
-                <div style="font-weight:600;font-size:14px;color:#0f172a;margin-top:3px">${fmtDate(curInfo.von)} – ${fmtDate(curInfo.bis)}</div>
-                <div style="font-size:12px;margin-top:4px">${grenzTxt}</div>
-            </div>
-            <div style="text-align:right">
-                <div style="font-size:22px;font-weight:700;color:${barColor}">${used.toFixed(2)}<span style="font-size:13px;color:#94a3b8;font-weight:500"> / ${max} Tage</span></div>
-                <div style="font-size:11px;color:#64748b;margin-top:2px">Noch ${remaining.toFixed(2)} Tage mit erhöhter Fortzahlung</div>
-            </div>
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 16px;margin-bottom:8px;font-size:13.5px">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">Krankheits-Karenz</div>
+            <div style="font-weight:700;color:#0f172a;white-space:nowrap;font-size:14px">${fmtDate(curInfo.von)} – ${fmtDate(curInfo.bis)}</div>
+            <div style="flex:1;min-width:220px;font-weight:600">${grenzTxt}</div>
+            <div style="font-weight:700;color:${barColor};white-space:nowrap;font-size:16px">${used.toFixed(2)} <span style="color:#94a3b8;font-weight:500;font-size:12px">/ ${max} Tage</span></div>
+            <div style="color:#64748b;white-space:nowrap;font-size:12px">Noch ${remaining.toFixed(2)} Tage erhöhte Fortzahlung</div>
         </div>
-        <div style="margin-top:10px;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden">
+        <div style="margin-top:8px;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden">
             <div style="width:${pct}%;height:100%;background:${barColor};transition:width 0.3s"></div>
         </div>
         ${currentTable}
-        ${older.length ? `<div style="margin-top:12px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em">Frühere Karenzjahre</div>${olderBlocks}` : ''}
+        ${older.length ? `<div style="margin-top:10px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em">Frühere Karenzjahre</div>${olderBlocks}` : ''}
     </div>`;
 }
 
@@ -3078,37 +4482,47 @@ async function renderAbsDayCheckboxes() {
     }
 
     // KRANK / UNFALL / SCHULUNG: Tage auswählen.
-    // Default-Vorauswahl: alle Tage im Bereich angekreuzt — ausser die
-    // Absenz umfasst eine komplette Mo–So-Woche, dann sind Sa + So dieser
-    // Woche NICHT vorausgewählt (typischer Fall bei Langzeit-Erfassung:
-    // User will meist nur Werktage als Arbeitstage zählen).
-    const daySet = new Set(days.map(d => localIso(d)));
-    const isFullWeekInRange = (d) => {
-        // Montag der Woche finden (getDay: 0=So, 1=Mo, ..., 6=Sa)
-        const dow = d.getDay();
-        const daysFromMonday = dow === 0 ? 6 : dow - 1;
-        const monday = new Date(d);
-        monday.setDate(d.getDate() - daysFromMonday);
-        for (let i = 0; i < 7; i++) {
-            const check = new Date(monday);
-            check.setDate(monday.getDate() + i);
-            if (!daySet.has(localIso(check))) return false;
-        }
-        return true;
-    };
+    // Walter-Vorgabe 28.05.2026: 7-Spalten-Wochenraster Mo-So. Default-
+    // Vorauswahl: Mo–Fr markiert, Sa+So NICHT markiert (typische 5-Tage-Woche).
+    // Walter-Vorgabe 30.05.2026: in der Gastro arbeiten viele auch am Wochenende
+    // — Sa+So gleichberechtigt klickbar (CSS) und Schnellauswahl-Buttons:
+    //   • "Mo–Fr Muster"        = Default (Sa+So frei)
+    //   • "5 gearbeitet / 2 frei" = ab Tag 1 der Periode: 5 markiert, 2 frei,
+    //     wiederholend — unabhängig vom Wochentag. Praktisch für Schichten mit
+    //     festem Rhythmus, der nicht Mo-Fr ist.
+    //   • "Alle Tage"           = jeder Tag markiert (7-Tage-Woche)
+    //   • "Keine"               = alle aus
+    let html = '<div class="abs-day-label">Welche Tage hätte der/die Mitarbeitende gearbeitet?</div>'
+             + '<div class="abs-day-quick">'
+             + '<button type="button" onclick="absDayPreset(\'mofr\')">Mo–Fr Muster</button>'
+             + '<button type="button" onclick="absDayPreset(\'5and2\')">5 gearbeitet / 2 frei</button>'
+             + '<button type="button" onclick="absDayPreset(\'all\')">Alle Tage</button>'
+             + '<button type="button" onclick="absDayPreset(\'none\')">Keine</button>'
+             + '</div>'
+             + '<div class="abs-day-grid-head">'
+             + '<div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>'
+             + '</div>'
+             + '<div class="abs-day-grid">';
 
-    let html = '<div class="abs-day-label">Welche Tage hätte der/die Mitarbeitende gearbeitet?</div><div class="abs-day-grid">';
+    // Versatz vorne: leere Zellen für die Tage vor dem ersten Datum,
+    // damit der erste Eintrag in der korrekten Wochentag-Spalte landet.
+    // getDay: 0=So, 1=Mo, ..., 6=Sa  →  Mo-Index: (dow+6) % 7
+    const firstDow = days[0].getDay();
+    const firstMondayOffset = (firstDow + 6) % 7;
+    for (let i = 0; i < firstMondayOffset; i++) {
+        html += '<div class="abs-day-item abs-day-empty"></div>';
+    }
+
     days.forEach(d => {
-        const iso     = localIso(d);   // timezone-sicher!
+        const iso     = localIso(d);
         const dow     = d.getDay();
         const weekday = dayNames[dow];
         const dateStr = d.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' });
         const isSaSo  = dow === 0 || dow === 6;
-        const defaultOff = isSaSo && isFullWeekInRange(d);
         const chk = preselect.length > 0
             ? (preselect.includes(iso) ? 'checked' : '')
-            : (defaultOff ? '' : 'checked');
-        html += `<label class="abs-day-item">
+            : (isSaSo ? '' : 'checked');
+        html += `<label class="abs-day-item${isSaSo ? ' abs-day-weekend' : ''}">
             <input type="checkbox" value="${iso}" ${chk} onchange="calcAbsHoursPreview()">
             <span class="abs-day-name">${weekday}</span>
             <span class="abs-day-date">${dateStr}</span>
@@ -3117,6 +4531,37 @@ async function renderAbsDayCheckboxes() {
     html += '</div>';
     box.innerHTML = html;
     calcAbsHoursPreview();
+}
+
+// Walter-Vorgabe 30.05.2026: Schnellauswahl-Muster für die Krank-/Unfall-
+// Tage-Auswahl. Sa+So sind in der Gastro normale Arbeitstage, daher braucht
+// es flexible Vorlagen.
+//   • mofr   = Mo–Fr markiert, Sa+So frei (Default für klassische 5-Tage-Woche)
+//   • 5and2  = ab erstem Tag: 5 gearbeitet / 2 frei wiederholend (unabhängig
+//              vom Wochentag — passend für Schichtbetriebe mit festem Rhythmus)
+//   • all    = alle Tage markiert (7-Tage-Woche)
+//   • none   = alle Tage abgewählt (User klickt manuell)
+function absDayPreset(mode) {
+    const boxes = document.querySelectorAll('#absDayCheckboxes input[type=checkbox]');
+    let idx = 0;  // läuft nur über echte Tage (nicht über die abs-day-empty-Spacer)
+    boxes.forEach(cb => {
+        const iso = cb.value;
+        if (!iso) return;
+        const d = new Date(iso + 'T00:00:00');
+        const dow = d.getDay();  // 0=So, 1=Mo, ..., 6=Sa
+        if (mode === 'mofr') {
+            cb.checked = (dow >= 1 && dow <= 5);
+        } else if (mode === '5and2') {
+            // Position im 7-Tage-Zyklus: Tage 1-5 markiert, Tage 6-7 frei
+            cb.checked = (idx % 7) < 5;
+        } else if (mode === 'all') {
+            cb.checked = true;
+        } else if (mode === 'none') {
+            cb.checked = false;
+        }
+        idx++;
+    });
+    if (typeof calcAbsHoursPreview === 'function') calcAbsHoursPreview();
 }
 
 function getAbsWorkedDays() {
@@ -3218,12 +4663,15 @@ async function calcAbsHoursPreview() {
     //     UTP       → Betrieb (Fallback; Gutschrift bei UTP ist selten)
     const betriebWeekly = Number(selectedCompanyProfile?.normalWeeklyHours ?? 42);
     let weeklyH = betriebWeekly;
-    if (basisStunden === 'VERTRAG') {
-        if (empModel === 'MTP') {
-            weeklyH = Number(selectedEmployee?.guaranteedHoursPerWeek
-                          ?? selectedEmployee?.weeklyHours
-                          ?? betriebWeekly);
-        } else if (empModel === 'FIX' || empModel === 'FIX-M') {
+    // Walter-Vorgabe 30.05.2026 (override): bei MTP IMMER die garantierten
+    // Wochenstunden als Basis — unabhängig vom AbsenzTyp-Setting basisStunden.
+    // Stundenlöhner-Modell: nur die Garantie ist der Maßstab, nicht der Betrieb.
+    if (empModel === 'MTP') {
+        weeklyH = Number(selectedEmployee?.guaranteedHoursPerWeek
+                      ?? selectedEmployee?.weeklyHours
+                      ?? betriebWeekly);
+    } else if (basisStunden === 'VERTRAG') {
+        if (empModel === 'FIX' || empModel === 'FIX-M') {
             // NUR bei FERIEN/FEIERTAG pensum-adjustiert, sonst Betrieb.
             if (type === 'FERIEN' || type === 'FEIERTAG') {
                 const pct = Number(selectedEmployee?.employmentPercentage ?? 100);
@@ -3356,7 +4804,33 @@ async function saveAbsence() {
     }
 }
 
+// Walter-Vorgabe 09.06.2026: ⋮-Menü-Toggle für alle MA-Listen (Absenz, Permit,
+// QST, …). Generischer Helper mit ID-Prefix, damit Menüs aus verschiedenen
+// Tabellen sich nicht in die Quere kommen. Klick-Ausserhalb schließt alle.
+function rowMenuToggle(event, prefix, id) {
+    event.stopPropagation();
+    const menu = document.getElementById(`${prefix}Menu-${id}`);
+    const wasOpen = menu?.classList.contains('show');
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    if (!wasOpen && menu) {
+        menu.classList.add('show');
+        setTimeout(() => {
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+            }, { once: true });
+        }, 10);
+    }
+}
+function absToggleMenu(event, id)   { rowMenuToggle(event, 'abs',    id); }
+function permitToggleMenu(event, id){ rowMenuToggle(event, 'permit', id); }
+function qstToggleMenu(event, id)   { rowMenuToggle(event, 'qst',    id); }
+function bankToggleMenu(event, id)  { rowMenuToggle(event, 'bank',   id); }
+function famToggleMenu(event, id)   { rowMenuToggle(event, 'fam',    id); }
+function allowToggleMenu(event, id) { rowMenuToggle(event, 'allow',  id); }
+
 async function deleteAbsence(id) {
+    // ⋮-Menü schließen bevor der Confirm-Dialog kommt
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
     if (!confirm('Absenz wirklich löschen?')) return;
     try {
         const res = await fetch(`/api/absences/${id}`, { method: 'DELETE', headers: ah() });
@@ -3569,61 +5043,91 @@ async function loadLohnAssignmentsTab(employeeId) {
 }
 
 function renderLohnAssignmentsList(el, list) {
+    // Walter-Vorgabe 27.05.2026: MA-Maske-Stil — pro Eintrag ein grauer
+    // Card-Container mit weissen Wert-Boxen (analog Familie-Tab).
     const fmt = v => Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const today = new Date().toISOString().slice(0, 10);
 
-    let rows = '';
-    if (!list.length) {
-        rows = `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px">Keine Lohnabtretungen erfasst</td></tr>`;
-    } else {
-        list.forEach(a => {
-            const activeNow = a.validFrom <= today && (!a.validTo || a.validTo >= today);
-            const fertig    = a.zielbetrag > 0 && a.bereitsAbgezogen >= a.zielbetrag;
-            let statusIcon;
-            if (fertig)         statusIcon = '<span title="Zielbetrag erreicht" style="color:#0891b2">✓</span>';
-            else if (activeNow) statusIcon = '<span title="Aktiv" style="color:#16a34a">●</span>';
-            else                statusIcon = '<span title="Nicht aktiv" style="color:#cbd5e1">○</span>';
-
-            const fortschritt = a.zielbetrag > 0
-                ? `<div style="font-size:11px;color:#64748b">Bisher ${fmt(a.bereitsAbgezogen)} von ${fmt(a.zielbetrag)} CHF</div>`
-                : `<div style="font-size:11px;color:#64748b">Bisher ${fmt(a.bereitsAbgezogen)} CHF · unbegrenzt</div>`;
-
-            rows += `<tr>
-                <td>${statusIcon} <span style="font-weight:500">${a.bezeichnung}</span>
-                    <div style="font-size:11px;color:#64748b">${a.behoerdeName ?? '—'}</div></td>
-                <td style="text-align:right;font-family:monospace">${fmt(a.freigrenze)}</td>
-                <td style="text-align:right;font-family:monospace">${a.zielbetrag > 0 ? fmt(a.zielbetrag) : '<span style="color:#94a3b8">offen</span>'}
-                    ${fortschritt}</td>
-                <td style="white-space:nowrap">${fmtDate(a.validFrom)}</td>
-                <td style="white-space:nowrap;color:${a.validTo ? '#334155' : '#94a3b8'}">${a.validTo ? fmtDate(a.validTo) : 'Widerruf'}</td>
-                <td style="color:#64748b;font-size:11px">${a.referenzAmt ? `<div>${a.referenzAmt}</div>` : ''}${a.zahlungsReferenz ? `<div style="font-family:monospace">${a.zahlungsReferenz}</div>` : ''}${a.bemerkung ?? ''}</td>
-                <td style="text-align:right;white-space:nowrap">
-                    <button class="btn-stamp-edit" onclick='openLohnAssignmentModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>✎</button>
-                    <button class="btn-stamp-del"  onclick="deleteLohnAssignment(${a.id})">✕</button>
-                </td>
-            </tr>`;
-        });
-    }
-
-    el.innerHTML = `
-    <div class="abs-toolbar">
+    const toolbar = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
         <button class="btn-emp-add" onclick="openLohnAssignmentModal(null)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Lohnabtretung erfassen
         </button>
-    </div>
-    <table class="abs-table">
-        <thead><tr>
-            <th>Bezeichnung / Behörde</th>
-            <th style="text-align:right">Freigrenze CHF</th>
-            <th style="text-align:right">Zielbetrag / Fortschritt</th>
-            <th>Ab</th>
-            <th>Bis</th>
-            <th>Referenz / Bemerkung</th>
-            <th></th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-    </table>`;
+    </div>`;
+
+    if (!list.length) {
+        el.innerHTML = toolbar + `
+        <div style="padding:14px;background:#fff;border:1px dashed #cbd5e1;border-radius:4px;color:#94a3b8;font-style:italic;font-size:12.5px;text-align:center">
+            Keine Lohnabtretungen erfasst.
+        </div>`;
+        return;
+    }
+
+    let cards = '';
+    list.forEach(a => {
+        const activeNow = a.validFrom <= today && (!a.validTo || a.validTo >= today);
+        const fertig    = a.zielbetrag > 0 && a.bereitsAbgezogen >= a.zielbetrag;
+        let statusPill;
+        if (fertig)         statusPill = '<span title="Zielbetrag erreicht" style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:3px;background:#cffafe;color:#0e7490">✓ erledigt</span>';
+        else if (activeNow) statusPill = '<span title="Aktiv" style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:3px;background:#dcfce7;color:#166534">● aktiv</span>';
+        else                statusPill = '<span title="Nicht aktiv" style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:3px;background:#f1f5f9;color:#64748b">○ inaktiv</span>';
+
+        const zielbetragVal = a.zielbetrag > 0 ? fmt(a.zielbetrag) + ' CHF' : '<span style="color:#16a34a;font-weight:600">offen</span>';
+        const fortschritt = a.zielbetrag > 0
+            ? `Bisher ${fmt(a.bereitsAbgezogen)} von ${fmt(a.zielbetrag)} CHF`
+            : `Bisher ${fmt(a.bereitsAbgezogen)} CHF · unbegrenzt`;
+        const bisStr = a.validTo
+            ? formatDate(a.validTo)
+            : '<span style="color:#16a34a;font-weight:600">Widerruf</span>';
+        const refParts = [];
+        if (a.referenzAmt)       refParts.push(esc(a.referenzAmt));
+        if (a.zahlungsReferenz)  refParts.push('<span style="font-family:ui-monospace,Menlo,Consolas,monospace">' + esc(a.zahlungsReferenz) + '</span>');
+        if (a.bemerkung)         refParts.push(esc(a.bemerkung));
+        const refHtml = refParts.length ? refParts.join(' · ') : '<span style="color:#94a3b8">–</span>';
+        const aJson = JSON.stringify(a).replace(/'/g,"&#39;");
+
+        cards += `
+        <div style="background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px;margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                ${statusPill}
+                <span style="font-weight:600;color:#0f172a;font-size:13.5px;flex:1">${esc(a.bezeichnung || 'Lohnpfändung')}</span>
+                <span style="font-size:12px;color:#64748b">${esc(a.behoerdeName ?? '—')}</span>
+                <button onclick='openLohnAssignmentModal(${aJson})' title="Bearbeiten"
+                        style="background:#fff;border:1px solid #94a3b8;padding:3px 9px;border-radius:3px;font-size:11px;cursor:pointer">✎</button>
+                <button onclick="deleteLohnAssignment(${a.id})" title="Löschen"
+                        style="background:#fff;border:1px solid #fca5a5;color:#dc2626;padding:3px 9px;border-radius:3px;font-size:11px;cursor:pointer">✕</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px">
+                <div class="emp-field">
+                    <div class="emp-field-label">Freigrenze (CHF)</div>
+                    <div class="emp-field-value" style="font-family:ui-monospace,Menlo,Consolas,monospace;justify-content:flex-end">${fmt(a.freigrenze)}</div>
+                </div>
+                <div class="emp-field">
+                    <div class="emp-field-label">Zielbetrag</div>
+                    <div class="emp-field-value" style="font-family:ui-monospace,Menlo,Consolas,monospace;justify-content:flex-end">${zielbetragVal}</div>
+                </div>
+                <div class="emp-field">
+                    <div class="emp-field-label">Ab</div>
+                    <div class="emp-field-value">${formatDate(a.validFrom)}</div>
+                </div>
+                <div class="emp-field">
+                    <div class="emp-field-label">Bis</div>
+                    <div class="emp-field-value">${bisStr}</div>
+                </div>
+                <div class="emp-field" style="grid-column:span 2">
+                    <div class="emp-field-label">Fortschritt</div>
+                    <div class="emp-field-value">${fortschritt}</div>
+                </div>
+                <div class="emp-field" style="grid-column:span 2">
+                    <div class="emp-field-label">Referenz / Bemerkung</div>
+                    <div class="emp-field-value">${refHtml}</div>
+                </div>
+            </div>
+        </div>`;
+    });
+
+    el.innerHTML = toolbar + cards;
 }
 
 function openLohnAssignmentModal(existing) {
@@ -4161,6 +5665,38 @@ const stempelFmtDate = (iso) => {
 };
 const stempelFmtHours = (h) => Number(h || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// ── ISO-Woche (Mo–So) ───────────────────────────────────────────────────────
+// Montag der Woche als stabiler Gruppen-Schlüssel ("yyyy-mm-dd").
+const stempelWeekMonday = (iso) => {
+    const m = /(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+    if (!m) return null;
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    const dow = d.getUTCDay();                 // 0=So … 6=Sa
+    d.setUTCDate(d.getUTCDate() + (dow === 0 ? -6 : 1 - dow)); // → Montag
+    return d.toISOString().slice(0, 10);
+};
+// Sonntag der Woche (Mo–So) als "yyyy-mm-dd".
+const stempelWeekSunday = (iso) => {
+    const mon = stempelWeekMonday(iso);
+    if (!mon) return null;
+    const m = /(\d{4})-(\d{2})-(\d{2})/.exec(mon);
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    d.setUTCDate(d.getUTCDate() + 6);
+    return d.toISOString().slice(0, 10);
+};
+// ISO-Kalenderwoche (1–53).
+const stempelIsoWeek = (iso) => {
+    const m = /(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+    if (!m) return null;
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    const day = (d.getUTCDay() + 6) % 7;       // Mo=0 … So=6
+    d.setUTCDate(d.getUTCDate() - day + 3);     // Donnerstag dieser Woche
+    const firstThu = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+    const firstDay = (firstThu.getUTCDay() + 6) % 7;
+    firstThu.setUTCDate(firstThu.getUTCDate() - firstDay + 3);
+    return 1 + Math.round((d - firstThu) / (7 * 24 * 3600 * 1000));
+};
+
 // Datum + HH:MM → ISO ohne Z (Backend speichert 1:1 als Lokalzeit)
 function stempelBuildIso(dateStr, timeStr) {
     if (!dateStr || !timeStr) return null;
@@ -4176,20 +5712,31 @@ async function stempelLadeEintraege(employeeId) {
     if (!listEl || !el) return;
     listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>`;
 
-    // URL bauen: Perioden-Modus (dateFrom/dateTo) oder Kalendermonat (year/month)
-    let url, labelHint;
+    // URL bauen. Wir laden IMMER per Datumsbereich — und zwar ERWEITERT um die
+    // vollen ISO-Wochen an den Periodenrändern (Mo der ersten Woche bis So der
+    // letzten Woche). Grund: Wochentotale (Mo–So) müssen die ganze Woche
+    // umfassen und das Total NUR beim echten letzten Eintrag der Woche zeigen —
+    // auch wenn eine Woche über die Monatsgrenze läuft (Walter-Vorgabe 24.05.2026).
+    // Angezeigt werden danach nur die Zeilen INNERHALB der Periode [pFrom..pTo].
+    let pFrom, pTo, labelHint;
     if (el._stempelPeriodeId) {
         const periode = (el._stempelPerioden || []).find(p => p.id === el._stempelPeriodeId);
         if (!periode) {
             listEl.innerHTML = `<div style="padding:20px;color:#dc2626;font-size:13px">Periode nicht gefunden.</div>`;
             return;
         }
-        url = `/api/employees/${employeeId}/timeentries?dateFrom=${periode.periodFrom}&dateTo=${periode.periodTo}`;
+        pFrom = (periode.periodFrom || '').slice(0, 10);
+        pTo   = (periode.periodTo   || '').slice(0, 10);
         labelHint = `Lohnperiode ${periode.label || ''} (${stempelFmtDateShort(periode.periodFrom)}–${stempelFmtDateShort(periode.periodTo)})`;
     } else {
-        url = `/api/employees/${employeeId}/timeentries?year=${el._stempelYear}&month=${el._stempelMonth}`;
-        labelHint = `${MONATSNAMEN_DE[el._stempelMonth-1]} ${el._stempelYear}`;
+        const y = el._stempelYear, mo = el._stempelMonth;
+        pFrom = `${y}-${String(mo).padStart(2,'0')}-01`;
+        pTo   = new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10); // letzter Tag des Monats
+        labelHint = `${MONATSNAMEN_DE[mo-1]} ${y}`;
     }
+    const extFrom = stempelWeekMonday(pFrom) || pFrom;
+    const extTo   = stempelWeekSunday(pTo)   || pTo;
+    const url = `/api/employees/${employeeId}/timeentries?dateFrom=${extFrom}&dateTo=${extTo}`;
 
     try {
         // Lohnlauf-Sperre parallel zur Stempel-Liste laden — Buttons werden
@@ -4210,7 +5757,13 @@ async function stempelLadeEintraege(employeeId) {
             listEl.innerHTML = `<div style="padding:20px;color:#dc2626;font-size:13px">Fehler ${res.status}</div>`;
             return;
         }
-        const rows = await res.json();
+        const allRows = await res.json();
+        // Angezeigt werden nur Einträge INNERHALB der Periode; die Rand-Wochen
+        // (aus den Nachbarmonaten) dienen nur der korrekten Wochentotal-Bildung.
+        const rows = allRows.filter(r => {
+            const d = (r.entryDate || '').slice(0, 10);
+            return d >= pFrom && d <= pTo;
+        });
         _stempelRowsCache = rows;
 
         if (countEl) {
@@ -4219,7 +5772,7 @@ async function stempelLadeEintraege(employeeId) {
                 : `${rows.length} Eintrag${rows.length === 1 ? '' : 'e'} · ${labelHint}`;
         }
 
-        stempelRenderTable(rows, employeeId, lockState);
+        stempelRenderTable(rows, employeeId, lockState, allRows, pFrom, pTo);
 
         // Wenn leer: Shortcut-Buttons zu Monaten mit Einträgen nachladen
         if (rows.length === 0) stempelLadeQuickNav(employeeId);
@@ -4280,22 +5833,68 @@ function stempelJumpTo(year, month) {
     stempelChangePeriod();
 }
 
-function stempelRenderTable(rows, employeeId, lockState = null) {
+function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, pFrom = null, pTo = null) {
     const listEl = document.getElementById('stempelListe');
     if (!listEl) return;
 
-    // Summen
+    // allRows = volle ISO-Wochen inkl. Nachbarmonats-Rändern (für Wochentotale).
+    // rows    = nur die Periode (was angezeigt wird). Fallback: rows = allRows.
+    const fullRows = (allRows && allRows.length >= 0) ? allRows : rows;
+
+    // Aufsteigend nach Datum sortieren (für korrekte Mo–So-Gruppierung).
+    const sortAsc = (a, b) =>
+        (a.entryDate || '').localeCompare(b.entryDate || '') ||
+        (a.timeIn    || '').localeCompare(b.timeIn    || '');
+    const sorted   = [...rows].sort(sortAsc);       // Anzeige (nur Periode)
+    const sortedAll = [...fullRows].sort(sortAsc);  // für Wochentotale (volle Wochen)
+
+    // Monats-Summen (nur Periode)
     let sumH = 0, sumN = 0;
-    rows.forEach(r => {
+    sorted.forEach(r => {
         sumH += Number(r.totalHours ?? r.durationHours ?? 0);
         sumN += Number(r.nightHours ?? 0);
     });
 
-    const esc = (s) => s == null ? '' : String(s).replace(/</g,'&lt;');
-    const firstAllowed = lockState && lockState.firstAllowedDate;
+    // Wochentotal (Mo–So) je Woche aus den VOLLEN Wochen aufsummieren; zugleich
+    // den ECHTEN letzten Eintrag jeder Woche merken (auch über Monatsgrenzen).
+    const weekSum = {}, lastIdOfWeek = {};
+    sortedAll.forEach(r => {
+        const wk = stempelWeekMonday(r.entryDate);
+        if (!wk) return;
+        weekSum[wk] = (weekSum[wk] || 0) + Number(r.totalHours ?? r.durationHours ?? 0);
+        lastIdOfWeek[wk] = r.id;   // sortiert aufsteigend ⇒ am Ende = letzter Eintrag der Woche
+    });
 
-    const trs = rows.map(r => {
+    // Max. Stunden/Woche der aktuell gewählten Filiale (Warngrenze).
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : null;
+    const branch = (typeof allBranches !== 'undefined' ? allBranches : []).find(b => b.id === cpId);
+    const maxWeekly = (branch && branch.maxWeeklyHours != null && branch.maxWeeklyHours !== '')
+        ? Number(branch.maxWeeklyHours) : null;
+
+    const esc = (s) => s == null ? '' : String(s).replace(/</g,'&lt;');
+
+    const trs = sorted.map((r, i) => {
         const wasEdited = !!r.editedBy;
+
+        // Wochentotal NUR beim echten letzten Eintrag der Woche zeigen (über alle
+        // geladenen Wochen, inkl. Nachbarmonate). Läuft die Woche in den nächsten
+        // Monat und hat dort Einträge, fällt das Total hier weg (es erscheint dann
+        // dort); hat der nächste Monat keine Einträge dieser Woche, ist der letzte
+        // Eintrag hier (z.B. Fr) und das Total wird hier gezeigt.
+        const wk = stempelWeekMonday(r.entryDate);
+        const isLastOfWeek = wk && lastIdOfWeek[wk] === r.id;
+
+        // Wochentotal-Badge: KW schwach/grau, das Total fett (rot wenn über Max).
+        // Etwas nach links gerückt (margin-right), damit es besser lesbar ist.
+        let weekBadge = '';
+        if (isLastOfWeek) {
+            const wt   = weekSum[wk] || 0;
+            const over = maxWeekly != null && wt > maxWeekly + 1e-9;
+            const kw   = stempelIsoWeek(r.entryDate);
+            const kwLabel  = `<span style="font-weight:400;color:#94a3b8;margin-right:16px">∑ KW${kw}</span>`;
+            const hrsLabel = `<span style="font-weight:700;${over ? 'color:#dc2626' : 'color:#0f172a'}">${stempelFmtHours(wt)} h${over ? ` ⚠ &gt; ${stempelFmtHours(maxWeekly)}` : ''}</span>`;
+            weekBadge = `<span style="white-space:nowrap;margin-right:28px" title="Wochentotal Mo–So (gestempelt)${maxWeekly != null ? ' · Max ' + stempelFmtHours(maxWeekly) + ' h' : ''}">${kwLabel}${hrsLabel}</span>`;
+        }
 
         // Korrekturzeile (oben): geänderte Werte in Rot, Kommentar ergänzt um "geändert am X von Y"
         const timeColor = wasEdited ? 'color:#dc2626;font-weight:600' : '';
@@ -4303,37 +5902,46 @@ function stempelRenderTable(rows, employeeId, lockState = null) {
             ? `${esc(r.comment || '')}${r.comment ? ' · ' : ''}<span style="color:#64748b">geändert ${new Date(r.editedAt).toLocaleDateString('de-CH')} von ${esc(r.editedBy)}</span>`
             : esc(r.comment);
 
+        // Kommentar-Zelle: Kommentar links, Wochentotal rechts (nur letzter Wochen-Eintrag).
+        const kommentarCell = weekBadge
+            ? `<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><span>${korrekturKommentar}</span>${weekBadge}</div>`
+            : korrekturKommentar;
+
+        // Wochen-Trennlinie unter dem letzten Eintrag der Woche.
+        const sep = isLastOfWeek && !wasEdited ? ';border-bottom:2px solid #cbd5e1' : '';
+
         // Stempelzeiten sind read-only (Walter-Vorgabe 17.05.2026): keine
         // Edit-/Löschen-Buttons mehr — easy@work ist die Quelle der Wahrheit.
 
         const mainRow = `
-            <tr style="border-top:1px solid #f1f5f9" data-row-id="${r.id}">
-                <td style="padding:8px 10px;font-size:12px;color:#475569;vertical-align:top">${stempelFmtDate(r.entryDate)}</td>
-                <td style="padding:8px 10px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor}">${stempelFmtTime(r.timeIn)}</td>
-                <td style="padding:8px 10px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor}">${stempelFmtTime(r.timeOut)}</td>
-                <td style="padding:8px 10px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top">${stempelFmtHours(r.durationHours)}</td>
-                <td style="padding:8px 10px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;color:${Number(r.nightHours||0)>0?'#1d4ed8':'#94a3b8'}">${stempelFmtHours(r.nightHours)}</td>
-                <td style="padding:8px 10px;font-size:12px;color:#64748b;vertical-align:top">${korrekturKommentar}</td>
-                <td style="padding:8px 10px;font-size:11px;color:#94a3b8;vertical-align:top">${r.source || ''}</td>
+            <tr style="border-top:1px solid #f1f5f9${sep}" data-row-id="${r.id}">
+                <td style="padding:4px 8px;font-size:12px;color:#475569;vertical-align:top;white-space:nowrap">${stempelFmtDate(r.entryDate)}</td>
+                <td style="padding:4px 8px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor}">${stempelFmtTime(r.timeIn)}</td>
+                <td style="padding:4px 8px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor}">${stempelFmtTime(r.timeOut)}</td>
+                <td style="padding:4px 8px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top">${stempelFmtHours(r.durationHours)}</td>
+                <td style="padding:4px 8px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;color:${Number(r.nightHours||0)>0?'#1d4ed8':'#94a3b8'}">${stempelFmtHours(r.nightHours)}</td>
+                <td style="padding:4px 8px;font-size:11.5px;color:#64748b;vertical-align:top">${kommentarCell}</td>
+                <td style="padding:4px 8px;font-size:11px;color:#94a3b8;vertical-align:top">${r.source || ''}</td>
             </tr>`;
 
         if (!wasEdited) return mainRow;
 
         // Original-Zeile direkt darunter, braun hinterlegt (Pfeil ↲ zur Korrektur zeigt)
+        const origSep = isLastOfWeek ? ';border-bottom:2px solid #cbd5e1' : '';
         const origRow = `
-            <tr style="background:#fef3c7;border-top:1px dashed #fde68a">
-                <td style="padding:4px 10px;font-size:11px;color:#92400e;vertical-align:top;padding-left:24px">↳ Original</td>
-                <td style="padding:4px 10px;font-size:11px;font-family:monospace;color:#92400e;vertical-align:top">${stempelFmtTime(r.originalTimeIn)}</td>
-                <td style="padding:4px 10px;font-size:11px;font-family:monospace;color:#92400e;vertical-align:top">${stempelFmtTime(r.originalTimeOut)}</td>
+            <tr style="background:#fef3c7;border-top:1px dashed #fde68a${origSep}">
+                <td style="padding:3px 8px;font-size:11px;color:#92400e;vertical-align:top;padding-left:20px">↳ Original</td>
+                <td style="padding:3px 8px;font-size:11px;font-family:monospace;color:#92400e;vertical-align:top">${stempelFmtTime(r.originalTimeIn)}</td>
+                <td style="padding:3px 8px;font-size:11px;font-family:monospace;color:#92400e;vertical-align:top">${stempelFmtTime(r.originalTimeOut)}</td>
                 <td colspan="2"></td>
-                <td style="padding:4px 10px;font-size:11px;color:#92400e;vertical-align:top;font-style:italic">${esc(r.originalComment || '')}</td>
-                <td style="padding:4px 10px;font-size:10px;color:#b45309;vertical-align:top">import</td>
+                <td style="padding:3px 8px;font-size:11px;color:#92400e;vertical-align:top;font-style:italic">${esc(r.originalComment || '')}</td>
+                <td style="padding:3px 8px;font-size:10px;color:#b45309;vertical-align:top">import</td>
             </tr>`;
 
         return mainRow + origRow;
     }).join('');
 
-    const empty = rows.length === 0
+    const empty = sorted.length === 0
         ? `<tr><td colspan="7" style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">
             Keine Einträge in dieser Periode.
             <div id="stempelQuickNav" style="margin-top:12px"></div>
@@ -4341,26 +5949,28 @@ function stempelRenderTable(rows, employeeId, lockState = null) {
         </td></tr>`
         : '';
 
+    const th = 'padding:5px 8px;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3';
+    const ft = 'padding:6px 8px;font-weight:700;background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3';
     listEl.innerHTML = `
         <table style="width:100%;border-collapse:collapse;background:#fff">
             <thead>
                 <tr style="background:#f8fafc">
-                    <th style="padding:8px 10px;text-align:left;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">DATUM</th>
-                    <th style="padding:8px 10px;text-align:left;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">IN</th>
-                    <th style="padding:8px 10px;text-align:left;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">OUT</th>
-                    <th style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">DAUER (h)</th>
-                    <th style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">NACHT (h)</th>
-                    <th style="padding:8px 10px;text-align:left;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">KOMMENTAR</th>
-                    <th style="padding:8px 10px;text-align:left;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3">QUELLE</th>
+                    <th style="${th};text-align:left">DATUM</th>
+                    <th style="${th};text-align:left">IN</th>
+                    <th style="${th};text-align:left">OUT</th>
+                    <th style="${th};text-align:right">DAUER (h)</th>
+                    <th style="${th};text-align:right">NACHT (h)</th>
+                    <th style="${th};text-align:left">KOMMENTAR / WOCHE</th>
+                    <th style="${th};text-align:left">QUELLE</th>
                 </tr>
             </thead>
             <tbody>${trs}${empty}</tbody>
-            ${rows.length > 0 ? `<tfoot>
+            ${sorted.length > 0 ? `<tfoot>
                 <tr>
-                    <td colspan="3" style="padding:10px;font-weight:700;font-size:12px;color:#1d4ed8;background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3">Summe</td>
-                    <td style="padding:10px;text-align:right;font-family:monospace;font-weight:700;font-size:13px;color:#1d4ed8;background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3">${stempelFmtHours(sumH)}</td>
-                    <td style="padding:10px;text-align:right;font-family:monospace;font-weight:700;font-size:13px;color:#1d4ed8;background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3">${stempelFmtHours(sumN)}</td>
-                    <td colspan="2" style="background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3"></td>
+                    <td colspan="3" style="${ft};font-size:12px;color:#1d4ed8">Summe</td>
+                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;color:#1d4ed8">${stempelFmtHours(sumH)}</td>
+                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;color:#1d4ed8">${stempelFmtHours(sumN)}</td>
+                    <td colspan="2" style="${ft}"></td>
                 </tr>
             </tfoot>` : ''}
         </table>`;
@@ -5044,8 +6654,13 @@ function renderBankAccountsList(el, list) {
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">
                 ${b.inLohnVerwendet
                     ? `<span title="Diese Bankverbindung wurde bereits in einem Lohnlauf verwendet und ist nicht mehr editierbar. Für Änderungen: '+ Neue Bankverbindung' oben rechts." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
-                    : `<button class="btn-stamp-edit" onclick='openBankAccountModal(${JSON.stringify(b).replace(/'/g,"&#39;")})'>✎</button>
-                       <button class="btn-stamp-del"  onclick="deleteBankAccount(${b.id})">✕</button>`}
+                    : `<div class="dok-menu-wrap" style="display:inline-block">
+                        <button class="dok-menu-btn" onclick="bankToggleMenu(event, ${b.id})" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="bankMenu-${b.id}">
+                            <button class="dok-menu-item" onclick='openBankAccountModal(${JSON.stringify(b).replace(/'/g,"&#39;")})'>Bearbeiten</button>
+                            <button class="dok-menu-item danger" onclick="deleteBankAccount(${b.id})">Löschen</button>
+                        </div>
+                       </div>`}
             </td>
         </tr>`;
     }).join('');
@@ -5476,8 +7091,8 @@ function openEmployeeAddressModal(existing) {
                 ${eField(_t('addr.field.street','Strasse'),  `<input id="empAddr-street"  class="ef-input" value="${esc(a.street)}">`)}
                 ${eField(_t('addr.field.street2','Strasse 2'), `<input id="empAddr-street2" class="ef-input" value="${esc(a.street2)}">`)}
                 ${eField(_t('addr.field.poBox','Postfach'),  `<input id="empAddr-poBox"   class="ef-input" value="${esc(a.poBox)}">`)}
-                ${eField(_t('addr.field.zipCode','PLZ'),     `<input id="empAddr-zip" class="ef-input" value="${esc(a.zipCode)}" inputmode="numeric" maxlength="4" onblur="plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')" onkeyup="if(this.value.length===4)plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')">`)}
-                ${eField(_t('addr.field.city','Ort'),        `<input id="empAddr-city" class="ef-input" value="${esc(a.city)}">`)}
+                ${eField(_t('addr.field.zipCode','PLZ'),     `<input id="empAddr-zip" class="ef-input" value="${esc(a.zipCode)}" inputmode="numeric" maxlength="4" oninput="validateZip(this)" onblur="plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')" onkeyup="if(this.value.length===4)plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')">`)}
+                ${eField(_t('addr.field.city','Ort'),        `<input id="empAddr-city" class="ef-input" value="${esc(a.city)}" oninput="validateCity(this)">`)}
                 ${eField('BFS-Nr.',                          `<input id="empAddr-bfs"  class="ef-input" value="${esc(a.bfsNumber)}">`)}
                 ${eField(_t('addr.field.canton','Kanton'),   renderKantonSelect('empAddr-canton', a.canton))}
                 ${eField(_t('addr.field.country','Land'),    `<input id="empAddr-country" class="ef-input" value="${esc(a.country ?? 'CH')}">`)}
@@ -5486,9 +7101,9 @@ function openEmployeeAddressModal(existing) {
 
             <div class="emp-section-title">${_t('ma.section.contact','Kontakt')}</div>
             <div class="emp-field-grid">
-                ${eField(_t('ma.field.phone','Telefon'),     `<input id="empAddr-phone"  class="ef-input" type="tel" value="${esc(a.phone)}" placeholder="+41 …">`)}
-                ${eField(_t('ma.field.phone','Telefon') + ' 2', `<input id="empAddr-phone2" class="ef-input" type="tel" value="${esc(a.phone2)}">`)}
-                ${eField(_t('ma.field.email','E-Mail'),      `<input id="empAddr-email"  class="ef-input" type="email" value="${esc(a.email)}">`)}
+                ${eField(_t('ma.field.phone','Telefon'),     `<input id="empAddr-phone"  class="ef-input" type="tel" value="${esc(a.phone)}" placeholder="+41 79 409 43 33" oninput="validatePhone(this)" onblur="validatePhoneBlur(this)">`)}
+                ${eField(_t('ma.field.phone','Telefon') + ' 2', `<input id="empAddr-phone2" class="ef-input" type="tel" value="${esc(a.phone2)}" oninput="validatePhone(this)" onblur="validatePhoneBlur(this)">`)}
+                ${eField(_t('ma.field.email','E-Mail'),      `<input id="empAddr-email"  class="ef-input" type="email" value="${esc(a.email)}" oninput="validateEmail(this)" onblur="validateEmail(this, true)">`)}
                 ${eField('IncaMail', `<label style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:13px;color:#475569;cursor:pointer">
                     <input type="checkbox" id="empAddr-incamailDisabled" ${a.incamailDisabled ? 'checked' : ''}>
                     Kein IncaMail
@@ -5518,6 +7133,42 @@ async function saveEmployeeAddress() {
     errEl.textContent = '';
 
     const val = id => (document.getElementById(id)?.value || '').trim();
+
+    // Walter-Vorgabe 01.06.2026: harte Validierung vor dem Speichern.
+    const zip = val('empAddr-zip');
+    if (zip && !/^\d{4}$/.test(zip)) {
+        errEl.textContent = 'PLZ muss 4-stellig numerisch sein.';
+        return;
+    }
+    const city = val('empAddr-city');
+    if (city && !/^[A-Za-zÀ-ÿ\s\-'\.]+$/.test(city)) {
+        errEl.textContent = 'Ort darf nur Buchstaben enthalten.';
+        return;
+    }
+    // Telefon: auf "+XX XX XXX XX XX"-Format normalisieren (idempotent)
+    // und prüfen dass es ungefähr in dieses Schema passt.
+    const phoneOk = v => !v || /^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(v);
+    const phone1Raw = val('empAddr-phone');
+    const phone2Raw = val('empAddr-phone2');
+    const phone1 = phone1Raw ? window.formatPhoneIntl(phone1Raw) : '';
+    const phone2 = phone2Raw ? window.formatPhoneIntl(phone2Raw) : '';
+    if (phone1Raw && !phoneOk(phone1)) {
+        errEl.textContent = 'Telefon-Format ungültig (erwartet +99 99 999 99 99).';
+        return;
+    }
+    if (phone2Raw && !phoneOk(phone2)) {
+        errEl.textContent = 'Telefon 2-Format ungültig (erwartet +99 99 999 99 99).';
+        return;
+    }
+    // formatierte Werte in die Felder zurückspielen damit sie sichtbar gespeichert werden
+    if (phone1) document.getElementById('empAddr-phone').value = phone1;
+    if (phone2) document.getElementById('empAddr-phone2').value = phone2;
+    const email = val('empAddr-email');
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errEl.textContent = 'E-Mail-Adresse ist ungültig.';
+        return;
+    }
+
     const payload = {
         addressType:      val('empAddr-type') || 'Korrespondenzadresse',
         validFrom:        val('empAddr-validFrom') || null,
@@ -5824,77 +7475,99 @@ async function loadPermitHistory(employeeId) {
     }
 }
 
-function renderPermitHistory(entries) {
-    const container = document.getElementById('permitHistoryContent');
-    const inlineFrom = document.getElementById('permitValidFromInline');
-
-    // 1) "Gültig ab" der aktuellen Bewilligung in den Aufenthalt-Block injizieren
-    if (inlineFrom) {
-        const cur = (entries || []).find(h => h.isCurrent)
-                 ?? (entries || []).find(h => !h.validTo);
-        inlineFrom.textContent = cur && cur.validFrom ? formatDate(cur.validFrom) : '–';
-    }
-
-    if (!container) return;
-    if (!entries || entries.length === 0) {
-        container.innerHTML = '';
-        return;
+// Walter-Vorgabe 07.06.2026: Bewilligungen werden NICHT mehr im Personal-Tab
+// gerendert — sie leben jetzt im Bewilligung/QST-Tab. renderPermitHistory()
+// bleibt als Compat-Shim: schreibt nur noch in den Container, FALLS einer
+// existiert (alte Aufrufer wie loadPermitHistory). renderPermitListHtml()
+// ist die kanonische Implementation und wird vom QST-Tab direkt aufgerufen.
+function renderPermitListHtml(entries) {
+    const list = entries || [];
+    if (list.length === 0) {
+        return `<div style="padding:12px;color:#94a3b8;font-style:italic;font-size:12.5px">Keine Bewilligung erfasst.</div>`;
     }
 
     const isAdmin = (currentUser?.role === 'admin' || currentUser?.role === 'superuser');
-    const today = new Date().toISOString().slice(0,10);
+    const cur = list.find(h => h.isCurrent) ?? list.find(h => !h.validTo);
 
-    // Verlauf-Liste: nur die NICHT-aktuellen Einträge — der aktuelle Eintrag
-    // ist schon im Aufenthalt-Block oben sichtbar.
-    const past = entries.filter(h => !h.isCurrent);
-
-    if (past.length === 0) {
-        container.innerHTML = '';
-        return;
+    // Überlapp-Erkennung (paarweise) — für oranger Hinweis-Banner.
+    const dates = list.map(h => ({
+        from: h.validFrom ? h.validFrom.slice(0,10) : null,
+        to:   h.validTo   ? h.validTo.slice(0,10)   : '9999-12-31'
+    }));
+    let hasOverlap = false;
+    for (let i = 0; i < dates.length && !hasOverlap; i++) {
+        for (let j = i + 1; j < dates.length && !hasOverlap; j++) {
+            const a = dates[i], b = dates[j];
+            if (a.from && b.from && a.from <= b.to && b.from <= a.to) hasOverlap = true;
+        }
     }
 
-    const rowsHtml = past.map(h => {
+    // Sortierung: nach neuer „neueste"-Definition. Höchstes valid_to, dann
+    // höchstes valid_from. Offener Eintrag (valid_to NULL) gewinnt als max.
+    const sorted = [...list].sort((a, b) => {
+        const at = a.validTo || '9999-12-31';
+        const bt = b.validTo || '9999-12-31';
+        if (at !== bt) return bt.localeCompare(at);
+        return (b.validFrom || '').localeCompare(a.validFrom || '');
+    });
+
+    const rowsHtml = sorted.map(h => {
         const fromTxt   = h.validFrom ? formatDate(h.validFrom) : '–';
-        const toTxt     = h.validTo   ? formatDate(h.validTo)   : '<span style="color:#15803d;font-weight:600">aktuell</span>';
-        const expiryTxt = h.permitExpiryDate ? formatDate(h.permitExpiryDate) : '–';
+        const toTxt     = h.validTo   ? formatDate(h.validTo)   : '<span style="color:#15803d;font-weight:600">offen</span>';
         const code      = h.permitCode || (h.permitTypeId ? 'Typ ' + h.permitTypeId : '<span style="color:#94a3b8">— keine —</span>');
         const desc      = h.permitDescription ? ' <span style="color:#94a3b8;font-size:11px">— ' + esc(h.permitDescription) + '</span>' : '';
         const noteTxt   = h.note ? `<div style="font-size:11.5px;color:#64748b;margin-top:3px">${esc(h.note)}</div>` : '';
+        const isCur     = cur && h.id === cur.id;
+        const rowStyle  = isCur
+            ? 'padding:8px 12px;border:1.5px solid #16a34a;border-radius:6px;background:#f0fdf4;margin-bottom:5px;display:flex;align-items:center;gap:12px'
+            : 'padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa;margin-bottom:5px;display:flex;align-items:center;gap:12px';
+        const aktuellPille = isCur
+            ? '<span style="display:inline-block;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle">AKTUELL</span>'
+            : '';
         return `
-        <div style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa;margin-bottom:5px;display:flex;align-items:center;gap:12px">
+        <div style="${rowStyle}">
             <div style="flex:1;min-width:0">
-                <div style="font-weight:600;color:#475569;font-size:12.5px">${code}${desc}</div>
+                <div style="font-weight:600;color:#475569;font-size:12.5px">${code}${desc}${aktuellPille}</div>
                 <div style="font-size:11.5px;color:#64748b;margin-top:1px">
                     ${fromTxt} – ${toTxt}
-                    ${h.permitExpiryDate ? ` · Ablauf ${expiryTxt}` : ''}
                 </div>
                 ${noteTxt}
             </div>
             ${isAdmin ? `
-            <div style="display:flex;gap:5px;flex-shrink:0">
-                <button class="btn-emp-add" style="padding:4px 7px" onclick='openPermitHistoryModal(${h.id})' title="Bearbeiten">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </button>
-                <button class="btn-emp-add" style="padding:4px 7px;background:#fee2e2;border-color:#fca5a5;color:#991b1b" onclick='deletePermitHistoryEntry(${h.id})' title="Löschen">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
-                </button>
+            <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
+                <button class="dok-menu-btn" onclick="permitToggleMenu(event, ${h.id})" title="Aktionen">⋮</button>
+                <div class="dok-menu" id="permitMenu-${h.id}">
+                    <button class="dok-menu-item" onclick='openPermitHistoryModal(${h.id})'>Bearbeiten</button>
+                    <button class="dok-menu-item danger" onclick='deletePermitHistoryEntry(${h.id})'>Löschen</button>
+                </div>
             </div>` : ''}
         </div>`;
     }).join('');
 
-    // Verlauf standardmässig zugeklappt — nur kleiner Toggle-Link.
-    container.innerHTML = `
-        <div style="margin-top:6px">
-            <button onclick="togglePermitHistory()"
-                    style="background:none;border:none;color:#64748b;font-size:11.5px;cursor:pointer;padding:4px 0;display:inline-flex;align-items:center;gap:5px"
-                    id="permitHistoryToggleBtn">
-                <span id="permitHistoryToggleIcon">▸</span>
-                <span>Verlauf anzeigen (${past.length})</span>
-            </button>
-            <div id="permitHistoryListInner" style="display:none;margin-top:6px">
-                ${rowsHtml}
-            </div>
+    // Walter-Vorgabe 07.06.2026 (final): Überlappungen sind nicht mehr
+    // erlaubt — neue Einträge schliessen den Vorgänger automatisch ab. Wenn
+    // trotzdem eine Überlappung sichtbar ist, sind das Altlasten aus dem
+    // Import → Warnbanner und Hinweis auf manuelle Korrektur.
+    const overlapHint = hasOverlap
+        ? `<div style="margin-bottom:8px;padding:8px 12px;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;color:#92400e;font-size:12px;line-height:1.5">
+               ⚠ <strong>Überlappung erkannt:</strong> Zwei oder mehr Einträge teilen sich einen Zeitraum (vermutlich Import-Altlasten). Bitte den älteren Eintrag bearbeiten und sein Bis-Datum auf den Tag vor dem Beginn der nächsten Bewilligung setzen.
+           </div>`
+        : '';
+    const scrollWrap = list.length > 3
+        ? 'max-height:280px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:6px;background:#fff'
+        : '';
+    return `
+        ${overlapHint}
+        ${list.length > 3 ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:4px">${list.length} Bewilligungen · ↕ scrollbar</div>` : ''}
+        <div style="${scrollWrap}">
+            ${rowsHtml}
         </div>`;
+}
+
+function renderPermitHistory(entries) {
+    const container = document.getElementById('permitHistoryContent');
+    if (!container) return;
+    container.innerHTML = renderPermitListHtml(entries);
 }
 
 function togglePermitHistory() {
@@ -5921,9 +7594,30 @@ async function openPermitHistoryModal(entryId) {
     const isEdit = entry !== null;
     const today = new Date().toISOString().slice(0,10);
 
+    // Walter-Vorgabe 07.06.2026: bei NEUer Bewilligung den Typ der aktuellsten
+    // Bewilligung vorbelegen — meist ist die neue Bewilligung eine Verlängerung
+    // desselben Typs (B → B mit neuem Ablauf), nicht ein Wechsel auf C.
+    const aktuelle = !entry ? (_permitHistoryCache || []).find(h => h.isCurrent) : null;
+    const defaultPermitTypeId = aktuelle?.permitTypeId ?? null;
+    // Default-ValidFrom: Tag nach dem ValidTo der aktuellsten Bewilligung —
+    // so schliesst die neue nahtlos an. Fallback = heute.
+    let defaultValidFrom = today;
+    if (aktuelle?.validTo) {
+        const d = new Date(aktuelle.validTo);
+        if (!isNaN(d.getTime())) {
+            d.setDate(d.getDate() + 1);
+            defaultValidFrom = d.toISOString().slice(0,10);
+        }
+    }
+
     const permitOptions = permitTypes
         .filter(p => p.isActive !== false)
-        .map(p => `<option value="${p.id}" ${entry && entry.permitTypeId === p.id ? 'selected' : ''}>${p.description ?? p.code}</option>`)
+        .map(p => {
+            const sel = entry
+                ? entry.permitTypeId === p.id
+                : defaultPermitTypeId === p.id;
+            return `<option value="${p.id}" ${sel ? 'selected' : ''}>${p.description ?? p.code}</option>`;
+        })
         .join('');
 
     // Modal-Container: einmal anlegen, dann immer wiederverwenden
@@ -5943,29 +7637,26 @@ async function openPermitHistoryModal(entryId) {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">
                 <div style="grid-column:1 / -1">
                     <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${_t('permit.field.type','Bewilligung')}</label>
-                    <select id="phf-permitType" style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                    <select id="phf-permitType" onchange="phfCheckCTypeHint()" style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
                         <option value="">${_t('fam.field.permitDefault','— keine (Einbürgerung / CH-Bürger) —')}</option>
                         ${permitOptions}
                     </select>
+                    <!-- Walter-Vorgabe 07.06.2026: bei C-Ausweis-Wechsel
+                         (oder Einbürgerung) Hinweis dass QST nicht mehr nötig ist. -->
+                    <div id="phf-cTypeHint" style="display:none;margin-top:8px;padding:8px 12px;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:6px;color:#065f46;font-size:12px;line-height:1.5"></div>
                 </div>
                 <div>
                     <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${_t('permit.field.validFrom','Gültig ab')} *</label>
-                    <input id="phf-validFrom" type="date" value="${entry?.validFrom ?? today}"
+                    <input id="phf-validFrom" type="date" value="${entry?.validFrom ?? defaultValidFrom}"
                            style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
                 </div>
                 <div>
                     <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">
                         ${_t('permit.field.validTo','Gültig bis')}
                     </label>
-                    <input id="phf-validTo" type="date" value="${entry?.validTo ?? ''}"
+                    <input id="phf-validTo" type="date" value="${entry?.validTo ?? entry?.permitExpiryDate ?? ''}"
                            style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
-                </div>
-                <div style="grid-column:1 / -1">
-                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">
-                        ${_t('permit.field.expiryDate','Ablauf der Bewilligung')}
-                    </label>
-                    <input id="phf-expiry" type="date" value="${entry?.permitExpiryDate ?? ''}"
-                           style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                    <div style="font-size:11px;color:#64748b;margin-top:3px">Ablauf-Datum auf dem Ausweis. Leer = aktuell offen.</div>
                 </div>
                 <div style="grid-column:1 / -1">
                     <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${_t('permit.field.note','Notiz')}</label>
@@ -5982,6 +7673,47 @@ async function openPermitHistoryModal(entryId) {
             <div id="phf-error" style="margin-top:10px;color:#b91c1c;font-size:12.5px"></div>
         </div>`;
     modal.style.display = 'flex';
+    // Walter-Vorgabe 07.06.2026: Hinweis sofort prüfen (bei Bearbeitung
+    // schon C ausgewählt, oder bei Neu wenn vorherige Bewilligung B war
+    // und User wechselt auf C).
+    phfCheckCTypeHint();
+}
+
+// Walter-Vorgabe 07.06.2026: Hinweis im Permit-Modal — wenn der User C
+// auswählt (Niederlassungsbewilligung) und es noch offene QST-Einträge
+// gibt, blenden wir einen grünen Info-Banner ein: „QST nicht mehr nötig".
+function phfCheckCTypeHint() {
+    const sel    = document.getElementById('phf-permitType');
+    const hintEl = document.getElementById('phf-cTypeHint');
+    if (!sel || !hintEl) return;
+    const opt = sel.options[sel.selectedIndex];
+    const txt = (opt?.textContent || '').toUpperCase();
+    const isC = txt.startsWith('C ') || txt.includes('AUSWEIS C') || txt.includes('NIEDERLASSUNG');
+    const isNone = !sel.value; // Einbürgerung
+    if (!isC && !isNone) {
+        hintEl.style.display = 'none';
+        hintEl.innerHTML = '';
+        return;
+    }
+    // QST-Einträge prüfen — gibt's einen mit ValidTo NULL?
+    let qstOffen = false;
+    // _empQstCache existiert evtl. nicht — wir greifen auf den laufenden
+    // QST-Tab zurück (gewohntes Muster) oder akzeptieren undefined.
+    try {
+        const cur = (window._empQstCache || []).some(e => !e.validTo);
+        qstOffen = !!cur;
+    } catch { /* egal */ }
+    const titel = isNone
+        ? 'Einbürgerung — Quellensteuer entfällt'
+        : 'C-Ausweis — Quellensteuer entfällt';
+    const body  = isNone
+        ? 'Schweizer Bürger sind nicht mehr quellensteuerpflichtig.'
+        : 'Mit dem C-Ausweis (Niederlassungsbewilligung) entfällt die QST-Pflicht.';
+    const offenHinweis = qstOffen
+        ? '<br><strong>Hinweis:</strong> der MA hat noch offene QST-Einträge — bitte im QST-Bereich das Ende-Datum setzen.'
+        : '';
+    hintEl.innerHTML = `ℹ <strong>${titel}.</strong> ${body}${offenHinweis}`;
+    hintEl.style.display = 'block';
 }
 
 function closePermitHistoryModal() {
@@ -5996,12 +7728,14 @@ async function savePermitHistoryEntry(entryId) {
         permitTypeId:     permitTypeRaw ? parseInt(permitTypeRaw) : null,
         validFrom:        document.getElementById('phf-validFrom').value,
         validTo:          document.getElementById('phf-validTo').value || null,
-        permitExpiryDate: document.getElementById('phf-expiry').value || null,
         note:             document.getElementById('phf-note').value.trim() || null
     };
     const errEl = document.getElementById('phf-error');
     errEl.textContent = '';
     if (!dto.validFrom) { errEl.textContent = 'Gültig ab ist Pflicht.'; return; }
+    // Walter-Vorgabe 01.06.2026: ValidTo (= Ablauf-Datum auf dem Ausweis) ist
+    // Pflicht — ausser bei CH-Bürger/Einbürgerung (kein PermitType).
+    if (dto.permitTypeId && !dto.validTo) { errEl.textContent = 'Gültig bis (Ablauf-Datum) ist Pflicht.'; return; }
     if (dto.validTo && dto.validTo < dto.validFrom) { errEl.textContent = 'Gültig bis darf nicht vor Gültig ab liegen.'; return; }
 
     try {
@@ -6020,13 +7754,21 @@ async function savePermitHistoryEntry(entryId) {
             return;
         }
         closePermitHistoryModal();
-        await loadPermitHistory(selectedEmployeeId);
-        // MA-Stammdaten neu laden, damit aktuelle Bewilligung in Header/Display
-        // den frisch synchronisierten Stand zeigt.
-        if (typeof loadSelectedEmployeeAndRender === 'function') {
-            await loadSelectedEmployeeAndRender();
-        } else if (typeof loadMitarbeiterList === 'function') {
-            await loadMitarbeiterList();
+        // Walter-Vorgabe 07.06.2026: Bewilligungen leben jetzt im Tab
+        // Bewilligung/QST. loadQuellensteuerTab lädt Bewilligungs-History
+        // UND QST-Einträge in einem Rutsch und rendert beides. Falls der
+        // Container fehlt (z.B. Modal aus dem Personal-Tab geöffnet), fällt
+        // er still durch — der Reload der MA-Stammdaten unten frischt die
+        // Info-Zeile dort sowieso auf.
+        if (typeof loadQuellensteuerTab === 'function') {
+            await loadQuellensteuerTab(selectedEmployeeId);
+        }
+        // Walter-Vorgabe 07.06.2026: MA-Stammdaten neu laden, damit die
+        // Info-Zeile im Personal-Tab + Header (aktuelle Bewilligung, Gültig bis)
+        // den frisch synchronisierten Stand zeigen. selectEmployee() lädt
+        // das Detail neu, behält den aktiven Sub-Tab und re-rendert.
+        if (typeof selectEmployee === 'function') {
+            await selectEmployee(selectedEmployeeId);
         }
     } catch (e) {
         errEl.textContent = 'Verbindungsfehler: ' + e.message;
@@ -6042,13 +7784,166 @@ async function deletePermitHistoryEntry(entryId) {
         });
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
-        await loadPermitHistory(selectedEmployeeId);
-        if (typeof loadSelectedEmployeeAndRender === 'function') {
-            await loadSelectedEmployeeAndRender();
-        } else if (typeof loadMitarbeiterList === 'function') {
-            await loadMitarbeiterList();
+        // Walter-Vorgabe 07.06.2026: gleiches Reload-Pattern wie nach Save.
+        if (typeof loadQuellensteuerTab === 'function') {
+            await loadQuellensteuerTab(selectedEmployeeId);
+        }
+        if (typeof selectEmployee === 'function') {
+            await selectEmployee(selectedEmployeeId);
         }
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// BVG-Zusatz-Mitgliedschaft (Walter-Vorgabe 26.05.2026)
+// ══════════════════════════════════════════════════════════════════════
+// Versionierte Mitgliedschaft im BVG-Zusatz-Vorsorge-Programm. Belohnung,
+// die Walter pro MA entscheidet (egal welches Vertragsmodell). Engine
+// rechnet BVG_ZUSATZ-Beiträge NUR wenn am Periodenanfang eine offene
+// Mitgliedschaft existiert.
+let _bvgZusatzCache = [];
+
+async function loadBvgZusatzTab(employeeId) {
+    const el = document.getElementById('bvgZusatzContent');
+    if (!el) return;
+    el.innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/bvg-zusatz-member`, { headers: ah() });
+        if (!res.ok) { el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden</span></div>'; return; }
+        _bvgZusatzCache = await res.json();
+        renderBvgZusatzTab(el, _bvgZusatzCache);
+    } catch (e) {
+        el.innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler</span></div>';
+    }
+}
+
+function renderBvgZusatzTab(el, entries) {
+    if (!entries || entries.length === 0) {
+        el.innerHTML = `<div style="padding:14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:6px;color:#64748b;font-size:12.5px;text-align:center">
+            Keine Mitgliedschaft erfasst — der MA bekommt aktuell keine BVG-Zusatz-Beiträge berechnet.
+        </div>`;
+        return;
+    }
+    // Neueste zuerst
+    const sorted = [...entries].sort((a, b) => (b.validFrom ?? '').localeCompare(a.validFrom ?? ''));
+    let html = '';
+    sorted.forEach(e => {
+        const vonStr = e.validFrom ? formatDate(e.validFrom) : '–';
+        const bisStr = e.validTo   ? formatDate(e.validTo)   : '<span style="color:#15803d;font-weight:600">offen</span>';
+        const isCurrent = !!e.isCurrent;
+        const bem = e.bemerkung ? `<div style="font-size:11.5px;color:#64748b;margin-top:3px">${esc(e.bemerkung)}</div>` : '';
+        html += `
+        <div class="emp-family-card" style="border-left:3px solid ${isCurrent ? '#16a34a' : '#cbd5e1'};margin-bottom:8px">
+            <div class="emp-family-card-head">
+                <div>
+                    <div class="emp-family-name" style="display:flex;align-items:center;gap:8px">
+                        ${isCurrent ? '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.04em">AKTIV</span>' : ''}
+                        <span>${vonStr} → ${bisStr}</span>
+                    </div>
+                    ${bem}
+                </div>
+                <div style="display:flex;gap:6px">
+                    <button class="btn-emp-edit" onclick="openBvgZusatzModal(${e.id})">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Bearbeiten
+                    </button>
+                    <button class="btn-emp-del" onclick="deleteBvgZusatz(${e.id})">Löschen</button>
+                </div>
+            </div>
+        </div>`;
+    });
+    el.innerHTML = html;
+}
+
+function openBvgZusatzModal(entryId) {
+    if (!selectedEmployeeId) return;
+    const entry = entryId ? _bvgZusatzCache.find(m => m.id === entryId) : null;
+    const titel = entry ? 'Mitgliedschaft bearbeiten' : 'Neue BVG-Zusatz-Mitgliedschaft';
+    const vonVal = entry?.validFrom ? entry.validFrom.slice(0,10) : '';
+    const bisVal = entry?.validTo   ? entry.validTo.slice(0,10)   : '';
+    const bem    = entry?.bemerkung || '';
+
+    // Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input).
+    const html = `
+    <div id="bvgZusatzModal" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px"
+         onclick="if(event.target===this)document.getElementById('bvgZusatzModal').remove()">
+      <div class="ma-modal-box narrow">
+        <div class="ma-modal-head">
+            <div class="ma-modal-title">${titel}</div>
+            <button class="ma-modal-close" onclick="document.getElementById('bvgZusatzModal').remove()">✕</button>
+        </div>
+        <div class="ma-modal-body">
+            <div style="background:#eff6ff;border-left:3px solid #2563eb;padding:10px 12px;border-radius:4px;font-size:12px;color:#1e3a8a;margin-bottom:10px;line-height:1.5">
+                Der MA bekommt BVG-Zusatz-Beiträge nur dann berechnet, wenn am Anfang der Lohnperiode eine offene Mitgliedschaft existiert. Beim Austritt aus dem Programm <strong>Gültig bis</strong> setzen.
+            </div>
+            <input type="hidden" id="bvgZusatzId" value="${entry?.id ?? ''}">
+
+            <div class="emp-section-title">Gültigkeit</div>
+            <div class="ma-grid cols-2">
+                <div class="ma-field">
+                    <div class="ma-field-label">Gültig ab *</div>
+                    <input type="date" id="bvgZusatzVon" class="ma-input" value="${vonVal}">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Gültig bis <span class="opt">(leer = laufend)</span></div>
+                    <input type="date" id="bvgZusatzBis" class="ma-input" value="${bisVal}">
+                </div>
+            </div>
+
+            <div class="emp-section-title">Bemerkung</div>
+            <div class="ma-grid cols-1">
+                <div class="ma-field">
+                    <div class="ma-field-label">Bemerkung <span class="opt">(optional)</span></div>
+                    <textarea id="bvgZusatzBem" class="ma-textarea" placeholder="z.B. „Beförderung Restaurant-Manager 1.1.2026"">${esc(bem)}</textarea>
+                </div>
+            </div>
+        </div>
+        <div class="ma-modal-foot">
+            <button class="btn btn-outline" onclick="document.getElementById('bvgZusatzModal').remove()">Abbrechen</button>
+            <button class="btn btn-primary" onclick="saveBvgZusatz()">Speichern</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function saveBvgZusatz() {
+    const id   = document.getElementById('bvgZusatzId').value;
+    const von  = document.getElementById('bvgZusatzVon').value;
+    const bis  = document.getElementById('bvgZusatzBis').value;
+    const bem  = document.getElementById('bvgZusatzBem').value.trim();
+    if (!von) { alert('Bitte „Gültig ab" eintragen.'); return; }
+    const dto = { validFrom: von, validTo: bis || null, bemerkung: bem || null };
+    const url = id
+        ? `/api/employees/${selectedEmployeeId}/bvg-zusatz-member/${id}`
+        : `/api/employees/${selectedEmployeeId}/bvg-zusatz-member`;
+    const res = await fetch(url, {
+        method: id ? 'PUT' : 'POST',
+        headers: { ...ah(), 'Content-Type':'application/json' },
+        body: JSON.stringify(dto)
+    });
+    if (await window.lohnEditLock.handleResponse(res)) return;
+    if (!res.ok) {
+        const body = await res.clone().json().catch(() => ({}));
+        alert(body.message || 'Fehler beim Speichern.');
+        return;
+    }
+    document.getElementById('bvgZusatzModal').remove();
+    loadBvgZusatzTab(selectedEmployeeId);
+}
+
+async function deleteBvgZusatz(id) {
+    if (!confirm('Diese Mitgliedschaft wirklich löschen? Wenn der MA aus dem Programm austritt, lieber „Gültig bis" setzen statt löschen.')) return;
+    const res = await fetch(`/api/employees/${selectedEmployeeId}/bvg-zusatz-member/${id}`, {
+        method: 'DELETE', headers: ah()
+    });
+    if (await window.lohnEditLock.handleResponse(res)) return;
+    if (!res.ok) {
+        const body = await res.clone().json().catch(() => ({}));
+        alert(body.message || 'Fehler beim Löschen.');
+        return;
+    }
+    loadBvgZusatzTab(selectedEmployeeId);
 }

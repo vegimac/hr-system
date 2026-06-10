@@ -26,6 +26,7 @@ const DASH_CATEGORY_META = {
     probation_end:          { i18nKey: 'dash.cat.probationEnding',  label: 'Probezeit',              icon: '📋', color: '#92400e' },
     contract_end:           { i18nKey: 'dash.cat.contractEnding',   label: 'Vertragsende',           icon: '📅', color: '#92400e' },
     exit_pending_active:    { i18nKey: 'dash.cat.exitPendingActive',label: 'Austritt offen',         icon: '🚪', color: '#b91c1c' },
+    qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },
     lohn_provisorisch:      { i18nKey: 'dash.cat.payrollOpen',      label: 'Lohnlauf',               icon: '💰', color: '#0369a1' },
     birthday:               { i18nKey: 'dash.cat.birthday',         label: 'Geburtstage',            icon: '🎂', color: '#9333ea' },
     anniversary:            { i18nKey: 'dash.cat.anniversary',      label: 'Dienstjubiläen',         icon: '🎉', color: '#15803d' }
@@ -222,8 +223,12 @@ function renderDashAlertRow(a) {
         }
     }
 
+    // QST-Pflicht-Karten springen direkt in den Quellensteuer-Tab des MA
+    // (Walter 26.05.2026 — dort sind die Schnell-Buttons).
     const onClick = a.employeeId
-        ? `onclick="dashOpenEmployee(${a.employeeId})"`
+        ? (a.category === 'qst_pflicht_offen'
+            ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
+            : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
     const cursor = onClick ? 'cursor:pointer' : '';
     return `<div ${onClick} style="background:${sev.bg};border:1px solid ${sev.border};border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:14px;${cursor};transition:transform .08s">
@@ -238,14 +243,22 @@ function renderDashAlertRow(a) {
     </div>`;
 }
 
-function dashOpenEmployee(employeeId) {
+function dashOpenEmployee(employeeId, subTab) {
     if (!employeeId) return;
+    window.activeEmpId = employeeId;
     showPage('mitarbeiter');
-    // Liste lädt async; sobald geladen, MA selektieren
+    // Liste lädt async; sobald geladen, MA selektieren + ggf. Sub-Tab wechseln
     setTimeout(() => {
         if (typeof selectEmployee === 'function') selectEmployee(employeeId);
+        if (subTab && typeof switchEmpTab === 'function') {
+            setTimeout(() => switchEmpTab(subTab), 250);
+        }
     }, 350);
 }
+
+// Spezial-Sprung für QST-Pflicht-Lücken (Walter 26.05.2026): direkt in den
+// Quellensteuer-Tab, wo die Schnell-Buttons sind.
+function dashOpenEmployeeQst(employeeId) { dashOpenEmployee(employeeId, 'quellensteuer'); }
 
 function dashOpenLohnlauf() { showPage('lohnlauf'); }
 

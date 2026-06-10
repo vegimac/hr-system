@@ -299,11 +299,12 @@ public class PayrollPeriodeController : ControllerBase
         // übersetzen — daher Periode-Grenzen vorab in DateTime konvertieren.
         var periodFromDt = periode.PeriodFrom.ToDateTime(TimeOnly.MinValue);
         var periodToDt   = periode.PeriodTo.ToDateTime(TimeOnly.MaxValue);
+        // Walter-Vorgabe 31.05.2026: kein IsActive-Filter mehr am Employment
+        // (siehe Austrittsmonat-Bug). Einzig massgeblich: Vertrag liegt in der Periode.
         var maMitVertragInPeriode = await _db.Employees
             .Where(e => e.IsActive
                      && !e.IsPayrollExcluded
-                     && e.Employments.Any(emp => emp.IsActive
-                                              && emp.CompanyProfileId == periode.CompanyProfileId
+                     && e.Employments.Any(emp => emp.CompanyProfileId == periode.CompanyProfileId
                                               && emp.ContractStartDate <= periodToDt
                                               && (!emp.ContractEndDate.HasValue
                                                   || emp.ContractEndDate.Value >= periodFromDt)))

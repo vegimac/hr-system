@@ -86,6 +86,8 @@ public class EditLockEndpointAuditTests
         ["AbsenceReportController"]        = "Absenz-Report — read-only",
         ["ComplianceController"]           = "Compliance-Check — read-only",
         ["DashboardController"]            = "Dashboard-Daten — read-only",
+        ["AuditLogController"]             = "Audit-Log — read-only Admin-Sicht (kein Edit)",
+        ["SearchController"]               = "Globale Suche — read-only über mehrere Quellen",
 
         // Dokumente / Mailbox / Posteingang — Lohn-orthogonal
         ["DocumentsController"]            = "MA-Dokumente — Files, kein Lohn",
@@ -100,11 +102,15 @@ public class EditLockEndpointAuditTests
         ["EmployeeImportSnapshotController"]    = "Snapshot-Import — admin",
         ["EmployeeStammdatenImportController"]  = "Stammdaten-Import — admin",
         ["DvelopImportController"]              = "d.velop-Import — admin",
-        ["BankImportController"]                = "Bank-Stammdaten-Import — admin",
+        // BankImportController entfernt (Walter-Vorgabe 07.06.2026)
         ["PermitImportController"]              = "Bewilligungs-Import — admin",
+        ["HrReviewImportController"]            = "Mirus HR-Review-Import — admin/superuser",
+        ["QstImportController"]                 = "Mirus QST-Auswertung-Import — admin/superuser",
+        ["KontrollListenController"]            = "Kontroll-Listen — read-only, keine Lohndaten",
         ["FamilyChildrenImportController"]      = "Familien-Kontroll-Import — admin",
         ["RosterAbsenceImportController"]       = "Schichtplan-Absenz-Import — admin",
         ["ImportController"]                    = "Stempel-Import — admin",
+        ["SaldoVortragImportController"]        = "Saldo-Vortrag Bulk-Import (Mirus Saldomethode) — admin/superuser, einmalige Migration",
 
         // QST-Formulare etc.
         ["QstAnmeldungController"]         = "QST-Anmeldung-PDF — read-only",

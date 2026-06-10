@@ -273,11 +273,16 @@ public class FibuJournalService
                 empByEmp.TryGetValue(s.EmployeeId, out var emp);
                 var modelU = (model ?? "").ToUpperInvariant();
 
-                // Tagessatz (Tag = 1/7 Woche; 35 Tage = 5 Wochen). FIX/FIX-M aus
-                // Monatslohn; Default 0 wenn kein Lohn → keine Buchung.
+                // Tagessatz für FIX/FIX-M RST Ferien/Feiertag.
+                // Walter-Vorgabe 26.05.2026 (final, ABSOLUT): FIX/FIX-M hat einen
+                // FESTEN Monatslohn → der Ferien-Tagessatz rechnet auf KALENDER-Basis:
+                //     Tagessatz = Monatslohn × 12 / 365
+                // Damit konsistent zu PayrollCalculationEngine.fixTagessatz (Z.2017,
+                // selbe Formel). Frühere /364-Formel (1/7-Logik) war falsch — sie
+                // gilt nur für MTP (Stundenlöhner), wo der Monatslohn schwankt.
                 decimal tagessatz = 0m;
                 if (modelU is "FIX" or "FIX-M")
-                    tagessatz = Math.Round((emp?.MonthlySalary ?? (emp?.MonthlySalaryFte * (emp?.EmploymentPercentage / 100m)) ?? 0m) * 12m / 364m, 4);
+                    tagessatz = Math.Round((emp?.MonthlySalary ?? (emp?.MonthlySalaryFte * (emp?.EmploymentPercentage / 100m)) ?? 0m) * 12m / 365m, 4);
 
                 // Ferien-RST: UTP/MTP in CHF (Ferien-Geld), FIX/FIX-M Tage × Tagessatz.
                 decimal ferienRst = (modelU is "UTP" or "MTP")

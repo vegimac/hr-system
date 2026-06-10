@@ -128,6 +128,9 @@ async function startStempelzeitenImport() {
         document.getElementById('importDropZone').style.display = 'block';
         document.getElementById('importFileInput').value = '';
 
+        // Walter 07.06.2026: Count-Badge nach erfolgreichem Import aktualisieren
+        if (typeof refreshStempelCount === 'function') refreshStempelCount();
+
     } catch (err) {
         document.getElementById('importProgress').style.display = 'none';
         document.getElementById('stzImportResult').style.display = 'block';
@@ -187,9 +190,11 @@ async function previewStempelzeiten() {
 }
 
 // ══════════════════════════════════════════════
-// MONATS-ZIP IMPORT (1 PDF pro MA, zusammen im ZIP)
+// DUPLIKAT-BEREINIGUNG + STEMPEL-COUNT-BADGE
+// (Monats-ZIP-Import wurde am 07.06.2026 entfernt — easy@work liefert
+//  EIN PDF mit allen MA via Chrome-Print, der bestehende Stempelzeiten-
+//  Importer oben deckt das ab.)
 // ══════════════════════════════════════════════
-let importSelectedFileM = null;
 
 async function stempelDedupe() {
     if (!confirm('Alle Duplikate (gleiche Person + Stempelzeit) entfernen? Der Eintrag mit der niedrigsten ID bleibt erhalten.')) return;
@@ -218,164 +223,4 @@ async function refreshStempelCount() {
     } catch { badge.textContent = '? in DB'; }
 }
 
-function handleImportFileM(file) {
-    if (!file) return;
-    importSelectedFileM = file;
-    document.getElementById('importFileInfoM').style.display = 'flex';
-    document.getElementById('importFileNameM').textContent = file.name;
-    document.getElementById('importBtnRowM').style.display = 'flex';
-    document.getElementById('importResultM').style.display = 'none';
-    document.getElementById('importDropZoneM').style.display = 'none';
-}
-
-function handleImportDropM(event) {
-    event.preventDefault();
-    document.getElementById('importDropZoneM').classList.remove('drag-over');
-    const file = event.dataTransfer.files[0];
-    const name = (file?.name || '').toLowerCase();
-    if (file && (name.endsWith('.zip') || name.endsWith('.pdf'))) handleImportFileM(file);
-    else alert('Bitte eine ZIP- oder PDF-Datei ablegen.');
-}
-
-function clearImportFileM() {
-    importSelectedFileM = null;
-    document.getElementById('importFileInfoM').style.display = 'none';
-    document.getElementById('importBtnRowM').style.display = 'none';
-    document.getElementById('importResultM').style.display = 'none';
-    document.getElementById('importDropZoneM').style.display = 'block';
-    document.getElementById('importFileInputM').value = '';
-}
-
-async function startStempelzeitenImportM() {
-    if (!importSelectedFileM) return;
-
-    document.getElementById('importBtnRowM').style.display = 'none';
-    document.getElementById('importProgressM').style.display = 'flex';
-    document.getElementById('importResultM').style.display = 'none';
-
-    const formData = new FormData();
-    formData.append('file', importSelectedFileM);
-
-    try {
-        const res = await fetch('/api/import/stempelzeiten-monatlich', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${authToken}` },
-            body: formData
-        });
-
-        document.getElementById('importProgressM').style.display = 'none';
-        const resultEl = document.getElementById('importResultM');
-        resultEl.style.display = 'block';
-
-        const rawText = await res.text();
-        let data;
-        try { data = JSON.parse(rawText); }
-        catch(e) {
-            resultEl.innerHTML = `<div class="import-result-err">
-                <strong>Server-Antwort konnte nicht gelesen werden (HTTP ${res.status}):</strong><br>
-                <code style="font-size:11px;word-break:break-all">${rawText.slice(0,500) || '(leer)'}</code>
-            </div>`;
-            document.getElementById('importBtnRowM').style.display = 'flex';
-            return;
-        }
-
-        if (!res.ok) {
-            resultEl.innerHTML = `<div class="import-result-err">
-                <strong>Fehler (HTTP ${res.status}):</strong> ${data.error ?? JSON.stringify(data)}
-            </div>`;
-            document.getElementById('importBtnRowM').style.display = 'flex';
-            return;
-        }
-
-        let html = `<div class="import-result-ok">
-            <strong>✓ Import abgeschlossen</strong><br>
-            <span style="font-size:13px;margin-top:4px;display:block">
-                ${data.filesProcessed} Datei(en) verarbeitet &nbsp;·&nbsp;
-                ${data.imported} neue Einträge &nbsp;·&nbsp;
-                ${data.skipped} übersprungen (Duplikate) &nbsp;·&nbsp;
-                ${data.filesEmpty} leere PDFs
-            </span>
-        </div>`;
-
-        if (data.unknownEmployees && data.unknownEmployees.length > 0) {
-            html += `<div class="import-result-warn">
-                <strong>⚠ Unbekannte Personal-Nummern</strong>
-                <div style="font-size:13px;margin-top:6px">
-                    <span style="font-family:monospace">${data.unknownEmployees.join(', ')}</span>
-                </div>
-            </div>`;
-        }
-
-        if (data.parseErrors && data.parseErrors.length > 0) {
-            html += `<div class="import-result-warn">
-                <strong>⚠ Parse-Fehler bei einzelnen PDFs</strong>
-                <pre style="font-size:11px;margin-top:6px;white-space:pre-wrap">${data.parseErrors.join('\n')}</pre>
-            </div>`;
-        }
-
-        resultEl.innerHTML = html;
-
-        importSelectedFileM = null;
-        document.getElementById('importFileInfoM').style.display = 'none';
-        document.getElementById('importBtnRowM').style.display = 'none';
-        document.getElementById('importDropZoneM').style.display = 'block';
-        document.getElementById('importFileInputM').value = '';
-
-        refreshStempelCount();
-
-    } catch (err) {
-        document.getElementById('importProgressM').style.display = 'none';
-        document.getElementById('importResultM').style.display = 'block';
-        document.getElementById('importResultM').innerHTML =
-            `<div class="import-result-err"><strong>Verbindungsfehler:</strong> ${err.message}</div>`;
-        document.getElementById('importBtnRowM').style.display = 'flex';
-    }
-}
-
-async function previewStempelzeitenM() {
-    const resultEl = document.getElementById('importResultM');
-    if (!importSelectedFileM) {
-        resultEl.style.display = 'block';
-        resultEl.innerHTML = '<div class="import-result-err"><strong>Keine Datei gewählt:</strong> Bitte zuerst eine ZIP-Datei oder ein PDF in die Drop-Zone ziehen.</div>';
-        return;
-    }
-    resultEl.style.display = 'block';
-    resultEl.innerHTML = '<div style="color:#15803d;font-size:13px">⏳ Datei wird analysiert…</div>';
-
-    const formData = new FormData();
-    formData.append('file', importSelectedFileM);
-
-    try {
-        const res = await fetch('/api/import/stempelzeiten-monatlich/preview', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${authToken}` },
-            body: formData
-        });
-        const data = await res.json();
-
-        let html = `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;font-size:12px">
-            <strong style="display:block;margin-bottom:8px">📋 Diagnose — ${data.filesProcessed || 0} Datei(en), ${data.totalParsed ?? 0} Einträge erkannt, ${data.filesEmpty || 0} leer</strong>`;
-
-        if (data.sample && data.sample.length > 0) {
-            html += `<div style="margin-bottom:10px;color:#15803d;font-weight:600">✓ Erste ${data.sample.length} Einträge:</div>`;
-            data.sample.forEach(e => {
-                const cmt = e.comment ? ` — ${e.comment}` : '';
-                html += `<div style="font-family:monospace;margin-bottom:3px">MA ${e.emp}: ${e.timeIn} → ${e.timeOut} (${e.duration}h + ${e.night}h nacht)${cmt}</div>`;
-            });
-        } else {
-            html += `<div style="color:#dc2626;font-weight:600;margin-bottom:10px">✗ Keine Einträge erkannt</div>`;
-        }
-
-        if (data.parseErrors && data.parseErrors.length > 0) {
-            html += `<details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600;color:#dc2626">Parse-Fehler (${data.parseErrors.length})</summary>
-                <pre style="margin-top:8px;white-space:pre-wrap;font-size:11px;color:#991b1b">${data.parseErrors.join('\n')}</pre>
-            </details>`;
-        }
-
-        html += '</div>';
-        resultEl.innerHTML = html;
-    } catch(err) {
-        resultEl.innerHTML = `<div class="import-result-err">Fehler: ${err.message}</div>`;
-    }
-}
 

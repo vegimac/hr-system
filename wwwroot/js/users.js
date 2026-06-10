@@ -82,9 +82,9 @@ function umUpdateBranchVisibility() {
         hint.textContent = 'Wähle die Filialen, auf die dieser Benutzer Zugang hat.';
     }
 
-    // HR-Team-Toggle für Admins ausblenden — Admin sieht alle Postfächer eh.
+    // HR-Team-Toggle für Admins + Buchhaltung ausblenden (für sie irrelevant).
     const hrGroup = document.getElementById('umIsHrTeam')?.closest('.f-group');
-    if (hrGroup) hrGroup.style.display = isAdmin ? 'none' : 'block';
+    if (hrGroup) hrGroup.style.display = (isAdmin || role === 'buchhaltung') ? 'none' : 'block';
 }
 
 function openUserModal(userId = null) {

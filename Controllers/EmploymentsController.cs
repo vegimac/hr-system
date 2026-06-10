@@ -43,6 +43,7 @@ public class EmploymentsController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var employments = await _context.Employments
+            .Include(e => e.JobGroup)        // FK-Code für Frontend (Walter 26.05.2026)
             .OrderBy(e => e.EmployeeId)
             .ThenBy(e => e.ContractStartDate)
             .ToListAsync();
@@ -55,6 +56,7 @@ public class EmploymentsController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var employment = await _context.Employments
+            .Include(e => e.JobGroup)
             .FirstOrDefaultAsync(e => e.Id == id);
 
         if (employment == null)
@@ -68,6 +70,7 @@ public class EmploymentsController : ControllerBase
     public async Task<IActionResult> GetByEmployee(int employeeId)
     {
         var employments = await _context.Employments
+            .Include(e => e.JobGroup)
             .Where(e => e.EmployeeId == employeeId)
             .OrderByDescending(e => e.ContractStartDate)
             .ToListAsync();
@@ -97,10 +100,13 @@ public class EmploymentsController : ControllerBase
                 e.Id, e.EmployeeId, e.CompanyProfileId,
                 e.ContractStartDate, e.ContractEndDate,
                 e.EmploymentModel, e.SalaryType, e.ContractType,
-                e.JobTitle, e.EmploymentPercentage,
+                e.JobTitle,
+                jobGroupId   = e.JobGroupId,
+                jobGroupCode = e.JobGroup != null ? e.JobGroup.Code : null,
+                e.EducationLevelCode,
+                e.EmploymentPercentage,
                 e.WeeklyHours, e.GuaranteedHoursPerWeek,
                 e.MonthlySalaryFte, e.MonthlySalary, e.HourlyRate,
-                e.VacationPercent, e.HolidayPercent, e.ThirteenthSalaryPercent,
                 e.VacationPaymentMode, e.ProbationPeriodMonths, e.ProbationEndDate,
                 e.IsActive,
                 inLohnVerwendet  = IsInLohnVerwendet(e, fa),
@@ -120,6 +126,10 @@ public class EmploymentsController : ControllerBase
 
         if (!employeeExists)
             return BadRequest(new { error = $"Mitarbeiter {employment.EmployeeId} nicht gefunden." });
+
+        // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
+        // sind aus dem Vertrag entfernt — kommen jetzt aus der Filiale. Keine
+        // Pflicht-Validierung mehr nötig.
 
         // Walter-Vorgabe 17.05.2026: ContractStartDate eines neuen Vertrags
         // darf NICHT rückwirkend in einer Periode liegen, die schon in
@@ -158,6 +168,18 @@ public class EmploymentsController : ControllerBase
             employment.MonthlySalary = Math.Round(
                 employment.MonthlySalaryFte.Value * employment.EmploymentPercentage.Value / 100m, 2);
 
+        // JobGroupId aus JobGroupCode resolven, falls nur der Code übermittelt
+        // wurde (Frontend-Dropdown liefert den Code). JobTitle (Stellenbezeichnung)
+        // bleibt unverändert — das ist Free-Text und hat nichts mit der
+        // Funktionsgruppe zu tun. (Walter-Klarstellung 26.05.2026)
+        if (!employment.JobGroupId.HasValue && !string.IsNullOrWhiteSpace(employment.JobGroupCode))
+        {
+            employment.JobGroupId = await _context.JobGroups
+                .Where(g => g.Code == employment.JobGroupCode)
+                .Select(g => (int?)g.Id)
+                .FirstOrDefaultAsync();
+        }
+
         _context.Employments.Add(employment);
         await _context.SaveChangesAsync();
 
@@ -179,6 +201,7 @@ public class EmploymentsController : ControllerBase
     {
         var employment = await _context.Employments
             .Include(e => e.CompanyProfile)
+            .Include(e => e.Employee)
             .FirstOrDefaultAsync(e => e.Id == id);
         if (employment == null) return NotFound();
 
@@ -227,22 +250,27 @@ public class EmploymentsController : ControllerBase
         bool isMtp = employment.EmploymentModel == "MTP";
         bool isFix = employment.EmploymentModel is "FIX" or "FIX-M";
 
+        // Walter-Vorgabe 30.05.2026: MTP-Sollstunden pro-rata identisch zu FIX —
+        // garantierte WoStd / 7 × Anzahl Tage (kein 52/365 mehr). Konsistent zur
+        // Engine, die den Monats-Festlohn ebenfalls mit guaranteedH / 7 × Tage rechnet.
         decimal sollStundenRest = isMtp
-            ? Math.Round(guaranteedH * 52m / 365m * remainingDays, 2)
+            ? Math.Round(guaranteedH / 7m * remainingDays, 2)
             : isFix
                 ? Math.Round(weeklySoll / 7m * remainingDays, 2)
                 : 0m;  // UTP: keine Sollstunden
 
         // Ferien-Anspruch: 5 Wochen = 35 Tage/Jahr, 6 Wochen = 42 Tage/Jahr
-        // (Kalendertage × Wochen; gleiche Logik wie PayrollController).
-        // Monatlicher Accrual: Jahresanspruch / 12.
-        decimal ferienAnspruchJahr = 0m;
-        if (employment.VacationPercent.HasValue && employment.VacationPercent.Value > 0)
+        // Walter-Vorgabe 06.06.2026: Quelle = Filial-Defaults (5-Wo. bzw. 6-Wo.)
+        // + altersaware Schwelle am Austrittsdatum, analog Engine.
+        decimal vacPct = company?.DefaultVacationPercent5Weeks ?? 10.64m;
+        if (employment.Employee?.DateOfBirth != null && company != null)
         {
-            decimal vp = employment.VacationPercent.Value;
-            decimal wochenFerien = vp <= 8.40m ? 4m : vp <= 11m ? 5m : vp <= 13.5m ? 6m : 7m;
-            ferienAnspruchJahr = wochenFerien * 7m;  // 5 Wo. = 35, 6 Wo. = 42
+            var dob = DateOnly.FromDateTime(employment.Employee.DateOfBirth.Value);
+            if (dob.AddYears(company.VacationSixWeeksFromAge) <= exitDateOnly)
+                vacPct = company.DefaultVacationPercent6Weeks ?? 13.04m;
         }
+        decimal wochenFerien = vacPct <= 8.40m ? 4m : vacPct <= 11m ? 5m : vacPct <= 13.5m ? 6m : 7m;
+        decimal ferienAnspruchJahr = wochenFerien * 7m;  // 5 Wo. = 35, 6 Wo. = 42
 
         // Zusätzlicher Anspruch zwischen Saldo-Stichtag und Austritt (anteilig).
         // Beispiel: Saldo per 20.4.2026 = 10.67 Tage. Austritt 30.4.2026 →
@@ -389,6 +417,10 @@ public class EmploymentsController : ControllerBase
         var existing = await _context.Employments.FindAsync(id);
         if (existing == null) return NotFound();
 
+        // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
+        // sind aus dem Vertrag entfernt — kommen jetzt aus der Filiale. Keine
+        // Pflicht-Validierung mehr nötig.
+
         // Walter-Vorgabe 17.05.2026: Vertrag der bereits in einem Lohnlauf
         // verwendet wurde, ist tabu für Edit. Stattdessen muss ein neuer
         // Vertrag mit "Beginn ab X" angelegt werden — der schliesst den
@@ -420,7 +452,25 @@ public class EmploymentsController : ControllerBase
         existing.EmploymentModel        = dto.EmploymentModel;
         existing.SalaryType             = dto.SalaryType;
         existing.ContractType           = dto.ContractType;
-        existing.JobTitle               = dto.JobTitle;
+        // Walter-Klarstellung 26.05.2026: JobTitle ist Free-Text-Stellenbezeichnung
+        // (z.B. „Shift Coordinator") und wird 1:1 gespeichert. JobGroupId ist die
+        // FK-Referenz auf die Funktionsgruppe (z.B. SHIFT_LEADER_7_PLUS) und
+        // steuert den Mindestlohn — komplett unabhängig vom Stellenbezeichnungs-Text.
+        existing.JobTitle = dto.JobTitle;
+        // JobGroupId-Quelle (Priorität): explizit übergebene id → JobGroupCode
+        // (vom Frontend-Dropdown) → kein Update.
+        if (dto.JobGroupId.HasValue)
+        {
+            existing.JobGroupId = dto.JobGroupId;
+        }
+        else if (!string.IsNullOrWhiteSpace(dto.JobGroupCode))
+        {
+            existing.JobGroupId = await _context.JobGroups
+                .Where(g => g.Code == dto.JobGroupCode)
+                .Select(g => (int?)g.Id)
+                .FirstOrDefaultAsync();
+        }
+        existing.EducationLevelCode     = dto.EducationLevelCode;
         existing.EmploymentPercentage   = dto.EmploymentPercentage;
         existing.WeeklyHours            = dto.WeeklyHours;
         existing.GuaranteedHoursPerWeek = dto.GuaranteedHoursPerWeek;
@@ -430,9 +480,6 @@ public class EmploymentsController : ControllerBase
             ? Math.Round(dto.MonthlySalaryFte.Value * dto.EmploymentPercentage.Value / 100m, 2)
             : dto.MonthlySalary;
         existing.HourlyRate             = dto.HourlyRate;
-        existing.VacationPercent        = dto.VacationPercent;
-        existing.HolidayPercent         = dto.HolidayPercent;
-        existing.ThirteenthSalaryPercent= dto.ThirteenthSalaryPercent;
         existing.VacationPaymentMode    = dto.VacationPaymentMode;
         existing.ProbationPeriodMonths  = dto.ProbationPeriodMonths;
         existing.ProbationEndDate       = dto.ProbationEndDate;
@@ -443,8 +490,13 @@ public class EmploymentsController : ControllerBase
     }
 
     // DELETE /api/employments/{id} — Vertrag endgültig löschen.
-    // Nur für admin/superuser; primär für Tests / Korrekturen vor Lohnabrechnung.
-    // Mit ?force=true wird auch dann gelöscht, wenn schon Lohn-Snapshots existieren.
+    // Nur für admin/superuser. Walter-Vorgabe 01.06.2026: löschbar SOLANGE
+    // der Vertrag in KEINER abgeschlossenen Lohnperiode verwendet wurde
+    // (= kein Snapshot in einer Periode mit Status='abgeschlossen', dessen
+    // Periodenzeitraum mit dem Vertrags-Zeitraum überlappt). Verträge in
+    // offenen / provisorisch_abgeschlossenen Perioden sind frei löschbar —
+    // dort hängt nichts Finales dran. ?force=true bleibt als Notfall-Knopf
+    // erhalten, falls Walter doch mal eine abgeschlossene Periode wegräumt.
     [Authorize(Roles = "admin,superuser")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, [FromQuery] bool force = false)
@@ -453,37 +505,17 @@ public class EmploymentsController : ControllerBase
         if (employment == null)
             return NotFound(new { error = "Vertrag nicht gefunden." });
 
-        // Walter-Vorgabe 17.05.2026: Vertrag in einem Lohnlauf-Lock → nicht
-        // löschbar. force=true bleibt für admin-Notfall-Korrekturen aus dem
-        // bestehenden hasFinalPayroll-Pfad erhalten (admin/superuser sind im
-        // Service ohnehin bypassed, also greift dieser Block für normale User).
-        // Legacy ohne CompanyProfileId → kein Lock-Check möglich.
-        DateOnly? firstAllowed = employment.CompanyProfileId.HasValue
-            ? await GetFirstAllowedAsync(employment.CompanyProfileId.Value)
-            : null;
-        if (IsInLohnVerwendet(employment, firstAllowed))
-        {
-            return Conflict(new
-            {
-                error            = "LOHN_EDIT_LOCKED",
-                message          = $"Dieser Vertrag (Beginn {employment.ContractStartDate:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet und kann nicht gelöscht werden.",
-                firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
-            });
-        }
-
-        // Sicherheits-Check: Existieren bereits abgeschlossene Lohnabrechnungen für
-        // diesen MA in der Vertragsperiode? Wenn ja, ohne ?force=true blockieren —
-        // der Lohnzettel referenziert sonst auf einen gelöschten Vertrag.
         var startDateOnly = DateOnly.FromDateTime(employment.ContractStartDate);
         var endDateOnly   = employment.ContractEndDate.HasValue
             ? (DateOnly?)DateOnly.FromDateTime(employment.ContractEndDate.Value)
             : null;
 
+        // Snapshot in abgeschlossener Periode mit Zeit-Überlappung?
         var hasFinalPayroll = await (
             from snap in _context.PayrollSnapshots
             join per in _context.PayrollPerioden on snap.PayrollPeriodeId equals per.Id
             where snap.EmployeeId == employment.EmployeeId
-               && snap.IsFinal
+               && per.Status == "abgeschlossen"
                && per.PeriodTo   >= startDateOnly
                && (endDateOnly == null || per.PeriodFrom <= endDateOnly)
             select snap.Id
@@ -493,8 +525,9 @@ public class EmploymentsController : ControllerBase
         {
             return Conflict(new
             {
-                error = "Für diesen Mitarbeiter bestehen bereits abgeschlossene Lohnabrechnungen "
-                      + "in der Vertragsperiode. Mit ?force=true kann trotzdem gelöscht werden.",
+                error   = "LOHN_FINAL_BLOCKING",
+                message = "Dieser Vertrag wurde in einer abgeschlossenen Lohnperiode verwendet — "
+                        + "Löschen würde den Lohnbeleg invalidieren. Mit ?force=true (Admin) trotzdem löschbar.",
                 requiresForce = true
             });
         }
@@ -502,6 +535,39 @@ public class EmploymentsController : ControllerBase
         _context.Employments.Remove(employment);
         await _context.SaveChangesAsync();
         return Ok(new { success = true, deletedId = id, forced = hasFinalPayroll });
+    }
+
+    // GET /api/employments/{id}/can-delete — Frontend-Vorab-Check.
+    // Liefert { canDelete, reason? } damit der Löschen-Button im Vertrags-
+    // Modal nur erscheint wenn er auch wirklich klickbar ist.
+    [Authorize(Roles = "admin,superuser")]
+    [HttpGet("{id:int}/can-delete")]
+    public async Task<IActionResult> CanDelete(int id)
+    {
+        var employment = await _context.Employments.FindAsync(id);
+        if (employment == null) return NotFound();
+
+        var startDateOnly = DateOnly.FromDateTime(employment.ContractStartDate);
+        var endDateOnly   = employment.ContractEndDate.HasValue
+            ? (DateOnly?)DateOnly.FromDateTime(employment.ContractEndDate.Value)
+            : null;
+
+        var hasFinalPayroll = await (
+            from snap in _context.PayrollSnapshots
+            join per in _context.PayrollPerioden on snap.PayrollPeriodeId equals per.Id
+            where snap.EmployeeId == employment.EmployeeId
+               && per.Status == "abgeschlossen"
+               && per.PeriodTo   >= startDateOnly
+               && (endDateOnly == null || per.PeriodFrom <= endDateOnly)
+            select snap.Id
+        ).AnyAsync();
+
+        return Ok(new {
+            canDelete = !hasFinalPayroll,
+            reason = hasFinalPayroll
+                ? "In abgeschlossener Lohnperiode verwendet."
+                : null
+        });
     }
 
     // GET /api/employments/unassigned-count — Anzahl Verträge ohne Filial-Zuordnung.

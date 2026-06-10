@@ -164,15 +164,26 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('cePensum').value             = c.employmentPercentage ?? '';
     document.getElementById('ceWeeklyHours').value        = c.weeklyHours ?? '';
     document.getElementById('ceGuaranteedHours').value    = c.guaranteedHoursPerWeek ?? '';
-    document.getElementById('ceVacationPercent').value    = c.vacationPercent ?? '';
-    document.getElementById('ceHolidayPercent').value     = c.holidayPercent ?? '';
-    document.getElementById('ceThirteenthPercent').value  = c.thirteenthSalaryPercent ?? '';
+    // Walter-Vorgabe 26.05.2026: Vorbelegung aus Filial-Defaults wenn leer.
+    //   Feiertag % → immer DefaultHolidayPercent (z.B. 2.27)
+    //   Ferien %   → DefaultVacationPercent5Weeks bei Alter <50 am Vertrags-
+    //                beginn, sonst DefaultVacationPercent6Weeks (L-GAV).
+    //                Im Lohn-Tab kann der User später manuell umschalten, wenn
+    //                der MA vor Beginn einer Lohnperiode 50 wird — NICHT
+    //                innerhalb der Periode wechseln.
+    //   13. ML %   → 8.33 (L-GAV Art. 12 Ziff. 3)
+    // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
+    // sind aus dem Vertrag entfernt — kommen jetzt aus der Filiale.
+    // (Branch-/Age-Berechnung früher hier; jetzt nicht mehr nötig.)
 
     // Defaults: CREW + Ia (häufigste Kombi). Greifen in ALLEN Modal-Modi
     // (edit/import/new) bei leerem Wert, damit auch Alt-Verträge mit
     // unvollständigen Daten direkt einen sinnvollen Default haben — User
     // kann nachträglich ändern. Die Vertragsliste (Anzeige) zeigt weiterhin
     // den echten DB-Stand, da diese Funktion dort gar nicht durchläuft.
+    // Walter-Klarstellung 26.05.2026: Funktionsgruppe kommt im GET nur noch
+    // als c.jobGroupCode (via JobGroup-FK-Nav). c.jobTitle ist die Stellen-
+    // bezeichnung (Free-Text) und gehört NICHT in dieses Dropdown.
     document.getElementById('ceJobGroup').value        = (c.jobGroupCode || 'CREW');
     document.getElementById('ceEducationLevel').value  = (c.educationLevelCode || selectedVtEmployee?.educationLevelCode || 'Ia');
     document.getElementById('ceErrorMsg').textContent  = '';
@@ -193,12 +204,17 @@ function onCeModelChange() {
     const m = document.getElementById('ceEmploymentModel').value;
     const isFix = m === 'FIX' || m === 'FIX-M';
     const isMtp = m === 'MTP';
+    const isUtp = m === 'UTP';
     const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
     show('ceHourlyWrap',     !isFix);
     show('ceFteWrap',        isFix);
     show('ceMonthlyWrap',    isFix);
     show('cePensumWrap',     isFix);
-    show('ceWeeklyWrap',     !isFix);
+    // Walter-Vorgabe 26.05.2026: „Max. h/Woche" nur bei UTP. Bei MTP
+    // redundant zu „Garantierte h/Woche" (Engine nimmt GuaranteedHoursPerWeek
+    // mit Fallback auf WeeklyHours); beim Save wird WeeklyHours bei MTP
+    // automatisch = GuaranteedHoursPerWeek gesetzt.
+    show('ceWeeklyWrap',     isUtp);
     show('ceGuaranteedWrap', isMtp);
     checkCeMinimumWage();
 }
@@ -239,8 +255,18 @@ async function checkCeMinimumWage() {
     const startDate = document.getElementById('ceStartDate').value;
     const pensum = parseFloat(document.getElementById('cePensum').value) || (isFix ? 100 : null);
     const hourly = parseFloat(document.getElementById('ceHourlyRate').value);
-    const monthly = parseFloat(document.getElementById('ceMonthlySalary').value)
-                 || parseFloat(document.getElementById('ceMonthlySalaryFte').value);
+    // Compliance-Check erwartet `monthlySalary` als 100%-FTE-Wert (er rechnet
+    // selbst × Pensum). Walter-Vorgabe 26.05.2026: Bug-Fix — vorher schickten
+    // wir den Pensum-Lohn (`ceMonthlySalary`), wodurch der Backend-Code ihn
+    // ein zweites Mal mit Pensum multiplizierte (z.B. 3440 × 80% = 2752 statt
+    // 3440). Jetzt bevorzugen wir das FTE-Feld; ist nur der Pensum-Lohn da,
+    // rechnen wir ihn auf 100% hoch.
+    const fteRaw    = parseFloat(document.getElementById('ceMonthlySalaryFte').value);
+    const pensumRaw = parseFloat(document.getElementById('ceMonthlySalary').value);
+    const pctFrac   = (pensum && pensum > 0) ? (pensum / 100) : 1;
+    const monthly   = Number.isFinite(fteRaw) ? fteRaw
+                    : Number.isFinite(pensumRaw) ? (pensumRaw / pctFrac)
+                    : NaN;
     const guaranteed = parseFloat(document.getElementById('ceGuaranteedHours').value);
 
     // Reset
@@ -439,6 +465,7 @@ async function saveContractEdit() {
 
     const employmentModel = document.getElementById('ceEmploymentModel').value;
     const isFix = employmentModel === 'FIX' || employmentModel === 'FIX-M';
+    const isMtp = employmentModel === 'MTP';
     const startDate = document.getElementById('ceStartDate').value;
     if (!startDate) { errEl.textContent = _t('vt.err.startDateRequired'); return; }
     const isBefristet = document.getElementById('ceContractType').value === 'befristet';
@@ -460,23 +487,36 @@ async function saveContractEdit() {
         return;
     }
 
+    // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML % aus
+    // dem Vertrag entfernt — kommen jetzt aus der Filiale. Keine Validierung mehr.
+
     const payload = {
         contractStartDate:       startDate,
         contractEndDate:         isBefristet && endDate ? endDate : null,
         contractType:            isBefristet ? 'befristet' : 'unbefristet',
         employmentModel,
         salaryType:              isFix ? 'monthly' : 'hourly',
+        // Walter-Klarstellung 26.05.2026:
+        // • jobTitle = Stellenbezeichnung (Free-Text, z.B. „Shift Coordinator") —
+        //   geht 1:1 auf den Vertrag, nichts mit Mindestlohn zu tun.
+        // • jobGroupCode = Funktionsgruppe (Code, z.B. SHIFT_LEADER_7_PLUS) —
+        //   Backend resolved daraus die JobGroupId (FK) für den Mindestlohn-Lookup.
         jobTitle:                document.getElementById('ceJobTitle').value || null,
+        jobGroupCode:            document.getElementById('ceJobGroup').value || null,
         educationLevelCode:      document.getElementById('ceEducationLevel').value || null,
         employmentPercentage:    isFix ? pensum : null,
-        weeklyHours:             !isFix ? (parseFloat(document.getElementById('ceWeeklyHours').value) || null) : null,
+        // Walter-Vorgabe 26.05.2026: Bei MTP ist „Wochenstunden" redundant zu
+        // „Garantierte h/Woche" — Feld ist ausgeblendet. Beim Save automatisch
+        // weeklyHours = guaranteedHoursPerWeek setzen, damit Alt-Konsumenten
+        // (LSE-Export, Absenz-Engine-Fallback) konsistent bleiben. UTP liest
+        // sein eigenes „Max. h/Woche"-Feld; FIX/FIX-M speichern null.
+        weeklyHours:             isMtp ? (parseFloat(document.getElementById('ceGuaranteedHours').value) || null)
+                                : !isFix ? (parseFloat(document.getElementById('ceWeeklyHours').value) || null)
+                                : null,
         guaranteedHoursPerWeek:  parseFloat(document.getElementById('ceGuaranteedHours').value) || null,
         hourlyRate:              !isFix ? hourly : null,
         monthlySalaryFte:        isFix ? fte : null,
         monthlySalary:           isFix ? monthly : null,
-        vacationPercent:         parseFloat(document.getElementById('ceVacationPercent').value) || null,
-        holidayPercent:          parseFloat(document.getElementById('ceHolidayPercent').value) || null,
-        thirteenthSalaryPercent: parseFloat(document.getElementById('ceThirteenthPercent').value) || null,
         probationPeriodMonths:   parseInt(document.getElementById('ceProbationMonths').value) || null,
         isActive:                document.getElementById('ceIsActive').value === 'true',
     };
@@ -514,14 +554,16 @@ async function saveContractEdit() {
             return;
         }
         closeContractEditModal();
-        // MA neu laden + Detail aktualisieren
-        const empRes = await fetch('/api/employees', { headers: ah() });
-        if (empRes.ok) {
-            const emps = await empRes.json();
-            allVtEmployees = emps.filter(e => e.isActive && e.employments?.length > 0);
-            selectedVtEmployee = allVtEmployees.find(e => e.id === empId);
-            if (selectedVtEmployee) renderVtDetail(selectedVtEmployee);
-            renderVtList(allVtEmployees);
+        // MA-Liste über loadVtList neu aufbauen — DIE Funktion wendet auch den
+        // Filial-Filter (`fixedCompanyProfileId`) korrekt an. Walter-Vorgabe
+        // 26.05.2026: vorher haben wir hier inline `emps.filter(isActive && length>0)`
+        // gemacht und damit den Filial-Filter verloren → MA anderer Restaurants
+        // tauchten in der Liste auf. `window.activeEmpId` setzt den gerade
+        // bearbeiteten MA als Selektion, damit `loadVtList` ihn nach dem Reload
+        // wieder anspringt.
+        if (empId) window.activeEmpId = empId;
+        if (typeof loadVtList === 'function') {
+            await loadVtList();
         }
     } catch (e) {
         errEl.textContent = _t('vt.err.connectionError', { msg: e.message });
@@ -1152,9 +1194,8 @@ async function saveEmployment() {
         monthlySalaryFte: salaryType === 'monthly' ? parseFloat(document.getElementById('monthlySalaryFte')?.value || '0') : null,
         monthlySalary: salaryType === 'monthly' ? parseFloat(document.getElementById('monthlySalary')?.value || '0') : null,
         hourlyRate: salaryType === 'hourly' ? parseFloat(document.getElementById('hourlyRate')?.value || '0') : null,
-        vacationPercent: salaryType === 'hourly' ? getVacationPercent(employeeId, startDate) : null,
-        holidayPercent: salaryType === 'hourly' ? (selectedCompanyProfile?.defaultHolidayPercent ?? 2.27) : null,
-        thirteenthSalaryPercent: 8.33,   // L-GAV Art. 12 — fix für alle Modelle
+        // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
+        // aus dem Vertrag entfernt — kommen jetzt aus der Filiale.
         vacationPaymentMode: selectedCompanyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary',
         probationPeriodMonths: probationYesNo === 'yes' ? parseInt(document.getElementById('probationMonths')?.value || '0', 10) : null,
         probationEndDate: probationYesNo === 'yes' ? document.getElementById('probationEndDate')?.innerText || null : null,
@@ -1192,7 +1233,7 @@ async function downloadContractPdf() {
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
         const match = cd.match(/filename="?([^"]+)"?/);
-        await saveBlobAsk(blob, match ? match[1] : 'Vertrag.pdf');
+        await previewFileModal(blob, match ? match[1] : 'Vertrag.pdf');
     } catch (err) { alert('Fehler: ' + err.message); }
     finally { if (btnPdf) { btnPdf.textContent = '📄 Vertrag als PDF'; btnPdf.disabled = false; } }
 }
@@ -1318,9 +1359,7 @@ async function vtImportFileChosen(file) {
             hourlyRate: !isFixSnap ? s.hourlyRate : null,
             monthlySalaryFte: isFixSnap ? s.monthlySalaryFte : null,
             monthlySalary: isFixSnap ? monthlySalarySnap : null,
-            vacationPercent: s.vacationPercent ?? null,
-            holidayPercent: s.holidayPercent ?? null,
-            thirteenthSalaryPercent: s.thirteenthSalaryPercent ?? null,
+            // Walter-Vorgabe 06.06.2026 (Stufe 1b): Vertragsfelder entfernt
             probationPeriodMonths: s.probationPeriodMonths ?? null,
             isActive: true
         };

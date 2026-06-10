@@ -4,6 +4,7 @@ using HrSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 
@@ -73,10 +74,13 @@ public class PermitImportController : ControllerBase
     public class PreviewResponse
     {
         public List<PreviewRow> Rows { get; set; } = new();
-        public int TotalRows { get; set; }
-        public int Matched   { get; set; }
-        public int NoMatch   { get; set; }
-        public int Unknown   { get; set; }
+        public int TotalRows     { get; set; }
+        public int Matched       { get; set; }
+        public int NoMatch       { get; set; }
+        public int Unknown       { get; set; }
+        // Walter-Vorgabe 07.06.2026: zwei neue Status für „MA hat schon eine Bewilligung".
+        public int ExistingSame  { get; set; }   // identisch — wird übersprungen
+        public int ExistingDiff  { get; set; }   // andere — abhängig vom Modus
     }
 
     [HttpPost("preview")]
@@ -94,10 +98,21 @@ public class PermitImportController : ControllerBase
             .Include(e => e.PermitType)
             .Select(e => new {
                 e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
-                e.PermitTypeId, PermitCode = e.PermitType != null ? e.PermitType.Code : null,
-                e.PermitExpiryDate
+                e.PermitTypeId, PermitCode = e.PermitType != null ? e.PermitType.Code : null
             })
             .ToListAsync();
+        // Aktuelles Ablauf-Datum pro MA = ValidTo des jüngsten History-Eintrags
+        // mit PermitTypeId != NULL (Walter 01.06.2026).
+        var maIds = allEmps.Select(e => e.Id).ToList();
+        var hist = await _db.EmployeePermitHistories
+            .AsNoTracking()
+            .Where(h => maIds.Contains(h.EmployeeId) && h.PermitTypeId != null)
+            .ToListAsync();
+        var currentExpiryByMa = hist
+            .GroupBy(h => h.EmployeeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(x => x.ValidFrom).ThenByDescending(x => x.Id).First().ValidTo);
 
         var permitCodeToId = await _db.PermitTypes.AsNoTracking()
             .ToDictionaryAsync(p => p.Code, p => p.Id);
@@ -126,22 +141,52 @@ public class PermitImportController : ControllerBase
             r.DbFirstName         = emp.FirstName;
             r.DbLastName          = emp.LastName;
             r.CurrentPermitCode   = emp.PermitCode;
-            r.CurrentPermitExpiry = emp.PermitExpiryDate.HasValue
-                ? DateOnly.FromDateTime(emp.PermitExpiryDate.Value) : null;
+            r.CurrentPermitExpiry = currentExpiryByMa.TryGetValue(emp.Id, out var expVT) ? expVT : null;
+
+            // Walter-Vorgabe 07.06.2026: Bestehende Bewilligung erkennen.
+            // EXISTING_SAME = MA hat schon GENAU diese Bewilligung (selber Typ +
+            //   selbes Ablaufdatum) → braucht nicht importiert werden.
+            // EXISTING_DIFF = MA hat eine andere Bewilligung → Walter entscheidet
+            //   pro Lauf, ob ersetzen, beenden+neu oder überspringen.
+            // OK             = MA hat noch gar keine Bewilligung.
+            if (r.Status == "OK")
+            {
+                var hasExisting = !string.IsNullOrEmpty(r.CurrentPermitCode) || r.CurrentPermitExpiry != null;
+                if (hasExisting)
+                {
+                    var sameType   = string.Equals(r.CurrentPermitCode, r.PermitCode, StringComparison.OrdinalIgnoreCase);
+                    var sameExpiry = r.CurrentPermitExpiry.HasValue && r.PermitExpiry.HasValue
+                                  && r.CurrentPermitExpiry.Value == r.PermitExpiry.Value;
+                    if (sameType && sameExpiry)
+                    {
+                        r.Status = "EXISTING_SAME";
+                        r.Note   = "Identische Bewilligung bereits erfasst — wird übersprungen.";
+                    }
+                    else
+                    {
+                        r.Status = "EXISTING_DIFF";
+                        r.Note   = $"Bestehende Bewilligung {r.CurrentPermitCode ?? "?"}" +
+                                   (r.CurrentPermitExpiry.HasValue ? $" (bis {r.CurrentPermitExpiry:dd.MM.yyyy})" : "") +
+                                   " — Entscheidung pro Modus.";
+                    }
+                }
+            }
         }
 
         return Ok(new PreviewResponse
         {
             Rows = rows,
-            TotalRows = rows.Count,
-            Matched   = rows.Count(r => r.Status == "OK"),
-            NoMatch   = rows.Count(r => r.Status == "NO_MATCH"),
-            Unknown   = rows.Count(r => r.Status == "UNKNOWN_PERMIT" || r.Status == "NO_DATE")
+            TotalRows    = rows.Count,
+            Matched      = rows.Count(r => r.Status == "OK"),
+            NoMatch      = rows.Count(r => r.Status == "NO_MATCH"),
+            Unknown      = rows.Count(r => r.Status == "UNKNOWN_PERMIT" || r.Status == "NO_DATE"),
+            ExistingSame = rows.Count(r => r.Status == "EXISTING_SAME"),
+            ExistingDiff = rows.Count(r => r.Status == "EXISTING_DIFF")
         });
     }
 
     [HttpPost("commit")]
-    public async Task<IActionResult> Commit([FromForm] IFormFile file, [FromForm] string? validFrom = null)
+    public async Task<IActionResult> Commit([FromForm] IFormFile file, [FromForm] string? validFrom = null, [FromForm] string? existingMode = null)
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { error = "Keine Datei hochgeladen." });
@@ -156,6 +201,20 @@ public class PermitImportController : ControllerBase
             return BadRequest(new { error = "Beginn-Datum (validFrom) ist erforderlich (Format YYYY-MM-DD)." });
         }
 
+        // Walter-Vorgabe 07.06.2026: 3-Modi-Logik für MA mit bestehender Bewilligung:
+        //   STRICT  (Default) → MA mit bestehender Bewilligung wird übersprungen,
+        //                       nur Neu-Erfassungen laufen durch.
+        //   REPLACE → bestehende History des MA wird KOMPLETT gelöscht, dann
+        //             genau ein neuer Eintrag (validFromDate → PermitExpiry).
+        //   APPEND  → bestehende History bleibt erhalten, alle überlappenden
+        //             Vorgänger werden auf validFromDate-1 geschlossen, neuer
+        //             Eintrag dahinter.
+        var mode = (existingMode ?? "STRICT").ToUpperInvariant();
+        if (mode != "STRICT" && mode != "REPLACE" && mode != "APPEND")
+        {
+            return BadRequest(new { error = $"Unbekannter existingMode '{existingMode}'. Erlaubt: STRICT, REPLACE, APPEND." });
+        }
+
         var rows = await ParseAsync(file);
         if (rows == null) return BadRequest(new { error = "Konnte XLSX nicht parsen." });
 
@@ -163,6 +222,7 @@ public class PermitImportController : ControllerBase
         var userId = GetCurrentUserId();
 
         int updated = 0, skipped = 0, historyAdded = 0, historyUpdated = 0;
+        int skippedExisting = 0, replacedExisting = 0, appendedExisting = 0;
         foreach (var r in rows)
         {
             if (string.IsNullOrWhiteSpace(r.PermitCode) || r.PermitExpiry == null)
@@ -173,59 +233,94 @@ public class PermitImportController : ControllerBase
             var emp = await _db.Employees.FirstOrDefaultAsync(e => e.EmployeeNumber == r.EmployeeNumber);
             if (emp == null) { skipped++; continue; }
 
-            // 1. Stammdaten: Bewilligung + Ablauf updaten
-            emp.PermitTypeId = permitTypeId;
-            emp.PermitExpiryDate = r.PermitExpiry.Value.ToDateTime(TimeOnly.MinValue);
+            var allEntries = await _db.EmployeePermitHistories
+                .Where(h => h.EmployeeId == emp.Id)
+                .ToListAsync();
+            var hasExisting = allEntries.Any(h => h.PermitTypeId != null);
 
-            // 2. History: bestehenden offenen Eintrag aktualisieren ODER neuen anlegen
-            var openEntry = await _db.EmployeePermitHistories
-                .Where(h => h.EmployeeId == emp.Id && h.ValidTo == null)
-                .OrderByDescending(h => h.ValidFrom)
-                .FirstOrDefaultAsync();
-
-            if (openEntry != null)
+            if (hasExisting)
             {
-                // Bestehender offener Eintrag: aktualisieren wenn sich Code, Ablauf
-                // oder Beginn-Datum (Walter-Vorgabe) ändert.
-                bool codeChanged   = openEntry.PermitTypeId != permitTypeId;
-                bool expiryChanged = openEntry.PermitExpiryDate != r.PermitExpiry;
-                bool fromChanged   = openEntry.ValidFrom != validFromDate;
-                if (codeChanged || expiryChanged || fromChanged)
+                // EXISTING_SAME (identisch) — nie anfassen, egal welcher Modus.
+                // Wir vergleichen den jüngsten Eintrag.
+                var maxDate = new DateOnly(9999, 12, 31);
+                var newest = allEntries
+                    .OrderByDescending(h => h.ValidTo ?? maxDate)
+                    .ThenBy(h => h.ValidFrom)
+                    .ThenBy(h => h.Id)
+                    .First();
+                if (newest.PermitTypeId == permitTypeId && newest.ValidTo == r.PermitExpiry)
                 {
-                    openEntry.PermitTypeId     = permitTypeId;
-                    openEntry.PermitExpiryDate = r.PermitExpiry;
-                    openEntry.ValidFrom        = validFromDate;
-                    if (string.IsNullOrWhiteSpace(openEntry.Note))
-                        openEntry.Note = "Aktualisiert via Bewilligungsliste-Import";
-                    historyUpdated++;
+                    skipped++; skippedExisting++;
+                    continue;
                 }
-            }
-            else
-            {
-                // Kein offener Eintrag: Initial-Eintrag anlegen — Beginn-Datum
-                // kommt direkt aus dem Form-Feld.
+
+                if (mode == "STRICT")
+                {
+                    skipped++; skippedExisting++;
+                    continue;
+                }
+                if (mode == "REPLACE")
+                {
+                    // Komplett-Reset der History dieses MA.
+                    _db.EmployeePermitHistories.RemoveRange(allEntries);
+                    _db.EmployeePermitHistories.Add(new EmployeePermitHistory
+                    {
+                        EmployeeId       = emp.Id,
+                        PermitTypeId     = permitTypeId,
+                        ValidFrom        = validFromDate,
+                        ValidTo          = r.PermitExpiry,
+                        Note             = "Importiert via Bewilligungsliste-Import (REPLACE)",
+                        CreatedAt        = DateTime.UtcNow,
+                        CreatedByUserId  = userId
+                    });
+                    emp.PermitTypeId = permitTypeId;
+                    updated++; replacedExisting++; historyAdded++;
+                    continue;
+                }
+                // APPEND: alle Vorgänger schliessen, neuen Eintrag dahinter.
+                foreach (var p in allEntries.Where(h => h.ValidFrom < validFromDate
+                                                       && (h.ValidTo == null || h.ValidTo >= validFromDate)))
+                {
+                    p.ValidTo = validFromDate.AddDays(-1);
+                }
                 _db.EmployeePermitHistories.Add(new EmployeePermitHistory
                 {
                     EmployeeId       = emp.Id,
                     PermitTypeId     = permitTypeId,
                     ValidFrom        = validFromDate,
-                    ValidTo          = null,
-                    PermitExpiryDate = r.PermitExpiry,
-                    Note             = "Initial via Bewilligungsliste-Import",
+                    ValidTo          = r.PermitExpiry,
+                    Note             = "Importiert via Bewilligungsliste-Import (APPEND)",
                     CreatedAt        = DateTime.UtcNow,
                     CreatedByUserId  = userId
                 });
-                historyAdded++;
+                emp.PermitTypeId = permitTypeId;
+                updated++; appendedExisting++; historyAdded++;
+                continue;
             }
+
+            // Keine bestehende Bewilligung → einfach anlegen.
+            emp.PermitTypeId = permitTypeId;
+            _db.EmployeePermitHistories.Add(new EmployeePermitHistory
+            {
+                EmployeeId       = emp.Id,
+                PermitTypeId     = permitTypeId,
+                ValidFrom        = validFromDate,
+                ValidTo          = r.PermitExpiry,
+                Note             = "Importiert via Bewilligungsliste-Import",
+                CreatedAt        = DateTime.UtcNow,
+                CreatedByUserId  = userId
+            });
+            historyAdded++;
             updated++;
         }
 
         await _db.SaveChangesAsync();
-        _log.LogInformation("[PermitImport] Commit: {Updated} MA aktualisiert, {Skipped} übersprungen, {HAdd} History neu, {HUpd} History aktualisiert",
-                            updated, skipped, historyAdded, historyUpdated);
+        _log.LogInformation("[PermitImport] Commit ({Mode}): {Updated} MA, {Skipped} übersprungen ({SkExist} davon mit bestehender Bewilligung), {Repl} ersetzt, {App} verlängert, {HAdd} History neu",
+                            mode, updated, skipped, skippedExisting, replacedExisting, appendedExisting, historyAdded);
 
         return Ok(new {
-            updated, skipped, historyAdded, historyUpdated
+            updated, skipped, historyAdded, historyUpdated,
+            skippedExisting, replacedExisting, appendedExisting, mode
         });
     }
 
@@ -240,7 +335,12 @@ public class PermitImportController : ControllerBase
             using var stream = new MemoryStream();
             await file.CopyToAsync(stream);
             stream.Position = 0;
-            using var wb = new XSSFWorkbook(stream);
+            // Walter-Vorgabe 07.06.2026: beide Excel-Formate akzeptieren.
+            // .xls (HSSF) und .xlsx (XSSF) anhand der Endung wählen.
+            var ext = (Path.GetExtension(file.FileName) ?? "").ToLowerInvariant();
+            IWorkbook wb = ext == ".xls"
+                ? new HSSFWorkbook(stream)
+                : new XSSFWorkbook(stream);
 
             var sheet = wb.GetSheetAt(0);
             if (sheet == null) return null;

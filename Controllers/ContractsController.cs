@@ -92,9 +92,13 @@ public class ContractsController : ControllerBase
             WeeklyHours:             employment.EmploymentModel == "MTP"
                                          ? (decimal?)company.NormalWeeklyHours : employment.WeeklyHours,
             GuaranteedHoursPerWeek:  employment.GuaranteedHoursPerWeek,
-            VacationPercent:         employment.VacationPercent,
-            HolidayPercent:          employment.HolidayPercent,
-            ThirteenthSalaryPercent: employment.ThirteenthSalaryPercent,
+            // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
+            // kommen jetzt AUSSCHLIESSLICH aus der Filiale. Vertragsfelder wurden
+            // entfernt. Bei Ferien % wird das Alter am Vertragsbeginn geprüft —
+            // ist der MA ≥ Filial-Schwelle, erscheint der 6-Wochen-Satz im PDF.
+            VacationPercent:         ResolveVacationPctForContract(employee, company, employment.ContractStartDate),
+            HolidayPercent:          company.DefaultHolidayPercent,
+            ThirteenthSalaryPercent: company.DefaultThirteenthSalaryPercent,
             Gender:                  employee.Gender
         );
 
@@ -108,6 +112,7 @@ public class ContractsController : ControllerBase
     {
         var employment = await _context.Employments
             .Include(e => e.Employee)
+            .Include(e => e.JobGroup)   // FK-Code für Mindestlohn-Lookup (Walter 26.05.2026)
             .FirstOrDefaultAsync(e => e.Id == employmentId);
         if (employment == null) return NotFound("Employment not found.");
         if (employment.CompanyProfileId == null) return BadRequest("No company profile.");
@@ -152,7 +157,8 @@ public class ContractsController : ControllerBase
         string complianceStatus = "NOT_CHECKED";
         string? warningMessage = null;
 
-        if (educationLevelId.HasValue && !string.IsNullOrWhiteSpace(employment.JobTitle))
+        var empJobCode = employment.JobGroup?.Code;
+        if (educationLevelId.HasValue && !string.IsNullOrWhiteSpace(empJobCode))
         {
             var salaryType2 = employment.SalaryType ?? GetSalaryType(employment.EmploymentModel);
 
@@ -167,7 +173,7 @@ public class ContractsController : ControllerBase
             }
 
             var candidates = await _context.MinimumWageRulesNew
-                .Where(r => r.IsActive && r.JobGroupCode == employment.JobTitle
+                .Where(r => r.IsActive && r.JobGroupCode == empJobCode
                          && r.EmploymentModelCode == MapEmploymentModel(employment.EmploymentModel)
                          && r.EducationLevelId == educationLevelId
                          && r.SalaryType == salaryType2
@@ -214,6 +220,26 @@ public class ContractsController : ControllerBase
 
     private static string GetSalaryType(string? m) =>
         ((m ?? "").ToUpperInvariant() is "FIX" or "FIX-M") ? "monthly" : "hourly";
+
+    /// <summary>
+    /// Walter-Vorgabe 06.06.2026: Ferien-% für den Arbeitsvertrag-PDF.
+    /// Nimmt den Filial-5-Wochen-Default. Ist der MA am Vertragsbeginn bereits
+    /// ≥ company.VacationSixWeeksFromAge (L-GAV-Standard 50), wird auf den
+    /// 6-Wochen-Default hochgesetzt — analog zur Engine-Logik. Gibt es kein
+    /// Geburtsdatum, bleibt's beim 5-Wochen-Default.
+    /// </summary>
+    private static decimal? ResolveVacationPctForContract(
+        Models.Employee employee, Models.CompanyProfile company, DateTime contractStartDate)
+    {
+        var fiveWeeks = company.DefaultVacationPercent5Weeks;
+        var sixWeeks  = company.DefaultVacationPercent6Weeks;
+        if (employee.DateOfBirth is null) return fiveWeeks;
+
+        var dob = DateOnly.FromDateTime(employee.DateOfBirth.Value);
+        var start = DateOnly.FromDateTime(contractStartDate);
+        var schwelle = dob.AddYears(company.VacationSixWeeksFromAge);
+        return schwelle <= start ? sixWeeks : fiveWeeks;
+    }
 
     private static string GetEmploymentModelText(string? model) =>
         (model ?? "").ToUpperInvariant() switch

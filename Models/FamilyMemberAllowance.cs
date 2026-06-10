@@ -30,11 +30,23 @@ public class FamilyMemberAllowance
     public decimal MonthlyAmount { get; set; }
 
     /// <summary>
-    /// Optional Zulagenart als Freitext-Code, z.B. "KZ" (Kinderzulage),
-    /// "AZ" (Ausbildungszulage). Reine Information, beeinflusst aktuell
-    /// nichts an der Berechnung.
+    /// Zulagenart als Code: "KZ" (Kinderzulage), "AZ" (Ausbildungszulage),
+    /// "GZ" (Geburtszulage), "AdoptZ" (Adoptionszulage).
     /// </summary>
     public string? AllowanceType { get; set; }
+
+    /// <summary>
+    /// Walter-Vorgabe 28.05.2026: Konkreter Tarif-Satz innerhalb der Kategorie.
+    /// 1 = Satz 1 (jüngere Kinder), 2 = Satz 2 (z.B. ab 12 J.).
+    /// NULL bei Pauschal-Zulagen (GZ/AdoptZ — kein Satz, da Pauschalbetrag)
+    /// oder bei Alt-Daten vor Umstellung.
+    ///
+    /// Die Engine schaut PRO LOHNPERIODE: welcher Allowance-Eintrag ist
+    /// gültig, welcher Satz ist gewählt — und holt den daraus resultierenden
+    /// Wert aus dem aktuell gültigen FAK-Tarif der Filiale (Systemtabelle).
+    /// So greifen Tarif-Änderungen (z.B. neue Sätze ab 1.1.2026) automatisch.
+    /// </summary>
+    public int? TarifSatzNr { get; set; }
 
     /// <summary>Optionale Bemerkung.</summary>
     public string? Note { get; set; }

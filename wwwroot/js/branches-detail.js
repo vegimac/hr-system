@@ -211,20 +211,35 @@ function renderFilialenDetail(b) {
                 <div class="emp-field"><div class="emp-field-label">Nacht Ende</div>
                     <div class="emp-field-value"><input type="time" id="einNightEnd" class="ef-input" value="${nightEnd}"></div></div>
                 ${fField('Normale Wochenstunden', b.normalWeeklyHours)}
+                <div class="emp-field"><div class="emp-field-label">Max. Stunden / Woche <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">(Warnung im Stempel-Tab)</span></div>
+                    <div class="emp-field-value"><input type="number" id="einMaxWeeklyHours" class="ef-input" min="0" max="168" step="0.5" placeholder="keine Grenze" value="${b.maxWeeklyHours != null ? Number(b.maxWeeklyHours) : ''}"></div></div>
             </div>
 
-            <div class="ein-group-title">Ferien- &amp; Feiertags-Vorgaben <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">(nur Anzeige)</span></div>
+            <div class="ein-group-title">Ferien- &amp; Feiertags-Vorgaben <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">(% nur Anzeige · Alter editierbar)</span></div>
             <div class="emp-field-grid">
                 ${fField('Ferien % (5 Wochen)', b.defaultVacationPercent5Weeks)}
                 ${fField('Ferien % (6 Wochen)', b.defaultVacationPercent6Weeks)}
+                <div class="emp-field"><div class="emp-field-label">6 Wochen ab Alter</div>
+                    <div class="emp-field-value"><input type="number" id="einVacationSixWeeksFromAge" class="ef-input" min="0" max="100" step="1" value="${b.vacationSixWeeksFromAge ?? 50}"></div></div>
                 ${fField('Feiertag %',          b.defaultHolidayPercent)}
             </div>
 
             <div class="ein-group-title">13. Monatslohn</div>
-            <div class="emp-field" style="margin-bottom:5px">
-                <div class="emp-field-label">Auszahlungsmonate</div>
-                <div id="einTpGrid" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px"></div>
-                <div id="einTpHint" style="font-size:11.5px;margin-top:3px"></div>
+            <div style="display:flex;gap:32px;align-items:flex-start;margin-bottom:5px;flex-wrap:wrap">
+                <div class="emp-field" style="flex:0 0 130px;margin-bottom:0">
+                    <!-- unsichtbarer Label-Spacer, damit der Input auf gleicher Höhe wie
+                         die Monatskreuze rechts liegt (Walter-Vorgabe 06.06.2026) -->
+                    <div class="emp-field-label" style="visibility:hidden">.</div>
+                    <div class="emp-field-value" style="gap:6px">
+                        <input type="number" id="einDefaultThirteenthPct" class="ef-input" min="0" max="100" step="0.01" placeholder="8.33" value="${b.defaultThirteenthSalaryPercent != null ? Number(b.defaultThirteenthSalaryPercent) : ''}" style="flex:1;min-width:0">
+                        <span style="font-size:13px;color:#475569;font-weight:600">%</span>
+                    </div>
+                </div>
+                <div class="emp-field" style="flex:1 1 auto;margin-bottom:0;min-width:300px">
+                    <div class="emp-field-label">Auszahlungsmonate</div>
+                    <div id="einTpGrid" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px"></div>
+                    <div id="einTpHint" style="font-size:11.5px;margin-top:3px"></div>
+                </div>
             </div>
             <div class="emp-field-grid">
                 <div class="emp-field"><div class="emp-field-label">Ferien-Geld Dezember (UTP/MTP)</div>
@@ -534,6 +549,8 @@ async function saveEinstellungen(branchId) {
     const g = id => document.getElementById(id);
     const nightStart   = g('einNightStart')?.value || '';
     const nightEnd     = g('einNightEnd')?.value || '';
+    const maxWeeklyRaw = g('einMaxWeeklyHours')?.value;
+    const maxWeekly    = (maxWeeklyRaw == null || maxWeeklyRaw === '') ? null : Number(maxWeeklyRaw);
     const autoFG       = g('einAutoFerienGeld')?.value === 'true';
     const karenzBasis  = g('einKarenzBasis')?.value || 'ARBEITSJAHR';
     const karenzKrank  = Number(g('einKarenzKrank')?.value);
@@ -546,10 +563,14 @@ async function saveEinstellungen(branchId) {
     const akontoProzent       = Number(g('einAkontoProzent')?.value);
     const akontoProzentFixM   = Number(g('einAkontoProzentFixM')?.value);
     const akontoProzentHourly = Number(g('einAkontoProzentHourly')?.value);
+    const vacSixWeeksAge      = parseInt(g('einVacationSixWeeksFromAge')?.value, 10);
+    const defaultThirteenthRaw= g('einDefaultThirteenthPct')?.value;
+    const defaultThirteenth   = (defaultThirteenthRaw == null || defaultThirteenthRaw === '') ? null : Number(defaultThirteenthRaw);
     const tpMonths     = [..._einTpMonths].sort((a, b) => a - b);
 
     // Validierung
     if (!nightStart || !nightEnd) { alert('Bitte beide Nachtzeiten angeben.'); return; }
+    if (maxWeekly != null && (!Number.isFinite(maxWeekly) || maxWeekly < 0 || maxWeekly > 168)) { alert('Max. Stunden / Woche muss zwischen 0 und 168 liegen (oder leer für keine Grenze).'); return; }
     if (!['ARBEITSJAHR', 'KALENDERJAHR'].includes(karenzBasis)) { alert('Karenzjahr-Basis ungültig.'); return; }
     if (!Number.isFinite(karenzKrank)  || karenzKrank  < 0 || karenzKrank  > 365) { alert('Karenz-Tage Krank muss zwischen 0 und 365 liegen.'); return; }
     if (!Number.isFinite(karenzUnfall) || karenzUnfall < 0 || karenzUnfall > 365) { alert('Karenz-Tage Unfall muss zwischen 0 und 365 liegen.'); return; }
@@ -560,6 +581,8 @@ async function saveEinstellungen(branchId) {
     if (!Number.isFinite(akontoProzent) || akontoProzent < 0 || akontoProzent > 100) { alert('Akonto-% (FIX) muss zwischen 0 und 100 liegen.'); return; }
     if (!Number.isFinite(akontoProzentFixM) || akontoProzentFixM < 0 || akontoProzentFixM > 100) { alert('Akonto-% (FIX-M) muss zwischen 0 und 100 liegen.'); return; }
     if (!Number.isFinite(akontoProzentHourly) || akontoProzentHourly < 0 || akontoProzentHourly > 100) { alert('Akonto-% (UTP/MTP) muss zwischen 0 und 100 liegen.'); return; }
+    if (!Number.isFinite(vacSixWeeksAge) || vacSixWeeksAge < 0 || vacSixWeeksAge > 100) { alert('„6 Wochen ab Alter" muss zwischen 0 und 100 liegen (Standard L-GAV = 50).'); return; }
+    if (defaultThirteenth != null && (!Number.isFinite(defaultThirteenth) || defaultThirteenth < 0 || defaultThirteenth > 100)) { alert('„13. ML %" muss zwischen 0 und 100 liegen (Standard L-GAV = 8.33; leer = nicht gesetzt).'); return; }
     if (tpMonths.length === 0 && !confirm('Keine 13.-ML-Auszahlungsmonate gewählt — der 13. ML wird gar nicht ausbezahlt. Trotzdem speichern?')) return;
 
     const btn = g('einSaveBtn-' + branchId);
@@ -573,12 +596,16 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/lgav`,                        { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) }),
             fetch(`/api/companyprofiles/${branchId}/thirteenth-payouts`,          { method: 'PATCH', headers: H, body: JSON.stringify({ months: tpMonths, payoutsPerYear: tpMonths.length || 12 }) }),
             fetch(`/api/companyprofiles/${branchId}/akonto-prozent`,              { method: 'PATCH', headers: H, body: JSON.stringify({ akontoProzentFix: akontoProzent, akontoProzentFixM: akontoProzentFixM, akontoProzentHourly: akontoProzentHourly }) }),
+            fetch(`/api/companyprofiles/${branchId}/max-weekly-hours`,            { method: 'PATCH', headers: H, body: JSON.stringify({ maxWeeklyHours: maxWeekly }) }),
+            fetch(`/api/companyprofiles/${branchId}/vacation-six-weeks-from-age`, { method: 'PATCH', headers: H, body: JSON.stringify({ vacationSixWeeksFromAge: vacSixWeeksAge }) }),
+            fetch(`/api/companyprofiles/${branchId}/default-thirteenth-percent`,  { method: 'PATCH', headers: H, body: JSON.stringify({ defaultThirteenthSalaryPercent: defaultThirteenth }) }),
         ]);
         const failed = results.filter(r => !r.ok).length;
 
         // Lokale Kopien aktualisieren (analog zu den früheren Modal-Saves)
         const patch = {
             nightStartTime: nightStart, nightEndTime: nightEnd,
+            maxWeeklyHours: maxWeekly,
             autoFerienGeldAuszahlungDezember: autoFG,
             karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank,
             karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist,
@@ -587,6 +614,8 @@ async function saveEinstellungen(branchId) {
             akontoProzentFix: akontoProzent,
             akontoProzentFixM: akontoProzentFixM,
             akontoProzentHourly: akontoProzentHourly,
+            vacationSixWeeksFromAge: vacSixWeeksAge,
+            defaultThirteenthSalaryPercent: defaultThirteenth,
         };
         const b = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === branchId);
         if (b) Object.assign(b, patch);
@@ -600,7 +629,7 @@ async function saveEinstellungen(branchId) {
         if (typeof loadFilialen === 'function') loadFilialen();
 
         if (failed > 0) {
-            alert(`${failed} von 6 Einstellungs-Gruppen konnten nicht gespeichert werden. Bitte erneut versuchen.`);
+            alert(`${failed} von 9 Einstellungs-Gruppen konnten nicht gespeichert werden. Bitte erneut versuchen.`);
         } else if (typeof showToast === 'function') {
             showToast('Einstellungen gespeichert.', 'success');
         }

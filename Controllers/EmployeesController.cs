@@ -24,7 +24,7 @@ public class EmployeesController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var employees = await _context.Employees
-            .Include(e => e.Employments)
+            .Include(e => e.Employments).ThenInclude(em => em.JobGroup)   // FK-Code für Frontend (Walter 26.05.2026)
             .OrderBy(e => ((e.FirstName ?? "") + " " + (e.LastName ?? "")).Trim())
             .ToListAsync();
 
@@ -81,7 +81,7 @@ public class EmployeesController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var employee = await _context.Employees
-            .Include(e => e.Employments.OrderByDescending(c => c.ContractStartDate))
+            .Include(e => e.Employments.OrderByDescending(c => c.ContractStartDate)).ThenInclude(em => em.JobGroup)
             .Include(e => e.PermitType)
             .Include(e => e.NationalityRef)
             .FirstOrDefaultAsync(e => e.Id == id);
@@ -107,6 +107,28 @@ public class EmployeesController : ControllerBase
             natName = !string.IsNullOrWhiteSpace(txt)
                 ? txt
                 : (CountryNamesDe.Resolve(natCode) ?? natCode);
+        }
+
+        // permitExpiryDate (abgeleitet) + permitType:
+        // Walter-Vorgabe 07.06.2026 (final): „neueste" = höchstes ValidTo,
+        // bei Gleichheit ÄLTESTES ValidFrom (= Original-Eintrag, nicht
+        // Import-Duplikat). Konsistent mit EmployeePermitHistoryController.
+        DateOnly? permitExpiryDate = null;
+        PermitType? latestPermitType = null;
+        {
+            var maxDate = new DateOnly(9999, 12, 31);
+            var newest = await _context.EmployeePermitHistories
+                .Where(h => h.EmployeeId == employee.Id && h.PermitTypeId != null)
+                .Include(h => h.PermitType)
+                .OrderByDescending(h => h.ValidTo ?? maxDate)
+                .ThenBy(h => h.ValidFrom)
+                .ThenBy(h => h.Id)
+                .FirstOrDefaultAsync();
+            if (newest != null)
+            {
+                permitExpiryDate = newest.ValidTo;
+                latestPermitType = newest.PermitType;
+            }
         }
 
         // Aktiver Vertrag = ContractEndDate IS NULL (kein Enddatum = laufend)
@@ -138,17 +160,29 @@ public class EmployeesController : ControllerBase
             employee.ExitDate,
             employee.IsActive,
             employee.IsPayrollExcluded,
-            employee.PermitTypeId,
-            permitType = employee.PermitType == null ? null : new {
-                employee.PermitType.Id,
-                employee.PermitType.Code,
-                employee.PermitType.Description
+            employee.LgavPflichtig,
+            employee.TeilzeitUnter8hWoche,
+            // Walter-Vorgabe 07.06.2026: permitType + Code/Beschreibung kommen
+            // aus der „neuesten" History-Bewilligung (siehe oben latestPermitType),
+            // nicht aus dem denormalisierten employee.PermitType — damit Frontend
+            // und QST-Pflicht-Check immer denselben Eintrag sehen, auch wenn der
+            // Cache nach einem Schema-Wechsel noch nicht resynct wurde.
+            PermitTypeId          = latestPermitType?.Id,
+            permitType            = latestPermitType == null ? null : new {
+                latestPermitType.Id,
+                latestPermitType.Code,
+                latestPermitType.Description
             },
-            permitTypeCode = employee.PermitType?.Code,
-            permitTypeDescription = employee.PermitType?.Description,
-            employee.PermitExpiryDate,
+            permitTypeCode        = latestPermitType?.Code,
+            permitTypeDescription = latestPermitType?.Description,
+            permitExpiryDate      = permitExpiryDate,
             zemisNumber = employee.ZemisNumber,
             employee.QuellensteuerBefreitAb,
+            // QST-Befreiung durch Steuerbehörde (Walter 26.05.2026)
+            employee.QstBefreitDurchBehoerde,
+            employee.QstBefreiungDokumentId,
+            employee.QstBefreiungGueltigAb,
+            employee.QstBefreiungGueltigBis,
             employee.SocialSecurityNumber,
             employee.MaritalStatus,
             employee.MaritalStatusSince,
@@ -177,9 +211,6 @@ public class EmployeesController : ControllerBase
             guaranteedHoursPerWeek = active?.GuaranteedHoursPerWeek,
             monthlySalary          = active?.MonthlySalary,
             hourlyRate             = active?.HourlyRate,
-            vacationPercent        = active?.VacationPercent,
-            holidayPercent         = active?.HolidayPercent,
-            thirteenthSalaryPercent= active?.ThirteenthSalaryPercent,
             vacationPaymentMode    = active?.VacationPaymentMode,
             probationPeriodMonths  = active?.ProbationPeriodMonths,
             probationEndDate       = active?.ProbationEndDate,
@@ -277,11 +308,17 @@ public class EmployeesController : ControllerBase
         var zipAfter   = employee.ZipCode?.Trim();
         var zipChanged = !string.Equals(zipBefore, zipAfter, StringComparison.OrdinalIgnoreCase);
         var cantonExplicit = !string.IsNullOrWhiteSpace(dto.CantonCode);
-        await EnrichAddressFromZipAsync(employee, forceCantonRefresh: zipChanged && !cantonExplicit);
+        // Walter-Vorgabe 06.06.2026: Importer setzt ForceCantonFromZip=true →
+        // PLZ-Lookup wird ALWAYS ausgeführt (korrigiert frühere CSV-Region-Fehler).
+        // Nur unterdrückt, wenn der Aufrufer explizit selbst einen Kanton mitschickt.
+        var forceRefresh = (zipChanged || dto.ForceCantonFromZip) && !cantonExplicit;
+        await EnrichAddressFromZipAsync(employee, forceCantonRefresh: forceRefresh);
 
         // ── Aufenthalt ────────────────────────────────────────────────────
         if (dto.PermitTypeId.HasValue)     employee.PermitTypeId     = dto.PermitTypeId == 0 ? null : dto.PermitTypeId;
-        if (dto.PermitExpiryDate.HasValue) employee.PermitExpiryDate = dto.PermitExpiryDate;
+        // dto.PermitExpiryDate wird IGNORIERT (Walter 01.06.2026) — das Ablauf-
+        // Datum lebt nur noch auf EmployeePermitHistory.ValidTo. Frontend kann
+        // das Feld noch senden, wird aber nicht mehr verarbeitet.
         if (dto.ZemisNumber is not null)   employee.ZemisNumber      = dto.ZemisNumber == "" ? null : dto.ZemisNumber;
         if (dto.QuellensteuerBefreitAbSet) employee.QuellensteuerBefreitAb = dto.QuellensteuerBefreitAb;
 
@@ -304,9 +341,84 @@ public class EmployeesController : ControllerBase
         // Rollen-Beschränkung wird im Frontend durchgesetzt (Toggle wird nur
         // für admin/superuser angezeigt). Backend-Role-Check entfernt weil
         // er bei Walter's JWT-Setup nicht zuverlässig griff.
+        //
+        // Walter-Vorgabe 01.06.2026: beim Umstellen auf "kein Lohn" werden
+        // automatisch alle Snapshots/Saldos/Akonto-Zahlungen und Verträge
+        // in NICHT-abgeschlossenen Perioden (Status != 'abgeschlossen')
+        // gelöscht. Abgeschlossene Perioden bleiben unangetastet (sind
+        // historische Belege). So bleibt der Lohnlauf-Workflow konsistent.
         if (dto.IsPayrollExcluded.HasValue)
         {
+            bool wirdPhantom = !employee.IsPayrollExcluded && dto.IsPayrollExcluded.Value;
             employee.IsPayrollExcluded = dto.IsPayrollExcluded.Value;
+
+            if (wirdPhantom)
+            {
+                // IDs der offenen (nicht abgeschlossenen) Perioden laden.
+                var offenePeriodenIds = await _context.PayrollPerioden
+                    .Where(p => p.Status != "abgeschlossen")
+                    .Select(p => p.Id)
+                    .ToListAsync();
+                var offeneYearMonth = await _context.PayrollPerioden
+                    .Where(p => p.Status != "abgeschlossen")
+                    .Select(p => new { p.Year, p.Month })
+                    .ToListAsync();
+
+                // 1) Snapshots in offenen Perioden
+                var snapsRaus = await _context.PayrollSnapshots
+                    .Where(s => s.EmployeeId == employee.Id
+                             && offenePeriodenIds.Contains(s.PayrollPeriodeId))
+                    .ToListAsync();
+                _context.PayrollSnapshots.RemoveRange(snapsRaus);
+
+                // 2) Akonto-Zahlungen (period_year/period_month)
+                var akontoRaus = await _context.AkontoZahlungen
+                    .Where(a => a.EmployeeId == employee.Id)
+                    .ToListAsync();
+                var akontoFiltered = akontoRaus.Where(a =>
+                    offeneYearMonth.Any(p => p.Year == a.PeriodYear && p.Month == a.PeriodMonth))
+                    .ToList();
+                _context.AkontoZahlungen.RemoveRange(akontoFiltered);
+
+                // 3) Saldos (period_year/period_month)
+                var saldoAll = await _context.PayrollSaldos
+                    .Where(s => s.EmployeeId == employee.Id)
+                    .ToListAsync();
+                var saldoFiltered = saldoAll.Where(s =>
+                    offeneYearMonth.Any(p => p.Year == s.PeriodYear && p.Month == s.PeriodMonth))
+                    .ToList();
+                _context.PayrollSaldos.RemoveRange(saldoFiltered);
+
+                // 4) Verträge ohne Snapshot in irgendeiner ABGESCHLOSSENEN
+                //    Periode löschen. Wenn ein Vertrag bereits in einer
+                //    abgeschlossenen Periode war, muss er als historischer
+                //    Beleg bestehen bleiben.
+                var verträgeAll = await _context.Employments
+                    .Where(em => em.EmployeeId == employee.Id)
+                    .ToListAsync();
+                var abgeschlossenePerioden = await _context.PayrollPerioden
+                    .Where(p => p.Status == "abgeschlossen")
+                    .Select(p => new { p.Id, p.PeriodFrom, p.PeriodTo })
+                    .ToListAsync();
+                var snapshotsAbgeschlossen = await _context.PayrollSnapshots
+                    .Where(s => s.EmployeeId == employee.Id)
+                    .Select(s => s.PayrollPeriodeId)
+                    .ToListAsync();
+                var abgeschlossPerioden = abgeschlossenePerioden
+                    .Where(p => snapshotsAbgeschlossen.Contains(p.Id))
+                    .ToList();
+                foreach (var v in verträgeAll)
+                {
+                    var startD = DateOnly.FromDateTime(v.ContractStartDate);
+                    var endD = v.ContractEndDate.HasValue
+                        ? DateOnly.FromDateTime(v.ContractEndDate.Value)
+                        : new DateOnly(9999, 12, 31);
+                    bool inAbgeschlossener = abgeschlossPerioden.Any(p =>
+                        startD <= p.PeriodTo && endD >= p.PeriodFrom);
+                    if (!inAbgeschlossener)
+                        _context.Employments.Remove(v);
+                }
+            }
         }
 
         // KTG/UVG-Overrides
@@ -349,6 +461,10 @@ public class EmployeesController : ControllerBase
             }
             employee.IsActive = dto.IsActive.Value;
         }
+
+        // Walter-Vorgabe 07.06.2026: Anstellungs-Booleans übernehmen, wenn gesendet.
+        if (dto.LgavPflichtig.HasValue)        employee.LgavPflichtig        = dto.LgavPflichtig.Value;
+        if (dto.TeilzeitUnter8hWoche.HasValue) employee.TeilzeitUnter8hWoche = dto.TeilzeitUnter8hWoche.Value;
 
         await _context.SaveChangesAsync();
 
@@ -506,9 +622,6 @@ public class EmployeesController : ControllerBase
         if (dto.HourlyRate.HasValue)              emp.HourlyRate              = dto.HourlyRate;
         if (dto.MonthlySalary.HasValue)           emp.MonthlySalary           = dto.MonthlySalary;
         if (dto.MonthlySalaryFte.HasValue)        emp.MonthlySalaryFte        = dto.MonthlySalaryFte;
-        if (dto.VacationPercent.HasValue)         emp.VacationPercent         = dto.VacationPercent;
-        if (dto.HolidayPercent.HasValue)          emp.HolidayPercent          = dto.HolidayPercent;
-        if (dto.ThirteenthSalaryPercent.HasValue) emp.ThirteenthSalaryPercent = dto.ThirteenthSalaryPercent;
         if (dto.ContractStartDate.HasValue)       emp.ContractStartDate       = dto.ContractStartDate.Value;
         if (dto.ContractEndDateSet)               emp.ContractEndDate         = dto.ContractEndDate;
         if (dto.ProbationPeriodMonths.HasValue)   emp.ProbationPeriodMonths   = dto.ProbationPeriodMonths;
@@ -516,6 +629,83 @@ public class EmployeesController : ControllerBase
 
         await _context.SaveChangesAsync();
         return Ok(emp);
+    }
+
+    /// <summary>
+    /// QST-Befreiung durch die Steuerbehörde setzen / aufheben (Walter-Vorgabe
+    /// 26.05.2026). Befreiung benötigt: Dokument-ID (Bestätigungsschreiben aus
+    /// dem MA-Dokumente-Tab) UND Gueltig-ab-Datum. Aufheben = `befreit:false`.
+    /// </summary>
+    [HttpPatch("{id:int}/qst-befreiung")]
+    public async Task<IActionResult> SetQstBefreiung(int id, [FromBody] QstBefreiungDto dto)
+    {
+        var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Id == id);
+        if (emp == null) return NotFound();
+
+        if (!dto.Befreit)
+        {
+            // Aufheben — alle vier Felder zurücksetzen
+            emp.QstBefreitDurchBehoerde = false;
+            emp.QstBefreiungDokumentId  = null;
+            emp.QstBefreiungGueltigAb   = null;
+            emp.QstBefreiungGueltigBis  = null;
+        }
+        else
+        {
+            // Setzen — Dok-ID und Gueltig-ab Pflicht
+            if (!dto.DokumentId.HasValue)
+                return BadRequest(new { error = "DOKUMENT_PFLICHT", message = "Befreiung benötigt das Bestätigungsschreiben der Steuerbehörde als verlinktes Dokument." });
+            if (!dto.GueltigAb.HasValue)
+                return BadRequest(new { error = "GUELTIG_AB_PFLICHT", message = "Befreiung benötigt ein Gültig-ab-Datum." });
+
+            // Dokument muss diesem MA gehören
+            var dokOk = await _context.EmployeeDokumente
+                .AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == id);
+            if (!dokOk)
+                return BadRequest(new { error = "DOKUMENT_INVALID", message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
+
+            emp.QstBefreitDurchBehoerde = true;
+            emp.QstBefreiungDokumentId  = dto.DokumentId;
+            emp.QstBefreiungGueltigAb   = dto.GueltigAb;
+            emp.QstBefreiungGueltigBis  = dto.GueltigBis;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new
+        {
+            id = emp.Id,
+            qstBefreitDurchBehoerde = emp.QstBefreitDurchBehoerde,
+            qstBefreiungDokumentId  = emp.QstBefreiungDokumentId,
+            qstBefreiungGueltigAb   = emp.QstBefreiungGueltigAb,
+            qstBefreiungGueltigBis  = emp.QstBefreiungGueltigBis
+        });
+    }
+
+    /// <summary>
+    /// Live-Check: ist der MA am angegebenen Stichtag QST-pflichtig + ist eine
+    /// QST-Erfassung vorhanden? Verwendet für den QST-Tab-Banner und das
+    /// Dashboard-Audit. Stichtag default = heute.
+    /// </summary>
+    [HttpGet("{id:int}/qst-pflicht")]
+    public async Task<IActionResult> GetQstPflicht(int id, [FromQuery] DateOnly? stichtag, [FromServices] QstPflichtCheckService check)
+    {
+        var date = stichtag ?? DateOnly.FromDateTime(DateTime.Today);
+        var result = await check.CheckAsync(id, date);
+        return Ok(new
+        {
+            isPflichtOffen = result.IsPflichtOffen,
+            isQstPflichtig = result.IsQstPflichtig,
+            hasErfassung   = result.HasErfassung,
+            befreiungsGrund = result.BefreiungsGrund,
+            message = result.Message,
+            // Walter-Vorgabe 28.05.2026: bei Behörden-Befreiung Dok-ID +
+            // Gültig-ab/bis durchreichen, damit das Frontend das Bestätigungs-
+            // schreiben direkt im Vorschau-Side-Panel öffnen kann.
+            befreiungsDokumentId  = result.BefreiungsDokumentId,
+            befreiungsGueltigAb   = result.BefreiungsGueltigAb,
+            befreiungsGueltigBis  = result.BefreiungsGueltigBis,
+            stichtag = date
+        });
     }
 
     private static string NormalizeRestaurantPrefix(string? restaurantCode)
@@ -553,8 +743,19 @@ public class EmployeeUpdateDto
     public string?   Country     { get; set; }
     public string?   CantonCode  { get; set; }
 
+    /// <summary>
+    /// Walter-Vorgabe 06.06.2026: Importer/Wartung kann explizit eine Re-Ableitung
+    /// des Kantons aus dem PLZ-Verzeichnis erzwingen — auch wenn die PLZ
+    /// unverändert ist. Korrigiert frühere Falscheinträge (z.B. easy@work-Import
+    /// mit fehlerhafter Region-Spalte). Wirkt nur, wenn KEIN expliziter CantonCode
+    /// im DTO mitkommt.
+    /// </summary>
+    public bool      ForceCantonFromZip { get; set; }
+
     // Aufenthalt
     public int?      PermitTypeId     { get; set; }
+    // PermitExpiryDate-Property bleibt akzeptiert (für Rückwärtskompatibilität mit
+    // älteren Frontends), wird aber im Update-Pfad IGNORIERT (Walter 01.06.2026).
     public DateTime? PermitExpiryDate { get; set; }
     public string?   ZemisNumber      { get; set; }
 
@@ -591,6 +792,10 @@ public class EmployeeUpdateDto
     // null = nicht ändern; true/false = setzen.
     public bool?     IsActive              { get; set; }
 
+    // Anstellungs-Booleans (Walter 07.06.2026)
+    public bool?     LgavPflichtig         { get; set; }
+    public bool?     TeilzeitUnter8hWoche  { get; set; }
+
     // KTG/UVG-Overrides für Legacy-MA aus dem alten Lohnsystem.
     // Set-Flags damit "null absichtlich = Auto zurück" möglich ist.
     public bool      KtgTagessatzManuellSet { get; set; } = false;
@@ -610,12 +815,18 @@ public class EmploymentUpdateDto
     public decimal?  HourlyRate             { get; set; }
     public decimal?  MonthlySalary          { get; set; }
     public decimal?  MonthlySalaryFte       { get; set; }
-    public decimal?  VacationPercent        { get; set; }
-    public decimal?  HolidayPercent         { get; set; }
-    public decimal?  ThirteenthSalaryPercent { get; set; }
     public DateTime? ContractStartDate      { get; set; }
     public bool      ContractEndDateSet     { get; set; } = false;
     public DateTime? ContractEndDate        { get; set; }
     public int?      ProbationPeriodMonths  { get; set; }
     public DateTime? ProbationEndDate       { get; set; }
+}
+
+/// <summary>QST-Befreiung durch Steuerbehörde (Walter 26.05.2026).</summary>
+public class QstBefreiungDto
+{
+    public bool      Befreit    { get; set; }   // false → alle vier Felder zurücksetzen
+    public int?      DokumentId { get; set; }   // FK auf employee_dokument; Pflicht wenn Befreit=true
+    public DateOnly? GueltigAb  { get; set; }   // Pflicht wenn Befreit=true
+    public DateOnly? GueltigBis { get; set; }   // NULL = unbefristet
 }

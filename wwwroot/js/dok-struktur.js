@@ -35,8 +35,12 @@ function renderDokstrukturKategorien() {
                 <div style="font-size:11px;color:#64748b">${k.anzahlTypen} Typen · ${k.anzahlDokumente} Dokumente</div>
             </div>
             <div class="dokstruktur-actions">
-                <button class="dok-action" onclick="event.stopPropagation();dokstrukturEditKat(${k.id})">Bearb.</button>
-                <button class="dok-action danger" onclick="event.stopPropagation();dokstrukturDeleteKat(${k.id})" ${k.anzahlTypen > 0 ? 'disabled title="Erst Typen löschen"' : ''}>×</button>
+                <button class="btn-emp-add" style="padding:4px 7px" onclick="event.stopPropagation();dokstrukturEditKat(${k.id})" title="Bearbeiten">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn-emp-add" style="padding:4px 7px;background:#fee2e2;border-color:#fca5a5;color:#991b1b" onclick="event.stopPropagation();dokstrukturDeleteKat(${k.id})" ${k.anzahlTypen > 0 ? 'disabled title="Erst Typen löschen"' : 'title="Löschen"'}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+                </button>
             </div>
         </div>
     `).join('');
@@ -72,7 +76,11 @@ function renderDokstrukturTypen() {
         'contract':        'Arbeitsvertrag',
         'marriage_cert':   'Heiratsurkunde',
         'birth_cert':      'Geburtsurkunde',
-        'social_decision': 'Bescheid Sozialamt'
+        'social_decision': 'Bescheid Sozialamt',
+        // Walter-Vorgabe 07.06.2026: Verknüpfung zum Ehegatten unter Familie.
+        'spouse':          'Ehegatte (Familie)',
+        // Walter-Vorgabe 07.06.2026: Mitarbeiterfoto in der MA-Maske.
+        'employee_photo':  'Mitarbeiterfoto'
     };
     el.innerHTML = kat.typen.map(t => {
         const link = t.linkedFieldCode
@@ -85,8 +93,12 @@ function renderDokstrukturTypen() {
                 <div style="font-size:11px;color:#64748b">Sort ${t.sortOrder} · ${t.anzahlDokumente} Dokument${t.anzahlDokumente !== 1 ? 'e' : ''}</div>
             </div>
             <div class="dokstruktur-actions">
-                <button class="dok-action" onclick="dokstrukturEditTyp(${t.id})">Bearb.</button>
-                <button class="dok-action danger" onclick="dokstrukturDeleteTyp(${t.id})" ${t.anzahlDokumente > 0 ? 'disabled title="In Verwendung"' : ''}>×</button>
+                <button class="btn-emp-add" style="padding:4px 7px" onclick="dokstrukturEditTyp(${t.id})" title="Bearbeiten">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn-emp-add" style="padding:4px 7px;background:#fee2e2;border-color:#fca5a5;color:#991b1b" onclick="dokstrukturDeleteTyp(${t.id})" ${t.anzahlDokumente > 0 ? 'disabled title="In Verwendung"' : 'title="Löschen"'}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+                </button>
             </div>
         </div>`;
     }).join('');
@@ -216,6 +228,8 @@ function dokstrukturEditTyp(id) {
               <option value="marriage_cert"   ${t?.linkedFieldCode === 'marriage_cert'   ? 'selected' : ''}>Heiratsurkunde</option>
               <option value="birth_cert"      ${t?.linkedFieldCode === 'birth_cert'      ? 'selected' : ''}>Geburtsurkunde</option>
               <option value="social_decision" ${t?.linkedFieldCode === 'social_decision' ? 'selected' : ''}>Bescheid Sozialamt</option>
+              <option value="spouse"          ${t?.linkedFieldCode === 'spouse'          ? 'selected' : ''}>Ehegatte (Familie)</option>
+              <option value="employee_photo"  ${t?.linkedFieldCode === 'employee_photo'  ? 'selected' : ''}>Mitarbeiterfoto</option>
             </select>
             <div style="font-size:11px;color:#94a3b8;margin-top:3px">
               Wenn gesetzt, erscheint neben dem Stammdaten-Feld in der MA-Maske ein 📎-Button.
@@ -654,40 +668,63 @@ async function renderVtDetail(emp) {
     </div>`;
 }
 
-// Öffnet das moderne Edit-Modal im 'new'-Modus, vorbefüllt mit Snapshot
-// (falls vorhanden) und der aktuell aktiven Filiale.
+// Öffnet das moderne Edit-Modal im 'new'-Modus, vorbefüllt mit den Werten
+// des LETZTEN bestehenden Vertrags dieses MA (Walter-Vorgabe 26.05.2026) —
+// nur Vertragsbeginn/-ende werden NICHT übernommen. Fällt auf den Import-
+// Snapshot (easy@work) zurück, wenn der MA noch keinen Vertrag hat.
 async function openNewContractInModal(employeeId) {
     selectedVtEmployee = allVtEmployees.find(e => e.id === employeeId) || null;
+
+    // Letzten Vertrag bestimmen: aktiver (kein contractEndDate) bevorzugt,
+    // sonst chronologisch jüngster nach contractStartDate.
+    const allContracts = (selectedVtEmployee?.employments || []).slice().sort((a, b) => {
+        const aActive = !a.contractEndDate ? 1 : 0;
+        const bActive = !b.contractEndDate ? 1 : 0;
+        if (bActive !== aActive) return bActive - aActive;
+        return (b.contractStartDate || '') > (a.contractStartDate || '') ? 1 : -1;
+    });
+    const last = allContracts[0] || null;
+
+    // Snapshot nur als Fallback laden, wenn KEIN Vertrag vorhanden ist
+    // (Erstvertrag-Fall — easy@work-Import-Defaults).
     let snap = null;
-    try {
-        const res = await fetch(`/api/employeeimportsnapshot/latest/${employeeId}`, { headers: ah() });
-        if (res.ok) snap = await res.json();
-    } catch {}
+    if (!last) {
+        try {
+            const res = await fetch(`/api/employeeimportsnapshot/latest/${employeeId}`, { headers: ah() });
+            if (res.ok) snap = await res.json();
+        } catch {}
+    }
+
+    const src = last || snap || {};
     const today = new Date().toISOString().split('T')[0];
-    const isFix = snap && (snap.employmentModel === 'FIX' || snap.employmentModel === 'FIX-M');
-    const pct = snap?.employmentPercentage ?? (isFix && snap?.weeklyHours ? Math.round(snap.weeklyHours) : null);
-    const calcSal = isFix && snap?.monthlySalaryFte && pct
-        ? Math.round(snap.monthlySalaryFte * pct / 100 * 100) / 100
-        : snap?.monthlySalary;
+    const isFix = (src.employmentModel === 'FIX' || src.employmentModel === 'FIX-M');
+    const pct   = src.employmentPercentage ?? (isFix && src.weeklyHours ? Math.round(src.weeklyHours) : null);
+    const calcSal = isFix && src.monthlySalaryFte && pct
+        ? Math.round(src.monthlySalaryFte * pct / 100 * 100) / 100
+        : src.monthlySalary;
+
     const c = {
         id: null,
         employeeId,
-        employmentModel: snap?.employmentModel || 'UTP',
-        jobTitle: snap?.jobTitle ?? '',
-        jobGroupCode: snap?.jobGroupCode ?? selectedVtEmployee?.jobGroupCode ?? '',
-        educationLevelCode: selectedVtEmployee?.educationLevelCode ?? '',
-        contractStartDate: today,
-        contractEndDate: snap?.contractEndDate || null,
-        employmentPercentage: isFix ? pct : null,
-        weeklyHours: !isFix ? snap?.weeklyHours : null,
-        guaranteedHoursPerWeek: snap?.guaranteedHoursPerWeek ?? null,
-        hourlyRate: !isFix ? snap?.hourlyRate : null,
-        monthlySalaryFte: isFix ? snap?.monthlySalaryFte : null,
-        monthlySalary: isFix ? calcSal : null,
-        vacationPercent: snap?.vacationPercent ?? null,
-        holidayPercent: snap?.holidayPercent ?? null,
-        thirteenthSalaryPercent: snap?.thirteenthSalaryPercent ?? null,
-        probationPeriodMonths: snap?.probationPeriodMonths ?? 3,
+        employmentModel:         src.employmentModel || 'UTP',
+        jobTitle:                src.jobTitle ?? '',
+        jobGroupCode:            src.jobGroupCode ?? selectedVtEmployee?.jobGroupCode ?? '',
+        educationLevelCode:      src.educationLevelCode ?? selectedVtEmployee?.educationLevelCode ?? '',
+        contractStartDate:       today,                                  // Walter: NICHT übernehmen
+        contractEndDate:         null,                                   // Walter: NICHT übernehmen (Neuvertrag = offen)
+        employmentPercentage:    isFix ? pct : null,
+        weeklyHours:             !isFix ? src.weeklyHours : null,
+        guaranteedHoursPerWeek:  src.guaranteedHoursPerWeek ?? null,
+        hourlyRate:              !isFix ? src.hourlyRate : null,
+        monthlySalaryFte:        isFix ? src.monthlySalaryFte : null,
+        monthlySalary:           isFix ? calcSal : null,
+        vacationPercent:         src.vacationPercent ?? null,
+        holidayPercent:          src.holidayPercent ?? null,
+        thirteenthSalaryPercent: src.thirteenthSalaryPercent ?? null,
+        // Probezeit (Walter-Vorgabe 26.05.2026): bei Folgeverträgen leer —
+        // ein Folgevertrag desselben MA hat in der Regel keine Probezeit mehr.
+        // Default 3 Monate nur bei Erstvertrag (kein bestehender Vertrag, nur Snapshot).
+        probationPeriodMonths:   last ? null : (src.probationPeriodMonths ?? 3),
         isActive: true
     };
     await openContractEditModal(c, 'new');

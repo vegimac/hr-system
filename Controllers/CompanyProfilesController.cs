@@ -22,6 +22,7 @@ public class CompanyProfilesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "admin,superuser,user,buchhaltung")]   // + buchhaltung: braucht Filial-Selektor für Fibu
     public async Task<IActionResult> GetAll()
     {
         // Einheitliche Sortierung für ALLE Stellen, an denen Filialen
@@ -89,6 +90,69 @@ public class CompanyProfilesController : ControllerBase
     }
 
     public record NightHoursDto(string NightStartTime, string NightEndTime);
+
+    // PATCH /api/companyprofiles/{id}/max-weekly-hours
+    // Maximale gestempelte Stunden pro Woche (Mo–So) — reine Anzeige-/Warngrenze
+    // im Stempelzeiten-Tab. NULL = keine Grenze. (Walter-Vorgabe 24.05.2026)
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/max-weekly-hours")]
+    public async Task<IActionResult> UpdateMaxWeeklyHours(int id, [FromBody] MaxWeeklyHoursDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+
+        profile.MaxWeeklyHours = dto.MaxWeeklyHours;
+        await _context.SaveChangesAsync();
+
+        return Ok(profile);
+    }
+
+    public record MaxWeeklyHoursDto(decimal? MaxWeeklyHours);
+
+    // PATCH /api/companyprofiles/{id}/vacation-six-weeks-from-age
+    // Alter, ab dem die 6-Wochen-Ferien-Regel greift. L-GAV-Standard = 50.
+    // Wird in PayrollCalculationEngine pro Lohnperiode geprüft (sobald der
+    // X-te Geburtstag ≤ periodTo, gilt 13.04 %). (Walter-Vorgabe 06.06.2026)
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/vacation-six-weeks-from-age")]
+    public async Task<IActionResult> UpdateVacationSixWeeksFromAge(int id, [FromBody] VacationSixWeeksFromAgeDto dto)
+    {
+        if (dto.VacationSixWeeksFromAge < 0 || dto.VacationSixWeeksFromAge > 100)
+            return BadRequest(new { error = "Alter muss zwischen 0 und 100 liegen." });
+
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+
+        profile.VacationSixWeeksFromAge = dto.VacationSixWeeksFromAge;
+        await _context.SaveChangesAsync();
+
+        return Ok(profile);
+    }
+
+    public record VacationSixWeeksFromAgeDto(int VacationSixWeeksFromAge);
+
+    // PATCH /api/companyprofiles/{id}/default-thirteenth-percent
+    // 13.-Monatslohn-% pro Filiale (L-GAV-Standard 8.33). Engine, Importer und
+    // Arbeitsvertrags-PDF fallen darauf zurück, wenn der Vertrag keinen Wert
+    // hat. (Walter-Vorgabe 06.06.2026)
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/default-thirteenth-percent")]
+    public async Task<IActionResult> UpdateDefaultThirteenthPercent(int id, [FromBody] DefaultThirteenthPercentDto dto)
+    {
+        if (dto.DefaultThirteenthSalaryPercent != null
+            && (dto.DefaultThirteenthSalaryPercent < 0 || dto.DefaultThirteenthSalaryPercent > 100))
+            return BadRequest(new { error = "13. ML % muss zwischen 0 und 100 liegen." });
+
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+
+        profile.DefaultThirteenthSalaryPercent = dto.DefaultThirteenthSalaryPercent;
+        await _context.SaveChangesAsync();
+
+        return Ok(profile);
+    }
+
+    public record DefaultThirteenthPercentDto(decimal? DefaultThirteenthSalaryPercent);
 
     // PATCH /api/companyprofiles/{id}/alv
     // Legacy-Endpoint, bleibt aus Rückwärtskompatibilität — neuer Code soll
@@ -468,6 +532,8 @@ public class CompanyProfilesController : ControllerBase
             t.DefaultVacationPercent5Weeks = source.DefaultVacationPercent5Weeks;
             t.DefaultVacationPercent6Weeks = source.DefaultVacationPercent6Weeks;
             t.DefaultHolidayPercent        = source.DefaultHolidayPercent;
+            t.VacationSixWeeksFromAge      = source.VacationSixWeeksFromAge;
+            t.DefaultThirteenthSalaryPercent = source.DefaultThirteenthSalaryPercent;
             // ── 13. ML + Ferien-Geld Dezember ──
             t.ThirteenthMonthPayoutMonths     = source.ThirteenthMonthPayoutMonths;
             t.ThirteenthMonthPayoutsPerYear   = source.ThirteenthMonthPayoutsPerYear;

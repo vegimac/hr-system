@@ -55,8 +55,7 @@ public class EmployeePermitHistoryController : ControllerBase
         public string? PermitCode { get; set; }
         public string? PermitDescription { get; set; }
         public DateOnly  ValidFrom { get; set; }
-        public DateOnly? ValidTo   { get; set; }
-        public DateOnly? PermitExpiryDate { get; set; }
+        public DateOnly? ValidTo   { get; set; }   // = behördliches Ablauf-Datum auf dem Ausweis
         public string?   Note { get; set; }
         public DateTime CreatedAt { get; set; }
         public int?     CreatedByUserId { get; set; }
@@ -68,8 +67,7 @@ public class EmployeePermitHistoryController : ControllerBase
     {
         public int?    PermitTypeId { get; set; }       // NULL = Einbürgerung / keine Bewilligung mehr
         public DateOnly  ValidFrom { get; set; }
-        public DateOnly? ValidTo   { get; set; }
-        public DateOnly? PermitExpiryDate { get; set; }
+        public DateOnly? ValidTo   { get; set; }       // Pflicht bei PermitTypeId != NULL
         public string?   Note { get; set; }
     }
 
@@ -108,7 +106,18 @@ public class EmployeePermitHistoryController : ControllerBase
             ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
             : null;
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        // Walter-Vorgabe 07.06.2026 (final): „neueste" = höchstes ValidTo,
+        // bei Gleichheit ÄLTESTES ValidFrom — der ältere ValidFrom-Eintrag
+        // ist der Original, der jüngere ist meist ein Import-Duplikat.
+        // NULL-ValidTo (Einbürgerung / offener Eintrag) zählt als max(9999-12-31).
+        var max         = new DateOnly(9999, 12, 31);
+        var currentId   = entries
+            .OrderByDescending(h => h.ValidTo ?? max)
+            .ThenBy(h => h.ValidFrom)
+            .ThenBy(h => h.Id)
+            .Select(h => (int?)h.Id)
+            .FirstOrDefault();
+
         var dtos = entries.Select(h => new PermitHistoryDto
         {
             Id                = h.Id,
@@ -118,11 +127,10 @@ public class EmployeePermitHistoryController : ControllerBase
             PermitDescription = h.PermitType?.Description,
             ValidFrom         = h.ValidFrom,
             ValidTo           = h.ValidTo,
-            PermitExpiryDate  = h.PermitExpiryDate,
             Note              = h.Note,
             CreatedAt         = h.CreatedAt,
             CreatedByUserId   = h.CreatedByUserId,
-            IsCurrent         = h.ValidFrom <= today && (h.ValidTo == null || h.ValidTo >= today),
+            IsCurrent         = h.Id == currentId,
             InLohnVerwendet   = firstAllowed.HasValue && h.ValidFrom < firstAllowed.Value
         }).ToList();
 
@@ -142,6 +150,14 @@ public class EmployeePermitHistoryController : ControllerBase
             if (pt == null) return BadRequest(new { error = "Bewilligungstyp nicht gefunden." });
         }
 
+        // Walter-Vorgabe 01.06.2026: ValidTo (= behördliches Ablauf-Datum auf dem Ausweis)
+        // ist PFLICHT bei jedem Bewilligungs-Eintrag. Nur Einbürgerungs-Einträge
+        // (PermitTypeId IS NULL → kein Ausweis, der ablaufen kann) dürfen NULL haben.
+        if (dto.PermitTypeId.HasValue && !dto.ValidTo.HasValue)
+            return BadRequest(new { error = "Gültig bis (Ablauf-Datum) ist Pflicht." });
+        if (dto.ValidTo.HasValue && dto.ValidTo.Value < dto.ValidFrom)
+            return BadRequest(new { error = "Gültig bis darf nicht vor Gültig ab liegen." });
+
         // Walter 17.05.2026: ValidFrom darf nicht rückwirkend in verarbeitete Periode.
         var branchId     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowed = branchId.HasValue
@@ -156,18 +172,20 @@ public class EmployeePermitHistoryController : ControllerBase
             });
         }
 
-        // Vorherigen offenen Eintrag (valid_to = NULL) automatisch schliessen,
-        // sofern dessen valid_from < neuer valid_from. Andernfalls bleibt
-        // er offen — User kann manuell aufräumen.
-        var prev = await _db.EmployeePermitHistories
+        // Walter-Vorgabe 07.06.2026 (final): Beim Anlegen einer neuen Bewilligung
+        // werden ALLE Vorgänger-Einträge automatisch auf neuValidFrom-1 geschlossen,
+        // wenn sie noch in den neuen Zeitraum hineinreichen. Damit gibt es nie
+        // Überlappungen (Datensauberkeit). Greift nur für Einträge, deren
+        // ValidFrom VOR der neuen ValidFrom liegt — historische Nachträge
+        // (älterer Eintrag mit ValidTo vor neuer ValidFrom) bleiben unangetastet.
+        var vorgaenger = await _db.EmployeePermitHistories
             .Where(h => h.EmployeeId == employeeId
-                     && h.ValidTo == null
-                     && h.ValidFrom < dto.ValidFrom)
-            .OrderByDescending(h => h.ValidFrom)
-            .FirstOrDefaultAsync();
-        if (prev != null)
+                     && h.ValidFrom < dto.ValidFrom
+                     && (h.ValidTo == null || h.ValidTo >= dto.ValidFrom))
+            .ToListAsync();
+        foreach (var p in vorgaenger)
         {
-            prev.ValidTo = dto.ValidFrom.AddDays(-1);
+            p.ValidTo = dto.ValidFrom.AddDays(-1);
         }
 
         var entry = new EmployeePermitHistory
@@ -176,7 +194,6 @@ public class EmployeePermitHistoryController : ControllerBase
             PermitTypeId     = dto.PermitTypeId,
             ValidFrom        = dto.ValidFrom,
             ValidTo          = dto.ValidTo,
-            PermitExpiryDate = dto.PermitExpiryDate,
             Note             = dto.Note,
             CreatedAt        = DateTime.UtcNow,
             CreatedByUserId  = GetCurrentUserId()
@@ -218,16 +235,58 @@ public class EmployeePermitHistoryController : ControllerBase
             if (pt == null) return BadRequest(new { error = "Bewilligungstyp nicht gefunden." });
         }
 
+        // ValidTo-Pflicht (Walter 01.06.2026, siehe Create-Pfad).
+        if (dto.PermitTypeId.HasValue && !dto.ValidTo.HasValue)
+            return BadRequest(new { error = "Gültig bis (Ablauf-Datum) ist Pflicht." });
+        if (dto.ValidTo.HasValue && dto.ValidTo.Value < dto.ValidFrom)
+            return BadRequest(new { error = "Gültig bis darf nicht vor Gültig ab liegen." });
+
+        // Walter-Vorgabe 07.06.2026 (final): Beim Bearbeiten darf KEINE
+        // Überlappung mit anderen Einträgen entstehen — Datensauberkeit.
+        // Beim Anlegen (POST) wird Auto-Close angewandt; beim Editieren
+        // erwarten wir, dass Walter die Datumsfenster bewusst sauber hält.
+        var overlap = await FindOverlappingAsync(employeeId, dto.ValidFrom, dto.ValidTo, excludeId: entry.Id);
+        if (overlap != null)
+        {
+            return Conflict(new {
+                error = "PERMIT_OVERLAP",
+                message = $"Die Periode {dto.ValidFrom:dd.MM.yyyy}–{(dto.ValidTo?.ToString("dd.MM.yyyy") ?? "offen")} überschneidet sich mit einer anderen Bewilligung ({overlap.ValidFrom:dd.MM.yyyy}–{(overlap.ValidTo?.ToString("dd.MM.yyyy") ?? "offen")}). Bitte das Bis-Datum des älteren Eintrags vor das Von-Datum der nächsten Bewilligung legen."
+            });
+        }
+
         entry.PermitTypeId     = dto.PermitTypeId;
         entry.ValidFrom        = dto.ValidFrom;
         entry.ValidTo          = dto.ValidTo;
-        entry.PermitExpiryDate = dto.PermitExpiryDate;
         entry.Note             = dto.Note;
 
         await _db.SaveChangesAsync();
         await SyncEmployeeFromHistoryAsync(employeeId);
         await _db.SaveChangesAsync();
         return Ok();
+    }
+
+    /// <summary>Sucht einen anderen Bewilligungs-Eintrag des MA, dessen
+    /// Zeitfenster sich mit [newFrom..newTo (oder offen)] überschneidet.
+    /// Liefert null wenn kein Konflikt.</summary>
+    private async Task<EmployeePermitHistory?> FindOverlappingAsync(
+        int employeeId, DateOnly newFrom, DateOnly? newTo, int? excludeId)
+    {
+        // Zwei Intervalle [a1..a2] und [b1..b2] überlappen ⇔ a1 ≤ b2 && b1 ≤ a2.
+        // Wir nutzen MaxValue für „offen". DateOnly hat keinen MaxValue → wir
+        // verwenden 9999-12-31 als Surrogat.
+        var max = new DateOnly(9999, 12, 31);
+        var newToEff = newTo ?? max;
+        var others = await _db.EmployeePermitHistories
+            .Where(h => h.EmployeeId == employeeId
+                     && (excludeId == null || h.Id != excludeId.Value))
+            .ToListAsync();
+        foreach (var o in others)
+        {
+            var oTo = o.ValidTo ?? max;
+            if (newFrom <= oTo && o.ValidFrom <= newToEff)
+                return o;
+        }
+        return null;
     }
 
     [HttpDelete("{id:int}")]
@@ -259,36 +318,29 @@ public class EmployeePermitHistoryController : ControllerBase
     }
 
     /// <summary>
-    /// Setzt employee.permit_type_id und employee.permit_expiry_date auf
-    /// den Eintrag, der heute gültig ist. Wenn keiner heute gültig ist,
-    /// werden beide Felder auf NULL gesetzt.
+    /// Setzt employee.permit_type_id auf den Eintrag, der heute gültig ist.
+    /// Wenn keiner heute gültig ist, wird das Feld auf NULL gesetzt.
+    /// permit_expiry_date wurde 01.06.2026 entfernt — Anzeige + Dashboard-
+    /// Warnung lesen jetzt direkt EmployeePermitHistory.ValidTo des
+    /// jüngsten Eintrags.
     /// </summary>
     private async Task SyncEmployeeFromHistoryAsync(int employeeId)
     {
         var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
         if (emp == null) return;
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        // Walter-Vorgabe 07.06.2026 (final): „neueste" = höchstes ValidTo,
+        // bei Gleichheit ÄLTESTES ValidFrom (= Original-Eintrag, nicht Import-
+        // Duplikat). NULL-ValidTo = max(9999-12-31).
+        var max = new DateOnly(9999, 12, 31);
         var current = await _db.EmployeePermitHistories
-            .Where(h => h.EmployeeId == employeeId
-                     && h.ValidFrom <= today
-                     && (h.ValidTo == null || h.ValidTo >= today))
-            .OrderByDescending(h => h.ValidFrom)
-            .ThenByDescending(h => h.Id)
+            .Where(h => h.EmployeeId == employeeId)
+            .OrderByDescending(h => h.ValidTo ?? max)
+            .ThenBy(h => h.ValidFrom)
+            .ThenBy(h => h.Id)
             .FirstOrDefaultAsync();
 
-        if (current != null)
-        {
-            emp.PermitTypeId     = current.PermitTypeId;
-            emp.PermitExpiryDate = current.PermitExpiryDate.HasValue
-                ? current.PermitExpiryDate.Value.ToDateTime(TimeOnly.MinValue)
-                : null;
-        }
-        else
-        {
-            emp.PermitTypeId     = null;
-            emp.PermitExpiryDate = null;
-        }
+        emp.PermitTypeId = current?.PermitTypeId;
     }
 
     private int? GetCurrentUserId()

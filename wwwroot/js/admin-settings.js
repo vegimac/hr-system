@@ -319,43 +319,78 @@ async function lookupBankForIban(iban, hintEl) {
 // BANKEN ADMIN (Bank-Stammdaten aus SIX-Liste)
 // ══════════════════════════════════════════════
 
+// Walter-Vorgabe 07.06.2026: Banken werden mit clientseitiger Sortierung
+// und Filterung angezeigt — die Suche und Sortierung greifen auf das
+// geladene Cache-Array. Backend liefert wie bisher (`/api/banks` ohne q
+// das Default-Limit, `?q=...` die Suche).
+let _banksCache = [];
+let _banksSortState = { key: 'iid', dir: 'asc' };
+
 async function loadBanks() {
     const tbody = document.getElementById('banksTableBody');
-    const countEl = document.getElementById('banksCount');
     if (!tbody) return;
     const q = (document.getElementById('banksSearch')?.value ?? '').trim();
     tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:#94a3b8">Lade…</td></tr>';
     try {
+        // Suche backend-seitig wenn Walter etwas eingibt, sonst gefüllte
+        // Default-Liste. Filterung/Sortierung dann clientseitig im Cache.
         const url = q ? `/api/banks?q=${encodeURIComponent(q)}` : '/api/banks';
         const res = await fetch(url, { headers: ah() });
         if (!res.ok) { tbody.innerHTML = '<tr><td colspan="7" style="color:#dc2626;padding:14px">Fehler beim Laden</td></tr>'; return; }
         const data = await res.json();
-        const items = data.items ?? [];
-        if (countEl) {
-            countEl.textContent = q
-                ? `${items.length} von ${data.total} angezeigt`
-                : `${data.total} Einträge`;
-        }
-        if (items.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="padding:28px;text-align:center;color:#94a3b8;font-style:italic">Keine Einträge</td></tr>';
-            return;
-        }
-        tbody.innerHTML = items.map(b => `
-            <tr style="border-bottom:1px solid #f1f5f9">
-                <td style="padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600">${b.iid}</td>
-                <td style="padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace">${b.bic ?? '—'}</td>
-                <td style="padding:10px 14px">${b.name ?? ''}</td>
-                <td style="padding:10px 14px">${b.ort ?? ''}</td>
-                <td style="padding:10px 14px;color:#64748b">${b.strasse ?? ''}</td>
-                <td style="padding:10px 14px;color:#94a3b8;font-size:12px">${b.importedAt ? new Date(b.importedAt).toLocaleDateString('de-CH') : ''}</td>
-                <td style="padding:10px 14px;text-align:right;white-space:nowrap">
-                    <button onclick='openBankEditModal(${JSON.stringify(b)})' style="border:none;background:#f1f5f9;color:#374151;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px">✏️</button>
-                    <button onclick="deleteBank('${b.iid}')" style="border:none;background:#fee2e2;color:#dc2626;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer">🗑</button>
-                </td>
-            </tr>`).join('');
+        _banksCache = data.items ?? [];
+        _banksTotal = data.total;
+        renderBanks();
     } catch(e) {
         tbody.innerHTML = `<tr><td colspan="7" style="color:#dc2626;padding:14px">Fehler: ${e.message}</td></tr>`;
     }
+}
+
+function renderBanks() {
+    const head    = document.getElementById('banksTableHead');
+    const tbody   = document.getElementById('banksTableBody');
+    const countEl = document.getElementById('banksCount');
+    if (!tbody || !head) return;
+
+    if (head.querySelector('th') === null) {
+        // Header einmal pro Render neu aufbauen (Pfeil-Indikator).
+    }
+    head.innerHTML = `<tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+        ${window.sortableHeader('IID',     'iid',        _banksSortState, '_banksSortState', 'renderBanks')}
+        ${window.sortableHeader('BIC',     'bic',        _banksSortState, '_banksSortState', 'renderBanks')}
+        ${window.sortableHeader('Name',    'name',       _banksSortState, '_banksSortState', 'renderBanks')}
+        ${window.sortableHeader('Ort',     'ort',        _banksSortState, '_banksSortState', 'renderBanks')}
+        ${window.sortableHeader('Strasse', 'strasse',    _banksSortState, '_banksSortState', 'renderBanks')}
+        ${window.sortableHeader('Letzte Änderung', 'importedAt', _banksSortState, '_banksSortState', 'renderBanks')}
+        <th style="padding:10px 14px;text-align:right"></th>
+    </tr>`;
+
+    const rows = _banksCache.slice();
+    window.sortableApply(rows, _banksSortState);
+
+    const q = (document.getElementById('banksSearch')?.value ?? '').trim();
+    if (countEl) {
+        countEl.textContent = q
+            ? `${rows.length} von ${(typeof _banksTotal !== 'undefined' ? _banksTotal : rows.length)} angezeigt`
+            : `${rows.length} Einträge`;
+    }
+    if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="padding:28px;text-align:center;color:#94a3b8;font-style:italic">Keine Einträge</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(b => `
+        <tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600">${b.iid}</td>
+            <td style="padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace">${b.bic ?? '—'}</td>
+            <td style="padding:10px 14px">${b.name ?? ''}</td>
+            <td style="padding:10px 14px">${b.ort ?? ''}</td>
+            <td style="padding:10px 14px;color:#64748b">${b.strasse ?? ''}</td>
+            <td style="padding:10px 14px;color:#94a3b8;font-size:12px">${b.importedAt ? new Date(b.importedAt).toLocaleDateString('de-CH') : ''}</td>
+            <td style="padding:10px 14px;text-align:right;white-space:nowrap">
+                <button onclick='openBankEditModal(${JSON.stringify(b)})' style="border:none;background:#f1f5f9;color:#374151;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px">✏️</button>
+                <button onclick="deleteBank('${b.iid}')" style="border:none;background:#fee2e2;color:#dc2626;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer">🗑</button>
+            </td>
+        </tr>`).join('');
 }
 
 async function importBanksFromFile(inputEl) {

@@ -37,7 +37,8 @@ public class Employee
     public DateTime? ExitDate { get; set; }
 
     public int? PermitTypeId { get; set; }
-    public DateTime? PermitExpiryDate { get; set; }
+    // PermitExpiryDate (denormalisierte Kopie) entfernt 01.06.2026 — Dashboard-Warnung
+    // läuft jetzt über EmployeePermitHistory.ValidTo des jüngsten Eintrags.
 
     /// <summary>
     /// ZEMIS-Nummer (Zentrales Migrationsinformationssystem).
@@ -51,10 +52,45 @@ public class Employee
     /// Datum ab dem der Mitarbeiter von der Quellensteuer befreit ist.
     /// Null = QST-pflichtig (solange Nationalität ≠ CH).
     /// Wird gesetzt, sobald der MA einen C-Ausweis oder CH-Bürgerrecht erhält.
+    /// Legacy-Feld — die neue Pflicht-Prüfung läuft über `QstPflichtCheckService`,
+    /// der CH-Bürgerschaft / C-Ausweis / Behörden-Befreiung / Spouse-Status
+    /// zur Laufzeit kombiniert.
     /// </summary>
     public DateOnly? QuellensteuerBefreitAb { get; set; }
 
+    // ── QST-Befreiung durch die Steuerbehörde (Walter-Vorgabe 26.05.2026) ──
+    /// <summary>True = der MA hat ein Bestätigungsschreiben der Steuerbehörde,
+    /// das ihn von der QST befreit (z.B. wegen Doppelbesteuerungsabkommen,
+    /// Diplomatenstatus, etc.). Das Schreiben muss als Dokument im MA-Doku-
+    /// Tab hochgeladen UND via `QstBefreiungDokumentId` verlinkt sein.</summary>
+    public bool QstBefreitDurchBehoerde { get; set; } = false;
+
+    /// <summary>FK auf das Bestätigungsschreiben in `employee_dokument`.
+    /// Pflicht wenn `QstBefreitDurchBehoerde = true`. ON DELETE SET NULL.</summary>
+    public int? QstBefreiungDokumentId { get; set; }
+
+    /// <summary>Befreiung gilt ab diesem Datum (Pflicht wenn befreit).</summary>
+    public DateOnly? QstBefreiungGueltigAb { get; set; }
+
+    /// <summary>Befreiung gilt bis diesem Datum. NULL = unbefristet.</summary>
+    public DateOnly? QstBefreiungGueltigBis { get; set; }
+
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Walter-Vorgabe 07.06.2026: ist der MA dem L-GAV unterstellt? Wenn ja,
+    /// rechnet der Lohnlauf den jährlichen L-GAV-Beitrag ab (volle/halbe Höhe
+    /// gemäss Wochenstunden bzw. Betriebszugehörigkeit — folgt in Stufe 2).
+    /// Default = true bei NEUanlage (Schaub Restaurants ist L-GAV-Branche).
+    /// </summary>
+    public bool LgavPflichtig { get; set; } = true;
+
+    /// <summary>
+    /// Walter-Vorgabe 07.06.2026: arbeitet der MA weniger als 8 Stunden pro
+    /// Woche? Dann zahlt er KEINE NBU (Nicht-Berufs-Unfall-Versicherung).
+    /// Default = false (Standard ist NBU-pflichtig).
+    /// </summary>
+    public bool TeilzeitUnter8hWoche { get; set; }
 
     /// <summary>
     /// True = MA wird im HR-System geführt (z.B. weil er als Vorgesetzter im

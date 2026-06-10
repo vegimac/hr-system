@@ -105,8 +105,9 @@ public class KtgTagessatzService
         string modell = (employment.EmploymentModel ?? "").ToUpperInvariant();
 
         // Ferien-/Feiertag-Prozente bestimmen
-        decimal ferienPct    = ResolveFerienPct(employment, company);
-        decimal feiertagPct  = employment.HolidayPercent ?? company.DefaultHolidayPercent ?? 0m;
+        // Walter-Vorgabe 06.06.2026 (Stufe 1b): nur noch Filial-Default
+        decimal ferienPct    = ResolveFerienPct(emp, company);
+        decimal feiertagPct  = company.DefaultHolidayPercent ?? 0m;
 
         // Brutto-Stundenlohn (inkl. Ferien/Feiertag/13. ML)
         decimal stdLohnBasis  = employment.HourlyRate ?? 0m;
@@ -283,17 +284,20 @@ public class KtgTagessatzService
     // ── Hilfsmethoden ──────────────────────────────────────────────────────
 
     /// <summary>
-    /// Ermittelt den Ferien-Prozentsatz: Employment-Override, sonst Company-Default
-    /// nach Beschäftigungsgrad (<50% = 5 Wochen, ≥50% = 6 Wochen).
+    /// Ermittelt den Ferien-Prozentsatz aus dem Filial-Default — altersaware:
+    /// Ab company.VacationSixWeeksFromAge greift der 6-Wochen-Satz (Default 50).
+    /// Walter-Vorgabe 06.06.2026: konsistent zur Engine, kein Vertrags-Override mehr.
     /// </summary>
-    private static decimal ResolveFerienPct(Employment emp, CompanyProfile company)
+    private static decimal ResolveFerienPct(Employee? employee, CompanyProfile company)
     {
-        if (emp.VacationPercent is { } v && v > 0) return v;
-
-        decimal bg = emp.EmploymentPercentage ?? 0m;
-        if (bg < 50m)
-            return company.DefaultVacationPercent5Weeks ?? 10.64m;
-        return company.DefaultVacationPercent6Weeks ?? 13.04m;
+        if (employee?.DateOfBirth != null)
+        {
+            var dob = DateOnly.FromDateTime(employee.DateOfBirth.Value);
+            var heute = DateOnly.FromDateTime(DateTime.Today);
+            if (dob.AddYears(company.VacationSixWeeksFromAge) <= heute)
+                return company.DefaultVacationPercent6Weeks ?? 13.04m;
+        }
+        return company.DefaultVacationPercent5Weeks ?? 10.64m;
     }
 
     private static string MonthName(int month) => month switch

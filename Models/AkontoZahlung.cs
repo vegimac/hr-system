@@ -81,6 +81,23 @@ public class AkontoZahlung
     /// an den GF zurückschickt (Korrektur-Loop).</summary>
     public string? KommentarHr { get; set; }
 
+    /// <summary>
+    /// Walter-Vorgabe 28.05.2026: Ausschluss-Grund wenn der MA am Stichtag
+    /// ineligible ist (z.B. „Krank am Stichtag (07.01.–18.03.)", „Kein
+    /// gültiger Vertrag in dieser Periode", „Vertrag hängt an Filiale …").
+    /// NULL = normale Akonto-Zahlung. Damit erscheint der MA im Lohnlauf
+    /// trotzdem (als rote Fehler-Zeile), statt stillschweigend zu verschwinden.
+    /// </summary>
+    public string? ErrorReason { get; set; }
+
+    /// <summary>
+    /// Walter-Vorgabe 28.05.2026: GF-Override — bei Ineligibility (ErrorReason
+    /// gesetzt) entscheidet der GF pro MA, ob trotzdem ein Akonto ausgezahlt
+    /// werden soll. Default FALSE. Wenn TRUE: das nächste „Neu berechnen"
+    /// ignoriert die Eligibility-Sperre und rechnet Brutto/Netto wie üblich.
+    /// </summary>
+    public bool ForcePayout { get; set; } = false;
+
     /// <summary>Verweis auf den DTA-/pain.001-Zahllauf, mit dem das Akonto
     /// ausbezahlt wurde. NULL solange noch nicht ausbezahlt. Wird in Etappe 2/3
     /// (HR-Freigabe + DTA) verdrahtet — bewusst noch kein harter FK.</summary>

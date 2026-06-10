@@ -308,7 +308,8 @@ async function _arExport(format) {
         const m = /filename\*?=(?:UTF-8'')?["']?([^;"']+)["']?/i.exec(cd);
         const suffix = _arMode === 'cross' ? 'alle-filialen' : 'filiale';
         const filename = m ? decodeURIComponent(m[1]) : `absenz-auswertung-${suffix}-${year}.${format}`;
-        await saveBlobAsk(blob, filename);
+        // PDF → Vorschaufenster; Excel/CSV → direkt speichern (entscheidet previewFileModal).
+        await previewFileModal(blob, filename);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }

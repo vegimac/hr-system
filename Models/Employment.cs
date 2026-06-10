@@ -18,7 +18,38 @@ public class Employment
     public DateTime ContractStartDate { get; set; }
     public DateTime? ContractEndDate { get; set; }
 
+    /// <summary>
+    /// Stellenbezeichnung (Free-Text) — wird 1:1 auf den Vertrag gedruckt,
+    /// z.B. „Shift Coordinator", „Rest. Manager Stellvertreter". Hat NICHTS
+    /// mit der Funktionsgruppen-/Mindestlohn-Klassifikation zu tun (das ist
+    /// <see cref="JobGroupId"/>). (Walter-Vorgabe 26.05.2026 — Klarstellung
+    /// nach Refactor: vorher hielt das Feld den JobGroupCode überladen.)
+    /// </summary>
     public string? JobTitle { get; set; }
+
+    /// <summary>
+    /// FK auf <c>job_group.id</c> — die saubere Referenz auf die Funktionsgruppe.
+    /// Steuert den Mindestlohn-Lookup. Bei Code-Umbenennungen in
+    /// <see cref="JobGroup"/> bleibt die Zuordnung stabil.
+    /// (Walter-Vorgabe 26.05.2026)
+    /// </summary>
+    public int? JobGroupId { get; set; }
+    public JobGroup? JobGroup { get; set; }
+
+    /// <summary>
+    /// JSON-Convenience: liefert beim GET den Code aus der geladenen
+    /// JobGroup-Nav (für Frontend-Anzeige) und nimmt beim POST/PUT den Code
+    /// als String entgegen — Backend resolved zu <see cref="JobGroupId"/>.
+    /// Nicht in der DB gespeichert.
+    /// </summary>
+    private string? _jobGroupCodeInput;
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? JobGroupCode
+    {
+        get => JobGroup?.Code ?? _jobGroupCodeInput;
+        set => _jobGroupCodeInput = value;
+    }
+
     public string? ContractType { get; set; }
 
     /// <summary>
@@ -37,9 +68,9 @@ public class Employment
     public decimal? MonthlySalary { get; set; }       // tatsächlicher Lohn (nach Pensum)
     public decimal? HourlyRate { get; set; }
 
-    public decimal? VacationPercent { get; set; }
-    public decimal? HolidayPercent { get; set; }
-    public decimal? ThirteenthSalaryPercent { get; set; }
+    // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
+    // sind nicht mehr pro Vertrag, sondern pro Filiale (CompanyProfile.Default*
+    // + altersaware Schwelle). Felder + DB-Spalten entfernt.
 
     public string? VacationPaymentMode { get; set; }
 

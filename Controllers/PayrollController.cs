@@ -18,6 +18,25 @@ public class PayrollController : ControllerBase
     private int? GetUserIdOrNull() =>
         int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var v) ? v : (int?)null;
 
+    /// <summary>
+    /// Filial-Zugriff prüfen (Walter-Vorgabe 24.05.2026, für Rolle buchhaltung):
+    /// admin + superuser sehen alle Filialen; alle anderen (buchhaltung, user)
+    /// nur die mit UserBranchAccess. Verhindert, dass ein Buchhaltungs-User über
+    /// die URL eine nicht zugeteilte Filiale (z. B. Hendschiken) abruft.
+    /// </summary>
+    private async Task<bool> CanAccessBranchAsync(int companyProfileId)
+    {
+        var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToHashSet();
+        // Buchhaltung ZUERST prüfen: sie hat zwar zusätzlich den superuser-Claim,
+        // soll aber NUR ihre zugeteilten Filialen abrufen können (Walter-Vorgabe).
+        if (!roles.Contains("buchhaltung") && (roles.Contains("admin") || roles.Contains("superuser")))
+            return true;
+        var uid = GetUserIdOrNull();
+        if (uid is null) return false;
+        return await _db.UserBranchAccesses
+            .AnyAsync(uba => uba.UserId == uid.Value && uba.CompanyProfileId == companyProfileId);
+    }
+
     private readonly AppDbContext _db;
     private readonly QuellensteuerTarifService _tarifService;
     private readonly KtgTagessatzService _ktgService;
@@ -27,6 +46,7 @@ public class PayrollController : ControllerBase
     private readonly PayrollPdfService _payrollPdf;
     private readonly PayrollCalculationEngine _calcEngine;
     private readonly MinimumWageCheckService _minWage;
+    private readonly QstPflichtCheckService _qstCheck;
     private readonly LohnSaldoListePdfService _saldoListePdf;
     private readonly FibuJournalService _fibuJournal;
     private readonly SnapshotRecomputeService _snapshotRecompute;
@@ -41,6 +61,7 @@ public class PayrollController : ControllerBase
         PayrollPdfService payrollPdf,
         PayrollCalculationEngine calcEngine,
         MinimumWageCheckService minWage,
+        QstPflichtCheckService qstCheck,
         LohnSaldoListePdfService saldoListePdf,
         FibuJournalService fibuJournal,
         SnapshotRecomputeService snapshotRecompute)
@@ -54,17 +75,43 @@ public class PayrollController : ControllerBase
         _payrollPdf     = payrollPdf;
         _calcEngine     = calcEngine;
         _minWage        = minWage;
+        _qstCheck       = qstCheck;
         _saldoListePdf  = saldoListePdf;
         _fibuJournal    = fibuJournal;
         _snapshotRecompute = snapshotRecompute;
     }
 
+    // Buchungslisten (Fibu-Journal, Saldo-Listen) gibt es erst, wenn der
+    // DEFINITIV-Lauf der Periode mindestens "provisorisch_abgeschlossen" ist.
+    // Solange er "offen" ist (oder die Periode fehlt), liefern die Endpoints
+    // nichts — sonst zeigte ein zurückgesetzter Lohnlauf weiterhin Buchungen
+    // aus den noch vorhandenen Snapshots (Walter-Vorgabe 25.05.2026: „zurück-
+    // gesetzt = Listen leer"). Der Akonto-Status spielt keine Rolle.
+    private async Task<bool> IsDefinitivConfirmedAsync(int companyProfileId, int year, int month)
+    {
+        var status = await _db.PayrollPerioden
+            .Where(p => p.CompanyProfileId == companyProfileId && p.Year == year && p.Month == month)
+            .Select(p => p.Status)
+            .FirstOrDefaultAsync();
+        return status == "provisorisch_abgeschlossen" || status == "abgeschlossen";
+    }
+
+    private IActionResult PeriodeNichtAbgeschlossen() => Conflict(new {
+        error   = "PERIODE_NICHT_ABGESCHLOSSEN",
+        message = "Diese Buchungsliste ist erst verfügbar, wenn der Definitiv-Lohnlauf der Periode (mindestens provisorisch) abgeschlossen ist. Der Lauf ist aktuell offen."
+    });
+
     // GET /api/payroll/fibu-journal?companyProfileId&year&month  → Fibu-Journal-PDF
     // (Buchungsjournal aus den bestätigten Snapshots, Walter 22.05.2026). HR-only.
     [HttpGet("fibu-journal")]
+    [Authorize(Roles = "admin,buchhaltung")]   // Fibu-Bereich: nur Buchhaltung + admin (nicht reine HR/superuser)
     public async Task<IActionResult> FibuJournal(
         [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
     {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+        if (!await IsDefinitivConfirmedAsync(companyProfileId, year, month))
+            return PeriodeNichtAbgeschlossen();
         try
         {
             var pdf = await _fibuJournal.GeneratePdfAsync(companyProfileId, year, month);
@@ -187,9 +234,14 @@ public class PayrollController : ControllerBase
     // „gf" = kompakte Übersicht (UTP ohne 13. ML). HR-only Rollen reichen
     // (DefaultPolicy admin/superuser/user); read-only, kein Edit-Lock-Belang.
     [HttpGet("saldo-liste-buchhaltung")]
+    [Authorize(Roles = "admin,buchhaltung")]   // Fibu-Bereich: nur Buchhaltung + admin
     public async Task<IActionResult> SaldoListeBuchhaltung(
         [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
     {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+        if (!await IsDefinitivConfirmedAsync(companyProfileId, year, month))
+            return PeriodeNichtAbgeschlossen();
         try
         {
             var pdf = await _saldoListePdf.GenerateBuchhaltungAsync(companyProfileId, year, month);
@@ -202,6 +254,8 @@ public class PayrollController : ControllerBase
     public async Task<IActionResult> SaldoListeGf(
         [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
     {
+        if (!await IsDefinitivConfirmedAsync(companyProfileId, year, month))
+            return PeriodeNichtAbgeschlossen();
         try
         {
             var pdf = await _saldoListePdf.GenerateGfAsync(companyProfileId, year, month);
@@ -218,6 +272,61 @@ public class PayrollController : ControllerBase
         [FromQuery] int month,
         [FromQuery] int companyProfileId)
         => _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId);
+
+    // Diagnose: zeigt was die QST-Engine-Logik intern ENTSCHEIDEN würde, ohne
+    // den vollen Lohnzettel zu rechnen. Walter-Vorgabe 26.05.2026.
+    [HttpGet("qst-diag")]
+    public async Task<IActionResult> QstDiag(
+        [FromQuery] int employeeId,
+        [FromQuery] int year,
+        [FromQuery] int month)
+    {
+        var emp = await _db.Employees
+            .Include(e => e.NationalityRef)
+            .FirstOrDefaultAsync(e => e.Id == employeeId);
+        if (emp == null) return NotFound();
+
+        var periodFrom = new DateOnly(year, month, 1);
+        bool isSchweizer = string.Equals(emp.NationalityRef?.Code, "CH",
+            StringComparison.OrdinalIgnoreCase);
+        bool bereitsBefreit = emp.QuellensteuerBefreitAb.HasValue
+            && emp.QuellensteuerBefreitAb.Value <= periodFrom;
+        bool behoerdenBefreit = emp.QstBefreitDurchBehoerde
+            && emp.QstBefreiungDokumentId.HasValue
+            && (!emp.QstBefreiungGueltigAb.HasValue
+                || emp.QstBefreiungGueltigAb.Value <= periodFrom)
+            && (!emp.QstBefreiungGueltigBis.HasValue
+                || emp.QstBefreiungGueltigBis.Value >= periodFrom);
+
+        var qst = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == employeeId
+                     && q.ValidFrom <= periodFrom
+                     && (q.ValidTo == null || q.ValidTo >= periodFrom))
+            .OrderByDescending(q => q.ValidFrom)
+            .FirstOrDefaultAsync();
+
+        bool isQuellensteuer = !behoerdenBefreit
+            && ((!isSchweizer && !bereitsBefreit) || qst != null);
+
+        return Ok(new {
+            employeeId,
+            year, month, periodFrom,
+            nationality = emp.NationalityRef?.Code,
+            isSchweizer,
+            quellensteuerBefreitAb = emp.QuellensteuerBefreitAb,
+            bereitsBefreit,
+            qstBefreitDurchBehoerde = emp.QstBefreitDurchBehoerde,
+            behoerdenBefreit,
+            qstEntry = qst == null ? null : new {
+                qst.Id, qst.ValidFrom, qst.ValidTo,
+                qst.Steuerkanton, qst.TarifCode, qst.QstCode,
+                qst.AnzahlKinder, qst.Kirchensteuer, qst.Prozentsatz
+            },
+            isQuellensteuer,
+            engineWillBerechnen = isQuellensteuer && qst != null,
+            buildVersion = "2026-05-26-qst-fix"   // Walter — wenn dieser Text im JSON steht, läuft der neue Code
+        });
+    }
 
     // POST /api/payroll/save – Saldo speichern (Zwischenstand, "draft")
     //
@@ -424,6 +533,7 @@ public class PayrollController : ControllerBase
         // DateTime-Vergleich (NICHT DateOnly.FromDateTime — in EF/Npgsql nicht
         // SQL-übersetzbar → 500). ContractStartDate ist DateTime (date-mid).
         var mwEmp = await _db.Employments
+            .Include(e => e.JobGroup)   // FK-Code für Mindestlohn-Lookup (Walter 26.05.2026)
             .Where(e => e.EmployeeId == dto.EmployeeId
                      && e.IsActive
                      && e.CompanyProfileId == dto.CompanyProfileId
@@ -446,12 +556,21 @@ public class PayrollController : ControllerBase
             var mwDob = await _db.Employees.Where(e => e.Id == dto.EmployeeId)
                 .Select(e => e.DateOfBirth).FirstOrDefaultAsync();
             var mwChk = await _minWage.CheckAsync(
-                mwEmp.JobTitle, mwEmp.EducationLevelCode, mwEmp.EmploymentModel,
+                mwEmp.JobGroup?.Code, mwEmp.EducationLevelCode, mwEmp.EmploymentModel,
                 mwEmp.EmploymentPercentage, mwEmp.HourlyRate, mwEmp.MonthlySalary,
                 mwDob, mwTo, mwEmp.CompanyProfileId);
             if (mwChk.Status == "UNDERPAID")
                 return Conflict(new { error = "MINDESTLOHN_UNTERSCHRITTEN", message = mwChk.Message });
         }
+
+        // ── QST-Pflicht-Check (Walter-Vorgabe 26.05.2026) ──────────────────
+        // Wenn der MA QST-pflichtig ist (kein CH, kein C, keine Behörden-
+        // Befreiung, kein CH/C-Ehepartner) UND es keine gültige QST-Erfassung
+        // am Periodenende gibt → Lohnlauf blocken. Walter's Schweizer Praxis:
+        // lieber höchsten Tarif erfassen als gar nichts.
+        var qstChk = await _qstCheck.CheckAsync(dto.EmployeeId, mwTo);
+        if (qstChk.IsPflichtOffen)
+            return Conflict(new { error = "QST_PFLICHT_OFFEN", message = qstChk.Message });
 
         decimal SrvDec(string key)
         {

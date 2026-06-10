@@ -36,17 +36,20 @@ public class AkontoWorkflowController : ControllerBase
     private readonly AkontoLaufService      _service;
     private readonly AkontoListePdfService  _listePdf;
     private readonly MinimumWageCheckService _minWage;
+    private readonly QstPflichtCheckService _qstCheck;
     private readonly ILogger<AkontoWorkflowController> _log;
 
     public AkontoWorkflowController(AppDbContext db, AkontoLaufService service,
                                     AkontoListePdfService listePdf,
                                     MinimumWageCheckService minWage,
+                                    QstPflichtCheckService qstCheck,
                                     ILogger<AkontoWorkflowController> log)
     {
         _db       = db;
         _service  = service;
         _listePdf = listePdf;
         _minWage  = minWage;
+        _qstCheck = qstCheck;
         _log      = log;
     }
 
@@ -81,6 +84,27 @@ public class AkontoWorkflowController : ControllerBase
             .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId
                                    && p.Year == year && p.Month == month);
 
+        // Auto-Heal (Walter 01.06.2026): wenn die Periode auf BEI_HR steht und
+        // alle eligible MA bereits HR_BESTAETIGT/AUSBEZAHLT sind, springt sie
+        // hier nachträglich auf HR_FREIGEGEBEN. Ineligible MA (ErrorReason
+        // gesetzt UND !ForcePayout) zählen NICHT als „offen". Greift auch
+        // wenn die Logik vor diesem Fix noch nicht aktiv war.
+        if (periode != null && periode.AkontoStatus == "BEI_HR")
+        {
+            var offenAuto = await _db.AkontoZahlungen
+                .CountAsync(x => x.CompanyProfileId == companyProfileId
+                              && x.PeriodYear == year && x.PeriodMonth == month
+                              && x.Status != "HR_BESTAETIGT" && x.Status != "AUSBEZAHLT"
+                              && !(x.ErrorReason != null && !x.ForcePayout));
+            if (offenAuto == 0)
+            {
+                periode.AkontoStatus          = "HR_FREIGEGEBEN";
+                periode.AkontoHrFreigegebenAt = DateTime.UtcNow;
+                periode.AkontoHrFreigegebenBy = GetUserId();
+                await _db.SaveChangesAsync();
+            }
+        }
+
         var today = DateOnly.FromDateTime(DateTime.Today);
         var zahlungen = await _db.AkontoZahlungen
             .Where(z => z.CompanyProfileId == companyProfileId
@@ -99,11 +123,15 @@ public class AkontoWorkflowController : ControllerBase
                 x.z.PayoutDate,
                 x.z.GfFreigegebenAt, x.z.GfFreigegebenBy,
                 x.z.KommentarGf, x.z.KommentarHr,
-                // Vertragsmodell (für HR-Tab-Badge): jüngster aktiver Vertrag in dieser Filiale.
+                // Walter-Vorgabe 28.05.2026: Ineligibility-Anzeige + Override
+                x.z.ErrorReason, x.z.ForcePayout,
+                // Vertragsmodell (für HR-Tab-Badge): jüngster Vertrag der heute gültig ist.
+                // Walter-Vorgabe 31.05.2026: kein IsActive-Filter mehr (Austrittsmonat-Bug).
                 Modell = _db.Employments
                     .Where(em => em.EmployeeId == x.z.EmployeeId
                               && em.CompanyProfileId == x.z.CompanyProfileId
-                              && em.IsActive)
+                              && em.ContractStartDate <= today.ToDateTime(TimeOnly.MinValue)
+                              && (em.ContractEndDate == null || em.ContractEndDate >= today.ToDateTime(TimeOnly.MinValue)))
                     .OrderByDescending(em => em.ContractStartDate)
                     .Select(em => em.EmploymentModel)
                     .FirstOrDefault(),
@@ -192,56 +220,66 @@ public class AkontoWorkflowController : ControllerBase
         if (periode.AkontoStatus == "BEI_HR" && !isHr)
             return StatusCode(409, new { error = "Periode steht bei HR — GF kann nicht neu berechnen. Bitte erst zurückholen lassen." });
 
-        // 1) Vorschau frisch rechnen
-        AkontoLaufService.AkontoVorschauResponse data;
-        try
-        {
-            // Start = bewusster Commit-Pfad (GF bereitet vor) → LGAV-Eintrag persistieren.
-            data = await _service.PreviewAsync(req.CompanyProfileId, req.Year, req.Month, stichtag, persistLgav: true);
-        }
-        catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
-
-        // 2) Bestehende Datensätze laden
+        // Walter-Vorgabe 28.05.2026: existierende Force-Payout-Flags laden, damit
+        // beim Re-Berechnen der GF-Override greift (z.B. „Krank, aber 3 Tage
+        // Karenz fällig — Akonto trotzdem auszahlen").
         var existing = await _db.AkontoZahlungen
             .Where(z => z.CompanyProfileId == req.CompanyProfileId
                      && z.PeriodYear == req.Year && z.PeriodMonth == req.Month)
             .ToListAsync();
         var existingByEmp = existing.ToDictionary(z => z.EmployeeId);
+        var forcePayoutByEmp = existing
+            .Where(z => z.ForcePayout)
+            .ToDictionary(z => z.EmployeeId, z => true);
 
-        // 3) Pro berechtigtem MA Datensatz upserten — FREIGEGEBEN_GF wird NICHT überschrieben.
-        int created = 0, updated = 0, preservedFreigegeben = 0;
+        // 1) Vorschau frisch rechnen (mit Force-Payout-Overrides)
+        AkontoLaufService.AkontoVorschauResponse data;
+        try
+        {
+            // Start = bewusster Commit-Pfad (GF bereitet vor) → LGAV-Eintrag persistieren.
+            data = await _service.PreviewAsync(req.CompanyProfileId, req.Year, req.Month, stichtag,
+                persistLgav: true, forcePayoutByEmp: forcePayoutByEmp);
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+
+        // 2) Pro MA Datensatz upserten — FREIGEGEBEN_GF/HR_BESTAETIGT/AUSBEZAHLT
+        //    nicht überschreiben. Walter-Vorgabe 28.05.2026: AUCH ineligible
+        //    MA bekommen einen Datensatz (mit ErrorReason + NettoAkonto=0),
+        //    damit sie im UI sichtbar bleiben statt zu verschwinden.
+        int created = 0, updated = 0, preservedFreigegeben = 0, errorRows = 0;
         DateOnly payoutDate = !string.IsNullOrWhiteSpace(data.PayoutDate)
             && DateOnly.TryParseExact(data.PayoutDate, "yyyy-MM-dd",
                                       CultureInfo.InvariantCulture, DateTimeStyles.None, out var pd)
             ? pd : stichtag;
-        var eligibleEmpIds = data.Rows.Where(r => r.IsEligible && r.NettoAkonto > 0m)
-                                      .Select(r => r.EmployeeId).ToHashSet();
 
-        foreach (var r in data.Rows.Where(r => r.IsEligible && r.NettoAkonto > 0m))
+        // ALLE rows verarbeiten (auch ineligible) — für die UI-Sichtbarkeit.
+        // „eligible mit NettoAkonto > 0" → normaler Akonto-Datensatz
+        // sonst → Fehler-Datensatz mit ErrorReason + NettoAkonto=0
+        var allEmpIdsInRows = data.Rows.Select(r => r.EmployeeId).ToHashSet();
+        foreach (var r in data.Rows)
         {
+            bool isAkontoPayout = r.IsEligible && r.NettoAkonto > 0m;
+            string? errorReason = (!r.IsEligible || r.ForcePayout) ? r.AusschlussGrund : null;
+
             if (existingByEmp.TryGetValue(r.EmployeeId, out var existRec))
             {
                 if (existRec.Status == "FREIGEGEBEN_GF")
                 {
                     preservedFreigegeben++;
-                    continue;   // GF-Freigabe nicht überschreiben
+                    continue;
                 }
-                if (existRec.Status == "AUSBEZAHLT")
-                    continue;   // schon ausbezahlt, lassen
-                if (existRec.Status == "HR_BESTAETIGT")
-                    continue;   // HR-Bestätigung intakt lassen (Walter 19.05.2026)
-                // BERECHNET oder STORNIERT (nach Admin-Reset, Walter 20.05.2026)
-                // → frische Werte UND zurück auf BERECHNET (re)aktivieren. Sonst
-                //   bleibt ein vom Reset auf STORNIERT gestempelter MA hängen und
-                //   GF/HR können ihn nicht mehr freigeben.
+                if (existRec.Status == "AUSBEZAHLT") continue;
+                if (existRec.Status == "HR_BESTAETIGT") continue;
+
                 existRec.Status            = "BERECHNET";
-                existRec.GeschaetzterBrutto = r.GeschaetzterBrutto;
-                existRec.GeschaetzteAbzuege = r.GeschaetzteAbzuege;
-                existRec.PfaendungAbzug     = r.PfaendungAbzug;
-                existRec.NettoAkonto        = r.NettoAkonto;
+                existRec.GeschaetzterBrutto = isAkontoPayout ? r.GeschaetzterBrutto : 0m;
+                existRec.GeschaetzteAbzuege = isAkontoPayout ? r.GeschaetzteAbzuege : 0m;
+                existRec.PfaendungAbzug     = isAkontoPayout ? r.PfaendungAbzug     : 0m;
+                existRec.NettoAkonto        = isAkontoPayout ? r.NettoAkonto        : 0m;
                 existRec.PayoutDate         = payoutDate;
+                existRec.ErrorReason        = errorReason;
                 existRec.UpdatedAt          = DateTime.UtcNow;
-                updated++;
+                if (isAkontoPayout) updated++; else errorRows++;
             }
             else
             {
@@ -252,22 +290,24 @@ public class AkontoWorkflowController : ControllerBase
                     PeriodYear         = req.Year,
                     PeriodMonth        = req.Month,
                     PayoutDate         = payoutDate,
-                    GeschaetzterBrutto = r.GeschaetzterBrutto,
+                    GeschaetzterBrutto = isAkontoPayout ? r.GeschaetzterBrutto : 0m,
                     FeriengeldAnteil   = 0m,
-                    GeschaetzteAbzuege = r.GeschaetzteAbzuege,
-                    PfaendungAbzug     = r.PfaendungAbzug,
-                    NettoAkonto        = r.NettoAkonto,
+                    GeschaetzteAbzuege = isAkontoPayout ? r.GeschaetzteAbzuege : 0m,
+                    PfaendungAbzug     = isAkontoPayout ? r.PfaendungAbzug     : 0m,
+                    NettoAkonto        = isAkontoPayout ? r.NettoAkonto        : 0m,
                     Status             = "BERECHNET",
+                    ErrorReason        = errorReason,
+                    ForcePayout        = r.ForcePayout,
                     CreatedAt          = DateTime.UtcNow,
                     UpdatedAt          = DateTime.UtcNow,
                 });
-                created++;
+                if (isAkontoPayout) created++; else errorRows++;
             }
         }
 
-        // 4) Verwaiste Datensätze (MA nicht mehr berechtigt) entfernen — aber NUR BERECHNET.
+        // 3) Verwaiste Datensätze (MA komplett aus der Filiale raus) entfernen — nur BERECHNET.
         int removedStale = 0;
-        foreach (var existRec in existing.Where(z => !eligibleEmpIds.Contains(z.EmployeeId) && z.Status == "BERECHNET"))
+        foreach (var existRec in existing.Where(z => !allEmpIdsInRows.Contains(z.EmployeeId) && z.Status == "BERECHNET"))
         {
             _db.AkontoZahlungen.Remove(existRec);
             removedStale++;
@@ -303,6 +343,40 @@ public class AkontoWorkflowController : ControllerBase
         return await Start(req);
     }
 
+    // ── GF: Force-Payout-Override für ineligible MA ────────────────────────
+    //
+    // Walter-Vorgabe 28.05.2026: bei einem ineligible MA (Krank/Probezeit/…)
+    // soll der GF pro Fall entscheiden, ob trotzdem ein Akonto ausbezahlt
+    // werden soll. Bei force=TRUE: das nächste „Neu berechnen" (oder dieser
+    // Endpoint selbst) rechnet Brutto/Netto wie üblich, AusschlussGrund bleibt
+    // als „⚠ Override aktiv"-Warnung sichtbar. Bei force=FALSE: zurück auf
+    // Fehler-Anzeige (NettoAkonto=0).
+    public record ForcePayoutRequest(bool Force);
+    [HttpPost("force-payout/{id:int}")]
+    public async Task<IActionResult> ForcePayout(int id, [FromBody] ForcePayoutRequest body)
+    {
+        var z = await _db.AkontoZahlungen.FirstOrDefaultAsync(x => x.Id == id);
+        if (z is null) return NotFound();
+        // Nur im offenen Phase-Status erlaubt (GF arbeitet). HR_BESTAETIGT /
+        // AUSBEZAHLT bleiben gesperrt — sonst würde der Override eine bereits
+        // bestätigte Zahlung verändern.
+        if (z.Status is "HR_BESTAETIGT" or "AUSBEZAHLT")
+            return Conflict(new { error = $"Status {z.Status} — Override nicht möglich." });
+        z.ForcePayout = body.Force;
+        z.UpdatedAt   = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        // Zurück mit Hinweis: GF muss noch „Neu berechnen" anstoßen, damit
+        // Brutto/Netto frisch gerechnet wird. Alternativ trigger ich das direkt;
+        // pragmatisch lass ich das Frontend explizit triggern (Daten-Konsistenz).
+        return Ok(new {
+            id = z.Id,
+            forcePayout = z.ForcePayout,
+            hint = body.Force
+                ? "Override aktiv. Bitte 'Neu berechnen' anstossen, damit der Akonto gerechnet wird."
+                : "Override aufgehoben. Nach 'Neu berechnen' wird der MA wieder als Fehler angezeigt."
+        });
+    }
+
     // ── GF: Lohnblatt freigeben / Freigabe zurückziehen ────────────────────
 
     [HttpPost("freigeben/{id:int}")]
@@ -330,6 +404,7 @@ public class AkontoWorkflowController : ControllerBase
         // DateTime-Vergleich (NICHT DateOnly.FromDateTime — das ist in EF/Npgsql
         // nicht SQL-übersetzbar → 500). ContractStartDate ist DateTime (date-mid).
         var mwEmp = await _db.Employments
+            .Include(e => e.JobGroup)   // FK-Code für Mindestlohn-Lookup (Walter 26.05.2026)
             .Where(e => e.EmployeeId == z.EmployeeId
                      && e.IsActive
                      && e.CompanyProfileId == z.CompanyProfileId
@@ -350,12 +425,17 @@ public class AkontoWorkflowController : ControllerBase
             var mwDob = await _db.Employees.Where(e => e.Id == z.EmployeeId)
                 .Select(e => e.DateOfBirth).FirstOrDefaultAsync();
             var mwChk = await _minWage.CheckAsync(
-                mwEmp.JobTitle, mwEmp.EducationLevelCode, mwEmp.EmploymentModel,
+                mwEmp.JobGroup?.Code, mwEmp.EducationLevelCode, mwEmp.EmploymentModel,
                 mwEmp.EmploymentPercentage, mwEmp.HourlyRate, mwEmp.MonthlySalary,
                 mwDob, mwTo, mwEmp.CompanyProfileId);
             if (mwChk.Status == "UNDERPAID")
                 return StatusCode(409, new { error = "MINDESTLOHN_UNTERSCHRITTEN", message = mwChk.Message });
         }
+
+        // QST-Pflicht-Check (Walter-Vorgabe 26.05.2026) — analog Definitivlauf
+        var qstChk = await _qstCheck.CheckAsync(z.EmployeeId, mwTo);
+        if (qstChk.IsPflichtOffen)
+            return StatusCode(409, new { error = "QST_PFLICHT_OFFEN", message = qstChk.Message });
 
         z.Status            = "FREIGEGEBEN_GF";
         z.GfFreigegebenAt   = DateTime.UtcNow;
@@ -394,10 +474,13 @@ public class AkontoWorkflowController : ControllerBase
 
         // Regel 3/4: Sync NUR für FIX/FIX-M. UTP/MTP haben in AkontoLaufService
         // jetzt die korrekte lokale Berechnung (Stunden + Ferien-Pott).
+        // Walter-Vorgabe 31.05.2026: kein IsActive-Filter mehr — jüngster Vertrag heute.
+        var todayDt = DateTime.Today;
         var employment = await _db.Employments
             .Where(em => em.EmployeeId == z.EmployeeId
                       && em.CompanyProfileId == z.CompanyProfileId
-                      && em.IsActive)
+                      && em.ContractStartDate <= todayDt
+                      && (em.ContractEndDate == null || em.ContractEndDate >= todayDt))
             .OrderByDescending(em => em.ContractStartDate)
             .FirstOrDefaultAsync();
         var model = (employment?.EmploymentModel ?? "").ToUpperInvariant();
@@ -561,10 +644,15 @@ public class AkontoWorkflowController : ControllerBase
 
         // Auto-Transit: wenn alle MA der Periode HR_BESTAETIGT sind,
         // springt die Periode auf HR_FREIGEGEBEN (DTA-Button wird frei).
+        // Walter-Vorgabe 01.06.2026: ineligible MA (ErrorReason gesetzt UND
+        // ForcePayout=false → HR hat „Nein, nicht auszahlen" gewählt) zählen
+        // NICHT als „offen". Sie bekommen kein Akonto und brauchen daher
+        // auch keine HR-Bestätigung — die Periode darf trotzdem durchlaufen.
         var offenCnt = await _db.AkontoZahlungen
             .CountAsync(x => x.CompanyProfileId == z.CompanyProfileId
                           && x.PeriodYear == z.PeriodYear && x.PeriodMonth == z.PeriodMonth
-                          && x.Status != "HR_BESTAETIGT" && x.Status != "AUSBEZAHLT");
+                          && x.Status != "HR_BESTAETIGT" && x.Status != "AUSBEZAHLT"
+                          && !(x.ErrorReason != null && !x.ForcePayout));
         if (offenCnt == 0 && periode.AkontoStatus != "HR_FREIGEGEBEN")
         {
             periode.AkontoStatus          = "HR_FREIGEGEBEN";
@@ -876,8 +964,12 @@ public class AkontoWorkflowController : ControllerBase
                                      .FirstOrDefaultAsync(e => e.Id == z.EmployeeId);
         if (emp is null) return NotFound();
 
+        // Walter-Vorgabe 31.05.2026: kein IsActive-Filter mehr — jüngster Vertrag heute.
+        var todayDt2 = DateTime.Today;
         var employment = emp.Employments
-            .Where(em => em.CompanyProfileId == z.CompanyProfileId && em.IsActive)
+            .Where(em => em.CompanyProfileId == z.CompanyProfileId
+                      && em.ContractStartDate <= todayDt2
+                      && (em.ContractEndDate == null || em.ContractEndDate >= todayDt2))
             .OrderByDescending(em => em.ContractStartDate)
             .FirstOrDefault();
 
@@ -972,8 +1064,9 @@ public class AkontoWorkflowController : ControllerBase
             // Filial-Defaults für die Akonto-Prozente (Frontend zeigt bei
             // FIX/FIX-M die vereinfachte "X% × DefinitivNetto"-Zeile).
             // Seit Walter-Vorgabe 18.05.2026 getrennt für FIX und FIX-M.
-            akontoProzentFix  = profile?.AkontoProzentFix  ?? 80m,
-            akontoProzentFixM = profile?.AkontoProzentFixM ?? 90m,
+            akontoProzentFix    = profile?.AkontoProzentFix    ?? 80m,
+            akontoProzentFixM   = profile?.AkontoProzentFixM   ?? 90m,
+            akontoProzentHourly = profile?.AkontoProzentHourly ?? 100m,
         });
     }
 

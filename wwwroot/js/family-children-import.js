@@ -99,28 +99,35 @@ function renderFciImportPreview(data) {
                         <th style="text-align:left;padding:8px 12px;font-size:11px;color:#475569;text-transform:uppercase">MA</th>
                         <th style="text-align:left;padding:8px 12px;font-size:11px;color:#475569;text-transform:uppercase">Kind</th>
                         <th style="text-align:left;padding:8px 12px;font-size:11px;color:#475569;text-transform:uppercase">Geburtsdatum</th>
-                        <th style="text-align:left;padding:8px 12px;font-size:11px;color:#475569;text-transform:uppercase">Bis</th>
-                        <th style="text-align:left;padding:8px 12px;font-size:11px;color:#475569;text-transform:uppercase">Typ</th>
-                        <th style="text-align:right;padding:8px 12px;font-size:11px;color:#475569;text-transform:uppercase">Betrag</th>
+                        <th style="text-align:left;padding:8px 12px;font-size:11px;color:#475569;text-transform:uppercase">Geplante Zulagen</th>
                         <th style="text-align:left;padding:8px 12px;font-size:11px;color:#475569;text-transform:uppercase">Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.rows.map(r => `
+                    ${data.rows.map(r => {
+                        // Walter-Vorgabe 07.06.2026: pro Kind bis zu 2 Zulagen
+                        // (KZ + AZ). Anzeige als kompakte Pille-Liste.
+                        const plans = r.plannedAllowances || [];
+                        const plansHtml = plans.length === 0
+                            ? '<span style="color:#94a3b8">–</span>'
+                            : plans.map(p => {
+                                const bg = p.type === 'AZ' ? '#dbeafe' : '#dcfce7';
+                                const fg = p.type === 'AZ' ? '#1e40af' : '#166534';
+                                return `<div style="margin-bottom:3px"><span style="background:${bg};color:${fg};padding:1px 8px;border-radius:9px;font-size:11px;font-weight:700">${p.type}</span> ${fmtDate(p.validFrom)} – ${fmtDate(p.validTo)} · <b>${Number(p.monthlyAmount).toFixed(2)}</b></div>`;
+                              }).join('');
+                        return `
                         <tr style="border-top:1px solid #f1f5f9">
                             <td style="padding:7px 12px;color:#64748b">${r.employeeNumber}</td>
                             <td style="padding:7px 12px;color:#0f172a">${r.employeeName}</td>
                             <td style="padding:7px 12px"><b>${r.childFirstName}</b> ${r.childLastName}</td>
                             <td style="padding:7px 12px">${fmtDate(r.dateOfBirth)}</td>
-                            <td style="padding:7px 12px">${fmtDate(r.validTo)}</td>
-                            <td style="padding:7px 12px">${r.allowanceType || '–'}</td>
-                            <td style="padding:7px 12px;text-align:right;font-variant-numeric:tabular-nums">${r.monthlyAmount != null ? Number(r.monthlyAmount).toFixed(2) : '–'}</td>
+                            <td style="padding:7px 12px">${plansHtml}</td>
                             <td style="padding:7px 12px">
                                 ${statusBadge(r.status)}
                                 ${r.note ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px">${r.note}</div>` : ''}
                             </td>
-                        </tr>
-                    `).join('')}
+                        </tr>`;
+                    }).join('')}
                 </tbody>
             </table>
         </div>

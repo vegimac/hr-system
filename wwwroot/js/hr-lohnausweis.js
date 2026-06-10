@@ -370,7 +370,7 @@ async function laGeneratePdf() {
         }
         const blob = await r.blob();
         const name = (_laCurrentEmp.name || 'Lohnausweis').replace(/[^a-zA-Z0-9_-]/g, '_');
-        await saveBlobAsk(blob, `Lohnausweis_${_laCurrentYear}_${name}.pdf`);
+        await previewFileModal(blob, `Lohnausweis_${_laCurrentYear}_${name}.pdf`);
     } catch (ex) {
         alert('Fehler beim PDF-Generieren: ' + ex.message);
     }

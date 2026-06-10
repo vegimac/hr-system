@@ -61,8 +61,16 @@ public class FamilyChildrenImportController : ControllerBase
         public DateOnly? Z1Until      { get; set; }
         public DateOnly? Z2Until      { get; set; }
         public DateOnly? Z3Until      { get; set; }
-        // Resultierender Eintrag
-        public string? AllowanceType  { get; set; }   // KZ | AZ
+        // Walter-Vorgabe 07.06.2026: Mirus-Spalten Z1+Z3 entsprechen unseren
+        // Tarif-Typen — KZ und AZ werden je als eigener Eintrag angelegt:
+        //   • KZ ab Anfang Monat nach Geburt bis Z1-Datum
+        //   • AZ ab Z1+1 Tag (nahtloser Anschluss) bis MIN(Z3, vollend. 25. Lj.)
+        // Z2 wird ignoriert (Tarif-Stufen-Wechsel innerhalb KZ, deckt unser
+        // KinderzulageSatz2 im Tarif schon ab).
+        public List<PlannedAllowanceDto> PlannedAllowances { get; set; } = new();
+        // Legacy-Felder bleiben für UI-Rückwärtskompatibilität — zeigen den
+        // jeweils ERSTEN geplanten Eintrag.
+        public string? AllowanceType  { get; set; }
         public DateOnly? ValidTo      { get; set; }
         public decimal?  MonthlyAmount { get; set; }
         // Match-Resultat
@@ -70,6 +78,14 @@ public class FamilyChildrenImportController : ControllerBase
         public int?    ExistingChildId { get; set; }
         public string  Status          { get; set; } = "OK"; // OK | NO_EMPLOYEE | NO_DATE | DUPLICATE | NO_TARIF
         public string? Note            { get; set; }
+    }
+
+    public class PlannedAllowanceDto
+    {
+        public string Type { get; set; } = "";   // KZ | AZ
+        public DateOnly ValidFrom { get; set; }
+        public DateOnly ValidTo   { get; set; }
+        public decimal  MonthlyAmount { get; set; }
     }
 
     public class PreviewResponse
@@ -82,10 +98,19 @@ public class FamilyChildrenImportController : ControllerBase
     }
 
     [HttpPost("preview")]
-    public async Task<IActionResult> Preview([FromForm] IFormFile file)
+    public async Task<IActionResult> Preview([FromForm] IFormFile file, [FromForm] string? validFrom = null)
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { error = "Keine Datei hochgeladen." });
+
+        // Walter-Vorgabe 07.06.2026: validFrom aus dem UI mitschicken,
+        // damit die Vorschau mit demselben Stichtag rechnet wie der Commit.
+        // Fallback heute.
+        if (string.IsNullOrWhiteSpace(validFrom)
+         || !DateOnly.TryParse(validFrom, out var validFromDate))
+        {
+            validFromDate = DateOnly.FromDateTime(DateTime.Today);
+        }
 
         var rows = await ParseAsync(file);
         if (rows == null) return BadRequest(new { error = "Konnte Datei nicht parsen — erwartet Mirus-Familienzulagen-Kontrolle (.xls)." });
@@ -147,24 +172,7 @@ public class FamilyChildrenImportController : ControllerBase
                 continue;
             }
 
-            // 3. Zulagen-Typ + Bis-Datum bestimmen
-            // Zulage 1/2 = Kinderzulage, Zulage 3 = Ausbildungszulage. Mirus
-            // füllt nur eine Spalte pro Kind je nach aktueller Stufe.
-            DateOnly? validTo = r.Z1Until ?? r.Z2Until ?? r.Z3Until;
-            string? allowanceType = (r.Z1Until.HasValue || r.Z2Until.HasValue) ? "KZ"
-                                  : r.Z3Until.HasValue ? "AZ"
-                                  : null;
-            if (validTo == null || allowanceType == null)
-            {
-                r.Status = "NO_DATE";
-                r.Note   = "Kein Zulage-Bis-Datum in der Datei — Kind wird ohne Zulage angelegt.";
-                // Wir importieren das Kind trotzdem (Stammdaten), aber ohne Allowance.
-                continue;
-            }
-            r.ValidTo = validTo;
-            r.AllowanceType = allowanceType;
-
-            // 4. Tarif-Lookup für MonthlyAmount — differenzierte Diagnose
+            // 3. Tarif-Lookup für MonthlyAmount — differenzierte Diagnose
             if (!empToKanton.TryGetValue(emp.Id, out var kanton))
             {
                 r.Status = "NO_TARIF";
@@ -184,33 +192,24 @@ public class FamilyChildrenImportController : ControllerBase
                 r.Note   = $"Kein gültiger FAK-Tarif für Kanton {kanton} per heute.";
                 continue;
             }
-            decimal? amount = null;
-            if (allowanceType == "KZ")
+
+            // 4. Allowances planen aus Z1/Z2/Z3 (Walter-Vorgabe 07.06.2026).
+            var plans = PlanAllowances(r.DateOfBirth, r.Z1Until, r.Z2Until, r.Z3Until, validFromDate, tarif);
+            r.PlannedAllowances = plans;
+            if (plans.Count == 0)
             {
-                // Bei Stufung: aktueller Satz richtet sich nach Alter heute.
-                int? ageNow = r.DateOfBirth.HasValue ? CalcAge(r.DateOfBirth.Value, today) : null;
-                if (tarif.KinderzulageSatz2AbAlter.HasValue
-                 && ageNow.HasValue && ageNow.Value >= tarif.KinderzulageSatz2AbAlter.Value
-                 && tarif.KinderzulageSatz2.HasValue)
-                {
-                    amount = tarif.KinderzulageSatz2;
-                }
-                else
-                {
-                    amount = tarif.KinderzulageSatz1;
-                }
-            }
-            else
-            {
-                amount = tarif.AusbildungszulageSatz1;
-            }
-            if (amount == null || amount.Value <= 0)
-            {
-                r.Status = "NO_TARIF";
-                r.Note   = $"Tarif-Satz {(allowanceType == "KZ" ? "Kinderzulage" : "Ausbildungszulage")} für Kanton {kanton} ist nicht gepflegt (NULL/0).";
+                r.Status = "NO_DATE";
+                r.Note   = "Keine gültigen Zulage-Bis-Daten in der Datei — Kind wird ohne Zulage angelegt.";
                 continue;
             }
-            r.MonthlyAmount = amount;
+            // Legacy-Felder: erstes geplantes Element für die UI-Spalten.
+            var first = plans[0];
+            r.AllowanceType = first.Type;
+            r.ValidTo       = first.ValidTo;
+            r.MonthlyAmount = first.MonthlyAmount;
+            r.Note          = plans.Count == 2
+                ? $"KZ bis {plans[0].ValidTo:dd.MM.yyyy} · AZ bis {plans[1].ValidTo:dd.MM.yyyy}"
+                : $"{first.Type} bis {first.ValidTo:dd.MM.yyyy}";
         }
 
         return Ok(new PreviewResponse
@@ -292,54 +291,28 @@ public class FamilyChildrenImportController : ControllerBase
             await _db.SaveChangesAsync();   // Id für Allowance-FK
             childrenAdded++;
 
-            // Allowance anlegen, falls Datum + Tarif vorhanden
-            DateOnly? validTo = r.Z1Until ?? r.Z2Until ?? r.Z3Until;
-            string? allowanceType = (r.Z1Until.HasValue || r.Z2Until.HasValue) ? "KZ"
-                                  : r.Z3Until.HasValue ? "AZ"
-                                  : null;
-            if (validTo == null || allowanceType == null) continue;
-
+            // Walter-Vorgabe 07.06.2026: pro Kind bis zu zwei Allowance-
+            // Einträge (KZ + AZ). Tarif-Lookup + Datums-Mapping in PlanAllowances.
             if (!empToKanton.TryGetValue(emp.Id, out var kanton) || string.IsNullOrWhiteSpace(kanton)) continue;
             var tarif = tarife.FirstOrDefault(t => t.KantonCode == kanton);
             if (tarif == null) continue;
 
-            decimal? amount = null;
-            if (allowanceType == "KZ")
+            var plans = PlanAllowances(r.DateOfBirth, r.Z1Until, r.Z2Until, r.Z3Until, validFromDate, tarif);
+            foreach (var pl in plans)
             {
-                int? ageNow = r.DateOfBirth.HasValue ? CalcAge(r.DateOfBirth.Value, today) : null;
-                if (tarif.KinderzulageSatz2AbAlter.HasValue
-                 && ageNow.HasValue && ageNow.Value >= tarif.KinderzulageSatz2AbAlter.Value
-                 && tarif.KinderzulageSatz2.HasValue)
-                    amount = tarif.KinderzulageSatz2;
-                else
-                    amount = tarif.KinderzulageSatz1;
+                _db.FamilyMemberAllowances.Add(new FamilyMemberAllowance
+                {
+                    FamilyMemberId = child.Id,
+                    ValidFrom      = pl.ValidFrom,
+                    ValidTo        = pl.ValidTo,
+                    MonthlyAmount  = pl.MonthlyAmount,
+                    AllowanceType  = pl.Type,
+                    Note           = "Mirus-Familienzulagen-Kontrolle Import",
+                    CreatedAt      = DateTime.UtcNow,
+                    UpdatedAt      = DateTime.UtcNow
+                });
+                allowancesAdded++;
             }
-            else
-            {
-                amount = tarif.AusbildungszulageSatz1;
-            }
-            if (amount == null || amount.Value <= 0) continue;
-
-            // Beginn-Datum nicht VOR den Geburtstag des Kindes setzen — sonst
-            // rechnet die Lohnberechnung rückwirkend Zulagen für Zeiten, in
-            // denen das Kind noch nicht existiert hat. effectiveFrom = max(form-validFrom,
-            // Geburtsdatum).
-            var effectiveFrom = validFromDate;
-            if (r.DateOfBirth.HasValue && r.DateOfBirth.Value > effectiveFrom)
-                effectiveFrom = r.DateOfBirth.Value;
-
-            _db.FamilyMemberAllowances.Add(new FamilyMemberAllowance
-            {
-                FamilyMemberId = child.Id,
-                ValidFrom      = effectiveFrom,
-                ValidTo        = validTo,
-                MonthlyAmount  = amount.Value,
-                AllowanceType  = allowanceType,
-                Note           = "Mirus-Familienzulagen-Kontrolle Import",
-                CreatedAt      = DateTime.UtcNow,
-                UpdatedAt      = DateTime.UtcNow
-            });
-            allowancesAdded++;
         }
 
         await _db.SaveChangesAsync();
@@ -472,5 +445,63 @@ public class FamilyChildrenImportController : ControllerBase
         int age = today.Year - birth.Year;
         if (today < new DateOnly(today.Year, birth.Month, birth.Day)) age--;
         return age;
+    }
+
+    /// <summary>
+    /// Walter-Vorgabe 07.06.2026: pro Kind werden bis zu zwei Allowance-
+    /// Einträge geplant aus den Mirus-Spalten Z1 + Z3.
+    ///   • KZ (Kinderzulage) wenn Z1 oder Z2 ein Datum hat — von Anfang
+    ///     Monat nach Geburt bis Z1/Z2-Datum. Tarif-Satz nach Alter zu
+    ///     Beginn (KZ-Satz-2-AbAlter aus Tarif).
+    ///   • AZ (Ausbildungszulage) wenn Z3 ein Datum hat — ab dem Tag nach
+    ///     dem KZ-Ende (nahtloser Anschluss) bis MIN(Z3, Tag vor 25. Geb).
+    /// Z2 wird ignoriert — Tarif-Stufen-Wechsel innerhalb KZ deckt
+    /// KinderzulageSatz2 / KinderzulageSatz2AbAlter im Tarif ab.
+    /// </summary>
+    private static List<PlannedAllowanceDto> PlanAllowances(
+        DateOnly? geb, DateOnly? z1, DateOnly? z2, DateOnly? z3,
+        DateOnly importFrom, FamilienzulagenTarif tarif)
+    {
+        var result = new List<PlannedAllowanceDto>();
+        if (!geb.HasValue) return result;
+
+        // KZ-Ende = das spätere der beiden KZ-Daten (Z1/Z2)
+        DateOnly? kzEnde = null;
+        if (z1.HasValue)                                kzEnde = z1;
+        if (z2.HasValue && (!kzEnde.HasValue || z2.Value > kzEnde.Value)) kzEnde = z2;
+
+        // 1) Kinderzulage
+        if (kzEnde.HasValue)
+        {
+            var monatNachGeburt = new DateOnly(geb.Value.Year, geb.Value.Month, 1).AddMonths(1);
+            var kzStart = importFrom > monatNachGeburt ? importFrom : monatNachGeburt;
+            if (kzStart <= kzEnde.Value)
+            {
+                var ageStart  = CalcAge(geb.Value, kzStart);
+                var useSatz2  = tarif.KinderzulageSatz2AbAlter.HasValue
+                              && ageStart >= tarif.KinderzulageSatz2AbAlter.Value
+                              && tarif.KinderzulageSatz2.HasValue;
+                decimal amount = useSatz2
+                    ? tarif.KinderzulageSatz2!.Value
+                    : (tarif.KinderzulageSatz1 ?? 0);
+                if (amount > 0)
+                    result.Add(new PlannedAllowanceDto { Type = "KZ", ValidFrom = kzStart, ValidTo = kzEnde.Value, MonthlyAmount = amount });
+            }
+        }
+
+        // 2) Ausbildungszulage
+        if (z3.HasValue)
+        {
+            // Start: nahtloser Anschluss nach KZ-Ende, sonst Z3 selbst
+            var azStart = kzEnde.HasValue ? kzEnde.Value.AddDays(1) : z3.Value;
+            if (azStart < importFrom) azStart = importFrom;
+            // Ende: MIN(Z3, Tag vor 25. Geburtstag) — gesetzliche Obergrenze
+            var max25Lj = geb.Value.AddYears(25).AddDays(-1);
+            var azEnd   = z3.Value < max25Lj ? z3.Value : max25Lj;
+            if (azStart <= azEnd && (tarif.AusbildungszulageSatz1 ?? 0) > 0)
+                result.Add(new PlannedAllowanceDto { Type = "AZ", ValidFrom = azStart, ValidTo = azEnd, MonthlyAmount = tarif.AusbildungszulageSatz1!.Value });
+        }
+
+        return result;
     }
 }

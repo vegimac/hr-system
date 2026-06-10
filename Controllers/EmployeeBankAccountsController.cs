@@ -46,10 +46,10 @@ public class EmployeeBankAccountsController : ControllerBase
     /// b.ValidFrom liegt vor dem FirstAllowedDate der Filiale.
     /// Für admin/superuser ist FirstAllowedDate null → immer false (Bypass).
     /// </summary>
-    private async Task<bool> IsInLohnVerwendetAsync(EmployeeBankAccount b, DateOnly? firstAllowed)
+    private Task<bool> IsInLohnVerwendetAsync(EmployeeBankAccount b, DateOnly? firstAllowed)
     {
-        if (firstAllowed is null) return false;
-        return b.ValidFrom < firstAllowed.Value;
+        if (firstAllowed is null) return Task.FromResult(false);
+        return Task.FromResult(b.ValidFrom < firstAllowed.Value);
     }
 
     // GET /api/employee-bank-accounts/employee/{id}
@@ -151,6 +151,26 @@ public class EmployeeBankAccountsController : ControllerBase
             CreatedAt        = DateTime.UtcNow,
             UpdatedAt        = DateTime.UtcNow
         };
+        // Walter-Vorgabe 07.06.2026: Auto-Close — bestehende Vorgänger schliessen,
+        // wenn die neue Verbindung als Voll-/Hauptkonto eintritt. Bei einer
+        // bewussten Aufteilung (mehrere Konten gleichzeitig aktiv mit
+        // AufteilungTyp != VOLL) NICHT eingreifen. Gilt für jede Quelle —
+        // manuelle Pflege UND CSV-Import.
+        if (entry.IsHauptbank && string.Equals(entry.AufteilungTyp, "VOLL", StringComparison.OrdinalIgnoreCase))
+        {
+            var vorgaenger = await _db.EmployeeBankAccounts
+                .Where(b => b.EmployeeId == dto.EmployeeId
+                         && b.ValidFrom < newFrom
+                         && (b.ValidTo == null || b.ValidTo >= newFrom))
+                .ToListAsync();
+            foreach (var p in vorgaenger)
+            {
+                p.ValidTo     = newFrom.AddDays(-1);
+                p.IsHauptbank = false;
+                p.UpdatedAt   = DateTime.UtcNow;
+            }
+        }
+
         await EnforceSingleHauptbank(entry);
         _db.EmployeeBankAccounts.Add(entry);
         await _db.SaveChangesAsync();

@@ -136,7 +136,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("me")]
-    [Authorize(Roles = "admin,superuser,user,employee")]   // auch MA-Postfach (Rolle employee) braucht /me
+    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung")]   // auch MA-Postfach (employee) + Buchhaltung
     public async Task<IActionResult> Me()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -176,7 +176,7 @@ public class AuthController : ControllerBase
 
     /// <summary>Theme-Präferenz des eingeloggten Users speichern (light/dark).</summary>
     [HttpPut("theme")]
-    [Authorize]
+    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung")]
     public async Task<IActionResult> UpdateTheme([FromBody] UpdateThemeRequest req)
     {
         var theme = (req?.Theme ?? "").ToLowerInvariant();
@@ -198,7 +198,7 @@ public class AuthController : ControllerBase
     /// Top-Bar aufgerufen, wenn der User die Wahl persistieren möchte.
     /// </summary>
     [HttpPut("language")]
-    [Authorize]
+    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung")]
     public async Task<IActionResult> UpdateLanguage([FromBody] UpdateLanguageRequest req)
     {
         var lang = (req?.Language ?? "").ToLowerInvariant();
@@ -221,7 +221,7 @@ public class AuthController : ControllerBase
     /// MustChangePassword wird auf false gesetzt). Mindestlänge 8 Zeichen.
     /// </summary>
     [HttpPost("change-password")]
-    [Authorize(Roles = "admin,superuser,user,employee")]   // MA muss Initial-Passwort wechseln können
+    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung")]   // MA + Buchhaltung müssen Passwort wechseln können
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
     {
         if (req == null || string.IsNullOrWhiteSpace(req.CurrentPassword) || string.IsNullOrWhiteSpace(req.NewPassword))
@@ -252,13 +252,20 @@ public class AuthController : ControllerBase
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.Role, user.Role)
         };
+        // Buchhaltung = wie Superuser (volle HR-Feature-Rechte) PLUS Fibu-Bereich.
+        // Zweiter Rollen-Claim 'superuser' → alle [Authorize(Roles="admin,superuser")]-
+        // Endpunkte greifen, ohne jedes Attribut anzufassen. Der eigene
+        // 'buchhaltung'-Claim bleibt (erster Claim) und schaltet zusätzlich die
+        // Fibu-Endpunkte frei + dient der branch-genauen Zugriffsprüfung.
+        if (user.Role == "buchhaltung")
+            claims.Add(new Claim(ClaimTypes.Role, "superuser"));
 
         // MA-Postfach-User (Rolle "employee") bekommen kürzere Token-
         // Lebensdauer, weil sie typisch nur kurz reinschauen und das Risiko

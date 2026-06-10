@@ -265,7 +265,7 @@ async function downloadContractPdfById(employeeId, contractId) {
         const blob = await res.blob();
         const cd   = res.headers.get('Content-Disposition') || '';
         const match = cd.match(/filename="?([^"]+)"?/);
-        await saveBlobAsk(blob, match ? match[1] : 'Vertrag.pdf');
+        await previewFileModal(blob, match ? match[1] : 'Vertrag.pdf');
     } catch (err) { alert('Fehler: ' + err.message); }
     finally { if (btn) { btn.textContent = '📄 PDF'; btn.disabled = false; } }
 }

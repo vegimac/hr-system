@@ -632,7 +632,7 @@ function _akWfRenderStatusBar() {
         case 'AUSBEZAHLT':
             actions = `<button class="btn btn-outline btn-sm" onclick="akWfDownloadDta()" style="color:#0369a1;border-color:#7dd3fc" title="pain.001-XML für die Bank">📥 DTA-File</button>
                        <button class="btn btn-outline btn-sm" onclick="akWfDownloadListePdf()" style="color:#0369a1;border-color:#7dd3fc" title="Akonto-Zahlungsliste als PDF (Begleitliste, Buchhaltungs-Beleg)">📄 Akonto-Liste</button>
-                       <span style="color:#15803d;font-size:11.5px;font-weight:600;background:#bbf7d0;padding:3px 9px;border-radius:8px">🔒 Ausbezahlt ${_akFmtTs(d.akontoAusbezahltAt)} — Admin-Reopen via Lohnperioden-Modul</span>`;
+                       <span class="ak-ausbezahlt-badge" style="font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:8px">🔒 Ausbezahlt ${_akFmtTs(d.akontoAusbezahltAt)} — Admin-Reopen via Lohnperioden-Modul</span>`;
             break;
     }
 
@@ -706,8 +706,12 @@ function _akWfRenderMaList() {
         const initials = ((r.firstName||'')[0]||'') + ((r.lastName||'')[0]||'');
         const warn = !r.bankAccountCount ? ` <span title="Keine aktive Bankverbindung" style="color:#b91c1c">⚠</span>` : '';
         const _mwW = (typeof _lohnMwUnderpaid !== 'undefined') ? _lohnMwUnderpaid[r.employeeId] : null;
-        const _mwLbl = _mwW && _mwW.problem === 'NO_SALARY' ? '⚠ Lohn fehlt' : '⚠ Mindestlohn';
-        const mwIcon = _mwW ? ` <span title="${String(_mwW.message||'Lohnproblem im Vertrag').replace(/"/g,'&quot;')}" style="color:#dc2626">${_mwLbl}</span>` : '';
+        let _mwLbl = '⚠ Mindestlohn';
+        if (_mwW) {
+            if (_mwW.problem === 'NO_SALARY')   _mwLbl = '⚠ Lohn fehlt';
+            else if (_mwW.problem === 'QST_OFFEN') _mwLbl = '⚠ QST';
+        }
+        const mwIcon = _mwW ? ` <span title="${String(_mwW.message||'Lohnproblem').replace(/"/g,'&quot;')}" style="color:#dc2626">${_mwLbl}</span>` : '';
         const hrNote = r.kommentarHr
             ? (r.status === 'BERECHNET'
                 ? ` <span title="HR-Notiz: ${(r.kommentarHr||'').replace(/"/g,'&quot;')}" style="color:#b45309">📝</span>`
@@ -741,11 +745,44 @@ function _akWfRenderMaList() {
             avatarHtml = `<div style="width:34px;height:34px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#475569;flex-shrink:0">${initials.toUpperCase()}</div>`;
         }
 
+        // Walter-Vorgabe 28.05.2026: Fehler-Zeile rot rendern mit Ausschluss-
+        // Grund + GF-Override-Toggle. Ineligible MA (errorReason gesetzt) UND
+        // NICHT ForcePayout → rote Zeile, kein Akonto-Betrag.
+        const hasError      = !!r.errorReason;
+        const forcePayout   = !!r.forcePayout;
+        const isErrorRow    = hasError && !forcePayout;   // wirklich gesperrt
+        const isOverrideRow = hasError && forcePayout;    // Walter sagt „trotzdem"
+        if (isErrorRow) {
+            row.style.background = '#fef2f2';
+            row.style.borderLeft = '3px solid #dc2626';
+            sublineText = r.errorReason || 'Fehler';
+            sublineColor = '#b91c1c';
+        } else if (isOverrideRow) {
+            row.style.background = '#fffbeb';
+            row.style.borderLeft = '3px solid #f59e0b';
+        }
+
         row.innerHTML = `
             ${avatarHtml}
             <div style="flex:1;min-width:0">
-                <div class="lohn-emp-name" style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.firstName} ${r.lastName}${warn}${hrNote}${mwIcon}</div>
-                <div class="lohn-emp-nr" style="font-size:11px;color:${sublineColor}">${sublineText}</div>
+                <!-- Walter-Vorgabe 07.06.2026: Namen wie in der Mitarbeiter-Liste
+                     umbrechen lassen statt mit "…" abkürzen. -->
+                <div class="lohn-emp-name" style="font-weight:600;font-size:13px;line-height:1.25;word-break:break-word">${r.firstName} ${r.lastName}${warn}${hrNote}${mwIcon}</div>
+                <div class="lohn-emp-nr" style="font-size:11px;color:${sublineColor};word-break:break-word" title="${(r.errorReason||'').replace(/"/g,'&quot;')}">${sublineText}</div>
+                ${hasError ? `
+                <div style="margin-top:3px;font-size:10.5px;color:#475569;display:flex;align-items:center;gap:5px">
+                    <span style="font-weight:600">Akonto auszahlen?</span>
+                    <button class="ak-fp-yes" title="Trotz Ausschluss Akonto auszahlen"
+                            style="border:1px solid ${forcePayout?'#16a34a':'#cbd5e1'};
+                                   background:${forcePayout?'#16a34a':'#fff'};
+                                   color:${forcePayout?'#fff':'#475569'};
+                                   padding:1px 7px;border-radius:4px;font-size:10.5px;cursor:pointer">Ja</button>
+                    <button class="ak-fp-no" title="Akonto NICHT auszahlen (Default)"
+                            style="border:1px solid ${!forcePayout?'#dc2626':'#cbd5e1'};
+                                   background:${!forcePayout?'#dc2626':'#fff'};
+                                   color:${!forcePayout?'#fff':'#475569'};
+                                   padding:1px 7px;border-radius:4px;font-size:10.5px;cursor:pointer">Nein</button>
+                </div>` : ''}
             </div>
             <!-- Walter 18.05.2026: Vertrags-Badge IMMER links, QST-Button IMMER
                  rechts, beide in einem Slot mit fester Breite damit die Spalten
@@ -759,6 +796,18 @@ function _akWfRenderMaList() {
                     : ''}
                 </span>
             </div>`;
+
+        // Force-Payout-Buttons (Walter 28.05.2026): pro MA umschalten.
+        const fpYes = row.querySelector('.ak-fp-yes');
+        const fpNo  = row.querySelector('.ak-fp-no');
+        if (fpYes) fpYes.addEventListener('click', ev => {
+            ev.stopPropagation();
+            akWfSetForcePayout(r.id, true);
+        });
+        if (fpNo)  fpNo.addEventListener('click', ev => {
+            ev.stopPropagation();
+            akWfSetForcePayout(r.id, false);
+        });
 
         // QST-Button: gleicher Modal-Aufruf wie im Definitivlauf (openQstModal).
         // Per addEventListener verdrahtet, damit das komplexe Argument-Objekt
@@ -781,6 +830,35 @@ function _akWfRenderMaList() {
         }
         el.appendChild(row);
     });
+}
+
+// Walter-Vorgabe 28.05.2026: pro ineligible MA toggeln „Akonto trotzdem
+// auszahlen Ja/Nein". Nach Setzen wird automatisch „Neu berechnen" angestoßen
+// damit Brutto/Netto sofort frisch gerechnet werden.
+async function akWfSetForcePayout(zahlungId, force) {
+    if (!zahlungId) return;
+    try {
+        const res = await fetch(`/api/akonto/workflow/force-payout/${zahlungId}`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ force })
+        });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
+        if (!res.ok) {
+            const t = await res.json().catch(() => ({}));
+            alert(t.error || 'Override konnte nicht gesetzt werden.');
+            return;
+        }
+        // Direkt „Neu berechnen" anstoßen — damit der Akonto mit den neuen
+        // Override-Flags sofort persistiert und im UI sichtbar wird.
+        if (typeof akWfStart === 'function') {
+            await akWfStart();
+        } else {
+            akWfRefresh();
+        }
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
 }
 
 function akWfSelectMa(id) {
@@ -1001,11 +1079,16 @@ function _akWfRenderRichDetail(d) {
     // Loopback rechnen).
     const model = (d.vertrag?.employmentModel || '').toUpperCase();
     const isFix = (model === 'FIX' || model === 'FIX-M');
-    // Walter-Vorgabe 18.05.2026: FIX und FIX-M haben getrennte Prozent-Sätze.
-    // FIX-M (Manager) liegt höher (Default 90 %) als FIX (Default 80 %).
-    const akontoProzentFix = model === 'FIX-M'
-        ? Number(d.akontoProzentFixM ?? 90)
-        : Number(d.akontoProzentFix  ?? 80);
+    // Walter-Vorgabe 30.05.2026: Akonto-Prozent dynamisch je nach Modell.
+    //   FIX     → AkontoProzentFix     (Default 80%)
+    //   FIX-M   → AkontoProzentFixM    (Default 90%)
+    //   UTP/MTP → AkontoProzentHourly  (Default 100%)
+    // Vorher zeigte der UI-Text bei MTP/UTP fälschlich den FIX-Prozent.
+    let akontoProzent;
+    if (model === 'FIX-M')      akontoProzent = Number(d.akontoProzentFixM   ?? 90);
+    else if (model === 'FIX')   akontoProzent = Number(d.akontoProzentFix    ?? 80);
+    else                        akontoProzent = Number(d.akontoProzentHourly ?? 100);
+    const akontoProzentFix = akontoProzent;  // Backward-Compat (wird unten im sync-Pfad genutzt)
 
     // Eindeutige IDs pro Lohnblatt — verhindert Konflikte falls der User
     // schnell zwischen MA wechselt und alte Mount-Points noch im DOM hängen.
@@ -1039,18 +1122,19 @@ function _akWfRenderRichDetail(d) {
         </div>
 
         <!-- Akonto-Berechnungs-Box: was JETZT bei der Akonto-Zahlung fliesst.
-             Walter-Vorgabe 19.05.2026: Box hat dieselbe max-width wie der
-             Lohnzettel oben (860px) — der CHF-Betrag rechts landet damit
-             optisch in der gleichen Spalte wie „Ausbezahlt" / „Auszahlungs-
-             betrag" oben. -->
+             Walter-Vorgabe 06.06.2026: Box geht über die volle Card-Breite —
+             damit fluchtet der CHF-Betrag auf grossen Bildschirmen mit der
+             „Ausbezahlt"-Spalte oben (die .ls-table überschreitet ihre eigene
+             max-width:860px wegen langer Label-Texte, also ist die Card die
+             zuverlässige Bezugsbreite, nicht 860px). -->
         <div id="${akontoFixBoxMountId}" style="border-top:2px solid #0f172a;background:#f8fafc">
-            <div style="max-width:860px;padding:8px 22px;display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap">
+            <div style="padding:8px 22px;display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap">
                 <div style="font-size:14px;color:#0f172a">
                     <b>${akontoProzentFix}%</b> von voraussichtlichem Auszahlungsbetrag
                 </div>
                 <div id="${akontoNettoMountId}" style="font-size:20px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums">${_akFmtChf(b.nettoAkonto)}</div>
             </div>
-            <div style="max-width:860px;padding:0 22px 8px;font-size:11px;color:#94a3b8">
+            <div style="padding:0 22px 8px;font-size:11px;color:#94a3b8;text-align:right">
                 ${d.status === 'BERECHNET'
                     ? 'wird nach Lohnzettel-Vorschau aktualisiert…'
                     : (d.status === 'FREIGEGEBEN_GF'

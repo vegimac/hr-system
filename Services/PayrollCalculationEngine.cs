@@ -130,14 +130,17 @@ public class PayrollCalculationEngine
         string? periodeFooterText = existingPeriod?.PdfFooterText;
 
         // ── Den Vertrag laden, der in DIESER Periode gültig war ──────────
-        // Regel: ContractStartDate <= periodToFull UND
-        //        (ContractEndDate IS NULL ODER ContractEndDate >= periodFrom)
-        // Wenn mehrere matchen (z.B. weil eine Lohnänderung mitten in die
-        // Periode fiel — sollte aber per Konvention immer auf 21. liegen),
+        // Regel (Walter-Vorgabe 31.05.2026, ABSOLUT): ContractStartDate <= periodToFull
+        // UND (ContractEndDate IS NULL ODER ContractEndDate >= periodFrom).
+        // Employment.IsActive wird BEWUSST IGNORIERT — der Lebenszyklus eines Vertrages
+        // ist ausschliesslich durch sein Datum bestimmt. Ein eben ausgetretener MA muss
+        // im Austritts-Monat noch im Lohnlauf erscheinen, auch wenn der Auto-Setter
+        // IsActive=false gesetzt hat. Und ein erst diesen Monat gestarteter Vertrag
+        // (z.B. 12.1.) muss greifen, selbst wenn er als „abgeschlossen" markiert ist.
+        // Wenn mehrere matchen (z.B. weil eine Lohnänderung mitten in die Periode fiel),
         // nehmen wir den mit dem spätesten Vertragsbeginn.
         var emp = employee.Employments
-            .Where(e => e.IsActive
-                     && e.CompanyProfileId == companyProfileId
+            .Where(e => e.CompanyProfileId == companyProfileId
                      && DateOnly.FromDateTime(e.ContractStartDate) <= periodToFull
                      && (!e.ContractEndDate.HasValue
                          || DateOnly.FromDateTime(e.ContractEndDate.Value) >= periodFrom))
@@ -218,16 +221,26 @@ public class PayrollCalculationEngine
 
         // ── Quellensteuer-Pflicht ──────────────────────────────────────────────
         // Regel: QST-pflichtig wenn Nationalität ≠ CH UND noch nicht befreit.
-        // «Befreit ab»: gesetzt wenn MA C-Ausweis oder CH-Bürgerrecht erhält.
+        // Walter-Vorgabe 26.05.2026: Behörden-Befreiung hat OBERSTE Priorität
+        // — sie schlägt alles andere (auch einen manuell erfassten QST-Eintrag).
+        // Reihenfolge:
+        //   1. Behörden-Befreiung gültig am Stichtag (mit Dok) → KEIN QST
+        //   2. Sonst: QST-Eintrag manuell erfasst → QST rechnen
+        //   3. Sonst: !Schweizer & !Legacy-befreit → QST rechnen
         bool isSchweizer = string.Equals(
             employee.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase);
         bool bereitsBefreit = employee.QuellensteuerBefreitAb.HasValue
             && employee.QuellensteuerBefreitAb.Value <= periodFrom;
-        bool isQuellensteuer = !isSchweizer && !bereitsBefreit;
 
-        // ── Quellensteuer-Einstellungen des Mitarbeiters laden ────────────────
+        bool behoerdenBefreit = employee.QstBefreitDurchBehoerde
+            && employee.QstBefreiungDokumentId.HasValue
+            && (!employee.QstBefreiungGueltigAb.HasValue
+                || employee.QstBefreiungGueltigAb.Value <= periodFrom)
+            && (!employee.QstBefreiungGueltigBis.HasValue
+                || employee.QstBefreiungGueltigBis.Value >= periodFrom);
+
         EmployeeQuellensteuer? qstEinstellung = null;
-        if (isQuellensteuer)
+        if (!behoerdenBefreit)
         {
             qstEinstellung = await _db.EmployeeQuellensteuer
                 .Where(q => q.EmployeeId == employeeId
@@ -236,6 +249,10 @@ public class PayrollCalculationEngine
                 .OrderByDescending(q => q.ValidFrom)
                 .FirstOrDefaultAsync();
         }
+
+        bool isQuellensteuer = !behoerdenBefreit
+                            && ((!isSchweizer && !bereitsBefreit) || qstEinstellung != null);
+        if (!isQuellensteuer) qstEinstellung = null;
 
         // ── Abzugsregeln: ausschliesslich aus social_insurance_rate ───────────
         bool usingDefaultDeductions = false;
@@ -302,10 +319,21 @@ public class PayrollCalculationEngine
             usingDefaultDeductions = true;
         }
 
-        // Vertragstyp des Mitarbeiters (für BVG_ZUSATZ-Filter)
+        // Vertragstyp des Mitarbeiters (für EmploymentModel-spezifische Regeln,
+        // z.B. wenn BVG eine andere Staffel pro Modell hätte).
         string? empModelCode = emp.EmploymentModel; // UTP | MTP | FIX | FIX-M
 
-        // Altersfilter + QST-Filter + Vertragstyp-Filter in Memory anwenden
+        // BVG-Zusatz-Mitgliedschaft am Periodenanfang (Walter-Vorgabe 26.05.2026):
+        // Vorher hartcodiert über EmploymentModelCode=FIX-M; jetzt pro MA als
+        // versionierte Mitgliedschaft (`employee_bvg_zusatz_member`). Mehrere
+        // Einträge pro MA möglich (rein/raus/wieder rein).
+        var bvgZusatzActive = await _db.EmployeeBvgZusatzMembers
+            .AnyAsync(m => m.EmployeeId == employeeId
+                        && m.ValidFrom <= periodFrom
+                        && (m.ValidTo == null || m.ValidTo >= periodFrom));
+
+        // Altersfilter + QST-Filter + Vertragstyp-Filter + BVG-Zusatz-Filter
+        // in Memory anwenden.
         var deductions = allRules
             .Where(r => (r.MinAge == null || employeeAge == null || employeeAge >= r.MinAge)
                      && (r.MaxAge == null || employeeAge == null || employeeAge <= r.MaxAge)
@@ -313,7 +341,13 @@ public class PayrollCalculationEngine
                      // Vertragstyp: NULL = gilt für alle; gesetzt = nur wenn MA-Modell übereinstimmt
                      && (r.EmploymentModelCode == null
                          || string.Equals(r.EmploymentModelCode, empModelCode,
-                                          StringComparison.OrdinalIgnoreCase)))
+                                          StringComparison.OrdinalIgnoreCase))
+                     // BVG_ZUSATZ-Regeln NUR anwenden wenn MA am Periodenanfang
+                     // Mitglied im Vorsorge-Programm ist (Walter 26.05.2026).
+                     // BVG_ZUSATZ kommt aus SocialInsuranceRate.Code, der hier
+                     // in DeductionRule.CategoryCode landet (siehe Mapping oben).
+                     && (!string.Equals(r.CategoryCode, "BVG_ZUSATZ", StringComparison.OrdinalIgnoreCase)
+                         || bvgZusatzActive))
             .ToList();
 
         // ── Vormonat-Saldo ─────────────────────────────────────────────────
@@ -388,9 +422,12 @@ public class PayrollCalculationEngine
         var isFIX = emp.EmploymentModel is "FIX" or "FIX-M";
 
         decimal hourlyRate    = emp.HourlyRate      ?? 0;
-        decimal vacationPct   = emp.VacationPercent  ?? 0;
-        decimal holidayPct    = emp.HolidayPercent   ?? 0;
-        decimal thirteenthPct = emp.ThirteenthSalaryPercent ?? 0;
+        // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
+        // kommen ab jetzt AUSSCHLIESSLICH aus der Filiale. Vertragsfelder wurden
+        // entfernt. Ferien-% wird unten altersaware auf 6 Wochen hochgesetzt.
+        decimal vacationPct   = company.DefaultVacationPercent5Weeks    ?? 0;
+        decimal holidayPct    = company.DefaultHolidayPercent           ?? 0;
+        decimal thirteenthPct = company.DefaultThirteenthSalaryPercent  ?? 0;
 
         // ── Probezeit-Sperre für 13. ML (L-GAV Art. 12 Ziffer 2) ───────────
         // Während der Probezeit besteht kein Anspruch auf 13. ML (entfällt
@@ -401,12 +438,13 @@ public class PayrollCalculationEngine
         bool isInProbation = emp.ProbationEndDate.HasValue
                           && DateOnly.FromDateTime(emp.ProbationEndDate.Value) >= periodTo;
 
-        // ── Ferien-% Auto-Upgrade ab Alter 50 (CH-GAV-Standard) ────────────
-        // Mitarbeiter ab vollendetem 50. Lebensjahr haben Anspruch auf 6 Wochen
-        // Ferien. Wir prüfen tag-genau: Sobald der 50. Geburtstag innerhalb
-        // oder vor der aktuellen Lohnperiode liegt (≤ periodTo), gilt der
-        // 6-Wochen-Satz für diese und alle Folgeperioden.
-        // Beispiel: Geboren 15.5.1976 → 50. Geburtstag 15.5.2026.
+        // ── Ferien-% Auto-Upgrade ab definierter Alters-Schwelle (CH-GAV-Standard 50) ──
+        // Mitarbeiter ab vollendetem Lebensjahr X (Walter-Vorgabe 06.06.2026:
+        // pro Filiale konfigurierbar in company.VacationSixWeeksFromAge, Default 50)
+        // haben Anspruch auf 6 Wochen Ferien. Wir prüfen tag-genau: Sobald der
+        // X-te Geburtstag innerhalb oder vor der aktuellen Lohnperiode liegt
+        // (≤ periodTo), gilt der 6-Wochen-Satz für diese und alle Folgeperioden.
+        // Beispiel mit Schwelle 50: Geboren 15.5.1976 → 50. Geburtstag 15.5.2026.
         //   Periode 21.4.-20.5.2026: 50. Geb. liegt in Periode → 6 Wochen ✓
         //   Periode 21.3.-20.4.2026: 50. Geb. nach periodTo → noch 5 Wochen
         // Wir ziehen NIE runter — wenn der Vertrag z.B. 15% (7 Wochen) hat,
@@ -414,8 +452,9 @@ public class PayrollCalculationEngine
         if (employee.DateOfBirth.HasValue)
         {
             var dob = DateOnly.FromDateTime(employee.DateOfBirth.Value);
-            var fuenfzigsterGeburtstag = dob.AddYears(50);
-            if (fuenfzigsterGeburtstag <= periodTo)
+            int sixWeeksFromAge = company.VacationSixWeeksFromAge;
+            var sechsWochenSchwelle = dob.AddYears(sixWeeksFromAge);
+            if (sechsWochenSchwelle <= periodTo)
             {
                 decimal sechsWochenPct = company.DefaultVacationPercent6Weeks ?? 13.04m;
                 if (vacationPct < sechsWochenPct)
@@ -464,15 +503,22 @@ public class PayrollCalculationEngine
             decimal pct           = emp.EmploymentPercentage ?? 100m;
             decimal weeklyH       = betriebWeekly;
 
-            if (typCfg.BasisStunden == "VERTRAG")
+            // Walter-Vorgabe 30.05.2026 (override): bei MTP IMMER die garantierten
+            // Wochenstunden als Basis — unabhängig vom AbsenzTyp-Setting BasisStunden.
+            // MTP ist konzeptionell ein Stundenlöhner mit Garantie; bei
+            // Krank/Unfall-Tagen gilt die Garantie als Lohn-Maßstab, nicht
+            // die Betriebs-Wochenstunden. Sonst würde z.B. ein MA mit 25 h
+            // Garantie fälschlich 42 h/5 = 8.40 h pro Krank-Tag bekommen
+            // statt 25 h/5 = 5 h.
+            if (emp.EmploymentModel == "MTP")
             {
-                if (emp.EmploymentModel == "MTP")
-                {
-                    weeklyH = emp.GuaranteedHoursPerWeek
-                           ?? emp.WeeklyHours
-                           ?? betriebWeekly;
-                }
-                else if (emp.EmploymentModel == "FIX" || emp.EmploymentModel == "FIX-M")
+                weeklyH = emp.GuaranteedHoursPerWeek
+                       ?? emp.WeeklyHours
+                       ?? betriebWeekly;
+            }
+            else if (typCfg.BasisStunden == "VERTRAG")
+            {
+                if (emp.EmploymentModel == "FIX" || emp.EmploymentModel == "FIX-M")
                 {
                     // Walter-Regel: FIX/FIX-M nur bei FERIEN/FEIERTAG pensum-adjustiert
                     // (1/7-Modus). Krank/Unfall/Schulung etc. weiter Betriebs-Wochen.
@@ -545,7 +591,15 @@ public class PayrollCalculationEngine
             else if (typCfg.Zeitgutschrift)
             {
                 // Alle anderen Typen mit Zeitgutschrift (KRANK, UNFALL, SCHULUNG, MILITAER etc.)
-                absenzGutschrift += hours;
+                // Walter-Vorgabe 30.05.2026: bei MTP werden KRANK und UNFALL
+                // NICHT als Zeitgutschrift gezählt — die Stunden werden im MTP-
+                // Block direkt von den Soll-Stunden abgezogen (festlohnKrank/
+                // UnfallKuerzung mit MTP-Tagessatz). Würden sie zusätzlich in
+                // absenzGutschrift landen, entstünden Phantom-Mehrstunden in der
+                // „MTP + Stunden"-Zeile. AddBreakdown bleibt drin, weil der
+                // Krank/Unfall-Block die Karenz/Taggeld-Tage daraus berechnet.
+                bool mtpKrankOderUnfall = isMTP && (a.AbsenceType == "KRANK" || a.AbsenceType == "UNFALL");
+                if (!mtpKrankOderUnfall) absenzGutschrift += hours;
                 AddBreakdown(a.AbsenceType, hours);
             }
         }
@@ -671,17 +725,21 @@ public class PayrollCalculationEngine
         // irgendwann in der Periode aktiv war. Mid-Period-Tarifwechsel
         // (z.B. Kind wird 12 in LU) → Walter legt zwei Einträge an, beide
         // zählen anteilig. Eine Tagesgenaue Aufteilung machen wir später.
+        // Walter-Vorgabe 28.05.2026: a.MonthlyAmount wird NICHT mehr als Filter
+        // verwendet — der Betrag kommt nun pro Periode aus dem FAK-Tarif (siehe
+        // Resolve-Logik unten). Die DB-Spalte bleibt als Snapshot/Audit-Wert
+        // stehen, ist aber nicht mehr authoritative für den Lohnlauf.
         var familienzulagenRaw = await (
             from a in _db.FamilyMemberAllowances
             join m in _db.EmployeeFamilyMembers on a.FamilyMemberId equals m.Id
             where m.EmployeeId == employeeId
-               && a.MonthlyAmount > 0m
                && a.ValidFrom <= periodTo
                && (a.ValidTo == null || a.ValidTo >= periodFrom)
             select new {
                 AllowanceId    = a.Id,
-                MonthlyAmount  = a.MonthlyAmount,
-                AllowanceType  = a.AllowanceType,    // "KZ" | "AZ" | NULL
+                MonthlyAmount  = a.MonthlyAmount,    // Snapshot zum ValidFrom — Fallback wenn kein Tarif
+                AllowanceType  = a.AllowanceType,    // "KZ" | "AZ" | "GZ" | "AdoptZ" | NULL
+                TarifSatzNr    = a.TarifSatzNr,      // 1, 2, oder NULL (Pauschal/Alt-Daten)
                 ValidFrom      = a.ValidFrom,
                 ValidTo        = a.ValidTo,
                 Note           = a.Note,
@@ -729,9 +787,23 @@ public class PayrollCalculationEngine
         //   der Monatslohn als Basis genommen werden (sonst greift fälschlich
         //   die FAK-Sperre auch bei normal arbeitenden MTP-MA).
         // FIX / FIX-M: vertraglicher Monatslohn.
+        // Walter-Vorgabe 30.05.2026: bei MTP wird die FAK-Mindesteinkommen-Prüfung
+        // gegen den GARANTIERTEN Lohn der Periode geprüft (guaranteedH/7 × Tage
+        // × StdLohn) statt nur gegen die tatsächlich gestempelten Stunden. Sonst
+        // fällt ein bei Krank/Unfall ausgefallener MA fälschlich unter die
+        // Schwelle, obwohl er aus Krank-Taggeld + Garantie genug Einkommen
+        // hat. Wenn die effektive Arbeit über der Garantie liegt (Mehrstunden),
+        // greift der höhere Wert (max).
         decimal estimatedAhvBruttoForFak;
         if (isFIX)
             estimatedAhvBruttoForFak = emp.MonthlySalary ?? 0m;
+        else if (isMTP)
+        {
+            decimal guarH = emp.GuaranteedHoursPerWeek ?? 0m;
+            decimal sollLohn = Math.Round(guarH / 7m * normalPeriodDays * hourlyRate, 2);
+            decimal istLohn  = Math.Round(workedHours * hourlyRate, 2);
+            estimatedAhvBruttoForFak = Math.Max(sollLohn, istLohn);
+        }
         else
             estimatedAhvBruttoForFak = Math.Round(workedHours * hourlyRate, 2);
 
@@ -795,15 +867,43 @@ public class PayrollCalculationEngine
                 bemerkung = istAz ? "Ausbildungszulage" : "Kinderzulage";
             }
 
+            // Walter-Vorgabe 28.05.2026 (v3): User wählt pro Kind den KONKRETEN
+            // Tarif-Satz (KZ Satz 1, KZ Satz 2 ab 12J., AZ Satz 1, …) mit
+            // eigenem von/bis-Zeitfenster. Engine schaut pro Periode:
+            //   1. welcher Allowance-Eintrag ist gültig (über ValidFrom/To)
+            //   2. welcher Satz ist gewählt (TarifSatzNr)
+            //   3. holt den AKTUELL gültigen Wert aus dem FAK-Tarif der Filiale.
+            // Bei Tarif-Wechsel (z.B. neue Sätze ab 1.1.2026) greift der neue
+            // Betrag automatisch — Walter muss am Kind nichts ändern.
+            //
+            // Fallback: kein Tarif-Satz hinterlegt → gespeicherter fa.MonthlyAmount
+            // (Backward-Compat für Alt-Einträge ohne tarif_satz_nr).
+            string? typeForResolve = istGz
+                ? (istAdoptZ ? "AdoptZ" : "GZ")
+                : (istAz ? "AZ" : "KZ");
+            var resolved = FamilienzulagenResolverService.ResolveBySatz(fakTarif, typeForResolve, fa.TarifSatzNr);
+
             decimal betrag;
             if (fakSuppressed)
             {
                 betrag = 0m;
                 bemerkung += " – Lohn zu tief";
             }
+            else if (resolved.Amount.HasValue)
+            {
+                betrag = Math.Round(resolved.Amount.Value, 2);
+            }
             else
             {
+                // Fallback: kein Tarif-Satz hinterlegt → gespeicherten Wert nehmen
+                // (Backward-Compat für Alt-Einträge ohne Tarif-Pflege).
                 betrag = Math.Round(fa.MonthlyAmount, 2);
+            }
+            // Synthetic-Zeile mit 0 nur ausgeben, wenn auch wirklich etwas hätte
+            // anfallen sollen — sonst keine Phantom-Zeile.
+            if (betrag == 0m && !fakSuppressed && fa.MonthlyAmount == 0m)
+            {
+                continue;
             }
 
             familienzulagenSynth.Add(new LohnZulage
@@ -900,6 +1000,26 @@ public class PayrollCalculationEngine
                 if (lohnposByCode.TryGetValue(kv.Key, out var lp) && selector(lp))
                     sum += kv.Value;
             return sum;
+        }
+        // Walter-Vorgabe 28.05.2026: Helfer für die SV-pflicht-Anwendung — die
+        // Engine hat ein paar Stellen (Krank-/Unfall-Taggeld 80%, BVG-Wartefrist-
+        // Korrekturen), wo Beträge AUSSERHALB des mainLohn-Pfads auf die
+        // SV-Basen aufgeschlagen werden. Statt dort hardcoded zu sagen „nur
+        // BVG + QST", schlägt diese Methode auf SV-Typ-Booleans auf, die der
+        // Aufrufer dann gegen die Lohnposition-Flags abprüft. Vorteil: jede
+        // Lohnposition entscheidet selbst, in welche SV-Basis sie fliesst.
+        //
+        // Fallback `fallbackBvg`/`fallbackQst` wird verwendet, wenn die
+        // Lohnposition (noch) nicht angelegt ist — so bleibt das Verhalten
+        // identisch zum bisherigen hardcoded Default.
+        (bool ahv, bool nbuv, bool ktg, bool bvg, bool qst) LpFlagsOr(string code,
+            bool fallbackAhv = false, bool fallbackNbuv = false, bool fallbackKtg = false,
+            bool fallbackBvg = false, bool fallbackQst = false)
+        {
+            if (lohnposByCode.TryGetValue(code, out var lp) && lp != null)
+                return (lp.AhvAlvPflichtig, lp.NbuvPflichtig, lp.KtgPflichtig,
+                        lp.BvgPflichtig, lp.QstPflichtig);
+            return (fallbackAhv, fallbackNbuv, fallbackKtg, fallbackBvg, fallbackQst);
         }
         // Lohnposition-Bezeichnung aus dem Katalog holen (mit Fallback).
         // Damit erscheint auf dem Lohnzettel der Name den der Admin in der
@@ -1025,6 +1145,70 @@ public class PayrollCalculationEngine
         var abzugLines = new List<object>();
         decimal totalLohn = 0;
 
+        // Walter-Vorgabe 28.05.2026: lohnLines werden am Ende nach Lohnposition-
+        // SortOrder sortiert. Walter pflegt die Reihenfolge im UI (Spalte
+        // Sortierung) — der Engine ordnet die Anzeige automatisch entsprechend.
+        // Prefix-Mapping, weil die meisten Bezeichnungen via LabelFor(code, …)
+        // erzeugt werden ODER feste Strings sind. SV-Berechnung ist davon nicht
+        // betroffen — nur die Reihenfolge im Lohnzettel.
+        // Bezeichnungs-Prefix → Lohnposition-Code (längste Prefixe zuerst!).
+        var bezToCodeMap = new (string prefix, string code)[]
+        {
+            ("Festlohn für bezogene Ferien",     "2"),
+            ("Festlohn für bezogene Feiertage",  "3"),
+            ("Festlohn",                          "10"),    // greift NACH den zwei spezifischeren oben
+            ("Monatslohn",                        "10"),    // FIX-Block
+            ("MTP + Stunden",                     "4"),
+            ("Stundenlohn Ferien",                "22"),
+            ("Stundenlohn",                       "20"),
+            ("Ausbezahlte Feiertage",             "50"),
+            ("Korrektur Krankheit",               "75"),
+            ("Krankheit (Karenzentschädigung)",   "70"),
+            ("Krankheit (Taggeld 80%)",           "70.2"),
+            ("Krankheit (Taggeld",                "70.2"),  // Fallback
+            ("Korrektur Unfall",                  "65"),
+            ("Unfall (Karenzentschädigung)",      "60"),
+            ("Unfall (Taggeld 80%)",              "60.2"),
+            ("Unfall (Taggeld",                   "60.2"),
+            ("Feiertagentschädigung",             "_feiertag_ent"),
+            ("Ferienentschädigung-Auszahlung",    "_ferien_ausz"),
+            ("Ferienentschädigung",               "_ferien_ent"),
+            ("13. Monatslohn",                    "_13ml"),
+            ("Nacht-Kompensation",                "_nacht"),
+        };
+        var fallbackSortOrder = new Dictionary<string, int>
+        {
+            ["_ferien_ent"]    = 81,
+            ["_feiertag_ent"]  = 82,
+            ["_ferien_ausz"]   = 83,
+            ["_13ml"]          = 200,
+            ["_nacht"]         = 25,
+        };
+        int GetSortOrderForLine(object line, int fallbackIdx)
+        {
+            var bez = line.GetType().GetProperty("bezeichnung")?.GetValue(line) as string ?? "";
+            foreach (var (prefix, code) in bezToCodeMap)
+            {
+                if (bez.StartsWith(prefix))
+                {
+                    if (lohnposByCode.TryGetValue(code, out var lp)) return lp.SortOrder;
+                    if (fallbackSortOrder.TryGetValue(code, out var fb)) return fb;
+                    return 9000 + fallbackIdx;
+                }
+            }
+            return 9000 + fallbackIdx;
+        }
+        void SortLohnLines()
+        {
+            var sorted = lohnLines
+                .Select((line, idx) => (sortOrder: GetSortOrderForLine(line, idx), idx, line))
+                .OrderBy(x => x.sortOrder).ThenBy(x => x.idx)
+                .Select(x => x.line)
+                .ToList();
+            lohnLines.Clear();
+            lohnLines.AddRange(sorted);
+        }
+
         // ── Manuelle Ferien-Geld-Saldo-Auszahlung (Code 195.3) ──────────
         // Wird bei Austritt oder Jahresende gebucht — die entsprechende
         // Zulage wurde bereits oben als SV-pflichtige Zeile verarbeitet
@@ -1074,24 +1258,41 @@ public class PayrollCalculationEngine
         {
             // ── MTP ──────────────────────────────────────────────────────
             decimal guaranteedH    = emp.GuaranteedHoursPerWeek ?? 0;
-            // Bei Austritt in der Periode: Sollstunden und Festlohn per Tagessatz:
-            //   guaranteedH × 52 / 365 × Kalendertage_Kurzperiode
-            // Sonst: monatliche Standard-Umrechnung (52 / 12).
-            decimal sollStundenVoll = isShortPeriod
-                ? Math.Round(guaranteedH * 52m / 365m * shortPeriodDays, 2)
-                : Math.Round(guaranteedH * 52m / 12m, 2);
-            // Festlohn: Zwischenbetrag auf 2 Dezimalen (keine 0.05-Pre-Rundung mehr)
-            decimal festlohnVoll = isShortPeriod
-                ? Math.Round(guaranteedH * hourlyRate * 52m / 365m * shortPeriodDays, 2)
-                : Math.Round(guaranteedH * hourlyRate * 52m / 12m, 2);
+            // Walter-Vorgabe 30.05.2026: MTP-Festlohn-Stunden = garantierte
+            // Wochenstunden / 7 × Anzahl Periodentage. Konsistent zu FIX (dort
+            // schwankt das Sollstunden-Saldo auch monatlich nach Periodenlänge).
+            // Bei MTP ist die garantierte Stundenzahl die Lohn-Basis — ein 31-
+            // Tage-Monat muss mehr Stunden ergeben als ein 28-Tage-Monat, sonst
+            // ist die „Garantie" im Februar schwächer als sie sein sollte.
+            // Frühere 52/12-Glättung (= 147.33h bei 34h/Woche, konstant) ist
+            // ersetzt durch pro-rata. Bei Kurzperiode (Ein-/Austritt mitten
+            // im Monat): selbe Formel mit shortPeriodDays.
+            // Jahres-Drift: 365/7 = 52.14 Wochen → +0.14 Wochen/Jahr gegenüber
+            // 52/12 (bei 34h ≈ +4.86 h/Jahr; Schaltjahr +9.71 h). Mathematisch
+            // korrekt, monatlich aber spürbarere Schwankung (Februar −11h vs.
+            // Glättung). Tagessatz für Ferien-Abzug bleibt unverändert
+            // (guaranteedH × hourlyRate / 7).
+            int mtpPeriodTage = isShortPeriod ? shortPeriodDays : normalPeriodDays;
+            // Walter-Vorgabe 30.05.2026: mit EXAKTEN Werten rechnen — runden erst
+            // am Ende. Sonst entstehen kleine Rundungs-Differenzen bei voll
+            // abgedeckten Perioden (z.B. 5 Ferien + 26 Krank → -0.01h statt 0).
+            decimal sollStundenVollExakt = guaranteedH / 7m * mtpPeriodTage;
+            decimal festlohnVollExakt    = sollStundenVollExakt * hourlyRate;
+            decimal sollStundenVoll = Math.Round(sollStundenVollExakt, 2);  // nur Anzeige
+            decimal festlohnVoll    = Math.Round(festlohnVollExakt,    2);  // nur Anzeige
 
-            // ── MTP + FERIEN Regel (Walter 24.04.2026) ────────────────
+            // ── MTP + FERIEN Regel (Walter 24.04.2026, präzisiert 26.05.2026) ────────────────
             // Pro Ferientag:
             //   • Sollstunden um GuaranteedH/7 reduzieren (MA muss an diesen
             //     Tagen nicht arbeiten — keine Minus-Stunden im Saldo).
-            //   • Festlohn (10.5) wird um Tagessatz × Ferientage gekürzt
-            //     (Tagessatz = festlohnVoll × 12 / 365, gleiche Formel wie
-            //     bei Krankheit).
+            //   • Festlohn (10.5) wird um Tagessatz × Ferientage gekürzt.
+            //     Walter-Vorgabe 26.05.2026: MTP ist im Grundsatz ein
+            //     Stundenlöhner (kein fester Monatslohn — schwankt nach
+            //     Anzahl Tagen). Deshalb 1/7-Logik konsistent mit der
+            //     Ferien-Stunden-Gutschrift (ferienStundenMtp × 7 / guaranteedH):
+            //         mtpTagessatz = garantierte WoStd × Stdlohn / 7
+            //     (NICHT die FIX-Kalenderformel × 12/365 und NICHT die
+            //     KTG-Formel — die hat ihren eigenen Service.)
             //   • Die Auszahlung aus FerienGeldSaldo erfolgt separat durch
             //     CalcFerienGeld() weiter unten ("Ferienentschädigung-
             //     Auszahlung" anteilig vom akkumulierten Guthaben).
@@ -1099,24 +1300,83 @@ public class PayrollCalculationEngine
             //     (aus festlohn split) wird nicht mehr gebucht, sonst wäre
             //     der Betrag doppelt ausbezahlt (einmal im festlohn, einmal
             //     aus dem Saldo).
-            decimal mtpTagessatz       = festlohnVoll * 12m / 365m;
-            decimal mtpFerienTage      = (ferienStundenMtp > 0 && guaranteedH > 0)
-                ? Math.Round(ferienStundenMtp * 7m / guaranteedH, 4)
+            decimal mtpTagessatz       = guaranteedH > 0
+                ? Math.Round(guaranteedH * hourlyRate / 7m, 4)
                 : 0m;
-            // Alternative Zählung: direkt aus Absenzen (robust gegen alte Daten
-            // wo HoursCredited noch mit Zeitgutschrift gefüllt war).
-            decimal mtpFerienTageAusAbsenzen = absences
+            // Walter-Vorgabe 30.05.2026: mtpFerienTage IMMER direkt aus den
+            // Absencen zählen (Tage × Prozent/100). Frühere Rückrechnung aus
+            // dem auf 2 Dezimalen gerundeten ferienStundenMtp ergab z.B.
+            // 24.29 × 7 / 34 = 5.0009 statt exakt 5 → -0.09 CHF Drift im
+            // Festlohn-Betrag bei voll abgedeckten Perioden.
+            decimal mtpFerienTage = absences
                 .Where(a => a.AbsenceType == "FERIEN")
-                .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
-            if (mtpFerienTageAusAbsenzen > mtpFerienTage) mtpFerienTage = mtpFerienTageAusAbsenzen;
+                .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo)
+                          * (a.Prozent > 0 ? a.Prozent / 100m : 1m));
+            // Fallback auf gerundete Stunden-Rückrechnung NUR wenn keine
+            // Absencen erfasst sind, ferienStundenMtp aber > 0 (Backward-Compat
+            // mit alten Daten).
+            if (mtpFerienTage == 0m && ferienStundenMtp > 0 && guaranteedH > 0)
+                mtpFerienTage = Math.Round(ferienStundenMtp * 7m / guaranteedH, 4);
             decimal festlohnFerienKuerzung = Math.Round(mtpTagessatz * mtpFerienTage, 2);
 
-            // Festlohn-Arbeit = voller Festlohn abzüglich Ferien-Kürzung.
-            decimal festlohnArbeitBetrag  = Math.Round(festlohnVoll - festlohnFerienKuerzung, 2);
-            // Sollstunden für Stundenkontrolle ebenfalls um Ferien-Äquivalent reduziert
+            // ── MTP Krank/Unfall-Kürzung am Festlohn (Walter-Vorgabe 30.05.2026) ────
+            // Bei MTP wird der Festlohn um Krank-/Unfall-WERKTAGE gekürzt mit
+            // der 1/5-Wochenstunden-Logik (analog FIX-Saldo-Gutschrift). Sa+So
+            // Krank-/Unfall-Tage zählen NICHT für die Festlohn-Reduktion, weil
+            // der MA an Wochenenden ohnehin nicht arbeiten würde — aber die
+            // Krank-Taggeld 80% / Karenzentschädigung 88% bleibt auf Krank-
+            // KALENDERtagen (Versicherung kompensiert alle Tage).
+            //
+            // Bei voll abgedeckter Periode (alle Werktage Krank + Ferien) kann
+            // das Stunden-Total der Abzüge das Pro-Rata-Soll geringfügig
+            // übersteigen (z.B. 19 Krank-Werktage × WoStd/5 = 129.2h und
+            // 5 Ferien-Tage × WoStd/7 = 24.29h, Summe 153.49h vs. Soll 150.57h).
+            // Der Festlohn wird dann per Math.Max(0, …)-Clamp auf 0 begrenzt.
+            //
+            // Eliminiert die früheren „Korrektur Krankheit/Unfall"-Zeilen
+            // (Code 75/65) — bei FIX/FIX-M bleibt das Korrektur-Modell.
+            decimal mtpKrankWerktage = krankBreakdown
+                .Where(t => t.Datum.DayOfWeek != DayOfWeek.Saturday && t.Datum.DayOfWeek != DayOfWeek.Sunday)
+                .Sum(t => t.Prozent / 100m);
+            decimal mtpUnfallWerktage = unfallBreakdown
+                .Where(t => t.Datum.DayOfWeek != DayOfWeek.Saturday && t.Datum.DayOfWeek != DayOfWeek.Sunday)
+                .Sum(t => t.Prozent / 100m);
+            // Tagessatz für die Festlohn-Kürzung Krank/Unfall = WoStd × Std / 5
+            // (NICHT mtpTagessatz, der für Ferien = /7 ist).
+            decimal mtpTagessatzKrankUnfall = guaranteedH > 0
+                ? Math.Round(guaranteedH * hourlyRate / 5m, 4)
+                : 0m;
+            decimal festlohnKrankKuerzung  = Math.Round(mtpTagessatzKrankUnfall * mtpKrankWerktage,  2);
+            decimal festlohnUnfallKuerzung = Math.Round(mtpTagessatzKrankUnfall * mtpUnfallWerktage, 2);
+            // Tage-Anzeige (für Label/Saldo): mtpKrankTage/mtpUnfallTage spiegeln
+            // die Werktag-Zählung, NICHT die Kalendertage. Das ist konsistent
+            // zur 1/5-Logik (sonst wäre das Label inkonsistent zur Berechnung).
+            decimal mtpKrankTage  = mtpKrankWerktage;
+            decimal mtpUnfallTage = mtpUnfallWerktage;
+
+            // Stunden-Äquivalente (exakt, ungerundet) für die Subtraktion
+            // Ferien: 1/7-Kalender (alle Tage zählen)
+            // Krank/Unfall: 1/5-Werktag (NUR Mo-Fr zählen)
             decimal ferienStundenAequivalent = mtpFerienTage * guaranteedH / 7m;
-            decimal sollStunden = Math.Round(sollStundenVoll - ferienStundenAequivalent, 2);
-            decimal festlohnArbeitStunden = Math.Round(sollStunden, 2);
+            decimal krankStundenAequivalent  = mtpKrankWerktage  * guaranteedH / 5m;
+            decimal unfallStundenAequivalent = mtpUnfallWerktage * guaranteedH / 5m;
+            // Sollstunden für Stunden-Saldo + Festlohn-Anzahl-Spalte —
+            // mit EXAKTEN Werten, dann Cap auf 0 (Festlohn kann nie negativ).
+            decimal sollStundenExakt = sollStundenVollExakt
+                - ferienStundenAequivalent
+                - krankStundenAequivalent
+                - unfallStundenAequivalent;
+            // Cap: bei voll abgedeckter Periode kann das Stunden-Total der
+            // Abzüge das Pro-Rata-Soll geringfügig übersteigen (Ferien 1/7 +
+            // Krank 1/5 mischen sich) → auf 0 clampen.
+            if (sollStundenExakt < 0m) sollStundenExakt = 0m;
+            // Toleranz-Clamp für Rundungs-Drift aus decimal-Arithmetik.
+            if (Math.Abs(sollStundenExakt) < 0.01m) sollStundenExakt = 0m;
+            decimal sollStunden = Math.Round(sollStundenExakt, 2);
+            decimal festlohnArbeitStunden = sollStunden;
+            // Festlohn-Arbeit-Betrag direkt aus exakten Stunden × Stundenlohn —
+            // unabhängig von den gerundeten Anzeige-Kürzungen.
+            decimal festlohnArbeitBetrag = Math.Round(sollStundenExakt * hourlyRate, 2);
 
             // Stunden-Saldo inkl. Vormonat (Ferien wurden bereits durch sollStunden
             // abgebildet, absenzGutschrift enthält nur noch Krank/Schulung/etc.)
@@ -1131,9 +1391,17 @@ public class PayrollCalculationEngine
             decimal feiertagAusz = Math.Round(feiertagStunden * hourlyRate, 2);
 
             // Basis für Minimum-Lohn-Kontrolle = Stundenlohn
-            if (festlohnArbeitBetrag > 0 || mtpFerienTage == 0)
+            // Walter-Vorgabe 30.05.2026: Festlohn-Zeile auch dann zeigen, wenn der
+            // Betrag 0 ist (z.B. ganzer Monat krank). Sonst fehlt die nachvollziehbare
+            // Aufschlüsselung „Soll − Ferien − Krank − Unfall" und der Lohnzettel
+            // wirkt unvollständig.
+            bool zeigeFestlohnZeile = festlohnArbeitBetrag > 0
+                || (mtpFerienTage == 0 && mtpKrankTage == 0 && mtpUnfallTage == 0)
+                || sollStundenVoll > 0;
+            if (zeigeFestlohnZeile)
             {
-                // Label bei Ferien-Kürzung um Hinweis erweitern
+                // Label dynamisch erweitern: Soll, dann pro Absenz-Typ eine
+                // Minus-Komponente (Ferien / Krank / Unfall) — nur wenn > 0.
                 string mtpFestlohnLabel;
                 if (isShortPeriod) {
                     string reasonTxt = (shortReasonStart && shortReasonEnd)
@@ -1142,8 +1410,14 @@ public class PayrollCalculationEngine
                             ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy}"
                             : $"Austritt {periodTo:dd.MM.yyyy}";
                     mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – {reasonTxt})";
-                } else if (mtpFerienTage > 0) {
-                    mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} (gekürzt um {Math.Round(mtpFerienTage, 2)} Ferientage × CHF {mtpTagessatz:F2})";
+                } else if (mtpFerienTage > 0 || mtpKrankTage > 0 || mtpUnfallTage > 0) {
+                    // Walter-Vorgabe 30.05.2026: nur Stunden im Label, keine CHF.
+                    // Soll-Stunden minus Stunden-Äquivalente pro Absenz-Typ.
+                    var teile = new List<string> { $"{sollStundenVoll:0.00}h Soll" };
+                    if (ferienStundenAequivalent  > 0) teile.Add($"− {ferienStundenAequivalent:0.00}h Ferien");
+                    if (krankStundenAequivalent   > 0) teile.Add($"− {krankStundenAequivalent:0.00}h Krank");
+                    if (unfallStundenAequivalent  > 0) teile.Add($"− {unfallStundenAequivalent:0.00}h Unfall");
+                    mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} ({string.Join(" ", teile)})";
                 } else {
                     mtpFestlohnLabel = LabelFor("10", "Festlohn");
                 }
@@ -1173,7 +1447,15 @@ public class PayrollCalculationEngine
 
             if (mehrstundenAus > 0)
             {
-                lohnLines.Add(new { bezeichnung = $"MTP + Stunden", anzahl = (decimal?)mehrstundenAus, prozent = (decimal?)100m, basis = (decimal?)hourlyRate, betrag = mtpBasis, accrued = (decimal?)mtpBasis });
+                // Walter-Vorgabe 30.05.2026: Label transparent machen — Walter
+                // soll im Label sehen WIE die Mehrstunden entstehen.
+                // Formel: nettoH = workedHours + absenzGutschrift - sollStunden + vormonatHourSaldo
+                decimal istStunden = workedHours + absenzGutschrift;
+                string mtpStdLabel = $"MTP + Stunden ({istStunden:0.00}h Ist − {sollStunden:0.00}h Soll";
+                if (vormonatHourSaldo > 0) mtpStdLabel += $" + {vormonatHourSaldo:0.00}h Vormonat";
+                else if (vormonatHourSaldo < 0) mtpStdLabel += $" − {Math.Abs(vormonatHourSaldo):0.00}h Vormonat";
+                mtpStdLabel += ")";
+                lohnLines.Add(new { bezeichnung = mtpStdLabel, anzahl = (decimal?)mehrstundenAus, prozent = (decimal?)100m, basis = (decimal?)hourlyRate, betrag = mtpBasis, accrued = (decimal?)mtpBasis });
                 totalLohn += mtpBasis;
                 AddAmount("4", mtpBasis);  // Basis-Tracking (Zusatzstunden)
             }
@@ -1220,19 +1502,11 @@ public class PayrollCalculationEngine
             krank80Mtp           = Math.Round(krank80Mtp,           2);
             krankBvgKorrekturMtp = Math.Round(krankBvgKorrekturMtp, 2);
 
-            if (krankAbzugMtp > 0)
-            {
-                lohnLines.Add(new {
-                    bezeichnung = LabelFor("75", "Korrektur Krankheit"),
-                    anzahl  = (decimal?)krankBreakdown.Count,
-                    prozent = (decimal?)null,
-                    basis   = (decimal?)Math.Round(krankTagesBasisMtp, 2),
-                    betrag  = -krankAbzugMtp,
-                    accrued = (decimal?)(-krankAbzugMtp)
-                });
-                totalLohn -= krankAbzugMtp;
-                AddAmount("75", -krankAbzugMtp);
-            }
+            // Walter-Vorgabe 30.05.2026: Korrektur Krankheit (Code 75) wird bei MTP
+            // NICHT mehr gebucht — die Lohn-Kürzung wegen Krankheit ist bereits
+            // direkt am Festlohn vorgenommen (festlohnKrankKuerzung mit MTP-Tagessatz).
+            // Eine zusätzliche Korrektur-Zeile mit KTG-Tagessatz wäre Doppelbuchung.
+            // krankBvgKorrekturMtp bleibt unberührt (BVG-Wartefrist).
             if (krank88Mtp > 0)
             {
                 lohnLines.Add(new {
@@ -1278,19 +1552,10 @@ public class PayrollCalculationEngine
             unfall80Mtp           = Math.Round(unfall80Mtp,           2);
             unfallBvgKorrekturMtp = Math.Round(unfallBvgKorrekturMtp, 2);
 
-            if (unfallAbzugMtp > 0)
-            {
-                lohnLines.Add(new {
-                    bezeichnung = LabelFor("65", "Korrektur Unfall"),
-                    anzahl  = (decimal?)unfallBreakdown.Count,
-                    prozent = (decimal?)null,
-                    basis   = (decimal?)Math.Round(unfallTagesBasisMtp, 2),
-                    betrag  = -unfallAbzugMtp,
-                    accrued = (decimal?)(-unfallAbzugMtp)
-                });
-                totalLohn -= unfallAbzugMtp;
-                AddAmount("65", -unfallAbzugMtp);
-            }
+            // Walter-Vorgabe 30.05.2026: Korrektur Unfall (Code 65) wird bei MTP
+            // NICHT mehr gebucht — Festlohn-Kürzung erfolgt bereits direkt am
+            // Festlohn (festlohnUnfallKuerzung mit MTP-Tagessatz). unfallBvgKorrekturMtp
+            // bleibt unberührt (BVG-Wartefrist).
             if (unfall88Mtp > 0)
             {
                 lohnLines.Add(new {
@@ -1363,8 +1628,16 @@ public class PayrollCalculationEngine
 
             if (mtpFerienAuszahlungBetrag > 0)
             {
+                // Walter-Vorgabe 26.05.2026: Label knapp und knackig — Tage ×
+                // Ø Tagessatz; bei Pott-Cap zusätzlich „max <PottCHF>". Pott-
+                // Logik (Tagessatz = Pott CHF / Pott Tage) siehe CLAUDE.md.
+                decimal _rechnerisch = Math.Round(mtpAvgTagessatz * mtpFerienTage, 2);
+                bool _capped = _rechnerisch > mtpFerienAuszahlungBetrag + 0.005m;
+                string _labelExtra = _capped
+                    ? $"({Math.Round(mtpFerienTage,2)} × {mtpAvgTagessatz:F2}, max {mtpFerienAuszahlungBetrag:F2})"
+                    : $"({Math.Round(mtpFerienTage,2)} × {mtpAvgTagessatz:F2})";
                 lohnLines.Add(new {
-                    bezeichnung = $"{LabelFor("2", "Festlohn für bezogene Ferien")} ({Math.Round(mtpFerienTage,2)} Tage × Ø CHF {mtpAvgTagessatz:F2})",
+                    bezeichnung = $"{LabelFor("2", "Festlohn bezogene Ferien")} {_labelExtra}",
                     anzahl  = (decimal?)Math.Round(mtpFerienTage, 2),
                     prozent = (decimal?)null,
                     basis   = (decimal?)null,
@@ -1502,12 +1775,13 @@ public class PayrollCalculationEngine
             }
 
             // ── Krankheit: 80%-Gutschrift (nach Karenz, nach 13. ML einfügen) ──
-            // Versicherungsleistung: BVG + QST pflichtig (Lohnraster 70.2),
-            // aber KEIN AHV/ALV/NBU/KTG. Auch kein 13. ML-/Ferien-/Feiertag-Aufbau.
+            // Versicherungsleistung — SV-Flags kommen aus Lohnposition 70.2
+            // (Walter-Vorgabe 28.05.2026: nichts mehr hardcoded). Fallback
+            // wenn LP nicht angelegt: nur BVG + QST (= L-GAV Art. 23-Default).
             if (krank80Mtp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("70", "Krankheit (Taggeld 80%)"),
+                    bezeichnung = LabelFor("70.2", "Krankheit (Taggeld 80%)"),
                     anzahl  = (decimal?)krankTage80Mtp,
                     prozent = (decimal?)80m,
                     basis   = (decimal?)Math.Round(krankTagesBasisMtp, 2),
@@ -1515,16 +1789,20 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)krank80Mtp
                 });
                 totalLohn += krank80Mtp;
-                AddAmount("70", krank80Mtp);
-                deltaBvg += krank80Mtp;   // BVG-pflichtig (L-GAV Art. 23)
-                deltaQst += krank80Mtp;   // QST-pflichtig
+                AddAmount("70.2", krank80Mtp);
+                var f = LpFlagsOr("70.2", fallbackBvg: true, fallbackQst: true);
+                if (f.ahv)  deltaAhv  += krank80Mtp;
+                if (f.nbuv) deltaNbuv += krank80Mtp;
+                if (f.ktg)  deltaKtg  += krank80Mtp;
+                if (f.bvg)  deltaBvg  += krank80Mtp;
+                if (f.qst)  deltaQst  += krank80Mtp;
             }
 
-            // Unfall: 80%-Gutschrift (nach Karenz, nach 13. ML) — analog Krank.
+            // Unfall: 80%-Gutschrift — analog Krank, Flags aus LP 60.2.
             if (unfall80Mtp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("60", "Unfall (Taggeld 80%)"),
+                    bezeichnung = LabelFor("60.2", "Unfall (Taggeld 80%)"),
                     anzahl  = (decimal?)unfallTage80Mtp,
                     prozent = (decimal?)80m,
                     basis   = (decimal?)Math.Round(unfallTagesBasisMtp, 2),
@@ -1532,9 +1810,13 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)unfall80Mtp
                 });
                 totalLohn += unfall80Mtp;
-                AddAmount("60", unfall80Mtp);
-                deltaBvg += unfall80Mtp;
-                deltaQst += unfall80Mtp;
+                AddAmount("60.2", unfall80Mtp);
+                var f = LpFlagsOr("60.2", fallbackBvg: true, fallbackQst: true);
+                if (f.ahv)  deltaAhv  += unfall80Mtp;
+                if (f.nbuv) deltaNbuv += unfall80Mtp;
+                if (f.ktg)  deltaKtg  += unfall80Mtp;
+                if (f.bvg)  deltaBvg  += unfall80Mtp;
+                if (f.qst)  deltaQst  += unfall80Mtp;
             }
 
             // BVG-Wartefrist (GastroSocial, 3 Monate auf 100%-Lohn).
@@ -1556,6 +1838,7 @@ public class PayrollCalculationEngine
             var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp);
             if (qstRule is not null) deductions.Add(qstRule);
 
+            SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
             var result = BuildResult(employee, emp, company, year, month, periodFrom, periodTo,
                 lohnLines, abzugLines, deductions, totalLohn, svBasesMtp,
                 zulagenExtraLines, zulagenExtraTotal, abzuegeExtraLines, abzuegeExtraTotal,
@@ -1835,11 +2118,11 @@ public class PayrollCalculationEngine
                 deltaBvg  += krank88Utp;
                 deltaQst  += krank88Utp;
             }
-            // 80%: Versicherungsleistung, nur BVG + QST pflichtig.
+            // 80%: Versicherungsleistung — SV-Flags aus LP 70.2 (Walter 28.05.2026).
             if (krank80Utp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("70", "Krankheit (Taggeld 80%)"),
+                    bezeichnung = LabelFor("70.2", "Krankheit (Taggeld 80%)"),
                     anzahl  = (decimal?)krankTage80Utp,
                     prozent = (decimal?)80m,
                     basis   = (decimal?)Math.Round(krankTagesBasisUtp, 2),
@@ -1847,8 +2130,13 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)krank80Utp
                 });
                 totalLohn += krank80Utp;
-                deltaBvg  += krank80Utp;
-                deltaQst  += krank80Utp;
+                AddAmount("70.2", krank80Utp);
+                var f = LpFlagsOr("70.2", fallbackBvg: true, fallbackQst: true);
+                if (f.ahv)  deltaAhv  += krank80Utp;
+                if (f.nbuv) deltaNbuv += krank80Utp;
+                if (f.ktg)  deltaKtg  += krank80Utp;
+                if (f.bvg)  deltaBvg  += krank80Utp;
+                if (f.qst)  deltaQst  += krank80Utp;
             }
 
             // ── Unfall UTP: identische Logik wie Krankheit UTP ────────────
@@ -1901,7 +2189,7 @@ public class PayrollCalculationEngine
             if (unfall80Utp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("60", "Unfall (Taggeld 80%)"),
+                    bezeichnung = LabelFor("60.2", "Unfall (Taggeld 80%)"),
                     anzahl  = (decimal?)unfallTage80Utp,
                     prozent = (decimal?)80m,
                     basis   = (decimal?)Math.Round(krankTagesBasisUtp, 2),
@@ -1909,8 +2197,13 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)unfall80Utp
                 });
                 totalLohn += unfall80Utp;
-                deltaBvg  += unfall80Utp;
-                deltaQst  += unfall80Utp;
+                AddAmount("60.2", unfall80Utp);
+                var f = LpFlagsOr("60.2", fallbackBvg: true, fallbackQst: true);
+                if (f.ahv)  deltaAhv  += unfall80Utp;
+                if (f.nbuv) deltaNbuv += unfall80Utp;
+                if (f.ktg)  deltaKtg  += unfall80Utp;
+                if (f.bvg)  deltaBvg  += unfall80Utp;
+                if (f.qst)  deltaQst  += unfall80Utp;
             }
 
             // BVG-Wartefrist: siehe MTP-Kommentar.
@@ -1944,6 +2237,7 @@ public class PayrollCalculationEngine
             // Forwarding via prevThirteenthForSaldoUtp und ThirteenthPct
             // gesetzt, damit beim nächsten Periodenwechsel die Saldo-Vortrag-
             // Logik funktioniert.
+            SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
             var result = BuildResult(employee, emp, company, year, month, periodFrom, periodTo,
                 lohnLines, abzugLines, deductions, totalLohn, svBasesUtp,
                 zulagenExtraLines, zulagenExtraTotal, abzuegeExtraLines, abzuegeExtraTotal,
@@ -2276,13 +2570,11 @@ public class PayrollCalculationEngine
                 }
             }
 
-            // ── Krankheit: 80%-Gutschrift (nach Karenz, nach 13. ML) ──────
-            // Versicherungsleistung: BVG + QST pflichtig (Lohnraster 70.2),
-            // keine AHV/ALV/NBU/KTG.
+            // ── Krankheit: 80%-Gutschrift — SV-Flags aus LP 70.2 (Walter 28.05.2026) ──
             if (krank80Fix > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("70", "Krankheit (Taggeld 80%)"),
+                    bezeichnung = LabelFor("70.2", "Krankheit (Taggeld 80%)"),
                     anzahl  = (decimal?)krankTage80Fix,
                     prozent = (decimal?)80m,
                     basis   = (decimal?)Math.Round(krankTagesBasisFix, 2),
@@ -2290,16 +2582,20 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)krank80Fix
                 });
                 totalLohn += krank80Fix;
-                AddAmount("70", krank80Fix);
-                deltaBvg += krank80Fix;   // BVG-pflichtig (L-GAV Art. 23)
-                deltaQst += krank80Fix;
+                AddAmount("70.2", krank80Fix);
+                var f = LpFlagsOr("70.2", fallbackBvg: true, fallbackQst: true);
+                if (f.ahv)  deltaAhv  += krank80Fix;
+                if (f.nbuv) deltaNbuv += krank80Fix;
+                if (f.ktg)  deltaKtg  += krank80Fix;
+                if (f.bvg)  deltaBvg  += krank80Fix;
+                if (f.qst)  deltaQst  += krank80Fix;
             }
 
-            // Unfall: 80%-Gutschrift (nach Karenz, nach 13. ML) — analog Krank.
+            // Unfall: 80%-Gutschrift — SV-Flags aus LP 60.2.
             if (unfall80Fix > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("60", "Unfall (Taggeld 80%)"),
+                    bezeichnung = LabelFor("60.2", "Unfall (Taggeld 80%)"),
                     anzahl  = (decimal?)unfallTage80Fix,
                     prozent = (decimal?)80m,
                     basis   = (decimal?)Math.Round(unfallTagesBasisFix, 2),
@@ -2307,9 +2603,13 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)unfall80Fix
                 });
                 totalLohn += unfall80Fix;
-                AddAmount("60", unfall80Fix);
-                deltaBvg += unfall80Fix;
-                deltaQst += unfall80Fix;
+                AddAmount("60.2", unfall80Fix);
+                var f = LpFlagsOr("60.2", fallbackBvg: true, fallbackQst: true);
+                if (f.ahv)  deltaAhv  += unfall80Fix;
+                if (f.nbuv) deltaNbuv += unfall80Fix;
+                if (f.ktg)  deltaKtg  += unfall80Fix;
+                if (f.bvg)  deltaBvg  += unfall80Fix;
+                if (f.qst)  deltaQst  += unfall80Fix;
             }
 
             // BVG-Wartefrist: siehe MTP-Kommentar.
@@ -2330,6 +2630,7 @@ public class PayrollCalculationEngine
             var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom, satzBruttoFix);
             if (qstRuleFix is not null) deductions.Add(qstRuleFix);
 
+            SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
             var result = BuildResult(employee, emp, company, year, month, periodFrom, periodTo,
                 lohnLines, abzugLines, deductions, totalLohn, svBasesFix,
                 zulagenExtraLines, zulagenExtraTotal, abzuegeExtraLines, abzuegeExtraTotal,
@@ -2452,7 +2753,11 @@ public class PayrollCalculationEngine
             qstBetrag = mindest.Value;
         }
 
-        if (qstBetrag <= 0) return null;
+        // Walter-Vorgabe 27.05.2026: bei QST-pflichtigem MA mit erfasstem Tarif
+        // IMMER eine Zeile zeigen — auch bei 0.00 (z.B. C3-Tarif bei niedrigem
+        // Brutto → 0% laut ESTV-Tabelle). Sonst denkt der GF, die QST sei
+        // „nicht berechnet" und sucht den Bug, der gar keiner ist.
+        if (qstBetrag < 0) qstBetrag = 0;
 
         // Satz für Anzeige (best-effort; null wenn kein Tarif). Gilt der
         // satzbestimmende Brutto, weil der Aufzulisten-Steuersatz auf dem

@@ -284,8 +284,9 @@ public class ZwischenverdienistController : ControllerBase
             // Kein Geburtsdatum → Standardwert 5 Wochen
             ferienPct = company.DefaultVacationPercent5Weeks ?? 10.64m;
 }
-        decimal? feiertagPct  = employment?.HolidayPercent;
-        decimal? dreizehnPct  = employment?.ThirteenthSalaryPercent;
+        // Walter-Vorgabe 06.06.2026 (Stufe 1b): nur noch Filial-Default
+        decimal? feiertagPct  = company.DefaultHolidayPercent;
+        decimal? dreizehnPct  = company.DefaultThirteenthSalaryPercent;
 
         decimal grundlohn = stundenlohn.HasValue
             ? Math.Round(totalStunden * stundenlohn.Value, 2)

@@ -391,25 +391,23 @@ function _lohnWfRenderStatusBar() {
     const lockPill = (txt, bg, color) =>
         `<span style="color:${color};font-size:11.5px;font-weight:600;background:${bg};padding:3px 9px;border-radius:8px">${txt}</span>`;
 
-    // Saldo-Listen zum Abschluss (Walter-Vorgabe 21.05.2026): zwei PDFs der
-    // aktuellen Filiale+Periode — Buchhaltung (alle Saldi + Brutto/Netto + IBAN)
-    // und GF-Übersicht (kompakt, UTP ohne 13.). Nur ab provisorisch_abgeschlossen
-    // sinnvoll (Saldi sind bestätigt). Download über „Speichern unter…".
-    const saldoListen = `
-        <button class="btn btn-outline btn-sm" onclick="lohnSaldoListe('buchhaltung')" style="color:#7c3aed;border-color:#ddd6fe" title="Saldo-Liste für die Buchhaltung — alle Saldi, Brutto/Netto, IBAN">📊 Buchhaltung</button>
-        <button class="btn btn-outline btn-sm" onclick="lohnSaldoListe('gf')" style="color:#0f766e;border-color:#99f6e4" title="Saldi-Übersicht für den Geschäftsführer">📋 GF-Übersicht</button>
-        <button class="btn btn-outline btn-sm" onclick="lohnFibuJournal()" style="color:#166534;border-color:#bbf7d0" title="Fibu-Journal (Buchungssätze für die Buchhaltung / Abacus)">📒 Fibu-Journal</button>`;
-
-    // Admin-Wartung (Walter-Vorgabe 22.05.2026): trägt die Fibu-Codes
-    // (categoryCode/code) in bestehende Snapshot-SlipJsons nach, ohne Status/
-    // Beträge/Workflow anzutasten. Nötig für Alt-Perioden, die VOR dem
-    // Engine-Code-Tagging bestätigt wurden — damit das Fibu-Journal alle
-    // Abzugszeilen verbuchen kann, ohne alle MA neu durchschleusen zu müssen.
+    // Walter-Vorgabe 31.05.2026: Sekundär-Aktionen (Reports, Admin-Wartung,
+    // Downloads) wandern ins ⋯-Dropdown. Die Status-Bar bleibt damit auf
+    // max 3 sichtbare Buttons: Per-MA-Aktion + Workflow-Schritt + ⋯-Menü.
     const isAdmin = (typeof currentUser !== 'undefined' && currentUser?.role === 'admin');
-    const adminRefresh = isAdmin
-        ? `<button class="btn btn-outline btn-sm" onclick="lohnRefreshCodes()" style="color:#a16207;border-color:#fde68a" title="Fibu-Codes in bestehende Lohnzettel nachtragen (Wartung — ändert keine Beträge/Status)">🔄 Codes nachtragen</button>
-           <button class="btn btn-outline btn-sm" onclick="lohnRecomputeSnapshots()" style="color:#9a3412;border-color:#fed7aa" title="Lohnzettel der Periode neu berechnen — überschreibt Brutto/Netto/Slip aus der aktuellen Rechnung (Status bleibt). Reparatur bei inkonsistenten Snapshots.">♻️ Snapshots neu berechnen</button>`
-        : '';
+    // Baut ein ⋯-Menü mit den übergebenen Item-HTML-Strings (gefiltert auf
+    // nicht-leere). Wenn keine Items → leer.
+    function buildMoreMenu(items) {
+        const filled = items.filter(x => x && x.trim());
+        if (filled.length === 0) return '';
+        return `<div class="action-menu">
+            <button class="action-menu-trigger" onclick="actionMenu.toggle(this)" title="Weitere Aktionen">⋯ Mehr</button>
+            <div class="action-menu-list">${filled.join('')}</div>
+        </div>`;
+    }
+    const menuItem = (label, onclick, opts = {}) =>
+        `<button class="action-menu-item${opts.danger ? ' danger' : ''}" onclick="${onclick}"${opts.title ? ` title="${opts.title}"` : ''}>${label}</button>`;
+    const menuDivider = '<div class="action-menu-divider"></div>';
 
     let actions = '';
     switch (d.status) {
@@ -420,22 +418,36 @@ function _lohnWfRenderStatusBar() {
             break;
         case 'provisorisch_abgeschlossen':
             if (isHr) {
-                // HR-Phase: jeden MA HR-bestätigen, dann Lohnbelege + DTA.
-                // „📑 Lohnbelege + DTA" erst aktiv wenn ALLE MA HR-bestätigt.
+                // Sekundär-Aktionen ins ⋯-Menü
+                const moreItems = [
+                    menuItem('📋 Alle Lohnbelege (PDF)', 'lohnDownloadVorabPdf()', { title: 'Alle Lohnbelege der Periode in einem PDF' }),
+                    menuItem('📋 GF-Übersicht (Saldi)', "lohnSaldoListe('gf')",     { title: 'Saldi-Übersicht für den Geschäftsführer' }),
+                    isAdmin ? menuDivider : '',
+                    isAdmin ? menuItem('🔄 Fibu-Codes nachtragen', 'lohnRefreshCodes()',      { title: 'Fibu-Codes in bestehende Lohnzettel nachtragen (Wartung)' }) : '',
+                    isAdmin ? menuItem('♻️ Snapshots neu berechnen', 'lohnRecomputeSnapshots()', { title: 'Lohnzettel der Periode neu berechnen — Reparatur bei inkonsistenten Snapshots' }) : '',
+                ];
                 actions = `${hrMaBestaetigen}${hrMaZurueck}${pdfBtn}
-                    <button class="btn btn-outline btn-sm" onclick="lohnDownloadVorabPdf()" style="color:#0369a1;border-color:#7dd3fc" title="Alle Lohnbelege der Periode in einem PDF">📋 Alle Lohnbelege</button>
-                    ${saldoListen}${adminRefresh}
+                    ${buildMoreMenu(moreItems)}
                     <button class="btn btn-outline btn-sm" onclick="lohnZurueckAnGf()" style="color:#b45309;border-color:#fcd34d">↩ Zurück an GF</button>
                     <button class="btn btn-success btn-sm" onclick="lohnOpenLohnbelegeModal()" ${allHr ? '' : 'disabled'} title="Alle Lohnbelege ansehen, drucken und an MA versenden">📑 Lohnbelege + DTA</button>`;
             } else {
-                actions = lockPill('🔒 Bei HR — keine Änderungen möglich', '#fef3c7', '#b45309') + saldoListen;
+                const moreItemsGf = [
+                    menuItem('📋 GF-Übersicht (Saldi)', "lohnSaldoListe('gf')", { title: 'Saldi-Übersicht für den Geschäftsführer' }),
+                ];
+                actions = lockPill('🔒 Bei HR — keine Änderungen möglich', '#fef3c7', '#b45309') + buildMoreMenu(moreItemsGf);
             }
             break;
         case 'abgeschlossen':
+            const moreItemsFinal = [
+                menuItem('📥 DTA-File', 'lohnDownloadDtaMa()', { title: 'pain.001-XML für die Bank' }),
+                isHr  ? menuItem('📑 Lohnbelege ansehen', 'lohnOpenLohnbelegeModal()', { title: 'Alle Lohnbelege ansehen / drucken' }) : '',
+                menuItem('📋 GF-Übersicht (Saldi)', "lohnSaldoListe('gf')", { title: 'Saldi-Übersicht für den Geschäftsführer' }),
+                isAdmin ? menuDivider : '',
+                isAdmin ? menuItem('🔄 Fibu-Codes nachtragen', 'lohnRefreshCodes()', { title: 'Wartung' }) : '',
+                isAdmin ? menuItem('♻️ Snapshots neu berechnen', 'lohnRecomputeSnapshots()', { title: 'Reparatur' }) : '',
+            ];
             actions = `${pdfBtn}
-                <button class="btn btn-outline btn-sm" onclick="lohnDownloadDtaMa()" style="color:#0369a1;border-color:#7dd3fc" title="pain.001-XML für die Bank">📥 DTA-File</button>
-                ${isHr ? `<button class="btn btn-outline btn-sm" onclick="lohnOpenLohnbelegeModal()" title="Alle Lohnbelege ansehen / drucken">📑 Lohnbelege ansehen</button>` : ''}
-                ${saldoListen}${adminRefresh}
+                ${buildMoreMenu(moreItemsFinal)}
                 ${lockPill('🔒 Abgeschlossen — Admin-Reopen via Lohnperioden-Modul', '#dcfce7', '#15803d')}`;
             break;
     }
@@ -553,13 +565,17 @@ async function loadLohnList() {
         const active = emps
             .filter(e => e.isActive && !e.isPayrollExcluded)
             .map(e => {
-                // Aktiver Vertrag für diese Filiale (isActive=true + companyProfileId passt + Vertrag bereits gestartet)
+                // Vertrag für diese Filiale, der in der Periode gültig ist.
+                // Walter-Vorgabe 31.05.2026: KEIN v.isActive-Check mehr — bei Austritt
+                // wird das isActive-Flag oft automatisch auf false gesetzt, der Vertrag
+                // gilt aber für den letzten Lohnmonat noch. Einzig massgeblich ist:
+                //   contractStartDate <= periodEnd
+                //   AND (!contractEndDate || contractEndDate >= periodStart)
+                // Bug 31.05.2026: Valmira Alili (Austritt 31.1.2026, Krank 29.–31.1.)
+                // wurde wegen v.isActive=false aus Januar 26 ausgefiltert.
                 const emp = (e.employments || [])
-                    .filter(v => v.companyProfileId === cid && v.isActive)
+                    .filter(v => v.companyProfileId === cid)
                     .filter(v => {
-                        // Vertrag muss in der Periode aktiv sein:
-                        //   contractStartDate <= periodEnd
-                        //   AND (!contractEndDate || contractEndDate >= periodStart)
                         if (v.contractStartDate) {
                             const cs = new Date(v.contractStartDate);
                             if (cs > periodEnd) return false;
@@ -699,8 +715,9 @@ async function loadLohnList() {
                     ${statusIcon}
                 </div>
                 <div style="flex:1;min-width:0">
-                    <div class="lohn-emp-name" style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.firstName} ${e.lastName}${mwIcon}</div>
-                    <div class="lohn-emp-nr" style="font-size:11px;color:${statusTextColor}">${statusText}</div>
+                    <!-- Walter-Vorgabe 07.06.2026: Namen umbrechen statt mit „…" abkürzen. -->
+                    <div class="lohn-emp-name" style="font-weight:600;font-size:13px;line-height:1.25;word-break:break-word">${e.firstName} ${e.lastName}${mwIcon}</div>
+                    <div class="lohn-emp-nr" style="font-size:11px;color:${statusTextColor};word-break:break-word">${statusText}</div>
                 </div>
                 <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100px;flex-shrink:0">
                     <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:${modelColor[e.employmentModel]||'#f1f5f9'};min-width:40px;text-align:center">${e.employmentModel || ''}</span>
@@ -786,6 +803,11 @@ function showLohnVertragInfo(emp) {
         targets.forEach(t => {
             if (t.empty) t.empty.style.display = 'block';
             t.panel.style.display = 'none';
+        });
+        // Stunden-Card auch ausblenden wenn kein MA ausgewählt
+        ['lohnStundenCard', 'akWfStundenCard'].forEach(id => {
+            const c = document.getElementById(id);
+            if (c) c.style.display = 'none';
         });
         if (perPanel) perPanel.style.display = 'none';
         return;
@@ -1041,18 +1063,111 @@ async function jumpToMaForBankEntry(employeeId) {
 // Renders den Lohnzettel in das angegebene Target-Element. Wird ohne 2. Parameter
 // in den Standard-Container '#lohnSlip' (Definitiv-Modul) gerendert; mit explizitem
 // targetEl in beliebigen anderen Mount-Point — z.B. Akonto-Workflow-Detail-Panel.
+// Walter-Vorgabe 30.05.2026: zwischen MA-Info-Card und Zulagen/Abzüge-Card
+// kommt eine kompakte „Stunden Lohnperiode"-Card, die zeigt:
+//   • Pro-Rata-Soll Periode
+//   • Abzug Ferien (1/7-Kalender)
+//   • Abzug Krank/Unfall (1/5-Werktag)
+//   • Effektives Soll
+//   • Gestempelt (Ist) + Absenz-Gutschrift
+//   • Vormonat-Saldo
+//   • Mehrstunden bzw. Saldo Lohnperiode
+// Nur bei MTP / FIX / FIX-M sinnvoll (UTP hat kein Soll).
+function renderStundenCard(s) {
+    const cards = [
+        document.getElementById('lohnStundenCard'),
+        document.getElementById('akWfStundenCard'),
+    ].filter(c => c);
+    if (cards.length === 0) return;
+    const model = (s && s.employmentModel) || '';
+    const isMtp = model === 'MTP';
+    const isFix = model === 'FIX' || model === 'FIX-M';
+    if (!isMtp && !isFix) {
+        cards.forEach(c => c.style.display = 'none');
+        return;
+    }
+    const soll       = Number(s.sollStunden ?? 0);
+    const sollVoll   = Number(s.sollStundenVoll ?? soll);
+    const ferienRed  = Number(s.sollFerienReduktion ?? 0);
+    // Krank/Unfall-Reduktion ist sollVoll - ferien - soll (Restdifferenz)
+    const krankUnfallRed = Math.max(0, sollVoll - ferienRed - soll);
+    const worked     = Number(s.workedHours ?? 0);
+    const absenz     = Number(s.absenzGutschrift ?? 0);
+    const ist        = worked + absenz;
+    const diff       = ist - soll;
+    const vor        = Number(s.vormonatHourSaldo ?? 0);
+    const saldo      = Number(s.neuerHourSaldo ?? 0);
+    // Walter-Vorgabe 30.05.2026: bei MTP werden Mehrstunden ausbezahlt → die
+    // Anzeige unten zeigt den Auszahlungs-Wert (mehrstunden). Der neuerHourSaldo
+    // ist in diesem Fall 0 (oder negativ, wenn der MA unter dem Soll lag).
+    const mehrstd    = Number(s.mehrstunden ?? 0);
+    const period     = s.periodLabel || '';
+
+    const fNum = (n, decimals = 2) =>
+        Number(n).toLocaleString('de-CH', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    const signed = (n) => {
+        if (n > 0) return `<span style="color:#16a34a">+${fNum(n)} h</span>`;
+        if (n < 0) return `<span style="color:#dc2626">${fNum(n)} h</span>`;
+        return `<span style="color:#94a3b8">0.00 h</span>`;
+    };
+    const row = (label, value, opts = {}) => `
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;${opts.bold ? 'border-top:1px solid #e2e8f0;margin-top:4px;padding-top:8px;font-weight:600' : ''}">
+            <span style="color:${opts.muted ? '#94a3b8' : '#475569'};font-size:12px">${label}</span>
+            <span style="color:${opts.color || '#334155'};font-size:12.5px;font-weight:${opts.bold ? 700 : 500};white-space:nowrap">${value}</span>
+        </div>`;
+
+    const html = `
+        <div style="padding:13px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+            <div style="font-weight:600;font-size:13px;color:#475569">Stunden — ${period}</div>
+        </div>
+        <div style="padding:8px 18px 14px">
+            ${row('Soll voll (Pro-Rata)', fNum(sollVoll) + ' h')}
+            ${ferienRed > 0 ? row('− Ferien (1/7-Kalender)', '−' + fNum(ferienRed) + ' h', { color:'#dc2626' }) : ''}
+            ${krankUnfallRed > 0 ? row(isMtp ? '− Krank/Unfall (1/5-Werktag)' : '− Krank/Unfall', '−' + fNum(krankUnfallRed) + ' h', { color:'#dc2626' }) : ''}
+            ${row('Effektives Soll', fNum(soll) + ' h', { bold:true })}
+            ${row('Gestempelt (Ist)', fNum(worked) + ' h')}
+            ${absenz > 0 ? row('+ Absenz-Gutschrift', '+' + fNum(absenz) + ' h', { muted:true }) : ''}
+            <!-- Walter-Vorgabe 30.05.2026: drei Saldo-Zeilen statt einer.
+                 Saldo aktueller Monat = Ist − Soll
+                 Saldo Vormonat        = vormonatHourSaldo
+                 Saldo Lohnperiode     = neuer Saldo (nach Auszahlung bei MTP)
+                 Bei MTP mit Auszahlung wird dazwischen "Mehrstunden ausbezahlt"
+                 eingeblendet (grün), damit klar ist wie das Mehr verteilt wurde. -->
+            ${row('Saldo aktueller Monat', signed(diff), { bold:true })}
+            ${row('Saldo Vormonat',        signed(vor))}
+            ${isMtp && mehrstd > 0
+                ? row('Mehrstunden ausbezahlt', signed(mehrstd), { color:'#16a34a' })
+                : ''
+            }
+            ${row('Saldo Lohnperiode', signed(saldo), { bold:true })}
+        </div>`;
+    cards.forEach(c => {
+        c.innerHTML = html;
+        c.style.display = 'block';
+    });
+}
+
 function renderLohnSlip(s, targetEl) {
     const mount = targetEl || document.getElementById('lohnSlip');
     if (!mount) return;
+    // Walter-Vorgabe 30.05.2026: Stunden-Card neben dem Lohnzettel mit aktualisieren
+    try { renderStundenCard(s); } catch(e) { /* best-effort, nicht den Slip brechen */ }
     // Mindestlohn-Banner (Walter 20.05.2026): roter Hinweis wenn der aktuell
     // gewählte MA unter dem L-GAV-Mindestlohn liegt. Quelle: _lohnMwUnderpaid
     // (check-period). Bestätigen ist server- UND clientseitig gesperrt.
     const _mwWarn = (typeof _lohnMwUnderpaid !== 'undefined') ? _lohnMwUnderpaid[_lohnSelectedEmpId] : null;
-    const _mwHead = _mwWarn && _mwWarn.problem === 'NO_SALARY'
-        ? '⚠ Lohnsumme fehlt — Bestätigen gesperrt'
-        : '⚠ Mindestlohn unterschritten — Bestätigen gesperrt';
+    let _mwHead = '⚠ Mindestlohn unterschritten — Bestätigen gesperrt';
+    if (_mwWarn) {
+        if (_mwWarn.problem === 'NO_SALARY')   _mwHead = '⚠ Lohnsumme fehlt — Bestätigen gesperrt';
+        else if (_mwWarn.problem === 'QST_OFFEN') _mwHead = '⚠ QST-Pflicht offen — Bestätigen gesperrt';
+    }
+    // Walter-Vorgabe 26.05.2026: bei QST_OFFEN zusätzlich Sprung-Button zum
+    // MA-QST-Tab (öffnet Mitarbeiter-Modul + Tab + Schnell-Buttons).
+    const _qstSprung = _mwWarn && _mwWarn.problem === 'QST_OFFEN'
+        ? `<div style="margin-top:6px"><button onclick="window.activeEmpId=${_lohnSelectedEmpId};showPage('mitarbeiter');setTimeout(()=>switchEmpTab('quellensteuer'),250)" style="background:#dc2626;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">→ QST im MA-Tab erfassen</button></div>`
+        : '';
     const _mwBanner = _mwWarn
-        ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">${_mwHead}<div style="font-weight:400;margin-top:2px">${String(_mwWarn.message || '').replace(/</g,'&lt;')}</div></div>`
+        ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">${_mwHead}<div style="font-weight:400;margin-top:2px">${String(_mwWarn.message || '').replace(/</g,'&lt;')}</div>${_qstSprung}</div>`
         : '';
     // Helfer: "Gerechnet" — Wert wenn vorhanden und ungleich Betrag, sonst leer
     const renderAccrued = (l) => {
@@ -1087,14 +1202,10 @@ function renderLohnSlip(s, targetEl) {
     mount.innerHTML = `
     <div class="ls-wrap" style="padding-top:2px;padding-bottom:3px">
         ${_mwBanner}
-        <!-- Header weggelassen (Walter 16.05.2026): Filiale + Periode + MA stehen
-             bereits oben im Akonto-/Lohn-Header der Page. "Lohnabrechnung"-Titel
-             ist visuell durch die Tabelle selbst klar. Volle Adresse + Druck-
-             Header bleiben im PDF/PayrollPdfService für den Versand erhalten. -->
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;font-size:11.5px;color:#94a3b8">
-            <span>${s.companyName} · ${s.periodLabel}</span>
-            <span style="font-weight:700;color:#1e293b;font-size:12.5px;letter-spacing:.3px">Lohnabrechnung</span>
-        </div>
+        <!-- Header-Div und Sektion-Titel (Lohn, Abzüge) weggelassen
+             (Walter-Vorgabe 01.06.2026): Periode/Filiale stehen bereits
+             im Page-Header, „Lohn"/„Abzüge" sind durch Total-Zeilen klar
+             erkennbar. Platzersparnis. -->
 
         <!-- Tabelle -->
         <table class="ls-table">
@@ -1109,7 +1220,6 @@ function renderLohnSlip(s, targetEl) {
                 </tr>
             </thead>
             <tbody>
-                <tr class="ls-section-hd"><td colspan="6">Lohn</td></tr>
                 ${lohnRows}
                 <tr class="ls-total-row">
                     <td colspan="4" class="ls-desc">Total Lohn</td>
@@ -1119,10 +1229,7 @@ function renderLohnSlip(s, targetEl) {
 
                 ${s.abzugLines.length > 0 ? `
                 <tr><td colspan="6" style="height:3px"></td></tr>
-                <tr class="ls-section-hd">
-                    <td colspan="5">Abzüge</td>
-                    <td style="text-align:right">${s.usingDefaultDeductions ? '<span style="font-size:10px;font-weight:500;color:#b45309;background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:1px 6px">CH-Standard 2026</span>' : ''}</td>
-                </tr>
+                ${s.usingDefaultDeductions ? `<tr><td colspan="6" style="text-align:right;padding:2px 4px"><span style="font-size:10px;font-weight:500;color:#b45309;background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:1px 6px">CH-Standard 2026</span></td></tr>` : ''}
                 ${abzugRows}
                 <tr class="ls-total-row">
                     <td colspan="4" class="ls-desc">Total Abzüge</td>
@@ -1152,8 +1259,8 @@ function renderLohnSlip(s, targetEl) {
                 ${s.abzuegeExtraLines?.length > 0 ? `
                 <tr class="ls-section-hd"><td colspan="6">Weitere Abzüge</td></tr>
                 ${s.abzuegeExtraLines.map(l => `
-                <tr>
-                    <td class="ls-desc">${l.bezeichnung}</td>
+                <tr class="ls-extra-abzug">
+                    <td class="ls-desc" style="color:#dc2626">${l.bezeichnung}</td>
                     <td colspan="4"></td>
                     <td class="ls-amt" style="color:#dc2626">${fmt(l.betrag)}</td>
                 </tr>`).join('')}` : ''}
@@ -1238,8 +1345,8 @@ function renderLohnSlip(s, targetEl) {
                         <th style="text-align:right;color:#94a3b8;font-weight:400">Soll</th>
                         <th style="text-align:right;color:#94a3b8;font-weight:400">Ist</th>
                         <th style="text-align:right;color:#94a3b8;font-weight:400">Differenz</th>
-                        <th style="text-align:right;color:#94a3b8;font-weight:400">Übertrag Vormonat</th>
-                        <th style="text-align:right;color:#94a3b8;font-weight:400">Saldo Lohnperiode</th>
+                        <th style="text-align:right;color:#94a3b8;font-weight:400">Vormonat</th>
+                        <th style="text-align:right;color:#94a3b8;font-weight:400">Saldo</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1421,7 +1528,7 @@ function renderLohnSlip(s, targetEl) {
                         <th style="text-align:right;color:#94a3b8;font-weight:400">Vormonat</th>
                         <th style="text-align:right;color:#94a3b8;font-weight:400">Aktuell</th>
                         <th style="text-align:right;color:#94a3b8;font-weight:400">Bezogen</th>
-                        <th style="text-align:right;color:#94a3b8;font-weight:400">Saldo Lohnperiode</th>
+                        <th style="text-align:right;color:#94a3b8;font-weight:400">Saldo</th>
                     </tr>
                 </thead>
                 <tbody>${rows.join('')}</tbody>
@@ -1495,7 +1602,7 @@ function renderLohnSlip(s, targetEl) {
                 <thead>
                     <tr class="ls-col-hd">
                         <th style="text-align:left">Auszahlung an</th>
-                        <th style="text-align:right;color:#94a3b8;font-weight:400">Betrag CHF</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
@@ -1513,17 +1620,20 @@ async function confirmLohn() {
     if (!lohnCurrentSlip) return;
     const s = lohnCurrentSlip;
 
-    // Lohnproblem-Sperre (Walter 20./21.05.2026): unter L-GAV ODER ohne Lohnsumme
-    // → Bestätigen blockiert. Server blockt zusätzlich mit 409; dies ist nur die
-    // freundliche UX davor.
+    // Lohnproblem-Sperre (Walter 20./21./26.05.2026): unter L-GAV ODER ohne
+    // Lohnsumme ODER QST-Pflicht offen → Bestätigen blockiert. Server blockt
+    // zusätzlich mit 409; dies ist nur die freundliche UX davor.
     const _lohnProb = _lohnMwUnderpaid[s.employeeId];
     if (_lohnProb) {
-        const head = _lohnProb.problem === 'NO_SALARY'
-            ? 'Bestätigen gesperrt — Lohnsumme fehlt.'
-            : 'Bestätigen gesperrt — Mindestlohn unterschritten.';
-        alert(head + '\n\n'
-            + (_lohnProb.message || 'Lohnproblem im Vertrag.')
-            + '\n\nBitte zuerst den Lohn im Vertrag erfassen/korrigieren.');
+        let head = 'Bestätigen gesperrt — Mindestlohn unterschritten.';
+        let hint = 'Bitte zuerst den Lohn im Vertrag erfassen/korrigieren.';
+        if (_lohnProb.problem === 'NO_SALARY') {
+            head = 'Bestätigen gesperrt — Lohnsumme fehlt.';
+        } else if (_lohnProb.problem === 'QST_OFFEN') {
+            head = 'Bestätigen gesperrt — QST-Pflicht offen.';
+            hint = 'Bitte im MA-Tab → Quellensteuer den höchsten Tarif erfassen oder die Behörden-Befreiung hinterlegen.';
+        }
+        alert(head + '\n\n' + (_lohnProb.message || 'Lohnproblem.') + '\n\n' + hint);
         return;
     }
 
@@ -1867,7 +1977,9 @@ async function loadLohnPeriodBanner(companyId, year, month) {
 // (Walter-Vorgabe 21.05.2026 — EINE kanonische Download-Stelle für das ganze
 // Programm). Hier nur noch genutzt, nicht mehr definiert.
 
-async function _lohnDownloadBlob(url, filenameHint) {
+// preview=true → anzeigbare Dateien (PDF) zuerst im Vorschaufenster zeigen;
+// preview=false (Default) → direkt „Speichern unter…" (echte Downloads wie DTA).
+async function _lohnDownloadBlob(url, filenameHint, preview = false) {
     try {
         const res = await fetch(url, { headers: ah() });
         if (!res.ok) {
@@ -1879,7 +1991,8 @@ async function _lohnDownloadBlob(url, filenameHint) {
         const disp = res.headers.get('content-disposition') || '';
         const m    = disp.match(/filename\*?=["']?(?:UTF-8''|)([^;"']+)/i);
         const filename = (m && decodeURIComponent(m[1])) || filenameHint;
-        await saveBlobAsk(blob, filename);
+        if (preview) await previewFileModal(blob, filename);
+        else         await saveBlobAsk(blob, filename);
     } catch (e) {
         alert(`Download-Fehler: ${e.message}`);
     }
@@ -1890,7 +2003,8 @@ async function lohnDownloadVorabPdf() {
     if (!p?.id) { alert('Keine Periode aktiv.'); return; }
     await _lohnDownloadBlob(
         `/api/lohnlauf/${p.id}/vorab-pdf`,
-        `Lohnbelege_${p.label || (p.year + '-' + String(p.month).padStart(2,'0'))}.pdf`);
+        `Lohnbelege_${p.label || (p.year + '-' + String(p.month).padStart(2,'0'))}.pdf`,
+        true);  // PDF → Vorschaufenster
 }
 
 async function lohnDownloadDtaMa() {
@@ -1923,7 +2037,7 @@ async function lohnSaldoListe(variant) {
             return;
         }
         const blob = await r.blob();
-        await saveBlobAsk(blob, `${label}_${cid}_${y}-${mm}.pdf`);
+        await previewFileModal(blob, `${label}_${cid}_${y}-${mm}.pdf`);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -1945,7 +2059,7 @@ async function lohnFibuJournal() {
             return;
         }
         const blob = await r.blob();
-        await saveBlobAsk(blob, `Fibu-Journal_${cid}_${y}-${mm}.pdf`);
+        await previewFileModal(blob, `Fibu-Journal_${cid}_${y}-${mm}.pdf`);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }

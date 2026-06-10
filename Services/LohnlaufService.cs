@@ -82,11 +82,16 @@ public class LohnlaufService
         // daher Periode-Grenzen vorab in DateTime konvertieren für die Query.
         var periodFromDt = periode.PeriodFrom.ToDateTime(TimeOnly.MinValue);
         var periodToDt   = periode.PeriodTo.ToDateTime(TimeOnly.MaxValue);
+        // Lebenszyklus eines Vertrages = ausschliesslich datum-basiert (Walter-Vorgabe 31.05.2026):
+        // employment.IsActive ist redundant zu ContractStartDate/ContractEndDate und kann irreführen
+        // (Zukunftsverträge laufen parallel zum aktuellen — beide brauchen IsActive=true). Filter
+        // hier IGNORIERT IsActive bewusst, damit ein gerade ausgetretener MA noch im Austritts-Monat
+        // im Lohnlauf erscheint, und ein neuer Vertrag in der Periode greift, auch wenn der alte
+        // noch IsActive=true ist.
         var maMitVertrag = await _db.Employees
             .Where(e => e.IsActive
                      && !e.IsPayrollExcluded
-                     && e.Employments.Any(emp => emp.IsActive
-                                              && emp.CompanyProfileId == periode.CompanyProfileId
+                     && e.Employments.Any(emp => emp.CompanyProfileId == periode.CompanyProfileId
                                               && emp.ContractStartDate <= periodToDt
                                               && (!emp.ContractEndDate.HasValue
                                                   || emp.ContractEndDate.Value >= periodFromDt)))

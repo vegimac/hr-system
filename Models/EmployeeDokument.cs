@@ -41,4 +41,35 @@ public class EmployeeDokument
 
     public int? HochgeladenVon { get; set; }
     public DateTime HochgeladenAm { get; set; } = DateTime.UtcNow;
+
+    // ── Dokument-Metadaten (Walter-Vorgabe 24.05.2026) ──────────────────────
+    // Übernommen aus d.velop bzw. gepflegt durch das System.
+
+    /// <summary>"Erstellt am" — Erstellzeitpunkt des Dokuments (aus d.velop).</summary>
+    public DateTime? ErstelltAm { get; set; }
+
+    /// <summary>"Geändert am" — Eintrag in d.velop zuletzt geändert.</summary>
+    public DateTime? GeaendertAm { get; set; }
+
+    /// <summary>"Datei geändert am" — die Datei selbst wurde geändert (z.B. PDF gedreht + gespeichert).</summary>
+    public DateTime? DateiGeaendertAm { get; set; }
+
+    /// <summary>"Zugriffsdatum" — zuletzt angeschaut.</summary>
+    public DateTime? ZugriffAm { get; set; }
+
+    /// <summary>Anzeigename, wer zuletzt geändert hat (live: eingeloggter User; Backfill: d.velop "Im Besitz von").</summary>
+    public string? GeaendertVon { get; set; }
+
+    /// <summary>Anzeigename, wer zuletzt angeschaut hat.</summary>
+    public string? ZugriffVon { get; set; }
+
+    /// <summary>
+    /// d.velop-Dokument-ID (z.B. "XG00011124") — eindeutige Identifikation,
+    /// damit der Metadaten-Backfill zuverlässig matcht, auch wenn mehrere
+    /// d.velop-Dokumente denselben Dateinamen haben. Wird beim ZIP-Import
+    /// und beim Quick-Upload aus der „fehlende Dokumente"-Liste mit
+    /// geschrieben. NULL bei Dokumenten, die nicht aus d.velop stammen.
+    /// Walter-Vorgabe 06.06.2026.
+    /// </summary>
+    public string? DvelopDokumentId { get; set; }
 }
