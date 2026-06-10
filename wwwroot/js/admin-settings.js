@@ -1105,12 +1105,20 @@ function svRender() {
         // Walter-Vorgabe 18.05.2026: in einem nicht-offenen Lohnlauf
         // verwendete Sätze sind gesperrt — „Bearbeiten" deaktiviert, dafür
         // „Neu ab" als Versionierungs-Workflow. Lock-Pille analog Bank/Vertrag.
+        // Walter-Vorgabe 09.06.2026: Aktionen in das einheitliche ⋮-Menü.
         const locked    = !!r.inLohnVerwendet;
         const rateJson  = JSON.stringify(r).replace(/"/g,'&quot;');
-        const editBtn   = locked
-            ? `<button class="btn btn-sm btn-secondary" disabled title="In Lohn verwendet — nur Neu ab" style="opacity:0.4;cursor:not-allowed">Bearbeiten</button>`
-            : `<button class="btn btn-sm btn-secondary" onclick="svOpenForm(${rateJson}, 'edit')">Bearbeiten</button>`;
-        const newAbBtn  = `<button class="btn btn-sm btn-primary" onclick="svOpenForm(${rateJson}, 'new-version')" style="margin-left:6px">Neu ab</button>`;
+        const editItem  = locked
+            ? `<button class="dok-menu-item" disabled title="In Lohn verwendet — nur ‚Neu ab' möglich" style="opacity:0.45;cursor:not-allowed">Bearbeiten</button>`
+            : `<button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'edit')">Bearbeiten</button>`;
+        const actionsMenu = `
+            <div class="dok-menu-wrap" style="display:inline-block">
+                <button class="dok-menu-btn" onclick="svToggleMenu(event, ${r.id})" title="Aktionen">⋮</button>
+                <div class="dok-menu" id="svMenu-${r.id}">
+                    ${editItem}
+                    <button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'new-version')">Neu ab Datum</button>
+                </div>
+            </div>`;
         const lockPill  = locked
             ? `<span style="font-size:10px;padding:2px 7px;border-radius:9px;background:#fee2e2;color:#991b1b;margin-left:6px" title="In einem freigegebenen Lohnlauf verwendet">🔒 in Lohn</span>`
             : '';
@@ -1137,9 +1145,27 @@ function svRender() {
             <td style="padding:10px 14px;text-align:center">
                 <span style="font-size:11px;padding:2px 9px;border-radius:10px;white-space:nowrap;background:${st.bg};color:${st.fg}">${st.label}</span>
             </td>
-            <td style="padding:10px 14px;text-align:right;white-space:nowrap">${editBtn}${newAbBtn}</td>
+            <td style="padding:10px 14px;text-align:right;white-space:nowrap">${actionsMenu}</td>
         </tr>`;
     }).join('');
+}
+
+// ⋮-Menü-Toggle für SV-Sätze (Walter-Vorgabe 09.06.2026).
+// Nutzt dieselbe .dok-menu-Klasse wie alle anderen Listen — die globale
+// „Klick ausserhalb schliesst alle Menüs"-Logik greift damit automatisch.
+function svToggleMenu(event, id) {
+    event.stopPropagation();
+    const menu = document.getElementById(`svMenu-${id}`);
+    const wasOpen = menu?.classList.contains('show');
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    if (!wasOpen && menu) {
+        menu.classList.add('show');
+        setTimeout(() => {
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+            }, { once: true });
+        }, 10);
+    }
 }
 
 // Globaler Modus-Speicher: 'new' (frische Zeile), 'edit' (bestehende Zeile

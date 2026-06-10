@@ -222,6 +222,24 @@ public class PayrollCalculationEngine
         if (employee.DateOfBirth.HasValue)
             employeeAge = year - employee.DateOfBirth.Value.Year;
 
+        // ── AHV-21 Referenzalter (Walter-Vorgabe 09.06.2026) ─────────────────
+        // Männer immer 65; Frauen gestaffelt nach Jahrgang (Übergangsgeneration
+        // 1961–1963: 64J3M / 64J6M / 64J9M). Ab Erreichen des Referenzalters:
+        //   • AHV: Freibetrag 1'400/Mt. (die SV-Satz-Zeile mit MinAge=65 greift)
+        //   • ALV: weg
+        //   • BVG/BVG_ZUSATZ: weg (Pensionierung)
+        // Trick: effectiveAge wird auf 65 angehoben (falls niedriger), damit
+        //   automatisch die MaxAge=64-Regeln (ALV/BVG) rausfallen und die
+        //   MinAge=65-AHV-Variante greift. Zusätzlich harter Ausschluss von
+        //   ALV/BVG/BVG_ZUSATZ — falls jemand die MaxAge in der DB auf >64
+        //   gesetzt hat, fallen sie trotzdem weg.
+        bool ueberReferenzalter = employee.DateOfBirth.HasValue
+            && PayrollCalculations.HatReferenzalterErreicht(
+                employee.Gender, employee.DateOfBirth.Value, year, month);
+        int? effectiveAge = employeeAge;
+        if (ueberReferenzalter && (effectiveAge == null || effectiveAge < 65))
+            effectiveAge = 65;
+
         // ── Quellensteuer-Pflicht (Walter-Vorgabe 09.06.2026) ──────────────────
         // Single Source of Truth ist `QstPflichtCheckService.CheckAsync`. Dieser
         // prüft alle 5 Befreiungsgründe konsistent mit dem Lohnlauf-Block, dem
@@ -333,10 +351,12 @@ public class PayrollCalculationEngine
                         && (m.ValidTo == null || m.ValidTo >= periodFrom));
 
         // Altersfilter + QST-Filter + Vertragstyp-Filter + BVG-Zusatz-Filter
-        // in Memory anwenden.
+        // in Memory anwenden. effectiveAge berücksichtigt das AHV-21-
+        // Referenzalter; ALV/BVG/BVG_ZUSATZ werden ab Referenzalter zusätzlich
+        // hart ausgeschlossen (Doppelsicherung gegen DB-Fehlkonfiguration).
         var deductions = allRules
-            .Where(r => (r.MinAge == null || employeeAge == null || employeeAge >= r.MinAge)
-                     && (r.MaxAge == null || employeeAge == null || employeeAge <= r.MaxAge)
+            .Where(r => (r.MinAge == null || effectiveAge == null || effectiveAge >= r.MinAge)
+                     && (r.MaxAge == null || effectiveAge == null || effectiveAge <= r.MaxAge)
                      && (!r.OnlyQuellensteuer || isQuellensteuer)
                      // Vertragstyp: NULL = gilt für alle; gesetzt = nur wenn MA-Modell übereinstimmt
                      && (r.EmploymentModelCode == null
@@ -347,7 +367,14 @@ public class PayrollCalculationEngine
                      // BVG_ZUSATZ kommt aus SocialInsuranceRate.Code, der hier
                      // in DeductionRule.CategoryCode landet (siehe Mapping oben).
                      && (!string.Equals(r.CategoryCode, "BVG_ZUSATZ", StringComparison.OrdinalIgnoreCase)
-                         || bvgZusatzActive))
+                         || bvgZusatzActive)
+                     // Ab Referenzalter (AHV 21) keine ALV/BVG-Pflicht mehr.
+                     // AHV bleibt — die MinAge=65-Variante (Freibetrag 1'400)
+                     // greift dann automatisch.
+                     && (!ueberReferenzalter
+                         || (!string.Equals(r.CategoryCode, "ALV",        StringComparison.OrdinalIgnoreCase)
+                          && !string.Equals(r.CategoryCode, "BVG",        StringComparison.OrdinalIgnoreCase)
+                          && !string.Equals(r.CategoryCode, "BVG_ZUSATZ", StringComparison.OrdinalIgnoreCase))))
             .ToList();
 
         // ── Vormonat-Saldo ─────────────────────────────────────────────────

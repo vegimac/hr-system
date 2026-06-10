@@ -793,4 +793,71 @@ public static class PayrollCalculations
 
         return allDays.Count(d => d >= periodFrom && d <= periodTo);
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // AHV-21 Referenzalter (Walter-Vorgabe 09.06.2026)
+    // ──────────────────────────────────────────────────────────────────────
+    // Per 1.1.2024 wurde das Frauen-Rentenalter schrittweise auf 65 angehoben.
+    // Übergangsgeneration: Jahrgänge 1961-1963 mit gestaffeltem Referenzalter.
+    // Ab Jahrgang 1964 gilt einheitlich 65 Jahre für alle.
+    //   Quelle: Art. 21 AHVG, Reform AHV 21 (Volksabstimmung 25.09.2022).
+    //
+    // Männer: immer 65 Jahre.
+    // Frauen ≤1960: 64 Jahre. 1961: 64J+3M. 1962: 64J+6M. 1963: 64J+9M.
+    // Frauen ≥1964 und alle anderen: 65 Jahre.
+    //
+    // Verwendet von PayrollCalculationEngine, um die SV-Beitragspflicht
+    // monatsgenau zu beenden (statt einer fixen `MaxAge`-Schwelle in der DB).
+    // Damit greifen auf einen Schlag: AHV-Freibetrag-Regel ab dem Monat NACH
+    // Erreichen, ALV-Wegfall und BVG-Wegfall (Pensionierung).
+    // ════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Erkennt, ob der Gender-String „weiblich" bedeutet. Das System speichert
+    /// historisch `female`/`male` (EmployeeImportController.MapGender), manche
+    /// alten Datensätze haben aber auch `weiblich`/`männlich`/`w`/`m`/`F`/`M`.
+    /// Wir akzeptieren alle drei Konventionen.
+    /// </summary>
+    public static bool IstWeiblich(string? gender)
+    {
+        var g = gender?.Trim().ToLowerInvariant();
+        return g == "female" || g == "weiblich" || g == "f" || g == "w";
+    }
+
+    /// <summary>
+    /// Referenzalter in Monaten nach AHV 21.
+    /// Männer: immer 780 (65 Jahre).
+    /// Frauen: gestaffelt nach Jahrgang (Übergangsgeneration 1961–1963).
+    /// Ab Jahrgang 1964: 780 (65 Jahre) für alle.
+    /// </summary>
+    public static int GetReferenzalterMonate(string? gender, int birthYear)
+    {
+        if (!IstWeiblich(gender))
+            return 65 * 12;
+        return birthYear switch
+        {
+            <= 1960 => 64 * 12,
+            1961    => 64 * 12 + 3,
+            1962    => 64 * 12 + 6,
+            1963    => 64 * 12 + 9,
+            _       => 65 * 12,
+        };
+    }
+
+    /// <summary>
+    /// Prüft, ob ein MA im Lohnmonat (year, month) das Referenzalter bereits
+    /// erreicht hat. Die Beitragspflicht-Änderung (AHV-Freibetrag, ALV/BVG-
+    /// Wegfall) greift IM MONAT, in dem das Referenzalter erreicht wird.
+    /// Beispiel: Frau Jg. 1962, geboren März → Referenzalter 64J+6M = September
+    /// 2026. Im Lohnlauf August 2026 noch normal SV; ab September 2026 greift
+    /// die AHV-Freibetrag-Regel und ALV/BVG fallen weg.
+    /// </summary>
+    public static bool HatReferenzalterErreicht(string? gender, DateTime dateOfBirth, int year, int month)
+    {
+        int refMonate = GetReferenzalterMonate(gender, dateOfBirth.Year);
+        int geburtsMonatAbsolut   = dateOfBirth.Year * 12 + dateOfBirth.Month;
+        int referenzMonatAbsolut  = geburtsMonatAbsolut + refMonate;
+        int aktuellerMonatAbsolut = year * 12 + month;
+        return aktuellerMonatAbsolut >= referenzMonatAbsolut;
+    }
 }
