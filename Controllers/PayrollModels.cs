@@ -97,13 +97,10 @@ public record SaldoBlock(
     decimal Basis13ml = 0
 );
 
-public record SaveSaldoDto(
-    int EmployeeId, int CompanyProfileId, int Year, int Month,
-    decimal HourSaldo, decimal NachtSaldo, decimal NightHoursWorked,
-    decimal FerienGeldSaldo, decimal FerienTageSaldo,
-    decimal ThirteenthMonthMonthly, decimal ThirteenthMonthAccumulated,
-    decimal GrossAmount, decimal NetAmount, string Status,
-    decimal FeiertagTageSaldo = 0m);
+// SaveSaldoDto entfernt am 09.06.2026 mit dem /api/payroll/save-Endpoint.
+// Grund: nahm Brutto/Netto/Saldi UNVERIFIZIERT aus dem Body und speicherte sie
+// direkt — der einzig sichere Schreibpfad zu PayrollSaldo ist /confirm, das
+// die Beträge intern via CalculateAsync server-autoritativ regeneriert.
 
 public record ConfirmPayrollDto(
     int EmployeeId, int CompanyProfileId, int PayrollPeriodeId,

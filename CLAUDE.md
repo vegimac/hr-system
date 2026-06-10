@@ -51,7 +51,7 @@ Der frühere Monolith `PayrollController.cs` (~3'900 Zeilen) wurde in drei Datei
 ```
 Controllers/PayrollController.cs (~720 Z)   ←── nur noch HTTP-Endpoints (dünn)
    Calculate() → delegiert an _calcEngine.CalculateAsync(...)
-   SaveSaldo / Confirm / Reopen / PDF / Saldo / HR-Bestätigen / KTG / Snapshot
+   Confirm / Reopen / PDF / Saldo / HR-Bestätigen / KTG / Snapshot
         │ ruft auf (DI: PayrollCalculationEngine, AddScoped in Program.cs)
         ▼
 Services/PayrollCalculationEngine.cs (~2'490 Z)  ←── die Berechnungs-Orchestrierung
@@ -59,6 +59,11 @@ Services/PayrollCalculationEngine.cs (~2'490 Z)  ←── die Berechnungs-Orche
    ComputeQstDeduction() (private)  — Quellensteuer-Abzug
    Gibt IActionResult zurück (new OkObjectResult/NotFoundObjectResult/...),
    damit Endpoint + ConfirmPayroll + GetPdf ihr .Value unverändert lesen.
+
+Hinweis: `/api/payroll/save` wurde am 09.06.2026 entfernt (war toter Code, der
+Geldbeträge aus dem Browser direkt in PayrollSaldo schrieb). Einzig sicherer
+Schreibpfad zu PayrollSaldo ist seither `/api/payroll/confirm`, der intern
+CalculateAsync ruft und die Beträge selbst regeneriert.
         │ ruft auf (using static)
         ▼
 Services/PayrollCalculationService.cs (~750 Z)  ←── reine statische Rechen-Helfer
@@ -70,7 +75,7 @@ Services/PayrollCalculationService.cs (~750 Z)  ←── reine statische Rechen
 
 Controllers/PayrollModels.cs (~130 Z)  ←── Records + Request-DTOs
    SvBases, SaldoBlock (namespace HrSystem.Controllers — von Engine via using importiert),
-   SaveSaldoDto, ConfirmPayrollDto, LohnAbtretungConfirmDto, ReopenPayrollDto
+   ConfirmPayrollDto, LohnAbtretungConfirmDto, ReopenPayrollDto
 ```
 
 Wichtig: `PayrollCalculations` ist statisch und seiteneffektfrei (alle Daten als Parameter) — DAS ist die unit-testbare Schicht (v.a. `BuildResult`). `PayrollCalculationEngine` ist DB-gekoppelt (injizierte `_db` + `_tarifService`/`_ktgService`/`_karenz`/`_lgav`/`_ferienKuerzung`). Beim Bau neuer Lohn-Logik: reine Rechnung → `PayrollCalculations`; DB-/Service-gekoppelte Orchestrierung → `PayrollCalculationEngine`; nur Routing/Auth → Controller.

@@ -337,61 +337,19 @@ public class PayrollController : ControllerBase
         });
     }
 
-    // POST /api/payroll/save – Saldo speichern (Zwischenstand, "draft")
+    // /api/payroll/save — entfernt (Walter-Vorgabe 09.06.2026).
     //
-    // WICHTIG: Dieser Endpunkt darf den Status NIE auf "confirmed" setzen.
-    // Der einzige legitime Weg zu "confirmed" ist POST /api/payroll/confirm,
-    // weil nur dort zusammen mit dem Saldo auch der PayrollSnapshot geschrieben
-    // wird. Würde /save ein "confirmed" durchlassen, entstünden Saldos ohne
-    // zugehörigen Snapshot → das bricht den Reopen-Flow und die Jahresausweise.
-    [HttpPost("save")]
-    public async Task<IActionResult> SaveSaldo([FromBody] SaveSaldoDto dto)
-    {
-        if (!await CanAccessBranchAsync(dto.CompanyProfileId))
-            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
-        var existing = await _db.PayrollSaldos
-            .FirstOrDefaultAsync(s => s.EmployeeId    == dto.EmployeeId
-                                   && s.PeriodYear    == dto.Year
-                                   && s.PeriodMonth   == dto.Month
-                                   && s.CompanyProfileId == dto.CompanyProfileId);
-
-        // Einen bereits bestätigten Saldo über /save zu überschreiben würde den
-        // Snapshot-Status aus der Synchronität kippen. Dafür gibt es /reopen.
-        if (existing is not null && existing.Status == "confirmed")
-            return Conflict(new {
-                error = "Saldo ist bereits bestätigt. Bitte zuerst über /reopen wieder eröffnen."
-            });
-
-        if (existing is null)
-        {
-            existing = new PayrollSaldo
-            {
-                EmployeeId       = dto.EmployeeId,
-                CompanyProfileId = dto.CompanyProfileId,
-                PeriodYear       = dto.Year,
-                PeriodMonth      = dto.Month,
-                CreatedAt        = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc)
-            };
-            _db.PayrollSaldos.Add(existing);
-        }
-
-        existing.HourSaldo                   = dto.HourSaldo;
-        existing.NachtSaldo                  = dto.NachtSaldo;
-        existing.NightHoursWorked            = dto.NightHoursWorked;
-        existing.FerienGeldSaldo             = dto.FerienGeldSaldo;
-        existing.FerienTageSaldo             = dto.FerienTageSaldo;
-        existing.FeiertagTageSaldo           = dto.FeiertagTageSaldo;
-        existing.ThirteenthMonthMonthly      = dto.ThirteenthMonthMonthly;
-        existing.ThirteenthMonthAccumulated  = dto.ThirteenthMonthAccumulated;
-        existing.GrossAmount                 = dto.GrossAmount;
-        existing.NetAmount                   = dto.NetAmount;
-        // Nie "confirmed" über /save — das ist /confirm vorbehalten.
-        existing.Status                      = (dto.Status == "confirmed") ? "draft" : dto.Status;
-        existing.UpdatedAt                   = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
-
-        await _db.SaveChangesAsync();
-        return Ok(existing);
-    }
+    // Dieser Endpunkt akzeptierte HourSaldo/GrossAmount/NetAmount/13.ML/Ferien-
+    // Geld u.v.m. UNVERIFIZIERT direkt aus dem Request-Body. Damit konnte ein
+    // angemeldeter User für seine Filiale beliebige Lohn-/Saldo-Beträge in die
+    // DB schreiben, ohne dass der Server nachrechnete. Im Frontend wurde der
+    // Endpunkt nicht (mehr) genutzt — der einzig legitime Schreibpfad zu
+    // PayrollSaldo läuft über /api/payroll/confirm, der die Beträge intern via
+    // CalculateAsync server-autoritativ regeneriert (vgl. Walter-Vorgabe
+    // 20.05.2026 „Lohn-Beträge server-autoritativ"). Das DTO `SaveSaldoDto` ist
+    // ebenfalls entfernt; falls je wieder eine „Zwischenstand"-API gebraucht
+    // wird, muss sie genauso wie Confirm intern rechnen und darf nur GF-
+    // Entscheidungen (z.B. ApplyFerienKuerzung) vom Client annehmen.
 
     // GET /api/payroll/saldo?employeeId=X&year=Y&month=M&companyProfileId=Z
     //
