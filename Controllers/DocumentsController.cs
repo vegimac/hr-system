@@ -200,6 +200,25 @@ public class DocumentsController : ControllerBase
         if (string.IsNullOrWhiteSpace(branchCode))
             return BadRequest("Filiale-Code fehlt. Bitte zuerst eine Filiale wählen.");
 
+        // Datei-Endungs-Whitelist (Walter-Vorgabe 09.06.2026): vorher nahm der
+        // Endpunkt JEDE Endung an — inkl. .exe/.bat/.html/.js. Jetzt nur explizit
+        // erlaubte HR-/Office-Typen. Endung wird gegen lowercase geprüft.
+        var allowedExt = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+            ".pdf",
+            ".jpg", ".jpeg", ".png", ".gif", ".tif", ".tiff",
+            ".doc", ".docx",
+            ".xls", ".xlsx",
+            ".ppt", ".pptx",
+            ".odt", ".ods", ".odp", ".rtf",
+            ".csv", ".txt"
+        };
+        var uploadExt = (Path.GetExtension(file.FileName) ?? "").ToLowerInvariant();
+        if (!allowedExt.Contains(uploadExt))
+            return BadRequest(new {
+                error = $"Dateityp '{uploadExt}' nicht erlaubt. Zugelassen: "
+                      + string.Join(", ", allowedExt.OrderBy(x => x))
+            });
+
         // Mitarbeiter + Typ existieren?
         var empExists = await _db.Employees.AnyAsync(e => e.Id == employeeId);
         if (!empExists) return BadRequest("Mitarbeiter nicht gefunden.");

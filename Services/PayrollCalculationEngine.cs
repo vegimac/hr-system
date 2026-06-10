@@ -30,6 +30,7 @@ public class PayrollCalculationEngine
     private readonly KarenzService _karenz;
     private readonly LgavBeitragService _lgav;
     private readonly FerienKuerzungService _ferienKuerzung;
+    private readonly QstPflichtCheckService _qstCheck;
 
     public PayrollCalculationEngine(
         AppDbContext db,
@@ -37,7 +38,8 @@ public class PayrollCalculationEngine
         KtgTagessatzService ktgService,
         KarenzService karenz,
         LgavBeitragService lgav,
-        FerienKuerzungService ferienKuerzung)
+        FerienKuerzungService ferienKuerzung,
+        QstPflichtCheckService qstCheck)
     {
         _db             = db;
         _tarifService   = tarifService;
@@ -45,6 +47,7 @@ public class PayrollCalculationEngine
         _karenz         = karenz;
         _lgav           = lgav;
         _ferienKuerzung = ferienKuerzung;
+        _qstCheck       = qstCheck;
     }
 
     public async Task<IActionResult> CalculateAsync(int employeeId, int year, int month, int companyProfileId)
@@ -219,28 +222,22 @@ public class PayrollCalculationEngine
         if (employee.DateOfBirth.HasValue)
             employeeAge = year - employee.DateOfBirth.Value.Year;
 
-        // ── Quellensteuer-Pflicht ──────────────────────────────────────────────
-        // Regel: QST-pflichtig wenn Nationalität ≠ CH UND noch nicht befreit.
-        // Walter-Vorgabe 26.05.2026: Behörden-Befreiung hat OBERSTE Priorität
-        // — sie schlägt alles andere (auch einen manuell erfassten QST-Eintrag).
-        // Reihenfolge:
-        //   1. Behörden-Befreiung gültig am Stichtag (mit Dok) → KEIN QST
-        //   2. Sonst: QST-Eintrag manuell erfasst → QST rechnen
-        //   3. Sonst: !Schweizer & !Legacy-befreit → QST rechnen
-        bool isSchweizer = string.Equals(
-            employee.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase);
-        bool bereitsBefreit = employee.QuellensteuerBefreitAb.HasValue
-            && employee.QuellensteuerBefreitAb.Value <= periodFrom;
-
-        bool behoerdenBefreit = employee.QstBefreitDurchBehoerde
-            && employee.QstBefreiungDokumentId.HasValue
-            && (!employee.QstBefreiungGueltigAb.HasValue
-                || employee.QstBefreiungGueltigAb.Value <= periodFrom)
-            && (!employee.QstBefreiungGueltigBis.HasValue
-                || employee.QstBefreiungGueltigBis.Value >= periodFrom);
+        // ── Quellensteuer-Pflicht (Walter-Vorgabe 09.06.2026) ──────────────────
+        // Single Source of Truth ist `QstPflichtCheckService.CheckAsync`. Dieser
+        // prüft alle 5 Befreiungsgründe konsistent mit dem Lohnlauf-Block, dem
+        // Dashboard und dem QST-Tab im MA-Modul:
+        //   1) MA ist CH-Bürger
+        //   2) MA hat C-Ausweis (am Stichtag gültig)
+        //   3) MA hat Behörden-Befreiung (mit Dok + Gültigkeit)
+        //   4) MA verheiratet mit CH-Bürger
+        //   5) MA verheiratet mit C-Ausweis-Inhaber
+        // Vorher prüfte die Engine NUR (1) und das Legacy-Feld `QuellensteuerBefreitAb`
+        // — ein MA mit C-Ausweis oder Schweizer Ehepartner bekam ungerechtfertigt
+        // QST abgezogen.
+        var qstPflicht = await _qstCheck.CheckAsync(employeeId, periodFrom);
 
         EmployeeQuellensteuer? qstEinstellung = null;
-        if (!behoerdenBefreit)
+        if (qstPflicht.IsQstPflichtig)
         {
             qstEinstellung = await _db.EmployeeQuellensteuer
                 .Where(q => q.EmployeeId == employeeId
@@ -250,8 +247,11 @@ public class PayrollCalculationEngine
                 .FirstOrDefaultAsync();
         }
 
-        bool isQuellensteuer = !behoerdenBefreit
-                            && ((!isSchweizer && !bereitsBefreit) || qstEinstellung != null);
+        // QST rechnen wenn der Service sagt „pflichtig" UND ein Tarif erfasst ist.
+        // Ist er pflichtig OHNE Erfassung, blockt ConfirmPayroll/Freigeben bereits
+        // den Lohnlauf (QST_PFLICHT_OFFEN 409); für CalculateAsync rechnen wir hier
+        // ohne QST weiter, damit die Vorschau lädt.
+        bool isQuellensteuer = qstPflicht.IsQstPflichtig && qstEinstellung != null;
         if (!isQuellensteuer) qstEinstellung = null;
 
         // ── Abzugsregeln: ausschliesslich aus social_insurance_rate ───────────
