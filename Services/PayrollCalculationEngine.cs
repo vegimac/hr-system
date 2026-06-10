@@ -374,7 +374,16 @@ public class PayrollCalculationEngine
                      && (!ueberReferenzalter
                          || (!string.Equals(r.CategoryCode, "ALV",        StringComparison.OrdinalIgnoreCase)
                           && !string.Equals(r.CategoryCode, "BVG",        StringComparison.OrdinalIgnoreCase)
-                          && !string.Equals(r.CategoryCode, "BVG_ZUSATZ", StringComparison.OrdinalIgnoreCase))))
+                          && !string.Equals(r.CategoryCode, "BVG_ZUSATZ", StringComparison.OrdinalIgnoreCase)))
+                     // UVG Art. 1a Abs. 6 (Walter-Vorgabe 09.06.2026):
+                     // MA mit Arbeitszeit < 8h/Woche sind von NBU befreit. Das
+                     // Flag `TeilzeitUnter8hWoche` wird in der MA-Maske gesetzt
+                     // (Anstellung-Block). NBUV ist ein reiner AN-Abzug; BU
+                     // (Berufsunfall, immer AG) ist eine separate Versicherung
+                     // und nicht über die NBUV-Regel abgebildet, daher hier
+                     // unproblematisch.
+                     && (!employee.TeilzeitUnter8hWoche
+                         || !string.Equals(r.CategoryCode, "NBUV", StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
         // ── Vormonat-Saldo ─────────────────────────────────────────────────
