@@ -30,9 +30,8 @@ namespace HrSystem.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/akonto/workflow")]
-public class AkontoWorkflowController : ControllerBase
+public class AkontoWorkflowController : HrControllerBase
 {
-    private readonly AppDbContext           _db;
     private readonly AkontoLaufService      _service;
     private readonly AkontoListePdfService  _listePdf;
     private readonly MinimumWageCheckService _minWage;
@@ -43,9 +42,8 @@ public class AkontoWorkflowController : ControllerBase
                                     AkontoListePdfService listePdf,
                                     MinimumWageCheckService minWage,
                                     QstPflichtCheckService qstCheck,
-                                    ILogger<AkontoWorkflowController> log)
+                                    ILogger<AkontoWorkflowController> log) : base(db)
     {
-        _db       = db;
         _service  = service;
         _listePdf = listePdf;
         _minWage  = minWage;
@@ -1337,21 +1335,14 @@ public class AkontoWorkflowController : ControllerBase
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    private int GetUserId() =>
-        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var v) ? v : 0;
-
-    /// <summary>
-    /// admin + superuser sehen alle Filialen; user nur die mit UserBranchAccess.
-    /// </summary>
-    private async Task<bool> CanAccessBranchAsync(int companyProfileId)
-    {
-        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
-        if (role == "admin" || role == "superuser") return true;
-        var userId = GetUserId();
-        if (userId == 0) return false;
-        return await _db.UserBranchAccesses
-            .AnyAsync(uba => uba.UserId == userId && uba.CompanyProfileId == companyProfileId);
-    }
+    // GetCurrentUserId() + CanAccessBranchAsync() leben jetzt in HrControllerBase
+    // (Walter-Vorgabe 09.06.2026). GetUserId() bleibt als 1-Zeilen-Alias erhalten,
+    // damit alle bestehenden Aufrufer den int-Typ (0 wenn null) unverändert
+    // weiterverwenden können. Wichtig: die Base-Variante prüft buchhaltung
+    // ZUERST (vorher hatte AkontoWorkflowController einen Bug: `FindFirst`
+    // las nur den ersten Role-Claim — bei Doppel-Claim wäre die Auswertung
+    // wackelig gewesen).
+    private int GetUserId() => GetCurrentUserId() ?? 0;
 
     /// <summary>
     /// Sequenz-Pflicht: prüft ob ältere Perioden derselben Filiale noch nicht

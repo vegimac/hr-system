@@ -13,31 +13,13 @@ namespace HrSystem.Controllers;
 
 [ApiController]
 [Route("api/payroll")]
-public class PayrollController : ControllerBase
+public class PayrollController : HrControllerBase
 {
-    private int? GetUserIdOrNull() =>
-        int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var v) ? v : (int?)null;
+    // GetCurrentUserId() + CanAccessBranchAsync() leben jetzt in HrControllerBase.
+    // GetUserIdOrNull() bleibt als 1-Zeilen-Alias erhalten, damit die bestehenden
+    // Aufrufstellen (HrBestaetigtBy, GfFreigegebenBy …) unverändert weiterlaufen.
+    private int? GetUserIdOrNull() => GetCurrentUserId();
 
-    /// <summary>
-    /// Filial-Zugriff prüfen (Walter-Vorgabe 24.05.2026, für Rolle buchhaltung):
-    /// admin + superuser sehen alle Filialen; alle anderen (buchhaltung, user)
-    /// nur die mit UserBranchAccess. Verhindert, dass ein Buchhaltungs-User über
-    /// die URL eine nicht zugeteilte Filiale (z. B. Hendschiken) abruft.
-    /// </summary>
-    private async Task<bool> CanAccessBranchAsync(int companyProfileId)
-    {
-        var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToHashSet();
-        // Buchhaltung ZUERST prüfen: sie hat zwar zusätzlich den superuser-Claim,
-        // soll aber NUR ihre zugeteilten Filialen abrufen können (Walter-Vorgabe).
-        if (!roles.Contains("buchhaltung") && (roles.Contains("admin") || roles.Contains("superuser")))
-            return true;
-        var uid = GetUserIdOrNull();
-        if (uid is null) return false;
-        return await _db.UserBranchAccesses
-            .AnyAsync(uba => uba.UserId == uid.Value && uba.CompanyProfileId == companyProfileId);
-    }
-
-    private readonly AppDbContext _db;
     private readonly QuellensteuerTarifService _tarifService;
     private readonly KtgTagessatzService _ktgService;
     private readonly KarenzService _karenz;
@@ -64,9 +46,8 @@ public class PayrollController : ControllerBase
         QstPflichtCheckService qstCheck,
         LohnSaldoListePdfService saldoListePdf,
         FibuJournalService fibuJournal,
-        SnapshotRecomputeService snapshotRecompute)
+        SnapshotRecomputeService snapshotRecompute) : base(db)
     {
-        _db             = db;
         _tarifService   = tarifService;
         _ktgService     = ktgService;
         _karenz         = karenz;
