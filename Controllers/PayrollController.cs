@@ -254,6 +254,8 @@ public class PayrollController : ControllerBase
     public async Task<IActionResult> SaldoListeGf(
         [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
     {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         if (!await IsDefinitivConfirmedAsync(companyProfileId, year, month))
             return PeriodeNichtAbgeschlossen();
         try
@@ -266,15 +268,22 @@ public class PayrollController : ControllerBase
 
     // GET /api/payroll/calculate?employeeId=X&year=Y&month=M&companyProfileId=Z
     [HttpGet("calculate")]
-    public Task<IActionResult> Calculate(
+    public async Task<IActionResult> Calculate(
         [FromQuery] int employeeId,
         [FromQuery] int year,
         [FromQuery] int month,
         [FromQuery] int companyProfileId)
-        => _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId);
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+        return await _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId);
+    }
 
     // Diagnose: zeigt was die QST-Engine-Logik intern ENTSCHEIDEN würde, ohne
     // den vollen Lohnzettel zu rechnen. Walter-Vorgabe 26.05.2026.
+    // Walter 09.06.2026: admin/superuser-only — reines Diagnose-Werkzeug, hat
+    // keine companyProfileId-Eingrenzung und liefert MA-Steuerdaten roh.
+    [Authorize(Roles = "admin,superuser")]
     [HttpGet("qst-diag")]
     public async Task<IActionResult> QstDiag(
         [FromQuery] int employeeId,
@@ -338,6 +347,8 @@ public class PayrollController : ControllerBase
     [HttpPost("save")]
     public async Task<IActionResult> SaveSaldo([FromBody] SaveSaldoDto dto)
     {
+        if (!await CanAccessBranchAsync(dto.CompanyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         var existing = await _db.PayrollSaldos
             .FirstOrDefaultAsync(s => s.EmployeeId    == dto.EmployeeId
                                    && s.PeriodYear    == dto.Year
@@ -399,6 +410,8 @@ public class PayrollController : ControllerBase
         [FromQuery] int month,
         [FromQuery] int companyProfileId)
     {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         // Bei abgeschlossenen / provisorisch abgeschlossenen Perioden: aus dem
         // eingefrorenen Snapshot regenerieren (deterministische Daten + Datum).
         // Sonst Live-Berechnung wie bisher.
@@ -457,6 +470,8 @@ public class PayrollController : ControllerBase
         [FromQuery] int month,
         [FromQuery] int companyProfileId)
     {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         var saldo = await _db.PayrollSaldos
             .FirstOrDefaultAsync(s => s.EmployeeId       == employeeId
                                    && s.PeriodYear       == year
@@ -469,6 +484,8 @@ public class PayrollController : ControllerBase
     [HttpPost("confirm")]
     public async Task<IActionResult> ConfirmPayroll([FromBody] ConfirmPayrollDto dto)
     {
+        if (!await CanAccessBranchAsync(dto.CompanyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         // 0) Sequenz-Pflicht (Walter-Vorgabe 16.05.2026): sobald der Akonto-Lauf
         // für diese Periode begonnen wurde, muss er erst AUSBEZAHLT sein, bevor
         // der Definitivlohn bestätigt werden darf. Sonst wäre die Restzahlungs-
@@ -778,6 +795,8 @@ public class PayrollController : ControllerBase
     [HttpPost("reopen")]
     public async Task<IActionResult> ReopenPayroll([FromBody] ReopenPayrollDto dto)
     {
+        if (!await CanAccessBranchAsync(dto.CompanyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         // 1) Snapshot finden — primär über Periode-Kontext (Year+Month+Company),
         //    Fallback über die vom Frontend mitgegebene PayrollPeriodeId.
         var snapshot = await _db.PayrollSnapshots
@@ -883,6 +902,8 @@ public class PayrollController : ControllerBase
         var snap = await _db.PayrollSnapshots.Include(s => s.Periode)
                             .FirstOrDefaultAsync(s => s.Id == snapshotId);
         if (snap is null) return NotFound();
+        if (!await CanAccessBranchAsync(snap.CompanyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         if (snap.IsFinal)  return Conflict(new { error = "Snapshot ist final — kann nicht mehr verändert werden." });
         if (snap.Periode?.Status != "provisorisch_abgeschlossen")
             return Conflict(new { error = "HR-Bestätigung nur in provisorisch abgeschlossener Periode möglich." });
@@ -906,6 +927,8 @@ public class PayrollController : ControllerBase
         var snap = await _db.PayrollSnapshots.Include(s => s.Periode)
                             .FirstOrDefaultAsync(s => s.Id == snapshotId);
         if (snap is null) return NotFound();
+        if (!await CanAccessBranchAsync(snap.CompanyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         if (snap.IsFinal) return Conflict(new { error = "Snapshot ist final." });
         if (snap.Status != "HR_BESTAETIGT")
             return Conflict(new { error = $"Snapshot-Status ist {snap.Status} (erwartet HR_BESTAETIGT)." });
@@ -925,6 +948,8 @@ public class PayrollController : ControllerBase
         [FromQuery] int employeeId,
         [FromQuery] int companyProfileId)
     {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         var result = await _ktgService.CalculateAsync(employeeId, companyProfileId);
         if (result is null)
             return NotFound(new { error = "Kein aktives Anstellungsverh\u00e4ltnis." });
@@ -937,6 +962,9 @@ public class PayrollController : ControllerBase
     // Nutzung: Reporting pro MA, DTA-Zahlungsexport aggregiert pro Behörde,
     //          Abacus-FIBU-Buchungslauf.
     // ───────────────────────────────────────────────────────────────────
+    // Walter 09.06.2026: Reporting-Endpunkte filterfrei über alle Filialen —
+    // bewusst auf admin/superuser/buchhaltung beschränkt (kein GF-Zugriff).
+    [Authorize(Roles = "admin,superuser,buchhaltung")]
     [HttpGet("lohn-abtretungen/history")]
     public async Task<IActionResult> GetLohnAbtretungHistory(
         [FromQuery] int? employeeId,
@@ -991,6 +1019,7 @@ public class PayrollController : ControllerBase
 
     // GET /api/payroll/lohn-abtretungen/summary?year=2025&behoerdeId=X
     // Aggregiert pro Behörde × Monat — ideal für FIBU-/DTA-Übersicht.
+    [Authorize(Roles = "admin,superuser,buchhaltung")]
     [HttpGet("lohn-abtretungen/summary")]
     public async Task<IActionResult> GetLohnAbtretungSummary(
         [FromQuery] int? year,
@@ -1023,6 +1052,8 @@ public class PayrollController : ControllerBase
         var snap = await _db.PayrollSnapshots
             .FirstOrDefaultAsync(s => s.PayrollPeriodeId == periodeId && s.EmployeeId == employeeId);
         if (snap is null) return NotFound();
+        if (!await CanAccessBranchAsync(snap.CompanyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         return Ok(new { snap.Id, snap.IsFinal, snap.SlipJson, snap.Brutto, snap.Netto,
                         snap.CreatedAt, snap.UpdatedAt });
     }
@@ -1035,6 +1066,8 @@ public class PayrollController : ControllerBase
             .Include(s => s.Periode)
             .FirstOrDefaultAsync(s => s.Id == id);
         if (snap is null) return NotFound();
+        if (!await CanAccessBranchAsync(snap.CompanyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         // SlipJson direkt zurückgeben (wird im Frontend gleich gerendert wie live-Berechnung)
         return Content(snap.SlipJson, "application/json");
     }
