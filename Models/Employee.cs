@@ -75,7 +75,31 @@ public class Employee
     /// <summary>Befreiung gilt bis diesem Datum. NULL = unbefristet.</summary>
     public DateOnly? QstBefreiungGueltigBis { get; set; }
 
+    /// <summary>
+    /// Walter-Vorgabe 13.06.2026: Beleg für QST-Befreiung als CH-Bürger.
+    /// FK auf das hochgeladene Dokument (Pass ODER Identitätskarte). NULL =
+    /// kein Beleg verknüpft → roter Warnbanner im QST-Tab + Dashboard-Card.
+    /// </summary>
+    public int? IdPassDokumentId { get; set; }
+
+    /// <summary>
+    /// Walter-Vorgabe 13.06.2026: Beleg für QST-Befreiung als C-Ausweis-
+    /// Inhaber. FK auf das hochgeladene Bewilligungs-Dokument. NULL = kein
+    /// Beleg verknüpft → roter Warnbanner im QST-Tab + Dashboard-Card.
+    /// </summary>
+    public int? CAusweisDokumentId { get; set; }
+
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Walter-Vorgabe 12.06.2026: MA wurde vom Admin gelöscht, hat aber noch
+    /// Lohn-Daten (PayrollSnapshot/PayrollSaldo/AkontoZahlung) — er bleibt in
+    /// der DB für Audit + Jahresauswertungen, wird aber in ALLEN MA-Listen,
+    /// Pickern und im Lohnlauf ausgeblendet. NUR der hart-gelöschte Pfad
+    /// entfernt die Zeile + alle Abhängigkeiten. Filterregel überall:
+    /// `WHERE NOT IsHidden`. Default false; nur über DELETE-Endpoint gesetzt.
+    /// </summary>
+    public bool IsHidden { get; set; } = false;
 
     /// <summary>
     /// Walter-Vorgabe 07.06.2026: ist der MA dem L-GAV unterstellt? Wenn ja,

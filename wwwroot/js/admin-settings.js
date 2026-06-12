@@ -1145,7 +1145,7 @@ function svRender() {
             <td style="padding:10px 14px;text-align:center">
                 <span style="font-size:11px;padding:2px 9px;border-radius:10px;white-space:nowrap;background:${st.bg};color:${st.fg}">${st.label}</span>
             </td>
-            <td style="padding:10px 14px;text-align:right;white-space:nowrap">${actionsMenu}</td>
+            <td style="padding:10px 14px;width:1%;text-align:right;white-space:nowrap">${actionsMenu}</td>
         </tr>`;
     }).join('');
 }
@@ -1153,16 +1153,38 @@ function svRender() {
 // ⋮-Menü-Toggle für SV-Sätze (Walter-Vorgabe 09.06.2026).
 // Nutzt dieselbe .dok-menu-Klasse wie alle anderen Listen — die globale
 // „Klick ausserhalb schliesst alle Menüs"-Logik greift damit automatisch.
+// Zusatz 09.06.2026: bei zu wenig Platz unter dem Button öffnet das Menü
+// nach oben (drop-up), damit die letzten Zeilen das Menü nicht abschneiden.
 function svToggleMenu(event, id) {
     event.stopPropagation();
     const menu = document.getElementById(`svMenu-${id}`);
+    const btn  = event.currentTarget;
     const wasOpen = menu?.classList.contains('show');
-    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    document.querySelectorAll('.dok-menu.show').forEach(m => {
+        m.classList.remove('show');
+        // alte drop-up-Inline-Styles entfernen
+        m.style.top = '';
+        m.style.bottom = '';
+    });
     if (!wasOpen && menu) {
         menu.classList.add('show');
+        // Drop-Richtung anhand des verfügbaren Platzes wählen.
+        try {
+            const btnRect  = btn.getBoundingClientRect();
+            const menuRect = menu.getBoundingClientRect();   // jetzt bereits sichtbar
+            const spaceBelow = window.innerHeight - btnRect.bottom;
+            if (spaceBelow < menuRect.height + 12) {
+                menu.style.top    = 'auto';
+                menu.style.bottom = 'calc(100% + 4px)';
+            }
+        } catch {}
         setTimeout(() => {
             document.addEventListener('click', () => {
-                document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+                document.querySelectorAll('.dok-menu.show').forEach(m => {
+                    m.classList.remove('show');
+                    m.style.top = '';
+                    m.style.bottom = '';
+                });
             }, { once: true });
         }, 10);
     }

@@ -12,5 +12,13 @@ public class Nationality
     /// die kanonische Anzeige.
     /// </summary>
     public string? Code2 { get; set; }
+    /// <summary>
+    /// Walter-Vorgabe 13.06.2026: deutscher Klartext-Name aus der DB.
+    /// Vorher griff der NationalitiesController nur auf die statische
+    /// Fallback-Tabelle `CountryNamesDe` zu — Änderungen an `name_de`
+    /// in der DB blieben unsichtbar. Jetzt: DB-Name hat Vorrang vor
+    /// dem statischen Fallback (nach AppText-Override).
+    /// </summary>
+    public string? NameDe { get; set; }
     public bool IsActive { get; set; } = true;
 }

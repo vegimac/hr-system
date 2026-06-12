@@ -93,6 +93,7 @@ builder.Services.AddScoped<LohnlaufService>();
 builder.Services.AddScoped<AkontoLaufService>();
 // Akonto-Zahlungsliste als PDF (Begleitliste zum DTA, Buchhaltungs-Beleg).
 builder.Services.AddScoped<AkontoListePdfService>();
+builder.Services.AddScoped<PregnancyPdfService>();
 // Saldo-Listen zum Definitiv-Abschluss (Buchhaltung + GF) als PDF.
 builder.Services.AddScoped<LohnSaldoListePdfService>();
 // Fibu-Journal-Generator (Buchungsjournal aus den bestätigten Snapshots).
@@ -1100,6 +1101,170 @@ using (var scope = app.Services.CreateScope())
         SELECT 'BEZ_ABSENZ', 'Bezahlte Absenz', true, '1/5', false,
                'BETRIEB', 'KEIN', 37, true, NULL
         WHERE NOT EXISTS (SELECT 1 FROM absenz_typ WHERE code = 'BEZ_ABSENZ');
+    ");
+
+    // ── Mutterschafts-Modul (Walter 10.06.2026) ─────────────────────────────
+    // Globales Regelwerk (pregnancy_rule) + pro-MA-Schwangerschaften
+    // (employee_pregnancy). Fristen werden im PregnancyController live aus
+    // dem Regelwerk berechnet, nicht denormalisiert gespeichert.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS pregnancy_rule (
+            id                SERIAL PRIMARY KEY,
+            code              VARCHAR(30) NOT NULL UNIQUE,
+            bezeichnung       TEXT NOT NULL,
+            beschreibung      TEXT,
+            gesetz            VARCHAR(100),
+            berechnung_basis  VARCHAR(20) NOT NULL DEFAULT 'ET',
+            offset_monate     INTEGER DEFAULT 0,
+            offset_wochen     INTEGER DEFAULT 0,
+            richtung          VARCHAR(10) NOT NULL DEFAULT 'VORHER',
+            ist_arbeitsverbot BOOLEAN DEFAULT false,
+            sort_order        INTEGER DEFAULT 99,
+            aktiv             BOOLEAN DEFAULT true,
+            created_at        TIMESTAMPTZ DEFAULT NOW()
+        );
+        -- Variante B (Walter 10.06.2026): Phasen-Ende + Lohn/Staffel.
+        ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS basis_ende         VARCHAR(20);
+        ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS offset_ende_monate INTEGER;
+        ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS offset_ende_wochen INTEGER;
+        ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS richtung_ende      VARCHAR(10);
+        ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS lohnersatz_pct     NUMERIC(5,2);
+        ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS max_betrag_pro_tag NUMERIC(8,2);
+        ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS staffel_text       TEXT;
+        CREATE TABLE IF NOT EXISTS employee_pregnancy (
+            id                     SERIAL PRIMARY KEY,
+            employee_id            INTEGER NOT NULL REFERENCES employee(id),
+            meldedatum             DATE NOT NULL,
+            errechneter_termin     DATE NOT NULL,
+            geburtsdatum           DATE,
+            bemerkung              TEXT,
+            is_active              BOOLEAN DEFAULT true,
+            created_at             TIMESTAMPTZ DEFAULT NOW(),
+            updated_at             TIMESTAMPTZ
+        );
+        CREATE INDEX IF NOT EXISTS idx_pregnancy_employee ON employee_pregnancy(employee_id);
+        -- Walter 10.06.2026: Altlast aus erster Version droppen (Arztzeugnisse
+        -- werden über den Absenzen-Tab als KRANK erfasst, nicht doppelt hier).
+        ALTER TABLE employee_pregnancy DROP COLUMN IF EXISTS arztzeugnis_vorhanden;
+    ");
+
+    // Seed: gesetzliche Default-Regeln. ON CONFLICT (code) DO NOTHING — Walter
+    // kann die Regeln per UI anpassen, ohne dass der Seed sie zurücksetzt.
+    // Walter-Vorgabe 10.06.2026: Default-Seed nach GastroSuisse-Merkblatt 2024.
+    // ON CONFLICT DO NOTHING — vorhandene Regeln werden nicht überschrieben,
+    // Walter kann sie weiter über die Admin-UI pflegen.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO pregnancy_rule
+          (code, bezeichnung, beschreibung, gesetz,
+           berechnung_basis, offset_monate, offset_wochen, richtung,
+           basis_ende, offset_ende_monate, offset_ende_wochen, richtung_ende,
+           lohnersatz_pct, max_betrag_pro_tag, staffel_text,
+           ist_arbeitsverbot, sort_order) VALUES
+        ('RISIKO',           'Risiko-Assessment durchführen',
+         'Gefährdungsbeurteilung am Arbeitsplatz mit der schwangeren MA. Checkliste Arbeitssicherheit Mutterschutz (GastroSuisse). Kein schweres Heben >5 kg.',
+         'ArGV 1 Art. 62',
+         'MELDUNG', 0, 0, 'NACHHER', 'GEBURT', 0, 0, 'NACHHER',
+         NULL, NULL, NULL, false, 10),
+        ('MAX_9H',           'Maximale Arbeitszeit 9 Stunden/Tag',
+         'Mehr als 9 Stunden pro Tag darf nicht gearbeitet werden — auch nicht in Ausnahmesituationen.',
+         'ArGV 1 Art. 60',
+         'MELDUNG', 0, 0, 'NACHHER', 'GEBURT', 0, 0, 'NACHHER',
+         NULL, NULL, NULL, false, 11),
+        ('EINVERSTAENDNIS',  'Beschäftigung nur mit Einverständnis',
+         'Schwangere und Stillende dürfen generell nur mit ihrem Einverständnis beschäftigt werden.',
+         'ArG Art. 35',
+         'MELDUNG', 0, 0, 'NACHHER', 'GEBURT', 0,16, 'NACHHER',
+         NULL, NULL, NULL, false, 12),
+        ('NACHT_WUNSCH',     'Auf Verlangen: keine Nachtarbeit (20–06 Uhr)',
+         'Schwangere können verlangen, nicht zwischen 20 und 6 Uhr eingesetzt zu werden. AG muss eine gleichwertige Tagesarbeit anbieten. Ab 8 Wochen vor ET wird das Nachtverbot verpflichtend.',
+         'ArG Art. 35a Abs. 4',
+         'MELDUNG', 0, 0, 'NACHHER', 'ET', 0, 8, 'VORHER',
+         NULL, NULL, NULL, false, 13),
+        ('FERNBLEIBEN_RECHT','Recht der Schwangeren fernzubleiben',
+         'Auf blosse Anzeige hin von der Arbeit fernbleiben oder die Arbeit verlassen. Ohne Arztzeugnis erhält die MA keinen Lohn (Art. 31 L-GAV).',
+         'ArG Art. 35a Abs. 2',
+         'MELDUNG', 0, 0, 'NACHHER', 'GEBURT', 0, 0, 'NACHHER',
+         NULL, NULL, NULL, false, 14),
+        ('KEIN_RAUCHERBETR', 'Kein Einsatz in Raucherbetrieben/Fumoirs',
+         'Gastronomie-spezifisch: Schwangere sollten nicht in Raucherbetrieben oder Fumoirs eingesetzt werden — auch nicht mit ihrer ausdrücklichen Zustimmung (Passivrauchschutz).',
+         'Passivrauchschutz-VO',
+         'MELDUNG', 0, 0, 'NACHHER', 'GEBURT', 0, 0, 'NACHHER',
+         NULL, NULL, NULL, false, 15),
+        ('RUHEZEIT_KURZ',    'Ruhezeit 12 h + Kurzpause 10 Min alle 2 h',
+         'Bei hauptsächlich stehender Tätigkeit: 12 h Ruhezeit, alle 2 Arbeitsstunden zusätzliche Kurzpause 10 Min.',
+         'ArGV 1 Art. 61',
+         'ET', 5, 0, 'VORHER', 'ET', 0, 0, 'NACHHER',
+         NULL, NULL, NULL, false, 20),
+        ('STEHEN_4H',        'Stehende Tätigkeit max. 4 h/Tag',
+         'Ab dem 4. Schwangerschaftsmonat: bei hauptsächlich stehender Tätigkeit nur noch 4 h/Tag stehend.',
+         'ArGV 1 Art. 61 Abs. 3',
+         'ET', 5, 0, 'VORHER', 'ET', 0, 0, 'NACHHER',
+         NULL, NULL, NULL, false, 21),
+        ('STEHEN_6M',        'Hauptsächlich stehende Tätigkeit verschärft',
+         'Ab dem 6. Schwangerschaftsmonat: hauptsächlich stehende Tätigkeit nur 4 h/Tag — für die restliche Zeit gleichwertige sitzende Tätigkeit anbieten.',
+         'ArGV 1 Art. 61 Abs. 2',
+         'ET', 3, 0, 'VORHER', 'ET', 0, 0, 'NACHHER',
+         NULL, NULL, NULL, false, 22),
+        ('UEBERZEIT',        'Keine Überstunden',
+         'Überzeitverbot ab dem 8. Schwangerschaftsmonat.',
+         'ArG Art. 35a Abs. 2',
+         'ET', 1, 0, 'VORHER', 'ET', 0, 0, 'NACHHER',
+         NULL, NULL, NULL, false, 30),
+        ('NACHT_VERBOT',     'Verpflichtendes Nachtarbeitsverbot (20–06 Uhr)',
+         'Die letzten 8 Wochen vor ET dürfen Schwangere nicht zwischen 20 und 6 Uhr beschäftigt werden. AG muss eine gleichwertige Tagesarbeit anbieten.',
+         'ArG Art. 35a Abs. 4',
+         'ET', 0, 8, 'VORHER', 'ET', 0, 0, 'NACHHER',
+         NULL, NULL, NULL, false, 40),
+        ('ERSATZARBEIT_80',  'Lohnersatz 80 % bei fehlender Ersatzarbeit',
+         'Kann der AG keine gleichwertige Tagesarbeit anbieten, hat die MA Anspruch auf 80 % des Bruttolohnes. Lässt sich nicht versichern (zu Lasten AG).',
+         'ArG Art. 35b Abs. 2',
+         'ET', 0, 8, 'VORHER', 'ET', 0, 0, 'NACHHER',
+         80.00, NULL, NULL, false, 41),
+        ('VERBOT_NACH',      'Absolutes Arbeitsverbot 8 Wochen nach Geburt',
+         'Absolutes Beschäftigungsverbot. AG darf die MA auf keinen Fall arbeiten lassen, selbst wenn sie das selbst wünscht.',
+         'ArG Art. 35a Abs. 3',
+         'GEBURT', 0, 0, 'NACHHER', 'GEBURT', 0, 8, 'NACHHER',
+         NULL, NULL, NULL, true, 50),
+        ('MSE_14W',          'Mutterschaftsentschädigung (MSE) 14 Wochen',
+         'Taggeld 80 % des durchschnittlichen Erwerbseinkommens (inkl. 13. ML), max. CHF 220.–/Tag (entspricht Brutto CHF 8 250.–/Mt.). 98 Tage ab Niederkunft. Beantragung bei AHV-Ausgleichskasse. Sonderfall: Hospitalisierung Kind > 2 Wochen → MSE +max. 56 Tage. Tod eines Elternteils innert 6 Mt. → +2 Wochen.',
+         'EOG Art. 16b',
+         'GEBURT', 0, 0, 'NACHHER', 'GEBURT', 0,14, 'NACHHER',
+         80.00, 220.00, NULL, false, 51),
+        ('KEINE_FERIENKUERZ','Keine Ferienkürzung während MSE',
+         'Während des Bezuges des gesetzlichen Mutterschaftsurlaubs (14 Wochen) ist eine Kürzung des Ferienanspruchs durch den AG unzulässig.',
+         'OR Art. 329b Abs. 3 / 329f',
+         'GEBURT', 0, 0, 'NACHHER', 'GEBURT', 0,14, 'NACHHER',
+         NULL, NULL, NULL, false, 52),
+        ('FREIWILLIG',       'Freiwillige Wiederaufnahme (Woche 9–16)',
+         'Bis zur 16. Woche darf die Wöchnerin arbeiten wenn sie will — AG darf es nicht verlangen. Bleibt sie freiwillig fern, muss die Zeit nicht entschädigt werden.',
+         'ArG Art. 35a Abs. 3',
+         'GEBURT', 0, 8, 'NACHHER', 'GEBURT', 0,16, 'NACHHER',
+         NULL, NULL, NULL, false, 60),
+        ('WIEDERAUFNAHME',   'Pflicht zur Wiederaufnahme der Arbeit',
+         'Ab der 17. Woche (113. Tag) ist die MA zur Wiederaufnahme im gewohnten Umfang gehalten. Pensum-Reduktion kann vereinbart werden — Vertragsänderung schriftlich.',
+         'ArG Art. 35a',
+         'GEBURT', 0,16, 'NACHHER', NULL, NULL, NULL, NULL,
+         NULL, NULL, NULL, false, 70),
+        ('KUENDIG_SCHUTZ',   'Kündigungsschutz (Sperrfrist)',
+         'Kündigung durch AG ist nichtig — von Beginn der Schwangerschaft (auch ohne Kenntnis) bis 16 Wochen nach Niederkunft. Greift erst nach Ablauf der Probezeit. Eine vor der Schwangerschaft gültig ausgesprochene Kündigung wird unterbrochen und läuft erst nach Sperrfristende weiter.',
+         'OR Art. 336c Abs. 1 Bst. c',
+         'MELDUNG', 0, 0, 'NACHHER', 'GEBURT', 0,16, 'NACHHER',
+         NULL, NULL, NULL, false, 80),
+        ('STILLZEIT',        'Bezahlte Stillzeit',
+         'Während des 1. Lebensjahres bezahlte Stillzeit (auch beim Abpumpen). Abgestuftes Modell nach täglicher Arbeitszeit. Gilt für Stillen im Betrieb UND ausserhalb. Gilt pro Kind.',
+         'ArGV 1 Art. 60 Abs. 2',
+         'GEBURT', 0, 0, 'NACHHER', 'GEBURT',12, 0, 'NACHHER',
+         NULL, NULL,
+         'Tagesarbeitszeit ≤ 4 h: mind. 30 Min bezahlt · 4–7 h: mind. 60 Min · > 7 h: mind. 90 Min',
+         false, 90)
+        ON CONFLICT (code) DO NOTHING;
+    ");
+
+    // Walter-Vorgabe 10.06.2026: Negative Offsets aus alten Seeds auf Beträge
+    // ziehen (Engine rechnet Math.Abs + Vorzeichen aus `richtung`).
+    db.Database.ExecuteSqlRaw(@"
+        UPDATE pregnancy_rule SET offset_monate = ABS(offset_monate) WHERE offset_monate < 0;
+        UPDATE pregnancy_rule SET offset_wochen = ABS(offset_wochen) WHERE offset_wochen < 0;
     ");
 }
 

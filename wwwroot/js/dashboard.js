@@ -27,6 +27,9 @@ const DASH_CATEGORY_META = {
     contract_end:           { i18nKey: 'dash.cat.contractEnding',   label: 'Vertragsende',           icon: '📅', color: '#92400e' },
     exit_pending_active:    { i18nKey: 'dash.cat.exitPendingActive',label: 'Austritt offen',         icon: '🚪', color: '#b91c1c' },
     qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },
+    spouse_doku_fehlt:      { i18nKey: 'dash.cat.spouseDokuFehlt',  label: 'Ausweis Ehepartner',     icon: '🪪', color: '#b91c1c' },
+    employee_doku_fehlt:    { i18nKey: 'dash.cat.employeeDokuFehlt',label: 'Ausweis Mitarbeiter',    icon: '🪪', color: '#b91c1c' },
+    schwangerschaft:        { i18nKey: 'dash.cat.pregnancy',        label: 'Mutterschaft',           icon: '🤰', color: '#be185d' },
     lohn_provisorisch:      { i18nKey: 'dash.cat.payrollOpen',      label: 'Lohnlauf',               icon: '💰', color: '#0369a1' },
     birthday:               { i18nKey: 'dash.cat.birthday',         label: 'Geburtstage',            icon: '🎂', color: '#9333ea' },
     anniversary:            { i18nKey: 'dash.cat.anniversary',      label: 'Dienstjubiläen',         icon: '🎉', color: '#15803d' }
@@ -225,10 +228,18 @@ function renderDashAlertRow(a) {
 
     // QST-Pflicht-Karten springen direkt in den Quellensteuer-Tab des MA
     // (Walter 26.05.2026 — dort sind die Schnell-Buttons).
+    // Ausweis-Ehepartner-Karten springen in den Familie-Tab (Walter 12.06.2026),
+    // wo Variante-C-Upload den Ehegatten-Ausweis aufnimmt.
     const onClick = a.employeeId
         ? (a.category === 'qst_pflicht_offen'
             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
-            : `onclick="dashOpenEmployee(${a.employeeId})"`)
+            : a.category === 'spouse_doku_fehlt'
+                ? `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`
+                : a.category === 'employee_doku_fehlt'
+                    ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
+                    : a.category === 'schwangerschaft'
+                        ? `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`
+                        : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
     const cursor = onClick ? 'cursor:pointer' : '';
     return `<div ${onClick} style="background:${sev.bg};border:1px solid ${sev.border};border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:14px;${cursor};transition:transform .08s">
@@ -259,6 +270,13 @@ function dashOpenEmployee(employeeId, subTab) {
 // Spezial-Sprung für QST-Pflicht-Lücken (Walter 26.05.2026): direkt in den
 // Quellensteuer-Tab, wo die Schnell-Buttons sind.
 function dashOpenEmployeeQst(employeeId) { dashOpenEmployee(employeeId, 'quellensteuer'); }
+function dashOpenEmployeePregnancy(employeeId) { dashOpenEmployee(employeeId, 'mutterschaft'); }
+// Walter-Vorgabe 12.06.2026: Sprung in den Familie-Tab, wo der Ehegatten-
+// Ausweis via Variante-C-Upload hochgeladen werden kann.
+function dashOpenEmployeeFamilie(employeeId) { dashOpenEmployee(employeeId, 'familie'); }
+// Walter-Vorgabe 13.06.2026: Sprung in den Dokumente-Tab, wo ID/Pass (CH-
+// Bürger) oder Bewilligung (C-Ausweis) für den MA hochgeladen werden kann.
+function dashOpenEmployeeDokumente(employeeId) { dashOpenEmployee(employeeId, 'dokumente'); }
 
 function dashOpenLohnlauf() { showPage('lohnlauf'); }
 

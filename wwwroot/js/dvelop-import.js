@@ -12,7 +12,42 @@ let _dvelopEmployeesBranchId = null;  // welche Filiale die aktuell geladene Lis
 // Beim Aufruf der Seite UND bei Filialwechsel: MA für die ausgewählte Filiale laden.
 // Filter-Regel ist identisch zur Mitarbeiter-Liste (applyEmpFilter): Vertrag in der
 // Filiale, Legacy-MA ohne Filial-Zuordnung, oder Personalnummer-Präfix passt zur Filiale.
+// Walter-Vorgabe 10.06.2026: nach dem Import beim erneuten Öffnen der
+// Page das UI komplett zurücksetzen — sonst sieht Walter immer noch die
+// Stats + Tabelle vom letzten Lauf.
+function dvelopResetUi() {
+    const ids = [
+        'dvelopImportAlert',     // grüner Erfolgs-Banner
+        'dvelopImportSummary',   // Statistik-Cards
+        'dvelopImportPreview',   // Tabelle
+        'dvelopAutoDetectStatus',// „Erkannt: Filiale …"
+        'dvelopBackfillAlert',   // Backfill-Block
+        'dvelopBackfillResult',
+    ];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+    // Datei-Inputs leeren
+    ['dvelopCsvFile','dvelopZipFile','dvelopBackfillFile'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    // Hidden-Inputs leeren
+    ['dvelopEmployeeId','dvelopEmployeeSearch'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    // Buttons wieder deaktivieren
+    ['dvelopImportCommitBtn','dvelopBackfillCommitBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = true;
+    });
+}
+
 async function dvelopLoadEmployees() {
+    // KEIN Reset hier — diese Funktion wird auch von dvelopAutoDetect()
+    // aufgerufen, nachdem die CSV ausgewählt UND die Filiale erkannt wurde.
+    // Ein Reset hier würde die gerade ausgewählte Datei und den
+    // „Erkannt: …"-Text wieder wegblasen. Der Reset läuft separat beim
+    // Öffnen der Page (showPage-Hook in index.html).
     const branchId = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
     // Nur neu fetchen wenn nötig (Branch hat gewechselt oder noch leer).
     if (_dvelopEmployees.length > 0 && _dvelopEmployeesBranchId === branchId) {

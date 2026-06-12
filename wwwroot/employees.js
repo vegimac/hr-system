@@ -210,6 +210,9 @@ const EMP_SPECIAL_FILTERS = {
 // Tabs in genau der Reihenfolge wie im Markup (für ←/→-Navigation)
 // Adressen wurden in den "Persönliche Angaben"-Tab integriert (ein MA hat in
 // der Praxis nur eine Adresse — separate Tab unnötig).
+// Walter-Vorgabe 11.06.2026: Mutterschafts-Tab entfernt — wandert komplett in
+// den Familie-Tab. Aktive Schwangerschaft wird zusätzlich als roter Badge
+// neben dem MA-Namen im Header angezeigt.
 const _empTabsOrder = ['personal', 'familie', 'bank', 'quellensteuer',
                        'stempelzeiten', 'absenzen', 'zulagen', 'ktg', 'dokumente'];
 
@@ -540,6 +543,26 @@ async function selectEmployee(id) {
             const lnk = await fetch(`/api/documents/linked-codes-for-employee?employeeId=${id}`, { headers: ah() });
             window._linkedDocCodes = lnk.ok ? new Set(await lnk.json()) : new Set();
         } catch { window._linkedDocCodes = new Set(); }
+        // Walter 11.06.2026: aktive Schwangerschaft schon vor dem Header-Render
+        // ermitteln, damit das rote „Mutterschaft"-Badge sofort erscheint.
+        window._activePregnancy = null;
+        if (IstWeiblich(emp.gender)) {
+            try {
+                const r = await fetch(`/api/pregnancies?employeeId=${id}`, { headers: ah() });
+                if (r.ok) {
+                    const list = await r.json();
+                    const heuteIso = new Date().toISOString().slice(0,10);
+                    const aktiv = (list || []).filter(p => {
+                        const basis = p.geburtsdatum || p.errechneterTermin;
+                        if (!basis) return false;
+                        const ende = new Date(basis); ende.setDate(ende.getDate() + 16 * 7);
+                        return ende.toISOString().slice(0,10) >= heuteIso && p.isActive !== false;
+                    });
+                    aktiv.sort((a,b) => (b.errechneterTermin || '').localeCompare(a.errechneterTermin || ''));
+                    window._activePregnancy = aktiv[0] || null;
+                }
+            } catch {}
+        }
         renderEmployeeDetail(emp);
         // Walter-Vorgabe 07.06.2026: Mitarbeiterfoto im Header asynchron
         // nachladen, sobald der Detail-Header gerendert ist.
@@ -642,7 +665,15 @@ function renderEmployeeDetail(emp) {
                      class="emp-avatar ${isFemale ? 'female' : ''}"
                      style="width:150px;height:150px;border-radius:50%;flex-shrink:0;background-size:cover;background-position:center;font-size:50px;display:flex;align-items:center;justify-content:center;overflow:hidden">${initials}</div>
                 <div style="min-width:0">
-                    <div class="emp-detail-name">${name}</div>
+                    <div class="emp-detail-name" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                        <span>${name}</span>
+                        ${window._activePregnancy ? `
+                        <button onclick="switchEmpTab('familie')"
+                                title="Aktuelle Schwangerschaft im Familie-Tab anzeigen"
+                                style="background:#dc2626;color:white;border:none;border-radius:14px;padding:3px 12px;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;letter-spacing:0.02em">
+                            🤰 Mutterschaft
+                        </button>` : ''}
+                    </div>
                     <div class="emp-detail-meta">${_t('ma.detail.persNr','Personal-Nr.')} ${nr} &nbsp;·&nbsp; ${_t('ma.detail.entryDate','Eintritt')}: ${entry} &nbsp;·&nbsp; ${emp.exitDate ? _t('ma.detail.exitDate','Austritt') + ': ' + exit : '<span style="color:#22c55e">● ' + _t('ma.detail.statusActive','Aktiv') + '</span>'}</div>
                 </div>
             </div>
@@ -667,6 +698,11 @@ function renderEmployeeDetail(emp) {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     ${_t('ma.detail.edit','Bearbeiten')}
                 </button>
+                ${currentUser?.role === 'admin' ? `
+                <button id="btnEmpDelete" class="btn-emp-edit" style="white-space:nowrap;background:#fee2e2;border:1px solid #fca5a5;color:#991b1b" onclick="openDeleteEmployeeModal(${emp.id})" title="${_t('ma.detail.deleteHint','Mitarbeiter löschen (nur für Admin)')}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    ${_t('ma.detail.delete','Löschen')}
+                </button>` : ''}
             </div>
         </div>
         <div class="emp-detail-tabs">
@@ -954,6 +990,10 @@ function renderEmployeeDetail(emp) {
           </div>
         </div>
 
+<!-- Mutterschafts-Tab entfernt am 11.06.2026 (Walter-Vorgabe): Modul lebt
+     jetzt komplett im Familie-Tab. Die mts*-Funktionen + renderPregnancyCard
+     bleiben — werden vom Familie-Tab aufgerufen. -->
+
 <!-- TAB: Dokumente -->
         <div class="emp-tab-content" id="emp-tab-dokumente">
             <div id="empTabDokumente">
@@ -1060,6 +1100,21 @@ let qstOpenedFromTab = false;
 async function loadQuellensteuerTab(employeeId) {
     const el = document.getElementById('quellensteuerContent');
     if (!el) return;
+    // Walter-Vorgabe 13.06.2026: Phantom-MA (IsPayrollExcluded=true) bekommen
+    // gar keinen QST-Inhalt — kein Banner, kein Tarif-Editor, kein Bewilligungs-
+    // Block. Diese MA werden nicht abgerechnet, also gibt es nichts zu prüfen.
+    if (selectedEmployee?.isPayrollExcluded) {
+        el.innerHTML = `
+        <div style="padding:28px 22px;text-align:center;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:10px;margin:18px">
+            <div style="font-size:18px;margin-bottom:6px">⛔</div>
+            <div style="font-weight:600;font-size:13.5px">MA ohne Lohn — keine QST-Prüfung</div>
+            <div style="font-size:12px;color:#a16207;margin-top:6px;line-height:1.5">
+                Dieser Mitarbeiter ist als „MA ohne Lohn" markiert (Phantom-MA für easy@work-Zugang).<br>
+                Es findet keine Lohnabrechnung statt — daher auch keine Quellensteuer-Prüfung.
+            </div>
+        </div>`;
+        return;
+    }
     el.innerHTML = '<div class="emp-placeholder"><span>Wird geladen...</span></div>';
     try {
         // Walter-Vorgabe 26.05.2026: Parallel den QST-Pflicht-Check holen.
@@ -1126,7 +1181,67 @@ function renderQstPflichtBanner(pflicht) {
         const aufheben = pflicht.befreiungsGrund === 'Behoerde'
             ? `<button onclick="qstBefreiungAufheben(${empId})" style="background:transparent;border:1px solid #16a34a;color:#16a34a;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Befreiung aufheben</button>`
             : '';
-        return `
+
+        // Walter-Vorgabe 12.06.2026: zusätzlicher roter Warnbanner, wenn die
+        // Befreiung über den Ehepartner geht (CH oder C) und der Ausweis des
+        // Ehepartners noch nicht als Dokument hinterlegt ist. Befreiung gilt
+        // trotzdem (kein Lohnlauf-Block), aber Walter will den fehlenden
+        // Beleg im MA-QST-Tab sofort sehen — analog zur „Ausweis Ehegatte
+        // fehlt"-Kontrollliste.
+        const spouseWarn = pflicht.spouseDokumentFehlt && (
+            pflicht.befreiungsGrund === 'Ehepartner-CH'
+            || pflicht.befreiungsGrund === 'Ehepartner-C'
+        ) ? `
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-left:4px solid #dc2626;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:18px">⚠️</span>
+            <div style="flex:1;min-width:200px">
+                <div style="font-weight:700;color:#991b1b;font-size:13px">Ausweis des Ehepartners fehlt</div>
+                <div style="color:#b91c1c;font-size:12px;margin-top:2px">Die Befreiung von der Quellensteuer stützt sich auf den Ehepartner — bitte den Ausweis des Ehepartners in den Dokumenten hochladen (Typ „Ausweis Ehegatte").</div>
+            </div>
+            <button onclick="qstOpenFamilieFromBanner(${empId})" style="background:#dc2626;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;white-space:nowrap">
+                → Zur Familie
+            </button>
+        </div>` : '';
+
+        // Walter-Vorgabe 13.06.2026: roter Warnbanner für MA selbst, wenn
+        // das Beleg-Dokument NICHT direkt am MA verknüpft ist:
+        //   CH-Bürger → employee.id_pass_dokument_id   (Pass ODER ID-Karte)
+        //   C-Ausweis → employee.c_ausweis_dokument_id (Bewilligungs-Dokument)
+        // Klick „Dokument verknüpfen" öffnet Modal mit Doku-Picker.
+        const empKind = pflicht.befreiungsGrund === 'CH-Buerger' ? 'id_pass'
+                       : pflicht.befreiungsGrund === 'C-Ausweis' ? 'c_ausweis' : null;
+        const empDokTitle = pflicht.befreiungsGrund === 'CH-Buerger'
+            ? 'Ausweis-Dokument nicht verknüpft (ID oder Pass)'
+            : 'Ausweis-Dokument nicht verknüpft (C-Ausweis)';
+        const empDokText = pflicht.befreiungsGrund === 'CH-Buerger'
+            ? 'Der Mitarbeiter ist Schweizer Staatsbürger — bitte das hochgeladene Pass- oder ID-Dokument hier verknüpfen.'
+            : 'Der Mitarbeiter hat einen C-Ausweis — bitte das hochgeladene Bewilligungs-Dokument hier verknüpfen.';
+        const empWarn = pflicht.employeeDokumentFehlt && empKind ? `
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-left:4px solid #dc2626;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:18px">⚠️</span>
+            <div style="flex:1;min-width:200px">
+                <div style="font-weight:700;color:#991b1b;font-size:13px">${empDokTitle}</div>
+                <div style="color:#b91c1c;font-size:12px;margin-top:2px">${empDokText}</div>
+            </div>
+            <button onclick="openAusweisDokuModal(${empId},'${empKind}')" style="background:#dc2626;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;white-space:nowrap">
+                📎 Dokument verknüpfen
+            </button>
+        </div>` : '';
+
+        // Zusatz: wenn der Beleg verknüpft IST (also kein Warnbanner), kann
+        // Walter ihn aus dem grünen Banner direkt anschauen / die Verknüpfung
+        // aufheben. Dafür die jeweils passende Dokument-ID + Buttons.
+        const verknuepfteDokId = pflicht.befreiungsGrund === 'CH-Buerger'
+                                    ? pflicht.idPassDokumentId
+                                    : pflicht.befreiungsGrund === 'C-Ausweis'
+                                        ? pflicht.cAusweisDokumentId
+                                        : null;
+        const ausweisDokButtons = (empKind && verknuepfteDokId)
+            ? `<button onclick="qstOpenBefreiungsDok(${empId}, ${verknuepfteDokId})" title="Beleg-Dokument im Vorschau-Panel rechts öffnen" style="background:#fff;border:1px solid #16a34a;color:#16a34a;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px">📄 Dokument anschauen</button>
+               <button onclick="ausweisDokuUnlink(${empId},'${empKind}')" style="background:transparent;border:1px solid #16a34a;color:#16a34a;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Verknüpfung aufheben</button>`
+            : '';
+
+        return spouseWarn + empWarn + `
         <div style="background:#f0fdf4;border:1px solid #86efac;border-left:4px solid #16a34a;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-size:18px">✅</span>
             <div style="flex:1;min-width:200px">
@@ -1135,6 +1250,7 @@ function renderQstPflichtBanner(pflicht) {
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
                 ${dokAnschauen}
+                ${ausweisDokButtons}
                 ${aufheben}
             </div>
         </div>`;
@@ -1180,6 +1296,334 @@ function renderQstPflichtBanner(pflicht) {
     }
 
     return '';
+}
+
+// Walter-Vorgabe 12.06.2026: Sprung aus dem QST-Banner direkt in den Familie-
+// Tab des MA — dort kann Walter den Ausweis des Ehepartners hochladen. Setzt
+// window.activeEmpId, damit beim Tab-Wechsel der richtige MA selektiert bleibt.
+function qstOpenFamilieFromBanner(empId) {
+    if (!empId) return;
+    window.activeEmpId = empId;
+    if (typeof switchEmpTab === 'function') switchEmpTab('familie');
+}
+
+// Walter-Vorgabe 13.06.2026: Sprung aus dem QST-Banner direkt in den Dokumente-
+// Tab des MA, wo Walter den fehlenden ID/Pass (CH-Bürger) bzw. die Bewilligung
+// (C-Ausweis) hochladen kann.
+function qstOpenDokumenteFromBanner(empId) {
+    if (!empId) return;
+    window.activeEmpId = empId;
+    if (typeof switchEmpTab === 'function') switchEmpTab('dokumente');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Ausweis-Doku-Verknüpfung (Walter-Vorgabe 13.06.2026)
+// ──────────────────────────────────────────────────────────────────────
+// Direkte Verknüpfung MA → konkretes Beleg-Dokument für QST-Befreiung:
+//   • kind='id_pass'   → CH-Bürger, Pass oder ID-Karte
+//   • kind='c_ausweis' → C-Ausweis-Inhaber, Bewilligungs-Dokument
+// Aufgerufen über den roten Banner im QST-Tab.
+// ══════════════════════════════════════════════════════════════════════
+
+async function openAusweisDokuModal(empId, kind, extra) {
+    if (!empId) empId = window.activeEmpId || selectedEmployeeId || null;
+    if (!empId) {
+        alert('Mitarbeiter-ID fehlt. Bitte den MA links erneut anklicken.');
+        return;
+    }
+    if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung'].includes(kind)) return;
+
+    if (typeof loadEmpDokumente === 'function') {
+        try { await loadEmpDokumente(empId); } catch {}
+    }
+    if (typeof _dokState === 'undefined' || !_dokState.empId) {
+        alert('Doku-Modul nicht initialisiert. Bitte Seite neu laden.');
+        return;
+    }
+
+    // Welcher Typ ist „relevant" für diesen Modus?
+    const wantedCodes = kind === 'id_pass'             ? ['id_card', 'passport']
+                      : kind === 'c_ausweis'           ? ['permit']
+                      : kind === 'spouse'              ? ['spouse', 'spouse_permit']
+                      :                                  []; // behoerden_befreiung: nur Name-Match
+    const wantedNamesRx = kind === 'id_pass'           ? /(ident|pass|reisepass|id[\s-]?karte|ausweis)/i
+                       : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
+                       : kind === 'spouse'             ? /(ehegatt|ehepartner|spouse|partner)/i
+                       :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
+
+    const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
+    const allTypes = tax.flatMap(k => (k.typen || []).map(t => ({ ...t, _katName: k.name, _katId: k.id })));
+
+    // Default-Typ für Upload-Vorauswahl (linked_field_code zuerst, dann Name)
+    let defaultTyp = allTypes.find(t => wantedCodes.includes(t.linkedFieldCode || ''))
+                  || allTypes.find(t => wantedNamesRx.test(t.name || ''));
+
+    // Dokument-Relevanz-Check
+    const typById = new Map(allTypes.map(t => [t.id, t]));
+    const isRelevantDoc = d => {
+        const t = typById.get(d.dokumentTypId);
+        if (!t) return false;
+        if (wantedCodes.includes(t.linkedFieldCode || '')) return true;
+        return wantedNamesRx.test((t.name || '') + ' ' + (d.bemerkung || ''));
+    };
+
+    const docs = Array.isArray(_dokState.docs) ? _dokState.docs.slice() : [];
+    // Sortierung: relevante zuerst, dann neueste-zuerst
+    docs.sort((a, b) => {
+        const ra = isRelevantDoc(a) ? 0 : 1;
+        const rb = isRelevantDoc(b) ? 0 : 1;
+        if (ra !== rb) return ra - rb;
+        return String(b.geaendertAm || b.hochgeladenAm || '')
+                .localeCompare(String(a.geaendertAm || a.hochgeladenAm || ''));
+    });
+
+    // Kategorien für Filter-Chips zählen
+    const catCounts = {};
+    for (const d of docs) {
+        const c = d.kategorieName || '–';
+        catCounts[c] = (catCounts[c] || 0) + 1;
+    }
+    const catOrder = tax.map(k => k.name).filter(n => catCounts[n]);
+    Object.keys(catCounts).forEach(n => { if (!catOrder.includes(n)) catOrder.push(n); });
+
+    const titleText = kind === 'id_pass'             ? 'Pass oder Identitätskarte verknüpfen'
+                   : kind === 'c_ausweis'           ? 'C-Ausweis-Dokument verknüpfen'
+                   : kind === 'spouse'              ? 'Ausweis Ehepartner verknüpfen'
+                   :                                  'Behörden-Befreiung verknüpfen';
+    const hintText  = kind === 'id_pass'
+        ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
+        : kind === 'c_ausweis'
+            ? 'Wähle das Bewilligungs-Dokument — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
+            : kind === 'spouse'
+                ? 'Wähle das Ausweis-Dokument des Ehepartners (Pass, ID oder Bewilligung) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
+                : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
+        ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    const fmtDate = (iso) => {
+        if (!iso) return '–';
+        const s = String(iso).slice(0, 10);
+        if (s.length !== 10) return '–';
+        return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4);
+    };
+
+    const docRowsHtml = docs.length ? docs.map(d => {
+        const rel = isRelevantDoc(d);
+        const bg  = rel ? '#f0fdf4' : '#fff';
+        const star = rel ? '<span style="color:#16a34a;font-weight:700;margin-right:4px" title="Passt zum Befreiungsgrund">●</span>' : '';
+        const fname = d.bemerkung || d.filenameOriginal || ('Dokument #' + d.id);
+        return `
+        <tr data-cat="${esc((d.kategorieName || '').toLowerCase())}"
+            data-search="${esc(((d.bemerkung || '') + ' ' + (d.filenameOriginal || '') + ' ' + (d.dokumentTypName || '')).toLowerCase())}"
+            onclick="ausweisDokuPick(${d.id})"
+            style="cursor:pointer;border-bottom:1px solid #f1f5f9;background:${bg}"
+            onmouseover="this.style.background='#eff6ff'"
+            onmouseout="this.style.background='${bg}'">
+            <td style="padding:9px 12px;font-size:11.5px;color:#475569">${esc(d.kategorieName || '–')}</td>
+            <td style="padding:9px 12px;font-size:12px;font-weight:600;color:#0f172a">${esc(d.dokumentTypName || '–')}</td>
+            <td style="padding:9px 12px;font-size:12px;color:#0f172a">${star}${esc(fname)}</td>
+            <td style="padding:9px 12px;font-size:11px;color:#94a3b8;white-space:nowrap">${fmtDate(d.geaendertAm || d.hochgeladenAm)}</td>
+        </tr>`;
+    }).join('') : `
+        <tr><td colspan="4" style="padding:30px;text-align:center;color:#94a3b8;font-style:italic;font-size:12.5px">
+            Noch kein Dokument hinterlegt — lade eines hoch.
+        </td></tr>`;
+
+    const catChipsHtml = catOrder.length ? `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+            <button type="button" data-cat="" onclick="ausweisDokuFilterCat('')"
+                    style="padding:5px 12px;background:#0f172a;color:#fff;border:none;border-radius:999px;font-size:11.5px;font-weight:600;cursor:pointer"
+                    class="ausweis-cat-chip ausweis-cat-active">
+                Alle <span style="opacity:.7">${docs.length}</span>
+            </button>
+            ${catOrder.map(c => `
+                <button type="button" data-cat="${esc(c.toLowerCase())}" onclick="ausweisDokuFilterCat('${esc(c).replace(/'/g,'\\\'')}')"
+                        style="padding:5px 12px;background:#fff;color:#475569;border:1px solid #e2e8f0;border-radius:999px;font-size:11.5px;font-weight:600;cursor:pointer"
+                        class="ausweis-cat-chip">
+                    ${esc(c)} <span style="color:#94a3b8">${catCounts[c]}</span>
+                </button>`).join('')}
+        </div>` : '';
+
+    const html = `
+    <div id="ausweisDokuModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2400;display:flex;align-items:center;justify-content:center;padding:20px"
+         onclick="if(event.target===this)closeAusweisDokuModal()">
+        <div style="background:#fff;border-radius:12px;width:880px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 14px 56px rgba(0,0,0,0.28)">
+            <div style="padding:16px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">📎</span>
+                <div style="flex:1">
+                    <div style="font-weight:700;color:#0f172a;font-size:14.5px">${titleText}</div>
+                    <div style="color:#64748b;font-size:12px;margin-top:2px">${hintText}</div>
+                </div>
+                <button onclick="ausweisDokuUploadNew()" style="background:#2563eb;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+                    <span>＋</span> Neues Dokument
+                </button>
+                <button onclick="closeAusweisDokuModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;margin-left:4px">×</button>
+            </div>
+            <div style="padding:14px 22px;overflow-y:auto;flex:1">
+                ${catChipsHtml}
+                <input id="ausweisDokuSearch" type="text" placeholder="Filtern (Beschreibung, Typ, Dateiname)…"
+                       oninput="ausweisDokuFilterText(this.value)"
+                       style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;margin-bottom:10px">
+                <div style="border:1px solid #e2e8f0;border-radius:6px;overflow:hidden">
+                    <table style="width:100%;border-collapse:collapse" id="ausweisDokuTable">
+                        <thead>
+                            <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+                                <th style="padding:8px 12px;text-align:left;font-size:10.5px;color:#64748b;font-weight:600;text-transform:uppercase">Kategorie</th>
+                                <th style="padding:8px 12px;text-align:left;font-size:10.5px;color:#64748b;font-weight:600;text-transform:uppercase">Typ</th>
+                                <th style="padding:8px 12px;text-align:left;font-size:10.5px;color:#64748b;font-weight:600;text-transform:uppercase">Beschreibung</th>
+                                <th style="padding:8px 12px;text-align:left;font-size:10.5px;color:#64748b;font-weight:600;text-transform:uppercase">Geändert</th>
+                            </tr>
+                        </thead>
+                        <tbody>${docRowsHtml}</tbody>
+                    </table>
+                </div>
+            </div>
+            <div style="padding:12px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end">
+                <button onclick="closeAusweisDokuModal()" style="background:#fff;border:1px solid #cbd5e1;color:#475569;padding:7px 16px;border-radius:6px;font-size:13px;cursor:pointer">Abbrechen</button>
+            </div>
+        </div>
+    </div>`;
+
+    closeAusweisDokuModal();
+    document.body.insertAdjacentHTML('beforeend', html);
+    window._ausweisDokuCtx = {
+        empId,
+        kind,
+        defaultTypId: defaultTyp?.id || null,
+        defaultKatId: defaultTyp?._katId || null,
+        spouseFamilyMemberId: extra?.spouseFamilyMemberId || null
+    };
+}
+
+// Filter-Funktionen
+function ausweisDokuFilterCat(cat) {
+    const catLow = (cat || '').toLowerCase();
+    document.querySelectorAll('#ausweisDokuModal .ausweis-cat-chip').forEach(b => {
+        const isActive = (b.dataset.cat || '') === catLow;
+        b.style.background = isActive ? '#0f172a' : '#fff';
+        b.style.color = isActive ? '#fff' : '#475569';
+        b.style.border = isActive ? 'none' : '1px solid #e2e8f0';
+    });
+    ausweisDokuApplyFilters();
+}
+function ausweisDokuFilterText(_q) { ausweisDokuApplyFilters(); }
+function ausweisDokuApplyFilters() {
+    const activeChip = document.querySelector('#ausweisDokuModal .ausweis-cat-chip[style*="rgb(15, 23, 42)"]')
+                     || document.querySelector('#ausweisDokuModal .ausweis-cat-chip[style*="#0f172a"]');
+    const cat  = (activeChip?.dataset.cat || '').toLowerCase();
+    const q    = (document.getElementById('ausweisDokuSearch')?.value || '').trim().toLowerCase();
+    document.querySelectorAll('#ausweisDokuTable tbody tr[data-search]').forEach(tr => {
+        const trCat = (tr.dataset.cat || '');
+        const okCat = !cat || trCat === cat;
+        const okQ   = !q   || (tr.dataset.search || '').includes(q);
+        tr.style.display = (okCat && okQ) ? '' : 'none';
+    });
+}
+
+// „+ Neues Dokument" → öffnet das Standard-Upload-Modal mit Vorauswahl + Callback
+function ausweisDokuUploadNew() {
+    const ctx = window._ausweisDokuCtx;
+    if (!ctx) return;
+    if (typeof _dokState === 'undefined') return;
+    _dokState.selectedKategorieId = ctx.defaultKatId;
+    _dokState.selectedTypId       = ctx.defaultTypId;
+    _dokState.afterUpload = async (newDokId, _raw, formInfo) => {
+        if (!newDokId) return;
+        await ausweisDokuVerknuepfen(ctx.empId, ctx.kind, newDokId, formInfo);
+    };
+    closeAusweisDokuModal();
+    if (typeof openDokUploadModal === 'function') openDokUploadModal();
+}
+
+// Klick auf eine Tabellenzeile → bestehendes Dokument verknüpfen
+async function ausweisDokuPick(dokumentId) {
+    const ctx = window._ausweisDokuCtx;
+    if (!ctx || !dokumentId) return;
+    await ausweisDokuVerknuepfen(ctx.empId, ctx.kind, dokumentId, null);
+    closeAusweisDokuModal();
+}
+
+// Gemeinsamer PATCH-Aufruf (von Upload-Callback + Direct-Pick).
+// Mode-spezifische Routing:
+//   • id_pass / c_ausweis        → /api/employees/{id}/ausweis-doku
+//   • spouse                     → /api/employees/{id}/family/{famId}/dokument
+//   • behoerden_befreiung        → /api/employees/{id}/qst-befreiung
+// Für Behörden-Befreiung wird zusätzlich Gültig-ab/bis übergeben — beim Direct-
+// Pick nehmen wir die Felder des Dokuments selbst (gueltigVon/gueltigBis),
+// beim Upload-Pfad kommen sie als 3. Callback-Argument aus dem Upload-Modal.
+async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
+    const ctx = window._ausweisDokuCtx || {};
+    try {
+        let url, body;
+        if (kind === 'spouse') {
+            const famId = ctx.spouseFamilyMemberId;
+            if (!famId) { alert('Ehepartner-ID fehlt.'); return; }
+            url  = `/api/employees/${empId}/family/${famId}/dokument`;
+            body = JSON.stringify({ dokumentId });
+        } else if (kind === 'behoerden_befreiung') {
+            // Gültig-ab/bis ermitteln: erst formInfo (Upload-Pfad), sonst aus
+            // dem Dokument selbst (Direct-Pick).
+            let gueltigAb  = formInfo?.gueltigVon || null;
+            let gueltigBis = formInfo?.gueltigBis || null;
+            if (!gueltigAb && Array.isArray(_dokState?.docs)) {
+                const d = _dokState.docs.find(x => x.id === dokumentId);
+                gueltigAb  = (d?.gueltigVon || '').slice(0, 10) || null;
+                gueltigBis = (d?.gueltigBis || '').slice(0, 10) || null;
+            }
+            if (!gueltigAb) {
+                gueltigAb = prompt('Gültig-ab-Datum für die Behörden-Befreiung (TT.MM.JJJJ):');
+                if (!gueltigAb) return;
+                // einfache Eingabe akzeptieren — wandelt TT.MM.JJJJ in ISO um
+                const m = gueltigAb.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
+                if (m) gueltigAb = `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+            }
+            url  = `/api/employees/${empId}/qst-befreiung`;
+            body = JSON.stringify({ befreit: true, dokumentId, gueltigAb, gueltigBis });
+        } else {
+            url  = `/api/employees/${empId}/ausweis-doku`;
+            body = JSON.stringify({ kind, dokumentId });
+        }
+        const res = await fetch(url, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => null);
+            alert(j?.message || `Verknüpfen fehlgeschlagen (${res.status})`);
+            return;
+        }
+        // QST-Tab refresht den Banner; Familie-Tab refresht die Doku-Pille.
+        if (typeof loadQuellensteuerTab === 'function') loadQuellensteuerTab(empId);
+        if (kind === 'spouse' && typeof loadFamilieTab === 'function') loadFamilieTab(empId);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+function closeAusweisDokuModal() {
+    document.getElementById('ausweisDokuModal')?.remove();
+    // Context NICHT löschen — wird vom Upload-Callback noch gebraucht.
+}
+
+async function ausweisDokuUnlink(empId, kind) {
+    if (!empId || !kind) return;
+    if (!confirm('Verknüpfung wirklich aufheben? Der Banner zeigt danach wieder „Beleg fehlt".')) return;
+    try {
+        const res = await fetch(`/api/employees/${empId}/ausweis-doku`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind, dokumentId: null })
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => null);
+            alert(j?.message || `Fehler (${res.status})`);
+            return;
+        }
+        loadQuellensteuerTab(empId);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
 }
 
 async function qstBefreiungAufheben(empId) {
@@ -1241,9 +1685,82 @@ function openQstHoechsterTarif() {
 // Behörden-Befreiung erfassen — Modal mit direktem Upload ODER bestehendem Doku
 async function openQstBefreiungModal() {
     if (!selectedEmployeeId) return;
-    // Walter-Vorgabe 26.05.2026: Befreiungsschreiben direkt im Modal hochladbar.
-    // Parallel zur Datei-Auswahl bleibt die Möglichkeit, ein bereits hochgeladenes
-    // Dokument aus der Liste zu wählen.
+    // Walter-Vorgabe 13.06.2026: jetzt das gleiche schlanke Auswahl+Upload-
+    // Modal wie für Ausweis-Doku — nur mit kind='behoerden_befreiung'. Das
+    // Modal filtert/highlights "Befreiung/Behörde/Quellensteuer"-Typen,
+    // Direct-Pick verknüpft sofort, Upload-Pfad nimmt Gültig-ab/bis aus dem
+    // Upload-Modal. Alles unten als toter Fallback-Code für Notfall.
+    return openAusweisDokuModal(selectedEmployeeId, 'behoerden_befreiung');
+
+    // ──────────────────────────────────────────────────────────────────
+    // ALTE VARIANTE (deaktiviert seit 13.06.2026, bleibt als Fallback)
+    // ──────────────────────────────────────────────────────────────────
+    /* eslint-disable */
+    const empId = selectedEmployeeId;
+    if (typeof loadEmpDokumente === 'function') {
+        try { await loadEmpDokumente(empId); } catch {}
+    }
+    if (typeof _dokState !== 'undefined' && _dokState.empId === empId) {
+        // Passenden Typ in der Dokument-Struktur vorauswählen — Name-Match
+        // auf „Quellensteuer Befreiung" o.ä. (kein linked_field_code für
+        // diese Befreiung). Fallback: irgendetwas mit „befreiung" im Namen.
+        let foundTyp = null, foundKat = null;
+        const tax = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
+        const isQstName = n => /quellensteuer\s*befreiung|qst\s*befreiung/i.test(n || '');
+        for (const k of tax) {
+            for (const t of (k.typen || [])) {
+                if (isQstName(t.name)) { foundTyp = t; foundKat = k; break; }
+            }
+            if (foundTyp) break;
+        }
+        if (!foundTyp) {
+            for (const k of tax) {
+                for (const t of (k.typen || [])) {
+                    if (/befreiung/i.test(t.name || '')) { foundTyp = t; foundKat = k; break; }
+                }
+                if (foundTyp) break;
+            }
+        }
+        _dokState.selectedKategorieId = foundKat?.id || null;
+        _dokState.selectedTypId       = foundTyp?.id || null;
+
+        _dokState.afterUpload = async (newDokId, _raw, form) => {
+            if (!newDokId) return;
+            try {
+                const res = await fetch(`/api/employees/${empId}/qst-befreiung`, {
+                    method: 'PATCH',
+                    headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        befreit:    true,
+                        dokumentId: newDokId,
+                        gueltigAb:  form?.gueltigVon || null,
+                        gueltigBis: form?.gueltigBis || null
+                    })
+                });
+                if (!res.ok) {
+                    const j = await res.json().catch(() => null);
+                    alert(j?.message || `Befreiung speichern fehlgeschlagen (${res.status})`);
+                    return;
+                }
+                loadQuellensteuerTab(empId);
+            } catch (e) {
+                alert('Verbindungsfehler: ' + e.message);
+            }
+        };
+
+        if (typeof openDokUploadModal === 'function') {
+            openDokUploadModal();
+        } else {
+            alert('Doku-Upload-Modal nicht geladen. Bitte Seite neu laden.');
+            _dokState.afterUpload = null;
+        }
+        return;
+    }
+    // Fallback: wenn _dokState nicht initialisiert ist, zum alten Modal-
+    // Pfad weiterlaufen (toter Code unten — Sicherheits-Backup).
+    // ──────────────────────────────────────────────────────────────────
+    // ALTE VARIANTE (deaktiviert seit 13.06.2026, bleibt als Fallback)
+    // ──────────────────────────────────────────────────────────────────
     const [dokRes, taxRes] = await Promise.all([
         fetch(`/api/documents/by-employee/${selectedEmployeeId}`, { headers: ah() }),
         fetch('/api/documents/taxonomie', { headers: ah() })
@@ -2005,13 +2522,40 @@ async function loadFamilieTab(employeeId) {
                 }
             }));
         }
-        renderFamilieTab(el, members, employeeId, allowanceMap);
+        // Walter 11.06.2026: bei Frauen ALLE Schwangerschaften mitladen
+        // (inkl. Fristen pro Eintrag) — das Mutterschafts-Modul lebt jetzt
+        // komplett im Familie-Tab. Aktive (laufende) Schwangerschaft als
+        // erste Card, ältere darunter, Erfass-Button unten.
+        let pregnancyDetails = [];
+        const emp = selectedEmployee;
+        if (emp && IstWeiblich(emp.gender)) {
+            try {
+                const r = await fetch(`/api/pregnancies?employeeId=${employeeId}`, { headers: ah() });
+                if (r.ok) {
+                    const list = await r.json();
+                    pregnancyDetails = await Promise.all(list.map(p =>
+                        fetch(`/api/pregnancies/${p.id}`, { headers: ah() }).then(rr => rr.ok ? rr.json() : null)));
+                    pregnancyDetails = pregnancyDetails.filter(Boolean);
+                }
+            } catch {}
+        }
+        // Walter-Vorgabe 13.06.2026: QST-Pflicht-Status mitladen, damit der
+        // Familie-Tab beim Ehepartner einen roten Warnbanner zeigen kann,
+        // wenn die QST-Befreiung über den Spouse läuft und das Beleg-Doku
+        // fehlt (analog zum Banner im Bewilligung/QST-Tab).
+        let pflicht = null;
+        try {
+            const pr = await fetch(`/api/employees/${employeeId}/qst-pflicht`, { headers: ah() });
+            if (pr.ok) pflicht = await pr.json();
+        } catch {}
+        window._famPflichtCache = pflicht;
+        renderFamilieTab(el, members, employeeId, allowanceMap, pregnancyDetails, pflicht);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler</span></div>';
     }
 }
 
-function renderFamilieTab(el, members, employeeId, allowanceMap = {}) {
+function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyDetails = [], pflicht = null) {
     // Cache für Detail-Popup-Lookup
     window._familyMembersCache = members;
 
@@ -2050,7 +2594,30 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}) {
         Vater:      { color:'#92400e', bg:'#fef3c7' },
         Sonstige:   { color:'#475569', bg:'#f1f5f9' }
     };
-    let html = toolbar;
+    // Walter-Vorgabe 13.06.2026: roter Warnbanner ganz oben, wenn die QST-
+    // Befreiung über den Ehepartner läuft und das Beleg-Doku noch nicht am
+    // Family-Member verknüpft ist. Klick öffnet das gleiche Auswahl+Upload-
+    // Modal wie für ID/Pass / C-Ausweis beim MA selbst.
+    let spouseTopBanner = '';
+    if (pflicht && pflicht.spouseDokumentFehlt && pflicht.spouseFamilyMemberId
+        && (pflicht.befreiungsGrund === 'Ehepartner-CH' || pflicht.befreiungsGrund === 'Ehepartner-C')) {
+        const grundText = pflicht.befreiungsGrund === 'Ehepartner-CH'
+            ? 'Der Ehepartner ist Schweizer Staatsbürger — bitte Pass oder Identitätskarte des Ehepartners hier verknüpfen.'
+            : 'Der Ehepartner hat einen C-Ausweis — bitte das Bewilligungs-Dokument des Ehepartners hier verknüpfen.';
+        spouseTopBanner = `
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-left:4px solid #dc2626;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:18px">⚠️</span>
+            <div style="flex:1;min-width:200px">
+                <div style="font-weight:700;color:#991b1b;font-size:13px">Ausweis Ehepartner fehlt für die QST-Befreiung</div>
+                <div style="color:#b91c1c;font-size:12px;margin-top:2px">${grundText}</div>
+            </div>
+            <button onclick="openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${pflicht.spouseFamilyMemberId}})" style="background:#dc2626;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;white-space:nowrap">
+                📎 Dokument verknüpfen
+            </button>
+        </div>`;
+    }
+
+    let html = spouseTopBanner + toolbar;
 
     // Display-Label für Mitglieds-Typen (mit Plural für „Kinder").
     const typeLabel = (type, count) => {
@@ -2112,28 +2679,23 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}) {
                 } else {
                     spousePermitBadge = `<span title="Keine Bewilligung erfasst" style="font-size:11.5px;font-weight:600;color:#fff;background:#ea580c;border:1px solid #c2410c;padding:3px 10px;border-radius:5px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px">⚠ Keine Bewilligung</span>`;
                 }
-                // Walter-Vorgabe 07.06.2026: Doku-Button im SELBEN Stil wie
-                // beim Aufenthalt-Block (blau gefüllt wenn Verknüpfung mit
-                // linked_field_code='spouse' in der Dokument-Struktur existiert
-                // und beim MA Dokumente abgelegt sind, grau wenn nicht).
-                // Klick springt direkt in den in der Doku-Struktur hinterlegten
-                // Ordner (gefiltert auf den Spouse-Typ). Wenn keine Verknüpfung
-                // existiert: einfach in den Dokumente-Tab.
-                const hasSpouseDoc = window._linkedDocCodes && window._linkedDocCodes.has('spouse');
-                const spouseAction = hasSpouseDoc
-                    ? `openLinkedDoc('spouse')`
-                    : `if(typeof switchEmpTab==='function'){switchEmpTab('dokumente');}`;
-                spouseDocBtn = `<button onclick="event.stopPropagation();${spouseAction}"
-                    title="${hasSpouseDoc ? 'Verknüpfte Ehegatten-Dokumente öffnen' : 'Zur Dokumenten-Verwaltung springen'}"
-                    style="background:${hasSpouseDoc ? '#dbeafe' : '#f1f5f9'};border:1px solid ${hasSpouseDoc ? '#93c5fd' : '#e2e8f0'};border-radius:6px;padding:3px 9px;cursor:pointer;color:${hasSpouseDoc ? '#1d4ed8' : '#94a3b8'};display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;line-height:1">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                      <polyline points="14 2 14 8 20 8"/>
-                      <line x1="16" y1="13" x2="8" y2="13"/>
-                      <line x1="16" y1="17" x2="8" y2="17"/>
-                      <line x1="10" y1="9" x2="8" y2="9"/>
-                    </svg>Doku
-                </button>`;
+                // Walter-Vorgabe 13.06.2026: Doku-Button öffnet jetzt das
+                // gleiche Auswahl+Upload-Modal wie für ID/Pass/C-Ausweis am MA.
+                // Wenn DokumentId verknüpft → grüner „📄 Doku verknüpft"-Style
+                // mit Klick auf Vorschau-Panel. Sonst grauer „📎 Verknüpfen".
+                const hasSpouseDok = !!m.dokumentId;
+                if (hasSpouseDok) {
+                    spouseDocBtn = `<button onclick="event.stopPropagation();qstOpenBefreiungsDok(${employeeId}, ${m.dokumentId})"
+                        title="Verknüpftes Beleg-Dokument im Vorschau-Panel öffnen"
+                        style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:3px 9px;cursor:pointer;color:#15803d;display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;line-height:1">📄 Doku verknüpft</button>
+                        <button onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})"
+                        title="Anderes Dokument verknüpfen / hochladen"
+                        style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;cursor:pointer;color:#64748b;font-size:11.5px;font-weight:600;line-height:1">↻</button>`;
+                } else {
+                    spouseDocBtn = `<button onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})"
+                        title="Beleg-Dokument verknüpfen"
+                        style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#475569;display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;line-height:1">📎 Doku verknüpfen</button>`;
+                }
             }
 
             // Adress-Badge: erscheint nur wenn das Familienmitglied eine
@@ -2241,6 +2803,24 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}) {
         });
         html += `</div>`;
     });
+
+    // Walter 11.06.2026: Mutterschafts-Modul komplett im Familie-Tab — nur
+    // bei Frauen. Volle Funktionalität: Erfassen, Bearbeiten, Geburt eintragen,
+    // PDF, Löschen. Mutterschafts-Tab in der Tab-Bar gibt es nicht mehr.
+    const empF = selectedEmployee;
+    if (empF && IstWeiblich(empF.gender)) {
+        html += `
+        <div class="emp-section-title" style="margin-top:24px;display:flex;align-items:center;justify-content:space-between">
+            <span>Mutterschaft</span>
+            <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;margin-left:auto" onclick="mtsOpenNew(${employeeId})">+ Schwangerschaft erfassen</button>
+        </div>
+        <div id="mutterschaftContent">
+            ${pregnancyDetails.length
+                ? pregnancyDetails.map(d => renderPregnancyCard(d)).join('')
+                : `<div class="emp-placeholder" style="padding:24px"><span>Keine Schwangerschaft erfasst.</span></div>`
+            }
+        </div>`;
+    }
 
     el.innerHTML = html;
 }
@@ -2889,7 +3469,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
          entfernt — wird im Verträge-Tab gepflegt. Eintrittsdatum + Personal-Nr.
          stehen ohnehin im MA-Detail-Header. -->
 
-    ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser') ? `
+    ${currentUser?.role === 'admin' ? `
     <div class="emp-section-title">${_t('ma.section.lohn','Lohn')}</div>
     <div style="padding:10px 14px;background:${emp.isPayrollExcluded ? '#fef3c7' : '#f8fafc'};border:1px solid ${emp.isPayrollExcluded ? '#fde68a' : '#e2e8f0'};border-radius:8px">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
@@ -2897,7 +3477,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
                    ${emp.isPayrollExcluded ? 'checked' : ''}
                    style="margin-top:3px;width:16px;height:16px;flex-shrink:0">
             <div style="font-size:13px;color:#0f172a">
-                <b>${_t('ma.payrollExcluded.title','Kein Lohn')}</b> <span style="color:#94a3b8;font-weight:400;font-size:11.5px">${_t('ma.payrollExcluded.role','(Admin / HR-Verantwortliche)')}</span>
+                <b>${_t('ma.payrollExcluded.title','Kein Lohn')}</b> <span style="color:#94a3b8;font-weight:400;font-size:11.5px">${_t('ma.payrollExcluded.role','(nur Admin)')}</span>
                 <div style="font-size:11.5px;color:#64748b;margin-top:3px;line-height:1.45">
                     ${_t('ma.payrollExcluded.desc','MA wird im System geführt (Stempelsystem, Vorgesetzter-Referenz, Posteingang) — aber NICHT im Lohn-Tab abgerechnet. Beim CSV-Re-Import bleibt diese Markierung erhalten.')}
                 </div>
@@ -3223,8 +3803,9 @@ async function saveEmpEdit() {
     };
 
     // "Kein Lohn"-Flag — nur senden wenn der Toggle im Formular existiert
-    // (= aktueller User ist admin / superuser; sonst rendert das Feld nicht).
-    // Wird auf Backend-Seite zusätzlich rolle-geprüft.
+    // (= aktueller User ist admin; sonst rendert das Feld nicht).
+    // Walter-Vorgabe 13.06.2026: serverseitig auf admin-only beschränkt,
+    // andere Rollen würden 403 PHANTOM_TOGGLE_ADMIN_ONLY bekommen.
     const payrollExclChk = document.getElementById('ef-isPayrollExcluded');
     if (payrollExclChk) {
         empPayload.isPayrollExcluded = payrollExclChk.checked;
@@ -4036,6 +4617,287 @@ const ABSENCE_LABELS = {
     FREI_KOMP:  { label: 'Frei-Kompensation',          color: 'abs-type-nacht'   },
     BEZ_ABSENZ: { label: 'Bezahlte Absenz',            color: 'abs-type-schulung'},
 };
+
+// ══════════════════════════════════════════════════════════════════════
+// Walter-Vorgabe 10.06.2026: Mutterschafts-Modul.
+// ──────────────────────────────────────────────────────────────────────
+// Helper: erkennt „weiblich" über alle System-Konventionen.
+function IstWeiblich(gender) {
+    const g = String(gender || '').trim().toLowerCase();
+    return g === 'female' || g === 'weiblich' || g === 'f' || g === 'w';
+}
+
+async function loadMutterschaftTab(employeeId) {
+    const el = document.getElementById('mutterschaftContent');
+    if (!el) return;
+    el.innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
+    try {
+        const r = await fetch(`/api/pregnancies?employeeId=${employeeId}`, { headers: ah() });
+        if (!r.ok) {
+            el.innerHTML = `<div style="color:#dc2626;padding:18px">Fehler beim Laden (${r.status})</div>`;
+            return;
+        }
+        const list = await r.json();
+        // Detail-Daten (mit Fristen) für jede Schwangerschaft parallel laden.
+        const details = await Promise.all(list.map(p =>
+            fetch(`/api/pregnancies/${p.id}`, { headers: ah() }).then(rr => rr.ok ? rr.json() : null)));
+        renderMutterschaftTab(el, employeeId, details.filter(Boolean));
+    } catch (e) {
+        el.innerHTML = `<div style="color:#dc2626;padding:18px">Fehler: ${e.message}</div>`;
+    }
+}
+
+function renderMutterschaftTab(el, employeeId, details) {
+    const today = new Date().toISOString().slice(0, 10);
+    const newBtn = `<button class="btn btn-primary" onclick="mtsOpenNew(${employeeId})" style="padding:8px 16px;font-size:13px">+ Schwangerschaft erfassen</button>`;
+    if (!details.length) {
+        el.innerHTML = `
+        <div style="padding:14px 0 10px;display:flex;justify-content:space-between;align-items:center">
+            <h3 style="margin:0;font-size:15px;font-weight:700;color:#0f172a">Mutterschaft</h3>
+            ${newBtn}
+        </div>
+        <div class="emp-placeholder" style="padding:32px"><span>Keine Schwangerschaft erfasst.</span></div>`;
+        return;
+    }
+    el.innerHTML = `
+    <div style="padding:14px 0 10px;display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0;font-size:15px;font-weight:700;color:#0f172a">Mutterschaft</h3>
+        ${newBtn}
+    </div>
+    ${details.map(d => renderPregnancyCard(d)).join('')}
+    `;
+}
+
+function renderPregnancyCard(d) {
+    const p = d.pregnancy;
+    const fmt = iso => iso ? `${iso.slice(8,10)}.${iso.slice(5,7)}.${iso.slice(0,4)}` : '–';
+    const banner = d.kuendigungsschutz
+        ? `<div style="margin:8px 0 12px;padding:10px 14px;background:#fce7f3;border:1px solid #f9a8d4;border-radius:8px;color:#9d174d;font-size:13px;font-weight:600">
+              ⚖ Kündigungsschutz aktiv: ${fmt(d.kuendigungsschutz.von)} – ${fmt(d.kuendigungsschutz.bis)} (OR 336c)
+           </div>`
+        : '';
+    // Walter 10.06.2026: aufsteigend nach Datum sortieren — chronologisch
+    // lesbar (was zuerst greift, steht oben). Fristen ohne Datum (Defensive)
+    // landen am Ende.
+    const sortedFristen = [...(d.fristen || [])].sort((a, b) => {
+        const da = a.datum || '9999-12-31';
+        const db = b.datum || '9999-12-31';
+        return da.localeCompare(db);
+    });
+    const fristenRows = sortedFristen.map(f => {
+        let icon, color;
+        if (f.istArbeitsverbot && f.status === 'aktiv')      { icon = '🔴'; color = '#dc2626'; }
+        else if (f.status === 'aktiv')                        { icon = '🟢'; color = '#16a34a'; }
+        else if (f.status === 'abgeschlossen')                { icon = '✅'; color = '#94a3b8'; }
+        else                                                  { icon = '⚪'; color = '#64748b'; }
+        const lineThrough = f.status === 'abgeschlossen' ? 'text-decoration:line-through;opacity:0.65;' : '';
+        // Variante B (Walter 10.06.2026): Lohn-Pille + Staffel-Text + Phasen-Ende
+        const lohnParts = [];
+        if (f.lohnersatzPct  != null) lohnParts.push(`${f.lohnersatzPct} %`);
+        if (f.maxBetragProTag != null) lohnParts.push(`max. CHF ${Number(f.maxBetragProTag).toFixed(0)}/Tag`);
+        const lohnPill = lohnParts.length
+            ? `<span style="background:#fce7f3;color:#9d174d;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:9px;margin-left:6px;white-space:nowrap">${lohnParts.join(' · ')}</span>`
+            : '';
+        const staffelLine = f.staffelText
+            ? `<div style="font-size:11px;color:#9d174d;background:#fce7f3;padding:2px 6px;border-radius:4px;margin-top:3px;display:inline-block">${esc(f.staffelText)}</div>`
+            : '';
+        // Rechte Spalte: „ab" — und falls Phasen-Ende vorhanden auch „bis"
+        const dateBlock = f.datumEnde
+            ? `<div style="text-align:right">
+                  <div style="font-variant-numeric:tabular-nums;color:#475569;white-space:nowrap;font-size:12.5px">${fmt(f.datum)}</div>
+                  <div style="font-variant-numeric:tabular-nums;color:#94a3b8;white-space:nowrap;font-size:11px">bis ${fmt(f.datumEnde)}</div>
+               </div>`
+            : `<div style="font-variant-numeric:tabular-nums;color:#475569;white-space:nowrap;font-size:12.5px">${fmt(f.datum)}</div>`;
+        return `<div style="display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;${lineThrough}">
+            <div style="font-size:18px;line-height:1">${icon}</div>
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:600;color:${color}">${esc(f.bezeichnung)}${lohnPill}</div>
+                <div style="font-size:11.5px;color:#64748b">${esc(f.gesetz || '')}${f.beschreibung ? ' · ' + esc(f.beschreibung) : ''}</div>
+                ${staffelLine}
+            </div>
+            ${dateBlock}
+        </div>`;
+    }).join('');
+    const geburtsBtn = p.geburtsdatum
+        ? `<span style="color:#16a34a;font-size:12px;font-weight:600">Geburt: ${fmt(p.geburtsdatum)}</span>`
+        : `<button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="mtsOpenGeburt(${p.id})">Geburt eintragen</button>`;
+    return `
+    <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;background:white">
+        <div style="padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <div>
+                <div style="font-weight:700;color:#0f172a;font-size:14px">Errechneter Termin: ${fmt(p.errechneterTermin)}</div>
+                <div style="font-size:12px;color:#64748b;margin-top:2px">Gemeldet: ${fmt(p.meldedatum)}${p.bemerkung ? ' · ' + esc(p.bemerkung) : ''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+                ${geburtsBtn}
+                <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="mtsOpenDokuTab()" title="Dokumente: Absenzen › Mutter-/Vaterschaft">📁 Dokumente</button>
+                <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="mtsDownloadPdf(${p.id})">📄 PDF</button>
+                <div class="dok-menu-wrap" style="display:inline-block">
+                    <button class="dok-menu-btn" onclick="mtsToggleMenu(event, ${p.id})" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="mtsMenu-${p.id}">
+                        <button class="dok-menu-item" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
+                        <button class="dok-menu-item" onclick="mtsDownloadPdf(${p.id})">Übersicht als PDF</button>
+                        <button class="dok-menu-item danger" onclick="mtsDelete(${p.id})">Löschen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        ${banner}
+        <div style="padding:6px 0 10px">${fristenRows}</div>
+    </div>`;
+}
+
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function mtsToggleMenu(event, id) { rowMenuToggle(event, 'mts', id); }
+
+// Walter 11.06.2026: Sprung in den Dokumente-Tab + Filter auf
+// „Absenzen → Mutter-/Vaterschaft". Analog openAbsenceArztzeugnis().
+async function mtsOpenDokuTab() {
+    if (!selectedEmployeeId) return;
+    if (typeof switchEmpTab === 'function') switchEmpTab('dokumente');
+
+    let taxonomy = null;
+    try {
+        const r = await fetch('/api/documents/taxonomie', { headers: ah() });
+        if (r.ok) taxonomy = await r.json();
+    } catch {}
+    if (!taxonomy || taxonomy.length === 0) return;
+
+    // Bevorzugt: Kategorie „Absenzen" + Typ enthält „Mutter" oder „Vaterschaft".
+    let matchedTyp = null, matchedKat = null;
+    for (const k of taxonomy) {
+        const isAbsenzen = (k.name || '').toLowerCase().includes('absenzen');
+        const t = (k.typen || []).find(x => {
+            const n = (x.name || '').toLowerCase();
+            return n.includes('mutter') || n.includes('vaterschaft');
+        });
+        if (t && (isAbsenzen || !matchedTyp)) {
+            matchedTyp = t; matchedKat = k;
+            if (isAbsenzen) break;
+        }
+    }
+    if (!matchedTyp) {
+        alert('Kein Dokument-Typ „Mutter-/Vaterschaft" gefunden.\n'
+            + 'Bitte unter Systemeinstellungen → Dokument-Struktur einen Typ '
+            + 'unter Kategorie „Absenzen" anlegen.');
+        return;
+    }
+
+    let attempts = 0;
+    while (!document.getElementById('empTabDokumente')
+            ?.querySelector('.dok-tree-node')
+           && attempts < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        attempts++;
+    }
+    if (typeof dokSelectType === 'function') {
+        dokSelectType(matchedTyp.id, matchedKat.id);
+    }
+    // Bei genau einem Dokument: Vorschau direkt öffnen.
+    try {
+        const docs = (typeof _dokState !== 'undefined' && Array.isArray(_dokState.docs))
+            ? _dokState.docs.filter(d => d.dokumentTypId === matchedTyp.id)
+            : [];
+        if (docs.length === 1 && typeof dokOpenPreviewPanel === 'function') {
+            dokOpenPreviewPanel(docs[0].id);
+        }
+    } catch {}
+}
+
+function mtsOpenNew(employeeId) {
+    document.getElementById('mtsFormId').value = '';
+    document.getElementById('mtsFormEmployeeId').value = employeeId;
+    document.getElementById('mtsFormTitle').textContent = 'Schwangerschaft erfassen';
+    const today = new Date().toISOString().slice(0,10);
+    document.getElementById('mtsFormMeldedatum').value = today;
+    document.getElementById('mtsFormET').value = '';
+    document.getElementById('mtsFormBemerkung').value = '';
+    document.getElementById('mtsFormModal').style.display = 'flex';
+}
+
+async function mtsOpenEdit(id) {
+    const r = await fetch(`/api/pregnancies/${id}`, { headers: ah() });
+    if (!r.ok) return alert('Fehler beim Laden');
+    const d = await r.json();
+    const p = d.pregnancy;
+    document.getElementById('mtsFormId').value = p.id;
+    document.getElementById('mtsFormEmployeeId').value = p.employeeId;
+    document.getElementById('mtsFormTitle').textContent = 'Schwangerschaft bearbeiten';
+    document.getElementById('mtsFormMeldedatum').value = p.meldedatum;
+    document.getElementById('mtsFormET').value = p.errechneterTermin;
+    document.getElementById('mtsFormBemerkung').value = p.bemerkung || '';
+    document.getElementById('mtsFormModal').style.display = 'flex';
+}
+
+function mtsCloseForm() { document.getElementById('mtsFormModal').style.display = 'none'; }
+
+async function mtsSaveForm() {
+    const id = document.getElementById('mtsFormId').value;
+    const employeeId = parseInt(document.getElementById('mtsFormEmployeeId').value);
+    const dto = {
+        employeeId,
+        meldedatum:        document.getElementById('mtsFormMeldedatum').value,
+        errechneterTermin: document.getElementById('mtsFormET').value,
+        bemerkung:         document.getElementById('mtsFormBemerkung').value.trim() || null,
+    };
+    if (!dto.meldedatum || !dto.errechneterTermin) {
+        alert('Meldedatum und errechneter Termin sind Pflicht.');
+        return;
+    }
+    const url = id ? `/api/pregnancies/${id}` : '/api/pregnancies';
+    const method = id ? 'PUT' : 'POST';
+    const r = await fetch(url, {
+        method,
+        headers: { ...ah(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(dto)
+    });
+    if (!r.ok) return alert('Fehler: ' + await r.text());
+    mtsCloseForm();
+    loadFamilieTab(employeeId);
+}
+
+async function mtsOpenGeburt(id) {
+    const datum = prompt('Geburtsdatum (TT.MM.JJJJ oder YYYY-MM-DD):');
+    if (!datum) return;
+    let iso;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) iso = datum;
+    else if (/^\d{2}\.\d{2}\.\d{4}$/.test(datum)) {
+        const [d,m,y] = datum.split('.');
+        iso = `${y}-${m}-${d}`;
+    } else return alert('Ungültiges Datum.');
+    const r = await fetch(`/api/pregnancies/${id}`, {
+        method: 'PUT',
+        headers: { ...ah(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ geburtsdatum: iso })
+    });
+    if (!r.ok) return alert('Fehler: ' + await r.text());
+    loadFamilieTab(selectedEmployeeId);
+}
+
+async function mtsDownloadPdf(id) {
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    try {
+        const r = await fetch(`/api/pregnancies/${id}/pdf`, { headers: ah() });
+        if (!r.ok) return alert('PDF-Fehler: ' + r.status);
+        const blob = await r.blob();
+        const fname = `Mutterschaft_${id}.pdf`;
+        if (typeof previewFileModal === 'function') previewFileModal(blob, fname);
+        else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, fname);
+    } catch (e) {
+        alert('PDF-Fehler: ' + e.message);
+    }
+}
+
+async function mtsDelete(id) {
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    if (!confirm('Schwangerschaft wirklich löschen?')) return;
+    const r = await fetch(`/api/pregnancies/${id}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) return alert('Fehler: ' + await r.text());
+    loadFamilieTab(selectedEmployeeId);
+}
 
 async function loadAbsenzenTab(employeeId) {
     const el = document.getElementById('absenzenContent');
@@ -7306,6 +8168,154 @@ function renderPostfachAccountBlock(el, s) {
             Das aktuelle Passwort des MA ist nicht einsehbar — nur ein Reset auf das Initial-Passwort ist möglich. Beim ersten Login wird der MA aufgefordert ein neues Passwort zu setzen.
         </div>
     </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// MA LÖSCHEN (Walter-Vorgabe 12.06.2026)
+// ──────────────────────────────────────────────────────────────────────
+// Nur für admin sichtbar (Button im Header). Zwei Pfade:
+//   • Lohn-Daten vorhanden → SOFT-DELETE (IsHidden=true, MA bleibt in DB
+//     für Audit, ist aber überall ausgeblendet)
+//   • Keine Lohn-Daten     → HARD-DELETE (alle Daten weg: Verträge,
+//     Bewilligungen, Doku, Bank, Familie, Absenzen, Stempelzeiten, etc.)
+//
+// Modal zeigt die Counts der zu löschenden Daten und verlangt das Tippen
+// des Nachnamens (Anti-Versehen-Schutz analog GitHub „delete repo").
+// ══════════════════════════════════════════════════════════════════════
+
+async function openDeleteEmployeeModal(employeeId) {
+    if (!employeeId) return;
+    if (currentUser?.role !== 'admin') {
+        alert('Nur Admin darf Mitarbeiter löschen.');
+        return;
+    }
+    let preview;
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/delete-preview`, { headers: ah() });
+        if (!res.ok) {
+            const j = await res.json().catch(() => null);
+            alert(j?.message || 'Fehler beim Laden der Vorschau.');
+            return;
+        }
+        preview = await res.json();
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+        return;
+    }
+
+    const c       = preview.counts || {};
+    const isSoft  = preview.mode === 'soft';
+    const lohnRow = preview.hasLohnData
+        ? `<div style="background:#fef3c7;border:1px solid #fbbf24;border-left:4px solid #f59e0b;border-radius:6px;padding:10px 14px;margin-top:10px;color:#92400e;font-size:12.5px;line-height:1.5">
+             <strong>Lohn-Daten gefunden:</strong> ${c.payrollSnapshots} Lohnabrechnungen, ${c.payrollSaldi} Saldi, ${c.akontoZahlungen} Akonto-Zahlungen.<br>
+             Diese bleiben für Audit + Jahresauswertungen erhalten. Der MA wird in allen Listen ausgeblendet.
+           </div>`
+        : '';
+
+    const dataList = [
+        { n: c.employments,      label: 'Verträge' },
+        { n: c.permits,          label: 'Bewilligungen' },
+        { n: c.documents,        label: 'Dokumente' },
+        { n: c.bankAccounts,     label: 'Bankverbindungen' },
+        { n: c.familyMembers,    label: 'Familienangaben' },
+        { n: c.absences,         label: 'Absenzen' },
+        { n: c.timeEntries,      label: 'Stempelzeiten' }
+    ].filter(x => x.n > 0);
+
+    const hardWarn = !isSoft && dataList.length > 0
+        ? `<div style="background:#fef2f2;border:1px solid #fca5a5;border-left:4px solid #dc2626;border-radius:6px;padding:10px 14px;margin-top:10px;color:#991b1b;font-size:12.5px;line-height:1.6">
+             <strong>UNWIDERRUFLICH:</strong> folgende Daten werden komplett gelöscht:
+             <ul style="margin:6px 0 0;padding-left:18px">
+               ${dataList.map(x => `<li>${x.n} ${x.label}</li>`).join('')}
+             </ul>
+           </div>`
+        : (!isSoft ? '<div style="background:#fef2f2;border:1px solid #fca5a5;border-left:4px solid #dc2626;border-radius:6px;padding:10px 14px;margin-top:10px;color:#991b1b;font-size:12.5px"><strong>Keine zusätzlichen Daten</strong> — der MA hat nur Stammdaten und wird komplett gelöscht.</div>' : '');
+
+    // Sicherheits-Bestätigung: User muss exakt den Nachnamen tippen
+    const expectedConfirm = (preview.employeeName.split(' ').pop() || '').trim();
+
+    const modalHtml = `
+    <div id="delEmpModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)closeDeleteEmployeeModal()">
+        <div style="background:#fff;border-radius:12px;width:540px;max-width:92vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 56px rgba(0,0,0,0.25)">
+            <div style="padding:16px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
+                <span style="font-size:22px">${isSoft ? '👁' : '🗑'}</span>
+                <div style="flex:1">
+                    <div style="font-weight:700;color:#0f172a;font-size:15px">${isSoft ? 'Mitarbeiter ausblenden' : 'Mitarbeiter LÖSCHEN'}</div>
+                    <div style="color:#64748b;font-size:12px;margin-top:2px">${preview.employeeName} · Personalnr. ${preview.employeeNumber}</div>
+                </div>
+                <button onclick="closeDeleteEmployeeModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1">×</button>
+            </div>
+            <div style="padding:18px 22px">
+                <div style="color:#475569;font-size:13px;line-height:1.55">
+                    ${isSoft
+                        ? `Da bereits Lohnabrechnungen existieren, kann dieser Mitarbeiter nicht physisch gelöscht werden. Er wird unsichtbar gemacht.`
+                        : `Dieser Mitarbeiter wird <strong>komplett gelöscht</strong>. Diese Aktion kann nicht rückgängig gemacht werden.`}
+                </div>
+                ${lohnRow}
+                ${hardWarn}
+                <div style="margin-top:18px">
+                    <label style="font-size:12.5px;color:#475569;font-weight:600">Zur Bestätigung: <span style="color:#0f172a">"${expectedConfirm}"</span> eintippen</label>
+                    <input id="delEmpConfirm" type="text" autocomplete="off" oninput="delEmpUpdateBtnState()" placeholder="${expectedConfirm}"
+                           style="width:100%;margin-top:6px;padding:9px 11px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:monospace">
+                </div>
+            </div>
+            <div style="padding:14px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px">
+                <button onclick="closeDeleteEmployeeModal()" style="background:#fff;border:1px solid #cbd5e1;color:#475569;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer">Abbrechen</button>
+                <button id="delEmpConfirmBtn" disabled onclick="confirmDeleteEmployee(${employeeId}, '${preview.mode}')" style="background:#dc2626;border:none;color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:not-allowed;opacity:.5">
+                    ${isSoft ? 'Ausblenden' : 'Endgültig löschen'}
+                </button>
+            </div>
+        </div>
+    </div>`;
+    // Vorhandenes Modal entfernen, dann neues einfügen
+    closeDeleteEmployeeModal();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    window._delEmpExpected = expectedConfirm;
+    setTimeout(() => document.getElementById('delEmpConfirm')?.focus(), 50);
+}
+
+function delEmpUpdateBtnState() {
+    const input = document.getElementById('delEmpConfirm');
+    const btn   = document.getElementById('delEmpConfirmBtn');
+    if (!input || !btn) return;
+    const ok = (input.value || '').trim() === (window._delEmpExpected || '');
+    btn.disabled = !ok;
+    btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
+    btn.style.opacity = ok ? '1' : '.5';
+}
+
+function closeDeleteEmployeeModal() {
+    document.getElementById('delEmpModal')?.remove();
+    delete window._delEmpExpected;
+}
+
+async function confirmDeleteEmployee(employeeId, expectedMode) {
+    const btn = document.getElementById('delEmpConfirmBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Lösche…'; }
+    try {
+        const res = await fetch(`/api/employees/${employeeId}?expectedMode=${encodeURIComponent(expectedMode)}`, {
+            method: 'DELETE',
+            headers: ah()
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+            alert(data?.message || `Fehler beim Löschen (${res.status})`);
+            if (btn) { btn.disabled = false; btn.textContent = expectedMode === 'soft' ? 'Ausblenden' : 'Endgültig löschen'; }
+            return;
+        }
+        closeDeleteEmployeeModal();
+        alert(data?.message || 'Mitarbeiter gelöscht.');
+        // MA-Liste neu laden + Detail-Bereich leeren
+        selectedEmployeeId = null;
+        selectedEmployee   = null;
+        window.activeEmpId = null;
+        if (typeof loadMitarbeiterList === 'function') await loadMitarbeiterList();
+        const detail = document.getElementById('empDetail');
+        if (detail) detail.innerHTML = '<div class="emp-placeholder"><span>Bitte einen Mitarbeiter auswählen.</span></div>';
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+        if (btn) { btn.disabled = false; btn.textContent = expectedMode === 'soft' ? 'Ausblenden' : 'Endgültig löschen'; }
+    }
 }
 
 async function postfachResetPassword(employeeId) {

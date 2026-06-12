@@ -1452,6 +1452,23 @@ async function dokUpload() {
             const err = await r.text();
             throw new Error(err || 'HTTP ' + r.status);
         }
+        // Walter-Vorgabe 13.06.2026: optionaler Callback nach erfolgreichem
+        // Upload. Nutzen es z.B. die Ausweis-Doku-Verknüpfung und die QST-
+        // Behörden-Befreiung — beide müssen die NEUE Dokument-ID kennen, um
+        // die FK am MA zu setzen.
+        let respData = null;
+        try { respData = await r.json(); } catch {}
+        const afterUpload = _dokState.afterUpload;
+        _dokState.afterUpload = null;   // einmalig
+        // WICHTIG: Callback VOR dem Schließen ausführen, damit Form-Werte
+        // (gueltigVon/gueltigBis) bei Bedarf noch ablesbar sind.
+        if (typeof afterUpload === 'function') {
+            try {
+                await afterUpload(respData?.id ?? null, respData, {
+                    gueltigVon, gueltigBis, bemerkung
+                });
+            } catch (e) { console.error('afterUpload', e); }
+        }
         closeDokUploadModal();
         loadEmpDokumente(_dokState.empId);
     } catch (err) {

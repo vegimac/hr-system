@@ -52,6 +52,15 @@ public class EmployeeFamilyMember
     /// <summary>Nationalität (FK auf Nationality-Tabelle, wie beim MA).</summary>
     public int? NationalityId { get; set; }
 
+    /// <summary>
+    /// Walter-Vorgabe 13.06.2026: explizite Verknüpfung zum Beleg-Dokument
+    /// dieses Familienmitglieds (Pass / ID-Karte für Schweizer Spouse, oder
+    /// Bewilligungs-Dokument für C-Ausweis-Spouse). Wird von QstPflichtCheck-
+    /// Service genutzt, um die Befreiung über Ehepartner zu validieren.
+    /// NULL = nicht verknüpft → roter Warnbanner.
+    /// </summary>
+    public int? DokumentId { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

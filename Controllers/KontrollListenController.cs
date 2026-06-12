@@ -38,9 +38,14 @@ public class KontrollListenController : ControllerBase
     public async Task<IActionResult> SpouseDokuFehlt([FromQuery] int? companyProfileId = null)
     {
         // 1) Aktive MA (optional auf Filiale beschränkt) + neueste C-Permit-Info
+        // Walter-Vorgabe 13.06.2026: Phantom-MA (IsPayrollExcluded=true) sind
+        // für die HR-Kontrollen irrelevant — sie haben keine Lohnzahlung und
+        // damit keine QST-Pflicht. Auch der Ehegatten-Doku-Check entfällt.
         var empQuery = _db.Employees
             .Include(e => e.NationalityRef)
-            .Where(e => e.IsActive && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+            .Where(e => e.IsActive
+                     && !e.IsPayrollExcluded
+                     && !e.EmployeeNumber.ToLower().EndsWith("alt"));
         if (companyProfileId.HasValue)
         {
             var cpid = companyProfileId.Value;
@@ -130,5 +135,102 @@ public class KontrollListenController : ControllerBase
             .ToList();
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Walter-Vorgabe 13.06.2026: MA, deren QST-Befreiung an einem eigenen
+    /// Ausweis hängt, aber das Beleg-Dokument noch nicht am MA verknüpft ist.
+    ///
+    /// Zwei Varianten:
+    ///   • CH-Bürger (NationalityRef.Code = "CH") ohne `id_pass_dokument_id`
+    ///   • C-Ausweis-Inhaber (jüngster PermitHistory-Eintrag = "C") ohne
+    ///     `c_ausweis_dokument_id`
+    ///
+    /// Skip:
+    ///   - IsActive=false, IsHidden=true, IsPayrollExcluded=true (Phantom)
+    ///   - `+alt`-Suffix-MA (Pre-Mirus-Archiv)
+    ///   - MA mit Behörden-Befreiung (`QstBefreitDurchBehoerde=true`) — die
+    ///     stützen die Befreiung auf das Behördenschreiben, nicht den Ausweis.
+    /// </summary>
+    [HttpGet("employee-ausweis-fehlt")]
+    public async Task<IActionResult> EmployeeAusweisFehlt([FromQuery] int? companyProfileId = null)
+    {
+        var empQuery = _db.Employees
+            .Include(e => e.NationalityRef)
+            .Where(e => e.IsActive
+                     && !e.IsHidden
+                     && !e.IsPayrollExcluded
+                     && !e.QstBefreitDurchBehoerde
+                     && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+        if (companyProfileId.HasValue)
+        {
+            var cpid = companyProfileId.Value;
+            empQuery = empQuery.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+        }
+
+        var emps = await empQuery
+            .Select(e => new {
+                e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
+                NatCode               = e.NationalityRef != null ? e.NationalityRef.Code : null,
+                IdPassDokumentId      = e.IdPassDokumentId,
+                CAusweisDokumentId    = e.CAusweisDokumentId
+            })
+            .ToListAsync();
+
+        var empIds = emps.Select(e => e.Id).ToList();
+        if (empIds.Count == 0) return Ok(Array.Empty<object>());
+
+        // Neueste Bewilligung pro MA — gleiche „neueste"-Logik wie überall:
+        // max(ValidTo) → bei Gleichheit min(ValidFrom).
+        var maxDate = new DateOnly(9999, 12, 31);
+        var histAll = await _db.EmployeePermitHistories
+            .Include(h => h.PermitType)
+            .Where(h => empIds.Contains(h.EmployeeId) && h.PermitTypeId != null)
+            .ToListAsync();
+        var newestPermitByEmp = histAll
+            .GroupBy(h => h.EmployeeId)
+            .ToDictionary(g => g.Key, g => g
+                .OrderByDescending(x => x.ValidTo ?? maxDate)
+                .ThenBy(x => x.ValidFrom)
+                .ThenBy(x => x.Id)
+                .First());
+
+        var result = new List<object>();
+        foreach (var e in emps)
+        {
+            bool isCh = string.Equals(e.NatCode, "CH", StringComparison.OrdinalIgnoreCase);
+
+            if (isCh)
+            {
+                // CH-Bürger → braucht id_pass_dokument_id
+                if (e.IdPassDokumentId.HasValue) continue;
+                result.Add(new {
+                    employeeId      = e.Id,
+                    employeeNumber  = e.EmployeeNumber,
+                    employeeName    = ($"{e.FirstName} {e.LastName}").Trim(),
+                    kind            = "CH-Buerger",
+                    reason          = "CH-Bürger — ID oder Pass fehlt",
+                    permitCode      = "CH"
+                });
+                continue;
+            }
+
+            // Nicht-CH → prüfen ob aktiver C-Ausweis vorliegt
+            if (!newestPermitByEmp.TryGetValue(e.Id, out var p)) continue;
+            bool isC = string.Equals(p.PermitType?.Code, "C", StringComparison.OrdinalIgnoreCase);
+            if (!isC) continue;
+
+            if (e.CAusweisDokumentId.HasValue) continue;
+            result.Add(new {
+                employeeId      = e.Id,
+                employeeNumber  = e.EmployeeNumber,
+                employeeName    = ($"{e.FirstName} {e.LastName}").Trim(),
+                kind            = "C-Ausweis",
+                reason          = "C-Ausweis — Bewilligungs-Dokument fehlt",
+                permitCode      = "C"
+            });
+        }
+
+        return Ok(result.OrderBy(r => ((dynamic)r).employeeName).ToList());
     }
 }

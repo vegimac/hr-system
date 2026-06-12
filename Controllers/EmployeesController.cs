@@ -20,10 +20,21 @@ public class EmployeesController : ControllerBase
         _postfach = postfach;
     }
 
+    /// <summary>
+    /// Walter-Vorgabe 13.06.2026: Phantom-MA (IsPayrollExcluded=true) sind
+    /// nur für admin sichtbar. Für alle anderen Rollen (user/superuser/HR/
+    /// buchhaltung) werden sie aus den MA-Listen herausgefiltert.
+    /// </summary>
+    private bool IsAdminUser() => User.IsInRole("admin");
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        // Walter-Vorgabe 12.06.2026: IsHidden ausblenden (Soft-Delete).
+        // Walter-Vorgabe 13.06.2026: Phantom-MA nur für admin sichtbar.
+        var isAdmin = IsAdminUser();
         var employees = await _context.Employees
+            .Where(e => !e.IsHidden && (isAdmin || !e.IsPayrollExcluded))
             .Include(e => e.Employments).ThenInclude(em => em.JobGroup)   // FK-Code für Frontend (Walter 26.05.2026)
             .OrderBy(e => ((e.FirstName ?? "") + " " + (e.LastName ?? "")).Trim())
             .ToListAsync();
@@ -34,8 +45,9 @@ public class EmployeesController : ControllerBase
     [HttpGet("lookup")]
     public async Task<IActionResult> GetLookup()
     {
+        var isAdmin = IsAdminUser();
         var employees = await _context.Employees
-            .Where(e => e.IsActive)
+            .Where(e => e.IsActive && !e.IsHidden && (isAdmin || !e.IsPayrollExcluded))
             .OrderBy(e => ((e.FirstName ?? "") + " " + (e.LastName ?? "")).Trim())
             .Select(e => new
             {
@@ -58,8 +70,9 @@ public class EmployeesController : ControllerBase
 
         var restaurantPrefix = NormalizeRestaurantPrefix(company.RestaurantCode);
 
+        var isAdmin = IsAdminUser();
         var employees = await _context.Employees
-            .Where(e => e.IsActive)
+            .Where(e => e.IsActive && !e.IsHidden && (isAdmin || !e.IsPayrollExcluded))
             .ToListAsync();
 
         var filtered = employees
@@ -89,24 +102,28 @@ public class EmployeesController : ControllerBase
         if (employee == null)
             return NotFound();
 
-        // Klartext-Name der Nationalität (Walter-Vorgabe 14.05.2026: immer
-        // Volltext anzeigen, nie nur den ISO-Code). Fallback-Kette:
-        //   1) AppText (Module=NATIONALITY, TextKey={CODE}.NAME, Sprache de)
-        //   2) statische ISO-Tabelle CountryNamesDe (deckt alle ISO-3166-Codes)
-        //   3) als allerletzter Ausweg der Code selbst
-        // Sprache: aktuell hardcoded auf 'de' — könnte später aus User-Sprache kommen.
+        // Klartext-Name der Nationalität (Walter-Vorgabe 14.05.2026, präzisiert
+        // 13.06.2026): immer Volltext anzeigen, nie nur den ISO-Code. Quelle:
+        //   1) `Nationality.NameDe` aus der DB (Walter pflegt die Liste in den
+        //      Systemeinstellungen — fehlt sie, wird sie dort ergänzt)
+        //   2) als allerletzter Ausweg der Code selbst
+        // KEINE hardgecodete Fallback-Tabelle mehr.
         string? natName = null;
         var natCode = employee.NationalityRef?.Code ?? employee.Nationality;
         if (!string.IsNullOrWhiteSpace(natCode))
         {
-            var key = $"{natCode}.NAME";
-            var txt = await _context.AppTexts
-                .Where(t => t.Module == "NATIONALITY" && t.LanguageCode == "de" && t.TextKey == key)
-                .Select(t => t.Content)
-                .FirstOrDefaultAsync();
-            natName = !string.IsNullOrWhiteSpace(txt)
-                ? txt
-                : (CountryNamesDe.Resolve(natCode) ?? natCode);
+            // Falls der FK gesetzt ist, sind Code + NameDe bereits geladen.
+            // Sonst (Legacy-Pfad: nur `employee.Nationality` als String) noch
+            // einmal anhand des Codes in die Tabelle schauen — auch da nur DB.
+            var nameDe = employee.NationalityRef?.NameDe;
+            if (string.IsNullOrWhiteSpace(nameDe))
+            {
+                nameDe = await _context.Nationalities
+                    .Where(n => n.Code == natCode)
+                    .Select(n => n.NameDe)
+                    .FirstOrDefaultAsync();
+            }
+            natName = !string.IsNullOrWhiteSpace(nameDe) ? nameDe : natCode;
         }
 
         // permitExpiryDate (abgeleitet) + permitType:
@@ -349,6 +366,18 @@ public class EmployeesController : ControllerBase
         // historische Belege). So bleibt der Lohnlauf-Workflow konsistent.
         if (dto.IsPayrollExcluded.HasValue)
         {
+            // Walter-Vorgabe 13.06.2026: „Kein Lohn"-Toggle ist admin-only.
+            // Wenn ein non-admin den Wert ÄNDERN will → 403. Wenn er den
+            // Wert nur unverändert mitsendet (Frontend-State), still
+            // ignorieren — keine fälschliche Ablehnung des PUT-Calls.
+            bool toggleAttempted = employee.IsPayrollExcluded != dto.IsPayrollExcluded.Value;
+            if (toggleAttempted && !IsAdminUser())
+            {
+                return StatusCode(403, new {
+                    error = "PHANTOM_TOGGLE_ADMIN_ONLY",
+                    message = "Nur Admin darf „MA ohne Lohn“ setzen oder aufheben."
+                });
+            }
             bool wirdPhantom = !employee.IsPayrollExcluded && dto.IsPayrollExcluded.Value;
             employee.IsPayrollExcluded = dto.IsPayrollExcluded.Value;
 
@@ -682,6 +711,51 @@ public class EmployeesController : ControllerBase
     }
 
     /// <summary>
+    /// Walter-Vorgabe 13.06.2026: Beleg-Dokument für die automatische QST-Befreiung
+    /// am MA verknüpfen oder aufheben. Welcher Slot bedient wird, hängt vom `kind`:
+    ///   • kind = "id_pass"   → employee.id_pass_dokument_id   (für CH-Bürger)
+    ///   • kind = "c_ausweis" → employee.c_ausweis_dokument_id (für C-Ausweis-Inhaber)
+    /// Aufheben: dokumentId = null. Setzen: dokumentId muss diesem MA gehören.
+    /// </summary>
+    [HttpPatch("{id:int}/ausweis-doku")]
+    public async Task<IActionResult> SetAusweisDoku(int id, [FromBody] AusweisDokuDto dto)
+    {
+        var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Id == id);
+        if (emp == null) return NotFound();
+
+        var kind = (dto.Kind ?? "").Trim().ToLowerInvariant();
+        if (kind != "id_pass" && kind != "c_ausweis")
+            return BadRequest(new { error = "KIND_INVALID", message = "kind muss 'id_pass' oder 'c_ausweis' sein." });
+
+        if (dto.DokumentId.HasValue)
+        {
+            var dokOk = await _context.EmployeeDokumente
+                .AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == id);
+            if (!dokOk)
+                return BadRequest(new { error = "DOKUMENT_INVALID",
+                    message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
+        }
+
+        if (kind == "id_pass")    emp.IdPassDokumentId   = dto.DokumentId;
+        else                       emp.CAusweisDokumentId = dto.DokumentId;
+
+        await _context.SaveChangesAsync();
+        return Ok(new
+        {
+            id                  = emp.Id,
+            kind,
+            idPassDokumentId    = emp.IdPassDokumentId,
+            cAusweisDokumentId  = emp.CAusweisDokumentId
+        });
+    }
+
+    public class AusweisDokuDto
+    {
+        public string? Kind { get; set; }      // "id_pass" | "c_ausweis"
+        public int?    DokumentId { get; set; } // null = Verknüpfung aufheben
+    }
+
+    /// <summary>
     /// Live-Check: ist der MA am angegebenen Stichtag QST-pflichtig + ist eine
     /// QST-Erfassung vorhanden? Verwendet für den QST-Tab-Banner und das
     /// Dashboard-Audit. Stichtag default = heute.
@@ -691,6 +765,40 @@ public class EmployeesController : ControllerBase
     {
         var date = stichtag ?? DateOnly.FromDateTime(DateTime.Today);
         var result = await check.CheckAsync(id, date);
+
+        // Walter-Vorgabe 13.06.2026: aktuell verknüpfte Beleg-Doku-IDs
+        // an das Frontend durchreichen, damit der QST-Banner den Beleg
+        // direkt im Vorschau-Panel öffnen kann.
+        int? idPassDokId      = null;
+        int? cAusweisDokId    = null;
+        int? spouseFamilyId   = null;
+        int? spouseDokumentId = null;
+        if (result.BefreiungsGrund == "CH-Buerger" || result.BefreiungsGrund == "C-Ausweis")
+        {
+            var emp = await _context.Employees
+                .Where(e => e.Id == id)
+                .Select(e => new { e.IdPassDokumentId, e.CAusweisDokumentId })
+                .FirstOrDefaultAsync();
+            if (emp != null)
+            {
+                if (result.BefreiungsGrund == "CH-Buerger") idPassDokId = emp.IdPassDokumentId;
+                else                                          cAusweisDokId = emp.CAusweisDokumentId;
+            }
+        }
+        if (result.BefreiungsGrund == "Ehepartner-CH" || result.BefreiungsGrund == "Ehepartner-C")
+        {
+            var spouse = await _context.EmployeeFamilyMembers
+                .Where(f => f.EmployeeId == id && f.MemberType == "Ehepartner" && f.DateOfDeath == null)
+                .OrderByDescending(f => f.Id)
+                .Select(f => new { f.Id, f.DokumentId })
+                .FirstOrDefaultAsync();
+            if (spouse != null)
+            {
+                spouseFamilyId   = spouse.Id;
+                spouseDokumentId = spouse.DokumentId;
+            }
+        }
+
         return Ok(new
         {
             isPflichtOffen = result.IsPflichtOffen,
@@ -704,8 +812,209 @@ public class EmployeesController : ControllerBase
             befreiungsDokumentId  = result.BefreiungsDokumentId,
             befreiungsGueltigAb   = result.BefreiungsGueltigAb,
             befreiungsGueltigBis  = result.BefreiungsGueltigBis,
+            // Walter-Vorgabe 12.06.2026: bei Befreiung über Ehepartner (CH/C)
+            // melden, ob der Ausweis des Ehepartners (linked_field_code=spouse)
+            // beim MA hinterlegt ist — Frontend zeigt sonst einen roten
+            // Warnbanner zusätzlich zum grünen Befreiungs-Banner.
+            spouseDokumentFehlt   = result.SpouseDokumentFehlt,
+            // Walter-Vorgabe 13.06.2026: dasselbe für den MA selbst:
+            //   CH-Bürger → id_card/passport fehlt
+            //   C-Ausweis → permit-Dokument fehlt
+            employeeDokumentFehlt = result.EmployeeDokumentFehlt,
+            // Aktuell verknüpfte Beleg-Doku-IDs (oben aufgelöst).
+            idPassDokumentId   = idPassDokId,
+            cAusweisDokumentId = cAusweisDokId,
+            // Ehepartner-Beleg + Family-Member-ID für den Doku-Verknüpfungs-PATCH.
+            spouseFamilyMemberId = spouseFamilyId,
+            spouseDokumentId     = spouseDokumentId,
             stichtag = date
         });
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // MA LÖSCHEN (Walter-Vorgabe 12.06.2026)
+    // ──────────────────────────────────────────────────────────────────
+    // Zwei Pfade je nachdem, ob der MA Lohn-Daten hat:
+    //   • Lohn-Daten vorhanden (PayrollSnapshot / PayrollSaldo / AkontoZahlung)
+    //     → SOFT-DELETE: IsHidden = true + IsActive = false. Datensätze
+    //     bleiben für Audit + Jahresauswertungen erhalten, MA ist aber in
+    //     allen Listen, Pickern und im Lohnlauf ausgeblendet.
+    //   • Keine Lohn-Daten → HARD-DELETE: alle abhängigen Tabellen werden
+    //     in einer Transaktion gelöscht (Verträge, Bewilligungen, Doku,
+    //     Bank, Familie, Absenzen, Stempelzeiten, etc.). Der app_user-
+    //     Eintrag (MA-Postfach-Login) wird ebenfalls gelöscht.
+    //
+    // ZUGRIFF: nur admin (Walter-Vorgabe „admin und höher" — bei uns ist
+    // admin die oberste Rolle, kein „und höher" möglich).
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Vorschau-Endpoint: zählt die abhängigen Datensätze und meldet den
+    /// vorgesehenen Lösch-Modus (soft/hard), damit das Frontend die richtige
+    /// Warnung anzeigen kann, BEVOR der User „Endgültig löschen" klickt.
+    /// </summary>
+    [HttpGet("{id:int}/delete-preview")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "admin")]
+    public async Task<IActionResult> GetDeletePreview(int id)
+    {
+        var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Id == id);
+        if (emp == null) return NotFound();
+
+        // Lohn-relevante Tabellen (entscheiden über soft vs. hard)
+        var payrollSnapshotCount = await _context.PayrollSnapshots.CountAsync(p => p.EmployeeId == id);
+        var payrollSaldoCount    = await _context.PayrollSaldos.CountAsync(s => s.EmployeeId == id);
+        var akontoZahlungCount   = await _context.AkontoZahlungen.CountAsync(a => a.EmployeeId == id);
+        var hasLohnData = payrollSnapshotCount > 0 || payrollSaldoCount > 0 || akontoZahlungCount > 0;
+
+        // Weitere Datenmengen (informativ, damit Walter sieht, was hart
+        // gelöscht würde — wird im Modal angezeigt).
+        var employmentsCount  = await _context.Employments.CountAsync(e => e.EmployeeId == id);
+        var documentsCount    = await _context.EmployeeDokumente.CountAsync(d => d.EmployeeId == id);
+        var permitsCount      = await _context.EmployeePermitHistories.CountAsync(p => p.EmployeeId == id);
+        var bankAccountsCount = await _context.EmployeeBankAccounts.CountAsync(b => b.EmployeeId == id);
+        var familyCount       = await _context.EmployeeFamilyMembers.CountAsync(f => f.EmployeeId == id);
+        var absencesCount     = await _context.Absences.CountAsync(a => a.EmployeeId == id);
+        var timeEntriesCount  = await _context.EmployeeTimeEntries.CountAsync(t => t.EmployeeId == id);
+
+        return Ok(new
+        {
+            employeeId     = id,
+            employeeName   = $"{emp.FirstName} {emp.LastName}".Trim(),
+            employeeNumber = emp.EmployeeNumber,
+            isHidden       = emp.IsHidden,
+            hasLohnData,
+            mode           = hasLohnData ? "soft" : "hard",
+            counts = new
+            {
+                payrollSnapshots = payrollSnapshotCount,
+                payrollSaldi     = payrollSaldoCount,
+                akontoZahlungen  = akontoZahlungCount,
+                employments      = employmentsCount,
+                documents        = documentsCount,
+                permits          = permitsCount,
+                bankAccounts     = bankAccountsCount,
+                familyMembers    = familyCount,
+                absences         = absencesCount,
+                timeEntries      = timeEntriesCount
+            }
+        });
+    }
+
+    /// <summary>
+    /// MA löschen. Entscheidet selbst soft vs. hard anhand der Lohn-Daten.
+    /// Der `mode`-Query-Parameter erlaubt dem Frontend, einen erwarteten
+    /// Modus mitzuschicken — wenn die Server-Realität abweicht (z.B. weil
+    /// in der Zwischenzeit ein Lohnlauf abgeschlossen wurde), liefert der
+    /// Server 409 statt unerwartet hart zu löschen.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "admin")]
+    public async Task<IActionResult> Delete(int id, [FromQuery] string? expectedMode = null)
+    {
+        var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Id == id);
+        if (emp == null) return NotFound();
+
+        var hasLohnData = await _context.PayrollSnapshots.AnyAsync(p => p.EmployeeId == id)
+                       || await _context.PayrollSaldos.AnyAsync(s => s.EmployeeId == id)
+                       || await _context.AkontoZahlungen.AnyAsync(a => a.EmployeeId == id);
+        var serverMode = hasLohnData ? "soft" : "hard";
+
+        // Frontend hat einen Modus erwartet — wenn er sich vom Server-Modus
+        // unterscheidet, abbrechen. Schützt vor versehentlichem Hart-Delete,
+        // wenn jemand zwischendurch einen Lohnlauf bestätigt hat.
+        if (!string.IsNullOrEmpty(expectedMode)
+            && !string.Equals(expectedMode, serverMode, StringComparison.OrdinalIgnoreCase))
+        {
+            return Conflict(new
+            {
+                error   = "DELETE_MODE_CHANGED",
+                message = $"Lösch-Modus hat sich geändert: erwartet '{expectedMode}', Server '{serverMode}'. Bitte Seite neu laden und Aktion bestätigen.",
+                serverMode
+            });
+        }
+
+        if (hasLohnData)
+        {
+            // ── SOFT-DELETE ──
+            emp.IsHidden = true;
+            emp.IsActive = false;
+            await _context.SaveChangesAsync();
+            return Ok(new
+            {
+                mode    = "soft",
+                message = $"{emp.FirstName} {emp.LastName} wurde unsichtbar gemacht. Lohn-Daten bleiben erhalten."
+            });
+        }
+
+        // ── HARD-DELETE ──
+        // Alle Tabellen mit FK auf employee_id, Reihenfolge: zuerst Tabellen
+        // mit indirekten Abhängigkeiten (FamilyMemberAllowance hängt an
+        // EmployeeFamilyMember), dann der Rest, zuletzt der MA selbst.
+        // Alles in einer Transaktion — bricht eine Anweisung, rollback alles.
+        await using var tx = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            // 1) FamilyMemberAllowance — hängt an EmployeeFamilyMember
+            await _context.Database.ExecuteSqlRawAsync(
+                "DELETE FROM family_member_allowance WHERE family_member_id IN (SELECT id FROM employee_family_member WHERE employee_id = {0})", id);
+
+            // 2) Alle direkten employee_id-Tabellen
+            var directTables = new[]
+            {
+                "employee_family_member",
+                "employee_address",
+                "employee_education_history",
+                "employee_import_snapshot",
+                "employee_time_entry",
+                "absence",
+                "krankheit_karenz_saldo",
+                "employee_lohn_durchschnitt",
+                "employee_dokument",
+                "mailbox_document",
+                "lohn_zulage",
+                "employee_recurring_wage",
+                "employee_bvg_zusatz_member",
+                "employee_pregnancy",
+                "employee_lohn_assignment",
+                "payroll_lohn_abtretung_entry",
+                "employee_bank_account",
+                "employee_quellensteuer",
+                "employee_arbeitslosigkeit",
+                "employee_permit_history",
+                "employment"
+            };
+            foreach (var t in directTables)
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    $"DELETE FROM {t} WHERE employee_id = {{0}}", id);
+            }
+
+            // 3) app_user (MA-Postfach-Login) — komplett entfernen, nicht
+            // nur EmployeeId auf NULL setzen. Beim Hard-Delete soll auch
+            // der Login weg.
+            await _context.Database.ExecuteSqlRawAsync(
+                "DELETE FROM app_user WHERE employee_id = {0}", id);
+
+            // 4) MA selbst
+            await _context.Database.ExecuteSqlRawAsync(
+                "DELETE FROM employee WHERE id = {0}", id);
+
+            await tx.CommitAsync();
+            return Ok(new
+            {
+                mode    = "hard",
+                message = $"{emp.FirstName} {emp.LastName} und alle zugehörigen Daten wurden gelöscht."
+            });
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            return StatusCode(500, new
+            {
+                error   = "DELETE_FAILED",
+                message = $"Löschen fehlgeschlagen: {ex.Message}"
+            });
+        }
     }
 
     private static string NormalizeRestaurantPrefix(string? restaurantCode)

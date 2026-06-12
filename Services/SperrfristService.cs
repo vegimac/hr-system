@@ -142,6 +142,42 @@ public class SperrfristService
                 VerbleibendeTage:      null);
         }
 
+        // ── Mutterschaft (Walter 10.06.2026): aktive Schwangerschaft greift
+        //    nach OR Art. 336c Abs. 1 Bst. c als eigene Sperrfrist und ist
+        //    UNABHÄNGIG von Krankheit/Unfall. Endet 16 Wochen nach Geburt
+        //    (KUENDIG_SCHUTZ-Regel im Regelwerk).
+        var pregnancy = await _db.EmployeePregnancies
+            .Where(p => p.EmployeeId == employeeId && p.IsActive)
+            .OrderByDescending(p => p.ErrechneterTermin)
+            .FirstOrDefaultAsync();
+        if (pregnancy != null)
+        {
+            var schutzBasis = pregnancy.Geburtsdatum ?? pregnancy.ErrechneterTermin;
+            var schutzEnde  = schutzBasis.AddDays(16 * 7);   // 16 Wochen nach Geburt
+            if (stichtag <= schutzEnde)
+            {
+                int verbleibendMts  = Math.Max(0, schutzEnde.DayNumber - stichtag.DayNumber);
+                var kuendigungAbMts = schutzEnde.AddDays(1);
+                return new SperrfristInfo(
+                    Status:               "GESCHUETZT",
+                    StatusText:           $"Kündigungsschutz wegen Schwangerschaft/Mutterschaft (OR Art. 336c Abs. 1 Bst. c) — frühestens am {kuendigungAbMts:dd.MM.yyyy} kündbar ({verbleibendMts} Tag{(verbleibendMts == 1 ? "" : "e")} verbleibend).",
+                    Hinweis:              pregnancy.Geburtsdatum.HasValue
+                        ? $"Schutz endet 16 Wochen nach Geburt ({pregnancy.Geburtsdatum.Value:dd.MM.yyyy})."
+                        : $"Schutz endet 16 Wochen nach errechnetem Termin ({pregnancy.ErrechneterTermin:dd.MM.yyyy}) — wird mit dem effektiven Geburtsdatum aktualisiert.",
+                    EntryDate:            entryDate,
+                    DienstjahrAmStichtag: dienstjahr,
+                    ProbezeitEndDate:     probezeitEnde,
+                    AuBeginn:             pregnancy.Meldedatum,
+                    AuGrund:              "MUTTERSCHAFT",
+                    AuDauerTage:          stichtag.DayNumber - pregnancy.Meldedatum.DayNumber + 1,
+                    SperrfristTage:       schutzEnde.DayNumber - pregnancy.Meldedatum.DayNumber + 1,
+                    SperrfristTageHoechstenfalls: null,
+                    SperrfristEnde:       schutzEnde,
+                    KuendigungAbDatum:    kuendigungAbMts,
+                    VerbleibendeTage:     verbleibendMts);
+            }
+        }
+
         // ── Aktuelle durchgängige AU-Kette finden ──────────────────────────
         var auKette = await FindeAuKetteAsync(employeeId, stichtag);
         if (auKette is null)

@@ -40,7 +40,20 @@ public class QstPflichtCheckService
         // direkt im Vorschau-Panel öffnen kann („von rechts hineinziehen").
         int?     BefreiungsDokumentId = null,
         DateOnly? BefreiungsGueltigAb = null,
-        DateOnly? BefreiungsGueltigBis = null
+        DateOnly? BefreiungsGueltigBis = null,
+        // Walter-Vorgabe 12.06.2026: bei Befreiung über Ehepartner (CH oder C)
+        // zusätzlich prüfen, ob der Ausweis des Ehepartners als Dokument vorliegt
+        // (DokumentTyp.LinkedFieldCode = "spouse"). Falls nicht → Frontend zeigt
+        // einen roten „Ausweis Ehepartner fehlt"-Warnhinweis ZUSÄTZLICH zum
+        // grünen Befreiungs-Banner. Spiegelt die Logik in KontrollListenController.
+        bool SpouseDokumentFehlt = false,
+        // Walter-Vorgabe 13.06.2026: gleiche Prüfung auch für den MA selbst:
+        //   • CH-Bürger → Identitätskarte (LinkedFieldCode='id_card') ODER
+        //     Pass (LinkedFieldCode='passport') muss als Dokument vorliegen
+        //   • C-Ausweis → Bewilligungs-Dokument (LinkedFieldCode='permit')
+        //     muss als Dokument vorliegen
+        // Falls nicht → roter Warnhinweis zusätzlich zum grünen Banner.
+        bool EmployeeDokumentFehlt = false
     );
 
     public async Task<QstPflichtCheckResult> CheckAsync(int employeeId, DateOnly stichtag)
@@ -51,10 +64,30 @@ public class QstPflichtCheckService
         if (emp == null)
             return new QstPflichtCheckResult(false, false, false, null, "MA nicht gefunden.");
 
+        // ── 0. Phantom-MA (Walter-Vorgabe 13.06.2026) ──
+        // MA mit IsPayrollExcluded=true ist ein „Phantom-MA" (z.B. Supervisor
+        // mit easy@work-Zugang ohne eigene Lohnzahlung). Für diese MA findet
+        // gar keine QST-Prüfung statt — keine Pflicht, kein Befreiungs-Grund
+        // nötig, keine Bewilligungs-Doku-Kontrolle. Frontend zeigt deshalb
+        // bei IsQstPflichtig=false + BefreiungsGrund=null + IsPhantom=true
+        // GAR KEIN Banner an.
+        if (emp.IsPayrollExcluded)
+            return new QstPflichtCheckResult(false, false, false, null,
+                "MA ohne Lohn — keine QST-Prüfung erforderlich.");
+
         // ── 1. CH-Bürger? ──
         if (string.Equals(emp.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase))
+        {
+            // Walter-Vorgabe 13.06.2026: explizite Verknüpfung MA → Beleg-Doku
+            // (Pass ODER ID-Karte) statt unscharfem linked_field_code-Scan.
+            // employee.id_pass_dokument_id muss gesetzt sein UND das Dokument
+            // muss noch existieren (nicht gelöscht).
+            bool hasIdPassDoc = emp.IdPassDokumentId.HasValue
+                && await _db.EmployeeDokumente.AnyAsync(d => d.Id == emp.IdPassDokumentId.Value);
             return new QstPflichtCheckResult(false, false, false, "CH-Buerger",
-                "Schweizer Staatsbürger — nicht QST-pflichtig.");
+                "Schweizer Staatsbürger — nicht QST-pflichtig.",
+                EmployeeDokumentFehlt: !hasIdPassDoc);
+        }
 
         // ── 2. MA hat C-Ausweis am Stichtag? ──
         var hasCSelf = await _db.EmployeePermitHistories
@@ -65,8 +98,16 @@ public class QstPflichtCheckService
                         && h.PermitType != null
                         && h.PermitType.Code == "C");
         if (hasCSelf)
+        {
+            // Walter-Vorgabe 13.06.2026: explizite Verknüpfung MA → Beleg-Doku
+            // (Bewilligungs-Dokument). employee.c_ausweis_dokument_id muss
+            // gesetzt sein UND das Dokument muss noch existieren.
+            bool hasCAusweisDoc = emp.CAusweisDokumentId.HasValue
+                && await _db.EmployeeDokumente.AnyAsync(d => d.Id == emp.CAusweisDokumentId.Value);
             return new QstPflichtCheckResult(false, false, false, "C-Ausweis",
-                "C-Ausweis (Niederlassung) — nicht QST-pflichtig.");
+                "C-Ausweis (Niederlassung) — nicht QST-pflichtig.",
+                EmployeeDokumentFehlt: !hasCAusweisDoc);
+        }
 
         // ── 3. Behörden-Befreiung gültig am Stichtag (+ Dok vorhanden) ──
         if (emp.QstBefreitDurchBehoerde
@@ -97,10 +138,19 @@ public class QstPflichtCheckService
                 .FirstOrDefaultAsync();
             if (spouse != null)
             {
+                // Walter-Vorgabe 13.06.2026: explizite Verknüpfung
+                // employee_family_member.dokument_id (FK auf employee_dokument).
+                // Vorher: unscharfer linked_field_code='spouse'-Scan. Jetzt:
+                // gleicher Mechanismus wie MA-Ausweis. Wenn das Dokument
+                // gelöscht wurde, fällt der Check zurück auf „fehlt".
+                bool spouseDokFehlt = !spouse.DokumentId.HasValue
+                    || !await _db.EmployeeDokumente.AnyAsync(d => d.Id == spouse.DokumentId.Value);
+
                 // 4. Spouse Schweizer?
                 if (string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase))
                     return new QstPflichtCheckResult(false, false, false, "Ehepartner-CH",
-                        "Verheiratet mit Schweizer/in — nicht QST-pflichtig.");
+                        "Verheiratet mit Schweizer/in — nicht QST-pflichtig.",
+                        SpouseDokumentFehlt: spouseDokFehlt);
 
                 // 5. Spouse C-Ausweis (mit gültigem Ablauf)?
                 bool spouseHatC = spouse.PermitType?.Code == "C"
@@ -108,7 +158,8 @@ public class QstPflichtCheckService
                                    || spouse.PermitExpiryDate.Value >= stichtag.ToDateTime(TimeOnly.MinValue));
                 if (spouseHatC)
                     return new QstPflichtCheckResult(false, false, false, "Ehepartner-C",
-                        "Verheiratet mit C-Ausweis-Inhaber — nicht QST-pflichtig.");
+                        "Verheiratet mit C-Ausweis-Inhaber — nicht QST-pflichtig.",
+                        SpouseDokumentFehlt: spouseDokFehlt);
             }
         }
 

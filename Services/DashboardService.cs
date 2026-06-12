@@ -285,26 +285,196 @@ public class DashboardService
         foreach (var empId in qstCandidateIds)
         {
             var r = await _qstCheck.CheckAsync(empId, qstStichtag);
-            if (!r.IsPflichtOffen) continue;
 
-            var emp = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
-            if (emp == null) continue;
-            alerts.Add(new DashboardAlert
+            // 3c.i) QST-Pflicht offen — critical, blockt Lohnlauf
+            if (r.IsPflichtOffen)
             {
-                Category = "qst_pflicht_offen",
-                Severity = "critical",
-                Title    = "QST-Pflicht offen — Lohnlauf gesperrt",
-                TitleKey = "alert.qst.pflicht_offen",
-                Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · kein Befreiungs-Grund, keine QST erfasst",
-                SubtitleKey = "subtitle.qstPflichtOffen",
-                SubtitleArgs = new Dictionary<string, object> {
-                    ["name"]  = $"{emp.FirstName} {emp.LastName}".Trim(),
-                    ["empNr"] = emp.EmployeeNumber
-                },
-                EmployeeId     = emp.Id,
-                EmployeeNumber = emp.EmployeeNumber,
-                EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
-            });
+                var emp = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
+                if (emp == null) continue;
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "qst_pflicht_offen",
+                    Severity = "critical",
+                    Title    = "QST-Pflicht offen — Lohnlauf gesperrt",
+                    TitleKey = "alert.qst.pflicht_offen",
+                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · kein Befreiungs-Grund, keine QST erfasst",
+                    SubtitleKey = "subtitle.qstPflichtOffen",
+                    SubtitleArgs = new Dictionary<string, object> {
+                        ["name"]  = $"{emp.FirstName} {emp.LastName}".Trim(),
+                        ["empNr"] = emp.EmployeeNumber
+                    },
+                    EmployeeId     = emp.Id,
+                    EmployeeNumber = emp.EmployeeNumber,
+                    EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                });
+            }
+            // 3c.ii) Ausweis Ehegatte fehlt (Walter-Vorgabe 12.06.2026)
+            // Befreiung über Ehepartner (CH oder C) gilt, aber der Beleg
+            // (Dokument vom Typ linked_field_code='spouse') ist noch nicht
+            // hinterlegt. Warning, kein Lohnlauf-Block. Spiegelt die
+            // KontrollListen-Liste, damit die Lücke auch im Dashboard sichtbar
+            // ist. Klick → Familie-Tab (dort Variante-C-Upload des Ausweises).
+            else if (r.SpouseDokumentFehlt
+                     && (r.BefreiungsGrund == "Ehepartner-CH" || r.BefreiungsGrund == "Ehepartner-C"))
+            {
+                var emp = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
+                if (emp == null) continue;
+                var grundText = r.BefreiungsGrund == "Ehepartner-CH"
+                    ? "Ehepartner ist CH-Bürger"
+                    : "Ehepartner hat C-Bewilligung";
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "spouse_doku_fehlt",
+                    Severity = "critical",
+                    Title    = "Ausweis Ehepartner fehlt für die QST-Befreiung",
+                    TitleKey = "alert.spouseDokuFehlt",
+                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · {grundText} — Beleg in Dokumenten hochladen",
+                    SubtitleKey = "subtitle.spouseDokuFehlt",
+                    SubtitleArgs = new Dictionary<string, object> {
+                        ["name"]  = $"{emp.FirstName} {emp.LastName}".Trim(),
+                        ["empNr"] = emp.EmployeeNumber,
+                        ["grund"] = grundText
+                    },
+                    EmployeeId     = emp.Id,
+                    EmployeeNumber = emp.EmployeeNumber,
+                    EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                });
+            }
+            // 3c.iii) Ausweis MA fehlt (Walter-Vorgabe 13.06.2026)
+            // Analog zum Ehepartner-Check, aber für den MA selbst:
+            //   CH-Bürger → ID-Karte ODER Pass muss hinterlegt sein
+            //   C-Ausweis → Bewilligungs-Dokument muss hinterlegt sein
+            // Klick → Dokumente-Tab (dort Upload).
+            else if (r.EmployeeDokumentFehlt
+                     && (r.BefreiungsGrund == "CH-Buerger" || r.BefreiungsGrund == "C-Ausweis"))
+            {
+                var emp = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
+                if (emp == null) continue;
+                var grundText = r.BefreiungsGrund == "CH-Buerger"
+                    ? "Schweizer Bürger — ID oder Pass fehlt"
+                    : "C-Ausweis — Bewilligungs-Dokument fehlt";
+                var titleText = r.BefreiungsGrund == "CH-Buerger"
+                    ? "Ausweis fehlt (ID oder Pass)"
+                    : "Ausweis fehlt (Bewilligung)";
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "employee_doku_fehlt",
+                    Severity = "critical",
+                    Title    = titleText,
+                    TitleKey = r.BefreiungsGrund == "CH-Buerger"
+                                ? "alert.employeeDokuFehlt.idPass"
+                                : "alert.employeeDokuFehlt.permit",
+                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · {grundText} — Beleg in Dokumenten hochladen",
+                    SubtitleKey = "subtitle.employeeDokuFehlt",
+                    SubtitleArgs = new Dictionary<string, object> {
+                        ["name"]  = $"{emp.FirstName} {emp.LastName}".Trim(),
+                        ["empNr"] = emp.EmployeeNumber,
+                        ["grund"] = grundText
+                    },
+                    EmployeeId     = emp.Id,
+                    EmployeeNumber = emp.EmployeeNumber,
+                    EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                });
+            }
+        }
+
+        // ── 3d) Aktive Schwangerschaften (Walter-Vorgabe 10.06.2026) ───────
+        // Pro aktive Schwangerschaft eine Info-Card mit Geburtstermin und
+        // einer kurzen Liste „aktuell erlaubt/nicht erlaubt" — die wird live
+        // aus dem Regelwerk berechnet.
+        var pregnancyQ = _db.EmployeePregnancies
+            .Include(p => p.Employee)
+            .Where(p => p.IsActive);
+        if (companyProfileId.HasValue)
+            pregnancyQ = pregnancyQ.Where(p =>
+                p.Employee != null && p.Employee.Employments.Any(em =>
+                    em.CompanyProfileId == companyProfileId.Value && em.IsActive));
+        var pregnancies = await pregnancyQ.ToListAsync();
+        if (pregnancies.Any())
+        {
+            var pRules = await _db.PregnancyRules
+                .Where(r => r.Aktiv)
+                .OrderBy(r => r.SortOrder)
+                .ToListAsync();
+            var heute = DateOnly.FromDateTime(now);
+
+            foreach (var preg in pregnancies)
+            {
+                if (preg.Employee == null) continue;
+
+                // Geburtsdatum bzw. ET — bei „Geburt + 16 Wochen vorbei"
+                // wird die Card ausgeblendet (Schutz endet, Mutterschaft
+                // abgeschlossen).
+                var schutzBasis = preg.Geburtsdatum ?? preg.ErrechneterTermin;
+                var schutzEnde  = schutzBasis.AddDays(16 * 7);
+                if (heute > schutzEnde) continue;
+
+                // Aktuelle Fristen berechnen — Liste „verboten/erlaubt jetzt".
+                // Variante B (10.06.2026): Phasen-Ende berücksichtigen, damit
+                // eine abgelaufene Phase (z.B. NACHT_VERBOT nach ET) NICHT mehr
+                // als „aktiv verboten" gemeldet wird.
+                static DateOnly ResolveBasisDash(string? code, EmployeePregnancy pp) => code switch {
+                    "MELDUNG" => pp.Meldedatum,
+                    "GEBURT"  => pp.Geburtsdatum ?? pp.ErrechneterTermin,
+                    _         => pp.ErrechneterTermin
+                };
+                static DateOnly ApplyOffsetDash(DateOnly basis, string? richtung, int m, int w) {
+                    int sign = richtung == "NACHHER" ? 1 : -1;
+                    return basis.AddMonths(sign * Math.Abs(m)).AddDays(sign * Math.Abs(w) * 7);
+                }
+
+                var aktivVerbote = new List<string>();
+                var bevorstehende = new List<string>();
+                foreach (var r in pRules)
+                {
+                    var basisStart = ResolveBasisDash(r.BerechnungBasis, preg);
+                    var datum      = ApplyOffsetDash(basisStart, r.Richtung, r.OffsetMonate, r.OffsetWochen);
+                    DateOnly? datumEnde = null;
+                    bool hasEnde = r.BasisEnde != null || r.OffsetEndeMonate.HasValue || r.OffsetEndeWochen.HasValue;
+                    if (hasEnde)
+                    {
+                        var basisE = ResolveBasisDash(r.BasisEnde ?? r.BerechnungBasis, preg);
+                        var richt  = r.RichtungEnde ?? r.Richtung;
+                        datumEnde  = ApplyOffsetDash(basisE, richt, r.OffsetEndeMonate ?? 0, r.OffsetEndeWochen ?? 0);
+                    }
+
+                    if (datum > heute)
+                    {
+                        // bevorstehend — nur die nächsten 30 Tage als Vorausschau anzeigen
+                        if ((datum.DayNumber - heute.DayNumber) <= 30)
+                            bevorstehende.Add($"{r.Bezeichnung} (ab {datum:dd.MM.yyyy})");
+                    }
+                    else if (datumEnde.HasValue && heute > datumEnde.Value)
+                    {
+                        // Phase ist vorbei → kein aktiver Verbot mehr
+                    }
+                    else
+                    {
+                        if (r.IstArbeitsverbot) aktivVerbote.Add(r.Bezeichnung);
+                    }
+                }
+
+                string geburtTxt = preg.Geburtsdatum.HasValue
+                    ? $"Geburt: {preg.Geburtsdatum.Value:dd.MM.yyyy}"
+                    : $"Errechneter Termin: {preg.ErrechneterTermin:dd.MM.yyyy}";
+
+                var sub = new List<string> { geburtTxt };
+                if (aktivVerbote.Any())
+                    sub.Add("Arbeitsverbot: " + string.Join(" · ", aktivVerbote));
+                if (bevorstehende.Any())
+                    sub.Add("Bald: " + string.Join(" · ", bevorstehende));
+
+                alerts.Add(new DashboardAlert
+                {
+                    Category    = "schwangerschaft",
+                    Severity    = aktivVerbote.Any() ? "warning" : "info",
+                    Title       = $"Mutterschaft: {preg.Employee.FirstName} {preg.Employee.LastName}",
+                    Subtitle    = string.Join(" — ", sub),
+                    EmployeeId     = preg.Employee.Id,
+                    EmployeeNumber = preg.Employee.EmployeeNumber,
+                    EmployeeName   = $"{preg.Employee.FirstName} {preg.Employee.LastName}".Trim()
+                });
+            }
         }
 
         // ── 4) Lohnperioden warten auf Aktion ──────────────────────────────

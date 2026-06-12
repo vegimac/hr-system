@@ -3675,6 +3675,14 @@
                         <div class="admin-card-title">Behörden</div>
                         <div class="admin-card-desc">Betreibungsämter, Sozialämter, Empfänger</div>
                     </div>
+                    <!-- Mutterschafts-Regeln (Walter 10.06.2026) -->
+                    <div class="admin-card" onclick="showPage('pregnancy-rules')">
+                        <div class="admin-card-icon" style="background:#fce7f3;color:#be185d">
+                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                        </div>
+                        <div class="admin-card-title">Mutterschafts-Regeln</div>
+                        <div class="admin-card-desc">Gesetzliche Fristen bei Schwangerschaft (ArG/ArGV/OR)</div>
+                    </div>
                     <!-- Walter-Vorgabe 07.06.2026: Banken + Nationen unter
                          einem Sub-Hub „Globale Daten" zusammengefasst —
                          Stammdaten, die filialübergreifend gelten. -->
@@ -4347,6 +4355,31 @@
                     </div>
                 </div>
                 <div id="kontrolleAlert" style="margin-bottom:12px"></div>
+
+                <!-- Walter-Vorgabe 13.06.2026: MA-Ausweis-Sektion ZUERST,
+                     Ehegatten-Ausweis darunter. -->
+                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
+                    <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                            <div>
+                                <div style="font-size:15px;font-weight:700;color:#991b1b">Ausweis Mitarbeiter fehlt</div>
+                                <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
+                                    Aktive MA, deren QST-Befreiung auf dem eigenen Ausweis beruht:
+                                    <b>CH-Bürger ohne Pass/ID-Beleg</b> oder <b>C-Ausweis-Inhaber ohne Bewilligungs-Beleg</b>.
+                                    MA mit Behörden-Befreiung sind ausgeblendet.
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportExcel()" style="font-size:12px">📊 Excel</button>
+                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportPdf()"   style="font-size:12px">📄 PDF</button>
+                                <button class="btn btn-outline" onclick="kontrolleEmployeeRefresh()"    style="font-size:12px">↻ Aktualisieren</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="kontrolleEmployeeList" style="padding:0">
+                        <div class="emp-placeholder" style="height:120px"><span>Lade Liste…</span></div>
+                    </div>
+                </div>
 
                 <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
                     <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
@@ -5168,8 +5201,9 @@
                         <button class="btn-primary" onclick="svOpenForm(null)">+ Neuer Satz</button>
                     </div>
 
-                    <!-- Tabelle -->
-                    <div class="card" style="overflow:hidden">
+                    <!-- Tabelle. overflow:visible — sonst beschneidet die Card
+                         das ⋮-Menü der letzten Zeilen (Walter 09.06.2026). -->
+                    <div class="card" style="overflow:visible">
                         <table style="width:100%;border-collapse:collapse;font-size:13px">
                             <thead>
                                 <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;white-space:nowrap">
@@ -5185,7 +5219,9 @@
                                     <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Gültig ab</th>
                                     <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Gültig bis</th>
                                     <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569">Status</th>
-                                    <th style="padding:10px 14px"></th>
+                                    <!-- Aktions-Spalte: width:1% + text-align:right → hart rechtsbündig,
+                                         alle anderen Spalten teilen sich die Restbreite. -->
+                                    <th style="padding:10px 14px;width:1%;text-align:right"></th>
                                 </tr>
                             </thead>
                             <tbody id="svTableBody">
@@ -6834,6 +6870,180 @@
                 <div id="locList" style="margin-top:14px"></div>
             </div>
 
+            <!-- ═══════════════ MUTTERSCHAFTS-REGELN ═══════════════ -->
+            <!-- Walter-Vorgabe 10.06.2026: globales Regelwerk für die
+                 Schwangerschaftsfristen (ArG/ArGV/OR). Wird vom Mutterschafts-
+                 Tab im MA-Modul gelesen, um pro MA die Fristen-Timeline zu
+                 berechnen. Schreibrechte: admin. -->
+            <div class="page" id="page-pregnancy-rules">
+                <div class="sticky-page-head">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Mutterschafts-Regeln</h1>
+                        <p class="page-sub">Gesetzliche Fristen und Arbeitseinschränkungen bei Schwangerschaft (ArG Art. 35/35a, ArGV 1, OR Art. 336c). Gilt global für alle Betriebe.</p>
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+                    <button class="btn btn-primary" onclick="prOpenNew()">+ Neue Regel</button>
+                </div>
+                </div><!-- /.sticky-page-head -->
+
+                <div class="card" style="overflow:visible">
+                    <table style="width:100%;border-collapse:collapse;font-size:13px">
+                        <thead>
+                            <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;white-space:nowrap">
+                                <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569">#</th>
+                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Code</th>
+                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Bezeichnung</th>
+                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Beschreibung</th>
+                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Gesetz</th>
+                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Phase</th>
+                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Lohn / max.</th>
+                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Status</th>
+                                <th style="padding:10px 14px;width:1%;text-align:right"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="prTableBody">
+                            <tr><td colspan="11" style="padding:24px;text-align:center;color:#94a3b8">Lade…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Edit-/Erfass-Modal für Mutterschafts-Regel — Variante B (Walter 10.06.2026) -->
+            <div id="prEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:2000;align-items:center;justify-content:center" onclick="if(event.target===this)prCloseEdit()">
+                <div style="background:white;border-radius:12px;width:680px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 12px 48px rgba(0,0,0,0.2)">
+                    <div style="padding:16px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:1">
+                        <div id="prEditTitle" style="font-size:16px;font-weight:700;color:#0f172a">Regel bearbeiten</div>
+                        <button onclick="prCloseEdit()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;padding:0 6px">×</button>
+                    </div>
+                    <div style="padding:18px 22px;display:flex;flex-direction:column;gap:14px">
+                        <input type="hidden" id="prEditId">
+
+                        <div style="display:grid;grid-template-columns:160px 1fr;gap:10px">
+                            <div>
+                                <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Code</label>
+                                <input type="text" id="prEditCode" placeholder="z.B. MAX_9H" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace">
+                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">Eindeutig, nur Grossbuchstaben/Unterstriche</div>
+                            </div>
+                            <div>
+                                <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Bezeichnung</label>
+                                <input type="text" id="prEditBezeichnung" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Beschreibung</label>
+                            <textarea id="prEditBeschreibung" rows="3" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;resize:vertical"></textarea>
+                        </div>
+                        <div>
+                            <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Gesetz</label>
+                            <input type="text" id="prEditGesetz" placeholder="z.B. ArG Art. 35a Abs. 4" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                        </div>
+
+                        <!-- Phase START -->
+                        <fieldset style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px 14px;margin:0">
+                            <legend style="font-size:11.5px;font-weight:700;color:#475569;padding:0 6px">Phase-Beginn (Pflicht)</legend>
+                            <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1.4fr;gap:8px;align-items:end">
+                                <div>
+                                    <label style="font-size:11px;color:#64748b">Basis</label>
+                                    <select id="prEditBasis" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                        <option value="ET">Errechneter Termin</option>
+                                        <option value="GEBURT">Geburt</option>
+                                        <option value="MELDUNG">Meldedatum</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size:11px;color:#64748b">Monate</label>
+                                    <input type="number" id="prEditMonate" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </div>
+                                <div>
+                                    <label style="font-size:11px;color:#64748b">Wochen</label>
+                                    <input type="number" id="prEditWochen" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </div>
+                                <div>
+                                    <label style="font-size:11px;color:#64748b">Richtung</label>
+                                    <select id="prEditRichtung" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                        <option value="VORHER">VORHER</option>
+                                        <option value="NACHHER">NACHHER</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <!-- Phase ENDE (optional) -->
+                        <fieldset style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px 14px;margin:0">
+                            <legend style="font-size:11.5px;font-weight:700;color:#475569;padding:0 6px">Phase-Ende (optional — leer = nur Stichtag)</legend>
+                            <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1.4fr;gap:8px;align-items:end">
+                                <div>
+                                    <label style="font-size:11px;color:#64748b">Basis-Ende</label>
+                                    <select id="prEditBasisEnde" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                        <option value="">— (gleich wie Beginn)</option>
+                                        <option value="ET">Errechneter Termin</option>
+                                        <option value="GEBURT">Geburt</option>
+                                        <option value="MELDUNG">Meldedatum</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size:11px;color:#64748b">Monate</label>
+                                    <input type="number" id="prEditMonateEnde" placeholder="leer" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </div>
+                                <div>
+                                    <label style="font-size:11px;color:#64748b">Wochen</label>
+                                    <input type="number" id="prEditWochenEnde" placeholder="leer" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </div>
+                                <div>
+                                    <label style="font-size:11px;color:#64748b">Richtung</label>
+                                    <select id="prEditRichtungEnde" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                        <option value="">— (gleich wie Beginn)</option>
+                                        <option value="VORHER">VORHER</option>
+                                        <option value="NACHHER">NACHHER</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <!-- Lohn-/Staffel-Felder -->
+                        <fieldset style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px 14px;margin:0">
+                            <legend style="font-size:11.5px;font-weight:700;color:#475569;padding:0 6px">Lohn / Staffel (optional)</legend>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                                <div>
+                                    <label style="font-size:11px;color:#64748b">Lohnersatz %</label>
+                                    <input type="number" step="0.01" id="prEditLohn" placeholder="z.B. 80" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </div>
+                                <div>
+                                    <label style="font-size:11px;color:#64748b">Max. CHF / Tag</label>
+                                    <input type="number" step="0.01" id="prEditMaxBetrag" placeholder="z.B. 220" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </div>
+                            </div>
+                            <div style="margin-top:10px">
+                                <label style="font-size:11px;color:#64748b">Staffel-Text (Freitext, z.B. „≤ 4 h: 30 Min · 4–7 h: 60 Min · > 7 h: 90 Min")</label>
+                                <input type="text" id="prEditStaffel" style="width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                            </div>
+                        </fieldset>
+
+                        <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;align-items:end">
+                            <div>
+                                <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Sortierung</label>
+                                <input type="number" id="prEditSortOrder" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                            </div>
+                            <div style="display:flex;gap:18px;padding-bottom:6px">
+                                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+                                    <input type="checkbox" id="prEditVerbot"> Arbeitsverbot
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+                                    <input type="checkbox" id="prEditAktiv"> Aktiv
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="padding:14px 22px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;background:#f8fafc;border-bottom-left-radius:12px;border-bottom-right-radius:12px;position:sticky;bottom:0">
+                        <button class="btn btn-secondary" onclick="prCloseEdit()">Abbrechen</button>
+                        <button class="btn btn-primary" onclick="prSaveEdit()">Speichern</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- ═══════════════ BANKEN ═══════════════ -->
             <div class="page" id="page-banken">
                 <div class="page-header">
@@ -8301,7 +8511,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','smtp-settings','filial-onboarding','postfach-backfill',
-                         'saldo-vortrag','dok-audit'];
+                         'saldo-vortrag','dok-audit','pregnancy-rules'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
 // Widget. Wird auf allen Admin-Sub-Pages eingeblendet, sonst versteckt.
@@ -8353,7 +8563,7 @@ function showPage(name) {
     if (name === 'absenz-typen') loadAbsenzTypen();
     if (name === 'behoerden')    loadBehoerden();
     if (name === 'dokumentstruktur') loadDokumentStruktur();
-    if (name === 'dvelop-import') dvelopLoadEmployees();
+    if (name === 'dvelop-import') { if (typeof dvelopResetUi === 'function') dvelopResetUi(); dvelopLoadEmployees(); }
     if (name === 'permit-import') permitImportInit();
     if (name === 'hr-review-import') hrrImportInit();
     if (name === 'qst-import')   qstImportInit();
@@ -8366,6 +8576,7 @@ function showPage(name) {
     if (name === 'banken')       loadBanks();
     if (name === 'nationen')     natInit();
     if (name === 'swiss-locations') locInit();
+    if (name === 'pregnancy-rules')  prInit();
     if (name === 'sv-saetze') loadSvSaetze();
     if (name === 'lohnpositionen') loadLohnpositionen();
     if (name === 'mindestloehne') mwInit();
@@ -8575,12 +8786,12 @@ function onBranchChange() {
 <script src="js/save-blob.js?v=20260521a"></script>
 <script src="js/file-preview.js?v=20260528b"></script>
 <script src="js/action-menu.js?v=20260531a"></script>
-<script src="js/dashboard.js?v=20260526a"></script>
+<script src="js/dashboard.js?v=20260613b"></script>
 <script src="js/wage-adjustment.js?v=20260523a"></script>
 <script src="js/permit-import.js?v=20260607a"></script>
 <script src="js/hr-review-import.js?v=20260607b"></script>
 <script src="js/qst-import.js?v=20260607a"></script>
-<script src="js/kontrolle.js?v=20260607b"></script>
+<script src="js/kontrolle.js?v=20260613b"></script>
 <script src="js/nationen.js?v=20260607b"></script>
 <script src="js/swiss-locations.js?v=20260607b"></script>
 <script src="js/family-children-import.js?v=20260607a"></script>
@@ -8598,8 +8809,8 @@ function onBranchChange() {
 <script src="js/qst-modal.js?v=20260528b"></script>
 <script src="js/users.js?v=20260524a"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
-<script src="js/documents.js?v=20260609l"></script>
-<script src="js/dvelop-import.js?v=20260607a"></script>
+<script src="js/documents.js?v=20260613a"></script>
+<script src="js/dvelop-import.js?v=20260610b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260509b"></script>
 <script src="js/dok-struktur.js?v=20260609a"></script>
@@ -8610,14 +8821,15 @@ function onBranchChange() {
 <script src="js/fibu.js?v=20260524a"></script>
 <script src="js/payroll-perioden.js?v=20260524a"></script>
 <script src="js/sortable-table.js?v=20260607a"></script>
-<script src="js/admin-settings.js?v=20260609a"></script>
+<script src="js/admin-settings.js?v=20260609b"></script>
+<script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260522b"></script>
 <script src="js/audit-log.js?v=20260527a"></script>
 <script src="js/global-search.js?v=20260527f"></script>
 <script src="js/help-panel.js?v=20260528a"></script>
 <script src="js/lohn-edit-lock.js?v=20260517a"></script>
-<script src="js/i18n.js?v=20260527c"></script>
+<script src="js/i18n.js?v=20260613a"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">
     <div class="family-modal-box">
@@ -8887,10 +9099,40 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260609o"></script>
+<script src="employees.js?v=20260613h"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
+<!-- Mutterschafts-Erfassungs-Modal (Walter 10.06.2026) -->
+<div id="mtsFormModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:2000;align-items:center;justify-content:center" onclick="if(event.target===this)mtsCloseForm()">
+    <div style="background:white;border-radius:12px;width:480px;max-width:92vw;box-shadow:0 12px 48px rgba(0,0,0,0.2)">
+        <div style="padding:16px 22px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+            <div id="mtsFormTitle" style="font-size:16px;font-weight:700;color:#0f172a">Schwangerschaft erfassen</div>
+            <button onclick="mtsCloseForm()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;padding:0 6px">×</button>
+        </div>
+        <div style="padding:18px 22px;display:flex;flex-direction:column;gap:12px">
+            <input type="hidden" id="mtsFormId">
+            <input type="hidden" id="mtsFormEmployeeId">
+            <div>
+                <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Meldedatum *</label>
+                <input type="date" id="mtsFormMeldedatum" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+            </div>
+            <div>
+                <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Errechneter Termin *</label>
+                <input type="date" id="mtsFormET" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+            </div>
+            <div>
+                <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Bemerkung</label>
+                <textarea id="mtsFormBemerkung" rows="3" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;resize:vertical"></textarea>
+            </div>
+        </div>
+        <div style="padding:14px 22px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;background:#f8fafc;border-bottom-left-radius:12px;border-bottom-right-radius:12px">
+            <button class="btn btn-secondary" onclick="mtsCloseForm()">Abbrechen</button>
+            <button class="btn btn-primary" onclick="mtsSaveForm()">Speichern</button>
+        </div>
+    </div>
+</div>
+
 <div id="absenceModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:flex-start;justify-content:center;z-index:2000;overflow-y:auto;padding:40px 16px;">
     <div class="ma-modal-box narrow">
         <div class="ma-modal-head">

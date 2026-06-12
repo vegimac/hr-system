@@ -38,6 +38,8 @@ public class AppDbContext : DbContext
     public DbSet<LohnZulage> LohnZulagen => Set<LohnZulage>();
     public DbSet<EmployeeRecurringWage> EmployeeRecurringWages => Set<EmployeeRecurringWage>();
     public DbSet<EmployeeBvgZusatzMember> EmployeeBvgZusatzMembers => Set<EmployeeBvgZusatzMember>();
+    public DbSet<PregnancyRule>     PregnancyRules     => Set<PregnancyRule>();
+    public DbSet<EmployeePregnancy> EmployeePregnancies => Set<EmployeePregnancy>();
     public DbSet<EmploymentModelComponent> EmploymentModelComponents => Set<EmploymentModelComponent>();
     public DbSet<SwissLocation> SwissLocations => Set<SwissLocation>();
     public DbSet<Behoerde> Behoerden => Set<Behoerde>();
@@ -104,6 +106,16 @@ public class AppDbContext : DbContext
             entity.Property(e => e.QstBefreiungGueltigBis).HasColumnName("qst_befreiung_gueltig_bis").HasColumnType("date");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.IsPayrollExcluded).HasColumnName("is_payroll_excluded").HasDefaultValue(false);
+            // Walter-Vorgabe 12.06.2026: Soft-Delete-Flag (admin „Mitarbeiter löschen").
+            entity.Property(e => e.IsHidden).HasColumnName("is_hidden").HasDefaultValue(false);
+            // Walter-Vorgabe 13.06.2026: explizite Verknüpfungen MA → Beleg-Doku.
+            entity.Property(e => e.IdPassDokumentId).HasColumnName("id_pass_dokument_id");
+            entity.Property(e => e.CAusweisDokumentId).HasColumnName("c_ausweis_dokument_id");
+            // GLOBALER QUERY FILTER: ALLE Employee-Queries blenden hidden MA
+            // automatisch aus — kein manuelles WHERE in jedem Controller nötig.
+            // Wer hidden MA explizit sehen will, ruft `.IgnoreQueryFilters()`
+            // auf der Query (z.B. ein „Papierkorb"-View für Admin später).
+            entity.HasQueryFilter(e => !e.IsHidden);
             // Walter-Vorgabe 07.06.2026: Anstellungs-Felder aus Mirus-HR-Review.
             // DB-Default beider Spalten = false, damit bestehende MA-Zeilen nicht
             // unbemerkt geändert werden. Bei NEU angelegten MA via Code setzt das
@@ -334,6 +346,9 @@ public class AppDbContext : DbContext
             // Walter-Vorgabe 07.06.2026: optionaler Alternativ-Code (z.B. XZ
             // für Kosovo aus Mirus). Wird beim Import zusätzlich gematcht.
             entity.Property(e => e.Code2).HasColumnName("code2");
+            // Walter-Vorgabe 13.06.2026: deutscher Klartextname direkt aus
+            // der DB — ersetzt die statische CountryNamesDe-Fallback-Tabelle.
+            entity.Property(e => e.NameDe).HasColumnName("name_de");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
         });
 
@@ -430,6 +445,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PermitExpiryDate).HasColumnName("permit_expiry_date").HasColumnType("date");
             entity.Property(e => e.ZemisNumber).HasColumnName("zemis_number").HasMaxLength(40);
             entity.Property(e => e.NationalityId).HasColumnName("nationality_id");
+            // Walter-Vorgabe 13.06.2026: explizite Verknüpfung zum Beleg-Doku
+            // dieses Familienmitglieds (Pass / ID / Bewilligung).
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
@@ -849,6 +867,52 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom })
                   .HasDatabaseName("ix_bvg_member_emp_period");
+        });
+
+        // ── Mutterschafts-Modul (Walter 10.06.2026) ────────────────────────
+        modelBuilder.Entity<PregnancyRule>(entity =>
+        {
+            entity.ToTable("pregnancy_rule");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(30);
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung");
+            entity.Property(e => e.Beschreibung).HasColumnName("beschreibung");
+            entity.Property(e => e.Gesetz).HasColumnName("gesetz").HasMaxLength(100);
+            entity.Property(e => e.BerechnungBasis).HasColumnName("berechnung_basis").HasMaxLength(20);
+            entity.Property(e => e.OffsetMonate).HasColumnName("offset_monate");
+            entity.Property(e => e.OffsetWochen).HasColumnName("offset_wochen");
+            entity.Property(e => e.Richtung).HasColumnName("richtung").HasMaxLength(10);
+            entity.Property(e => e.IstArbeitsverbot).HasColumnName("ist_arbeitsverbot");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.Aktiv).HasColumnName("aktiv");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            // Variante B (10.06.2026): Phasen-Ende + Lohn/Staffel.
+            entity.Property(e => e.BasisEnde).HasColumnName("basis_ende").HasMaxLength(20);
+            entity.Property(e => e.OffsetEndeMonate).HasColumnName("offset_ende_monate");
+            entity.Property(e => e.OffsetEndeWochen).HasColumnName("offset_ende_wochen");
+            entity.Property(e => e.RichtungEnde).HasColumnName("richtung_ende").HasMaxLength(10);
+            entity.Property(e => e.LohnersatzPct).HasColumnName("lohnersatz_pct").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.MaxBetragProTag).HasColumnName("max_betrag_pro_tag").HasColumnType("numeric(8,2)");
+            entity.Property(e => e.StaffelText).HasColumnName("staffel_text");
+            entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<EmployeePregnancy>(entity =>
+        {
+            entity.ToTable("employee_pregnancy");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Meldedatum).HasColumnName("meldedatum").HasColumnType("date");
+            entity.Property(e => e.ErrechneterTermin).HasColumnName("errechneter_termin").HasColumnType("date");
+            entity.Property(e => e.Geburtsdatum).HasColumnName("geburtsdatum").HasColumnType("date");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasIndex(e => e.EmployeeId).HasDatabaseName("idx_pregnancy_employee");
         });
 
         // ── EmploymentModelComponent ───────────────────────────────────────

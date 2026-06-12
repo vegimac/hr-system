@@ -1172,6 +1172,23 @@ public class PayrollCalculationEngine
             lohnposAbzugTotal += b;
         }
 
+        // Info-Hinweis bei NBU-Befreiung (Walter-Vorgabe 09.06.2026):
+        // Wenn der MA das Flag TeilzeitUnter8hWoche trägt und damit nach
+        // UVG Art. 1a Abs. 6 vom NBU-Abzug befreit ist, dokumentieren wir das
+        // direkt im Lohnzettel als 0-CHF-Zeile bei den Abzügen. So sieht der
+        // Anwender, dass die NBU-Befreiung bewusst aktiv ist (statt nur die
+        // fehlende Zeile zu sehen). code=null → keine Fibu-Buchung.
+        if (employee.TeilzeitUnter8hWoche)
+        {
+            lohnposAbzugLines.Add(new {
+                bezeichnung = "ℹ NBU-befreit (< 8h/Woche, UVG Art. 1a)",
+                code        = (string?)null,
+                prozent     = (decimal?)null,
+                basis       = (decimal?)null,
+                betrag      = 0m
+            });
+        }
+
         // "Weitere Abzüge" (nach Netto) — wird unten von der Lohnabtretungs-
         // Schleife befüllt. Reine Auszahlungs-Routing-Einträge.
         var abzuegeExtraLines = new List<object>();

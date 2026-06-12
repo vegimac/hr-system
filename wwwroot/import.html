@@ -442,6 +442,11 @@ body.theme-dark td { border-color: #334155 !important; color: #f1f5f9 !important
             </div>
         </div>
 
+        <!-- MISMATCH (Walter 12.06.2026): roter Warnblock GANZ OBEN wenn MA
+             nicht zur aktiven Filiale gehören (Personalnummer ohne Filial-
+             Präfix). Diese MA werden NICHT importiert. -->
+        <div id="mismatchSection" style="display:none"></div>
+
         <!-- RESULTS -->
         <div id="resultsSection" style="display:none">
             <div class="results-card" id="skipSection" style="display:none">
@@ -1031,8 +1036,19 @@ async function analyzeRows() {
         }
     }
 
-    const skipped = [], newEmps = [], contracts = [], addrOnly = [], inactive = [];
+    const skipped = [], newEmps = [], contracts = [], addrOnly = [], inactive = [], mismatch = [];
     rowStates = {};
+
+    // Walter-Vorgabe 12.06.2026: Filial-Mismatch via Personalnr-Präfix erkennen.
+    // Wenn das CSV keine `Store number`-Spalte hat (easy@work liefert sie nicht
+    // immer), muss die Personalnummer wenigstens mit dem Filial-Code der aktiv
+    // gewählten Filiale beginnen — sonst gehört der MA NICHT in diese Filiale
+    // und darf nicht importiert werden. Beispiel: Filiale Reinach (RestCode
+    // 1290) — eine MA mit Pers-Nr. 2300060 stammt aus einer anderen Filiale
+    // und wird in den `mismatch`-Bucket gelegt.
+    const activePrefix = activeStoreNumber
+        ? String(parseInt(activeStoreNumber, 10) || '').trim()
+        : '';
 
     // Pro Personalnummer aggregieren: hat der MA mind. eine offene Zeile?
     // (Bis leer ODER Bis >= heute). Walter-Regel: MA mit Bis-Datum in der
@@ -1059,12 +1075,29 @@ async function analyzeRows() {
             continue;
         }
 
-        // Filialfilter: Store number muss zur aktiven Filiale passen
+        // Filialfilter: Store number muss zur aktiven Filiale passen.
+        // Walter-Vorgabe 12.06.2026: ZUSÄTZLICH Personalnummer-Präfix prüfen.
+        // Wenn weder Store noch Präfix zur aktiven Filiale passen → in den
+        // mismatch-Bucket (NICHT automatisch importieren, rot anzeigen).
         if (activeStoreNumber) {
             const rowStore = String(get(row, 'Store number', 'Store Number')).trim();
-            if (rowStore && parseInt(rowStore,10) !== parseInt(activeStoreNumber,10)) {
-                skipped.push({ idx: i, row, reason: `Andere Filiale (Store ${rowStore})` });
-                rowStates[i] = { status: 'skip' };
+            const empNrDigits = String(nr).replace(/\D/g, '').replace(/^0+/, '');
+
+            // Store-Number-Mismatch (CSV-Zeile hat eine Store-Nummer und sie
+            // passt nicht zur aktiven Filiale) → harter Mismatch.
+            if (rowStore && parseInt(rowStore, 10) !== parseInt(activeStoreNumber, 10)) {
+                mismatch.push({ idx: i, row,
+                    reason: `Store-Nr. ${rowStore} ≠ Filiale ${activeStoreNumber}` });
+                rowStates[i] = { status: 'mismatch' };
+                continue;
+            }
+
+            // Personalnummer-Präfix-Mismatch (Store leer oder gleich, aber
+            // Pers-Nr beginnt nicht mit dem Filial-Code) → ebenfalls Mismatch.
+            if (activePrefix && empNrDigits && !empNrDigits.startsWith(activePrefix)) {
+                mismatch.push({ idx: i, row,
+                    reason: `Personalnr. ${nr} beginnt nicht mit Filial-Code ${activePrefix}` });
+                rowStates[i] = { status: 'mismatch' };
                 continue;
             }
         }
@@ -1227,11 +1260,15 @@ async function analyzeRows() {
     }
 
     document.getElementById('uploadAlert').innerHTML = '';
-    renderSummary(skipped, newEmps, contracts, addrOnly, inactive);
-    renderResults(skipped, newEmps, contracts, addrOnly, inactive);
+    renderSummary(skipped, newEmps, contracts, addrOnly, inactive, mismatch);
+    renderResults(skipped, newEmps, contracts, addrOnly, inactive, mismatch);
 }
 
-function renderSummary(skipped, newEmps, contracts, addrOnly, inactive = []) {
+function renderSummary(skipped, newEmps, contracts, addrOnly, inactive = [], mismatch = []) {
+    // Walter-Vorgabe 12.06.2026: Mismatch-Anzahl im Banner mit anzeigen
+    // falls vorhanden — als visueller Marker neben dem Skip-Counter.
+    const sumMismatchEl = document.getElementById('sumMismatch');
+    if (sumMismatchEl) sumMismatchEl.textContent = mismatch.length;
     document.getElementById('sumTotal').textContent = parsedRows.length;
     document.getElementById('sumNew').textContent = newEmps.length;
     // "Adress-Update" zählt ALLE bestehenden MA — bei jedem Import werden
@@ -1282,8 +1319,42 @@ function renderInactiveRow(e) {
 }
 
 // ── RENDER ────────────────────────────────────────────
-function renderResults(skipped, newEmps, contracts, addrOnly, inactive = []) {
+function renderResults(skipped, newEmps, contracts, addrOnly, inactive = [], mismatch = []) {
     document.getElementById('resultsSection').style.display = 'block';
+
+    // Walter-Vorgabe 12.06.2026: Falsche Filiale → ROTER Warnblock GANZ OBEN
+    // mit Liste der betroffenen MA. Diese werden NICHT automatisch importiert
+    // (sind nicht im erlaubten-Status-Set von runAutoImportAll).
+    const mismatchSec = document.getElementById('mismatchSection');
+    if (mismatchSec) {
+        if (mismatch.length) {
+            mismatchSec.style.display = 'block';
+            mismatchSec.innerHTML = `
+                <div style="background:#fef2f2;border:2px solid #dc2626;border-radius:10px;padding:16px 20px;margin-bottom:16px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                        <span style="font-size:22px">⛔</span>
+                        <div style="flex:1">
+                            <div style="font-weight:700;color:#991b1b;font-size:15px">${mismatch.length} Mitarbeiter gehören NICHT zu dieser Filiale</div>
+                            <div style="color:#b91c1c;font-size:13px;margin-top:3px">Die Personalnummer beginnt nicht mit dem Filial-Code <strong>${activeStoreNumber || '–'}</strong>. Diese MA werden NICHT importiert. Möglicherweise wurde die falsche CSV oder die falsche Filiale gewählt.</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:12px;display:grid;gap:6px">
+                        ${mismatch.map(m => `
+                            <div style="background:#fff;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;display:flex;align-items:center;gap:10px">
+                                <span style="font-size:14px">⛔</span>
+                                <div style="flex:1;min-width:0">
+                                    <div style="font-weight:600;color:#0f172a;font-size:13px">${get(m.row,'Vorname') || ''} ${get(m.row,'Nachname') || ''}</div>
+                                    <div style="font-size:11.5px;color:#7f1d1d">${m.reason}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+        } else {
+            mismatchSec.style.display = 'none';
+            mismatchSec.innerHTML = '';
+        }
+    }
 
     // SKIPPED — standardmässig eingeklappt (für die Vertragsverwaltung uninteressant).
     // Header bleibt sichtbar mit Zähler; Liste wird per Klick aufgeklappt.

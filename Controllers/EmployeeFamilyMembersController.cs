@@ -99,6 +99,10 @@ public class EmployeeFamilyMembersController : ControllerBase
         // Walter-Vorgabe 07.06.2026: NationalityCode mitliefern, damit das
         // Frontend „CH-Bürger" statt „ohne Bewilligung" anzeigen kann.
         nationalityCode = m.NationalityRef?.Code,
+        // Walter-Vorgabe 13.06.2026: Beleg-Doku-FK durchreichen — das Frontend
+        // zeigt damit „📄 Doku verknüpft" am Ehepartner-Eintrag und kann den
+        // Beleg im Vorschau-Panel öffnen.
+        m.DokumentId,
         m.CreatedAt,
         m.UpdatedAt,
         alternativeAddress = alt == null ? null : new {
@@ -191,5 +195,39 @@ public class EmployeeFamilyMembersController : ControllerBase
         _context.EmployeeFamilyMembers.Remove(member);
         await _context.SaveChangesAsync();
         return NoContent();
+    }
+
+    /// <summary>
+    /// Walter-Vorgabe 13.06.2026: Beleg-Dokument für dieses Familienmitglied
+    /// verknüpfen oder aufheben. Wird vor allem für den Spouse-Doku-Check
+    /// in QstPflichtCheckService genutzt (Ehepartner-CH / Ehepartner-C).
+    /// PATCH /api/employees/{employeeId}/family/{id}/dokument
+    /// Body: { dokumentId: int | null }
+    /// </summary>
+    [HttpPatch("{id:int}/dokument")]
+    public async Task<IActionResult> SetDokument(int employeeId, int id, [FromBody] FamilyMemberDokumentDto dto)
+    {
+        var member = await _context.EmployeeFamilyMembers
+            .FirstOrDefaultAsync(m => m.Id == id && m.EmployeeId == employeeId);
+        if (member == null) return NotFound();
+
+        if (dto.DokumentId.HasValue)
+        {
+            var dokOk = await _context.EmployeeDokumente
+                .AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == employeeId);
+            if (!dokOk)
+                return BadRequest(new { error = "DOKUMENT_INVALID",
+                    message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
+        }
+
+        member.DokumentId = dto.DokumentId;
+        member.UpdatedAt  = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return Ok(new { id = member.Id, dokumentId = member.DokumentId });
+    }
+
+    public class FamilyMemberDokumentDto
+    {
+        public int? DokumentId { get; set; }
     }
 }
