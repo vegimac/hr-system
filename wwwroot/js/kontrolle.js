@@ -8,10 +8,119 @@
 
 let _kontrolleSpouseCache   = [];
 let _kontrolleEmployeeCache = [];
+let _kontrollePermitCache   = [];
 
 function kontrolleInit() {
     kontrolleEmployeeRefresh();
     kontrolleSpouseRefresh();
+    kontrollePermitRefresh();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Walter-Vorgabe 13.06.2026: Liste „Bewilligungen laufen ab"
+// (abgelaufen oder innerhalb 90 Tagen ablaufend). Logik analog zur
+// Dashboard-Card permit_expiring.
+// ══════════════════════════════════════════════════════════════════════
+async function kontrollePermitRefresh() {
+    const el = document.getElementById('kontrollePermitList');
+    if (!el) return;
+    el.innerHTML = '<div class="emp-placeholder" style="height:120px"><span>Lade Liste…</span></div>';
+
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    const url = cpId ? `/api/kontrolle/permit-expiring?companyProfileId=${cpId}` : '/api/kontrolle/permit-expiring';
+    try {
+        const r = await fetch(url, { headers: ah() });
+        if (!r.ok) {
+            el.innerHTML = '<div class="emp-placeholder" style="height:120px;color:#dc2626"><span>Fehler beim Laden (' + r.status + ')</span></div>';
+            return;
+        }
+        const list = await r.json();
+        _kontrollePermitCache = Array.isArray(list) ? list : [];
+        if (!Array.isArray(list) || list.length === 0) {
+            el.innerHTML = `<div style="padding:24px;text-align:center;color:#16a34a;font-size:14px;font-weight:600">
+                ✓ Keine offenen Lücken — bei allen aktiven MA sind die Bewilligungen aktuell.
+            </div>`;
+            return;
+        }
+        const fmtDe = (iso) => {
+            if (!iso) return '–';
+            const s = String(iso).slice(0, 10);
+            if (s.length !== 10) return '–';
+            return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4);
+        };
+        el.innerHTML = `
+            <div style="padding:12px 18px 14px;color:#7f1d1d;font-size:12.5px;font-weight:600">
+                ${list.length} ${list.length === 1 ? 'Bewilligung' : 'Bewilligungen'} läuft/laufen ab
+                <span style="color:#94a3b8;font-weight:400;font-size:11.5px;margin-left:8px">· Bemerkungen optional — werden ins Excel/PDF übernommen, beim Aktualisieren zurückgesetzt</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead>
+                    <tr style="background:#fef2f2;border-top:1px solid #fee2e2;border-bottom:1px solid #fecaca">
+                        <th style="padding:9px 14px;text-align:left;color:#7f1d1d">Mitarbeiter</th>
+                        <th style="padding:9px 14px;text-align:center;color:#7f1d1d">Bew.</th>
+                        <th style="padding:9px 14px;text-align:center;color:#7f1d1d">Gültig bis</th>
+                        <th style="padding:9px 14px;text-align:left;color:#7f1d1d">Status</th>
+                        <th style="padding:9px 14px;text-align:left;color:#7f1d1d">Bemerkung</th>
+                        <th style="padding:9px 14px;text-align:right;color:#7f1d1d">Aktion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${list.map(r => {
+                        const severityColor = r.severity === 'expired' || r.severity === 'critical'
+                            ? '#dc2626' : r.severity === 'warning' ? '#d97706' : '#0369a1';
+                        const severityBg = r.severity === 'expired' || r.severity === 'critical'
+                            ? '#fee2e2' : r.severity === 'warning' ? '#fef3c7' : '#dbeafe';
+                        const daysText = r.daysUntil < 0
+                            ? `${-r.daysUntil} Tag(e) überfällig`
+                            : r.daysUntil === 0 ? 'läuft heute ab' : `in ${r.daysUntil} Tagen`;
+                        return `
+                        <tr style="border-bottom:1px solid #f1f5f9">
+                            <td style="padding:9px 14px">
+                                <div style="font-weight:600;color:#0f172a">${_e(r.employeeName)}</div>
+                                <div style="font-size:11.5px;color:#64748b">Nr. ${_e(r.employeeNumber)}</div>
+                            </td>
+                            <td style="padding:9px 14px;text-align:center;font-family:monospace;font-weight:700">${_e(r.permitCode || '–')}</td>
+                            <td style="padding:9px 14px;text-align:center;font-family:monospace">${fmtDe(r.validTo)}</td>
+                            <td style="padding:9px 14px">
+                                <span style="background:${severityBg};color:${severityColor};padding:2px 9px;border-radius:5px;font-size:11.5px;font-weight:600;white-space:nowrap">
+                                    ${_e(daysText)}
+                                </span>
+                            </td>
+                            <td style="padding:6px 12px">
+                                <input type="text" id="kontrollePermitNote-${r.employeeId}" placeholder="Notiz…"
+                                       style="width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;background:#fff;color:#0f172a">
+                            </td>
+                            <td style="padding:9px 14px;text-align:right;white-space:nowrap">
+                                <button onclick="kontrolleOpenEmployeePermit(${r.employeeId})"
+                                        class="btn btn-primary" style="padding:5px 12px;font-size:12px">
+                                    → Zum MA
+                                </button>
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>`;
+    } catch (e) {
+        el.innerHTML = '<div class="emp-placeholder" style="height:120px;color:#dc2626"><span>Verbindungsfehler: ' + _e(e.message) + '</span></div>';
+    }
+}
+
+/**
+ * Sprung in den Bewilligung/QST-Tab des MA — dort steht die Bewilligungs-
+ * Historie mit „+ Neue Bewilligung"-Button für die Verlängerung.
+ */
+function kontrolleOpenEmployeePermit(empId) {
+    if (!empId) return;
+    window.activeEmpId = empId;
+    if (typeof showPage === 'function') showPage('mitarbeiter');
+    setTimeout(() => {
+        if (typeof switchEmpTab === 'function') switchEmpTab('quellensteuer');
+    }, 300);
+}
+
+function _kontrollePermitNote(empId) {
+    const el = document.getElementById('kontrollePermitNote-' + empId);
+    return el ? (el.value || '').trim() : '';
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -123,10 +232,17 @@ function kontrolleEmployeeExportPdf()   { _kontrolleExportCombiPdf(); }
 function _kontrolleExportCombiExcel() {
     const hasEmp    = (_kontrolleEmployeeCache || []).length > 0;
     const hasSpouse = (_kontrolleSpouseCache   || []).length > 0;
-    if (!hasEmp && !hasSpouse) {
-        alert('Keine Daten zum Exportieren — beide Listen sind leer.');
+    const hasPermit = (_kontrollePermitCache   || []).length > 0;
+    if (!hasEmp && !hasSpouse && !hasPermit) {
+        alert('Keine Daten zum Exportieren — alle Listen sind leer.');
         return;
     }
+    const fmtDe = (iso) => {
+        if (!iso) return '';
+        const s = String(iso).slice(0, 10);
+        if (s.length !== 10) return '';
+        return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4);
+    };
     const rows = [];
 
     // Sektion 1: MA-Ausweis
@@ -142,7 +258,7 @@ function _kontrolleExportCombiExcel() {
                 _kontrolleEmpNote(r.employeeId)
             ]);
         }
-        if (hasSpouse) rows.push([], []);   // 2 Leerzeilen Abstand
+        if (hasSpouse || hasPermit) rows.push([], []);
     }
 
     // Sektion 2: Ehegatten-Ausweis
@@ -160,6 +276,26 @@ function _kontrolleExportCombiExcel() {
                 r.spousePermitCode || '',
                 r.reason || '',
                 _kontrolleSpouseNote(r.employeeId)
+            ]);
+        }
+        if (hasPermit) rows.push([], []);
+    }
+
+    // Sektion 3: Bewilligungen laufen ab
+    if (hasPermit) {
+        rows.push(['BEWILLIGUNGEN LAUFEN AB']);
+        rows.push(['Personal-Nr.', 'Mitarbeiter', 'Bew.', 'Gültig bis', 'Status', 'Bemerkung']);
+        for (const r of _kontrollePermitCache) {
+            const statusText = r.daysUntil < 0
+                ? `${-r.daysUntil} Tag(e) überfällig`
+                : r.daysUntil === 0 ? 'läuft heute ab' : `in ${r.daysUntil} Tagen`;
+            rows.push([
+                r.employeeNumber || '',
+                r.employeeName || '',
+                r.permitCode || '',
+                fmtDe(r.validTo),
+                statusText,
+                _kontrollePermitNote(r.employeeId)
             ]);
         }
     }
@@ -187,11 +323,18 @@ function _kontrolleExportCombiExcel() {
 function _kontrolleExportCombiPdf() {
     const hasEmp    = (_kontrolleEmployeeCache || []).length > 0;
     const hasSpouse = (_kontrolleSpouseCache   || []).length > 0;
-    if (!hasEmp && !hasSpouse) {
-        alert('Keine Daten zum Exportieren — beide Listen sind leer.');
+    const hasPermit = (_kontrollePermitCache   || []).length > 0;
+    if (!hasEmp && !hasSpouse && !hasPermit) {
+        alert('Keine Daten zum Exportieren — alle Listen sind leer.');
         return;
     }
     const today = new Date().toLocaleDateString('de-CH');
+    const fmtDe = (iso) => {
+        if (!iso) return '';
+        const s = String(iso).slice(0, 10);
+        if (s.length !== 10) return '';
+        return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4);
+    };
 
     const empRows = (_kontrolleEmployeeCache || []).map(r => `
         <tr>
@@ -215,6 +358,21 @@ function _kontrolleExportCombiPdf() {
             <td>${_kEsc(_kontrolleSpouseNote(r.employeeId))}</td>
         </tr>`).join('');
 
+    const permitRows = (_kontrollePermitCache || []).map(r => {
+        const statusText = r.daysUntil < 0
+            ? `${-r.daysUntil} Tag(e) überfällig`
+            : r.daysUntil === 0 ? 'läuft heute ab' : `in ${r.daysUntil} Tagen`;
+        return `
+        <tr>
+            <td>${_kEsc(r.employeeNumber || '')}</td>
+            <td>${_kEsc(r.employeeName || '')}</td>
+            <td style="text-align:center">${_kEsc(r.permitCode || '')}</td>
+            <td style="text-align:center">${_kEsc(fmtDe(r.validTo))}</td>
+            <td>${_kEsc(statusText)}</td>
+            <td>${_kEsc(_kontrollePermitNote(r.employeeId))}</td>
+        </tr>`;
+    }).join('');
+
     const empSection = hasEmp ? `
         <h2>Ausweis Mitarbeiter fehlt <span class="cnt">${_kontrolleEmployeeCache.length}</span></h2>
         <table>
@@ -233,7 +391,16 @@ function _kontrolleExportCombiPdf() {
             <tbody>${spouseRows}</tbody>
         </table>` : '';
 
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Kontrolle — Ausweise fehlen</title>
+    const permitSection = hasPermit ? `
+        <h2 style="margin-top:24px">Bewilligungen laufen ab <span class="cnt">${_kontrollePermitCache.length}</span></h2>
+        <table>
+            <thead>
+                <tr><th>Pers.-Nr.</th><th>Mitarbeiter</th><th>Bew.</th><th>Gültig bis</th><th>Status</th><th>Bemerkung</th></tr>
+            </thead>
+            <tbody>${permitRows}</tbody>
+        </table>` : '';
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Kontrolle — Lücken-Erkennung</title>
         <style>
             body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; color: #0f172a; }
             h1 { color:#991b1b; font-size:18px; margin:0 0 4px; }
@@ -246,10 +413,11 @@ function _kontrolleExportCombiPdf() {
             tr:nth-child(even) td { background:#fafafa }
             @media print { body { margin: 10mm } h2 { page-break-after:avoid } }
         </style></head><body>
-        <h1>⚠ Kontrolle — Ausweise fehlen</h1>
+        <h1>⚠ Kontrolle — Lücken-Erkennung</h1>
         <div class="sub">Stand ${today}</div>
         ${empSection}
         ${spouseSection}
+        ${permitSection}
         <script>window.onload=()=>window.print();</script>
     </body></html>`;
     const w = window.open('', '_blank');

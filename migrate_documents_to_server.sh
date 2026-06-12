@@ -24,7 +24,11 @@ SERVER_HOST=83.228.209.119
 SERVER_DOCS_DIR="/var/data/hr-system/documents"
 SERVER_PG_USER=hrapp
 SERVER_PG_DB=hrsystem
-SERVER_PG_PASS='HrSystemneuVonWalter2026!'
+# Walter-Vorgabe 13.06.2026: Passwort NICHT mehr im Skript. Wird via ENV
+# DB_PASSWORD aus /etc/hr-system/env geladen.
+#   set -a; source /etc/hr-system/env; set +a; ./migrate_documents_to_server.sh
+# Wenn die ENV fehlt, bricht das Skript hier ab.
+SERVER_PG_PASS="${DB_PASSWORD:?DB_PASSWORD nicht gesetzt — siehe /etc/hr-system/env}"
 
 EMPLOYEE_FILTER=""
 if [ -n "${1:-}" ]; then
@@ -123,7 +127,7 @@ sudo mkdir -p /var/data/hr-system/documents
 sudo tar -xzf /tmp/docs_migration.tar.gz -C /var/data/hr-system/documents
 sudo chown -R www-data:www-data /var/data/hr-system
 
-PGPASSWORD='HrSystemneuVonWalter2026!' psql -h localhost -U hrapp -d hrsystem -f /tmp/migrate_docs.sql
+PGPASSWORD="$SERVER_PG_PASS" psql -h localhost -U hrapp -d hrsystem -f /tmp/migrate_docs.sql
 
 # Aufräumen
 rm -f /tmp/migrate_docs.sql /tmp/docs_migration.tar.gz

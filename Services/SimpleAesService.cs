@@ -22,7 +22,15 @@ public class SimpleAesService
 
     public SimpleAesService(IConfiguration config)
     {
-        var secret = config["Jwt:Secret"] ?? "SchaUbHrSyStEmSeCrEtKeY2026!!SuperSecure";
+        // Walter-Vorgabe 13.06.2026: KEIN hardgecodeter Fallback. Bei
+        // fehlendem Secret bricht der DI-Container beim Startup ab —
+        // verhindert dass produktiv ein vorhersagbarer Schlüssel benutzt
+        // wird und damit alle verschlüsselten DB-Werte entschlüsselbar wären.
+        var secret = config["Jwt:Secret"]
+            ?? Environment.GetEnvironmentVariable("JWT_SECRET")
+            ?? throw new InvalidOperationException(
+                "JWT-Secret fehlt — SimpleAesService kann ohne Secret keinen "
+                + "Schlüssel ableiten. Setze Jwt:Secret oder die ENV JWT_SECRET.");
         _key = SHA256.HashData(Encoding.UTF8.GetBytes(secret));
     }
 

@@ -248,61 +248,20 @@ public class PregnancyPdfService
     private static string WochentagDe(DateOnly d) =>
         DeCh.DateTimeFormat.GetDayName(d.DayOfWeek);
 
-    // Frist-Berechnung — identisch zu PregnancyController, hier nochmal lokal
-    // gehalten damit der Service eigenständig ist (kein Controller-Coupling).
-    // Variante B (10.06.2026): Phasen-Ende + Lohn-/Staffel-Felder mit drin.
+    // Walter-Vorgabe 13.06.2026: Berechnung zentralisiert in
+    // PregnancyFristCalculator — hier nur noch die PDF-spezifische
+    // Übersetzung in den lokalen FristEntry-Record.
     private record FristEntry(string Bezeichnung, string? Beschreibung, string? Gesetz,
         DateOnly Datum, DateOnly? DatumEnde,
         decimal? LohnersatzPct, decimal? MaxBetragProTag, string? StaffelText,
         string Status, bool IstArbeitsverbot, int SortOrder);
 
-    private static DateOnly ResolveBasis(string? code, EmployeePregnancy p) => code switch
-    {
-        "MELDUNG" => p.Meldedatum,
-        "GEBURT"  => p.Geburtsdatum ?? p.ErrechneterTermin,
-        _         => p.ErrechneterTermin
-    };
-
-    private static DateOnly ApplyOffset(DateOnly basis, string? richtung, int offsetMonate, int offsetWochen)
-    {
-        int sign   = richtung == "NACHHER" ? 1 : -1;
-        int monate = Math.Abs(offsetMonate);
-        int wochen = Math.Abs(offsetWochen);
-        return basis.AddMonths(sign * monate).AddDays(sign * wochen * 7);
-    }
-
     private static FristEntry CalcFrist(PregnancyRule r, EmployeePregnancy p, DateOnly today)
     {
-        var basisStart = ResolveBasis(r.BerechnungBasis, p);
-        var datum      = ApplyOffset(basisStart, r.Richtung, r.OffsetMonate, r.OffsetWochen);
-
-        DateOnly? datumEnde = null;
-        bool hasEnde = r.BasisEnde != null
-                    || r.OffsetEndeMonate.HasValue
-                    || r.OffsetEndeWochen.HasValue;
-        if (hasEnde)
-        {
-            var basisEnde = ResolveBasis(r.BasisEnde ?? r.BerechnungBasis, p);
-            var richt     = r.RichtungEnde ?? r.Richtung;
-            datumEnde     = ApplyOffset(basisEnde, richt,
-                                         r.OffsetEndeMonate ?? 0,
-                                         r.OffsetEndeWochen ?? 0);
-        }
-
-        string status;
-        if (datum > today)                        status = "bevorstehend";
-        else if (datumEnde.HasValue && today > datumEnde.Value)  status = "abgeschlossen";
-        else if (datumEnde.HasValue)              status = "aktiv";
-        else if (r.Richtung == "NACHHER")         status = "abgeschlossen";
-        else
-        {
-            var geburt = p.Geburtsdatum;
-            status = (geburt.HasValue && today > geburt.Value.AddMonths(1))
-                ? "abgeschlossen" : "aktiv";
-        }
+        var f = PregnancyFristCalculator.Calculate(r, p, today);
         return new FristEntry(r.Bezeichnung, r.Beschreibung, r.Gesetz,
-            datum, datumEnde,
+            f.Datum, f.DatumEnde,
             r.LohnersatzPct, r.MaxBetragProTag, r.StaffelText,
-            status, r.IstArbeitsverbot, r.SortOrder);
+            f.Status, r.IstArbeitsverbot, r.SortOrder);
     }
 }

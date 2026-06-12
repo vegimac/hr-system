@@ -39,7 +39,10 @@ sudo -u postgres psql -c "DROP DATABASE IF EXISTS hrsystem;"
 sudo -u postgres psql -c "CREATE DATABASE hrsystem OWNER hrapp;"
 
 # 4. Restore
-PGPASSWORD='HrSystemneuVonWalter2026!' pg_restore \
+# Walter-Vorgabe 13.06.2026: Passwort NICHT mehr im Code. Aus /etc/hr-system/env
+# laden (gleicher Speicher-Ort wie für den App-Service).
+set -a; source /etc/hr-system/env; set +a
+PGPASSWORD="$DB_PASSWORD" pg_restore \
     -h localhost -U hrapp -d hrsystem \
     --no-owner --no-acl --verbose /tmp/restore.dump
 

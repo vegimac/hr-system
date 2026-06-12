@@ -4403,6 +4403,30 @@
                     </div>
                 </div>
 
+                <!-- Walter-Vorgabe 13.06.2026: dritte Sektion „Bewilligungen
+                     laufen ab" — analog Dashboard-Card permit_expiring. -->
+                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
+                    <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                            <div>
+                                <div style="font-size:15px;font-weight:700;color:#991b1b">Bewilligungen laufen ab</div>
+                                <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
+                                    Aktive MA, deren <b>jüngste Bewilligung</b> bereits <b>abgelaufen</b> ist oder in den
+                                    nächsten <b>90 Tagen abläuft</b>. Bei Austritt vor Ablauf wird der Eintrag ausgeblendet.
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportExcel()" style="font-size:12px">📊 Excel</button>
+                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportPdf()"   style="font-size:12px">📄 PDF</button>
+                                <button class="btn btn-outline" onclick="kontrollePermitRefresh()"      style="font-size:12px">↻ Aktualisieren</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="kontrollePermitList" style="padding:0">
+                        <div class="emp-placeholder" style="height:120px"><span>Lade Liste…</span></div>
+                    </div>
+                </div>
+
                 <div style="margin-top:18px;padding:12px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;color:#64748b;line-height:1.55">
                     <b>Hinweis:</b> Damit der Dokumenten-Status korrekt erkannt wird, muss in der
                     <a href="#" onclick="event.preventDefault();showPage('dokumentstruktur')" style="color:#1d4ed8">Dokument-Struktur</a>
@@ -8320,6 +8344,38 @@ function doLogout() {
 
 function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
 
+// Walter-Vorgabe 13.06.2026: globaler 401-Interceptor. Wenn ein API-Call
+// 401 zurückgibt (Token abgelaufen), Auto-Logout + Hinweis. Schützt vor
+// dem Bug, dass nach Token-Ablauf jeder API-Call mit einem hässlichen
+// JSON-Parse-Error fehlschlägt. Login-Endpoint ist ausgenommen — dort
+// ist 401 ein legitimer „falsches Passwort"-Status.
+(function installAuth401Interceptor() {
+    if (window._auth401Installed) return;
+    window._auth401Installed = true;
+    const origFetch = window.fetch.bind(window);
+    let alerting = false;   // Re-Entrance-Schutz für parallele 401-Responses
+
+    window.fetch = async function(input, init) {
+        const res = await origFetch(input, init);
+        try {
+            if (res.status !== 401) return res;
+            // Login-Endpoint darf 401 melden (falsche Anmeldedaten) ohne Reload.
+            const url = (typeof input === 'string') ? input
+                       : (input && input.url) ? input.url : '';
+            if (url.includes('/api/auth/login')) return res;
+            // Nur wenn der Browser überhaupt eingeloggt war.
+            if (!authToken) return res;
+            if (alerting) return res;
+            alerting = true;
+            authToken = null;
+            try { localStorage.removeItem('hrToken'); } catch {}
+            alert('Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.');
+            location.reload();
+        } catch { /* swallow */ }
+        return res;
+    };
+})();
+
 // Öffnet den MA-Importer (import.html) in einem eingebetteten iframe innerhalb
 // der App, statt einen neuen Tab zu öffnen. Walter-Wunsch: gleiches Verhalten
 // wie Stempelzeiten — alles bleibt in derselben Page, kein Kontextverlust.
@@ -8791,7 +8847,7 @@ function onBranchChange() {
 <script src="js/permit-import.js?v=20260607a"></script>
 <script src="js/hr-review-import.js?v=20260607b"></script>
 <script src="js/qst-import.js?v=20260607a"></script>
-<script src="js/kontrolle.js?v=20260613b"></script>
+<script src="js/kontrolle.js?v=20260613c"></script>
 <script src="js/nationen.js?v=20260607b"></script>
 <script src="js/swiss-locations.js?v=20260607b"></script>
 <script src="js/family-children-import.js?v=20260607a"></script>

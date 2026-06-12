@@ -1,4 +1,5 @@
 using HrSystem.Data;
+using HrSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -38,13 +39,13 @@ public class KontrollListenController : ControllerBase
     public async Task<IActionResult> SpouseDokuFehlt([FromQuery] int? companyProfileId = null)
     {
         // 1) Aktive MA (optional auf Filiale beschränkt) + neueste C-Permit-Info
-        // Walter-Vorgabe 13.06.2026: Phantom-MA (IsPayrollExcluded=true) sind
-        // für die HR-Kontrollen irrelevant — sie haben keine Lohnzahlung und
-        // damit keine QST-Pflicht. Auch der Ehegatten-Doku-Check entfällt.
+        // Walter-Vorgabe 13.06.2026: Phantom-MA (IsPayrollExcluded=true) UND
+        // soft-deleted MA (IsHidden=true) sind für die HR-Kontrollen irrelevant.
         var empQuery = _db.Employees
             .Include(e => e.NationalityRef)
             .Where(e => e.IsActive
                      && !e.IsPayrollExcluded
+                     && !e.IsHidden
                      && !e.EmployeeNumber.ToLower().EndsWith("alt"));
         if (companyProfileId.HasValue)
         {
@@ -86,14 +87,19 @@ public class KontrollListenController : ControllerBase
             .GroupBy(f => f.EmployeeId)
             .ToDictionary(g => g.Key, g => g.First());
 
-        // 4) MA mit existierendem Spouse-Doku (linked_field_code='spouse')
-        var maWithSpouseDoc = await _db.EmployeeDokumente
-            .Join(_db.DokumentTypen, d => d.DokumentTypId, t => t.Id, (d, t) => new { d, t })
-            .Where(x => x.t.LinkedFieldCode == "spouse" && empIds.Contains(x.d.EmployeeId))
-            .Select(x => x.d.EmployeeId)
-            .Distinct()
+        // 4) Spouse-Doku-Check (Walter-Vorgabe 13.06.2026): vereinheitlicht
+        // mit QstPflichtCheckService — explizite Verknüpfung über
+        // employee_family_member.DokumentId statt linked_field_code-Scan.
+        // Damit zeigen Kontroll-Liste, QST-Banner und Dashboard EXAKT das
+        // gleiche Ergebnis. Plus: die Doku-ID muss tatsächlich noch
+        // existieren (wurde nicht zwischenzeitlich gelöscht).
+        var existingDokIds = await _db.EmployeeDokumente
+            .Where(d => empIds.Contains(d.EmployeeId))
+            .Select(d => d.Id)
             .ToListAsync();
-        var docSet = new HashSet<int>(maWithSpouseDoc);
+        var dokIdSet = new HashSet<int>(existingDokIds);
+        bool SpouseDokVerknuepft(EmployeeFamilyMember sp) =>
+            sp.DokumentId.HasValue && dokIdSet.Contains(sp.DokumentId.Value);
 
         // 5) Filter zusammensetzen
         var result = emps
@@ -110,8 +116,8 @@ public class KontrollListenController : ControllerBase
                     string.Equals(sp.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(sp.PermitType?.Code, "C", StringComparison.OrdinalIgnoreCase)
                 )
-                // Kein Doku hinterlegt
-                && !docSet.Contains(e.Id)
+                // Keine Spouse-Doku verknüpft (oder Ziel-Doku gelöscht)
+                && !SpouseDokVerknuepft(sp)
             )
             .Select(e =>
             {
@@ -232,5 +238,110 @@ public class KontrollListenController : ControllerBase
         }
 
         return Ok(result.OrderBy(r => ((dynamic)r).employeeName).ToList());
+    }
+
+    /// <summary>
+    /// Walter-Vorgabe 13.06.2026: abgelaufene + bald ablaufende Bewilligungen
+    /// (innerhalb 90 Tagen) — analog der Dashboard-Card „Bewilligungen laufen
+    /// ab". Pro MA der JÜNGSTE Permit-History-Eintrag (ValidFrom desc), wenn
+    /// dessen ValidTo &lt;= heute+90.
+    ///
+    /// Filter:
+    ///   • IsActive, !IsHidden, kein `+alt`-Suffix, optional Filiale
+    ///   • Skip wenn der MA vor Ablauf austritt (ExitDate &lt;= ValidTo) —
+    ///     Erneuerung wäre unnötig (gleiche Logik wie im DashboardService).
+    /// </summary>
+    [HttpGet("permit-expiring")]
+    public async Task<IActionResult> PermitExpiring([FromQuery] int? companyProfileId = null)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var limit = DateOnly.FromDateTime(DateTime.Today.AddDays(90));
+
+        var empQuery = _db.Employees
+            .Where(e => e.IsActive
+                     && !e.IsHidden
+                     && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+        if (companyProfileId.HasValue)
+        {
+            var cpid = companyProfileId.Value;
+            empQuery = empQuery.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+        }
+        var emps = await empQuery
+            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.ExitDate })
+            .ToListAsync();
+        var empIds = emps.Select(e => e.Id).ToList();
+        if (empIds.Count == 0) return Ok(Array.Empty<object>());
+
+        var histAll = await _db.EmployeePermitHistories
+            .Include(h => h.PermitType)
+            .Where(h => empIds.Contains(h.EmployeeId) && h.PermitTypeId != null)
+            .ToListAsync();
+
+        var empById = emps.ToDictionary(e => e.Id);
+        var youngestPerEmp = histAll
+            .GroupBy(h => h.EmployeeId)
+            .Select(g => g.OrderByDescending(x => x.ValidFrom).ThenByDescending(x => x.Id).First())
+            .Where(h => h.ValidTo.HasValue && h.ValidTo.Value <= limit)
+            .Where(h =>
+            {
+                if (!empById.TryGetValue(h.EmployeeId, out var e)) return false;
+                if (e.ExitDate.HasValue)
+                {
+                    var exitDateOnly = DateOnly.FromDateTime(e.ExitDate.Value);
+                    if (h.ValidTo!.Value >= exitDateOnly) return false;
+                }
+                return true;
+            })
+            .ToList();
+
+        var result = youngestPerEmp.Select(h =>
+        {
+            var e        = empById[h.EmployeeId];
+            var validTo  = h.ValidTo!.Value;
+            var days     = validTo.DayNumber - today.DayNumber;
+            var permitCd = h.PermitType?.Code ?? "?";
+            string reason;
+            string severity;
+            if (days < 0)
+            {
+                reason   = $"Bewilligung {permitCd} ist seit {-days} Tag(en) abgelaufen";
+                severity = "expired";
+            }
+            else if (days == 0)
+            {
+                reason   = $"Bewilligung {permitCd} läuft heute ab";
+                severity = "critical";
+            }
+            else if (days <= 30)
+            {
+                reason   = $"Bewilligung {permitCd} läuft in {days} Tagen ab";
+                severity = "critical";
+            }
+            else if (days <= 60)
+            {
+                reason   = $"Bewilligung {permitCd} läuft in {days} Tagen ab";
+                severity = "warning";
+            }
+            else
+            {
+                reason   = $"Bewilligung {permitCd} läuft in {days} Tagen ab";
+                severity = "info";
+            }
+            return new {
+                employeeId      = e.Id,
+                employeeNumber  = e.EmployeeNumber,
+                employeeName    = ($"{e.FirstName} {e.LastName}").Trim(),
+                permitCode      = permitCd,
+                validTo         = validTo.ToString("yyyy-MM-dd"),
+                daysUntil       = days,
+                severity,
+                reason
+            };
+        })
+        .OrderBy(r => r.daysUntil)            // abgelaufene (neg.) zuerst, dann nächste Termine
+        .ThenBy(r => r.employeeName)
+        .ToList();
+
+        return Ok(result);
     }
 }

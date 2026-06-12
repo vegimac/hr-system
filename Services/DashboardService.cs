@@ -410,45 +410,25 @@ public class DashboardService
                 if (heute > schutzEnde) continue;
 
                 // Aktuelle Fristen berechnen — Liste „verboten/erlaubt jetzt".
-                // Variante B (10.06.2026): Phasen-Ende berücksichtigen, damit
-                // eine abgelaufene Phase (z.B. NACHT_VERBOT nach ET) NICHT mehr
-                // als „aktiv verboten" gemeldet wird.
-                static DateOnly ResolveBasisDash(string? code, EmployeePregnancy pp) => code switch {
-                    "MELDUNG" => pp.Meldedatum,
-                    "GEBURT"  => pp.Geburtsdatum ?? pp.ErrechneterTermin,
-                    _         => pp.ErrechneterTermin
-                };
-                static DateOnly ApplyOffsetDash(DateOnly basis, string? richtung, int m, int w) {
-                    int sign = richtung == "NACHHER" ? 1 : -1;
-                    return basis.AddMonths(sign * Math.Abs(m)).AddDays(sign * Math.Abs(w) * 7);
-                }
-
+                // Walter-Vorgabe 13.06.2026: Berechnung zentral via
+                // PregnancyFristCalculator (vorher hier dupliziert).
                 var aktivVerbote = new List<string>();
                 var bevorstehende = new List<string>();
                 foreach (var r in pRules)
                 {
-                    var basisStart = ResolveBasisDash(r.BerechnungBasis, preg);
-                    var datum      = ApplyOffsetDash(basisStart, r.Richtung, r.OffsetMonate, r.OffsetWochen);
-                    DateOnly? datumEnde = null;
-                    bool hasEnde = r.BasisEnde != null || r.OffsetEndeMonate.HasValue || r.OffsetEndeWochen.HasValue;
-                    if (hasEnde)
-                    {
-                        var basisE = ResolveBasisDash(r.BasisEnde ?? r.BerechnungBasis, preg);
-                        var richt  = r.RichtungEnde ?? r.Richtung;
-                        datumEnde  = ApplyOffsetDash(basisE, richt, r.OffsetEndeMonate ?? 0, r.OffsetEndeWochen ?? 0);
-                    }
+                    var f = PregnancyFristCalculator.Calculate(r, preg, heute);
 
-                    if (datum > heute)
+                    if (f.Status == "bevorstehend")
                     {
-                        // bevorstehend — nur die nächsten 30 Tage als Vorausschau anzeigen
-                        if ((datum.DayNumber - heute.DayNumber) <= 30)
-                            bevorstehende.Add($"{r.Bezeichnung} (ab {datum:dd.MM.yyyy})");
+                        // nur die nächsten 30 Tage als Vorausschau anzeigen
+                        if ((f.Datum.DayNumber - heute.DayNumber) <= 30)
+                            bevorstehende.Add($"{r.Bezeichnung} (ab {f.Datum:dd.MM.yyyy})");
                     }
-                    else if (datumEnde.HasValue && heute > datumEnde.Value)
+                    else if (f.Status == "abgeschlossen")
                     {
                         // Phase ist vorbei → kein aktiver Verbot mehr
                     }
-                    else
+                    else // "aktiv"
                     {
                         if (r.IstArbeitsverbot) aktivVerbote.Add(r.Bezeichnung);
                     }

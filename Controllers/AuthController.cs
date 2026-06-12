@@ -22,9 +22,15 @@ public class AuthController : ControllerBase
     // gesperrt. Wirkt für ALLE Rollen (auch Admin), schützt vor Brute-Force.
     private const int    LOCKOUT_THRESHOLD    = 5;
     private const int    LOCKOUT_MINUTES      = 15;
-    // JWT-Lebensdauer: Backoffice-User 30 Tage, Mitarbeiter-Postfach 30 Min.
-    private const int    JWT_DAYS_BACKOFFICE  = 30;
-    private const int    JWT_MINUTES_EMPLOYEE = 30;
+    // Walter-Vorgabe 13.06.2026: kurzlebige JWTs für echte Produktivdaten.
+    //   • Backoffice (admin/superuser/user/buchhaltung) → 8 h = 1 Arbeitstag
+    //     (morgens einloggen reicht). Vorher 30 Tage — bei Token-Diebstahl
+    //     hätte ein Angreifer einen Monat Zugang gehabt.
+    //   • Mitarbeiter-Postfach (Rolle 'employee')         → 4 h. Sessions
+    //     sind kurz (Lohnzettel anschauen, Passwort wechseln), Risiko bei
+    //     Token-Diebstahl höher (Handy verloren).
+    private const int    JWT_HOURS_BACKOFFICE = 8;
+    private const int    JWT_HOURS_EMPLOYEE   = 4;
 
     public AuthController(AppDbContext context, IConfiguration config)
     {
@@ -248,7 +254,11 @@ public class AuthController : ControllerBase
 
     private string GenerateToken(AppUser user)
     {
-        var secret = _config["Jwt:Secret"] ?? "SchaUbHrSyStEmSeCrEtKeY2026!!SuperSecure";
+        // Walter-Vorgabe 13.06.2026: KEIN hardgecodeter Fallback.
+        var secret = _config["Jwt:Secret"]
+            ?? Environment.GetEnvironmentVariable("JWT_SECRET")
+            ?? throw new InvalidOperationException(
+                "JWT-Secret nicht konfiguriert (Jwt:Secret oder ENV JWT_SECRET).");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -271,8 +281,8 @@ public class AuthController : ControllerBase
         // Lebensdauer, weil sie typisch nur kurz reinschauen und das Risiko
         // bei Token-Diebstahl höher ist (Handy verloren etc.).
         var expires = user.Role == "employee"
-            ? DateTime.UtcNow.AddMinutes(JWT_MINUTES_EMPLOYEE)
-            : DateTime.UtcNow.AddDays(JWT_DAYS_BACKOFFICE);
+            ? DateTime.UtcNow.AddHours(JWT_HOURS_EMPLOYEE)
+            : DateTime.UtcNow.AddHours(JWT_HOURS_BACKOFFICE);
 
         var token = new JwtSecurityToken(
             claims: claims,

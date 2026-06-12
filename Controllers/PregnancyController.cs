@@ -144,99 +144,36 @@ public class PregnancyController : HrControllerBase
         return File(pdf, "application/pdf", $"Mutterschaft_{name}.pdf");
     }
 
+    /// <summary>
+    /// Walter-Vorgabe 13.06.2026: SOFT-Delete. Setzt IsActive=false, hält
+    /// den Datensatz aber im System (konsistent mit dem Model-Kommentar
+    /// und dem Rest des Systems — Lohnabhängige Daten werden NIE hart
+    /// gelöscht). Eine versteckte Schwangerschaft kann später wieder
+    /// aktiviert werden, taucht aber nicht mehr in den GETs auf.
+    /// </summary>
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
         var p = await _db.EmployeePregnancies.FindAsync(id);
         if (p is null) return NotFound();
-        _db.EmployeePregnancies.Remove(p);
+        p.IsActive = false;
         await _db.SaveChangesAsync();
         return Ok();
     }
 
     // ─── Fristenberechnung ────────────────────────────────────────────────
     /// <summary>
-    /// Wendet eine Regel auf eine Schwangerschaft an. Liefert das berechnete
-    /// Datum + Status (bevorstehend / aktiv / abgeschlossen).
-    ///
-    /// Status-Logik:
-    ///   • bevorstehend = berechnetes Datum liegt in der Zukunft
-    ///   • aktiv        = berechnetes Datum erreicht
-    ///   • abgeschlossen= Frist offensichtlich vorbei (nur sinnvoll bei
-    ///     NACHHER-Regeln; für VORHER ist das Konzept „abgeschlossen" der
-    ///     Moment der Geburt — wir verwenden dafür: Geburt vorhanden UND
-    ///     berechnetes Datum + 6 Monate Pufferzeit liegen in der Vergangenheit).
+    /// Walter-Vorgabe 13.06.2026: Berechnung an `PregnancyFristCalculator`
+    /// ausgelagert. Hier nur noch die Übersetzung Berechnungs-Tupel →
+    /// FristDto (mit Regel-Metadaten für die UI).
     /// </summary>
-    private static DateOnly ResolveBasis(string? code, EmployeePregnancy p) => code switch
-    {
-        "MELDUNG" => p.Meldedatum,
-        "GEBURT"  => p.Geburtsdatum ?? p.ErrechneterTermin,   // Fallback: ET
-        _         => p.ErrechneterTermin                      // ET (Default)
-    };
-
-    private static DateOnly ApplyOffset(DateOnly basis, string? richtung, int offsetMonate, int offsetWochen)
-    {
-        int sign   = richtung == "NACHHER" ? 1 : -1;
-        int monate = Math.Abs(offsetMonate);
-        int wochen = Math.Abs(offsetWochen);
-        return basis.AddMonths(sign * monate).AddDays(sign * wochen * 7);
-    }
-
     private static FristDto CalcFrist(PregnancyRule r, EmployeePregnancy p, DateOnly today)
     {
-        // Start-Datum
-        var basisStart = ResolveBasis(r.BerechnungBasis, p);
-        var datum      = ApplyOffset(basisStart, r.Richtung, r.OffsetMonate, r.OffsetWochen);
-
-        // Phasen-Ende (Variante B): falls Basis-Ende ODER ein Offset gesetzt ist.
-        // Eigene Basis bevorzugt, sonst dieselbe wie Start.
-        DateOnly? datumEnde = null;
-        bool hasEnde = r.BasisEnde != null
-                    || r.OffsetEndeMonate.HasValue
-                    || r.OffsetEndeWochen.HasValue;
-        if (hasEnde)
-        {
-            var basisEnde = ResolveBasis(r.BasisEnde ?? r.BerechnungBasis, p);
-            var richt     = r.RichtungEnde ?? r.Richtung;
-            datumEnde     = ApplyOffset(basisEnde, richt,
-                                         r.OffsetEndeMonate ?? 0,
-                                         r.OffsetEndeWochen ?? 0);
-        }
-
-        // Status — wenn ein Ende-Datum existiert, ist die Phase exakt definiert.
-        string status;
-        if (datum > today)
-        {
-            status = "bevorstehend";
-        }
-        else if (datumEnde.HasValue && today > datumEnde.Value)
-        {
-            status = "abgeschlossen";
-        }
-        else if (datumEnde.HasValue)
-        {
-            // Innerhalb der Phase
-            status = "aktiv";
-        }
-        else
-        {
-            // Kein explizites Ende — alte Heuristik wie zuvor.
-            if (r.Richtung == "NACHHER")
-            {
-                status = "abgeschlossen";
-            }
-            else // VORHER
-            {
-                var geburt = p.Geburtsdatum;
-                status = (geburt.HasValue && today > geburt.Value.AddMonths(1))
-                    ? "abgeschlossen" : "aktiv";
-            }
-        }
-
+        var f = PregnancyFristCalculator.Calculate(r, p, today);
         return new FristDto(
             r.Code, r.Bezeichnung, r.Beschreibung, r.Gesetz,
-            datum, datumEnde,
+            f.Datum, f.DatumEnde,
             r.LohnersatzPct, r.MaxBetragProTag, r.StaffelText,
-            status, r.IstArbeitsverbot, r.SortOrder);
+            f.Status, r.IstArbeitsverbot, r.SortOrder);
     }
 }

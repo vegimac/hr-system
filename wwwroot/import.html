@@ -520,6 +520,41 @@ let rowStates = {}; // rowIndex → { status, employeeId, contractDone }
 
 function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
 
+// Walter-Vorgabe 13.06.2026: globaler 401-Interceptor (siehe index.html).
+// import.html läuft im iframe innerhalb der App — Reload würde nur das
+// iframe neu laden. Statt eines Reloads schicken wir den Benutzer mit
+// einer Message an die Parent-Page, die dann ihren eigenen Reload macht.
+(function installAuth401Interceptor() {
+    if (window._auth401Installed) return;
+    window._auth401Installed = true;
+    const origFetch = window.fetch.bind(window);
+    let alerting = false;
+    window.fetch = async function(input, init) {
+        const res = await origFetch(input, init);
+        try {
+            if (res.status !== 401) return res;
+            const url = (typeof input === 'string') ? input
+                       : (input && input.url) ? input.url : '';
+            if (url.includes('/api/auth/login')) return res;
+            if (!authToken) return res;
+            if (alerting) return res;
+            alerting = true;
+            authToken = null;
+            try { localStorage.removeItem('hrToken'); } catch {}
+            alert('Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.');
+            // Parent-Page reloaden (falls in iframe), sonst eigenen Reload.
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.location.reload();
+                } else {
+                    location.reload();
+                }
+            } catch { location.reload(); }
+        } catch { /* swallow */ }
+        return res;
+    };
+})();
+
 async function doLogin() {
     const email = document.getElementById('loginEmail').value.trim();
     const pw    = document.getElementById('loginPassword').value;

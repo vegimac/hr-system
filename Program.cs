@@ -20,14 +20,36 @@ builder.Services.AddSingleton<HrSystem.Services.AuditSaveChangesInterceptor>();
 builder.Services.AddHostedService<HrSystem.Services.AuditLogCleanupService>();
 
 // Datenbank
+// Walter-Vorgabe 13.06.2026: DB-Passwort kommt aus ENV `DB_PASSWORD`. In
+// appsettings.json steht nur der Platzhalter `${DB_PASSWORD}` — wird hier
+// vor dem Aufbau des DbContext ersetzt. Fehlende ENV → harter Startup-Fail.
+var rawConn = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection fehlt in appsettings.json.");
+var connectionString = rawConn;
+if (rawConn.Contains("${DB_PASSWORD}"))
+{
+    var dbPwd = Environment.GetEnvironmentVariable("DB_PASSWORD")
+        ?? throw new InvalidOperationException(
+            "DB_PASSWORD Umgebungsvariable nicht gesetzt. Setze sie in "
+            + "/etc/hr-system/env oder im Entwicklungs-Setup als Shell-ENV.");
+    connectionString = rawConn.Replace("${DB_PASSWORD}", dbPwd);
+}
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseNpgsql(connectionString);
     options.AddInterceptors(sp.GetRequiredService<HrSystem.Services.AuditSaveChangesInterceptor>());
 });
 
 // JWT-Authentifizierung
-var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "SchaUbHrSyStEmSeCrEtKeY2026!!SuperSecure";
+// Walter-Vorgabe 13.06.2026: KEIN hardgecodeter Fallback — Secret muss
+// in appsettings.json oder als ENV `Jwt__Secret` / `JWT_SECRET` gesetzt
+// sein, sonst startet die App nicht. Verhindert dass produktiv ein
+// vorhersagbarer Default-Key verwendet wird.
+var jwtSecret = builder.Configuration["Jwt:Secret"]
+    ?? Environment.GetEnvironmentVariable("JWT_SECRET")
+    ?? throw new InvalidOperationException(
+        "JWT-Secret nicht konfiguriert. Setze Jwt:Secret in appsettings.json "
+        + "oder die Umgebungsvariable JWT_SECRET (mind. 32 Zeichen).");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -186,14 +208,20 @@ using (var scope = app.Services.CreateScope())
     ");
 
     // Admin-User anlegen falls noch nicht vorhanden
+    // Walter-Vorgabe 13.06.2026: Init-Passwort aus ENV ADMIN_INIT_PASSWORD.
+    // Fallback "Admin2026!" bleibt — nach erstem Login MUSS Walter es eh
+    // wechseln (siehe MustChangePassword-Flag). Aber für Produktion sollte
+    // die ENV gesetzt sein, damit das Default-Passwort nicht im Code steht.
     var adminExists = db.AppUsers.Any(u => u.Email == "walter.schaub@gmail.com");
     if (!adminExists)
     {
+        var adminInitPassword = Environment.GetEnvironmentVariable("ADMIN_INIT_PASSWORD")
+                             ?? "Admin2026!";
         var admin = new AppUser
         {
             Username = "Walter Schaub",
             Email = "walter.schaub@gmail.com",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin2026!"),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminInitPassword),
             Role = "admin",
             IsActive = true,
             CreatedAt = DateTime.UtcNow
@@ -1285,6 +1313,22 @@ app.Use(async (context, next) =>
     // HSTS: vom Browser nur über HTTPS beachtet, daher unbedingt setzen (nginx
     // terminiert TLS und proxyt HTTP an Kestrel — Request.IsHttps wäre hier false).
     h["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+    // Walter-Vorgabe 13.06.2026: CSP — erschwert XSS-Angriffe deutlich.
+    //   • default-src 'self'              — alles standardmäßig nur von eigener Domain
+    //   • script-src 'self' 'unsafe-inline' — JS auch inline (SPA hat viel onclick=)
+    //   • style-src 'self' 'unsafe-inline' + Google Fonts CSS
+    //   • font-src  'self' + Google Fonts Files
+    //   • img-src   'self' + data: + blob: (für Foto-Preview / Doku-Vorschau)
+    //   • connect-src 'self'              — API-Calls nur an eigene Domain
+    // Wenn nach Deploy etwas im Browser nicht mehr lädt → F12 Console zeigt
+    // welche Direktive blockt → hier nachschärfen.
+    h["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "img-src 'self' data: blob:; " +
+        "connect-src 'self'";
     await next();
 });
 
