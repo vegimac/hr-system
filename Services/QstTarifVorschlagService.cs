@@ -174,7 +174,7 @@ public static class QstTarifVorschlagLogic
         // 3) Kirchensteuer
         var kirchensteuer = IstKirchensteuerPflichtig(religion);
         if (kirchensteuer)
-            begruendung.Add($"Konfession „{religion}" → kirchensteuerpflichtig");
+            begruendung.Add($"Konfession '{religion}' -> kirchensteuerpflichtig");
 
         // 4) Tariftabelle prüfen + Fallbacks
         var (effektiveKinder, effektiveKirche, gefunden) = FindeTarifInTabelle(
@@ -237,20 +237,20 @@ public static class QstTarifVorschlagLogic
 
         if (verheiratet)
         {
-            begruendung.Add($"Zivilstand „{zivilstand}" → C (Doppelverdiener als Default; bei Alleinverdiener auf B wechseln)");
+            begruendung.Add($"Zivilstand '{zivilstand}' -> C (Doppelverdiener als Default; bei Alleinverdiener auf B wechseln)");
             return "C";
         }
         if (alleinerziehend_basis && kinderImHaushalt > 0)
         {
-            begruendung.Add($"Zivilstand „{zivilstand}" + Kind im selben Haushalt → H (Alleinerziehend)");
+            begruendung.Add($"Zivilstand '{zivilstand}' + Kind im selben Haushalt -> H (Alleinerziehend)");
             return "H";
         }
         if (alleinerziehend_basis)
         {
-            begruendung.Add($"Zivilstand „{zivilstand}" ohne Kind im Haushalt → A");
+            begruendung.Add($"Zivilstand '{zivilstand}' ohne Kind im Haushalt -> A");
             return "A";
         }
-        begruendung.Add($"Zivilstand „{zivilstand}" nicht erkannt → A als Default");
+        begruendung.Add($"Zivilstand '{zivilstand}' nicht erkannt -> A als Default");
         return "A";
     }
 
