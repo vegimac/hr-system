@@ -650,6 +650,18 @@ function renderEmployeeDetail(emp) {
     const entry = emp.entryDate ? formatDate(emp.entryDate) : '–';
     const exit  = emp.exitDate  ? formatDate(emp.exitDate)  : _t('ma.detail.statusActive', 'Aktiv');
     const nr    = emp.employeeNumber ?? '–';
+    // Walter-Vorgabe 14.06.2026: Header-Status MUSS sich an emp.isActive
+    // orientieren — vorher zeigte er nur „● Aktiv" wenn kein ExitDate gesetzt
+    // war. Wenn ein MA via Re-Import ohne ExitDate deaktiviert wird (z.B.
+    // weil er aus dem easy@work-CSV verschwunden ist), entstand sonst ein
+    // UI-Widerspruch: Liste/Anstellung-Block „inaktiv", Header „Aktiv".
+    // Reihenfolge: Austrittsdatum (mit Austritt:-Label) > „● Inaktiv" (grau)
+    // > „● Aktiv" (grün).
+    const headerStatusHtml = emp.exitDate
+        ? `${_t('ma.detail.exitDate','Austritt')}: ${exit}`
+        : (emp.isActive
+            ? '<span style="color:#22c55e">● ' + _t('ma.detail.statusActive','Aktiv') + '</span>'
+            : '<span style="color:#94a3b8">● ' + _t('ma.detail.statusInactive','Inaktiv') + '</span>');
     // Walter-Vorgabe 07.06.2026: Mitarbeiterfoto im Detail-Header.
     // Initialen als Sofort-Fallback; das echte Foto wird asynchron via
     // loadEmployeePhoto() nachgeladen, falls in der Doku-Struktur ein Typ
@@ -674,7 +686,7 @@ function renderEmployeeDetail(emp) {
                             🤰 Mutterschaft
                         </button>` : ''}
                     </div>
-                    <div class="emp-detail-meta">${_t('ma.detail.persNr','Personal-Nr.')} ${nr} &nbsp;·&nbsp; ${_t('ma.detail.entryDate','Eintritt')}: ${entry} &nbsp;·&nbsp; ${emp.exitDate ? _t('ma.detail.exitDate','Austritt') + ': ' + exit : '<span style="color:#22c55e">● ' + _t('ma.detail.statusActive','Aktiv') + '</span>'}</div>
+                    <div class="emp-detail-meta">${_t('ma.detail.persNr','Personal-Nr.')} ${nr} &nbsp;·&nbsp; ${_t('ma.detail.entryDate','Eintritt')}: ${entry} &nbsp;·&nbsp; ${headerStatusHtml}</div>
                 </div>
             </div>
             <!-- Tab-spezifischer „+ Neu"-Button (Walter-Vorgabe 01.06.2026):
