@@ -559,79 +559,32 @@ public class QstImportController : ControllerBase
             var sheet = wb.GetSheetAt(0);
             if (sheet == null) return (null, "");
 
-            // Format-Detection (in dieser Reihenfolge):
-            // 1) BE-Header: „Kanton Bern" / „Canton de Berne" / „taxme.ch"
-            //    in den ersten 30 Zeilen × 60 Spalten — eindeutig, aber kann
-            //    fehlschlagen wenn die Beschriftung als gemergte Zelle oder
-            //    Textfeld vorliegt.
-            // 2) BE-Pattern (Fallback, Walter 14.06.2026): zähle Zeilen, die
-            //    EXAKT 11 nicht-leere Werte haben + erster Wert ist eine AHV.
-            //    Das ist die strukturelle Signatur des BE-Anmeldeformulars
-            //    (Mirus AG/LU haben pro MA-Zeile deutlich mehr nicht-leere
-            //    Werte — Kanton, Tarif/Kinder/Kirche separat, etc.). ≥ 1
-            //    solche Zeile → BE.
-            // 3) AG: Cell[8] enthält eine AHV (756.*).
-            // 4) sonst LU.
-            string format = "LU";
-
-            // (1) Header-Match
-            for (int r = 0; r < Math.Min(30, sheet.LastRowNum + 1) && format != "BE"; r++)
+            // Format-Detection (Walter 14.06.2026 — final): wir scannen die
+            // ersten 100 Zeilen und prüfen, in welcher Spalte die ERSTE
+            // gefundene AHV (756.xxxx.xxxx.xx) steht. Das ist die eindeutige
+            // Layout-Signatur:
+            //   • Spalte 3  → LU-Format (Mirus Luzern)
+            //   • Spalte 8  → AG-Format (Mirus Aargau)
+            //   • alles andere (typ. 0–2) → BE (kantonales Anmeldeformular)
+            // Header-Match („Kanton Bern" / „taxme.ch") fällt weg — bei
+            // Walters Datei steht das in einem Textfeld/grafischen Element
+            // und wird vom GetCell-Scan nicht erfasst.
+            string format = "";
+            var ahvDetectRegex = new System.Text.RegularExpressions.Regex(@"^756\.\d{4}\.\d{4}\.\d{2}$");
+            for (int r = 0; r < Math.Min(100, sheet.LastRowNum + 1) && format == ""; r++)
             {
                 var row = sheet.GetRow(r);
                 if (row == null) continue;
-                int maxCol = Math.Min(60, (int)row.LastCellNum);
+                int maxCol = row.LastCellNum;
                 for (int c = 0; c < maxCol; c++)
                 {
-                    var v = GetString(row.GetCell(c));
-                    if (string.IsNullOrWhiteSpace(v)) continue;
-                    if (v.Contains("Kanton Bern", StringComparison.OrdinalIgnoreCase)
-                     || v.Contains("Canton de Berne", StringComparison.OrdinalIgnoreCase)
-                     || v.Contains("taxme.ch", StringComparison.OrdinalIgnoreCase))
-                    {
-                        format = "BE";
-                        break;
-                    }
+                    var s = GetString(row.GetCell(c)).Trim();
+                    if (!ahvDetectRegex.IsMatch(s)) continue;
+                    format = c switch { 3 => "LU", 8 => "AG", _ => "BE" };
+                    break;
                 }
             }
-
-            // (2) Pattern-Match — robust gegen Header in Textfeldern / gemergten
-            // Zellen. Scannt die ersten 300 Zeilen nach BE-MA-Zeilen.
-            if (format != "BE")
-            {
-                int beRowCount = 0;
-                int scanUntil = Math.Min(300, sheet.LastRowNum + 1);
-                for (int r = 0; r < scanUntil; r++)
-                {
-                    var row = sheet.GetRow(r);
-                    if (row == null) continue;
-                    var nonEmpty = new List<string>();
-                    int maxCol = row.LastCellNum;
-                    for (int c = 0; c < maxCol; c++)
-                    {
-                        var s = GetString(row.GetCell(c)).Trim();
-                        if (!string.IsNullOrEmpty(s)) nonEmpty.Add(s);
-                    }
-                    if (nonEmpty.Count == 11
-                     && nonEmpty[0].StartsWith("756.")
-                     && nonEmpty[0].Length >= 16)
-                    {
-                        beRowCount++;
-                        if (beRowCount >= 1) { format = "BE"; break; }
-                    }
-                }
-            }
-
-            // (3) AG
-            if (format != "BE")
-            {
-                for (int r = 0; r < Math.Min(100, sheet.LastRowNum + 1); r++)
-                {
-                    var row = sheet.GetRow(r);
-                    if (row == null) continue;
-                    var v8 = GetString(row.GetCell(8));
-                    if (v8.StartsWith("756.") && v8.Length >= 16) { format = "AG"; break; }
-                }
-            }
+            if (format == "") format = "LU"; // nichts gefunden → harmloser Default
 
             // Parse + Fallback-Sicherheitsnetz (Walter 14.06.2026): wenn die
             // gewählte Detection 0 MA-Zeilen produziert, probieren wir
@@ -737,25 +690,29 @@ public class QstImportController : ControllerBase
 
     /// <summary>
     /// BE-Layout (Walter 14.06.2026): offizielles Kanton-Bern-Anmeldeformular
-    /// (taxme.ch). Spaltenpositionen sind je Druckseite verschoben (Seite 1
-    /// hat AHV in einer anderen Cell-Spalte als Seite 2), aber pro MA-Zeile
-    /// stehen IMMER genau 11 nicht-leere Werte in fester Reihenfolge:
-    ///   [0] AHV (756.xxxx.xxxx.xx)
-    ///   [1] Name (Nachname Vorname zusammen, wie LU)
-    ///   [2] Geburtsdatum (dd.mm.yyyy)
-    ///   [3] Wohnort
-    ///   [4] Monat (1-12)
-    ///   [5] Beschäftigungsgrad (z.B. 45.48) — wird ignoriert, im RawRow nicht vorgesehen
-    ///   [6] Bruttolohn
-    ///   [7] Aperiodisch
-    ///   [8] Satzbestimmender Lohn
-    ///   [9] Tarif-Code (z.B. A0Y, H3N, C1Y) — wird per Regex in Tarif+Kinder+Kirche zerlegt
-    ///   [10] Quellensteuer-Betrag
-    /// Steuerkanton: fix "BE" (das Formular existiert nur in diesem Kanton).
+    /// (taxme.ch). Spaltenpositionen wechseln je Druckseite (Seite 1 hat
+    /// andere Cell-Offsets als Seite 2/3 — viele gemergte Header-Zellen).
+    ///
+    /// Darum POSITIONSFREIES Parsen — pro Zeile alle nicht-leeren Cells
+    /// einsammeln und per Muster zuordnen:
+    ///   • AHV         : regex 756\.\d{4}\.\d{4}\.\d{2}
+    ///   • Geburtsdatum: regex dd.mm.yyyy (oder echtes Date-Format)
+    ///   • Tarif       : regex ^[A-Z]\d+[YN]$ (z.B. A0Y, H3N, C1Y)
+    ///   • Name        : Text-Zelle zwischen AHV und DOB
+    ///   • Wohnort     : Text-Zelle zwischen DOB und erstem numerischen Wert
+    ///   • Monat       : erster numerischer Wert nach Wohnort (1-12)
+    ///   • Brutto / Aperiodisch / Satzbest: nachfolgende numerische Werte
+    ///     (Pensum dazwischen — wird ignoriert, im RawRow nicht vorgesehen)
+    ///   • QST-Betrag  : erster numerischer Wert NACH der Tarif-Zelle
+    /// Steuerkanton: fix "BE" (Formular existiert nur in diesem Kanton).
+    /// Zeilen ohne AHV / DOB / Tarif werden übersprungen (Kopf, Überträge,
+    /// Bemerkungen, Totalzeilen) — das ist die natürliche Filterung.
     /// </summary>
     private static List<RawRow> ParseBe(ISheet sheet)
     {
         var rows = new List<RawRow>();
+        var ahvRegex   = new System.Text.RegularExpressions.Regex(@"^756\.\d{4}\.\d{4}\.\d{2}$");
+        var dobRegex   = new System.Text.RegularExpressions.Regex(@"^\d{2}\.\d{2}\.\d{4}$");
         var tarifRegex = new System.Text.RegularExpressions.Regex(
             @"^([A-Z])(\d+)([YN])$",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -765,44 +722,87 @@ public class QstImportController : ControllerBase
             var row = sheet.GetRow(r);
             if (row == null) continue;
 
-            // Alle nicht-leeren Zellen in Reihenfolge sammeln.
-            var values = new List<(int Col, string Text, ICell Cell)>();
+            // Alle nicht-leeren Cells (mit Cell-Ref) in Reihenfolge sammeln.
+            // Number = parser-numerischer Wert wenn vorhanden, sonst null.
+            var cells = new List<(int Col, string Text, ICell Cell, double? Number)>();
             for (int c = 0; c < row.LastCellNum; c++)
             {
                 var cell = row.GetCell(c);
                 var s = GetString(cell).Trim();
-                if (!string.IsNullOrEmpty(s))
-                    values.Add((c, s, cell!));
+                if (string.IsNullOrEmpty(s)) continue;
+                cells.Add((c, s, cell!, GetDouble(cell)));
+            }
+            if (cells.Count < 5) continue;
+
+            // Pflicht-Anker: AHV, DOB, Tarif. Ohne diese drei ist es keine
+            // MA-Zeile.
+            int ahvIdx   = cells.FindIndex(x => ahvRegex.IsMatch(x.Text));
+            if (ahvIdx < 0) continue;
+            int dobIdx   = cells.FindIndex(ahvIdx + 1, x => dobRegex.IsMatch(x.Text));
+            if (dobIdx < 0) continue;
+            int tarifIdx = cells.FindIndex(dobIdx + 1, x => tarifRegex.IsMatch(x.Text));
+            if (tarifIdx < 0) continue;
+            var tarifMatch = tarifRegex.Match(cells[tarifIdx].Text);
+
+            // Name = erste non-leere Zelle zwischen AHV und DOB.
+            var name = (ahvIdx + 1 < dobIdx) ? cells[ahvIdx + 1].Text : "";
+            var (lastName, firstName) = SplitNachnameVorname(name);
+
+            // Wohnort = erste NICHT-numerische Zelle zwischen DOB und Tarif.
+            string wohnort = "";
+            int wohnortIdx = -1;
+            for (int i = dobIdx + 1; i < tarifIdx; i++)
+            {
+                if (cells[i].Number == null)
+                {
+                    wohnort = cells[i].Text;
+                    wohnortIdx = i;
+                    break;
+                }
             }
 
-            // MA-Zeile = exakt 11 Werte, erster ist AHV. Alles andere
-            // (Kopfzeilen, Übertragszeilen, Totale, Bemerkungen) wird so
-            // automatisch übersprungen.
-            if (values.Count != 11) continue;
-            if (!values[0].Text.StartsWith("756.")) continue;
+            // Numerische Werte zwischen Wohnort und Tarif in Reihenfolge:
+            //   [0] Monat (1-12), [1] Pensum (ignoriert), [2] Brutto,
+            //   [3] Aperiodisch, [4] Satzbestimmend.
+            // 0-Monate (Brutto 0, Pensum leer) liefern ggf. nur 2-3 Werte —
+            // die Tarif-Zeile wird trotzdem erfasst (Phase bleibt korrekt).
+            var nums = new List<double>();
+            int startNum = wohnortIdx >= 0 ? wohnortIdx + 1 : dobIdx + 1;
+            for (int i = startNum; i < tarifIdx; i++)
+            {
+                if (cells[i].Number != null) nums.Add(cells[i].Number!.Value);
+            }
+            if (nums.Count < 1) continue;
+            int monat = (int)nums[0];
+            if (monat < 1 || monat > 12) continue;
+            // Pensum = nums[1], wird ignoriert (nicht im RawRow).
+            decimal brutto      = nums.Count > 2 ? (decimal)nums[2] : 0m;
+            decimal aperiodisch = nums.Count > 3 ? (decimal)nums[3] : 0m;
+            decimal satzbest    = nums.Count > 4 ? (decimal)nums[4] : 0m;
 
-            // Tarif-Code zerlegen (A0Y → A + 0 + true).
-            var tarifMatch = tarifRegex.Match(values[9].Text);
-            if (!tarifMatch.Success) continue;
-
-            var (lastName, firstName) = SplitNachnameVorname(values[1].Text);
+            // QST = erster numerischer Wert nach Tarif.
+            decimal qst = 0m;
+            for (int i = tarifIdx + 1; i < cells.Count; i++)
+            {
+                if (cells[i].Number != null) { qst = (decimal)cells[i].Number!.Value; break; }
+            }
 
             rows.Add(new RawRow
             {
-                AhvNumber     = values[0].Text,
+                AhvNumber     = cells[ahvIdx].Text,
                 LastName      = lastName,
                 FirstName     = firstName,
-                DateOfBirth   = TryParseDate(values[2].Cell),
-                Wohnort       = values[3].Text,
+                DateOfBirth   = TryParseDate(cells[dobIdx].Cell),
+                Wohnort       = wohnort,
                 Kanton        = "BE",
-                Monat         = (int)(GetDouble(values[4].Cell) ?? 0),
-                Brutto        = (decimal)(GetDouble(values[6].Cell) ?? 0),
-                Aperiodisch   = (decimal)(GetDouble(values[7].Cell) ?? 0),
-                Satzbest      = (decimal)(GetDouble(values[8].Cell) ?? 0),
+                Monat         = monat,
+                Brutto        = brutto,
+                Aperiodisch   = aperiodisch,
+                Satzbest      = satzbest,
                 TarifCode     = tarifMatch.Groups[1].Value.ToUpperInvariant(),
                 AnzahlKinder  = int.Parse(tarifMatch.Groups[2].Value),
                 Kirchensteuer = tarifMatch.Groups[3].Value.Equals("Y", StringComparison.OrdinalIgnoreCase),
-                QstBetrag     = (decimal)(GetDouble(values[10].Cell) ?? 0)
+                QstBetrag     = qst
             });
         }
         return rows;
