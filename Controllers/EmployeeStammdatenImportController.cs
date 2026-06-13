@@ -141,11 +141,28 @@ public class EmployeeStammdatenImportController : ControllerBase
         // die BVG-Datei z.B. nur teilweise korrekt sortiert ist.
         // Zusätzlich: MA GANZ OHNE Vertrag (Personaldossiers ausgetretener MA,
         // Phantom-MA / Supervisor) — die sind keiner Filiale fest zugeordnet,
-        // kommen aber in der BVG-Datei vor (Walter-Vorgabe 14.05.2026).
+        // werden aber NUR dann mit reingenommen wenn die Personalnummer zum
+        // Filial-Präfix passt (Walter-Vorgabe 14.06.2026 — vorher landeten
+        // global ALLE vertragslosen MA aus jeder Filiale im Picker, was beim
+        // BVG-Import von Langenthal #104 z.B. Pers-Nr 2250xxx/2300xxx/9999xxx
+        // ergab). Restaurant-Code → Pers-Nr-Präfix wie beim easy@work-Import:
+        // führende Nullen weg (075 → "75" → "750xxx"; 104 → "104" → "104xxxx").
+        var branchPrefix = "";
+        if (companyProfileId > 0)
+        {
+            var restCode = await _db.CompanyProfiles
+                .Where(p => p.Id == companyProfileId)
+                .Select(p => p.RestaurantCode)
+                .FirstOrDefaultAsync();
+            branchPrefix = (restCode ?? "").TrimStart('0');
+        }
         var employees = await _db.Employees
             .Where(e => companyProfileId == 0
                      || e.Employments.Any(emp => emp.CompanyProfileId == companyProfileId)
-                     || !e.Employments.Any())
+                     || (!e.Employments.Any()
+                          && branchPrefix != ""
+                          && e.EmployeeNumber != null
+                          && e.EmployeeNumber.StartsWith(branchPrefix)))
             .Select(e => new {
                 e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
                 e.DateOfBirth, e.SocialSecurityNumber, e.MaritalStatus,
@@ -326,11 +343,25 @@ public class EmployeeStammdatenImportController : ControllerBase
 
         // Match-Logik nochmal — Preview ist nicht persistent, daher
         // zuverlässiger nochmal laufen. Pool identisch zur Preview: Filial-MA
-        // + MA ganz ohne Vertrag (Personaldossiers / Phantom-MA).
+        // + MA ganz ohne Vertrag, deren Pers-Nr zum Filial-Präfix passt
+        // (Walter-Vorgabe 14.06.2026 — sonst landeten alle vertragslosen MA
+        // anderer Filialen mit im Pool).
+        var branchPrefixCommit = "";
+        if (companyProfileId > 0)
+        {
+            var restCode = await _db.CompanyProfiles
+                .Where(p => p.Id == companyProfileId)
+                .Select(p => p.RestaurantCode)
+                .FirstOrDefaultAsync();
+            branchPrefixCommit = (restCode ?? "").TrimStart('0');
+        }
         var employees = await _db.Employees
             .Where(e => companyProfileId == 0
                      || e.Employments.Any(emp => emp.CompanyProfileId == companyProfileId)
-                     || !e.Employments.Any())
+                     || (!e.Employments.Any()
+                          && branchPrefixCommit != ""
+                          && e.EmployeeNumber != null
+                          && e.EmployeeNumber.StartsWith(branchPrefixCommit)))
             .ToListAsync();
 
         // PLZ → Kanton-Lookup vorbereiten (Walter-Vorgabe 13.05.2026: beim
