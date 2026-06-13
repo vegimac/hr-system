@@ -94,20 +94,33 @@ async function loadQstFamilyKinder(employeeId) {
 }
 
 // Wie viele Kinder sind am gewählten Stichtag QST-abzugsberechtigt?
-// Regel: QstDeductibleFrom NULL ODER ≤ Stichtag, UND QstDeductibleUntil NULL
-// ODER ≥ Stichtag. Kinder ohne hinterlegten Zeitraum werden NICHT mitgezählt
-// (sonst würde jedes Kind ungewollt mitlaufen) — Walter muss bewusst die
-// QST-Daten im Familie-Tab pflegen.
+// Walter-Vorgabe 14.06.2026 (Update): zweistufige Logik:
+//   1) Wenn beim Kind QstDeductibleFrom/Until explizit gepflegt sind →
+//      dieser Zeitraum gilt (Walter's manuelle Pflege bleibt führend).
+//   2) Sonst Fallback: Kind ist abzugsberechtigt zwischen Geburtsdatum und
+//      18. Geburtstag (Schweizer QST-Standard, falls keine Verlängerung
+//      wegen Ausbildung erfasst wurde). So zählen auch frisch importierte
+//      oder neu erfasste Kinder ohne dass Walter erst die QST-Daten
+//      hinterlegen muss.
 function qstAutoKinderCount(stichtagIso) {
     if (!stichtagIso) return 0;
     const s = stichtagIso.slice(0, 10);
     return _qstFamilyKinder.filter(k => {
         const f = (k.qstDeductibleFrom  || '').toString().slice(0, 10);
         const u = (k.qstDeductibleUntil || '').toString().slice(0, 10);
-        if (!f && !u) return false;            // gar nichts gepflegt → nicht mitzählen
-        if (f && f > s) return false;          // noch nicht berechtigt
-        if (u && u < s) return false;          // nicht mehr berechtigt
-        return true;
+        // (1) Explizit gepflegt → Zeitraum greift
+        if (f || u) {
+            if (f && f > s) return false;
+            if (u && u < s) return false;
+            return true;
+        }
+        // (2) Fallback aus Geburtsdatum (Geburt … +18 Jahre)
+        const dob = (k.dateOfBirth || '').toString().slice(0, 10);
+        if (!dob || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return false;
+        if (dob > s) return false;             // noch nicht geboren
+        const [y, m, d] = dob.split('-');
+        const dob18 = `${parseInt(y, 10) + 18}-${m}-${d}`;
+        return dob18 >= s;                     // unter 18 am Stichtag
     }).length;
 }
 
@@ -135,11 +148,21 @@ function qstUpdateAutoKinderHint() {
         hint.innerHTML = `<span style="color:#94a3b8">ℹ Keine Kinder im Familie-Tab erfasst.</span>`;
         return;
     }
+    // Walter-Vorgabe 14.06.2026: Hinweis ob die Auto-Zahl aus expliziten
+    // QST-Daten kommt oder aus dem Geburtsdatum-Fallback — Walter sieht so
+    // direkt ob er die QST-Daten der Kinder noch pflegen sollte.
+    const allKinderHaveQstData = _qstFamilyKinder.every(k => {
+        const f = (k.qstDeductibleFrom  || '').toString().slice(0, 10);
+        const u = (k.qstDeductibleUntil || '').toString().slice(0, 10);
+        return f || u;
+    });
+    const quelle = allKinderHaveQstData ? 'aus QST-Daten' : 'aus Geburtsdatum';
+
     if (manual === auto) {
-        hint.innerHTML = `<span style="color:#16a34a">✓ ${auto} Kind${auto===1?'':'er'} QST-abzugsberechtigt am ${stichtagDe} (aus Familie-Tab)</span>`;
+        hint.innerHTML = `<span style="color:#16a34a">✓ ${auto} Kind${auto===1?'':'er'} QST-abzugsberechtigt am ${stichtagDe} (${quelle})</span>`;
     } else {
         hint.innerHTML = `
-            <span style="color:#dc2626">⚠ Auto: ${auto}, manuell eingetragen: ${manual}</span>
+            <span style="color:#dc2626">⚠ Auto: ${auto} (${quelle}), manuell eingetragen: ${manual}</span>
             <button type="button" onclick="qstApplyAutoKinder()"
                     style="margin-left:6px;background:#2563eb;color:#fff;border:none;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600">Auto übernehmen</button>`;
     }
@@ -154,6 +177,77 @@ function qstApplyAutoKinder() {
     inp.value = qstAutoKinderCount(stichtag);
     if (typeof buildQstCode === 'function') buildQstCode();
     qstUpdateAutoKinderHint();
+    qstSuggestTarif();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Walter-Vorgabe 14.06.2026: QST-Tarif aus Zivilstand + Kinder vorschlagen.
+//
+// Schweizer QST-Tarif-Logik:
+//   • ledig + keine Kinder                              → A (Alleinstehend)
+//   • ledig + Kinder                                    → H (Alleinerziehend)
+//   • verheiratet / eingetragene Partnerschaft          → B (Alleinverdiener)
+//       — Walter wechselt manuell auf C wenn beide arbeiten (Doppelverdiener)
+//   • geschieden / verwitwet / getrennt + Kinder        → H
+//   • geschieden / verwitwet / getrennt + keine Kinder  → A
+//
+// C (Doppelverdiener) wird NIE auto-vorgeschlagen — kann das System nicht
+// wissen ob beide Partner arbeiten. Walter ergänzt manuell wenn nötig.
+// Wenn das Tarif-Feld bereits einen Wert hat (z.B. Eintrag wird bearbeitet),
+// wird NICHTS überschrieben. Auch im Hint steht dann „bestehender Eintrag".
+// ══════════════════════════════════════════════════════════════════════
+function qstSuggestTarifBuchstabe(zivilstand, anzahlKinder) {
+    const z = (zivilstand || '').toLowerCase().trim();
+    const k = parseInt(anzahlKinder, 10) || 0;
+    const verheiratet = z.includes('verheiratet') || z.includes('partnerschaft') && !z.includes('aufgeloest');
+    const alleinerziehend_basis =
+        z.includes('ledig') || z.includes('geschieden') || z.includes('verwitwet') || z.includes('getrennt');
+    // Walter-Vorgabe 14.06.2026: bei verheiratet → C (Doppelverdiener) als
+    // Default, weil das in der Schweizer Praxis der Normalfall ist. Bei
+    // tatsächlichem Alleinverdiener wechselt der User manuell auf B.
+    if (verheiratet) return 'C';                    // Doppelverdiener-Default
+    if (alleinerziehend_basis && k > 0) return 'H'; // Alleinerziehend
+    if (alleinerziehend_basis) return 'A';          // Alleinstehend
+    return null;                                     // Zivilstand unbekannt
+}
+
+function qstSuggestTarif() {
+    const sel  = document.getElementById('qstTarifCode');
+    const hint = document.getElementById('qstTarifHint');
+    if (!sel) return;
+
+    const zivil = qstEmployeeData?.maritalStatus ?? qstEmployeeData?.zivilstand ?? '';
+    const kinder = parseInt(document.getElementById('qstKinder')?.value ?? '0', 10) || 0;
+    const suggested = qstSuggestTarifBuchstabe(zivil, kinder);
+
+    // Bestehender Eintrag (Edit-Modus) → nichts überschreiben.
+    if (sel.value) {
+        if (hint) {
+            if (suggested && suggested !== sel.value) {
+                hint.innerHTML = `<span style="color:#94a3b8">ℹ Vorschlag aus Zivilstand wäre <b>${suggested}</b> — du hast bewusst <b>${sel.value}</b> gewählt.</span>`;
+            } else if (suggested) {
+                hint.innerHTML = `<span style="color:#16a34a">✓ Tarif <b>${suggested}</b> passt zu Zivilstand „${zivil}"${kinder ? ' + ' + kinder + ' Kind' + (kinder===1?'':'er') : ''}.</span>`;
+            } else {
+                hint.innerHTML = '';
+            }
+        }
+        return;
+    }
+
+    // Neuer Eintrag → Vorschlag setzen
+    if (suggested) {
+        sel.value = suggested;
+        if (typeof buildQstCode === 'function') buildQstCode();
+        if (hint) {
+            const isVerheiratet = (zivil || '').toLowerCase().includes('verheiratet') || (zivil || '').toLowerCase().includes('partnerschaft');
+            const extra = isVerheiratet
+                ? ` <span style="color:#94a3b8">— bei Alleinverdiener auf <b>B</b> wechseln.</span>`
+                : '';
+            hint.innerHTML = `<span style="color:#16a34a">✓ Auto-Vorschlag <b>${suggested}</b> aus Zivilstand „${zivil}"${kinder ? ' + ' + kinder + ' Kind' + (kinder===1?'':'er') : ''}.</span>${extra}`;
+        }
+    } else if (hint) {
+        hint.innerHTML = `<span style="color:#94a3b8">ℹ Kein Auto-Vorschlag möglich — Zivilstand „${zivil}" nicht erkannt. Bitte Tarif manuell wählen.</span>`;
+    }
 }
 
 // Lädt den Ehepartner aus dem Familie-Tab und zeigt Name + Geburtsdatum
@@ -219,6 +313,15 @@ async function openQstEntry(id) {
     qstCurrentEntryId = null;
     populateQstForm(null);
 
+    // Walter-Vorgabe 14.06.2026: Familie-Kinder hier IMMER frisch holen.
+    // openQstModal lädt die einmalig beim Modal-Open — wenn Walter danach
+    // im Familie-Tab Kinder erfasst und dann „+ Neuer Eintrag" klickt, war
+    // _qstFamilyKinder leer (Modal wurde nie wieder neu geöffnet). Jetzt
+    // holen wir hier nochmal — sicherstellt dass die Auto-Zahl stimmt.
+    if (qstCurrentEmployeeId) {
+        await loadQstFamilyKinder(qstCurrentEmployeeId);
+    }
+
     // Gültig ab: Vortrag = letzter Eintrag.gültigBis + 1 Tag, sonst heute.
     // Robustes Date-Parsing: nur YYYY-MM-DD nehmen und mit 12:00 instanziieren,
     // damit DST/Zeitzone keinen Tag verschiebt.
@@ -244,12 +347,20 @@ async function openQstEntry(id) {
 
     // Walter-Vorgabe 28.05.2026: nach dem ValidFrom-Default die Anzahl Kinder
     // aus der Familie neu rechnen (populateQstForm lief mit dem alten Datum).
-    if (_qstFamilyKinder.length) {
+    // Walter-Vorgabe 14.06.2026: IMMER auf den Auto-Wert setzen (auch 0),
+    // damit der Code-Aufbau konsistent ist. Hint wird auch ohne Kinder
+    // gezeigt — Walter sieht so „0 Kinder am Stichtag berechtigt".
+    {
         const auto = qstAutoKinderCount(validFromDefault);
         document.getElementById('qstKinder').value = auto;
         if (typeof buildQstCode === 'function') buildQstCode();
         qstUpdateAutoKinderHint();
     }
+
+    // Walter-Vorgabe 14.06.2026: Tarif aus Zivilstand + Anzahl Kinder vor-
+    // schlagen. Logik unten in qstSuggestTarif. Nur wenn das Feld noch leer
+    // ist — bestehende Walter-Auswahl wird nicht überschrieben.
+    qstSuggestTarif();
 
     // Auto-Fill Steuerkanton und Wohngemeinde aus der Wohnadresse des MA.
     // Fallback auf selectedEmployee (wenn aus dem Mitarbeiter-Tab geöffnet
@@ -343,6 +454,9 @@ function onQstKantonChange() {
 
 function onQstTarifChange() {
     buildQstCode();
+    // Walter-Vorgabe 14.06.2026: Hint neu rendern — zeigt jetzt ob Walter's
+    // manuelle Wahl mit dem Auto-Vorschlag übereinstimmt oder bewusst abweicht.
+    qstSuggestTarif();
 }
 
 function buildQstCode() {

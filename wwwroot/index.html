@@ -8862,11 +8862,11 @@ function onBranchChange() {
 <script src="js/branches-detail.js?v=20260606f"></script>
 <script src="js/branch-modals.js?v=20260509b"></script>
 <script src="js/deductions.js?v=20260509b"></script>
-<script src="js/qst-modal.js?v=20260528b"></script>
+<script src="js/qst-modal.js?v=20260614c"></script>
 <script src="js/users.js?v=20260524a"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
 <script src="js/documents.js?v=20260613a"></script>
-<script src="js/dvelop-import.js?v=20260610b"></script>
+<script src="js/dvelop-import.js?v=20260614a"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260509b"></script>
 <script src="js/dok-struktur.js?v=20260609a"></script>
@@ -8930,7 +8930,7 @@ function onBranchChange() {
                 </div>
                 <div class="fmf-field">
                     <label class="fmf-label"><span data-i18n="fam.field.dob">Geburtsdatum</span> <span id="fmAgeDisplay" style="font-weight:400;color:#94a3b8;margin-left:6px"></span></label>
-                    <input class="fmf-input" id="fmDateOfBirth" type="date" oninput="updateFmAgeDisplay()">
+                    <input class="fmf-input" id="fmDateOfBirth" type="date" oninput="updateFmAgeDisplay();fmAutoQstFromDob()">
                 </div>
                 <div class="fmf-field">
                     <label class="fmf-label" data-i18n="fam.field.ahv">AHV-Nummer</label>
@@ -9155,7 +9155,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260613h"></script>
+<script src="employees.js?v=20260614b"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -9543,6 +9543,9 @@ function onBranchChange() {
                     <option value="P">P – Pauschale</option>
                     <option value="Q">Q – Grenzgänger alleinerz.</option>
                 </select>
+                <!-- Walter-Vorgabe 14.06.2026: Auto-Vorschlag-Hint analog zur
+                     Anzahl-Kinder-Hint-Zeile. Wird von qstSuggestTarif() befüllt. -->
+                <div id="qstTarifHint" style="font-size:11.5px;margin-top:4px;line-height:1.35"></div>
             </div>
             <div>
                 <label class="qst-lbl">QST-Code</label>
@@ -9554,7 +9557,7 @@ function onBranchChange() {
             <div>
                 <label class="qst-lbl">Anzahl Kinder</label>
                 <input type="number" id="qstKinder" min="0" max="20" value="0" class="qst-inp"
-                       onchange="buildQstCode();qstUpdateAutoKinderHint()"
+                       onchange="buildQstCode();qstUpdateAutoKinderHint();qstSuggestTarif()"
                        oninput="qstUpdateAutoKinderHint()">
                 <div id="qstKinderAutoHint" style="font-size:11px;margin-top:3px;line-height:1.4"></div>
             </div>

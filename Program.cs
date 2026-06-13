@@ -1314,20 +1314,23 @@ app.Use(async (context, next) =>
     // terminiert TLS und proxyt HTTP an Kestrel — Request.IsHttps wäre hier false).
     h["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
     // Walter-Vorgabe 13.06.2026: CSP — erschwert XSS-Angriffe deutlich.
-    //   • default-src 'self'              — alles standardmäßig nur von eigener Domain
-    //   • script-src 'self' 'unsafe-inline' — JS auch inline (SPA hat viel onclick=)
+    //   • default-src 'self'                 — alles standardmäßig nur von eigener Domain
+    //   • script-src 'self' 'unsafe-inline' + cdnjs (SheetJS/xlsx-Library für Excel-Im-/Export)
     //   • style-src 'self' 'unsafe-inline' + Google Fonts CSS
     //   • font-src  'self' + Google Fonts Files
-    //   • img-src   'self' + data: + blob: (für Foto-Preview / Doku-Vorschau)
-    //   • connect-src 'self'              — API-Calls nur an eigene Domain
+    //   • img-src   'self' + data: + blob: (Foto-Preview, Doku-Vorschau)
+    //   • frame-src 'self' + blob:           — PDF-Vorschau im <iframe> mit
+    //                                          URL.createObjectURL(blob) → blob:https://…
+    //   • connect-src 'self'                 — API-Calls nur an eigene Domain
     // Wenn nach Deploy etwas im Browser nicht mehr lädt → F12 Console zeigt
     // welche Direktive blockt → hier nachschärfen.
     h["Content-Security-Policy"] =
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline'; " +
+        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: blob:; " +
+        "frame-src 'self' blob:; " +
         "connect-src 'self'";
     await next();
 });

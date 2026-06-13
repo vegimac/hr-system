@@ -48,12 +48,14 @@ async function dvelopLoadEmployees() {
     // Ein Reset hier würde die gerade ausgewählte Datei und den
     // „Erkannt: …"-Text wieder wegblasen. Der Reset läuft separat beim
     // Öffnen der Page (showPage-Hook in index.html).
+    //
+    // Walter-Vorgabe 14.06.2026: KEIN Cache mehr — vorher wurde die MA-Liste
+    // nur einmal pro Filiale geholt und dann cached. Wenn Walter zwischen-
+    // durch in einem anderen Tab einen MA anlegte (z.B. weil Auto-Detect
+    // gemeldet hat „nicht gefunden"), war die Cache-Variante alt → MA wurde
+    // beim nächsten Versuch immer noch nicht gefunden. Jetzt immer frischen
+    // Fetch — Performance vernachlässigbar (paar hundert KB).
     const branchId = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
-    // Nur neu fetchen wenn nötig (Branch hat gewechselt oder noch leer).
-    if (_dvelopEmployees.length > 0 && _dvelopEmployeesBranchId === branchId) {
-        renderDvelopEmployeeOptions();
-        return;
-    }
     try {
         const r = await fetch('/api/employees', { headers: ah() });
         if (!r.ok) return;

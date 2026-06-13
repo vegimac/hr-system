@@ -2897,6 +2897,43 @@ function updateFmAgeDisplay() {
     dispEl.textContent = age != null ? `(${age} J.)` : '';
 }
 
+// Walter-Vorgabe 14.06.2026: Wenn der User im Familien-Modal das Geburts-
+// datum eintippt, automatisch:
+//   • QST abzugsberechtigt AB  = Geburtsdatum
+//       IMMER überschreiben — AB ist immer = Geburtsdatum (1:1-Beziehung),
+//       alte fehlerhafte Werte (z.B. „01.01.0002" von einem Tipp-Glitsch)
+//       werden so automatisch korrigiert.
+//   • QST abzugsberechtigt BIS = Geburtsdatum + 18 Jahre (volljährig)
+//       Nur überschreiben wenn das Feld leer war ODER mit dem alten Auto-
+//       Wert (irgend-dob + 18) übereinstimmt — manuelle Verlängerungen
+//       wegen Ausbildung (z.B. bis 25 Jahre) bleiben erhalten.
+function fmAutoQstFromDob() {
+    const dob = document.getElementById('fmDateOfBirth')?.value;
+    if (!dob || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return;
+    const fromEl  = document.getElementById('fmQstFrom');
+    const untilEl = document.getElementById('fmQstUntil');
+
+    // AB → immer hartes Sync mit Geburtsdatum
+    if (fromEl) fromEl.value = dob;
+
+    // BIS → Geburtsdatum + 18 Jahre, nur wenn leer oder vom Default-Pattern
+    // (also nicht manuell verlängert)
+    if (untilEl) {
+        const [y, m, d] = dob.split('-');
+        const y18 = String(parseInt(y, 10) + 18);
+        const newBis = `${y18}-${m}-${d}`;
+        const curBis = untilEl.value || '';
+        // Heuristik „war noch Auto": bis = irgendein Jahr + dieselbe MM-DD wie
+        // das (möglicherweise alte) Geburtsdatum + 18. Ohne alten dob: wir
+        // überschreiben nur wenn leer ODER wenn der Bis-Tag exakt mit dem
+        // Geburts-Tag übereinstimmt (typisches 18.-Geburtstag-Muster).
+        const dobMmDd = `${m}-${d}`;
+        const bisMmDd = curBis.length >= 10 ? curBis.slice(5, 10) : '';
+        const looksLikeAuto = !curBis || bisMmDd === dobMmDd;
+        if (looksLikeAuto) untilEl.value = newBis;
+    }
+}
+
 // Walter-Vorgabe 28.05.2026: Wenn der User im Familien-Modal den Typ auf
 // Kind oder Ehepartner ändert UND das Nachname-Feld noch leer ist, mit dem
 // Nachnamen des MA vorbefüllen. Bei Mutter/Vater/Sonstige NICHT vorbefüllen
@@ -3913,17 +3950,30 @@ function openFamilyModal(member) {
     document.getElementById('fmDateOfBirth').value     = toDateInput(member?.dateOfBirth);
     updateFmAgeDisplay();
     document.getElementById('fmSocialSecurity').value  = member?.socialSecurityNumber ?? '';
-    document.getElementById('fmLivesInSwitzerland').checked = member?.livesInSwitzerland ?? false;
+
+    // Walter-Vorgabe 14.06.2026: NEUE Familienmitglieder (vor allem Kinder)
+    // bekommen sinnvolle Defaults vom MA:
+    //   • Lebt in Schweiz   → JA  (Schweizer Familienzulagen-Logik)
+    //   • Nationalität      → wie MA (Mutter/Vater)
+    //   • Bewilligung       → wie MA (Mutter/Vater)
+    //   • QST ab/bis        → Geburtsdatum bis 18. Geburtstag (siehe fmAutoQstFromDob)
+    // Bei bestehenden Einträgen wird der gespeicherte Wert übernommen.
+    const _isNewMember = !member;
+    document.getElementById('fmLivesInSwitzerland').checked =
+        _isNewMember ? true : (member?.livesInSwitzerland ?? false);
     document.getElementById('fmQstFrom').value         = toDateInput(member?.qstDeductibleFrom);
     document.getElementById('fmQstUntil').value        = toDateInput(member?.qstDeductibleUntil);
 
     // ── Aufenthalt + Nationalität: Permit-Types + Nationalitäten füllen
     //    (gleiche Listen wie beim MA-Edit-Modal). Vorausgewählt wird der
-    //    bestehende Wert oder leer.
-    fmFillPermitAndNationalitySelects(
-        member?.permitTypeId ?? null,
-        member?.nationalityId ?? null
-    );
+    //    bestehende Wert; bei NEU der Wert vom MA als Default.
+    const _defaultPermitTypeId = _isNewMember
+        ? (selectedEmployee?.permitTypeId ?? selectedEmployee?.permitType?.id ?? null)
+        : (member?.permitTypeId ?? null);
+    const _defaultNationalityId = _isNewMember
+        ? (selectedEmployee?.nationalityId ?? null)
+        : (member?.nationalityId ?? null);
+    fmFillPermitAndNationalitySelects(_defaultPermitTypeId, _defaultNationalityId);
     document.getElementById('fmPermitExpiry').value = toDateInput(member?.permitExpiryDate);
     document.getElementById('fmZemisNumber').value  = member?.zemisNumber ?? '';
 
