@@ -427,26 +427,30 @@ async function openQstEntry(id) {
         await loadQstFamilyKinder(qstCurrentEmployeeId);
     }
 
-    // Gültig ab: Vortrag = letzter Eintrag.gültigBis + 1 Tag, sonst heute.
-    // Robustes Date-Parsing: nur YYYY-MM-DD nehmen und mit 12:00 instanziieren,
-    // damit DST/Zeitzone keinen Tag verschiebt.
-    const validFromDefault = (() => {
-        if (Array.isArray(qstAllEntries) && qstAllEntries.length > 0) {
-            const sorted = [...qstAllEntries].sort((a, b) =>
-                (b.validFrom ?? '').toString().localeCompare((a.validFrom ?? '').toString()));
-            const last = sorted[0];
-            const validToStr = (last?.validTo ?? '').toString().slice(0, 10);
-            if (validToStr && /^\d{4}-\d{2}-\d{2}$/.test(validToStr)) {
-                const d = new Date(validToStr + 'T12:00:00');
-                d.setDate(d.getDate() + 1);
-                const yyyy = d.getFullYear();
-                const mm   = String(d.getMonth() + 1).padStart(2, '0');
-                const dd   = String(d.getDate()).padStart(2, '0');
-                return `${yyyy}-${mm}-${dd}`;
-            }
-        }
+    // Walter-Vorgabe 14.06.2026: Default „Gültig ab" beim NEUEN Eintrag:
+    //   • Wenn der MA noch GAR KEINEN QST-Eintrag hat → Eintrittsdatum.
+    //     (Der erste QST-Eintrag soll von Anstellungsbeginn an gelten —
+    //      sonst fehlt für den Zeitraum zwischen Eintritt und „heute" der
+    //      Tarif, was zu Lücken im Lohnlauf führt.)
+    //   • Wenn schon ein QST-Eintrag existiert (Folge-Eintrag) → heute.
+    //     (Wechsel im Zivilstand / Kinder / Religion / Wohnsitz wirkt ab
+    //      sofort; der Vorgänger wird vom Backend automatisch auf
+    //      neu.ValidFrom-1 abgeschlossen — siehe POST-Endpoint.)
+    // Robustes ISO-Parsing: nur YYYY-MM-DD, kein new Date() (Zeitzonen-Falle).
+    const todayIso = (() => {
         const t = new Date();
         return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    })();
+    const validFromDefault = (() => {
+        const hasAnyEntry = Array.isArray(qstAllEntries) && qstAllEntries.length > 0;
+        if (!hasAnyEntry) {
+            // Eintrittsdatum aus den MA-Stammdaten holen.
+            const ed = qstEmployeeData
+                ?? (typeof selectedEmployee !== 'undefined' ? selectedEmployee : null);
+            const entryIso = (ed?.entryDate || '').toString().slice(0, 10);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(entryIso)) return entryIso;
+        }
+        return todayIso;
     })();
     document.getElementById('qstValidFrom').value = validFromDefault;
 
