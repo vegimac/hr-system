@@ -62,7 +62,7 @@ async function openQstModal(employeeId, employeeData) {
             if (qstCurrentEmployeeId) {
                 await qstFetchServerVorschlag(vfInp.value);
                 if (!qstCurrentEntryId) {
-                    qstApplyServerVorschlagToForm(/*onlyEmptyFields*/ true);
+                    qstApplyServerVorschlagToForm();
                 } else {
                     qstRenderVorschlagBanner();
                 }
@@ -155,24 +155,23 @@ async function qstFetchServerVorschlag(stichtagIso) {
     }
 }
 
-function qstApplyServerVorschlagToForm(onlyEmptyFields) {
+// Walter-Vorgabe 14.06.2026 (Update): schreibt den Server-Vorschlag in die
+// Felder. NUR für NEUE Einträge aufrufen — bestehende Einträge dürfen NIE
+// auto-überschrieben werden (im Edit-Modus nur `qstRenderVorschlagBanner`
+// aufrufen). Der frühere `onlyEmptyFields`-Mechanismus mit `qstUserTouched`
+// war kaputt (das Flag wurde nie gesetzt) und hatte den 0-vs.-leer-Bug:
+// populateQstForm(null) setzt qstKinder auf "0", dann hätte ein „nur leere
+// Felder überschreiben"-Check das Server-`anzahlKinder=1` übersprungen.
+// Jetzt: bei NEU IMMER vollständig befüllen, sonst nichts.
+function qstApplyServerVorschlagToForm() {
     const v = _qstServerVorschlag;
     if (!v) { qstRenderVorschlagBanner(); return; }
-    const setIf = (id, val, isCheckbox) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        if (isCheckbox) {
-            if (onlyEmptyFields && el.dataset.qstUserTouched === '1') return;
-            el.checked = !!val;
-        } else {
-            if (onlyEmptyFields && (el.value || '').toString().trim() !== '') return;
-            el.value = (val ?? '').toString();
-        }
-    };
-    setIf('qstTarifCode',    v.tarifCode);
-    setIf('qstKinder',       v.anzahlKinder);
-    setIf('qstKirchensteuer',v.kirchensteuer, true);
-    setIf('qstCode',         v.qstCode);
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = (val ?? '').toString(); };
+    const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+    setVal('qstTarifCode',    v.tarifCode);
+    setVal('qstKinder',       v.anzahlKinder);
+    setChk('qstKirchensteuer',v.kirchensteuer);
+    setVal('qstCode',         v.qstCode);
     if (typeof buildQstCode === 'function') buildQstCode();
     qstRenderVorschlagBanner();
 }
@@ -455,8 +454,10 @@ async function openQstEntry(id) {
     // kommen jetzt vom SERVER (QstTarifVorschlagService) — Quelle der Wahrheit.
     // Die alten Frontend-Heuristiken (qstAutoKinderCount + qstSuggestTarif)
     // bleiben nur noch als lokale Anzeigehilfe für „Auto wäre N Kind(er)".
+    // Hier IMMER vollständig überschreiben (neuer Eintrag) — der Bug mit
+    // qstKinder=0-aus-populateQstForm würde sonst den Server-Wert blockieren.
     await qstFetchServerVorschlag(validFromDefault);
-    qstApplyServerVorschlagToForm(/*onlyEmptyFields*/ true);
+    qstApplyServerVorschlagToForm();
     qstUpdateAutoKinderHint();
 
     // Auto-Fill Steuerkanton und Wohngemeinde aus der Wohnadresse des MA.
