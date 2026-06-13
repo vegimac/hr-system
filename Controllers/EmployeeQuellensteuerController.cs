@@ -125,6 +125,27 @@ public class EmployeeQuellensteuerController : ControllerBase
         return Ok(entry); // null wenn keiner gefunden
     }
 
+    /// <summary>
+    /// Walter-Vorgabe 14.06.2026: serverseitiger Tarifvorschlag für einen
+    /// neuen QST-Eintrag. Berechnet aus Stammdaten (Zivilstand, Religion,
+    /// Wohnkanton, Familie-Kinder) den passenden Tarif + Kinderzahl +
+    /// Kirchensteuer und prüft gegen die offizielle ESTV-Tariftabelle
+    /// (mit Fallback wenn die exakte Kombi fehlt). Frontend nutzt das
+    /// beim Öffnen des „+ Neuer Eintrag"-Modals.
+    ///
+    /// Stichtag default = heute, kann via ?date= überschrieben werden
+    /// (z.B. wenn der Eintrag in der Zukunft starten soll).
+    /// </summary>
+    [HttpGet("vorschlag")]
+    public async Task<IActionResult> GetVorschlag(int employeeId, [FromQuery] DateOnly? date,
+        [FromServices] QstTarifVorschlagService service)
+    {
+        var stichtag = date ?? DateOnly.FromDateTime(DateTime.Today);
+        var result   = await service.BerechneAsync(employeeId, stichtag);
+        if (result == null) return NotFound(new { error = "MA_NICHT_GEFUNDEN" });
+        return Ok(result);
+    }
+
     // GET /api/employees/{employeeId}/quellensteuer/{id}
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int employeeId, int id)

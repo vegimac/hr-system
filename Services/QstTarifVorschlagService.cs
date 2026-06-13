@@ -1,0 +1,327 @@
+using HrSystem.Data;
+using HrSystem.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace HrSystem.Services;
+
+/// <summary>
+/// Walter-Vorgabe 14.06.2026: zentrale serverseitige Logik für den
+/// Quellensteuer-Tarifvorschlag. Vorher wurde das im Frontend heuristisch
+/// gemacht — jetzt liegt die Wahrheit auf dem Server.
+///
+/// Architektur (analog PayrollCalculationService): die reine Berechnung
+/// liegt in einer <see cref="QstTarifVorschlagLogic"/>-Klasse — statisch,
+/// seiteneffekt-frei, alle Daten als Parameter. Damit ist die Logik
+/// einzeln testbar ohne DB-Setup. Dieser DI-Service ist nur der Wrapper
+/// fürs Datenladen (Employee + Familie + Tarif-Tabelle).
+/// </summary>
+public class QstTarifVorschlagService
+{
+    private readonly AppDbContext _db;
+    private readonly QuellensteuerTarifService _tarifService;
+
+    public QstTarifVorschlagService(AppDbContext db, QuellensteuerTarifService tarifService)
+    {
+        _db = db;
+        _tarifService = tarifService;
+    }
+
+    /// <summary>
+    /// Berechnet den Tarifvorschlag für einen MA am gewünschten Stichtag.
+    /// Wenn der MA nicht existiert → NotFound. Wenn der MA keinen
+    /// Wohnkanton hat, wird der Vorschlag trotzdem gebaut, aber
+    /// `InTariftabelleGefunden=false` zurückgeliefert mit einer Warnung.
+    /// </summary>
+    public async Task<QstTarifVorschlagResult?> BerechneAsync(int employeeId, DateOnly stichtag)
+    {
+        var emp = await _db.Employees
+            .Where(e => e.Id == employeeId)
+            .Select(e => new {
+                e.Id, e.MaritalStatus, e.Religion, e.CantonCode
+            })
+            .FirstOrDefaultAsync();
+        if (emp == null) return null;
+
+        // Kinder mit allen für die Berechnung nötigen Feldern laden.
+        var kinder = await _db.EmployeeFamilyMembers
+            .Where(f => f.EmployeeId == employeeId
+                     && f.MemberType  == "Kind"
+                     && f.DateOfDeath == null)
+            .Select(f => new QstKindInput(
+                f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : (DateOnly?)null,
+                f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : (DateOnly?)null,
+                f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : (DateOnly?)null,
+                f.AlternativeAddressId
+            ))
+            .ToListAsync();
+
+        // Tariftabelle vom gewünschten Jahr (Stichtag.Year) — wenn der
+        // Wohnkanton fehlt, leere Liste, das Logic-Modul liefert dann
+        // `InTariftabelleGefunden=false`.
+        IReadOnlyList<QstTarifInfo> tarife;
+        if (string.IsNullOrWhiteSpace(emp.CantonCode))
+        {
+            tarife = Array.Empty<QstTarifInfo>();
+        }
+        else
+        {
+            try
+            {
+                tarife = _tarifService.GetTarifKombinationen(emp.CantonCode, stichtag.Year);
+            }
+            catch
+            {
+                tarife = Array.Empty<QstTarifInfo>();
+            }
+        }
+
+        return QstTarifVorschlagLogic.Berechne(
+            zivilstand:   emp.MaritalStatus,
+            religion:     emp.Religion,
+            steuerkanton: emp.CantonCode,
+            kinder:       kinder,
+            stichtag:     stichtag,
+            tarifTabelle: tarife);
+    }
+}
+
+/// <summary>Input pro Kind für die Vorschlag-Berechnung. Reine Daten, keine EF-Bindung.</summary>
+public record QstKindInput(
+    DateOnly? QstDeductibleFrom,
+    DateOnly? QstDeductibleUntil,
+    DateOnly? DateOfBirth,
+    int?      AlternativeAddressId   // null = lebt im selben Haushalt
+);
+
+/// <summary>Resultat eines Tarifvorschlags. Geht 1:1 als JSON ans Frontend.</summary>
+public record QstTarifVorschlagResult(
+    string?  Steuerkanton,
+    string   TarifCode,
+    string?  TarifBezeichnung,
+    int      AnzahlKinder,
+    int      BerechneteKinder,
+    int      KinderImSelbenHaushalt,
+    bool     Kirchensteuer,
+    string   QstCode,
+    bool     InTariftabelleGefunden,
+    string   Begruendung,
+    IReadOnlyList<string> Warnings,
+    DateOnly Stichtag
+);
+
+/// <summary>
+/// Reine, statische Berechnungs-Logik — testbar ohne DB. Nimmt alle
+/// nötigen Daten als Parameter entgegen und gibt das fertige Result
+/// zurück. Wird vom DI-Service (DB-Layer) UND von Unit-Tests aufgerufen.
+/// </summary>
+public static class QstTarifVorschlagLogic
+{
+    // Tarif-Bezeichnungen für die UI (gleich wie im Frontend).
+    private static readonly Dictionary<string, string> TarifBezeichnungen = new()
+    {
+        ["A"] = "Alleinstehende ohne Kinder",
+        ["B"] = "Verheiratet, Alleinverdiener",
+        ["C"] = "Verheiratet, Doppelverdiener",
+        ["D"] = "Nebenerwerb",
+        ["H"] = "Alleinerziehend",
+        ["L"] = "Grenzgänger alleinstehend",
+        ["M"] = "Grenzgänger verheiratet",
+        ["N"] = "Grenzgänger Nebenerwerb",
+        ["P"] = "Pauschale",
+        ["Q"] = "Grenzgänger alleinerziehend"
+    };
+
+    /// <summary>
+    /// Hauptmethode der Vorschlag-Logik. Reihenfolge:
+    ///   1) Kinder am Stichtag zählen (QST-Daten ODER Geburtsdatum-Fallback)
+    ///   2) Tarif-Buchstaben aus Zivilstand + Kinder-im-Haushalt ableiten
+    ///   3) Kirchensteuer aus Religion ableiten
+    ///   4) Vorschlag gegen die Tariftabelle prüfen + Fallbacks
+    /// </summary>
+    public static QstTarifVorschlagResult Berechne(
+        string?                       zivilstand,
+        string?                       religion,
+        string?                       steuerkanton,
+        IReadOnlyList<QstKindInput>   kinder,
+        DateOnly                      stichtag,
+        IReadOnlyList<QstTarifInfo>   tarifTabelle)
+    {
+        var warnings   = new List<string>();
+        var begruendung = new List<string>();
+
+        // 1) Kinder zählen — getrennt nach „im selben Haushalt" und „total
+        // QST-berechtigt", da der H-Tarif explizit den selben Haushalt verlangt.
+        var berechneteKinderTotal       = 0;
+        var kinderImSelbenHaushalt = 0;
+        foreach (var k in kinder)
+        {
+            if (!IstQstBerechtigt(k, stichtag)) continue;
+            berechneteKinderTotal++;
+            // AlternativeAddressId == null → lebt beim MA (Hauptadresse)
+            if (k.AlternativeAddressId == null) kinderImSelbenHaushalt++;
+        }
+        if (berechneteKinderTotal > 0)
+        {
+            begruendung.Add($"{berechneteKinderTotal} Kind(er) am Stichtag QST-berechtigt"
+                + (kinderImSelbenHaushalt < berechneteKinderTotal
+                    ? $" (davon {kinderImSelbenHaushalt} im selben Haushalt)"
+                    : ""));
+        }
+
+        // 2) Tarif-Buchstaben
+        var tarif = WaehleTarif(zivilstand, kinderImSelbenHaushalt, begruendung);
+
+        // 3) Kirchensteuer
+        var kirchensteuer = IstKirchensteuerPflichtig(religion);
+        if (kirchensteuer)
+            begruendung.Add($"Konfession „{religion}" → kirchensteuerpflichtig");
+
+        // 4) Tariftabelle prüfen + Fallbacks
+        var (effektiveKinder, effektiveKirche, gefunden) = FindeTarifInTabelle(
+            tarifTabelle, tarif, berechneteKinderTotal, kirchensteuer, warnings);
+
+        var qstCode = $"{tarif}{effektiveKinder}{(effektiveKirche ? "Y" : "N")}";
+        var bezeichnung = TarifBezeichnungen.GetValueOrDefault(tarif);
+
+        if (string.IsNullOrWhiteSpace(steuerkanton))
+            warnings.Add("Wohnkanton ist nicht gepflegt — Tariftabelle konnte nicht geprüft werden.");
+        else if (!gefunden && tarifTabelle.Count == 0)
+            warnings.Add($"Keine Tarifdaten für Kanton {steuerkanton} im Jahr {stichtag.Year} geladen.");
+
+        return new QstTarifVorschlagResult(
+            Steuerkanton:           steuerkanton,
+            TarifCode:              tarif,
+            TarifBezeichnung:       bezeichnung,
+            AnzahlKinder:           effektiveKinder,
+            BerechneteKinder:       berechneteKinderTotal,
+            KinderImSelbenHaushalt: kinderImSelbenHaushalt,
+            Kirchensteuer:          effektiveKirche,
+            QstCode:                qstCode,
+            InTariftabelleGefunden: gefunden,
+            Begruendung:            string.Join(" · ", begruendung),
+            Warnings:               warnings,
+            Stichtag:               stichtag);
+    }
+
+    /// <summary>
+    /// Ist das Kind am Stichtag QST-abzugsberechtigt?
+    /// 1) Wenn QstDeductibleFrom oder QstDeductibleUntil gesetzt → der
+    ///    explizite Zeitraum gilt.
+    /// 2) Sonst Fallback: Geburtsdatum bis 18. Geburtstag.
+    /// Ohne jegliche Datums-Info → nicht zählen.
+    /// </summary>
+    public static bool IstQstBerechtigt(QstKindInput k, DateOnly stichtag)
+    {
+        // 1) Explizit gepflegt
+        if (k.QstDeductibleFrom.HasValue || k.QstDeductibleUntil.HasValue)
+        {
+            if (k.QstDeductibleFrom.HasValue  && k.QstDeductibleFrom.Value  > stichtag) return false;
+            if (k.QstDeductibleUntil.HasValue && k.QstDeductibleUntil.Value < stichtag) return false;
+            return true;
+        }
+        // 2) Geburtsdatum-Fallback
+        if (!k.DateOfBirth.HasValue) return false;
+        var dob   = k.DateOfBirth.Value;
+        if (dob > stichtag) return false;                    // noch nicht geboren
+        var dob18 = dob.AddYears(18);
+        return dob18 >= stichtag;                            // unter 18 am Stichtag
+    }
+
+    private static string WaehleTarif(string? zivilstand, int kinderImHaushalt, List<string> begruendung)
+    {
+        var z = (zivilstand ?? "").Trim().ToLowerInvariant();
+        var verheiratet = z.Contains("verheiratet")
+            || (z.Contains("partnerschaft") && !z.Contains("aufgeloest") && !z.Contains("aufgelöste"));
+        var alleinerziehend_basis =
+            z.Contains("ledig") || z.Contains("geschieden") || z.Contains("verwitwet") || z.Contains("getrennt");
+
+        if (verheiratet)
+        {
+            begruendung.Add($"Zivilstand „{zivilstand}" → C (Doppelverdiener als Default; bei Alleinverdiener auf B wechseln)");
+            return "C";
+        }
+        if (alleinerziehend_basis && kinderImHaushalt > 0)
+        {
+            begruendung.Add($"Zivilstand „{zivilstand}" + Kind im selben Haushalt → H (Alleinerziehend)");
+            return "H";
+        }
+        if (alleinerziehend_basis)
+        {
+            begruendung.Add($"Zivilstand „{zivilstand}" ohne Kind im Haushalt → A");
+            return "A";
+        }
+        begruendung.Add($"Zivilstand „{zivilstand}" nicht erkannt → A als Default");
+        return "A";
+    }
+
+    /// <summary>
+    /// Konfession-Mapping aus der MA-Maske. Walter-Werte:
+    /// evangelisch_reformiert, roemisch_katholisch, christ_katholisch → ja.
+    /// Alles andere (juedisch, andere, keine, NULL …) → nein.
+    /// </summary>
+    public static bool IstKirchensteuerPflichtig(string? religion)
+    {
+        if (string.IsNullOrWhiteSpace(religion)) return false;
+        var r = religion.Trim().ToLowerInvariant();
+        return r == "evangelisch_reformiert"
+            || r == "roemisch_katholisch"
+            || r == "christ_katholisch";
+    }
+
+    /// <summary>
+    /// Sucht den (tarif, kinder, kirchensteuer)-Tripel in der Tariftabelle.
+    /// Fallbacks (in dieser Reihenfolge):
+    ///   1) exakt
+    ///   2) selbe Tarif+Kinder, andere Kirchensteuer-Variante
+    ///   3) selbe Tarif+Kirchensteuer, höchste Kinderstufe &lt;= gewünscht
+    ///   4) selbe Tarif, beliebige Kombi mit Kirche=nein und Kinder &lt;= gewünscht
+    /// Wenn weiterhin nichts gefunden → (gewünschte Kinder, gewünschte Kirche, false).
+    /// </summary>
+    private static (int Kinder, bool Kirche, bool Gefunden) FindeTarifInTabelle(
+        IReadOnlyList<QstTarifInfo> tabelle,
+        string tarif,
+        int kinder,
+        bool kirche,
+        List<string> warnings)
+    {
+        if (tabelle.Count == 0) return (kinder, kirche, false);
+
+        // 1) exakt
+        if (tabelle.Any(t => t.Tarif == tarif && t.Kinder == kinder && t.Kirchensteuer == kirche))
+            return (kinder, kirche, true);
+
+        // 2) Kirchensteuer-Variante umdrehen
+        var altKirche = tabelle.FirstOrDefault(t => t.Tarif == tarif && t.Kinder == kinder);
+        if (altKirche != null)
+        {
+            warnings.Add($"Tarif {tarif}{kinder}{(kirche ? "Y" : "N")} nicht in Tariftabelle — Kirchensteuer-Variante {altKirche.Kirchensteuer} verwendet.");
+            return (kinder, altKirche.Kirchensteuer, true);
+        }
+
+        // 3) selbe Kirche, höchste Kinderzahl ≤ gewünscht
+        var maxKinder = tabelle
+            .Where(t => t.Tarif == tarif && t.Kirchensteuer == kirche && t.Kinder <= kinder)
+            .OrderByDescending(t => t.Kinder)
+            .FirstOrDefault();
+        if (maxKinder != null)
+        {
+            if (maxKinder.Kinder != kinder)
+                warnings.Add($"Tarif {tarif} mit {kinder} Kind(ern) nicht in Tariftabelle — höchste verfügbare Kinderstufe {maxKinder.Kinder} verwendet.");
+            return (maxKinder.Kinder, kirche, true);
+        }
+
+        // 4) selbe Tarif, beliebige Kombi mit Kinder ≤ gewünscht
+        var any = tabelle
+            .Where(t => t.Tarif == tarif && t.Kinder <= kinder)
+            .OrderByDescending(t => t.Kinder).ThenByDescending(t => t.Kirchensteuer == kirche)
+            .FirstOrDefault();
+        if (any != null)
+        {
+            warnings.Add($"Keine exakte Kombination — Tarif {any.Tarif}{any.Kinder}{(any.Kirchensteuer ? "Y" : "N")} als nächstbeste verwendet.");
+            return (any.Kinder, any.Kirchensteuer, true);
+        }
+
+        warnings.Add($"Tarif {tarif} überhaupt nicht in der Tariftabelle vorhanden.");
+        return (kinder, kirche, false);
+    }
+}

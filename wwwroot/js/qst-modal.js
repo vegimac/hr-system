@@ -12,6 +12,13 @@ let qstAllEntries        = [];
 // Walter-Vorgabe 28.05.2026: Cache der MA-Kinder (mit QstDeductibleFrom/Until)
 // für den Auto-Zähler unter „Anzahl Kinder".
 let _qstFamilyKinder     = [];
+// Walter-Vorgabe 14.06.2026: Cache des Server-Tarifvorschlags. Der Server
+// (QstTarifVorschlagService) ist die EINZIGE Quelle der Wahrheit für den
+// Vorschlag — die alten Frontend-Heuristiken (qstSuggestTarifBuchstabe,
+// qstAutoKinderCount) dienen nur noch als rein lokale Anzeige-Hilfe, falls
+// der Server-Endpoint nicht erreichbar ist. Aktualisiert sich bei jeder
+// ValidFrom-Änderung (Stichtag wechselt → ggf. anderer Vorschlag).
+let _qstServerVorschlag  = null;
 
 async function openQstModal(employeeId, employeeData) {
     qstCurrentEmployeeId = employeeId;
@@ -43,11 +50,20 @@ async function openQstModal(employeeId, employeeData) {
     // „Anzahl Kinder". Sequentiell, damit populateQstForm gleich darauf den Hint
     // zeichnen kann.
     await loadQstFamilyKinder(employeeId);
-    // ValidFrom-Trigger einmalig binden, damit beim Datums-Wechsel der Hint
-    // neu gerechnet wird (anderer Stichtag → ggf. anderer Auto-Wert).
+    // ValidFrom-Trigger einmalig binden, damit beim Datums-Wechsel sowohl der
+    // Hint als auch der Server-Vorschlag neu gerechnet werden (anderer
+    // Stichtag → ggf. anderer Tarif/anders viele berechtigte Kinder).
     const vfInp = document.getElementById('qstValidFrom');
     if (vfInp && !vfInp.dataset.qstAutoBound) {
-        vfInp.addEventListener('change', qstUpdateAutoKinderHint);
+        vfInp.addEventListener('change', async () => {
+            // Server-Vorschlag NEU holen — der Stichtag fliesst in die
+            // Kinderzählung ein.
+            if (qstCurrentEmployeeId && !qstCurrentEntryId) {
+                await qstFetchServerVorschlag(vfInp.value);
+                qstApplyServerVorschlagToForm(/*onlyEmptyFields*/ true);
+            }
+            qstUpdateAutoKinderHint();
+        });
         vfInp.dataset.qstAutoBound = '1';
     }
 
@@ -91,6 +107,75 @@ async function loadQstFamilyKinder(employeeId) {
         const members = await res.json();
         _qstFamilyKinder = (members || []).filter(m => m.memberType === 'Kind');
     } catch { /* leerer Cache */ }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Walter-Vorgabe 14.06.2026: Server-Tarifvorschlag (Quelle der Wahrheit).
+// `qstFetchServerVorschlag` holt den Vorschlag vom Endpoint und cached ihn
+// in _qstServerVorschlag. `qstApplyServerVorschlagToForm` schreibt die
+// Werte ins Formular — wenn `onlyEmptyFields=true`, werden bereits manuell
+// gesetzte Felder NICHT überschrieben (Walter's Edit-Modus + manuelle
+// Korrektur). `qstRenderVorschlagBanner` zeigt Begründung + Warnungen.
+// ══════════════════════════════════════════════════════════════════════
+async function qstFetchServerVorschlag(stichtagIso) {
+    _qstServerVorschlag = null;
+    if (!qstCurrentEmployeeId) return null;
+    const date = (stichtagIso || '').toString().slice(0, 10) ||
+                 new Date().toISOString().slice(0, 10);
+    try {
+        const res = await fetch(
+            `/api/employees/${qstCurrentEmployeeId}/quellensteuer/vorschlag?date=${date}`,
+            { headers: ah() });
+        if (!res.ok) return null;
+        _qstServerVorschlag = await res.json();
+        return _qstServerVorschlag;
+    } catch {
+        return null;
+    }
+}
+
+function qstApplyServerVorschlagToForm(onlyEmptyFields) {
+    const v = _qstServerVorschlag;
+    if (!v) { qstRenderVorschlagBanner(); return; }
+    const setIf = (id, val, isCheckbox) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (isCheckbox) {
+            if (onlyEmptyFields && el.dataset.qstUserTouched === '1') return;
+            el.checked = !!val;
+        } else {
+            if (onlyEmptyFields && (el.value || '').toString().trim() !== '') return;
+            el.value = (val ?? '').toString();
+        }
+    };
+    setIf('qstTarifCode',    v.tarifCode);
+    setIf('qstKinder',       v.anzahlKinder);
+    setIf('qstKirchensteuer',v.kirchensteuer, true);
+    setIf('qstCode',         v.qstCode);
+    if (typeof buildQstCode === 'function') buildQstCode();
+    qstRenderVorschlagBanner();
+}
+
+function qstRenderVorschlagBanner() {
+    const hint = document.getElementById('qstTarifHint');
+    if (!hint) return;
+    const v   = _qstServerVorschlag;
+    const sel = document.getElementById('qstTarifCode');
+    if (!v) { hint.innerHTML = ''; return; }
+    const manual = sel?.value || '';
+    const passt  = manual && manual === v.tarifCode;
+    const headerColor = passt ? '#16a34a' : '#1d4ed8';
+    const headerIcon  = passt ? '✓' : 'ℹ';
+    const begr   = v.begruendung ? `<div style="color:#475569;margin-top:2px">${v.begruendung}</div>` : '';
+    const warns  = (v.warnings && v.warnings.length)
+        ? `<div style="color:#b45309;margin-top:2px">⚠ ${v.warnings.map(w => w.replace(/"/g,'&quot;')).join(' · ')}</div>`
+        : '';
+    const choice = (manual && manual !== v.tarifCode)
+        ? `<div style="color:#94a3b8;margin-top:2px">Du hast bewusst <b>${manual}</b> gewählt.</div>`
+        : '';
+    hint.innerHTML =
+        `<div style="color:${headerColor};font-weight:600">${headerIcon} Server-Vorschlag: <b>${v.qstCode}</b> (Tarif ${v.tarifCode}${v.tarifBezeichnung ? ' — ' + v.tarifBezeichnung : ''})</div>` +
+        begr + warns + choice;
 }
 
 // Wie viele Kinder sind am gewählten Stichtag QST-abzugsberechtigt?
@@ -211,42 +296,35 @@ function qstSuggestTarifBuchstabe(zivilstand, anzahlKinder) {
     return null;                                     // Zivilstand unbekannt
 }
 
+// Walter-Vorgabe 14.06.2026 (Update): Quelle der Wahrheit ist der Server-
+// Endpoint. `qstSuggestTarif` rendert nur noch den Banner (cached in
+// _qstServerVorschlag). Wenn kein Server-Vorschlag vorliegt (z.B. Endpoint
+// nicht erreichbar), greift als letzter Fallback die Frontend-Heuristik —
+// damit der Tab nicht stumm bleibt.
 function qstSuggestTarif() {
-    const sel  = document.getElementById('qstTarifCode');
-    const hint = document.getElementById('qstTarifHint');
+    const sel = document.getElementById('qstTarifCode');
     if (!sel) return;
 
-    const zivil = qstEmployeeData?.maritalStatus ?? qstEmployeeData?.zivilstand ?? '';
-    const kinder = parseInt(document.getElementById('qstKinder')?.value ?? '0', 10) || 0;
-    const suggested = qstSuggestTarifBuchstabe(zivil, kinder);
-
-    // Bestehender Eintrag (Edit-Modus) → nichts überschreiben.
-    if (sel.value) {
-        if (hint) {
-            if (suggested && suggested !== sel.value) {
-                hint.innerHTML = `<span style="color:#94a3b8">ℹ Vorschlag aus Zivilstand wäre <b>${suggested}</b> — du hast bewusst <b>${sel.value}</b> gewählt.</span>`;
-            } else if (suggested) {
-                hint.innerHTML = `<span style="color:#16a34a">✓ Tarif <b>${suggested}</b> passt zu Zivilstand „${zivil}"${kinder ? ' + ' + kinder + ' Kind' + (kinder===1?'':'er') : ''}.</span>`;
-            } else {
-                hint.innerHTML = '';
-            }
-        }
+    // Hauptpfad: Server-Vorschlag liegt vor → Banner zeichnen.
+    if (_qstServerVorschlag) {
+        qstRenderVorschlagBanner();
         return;
     }
 
-    // Neuer Eintrag → Vorschlag setzen
-    if (suggested) {
-        sel.value = suggested;
-        if (typeof buildQstCode === 'function') buildQstCode();
-        if (hint) {
-            const isVerheiratet = (zivil || '').toLowerCase().includes('verheiratet') || (zivil || '').toLowerCase().includes('partnerschaft');
-            const extra = isVerheiratet
-                ? ` <span style="color:#94a3b8">— bei Alleinverdiener auf <b>B</b> wechseln.</span>`
-                : '';
-            hint.innerHTML = `<span style="color:#16a34a">✓ Auto-Vorschlag <b>${suggested}</b> aus Zivilstand „${zivil}"${kinder ? ' + ' + kinder + ' Kind' + (kinder===1?'':'er') : ''}.</span>${extra}`;
-        }
-    } else if (hint) {
-        hint.innerHTML = `<span style="color:#94a3b8">ℹ Kein Auto-Vorschlag möglich — Zivilstand „${zivil}" nicht erkannt. Bitte Tarif manuell wählen.</span>`;
+    // Fallback (Server-Endpoint nicht erreichbar): minimaler Hint aus
+    // Zivilstand. Berechnung läuft NICHT mehr automatisch ins Feld — Walter
+    // soll sehen dass die Server-Logik gerade nicht greift.
+    const hint = document.getElementById('qstTarifHint');
+    if (!hint) return;
+    const zivil    = qstEmployeeData?.maritalStatus ?? qstEmployeeData?.zivilstand ?? '';
+    const kinder   = parseInt(document.getElementById('qstKinder')?.value ?? '0', 10) || 0;
+    const suggested = qstSuggestTarifBuchstabe(zivil, kinder);
+    if (suggested && sel.value && suggested !== sel.value) {
+        hint.innerHTML = `<span style="color:#94a3b8">ℹ Vorschlag aus Zivilstand wäre <b>${suggested}</b> — du hast bewusst <b>${sel.value}</b> gewählt. (Server-Vorschlag nicht verfügbar.)</span>`;
+    } else if (suggested) {
+        hint.innerHTML = `<span style="color:#94a3b8">ℹ Vorschlag aus Zivilstand: <b>${suggested}</b> (Server-Vorschlag nicht verfügbar — bitte manuell prüfen).</span>`;
+    } else {
+        hint.innerHTML = `<span style="color:#94a3b8">ℹ Kein Vorschlag möglich — Zivilstand „${zivil}" nicht erkannt.</span>`;
     }
 }
 
@@ -345,22 +423,13 @@ async function openQstEntry(id) {
     })();
     document.getElementById('qstValidFrom').value = validFromDefault;
 
-    // Walter-Vorgabe 28.05.2026: nach dem ValidFrom-Default die Anzahl Kinder
-    // aus der Familie neu rechnen (populateQstForm lief mit dem alten Datum).
-    // Walter-Vorgabe 14.06.2026: IMMER auf den Auto-Wert setzen (auch 0),
-    // damit der Code-Aufbau konsistent ist. Hint wird auch ohne Kinder
-    // gezeigt — Walter sieht so „0 Kinder am Stichtag berechtigt".
-    {
-        const auto = qstAutoKinderCount(validFromDefault);
-        document.getElementById('qstKinder').value = auto;
-        if (typeof buildQstCode === 'function') buildQstCode();
-        qstUpdateAutoKinderHint();
-    }
-
-    // Walter-Vorgabe 14.06.2026: Tarif aus Zivilstand + Anzahl Kinder vor-
-    // schlagen. Logik unten in qstSuggestTarif. Nur wenn das Feld noch leer
-    // ist — bestehende Walter-Auswahl wird nicht überschrieben.
-    qstSuggestTarif();
+    // Walter-Vorgabe 14.06.2026 (Update): Tarif/Kinder/Kirchensteuer/QstCode
+    // kommen jetzt vom SERVER (QstTarifVorschlagService) — Quelle der Wahrheit.
+    // Die alten Frontend-Heuristiken (qstAutoKinderCount + qstSuggestTarif)
+    // bleiben nur noch als lokale Anzeigehilfe für „Auto wäre N Kind(er)".
+    await qstFetchServerVorschlag(validFromDefault);
+    qstApplyServerVorschlagToForm(/*onlyEmptyFields*/ true);
+    qstUpdateAutoKinderHint();
 
     // Auto-Fill Steuerkanton und Wohngemeinde aus der Wohnadresse des MA.
     // Fallback auf selectedEmployee (wenn aus dem Mitarbeiter-Tab geöffnet

@@ -134,6 +134,10 @@ builder.Services.AddScoped<SnapshotRecomputeService>();
 builder.Services.AddScoped<MinimumWageCheckService>();
 // QST-Pflicht-Prüfung (CH/C/Behörde/Ehepartner → blockt Lohnlauf bei Lücke)
 builder.Services.AddScoped<QstPflichtCheckService>();
+// QST-Tarif-Vorschlag (Walter 14.06.2026): serverseitige Logik, die für
+// neue QST-Einträge den passenden Tarif + Kinderzahl + Kirchensteuer aus
+// Stammdaten ableitet und gegen die offizielle ESTV-Tariftabelle prüft.
+builder.Services.AddScoped<QstTarifVorschlagService>();
 // FAK-Tarif-Auflösung: pro Periode Kinderzulagen-Betrag aus Tarif + Alter (Walter 28.05.2026)
 builder.Services.AddScoped<FamilienzulagenResolverService>();
 builder.Services.AddScoped<WageAdjustmentService>();
