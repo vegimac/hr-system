@@ -8305,8 +8305,11 @@ async function openDeleteEmployeeModal(employeeId) {
            </div>`
         : (!isSoft ? '<div style="background:#fef2f2;border:1px solid #fca5a5;border-left:4px solid #dc2626;border-radius:6px;padding:10px 14px;margin-top:10px;color:#991b1b;font-size:12.5px"><strong>Keine zusätzlichen Daten</strong> — der MA hat nur Stammdaten und wird komplett gelöscht.</div>' : '');
 
-    // Sicherheits-Bestätigung: User muss exakt den Nachnamen tippen
-    const expectedConfirm = (preview.employeeName.split(' ').pop() || '').trim();
+    // Walter-Vorgabe 14.06.2026: Nachnamen-Eintipp-Bestätigung entfernt —
+    // Löschen darf ohnehin nur ein Admin (Backend-Check + UI-Check vor dem
+    // Modal-Open). Eine einfache Ja/Nein-Bestätigung mit deutlichem roten
+    // Button reicht. Der Vorschaublock mit der Liste der zu löschenden
+    // Daten (hardWarn / lohnRow) bleibt — DAS ist die echte Sicherheit.
 
     const modalHtml = `
     <div id="delEmpModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)closeDeleteEmployeeModal()">
@@ -8327,40 +8330,25 @@ async function openDeleteEmployeeModal(employeeId) {
                 </div>
                 ${lohnRow}
                 ${hardWarn}
-                <div style="margin-top:18px">
-                    <label style="font-size:12.5px;color:#475569;font-weight:600">Zur Bestätigung: <span style="color:#0f172a">"${expectedConfirm}"</span> eintippen</label>
-                    <input id="delEmpConfirm" type="text" autocomplete="off" oninput="delEmpUpdateBtnState()" placeholder="${expectedConfirm}"
-                           style="width:100%;margin-top:6px;padding:9px 11px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:monospace">
-                </div>
             </div>
             <div style="padding:14px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px">
                 <button onclick="closeDeleteEmployeeModal()" style="background:#fff;border:1px solid #cbd5e1;color:#475569;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer">Abbrechen</button>
-                <button id="delEmpConfirmBtn" disabled onclick="confirmDeleteEmployee(${employeeId}, '${preview.mode}')" style="background:#dc2626;border:none;color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:not-allowed;opacity:.5">
-                    ${isSoft ? 'Ausblenden' : 'Endgültig löschen'}
+                <button id="delEmpConfirmBtn" onclick="confirmDeleteEmployee(${employeeId}, '${preview.mode}')" style="background:#dc2626;border:none;color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer">
+                    ${isSoft ? 'Ja, ausblenden' : 'Ja, endgültig löschen'}
                 </button>
             </div>
         </div>
     </div>`;
-    // Vorhandenes Modal entfernen, dann neues einfügen
+    // Vorhandenes Modal entfernen, dann neues einfügen.
     closeDeleteEmployeeModal();
     document.body.insertAdjacentHTML('beforeend', modalHtml);
-    window._delEmpExpected = expectedConfirm;
-    setTimeout(() => document.getElementById('delEmpConfirm')?.focus(), 50);
-}
-
-function delEmpUpdateBtnState() {
-    const input = document.getElementById('delEmpConfirm');
-    const btn   = document.getElementById('delEmpConfirmBtn');
-    if (!input || !btn) return;
-    const ok = (input.value || '').trim() === (window._delEmpExpected || '');
-    btn.disabled = !ok;
-    btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
-    btn.style.opacity = ok ? '1' : '.5';
+    // Fokus auf den Abbrechen-Knopf, damit ein versehentliches Enter NICHT
+    // löscht (Walter-Wille: bewusster Klick auf den roten Knopf).
+    setTimeout(() => document.querySelector('#delEmpModal button')?.focus(), 50);
 }
 
 function closeDeleteEmployeeModal() {
     document.getElementById('delEmpModal')?.remove();
-    delete window._delEmpExpected;
 }
 
 async function confirmDeleteEmployee(employeeId, expectedMode) {
@@ -8374,7 +8362,7 @@ async function confirmDeleteEmployee(employeeId, expectedMode) {
         const data = await res.json().catch(() => null);
         if (!res.ok) {
             alert(data?.message || `Fehler beim Löschen (${res.status})`);
-            if (btn) { btn.disabled = false; btn.textContent = expectedMode === 'soft' ? 'Ausblenden' : 'Endgültig löschen'; }
+            if (btn) { btn.disabled = false; btn.textContent = expectedMode === 'soft' ? 'Ja, ausblenden' : 'Ja, endgültig löschen'; }
             return;
         }
         closeDeleteEmployeeModal();
@@ -8388,7 +8376,7 @@ async function confirmDeleteEmployee(employeeId, expectedMode) {
         if (detail) detail.innerHTML = '<div class="emp-placeholder"><span>Bitte einen Mitarbeiter auswählen.</span></div>';
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
-        if (btn) { btn.disabled = false; btn.textContent = expectedMode === 'soft' ? 'Ausblenden' : 'Endgültig löschen'; }
+        if (btn) { btn.disabled = false; btn.textContent = expectedMode === 'soft' ? 'Ja, ausblenden' : 'Ja, endgültig löschen'; }
     }
 }
 
