@@ -6275,7 +6275,7 @@
             <!-- ═══════════════ MIRUS QST-AUSWERTUNG-IMPORT ═══════════════ -->
             <!-- Walter-Vorgabe 07.06.2026: Mirus „QST Auswertung" (XLS).
                  Erzeugt 1 Eintrag pro Tarif-Phase im EmployeeQuellensteuer.
-                 Auto-Detection LU vs. AG via Spalten-Layout. -->
+                 Auto-Detection LU vs. AG vs. BE via Spalten-Layout + Pattern-Match. -->
             <div class="page" id="page-qst-import">
                 <div class="sticky-page-head">
                 <div class="page-header">
@@ -6304,7 +6304,7 @@
                     </div>
                     <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
                         <b>So holst du die Datei aus Mirus:</b> Menü <code>QST Auswertung</code> → <code>Vorschau</code> → <code>Speichern</code> → <code>Excel xls (einzelnes Tabellenblatt)</code>. Pro Kanton ein File.<br>
-                        <b>Erkannte Formate:</b> LU (Name in einer Spalte), AG (Vorname/Nachname getrennt) — System erkennt das Layout automatisch.<br>
+                        <b>Erkannte Formate:</b> LU (Mirus, Name in einer Spalte), AG (Mirus, Vorname/Nachname getrennt), BE (offizielles Kanton-Bern-Anmeldeformular taxme.ch) — System erkennt das Layout automatisch.<br>
                         <b>Übernommen wird pro MA:</b> Tarif-Code (A/B/C/H), Anzahl Kinder, Kirchensteuer (Y/N), Steuerkanton, Wohngemeinde. Daraus baut System den QST-Code (z.B. <code>C2N</code>) und legt pro Tarif-Phase einen eigenen Verlaufseintrag an (z.B. B0Y Jan–März + C0Y ab April).<br>
                         <b>MA-Match:</b> primär AHV-Nummer, fallback Vor-/Nachname + Geburtsdatum. NO_MATCH / AMBIGUOUS → manueller Picker in der Vorschau.
                     </div>
@@ -6700,7 +6700,7 @@
                             </div>
                         </div>
                         <div class="admin-card-title">QST-Auswertung (Mirus)</div>
-                        <div class="admin-card-desc">Mirus „QST Auswertung" (XLS) pro Kanton → Tarif-Code, Kinderzahl, Kirchensteuer und Wohngemeinde pro MA. Legt pro Tarif-Phase einen Quellensteuer-Verlaufseintrag an. Format LU + AG automatisch erkannt.</div>
+                        <div class="admin-card-desc">Mirus „QST Auswertung" (XLS) pro Kanton → Tarif-Code, Kinderzahl, Kirchensteuer und Wohngemeinde pro MA. Legt pro Tarif-Phase einen Quellensteuer-Verlaufseintrag an. Formate LU + AG + BE (taxme.ch) automatisch erkannt.</div>
                     </div>
 
                     <div class="admin-card" onclick="showPage('saldo-vortrag-import')">

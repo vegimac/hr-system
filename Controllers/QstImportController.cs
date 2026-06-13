@@ -559,18 +559,27 @@ public class QstImportController : ControllerBase
             var sheet = wb.GetSheetAt(0);
             if (sheet == null) return (null, "");
 
-            // Format-Detection:
-            // 1) BE: Header-Text „Kanton Bern" / „Canton de Berne" / „taxme.ch"
-            //    in den ersten 20 Zeilen × 50 Spalten (eindeutig — kein
-            //    anderes Layout enthält diese Strings).
-            // 2) AG: Spalte 8 enthält in den ersten 100 Zeilen eine AHV (756.*).
-            // 3) sonst LU.
+            // Format-Detection (in dieser Reihenfolge):
+            // 1) BE-Header: „Kanton Bern" / „Canton de Berne" / „taxme.ch"
+            //    in den ersten 30 Zeilen × 60 Spalten — eindeutig, aber kann
+            //    fehlschlagen wenn die Beschriftung als gemergte Zelle oder
+            //    Textfeld vorliegt.
+            // 2) BE-Pattern (Fallback, Walter 14.06.2026): zähle Zeilen, die
+            //    EXAKT 11 nicht-leere Werte haben + erster Wert ist eine AHV.
+            //    Das ist die strukturelle Signatur des BE-Anmeldeformulars
+            //    (Mirus AG/LU haben pro MA-Zeile deutlich mehr nicht-leere
+            //    Werte — Kanton, Tarif/Kinder/Kirche separat, etc.). ≥ 1
+            //    solche Zeile → BE.
+            // 3) AG: Cell[8] enthält eine AHV (756.*).
+            // 4) sonst LU.
             string format = "LU";
-            for (int r = 0; r < Math.Min(20, sheet.LastRowNum + 1) && format != "BE"; r++)
+
+            // (1) Header-Match
+            for (int r = 0; r < Math.Min(30, sheet.LastRowNum + 1) && format != "BE"; r++)
             {
                 var row = sheet.GetRow(r);
                 if (row == null) continue;
-                int maxCol = Math.Min(50, row.LastCellNum);
+                int maxCol = Math.Min(60, (int)row.LastCellNum);
                 for (int c = 0; c < maxCol; c++)
                 {
                     var v = GetString(row.GetCell(c));
@@ -584,6 +593,35 @@ public class QstImportController : ControllerBase
                     }
                 }
             }
+
+            // (2) Pattern-Match — robust gegen Header in Textfeldern / gemergten
+            // Zellen. Scannt die ersten 300 Zeilen nach BE-MA-Zeilen.
+            if (format != "BE")
+            {
+                int beRowCount = 0;
+                int scanUntil = Math.Min(300, sheet.LastRowNum + 1);
+                for (int r = 0; r < scanUntil; r++)
+                {
+                    var row = sheet.GetRow(r);
+                    if (row == null) continue;
+                    var nonEmpty = new List<string>();
+                    int maxCol = row.LastCellNum;
+                    for (int c = 0; c < maxCol; c++)
+                    {
+                        var s = GetString(row.GetCell(c)).Trim();
+                        if (!string.IsNullOrEmpty(s)) nonEmpty.Add(s);
+                    }
+                    if (nonEmpty.Count == 11
+                     && nonEmpty[0].StartsWith("756.")
+                     && nonEmpty[0].Length >= 16)
+                    {
+                        beRowCount++;
+                        if (beRowCount >= 1) { format = "BE"; break; }
+                    }
+                }
+            }
+
+            // (3) AG
             if (format != "BE")
             {
                 for (int r = 0; r < Math.Min(100, sheet.LastRowNum + 1); r++)
@@ -595,12 +633,38 @@ public class QstImportController : ControllerBase
                 }
             }
 
-            return format switch
+            // Parse + Fallback-Sicherheitsnetz (Walter 14.06.2026): wenn die
+            // gewählte Detection 0 MA-Zeilen produziert, probieren wir
+            // automatisch das jeweils andere Layout — so kann eine fehl-
+            // erkannte Datei sich noch selbst retten, statt mit „0 MA" im
+            // UI zu landen.
+            switch (format)
             {
-                "BE" => (ParseBe(sheet), "BE"),
-                "AG" => (ParseAg(sheet), "AG"),
-                _    => (ParseLu(sheet), "LU")
-            };
+                case "BE":
+                    var be = ParseBe(sheet);
+                    if (be.Count > 0) return (be, "BE");
+                    var luAlt = ParseLu(sheet);
+                    if (luAlt.Count > 0) return (luAlt, "LU");
+                    var agAlt = ParseAg(sheet);
+                    if (agAlt.Count > 0) return (agAlt, "AG");
+                    return (be, "BE");
+
+                case "AG":
+                    var ag = ParseAg(sheet);
+                    if (ag.Count > 0) return (ag, "AG");
+                    var beAlt = ParseBe(sheet);
+                    if (beAlt.Count > 0) return (beAlt, "BE");
+                    return (ag, "AG");
+
+                default: // LU
+                    var lu = ParseLu(sheet);
+                    if (lu.Count > 0) return (lu, "LU");
+                    var beTry = ParseBe(sheet);
+                    if (beTry.Count > 0) return (beTry, "BE");
+                    var agTry = ParseAg(sheet);
+                    if (agTry.Count > 0) return (agTry, "AG");
+                    return (lu, "LU");
+            }
         }
         catch (Exception ex)
         {
