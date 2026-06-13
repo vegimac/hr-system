@@ -57,10 +57,15 @@ async function openQstModal(employeeId, employeeData) {
     if (vfInp && !vfInp.dataset.qstAutoBound) {
         vfInp.addEventListener('change', async () => {
             // Server-Vorschlag NEU holen — der Stichtag fliesst in die
-            // Kinderzählung ein.
-            if (qstCurrentEmployeeId && !qstCurrentEntryId) {
+            // Kinderzählung ein. Im Edit-Modus (qstCurrentEntryId gesetzt)
+            // nur Banner aktualisieren, NIE Felder überschreiben.
+            if (qstCurrentEmployeeId) {
                 await qstFetchServerVorschlag(vfInp.value);
-                qstApplyServerVorschlagToForm(/*onlyEmptyFields*/ true);
+                if (!qstCurrentEntryId) {
+                    qstApplyServerVorschlagToForm(/*onlyEmptyFields*/ true);
+                } else {
+                    qstRenderVorschlagBanner();
+                }
             }
             qstUpdateAutoKinderHint();
         });
@@ -71,7 +76,23 @@ async function openQstModal(employeeId, employeeData) {
     const today = new Date().toISOString().slice(0, 10);
     const res = await fetch(`/api/employees/${employeeId}/quellensteuer/current?date=${today}`, { headers: ah() });
     const current = res.ok ? await res.json() : null;
-    populateQstForm(current);
+    // Walter-Vorgabe 14.06.2026: wenn kein aktueller Eintrag existiert, NICHT
+    // einfach `populateQstForm(null)` aufrufen (das setzt leere Felder), sondern
+    // denselben Neu-Eintrag-Pfad wie der „+ Neuer Eintrag"-Button nehmen:
+    // openQstEntry(null) befüllt ValidFrom-Default, Auto-Fill Steuerkanton/
+    // Gemeinde/BFS aus der Wohnadresse UND holt den Server-Vorschlag.
+    if (current) {
+        qstCurrentEntryId = current.id ?? null;
+        populateQstForm(current);
+        // Edit-Modus: Server-Vorschlag NUR als Banner zeigen, NIE auf die Felder
+        // schreiben (Walter-Vorgabe: kein Auto-Overwrite beim Bearbeiten).
+        await qstFetchServerVorschlag(current.validFrom);
+        qstRenderVorschlagBanner();
+        qstUpdateAutoKinderHint();
+    } else {
+        qstCurrentEntryId = null;
+        await openQstEntry(null);
+    }
 
     document.getElementById('qstModal').style.display = 'flex';
 }
@@ -384,6 +405,13 @@ async function loadQstEntry(id) {
     const entry = await res.json();
     qstCurrentEntryId = id;
     populateQstForm(entry);
+    // Walter-Vorgabe 14.06.2026: bestehende Einträge NIE auto-overwriten —
+    // den Server-Vorschlag für den Banner trotzdem holen (Stichtag = ValidFrom
+    // des Eintrags), so sieht Walter sofort ob die manuelle Wahl vom heutigen
+    // Vorschlag abweicht. Apply wird NICHT aufgerufen.
+    await qstFetchServerVorschlag(entry?.validFrom);
+    qstRenderVorschlagBanner();
+    qstUpdateAutoKinderHint();
 }
 
 async function openQstEntry(id) {

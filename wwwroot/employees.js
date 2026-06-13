@@ -1665,21 +1665,35 @@ async function qstOpenBefreiungsDok(empId, dokId) {
 // Schnell-Button: Höchsten Tarif erfassen → öffnet das normale QST-Modal mit
 // vorausgefüllten Werten (A0Y für ledig, C0Y für verheiratet — beide mit
 // Kirchensteuer, höchste Belastung in der jeweiligen Tarif-Gruppe).
-function openQstHoechsterTarif() {
+//
+// Walter-Vorgabe 14.06.2026: async + KEIN Auto-Vorschlag-Override mehr.
+// Vorher lief das Setzen via setTimeout(100ms) als Race gegen
+// openQstFromTab → openQstEntry → qstApplyServerVorschlagToForm, was
+// unzuverlässig war (mal A0Y, mal A1N je nach Familie/Stichtag). Jetzt:
+// 1) await openQstFromTab(null) → der Server-Vorschlag steht stabil im Feld.
+// 2) Manuell auf den HÖCHSTEN Tarif überschreiben (Walter-Wille überstimmt
+//    den Algorithmus).
+// 3) qstSuggestTarif() rendert den Banner — er erkennt jetzt „bewusst Y
+//    gewählt" und zeigt das transparent an.
+async function openQstHoechsterTarif() {
     if (!selectedEmployee) return;
     const isVerheiratet = (selectedEmployee.maritalStatus || '').toLowerCase().includes('verheiratet')
                        || (selectedEmployee.maritalStatus || '').toLowerCase().includes('partnerschaft');
     const tarifCode = isVerheiratet ? 'C' : 'A';
-    openQstFromTab(null);
-    // Werte im Modal nach dem Öffnen setzen — Timeout damit das Modal-DOM bereit ist.
-    setTimeout(() => {
-        const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-        setVal('qstTarifCode',    tarifCode);
-        setVal('qstAnzahlKinder', '0');
-        const kirche = document.getElementById('qstKirchensteuer');
-        if (kirche) kirche.value = 'true';   // mit Kirchensteuer = höchste Belastung
-        if (typeof qstUpdatePreview === 'function') qstUpdatePreview();
-    }, 100);
+
+    await openQstFromTab(null);
+
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    setVal('qstTarifCode', tarifCode);
+    setVal('qstKinder',    '0');             // höchste Stufe = 0 Kinder
+    const kirche = document.getElementById('qstKirchensteuer');
+    if (kirche) kirche.checked = true;       // mit Kirchensteuer = höchste Belastung
+    if (typeof buildQstCode === 'function') buildQstCode();
+
+    // Banner aktualisieren — zeigt jetzt „Server-Vorschlag wäre X, du hast
+    // bewusst Y gewählt" (gewünschte Transparenz, kein erneutes Auto-Apply).
+    if (typeof qstSuggestTarif === 'function') qstSuggestTarif();
+    if (typeof qstUpdateAutoKinderHint === 'function') qstUpdateAutoKinderHint();
 }
 
 // Behörden-Befreiung erfassen — Modal mit direktem Upload ODER bestehendem Doku
@@ -2479,7 +2493,17 @@ async function openQstFromTab(entryId) {
     if (entryId) {
         try {
             const r = await fetch(`/api/employees/${selectedEmployeeId}/quellensteuer/${entryId}`, { headers: ah() });
-            if (r.ok) populateQstForm(await r.json());
+            if (r.ok) {
+                const entry = await r.json();
+                populateQstForm(entry);
+                // Walter-Vorgabe 14.06.2026: bestehende Einträge NIE auto-
+                // overwriten — Server-Vorschlag NUR als Banner zeigen.
+                if (typeof qstFetchServerVorschlag === 'function') {
+                    await qstFetchServerVorschlag(entry?.validFrom);
+                    if (typeof qstRenderVorschlagBanner === 'function') qstRenderVorschlagBanner();
+                    if (typeof qstUpdateAutoKinderHint === 'function') qstUpdateAutoKinderHint();
+                }
+            }
         } catch {}
     } else {
         // Neuer Eintrag → openQstEntry(null) übernimmt:
