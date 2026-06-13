@@ -9571,7 +9571,7 @@ function onBranchChange() {
             </div>
             <!-- 3 Checkboxen inline, sparen vertikalen Platz -->
             <div style="grid-column:1 / -1;display:flex;gap:18px;flex-wrap:wrap;padding-top:2px">
-                <label class="qst-cb"><input type="checkbox" id="qstKirchensteuer" onchange="buildQstCode()"> Kirchensteuer</label>
+                <label class="qst-cb"><input type="checkbox" id="qstKirchensteuer" onchange="buildQstCode();qstSuggestTarif(false)"> Kirchensteuer</label>
                 <label class="qst-cb"><input type="checkbox" id="qstSpezielBewilligt"> Speziell bewilligt</label>
                 <label class="qst-cb"><input type="checkbox" id="qstTarifvorschlag" checked> Tarifvorschlag QST</label>
             </div>

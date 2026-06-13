@@ -1675,10 +1675,10 @@ function openQstHoechsterTarif() {
     setTimeout(() => {
         const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
         setVal('qstTarifCode',    tarifCode);
-        setVal('qstAnzahlKinder', '0');
+        setVal('qstKinder', '0');
         const kirche = document.getElementById('qstKirchensteuer');
-        if (kirche) kirche.value = 'true';   // mit Kirchensteuer = höchste Belastung
-        if (typeof qstUpdatePreview === 'function') qstUpdatePreview();
+        if (kirche) kirche.checked = true;   // mit Kirchensteuer = höchste Belastung
+        if (typeof buildQstCode === 'function') buildQstCode();
     }, 100);
 }
 

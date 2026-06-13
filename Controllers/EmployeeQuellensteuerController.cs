@@ -21,10 +21,12 @@ public class EmployeeQuellensteuerController : ControllerBase
 {
     private readonly AppDbContext        _db;
     private readonly LohnEditLockService _editLock;
-    public EmployeeQuellensteuerController(AppDbContext db, LohnEditLockService editLock)
+    private readonly QstTarifVorschlagService _tarifVorschlag;
+    public EmployeeQuellensteuerController(AppDbContext db, LohnEditLockService editLock, QstTarifVorschlagService tarifVorschlag)
     {
-        _db       = db;
-        _editLock = editLock;
+        _db             = db;
+        _editLock       = editLock;
+        _tarifVorschlag = tarifVorschlag;
     }
 
     /// <summary>Filiale des MA (jüngster aktiver Vertrag) — null wenn keiner.</summary>
@@ -123,6 +125,17 @@ public class EmployeeQuellensteuerController : ControllerBase
             .OrderByDescending(q => q.ValidFrom)
             .FirstOrDefaultAsync();
         return Ok(entry); // null wenn keiner gefunden
+    }
+
+    // GET /api/employees/{employeeId}/quellensteuer/vorschlag?date=2026-04-01
+    // Liefert einen serverseitigen Tarifvorschlag aus Zivilstand, Kindern,
+    // Konfession und den effektiv geladenen ESTV-Tarifkombinationen.
+    [HttpGet("vorschlag")]
+    public async Task<IActionResult> GetTarifVorschlag(int employeeId, [FromQuery] DateOnly? date)
+    {
+        var result = await _tarifVorschlag.VorschlagenAsync(employeeId, date);
+        if (result == null) return NotFound();
+        return Ok(result);
     }
 
     // GET /api/employees/{employeeId}/quellensteuer/{id}

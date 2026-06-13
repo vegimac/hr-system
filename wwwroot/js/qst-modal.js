@@ -12,6 +12,10 @@ let qstAllEntries        = [];
 // Walter-Vorgabe 28.05.2026: Cache der MA-Kinder (mit QstDeductibleFrom/Until)
 // für den Auto-Zähler unter „Anzahl Kinder".
 let _qstFamilyKinder     = [];
+let _qstTarifVorschlag   = null;
+let _qstTarifVorschlagKey = '';
+let _qstTarifVorschlagSeq = 0;
+let _qstLastSuggestedQstCode = '';
 
 async function openQstModal(employeeId, employeeData) {
     qstCurrentEmployeeId = employeeId;
@@ -47,7 +51,10 @@ async function openQstModal(employeeId, employeeData) {
     // neu gerechnet wird (anderer Stichtag → ggf. anderer Auto-Wert).
     const vfInp = document.getElementById('qstValidFrom');
     if (vfInp && !vfInp.dataset.qstAutoBound) {
-        vfInp.addEventListener('change', qstUpdateAutoKinderHint);
+        vfInp.addEventListener('change', () => {
+            qstUpdateAutoKinderHint();
+            qstSuggestTarif(!qstCurrentEntryId);
+        });
         vfInp.dataset.qstAutoBound = '1';
     }
 
@@ -85,6 +92,8 @@ async function loadQstHistory(employeeId) {
 // QST-Eintrags aus.
 async function loadQstFamilyKinder(employeeId) {
     _qstFamilyKinder = [];
+    _qstTarifVorschlag = null;
+    _qstTarifVorschlagKey = '';
     try {
         const res = await fetch(`/api/employees/${employeeId}/family`, { headers: ah() });
         if (!res.ok) return;
@@ -177,76 +186,91 @@ function qstApplyAutoKinder() {
     inp.value = qstAutoKinderCount(stichtag);
     if (typeof buildQstCode === 'function') buildQstCode();
     qstUpdateAutoKinderHint();
-    qstSuggestTarif();
+    qstSuggestTarif(false);
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// Walter-Vorgabe 14.06.2026: QST-Tarif aus Zivilstand + Kinder vorschlagen.
-//
-// Schweizer QST-Tarif-Logik:
-//   • ledig + keine Kinder                              → A (Alleinstehend)
-//   • ledig + Kinder                                    → H (Alleinerziehend)
-//   • verheiratet / eingetragene Partnerschaft          → B (Alleinverdiener)
-//       — Walter wechselt manuell auf C wenn beide arbeiten (Doppelverdiener)
-//   • geschieden / verwitwet / getrennt + Kinder        → H
-//   • geschieden / verwitwet / getrennt + keine Kinder  → A
-//
-// C (Doppelverdiener) wird NIE auto-vorgeschlagen — kann das System nicht
-// wissen ob beide Partner arbeiten. Walter ergänzt manuell wenn nötig.
-// Wenn das Tarif-Feld bereits einen Wert hat (z.B. Eintrag wird bearbeitet),
-// wird NICHTS überschrieben. Auch im Hint steht dann „bestehender Eintrag".
+// QST-Tarifvorschlag aus dem Backend laden. Dort wird gegen die effektiv
+// geladenen ESTV-Tarifkombinationen geprüft; das Frontend füllt nur vor.
 // ══════════════════════════════════════════════════════════════════════
-function qstSuggestTarifBuchstabe(zivilstand, anzahlKinder) {
-    const z = (zivilstand || '').toLowerCase().trim();
-    const k = parseInt(anzahlKinder, 10) || 0;
-    const verheiratet = z.includes('verheiratet') || z.includes('partnerschaft') && !z.includes('aufgeloest');
-    const alleinerziehend_basis =
-        z.includes('ledig') || z.includes('geschieden') || z.includes('verwitwet') || z.includes('getrennt');
-    // Walter-Vorgabe 14.06.2026: bei verheiratet → C (Doppelverdiener) als
-    // Default, weil das in der Schweizer Praxis der Normalfall ist. Bei
-    // tatsächlichem Alleinverdiener wechselt der User manuell auf B.
-    if (verheiratet) return 'C';                    // Doppelverdiener-Default
-    if (alleinerziehend_basis && k > 0) return 'H'; // Alleinerziehend
-    if (alleinerziehend_basis) return 'A';          // Alleinstehend
-    return null;                                     // Zivilstand unbekannt
+async function qstLoadTarifVorschlag(stichtag) {
+    if (!qstCurrentEmployeeId || !stichtag) return null;
+    const key = `${qstCurrentEmployeeId}|${stichtag}`;
+    if (_qstTarifVorschlagKey === key && _qstTarifVorschlag) return _qstTarifVorschlag;
+
+    const seq = ++_qstTarifVorschlagSeq;
+    const res = await fetch(`/api/employees/${qstCurrentEmployeeId}/quellensteuer/vorschlag?date=${encodeURIComponent(stichtag)}`, { headers: ah() });
+    if (seq !== _qstTarifVorschlagSeq) return null; // veraltete Antwort ignorieren
+    if (!res.ok) return null;
+    _qstTarifVorschlag = await res.json();
+    _qstTarifVorschlagKey = key;
+    return _qstTarifVorschlag;
 }
 
-function qstSuggestTarif() {
-    const sel  = document.getElementById('qstTarifCode');
+function qstRenderTarifHint(suggestion, overwritten) {
     const hint = document.getElementById('qstTarifHint');
-    if (!sel) return;
-
-    const zivil = qstEmployeeData?.maritalStatus ?? qstEmployeeData?.zivilstand ?? '';
-    const kinder = parseInt(document.getElementById('qstKinder')?.value ?? '0', 10) || 0;
-    const suggested = qstSuggestTarifBuchstabe(zivil, kinder);
-
-    // Bestehender Eintrag (Edit-Modus) → nichts überschreiben.
-    if (sel.value) {
-        if (hint) {
-            if (suggested && suggested !== sel.value) {
-                hint.innerHTML = `<span style="color:#94a3b8">ℹ Vorschlag aus Zivilstand wäre <b>${suggested}</b> — du hast bewusst <b>${sel.value}</b> gewählt.</span>`;
-            } else if (suggested) {
-                hint.innerHTML = `<span style="color:#16a34a">✓ Tarif <b>${suggested}</b> passt zu Zivilstand „${zivil}"${kinder ? ' + ' + kinder + ' Kind' + (kinder===1?'':'er') : ''}.</span>`;
-            } else {
-                hint.innerHTML = '';
-            }
-        }
+    if (!hint) return;
+    if (!suggestion || !suggestion.tarifCode) {
+        hint.innerHTML = `<span style="color:#dc2626">⚠ Kein Tarifvorschlag möglich — bitte manuell wählen.</span>`;
         return;
     }
 
-    // Neuer Eintrag → Vorschlag setzen
-    if (suggested) {
-        sel.value = suggested;
-        if (typeof buildQstCode === 'function') buildQstCode();
-        if (hint) {
-            const isVerheiratet = (zivil || '').toLowerCase().includes('verheiratet') || (zivil || '').toLowerCase().includes('partnerschaft');
-            const extra = isVerheiratet
-                ? ` <span style="color:#94a3b8">— bei Alleinverdiener auf <b>B</b> wechseln.</span>`
-                : '';
-            hint.innerHTML = `<span style="color:#16a34a">✓ Auto-Vorschlag <b>${suggested}</b> aus Zivilstand „${zivil}"${kinder ? ' + ' + kinder + ' Kind' + (kinder===1?'':'er') : ''}.</span>${extra}`;
-        }
-    } else if (hint) {
-        hint.innerHTML = `<span style="color:#94a3b8">ℹ Kein Auto-Vorschlag möglich — Zivilstand „${zivil}" nicht erkannt. Bitte Tarif manuell wählen.</span>`;
+    const warn = (suggestion.warnings || []).length
+        ? ` <span style="color:#b45309">(${suggestion.warnings.join(' ')})</span>`
+        : '';
+    const source = suggestion.inTariftabelleGefunden
+        ? 'aus Stammdaten + Tariftabelle'
+        : 'nur aus Stammdaten';
+
+    if (overwritten) {
+        hint.innerHTML = `<span style="color:#94a3b8">ℹ Vorschlag wäre <b>${suggestion.qstCode}</b> (${source}) — du hast bewusst <b>${document.getElementById('qstCode')?.value || document.getElementById('qstTarifCode')?.value}</b> gewählt.</span>${warn}`;
+    } else {
+        hint.innerHTML = `<span style="color:#16a34a">✓ Vorschlag <b>${suggestion.qstCode}</b> (${source}): ${suggestion.begruendung}</span>${warn}`;
+    }
+}
+
+function qstApplyTarifVorschlag(suggestion, force) {
+    const sel  = document.getElementById('qstTarifCode');
+    if (!sel) return;
+    if (!suggestion || !suggestion.tarifCode) {
+        qstRenderTarifHint(suggestion, false);
+        return;
+    }
+
+    const currentCode = document.getElementById('qstCode')?.value || '';
+    const canOverwrite = force || !sel.value || currentCode === _qstLastSuggestedQstCode;
+    if (!canOverwrite) {
+        qstRenderTarifHint(suggestion, true);
+        return;
+    }
+
+    sel.value = suggestion.tarifCode;
+    const kinderInp = document.getElementById('qstKinder');
+    if (kinderInp) kinderInp.value = suggestion.anzahlKinder ?? 0;
+    const kirche = document.getElementById('qstKirchensteuer');
+    if (kirche) kirche.checked = !!suggestion.kirchensteuer;
+    const kanton = document.getElementById('qstSteuerkanton');
+    if (kanton && !kanton.value && suggestion.steuerkanton) kanton.value = suggestion.steuerkanton;
+    if (typeof buildQstCode === 'function') buildQstCode();
+    const code = document.getElementById('qstCode');
+    if (code && suggestion.qstCode) code.value = suggestion.qstCode;
+    _qstLastSuggestedQstCode = suggestion.qstCode || '';
+    qstUpdateAutoKinderHint();
+    qstRenderTarifHint(suggestion, false);
+}
+
+async function qstSuggestTarif(force = false) {
+    const stichtag = document.getElementById('qstValidFrom')?.value || '';
+    const hint = document.getElementById('qstTarifHint');
+    if (!stichtag) {
+        if (hint) hint.innerHTML = '';
+        return;
+    }
+    try {
+        const suggestion = await qstLoadTarifVorschlag(stichtag);
+        qstApplyTarifVorschlag(suggestion, force);
+    } catch {
+        if (hint) hint.innerHTML = `<span style="color:#dc2626">⚠ Tarifvorschlag konnte nicht geladen werden.</span>`;
     }
 }
 
@@ -357,10 +381,8 @@ async function openQstEntry(id) {
         qstUpdateAutoKinderHint();
     }
 
-    // Walter-Vorgabe 14.06.2026: Tarif aus Zivilstand + Anzahl Kinder vor-
-    // schlagen. Logik unten in qstSuggestTarif. Nur wenn das Feld noch leer
-    // ist — bestehende Walter-Auswahl wird nicht überschrieben.
-    qstSuggestTarif();
+    // Tarifvorschlag serverseitig aus Stammdaten + ESTV-Tariftabelle holen.
+    await qstSuggestTarif(true);
 
     // Auto-Fill Steuerkanton und Wohngemeinde aus der Wohnadresse des MA.
     // Fallback auf selectedEmployee (wenn aus dem Mitarbeiter-Tab geöffnet
@@ -446,6 +468,7 @@ function populateQstForm(entry) {
         }
     }
     qstUpdateAutoKinderHint();
+    qstSuggestTarif(false);
 }
 
 function onQstKantonChange() {
