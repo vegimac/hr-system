@@ -174,10 +174,29 @@ public class QstImportController : ControllerBase
         if (raw == null) return BadRequest(new { error = "Konnte QST-XLS nicht parsen. Erwartet wird das Mirus-Format aus 'QST Auswertung → Vorschau → Speichern als Excel xls (einzelnes Tabellenblatt)'." });
 
         // MA-Pool — auf gewählte Filiale beschränken (wenn gesetzt).
+        // Walter-Vorgabe 14.06.2026: ZUSÄTZLICH MA OHNE Vertrag einschliessen,
+        // deren Personalnummer mit dem Filial-Präfix beginnt. Sonst fallen
+        // kurze Aushilfen / Personaldossiers (z.B. 30 Tage angestellt → kein
+        // aktiver Vertrag mehr) im Picker raus, obwohl sie in der QST-Liste
+        // auftauchen. Präfix aus CompanyProfile.RestaurantCode (führende
+        // Nullen weg — gleiches Schema wie easy@work + Stammdaten-Importer).
+        var branchPrefix = "";
+        if (companyProfileId > 0)
+        {
+            var restCode = await _db.CompanyProfiles
+                .Where(p => p.Id == companyProfileId)
+                .Select(p => p.RestaurantCode)
+                .FirstOrDefaultAsync();
+            branchPrefix = (restCode ?? "").TrimStart('0');
+        }
         var allEmps = await _db.Employees
             .AsNoTracking()
             .Where(e => companyProfileId == 0
-                     || e.Employments.Any(em => em.CompanyProfileId == companyProfileId))
+                     || e.Employments.Any(em => em.CompanyProfileId == companyProfileId)
+                     || (!e.Employments.Any()
+                          && branchPrefix != ""
+                          && e.EmployeeNumber != null
+                          && e.EmployeeNumber.StartsWith(branchPrefix)))
             .Select(e => new {
                 e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
                 e.DateOfBirth, e.SocialSecurityNumber, e.IsActive
@@ -351,9 +370,26 @@ public class QstImportController : ControllerBase
         var (raw, format) = ParseXls(file);
         if (raw == null) return BadRequest(new { error = "Konnte QST-XLS nicht parsen." });
 
+        // Walter-Vorgabe 14.06.2026: Pool identisch zur Preview — Vertrag in
+        // Filiale ODER Personaldossier mit passendem Filial-Präfix in der
+        // Personalnummer (kurze Aushilfen / Phantom-MA / nach Austritt ohne
+        // Vertrag-Eintrag).
+        var branchPrefixC = "";
+        if (companyProfileId > 0)
+        {
+            var restCode = await _db.CompanyProfiles
+                .Where(p => p.Id == companyProfileId)
+                .Select(p => p.RestaurantCode)
+                .FirstOrDefaultAsync();
+            branchPrefixC = (restCode ?? "").TrimStart('0');
+        }
         var allEmps = await _db.Employees
             .Where(e => companyProfileId == 0
-                     || e.Employments.Any(em => em.CompanyProfileId == companyProfileId))
+                     || e.Employments.Any(em => em.CompanyProfileId == companyProfileId)
+                     || (!e.Employments.Any()
+                          && branchPrefixC != ""
+                          && e.EmployeeNumber != null
+                          && e.EmployeeNumber.StartsWith(branchPrefixC)))
             .ToListAsync();
 
         int added = 0, replaced = 0, appended = 0, skippedSame = 0, skipped = 0;
