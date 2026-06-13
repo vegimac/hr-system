@@ -17,7 +17,7 @@ namespace HrSystem.Controllers;
 /// Speichern als Excel xls (einzelnes Tabellenblatt)" generiert. Pro Kanton
 /// ein File, pro MA × Monat eine Zeile.
 ///
-/// Zwei bekannte Layouts (Format-Auto-Detection im Parser):
+/// Drei bekannte Layouts (Format-Auto-Detection im Parser):
 ///   • LU-Layout (76 Spalten, Name in EINER Spalte „Nachname Vorname"):
 ///       AHV=C3  Name=C10  Geb=C17  Gemeinde=C23  Kanton=C27
 ///       Monat=C36  Brutto=C43  Aperiodisch=C49  Satzbest=C57
@@ -26,7 +26,19 @@ namespace HrSystem.Controllers;
 ///       Monat=C3  AHV=C8  Nachname=C16  Vorname=C28  Wohnort=C38  Kanton=C46
 ///       Tarif=C82  Kinder=C90  Kirche=C100
 ///       Brutto=C110  Aperiodisch=C119  Satzbest=C131  QST=C143
-/// Erkennung: enthält C8 eine AHV-Nummer (756.xxxx.xxxx.xx) → AG, sonst LU.
+///   • BE-Layout (offizielles Kanton-Bern-Anmeldeformular, taxme.ch — Walter
+///     14.06.2026): KEIN Mirus-Export. Spalten variieren je Druckseite (S.1
+///     anders verschoben als S.2/S.3). Heuristisches Parsing: pro Zeile alle
+///     nicht-leeren Werte sammeln — eine MA-Zeile hat IMMER exakt 11 Werte in
+///     fester Reihenfolge: AHV · NachnameVorname · Geb · Wohnort · Monat ·
+///     Pensum · Brutto · Aperiodisch · Satzbest · Tarif(z.B. A0Y/H3N) · QST.
+///     Tarif-Code wird per Regex zerlegt (^([A-Z])(\d+)([YN])$). Steuerkanton
+///     ist fix "BE" (das Formular existiert nur in diesem Kanton).
+///
+/// Erkennung:
+///   • Header enthält „Kanton Bern" / „Canton de Berne" / „www.taxme.ch" → BE
+///   • C8 enthält AHV (756.*)                                            → AG
+///   • sonst                                                              → LU
 ///
 /// Logik:
 ///   1. MA-Match per AHV-Nr (primär), Fallback Vor-/Nachname mit Geburtsdatum.
@@ -547,20 +559,48 @@ public class QstImportController : ControllerBase
             var sheet = wb.GetSheetAt(0);
             if (sheet == null) return (null, "");
 
-            // Format-Detection: enthält Spalte 8 in den ersten 100 Zeilen
-            // eine AHV-Nummer (756.*)? → AG. Sonst LU.
+            // Format-Detection:
+            // 1) BE: Header-Text „Kanton Bern" / „Canton de Berne" / „taxme.ch"
+            //    in den ersten 20 Zeilen × 50 Spalten (eindeutig — kein
+            //    anderes Layout enthält diese Strings).
+            // 2) AG: Spalte 8 enthält in den ersten 100 Zeilen eine AHV (756.*).
+            // 3) sonst LU.
             string format = "LU";
-            for (int r = 0; r < Math.Min(100, sheet.LastRowNum + 1); r++)
+            for (int r = 0; r < Math.Min(20, sheet.LastRowNum + 1) && format != "BE"; r++)
             {
                 var row = sheet.GetRow(r);
                 if (row == null) continue;
-                var v8 = GetString(row.GetCell(8));
-                if (v8.StartsWith("756.") && v8.Length >= 16) { format = "AG"; break; }
+                int maxCol = Math.Min(50, row.LastCellNum);
+                for (int c = 0; c < maxCol; c++)
+                {
+                    var v = GetString(row.GetCell(c));
+                    if (string.IsNullOrWhiteSpace(v)) continue;
+                    if (v.Contains("Kanton Bern", StringComparison.OrdinalIgnoreCase)
+                     || v.Contains("Canton de Berne", StringComparison.OrdinalIgnoreCase)
+                     || v.Contains("taxme.ch", StringComparison.OrdinalIgnoreCase))
+                    {
+                        format = "BE";
+                        break;
+                    }
+                }
+            }
+            if (format != "BE")
+            {
+                for (int r = 0; r < Math.Min(100, sheet.LastRowNum + 1); r++)
+                {
+                    var row = sheet.GetRow(r);
+                    if (row == null) continue;
+                    var v8 = GetString(row.GetCell(8));
+                    if (v8.StartsWith("756.") && v8.Length >= 16) { format = "AG"; break; }
+                }
             }
 
-            return format == "AG"
-                ? (ParseAg(sheet), "AG")
-                : (ParseLu(sheet), "LU");
+            return format switch
+            {
+                "BE" => (ParseBe(sheet), "BE"),
+                "AG" => (ParseAg(sheet), "AG"),
+                _    => (ParseLu(sheet), "LU")
+            };
         }
         catch (Exception ex)
         {
@@ -626,6 +666,79 @@ public class QstImportController : ControllerBase
                 Aperiodisch   = (decimal)(GetDouble(row.GetCell(119)) ?? 0),
                 Satzbest      = (decimal)(GetDouble(row.GetCell(131)) ?? 0),
                 QstBetrag     = (decimal)(GetDouble(row.GetCell(143)) ?? 0)
+            });
+        }
+        return rows;
+    }
+
+    /// <summary>
+    /// BE-Layout (Walter 14.06.2026): offizielles Kanton-Bern-Anmeldeformular
+    /// (taxme.ch). Spaltenpositionen sind je Druckseite verschoben (Seite 1
+    /// hat AHV in einer anderen Cell-Spalte als Seite 2), aber pro MA-Zeile
+    /// stehen IMMER genau 11 nicht-leere Werte in fester Reihenfolge:
+    ///   [0] AHV (756.xxxx.xxxx.xx)
+    ///   [1] Name (Nachname Vorname zusammen, wie LU)
+    ///   [2] Geburtsdatum (dd.mm.yyyy)
+    ///   [3] Wohnort
+    ///   [4] Monat (1-12)
+    ///   [5] Beschäftigungsgrad (z.B. 45.48) — wird ignoriert, im RawRow nicht vorgesehen
+    ///   [6] Bruttolohn
+    ///   [7] Aperiodisch
+    ///   [8] Satzbestimmender Lohn
+    ///   [9] Tarif-Code (z.B. A0Y, H3N, C1Y) — wird per Regex in Tarif+Kinder+Kirche zerlegt
+    ///   [10] Quellensteuer-Betrag
+    /// Steuerkanton: fix "BE" (das Formular existiert nur in diesem Kanton).
+    /// </summary>
+    private static List<RawRow> ParseBe(ISheet sheet)
+    {
+        var rows = new List<RawRow>();
+        var tarifRegex = new System.Text.RegularExpressions.Regex(
+            @"^([A-Z])(\d+)([YN])$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        for (int r = 0; r <= sheet.LastRowNum; r++)
+        {
+            var row = sheet.GetRow(r);
+            if (row == null) continue;
+
+            // Alle nicht-leeren Zellen in Reihenfolge sammeln.
+            var values = new List<(int Col, string Text, ICell Cell)>();
+            for (int c = 0; c < row.LastCellNum; c++)
+            {
+                var cell = row.GetCell(c);
+                var s = GetString(cell).Trim();
+                if (!string.IsNullOrEmpty(s))
+                    values.Add((c, s, cell!));
+            }
+
+            // MA-Zeile = exakt 11 Werte, erster ist AHV. Alles andere
+            // (Kopfzeilen, Übertragszeilen, Totale, Bemerkungen) wird so
+            // automatisch übersprungen.
+            if (values.Count != 11) continue;
+            if (!values[0].Text.StartsWith("756.")) continue;
+
+            // Tarif-Code zerlegen (A0Y → A + 0 + true).
+            var tarifMatch = tarifRegex.Match(values[9].Text);
+            if (!tarifMatch.Success) continue;
+
+            var (lastName, firstName) = SplitNachnameVorname(values[1].Text);
+
+            rows.Add(new RawRow
+            {
+                AhvNumber     = values[0].Text,
+                LastName      = lastName,
+                FirstName     = firstName,
+                DateOfBirth   = TryParseDate(values[2].Cell),
+                Wohnort       = values[3].Text,
+                Kanton        = "BE",
+                Monat         = (int)(GetDouble(values[4].Cell) ?? 0),
+                Brutto        = (decimal)(GetDouble(values[6].Cell) ?? 0),
+                Aperiodisch   = (decimal)(GetDouble(values[7].Cell) ?? 0),
+                Satzbest      = (decimal)(GetDouble(values[8].Cell) ?? 0),
+                TarifCode     = tarifMatch.Groups[1].Value.ToUpperInvariant(),
+                AnzahlKinder  = int.Parse(tarifMatch.Groups[2].Value),
+                Kirchensteuer = tarifMatch.Groups[3].Value.Equals("Y", StringComparison.OrdinalIgnoreCase),
+                QstBetrag     = (decimal)(GetDouble(values[10].Cell) ?? 0)
             });
         }
         return rows;
