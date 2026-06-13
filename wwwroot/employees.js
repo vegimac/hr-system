@@ -8354,6 +8354,25 @@ function closeDeleteEmployeeModal() {
 async function confirmDeleteEmployee(employeeId, expectedMode) {
     const btn = document.getElementById('delEmpConfirmBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Lösche…'; }
+
+    // Walter-Vorgabe 14.06.2026: nach dem Löschen NICHT in den leeren
+    // Zustand zurückspringen (= erster MA der Liste), sondern den NÄCHSTEN
+    // sichtbaren MA in der aktuellen Liste auswählen. IDs aus den DOM-
+    // List-Items extrahieren (selectEmployee(...)-onclick), Position des
+    // gelöschten finden, dann nächsten nehmen (Wrap: ist der gelöschte
+    // der letzte, → vorheriger).
+    const _nextEmpAfterDelete = (() => {
+        const items = Array.from(document.querySelectorAll('#empList .emp-list-item'));
+        const ids = items.map(el => {
+            const m = (el.getAttribute('onclick') || '').match(/selectEmployee\((\d+)\)/);
+            return m ? parseInt(m[1], 10) : null;
+        }).filter(x => x != null);
+        const idx = ids.indexOf(employeeId);
+        if (idx < 0) return null;                // nicht in Liste → kein Sprung
+        if (ids.length <= 1) return null;        // einziger MA → nichts mehr da
+        return ids[idx + 1] ?? ids[idx - 1];     // nächster, sonst voriger
+    })();
+
     try {
         const res = await fetch(`/api/employees/${employeeId}?expectedMode=${encodeURIComponent(expectedMode)}`, {
             method: 'DELETE',
@@ -8367,13 +8386,18 @@ async function confirmDeleteEmployee(employeeId, expectedMode) {
         }
         closeDeleteEmployeeModal();
         alert(data?.message || 'Mitarbeiter gelöscht.');
-        // MA-Liste neu laden + Detail-Bereich leeren
+
+        // Selektion auf den nächsten MA legen, BEVOR die Liste neu geladen
+        // wird — applyEmpFilter (in loadMitarbeiterList) liest
+        // window.activeEmpId mit höchster Priorität und selektiert den.
         selectedEmployeeId = null;
         selectedEmployee   = null;
-        window.activeEmpId = null;
+        window.activeEmpId = _nextEmpAfterDelete; // null → fällt auf allEmployees[0]
         if (typeof loadMitarbeiterList === 'function') await loadMitarbeiterList();
-        const detail = document.getElementById('empDetail');
-        if (detail) detail.innerHTML = '<div class="emp-placeholder"><span>Bitte einen Mitarbeiter auswählen.</span></div>';
+        if (!_nextEmpAfterDelete) {
+            const detail = document.getElementById('empDetail');
+            if (detail) detail.innerHTML = '<div class="emp-placeholder"><span>Bitte einen Mitarbeiter auswählen.</span></div>';
+        }
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
         if (btn) { btn.disabled = false; btn.textContent = expectedMode === 'soft' ? 'Ja, ausblenden' : 'Ja, endgültig löschen'; }
