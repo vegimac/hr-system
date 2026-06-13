@@ -306,10 +306,31 @@ public class EmployeeImportController : ControllerBase
                 StringComparer.OrdinalIgnoreCase
             );
 
+        // Walter-Vorgabe 14.06.2026: MA mit Austritt VOR dem 1.1.2025 werden
+        // gar nicht importiert. Mirus-Cutoff = 1.1.2025 — alles davor ist
+        // legacy und gehört NICHT ins neue System (auch nicht als Personal-
+        // dossier). Pro Pers-Nr das SPÄTESTE Bis-Datum aggregieren; ist es
+        // gesetzt UND < 1.1.2025 → die Zeile wird übersprungen.
+        var minImportExitDate = new DateTime(2025, 1, 1);
+        var latestExitByNumber = rows
+            .Where(r => r.ExitDate.HasValue)
+            .GroupBy(r => r.EmployeeNumber, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Max(r => r.ExitDate!.Value),
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        bool IsTooOldExit(string empNr)
+            => latestExitByNumber.TryGetValue(empNr, out var lastExit)
+               && !isActiveByNumber.GetValueOrDefault(empNr, true)
+               && lastExit < minImportExitDate;
+
         // Alle Zeilen werden verarbeitet; pro Zeile entscheidet die Aktiv-
         // Aggregation über Stammdaten-only oder Voll-Verarbeitung. Inaktive
         // Zeilen sind reine Personaldossier (Karteileiche).
         var employeeNumbersInImport = rows
+            .Where(r => !IsTooOldExit(r.EmployeeNumber))
             .Select(r => r.EmployeeNumber)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -319,9 +340,16 @@ public class EmployeeImportController : ControllerBase
         int reactivated = 0;
         int deactivated = 0;
         int personnelOnly = 0;   // inaktive MA als Personaldossier angelegt/aktualisiert
+        int skippedTooOld = 0;   // Austritt vor 1.1.2025 — komplett übersprungen
 
         foreach (var row in rows)
         {
+            // Walter-Vorgabe 14.06.2026: zu alte Austritte → nicht importieren.
+            if (IsTooOldExit(row.EmployeeNumber))
+            {
+                skippedTooOld++;
+                continue;
+            }
             var rowIsActive = isActiveByNumber.GetValueOrDefault(row.EmployeeNumber, true);
 
             var employee = existingEmployees
@@ -448,7 +476,8 @@ public class EmployeeImportController : ControllerBase
             updated,
             reactivated,
             deactivated,
-            personnelOnly  // davon: als reines Personaldossier (Bis < heute)
+            personnelOnly,   // davon: als reines Personaldossier (Bis < heute)
+            skippedTooOld    // Austritt vor 1.1.2025 — komplett übersprungen
         });
     }
 

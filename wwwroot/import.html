@@ -1089,8 +1089,13 @@ async function analyzeRows() {
     // (Bis leer ODER Bis >= heute). Walter-Regel: MA mit Bis-Datum in der
     // Vergangenheit sind inaktiv (Karteileiche) — sie werden mit Stammdaten
     // ins HR-System übernommen, aber OHNE Vertrag und OHNE Lohn-Check.
+    // Walter-Vorgabe 14.06.2026: ZUSÄTZLICH cutoff 1.1.2025 — MA mit spätestem
+    // Bis-Datum VOR Mirus-Einführung werden gar nicht importiert (auch nicht
+    // als Personaldossier). Dafür pro Pers-Nr das späteste Bis aggregieren.
     const todayIso = new Date().toISOString().slice(0,10);
+    const MIN_IMPORT_EXIT_ISO = '2025-01-01';
     const isActiveByNr = {};
+    const latestBisByNr = {};   // spätestes Bis-ISO pro Pers-Nr (nur wenn alle Bis gesetzt)
     for (const row of parsedRows) {
         const nr = (get(row, 'Nummer') || '').trim();
         if (!nr) continue;
@@ -1098,7 +1103,14 @@ async function analyzeRows() {
         const open = !bisIso || bisIso >= todayIso;
         if (open) isActiveByNr[nr] = true;
         else if (!(nr in isActiveByNr)) isActiveByNr[nr] = false;
+        if (bisIso && (!latestBisByNr[nr] || bisIso > latestBisByNr[nr])) {
+            latestBisByNr[nr] = bisIso;
+        }
     }
+    const isTooOldExit = (nr) =>
+        isActiveByNr[nr] === false
+        && latestBisByNr[nr]
+        && latestBisByNr[nr] < MIN_IMPORT_EXIT_ISO;
 
     for (let i = 0; i < parsedRows.length; i++) {
         const row = parsedRows[i];
@@ -1135,6 +1147,17 @@ async function analyzeRows() {
                 rowStates[i] = { status: 'mismatch' };
                 continue;
             }
+        }
+
+        // Walter-Vorgabe 14.06.2026: spätestes Bis VOR 1.1.2025 → komplett
+        // überspringen, NICHT als Personaldossier importieren. Mirus-Cutoff:
+        // alles davor ist legacy und gehört nicht ins neue System.
+        if (isTooOldExit(String(nr).trim())) {
+            const lastIso = latestBisByNr[String(nr).trim()];
+            const lastDe  = lastIso ? `${lastIso.slice(8,10)}.${lastIso.slice(5,7)}.${lastIso.slice(0,4)}` : '–';
+            skipped.push({ idx: i, row, reason: `Austritt ${lastDe} liegt vor 1.1.2025` });
+            rowStates[i] = { status: 'skip' };
+            continue;
         }
 
         // Inaktiv-Bucket: MA mit allen Bis-Daten in der Vergangenheit
