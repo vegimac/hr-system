@@ -834,8 +834,13 @@ function lpRender() {
             <td style="padding:10px 14px;text-align:center;font-family:monospace;font-size:12px;color:#6366f1">${l.lohnausweisCode || '—'}</td>
             <td style="padding:10px 14px;text-align:center">${tbadge}</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">
-                <button onclick="lpOpenForm(${l.id})" style="border:none;background:#f1f5f9;color:#374151;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px">✏️</button>
-                <button onclick="lpDelete(${l.id},'${l.bezeichnung.replace(/'/g,"\\'")}','${l.code}')" style="border:none;background:#fee2e2;color:#dc2626;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer">🗑</button>
+                <div style="position:relative;display:inline-block">
+                    <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'lp-${l.id}')" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="dokMenu-lp-${l.id}">
+                        <button class="dok-menu-item" onclick="dokCloseAllMenus();lpOpenForm(${l.id})">Bearbeiten</button>
+                        <button class="dok-menu-item danger" onclick="dokCloseAllMenus();lpDelete(${l.id},'${l.bezeichnung.replace(/'/g,"\\'")}','${l.code}')">Löschen</button>
+                    </div>
+                </div>
             </td>
         </tr>`;
     }).join('');
