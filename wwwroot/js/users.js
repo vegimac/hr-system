@@ -31,6 +31,22 @@ async function loadUsers() {
             const llt = u.lastLoginAt
                 ? new Date(u.lastLoginAt).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
                 : '<span style="color:#94a3b8">—</span>';
+            // Walter-Vorgabe 14.06.2026: ⋮-Menü statt direkter Bearbeiten/Löschen-
+            // Buttons — Standard für alle Tabellen-Aktionen. Wiederverwendung
+            // von dok-menu-btn + dokToggleMenu/dokCloseAllMenus aus documents.js.
+            const canDelete = !u.isSuperAdmin
+                && !(u.role === 'admin' && !(typeof currentUser !== 'undefined' && currentUser?.isSuperAdmin));
+            const safeUsername = (u.username || '').replace(/'/g, "\\'");
+            const menuHtml = `
+                <div style="position:relative;display:inline-block">
+                    <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'user-${u.id}')" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="dokMenu-user-${u.id}">
+                        <button class="dok-menu-item" onclick="dokCloseAllMenus();openUserModal(${u.id})">Bearbeiten</button>
+                        ${canDelete
+                            ? `<button class="dok-menu-item danger" onclick="dokCloseAllMenus();deleteUser(${u.id},'${safeUsername}')">Löschen</button>`
+                            : ''}
+                    </div>
+                </div>`;
             tbody.innerHTML += `<tr>
                 <td>
                     <div style="display:flex;align-items:center;gap:9px">
@@ -47,19 +63,7 @@ async function loadUsers() {
                 <td><span class="badge ${u.isActive ? 'b-active' : 'b-inactive'}">${u.isActive ? 'Aktiv' : 'Inaktiv'}</span></td>
                 <td style="color:#94a3b8;font-size:12px">${dt}</td>
                 <td style="color:#475569;font-size:12px">${llt}</td>
-                <td>
-                    <div style="display:flex;gap:4px">
-                        <button class="btn btn-ghost btn-sm" onclick="openUserModal(${u.id})">Bearbeiten</button>
-                        ${(() => {
-                            // Super-Admin: NIE löschbar (auch nicht von einem anderen Super-Admin).
-                            if (u.isSuperAdmin) return '';
-                            // Admin: nur löschbar wenn der eingeloggte User selbst Super-Admin ist.
-                            // currentUser ist global (let in index.html, geteiltes Script-Scope).
-                            if (u.role === 'admin' && !(typeof currentUser !== 'undefined' && currentUser?.isSuperAdmin)) return '';
-                            return `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id},'${u.username.replace(/'/g,"\\'")}')">Löschen</button>`;
-                        })()}
-                    </div>
-                </td>
+                <td>${menuHtml}</td>
             </tr>`;
         });
     } catch {
@@ -96,10 +100,13 @@ function openUserModal(userId = null) {
 
     // Unterschrift-Sektion: nur für bestehende User. Bei neuen Usern erst
     // nach dem Erstellen verfügbar (Upload braucht eine User-ID).
+    // Walter-Vorgabe 14.06.2026: Section-Titel + Group gemeinsam ein-/ausblenden.
     const sigGroup = document.getElementById('umSignatureGroup');
+    const sigTitle = document.getElementById('umSignatureSectionTitle');
     const sigStatus = document.getElementById('umSigStatus');
     if (sigStatus) sigStatus.textContent = '';
     if (sigGroup) sigGroup.style.display = userId ? 'block' : 'none';
+    if (sigTitle) sigTitle.style.display = userId ? 'block' : 'none';
     if (userId) umLoadSignaturePreview(userId);
 
     // Build branch checkboxes

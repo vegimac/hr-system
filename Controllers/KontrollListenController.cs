@@ -242,9 +242,10 @@ public class KontrollListenController : ControllerBase
 
     /// <summary>
     /// Walter-Vorgabe 13.06.2026: abgelaufene + bald ablaufende Bewilligungen
-    /// (innerhalb 90 Tagen) — analog der Dashboard-Card „Bewilligungen laufen
-    /// ab". Pro MA der JÜNGSTE Permit-History-Eintrag (ValidFrom desc), wenn
-    /// dessen ValidTo &lt;= heute+90.
+    /// — analog der Dashboard-Card „Bewilligungen laufen ab". Pro MA der
+    /// JÜNGSTE Permit-History-Eintrag (ValidFrom desc), wenn dessen ValidTo
+    /// &lt;= heute+60 (Walter 14.06.2026 — Cutoff von 90 auf 60 Tage gesenkt;
+    /// die alte blaue „info"-Stufe 60–90 Tage Vorlauf braucht keine Warnung).
     ///
     /// Filter:
     ///   • IsActive, !IsHidden, kein `+alt`-Suffix, optional Filiale
@@ -255,7 +256,7 @@ public class KontrollListenController : ControllerBase
     public async Task<IActionResult> PermitExpiring([FromQuery] int? companyProfileId = null)
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var limit = DateOnly.FromDateTime(DateTime.Today.AddDays(90));
+        var limit = DateOnly.FromDateTime(DateTime.Today.AddDays(60));
 
         var empQuery = _db.Employees
             .Where(e => e.IsActive
@@ -317,15 +318,13 @@ public class KontrollListenController : ControllerBase
                 reason   = $"Bewilligung {permitCd} läuft in {days} Tagen ab";
                 severity = "critical";
             }
-            else if (days <= 60)
-            {
-                reason   = $"Bewilligung {permitCd} läuft in {days} Tagen ab";
-                severity = "warning";
-            }
             else
             {
+                // 31–60 Tage Vorlauf — höher liegende Werte werden bereits
+                // durch den 60-Tage-Cutoff im Query rausgefiltert (Walter
+                // 14.06.2026: blaue „info"-Stufe entfernt).
                 reason   = $"Bewilligung {permitCd} läuft in {days} Tagen ab";
-                severity = "info";
+                severity = "warning";
             }
             return new {
                 employeeId      = e.Id,

@@ -8098,7 +8098,9 @@
     </div>
 </div>
 
-<!-- ═══════════════ USER MODAL ═══════════════ -->
+<!-- ═══════════════ USER MODAL ═══════════════
+     Walter-Vorgabe 14.06.2026: an Standard-Layout angepasst (Sektionen mit
+     emp-section-title-Header analog Familienmitglied-Modal). -->
 <div class="modal-bg" id="userModalBg">
     <div class="modal">
         <div class="modal-hd">
@@ -8107,6 +8109,9 @@
         </div>
         <div class="modal-body">
             <div id="userModalAlert"></div>
+
+            <!-- ── PERSON ─────────────────────────────────────────────────── -->
+            <div class="emp-section-title">Person</div>
             <div class="f-grid">
                 <div class="f-group">
                     <label class="f-label">Vorname</label>
@@ -8127,6 +8132,9 @@
                     <input type="tel" class="f-input" id="umPhone" placeholder="+41 79 123 45 67">
                 </div>
             </div>
+
+            <!-- ── ZUGANG (Passwort + Rolle + Status) ─────────────────────── -->
+            <div class="emp-section-title">Zugang</div>
             <div class="f-grid">
                 <div class="f-group">
                     <label class="f-label">Passwort</label>
@@ -8157,6 +8165,9 @@
                     </select>
                 </div>
             </div>
+
+            <!-- ── BERECHTIGUNGEN (HR-Team + Filialen) ────────────────────── -->
+            <div class="emp-section-title">Berechtigungen</div>
             <div class="f-group">
                 <label class="f-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
                     <input type="checkbox" id="umIsHrTeam" style="width:18px;height:18px;cursor:pointer">
@@ -8164,15 +8175,15 @@
                 </label>
                 <div class="f-hint" style="margin-top:4px">Hat Zugriff auf das gemeinsame HR-Postfach (z.B. HR-Verantwortliche, Treuhänder).</div>
             </div>
-            <hr class="f-divider">
             <div class="f-group">
                 <label class="f-label">Filialen-Zugang</label>
                 <div class="f-hint" id="umBranchHint" style="margin-bottom:10px">Wähle die Filialen, auf die dieser Benutzer Zugang hat.</div>
                 <div class="branch-grid" id="umBranches"><!-- populated --></div>
             </div>
-            <hr class="f-divider">
+
+            <!-- ── UNTERSCHRIFT ───────────────────────────────────────────── -->
+            <div class="emp-section-title" id="umSignatureSectionTitle" style="display:none">Unterschrift</div>
             <div class="f-group" id="umSignatureGroup" style="display:none">
-                <label class="f-label">Unterschrift</label>
                 <div class="f-hint" style="margin-bottom:10px">
                     Wird auf generierten Formularen (z.B. QST-Anmeldung) eingebettet.
                     PNG mit transparentem Hintergrund empfohlen, max 2 MB.
@@ -8863,7 +8874,7 @@ function onBranchChange() {
 <script src="js/branch-modals.js?v=20260509b"></script>
 <script src="js/deductions.js?v=20260509b"></script>
 <script src="js/qst-modal.js?v=20260614g"></script>
-<script src="js/users.js?v=20260524a"></script>
+<script src="js/users.js?v=20260614a"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
 <script src="js/documents.js?v=20260613a"></script>
 <script src="js/dvelop-import.js?v=20260614a"></script>

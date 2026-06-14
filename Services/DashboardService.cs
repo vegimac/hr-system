@@ -8,7 +8,7 @@ namespace HrSystem.Services;
 /// Dashboard-Cockpit: sammelt alle "Was wartet auf mich?"-Alarme.
 ///
 /// Phase 1 (dieser Entwurf):
-///   • Bewilligungen die in 30/60/90 Tagen ablaufen
+///   • Bewilligungen die in 30/60 Tagen ablaufen (>60 Tage = keine Warnung)
 ///   • Probezeit endet in 14 Tagen
 ///   • Befristete Verträge enden in 30 Tagen
 ///   • Lohnperioden im Status 'provisorisch_abgeschlossen' (warten auf
@@ -76,7 +76,10 @@ public class DashboardService
         // Severity skaliert mit Dringlichkeit. CH-/Einbürgerungs-Einträge
         // (PermitTypeId IS NULL → ValidTo darf NULL sein) sind unbefristet
         // und werden ignoriert.
-        var dueDateLimit = DateOnly.FromDateTime(now.AddDays(90));
+        // Walter-Vorgabe 14.06.2026: Cutoff von 90 → 60 Tage. Die blaue
+        // „info"-Stufe (60–90 Tage Vorlauf) braucht keine Warnung — Walter
+        // sieht sie erst, sobald sie in den orangen warning-Bereich rückt.
+        var dueDateLimit = DateOnly.FromDateTime(now.AddDays(60));
         var empBase = _db.Employees
             .Where(e => e.IsActive
                      && !e.EmployeeNumber.ToLower().EndsWith("alt"));
@@ -120,7 +123,9 @@ public class DashboardService
             if (!maById.TryGetValue(h.EmployeeId, out var emp)) continue;
             var dueDate = h.ValidTo!.Value.ToDateTime(TimeOnly.MinValue);
             var days = (dueDate - now).Days;
-            string severity = days < 0 ? "critical" : days <= 30 ? "critical" : days <= 60 ? "warning" : "info";
+            // Severity nach Walter 14.06.2026: nur expired/critical/warning;
+            // info (>60 Tage) fällt durch den dueDateLimit-Filter raus.
+            string severity = days < 0 ? "critical" : days <= 30 ? "critical" : "warning";
             var permitCode = h.PermitType?.Code ?? "?";
             alerts.Add(new DashboardAlert
             {
