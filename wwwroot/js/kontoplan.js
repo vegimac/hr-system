@@ -73,7 +73,14 @@ function kpRender() {
                 <td style="padding:6px 10px;font-family:monospace;font-weight:700;color:#166534"><span class="kp-soll">${esc(m.fibukonto)}</span></td>
                 <td style="padding:6px 10px;font-family:monospace;font-weight:700;color:#b91c1c"><span class="kp-gegen">${esc(m.gegenkonto)}</span></td>
                 <td style="padding:6px 10px">${vorm}</td>
-                <td style="padding:6px 10px;text-align:right"><button class="btn-link" style="font-size:11.5px;color:#3b82f6;background:none;border:none;cursor:pointer" onclick="kpEdit(${m.id})">✎ ändern</button></td>
+                <td style="padding:6px 10px;text-align:right">
+                    <div style="position:relative;display:inline-block">
+                        <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'kp-${m.id}')" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="dokMenu-kp-${m.id}">
+                            <button class="dok-menu-item" onclick="dokCloseAllMenus();kpEdit(${m.id})">Bearbeiten</button>
+                        </div>
+                    </div>
+                </td>
             </tr>`;
         });
     });
