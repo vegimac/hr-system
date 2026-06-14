@@ -157,6 +157,10 @@ async function dokstrukturSaveKat(id) {
     try {
         const r = await fetch(url, { method, headers: ah(), body: JSON.stringify(dto) });
         if (!r.ok) throw new Error(await r.text() || ('HTTP ' + r.status));
+        // Walter 14.06.2026: Dokumente-Tab-Cache invalidieren — nächster
+        // Aufruf holt die Taxonomie frisch (sonst sieht der MA-Doku-Tab
+        // die neue/umbenannte Kategorie nicht).
+        if (typeof invalidateDokTaxonomyCache === 'function') invalidateDokTaxonomyCache();
         closeDokstrukturModal();
         loadDokumentStruktur();
     } catch (err) {
@@ -170,6 +174,7 @@ async function dokstrukturDeleteKat(id) {
     try {
         const r = await fetch(`/api/documents/admin/kategorie/${id}`, { method:'DELETE', headers: ah() });
         if (!r.ok) throw new Error(await r.text() || 'Fehler');
+        if (typeof invalidateDokTaxonomyCache === 'function') invalidateDokTaxonomyCache();
         if (_dokstruktur.selectedKatId === id) _dokstruktur.selectedKatId = null;
         loadDokumentStruktur();
     } catch (err) { alert('Löschen fehlgeschlagen: ' + err.message); }
@@ -263,6 +268,8 @@ async function dokstrukturSaveTyp(id) {
     try {
         const r = await fetch(url, { method, headers: ah(), body: JSON.stringify(dto) });
         if (!r.ok) throw new Error(await r.text() || ('HTTP ' + r.status));
+        // Walter 14.06.2026: Dokumente-Tab-Cache invalidieren.
+        if (typeof invalidateDokTaxonomyCache === 'function') invalidateDokTaxonomyCache();
         closeDokstrukturModal();
         // Falls Kategorie verschoben wurde: Auswahl auf Ziel-Kategorie setzen
         if (kategorieId !== _dokstruktur.selectedKatId) _dokstruktur.selectedKatId = kategorieId;
@@ -280,6 +287,7 @@ async function dokstrukturDeleteTyp(id) {
     try {
         const r = await fetch(`/api/documents/admin/typ/${id}`, { method:'DELETE', headers: ah() });
         if (!r.ok) throw new Error(await r.text() || 'Fehler');
+        if (typeof invalidateDokTaxonomyCache === 'function') invalidateDokTaxonomyCache();
         loadDokumentStruktur();
     } catch (err) { alert('Löschen fehlgeschlagen: ' + err.message); }
 }

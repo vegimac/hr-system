@@ -45,12 +45,15 @@ public class DocumentsController : ControllerBase
     [HttpGet("taxonomie")]
     public async Task<IActionResult> GetTaxonomie()
     {
+        // Walter 14.06.2026: AsNoTracking — reine Lese-Liste, kein Change-Tracking nötig.
         var kategorien = await _db.DokumentKategorien
+            .AsNoTracking()
             .Where(k => k.Aktiv)
             .OrderBy(k => k.SortOrder).ThenBy(k => k.Name)
             .ToListAsync();
 
         var typen = await _db.DokumentTypen
+            .AsNoTracking()
             .Where(t => t.Aktiv)
             .OrderBy(t => t.SortOrder).ThenBy(t => t.Name)
             .ToListAsync();
@@ -130,10 +133,12 @@ public class DocumentsController : ControllerBase
     [HttpGet("by-employee/{employeeId:int}")]
     public async Task<IActionResult> GetByEmployee(int employeeId)
     {
+        // Walter 14.06.2026: AsNoTracking auf allen drei Quellen — der Endpoint
+        // wird beim jedem MA-Wechsel im Doku-Tab gerufen, kein Change-Tracking nötig.
         var docs = await (
-            from d in _db.EmployeeDokumente
-            join t in _db.DokumentTypen on d.DokumentTypId equals t.Id
-            join k in _db.DokumentKategorien on t.KategorieId equals k.Id
+            from d in _db.EmployeeDokumente.AsNoTracking()
+            join t in _db.DokumentTypen.AsNoTracking() on d.DokumentTypId equals t.Id
+            join k in _db.DokumentKategorien.AsNoTracking() on t.KategorieId equals k.Id
             where d.EmployeeId == employeeId
             orderby d.HochgeladenAm descending
             select new {

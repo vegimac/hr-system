@@ -20,6 +20,35 @@ let _dokState = {
     sortDir: 'desc'             // 'asc'|'desc'
 };
 
+// Walter-Vorgabe 14.06.2026: Taxonomie clientseitig cachen — sie ändert sich
+// nur über die Doku-Struktur-Admin-Page (sehr selten). Beim MA-Wechsel im
+// Dokumente-Tab lädt das Frontend dann nur noch `/by-employee/{id}` neu,
+// nicht mehr die komplette Taxonomie. Cache wird invalidiert von den
+// Struktur-Save/Delete-Funktionen in dok-struktur.js (Helper unten).
+let _dokTaxonomyCache = null;
+
+/**
+ * Lädt die Taxonomie EINMALIG und gibt sie aus dem Cache zurück. Erst beim
+ * ersten Aufruf wird `/api/documents/taxonomie` getroffen — alle folgenden
+ * Aufrufe liefern den Cache.
+ */
+async function loadDokTaxonomyCached() {
+    if (_dokTaxonomyCache) return _dokTaxonomyCache;
+    const res = await fetch('/api/documents/taxonomie', { headers: ah() });
+    if (!res.ok) throw new Error('Taxonomie-API-Fehler');
+    _dokTaxonomyCache = await res.json();
+    return _dokTaxonomyCache;
+}
+
+/**
+ * Invalidiert den Taxonomie-Cache. Aufgerufen von dok-struktur.js nach
+ * jedem erfolgreichen Kategorie-/Typ-Edit/Delete, damit der nächste
+ * Dokumente-Tab-Aufruf die frische Version vom Server holt.
+ */
+function invalidateDokTaxonomyCache() {
+    _dokTaxonomyCache = null;
+}
+
 async function loadEmpDokumente(employeeId) {
     const panel = document.getElementById('empTabDokumente');
     if (!panel) return;
@@ -45,12 +74,14 @@ async function loadEmpDokumente(employeeId) {
     panel.innerHTML = '<div class="emp-placeholder" style="height:200px">Lade Dokumente…</div>';
 
     try {
-        const [taxRes, docRes] = await Promise.all([
-            fetch('/api/documents/taxonomie',                  { headers: ah() }),
-            fetch(`/api/documents/by-employee/${employeeId}`,  { headers: ah() })
+        // Walter 14.06.2026: Taxonomie nur beim ersten Mal holen (cached);
+        // beim MA-Wechsel fließt ausschliesslich `/by-employee/{id}` neu.
+        const [taxonomy, docRes] = await Promise.all([
+            loadDokTaxonomyCached(),
+            fetch(`/api/documents/by-employee/${employeeId}`, { headers: ah() })
         ]);
-        if (!taxRes.ok || !docRes.ok) throw new Error('API-Fehler');
-        _dokState.taxonomy = await taxRes.json();
+        if (!docRes.ok) throw new Error('API-Fehler');
+        _dokState.taxonomy = taxonomy;
         _dokState.docs     = await docRes.json();
         renderDokumenteUi();
     } catch (err) {
