@@ -46,11 +46,9 @@ async function laInit() {
         yrInput.value = (today.getMonth() < 6) ? (today.getFullYear() - 1) : today.getFullYear();
     }
 
-    // Mitarbeiter laden
-    try {
-        const r = await fetch('/api/employees', { headers: ah() });
-        _laAllEmployees = r.ok ? await r.json() : [];
-    } catch { _laAllEmployees = []; }
+    // Mitarbeiter laden — leichter Lookup-Cache (Walter 14.06.2026).
+    try { _laAllEmployees = await loadEmployeeLookup(); }
+    catch { _laAllEmployees = []; }
 
     laRenderEmpList();
 }

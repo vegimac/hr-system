@@ -39,11 +39,9 @@ async function zviInit() {
     if (monatEl) monatEl.value = String(m);
     if (jahrEl)  jahrEl.value  = String(y);
 
-    // Mitarbeiter laden
-    try {
-        const r = await fetch('/api/employees', { headers: ah() });
-        _zviAllEmployees = r.ok ? await r.json() : [];
-    } catch { _zviAllEmployees = []; }
+    // Mitarbeiter laden — leichter Lookup-Cache (Walter 14.06.2026).
+    try { _zviAllEmployees = await loadEmployeeLookup(); }
+    catch { _zviAllEmployees = []; }
 
     zviRenderEmpList();
 }

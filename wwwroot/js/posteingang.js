@@ -130,11 +130,11 @@ async function pbInit() {
         _pbDokumentTypen = [];
         for (const k of _pbTaxonomy) for (const t of (k.typen || [])) _pbDokumentTypen.push({ id: t.id, name: `${k.name} → ${t.name}` });
     } catch {}
-    // Alle MA laden für Datalists
+    // Alle MA laden für Datalists. Walter 14.06.2026: leichter Lookup-
+    // Endpoint mit Cache (employee-lookup-cache.js) — schont Bandbreite.
     try {
-        const r = await fetch('/api/employees', { headers: ah() });
-        _pbAllEmployees = r.ok ? await r.json() : [];
-    } catch {}
+        _pbAllEmployees = await loadEmployeeLookup();
+    } catch { _pbAllEmployees = []; }
     pbLoadList();
     pbStartAutoRefresh();
 }

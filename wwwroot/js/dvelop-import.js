@@ -49,22 +49,16 @@ async function dvelopLoadEmployees() {
     // „Erkannt: …"-Text wieder wegblasen. Der Reset läuft separat beim
     // Öffnen der Page (showPage-Hook in index.html).
     //
-    // Walter-Vorgabe 14.06.2026: KEIN Cache mehr — vorher wurde die MA-Liste
-    // nur einmal pro Filiale geholt und dann cached. Wenn Walter zwischen-
-    // durch in einem anderen Tab einen MA anlegte (z.B. weil Auto-Detect
-    // gemeldet hat „nicht gefunden"), war die Cache-Variante alt → MA wurde
-    // beim nächsten Versuch immer noch nicht gefunden. Jetzt immer frischen
-    // Fetch — Performance vernachlässigbar (paar hundert KB).
+    // Walter 14.06.2026: leichter Lookup-Endpoint mit 60-s-Cache (siehe
+    // employee-lookup-cache.js). Wird per `invalidateEmployeeLookupCache()`
+    // an allen Mutationspfaden geleert — der frühere Konsistenz-Bug („MA
+    // gerade angelegt, aber Cache zeigt ihn nicht") tritt nicht mehr auf,
+    // weil saveEmployee/vtSave den Cache aktiv leeren.
     const branchId = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
     try {
-        const r = await fetch('/api/employees', { headers: ah() });
-        if (!r.ok) return;
-        const all = await r.json();
+        const all = await loadEmployeeLookup();
         _dvelopEmployees = filterEmployeesByBranch(all, branchId);
-        // Konvention: ALLE MA-Listen nach Vornamen sortieren, Tie-Break Nachname.
-        _dvelopEmployees.sort((a, b) =>
-            (a.firstName || '').localeCompare(b.firstName || '')
-            || (a.lastName || '').localeCompare(b.lastName || ''));
+        // Backend sortiert schon (firstName, lastName) — kein Resort nötig.
         _dvelopEmployeesBranchId = branchId;
         renderDvelopEmployeeOptions();
     } catch (err) { console.warn('Mitarbeiter-Liste laden fehlgeschlagen:', err); }

@@ -47,12 +47,56 @@ public class EmployeesController : ControllerBase
     {
         var isAdmin = IsAdminUser();
         var employees = await _context.Employees
+            .AsNoTracking()
             .Where(e => e.IsActive && !e.IsHidden && (isAdmin || !e.IsPayrollExcluded))
             .OrderBy(e => ((e.FirstName ?? "") + " " + (e.LastName ?? "")).Trim())
             .Select(e => new
             {
                 Id = e.Id,
                 DisplayName = ((e.FirstName ?? "") + " " + (e.LastName ?? "")).Trim() + " (" + e.EmployeeNumber + ")"
+            })
+            .ToListAsync();
+
+        return Ok(employees);
+    }
+
+    /// <summary>
+    /// Walter-Vorgabe 14.06.2026: leichter MA-Lookup-Endpoint für Picker /
+    /// Datalists (Posteingang, HR-Lohnausweis/QST/RAV, d.velop-Importer,
+    /// Dokumenten-Tab, Verträge-Liste …). Liefert NUR die Felder, die diese
+    /// Dropdowns wirklich brauchen — kein Include-Graph, kein Stammdaten-
+    /// blob. Schont Bandbreite + DB-Last bei jedem MA-Wechsel.
+    ///
+    /// Felder:
+    ///   id, firstName, lastName, employeeNumber, isActive, isPayrollExcluded
+    ///   employments[]: { companyProfileId, employmentModel, contractEndDate, isActive }
+    ///
+    /// Auch INAKTIVE MA + Phantom-MA (für Admin) sind enthalten — die
+    /// Frontend-Picker filtern selbst nach Bedarf. Sortierung nach
+    /// Vorname/Nachname wie überall im System.
+    /// </summary>
+    [HttpGet("lookup-full")]
+    public async Task<IActionResult> GetLookupFull()
+    {
+        var isAdmin = IsAdminUser();
+        var employees = await _context.Employees
+            .AsNoTracking()
+            .Where(e => !e.IsHidden && (isAdmin || !e.IsPayrollExcluded))
+            .OrderBy(e => (e.FirstName ?? "")).ThenBy(e => (e.LastName ?? ""))
+            .Select(e => new
+            {
+                id                = e.Id,
+                firstName         = e.FirstName,
+                lastName          = e.LastName,
+                employeeNumber    = e.EmployeeNumber,
+                isActive          = e.IsActive,
+                isPayrollExcluded = e.IsPayrollExcluded,
+                employments = e.Employments.Select(em => new {
+                    companyProfileId = em.CompanyProfileId,
+                    employmentModel  = em.EmploymentModel,
+                    contractEndDate  = em.ContractEndDate,
+                    isActive         = em.IsActive
+                }).ToList()
             })
             .ToListAsync();
 

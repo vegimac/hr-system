@@ -232,6 +232,9 @@ async function saveTerminate() {
             alert.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px">${_t('austritt.err.failed', { msg: err.error })}</div>`;
             return;
         }
+        // Walter 14.06.2026: Austritt aendert isActive + contractEndDate
+        // → MA-Picker-Cache invalidieren.
+        if (typeof invalidateEmployeeLookupCache === 'function') invalidateEmployeeLookupCache();
         closeTerminateModal();
         // Vertragsliste neu laden
         if (typeof selectVtEmployee === 'function' && employeeId) {

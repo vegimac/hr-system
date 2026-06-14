@@ -42,6 +42,8 @@ async function deleteContract(employeeId, contractId, startDateIso) {
             alert(_t('vt.err.deleteFailed', { msg }));
             return;
         }
+        // Walter 14.06.2026: Vertrag weg → Picker-Cache invalidieren.
+        if (typeof invalidateEmployeeLookupCache === 'function') invalidateEmployeeLookupCache();
         // MA neu laden
         const empRes = await fetch('/api/employees', { headers: ah() });
         if (empRes.ok) {
@@ -1213,6 +1215,10 @@ async function saveEmployment() {
         }
         if (!res.ok) { const text = await res.text(); if (saveResult) saveResult.innerHTML = `<span class="txt-warn">Fehler: ${text}</span>`; return; }
         const result = await res.json();
+        // Walter 14.06.2026: neuer Vertrag ändert die employments-Liste im
+        // Picker-Cache → invalidieren, damit der nächste Lookup-Open frisch
+        // ist (z.B. d.velop-Importer-Branch-Filter).
+        if (typeof invalidateEmployeeLookupCache === 'function') invalidateEmployeeLookupCache();
         const newId = result.employment?.id ?? result.id;
         let msg = `<span class="txt-ok">✓ Anstellung gespeichert.</span>`;
         if (result.previousContractClosed)

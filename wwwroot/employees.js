@@ -3923,6 +3923,9 @@ async function saveEmpEdit() {
         const res = await fetch(`/api/employees/${selectedEmployeeId}`, { headers: ah() });
         if (res.ok) {
             selectedEmployee = await res.json();
+            // Walter 14.06.2026: MA-Picker-Cache invalidieren — beim nächsten
+            // Lookup-Open holen Posteingang/HR/Importer/etc. die frische Liste.
+            if (typeof invalidateEmployeeLookupCache === 'function') invalidateEmployeeLookupCache();
             // Liste aktualisieren (Name könnte sich geändert haben)
             const idx = allEmployees.findIndex(e => e.id === selectedEmployeeId);
             if (idx >= 0) {
@@ -8398,6 +8401,8 @@ async function confirmDeleteEmployee(employeeId, expectedMode) {
         }
         closeDeleteEmployeeModal();
         alert(data?.message || 'Mitarbeiter gelöscht.');
+        // Walter 14.06.2026: MA-Picker-Cache invalidieren (siehe employee-lookup-cache.js).
+        if (typeof invalidateEmployeeLookupCache === 'function') invalidateEmployeeLookupCache();
 
         // Selektion auf den nächsten MA legen, BEVOR die Liste neu geladen
         // wird — applyEmpFilter (in loadMitarbeiterList) liest

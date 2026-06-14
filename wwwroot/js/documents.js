@@ -1366,14 +1366,10 @@ let _dokEditEmployees = [];
 
 async function dokEditLoadEmployees() {
     try {
-        if (_dokEditEmployees.length === 0) {
-            const r = await fetch('/api/employees', { headers: ah() });
-            if (!r.ok) return;
-            _dokEditEmployees = await r.json();
-            _dokEditEmployees.sort((a, b) =>
-                (a.firstName || '').localeCompare(b.firstName || '')
-                || (a.lastName || '').localeCompare(b.lastName || ''));
-        }
+        // Walter 14.06.2026: zentraler Cache (employee-lookup-cache.js)
+        // statt eigenes _dokEditEmployees-Array. Sortierung kommt schon
+        // vom Backend (firstName, lastName).
+        _dokEditEmployees = await loadEmployeeLookup();
         const list = document.getElementById('dokEditEmpList');
         if (!list) return;
         list.innerHTML = _dokEditEmployees.map(e =>

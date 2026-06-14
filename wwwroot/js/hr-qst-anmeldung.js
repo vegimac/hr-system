@@ -44,11 +44,9 @@ async function qstaInit() {
         infoEl.innerHTML = html;
     }
 
-    // Mitarbeiter laden (alle, dann clientseitig filtern)
-    try {
-        const r = await fetch('/api/employees', { headers: ah() });
-        _qstaAllEmployees = r.ok ? await r.json() : [];
-    } catch { _qstaAllEmployees = []; }
+    // Mitarbeiter laden — leichter Lookup-Cache (Walter 14.06.2026).
+    try { _qstaAllEmployees = await loadEmployeeLookup(); }
+    catch { _qstaAllEmployees = []; }
 
     // Reset Suche/Filter beim Page-Wechsel nicht — Filter behält sich.
     qstaRenderEmpList();
