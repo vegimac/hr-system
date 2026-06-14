@@ -1147,9 +1147,15 @@ function dokToggleMenu(event, id) {
     event.stopPropagation();
     const menu = document.getElementById(`dokMenu-${id}`);
     const wasOpen = menu?.classList.contains('show');
-    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
-    if (!wasOpen) {
-        menu?.classList.add('show');
+    document.querySelectorAll('.dok-menu.show').forEach(m => { m.classList.remove('show'); m.classList.remove('up'); });
+    if (!wasOpen && menu) {
+        // Walter-Vorgabe 14.06.2026: bei den untersten Zeilen klemmte das Menü
+        // unter dem Card-Rand. Vor dem Sichtbar-Machen prüfen, ob nach unten
+        // Platz ist — wenn nicht, Klasse .up dranhängen (CSS dreht's nach oben).
+        menu.classList.remove('up');
+        menu.classList.add('show');
+        const rect = menu.getBoundingClientRect();
+        if (rect.bottom > window.innerHeight - 10) menu.classList.add('up');
         // Klick irgendwo sonst schliesst das Menü
         setTimeout(() => {
             document.addEventListener('click', dokCloseAllMenus, { once: true });
@@ -1157,7 +1163,7 @@ function dokToggleMenu(event, id) {
     }
 }
 function dokCloseAllMenus() {
-    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    document.querySelectorAll('.dok-menu.show').forEach(m => { m.classList.remove('show'); m.classList.remove('up'); });
 }
 
 // ── Edit-Modal: bestehendes Dokument bearbeiten ──────────────────────

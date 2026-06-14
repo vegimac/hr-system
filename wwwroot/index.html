@@ -1764,6 +1764,9 @@
             box-shadow:0 8px 24px rgba(15,23,42,0.12); z-index:200; overflow:hidden;
         }
         .dok-menu.show { display:block; }
+        /* Drop-up wenn unten kein Platz mehr ist (Walter-Vorgabe 14.06.2026):
+           dokToggleMenu hängt die Klasse .up dynamisch ran. */
+        .dok-menu.up { top:auto; bottom:calc(100% + 4px); }
         .dok-menu-item {
             display:block; width:100%; padding:9px 14px; border:none; background:white;
             text-align:left; cursor:pointer; font-size:13px; color:#0f172a;
@@ -8897,7 +8900,7 @@ function onBranchChange() {
 <script src="js/qst-modal.js?v=20260614g"></script>
 <script src="js/users.js?v=20260614a"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
-<script src="js/documents.js?v=20260613a"></script>
+<script src="js/documents.js?v=20260614a"></script>
 <script src="js/dvelop-import.js?v=20260614a"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260509b"></script>
