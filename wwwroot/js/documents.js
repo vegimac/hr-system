@@ -1174,11 +1174,11 @@ function closeDokUploadModal() {
 }
 
 // ── Drei-Punkte-Menü pro Zeile ────────────────────────────────────────
-// Walter-Vorgabe 14.06.2026 (Update): Drop-up via CSS-Klasse reichte nicht —
-// das überliegende .tbl-wrap (overflow:hidden) schnitt das absolut positionierte
-// Menü weiterhin ab; z-index hilft nicht gegen overflow:hidden des Parents.
-// Lösung: position:fixed (an Viewport gebunden) + Koordinaten zur Laufzeit
-// aus der Button-Position berechnen. Scroll schliesst das Menü automatisch.
+// Walter-Vorgabe 14.06.2026 (Final): das Menü wird per position:fixed
+// dargestellt UND ans <body> umgehängt — so kann es weder von overflow:hidden
+// noch von z-index des Parents (Tabellen-Container) abgeschnitten/verdeckt
+// werden. Schliesslicher Effekt = klassisches Drop-down-Pop-over wie in der
+// MA-Detail-Maske (Bewilligungen-Block etc.).
 function dokToggleMenu(event, id) {
     event.stopPropagation();
     const menu = document.getElementById(`dokMenu-${id}`);
@@ -1187,10 +1187,24 @@ function dokToggleMenu(event, id) {
     dokCloseAllMenus();
     if (wasOpen || !menu || !btn) return;
 
-    // Zuerst sichtbar machen (mit reset), um die echte Größe messen zu können.
+    // Menü AN BODY umhängen — entkommt jedem overflow:hidden Container.
+    // Original-Parent merken, damit wir's beim Schliessen zurückhängen.
+    if (menu.parentElement !== document.body) {
+        menu.dataset.dokOrigParentId = menu.parentElement.id || '';
+        if (!menu.parentElement.id) {
+            // Kein Parent-ID — wir hängen den Verweis auf das Element selbst.
+            menu._dokOrigParent = menu.parentElement;
+        }
+        document.body.appendChild(menu);
+    }
+
+    // Pop-over-Styles: position:fixed (Viewport-Koordinaten) + alle
+    // CSS-Default-Positionswerte (right:0 etc.) inline neutralisieren.
     menu.style.position = 'fixed';
-    menu.style.left = '-9999px';   // unsichtbar positionieren für Messung
-    menu.style.top  = '0';
+    menu.style.right    = 'auto';      // wichtig: CSS-Default überschreiben
+    menu.style.bottom   = 'auto';      // dito (.dok-menu.up hatte bottom)
+    menu.style.left     = '-9999px';   // unsichtbar für Messung
+    menu.style.top      = '0';
     menu.classList.add('show');
 
     const btnRect  = btn.getBoundingClientRect();
@@ -1198,8 +1212,8 @@ function dokToggleMenu(event, id) {
     const menuH    = menu.offsetHeight;
     const margin   = 6;
 
-    // Standard: unten am Button, rechtsbündig. Wenn nach unten kein Platz
-    // mehr ist (würde den Viewport unten verlassen), nach oben aufklappen.
+    // Standard: unter Button, rechtsbündig. Wenn unten kein Platz mehr ist,
+    // nach oben aufklappen.
     let top  = btnRect.bottom + 4;
     if (top + menuH > window.innerHeight - margin) {
         top = btnRect.top - menuH - 4;
@@ -1223,12 +1237,24 @@ function dokCloseAllMenus() {
     document.querySelectorAll('.dok-menu.show').forEach(m => {
         m.classList.remove('show');
         m.classList.remove('up');
-        // Inline-Styles zurücksetzen, damit das CSS-Default beim nächsten
-        // Klick frisch greift (relevant wenn das Element irgendwo NICHT mit
-        // dokToggleMenu geöffnet wird).
+        // Inline-Styles vollständig zurücksetzen — das Element kann beim
+        // nächsten Öffnen normal vom CSS positioniert werden.
         m.style.position = '';
         m.style.top      = '';
         m.style.left     = '';
+        m.style.right    = '';
+        m.style.bottom   = '';
+        // Menü an Original-Parent zurückhängen (für DOM-Aufräumung beim
+        // Tab-Wechsel / Re-Render). Falls Original-Parent zwischenzeitlich
+        // gelöscht wurde (z.B. Tabelle neu gerendert), bleibt das Menü
+        // einfach am Body, schadet nicht.
+        const origParentId = m.dataset.dokOrigParentId;
+        let origParent = null;
+        if (origParentId)          origParent = document.getElementById(origParentId);
+        else if (m._dokOrigParent) origParent = m._dokOrigParent;
+        if (origParent && origParent !== m.parentElement && origParent.isConnected) {
+            origParent.appendChild(m);
+        }
     });
 }
 
