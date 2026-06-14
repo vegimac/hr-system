@@ -34,13 +34,16 @@ function renderDokstrukturKategorien() {
                 <div style="font-weight:600;color:#0f172a;font-size:13px">${k.name} ${!k.aktiv ? '<span style="color:#94a3b8;font-weight:400">(inaktiv)</span>' : ''}</div>
                 <div style="font-size:11px;color:#64748b">${k.anzahlTypen} Typen · ${k.anzahlDokumente} Dokumente</div>
             </div>
-            <div class="dokstruktur-actions">
-                <button class="btn-emp-add" style="padding:4px 7px" onclick="event.stopPropagation();dokstrukturEditKat(${k.id})" title="Bearbeiten">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </button>
-                <button class="btn-emp-add" style="padding:4px 7px;background:#fee2e2;border-color:#fca5a5;color:#991b1b" onclick="event.stopPropagation();dokstrukturDeleteKat(${k.id})" ${k.anzahlTypen > 0 ? 'disabled title="Erst Typen löschen"' : 'title="Löschen"'}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
-                </button>
+            <div class="dokstruktur-actions" onclick="event.stopPropagation()">
+                <div style="position:relative;display:inline-block">
+                    <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'dsKat-${k.id}')" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="dokMenu-dsKat-${k.id}">
+                        <button class="dok-menu-item" onclick="dokCloseAllMenus();dokstrukturEditKat(${k.id})">Bearbeiten</button>
+                        ${k.anzahlTypen > 0
+                            ? ''
+                            : `<button class="dok-menu-item danger" onclick="dokCloseAllMenus();dokstrukturDeleteKat(${k.id})">Löschen</button>`}
+                    </div>
+                </div>
             </div>
         </div>
     `).join('');
@@ -93,12 +96,15 @@ function renderDokstrukturTypen() {
                 <div style="font-size:11px;color:#64748b">Sort ${t.sortOrder} · ${t.anzahlDokumente} Dokument${t.anzahlDokumente !== 1 ? 'e' : ''}</div>
             </div>
             <div class="dokstruktur-actions">
-                <button class="btn-emp-add" style="padding:4px 7px" onclick="dokstrukturEditTyp(${t.id})" title="Bearbeiten">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </button>
-                <button class="btn-emp-add" style="padding:4px 7px;background:#fee2e2;border-color:#fca5a5;color:#991b1b" onclick="dokstrukturDeleteTyp(${t.id})" ${t.anzahlDokumente > 0 ? 'disabled title="In Verwendung"' : 'title="Löschen"'}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
-                </button>
+                <div style="position:relative;display:inline-block">
+                    <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'dsTyp-${t.id}')" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="dokMenu-dsTyp-${t.id}">
+                        <button class="dok-menu-item" onclick="dokCloseAllMenus();dokstrukturEditTyp(${t.id})">Bearbeiten</button>
+                        ${t.anzahlDokumente > 0
+                            ? ''
+                            : `<button class="dok-menu-item danger" onclick="dokCloseAllMenus();dokstrukturDeleteTyp(${t.id})">Löschen</button>`}
+                    </div>
+                </div>
             </div>
         </div>`;
     }).join('');

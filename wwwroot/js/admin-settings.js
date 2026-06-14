@@ -48,8 +48,13 @@ async function loadBehoerden() {
                     <span style="font-size:11px;padding:2px 8px;border-radius:10px;${b.isActive ? 'background:#dcfce7;color:#166534' : 'background:#f1f5f9;color:#64748b'}">${b.isActive ? 'Aktiv' : 'Inaktiv'}</span>
                 </td>
                 <td style="padding:10px 14px;text-align:right;white-space:nowrap">
-                    <button onclick='openBehoerdeModal(${JSON.stringify(b)})' style="border:none;background:#f1f5f9;color:#374151;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px">✏️</button>
-                    <button onclick="deleteBehoerde(${b.id}, '${(b.name||'').replace(/'/g,"\\'")}')" style="border:none;background:#fee2e2;color:#dc2626;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer">🗑</button>
+                    <div style="position:relative;display:inline-block">
+                        <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'beh-${b.id}')" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="dokMenu-beh-${b.id}">
+                            <button class="dok-menu-item" onclick='dokCloseAllMenus();openBehoerdeModal(${JSON.stringify(b).replace(/'/g, "&apos;")})'>Bearbeiten</button>
+                            <button class="dok-menu-item danger" onclick="dokCloseAllMenus();deleteBehoerde(${b.id}, '${(b.name||'').replace(/'/g,"\\'")}')">Löschen</button>
+                        </div>
+                    </div>
                 </td>
             </tr>`;
         }).join('');
@@ -677,7 +682,12 @@ async function loadAbsenzTypen() {
                     <span style="font-size:11px;padding:2px 8px;border-radius:10px;${t.aktiv ? 'background:#dcfce7;color:#166534' : 'background:#f1f5f9;color:#64748b'}">${t.aktiv ? 'Aktiv' : 'Inaktiv'}</span>
                 </td>
                 <td style="text-align:right">
-                    <button class="btn btn-sm btn-secondary" onclick='openAbsenzTypForm(${JSON.stringify(t)})'>Bearbeiten</button>
+                    <div style="position:relative;display:inline-block">
+                        <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'at-${t.id}')" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="dokMenu-at-${t.id}">
+                            <button class="dok-menu-item" onclick='dokCloseAllMenus();openAbsenzTypForm(${JSON.stringify(t).replace(/'/g, "&apos;")})'>Bearbeiten</button>
+                        </div>
+                    </div>
                 </td>
             </tr>`).join('');
     } catch(e) {
@@ -1657,7 +1667,12 @@ function fzRender() {
                 <span style="font-size:11px;padding:2px 9px;border-radius:10px;${r.isActive ? 'background:#dcfce7;color:#166534' : 'background:#f1f5f9;color:#64748b'}">${r.isActive ? 'Aktiv' : 'Inaktiv'}</span>
             </td>
             <td style="padding:10px 14px;text-align:right">
-                <button class="btn btn-sm btn-secondary" onclick='fzOpenForm(${JSON.stringify(r).replace(/'/g, "&apos;")})'>Bearbeiten</button>
+                <div style="position:relative;display:inline-block">
+                    <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'fz-${r.id}')" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="dokMenu-fz-${r.id}">
+                        <button class="dok-menu-item" onclick='dokCloseAllMenus();fzOpenForm(${JSON.stringify(r).replace(/'/g, "&apos;")})'>Bearbeiten</button>
+                    </div>
+                </div>
             </td>
         </tr>`).join('');
 }
