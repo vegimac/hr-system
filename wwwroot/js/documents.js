@@ -1174,27 +1174,62 @@ function closeDokUploadModal() {
 }
 
 // ── Drei-Punkte-Menü pro Zeile ────────────────────────────────────────
+// Walter-Vorgabe 14.06.2026 (Update): Drop-up via CSS-Klasse reichte nicht —
+// das überliegende .tbl-wrap (overflow:hidden) schnitt das absolut positionierte
+// Menü weiterhin ab; z-index hilft nicht gegen overflow:hidden des Parents.
+// Lösung: position:fixed (an Viewport gebunden) + Koordinaten zur Laufzeit
+// aus der Button-Position berechnen. Scroll schliesst das Menü automatisch.
 function dokToggleMenu(event, id) {
     event.stopPropagation();
     const menu = document.getElementById(`dokMenu-${id}`);
+    const btn  = event.currentTarget || event.target?.closest('button');
     const wasOpen = menu?.classList.contains('show');
-    document.querySelectorAll('.dok-menu.show').forEach(m => { m.classList.remove('show'); m.classList.remove('up'); });
-    if (!wasOpen && menu) {
-        // Walter-Vorgabe 14.06.2026: bei den untersten Zeilen klemmte das Menü
-        // unter dem Card-Rand. Vor dem Sichtbar-Machen prüfen, ob nach unten
-        // Platz ist — wenn nicht, Klasse .up dranhängen (CSS dreht's nach oben).
-        menu.classList.remove('up');
-        menu.classList.add('show');
-        const rect = menu.getBoundingClientRect();
-        if (rect.bottom > window.innerHeight - 10) menu.classList.add('up');
-        // Klick irgendwo sonst schliesst das Menü
-        setTimeout(() => {
-            document.addEventListener('click', dokCloseAllMenus, { once: true });
-        }, 10);
+    dokCloseAllMenus();
+    if (wasOpen || !menu || !btn) return;
+
+    // Zuerst sichtbar machen (mit reset), um die echte Größe messen zu können.
+    menu.style.position = 'fixed';
+    menu.style.left = '-9999px';   // unsichtbar positionieren für Messung
+    menu.style.top  = '0';
+    menu.classList.add('show');
+
+    const btnRect  = btn.getBoundingClientRect();
+    const menuW    = menu.offsetWidth;
+    const menuH    = menu.offsetHeight;
+    const margin   = 6;
+
+    // Standard: unten am Button, rechtsbündig. Wenn nach unten kein Platz
+    // mehr ist (würde den Viewport unten verlassen), nach oben aufklappen.
+    let top  = btnRect.bottom + 4;
+    if (top + menuH > window.innerHeight - margin) {
+        top = btnRect.top - menuH - 4;
     }
+    let left = btnRect.right - menuW;
+    if (left < margin) left = margin;
+    if (left + menuW > window.innerWidth - margin) {
+        left = window.innerWidth - menuW - margin;
+    }
+    menu.style.top  = top  + 'px';
+    menu.style.left = left + 'px';
+
+    // Klick irgendwo sonst, Scroll oder Resize schließt das Menü.
+    setTimeout(() => {
+        document.addEventListener('click',  dokCloseAllMenus, { once: true });
+        window.addEventListener('scroll',   dokCloseAllMenus, { once: true, capture: true });
+        window.addEventListener('resize',   dokCloseAllMenus, { once: true });
+    }, 10);
 }
 function dokCloseAllMenus() {
-    document.querySelectorAll('.dok-menu.show').forEach(m => { m.classList.remove('show'); m.classList.remove('up'); });
+    document.querySelectorAll('.dok-menu.show').forEach(m => {
+        m.classList.remove('show');
+        m.classList.remove('up');
+        // Inline-Styles zurücksetzen, damit das CSS-Default beim nächsten
+        // Klick frisch greift (relevant wenn das Element irgendwo NICHT mit
+        // dokToggleMenu geöffnet wird).
+        m.style.position = '';
+        m.style.top      = '';
+        m.style.left     = '';
+    });
 }
 
 // ── Edit-Modal: bestehendes Dokument bearbeiten ──────────────────────
