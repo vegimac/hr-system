@@ -8100,7 +8100,29 @@
 
 <!-- ═══════════════ USER MODAL ═══════════════
      Walter-Vorgabe 14.06.2026: an Standard-Layout angepasst (Sektionen mit
-     emp-section-title-Header analog Familienmitglied-Modal). -->
+     emp-section-title-Header analog Familienmitglied-Modal).
+     Plus kompakteres Layout damit alles ohne Scrollen passt. -->
+<style>
+    /* Kompakte Form-Regeln NUR für das User-Modal — andere Modals bleiben unberührt. */
+    #userModalBg .modal-body { padding: 18px 22px; }
+    #userModalBg .f-group { margin-bottom: 10px; }
+    #userModalBg .f-label { font-size: 12px; margin-bottom: 4px; }
+    #userModalBg .f-input,
+    #userModalBg .f-select { padding: 7px 11px; font-size: 13px; border-radius: 7px; border-width: 1px; }
+    #userModalBg .f-hint { font-size: 11.5px; margin-top: 3px; }
+    #userModalBg .f-grid { gap: 12px; }
+    #userModalBg .emp-section-title { margin-top: 6px; padding: 3px 0 3px 9px; font-size: 10px; }
+    #userModalBg .branch-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-top: 6px;
+    }
+    #userModalBg .branch-cb { padding: 6px 8px; gap: 7px; border-width: 1px; border-radius: 6px; }
+    #userModalBg .branch-cb input { width: 13px; height: 13px; }
+    #userModalBg .branch-cb-name { font-size: 12px; }
+    #userModalBg .branch-cb-code { font-size: 10.5px; }
+    #userModalBg #umSigPreview { width: 160px !important; height: 60px !important; }
+</style>
 <div class="modal-bg" id="userModalBg">
     <div class="modal">
         <div class="modal-hd">
@@ -8173,7 +8195,7 @@
                     <input type="checkbox" id="umIsHrTeam" style="width:18px;height:18px;cursor:pointer">
                     <span>HR-Team-Mitglied</span>
                 </label>
-                <div class="f-hint" style="margin-top:4px">Hat Zugriff auf das gemeinsame HR-Postfach (z.B. HR-Verantwortliche, Treuhänder).</div>
+                <div class="f-hint" style="margin-top:2px">Zugriff aufs gemeinsame HR-Postfach (z.B. HR-Verantwortliche, Treuhänder).</div>
             </div>
             <div class="f-group">
                 <label class="f-label">Filialen-Zugang</label>
@@ -8184,9 +8206,8 @@
             <!-- ── UNTERSCHRIFT ───────────────────────────────────────────── -->
             <div class="emp-section-title" id="umSignatureSectionTitle" style="display:none">Unterschrift</div>
             <div class="f-group" id="umSignatureGroup" style="display:none">
-                <div class="f-hint" style="margin-bottom:10px">
-                    Wird auf generierten Formularen (z.B. QST-Anmeldung) eingebettet.
-                    PNG mit transparentem Hintergrund empfohlen, max 2 MB.
+                <div class="f-hint" style="margin-bottom:6px">
+                    Wird auf Formularen (QST-Anmeldung, RAV …) eingebettet. PNG mit transparentem Hintergrund, max 2 MB.
                 </div>
                 <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
                     <div id="umSigPreview"
