@@ -818,37 +818,35 @@ function renderEmployeeDetail(emp) {
                  Bewilligung. Pflege + Verlauf passieren im Tab Bewilligung/QST.
                  Linkbutton springt direkt dorthin. Doku-Button greift auf die
                  verknüpften Bewilligungs-Dokumente (linked_field_code='permit'). -->
-            ${(() => {
-                const hasDoc = window._linkedDocCodes && window._linkedDocCodes.has('permit');
-                const docBtn = `<button title="${hasDoc ? 'Verknüpftes Bewilligungs-Dokument öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen'}"
-                                       onclick="openLinkedDoc('permit')"
-                                       style="background:${hasDoc ? '#dbeafe' : '#f1f5f9'};border:1px solid ${hasDoc ? '#93c5fd' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${hasDoc ? '#1d4ed8' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
-                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                       <polyline points="14 2 14 8 20 8"/>
-                                       <line x1="16" y1="13" x2="8" y2="13"/>
-                                       <line x1="16" y1="17" x2="8" y2="17"/>
-                                       <line x1="10" y1="9" x2="8" y2="9"/>
-                                   </svg>
-                                   <span>Doku</span>
-                               </button>`;
-                return `
-                <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                    <span style="display:inline-flex;align-items:center;gap:8px">
-                        ${_t('ma.section.permit','Aufenthalt')}
-                        ${docBtn}
-                    </span>
-                    <button class="btn-emp-add" onclick="switchEmpTab('quellensteuer')" style="background:#f1f5f9;color:#475569;border-color:#cbd5e1">
-                        ${_t('ma.btn.gotoPermitTab','→ Bewilligungen pflegen')}
-                    </button>
-                </div>`;
-            })()}
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                <span>${_t('ma.section.permit','Aufenthalt')}</span>
+                <button class="btn-emp-add" onclick="switchEmpTab('quellensteuer')" style="background:#f1f5f9;color:#475569;border-color:#cbd5e1">
+                    ${_t('ma.btn.gotoPermitTab','→ Bewilligungen pflegen')}
+                </button>
+            </div>
+            <!-- Walter-Vorgabe 14.06.2026: 📎-Doku-Button direkt auf der
+                 aktuellen Bewilligungs-Karte (statt nur am Section-Header).
+                 Verknüpft das Dokument an die jüngste Permit-History (FK
+                 employee_permit_history.dokument_id). Wenn kein Permit-
+                 Eintrag existiert → kein Button (es gibt nichts zu verknüpfen). -->
             <div style="padding:10px 14px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa;font-size:13px;color:#475569;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
                 ${emp.permitType
                     ? `<div><span style="color:#94a3b8;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px">Aktuelle Bewilligung</span><div style="font-weight:600;color:#1e293b">${emp.permitType.code}${emp.permitType.description ? ' — ' + esc(emp.permitType.description) : ''}</div></div>`
                     : `<div style="color:#94a3b8;font-style:italic">Keine Bewilligung erfasst</div>`}
                 ${emp.permitExpiryDate
                     ? `<div><span style="color:#94a3b8;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px">Gültig bis</span><div style="font-weight:600;color:#1e293b">${formatDate(emp.permitExpiryDate)}</div></div>`
+                    : ''}
+                ${emp.currentPermitHistoryId
+                    ? (emp.currentPermitDokumentId
+                        ? `<button type="button" onclick="permitOpenDokuModal(${emp.currentPermitHistoryId})"
+                               style="margin-left:auto;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px"
+                               title="${esc(emp.currentPermitDokumentName || '')}">
+                               📎 Doku
+                           </button>`
+                        : `<button type="button" onclick="permitOpenDokuModal(${emp.currentPermitHistoryId})"
+                               style="margin-left:auto;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">
+                               🔗 Doku verknüpfen
+                           </button>`)
                     : ''}
             </div>
             ` : ''}
@@ -1220,14 +1218,23 @@ function renderQstPflichtBanner(pflicht) {
         //   CH-Bürger → employee.id_pass_dokument_id   (Pass ODER ID-Karte)
         //   C-Ausweis → employee.c_ausweis_dokument_id (Bewilligungs-Dokument)
         // Klick „Dokument verknüpfen" öffnet Modal mit Doku-Picker.
+        // Walter 14.06.2026: bei C-Ausweis hängen wir das Doku jetzt direkt
+        // an die jüngste Permit-History (FK PermitHistory.DokumentId) statt
+        // ans alte Employee.CAusweisDokumentId. Pflicht.currentPermitHistoryId
+        // kommt vom QstPflichtCheckService mit.
         const empKind = pflicht.befreiungsGrund === 'CH-Buerger' ? 'id_pass'
-                       : pflicht.befreiungsGrund === 'C-Ausweis' ? 'c_ausweis' : null;
+                       : pflicht.befreiungsGrund === 'C-Ausweis' ? 'permit_history' : null;
         const empDokTitle = pflicht.befreiungsGrund === 'CH-Buerger'
             ? 'Ausweis-Dokument nicht verknüpft (ID oder Pass)'
             : 'Ausweis-Dokument nicht verknüpft (C-Ausweis)';
         const empDokText = pflicht.befreiungsGrund === 'CH-Buerger'
             ? 'Der Mitarbeiter ist Schweizer Staatsbürger — bitte das hochgeladene Pass- oder ID-Dokument hier verknüpfen.'
             : 'Der Mitarbeiter hat einen C-Ausweis — bitte das hochgeladene Bewilligungs-Dokument hier verknüpfen.';
+        const empWarnHandler = empKind === 'permit_history' && pflicht.currentPermitHistoryId
+            ? `permitOpenDokuModal(${pflicht.currentPermitHistoryId})`
+            : empKind
+                ? `openAusweisDokuModal(${empId},'${empKind}')`
+                : '';
         const empWarn = pflicht.employeeDokumentFehlt && empKind ? `
         <div style="background:#fef2f2;border:1px solid #fca5a5;border-left:4px solid #dc2626;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-size:18px">⚠️</span>
@@ -1235,7 +1242,7 @@ function renderQstPflichtBanner(pflicht) {
                 <div style="font-weight:700;color:#991b1b;font-size:13px">${empDokTitle}</div>
                 <div style="color:#b91c1c;font-size:12px;margin-top:2px">${empDokText}</div>
             </div>
-            <button onclick="openAusweisDokuModal(${empId},'${empKind}')" style="background:#dc2626;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;white-space:nowrap">
+            <button onclick="${empWarnHandler}" style="background:#dc2626;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;white-space:nowrap">
                 📎 Dokument verknüpfen
             </button>
         </div>` : '';
@@ -1623,7 +1630,12 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         if (kind === 'spouse' && typeof loadFamilieTab === 'function') loadFamilieTab(empId);
         // Walter 14.06.2026: Bewilligungs-Liste in der MA-Maske neu laden,
         // damit die 📎-Pille pro Eintrag den frischen Doku-Status zeigt.
-        if (kind === 'permit_history' && typeof loadPermitHistory === 'function') loadPermitHistory(empId);
+        // Plus: MA-Detail neu laden, damit auch die 📎-Pille im AUFENTHALT-
+        // Block in der MA-Maske aktualisiert wird (currentPermitDokumentId).
+        if (kind === 'permit_history') {
+            if (typeof loadPermitHistory === 'function') loadPermitHistory(empId);
+            if (typeof selectEmployee === 'function') selectEmployee(empId);
+        }
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }

@@ -174,8 +174,14 @@ public class EmployeesController : ControllerBase
         // Walter-Vorgabe 07.06.2026 (final): „neueste" = höchstes ValidTo,
         // bei Gleichheit ÄLTESTES ValidFrom (= Original-Eintrag, nicht
         // Import-Duplikat). Konsistent mit EmployeePermitHistoryController.
+        // Walter 14.06.2026: zusätzlich CurrentPermitHistoryId + Dokument-
+        // Verknüpfung liefern, damit der Aufenthalt-Block in der MA-Maske
+        // den 📎-Button direkt rendern kann (ohne extra Async-Roundtrip).
         DateOnly? permitExpiryDate = null;
         PermitType? latestPermitType = null;
+        int? currentPermitHistoryId = null;
+        int? currentPermitDokumentId = null;
+        string? currentPermitDokumentName = null;
         {
             var maxDate = new DateOnly(9999, 12, 31);
             var newest = await _context.EmployeePermitHistories
@@ -189,6 +195,15 @@ public class EmployeesController : ControllerBase
             {
                 permitExpiryDate = newest.ValidTo;
                 latestPermitType = newest.PermitType;
+                currentPermitHistoryId  = newest.Id;
+                currentPermitDokumentId = newest.DokumentId;
+                if (newest.DokumentId.HasValue)
+                {
+                    currentPermitDokumentName = await _context.EmployeeDokumente
+                        .Where(d => d.Id == newest.DokumentId.Value)
+                        .Select(d => d.FilenameOriginal)
+                        .FirstOrDefaultAsync();
+                }
             }
         }
 
@@ -237,6 +252,11 @@ public class EmployeesController : ControllerBase
             permitTypeCode        = latestPermitType?.Code,
             permitTypeDescription = latestPermitType?.Description,
             permitExpiryDate      = permitExpiryDate,
+            // Walter 14.06.2026: aktuelle Permit-History-ID + verknüpftes Doku
+            // für den 📎-Button auf der Aufenthalt-Karte in der MA-Maske.
+            currentPermitHistoryId    = currentPermitHistoryId,
+            currentPermitDokumentId   = currentPermitDokumentId,
+            currentPermitDokumentName = currentPermitDokumentName,
             zemisNumber = employee.ZemisNumber,
             employee.QuellensteuerBefreitAb,
             // QST-Befreiung durch Steuerbehörde (Walter 26.05.2026)

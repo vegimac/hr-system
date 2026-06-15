@@ -53,7 +53,12 @@ public class QstPflichtCheckService
         //   • C-Ausweis → Bewilligungs-Dokument (LinkedFieldCode='permit')
         //     muss als Dokument vorliegen
         // Falls nicht → roter Warnhinweis zusätzlich zum grünen Banner.
-        bool EmployeeDokumentFehlt = false
+        bool EmployeeDokumentFehlt = false,
+        // Walter-Vorgabe 14.06.2026: bei C-Ausweis die ID der jüngsten Permit-
+        // History des MA mitliefern, damit das Frontend den 📎-Doku-Picker
+        // auf GENAU diesen History-Eintrag richten kann (statt auf das alte
+        // Employee.CAusweisDokumentId-Feld). NULL bei allen anderen Gründen.
+        int? CurrentPermitHistoryId = null
     );
 
     public async Task<QstPflichtCheckResult> CheckAsync(int employeeId, DateOnly stichtag)
@@ -118,7 +123,8 @@ public class QstPflichtCheckService
                 && await _db.EmployeeDokumente.AnyAsync(d => d.Id == belegDokId.Value);
             return new QstPflichtCheckResult(false, false, false, "C-Ausweis",
                 "C-Ausweis (Niederlassung) — nicht QST-pflichtig.",
-                EmployeeDokumentFehlt: !hasCAusweisDoc);
+                EmployeeDokumentFehlt: !hasCAusweisDoc,
+                CurrentPermitHistoryId: cEintrag.Id);
         }
 
         // ── 3. Behörden-Befreiung gültig am Stichtag (+ Dok vorhanden) ──
