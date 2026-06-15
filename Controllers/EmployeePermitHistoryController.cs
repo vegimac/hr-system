@@ -57,6 +57,9 @@ public class EmployeePermitHistoryController : ControllerBase
         public DateOnly  ValidFrom { get; set; }
         public DateOnly? ValidTo   { get; set; }   // = behördliches Ablauf-Datum auf dem Ausweis
         public string?   Note { get; set; }
+        // Walter 14.06.2026: Verknüpftes Bewilligungs-PDF.
+        public int?      DokumentId { get; set; }
+        public string?   DokumentName { get; set; }
         public DateTime CreatedAt { get; set; }
         public int?     CreatedByUserId { get; set; }
         public bool     IsCurrent { get; set; }   // valid_to NULL und valid_from <= heute
@@ -69,6 +72,14 @@ public class EmployeePermitHistoryController : ControllerBase
         public DateOnly  ValidFrom { get; set; }
         public DateOnly? ValidTo   { get; set; }       // Pflicht bei PermitTypeId != NULL
         public string?   Note { get; set; }
+        // Walter 14.06.2026: optional bei POST/PUT auch das verknüpfte Doku mit setzen.
+        public int?      DokumentId { get; set; }
+    }
+
+    /// <summary>Walter 14.06.2026: Patch-DTO nur für die Doku-Verknüpfung.</summary>
+    public class PermitDokumentPatchDto
+    {
+        public int? DokumentId { get; set; }   // null = Verknüpfung lösen
     }
 
     /// <summary>
@@ -101,6 +112,20 @@ public class EmployeePermitHistoryController : ControllerBase
             .ThenByDescending(h => h.Id)
             .ToListAsync();
 
+        // Walter 14.06.2026: Doku-Namen pro Permit-Eintrag (für Anzeige
+        // im UI: „📎 Pass-Skarcheska.pdf" statt nur ID). Wir holen einmal
+        // alle referenzierten Dokumente in einem Batch.
+        var dokIds = entries.Where(h => h.DokumentId.HasValue)
+                            .Select(h => h.DokumentId!.Value)
+                            .Distinct().ToList();
+        var dokNames = dokIds.Count == 0
+            ? new Dictionary<int, string>()
+            : await _db.EmployeeDokumente
+                .AsNoTracking()
+                .Where(d => dokIds.Contains(d.Id))
+                .Select(d => new { d.Id, d.FilenameOriginal })
+                .ToDictionaryAsync(d => d.Id, d => d.FilenameOriginal ?? "");
+
         var branchId     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowed = branchId.HasValue
             ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
@@ -128,6 +153,10 @@ public class EmployeePermitHistoryController : ControllerBase
             ValidFrom         = h.ValidFrom,
             ValidTo           = h.ValidTo,
             Note              = h.Note,
+            DokumentId        = h.DokumentId,
+            DokumentName      = h.DokumentId.HasValue
+                                  && dokNames.TryGetValue(h.DokumentId.Value, out var nm)
+                                  ? nm : null,
             CreatedAt         = h.CreatedAt,
             CreatedByUserId   = h.CreatedByUserId,
             IsCurrent         = h.Id == currentId,
@@ -188,6 +217,14 @@ public class EmployeePermitHistoryController : ControllerBase
             p.ValidTo = dto.ValidFrom.AddDays(-1);
         }
 
+        // Walter 14.06.2026: optional verknüpftes Doku validieren (muss dem MA gehören).
+        if (dto.DokumentId.HasValue)
+        {
+            var dokOk = await _db.EmployeeDokumente
+                .AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == employeeId);
+            if (!dokOk) return BadRequest(new { error = "Verknüpftes Dokument gehört nicht zu diesem MA." });
+        }
+
         var entry = new EmployeePermitHistory
         {
             EmployeeId       = employeeId,
@@ -195,6 +232,7 @@ public class EmployeePermitHistoryController : ControllerBase
             ValidFrom        = dto.ValidFrom,
             ValidTo          = dto.ValidTo,
             Note             = dto.Note,
+            DokumentId       = dto.DokumentId,
             CreatedAt        = DateTime.UtcNow,
             CreatedByUserId  = GetCurrentUserId()
         };
@@ -254,13 +292,48 @@ public class EmployeePermitHistoryController : ControllerBase
             });
         }
 
+        // Walter 14.06.2026: Doku-Verknüpfung optional mit-updaten.
+        if (dto.DokumentId.HasValue)
+        {
+            var dokOk = await _db.EmployeeDokumente
+                .AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == employeeId);
+            if (!dokOk) return BadRequest(new { error = "Verknüpftes Dokument gehört nicht zu diesem MA." });
+        }
+
         entry.PermitTypeId     = dto.PermitTypeId;
         entry.ValidFrom        = dto.ValidFrom;
         entry.ValidTo          = dto.ValidTo;
         entry.Note             = dto.Note;
+        entry.DokumentId       = dto.DokumentId;
 
         await _db.SaveChangesAsync();
         await SyncEmployeeFromHistoryAsync(employeeId);
+        await _db.SaveChangesAsync();
+        return Ok();
+    }
+
+    /// <summary>
+    /// Walter-Vorgabe 14.06.2026: NUR die Doku-Verknüpfung patchen. Wird vom
+    /// „📎 Doku verknüpfen"-Modal in der Bewilligungs-Liste und im
+    /// Aufenthalt-Block der MA-Maske aufgerufen. Body = { dokumentId: int? }
+    /// — null bedeutet „Verknüpfung lösen".
+    /// </summary>
+    [HttpPatch("{id:int}/dokument")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> PatchDokument(int employeeId, int id, [FromBody] PermitDokumentPatchDto dto)
+    {
+        var entry = await _db.EmployeePermitHistories
+            .FirstOrDefaultAsync(h => h.Id == id && h.EmployeeId == employeeId);
+        if (entry == null) return NotFound();
+
+        if (dto.DokumentId.HasValue)
+        {
+            var dokOk = await _db.EmployeeDokumente
+                .AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == employeeId);
+            if (!dokOk) return BadRequest(new { error = "Verknüpftes Dokument gehört nicht zu diesem MA." });
+        }
+
+        entry.DokumentId = dto.DokumentId;
         await _db.SaveChangesAsync();
         return Ok();
     }

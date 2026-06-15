@@ -24,6 +24,16 @@ public class EmployeePermitHistory
     // PermitExpiryDate entfernt 01.06.2026 — war Duplikat von ValidTo.
     public string?   Note { get; set; }
 
+    /// <summary>
+    /// Walter-Vorgabe 14.06.2026: optionaler FK auf das Bewilligungs-PDF/Scan
+    /// in employee_dokument. Pro Bewilligungs-Eintrag ein Dokument — z.B. bei
+    /// B→C-Wechsel bleibt das alte B-Doku am alten History-Eintrag verknüpft,
+    /// das neue C-Doku kommt an den neuen Eintrag. Lösch-Schutz im
+    /// DocumentsController.Delete verhindert, dass ein hier verknüpftes Doku
+    /// in der Doku-Verwaltung gelöscht werden kann — siehe dort.
+    /// </summary>
+    public int? DokumentId { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public int?     CreatedByUserId { get; set; }
 

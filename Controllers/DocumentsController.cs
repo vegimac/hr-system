@@ -628,6 +628,40 @@ public class DocumentsController : ControllerBase
         var doc = await _db.EmployeeDokumente.FindAsync(id);
         if (doc is null) return NotFound();
 
+        // ── Walter-Vorgabe 14.06.2026: Lösch-Schutz ──
+        // Wenn dieses Dokument an einer der fünf FK-Stellen verknüpft ist
+        // (Pass/ID, alter C-Ausweis-Slot, QST-Befreiung, Permit-History
+        // oder Ehepartner-Ausweis), darf es nicht gelöscht werden — sonst
+        // verlieren wir QST-Belege. Walter muss die Verknüpfung zuerst lösen.
+        var blockers = new List<string>();
+        if (await _db.Employees.AnyAsync(e => e.IdPassDokumentId == id))
+            blockers.Add("Pass / ID-Karte am MA");
+        if (await _db.Employees.AnyAsync(e => e.CAusweisDokumentId == id))
+            blockers.Add("C-Ausweis am MA (alte Verknüpfung)");
+        if (await _db.Employees.AnyAsync(e => e.QstBefreiungDokumentId == id))
+            blockers.Add("QST-Behörden-Befreiung");
+        if (await _db.EmployeePermitHistories.AnyAsync(h => h.DokumentId == id))
+            blockers.Add("Bewilligungs-Eintrag (Aufenthalt)");
+        if (await _db.EmployeeFamilyMembers.AnyAsync(f => f.DokumentId == id))
+            blockers.Add("Ehepartner-Ausweis");
+
+        if (blockers.Count > 0)
+        {
+            var betroffenerMa = await _db.Employees
+                .Where(e => e.Id == doc.EmployeeId)
+                .Select(e => new { e.FirstName, e.LastName, e.EmployeeNumber })
+                .FirstOrDefaultAsync();
+            var maName = betroffenerMa != null
+                ? $"{betroffenerMa.FirstName} {betroffenerMa.LastName} (Nr. {betroffenerMa.EmployeeNumber})"
+                : $"MA-ID {doc.EmployeeId}";
+            return Conflict(new
+            {
+                error = "DOKUMENT_VERKNUEPFT",
+                message = $"Das Dokument ist als {string.Join(" + ", blockers)} bei {maName} verknüpft und kann nicht gelöscht werden. Bitte erst die Verknüpfung lösen.",
+                verknuepfungen = blockers
+            });
+        }
+
         var fullPath = ResolveFilePath(doc);
         try
         {

@@ -1453,6 +1453,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
             // permit_expiry_date entfernt 01.06.2026 — siehe Models/EmployeePermitHistory.cs.
             entity.Property(e => e.Note).HasColumnName("note");
+            // Walter 14.06.2026: FK auf das Bewilligungs-PDF.
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);

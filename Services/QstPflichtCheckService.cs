@@ -89,21 +89,33 @@ public class QstPflichtCheckService
                 EmployeeDokumentFehlt: !hasIdPassDoc);
         }
 
-        // ── 2. MA hat C-Ausweis am Stichtag? ──
-        var hasCSelf = await _db.EmployeePermitHistories
+        // ── 2. MA hat IRGENDWANN einen C-Ausweis bekommen? ──
+        // Walter-Vorgabe 14.06.2026: „einmal C immer C" — wir prüfen NICHT
+        // mehr das Ablaufdatum, sondern nur ob in der Permit-History
+        // mindestens ein Eintrag mit PermitType=C existiert. C ist eine
+        // Niederlassung, sie läuft administrativ nie ab (sie wird nur
+        // erneuert oder durch Einbürgerung ersetzt). Das verknüpfte Doku
+        // zum C-Eintrag (PermitHistory.DokumentId) zählt jetzt als Beleg.
+        var cEintrag = await _db.EmployeePermitHistories
+            .AsNoTracking()
             .Include(h => h.PermitType)
-            .AnyAsync(h => h.EmployeeId == employeeId
-                        && h.ValidFrom <= stichtag
-                        && (h.ValidTo == null || h.ValidTo >= stichtag)
-                        && h.PermitType != null
-                        && h.PermitType.Code == "C");
-        if (hasCSelf)
+            .Where(h => h.EmployeeId == employeeId
+                     && h.PermitType != null
+                     && h.PermitType.Code == "C")
+            .OrderByDescending(h => h.ValidFrom)
+            .ThenByDescending(h => h.Id)
+            .FirstOrDefaultAsync();
+        if (cEintrag != null)
         {
-            // Walter-Vorgabe 13.06.2026: explizite Verknüpfung MA → Beleg-Doku
-            // (Bewilligungs-Dokument). employee.c_ausweis_dokument_id muss
-            // gesetzt sein UND das Dokument muss noch existieren.
-            bool hasCAusweisDoc = emp.CAusweisDokumentId.HasValue
-                && await _db.EmployeeDokumente.AnyAsync(d => d.Id == emp.CAusweisDokumentId.Value);
+            // Walter-Vorgabe 14.06.2026: Beleg-Doku jetzt am Permit-History-
+            // Eintrag (DokumentId). Backwards-Compat: wenn der neue FK noch
+            // nicht gesetzt ist, fällt der Check auf Employee.CAusweisDokumentId
+            // zurück (alte Verknüpfungen wurden per Backfill auf die jüngste
+            // Permit-History gewandert — Fallback nur falls die Migration aus
+            // irgendeinem Grund nicht alle erreicht hat).
+            int? belegDokId = cEintrag.DokumentId ?? emp.CAusweisDokumentId;
+            bool hasCAusweisDoc = belegDokId.HasValue
+                && await _db.EmployeeDokumente.AnyAsync(d => d.Id == belegDokId.Value);
             return new QstPflichtCheckResult(false, false, false, "C-Ausweis",
                 "C-Ausweis (Niederlassung) — nicht QST-pflichtig.",
                 EmployeeDokumentFehlt: !hasCAusweisDoc);

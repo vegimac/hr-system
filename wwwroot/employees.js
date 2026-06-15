@@ -1343,7 +1343,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
         alert('Mitarbeiter-ID fehlt. Bitte den MA links erneut anklicken.');
         return;
     }
-    if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung'].includes(kind)) return;
+    if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -1354,12 +1354,16 @@ async function openAusweisDokuModal(empId, kind, extra) {
     }
 
     // Welcher Typ ist „relevant" für diesen Modus?
+    // Walter 14.06.2026: permit_history nutzt denselben „permit"-Code / Name-Regex
+    // wie c_ausweis — die Doku-Auswahl ist visuell identisch.
     const wantedCodes = kind === 'id_pass'             ? ['id_card', 'passport']
                       : kind === 'c_ausweis'           ? ['permit']
+                      : kind === 'permit_history'      ? ['permit']
                       : kind === 'spouse'              ? ['spouse', 'spouse_permit']
                       :                                  []; // behoerden_befreiung: nur Name-Match
     const wantedNamesRx = kind === 'id_pass'           ? /(ident|pass|reisepass|id[\s-]?karte|ausweis)/i
                        : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
+                       : kind === 'permit_history'     ? /(aufenthalt|bewilligung|permit|ausweis)/i
                        : kind === 'spouse'             ? /(ehegatt|ehepartner|spouse|partner)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
@@ -1400,11 +1404,12 @@ async function openAusweisDokuModal(empId, kind, extra) {
 
     const titleText = kind === 'id_pass'             ? 'Pass oder Identitätskarte verknüpfen'
                    : kind === 'c_ausweis'           ? 'C-Ausweis-Dokument verknüpfen'
+                   : kind === 'permit_history'      ? 'Bewilligungs-Dokument verknüpfen'
                    : kind === 'spouse'              ? 'Ausweis Ehepartner verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
-        : kind === 'c_ausweis'
+        : kind === 'c_ausweis' || kind === 'permit_history'
             ? 'Wähle das Bewilligungs-Dokument — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
             : kind === 'spouse'
                 ? 'Wähle das Ausweis-Dokument des Ehepartners (Pass, ID oder Bewilligung) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -1503,7 +1508,9 @@ async function openAusweisDokuModal(empId, kind, extra) {
         kind,
         defaultTypId: defaultTyp?.id || null,
         defaultKatId: defaultTyp?._katId || null,
-        spouseFamilyMemberId: extra?.spouseFamilyMemberId || null
+        spouseFamilyMemberId: extra?.spouseFamilyMemberId || null,
+        // Walter 14.06.2026: für kind='permit_history' der konkrete History-Eintrag.
+        permitHistoryId: extra?.permitHistoryId || null
     };
 }
 
@@ -1567,7 +1574,13 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
     const ctx = window._ausweisDokuCtx || {};
     try {
         let url, body;
-        if (kind === 'spouse') {
+        if (kind === 'permit_history') {
+            // Walter 14.06.2026: Verknüpfung pro Bewilligungs-Eintrag.
+            const historyId = ctx.permitHistoryId;
+            if (!historyId) { alert('Bewilligungs-Eintrag-ID fehlt.'); return; }
+            url  = `/api/employees/${empId}/permit-history/${historyId}/dokument`;
+            body = JSON.stringify({ dokumentId });
+        } else if (kind === 'spouse') {
             const famId = ctx.spouseFamilyMemberId;
             if (!famId) { alert('Ehepartner-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/family/${famId}/dokument`;
@@ -1608,6 +1621,9 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         // QST-Tab refresht den Banner; Familie-Tab refresht die Doku-Pille.
         if (typeof loadQuellensteuerTab === 'function') loadQuellensteuerTab(empId);
         if (kind === 'spouse' && typeof loadFamilieTab === 'function') loadFamilieTab(empId);
+        // Walter 14.06.2026: Bewilligungs-Liste in der MA-Maske neu laden,
+        // damit die 📎-Pille pro Eintrag den frischen Doku-Status zeigt.
+        if (kind === 'permit_history' && typeof loadPermitHistory === 'function') loadPermitHistory(empId);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -8637,6 +8653,19 @@ function renderPermitListHtml(entries) {
         const aktuellPille = isCur
             ? '<span style="display:inline-block;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle">AKTUELL</span>'
             : '';
+        // Walter-Vorgabe 14.06.2026: pro Bewilligungs-Eintrag das verknüpfte
+        // Doku zeigen (klein, grün wenn vorhanden, rot/„fehlt" wenn nicht).
+        // Klick öffnet den Doku-Picker für GENAU diesen History-Eintrag.
+        const dokBtn = h.dokumentId
+            ? `<button type="button" onclick='permitOpenDokuModal(${h.id})'
+                   style="flex-shrink:0;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px"
+                   title="${esc(h.dokumentName || '')}">
+                   📎 Doku
+               </button>`
+            : `<button type="button" onclick='permitOpenDokuModal(${h.id})'
+                   style="flex-shrink:0;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:4px 10px;border-radius:6px;font-size:11.5px;cursor:pointer">
+                   🔗 Doku verknüpfen
+               </button>`;
         return `
         <div style="${rowStyle}">
             <div style="flex:1;min-width:0">
@@ -8646,8 +8675,9 @@ function renderPermitListHtml(entries) {
                 </div>
                 ${noteTxt}
             </div>
+            ${dokBtn}
             ${isAdmin ? `
-            <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
+            <div class="dok-menu-wrap" style="flex-shrink:0">
                 <button class="dok-menu-btn" onclick="permitToggleMenu(event, ${h.id})" title="Aktionen">⋮</button>
                 <div class="dok-menu" id="permitMenu-${h.id}">
                     <button class="dok-menu-item" onclick='openPermitHistoryModal(${h.id})'>Bearbeiten</button>
@@ -8681,6 +8711,21 @@ function renderPermitHistory(entries) {
     const container = document.getElementById('permitHistoryContent');
     if (!container) return;
     container.innerHTML = renderPermitListHtml(entries);
+}
+
+/**
+ * Walter-Vorgabe 14.06.2026: Doku-Picker für genau einen Permit-History-
+ * Eintrag öffnen. Setzt den Kontext (permitHistoryId) und delegiert an
+ * den universellen openAusweisDokuModal mit kind='permit_history'.
+ */
+function permitOpenDokuModal(historyId) {
+    if (!selectedEmployeeId || !historyId) return;
+    window._ausweisDokuCtx = {
+        empId: selectedEmployeeId,
+        kind:  'permit_history',
+        permitHistoryId: historyId
+    };
+    openAusweisDokuModal(selectedEmployeeId, 'permit_history', { permitHistoryId: historyId });
 }
 
 function togglePermitHistory() {
