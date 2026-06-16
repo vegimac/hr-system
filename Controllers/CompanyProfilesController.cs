@@ -22,7 +22,10 @@ public class CompanyProfilesController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "admin,superuser,user,buchhaltung")]   // + buchhaltung: braucht Filial-Selektor für Fibu
+    // Walter 14.06.2026: + lowuser — braucht den Filial-Selektor genauso
+    // wie alle anderen (sieht nur Dashboard + Mitarbeiter + Verträge, aber
+    // auch dort wird pro Filiale gefiltert).
+    [Authorize(Roles = "admin,superuser,user,buchhaltung,lowuser")]
     public async Task<IActionResult> GetAll()
     {
         // Einheitliche Sortierung für ALLE Stellen, an denen Filialen
