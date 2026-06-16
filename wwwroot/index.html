@@ -8800,7 +8800,12 @@ async function loadAllBranches() {
 
 function populateBranchSelector() {
     const sel = document.getElementById('branchSelect');
-    sel.innerHTML = '<option value="">Alle Filialen</option>';
+    // Walter-Vorgabe 14.06.2026: für 'lowuser' (eingeschränkter Benutzer) gibt
+    // es keine „Alle Filialen"-Option — er arbeitet immer pro Filiale. Andere
+    // Rollen behalten die Option (admin/superuser brauchen sie wirklich, für
+    // user/buchhaltung historisch).
+    const allowAllOption = currentUser.role !== 'lowuser';
+    sel.innerHTML = allowAllOption ? '<option value="">Alle Filialen</option>' : '';
     const visible = (currentUser.branches === 'all'
         ? allBranches
         : allBranches.filter(b => currentUser.branches?.some(ub => ub.id === b.id))
@@ -8814,7 +8819,7 @@ function populateBranchSelector() {
     // Auto-Selektion: bei einer oder mehreren sichtbaren Filialen wird die
     // erste (nach restaurantCode sortiert) vorgewählt, damit der User nicht
     // manuell klicken muss. Wenn gewünscht kann er oben immer noch auf
-    // "Alle Filialen" zurückstellen.
+    // "Alle Filialen" zurückstellen (nicht bei lowuser, siehe oben).
     if (visible.length >= 1) { sel.value = visible[0].id; onBranchChange(); }
 }
 
