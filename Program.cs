@@ -74,19 +74,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(options =>
 {
     // HR-Default (Walter-Vorgabe 20.05.2026): eingeloggt UND Rolle
-    // admin/superuser/user. Gilt für ALLE Endpoints mit plain [Authorize]
-    // (DefaultPolicy) UND ohne jegliches Auth-Attribut (FallbackPolicy).
-    // Damit ist die MA-Rolle "employee" standardmässig ausgesperrt — ein
-    // Mitarbeiter mit Postfach-Login kann KEINE HR-/Lohn-Endpunkte mehr lesen.
-    // "employee" wird NUR auf den explizit fürs MA-Postfach gedachten Endpoints
-    // wieder zugelassen ([Authorize(Roles="admin,superuser,user,employee")] auf
-    // AuthController.Me/ChangePassword + den MA-Mailbox-Methoden, die alle die
-    // Eigentümerschaft selbst prüfen). Endpoints mit eigener, strengerer Policy
-    // ([Authorize(Roles="admin,superuser")] o.ä.) bleiben unverändert.
+    // admin/superuser/user/buchhaltung/lowuser. Gilt für ALLE Endpoints mit
+    // plain [Authorize] (DefaultPolicy) UND ohne jegliches Auth-Attribut
+    // (FallbackPolicy). Damit ist die MA-Rolle "employee" standardmässig
+    // ausgesperrt — ein Mitarbeiter mit Postfach-Login kann KEINE HR-/Lohn-
+    // Endpunkte mehr lesen. "employee" wird NUR auf den explizit fürs MA-
+    // Postfach gedachten Endpoints wieder zugelassen ([Authorize(Roles=
+    // "admin,superuser,user,employee")] auf AuthController.Me/ChangePassword
+    // + den MA-Mailbox-Methoden, die alle die Eigentümerschaft selbst prüfen).
+    // Endpoints mit eigener, strengerer Policy ([Authorize(Roles="admin,
+    // superuser")] o.ä.) bleiben unverändert.
     // [AllowAnonymous] (Login, WebDAV, Signatur-Bild) sticht alles.
+    //
+    // Walter-Vorgabe 14.06.2026: neue Rolle "lowuser" — eingeschränkter
+    // Benutzer, der nur Mitarbeiter + Verträge + Dashboard sehen darf.
+    // Wir lassen ihn in der DefaultPolicy zu (sonst kommt er nicht mal
+    // ans Dashboard), Lohnlauf-Endpoints filtern ihn über ihre eigenen
+    // strengeren [Authorize(Roles="admin,superuser,user")]-Attribute aus.
+    // Die Frontend-Sidebar zeigt ihm Lohn-/HR-/Admin-Menüpunkte gar nicht
+    // erst an — siehe startApp.
     var hrPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
-        .RequireRole("admin", "superuser", "user")
+        .RequireRole("admin", "superuser", "user", "buchhaltung", "lowuser")
         .Build();
     options.DefaultPolicy  = hrPolicy;
     options.FallbackPolicy = hrPolicy;

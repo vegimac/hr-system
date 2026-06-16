@@ -414,6 +414,7 @@
         body.theme-dark .b-admin     { background: #422006 !important; color: #fcd34d !important; }
         body.theme-dark .b-superuser { background: #2e1065 !important; color: #c4b5fd !important; }
         body.theme-dark .b-user      { background: #064e3b !important; color: #6ee7b7 !important; }
+        body.theme-dark .b-lowuser   { background: #1e293b !important; color: #cbd5e1 !important; }
         body.theme-dark .b-super-admin { background: #0f0a2e !important; color: #fde047 !important; }
         body.theme-dark .b-active    { background: #064e3b !important; color: #6ee7b7 !important; }
         body.theme-dark .b-inactive  { background: #450a0a !important; color: #fca5a5 !important; }
@@ -1192,6 +1193,7 @@
         .b-admin { background: #fef3c7; color: #92400e; }
         .b-superuser { background: #ede9fe; color: #6d28d9; }
         .b-user { background: #f0fdf4; color: #166534; }
+        .b-lowuser { background: #f1f5f9; color: #475569; }
         .b-super-admin { background: #1e1b4b; color: #fde047; font-weight: 700; }
         .b-active { background: #f0fdf4; color: #166534; }
         .b-inactive { background: #fef2f2; color: #991b1b; }
@@ -1774,6 +1776,13 @@
         .dok-menu-item:hover { background:#f8fafc; }
         .dok-menu-item.danger { color:#b91c1c; border-top:1px solid #f1f5f9; }
         .dok-menu-item.danger:hover { background:#fef2f2; }
+
+        /* Walter-Vorgabe 14.06.2026: Lohnpositionen-Tabellenzeilen mit
+           Theme-fähigem Hover. Vorher gab es gar keinen Hover-Effekt, im
+           Dark Mode war die Liste optisch tot. */
+        tr.lp-row { transition: background 0.12s; }
+        tr.lp-row:hover { background: #f0f9ff; }
+        body.theme-dark tr.lp-row:hover { background: #1e3a8a; }
 
         /* Massen-Import Tabelle */
         .dok-bulk-table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:10px; }
@@ -8176,6 +8185,7 @@
                 <div class="f-group">
                     <label class="f-label">Rolle</label>
                     <select class="f-select" id="umRole" onchange="umUpdateBranchVisibility()">
+                        <option value="lowuser">Eingeschränkter Benutzer</option>
                         <option value="user">Benutzer</option>
                         <option value="superuser">Superuser</option>
                         <option value="buchhaltung">Buchhaltung</option>
@@ -8553,8 +8563,12 @@ async function startApp() {
     // separat in akonto-workflow.js geregelt.
     const isMaPostfach = role === 'employee';
     const isBuchhaltung = role === 'buchhaltung';
-    // Lohn-Modul: admin + superuser + GF (user) + Buchhaltung. MA NICHT.
-    const canLohn      = isAdmin || role === 'superuser' || role === 'user' || isBuchhaltung;
+    // Walter-Vorgabe 14.06.2026: Rolle 'lowuser' — eingeschränkter Benutzer.
+    // Sieht nur Dashboard + Mitarbeiter + Verträge. Kein Lohnlauf, kein HR-
+    // Bereich, keine Systemeinstellungen, kein Datenimport.
+    const isLowUser    = role === 'lowuser';
+    // Lohn-Modul: admin + superuser + GF (user) + Buchhaltung. MA + lowuser NICHT.
+    const canLohn      = (isAdmin || role === 'superuser' || role === 'user' || isBuchhaltung) && !isLowUser;
 
     // Übersicht + Personal: für alle ausser MA-Postfach.
     document.querySelectorAll('.overview-section, .people-section').forEach(el => {
@@ -8591,7 +8605,13 @@ async function startApp() {
     buildContractPage();
 }
 
-function roleName(r) { return r === 'admin' ? 'Administrator' : r === 'superuser' ? 'Superuser' : r === 'buchhaltung' ? 'Buchhaltung' : 'Benutzer'; }
+function roleName(r) {
+    if (r === 'admin')       return 'Administrator';
+    if (r === 'superuser')   return 'Superuser';
+    if (r === 'buchhaltung') return 'Buchhaltung';
+    if (r === 'lowuser')     return 'Eingeschränkter Benutzer';
+    return 'Benutzer';
+}
 
 // ══════════════════════════════════════════════
 // NAVIGATION
@@ -8899,7 +8919,7 @@ function onBranchChange() {
 <script src="js/branch-modals.js?v=20260509b"></script>
 <script src="js/deductions.js?v=20260509b"></script>
 <script src="js/qst-modal.js?v=20260614g"></script>
-<script src="js/users.js?v=20260614a"></script>
+<script src="js/users.js?v=20260614b"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
 <script src="js/documents.js?v=20260614e"></script>
 <script src="js/dvelop-import.js?v=20260614b"></script>
@@ -8913,7 +8933,7 @@ function onBranchChange() {
 <script src="js/fibu.js?v=20260524a"></script>
 <script src="js/payroll-perioden.js?v=20260524a"></script>
 <script src="js/sortable-table.js?v=20260607a"></script>
-<script src="js/admin-settings.js?v=20260614b"></script>
+<script src="js/admin-settings.js?v=20260614c"></script>
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>

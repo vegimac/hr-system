@@ -19,6 +19,7 @@ async function loadUsers() {
                         ? 'b-super-admin'
                         : (u.role === 'admin'     ? 'b-admin'
                         :  u.role === 'superuser' ? 'b-superuser'
+                        :  u.role === 'lowuser'   ? 'b-lowuser'
                                                   : 'b-user');
             const rLabel = u.isSuperAdmin ? 'Super-Admin' : roleName(u.role);
             const bText = u.role === 'admin'
@@ -86,9 +87,10 @@ function umUpdateBranchVisibility() {
         hint.textContent = 'Wähle die Filialen, auf die dieser Benutzer Zugang hat.';
     }
 
-    // HR-Team-Toggle für Admins + Buchhaltung ausblenden (für sie irrelevant).
+    // HR-Team-Toggle für Admins + Buchhaltung + lowuser ausblenden
+    // (für sie irrelevant — lowuser hat eh keinen HR-Bereich).
     const hrGroup = document.getElementById('umIsHrTeam')?.closest('.f-group');
-    if (hrGroup) hrGroup.style.display = (isAdmin || role === 'buchhaltung') ? 'none' : 'block';
+    if (hrGroup) hrGroup.style.display = (isAdmin || role === 'buchhaltung' || role === 'lowuser') ? 'none' : 'block';
 }
 
 function openUserModal(userId = null) {

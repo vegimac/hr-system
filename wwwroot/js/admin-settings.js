@@ -829,7 +829,7 @@ function lpRender() {
         const tbadge = l.typ === 'ABZUG'
             ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ABZUG</span>'
             : '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ZULAGE</span>';
-        return `<tr style="${bg}border-bottom:1px solid #f1f5f9">
+        return `<tr class="lp-row" style="${bg}border-bottom:1px solid #f1f5f9">
             <td style="padding:10px 14px;font-weight:600;font-family:monospace;color:#1e40af">${l.code}</td>
             <td style="padding:10px 14px">${l.bezeichnung}</td>
             <td style="padding:10px 14px"><span style="background:${kbg};color:#374151;padding:2px 8px;border-radius:8px;font-size:12px">${l.kategorie || '—'}</span></td>
