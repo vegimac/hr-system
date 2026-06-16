@@ -1433,16 +1433,16 @@ async function openAusweisDokuModal(empId, kind, extra) {
 
     const docRowsHtml = docs.length ? docs.map(d => {
         const rel = isRelevantDoc(d);
-        const bg  = rel ? '#f0fdf4' : '#fff';
         const star = rel ? '<span style="color:#16a34a;font-weight:700;margin-right:4px" title="Passt zum Befreiungsgrund">●</span>' : '';
         const fname = d.bemerkung || d.filenameOriginal || ('Dokument #' + d.id);
+        // Walter 14.06.2026: Hover-Farbe per CSS-Klasse (.ausweis-doku-row /
+        // .ausweis-doku-row.relevant) statt Inline-Style — sonst überschreibt
+        // der Inline-Background im Dark Mode die CSS-Variablen.
         return `
-        <tr data-cat="${esc((d.kategorieName || '').toLowerCase())}"
+        <tr class="ausweis-doku-row${rel ? ' relevant' : ''}"
+            data-cat="${esc((d.kategorieName || '').toLowerCase())}"
             data-search="${esc(((d.bemerkung || '') + ' ' + (d.filenameOriginal || '') + ' ' + (d.dokumentTypName || '')).toLowerCase())}"
-            onclick="ausweisDokuPick(${d.id})"
-            style="cursor:pointer;border-bottom:1px solid #f1f5f9;background:${bg}"
-            onmouseover="this.style.background='#eff6ff'"
-            onmouseout="this.style.background='${bg}'">
+            onclick="ausweisDokuPick(${d.id})">
             <td style="padding:9px 12px;font-size:11.5px;color:#475569">${esc(d.kategorieName || '–')}</td>
             <td style="padding:9px 12px;font-size:12px;font-weight:600;color:#0f172a">${esc(d.dokumentTypName || '–')}</td>
             <td style="padding:9px 12px;font-size:12px;color:#0f172a">${star}${esc(fname)}</td>
@@ -1469,6 +1469,25 @@ async function openAusweisDokuModal(empId, kind, extra) {
         </div>` : '';
 
     const html = `
+    <style>
+        /* Walter 14.06.2026: Hover-/Default-Farben via CSS-Klassen,
+           damit Dark Mode mit Theme-Variablen umgehen kann. Vorher
+           waren die Backgrounds inline gesetzt → überschrieben den
+           Dark-Mode-Style. */
+        #ausweisDokuModal .ausweis-doku-row {
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            background: #fff;
+        }
+        #ausweisDokuModal .ausweis-doku-row.relevant { background: #f0fdf4; }
+        #ausweisDokuModal .ausweis-doku-row:hover    { background: #eff6ff; }
+        body.theme-dark #ausweisDokuModal .ausweis-doku-row {
+            background: #1e293b;
+            border-bottom-color: #334155;
+        }
+        body.theme-dark #ausweisDokuModal .ausweis-doku-row.relevant { background: #064e3b; }
+        body.theme-dark #ausweisDokuModal .ausweis-doku-row:hover    { background: #1e3a8a; }
+    </style>
     <div id="ausweisDokuModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2400;display:flex;align-items:center;justify-content:center;padding:20px"
          onclick="if(event.target===this)closeAusweisDokuModal()">
         <div style="background:#fff;border-radius:12px;width:880px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 14px 56px rgba(0,0,0,0.28)">
