@@ -126,10 +126,12 @@ public class AuthController : ControllerBase
                 employeeId = user.EmployeeId,
                 isHrTeam   = user.IsHrTeam,
                 isSuperAdmin = user.IsSuperAdmin,
-                // Admin → "all"; alle anderen → eigene UserBranchAccess.
-                // Bei MA-Postfach: keine Branches im klassischen Sinn —
-                // sie sehen nur ihr eigenes Postfach (im Frontend gefiltert).
-                branches = user.Role == "admin"
+                // Admin + lowuser → "all" (Walter 14.06.2026: lowuser im
+                // Filial-Selektor wie superuser, Einschränkungen sind ÜBER
+                // den Menü-Umfang, nicht über Filialen). Andere → eigene
+                // UserBranchAccess. MA-Postfach: keine Branches im klassischen
+                // Sinn — sieht nur eigenes Postfach (im Frontend gefiltert).
+                branches = user.Role == "admin" || user.Role == "lowuser"
                     ? (object)"all"
                     : user.BranchAccess.Select(ba => new
                     {
@@ -170,7 +172,11 @@ public class AuthController : ControllerBase
             mustChangePassword = user.MustChangePassword,
             isHrTeam           = user.IsHrTeam,
             isSuperAdmin       = user.IsSuperAdmin,
-            branches = user.Role == "admin" || user.Role == "superuser"
+            // Walter-Vorgabe 14.06.2026: lowuser im Filial-Selektor 1:1 wie
+            // superuser — sieht „Alle Filialen" plus jede einzelne. Die
+            // Einschränkungen wirken NUR auf den Menü-Umfang (Dashboard +
+            // Mitarbeiter + Verträge), nicht auf den Filial-Selektor.
+            branches = user.Role == "admin" || user.Role == "superuser" || user.Role == "lowuser"
                 ? (object)"all"
                 : user.BranchAccess.Select(ba => new
                 {
