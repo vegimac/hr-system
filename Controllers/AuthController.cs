@@ -142,7 +142,10 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("me")]
-    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung")]   // auch MA-Postfach (employee) + Buchhaltung
+    // Walter 14.06.2026: lowuser ergänzt — sonst kriegt der eingeschränkte
+    // Benutzer beim Login 403 auf /me, das Frontend hat kein currentUser.branches
+    // und der Filial-Selektor bleibt leer.
+    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung,lowuser")]
     public async Task<IActionResult> Me()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -182,7 +185,7 @@ public class AuthController : ControllerBase
 
     /// <summary>Theme-Präferenz des eingeloggten Users speichern (light/dark).</summary>
     [HttpPut("theme")]
-    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung")]
+    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung,lowuser")]
     public async Task<IActionResult> UpdateTheme([FromBody] UpdateThemeRequest req)
     {
         var theme = (req?.Theme ?? "").ToLowerInvariant();
@@ -204,7 +207,7 @@ public class AuthController : ControllerBase
     /// Top-Bar aufgerufen, wenn der User die Wahl persistieren möchte.
     /// </summary>
     [HttpPut("language")]
-    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung")]
+    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung,lowuser")]
     public async Task<IActionResult> UpdateLanguage([FromBody] UpdateLanguageRequest req)
     {
         var lang = (req?.Language ?? "").ToLowerInvariant();
@@ -227,7 +230,7 @@ public class AuthController : ControllerBase
     /// MustChangePassword wird auf false gesetzt). Mindestlänge 8 Zeichen.
     /// </summary>
     [HttpPost("change-password")]
-    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung")]   // MA + Buchhaltung müssen Passwort wechseln können
+    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung,lowuser")]   // MA + Buchhaltung müssen Passwort wechseln können
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
     {
         if (req == null || string.IsNullOrWhiteSpace(req.CurrentPassword) || string.IsNullOrWhiteSpace(req.NewPassword))
