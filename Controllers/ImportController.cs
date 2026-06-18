@@ -179,7 +179,6 @@ public class ImportController : ControllerBase
                 DurationHours = e.DurationHours,
                 NightHours    = e.NightHours ?? 0,
                 TotalHours    = e.TotalHours,
-                Source        = "import",
                 CreatedAt     = DateTime.UtcNow,
                 UpdatedAt     = DateTime.UtcNow,
             });
@@ -474,7 +473,6 @@ public class ImportController : ControllerBase
                 DurationHours = e.DurationHours,
                 NightHours    = e.NightHours ?? 0,
                 TotalHours    = e.TotalHours,
-                Source        = "import",
                 CreatedAt     = DateTime.UtcNow,
                 UpdatedAt     = DateTime.UtcNow,
             });

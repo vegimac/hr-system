@@ -1,6 +1,7 @@
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.EasyAtWork;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -165,6 +166,52 @@ builder.Services.AddScoped<EmailService>();
 // Word/Office → PDF-Vorschau via LibreOffice headless (Dokumentenverwaltung).
 // Zustandslos → Singleton. Setzt LibreOffice auf dem Server voraus.
 builder.Services.AddSingleton<OfficeToPdfService>();
+
+// ─────────────────────── easy@work API (Walter 17.06.2026) ───────────────────────
+// Settings aus appsettings.json (Section "EasyAtWork") ODER aus ENV
+// (EASYATWORK_CLIENT_ID / _CLIENT_SECRET / _BASE_URL). Bewusst KEIN
+// hardgecodeter Fallback — wenn nichts konfiguriert ist, läuft die App
+// normal weiter, der Connector-Endpoint meldet aber „nicht konfiguriert".
+// Pattern identisch zu JWT-Secret + DB-Passwort + ADMIN_INIT_PASSWORD.
+var eawSettings = new EasyAtWorkSettings
+{
+    BaseUrl      = (builder.Configuration["EasyAtWork:BaseUrl"]
+                   ?? Environment.GetEnvironmentVariable("EASYATWORK_BASE_URL")
+                   ?? "").TrimEnd('/'),
+    ClientId     = builder.Configuration["EasyAtWork:ClientId"]
+                   ?? Environment.GetEnvironmentVariable("EASYATWORK_CLIENT_ID")
+                   ?? "",
+    ClientSecret = builder.Configuration["EasyAtWork:ClientSecret"]
+                   ?? Environment.GetEnvironmentVariable("EASYATWORK_CLIENT_SECRET")
+                   ?? "",
+};
+builder.Services.AddSingleton(eawSettings);
+// HttpClientFactory pflegen (für Connection-Pooling), aber den EasyAtWorkClient
+// selbst als SINGLETON registrieren — der hält den OAuth-Token im Speicher und
+// soll nicht pro Request neu instanziiert werden (sonst Token-Cache leer).
+builder.Services.AddHttpClient("EasyAtWork", c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(30);
+    // envoy (Reverse-Proxy bei easy@work) liefert 403 ohne User-Agent (Bot-Schutz).
+    // Wir identifizieren uns mit einem sprechenden UA — auch hilfreich beim Debugging
+    // im easy@work-Access-Log.
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("hr-srgmbh-cowork/1.0 (+test.hr-srgmbh.ch)");
+    c.DefaultRequestHeaders.Accept.Add(
+        new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+});
+builder.Services.AddSingleton<EasyAtWorkClient>(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    var http    = factory.CreateClient("EasyAtWork");
+    return new EasyAtWorkClient(
+        http,
+        sp.GetRequiredService<EasyAtWorkSettings>(),
+        sp.GetRequiredService<ILogger<EasyAtWorkClient>>());
+});
+// Stempelzeit-Sync (Phase 2) — DB-gekoppelt → Scoped.
+builder.Services.AddScoped<EasyAtWorkTimepunchSyncService>();
+// Mitarbeiter-Stammdaten-Sync (Phase 3.1)
+builder.Services.AddScoped<EasyAtWorkEmployeeSyncService>();
 
 // Request-Size-Limits hochsetzen — Mirus-Stempelzeiten-PDFs für grosse
 // Filialen können >50 MB sein. Die Kestrel-Default-Grenze (30 MB) und

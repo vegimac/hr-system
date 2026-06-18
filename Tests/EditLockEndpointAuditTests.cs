@@ -65,6 +65,7 @@ public class EditLockEndpointAuditTests
         ["MinimumWageRulesController"]     = "L-GAV Mindestlohn-Sätze (Katalog, versioniert) — keine MA-Daten",
         ["BranchMinWageController"]        = "Kommunaler Mindestlohn pro Filiale (Katalog, versioniert) — keine MA-Daten",
         ["LohnKontoMappingController"]     = "Kontoplan / Lohnart→Konten-Mapping (Katalog) — keine MA-Daten",
+        ["EasyAtWorkController"]           = "easy@work-Connector (admin-only) — Branch-Mapping ↔ Customer-ID, keine MA-/Lohn-Daten",
 
         // Firmen-Stammdaten — admin only, gehört nicht in den User-Lock
         ["CompanyProfilesController"]      = "Filial-Stammdaten — admin-only, kein User-Edit-Pfad",

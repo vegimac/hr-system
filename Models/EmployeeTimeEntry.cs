@@ -14,9 +14,15 @@ public class EmployeeTimeEntry
     public decimal? DurationHours { get; set; }
     public decimal? NightHours { get; set; }
     public decimal? TotalHours { get; set; }
+    // Source-Spalte entfernt (Walter 17.06.2026): Stempelzeiten kommen ab sofort
+    // ausschliesslich aus easy@work via API-Sync. „Quelle" ist konzeptionell
+    // konstant „easy@work" und braucht keine Spalte mehr.
 
-    /// <summary>"manual" or "import"</summary>
-    public string Source { get; set; } = "manual";
+    /// <summary>
+    /// Eindeutige easy@work-Stempel-ID (Walter 17.06.2026). Saubererer Dedup-
+    /// Key als (EmployeeId, TimeIn) und ermöglicht spätere UPDATE-Syncs.
+    /// </summary>
+    public int? EasyAtWorkTimepunchId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

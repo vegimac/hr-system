@@ -203,6 +203,54 @@
         body.theme-dark .mw-amount.mw-fut-same     span { color: #f87171; }
         body.theme-dark .mw-amount.mw-fut-none, body.theme-dark .mw-amount.mw-fut-none:hover span { color: #475569; background: none; box-shadow: none; }
         body.theme-dark .mw-planhint { color: #a5b4fc; background: #1e293b; border-bottom-color: #334155; }
+        /* ─── easy@work API page ─── */
+        .eaw-result { border-radius:8px; padding:12px; margin-bottom:18px; font-size:13px; border:1px solid; }
+        .eaw-result-ok  { background:#ecfdf5; border-color:#86efac; color:#064e3b; }
+        .eaw-result-err { background:#fef2f2; border-color:#fca5a5; color:#7f1d1d; }
+        .eaw-result-title { font-weight:600; margin-bottom:6px; }
+        .eaw-result-msg { font-size:12px; }
+        .eaw-result-table { font-size:12px; border-collapse:collapse; width:100%; margin-top:6px; }
+        .eaw-result-table th { background:#d1fae5; padding:4px 10px; text-align:left; color:#064e3b; }
+        .eaw-result-table td { padding:4px 10px; }
+        .eaw-result-table .eaw-empty { color:#64748b; padding:6px; }
+        body.theme-dark .eaw-result-ok  { background:#0b2920; border-color:#065f46; color:#a7f3d0; }
+        body.theme-dark .eaw-result-err { background:#2a0e0e; border-color:#7f1d1d; color:#fecaca; }
+        body.theme-dark .eaw-result-table th { background:#064e3b; color:#a7f3d0; }
+        body.theme-dark .eaw-result-table td { color:#e2e8f0; }
+        body.theme-dark .eaw-result-table .eaw-empty { color:#94a3b8; }
+        .eaw-map-table { width:100%; border-collapse:collapse; font-size:13px; }
+        .eaw-map-table thead tr { background:#f1f5f9; }
+        .eaw-map-table th { padding:8px 10px; text-align:left; color:#0f172a; font-weight:600; }
+        .eaw-map-table td { padding:8px 10px; border-bottom:1px solid #e2e8f0; color:#0f172a; vertical-align:middle; }
+        .eaw-map-table tbody tr:hover td { background:#f8fafc; }
+        .eaw-map-table td.eaw-actions { text-align:right; white-space:nowrap; }
+        .eaw-map-table select { padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; min-width:280px; background:#fff; color:#0f172a; }
+        body.theme-dark .eaw-map-table thead tr { background:#1e293b; }
+        body.theme-dark .eaw-map-table th { color:#f1f5f9; }
+        body.theme-dark .eaw-map-table td { color:#f1f5f9; border-bottom-color:#334155; }
+        body.theme-dark .eaw-map-table tbody tr:hover td { background:#1e293b; }
+        body.theme-dark .eaw-map-table select { background:#0f172a; color:#f1f5f9; border-color:#475569; }
+        .eaw-input { padding:5px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; background:#fff; color:#0f172a; }
+        body.theme-dark .eaw-input { background:#0f172a; color:#f1f5f9; border-color:#475569; }
+        .eaw-sync-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; }
+        .eaw-sync-table th { background:#f1f5f9; padding:6px 8px; text-align:left; color:#0f172a; font-weight:600; }
+        .eaw-sync-table td { padding:5px 8px; border-bottom:1px solid #e2e8f0; color:#0f172a; vertical-align:top; }
+        body.theme-dark .eaw-sync-table th { background:#1e293b; color:#f1f5f9; }
+        body.theme-dark .eaw-sync-table td { color:#f1f5f9; border-bottom-color:#334155; }
+        .eaw-pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+        .eaw-pill-new        { background:#dcfce7; color:#166534; }
+        .eaw-pill-duplicate  { background:#fef9c3; color:#854d0e; }
+        .eaw-pill-unmatched  { background:#fee2e2; color:#991b1b; }
+        .eaw-pill-soft       { background:#e2e8f0; color:#475569; }
+        .eaw-pill-invalid    { background:#fee2e2; color:#991b1b; }
+        body.theme-dark .eaw-pill-new       { background:#064e3b; color:#a7f3d0; }
+        body.theme-dark .eaw-pill-duplicate { background:#422006; color:#fde68a; }
+        body.theme-dark .eaw-pill-unmatched { background:#450a0a; color:#fecaca; }
+        body.theme-dark .eaw-pill-soft     { background:#334155; color:#e2e8f0; }
+        body.theme-dark .eaw-pill-invalid  { background:#450a0a; color:#fecaca; }
+        .eaw-sync-summary { display:flex; gap:14px; flex-wrap:wrap; margin:10px 0; font-size:13px; }
+        .eaw-sync-summary span { background:#f1f5f9; padding:4px 10px; border-radius:6px; color:#0f172a; }
+        body.theme-dark .eaw-sync-summary span { background:#1e293b; color:#f1f5f9; }
 
         /* Search-Box, Filter, etc. — falls nicht durch input-Selektor abgedeckt */
         body.theme-dark .emp-search,
@@ -2791,10 +2839,10 @@
                         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         <span data-i18n="side.maImport">Mitarbeiter & Verträge</span>
                     </div>
-                    <div class="nav-item" data-page="import" onclick="showPage('import')" title="Mirus-Stempelzeiten-PDF (monatlich)">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <span data-i18n="side.stempelImport">Stempelzeiten</span>
-                    </div>
+                    <!-- Stempelzeiten-Import entfernt (Walter 17.06.2026):
+                         Stempelzeiten kommen ab sofort ausschliesslich aus easy@work
+                         via API-Sync (Systemeinstellungen → easy@work API). PDF-Import
+                         ist obsolet. -->
                     <div class="nav-item" data-page="roster-absence-import" onclick="showPage('roster-absence-import')" title="Dienstplan-XLS → Absenzen (Ferien / Krankheit / Unfall)">
                         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         <span>Absenzen (Dienstplan)</span>
@@ -3733,6 +3781,13 @@
                         </div>
                         <div class="admin-card-title">d.velop Dokumenten-Import</div>
                         <div class="admin-card-desc">CSV + ZIP aus d.velop hochladen — Match via Name + Geburtsdatum</div>
+                    </div>
+                    <div class="admin-card" onclick="showPage('easyatwork')">
+                        <div class="admin-card-icon" style="background:#fef3c7;color:#a16207">
+                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 6V2H8M22 8.5l-7-7L8 8.5l7 7zM2 18l3-3 7 7-3 3zM16 8l-5 5"/></svg>
+                        </div>
+                        <div class="admin-card-title">easy@work API</div>
+                        <div class="admin-card-desc">Schnittstelle zu easy@work — Verbindungstest, Filial-Mapping (Customer-ID)</div>
                     </div>
                     <!-- Familienzulagen-Kontrolle Import bewusst hier ENTFERNT — auf Walters
                          Wunsch nur noch via „Neue Filiale importieren" (Onboarding-Hub)
@@ -5462,6 +5517,62 @@
                         <span id="kpInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
                     </div>
                     <div id="kpContainer"></div>
+                </div>
+            </div>
+            <!-- ═══ EASY@WORK API (Walter 17.06.2026, Phase 1 Foundation) ═══ -->
+            <div class="page" id="page-easyatwork">
+                <div class="page-head"><div>
+                    <h1 class="page-title">easy@work API</h1>
+                    <p class="page-sub">Verbindungstest + Mapping unserer Filialen auf die <em>Customer-IDs</em> in easy@work. Phase 1 — Sync folgt.</p>
+                </div></div>
+                <div class="page-body">
+                    <div id="eawStatusBox" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:16px"></div>
+                    <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+                        <button class="btn-primary" onclick="eawTestConnection()">🔌 Verbindung testen</button>
+                        <button class="btn-secondary" onclick="eawLoadMappings()">↻ Mappings neu laden</button>
+                    </div>
+                    <div id="eawTestResultBox" style="display:none;background:#ecfeff;border:1px solid #67e8f9;border-radius:8px;padding:12px;margin-bottom:18px;font-size:13px"></div>
+                    <h3 style="margin:18px 0 8px;font-size:15px">Filial-Mappings</h3>
+                    <p style="color:#64748b;font-size:13px;margin-bottom:10px">Jede unserer Filialen wird auf eine easy@work-Customer-ID gemappt. Customer-IDs siehst du oben nach „Verbindung testen".</p>
+                    <div style="margin-bottom:10px">
+                        <button class="btn-secondary" onclick="eawAutoMap()" title="Matched die easy@work-Customer-Number mit unserem Restaurant-Code und speichert die Mappings automatisch.">🧠 Automatisch mappen (per Code)</button>
+                        <span style="color:#94a3b8;font-size:12px;margin-left:6px">— matcht easy@work-Number mit Restaurant-Code</span>
+                    </div>
+                    <div id="eawMappingsContainer"></div>
+
+                    <h3 style="margin:30px 0 8px;font-size:15px">Stempelzeiten-Sync</h3>
+                    <p style="color:#64748b;font-size:13px;margin-bottom:10px">Holt Stempelzeiten aus easy@work für eine Filiale + Periode. <strong>Vorschau</strong> zeigt was importiert würde — schreibt nichts. <strong>Importieren</strong> committet die NEW-Zeilen.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+                        <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Filiale
+                            <select id="eawSyncBranchSel" class="eaw-input" style="min-width:240px"></select>
+                        </label>
+                        <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Von
+                            <input type="date" id="eawSyncFrom" class="eaw-input">
+                        </label>
+                        <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Bis
+                            <input type="date" id="eawSyncTo" class="eaw-input">
+                        </label>
+                        <button class="btn-primary" onclick="eawSyncPreview()">🔍 Vorschau</button>
+                        <button class="btn-secondary" id="eawSyncCommitBtn" onclick="eawSyncCommit()" disabled>💾 Importieren</button>
+                    </div>
+                    <div id="eawSyncResult"></div>
+
+                    <h3 style="margin:30px 0 8px;font-size:15px">Mitarbeiter-Stammdaten-Sync</h3>
+                    <p style="color:#64748b;font-size:13px;margin-bottom:10px">Holt MA-Stammdaten aus easy@work. <strong>Vorschau</strong> zeigt pro MA was sich ändert (NEW/UPDATE/UNCHANGED/CONFLICT). Beim <strong>Importieren</strong> kannst du die selektieren, die übernommen werden sollen.</p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+                        <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Filiale
+                            <select id="eawEmpSyncBranchSel" class="eaw-input" style="min-width:240px"></select>
+                        </label>
+                        <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Austritt nach <span style="color:#94a3b8;font-size:11px">(optional — leer = nur aktive)</span>
+                            <input type="date" id="eawEmpSyncExitedAfter" class="eaw-input" placeholder="z.B. 2025-01-01">
+                        </label>
+                        <button class="btn-primary" onclick="eawEmpSyncPreview()">🔍 Vorschau</button>
+                        <button class="btn-secondary" id="eawEmpSyncCommitBtn" onclick="eawEmpSyncCommit()" disabled>💾 Ausgewählte importieren</button>
+                    </div>
+                    <div style="font-size:12px;color:#64748b;margin-bottom:10px">
+                        Aktive MA werden immer geholt. Mit <strong>Austritt nach</strong> kommen zusätzlich nur die MA dazu, deren Austrittsdatum nach diesem Stichtag liegt (z.B. <code>2025-01-01</code> = alle seit Mirus-Migration).
+                    </div>
+                    <div id="eawEmpSyncResult"></div>
                 </div>
             </div>
             <!-- ═══ AUDIT-LOG (Walter-Vorgabe 27.05.2026, admin-only) ═══ -->
@@ -8634,7 +8745,12 @@ function applyAdminBreadcrumb(name) {
     document.querySelectorAll('.admin-breadcrumb').forEach(el => el.remove());
     const btn = document.getElementById('backToAdminBtn');
     if (!btn) return;
-    btn.style.display = _adminSubPages.includes(name) ? 'inline-flex' : 'none';
+    // Walter-Vorgabe 14.06.2026: Zurück-zu-Systemeinstellungen-Button NUR
+    // für Admin. Nicht-Admins können d.velop-Import etc. via Direkt-Link
+    // (z.B. vom Dokumente-Tab des MA aus) erreichen — der Zurück-Button
+    // würde sie sonst in den Admin-Bereich ziehen, in den sie nicht gehören.
+    const showAdminBack = _adminSubPages.includes(name) && currentUser?.role === 'admin';
+    btn.style.display = showAdminBack ? 'inline-flex' : 'none';
 }
 
 function showPage(name) {
@@ -8692,6 +8808,7 @@ function showPage(name) {
     if (name === 'lohnpositionen') loadLohnpositionen();
     if (name === 'mindestloehne') mwInit();
     if (name === 'kontoplan') kpInit();
+    if (name === 'easyatwork') eawInit();
     if (name === 'audit-log') alInit();
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
@@ -8924,7 +9041,7 @@ function onBranchChange() {
 <script src="js/qst-modal.js?v=20260614g"></script>
 <script src="js/users.js?v=20260614b"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
-<script src="js/documents.js?v=20260614e"></script>
+<script src="js/documents.js?v=20260614f"></script>
 <script src="js/dvelop-import.js?v=20260614b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260509b"></script>
@@ -8940,6 +9057,7 @@ function onBranchChange() {
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
+<script src="js/easyatwork.js?v=20260618a"></script>
 <script src="js/audit-log.js?v=20260527a"></script>
 <script src="js/global-search.js?v=20260527f"></script>
 <script src="js/help-panel.js?v=20260528a"></script>
@@ -9214,7 +9332,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260614j"></script>
+<script src="employees.js?v=20260617s"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

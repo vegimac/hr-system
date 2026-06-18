@@ -6591,30 +6591,41 @@ async function loadStempelzeitenTab(employeeId) {
             <option value="${p.id}" ${p.id === el._stempelPeriodeId ? 'selected' : ''}>
                 ${p.label || MONATSNAMEN_DE[p.month-1] + ' ' + p.year} · ${stempelFmtDateShort(p.periodFrom)} – ${stempelFmtDateShort(p.periodTo)}
             </option>`).join('');
+        // Walter 17.06.2026: Select schmal (380px) damit Count rechts daneben Platz hat.
         filterHtml = `
-            <select id="stempelPeriodeSel" class="f-input" style="min-width:320px;font-size:13px" onchange="stempelChangePeriod()">${opts}</select>`;
+            <select id="stempelPeriodeSel" class="f-input" style="width:380px;font-size:13px" onchange="stempelChangePeriod()">${opts}</select>`;
     }
 
+    // Walter 17.06.2026: nur die Zeiteinträge scrollen — Filter + Tabellen-Header
+    // bleiben oben kleben. Realisiert über sticky relativ zum .emp-detail-body
+    // (DAS ist der äussere Scroll-Container). KEIN innerer overflow → der
+    // äussere scrollt, und die zwei sticky-Bereiche bleiben gestaffelt oben.
+    // Walter 17.06.2026: padding:0 am Wrap damit die sticky-Filter-Row bündig
+    // an der Top-Kante des Scroll-Containers klebt — sonst scrollt der
+    // 16px-Padding-Bereich darüber durch (transparent → Daten schimmern durch).
+    // box-shadow nach OBEN als „weisser Schild" deckt etwaige restliche
+    // .emp-detail-body-padding ab.
     el.innerHTML = `
-        <div style="display:flex;flex-direction:column;height:calc(100vh - 260px);min-height:400px;padding:16px;gap:10px">
-            <!-- Fix-Bereich: Filter -->
-            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap">
+        <div style="padding:0 16px 16px">
+            <!-- 1. sticky-Block: Periode-Filter + Count (klebt ganz oben) -->
+            <div id="stempelFilterRow" style="position:sticky;top:0;background:#fff;z-index:20;padding:12px 0 10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 -16px 0 16px #fff, inset 0 -1px 0 #f1f5f9">
                 ${filterHtml}
-                <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="stempelChangePeriod()">&#8635; Aktualisieren</button>
-                <div id="stempelCount" style="margin-left:auto;font-size:12px;color:#64748b"></div>
+                <div id="stempelCount" style="font-size:12px;color:#64748b"></div>
             </div>
-            <!-- Read-Only-Hinweis: Stempelzeiten werden ausschliesslich in easy@work gepflegt -->
-            <div style="flex-shrink:0;font-size:12px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px">
-                <span style="font-size:14px">ℹ️</span>
-                <span>Stempelzeiten werden in <strong>easy@work</strong> verwaltet. In Cowork nur Anzeige — für Korrekturen bitte in easy@work erfassen und Stempelzeiten neu importieren.</span>
-            </div>
-            <!-- Edit-Form bleibt im DOM als Backup, wird aber nicht mehr aufgerufen -->
-            <div id="stempelEditRow" style="flex-shrink:0;display:none"></div>
-            <!-- Scroll-Bereich: Liste -->
-            <div id="stempelListe" style="flex:1;overflow-y:auto;min-height:100px;border-top:1px solid #e2e8f0;padding-top:6px">
+            <!-- 2. Liste: Tabelle, <thead> wird drinnen sticky mit top = Höhe von Filter-Row. -->
+            <div id="stempelListe" style="min-height:100px">
                 <div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>
             </div>
         </div>`;
+    // Nach DOM-Render: tatsächliche Höhe der Filter-Row messen und als
+    // CSS-Var setzen, damit der Tabellen-Header genau darunter klebt.
+    requestAnimationFrame(() => {
+        const filterEl = document.getElementById('stempelFilterRow');
+        if (filterEl) {
+            const h = filterEl.getBoundingClientRect().height;
+            document.documentElement.style.setProperty('--stempel-filter-h', h + 'px');
+        }
+    });
 
     await stempelLadeEintraege(employeeId);
 }
@@ -6900,9 +6911,11 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
             ? `${esc(r.comment || '')}${r.comment ? ' · ' : ''}<span style="color:#64748b">geändert ${new Date(r.editedAt).toLocaleDateString('de-CH')} von ${esc(r.editedBy)}</span>`
             : esc(r.comment);
 
-        // Kommentar-Zelle: Kommentar links, Wochentotal rechts (nur letzter Wochen-Eintrag).
+        // Kommentar-Zelle: Kommentar + (optional) Wochentotal direkt dahinter.
+        // Walter 17.06.2026: Wochentotal nicht am rechten Rand „pinnen", sondern
+        // mit 28-px-Lücke nach dem Kommentar — wirkt zusammenhängend.
         const kommentarCell = weekBadge
-            ? `<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><span>${korrekturKommentar}</span>${weekBadge}</div>`
+            ? `<div style="display:flex;gap:28px;align-items:baseline;flex-wrap:wrap"><span>${korrekturKommentar}</span>${weekBadge}</div>`
             : korrekturKommentar;
 
         // Wochen-Trennlinie unter dem letzten Eintrag der Woche.
@@ -6911,15 +6924,18 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
         // Stempelzeiten sind read-only (Walter-Vorgabe 17.05.2026): keine
         // Edit-/Löschen-Buttons mehr — easy@work ist die Quelle der Wahrheit.
 
+        // Walter 17.06.2026: Spalten kompakter (padding 4→3 horizontal, 4→3 vertikal,
+        // schmaler-Zeitformat) damit die Kommentar-Spalte mehr Platz bekommt.
+        const totalRow = (Number(r.durationHours||0) + Number(r.nightHours||0)).toFixed(2);
         const mainRow = `
             <tr style="border-top:1px solid #f1f5f9${sep}" data-row-id="${r.id}">
-                <td style="padding:4px 8px;font-size:12px;color:#475569;vertical-align:top;white-space:nowrap">${stempelFmtDate(r.entryDate)}</td>
-                <td style="padding:4px 8px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor}">${stempelFmtTime(r.timeIn)}</td>
-                <td style="padding:4px 8px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor}">${stempelFmtTime(r.timeOut)}</td>
-                <td style="padding:4px 8px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top">${stempelFmtHours(r.durationHours)}</td>
-                <td style="padding:4px 8px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;color:${Number(r.nightHours||0)>0?'#1d4ed8':'#94a3b8'}">${stempelFmtHours(r.nightHours)}</td>
-                <td style="padding:4px 8px;font-size:11.5px;color:#64748b;vertical-align:top">${kommentarCell}</td>
-                <td style="padding:4px 8px;font-size:11px;color:#94a3b8;vertical-align:top">${r.source || ''}</td>
+                <td style="padding:3px 6px;font-size:12px;color:#475569;vertical-align:top;white-space:nowrap;width:90px">${stempelFmtDate(r.entryDate)}</td>
+                <td style="padding:3px 6px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor};width:55px">${stempelFmtTime(r.timeIn)}</td>
+                <td style="padding:3px 6px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor};width:55px">${stempelFmtTime(r.timeOut)}</td>
+                <td style="padding:3px 6px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;width:55px">${stempelFmtHours(r.durationHours)}</td>
+                <td style="padding:3px 6px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;color:${Number(r.nightHours||0)>0?'#1d4ed8':'#94a3b8'};width:55px">${stempelFmtHours(r.nightHours)}</td>
+                <td style="padding:3px 6px;font-size:12px;text-align:right;font-family:monospace;font-weight:600;vertical-align:top;width:60px">${totalRow}</td>
+                <td style="padding:3px 8px;font-size:11.5px;color:#64748b;vertical-align:top">${kommentarCell}</td>
             </tr>`;
 
         if (!wasEdited) return mainRow;
@@ -6931,9 +6947,8 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
                 <td style="padding:3px 8px;font-size:11px;color:#92400e;vertical-align:top;padding-left:20px">↳ Original</td>
                 <td style="padding:3px 8px;font-size:11px;font-family:monospace;color:#92400e;vertical-align:top">${stempelFmtTime(r.originalTimeIn)}</td>
                 <td style="padding:3px 8px;font-size:11px;font-family:monospace;color:#92400e;vertical-align:top">${stempelFmtTime(r.originalTimeOut)}</td>
-                <td colspan="2"></td>
+                <td colspan="3"></td>
                 <td style="padding:3px 8px;font-size:11px;color:#92400e;vertical-align:top;font-style:italic">${esc(r.originalComment || '')}</td>
-                <td style="padding:3px 8px;font-size:10px;color:#b45309;vertical-align:top">import</td>
             </tr>`;
 
         return mainRow + origRow;
@@ -6943,23 +6958,29 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
         ? `<tr><td colspan="7" style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">
             Keine Einträge in dieser Periode.
             <div id="stempelQuickNav" style="margin-top:12px"></div>
-            <div style="margin-top:10px;font-size:12px">Stempelzeiten werden in easy@work erfasst und über „Datenimport → Stempelzeiten" importiert.</div>
+            <div style="margin-top:10px;font-size:12px">Stempelzeiten werden in easy@work erfasst und über „easy@work API → Stempelzeiten-Sync" importiert.</div>
         </td></tr>`
         : '';
 
-    const th = 'padding:5px 8px;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:0;z-index:3';
-    const ft = 'padding:6px 8px;font-weight:700;background:#eff6ff;border-top:2px solid #bfdbfe;position:sticky;bottom:0;z-index:3';
+    // Sticky-Header: klebt UNTER der Filter-Row (deren Höhe in --stempel-filter-h
+    // gespeichert ist). Opaker Hintergrund + box-shadow als Trennlinie damit
+    // beim Scrollen kein Pixel durch die border-collapse-Lücken blitzt.
+    // Sticky-Header klebt UNTER der Filter-Row. „weisser Schild" nach oben
+    // (box-shadow:0 -8px 0 #fff) deckt etwaige Lücken zwischen Filter-Row und
+    // <thead> während des Scrollens ab. inset-shadow unten = visuelle Trennung.
+    const th = 'padding:6px 8px;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:var(--stempel-filter-h,48px);z-index:15;box-shadow:0 -8px 0 #fff, inset 0 -1px 0 #e2e8f0';
+    const ft = 'padding:6px 8px;font-weight:700;background:#eff6ff;border-top:2px solid #bfdbfe';
     listEl.innerHTML = `
-        <table style="width:100%;border-collapse:collapse;background:#fff">
+        <table style="width:100%;border-collapse:separate;border-spacing:0;background:#fff">
             <thead>
-                <tr style="background:#f8fafc">
+                <tr>
                     <th style="${th};text-align:left">DATUM</th>
                     <th style="${th};text-align:left">IN</th>
                     <th style="${th};text-align:left">OUT</th>
-                    <th style="${th};text-align:right">DAUER (h)</th>
-                    <th style="${th};text-align:right">NACHT (h)</th>
+                    <th style="${th};text-align:right">TAG</th>
+                    <th style="${th};text-align:right">NACHT</th>
+                    <th style="${th};text-align:right">TOTAL</th>
                     <th style="${th};text-align:left">KOMMENTAR / WOCHE</th>
-                    <th style="${th};text-align:left">QUELLE</th>
                 </tr>
             </thead>
             <tbody>${trs}${empty}</tbody>
@@ -6968,236 +6989,25 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
                     <td colspan="3" style="${ft};font-size:12px;color:#1d4ed8">Summe</td>
                     <td style="${ft};text-align:right;font-family:monospace;font-size:13px;color:#1d4ed8">${stempelFmtHours(sumH)}</td>
                     <td style="${ft};text-align:right;font-family:monospace;font-size:13px;color:#1d4ed8">${stempelFmtHours(sumN)}</td>
-                    <td colspan="2" style="${ft}"></td>
+                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;font-weight:700;color:#1d4ed8">${stempelFmtHours((sumH||0) + (sumN||0))}</td>
+                    <td style="${ft}"></td>
                 </tr>
             </tfoot>` : ''}
         </table>`;
 }
 
-// ── Edit-Form ──────────────────────────────────────────────────────────────
-function stempelRenderForm(row) {
-    const isNew  = !row.id;
-    const dateVal = row.entryDate ? row.entryDate.substring(0, 10) : new Date().toISOString().substring(0, 10);
-    const inVal   = row.timeIn    ? stempelFmtTime(row.timeIn)  : '';
-    const outVal  = row.timeOut   ? stempelFmtTime(row.timeOut) : '';
-    const nightVal = row.nightHours != null ? row.nightHours : '';
-    // Datum-Min/Max: Lohnperiode begrenzt die Datum-Auswahl beim Neu-Erfassen.
-    // Beim Edit lassen wir's ohne Begrenzung (legacy-Daten könnten ausserhalb
-    // der aktiven Periode liegen — wir wollen sie editieren können).
-    const dateMinAttr = (isNew && row._periodFrom) ? ` min="${row._periodFrom}"` : '';
-    const dateMaxAttr = (isNew && row._periodTo)   ? ` max="${row._periodTo}"`   : '';
-    const periodHint  = (isNew && row._periodFrom && row._periodTo)
-        ? `<div style="font-size:10.5px;color:#64748b;margin-top:2px">innerhalb ${row._periodFrom.slice(8,10)}.${row._periodFrom.slice(5,7)}.${row._periodFrom.slice(2,4)}–${row._periodTo.slice(8,10)}.${row._periodTo.slice(5,7)}.${row._periodTo.slice(2,4)}</div>`
-        : '';
-
-    // Import-Kommentar = originalComment falls schon einmal bearbeitet, sonst comment (wenn Source=import)
-    const importKommentar = row.originalComment
-                           ?? (row.source === 'import' ? (row.comment || '') : '');
-    const letzterAenderungsgrund = (row.editedBy && row.originalComment != null) ? row.comment : null;
-    const esc = (s) => s == null ? '' : String(s).replace(/</g,'&lt;').replace(/"/g, '&quot;');
-
-    // Bei Neu: Kommentar-Feld = optional, leer. Bei Edit: Kommentar = Grund der Änderung (PFLICHT), leer.
-    const kommentarLabel       = isNew ? 'Kommentar (optional)' : 'Grund der Änderung';
-    const kommentarPlaceholder = isNew ? 'optional' : 'z.B. "zu früh ausgestempelt"';
-    const kommentarValue       = isNew ? (row.comment || '') : ''; // bei Edit immer leer
-
-    // Info-Block (Original-Kommentar und letzte Änderung) — nur bei Edit wenn vorhanden
-    const infoBlocks = [];
-    if (!isNew && importKommentar) {
-        infoBlocks.push(`
-            <div style="background:#fef3c7;border-left:3px solid #92400e;padding:8px 12px;border-radius:4px">
-                <div style="font-size:10px;color:#92400e;font-weight:700;text-transform:uppercase;letter-spacing:.3px">Original (Import) — unveränderlich</div>
-                <div style="font-size:12px;color:#78350f;margin-top:3px">${esc(importKommentar)}</div>
-            </div>`);
-    }
-    if (letzterAenderungsgrund) {
-        infoBlocks.push(`
-            <div style="background:#f1f5f9;border-left:3px solid #475569;padding:8px 12px;border-radius:4px">
-                <div style="font-size:10px;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.3px">Letzte Änderung</div>
-                <div style="font-size:12px;color:#334155;margin-top:3px">${esc(letzterAenderungsgrund)} — ${esc(row.editedBy)}, ${new Date(row.editedAt).toLocaleString('de-CH')}</div>
-            </div>`);
-    }
-    const infoHtml = infoBlocks.length
-        ? `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">${infoBlocks.join('')}</div>`
-        : '';
-
-    return `
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px;box-shadow:0 2px 4px rgba(30,64,175,.08)">
-            <div style="font-weight:700;font-size:13px;color:#1d4ed8;margin-bottom:10px">${isNew ? '+ Neuer Eintrag' : '✎ Eintrag bearbeiten'}</div>
-            ${infoHtml}
-            <div style="display:grid;grid-template-columns:1fr 110px 110px 110px 1.5fr;gap:10px">
-                <label style="font-size:11px;color:#64748b">Datum
-                    <input type="date" id="stempelFormDate" value="${dateVal}"${dateMinAttr}${dateMaxAttr} style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;margin-top:2px">
-                    ${periodHint}
-                </label>
-                <label style="font-size:11px;color:#64748b">In (HH:MM)
-                    <input type="time" id="stempelFormIn" value="${inVal}" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;margin-top:2px">
-                </label>
-                <label style="font-size:11px;color:#64748b">Out (HH:MM)
-                    <input type="time" id="stempelFormOut" value="${outVal}" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;margin-top:2px">
-                </label>
-                <label style="font-size:11px;color:#64748b">Nachtstunden
-                    <input type="number" step="0.01" min="0" id="stempelFormNight" value="${nightVal}" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;margin-top:2px">
-                </label>
-                <label style="font-size:11px;color:#64748b">${kommentarLabel}${!isNew ? ' <span style=\"color:#dc2626\">*</span>' : ''}
-                    <input type="text" id="stempelFormComment" value="${esc(kommentarValue)}" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;margin-top:2px" placeholder="${kommentarPlaceholder}">
-                </label>
-            </div>
-            <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
-                <button class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="stempelSaveForm(${row.id || 'null'})">💾 Speichern</button>
-                <button class="btn btn-outline" style="font-size:12px;padding:6px 14px" onclick="stempelCancelForm()">Abbrechen</button>
-            </div>
-        </div>`;
-}
-
-function stempelStartNew() {
-    const el = document.getElementById('stempelEditRow');
-    if (!el) return;
-    // Aktive Periode ermitteln. Der State lebt auf #stempelzeitenContent
-    // (nicht #empTab-stempelzeiten). Plus Fallback über globale Variable
-    // _stempelGlobalPeriodeId und über das selektierte Periode-<select>.
-    let periodFrom = null, periodTo = null;
-    const stateEl  = document.getElementById('stempelzeitenContent');
-    const perioden = (stateEl && Array.isArray(stateEl._stempelPerioden))
-                      ? stateEl._stempelPerioden : [];
-    let activePeriodId = stateEl?._stempelPeriodeId
-                       ?? (typeof _stempelGlobalPeriodeId !== 'undefined' ? _stempelGlobalPeriodeId : null);
-    // Falls noch nicht gesetzt: aktuell selektierte Option im Dropdown nehmen.
-    if (!activePeriodId) {
-        const perSel = document.getElementById('stempelPeriodeSel');
-        if (perSel?.value) activePeriodId = parseInt(perSel.value, 10);
-    }
-    if (activePeriodId && perioden.length) {
-        const p = perioden.find(x => x.id === activePeriodId);
-        if (p) {
-            periodFrom = (p.periodFrom || '').slice(0, 10);
-            periodTo   = (p.periodTo   || '').slice(0, 10);
-        }
-    }
-    if (!periodFrom || !periodTo) {
-        // Fallback Kalender-Modus: Monat als Periode behandeln
-        const y = parseInt(document.getElementById('stempelYearSel')?.value, 10);
-        const m = parseInt(document.getElementById('stempelMonthSel')?.value, 10);
-        if (y && m) {
-            periodFrom = `${y}-${String(m).padStart(2,'0')}-01`;
-            const lastDay = new Date(y, m, 0).getDate();
-            periodTo = `${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-        }
-    }
-    // Default-Datum: erster Tag der gewählten Periode (Walter-Wunsch).
-    const defaultDate = periodFrom || new Date().toISOString().slice(0, 10);
-    el.innerHTML = stempelRenderForm({ entryDate: defaultDate, _periodFrom: periodFrom, _periodTo: periodTo });
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function stempelStartEdit(id) {
-    const row = _stempelRowsCache.find(r => r.id === id);
-    if (!row) return;
-    const el = document.getElementById('stempelEditRow');
-    if (!el) return;
-    el.innerHTML = stempelRenderForm(row);
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function stempelCancelForm() {
-    const el = document.getElementById('stempelEditRow');
-    if (el) el.innerHTML = '';
-}
-
-async function stempelSaveForm(id) {
-    const dateVal  = document.getElementById('stempelFormDate').value;
-    const inVal    = document.getElementById('stempelFormIn').value;
-    const outVal   = document.getElementById('stempelFormOut').value;
-    const nightVal = document.getElementById('stempelFormNight').value;
-    const comVal   = document.getElementById('stempelFormComment').value;
-
-    if (!dateVal || !inVal) {
-        alert('Datum und In-Zeit sind Pflicht.');
-        return;
-    }
-    // Soft-Validierung: bei Neu-Erfassung innerhalb der aktiven Lohnperiode bleiben.
-    // Beim Edit nicht prüfen — Legacy-Einträge können ausserhalb liegen.
-    if (!id) {
-        const dInput = document.getElementById('stempelFormDate');
-        const min = dInput?.min || '';
-        const max = dInput?.max || '';
-        if (min && dateVal < min) {
-            alert(`Datum liegt vor dem Lohnperiode-Beginn (${min}). Bitte ein Datum innerhalb der aktiven Periode wählen.`);
-            return;
-        }
-        if (max && dateVal > max) {
-            alert(`Datum liegt nach dem Lohnperiode-Ende (${max}). Bitte ein Datum innerhalb der aktiven Periode wählen.`);
-            return;
-        }
-    }
-    // Bei Bearbeitung ist ein Grund der Änderung Pflicht
-    if (id && !comVal.trim()) {
-        alert('Bitte den Grund der Änderung angeben.');
-        document.getElementById('stempelFormComment')?.focus();
-        return;
-    }
-
-    const body = {
-        employeeId: selectedEmployeeId,
-        entryDate:  dateVal,
-        timeIn:     stempelBuildIso(dateVal, inVal),
-        timeOut:    outVal ? stempelBuildIso(dateVal, outVal) : null,
-        comment:    comVal || null,
-        nightHours: nightVal === '' ? 0 : parseFloat(nightVal),
-        source:     id ? undefined : 'manual'
-    };
-
-    // OUT vor IN → OUT auf Folgetag
-    if (body.timeOut && body.timeOut < body.timeIn) {
-        const d = new Date(body.timeOut);
-        d.setUTCDate(d.getUTCDate() + 1);
-        body.timeOut = d.toISOString();
-    }
-
-    const url = id
-        ? `/api/employees/${selectedEmployeeId}/timeentries/${id}`
-        : `/api/employees/${selectedEmployeeId}/timeentries`;
-    const method = id ? 'PUT' : 'POST';
-
-    try {
-        const res = await fetch(url, {
-            method,
-            headers: {
-                'Content-Type':  'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('hrToken')}`
-            },
-            body: JSON.stringify(body)
-        });
-        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
-        if (!res.ok) {
-            const err = await res.text();
-            alert('Fehler: ' + err);
-            return;
-        }
-        stempelCancelForm();
-        const contentEl = document.getElementById('stempelzeitenContent');
-        await stempelLadeEintraege(selectedEmployeeId);
-    } catch (e) {
-        alert('Verbindungsfehler: ' + e.message);
-    }
-}
-
-async function stempelDelete(id) {
-    if (!confirm('Eintrag wirklich löschen?')) return;
-    try {
-        const res = await fetch(`/api/employees/${selectedEmployeeId}/timeentries/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` }
-        });
-        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
-        if (!res.ok && res.status !== 204) {
-            alert('Fehler beim Löschen.');
-            return;
-        }
-        const contentEl = document.getElementById('stempelzeitenContent');
-        await stempelLadeEintraege(selectedEmployeeId);
-    } catch(e) { alert('Verbindungsfehler: ' + e.message); }
-}
+// ────────────────────────────────────────────────────────────────────────────
+// Stempelzeiten-Edit-/Save-/Delete-Funktionen ENTFERNT (Walter 17.06.2026):
+// Cowork ist seit Mai 2026 read-only für Stempelzeiten. Backend-Endpoints
+// POST/PUT/DELETE liefern 403. Mit der easy@work-API-Integration ist
+// easy@work die alleinige Quelle — Erfassung + Korrekturen passieren dort,
+// in Cowork läuft nur noch der Sync und die Anzeige.
+//
+// Entfernt: stempelRenderForm, stempelStartNew, stempelStartEdit,
+//           stempelCancelForm, stempelSaveForm, stempelDelete.
+// Bleibt:  stempelEditRow im DOM-Template (versteckt, harmlos);
+//          OriginalTimeIn/Out-Anzeige (Audit-Hinweis aus dem easy@work-Sync).
+// ────────────────────────────────────────────────────────────────────────────
 
 // ══════════════════════════════════════════════
 // TAB: KTG/UVG – Tagessatz nach Spezialistenvorgabe

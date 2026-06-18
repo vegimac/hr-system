@@ -89,6 +89,13 @@ public class Employee
     /// </summary>
     public int? CAusweisDokumentId { get; set; }
 
+    /// <summary>
+    /// Interne easy@work-Employee-ID (Walter 17.06.2026). Wird beim MA-Sync
+    /// gesetzt und erlaubt das Auflösen von edited_by_id-Verweisen aus den
+    /// Stempelzeit-Audits zum Manager-Namen.
+    /// </summary>
+    public int? EasyAtWorkEmployeeId { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     /// <summary>

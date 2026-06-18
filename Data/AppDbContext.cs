@@ -67,6 +67,8 @@ public class AppDbContext : DbContext
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
+    public DbSet<EasyAtWorkBranchMapping>   EasyAtWorkBranchMappings    => Set<EasyAtWorkBranchMapping>();
+    public DbSet<EasyAtWorkSyncState>       EasyAtWorkSyncStates        => Set<EasyAtWorkSyncState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -111,6 +113,7 @@ public class AppDbContext : DbContext
             // Walter-Vorgabe 13.06.2026: explizite Verknüpfungen MA → Beleg-Doku.
             entity.Property(e => e.IdPassDokumentId).HasColumnName("id_pass_dokument_id");
             entity.Property(e => e.CAusweisDokumentId).HasColumnName("c_ausweis_dokument_id");
+            entity.Property(e => e.EasyAtWorkEmployeeId).HasColumnName("easyatwork_employee_id");
             // GLOBALER QUERY FILTER: ALLE Employee-Queries blenden hidden MA
             // automatisch aus — kein manuelles WHERE in jedem Controller nötig.
             // Wer hidden MA explizit sehen will, ruft `.IgnoreQueryFilters()`
@@ -525,13 +528,16 @@ public class AppDbContext : DbContext
             entity.Property(e => e.DurationHours).HasColumnName("duration_hours").HasColumnType("numeric(6,2)");
             entity.Property(e => e.NightHours).HasColumnName("night_hours").HasColumnType("numeric(6,2)");
             entity.Property(e => e.TotalHours).HasColumnName("total_hours").HasColumnType("numeric(6,2)");
-            entity.Property(e => e.Source).HasColumnName("source").HasMaxLength(50).HasDefaultValue("manual");
+            // source-Spalte entfernt (Walter 17.06.2026) — siehe drop_employee_time_entry_source.sql
+            entity.Property(e => e.EasyAtWorkTimepunchId).HasColumnName("easyatwork_timepunch_id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.OriginalTimeIn).HasColumnName("original_time_in").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OriginalTimeOut).HasColumnName("original_time_out").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OriginalComment).HasColumnName("original_comment");
             entity.Property(e => e.EditedBy).HasColumnName("edited_by").HasMaxLength(100);
+            // edited_at ist in der DB „timestamp with time zone" → Npgsql 6+ verlangt
+            // Kind=Utc beim Schreiben. ExtractEditorTime liefert daher UTC zurück.
             entity.Property(e => e.EditedAt).HasColumnName("edited_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
         });

@@ -1,0 +1,212 @@
+using System.Linq;
+using System.Text.Json.Serialization;
+
+namespace HrSystem.Services.EasyAtWork;
+
+// ════════════════════════════════════════════════════════════════════════
+// DTOs für die easy@work-API. Aus openapi.yaml (Stand 17.06.2026) abgeleitet,
+// auf die für unseren Sync nötigen Felder reduziert. Snake_case der API wird
+// per JsonPropertyName auf C#-PascalCase gemappt.
+// ════════════════════════════════════════════════════════════════════════
+
+/// <summary>OAuth2-Token-Antwort vom /oauth/token-Endpoint.</summary>
+public class EawTokenResponse
+{
+    [JsonPropertyName("token_type")]   public string TokenType   { get; set; } = "";
+    [JsonPropertyName("expires_in")]   public int    ExpiresIn   { get; set; }   // Sekunden
+    [JsonPropertyName("access_token")] public string AccessToken { get; set; } = "";
+}
+
+/// <summary>
+/// Customer = Tenant / Filiale bei easy@work. Pro Filiale eine Customer-ID;
+/// `Number` ist die Filial-Nummer (entspricht unserem RestaurantCode).
+/// </summary>
+public class EawCustomer
+{
+    [JsonPropertyName("id")]         public int     Id        { get; set; }
+    [JsonPropertyName("number")]
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string? Number    { get; set; }
+    [JsonPropertyName("name")]       public string? Name      { get; set; }
+    [JsonPropertyName("updated_at")] public DateTime? UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Listen-Antwort mit Pagination — Format: { data: [...], total, current_page, ... }.
+/// </summary>
+public class EawPaginated<T>
+{
+    [JsonPropertyName("data")]         public List<T> Data         { get; set; } = new();
+    [JsonPropertyName("total")]        public int?    Total        { get; set; }
+    [JsonPropertyName("current_page")] public int?    CurrentPage  { get; set; }
+    [JsonPropertyName("last_page")]    public int?    LastPage     { get; set; }
+    [JsonPropertyName("per_page")]     public int?    PerPage      { get; set; }
+}
+
+/// <summary>Mitarbeiter (Auszug — siehe openapi.yaml Schema Employee).</summary>
+public class EawEmployee
+{
+    [JsonPropertyName("id")]           public int      Id          { get; set; }
+    [JsonPropertyName("customer_id")]  public int?     CustomerId  { get; set; }
+    /// <summary>Login-User-ID — `edited_by_id` aus Stempel-Audits zeigt darauf.</summary>
+    [JsonPropertyName("user_id")]      public int?     UserId      { get; set; }
+    // easy@work liefert `number` bei Employees als JSON-Zahl (nicht-String),
+    // bei Customers als String. Toleranter Converter überspielt das.
+    [JsonPropertyName("number")]
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string? Number { get; set; }   // = unsere employee_number
+    [JsonPropertyName("first_name")]   public string?  FirstName   { get; set; }
+    [JsonPropertyName("last_name")]    public string?  LastName    { get; set; }
+    [JsonPropertyName("gender")]       public string?  Gender      { get; set; }
+    [JsonPropertyName("birth_date")]   public DateOnly? BirthDate  { get; set; }
+    [JsonPropertyName("address1")]     public string?  Address1    { get; set; }
+    [JsonPropertyName("address2")]     public string?  Address2    { get; set; }
+    [JsonPropertyName("postal_code")]  public string?  PostalCode  { get; set; }
+    [JsonPropertyName("city")]         public string?  City        { get; set; }
+    [JsonPropertyName("country")]      public string?  Country     { get; set; }
+    [JsonPropertyName("country_key")]  public string?  CountryKey  { get; set; }   // ISO-Code (CH, DE, ...)
+    [JsonPropertyName("nationality")]  public string?  Nationality { get; set; }
+    [JsonPropertyName("phone")]        public string?  Phone       { get; set; }
+    [JsonPropertyName("email")]        public string?  Email       { get; set; }
+    [JsonPropertyName("from")]         public DateOnly? From       { get; set; }   // Eintritt
+    [JsonPropertyName("to")]           public DateOnly? To         { get; set; }   // Austritt
+    [JsonPropertyName("updated_at")]   public DateTime? UpdatedAt  { get; set; }
+}
+
+/// <summary>Vertrag pro MA.</summary>
+public class EawContract
+{
+    [JsonPropertyName("id")]           public int      Id           { get; set; }
+    [JsonPropertyName("employee_id")]  public int      EmployeeId   { get; set; }
+    [JsonPropertyName("title")]        public string?  Title        { get; set; }   // Funktion
+    [JsonPropertyName("type")]         public string?  Type         { get; set; }   // Vertragstyp
+    [JsonPropertyName("amount_type")]  public string?  AmountType   { get; set; }   // "month" / "hour" (Pay-Frequency)
+    [JsonPropertyName("week_hours")]   public decimal? WeekHours    { get; set; }
+    [JsonPropertyName("percentage")]   public decimal? Percentage   { get; set; }
+    [JsonPropertyName("from")]         public DateOnly? From        { get; set; }
+    [JsonPropertyName("to")]           public DateOnly? To          { get; set; }
+    [JsonPropertyName("updated_at")]   public DateTime? UpdatedAt   { get; set; }
+}
+
+/// <summary>Lohnstufe pro MA mit From-Datum.</summary>
+public class EawPayRate
+{
+    [JsonPropertyName("id")]           public int      Id          { get; set; }
+    [JsonPropertyName("employee_id")]  public int      EmployeeId  { get; set; }
+    [JsonPropertyName("from")]         public DateOnly? From       { get; set; }
+    [JsonPropertyName("rate")]         public decimal? Rate        { get; set; }
+    [JsonPropertyName("type")]         public string?  Type        { get; set; }   // hourly/monthly/fte
+    [JsonPropertyName("updated_at")]   public DateTime? UpdatedAt  { get; set; }
+}
+
+/// <summary>Schweizer Fiscal-Info (AHV, Bewilligung, Kanton, IBAN).</summary>
+public class EawFiscalInfo
+{
+    [JsonPropertyName("id")]                  public int?     Id              { get; set; }
+    [JsonPropertyName("employee_id")]         public int      EmployeeId      { get; set; }
+    [JsonPropertyName("country")]             public string?  Country         { get; set; }   // CH
+    [JsonPropertyName("canton")]              public string?  Canton          { get; set; }   // 2-Letter-Code
+    [JsonPropertyName("social_security_number")] public string? Ahv           { get; set; }
+    [JsonPropertyName("work_permit")]         public string?  WorkPermit      { get; set; }   // C / B / L / Ci ...
+    [JsonPropertyName("work_permit_valid_to")] public DateOnly? PermitValidTo { get; set; }
+    [JsonPropertyName("iban")]                public string?  Iban            { get; set; }
+    [JsonPropertyName("bank_name")]           public string?  BankName        { get; set; }
+    [JsonPropertyName("updated_at")]          public DateTime? UpdatedAt      { get; set; }
+}
+
+/// <summary>Einzelner Kommentar (aus dem `comments`-Array eines Timepunch).</summary>
+public class EawTimepunchComment
+{
+    [JsonPropertyName("id")]         public int?      Id        { get; set; }
+    [JsonPropertyName("text")]       public string?   Text      { get; set; }
+    [JsonPropertyName("comment")]    public string?   Comment   { get; set; }
+    [JsonPropertyName("body")]       public string?   Body      { get; set; }
+    [JsonPropertyName("created_at")] public DateTime? CreatedAt { get; set; }
+    // Manche easy@work-Versionen liefern `created_by` als String (Name),
+    // andere als Integer (User-ID) → FlexibleStringConverter akzeptiert beides.
+    [JsonPropertyName("created_by")]
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string?   CreatedBy { get; set; }
+    // Bei der API-Konvention `<feld>_by` = ID + `<feld>_by_name` = Display-Name
+    // (analog `approved_by`/`approved_by_name`).
+    [JsonPropertyName("created_by_name")] public string? CreatedByName { get; set; }
+    [JsonPropertyName("user_name")]       public string? UserName      { get; set; }
+    [JsonPropertyName("user")]            public string? UserDisplay   { get; set; }
+
+    /// <summary>Erster nicht-leerer Textwert.</summary>
+    public string? AnyText => new[] { Text, Comment, Body }
+        .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();
+
+    /// <summary>
+    /// Bester Display-Name des Bearbeiters: Name-Feld bevorzugt, sonst CreatedBy
+    /// (welcher auch ein Klartext-Name sein kann, je nach API-Version).
+    /// Reine numerische Strings (User-IDs) werden ausgefiltert.
+    /// </summary>
+    public string? EditorDisplayName
+    {
+        get
+        {
+            foreach (var v in new[] { CreatedByName, UserName, UserDisplay, CreatedBy })
+            {
+                if (string.IsNullOrWhiteSpace(v)) continue;
+                var s = v.Trim();
+                if (int.TryParse(s, out _)) continue; // numerische ID → kein Display-Name
+                return s;
+            }
+            return null;
+        }
+    }
+}
+
+/// <summary>Stempelzeit (Timepunch).</summary>
+public class EawTimepunch
+{
+    [JsonPropertyName("id")]            public int      Id            { get; set; }
+    [JsonPropertyName("employee_id")]   public int      EmployeeId    { get; set; }
+    [JsonPropertyName("business_date")] public DateOnly? BusinessDate { get; set; }
+    [JsonPropertyName("in")]            public DateTime? In           { get; set; }
+    [JsonPropertyName("out")]           public DateTime? Out          { get; set; }
+    [JsonPropertyName("hours")]         public decimal? Hours         { get; set; }
+    /// <summary>Legacy-Flag aus früherer API-Version.</summary>
+    [JsonPropertyName("edited")]        public bool?    Edited        { get; set; }
+    /// <summary>Aktuelles Feld: nicht-null → MA-Stempel wurde manuell bearbeitet.</summary>
+    [JsonPropertyName("edited_by_id")]  public int?     EditedById    { get; set; }
+    /// <summary>Kommentare als Array — nur befüllt, wenn `?with[]=comments` mitgesendet wurde.</summary>
+    [JsonPropertyName("comments")]      public List<EawTimepunchComment>? Comments { get; set; }
+
+    // ── Original-Zeit (falls bearbeitet). Wir probieren mehrere wahrscheinliche
+    //    Feldnamen; sobald die API einen davon liefert, ist OriginalIn/Out befüllt.
+    [JsonPropertyName("original_in")]   public DateTime? OriginalInRaw1   { get; set; }
+    [JsonPropertyName("previous_in")]   public DateTime? OriginalInRaw2   { get; set; }
+    [JsonPropertyName("in_original")]   public DateTime? OriginalInRaw3   { get; set; }
+    [JsonPropertyName("original_out")]  public DateTime? OriginalOutRaw1  { get; set; }
+    [JsonPropertyName("previous_out")]  public DateTime? OriginalOutRaw2  { get; set; }
+    [JsonPropertyName("out_original")]  public DateTime? OriginalOutRaw3  { get; set; }
+
+    public DateTime? OriginalIn  => OriginalInRaw1  ?? OriginalInRaw2  ?? OriginalInRaw3;
+    public DateTime? OriginalOut => OriginalOutRaw1 ?? OriginalOutRaw2 ?? OriginalOutRaw3;
+    [JsonPropertyName("deleted_at")]    public DateTime? DeletedAt    { get; set; }   // != null = storniert
+    [JsonPropertyName("updated_at")]    public DateTime? UpdatedAt    { get; set; }
+    /// <summary>
+    /// Zeitpunkt der Eintragerstellung — bei einem MA-Punch entspricht das
+    /// dem Ur-Stempel. Wenn der Stempel später manuell korrigiert wurde
+    /// (IsEdited), bleibt CreatedAt unverändert und repräsentiert damit
+    /// die Original-Zeit des MA.
+    /// </summary>
+    [JsonPropertyName("created_at")]    public DateTime? CreatedAt    { get; set; }
+    /// <summary>Worked duration in Sekunden (out - in).</summary>
+    [JsonPropertyName("length")]        public int?      Length       { get; set; }
+    [JsonPropertyName("approved")]      public bool?     Approved     { get; set; }
+    [JsonPropertyName("approved_by")]   public int?      ApprovedById { get; set; }
+    [JsonPropertyName("approved_by_name")] public string? ApprovedByName { get; set; }
+
+    /// <summary>Wurde dieser Stempel manuell bearbeitet?</summary>
+    public bool IsEdited => EditedById.HasValue || Edited == true;
+
+    /// <summary>Alle nicht-leeren Kommentar-Texte zu einem String zusammengezogen.</summary>
+    public string? JoinedComments =>
+        Comments == null || Comments.Count == 0
+            ? null
+            : string.Join(" / ",
+                Comments.Select(c => c.AnyText).Where(t => !string.IsNullOrWhiteSpace(t)));
+}
