@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>easy@work API — Employee, Contract &amp; Time Data</title>
+  <style>
+    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #redoc-container { }
+  </style>
+</head>
+<body>
+  <div id="redoc-container"></div>
+
+  <!-- Spec embedded so the page works offline via file:// (no fetch/CORS) -->
+  <script src="openapi-spec.js"></script>
+  <script src="redoc.standalone.js"></script>
+  <script>
+    Redoc.init(
+      window.openapiSpec,
+      {
+        scrollYOffset: 0,
+        hideDownloadButton: false,
+        expandResponses: "200",
+        jsonSampleExpandLevel: 3,
+        theme: {
+          colors: { primary: { main: "#1f6feb" } },
+          typography: { fontSize: "15px" }
+        }
+      },
+      document.getElementById("redoc-container")
+    );
+  </script>
+</body>
+</html>
