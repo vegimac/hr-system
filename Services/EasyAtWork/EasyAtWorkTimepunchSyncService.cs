@@ -459,10 +459,18 @@ public class EasyAtWorkTimepunchSyncService
                 row.OriginalTimeIn = UtcToSwissLocal(p.CreatedAt.Value);
             }
 
-            if (eawEmpById.TryGetValue(p.EmployeeId, out var eawEmp))
+            var eawResolved = eawEmpById.TryGetValue(p.EmployeeId, out var eawEmp);
+            if (eawResolved)
             {
-                row.EawEmployeeNumber = eawEmp.Number;
+                row.EawEmployeeNumber = eawEmp!.Number;
                 row.EawEmployeeName   = $"{eawEmp.FirstName} {eawEmp.LastName}".Trim();
+            }
+            else
+            {
+                // MA konnte nicht aufgelöst werden (war nicht in der geladenen
+                // Mitarbeiterliste). Statt „?" wenigstens die easy@work-interne
+                // ID zeigen, damit Walter die Person identifizieren kann.
+                row.EawEmployeeName = $"easy@work-MA #{p.EmployeeId}";
             }
 
             // Soft-deleted in easy@work? — überspringen.
@@ -486,9 +494,12 @@ public class EasyAtWorkTimepunchSyncService
             if (string.IsNullOrEmpty(num) || !byNumber.TryGetValue(num, out var coEmp))
             {
                 row.Status = "UNMATCHED";
-                row.Reason = string.IsNullOrEmpty(num)
-                    ? "easy@work-MA hat keine Personalnummer."
-                    : $"Keine Cowork-MA mit Personalnr. '{num}' in dieser Filiale.";
+                if (!string.IsNullOrEmpty(num))
+                    row.Reason = $"Keine Cowork-MA mit Personalnr. '{num}'.";
+                else if (!eawResolved)
+                    row.Reason = $"easy@work-MA #{p.EmployeeId} war nicht in der Mitarbeiterliste (Stichtag Periodenbeginn) — evtl. erst später eingetreten, schon ausgetreten oder ein Konto ohne Personalnummer.";
+                else
+                    row.Reason = $"easy@work-MA '{row.EawEmployeeName}' (#{p.EmployeeId}) hat keine Personalnummer hinterlegt.";
                 res.Rows.Add(row); res.CountUnmatched++; continue;
             }
             row.CoworkEmployeeId = coEmp.Id;
