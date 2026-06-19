@@ -260,6 +260,82 @@ public class PayrollController : HrControllerBase
         return await _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId);
     }
 
+    // GET /api/payroll/sollstunden-report?companyProfileId=X&year=Y&month=M
+    // GF-Report (Walter-Vorgabe 19.06.2026): pro FIX/FIX-M/MTP-MA Soll-/Ist-/
+    // Absenz-Stunden für den Monat. Nutzt DIESELBE CalculateAsync-Engine wie der
+    // Lohnlauf (identische Zahlen) und liest die Stunden-Felder aus dem Resultat.
+    [HttpGet("sollstunden-report")]
+    public async Task<IActionResult> SollstundenReport(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+
+        var (periodFrom, periodTo) = CalcPeriod(year, month);
+        var pFrom = periodFrom.ToDateTime(TimeOnly.MinValue);
+        var pTo   = periodTo.ToDateTime(TimeOnly.MaxValue);
+
+        // Aktive FIX/FIX-M/MTP-Verträge der Filiale in der Periode (UTP hat keine
+        // Sollstunden → bewusst raus). Datums-Vergleich auf DateTime (EF-übersetzbar).
+        string[] models = { "FIX", "FIX-M", "MTP" };
+        var emps = await (
+            from emp in _db.Employments.AsNoTracking()
+            join e in _db.Employees.AsNoTracking() on emp.EmployeeId equals e.Id
+            where emp.CompanyProfileId == companyProfileId
+               && models.Contains(emp.EmploymentModel)
+               && emp.ContractStartDate <= pTo
+               && (emp.ContractEndDate == null || emp.ContractEndDate >= pFrom)
+            orderby emp.ContractStartDate descending
+            select new { emp.EmployeeId, emp.EmploymentModel, e.FirstName, e.LastName, Number = e.EmployeeNumber }
+        ).ToListAsync();
+        // pro MA den jüngsten passenden Vertrag, dann nach Vorname sortiert.
+        var byEmp = emps.GroupBy(x => x.EmployeeId).Select(g => g.First())
+            .OrderBy(x => x.FirstName ?? "").ThenBy(x => x.LastName ?? "").ToList();
+
+        var camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        static decimal D(JsonNode? node, string key)
+        {
+            var v = node?[key];
+            if (v is null) return 0m;
+            try { return v.GetValue<decimal>(); }
+            catch { try { return (decimal)v.GetValue<double>(); } catch { return 0m; } }
+        }
+
+        var rows = new List<object>();
+        foreach (var e in byEmp)
+        {
+            var calc = await _calcEngine.CalculateAsync(e.EmployeeId, year, month, companyProfileId);
+            if (calc is not OkObjectResult ok || ok.Value is null) continue;
+            var node  = JsonNode.Parse(JsonSerializer.Serialize(ok.Value, camel));
+            var model = (string?)(node?["employmentModel"]) ?? e.EmploymentModel;
+            bool isMtp = model == "MTP";
+
+            var soll      = isMtp ? D(node, "sollStundenVoll") : D(node, "sollStunden");
+            var geleistet = D(node, "workedHours");
+            var absenz    = D(node, "absenzGutschrift") + (isMtp ? D(node, "sollFerienReduktion") : 0m);
+            var erledigt  = Math.Round(geleistet + absenz, 2);
+            var differenz = Math.Round(erledigt - soll, 2);
+            var saldoNeu  = D(node, "neuerHourSaldo");
+
+            rows.Add(new
+            {
+                employeeId = e.EmployeeId,
+                number     = e.Number,
+                name       = $"{e.FirstName} {e.LastName}".Trim(),
+                model,
+                soll, geleistet, absenz, erledigt, differenz, saldoNeu
+            });
+        }
+
+        return Ok(new
+        {
+            periodFrom = periodFrom.ToString("yyyy-MM-dd"),
+            periodTo   = periodTo.ToString("yyyy-MM-dd"),
+            count      = rows.Count,
+            rows
+        });
+    }
+
     // Diagnose: zeigt was die QST-Engine-Logik intern ENTSCHEIDEN würde, ohne
     // den vollen Lohnzettel zu rechnen. Walter-Vorgabe 26.05.2026.
     // Walter 09.06.2026: admin/superuser-only — reines Diagnose-Werkzeug, hat
