@@ -10,11 +10,24 @@ let _eawCustomers = [];   // Liste aus dem letzten test-connection-Aufruf
 let _eawMappings  = [];   // bestehende DB-Mappings
 
 async function eawInit() {
+    eawClearResults();   // frische Seite bei jedem Öffnen (Walter-Vorgabe 19.06.2026)
     await eawLoadStatus();
     await eawLoadMappings();
     eawSyncInit();
     _eawEmpSyncInit();
     eawLogLoad();
+}
+
+// Leert die Vorschau-/Ergebnis-Bereiche + setzt den Zustand zurück. Wird beim
+// Öffnen der easy@work-Seite UND nach einem Import aufgerufen, damit keine
+// veraltete (oft riesige) Vorschau-Tabelle stehen bleibt.
+function eawClearResults() {
+    const s = document.getElementById('eawSyncResult');     if (s) s.innerHTML = '';
+    const e = document.getElementById('eawEmpSyncResult');  if (e) e.innerHTML = '';
+    _eawSyncLastPreview = null;
+    _eawEmpSyncLast     = null;
+    const c1 = document.getElementById('eawSyncCommitBtn');     if (c1) c1.disabled = true;
+    const c2 = document.getElementById('eawEmpSyncCommitBtn');  if (c2) c2.disabled = true;
 }
 
 // ═══════════════════════ Stempelzeit-Sync (Phase 2) ══════════════════════
@@ -117,10 +130,16 @@ async function _eawSyncRun(commit) {
             return;
         }
         _eawSyncLastPreview = body;
-        _eawSyncRenderResult(body, commit);
+        const blocked = (body.missingEmployees && body.missingEmployees.length > 0);
+        if (commit && !blocked) {
+            // Nach erfolgreichem Import: Vorschau leeren + knappe Bestätigung.
+            out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — ${body.inserted||0} neu, ${body.updated||0} geändert, ${body.deleted||0} gelöscht${body.lockedSkipped ? ', ' + body.lockedSkipped + ' gesperrt übersprungen' : ''}.</div>`;
+            _eawSyncLastPreview = null;
+        } else {
+            _eawSyncRenderResult(body, commit);
+        }
         // Nach Commit nicht erneut committen können; ebenso gesperrt, solange
         // es nicht-zuordenbare MA gibt (Preflight-Block) oder keine NEW-Zeilen.
-        const blocked = (body.missingEmployees && body.missingEmployees.length > 0);
         commitBtn.disabled = commit || blocked || !(body.countNew > 0);
     } catch (e) {
         out.innerHTML = `<div class="eaw-result eaw-result-err">
@@ -435,7 +454,13 @@ async function _eawEmpSyncRun(commit, selected) {
             return;
         }
         _eawEmpSyncLast = body;
-        _eawEmpSyncRender(body, commit);
+        if (commit) {
+            // Nach erfolgreichem Import: Vorschau leeren + knappe Bestätigung.
+            out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — ${body.countInserted||0} angelegt, ${body.countUpdated||0} aktualisiert.</div>`;
+            _eawEmpSyncLast = null;
+        } else {
+            _eawEmpSyncRender(body, commit);
+        }
         // Auch enablen wenn nur UNCHANGED-MA da sind — Backfill braucht den Commit.
         const hasAny = (body.countNew + body.countUpdate + (body.countTotal - (body.countConflict||0))) > 0;
         commitBtn.disabled = commit || !hasAny;
