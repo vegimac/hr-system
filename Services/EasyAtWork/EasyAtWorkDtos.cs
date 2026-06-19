@@ -99,19 +99,51 @@ public class EawPayRate
     [JsonPropertyName("updated_at")]   public DateTime? UpdatedAt  { get; set; }
 }
 
-/// <summary>Schweizer Fiscal-Info (AHV, Bewilligung, Kanton, IBAN).</summary>
+/// <summary>
+/// Schweizer Fiscal-Info — an das ECHTE easy@work-Schema angepasst (Walter
+/// 19.06.2026, aus den API-Docs verifiziert). Enthält Bank/IBAN, Bewilligung
+/// (visa_permit_type + Daten) und Ehepartner-Permit (relevant für QST-Pflicht).
+/// Achtung: AHV ist NICHT hier, sondern ein Custom Field (siehe EawProperty).
+/// </summary>
 public class EawFiscalInfo
 {
-    [JsonPropertyName("id")]                  public int?     Id              { get; set; }
-    [JsonPropertyName("employee_id")]         public int      EmployeeId      { get; set; }
-    [JsonPropertyName("country")]             public string?  Country         { get; set; }   // CH
-    [JsonPropertyName("canton")]              public string?  Canton          { get; set; }   // 2-Letter-Code
-    [JsonPropertyName("social_security_number")] public string? Ahv           { get; set; }
-    [JsonPropertyName("work_permit")]         public string?  WorkPermit      { get; set; }   // C / B / L / Ci ...
-    [JsonPropertyName("work_permit_valid_to")] public DateOnly? PermitValidTo { get; set; }
-    [JsonPropertyName("iban")]                public string?  Iban            { get; set; }
-    [JsonPropertyName("bank_name")]           public string?  BankName        { get; set; }
-    [JsonPropertyName("updated_at")]          public DateTime? UpdatedAt      { get; set; }
+    [JsonPropertyName("id")]              public int?     Id            { get; set; }
+    [JsonPropertyName("employee_id")]    public int      EmployeeId    { get; set; }
+    [JsonPropertyName("customer_id")]    public int?     CustomerId    { get; set; }
+    [JsonPropertyName("iban")]           public string?  Iban          { get; set; }
+    [JsonPropertyName("bank_id")]        public string?  BankId        { get; set; }   // Swiss bank clearing code
+    [JsonPropertyName("bank_branch_id")] public string?  BankBranchId  { get; set; }
+    [JsonPropertyName("account_number")] public string?  AccountNumber { get; set; }
+    [JsonPropertyName("account_name")]   public string?  AccountName   { get; set; }
+    [JsonPropertyName("country")]        public string?  Country       { get; set; }   // "CHE"
+    /// <summary>Bewilligung: G/B/C/L/CI/N/F/S.</summary>
+    [JsonPropertyName("visa_permit_type")] public string? VisaPermitType { get; set; }
+    [JsonPropertyName("emission")]       public DateOnly? Emission     { get; set; }   // Permit issue date
+    [JsonPropertyName("expiration")]     public DateOnly? Expiration   { get; set; }   // Permit expiry date
+    [JsonPropertyName("spouse_works_switzerland")] public int? SpouseWorksSwitzerland { get; set; }
+    [JsonPropertyName("spouse_visa_permit_type")]  public string? SpouseVisaPermitType { get; set; }
+    [JsonPropertyName("fte_other_employment")]     public decimal? FteOtherEmployment   { get; set; }
+    [JsonPropertyName("emplid")]         public string?  Emplid        { get; set; }   // Payroll employee number
+    [JsonPropertyName("created_at")]     public DateTime? CreatedAt    { get; set; }
+    [JsonPropertyName("updated_at")]     public DateTime? UpdatedAt    { get; set; }
+}
+
+/// <summary>
+/// easy@work Custom Field / „Property" (Benutzerdefiniertes Feld), zeitlich
+/// versioniert. Quelle: <c>…/employees/{n+Nummer}/properties</c>. Hier liegen
+/// AHV-Nummer, Familienstand, Funktion, Qualification CCNT etc. — identifiziert
+/// über den stabilen <see cref="Key"/> (nicht das deutsche Label).
+/// </summary>
+public class EawProperty
+{
+    [JsonPropertyName("id")]          public int?      Id         { get; set; }
+    [JsonPropertyName("object_type")] public string?   ObjectType { get; set; }
+    [JsonPropertyName("object_id")]   public int?      ObjectId   { get; set; }
+    [JsonPropertyName("key")]         public string?   Key        { get; set; }
+    [JsonPropertyName("value")]       public string?   Value      { get; set; }
+    [JsonPropertyName("from")]        public DateOnly? From       { get; set; }
+    [JsonPropertyName("to")]          public DateOnly? To         { get; set; }
+    [JsonPropertyName("updated_at")]  public DateTime? UpdatedAt  { get; set; }
 }
 
 /// <summary>Einzelner Kommentar (aus dem `comments`-Array eines Timepunch).</summary>

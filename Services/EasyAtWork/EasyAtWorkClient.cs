@@ -298,7 +298,31 @@ public class EasyAtWorkClient
         => GetJsonAsync<EawPaginated<EawPayRate>>(
             $"customers/{customerId}/employees/{employeeId}/pay_rates", ct);
 
-    public Task<EawFiscalInfo?> GetFiscalInfoAsync(int customerId, int employeeId, CancellationToken ct = default)
+    public virtual Task<EawFiscalInfo?> GetFiscalInfoAsync(int customerId, int employeeId, CancellationToken ct = default)
         => GetJsonAsync<EawFiscalInfo?>(
             $"customers/{customerId}/employees/{employeeId}/fiscal_info", ct);
+
+    /// <summary>
+    /// Custom Fields / „Properties" eines MA (Walter-Vorgabe 19.06.2026). Hier
+    /// liegen AHV-Nummer, Familienstand, Funktion, Qualification CCNT etc., je
+    /// als <c>{ key, value, from, to }</c>. Folgt der Pagination.
+    /// </summary>
+    public virtual async Task<List<EawProperty>> GetAllPropertiesAsync(
+        int customerId, int employeeId, CancellationToken ct = default)
+    {
+        var all = new List<EawProperty>();
+        int page = 1;
+        const int perPage = 200;
+        while (true)
+        {
+            var path = $"customers/{customerId}/employees/{employeeId}/properties"
+                     + $"?per_page={perPage}&page={page}";
+            var res = await GetJsonAsync<EawPaginated<EawProperty>>(path, ct);
+            if (res.Data != null) all.AddRange(res.Data);
+            if (res.LastPage == null || page >= res.LastPage.Value) break;
+            page++;
+            if (page > 50) break;
+        }
+        return all;
+    }
 }

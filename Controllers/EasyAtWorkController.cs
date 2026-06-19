@@ -376,6 +376,38 @@ public class EasyAtWorkController : ControllerBase
         return Ok(res);
     }
 
+    /// <summary>
+    /// On-Demand: liefert für EINEN easy@work-MA die fiscal_info (Bewilligung,
+    /// Bank, Ehepartner-Permit) + ALLE Custom Fields/Properties (key+value) —
+    /// read-only, zur Anzeige/Validierung in der MA-Sync-Vorschau (Walter
+    /// 19.06.2026). Schreibt nichts. Pro Klick nur 2 API-Aufrufe (nicht N×2).
+    /// </summary>
+    [HttpGet("employees/{companyProfileId:int}/{eawEmployeeId:int}/detail")]
+    public async Task<IActionResult> GetEmployeeEasyworkDetail(int companyProfileId, int eawEmployeeId, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null) return NotFound(new { error = "NOT_MAPPED" });
+
+        Services.EasyAtWork.EawFiscalInfo? fiscal = null;
+        var props  = new List<Services.EasyAtWork.EawProperty>();
+        var notes  = new List<string>();
+        try { fiscal = await _client.GetFiscalInfoAsync(mapping.EasyAtWorkCustomerId, eawEmployeeId, ct); }
+        catch (Exception ex) { notes.Add($"fiscal_info nicht abrufbar: {ex.Message}"); }
+        try { props = await _client.GetAllPropertiesAsync(mapping.EasyAtWorkCustomerId, eawEmployeeId, ct); }
+        catch (Exception ex) { notes.Add($"properties nicht abrufbar: {ex.Message}"); }
+
+        return Ok(new
+        {
+            fiscal,
+            properties = props
+                .OrderBy(p => p.Key)
+                .Select(p => new { key = p.Key, value = p.Value, from = p.From, to = p.To }),
+            notes
+        });
+    }
+
     // ──────────── easy@work-ID-Aliase (alte/zweite IDs pro MA) ───────────
     // Walter-Vorgabe 18.06.2026: Wenn die easy@work-employee_id eines MA
     // mittendrin wechselt, hängen alte Stempel an der alten ID. Hier hinterlegen

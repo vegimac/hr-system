@@ -480,14 +480,21 @@ function _eawEmpSyncRender(res, wasCommit) {
         const detailRow = `<tr id="${detailId}" style="display:none"><td colspan="6" style="background:#f8fafc;padding:10px">
             ${_eawEmpRenderDiff(r.diffs||[])}
         </td></tr>`;
+        // Zusätzliche, on-demand geladene easy@work-Detailzeile (fiscal_info + Custom Fields).
+        const eawDetail = r.eawEmployeeId
+            ? ` · <a href="#" onclick="event.preventDefault();eawEmpLoadDetail(${r.eawEmployeeId}, '${detailId}eaw')" style="color:#1d4ed8;font-size:12px">🔎 easy@work-Felder</a>`
+            : '';
+        const eawDetailRow = r.eawEmployeeId
+            ? `<tr id="${detailId}eaw" style="display:none"><td colspan="6" style="background:#eff6ff;padding:10px"></td></tr>`
+            : '';
         return `<tr>
             <td>${cb}</td>
             <td>${pill}</td>
             <td>${escapeHtml((r.firstName||'') + ' ' + (r.lastName||''))} <span style="color:#94a3b8">(${escapeHtml(r.number||'-')})</span></td>
             <td style="font-size:11px;color:#475569">${changesSummary}</td>
-            <td><a href="#" onclick="event.preventDefault();_eawEmpToggle('${detailId}')" style="color:#1e40af;font-size:12px">Details</a></td>
+            <td><a href="#" onclick="event.preventDefault();_eawEmpToggle('${detailId}')" style="color:#1e40af;font-size:12px">Diffs</a>${eawDetail}</td>
             <td style="color:#94a3b8;font-size:11px">${escapeHtml(r.reason||'')}</td>
-        </tr>${detailRow}`;
+        </tr>${detailRow}${eawDetailRow}`;
     }).join('');
 
     out.innerHTML = `
@@ -513,6 +520,50 @@ function _eawEmpToggle(id) {
 
 function _eawEmpToggleAll(on) {
     document.querySelectorAll('.eaw-emp-pick').forEach(cb => { cb.checked = !!on; });
+}
+
+// On-Demand: easy@work fiscal_info + Custom Fields eines MA laden + anzeigen
+// (Walter-Vorgabe 19.06.2026, read-only). Zeigt die echten Property-`key`s.
+async function eawEmpLoadDetail(eawEmployeeId, rowId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    if (row.style.display !== 'none') { row.style.display = 'none'; return; }  // toggle zu
+    row.style.display = '';
+    const cell = row.querySelector('td');
+    cell.innerHTML = '<span style="color:#64748b;font-size:12px">⏳ Lade easy@work-Felder…</span>';
+    const branchId = document.getElementById('eawEmpSyncBranchSel')?.value;
+    if (!branchId) { cell.innerHTML = '<span style="color:#b91c1c">Keine Filiale gewählt.</span>'; return; }
+    try {
+        const r = await fetch(`/api/easywork/employees/${branchId}/${eawEmployeeId}/detail`, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) { cell.innerHTML = `<span style="color:#b91c1c">Fehler ${r.status}</span>`; return; }
+        cell.innerHTML = _eawEmpRenderEawDetail(await r.json());
+    } catch (e) { cell.innerHTML = '<span style="color:#b91c1c">Netzwerkfehler.</span>'; }
+}
+
+function _eawEmpRenderEawDetail(d) {
+    const f = d.fiscal;
+    const fRows = f ? [
+        ['Bewilligung', f.visaPermitType],
+        ['Bewilligung gültig', (f.emission || f.expiration) ? `${f.emission || '?'} – ${f.expiration || '?'}` : null],
+        ['IBAN', f.iban],
+        ['Bank (Clearing)', f.bankId],
+        ['Konto-Inhaber', f.accountName],
+        ['Ehepartner arbeitet CH', (f.spouseWorksSwitzerland != null) ? f.spouseWorksSwitzerland : null],
+        ['Ehepartner Bewilligung', f.spouseVisaPermitType],
+    ].filter(x => x[1] != null && x[1] !== '') : [];
+    const fiscalHtml = fRows.length
+        ? `<div style="font-weight:600;margin-bottom:4px">fiscal_info</div>` +
+          fRows.map(x => `<div><span style="color:#64748b">${escapeHtml(x[0])}:</span> <strong>${escapeHtml(String(x[1]))}</strong></div>`).join('')
+        : '<div style="color:#94a3b8">Keine fiscal_info.</div>';
+    const props = d.properties || [];
+    const propsHtml = props.length
+        ? `<div style="font-weight:600;margin:10px 0 4px">Custom Fields <span style="color:#94a3b8;font-weight:400">(key → value — diese Keys nutze ich fürs Mapping)</span></div>` +
+          `<table style="font-size:12px;border-collapse:collapse">${props.map(p =>
+              `<tr><td style="padding:1px 14px 1px 0;color:#1d4ed8;font-family:monospace">${escapeHtml(p.key || '')}</td><td style="padding:1px 0"><strong>${escapeHtml(p.value || '')}</strong></td></tr>`
+          ).join('')}</table>`
+        : '<div style="color:#94a3b8;margin-top:8px">Keine Custom Fields.</div>';
+    const notes = (d.notes || []).map(n => `<div style="color:#b45309;font-size:11px;margin-top:4px">⚠ ${escapeHtml(n)}</div>`).join('');
+    return `<div style="font-size:12px;line-height:1.5">${fiscalHtml}${propsHtml}${notes}</div>`;
 }
 
 function _eawEmpRenderDiff(diffs) {
