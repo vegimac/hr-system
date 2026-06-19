@@ -279,6 +279,7 @@ public class EasyAtWorkTimepunchSyncService
         public int    CountUnmatched { get; set; }
         public int    CountSoftDeleted { get; set; }
         public int    CountInvalid   { get; set; }
+        public int    CountLocked    { get; set; }
         public int    CountInserted  { get; set; }
         public List<TimepunchPreviewRow> Rows { get; set; } = new();
         public List<string> Notes { get; set; } = new();
@@ -315,6 +316,7 @@ public class EasyAtWorkTimepunchSyncService
         public int       Skipped  { get; set; }        // Duplikate / nicht zuordenbar (Delete-Ziel fehlt)
         public DateTime? MaxUpdatedAt { get; set; }     // höchstes updated_at → neuer Cursor
         public List<MissingEmployee> MissingEmployees { get; set; } = new();
+        public List<string> Notes { get; set; } = new();
         public bool      IsBlocked => MissingEmployees.Count > 0;
         /// <summary>Insert + Update + Delete (für last_row_count).</summary>
         public int       RowCount => Inserted + Updated + Deleted;
@@ -426,8 +428,51 @@ public class EasyAtWorkTimepunchSyncService
     public Task<SyncResult> PreviewAsync(SyncRequest req, CancellationToken ct = default)
         => SyncCoreAsync(req, commit: false, ct);
 
-    public Task<SyncResult> CommitAsync(SyncRequest req, CancellationToken ct = default)
-        => SyncCoreAsync(req, commit: true, ct);
+    /// <summary>
+    /// Manueller Commit (Walter-Vorgabe 19.06.2026): nutzt JETZT denselben
+    /// lock-gegateten Schreibpfad wie der Auto-Sync (<see cref="ApplyTimepunchesAsync"/>)
+    /// — schreibt also NICHT mehr in gesperrte Lohnperioden. <paramref name="firstAllowed"/>
+    /// kommt aus dem Controller (User-aware LohnEditLockService). Aktualisiert
+    /// zusätzlich den TIMEPUNCH-Sync-State (Cursor + UI-Status).
+    /// </summary>
+    public async Task<AutoSyncResult> CommitAsync(SyncRequest req, DateOnly? firstAllowed, CancellationToken ct = default)
+    {
+        var res = new AutoSyncResult { From = req.From, To = req.To };
+        if (req.To < req.From) { res.Notes.Add("Ungültiger Datumsbereich (Bis ist vor Von)."); return res; }
+        if ((req.To.DayNumber - req.From.DayNumber) > 92) { res.Notes.Add("Bereich auf max. 92 Tage begrenzt."); return res; }
+
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == req.CompanyProfileId, ct);
+        if (mapping == null) { res.Notes.Add("Diese Filiale hat kein easy@work-Mapping."); return res; }
+
+        List<EawTimepunch> punches;
+        try { punches = await _client.GetAllTimepunchesAsync(mapping.EasyAtWorkCustomerId, req.From, req.To, ct); }
+        catch (Exception ex) { res.Notes.Add($"easy@work-Aufruf fehlgeschlagen: {ex.Message}"); return res; }
+
+        var maxUpd = punches.Where(p => p.UpdatedAt.HasValue).Select(p => p.UpdatedAt!.Value).DefaultIfEmpty().Max();
+
+        res = await ApplyTimepunchesAsync(mapping, punches, req.From, req.To, firstAllowed, ct);
+        res.UsedUpdatesFeed = false;
+        res.MaxUpdatedAt = maxUpd == default(DateTime) ? null : maxUpd;
+
+        // Sync-State aktualisieren (Cursor + UI-Status) — nur wenn nicht blockiert.
+        if (!res.IsBlocked)
+        {
+            var st = await _db.EasyAtWorkSyncStates
+                .FirstOrDefaultAsync(s => s.CompanyProfileId == req.CompanyProfileId && s.Resource == "TIMEPUNCH", ct);
+            if (st == null)
+            {
+                st = new EasyAtWorkSyncState { CompanyProfileId = req.CompanyProfileId, Resource = "TIMEPUNCH" };
+                _db.EasyAtWorkSyncStates.Add(st);
+            }
+            st.LastSyncAt = DateTime.UtcNow;
+            if (res.MaxUpdatedAt.HasValue) st.LastSeenUpdatedAt = res.MaxUpdatedAt;
+            st.LastRowCount = res.RowCount;
+            st.LastError = null;
+            await _db.SaveChangesAsync(ct);
+        }
+        return res;
+    }
 
     /// <summary>
     /// Automatischer (Hintergrund-)Sync EINER Filiale im Fenster [from,to]
@@ -441,8 +486,6 @@ public class EasyAtWorkTimepunchSyncService
         EasyAtWorkBranchMapping mapping, DateOnly from, DateOnly to,
         EasyAtWorkSyncState? state, CancellationToken ct = default)
     {
-        var res = new AutoSyncResult { From = from, To = to };
-
         // 1) Quelle wählen: Delta-Feed wenn Cursor vorhanden, sonst Vollabzug.
         //    Ist der Delta-Endpunkt (noch) nicht verfügbar, Fallback auf den
         //    vollen Abzug — der Job bleibt so nicht hängen.
@@ -466,13 +509,33 @@ public class EasyAtWorkTimepunchSyncService
         {
             punches = await _client.GetAllTimepunchesAsync(mapping.EasyAtWorkCustomerId, from, to, ct);
         }
-        res.UsedUpdatesFeed = useUpdates;
 
         // Cursor: höchstes updated_at über ALLE geholten Punches (auch die wir
         // gleich ausserhalb des Fensters ignorieren) → nächster Lauf macht weiter.
         var maxUpd = punches.Where(p => p.UpdatedAt.HasValue).Select(p => p.UpdatedAt!.Value)
             .DefaultIfEmpty().Max();
+
+        // Gemeinsamer Schreibpfad (denselben nutzt der manuelle Commit).
+        var res = await ApplyTimepunchesAsync(mapping, punches, from, to, firstAllowedOverride: null, ct);
+        res.UsedUpdatesFeed = useUpdates;
         res.MaxUpdatedAt = maxUpd == default(DateTime) ? state?.LastSeenUpdatedAt : maxUpd;
+        return res;
+    }
+
+    /// <summary>
+    /// GEMEINSAME Schreiblogik für Auto-Sync UND manuellen Commit (Walter-Vorgabe
+    /// 19.06.2026): lokaler [from,to]-Filter, Preflight NUR über editierbare (nicht
+    /// gesperrte) Stempel, dann lock-gegateter Insert/Update/Delete. Schreibt am
+    /// Ende einmal in die DB.
+    /// <paramref name="firstAllowedOverride"/>: vom manuellen Commit aus dem
+    /// Controller (User-aware <see cref="LohnEditLockService"/>) durchgereicht;
+    /// null = hier selbst berechnen (Auto-Sync).
+    /// </summary>
+    public async Task<AutoSyncResult> ApplyTimepunchesAsync(
+        EasyAtWorkBranchMapping mapping, List<EawTimepunch> punches,
+        DateOnly from, DateOnly to, DateOnly? firstAllowedOverride, CancellationToken ct = default)
+    {
+        var res = new AutoSyncResult { From = from, To = to };
 
         // 2) Lokaler Fenster-Filter (gilt AUCH für den Delta-Feed): nur Punches mit
         //    Datum in [from,to]. Datum = business_date, sonst aus In abgeleitet.
@@ -508,13 +571,19 @@ public class EasyAtWorkTimepunchSyncService
             .GroupBy(x => x.EasyAtWorkEmployeeId!.Value)
             .ToDictionary(g => g.Key, g => $"{g.First().FirstName} {g.First().LastName}".Trim());
 
-        // 4) Preflight: fehlende MA blockieren den Filial-Sync (kein Schreiben).
+        // 4) Lock-Schranke ZUERST bestimmen — der Preflight prüft dann NUR Stempel,
+        //    die tatsächlich geschrieben/geändert/gelöscht würden. Ein fehlender
+        //    MA aus einer bereits gesperrten (alten) Periode darf den Sync NICHT
+        //    blockieren, weil dessen Stempel wegen Lock ohnehin übersprungen wird.
+        var firstAllowed = firstAllowedOverride
+            ?? await _lock.GetFirstAllowedDateAsync(null, mapping.CompanyProfileId);
+        var editableForPreflight = windowed
+            .Where(p => { var d = PunchDate(p); return d.HasValue && IsEditable(d.Value, firstAllowed); });
         res.MissingEmployees = ComputePreflightMissing(
-            windowed, eawEmpById, new HashSet<string>(byNumber.Keys), aliasMap);
+            editableForPreflight, eawEmpById, new HashSet<string>(byNumber.Keys), aliasMap);
         if (res.IsBlocked) return res;
 
-        // 5) Lock-Gating-Schranke + Nachtfenster der Filiale.
-        var firstAllowed = await _lock.GetFirstAllowedDateAsync(null, mapping.CompanyProfileId);
+        // 5) Nachtfenster der Filiale.
         var cp = await _db.CompanyProfiles.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == mapping.CompanyProfileId, ct);
         var nightStart = ParseHhmm(cp?.NightStartTime, new TimeSpan(0, 0, 0));
@@ -760,12 +829,22 @@ public class EasyAtWorkTimepunchSyncService
             .GroupBy(x => x.EasyAtWorkEmployeeId!.Value)
             .ToDictionary(g => g.Key, g => $"{g.First().FirstName} {g.First().LastName}".Trim());
 
+        // Lock-Schranke (Walter-Vorgabe 19.06.2026): die Vorschau kennzeichnet
+        // Stempel in gesperrten Perioden als LOCKED (der Commit überspringt sie),
+        // und der Preflight prüft NUR editierbare Stempel — ein fehlender MA aus
+        // einer gesperrten Altperiode soll nicht fälschlich blockieren.
+        var firstAllowed = await _lock.GetFirstAllowedDateAsync(null, req.CompanyProfileId);
+
         // 5b) Preflight (Walter-Vorgabe 18.06.2026): jeder easy@work-MA mit
-        //     importierbaren Stempeln muss auf eine Cowork-Personalnummer (oder
-        //     einen Alias) abbildbar sein. Sonst Block — Anzeige im Preview,
-        //     Commit verweigert (siehe unten vor dem Schreib-Pfad).
+        //     EDITIERBAREN importierbaren Stempeln muss auf eine Cowork-Personal-
+        //     nummer (oder einen Alias) abbildbar sein. Sonst Block.
+        var editablePunches = punches.Where(p =>
+        {
+            var d = p.BusinessDate ?? (p.In.HasValue ? DateOnly.FromDateTime(UtcToSwissLocal(p.In.Value)) : (DateOnly?)null);
+            return d.HasValue && IsEditable(d.Value, firstAllowed);
+        });
         res.MissingEmployees = ComputePreflightMissing(
-            punches, eawEmpById, new HashSet<string>(byNumber.Keys), aliasMap);
+            editablePunches, eawEmpById, new HashSet<string>(byNumber.Keys), aliasMap);
 
         // 6) Pro Punch Status berechnen
         // Innerhalb DIESER Antwort schon gesehene easy@work-IDs — die API kann
@@ -900,6 +979,14 @@ public class EasyAtWorkTimepunchSyncService
                 row.Status = "DUPLICATE";
                 row.Reason = "Stempel mit gleichem TimeIn existiert bereits.";
                 res.Rows.Add(row); res.CountDuplicate++; continue;
+            }
+
+            // Periode gesperrt? Vorschau zeigt LOCKED — der Commit überspringt ihn.
+            if (!IsEditable(row.BusinessDate, firstAllowed))
+            {
+                row.Status = "LOCKED";
+                row.Reason = $"Lohnperiode gesperrt (frühestes erlaubtes Datum {firstAllowed:dd.MM.yyyy}) — wird nicht importiert.";
+                res.Rows.Add(row); res.CountLocked++; continue;
             }
 
             row.Status = "NEW";

@@ -187,6 +187,54 @@ public class EasyAtWorkAutoSyncRunner
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];
 
+    /// <summary>
+    /// Catch-up-Entscheidung (Walter-Vorgabe 19.06.2026, seiteneffektfrei →
+    /// testbar): nach einem Neustart soll der heutige Lauf SOFORT nachgeholt
+    /// werden, wenn es lokal bereits NACH 05:00 ist UND mindestens eine aktiv
+    /// gemappte Filiale heute (lokal) noch keinen erfolgreichen Sync hatte.
+    /// Vor 05:00 nicht — dann greift der normale 05:00-Lauf ohnehin.
+    /// </summary>
+    public static bool ShouldCatchUp(
+        DateTime nowLocal, IReadOnlyCollection<DateOnly?> lastSuccessLocalDatePerActiveBranch)
+    {
+        if (lastSuccessLocalDatePerActiveBranch.Count == 0) return false;       // keine aktive Filiale
+        if (nowLocal.TimeOfDay < new TimeSpan(5, 0, 0)) return false;           // vor 05:00 → normaler Lauf
+        var today = DateOnly.FromDateTime(nowLocal);
+        return lastSuccessLocalDatePerActiveBranch.Any(d => d != today);        // mind. eine heute noch nicht
+    }
+
+    /// <summary>Lädt den Sync-Stand und entscheidet, ob ein Nachhol-Lauf nötig ist.</summary>
+    public async Task<bool> NeedsCatchUpAsync(CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return false;
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var activeCpIds = await db.EasyAtWorkBranchMappings
+            .Where(m => m.AutoSyncEnabled)
+            .Select(m => m.CompanyProfileId)
+            .ToListAsync(ct);
+        if (activeCpIds.Count == 0) return false;
+
+        var states = await db.EasyAtWorkSyncStates
+            .Where(s => s.Resource == "TIMEPUNCH" && activeCpIds.Contains(s.CompanyProfileId))
+            .Select(s => new { s.CompanyProfileId, s.LastSyncAt })
+            .ToListAsync(ct);
+        var lastByCp = states.ToDictionary(s => s.CompanyProfileId, s => s.LastSyncAt);
+
+        var dates = activeCpIds.Select(cp =>
+        {
+            if (lastByCp.TryGetValue(cp, out var last) && last.HasValue)
+            {
+                var utc = DateTime.SpecifyKind(last.Value, DateTimeKind.Utc);
+                return (DateOnly?)DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utc, SwissTz));
+            }
+            return (DateOnly?)null;   // noch nie gelaufen → zählt als „heute nicht"
+        }).ToList();
+
+        return ShouldCatchUp(SwissNow(), dates);
+    }
+
     /// <summary>Hängt eine Protokoll-Zeile an (wird mit dem nächsten SaveChanges persistiert).</summary>
     private static void AddLog(
         AppDbContext db, int companyProfileId, string status,
@@ -271,6 +319,23 @@ public class EasyAtWorkAutoSyncBackgroundService : BackgroundService
         // Warmup, damit der Webserver erst hochfährt.
         try { await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); }
         catch (TaskCanceledException) { return; }
+
+        // Catch-up nach Neustart: wenn der Server nach 05:00 hochkommt, wäre der
+        // heutige Lauf sonst verpasst. Sofort nachholen, wenn heute (lokal) noch
+        // nicht gelaufen.
+        try
+        {
+            if (await _runner.NeedsCatchUpAsync(stoppingToken))
+            {
+                _log.LogInformation("easy@work Auto-Sync: Nachhol-Lauf nach Neustart (heute noch nicht gelaufen).");
+                await _runner.RunAllBranchesAsync(stoppingToken);
+            }
+        }
+        catch (OperationCanceledException) { return; }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "easy@work Auto-Sync: Catch-up-Lauf fehlgeschlagen.");
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {

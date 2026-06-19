@@ -66,7 +66,12 @@ public class EditLockEndpointAuditTests
         ["MinimumWageRulesController"]     = "L-GAV Mindestlohn-Sätze (Katalog, versioniert) — keine MA-Daten",
         ["BranchMinWageController"]        = "Kommunaler Mindestlohn pro Filiale (Katalog, versioniert) — keine MA-Daten",
         ["LohnKontoMappingController"]     = "Kontoplan / Lohnart→Konten-Mapping (Katalog) — keine MA-Daten",
-        ["EasyAtWorkController"]           = "easy@work-Connector (admin-only) — Branch-Mapping ↔ Customer-ID, keine MA-/Lohn-Daten",
+        // EasyAtWorkController NICHT mehr whitelisted (Walter-Vorgabe 19.06.2026):
+        // er schreibt via Stempelzeit-Commit lohnrelevante employee_time_entry-Daten
+        // und ist deshalb jetzt ECHT lock-geschützt — der Commit-Endpoint berechnet
+        // firstAllowed über _editLock (LohnEditLockService) und reicht es in den
+        // gemeinsamen, lock-gegateten Schreibpfad. Der Audit erkennt das am
+        // LohnEditLockService-Bezug im Controller.
 
         // Firmen-Stammdaten — admin only, gehört nicht in den User-Lock
         ["CompanyProfilesController"]      = "Filial-Stammdaten — admin-only, kein User-Edit-Pfad",

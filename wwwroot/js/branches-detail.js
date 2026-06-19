@@ -1402,15 +1402,29 @@ async function eawAutoInit(branchId) {
         }
         if (!r.ok) { el.innerHTML = `<div style="color:#b91c1c;font-size:12px">Fehler beim Laden des Auto-Sync-Status.</div>`; return; }
         const m = await r.json();
-        eawAutoRender(!!m.autoSyncEnabled, m.easyAtWorkCustomerId);
+        eawAutoRender(!!m.autoSyncEnabled, m.easyAtWorkCustomerId, m.syncState);
     } catch (e) {
         el.innerHTML = `<div style="color:#b91c1c;font-size:12px">Netzwerkfehler beim Laden.</div>`;
     }
 }
 
-function eawAutoRender(enabled, customerId) {
+function eawAutoRender(enabled, customerId, syncState) {
     const el = document.getElementById('eawAutoBlock');
     if (!el) return;
+    const fmtDt = (iso) => { try { return new Date(iso).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); } catch(e){ return iso; } };
+    let statusHtml;
+    if (syncState && (syncState.lastSyncAt || syncState.lastError)) {
+        const last = syncState.lastSyncAt ? fmtDt(syncState.lastSyncAt) : '–';
+        const rows = (syncState.lastRowCount != null) ? syncState.lastRowCount : '–';
+        statusHtml = `
+            <div style="margin-top:8px;font-size:12.5px;color:#475569;display:flex;flex-direction:column;gap:3px">
+                <div>Letzter Lauf: <strong>${last}</strong> · Änderungen: <strong>${rows}</strong></div>
+                ${syncState.lastError ? `<div style="color:#b91c1c"><strong>⚠ Fehler:</strong> ${escapeHtml(syncState.lastError)}</div>` : ''}
+                <div style="color:#94a3b8">Nächster automatischer Lauf: täglich um 05:00</div>
+            </div>`;
+    } else {
+        statusHtml = `<div style="margin-top:8px;font-size:12.5px;color:#94a3b8">Noch kein Lauf protokolliert. Nächster automatischer Lauf: täglich um 05:00.</div>`;
+    }
     el.innerHTML = `
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#0f172a;flex:1;min-width:280px">
@@ -1418,7 +1432,8 @@ function eawAutoRender(enabled, customerId) {
                 <span><strong>Automatischer Sync aktiv</strong> — holt täglich um 05:00 die Stempelzeiten dieser Filiale aus easy@work (Customer ${customerId}).</span>
             </label>
             <span id="eawAutoState" style="font-size:12px;font-weight:700;color:${enabled ? '#16a34a' : '#94a3b8'}">${enabled ? 'EIN' : 'AUS'}</span>
-        </div>`;
+        </div>
+        ${statusHtml}`;
 }
 
 async function eawAutoSave(enabled) {

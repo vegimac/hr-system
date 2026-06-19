@@ -154,12 +154,20 @@ function _eawSyncRenderResult(res, wasCommit) {
             </table>
         </div>` : '';
 
-    const summary = `
+    const summary = wasCommit ? `
+        <div class="eaw-sync-summary">
+            <span style="color:#166534">Importiert: <strong>${res.inserted||0}</strong></span>
+            <span style="color:#1e40af">Geändert: <strong>${res.updated||0}</strong></span>
+            <span style="color:#991b1b">Gelöscht: <strong>${res.deleted||0}</strong></span>
+            <span style="color:#b45309">🔒 Gesperrt übersprungen: <strong>${res.lockedSkipped||0}</strong></span>
+            <span style="color:#64748b">Übersprungen: <strong>${res.skipped||0}</strong></span>
+        </div>` : `
         <div class="eaw-sync-summary">
             <span>Total: <strong>${res.countTotal}</strong></span>
-            <span style="color:#166534">${wasCommit ? 'Importiert' : 'NEW'}: <strong>${wasCommit ? res.countInserted : res.countNew}</strong></span>
+            <span style="color:#166534">NEW: <strong>${res.countNew}</strong></span>
             <span style="color:#854d0e">Duplikate: <strong>${res.countDuplicate}</strong></span>
             <span style="color:#991b1b">Unmatched: <strong>${res.countUnmatched}</strong></span>
+            <span style="color:#b45309">🔒 Gesperrt: <strong>${res.countLocked||0}</strong></span>
             <span style="color:#64748b">Gelöscht/Invalid: <strong>${res.countSoftDeleted + res.countInvalid}</strong></span>
         </div>`;
     const rows = (res.rows||[]).map(r => {
@@ -169,6 +177,7 @@ function _eawSyncRenderResult(res, wasCommit) {
             UNMATCHED:  '<span class="eaw-pill eaw-pill-unmatched">UNMATCHED</span>',
             SOFT_DELETED:'<span class="eaw-pill eaw-pill-soft">GELÖSCHT</span>',
             INVALID:    '<span class="eaw-pill eaw-pill-invalid">INVALID</span>',
+            LOCKED:     '<span class="eaw-pill" style="background:#fef3c7;color:#b45309">🔒 GESPERRT</span>',
         }[r.status] || r.status;
         const comment = escapeHtml(r.comment || r.reason || '');
         // Bei UNMATCHED mit bekannter easy@work-ID: Ein-Klick-Zuordnung anbieten.
@@ -201,12 +210,12 @@ function _eawSyncRenderResult(res, wasCommit) {
         ${missingHtml}
         ${notes}
         ${summary}
-        <table class="eaw-sync-table">
+        ${wasCommit ? '' : `<table class="eaw-sync-table">
             <thead><tr>
                 <th>Status</th><th>MA (Personalnr.)</th><th>Datum</th><th>Von → Bis</th><th style="text-align:right">Std</th><th style="text-align:right">Nacht</th><th>Bearbeitet</th><th>Bemerkung</th>
             </tr></thead>
             <tbody>${rows || '<tr><td colspan="8" style="padding:10px;color:#94a3b8">— keine Einträge —</td></tr>'}</tbody>
-        </table>`;
+        </table>`}`;
 }
 
 function _eawDate(iso) {

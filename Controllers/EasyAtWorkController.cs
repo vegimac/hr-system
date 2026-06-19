@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using HrSystem.Services.EasyAtWork;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,19 +26,22 @@ public class EasyAtWorkController : ControllerBase
     private readonly ILogger<EasyAtWorkController> _log;
     private readonly Services.EasyAtWork.EasyAtWorkTimepunchSyncService _tpSync;
     private readonly Services.EasyAtWork.EasyAtWorkEmployeeSyncService  _empSync;
+    private readonly LohnEditLockService _editLock;
 
     public EasyAtWorkController(
         EasyAtWorkClient client,
         AppDbContext db,
         ILogger<EasyAtWorkController> log,
         Services.EasyAtWork.EasyAtWorkTimepunchSyncService tpSync,
-        Services.EasyAtWork.EasyAtWorkEmployeeSyncService empSync)
+        Services.EasyAtWork.EasyAtWorkEmployeeSyncService empSync,
+        LohnEditLockService editLock)
     {
         _client = client;
         _db = db;
         _log = log;
         _tpSync = tpSync;
         _empSync = empSync;
+        _editLock = editLock;
     }
 
     // ─────────────────────────── Status ─────────────────────────────
@@ -165,7 +169,27 @@ public class EasyAtWorkController : ControllerBase
                 m.AutoSyncEnabled, m.CreatedAt, m.UpdatedAt)
         ).FirstOrDefaultAsync(ct);
         if (dto == null) return NotFound(new { error = "NOT_MAPPED" });
-        return Ok(dto);
+
+        // Sync-Status (Resource TIMEPUNCH) mitliefern — für die Anzeige beim
+        // Auto-Sync-Schalter (Walter-Vorgabe 19.06.2026).
+        var st = await _db.EasyAtWorkSyncStates.AsNoTracking()
+            .Where(s => s.CompanyProfileId == companyProfileId && s.Resource == "TIMEPUNCH")
+            .Select(s => new { s.LastSyncAt, s.LastSeenUpdatedAt, s.LastRowCount, s.LastError })
+            .FirstOrDefaultAsync(ct);
+
+        return Ok(new
+        {
+            dto.Id, dto.CompanyProfileId, dto.CompanyProfileName, dto.RestaurantCode,
+            dto.EasyAtWorkCustomerId, dto.EasyAtWorkCustomerNumber, dto.EasyAtWorkCustomerName,
+            dto.AutoSyncEnabled, dto.CreatedAt, dto.UpdatedAt,
+            syncState = st == null ? null : new
+            {
+                lastSyncAt        = st.LastSyncAt,
+                lastSeenUpdatedAt = st.LastSeenUpdatedAt,
+                lastRowCount      = st.LastRowCount,
+                lastError         = st.LastError,
+            }
+        });
     }
 
     public record AutoSyncToggleDto(bool Enabled);
@@ -304,12 +328,18 @@ public class EasyAtWorkController : ControllerBase
     public async Task<IActionResult> SyncTimepunchesCommit([FromBody] SyncRequestDto dto, CancellationToken ct)
     {
         if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+
+        // Lock-Schranke der Filiale (Walter-Vorgabe 19.06.2026): der manuelle
+        // Commit darf NICHT in gesperrte Lohnperioden schreiben. Wir berechnen
+        // hier das früheste erlaubte Datum über den LohnEditLockService und
+        // reichen es in den gemeinsamen, lock-gegateten Schreibpfad durch.
+        var firstAllowed = await _editLock.GetFirstAllowedDateAsync(User, dto.CompanyProfileId);
         var res = await _tpSync.CommitAsync(new Services.EasyAtWork.EasyAtWorkTimepunchSyncService.SyncRequest
         {
             CompanyProfileId = dto.CompanyProfileId,
             From = dto.From,
             To = dto.To
-        }, ct);
+        }, firstAllowed, ct);
         return Ok(res);
     }
 

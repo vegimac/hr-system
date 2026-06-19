@@ -190,7 +190,7 @@ public class EasyAtWorkClient
     /// Wenn die API mit 422 antwortet, fällt sie automatisch auf `=1` zurück
     /// (manche easy@work-Setups akzeptieren den Boolean-String nicht).
     /// </summary>
-    public async Task<List<EawEmployee>> GetAllEmployeesIncludingInactiveAsync(
+    public virtual async Task<List<EawEmployee>> GetAllEmployeesIncludingInactiveAsync(
         int customerId, CancellationToken ct = default)
     {
         try
@@ -234,7 +234,7 @@ public class EasyAtWorkClient
     /// Per-Page 200 (API-Max). Sicherheits-Stop bei 500 Seiten (= 100k Stempel,
     /// das wäre absurd).
     /// </summary>
-    public async Task<List<EawTimepunch>> GetAllTimepunchesAsync(
+    public virtual async Task<List<EawTimepunch>> GetAllTimepunchesAsync(
         int customerId, DateOnly from, DateOnly to, CancellationToken ct = default)
     {
         var all = new List<EawTimepunch>();
@@ -266,7 +266,7 @@ public class EasyAtWorkClient
     /// gesendet. Gibt EawTimepunch-Objekte zurück (inkl. solcher mit
     /// gesetztem <c>deleted_at</c> = in easy@work gelöscht).
     /// </summary>
-    public async Task<List<EawTimepunch>> GetAllTimepunchUpdatesAsync(
+    public virtual async Task<List<EawTimepunch>> GetAllTimepunchUpdatesAsync(
         int customerId, DateTime lastSync, CancellationToken ct = default)
     {
         var lastSyncUtc = (lastSync.Kind == DateTimeKind.Utc ? lastSync : lastSync.ToUniversalTime())
