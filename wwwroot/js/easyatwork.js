@@ -105,7 +105,11 @@ async function _eawSyncRun(commit) {
     if (!sel.value) { alert('Bitte zuerst Filiale wählen.'); return; }
     if (!fromEl.value || !toEl.value) { alert('Bitte Datumsbereich angeben.'); return; }
 
-    out.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px">⏳ ${commit ? 'Importiere' : 'Hole Vorschau'} …</div>`;
+    const _total = (commit && _eawSyncLastPreview) ? (_eawSyncLastPreview.countNew || 0) : 0;
+    const _label = commit
+        ? `Importiere${_total ? ' ' + _total + ' Stempelzeit(en)' : ''}`
+        : 'Lese Stempelzeiten aus easy@work';
+    const stopProgress = _eawStartProgress(out, _label);
     commitBtn.disabled = true;
 
     const dto = {
@@ -122,6 +126,7 @@ async function _eawSyncRun(commit) {
             body: JSON.stringify(dto)
         });
         const body = await r.json();
+        stopProgress();
         if (!r.ok) {
             out.innerHTML = `<div class="eaw-result eaw-result-err">
                 <div class="eaw-result-title">✗ Fehler ${r.status}</div>
@@ -142,11 +147,27 @@ async function _eawSyncRun(commit) {
         // es nicht-zuordenbare MA gibt (Preflight-Block) oder keine NEW-Zeilen.
         commitBtn.disabled = commit || blocked || !(body.countNew > 0);
     } catch (e) {
+        stopProgress();
         out.innerHTML = `<div class="eaw-result eaw-result-err">
             <div class="eaw-result-title">Netzwerkfehler</div>
             <div class="eaw-result-msg">${escapeHtml(String(e))}</div>
         </div>`;
     }
+}
+
+// Live-Lauf-Anzeige mit Sekundenzähler. Gibt eine Stop-Funktion zurück.
+function _eawStartProgress(el, label) {
+    if (!el) return () => {};
+    const t0 = Date.now();
+    const render = () => {
+        const s = Math.round((Date.now() - t0) / 1000);
+        el.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px;display:flex;align-items:center;gap:8px">
+            <span class="import-spinner" style="width:14px;height:14px"></span>
+            <span>${escapeHtml(label)} … <strong>${s}s</strong></span></div>`;
+    };
+    render();
+    const iv = setInterval(render, 1000);
+    return () => clearInterval(iv);
 }
 
 function _eawSyncRenderResult(res, wasCommit) {
@@ -427,11 +448,13 @@ async function _eawEmpSyncRun(commit, selected) {
     const commitBtn  = document.getElementById('eawEmpSyncCommitBtn');
     if (!sel.value) { alert('Bitte zuerst Filiale wählen.'); return; }
 
-    out.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px">⏳ ${commit ? 'Importiere' : 'Hole Vorschau'} …</div>`;
+    const _empCount = commit && Array.isArray(selected) ? selected.length : 0;
+    const _empLabel = commit
+        ? `Importiere${_empCount ? ' ' + _empCount + ' MA' : ' MA-Daten'}`
+        : 'Lese MA-Stammdaten aus easy@work';
+    const stopProgress = _eawStartProgress(out, _empLabel);
     commitBtn.disabled = true;
 
-    // Logik: Stichtag = heute (immer). Aktive MA werden immer geladen.
-    // ExitedAfter optional: zusätzlich die Ausgetretenen mit Austritt > Cutoff.
     const dto = {
         companyProfileId: parseInt(sel.value, 10),
         onlyActive:       (scopeEl?.value === 'active'),
@@ -446,6 +469,7 @@ async function _eawEmpSyncRun(commit, selected) {
             body: JSON.stringify(dto)
         });
         const body = await r.json();
+        stopProgress();
         if (!r.ok) {
             out.innerHTML = `<div class="eaw-result eaw-result-err">
                 <div class="eaw-result-title">✗ Fehler ${r.status}</div>
@@ -465,6 +489,7 @@ async function _eawEmpSyncRun(commit, selected) {
         const hasAny = (body.countNew + body.countUpdate + (body.countTotal - (body.countConflict||0))) > 0;
         commitBtn.disabled = commit || !hasAny;
     } catch (e) {
+        stopProgress();
         out.innerHTML = `<div class="eaw-result eaw-result-err">
             <div class="eaw-result-title">Netzwerkfehler</div>
             <div class="eaw-result-msg">${escapeHtml(String(e))}</div>
