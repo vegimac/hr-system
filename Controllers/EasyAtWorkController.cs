@@ -183,6 +183,41 @@ public class EasyAtWorkController : ControllerBase
         return Ok(new { ok = true, autoSyncEnabled = row.AutoSyncEnabled });
     }
 
+    // ──────────── Auto-Sync-Protokoll (Admin-Ansicht) ────────────────
+    public record SyncLogDto(
+        int Id, int CompanyProfileId, string? CompanyProfileName, DateTime RunAt,
+        string Status, DateOnly? PeriodFrom, DateOnly? PeriodTo, bool UsedUpdatesFeed,
+        int Inserted, int Updated, int Deleted, int LockedSkipped, int Skipped,
+        int MissingCount, string? Message);
+
+    /// <summary>Protokoll des automatischen Sync (neueste zuerst), optional pro Filiale.</summary>
+    [HttpGet("sync-log")]
+    public async Task<IActionResult> GetSyncLog(
+        [FromQuery] int? branchId, [FromQuery] int limit = 100, CancellationToken ct = default)
+    {
+        if (limit <= 0 || limit > 500) limit = 100;
+
+        var logs = await _db.EasyAtWorkSyncLogs.AsNoTracking()
+            .Where(l => !branchId.HasValue || l.CompanyProfileId == branchId.Value)
+            .OrderByDescending(l => l.RunAt)
+            .Take(limit)
+            .ToListAsync(ct);
+
+        var cpIds = logs.Select(l => l.CompanyProfileId).Distinct().ToList();
+        var names = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => cpIds.Contains(c.Id))
+            .Select(c => new { c.Id, Name = c.BranchName ?? c.CompanyName })
+            .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+
+        var rows = logs.Select(l => new SyncLogDto(
+            l.Id, l.CompanyProfileId,
+            names.TryGetValue(l.CompanyProfileId, out var n) ? n : null,
+            l.RunAt, l.Status, l.PeriodFrom, l.PeriodTo, l.UsedUpdatesFeed,
+            l.Inserted, l.Updated, l.Deleted, l.LockedSkipped, l.Skipped,
+            l.MissingCount, l.Message)).ToList();
+        return Ok(rows);
+    }
+
     /// <summary>Mapping neu anlegen oder vorhandenes updaten (per CompanyProfileId).</summary>
     [HttpPost("mappings")]
     public async Task<IActionResult> UpsertMapping([FromBody] UpsertMappingDto dto, CancellationToken ct)

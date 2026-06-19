@@ -14,6 +14,7 @@ async function eawInit() {
     await eawLoadMappings();
     eawSyncInit();
     _eawEmpSyncInit();
+    eawLogLoad();
 }
 
 // ═══════════════════════ Stempelzeit-Sync (Phase 2) ══════════════════════
@@ -212,6 +213,59 @@ function _eawDate(iso) {
     if (!iso) return '';
     const s = String(iso).slice(0, 10);
     return s.length === 10 ? `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}` : s;
+}
+
+// ─────────────────── Auto-Sync-Protokoll (Admin-Ansicht) ─────────────────
+async function eawLogLoad() {
+    const el = document.getElementById('eawLogContainer');
+    if (!el) return;
+    el.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px">⏳ Lade…</div>`;
+    try {
+        const r = await fetch('/api/easywork/sync-log?limit=100', { headers: ah(), cache: 'no-store' });
+        if (!r.ok) { el.innerHTML = `<div style="color:#b91c1c;font-size:13px">Fehler beim Laden des Protokolls.</div>`; return; }
+        eawLogRender(await r.json());
+    } catch (e) {
+        el.innerHTML = `<div style="color:#b91c1c;font-size:13px">Netzwerkfehler beim Laden.</div>`;
+    }
+}
+
+function eawLogRender(rows) {
+    const el = document.getElementById('eawLogContainer');
+    if (!el) return;
+    if (!rows || !rows.length) {
+        el.innerHTML = `<div style="color:#94a3b8;font-size:13px;padding:8px">— noch keine Läufe protokolliert —</div>`;
+        return;
+    }
+    const badge = (s) => {
+        const m = {
+            OK:      ['#166534', '#dcfce7', 'OK'],
+            BLOCKED: ['#991b1b', '#fee2e2', 'BLOCKIERT'],
+            ERROR:   ['#7f1d1d', '#fecaca', 'FEHLER'],
+            SKIPPED: ['#64748b', '#f1f5f9', 'ÜBERSPRUNGEN'],
+        }[s] || ['#334155', '#e2e8f0', s];
+        return `<span style="background:${m[1]};color:${m[0]};font-weight:600;font-size:11px;padding:2px 8px;border-radius:9px;white-space:nowrap">${m[2]}</span>`;
+    };
+    const fmtDt = (iso) => { try { return new Date(iso).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); } catch(e){ return iso; } };
+    const body = rows.map(r => `
+        <tr>
+            <td style="white-space:nowrap">${fmtDt(r.runAt)}</td>
+            <td>${escapeHtml(r.companyProfileName || ('Filiale ' + r.companyProfileId))}</td>
+            <td>${badge(r.status)}</td>
+            <td style="white-space:nowrap;color:#64748b">${r.periodFrom ? _eawDate(r.periodFrom) + '–' + _eawDate(r.periodTo) : ''} ${r.usedUpdatesFeed ? '<span style="color:#94a3b8" title="Delta-Feed (timepunch_updates)">Δ</span>' : ''}</td>
+            <td style="text-align:right;color:#166534">${r.inserted || 0}</td>
+            <td style="text-align:right;color:#1e40af">${r.updated || 0}</td>
+            <td style="text-align:right;color:#991b1b">${r.deleted || 0}</td>
+            <td style="text-align:right;color:#854d0e" title="in gesperrter Periode übersprungen">${r.lockedSkipped || 0}</td>
+            <td style="color:#475569;font-size:12px">${escapeHtml(r.message || '')}</td>
+        </tr>`).join('');
+    el.innerHTML = `
+        <table class="eaw-sync-table">
+            <thead><tr>
+                <th>Zeitpunkt</th><th>Filiale</th><th>Status</th><th>Fenster</th>
+                <th style="text-align:right">+Neu</th><th style="text-align:right">~Änd</th><th style="text-align:right">−Del</th><th style="text-align:right">🔒</th><th>Meldung</th>
+            </tr></thead>
+            <tbody>${body}</tbody>
+        </table>`;
 }
 function _eawTime(iso) {
     if (!iso) return '—';

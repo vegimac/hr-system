@@ -91,6 +91,7 @@ public class EasyAtWorkAutoSyncRunner
             }
         }
 
+        await CleanupLogAsync(ct);
         _log.LogInformation("easy@work Auto-Sync beendet.");
     }
 
@@ -109,7 +110,9 @@ public class EasyAtWorkAutoSyncRunner
         if (window is null)
         {
             _log.LogInformation("easy@work Auto-Sync: Filiale {Cp} hat keine offene Periode — übersprungen.", mapping.CompanyProfileId);
-            return;   // kein State-Update
+            AddLog(db, mapping.CompanyProfileId, "SKIPPED", null, null, "Keine offene Lohnperiode — Sync übersprungen.");
+            await db.SaveChangesAsync(ct);
+            return;
         }
 
         var state = await db.EasyAtWorkSyncStates
@@ -128,10 +131,12 @@ public class EasyAtWorkAutoSyncRunner
         {
             var names = string.Join(", ", result.MissingEmployees.Take(10)
                 .Select(m => (m.EawEmployeeName ?? ("easy@work-MA")) + " (#" + m.EawEmployeeId + ")"));
-            state.LastError  = Truncate($"Sync blockiert: {result.MissingEmployees.Count} MA ohne Cowork-Zuordnung: {names}", 1000);
+            var blockMsg = $"Sync blockiert: {result.MissingEmployees.Count} MA ohne Cowork-Zuordnung: {names}";
+            state.LastError  = Truncate(blockMsg, 1000);
             state.LastSyncAt = DateTime.UtcNow;
             // Cursor (last_seen_updated_at) bewusst NICHT vorrücken → nächster
             // Lauf versucht es erneut, bis die MA zugeordnet sind.
+            AddLog(db, mapping.CompanyProfileId, "BLOCKED", window, result, blockMsg);
             _log.LogWarning("easy@work Auto-Sync Filiale {Cp} blockiert: {N} MA ohne Zuordnung.",
                 mapping.CompanyProfileId, result.MissingEmployees.Count);
         }
@@ -141,6 +146,10 @@ public class EasyAtWorkAutoSyncRunner
             if (result.MaxUpdatedAt.HasValue) state.LastSeenUpdatedAt = result.MaxUpdatedAt;
             state.LastRowCount = result.RowCount;
             state.LastError = null;
+            var okMsg = $"+{result.Inserted} neu / ~{result.Updated} geändert / -{result.Deleted} gelöscht"
+                      + (result.LockedSkipped > 0 ? $", {result.LockedSkipped} in gesperrter Periode übersprungen" : "")
+                      + (result.Skipped > 0 ? $", {result.Skipped} übersprungen" : "");
+            AddLog(db, mapping.CompanyProfileId, "OK", window, result, okMsg);
             _log.LogInformation(
                 "easy@work Auto-Sync Filiale {Cp} [{From}..{To}] ({Feed}): +{Ins} / ~{Upd} / -{Del}, {Lock} gesperrt übersprungen, {Skip} übersprungen.",
                 mapping.CompanyProfileId, window.Value.From, window.Value.To,
@@ -167,6 +176,7 @@ public class EasyAtWorkAutoSyncRunner
             }
             state.LastError  = Truncate(error, 1000);
             state.LastSyncAt = DateTime.UtcNow;
+            AddLog(db, companyProfileId, "ERROR", null, null, error);
             await db.SaveChangesAsync(ct);
         }
         catch (Exception ex)
@@ -176,6 +186,46 @@ public class EasyAtWorkAutoSyncRunner
     }
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];
+
+    /// <summary>Hängt eine Protokoll-Zeile an (wird mit dem nächsten SaveChanges persistiert).</summary>
+    private static void AddLog(
+        AppDbContext db, int companyProfileId, string status,
+        (DateOnly From, DateOnly To)? window,
+        EasyAtWorkTimepunchSyncService.AutoSyncResult? r, string? message)
+    {
+        db.EasyAtWorkSyncLogs.Add(new EasyAtWorkSyncLog
+        {
+            CompanyProfileId = companyProfileId,
+            RunAt            = DateTime.UtcNow,
+            Status           = status,
+            PeriodFrom       = window?.From,
+            PeriodTo         = window?.To,
+            UsedUpdatesFeed  = r?.UsedUpdatesFeed ?? false,
+            Inserted         = r?.Inserted ?? 0,
+            Updated          = r?.Updated ?? 0,
+            Deleted          = r?.Deleted ?? 0,
+            LockedSkipped    = r?.LockedSkipped ?? 0,
+            Skipped          = r?.Skipped ?? 0,
+            MissingCount     = r?.MissingEmployees.Count ?? 0,
+            Message          = message == null ? null : Truncate(message, 1000),
+        });
+    }
+
+    /// <summary>Protokoll-Einträge älter als 90 Tage entfernen (eigener Scope).</summary>
+    private async Task CleanupLogAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var cutoff = DateTime.UtcNow.AddDays(-90);
+            await db.EasyAtWorkSyncLogs.Where(l => l.RunAt < cutoff).ExecuteDeleteAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "easy@work Auto-Sync: Log-Cleanup fehlgeschlagen.");
+        }
+    }
 
     private static readonly TimeZoneInfo SwissTz = FindSwissTz();
     private static DateTime SwissNow() => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, SwissTz);

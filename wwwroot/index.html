@@ -5573,6 +5573,14 @@
                         Aktive MA werden immer geholt. Mit <strong>Austritt nach</strong> kommen zusätzlich nur die MA dazu, deren Austrittsdatum nach diesem Stichtag liegt (z.B. <code>2025-01-01</code> = alle seit Mirus-Migration).
                     </div>
                     <div id="eawEmpSyncResult"></div>
+
+                    <h3 style="margin:30px 0 8px;font-size:15px">Auto-Sync-Protokoll</h3>
+                    <p style="color:#64748b;font-size:13px;margin-bottom:10px">Läufe des automatischen täglichen Stempelzeiten-Sync (05:00 Europe/Zurich). Pro Filiale und Lauf eine Zeile — so siehst du, ob alles durchgelaufen ist, ohne aufs Server-Log zu schauen.</p>
+                    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+                        <button class="btn-secondary" onclick="eawLogLoad()">↻ Aktualisieren</button>
+                        <span style="color:#94a3b8;font-size:12px">neueste zuerst, max. 100 Einträge · Aufbewahrung 90 Tage</span>
+                    </div>
+                    <div id="eawLogContainer"></div>
                 </div>
             </div>
             <!-- ═══ AUDIT-LOG (Walter-Vorgabe 27.05.2026, admin-only) ═══ -->
@@ -9057,7 +9065,7 @@ function onBranchChange() {
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
-<script src="js/easyatwork.js?v=20260619a"></script>
+<script src="js/easyatwork.js?v=20260619b"></script>
 <script src="js/audit-log.js?v=20260527a"></script>
 <script src="js/global-search.js?v=20260527f"></script>
 <script src="js/help-panel.js?v=20260528a"></script>
