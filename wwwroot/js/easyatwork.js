@@ -31,6 +31,13 @@ function eawSyncInit() {
           ).join('')
         : '<option value="">— keine Filiale gemappt —</option>';
 
+    // Global gewählte Filiale (Sidebar-Selektor) vorauswählen, sofern sie
+    // gemappt ist (Walter-Vorgabe 19.06.2026 — folgt der Sub-Page-Konvention).
+    if (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId
+        && mapped.some(m => Number(m.companyProfileId) === Number(fixedCompanyProfileId))) {
+        sel.value = String(fixedCompanyProfileId);
+    }
+
     // Datumsbereich-Default: letzte 7 Tage
     const fromEl = document.getElementById('eawSyncFrom');
     const toEl   = document.getElementById('eawSyncTo');
@@ -40,6 +47,23 @@ function eawSyncInit() {
         fromEl.value = past.toISOString().slice(0, 10);
         toEl.value   = today.toISOString().slice(0, 10);
     }
+
+    // Beim Ändern von „Von" das „Bis" automatisch ans Monatsende des Von-Datums
+    // setzen (Walter-Vorgabe 19.06.2026). Praktisch für Monats-Läufe: Von = 1.2.
+    // → Bis = 28./29.2. Bis bleibt danach frei änderbar.
+    if (fromEl && toEl) {
+        fromEl.onchange = () => {
+            if (fromEl.value) toEl.value = _eawEndOfMonth(fromEl.value);
+        };
+    }
+}
+
+/// Letzter Tag des Monats eines ISO-Datums "YYYY-MM-DD" → "YYYY-MM-DD".
+function _eawEndOfMonth(iso) {
+    const [y, m] = iso.split('-').map(Number);
+    if (!y || !m) return iso;
+    const last = new Date(y, m, 0).getDate();   // Tag 0 des Folgemonats = letzter Tag
+    return `${y}-${String(m).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
 }
 
 async function eawSyncPreview() {
