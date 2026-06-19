@@ -1906,6 +1906,8 @@ public class PayrollCalculationEngine
                     AbsenzBreakdown:      absenzBreakdown,
                     SollStundenVoll:        sollStundenVoll,
                     SollFerienReduktion:    Math.Round(ferienStundenAequivalent, 2),
+                    SollKrankReduktion:     Math.Round(krankStundenAequivalent, 2),
+                    SollUnfallReduktion:    Math.Round(unfallStundenAequivalent, 2),
                     GuaranteedHoursPerWeek: guaranteedH,
                     FerienTageInPeriode:    Math.Round(mtpFerienTage, 2),
                     FerienKuerzungVorschlag:     kuerzungVorschlag,

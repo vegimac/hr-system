@@ -451,6 +451,8 @@ public static class PayrollCalculations
             // Optional: Soll-Berechnungs-Erläuterung (MTP)
             sollStundenVoll        = saldo.SollStundenVoll,
             sollFerienReduktion    = saldo.SollFerienReduktion,
+            sollKrankReduktion     = saldo.SollKrankReduktion,
+            sollUnfallReduktion    = saldo.SollUnfallReduktion,
             guaranteedHoursPerWeek = saldo.GuaranteedHoursPerWeek,
             ferienTageInPeriode    = saldo.FerienTageInPeriode,
 

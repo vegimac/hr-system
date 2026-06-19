@@ -85,6 +85,8 @@ public record SaldoBlock(
     // ── Optional: Soll-Berechnungs-Details für Anzeige im Lohnzettel ──
     decimal? SollStundenVoll = null,             // vor Ferien-Reduktion
     decimal? SollFerienReduktion = null,         // GuarH/7 × Ferientage
+    decimal? SollKrankReduktion = null,          // MTP: GuarH/5 × Krank-Werktage
+    decimal? SollUnfallReduktion = null,         // MTP: GuarH/5 × Unfall-Werktage
     decimal? GuaranteedHoursPerWeek = null,      // 21 (für Erläuterung)
     decimal? FerienTageInPeriode = null,         // 4 (für Erläuterung)
 

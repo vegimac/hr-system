@@ -266,7 +266,8 @@ public class PayrollController : HrControllerBase
     // Lohnlauf (identische Zahlen) und liest die Stunden-Felder aus dem Resultat.
     [HttpGet("sollstunden-report")]
     public async Task<IActionResult> SollstundenReport(
-        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month,
+        [FromQuery] string? stichtag = null)
     {
         if (!await CanAccessBranchAsync(companyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
@@ -274,6 +275,17 @@ public class PayrollController : HrControllerBase
         var (periodFrom, periodTo) = CalcPeriod(year, month);
         var pFrom = periodFrom.ToDateTime(TimeOnly.MinValue);
         var pTo   = periodTo.ToDateTime(TimeOnly.MaxValue);
+
+        // Stichtag: bis und mit diesem Tag werden Soll/Gearbeitet/Absenz pro-rata
+        // gezeigt (Mid-Month-Fortschritt). Default = heute, geklemmt auf den
+        // Monatsbereich. Liegt heute nach Monatsende → ganzer Monat.
+        if (!DateOnly.TryParse(stichtag, out var stich))
+            stich = DateOnly.FromDateTime(DateTime.Now);
+        if (stich < periodFrom) stich = periodFrom;
+        if (stich > periodTo)   stich = periodTo;
+        int daysInMonth    = periodTo.DayNumber - periodFrom.DayNumber + 1;
+        int daysToStichtag = stich.DayNumber - periodFrom.DayNumber + 1;
+        decimal dayRatio   = daysInMonth > 0 ? (decimal)daysToStichtag / daysInMonth : 1m;
 
         // Aktive FIX/FIX-M/MTP-Verträge der Filiale in der Periode (UTP hat keine
         // Sollstunden → bewusst raus). Datums-Vergleich auf DateTime (EF-übersetzbar).
@@ -291,6 +303,25 @@ public class PayrollController : HrControllerBase
         // pro MA den jüngsten passenden Vertrag, dann nach Vorname sortiert.
         var byEmp = emps.GroupBy(x => x.EmployeeId).Select(g => g.First())
             .OrderBy(x => x.FirstName ?? "").ThenBy(x => x.LastName ?? "").ToList();
+        var empIds = byEmp.Select(x => x.EmployeeId).ToList();
+
+        // Gearbeitete Stunden bis und mit Stichtag (eigene Abfrage — die Engine
+        // summiert den ganzen Monat; für den Stichtag begrenzen wir die Stempel).
+        var workedToStich = (await _db.EmployeeTimeEntries.AsNoTracking()
+                .Where(t => empIds.Contains(t.EmployeeId)
+                         && t.EntryDate >= periodFrom && t.EntryDate <= stich)
+                .GroupBy(t => t.EmployeeId)
+                .Select(g => new { EmployeeId = g.Key, Sum = g.Sum(t => t.TotalHours ?? 0m) })
+                .ToListAsync())
+            .ToDictionary(x => x.EmployeeId, x => x.Sum);
+
+        // Absenzen der Periode (für die Tag-Skalierung bis Stichtag).
+        var absInPeriod = await _db.Absences.AsNoTracking()
+            .Where(a => empIds.Contains(a.EmployeeId)
+                     && a.DateFrom <= periodTo && a.DateTo >= periodFrom)
+            .ToListAsync();
+        var absByEmp = absInPeriod.GroupBy(a => a.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         var camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         static decimal D(JsonNode? node, string key)
@@ -310,12 +341,40 @@ public class PayrollController : HrControllerBase
             var model = (string?)(node?["employmentModel"]) ?? e.EmploymentModel;
             bool isMtp = model == "MTP";
 
-            var soll      = isMtp ? D(node, "sollStundenVoll") : D(node, "sollStunden");
-            var geleistet = D(node, "workedHours");
-            var absenz    = D(node, "absenzGutschrift") + (isMtp ? D(node, "sollFerienReduktion") : 0m);
-            var erledigt  = Math.Round(geleistet + absenz, 2);
-            var differenz = Math.Round(erledigt - soll, 2);
-            var saldoNeu  = D(node, "neuerHourSaldo");
+            // Soll (Monat, brutto): MTP = vor der Absenz-Reduktion (sollStundenVoll);
+            // FIX/FIX-M = sollStunden (deren Absenzen laufen über absenzGutschrift,
+            // reduzieren das Soll nicht).
+            var sollMonat = isMtp ? D(node, "sollStundenVoll") : D(node, "sollStunden");
+
+            // Absenz (Monat): bei MTP kürzen Ferien UND Krank UND Unfall das Soll.
+            // Die tatsächlich „absorbierte" Reduktion = sollStundenVoll − sollStunden(netto),
+            // bereits auf das Soll gedeckelt (Festlohn kann nicht negativ werden) →
+            // bleibt konsistent zum Stunden-Saldo. Plus absenzGutschrift (Schulung
+            // etc., bei MTP separat). FIX/FIX-M: nur absenzGutschrift.
+            decimal absenzMonat = isMtp
+                ? D(node, "absenzGutschrift") + (D(node, "sollStundenVoll") - D(node, "sollStunden"))
+                : D(node, "absenzGutschrift");
+
+            var geleistetMonat = D(node, "workedHours");
+            var saldoNeu       = D(node, "neuerHourSaldo");
+
+            // ── Stichtag-Werte (pro-rata) ──────────────────────────────────
+            decimal sollStich  = Math.Round(sollMonat * dayRatio, 2);
+            decimal gearbeitet = workedToStich.TryGetValue(e.EmployeeId, out var w)
+                ? Math.Round(w, 2) : 0m;
+            // Absenz bis Stichtag: Tag-Anteil der Periode-Absenzen.
+            decimal absenzStich;
+            if (absByEmp.TryGetValue(e.EmployeeId, out var aList))
+            {
+                int dFull = aList.Sum(a => CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
+                int dUpTo = aList.Sum(a => CountAbsenceDaysInPeriod(a, periodFrom, stich));
+                decimal frac = dFull > 0 ? (decimal)dUpTo / dFull : 0m;
+                absenzStich = Math.Round(absenzMonat * frac, 2);
+            }
+            else absenzStich = 0m;
+
+            decimal erledigtStich = Math.Round(gearbeitet + absenzStich, 2);
+            decimal differenz     = Math.Round(erledigtStich - sollStich, 2);
 
             rows.Add(new
             {
@@ -323,7 +382,17 @@ public class PayrollController : HrControllerBase
                 number     = e.Number,
                 name       = $"{e.FirstName} {e.LastName}".Trim(),
                 model,
-                soll, geleistet, absenz, erledigt, differenz, saldoNeu
+                // Stichtag-bezogen
+                sollStich,
+                gearbeitet,
+                absenz   = absenzStich,
+                erledigt = erledigtStich,
+                differenz,
+                // Monats-Referenz
+                sollMonat,
+                absenzMonat,
+                gearbeitetMonat = geleistetMonat,
+                saldoNeu
             });
         }
 
@@ -331,6 +400,9 @@ public class PayrollController : HrControllerBase
         {
             periodFrom = periodFrom.ToString("yyyy-MM-dd"),
             periodTo   = periodTo.ToString("yyyy-MM-dd"),
+            stichtag   = stich.ToString("yyyy-MM-dd"),
+            daysToStichtag,
+            daysInMonth,
             count      = rows.Count,
             rows
         });
