@@ -3213,87 +3213,10 @@
                 </div>
             </div>
 
-            <!-- IMPORT -->
-            <div class="page" id="page-import">
-                <div class="page-head">
-                    <div>
-                        <h1 class="page-title">Datenimport</h1>
-                        <p class="page-sub">Daten aus externen Quellen importieren</p>
-                    </div>
-                </div>
-                <div class="page-body">
-                    <!-- Filial-Banner: gewählte Filiale auf die der Import läuft -->
-                    <div id="stzBranchBanner" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;max-width:680px">
-                        <span style="font-size:20px">🏪</span>
-                        <div style="flex:1">
-                            <label for="stzBranchSelect" style="display:block;font-size:11px;font-weight:600;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Filiale</label>
-                            <select id="stzBranchSelect" onchange="onStzBranchChange()"
-                                    style="width:100%;max-width:420px;padding:8px 12px;border:1.5px solid #bfdbfe;border-radius:8px;font-size:14px;font-weight:600;color:#0f172a;background:white;cursor:pointer;outline:none">
-                                <option value="">— Lade Filialen... —</option>
-                            </select>
-                            <div style="font-size:11px;color:#64748b;margin-top:4px">Stempelzeiten dieser Filiale werden importiert. Bei abweichendem Restaurant im PDF erscheint eine Warnung.</div>
-                        </div>
-                    </div>
-
-                    <!-- STEMPELZEITEN IMPORT CARD -->
-                    <div class="card" style="max-width:680px">
-                        <div style="padding:28px 32px">
-                            <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
-                                <div style="width:44px;height:44px;background:#eff6ff;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                </div>
-                                <div style="flex:1">
-                                    <div style="font-weight:700;font-size:16px;color:#0f172a">Stempelzeiten PDF</div>
-                                    <div style="font-size:13px;color:#64748b;margin-top:2px">Stempelzeiten-Export aus easy@work als PDF importieren (Chrome-Druck → Als PDF sichern)</div>
-                                </div>
-                                <div id="importCountBadge" style="background:#eff6ff;color:#1d4ed8;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap">… in DB</div>
-                                <button class="btn" style="background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;font-size:11px;padding:6px 10px;white-space:nowrap" onclick="stempelDedupe()">⚙ Duplikate bereinigen</button>
-                            </div>
-
-                            <!-- Upload Zone -->
-                            <div id="importDropZone" class="import-drop-zone" onclick="document.getElementById('importFileInput').click()"
-                                 ondragover="event.preventDefault();this.classList.add('drag-over')"
-                                 ondragleave="this.classList.remove('drag-over')"
-                                 ondrop="handleImportDrop(event)">
-                                <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                <div style="font-weight:600;color:#475569;margin-top:8px">PDF hier ablegen oder klicken</div>
-                                <div style="font-size:12px;color:#94a3b8;margin-top:4px">Stempelzeiten-Export (PDF)</div>
-                                <input type="file" id="importFileInput" accept=".pdf" style="display:none" onchange="handleImportFile(this.files[0])">
-                            </div>
-
-                            <!-- Datei ausgewählt -->
-                            <div id="importFileInfo" style="display:none;margin-top:14px;padding:12px 16px;background:#f8fafc;border-radius:10px;display:none;align-items:center;gap:12px">
-                                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#3b82f6" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                <span id="importFileName" style="font-size:14px;color:#1e293b;font-weight:500;flex:1"></span>
-                                <button onclick="clearImportFile()" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:18px;padding:0 4px">✕</button>
-                            </div>
-
-                            <!-- Start-Button -->
-                            <div id="importBtnRow" style="display:none;margin-top:16px;gap:10px;flex-wrap:wrap">
-                                <button id="importStartBtn" class="btn btn-primary" onclick="startStempelzeitenImport()">
-                                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                    Importieren
-                                </button>
-                                <button id="importPreviewBtn" class="btn" style="background:white;color:#1d4ed8;border:1.5px solid #bfdbfe;font-weight:600;cursor:pointer" onclick="previewStempelzeiten()">
-                                    🔍 Diagnose
-                                </button>
-                            </div>
-
-                            <!-- Progress -->
-                            <div id="importProgress" style="display:none;margin-top:16px">
-                                <div style="display:flex;align-items:center;gap:10px;color:#3b82f6;font-size:14px">
-                                    <div class="import-spinner"></div>
-                                    <span>PDF wird verarbeitet und importiert…</span>
-                                </div>
-                            </div>
-
-                            <!-- Ergebnis -->
-                            <div id="stzImportResult" style="display:none;margin-top:16px"></div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
+            <!-- IMPORT-Seite entfernt (Walter-Vorgabe 19.06.2026): der PDF-/ZIP-
+                 Stempelzeiten-Import gibt es nicht mehr. Stempelzeiten kommen
+                 ausschliesslich über die easy@work-API (Systemeinstellungen →
+                 easy@work API → Stempelzeiten-Sync + täglicher Auto-Sync). -->
 
             <!-- LOHN -->
             <div class="page" id="page-lohn">
@@ -8830,91 +8753,14 @@ function showPage(name) {
     if (name === 'saldo-vortrag') svInit();
     if (name === 'lohnlauf')      llInit();
     if (name === 'perioden') initPeriodenPage();
-    if (name === 'import')   { refreshStempelCount(); populateStzBranchSelect(); }
     if (name === 'smtp-settings') smtpLoad();
     if (name === 'lse-export')   lseInit();
 }
 
-// ── STEMPELZEITEN-IMPORT FILIALE ──────────────────────
-let stzActiveBranch = null;  // {id, restaurantCode, branchName}
-
-function populateStzBranchSelect() {
-    const sel = document.getElementById('stzBranchSelect');
-    if (!sel) return;
-    const branches = (typeof allBranches !== 'undefined' && Array.isArray(allBranches)) ? allBranches : [];
-    if (!branches.length) { sel.innerHTML = '<option value="">— Keine Filialen verfügbar —</option>'; return; }
-    const sorted = [...branches].sort((a,b) =>
-        (a.restaurantCode || '').localeCompare(b.restaurantCode || ''));
-    sel.innerHTML = sorted.map(b => {
-        const code = b.restaurantCode || '';
-        const name = b.branchName || b.companyName || '';
-        return `<option value="${b.id}">${code ? code + ' – ' : ''}${name}</option>`;
-    }).join('');
-    // Vorauswahl aus aktiver Filiale
-    if (fixedCompanyProfileId) sel.value = String(fixedCompanyProfileId);
-    onStzBranchChange();
-}
-
-function onStzBranchChange() {
-    const sel = document.getElementById('stzBranchSelect');
-    if (!sel) return;
-    const id = parseInt(sel.value, 10) || null;
-    if (!id) { stzActiveBranch = null; return; }
-    const b = (allBranches || []).find(x => x.id === id);
-    stzActiveBranch = b ? {
-        id: b.id,
-        restaurantCode: b.restaurantCode || '',
-        branchName: b.branchName || b.companyName || ''
-    } : null;
-}
-
-// Prüft die im PDF gefundenen Mitarbeiter-Nummern gegen den Restaurant-Code
-// der aktiven Filiale. Personalnummern beginnen mit dem RestaurantCode ohne
-// führende Nullen (z.B. 058 → "58", 075 → "75", 104 → "104").
-//
-// Erwartet { parsedSample: [{emp,...}, ...] } aus der Preview-API. Liefert
-// HTML-Warnung wenn die Mehrheit der Sample-Nummern zu einer ANDEREN Filiale
-// gehört, sonst leeren String.
-function buildStzBranchMismatchWarning(data) {
-    if (!stzActiveBranch) return '';
-    const sample = (data && data.parsedSample) || [];
-    if (!sample.length) return '';
-
-    const branchByPrefix = {};
-    for (const b of (allBranches || [])) {
-        const prefix = (b.restaurantCode || '').replace(/^0+/, '');
-        if (prefix) branchByPrefix[prefix] = b;
-    }
-    const activePrefix = (stzActiveBranch.restaurantCode || '').replace(/^0+/, '');
-
-    let mismatchCount = 0;
-    let matchCount    = 0;
-    let detected      = null;
-    for (const e of sample) {
-        const empNr = String(e.emp || '');
-        // Match auf längsten passenden Präfix (3-stellig vor 2-stellig)
-        let bMatch = null;
-        for (const [pfx, b] of Object.entries(branchByPrefix).sort((a,b) => b[0].length - a[0].length)) {
-            if (empNr.startsWith(pfx)) { bMatch = b; break; }
-        }
-        if (!bMatch) continue;
-        if (bMatch.id === stzActiveBranch.id) matchCount++;
-        else { mismatchCount++; detected = bMatch; }
-    }
-
-    // Nur warnen wenn deutliche Mehrheit zu anderer Filiale gehört
-    if (matchCount >= mismatchCount || !detected) return '';
-
-    return `<div class="import-result-err" style="margin-bottom:10px">
-        <strong>⚠️ Achtung: PDF stammt aus anderer Filiale!</strong>
-        <div style="font-size:13px;margin-top:4px">
-            Personalnummern im PDF gehören zur Filiale
-            <strong>${detected.restaurantCode || ''} – ${detected.branchName || detected.companyName || ''}</strong><br>
-            Gewählte Filiale: <strong>${stzActiveBranch.restaurantCode} – ${stzActiveBranch.branchName}</strong><br>
-            Bitte oben die richtige Filiale wählen oder ein anderes PDF importieren.
-        </div>
-    </div>`;
-}
+// PDF-Stempelzeiten-Import entfernt (Walter-Vorgabe 19.06.2026):
+// Stempelzeiten kommen ausschliesslich über die easy@work-API. Die früheren
+// Helfer (populateStzBranchSelect / onStzBranchChange / buildStzBranchMismatchWarning)
+// + die Import-Seite sind ersatzlos entfernt.
 
 // ══════════════════════════════════════════════
 // BRANCHES
@@ -9059,7 +8905,6 @@ function onBranchChange() {
 <script src="js/dok-struktur.js?v=20260614b"></script>
 <script src="js/austritt.js?v=20260614a"></script>
 <script src="js/contracts-edit.js?v=20260614a"></script>
-<script src="js/import-stempelzeiten.js?v=20260607a"></script>
 <script src="js/payroll.js?v=20260607a"></script>
 <script src="js/fibu.js?v=20260524a"></script>
 <script src="js/payroll-perioden.js?v=20260524a"></script>

@@ -51,7 +51,6 @@ window.i18n = (function () {
         'side.banks':                { de: 'Banken',              en: 'Banks' },
         'side.fakTariff':            { de: 'Familienzulagen-Tarife', en: 'Family allowance rates' },
         'side.maImport':             { de: 'Mitarbeiter & Verträge', en: 'Employees & contracts' },
-        'side.stempelImport':        { de: 'Stempelzeiten',       en: 'Time records' },
         'side.bankImport':           { de: 'Bankverbindungen',    en: 'Bank accounts' },
         'side.permitImport':         { de: 'Bewilligungen',       en: 'Permits' },
         'side.dvelopImport':         { de: 'd.velop Dokumente',   en: 'd.velop documents' },
