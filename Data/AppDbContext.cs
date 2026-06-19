@@ -69,6 +69,7 @@ public class AppDbContext : DbContext
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
     public DbSet<EasyAtWorkBranchMapping>   EasyAtWorkBranchMappings    => Set<EasyAtWorkBranchMapping>();
     public DbSet<EasyAtWorkSyncState>       EasyAtWorkSyncStates        => Set<EasyAtWorkSyncState>();
+    public DbSet<EasyAtWorkEmployeeAlias>   EasyAtWorkEmployeeAliases   => Set<EasyAtWorkEmployeeAlias>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

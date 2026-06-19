@@ -278,4 +278,93 @@ public class EasyAtWorkController : ControllerBase
         }, ct);
         return Ok(res);
     }
+
+    // ──────────── easy@work-ID-Aliase (alte/zweite IDs pro MA) ───────────
+    // Walter-Vorgabe 18.06.2026: Wenn die easy@work-employee_id eines MA
+    // mittendrin wechselt, hängen alte Stempel an der alten ID. Hier hinterlegen
+    // wir diese alten IDs, damit der Stempel-Sync sie auflösen kann.
+
+    public record AliasCreateDto(int EasyAtWorkId, int CoworkEmployeeId, string? Note);
+
+    /// <summary>Liste aller hinterlegten Alias-IDs (mit MA-Name).</summary>
+    [HttpGet("aliases")]
+    public async Task<IActionResult> GetAliases(CancellationToken ct)
+    {
+        var raw = await _db.EasyAtWorkEmployeeAliases.AsNoTracking()
+            .OrderByDescending(a => a.Id)
+            .Select(a => new
+            {
+                a.Id,
+                a.EasyAtWorkId,
+                a.EmployeeId,
+                FirstName = a.Employee!.FirstName,
+                LastName  = a.Employee.LastName,
+                EmployeeNumber = a.Employee.EmployeeNumber,
+                a.Note,
+                a.CreatedAt,
+                a.CreatedBy,
+            })
+            .ToListAsync(ct);
+        var rows = raw.Select(a => new
+        {
+            a.Id,
+            a.EasyAtWorkId,
+            a.EmployeeId,
+            employeeNumber = a.EmployeeNumber,
+            employeeName   = ((a.FirstName ?? "") + " " + (a.LastName ?? "")).Trim(),
+            a.Note,
+            a.CreatedAt,
+            a.CreatedBy,
+        });
+        return Ok(rows);
+    }
+
+    /// <summary>
+    /// Hinterlegt eine alte/zweite easy@work-ID für einen MA (Upsert: dieselbe
+    /// easy@work-ID kann nur EINEM MA gehören → vorhandener Eintrag wird umgehängt).
+    /// </summary>
+    [HttpPost("aliases")]
+    public async Task<IActionResult> CreateAlias([FromBody] AliasCreateDto dto, CancellationToken ct)
+    {
+        if (dto.EasyAtWorkId <= 0) return BadRequest(new { error = "EAW_ID_INVALID", message = "Ungültige easy@work-ID." });
+        var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == dto.CoworkEmployeeId, ct);
+        if (emp == null) return NotFound(new { error = "EMPLOYEE_NOT_FOUND", message = "Mitarbeiter nicht gefunden." });
+
+        var actor = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                 ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        var existing = await _db.EasyAtWorkEmployeeAliases
+            .FirstOrDefaultAsync(a => a.EasyAtWorkId == dto.EasyAtWorkId, ct);
+        if (existing != null)
+        {
+            existing.EmployeeId = dto.CoworkEmployeeId;
+            existing.Note       = dto.Note;
+            existing.CreatedAt  = DateTime.UtcNow;
+            existing.CreatedBy  = actor;
+        }
+        else
+        {
+            _db.EasyAtWorkEmployeeAliases.Add(new EasyAtWorkEmployeeAlias
+            {
+                EasyAtWorkId = dto.EasyAtWorkId,
+                EmployeeId   = dto.CoworkEmployeeId,
+                Note         = dto.Note,
+                CreatedAt    = DateTime.UtcNow,
+                CreatedBy    = actor,
+            });
+        }
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { ok = true });
+    }
+
+    /// <summary>Entfernt einen Alias wieder.</summary>
+    [HttpDelete("aliases/{id:int}")]
+    public async Task<IActionResult> DeleteAlias(int id, CancellationToken ct)
+    {
+        var row = await _db.EasyAtWorkEmployeeAliases.FirstOrDefaultAsync(a => a.Id == id, ct);
+        if (row == null) return NotFound();
+        _db.EasyAtWorkEmployeeAliases.Remove(row);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
 }

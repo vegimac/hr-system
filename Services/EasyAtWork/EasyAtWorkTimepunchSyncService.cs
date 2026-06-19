@@ -245,6 +245,8 @@ public class EasyAtWorkTimepunchSyncService
     public class TimepunchPreviewRow
     {
         public int       EawTimepunchId { get; set; }
+        /// <summary>easy@work-interne employee_id des Stempels (für Alias-Zuordnung).</summary>
+        public int       EawEmployeeId  { get; set; }
         public string?   EawEmployeeNumber { get; set; }
         public string?   EawEmployeeName   { get; set; }
         public int?      CoworkEmployeeId  { get; set; }
@@ -340,6 +342,17 @@ public class EasyAtWorkTimepunchSyncService
             .Where(e => !string.IsNullOrWhiteSpace(e.EmployeeNumber))
             .GroupBy(e => e.EmployeeNumber!.Trim())
             .ToDictionary(g => g.Key, g => g.First());
+        // Cowork-MA per interner Id (für die Alias-Auflösung unten).
+        var empById = emps.ToDictionary(e => e.Id, e => e);
+
+        // Alias-Map: alte/zweite easy@work-employee_id → Cowork-MA-Id. Greift als
+        // Fallback, wenn ein Stempel auf eine ID zeigt, die die normale MA-Liste
+        // nicht kennt (ID-Wechsel in easy@work). Walter 18.06.2026.
+        var aliasMap = (await _db.EasyAtWorkEmployeeAliases.AsNoTracking()
+                .Select(a => new { a.EasyAtWorkId, a.EmployeeId })
+                .ToListAsync(ct))
+            .GroupBy(a => a.EasyAtWorkId)
+            .ToDictionary(g => g.Key, g => g.First().EmployeeId);
 
         // 3) Stempelzeiten aus easy@work holen (alle Seiten)
         List<EawTimepunch> punches;
@@ -385,12 +398,15 @@ public class EasyAtWorkTimepunchSyncService
         Dictionary<int, EawEmployee> eawEmpById = new();
         try
         {
-            // Wir brauchen ALLE MA, die in der Periode Stempel haben könnten —
-            // also die am ERSTEN Tag der Periode aktiv waren. easy@work-Default
-            // `active=heute` würde inzwischen ausgetretene MA verstecken; wir
-            // setzen den Stichtag explizit auf req.From und folgen der Pagination.
-            var eawEmps = await _client.GetAllEmployeesActiveAtAsync(
-                mapping.EasyAtWorkCustomerId, req.From, ct);
+            // Diese Liste dient NUR zum Auflösen von employee_id → Personalnummer
+            // (+ Bearbeiter-Namen), also muss sie so breit wie möglich sein. Ein
+            // Stichtag-Filter (`active=req.From`) verfehlt MA, die ERST IM MONAT
+            // eingetreten sind (z.B. Angela Miteva am 28.02. mit Eintritt nach
+            // Periodenbeginn) oder andere Aktiv-Lücken haben → deren Stempel
+            // landeten fälschlich als UNMATCHED. Darum laden wir ALLE MA der
+            // Filiale inkl. ausgetretene. (Walter-Bug 18.06.2026.)
+            var eawEmps = await _client.GetAllEmployeesIncludingInactiveAsync(
+                mapping.EasyAtWorkCustomerId, ct);
             foreach (var e in eawEmps) eawEmpById[e.Id] = e;
         }
         catch (Exception ex)
@@ -434,6 +450,7 @@ public class EasyAtWorkTimepunchSyncService
             var row = new TimepunchPreviewRow
             {
                 EawTimepunchId   = p.Id,
+                EawEmployeeId    = p.EmployeeId,
                 BusinessDate     = p.BusinessDate ?? (inLocal.HasValue ? DateOnly.FromDateTime(inLocal.Value) : DateOnly.MinValue),
                 TimeIn           = inLocal,
                 TimeOut          = outLocal,
@@ -491,7 +508,21 @@ public class EasyAtWorkTimepunchSyncService
 
             // MA-Match per employee_number.
             var num = (row.EawEmployeeNumber ?? "").Trim();
-            if (string.IsNullOrEmpty(num) || !byNumber.TryGetValue(num, out var coEmp))
+            var coEmp = !string.IsNullOrEmpty(num) && byNumber.TryGetValue(num, out var byNumEmp)
+                ? byNumEmp : null;
+
+            // Fallback: hinterlegte alte/zweite easy@work-ID? (Walter 18.06.2026)
+            // Greift, wenn der Stempel auf eine ID zeigt, die die MA-Liste nicht
+            // kennt (ID-Wechsel) — dann ist die Zuordnung manuell hinterlegt.
+            if (coEmp == null && aliasMap.TryGetValue(p.EmployeeId, out var aliasCoworkId)
+                && empById.TryGetValue(aliasCoworkId, out var aliasEmp))
+            {
+                coEmp = aliasEmp;
+                row.EawEmployeeNumber = aliasEmp.EmployeeNumber;
+                row.EawEmployeeName   = $"{aliasEmp.FirstName} {aliasEmp.LastName}".Trim();
+            }
+
+            if (coEmp == null)
             {
                 row.Status = "UNMATCHED";
                 if (!string.IsNullOrEmpty(num))

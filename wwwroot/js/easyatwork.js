@@ -119,6 +119,10 @@ function _eawSyncRenderResult(res, wasCommit) {
             INVALID:    '<span class="eaw-pill eaw-pill-invalid">INVALID</span>',
         }[r.status] || r.status;
         const comment = escapeHtml(r.comment || r.reason || '');
+        // Bei UNMATCHED mit bekannter easy@work-ID: Ein-Klick-Zuordnung anbieten.
+        const assignBtn = (r.status === 'UNMATCHED' && r.eawEmployeeId)
+            ? `<button onclick="eawAssignAlias(${r.eawEmployeeId})" style="margin-top:4px;display:inline-block;background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer">→ MA zuordnen</button>`
+            : '';
         let editFlag = '';
         if (r.isEdited) {
             const origIn  = _eawTime(r.originalTimeIn);
@@ -138,7 +142,7 @@ function _eawSyncRenderResult(res, wasCommit) {
             <td style="text-align:right">${r.hours != null ? Number(r.hours).toFixed(2) : ''}</td>
             <td style="text-align:right;color:${r.nightHours > 0 ? '#1e40af' : '#94a3b8'}">${r.nightHours != null ? Number(r.nightHours).toFixed(2) : ''}</td>
             <td>${editFlag}</td>
-            <td style="color:#475569">${comment}</td>
+            <td style="color:#475569">${comment}${assignBtn ? '<br>' + assignBtn : ''}</td>
         </tr>`;
     }).join('');
     out.innerHTML = `
@@ -163,6 +167,88 @@ function _eawTime(iso) {
     // "2026-06-17T08:30:00"  → "08:30"
     const m = s.match(/T(\d{2}:\d{2})/);
     return m ? m[1] : s;
+}
+
+// ───────── Alias-Zuordnung: alte easy@work-ID einem MA zuweisen ──────────
+// Wird aus der UNMATCHED-Zeile heraus aufgerufen (Walter 18.06.2026). Speichert
+// die alte easy@work-ID am gewählten MA — danach matchen seine Stempel automatisch.
+let _eawAllEmps   = null;
+let _eawAliasEawId = 0;
+
+async function eawAssignAlias(eawEmployeeId) {
+    if (!_eawAllEmps) {
+        try {
+            const res = await fetch('/api/employees', { headers: ah(), cache: 'no-store' });
+            if (!res.ok) { alert('Mitarbeiterliste konnte nicht geladen werden.'); return; }
+            _eawAllEmps = await res.json();
+        } catch (e) { alert('Netzwerkfehler beim Laden der Mitarbeiterliste.'); return; }
+    }
+    // Nach Vorname sortieren (Walter-Konvention), Tie-Break Nachname.
+    const emps = (_eawAllEmps || []).slice().sort((a, b) =>
+        (a.firstName||'').localeCompare(b.firstName||'', 'de') ||
+        (a.lastName||'').localeCompare(b.lastName||'', 'de'));
+
+    _eawAliasEawId = eawEmployeeId;
+    const opts = emps.map(e =>
+        `<option value="${e.id}">${escapeHtml(((e.firstName||'')+' '+(e.lastName||'')).trim())} (${escapeHtml(e.employeeNumber||'-')})</option>`
+    ).join('');
+
+    let overlay = document.getElementById('eawAliasOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'eawAliasOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+        document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:10px;padding:20px;max-width:460px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.25)">
+            <h3 style="margin:0 0 6px;font-size:16px">easy@work-ID #${eawEmployeeId} zuordnen</h3>
+            <p style="color:#64748b;font-size:13px;margin:0 0 12px">Wähle den Mitarbeiter, zu dem diese alte easy@work-ID gehört. Ab dann werden seine Stempel mit dieser ID automatisch erkannt.</p>
+            <input id="eawAliasSearch" placeholder="Suchen (Name oder Nummer)…" oninput="eawAliasFilter()" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:8px;font-size:14px;box-sizing:border-box">
+            <select id="eawAliasSelect" size="8" style="width:100%;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;padding:4px;box-sizing:border-box">${opts}</select>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+                <button onclick="eawAliasClose()" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:7px 14px;cursor:pointer">Abbrechen</button>
+                <button onclick="eawAliasSave()" style="background:#1d4ed8;border:1px solid #1d4ed8;color:#fff;border-radius:6px;padding:7px 14px;cursor:pointer">Zuordnen &amp; speichern</button>
+            </div>
+        </div>`;
+    overlay.style.display = 'flex';
+    const search = document.getElementById('eawAliasSearch');
+    if (search) search.focus();
+}
+
+function eawAliasFilter() {
+    const q = (document.getElementById('eawAliasSearch').value || '').toLowerCase();
+    const sel = document.getElementById('eawAliasSelect');
+    if (!sel) return;
+    Array.from(sel.options).forEach(o => {
+        o.style.display = o.text.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+function eawAliasClose() {
+    const o = document.getElementById('eawAliasOverlay');
+    if (o) o.style.display = 'none';
+}
+
+async function eawAliasSave() {
+    const sel = document.getElementById('eawAliasSelect');
+    const empId = sel && sel.value ? parseInt(sel.value, 10) : 0;
+    if (!empId) { alert('Bitte zuerst einen Mitarbeiter auswählen.'); return; }
+    try {
+        const r = await fetch('/api/easywork/aliases', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ easyAtWorkId: _eawAliasEawId, coworkEmployeeId: empId })
+        });
+        if (!r.ok) {
+            let msg = 'Fehler beim Speichern.';
+            try { const b = await r.json(); msg = b.message || msg; } catch (e) {}
+            alert(msg); return;
+        }
+    } catch (e) { alert('Netzwerkfehler beim Speichern.'); return; }
+    eawAliasClose();
+    // Vorschau neu laden → die zugeordnete Zeile sollte jetzt matchen.
+    eawSyncPreview();
 }
 
 // ═════════════════════ Mitarbeiter-Sync (Phase 3.1) ══════════════════════
