@@ -258,6 +258,38 @@ public class EasyAtWorkClient
         return all;
     }
 
+    /// <summary>
+    /// Lädt ALLE seit <paramref name="lastSync"/> geänderten/neuen/gelöschten
+    /// Stempelzeiten der Filiale (Delta-Feed `/timepunch_updates?last_sync=…`).
+    /// Folgt der Pagination, lädt die Comments mit. Für den inkrementellen
+    /// Auto-Sync (Walter-Vorgabe 19.06.2026). `last_sync` wird als ISO-8601-UTC
+    /// gesendet. Gibt EawTimepunch-Objekte zurück (inkl. solcher mit
+    /// gesetztem <c>deleted_at</c> = in easy@work gelöscht).
+    /// </summary>
+    public async Task<List<EawTimepunch>> GetAllTimepunchUpdatesAsync(
+        int customerId, DateTime lastSync, CancellationToken ct = default)
+    {
+        var lastSyncUtc = (lastSync.Kind == DateTimeKind.Utc ? lastSync : lastSync.ToUniversalTime())
+            .ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var all = new List<EawTimepunch>();
+        int page = 1;
+        const int perPage = 200;
+        while (true)
+        {
+            var path = $"customers/{customerId}/timepunch_updates"
+                     + $"?last_sync={Uri.EscapeDataString(lastSyncUtc)}"
+                     + $"&per_page={perPage}"
+                     + $"&page={page}"
+                     + "&with%5B%5D=comments";
+            var res = await GetJsonAsync<EawPaginated<EawTimepunch>>(path, ct);
+            if (res.Data != null) all.AddRange(res.Data);
+            if (res.LastPage == null || page >= res.LastPage.Value) break;
+            page++;
+            if (page > 500) break;
+        }
+        return all;
+    }
+
     public Task<EawPaginated<EawContract>> GetContractsAsync(int customerId, int employeeId, CancellationToken ct = default)
         => GetJsonAsync<EawPaginated<EawContract>>(
             $"customers/{customerId}/employees/{employeeId}/contracts", ct);

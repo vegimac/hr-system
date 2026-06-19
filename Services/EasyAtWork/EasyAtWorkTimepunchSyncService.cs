@@ -29,6 +29,7 @@ public class EasyAtWorkTimepunchSyncService
     private readonly AppDbContext _db;
     private readonly EasyAtWorkClient _client;
     private readonly ILogger<EasyAtWorkTimepunchSyncService> _log;
+    private readonly LohnEditLockService _lock;
 
     // Source-Tag entfernt (Walter 17.06.2026) — Spalte gibt's nicht mehr,
     // alle Stempel kommen ohnehin nur noch aus easy@work.
@@ -226,11 +227,13 @@ public class EasyAtWorkTimepunchSyncService
     public EasyAtWorkTimepunchSyncService(
         AppDbContext db,
         EasyAtWorkClient client,
-        ILogger<EasyAtWorkTimepunchSyncService> log)
+        ILogger<EasyAtWorkTimepunchSyncService> log,
+        LohnEditLockService lockService)
     {
         _db = db;
         _client = client;
         _log = log;
+        _lock = lockService;
     }
 
     // ─────────────────────────── DTOs ───────────────────────────────
@@ -297,6 +300,24 @@ public class EasyAtWorkTimepunchSyncService
         public string? EawEmployeeName   { get; set; }
         public int     TimepunchCount    { get; set; }
         public string  Reason            { get; set; } = "";
+    }
+
+    /// <summary>Ergebnis eines automatischen (Hintergrund-)Sync-Laufs pro Filiale.</summary>
+    public class AutoSyncResult
+    {
+        public DateOnly  From { get; set; }
+        public DateOnly  To   { get; set; }
+        public bool      UsedUpdatesFeed { get; set; }
+        public int       Inserted { get; set; }
+        public int       Updated  { get; set; }
+        public int       Deleted  { get; set; }
+        public int       LockedSkipped { get; set; }   // wegen gesperrter Periode übersprungen
+        public int       Skipped  { get; set; }        // Duplikate / nicht zuordenbar (Delete-Ziel fehlt)
+        public DateTime? MaxUpdatedAt { get; set; }     // höchstes updated_at → neuer Cursor
+        public List<MissingEmployee> MissingEmployees { get; set; } = new();
+        public bool      IsBlocked => MissingEmployees.Count > 0;
+        /// <summary>Insert + Update + Delete (für last_row_count).</summary>
+        public int       RowCount => Inserted + Updated + Deleted;
     }
 
     // ──────────────── Reine, testbare Matching-Logik ─────────────────
@@ -375,6 +396,31 @@ public class EasyAtWorkTimepunchSyncService
         return missing.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
     }
 
+    /// <summary>
+    /// Berechnet das Sync-Fenster für eine Filiale (Walter-Vorgabe 19.06.2026):
+    ///   from = max(Start der ältesten NICHT definitiv abgeschlossenen Periode,
+    ///              today − 40 Tage),  to = today.
+    /// Gibt null zurück, wenn keine offene Periode existiert (→ Sync überspringen).
+    /// Seiteneffektfrei → unit-testbar.
+    /// </summary>
+    public static (DateOnly From, DateOnly To)? ComputeSyncWindow(
+        DateOnly? oldestOpenPeriodStart, DateOnly today)
+    {
+        if (oldestOpenPeriodStart is null) return null;
+        var floor = today.AddDays(-40);
+        var from  = oldestOpenPeriodStart.Value > floor ? oldestOpenPeriodStart.Value : floor;
+        if (from > today) from = today;   // nie ein negatives Fenster
+        return (from, today);
+    }
+
+    /// <summary>
+    /// Lock-Gating: ein Stempel an <paramref name="date"/> darf nur geschrieben/
+    /// geändert/gelöscht werden, wenn seine Periode nicht gesperrt ist — also
+    /// firstAllowed == null (keine Sperre) ODER date &gt;= firstAllowed.
+    /// </summary>
+    public static bool IsEditable(DateOnly date, DateOnly? firstAllowed)
+        => firstAllowed is null || date >= firstAllowed.Value;
+
     // ────────────────────────── Public API ──────────────────────────
 
     public Task<SyncResult> PreviewAsync(SyncRequest req, CancellationToken ct = default)
@@ -382,6 +428,200 @@ public class EasyAtWorkTimepunchSyncService
 
     public Task<SyncResult> CommitAsync(SyncRequest req, CancellationToken ct = default)
         => SyncCoreAsync(req, commit: true, ct);
+
+    /// <summary>
+    /// Automatischer (Hintergrund-)Sync EINER Filiale im Fenster [from,to]
+    /// (Walter-Vorgabe 19.06.2026). Quelle: timepunch_updates wenn ein Cursor
+    /// (last_seen_updated_at) existiert, sonst die volle timepunches-Liste.
+    /// Schreibt/ändert/löscht NUR Stempel, deren Periode nicht durch den
+    /// LohnEditLockService gesperrt ist. Bei fehlenden MA (Preflight) wird der
+    /// Sync der Filiale blockiert (Rückgabe mit MissingEmployees, kein Schreiben).
+    /// </summary>
+    public async Task<AutoSyncResult> AutoSyncAsync(
+        EasyAtWorkBranchMapping mapping, DateOnly from, DateOnly to,
+        EasyAtWorkSyncState? state, CancellationToken ct = default)
+    {
+        var res = new AutoSyncResult { From = from, To = to };
+
+        // 1) Quelle wählen: Delta-Feed wenn Cursor vorhanden, sonst Vollabzug.
+        //    Ist der Delta-Endpunkt (noch) nicht verfügbar, Fallback auf den
+        //    vollen Abzug — der Job bleibt so nicht hängen.
+        var useUpdates = state?.LastSeenUpdatedAt.HasValue == true;
+        List<EawTimepunch> punches;
+        if (useUpdates)
+        {
+            try
+            {
+                punches = await _client.GetAllTimepunchUpdatesAsync(
+                    mapping.EasyAtWorkCustomerId, state!.LastSeenUpdatedAt!.Value, ct);
+            }
+            catch (HttpRequestException ex)
+            {
+                _log.LogWarning(ex, "easy@work timepunch_updates nicht verfügbar — Fallback auf vollen Abzug.");
+                useUpdates = false;
+                punches = await _client.GetAllTimepunchesAsync(mapping.EasyAtWorkCustomerId, from, to, ct);
+            }
+        }
+        else
+        {
+            punches = await _client.GetAllTimepunchesAsync(mapping.EasyAtWorkCustomerId, from, to, ct);
+        }
+        res.UsedUpdatesFeed = useUpdates;
+
+        // Cursor: höchstes updated_at über ALLE geholten Punches (auch die wir
+        // gleich ausserhalb des Fensters ignorieren) → nächster Lauf macht weiter.
+        var maxUpd = punches.Where(p => p.UpdatedAt.HasValue).Select(p => p.UpdatedAt!.Value)
+            .DefaultIfEmpty().Max();
+        res.MaxUpdatedAt = maxUpd == default(DateTime) ? state?.LastSeenUpdatedAt : maxUpd;
+
+        // 2) Lokaler Fenster-Filter (gilt AUCH für den Delta-Feed): nur Punches mit
+        //    Datum in [from,to]. Datum = business_date, sonst aus In abgeleitet.
+        DateOnly? PunchDate(EawTimepunch p) =>
+            p.BusinessDate ?? (p.In.HasValue ? DateOnly.FromDateTime(UtcToSwissLocal(p.In.Value)) : (DateOnly?)null);
+        var windowed = punches
+            .Where(p => { var d = PunchDate(p); return d.HasValue && d.Value >= from && d.Value <= to; })
+            .ToList();
+        if (windowed.Count == 0) return res;
+
+        // 3) MA-Pool (inkl. inaktive, Pre-2025-Austritte gefiltert) + Alias.
+        var emps = await _db.Employees.AsNoTracking()
+            .Where(e => !e.IsHidden)
+            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
+            .ToListAsync(ct);
+        var byNumber = emps.Where(e => !string.IsNullOrWhiteSpace(e.EmployeeNumber))
+            .GroupBy(e => e.EmployeeNumber!.Trim()).ToDictionary(g => g.Key, g => g.First());
+        var aliasMap = (await _db.EasyAtWorkEmployeeAliases.AsNoTracking()
+                .Select(a => new { a.EasyAtWorkId, a.EmployeeId }).ToListAsync(ct))
+            .GroupBy(a => a.EasyAtWorkId).ToDictionary(g => g.Key, g => g.First().EmployeeId);
+
+        // easy@work-MA-Liste (für Number-Auflösung). Schlägt der Aufruf fehl,
+        // propagiert die Exception zum Orchestrator → landet in last_error.
+        Dictionary<int, EawEmployee> eawEmpById = new();
+        var eawEmps = FilterRelevantEmployees(
+            await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct));
+        foreach (var e in eawEmps) eawEmpById[e.Id] = e;
+
+        var coworkByEawId = await _db.Employees.AsNoTracking()
+            .Where(e => e.EasyAtWorkEmployeeId.HasValue && !e.IsHidden)
+            .Select(e => new { e.EasyAtWorkEmployeeId, e.FirstName, e.LastName }).ToListAsync(ct);
+        var coworkNameByEawId = coworkByEawId
+            .GroupBy(x => x.EasyAtWorkEmployeeId!.Value)
+            .ToDictionary(g => g.Key, g => $"{g.First().FirstName} {g.First().LastName}".Trim());
+
+        // 4) Preflight: fehlende MA blockieren den Filial-Sync (kein Schreiben).
+        res.MissingEmployees = ComputePreflightMissing(
+            windowed, eawEmpById, new HashSet<string>(byNumber.Keys), aliasMap);
+        if (res.IsBlocked) return res;
+
+        // 5) Lock-Gating-Schranke + Nachtfenster der Filiale.
+        var firstAllowed = await _lock.GetFirstAllowedDateAsync(null, mapping.CompanyProfileId);
+        var cp = await _db.CompanyProfiles.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == mapping.CompanyProfileId, ct);
+        var nightStart = ParseHhmm(cp?.NightStartTime, new TimeSpan(0, 0, 0));
+        var nightEnd   = ParseHhmm(cp?.NightEndTime,   new TimeSpan(7, 0, 0));
+
+        // 6) Vorhandene DB-Stempel: per easy@work-ID (Update/Delete, TRACKED) +
+        //    Lokalzeit-Key (Dedup für Inserts ohne ID-Match).
+        var punchIds = windowed.Where(p => p.Id != 0).Select(p => p.Id).Distinct().ToList();
+        var dbByEawId = (await _db.EmployeeTimeEntries
+                .Where(t => t.EasyAtWorkTimepunchId.HasValue && punchIds.Contains(t.EasyAtWorkTimepunchId.Value))
+                .ToListAsync(ct))
+            .GroupBy(t => t.EasyAtWorkTimepunchId!.Value).ToDictionary(g => g.Key, g => g.First());
+        var fromDt = from.ToDateTime(TimeOnly.MinValue);
+        var toDt   = to.ToDateTime(TimeOnly.MaxValue);
+        var existingKeys = new HashSet<string>(await _db.EmployeeTimeEntries.AsNoTracking()
+            .Where(t => t.TimeIn >= fromDt && t.TimeIn <= toDt)
+            .Select(t => t.EmployeeId + "|" + t.TimeIn.ToString("yyyy-MM-ddTHH:mm:ss"))
+            .ToListAsync(ct));
+
+        // 7) Verarbeiten — Lock-Gating gilt für INSERT, UPDATE UND DELETE.
+        var seenBatch = new HashSet<int>();
+        foreach (var p in windowed)
+        {
+            if (p.Id != 0 && !seenBatch.Add(p.Id)) continue; // Pagination-Dublette
+            var pDate = PunchDate(p)!.Value;
+            if (!IsEditable(pDate, firstAllowed)) { res.LockedSkipped++; continue; }
+
+            dbByEawId.TryGetValue(p.Id, out var existing);
+
+            // a) In easy@work gelöscht → Cowork-Zeile entfernen (falls vorhanden).
+            if (p.DeletedAt != null)
+            {
+                if (existing != null) { _db.EmployeeTimeEntries.Remove(existing); res.Deleted++; }
+                continue;
+            }
+            if (!p.In.HasValue) { res.Skipped++; continue; }
+
+            // MA auflösen (Number, sonst Alias) — Preflight hat das bereits abgesichert.
+            int? coworkId = null;
+            if (eawEmpById.TryGetValue(p.EmployeeId, out var eawEmp)
+                && !string.IsNullOrWhiteSpace(eawEmp.Number)
+                && byNumber.TryGetValue(eawEmp.Number!.Trim(), out var byNum))
+                coworkId = byNum.Id;
+            else if (aliasMap.TryGetValue(p.EmployeeId, out var aliasId)) coworkId = aliasId;
+            if (coworkId == null) { res.Skipped++; continue; }
+
+            var inLocal  = UtcToSwissLocal(p.In.Value);
+            var outLocal = p.Out.HasValue ? UtcToSwissLocal(p.Out.Value) : (DateTime?)null;
+            decimal total = (outLocal.HasValue && outLocal.Value > inLocal)
+                ? Math.Round((decimal)(outLocal.Value - inLocal).TotalHours, 2)
+                : (p.Hours ?? 0m);
+            decimal night = outLocal.HasValue ? CalcNightHours(inLocal, outLocal.Value, nightStart, nightEnd) : 0m;
+            decimal duration = Math.Round(total - night, 2);
+            var businessDate = p.BusinessDate ?? DateOnly.FromDateTime(inLocal);
+            var (origIn, origOut) = ParseEditedTimesFromComments(businessDate, p.Comments);
+            var editorName = p.IsEdited ? ExtractEditorName(p, eawEmpById, coworkNameByEawId) : null;
+            var editorTime = p.IsEdited ? ExtractEditorTime(p) : (DateTime?)null;
+
+            // b) Bekannte easy@work-ID → UPDATE.
+            if (existing != null)
+            {
+                existing.EmployeeId    = coworkId.Value;
+                existing.EntryDate     = businessDate;
+                existing.TimeIn        = inLocal;
+                existing.TimeOut       = outLocal;
+                existing.Comment       = p.JoinedComments;
+                existing.TotalHours    = total;
+                existing.NightHours    = night;
+                existing.DurationHours = duration;
+                existing.UpdatedAt     = DateTime.UtcNow;
+                existing.EditedBy      = editorName;
+                existing.EditedAt      = editorTime;
+                existing.OriginalTimeIn  = origIn;
+                existing.OriginalTimeOut = origOut;
+                res.Updated++;
+                continue;
+            }
+
+            // c) Dedup gegen Lokalzeit → sonst INSERT.
+            var key = coworkId.Value + "|" + inLocal.ToString("yyyy-MM-ddTHH:mm:ss");
+            if (existingKeys.Contains(key)) { res.Skipped++; continue; }
+            _db.EmployeeTimeEntries.Add(new EmployeeTimeEntry
+            {
+                EmployeeId    = coworkId.Value,
+                EntryDate     = businessDate,
+                TimeIn        = inLocal,
+                TimeOut       = outLocal,
+                Comment       = p.JoinedComments,
+                TotalHours    = total,
+                NightHours    = night,
+                DurationHours = duration,
+                CreatedAt     = DateTime.UtcNow,
+                UpdatedAt     = DateTime.UtcNow,
+                EditedBy      = editorName,
+                EditedAt      = editorTime,
+                EasyAtWorkTimepunchId = p.Id,
+                OriginalTimeIn  = origIn,
+                OriginalTimeOut = origOut,
+                OriginalComment = p.JoinedComments,
+            });
+            existingKeys.Add(key);
+            res.Inserted++;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return res;
+    }
 
     // ─────────────────────────── Core ───────────────────────────────
 

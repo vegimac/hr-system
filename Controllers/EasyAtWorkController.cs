@@ -117,6 +117,7 @@ public class EasyAtWorkController : ControllerBase
         int     EasyAtWorkCustomerId,
         string? EasyAtWorkCustomerNumber,
         string? EasyAtWorkCustomerName,
+        bool    AutoSyncEnabled,
         DateTime CreatedAt,
         DateTime UpdatedAt);
 
@@ -142,11 +143,44 @@ public class EasyAtWorkController : ControllerBase
                 m.EasyAtWorkCustomerId,
                 m.EasyAtWorkCustomerNumber,
                 m.EasyAtWorkCustomerName,
+                m.AutoSyncEnabled,
                 m.CreatedAt,
                 m.UpdatedAt)
         ).ToListAsync(ct);
 
         return Ok(rows);
+    }
+
+    /// <summary>Mapping einer einzelnen Filiale (für den Filial-Einstellungen-Tab).</summary>
+    [HttpGet("mappings/by-branch/{companyProfileId:int}")]
+    public async Task<IActionResult> GetMappingByBranch(int companyProfileId, CancellationToken ct)
+    {
+        var dto = await (
+            from m in _db.EasyAtWorkBranchMappings.AsNoTracking()
+            join cp in _db.CompanyProfiles.AsNoTracking() on m.CompanyProfileId equals cp.Id
+            where m.CompanyProfileId == companyProfileId
+            select new BranchMappingDto(
+                m.Id, m.CompanyProfileId, cp.BranchName ?? cp.CompanyName, cp.RestaurantCode,
+                m.EasyAtWorkCustomerId, m.EasyAtWorkCustomerNumber, m.EasyAtWorkCustomerName,
+                m.AutoSyncEnabled, m.CreatedAt, m.UpdatedAt)
+        ).FirstOrDefaultAsync(ct);
+        if (dto == null) return NotFound(new { error = "NOT_MAPPED" });
+        return Ok(dto);
+    }
+
+    public record AutoSyncToggleDto(bool Enabled);
+
+    /// <summary>Auto-Sync für eine Filiale ein-/ausschalten (Filial-Einstellungen-Tab).</summary>
+    [HttpPatch("mappings/{companyProfileId:int}/auto-sync")]
+    public async Task<IActionResult> SetAutoSync(int companyProfileId, [FromBody] AutoSyncToggleDto dto, CancellationToken ct)
+    {
+        var row = await _db.EasyAtWorkBranchMappings
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (row == null) return NotFound(new { error = "NOT_MAPPED", message = "Filiale ist nicht mit easy@work verknüpft." });
+        row.AutoSyncEnabled = dto.Enabled;
+        row.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { ok = true, autoSyncEnabled = row.AutoSyncEnabled });
     }
 
     /// <summary>Mapping neu anlegen oder vorhandenes updaten (per CompanyProfileId).</summary>

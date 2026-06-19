@@ -34,6 +34,14 @@ public class EasyAtWorkBranchMapping
     [MaxLength(256)]
     public string? EasyAtWorkCustomerName { get; set; }
 
+    /// <summary>
+    /// Steuert, ob diese Filiale vom automatischen täglichen Stempelzeiten-Sync
+    /// erfasst wird (Walter-Vorgabe 19.06.2026). Default true. Pro Filiale im
+    /// Filial-Einstellungen-Tab ein-/ausschaltbar.
+    /// </summary>
+    [Column("auto_sync_enabled")]
+    public bool AutoSyncEnabled { get; set; } = true;
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

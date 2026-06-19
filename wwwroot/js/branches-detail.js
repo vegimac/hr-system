@@ -322,6 +322,10 @@ function renderFilialenDetail(b) {
                 <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">— nur falls Gemeinde/Kanton einen eigenen Mindestlohn vorschreibt; übersteuert den L-GAV nach oben</span></div>
             <div id="bmwBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>
 
+            <div class="ein-group-title">easy@work Auto-Sync
+                <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">— automatischer Stempelzeiten-Import dieser Filiale, täglich um 05:00</span></div>
+            <div id="eawAutoBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>
+
             <!-- Periodenregel-Anzeige entfernt (Walter-Vorgabe 15.05.2026):
                  die Lohnperiode ist jetzt immer der Kalendermonat.
                  Der „Auf alle Filialen übertragen"-Button sitzt in der
@@ -338,6 +342,8 @@ function renderFilialenDetail(b) {
     loadAkontoTermine(b.id);
     // Kommunalen Mindestlohn der Filiale laden (versioniert).
     bmwInit(b.id);
+    // easy@work Auto-Sync-Schalter dieser Filiale laden.
+    eawAutoInit(b.id);
     // Aktiven Tab beibehalten (Walter-Vorgabe 15.05.2026): wer in
     // „Einstellungen" steht und links die Filiale wechselt, bleibt in
     // „Einstellungen" — einfach von der neu gewählten Filiale.
@@ -1377,6 +1383,58 @@ function bmwFmtDate(iso) {
 }
 function bmwFmtAmt(v) {
     return Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ── easy@work Auto-Sync An/Aus pro Filiale (Walter-Vorgabe 19.06.2026) ──────
+let _eawAutoBranch = null;
+
+async function eawAutoInit(branchId) {
+    const el = document.getElementById('eawAutoBlock');
+    if (!el) return;
+    _eawAutoBranch = branchId;
+    try {
+        const r = await fetch(`/api/easywork/mappings/by-branch/${branchId}`, { headers: ah(), cache: 'no-store' });
+        if (r.status === 404) {
+            el.innerHTML = `<div style="font-size:12.5px;color:#64748b;padding:9px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px">
+                Diese Filiale ist nicht mit easy@work verknüpft — der Auto-Sync ist hier nicht verfügbar.
+                <span style="color:#94a3b8">(Verknüpfung anlegen im Bereich „easy@work API → Filial-Mappings".)</span></div>`;
+            return;
+        }
+        if (!r.ok) { el.innerHTML = `<div style="color:#b91c1c;font-size:12px">Fehler beim Laden des Auto-Sync-Status.</div>`; return; }
+        const m = await r.json();
+        eawAutoRender(!!m.autoSyncEnabled, m.easyAtWorkCustomerId);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#b91c1c;font-size:12px">Netzwerkfehler beim Laden.</div>`;
+    }
+}
+
+function eawAutoRender(enabled, customerId) {
+    const el = document.getElementById('eawAutoBlock');
+    if (!el) return;
+    el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#0f172a;flex:1;min-width:280px">
+                <input type="checkbox" id="eawAutoToggle" ${enabled ? 'checked' : ''} onchange="eawAutoSave(this.checked)" style="width:16px;height:16px;cursor:pointer">
+                <span><strong>Automatischer Sync aktiv</strong> — holt täglich um 05:00 die Stempelzeiten dieser Filiale aus easy@work (Customer ${customerId}).</span>
+            </label>
+            <span id="eawAutoState" style="font-size:12px;font-weight:700;color:${enabled ? '#16a34a' : '#94a3b8'}">${enabled ? 'EIN' : 'AUS'}</span>
+        </div>`;
+}
+
+async function eawAutoSave(enabled) {
+    const stateEl = document.getElementById('eawAutoState');
+    try {
+        const r = await fetch(`/api/easywork/mappings/${_eawAutoBranch}/auto-sync`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+        if (!r.ok) { alert('Speichern fehlgeschlagen.'); eawAutoInit(_eawAutoBranch); return; }
+        if (stateEl) { stateEl.textContent = enabled ? 'EIN' : 'AUS'; stateEl.style.color = enabled ? '#16a34a' : '#94a3b8'; }
+    } catch (e) {
+        alert('Netzwerkfehler beim Speichern.');
+        eawAutoInit(_eawAutoBranch);
+    }
 }
 
 async function bmwInit(branchId) {

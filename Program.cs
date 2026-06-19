@@ -212,6 +212,10 @@ builder.Services.AddSingleton<EasyAtWorkClient>(sp =>
 builder.Services.AddScoped<EasyAtWorkTimepunchSyncService>();
 // Mitarbeiter-Stammdaten-Sync (Phase 3.1)
 builder.Services.AddScoped<EasyAtWorkEmployeeSyncService>();
+// Automatischer Stempelzeit-Sync (Walter-Vorgabe 19.06.2026): Orchestrator
+// (Singleton, erzeugt pro Filiale eigenen Scope) + täglicher 05:00-Scheduler.
+builder.Services.AddSingleton<EasyAtWorkAutoSyncRunner>();
+builder.Services.AddHostedService<EasyAtWorkAutoSyncBackgroundService>();
 
 // Request-Size-Limits hochsetzen — Mirus-Stempelzeiten-PDFs für grosse
 // Filialen können >50 MB sein. Die Kestrel-Default-Grenze (30 MB) und
