@@ -5563,14 +5563,17 @@
                         <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Filiale
                             <select id="eawEmpSyncBranchSel" class="eaw-input" style="min-width:240px"></select>
                         </label>
-                        <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Austritt nach <span style="color:#94a3b8;font-size:11px">(optional — leer = nur aktive)</span>
-                            <input type="date" id="eawEmpSyncExitedAfter" class="eaw-input" placeholder="z.B. 2025-01-01">
+                        <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Umfang
+                            <select id="eawEmpSyncScope" class="eaw-input" style="min-width:200px">
+                                <option value="all">Alle (inkl. ausgetretene)</option>
+                                <option value="active">Nur aktive</option>
+                            </select>
                         </label>
                         <button class="btn-primary" onclick="eawEmpSyncPreview()">🔍 Vorschau</button>
                         <button class="btn-secondary" id="eawEmpSyncCommitBtn" onclick="eawEmpSyncCommit()" disabled>💾 Ausgewählte importieren</button>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-bottom:10px">
-                        Aktive MA werden immer geholt. Mit <strong>Austritt nach</strong> kommen zusätzlich nur die MA dazu, deren Austrittsdatum nach diesem Stichtag liegt (z.B. <code>2025-01-01</code> = alle seit Mirus-Migration).
+                        <strong>Alle</strong> = aktive + alle seit dem 1.1.2025 Ausgetretenen (Pre-Mirus-Austritte vor 2025 werden ausgelassen). <strong>Nur aktive</strong> = nur aktuell beschäftigte MA. Geschrieben wird beim Import nur, was du pro MA auswählst.
                     </div>
                     <div id="eawEmpSyncResult"></div>
 
@@ -9065,7 +9068,7 @@ function onBranchChange() {
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
-<script src="js/easyatwork.js?v=20260619c"></script>
+<script src="js/easyatwork.js?v=20260619d"></script>
 <script src="js/audit-log.js?v=20260527a"></script>
 <script src="js/global-search.js?v=20260527f"></script>
 <script src="js/help-panel.js?v=20260528a"></script>

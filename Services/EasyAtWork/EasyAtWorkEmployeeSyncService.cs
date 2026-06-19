@@ -52,6 +52,14 @@ public class EasyAtWorkEmployeeSyncService
         /// 17.06.2026 für den Initial-Import einer Filiale.
         /// </summary>
         public bool IncludeAllInactive { get; set; } = false;
+        /// <summary>
+        /// Walter-Vorgabe 19.06.2026: einziger Modus-Schalter. true = nur am
+        /// Stichtag aktive MA; false = ALLE (inkl. ausgetretene), aber OHNE die
+        /// Pre-Mirus-Austritte vor dem 1.1.2025 (gleicher Filter wie der
+        /// Stempelzeiten-Sync, <see cref="EasyAtWorkTimepunchSyncService.FilterRelevantEmployees"/>).
+        /// Ersetzt das frühere „Austritt nach"-Datumsfeld.
+        /// </summary>
+        public bool OnlyActive { get; set; } = false;
         /// <summary>Beim Commit: nur diese Personalnummern schreiben (NULL = alle NEW+UPDATE).</summary>
         public List<string>? SelectedNumbers { get; set; }
     }
@@ -116,33 +124,23 @@ public class EasyAtWorkEmployeeSyncService
 
         var activeAt = req.ActiveAt ?? DateOnly.FromDateTime(DateTime.UtcNow.Date);
 
-        // 2) easy@work-MA laden
-        //    - Wenn ExitedAfter gesetzt: ALLE (inkl. ehemalige) laden + lokal filtern
-        //      (aktiv ODER Austritt > ExitedAfter)
-        //    - sonst: nur am Stichtag aktive
+        // 2) easy@work-MA laden (Walter-Vorgabe 19.06.2026, ein Schalter):
+        //    - OnlyActive=true  → nur am Stichtag aktive MA
+        //    - OnlyActive=false → ALLE inkl. ausgetretene, ABER ohne die
+        //      Pre-Mirus-Austritte vor 1.1.2025 (FilterRelevantEmployees).
         List<EawEmployee> eawEmps;
         try
         {
-            if (req.IncludeAllInactive)
+            if (req.OnlyActive)
             {
-                // ALLE — auch ehemalige (Initial-Import).
-                eawEmps = await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct);
-                res.Notes.Add($"{eawEmps.Count} MA insgesamt (inkl. alle ausgetretenen).");
-            }
-            else if (req.ExitedAfter.HasValue)
-            {
-                var raw = await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct);
-                var cutoff = req.ExitedAfter.Value;
-                eawEmps = raw.Where(e =>
-                    !e.To.HasValue ||                                      // noch aktiv (kein Austritt)
-                    e.To.Value >= activeAt ||                              // Austritt liegt nach Stichtag (= aktiv am Stichtag)
-                    e.To.Value > cutoff                                    // Austritt liegt nach dem Cutoff
-                ).ToList();
-                res.Notes.Add($"{raw.Count} MA insgesamt, davon {eawEmps.Count} nach Filter (aktiv oder Austritt > {cutoff:dd.MM.yyyy}).");
+                eawEmps = await _client.GetAllEmployeesActiveAtAsync(mapping.EasyAtWorkCustomerId, activeAt, ct);
+                res.Notes.Add($"{eawEmps.Count} aktive MA.");
             }
             else
             {
-                eawEmps = await _client.GetAllEmployeesActiveAtAsync(mapping.EasyAtWorkCustomerId, activeAt, ct);
+                var all = await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct);
+                eawEmps = EasyAtWorkTimepunchSyncService.FilterRelevantEmployees(all);
+                res.Notes.Add($"{all.Count} MA insgesamt, {eawEmps.Count} nach Filter (aktive + Austritt ab 1.1.2025).");
             }
         }
         catch (Exception ex)

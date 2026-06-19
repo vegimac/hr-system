@@ -403,7 +403,7 @@ async function eawEmpSyncCommit() {
 
 async function _eawEmpSyncRun(commit, selected) {
     const sel        = document.getElementById('eawEmpSyncBranchSel');
-    const exitedEl   = document.getElementById('eawEmpSyncExitedAfter');
+    const scopeEl    = document.getElementById('eawEmpSyncScope');
     const out        = document.getElementById('eawEmpSyncResult');
     const commitBtn  = document.getElementById('eawEmpSyncCommitBtn');
     if (!sel.value) { alert('Bitte zuerst Filiale wählen.'); return; }
@@ -415,10 +415,8 @@ async function _eawEmpSyncRun(commit, selected) {
     // ExitedAfter optional: zusätzlich die Ausgetretenen mit Austritt > Cutoff.
     const dto = {
         companyProfileId: parseInt(sel.value, 10),
-        activeAt:           null,
-        exitedAfter:        exitedEl?.value || null,
-        includeAllInactive: false,
-        selectedNumbers:    selected
+        onlyActive:       (scopeEl?.value === 'active'),
+        selectedNumbers:  selected
     };
     try {
         const url = commit ? '/api/easywork/sync/employees/commit'

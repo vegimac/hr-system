@@ -345,7 +345,9 @@ public class EasyAtWorkController : ControllerBase
 
     // ────────────────── Mitarbeiter-Sync (Phase 3.1) ─────────────────
 
-    public record EmpSyncRequestDto(int CompanyProfileId, DateOnly? ActiveAt, DateOnly? ExitedAfter, bool? IncludeAllInactive, List<string>? SelectedNumbers);
+    // OnlyActive ersetzt das frühere „Austritt nach"-Datumsfeld (Walter 19.06.2026):
+    // true = nur aktive, false/null = alle (inkl. ausgetretene, ohne Pre-2025).
+    public record EmpSyncRequestDto(int CompanyProfileId, DateOnly? ActiveAt, DateOnly? ExitedAfter, bool? IncludeAllInactive, bool? OnlyActive, List<string>? SelectedNumbers);
 
     /// <summary>Dry-Run für MA-Stammdaten — zeigt NEW/UPDATE/UNCHANGED/CONFLICT.</summary>
     [HttpPost("sync/employees/preview")]
@@ -355,9 +357,7 @@ public class EasyAtWorkController : ControllerBase
         var res = await _empSync.PreviewAsync(new Services.EasyAtWork.EasyAtWorkEmployeeSyncService.SyncRequest
         {
             CompanyProfileId = dto.CompanyProfileId,
-            ActiveAt = dto.ActiveAt,
-            ExitedAfter = dto.ExitedAfter,
-            IncludeAllInactive = dto.IncludeAllInactive ?? false,
+            OnlyActive = dto.OnlyActive ?? false,
         }, ct);
         return Ok(res);
     }
@@ -370,9 +370,7 @@ public class EasyAtWorkController : ControllerBase
         var res = await _empSync.CommitAsync(new Services.EasyAtWork.EasyAtWorkEmployeeSyncService.SyncRequest
         {
             CompanyProfileId = dto.CompanyProfileId,
-            ActiveAt = dto.ActiveAt,
-            ExitedAfter = dto.ExitedAfter,
-            IncludeAllInactive = dto.IncludeAllInactive ?? false,
+            OnlyActive = dto.OnlyActive ?? false,
             SelectedNumbers = dto.SelectedNumbers,
         }, ct);
         return Ok(res);
