@@ -60,6 +60,7 @@ public class EditLockEndpointAuditTests
         ["QuellensteuerTarifController"]   = "QST-Tarif-Tabellen (Kanton) — keine MA-Daten",
         ["QuellensteuerAdminController"]   = "QST-Admin-Funktionen (Kanton-Konfig) — keine MA-Daten",
         ["FamilienzulagenTarifeController"]= "Familienzulagen-Tarife (Kanton) — keine MA-Daten",
+        ["PregnancyRulesController"]       = "Mutterschafts-Fristen-/Lohnersatz-Regelwerk (Katalog, gesetzliche Fristen) — keine MA-Daten",
         ["ContractTextsController"]        = "Vertragstexte-Vorlagen — keine MA-Daten",
         ["SocialInsuranceRatesController"] = "SV-Sätze (AHV/ALV/NBU/KTG) — keine MA-Daten",
         ["MinimumWageRulesController"]     = "L-GAV Mindestlohn-Sätze (Katalog, versioniert) — keine MA-Daten",
@@ -122,6 +123,7 @@ public class EditLockEndpointAuditTests
         // EINE TODO-NOTIZ FÜR WALTER + CLAUDE:
         ["EmployeeTimeEntriesController"]          = "READ-ONLY (Walter 17.05.2026): Stempelzeiten kommen aus easy@work, POST/PUT/DELETE liefern 403",
         ["EmployeeFamilyMembersController"]        = "Familienmitglieder-Stammdaten (Name, Geburtsdatum) — gehört NICHT in Lock; lohnrelevante Zulagen-Bezüge sind in FamilyMemberAllowancesController",
+        ["PregnancyController"]                    = "Mutterschafts-Tracking pro MA (Melde-/Termin-/Geburtsdatum; Fristen live bei GET berechnet) — fliesst NICHT in den Lohnlauf (kein Payroll-Service liest EmployeePregnancies); die lohnrelevante Absenz läuft über AbsencesController (dort ist der Lock)",
         ["EmployeeAddressesController"]            = "Adresse — gehört NICHT in den Lock (postalisch, Lohn-irrelevant)",
         ["EmployeeAccountController"]              = "MA-Postfach-Account — Login-Sachen, nicht Lohn",
         ["EmployeesController"]                    = "MA-Stammdaten (Name, Telefon, AHV-Nr) — gehört NICHT in Lock; lohnrelevante Felder sind in EmploymentsController",

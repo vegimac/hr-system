@@ -279,6 +279,100 @@ public class EasyAtWorkTimepunchSyncService
         public int    CountInserted  { get; set; }
         public List<TimepunchPreviewRow> Rows { get; set; } = new();
         public List<string> Notes { get; set; } = new();
+        /// <summary>
+        /// Blockierend: easy@work-MA mit importierbaren Stempeln, die NICHT auf
+        /// eine Cowork-Personalnummer (oder einen Alias) abbildbar sind. Ist die
+        /// Liste nicht leer, wird der Commit verweigert.
+        /// </summary>
+        public List<MissingEmployee> MissingEmployees { get; set; } = new();
+        public int    CountMissing => MissingEmployees.Count;
+        public bool   IsBlocked    => MissingEmployees.Count > 0;
+    }
+
+    /// <summary>Ein easy@work-MA, der für den Import nicht zugeordnet werden kann.</summary>
+    public class MissingEmployee
+    {
+        public int     EawEmployeeId     { get; set; }
+        public string? EawEmployeeNumber { get; set; }
+        public string? EawEmployeeName   { get; set; }
+        public int     TimepunchCount    { get; set; }
+        public string  Reason            { get; set; } = "";
+    }
+
+    // ──────────────── Reine, testbare Matching-Logik ─────────────────
+    // Walter-Vorgabe 18.06.2026: MA-Liste = ALLE (inkl. inaktive), lokal nur
+    // die ganz alten Austritte (vor 2025-01-01 = vor der Mirus-Migration)
+    // wegfiltern. Davor + Preflight als seiteneffektfreie Funktionen, damit
+    // sie ohne DB/HTTP unit-getestet werden können.
+
+    /// <summary>Stichtag: MA mit Austritt VOR diesem Datum sind irrelevant (Pre-Mirus).</summary>
+    public static readonly DateOnly EmployeeCutoff = new(2025, 1, 1);
+
+    /// <summary>
+    /// Filtert aus der (inkl. inaktive geladenen) easy@work-MA-Liste die ganz
+    /// alten Austritte heraus: wer ein Austrittsdatum (To) VOR
+    /// <see cref="EmployeeCutoff"/> hat, fällt weg. Ohne To (kein Austritt) oder
+    /// Austritt >= Stichtag bleibt drin — auch MA, die erst mitten im Zeitraum
+    /// eingetreten sind (From spielt für diesen Filter keine Rolle).
+    /// </summary>
+    public static List<EawEmployee> FilterRelevantEmployees(IEnumerable<EawEmployee> emps)
+        => emps.Where(e => !(e.To.HasValue && e.To.Value < EmployeeCutoff)).ToList();
+
+    /// <summary>
+    /// Preflight: ermittelt alle easy@work-MA, die im Zeitraum importierbare
+    /// Stempel haben, sich aber NICHT auf eine Cowork-Personalnummer abbilden
+    /// lassen (Nummer fehlt ODER existiert nicht in Cowork) UND auch keinen
+    /// Alias haben. Solange diese Liste nicht leer ist, darf NICHT committet
+    /// werden — sonst gingen Stempel verloren bzw. landeten beim falschen MA.
+    /// Seiteneffektfrei (alle Daten als Parameter) → unit-testbar.
+    /// </summary>
+    public static List<MissingEmployee> ComputePreflightMissing(
+        IEnumerable<EawTimepunch> punches,
+        IReadOnlyDictionary<int, EawEmployee> eawEmpById,
+        ISet<string> coworkNumbers,
+        IReadOnlyDictionary<int, int> aliasMap)
+    {
+        var missing = new Dictionary<int, MissingEmployee>();
+        foreach (var p in punches)
+        {
+            // Nur Stempel zählen, die überhaupt importiert würden.
+            if (p.DeletedAt != null) continue;   // in easy@work gelöscht
+            if (!p.In.HasValue)      continue;   // ungültig (kein TimeIn)
+
+            // Per hinterlegtem Alias auflösbar → kein Problem.
+            if (aliasMap.ContainsKey(p.EmployeeId)) continue;
+
+            eawEmpById.TryGetValue(p.EmployeeId, out var emp);
+            var number = emp?.Number?.Trim();
+
+            // Sauber abbildbar?
+            if (!string.IsNullOrEmpty(number) && coworkNumbers.Contains(number))
+                continue;
+
+            // Fehlt → in die Block-Liste (pro MA EIN Eintrag, Stempel zählen).
+            if (missing.TryGetValue(p.EmployeeId, out var existing))
+            {
+                existing.TimepunchCount++;
+                continue;
+            }
+            string reason;
+            if (emp == null)
+                reason = "easy@work-MA nicht in der Mitarbeiterliste auffindbar (alter/gelöschter Datensatz) — bitte zuordnen.";
+            else if (string.IsNullOrEmpty(number))
+                reason = "easy@work-MA hat keine Personalnummer — bitte zuordnen oder in easy@work nachtragen.";
+            else
+                reason = $"Personalnummer '{number}' existiert nicht in Cowork — MA zuerst anlegen/importieren.";
+
+            missing[p.EmployeeId] = new MissingEmployee
+            {
+                EawEmployeeId     = p.EmployeeId,
+                EawEmployeeNumber = number,
+                EawEmployeeName   = emp == null ? null : $"{emp.FirstName} {emp.LastName}".Trim(),
+                TimepunchCount    = 1,
+                Reason            = reason,
+            };
+        }
+        return missing.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
     }
 
     // ────────────────────────── Public API ──────────────────────────
@@ -398,15 +492,16 @@ public class EasyAtWorkTimepunchSyncService
         Dictionary<int, EawEmployee> eawEmpById = new();
         try
         {
-            // Diese Liste dient NUR zum Auflösen von employee_id → Personalnummer
+            // Diese Liste dient zum Auflösen von employee_id → Personalnummer
             // (+ Bearbeiter-Namen), also muss sie so breit wie möglich sein. Ein
             // Stichtag-Filter (`active=req.From`) verfehlt MA, die ERST IM MONAT
             // eingetreten sind (z.B. Angela Miteva am 28.02. mit Eintritt nach
             // Periodenbeginn) oder andere Aktiv-Lücken haben → deren Stempel
             // landeten fälschlich als UNMATCHED. Darum laden wir ALLE MA der
-            // Filiale inkl. ausgetretene. (Walter-Bug 18.06.2026.)
-            var eawEmps = await _client.GetAllEmployeesIncludingInactiveAsync(
-                mapping.EasyAtWorkCustomerId, ct);
+            // Filiale inkl. ausgetretene und filtern nur die ganz alten Austritte
+            // (vor 2025-01-01 = Pre-Mirus) lokal weg. (Walter-Vorgabe 18.06.2026.)
+            var eawEmps = FilterRelevantEmployees(
+                await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct));
             foreach (var e in eawEmps) eawEmpById[e.Id] = e;
         }
         catch (Exception ex)
@@ -424,6 +519,13 @@ public class EasyAtWorkTimepunchSyncService
         var coworkNameByEawId = coworkByEawId
             .GroupBy(x => x.EasyAtWorkEmployeeId!.Value)
             .ToDictionary(g => g.Key, g => $"{g.First().FirstName} {g.First().LastName}".Trim());
+
+        // 5b) Preflight (Walter-Vorgabe 18.06.2026): jeder easy@work-MA mit
+        //     importierbaren Stempeln muss auf eine Cowork-Personalnummer (oder
+        //     einen Alias) abbildbar sein. Sonst Block — Anzeige im Preview,
+        //     Commit verweigert (siehe unten vor dem Schreib-Pfad).
+        res.MissingEmployees = ComputePreflightMissing(
+            punches, eawEmpById, new HashSet<string>(byNumber.Keys), aliasMap);
 
         // 6) Pro Punch Status berechnen
         // Innerhalb DIESER Antwort schon gesehene easy@work-IDs — die API kann
@@ -565,6 +667,16 @@ public class EasyAtWorkTimepunchSyncService
         }
 
         res.CountTotal = res.Rows.Count;
+
+        // Blockierender Preflight: bei fehlenden Zuordnungen wird NICHT geschrieben
+        // (auch keine Teil-Menge) — sonst gingen die Stempel der nicht zuordenbaren
+        // MA still verloren. Der Preview zeigt die Block-Liste; hier wird der
+        // Commit verweigert. Walter-Vorgabe 18.06.2026.
+        if (commit && res.IsBlocked)
+        {
+            res.Notes.Add($"Import blockiert: {res.CountMissing} easy@work-MA ohne gültige Cowork-Zuordnung. Bitte die betroffenen MA zuerst zuordnen oder in Cowork anlegen.");
+            return res;
+        }
 
         // 7) Commit-Pfad: NEW-Zeilen tatsächlich schreiben.
         if (commit && res.CountNew > 0)

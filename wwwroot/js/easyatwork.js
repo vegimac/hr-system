@@ -50,6 +50,10 @@ async function eawSyncCommit() {
         alert('Keine NEW-Zeilen zum Importieren.');
         return;
     }
+    if (_eawSyncLastPreview.missingEmployees && _eawSyncLastPreview.missingEmployees.length) {
+        alert('Import blockiert: Es gibt easy@work-MA ohne Cowork-Zuordnung. Bitte diese zuerst zuordnen („→ MA zuordnen") oder in Cowork anlegen.');
+        return;
+    }
     if (!confirm(`${_eawSyncLastPreview.countNew} Stempelzeit(en) jetzt importieren?`)) return;
     await _eawSyncRun(true);
 }
@@ -89,8 +93,10 @@ async function _eawSyncRun(commit) {
         }
         _eawSyncLastPreview = body;
         _eawSyncRenderResult(body, commit);
-        // Nach Commit nicht erneut committen können
-        commitBtn.disabled = commit || !(body.countNew > 0);
+        // Nach Commit nicht erneut committen können; ebenso gesperrt, solange
+        // es nicht-zuordenbare MA gibt (Preflight-Block) oder keine NEW-Zeilen.
+        const blocked = (body.missingEmployees && body.missingEmployees.length > 0);
+        commitBtn.disabled = commit || blocked || !(body.countNew > 0);
     } catch (e) {
         out.innerHTML = `<div class="eaw-result eaw-result-err">
             <div class="eaw-result-title">Netzwerkfehler</div>
@@ -102,6 +108,27 @@ async function _eawSyncRun(commit) {
 function _eawSyncRenderResult(res, wasCommit) {
     const out = document.getElementById('eawSyncResult');
     const notes = (res.notes||[]).map(n => `<div style="color:#b45309;font-size:12px;padding:4px 0">⚠ ${escapeHtml(n)}</div>`).join('');
+
+    // Blockierende Missing-Employee-Liste (Walter-Vorgabe 18.06.2026): easy@work-MA
+    // mit Stempeln, die sich keiner Cowork-Personalnummer zuordnen lassen. Solange
+    // diese Liste nicht leer ist, ist der Import gesperrt.
+    const missing = res.missingEmployees || [];
+    const missingHtml = missing.length ? `
+        <div style="border:1px solid #fecaca;background:#fef2f2;border-radius:8px;padding:12px;margin-bottom:12px">
+            <div style="font-weight:700;color:#991b1b;margin-bottom:4px">⛔ Import blockiert — ${missing.length} Mitarbeiter ohne Zuordnung</div>
+            <div style="font-size:12px;color:#7f1d1d;margin-bottom:10px">Diese easy@work-MA haben Stempel im Zeitraum, lassen sich aber keiner Cowork-Personalnummer zuordnen. Bitte zuordnen oder in Cowork anlegen — erst dann kann importiert werden.</div>
+            <table class="eaw-sync-table" style="margin:0">
+                <thead><tr><th>easy@work-MA</th><th style="text-align:right">Stempel</th><th>Problem</th><th></th></tr></thead>
+                <tbody>${missing.map(m => `
+                    <tr>
+                        <td>${escapeHtml(m.eawEmployeeName || ('easy@work-MA #' + m.eawEmployeeId))} <span style="color:#94a3b8">(#${m.eawEmployeeId}${m.eawEmployeeNumber ? ' · Nr. ' + escapeHtml(m.eawEmployeeNumber) : ''})</span></td>
+                        <td style="text-align:right">${m.timepunchCount}</td>
+                        <td style="color:#7f1d1d;font-size:12px">${escapeHtml(m.reason || '')}</td>
+                        <td><button onclick="eawAssignAlias(${m.eawEmployeeId})" style="background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;white-space:nowrap">→ MA zuordnen</button></td>
+                    </tr>`).join('')}</tbody>
+            </table>
+        </div>` : '';
+
     const summary = `
         <div class="eaw-sync-summary">
             <span>Total: <strong>${res.countTotal}</strong></span>
@@ -146,6 +173,7 @@ function _eawSyncRenderResult(res, wasCommit) {
         </tr>`;
     }).join('');
     out.innerHTML = `
+        ${missingHtml}
         ${notes}
         ${summary}
         <table class="eaw-sync-table">
