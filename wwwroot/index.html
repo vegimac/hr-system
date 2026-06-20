@@ -1824,6 +1824,11 @@
         .dok-menu-item:hover { background:#f8fafc; }
         .dok-menu-item.danger { color:#b91c1c; border-top:1px solid #f1f5f9; }
         .dok-menu-item.danger:hover { background:#fef2f2; }
+        .dok-menu-locked {
+            display:block; width:100%; padding:9px 14px; border-top:1px solid #f1f5f9;
+            text-align:left; font-size:12px; color:#94a3b8; cursor:default; background:#f8fafc;
+        }
+        body.theme-dark .dok-menu-locked { color:#64748b; background:#1e293b; border-top-color:#334155; }
 
         /* Walter-Vorgabe 14.06.2026: Lohnpositionen-Tabellenzeilen mit
            Theme-fähigem Hover. Vorher gab es gar keinen Hover-Effekt, im
@@ -2857,6 +2862,10 @@
                     <div class="nav-item" data-page="sollstunden" onclick="showPage('sollstunden')" title="Soll-/Ist-Stunden pro MA (FIX/FIX-M/MTP)">
                         <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         <span>Sollstunden</span>
+                    </div>
+                    <div class="nav-item" data-page="ferien" onclick="showPage('ferien')" title="Ferien / Feiertage / Nacht — Anspruch vs. Bezug pro MA (Jahr)">
+                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 18l4-9 4 5 3-7 6 11z"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+                        <span>Ferien/Feier/Nacht</span>
                     </div>
                 </div>
 
@@ -4421,6 +4430,32 @@
                     </div>
                 </div>
 
+                <!-- Walter-Vorgabe 20.06.2026 (ArG): vierte Sektion „Nachtarbeit-
+                     Untersuchung fehlt" — MA mit ≥ 25 Nächten/Jahr ohne gültiges
+                     Arztzeugnis/Verzicht. Logik analog Dashboard night_work_exam_fehlt. -->
+                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
+                    <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                            <div>
+                                <div style="font-size:15px;font-weight:700;color:#991b1b">Nachtarbeit-Untersuchung fehlt</div>
+                                <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
+                                    Aktive MA mit <b>≥ 25 gearbeiteten Nächten pro Jahr</b> (rollende 12 Monate, bei weniger
+                                    Datenmonaten hochgerechnet) <b>ohne gültige Untersuchung</b> — Arztzeugnis/Verzicht fehlt,
+                                    hat kein Ausstellungsdatum oder ist abgelaufen. Ab 25 Nächten besteht ein Anspruch auf eine medizinische Untersuchung (ArG).
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportExcel()" style="font-size:12px">📊 Excel</button>
+                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportPdf()"   style="font-size:12px">📄 PDF</button>
+                                <button class="btn btn-outline" onclick="kontrolleNachtRefresh()"        style="font-size:12px">↻ Aktualisieren</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="kontrolleNachtList" style="padding:0">
+                        <div class="emp-placeholder" style="height:120px"><span>Lade Liste…</span></div>
+                    </div>
+                </div>
+
                 <div style="margin-top:18px;padding:12px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;color:#64748b;line-height:1.55">
                     <b>Hinweis:</b> Damit der Dokumenten-Status korrekt erkannt wird, muss in der
                     <a href="#" onclick="event.preventDefault();showPage('dokumentstruktur')" style="color:#1d4ed8">Dokument-Struktur</a>
@@ -5534,6 +5569,26 @@
                         <span style="font-size:12px;color:#94a3b8">Stichtag = bis und mit diesem Tag · Filiale = Sidebar</span>
                     </div>
                     <div id="sollResult"></div>
+                </div>
+            </div>
+            <!-- ═══ FERIEN-ÜBERSICHT (GF, Walter-Vorgabe 20.06.2026) ═══ -->
+            <div class="page" id="page-ferien">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Ferien / Feiertage / Nacht</h1>
+                    <p class="page-sub">Pro Mitarbeiter: aufgelaufener Anspruch von Januar bis und mit Stichtag-Monat, gegenübergestellt dem Bezug aus den Absenzen. Ferien + Feiertage in Tagen, Nacht-Saldo in Stunden (Nachtstunden aus den Stempeln × 10% Zuschlag − Nacht-Kompensation).</p>
+                </div></div>
+                <div class="page-body">
+                    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
+                        <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Jahr
+                            <select id="ferYear" class="eaw-input" style="min-width:90px"></select>
+                        </label>
+                        <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">bis Monat
+                            <select id="ferMonth" class="eaw-input" style="min-width:130px"></select>
+                        </label>
+                        <button class="btn-primary" onclick="ferLoad()">🔄 Laden</button>
+                        <span style="font-size:12px;color:#94a3b8">Anspruch Jan – Stichtag-Monat · Filiale = Sidebar</span>
+                    </div>
+                    <div id="ferResult"></div>
                 </div>
             </div>
             <!-- ═══ AUDIT-LOG (Walter-Vorgabe 27.05.2026, admin-only) ═══ -->
@@ -8781,6 +8836,7 @@ function showPage(name) {
     if (name === 'lohnlauf')      llInit();
     if (name === 'perioden') initPeriodenPage();
     if (name === 'sollstunden') sollInit();
+    if (name === 'ferien') ferienInit();
     if (name === 'smtp-settings') smtpLoad();
     if (name === 'lse-export')   lseInit();
 }
@@ -8903,12 +8959,12 @@ function onBranchChange() {
 <script src="js/file-preview.js?v=20260528b"></script>
 <script src="js/employee-lookup-cache.js?v=20260614a"></script>
 <script src="js/action-menu.js?v=20260531a"></script>
-<script src="js/dashboard.js?v=20260613b"></script>
+<script src="js/dashboard.js?v=20260620a"></script>
 <script src="js/wage-adjustment.js?v=20260523a"></script>
 <script src="js/permit-import.js?v=20260607a"></script>
 <script src="js/hr-review-import.js?v=20260607b"></script>
 <script src="js/qst-import.js?v=20260607a"></script>
-<script src="js/kontrolle.js?v=20260613c"></script>
+<script src="js/kontrolle.js?v=20260620a"></script>
 <script src="js/nationen.js?v=20260607b"></script>
 <script src="js/swiss-locations.js?v=20260607b"></script>
 <script src="js/family-children-import.js?v=20260607a"></script>
@@ -8926,7 +8982,7 @@ function onBranchChange() {
 <script src="js/qst-modal.js?v=20260614g"></script>
 <script src="js/users.js?v=20260614b"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
-<script src="js/documents.js?v=20260614f"></script>
+<script src="js/documents.js?v=20260620a"></script>
 <script src="js/dvelop-import.js?v=20260614b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260509b"></script>
@@ -8941,8 +8997,9 @@ function onBranchChange() {
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
-<script src="js/easyatwork.js?v=20260619g"></script>
-<script src="js/sollstunden-report.js?v=20260619b"></script>
+<script src="js/easyatwork.js?v=20260620d"></script>
+<script src="js/sollstunden-report.js?v=20260620i"></script>
+<script src="js/ferien-report.js?v=20260620m"></script>
 <script src="js/audit-log.js?v=20260527a"></script>
 <script src="js/global-search.js?v=20260527f"></script>
 <script src="js/help-panel.js?v=20260528a"></script>
@@ -9217,7 +9274,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260617s"></script>
+<script src="employees.js?v=20260620k"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

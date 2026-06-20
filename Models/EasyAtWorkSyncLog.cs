@@ -44,4 +44,14 @@ public class EasyAtWorkSyncLog
 
     [Column("message")]
     public string? Message { get; set; }
+
+    /// <summary>
+    /// Detail der ECHTEN Änderungen dieses Laufs als JSON (Variante A,
+    /// Walter-Vorgabe 20.06.2026) — Array von { employeeId, date, action
+    /// ("neu"|"geaendert"), oldTotal, newTotal, oldNight, newNight }. Nur
+    /// relevante Zeilen (keine identischen Neuschreibungen), gedeckelt.
+    /// Wird mit der Log-Zeile nach 90 Tagen mitgelöscht.
+    /// </summary>
+    [Column("detail_json")]
+    public string? DetailJson { get; set; }
 }

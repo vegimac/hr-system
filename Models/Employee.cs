@@ -90,6 +90,17 @@ public class Employee
     public int? CAusweisDokumentId { get; set; }
 
     /// <summary>
+    /// Nachtarbeit-Untersuchung (Walter-Vorgabe 20.06.2026, ArG): Gültig-bis-Datum
+    /// der ärztlichen Eignungsbestätigung bzw. des hinterlegten Verzichts (meist 2
+    /// Jahre). NULL = nicht erfasst. Bei ≥25 Nächten/Jahr ohne gültigen Eintrag →
+    /// Compliance-Warnung im Ferien/Feier/Nacht-Report.
+    /// </summary>
+    public DateTime? NightWorkExamValidUntil { get; set; }
+
+    /// <summary>FK auf das hinterlegte Dokument (Arztzeugnis ODER Verzichtserklärung).</summary>
+    public int? NightWorkExamDokumentId { get; set; }
+
+    /// <summary>
     /// Interne easy@work-Employee-ID (Walter 17.06.2026). Wird beim MA-Sync
     /// gesetzt und erlaubt das Auflösen von edited_by_id-Verweisen aus den
     /// Stempelzeit-Audits zum Manager-Namen.

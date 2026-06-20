@@ -166,7 +166,46 @@ public class DocumentsController : ControllerBase
             }
         ).ToListAsync();
 
-        return Ok(docs);
+        // Walter-Vorgabe 20.06.2026: pro Dokument melden, ob es an einer der fünf
+        // wirksamen FK-Stellen verknüpft ist (Pass/ID, C-Ausweis, QST-Befreiung,
+        // Bewilligung, Ehepartner-Beleg) — IDENTISCH zur Lösch-Sperre in Delete().
+        // Solche Dokumente bewirken etwas (z.B. QST-Befreiung) und dürfen nicht
+        // gelöscht werden → das Frontend blendet die „Löschen"-Option aus.
+        var emp = await _db.Employees.AsNoTracking()
+            .Where(e => e.Id == employeeId)
+            .Select(e => new { e.IdPassDokumentId, e.CAusweisDokumentId, e.QstBefreiungDokumentId, e.NightWorkExamDokumentId })
+            .FirstOrDefaultAsync();
+        var permitDocIds = await _db.EmployeePermitHistories.AsNoTracking()
+            .Where(h => h.EmployeeId == employeeId && h.DokumentId != null)
+            .Select(h => h.DokumentId!.Value).ToListAsync();
+        var familyDocIds = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId && f.DokumentId != null)
+            .Select(f => f.DokumentId!.Value).ToListAsync();
+
+        var linkedMap = new Dictionary<int, List<string>>();
+        void AddLink(int? docId, string label)
+        {
+            if (!docId.HasValue) return;
+            if (!linkedMap.TryGetValue(docId.Value, out var l)) { l = new List<string>(); linkedMap[docId.Value] = l; }
+            if (!l.Contains(label)) l.Add(label);
+        }
+        AddLink(emp?.IdPassDokumentId,        "Pass / ID-Karte");
+        AddLink(emp?.CAusweisDokumentId,      "C-Ausweis");
+        AddLink(emp?.QstBefreiungDokumentId,  "QST-Behörden-Befreiung");
+        AddLink(emp?.NightWorkExamDokumentId, "Nachtarbeit-Untersuchung");
+        foreach (var pid in permitDocIds) AddLink(pid, "Bewilligung (Aufenthalt)");
+        foreach (var fid in familyDocIds) AddLink(fid, "Ehepartner-Beleg");
+
+        var result = docs.Select(d => new {
+            d.Id, d.EmployeeId, d.dokumentTypId, d.dokumentTypName, d.kategorieId, d.kategorieName,
+            d.FilenameOriginal, d.MimeType, d.GroesseBytes, d.Bemerkung, d.GueltigVon, d.GueltigBis,
+            d.HochgeladenAm, d.HochgeladenVon, d.ErstelltAm, d.GeaendertAm, d.DateiGeaendertAm,
+            d.ZugriffAm, d.GeaendertVon, d.ZugriffVon, d.DvelopDokumentId,
+            linked   = linkedMap.ContainsKey(d.Id),
+            linkedAs = linkedMap.TryGetValue(d.Id, out var lbls) ? lbls : null
+        });
+
+        return Ok(result);
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -640,6 +679,8 @@ public class DocumentsController : ControllerBase
             blockers.Add("C-Ausweis am MA (alte Verknüpfung)");
         if (await _db.Employees.AnyAsync(e => e.QstBefreiungDokumentId == id))
             blockers.Add("QST-Behörden-Befreiung");
+        if (await _db.Employees.AnyAsync(e => e.NightWorkExamDokumentId == id))
+            blockers.Add("Nachtarbeit-Untersuchung");
         if (await _db.EmployeePermitHistories.AnyAsync(h => h.DokumentId == id))
             blockers.Add("Bewilligungs-Eintrag (Aufenthalt)");
         if (await _db.EmployeeFamilyMembers.AnyAsync(f => f.DokumentId == id))

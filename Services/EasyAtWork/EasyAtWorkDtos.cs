@@ -43,6 +43,12 @@ public class EawPaginated<T>
     [JsonPropertyName("per_page")]     public int?    PerPage      { get; set; }
 }
 
+/// <summary>Einzel-Resource-Antwort ({ "data": {...} }) — z.B. employees/{id}.</summary>
+public class EawSingle<T>
+{
+    [JsonPropertyName("data")] public T? Data { get; set; }
+}
+
 /// <summary>Mitarbeiter (Auszug — siehe openapi.yaml Schema Employee).</summary>
 public class EawEmployee
 {

@@ -238,6 +238,9 @@ public class EmployeesController : ControllerBase
             employee.IsPayrollExcluded,
             employee.LgavPflichtig,
             employee.TeilzeitUnter8hWoche,
+            // Nachtarbeit-Untersuchung (Walter 20.06.2026, ArG)
+            employee.NightWorkExamValidUntil,
+            employee.NightWorkExamDokumentId,
             // Walter-Vorgabe 07.06.2026: permitType + Code/Beschreibung kommen
             // aus der „neuesten" History-Bewilligung (siehe oben latestPermitType),
             // nicht aus dem denormalisierten employee.PermitType — damit Frontend
@@ -406,6 +409,9 @@ public class EmployeesController : ControllerBase
         // ── Ein-/Austritt ─────────────────────────────────────────────────
         if (dto.EntryDate.HasValue) employee.EntryDate = dto.EntryDate;
         if (dto.ExitDateSet)        employee.ExitDate  = dto.ExitDate;
+
+        // ── Nachtarbeit-Untersuchung gültig bis (Walter 20.06.2026) ──────────
+        if (dto.NightWorkExamValidUntilSet) employee.NightWorkExamValidUntil = dto.NightWorkExamValidUntil;
 
         // ── ALV / Zwischenverdienst ───────────────────────────────────────
         if (dto.AhvNummer  is not null) employee.SocialSecurityNumber = dto.AhvNummer == "" ? null : dto.AhvNummer;
@@ -781,6 +787,22 @@ public class EmployeesController : ControllerBase
     ///   • kind = "c_ausweis" → employee.c_ausweis_dokument_id (für C-Ausweis-Inhaber)
     /// Aufheben: dokumentId = null. Setzen: dokumentId muss diesem MA gehören.
     /// </summary>
+    /// <summary>
+    /// Nachtarbeit-Untersuchung „gültig bis" inline setzen (Walter 20.06.2026) —
+    /// dedizierter Endpunkt, damit das Inline-Feld in der MA-Ansicht NICHT andere
+    /// Anstellungs-Felder (Aktiv-Flag etc.) anfasst.
+    /// </summary>
+    [HttpPatch("{id:int}/night-work-exam-date")]
+    public async Task<IActionResult> SetNightWorkExamDate(int id, [FromBody] NightExamDateDto dto)
+    {
+        var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Id == id);
+        if (emp == null) return NotFound();
+        emp.NightWorkExamValidUntil = dto.ValidUntil;
+        await _context.SaveChangesAsync();
+        return Ok(new { id = emp.Id, nightWorkExamValidUntil = emp.NightWorkExamValidUntil });
+    }
+    public class NightExamDateDto { public DateTime? ValidUntil { get; set; } }
+
     [HttpPatch("{id:int}/ausweis-doku")]
     public async Task<IActionResult> SetAusweisDoku(int id, [FromBody] AusweisDokuDto dto)
     {
@@ -788,8 +810,8 @@ public class EmployeesController : ControllerBase
         if (emp == null) return NotFound();
 
         var kind = (dto.Kind ?? "").Trim().ToLowerInvariant();
-        if (kind != "id_pass" && kind != "c_ausweis")
-            return BadRequest(new { error = "KIND_INVALID", message = "kind muss 'id_pass' oder 'c_ausweis' sein." });
+        if (kind != "id_pass" && kind != "c_ausweis" && kind != "night_work_exam")
+            return BadRequest(new { error = "KIND_INVALID", message = "kind muss 'id_pass', 'c_ausweis' oder 'night_work_exam' sein." });
 
         if (dto.DokumentId.HasValue)
         {
@@ -800,16 +822,18 @@ public class EmployeesController : ControllerBase
                     message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
         }
 
-        if (kind == "id_pass")    emp.IdPassDokumentId   = dto.DokumentId;
-        else                       emp.CAusweisDokumentId = dto.DokumentId;
+        if (kind == "id_pass")             emp.IdPassDokumentId        = dto.DokumentId;
+        else if (kind == "c_ausweis")      emp.CAusweisDokumentId      = dto.DokumentId;
+        else                                emp.NightWorkExamDokumentId = dto.DokumentId;
 
         await _context.SaveChangesAsync();
         return Ok(new
         {
-            id                  = emp.Id,
+            id                       = emp.Id,
             kind,
-            idPassDokumentId    = emp.IdPassDokumentId,
-            cAusweisDokumentId  = emp.CAusweisDokumentId
+            idPassDokumentId         = emp.IdPassDokumentId,
+            cAusweisDokumentId       = emp.CAusweisDokumentId,
+            nightWorkExamDokumentId  = emp.NightWorkExamDokumentId
         });
     }
 
@@ -1140,6 +1164,10 @@ public class EmployeeUpdateDto
     public DateTime? EntryDate   { get; set; }
     public bool      ExitDateSet { get; set; } = false;
     public DateTime? ExitDate    { get; set; }
+
+    // Nachtarbeit-Untersuchung gültig bis (Walter 20.06.2026)
+    public bool      NightWorkExamValidUntilSet { get; set; } = false;
+    public DateTime? NightWorkExamValidUntil    { get; set; }
 
     // ALV / Zwischenverdienst
     public string? AhvNummer  { get; set; }

@@ -243,6 +243,13 @@ public class EasyAtWorkTimepunchSyncService
         public int      CompanyProfileId { get; set; }
         public DateOnly From             { get; set; }
         public DateOnly To               { get; set; }
+        /// <summary>
+        /// easy@work-employee_ids, die der Admin bewusst ÜBERSPRINGT (Walter-
+        /// Vorgabe 20.06.2026) — z.B. alte/gelöschte Datensätze ohne Cowork-MA.
+        /// Ihre Stempel blockieren den Import nicht mehr und werden nicht
+        /// geschrieben (als „Skipped" gezählt).
+        /// </summary>
+        public List<int> SkipEawEmployeeIds { get; set; } = new();
     }
 
     public class TimepunchPreviewRow
@@ -280,6 +287,7 @@ public class EasyAtWorkTimepunchSyncService
         public int    CountSoftDeleted { get; set; }
         public int    CountInvalid   { get; set; }
         public int    CountLocked    { get; set; }
+        public int    CountSkipped   { get; set; }   // bewusst übersprungene MA
         public int    CountInserted  { get; set; }
         public List<TimepunchPreviewRow> Rows { get; set; } = new();
         public List<string> Notes { get; set; } = new();
@@ -320,6 +328,21 @@ public class EasyAtWorkTimepunchSyncService
         public bool      IsBlocked => MissingEmployees.Count > 0;
         /// <summary>Insert + Update + Delete (für last_row_count).</summary>
         public int       RowCount => Inserted + Updated + Deleted;
+        /// <summary>Detail der ECHTEN Änderungen (neu + Wert-geändert) für das
+        /// Protokoll-Drill-Down — KEINE identischen Neuschreibungen.</summary>
+        public List<SyncChange> Changes { get; set; } = new();
+    }
+
+    /// <summary>Eine echte Stempel-Änderung für das Detail-Log (Variante A).</summary>
+    public class SyncChange
+    {
+        public int      EmployeeId { get; set; }
+        public DateOnly Date       { get; set; }
+        public string   Action     { get; set; } = "";   // "neu" | "geaendert"
+        public decimal? OldTotal   { get; set; }
+        public decimal  NewTotal   { get; set; }
+        public decimal? OldNight   { get; set; }
+        public decimal  NewNight   { get; set; }
     }
 
     // ──────────────── Reine, testbare Matching-Logik ─────────────────
@@ -423,6 +446,26 @@ public class EasyAtWorkTimepunchSyncService
     public static bool IsEditable(DateOnly date, DateOnly? firstAllowed)
         => firstAllowed is null || date >= firstAllowed.Value;
 
+    /// <summary>
+    /// Import-Sperre PRO PERIODE (Walter-Vorgabe 20.06.2026): ein Stempel darf nur
+    /// importiert/geändert/gelöscht werden, wenn sein Datum NICHT in einer
+    /// ABGESCHLOSSENEN Lohnperiode liegt. Vor und nach einer abgeschlossenen
+    /// Periode ist erlaubt — auch historische Daten (2025) bleiben importierbar,
+    /// solange für ihren Monat keine abgeschlossene Periode existiert. Untergrenze
+    /// ist der Mirus-Stichtag <see cref="EmployeeCutoff"/> (1.1.2025); davor (Pre-
+    /// Mirus) wird nichts importiert.
+    /// </summary>
+    public static bool IsImportable(DateOnly date, List<(DateOnly From, DateOnly To)> closedPeriods)
+        => date >= EmployeeCutoff && !closedPeriods.Any(r => date >= r.From && date <= r.To);
+
+    /// <summary>Datumsbereiche der ABGESCHLOSSENEN Lohnperioden einer Filiale.</summary>
+    private async Task<List<(DateOnly From, DateOnly To)>> GetClosedPeriodRangesAsync(int cpId, CancellationToken ct)
+        => (await _db.PayrollPerioden.AsNoTracking()
+                .Where(p => p.CompanyProfileId == cpId && p.Status == "abgeschlossen")
+                .Select(p => new { p.PeriodFrom, p.PeriodTo })
+                .ToListAsync(ct))
+            .Select(p => (p.PeriodFrom, p.PeriodTo)).ToList();
+
     // ────────────────────────── Public API ──────────────────────────
 
     public Task<SyncResult> PreviewAsync(SyncRequest req, CancellationToken ct = default)
@@ -451,7 +494,7 @@ public class EasyAtWorkTimepunchSyncService
 
         var maxUpd = punches.Where(p => p.UpdatedAt.HasValue).Select(p => p.UpdatedAt!.Value).DefaultIfEmpty().Max();
 
-        res = await ApplyTimepunchesAsync(mapping, punches, req.From, req.To, firstAllowed, ct);
+        res = await ApplyTimepunchesAsync(mapping, punches, req.From, req.To, firstAllowed, req.SkipEawEmployeeIds, ct);
         res.UsedUpdatesFeed = false;
         res.MaxUpdatedAt = maxUpd == default(DateTime) ? null : maxUpd;
 
@@ -516,7 +559,7 @@ public class EasyAtWorkTimepunchSyncService
             .DefaultIfEmpty().Max();
 
         // Gemeinsamer Schreibpfad (denselben nutzt der manuelle Commit).
-        var res = await ApplyTimepunchesAsync(mapping, punches, from, to, firstAllowedOverride: null, ct);
+        var res = await ApplyTimepunchesAsync(mapping, punches, from, to, firstAllowedOverride: null, skipEawIds: null, ct: ct);
         res.UsedUpdatesFeed = useUpdates;
         res.MaxUpdatedAt = maxUpd == default(DateTime) ? state?.LastSeenUpdatedAt : maxUpd;
         return res;
@@ -533,9 +576,11 @@ public class EasyAtWorkTimepunchSyncService
     /// </summary>
     public async Task<AutoSyncResult> ApplyTimepunchesAsync(
         EasyAtWorkBranchMapping mapping, List<EawTimepunch> punches,
-        DateOnly from, DateOnly to, DateOnly? firstAllowedOverride, CancellationToken ct = default)
+        DateOnly from, DateOnly to, DateOnly? firstAllowedOverride,
+        IReadOnlyCollection<int>? skipEawIds = null, CancellationToken ct = default)
     {
         var res = new AutoSyncResult { From = from, To = to };
+        var skipSet = skipEawIds is { Count: > 0 } ? new HashSet<int>(skipEawIds) : new HashSet<int>();
 
         // 2) Lokaler Fenster-Filter (gilt AUCH für den Delta-Feed): nur Punches mit
         //    Datum in [from,to]. Datum = business_date, sonst aus In abgeleitet.
@@ -571,14 +616,16 @@ public class EasyAtWorkTimepunchSyncService
             .GroupBy(x => x.EasyAtWorkEmployeeId!.Value)
             .ToDictionary(g => g.Key, g => $"{g.First().FirstName} {g.First().LastName}".Trim());
 
-        // 4) Lock-Schranke ZUERST bestimmen — der Preflight prüft dann NUR Stempel,
-        //    die tatsächlich geschrieben/geändert/gelöscht würden. Ein fehlender
-        //    MA aus einer bereits gesperrten (alten) Periode darf den Sync NICHT
-        //    blockieren, weil dessen Stempel wegen Lock ohnehin übersprungen wird.
-        var firstAllowed = firstAllowedOverride
-            ?? await _lock.GetFirstAllowedDateAsync(null, mapping.CompanyProfileId);
+        // 4) Import-Sperre PRO PERIODE (Walter-Vorgabe 20.06.2026): Stempel in einer
+        //    ABGESCHLOSSENEN Lohnperiode werden NICHT geschrieben — davor und danach
+        //    (inkl. historische 2025-Daten) ist erlaubt. Der Preflight prüft dann
+        //    NUR Stempel, die tatsächlich importiert würden.
+        var closedPeriods = await GetClosedPeriodRangesAsync(mapping.CompanyProfileId, ct);
+        // Übersprungene MA (Walter-Vorgabe 20.06.2026) fliessen NICHT in den
+        // Preflight-Block ein — sie werden weiter unten als „Skipped" gezählt.
         var editableForPreflight = windowed
-            .Where(p => { var d = PunchDate(p); return d.HasValue && IsEditable(d.Value, firstAllowed); });
+            .Where(p => { var d = PunchDate(p); return d.HasValue && IsImportable(d.Value, closedPeriods)
+                          && !skipSet.Contains(p.EmployeeId); });
         res.MissingEmployees = ComputePreflightMissing(
             editableForPreflight, eawEmpById, new HashSet<string>(byNumber.Keys), aliasMap);
         if (res.IsBlocked) return res;
@@ -608,8 +655,9 @@ public class EasyAtWorkTimepunchSyncService
         foreach (var p in windowed)
         {
             if (p.Id != 0 && !seenBatch.Add(p.Id)) continue; // Pagination-Dublette
+            if (skipSet.Contains(p.EmployeeId)) { res.Skipped++; continue; } // bewusst übersprungener MA
             var pDate = PunchDate(p)!.Value;
-            if (!IsEditable(pDate, firstAllowed)) { res.LockedSkipped++; continue; }
+            if (!IsImportable(pDate, closedPeriods)) { res.LockedSkipped++; continue; }
 
             dbByEawId.TryGetValue(p.Id, out var existing);
 
@@ -645,6 +693,16 @@ public class EasyAtWorkTimepunchSyncService
             // b) Bekannte easy@work-ID → UPDATE.
             if (existing != null)
             {
+                // ECHTE Änderung erkennen (vor dem Überschreiben), um identische
+                // Neuschreibungen NICHT ins Detail-Log zu nehmen (Variante A).
+                bool realChange = existing.TotalHours != total
+                               || existing.NightHours != night
+                               || existing.TimeIn     != inLocal
+                               || existing.TimeOut    != outLocal
+                               || existing.EntryDate  != businessDate;
+                decimal? oldTotal = existing.TotalHours;
+                decimal? oldNight = existing.NightHours;
+
                 existing.EmployeeId    = coworkId.Value;
                 existing.EntryDate     = businessDate;
                 existing.TimeIn        = inLocal;
@@ -659,6 +717,11 @@ public class EasyAtWorkTimepunchSyncService
                 existing.OriginalTimeIn  = origIn;
                 existing.OriginalTimeOut = origOut;
                 res.Updated++;
+                if (realChange)
+                    res.Changes.Add(new SyncChange {
+                        EmployeeId = coworkId.Value, Date = businessDate, Action = "geaendert",
+                        OldTotal = oldTotal, NewTotal = total, OldNight = oldNight, NewNight = night
+                    });
                 continue;
             }
 
@@ -686,6 +749,10 @@ public class EasyAtWorkTimepunchSyncService
             });
             existingKeys.Add(key);
             res.Inserted++;
+            res.Changes.Add(new SyncChange {
+                EmployeeId = coworkId.Value, Date = businessDate, Action = "neu",
+                OldTotal = null, NewTotal = total, OldNight = null, NewNight = night
+            });
         }
 
         await _db.SaveChangesAsync(ct);
@@ -829,19 +896,21 @@ public class EasyAtWorkTimepunchSyncService
             .GroupBy(x => x.EasyAtWorkEmployeeId!.Value)
             .ToDictionary(g => g.Key, g => $"{g.First().FirstName} {g.First().LastName}".Trim());
 
-        // Lock-Schranke (Walter-Vorgabe 19.06.2026): die Vorschau kennzeichnet
-        // Stempel in gesperrten Perioden als LOCKED (der Commit überspringt sie),
-        // und der Preflight prüft NUR editierbare Stempel — ein fehlender MA aus
-        // einer gesperrten Altperiode soll nicht fälschlich blockieren.
-        var firstAllowed = await _lock.GetFirstAllowedDateAsync(null, req.CompanyProfileId);
+        // Import-Sperre PRO PERIODE (Walter-Vorgabe 20.06.2026): die Vorschau
+        // kennzeichnet Stempel in ABGESCHLOSSENEN Lohnperioden als LOCKED (der
+        // Commit überspringt sie); davor/danach (inkl. 2025) ist erlaubt.
+        var closedPeriods = await GetClosedPeriodRangesAsync(req.CompanyProfileId, ct);
+        var skipSet = req.SkipEawEmployeeIds is { Count: > 0 }
+            ? new HashSet<int>(req.SkipEawEmployeeIds) : new HashSet<int>();
 
         // 5b) Preflight (Walter-Vorgabe 18.06.2026): jeder easy@work-MA mit
         //     EDITIERBAREN importierbaren Stempeln muss auf eine Cowork-Personal-
-        //     nummer (oder einen Alias) abbildbar sein. Sonst Block.
+        //     nummer (oder einen Alias) abbildbar sein. Sonst Block. Bewusst
+        //     übersprungene MA (Walter 20.06.2026) blockieren NICHT.
         var editablePunches = punches.Where(p =>
         {
             var d = p.BusinessDate ?? (p.In.HasValue ? DateOnly.FromDateTime(UtcToSwissLocal(p.In.Value)) : (DateOnly?)null);
-            return d.HasValue && IsEditable(d.Value, firstAllowed);
+            return d.HasValue && IsImportable(d.Value, closedPeriods) && !skipSet.Contains(p.EmployeeId);
         });
         res.MissingEmployees = ComputePreflightMissing(
             editablePunches, eawEmpById, new HashSet<string>(byNumber.Keys), aliasMap);
@@ -880,6 +949,14 @@ public class EasyAtWorkTimepunchSyncService
                 Comment          = p.JoinedComments,
                 IsEdited         = p.IsEdited,
             };
+            // Bewusst übersprungener MA (Walter 20.06.2026): als SKIPPED zeigen,
+            // nicht importieren, nicht blockieren.
+            if (skipSet.Contains(p.EmployeeId))
+            {
+                row.Status = "SKIPPED";
+                row.Reason = "Übersprungen — nicht zugeordneter MA.";
+                res.Rows.Add(row); res.CountSkipped++; continue;
+            }
             // Original-Zeit (vor manueller Korrektur):
             // 1. PRIMÄR: aus dem Audit-Text in den Comments parsen (Walter 17.06.2026).
             //    Format: "Ein vom 17 Januar 07:38 bis zum 17 Jan 07:15 geändert".
@@ -981,11 +1058,14 @@ public class EasyAtWorkTimepunchSyncService
                 res.Rows.Add(row); res.CountDuplicate++; continue;
             }
 
-            // Periode gesperrt? Vorschau zeigt LOCKED — der Commit überspringt ihn.
-            if (!IsEditable(row.BusinessDate, firstAllowed))
+            // In abgeschlossener Lohnperiode (oder vor 1.1.2025)? Vorschau zeigt
+            // LOCKED — der Commit überspringt ihn.
+            if (!IsImportable(row.BusinessDate, closedPeriods))
             {
                 row.Status = "LOCKED";
-                row.Reason = $"Lohnperiode gesperrt (frühestes erlaubtes Datum {firstAllowed:dd.MM.yyyy}) — wird nicht importiert.";
+                row.Reason = row.BusinessDate < EmployeeCutoff
+                    ? "Vor 1.1.2025 (Pre-Mirus) — wird nicht importiert."
+                    : "Liegt in einer abgeschlossenen Lohnperiode — wird nicht importiert.";
                 res.Rows.Add(row); res.CountLocked++; continue;
             }
 

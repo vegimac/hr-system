@@ -775,7 +775,7 @@ function renderEmployeeDetail(emp) {
             <div class="emp-section-title">Anstellung</div>
             <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
                  die zwei Booleans (LGAV + <8h) rechts schmaler. -->
-            <div class="emp-field-grid" style="display:grid;grid-template-columns:1.1fr 1.1fr 1.1fr 0.75fr 0.85fr;gap:12px">
+            <div class="emp-field-grid" style="display:grid;grid-template-columns:0.75fr 0.75fr 0.65fr 0.5fr 0.55fr 2.6fr;gap:12px">
                 ${field('Eintrittsdatum', emp.entryDate ? formatDate(emp.entryDate) : null)}
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null)}
                 ${(() => {
@@ -799,6 +799,22 @@ function renderEmployeeDetail(emp) {
                     <div class="emp-field-value">${emp.teilzeitUnter8hWoche
                         ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ keine NBU</span>`
                         : `<span style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">nein</span>`}</div>
+                </div>
+                <!-- Nachtarbeit-Untersuchung (Walter-Vorgabe 20.06.2026, ArG): Ausstellungsdatum eingeben, gültig bis = +2 J. -->
+                <div class="emp-field">
+                    <div class="emp-field-label">Nachtarbeit ausgestellt</div>
+                    <div class="emp-field-value" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;white-space:nowrap">
+                        <input type="date" value="${emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : ''}"
+                               onchange="saveNightExamDate(${emp.id}, this.value)" onblur="saveNightExamDate(${emp.id}, this.value)"
+                               title="Ausstellungsdatum des Arztzeugnisses / Verzichts"
+                               style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                        <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
+                        ${emp.nightWorkExamDokumentId
+                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Dokument öffnen" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 9px;cursor:pointer;color:#15803d;font-size:11.5px;font-weight:600">📄</button>
+                               <button onclick="openAusweisDokuModal(${emp.id},'night_work_exam')" title="Anderes Dokument verknüpfen / hochladen" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:11.5px;font-weight:600">↻</button>`
+                            : `<button onclick="openAusweisDokuModal(${emp.id},'night_work_exam')" title="Arztzeugnis oder Verzichtserklärung verknüpfen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 9px;cursor:pointer;color:#475569;font-size:11.5px;font-weight:600">📎 verknüpfen</button>`}
+                        <button onclick="openNachtEignungPdf(${emp.id})" title="SECO-Formular „Eignung Schicht-/Nachtarbeit" vorausgefüllt zum Abgeben an den MA" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:4px 9px;cursor:pointer;color:#1d4ed8;font-size:11.5px;font-weight:600;margin-left:6px">📄 SECO-Formular</button>
+                    </div>
                 </div>
             </div>
 
@@ -1260,6 +1276,17 @@ function renderQstPflichtBanner(pflicht) {
                <button onclick="ausweisDokuUnlink(${empId},'${empKind}')" style="background:transparent;border:1px solid #16a34a;color:#16a34a;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Verknüpfung aufheben</button>`
             : '';
 
+        // Walter-Vorgabe 20.06.2026: gleiche zwei Buttons beim Ehepartner-Beleg,
+        // wenn die Befreiung über den Ehepartner (CH/C) läuft und dessen Ausweis
+        // verknüpft ist — Dokument anschauen + Verknüpfung aufheben.
+        const isSpouseGrund = pflicht.befreiungsGrund === 'Ehepartner-CH'
+                           || pflicht.befreiungsGrund === 'Ehepartner-C';
+        const spouseDokButtons = (isSpouseGrund && !pflicht.spouseDokumentFehlt
+                                  && pflicht.spouseDokumentId && pflicht.spouseFamilyMemberId)
+            ? `<button onclick="qstOpenBefreiungsDok(${empId}, ${pflicht.spouseDokumentId})" title="Ausweis des Ehepartners im Vorschau-Panel rechts öffnen" style="background:#fff;border:1px solid #16a34a;color:#16a34a;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px">📄 Dokument anschauen</button>
+               <button onclick="spouseDokuUnlink(${empId}, ${pflicht.spouseFamilyMemberId})" style="background:transparent;border:1px solid #16a34a;color:#16a34a;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Verknüpfung aufheben</button>`
+            : '';
+
         return spouseWarn + empWarn + `
         <div style="background:#f0fdf4;border:1px solid #86efac;border-left:4px solid #16a34a;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-size:18px">✅</span>
@@ -1270,6 +1297,7 @@ function renderQstPflichtBanner(pflicht) {
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
                 ${dokAnschauen}
                 ${ausweisDokButtons}
+                ${spouseDokButtons}
                 ${aufheben}
             </div>
         </div>`;
@@ -1350,7 +1378,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
         alert('Mitarbeiter-ID fehlt. Bitte den MA links erneut anklicken.');
         return;
     }
-    if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history'].includes(kind)) return;
+    if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history', 'night_work_exam'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -1372,6 +1400,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                        : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
                        : kind === 'permit_history'     ? /(aufenthalt|bewilligung|permit|ausweis)/i
                        : kind === 'spouse'             ? /(ehegatt|ehepartner|spouse|partner)/i
+                       : kind === 'night_work_exam'    ? /(arzt|zeugnis|eignung|nacht|verzicht|untersuch)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -1413,6 +1442,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'c_ausweis'           ? 'C-Ausweis-Dokument verknüpfen'
                    : kind === 'permit_history'      ? 'Bewilligungs-Dokument verknüpfen'
                    : kind === 'spouse'              ? 'Ausweis Ehepartner verknüpfen'
+                   : kind === 'night_work_exam'     ? 'Nachtarbeit-Untersuchung verknüpfen (Arztzeugnis / Verzicht)'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -1420,7 +1450,9 @@ async function openAusweisDokuModal(empId, kind, extra) {
             ? 'Wähle das Bewilligungs-Dokument — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
             : kind === 'spouse'
                 ? 'Wähle das Ausweis-Dokument des Ehepartners (Pass, ID oder Bewilligung) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
-                : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
+                : kind === 'night_work_exam'
+                    ? 'Wähle das ärztliche Eignungszeugnis ODER die Verzichtserklärung des MA. Oder lade ein neues Dokument hoch.'
+                    : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
         ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -1655,6 +1687,8 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             if (typeof loadPermitHistory === 'function') loadPermitHistory(empId);
             if (typeof selectEmployee === 'function') selectEmployee(empId);
         }
+        // Nachtarbeit-Untersuchung: MA-Detail neu laden (Doku-Pille im ANSTELLUNG-Block).
+        if (kind === 'night_work_exam' && typeof selectEmployee === 'function') selectEmployee(empId);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -1683,6 +1717,99 @@ async function ausweisDokuUnlink(empId, kind) {
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
+}
+
+// SECO-Formular „Eignung Schicht-/Nachtarbeit" vorausgefüllt holen und im
+// Vorschaufenster zeigen (Walter 20.06.2026). Betrieb + MA-Angaben kommen
+// server-seitig aus Filiale (CompanyProfile) + MA-Stammdaten.
+async function openNachtEignungPdf(empId) {
+    if (!empId) return;
+    try {
+        const res = await fetch(`/api/nacht-eignung/${empId}/pdf`, { headers: ah() });
+        if (!res.ok) {
+            let msg = `Fehler (${res.status})`;
+            try { const j = await res.json(); if (j?.message) msg = j.message; } catch (_) {}
+            alert('Formular konnte nicht erstellt werden.\n' + msg);
+            return;
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const m = cd.match(/filename="?([^"]+)"?/);
+        const filename = m ? m[1] : `Nachtarbeit_Eignung_${empId}.pdf`;
+        if (typeof previewFileModal === 'function') previewFileModal(blob, filename);
+        else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, filename);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// Ehepartner-Beleg-Dokument aus dem QST-Banner lösen (Walter 20.06.2026) —
+// analog ausweisDokuUnlink, nur über den Family-Member-Dokument-PATCH.
+async function spouseDokuUnlink(empId, familyMemberId) {
+    if (!empId || !familyMemberId) return;
+    if (!confirm('Verknüpfung wirklich aufheben? Der Banner zeigt danach wieder „Ausweis des Ehepartners fehlt".')) return;
+    try {
+        const res = await fetch(`/api/employees/${empId}/family/${familyMemberId}/dokument`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dokumentId: null })
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => null);
+            alert(j?.message || `Fehler (${res.status})`);
+            return;
+        }
+        loadQuellensteuerTab(empId);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// Datum ± n Jahre (ISO yyyy-MM-dd; lokale Rechnung, Feb-29-sicher).
+function _nwAddYears(iso, n) {
+    if (!iso) return '';
+    const p = String(iso).slice(0, 10).split('-').map(Number);
+    if (p.length < 3) return '';
+    const dt = new Date(p[0] + n, p[1] - 1, p[2]);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+// „gültig bis"-Anzeige (inneres HTML der id'd Span) — wird in-place aktualisiert.
+function _nwGueltigBisHtml(validUntil) {
+    if (!validUntil) return '<span style="color:#94a3b8;font-size:11.5px">gültig bis —</span>';
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    const exp = new Date(validUntil) < t;
+    const c = exp ? '#991b1b' : '#166534';
+    return `<span style="color:${c};font-size:11.5px;font-weight:600">gültig bis ${formatDate(validUntil)}${exp ? ' · abgelaufen' : ''}</span>`;
+}
+
+// Nachtarbeit-Untersuchung: AUSSTELLUNGSdatum erfassen (Walter 20.06.2026) —
+// gespeichert wird „gültig bis" = Ausstellung + 2 Jahre (ArG). Dedizierter PATCH,
+// rührt keine anderen Anstellungs-Felder an.
+async function saveNightExamDate(empId, issueVal) {
+    // Native date-Inputs feuern „change" auch bei halb getipptem Jahr (z.B. 0020-…) →
+    // erst speichern, wenn das Jahr plausibel ist. Sonst würde jeder Zwischenstand
+    // gespeichert/abgelehnt und man könnte das Jahr nie fertig tippen.
+    if (issueVal) {
+        const y = parseInt(String(issueVal).slice(0, 4), 10);
+        if (!y || y < 1990 || y > new Date().getFullYear() + 1) return;
+    }
+    const validUntil = issueVal ? _nwAddYears(issueVal, 2) : null;
+    try {
+        const res = await fetch(`/api/employees/${empId}/night-work-exam-date`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ validUntil })
+        });
+        if (!res.ok) {
+            let body = ''; try { body = await res.text(); } catch (_) {}
+            alert('Speichern des Datums fehlgeschlagen (HTTP ' + res.status + ').\n' + (body || '').slice(0, 300));
+            return;
+        }
+        // In-place aktualisieren statt selectEmployee → Fokus/Cursor bleibt im Feld.
+        const span = document.getElementById('nwGueltigBis_' + empId);
+        if (span) span.innerHTML = _nwGueltigBisHtml(validUntil);
+    } catch (e) { alert('Netzwerkfehler beim Speichern.'); }
 }
 
 async function qstBefreiungAufheben(empId) {
@@ -3530,6 +3657,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
              </label>`,
             _t('ma.field.teilzeitUnter8hHint','Befreit von der NBU-Pflicht'))}
     </div>
+    <div style="margin:6px 0 0;font-size:11px;color:#94a3b8">Nachtarbeit-Untersuchung (Ausstellungsdatum + Dokument) wird in der Ansicht direkt erfasst.</div>
     <div style="margin:4px 0 16px;font-size:11.5px;color:#64748b;line-height:1.45">
         ${_t('ma.entryDate.hint','Eintrittsdatum wird benötigt für: Sperrfrist-Berechnung (Art. 336c OR), Karenzjahr-Berechnung (Krank/Unfall), Ferien-Kürzung (Art. 329b OR), Dienstjubiläen.')}
     </div>

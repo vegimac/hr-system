@@ -9,11 +9,107 @@
 let _kontrolleSpouseCache   = [];
 let _kontrolleEmployeeCache = [];
 let _kontrollePermitCache   = [];
+let _kontrolleNachtCache    = [];
 
 function kontrolleInit() {
     kontrolleEmployeeRefresh();
     kontrolleSpouseRefresh();
     kontrollePermitRefresh();
+    kontrolleNachtRefresh();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Walter-Vorgabe 20.06.2026 (ArG): Liste „Nachtarbeit-Untersuchung fehlt"
+// MA mit ≥ 25 gearbeiteten Nächten/Jahr (rollende 12 Monate, hochgerechnet)
+// ohne gültiges Arztzeugnis/Verzicht. Logik identisch zum Dashboard-Block.
+// ══════════════════════════════════════════════════════════════════════
+async function kontrolleNachtRefresh() {
+    const el = document.getElementById('kontrolleNachtList');
+    if (!el) return;
+    el.innerHTML = '<div class="emp-placeholder" style="height:120px"><span>Lade Liste…</span></div>';
+
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    const url = cpId ? `/api/kontrolle/nacht-untersuchung-fehlt?companyProfileId=${cpId}` : '/api/kontrolle/nacht-untersuchung-fehlt';
+    try {
+        const r = await fetch(url, { headers: ah() });
+        if (!r.ok) {
+            el.innerHTML = '<div class="emp-placeholder" style="height:120px;color:#dc2626"><span>Fehler beim Laden (' + r.status + ')</span></div>';
+            return;
+        }
+        const list = await r.json();
+        _kontrolleNachtCache = Array.isArray(list) ? list : [];
+        if (!Array.isArray(list) || list.length === 0) {
+            el.innerHTML = `<div style="padding:24px;text-align:center;color:#16a34a;font-size:14px;font-weight:600">
+                ✓ Keine offenen Lücken — alle MA mit ≥ 25 Nächten/Jahr haben eine gültige Untersuchung.
+            </div>`;
+            return;
+        }
+        const fmtDe = (iso) => {
+            if (!iso) return '–';
+            const s = String(iso).slice(0, 10);
+            if (s.length !== 10) return '–';
+            return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4);
+        };
+        el.innerHTML = `
+            <div style="padding:12px 18px 14px;color:#7f1d1d;font-size:12.5px;font-weight:600">
+                ${list.length} MA mit Anspruch auf medizinische Untersuchung ohne gültigen Nachweis
+                <span style="color:#94a3b8;font-weight:400;font-size:11.5px;margin-left:8px">· Bemerkungen optional — werden ins Excel/PDF übernommen, beim Aktualisieren zurückgesetzt</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead>
+                    <tr style="background:#fef2f2;border-top:1px solid #fee2e2;border-bottom:1px solid #fecaca">
+                        <th style="padding:9px 14px;text-align:left;color:#7f1d1d">Mitarbeiter</th>
+                        <th style="padding:9px 14px;text-align:center;color:#7f1d1d">Nächte/J</th>
+                        <th style="padding:9px 14px;text-align:center;color:#7f1d1d">Gültig bis</th>
+                        <th style="padding:9px 14px;text-align:left;color:#7f1d1d">Grund</th>
+                        <th style="padding:9px 14px;text-align:left;color:#7f1d1d">Bemerkung</th>
+                        <th style="padding:9px 14px;text-align:right;color:#7f1d1d">Aktion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${list.map(r => `
+                        <tr style="border-bottom:1px solid #f1f5f9">
+                            <td style="padding:9px 14px">
+                                <div style="font-weight:600;color:#0f172a">${_e(r.employeeName)}</div>
+                                <div style="font-size:11.5px;color:#64748b">Nr. ${_e(r.employeeNumber)}</div>
+                            </td>
+                            <td style="padding:9px 14px;text-align:center;font-family:monospace;font-weight:700;color:#991b1b">${r.naechteJahr}${r.hochgerechnet ? '<span style="color:#94a3b8;font-size:11px">*</span>' : ''}</td>
+                            <td style="padding:9px 14px;text-align:center;font-family:monospace">${fmtDe(r.gueltigBis)}</td>
+                            <td style="padding:9px 14px;color:#7f1d1d;font-size:12px">${_e(r.reason)}</td>
+                            <td style="padding:6px 12px">
+                                <input type="text" id="kontrolleNachtNote-${r.employeeId}" placeholder="Notiz…"
+                                       style="width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:12px;background:#fff;color:#0f172a">
+                            </td>
+                            <td style="padding:9px 14px;text-align:right;white-space:nowrap">
+                                <button onclick="kontrolleOpenEmployeeNacht(${r.employeeId})"
+                                        class="btn btn-primary" style="padding:5px 12px;font-size:12px">
+                                    → Zum MA
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            <div style="padding:8px 18px 4px;color:#94a3b8;font-size:11px">* Nächte/Jahr auf 12 Monate hochgerechnet (weniger als 12 Datenmonate vorhanden).</div>`;
+    } catch (e) {
+        el.innerHTML = '<div class="emp-placeholder" style="height:120px;color:#dc2626"><span>Verbindungsfehler: ' + _e(e.message) + '</span></div>';
+    }
+}
+
+/** Sprung in die Persönlichen Angaben des MA — dort steht im ANSTELLUNG-Block
+ *  das Feld „Nachtarbeit ausgestellt" + Dokument-Verknüpfung. */
+function kontrolleOpenEmployeeNacht(empId) {
+    if (!empId) return;
+    window.activeEmpId = empId;
+    if (typeof showPage === 'function') showPage('mitarbeiter');
+    setTimeout(() => {
+        if (typeof switchEmpTab === 'function') switchEmpTab('personal');
+    }, 300);
+}
+
+function _kontrolleNachtNote(empId) {
+    const el = document.getElementById('kontrolleNachtNote-' + empId);
+    return el ? (el.value || '').trim() : '';
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -233,7 +329,8 @@ function _kontrolleExportCombiExcel() {
     const hasEmp    = (_kontrolleEmployeeCache || []).length > 0;
     const hasSpouse = (_kontrolleSpouseCache   || []).length > 0;
     const hasPermit = (_kontrollePermitCache   || []).length > 0;
-    if (!hasEmp && !hasSpouse && !hasPermit) {
+    const hasNacht  = (_kontrolleNachtCache    || []).length > 0;
+    if (!hasEmp && !hasSpouse && !hasPermit && !hasNacht) {
         alert('Keine Daten zum Exportieren — alle Listen sind leer.');
         return;
     }
@@ -258,7 +355,7 @@ function _kontrolleExportCombiExcel() {
                 _kontrolleEmpNote(r.employeeId)
             ]);
         }
-        if (hasSpouse || hasPermit) rows.push([], []);
+        if (hasSpouse || hasPermit || hasNacht) rows.push([], []);
     }
 
     // Sektion 2: Ehegatten-Ausweis
@@ -278,7 +375,7 @@ function _kontrolleExportCombiExcel() {
                 _kontrolleSpouseNote(r.employeeId)
             ]);
         }
-        if (hasPermit) rows.push([], []);
+        if (hasPermit || hasNacht) rows.push([], []);
     }
 
     // Sektion 3: Bewilligungen laufen ab
@@ -296,6 +393,23 @@ function _kontrolleExportCombiExcel() {
                 fmtDe(r.validTo),
                 statusText,
                 _kontrollePermitNote(r.employeeId)
+            ]);
+        }
+        if (hasNacht) rows.push([], []);
+    }
+
+    // Sektion 4: Nachtarbeit-Untersuchung fehlt
+    if (hasNacht) {
+        rows.push(['NACHTARBEIT-UNTERSUCHUNG FEHLT']);
+        rows.push(['Personal-Nr.', 'Mitarbeiter', 'Nächte/Jahr', 'Gültig bis', 'Grund', 'Bemerkung']);
+        for (const r of _kontrolleNachtCache) {
+            rows.push([
+                r.employeeNumber || '',
+                r.employeeName || '',
+                (r.naechteJahr != null ? r.naechteJahr : '') + (r.hochgerechnet ? ' (hochgerechnet)' : ''),
+                fmtDe(r.gueltigBis),
+                r.reason || '',
+                _kontrolleNachtNote(r.employeeId)
             ]);
         }
     }
@@ -324,7 +438,8 @@ function _kontrolleExportCombiPdf() {
     const hasEmp    = (_kontrolleEmployeeCache || []).length > 0;
     const hasSpouse = (_kontrolleSpouseCache   || []).length > 0;
     const hasPermit = (_kontrollePermitCache   || []).length > 0;
-    if (!hasEmp && !hasSpouse && !hasPermit) {
+    const hasNacht  = (_kontrolleNachtCache    || []).length > 0;
+    if (!hasEmp && !hasSpouse && !hasPermit && !hasNacht) {
         alert('Keine Daten zum Exportieren — alle Listen sind leer.');
         return;
     }
@@ -400,6 +515,26 @@ function _kontrolleExportCombiPdf() {
             <tbody>${permitRows}</tbody>
         </table>` : '';
 
+    const nachtRows = (_kontrolleNachtCache || []).map(r => `
+        <tr>
+            <td>${_kEsc(r.employeeNumber || '')}</td>
+            <td>${_kEsc(r.employeeName || '')}</td>
+            <td style="text-align:center">${r.naechteJahr != null ? r.naechteJahr : ''}${r.hochgerechnet ? '*' : ''}</td>
+            <td style="text-align:center">${_kEsc(fmtDe(r.gueltigBis))}</td>
+            <td>${_kEsc(r.reason || '')}</td>
+            <td>${_kEsc(_kontrolleNachtNote(r.employeeId))}</td>
+        </tr>`).join('');
+
+    const nachtSection = hasNacht ? `
+        <h2 style="margin-top:24px">Nachtarbeit-Untersuchung fehlt <span class="cnt">${_kontrolleNachtCache.length}</span></h2>
+        <table>
+            <thead>
+                <tr><th>Pers.-Nr.</th><th>Mitarbeiter</th><th>Nächte/J</th><th>Gültig bis</th><th>Grund</th><th>Bemerkung</th></tr>
+            </thead>
+            <tbody>${nachtRows}</tbody>
+        </table>
+        <div style="color:#94a3b8;font-size:10px;margin-top:4px">* Nächte/Jahr auf 12 Monate hochgerechnet (weniger als 12 Datenmonate vorhanden). Ab 25 Nächten/Jahr besteht Anspruch auf eine medizinische Untersuchung (ArG).</div>` : '';
+
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Kontrolle — Lücken-Erkennung</title>
         <style>
             body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; color: #0f172a; }
@@ -418,6 +553,7 @@ function _kontrolleExportCombiPdf() {
         ${empSection}
         ${spouseSection}
         ${permitSection}
+        ${nachtSection}
         <script>window.onload=()=>window.print();</script>
     </body></html>`;
     const w = window.open('', '_blank');

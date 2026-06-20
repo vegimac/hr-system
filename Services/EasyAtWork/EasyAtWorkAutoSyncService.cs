@@ -256,7 +256,29 @@ public class EasyAtWorkAutoSyncRunner
             Skipped          = r?.Skipped ?? 0,
             MissingCount     = r?.MissingEmployees.Count ?? 0,
             Message          = message == null ? null : Truncate(message, 1000),
+            DetailJson       = BuildDetailJson(r),
         });
+    }
+
+    /// <summary>Detail der echten Änderungen als JSON (gedeckelt auf 1000 Zeilen,
+    /// damit die Spalte nicht ausufert — der Rest wird über totalChanges gemeldet).</summary>
+    private static string? BuildDetailJson(EasyAtWorkTimepunchSyncService.AutoSyncResult? r)
+    {
+        if (r == null || r.Changes.Count == 0) return null;
+        const int cap = 1000;
+        var payload = new
+        {
+            totalChanges = r.Changes.Count,
+            capped       = r.Changes.Count > cap,
+            changes      = r.Changes.Take(cap).Select(c => new {
+                empId  = c.EmployeeId,
+                date   = c.Date.ToString("yyyy-MM-dd"),
+                action = c.Action,
+                oldTotal = c.OldTotal, newTotal = c.NewTotal,
+                oldNight = c.OldNight, newNight = c.NewNight
+            })
+        };
+        return System.Text.Json.JsonSerializer.Serialize(payload);
     }
 
     /// <summary>Protokoll-Einträge älter als 90 Tage entfernen (eigener Scope).</summary>

@@ -67,17 +67,20 @@ public class EasyAtWorkWritePathTests
         db.CompanyProfiles.Add(new CompanyProfile { Id = 10 });
         db.Employees.Add(new Employee { Id = 1, EmployeeNumber = "580099", FirstName = "A", LastName = "M" });
         db.EasyAtWorkBranchMappings.Add(new EasyAtWorkBranchMapping { Id = 1, CompanyProfileId = 10, EasyAtWorkCustomerId = 769 });
+        // Januar 2026 ABGESCHLOSSEN → Stempel im Januar sind gesperrt (per-Periode).
+        db.PayrollPerioden.Add(new PayrollPeriode { CompanyProfileId = 10, Year = 2026, Month = 1,
+            PeriodFrom = new DateOnly(2026, 1, 1), PeriodTo = new DateOnly(2026, 1, 31), Status = "abgeschlossen" });
         await db.SaveChangesAsync();
 
         var client = new FakeEawClient();
         client.Employees.Add(new EawEmployee { Id = 47, Number = "580099", FirstName = "A", LastName = "M" });
-        client.Timepunches.Add(Punch(100, 47, new DateOnly(2026, 2, 20)));  // editierbar
-        client.Timepunches.Add(Punch(101, 47, new DateOnly(2026, 1, 31)));  // gesperrt (< 1.2.)
+        client.Timepunches.Add(Punch(100, 47, new DateOnly(2026, 2, 20)));  // editierbar (Feb offen)
+        client.Timepunches.Add(Punch(101, 47, new DateOnly(2026, 1, 31)));  // gesperrt (Jan abgeschlossen)
 
         var svc = NewService(db, client);
         var req = new EasyAtWorkTimepunchSyncService.SyncRequest { CompanyProfileId = 10, From = new DateOnly(2026, 1, 1), To = new DateOnly(2026, 2, 28) };
 
-        var res = await svc.CommitAsync(req, firstAllowed: new DateOnly(2026, 2, 1));
+        var res = await svc.CommitAsync(req, firstAllowed: null);
 
         Assert.False(res.IsBlocked);
         Assert.Equal(1, res.Inserted);
@@ -98,18 +101,21 @@ public class EasyAtWorkWritePathTests
         db.CompanyProfiles.Add(new CompanyProfile { Id = 10 });
         db.Employees.Add(new Employee { Id = 1, EmployeeNumber = "580099", FirstName = "A", LastName = "M" });
         db.EasyAtWorkBranchMappings.Add(new EasyAtWorkBranchMapping { Id = 1, CompanyProfileId = 10, EasyAtWorkCustomerId = 769 });
+        // Januar 2026 ABGESCHLOSSEN → Januar-Stempel gesperrt (per-Periode).
+        db.PayrollPerioden.Add(new PayrollPeriode { CompanyProfileId = 10, Year = 2026, Month = 1,
+            PeriodFrom = new DateOnly(2026, 1, 1), PeriodTo = new DateOnly(2026, 1, 31), Status = "abgeschlossen" });
         await db.SaveChangesAsync();
 
         var client = new FakeEawClient();
         client.Employees.Add(new EawEmployee { Id = 47, Number = "580099" });          // matchbar
         client.Employees.Add(new EawEmployee { Id = 99, Number = "999999" });          // NICHT in Cowork
-        client.Timepunches.Add(Punch(200, 99, new DateOnly(2026, 1, 31)));  // fehlender MA, ABER gesperrt
-        client.Timepunches.Add(Punch(201, 47, new DateOnly(2026, 2, 20)));  // editierbar, matchbar
+        client.Timepunches.Add(Punch(200, 99, new DateOnly(2026, 1, 31)));  // fehlender MA, ABER gesperrt (Jan)
+        client.Timepunches.Add(Punch(201, 47, new DateOnly(2026, 2, 20)));  // editierbar, matchbar (Feb offen)
 
         var svc = NewService(db, client);
         var req = new EasyAtWorkTimepunchSyncService.SyncRequest { CompanyProfileId = 10, From = new DateOnly(2026, 1, 1), To = new DateOnly(2026, 2, 28) };
 
-        var res = await svc.CommitAsync(req, firstAllowed: new DateOnly(2026, 2, 1));
+        var res = await svc.CommitAsync(req, firstAllowed: null);
 
         // Der fehlende MA #99 ist NUR in der gesperrten Periode → blockiert NICHT.
         Assert.False(res.IsBlocked);

@@ -290,6 +290,23 @@ public class EasyAtWorkClient
         return all;
     }
 
+    /// <summary>
+    /// Einzel-Abruf eines MA per easy@work-ID (Walter-Vorgabe 20.06.2026) — auch
+    /// für MA, die NICHT mehr in der (inkl. inaktiv) Liste stehen (gelöscht/
+    /// archiviert). Best-effort: liefert null bei 404/Fehler. Die API kann einen
+    /// endgültig gelöschten MA dennoch verweigern — dann bleibt nur Zuordnen/Skip.
+    /// </summary>
+    public virtual async Task<EawEmployee?> GetEmployeeByIdAsync(int customerId, int employeeId, CancellationToken ct = default)
+    {
+        try
+        {
+            var res = await GetJsonAsync<EawSingle<EawEmployee>>(
+                $"customers/{customerId}/employees/{employeeId}", ct);
+            return res?.Data;
+        }
+        catch { return null; }
+    }
+
     public Task<EawPaginated<EawContract>> GetContractsAsync(int customerId, int employeeId, CancellationToken ct = default)
         => GetJsonAsync<EawPaginated<EawContract>>(
             $"customers/{customerId}/employees/{employeeId}/contracts", ct);

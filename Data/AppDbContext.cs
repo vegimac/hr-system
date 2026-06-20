@@ -115,6 +115,8 @@ public class AppDbContext : DbContext
             // Walter-Vorgabe 13.06.2026: explizite Verknüpfungen MA → Beleg-Doku.
             entity.Property(e => e.IdPassDokumentId).HasColumnName("id_pass_dokument_id");
             entity.Property(e => e.CAusweisDokumentId).HasColumnName("c_ausweis_dokument_id");
+            entity.Property(e => e.NightWorkExamValidUntil).HasColumnName("night_work_exam_valid_until").HasColumnType("date");
+            entity.Property(e => e.NightWorkExamDokumentId).HasColumnName("night_work_exam_dokument_id");
             entity.Property(e => e.EasyAtWorkEmployeeId).HasColumnName("easyatwork_employee_id");
             // GLOBALER QUERY FILTER: ALLE Employee-Queries blenden hidden MA
             // automatisch aus — kein manuelles WHERE in jedem Controller nötig.

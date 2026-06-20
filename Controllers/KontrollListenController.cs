@@ -343,4 +343,89 @@ public class KontrollListenController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Walter-Vorgabe 20.06.2026 (ArG): MA mit ≥ 25 gearbeiteten Nächten/Jahr
+    /// (rollende 12 Monate, bei &lt; 12 Datenmonaten hochgerechnet) OHNE gültige
+    /// Nachtarbeit-Untersuchung — Arztzeugnis/Verzicht fehlt, hat kein
+    /// Ausstellungsdatum oder ist abgelaufen. IDENTISCHE Zähl-Logik wie der
+    /// Dashboard-Block „night_work_exam_fehlt" und die Ferien/Nacht-Liste.
+    ///
+    /// Filter: IsActive, !IsHidden, !IsPayrollExcluded (Phantom), kein `+alt`,
+    /// optional Filiale. Stichtag = heute (Exam-Status kommt live vom MA →
+    /// Erfassen entfernt die Lücke sofort).
+    /// </summary>
+    [HttpGet("nacht-untersuchung-fehlt")]
+    public async Task<IActionResult> NachtUntersuchungFehlt([FromQuery] int? companyProfileId = null)
+    {
+        var today     = DateOnly.FromDateTime(DateTime.Today);
+        var rollStart = new DateOnly(today.Year, today.Month, 1).AddMonths(-11);
+
+        var empQuery = _db.Employees
+            .Where(e => e.IsActive
+                     && !e.IsHidden
+                     && !e.IsPayrollExcluded
+                     && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+        if (companyProfileId.HasValue)
+        {
+            var cpid = companyProfileId.Value;
+            empQuery = empQuery.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+        }
+        var emps = await empQuery
+            .Select(e => new {
+                e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
+                e.NightWorkExamValidUntil, e.NightWorkExamDokumentId
+            })
+            .ToListAsync();
+        var empIds = emps.Select(e => e.Id).ToList();
+        if (empIds.Count == 0) return Ok(Array.Empty<object>());
+
+        // Nacht-Tage (nur Tage mit Nachtstunden) — distinct pro MA.
+        var nightDays = await _db.EmployeeTimeEntries.AsNoTracking()
+            .Where(t => empIds.Contains(t.EmployeeId) && t.EntryDate >= rollStart
+                     && t.EntryDate <= today && (t.NightHours ?? 0m) > 0m)
+            .Select(t => new { t.EmployeeId, t.EntryDate })
+            .Distinct().ToListAsync();
+        var nightsByEmp = nightDays.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.Count());
+
+        // Datenmonate (distinct Monate mit Stempeln) — ≤ 12 pro MA.
+        var monthRows = await _db.EmployeeTimeEntries.AsNoTracking()
+            .Where(t => empIds.Contains(t.EmployeeId) && t.EntryDate >= rollStart && t.EntryDate <= today)
+            .Select(t => new { t.EmployeeId, t.EntryDate.Year, t.EntryDate.Month })
+            .Distinct().ToListAsync();
+        var monthsByEmp = monthRows.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.Count());
+
+        var result = new List<object>();
+        foreach (var e in emps)
+        {
+            if (!nightsByEmp.TryGetValue(e.Id, out var nights) || nights == 0) continue;
+            int months    = monthsByEmp.TryGetValue(e.Id, out var m) ? m : 0;
+            int projected = months >= 12 ? nights : months > 0 ? (int)Math.Round((double)nights * 12 / months) : 0;
+            if (projected < 25) continue;
+
+            bool examValid = e.NightWorkExamDokumentId.HasValue
+                          && e.NightWorkExamValidUntil.HasValue
+                          && DateOnly.FromDateTime(e.NightWorkExamValidUntil.Value) >= today;
+            if (examValid) continue;
+
+            string grund =
+                  (!e.NightWorkExamDokumentId.HasValue && !e.NightWorkExamValidUntil.HasValue) ? "Kein Eintrag — Arztzeugnis/Verzicht fehlt"
+                : (e.NightWorkExamValidUntil.HasValue && DateOnly.FromDateTime(e.NightWorkExamValidUntil.Value) < today) ? "Untersuchung abgelaufen"
+                : (!e.NightWorkExamDokumentId.HasValue) ? "Dokument fehlt"
+                : "Ausstellungsdatum fehlt";
+
+            result.Add(new {
+                employeeId     = e.Id,
+                employeeNumber = e.EmployeeNumber,
+                employeeName   = ($"{e.FirstName} {e.LastName}").Trim(),
+                naechteJahr    = projected,
+                hochgerechnet  = months < 12,
+                datenMonate    = months,
+                gueltigBis     = e.NightWorkExamValidUntil?.ToString("yyyy-MM-dd"),
+                reason         = grund
+            });
+        }
+
+        return Ok(result.OrderByDescending(r => ((dynamic)r).naechteJahr).ToList());
+    }
 }

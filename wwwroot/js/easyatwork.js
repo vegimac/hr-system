@@ -80,8 +80,41 @@ function _eawEndOfMonth(iso) {
     return `${y}-${String(m).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
 }
 
+// Bewusst übersprungene easy@work-MA (Walter-Vorgabe 20.06.2026): ihre Stempel
+// blockieren den Import nicht mehr und werden nicht geschrieben.
+let _eawSkipIds = [];
+
 async function eawSyncPreview() {
+    _eawSkipIds = [];          // neue Vorschau → Skip-Liste zurücksetzen
     await _eawSyncRun(false);
+}
+
+// „Überspringen": MA zur Skip-Liste — und die letzte Vorschau LOKAL anpassen
+// (kein neuer API-Abruf). Beim Commit wird _eawSkipIds ohnehin mitgeschickt.
+function eawSkipEmployee(eawId) {
+    if (!_eawSkipIds.includes(eawId)) _eawSkipIds.push(eawId);
+    const p = _eawSyncLastPreview;
+    if (!p) { _eawSyncRun(false); return; }   // Fallback: doch neu laden
+
+    if (Array.isArray(p.missingEmployees))
+        p.missingEmployees = p.missingEmployees.filter(m => m.eawEmployeeId !== eawId);
+    let moved = 0;
+    if (Array.isArray(p.rows)) {
+        p.rows.forEach(r => {
+            if (r.eawEmployeeId === eawId && r.status !== 'SKIPPED') {
+                r.status = 'SKIPPED';
+                r.reason = 'Übersprungen — nicht zugeordneter MA.';
+                moved++;
+            }
+        });
+    }
+    p.countSkipped   = (p.countSkipped || 0) + moved;
+    p.countUnmatched = Math.max(0, (p.countUnmatched || 0) - moved);
+
+    _eawSyncRenderResult(p, false);
+    const blocked = (p.missingEmployees && p.missingEmployees.length > 0);
+    const commitBtn = document.getElementById('eawSyncCommitBtn');
+    if (commitBtn) commitBtn.disabled = blocked || !(p.countNew > 0);
 }
 async function eawSyncCommit() {
     if (!_eawSyncLastPreview || !_eawSyncLastPreview.countNew) {
@@ -115,7 +148,8 @@ async function _eawSyncRun(commit) {
     const dto = {
         companyProfileId: parseInt(sel.value, 10),
         from: fromEl.value,
-        to:   toEl.value
+        to:   toEl.value,
+        skipEawEmployeeIds: _eawSkipIds
     };
     try {
         const url = commit ? '/api/easywork/sync/timepunches/commit'
@@ -181,7 +215,7 @@ function _eawSyncRenderResult(res, wasCommit) {
     const missingHtml = missing.length ? `
         <div style="border:1px solid #fecaca;background:#fef2f2;border-radius:8px;padding:12px;margin-bottom:12px">
             <div style="font-weight:700;color:#991b1b;margin-bottom:4px">⛔ Import blockiert — ${missing.length} Mitarbeiter ohne Zuordnung</div>
-            <div style="font-size:12px;color:#7f1d1d;margin-bottom:10px">Diese easy@work-MA haben Stempel im Zeitraum, lassen sich aber keiner Cowork-Personalnummer zuordnen. Bitte zuordnen oder in Cowork anlegen — erst dann kann importiert werden.</div>
+            <div style="font-size:12px;color:#7f1d1d;margin-bottom:10px">Diese easy@work-MA haben Stempel im Zeitraum, lassen sich aber keiner Cowork-Personalnummer zuordnen. Bitte <strong>zuordnen</strong>, in Cowork anlegen — oder <strong>überspringen</strong> (alter/gelöschter Datensatz), dann wird der Rest importiert.</div>
             <table class="eaw-sync-table" style="margin:0">
                 <thead><tr><th>easy@work-MA</th><th style="text-align:right">Stempel</th><th>Problem</th><th></th></tr></thead>
                 <tbody>${missing.map(m => `
@@ -189,7 +223,11 @@ function _eawSyncRenderResult(res, wasCommit) {
                         <td>${escapeHtml(m.eawEmployeeName || ('easy@work-MA #' + m.eawEmployeeId))} <span style="color:#94a3b8">(#${m.eawEmployeeId}${m.eawEmployeeNumber ? ' · Nr. ' + escapeHtml(m.eawEmployeeNumber) : ''})</span></td>
                         <td style="text-align:right">${m.timepunchCount}</td>
                         <td style="color:#7f1d1d;font-size:12px">${escapeHtml(m.reason || '')}</td>
-                        <td><button onclick="eawAssignAlias(${m.eawEmployeeId})" style="background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;white-space:nowrap">→ MA zuordnen</button></td>
+                        <td style="white-space:nowrap">
+                            <button onclick="eawLookupEmployee(${m.eawEmployeeId})" title="In easy@work per ID nachschlagen — auch gelöschte/archivierte MA" style="background:#ede9fe;border:1px solid #c4b5fd;color:#6d28d9;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;white-space:nowrap">🔍 Nachschlagen</button>
+                            <button onclick="eawAssignAlias(${m.eawEmployeeId})" style="margin-left:6px;background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;white-space:nowrap">→ MA zuordnen</button>
+                            <button onclick="eawSkipEmployee(${m.eawEmployeeId})" title="Diesen MA überspringen — seine Stempel werden nicht importiert, der Rest schon" style="margin-left:6px;background:#fff;border:1px solid #cbd5e1;color:#475569;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;white-space:nowrap">⏭ Überspringen</button>
+                        </td>
                     </tr>`).join('')}</tbody>
             </table>
         </div>` : '';
@@ -208,6 +246,7 @@ function _eawSyncRenderResult(res, wasCommit) {
             <span style="color:#854d0e">Duplikate: <strong>${res.countDuplicate}</strong></span>
             <span style="color:#991b1b">Unmatched: <strong>${res.countUnmatched}</strong></span>
             <span style="color:#b45309">🔒 Gesperrt: <strong>${res.countLocked||0}</strong></span>
+            <span style="color:#64748b">⏭ Übersprungen: <strong>${res.countSkipped||0}</strong></span>
             <span style="color:#64748b">Gelöscht/Invalid: <strong>${res.countSoftDeleted + res.countInvalid}</strong></span>
         </div>`;
     const rows = (res.rows||[]).map(r => {
@@ -218,6 +257,7 @@ function _eawSyncRenderResult(res, wasCommit) {
             SOFT_DELETED:'<span class="eaw-pill eaw-pill-soft">GELÖSCHT</span>',
             INVALID:    '<span class="eaw-pill eaw-pill-invalid">INVALID</span>',
             LOCKED:     '<span class="eaw-pill" style="background:#fef3c7;color:#b45309">🔒 GESPERRT</span>',
+            SKIPPED:    '<span class="eaw-pill" style="background:#f1f5f9;color:#475569">⏭ ÜBERSPRUNGEN</span>',
         }[r.status] || r.status;
         const comment = escapeHtml(r.comment || r.reason || '');
         // Bei UNMATCHED mit bekannter easy@work-ID: Ein-Klick-Zuordnung anbieten.
@@ -305,7 +345,7 @@ function eawLogRender(rows) {
             <td style="text-align:right;color:#1e40af">${r.updated || 0}</td>
             <td style="text-align:right;color:#991b1b">${r.deleted || 0}</td>
             <td style="text-align:right;color:#854d0e" title="in gesperrter Periode übersprungen">${r.lockedSkipped || 0}</td>
-            <td style="color:#475569;font-size:12px">${escapeHtml(r.message || '')}</td>
+            <td style="color:#475569;font-size:12px">${escapeHtml(r.message || '')}${r.hasDetail ? ` <button onclick="eawLogDetail(${r.id})" style="margin-left:6px;background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;font-size:11px;font-weight:600;padding:2px 9px;border-radius:6px;cursor:pointer;white-space:nowrap">🔍 Detail</button>` : ''}</td>
         </tr>`).join('');
     el.innerHTML = `
         <table class="eaw-sync-table">
@@ -316,6 +356,59 @@ function eawLogRender(rows) {
             <tbody>${body}</tbody>
         </table>`;
 }
+// Detail-Drill-Down zu einem Sync-Lauf (Variante A): echte Änderungen (neu /
+// Wert-geändert) mit Mitarbeiter, Datum und alt→neu Stunden.
+async function eawLogDetail(id) {
+    let modal = document.getElementById('eawLogDetailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'eawLogDetailModal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+        modal.innerHTML = `<div style="background:var(--card-bg,#fff);border-radius:12px;max-width:820px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e2e8f0">
+                <strong id="eawLogDetailTitle" style="font-size:15px">Sync-Detail</strong>
+                <button onclick="document.getElementById('eawLogDetailModal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b">✕</button>
+            </div>
+            <div id="eawLogDetailBody" style="overflow:auto;padding:14px 18px"></div>
+        </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    }
+    const body = modal.querySelector('#eawLogDetailBody');
+    body.innerHTML = '<div style="color:#64748b;padding:10px">⏳ Lade…</div>';
+    try {
+        const r = await fetch(`/api/easywork/sync-log/${id}/detail`, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) { body.innerHTML = '<div style="color:#b91c1c;padding:10px">Fehler beim Laden des Details.</div>'; return; }
+        const d = await r.json();
+        const changes = d.changes || [];
+        if (!changes.length) { body.innerHTML = '<div style="color:#94a3b8;padding:10px">Keine echten Änderungen in diesem Lauf (nur identische Neuschreibungen).</div>'; return; }
+        const neu = changes.filter(c => c.action === 'neu').length;
+        const geae = changes.length - neu;
+        const fmt = (v) => (v == null ? '–' : Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        const actBadge = (a) => a === 'neu'
+            ? '<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px">neu</span>'
+            : '<span style="background:#dbeafe;color:#1e40af;font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px">geändert</span>';
+        const rows = changes.map(c => `
+            <tr>
+                <td style="white-space:nowrap">${escapeHtml(c.name)} <span style="color:#94a3b8">(${escapeHtml(c.number || '-')})</span></td>
+                <td style="white-space:nowrap">${c.date ? _eawDate(c.date) : ''}</td>
+                <td>${actBadge(c.action)}</td>
+                <td style="text-align:right;white-space:nowrap">${c.action === 'neu' ? fmt(c.newTotal) : `${fmt(c.oldTotal)} → <strong>${fmt(c.newTotal)}</strong>`}</td>
+                <td style="text-align:right;white-space:nowrap;color:#7c3aed">${c.action === 'neu' ? fmt(c.newNight) : `${fmt(c.oldNight)} → ${fmt(c.newNight)}`}</td>
+            </tr>`).join('');
+        modal.querySelector('#eawLogDetailTitle').textContent =
+            `Sync-Detail — ${neu} neu, ${geae} geändert${d.capped ? ' (gekappt auf 1000)' : ''}`;
+        body.innerHTML = `
+            <div style="font-size:12px;color:#64748b;margin-bottom:8px">Nur echte Änderungen (identische Neuschreibungen ausgeblendet). Stunden: Total bzw. <span style="color:#7c3aed">Nacht</span>, alt → neu.</div>
+            <table class="eaw-sync-table" style="font-size:12.5px">
+                <thead><tr><th>Mitarbeiter</th><th>Datum</th><th>Aktion</th><th style="text-align:right">Total Std</th><th style="text-align:right">Nacht Std</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    } catch (e) {
+        body.innerHTML = '<div style="color:#b91c1c;padding:10px">Netzwerkfehler.</div>';
+    }
+}
+
 function _eawTime(iso) {
     if (!iso) return '—';
     const s = String(iso);
@@ -330,7 +423,33 @@ function _eawTime(iso) {
 let _eawAllEmps   = null;
 let _eawAliasEawId = 0;
 
-async function eawAssignAlias(eawEmployeeId) {
+// Nachschlagen eines (evtl. gelöschten) easy@work-MA per ID über die API
+// (Walter-Vorgabe 20.06.2026). Findet die API ihn + passt die Nummer zu einem
+// Cowork-MA → direkt vorausgewählt zuordnen; sonst Hinweis.
+async function eawLookupEmployee(eawId) {
+    const sel = document.getElementById('eawSyncBranchSel');
+    const cp = sel ? parseInt(sel.value, 10) : 0;
+    if (!cp) { alert('Bitte zuerst Filiale wählen.'); return; }
+    try {
+        const r = await fetch(`/api/easywork/employee-lookup?companyProfileId=${cp}&eawId=${eawId}`, { headers: ah(), cache: 'no-store' });
+        const d = await r.json().catch(() => null);
+        if (!r.ok || !d) { alert('Nachschlagen fehlgeschlagen.'); return; }
+        if (!d.found) {
+            alert(`easy@work gibt zur ID #${eawId} keinen Datensatz zurück (endgültig gelöscht/archiviert).\n\nBitte „⏭ Überspringen" oder den MA in Cowork manuell zuordnen.`);
+            return;
+        }
+        const info = `easy@work #${eawId}: ${d.name || '(ohne Name)'}${d.number ? ' · Nr. ' + d.number : ''}`;
+        if (d.coworkEmployeeId) {
+            if (confirm(`${info}\n\nGefundener Cowork-Mitarbeiter: ${d.coworkName}\n\nJetzt zuordnen?`)) {
+                eawAssignAlias(eawId, d.coworkEmployeeId);
+            }
+        } else {
+            alert(`${info}\n\nKein Cowork-Mitarbeiter mit dieser Nummer gefunden.\nBitte den MA in Cowork anlegen und dann zuordnen — oder überspringen.`);
+        }
+    } catch (e) { alert('Netzwerkfehler beim Nachschlagen.'); }
+}
+
+async function eawAssignAlias(eawEmployeeId, preselectCoworkId) {
     if (!_eawAllEmps) {
         try {
             const res = await fetch('/api/employees', { headers: ah(), cache: 'no-store' });
@@ -367,8 +486,14 @@ async function eawAssignAlias(eawEmployeeId) {
             </div>
         </div>`;
     overlay.style.display = 'flex';
-    const search = document.getElementById('eawAliasSearch');
-    if (search) search.focus();
+    // Vorauswahl (aus „Nachschlagen", wenn die API-Nummer zu einem Cowork-MA passt).
+    if (preselectCoworkId) {
+        const selEl = document.getElementById('eawAliasSelect');
+        if (selEl) { selEl.value = String(preselectCoworkId); selEl.focus(); }
+    } else {
+        const search = document.getElementById('eawAliasSearch');
+        if (search) search.focus();
+    }
 }
 
 function eawAliasFilter() {

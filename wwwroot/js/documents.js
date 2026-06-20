@@ -402,15 +402,25 @@ function renderDokTableRow(d, showCategoryColumns) {
     // und nichts löschen (Missbrauchs- und Datenverlust-Schutz).
     const canDownload  = currentUser?.role === 'admin' || currentUser?.role === 'superuser';
     const canDelete    = currentUser?.role === 'admin' || currentUser?.role === 'superuser';
+    // Walter-Vorgabe 20.06.2026: Dokumente, die an einer wirksamen FK-Stelle
+    // verknüpft sind (Ehepartner-Bewilligung, C-Ausweis/Pass mit QST-Wirkung,
+    // Behörden-Befreiung, Bewilligung), bekommen KEINE Löschen-Option — erst die
+    // Verknüpfung lösen (z.B. über den ↻-Relink), dann ist Löschen wieder da.
+    const isLinked    = !!d.linked;
+    const linkedTitle = isLinked && Array.isArray(d.linkedAs) ? d.linkedAs.join(' · ') : 'verknüpft';
     // Walter-Vorgabe 09.06.2026: kein separater Stift mehr — Bearbeiten steht
     // ohnehin im ⋮-Menü. Eine Aktion = eine Stelle, weniger visueller Lärm.
+    const deleteItem = !canDelete ? ''
+        : isLinked
+            ? `<div class="dok-menu-locked" title="Verknüpft als: ${linkedTitle} — erst die Verknüpfung lösen, dann löschbar">🔒 Verknüpft – nicht löschbar</div>`
+            : `<button class="dok-menu-item danger" onclick="dokDelete(${d.id})">Löschen</button>`;
     const actions = `<div class="dok-actions">
         <div class="dok-menu-wrap">
             <button class="dok-menu-btn" onclick="dokToggleMenu(event, ${d.id})" title="Aktionen">⋮</button>
             <div class="dok-menu" id="dokMenu-${d.id}">
                 <button class="dok-menu-item" onclick="openDokEditModal(${d.id})">Bearbeiten</button>
                 ${canDownload ? `<button class="dok-menu-item" onclick="dokDownload(${d.id})">Herunterladen</button>` : ''}
-                ${canDelete ? `<button class="dok-menu-item danger" onclick="dokDelete(${d.id})">Löschen</button>` : ''}
+                ${deleteItem}
             </div>
         </div>
     </div>`;
@@ -1066,7 +1076,13 @@ async function dokDelete(id) {
     if (!confirm('Dokument wirklich löschen?')) return;
     try {
         const r = await fetch(`/api/documents/${id}`, { method:'DELETE', headers: ah() });
-        if (!r.ok) throw new Error('Server-Fehler');
+        if (!r.ok) {
+            // 409 = Lösch-Sperre (Dokument verknüpft) → klare Backend-Meldung zeigen.
+            let msg = `Fehler ${r.status}`;
+            try { const j = await r.json(); msg = j.message || j.error || msg; } catch (e) {}
+            alert(msg);
+            return;
+        }
         // Refresh
         loadEmpDokumente(_dokState.empId);
     } catch (err) {

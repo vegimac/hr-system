@@ -5,6 +5,7 @@ using HrSystem.Services.EasyAtWork;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace HrSystem.Controllers;
 
@@ -212,7 +213,7 @@ public class EasyAtWorkController : ControllerBase
         int Id, int CompanyProfileId, string? CompanyProfileName, DateTime RunAt,
         string Status, DateOnly? PeriodFrom, DateOnly? PeriodTo, bool UsedUpdatesFeed,
         int Inserted, int Updated, int Deleted, int LockedSkipped, int Skipped,
-        int MissingCount, string? Message);
+        int MissingCount, string? Message, bool HasDetail);
 
     /// <summary>Protokoll des automatischen Sync (neueste zuerst), optional pro Filiale.</summary>
     [HttpGet("sync-log")]
@@ -238,8 +239,57 @@ public class EasyAtWorkController : ControllerBase
             names.TryGetValue(l.CompanyProfileId, out var n) ? n : null,
             l.RunAt, l.Status, l.PeriodFrom, l.PeriodTo, l.UsedUpdatesFeed,
             l.Inserted, l.Updated, l.Deleted, l.LockedSkipped, l.Skipped,
-            l.MissingCount, l.Message)).ToList();
+            l.MissingCount, l.Message, !string.IsNullOrEmpty(l.DetailJson))).ToList();
         return Ok(rows);
+    }
+
+    /// <summary>Detail der echten Änderungen eines Sync-Laufs (Variante A) —
+    /// reichert die gespeicherten Zeilen mit MA-Name/-Nummer an.</summary>
+    [HttpGet("sync-log/{id:int}/detail")]
+    public async Task<IActionResult> GetSyncLogDetail(int id, CancellationToken ct = default)
+    {
+        var log = await _db.EasyAtWorkSyncLogs.AsNoTracking().FirstOrDefaultAsync(l => l.Id == id, ct);
+        if (log == null) return NotFound();
+        if (string.IsNullOrEmpty(log.DetailJson))
+            return Ok(new { totalChanges = 0, capped = false, changes = Array.Empty<object>() });
+
+        JsonElement root;
+        try { root = JsonDocument.Parse(log.DetailJson).RootElement; }
+        catch { return Ok(new { totalChanges = 0, capped = false, changes = Array.Empty<object>() }); }
+
+        var rawChanges = root.TryGetProperty("changes", out var ch) && ch.ValueKind == JsonValueKind.Array
+            ? ch.EnumerateArray().ToList() : new List<JsonElement>();
+        var empIds = rawChanges
+            .Where(c => c.TryGetProperty("empId", out _))
+            .Select(c => c.GetProperty("empId").GetInt32()).Distinct().ToList();
+        var emps = await _db.Employees.AsNoTracking()
+            .Where(e => empIds.Contains(e.Id))
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+            .ToDictionaryAsync(e => e.Id, ct);
+
+        decimal? Dec(JsonElement c, string k) => c.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDecimal() : (decimal?)null;
+        var changes = rawChanges.Select(c =>
+        {
+            int eid = c.GetProperty("empId").GetInt32();
+            emps.TryGetValue(eid, out var e);
+            return new {
+                employeeId = eid,
+                name       = e != null ? $"{e.FirstName} {e.LastName}".Trim() : $"MA-{eid}",
+                number     = e?.EmployeeNumber,
+                date       = c.TryGetProperty("date", out var d) ? d.GetString() : null,
+                action     = c.TryGetProperty("action", out var a) ? a.GetString() : null,
+                oldTotal   = Dec(c, "oldTotal"), newTotal = Dec(c, "newTotal"),
+                oldNight   = Dec(c, "oldNight"), newNight = Dec(c, "newNight")
+            };
+        })
+        .OrderBy(x => x.name).ThenBy(x => x.date).ToList();
+
+        return Ok(new {
+            totalChanges = root.TryGetProperty("totalChanges", out var tc) ? tc.GetInt32() : changes.Count,
+            capped       = root.TryGetProperty("capped", out var cp) && cp.GetBoolean(),
+            runAt        = log.RunAt,
+            changes
+        });
     }
 
     /// <summary>Mapping neu anlegen oder vorhandenes updaten (per CompanyProfileId).</summary>
@@ -307,7 +357,7 @@ public class EasyAtWorkController : ControllerBase
 
     // ────────────────── Stempelzeit-Sync (Phase 2) ──────────────────
 
-    public record SyncRequestDto(int CompanyProfileId, DateOnly From, DateOnly To);
+    public record SyncRequestDto(int CompanyProfileId, DateOnly From, DateOnly To, List<int>? SkipEawEmployeeIds = null);
 
     /// <summary>Dry-Run: zeigt, was importiert/dedupliziert/unmatched wäre. Schreibt nichts.</summary>
     [HttpPost("sync/timepunches/preview")]
@@ -318,9 +368,45 @@ public class EasyAtWorkController : ControllerBase
         {
             CompanyProfileId = dto.CompanyProfileId,
             From = dto.From,
-            To = dto.To
+            To = dto.To,
+            SkipEawEmployeeIds = dto.SkipEawEmployeeIds ?? new()
         }, ct);
         return Ok(res);
+    }
+
+    /// <summary>
+    /// Direkt-Nachschlag eines easy@work-MA per ID (Walter-Vorgabe 20.06.2026) —
+    /// auch wenn er nicht mehr in der MA-Liste steht. Liefert Name/Nummer (falls
+    /// die API ihn noch hergibt) und schlägt — bei vorhandener Nummer — den
+    /// passenden Cowork-MA zum Zuordnen vor.
+    /// </summary>
+    [HttpGet("employee-lookup")]
+    public async Task<IActionResult> EmployeeLookup([FromQuery] int companyProfileId, [FromQuery] int eawId, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null) return NotFound(new { error = "NO_MAPPING" });
+
+        var emp = await _client.GetEmployeeByIdAsync(mapping.EasyAtWorkCustomerId, eawId, ct);
+        if (emp == null)
+            return Ok(new { found = false, eawId });
+
+        var name = $"{emp.FirstName} {emp.LastName}".Trim();
+        int? coworkId = null; string? coworkName = null;
+        if (!string.IsNullOrWhiteSpace(emp.Number))
+        {
+            var nr = emp.Number!.Trim();
+            var co = await _db.Employees.AsNoTracking()
+                .Where(e => e.EmployeeNumber == nr)
+                .Select(e => new { e.Id, e.FirstName, e.LastName }).FirstOrDefaultAsync(ct);
+            if (co != null) { coworkId = co.Id; coworkName = $"{co.FirstName} {co.LastName}".Trim(); }
+        }
+        return Ok(new
+        {
+            found = true, eawId, number = emp.Number, name,
+            coworkEmployeeId = coworkId, coworkName
+        });
     }
 
     /// <summary>Commit: schreibt die NEW-Zeilen in employee_time_entry.</summary>
@@ -329,16 +415,19 @@ public class EasyAtWorkController : ControllerBase
     {
         if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
 
-        // Lock-Schranke der Filiale (Walter-Vorgabe 19.06.2026): der manuelle
-        // Commit darf NICHT in gesperrte Lohnperioden schreiben. Wir berechnen
-        // hier das früheste erlaubte Datum über den LohnEditLockService und
-        // reichen es in den gemeinsamen, lock-gegateten Schreibpfad durch.
-        var firstAllowed = await _editLock.GetFirstAllowedDateAsync(User, dto.CompanyProfileId);
+        // Import-Sperre läuft seit Walter-Vorgabe 20.06.2026 PRO PERIODE im Sync-
+        // Service (IsImportable gegen ABGESCHLOSSENE Lohnperioden) statt über den
+        // monotonen LohnEditLockService — sonst hätte eine laufende 2026-Periode
+        // den ganzen historischen 2025-Import gesperrt. Davor/danach (inkl. 2025)
+        // ist erlaubt, nur innerhalb abgeschlossener Perioden nicht. Der hier
+        // übergebene Wert wird vom Service ignoriert (per-Periode-Logik gilt).
+        DateOnly? firstAllowed = null;
         var res = await _tpSync.CommitAsync(new Services.EasyAtWork.EasyAtWorkTimepunchSyncService.SyncRequest
         {
             CompanyProfileId = dto.CompanyProfileId,
             From = dto.From,
-            To = dto.To
+            To = dto.To,
+            SkipEawEmployeeIds = dto.SkipEawEmployeeIds ?? new()
         }, firstAllowed, ct);
         return Ok(res);
     }

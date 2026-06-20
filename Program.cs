@@ -128,6 +128,8 @@ builder.Services.AddScoped<AkontoListePdfService>();
 builder.Services.AddScoped<PregnancyPdfService>();
 // Saldo-Listen zum Definitiv-Abschluss (Buchhaltung + GF) als PDF.
 builder.Services.AddScoped<LohnSaldoListePdfService>();
+// SECO-Formular „Eignung Schicht-/Nachtarbeit" vorausgefüllt (Walter 20.06.2026).
+builder.Services.AddScoped<NachtEignungPdfService>();
 // Fibu-Journal-Generator (Buchungsjournal aus den bestätigten Snapshots).
 builder.Services.AddScoped<FibuJournalService>();
 // Edit-Sperre während HR Lohnlauf prüft (Walter-Vorgabe 17.05.2026, Variante 2).
@@ -1223,6 +1225,11 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS lohnersatz_pct     NUMERIC(5,2);
         ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS max_betrag_pro_tag NUMERIC(8,2);
         ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS staffel_text       TEXT;
+        -- easy@work Sync-Log: Detail der echten Änderungen pro Lauf (Variante A, Walter 20.06.2026)
+        ALTER TABLE easyatwork_sync_log ADD COLUMN IF NOT EXISTS detail_json TEXT;
+        -- Nachtarbeit-Untersuchung am MA (Walter 20.06.2026, ArG)
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_valid_until DATE;
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_dokument_id INTEGER REFERENCES employee_dokument(id) ON DELETE SET NULL;
         CREATE TABLE IF NOT EXISTS employee_pregnancy (
             id                     SERIAL PRIMARY KEY,
             employee_id            INTEGER NOT NULL REFERENCES employee(id),

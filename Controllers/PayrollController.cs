@@ -298,11 +298,16 @@ public class PayrollController : HrControllerBase
                && emp.ContractStartDate <= pTo
                && (emp.ContractEndDate == null || emp.ContractEndDate >= pFrom)
             orderby emp.ContractStartDate descending
-            select new { emp.EmployeeId, emp.EmploymentModel, e.FirstName, e.LastName, Number = e.EmployeeNumber }
+            select new { emp.EmployeeId, emp.EmploymentModel, e.FirstName, e.LastName, Number = e.EmployeeNumber,
+                         emp.EmploymentPercentage, emp.GuaranteedHoursPerWeek,
+                         e.EntryDate, e.ExitDate }
         ).ToListAsync();
-        // pro MA den jüngsten passenden Vertrag, dann nach Vorname sortiert.
+        // pro MA den jüngsten passenden Vertrag, dann sortiert nach Vertrag
+        // (FIX-M → FIX → MTP) und innerhalb des Vertrags nach Vorname.
+        static int ModelRank(string? m) => m == "FIX-M" ? 0 : m == "FIX" ? 1 : m == "MTP" ? 2 : 3;
         var byEmp = emps.GroupBy(x => x.EmployeeId).Select(g => g.First())
-            .OrderBy(x => x.FirstName ?? "").ThenBy(x => x.LastName ?? "").ToList();
+            .OrderBy(x => ModelRank(x.EmploymentModel))
+            .ThenBy(x => x.FirstName ?? "").ThenBy(x => x.LastName ?? "").ToList();
         var empIds = byEmp.Select(x => x.EmployeeId).ToList();
 
         // Gearbeitete Stunden bis und mit Stichtag (eigene Abfrage — die Engine
@@ -341,40 +346,61 @@ public class PayrollController : HrControllerBase
             var model = (string?)(node?["employmentModel"]) ?? e.EmploymentModel;
             bool isMtp = model == "MTP";
 
-            // Soll (Monat, brutto): MTP = vor der Absenz-Reduktion (sollStundenVoll);
-            // FIX/FIX-M = sollStunden (deren Absenzen laufen über absenzGutschrift,
-            // reduzieren das Soll nicht).
-            var sollMonat = isMtp ? D(node, "sollStundenVoll") : D(node, "sollStunden");
+            // ── Monats-Basiswerte aus der Engine ───────────────────────────
+            // Soll (brutto): MTP = vor Absenz-Reduktion (sollStundenVoll);
+            //   FIX/FIX-M = sollStunden (deren Soll wird nicht gekürzt).
+            // Soll reduziert (netto): das tatsächlich zu leistende Soll nach
+            //   Abzug von Ferien/Krank/Unfall — bei MTP = sollStunden (bereits
+            //   auf ≥0 gedeckelt), bei FIX/FIX-M = sollStunden (= brutto, da
+            //   Krank/Unfall dort über absenzGutschrift gutgeschrieben werden).
+            decimal sollBrutto = isMtp ? D(node, "sollStundenVoll") : D(node, "sollStunden");
+            decimal sollNetto  = D(node, "sollStunden");
+            decimal reduktion  = Math.Max(0, sollBrutto - sollNetto);   // Ferien+Krank+Unfall absorbiert
+            decimal absGutMonat = D(node, "absenzGutschrift");          // Zeitgutschrift-Absenzen (Schulung etc.)
+            decimal workedMonat = D(node, "workedHours");
+            decimal vormonat    = D(node, "vormonatHourSaldo");
 
-            // Absenz (Monat): bei MTP kürzen Ferien UND Krank UND Unfall das Soll.
-            // Die tatsächlich „absorbierte" Reduktion = sollStundenVoll − sollStunden(netto),
-            // bereits auf das Soll gedeckelt (Festlohn kann nicht negativ werden) →
-            // bleibt konsistent zum Stunden-Saldo. Plus absenzGutschrift (Schulung
-            // etc., bei MTP separat). FIX/FIX-M: nur absenzGutschrift.
-            decimal absenzMonat = isMtp
-                ? D(node, "absenzGutschrift") + (D(node, "sollStundenVoll") - D(node, "sollStunden"))
-                : D(node, "absenzGutschrift");
-
-            var geleistetMonat = D(node, "workedHours");
-            var saldoNeu       = D(node, "neuerHourSaldo");
-
-            // ── Stichtag-Werte (pro-rata) ──────────────────────────────────
-            decimal sollStich  = Math.Round(sollMonat * dayRatio, 2);
-            decimal gearbeitet = workedToStich.TryGetValue(e.EmployeeId, out var w)
-                ? Math.Round(w, 2) : 0m;
-            // Absenz bis Stichtag: Tag-Anteil der Periode-Absenzen.
-            decimal absenzStich;
+            // Absenz-Tag-Anteil bis Stichtag (für die Skalierung).
+            decimal absFrac = 0m;
             if (absByEmp.TryGetValue(e.EmployeeId, out var aList))
             {
                 int dFull = aList.Sum(a => CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
                 int dUpTo = aList.Sum(a => CountAbsenceDaysInPeriod(a, periodFrom, stich));
-                decimal frac = dFull > 0 ? (decimal)dUpTo / dFull : 0m;
-                absenzStich = Math.Round(absenzMonat * frac, 2);
+                absFrac = dFull > 0 ? (decimal)dUpTo / dFull : 0m;
             }
-            else absenzStich = 0m;
 
-            decimal erledigtStich = Math.Round(gearbeitet + absenzStich, 2);
-            decimal differenz     = Math.Round(erledigtStich - sollStich, 2);
+            // ── Monats-Block ───────────────────────────────────────────────
+            decimal mtSoll    = Math.Round(sollBrutto, 2);
+            decimal mtSollRed = Math.Round(sollNetto, 2);
+            decimal mtAbsenz  = Math.Round(absGutMonat + reduktion, 2);   // alle gutgeschriebenen Absenz-Std
+            decimal mtGearb   = Math.Round(workedMonat, 2);
+            decimal mtTotal   = Math.Round(mtGearb + mtAbsenz, 2);
+            decimal mtSaldo   = Math.Round(vormonat + (mtGearb + absGutMonat - sollNetto), 2);
+
+            // ── Stichtag-Block (anteilig: Soll pro Kalendertag, Absenz pro Absenz-Tag) ──
+            decimal stGearb     = workedToStich.TryGetValue(e.EmployeeId, out var w) ? Math.Round(w, 2) : 0m;
+            decimal stSollBrutto = sollBrutto * dayRatio;
+            decimal stReduktion  = reduktion * absFrac;
+            decimal stSollRedRaw = stSollBrutto - stReduktion;
+            decimal stAbsGut     = absGutMonat * absFrac;
+            decimal stSoll    = Math.Round(stSollBrutto, 2);
+            decimal stSollRed = Math.Round(stSollRedRaw, 2);
+            decimal stAbsenz  = Math.Round(stAbsGut + stReduktion, 2);
+            decimal stTotal   = Math.Round(stGearb + stAbsenz, 2);
+            decimal stSaldo   = Math.Round(vormonat + (stGearb + stAbsGut - stSollRedRaw), 2);
+
+            decimal saldoVor = Math.Round(vormonat, 2);   // Übertrag Vormonat (gleich für beide Blöcke)
+
+            // Ein-/Austritt in dieser Periode → Namens-Markierung (grün/rot).
+            // Bewusst am MITARBEITER (EntryDate/ExitDate), NICHT am Vertrag —
+            // ein Vertragswechsel (alter Vertrag endet, neuer beginnt) ist KEIN
+            // Austritt und darf nicht rot markiert werden.
+            bool eintritt = e.EntryDate.HasValue
+                && DateOnly.FromDateTime(e.EntryDate.Value) >= periodFrom
+                && DateOnly.FromDateTime(e.EntryDate.Value) <= periodTo;
+            bool austritt = e.ExitDate.HasValue
+                && DateOnly.FromDateTime(e.ExitDate.Value) >= periodFrom
+                && DateOnly.FromDateTime(e.ExitDate.Value) <= periodTo;
 
             rows.Add(new
             {
@@ -382,17 +408,13 @@ public class PayrollController : HrControllerBase
                 number     = e.Number,
                 name       = $"{e.FirstName} {e.LastName}".Trim(),
                 model,
-                // Stichtag-bezogen
-                sollStich,
-                gearbeitet,
-                absenz   = absenzStich,
-                erledigt = erledigtStich,
-                differenz,
-                // Monats-Referenz
-                sollMonat,
-                absenzMonat,
-                gearbeitetMonat = geleistetMonat,
-                saldoNeu
+                pensum          = e.EmploymentPercentage,      // FIX/FIX-M: Stellenprozent
+                guaranteedHours = e.GuaranteedHoursPerWeek,    // MTP: garantierte Wochenstunden
+                eintritt, austritt,
+                // Stichtag-Block
+                stSaldoVor = saldoVor, stSoll, stSollRed, stAbsenz, stGearb, stTotal, stSaldo,
+                // Monats-Block
+                mtSaldoVor = saldoVor, mtSoll, mtSollRed, mtAbsenz, mtGearb, mtTotal, mtSaldo
             });
         }
 
@@ -404,6 +426,243 @@ public class PayrollController : HrControllerBase
             daysToStichtag,
             daysInMonth,
             count      = rows.Count,
+            rows
+        });
+    }
+
+    // GET /api/payroll/ferien-report?companyProfileId=X&year=Y&month=M
+    // Ferien-Anspruch pro MA in TAGEN, aufgelaufen von Januar bis und mit Stichtag-
+    // Monat M. Walter-Vorgabe 20.06.2026: es gibt noch keine Ferien-Saldi — also
+    // rechnen wir den Anspruch STANDALONE (ohne Lohnlauf): Ferienwochen × 7 / 12
+    // pro angestelltem Monat. 6 Wochen ab dem Monat NACH dem konfigurierten
+    // Geburtstag (VacationSixWeeksFromAge). Ferienkürzung bei langer Krankheit
+    // über FerienKuerzungService. ALLE Modelle inkl. UTP/MTP rechnen in Tagen —
+    // auch UTP bekommt Ferien als Tage (kein Feriengeld-Auszahlen). Bezug = Tage
+    // aus FERIEN-Absenzen. Saldo = Anspruch − Kürzung − Bezug.
+    [HttpGet("ferien-report")]
+    public async Task<IActionResult> FerienReport(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+
+        if (month < 1) month = 1;
+        if (month > 12) month = 12;
+
+        var yearStart = new DateTime(year, 1, 1);
+        var yearEnd   = new DateTime(year, 12, 31);
+
+        // Alle Verträge der Filiale, die irgendwann im Jahr aktiv sind.
+        var emps = await (
+            from emp in _db.Employments.AsNoTracking()
+            join e in _db.Employees.AsNoTracking() on emp.EmployeeId equals e.Id
+            where emp.CompanyProfileId == companyProfileId
+               && emp.ContractStartDate <= yearEnd
+               && (emp.ContractEndDate == null || emp.ContractEndDate >= yearStart)
+            orderby emp.ContractStartDate descending
+            select new { emp.EmployeeId, emp.EmploymentModel, e.FirstName, e.LastName, Number = e.EmployeeNumber,
+                         emp.EmploymentPercentage, emp.GuaranteedHoursPerWeek, e.EntryDate, e.ExitDate, e.DateOfBirth,
+                         e.NightWorkExamValidUntil, e.NightWorkExamDokumentId }
+        ).ToListAsync();
+
+        static int ModelRank2(string? m) => m == "FIX-M" ? 0 : m == "FIX" ? 1 : m == "MTP" ? 2 : 3;
+        var byEmp = emps.GroupBy(x => x.EmployeeId).Select(g => g.First())
+            .OrderBy(x => ModelRank2(x.EmploymentModel))
+            .ThenBy(x => x.FirstName ?? "").ThenBy(x => x.LastName ?? "").ToList();
+        var empIds = byEmp.Select(x => x.EmployeeId).ToList();
+
+        // Filial-Config: Ferien-% (5/6-Wochen) + Alters-Schwelle für 6 Wochen.
+        var company = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == companyProfileId)
+            .Select(c => new { c.DefaultVacationPercent5Weeks, c.DefaultVacationPercent6Weeks, c.VacationSixWeeksFromAge })
+            .FirstOrDefaultAsync();
+        decimal basePct = company?.DefaultVacationPercent5Weeks ?? 10.64m;
+        decimal sixPct  = company?.DefaultVacationPercent6Weeks ?? 13.04m;
+        int sixFromAge  = company?.VacationSixWeeksFromAge ?? 50;
+
+        var yearStartD = new DateOnly(year, 1, 1);
+        var stichEnd   = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
+
+        // Bezogene Ferien + Feiertage + Nacht-Kompensation im Bereich Jan..Stichtag.
+        var ferAbs = await _db.Absences.AsNoTracking()
+            .Where(a => empIds.Contains(a.EmployeeId)
+                     && (a.AbsenceType == "FERIEN" || a.AbsenceType == "FEIERTAG" || a.AbsenceType == "NACHT_KOMP")
+                     && a.DateFrom <= stichEnd && a.DateTo >= yearStartD)
+            .ToListAsync();
+        var ferAbsByEmp = ferAbs.GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
+
+        // Nachtstunden aus den Stempelzeiten (Jan..Stichtag) — für ALLE Modelle.
+        var nightByEmp = (await _db.EmployeeTimeEntries.AsNoTracking()
+                .Where(t => empIds.Contains(t.EmployeeId)
+                         && t.EntryDate >= yearStartD && t.EntryDate <= stichEnd)
+                .GroupBy(t => t.EmployeeId)
+                .Select(g => new { EmployeeId = g.Key, Night = g.Sum(t => t.NightHours ?? 0m) })
+                .ToListAsync())
+            .ToDictionary(x => x.EmployeeId, x => x.Night);
+
+        // Anzahl gearbeitete NÄCHTE über die letzten 12 Monate ab Stichtag
+        // (Walter-Vorgabe 20.06.2026, ArG-Nachtarbeit-Kontrolle): rollendes Fenster,
+        // Nacht = Kalendertag mit Nachtstunden > 0. Bei < 12 Datenmonaten hochrechnen:
+        // Nächte / Datenmonate × 12.
+        var rollStart = new DateOnly(year, month, 1).AddMonths(-11);
+        var teRoll = await _db.EmployeeTimeEntries.AsNoTracking()
+            .Where(t => empIds.Contains(t.EmployeeId) && t.EntryDate >= rollStart && t.EntryDate <= stichEnd)
+            .Select(t => new { t.EmployeeId, t.EntryDate, t.NightHours })
+            .ToListAsync();
+        var teRollByEmp = teRoll.GroupBy(t => t.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
+
+        // Wochen-Satz für einen Monat: 6 Wochen ab dem Monat NACH dem Geburtstag,
+        // an dem die Alters-Schwelle erreicht wird (Walter-Vorgabe 20.06.2026:
+        // „im Folgemonat nach dem 50. Geburtstag"); sonst der Basissatz.
+        int WeeksForMonth(DateOnly? dob, DateOnly monthStart)
+        {
+            decimal pct = basePct;
+            if (dob.HasValue)
+            {
+                var schwelle = dob.Value.AddYears(sixFromAge);            // z.B. 50. Geburtstag
+                var bumpFrom = new DateOnly(schwelle.Year, schwelle.Month, 1).AddMonths(1); // Folgemonat
+                if (monthStart >= bumpFrom && sixPct > pct) pct = sixPct;
+            }
+            return pct >= 12.5m ? 6 : 5;
+        }
+
+        var rows = new List<object>();
+        int nachtWarnTotal = 0;
+        foreach (var e in byEmp)
+        {
+            DateOnly? entry = e.EntryDate.HasValue ? DateOnly.FromDateTime(e.EntryDate.Value) : null;
+            DateOnly? exit  = e.ExitDate.HasValue  ? DateOnly.FromDateTime(e.ExitDate.Value)  : null;
+            DateOnly? dob   = e.DateOfBirth.HasValue ? DateOnly.FromDateTime(e.DateOfBirth.Value) : null;
+
+            // MA, die VOR dem selektierten Monat ausgetreten sind, nicht mehr
+            // zeigen (beim Austritt werden die Ferien ausbezahlt). Ebenso MA, die
+            // bis zum Stichtag noch nicht eingetreten sind.
+            var selMonthStart = new DateOnly(year, month, 1);
+            if (exit.HasValue && exit.Value < selMonthStart) continue;
+            if (entry.HasValue && entry.Value > stichEnd) continue;
+
+            bool isFix = e.EmploymentModel == "FIX" || e.EmploymentModel == "FIX-M";
+
+            // ── Anspruch: Wochen × 7 / 12 pro angestelltem Monat (Jan..Stichtag) ──
+            // Eintritts-/Austrittsmonat TAG-GENAU pro-rata (anteilig nach den im
+            // Monat angestellten Tagen); volle Monate zählen voll.
+            // Feiertage (nur FIX/FIX-M): +0.5 Tage/Monat, gleich pro-rata.
+            decimal anspruch = 0m;
+            decimal feiertagAnspruch = 0m;
+            int weeksNow = WeeksForMonth(dob, new DateOnly(year, month, 1));
+            for (int m = 1; m <= month; m++)
+            {
+                var mStart = new DateOnly(year, m, 1);
+                var mEnd   = new DateOnly(year, m, DateTime.DaysInMonth(year, m));
+                // angestelltes Fenster innerhalb des Monats
+                var effStart = (entry.HasValue && entry.Value > mStart) ? entry.Value : mStart;
+                var effEnd   = (exit.HasValue  && exit.Value  < mEnd)   ? exit.Value  : mEnd;
+                if (effEnd < effStart) continue;   // diesen Monat nicht angestellt
+                int presentDays = effEnd.DayNumber - effStart.DayNumber + 1;
+                int monthDays   = DateTime.DaysInMonth(year, m);
+                decimal frac    = (decimal)presentDays / monthDays;
+                int weeks = WeeksForMonth(dob, mStart);
+                anspruch += weeks * 7m / 12m * frac;
+                if (isFix) feiertagAnspruch += 0.5m * frac;
+            }
+
+            // ── Bezug: FERIEN-Tage + Feiertag-Tage + Nacht-Komp-Stunden Jan..Stichtag ──
+            decimal bezug = 0m;
+            decimal feiertagBezug = 0m;
+            decimal nachtKomp = 0m;
+            if (ferAbsByEmp.TryGetValue(e.EmployeeId, out var fa))
+            {
+                bezug = fa.Where(a => a.AbsenceType == "FERIEN")
+                          .Sum(a => CountAbsenceDaysInPeriod(a, yearStartD, stichEnd));
+                feiertagBezug = fa.Where(a => a.AbsenceType == "FEIERTAG")
+                          .Sum(a => CountAbsenceDaysInPeriod(a, yearStartD, stichEnd)
+                                    * ((a.Prozent > 0 ? a.Prozent : 100m) / 100m));
+                nachtKomp = fa.Where(a => a.AbsenceType == "NACHT_KOMP")
+                          .Sum(a => ScaleAbsenceHoursToPeriod(a, yearStartD, stichEnd));
+            }
+
+            // ── Nacht-Saldo (Stunden, alle Modelle): Nachtstunden × 10% Zeit-
+            //    zuschlag, reduziert durch Nacht-Kompensation. ──
+            decimal nachtStd      = nightByEmp.TryGetValue(e.EmployeeId, out var nh) ? nh : 0m;
+            decimal nachtZuschlag = Math.Round(nachtStd * 0.10m, 2);
+            decimal nachtSaldo    = Math.Round(nachtZuschlag - nachtKomp, 2);
+
+            // ── Anzahl Nächte (rollende 12 Monate, ArG-Kontrolle) ──
+            int naechteReal = 0, datenMonate = 0;
+            if (teRollByEmp.TryGetValue(e.EmployeeId, out var teR))
+            {
+                naechteReal = teR.Where(x => (x.NightHours ?? 0m) > 0m)
+                                 .Select(x => x.EntryDate).Distinct().Count();
+                datenMonate = teR.Select(x => x.EntryDate.Year * 12 + x.EntryDate.Month).Distinct().Count();
+            }
+            // Hochrechnung aufs Jahr, wenn weniger als 12 Datenmonate vorliegen.
+            int naechteJahr = datenMonate >= 12 ? naechteReal
+                            : datenMonate > 0 ? (int)Math.Round((double)naechteReal * 12 / datenMonate)
+                            : 0;
+
+            // Compliance-Warnung (ArG): ≥ 25 Nächte/Jahr UND keine gültige Nacht-
+            // arbeit-Untersuchung (Dokument fehlt ODER Datum fehlt/abgelaufen).
+            bool examGueltig = e.NightWorkExamDokumentId.HasValue
+                            && e.NightWorkExamValidUntil.HasValue
+                            && DateOnly.FromDateTime(e.NightWorkExamValidUntil.Value) >= stichEnd;
+            bool nachtWarn = naechteJahr >= 25 && !examGueltig;
+            if (nachtWarn) nachtWarnTotal++;
+
+            // ── Ferienkürzung bei langer Krankheit (Art. 329b OR) ──
+            // Eigener, schlanker Service (kein Lohnlauf): 1/12 pro vollem Monat
+            // über Schwellwert × Jahres-Ferientage (Wochen × 7).
+            var kuerz = await _ferienKuerzung.CalculateAsync(e.EmployeeId, stichEnd);
+            decimal kuerzungTage = kuerz.HasKuerzungVorschlag
+                ? Math.Round(kuerz.TotalKuerzung12tel * (weeksNow * 7m) / 12m, 2)
+                : 0m;
+
+            decimal saldo = anspruch - kuerzungTage - bezug;
+
+            // Farbliche Markierung NUR wenn Ein-/Austritt im selektierten Monat liegt.
+            bool eintritt = entry.HasValue && entry.Value.Year == year && entry.Value.Month == month;
+            bool austritt = exit.HasValue  && exit.Value.Year  == year && exit.Value.Month  == month;
+
+            rows.Add(new
+            {
+                employeeId      = e.EmployeeId,
+                number          = e.Number,
+                name            = $"{e.FirstName} {e.LastName}".Trim(),
+                model           = e.EmploymentModel,
+                pensum          = e.EmploymentPercentage,
+                guaranteedHours = e.GuaranteedHoursPerWeek,
+                vacationWeeks   = weeksNow,
+                anspruchTage    = Math.Round(anspruch, 2),
+                kuerzungTage    = Math.Round(kuerzungTage, 2),
+                bezugTage       = Math.Round(bezug, 2),
+                saldoTage       = Math.Round(saldo, 2),
+                // Feiertage nur FIX/FIX-M (sonst null → „–"; MTP/UTP ausbezahlt).
+                feiertagAnspruch = isFix ? (decimal?)Math.Round(feiertagAnspruch, 2) : null,
+                feiertagBezug    = isFix ? (decimal?)Math.Round(feiertagBezug, 2) : null,
+                feiertagSaldo    = isFix ? (decimal?)Math.Round(feiertagAnspruch - feiertagBezug, 2) : null,
+                // Nacht-Saldo in Stunden (alle Modelle).
+                nachtStunden  = Math.Round(nachtStd, 2),
+                nachtZuschlag = nachtZuschlag,
+                nachtKomp     = Math.Round(nachtKomp, 2),
+                nachtSaldo    = nachtSaldo,
+                // Anzahl Nächte (rollende 12 Monate, ArG-Kontrolle ≥ 25).
+                naechteJahr   = naechteJahr,
+                naechteReal   = naechteReal,
+                datenMonate   = datenMonate,
+                nachtWarn     = nachtWarn,                       // ≥25 Nächte ohne gültige Untersuchung
+                examGueltig   = examGueltig,                     // gültiges Nachtzeugnis/Verzicht (Dok + nicht abgelaufen)
+                nachtExamBis  = e.NightWorkExamValidUntil,       // gültig bis (für Tooltip)
+                nachtExamDoc  = e.NightWorkExamDokumentId.HasValue,
+                eintritt, austritt
+            });
+        }
+
+        return Ok(new
+        {
+            year,
+            month,
+            nachtRollFrom = rollStart.ToString("yyyy-MM-dd"),   // Start des 12-Monats-Fensters
+            nachtWarnTotal,                                     // MA mit ≥25 Nächten ohne gültige Untersuchung
+            count = rows.Count,
             rows
         });
     }
