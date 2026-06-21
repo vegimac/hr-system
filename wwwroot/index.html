@@ -5614,7 +5614,7 @@
                         </p>
                         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
                             <label style="font-size:13px;color:#92400e;display:flex;flex-direction:column;gap:4px">Von
-                                <input type="date" id="eawBatchFrom" class="eaw-input" value="2021-01-01">
+                                <input type="date" id="eawBatchFrom" class="eaw-input" value="2021-01-01" oninput="eawBatchFromChanged(this.value)" onchange="eawBatchFromChanged(this.value)">
                             </label>
                             <label style="font-size:13px;color:#92400e;display:flex;flex-direction:column;gap:4px">Bis
                                 <input type="date" id="eawBatchTo" class="eaw-input" value="2024-12-31">
@@ -9155,7 +9155,7 @@ function onBranchChange() {
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
-<script src="js/easyatwork.js?v=20260621q"></script>
+<script src="js/easyatwork.js?v=20260622b"></script>
 <script src="js/employee-merge.js?v=20260621a"></script>
 <script src="js/sollstunden-report.js?v=20260620i"></script>
 <script src="js/ferien-report.js?v=20260620m"></script>
