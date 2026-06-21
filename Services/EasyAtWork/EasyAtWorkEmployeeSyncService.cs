@@ -103,6 +103,9 @@ public class EasyAtWorkEmployeeSyncService
         // Anzeige beim 2021-Massenimport (Walter-Vorgabe 21.06.2026):
         /// <summary>Gefüllt, wenn über eine ALTE Personalnummer gematcht wurde (die Alt-Nr.).</summary>
         public string?  MatchedViaAltNumber       { get; set; }
+        /// <summary>Personalnummern-Wechsel erkannt: alte → neue Nummer (alte wird in Alt1 gesichert).</summary>
+        public string?  NumberChangeFrom          { get; set; }
+        public string?  NumberChangeTo            { get; set; }
         /// <summary>„wird angelegt" / „wird nachgeholt" / „existiert" — nur beim Massenimport.</summary>
         public string?  EmploymentInfo            { get; set; }
         public int?     AssignedCompanyProfileId  { get; set; }
@@ -192,6 +195,15 @@ public class EasyAtWorkEmployeeSyncService
             if (!string.IsNullOrWhiteSpace(e.EmployeeNumberAlt1)) byNumber.TryAdd(e.EmployeeNumberAlt1.Trim(), e);
             if (!string.IsNullOrWhiteSpace(e.EmployeeNumberAlt2)) byNumber.TryAdd(e.EmployeeNumberAlt2.Trim(), e);
         }
+        // Zusätzlich per hinterlegter easy@work-employee-id (Walter-Vorgabe
+        // 21.06.2026): so wird ein MA auch dann gefunden, wenn easy@work eine
+        // GANZ NEUE Personalnummer liefert (Wiedereintritt) — die weder als
+        // aktuelle noch als Alt-Nummer bekannt ist. Match-Reihenfolge: Nummer
+        // (inkl. Alt) zuerst, dann easy@work-ID.
+        var byEawId = new Dictionary<int, Employee>();
+        foreach (var e in coworkAll)
+            if (e.EasyAtWorkEmployeeId.HasValue)
+                byEawId.TryAdd(e.EasyAtWorkEmployeeId.Value, e);
 
         // Nationality-Lookup (ISO-Code → Id)
         var natByCode = await _db.Nationalities.AsNoTracking()
@@ -235,12 +247,16 @@ public class EasyAtWorkEmployeeSyncService
 
             // Match: erst über die (ggf. alt-suffigierte) effektive Nummer, dann
             // über die rohe easy@work-Nummer — beide auch gegen die Alt-Nummern-
-            // Keys (employee_number_alt1/alt2). Walter-Vorgabe 21.06.2026.
+            // Keys (employee_number_alt1/alt2). Findet das nichts: über die
+            // easy@work-employee-id (deckt einen Nummernwechsel ab — neue Nummer
+            // ist nirgends bekannt). Walter-Vorgabe 21.06.2026.
             Employee? co = null;
             string? matchedKey = null;
+            bool matchedByEawId = false;
             if (byNumber.TryGetValue(row.Number, out co)) matchedKey = row.Number;
             else if (!string.Equals(effNumber, rawNumber, StringComparison.OrdinalIgnoreCase)
                      && byNumber.TryGetValue(rawNumber, out co)) matchedKey = rawNumber;
+            else if (byEawId.TryGetValue(eaw.UserId ?? eaw.Id, out co)) matchedByEawId = true;
             row.CoworkEmployeeId = co?.Id;
             // Über eine ALTE Nummer gematcht? (matchender Key ≠ aktuelle Personalnr.)
             if (co != null && matchedKey != null
@@ -250,6 +266,20 @@ public class EasyAtWorkEmployeeSyncService
             // Diffs berechnen (auch für NEW — dann sind alle Cowork-Werte leer)
             var diffs = ComputeDiffs(co, eaw, natByCode);
             row.Diffs = diffs;
+
+            // ── Personalnummern-Wechsel (Walter-Vorgabe 21.06.2026) ────────────
+            // Nur wenn über die easy@work-ID gematcht wurde (die neue Nummer ist
+            // also weder aktuelle noch Alt-Nummer) UND sie sich tatsächlich von der
+            // aktuellen unterscheidet UND noch nicht in alt1/alt2 steht (keine
+            // Endlos-Rotation). Dann: Diff „Personalnummer" → wird beim Commit
+            // rotiert (aktuelle → alt1, alt1 → alt2) und die neue Nr. gesetzt.
+            if (matchedByEawId && co != null
+                && ShouldRotateNumber(co.EmployeeNumber, co.EmployeeNumberAlt1, co.EmployeeNumberAlt2, rawNumber))
+            {
+                row.NumberChangeFrom = co.EmployeeNumber?.Trim();
+                row.NumberChangeTo   = rawNumber;
+                diffs.Add(new FieldDiff { Field = "Personalnummer", Cowork = row.NumberChangeFrom, Easy = rawNumber, WillSet = true });
+            }
 
             if (co == null)
             {
@@ -332,6 +362,13 @@ public class EasyAtWorkEmployeeSyncService
                         EasyAtWorkEmployeeId = eaw.UserId ?? eaw.Id,
                     };
                     ApplyDiffs(emp, row.Diffs, eaw, natByCode);
+                    // Defaults: Sprache „de", Konfession „keine" (easy@work liefert
+                    // beides nicht); Zivilstand best-effort aus den Custom-Fields.
+                    // Walter-Vorgabe 21.06.2026.
+                    if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
+                    if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
+                    if (string.IsNullOrWhiteSpace(emp.MaritalStatus))
+                        emp.MaritalStatus = await FetchMaritalStatusAsync(mapping.EasyAtWorkCustomerId, eaw.Id, ct);
                     _db.Employees.Add(emp);
                     res.CountInserted++;
                     // Jeder neue MA bekommt eine Employment-Zeile (Filiale + Dates +
@@ -349,6 +386,14 @@ public class EasyAtWorkEmployeeSyncService
                     var newEawId = eaw.UserId ?? eaw.Id;
                     if (emp.EasyAtWorkEmployeeId != newEawId) emp.EasyAtWorkEmployeeId = newEawId;
                     ApplyDiffs(emp, row.Diffs, eaw, natByCode);
+                    // Nummernwechsel im Sync-Log festhalten (Walter-Vorgabe 21.06.2026).
+                    if (!string.IsNullOrWhiteSpace(row.NumberChangeFrom))
+                        res.Notes.Add($"Personalnummer geändert: {row.NumberChangeFrom} → {row.NumberChangeTo} (alte Nr. in Alt1 gesichert).");
+                    // Defaults + Zivilstand nur füllen, wenn noch leer (nicht überschreiben).
+                    if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
+                    if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
+                    if (string.IsNullOrWhiteSpace(emp.MaritalStatus))
+                        emp.MaritalStatus = await FetchMaritalStatusAsync(mapping.EasyAtWorkCustomerId, eaw.Id, ct);
                     // Inaktiver MA → is_active=false + Austrittsdatum. Und ein
                     // Employment NACHHOLEN, falls für (MA, Filiale) noch keines
                     // existiert (idempotent, kein Duplikat bei Re-Import).
@@ -541,6 +586,7 @@ public class EasyAtWorkEmployeeSyncService
         Add("Vorname",     co?.FirstName,   eaw.FirstName);
         Add("Nachname",    co?.LastName,    eaw.LastName);
         Add("Anrede",      co?.Salutation,  SalutationFromGender(eaw.Gender));
+        Add("Geschlecht",  co?.Gender,      NormalizeGender(eaw.Gender));
         Add("Geburtstag",  co?.DateOfBirth?.ToString("yyyy-MM-dd"),
                             eaw.BirthDate?.ToString("yyyy-MM-dd"));
         var (street, hno) = SplitStreetHouse(eaw.Address1);
@@ -571,6 +617,13 @@ public class EasyAtWorkEmployeeSyncService
                 case "Vorname":      emp.FirstName    = d.Easy ?? ""; break;
                 case "Nachname":     emp.LastName     = d.Easy ?? ""; break;
                 case "Anrede":       emp.Salutation   = d.Easy; break;
+                case "Geschlecht":   emp.Gender       = d.Easy; break;
+                case "Personalnummer":
+                    // Nummernwechsel: aktuelle → alt1, alt1 → alt2, neue setzen.
+                    // (Guards wurden bei der Diff-Erzeugung via ShouldRotateNumber geprüft.)
+                    if (!string.IsNullOrWhiteSpace(d.Easy))
+                        RotateEmployeeNumber(emp, d.Easy!);
+                    break;
                 case "Geburtstag":   emp.DateOfBirth  = DateTime.TryParse(d.Easy, out var dob) ? dob : emp.DateOfBirth; break;
                 case "Strasse":      emp.Street       = d.Easy; break;
                 case "Hausnr.":      emp.HouseNumber  = d.Easy; break;
@@ -601,6 +654,80 @@ public class EasyAtWorkEmployeeSyncService
             "female" or "f" or "frau" => "Frau",
             _                          => null
         };
+    }
+
+    /// <summary>
+    /// Soll die Personalnummer rotiert werden? Nur wenn die neue Nummer NICHT leer
+    /// ist, sich von der aktuellen unterscheidet UND noch nicht in Alt1/Alt2 steht
+    /// (sonst Endlos-Rotation). Seiteneffektfrei → unit-testbar. Walter 21.06.2026.
+    /// </summary>
+    public static bool ShouldRotateNumber(string? currentNumber, string? alt1, string? alt2, string? newNumber)
+    {
+        if (string.IsNullOrWhiteSpace(newNumber)) return false;
+        var n = newNumber.Trim();
+        if (string.Equals(currentNumber?.Trim(), n, StringComparison.OrdinalIgnoreCase)) return false;
+        if (string.Equals(alt1?.Trim(),          n, StringComparison.OrdinalIgnoreCase)) return false;
+        if (string.Equals(alt2?.Trim(),          n, StringComparison.OrdinalIgnoreCase)) return false;
+        return true;
+    }
+
+    /// <summary>Rotiert: aktuelle → Alt1, Alt1 → Alt2, neue Nummer setzen.</summary>
+    public static void RotateEmployeeNumber(Employee emp, string newNumber)
+    {
+        if (!string.IsNullOrWhiteSpace(emp.EmployeeNumberAlt1))
+            emp.EmployeeNumberAlt2 = emp.EmployeeNumberAlt1;
+        emp.EmployeeNumberAlt1 = emp.EmployeeNumber;
+        emp.EmployeeNumber     = newNumber.Trim();
+    }
+
+    /// <summary>easy@work-Gender → unser Wert „male"/„female" (sonst null).</summary>
+    private static string? NormalizeGender(string? g)
+    {
+        if (string.IsNullOrWhiteSpace(g)) return null;
+        return g.Trim().ToLowerInvariant() switch
+        {
+            "male" or "m" or "herr"   => "male",
+            "female" or "f" or "frau" => "female",
+            _                          => null
+        };
+    }
+
+    /// <summary>
+    /// Zivilstand best-effort aus den easy@work-Custom-Fields (Properties). Sucht
+    /// ein Feld mit marital-/Zivilstand-Schlüssel und mappt den Wert auf unsere
+    /// Codes. Fehlschlag/unbekannt → null (bleibt manuell). Walter-Vorgabe 21.06.2026.
+    /// </summary>
+    private async Task<string?> FetchMaritalStatusAsync(int customerId, int eawEmployeeId, CancellationToken ct)
+    {
+        try
+        {
+            var props = await _client.GetAllPropertiesAsync(customerId, eawEmployeeId, ct);
+            var val = props
+                .Where(p =>
+                {
+                    var k = (p.Key ?? "").ToLowerInvariant();
+                    return k.Contains("marital") || k.Contains("civil") || k.Contains("zivil")
+                        || k.Contains("familienstand") || k.Contains("family_status");
+                })
+                .OrderByDescending(p => p.From ?? DateOnly.MinValue)
+                .Select(p => p.Value)
+                .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+            return MapMaritalStatus(val);
+        }
+        catch (Exception ex) { _log.LogDebug(ex, "Properties (Zivilstand) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); return null; }
+    }
+
+    private static string? MapMaritalStatus(string? v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return null;
+        var s = v.Trim().ToLowerInvariant();
+        if (s.Contains("ledig") || s.Contains("single") || s.Contains("celibat")) return "ledig";
+        if (s.Contains("getrennt") || s.Contains("separat") || s.Contains("separe")) return "getrennt";
+        if (s.Contains("geschieden") || s.Contains("divorc")) return "geschieden";
+        if (s.Contains("verwitwet") || s.Contains("widow") || s.Contains("veuf") || s.Contains("veuve")) return "verwitwet";
+        if (s.Contains("eingetragene") || s.Contains("registered") || s.Contains("partnerschaft")) return "eingetragene_partnerschaft";
+        if (s.Contains("verheiratet") || s.Contains("married") || s.Contains("marie") || s.Contains("mariée")) return "verheiratet";
+        return null;   // unbekannt → bleibt manuell
     }
 
     private static (string? street, string? hno) SplitStreetHouse(string? addr)

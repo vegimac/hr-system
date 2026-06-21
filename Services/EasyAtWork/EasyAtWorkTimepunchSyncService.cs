@@ -934,6 +934,16 @@ public class EasyAtWorkTimepunchSyncService
             .GroupBy(e => e.EasyAtWorkEmployeeId!.Value)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // Alias-Map: alte/zweite easy@work-employee_id → Cowork-MA-Id. Greift als
+        // Fallback, wenn ein Stempel auf eine ID zeigt, die die normale MA-Liste
+        // nicht kennt (ID-Wechsel in easy@work). Walter 18.06.2026.
+        // MUSS vor GatherCandidates deklariert sein (die lokale Funktion nutzt sie).
+        var aliasMap = (await _db.EasyAtWorkEmployeeAliases.AsNoTracking()
+                .Select(a => new { a.EasyAtWorkId, a.EmployeeId })
+                .ToListAsync(ct))
+            .GroupBy(a => a.EasyAtWorkId)
+            .ToDictionary(g => g.Key, g => g.First().EmployeeId);
+
         // Sammelt für einen Stempel ALLE Cowork-Kandidaten (per easy@work-id,
         // per user_id, per Personalnummer, per Alias) — dedupliziert über die
         // interne Cowork-Id. Lokale Funktion, weil sie die anonym-typisierten
@@ -950,15 +960,6 @@ public class EasyAtWorkTimepunchSyncService
             if (aliasMap.TryGetValue(eawEmployeeId, out var aid) && empById.TryGetValue(aid, out var ae)) AddId(ae.Id, ae.IsPayrollExcluded);
             return list;
         }
-
-        // Alias-Map: alte/zweite easy@work-employee_id → Cowork-MA-Id. Greift als
-        // Fallback, wenn ein Stempel auf eine ID zeigt, die die normale MA-Liste
-        // nicht kennt (ID-Wechsel in easy@work). Walter 18.06.2026.
-        var aliasMap = (await _db.EasyAtWorkEmployeeAliases.AsNoTracking()
-                .Select(a => new { a.EasyAtWorkId, a.EmployeeId })
-                .ToListAsync(ct))
-            .GroupBy(a => a.EasyAtWorkId)
-            .ToDictionary(g => g.Key, g => g.First().EmployeeId);
 
         // 3) Stempelzeiten aus easy@work holen (alle Seiten)
         List<EawTimepunch> punches;
