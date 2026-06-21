@@ -117,6 +117,14 @@ public class EasyAtWorkEmployeeSyncService
         /// <summary>Personalnummern-Wechsel erkannt: alte → neue Nummer (alte wird in Alt1 gesichert).</summary>
         public string?  NumberChangeFrom          { get; set; }
         public string?  NumberChangeTo            { get; set; }
+
+        // Möglicher Wiedereintritt (Walter-Vorgabe 21.06.2026): gleicher Name +
+        // Geburtsdatum wie ein bestehender MA, aber NEUE easy@work-ID. Vorschlag,
+        // kein Auto-Merge — als Warnung in der Vorschau zeigen.
+        public bool     PossibleReentry           { get; set; }
+        public int?     ReentryEmployeeId         { get; set; }
+        public string?  ReentryEmployeeNumber     { get; set; }
+        public int?     ReentryNewEawId           { get; set; }   // die NEUE eaw-ID, die als Alias gesichert würde
         /// <summary>„wird angelegt" / „wird nachgeholt" / „existiert" — nur beim Massenimport.</summary>
         public string?  EmploymentInfo            { get; set; }
         public int?     AssignedCompanyProfileId  { get; set; }
@@ -224,6 +232,14 @@ public class EasyAtWorkEmployeeSyncService
         foreach (var e in coworkAll)
             if (e.EasyAtWorkEmployeeId.HasValue)
                 byEawId.TryAdd(e.EasyAtWorkEmployeeId.Value, e);
+        // Duplikat-Erkennung Stufe 2 (Walter-Vorgabe 21.06.2026): gleicher
+        // Vorname+Nachname+Geburtsdatum = sehr wahrscheinlich dieselbe Person,
+        // auch wenn easy@work eine neue ID vergeben hat (Wiedereintritt). Aus
+        // coworkAll gebaut → KEINE Extra-DB-Abfrage pro Zeile.
+        var byNameDob = new Dictionary<string, Employee>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in coworkAll)
+            if (e.DateOfBirth.HasValue)
+                byNameDob.TryAdd(NameDobKey(e.FirstName, e.LastName, e.DateOfBirth.Value), e);
 
         // Nationality-Lookup (ISO-Code → Id)
         var natByCode = await _db.Nationalities.AsNoTracking()
