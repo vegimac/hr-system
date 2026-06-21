@@ -236,6 +236,8 @@ public class EasyAtWorkWritePathTests
         Assert.False(res.IsBlocked);           // fehlender MA blockiert NICHT (Tief-Import)
         Assert.Equal(1, res.Inserted);         // nur der matchbare
         Assert.Equal(1, db.EmployeeTimeEntries.Single().EmployeeId);
+        Assert.Single(res.SkippedMissingEmployees);   // der fehlende MA fürs UI gezählt
+        Assert.Empty(res.MissingEmployees);           // NICHT in der blockierenden Liste
     }
 
     [Fact]
@@ -320,6 +322,8 @@ public class EasyAtWorkWritePathTests
         var res = await svc.CommitAsync(req, firstAllowed: null);
 
         Assert.True(res.IsBlocked);
+        Assert.Single(res.AmbiguousEmployees);   // sauber getrennt von MissingEmployees
+        Assert.Empty(res.MissingEmployees);
         Assert.Empty(db.EmployeeTimeEntries);
     }
 

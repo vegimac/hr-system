@@ -346,9 +346,20 @@ public class EasyAtWorkTimepunchSyncService
         public int       LockedSkipped { get; set; }   // wegen gesperrter Periode übersprungen
         public int       Skipped  { get; set; }        // Duplikate / nicht zuordenbar (Delete-Ziel fehlt)
         public DateTime? MaxUpdatedAt { get; set; }     // höchstes updated_at → neuer Cursor
+        /// <summary>Blockierend: easy@work-MA ohne gültige Cowork-Zuordnung
+        /// (nur gesetzt wenn NICHT ignoreMissing — sonst landen sie in
+        /// <see cref="SkippedMissingEmployees"/>).</summary>
         public List<MissingEmployee> MissingEmployees { get; set; } = new();
+        /// <summary>Blockierend IMMER (Datenfehler): mehrere Lohn-MA
+        /// (IsPayrollExcluded=false) für dieselbe Person.</summary>
+        public List<MissingEmployee> AmbiguousEmployees { get; set; } = new();
+        /// <summary>NICHT blockierend: beim Tief-Import (ignoreMissing) bewusst
+        /// übersprungene, nicht zuordenbare MA — fürs UI „Nicht zugeordnet".</summary>
+        public List<MissingEmployee> SkippedMissingEmployees { get; set; } = new();
+        public int    CountMissing    => MissingEmployees.Count;
+        public int    CountAmbiguous  => AmbiguousEmployees.Count;
         public List<string> Notes { get; set; } = new();
-        public bool      IsBlocked => MissingEmployees.Count > 0;
+        public bool      IsBlocked => MissingEmployees.Count > 0 || AmbiguousEmployees.Count > 0;
         /// <summary>Insert + Update + Delete (für last_row_count).</summary>
         public int       RowCount => Inserted + Updated + Deleted;
         /// <summary>Detail der ECHTEN Änderungen (neu + Wert-geändert) für das
@@ -804,7 +815,7 @@ public class EasyAtWorkTimepunchSyncService
         // Ambiguous = Datenfehler → IMMER blockieren (auch beim Tief-Import).
         if (ambigPf.Count > 0)
         {
-            res.MissingEmployees = ambigPf.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
+            res.AmbiguousEmployees = ambigPf.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
             res.Notes.Add($"Import blockiert: {ambigPf.Count} Person(en) mit MEHREREN Lohn-MA (IsPayrollExcluded=false). Bitte je Person genau einen Lohn-MA führen.");
             return res;
         }
@@ -816,7 +827,12 @@ public class EasyAtWorkTimepunchSyncService
             return res;
         }
         if (missingPf.Count > 0 && ignoreMissing)
+        {
+            // Tief-Import: nicht zuordenbare MA werden übersprungen (blockieren NICHT),
+            // aber fürs UI als „Nicht zugeordnet" gezählt.
+            res.SkippedMissingEmployees = missingPf.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
             res.Notes.Add($"{missingPf.Count} nicht zuordenbare easy@work-MA übersprungen (Tief-Import).");
+        }
 
         // 5) Nachtfenster der Filiale.
         var cp = await _db.CompanyProfiles.AsNoTracking()
@@ -1354,22 +1370,6 @@ public class EasyAtWorkTimepunchSyncService
         }
 
         res.CountTotal = res.Rows.Count;
-
-        // ── TEMPORÄRE DIAGNOSE (Walter-Vorgabe 21.06.2026) ───────────────────────
-        // Zeigt pro Lauf, an welcher Stufe der Tief-Import 0 Stempel produziert.
-        // Erscheint als Notiz im Vorschau-/Sync-Ergebnis UND im Server-Log.
-        var diagImportable = punches.Count(p =>
-        {
-            var d = p.BusinessDate ?? (p.In.HasValue ? DateOnly.FromDateTime(UtcToSwissLocal(p.In.Value)) : (DateOnly?)null);
-            return d.HasValue && IsImportable(d.Value, closedPeriods, cutoff);
-        });
-        var diagMatched = res.Rows.Count(r => r.CoworkEmployeeId.HasValue);
-        var diag = $"[DIAG] cutoff={cutoff:yyyy-MM-dd} · MA geladen={emps.Count} · Alias-MA={aliasNumsByEmp.Count} · " +
-                   $"byNumber-Keys={byNumber.Count} · byEawId-Keys={byEawId.Count} · eawEmpById={eawEmpById.Count} · " +
-                   $"Punches={punches.Count} · importierbar={diagImportable} · gematcht={diagMatched} · " +
-                   $"NEW={res.CountNew} · Unmatched={res.CountUnmatched} · Locked={res.CountLocked} · Invalid={res.CountInvalid} · Dup={res.CountDuplicate}";
-        res.Notes.Add(diag);   // temporär: in der Vorschau sichtbar zum Debuggen
-        _log.LogInformation("Timepunch-Sync {Diag} (Filiale {Cp}, {From}–{To})", diag, req.CompanyProfileId, req.From, req.To);
 
         // Mehrere Lohn-MA (IsPayrollExcluded=false) für dieselbe Person = Daten-
         // fehler → IMMER blockieren, auch beim Tief-Import (IgnoreMissing). Walter

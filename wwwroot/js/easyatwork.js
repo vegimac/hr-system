@@ -862,7 +862,11 @@ async function eawBatchHistorical() {
                     const ins  = body.inserted      || 0;
                     const skip = body.skipped       || 0;
                     const lock = body.lockedSkipped || 0;
-                    const miss = (body.missingEmployees && body.missingEmployees.length) || 0;
+                    // „Nicht zugeordnet" = blockierend fehlende + (Tief-Import) bewusst
+                    // übersprungene MA. Beim ignoreMissing-Lauf liegen sie in
+                    // skippedMissingEmployees (sonst bliebe die Spalte fälschlich 0).
+                    const miss = ((body.missingEmployees && body.missingEmployees.length) || 0)
+                               + ((body.skippedMissingEmployees && body.skippedMissingEmployees.length) || 0);
                     a.inserted += ins;
                     a.invalid  += skip;   // Spalte „Übersprungen" (Dubletten/ungültig/ausgeschlossen)
                     a.locked   += lock;
