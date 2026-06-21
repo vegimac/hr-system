@@ -6812,7 +6812,7 @@ async function stempelLadeEintraege(employeeId) {
 
         if (countEl) {
             countEl.textContent = rows.length === 0
-                ? `Keine Einträge in ${labelHint}`
+                ? `Keine Einträge`
                 : `${rows.length} Eintrag${rows.length === 1 ? '' : 'e'} · ${labelHint}`;
         }
 

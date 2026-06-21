@@ -48,6 +48,8 @@ public class UsersController : ControllerBase
                 u.IsSuperAdmin,
                 u.CreatedAt,
                 u.LastLoginAt,
+                u.IdleTimeoutMinutes,
+                u.MaxSessionMinutes,
                 hasSignature = u.SignaturePng != null && u.SignaturePng.Length > 0,
                 branches = u.BranchAccess.Select(ba => new
                 {
@@ -64,13 +66,25 @@ public class UsersController : ControllerBase
     public record CreateUserRequest(
         string Username, string? FirstName, string? LastName,
         string Email, string? Phone, string Password, string Role,
-        List<int> BranchIds, bool? IsHrTeam = false);
+        List<int> BranchIds, bool? IsHrTeam = false,
+        int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null);
 
     public record UpdateUserRequest(
         string Username, string? FirstName, string? LastName,
         string Email, string? Phone, string? Password,
         string Role, bool IsActive, List<int> BranchIds,
-        bool? IsHrTeam = false);
+        bool? IsHrTeam = false,
+        int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null);
+
+    // Session-Policy-Validierung (Walter-Vorgabe 21.06.2026): leer = Rollen-
+    // Default, sonst 5–1440 Minuten.
+    private static string? ValidateSessionPolicy(int? idle, int? max)
+    {
+        foreach (var v in new[] { idle, max })
+            if (v.HasValue && (v.Value < 5 || v.Value > 1440))
+                return "Inaktivitäts-Logout und Max. Session-Dauer müssen zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).";
+        return null;
+    }
 
     // POST /api/users – nur admin/superuser
     [HttpPost]
@@ -81,6 +95,9 @@ public class UsersController : ControllerBase
 
         if (callerRole == "superuser" && req.Role == "admin")
             return Forbid();
+
+        var policyErr = ValidateSessionPolicy(req.IdleTimeoutMinutes, req.MaxSessionMinutes);
+        if (policyErr != null) return BadRequest(new { message = policyErr });
 
         if (await _context.AppUsers.AnyAsync(u => u.Email == req.Email))
             return BadRequest(new { message = "Diese E-Mail ist bereits vergeben." });
@@ -96,6 +113,8 @@ public class UsersController : ControllerBase
             Role      = req.Role,
             IsActive  = true,
             IsHrTeam  = req.IsHrTeam ?? false,
+            IdleTimeoutMinutes = req.IdleTimeoutMinutes,
+            MaxSessionMinutes  = req.MaxSessionMinutes,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -132,6 +151,9 @@ public class UsersController : ControllerBase
         if (callerRole == "superuser" && (user.Role == "admin" || req.Role == "admin"))
             return Forbid();
 
+        var policyErr = ValidateSessionPolicy(req.IdleTimeoutMinutes, req.MaxSessionMinutes);
+        if (policyErr != null) return BadRequest(new { message = policyErr });
+
         // Super-Admin-Schutz (Walter-Vorgabe 15.05.2026):
         //   Ein Super-Admin-Datensatz darf nur von einem Super-Admin geändert
         //   werden — verhindert dass ein normaler Admin Walters Profil
@@ -155,6 +177,8 @@ public class UsersController : ControllerBase
         user.Role      = req.Role;
         user.IsActive  = req.IsActive;
         user.IsHrTeam  = req.IsHrTeam ?? false;
+        user.IdleTimeoutMinutes = req.IdleTimeoutMinutes;
+        user.MaxSessionMinutes  = req.MaxSessionMinutes;
 
         if (!string.IsNullOrWhiteSpace(req.Password))
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password);

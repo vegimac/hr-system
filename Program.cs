@@ -19,6 +19,8 @@ builder.Services.AddSingleton<HrSystem.Services.AuditSaveChangesInterceptor>();
 // Audit-Log-Cleanup (Walter 27.05.2026): Eintraege aelter als 6 Monate
 // werden automatisch geloescht. Laeuft im Hintergrund, einmal pro 24 h.
 builder.Services.AddHostedService<HrSystem.Services.AuditLogCleanupService>();
+// Monatliche Stempelzeiten-Aufbewahrung (Walter 21.06.2026) — separat vom Auto-Sync.
+builder.Services.AddHostedService<HrSystem.Services.TimeEntryRetentionService>();
 
 // Datenbank
 // Walter-Vorgabe 13.06.2026: DB-Passwort kommt aus ENV `DB_PASSWORD`. In
@@ -1229,6 +1231,15 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE pregnancy_rule ADD COLUMN IF NOT EXISTS staffel_text       TEXT;
         -- easy@work Sync-Log: Detail der echten Änderungen pro Lauf (Variante A, Walter 20.06.2026)
         ALTER TABLE easyatwork_sync_log ADD COLUMN IF NOT EXISTS detail_json TEXT;
+        -- Benutzerbezogene Session-/Logout-Policy (Walter 21.06.2026)
+        ALTER TABLE app_user ADD COLUMN IF NOT EXISTS idle_timeout_minutes integer;
+        ALTER TABLE app_user ADD COLUMN IF NOT EXISTS max_session_minutes integer;
+        -- Globaler Key/Value-Einstellungs-Store (Walter 21.06.2026)
+        CREATE TABLE IF NOT EXISTS app_setting (
+            key        text PRIMARY KEY,
+            value      text NOT NULL DEFAULT '',
+            updated_at timestamptz NOT NULL DEFAULT now()
+        );
         -- Nachtarbeit-Untersuchung am MA (Walter 20.06.2026, ArG)
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_valid_until DATE;
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_dokument_id INTEGER REFERENCES employee_dokument(id) ON DELETE SET NULL;

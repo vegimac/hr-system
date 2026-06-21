@@ -34,6 +34,33 @@ function eawClearResults() {
 
 let _eawSyncLastPreview = null;
 
+// Schnellwahl Von/Bis (Walter-Vorgabe 21.06.2026). Setzt die bestehenden
+// nativen Datumsfelder eawSyncFrom/eawSyncTo — der Browser-Datepicker bleibt
+// unverändert. Direkte .value-Zuweisung (kein change-Event), damit der
+// Auto-„Bis = Monatsende"-Handler von Von NICHT das gesetzte Bis überschreibt.
+function eawSyncQuickRange(kind) {
+    const fromEl = document.getElementById('eawSyncFrom');
+    const toEl   = document.getElementById('eawSyncTo');
+    if (!fromEl || !toEl) return;
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const today = new Date();
+    const y = today.getFullYear(), m = today.getMonth();   // m: 0–11
+    let from, to;
+    switch (kind) {
+        case 'current':                                     // 1. des Monats … heute
+            from = new Date(y, m, 1);     to = today;                  break;
+        case 'prevmonth':                                   // kompletter Vormonat
+            from = new Date(y, m - 1, 1); to = new Date(y, m, 0);      break;
+        case 'prevyear':                                    // gleicher Monat im Vorjahr, voll
+            from = new Date(y - 1, m, 1); to = new Date(y - 1, m + 1, 0); break;
+        case 'last40':                                      // heute − 40 … heute
+            from = new Date(today); from.setDate(today.getDate() - 40); to = today; break;
+        default: return;
+    }
+    fromEl.value = iso(from);
+    toEl.value   = iso(to);
+}
+
 function eawSyncInit() {
     // Filial-Picker mit den GEMAPPTEN Filialen befüllen (nur die haben einen Customer)
     const sel = document.getElementById('eawSyncBranchSel');

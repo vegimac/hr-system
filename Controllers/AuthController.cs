@@ -109,12 +109,18 @@ public class AuthController : ControllerBase
         user.LastLoginAt      = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        var token = GenerateToken(user);
+        var sessionStart = DateTime.UtcNow;
+        var token = GenerateToken(user, sessionStart);
 
         return Ok(new
         {
             token,
             mustChangePassword = user.MustChangePassword,
+            // Session-Policy (Walter-Vorgabe 21.06.2026) — der Frontend-Wächter
+            // startet damit sofort, ohne auf /me warten zu müssen.
+            sessionStartedAt   = sessionStart.ToString("o"),
+            idleTimeoutMinutes = EffectiveIdleTimeout(user),
+            maxSessionMinutes  = EffectiveMaxSession(user),
             user = new
             {
                 user.Id,
@@ -158,6 +164,12 @@ public class AuthController : ControllerBase
 
         if (user == null) return NotFound();
 
+        // Session-Policy aus den Token-Claims (am Login fixiert → bleibt über
+        // Seiten-Reload konsistent). Fallback auf die effektiven DB-Werte.
+        var idleClaim    = int.TryParse(User.FindFirst("idle_timeout_minutes")?.Value, out var ic) ? ic : EffectiveIdleTimeout(user);
+        var maxClaim     = int.TryParse(User.FindFirst("max_session_minutes")?.Value, out var mc) ? mc : EffectiveMaxSession(user);
+        var sessionStart = User.FindFirst("session_started_at")?.Value;
+
         return Ok(new
         {
             user.Id,
@@ -172,6 +184,10 @@ public class AuthController : ControllerBase
             mustChangePassword = user.MustChangePassword,
             isHrTeam           = user.IsHrTeam,
             isSuperAdmin       = user.IsSuperAdmin,
+            // Session-Policy für den Frontend-Wächter.
+            sessionStartedAt   = sessionStart,
+            idleTimeoutMinutes = idleClaim,
+            maxSessionMinutes  = maxClaim,
             // Walter-Vorgabe 14.06.2026: lowuser im Filial-Selektor 1:1 wie
             // superuser — sieht „Alle Filialen" plus jede einzelne. Die
             // Einschränkungen wirken NUR auf den Menü-Umfang (Dashboard +
@@ -261,7 +277,19 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Passwort wurde geändert." });
     }
 
-    private string GenerateToken(AppUser user)
+    // ── Benutzerbezogene Session-/Logout-Policy (Walter-Vorgabe 21.06.2026) ──
+    // Effektiver Wert = User-Wert ODER Rollen-Default. Defaults:
+    //   employee → idle 15 / max 30 ;  alle übrigen → idle 30 / max 480.
+    public const int POLICY_MIN = 5;
+    public const int POLICY_MAX = 1440;
+
+    public static int EffectiveIdleTimeout(AppUser u) =>
+        Clamp(u.IdleTimeoutMinutes ?? (u.Role == "employee" ? 15 : 30));
+    public static int EffectiveMaxSession(AppUser u) =>
+        Clamp(u.MaxSessionMinutes ?? (u.Role == "employee" ? 30 : 480));
+    private static int Clamp(int v) => Math.Max(POLICY_MIN, Math.Min(POLICY_MAX, v));
+
+    private string GenerateToken(AppUser user, DateTime sessionStart)
     {
         // Walter-Vorgabe 13.06.2026: KEIN hardgecodeter Fallback.
         var secret = _config["Jwt:Secret"]
@@ -271,12 +299,19 @@ public class AuthController : ControllerBase
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        var idle = EffectiveIdleTimeout(user);
+        var max  = EffectiveMaxSession(user);
+
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Name, user.Username),
-            new Claim(ClaimTypes.Role, user.Role)
+            new Claim(ClaimTypes.Role, user.Role),
+            // Session-Policy-Claims für den Frontend-Wächter.
+            new Claim("session_started_at",    sessionStart.ToString("o")),
+            new Claim("idle_timeout_minutes",  idle.ToString()),
+            new Claim("max_session_minutes",   max.ToString())
         };
         // Buchhaltung = wie Superuser (volle HR-Feature-Rechte) PLUS Fibu-Bereich.
         // Zweiter Rollen-Claim 'superuser' → alle [Authorize(Roles="admin,superuser")]-
@@ -286,12 +321,10 @@ public class AuthController : ControllerBase
         if (user.Role == "buchhaltung")
             claims.Add(new Claim(ClaimTypes.Role, "superuser"));
 
-        // MA-Postfach-User (Rolle "employee") bekommen kürzere Token-
-        // Lebensdauer, weil sie typisch nur kurz reinschauen und das Risiko
-        // bei Token-Diebstahl höher ist (Handy verloren etc.).
-        var expires = user.Role == "employee"
-            ? DateTime.UtcNow.AddHours(JWT_HOURS_EMPLOYEE)
-            : DateTime.UtcNow.AddHours(JWT_HOURS_BACKOFFICE);
+        // JWT-Ablauf = maximale Session-Dauer (Walter-Vorgabe 21.06.2026):
+        // läuft der Token ab, MUSS neu eingeloggt werden — der Server erzwingt
+        // die Max-Session hart, unabhängig vom Frontend-Wächter.
+        var expires = sessionStart.AddMinutes(max);
 
         var token = new JwtSecurityToken(
             claims: claims,

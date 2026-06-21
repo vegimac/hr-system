@@ -83,6 +83,20 @@ public class AppUser
     /// <summary>NULL = Account aktiv. Sonst gesperrt bis zu diesem Zeitpunkt (UTC).</summary>
     public DateTime? LockedUntil { get; set; }
 
+    /// <summary>
+    /// Benutzerbezogene Sicherheits-Policy (Walter-Vorgabe 21.06.2026).
+    /// Automatischer Logout nach X Minuten Inaktivität. NULL = Rollen-Default
+    /// (employee 15, alle übrigen 30). Gültiger Bereich 5–1440.
+    /// </summary>
+    public int? IdleTimeoutMinutes { get; set; }
+
+    /// <summary>
+    /// Maximale Session-Dauer in Minuten ab Login. NULL = Rollen-Default
+    /// (employee 30, alle übrigen 480). Bestimmt zugleich die JWT-Ablaufzeit.
+    /// Gültiger Bereich 5–1440.
+    /// </summary>
+    public int? MaxSessionMinutes { get; set; }
+
     public List<UserBranchAccess> BranchAccess { get; set; } = new();
 
     /// <summary>Anzeigename: Vor- + Nachname, Fallback: Username</summary>

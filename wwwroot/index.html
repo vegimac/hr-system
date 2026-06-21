@@ -3593,7 +3593,24 @@
                         <p class="page-sub">Zentrale Verwaltung und Stammdaten</p>
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:16px;margin-top:12px">
+                <!-- Datenaufbewahrung Stempelzeiten (Walter-Vorgabe 21.06.2026) -->
+                <div class="card" style="padding:16px 18px;margin-top:12px;max-width:560px;border-left:4px solid #2563eb">
+                    <div style="font-weight:700;color:#0f172a;font-size:14px;margin-bottom:4px">Datenaufbewahrung — Stempelzeiten</div>
+                    <div style="font-size:12.5px;color:#64748b;margin-bottom:10px;line-height:1.5">
+                        Stempelzeiten älter als diese Anzahl Jahre werden <b>monatlich automatisch gelöscht</b> (jeden 1. um 04:30).
+                        Minimum 5 Jahre — Lohn- und Mitarbeiterdaten sind davon NICHT betroffen.
+                    </div>
+                    <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
+                        <label style="font-size:12px;color:#475569;display:flex;flex-direction:column;gap:4px">Aufbewahrung (Jahre)
+                            <input type="number" id="retentionYearsInput" min="5" max="100" step="1"
+                                   style="width:120px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
+                        </label>
+                        <button class="btn btn-primary" onclick="saveRetentionYears()">Speichern</button>
+                        <span id="retentionYearsMsg" style="font-size:12px"></span>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:16px;margin-top:16px">
                     <div class="admin-card" onclick="showPage('benutzer')">
                         <div class="admin-card-icon" style="background:#dbeafe;color:#1e40af">
                             <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -5504,6 +5521,13 @@
 
                     <h3 style="margin:30px 0 8px;font-size:15px">Stempelzeiten-Sync</h3>
                     <p style="color:#64748b;font-size:13px;margin-bottom:10px">Holt Stempelzeiten aus easy@work für eine Filiale + Periode. <strong>Vorschau</strong> zeigt was importiert würde — schreibt nichts. <strong>Importieren</strong> committet die NEW-Zeilen.</p>
+                    <!-- Schnellwahl Von/Bis (Walter 21.06.2026) — setzt die nativen Datumsfelder. -->
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+                        <button type="button" onclick="eawSyncQuickRange('current')"   style="font-size:12px;padding:5px 11px;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:7px;cursor:pointer;font-weight:600">Aktueller Monat</button>
+                        <button type="button" onclick="eawSyncQuickRange('prevmonth')" style="font-size:12px;padding:5px 11px;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:7px;cursor:pointer;font-weight:600">Vormonat</button>
+                        <button type="button" onclick="eawSyncQuickRange('prevyear')"  style="font-size:12px;padding:5px 11px;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:7px;cursor:pointer;font-weight:600">Vorjahr</button>
+                        <button type="button" onclick="eawSyncQuickRange('last40')"     style="font-size:12px;padding:5px 11px;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:7px;cursor:pointer;font-weight:600">Letzte 40 Tage</button>
+                    </div>
                     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
                         <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Filiale
                             <select id="eawSyncBranchSel" class="eaw-input" style="min-width:240px"></select>
@@ -8328,6 +8352,21 @@
                 </div>
             </div>
 
+            <!-- ── SICHERHEIT / SESSION (Walter-Vorgabe 21.06.2026) ─────────── -->
+            <div class="emp-section-title">Sicherheit / Session</div>
+            <div class="f-grid">
+                <div class="f-group">
+                    <label class="f-label">Inaktivitäts-Logout (Min.)</label>
+                    <input type="number" class="f-input" id="umIdleTimeout" min="5" max="1440" step="1" placeholder="Rollen-Standard">
+                    <div class="f-hint">Leer = Rollen-Standard (MA 15 · übrige 30). Bereich 5–1440.</div>
+                </div>
+                <div class="f-group">
+                    <label class="f-label">Max. Session-Dauer (Min.)</label>
+                    <input type="number" class="f-input" id="umMaxSession" min="5" max="1440" step="1" placeholder="Rollen-Standard">
+                    <div class="f-hint">Leer = Rollen-Standard (MA 30 · übrige 480). Bereich 5–1440.</div>
+                </div>
+            </div>
+
             <!-- ── BERECHTIGUNGEN (HR-Team + Filialen) ────────────────────── -->
             <div class="emp-section-title">Berechtigungen</div>
             <div class="f-group">
@@ -8423,6 +8462,11 @@ async function doLogin() {
         // verschlüsselt im Keychain/Credential-Store.
         localStorage.setItem('hrLastEmail', email);
         currentUser = data.user;
+        // Session-Policy (Walter 21.06.2026) — der Login liefert sie top-level,
+        // der Wächter liest sie aus currentUser.
+        currentUser.idleTimeoutMinutes = data.idleTimeoutMinutes;
+        currentUser.maxSessionMinutes  = data.maxSessionMinutes;
+        currentUser.sessionStartedAt   = data.sessionStartedAt;
         // ── Mitarbeiter-Login → eigene Mobile-View (Postfach) ──
         // Backoffice-User bleiben in der vollen App, MA werden auf eine
         // schlanke Mobile-Seite umgeleitet wo sie nur ihre Lohnzettel sehen.
@@ -8516,6 +8560,40 @@ function doLogout() {
 
 function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
 
+// ── Datenaufbewahrung Stempelzeiten (Walter-Vorgabe 21.06.2026) ──────────
+async function loadRetentionYears() {
+    const inp = document.getElementById('retentionYearsInput');
+    if (!inp) return;
+    try {
+        const res = await fetch('/api/app-settings/time-entry-retention', { headers: ah() });
+        if (res.ok) { const d = await res.json(); inp.value = d.years; inp.min = d.min || 5; }
+    } catch { /* still */ }
+}
+async function saveRetentionYears() {
+    const inp = document.getElementById('retentionYearsInput');
+    const msg = document.getElementById('retentionYearsMsg');
+    if (!inp) return;
+    const years = parseInt(inp.value, 10);
+    if (isNaN(years) || years < 5) {
+        if (msg) { msg.textContent = 'Minimum 5 Jahre.'; msg.style.color = '#dc2626'; }
+        return;
+    }
+    try {
+        const res = await fetch('/api/app-settings/time-entry-retention', {
+            method: 'PUT', headers: ah(), body: JSON.stringify({ years })
+        });
+        if (res.ok) {
+            if (msg) { msg.textContent = '✓ Gespeichert'; msg.style.color = '#16a34a'; }
+        } else {
+            let m = 'Fehler beim Speichern.';
+            try { const j = await res.json(); if (j?.message) m = j.message; } catch {}
+            if (msg) { msg.textContent = m; msg.style.color = '#dc2626'; }
+        }
+    } catch (e) {
+        if (msg) { msg.textContent = 'Verbindungsfehler.'; msg.style.color = '#dc2626'; }
+    }
+}
+
 // Walter-Vorgabe 13.06.2026: globaler 401-Interceptor. Wenn ein API-Call
 // 401 zurückgibt (Token abgelaufen), Auto-Logout + Hinweis. Schützt vor
 // dem Bug, dass nach Token-Ablauf jeder API-Call mit einem hässlichen
@@ -8604,6 +8682,9 @@ async function startApp() {
     document.getElementById('userName').textContent = currentUser.username;
     document.getElementById('userRoleBadge').textContent = currentUser.isSuperAdmin ? 'Super-Admin' : roleName(currentUser.role);
     document.getElementById('userAvatar').textContent = (currentUser.username || 'U')[0].toUpperCase();
+
+    // Session-/Logout-Wächter starten (Walter-Vorgabe 21.06.2026).
+    if (window.SessionGuard) window.SessionGuard.start();
 
     // Akonto-Workflow Sidebar-Badge: 60-Sekunden-Polling, sobald der User
     // eingeloggt ist (Sidebar-„Lohn"-Eintrag bekommt den Counter).
@@ -8784,6 +8865,7 @@ function showPage(name) {
     if (name === 'dashboard') loadDashboard();
     if (name === 'fibu') fibuInit();
     if (name === 'benutzer') loadUsers();
+    if (name === 'admin-hub' && typeof loadRetentionYears === 'function') loadRetentionYears();
     if (name === 'filialen') loadFilialen();
     if (name === 'vertraege') loadVtList();
     if (name === 'qst-tarife') loadQstTarifeStatus();
@@ -8960,6 +9042,7 @@ function onBranchChange() {
 <script src="js/employee-lookup-cache.js?v=20260614a"></script>
 <script src="js/action-menu.js?v=20260531a"></script>
 <script src="js/dashboard.js?v=20260620i"></script>
+<script src="js/session-timeout.js?v=20260621a"></script>
 <script src="js/wage-adjustment.js?v=20260523a"></script>
 <script src="js/permit-import.js?v=20260607a"></script>
 <script src="js/hr-review-import.js?v=20260607b"></script>
@@ -8980,7 +9063,7 @@ function onBranchChange() {
 <script src="js/branch-modals.js?v=20260509b"></script>
 <script src="js/deductions.js?v=20260509b"></script>
 <script src="js/qst-modal.js?v=20260614g"></script>
-<script src="js/users.js?v=20260614b"></script>
+<script src="js/users.js?v=20260621a"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
 <script src="js/documents.js?v=20260621a"></script>
 <script src="js/dvelop-import.js?v=20260614b"></script>
@@ -8997,7 +9080,7 @@ function onBranchChange() {
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
-<script src="js/easyatwork.js?v=20260620d"></script>
+<script src="js/easyatwork.js?v=20260621a"></script>
 <script src="js/sollstunden-report.js?v=20260620i"></script>
 <script src="js/ferien-report.js?v=20260620m"></script>
 <script src="js/audit-log.js?v=20260527a"></script>
@@ -9274,7 +9357,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260621c"></script>
+<script src="employees.js?v=20260621d"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

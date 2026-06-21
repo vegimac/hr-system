@@ -44,6 +44,7 @@ public class EditLockEndpointAuditTests
         ["UsersController"]                = "Benutzer-Stammdaten (Anlage, Rolle) — keine Lohndaten",
         ["UserBranchController"]           = "User↔Filial-Zuordnung — keine Lohndaten",
         ["AdminSmtpController"]            = "SMTP-Konfiguration — keine Lohndaten",
+        ["AppSettingsController"]          = "Globale App-Einstellung (Stempelzeiten-Aufbewahrung) — keine Lohndaten",
 
         // Stammdaten / Lookups / Kataloge — Lohn-neutral
         ["BanksController"]                = "Bank-Stammdaten (SIX-Liste) — keine MA-Daten",

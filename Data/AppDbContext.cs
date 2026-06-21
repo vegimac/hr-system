@@ -24,6 +24,7 @@ public class AppDbContext : DbContext
     public DbSet<ContractText> ContractTexts => Set<ContractText>();
     public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<UserBranchAccess> UserBranchAccesses => Set<UserBranchAccess>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<EmployeeFamilyMember> EmployeeFamilyMembers => Set<EmployeeFamilyMember>();
     public DbSet<EmployeeAddress> EmployeeAddresses => Set<EmployeeAddress>();
     public DbSet<FamilyMemberAllowance> FamilyMemberAllowances => Set<FamilyMemberAllowance>();
@@ -407,7 +408,19 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MustChangePassword).HasColumnName("must_change_password").HasDefaultValue(false);
             entity.Property(e => e.FailedLoginCount).HasColumnName("failed_login_count").HasDefaultValue(0);
             entity.Property(e => e.LockedUntil).HasColumnName("locked_until");
+            entity.Property(e => e.IdleTimeoutMinutes).HasColumnName("idle_timeout_minutes");
+            entity.Property(e => e.MaxSessionMinutes).HasColumnName("max_session_minutes");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── AppSetting (globaler Key/Value-Store) ──────────────────────────
+        modelBuilder.Entity<AppSetting>(entity =>
+        {
+            entity.ToTable("app_setting");
+            entity.HasKey(e => e.Key);
+            entity.Property(e => e.Key).HasColumnName("key").HasMaxLength(100);
+            entity.Property(e => e.Value).HasColumnName("value");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
         });
 
         // ── UserBranchAccess ───────────────────────────────────────────────
