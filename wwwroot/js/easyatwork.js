@@ -741,12 +741,14 @@ function _eawAddDays(iso, n) {             // ISO 'YYYY-MM-DD' + n Tage → ISO
     d.setDate(d.getDate() + n);
     return _eawIso(d);
 }
-// Fenster-Ende = Monatsende von (Von-Datum + 90 Tage). Walter-Vorgabe 21.06.2026.
-// Bei start=1.1.2021 → +90 Tage = 1.4. → Monatsende = 30.4.; nächster Start 1.5. usw.
+// Fenster-Ende = Monatsende des Monats (Startmonat + 2) → 3 Kalendermonate,
+// an Monatsgrenze ausgerichtet und IMMER ≤ 92 Tage (easy@work/Backend-Limit).
+// Bei start=1.1. → 31.3.; 1.4. → 30.6.; usw. Walter-Vorgabe 21.06.2026.
+// (Die frühere „Start + 90 Tage → Monatsende" erzeugte bis zu 120-Tage-Fenster,
+//  die der 92-Tage-Check im Backend ablehnte → 0 Stempel.)
 function _eawWindowEnd(iso) {
     const d = new Date(iso + 'T00:00:00');
-    d.setDate(d.getDate() + 90);
-    return _eawIso(new Date(d.getFullYear(), d.getMonth() + 1, 0));   // Tag 0 = letzter Tag des Monats
+    return _eawIso(new Date(d.getFullYear(), d.getMonth() + 3, 0));   // Tag 0 = letzter Tag von (Monat+2)
 }
 
 // Beim Ändern von „Von" das „Bis"-Feld automatisch auf Monatsende von
@@ -765,7 +767,7 @@ async function eawBatchHistorical() {
     const fmt  = s => `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}`;
     if (from > to) { alert('„Von" muss vor „Bis" liegen.'); return; }
     if (!confirm(`Stempelzeiten-Tief-Import für ALLE Filialen von ${fmt(from)} bis ${fmt(to)} starten?\n\n` +
-                 `• In Schritten bis Monatsende (Start + 90 Tage), ohne Vorschau.\n` +
+                 `• In 3-Monats-Schritten bis Monatsende (max. 92 Tage), ohne Vorschau.\n` +
                  `• Fehlerhafte Stempel werden fallen gelassen, nicht zuordenbare MA übersprungen.\n` +
                  `• Abgeschlossene Lohnperioden bleiben gesperrt.\n` +
                  `• Mehrfaches Laufen verdoppelt nichts.\n\n` +
@@ -822,7 +824,7 @@ async function eawBatchHistorical() {
                 <thead><tr style="color:#64748b;text-align:left">
                     <th style="padding:3px 10px">Filiale</th>
                     <th style="padding:3px 10px;text-align:right">Importiert</th>
-                    <th style="padding:3px 10px;text-align:right">Fehlerhaft</th>
+                    <th style="padding:3px 10px;text-align:right">Übersprungen</th>
                     <th style="padding:3px 10px;text-align:right">Gesperrt</th>
                     <th style="padding:3px 10px;text-align:right">Nicht&nbsp;zugeordnet</th>
                     <th></th>
@@ -852,20 +854,34 @@ async function eawBatchHistorical() {
                         agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ${body.message || ('HTTP ' + r.status)}`);
                         continue;
                     }
+                    // Der Commit-Endpoint liefert ein AutoSyncResult: inserted /
+                    // lockedSkipped / skipped / missingEmployees (NICHT die count*-
+                    // Felder der Vorschau!). Walter-Bug 21.06.2026: das UI las
+                    // body.countInserted → immer 0, obwohl Stempel geschrieben wurden.
                     const a = agg[b.id];
-                    a.inserted += body.countInserted || 0;
-                    a.invalid  += body.countInvalid   || 0;
-                    a.locked   += body.countLocked    || 0;
-                    a.missing  += body.countMissing   || 0;
-                    grandInserted += body.countInserted || 0;
-                    grandInvalid  += body.countInvalid  || 0;
-                    grandLocked   += body.countLocked   || 0;
-                    grandMissing  += body.countMissing  || 0;
-                    // BLOCK „mehrere Lohn-MA": uneindeutige Person → Chunk wurde NICHT
-                    // geschrieben. Klartext aus den Notes sichtbar machen (Walter 21.06.2026).
-                    if ((body.countAmbiguous || 0) > 0 || (body.isBlocked && (body.countInserted || 0) === 0)) {
+                    const ins  = body.inserted      || 0;
+                    const skip = body.skipped       || 0;
+                    const lock = body.lockedSkipped || 0;
+                    const miss = (body.missingEmployees && body.missingEmployees.length) || 0;
+                    a.inserted += ins;
+                    a.invalid  += skip;   // Spalte „Übersprungen" (Dubletten/ungültig/ausgeschlossen)
+                    a.locked   += lock;
+                    a.missing  += miss;
+                    grandInserted += ins;
+                    grandInvalid  += skip;
+                    grandLocked   += lock;
+                    grandMissing  += miss;
+                    // BLOCK (z.B. mehrere Lohn-MA für eine Person): Chunk wurde NICHT
+                    // geschrieben → isBlocked. Klartext aus den Notes sichtbar machen.
+                    if (body.isBlocked) {
                         const note = (body.notes && body.notes.length) ? body.notes.join(' ') : 'Import blockiert (mehrere Lohn-MA für eine Person).';
                         agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ⚠ ${note}`);
+                    }
+                    // Sonst: wurde NICHTS importiert UND gibt es Backend-Notizen
+                    // (z.B. „max. 92 Tage", API-Fehler, „N MA übersprungen") →
+                    // anzeigen, damit ein stiller 0-Lauf nie unbemerkt bleibt.
+                    else if (ins === 0 && body.notes && body.notes.length) {
+                        agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ℹ ${body.notes.join(' ')}`);
                     }
                 } catch (e) {
                     agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ${String(e)}`);
@@ -894,7 +910,7 @@ async function eawBatchHistorical() {
                 <thead><tr style="color:#64748b;text-align:left">
                     <th style="padding:3px 10px">Filiale</th>
                     <th style="padding:3px 10px;text-align:right">Importiert</th>
-                    <th style="padding:3px 10px;text-align:right">Fehlerhaft</th>
+                    <th style="padding:3px 10px;text-align:right">Übersprungen</th>
                     <th style="padding:3px 10px;text-align:right">Gesperrt</th>
                     <th style="padding:3px 10px;text-align:right">Nicht&nbsp;zugeordnet</th>
                     <th></th>
@@ -1008,6 +1024,7 @@ function _eawEmpSyncRender(res, wasCommit) {
             <td>${escapeHtml((r.firstName||'') + ' ' + (r.lastName||''))} <span style="color:#94a3b8">(${escapeHtml(r.number||'-')})</span>
                 ${r.numberChangeFrom ? `<div style="font-size:11px;margin-top:2px;background:#fef9c3;border:1px solid #fde68a;color:#92400e;border-radius:5px;padding:2px 6px;display:inline-block">🔁 Personalnummer: <strong>${escapeHtml(r.numberChangeFrom)}</strong> → <strong>${escapeHtml(r.numberChangeTo||'')}</strong> <span style="color:#a16207">(alte Nr. → Alias)</span></div>` : ''}
                 ${r.matchedViaAltNumber ? `<div style="font-size:11px;color:#7c3aed">↪ gematcht über alte Nr. ${escapeHtml(r.matchedViaAltNumber)}</div>` : ''}
+                ${r.possibleReentry ? `<div style="font-size:11px;margin-top:3px;background:#fef9c3;border:1px solid #fbbf24;color:#92400e;border-radius:5px;padding:3px 7px">⚠ Möglicher Wiedereintritt: gleicher Name + Geburtsdatum wie bestehender MA <strong>#${r.reentryEmployeeId}${r.reentryEmployeeNumber ? ' ('+escapeHtml(r.reentryEmployeeNumber)+')' : ''}</strong> (neue eaw-ID ${r.reentryNewEawId}). Beim Import wird die alte eaw-ID als Alias gespeichert. <strong>Falls eine andere Person → abwählen.</strong></div>` : ''}
                 ${r.employmentInfo ? `<div style="font-size:11px;color:#475569">Employment: <strong>${escapeHtml(r.employmentInfo)}</strong>${r.assignedBranchName ? ' · Filiale: ' + escapeHtml(r.assignedBranchName) : ''}</div>` : ''}
             </td>
             <td style="font-size:11px;color:#475569">${changesSummary}</td>

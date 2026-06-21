@@ -334,6 +334,19 @@ public class EasyAtWorkEmployeeSyncService
                 res.CountUnchanged++;
             }
 
+            // Duplikat-Erkennung Stufe 2 (Walter-Vorgabe 21.06.2026): NEW-Zeile,
+            // aber gleicher Name+Geburtsdatum wie ein bestehender MA → möglicher
+            // Wiedereintritt mit neuer easy@work-ID. NUR Warnung/Vorschlag — der
+            // Commit merged nur, wenn die Zeile selektiert bleibt.
+            if (co == null && eaw.BirthDate.HasValue
+                && byNameDob.TryGetValue(NameDobKey(eaw.FirstName, eaw.LastName, eaw.BirthDate.Value), out var reentry))
+            {
+                row.PossibleReentry       = true;
+                row.ReentryEmployeeId     = reentry.Id;
+                row.ReentryEmployeeNumber = reentry.EmployeeNumber;
+                row.ReentryNewEawId       = eaw.Id;
+            }
+
             // Employment-Vorschau: wird angelegt / nachgeholt / existiert + Filiale.
             row.AssignedCompanyProfileId = req.CompanyProfileId;
             row.AssignedBranchName       = assignBranchName;
@@ -416,11 +429,20 @@ public class EasyAtWorkEmployeeSyncService
 
                 if (row.Status == "NEW")
                 {
-                    // Duplikat-Prävention (Walter-Vorgabe 21.06.2026): existiert schon
-                    // ein Employee mit dieser easy@work-ID (egal in welcher Filiale)?
+                    // Duplikat-Prävention Stufe 1 (Walter-Vorgabe 21.06.2026): existiert
+                    // schon ein Employee mit dieser easy@work-ID (egal welche Filiale)?
                     var eawKey = eaw.UserId ?? eaw.Id;
                     var existingByEawId = await _db.Employees.FirstOrDefaultAsync(
                         e => !e.IsHidden && (e.EasyAtWorkEmployeeId == eawKey || e.EasyAtWorkEmployeeId == eaw.Id), ct);
+                    // Stufe 2: gleicher Name+Geburtsdatum (Wiedereintritt mit NEUER eaw-ID).
+                    // Nur, wenn die Vorschau das vermutet hat (row.PossibleReentry) —
+                    // ist ein VORSCHLAG; wer es nicht will, deselektiert die Zeile.
+                    bool viaNameDob = false;
+                    if (existingByEawId == null && row.PossibleReentry && row.ReentryEmployeeId.HasValue)
+                    {
+                        existingByEawId = await _db.Employees.FirstOrDefaultAsync(e => e.Id == row.ReentryEmployeeId.Value, ct);
+                        viaNameDob = existingByEawId != null;
+                    }
                     if (existingByEawId != null)
                     {
                         // 1) Personalnummer als Alias sichern (falls anders + neu).
@@ -436,12 +458,30 @@ public class EasyAtWorkEmployeeSyncService
                                 Source = "easyatwork_sync", CreatedAt = DateTime.UtcNow,
                             });
                         }
-                        // 2) Employment in DIESER Filiale nachholen (falls fehlt).
+                        // 2) easy@work-ID als Alias sichern, wenn die eaw-ID des
+                        //    Duplikats abweicht (v.a. beim Name+Geb.-Match: alte ID
+                        //    → der Stempel-Sync findet sie über easyatwork_employee_alias).
+                        if (existingByEawId.EasyAtWorkEmployeeId != eaw.Id
+                            && !await _db.EasyAtWorkEmployeeAliases.AnyAsync(a => a.EmployeeId == existingByEawId.Id && a.EasyAtWorkId == eaw.Id, ct))
+                        {
+                            _db.EasyAtWorkEmployeeAliases.Add(new EasyAtWorkEmployeeAlias
+                            {
+                                EmployeeId   = existingByEawId.Id,
+                                EasyAtWorkId = eaw.Id,
+                                Note         = viaNameDob ? "Auto-Merge: gleicher Name+Geb.datum, neue eaw-ID" : "Merge: zweite easy@work-ID",
+                                CreatedAt    = DateTime.UtcNow,
+                            });
+                        }
+                        // 3) Employment in DIESER Filiale nachholen (falls fehlt).
                         await EnsureEmploymentAsync(existingByEawId, eaw, req.CompanyProfileId, isNewEmployee: false, info, ct);
-                        // 3) Als EXISTING markieren, NICHT als neuen Employee anlegen.
+                        // 4) Als EXISTING markieren, NICHT als neuen Employee anlegen.
                         row.Status = "EXISTING";
                         row.CoworkEmployeeId = existingByEawId.Id;
-                        row.Reason = $"MA existiert bereits (#{existingByEawId.Id} {existingByEawId.EmployeeNumber}). Nummer als Alias gesichert, Employment nachgeholt.";
+                        row.Reason = viaNameDob
+                            ? $"Wiedereintritt (Name+Geb.datum): bestehender MA #{existingByEawId.Id} {existingByEawId.EmployeeNumber}. Alte eaw-ID {eaw.Id} als Alias gesichert."
+                            : $"MA existiert bereits (#{existingByEawId.Id} {existingByEawId.EmployeeNumber}). Nummer als Alias gesichert, Employment nachgeholt.";
+                        if (viaNameDob)
+                            res.Notes.Add($"Wiedereintritt erkannt: {eaw.FirstName} {eaw.LastName} → MA #{existingByEawId.Id} (alte eaw-ID {eaw.Id} als Alias).");
                         res.CountExisting++;
                         res.CountNew = Math.Max(0, res.CountNew - 1);
                         continue;
@@ -765,6 +805,12 @@ public class EasyAtWorkEmployeeSyncService
         });
         emp.EmployeeNumber = newNumber.Trim();
     }
+
+    /// <summary>Schlüssel für den Name+Geburtsdatum-Match (case-insensitiv, getrimmt).</summary>
+    private static string NameDobKey(string? firstName, string? lastName, DateTime dob)
+        => $"{(firstName ?? "").Trim().ToLowerInvariant()}|{(lastName ?? "").Trim().ToLowerInvariant()}|{dob:yyyy-MM-dd}";
+    private static string NameDobKey(string? firstName, string? lastName, DateOnly dob)
+        => $"{(firstName ?? "").Trim().ToLowerInvariant()}|{(lastName ?? "").Trim().ToLowerInvariant()}|{dob:yyyy-MM-dd}";
 
     /// <summary>easy@work-Gender → unser Wert „male"/„female" (sonst null).</summary>
     private static string? NormalizeGender(string? g)
