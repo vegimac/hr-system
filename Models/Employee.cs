@@ -8,13 +8,11 @@ public class Employee
     public string EmployeeNumber { get; set; } = "";
 
     /// <summary>
-    /// Alte/zweite Personalnummern (Walter-Vorgabe 21.06.2026). Ein MA kann in
-    /// easy@work unter einer früheren Nummer geführt sein (z.B. Pre-Mirus). Diese
-    /// Felder dienen als zusätzliche Match-Schlüssel im MA- und Stempelzeiten-Sync,
-    /// damit der MA trotz abweichender aktueller `EmployeeNumber` gefunden wird.
+    /// Alte/zweite Personalnummern (Walter-Vorgabe 21.06.2026): eigene Tabelle
+    /// <see cref="EmployeeNumberAlias"/> (ersetzt die früheren Felder alt1/alt2 —
+    /// ein MA kann beliebig viele alte Nummern haben).
     /// </summary>
-    public string? EmployeeNumberAlt1 { get; set; }
-    public string? EmployeeNumberAlt2 { get; set; }
+    public List<EmployeeNumberAlias> NumberAliases { get; set; } = new();
 
     public string? Salutation { get; set; }
 

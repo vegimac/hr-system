@@ -5527,6 +5527,7 @@
                     <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
                         <button class="btn-primary" onclick="eawTestConnection()">🔌 Verbindung testen</button>
                         <button class="btn-secondary" onclick="eawLoadMappings()">↻ Mappings neu laden</button>
+                        <button class="btn-secondary" style="background:#fef3c7;border-color:#fde68a;color:#92400e" onclick="showPage('employee-merge'); empMergeLoad();">🧹 Duplikate bereinigen</button>
                     </div>
                     <div id="eawTestResultBox" style="display:none;background:#ecfeff;border:1px solid #67e8f9;border-radius:8px;padding:12px;margin-bottom:18px;font-size:13px"></div>
                     <h3 style="margin:18px 0 8px;font-size:15px">Filial-Mappings</h3>
@@ -5627,6 +5628,20 @@
                         <span style="color:#94a3b8;font-size:12px">neueste zuerst, max. 100 Einträge · Aufbewahrung 90 Tage</span>
                     </div>
                     <div id="eawLogContainer"></div>
+                </div>
+            </div>
+            <!-- ═══ DUPLIKATE BEREINIGEN (Walter-Vorgabe 21.06.2026) ═══ -->
+            <div class="page" id="page-employee-merge">
+                <div class="page-head"><div>
+                    <h1 class="page-title">🧹 Duplikate bereinigen</h1>
+                    <p class="page-sub">Mehrfache Mitarbeiter-Einträge zur selben easy@work-ID zusammenführen. Ein Mensch = ein Mitarbeiter. <strong>Einmalige Bereinigung.</strong></p>
+                </div></div>
+                <div class="page-body">
+                    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+                        <button class="btn-secondary" onclick="empMergeLoad()">↻ Duplikate laden</button>
+                        <span id="empMergeCount" style="color:#94a3b8;font-size:13px"></span>
+                    </div>
+                    <div id="empMergeContainer"></div>
                 </div>
             </div>
             <!-- ═══ SOLLSTUNDEN-ÜBERSICHT (GF, Walter-Vorgabe 19.06.2026) ═══ -->
@@ -9137,7 +9152,8 @@ function onBranchChange() {
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
-<script src="js/easyatwork.js?v=20260621j"></script>
+<script src="js/easyatwork.js?v=20260621k"></script>
+<script src="js/employee-merge.js?v=20260621a"></script>
 <script src="js/sollstunden-report.js?v=20260620i"></script>
 <script src="js/ferien-report.js?v=20260620m"></script>
 <script src="js/audit-log.js?v=20260527a"></script>
@@ -9414,7 +9430,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260621h"></script>
+<script src="employees.js?v=20260621i"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

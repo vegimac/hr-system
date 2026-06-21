@@ -184,17 +184,24 @@ public class EasyAtWorkEmployeeSyncService
         var coworkAll = await _db.Employees
             .Where(e => !e.IsHidden)
             .ToListAsync(ct);
-        // Match-Dictionary: aktuelle Personalnummer UND alte/zweite Nummern
-        // (employee_number_alt1/alt2) als Lookup-Keys (Walter-Vorgabe 21.06.2026),
-        // damit ein MA auch gefunden wird, wenn easy@work ihn unter einer alten
-        // Nummer führt. Erster Eintrag gewinnt (TryAdd).
+        // Alte Personalnummern aus der Alias-Tabelle (Walter-Vorgabe 21.06.2026).
+        var aliases = await _db.EmployeeNumberAliases.AsNoTracking()
+            .Select(a => new { a.Number, a.EmployeeId })
+            .ToListAsync(ct);
+        var coworkById = coworkAll.Where(e => e.Id > 0).ToDictionary(e => e.Id);
+        // Match-Dictionary: aktuelle Personalnummer UND alle Alias-Nummern als
+        // Lookup-Keys, damit ein MA auch unter einer alten Nummer gefunden wird.
+        // Erster Eintrag gewinnt (TryAdd).
         var byNumber = new Dictionary<string, Employee>(StringComparer.OrdinalIgnoreCase);
         foreach (var e in coworkAll)
-        {
-            if (!string.IsNullOrWhiteSpace(e.EmployeeNumber))     byNumber.TryAdd(e.EmployeeNumber.Trim(), e);
-            if (!string.IsNullOrWhiteSpace(e.EmployeeNumberAlt1)) byNumber.TryAdd(e.EmployeeNumberAlt1.Trim(), e);
-            if (!string.IsNullOrWhiteSpace(e.EmployeeNumberAlt2)) byNumber.TryAdd(e.EmployeeNumberAlt2.Trim(), e);
-        }
+            if (!string.IsNullOrWhiteSpace(e.EmployeeNumber)) byNumber.TryAdd(e.EmployeeNumber.Trim(), e);
+        foreach (var a in aliases)
+            if (!string.IsNullOrWhiteSpace(a.Number) && coworkById.TryGetValue(a.EmployeeId, out var emp))
+                byNumber.TryAdd(a.Number.Trim(), emp);
+        // Alias-Nummern pro MA (für den Nummernwechsel-Guard).
+        var aliasesByEmp = aliases
+            .GroupBy(a => a.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.Select(a => a.Number).ToList());
         // Zusätzlich per hinterlegter easy@work-employee-id (Walter-Vorgabe
         // 21.06.2026): so wird ein MA auch dann gefunden, wenn easy@work eine
         // GANZ NEUE Personalnummer liefert (Wiedereintritt) — die weder als
@@ -274,7 +281,8 @@ public class EasyAtWorkEmployeeSyncService
             // Endlos-Rotation). Dann: Diff „Personalnummer" → wird beim Commit
             // rotiert (aktuelle → alt1, alt1 → alt2) und die neue Nr. gesetzt.
             if (matchedByEawId && co != null
-                && ShouldRotateNumber(co.EmployeeNumber, co.EmployeeNumberAlt1, co.EmployeeNumberAlt2, rawNumber))
+                && ShouldSaveNumberChange(co.EmployeeNumber, rawNumber,
+                       aliasesByEmp.TryGetValue(co.Id, out var coAliases) ? coAliases : null))
             {
                 row.NumberChangeFrom = co.EmployeeNumber?.Trim();
                 row.NumberChangeTo   = rawNumber;
@@ -386,9 +394,12 @@ public class EasyAtWorkEmployeeSyncService
                     var newEawId = eaw.UserId ?? eaw.Id;
                     if (emp.EasyAtWorkEmployeeId != newEawId) emp.EasyAtWorkEmployeeId = newEawId;
                     ApplyDiffs(emp, row.Diffs, eaw, natByCode);
-                    // Nummernwechsel im Sync-Log festhalten (Walter-Vorgabe 21.06.2026).
-                    if (!string.IsNullOrWhiteSpace(row.NumberChangeFrom))
-                        res.Notes.Add($"Personalnummer geändert: {row.NumberChangeFrom} → {row.NumberChangeTo} (alte Nr. in Alt1 gesichert).");
+                    // Nummernwechsel: alte Nummer als Alias sichern + neue setzen + loggen.
+                    if (!string.IsNullOrWhiteSpace(row.NumberChangeTo))
+                    {
+                        SaveNumberChange(_db, emp, row.NumberChangeTo!);
+                        res.Notes.Add($"Personalnummer geändert: {row.NumberChangeFrom} → {row.NumberChangeTo} (alte Nr. als Alias gesichert).");
+                    }
                     // Defaults + Zivilstand nur füllen, wenn noch leer (nicht überschreiben).
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
@@ -618,12 +629,9 @@ public class EasyAtWorkEmployeeSyncService
                 case "Nachname":     emp.LastName     = d.Easy ?? ""; break;
                 case "Anrede":       emp.Salutation   = d.Easy; break;
                 case "Geschlecht":   emp.Gender       = d.Easy; break;
-                case "Personalnummer":
-                    // Nummernwechsel: aktuelle → alt1, alt1 → alt2, neue setzen.
-                    // (Guards wurden bei der Diff-Erzeugung via ShouldRotateNumber geprüft.)
-                    if (!string.IsNullOrWhiteSpace(d.Easy))
-                        RotateEmployeeNumber(emp, d.Easy!);
-                    break;
+                // „Personalnummer" wird NICHT hier angewendet — der Wechsel legt
+                // einen Alias an (braucht den DbContext) und läuft im Commit-Pfad
+                // via SaveNumberChange. Der Diff dient nur der Anzeige + Status UPDATE.
                 case "Geburtstag":   emp.DateOfBirth  = DateTime.TryParse(d.Easy, out var dob) ? dob : emp.DateOfBirth; break;
                 case "Strasse":      emp.Street       = d.Easy; break;
                 case "Hausnr.":      emp.HouseNumber  = d.Easy; break;
@@ -657,27 +665,36 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     /// <summary>
-    /// Soll die Personalnummer rotiert werden? Nur wenn die neue Nummer NICHT leer
-    /// ist, sich von der aktuellen unterscheidet UND noch nicht in Alt1/Alt2 steht
-    /// (sonst Endlos-Rotation). Seiteneffektfrei → unit-testbar. Walter 21.06.2026.
+    /// Soll bei einem Nummernwechsel ein Alias gespeichert werden? Nur wenn die
+    /// neue Nummer NICHT leer ist, sich von der aktuellen unterscheidet UND noch
+    /// nicht als Alias hinterlegt ist (sonst Dublette). Seiteneffektfrei →
+    /// unit-testbar. Walter-Vorgabe 21.06.2026.
     /// </summary>
-    public static bool ShouldRotateNumber(string? currentNumber, string? alt1, string? alt2, string? newNumber)
+    public static bool ShouldSaveNumberChange(string? currentNumber, string? newNumber, IEnumerable<string>? existingAliases)
     {
         if (string.IsNullOrWhiteSpace(newNumber)) return false;
         var n = newNumber.Trim();
         if (string.Equals(currentNumber?.Trim(), n, StringComparison.OrdinalIgnoreCase)) return false;
-        if (string.Equals(alt1?.Trim(),          n, StringComparison.OrdinalIgnoreCase)) return false;
-        if (string.Equals(alt2?.Trim(),          n, StringComparison.OrdinalIgnoreCase)) return false;
+        if (existingAliases != null && existingAliases.Any(a =>
+                string.Equals(a?.Trim(), n, StringComparison.OrdinalIgnoreCase))) return false;
         return true;
     }
 
-    /// <summary>Rotiert: aktuelle → Alt1, Alt1 → Alt2, neue Nummer setzen.</summary>
-    public static void RotateEmployeeNumber(Employee emp, string newNumber)
+    /// <summary>
+    /// Nummernwechsel: die bisherige Personalnummer als Alias sichern (mit
+    /// valid_to = heute) und die neue als employee_number setzen.
+    /// </summary>
+    public static void SaveNumberChange(AppDbContext db, Employee emp, string newNumber)
     {
-        if (!string.IsNullOrWhiteSpace(emp.EmployeeNumberAlt1))
-            emp.EmployeeNumberAlt2 = emp.EmployeeNumberAlt1;
-        emp.EmployeeNumberAlt1 = emp.EmployeeNumber;
-        emp.EmployeeNumber     = newNumber.Trim();
+        db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
+        {
+            Employee   = emp,
+            EmployeeId = emp.Id,
+            Number     = emp.EmployeeNumber,
+            ValidTo    = DateOnly.FromDateTime(DateTime.Today),
+            Source     = "easyatwork_sync",
+        });
+        emp.EmployeeNumber = newNumber.Trim();
     }
 
     /// <summary>easy@work-Gender → unser Wert „male"/„female" (sonst null).</summary>

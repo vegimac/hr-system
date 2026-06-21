@@ -567,6 +567,7 @@ async function selectEmployee(id) {
         // Walter-Vorgabe 07.06.2026: Mitarbeiterfoto im Header asynchron
         // nachladen, sobald der Detail-Header gerendert ist.
         loadEmployeePhoto(id);
+        loadNumberAliases(id);
         // Walter-Vorgabe 26.05.2026 (Audit-Modus): nach MA-Wechsel den vorher
         // aktiven Sub-Tab beibehalten — so kann man mit fixem Doku-Filter durch
         // die Belegschaft scrollen und schauen ob die Ablage stimmt.
@@ -643,6 +644,64 @@ async function loadEmployeePhoto(empId) {
     }
 }
 
+// ─── Alte Personalnummern (Aliase) im MA-Header (Walter-Vorgabe 21.06.2026) ───
+// Ersetzt die früheren starren Felder alt1/alt2 durch eine dynamische Liste.
+async function loadNumberAliases(empId) {
+    const box = document.getElementById('empNumberAliases');
+    if (!box || String(box.dataset.emp) !== String(empId)) return;
+    try {
+        const r = await fetch(`/api/employees/${empId}/number-aliases`, { headers: ah() });
+        if (!r.ok) { box.innerHTML = ''; return; }
+        const rows = await r.json();
+        renderNumberAliases(empId, rows);
+    } catch { box.innerHTML = ''; }
+}
+
+function renderNumberAliases(empId, rows) {
+    const box = document.getElementById('empNumberAliases');
+    if (!box || String(box.dataset.emp) !== String(empId)) return;
+    const items = (rows || []).map(a => {
+        const bis = a.validTo ? ' (bis ' + formatDate(a.validTo) + ')' : '';
+        const src = a.source && a.source !== 'manual' ? ' · ' + escapeHtml(a.source) : '';
+        return `<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:1px 4px 1px 9px;font-size:11.5px;color:#475569">
+            ${escapeHtml(a.number)}<span style="color:#94a3b8">${bis}${src}</span>
+            <button onclick="deleteNumberAlias(${empId}, ${a.id})" title="Alte Nummer entfernen"
+                    style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:13px;line-height:1;padding:0 2px">×</button>
+        </span>`;
+    }).join(' ');
+    box.innerHTML = `<span style="font-size:11.5px;color:#94a3b8">Alte Nummern:</span> ${items || '<span style="color:#cbd5e1;font-size:11.5px">—</span>'}
+        <button onclick="addNumberAlias(${empId})" title="Alte Personalnummer hinzufügen"
+                style="border:1px dashed #cbd5e1;background:#fff;color:#64748b;border-radius:10px;padding:1px 8px;font-size:11.5px;cursor:pointer;margin-left:4px">+ Alte Nr.</button>`;
+}
+
+async function addNumberAlias(empId) {
+    const num = prompt('Alte Personalnummer hinzufügen:');
+    if (num === null) return;
+    const v = num.trim();
+    if (!v) return;
+    try {
+        const r = await fetch(`/api/employees/${empId}/number-aliases`, {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ number: v })
+        });
+        if (!r.ok) {
+            let m = 'Fehler beim Hinzufügen.';
+            try { const j = await r.json(); if (j.message) m = j.message; } catch {}
+            alert(m); return;
+        }
+        loadNumberAliases(empId);
+    } catch { alert('Verbindungsfehler.'); }
+}
+
+async function deleteNumberAlias(empId, aliasId) {
+    if (!confirm('Diese alte Nummer wirklich entfernen?')) return;
+    try {
+        const r = await fetch(`/api/employees/${empId}/number-aliases/${aliasId}`, { method: 'DELETE', headers: ah() });
+        if (!r.ok && r.status !== 204) { alert('Fehler beim Löschen.'); return; }
+        loadNumberAliases(empId);
+    } catch { alert('Verbindungsfehler.'); }
+}
+
 // ── Detail rendern ─────────────────────────────
 function renderEmployeeDetail(emp) {
     const panel = document.getElementById('empDetailPanel');
@@ -687,6 +746,7 @@ function renderEmployeeDetail(emp) {
                         </button>` : ''}
                     </div>
                     <div class="emp-detail-meta">${_t('ma.detail.persNr','Personal-Nr.')} ${nr} &nbsp;·&nbsp; ${_t('ma.detail.entryDate','Eintritt')}: ${entry} &nbsp;·&nbsp; ${headerStatusHtml}</div>
+                    <div id="empNumberAliases" data-emp="${emp.id}" style="margin-top:3px"></div>
                 </div>
             </div>
             <!-- Tab-spezifischer „+ Neu"-Button (Walter-Vorgabe 01.06.2026):

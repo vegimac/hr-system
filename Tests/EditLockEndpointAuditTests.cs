@@ -133,6 +133,8 @@ public class EditLockEndpointAuditTests
         ["EmployeeAddressesController"]            = "Adresse — gehört NICHT in den Lock (postalisch, Lohn-irrelevant)",
         ["EmployeeAccountController"]              = "MA-Postfach-Account — Login-Sachen, nicht Lohn",
         ["EmployeesController"]                    = "MA-Stammdaten (Name, Telefon, AHV-Nr) — gehört NICHT in Lock; lohnrelevante Felder sind in EmploymentsController",
+        ["EmployeeNumberAliasController"]          = "Alte Personalnummern (Identitäts-/Stammdaten) — gehört NICHT in Lock, kein Lohn-Datum",
+        ["EmployeeMergeController"]                = "Einmalige Duplikat-Bereinigung (admin) — Stammdaten-Zusammenführung, kein Lohn-Datum",
         ["ContractsController"]                    = "Arbeitsvertrags-PDF + Vertragstexte — read-only/Generation"
     };
 

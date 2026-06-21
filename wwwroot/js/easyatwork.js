@@ -1003,7 +1003,7 @@ function _eawEmpSyncRender(res, wasCommit) {
             <td>${cb}</td>
             <td>${pill}</td>
             <td>${escapeHtml((r.firstName||'') + ' ' + (r.lastName||''))} <span style="color:#94a3b8">(${escapeHtml(r.number||'-')})</span>
-                ${r.numberChangeFrom ? `<div style="font-size:11px;margin-top:2px;background:#fef9c3;border:1px solid #fde68a;color:#92400e;border-radius:5px;padding:2px 6px;display:inline-block">🔁 Personalnummer: <strong>${escapeHtml(r.numberChangeFrom)}</strong> → <strong>${escapeHtml(r.numberChangeTo||'')}</strong> <span style="color:#a16207">(alte Nr. → Alt1)</span></div>` : ''}
+                ${r.numberChangeFrom ? `<div style="font-size:11px;margin-top:2px;background:#fef9c3;border:1px solid #fde68a;color:#92400e;border-radius:5px;padding:2px 6px;display:inline-block">🔁 Personalnummer: <strong>${escapeHtml(r.numberChangeFrom)}</strong> → <strong>${escapeHtml(r.numberChangeTo||'')}</strong> <span style="color:#a16207">(alte Nr. → Alias)</span></div>` : ''}
                 ${r.matchedViaAltNumber ? `<div style="font-size:11px;color:#7c3aed">↪ gematcht über alte Nr. ${escapeHtml(r.matchedViaAltNumber)}</div>` : ''}
                 ${r.employmentInfo ? `<div style="font-size:11px;color:#475569">Employment: <strong>${escapeHtml(r.employmentInfo)}</strong>${r.assignedBranchName ? ' · Filiale: ' + escapeHtml(r.assignedBranchName) : ''}</div>` : ''}
             </td>

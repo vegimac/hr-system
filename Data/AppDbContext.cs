@@ -72,6 +72,7 @@ public class AppDbContext : DbContext
     public DbSet<EasyAtWorkSyncState>       EasyAtWorkSyncStates        => Set<EasyAtWorkSyncState>();
     public DbSet<EasyAtWorkEmployeeAlias>   EasyAtWorkEmployeeAliases   => Set<EasyAtWorkEmployeeAlias>();
     public DbSet<EasyAtWorkSyncLog>         EasyAtWorkSyncLogs          => Set<EasyAtWorkSyncLog>();
+    public DbSet<EmployeeNumberAlias>       EmployeeNumberAliases       => Set<EmployeeNumberAlias>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -81,8 +82,6 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeNumber).HasColumnName("employee_number");
-            entity.Property(e => e.EmployeeNumberAlt1).HasColumnName("employee_number_alt1");
-            entity.Property(e => e.EmployeeNumberAlt2).HasColumnName("employee_number_alt2");
             entity.Property(e => e.Salutation).HasColumnName("salutation");
             entity.Property(e => e.Gender).HasColumnName("gender");
             entity.Property(e => e.FirstName).HasColumnName("first_name");

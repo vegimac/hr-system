@@ -678,13 +678,23 @@ public class EasyAtWorkTimepunchSyncService
         // 3) MA-Pool (inkl. inaktive, Pre-2025-Austritte gefiltert) + Alias.
         var emps = await _db.Employees.AsNoTracking()
             .Where(e => !e.IsHidden)
-            .Select(e => new { e.Id, e.EmployeeNumber, e.EmployeeNumberAlt1, e.EmployeeNumberAlt2, e.FirstName, e.LastName })
+            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
             .ToListAsync(ct);
-        // Keys = aktuelle Personalnummer UND Alt-Nummern (Walter-Vorgabe 21.06.2026).
+        // Alte Personalnummern aus der Alias-Tabelle (Walter-Vorgabe 21.06.2026).
+        var aliasNumsByEmp = (await _db.EmployeeNumberAliases.AsNoTracking()
+                .Select(a => new { a.Number, a.EmployeeId }).ToListAsync(ct))
+            .GroupBy(a => a.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.Select(a => a.Number).ToList());
+        // Keys = aktuelle Personalnummer UND alle Alias-Nummern.
         var byNumber = emps
-            .SelectMany(e => new[] { e.EmployeeNumber, e.EmployeeNumberAlt1, e.EmployeeNumberAlt2 }
-                .Where(n => !string.IsNullOrWhiteSpace(n))
-                .Select(n => new { Key = n!.Trim(), Emp = e }))
+            .SelectMany(e =>
+            {
+                var keys = new List<string>();
+                if (!string.IsNullOrWhiteSpace(e.EmployeeNumber)) keys.Add(e.EmployeeNumber!.Trim());
+                if (aliasNumsByEmp.TryGetValue(e.Id, out var al))
+                    keys.AddRange(al.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!.Trim()));
+                return keys.Select(k => new { Key = k, Emp = e });
+            })
             .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().Emp, StringComparer.OrdinalIgnoreCase);
         var aliasMap = (await _db.EasyAtWorkEmployeeAliases.AsNoTracking()
@@ -901,24 +911,31 @@ public class EasyAtWorkTimepunchSyncService
             .Select(e => new {
                 e.Id,
                 e.EmployeeNumber,
-                e.EmployeeNumberAlt1,
-                e.EmployeeNumberAlt2,
                 e.FirstName,
                 e.LastName,
                 e.IsPayrollExcluded,
                 e.EasyAtWorkEmployeeId
             })
             .ToListAsync(ct);
+        // Alte Personalnummern aus der Alias-Tabelle (Walter-Vorgabe 21.06.2026).
+        var aliasNumsByEmp = (await _db.EmployeeNumberAliases.AsNoTracking()
+                .Select(a => new { a.Number, a.EmployeeId }).ToListAsync(ct))
+            .GroupBy(a => a.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.Select(a => a.Number).ToList());
         // GRUPPEN (nicht .First()): zu einer Nummer / easy@work-id können MEHRERE
         // Cowork-MA gehören (derselbe Mensch in mehreren Filialen abgelegt).
         // Die Lohn-MA-Auswahl (IsPayrollExcluded=false) passiert pro Stempel via
-        // ResolvePayrollSink. Walter-Vorgabe 21.06.2026.
-        // Keys = aktuelle Personalnummer UND Alt-Nummern (alt1/alt2), damit ein
-        // MA auch unter einer alten easy@work-Nummer gefunden wird.
+        // ResolvePayrollSink. Keys = aktuelle Personalnummer UND alle Alias-Nummern,
+        // damit ein MA auch unter einer alten Nummer gefunden wird.
         var byNumber = emps
-            .SelectMany(e => new[] { e.EmployeeNumber, e.EmployeeNumberAlt1, e.EmployeeNumberAlt2 }
-                .Where(n => !string.IsNullOrWhiteSpace(n))
-                .Select(n => new { Key = n!.Trim(), Emp = e }))
+            .SelectMany(e =>
+            {
+                var keys = new List<string>();
+                if (!string.IsNullOrWhiteSpace(e.EmployeeNumber)) keys.Add(e.EmployeeNumber!.Trim());
+                if (aliasNumsByEmp.TryGetValue(e.Id, out var al))
+                    keys.AddRange(al.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!.Trim()));
+                return keys.Select(k => new { Key = k, Emp = e });
+            })
             .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Select(x => x.Emp).ToList(), StringComparer.OrdinalIgnoreCase);
         // Cowork-MA per interner Id (für die Alias-Auflösung unten).
