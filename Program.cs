@@ -130,6 +130,8 @@ builder.Services.AddScoped<PregnancyPdfService>();
 builder.Services.AddScoped<LohnSaldoListePdfService>();
 // SECO-Formular „Eignung Schicht-/Nachtarbeit" vorausgefüllt (Walter 20.06.2026).
 builder.Services.AddScoped<NachtEignungPdfService>();
+// Verzicht auf medizinische Untersuchung Nachtarbeit (Beilage-Layout).
+builder.Services.AddScoped<NachtVerzichtPdfService>();
 // Fibu-Journal-Generator (Buchungsjournal aus den bestätigten Snapshots).
 builder.Services.AddScoped<FibuJournalService>();
 // Edit-Sperre während HR Lohnlauf prüft (Walter-Vorgabe 17.05.2026, Variante 2).

@@ -546,15 +546,21 @@ function _kontrolleExportCombiPdf() {
             th, td { border:1px solid #e2e8f0; padding:5px 7px; text-align:left; vertical-align:top }
             th { background:#fef2f2; color:#7f1d1d; font-weight:700; }
             tr:nth-child(even) td { background:#fafafa }
-            @media print { body { margin: 10mm } h2 { page-break-after:avoid } }
+            .toolbar { position:sticky; top:0; background:#fff; padding:8px 0 12px; margin-bottom:6px; border-bottom:1px solid #e2e8f0; display:flex; gap:8px; }
+            .toolbar button { font-size:13px; padding:7px 14px; border-radius:7px; cursor:pointer; border:1px solid #cbd5e1; background:#fff; color:#0f172a; font-weight:600; }
+            .toolbar button.primary { background:#2563eb; border-color:#2563eb; color:#fff; }
+            @media print { body { margin: 10mm } h2 { page-break-after:avoid } .noprint { display:none !important } }
         </style></head><body>
+        <div class="toolbar noprint">
+            <button onclick="window.close()">← Schliessen</button>
+            <button class="primary" onclick="window.print()">🖨 Drucken / PDF</button>
+        </div>
         <h1>⚠ Kontrolle — Lücken-Erkennung</h1>
         <div class="sub">Stand ${today}</div>
         ${empSection}
         ${spouseSection}
         ${permitSection}
         ${nachtSection}
-        <script>window.onload=()=>window.print();</script>
     </body></html>`;
     const w = window.open('', '_blank');
     if (!w) {

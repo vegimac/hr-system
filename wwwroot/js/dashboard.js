@@ -46,7 +46,12 @@ const DASH_SEVERITY_META = {
 // label (DE) wenn i18n.js noch nicht initialisiert ist.
 function dashMetaLabel(meta) {
     if (!meta) return '';
-    if (meta.i18nKey && window.i18n) return window.i18n.t(meta.i18nKey);
+    if (meta.i18nKey && window.i18n) {
+        const t = window.i18n.t(meta.i18nKey);
+        // Fehlt der Schlüssel im Dictionary, liefert t() den Key zurück →
+        // dann auf das DE-Label zurückfallen (sonst steht „DASH.CAT.X" da).
+        if (t && t !== meta.i18nKey) return t;
+    }
     return meta.label || '';
 }
 
@@ -240,7 +245,16 @@ function renderDashAlertRow(a) {
                     ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                     : a.category === 'schwangerschaft'
                         ? `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`
-                        : `onclick="dashOpenEmployee(${a.employeeId})"`)
+                        : a.category === 'permit_expiring'
+                            ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
+                            : a.category === 'contract_end'
+                                ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
+                                : (a.category === 'exit_pending_active'
+                                   || a.category === 'birthday'
+                                   || a.category === 'anniversary'
+                                   || a.category === 'night_work_exam_fehlt')
+                                    ? `onclick="dashOpenEmployee(${a.employeeId}, 'personal')"`
+                                    : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
     const cursor = onClick ? 'cursor:pointer' : '';
     return `<div ${onClick} style="background:${sev.bg};border:1px solid ${sev.border};border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:14px;${cursor};transition:transform .08s">
@@ -258,12 +272,20 @@ function renderDashAlertRow(a) {
 function dashOpenEmployee(employeeId, subTab) {
     if (!employeeId) return;
     window.activeEmpId = employeeId;
+    // Ziel-Tab VOR dem Rendern vorgeben, damit das Detail direkt auf dem
+    // richtigen Tab öffnet (kein nachträglicher Wechsel → kein Flackern).
+    if (subTab) { try { activeEmpTab = subTab; } catch (_) {} }
     showPage('mitarbeiter');
-    // Liste lädt async; sobald geladen, MA selektieren + ggf. Sub-Tab wechseln
     setTimeout(() => {
-        if (typeof selectEmployee === 'function') selectEmployee(employeeId);
-        if (subTab && typeof switchEmpTab === 'function') {
-            setTimeout(() => switchEmpTab(subTab), 250);
+        const alreadySel = (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId === employeeId);
+        if (!alreadySel && typeof selectEmployee === 'function') {
+            // Rendert das Detail einmalig — und zwar auf activeEmpTab (= subTab).
+            selectEmployee(employeeId);
+        } else if (subTab && typeof switchEmpTab === 'function') {
+            // MA schon selektiert → nur wechseln, wenn der sichtbare Tab abweicht.
+            const curEl = document.querySelector('.emp-tab.active');
+            const cur = curEl ? curEl.getAttribute('data-tab') : null;
+            if (cur !== subTab) switchEmpTab(subTab);
         }
     }, 350);
 }
@@ -271,13 +293,23 @@ function dashOpenEmployee(employeeId, subTab) {
 // Spezial-Sprung für QST-Pflicht-Lücken (Walter 26.05.2026): direkt in den
 // Quellensteuer-Tab, wo die Schnell-Buttons sind.
 function dashOpenEmployeeQst(employeeId) { dashOpenEmployee(employeeId, 'quellensteuer'); }
-function dashOpenEmployeePregnancy(employeeId) { dashOpenEmployee(employeeId, 'mutterschaft'); }
+function dashOpenEmployeePregnancy(employeeId) { dashOpenEmployee(employeeId, 'familie'); }
 // Walter-Vorgabe 12.06.2026: Sprung in den Familie-Tab, wo der Ehegatten-
 // Ausweis via Variante-C-Upload hochgeladen werden kann.
 function dashOpenEmployeeFamilie(employeeId) { dashOpenEmployee(employeeId, 'familie'); }
 // Walter-Vorgabe 13.06.2026: Sprung in den Dokumente-Tab, wo ID/Pass (CH-
 // Bürger) oder Bewilligung (C-Ausweis) für den MA hochgeladen werden kann.
 function dashOpenEmployeeDokumente(employeeId) { dashOpenEmployee(employeeId, 'dokumente'); }
+// Walter-Vorgabe 20.06.2026: „Vertrag läuft aus" springt in die Verträge-Seite
+// des MA (eigene Seite, kein MA-Tab) und selektiert dort den Mitarbeiter.
+function dashOpenEmployeeVertrag(employeeId) {
+    if (!employeeId) return;
+    window.activeEmpId = employeeId;
+    showPage('vertraege');
+    setTimeout(() => {
+        if (typeof selectVtEmployee === 'function') selectVtEmployee(employeeId);
+    }, 350);
+}
 
 function dashOpenLohnlauf() { showPage('lohnlauf'); }
 

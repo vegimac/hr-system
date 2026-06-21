@@ -781,10 +781,16 @@ public class DashboardService
             var nwExam = await _db.Employees.AsNoTracking()
                 .Where(e => maIds.Contains(e.Id))
                 .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
-                                   e.NightWorkExamValidUntil, e.NightWorkExamDokumentId })
+                                   e.NightWorkExamValidUntil, e.NightWorkExamDokumentId, e.ExitDate })
                 .ToListAsync();
+            // Walter-Vorgabe 20.06.2026: MA, die innerhalb der nächsten 30 Tage
+            // austreten, NICHT mehr melden — für die lohnt die 2-Jahres-
+            // Untersuchung nicht mehr. (Kein Austrittsdatum = bleibt → melden.)
+            var nwExitCutoff = today.AddDays(30);
             foreach (var emp in nwExam)
             {
+                if (emp.ExitDate.HasValue
+                    && DateOnly.FromDateTime(emp.ExitDate.Value) <= nwExitCutoff) continue;
                 if (!nightsByEmp.TryGetValue(emp.Id, out var nights) || nights == 0) continue;
                 int months = monthsByEmp.TryGetValue(emp.Id, out var m) ? m : 0;
                 int projected = months >= 12 ? nights : months > 0 ? (int)Math.Round((double)nights * 12 / months) : 0;
@@ -808,6 +814,34 @@ public class DashboardService
                     EmployeeNumber = emp.EmployeeNumber,
                     EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
                 });
+            }
+        }
+
+        // ── Globale Austritts-Bedingung (Walter-Vorgabe 21.06.2026) ──
+        // Dieselbe Regel wie bei der Nachtarbeit-Untersuchung auf ALLE
+        // MA-bezogenen Warnungen anwenden: MA, deren Austritt ≤ heute + 30 Tage
+        // liegt, werden nicht mehr gemeldet (MA ohne Austrittsdatum bleiben).
+        // AUSNAHME: die Karten, die GENAU vom Austritt/Vertragsende handeln —
+        // die sollen ja gerade erscheinen.
+        {
+            var keepCats = new HashSet<string> { "contract_end", "exit_pending_active" };
+            var filterIds = alerts
+                .Where(a => a.EmployeeId.HasValue && !keepCats.Contains(a.Category))
+                .Select(a => a.EmployeeId!.Value).Distinct().ToList();
+            if (filterIds.Count > 0)
+            {
+                var cutoff = today.AddDays(30);
+                var exits = await _db.Employees.AsNoTracking()
+                    .Where(e => filterIds.Contains(e.Id) && e.ExitDate != null)
+                    .Select(e => new { e.Id, e.ExitDate })
+                    .ToListAsync();
+                var soonLeavers = exits
+                    .Where(x => DateOnly.FromDateTime(x.ExitDate!.Value) <= cutoff)
+                    .Select(x => x.Id).ToHashSet();
+                if (soonLeavers.Count > 0)
+                    alerts.RemoveAll(a => a.EmployeeId.HasValue
+                                       && !keepCats.Contains(a.Category)
+                                       && soonLeavers.Contains(a.EmployeeId.Value));
             }
         }
 

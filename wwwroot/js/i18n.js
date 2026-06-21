@@ -193,7 +193,7 @@ window.i18n = (function () {
 
         // Sub-Tabs
         'ma.tab.personal':           { de: 'Persönliche Angaben',          en: 'Personal data' },
-        'ma.tab.family':             { de: 'Familie',                      en: 'Family' },
+        'ma.tab.family':             { de: 'Familie<br>Schwanger',         en: 'Family<br>Maternity' },
         'ma.tab.bank':               { de: 'Bank',                         en: 'Bank' },
         'ma.tab.qst':                { de: 'Quellensteuer',                en: 'Withholding tax' },
         'ma.tab.timeRecords':        { de: 'Stempelzeiten',                en: 'Time records' },

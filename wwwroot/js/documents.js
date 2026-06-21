@@ -231,8 +231,13 @@ function renderDokumenteUi() {
     //     wird in employees.js switchEmpTab('dokumente') gesetzt.
     panel.innerHTML = `
     <div class="dok-toolbar">
-        <input type="text" class="dok-search" placeholder="${tt('docs.search','Suchen…')}"
-               value="${search}" oninput="dokSetSearch(this.value)" style="flex:1">
+        <div style="flex:1;display:flex;gap:6px;align-items:stretch">
+            <input id="dokSearchInput" type="text" class="dok-search" placeholder="${tt('docs.search','Suchen…')}"
+                   value="${esc(search)}" oninput="dokSetSearch(this.value)"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();dokRunSearchNow();}" style="flex:1">
+            <button onclick="dokRunSearchNow()" title="${tt('docs.search','Suchen…')}"
+                    style="flex-shrink:0;background:#2563eb;border:1px solid #2563eb;color:#fff;border-radius:7px;padding:0 14px;cursor:pointer;font-size:15px;display:inline-flex;align-items:center;justify-content:center">🔍</button>
+        </div>
     </div>
     <div class="dok-layout">
         <div class="dok-tree">${treeHtml}</div>
@@ -518,9 +523,32 @@ function dokSelectType(typId, kategorieId) {
     if (kategorieId) _dokState.expandedCats.add(kategorieId);
     renderDokumenteUi();
 }
+// Suche (Walter-Vorgabe 21.06.2026): flüssig tippen. Bei jedem Tastendruck
+// nur den State setzen + entprellt (250 ms) neu rendern — NICHT sofort, sonst
+// wird das Suchfeld bei jedem Buchstaben neu aufgebaut und verliert den Fokus.
+// Nach dem Render Fokus + Cursor ans Ende zurücksetzen. Enter / Lupe lösen
+// sofort aus.
+let _dokSearchTimer = null;
 function dokSetSearch(val) {
     _dokState.search = val;
+    if (_dokSearchTimer) clearTimeout(_dokSearchTimer);
+    _dokSearchTimer = setTimeout(() => {
+        _dokSearchTimer = null;
+        renderDokumenteUi();
+        _dokRestoreSearchFocus();
+    }, 250);
+}
+function dokRunSearchNow() {
+    if (_dokSearchTimer) { clearTimeout(_dokSearchTimer); _dokSearchTimer = null; }
     renderDokumenteUi();
+    _dokRestoreSearchFocus();
+}
+function _dokRestoreSearchFocus() {
+    const el = document.getElementById('dokSearchInput');
+    if (!el) return;
+    el.focus();
+    const v = el.value;
+    try { el.setSelectionRange(v.length, v.length); } catch (_) {}
 }
 
 function dokPreview(id) {

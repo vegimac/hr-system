@@ -73,7 +73,7 @@ public class NachtEignungPdfService
             var canvas = new PdfCanvas(page);
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
 
-            void Text(string? s, float x, float y, float size = 9f)
+            void Text(string? s, float x, float y, float size = 11.5f)
             {
                 if (string.IsNullOrWhiteSpace(s)) return;
                 canvas.SaveState();
@@ -89,21 +89,21 @@ public class NachtEignungPdfService
             // ── Betrieb-Box (rechts oben). Koordinaten in pt von unten-links;
             //    A4 = 595.32 × 841.92. Iterativ justierbar. ──
             float bx = 316f;
-            Text(d.BetriebName,    bx, 585f);
-            Text(d.BetriebStrasse, bx, 573f);
-            Text(d.BetriebPlzOrt,  bx, 561f);
-            Text(d.BetriebTelefon, bx, 549f);
+            Text(d.BetriebName,    bx, 594f);
+            Text(d.BetriebStrasse, bx, 580f);
+            Text(d.BetriebPlzOrt,  bx, 566f);
+            Text(d.BetriebTelefon, bx, 552f);
 
             // ── Untersuchte Person ──
-            // Zeile 1: Name | Vorname | Geburtsdatum (rechts neben den Labels)
-            Text(d.Nachname,     150f, 495f);
-            Text(d.Vorname,      300f, 495f);
-            Text(d.Geburtsdatum, 480f, 495f);
-            // Zeile 2: Adresse (Strasse, dann PLZ/Ort dahinter)
+            // Zeile 1: Name | Vorname | Geburtsdatum — auf der Label-Grundlinie.
+            Text(d.Nachname,     101f, 500f);
+            Text(d.Vorname,      279f, 500f);
+            Text(d.Geburtsdatum, 464f, 500f);
+            // Zeile 2: Adresse (Strasse, dann PLZ/Ort) — auf der Adresse-Grundlinie.
             var adresse = string.Join(", ",
                 new[] { d.PersonStrasse, d.PersonPlzOrt }
                     .Where(s => !string.IsNullOrWhiteSpace(s)));
-            Text(adresse, 150f, 478f);
+            Text(adresse, 113f, 483f);
         }
         return ms.ToArray();
     }

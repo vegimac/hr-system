@@ -719,12 +719,12 @@ function renderEmployeeDetail(emp) {
         </div>
         <div class="emp-detail-tabs">
             <div class="emp-tab active" data-tab="personal"   onclick="switchEmpTab('personal')">${_t('ma.tab.personal','Persönliche Angaben')}</div>
-            <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')">${_t('ma.tab.family','Familie')}</div>
+            <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')" style="line-height:1.2;text-align:center">${_t('ma.tab.family','Familie<br>Schwanger')}</div>
             <div class="emp-tab"        data-tab="bank"       onclick="switchEmpTab('bank')">${_t('ma.tab.bank','Bank')}</div>
-            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')">${_t('ma.tab.permitQst','Bewilligung / QST')}</div>
+            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung<br>QST')}</div>
             <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
             <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')">${_t('ma.tab.absencesOnly','Absenzen')}</div>
-            <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen<br>Abzüge')}</div>
+            <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen Abzüge<br>Abtretung BVG')}</div>
             <div class="emp-tab"        data-tab="ktg"        onclick="switchEmpTab('ktg')">${_t('ma.tab.ktg','KTG/UVG')}</div>
             <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')">${_t('ma.tab.docs','Dokumente')}</div>
         </div>
@@ -772,10 +772,10 @@ function renderEmployeeDetail(emp) {
                 ${field(_t('ma.field.email','E-Mail'),            emp.email)}
             </div>
 
-            <div class="emp-section-title">Anstellung</div>
+            <div class="emp-section-title" style="margin-top:2px">Anstellung</div>
             <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
                  die zwei Booleans (LGAV + <8h) rechts schmaler. -->
-            <div class="emp-field-grid" style="display:grid;grid-template-columns:0.75fr 0.75fr 0.65fr 0.5fr 0.55fr 2.6fr;gap:12px">
+            <div class="emp-field-grid" style="display:grid;grid-template-columns:0.9fr 0.9fr 0.8fr 0.7fr 0.75fr;gap:12px">
                 ${field('Eintrittsdatum', emp.entryDate ? formatDate(emp.entryDate) : null)}
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null)}
                 ${(() => {
@@ -800,21 +800,25 @@ function renderEmployeeDetail(emp) {
                         ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ keine NBU</span>`
                         : `<span style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">nein</span>`}</div>
                 </div>
-                <!-- Nachtarbeit-Untersuchung (Walter-Vorgabe 20.06.2026, ArG): Ausstellungsdatum eingeben, gültig bis = +2 J. -->
-                <div class="emp-field">
-                    <div class="emp-field-label">Nachtarbeit ausgestellt</div>
-                    <div class="emp-field-value" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;white-space:nowrap">
-                        <input type="date" value="${emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : ''}"
-                               onchange="saveNightExamDate(${emp.id}, this.value)" onblur="saveNightExamDate(${emp.id}, this.value)"
-                               title="Ausstellungsdatum des Arztzeugnisses / Verzichts"
-                               style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
-                        <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
-                        ${emp.nightWorkExamDokumentId
-                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Dokument öffnen" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 9px;cursor:pointer;color:#15803d;font-size:11.5px;font-weight:600">📄</button>
-                               <button onclick="openAusweisDokuModal(${emp.id},'night_work_exam')" title="Anderes Dokument verknüpfen / hochladen" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:11.5px;font-weight:600">↻</button>`
-                            : `<button onclick="openAusweisDokuModal(${emp.id},'night_work_exam')" title="Arztzeugnis oder Verzichtserklärung verknüpfen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 9px;cursor:pointer;color:#475569;font-size:11.5px;font-weight:600">📎 verknüpfen</button>`}
-                        <button onclick="openNachtEignungPdf(${emp.id})" title="SECO-Formular „Eignung Schicht-/Nachtarbeit" vorausgefüllt zum Abgeben an den MA" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:4px 9px;cursor:pointer;color:#1d4ed8;font-size:11.5px;font-weight:600;margin-left:6px">📄 SECO-Formular</button>
-                    </div>
+            </div>
+
+            <!-- Nachtarbeit-Untersuchung als EIGENE Zeile unter Anstellung
+                 (Walter-Vorgabe 20.06.2026, ArG) — aus dem Anstellungs-Raster raus. -->
+            <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 2px 2px">
+                <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
+                <input type="date" value="${emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : ''}"
+                       onchange="saveNightExamDate(${emp.id}, this.value)" onblur="saveNightExamDate(${emp.id}, this.value)"
+                       title="Ausstellungsdatum des Arztzeugnisses / Verzichts"
+                       style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
+                <div style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    ${emp.nightWorkExamDokumentId
+                        ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Dokument öffnen" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 9px;cursor:pointer;color:#15803d;font-size:11.5px;font-weight:600">📄</button>
+                           <button onclick="openAusweisDokuModal(${emp.id},'night_work_exam')" title="Anderes Dokument verknüpfen / hochladen" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:11.5px;font-weight:600">↻</button>`
+                        : `<button onclick="openAusweisDokuModal(${emp.id},'night_work_exam')" title="Arztzeugnis oder Verzichtserklärung verknüpfen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 9px;cursor:pointer;color:#475569;font-size:11.5px;font-weight:600">📎 verknüpfen</button>`}
+                    <button onclick="openNachtEignungPdf(${emp.id})" title="SECO-Formular „Eignung Schicht-/Nachtarbeit" vorausgefüllt zum Abgeben an den MA" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:4px 9px;cursor:pointer;color:#1d4ed8;font-size:11.5px;font-weight:600">📄 SECO-Formular</button>
+                    <button onclick="openNachtVerzichtPdf(${emp.id})" title="Verzichtserklärung medizinische Untersuchung Nachtarbeit (vorausgefüllt)" style="background:#fefce8;border:1px solid #fde68a;border-radius:6px;padding:4px 9px;cursor:pointer;color:#92400e;font-size:11.5px;font-weight:600">📄 Verzicht</button>
                 </div>
             </div>
 
@@ -829,48 +833,14 @@ function renderEmployeeDetail(emp) {
                 <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.desc','Phantom-MA für easy@work-Zugang. Bewilligung, Bankverbindung, Zusatzadressen und persönliches Postfach werden nicht angezeigt — dieser MA hat keinen Vertrag, keine Lohnzahlung und nutzt das Postfach der Geschäftsführung/HR.')}
             </div>
             ` : `
-            ${((emp.nationalityCode || emp.nationality || '').toUpperCase() !== 'CH') ? `
-            <!-- Walter-Vorgabe 07.06.2026: kompakte Info-Zeile mit der neuesten
-                 Bewilligung. Pflege + Verlauf passieren im Tab Bewilligung/QST.
-                 Linkbutton springt direkt dorthin. Doku-Button greift auf die
-                 verknüpften Bewilligungs-Dokumente (linked_field_code='permit'). -->
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                <span>${_t('ma.section.permit','Aufenthalt')}</span>
-                <button class="btn-emp-add" onclick="switchEmpTab('quellensteuer')" style="background:#f1f5f9;color:#475569;border-color:#cbd5e1">
-                    ${_t('ma.btn.gotoPermitTab','→ Bewilligungen pflegen')}
-                </button>
-            </div>
-            <!-- Walter-Vorgabe 14.06.2026: 📎-Doku-Button direkt auf der
-                 aktuellen Bewilligungs-Karte (statt nur am Section-Header).
-                 Verknüpft das Dokument an die jüngste Permit-History (FK
-                 employee_permit_history.dokument_id). Wenn kein Permit-
-                 Eintrag existiert → kein Button (es gibt nichts zu verknüpfen). -->
-            <div style="padding:10px 14px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa;font-size:13px;color:#475569;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-                ${emp.permitType
-                    ? `<div><span style="color:#94a3b8;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px">Aktuelle Bewilligung</span><div style="font-weight:600;color:#1e293b">${emp.permitType.code}${emp.permitType.description ? ' — ' + esc(emp.permitType.description) : ''}</div></div>`
-                    : `<div style="color:#94a3b8;font-style:italic">Keine Bewilligung erfasst</div>`}
-                ${emp.permitExpiryDate
-                    ? `<div><span style="color:#94a3b8;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px">Gültig bis</span><div style="font-weight:600;color:#1e293b">${formatDate(emp.permitExpiryDate)}</div></div>`
-                    : ''}
-                ${emp.currentPermitHistoryId
-                    ? (emp.currentPermitDokumentId
-                        ? `<button type="button" onclick="permitOpenDokuModal(${emp.currentPermitHistoryId})"
-                               style="margin-left:auto;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px"
-                               title="${esc(emp.currentPermitDokumentName || '')}">
-                               📎 Doku
-                           </button>`
-                        : `<button type="button" onclick="permitOpenDokuModal(${emp.currentPermitHistoryId})"
-                               style="margin-left:auto;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">
-                               🔗 Doku verknüpfen
-                           </button>`)
-                    : ''}
-            </div>
-            ` : ''}
+            <!-- Aufenthalt/Bewilligung-Block hier entfernt (Walter-Vorgabe 20.06.2026):
+                 war doppelt — Anzeige + Pflege der Bewilligung laufen ausschliesslich
+                 im Tab „Bewilligung / QST". -->
 
             <!-- Bankverbindung + Postfach-Zugang sind in den eigenen Tab
                  „Bank & Postfach" gewandert (Walter-Vorgabe 14.05.2026) —
                  hier im Personal-Tab nur noch Aufenthalt + Weitere Adressen. -->
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">
                 <span>${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
                 <button class="btn-emp-add" onclick="openEmployeeAddressModal(null)">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1736,6 +1706,28 @@ async function openNachtEignungPdf(empId) {
         const cd = res.headers.get('Content-Disposition') || '';
         const m = cd.match(/filename="?([^"]+)"?/);
         const filename = m ? m[1] : `Nachtarbeit_Eignung_${empId}.pdf`;
+        if (typeof previewFileModal === 'function') previewFileModal(blob, filename);
+        else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, filename);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// Verzichtserklärung Nachtarbeit (Beilage-Layout, gelber Kopf) holen + Vorschau.
+async function openNachtVerzichtPdf(empId) {
+    if (!empId) return;
+    try {
+        const res = await fetch(`/api/nacht-eignung/${empId}/verzicht-pdf`, { headers: ah() });
+        if (!res.ok) {
+            let msg = `Fehler (${res.status})`;
+            try { const j = await res.json(); if (j?.message) msg = j.message; } catch (_) {}
+            alert('Formular konnte nicht erstellt werden.\n' + msg);
+            return;
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const m = cd.match(/filename="?([^"]+)"?/);
+        const filename = m ? m[1] : `Nachtarbeit_Verzicht_${empId}.pdf`;
         if (typeof previewFileModal === 'function') previewFileModal(blob, filename);
         else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, filename);
     } catch (e) {
@@ -3620,7 +3612,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     </div>
     <div id="ef-plz-hint" style="font-size:12px;margin-top:-6px;margin-bottom:6px"></div>
 
-    <div class="emp-section-title">${_t('ma.section.anstellung','Anstellung')}</div>
+    <div class="emp-section-title" style="margin-top:2px">${_t('ma.section.anstellung','Anstellung')}</div>
     <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile.
          Eintritt/Austritt/Aktiv links, die zwei Booleans (L-GAV / <8 h)
          rechts schmaler. -->
@@ -3674,44 +3666,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
         <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.editDesc','Phantom-MA für easy@work-Zugang. Bewilligung und Zusatzadressen werden hier nicht angeboten, da dieser MA keinen Vertrag und keine Lohnzahlung hat. Über die Checkbox „Kein Lohn" unten kann die Markierung wieder aufgehoben werden.')}
     </div>
-    ` : (((emp.nationalityCode || emp.nationality || '').toUpperCase() !== 'CH') ? `
-    <!-- Walter-Vorgabe 07.06.2026: kompakte Info-Zeile mit der neuesten
-         Bewilligung. Pflege passiert ausschliesslich im Tab Bewilligung/QST.
-         Doku-Button greift auf die verknüpften Bewilligungs-Dokumente. -->
-    ${(() => {
-        const hasDoc = window._linkedDocCodes && window._linkedDocCodes.has('permit');
-        const docBtn = `<button type="button" title="${hasDoc ? 'Verknüpftes Bewilligungs-Dokument öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen'}"
-                               onclick="openLinkedDoc('permit')"
-                               style="background:${hasDoc ? '#dbeafe' : '#f1f5f9'};border:1px solid ${hasDoc ? '#93c5fd' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${hasDoc ? '#1d4ed8' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
-                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                               <polyline points="14 2 14 8 20 8"/>
-                               <line x1="16" y1="13" x2="8" y2="13"/>
-                               <line x1="16" y1="17" x2="8" y2="17"/>
-                               <line x1="10" y1="9" x2="8" y2="9"/>
-                           </svg>
-                           <span>Doku</span>
-                       </button>`;
-        return `
-        <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-            <span style="display:inline-flex;align-items:center;gap:8px">
-                ${_t('ma.section.permit','Aufenthalt')}
-                ${docBtn}
-            </span>
-            <button type="button" class="btn-emp-add" onclick="switchEmpTab('quellensteuer')" style="background:#f1f5f9;color:#475569;border-color:#cbd5e1">
-                ${_t('ma.btn.gotoPermitTab','→ Bewilligungen pflegen')}
-            </button>
-        </div>`;
-    })()}
-    <div style="padding:10px 14px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa;font-size:13px;color:#475569;display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px">
-        ${emp.permitType
-            ? `<div><span style="color:#94a3b8;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px">Aktuelle Bewilligung</span><div style="font-weight:600;color:#1e293b">${emp.permitType.code}${emp.permitType.description ? ' — ' + esc(emp.permitType.description) : ''}</div></div>`
-            : `<div style="color:#94a3b8;font-style:italic">Keine Bewilligung erfasst</div>`}
-        ${emp.permitExpiryDate
-            ? `<div><span style="color:#94a3b8;font-size:11.5px;text-transform:uppercase;letter-spacing:0.4px">Gültig bis</span><div style="font-weight:600;color:#1e293b">${formatDate(emp.permitExpiryDate)}</div></div>`
-            : ''}
-    </div>
-    ` : '')}
+    ` : ''}
 
     <!-- Arbeitsverhältnis-Sektion (Eintritt, Modell, Pensum, Stundenlohn) wurde
          entfernt — wird im Verträge-Tab gepflegt. Eintrittsdatum + Personal-Nr.
@@ -3734,7 +3689,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     </div>` : ''}
 
     ${!emp.isPayrollExcluded ? `
-    <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+    <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">
         <span>${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
         <button type="button" class="btn-emp-add" onclick="openEmployeeAddressModal(null)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -6647,50 +6602,14 @@ async function loadStempelzeitenTab(employeeId) {
         return;
     }
 
-    // Lohnperioden der aktuellen Filiale laden
-    const cid = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : null;
-    let perioden = [];
-    if (cid) {
-        try {
-            const res = await fetch(`/api/payroll-perioden?companyProfileId=${cid}`,
-                { headers: { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` } });
-            perioden = res.ok ? await res.json() : [];
-        } catch { perioden = []; }
-    }
-    el._stempelPerioden = perioden;
+    // Walter-Vorgabe 21.06.2026: Stempelzeiten IMMER nach KALENDERMONAT
+    // (nicht mehr nach Lohnperiode). Links Jahr (ab 2025), rechts Monat (1–12);
+    // Vorgabe = aktueller Monat. Auswahl persistiert über MA-Wechsel via
+    // _stempelGlobalYear/_stempelGlobalMonth.
+    el._stempelPerioden  = [];
+    el._stempelPeriodeId = null;
 
-    // ── Default: aktuelle Lohnperiode (die heute enthält) ─────────────
-    // Statt "neueste Periode" (= zukünftige Perioden zuerst) nehmen wir
-    // die Periode, die heute enthält. Das ist die "lebende" Periode für
-    // die der User aktuell stempelt.
-    // Persistenz über MA-Wechsel: globale Variable _stempelGlobalPeriodeId
-    if (!el._stempelPeriodeId && perioden.length > 0) {
-        // 1. Falls global ein Wert gesetzt UND in dieser Liste vorhanden → übernehmen
-        if (typeof _stempelGlobalPeriodeId !== 'undefined' && _stempelGlobalPeriodeId
-            && perioden.some(p => p.id === _stempelGlobalPeriodeId)) {
-            el._stempelPeriodeId = _stempelGlobalPeriodeId;
-        } else {
-            // 2. Periode finden, die heute enthält
-            const today = new Date().toISOString().slice(0, 10); // "yyyy-mm-dd"
-            const cur = perioden.find(p => {
-                const from = (p.periodFrom || '').slice(0, 10);
-                const to   = (p.periodTo   || '').slice(0, 10);
-                return from && to && from <= today && today <= to;
-            });
-            if (cur) {
-                el._stempelPeriodeId = cur.id;
-            } else {
-                // 3. Fallback: jüngste Periode die NICHT in der Zukunft liegt
-                const past = perioden.filter(p => (p.periodFrom || '').slice(0, 10) <= today);
-                el._stempelPeriodeId = (past[0] || perioden[0]).id;
-            }
-        }
-    }
-
-    // Fallback: wenn keine Perioden existieren, nutze Kalendermonat
-    const useKalender = perioden.length === 0;
-    if (useKalender && (!el._stempelYear || !el._stempelMonth)) {
-        // Globale Persistenz für Kalender-Modus
+    if (!el._stempelYear || !el._stempelMonth) {
         if (typeof _stempelGlobalYear !== 'undefined' && _stempelGlobalYear) {
             el._stempelYear  = _stempelGlobalYear;
             el._stempelMonth = _stempelGlobalMonth;
@@ -6701,28 +6620,16 @@ async function loadStempelzeitenTab(employeeId) {
         }
     }
 
-    let filterHtml;
-    if (useKalender) {
-        const jahre = [];
-        const curY  = new Date().getFullYear();
-        for (let y = curY - 3; y <= curY + 1; y++) jahre.push(y);
-        const monthOpts = MONATSNAMEN_DE.map((n, i) => `
-            <option value="${i+1}" ${i+1 === el._stempelMonth ? 'selected' : ''}>${n}</option>`).join('');
-        const yearOpts = jahre.map(y => `
-            <option value="${y}" ${y === el._stempelYear ? 'selected' : ''}>${y}</option>`).join('');
-        filterHtml = `
-            <select id="stempelMonthSel" class="f-input" style="width:140px;font-size:13px" onchange="stempelChangePeriod()">${monthOpts}</select>
-            <select id="stempelYearSel" class="f-input" style="width:90px;font-size:13px" onchange="stempelChangePeriod()">${yearOpts}</select>
-            <span style="font-size:11px;color:#94a3b8">(keine Lohnperioden definiert)</span>`;
-    } else {
-        const opts = perioden.map(p => `
-            <option value="${p.id}" ${p.id === el._stempelPeriodeId ? 'selected' : ''}>
-                ${p.label || MONATSNAMEN_DE[p.month-1] + ' ' + p.year} · ${stempelFmtDateShort(p.periodFrom)} – ${stempelFmtDateShort(p.periodTo)}
-            </option>`).join('');
-        // Walter 17.06.2026: Select schmal (380px) damit Count rechts daneben Platz hat.
-        filterHtml = `
-            <select id="stempelPeriodeSel" class="f-input" style="width:380px;font-size:13px" onchange="stempelChangePeriod()">${opts}</select>`;
-    }
+    const curY = new Date().getFullYear();
+    const jahre = [];
+    for (let y = 2025; y <= curY + 1; y++) jahre.push(y);
+    const yearOpts = jahre.map(y => `
+        <option value="${y}" ${y === el._stempelYear ? 'selected' : ''}>${y}</option>`).join('');
+    const monthOpts = MONATSNAMEN_DE.map((n, i) => `
+        <option value="${i+1}" ${i+1 === el._stempelMonth ? 'selected' : ''}>${n}</option>`).join('');
+    const filterHtml = `
+        <select id="stempelYearSel" class="f-input" style="width:90px;font-size:13px" onchange="stempelChangePeriod()">${yearOpts}</select>
+        <select id="stempelMonthSel" class="f-input" style="width:150px;font-size:13px" onchange="stempelChangePeriod()">${monthOpts}</select>`;
 
     // Walter 17.06.2026: nur die Zeiteinträge scrollen — Filter + Tabellen-Header
     // bleiben oben kleben. Realisiert über sticky relativ zum .emp-detail-body
@@ -7084,9 +6991,8 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
 
     const empty = sorted.length === 0
         ? `<tr><td colspan="7" style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">
-            Keine Einträge in dieser Periode.
+            Keine Einträge
             <div id="stempelQuickNav" style="margin-top:12px"></div>
-            <div style="margin-top:10px;font-size:12px">Stempelzeiten werden in easy@work erfasst und über „easy@work API → Stempelzeiten-Sync" importiert.</div>
         </td></tr>`
         : '';
 
