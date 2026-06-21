@@ -24,6 +24,17 @@ public class EmployeeTimeEntry
     /// </summary>
     public int? EasyAtWorkTimepunchId { get; set; }
 
+    /// <summary>
+    /// Herkunft (Walter-Vorgabe 21.06.2026): in welchem easy@work-Customer
+    /// (= Filiale) wurde gestempelt. Wichtig, weil ein MA der in mehreren
+    /// Filialen stempelt seine Stempel ALLE auf seinen einen Lohn-MA
+    /// (IsPayrollExcluded=false) gespeichert bekommt — die Herkunftsfiliale
+    /// bleibt so nachvollziehbar. Lohnberechnung liest weiter nur nach EmployeeId.
+    /// </summary>
+    public int? EasyAtWorkCustomerId { get; set; }
+    /// <summary>Herkunftsfiliale als Cowork-CompanyProfile (optional, sofern auflösbar).</summary>
+    public int? SourceCompanyProfileId { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

@@ -803,22 +803,36 @@ function renderEmployeeDetail(emp) {
             </div>
 
             <!-- Nachtarbeit-Untersuchung als EIGENE Zeile unter Anstellung
-                 (Walter-Vorgabe 20.06.2026, ArG) — aus dem Anstellungs-Raster raus. -->
+                 (Walter-Vorgabe 20.06.2026, ArG). Read-only Anzeige + ⋮-Menü
+                 (Walter 21.06.2026) — nicht mehr dauerhaft im Editiermodus. -->
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 2px 2px">
-                <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
-                <input type="date" value="${emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : ''}"
-                       onchange="saveNightExamDate(${emp.id}, this.value)" onblur="saveNightExamDate(${emp.id}, this.value)"
-                       title="Ausstellungsdatum des Arztzeugnisses / Verzichts"
-                       style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
-                <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
-                <div style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    ${emp.nightWorkExamDokumentId
-                        ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Dokument öffnen" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 9px;cursor:pointer;color:#15803d;font-size:11.5px;font-weight:600">📄</button>
-                           <button onclick="openAusweisDokuModal(${emp.id},'night_work_exam')" title="Anderes Dokument verknüpfen / hochladen" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#64748b;font-size:11.5px;font-weight:600">↻</button>`
-                        : `<button onclick="openAusweisDokuModal(${emp.id},'night_work_exam')" title="Arztzeugnis oder Verzichtserklärung verknüpfen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 9px;cursor:pointer;color:#475569;font-size:11.5px;font-weight:600">📎 verknüpfen</button>`}
-                    <button onclick="openNachtEignungPdf(${emp.id})" title="SECO-Formular „Eignung Schicht-/Nachtarbeit" vorausgefüllt zum Abgeben an den MA" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:4px 9px;cursor:pointer;color:#1d4ed8;font-size:11.5px;font-weight:600">📄 SECO-Formular</button>
-                    <button onclick="openNachtVerzichtPdf(${emp.id})" title="Verzichtserklärung medizinische Untersuchung Nachtarbeit (vorausgefüllt)" style="background:#fefce8;border:1px solid #fde68a;border-radius:6px;padding:4px 9px;cursor:pointer;color:#92400e;font-size:11.5px;font-weight:600">📄 Verzicht</button>
+            <div style="padding:6px 2px 2px">
+                <!-- Ansicht (read-only) -->
+                <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <span id="nwViewText_${emp.id}" style="flex:1">${_nwViewTextHtml(emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null, emp.nightWorkExamValidUntil)}</span>
+                    <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
+                        <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="nwMenu-${emp.id}">
+                            <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
+                            ${emp.nightWorkExamDokumentId
+                                ? `<button class="dok-menu-item" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})">Dokument öffnen</button>
+                                   <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">Anderes Dokument verknüpfen</button>`
+                                : `<button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">Dokument verknüpfen</button>`}
+                            <button class="dok-menu-item" onclick="openNachtEignungPdf(${emp.id})">SECO-Formular</button>
+                            <button class="dok-menu-item" onclick="openNachtVerzichtPdf(${emp.id})">Verzicht-Formular</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Editiermodus (versteckt bis „Ausstellungsdatum bearbeiten") -->
+                <div id="nwEdit_${emp.id}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
+                    <input type="date" id="nwDateInput_${emp.id}" value="${emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : ''}"
+                           oninput="nwPreview(${emp.id}, this.value)"
+                           title="Ausstellungsdatum des Arztzeugnisses / Verzichts"
+                           style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                    <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
+                    <button onclick="nwSaveEdit(${emp.id})" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 12px;cursor:pointer;color:#15803d;font-size:12px;font-weight:600">Speichern</button>
+                    <button onclick="nwCancelEdit(${emp.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;cursor:pointer;color:#64748b;font-size:12px;font-weight:600">Abbrechen</button>
                 </div>
             </div>
 
@@ -1773,6 +1787,59 @@ function _nwGueltigBisHtml(validUntil) {
     const exp = new Date(validUntil) < t;
     const c = exp ? '#991b1b' : '#166534';
     return `<span style="color:${c};font-size:11.5px;font-weight:600">gültig bis ${formatDate(validUntil)}${exp ? ' · abgelaufen' : ''}</span>`;
+}
+
+// Read-only Anzeige der Nachtarbeit-Zeile (Walter 21.06.2026).
+function _nwViewTextHtml(issueIso, validUntil) {
+    if (!validUntil) return '<span style="color:#94a3b8;font-size:12.5px;font-style:italic">Keine Untersuchung erfasst</span>';
+    return `<span style="font-size:12px;color:#64748b">Ausgestellt:</span> <strong style="font-size:13px;color:#334155">${formatDate(issueIso)}</strong> &nbsp;·&nbsp; ${_nwGueltigBisHtml(validUntil)}`;
+}
+
+// ⋮-Menü + Edit-Toggle für die Nachtarbeit-Zeile.
+function nwToggleMenu(event, id) { rowMenuToggle(event, 'nw', id); }
+function nwStartEdit(empId) {
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    const v = document.getElementById('nwView_' + empId), e = document.getElementById('nwEdit_' + empId);
+    if (v) v.style.display = 'none';
+    if (e) e.style.display = 'flex';
+    const inp = document.getElementById('nwDateInput_' + empId);
+    if (inp) inp.focus();
+}
+function nwCancelEdit(empId) {
+    const v = document.getElementById('nwView_' + empId), e = document.getElementById('nwEdit_' + empId);
+    if (e) e.style.display = 'none';
+    if (v) v.style.display = 'flex';
+}
+// Live-Vorschau „gültig bis" während des Tippens (+2 Jahre).
+function nwPreview(empId, val) {
+    const v = val ? _nwAddYears(val, 2) : null;
+    const s = document.getElementById('nwGueltigBis_' + empId);
+    if (s) s.innerHTML = _nwGueltigBisHtml(v);
+}
+// Speichern aus dem Editiermodus — danach zurück in die Read-only-Ansicht.
+async function nwSaveEdit(empId) {
+    const inp = document.getElementById('nwDateInput_' + empId);
+    const issueVal = inp ? inp.value : '';
+    if (issueVal) {
+        const y = parseInt(String(issueVal).slice(0, 4), 10);
+        if (!y || y < 1990 || y > new Date().getFullYear() + 1) { alert('Bitte ein gültiges Ausstellungsdatum eingeben.'); return; }
+    }
+    const validUntil = issueVal ? _nwAddYears(issueVal, 2) : null;
+    try {
+        const res = await fetch(`/api/employees/${empId}/night-work-exam-date`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ validUntil })
+        });
+        if (!res.ok) {
+            let body = ''; try { body = await res.text(); } catch (_) {}
+            alert('Speichern des Datums fehlgeschlagen (HTTP ' + res.status + ').\n' + (body || '').slice(0, 300));
+            return;
+        }
+        const vt = document.getElementById('nwViewText_' + empId);
+        if (vt) vt.innerHTML = _nwViewTextHtml(issueVal || null, validUntil);
+        nwCancelEdit(empId);
+    } catch (e) { alert('Netzwerkfehler beim Speichern.'); }
 }
 
 // Nachtarbeit-Untersuchung: AUSSTELLUNGSdatum erfassen (Walter 20.06.2026) —
@@ -6825,28 +6892,54 @@ async function stempelLadeEintraege(employeeId) {
     }
 }
 
+// Monats-Schnellwahl als feste Matrix (Walter-Vorgabe 21.06.2026): IMMER alle
+// 12 Monate, eine Zeile pro Jahr (mind. die letzten 3 Jahre + jedes Jahr mit
+// Daten). Monate mit Einträgen zeigen die Anzahl, leere sind ausgegraut — aber
+// alle anklickbar.
 async function stempelLadeQuickNav(employeeId) {
     const navEl = document.getElementById('stempelQuickNav');
     if (!navEl) return;
+    let periods = [];
     try {
         const res = await fetch(`/api/employees/${employeeId}/timeentries/periods`,
             { headers: { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` } });
-        if (!res.ok) return;
-        const periods = await res.json();
-        if (!Array.isArray(periods) || periods.length === 0) {
-            navEl.innerHTML = '<div style="font-size:12px;color:#94a3b8">Noch gar keine Einträge für diesen Mitarbeiter.</div>';
-            return;
+        if (res.ok) periods = await res.json();
+    } catch { /* silent → leeres Raster */ }
+    if (!Array.isArray(periods)) periods = [];
+
+    const byYear = {};
+    periods.forEach(p => { (byYear[p.year] ??= {})[p.month] = p.count; });
+
+    const curY = new Date().getFullYear();
+    // 6 Jahre anzeigen (Aufbewahrung = 5 Jahre, Walter-Vorgabe 21.06.2026)
+    // plus jedes Jahr mit Daten.
+    const yearSet = new Set();
+    for (let i = 0; i <= 5; i++) yearSet.add(curY - i);
+    Object.keys(byYear).forEach(y => yearSet.add(Number(y)));
+    const years = Array.from(yearSet).sort((a, b) => b - a);
+
+    const el   = document.getElementById('stempelzeitenContent');
+    const selY = el ? el._stempelYear  : null;
+    const selM = el ? el._stempelMonth : null;
+    const mon  = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+
+    let html = `<div style="font-size:12px;color:#64748b;margin-bottom:8px">Monat direkt wählen:</div>`;
+    html += `<div style="display:inline-grid;grid-template-columns:auto repeat(12, minmax(38px,1fr));gap:4px;align-items:center;max-width:100%">`;
+    html += `<div></div>` + mon.map(n => `<div style="font-size:10.5px;color:#94a3b8;text-align:center;font-weight:600">${n}</div>`).join('');
+    years.forEach(y => {
+        html += `<div style="font-size:12.5px;font-weight:700;color:#475569;padding-right:8px;text-align:right">${y}</div>`;
+        for (let m = 1; m <= 12; m++) {
+            const cnt   = byYear[y] && byYear[y][m];
+            const has   = cnt > 0;
+            const isSel = (y === selY && m === selM);
+            const border = isSel ? '#2563eb' : (has ? '#cbd5e1' : '#eef2f6');
+            const bg     = isSel ? '#2563eb' : (has ? '#fff'    : '#fafafa');
+            const color  = isSel ? '#fff'    : (has ? '#334155' : '#cbd5e1');
+            html += `<button onclick="stempelJumpTo(${y},${m})" title="${mon[m-1]} ${y}${has ? ' · ' + cnt + ' Einträge' : ' · keine Einträge'}" style="font-size:11px;padding:5px 0;border-radius:6px;cursor:pointer;border:1px solid ${border};background:${bg};color:${color};font-weight:${has ? 600 : 400}">${has ? cnt : '·'}</button>`;
         }
-        const btns = periods.slice(0, 12).map(p => `
-            <button class="btn btn-outline" style="font-size:11px;padding:4px 10px"
-                    onclick="stempelJumpTo(${p.year}, ${p.month})">
-                ${MONATSNAMEN_DE[p.month - 1].substring(0,3)} ${p.year}
-                <span style="color:#94a3b8;margin-left:4px">(${p.count})</span>
-            </button>`).join(' ');
-        navEl.innerHTML = `
-            <div style="font-size:12px;color:#64748b;margin-bottom:6px">Einträge vorhanden in:</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${btns}</div>`;
-    } catch { /* silent */ }
+    });
+    html += `</div>`;
+    navEl.innerHTML = html;
 }
 
 function stempelJumpTo(year, month) {
@@ -6992,7 +7085,7 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
     const empty = sorted.length === 0
         ? `<tr><td colspan="7" style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">
             Keine Einträge
-            <div id="stempelQuickNav" style="margin-top:12px"></div>
+            <div id="stempelQuickNav" style="margin-top:12px;text-align:left"></div>
         </td></tr>`
         : '';
 

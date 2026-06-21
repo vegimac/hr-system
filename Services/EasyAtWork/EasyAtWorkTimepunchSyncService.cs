@@ -250,6 +250,21 @@ public class EasyAtWorkTimepunchSyncService
         /// geschrieben (als „Skipped" gezählt).
         /// </summary>
         public List<int> SkipEawEmployeeIds { get; set; } = new();
+        /// <summary>
+        /// Walter-Vorgabe 21.06.2026: einmaliger Tief-Import. Wenn gesetzt, wird
+        /// dieser Stichtag statt <see cref="EmployeeCutoff"/> (1.1.2025) verwendet
+        /// — so lassen sich alte Stempel (z.B. ab 1.1.2021) importieren. Die
+        /// Abgeschlossene-Periode-Sperre bleibt unberührt.
+        /// </summary>
+        public DateOnly? EmployeeCutoffOverride { get; set; }
+        /// <summary>
+        /// Walter-Vorgabe 21.06.2026: einmaliger historischer Batch-Import. Wenn
+        /// true, blockieren nicht zuordenbare easy@work-MA (MissingEmployees) den
+        /// Commit NICHT — ihre Stempel werden still fallen gelassen statt den
+        /// ganzen Lauf zu stoppen. Nur für den bewussten Tief-Import gedacht; der
+        /// reguläre manuelle/automatische Sync lässt das auf false (Block bleibt).
+        /// </summary>
+        public bool IgnoreMissing { get; set; } = false;
     }
 
     public class TimepunchPreviewRow
@@ -298,7 +313,15 @@ public class EasyAtWorkTimepunchSyncService
         /// </summary>
         public List<MissingEmployee> MissingEmployees { get; set; } = new();
         public int    CountMissing => MissingEmployees.Count;
-        public bool   IsBlocked    => MissingEmployees.Count > 0;
+        /// <summary>
+        /// Blockierend (Walter 21.06.2026): easy@work-MA, für den MEHRERE Cowork-
+        /// MA mit IsPayrollExcluded=false existieren — der Lohn-MA ist nicht
+        /// eindeutig. Muss bereinigt werden, BLOCKIERT immer (auch beim Tief-
+        /// Import mit IgnoreMissing), weil es ein Datenfehler ist.
+        /// </summary>
+        public List<MissingEmployee> AmbiguousEmployees { get; set; } = new();
+        public int    CountAmbiguous => AmbiguousEmployees.Count;
+        public bool   IsBlocked    => MissingEmployees.Count > 0 || AmbiguousEmployees.Count > 0;
     }
 
     /// <summary>Ein easy@work-MA, der für den Import nicht zugeordnet werden kann.</summary>
@@ -362,7 +385,15 @@ public class EasyAtWorkTimepunchSyncService
     /// eingetreten sind (From spielt für diesen Filter keine Rolle).
     /// </summary>
     public static List<EawEmployee> FilterRelevantEmployees(IEnumerable<EawEmployee> emps)
-        => emps.Where(e => !(e.To.HasValue && e.To.Value < EmployeeCutoff)).ToList();
+        => FilterRelevantEmployees(emps, EmployeeCutoff);
+
+    /// <summary>
+    /// Wie oben, aber mit explizitem Stichtag — für den einmaligen Tief-Import
+    /// (Walter-Vorgabe 21.06.2026, z.B. zurück bis 1.1.2021). MA mit Austritt
+    /// VOR <paramref name="cutoff"/> fallen weg.
+    /// </summary>
+    public static List<EawEmployee> FilterRelevantEmployees(IEnumerable<EawEmployee> emps, DateOnly cutoff)
+        => emps.Where(e => !(e.To.HasValue && e.To.Value < cutoff)).ToList();
 
     /// <summary>
     /// Preflight: ermittelt alle easy@work-MA, die im Zeitraum importierbare
@@ -376,7 +407,8 @@ public class EasyAtWorkTimepunchSyncService
         IEnumerable<EawTimepunch> punches,
         IReadOnlyDictionary<int, EawEmployee> eawEmpById,
         ISet<string> coworkNumbers,
-        IReadOnlyDictionary<int, int> aliasMap)
+        IReadOnlyDictionary<int, int> aliasMap,
+        ISet<int>? coworkEawIds = null)
     {
         var missing = new Dictionary<int, MissingEmployee>();
         foreach (var p in punches)
@@ -385,10 +417,18 @@ public class EasyAtWorkTimepunchSyncService
             if (p.DeletedAt != null) continue;   // in easy@work gelöscht
             if (!p.In.HasValue)      continue;   // ungültig (kein TimeIn)
 
+            eawEmpById.TryGetValue(p.EmployeeId, out var emp);
+
+            // Per hinterlegter easy@work-ID auflösbar → kein Problem (Walter
+            // 21.06.2026, primärer Match — deckt Pre-Mirus-„alt"-MA ab). Der
+            // Stempel referenziert die employee.id; gespeichert wurde `user_id
+            // ?? id` → beide Kandidaten prüfen.
+            if (coworkEawIds != null && (coworkEawIds.Contains(p.EmployeeId)
+                || (emp?.UserId is int uid && coworkEawIds.Contains(uid)))) continue;
+
             // Per hinterlegtem Alias auflösbar → kein Problem.
             if (aliasMap.ContainsKey(p.EmployeeId)) continue;
 
-            eawEmpById.TryGetValue(p.EmployeeId, out var emp);
             var number = emp?.Number?.Trim();
 
             // Sauber abbildbar?
@@ -419,6 +459,42 @@ public class EasyAtWorkTimepunchSyncService
             };
         }
         return missing.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
+    }
+
+    // ───────────────── Payroll-Sink-Auflösung (Walter 21.06.2026) ─────────────────
+    // Ein easy@work-MA kann in mehreren Filialen stempeln, hat dort aber IMMER
+    // dieselbe easy@work-employee-id. Bei uns ist er ggf. mehrfach abgelegt (1×
+    // pro Filiale). Regel: alle Stempel landen auf dem EINEN Cowork-MA mit
+    // IsPayrollExcluded=false (= seine Lohnfiliale). Sind alle Kandidaten
+    // ausgeschlossen (z.B. Supervisor wie Nihat, überall true) → keine Stempel.
+    // Gibt es mehrere nicht-ausgeschlossene Kandidaten → Datenfehler → Block.
+
+    public enum PayrollMatchKind { Matched, AllExcluded, Ambiguous, NoCandidate }
+
+    public readonly record struct CoworkCandidate(int EmployeeId, bool IsPayrollExcluded);
+
+    public readonly record struct PayrollMatchResult(PayrollMatchKind Kind, int? SinkEmployeeId, int PayrollCandidateCount);
+
+    /// <summary>
+    /// Wählt aus den Cowork-Kandidaten (alle MA, die zur selben Person/easy@work-
+    /// id bzw. Personalnummer gehören) den Lohn-MA. Seiteneffektfrei → unit-testbar.
+    /// </summary>
+    public static PayrollMatchResult ResolvePayrollSink(IEnumerable<CoworkCandidate> candidates)
+    {
+        var distinct = candidates
+            .GroupBy(c => c.EmployeeId)
+            .Select(g => g.First())
+            .ToList();
+        if (distinct.Count == 0)
+            return new PayrollMatchResult(PayrollMatchKind.NoCandidate, null, 0);
+
+        var payroll = distinct.Where(c => !c.IsPayrollExcluded).ToList();
+        if (payroll.Count == 0)
+            return new PayrollMatchResult(PayrollMatchKind.AllExcluded, null, 0);
+        if (payroll.Count > 1)
+            return new PayrollMatchResult(PayrollMatchKind.Ambiguous, null, payroll.Count);
+
+        return new PayrollMatchResult(PayrollMatchKind.Matched, payroll[0].EmployeeId, 1);
     }
 
     /// <summary>
@@ -456,7 +532,15 @@ public class EasyAtWorkTimepunchSyncService
     /// Mirus) wird nichts importiert.
     /// </summary>
     public static bool IsImportable(DateOnly date, List<(DateOnly From, DateOnly To)> closedPeriods)
-        => date >= EmployeeCutoff && !closedPeriods.Any(r => date >= r.From && date <= r.To);
+        => IsImportable(date, closedPeriods, EmployeeCutoff);
+
+    /// <summary>
+    /// Wie oben, aber mit explizitem Stichtag — für den einmaligen Tief-Import
+    /// alter Stempel (Walter-Vorgabe 21.06.2026, z.B. ab 1.1.2021). Die
+    /// Abgeschlossene-Periode-Sperre bleibt immer aktiv.
+    /// </summary>
+    public static bool IsImportable(DateOnly date, List<(DateOnly From, DateOnly To)> closedPeriods, DateOnly cutoff)
+        => date >= cutoff && !closedPeriods.Any(r => date >= r.From && date <= r.To);
 
     /// <summary>Datumsbereiche der ABGESCHLOSSENEN Lohnperioden einer Filiale.</summary>
     private async Task<List<(DateOnly From, DateOnly To)>> GetClosedPeriodRangesAsync(int cpId, CancellationToken ct)
@@ -594,10 +678,15 @@ public class EasyAtWorkTimepunchSyncService
         // 3) MA-Pool (inkl. inaktive, Pre-2025-Austritte gefiltert) + Alias.
         var emps = await _db.Employees.AsNoTracking()
             .Where(e => !e.IsHidden)
-            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
+            .Select(e => new { e.Id, e.EmployeeNumber, e.EmployeeNumberAlt1, e.EmployeeNumberAlt2, e.FirstName, e.LastName })
             .ToListAsync(ct);
-        var byNumber = emps.Where(e => !string.IsNullOrWhiteSpace(e.EmployeeNumber))
-            .GroupBy(e => e.EmployeeNumber!.Trim()).ToDictionary(g => g.Key, g => g.First());
+        // Keys = aktuelle Personalnummer UND Alt-Nummern (Walter-Vorgabe 21.06.2026).
+        var byNumber = emps
+            .SelectMany(e => new[] { e.EmployeeNumber, e.EmployeeNumberAlt1, e.EmployeeNumberAlt2 }
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => new { Key = n!.Trim(), Emp = e }))
+            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Emp, StringComparer.OrdinalIgnoreCase);
         var aliasMap = (await _db.EasyAtWorkEmployeeAliases.AsNoTracking()
                 .Select(a => new { a.EasyAtWorkId, a.EmployeeId }).ToListAsync(ct))
             .GroupBy(a => a.EasyAtWorkId).ToDictionary(g => g.Key, g => g.First().EmployeeId);
@@ -716,6 +805,8 @@ public class EasyAtWorkTimepunchSyncService
                 existing.EditedAt      = editorTime;
                 existing.OriginalTimeIn  = origIn;
                 existing.OriginalTimeOut = origOut;
+                existing.EasyAtWorkCustomerId   = mapping.EasyAtWorkCustomerId;
+                existing.SourceCompanyProfileId = mapping.CompanyProfileId;
                 res.Updated++;
                 if (realChange)
                     res.Changes.Add(new SyncChange {
@@ -743,6 +834,8 @@ public class EasyAtWorkTimepunchSyncService
                 EditedBy      = editorName,
                 EditedAt      = editorTime,
                 EasyAtWorkTimepunchId = p.Id,
+                EasyAtWorkCustomerId    = mapping.EasyAtWorkCustomerId,
+                SourceCompanyProfileId  = mapping.CompanyProfileId,
                 OriginalTimeIn  = origIn,
                 OriginalTimeOut = origOut,
                 OriginalComment = p.JoinedComments,
@@ -792,6 +885,11 @@ public class EasyAtWorkTimepunchSyncService
         var nightStart = ParseHhmm(cp?.NightStartTime, new TimeSpan(0, 0, 0));
         var nightEnd   = ParseHhmm(cp?.NightEndTime,   new TimeSpan(7, 0, 0));
 
+        // Stichtag für diesen MANUELLEN Lauf: Standard 1.1.2025, beim einmaligen
+        // Tief-Import überschrieben (Walter-Vorgabe 21.06.2026). Der tägliche
+        // Auto-Sync nutzt weiterhin den festen Standard.
+        var cutoff = req.EmployeeCutoffOverride ?? EmployeeCutoff;
+
         // 2) Mitarbeiter-Pool für den Match. Employee hat KEINE direkte Filial-FK
         //    (die läuft über Employment.CompanyProfileId pro Vertrag). Schaub
         //    Restaurants GmbH ist EIN AHV-Arbeitgeber → Personalnummern sind
@@ -803,17 +901,55 @@ public class EasyAtWorkTimepunchSyncService
             .Select(e => new {
                 e.Id,
                 e.EmployeeNumber,
+                e.EmployeeNumberAlt1,
+                e.EmployeeNumberAlt2,
                 e.FirstName,
                 e.LastName,
-                e.IsPayrollExcluded
+                e.IsPayrollExcluded,
+                e.EasyAtWorkEmployeeId
             })
             .ToListAsync(ct);
+        // GRUPPEN (nicht .First()): zu einer Nummer / easy@work-id können MEHRERE
+        // Cowork-MA gehören (derselbe Mensch in mehreren Filialen abgelegt).
+        // Die Lohn-MA-Auswahl (IsPayrollExcluded=false) passiert pro Stempel via
+        // ResolvePayrollSink. Walter-Vorgabe 21.06.2026.
+        // Keys = aktuelle Personalnummer UND Alt-Nummern (alt1/alt2), damit ein
+        // MA auch unter einer alten easy@work-Nummer gefunden wird.
         var byNumber = emps
-            .Where(e => !string.IsNullOrWhiteSpace(e.EmployeeNumber))
-            .GroupBy(e => e.EmployeeNumber!.Trim())
-            .ToDictionary(g => g.Key, g => g.First());
+            .SelectMany(e => new[] { e.EmployeeNumber, e.EmployeeNumberAlt1, e.EmployeeNumberAlt2 }
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => new { Key = n!.Trim(), Emp = e }))
+            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Emp).ToList(), StringComparer.OrdinalIgnoreCase);
         // Cowork-MA per interner Id (für die Alias-Auflösung unten).
         var empById = emps.ToDictionary(e => e.Id, e => e);
+        // Cowork-MA per hinterlegter easy@work-employee-id (Walter-Vorgabe
+        // 21.06.2026). PRIMÄRER Match-Schlüssel: kollisionssicher und immun
+        // gegen den „alt"-Suffix bei Pre-Mirus-Personalnummern UND gegen
+        // Nummern-Wiederverwendung nach der Mirus-Migration. Ein 2021er-Stempel
+        // darf NIE einem aktuellen MA zugeordnet werden, der dieselbe Nummer
+        // (ohne „alt") wiederverwendet — die easy@work-ID verhindert das.
+        var byEawId = emps
+            .Where(e => e.EasyAtWorkEmployeeId.HasValue)
+            .GroupBy(e => e.EasyAtWorkEmployeeId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Sammelt für einen Stempel ALLE Cowork-Kandidaten (per easy@work-id,
+        // per user_id, per Personalnummer, per Alias) — dedupliziert über die
+        // interne Cowork-Id. Lokale Funktion, weil sie die anonym-typisierten
+        // Maps oben braucht. Walter-Vorgabe 21.06.2026.
+        List<CoworkCandidate> GatherCandidates(int eawEmployeeId, EawEmployee? ee, string? number)
+        {
+            var seen = new HashSet<int>();
+            var list = new List<CoworkCandidate>();
+            void AddId(int id, bool excluded) { if (seen.Add(id)) list.Add(new CoworkCandidate(id, excluded)); }
+            if (byEawId.TryGetValue(eawEmployeeId, out var g1)) foreach (var e in g1) AddId(e.Id, e.IsPayrollExcluded);
+            if (ee?.UserId is int uid && byEawId.TryGetValue(uid, out var g2)) foreach (var e in g2) AddId(e.Id, e.IsPayrollExcluded);
+            var n = number?.Trim();
+            if (!string.IsNullOrEmpty(n) && byNumber.TryGetValue(n, out var g3)) foreach (var e in g3) AddId(e.Id, e.IsPayrollExcluded);
+            if (aliasMap.TryGetValue(eawEmployeeId, out var aid) && empById.TryGetValue(aid, out var ae)) AddId(ae.Id, ae.IsPayrollExcluded);
+            return list;
+        }
 
         // Alias-Map: alte/zweite easy@work-employee_id → Cowork-MA-Id. Greift als
         // Fallback, wenn ein Stempel auf eine ID zeigt, die die normale MA-Liste
@@ -877,7 +1013,7 @@ public class EasyAtWorkTimepunchSyncService
             // Filiale inkl. ausgetretene und filtern nur die ganz alten Austritte
             // (vor 2025-01-01 = Pre-Mirus) lokal weg. (Walter-Vorgabe 18.06.2026.)
             var eawEmps = FilterRelevantEmployees(
-                await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct));
+                await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct), cutoff);
             foreach (var e in eawEmps) eawEmpById[e.Id] = e;
         }
         catch (Exception ex)
@@ -910,10 +1046,41 @@ public class EasyAtWorkTimepunchSyncService
         var editablePunches = punches.Where(p =>
         {
             var d = p.BusinessDate ?? (p.In.HasValue ? DateOnly.FromDateTime(UtcToSwissLocal(p.In.Value)) : (DateOnly?)null);
-            return d.HasValue && IsImportable(d.Value, closedPeriods) && !skipSet.Contains(p.EmployeeId);
+            return d.HasValue && IsImportable(d.Value, closedPeriods, cutoff) && !skipSet.Contains(p.EmployeeId);
         });
-        res.MissingEmployees = ComputePreflightMissing(
-            editablePunches, eawEmpById, new HashSet<string>(byNumber.Keys), aliasMap);
+        // Preflight nach Payroll-Sink-Regel (Walter 21.06.2026): pro easy@work-MA
+        // mit importierbaren Stempeln den Lohn-MA auflösen. KEIN Kandidat → Missing
+        // (Block, sofern nicht IgnoreMissing). MEHRERE Lohn-MA → Ambiguous (Block,
+        // immer). Alle ausgeschlossen → kein Problem (Stempel werden übersprungen).
+        var missingPf  = new Dictionary<int, MissingEmployee>();
+        var ambigPf    = new Dictionary<int, MissingEmployee>();
+        foreach (var p in editablePunches)
+        {
+            if (p.DeletedAt != null || !p.In.HasValue) continue;
+            eawEmpById.TryGetValue(p.EmployeeId, out var ee);
+            var match = ResolvePayrollSink(GatherCandidates(p.EmployeeId, ee, ee?.Number));
+            if (match.Kind == PayrollMatchKind.Matched || match.Kind == PayrollMatchKind.AllExcluded)
+                continue;
+            var bucket = match.Kind == PayrollMatchKind.Ambiguous ? ambigPf : missingPf;
+            if (bucket.TryGetValue(p.EmployeeId, out var ex)) { ex.TimepunchCount++; continue; }
+            var num0 = ee?.Number?.Trim();
+            bucket[p.EmployeeId] = new MissingEmployee
+            {
+                EawEmployeeId     = p.EmployeeId,
+                EawEmployeeNumber = num0,
+                EawEmployeeName   = ee == null ? null : $"{ee.FirstName} {ee.LastName}".Trim(),
+                TimepunchCount    = 1,
+                Reason            = match.Kind == PayrollMatchKind.Ambiguous
+                    ? $"Mehrere Cowork-Lohn-MA (IsPayrollExcluded=false) für diese Person — Lohn-MA nicht eindeutig. Bitte bereinigen (genau einen als Lohn-MA führen)."
+                    : (ee == null
+                        ? "easy@work-MA nicht in der Mitarbeiterliste auffindbar — bitte zuordnen."
+                        : string.IsNullOrEmpty(num0)
+                            ? "easy@work-MA hat keine Personalnummer — bitte zuordnen."
+                            : $"Personalnummer '{num0}' existiert nicht in Cowork — MA zuerst anlegen/importieren."),
+            };
+        }
+        res.MissingEmployees   = missingPf.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
+        res.AmbiguousEmployees = ambigPf.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
 
         // 6) Pro Punch Status berechnen
         // Innerhalb DIESER Antwort schon gesehene easy@work-IDs — die API kann
@@ -1004,33 +1171,38 @@ public class EasyAtWorkTimepunchSyncService
                 res.Rows.Add(row); res.CountInvalid++; continue;
             }
 
-            // MA-Match per employee_number.
+            // MA-Match nach Payroll-Sink-Regel (Walter 21.06.2026): ALLE Cowork-
+            // Kandidaten der Person sammeln (per easy@work-id, user_id, Personal-
+            // nummer, Alias) und den EINEN Lohn-MA (IsPayrollExcluded=false) wählen.
+            // 1 Treffer → Stempel dorthin; 0 Lohn-MA (alle ausgeschlossen, z.B.
+            // Supervisor) → übersprungen; mehrere → blockiert; keiner → UNMATCHED.
             var num = (row.EawEmployeeNumber ?? "").Trim();
-            var coEmp = !string.IsNullOrEmpty(num) && byNumber.TryGetValue(num, out var byNumEmp)
-                ? byNumEmp : null;
+            var match = ResolvePayrollSink(GatherCandidates(p.EmployeeId, eawResolved ? eawEmp : null, num));
 
-            // Fallback: hinterlegte alte/zweite easy@work-ID? (Walter 18.06.2026)
-            // Greift, wenn der Stempel auf eine ID zeigt, die die MA-Liste nicht
-            // kennt (ID-Wechsel) — dann ist die Zuordnung manuell hinterlegt.
-            if (coEmp == null && aliasMap.TryGetValue(p.EmployeeId, out var aliasCoworkId)
-                && empById.TryGetValue(aliasCoworkId, out var aliasEmp))
+            if (match.Kind == PayrollMatchKind.AllExcluded)
             {
-                coEmp = aliasEmp;
-                row.EawEmployeeNumber = aliasEmp.EmployeeNumber;
-                row.EawEmployeeName   = $"{aliasEmp.FirstName} {aliasEmp.LastName}".Trim();
+                row.Status = "SKIPPED";
+                row.Reason = "Alle Cowork-Datensätze dieser Person sind vom Lohn ausgeschlossen (IsPayrollExcluded) — keine Stempelzeiten.";
+                res.Rows.Add(row); res.CountSkipped++; continue;
             }
-
-            if (coEmp == null)
+            if (match.Kind == PayrollMatchKind.Ambiguous)
+            {
+                row.Status = "UNMATCHED";
+                row.Reason = "Mehrere Lohn-MA (IsPayrollExcluded=false) für diese Person — Lohn-MA nicht eindeutig. Import blockiert, bitte bereinigen.";
+                res.Rows.Add(row); res.CountUnmatched++; continue;
+            }
+            if (match.Kind == PayrollMatchKind.NoCandidate || match.SinkEmployeeId is null)
             {
                 row.Status = "UNMATCHED";
                 if (!string.IsNullOrEmpty(num))
                     row.Reason = $"Keine Cowork-MA mit Personalnr. '{num}'.";
                 else if (!eawResolved)
-                    row.Reason = $"easy@work-MA #{p.EmployeeId} war nicht in der Mitarbeiterliste (Stichtag Periodenbeginn) — evtl. erst später eingetreten, schon ausgetreten oder ein Konto ohne Personalnummer.";
+                    row.Reason = $"easy@work-MA #{p.EmployeeId} war nicht in der Mitarbeiterliste — evtl. erst später eingetreten, schon ausgetreten oder Konto ohne Personalnummer.";
                 else
                     row.Reason = $"easy@work-MA '{row.EawEmployeeName}' (#{p.EmployeeId}) hat keine Personalnummer hinterlegt.";
                 res.Rows.Add(row); res.CountUnmatched++; continue;
             }
+            var coEmp = empById[match.SinkEmployeeId.Value];
             row.CoworkEmployeeId = coEmp.Id;
 
             // Dublette INNERHALB dieser easy@work-Antwort (Pagination-Überschneidung)?
@@ -1060,11 +1232,11 @@ public class EasyAtWorkTimepunchSyncService
 
             // In abgeschlossener Lohnperiode (oder vor 1.1.2025)? Vorschau zeigt
             // LOCKED — der Commit überspringt ihn.
-            if (!IsImportable(row.BusinessDate, closedPeriods))
+            if (!IsImportable(row.BusinessDate, closedPeriods, cutoff))
             {
                 row.Status = "LOCKED";
-                row.Reason = row.BusinessDate < EmployeeCutoff
-                    ? "Vor 1.1.2025 (Pre-Mirus) — wird nicht importiert."
+                row.Reason = row.BusinessDate < cutoff
+                    ? $"Vor {cutoff:dd.MM.yyyy} — wird nicht importiert."
                     : "Liegt in einer abgeschlossenen Lohnperiode — wird nicht importiert.";
                 res.Rows.Add(row); res.CountLocked++; continue;
             }
@@ -1075,14 +1247,30 @@ public class EasyAtWorkTimepunchSyncService
 
         res.CountTotal = res.Rows.Count;
 
+        // Mehrere Lohn-MA (IsPayrollExcluded=false) für dieselbe Person = Daten-
+        // fehler → IMMER blockieren, auch beim Tief-Import (IgnoreMissing). Walter
+        // 21.06.2026. Muss zuerst bereinigt werden (genau einen Lohn-MA führen).
+        if (commit && res.AmbiguousEmployees.Count > 0)
+        {
+            res.Notes.Add($"Import blockiert: {res.CountAmbiguous} Person(en) mit MEHREREN Lohn-MA (IsPayrollExcluded=false). Bitte je Person genau einen Lohn-MA führen, die übrigen auf 'kein Lohn' setzen.");
+            return res;
+        }
+
         // Blockierender Preflight: bei fehlenden Zuordnungen wird NICHT geschrieben
         // (auch keine Teil-Menge) — sonst gingen die Stempel der nicht zuordenbaren
         // MA still verloren. Der Preview zeigt die Block-Liste; hier wird der
         // Commit verweigert. Walter-Vorgabe 18.06.2026.
-        if (commit && res.IsBlocked)
+        if (commit && res.MissingEmployees.Count > 0 && !req.IgnoreMissing)
         {
             res.Notes.Add($"Import blockiert: {res.CountMissing} easy@work-MA ohne gültige Cowork-Zuordnung. Bitte die betroffenen MA zuerst zuordnen oder in Cowork anlegen.");
             return res;
+        }
+        if (commit && res.MissingEmployees.Count > 0 && req.IgnoreMissing)
+        {
+            // Tief-Import: nicht zuordenbare MA werden NICHT geschrieben (die
+            // Insert-Schleife unten filtert auf CoworkEmployeeId.HasValue), aber
+            // sie blockieren den Lauf nicht. Nur als Hinweis protokollieren.
+            res.Notes.Add($"{res.CountMissing} nicht zuordenbare easy@work-MA übersprungen (Tief-Import).");
         }
 
         // 7) Commit-Pfad: NEW-Zeilen tatsächlich schreiben.
@@ -1124,6 +1312,12 @@ public class EasyAtWorkTimepunchSyncService
                     EditedBy     = row.IsEdited ? ExtractEditorName(_punchById(row.EawTimepunchId, punches), eawEmpById, coworkNameByEawId) : null,
                     EditedAt     = row.IsEdited ? ExtractEditorTime(_punchById(row.EawTimepunchId, punches)) : (DateTime?)null,
                     EasyAtWorkTimepunchId = row.EawTimepunchId,
+                    // Herkunft (Walter 21.06.2026): in welcher Filiale (easy@work-
+                    // Customer) wurde gestempelt — bleibt nachvollziehbar, auch wenn
+                    // der Stempel auf den Lohn-MA einer anderen Filiale gespeichert
+                    // wird. Der ganze Lauf gehört zu EINEM Customer/Filiale.
+                    EasyAtWorkCustomerId    = mapping.EasyAtWorkCustomerId,
+                    SourceCompanyProfileId  = req.CompanyProfileId,
                     // Original-Zeit (vor manueller Korrektur) — bereits in der
                     // Preview-Row korrekt aus created_at abgeleitet, hier nur durchreichen.
                     OriginalTimeIn  = row.OriginalTimeIn,

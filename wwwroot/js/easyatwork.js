@@ -139,7 +139,8 @@ function eawSkipEmployee(eawId) {
     p.countUnmatched = Math.max(0, (p.countUnmatched || 0) - moved);
 
     _eawSyncRenderResult(p, false);
-    const blocked = (p.missingEmployees && p.missingEmployees.length > 0);
+    const blocked = (p.missingEmployees && p.missingEmployees.length > 0)
+                 || (p.ambiguousEmployees && p.ambiguousEmployees.length > 0);
     const commitBtn = document.getElementById('eawSyncCommitBtn');
     if (commitBtn) commitBtn.disabled = blocked || !(p.countNew > 0);
 }
@@ -150,6 +151,10 @@ async function eawSyncCommit() {
     }
     if (_eawSyncLastPreview.missingEmployees && _eawSyncLastPreview.missingEmployees.length) {
         alert('Import blockiert: Es gibt easy@work-MA ohne Cowork-Zuordnung. Bitte diese zuerst zuordnen („→ MA zuordnen") oder in Cowork anlegen.');
+        return;
+    }
+    if (_eawSyncLastPreview.ambiguousEmployees && _eawSyncLastPreview.ambiguousEmployees.length) {
+        alert('Import blockiert: Es gibt Personen mit mehreren Lohn-MA (IsPayrollExcluded=false). Bitte je Person genau einen Lohn-MA führen, die übrigen auf „kein Lohn" setzen.');
         return;
     }
     if (!confirm(`${_eawSyncLastPreview.countNew} Stempelzeit(en) jetzt importieren?`)) return;
@@ -172,11 +177,14 @@ async function _eawSyncRun(commit) {
     const stopProgress = _eawStartProgress(out, _label);
     commitBtn.disabled = true;
 
+    const preMirusEl = document.getElementById('eawSyncPreMirus');
     const dto = {
         companyProfileId: parseInt(sel.value, 10),
         from: fromEl.value,
         to:   toEl.value,
-        skipEawEmployeeIds: _eawSkipIds
+        skipEawEmployeeIds: _eawSkipIds,
+        // Einmaliger Tief-Import: Stichtag auf 1.1.2021 absenken (Walter 21.06.2026).
+        employeeCutoffOverride: (preMirusEl && preMirusEl.checked) ? '2021-01-01' : null
     };
     try {
         const url = commit ? '/api/easywork/sync/timepunches/commit'
@@ -196,7 +204,8 @@ async function _eawSyncRun(commit) {
             return;
         }
         _eawSyncLastPreview = body;
-        const blocked = (body.missingEmployees && body.missingEmployees.length > 0);
+        const blocked = (body.missingEmployees && body.missingEmployees.length > 0)
+                     || (body.ambiguousEmployees && body.ambiguousEmployees.length > 0);
         if (commit && !blocked) {
             // Nach erfolgreichem Import: Vorschau leeren + knappe Bestätigung.
             out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — ${body.inserted||0} neu, ${body.updated||0} geändert, ${body.deleted||0} gelöscht${body.lockedSkipped ? ', ' + body.lockedSkipped + ' gesperrt übersprungen' : ''}.</div>`;
@@ -259,6 +268,24 @@ function _eawSyncRenderResult(res, wasCommit) {
             </table>
         </div>` : '';
 
+    // Ambiguous (Walter 21.06.2026): Person mit MEHREREN Lohn-MA (IsPayrollExcluded=
+    // false) — Lohn-MA nicht eindeutig. BLOCKIERT immer (auch Tief-Import).
+    const ambig = res.ambiguousEmployees || [];
+    const ambigHtml = ambig.length ? `
+        <div style="border:1px solid #fecaca;background:#fef2f2;border-radius:8px;padding:12px;margin-bottom:12px">
+            <div style="font-weight:700;color:#991b1b;margin-bottom:4px">⛔ Import blockiert — ${ambig.length} Person(en) mit mehreren Lohn-MA</div>
+            <div style="font-size:12px;color:#7f1d1d;margin-bottom:10px">Für diese Personen gibt es <strong>mehr als einen</strong> Cowork-MA mit Lohn (IsPayrollExcluded=false). Der Lohn-MA ist nicht eindeutig. Bitte je Person <strong>genau einen</strong> als Lohn-MA führen, die übrigen auf „kein Lohn" (IsPayrollExcluded) setzen.</div>
+            <table class="eaw-sync-table" style="margin:0">
+                <thead><tr><th>easy@work-MA</th><th style="text-align:right">Stempel</th><th>Problem</th></tr></thead>
+                <tbody>${ambig.map(m => `
+                    <tr>
+                        <td>${escapeHtml(m.eawEmployeeName || ('easy@work-MA #' + m.eawEmployeeId))} <span style="color:#94a3b8">(#${m.eawEmployeeId}${m.eawEmployeeNumber ? ' · Nr. ' + escapeHtml(m.eawEmployeeNumber) : ''})</span></td>
+                        <td style="text-align:right">${m.timepunchCount}</td>
+                        <td style="color:#7f1d1d;font-size:12px">${escapeHtml(m.reason || '')}</td>
+                    </tr>`).join('')}</tbody>
+            </table>
+        </div>` : '';
+
     const summary = wasCommit ? `
         <div class="eaw-sync-summary">
             <span style="color:#166534">Importiert: <strong>${res.inserted||0}</strong></span>
@@ -314,6 +341,7 @@ function _eawSyncRenderResult(res, wasCommit) {
         </tr>`;
     }).join('');
     out.innerHTML = `
+        ${ambigHtml}
         ${missingHtml}
         ${notes}
         ${summary}
@@ -593,6 +621,288 @@ async function eawEmpSyncCommit() {
     await _eawEmpSyncRun(true, checked);
 }
 
+// ═══════════════ Einmaliger Tief-Import alle Filialen (ab 2021) ═══════════════
+// Walter-Vorgabe 21.06.2026: holt für ALLE Filialen die inaktiven MA zurück bis
+// 1.1.2021, Pre-Mirus-Austritte (< 1.1.2025) bekommen `alt`-Suffix. Läuft ohne
+// Vorschau direkt durch (Upsert). Ruft /api/easywork/sync/employees/initial-import.
+let _eawInitRunning = false;
+
+async function eawInitialImport() {
+    if (_eawInitRunning) { alert('Der Tief-Import läuft bereits.'); return; }
+    const out   = document.getElementById('eawInitImportResult');
+    const since = document.getElementById('eawInitImportSince')?.value || '2021-01-01';
+    const fmt   = s => `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}`;
+    if (!confirm(`Tief-Import für ALLE Filialen ab ${fmt(since)} starten?\n\n` +
+                 `• Inaktive MA werden mitgeholt.\n` +
+                 `• Austritte vor dem 1.1.2025 bekommen Suffix "alt" an der Personalnummer.\n` +
+                 `• Bestehende MA werden nicht doppelt angelegt (Upsert).\n\n` +
+                 `Das kann je nach Datenmenge ein paar Minuten dauern.`)) return;
+
+    // 1) Gemappte Filialen holen.
+    let branches = [];
+    try {
+        const br = await fetch('/api/easywork/mapped-branches', { headers: ah() });
+        branches = await br.json();
+        if (!br.ok || !Array.isArray(branches) || !branches.length) {
+            out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Keine gemappten Filialen gefunden</div></div>`;
+            return;
+        }
+    } catch (e) {
+        out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Netzwerkfehler</div><div class="eaw-result-msg">${escapeHtml(String(e))}</div></div>`;
+        return;
+    }
+
+    _eawInitRunning = true;
+    const agg = {};   // id → {name, inserted, updated, status, error}
+    branches.forEach(b => agg[b.id] = { name: b.name, inserted:0, updated:0, status:'wartet', error:null });
+    let done = 0, grandInserted = 0, grandUpdated = 0;
+
+    const render = (curLabel, finished) => {
+        const rows = branches.map(b => {
+            const a = agg[b.id];
+            const badge = a.status === 'läuft'  ? '<span style="color:#b45309">⏳ läuft…</span>'
+                        : a.status === 'fertig' ? '<span style="color:#166534">✓ fertig</span>'
+                        : a.status === 'fehler' ? `<span style="color:#991b1b">✗ ${escapeHtml(a.error||'Fehler')}</span>`
+                        : '<span style="color:#94a3b8">– wartet</span>';
+            return `<tr>
+                <td style="padding:3px 10px">${escapeHtml(a.name)}</td>
+                <td style="padding:3px 10px;text-align:right;color:#166534">${a.inserted}</td>
+                <td style="padding:3px 10px;text-align:right;color:#1e40af">${a.updated}</td>
+                <td style="padding:3px 10px">${badge}</td>
+            </tr>`;
+        }).join('');
+        const banner = finished
+            ? `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:10px">
+                   ✓ Tief-Import abgeschlossen — <strong>${grandInserted}</strong> angelegt, <strong>${grandUpdated}</strong> aktualisiert über ${branches.length} Filiale(n).
+               </div>`
+            : `<div style="font-size:13px;padding:10px;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;margin-bottom:10px">
+                   ⏳ ${escapeHtml(curLabel)} — Filiale ${done}/${branches.length} · bisher ${grandInserted} angelegt
+               </div>`;
+        out.innerHTML = banner + `<table style="font-size:12px;border-collapse:collapse;width:100%">
+            <thead><tr style="color:#64748b;text-align:left">
+                <th style="padding:3px 10px">Filiale</th>
+                <th style="padding:3px 10px;text-align:right">Angelegt</th>
+                <th style="padding:3px 10px;text-align:right">Aktualisiert</th>
+                <th style="padding:3px 10px">Status</th>
+            </tr></thead><tbody>${rows}</tbody></table>`;
+    };
+    render('Start', false);
+
+    // 2) Sequenziell pro Filiale, Live-Status.
+    try {
+        for (const b of branches) {
+            agg[b.id].status = 'läuft';
+            render(`Importiere ${b.name}`, false);
+            try {
+                const r = await fetch('/api/easywork/sync/employees/initial-import-branch', {
+                    method: 'POST',
+                    headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ companyProfileId: b.id, since })
+                });
+                const body = await r.json();
+                if (!r.ok) {
+                    agg[b.id].status = 'fehler';
+                    agg[b.id].error  = body.message || ('HTTP ' + r.status);
+                } else {
+                    agg[b.id].inserted = body.inserted || 0;
+                    agg[b.id].updated  = body.updated  || 0;
+                    agg[b.id].status   = 'fertig';
+                    grandInserted += body.inserted || 0;
+                    grandUpdated  += body.updated  || 0;
+                }
+            } catch (e) {
+                agg[b.id].status = 'fehler';
+                agg[b.id].error  = String(e);
+            }
+            done++;
+            render(`Importiere ${b.name}`, false);
+        }
+        render('Fertig', true);
+    } finally {
+        _eawInitRunning = false;
+    }
+}
+
+// ═══════ Einmaliger historischer Stempelzeiten-Batch (2021–2024) ═══════
+// Walter-Vorgabe 21.06.2026: importiert pro Filiale alle Stempel in 90-Tage-
+// Fenstern, ohne Vorschau, fehlerhafte fallen lassen. Der Loop läuft im
+// FRONTEND (Filiale × Fenster), je ein kurzer Commit-Request — so gibt es kein
+// Gateway-Timeout und Live-Fortschritt. Idempotent: mehrfaches Laufen
+// verdoppelt nichts (Dedupe über die easy@work-Timepunch-ID).
+let _eawBatchRunning = false;
+
+function _eawIso(d) {                      // Date → 'YYYY-MM-DD' in LOKALzeit (kein UTC-Shift)
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), da = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${da}`;
+}
+function _eawAddDays(iso, n) {             // ISO 'YYYY-MM-DD' + n Tage → ISO
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    return _eawIso(d);
+}
+// Fenster-Ende = Monatsende von (Von-Datum + 90 Tage). Walter-Vorgabe 21.06.2026.
+// Bei start=1.1.2021 → +90 Tage = 1.4. → Monatsende = 30.4.; nächster Start 1.5. usw.
+function _eawWindowEnd(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + 90);
+    return _eawIso(new Date(d.getFullYear(), d.getMonth() + 1, 0));   // Tag 0 = letzter Tag des Monats
+}
+
+// Beim Ändern von „Von" das „Bis"-Feld automatisch auf Monatsende von
+// (Von + 90 Tage) setzen (Walter-Vorgabe 21.06.2026). Leer lassen löscht nichts.
+function eawBatchFromChanged(val) {
+    if (!val) return;
+    const toEl = document.getElementById('eawBatchTo');
+    if (toEl) toEl.value = _eawWindowEnd(val);
+}
+
+async function eawBatchHistorical() {
+    if (_eawBatchRunning) { alert('Der Tief-Import läuft bereits.'); return; }
+    const out  = document.getElementById('eawBatchResult');
+    const from = document.getElementById('eawBatchFrom')?.value || '2021-01-01';
+    const to   = document.getElementById('eawBatchTo')?.value   || '2024-12-31';
+    const fmt  = s => `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}`;
+    if (from > to) { alert('„Von" muss vor „Bis" liegen.'); return; }
+    if (!confirm(`Stempelzeiten-Tief-Import für ALLE Filialen von ${fmt(from)} bis ${fmt(to)} starten?\n\n` +
+                 `• In Schritten bis Monatsende (Start + 90 Tage), ohne Vorschau.\n` +
+                 `• Fehlerhafte Stempel werden fallen gelassen, nicht zuordenbare MA übersprungen.\n` +
+                 `• Abgeschlossene Lohnperioden bleiben gesperrt.\n` +
+                 `• Mehrfaches Laufen verdoppelt nichts.\n\n` +
+                 `Das kann einige Minuten dauern — Fenster bitte offen lassen.`)) return;
+
+    // 1) Gemappte Filialen holen.
+    let branches = [];
+    try {
+        const br = await fetch('/api/easywork/mapped-branches', { headers: ah() });
+        branches = await br.json();
+        if (!br.ok || !Array.isArray(branches) || !branches.length) {
+            out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Keine gemappten Filialen gefunden</div></div>`;
+            return;
+        }
+    } catch (e) {
+        out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Netzwerkfehler</div><div class="eaw-result-msg">${escapeHtml(String(e))}</div></div>`;
+        return;
+    }
+
+    // 2) Fenster bilden: Bis = Monatsende von (Start + 90 Tage). Walter 21.06.2026.
+    const windows = [];
+    let ws = from;
+    while (ws <= to) {
+        let we = _eawWindowEnd(ws);
+        if (we > to) we = to;
+        windows.push([ws, we]);
+        ws = _eawAddDays(we, 1);
+    }
+    const totalSteps = branches.length * windows.length;
+
+    _eawBatchRunning = true;
+    const agg = {};   // companyProfileId → {name, inserted, invalid, locked, missing, errors:[]}
+    branches.forEach(b => agg[b.id] = { name: b.name, inserted:0, invalid:0, locked:0, missing:0, errors:[] });
+    let step = 0, grandInserted = 0, grandInvalid = 0, grandLocked = 0, grandMissing = 0;
+
+    const renderProgress = (curLabel) => {
+        const rows = branches.map(b => {
+            const a = agg[b.id];
+            const err = a.errors.length ? `<div style="color:#991b1b;font-size:11px">${a.errors.map(escapeHtml).join('<br>')}</div>` : '';
+            return `<tr>
+                <td style="padding:3px 10px">${escapeHtml(a.name)}</td>
+                <td style="padding:3px 10px;text-align:right;color:#166534">${a.inserted}</td>
+                <td style="padding:3px 10px;text-align:right;color:#b45309">${a.invalid}</td>
+                <td style="padding:3px 10px;text-align:right;color:#64748b">${a.locked}</td>
+                <td style="padding:3px 10px;text-align:right;color:#64748b">${a.missing}</td>
+                <td style="padding:3px 10px">${err}</td>
+            </tr>`;
+        }).join('');
+        out.innerHTML = `
+            <div style="font-size:13px;padding:10px;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;margin-bottom:10px">
+                ⏳ ${curLabel} — Schritt ${step}/${totalSteps} · bisher ${grandInserted} Stempel importiert
+            </div>
+            <table style="font-size:12px;border-collapse:collapse;width:100%">
+                <thead><tr style="color:#64748b;text-align:left">
+                    <th style="padding:3px 10px">Filiale</th>
+                    <th style="padding:3px 10px;text-align:right">Importiert</th>
+                    <th style="padding:3px 10px;text-align:right">Fehlerhaft</th>
+                    <th style="padding:3px 10px;text-align:right">Gesperrt</th>
+                    <th style="padding:3px 10px;text-align:right">Nicht&nbsp;zugeordnet</th>
+                    <th></th>
+                </tr></thead><tbody>${rows}</tbody></table>`;
+    };
+    renderProgress('Start');
+
+    // 3) Sequenziell: Filiale → Fenster → Commit.
+    try {
+        for (const b of branches) {
+            for (const [wf, wt] of windows) {
+                step++;
+                renderProgress(`${b.name}: ${fmt(wf)}–${fmt(wt)}`);
+                try {
+                    const r = await fetch('/api/easywork/sync/timepunches/commit', {
+                        method: 'POST',
+                        headers: { ...ah(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            companyProfileId: b.id,
+                            from: wf, to: wt,
+                            employeeCutoffOverride: from,   // MA-Stichtag bis Import-Beginn
+                            ignoreMissing: true             // nicht zuordenbare MA fallen lassen
+                        })
+                    });
+                    const body = await r.json();
+                    if (!r.ok) {
+                        agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ${body.message || ('HTTP ' + r.status)}`);
+                        continue;
+                    }
+                    const a = agg[b.id];
+                    a.inserted += body.countInserted || 0;
+                    a.invalid  += body.countInvalid   || 0;
+                    a.locked   += body.countLocked    || 0;
+                    a.missing  += body.countMissing   || 0;
+                    grandInserted += body.countInserted || 0;
+                    grandInvalid  += body.countInvalid  || 0;
+                    grandLocked   += body.countLocked   || 0;
+                    grandMissing  += body.countMissing  || 0;
+                    // BLOCK „mehrere Lohn-MA": uneindeutige Person → Chunk wurde NICHT
+                    // geschrieben. Klartext aus den Notes sichtbar machen (Walter 21.06.2026).
+                    if ((body.countAmbiguous || 0) > 0 || (body.isBlocked && (body.countInserted || 0) === 0)) {
+                        const note = (body.notes && body.notes.length) ? body.notes.join(' ') : 'Import blockiert (mehrere Lohn-MA für eine Person).';
+                        agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ⚠ ${note}`);
+                    }
+                } catch (e) {
+                    agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ${String(e)}`);
+                }
+            }
+        }
+        // 4) Abschluss-Anzeige (grünes Banner statt gelbem Fortschritt + Tabelle).
+        const rows = branches.map(b => {
+            const a = agg[b.id];
+            const err = a.errors.length ? `<div style="color:#991b1b;font-size:11px">${a.errors.map(escapeHtml).join('<br>')}</div>` : '';
+            return `<tr>
+                <td style="padding:3px 10px">${escapeHtml(a.name)}</td>
+                <td style="padding:3px 10px;text-align:right;color:#166534">${a.inserted}</td>
+                <td style="padding:3px 10px;text-align:right;color:#b45309">${a.invalid}</td>
+                <td style="padding:3px 10px;text-align:right;color:#64748b">${a.locked}</td>
+                <td style="padding:3px 10px;text-align:right;color:#64748b">${a.missing}</td>
+                <td style="padding:3px 10px">${err}</td>
+            </tr>`;
+        }).join('');
+        out.innerHTML = `
+            <div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:10px">
+                ✓ Tief-Import abgeschlossen — <strong>${grandInserted}</strong> Stempel importiert über ${branches.length} Filiale(n).
+                Fallen gelassen: ${grandInvalid} fehlerhaft, ${grandLocked} in gesperrter Periode, ${grandMissing} nicht zuordenbar.
+            </div>
+            <table style="font-size:12px;border-collapse:collapse;width:100%">
+                <thead><tr style="color:#64748b;text-align:left">
+                    <th style="padding:3px 10px">Filiale</th>
+                    <th style="padding:3px 10px;text-align:right">Importiert</th>
+                    <th style="padding:3px 10px;text-align:right">Fehlerhaft</th>
+                    <th style="padding:3px 10px;text-align:right">Gesperrt</th>
+                    <th style="padding:3px 10px;text-align:right">Nicht&nbsp;zugeordnet</th>
+                    <th></th>
+                </tr></thead><tbody>${rows}</tbody></table>`;
+    } finally {
+        _eawBatchRunning = false;
+    }
+}
+
 async function _eawEmpSyncRun(commit, selected) {
     const sel        = document.getElementById('eawEmpSyncBranchSel');
     const scopeEl    = document.getElementById('eawEmpSyncScope');
@@ -692,7 +1002,10 @@ function _eawEmpSyncRender(res, wasCommit) {
         return `<tr>
             <td>${cb}</td>
             <td>${pill}</td>
-            <td>${escapeHtml((r.firstName||'') + ' ' + (r.lastName||''))} <span style="color:#94a3b8">(${escapeHtml(r.number||'-')})</span></td>
+            <td>${escapeHtml((r.firstName||'') + ' ' + (r.lastName||''))} <span style="color:#94a3b8">(${escapeHtml(r.number||'-')})</span>
+                ${r.matchedViaAltNumber ? `<div style="font-size:11px;color:#7c3aed">↪ gematcht über alte Nr. ${escapeHtml(r.matchedViaAltNumber)}</div>` : ''}
+                ${r.employmentInfo ? `<div style="font-size:11px;color:#475569">Employment: <strong>${escapeHtml(r.employmentInfo)}</strong>${r.assignedBranchName ? ' · Filiale: ' + escapeHtml(r.assignedBranchName) : ''}</div>` : ''}
+            </td>
             <td style="font-size:11px;color:#475569">${changesSummary}</td>
             <td><a href="#" onclick="event.preventDefault();_eawEmpToggle('${detailId}')" style="color:#1e40af;font-size:12px">Diffs</a>${eawDetail}</td>
             <td style="color:#94a3b8;font-size:11px">${escapeHtml(r.reason||'')}</td>

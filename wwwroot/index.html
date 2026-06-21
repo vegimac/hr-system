@@ -3593,30 +3593,20 @@
                         <p class="page-sub">Zentrale Verwaltung und Stammdaten</p>
                     </div>
                 </div>
-                <!-- Datenaufbewahrung Stempelzeiten (Walter-Vorgabe 21.06.2026) -->
-                <div class="card" style="padding:16px 18px;margin-top:12px;max-width:560px;border-left:4px solid #2563eb">
-                    <div style="font-weight:700;color:#0f172a;font-size:14px;margin-bottom:4px">Datenaufbewahrung — Stempelzeiten</div>
-                    <div style="font-size:12.5px;color:#64748b;margin-bottom:10px;line-height:1.5">
-                        Stempelzeiten älter als diese Anzahl Jahre werden <b>monatlich automatisch gelöscht</b> (jeden 1. um 04:30).
-                        Minimum 5 Jahre — Lohn- und Mitarbeiterdaten sind davon NICHT betroffen.
-                    </div>
-                    <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
-                        <label style="font-size:12px;color:#475569;display:flex;flex-direction:column;gap:4px">Aufbewahrung (Jahre)
-                            <input type="number" id="retentionYearsInput" min="5" max="100" step="1"
-                                   style="width:120px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px">
-                        </label>
-                        <button class="btn btn-primary" onclick="saveRetentionYears()">Speichern</button>
-                        <span id="retentionYearsMsg" style="font-size:12px"></span>
-                    </div>
-                </div>
-
-                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:16px;margin-top:16px">
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:16px;margin-top:12px">
                     <div class="admin-card" onclick="showPage('benutzer')">
                         <div class="admin-card-icon" style="background:#dbeafe;color:#1e40af">
                             <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         </div>
                         <div class="admin-card-title">Benutzer</div>
                         <div class="admin-card-desc">Zugänge, Rollen, Filial-Berechtigungen</div>
+                    </div>
+                    <div class="admin-card" onclick="showPage('datenaufbewahrung')">
+                        <div class="admin-card-icon" style="background:#e0e7ff;color:#3730a3">
+                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        </div>
+                        <div class="admin-card-title">Datenaufbewahrung</div>
+                        <div class="admin-card-desc">Stempelzeiten automatisch löschen (Aufbewahrung in Jahren)</div>
                     </div>
                     <div class="admin-card" onclick="showPage('perioden')">
                         <div class="admin-card-icon" style="background:#fef3c7;color:#92400e">
@@ -3777,6 +3767,34 @@
                         </div>
                         <div class="admin-card-title">E-Mail-Versand</div>
                         <div class="admin-card-desc">SMTP-Konfiguration + Test-Mail (Lohnzettel-Benachrichtigungen)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DATENAUFBEWAHRUNG — Stempelzeiten-Retention (Walter-Vorgabe 21.06.2026) -->
+            <div class="page" id="page-datenaufbewahrung">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Datenaufbewahrung</h1>
+                        <p class="page-sub">Automatische Löschung alter Stempelzeiten</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div class="card" style="padding:22px 24px;max-width:560px">
+                        <div style="font-weight:700;color:#0f172a;font-size:15px;margin-bottom:6px">Stempelzeiten</div>
+                        <div style="font-size:13px;color:#64748b;margin-bottom:16px;line-height:1.55">
+                            Stempelzeiten älter als die eingestellte Anzahl Jahre werden <b>monatlich automatisch gelöscht</b>
+                            (jeden 1. um 04:30). Minimum 5 Jahre. <b>Lohn- und Mitarbeiterdaten sind davon NICHT betroffen</b>
+                            (gesetzliche 10-Jahre-Aufbewahrungspflicht bleibt gewahrt).
+                        </div>
+                        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
+                            <label style="font-size:12px;color:#475569;display:flex;flex-direction:column;gap:5px">Aufbewahrung (Jahre)
+                                <input type="number" id="retentionYearsInput" min="5" max="100" step="1"
+                                       style="width:130px;padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px">
+                            </label>
+                            <button class="btn btn-primary" onclick="saveRetentionYears()">Speichern</button>
+                            <span id="retentionYearsMsg" style="font-size:12.5px"></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -5538,6 +5556,9 @@
                         <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Bis
                             <input type="date" id="eawSyncTo" class="eaw-input">
                         </label>
+                        <label title="Erlaubt den einmaligen Import alter Stempel zurück bis 1.1.2021 (sonst Stichtag 1.1.2025). Abgeschlossene Lohnperioden bleiben gesperrt." style="font-size:12px;color:#92400e;display:flex;align-items:center;gap:6px;background:#fef3c7;border:1px solid #fde68a;border-radius:7px;padding:7px 10px">
+                            <input type="checkbox" id="eawSyncPreMirus"> Pre-Mirus (ab 2021)
+                        </label>
                         <button class="btn-primary" onclick="eawSyncPreview()">🔍 Vorschau</button>
                         <button class="btn-secondary" id="eawSyncCommitBtn" onclick="eawSyncCommit()" disabled>💾 Importieren</button>
                     </div>
@@ -5562,6 +5583,42 @@
                         <strong>Alle</strong> = aktive + alle seit dem 1.1.2025 Ausgetretenen (Pre-Mirus-Austritte vor 2025 werden ausgelassen). <strong>Nur aktive</strong> = nur aktuell beschäftigte MA. Geschrieben wird beim Import nur, was du pro MA auswählst.
                     </div>
                     <div id="eawEmpSyncResult"></div>
+
+                    <div style="margin-top:24px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px">
+                        <h3 style="margin:0 0 6px;font-size:15px;color:#92400e">⚠ Einmaliger Tief-Import (alle Filialen, ab 2021)</h3>
+                        <p style="color:#92400e;font-size:13px;margin:0 0 12px;line-height:1.5">
+                            Holt <strong>für ALLE Filialen</strong> die inaktiven Mitarbeiter zurück bis <strong>1.1.2021</strong> ins System, damit anschliessend deren Stempelzeiten importiert werden können.
+                            Pre-Mirus-Austritte (Austritt vor dem 1.1.2025) bekommen automatisch das Suffix <code>alt</code> an der Personalnummer (z.&nbsp;B. <code>58001</code> → <code>58001alt</code>), um Nummern­kollisionen zu vermeiden.
+                            Läuft <strong>ohne Vorschau direkt durch</strong> (Upsert — bestehende MA werden nicht doppelt angelegt).
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                            <label style="font-size:13px;color:#92400e;display:flex;flex-direction:column;gap:4px">Ab Datum
+                                <input type="date" id="eawInitImportSince" class="eaw-input" value="2021-01-01">
+                            </label>
+                            <button class="btn-primary" style="background:#d97706;border-color:#d97706" onclick="eawInitialImport()">🏗️ Tief-Import starten</button>
+                        </div>
+                        <div id="eawInitImportResult" style="margin-top:12px"></div>
+                    </div>
+
+                    <div style="margin-top:16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px">
+                        <h3 style="margin:0 0 6px;font-size:15px;color:#92400e">⏱️ Einmaliger Stempelzeiten-Tief-Import (2021–2024, alle Filialen)</h3>
+                        <p style="color:#92400e;font-size:13px;margin:0 0 12px;line-height:1.5">
+                            Holt <strong>für ALLE Filialen</strong> alle Stempelzeiten vom <strong>1.1.2021 bis 31.12.2024</strong> in Schritten bis Monatsende (jeweils Start + 90 Tage).
+                            Läuft <strong>ohne Vorschau</strong> durch — fehlerhafte/ungültige Stempel werden fallen gelassen, nicht zuordenbare MA übersprungen, abgeschlossene Lohnperioden bleiben gesperrt.
+                            Mehrfaches Laufen verdoppelt nichts (Dedupe). <strong>Voraussetzung:</strong> der MA-Tief-Import oben muss vorher gelaufen sein.
+                            Das kann einige Minuten dauern — bitte das Fenster offen lassen.
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                            <label style="font-size:13px;color:#92400e;display:flex;flex-direction:column;gap:4px">Von
+                                <input type="date" id="eawBatchFrom" class="eaw-input" value="2021-01-01" onchange="eawBatchFromChanged(this.value)">
+                            </label>
+                            <label style="font-size:13px;color:#92400e;display:flex;flex-direction:column;gap:4px">Bis
+                                <input type="date" id="eawBatchTo" class="eaw-input" value="2024-12-31">
+                            </label>
+                            <button class="btn-primary" style="background:#d97706;border-color:#d97706" onclick="eawBatchHistorical()">⏱️ Stempelzeiten-Tief-Import starten</button>
+                        </div>
+                        <div id="eawBatchResult" style="margin-top:12px"></div>
+                    </div>
 
                     <h3 style="margin:30px 0 8px;font-size:15px">Auto-Sync-Protokoll</h3>
                     <p style="color:#64748b;font-size:13px;margin-bottom:10px">Läufe des automatischen täglichen Stempelzeiten-Sync (05:00 Europe/Zurich). Pro Filiale und Lauf eine Zeile — so siehst du, ob alles durchgelaufen ist, ohne aufs Server-Log zu schauen.</p>
@@ -8830,7 +8887,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','smtp-settings','filial-onboarding','postfach-backfill',
-                         'saldo-vortrag','dok-audit','pregnancy-rules'];
+                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
 // Widget. Wird auf allen Admin-Sub-Pages eingeblendet, sonst versteckt.
@@ -8865,7 +8922,7 @@ function showPage(name) {
     if (name === 'dashboard') loadDashboard();
     if (name === 'fibu') fibuInit();
     if (name === 'benutzer') loadUsers();
-    if (name === 'admin-hub' && typeof loadRetentionYears === 'function') loadRetentionYears();
+    if (name === 'datenaufbewahrung' && typeof loadRetentionYears === 'function') loadRetentionYears();
     if (name === 'filialen') loadFilialen();
     if (name === 'vertraege') loadVtList();
     if (name === 'qst-tarife') loadQstTarifeStatus();
@@ -9080,7 +9137,7 @@ function onBranchChange() {
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
-<script src="js/easyatwork.js?v=20260621a"></script>
+<script src="js/easyatwork.js?v=20260621i"></script>
 <script src="js/sollstunden-report.js?v=20260620i"></script>
 <script src="js/ferien-report.js?v=20260620m"></script>
 <script src="js/audit-log.js?v=20260527a"></script>
@@ -9357,7 +9414,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260621d"></script>
+<script src="employees.js?v=20260621h"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

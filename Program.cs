@@ -316,6 +316,22 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS edited_at         TIMESTAMPTZ;
     ");
 
+    // Herkunftsfelder für Stempelzeiten (Walter 21.06.2026): in welcher Filiale
+    // (easy@work-Customer) wurde gestempelt — bleibt nachvollziehbar, auch wenn
+    // der Stempel auf den Lohn-MA einer anderen Filiale gespeichert wird.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_time_entry
+        ADD COLUMN IF NOT EXISTS easyatwork_customer_id     INTEGER,
+        ADD COLUMN IF NOT EXISTS source_company_profile_id  INTEGER;
+    ");
+
+    // Alte/zweite Personalnummern als zusätzliche Match-Schlüssel (Walter 21.06.2026).
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee
+        ADD COLUMN IF NOT EXISTS employee_number_alt1 TEXT,
+        ADD COLUMN IF NOT EXISTS employee_number_alt2 TEXT;
+    ");
+
     // Performance-Indices (für Queries pro MA + Zeitraum und Duplikat-Checks)
     db.Database.ExecuteSqlRaw(@"
         CREATE INDEX IF NOT EXISTS ix_time_entry_emp_date

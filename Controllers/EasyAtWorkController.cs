@@ -357,7 +357,7 @@ public class EasyAtWorkController : ControllerBase
 
     // ────────────────── Stempelzeit-Sync (Phase 2) ──────────────────
 
-    public record SyncRequestDto(int CompanyProfileId, DateOnly From, DateOnly To, List<int>? SkipEawEmployeeIds = null);
+    public record SyncRequestDto(int CompanyProfileId, DateOnly From, DateOnly To, List<int>? SkipEawEmployeeIds = null, DateOnly? EmployeeCutoffOverride = null, bool? IgnoreMissing = null);
 
     /// <summary>Dry-Run: zeigt, was importiert/dedupliziert/unmatched wäre. Schreibt nichts.</summary>
     [HttpPost("sync/timepunches/preview")]
@@ -369,7 +369,8 @@ public class EasyAtWorkController : ControllerBase
             CompanyProfileId = dto.CompanyProfileId,
             From = dto.From,
             To = dto.To,
-            SkipEawEmployeeIds = dto.SkipEawEmployeeIds ?? new()
+            SkipEawEmployeeIds = dto.SkipEawEmployeeIds ?? new(),
+            EmployeeCutoffOverride = dto.EmployeeCutoffOverride
         }, ct);
         return Ok(res);
     }
@@ -427,9 +428,27 @@ public class EasyAtWorkController : ControllerBase
             CompanyProfileId = dto.CompanyProfileId,
             From = dto.From,
             To = dto.To,
-            SkipEawEmployeeIds = dto.SkipEawEmployeeIds ?? new()
+            SkipEawEmployeeIds = dto.SkipEawEmployeeIds ?? new(),
+            EmployeeCutoffOverride = dto.EmployeeCutoffOverride,
+            IgnoreMissing = dto.IgnoreMissing ?? false
         }, firstAllowed, ct);
         return Ok(res);
+    }
+
+    // Liefert die gemappten Filialen (Id + Name) — fürs Frontend, das den
+    // historischen Batch-Import Filiale-für-Filiale + Fenster-für-Fenster fährt
+    // (kurze Requests, kein Gateway-Timeout). Walter 21.06.2026.
+    [HttpGet("mapped-branches")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> MappedBranches(CancellationToken ct)
+    {
+        var ids = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .Select(m => m.CompanyProfileId).Distinct().ToListAsync(ct);
+        var rows = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => ids.Contains(c.Id))
+            .Select(c => new { id = c.Id, name = string.IsNullOrWhiteSpace(c.BranchName) ? c.CompanyName : c.BranchName })
+            .ToListAsync(ct);
+        return Ok(rows.OrderBy(r => r.name));
     }
 
     // ────────────────── Mitarbeiter-Sync (Phase 3.1) ─────────────────
@@ -463,6 +482,79 @@ public class EasyAtWorkController : ControllerBase
             SelectedNumbers = dto.SelectedNumbers,
         }, ct);
         return Ok(res);
+    }
+
+    public record InitialImportDto(DateOnly? Since);
+    public record InitialImportBranchDto(int CompanyProfileId, DateOnly? Since);
+
+    /// <summary>
+    /// Tief-Import für EINE Filiale (Walter-Vorgabe 21.06.2026) — damit das
+    /// Frontend den Lauf Filiale-für-Filiale fahren und live anzeigen kann, an
+    /// welcher es gerade arbeitet (kein „hängt es?"-Eindruck, kein Gateway-
+    /// Timeout). Gleiche Logik wie initial-import, nur pro Filiale.
+    /// </summary>
+    [HttpPost("sync/employees/initial-import-branch")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> SyncEmployeesInitialImportBranch([FromBody] InitialImportBranchDto dto, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var since = dto.Since ?? new DateOnly(2021, 1, 1);
+        var res = await _empSync.CommitAsync(new Services.EasyAtWork.EasyAtWorkEmployeeSyncService.SyncRequest
+        {
+            CompanyProfileId          = dto.CompanyProfileId,
+            OnlyActive                = false,
+            EmployeeCutoffOverride    = since,
+            AltSuffixForPreMirusExits = true,
+        }, ct);
+        return Ok(new { companyProfileId = dto.CompanyProfileId, inserted = res.CountInserted, updated = res.CountUpdated, total = res.CountTotal });
+    }
+
+    /// <summary>
+    /// EINMALIGER Tief-Import (Walter-Vorgabe 21.06.2026): importiert ALLE
+    /// inaktiven MA ALLER gemappten Filialen zurück bis zum Stichtag (Default
+    /// 1.1.2021), AUTOMATISCH ohne Vorschau. Pre-Mirus-Austritte (Austritt vor
+    /// 1.1.2025) bekommen den „alt"-Suffix an die Personalnummer, damit sie
+    /// nicht mit den aktuellen Mirus-Nummern kollidieren. Danach lassen sich die
+    /// alten Stempelzeiten dieser MA importieren.
+    /// </summary>
+    [HttpPost("sync/employees/initial-import")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> SyncEmployeesInitialImport([FromBody] InitialImportDto? dto, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var since = dto?.Since ?? new DateOnly(2021, 1, 1);
+
+        var branchIds = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .Select(m => m.CompanyProfileId).Distinct().ToListAsync(ct);
+        var branchNames = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => branchIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => string.IsNullOrWhiteSpace(c.BranchName) ? c.CompanyName : c.BranchName, ct);
+
+        int totalInserted = 0, totalUpdated = 0;
+        var perBranch = new List<object>();
+        foreach (var cpId in branchIds)
+        {
+            var branchName = branchNames.TryGetValue(cpId, out var nm) ? nm : $"#{cpId}";
+            try
+            {
+                var res = await _empSync.CommitAsync(new Services.EasyAtWork.EasyAtWorkEmployeeSyncService.SyncRequest
+                {
+                    CompanyProfileId          = cpId,
+                    OnlyActive                = false,
+                    EmployeeCutoffOverride    = since,
+                    AltSuffixForPreMirusExits = true,
+                }, ct);
+                totalInserted += res.CountInserted;
+                totalUpdated  += res.CountUpdated;
+                perBranch.Add(new { companyProfileId = cpId, branch = branchName, inserted = res.CountInserted, updated = res.CountUpdated, total = res.CountTotal });
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "Initial-Import Filiale {Cp} fehlgeschlagen", cpId);
+                perBranch.Add(new { companyProfileId = cpId, branch = branchName, error = ex.Message });
+            }
+        }
+        return Ok(new { since, branches = branchIds.Count, totalInserted, totalUpdated, perBranch });
     }
 
     /// <summary>

@@ -81,6 +81,8 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeNumber).HasColumnName("employee_number");
+            entity.Property(e => e.EmployeeNumberAlt1).HasColumnName("employee_number_alt1");
+            entity.Property(e => e.EmployeeNumberAlt2).HasColumnName("employee_number_alt2");
             entity.Property(e => e.Salutation).HasColumnName("salutation");
             entity.Property(e => e.Gender).HasColumnName("gender");
             entity.Property(e => e.FirstName).HasColumnName("first_name");
@@ -547,6 +549,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TotalHours).HasColumnName("total_hours").HasColumnType("numeric(6,2)");
             // source-Spalte entfernt (Walter 17.06.2026) — siehe drop_employee_time_entry_source.sql
             entity.Property(e => e.EasyAtWorkTimepunchId).HasColumnName("easyatwork_timepunch_id");
+            // Herkunft (Walter 21.06.2026): in welchem easy@work-Customer/Filiale gestempelt.
+            entity.Property(e => e.EasyAtWorkCustomerId).HasColumnName("easyatwork_customer_id");
+            entity.Property(e => e.SourceCompanyProfileId).HasColumnName("source_company_profile_id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.OriginalTimeIn).HasColumnName("original_time_in").HasColumnType("timestamp without time zone");
