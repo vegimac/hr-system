@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -78,6 +79,16 @@ public class EasyAtWorkEmployeeSyncService
         /// Nummern kollidieren. Gilt für Matching UND Neuanlage.
         /// </summary>
         public bool AltSuffixForPreMirusExits { get; set; } = false;
+
+        /// <summary>
+        /// Walter-Vorgabe 21.06.2026 (Performance): überspringt die langsamen
+        /// Detail-API-Calls (Verträge, Pay-Rates, Zivilstand-Properties). Der
+        /// Import läuft dann nur mit den Basis-Daten aus dem Massen-Endpoint
+        /// (Name, Nummer, Eintritt, Austritt, Nationalität) — für den Tief-Import
+        /// alter MA (nur für Stempelzeiten) ausreichend. Employment wird mit
+        /// UTP-Default angelegt, Zivilstand bleibt leer.
+        /// </summary>
+        public bool SkipDetailCalls { get; set; } = false;
     }
 
     public class FieldDiff
@@ -122,6 +133,8 @@ public class EasyAtWorkEmployeeSyncService
         public int     CountConflict     { get; set; }
         public int     CountInserted     { get; set; }
         public int     CountUpdated      { get; set; }
+        /// <summary>MA, die schon existierten (gleiche easy@work-ID) → kein neuer Employee.</summary>
+        public int     CountExisting     { get; set; }
         public List<EmployeePreviewRow> Rows { get; set; } = new();
         public List<string> Notes { get; set; } = new();
     }
@@ -347,73 +360,116 @@ public class EasyAtWorkEmployeeSyncService
                 res.Notes.Add($"easy@work-ID stillschweigend bei {backfilled} bestehenden MA nachgetragen.");
             }
 
-            foreach (var row in res.Rows)
+            // Zu schreibende Zeilen (NEW/UPDATE, ausgewählt).
+            var rowsToProcess = res.Rows
+                .Where(r => (r.Status == "NEW" || r.Status == "UPDATE")
+                         && (selected == null || selected.Contains(r.Number ?? "")))
+                .ToList();
+
+            // Detail-Daten (Verträge/Pay-Rates/Zivilstand) PARALLEL vorladen (max. 10
+            // gleichzeitig) statt 3 sequenzielle API-Calls pro MA. Diese Calls nutzen
+            // NUR den HTTP-Client (nicht den DbContext) → thread-safe. Beim Schnell-
+            // Import (SkipDetailCalls) ganz überspringen. Walter-Vorgabe 21.06.2026.
+            var contractByEaw = new ConcurrentDictionary<int, HistContractInfo>();
+            var maritalByEaw  = new ConcurrentDictionary<int, string?>();
+            if (!req.SkipDetailCalls && rowsToProcess.Count > 0)
             {
-                if (row.Status != "NEW" && row.Status != "UPDATE") continue;
-                if (selected != null && !selected.Contains(row.Number ?? "")) continue;
+                using var sem = new SemaphoreSlim(10);
+                var detailTasks = rowsToProcess
+                    .Select(r => r.EawEmployeeId).Distinct()
+                    .Select(async eawId =>
+                    {
+                        await sem.WaitAsync(ct);
+                        try
+                        {
+                            contractByEaw[eawId] = await BuildHistContractInfoAsync(mapping.EasyAtWorkCustomerId, eawId, ct);
+                            maritalByEaw[eawId]  = await FetchMaritalStatusAsync(mapping.EasyAtWorkCustomerId, eawId, ct);
+                        }
+                        finally { sem.Release(); }
+                    });
+                await Task.WhenAll(detailTasks);
+            }
+            HistContractInfo InfoFor(int eawId) => contractByEaw.TryGetValue(eawId, out var i) ? i : new HistContractInfo();
+            string? MaritalFor(int eawId)       => maritalByEaw.TryGetValue(eawId, out var m) ? m : null;
+
+            foreach (var row in rowsToProcess)
+            {
+                var eaw = eawEmps.FirstOrDefault(e => e.Id == row.EawEmployeeId);
+                if (eaw == null) continue;
+                var info = InfoFor(row.EawEmployeeId);
 
                 if (row.Status == "NEW")
                 {
-                    var eaw = eawEmps.FirstOrDefault(e => e.Id == row.EawEmployeeId);
-                    if (eaw == null) continue;
+                    // Duplikat-Prävention (Walter-Vorgabe 21.06.2026): existiert schon
+                    // ein Employee mit dieser easy@work-ID (egal in welcher Filiale)?
+                    var eawKey = eaw.UserId ?? eaw.Id;
+                    var existingByEawId = await _db.Employees.FirstOrDefaultAsync(
+                        e => !e.IsHidden && (e.EasyAtWorkEmployeeId == eawKey || e.EasyAtWorkEmployeeId == eaw.Id), ct);
+                    if (existingByEawId != null)
+                    {
+                        // 1) Personalnummer als Alias sichern (falls anders + neu).
+                        var newNum   = (eaw.Number ?? "").Trim();
+                        var existNum = (existingByEawId.EmployeeNumber ?? "").Trim();
+                        if (!string.IsNullOrWhiteSpace(newNum)
+                            && !string.Equals(newNum, existNum, StringComparison.OrdinalIgnoreCase)
+                            && !await _db.EmployeeNumberAliases.AnyAsync(a => a.EmployeeId == existingByEawId.Id && a.Number == newNum, ct))
+                        {
+                            _db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
+                            {
+                                EmployeeId = existingByEawId.Id, Number = newNum,
+                                Source = "easyatwork_sync", CreatedAt = DateTime.UtcNow,
+                            });
+                        }
+                        // 2) Employment in DIESER Filiale nachholen (falls fehlt).
+                        await EnsureEmploymentAsync(existingByEawId, eaw, req.CompanyProfileId, isNewEmployee: false, info, ct);
+                        // 3) Als EXISTING markieren, NICHT als neuen Employee anlegen.
+                        row.Status = "EXISTING";
+                        row.CoworkEmployeeId = existingByEawId.Id;
+                        row.Reason = $"MA existiert bereits (#{existingByEawId.Id} {existingByEawId.EmployeeNumber}). Nummer als Alias gesichert, Employment nachgeholt.";
+                        res.CountExisting++;
+                        res.CountNew = Math.Max(0, res.CountNew - 1);
+                        continue;
+                    }
+
                     var emp = new Employee
                     {
                         EmployeeNumber       = row.Number ?? "",
                         FirstName            = eaw.FirstName ?? "",
                         LastName             = eaw.LastName ?? "",
-                        // Bereits ausgetretene MA werden als inaktiv angelegt
-                        // (Walter-Vorgabe 21.06.2026 — Tief-Import inaktiver MA).
                         IsActive             = !(eaw.To.HasValue && eaw.To.Value < activeAt),
                         ExitDate             = eaw.To?.ToDateTime(TimeOnly.MinValue),
-                        // Wir speichern primär die user_id (auf die edited_by_id zeigt),
-                        // mit Fallback auf die Employee-Id. Walter 17.06.2026.
                         EasyAtWorkEmployeeId = eaw.UserId ?? eaw.Id,
                     };
                     ApplyDiffs(emp, row.Diffs, eaw, natByCode);
-                    // Defaults: Sprache „de", Konfession „keine" (easy@work liefert
-                    // beides nicht); Zivilstand best-effort aus den Custom-Fields.
-                    // Walter-Vorgabe 21.06.2026.
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
-                    if (string.IsNullOrWhiteSpace(emp.MaritalStatus))
-                        emp.MaritalStatus = await FetchMaritalStatusAsync(mapping.EasyAtWorkCustomerId, eaw.Id, ct);
+                    if (string.IsNullOrWhiteSpace(emp.MaritalStatus)) emp.MaritalStatus = MaritalFor(row.EawEmployeeId);
                     _db.Employees.Add(emp);
                     res.CountInserted++;
-                    // Jeder neue MA bekommt eine Employment-Zeile (Filiale + Dates +
-                    // UTP-Default), inaktive MA als inaktive Zeile (Walter-Vorgabe
-                    // 21.06.2026). emp.Id ist hier noch 0 → EF-Navigation.
-                    await EnsureEmploymentAsync(emp, eaw, req.CompanyProfileId, mapping.EasyAtWorkCustomerId, isNewEmployee: true, ct);
+                    await EnsureEmploymentAsync(emp, eaw, req.CompanyProfileId, isNewEmployee: true, info, ct);
                 }
                 else // UPDATE
                 {
                     if (row.CoworkEmployeeId == null) continue;
                     var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == row.CoworkEmployeeId, ct);
                     if (emp == null) continue;
-                    var eaw = eawEmps.FirstOrDefault(e => e.Id == row.EawEmployeeId);
-                    if (eaw == null) continue;
                     var newEawId = eaw.UserId ?? eaw.Id;
                     if (emp.EasyAtWorkEmployeeId != newEawId) emp.EasyAtWorkEmployeeId = newEawId;
                     ApplyDiffs(emp, row.Diffs, eaw, natByCode);
-                    // Nummernwechsel: alte Nummer als Alias sichern + neue setzen + loggen.
                     if (!string.IsNullOrWhiteSpace(row.NumberChangeTo))
                     {
                         SaveNumberChange(_db, emp, row.NumberChangeTo!);
                         res.Notes.Add($"Personalnummer geändert: {row.NumberChangeFrom} → {row.NumberChangeTo} (alte Nr. als Alias gesichert).");
                     }
-                    // Defaults + Zivilstand nur füllen, wenn noch leer (nicht überschreiben).
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
-                    if (string.IsNullOrWhiteSpace(emp.MaritalStatus))
-                        emp.MaritalStatus = await FetchMaritalStatusAsync(mapping.EasyAtWorkCustomerId, eaw.Id, ct);
-                    // Inaktiver MA → is_active=false + Austrittsdatum. Und ein
-                    // Employment NACHHOLEN, falls für (MA, Filiale) noch keines
-                    // existiert (idempotent, kein Duplikat bei Re-Import).
+                    if (string.IsNullOrWhiteSpace(emp.MaritalStatus)) emp.MaritalStatus = MaritalFor(row.EawEmployeeId);
                     if (eaw.To.HasValue && eaw.To.Value < activeAt)
                     {
                         emp.IsActive = false;
                         emp.ExitDate = eaw.To.Value.ToDateTime(TimeOnly.MinValue);
                     }
-                    await EnsureEmploymentAsync(emp, eaw, req.CompanyProfileId, mapping.EasyAtWorkCustomerId, isNewEmployee: false, ct);
+                    await EnsureEmploymentAsync(emp, eaw, req.CompanyProfileId, isNewEmployee: false, info, ct);
                     res.CountUpdated++;
                 }
             }
@@ -509,18 +565,15 @@ public class EasyAtWorkEmployeeSyncService
     /// UTP-Default (Stundenlohn = häufigstes Crew-Modell).
     /// </summary>
     private async Task EnsureEmploymentAsync(
-        Employee emp, EawEmployee eaw, int companyProfileId, int customerId, bool isNewEmployee, CancellationToken ct)
+        Employee emp, EawEmployee eaw, int companyProfileId, bool isNewEmployee, HistContractInfo info, CancellationToken ct)
     {
-        // UPDATE-MA: existiert schon ein Employment für (MA, Filiale)? Dann früh
-        // raus — KEIN unnötiger easy@work-Vertrags-/Pay-Rate-Abruf.
+        // UPDATE-MA: existiert schon ein Employment für (MA, Filiale)? Dann früh raus.
         if (!isNewEmployee && emp.Id != 0)
         {
             var has = await _db.Employments
                 .AnyAsync(em => em.EmployeeId == emp.Id && em.CompanyProfileId == companyProfileId, ct);
             if (has) return;
         }
-
-        var info = await BuildHistContractInfoAsync(customerId, eaw.Id, ct);
 
         // contract_start_date = EntryDate → Von (eaw.From) → Pay-Rate-From → ExitDate → heute.
         var startDate = emp.EntryDate

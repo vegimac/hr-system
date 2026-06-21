@@ -455,7 +455,7 @@ public class EasyAtWorkController : ControllerBase
 
     // OnlyActive ersetzt das frühere „Austritt nach"-Datumsfeld (Walter 19.06.2026):
     // true = nur aktive, false/null = alle (inkl. ausgetretene, ohne Pre-2025).
-    public record EmpSyncRequestDto(int CompanyProfileId, DateOnly? ActiveAt, DateOnly? ExitedAfter, bool? IncludeAllInactive, bool? OnlyActive, List<string>? SelectedNumbers);
+    public record EmpSyncRequestDto(int CompanyProfileId, DateOnly? ActiveAt, DateOnly? ExitedAfter, bool? IncludeAllInactive, bool? OnlyActive, List<string>? SelectedNumbers, bool? SkipDetailCalls = null);
 
     /// <summary>Dry-Run für MA-Stammdaten — zeigt NEW/UPDATE/UNCHANGED/CONFLICT.</summary>
     [HttpPost("sync/employees/preview")]
@@ -466,6 +466,7 @@ public class EasyAtWorkController : ControllerBase
         {
             CompanyProfileId = dto.CompanyProfileId,
             OnlyActive = dto.OnlyActive ?? false,
+            SkipDetailCalls = dto.SkipDetailCalls ?? false,
         }, ct);
         return Ok(res);
     }
@@ -480,12 +481,13 @@ public class EasyAtWorkController : ControllerBase
             CompanyProfileId = dto.CompanyProfileId,
             OnlyActive = dto.OnlyActive ?? false,
             SelectedNumbers = dto.SelectedNumbers,
+            SkipDetailCalls = dto.SkipDetailCalls ?? false,
         }, ct);
         return Ok(res);
     }
 
-    public record InitialImportDto(DateOnly? Since);
-    public record InitialImportBranchDto(int CompanyProfileId, DateOnly? Since);
+    public record InitialImportDto(DateOnly? Since, bool? SkipDetailCalls = null);
+    public record InitialImportBranchDto(int CompanyProfileId, DateOnly? Since, bool? SkipDetailCalls = null);
 
     /// <summary>
     /// Tief-Import für EINE Filiale (Walter-Vorgabe 21.06.2026) — damit das
@@ -505,8 +507,9 @@ public class EasyAtWorkController : ControllerBase
             OnlyActive                = false,
             EmployeeCutoffOverride    = since,
             AltSuffixForPreMirusExits = true,
+            SkipDetailCalls           = dto.SkipDetailCalls ?? true,   // Tief-Import: standardmässig schnell
         }, ct);
-        return Ok(new { companyProfileId = dto.CompanyProfileId, inserted = res.CountInserted, updated = res.CountUpdated, total = res.CountTotal });
+        return Ok(new { companyProfileId = dto.CompanyProfileId, inserted = res.CountInserted, updated = res.CountUpdated, total = res.CountTotal, existing = res.CountExisting });
     }
 
     /// <summary>
@@ -543,6 +546,7 @@ public class EasyAtWorkController : ControllerBase
                     OnlyActive                = false,
                     EmployeeCutoffOverride    = since,
                     AltSuffixForPreMirusExits = true,
+                    SkipDetailCalls           = dto?.SkipDetailCalls ?? true,
                 }, ct);
                 totalInserted += res.CountInserted;
                 totalUpdated  += res.CountUpdated;

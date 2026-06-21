@@ -631,6 +631,7 @@ async function eawInitialImport() {
     if (_eawInitRunning) { alert('Der Tief-Import läuft bereits.'); return; }
     const out   = document.getElementById('eawInitImportResult');
     const since = document.getElementById('eawInitImportSince')?.value || '2021-01-01';
+    const skipDetails = document.getElementById('eawInitSkipDetails')?.checked !== false;
     const fmt   = s => `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}`;
     if (!confirm(`Tief-Import für ALLE Filialen ab ${fmt(since)} starten?\n\n` +
                  `• Inaktive MA werden mitgeholt.\n` +
@@ -697,7 +698,7 @@ async function eawInitialImport() {
                 const r = await fetch('/api/easywork/sync/employees/initial-import-branch', {
                     method: 'POST',
                     headers: { ...ah(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ companyProfileId: b.id, since })
+                    body: JSON.stringify({ companyProfileId: b.id, since, skipDetailCalls: skipDetails })
                 });
                 const body = await r.json();
                 if (!r.ok) {
@@ -969,6 +970,7 @@ function _eawEmpSyncRender(res, wasCommit) {
             <span style="color:#1e40af">UPDATE: <strong>${res.countUpdate}</strong></span>
             <span style="color:#64748b">UNCHANGED: <strong>${res.countUnchanged}</strong></span>
             <span style="color:#991b1b">CONFLICT: <strong>${res.countConflict}</strong></span>
+            ${res.countExisting ? `<span style="color:#92400e">EXISTIERT: <strong>${res.countExisting}</strong></span>` : ''}
             ${wasCommit ? `<span style="color:#166534">Eingefügt: <strong>${res.countInserted}</strong></span><span style="color:#1e40af">Aktualisiert: <strong>${res.countUpdated}</strong></span>` : ''}
         </div>`;
 
@@ -978,6 +980,7 @@ function _eawEmpSyncRender(res, wasCommit) {
             NEW:        '<span class="eaw-pill eaw-pill-new">NEW</span>',
             UPDATE:     '<span class="eaw-pill" style="background:#dbeafe;color:#1e40af">UPDATE</span>',
             UNCHANGED:  '<span class="eaw-pill eaw-pill-soft">UNCHANGED</span>',
+            EXISTING:   '<span class="eaw-pill" style="background:#fef9c3;color:#92400e">EXISTIERT</span>',
             CONFLICT:   '<span class="eaw-pill eaw-pill-unmatched">CONFLICT</span>',
         }[r.status] || r.status;
         const willWrite = (r.status === 'NEW' || r.status === 'UPDATE');
