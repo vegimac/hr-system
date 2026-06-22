@@ -19,9 +19,10 @@ function kontrolleInit() {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// Walter-Vorgabe 20.06.2026 (ArG): Liste „Nachtarbeit-Untersuchung fehlt"
-// MA mit ≥ 25 gearbeiteten Nächten/Jahr (rollende 12 Monate, hochgerechnet)
-// ohne gültiges Arztzeugnis/Verzicht. Logik identisch zum Dashboard-Block.
+// Walter-Vorgabe 22.06.2026 (ArGV1 Art. 30): Liste „Nachtarbeit-Nachweise fehlen"
+// MA mit > 18 gearbeiteten Nächten in einem rollierenden 6-Wochen-Fenster ohne
+// vollständige Nachweise (Arztzeugnis/Verzicht UND Ausnahmeregelung). Logik
+// identisch zum Dashboard-Block.
 // ══════════════════════════════════════════════════════════════════════
 async function kontrolleNachtRefresh() {
     const el = document.getElementById('kontrolleNachtList');
@@ -40,7 +41,7 @@ async function kontrolleNachtRefresh() {
         _kontrolleNachtCache = Array.isArray(list) ? list : [];
         if (!Array.isArray(list) || list.length === 0) {
             el.innerHTML = `<div style="padding:24px;text-align:center;color:#16a34a;font-size:14px;font-weight:600">
-                ✓ Keine offenen Lücken — alle MA mit ≥ 25 Nächten/Jahr haben eine gültige Untersuchung.
+                ✓ Keine offenen Lücken — alle MA mit >18 Nächten in 6 Wochen haben vollständige Nachtarbeit-Nachweise.
             </div>`;
             return;
         }
@@ -52,15 +53,15 @@ async function kontrolleNachtRefresh() {
         };
         el.innerHTML = `
             <div style="padding:12px 18px 14px;color:#7f1d1d;font-size:12.5px;font-weight:600">
-                ${list.length} MA mit Anspruch auf medizinische Untersuchung ohne gültigen Nachweis
+                ${list.length} MA mit >18 Nächten in 6 Wochen ohne vollständige Nachtarbeit-Nachweise
                 <span style="color:#94a3b8;font-weight:400;font-size:11.5px;margin-left:8px">· Bemerkungen optional — werden ins Excel/PDF übernommen, beim Aktualisieren zurückgesetzt</span>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:13px">
                 <thead>
                     <tr style="background:#fef2f2;border-top:1px solid #fee2e2;border-bottom:1px solid #fecaca">
                         <th style="padding:9px 14px;text-align:left;color:#7f1d1d">Mitarbeiter</th>
-                        <th style="padding:9px 14px;text-align:center;color:#7f1d1d">Nächte/J</th>
-                        <th style="padding:9px 14px;text-align:center;color:#7f1d1d">Gültig bis</th>
+                        <th style="padding:9px 14px;text-align:center;color:#7f1d1d">Max 6W</th>
+                        <th style="padding:9px 14px;text-align:center;color:#7f1d1d">Zeitraum (6 Wochen)</th>
                         <th style="padding:9px 14px;text-align:left;color:#7f1d1d">Grund</th>
                         <th style="padding:9px 14px;text-align:left;color:#7f1d1d">Bemerkung</th>
                         <th style="padding:9px 14px;text-align:right;color:#7f1d1d">Aktion</th>
@@ -73,8 +74,8 @@ async function kontrolleNachtRefresh() {
                                 <div style="font-weight:600;color:#0f172a">${_e(r.employeeName)}</div>
                                 <div style="font-size:11.5px;color:#64748b">Nr. ${_e(r.employeeNumber)}</div>
                             </td>
-                            <td style="padding:9px 14px;text-align:center;font-family:monospace;font-weight:700;color:#991b1b">${r.naechteJahr}${r.hochgerechnet ? '<span style="color:#94a3b8;font-size:11px">*</span>' : ''}</td>
-                            <td style="padding:9px 14px;text-align:center;font-family:monospace">${fmtDe(r.gueltigBis)}</td>
+                            <td style="padding:9px 14px;text-align:center;font-family:monospace;font-weight:700;color:#991b1b">${r.maxNaechte6Wochen}</td>
+                            <td style="padding:9px 14px;text-align:center;font-family:monospace;font-size:12px">${fmtDe(r.windowFrom)}–${fmtDe(r.windowTo)}</td>
                             <td style="padding:9px 14px;color:#7f1d1d;font-size:12px">${_e(r.reason)}</td>
                             <td style="padding:6px 12px">
                                 <input type="text" id="kontrolleNachtNote-${r.employeeId}" placeholder="Notiz…"
@@ -90,7 +91,7 @@ async function kontrolleNachtRefresh() {
                     `).join('')}
                 </tbody>
             </table>
-            <div style="padding:8px 18px 4px;color:#94a3b8;font-size:11px">* Nächte/Jahr auf 12 Monate hochgerechnet (weniger als 12 Datenmonate vorhanden).</div>`;
+            <div style="padding:8px 18px 4px;color:#94a3b8;font-size:11px">Warnfall: >18 gearbeitete Nächte in einem 6-Wochen-Fenster (ArGV1 Art. 30) ohne vollständige Nachweise.</div>`;
     } catch (e) {
         el.innerHTML = '<div class="emp-placeholder" style="height:120px;color:#dc2626"><span>Verbindungsfehler: ' + _e(e.message) + '</span></div>';
     }
@@ -398,16 +399,16 @@ function _kontrolleExportCombiExcel() {
         if (hasNacht) rows.push([], []);
     }
 
-    // Sektion 4: Nachtarbeit-Untersuchung fehlt
+    // Sektion 4: Nachtarbeit-Nachweise fehlen
     if (hasNacht) {
-        rows.push(['NACHTARBEIT-UNTERSUCHUNG FEHLT']);
-        rows.push(['Personal-Nr.', 'Mitarbeiter', 'Nächte/Jahr', 'Gültig bis', 'Grund', 'Bemerkung']);
+        rows.push(['NACHTARBEIT-NACHWEISE FEHLEN']);
+        rows.push(['Personal-Nr.', 'Mitarbeiter', 'Max 6 Wochen', 'Zeitraum', 'Grund', 'Bemerkung']);
         for (const r of _kontrolleNachtCache) {
             rows.push([
                 r.employeeNumber || '',
                 r.employeeName || '',
-                (r.naechteJahr != null ? r.naechteJahr : '') + (r.hochgerechnet ? ' (hochgerechnet)' : ''),
-                fmtDe(r.gueltigBis),
+                (r.maxNaechte6Wochen != null ? r.maxNaechte6Wochen : ''),
+                (r.windowFrom ? fmtDe(r.windowFrom) + '–' + fmtDe(r.windowTo) : ''),
                 r.reason || '',
                 _kontrolleNachtNote(r.employeeId)
             ]);
@@ -519,21 +520,21 @@ function _kontrolleExportCombiPdf() {
         <tr>
             <td>${_kEsc(r.employeeNumber || '')}</td>
             <td>${_kEsc(r.employeeName || '')}</td>
-            <td style="text-align:center">${r.naechteJahr != null ? r.naechteJahr : ''}${r.hochgerechnet ? '*' : ''}</td>
-            <td style="text-align:center">${_kEsc(fmtDe(r.gueltigBis))}</td>
+            <td style="text-align:center">${r.maxNaechte6Wochen != null ? r.maxNaechte6Wochen : ''}</td>
+            <td style="text-align:center">${r.windowFrom ? _kEsc(fmtDe(r.windowFrom) + '–' + fmtDe(r.windowTo)) : ''}</td>
             <td>${_kEsc(r.reason || '')}</td>
             <td>${_kEsc(_kontrolleNachtNote(r.employeeId))}</td>
         </tr>`).join('');
 
     const nachtSection = hasNacht ? `
-        <h2 style="margin-top:24px">Nachtarbeit-Untersuchung fehlt <span class="cnt">${_kontrolleNachtCache.length}</span></h2>
+        <h2 style="margin-top:24px">Nachtarbeit-Nachweise fehlen <span class="cnt">${_kontrolleNachtCache.length}</span></h2>
         <table>
             <thead>
-                <tr><th>Pers.-Nr.</th><th>Mitarbeiter</th><th>Nächte/J</th><th>Gültig bis</th><th>Grund</th><th>Bemerkung</th></tr>
+                <tr><th>Pers.-Nr.</th><th>Mitarbeiter</th><th>Max 6W</th><th>Zeitraum</th><th>Grund</th><th>Bemerkung</th></tr>
             </thead>
             <tbody>${nachtRows}</tbody>
         </table>
-        <div style="color:#94a3b8;font-size:10px;margin-top:4px">* Nächte/Jahr auf 12 Monate hochgerechnet (weniger als 12 Datenmonate vorhanden). Ab 25 Nächten/Jahr besteht Anspruch auf eine medizinische Untersuchung (ArG).</div>` : '';
+        <div style="color:#94a3b8;font-size:10px;margin-top:4px">Warnfall: mehr als 18 gearbeitete Nächte in einem 6-Wochen-Fenster (ArGV1 Art. 30) ohne vollständige Nachweise (Arztzeugnis/Verzicht + Ausnahmeregelung).</div>` : '';
 
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Kontrolle — Lücken-Erkennung</title>
         <style>

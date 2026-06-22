@@ -751,8 +751,9 @@ function _eawWindowEnd(iso) {
     return _eawIso(new Date(d.getFullYear(), d.getMonth() + 3, 0));   // Tag 0 = letzter Tag von (Monat+2)
 }
 
-// Beim Ändern von „Von" das „Bis"-Feld automatisch auf Monatsende von
-// (Von + 90 Tage) setzen (Walter-Vorgabe 21.06.2026). Leer lassen löscht nichts.
+// Beim Ändern von „Von" das „Bis"-Feld automatisch auf das Ende des dritten
+// Monats ab Startmonat setzen (≤ 92 Tage; Walter-Vorgabe 21.06.2026). Leer
+// lassen löscht nichts.
 function eawBatchFromChanged(val) {
     if (!val) return;
     const toEl = document.getElementById('eawBatchTo');
@@ -787,7 +788,7 @@ async function eawBatchHistorical() {
         return;
     }
 
-    // 2) Fenster bilden: Bis = Monatsende von (Start + 90 Tage). Walter 21.06.2026.
+    // 2) Fenster bilden: Bis = Ende des dritten Monats ab Startmonat (max. 92 Tage). Walter 21.06.2026.
     const windows = [];
     let ws = from;
     while (ws <= to) {
@@ -832,66 +833,80 @@ async function eawBatchHistorical() {
     };
     renderProgress('Start');
 
-    // 3) Sequenziell: Filiale → Fenster → Commit.
-    try {
-        for (const b of branches) {
-            for (const [wf, wt] of windows) {
-                step++;
-                renderProgress(`${b.name}: ${fmt(wf)}–${fmt(wt)}`);
-                try {
-                    const r = await fetch('/api/easywork/sync/timepunches/commit', {
-                        method: 'POST',
-                        headers: { ...ah(), 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            companyProfileId: b.id,
-                            from: wf, to: wt,
-                            employeeCutoffOverride: from,   // MA-Stichtag bis Import-Beginn
-                            ignoreMissing: true             // nicht zuordenbare MA fallen lassen
-                        })
-                    });
-                    const body = await r.json();
-                    if (!r.ok) {
-                        agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ${body.message || ('HTTP ' + r.status)}`);
-                        continue;
-                    }
-                    // Der Commit-Endpoint liefert ein AutoSyncResult: inserted /
-                    // lockedSkipped / skipped / missingEmployees (NICHT die count*-
-                    // Felder der Vorschau!). Walter-Bug 21.06.2026: das UI las
-                    // body.countInserted → immer 0, obwohl Stempel geschrieben wurden.
-                    const a = agg[b.id];
-                    const ins  = body.inserted      || 0;
-                    const skip = body.skipped       || 0;
-                    const lock = body.lockedSkipped || 0;
-                    // „Nicht zugeordnet" = blockierend fehlende + (Tief-Import) bewusst
-                    // übersprungene MA. Beim ignoreMissing-Lauf liegen sie in
-                    // skippedMissingEmployees (sonst bliebe die Spalte fälschlich 0).
-                    const miss = ((body.missingEmployees && body.missingEmployees.length) || 0)
-                               + ((body.skippedMissingEmployees && body.skippedMissingEmployees.length) || 0);
-                    a.inserted += ins;
-                    a.invalid  += skip;   // Spalte „Übersprungen" (Dubletten/ungültig/ausgeschlossen)
-                    a.locked   += lock;
-                    a.missing  += miss;
-                    grandInserted += ins;
-                    grandInvalid  += skip;
-                    grandLocked   += lock;
-                    grandMissing  += miss;
-                    // BLOCK (z.B. mehrere Lohn-MA für eine Person): Chunk wurde NICHT
-                    // geschrieben → isBlocked. Klartext aus den Notes sichtbar machen.
-                    if (body.isBlocked) {
-                        const note = (body.notes && body.notes.length) ? body.notes.join(' ') : 'Import blockiert (mehrere Lohn-MA für eine Person).';
-                        agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ⚠ ${note}`);
-                    }
-                    // Sonst: wurde NICHTS importiert UND gibt es Backend-Notizen
-                    // (z.B. „max. 92 Tage", API-Fehler, „N MA übersprungen") →
-                    // anzeigen, damit ein stiller 0-Lauf nie unbemerkt bleibt.
-                    else if (ins === 0 && body.notes && body.notes.length) {
-                        agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ℹ ${body.notes.join(' ')}`);
-                    }
-                } catch (e) {
-                    agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ${String(e)}`);
+    // 3) EINE Filiale verarbeitet ihre Fensterliste WEITERHIN SEQUENZIELL (nie
+    //    zwei Fenster derselben Filiale parallel — sonst Dedup-/Reihenfolge-
+    //    Probleme). Request-Body unverändert. Walter-Vorgabe 22.06.2026.
+    const runBranch = async (b) => {
+        for (const [wf, wt] of windows) {
+            step++;
+            renderProgress(`${b.name}: ${fmt(wf)}–${fmt(wt)}`);
+            try {
+                const r = await fetch('/api/easywork/sync/timepunches/commit', {
+                    method: 'POST',
+                    headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        companyProfileId: b.id,
+                        from: wf, to: wt,
+                        employeeCutoffOverride: from,   // MA-Stichtag bis Import-Beginn
+                        ignoreMissing: true             // nicht zuordenbare MA fallen lassen
+                    })
+                });
+                const body = await r.json();
+                if (!r.ok) {
+                    agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ${body.message || ('HTTP ' + r.status)}`);
+                    continue;
                 }
+                // Der Commit-Endpoint liefert ein AutoSyncResult: inserted /
+                // lockedSkipped / skipped / missingEmployees (NICHT die count*-
+                // Felder der Vorschau!). Walter-Bug 21.06.2026: das UI las
+                // body.countInserted → immer 0, obwohl Stempel geschrieben wurden.
+                const a = agg[b.id];
+                const ins  = body.inserted      || 0;
+                const skip = body.skipped       || 0;
+                const lock = body.lockedSkipped || 0;
+                // „Nicht zugeordnet" = blockierend fehlende + (Tief-Import) bewusst
+                // übersprungene MA. Beim ignoreMissing-Lauf liegen sie in
+                // skippedMissingEmployees (sonst bliebe die Spalte fälschlich 0).
+                const miss = ((body.missingEmployees && body.missingEmployees.length) || 0)
+                           + ((body.skippedMissingEmployees && body.skippedMissingEmployees.length) || 0);
+                a.inserted += ins;
+                a.invalid  += skip;   // Spalte „Übersprungen" (Dubletten/ungültig/ausgeschlossen)
+                a.locked   += lock;
+                a.missing  += miss;
+                grandInserted += ins;
+                grandInvalid  += skip;
+                grandLocked   += lock;
+                grandMissing  += miss;
+                // BLOCK (z.B. mehrere Lohn-MA für eine Person): Chunk wurde NICHT
+                // geschrieben → isBlocked. Klartext aus den Notes sichtbar machen.
+                if (body.isBlocked) {
+                    const note = (body.notes && body.notes.length) ? body.notes.join(' ') : 'Import blockiert (mehrere Lohn-MA für eine Person).';
+                    agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ⚠ ${note}`);
+                }
+                // Sonst: wurde NICHTS importiert UND gibt es Backend-Notizen
+                // (z.B. „max. 92 Tage", API-Fehler, „N MA übersprungen") →
+                // anzeigen, damit ein stiller 0-Lauf nie unbemerkt bleibt.
+                else if (ins === 0 && body.notes && body.notes.length) {
+                    agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ℹ ${body.notes.join(' ')}`);
+                }
+            } catch (e) {
+                agg[b.id].errors.push(`${fmt(wf)}–${fmt(wt)}: ${String(e)}`);
             }
         }
+    };
+
+    // Worker-Pool: maximal 2 Filialen GLEICHZEITIG (jede für sich sequenziell).
+    try {
+        let nextBranchIdx = 0;
+        const concurrency = Math.min(2, branches.length);
+        const worker = async () => {
+            while (nextBranchIdx < branches.length) {
+                const b = branches[nextBranchIdx++];
+                await runBranch(b);
+            }
+        };
+        await Promise.all(Array.from({ length: concurrency }, worker));
+
         // 4) Abschluss-Anzeige (grünes Banner statt gelbem Fortschritt + Tabelle).
         const rows = branches.map(b => {
             const a = agg[b.id];

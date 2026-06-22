@@ -30,7 +30,7 @@ const DASH_CATEGORY_META = {
     spouse_doku_fehlt:      { i18nKey: 'dash.cat.spouseDokuFehlt',  label: 'Ausweis Ehepartner',     icon: '🪪', color: '#b91c1c' },
     employee_doku_fehlt:    { i18nKey: 'dash.cat.employeeDokuFehlt',label: 'Ausweis Mitarbeiter',    icon: '🪪', color: '#b91c1c' },
     schwangerschaft:        { i18nKey: 'dash.cat.pregnancy',        label: 'Mutterschaft',           icon: '🤰', color: '#be185d' },
-    night_work_exam_fehlt:  { i18nKey: 'dash.cat.nightWorkExam',    label: 'Nachtarbeit-Untersuchung', icon: '🌙', color: '#92400e' },
+    night_work_exam_fehlt:  { i18nKey: 'dash.cat.nightWorkExam',    label: 'Nachtarbeit-Nachweise', icon: '🌙', color: '#92400e' },
     lohn_provisorisch:      { i18nKey: 'dash.cat.payrollOpen',      label: 'Lohnlauf',               icon: '💰', color: '#0369a1' },
     birthday:               { i18nKey: 'dash.cat.birthday',         label: 'Geburtstage',            icon: '🎂', color: '#9333ea' },
     anniversary:            { i18nKey: 'dash.cat.anniversary',      label: 'Dienstjubiläen',         icon: '🎉', color: '#15803d' }

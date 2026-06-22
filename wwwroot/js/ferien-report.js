@@ -117,26 +117,22 @@ function ferRender() {
         if (v > 9)   return `<td class="fr-num fr-nacht-yellow">${v > 0 ? '+' : ''}${fmt(v)}</td>`;
         return saldoCell(v);
     };
-    // Anzahl Nächte (rollende 12 Monate, ArG): ≥ 25 rot (Anspruch med. Untersuchung),
-    // 20–24 gelb (Annäherung). Tooltip: reale Nächte + Datenmonate (Hochrechnung).
+    // NEUE Regel (ArGV1 Art. 30): max. Anzahl Nächte in einem rollierenden
+    // 6-Wochen-Fenster. > 18 rot, wenn Nachweise fehlen; > 18 grün, wenn
+    // Arztzeugnis/Verzicht UND Ausnahmeregelung vorhanden. Tooltip nennt das Fenster.
     const naechteCell = (r, extra) => {
-        const v = r.naechteJahr || 0;
-        // Gültiges Nachtzeugnis/Verzicht → grün (compliant), überschreibt rot/gelb.
-        // Sonst: ≥25 rot (Anspruch med. Untersuchung), 20–24 gelb (Annäherung).
-        const bg = (v >= 20 && r.examGueltig) ? ' fr-nacht-green'
-                 : (v >= 25 ? ' fr-nacht-red' : (v >= 20 ? ' fr-nacht-yellow' : ''));
-        const hochger = (r.datenMonate && r.datenMonate < 12);
-        const tip = `${r.naechteReal || 0} gearbeitete Nächte in ${r.datenMonate || 0} Datenmonaten`
-                  + (hochger ? ` → auf 12 Mt. hochgerechnet: ${v}` : ` (volle 12 Monate)`)
-                  + (v >= 25 ? ' · ≥25/Jahr: Anspruch auf medizinische Untersuchung' : '')
-                  + (r.examGueltig ? ' · gültiges Nachtzeugnis/Verzicht hinterlegt' : '');
-        // Markierungen (Hochrechnung * + Compliance-Warnung ⚠) hängen in einem festen
-        // rechten Rand, damit die ZAHL bei allen Zeilen am selben rechten Rand steht.
-        const star = hochger ? '<span class="fr-unit">*</span>' : '';
+        const v = r.maxNaechte6Wochen || 0;
+        const fmt = (iso) => iso ? `${iso.slice(8,10)}.${iso.slice(5,7)}.${iso.slice(0,4)}` : '';
+        const bg = r.nachtWarn ? ' fr-nacht-red' : (v > 18 ? ' fr-nacht-green' : '');
+        const zeitraum = (r.nachtWindowFrom && r.nachtWindowTo)
+            ? ` im Zeitraum ${fmt(r.nachtWindowFrom)}–${fmt(r.nachtWindowTo)}` : '';
+        const tip = `Max. ${v} Nächte in 6 Wochen${zeitraum}`
+                  + (r.nachtWarn ? ` · ${r.nachtWarnReason || 'Nachtarbeit-Nachweise fehlen'}`
+                                 : (v > 18 ? ' · Nachweise vollständig' : ''));
         const warn = r.nachtWarn
-            ? `<span style="color:#991b1b;cursor:help" title="≥25 Nächte/Jahr ohne gültige Nachtarbeit-Untersuchung — Dokument fehlt oder ist abgelaufen. Beim MA unter „Anstellung → Nachtarbeit gültig bis" erfassen.">⚠</span>`
+            ? `<span style="color:#991b1b;cursor:help" title="&gt;18 Nächte in 6 Wochen ohne vollständige Nachtarbeit-Nachweise. Beim MA unter „Anstellung → Nachtarbeit\" Arztzeugnis/Verzicht UND Ausnahmeregelung verknüpfen.">⚠</span>`
             : '';
-        const marks = (star || warn) ? `<span class="fr-nacht-mark">${star}${warn}</span>` : '';
+        const marks = warn ? `<span class="fr-nacht-mark">${warn}</span>` : '';
         return `<td class="fr-num fr-nacht-cell${extra || ''}${bg}" title="${tip}">${v}${marks}</td>`;
     };
     const arrow = (key) => _ferSort && _ferSort.key === key ? (_ferSort.dir > 0 ? ' ▲' : ' ▼') : '';
@@ -225,9 +221,9 @@ function ferRender() {
             <strong>Bezug</strong> = bezogene Ferien aus den Absenzen ·
             <strong>Saldo</strong> = Anspruch − Kürzung − Bezug (<span style="color:#166534">grün</span> = Rest-Guthaben, <span style="color:#b91c1c">rot</span> = Vorbezug) ·
             <strong>Feiertage</strong> (Tage) nur FIX/FIX-M (0.5/Monat, − Feiertag-Absenzen); MTP/UTP ausbezahlt → „–" ·
-            <strong>Nacht</strong>: <strong>Nächte/J</strong> = gearbeitete Nächte der letzten 12 Monate (* = aus weniger Datenmonaten hochgerechnet; ≥25 rot = Anspruch med. Untersuchung, 20–24 gelb) · Std/Zuschlag(10%)/Komp/Saldo in Stunden
+            <strong>Nacht</strong>: <strong>Max 6W</strong> = höchste Anzahl Nächte in einem 6-Wochen-Fenster (>18 rot = Nachtarbeit-Nachweise fehlen, grün = vollständig) · Std/Zuschlag(10%)/Komp/Saldo in Stunden
         </div>
-        ${(_ferData.nachtWarnTotal || 0) > 0 ? `<div style="background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:12.5px;font-weight:600">⚠ ${_ferData.nachtWarnTotal} Mitarbeiter mit ≥ 25 Nächten/Jahr ohne gültige Nachtarbeit-Untersuchung — Arztzeugnis/Verzicht fehlt oder ist abgelaufen (siehe ⚠ in der Spalte „Nächte/J").</div>` : ''}
+        ${(_ferData.nachtWarnTotal || 0) > 0 ? `<div style="background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:12.5px;font-weight:600">⚠ ${_ferData.nachtWarnTotal} Mitarbeiter mit >18 Nächten in 6 Wochen ohne vollständige Nachtarbeit-Nachweise (Arztzeugnis/Verzicht + Ausnahmeregelung) — siehe ⚠ in der Spalte „Max 6W".</div>` : ''}
         <div style="overflow-x:auto">
         <table class="fr-tbl">
             <thead>
@@ -243,7 +239,7 @@ function ferRender() {
                 <tr>
                     ${th('Anspruch','anspruchTage','fr-sep')}${th('Kürzung','kuerzungTage')}${th('Bezug','bezugTage')}${th('Saldo','saldoTage')}
                     ${th('Anspruch','feiertagAnspruch','fr-sep')}${th('Bezug','feiertagBezug')}${th('Saldo','feiertagSaldo')}
-                    ${th('Nächte/J','naechteJahr','fr-sep')}${th('Std','nachtStunden')}${th('Zuschlag','nachtZuschlag')}${th('Komp','nachtKomp')}${th('Saldo','nachtSaldo')}
+                    ${th('Max 6W','maxNaechte6Wochen','fr-sep')}${th('Std','nachtStunden')}${th('Zuschlag','nachtZuschlag')}${th('Komp','nachtKomp')}${th('Saldo','nachtSaldo')}
                 </tr>
             </thead>
             <tbody>${body}</tbody>

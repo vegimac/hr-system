@@ -21,9 +21,10 @@ public class NachtEignungController : ControllerBase
     private readonly AppDbContext _db;
     private readonly NachtEignungPdfService _pdf;
     private readonly NachtVerzichtPdfService _verzicht;
-    public NachtEignungController(AppDbContext db, NachtEignungPdfService pdf, NachtVerzichtPdfService verzicht)
+    private readonly NachtAusnahmePdfService _ausnahme;
+    public NachtEignungController(AppDbContext db, NachtEignungPdfService pdf, NachtVerzichtPdfService verzicht, NachtAusnahmePdfService ausnahme)
     {
-        _db = db; _pdf = pdf; _verzicht = verzicht;
+        _db = db; _pdf = pdf; _verzicht = verzicht; _ausnahme = ausnahme;
     }
 
     [HttpGet("{empId:int}/pdf")]
@@ -137,5 +138,68 @@ public class NachtEignungController : ControllerBase
 
         var bytes = _verzicht.Generate(data);
         return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Verzicht-Untersuch.pdf");
+    }
+
+    /// <summary>
+    /// „Ausnahmeregelung zum Wechsel zwischen Tag- und Nachtarbeit (Anlage zum
+    /// Arbeitsvertrag)" — gelber Briefkopf mit Titel über dem Banner, Kopf
+    /// zweispaltig (links MA-Angaben, rechts Filiale), vorausgefüllt aus dem
+    /// Programm. Walter-Vorgabe 22.06.2026.
+    /// </summary>
+    [HttpGet("{empId:int}/ausnahme-pdf")]
+    public async Task<IActionResult> GetAusnahmePdf(int empId)
+    {
+        var e = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == empId);
+        if (e == null) return NotFound(new { error = "EMP_NOT_FOUND" });
+
+        var emp = await _db.Employments
+            .AsNoTracking()
+            .Where(em => em.EmployeeId == empId)
+            .OrderByDescending(em => em.IsActive)
+            .ThenByDescending(em => em.ContractStartDate)
+            .FirstOrDefaultAsync();
+
+        CompanyProfile? cp = null;
+        if (emp?.CompanyProfileId != null)
+            cp = await _db.CompanyProfiles.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == emp.CompanyProfileId.Value);
+
+        // Unterzeichner = Default-Filialverantwortliche/r (wie Verzicht/Arbeitsvertrag).
+        string? signerName = null, signerFunktion = null;
+        if (emp?.CompanyProfileId != null)
+        {
+            var signatory = await _db.UserBranchAccesses
+                .Include(s => s.User)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.CompanyProfileId == emp.CompanyProfileId.Value && s.IsDefault == true);
+            if (signatory?.User != null)
+            {
+                signerName = ($"{signatory.User.FirstName} {signatory.User.LastName}").Trim();
+                signerFunktion = signatory.FunctionTitle;
+            }
+        }
+
+        string? Join(string? a, string? b)
+        {
+            var s = string.Join(" ", new[] { a, b }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            return string.IsNullOrWhiteSpace(s) ? null : s;
+        }
+
+        var data = new NachtAusnahmePdfService.NachtAusnahmeData(
+            MaName:         ($"{e.FirstName} {e.LastName}").Trim(),
+            MaStrasse:      Join(e.Street, e.HouseNumber),
+            MaPlzOrt:       Join(e.ZipCode, e.City),
+            MaGeburtsdatum: e.DateOfBirth?.ToString("dd.MM.yyyy"),
+            FilialeName:    cp?.CompanyName,
+            FilialeStrasse: Join(cp?.Street, cp?.HouseNumber),
+            FilialePlzOrt:  Join(cp?.ZipCode, cp?.City),
+            FilialeTelefon: cp?.Phone,
+            FilialeOrt:     cp?.City,
+            UnterzeichnerName:     signerName,
+            UnterzeichnerFunktion: signerFunktion
+        );
+
+        var bytes = _ausnahme.Generate(data);
+        return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Ausnahme-Nachtarbeit.pdf");
     }
 }

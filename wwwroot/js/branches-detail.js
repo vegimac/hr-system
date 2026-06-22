@@ -11,7 +11,151 @@
 let selectedBranch = null;
 
 function loadFilialen() {
+    // „+ Neue Filiale" nur für admin (POST /api/companyprofiles ist admin-only).
+    const btn = document.getElementById('btnNewBranch');
+    if (btn) {
+        const isAdmin = (typeof currentUser !== 'undefined' && currentUser
+            && (currentUser.role === 'admin' || currentUser.isSuperAdmin));
+        btn.style.display = isAdmin ? 'block' : 'none';
+    }
     renderFilialenList(allBranches);
+}
+
+// ── Neue Filiale anlegen (Walter-Vorgabe 22.06.2026) ──────────────────────
+function openNewBranchModal() {
+    if (document.getElementById('newBranchModal')) return;
+    const html = `
+    <div id="newBranchModal" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px"
+         onclick="if(event.target===this)closeNewBranchModal()">
+      <div class="ma-modal-box narrow">
+        <div class="ma-modal-head">
+            <div class="ma-modal-title">Neue Filiale</div>
+            <button class="ma-modal-close" onclick="closeNewBranchModal()">✕</button>
+        </div>
+        <div class="ma-modal-body">
+            <div class="emp-section-title">Stammdaten</div>
+            <div class="ma-grid cols-2">
+                <div class="ma-field">
+                    <div class="ma-field-label">Firmenname *</div>
+                    <input type="text" id="nbCompanyName" class="ma-input" value="Schaub Restaurant GmbH">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Filialname *</div>
+                    <input type="text" id="nbBranchName" class="ma-input" placeholder="z.B. Filiale Aarau">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Restaurant-Code *</div>
+                    <input type="text" id="nbRestaurantCode" class="ma-input" maxlength="3" placeholder="z.B. 058">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Land</div>
+                    <input type="text" id="nbCountry" class="ma-input" value="CH" maxlength="2">
+                </div>
+            </div>
+
+            <div class="emp-section-title">Adresse</div>
+            <div class="ma-grid cols-2">
+                <div class="ma-field">
+                    <div class="ma-field-label">Strasse</div>
+                    <input type="text" id="nbStreet" class="ma-input" placeholder="z.B. Bahnhofstrasse">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Hausnummer</div>
+                    <input type="text" id="nbHouseNumber" class="ma-input" placeholder="z.B. 20">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">PLZ</div>
+                    <input type="text" id="nbZip" class="ma-input" maxlength="5" placeholder="z.B. 5000">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Ort</div>
+                    <input type="text" id="nbCity" class="ma-input" placeholder="z.B. Aarau">
+                </div>
+            </div>
+
+            <div class="emp-section-title">Kontakt &amp; Arbeitszeit</div>
+            <div class="ma-grid cols-2">
+                <div class="ma-field">
+                    <div class="ma-field-label">Telefon</div>
+                    <input type="text" id="nbPhone" class="ma-input" placeholder="z.B. 062 000 00 00">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">E-Mail</div>
+                    <input type="email" id="nbEmail" class="ma-input" placeholder="z.B. aarau@schaub.ch">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Wöchentl. Normalarbeitszeit (h)</div>
+                    <input type="number" step="0.1" id="nbWeekly" class="ma-input" value="43.5">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Ferienwochen</div>
+                    <input type="number" step="1" id="nbVacWeeks" class="ma-input" value="5">
+                </div>
+            </div>
+        </div>
+        <div class="ma-modal-foot">
+            <button class="btn btn-outline" onclick="closeNewBranchModal()">Abbrechen</button>
+            <button class="btn btn-primary" id="nbSaveBtn" onclick="submitNewBranch()">Filiale anlegen</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeNewBranchModal() {
+    document.getElementById('newBranchModal')?.remove();
+}
+
+async function submitNewBranch() {
+    const val = (id) => (document.getElementById(id)?.value || '').trim();
+    const companyName    = val('nbCompanyName');
+    const branchName     = val('nbBranchName');
+    const restaurantCode = val('nbRestaurantCode');
+    if (!companyName || !branchName || !restaurantCode) {
+        alert('Bitte Firmenname, Filialname und Restaurant-Code ausfüllen.');
+        return;
+    }
+    const weekly   = parseFloat(val('nbWeekly'));
+    const vacWeeks = parseInt(val('nbVacWeeks'), 10);
+    const body = {
+        companyName,
+        branchName,
+        restaurantCode,
+        street:      val('nbStreet')      || null,
+        houseNumber: val('nbHouseNumber') || null,
+        zipCode:     val('nbZip')         || null,
+        city:        val('nbCity')        || null,
+        country:     val('nbCountry')     || 'CH',
+        phone:       val('nbPhone')       || null,
+        email:       val('nbEmail')       || null,
+        normalWeeklyHours:   isNaN(weekly)   ? 43.5 : weekly,
+        defaultVacationWeeks: isNaN(vacWeeks) ? 5    : vacWeeks
+    };
+    const btn = document.getElementById('nbSaveBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Wird angelegt…'; }
+    try {
+        const res = await fetch('/api/companyprofiles', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+            let msg = `Fehler (${res.status})`;
+            try { const j = await res.json(); if (j?.message) msg = j.message; } catch (_) {}
+            alert('Filiale konnte nicht angelegt werden.\n' + msg);
+            if (btn) { btn.disabled = false; btn.textContent = 'Filiale anlegen'; }
+            return;
+        }
+        const created = await res.json();
+        closeNewBranchModal();
+        // Liste global neu laden, neue Filiale auswählen.
+        if (typeof loadAllBranches === 'function') await loadAllBranches();
+        loadFilialen();
+        if (created?.id) selectFiliale(created.id);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Filiale anlegen'; }
+    }
 }
 
 function renderFilialenList(branches) {
@@ -542,7 +686,14 @@ async function copyEinstellungenToAll(branchId) {
             showToast(`Einstellungen auf ${data.branchesUpdated} Filialen übertragen${termineNote}.`, 'success');
         else
             alert(`Einstellungen auf ${data.branchesUpdated} Filialen übertragen${termineNote}.`);
+        // Cache frisch vom Server holen, sonst zeigt die Detailansicht der Ziel-
+        // Filialen weiter die ALTEN Werte (Walter-Bug 22.06.2026).
+        if (typeof loadAllBranches === 'function') await loadAllBranches();
         if (typeof loadFilialen === 'function') loadFilialen();
+        if (selectedBranch) {
+            const fresh = allBranches.find(b => b.id === selectedBranch.id);
+            if (fresh) { selectedBranch = fresh; renderFilialenDetail(fresh); }
+        }
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }

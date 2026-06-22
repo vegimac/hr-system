@@ -134,6 +134,10 @@ builder.Services.AddScoped<LohnSaldoListePdfService>();
 builder.Services.AddScoped<NachtEignungPdfService>();
 // Verzicht auf medizinische Untersuchung Nachtarbeit (Beilage-Layout).
 builder.Services.AddScoped<NachtVerzichtPdfService>();
+// Ausnahmeregelung Tag-/Nachtarbeit (Anlage zum Arbeitsvertrag), vorausgefüllt.
+builder.Services.AddScoped<NachtAusnahmePdfService>();
+// Kündigungsschreiben (Walter-Vorgabe 22.06.2026).
+builder.Services.AddScoped<KuendigungPdfService>();
 // Fibu-Journal-Generator (Buchungsjournal aus den bestätigten Snapshots).
 builder.Services.AddScoped<FibuJournalService>();
 // Edit-Sperre während HR Lohnlauf prüft (Walter-Vorgabe 17.05.2026, Variante 2).
@@ -1283,6 +1287,8 @@ using (var scope = app.Services.CreateScope())
         -- Nachtarbeit-Untersuchung am MA (Walter 20.06.2026, ArG)
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_valid_until DATE;
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_dokument_id INTEGER REFERENCES employee_dokument(id) ON DELETE SET NULL;
+        -- Zweiter Nachtarbeit-Beleg: unterschriebene Ausnahmeregelung (Walter 22.06.2026)
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_ausnahme_dokument_id INTEGER REFERENCES employee_dokument(id) ON DELETE SET NULL;
         CREATE TABLE IF NOT EXISTS employee_pregnancy (
             id                     SERIAL PRIMARY KEY,
             employee_id            INTEGER NOT NULL REFERENCES employee(id),

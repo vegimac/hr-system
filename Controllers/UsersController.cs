@@ -26,12 +26,16 @@ public class UsersController : ControllerBase
     [Authorize(Roles = "admin,superuser")]
     public async Task<IActionResult> GetAll()
     {
-        // MA-Postfach-Accounts (employee_id NOT NULL) werden im MA-Detail
-        // verwaltet, nicht in der Benutzer-Liste. Hier nur Backoffice-User.
+        // MA-Postfach-Accounts werden im MA-Detail verwaltet, nicht in der
+        // Benutzer-Liste. Hier nur Backoffice-User. Filter auf Rolle 'employee'
+        // (statt nur employee_id IS NULL): durch die Mehrfach-Personalnummer-
+        // Umstellung (Walter 22.06.2026) gibt es verwaiste Postfach-Logins
+        // (employee_id NULL, Rolle 'employee') — die rutschten sonst in die
+        // Liste. Rolle 'employee' schliesst beide Fälle sauber aus.
         var users = await _context.AppUsers
             .Include(u => u.BranchAccess)
             .ThenInclude(ba => ba.CompanyProfile)
-            .Where(u => u.EmployeeId == null)
+            .Where(u => u.EmployeeId == null && u.Role != "employee")
             .OrderBy(u => u.LastName)
             .ThenBy(u => u.FirstName)
             .Select(u => new

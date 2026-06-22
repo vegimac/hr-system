@@ -756,12 +756,12 @@ public class DashboardService
             });
         }
 
-        // ── Nachtarbeit-Untersuchung fehlt (Walter-Vorgabe 20.06.2026, ArG) ──
-        // MA mit ≥ 25 gearbeiteten Nächten (rollende 12 Monate, hochgerechnet bei
-        // < 12 Datenmonaten) UND ohne gültige Untersuchung (Dokument fehlt ODER
-        // „gültig bis" fehlt/abgelaufen). Live gerechnet — schlank, weil nur die
-        // Stempel-Tage des 12-Monats-Fensters geholt werden; Exam-Status kommt live
-        // vom MA, also entfernt das Erfassen die Warnung sofort.
+        // ── Nachtarbeit-Nachweise fehlen (Walter-Vorgabe 22.06.2026, ArGV1 Art. 30) ──
+        // MA mit > 18 gearbeiteten Nächten in einem rollierenden 6-Wochen-Fenster
+        // (42 Tage) UND ohne vollständige Nachweise (Arztzeugnis/Verzicht UND
+        // Ausnahmeregelung/Checkliste). Live gerechnet aus den Nacht-Tagen der
+        // letzten 12 Monate; Dokument-Status kommt live vom MA, das Erfassen
+        // entfernt die Warnung sofort.
         {
             var nwRollStart = new DateOnly(today.Year, today.Month, 1).AddMonths(-11);
             // Nacht-Tage (nur Tage mit Nachtstunden) — distinct pro MA.
@@ -770,46 +770,41 @@ public class DashboardService
                          && t.EntryDate <= today && (t.NightHours ?? 0m) > 0m)
                 .Select(t => new { t.EmployeeId, t.EntryDate })
                 .Distinct().ToListAsync();
-            var nightsByEmp = nightDays.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.Count());
-            // Datenmonate (distinct Monate mit Stempeln) — ≤ 12 pro MA.
-            var monthRows = await _db.EmployeeTimeEntries.AsNoTracking()
-                .Where(t => maIds.Contains(t.EmployeeId) && t.EntryDate >= nwRollStart && t.EntryDate <= today)
-                .Select(t => new { t.EmployeeId, t.EntryDate.Year, t.EntryDate.Month })
-                .Distinct().ToListAsync();
-            var monthsByEmp = monthRows.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.Count());
-            // Exam-Status der aktiven MA.
+            var nightDatesByEmp = nightDays.GroupBy(x => x.EmployeeId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.EntryDate).ToList());
+            // Dokument-Status der aktiven MA (Arzt/Verzicht + Ausnahmeregelung/Checkliste).
             var nwExam = await _db.Employees.AsNoTracking()
                 .Where(e => maIds.Contains(e.Id))
                 .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
-                                   e.NightWorkExamValidUntil, e.NightWorkExamDokumentId, e.ExitDate })
+                                   e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId, e.ExitDate })
                 .ToListAsync();
-            // Walter-Vorgabe 20.06.2026: MA, die innerhalb der nächsten 30 Tage
-            // austreten, NICHT mehr melden — für die lohnt die 2-Jahres-
-            // Untersuchung nicht mehr. (Kein Austrittsdatum = bleibt → melden.)
+            // MA, die innerhalb der nächsten 30 Tage austreten, NICHT mehr melden
+            // (Kein Austrittsdatum = bleibt → melden). Walter-Vorgabe 20.06.2026.
             var nwExitCutoff = today.AddDays(30);
             foreach (var emp in nwExam)
             {
                 if (emp.ExitDate.HasValue
                     && DateOnly.FromDateTime(emp.ExitDate.Value) <= nwExitCutoff) continue;
-                if (!nightsByEmp.TryGetValue(emp.Id, out var nights) || nights == 0) continue;
-                int months = monthsByEmp.TryGetValue(emp.Id, out var m) ? m : 0;
-                int projected = months >= 12 ? nights : months > 0 ? (int)Math.Round((double)nights * 12 / months) : 0;
-                if (projected < 25) continue;
-                bool examValid = emp.NightWorkExamDokumentId.HasValue
-                              && emp.NightWorkExamValidUntil.HasValue
-                              && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) >= today;
-                if (examValid) continue;
+                if (!nightDatesByEmp.TryGetValue(emp.Id, out var dates) || dates.Count == 0) continue;
+
+                // NEUE Regel: > 18 Nächte in einem rollierenden 6-Wochen-Fenster.
+                var nw = NightWorkComplianceService.Evaluate(dates, today);
+                if (!nw.RequiresDocuments) continue;
+
+                bool hasExam      = emp.NightWorkExamDokumentId.HasValue;
+                bool hasChecklist = emp.NightWorkAusnahmeDokumentId.HasValue;
+                if (hasExam && hasChecklist) continue;   // Nachweise vollständig
+
                 string grund =
-                      (!emp.NightWorkExamDokumentId.HasValue && !emp.NightWorkExamValidUntil.HasValue) ? "kein Eintrag"
-                    : (emp.NightWorkExamValidUntil.HasValue && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) < today) ? "abgelaufen"
-                    : (!emp.NightWorkExamDokumentId.HasValue) ? "Dokument fehlt"
-                    : "Datum fehlt";
+                      (!hasExam && !hasChecklist) ? "Arztzeugnis/Verzicht und Ausnahmeregelung fehlen"
+                    : (!hasExam)                  ? "Arztzeugnis/Verzicht fehlt"
+                    :                               "Ausnahmeregelung fehlt";
                 alerts.Add(new DashboardAlert
                 {
                     Category = "night_work_exam_fehlt",
                     Severity = "warning",
-                    Title    = "Nachtarbeit-Untersuchung fehlt",
-                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · ~{projected} Nächte/Jahr · {grund}",
+                    Title    = "Nachtarbeit-Nachweise fehlen",
+                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · max. {nw.MaxNightsInSixWeeks} Nächte in 6 Wochen · {grund}",
                     EmployeeId     = emp.Id,
                     EmployeeNumber = emp.EmployeeNumber,
                     EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
