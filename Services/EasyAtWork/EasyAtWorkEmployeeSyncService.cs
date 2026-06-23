@@ -453,9 +453,19 @@ public class EasyAtWorkEmployeeSyncService
             // UTP statt MTP) für immer stehen, weil ohne Feld-Diff niemand ihn anfasst.
             // EnsureEmploymentAsync ist idempotent (Modell führend, Lohn fill-if-empty).
             var rowsToProcess = res.Rows
-                .Where(r => (r.Status == "NEW" || r.Status == "UPDATE"
-                             || (r.Status == "UNCHANGED" && r.CoworkEmployeeId.HasValue))
-                         && (selected == null || selected.Contains(r.Number ?? "")))
+                .Where(r =>
+                    // NEW/UPDATE bleiben selektiv: nur schreiben, wenn ausgewählt
+                    // (oder wenn selected=null = "alle"). UNCHANGED-MA mit Cowork-
+                    // Zuordnung müssen aber IMMER durch den Commit-Pfad laufen:
+                    // dort hängen Timeline-Sync, easy@work-IDs und Backfills dran.
+                    // Walter-Bug 23.06.2026: Sobald einige UPDATE-Zeilen angewählt
+                    // waren, wurden UNCHANGED-Zeilen wie Amire ausgeschlossen.
+                    (r.Status == "NEW" || r.Status == "UPDATE")
+                        ? (selected == null || selected.Contains(r.Number ?? ""))
+                        : (r.Status == "UNCHANGED" && r.CoworkEmployeeId.HasValue))
+                .ToList();
+            var rowsForTimeline = res.Rows
+                .Where(r => r.CoworkEmployeeId.HasValue)
                 .ToList();
 
             // Detail-Daten (Verträge/Pay-Rates/Zivilstand) PARALLEL vorladen (max. 10
@@ -474,6 +484,7 @@ public class EasyAtWorkEmployeeSyncService
             {
                 using var sem = new SemaphoreSlim(10);
                 var detailTasks = rowsToProcess
+                    .Concat(rowsForTimeline)
                     .Select(r => r.EawEmployeeId).Distinct()
                     .Select(async eawId =>
                     {
@@ -673,6 +684,25 @@ public class EasyAtWorkEmployeeSyncService
                     var ibU = IbanFor(row.EawEmployeeId); if (!string.IsNullOrWhiteSpace(ibU)) bankWork.Add((emp, ibU!));
                     res.CountUpdated++;
                 }
+            }
+
+            // Vertrags-/Lohnhistorie ist nicht optional und nicht an Checkboxen
+            // gebunden: Auch nicht ausgewählte UPDATE/UNCHANGED-MA müssen die
+            // easy@work-Timeline bekommen. Stammdaten-Diffs bleiben oben
+            // selektiv, aber Contracts/PayRates spiegeln wir immer.
+            var timelineEawIds = timelineWork.Select(x => x.eawId).ToHashSet();
+            foreach (var row in rowsForTimeline.Where(r => !timelineEawIds.Contains(r.EawEmployeeId)))
+            {
+                var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == row.CoworkEmployeeId, ct);
+                if (emp == null) continue;
+                var eaw = eawEmps.FirstOrDefault(e => e.Id == row.EawEmployeeId);
+                var posName = PositionFor(row.EawEmployeeId);
+                int? jobGroupId = null; string? jobGroupCode = null; bool isKader = false;
+                if (!string.IsNullOrWhiteSpace(posName) && jobGroupByCode.TryGetValue(posName!.Trim(), out var jg))
+                {
+                    jobGroupId = jg.Id; jobGroupCode = jg.Code; isKader = jg.IsKader;
+                }
+                timelineWork.Add((emp, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw?.To));
             }
             await _db.SaveChangesAsync(ct);
 
