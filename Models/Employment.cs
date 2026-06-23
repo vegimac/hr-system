@@ -68,6 +68,13 @@ public class Employment
     public decimal? MonthlySalary { get; set; }       // tatsächlicher Lohn (nach Pensum)
     public decimal? HourlyRate { get; set; }
 
+    // Externe easy@work-Referenzen (Walter-Vorgabe 23.06.2026): Cowork bleibt intern
+    // führend (employment.id), easy@work ist nur Quelle. Pro Employment-Version die
+    // Herkunfts-IDs + letzter Stand für idempotenten Re-Sync.
+    public int?      EasyAtWorkContractId { get; set; }
+    public int?      EasyAtWorkPayRateId  { get; set; }
+    public DateTime? EasyAtWorkUpdatedAt  { get; set; }
+
     // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
     // sind nicht mehr pro Vertrag, sondern pro Filiale (CompanyProfile.Default*
     // + altersaware Schwelle). Felder + DB-Spalten entfernt.

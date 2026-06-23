@@ -174,4 +174,88 @@ public class EasyAtWorkTimelineTests
         Assert.Equal(2760m, rows[1].MonthlySalary);
         Assert.Equal(4600m, rows[1].MonthlySalaryFte);
     }
+
+    // ───── Test 5: Bestehende falsche UTP-Zeile überlappt → kappen + korrekte Zeile ─────
+    [Fact]
+    public async Task Test5_FalscheUtpUeberlappt_WirdGekapptUndKorrigiert()
+    {
+        using var db = NewDb();
+        var emp = new Employee { EmployeeNumber = "2300004", FirstName = "Amire", LastName = "Mehmeti", IsActive = true };
+        db.Employees.Add(emp);
+        await db.SaveChangesAsync();
+
+        // ALTE falsche Zeile: UTP ohne Lohn, 10.08.2021 – 08.12.2024 (überlappt easy@work).
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = emp.Id, CompanyProfileId = 1,
+            ContractStartDate = new DateTime(2021, 8, 10), ContractEndDate = new DateTime(2024, 12, 8), IsActive = true,
+            EmploymentModel = "UTP", SalaryType = "hourly",
+        });
+        await db.SaveChangesAsync();
+
+        var contracts = new List<EawContract>
+        {
+            new() { AmountType = "percent", Amount = 80m, Percentage = 80m, FromRaw = "2024-11-06 23:00:00", ToRaw = "2024-12-31 22:59:59" },
+        };
+        var rates = new List<EawPayRate>
+        {
+            new() { Type = "month", Rate = 3436m, FromRaw = "2024-11-06 23:00:00", ToRaw = "2024-12-31 22:59:59" },
+        };
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(contracts, rates, AsOf, isKader: false);
+
+        await EasyAtWorkEmployeeSyncService.SyncEmploymentTimelineAsync(
+            db, emp, 1, tl, jobGroupId: null, jobGroupCode: null, eawTo: null);
+        await db.SaveChangesAsync();
+
+        var rows = await db.Employments.Where(x => x.EmployeeId == emp.Id)
+            .OrderBy(x => x.ContractStartDate).ToListAsync();
+        Assert.Equal(2, rows.Count);
+
+        // Alte UTP-Zeile: hinten gekappt (spätestens 06.11.2024), inaktiv, NICHT gelöscht.
+        var alt = rows[0];
+        Assert.Equal(new DateTime(2021, 8, 10), alt.ContractStartDate);
+        Assert.NotNull(alt.ContractEndDate);
+        Assert.True(alt.ContractEndDate <= new DateTime(2024, 11, 6));
+        Assert.False(alt.IsActive);
+
+        // Neue korrekte Zeile 07.11.2024 – 31.12.2024, FIX, Monatslohn gesetzt.
+        var neu = rows[1];
+        Assert.Equal(new DateTime(2024, 11, 7), neu.ContractStartDate);
+        Assert.Equal(new DateTime(2024, 12, 31), neu.ContractEndDate);
+        Assert.Equal("FIX", neu.EmploymentModel);
+        Assert.Equal(80m, neu.EmploymentPercentage);
+        Assert.Equal(3436m, neu.MonthlySalary);
+        Assert.Equal(4295m, neu.MonthlySalaryFte);
+        Assert.Null(neu.HourlyRate);
+    }
+
+    // ───── Test 6: Unsortierte Roh-Listen (neu zuerst) → korrekte Timeline ─────
+    [Fact]
+    public void Test6_UnsortierteListen_KorrekteTimeline()
+    {
+        // Reihenfolge BEWUSST verkehrt: neuer Vertrag/Rate zuerst, alter danach.
+        var contracts = new List<EawContract>
+        {
+            new() { AmountType = "percent", Amount = 60m, Percentage = 60m, FromRaw = "2025-12-31 23:00:00", ToRaw = null },
+            new() { AmountType = "percent", Amount = 80m, Percentage = 80m, FromRaw = "2024-11-06 23:00:00", ToRaw = "2024-12-31 22:59:59" },
+        };
+        var rates = new List<EawPayRate>
+        {
+            new() { Type = "month", Rate = 2760m, FromRaw = "2025-12-31 23:00:00", ToRaw = null },
+            new() { Type = "month", Rate = 3436m, FromRaw = "2024-11-06 23:00:00", ToRaw = "2024-12-31 22:59:59" },
+        };
+
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(contracts, rates, AsOf, isKader: true);
+
+        Assert.Equal(2, tl.Count);
+        Assert.Equal(new DateOnly(2024, 11, 7), tl[0].Start);
+        Assert.Equal(80m, tl[0].Info.EmploymentPercentage);
+        Assert.Equal(3436m, tl[0].Info.MonthlySalary);
+        Assert.Equal(4295m, tl[0].Info.MonthlySalaryFte);
+        Assert.Equal(new DateOnly(2026, 1, 1), tl[1].Start);
+        Assert.Null(tl[1].End);
+        Assert.Equal(60m, tl[1].Info.EmploymentPercentage);
+        Assert.Equal(2760m, tl[1].Info.MonthlySalary);
+        Assert.Equal(4600m, tl[1].Info.MonthlySalaryFte);
+    }
 }

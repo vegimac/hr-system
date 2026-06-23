@@ -984,12 +984,25 @@ async function _eawEmpSyncRun(commit, selected) {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(dto)
         });
-        const body = await r.json();
+        // Robust gegen leere/nicht-JSON-Antworten (z.B. 500 ohne Body): zuerst Text
+        // lesen, dann parsen — sonst wirft res.json() „Unexpected end of JSON input"
+        // und der echte Serverfehler bleibt verborgen.
+        const raw = await r.text();
+        let body = null;
+        try { body = raw ? JSON.parse(raw) : null; } catch (_) { /* nicht-JSON */ }
         stopProgress();
         if (!r.ok) {
+            const msg = (body && (body.message || JSON.stringify(body))) || raw || `HTTP ${r.status}`;
             out.innerHTML = `<div class="eaw-result eaw-result-err">
                 <div class="eaw-result-title">✗ Fehler ${r.status}</div>
-                <div class="eaw-result-msg">${escapeHtml(body.message || JSON.stringify(body))}</div>
+                <div class="eaw-result-msg">${escapeHtml(msg)}</div>
+            </div>`;
+            return;
+        }
+        if (!body) {
+            out.innerHTML = `<div class="eaw-result eaw-result-err">
+                <div class="eaw-result-title">Leere Antwort</div>
+                <div class="eaw-result-msg">Server lieferte HTTP ${r.status} ohne Inhalt.</div>
             </div>`;
             return;
         }

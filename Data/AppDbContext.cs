@@ -167,6 +167,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MonthlySalaryFte).HasColumnName("monthly_salary_fte");
             entity.Property(e => e.MonthlySalary).HasColumnName("monthly_salary");
             entity.Property(e => e.HourlyRate).HasColumnName("hourly_rate");
+            // Externe easy@work-Referenzen (Walter-Vorgabe 23.06.2026).
+            entity.Property(e => e.EasyAtWorkContractId).HasColumnName("easyatwork_contract_id");
+            entity.Property(e => e.EasyAtWorkPayRateId).HasColumnName("easyatwork_pay_rate_id");
+            entity.Property(e => e.EasyAtWorkUpdatedAt)
+                  .HasColumnName("easyatwork_updated_at")
+                  .HasColumnType("timestamp without time zone");
             // Walter-Vorgabe 06.06.2026 (Stufe 1b): VacationPercent, HolidayPercent,
             // ThirteenthSalaryPercent sind aus dem Model entfernt und Spalten droppe
             // ich via Migration `drop_employment_pct_fields.sql`. Werte kommen ab

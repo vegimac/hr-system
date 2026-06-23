@@ -466,7 +466,7 @@ public class EasyAtWorkEmployeeSyncService
             var ahvByEaw      = new ConcurrentDictionary<int, string?>();
             var ibanByEaw     = new ConcurrentDictionary<int, string?>();
             var positionByEaw = new ConcurrentDictionary<int, string?>();
-            if (!req.SkipDetailCalls && rowsToProcess.Count > 0)
+            if (rowsToProcess.Count > 0)
             {
                 using var sem = new SemaphoreSlim(10);
                 var detailTasks = rowsToProcess
@@ -476,21 +476,28 @@ public class EasyAtWorkEmployeeSyncService
                         await sem.WaitAsync(ct);
                         try
                         {
-                            // ALLE Verträge + Pay-Rates roh laden → Timeline im 2. Durchgang.
+                            // PFLICHT — die Vertrags-/Lohn-/Funktionshistorie darf NIE
+                            // übersprungen werden (Walter-Vorgabe 23.06.2026), auch nicht
+                            // bei SkipDetailCalls. Ohne diese Endpunkte gäbe es keine
+                            // Timeline und alte falsche Verträge blieben unkorrigiert.
                             try { contractsRawByEaw[eawId] = (await _client.GetContractsAsync(mapping.EasyAtWorkCustomerId, eawId, ct))?.Data ?? new(); }
                             catch (Exception ex) { _log.LogDebug(ex, "Verträge für easy@work-MA {Id} nicht abrufbar", eawId); contractsRawByEaw[eawId] = new(); }
                             try { ratesRawByEaw[eawId] = (await _client.GetPayRatesAsync(mapping.EasyAtWorkCustomerId, eawId, ct))?.Data ?? new(); }
                             catch (Exception ex) { _log.LogDebug(ex, "Pay-Rates für easy@work-MA {Id} nicht abrufbar", eawId); ratesRawByEaw[eawId] = new(); }
-                            // Eine Property-Abfrage → Zivilstand UND AHV-Nr. (Walter 22.06.2026).
-                            var (marital, ahv) = await FetchPropsInfoAsync(mapping.EasyAtWorkCustomerId, eawId, ct);
-                            maritalByEaw[eawId] = marital;
-                            ahvByEaw[eawId]     = ahv;
-                            // IBAN aus fiscal_info (Walter 22.06.2026).
-                            try { var fiscal = await _client.GetFiscalInfoAsync(mapping.EasyAtWorkCustomerId, eawId, ct); ibanByEaw[eawId] = fiscal?.Iban; }
-                            catch (Exception ex) { _log.LogDebug(ex, "Fiscal-Info (IBAN) für easy@work-MA {Id} nicht abrufbar", eawId); }
-                            // Funktion/Position (= job_group.code) für Modell-Ableitung (Walter 22.06.2026).
                             try { var pos = await _client.GetPositionsAsync(mapping.EasyAtWorkCustomerId, eawId, ct); positionByEaw[eawId] = pos?.Data?.FirstOrDefault()?.Name; }
                             catch (Exception ex) { _log.LogDebug(ex, "Positionen für easy@work-MA {Id} nicht abrufbar", eawId); }
+
+                            // OPTIONALE Zusatz-Stammdaten — nur diese hängen an SkipDetailCalls.
+                            if (!req.SkipDetailCalls)
+                            {
+                                // Eine Property-Abfrage → Zivilstand UND AHV-Nr.
+                                var (marital, ahv) = await FetchPropsInfoAsync(mapping.EasyAtWorkCustomerId, eawId, ct);
+                                maritalByEaw[eawId] = marital;
+                                ahvByEaw[eawId]     = ahv;
+                                // IBAN aus fiscal_info.
+                                try { var fiscal = await _client.GetFiscalInfoAsync(mapping.EasyAtWorkCustomerId, eawId, ct); ibanByEaw[eawId] = fiscal?.Iban; }
+                                catch (Exception ex) { _log.LogDebug(ex, "Fiscal-Info (IBAN) für easy@work-MA {Id} nicht abrufbar", eawId); }
+                            }
                         }
                         finally { sem.Release(); }
                     });
@@ -673,7 +680,11 @@ public class EasyAtWorkEmployeeSyncService
             {
                 foreach (var (temp, teawId, tJgId, tJgCode, tIsKader, tEawTo) in timelineWork)
                 {
-                    var timeline = BuildEmploymentTimeline(ContractsFor(teawId), RatesFor(teawId), activeAt, tIsKader);
+                    var tContracts = ContractsFor(teawId);
+                    var tRates     = RatesFor(teawId);
+                    var timeline   = BuildEmploymentTimeline(tContracts, tRates, activeAt, tIsKader);
+                    _log.LogInformation("easy@work-Sync MA {Num}: contracts={C}, payRates={R}, timeline={T}",
+                        temp.EmployeeNumber, tContracts.Count, tRates.Count, timeline.Count);
                     await SyncEmploymentTimelineAsync(_db, temp, req.CompanyProfileId, timeline, tJgId, tJgCode, tEawTo, ct);
                 }
                 foreach (var (bemp, iban) in bankWork)
@@ -845,6 +856,9 @@ public class EasyAtWorkEmployeeSyncService
         public DateOnly  Start;
         public DateOnly? End;                    // null = offen
         public HistContractInfo Info = new();
+        public int?      EasyAtWorkContractId;   // Herkunfts-Contract (easy@work)
+        public int?      EasyAtWorkPayRateId;    // Herkunfts-PayRate (easy@work)
+        public DateTime? EasyAtWorkUpdatedAt;    // max(contract.updated_at, pay_rate.updated_at)
     }
 
     /// <summary>
@@ -880,9 +894,18 @@ public class EasyAtWorkEmployeeSyncService
         for (int i = 0; i < bounds.Count; i++)
         {
             var start = bounds[i];
-            var cAt = contracts.FirstOrDefault(c => CApplies(c, start));
-            bool hasRate = rates.Any(r => RApplies(r, start));
-            if (cAt == null && !hasRate) continue; // Lücke → kein Segment
+            // easy@work liefert Contracts/PayRates NICHT garantiert chronologisch →
+            // IMMER den jüngsten passenden nehmen (OrderByDescending(From)), nie das
+            // erste Listenelement. Walter-Vorgabe 23.06.2026.
+            var cAt = contracts
+                .Where(c => CApplies(c, start))
+                .OrderByDescending(c => c.From ?? DateOnly.MinValue)
+                .FirstOrDefault();
+            var rAt = rates
+                .Where(r => RApplies(r, start))
+                .OrderByDescending(r => r.From ?? DateOnly.MinValue)
+                .FirstOrDefault();
+            if (cAt == null && rAt == null) continue; // Lücke → kein Segment
 
             DateOnly? end = (i < bounds.Count - 1) ? bounds[i + 1].AddDays(-1) : (DateOnly?)null;
             if (i == bounds.Count - 1)
@@ -897,7 +920,15 @@ public class EasyAtWorkEmployeeSyncService
                     end = maxClose;
                 }
             }
-            segments.Add(new EmploymentSegment { Start = start, End = end, Info = ComputeContractInfo(cAt, rates, start, isKader) });
+            segments.Add(new EmploymentSegment
+            {
+                Start = start,
+                End   = end,
+                Info  = ComputeContractInfo(cAt, rates, start, isKader),
+                EasyAtWorkContractId = (cAt != null && cAt.Id != 0) ? cAt.Id : (int?)null,
+                EasyAtWorkPayRateId  = (rAt != null && rAt.Id != 0) ? rAt.Id : (int?)null,
+                EasyAtWorkUpdatedAt  = MaxUpdated(cAt?.UpdatedAt, rAt?.UpdatedAt),
+            });
         }
 
         // Direkt angrenzende, inhaltlich identische Segmente zusammenführen.
@@ -911,6 +942,14 @@ public class EasyAtWorkEmployeeSyncService
                 merged.Add(seg);
         }
         return merged;
+    }
+
+    private static DateTime? MaxUpdated(DateTime? a, DateTime? b)
+    {
+        var max = (a.HasValue && b.HasValue) ? (a.Value >= b.Value ? a : b) : (a ?? b);
+        // Spalte ist `timestamp without time zone` → Npgsql verbietet Kind=Utc.
+        // Auf Unspecified normalisieren (der Wert dient nur als Versions-Marker).
+        return max.HasValue ? DateTime.SpecifyKind(max.Value, DateTimeKind.Unspecified) : (DateTime?)null;
     }
 
     private static bool SameTerms(HistContractInfo a, HistContractInfo b)
@@ -938,13 +977,31 @@ public class EasyAtWorkEmployeeSyncService
             .Where(em => em.EmployeeId == emp.Id && em.CompanyProfileId == companyProfileId)
             .ToListAsync(ct);
 
+        var matched = new HashSet<Employment>();
         foreach (var seg in timeline)
         {
             var startDt  = seg.Start.ToDateTime(TimeOnly.MinValue);
             var endDt    = seg.End.HasValue ? seg.End.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null;
             bool active  = !seg.End.HasValue || seg.End.Value >= today;
             var info     = seg.Info;
-            var existing = existingAll.FirstOrDefault(e => e.ContractStartDate == startDt);
+
+            // Match-Reihenfolge (Walter-Vorgabe 23.06.2026):
+            //   1) externe IDs Contract + PayRate (stabilster Schlüssel)
+            //   2) Contract-ID + gleicher Start (PayRate-ID war noch nicht gesetzt)
+            //   3) Fallback Natural Key (employee+filiale+contract_start_date)
+            // So ist der Re-Sync idempotent, auch wenn sich der Start leicht verschiebt
+            // oder eine Alt-Zeile noch keine easy@work-IDs trägt.
+            Employment? existing = null;
+            if (seg.EasyAtWorkContractId.HasValue && seg.EasyAtWorkPayRateId.HasValue)
+                existing = existingAll.FirstOrDefault(e => !matched.Contains(e)
+                    && e.EasyAtWorkContractId == seg.EasyAtWorkContractId
+                    && e.EasyAtWorkPayRateId  == seg.EasyAtWorkPayRateId);
+            if (existing == null && seg.EasyAtWorkContractId.HasValue)
+                existing = existingAll.FirstOrDefault(e => !matched.Contains(e)
+                    && e.EasyAtWorkContractId == seg.EasyAtWorkContractId
+                    && e.ContractStartDate == startDt);
+            if (existing == null)
+                existing = existingAll.FirstOrDefault(e => !matched.Contains(e) && e.ContractStartDate == startDt);
 
             if (existing == null)
             {
@@ -967,12 +1024,17 @@ public class EasyAtWorkEmployeeSyncService
                     HourlyRate           = info.HourlyRate,
                     MonthlySalary        = info.MonthlySalary,
                     MonthlySalaryFte     = info.MonthlySalaryFte,
+                    EasyAtWorkContractId = seg.EasyAtWorkContractId,
+                    EasyAtWorkPayRateId  = seg.EasyAtWorkPayRateId,
+                    EasyAtWorkUpdatedAt  = seg.EasyAtWorkUpdatedAt,
                 });
             }
             else
             {
-                existing.ContractEndDate = endDt;
-                existing.IsActive        = active;
+                matched.Add(existing);
+                existing.ContractStartDate = startDt;   // Start auf das Segment ausrichten (ID-Match kann verschieben)
+                existing.ContractEndDate   = endDt;
+                existing.IsActive          = active;
                 if (!string.IsNullOrWhiteSpace(info.EmploymentModel)) existing.EmploymentModel = info.EmploymentModel!;
                 if (!string.IsNullOrWhiteSpace(info.SalaryType))      existing.SalaryType      = info.SalaryType!;
                 if (!string.IsNullOrWhiteSpace(info.ContractType))    existing.ContractType    = info.ContractType;
@@ -999,15 +1061,20 @@ public class EasyAtWorkEmployeeSyncService
                     if (info.HourlyRate.HasValue) existing.HourlyRate = info.HourlyRate;
                     existing.GuaranteedHoursPerWeek = m == "MTP" ? (info.GuaranteedHoursPerWeek ?? existing.GuaranteedHoursPerWeek) : null;
                 }
+
+                // easy@work-Herkunft setzen/aktualisieren (Alt-Zeile bekommt jetzt IDs).
+                existing.EasyAtWorkContractId = seg.EasyAtWorkContractId;
+                existing.EasyAtWorkPayRateId  = seg.EasyAtWorkPayRateId;
+                existing.EasyAtWorkUpdatedAt  = seg.EasyAtWorkUpdatedAt;
             }
         }
 
-        // Überlappende Cowork-Zeilen, die KEIN Timeline-Segmentstart sind, korrigieren
-        // (NICHT löschen): hinten auf den Tag vor dem frühesten überlappenden Segment
-        // kappen. So verschwinden Doppel-/Altzeilen, die Historie bleibt erhalten.
-        var segStarts = timeline.Select(s => s.Start.ToDateTime(TimeOnly.MinValue)).ToHashSet();
+        // Überlappende Cowork-Zeilen, die NICHT von der Timeline gematcht wurden,
+        // korrigieren (NICHT löschen): hinten auf den Tag vor dem frühesten
+        // überlappenden Segment kappen. So verschwinden Doppel-/Altzeilen, die
+        // Historie bleibt erhalten.
         var todayDt = DateTime.Today;
-        foreach (var ex in existingAll.Where(e => !segStarts.Contains(e.ContractStartDate)))
+        foreach (var ex in existingAll.Where(e => !matched.Contains(e)))
         {
             foreach (var seg in timeline.OrderBy(s => s.Start))
             {
