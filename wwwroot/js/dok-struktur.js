@@ -641,7 +641,7 @@ async function renderVtDetail(emp) {
                 <!-- Zeile 1: Vertragsdaten -->
                 ${vtField(_t('vt.field.from'), fmt(c.contractStartDate))}
                 ${vtField(_t('vt.field.to'), isActive ? `<em style="color:#94a3b8">${_t('vt.label.open')}</em>` : fmt(c.contractEndDate))}
-                ${vtField(_t('vt.field.jobTitle'), c.jobTitle)}
+                ${vtField(_t('vt.field.jobTitle'), c.jobTitle || c.jobGroupCode)}
                 <!-- Zeile 2: Pensum / Lohn / Info -->
                 ${vtField(_t('vt.field.percentage'), pensum)}
                 ${vtField(isFixModel ? _t('vt.field.salaryFte') : _t('vt.field.salary'), lohnHaupt)}
