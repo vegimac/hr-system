@@ -162,6 +162,30 @@ public class EasyAtWorkClient
         return data;
     }
 
+    /// <summary>
+    /// GET, gibt den ROHEN JSON-Body + HTTP-Status zurück (für Diagnose/Dump —
+    /// auch nicht gemappte Felder werden so sichtbar). Bei 401 einmal Token-
+    /// Refresh + Retry. Wirft NICHT bei Fehler-Status — der Aufrufer entscheidet.
+    /// </summary>
+    public async Task<(int status, string body)> GetRawAsync(string path, CancellationToken ct = default)
+    {
+        EnsureConfigured();
+        async Task<(int, string)> SendOnce()
+        {
+            var token = await GetTokenAsync(ct);
+            var req = new HttpRequestMessage(HttpMethod.Get,
+                $"{_settings.BaseUrl.TrimEnd('/')}/{path.TrimStart('/')}");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            using var resp = await _http.SendAsync(req, ct);
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            return ((int)resp.StatusCode, body);
+        }
+        var r = await SendOnce();
+        if (r.Item1 == 401) { InvalidateToken(); r = await SendOnce(); }
+        return r;
+    }
+
     // ──────────────────── Convenience-Endpoints ─────────────────────
 
     /// <summary>Liste aller für den Client sichtbaren Customers (Filialen).</summary>
@@ -314,6 +338,11 @@ public class EasyAtWorkClient
     public Task<EawPaginated<EawPayRate>> GetPayRatesAsync(int customerId, int employeeId, CancellationToken ct = default)
         => GetJsonAsync<EawPaginated<EawPayRate>>(
             $"customers/{customerId}/employees/{employeeId}/pay_rates", ct);
+
+    /// <summary>Funktionen/Positionen eines MA (Name = job_group.code). Walter 22.06.2026.</summary>
+    public Task<EawPaginated<EawPosition>> GetPositionsAsync(int customerId, int employeeId, CancellationToken ct = default)
+        => GetJsonAsync<EawPaginated<EawPosition>>(
+            $"customers/{customerId}/employees/{employeeId}/positions", ct);
 
     public virtual Task<EawFiscalInfo?> GetFiscalInfoAsync(int customerId, int employeeId, CancellationToken ct = default)
         => GetJsonAsync<EawFiscalInfo?>(

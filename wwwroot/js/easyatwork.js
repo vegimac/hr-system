@@ -605,6 +605,24 @@ async function eawEmpSyncPreview() {
     await _eawEmpSyncRun(false, null);
 }
 
+// API-Dump: alle erreichbaren easy@work-Roh-Felder eines MA anzeigen (Diagnose).
+async function eawEmpDump() {
+    const out = document.getElementById('eawDumpResult');
+    const number = (document.getElementById('eawDumpNumber')?.value || '').trim();
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    if (!number) { if (out) out.textContent = 'Bitte eine Personalnummer eingeben.'; return; }
+    if (!cpId)   { if (out) out.textContent = 'Bitte zuerst oben eine Filiale wählen.'; return; }
+    if (out) out.textContent = 'Lade…';
+    try {
+        const r = await fetch(`/api/easywork/debug/employee-dump?companyProfileId=${cpId}&number=${encodeURIComponent(number)}`, { headers: ah() });
+        const j = await r.json();
+        if (!r.ok) { out.textContent = 'Fehler: ' + (j?.message || j?.error || ('HTTP ' + r.status)); return; }
+        out.textContent = JSON.stringify(j, null, 2);
+    } catch (e) {
+        if (out) out.textContent = 'Verbindungsfehler: ' + e.message;
+    }
+}
+
 async function eawEmpSyncCommit() {
     const checked = Array.from(document.querySelectorAll('.eaw-emp-pick:checked'))
         .map(cb => cb.getAttribute('data-number'))

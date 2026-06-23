@@ -210,6 +210,23 @@ public class EasyAtWorkEmployeeSyncService
             .Select(a => new { a.Number, a.EmployeeId })
             .ToListAsync(ct);
         var coworkById = coworkAll.Where(e => e.Id > 0).ToDictionary(e => e.Id);
+        // MA, die bereits eine Bankverbindung haben (Backfill-Erkennung, Walter 22.06.2026).
+        var bankSet = (await _db.EmployeeBankAccounts.AsNoTracking()
+            .Select(b => b.EmployeeId).Distinct().ToListAsync(ct)).ToHashSet();
+        // JobGroups (Funktion → Kader-Flag) für die Modell-Ableitung aus /positions.
+        var jobGroupByCode = new Dictionary<string, JobGroup>(StringComparer.OrdinalIgnoreCase);
+        foreach (var g in await _db.JobGroups.AsNoTracking().ToListAsync(ct))
+            if (!string.IsNullOrWhiteSpace(g.Code)) jobGroupByCode.TryAdd(g.Code.Trim(), g);
+        // MA, deren Anstellung bereits eine Funktion (JobGroup) trägt (Backfill-Erkennung).
+        var jobGroupEmpSet = (await _db.Employments.AsNoTracking()
+            .Where(em => em.JobGroupId != null).Select(em => em.EmployeeId).Distinct().ToListAsync(ct)).ToHashSet();
+        // Aktuellste Anstellung pro MA in DIESER Filiale — für die Vertrags-Mismatch-
+        // Erkennung (UTP/MTP mit Pensum %, fehlender Lohn, Enddatum trotz unbefristet).
+        // Sonst würden solche MA als UNCHANGED übersprungen und der Vertrag nie korrigiert.
+        var empByIdThisBranch = (await _db.Employments.AsNoTracking()
+            .Where(em => em.CompanyProfileId == req.CompanyProfileId).ToListAsync(ct))
+            .GroupBy(em => em.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(e => e.ContractStartDate).First());
         // Match-Dictionary: aktuelle Personalnummer UND alle Alias-Nummern als
         // Lookup-Keys, damit ein MA auch unter einer alten Nummer gefunden wird.
         // Erster Eintrag gewinnt (TryAdd).
@@ -328,6 +345,43 @@ public class EasyAtWorkEmployeeSyncService
                 row.Status = "UPDATE";
                 res.CountUpdate++;
             }
+            else if (co != null && !co.IsActive && (!eaw.To.HasValue || eaw.To.Value >= activeAt))
+            {
+                // Reaktivierung (Walter-Bug 22.06.2026, Filialwechsel): MA ist bei
+                // uns inaktiv, in DIESER Filiale laut easy@work aber noch aktiv
+                // (kein/zukünftiges Austrittsdatum). Ohne Feld-Diff wäre er sonst
+                // UNCHANGED und würde übersprungen → als UPDATE behandeln.
+                row.Status = "UPDATE";
+                row.Reason = "MA war als ausgetreten markiert, ist in dieser Filiale laut easy@work aber aktiv (Filialwechsel) → wird reaktiviert, Austrittsdatum wird entfernt.";
+                res.CountUpdate++;
+            }
+            else if (!req.SkipDetailCalls && co != null
+                     && (string.IsNullOrWhiteSpace(co.SocialSecurityNumber)
+                         || string.IsNullOrWhiteSpace(co.MaritalStatus)
+                         || (string.IsNullOrWhiteSpace(co.CantonCode) && !string.IsNullOrWhiteSpace(co.ZipCode))
+                         || (string.IsNullOrWhiteSpace(co.LetterSalutation) && !string.IsNullOrWhiteSpace(co.Gender))
+                         || !bankSet.Contains(co.Id)
+                         || !jobGroupEmpSet.Contains(co.Id)))
+            {
+                // Fehlende Stammdaten (AHV-Nr. / Zivilstand / Kanton / Briefanrede / Bank /
+                // Funktion) nachtragen (Walter 22.06.2026): ohne Feld-Diff wäre der MA
+                // UNCHANGED und würde übersprungen → als UPDATE behandeln, damit der Commit
+                // sie ergänzt (inkl. Funktion → ggf. FIX-M statt UTP).
+                row.Status = "UPDATE";
+                row.Reason = "Stammdaten werden ergänzt (AHV / Zivilstand / Kanton / Briefanrede / Bank / Funktion).";
+                res.CountUpdate++;
+            }
+            else if (co != null && empByIdThisBranch.TryGetValue(co.Id, out var curEmp)
+                     && EmploymentNeedsFix(curEmp, eaw))
+            {
+                // Falscher Vertrag (Walter 23.06.2026): UTP/MTP mit Pensum %, fehlender
+                // Stundenlohn, MTP ohne garantierte Stunden, oder Enddatum trotz
+                // unbefristet. Ohne Feld-Diff wäre der MA UNCHANGED → der Vertrag würde
+                // nie korrigiert. Als UPDATE behandeln, damit der Backfill greift.
+                row.Status = "UPDATE";
+                row.Reason = "Vertrag wird korrigiert (Pensum / Stundenlohn / Enddatum gemäss easy@work).";
+                res.CountUpdate++;
+            }
             else
             {
                 row.Status = "UNCHANGED";
@@ -389,9 +443,14 @@ public class EasyAtWorkEmployeeSyncService
                 res.Notes.Add($"easy@work-ID stillschweigend bei {backfilled} bestehenden MA nachgetragen.");
             }
 
-            // Zu schreibende Zeilen (NEW/UPDATE, ausgewählt).
+            // Zu schreibende Zeilen: NEW/UPDATE PLUS bereits zugeordnete UNCHANGED-MA
+            // (Walter-Vorgabe 23.06.2026). Letztere werden still mit easy@work
+            // abgeglichen — sonst bliebe ein einmal falsch angelegter Vertrag (z.B.
+            // UTP statt MTP) für immer stehen, weil ohne Feld-Diff niemand ihn anfasst.
+            // EnsureEmploymentAsync ist idempotent (Modell führend, Lohn fill-if-empty).
             var rowsToProcess = res.Rows
-                .Where(r => (r.Status == "NEW" || r.Status == "UPDATE")
+                .Where(r => (r.Status == "NEW" || r.Status == "UPDATE"
+                             || (r.Status == "UNCHANGED" && r.CoworkEmployeeId.HasValue))
                          && (selected == null || selected.Contains(r.Number ?? "")))
                 .ToList();
 
@@ -399,8 +458,12 @@ public class EasyAtWorkEmployeeSyncService
             // gleichzeitig) statt 3 sequenzielle API-Calls pro MA. Diese Calls nutzen
             // NUR den HTTP-Client (nicht den DbContext) → thread-safe. Beim Schnell-
             // Import (SkipDetailCalls) ganz überspringen. Walter-Vorgabe 21.06.2026.
-            var contractByEaw = new ConcurrentDictionary<int, HistContractInfo>();
+            var contractByEaw       = new ConcurrentDictionary<int, HistContractInfo>();
+            var futureContractByEaw = new ConcurrentDictionary<int, HistContractInfo>();
             var maritalByEaw  = new ConcurrentDictionary<int, string?>();
+            var ahvByEaw      = new ConcurrentDictionary<int, string?>();
+            var ibanByEaw     = new ConcurrentDictionary<int, string?>();
+            var positionByEaw = new ConcurrentDictionary<int, string?>();
             if (!req.SkipDetailCalls && rowsToProcess.Count > 0)
             {
                 using var sem = new SemaphoreSlim(10);
@@ -411,21 +474,55 @@ public class EasyAtWorkEmployeeSyncService
                         await sem.WaitAsync(ct);
                         try
                         {
-                            contractByEaw[eawId] = await BuildHistContractInfoAsync(mapping.EasyAtWorkCustomerId, eawId, ct);
-                            maritalByEaw[eawId]  = await FetchMaritalStatusAsync(mapping.EasyAtWorkCustomerId, eawId, ct);
+                            // Aktueller + (optional) zukünftiger Vertrag (Walter 22.06.2026).
+                            var (curC, futC) = await BuildHistContractInfoAsync(mapping.EasyAtWorkCustomerId, eawId, activeAt, ct);
+                            contractByEaw[eawId] = curC;
+                            if (futC != null) futureContractByEaw[eawId] = futC;
+                            // Eine Property-Abfrage → Zivilstand UND AHV-Nr. (Walter 22.06.2026).
+                            var (marital, ahv) = await FetchPropsInfoAsync(mapping.EasyAtWorkCustomerId, eawId, ct);
+                            maritalByEaw[eawId] = marital;
+                            ahvByEaw[eawId]     = ahv;
+                            // IBAN aus fiscal_info (Walter 22.06.2026).
+                            try { var fiscal = await _client.GetFiscalInfoAsync(mapping.EasyAtWorkCustomerId, eawId, ct); ibanByEaw[eawId] = fiscal?.Iban; }
+                            catch (Exception ex) { _log.LogDebug(ex, "Fiscal-Info (IBAN) für easy@work-MA {Id} nicht abrufbar", eawId); }
+                            // Funktion/Position (= job_group.code) für Modell-Ableitung (Walter 22.06.2026).
+                            try { var pos = await _client.GetPositionsAsync(mapping.EasyAtWorkCustomerId, eawId, ct); positionByEaw[eawId] = pos?.Data?.FirstOrDefault()?.Name; }
+                            catch (Exception ex) { _log.LogDebug(ex, "Positionen für easy@work-MA {Id} nicht abrufbar", eawId); }
                         }
                         finally { sem.Release(); }
                     });
                 await Task.WhenAll(detailTasks);
             }
-            HistContractInfo InfoFor(int eawId) => contractByEaw.TryGetValue(eawId, out var i) ? i : new HistContractInfo();
-            string? MaritalFor(int eawId)       => maritalByEaw.TryGetValue(eawId, out var m) ? m : null;
+            HistContractInfo InfoFor(int eawId)       => contractByEaw.TryGetValue(eawId, out var i) ? i : new HistContractInfo();
+            HistContractInfo? FutureFor(int eawId)    => futureContractByEaw.TryGetValue(eawId, out var f) ? f : null;
+            string? MaritalFor(int eawId)             => maritalByEaw.TryGetValue(eawId, out var m) ? m : null;
+            string? AhvFor(int eawId)                 => ahvByEaw.TryGetValue(eawId, out var a) ? a : null;
+            string? IbanFor(int eawId)                => ibanByEaw.TryGetValue(eawId, out var b) ? b : null;
+            string? PositionFor(int eawId)            => positionByEaw.TryGetValue(eawId, out var p) ? p : null;
+            // Zukunfts-Verträge + Bankverbindungen sammeln → zweiter Durchgang NACH dem Speichern.
+            var futureWork = new System.Collections.Generic.List<(Employee emp, HistContractInfo future)>();
+            var bankWork   = new System.Collections.Generic.List<(Employee emp, string iban)>();
 
             foreach (var row in rowsToProcess)
             {
                 var eaw = eawEmps.FirstOrDefault(e => e.Id == row.EawEmployeeId);
                 if (eaw == null) continue;
                 var info = InfoFor(row.EawEmployeeId);
+                // Funktion aus /positions → JobGroup; Kader ⇒ FIX-M (Walter 22.06.2026).
+                // Greift für aktuellen UND (falls vorhanden) zukünftigen Vertrag.
+                var posName = PositionFor(row.EawEmployeeId);
+                if (!string.IsNullOrWhiteSpace(posName) && jobGroupByCode.TryGetValue(posName!.Trim(), out var jg))
+                {
+                    void ApplyJg(HistContractInfo? hci)
+                    {
+                        if (hci == null) return;
+                        hci.JobGroupId   = jg.Id;
+                        hci.JobGroupCode = jg.Code;
+                        if (jg.IsKader) { hci.EmploymentModel = "FIX-M"; hci.SalaryType = "monthly"; }
+                    }
+                    ApplyJg(info);
+                    ApplyJg(FutureFor(row.EawEmployeeId));
+                }
 
                 if (row.Status == "NEW")
                 {
@@ -474,12 +571,25 @@ public class EasyAtWorkEmployeeSyncService
                         }
                         // 3) Employment in DIESER Filiale nachholen (falls fehlt).
                         await EnsureEmploymentAsync(existingByEawId, eaw, req.CompanyProfileId, isNewEmployee: false, info, ct);
+                        // 3b) Status-Korrektur (Walter-Bug 22.06.2026, Filialwechsel):
+                        //     Ist der MA bei uns inaktiv, aber diese easy@work-Anstellung
+                        //     hat KEIN Austrittsdatum (oder in der Zukunft), dann ist er in
+                        //     DIESER Filiale aktiv → Person reaktivieren.
+                        bool eawStillActiveEx = !eaw.To.HasValue || eaw.To.Value >= activeAt;
+                        bool reactivated = false;
+                        if (!existingByEawId.IsActive && eawStillActiveEx)
+                        {
+                            existingByEawId.IsActive = true;
+                            existingByEawId.ExitDate = null;
+                            reactivated = true;
+                        }
                         // 4) Als EXISTING markieren, NICHT als neuen Employee anlegen.
                         row.Status = "EXISTING";
                         row.CoworkEmployeeId = existingByEawId.Id;
                         row.Reason = viaNameDob
                             ? $"Wiedereintritt (Name+Geb.datum): bestehender MA #{existingByEawId.Id} {existingByEawId.EmployeeNumber}. Alte eaw-ID {eaw.Id} als Alias gesichert."
                             : $"MA existiert bereits (#{existingByEawId.Id} {existingByEawId.EmployeeNumber}). Nummer als Alias gesichert, Employment nachgeholt.";
+                        if (reactivated) row.Reason += " MA reaktiviert — Austrittsdatum entfernt (Filialwechsel).";
                         if (viaNameDob)
                             res.Notes.Add($"Wiedereintritt erkannt: {eaw.FirstName} {eaw.LastName} → MA #{existingByEawId.Id} (alte eaw-ID {eaw.Id} als Alias).");
                         res.CountExisting++;
@@ -500,9 +610,14 @@ public class EasyAtWorkEmployeeSyncService
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
                     if (string.IsNullOrWhiteSpace(emp.MaritalStatus)) emp.MaritalStatus = MaritalFor(row.EawEmployeeId);
+                    if (string.IsNullOrWhiteSpace(emp.SocialSecurityNumber)) emp.SocialSecurityNumber = AhvFor(row.EawEmployeeId);
+                    if (string.IsNullOrWhiteSpace(emp.CantonCode)) emp.CantonCode = await LookupCantonAsync(emp.ZipCode, ct);
+                    if (string.IsNullOrWhiteSpace(emp.LetterSalutation)) emp.LetterSalutation = BuildLetterSalutation(emp.Gender, emp.FirstName);
                     _db.Employees.Add(emp);
                     res.CountInserted++;
                     await EnsureEmploymentAsync(emp, eaw, req.CompanyProfileId, isNewEmployee: true, info, ct);
+                    var futN = FutureFor(row.EawEmployeeId); if (futN != null) futureWork.Add((emp, futN));
+                    var ibN = IbanFor(row.EawEmployeeId); if (!string.IsNullOrWhiteSpace(ibN)) bankWork.Add((emp, ibN!));
                 }
                 else // UPDATE
                 {
@@ -520,16 +635,52 @@ public class EasyAtWorkEmployeeSyncService
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
                     if (string.IsNullOrWhiteSpace(emp.MaritalStatus)) emp.MaritalStatus = MaritalFor(row.EawEmployeeId);
-                    if (eaw.To.HasValue && eaw.To.Value < activeAt)
+                    if (string.IsNullOrWhiteSpace(emp.SocialSecurityNumber)) emp.SocialSecurityNumber = AhvFor(row.EawEmployeeId);
+                    if (string.IsNullOrWhiteSpace(emp.CantonCode)) emp.CantonCode = await LookupCantonAsync(emp.ZipCode, ct);
+                    if (string.IsNullOrWhiteSpace(emp.LetterSalutation)) emp.LetterSalutation = BuildLetterSalutation(emp.Gender, emp.FirstName);
+                    // Aktiv-Status (Walter-Bug 22.06.2026, Filialwechsel): eaw.To ist das
+                    // Austrittsdatum DIESER Filiale, nicht des Menschen.
+                    bool eawStillActiveUp = !eaw.To.HasValue || eaw.To.Value >= activeAt;
+                    if (!emp.IsActive && eawStillActiveUp)
                     {
-                        emp.IsActive = false;
-                        emp.ExitDate = eaw.To.Value.ToDateTime(TimeOnly.MinValue);
+                        // In dieser Filiale laut easy@work noch aktiv → Person reaktivieren.
+                        emp.IsActive = true;
+                        emp.ExitDate = null;
+                    }
+                    else if (eaw.To.HasValue && eaw.To.Value < activeAt)
+                    {
+                        // Nur inaktiv setzen, wenn der MA NICHT in einer ANDEREN Filiale
+                        // noch aktiv ist.
+                        bool activeElsewhere = await _db.Employments
+                            .AnyAsync(em => em.EmployeeId == emp.Id
+                                         && em.CompanyProfileId != req.CompanyProfileId
+                                         && em.IsActive == true, ct);
+                        if (!activeElsewhere)
+                        {
+                            emp.IsActive = false;
+                            emp.ExitDate = eaw.To.Value.ToDateTime(TimeOnly.MinValue);
+                        }
                     }
                     await EnsureEmploymentAsync(emp, eaw, req.CompanyProfileId, isNewEmployee: false, info, ct);
+                    var futU = FutureFor(row.EawEmployeeId); if (futU != null) futureWork.Add((emp, futU));
+                    var ibU = IbanFor(row.EawEmployeeId); if (!string.IsNullOrWhiteSpace(ibU)) bankWork.Add((emp, ibU!));
                     res.CountUpdated++;
                 }
             }
             await _db.SaveChangesAsync(ct);
+
+            // ── Zweiter Durchgang: zukünftige Verträge als versionierte Anstellung
+            //    (erst JETZT, wo alle Employee-/Employment-IDs gespeichert sind, damit
+            //    die laufende Anstellung sauber gekappt und keine Überlappung entsteht).
+            //    Walter-Vorgabe 22.06.2026.
+            if (futureWork.Count > 0 || bankWork.Count > 0)
+            {
+                foreach (var (femp, future) in futureWork)
+                    await EnsureFutureEmploymentAsync(femp, req.CompanyProfileId, future, ct);
+                foreach (var (bemp, iban) in bankWork)
+                    await EnsureBankAccountAsync(bemp, iban, ct);
+                await _db.SaveChangesAsync(ct);
+            }
 
             // Sync-State
             var st = await _db.EasyAtWorkSyncStates
@@ -549,67 +700,122 @@ public class EasyAtWorkEmployeeSyncService
     private sealed class HistContractInfo
     {
         public DateTime? StartDate;            // = frühestes Pay-Rate-From (Lohn-Beginn)
-        public string?   EmploymentModel;      // FIX / MTP / UTP
+        public DateOnly? RateFrom;             // Von-Datum des aktuell gültigen Tarifs (= Vertrags-„ab")
+        public DateOnly? ContractFrom;         // Beginn DIESES Vertrags (easy@work contract.from)
+        public DateOnly? ContractTo;           // Ende DIESES Vertrags (null = unbefristet)
+        public int?      JobGroupId;           // aus /positions → job_group
+        public string?   JobGroupCode;         // z.B. REST_MANAGER / SHIFT_LEADER_7_PLUS / CREW
+        public string?   EmploymentModel;      // FIX / MTP / UTP / FIX-M
         public string?   SalaryType;           // monthly / hourly
         public string?   ContractType;
         public string?   JobTitle;
         public decimal?  WeeklyHours;
+        public decimal?  GuaranteedHoursPerWeek; // MTP: garantierte Wochenstunden
         public decimal?  EmploymentPercentage;
         public decimal?  HourlyRate;
         public decimal?  MonthlySalary;
+        public decimal?  MonthlySalaryFte;       // FIX/FIX-M: 100%-Lohn
     }
 
     /// <summary>
-    /// Holt — soweit verfügbar — Vertrags-/Lohnstufen-Infos eines easy@work-MA und
-    /// mappt sie auf unsere Felder. Vollständig best-effort: jeder Fehlschlag lässt
-    /// das jeweilige Feld leer, der Import läuft trotzdem durch. Mapping analog
-    /// CLAUDE.md: amount_type month → FIX; hour + Type MTP/TPM → MTP; hour sonst → UTP.
+    /// Liefert (a) den am Stichtag <paramref name="asOf"/> gültigen Vertrag (current)
+    /// und (b) optional einen zukünftig startenden Vertrag (future, From &gt; asOf).
+    /// Best-effort: Fehlschläge lassen Felder leer. Mapping: amount_type month → FIX;
+    /// hour + Type MTP/TPM → MTP; hour sonst → UTP. Lohnsatz = der am jeweiligen
+    /// Datum gültige (jüngster Pay-Rate mit From ≤ Datum). Walter-Vorgabe 22.06.2026.
     /// </summary>
-    private async Task<HistContractInfo> BuildHistContractInfoAsync(int customerId, int eawEmployeeId, CancellationToken ct)
+    private async Task<(HistContractInfo current, HistContractInfo? future)> BuildHistContractInfoAsync(
+        int customerId, int eawEmployeeId, DateOnly asOf, CancellationToken ct)
     {
-        var info = new HistContractInfo();
-        try
+        List<EawContract> contracts = new();
+        List<EawPayRate>  rates     = new();
+        try { contracts = (await _client.GetContractsAsync(customerId, eawEmployeeId, ct))?.Data ?? new(); }
+        catch (Exception ex) { _log.LogDebug(ex, "Verträge für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); }
+        try { rates = (await _client.GetPayRatesAsync(customerId, eawEmployeeId, ct))?.Data ?? new(); }
+        catch (Exception ex) { _log.LogDebug(ex, "Pay-Rates für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); }
+
+        var earliestRateFrom = rates.Where(r => r.From.HasValue).OrderBy(r => r.From)
+            .Select(r => r.From!.Value.ToDateTime(TimeOnly.MinValue)).Cast<DateTime?>().FirstOrDefault();
+        // Lohnsatz, der an einem Datum gilt (jüngster mit From ≤ date).
+        // Walter-Vorgabe 23.06.2026: ein Lohnsatz ≤ 1.00 ist ein PLATZHALTER ("kein
+        // Lohn") — easy@work verlangt ein Pflichtfeld, wir wollen ihn aber NICHT als
+        // echten Lohn führen. Solche Sätze werden ignoriert → Lohnfeld bleibt leer
+        // (System zeigt "Lohn fehlt", Lohnlauf bleibt gesperrt bis echter Lohn erfasst).
+        // Typ-Präfix-Match: easy@work liefert "hour"/"month" (NICHT "hourly"/"monthly").
+        // StartsWith deckt beide Schreibweisen ab.
+        IEnumerable<EawPayRate> RatesOfType(string t, DateOnly date) => rates
+            .Where(r => (r.Type ?? "").StartsWith(t, StringComparison.OrdinalIgnoreCase) && r.Rate.HasValue
+                     && r.Rate.Value > 1.00m
+                     && (r.From ?? DateOnly.MinValue) <= date)
+            .OrderByDescending(r => r.From ?? DateOnly.MinValue);
+        decimal?   RateAt(string t, DateOnly date)     => RatesOfType(t, date).Select(r => r.Rate).FirstOrDefault();
+        DateOnly?  RateFromAt(string t, DateOnly date)  => RatesOfType(t, date).Select(r => r.From).FirstOrDefault();
+
+        HistContractInfo Build(EawContract? c, DateOnly rateDate)
         {
-            var contracts = (await _client.GetContractsAsync(customerId, eawEmployeeId, ct))?.Data ?? new();
-            var latest = contracts
-                .OrderByDescending(c => c.From ?? DateOnly.MinValue)
-                .ThenByDescending(c => c.UpdatedAt ?? DateTime.MinValue)
-                .FirstOrDefault();
-            if (latest != null)
+            var info = new HistContractInfo { StartDate = earliestRateFrom, ContractFrom = c?.From, ContractTo = c?.To };
+            if (c != null)
             {
-                info.ContractType         = string.IsNullOrWhiteSpace(latest.Type)  ? null : latest.Type!.Trim();
-                info.JobTitle             = string.IsNullOrWhiteSpace(latest.Title) ? null : latest.Title!.Trim();
-                info.WeeklyHours          = latest.WeekHours;
-                info.EmploymentPercentage = latest.Percentage;
-                var amt = (latest.AmountType ?? "").Trim().ToLowerInvariant();
-                var typ = (latest.Type ?? "").Trim().ToUpperInvariant();
-                if (amt == "month") { info.EmploymentModel = "FIX"; info.SalaryType = "monthly"; }
-                else if (amt == "hour")
+                info.ContractType = string.IsNullOrWhiteSpace(c.Type)  ? null : c.Type!.Trim();
+                info.JobTitle     = string.IsNullOrWhiteSpace(c.Title) ? null : c.Title!.Trim();
+                var amt = (c.AmountType ?? "").Trim().ToLowerInvariant();
+                var typ = (c.Type ?? "").Trim().ToUpperInvariant();
+                // Vertragsmodell aus dem easy@work-Vertrag (Walter-Vorgabe 23.06.2026):
+                //   amount_type "month"          → FIX (Monatslohn)
+                //   amount_type "week"/"hour"     → Stundenlohn:
+                //       Typ MTP/TPM  ODER  Wochenstunden (amount) > 17  → MTP
+                //       sonst (z.B. amount 17, der UTP-Default)         → UTP
+                // Leeres amount_type → Contract-Type Fix/Full ⇒ month, sonst week.
+                if (string.IsNullOrEmpty(amt))
+                    amt = (typ.Contains("FIX") || typ.Contains("FULL")) ? "month" : "week";
+                if (amt.StartsWith("month")) { info.EmploymentModel = "FIX"; info.SalaryType = "monthly"; }
+                else
                 {
-                    info.EmploymentModel = (typ.Contains("MTP") || typ.Contains("TPM")) ? "MTP" : "UTP";
+                    var wochenStd = c.Amount ?? c.WeekHours;
+                    bool isMtp = typ.Contains("MTP") || typ.Contains("TPM")
+                                 || (wochenStd.HasValue && wochenStd.Value > 17m);
+                    info.EmploymentModel = isMtp ? "MTP" : "UTP";
                     info.SalaryType = "hourly";
                 }
             }
-        }
-        catch (Exception ex) { _log.LogDebug(ex, "Verträge für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); }
 
-        try
-        {
-            var rates = (await _client.GetPayRatesAsync(customerId, eawEmployeeId, ct))?.Data ?? new();
-            if (rates.Count > 0)
+            // Felder je Vertragsmodell setzen — EXAKT wie der CSV-Import
+            // (import.html buildEmploymentPayload). Walter-Vorgabe 23.06.2026:
+            //   UTP      → Stundenlohn, KEIN Pensum %, keine Stunden
+            //   MTP      → Stundenlohn, KEIN Pensum %, garantierte Wochenstunden
+            //   FIX/FIX-M→ Monatslohn (+ FTE) + Pensum %
+            var hourly  = RateAt("hour", rateDate);
+            var monthly = RateAt("month", rateDate) ?? RateAt("fte", rateDate);
+            // Vertrags-„ab" = Von-Datum des am Stichtag gültigen Tarifs (= Beginn der
+            // aktuellen Lohnstufe, z.B. 01.01.2026), NICHT das Eintrittsdatum.
+            info.RateFrom = RateFromAt("hour", rateDate) ?? RateFromAt("month", rateDate) ?? RateFromAt("fte", rateDate);
+            if (info.EmploymentModel == "FIX" || info.EmploymentModel == "FIX-M")
             {
-                info.StartDate = rates.Where(r => r.From.HasValue).OrderBy(r => r.From)
-                    .Select(r => r.From!.Value.ToDateTime(TimeOnly.MinValue)).Cast<DateTime?>().FirstOrDefault();
-                decimal? LatestRate(string t) => rates
-                    .Where(r => (r.Type ?? "").Equals(t, StringComparison.OrdinalIgnoreCase) && r.Rate.HasValue)
-                    .OrderByDescending(r => r.From ?? DateOnly.MinValue).Select(r => r.Rate).FirstOrDefault();
-                info.HourlyRate    = LatestRate("hourly");
-                info.MonthlySalary = LatestRate("monthly") ?? LatestRate("fte");
+                info.MonthlySalary        = monthly;
+                info.MonthlySalaryFte     = monthly;
+                info.EmploymentPercentage = c?.Percentage;
+                info.WeeklyHours          = null;
+                info.GuaranteedHoursPerWeek = null;
+                info.SalaryType           = "monthly";
             }
+            else // UTP / MTP / unbekannt → Stundenlohn, kein Pensum
+            {
+                info.HourlyRate           = hourly;
+                info.EmploymentPercentage = null;
+                info.WeeklyHours          = null;
+                info.GuaranteedHoursPerWeek = info.EmploymentModel == "MTP" ? (c?.Amount ?? c?.WeekHours) : null;
+                info.SalaryType           = "hourly";
+            }
+            return info;
         }
-        catch (Exception ex) { _log.LogDebug(ex, "Pay-Rates für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); }
 
-        return info;
+        var ordered  = contracts.OrderBy(c => c.From ?? DateOnly.MinValue).ToList();
+        var currentC = ordered.LastOrDefault(c => (c.From ?? DateOnly.MinValue) <= asOf) ?? ordered.FirstOrDefault();
+        var futureC  = ordered.FirstOrDefault(c => (c.From ?? DateOnly.MinValue) > asOf);
+
+        var current = Build(currentC, asOf);
+        HistContractInfo? future = (futureC?.From != null) ? Build(futureC, futureC.From.Value) : null;
+        return (current, future);
     }
 
     /// <summary>
@@ -620,31 +826,211 @@ public class EasyAtWorkEmployeeSyncService
     /// IsActive vom MA, Modell/Lohn/Funktion soweit easy@work liefert, sonst
     /// UTP-Default (Stundenlohn = häufigstes Crew-Modell).
     /// </summary>
+    /// <summary>
+    /// Erkennt einen strukturell falschen Vertrag, der vom Sync korrigiert werden
+    /// muss (sonst bliebe der MA UNCHANGED). Spiegelt die CSV-Import-Regeln:
+    /// UTP/MTP dürfen kein Pensum % haben und brauchen einen Stundenlohn, MTP
+    /// braucht garantierte Wochenstunden, FIX/FIX-M einen Monatslohn, und ein
+    /// Enddatum darf nur stehen, wenn easy@work ein „Bis" hat. Walter 23.06.2026.
+    /// </summary>
+    private static bool EmploymentNeedsFix(Employment e, EawEmployee eaw)
+    {
+        var m = e.EmploymentModel;
+        if (m == "UTP" || m == "MTP")
+        {
+            if (e.EmploymentPercentage != null) return true;   // Pensum bei Stundenlohn = falsch
+            if (e.HourlyRate == null)           return true;   // Stundenlohn fehlt
+            if (m == "MTP" && e.GuaranteedHoursPerWeek == null) return true;
+        }
+        else if (m == "FIX" || m == "FIX-M")
+        {
+            if (e.MonthlySalary == null && e.MonthlySalaryFte == null) return true;
+        }
+        // Enddatum gesetzt, obwohl easy@work unbefristet (Bis leer) meldet.
+        if (e.ContractEndDate != null && !eaw.To.HasValue) return true;
+        return false;
+    }
+
     private async Task EnsureEmploymentAsync(
         Employee emp, EawEmployee eaw, int companyProfileId, bool isNewEmployee, HistContractInfo info, CancellationToken ct)
     {
-        // UPDATE-MA: existiert schon ein Employment für (MA, Filiale)? Dann früh raus.
+        // UPDATE-MA: existiert schon ein Employment für (MA, Filiale)? Dann NICHT mehr
+        // früh raus, sondern leere Felder aus easy@work NACHFÜLLEN (Walter 22.06.2026,
+        // fill-if-empty — bestehende, ggf. manuell gepflegte Werte NIE überschreiben).
         if (!isNewEmployee && emp.Id != 0)
         {
-            var has = await _db.Employments
-                .AnyAsync(em => em.EmployeeId == emp.Id && em.CompanyProfileId == companyProfileId, ct);
-            if (has) return;
+            var existing = await _db.Employments
+                .Where(em => em.EmployeeId == emp.Id && em.CompanyProfileId == companyProfileId)
+                .OrderByDescending(em => em.ContractStartDate)
+                .FirstOrDefaultAsync(ct);
+            if (existing != null)
+            {
+                // Vertrags-„ab" = Beginn der aktuell gültigen Lohnstufe (Tarif-Von, z.B.
+                // 01.01.2026), Fallback Eintritt (eaw.From). Ende = easy@work Bis
+                // (eaw.To); leer = unbefristet. Behebt das stehengebliebene ExitDate als
+                // Vertragsende und das falsche Eintrittsdatum als Vertrags-„ab".
+                var newStart = info.RateFrom?.ToDateTime(TimeOnly.MinValue)
+                               ?? eaw.From?.ToDateTime(TimeOnly.MinValue);
+                if (newStart.HasValue) existing.ContractStartDate = newStart.Value;
+                existing.ContractEndDate = eaw.To.HasValue ? eaw.To.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null;
+                // Funktion (JobGroup) ist führend aus easy@work /positions → setzen.
+                if (info.JobGroupId != null)
+                {
+                    existing.JobGroupId = info.JobGroupId;
+                    existing.JobTitle   = info.JobGroupCode;
+                }
+                // Vertragsmodell ist FÜHREND aus easy@work (Vertrag amount_type/amount +
+                // Position/Kader) — korrigiert eine Fehlklassifizierung, z.B. UTP → MTP
+                // (Wochenstunden > 17) oder UTP → FIX-M (Kader). LOHNRELEVANT.
+                // NUR beim AKTUELLEN Vertrag (kein Ende oder Ende in der Zukunft) —
+                // historische/abgeschlossene Verträge bleiben unangetastet, damit
+                // bereits abgerechnete Perioden nicht verändert werden. Walter 23.06.2026.
+                bool istAktuellerVertrag = existing.ContractEndDate == null
+                                           || existing.ContractEndDate >= DateTime.Today;
+                if (istAktuellerVertrag && !string.IsNullOrWhiteSpace(info.EmploymentModel))
+                {
+                    existing.EmploymentModel = info.EmploymentModel!;
+                    if (!string.IsNullOrWhiteSpace(info.SalaryType)) existing.SalaryType = info.SalaryType!;
+                    if (info.EmploymentModel == "FIX-M" && existing.MonthlySalary == null)
+                        existing.MonthlySalary = info.MonthlySalary;
+                }
+                // Übrige leere Felder nachfüllen (kein Überschreiben).
+                if (existing.HourlyRate == null)               existing.HourlyRate = info.HourlyRate;
+                if (existing.MonthlySalary == null)            existing.MonthlySalary = info.MonthlySalary;
+                if (existing.MonthlySalaryFte == null)         existing.MonthlySalaryFte = info.MonthlySalaryFte;
+                if (string.IsNullOrWhiteSpace(existing.ContractType))    existing.ContractType = info.ContractType;
+                if (string.IsNullOrWhiteSpace(existing.EmploymentModel) && !string.IsNullOrWhiteSpace(info.EmploymentModel)) existing.EmploymentModel = info.EmploymentModel;
+                if (string.IsNullOrWhiteSpace(existing.SalaryType) && !string.IsNullOrWhiteSpace(info.SalaryType))           existing.SalaryType = info.SalaryType;
+
+                // Modell-Strukturfelder korrigieren (klassifizierungs-abgeleitet, KEIN
+                // manueller Userwert) — exakt wie der CSV-Import buildEmploymentPayload:
+                //   UTP/MTP: KEIN Pensum %, kein Monatslohn; MTP trägt garantierte
+                //            Wochenstunden. Behebt das fälschlich gesetzte Pensum
+                //            (z.B. 40.48 % bei UTP). Walter-Vorgabe 23.06.2026.
+                // Nur am AKTUELLEN Vertrag (historische unangetastet, s.o.).
+                var effModel = existing.EmploymentModel;
+                if (istAktuellerVertrag && (effModel == "UTP" || effModel == "MTP"))
+                {
+                    existing.EmploymentPercentage = null;
+                    existing.MonthlySalary        = null;
+                    existing.MonthlySalaryFte     = null;
+                    existing.WeeklyHours          = null;
+                    existing.GuaranteedHoursPerWeek = effModel == "MTP"
+                        ? (info.GuaranteedHoursPerWeek ?? existing.GuaranteedHoursPerWeek)
+                        : null;
+                }
+                else if (istAktuellerVertrag && (effModel == "FIX" || effModel == "FIX-M"))
+                {
+                    existing.GuaranteedHoursPerWeek = null;
+                    if (existing.EmploymentPercentage == null) existing.EmploymentPercentage = info.EmploymentPercentage;
+                    if (existing.WeeklyHours == null)          existing.WeeklyHours = info.WeeklyHours;
+                }
+                return;
+            }
         }
 
-        // contract_start_date = EntryDate → Von (eaw.From) → Pay-Rate-From → ExitDate → heute.
-        var startDate = emp.EntryDate
+        // Vertrags-Start/-Ende kommen aus easy@work Von/Bis (= eaw.From/eaw.To), genau
+        // wie der CSV-Import (dort die Spalten „Von"/„Bis"). KEIN Rückgriff auf das
+        // personenbezogene ExitDate — das gehört nicht zum Filial-Vertrag und ist bei
+        // Filialwechsel verfälscht. Bis leer = unbefristet. Walter-Vorgabe 23.06.2026.
+        var startDate = info.RateFrom?.ToDateTime(TimeOnly.MinValue)
                         ?? eaw.From?.ToDateTime(TimeOnly.MinValue)
+                        ?? emp.EntryDate
                         ?? info.StartDate
-                        ?? emp.ExitDate
                         ?? DateTime.UtcNow.Date;
-        // contract_end_date = ExitDate (Austritt) → Bis.
-        var endDate = emp.ExitDate ?? eaw.To?.ToDateTime(TimeOnly.MinValue);
+        var endDate = eaw.To.HasValue ? eaw.To.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null;
 
+        // Employment-IsActive ist FILIALBEZOGEN (Vertrag in DIESER Filiale aktiv),
+        // NICHT personenbezogen wie emp.IsActive — aus eaw.To ableiten. So bleibt
+        // die alte Filiale beim Wechsel korrekt „beendet", die Person aber aktiv
+        // (Walter-Bug 22.06.2026).
+        var employmentIsActive = !eaw.To.HasValue
+                                 || eaw.To.Value >= DateOnly.FromDateTime(DateTime.Today);
         await AddEmploymentIfMissingAsync(
             _db, emp, companyProfileId, isNewEmployee,
-            startDate, endDate, emp.IsActive,
-            info.EmploymentModel, info.SalaryType, info.ContractType, info.JobTitle,
-            info.WeeklyHours, info.EmploymentPercentage, info.HourlyRate, info.MonthlySalary, ct);
+            startDate, endDate, employmentIsActive,
+            info.EmploymentModel, info.SalaryType, info.ContractType, info.JobGroupCode ?? info.JobTitle,
+            info.WeeklyHours, info.EmploymentPercentage, info.HourlyRate, info.MonthlySalary, ct,
+            jobGroupId: info.JobGroupId,
+            guaranteedHoursPerWeek: info.GuaranteedHoursPerWeek, monthlySalaryFte: info.MonthlySalaryFte);
+    }
+
+    /// <summary>
+    /// Legt für einen zukünftig startenden easy@work-Vertrag eine versionierte
+    /// Anstellung an (ContractStartDate = Zukunftsdatum) und begrenzt die laufende
+    /// Anstellung auf den Vortag. Idempotent: existiert für das Startdatum bereits
+    /// eine Anstellung, passiert nichts. Wird im ZWEITEN Durchgang (nach Save)
+    /// aufgerufen, damit emp.Id + die laufende Anstellung persistiert sind.
+    /// Walter-Vorgabe 22.06.2026.
+    /// </summary>
+    private async Task EnsureFutureEmploymentAsync(Employee emp, int companyProfileId, HistContractInfo future, CancellationToken ct)
+    {
+        if (emp.Id == 0 || future.ContractFrom == null) return;
+        var futureStart = future.ContractFrom.Value.ToDateTime(TimeOnly.MinValue);
+
+        // Schon eine Anstellung mit genau diesem Startdatum? → nichts tun.
+        var exists = await _db.Employments.AnyAsync(
+            em => em.EmployeeId == emp.Id && em.CompanyProfileId == companyProfileId
+               && em.ContractStartDate == futureStart, ct);
+        if (exists) return;
+
+        // Laufende Anstellung (Start < Zukunft, noch offen oder über Zukunft hinaus)
+        // auf den Vortag des Zukunftsstarts begrenzen.
+        var capDate = futureStart.AddDays(-1);
+        var current = await _db.Employments
+            .Where(em => em.EmployeeId == emp.Id && em.CompanyProfileId == companyProfileId
+                      && em.ContractStartDate < futureStart
+                      && (em.ContractEndDate == null || em.ContractEndDate > capDate))
+            .OrderByDescending(em => em.ContractStartDate)
+            .FirstOrDefaultAsync(ct);
+        if (current != null) current.ContractEndDate = capDate;
+
+        _db.Employments.Add(new Employment
+        {
+            EmployeeId           = emp.Id,
+            CompanyProfileId     = companyProfileId,
+            JobGroupId           = future.JobGroupId,
+            ContractStartDate    = futureStart,
+            ContractEndDate      = null,
+            IsActive             = true,
+            EmploymentModel      = string.IsNullOrWhiteSpace(future.EmploymentModel) ? "UTP"    : future.EmploymentModel!.Trim(),
+            SalaryType           = string.IsNullOrWhiteSpace(future.SalaryType)      ? "hourly" : future.SalaryType!.Trim(),
+            ContractType         = future.ContractType,
+            JobTitle             = future.JobGroupCode ?? future.JobTitle,
+            WeeklyHours          = future.WeeklyHours,
+            GuaranteedHoursPerWeek = future.GuaranteedHoursPerWeek,
+            EmploymentPercentage = future.EmploymentPercentage,
+            HourlyRate           = future.HourlyRate,
+            MonthlySalary        = future.MonthlySalary,
+            MonthlySalaryFte     = future.MonthlySalaryFte,
+        });
+    }
+
+    /// <summary>
+    /// Legt eine Bankverbindung aus der easy@work-IBAN an, WENN der MA noch keine
+    /// hat (fill-if-empty — bestehende werden nie überschrieben). Als Hauptbank,
+    /// Aufteilung VOLL. Walter-Vorgabe 22.06.2026.
+    /// </summary>
+    private async Task EnsureBankAccountAsync(Employee emp, string iban, CancellationToken ct)
+    {
+        if (emp.Id == 0 || string.IsNullOrWhiteSpace(iban)) return;
+        var hasAny = await _db.EmployeeBankAccounts.AnyAsync(b => b.EmployeeId == emp.Id, ct);
+        if (hasAny) return;
+
+        var clean = iban.Replace(" ", "").Trim().ToUpperInvariant();
+        _db.EmployeeBankAccounts.Add(new EmployeeBankAccount
+        {
+            EmployeeId    = emp.Id,
+            Iban          = clean,
+            IsHauptbank   = true,
+            AufteilungTyp = "VOLL",
+            ValidFrom     = emp.EntryDate.HasValue
+                ? DateOnly.FromDateTime(emp.EntryDate.Value)
+                : DateOnly.FromDateTime(DateTime.Today),
+            Bemerkung     = "Import easy@work",
+            CreatedAt     = DateTime.UtcNow,
+            UpdatedAt     = DateTime.UtcNow,
+        });
     }
 
     /// <summary>
@@ -659,7 +1045,8 @@ public class EasyAtWorkEmployeeSyncService
         DateTime startDate, DateTime? endDate, bool isActive,
         string? employmentModel, string? salaryType, string? contractType, string? jobTitle,
         decimal? weeklyHours, decimal? percentage, decimal? hourlyRate, decimal? monthlySalary,
-        CancellationToken ct = default)
+        CancellationToken ct = default, int? jobGroupId = null,
+        decimal? guaranteedHoursPerWeek = null, decimal? monthlySalaryFte = null)
     {
         if (!isNewEmployee && emp.Id != 0)
         {
@@ -673,6 +1060,7 @@ public class EasyAtWorkEmployeeSyncService
             Employee             = emp,
             EmployeeId           = emp.Id,
             CompanyProfileId     = companyProfileId,
+            JobGroupId           = jobGroupId,
             ContractStartDate    = startDate,
             ContractEndDate      = endDate,
             IsActive             = isActive,
@@ -681,9 +1069,11 @@ public class EasyAtWorkEmployeeSyncService
             ContractType         = contractType,
             JobTitle             = jobTitle,
             WeeklyHours          = weeklyHours,
+            GuaranteedHoursPerWeek = guaranteedHoursPerWeek,
             EmploymentPercentage = percentage,
             HourlyRate           = hourlyRate,
             MonthlySalary        = monthlySalary,
+            MonthlySalaryFte     = monthlySalaryFte,
         });
         return true;
     }
@@ -829,30 +1219,80 @@ public class EasyAtWorkEmployeeSyncService
     /// ein Feld mit marital-/Zivilstand-Schlüssel und mappt den Wert auf unsere
     /// Codes. Fehlschlag/unbekannt → null (bleibt manuell). Walter-Vorgabe 21.06.2026.
     /// </summary>
-    private async Task<string?> FetchMaritalStatusAsync(int customerId, int eawEmployeeId, CancellationToken ct)
+    /// <summary>
+    /// Best-effort aus den easy@work-Custom-Fields (Properties) in EINER Abfrage:
+    /// Zivilstand (cf_marital_status) UND AHV-Nummer (cf_swiss_national_id).
+    /// Unbekannt/Fehlschlag → null (bleibt manuell). Walter-Vorgabe 22.06.2026.
+    /// </summary>
+    private async Task<(string? Marital, string? Ahv)> FetchPropsInfoAsync(int customerId, int eawEmployeeId, CancellationToken ct)
     {
         try
         {
             var props = await _client.GetAllPropertiesAsync(customerId, eawEmployeeId, ct);
-            var val = props
+            string? Pick(params string[] needles) => props
                 .Where(p =>
                 {
                     var k = (p.Key ?? "").ToLowerInvariant();
-                    return k.Contains("marital") || k.Contains("civil") || k.Contains("zivil")
-                        || k.Contains("familienstand") || k.Contains("family_status");
+                    return needles.Any(n => k.Contains(n));
                 })
                 .OrderByDescending(p => p.From ?? DateOnly.MinValue)
                 .Select(p => p.Value)
                 .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
-            return MapMaritalStatus(val);
+
+            var marital = MapMaritalStatus(Pick("marital", "civil", "zivil", "familienstand", "family_status"));
+            var ahv     = FormatAhv(Pick("swiss_national_id", "national_id", "ahv", "avs", "sozialvers"));
+            return (marital, ahv);
         }
-        catch (Exception ex) { _log.LogDebug(ex, "Properties (Zivilstand) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); return null; }
+        catch (Exception ex) { _log.LogDebug(ex, "Properties (Zivilstand/AHV) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); return (null, null); }
+    }
+
+    /// <summary>13-stellige AHV-Nr. (756…) → Format 756.XXXX.XXXX.XX. Sonst roh.</summary>
+    private static string? FormatAhv(string? v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return null;
+        var d = new string(v.Where(char.IsDigit).ToArray());
+        if (d.Length != 13 || !d.StartsWith("756")) return v.Trim();
+        return $"{d[..3]}.{d[3..7]}.{d[7..11]}.{d[11..]}";
+    }
+
+    /// <summary>Briefanrede aus Geschlecht + Vorname (Walter-Vorgabe 22.06.2026):
+    /// weiblich „Liebe {Vorname}", männlich „Lieber {Vorname}". Sonst null.</summary>
+    private static string? BuildLetterSalutation(string? gender, string? firstName)
+    {
+        var fn = (firstName ?? "").Trim();
+        if (fn.Length == 0) return null;
+        return (gender ?? "").Trim().ToLowerInvariant() switch
+        {
+            "female" => $"Liebe {fn}",
+            "male"   => $"Lieber {fn}",
+            _        => null
+        };
+    }
+
+    /// <summary>Kanton aus der PLZ ableiten (AMTOVZ). Mehrdeutige PLZ → erster Treffer.</summary>
+    private async Task<string?> LookupCantonAsync(string? plz, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(plz)) return null;
+        var p = plz.Trim();
+        return await _db.SwissLocations.AsNoTracking()
+            .Where(l => l.Plz4 == p)
+            .Select(l => l.Kantonskuerzel)
+            .FirstOrDefaultAsync(ct);
     }
 
     private static string? MapMaritalStatus(string? v)
     {
         if (string.IsNullOrWhiteSpace(v)) return null;
         var s = v.Trim().ToLowerInvariant();
+        // easy@work-Einzelbuchstaben-Codes (cf_marital_status): M/S/D/W/P.
+        switch (s)
+        {
+            case "m": return "verheiratet";
+            case "s": return "ledig";
+            case "d": return "geschieden";
+            case "w": return "verwitwet";
+            case "p": return "eingetragene_partnerschaft";
+        }
         if (s.Contains("ledig") || s.Contains("single") || s.Contains("celibat")) return "ledig";
         if (s.Contains("getrennt") || s.Contains("separat") || s.Contains("separe")) return "getrennt";
         if (s.Contains("geschieden") || s.Contains("divorc")) return "geschieden";

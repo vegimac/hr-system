@@ -45,6 +45,95 @@ public class EasyAtWorkController : ControllerBase
         _editLock = editLock;
     }
 
+    // ─────────────────────── API-Dump (Diagnose) ────────────────────
+
+    /// <summary>
+    /// Diagnose: holt für einen MA (Personalnummer ODER Alt-Nummer) ALLE roh-
+    /// JSON-Antworten der erreichbaren easy@work-Endpoints — inkl. nicht
+    /// gemappter Felder und Discovery-Versuche für Funktion/Gruppen. Nur zum
+    /// Anschauen (kein Schreiben). Walter-Vorgabe 22.06.2026.
+    /// </summary>
+    [HttpGet("debug/employee-dump")]
+    public async Task<IActionResult> EmployeeDump(
+        [FromQuery] int companyProfileId, [FromQuery] string number, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(number))
+            return BadRequest(new { error = "NUMBER_REQUIRED" });
+        var num = number.Trim();
+
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null)
+            return BadRequest(new { error = "NO_MAPPING", message = "Filiale hat kein easy@work-Mapping." });
+        int customerId = mapping.EasyAtWorkCustomerId;
+
+        // easy@work-ID des MA über die EMPLOYEE-LISTE des Customers per Nummer
+        // auflösen — das liefert die echte Resource-Id (NICHT die UserId, die wir
+        // gespeichert haben und die der /employees/{id}-Endpoint nicht akzeptiert).
+        List<EawEmployee> eawList;
+        try { eawList = await _client.GetAllEmployeesIncludingInactiveAsync(customerId, ct); }
+        catch (Exception ex) { return StatusCode(502, new { error = "EAW_LIST_FAILED", message = ex.Message }); }
+        var match = eawList.FirstOrDefault(e => (e.Number ?? "").Trim() == num);
+        if (match == null)
+            return NotFound(new
+            {
+                error = "NOT_IN_CUSTOMER",
+                message = $"Personalnr. {num} nicht in easy@work-Customer {customerId} gefunden ({eawList.Count} MA in der Liste). Evtl. falsche Filiale gewählt oder MA gehört zu einem anderen Customer.",
+                customerId, listCount = eawList.Count
+            });
+        int eid = match.Id;
+        var storedCoworkEawId = (await _db.Employees.AsNoTracking()
+            .Where(e => e.EmployeeNumber == num).Select(e => e.EasyAtWorkEmployeeId).FirstOrDefaultAsync(ct));
+
+        // Alle bekannten Endpoints + Discovery-Versuche für Funktion/Gruppen.
+        var paths = new[]
+        {
+            $"customers/{customerId}/employees/{eid}",
+            $"customers/{customerId}/employees/{eid}/contracts",
+            $"customers/{customerId}/employees/{eid}/pay_rates",
+            $"customers/{customerId}/employees/{eid}/fiscal_info",
+            $"customers/{customerId}/employees/{eid}/properties?per_page=200",
+            $"customers/{customerId}/employees/{eid}/functions",
+            $"customers/{customerId}/employees/{eid}/function",
+            $"customers/{customerId}/employees/{eid}/groups",
+            $"customers/{customerId}/employees/{eid}/group_memberships",
+            $"customers/{customerId}/employees/{eid}/memberships",
+            $"customers/{customerId}/employees/{eid}/roles",
+            $"customers/{customerId}/employees/{eid}/positions",
+        };
+
+        object ParseBody(string b)
+        {
+            if (string.IsNullOrWhiteSpace(b)) return "";
+            try { return JsonSerializer.Deserialize<JsonElement>(b); }
+            catch { return b; }
+        }
+
+        var results = new List<object>();
+        foreach (var p in paths)
+        {
+            try
+            {
+                var (status, body) = await _client.GetRawAsync(p, ct);
+                results.Add(new { path = p, status, body = ParseBody(body) });
+            }
+            catch (Exception ex)
+            {
+                results.Add(new { path = p, status = -1, error = ex.Message });
+            }
+        }
+
+        return Ok(new
+        {
+            number = num,
+            customerId,
+            easyAtWorkResourceId = eid,        // für /employees/{id} verwendet
+            easyAtWorkUserId     = match.UserId,
+            storedCoworkEawId    = storedCoworkEawId,   // bei uns gespeichert (i.d.R. UserId)
+            results
+        });
+    }
+
     // ─────────────────────────── Status ─────────────────────────────
 
     /// <summary>
