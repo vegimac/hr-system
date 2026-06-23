@@ -331,16 +331,16 @@ public class EasyAtWorkClient
         catch { return null; }
     }
 
-    public Task<EawPaginated<EawContract>> GetContractsAsync(int customerId, int employeeId, CancellationToken ct = default)
+    public virtual Task<EawPaginated<EawContract>> GetContractsAsync(int customerId, int employeeId, CancellationToken ct = default)
         => GetJsonAsync<EawPaginated<EawContract>>(
             $"customers/{customerId}/employees/{employeeId}/contracts", ct);
 
-    public Task<EawPaginated<EawPayRate>> GetPayRatesAsync(int customerId, int employeeId, CancellationToken ct = default)
+    public virtual Task<EawPaginated<EawPayRate>> GetPayRatesAsync(int customerId, int employeeId, CancellationToken ct = default)
         => GetJsonAsync<EawPaginated<EawPayRate>>(
             $"customers/{customerId}/employees/{employeeId}/pay_rates", ct);
 
     /// <summary>Funktionen/Positionen eines MA (Name = job_group.code). Walter 22.06.2026.</summary>
-    public Task<EawPaginated<EawPosition>> GetPositionsAsync(int customerId, int employeeId, CancellationToken ct = default)
+    public virtual Task<EawPaginated<EawPosition>> GetPositionsAsync(int customerId, int employeeId, CancellationToken ct = default)
         => GetJsonAsync<EawPaginated<EawPosition>>(
             $"customers/{customerId}/employees/{employeeId}/positions", ct);
 

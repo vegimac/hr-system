@@ -262,7 +262,11 @@ public class EasyAtWorkEmployeeSyncService
         var natByCode = await _db.Nationalities.AsNoTracking()
             .ToDictionaryAsync(n => (n.Code ?? "").ToUpperInvariant(), n => n.Id, ct);
 
-        var selected = req.SelectedNumbers != null
+        // Leere Auswahl bedeutet im Frontend bewusst: alle gematchten MA
+        // (inkl. UNCHANGED) trotzdem durch den Commit-Pfad schicken, damit
+        // Vertrags-/Lohnhistorie, easy@work-IDs und Backfills nachgezogen werden.
+        // Vorher wurde [] als "niemand" interpretiert → Timeline lief nicht.
+        var selected = req.SelectedNumbers is { Count: > 0 }
             ? new HashSet<string>(req.SelectedNumbers, StringComparer.OrdinalIgnoreCase)
             : null;
 

@@ -636,7 +636,7 @@ async function eawEmpSyncCommit() {
         ? `${checked.length} MA jetzt importieren/aktualisieren?\nZusätzlich werden für ${unchangedCount} UNCHANGED-MA die easy@work-IDs nachgetragen.`
         : `Keine MA ausgewählt → kein Insert/Update.\nFür ${unchangedCount} UNCHANGED-MA werden trotzdem die easy@work-IDs nachgetragen. Fortfahren?`;
     if (!confirm(msg)) return;
-    await _eawEmpSyncRun(true, checked);
+    await _eawEmpSyncRun(true, checked.length ? checked : null);
 }
 
 // ═══════════════ Einmaliger Tief-Import alle Filialen (ab 2021) ═══════════════
