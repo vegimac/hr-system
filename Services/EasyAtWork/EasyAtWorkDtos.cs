@@ -34,6 +34,20 @@ public static class EawDateUtil
         var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), SwissTz);
         return DateOnly.FromDateTime(local);
     }
+
+    /// <summary>
+    /// Parst einen easy@work-Timestamp (Space-Format "yyyy-MM-dd HH:mm:ss" ODER ISO-T)
+    /// in einen Kind=Unspecified-DateTime — für `timestamp without time zone`-Spalten
+    /// und als Versions-Marker. System.Text.Json würde am Space-Format scheitern und
+    /// die ganze DTO-Deserialisierung werfen; DateTime.TryParse ist tolerant.
+    /// </summary>
+    public static DateTime? ParseTimestamp(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+            ? DateTime.SpecifyKind(d, DateTimeKind.Unspecified)
+            : (DateTime?)null;
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -128,9 +142,12 @@ public class EawContract
     // scheitert DateOnly am Timestamp → Vertrag leer → alles fälschlich UTP).
     [JsonPropertyName("from")]         public string?  FromRaw      { get; set; }
     [JsonPropertyName("to")]           public string?  ToRaw        { get; set; }
-    [JsonPropertyName("updated_at")]   public DateTime? UpdatedAt   { get; set; }
+    // Space-Format-Timestamp → string-backed (sonst wirft STJ und die ganze
+    // Contract-Deserialisierung scheitert → leere Liste → timeline=0).
+    [JsonPropertyName("updated_at")]   public string?  UpdatedAtRaw { get; set; }
     [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
     [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
+    [JsonIgnore] public DateTime? UpdatedAt => EawDateUtil.ParseTimestamp(UpdatedAtRaw);
 }
 
 /// <summary>
@@ -154,9 +171,12 @@ public class EawPayRate
     [JsonPropertyName("to")]           public string?  ToRaw       { get; set; }
     [JsonPropertyName("rate")]         public decimal? Rate        { get; set; }
     [JsonPropertyName("type")]         public string?  Type        { get; set; }   // "hour" / "month" / "fte"
-    [JsonPropertyName("updated_at")]   public DateTime? UpdatedAt  { get; set; }
+    // Space-Format-Timestamp → string-backed (sonst wirft STJ und die ganze
+    // PayRate-Deserialisierung scheitert → leere Liste → kein Lohn, timeline=0).
+    [JsonPropertyName("updated_at")]   public string?  UpdatedAtRaw { get; set; }
     [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
     [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
+    [JsonIgnore] public DateTime? UpdatedAt => EawDateUtil.ParseTimestamp(UpdatedAtRaw);
 }
 
 /// <summary>

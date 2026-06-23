@@ -42,12 +42,12 @@ public class EasyAtWorkExternalIdTests
         var contracts = new List<EawContract>
         {
             new() { Id = 30712, AmountType = "percent", Amount = 60m, Percentage = 60m,
-                    FromRaw = "2025-12-31 23:00:00", ToRaw = null, UpdatedAt = new DateTime(2026, 4, 19, 16, 37, 58) },
+                    FromRaw = "2025-12-31 23:00:00", ToRaw = null, UpdatedAtRaw = "2026-04-19 16:37:58" },
         };
         var rates = new List<EawPayRate>
         {
             new() { Id = 43326, Type = "month", Rate = 2760m, FromRaw = "2025-12-31 23:00:00", ToRaw = null,
-                    UpdatedAt = new DateTime(2026, 5, 1, 10, 0, 0) },
+                    UpdatedAtRaw = "2026-05-01 10:00:00" },
         };
         var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(contracts, rates, AsOf, isKader: true);
 
