@@ -9241,9 +9241,9 @@ function onBranchChange() {
 <script src="js/dvelop-import.js?v=20260614b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260509b"></script>
-<script src="js/dok-struktur.js?v=20260614b"></script>
+<script src="js/dok-struktur.js?v=20260623a"></script>
 <script src="js/austritt.js?v=20260614a"></script>
-<script src="js/contracts-edit.js?v=20260614a"></script>
+<script src="js/contracts-edit.js?v=20260623a"></script>
 <script src="js/payroll.js?v=20260607a"></script>
 <script src="js/fibu.js?v=20260524a"></script>
 <script src="js/payroll-perioden.js?v=20260524a"></script>
@@ -10162,6 +10162,13 @@ function onBranchChange() {
                 <div id="ceGuaranteedWrap" style="display:none">
                     <label class="ce-lbl" data-i18n="vt.modal.field.guarHours">Garantierte h/Woche</label>
                     <input type="number" id="ceGuaranteedHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
+                </div>
+                <div style="grid-column:span 4;display:flex;align-items:center;gap:8px;margin-top:2px">
+                    <input type="checkbox" id="ceEasyAtWorkManualOverride" style="width:16px;height:16px">
+                    <label for="ceEasyAtWorkManualOverride" style="font-size:12px;color:#475569;font-weight:600;cursor:pointer">
+                        Lokal gepflegt – nicht durch easy@work überschreiben
+                    </label>
+                    <span style="font-size:11px;color:#94a3b8">Bei easy@work-Platzhalterlohn (CHF 1.00) automatisch aktiv.</span>
                 </div>
                 <!-- Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %,
                      13. ML % aus dem Vertrag entfernt — kommen jetzt aus der

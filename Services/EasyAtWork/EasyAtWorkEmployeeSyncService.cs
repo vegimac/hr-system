@@ -893,6 +893,7 @@ public class EasyAtWorkEmployeeSyncService
         public int?      EasyAtWorkContractId;   // Herkunfts-Contract (easy@work)
         public int?      EasyAtWorkPayRateId;    // Herkunfts-PayRate (easy@work)
         public DateTime? EasyAtWorkUpdatedAt;    // max(contract.updated_at, pay_rate.updated_at)
+        public bool      EasyAtWorkManualOverride; // true bei Platzhalterlohn rate<=1
     }
 
     /// <summary>
@@ -939,7 +940,7 @@ public class EasyAtWorkEmployeeSyncService
                 .Where(r => RApplies(r, start))
                 .OrderByDescending(r => r.From ?? DateOnly.MinValue)
                 .FirstOrDefault();
-            if (cAt == null && rAt == null) continue; // Lücke → kein Segment
+            if (cAt == null) continue; // Ohne gültigen Vertrag kein Employment-Segment
 
             DateOnly? end = (i < bounds.Count - 1) ? bounds[i + 1].AddDays(-1) : (DateOnly?)null;
             if (i == bounds.Count - 1)
@@ -962,6 +963,7 @@ public class EasyAtWorkEmployeeSyncService
                 EasyAtWorkContractId = (cAt != null && cAt.Id != 0) ? cAt.Id : (int?)null,
                 EasyAtWorkPayRateId  = (rAt != null && rAt.Id != 0) ? rAt.Id : (int?)null,
                 EasyAtWorkUpdatedAt  = MaxUpdated(cAt?.UpdatedAt, rAt?.UpdatedAt),
+                EasyAtWorkManualOverride = rAt?.Rate.HasValue == true && rAt.Rate.Value <= 1.00m,
             });
         }
 
@@ -970,13 +972,19 @@ public class EasyAtWorkEmployeeSyncService
         foreach (var seg in segments)
         {
             var last = merged.Count > 0 ? merged[merged.Count - 1] : null;
-            if (last != null && last.End.HasValue && seg.Start == last.End.Value.AddDays(1) && SameTerms(last.Info, seg.Info))
+            if (last != null && last.End.HasValue && seg.Start == last.End.Value.AddDays(1) && SameSegment(last, seg))
                 last.End = seg.End;
             else
                 merged.Add(seg);
         }
         return merged;
     }
+
+    private static bool SameSegment(EmploymentSegment a, EmploymentSegment b)
+        => a.EasyAtWorkContractId == b.EasyAtWorkContractId
+        && a.EasyAtWorkPayRateId == b.EasyAtWorkPayRateId
+        && a.EasyAtWorkManualOverride == b.EasyAtWorkManualOverride
+        && SameTerms(a.Info, b.Info);
 
     private static DateTime? MaxUpdated(DateTime? a, DateTime? b)
     {
@@ -1061,11 +1069,28 @@ public class EasyAtWorkEmployeeSyncService
                     EasyAtWorkContractId = seg.EasyAtWorkContractId,
                     EasyAtWorkPayRateId  = seg.EasyAtWorkPayRateId,
                     EasyAtWorkUpdatedAt  = seg.EasyAtWorkUpdatedAt,
+                    EasyAtWorkManualOverride = seg.EasyAtWorkManualOverride,
                 });
             }
             else
             {
                 matched.Add(existing);
+                var wasManualOverride = existing.EasyAtWorkManualOverride;
+                // easy@work-Herkunft immer setzen/aktualisieren. Auch lokal
+                // geschützte Verträge behalten so ihre externe Zuordnung.
+                existing.EasyAtWorkContractId = seg.EasyAtWorkContractId;
+                existing.EasyAtWorkPayRateId  = seg.EasyAtWorkPayRateId;
+                existing.EasyAtWorkUpdatedAt  = seg.EasyAtWorkUpdatedAt;
+                if (seg.EasyAtWorkManualOverride) existing.EasyAtWorkManualOverride = true;
+
+                // Lokaler Override schützt Vertrag UND Lohn vollständig vor
+                // easy@work-Überschreibung. Nur externe IDs/UpdatedAt werden oben
+                // aktualisiert. Wenn der Override erst durch dieses Segment (rate<=1)
+                // entsteht, dürfen Vertragsdaten noch gespiegelt werden, aber Lohn-
+                // felder werden nicht geleert/überschrieben.
+                if (wasManualOverride)
+                    continue;
+
                 existing.ContractStartDate = startDt;   // Start auf das Segment ausrichten (ID-Match kann verschieben)
                 existing.ContractEndDate   = endDt;
                 existing.IsActive          = active;
@@ -1081,9 +1106,9 @@ public class EasyAtWorkEmployeeSyncService
                     existing.GuaranteedHoursPerWeek = null;
                     existing.WeeklyHours            = null;
                     existing.EmploymentPercentage   = info.EmploymentPercentage ?? existing.EmploymentPercentage;
-                    if (info.MonthlySalaryFte.HasValue) existing.MonthlySalaryFte = info.MonthlySalaryFte;
-                    if (info.MonthlySalary.HasValue)    existing.MonthlySalary    = info.MonthlySalary;
-                    else if (existing.MonthlySalaryFte.HasValue && existing.EmploymentPercentage.HasValue && existing.EmploymentPercentage.Value > 0)
+                    if (!seg.EasyAtWorkManualOverride && info.MonthlySalaryFte.HasValue) existing.MonthlySalaryFte = info.MonthlySalaryFte;
+                    if (!seg.EasyAtWorkManualOverride && info.MonthlySalary.HasValue)    existing.MonthlySalary    = info.MonthlySalary;
+                    else if (!seg.EasyAtWorkManualOverride && existing.MonthlySalaryFte.HasValue && existing.EmploymentPercentage.HasValue && existing.EmploymentPercentage.Value > 0)
                         existing.MonthlySalary = Math.Round(existing.MonthlySalaryFte.Value * existing.EmploymentPercentage.Value / 100m, 2);
                 }
                 else // UTP / MTP
@@ -1092,14 +1117,9 @@ public class EasyAtWorkEmployeeSyncService
                     existing.MonthlySalaryFte     = null;
                     existing.EmploymentPercentage = null;
                     existing.WeeklyHours          = null;
-                    if (info.HourlyRate.HasValue) existing.HourlyRate = info.HourlyRate;
+                    if (!seg.EasyAtWorkManualOverride && info.HourlyRate.HasValue) existing.HourlyRate = info.HourlyRate;
                     existing.GuaranteedHoursPerWeek = m == "MTP" ? (info.GuaranteedHoursPerWeek ?? existing.GuaranteedHoursPerWeek) : null;
                 }
-
-                // easy@work-Herkunft setzen/aktualisieren (Alt-Zeile bekommt jetzt IDs).
-                existing.EasyAtWorkContractId = seg.EasyAtWorkContractId;
-                existing.EasyAtWorkPayRateId  = seg.EasyAtWorkPayRateId;
-                existing.EasyAtWorkUpdatedAt  = seg.EasyAtWorkUpdatedAt;
             }
         }
 

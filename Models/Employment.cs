@@ -74,6 +74,12 @@ public class Employment
     public int?      EasyAtWorkContractId { get; set; }
     public int?      EasyAtWorkPayRateId  { get; set; }
     public DateTime? EasyAtWorkUpdatedAt  { get; set; }
+    /// <summary>
+    /// Lokaler Schutz: Vertrag/Lohn wird in Cowork gepflegt und darf vom
+    /// easy@work-Sync nicht überschrieben werden. Wird bei easy@work-
+    /// Platzhalterlohn (rate <= 1) automatisch gesetzt.
+    /// </summary>
+    public bool EasyAtWorkManualOverride { get; set; } = false;
 
     // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
     // sind nicht mehr pro Vertrag, sondern pro Filiale (CompanyProfile.Default*

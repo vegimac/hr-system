@@ -611,6 +611,7 @@ async function renderVtDetail(emp) {
                 <div style="display:flex;align-items:center;gap:8px">
                     <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${modelColor[c.employmentModel]||'#f1f5f9'}">${modelLabel[c.employmentModel]||c.employmentModel||'–'}</span>
                     ${isActive ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#dcfce7;color:#15803d">${_t('vt.badge.active')}</span>` : `<span style="font-size:11px;color:#94a3b8;padding:3px 10px;border-radius:10px;background:#f1f5f9">${_t('vt.badge.completed')}</span>`}
+                    ${c.easyAtWorkManualOverride ? `<span title="Dieser Vertrag/Lohn wird lokal gepflegt und vom easy@work-Sync nicht überschrieben." style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#fef3c7;color:#92400e">Lokal gepflegt</span>` : ''}
                 </div>
                 <div style="display:flex;gap:6px;align-items:center">
                     ${(() => {

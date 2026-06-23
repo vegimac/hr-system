@@ -173,6 +173,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EasyAtWorkUpdatedAt)
                   .HasColumnName("easyatwork_updated_at")
                   .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.EasyAtWorkManualOverride)
+                  .HasColumnName("easyatwork_manual_override")
+                  .HasDefaultValue(false);
             // Walter-Vorgabe 06.06.2026 (Stufe 1b): VacationPercent, HolidayPercent,
             // ThirteenthSalaryPercent sind aus dem Model entfernt und Spalten droppe
             // ich via Migration `drop_employment_pct_fields.sql`. Werte kommen ab

@@ -726,6 +726,7 @@ public class EmployeesController : ControllerBase
         if (dto.ContractEndDateSet)               emp.ContractEndDate         = dto.ContractEndDate;
         if (dto.ProbationPeriodMonths.HasValue)   emp.ProbationPeriodMonths   = dto.ProbationPeriodMonths;
         if (dto.ProbationEndDate.HasValue)        emp.ProbationEndDate        = dto.ProbationEndDate;
+        if (dto.EasyAtWorkManualOverride.HasValue) emp.EasyAtWorkManualOverride = dto.EasyAtWorkManualOverride.Value;
 
         await _context.SaveChangesAsync();
         return Ok(emp);
@@ -1224,6 +1225,7 @@ public class EmploymentUpdateDto
     public DateTime? ContractEndDate        { get; set; }
     public int?      ProbationPeriodMonths  { get; set; }
     public DateTime? ProbationEndDate       { get; set; }
+    public bool?     EasyAtWorkManualOverride { get; set; }
 }
 
 /// <summary>QST-Befreiung durch Steuerbehörde (Walter 26.05.2026).</summary>

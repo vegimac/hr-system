@@ -182,6 +182,116 @@ public class EasyAtWorkExternalIdTests
         Assert.True(rows[1].IsActive);
     }
 
+    [Fact]
+    public async Task Test6_PayRateOne_NeueZeile_SetztOverrideOhneLohn()
+    {
+        using var db = NewDb();
+        var emp = await SeedAsync(db, "2300003");
+        var contracts = new List<EawContract>
+        {
+            new() { Id = 46093, AmountType = "percent", Amount = 100m, Percentage = 100m, FromRaw = "2024-10-31 23:00:00" },
+        };
+        var rates = new List<EawPayRate>
+        {
+            new() { Id = 78034, Type = "month", Rate = 1m, FromRaw = "2023-12-31 23:00:00" },
+        };
+
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(contracts, rates, AsOf, isKader: true);
+        await EasyAtWorkEmployeeSyncService.SyncEmploymentTimelineAsync(db, emp, 1, tl, 6, "REST_MANAGER", null);
+        await db.SaveChangesAsync();
+
+        var one = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
+        Assert.Equal(46093, one.EasyAtWorkContractId);
+        Assert.Equal(78034, one.EasyAtWorkPayRateId);
+        Assert.True(one.EasyAtWorkManualOverride);
+        Assert.Null(one.MonthlySalary);
+        Assert.Null(one.MonthlySalaryFte);
+        Assert.Null(one.HourlyRate);
+    }
+
+    [Fact]
+    public async Task Test7_PayRateOne_BestehenderLohn_BleibtErhalten()
+    {
+        using var db = NewDb();
+        var emp = await SeedAsync(db, "2300003");
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = emp.Id,
+            CompanyProfileId = 1,
+            ContractStartDate = new DateTime(2024, 11, 1),
+            ContractEndDate = null,
+            IsActive = true,
+            EmploymentModel = "FIX-M",
+            SalaryType = "monthly",
+            EmploymentPercentage = 100m,
+            MonthlySalary = 6100m,
+            MonthlySalaryFte = 6100m
+        });
+        await db.SaveChangesAsync();
+
+        var contracts = new List<EawContract>
+        {
+            new() { Id = 46093, AmountType = "percent", Amount = 100m, Percentage = 100m, FromRaw = "2024-10-31 23:00:00" },
+        };
+        var rates = new List<EawPayRate>
+        {
+            new() { Id = 78034, Type = "month", Rate = 1m, FromRaw = "2023-12-31 23:00:00" },
+        };
+
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(contracts, rates, AsOf, isKader: true);
+        await EasyAtWorkEmployeeSyncService.SyncEmploymentTimelineAsync(db, emp, 1, tl, 6, "REST_MANAGER", null);
+        await db.SaveChangesAsync();
+
+        var one = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
+        Assert.True(one.EasyAtWorkManualOverride);
+        Assert.Equal(6100m, one.MonthlySalary);
+        Assert.Equal(6100m, one.MonthlySalaryFte);
+        Assert.Equal(46093, one.EasyAtWorkContractId);
+        Assert.Equal(78034, one.EasyAtWorkPayRateId);
+    }
+
+    [Fact]
+    public async Task Test8_ManualOverride_SchuetztVorEchtemEasyLohn()
+    {
+        using var db = NewDb();
+        var emp = await SeedAsync(db, "2300003");
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = emp.Id,
+            CompanyProfileId = 1,
+            ContractStartDate = new DateTime(2024, 11, 1),
+            ContractEndDate = null,
+            IsActive = true,
+            EmploymentModel = "FIX-M",
+            SalaryType = "monthly",
+            EmploymentPercentage = 100m,
+            MonthlySalary = 6100m,
+            MonthlySalaryFte = 6100m,
+            EasyAtWorkManualOverride = true
+        });
+        await db.SaveChangesAsync();
+
+        var contracts = new List<EawContract>
+        {
+            new() { Id = 46093, AmountType = "percent", Amount = 100m, Percentage = 100m, FromRaw = "2024-10-31 23:00:00" },
+        };
+        var rates = new List<EawPayRate>
+        {
+            new() { Id = 78035, Type = "month", Rate = 5000m, FromRaw = "2023-12-31 23:00:00" },
+        };
+
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(contracts, rates, AsOf, isKader: true);
+        await EasyAtWorkEmployeeSyncService.SyncEmploymentTimelineAsync(db, emp, 1, tl, 6, "REST_MANAGER", null);
+        await db.SaveChangesAsync();
+
+        var one = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
+        Assert.True(one.EasyAtWorkManualOverride);
+        Assert.Equal(6100m, one.MonthlySalary);
+        Assert.Equal(6100m, one.MonthlySalaryFte);
+        Assert.Equal(46093, one.EasyAtWorkContractId);
+        Assert.Equal(78035, one.EasyAtWorkPayRateId);
+    }
+
     // Amire-Rohdaten: alter Contract 30712 / PayRate 43326, neuer 45583 / 72192.
     private static (List<EawContract>, List<EawPayRate>) AmireData() => (
         new List<EawContract>
