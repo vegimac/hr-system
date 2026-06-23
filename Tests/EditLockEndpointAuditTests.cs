@@ -87,6 +87,7 @@ public class EditLockEndpointAuditTests
         ["AkontoTerminController"]         = "Akonto-Termin-Konfig — admin only",
         ["LohnlaufController"]             = "Definitivlauf-Workflow — admin only",
         ["LohnausweisController"]          = "Lohnausweis-PDF generieren — read-only",
+        ["KuendigungController"]           = "Kündigungsschreiben-PDF generieren — read-only, keine Lohndaten",
         ["LseExportController"]            = "LSE-Export — read-only",
         ["LohnEditLockController"]         = "Lock-Service selbst — read-only-Query",
 

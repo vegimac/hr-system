@@ -281,6 +281,17 @@ async function loadMitarbeiterList() {
 }
 
 /// Wendet den Aktiv-Filter + Filial-Filter an und rendert die Liste neu.
+// Ist dieser Vertrag (employment) am Stichtag aktiv? Walter-Vorgabe 23.06.2026.
+// Beginn ≤ Stichtag UND (kein Ende ODER Ende ≥ Stichtag).
+function _empContractActiveOn(v, refDate) {
+    if (!v.contractStartDate) return false;
+    const from = new Date(v.contractStartDate);
+    if (from > refDate) return false;
+    if (!v.contractEndDate) return true;
+    const to = new Date(v.contractEndDate);
+    return to >= refDate;
+}
+
 function applyEmpFilter() {
     // "alt"-Suffix in der Personalnummer = archiviert (unabhängig vom is_active-Flag).
     // Fängt Daten-Inkonsistenzen aus Voll-Migrationen ab (Bis-Datum in Zukunft
@@ -313,11 +324,10 @@ function applyEmpFilter() {
         // Restaurant-Code → Personalnummer-Präfix (058 → "58", 075 → "75", 104 → "104")
         const branch = (typeof allBranches !== 'undefined' ? allBranches : []).find(b => b.id === cpid);
         const restCode = (branch?.restaurantCode || '').replace(/^0+/, '');  // führende Nullen weg
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         filtered = filtered.filter(e => {
             const emps = e.employments || [];
-            // Treffer: mindestens ein Vertrag in dieser Filiale
-            const matchBranch = emps.some(v => Number(v.companyProfileId) === cpid);
-            if (matchBranch) return true;
             // Legacy-Fallback: alle Verträge ohne Filial-Zuordnung → in jeder Filiale anzeigen
             if (emps.length && emps.every(v => !v.companyProfileId)) return true;
             // MA OHNE Verträge: anzeigen, wenn die Personalnummer zum Filial-Präfix passt
@@ -325,7 +335,16 @@ function applyEmpFilter() {
             if (!emps.length && restCode && (e.employeeNumber || '').replace(/alt$/i, '').startsWith(restCode)) {
                 return true;
             }
-            return false;
+            // Filial-Treffer nach Vertragsstatus (Walter-Vorgabe 23.06.2026):
+            //   aktiv  → nur wenn HEUTE ein aktiver Vertrag in dieser Filiale läuft
+            //            (Filialwechsel: alte Filiale zeigt den MA nicht mehr)
+            //   inaktiv→ jeder (auch historische) Vertrag in dieser Filiale zählt
+            const matchBranchActive = emps.some(v =>
+                Number(v.companyProfileId) === cpid && _empContractActiveOn(v, today));
+            const matchBranchAny = emps.some(v => Number(v.companyProfileId) === cpid);
+            if (_empFilter === 'aktiv')   return matchBranchActive;
+            if (_empFilter === 'inaktiv') return matchBranchAny;
+            return matchBranchAny;
         });
     }
 
