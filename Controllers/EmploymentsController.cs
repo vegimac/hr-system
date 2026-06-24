@@ -107,6 +107,7 @@ public class EmploymentsController : ControllerBase
                 e.EmploymentPercentage,
                 e.WeeklyHours, e.GuaranteedHoursPerWeek,
                 e.MonthlySalaryFte, e.MonthlySalary, e.HourlyRate,
+                e.EasyAtWorkManualOverride,
                 e.VacationPaymentMode, e.ProbationPeriodMonths, e.ProbationEndDate,
                 e.IsActive,
                 inLohnVerwendet  = IsInLohnVerwendet(e, fa),
@@ -484,6 +485,7 @@ public class EmploymentsController : ControllerBase
         existing.ProbationPeriodMonths  = dto.ProbationPeriodMonths;
         existing.ProbationEndDate       = dto.ProbationEndDate;
         existing.IsActive               = dto.IsActive;
+        existing.EasyAtWorkManualOverride = dto.EasyAtWorkManualOverride;
 
         await _context.SaveChangesAsync();
         return Ok(existing);

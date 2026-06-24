@@ -611,6 +611,7 @@ async function renderVtDetail(emp) {
                 <div style="display:flex;align-items:center;gap:8px">
                     <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${modelColor[c.employmentModel]||'#f1f5f9'}">${modelLabel[c.employmentModel]||c.employmentModel||'–'}</span>
                     ${isActive ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#dcfce7;color:#15803d">${_t('vt.badge.active')}</span>` : `<span style="font-size:11px;color:#94a3b8;padding:3px 10px;border-radius:10px;background:#f1f5f9">${_t('vt.badge.completed')}</span>`}
+                    ${c.easyAtWorkManualOverride ? `<span title="easy@work-Import blockiert: Dieser Vertrag/Lohn wird lokal gepflegt und nicht vom easy@work-Sync überschrieben." style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">easy@work Block</span>` : ''}
                 </div>
                 <div style="display:flex;gap:6px;align-items:center">
                     ${(() => {
@@ -640,7 +641,7 @@ async function renderVtDetail(emp) {
                 <!-- Zeile 1: Vertragsdaten -->
                 ${vtField(_t('vt.field.from'), fmt(c.contractStartDate))}
                 ${vtField(_t('vt.field.to'), isActive ? `<em style="color:#94a3b8">${_t('vt.label.open')}</em>` : fmt(c.contractEndDate))}
-                ${vtField(_t('vt.field.jobTitle'), c.jobTitle)}
+                ${vtField(_t('vt.field.jobTitle'), c.jobTitle || c.jobGroupCode || '–')}
                 <!-- Zeile 2: Pensum / Lohn / Info -->
                 ${vtField(_t('vt.field.percentage'), pensum)}
                 ${vtField(isFixModel ? _t('vt.field.salaryFte') : _t('vt.field.salary'), lohnHaupt)}

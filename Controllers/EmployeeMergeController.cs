@@ -160,9 +160,14 @@ public class EmployeeMergeController : ControllerBase
             var moves = new List<object>();
             foreach (var t in tables)
             {
+                // {t} = Tabellenname aus der fest verdrahteten LinkedTables-Whitelist,
+                // zusätzlich gegen information_schema gefiltert → KEIN Benutzer-Input,
+                // SQL-Injection ausgeschlossen. Walter 21.06.2026.
+#pragma warning disable EF1002
                 var cnt = await _db.Database.SqlQueryRaw<int>(
                     $"SELECT count(*)::int AS \"Value\" FROM {t} WHERE employee_id = ANY({{0}})", new object[] { dupArr })
                     .FirstAsync(ct);
+#pragma warning restore EF1002
                 if (cnt > 0) moves.Add(new { table = t, rows = cnt });
             }
             return Ok(new
@@ -179,10 +184,13 @@ public class EmployeeMergeController : ControllerBase
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
+            // {t} = Whitelist-Tabellenname (siehe DryRun-Kommentar) → kein Injection-Risiko.
+#pragma warning disable EF1002
             foreach (var t in tables)
                 await _db.Database.ExecuteSqlRawAsync(
                     $"UPDATE {t} SET employee_id = {{0}} WHERE employee_id = ANY({{1}})",
                     new object[] { main.Id, dupArr }, ct);
+#pragma warning restore EF1002
 
             // Alte Personalnummern als Alias am Haupt-MA sichern.
             foreach (var n in aliasNumbers)

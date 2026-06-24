@@ -3887,6 +3887,24 @@
                          page-lohnlauf + hr-saldi-lohnlauf.js bleiben als Dead
                          Code im Repo (kein UI-Verweis mehr). -->
 
+                    <!-- Kündigungsschreiben (Walter-Vorgabe 22.06.2026) -->
+                    <div class="hr-card" style="opacity:1;cursor:pointer" onclick="showPage('kuendigung')">
+                        <div class="hr-card-head">
+                            <div class="hr-card-icon" style="background:#fee2e2;color:#991b1b">
+                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                            </div>
+                            <div>
+                                <div class="hr-card-title">Kündigung</div>
+                                <div class="hr-card-status">Kündigungsschreiben erstellen</div>
+                            </div>
+                        </div>
+                        <ul>
+                            <li><b>MA wählen</b> → Frist + letzter Arbeitstag automatisch aus Vertrag (OR Art. 335b/c)</li>
+                            <li><b>Sperrfrist-Prüfung</b> (Krankheit/Unfall/Schwangerschaft, Art. 336c OR)</li>
+                            <li><b>PDF</b> im Haus-Stil mit Unterschrift des eingeloggten Users</li>
+                        </ul>
+                    </div>
+
                     <!-- AKTIVE Card: Jahres-Lohnausweis (ESTV Form 11 dfe) -->
                     <div class="hr-card" style="opacity:1;cursor:pointer" onclick="showPage('lohnausweis')">
                         <div class="hr-card-head">
@@ -4465,18 +4483,18 @@
                     </div>
                 </div>
 
-                <!-- Walter-Vorgabe 20.06.2026 (ArG): vierte Sektion „Nachtarbeit-
-                     Untersuchung fehlt" — MA mit ≥ 25 Nächten/Jahr ohne gültiges
-                     Arztzeugnis/Verzicht. Logik analog Dashboard night_work_exam_fehlt. -->
+                <!-- Walter-Vorgabe 22.06.2026 (ArGV1 Art. 30): vierte Sektion „Nachtarbeit-
+                     Nachweise fehlen" — MA mit >18 Nächten in einem 6-Wochen-Fenster ohne
+                     vollständige Nachweise. Logik analog Dashboard night_work_exam_fehlt. -->
                 <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
                     <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
                         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
                             <div>
-                                <div style="font-size:15px;font-weight:700;color:#991b1b">Nachtarbeit-Untersuchung fehlt</div>
+                                <div style="font-size:15px;font-weight:700;color:#991b1b">Nachtarbeit-Nachweise fehlen</div>
                                 <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
-                                    Aktive MA mit <b>≥ 25 gearbeiteten Nächten pro Jahr</b> (rollende 12 Monate, bei weniger
-                                    Datenmonaten hochgerechnet) <b>ohne gültige Untersuchung</b> — Arztzeugnis/Verzicht fehlt,
-                                    hat kein Ausstellungsdatum oder ist abgelaufen. Ab 25 Nächten besteht ein Anspruch auf eine medizinische Untersuchung (ArG).
+                                    Aktive MA mit <b>mehr als 18 gearbeiteten Nächten in einem rollierenden 6-Wochen-Fenster</b>
+                                    (42 Tage) <b>ohne vollständige Nachweise</b> — Arztzeugnis/Verzicht <b>und</b> Ausnahmeregelung
+                                    (Checkliste) müssen im MA-Dossier hinterlegt sein (ArGV1 Art. 30).
                                 </div>
                             </div>
                             <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -4499,6 +4517,67 @@
             </div>
 
             <!-- JAHRES-LOHNAUSWEIS (HR-Modul, ESTV Form 11 dfe) -->
+            <div class="page" id="page-kuendigung">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Kündigung</h1>
+                        <p class="page-sub">Kündigungsschreiben als PDF — Frist und letzter Arbeitstag werden aus dem Vertrag berechnet (OR Art. 335b/c), die Sperrfrist (Art. 336c OR) wird automatisch geprüft.</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div class="card" style="padding:20px;max-width:760px">
+                        <!-- Schritt 1: Mitarbeiter -->
+                        <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">1. Mitarbeiter wählen</div>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+                            <select id="kuEmpFilter" onchange="kuRenderEmpList()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;background:white">
+                                <option value="active">Nur Aktive</option>
+                                <option value="inactive">Nur Inaktive</option>
+                                <option value="all">Alle</option>
+                            </select>
+                            <input id="kuEmpSearch" oninput="kuRenderEmpList()" placeholder="Suche Name / Nr." style="flex:1;min-width:160px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px">
+                        </div>
+                        <select id="kuEmpSelect" onchange="kuOnEmpChange()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;background:white"></select>
+
+                        <!-- Schritt 2: Kündigungsdetails -->
+                        <div id="kuDetails" style="display:none;margin-top:18px">
+                            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">2. Kündigungsdetails</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                                <label style="font-size:12.5px;color:#334155">Kündigungsgrund
+                                    <select id="kuGrundType" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white">
+                                        <option value="ordentlich">Ordentliche Kündigung</option>
+                                        <option value="probezeit">Kündigung in der Probezeit</option>
+                                        <option value="fristlos">Fristlose Kündigung</option>
+                                    </select>
+                                </label>
+                                <label style="font-size:12.5px;color:#334155">Kündigungsdatum
+                                    <input type="date" id="kuDatum" onchange="kuLoadInfo()" style="width:100%;margin-top:4px;padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </label>
+                            </div>
+                            <label style="display:block;margin-top:10px;font-size:12.5px;color:#334155">Grund-Text (optional — erscheint im Brief)
+                                <input type="text" id="kuGrundText" placeholder="z.B. betriebliche Gründe" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                            </label>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+                                <label style="font-size:12.5px;color:#334155">Letzter Arbeitstag
+                                    <input type="date" id="kuLetzter" style="width:100%;margin-top:4px;padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                    <div id="kuFristHint" style="font-size:11px;color:#64748b;margin-top:3px"></div>
+                                </label>
+                                <label style="font-size:12.5px;color:#334155">Ort
+                                    <input type="text" id="kuOrt" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </label>
+                            </div>
+
+                            <!-- Schritt 3: Sperrfrist -->
+                            <div id="kuSperr" style="margin-top:14px"></div>
+
+                            <!-- Schritt 4: PDF -->
+                            <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+                                <button class="btn-primary" onclick="kuGenerate()" style="background:#991b1b;border-color:#991b1b">📄 Kündigungsschreiben erstellen</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="page" id="page-lohnausweis">
                 <div class="page-head">
                     <div>
@@ -4932,6 +5011,7 @@
                         <div class="emp-list-panel">
                             <div class="emp-list-search">
                                 <input class="emp-search-input" id="filialenSearch" type="text" placeholder="Suchen..." oninput="filterFilialenList()">
+                                <button id="btnNewBranch" class="btn btn-primary" style="display:none;width:100%;margin-top:8px" onclick="openNewBranchModal()">+ Neue Filiale</button>
                             </div>
                             <div class="emp-list-scroll" id="filialenList">
                                 <div class="emp-no-selection" style="height:200px">
@@ -5577,13 +5657,28 @@
                                 <option value="active">Nur aktive</option>
                             </select>
                         </label>
+                        <button class="btn-secondary" onclick="eawEmpChooseEmployees()">👥 Mitarbeiter wählen</button>
                         <button class="btn-primary" onclick="eawEmpSyncPreview()">🔍 Vorschau</button>
                         <button class="btn-secondary" id="eawEmpSyncCommitBtn" onclick="eawEmpSyncCommit()" disabled>💾 Ausgewählte importieren</button>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-bottom:10px">
                         <strong>Alle</strong> = aktive + alle seit dem 1.1.2025 Ausgetretenen (Pre-Mirus-Austritte vor 2025 werden ausgelassen). <strong>Nur aktive</strong> = nur aktuell beschäftigte MA. Geschrieben wird beim Import nur, was du pro MA auswählst.
                     </div>
+                    <div id="eawEmpChooseResult" style="margin-bottom:12px"></div>
                     <div id="eawEmpSyncResult"></div>
+
+                    <!-- API-Dump (Diagnose): alle Roh-Felder eines MA ansehen (Walter 22.06.2026) -->
+                    <div style="margin-top:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px">
+                        <h3 style="margin:0 0 6px;font-size:15px;color:#0f172a">🔬 API-Dump für einen Mitarbeiter</h3>
+                        <p style="color:#64748b;font-size:13px;margin:0 0 12px;line-height:1.5">
+                            Holt für eine Personalnummer ALLE erreichbaren easy@work-Roh-JSON-Antworten (inkl. nicht gemappter Felder + Discovery für Funktion/Gruppen). Nur zum Anschauen — schreibt nichts. Filiale = globaler Selektor.
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                            <input id="eawDumpNumber" class="eaw-input" placeholder="Personalnr. z.B. 2300003" style="min-width:200px">
+                            <button class="btn-primary" onclick="eawEmpDump()">🔬 Felder abrufen</button>
+                        </div>
+                        <pre id="eawDumpResult" style="margin-top:12px;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:11.5px;line-height:1.45;overflow:auto;max-height:520px;white-space:pre-wrap;word-break:break-word"></pre>
+                    </div>
 
                     <div style="margin-top:24px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px">
                         <h3 style="margin:0 0 6px;font-size:15px;color:#92400e">⚠ Einmaliger Tief-Import (alle Filialen, ab 2021)</h3>
@@ -5607,14 +5702,14 @@
                     <div style="margin-top:16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px">
                         <h3 style="margin:0 0 6px;font-size:15px;color:#92400e">⏱️ Einmaliger Stempelzeiten-Tief-Import (2021–2024, alle Filialen)</h3>
                         <p style="color:#92400e;font-size:13px;margin:0 0 12px;line-height:1.5">
-                            Holt <strong>für ALLE Filialen</strong> alle Stempelzeiten vom <strong>1.1.2021 bis 31.12.2024</strong> in Schritten bis Monatsende (jeweils Start + 90 Tage).
+                            Holt <strong>für ALLE Filialen</strong> alle Stempelzeiten vom <strong>1.1.2021 bis 31.12.2024</strong> in 3-Monats-Schritten (bis Monatsende, max. 92 Tage je Fenster).
                             Läuft <strong>ohne Vorschau</strong> durch — fehlerhafte/ungültige Stempel werden fallen gelassen, nicht zuordenbare MA übersprungen, abgeschlossene Lohnperioden bleiben gesperrt.
                             Mehrfaches Laufen verdoppelt nichts (Dedupe). <strong>Voraussetzung:</strong> der MA-Tief-Import oben muss vorher gelaufen sein.
                             Das kann einige Minuten dauern — bitte das Fenster offen lassen.
                         </p>
                         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
                             <label style="font-size:13px;color:#92400e;display:flex;flex-direction:column;gap:4px">Von
-                                <input type="date" id="eawBatchFrom" class="eaw-input" value="2021-01-01" onchange="eawBatchFromChanged(this.value)">
+                                <input type="date" id="eawBatchFrom" class="eaw-input" value="2021-01-01" oninput="eawBatchFromChanged(this.value)" onchange="eawBatchFromChanged(this.value)">
                             </label>
                             <label style="font-size:13px;color:#92400e;display:flex;flex-direction:column;gap:4px">Bis
                                 <input type="date" id="eawBatchTo" class="eaw-input" value="2024-12-31">
@@ -8987,6 +9082,7 @@ function showPage(name) {
     else pbStopAutoRefresh();
     if (name === 'qst-anmeldung') qstaInit();
     if (name === 'lohnausweis') laInit();
+    if (name === 'kuendigung') kuendigungInit();
     if (name === 'zwischenverdienst') zviInit();
     if (name === 'kontrolle') kontrolleInit();
     if (name === 'saldo-vortrag') svInit();
@@ -9077,6 +9173,9 @@ function onBranchChange() {
     } else if (currentPageName === 'lohnausweis') {
         // Lohnausweis-Page folgt dem globalen Filial-Selektor.
         laInit();
+    } else if (currentPageName === 'kuendigung') {
+        // Kündigung-Page folgt dem globalen Filial-Selektor (MA-Liste neu filtern).
+        kuRenderEmpList();
     } else if (currentPageName === 'zwischenverdienst') {
         // RAV-Zwischenverdienst folgt dem globalen Filial-Selektor.
         zviInit();
@@ -9122,7 +9221,7 @@ function onBranchChange() {
 <script src="js/permit-import.js?v=20260607a"></script>
 <script src="js/hr-review-import.js?v=20260607b"></script>
 <script src="js/qst-import.js?v=20260607a"></script>
-<script src="js/kontrolle.js?v=20260621b"></script>
+<script src="js/kontrolle.js?v=20260622a"></script>
 <script src="js/nationen.js?v=20260607b"></script>
 <script src="js/swiss-locations.js?v=20260607b"></script>
 <script src="js/family-children-import.js?v=20260607a"></script>
@@ -9134,7 +9233,7 @@ function onBranchChange() {
 <script src="js/akonto-lauf.js?v=20260516a"></script>
 <script src="js/akonto-workflow.js?v=20260607a"></script>
 <script src="js/dok-audit.js?v=20260509b"></script>
-<script src="js/branches-detail.js?v=20260619b"></script>
+<script src="js/branches-detail.js?v=20260622b"></script>
 <script src="js/branch-modals.js?v=20260509b"></script>
 <script src="js/deductions.js?v=20260509b"></script>
 <script src="js/qst-modal.js?v=20260614g"></script>
@@ -9144,9 +9243,9 @@ function onBranchChange() {
 <script src="js/dvelop-import.js?v=20260614b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260509b"></script>
-<script src="js/dok-struktur.js?v=20260614b"></script>
+<script src="js/dok-struktur.js?v=20260623c"></script>
 <script src="js/austritt.js?v=20260614a"></script>
-<script src="js/contracts-edit.js?v=20260614a"></script>
+<script src="js/contracts-edit.js?v=20260623a"></script>
 <script src="js/payroll.js?v=20260607a"></script>
 <script src="js/fibu.js?v=20260524a"></script>
 <script src="js/payroll-perioden.js?v=20260524a"></script>
@@ -9155,10 +9254,10 @@ function onBranchChange() {
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
-<script src="js/easyatwork.js?v=20260621l"></script>
+<script src="js/easyatwork.js?v=20260624a"></script>
 <script src="js/employee-merge.js?v=20260621a"></script>
 <script src="js/sollstunden-report.js?v=20260620i"></script>
-<script src="js/ferien-report.js?v=20260620m"></script>
+<script src="js/ferien-report.js?v=20260622a"></script>
 <script src="js/audit-log.js?v=20260527a"></script>
 <script src="js/global-search.js?v=20260527f"></script>
 <script src="js/help-panel.js?v=20260528a"></script>
@@ -9433,7 +9532,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260621i"></script>
+<script src="employees.js?v=20260623a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -10066,6 +10165,13 @@ function onBranchChange() {
                     <label class="ce-lbl" data-i18n="vt.modal.field.guarHours">Garantierte h/Woche</label>
                     <input type="number" id="ceGuaranteedHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
                 </div>
+                <div style="grid-column:span 4;display:flex;align-items:center;gap:8px;margin-top:2px;background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:6px 8px">
+                    <input type="checkbox" id="ceEasyAtWorkManualOverride" style="width:16px;height:16px;accent-color:#dc2626">
+                    <label for="ceEasyAtWorkManualOverride" style="font-size:12px;color:#b91c1c;font-weight:700;cursor:pointer">
+                        easy@work Block – lokal nicht überschreiben
+                    </label>
+                    <span style="font-size:11px;color:#991b1b">Bei easy@work-Platzhalterlohn (CHF 1.00) automatisch aktiv.</span>
+                </div>
                 <!-- Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %,
                      13. ML % aus dem Vertrag entfernt — kommen jetzt aus der
                      Filiale (CompanyProfile.Default*) + altersaware Engine. -->
@@ -10126,6 +10232,7 @@ function onBranchChange() {
 <script src="js/hr-saldi-lohnlauf.js?v=20260521a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260614a"></script>
 <script src="js/hr-lohnausweis.js?v=20260614a"></script>
+<script src="js/kuendigung.js?v=20260622a"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 

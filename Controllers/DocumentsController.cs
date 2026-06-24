@@ -173,7 +173,7 @@ public class DocumentsController : ControllerBase
         // gelöscht werden → das Frontend blendet die „Löschen"-Option aus.
         var emp = await _db.Employees.AsNoTracking()
             .Where(e => e.Id == employeeId)
-            .Select(e => new { e.IdPassDokumentId, e.CAusweisDokumentId, e.QstBefreiungDokumentId, e.NightWorkExamDokumentId })
+            .Select(e => new { e.IdPassDokumentId, e.CAusweisDokumentId, e.QstBefreiungDokumentId, e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId })
             .FirstOrDefaultAsync();
         var permitDocIds = await _db.EmployeePermitHistories.AsNoTracking()
             .Where(h => h.EmployeeId == employeeId && h.DokumentId != null)
@@ -192,7 +192,8 @@ public class DocumentsController : ControllerBase
         AddLink(emp?.IdPassDokumentId,        "Pass / ID-Karte");
         AddLink(emp?.CAusweisDokumentId,      "C-Ausweis");
         AddLink(emp?.QstBefreiungDokumentId,  "QST-Behörden-Befreiung");
-        AddLink(emp?.NightWorkExamDokumentId, "Nachtarbeit-Untersuchung");
+        AddLink(emp?.NightWorkExamDokumentId, "Nachtarbeit: Arztbericht / Verzicht");
+        AddLink(emp?.NightWorkAusnahmeDokumentId, "Nachtarbeit: Ausnahmeregelung");
         foreach (var pid in permitDocIds) AddLink(pid, "Bewilligung (Aufenthalt)");
         foreach (var fid in familyDocIds) AddLink(fid, "Ehepartner-Beleg");
 
@@ -680,7 +681,9 @@ public class DocumentsController : ControllerBase
         if (await _db.Employees.AnyAsync(e => e.QstBefreiungDokumentId == id))
             blockers.Add("QST-Behörden-Befreiung");
         if (await _db.Employees.AnyAsync(e => e.NightWorkExamDokumentId == id))
-            blockers.Add("Nachtarbeit-Untersuchung");
+            blockers.Add("Nachtarbeit: Arztbericht / Verzicht");
+        if (await _db.Employees.AnyAsync(e => e.NightWorkAusnahmeDokumentId == id))
+            blockers.Add("Nachtarbeit: Ausnahmeregelung");
         if (await _db.EmployeePermitHistories.AnyAsync(h => h.DokumentId == id))
             blockers.Add("Bewilligungs-Eintrag (Aufenthalt)");
         if (await _db.EmployeeFamilyMembers.AnyAsync(f => f.DokumentId == id))

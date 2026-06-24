@@ -105,8 +105,12 @@ public class Employee
     /// </summary>
     public DateTime? NightWorkExamValidUntil { get; set; }
 
-    /// <summary>FK auf das hinterlegte Dokument (Arztzeugnis ODER Verzichtserklärung).</summary>
+    /// <summary>FK auf das hinterlegte Dokument (Arztbericht/Eignungszeugnis ODER Verzichtserklärung).</summary>
     public int? NightWorkExamDokumentId { get; set; }
+
+    /// <summary>FK auf die hinterlegte unterschriebene „Ausnahmeregelung Tag-/Nachtarbeit"
+    /// (Walter 22.06.2026, ArG) — zweiter Beleg neben Arztbericht/Verzicht für die Kontrolle.</summary>
+    public int? NightWorkAusnahmeDokumentId { get; set; }
 
     /// <summary>
     /// Interne easy@work-Employee-ID (Walter 17.06.2026). Wird beim MA-Sync

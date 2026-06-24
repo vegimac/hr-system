@@ -241,6 +241,7 @@ public class EmployeesController : ControllerBase
             // Nachtarbeit-Untersuchung (Walter 20.06.2026, ArG)
             employee.NightWorkExamValidUntil,
             employee.NightWorkExamDokumentId,
+            employee.NightWorkAusnahmeDokumentId,
             // Walter-Vorgabe 07.06.2026: permitType + Code/Beschreibung kommen
             // aus der „neuesten" History-Bewilligung (siehe oben latestPermitType),
             // nicht aus dem denormalisierten employee.PermitType — damit Frontend
@@ -725,6 +726,7 @@ public class EmployeesController : ControllerBase
         if (dto.ContractEndDateSet)               emp.ContractEndDate         = dto.ContractEndDate;
         if (dto.ProbationPeriodMonths.HasValue)   emp.ProbationPeriodMonths   = dto.ProbationPeriodMonths;
         if (dto.ProbationEndDate.HasValue)        emp.ProbationEndDate        = dto.ProbationEndDate;
+        if (dto.EasyAtWorkManualOverride.HasValue) emp.EasyAtWorkManualOverride = dto.EasyAtWorkManualOverride.Value;
 
         await _context.SaveChangesAsync();
         return Ok(emp);
@@ -810,8 +812,8 @@ public class EmployeesController : ControllerBase
         if (emp == null) return NotFound();
 
         var kind = (dto.Kind ?? "").Trim().ToLowerInvariant();
-        if (kind != "id_pass" && kind != "c_ausweis" && kind != "night_work_exam")
-            return BadRequest(new { error = "KIND_INVALID", message = "kind muss 'id_pass', 'c_ausweis' oder 'night_work_exam' sein." });
+        if (kind != "id_pass" && kind != "c_ausweis" && kind != "night_work_exam" && kind != "night_work_ausnahme")
+            return BadRequest(new { error = "KIND_INVALID", message = "kind muss 'id_pass', 'c_ausweis', 'night_work_exam' oder 'night_work_ausnahme' sein." });
 
         if (dto.DokumentId.HasValue)
         {
@@ -822,18 +824,20 @@ public class EmployeesController : ControllerBase
                     message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
         }
 
-        if (kind == "id_pass")             emp.IdPassDokumentId        = dto.DokumentId;
-        else if (kind == "c_ausweis")      emp.CAusweisDokumentId      = dto.DokumentId;
-        else                                emp.NightWorkExamDokumentId = dto.DokumentId;
+        if (kind == "id_pass")                 emp.IdPassDokumentId            = dto.DokumentId;
+        else if (kind == "c_ausweis")          emp.CAusweisDokumentId          = dto.DokumentId;
+        else if (kind == "night_work_ausnahme") emp.NightWorkAusnahmeDokumentId = dto.DokumentId;
+        else                                    emp.NightWorkExamDokumentId     = dto.DokumentId;
 
         await _context.SaveChangesAsync();
         return Ok(new
         {
-            id                       = emp.Id,
+            id                          = emp.Id,
             kind,
-            idPassDokumentId         = emp.IdPassDokumentId,
-            cAusweisDokumentId       = emp.CAusweisDokumentId,
-            nightWorkExamDokumentId  = emp.NightWorkExamDokumentId
+            idPassDokumentId            = emp.IdPassDokumentId,
+            cAusweisDokumentId          = emp.CAusweisDokumentId,
+            nightWorkExamDokumentId     = emp.NightWorkExamDokumentId,
+            nightWorkAusnahmeDokumentId = emp.NightWorkAusnahmeDokumentId
         });
     }
 
@@ -1221,6 +1225,7 @@ public class EmploymentUpdateDto
     public DateTime? ContractEndDate        { get; set; }
     public int?      ProbationPeriodMonths  { get; set; }
     public DateTime? ProbationEndDate       { get; set; }
+    public bool?     EasyAtWorkManualOverride { get; set; }
 }
 
 /// <summary>QST-Befreiung durch Steuerbehörde (Walter 26.05.2026).</summary>

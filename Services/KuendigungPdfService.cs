@@ -1,0 +1,113 @@
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+
+namespace HrSystem.Services;
+
+/// <summary>
+/// Kündigungsschreiben (Walter-Vorgabe 22.06.2026). Formeller Geschäftsbrief im
+/// Haus-Stil (gelber Briefkopf): Absender-Filiale, Empfänger-MA, Ort/Datum,
+/// Betreff, Text mit Kündigungsfrist + letztem Arbeitstag, optional Grund,
+/// Unterschrift des eingeloggten Users (Bild + Klarname).
+/// </summary>
+public class KuendigungPdfService
+{
+    private const string Dark = "#1a1a1a";
+
+    private static readonly byte[] BannerBytes =
+        File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "letterhead_banner.png"));
+
+    public record KuendigungData(
+        // Arbeitgeber / Filiale
+        string? FirmaName, string? FirmaStrasse, string? FirmaPlzOrt,
+        // Mitarbeitende/r
+        string? MaName, string? MaStrasse, string? MaPlzOrt,
+        string  Briefanrede,          // "Sehr geehrte Frau Muster" / "Sehr geehrter Herr Muster"
+        // Brief
+        string  Ort, DateOnly KuendigungsDatum,
+        string  FristText,            // z.B. "2 Monaten auf Ende eines Monats" / "7 Tagen"
+        DateOnly LetzterArbeitstag,
+        string? Grund,                // optional, sonst null
+        string? UnterzeichnerName);
+
+    public byte[] Generate(KuendigungData d, byte[]? signaturePng)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        const float sizeText = 10.5f;
+
+        var firmaLines = new[] { d.FirmaName, d.FirmaStrasse, d.FirmaPlzOrt }
+            .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList();
+        var maLines = new[] { d.MaName, d.MaStrasse, d.MaPlzOrt }
+            .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList();
+
+        return Document.Create(doc =>
+        {
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(0.6f, Unit.Centimetre);
+                page.MarginBottom(1.5f, Unit.Centimetre);
+                page.MarginHorizontal(2.2f, Unit.Centimetre);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(sizeText).FontColor(Dark).LineHeight(1.35f));
+
+                page.Header().Image(BannerBytes).FitWidth();
+
+                page.Content().PaddingTop(16).Column(col =>
+                {
+                    // Absender (Filiale) — klein oben links.
+                    foreach (var ln in firmaLines)
+                        col.Item().Text(ln).FontSize(8.5f).FontColor("#475569");
+
+                    // Empfänger-Adressblock.
+                    col.Item().PaddingTop(28).Column(c =>
+                    {
+                        foreach (var ln in maLines) c.Item().Text(ln);
+                    });
+
+                    // Ort, Datum — rechtsbündig.
+                    col.Item().PaddingTop(22).AlignRight()
+                        .Text($"{d.Ort}, {d.KuendigungsDatum:dd.MM.yyyy}");
+
+                    // Betreff.
+                    col.Item().PaddingTop(22).Text("Kündigung des Arbeitsverhältnisses").Bold().FontSize(12f);
+
+                    // Anrede.
+                    col.Item().PaddingTop(16).Text($"{d.Briefanrede},");
+
+                    // Haupttext.
+                    col.Item().PaddingTop(10).Text(t =>
+                    {
+                        t.Span("hiermit kündigen wir das mit Ihnen bestehende Arbeitsverhältnis ordentlich unter Einhaltung der vertraglichen bzw. gesetzlichen Kündigungsfrist von ");
+                        t.Span(d.FristText).Bold();
+                        t.Span(" per ");
+                        t.Span($"{d.LetzterArbeitstag:dd.MM.yyyy}").Bold();
+                        t.Span(" (letzter Arbeitstag).");
+                    });
+
+                    if (!string.IsNullOrWhiteSpace(d.Grund))
+                        col.Item().PaddingTop(10).Text($"Grund der Kündigung: {d.Grund}");
+
+                    col.Item().PaddingTop(10).Text(
+                        "Wir bitten Sie, bis zu Ihrem letzten Arbeitstag Ihre Aufgaben ordnungsgemäss zu übergeben und sämtliches Firmeneigentum (Schlüssel, Badge, Uniform etc.) zurückzugeben.");
+
+                    col.Item().PaddingTop(10).Text(
+                        "Wir wünschen Ihnen für Ihre berufliche und private Zukunft alles Gute.");
+
+                    // Grussformel + Firmenname.
+                    col.Item().PaddingTop(20).Text("Freundliche Grüsse");
+                    if (!string.IsNullOrWhiteSpace(d.FirmaName))
+                        col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
+
+                    // Unterschrift (Bild des eingeloggten Users) + Klarname.
+                    if (signaturePng is { Length: > 0 })
+                        col.Item().PaddingTop(8).Height(48).AlignLeft().Image(signaturePng).FitHeight();
+                    else
+                        col.Item().PaddingTop(8).Height(40); // Freiraum zum Unterschreiben
+
+                    col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
+                });
+            });
+        }).GeneratePdf();
+    }
+}

@@ -281,6 +281,17 @@ async function loadMitarbeiterList() {
 }
 
 /// Wendet den Aktiv-Filter + Filial-Filter an und rendert die Liste neu.
+// Ist dieser Vertrag (employment) am Stichtag aktiv? Walter-Vorgabe 23.06.2026.
+// Beginn ≤ Stichtag UND (kein Ende ODER Ende ≥ Stichtag).
+function _empContractActiveOn(v, refDate) {
+    if (!v.contractStartDate) return false;
+    const from = new Date(v.contractStartDate);
+    if (from > refDate) return false;
+    if (!v.contractEndDate) return true;
+    const to = new Date(v.contractEndDate);
+    return to >= refDate;
+}
+
 function applyEmpFilter() {
     // "alt"-Suffix in der Personalnummer = archiviert (unabhängig vom is_active-Flag).
     // Fängt Daten-Inkonsistenzen aus Voll-Migrationen ab (Bis-Datum in Zukunft
@@ -313,11 +324,10 @@ function applyEmpFilter() {
         // Restaurant-Code → Personalnummer-Präfix (058 → "58", 075 → "75", 104 → "104")
         const branch = (typeof allBranches !== 'undefined' ? allBranches : []).find(b => b.id === cpid);
         const restCode = (branch?.restaurantCode || '').replace(/^0+/, '');  // führende Nullen weg
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         filtered = filtered.filter(e => {
             const emps = e.employments || [];
-            // Treffer: mindestens ein Vertrag in dieser Filiale
-            const matchBranch = emps.some(v => Number(v.companyProfileId) === cpid);
-            if (matchBranch) return true;
             // Legacy-Fallback: alle Verträge ohne Filial-Zuordnung → in jeder Filiale anzeigen
             if (emps.length && emps.every(v => !v.companyProfileId)) return true;
             // MA OHNE Verträge: anzeigen, wenn die Personalnummer zum Filial-Präfix passt
@@ -325,7 +335,16 @@ function applyEmpFilter() {
             if (!emps.length && restCode && (e.employeeNumber || '').replace(/alt$/i, '').startsWith(restCode)) {
                 return true;
             }
-            return false;
+            // Filial-Treffer nach Vertragsstatus (Walter-Vorgabe 23.06.2026):
+            //   aktiv  → nur wenn HEUTE ein aktiver Vertrag in dieser Filiale läuft
+            //            (Filialwechsel: alte Filiale zeigt den MA nicht mehr)
+            //   inaktiv→ jeder (auch historische) Vertrag in dieser Filiale zählt
+            const matchBranchActive = emps.some(v =>
+                Number(v.companyProfileId) === cpid && _empContractActiveOn(v, today));
+            const matchBranchAny = emps.some(v => Number(v.companyProfileId) === cpid);
+            if (_empFilter === 'aktiv')   return matchBranchActive;
+            if (_empFilter === 'inaktiv') return matchBranchAny;
+            return matchBranchAny;
         });
     }
 
@@ -868,18 +887,26 @@ function renderEmployeeDetail(emp) {
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
             <div style="padding:6px 2px 2px">
                 <!-- Ansicht (read-only) -->
-                <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                    <span id="nwViewText_${emp.id}" style="flex:1">${_nwViewTextHtml(emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null, emp.nightWorkExamValidUntil)}</span>
+                <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null, emp.nightWorkExamValidUntil)}</span>
+                    <!-- Formulare einzeln drucken — inline neben der von–bis-Zeile (Walter 22.06.2026) -->
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
+                        <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
+                        <button onclick="openNachtVerzichtPdf(${emp.id})" title="Verzichtserklärung drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Verzicht</button>
+                        <button onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Ausnahmeregelung</button>
+                        ${emp.nightWorkExamDokumentId
+                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegten Arztbericht / die Verzichtserklärung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Arzt/Verzicht</button>`
+                            : ''}
+                        ${emp.nightWorkAusnahmeDokumentId
+                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Ausnahmeregelung</button>`
+                            : ''}
+                    </div>
                     <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
                         <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="nwMenu-${emp.id}">
                             <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
-                            ${emp.nightWorkExamDokumentId
-                                ? `<button class="dok-menu-item" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})">Dokument öffnen</button>
-                                   <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">Anderes Dokument verknüpfen</button>`
-                                : `<button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">Dokument verknüpfen</button>`}
-                            <button class="dok-menu-item" onclick="openNachtEignungPdf(${emp.id})">SECO-Formular</button>
-                            <button class="dok-menu-item" onclick="openNachtVerzichtPdf(${emp.id})">Verzicht-Formular</button>
+                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'Arztbericht/Verzicht ersetzen' : 'Arztbericht/Verzicht verknüpfen'}</button>
+                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausnahmeregelung ersetzen' : 'Ausnahmeregelung verknüpfen'}</button>
                         </div>
                     </div>
                 </div>
@@ -1422,7 +1449,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
         alert('Mitarbeiter-ID fehlt. Bitte den MA links erneut anklicken.');
         return;
     }
-    if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history', 'night_work_exam'].includes(kind)) return;
+    if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history', 'night_work_exam', 'night_work_ausnahme'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -1445,6 +1472,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                        : kind === 'permit_history'     ? /(aufenthalt|bewilligung|permit|ausweis)/i
                        : kind === 'spouse'             ? /(ehegatt|ehepartner|spouse|partner)/i
                        : kind === 'night_work_exam'    ? /(arzt|zeugnis|eignung|nacht|verzicht|untersuch)/i
+                       : kind === 'night_work_ausnahme' ? /(ausnahme|nacht|tag.{0,3}nacht|anlage)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -1486,7 +1514,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'c_ausweis'           ? 'C-Ausweis-Dokument verknüpfen'
                    : kind === 'permit_history'      ? 'Bewilligungs-Dokument verknüpfen'
                    : kind === 'spouse'              ? 'Ausweis Ehepartner verknüpfen'
-                   : kind === 'night_work_exam'     ? 'Nachtarbeit-Untersuchung verknüpfen (Arztzeugnis / Verzicht)'
+                   : kind === 'night_work_exam'     ? 'Nachtarbeit: Arztbericht / Verzicht verknüpfen'
+                   : kind === 'night_work_ausnahme' ? 'Nachtarbeit: Ausnahmeregelung verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -1496,7 +1525,9 @@ async function openAusweisDokuModal(empId, kind, extra) {
                 ? 'Wähle das Ausweis-Dokument des Ehepartners (Pass, ID oder Bewilligung) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
                 : kind === 'night_work_exam'
                     ? 'Wähle das ärztliche Eignungszeugnis ODER die Verzichtserklärung des MA. Oder lade ein neues Dokument hoch.'
-                    : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
+                    : kind === 'night_work_ausnahme'
+                        ? 'Wähle die unterschriebene Ausnahmeregelung Tag-/Nachtarbeit des MA. Oder lade ein neues Dokument hoch.'
+                        : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
         ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -1731,8 +1762,8 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             if (typeof loadPermitHistory === 'function') loadPermitHistory(empId);
             if (typeof selectEmployee === 'function') selectEmployee(empId);
         }
-        // Nachtarbeit-Untersuchung: MA-Detail neu laden (Doku-Pille im ANSTELLUNG-Block).
-        if (kind === 'night_work_exam' && typeof selectEmployee === 'function') selectEmployee(empId);
+        // Nachtarbeit-Belege: MA-Detail neu laden (Anzeige-Buttons im Nachtarbeit-Block).
+        if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme') && typeof selectEmployee === 'function') selectEmployee(empId);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -1802,6 +1833,29 @@ async function openNachtVerzichtPdf(empId) {
         const cd = res.headers.get('Content-Disposition') || '';
         const m = cd.match(/filename="?([^"]+)"?/);
         const filename = m ? m[1] : `Nachtarbeit_Verzicht_${empId}.pdf`;
+        if (typeof previewFileModal === 'function') previewFileModal(blob, filename);
+        else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, filename);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// Ausnahmeregelung Tag-/Nachtarbeit (Anlage zum Arbeitsvertrag, gelber Kopf mit
+// Titel über Banner) – MA-Angaben links, Filiale rechts, server-seitig gefüllt.
+async function openNachtAusnahmePdf(empId) {
+    if (!empId) return;
+    try {
+        const res = await fetch(`/api/nacht-eignung/${empId}/ausnahme-pdf`, { headers: ah() });
+        if (!res.ok) {
+            let msg = `Fehler (${res.status})`;
+            try { const j = await res.json(); if (j?.message) msg = j.message; } catch (_) {}
+            alert('Formular konnte nicht erstellt werden.\n' + msg);
+            return;
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const m = cd.match(/filename="?([^"]+)"?/);
+        const filename = m ? m[1] : `Nachtarbeit_Ausnahme_${empId}.pdf`;
         if (typeof previewFileModal === 'function') previewFileModal(blob, filename);
         else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, filename);
     } catch (e) {

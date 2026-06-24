@@ -45,6 +45,95 @@ public class EasyAtWorkController : ControllerBase
         _editLock = editLock;
     }
 
+    // ─────────────────────── API-Dump (Diagnose) ────────────────────
+
+    /// <summary>
+    /// Diagnose: holt für einen MA (Personalnummer ODER Alt-Nummer) ALLE roh-
+    /// JSON-Antworten der erreichbaren easy@work-Endpoints — inkl. nicht
+    /// gemappter Felder und Discovery-Versuche für Funktion/Gruppen. Nur zum
+    /// Anschauen (kein Schreiben). Walter-Vorgabe 22.06.2026.
+    /// </summary>
+    [HttpGet("debug/employee-dump")]
+    public async Task<IActionResult> EmployeeDump(
+        [FromQuery] int companyProfileId, [FromQuery] string number, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(number))
+            return BadRequest(new { error = "NUMBER_REQUIRED" });
+        var num = number.Trim();
+
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null)
+            return BadRequest(new { error = "NO_MAPPING", message = "Filiale hat kein easy@work-Mapping." });
+        int customerId = mapping.EasyAtWorkCustomerId;
+
+        // easy@work-ID des MA über die EMPLOYEE-LISTE des Customers per Nummer
+        // auflösen — das liefert die echte Resource-Id (NICHT die UserId, die wir
+        // gespeichert haben und die der /employees/{id}-Endpoint nicht akzeptiert).
+        List<EawEmployee> eawList;
+        try { eawList = await _client.GetAllEmployeesIncludingInactiveAsync(customerId, ct); }
+        catch (Exception ex) { return StatusCode(502, new { error = "EAW_LIST_FAILED", message = ex.Message }); }
+        var match = eawList.FirstOrDefault(e => (e.Number ?? "").Trim() == num);
+        if (match == null)
+            return NotFound(new
+            {
+                error = "NOT_IN_CUSTOMER",
+                message = $"Personalnr. {num} nicht in easy@work-Customer {customerId} gefunden ({eawList.Count} MA in der Liste). Evtl. falsche Filiale gewählt oder MA gehört zu einem anderen Customer.",
+                customerId, listCount = eawList.Count
+            });
+        int eid = match.Id;
+        var storedCoworkEawId = (await _db.Employees.AsNoTracking()
+            .Where(e => e.EmployeeNumber == num).Select(e => e.EasyAtWorkEmployeeId).FirstOrDefaultAsync(ct));
+
+        // Alle bekannten Endpoints + Discovery-Versuche für Funktion/Gruppen.
+        var paths = new[]
+        {
+            $"customers/{customerId}/employees/{eid}",
+            $"customers/{customerId}/employees/{eid}/contracts",
+            $"customers/{customerId}/employees/{eid}/pay_rates",
+            $"customers/{customerId}/employees/{eid}/fiscal_info",
+            $"customers/{customerId}/employees/{eid}/properties?per_page=200",
+            $"customers/{customerId}/employees/{eid}/functions",
+            $"customers/{customerId}/employees/{eid}/function",
+            $"customers/{customerId}/employees/{eid}/groups",
+            $"customers/{customerId}/employees/{eid}/group_memberships",
+            $"customers/{customerId}/employees/{eid}/memberships",
+            $"customers/{customerId}/employees/{eid}/roles",
+            $"customers/{customerId}/employees/{eid}/positions",
+        };
+
+        object ParseBody(string b)
+        {
+            if (string.IsNullOrWhiteSpace(b)) return "";
+            try { return JsonSerializer.Deserialize<JsonElement>(b); }
+            catch { return b; }
+        }
+
+        var results = new List<object>();
+        foreach (var p in paths)
+        {
+            try
+            {
+                var (status, body) = await _client.GetRawAsync(p, ct);
+                results.Add(new { path = p, status, body = ParseBody(body) });
+            }
+            catch (Exception ex)
+            {
+                results.Add(new { path = p, status = -1, error = ex.Message });
+            }
+        }
+
+        return Ok(new
+        {
+            number = num,
+            customerId,
+            easyAtWorkResourceId = eid,        // für /employees/{id} verwendet
+            easyAtWorkUserId     = match.UserId,
+            storedCoworkEawId    = storedCoworkEawId,   // bei uns gespeichert (i.d.R. UserId)
+            results
+        });
+    }
+
     // ─────────────────────────── Status ─────────────────────────────
 
     /// <summary>
@@ -484,6 +573,185 @@ public class EasyAtWorkController : ControllerBase
             SkipDetailCalls = dto.SkipDetailCalls ?? false,
         }, ct);
         return Ok(res);
+    }
+
+    /// <summary>
+    /// Aktive easy@work-Mitarbeitende einer Filiale (read-only) für den neuen
+    /// laufenden API-Abgleich. Sortierung nach Vorname, Tie-Break Nachname
+    /// (Walter-Konvention für alle MA-Listen). Schreibt nichts.
+    /// </summary>
+    [HttpGet("employees/active")]
+    public async Task<IActionResult> GetActiveEasyAtWorkEmployees([FromQuery] int companyProfileId, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null)
+            return NotFound(new { error = "NOT_MAPPED", message = "Filiale ist nicht mit easy@work verknüpft." });
+
+        var activeAt = DateOnly.FromDateTime(DateTime.Today);
+        var emps = await _client.GetAllEmployeesActiveAtAsync(mapping.EasyAtWorkCustomerId, activeAt, ct);
+        var rows = emps
+            .OrderBy(e => e.FirstName ?? "", StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(e => e.LastName ?? "", StringComparer.CurrentCultureIgnoreCase)
+            .Select(e => new
+            {
+                easyAtWorkEmployeeId = e.Id,
+                easyAtWorkUserId = e.UserId,
+                e.Number,
+                e.FirstName,
+                e.LastName,
+                name = $"{e.FirstName} {e.LastName}".Trim(),
+                e.Email,
+                e.Phone,
+                from = e.From,
+                to = e.To,
+                updatedAt = e.UpdatedAt,
+                mapping.CompanyProfileId,
+                mapping.EasyAtWorkCustomerId
+            })
+            .ToList();
+
+        return Ok(new
+        {
+            companyProfileId = mapping.CompanyProfileId,
+            customerId = mapping.EasyAtWorkCustomerId,
+            activeAt,
+            count = rows.Count,
+            employees = rows
+        });
+    }
+
+    /// <summary>
+    /// Liefert für EINEN easy@work-MA eine CSV-kompatible Import-Zeile, damit der
+    /// bestehende CSV-Importer unverändert seine Vorschau-/Vertragslogik nutzen kann.
+    /// Schreibt nichts.
+    /// </summary>
+    [HttpGet("employees/{companyProfileId:int}/{eawEmployeeId:int}/import-row")]
+    public async Task<IActionResult> GetEmployeeImportRow(int companyProfileId, int eawEmployeeId, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null) return NotFound(new { error = "NOT_MAPPED", message = "Filiale ist nicht mit easy@work verknüpft." });
+
+        var emp = await _client.GetEmployeeByIdAsync(mapping.EasyAtWorkCustomerId, eawEmployeeId, ct);
+        if (emp == null)
+        {
+            // Manche easy@work-Listen liefern je nach Endpoint Resource-ID vs.
+            // User-ID unterschiedlich. Für die Import-Zeile reicht der Listen-
+            // Datensatz; Detail-Calls darunter probieren wir weiter mit Resource-ID.
+            var activeAt = DateOnly.FromDateTime(DateTime.Today);
+            var allActive = await _client.GetAllEmployeesActiveAtAsync(mapping.EasyAtWorkCustomerId, activeAt, ct);
+            emp = allActive.FirstOrDefault(e => e.Id == eawEmployeeId || e.UserId == eawEmployeeId);
+        }
+        if (emp == null) return NotFound(new { error = "EMP_NOT_FOUND", message = "easy@work-Mitarbeiter nicht gefunden." });
+
+        var resourceId = emp.Id;
+
+        var contracts = (await _client.GetContractsAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
+        var rates     = (await _client.GetPayRatesAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
+        var positions = (await _client.GetPositionsAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
+        var props = await _client.GetAllPropertiesAsync(mapping.EasyAtWorkCustomerId, resourceId, ct);
+        EawFiscalInfo? fiscal = null;
+        try { fiscal = await _client.GetFiscalInfoAsync(mapping.EasyAtWorkCustomerId, resourceId, ct); } catch { }
+
+        static EawContract? CurrentContract(List<EawContract> rows)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            return rows
+                .Where(c => c.From.HasValue && c.From.Value <= today && (!c.To.HasValue || c.To.Value >= today))
+                .OrderByDescending(c => c.From ?? DateOnly.MinValue)
+                .FirstOrDefault()
+                ?? rows.OrderByDescending(c => c.From ?? DateOnly.MinValue).FirstOrDefault();
+        }
+        static EawPayRate? CurrentRate(List<EawPayRate> rows, string type)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            return rows
+                .Where(r => (r.Type ?? "").StartsWith(type, StringComparison.OrdinalIgnoreCase)
+                         && r.From.HasValue && r.From.Value <= today && (!r.To.HasValue || r.To.Value >= today))
+                .OrderByDescending(r => r.From ?? DateOnly.MinValue)
+                .FirstOrDefault()
+                ?? rows.Where(r => (r.Type ?? "").StartsWith(type, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(r => r.From ?? DateOnly.MinValue)
+                    .FirstOrDefault();
+        }
+        static string? Prop(List<EawProperty> rows, string key)
+            => rows.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase))?.Value;
+        static string? SalutationFromGender(string? g)
+        {
+            var s = (g ?? "").Trim().ToLowerInvariant();
+            if (s is "female" or "f" or "frau") return "Frau";
+            if (s is "male" or "m" or "herr") return "Herr";
+            return null;
+        }
+        static string? Marital(string? v) => (v ?? "").Trim().ToUpperInvariant() switch
+        {
+            "S" => "ledig",
+            "M" => "verheiratet",
+            "D" => "geschieden",
+            "W" => "verwitwet",
+            "E" => "getrennt",
+            "P" => "eingetragene_partnerschaft",
+            _ => null
+        };
+        static string Fmt(DateOnly? d) => d?.ToString("yyyy-MM-dd") ?? "";
+
+        var c = CurrentContract(contracts);
+        var monthlyRate = CurrentRate(rates, "month") ?? CurrentRate(rates, "fte");
+        var hourlyRate  = CurrentRate(rates, "hour");
+        var position = positions.FirstOrDefault()?.Name ?? Prop(props, "cf_src_job_code") ?? "";
+        var amountType = (c?.AmountType ?? "").Trim().ToLowerInvariant();
+        var payFrequency = (monthlyRate != null || amountType.StartsWith("percent") || amountType.StartsWith("month")) ? "month" : "hour";
+        var contractType = c?.Type;
+        if (string.IsNullOrWhiteSpace(contractType))
+            contractType = payFrequency == "month" ? "Fix" : "Flex";
+
+        decimal? pct = c?.Percentage ?? (amountType.StartsWith("percent") ? c?.Amount : null);
+        string anzahl = "";
+        if (pct.HasValue) anzahl = pct.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+        else if (c?.Amount != null) anzahl = c.Amount.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " Stunden/Woche";
+        else if (c?.WeekHours != null) anzahl = c.WeekHours.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " Stunden/Woche";
+
+        var row = new Dictionary<string, string?>
+        {
+            ["Nummer"] = emp.Number,
+            ["Vorname"] = emp.FirstName,
+            ["Nachname"] = emp.LastName,
+            ["Geschlecht"] = emp.Gender,
+            ["Anrede"] = SalutationFromGender(emp.Gender),
+            ["Geburtsdatum"] = Fmt(emp.BirthDate),
+            ["Adresse"] = emp.Address1,
+            ["Adresse 2"] = emp.Address2,
+            ["Postleitzahl"] = emp.PostalCode,
+            ["Stadt"] = emp.City,
+            ["E-Mail"] = emp.Email,
+            ["Telefon"] = emp.Phone,
+            ["Nationalität"] = emp.Nationality,
+            ["Von"] = Fmt(emp.From),
+            ["Bis"] = Fmt(emp.To),
+            ["Store number"] = mapping.EasyAtWorkCustomerNumber,
+            ["Funktion"] = position,
+            ["Funktionen"] = position,
+            ["Group memberships"] = "Employee",
+            ["Contract type"] = contractType,
+            ["Pay frequency"] = payFrequency,
+            ["Anzahl"] = anzahl,
+            ["Pay rate from"] = Fmt(monthlyRate?.From ?? hourlyRate?.From ?? c?.From),
+            ["Tarife"] = (hourlyRate?.Rate != null && hourlyRate.Rate.Value > 1m) ? hourlyRate.Rate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
+            ["Salary (actual)"] = (monthlyRate?.Rate != null && monthlyRate.Rate.Value > 1m) ? monthlyRate.Rate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
+            ["INTL_BANK_ACCT_NBR1"] = fiscal?.Iban,
+            ["AHV"] = Prop(props, "cf_swiss_national_id"),
+            ["Marital status"] = Marital(Prop(props, "cf_marital_status"))
+        };
+
+        return Ok(new
+        {
+            companyProfileId,
+            easyAtWorkEmployeeId = emp.Id,
+            row
+        });
     }
 
     public record InitialImportDto(DateOnly? Since, bool? SkipDetailCalls = null);

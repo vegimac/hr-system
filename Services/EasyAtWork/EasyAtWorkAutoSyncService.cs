@@ -129,16 +129,23 @@ public class EasyAtWorkAutoSyncRunner
 
         if (result.IsBlocked)
         {
-            var names = string.Join(", ", result.MissingEmployees.Take(10)
+            // Block kann zwei Ursachen haben: fehlende Zuordnung (MissingEmployees)
+            // ODER mehrdeutiger Lohn-MA (AmbiguousEmployees, Datenfehler). Beide in
+            // die Meldung aufnehmen.
+            var blockers = result.MissingEmployees.Concat(result.AmbiguousEmployees).ToList();
+            var names = string.Join(", ", blockers.Take(10)
                 .Select(m => (m.EawEmployeeName ?? ("easy@work-MA")) + " (#" + m.EawEmployeeId + ")"));
-            var blockMsg = $"Sync blockiert: {result.MissingEmployees.Count} MA ohne Cowork-Zuordnung: {names}";
+            var ursache = result.AmbiguousEmployees.Count > 0 && result.MissingEmployees.Count == 0
+                ? "mehrere Lohn-MA für eine Person"
+                : "MA ohne eindeutige Cowork-Zuordnung";
+            var blockMsg = $"Sync blockiert: {blockers.Count} {ursache}: {names}";
             state.LastError  = Truncate(blockMsg, 1000);
             state.LastSyncAt = DateTime.UtcNow;
             // Cursor (last_seen_updated_at) bewusst NICHT vorrücken → nächster
             // Lauf versucht es erneut, bis die MA zugeordnet sind.
             AddLog(db, mapping.CompanyProfileId, "BLOCKED", window, result, blockMsg);
-            _log.LogWarning("easy@work Auto-Sync Filiale {Cp} blockiert: {N} MA ohne Zuordnung.",
-                mapping.CompanyProfileId, result.MissingEmployees.Count);
+            _log.LogWarning("easy@work Auto-Sync Filiale {Cp} blockiert: {N} MA.",
+                mapping.CompanyProfileId, blockers.Count);
         }
         else
         {
@@ -254,7 +261,7 @@ public class EasyAtWorkAutoSyncRunner
             Deleted          = r?.Deleted ?? 0,
             LockedSkipped    = r?.LockedSkipped ?? 0,
             Skipped          = r?.Skipped ?? 0,
-            MissingCount     = r?.MissingEmployees.Count ?? 0,
+            MissingCount     = (r?.MissingEmployees.Count ?? 0) + (r?.AmbiguousEmployees.Count ?? 0),
             Message          = message == null ? null : Truncate(message, 1000),
             DetailJson       = BuildDetailJson(r),
         });

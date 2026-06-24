@@ -166,6 +166,8 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('cePensum').value             = c.employmentPercentage ?? '';
     document.getElementById('ceWeeklyHours').value        = c.weeklyHours ?? '';
     document.getElementById('ceGuaranteedHours').value    = c.guaranteedHoursPerWeek ?? '';
+    const overrideEl = document.getElementById('ceEasyAtWorkManualOverride');
+    if (overrideEl) overrideEl.checked = c.easyAtWorkManualOverride === true;
     // Walter-Vorgabe 26.05.2026: Vorbelegung aus Filial-Defaults wenn leer.
     //   Feiertag % → immer DefaultHolidayPercent (z.B. 2.27)
     //   Ferien %   → DefaultVacationPercent5Weeks bei Alter <50 am Vertrags-
@@ -521,6 +523,7 @@ async function saveContractEdit() {
         monthlySalary:           isFix ? monthly : null,
         probationPeriodMonths:   parseInt(document.getElementById('ceProbationMonths').value) || null,
         isActive:                document.getElementById('ceIsActive').value === 'true',
+        easyAtWorkManualOverride: document.getElementById('ceEasyAtWorkManualOverride')?.checked === true,
     };
 
     // Bei Import / Neu zusätzliche Pflichtfelder

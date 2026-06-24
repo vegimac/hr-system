@@ -462,7 +462,7 @@ public class PayrollController : HrControllerBase
             orderby emp.ContractStartDate descending
             select new { emp.EmployeeId, emp.EmploymentModel, e.FirstName, e.LastName, Number = e.EmployeeNumber,
                          emp.EmploymentPercentage, emp.GuaranteedHoursPerWeek, e.EntryDate, e.ExitDate, e.DateOfBirth,
-                         e.NightWorkExamValidUntil, e.NightWorkExamDokumentId }
+                         e.NightWorkExamValidUntil, e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId }
         ).ToListAsync();
 
         static int ModelRank2(string? m) => m == "FIX-M" ? 0 : m == "FIX" ? 1 : m == "MTP" ? 2 : 3;
@@ -600,12 +600,23 @@ public class PayrollController : HrControllerBase
                             : datenMonate > 0 ? (int)Math.Round((double)naechteReal * 12 / datenMonate)
                             : 0;
 
-            // Compliance-Warnung (ArG): ≥ 25 Nächte/Jahr UND keine gültige Nacht-
-            // arbeit-Untersuchung (Dokument fehlt ODER Datum fehlt/abgelaufen).
+            // Compliance-Warnung (ArGV1 Art. 30, Walter-Vorgabe 22.06.2026):
+            // > 18 Nächte in einem rollierenden 6-Wochen-Fenster (42 Tage) UND
+            // Nachweise unvollständig (Arztzeugnis/Verzicht UND Ausnahmeregelung).
+            var nachtDates = teRollByEmp.TryGetValue(e.EmployeeId, out var teRollNd)
+                ? teRollNd.Where(x => (x.NightHours ?? 0m) > 0m).Select(x => x.EntryDate)
+                : Enumerable.Empty<DateOnly>();
+            var nwEval = NightWorkComplianceService.Evaluate(nachtDates, stichEnd);
+            bool nachweiseFehlen = !(e.NightWorkExamDokumentId.HasValue && e.NightWorkAusnahmeDokumentId.HasValue);
+            bool nachtWarn = nwEval.RequiresDocuments && nachweiseFehlen;
+            string? nachtWarnReason = !nachtWarn ? null
+                : (!e.NightWorkExamDokumentId.HasValue && !e.NightWorkAusnahmeDokumentId.HasValue) ? "Arztzeugnis/Verzicht und Ausnahmeregelung fehlen"
+                : (!e.NightWorkExamDokumentId.HasValue) ? "Arztzeugnis/Verzicht fehlt"
+                : "Ausnahmeregelung fehlt";
+            // examGueltig bleibt für Rückwärtskompatibilität (nicht mehr Warnkriterium).
             bool examGueltig = e.NightWorkExamDokumentId.HasValue
                             && e.NightWorkExamValidUntil.HasValue
                             && DateOnly.FromDateTime(e.NightWorkExamValidUntil.Value) >= stichEnd;
-            bool nachtWarn = naechteJahr >= 25 && !examGueltig;
             if (nachtWarn) nachtWarnTotal++;
 
             // ── Ferienkürzung bei langer Krankheit (Art. 329b OR) ──
@@ -644,12 +655,17 @@ public class PayrollController : HrControllerBase
                 nachtZuschlag = nachtZuschlag,
                 nachtKomp     = Math.Round(nachtKomp, 2),
                 nachtSaldo    = nachtSaldo,
-                // Anzahl Nächte (rollende 12 Monate, ArG-Kontrolle ≥ 25).
+                // Anzahl Nächte (rollende 12 Monate) — nur noch Info, NICHT mehr Warnkriterium.
                 naechteJahr   = naechteJahr,
                 naechteReal   = naechteReal,
                 datenMonate   = datenMonate,
-                nachtWarn     = nachtWarn,                       // ≥25 Nächte ohne gültige Untersuchung
-                examGueltig   = examGueltig,                     // gültiges Nachtzeugnis/Verzicht (Dok + nicht abgelaufen)
+                // NEUE 6-Wochen-Regel (ArGV1 Art. 30): > 18 Nächte in 42 Tagen.
+                maxNaechte6Wochen = nwEval.MaxNightsInSixWeeks,
+                nachtWindowFrom   = nwEval.WindowFrom?.ToString("yyyy-MM-dd"),
+                nachtWindowTo     = nwEval.WindowTo?.ToString("yyyy-MM-dd"),
+                nachtWarn     = nachtWarn,                       // >18 Nächte/6 Wochen UND Nachweise fehlen
+                nachtWarnReason = nachtWarnReason,
+                examGueltig   = examGueltig,                     // (Kompatibilität, nicht mehr Warnkriterium)
                 nachtExamBis  = e.NightWorkExamValidUntil,       // gültig bis (für Tooltip)
                 nachtExamDoc  = e.NightWorkExamDokumentId.HasValue,
                 eintritt, austritt
@@ -660,8 +676,8 @@ public class PayrollController : HrControllerBase
         {
             year,
             month,
-            nachtRollFrom = rollStart.ToString("yyyy-MM-dd"),   // Start des 12-Monats-Fensters
-            nachtWarnTotal,                                     // MA mit ≥25 Nächten ohne gültige Untersuchung
+            nachtRollFrom = rollStart.ToString("yyyy-MM-dd"),   // Start des 12-Monats-Datenfensters
+            nachtWarnTotal,                                     // MA mit >18 Nächten/6 Wochen ohne vollständige Nachweise
             count = rows.Count,
             rows
         });

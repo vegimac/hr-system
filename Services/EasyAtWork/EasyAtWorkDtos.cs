@@ -1,7 +1,54 @@
+using System;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace HrSystem.Services.EasyAtWork;
+
+/// <summary>
+/// Datums-Helfer für easy@work-Felder. Die API liefert Datumswerte mal als reines
+/// Datum ("yyyy-MM-dd"), mal als UTC-Timestamp ("yyyy-MM-dd HH:mm:ss"). Mitternacht
+/// Schweizer Zeit wird als 22:00/23:00 UTC des Vortags gespeichert — die
+/// UTC→Europe/Zurich-Konvertierung ergibt das korrekte Kalenderdatum (z.B.
+/// "2025-12-31 23:00:00" → 01.01.2026). Walter-Vorgabe 23.06.2026.
+/// </summary>
+public static class EawDateUtil
+{
+    private static readonly TimeZoneInfo SwissTz = ResolveSwissTz();
+    private static TimeZoneInfo ResolveSwissTz()
+    {
+        foreach (var id in new[] { "Europe/Zurich", "W. Europe Standard Time" })
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+            catch { /* nächste ID versuchen */ }
+        }
+        return TimeZoneInfo.Utc;
+    }
+
+    public static DateOnly? ParseSwissDate(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        if (!DateTime.TryParse(s, CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var utc))
+            return null;
+        var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), SwissTz);
+        return DateOnly.FromDateTime(local);
+    }
+
+    /// <summary>
+    /// Parst einen easy@work-Timestamp (Space-Format "yyyy-MM-dd HH:mm:ss" ODER ISO-T)
+    /// in einen Kind=Unspecified-DateTime — für `timestamp without time zone`-Spalten
+    /// und als Versions-Marker. System.Text.Json würde am Space-Format scheitern und
+    /// die ganze DTO-Deserialisierung werfen; DateTime.TryParse ist tolerant.
+    /// </summary>
+    public static DateTime? ParseTimestamp(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+            ? DateTime.SpecifyKind(d, DateTimeKind.Unspecified)
+            : (DateTime?)null;
+    }
+}
 
 // ════════════════════════════════════════════════════════════════════════
 // DTOs für die easy@work-API. Aus openapi.yaml (Stand 17.06.2026) abgeleitet,
@@ -86,12 +133,32 @@ public class EawContract
     [JsonPropertyName("employee_id")]  public int      EmployeeId   { get; set; }
     [JsonPropertyName("title")]        public string?  Title        { get; set; }   // Funktion
     [JsonPropertyName("type")]         public string?  Type         { get; set; }   // Vertragstyp
-    [JsonPropertyName("amount_type")]  public string?  AmountType   { get; set; }   // "month" / "hour" (Pay-Frequency)
+    [JsonPropertyName("amount_type")]  public string?  AmountType   { get; set; }   // "week" / "month" / "hour"
+    [JsonPropertyName("amount")]       public decimal? Amount       { get; set; }   // bei "week": Wochenstunden (17=UTP, >17=MTP)
     [JsonPropertyName("week_hours")]   public decimal? WeekHours    { get; set; }
     [JsonPropertyName("percentage")]   public decimal? Percentage   { get; set; }
-    [JsonPropertyName("from")]         public DateOnly? From        { get; set; }
-    [JsonPropertyName("to")]           public DateOnly? To          { get; set; }
-    [JsonPropertyName("updated_at")]   public DateTime? UpdatedAt   { get; set; }
+    // easy@work liefert Datum mal als "yyyy-MM-dd", mal als UTC-Timestamp — als
+    // String einlesen und über EawDateUtil ins Schweizer Datum wandeln (sonst
+    // scheitert DateOnly am Timestamp → Vertrag leer → alles fälschlich UTP).
+    [JsonPropertyName("from")]         public string?  FromRaw      { get; set; }
+    [JsonPropertyName("to")]           public string?  ToRaw        { get; set; }
+    // Space-Format-Timestamp → string-backed (sonst wirft STJ und die ganze
+    // Contract-Deserialisierung scheitert → leere Liste → timeline=0).
+    [JsonPropertyName("updated_at")]   public string?  UpdatedAtRaw { get; set; }
+    [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
+    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
+    [JsonIgnore] public DateTime? UpdatedAt => EawDateUtil.ParseTimestamp(UpdatedAtRaw);
+}
+
+/// <summary>
+/// Funktion/Position eines MA. <c>Name</c> = der Funktions-Code, der 1:1 unserem
+/// <c>job_group.code</c> entspricht (z.B. "SHIFT_LEADER_7_PLUS", "REST_MANAGER",
+/// "CREW"). Quelle: <c>…/employees/{id}/positions</c>. Walter-Vorgabe 22.06.2026.
+/// </summary>
+public class EawPosition
+{
+    [JsonPropertyName("id")]   public int     Id   { get; set; }
+    [JsonPropertyName("name")] public string? Name { get; set; }
 }
 
 /// <summary>Lohnstufe pro MA mit From-Datum.</summary>
@@ -99,10 +166,17 @@ public class EawPayRate
 {
     [JsonPropertyName("id")]           public int      Id          { get; set; }
     [JsonPropertyName("employee_id")]  public int      EmployeeId  { get; set; }
-    [JsonPropertyName("from")]         public DateOnly? From       { get; set; }
+    // Datum als String (Timestamp oder reines Datum) → Schweizer Datum via EawDateUtil.
+    [JsonPropertyName("from")]         public string?  FromRaw     { get; set; }
+    [JsonPropertyName("to")]           public string?  ToRaw       { get; set; }
     [JsonPropertyName("rate")]         public decimal? Rate        { get; set; }
-    [JsonPropertyName("type")]         public string?  Type        { get; set; }   // hourly/monthly/fte
-    [JsonPropertyName("updated_at")]   public DateTime? UpdatedAt  { get; set; }
+    [JsonPropertyName("type")]         public string?  Type        { get; set; }   // "hour" / "month" / "fte"
+    // Space-Format-Timestamp → string-backed (sonst wirft STJ und die ganze
+    // PayRate-Deserialisierung scheitert → leere Liste → kein Lohn, timeline=0).
+    [JsonPropertyName("updated_at")]   public string?  UpdatedAtRaw { get; set; }
+    [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
+    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
+    [JsonIgnore] public DateTime? UpdatedAt => EawDateUtil.ParseTimestamp(UpdatedAtRaw);
 }
 
 /// <summary>

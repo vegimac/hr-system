@@ -532,6 +532,7 @@ public class CompanyProfilesController : ControllerBase
             t.NightStartTime               = source.NightStartTime;
             t.NightEndTime                 = source.NightEndTime;
             t.NormalWeeklyHours            = source.NormalWeeklyHours;
+            t.MaxWeeklyHours               = source.MaxWeeklyHours;
             t.DefaultVacationPercent5Weeks = source.DefaultVacationPercent5Weeks;
             t.DefaultVacationPercent6Weeks = source.DefaultVacationPercent6Weeks;
             t.DefaultHolidayPercent        = source.DefaultHolidayPercent;

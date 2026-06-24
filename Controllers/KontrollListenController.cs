@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -374,7 +375,7 @@ public class KontrollListenController : ControllerBase
         var emps = await empQuery
             .Select(e => new {
                 e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
-                e.NightWorkExamValidUntil, e.NightWorkExamDokumentId
+                e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId
             })
             .ToListAsync();
         var empIds = emps.Select(e => e.Id).ToList();
@@ -386,46 +387,39 @@ public class KontrollListenController : ControllerBase
                      && t.EntryDate <= today && (t.NightHours ?? 0m) > 0m)
             .Select(t => new { t.EmployeeId, t.EntryDate })
             .Distinct().ToListAsync();
-        var nightsByEmp = nightDays.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.Count());
-
-        // Datenmonate (distinct Monate mit Stempeln) — ≤ 12 pro MA.
-        var monthRows = await _db.EmployeeTimeEntries.AsNoTracking()
-            .Where(t => empIds.Contains(t.EmployeeId) && t.EntryDate >= rollStart && t.EntryDate <= today)
-            .Select(t => new { t.EmployeeId, t.EntryDate.Year, t.EntryDate.Month })
-            .Distinct().ToListAsync();
-        var monthsByEmp = monthRows.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.Count());
+        var nightDatesByEmp = nightDays.GroupBy(x => x.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.EntryDate).ToList());
 
         var result = new List<object>();
         foreach (var e in emps)
         {
-            if (!nightsByEmp.TryGetValue(e.Id, out var nights) || nights == 0) continue;
-            int months    = monthsByEmp.TryGetValue(e.Id, out var m) ? m : 0;
-            int projected = months >= 12 ? nights : months > 0 ? (int)Math.Round((double)nights * 12 / months) : 0;
-            if (projected < 25) continue;
+            if (!nightDatesByEmp.TryGetValue(e.Id, out var dates) || dates.Count == 0) continue;
 
-            bool examValid = e.NightWorkExamDokumentId.HasValue
-                          && e.NightWorkExamValidUntil.HasValue
-                          && DateOnly.FromDateTime(e.NightWorkExamValidUntil.Value) >= today;
-            if (examValid) continue;
+            // NEUE Regel: > 18 Nächte in einem rollierenden 6-Wochen-Fenster.
+            var nw = NightWorkComplianceService.Evaluate(dates, today);
+            if (!nw.RequiresDocuments) continue;                 // max ≤ 18 → nicht listen
+
+            // Nachweise vollständig = Arztzeugnis/Verzicht UND Checkliste/Ausnahmeregelung.
+            bool hasExam     = e.NightWorkExamDokumentId.HasValue;
+            bool hasChecklist = e.NightWorkAusnahmeDokumentId.HasValue;
+            if (hasExam && hasChecklist) continue;               // vollständig → nicht listen
 
             string grund =
-                  (!e.NightWorkExamDokumentId.HasValue && !e.NightWorkExamValidUntil.HasValue) ? "Kein Eintrag — Arztzeugnis/Verzicht fehlt"
-                : (e.NightWorkExamValidUntil.HasValue && DateOnly.FromDateTime(e.NightWorkExamValidUntil.Value) < today) ? "Untersuchung abgelaufen"
-                : (!e.NightWorkExamDokumentId.HasValue) ? "Dokument fehlt"
-                : "Ausstellungsdatum fehlt";
+                  (!hasExam && !hasChecklist) ? "Arztzeugnis/Verzicht und Ausnahmeregelung fehlen"
+                : (!hasExam)                  ? "Arztzeugnis/Verzicht fehlt"
+                :                               "Ausnahmeregelung (Checkliste) fehlt";
 
             result.Add(new {
-                employeeId     = e.Id,
-                employeeNumber = e.EmployeeNumber,
-                employeeName   = ($"{e.FirstName} {e.LastName}").Trim(),
-                naechteJahr    = projected,
-                hochgerechnet  = months < 12,
-                datenMonate    = months,
-                gueltigBis     = e.NightWorkExamValidUntil?.ToString("yyyy-MM-dd"),
-                reason         = grund
+                employeeId       = e.Id,
+                employeeNumber   = e.EmployeeNumber,
+                employeeName     = ($"{e.FirstName} {e.LastName}").Trim(),
+                maxNaechte6Wochen = nw.MaxNightsInSixWeeks,
+                windowFrom       = nw.WindowFrom?.ToString("yyyy-MM-dd"),
+                windowTo         = nw.WindowTo?.ToString("yyyy-MM-dd"),
+                reason           = grund
             });
         }
 
-        return Ok(result.OrderByDescending(r => ((dynamic)r).naechteJahr).ToList());
+        return Ok(result.OrderByDescending(r => ((dynamic)r).maxNaechte6Wochen).ToList());
     }
 }
