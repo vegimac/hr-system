@@ -375,8 +375,8 @@ body.theme-dark td { border-color: #334155 !important; color: #f1f5f9 !important
         <div id="apiContractPanel" style="display:none;margin-bottom:18px"></div>
         <div id="importEasyEmployeeList" style="margin-bottom:18px"></div>
 
-        <!-- UPLOAD -->
-        <div class="upload-card" id="uploadSection">
+        <!-- UPLOAD (Legacy-CSV, im laufenden easy@work-Import ausgeblendet) -->
+        <div class="upload-card" id="uploadSection" style="display:none">
             <div class="upload-zone" id="uploadZone"
                 onclick="document.getElementById('csvFile').click()"
                 ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -659,7 +659,7 @@ function onImportBranchChange() {
     if (apiPanel) { apiPanel.style.display = 'none'; apiPanel.innerHTML = ''; }
     document.getElementById('summaryBar').style.display = 'none';
     document.getElementById('resultsSection').style.display = 'none';
-    document.getElementById('uploadSection').style.display = '';
+    document.getElementById('uploadSection').style.display = 'none';
 }
 
 async function importChooseEasyEmployees() {
@@ -758,7 +758,13 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
         tr.style.outline = on ? '2px solid #3b82f6' : '';
         tr.style.outlineOffset = on ? '-2px' : '';
     });
-    if (out) out.innerHTML = `<div class="alert alert-info">⏳ Lade easy@work-Daten und aktualisiere Mitarbeiter…</div>`;
+    const apiPanel = document.getElementById('apiContractPanel');
+    if (apiPanel) {
+        apiPanel.style.display = 'block';
+        apiPanel.innerHTML = `<div class="alert alert-info" style="font-size:14px">⏳ Mitarbeiter wird aus easy@work geholt und vorbereitet…</div>`;
+        apiPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (out) out.innerHTML = '';
     try {
         const res = await fetch(`/api/easywork/employees/${companyProfileId}/${eawEmployeeId}/import-row`, { headers: ah(), cache: 'no-store' });
         const body = await res.json().catch(() => null);
@@ -807,7 +813,6 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
-        const apiPanel = document.getElementById('apiContractPanel');
         if (apiPanel) {
             apiPanel.style.display = 'block';
             apiPanel.innerHTML = `
