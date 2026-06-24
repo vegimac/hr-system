@@ -733,6 +733,18 @@ public class EasyAtWorkEmployeeSyncService
         };
     }
 
+    private static string NameDobKey(string? firstName, string? lastName, DateOnly dateOfBirth)
+    {
+        static string Norm(string? s)
+            => new string((s ?? "")
+                .Trim()
+                .ToLowerInvariant()
+                .Where(char.IsLetterOrDigit)
+                .ToArray());
+
+        return $"{Norm(firstName)}|{Norm(lastName)}|{dateOfBirth:yyyy-MM-dd}";
+    }
+
     /// <summary>
     /// Soll bei einem Nummernwechsel ein Alias gespeichert werden? Nur wenn die
     /// neue Nummer NICHT leer ist, sich von der aktuellen unterscheidet UND noch
