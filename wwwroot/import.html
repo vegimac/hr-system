@@ -379,7 +379,9 @@ body.theme-dark td { border-color: #334155 !important; color: #f1f5f9 !important
                 </select>
                 <div style="font-size:11px;color:#64748b;margin-top:4px">Nur Mitarbeiter dieser Filiale werden importiert</div>
             </div>
+            <button class="btn btn-outline" onclick="importChooseEasyEmployees()" style="white-space:nowrap">👥 Mitarbeiter wählen</button>
         </div>
+        <div id="importEasyEmployeeList" style="margin-top:-8px;margin-bottom:18px"></div>
 
         <!-- UPLOAD -->
         <div class="upload-card" id="uploadSection">
@@ -657,9 +659,72 @@ function onImportBranchChange() {
     // Bestehende Snapshots/Analysen verwerfen, weil sie zu einer anderen Filiale gehörten
     parsedRows = [];
     rowStates = {};
+    const easyList = document.getElementById('importEasyEmployeeList');
+    if (easyList) easyList.innerHTML = '';
     document.getElementById('summaryBar').style.display = 'none';
     document.getElementById('resultsSection').style.display = 'none';
     document.getElementById('uploadSection').style.display = '';
+}
+
+async function importChooseEasyEmployees() {
+    const out = document.getElementById('importEasyEmployeeList');
+    if (!out) return;
+    if (!companyProfileId) {
+        out.innerHTML = `<div class="alert alert-err">Bitte zuerst eine Filiale wählen.</div>`;
+        return;
+    }
+    out.innerHTML = `<div class="alert alert-info">⏳ Lade aktive easy@work-Mitarbeiter…</div>`;
+    try {
+        const res = await fetch(`/api/easywork/employees/active?companyProfileId=${companyProfileId}`, { headers: ah(), cache: 'no-store' });
+        const body = await res.json().catch(() => null);
+        if (!res.ok || !body) {
+            out.innerHTML = `<div class="alert alert-err">${(body && (body.message || body.error)) || ('Fehler HTTP ' + res.status)}</div>`;
+            return;
+        }
+        const rows = (body.employees || []).slice().sort((a, b) =>
+            (a.firstName || '').localeCompare(b.firstName || '', 'de') ||
+            (a.lastName || '').localeCompare(b.lastName || '', 'de'));
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const fmt = iso => {
+            if (!iso) return '–';
+            const s = String(iso).slice(0, 10);
+            return s.length === 10 ? `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}` : esc(iso);
+        };
+        out.innerHTML = `
+            <div class="results-card" style="margin-bottom:16px">
+                <div class="results-header">
+                    <div>
+                        <div class="results-title">Aktive easy@work-Mitarbeiter (${rows.length})</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:2px">Sortiert nach Vorname. Diese Liste schreibt noch nichts.</div>
+                    </div>
+                </div>
+                <div style="max-height:420px;overflow:auto">
+                    <table style="width:100%;border-collapse:collapse;font-size:13px">
+                        <thead>
+                            <tr style="background:#f8fafc;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0">
+                                <th style="padding:8px 12px">Name</th>
+                                <th style="padding:8px 12px">Nr.</th>
+                                <th style="padding:8px 12px">E-Mail</th>
+                                <th style="padding:8px 12px">Eintritt</th>
+                                <th style="padding:8px 12px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(e => `
+                                <tr style="border-bottom:1px solid #f1f5f9">
+                                    <td style="padding:8px 12px;font-weight:600;color:#0f172a">${esc(((e.firstName||'') + ' ' + (e.lastName||'')).trim() || e.name || '–')}</td>
+                                    <td style="padding:8px 12px;color:#64748b;font-family:monospace">${esc(e.number || '-')}</td>
+                                    <td style="padding:8px 12px;color:#64748b">${esc(e.email || '–')}</td>
+                                    <td style="padding:8px 12px;color:#64748b">${fmt(e.from)}</td>
+                                    <td style="padding:8px 12px;text-align:right"></td>
+                                </tr>`).join('') || '<tr><td colspan="5" style="padding:16px;color:#94a3b8;text-align:center">— keine aktiven MA —</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+    } catch (e) {
+        out.innerHTML = `<div class="alert alert-err">Verbindungsfehler: ${String(e.message || e)}</div>`;
+    }
 }
 
 async function loadEmployees() {
