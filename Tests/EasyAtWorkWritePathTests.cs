@@ -146,6 +146,73 @@ public class EasyAtWorkWritePathTests
         Assert.Empty(db.EmployeeTimeEntries);   // nichts geschrieben
     }
 
+    [Fact]
+    public async Task ManualCommit_TiefImport_UsesCutoffOverrideAndIgnoresMissing()
+    {
+        var db = NewDb(nameof(ManualCommit_TiefImport_UsesCutoffOverrideAndIgnoresMissing));
+        db.CompanyProfiles.Add(new CompanyProfile { Id = 10 });
+        db.Employees.Add(new Employee { Id = 1, EmployeeNumber = "580099", FirstName = "A", LastName = "M" });
+        db.EasyAtWorkBranchMappings.Add(new EasyAtWorkBranchMapping { Id = 1, CompanyProfileId = 10, EasyAtWorkCustomerId = 769 });
+        await db.SaveChangesAsync();
+
+        var client = new FakeEawClient();
+        client.Employees.Add(new EawEmployee { Id = 47, Number = "580099", FirstName = "A", LastName = "M", To = new DateOnly(2024, 12, 31) });
+        client.Employees.Add(new EawEmployee { Id = 99, Number = "999999", FirstName = "Fehlt", LastName = "Alt", To = new DateOnly(2024, 12, 31) });
+        client.Timepunches.Add(Punch(400, 47, new DateOnly(2021, 6, 15)));
+        client.Timepunches.Add(Punch(401, 99, new DateOnly(2021, 6, 15)));
+
+        var svc = NewService(db, client);
+        var req = new EasyAtWorkTimepunchSyncService.SyncRequest
+        {
+            CompanyProfileId = 10,
+            From = new DateOnly(2021, 6, 1),
+            To = new DateOnly(2021, 6, 30),
+            EmployeeCutoffOverride = new DateOnly(2021, 1, 1),
+            IgnoreMissing = true
+        };
+
+        var res = await svc.CommitAsync(req, firstAllowed: null);
+
+        Assert.False(res.IsBlocked);
+        Assert.Equal(1, res.Inserted);
+        Assert.Equal(1, res.CountInserted);
+        Assert.Equal(1, res.CountMissing);
+        Assert.Single(db.EmployeeTimeEntries);
+        Assert.Equal(1, db.EmployeeTimeEntries.Single().EmployeeId);
+    }
+
+    [Fact]
+    public async Task ManualCommit_ChoosesOnlyPayrollEmployee_WhenNumberExistsInSeveralBranches()
+    {
+        var db = NewDb(nameof(ManualCommit_ChoosesOnlyPayrollEmployee_WhenNumberExistsInSeveralBranches));
+        db.CompanyProfiles.Add(new CompanyProfile { Id = 10 });
+        db.Employees.AddRange(
+            new Employee { Id = 10, EmployeeNumber = "580099", FirstName = "A", LastName = "Phantom", IsPayrollExcluded = true,  EasyAtWorkEmployeeId = 47 },
+            new Employee { Id = 11, EmployeeNumber = "580099", FirstName = "A", LastName = "Lohn",    IsPayrollExcluded = false, EasyAtWorkEmployeeId = 47 }
+        );
+        db.EasyAtWorkBranchMappings.Add(new EasyAtWorkBranchMapping { Id = 1, CompanyProfileId = 10, EasyAtWorkCustomerId = 769 });
+        await db.SaveChangesAsync();
+
+        var client = new FakeEawClient();
+        client.Employees.Add(new EawEmployee { Id = 47, Number = "580099", FirstName = "A", LastName = "M" });
+        client.Timepunches.Add(Punch(500, 47, new DateOnly(2026, 2, 20)));
+
+        var svc = NewService(db, client);
+        var req = new EasyAtWorkTimepunchSyncService.SyncRequest
+        {
+            CompanyProfileId = 10,
+            From = new DateOnly(2026, 2, 1),
+            To = new DateOnly(2026, 2, 28)
+        };
+
+        var res = await svc.CommitAsync(req, firstAllowed: null);
+
+        Assert.False(res.IsBlocked);
+        Assert.Equal(1, res.Inserted);
+        Assert.Single(db.EmployeeTimeEntries);
+        Assert.Equal(11, db.EmployeeTimeEntries.Single().EmployeeId);
+    }
+
     // ───────────────── Orchestrator: Sync-State Setzen ───────────────────
 
     private static (ServiceProvider sp, FakeEawClient client) BuildProvider(string dbName, FakeEawClient client)

@@ -345,10 +345,19 @@ public class EasyAtWorkTimepunchSyncService
         public int       Deleted  { get; set; }
         public int       LockedSkipped { get; set; }   // wegen gesperrter Periode übersprungen
         public int       Skipped  { get; set; }        // Duplikate / nicht zuordenbar (Delete-Ziel fehlt)
+        public int       Invalid  { get; set; }        // fehlerhafte Stempel, z.B. ohne TimeIn
         public DateTime? MaxUpdatedAt { get; set; }     // höchstes updated_at → neuer Cursor
         public List<MissingEmployee> MissingEmployees { get; set; } = new();
+        public List<MissingEmployee> AmbiguousEmployees { get; set; } = new();
         public List<string> Notes { get; set; } = new();
-        public bool      IsBlocked => MissingEmployees.Count > 0;
+        public bool      MissingAreIgnored { get; set; }
+        public int       CountInserted => Inserted;       // Kompatibel mit dem historischen Batch-UI
+        public int       CountInvalid  => Invalid;
+        public int       CountLocked   => LockedSkipped;
+        public int       CountSkipped  => Skipped;
+        public int       CountMissing  => MissingEmployees.Count;
+        public int       CountAmbiguous => AmbiguousEmployees.Count;
+        public bool      IsBlocked => AmbiguousEmployees.Count > 0 || (!MissingAreIgnored && MissingEmployees.Count > 0);
         /// <summary>Insert + Update + Delete (für last_row_count).</summary>
         public int       RowCount => Inserted + Updated + Deleted;
         /// <summary>Detail der ECHTEN Änderungen (neu + Wert-geändert) für das
@@ -578,7 +587,9 @@ public class EasyAtWorkTimepunchSyncService
 
         var maxUpd = punches.Where(p => p.UpdatedAt.HasValue).Select(p => p.UpdatedAt!.Value).DefaultIfEmpty().Max();
 
-        res = await ApplyTimepunchesAsync(mapping, punches, req.From, req.To, firstAllowed, req.SkipEawEmployeeIds, ct);
+        res = await ApplyTimepunchesAsync(
+            mapping, punches, req.From, req.To, firstAllowed, req.SkipEawEmployeeIds,
+            req.EmployeeCutoffOverride ?? EmployeeCutoff, req.IgnoreMissing, ct);
         res.UsedUpdatesFeed = false;
         res.MaxUpdatedAt = maxUpd == default(DateTime) ? null : maxUpd;
 
@@ -643,7 +654,9 @@ public class EasyAtWorkTimepunchSyncService
             .DefaultIfEmpty().Max();
 
         // Gemeinsamer Schreibpfad (denselben nutzt der manuelle Commit).
-        var res = await ApplyTimepunchesAsync(mapping, punches, from, to, firstAllowedOverride: null, skipEawIds: null, ct: ct);
+        var res = await ApplyTimepunchesAsync(
+            mapping, punches, from, to, firstAllowedOverride: null, skipEawIds: null,
+            importCutoff: EmployeeCutoff, ignoreMissing: false, ct: ct);
         res.UsedUpdatesFeed = useUpdates;
         res.MaxUpdatedAt = maxUpd == default(DateTime) ? state?.LastSeenUpdatedAt : maxUpd;
         return res;
@@ -661,9 +674,14 @@ public class EasyAtWorkTimepunchSyncService
     public async Task<AutoSyncResult> ApplyTimepunchesAsync(
         EasyAtWorkBranchMapping mapping, List<EawTimepunch> punches,
         DateOnly from, DateOnly to, DateOnly? firstAllowedOverride,
-        IReadOnlyCollection<int>? skipEawIds = null, CancellationToken ct = default)
+        IReadOnlyCollection<int>? skipEawIds = null,
+        DateOnly? importCutoff = null,
+        bool ignoreMissing = false,
+        CancellationToken ct = default)
     {
         var res = new AutoSyncResult { From = from, To = to };
+        res.MissingAreIgnored = ignoreMissing;
+        var cutoff = importCutoff ?? EmployeeCutoff;
         var skipSet = skipEawIds is { Count: > 0 } ? new HashSet<int>(skipEawIds) : new HashSet<int>();
 
         // 2) Lokaler Fenster-Filter (gilt AUCH für den Delta-Feed): nur Punches mit
@@ -678,14 +696,16 @@ public class EasyAtWorkTimepunchSyncService
         // 3) MA-Pool (inkl. inaktive, Pre-2025-Austritte gefiltert) + Alias.
         var emps = await _db.Employees.AsNoTracking()
             .Where(e => !e.IsHidden)
-            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
+            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.IsPayrollExcluded, e.EasyAtWorkEmployeeId })
             .ToListAsync(ct);
         // Alte Personalnummern aus der Alias-Tabelle (Walter-Vorgabe 21.06.2026).
         var aliasNumsByEmp = (await _db.EmployeeNumberAliases.AsNoTracking()
                 .Select(a => new { a.Number, a.EmployeeId }).ToListAsync(ct))
             .GroupBy(a => a.EmployeeId)
             .ToDictionary(g => g.Key, g => g.Select(a => a.Number).ToList());
-        // Keys = aktuelle Personalnummer UND alle Alias-Nummern.
+        // Keys = aktuelle Personalnummer UND alle Alias-Nummern. Gruppiert, weil
+        // dieselbe Person in mehreren Filialen vorkommen kann; ResolvePayrollSink
+        // wählt danach den genau einen Lohn-MA.
         var byNumber = emps
             .SelectMany(e =>
             {
@@ -696,16 +716,34 @@ public class EasyAtWorkTimepunchSyncService
                 return keys.Select(k => new { Key = k, Emp = e });
             })
             .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().Emp, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Emp).ToList(), StringComparer.OrdinalIgnoreCase);
+        var empById = emps.ToDictionary(e => e.Id, e => e);
+        var byEawId = emps
+            .Where(e => e.EasyAtWorkEmployeeId.HasValue)
+            .GroupBy(e => e.EasyAtWorkEmployeeId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
         var aliasMap = (await _db.EasyAtWorkEmployeeAliases.AsNoTracking()
                 .Select(a => new { a.EasyAtWorkId, a.EmployeeId }).ToListAsync(ct))
             .GroupBy(a => a.EasyAtWorkId).ToDictionary(g => g.Key, g => g.First().EmployeeId);
+
+        List<CoworkCandidate> GatherCandidates(int eawEmployeeId, EawEmployee? ee, string? number)
+        {
+            var seen = new HashSet<int>();
+            var list = new List<CoworkCandidate>();
+            void AddId(int id, bool excluded) { if (seen.Add(id)) list.Add(new CoworkCandidate(id, excluded)); }
+            if (byEawId.TryGetValue(eawEmployeeId, out var g1)) foreach (var e in g1) AddId(e.Id, e.IsPayrollExcluded);
+            if (ee?.UserId is int uid && byEawId.TryGetValue(uid, out var g2)) foreach (var e in g2) AddId(e.Id, e.IsPayrollExcluded);
+            var n = number?.Trim();
+            if (!string.IsNullOrEmpty(n) && byNumber.TryGetValue(n, out var g3)) foreach (var e in g3) AddId(e.Id, e.IsPayrollExcluded);
+            if (aliasMap.TryGetValue(eawEmployeeId, out var aid) && empById.TryGetValue(aid, out var ae)) AddId(ae.Id, ae.IsPayrollExcluded);
+            return list;
+        }
 
         // easy@work-MA-Liste (für Number-Auflösung). Schlägt der Aufruf fehl,
         // propagiert die Exception zum Orchestrator → landet in last_error.
         Dictionary<int, EawEmployee> eawEmpById = new();
         var eawEmps = FilterRelevantEmployees(
-            await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct));
+            await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct), cutoff);
         foreach (var e in eawEmps) eawEmpById[e.Id] = e;
 
         var coworkByEawId = await _db.Employees.AsNoTracking()
@@ -723,10 +761,44 @@ public class EasyAtWorkTimepunchSyncService
         // Übersprungene MA (Walter-Vorgabe 20.06.2026) fliessen NICHT in den
         // Preflight-Block ein — sie werden weiter unten als „Skipped" gezählt.
         var editableForPreflight = windowed
-            .Where(p => { var d = PunchDate(p); return d.HasValue && IsImportable(d.Value, closedPeriods)
+            .Where(p => { var d = PunchDate(p); return d.HasValue && IsImportable(d.Value, closedPeriods, cutoff)
                           && !skipSet.Contains(p.EmployeeId); });
-        res.MissingEmployees = ComputePreflightMissing(
-            editableForPreflight, eawEmpById, new HashSet<string>(byNumber.Keys), aliasMap);
+        var missingPf = new Dictionary<int, MissingEmployee>();
+        var ambigPf   = new Dictionary<int, MissingEmployee>();
+        foreach (var p in editableForPreflight)
+        {
+            if (p.DeletedAt != null || !p.In.HasValue) continue;
+            eawEmpById.TryGetValue(p.EmployeeId, out var ee);
+            var match = ResolvePayrollSink(GatherCandidates(p.EmployeeId, ee, ee?.Number));
+            if (match.Kind == PayrollMatchKind.Matched || match.Kind == PayrollMatchKind.AllExcluded)
+                continue;
+
+            var bucket = match.Kind == PayrollMatchKind.Ambiguous ? ambigPf : missingPf;
+            if (bucket.TryGetValue(p.EmployeeId, out var existing))
+            {
+                existing.TimepunchCount++;
+                continue;
+            }
+            var number = ee?.Number?.Trim();
+            bucket[p.EmployeeId] = new MissingEmployee
+            {
+                EawEmployeeId = p.EmployeeId,
+                EawEmployeeNumber = number,
+                EawEmployeeName = ee == null ? null : $"{ee.FirstName} {ee.LastName}".Trim(),
+                TimepunchCount = 1,
+                Reason = match.Kind == PayrollMatchKind.Ambiguous
+                    ? "Mehrere Cowork-Lohn-MA (IsPayrollExcluded=false) für diese Person — Lohn-MA nicht eindeutig. Bitte bereinigen."
+                    : (ee == null
+                        ? "easy@work-MA nicht in der Mitarbeiterliste auffindbar — bitte zuordnen."
+                        : string.IsNullOrEmpty(number)
+                            ? "easy@work-MA hat keine Personalnummer — bitte zuordnen."
+                            : $"Personalnummer '{number}' existiert nicht in Cowork — MA zuerst anlegen/importieren."),
+            };
+        }
+        res.MissingEmployees   = missingPf.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
+        res.AmbiguousEmployees = ambigPf.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
+        if (res.MissingEmployees.Count > 0 && ignoreMissing)
+            res.Notes.Add($"{res.MissingEmployees.Count} nicht zuordenbare easy@work-MA übersprungen (Tief-Import).");
         if (res.IsBlocked) return res;
 
         // 5) Nachtfenster der Filiale.
@@ -756,7 +828,7 @@ public class EasyAtWorkTimepunchSyncService
             if (p.Id != 0 && !seenBatch.Add(p.Id)) continue; // Pagination-Dublette
             if (skipSet.Contains(p.EmployeeId)) { res.Skipped++; continue; } // bewusst übersprungener MA
             var pDate = PunchDate(p)!.Value;
-            if (!IsImportable(pDate, closedPeriods)) { res.LockedSkipped++; continue; }
+            if (!IsImportable(pDate, closedPeriods, cutoff)) { res.LockedSkipped++; continue; }
 
             dbByEawId.TryGetValue(p.Id, out var existing);
 
@@ -766,16 +838,29 @@ public class EasyAtWorkTimepunchSyncService
                 if (existing != null) { _db.EmployeeTimeEntries.Remove(existing); res.Deleted++; }
                 continue;
             }
-            if (!p.In.HasValue) { res.Skipped++; continue; }
+            if (!p.In.HasValue) { res.Invalid++; continue; }
 
-            // MA auflösen (Number, sonst Alias) — Preflight hat das bereits abgesichert.
-            int? coworkId = null;
-            if (eawEmpById.TryGetValue(p.EmployeeId, out var eawEmp)
-                && !string.IsNullOrWhiteSpace(eawEmp.Number)
-                && byNumber.TryGetValue(eawEmp.Number!.Trim(), out var byNum))
-                coworkId = byNum.Id;
-            else if (aliasMap.TryGetValue(p.EmployeeId, out var aliasId)) coworkId = aliasId;
-            if (coworkId == null) { res.Skipped++; continue; }
+            // MA auflösen mit derselben Payroll-Sink-Regel wie die Vorschau.
+            eawEmpById.TryGetValue(p.EmployeeId, out var eawEmp);
+            var match = ResolvePayrollSink(GatherCandidates(p.EmployeeId, eawEmp, eawEmp?.Number));
+            if (match.Kind == PayrollMatchKind.AllExcluded || match.Kind == PayrollMatchKind.NoCandidate || match.SinkEmployeeId is null)
+            {
+                res.Skipped++;
+                continue;
+            }
+            if (match.Kind == PayrollMatchKind.Ambiguous)
+            {
+                res.AmbiguousEmployees.Add(new MissingEmployee
+                {
+                    EawEmployeeId = p.EmployeeId,
+                    EawEmployeeNumber = eawEmp?.Number,
+                    EawEmployeeName = eawEmp == null ? null : $"{eawEmp.FirstName} {eawEmp.LastName}".Trim(),
+                    TimepunchCount = 1,
+                    Reason = "Mehrere Cowork-Lohn-MA (IsPayrollExcluded=false) für diese Person — Lohn-MA nicht eindeutig."
+                });
+                continue;
+            }
+            var coworkId = match.SinkEmployeeId.Value;
 
             var inLocal  = UtcToSwissLocal(p.In.Value);
             var outLocal = p.Out.HasValue ? UtcToSwissLocal(p.Out.Value) : (DateTime?)null;
@@ -802,7 +887,7 @@ public class EasyAtWorkTimepunchSyncService
                 decimal? oldTotal = existing.TotalHours;
                 decimal? oldNight = existing.NightHours;
 
-                existing.EmployeeId    = coworkId.Value;
+                existing.EmployeeId    = coworkId;
                 existing.EntryDate     = businessDate;
                 existing.TimeIn        = inLocal;
                 existing.TimeOut       = outLocal;
@@ -820,18 +905,18 @@ public class EasyAtWorkTimepunchSyncService
                 res.Updated++;
                 if (realChange)
                     res.Changes.Add(new SyncChange {
-                        EmployeeId = coworkId.Value, Date = businessDate, Action = "geaendert",
+                        EmployeeId = coworkId, Date = businessDate, Action = "geaendert",
                         OldTotal = oldTotal, NewTotal = total, OldNight = oldNight, NewNight = night
                     });
                 continue;
             }
 
             // c) Dedup gegen Lokalzeit → sonst INSERT.
-            var key = coworkId.Value + "|" + inLocal.ToString("yyyy-MM-ddTHH:mm:ss");
+            var key = coworkId + "|" + inLocal.ToString("yyyy-MM-ddTHH:mm:ss");
             if (existingKeys.Contains(key)) { res.Skipped++; continue; }
             _db.EmployeeTimeEntries.Add(new EmployeeTimeEntry
             {
-                EmployeeId    = coworkId.Value,
+                EmployeeId    = coworkId,
                 EntryDate     = businessDate,
                 TimeIn        = inLocal,
                 TimeOut       = outLocal,
@@ -853,7 +938,7 @@ public class EasyAtWorkTimepunchSyncService
             existingKeys.Add(key);
             res.Inserted++;
             res.Changes.Add(new SyncChange {
-                EmployeeId = coworkId.Value, Date = businessDate, Action = "neu",
+                EmployeeId = coworkId, Date = businessDate, Action = "neu",
                 OldTotal = null, NewTotal = total, OldNight = null, NewNight = night
             });
         }
