@@ -575,6 +575,53 @@ public class EasyAtWorkController : ControllerBase
         return Ok(res);
     }
 
+    /// <summary>
+    /// Aktive easy@work-Mitarbeitende einer Filiale (read-only) für den neuen
+    /// laufenden API-Abgleich. Sortierung nach Vorname, Tie-Break Nachname
+    /// (Walter-Konvention für alle MA-Listen). Schreibt nichts.
+    /// </summary>
+    [HttpGet("employees/active")]
+    public async Task<IActionResult> GetActiveEasyAtWorkEmployees([FromQuery] int companyProfileId, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null)
+            return NotFound(new { error = "NOT_MAPPED", message = "Filiale ist nicht mit easy@work verknüpft." });
+
+        var activeAt = DateOnly.FromDateTime(DateTime.Today);
+        var emps = await _client.GetAllEmployeesActiveAtAsync(mapping.EasyAtWorkCustomerId, activeAt, ct);
+        var rows = emps
+            .OrderBy(e => e.FirstName ?? "", StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(e => e.LastName ?? "", StringComparer.CurrentCultureIgnoreCase)
+            .Select(e => new
+            {
+                easyAtWorkEmployeeId = e.Id,
+                easyAtWorkUserId = e.UserId,
+                e.Number,
+                e.FirstName,
+                e.LastName,
+                name = $"{e.FirstName} {e.LastName}".Trim(),
+                e.Email,
+                e.Phone,
+                from = e.From,
+                to = e.To,
+                updatedAt = e.UpdatedAt,
+                mapping.CompanyProfileId,
+                mapping.EasyAtWorkCustomerId
+            })
+            .ToList();
+
+        return Ok(new
+        {
+            companyProfileId = mapping.CompanyProfileId,
+            customerId = mapping.EasyAtWorkCustomerId,
+            activeAt,
+            count = rows.Count,
+            employees = rows
+        });
+    }
+
     public record InitialImportDto(DateOnly? Since, bool? SkipDetailCalls = null);
     public record InitialImportBranchDto(int CompanyProfileId, DateOnly? Since, bool? SkipDetailCalls = null);
 

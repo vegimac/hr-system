@@ -601,6 +601,60 @@ function _eawEmpSyncInit() {
         : '<option value="">— keine Filiale gemappt —</option>';
 }
 
+async function eawEmpChooseEmployees() {
+    const sel = document.getElementById('eawEmpSyncBranchSel');
+    const out = document.getElementById('eawEmpChooseResult');
+    if (!out) return;
+    const cpId = parseInt(sel?.value || '0', 10);
+    if (!cpId) {
+        out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Bitte zuerst Filiale wählen</div></div>`;
+        return;
+    }
+    out.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px;display:flex;align-items:center;gap:8px">
+        <span class="import-spinner" style="width:14px;height:14px"></span>
+        <span>Lade aktive easy@work-Mitarbeiter…</span></div>`;
+    try {
+        const r = await fetch(`/api/easywork/employees/active?companyProfileId=${cpId}`, { headers: ah(), cache: 'no-store' });
+        const body = await r.json().catch(() => null);
+        if (!r.ok || !body) {
+            out.innerHTML = `<div class="eaw-result eaw-result-err">
+                <div class="eaw-result-title">Fehler ${r.status}</div>
+                <div class="eaw-result-msg">${escapeHtml(body?.message || body?.error || 'Aktive MA konnten nicht geladen werden.')}</div>
+            </div>`;
+            return;
+        }
+        const rows = (body.employees || []).slice().sort((a, b) =>
+            (a.firstName || '').localeCompare(b.firstName || '', 'de') ||
+            (a.lastName || '').localeCompare(b.lastName || '', 'de'));
+        const tableRows = rows.map(e => `
+            <tr>
+                <td style="padding:7px 10px;font-weight:600;color:#0f172a">${escapeHtml(((e.firstName||'') + ' ' + (e.lastName||'')).trim() || e.name || '–')}</td>
+                <td style="padding:7px 10px;color:#64748b;font-family:monospace">${escapeHtml(e.number || '-')}</td>
+                <td style="padding:7px 10px;color:#64748b">${escapeHtml(e.email || '–')}</td>
+                <td style="padding:7px 10px;color:#64748b">${_eawDate(e.from)}</td>
+                <td style="padding:7px 10px;text-align:right">
+                    <button onclick="document.getElementById('eawDumpNumber').value='${escapeHtml(e.number || '')}';eawEmpDump()" style="background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer">🔬 Felder</button>
+                </td>
+            </tr>`).join('');
+        out.innerHTML = `
+            <div style="border:1px solid #dbeafe;background:#eff6ff;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+                <div style="font-weight:700;color:#1d4ed8;margin-bottom:3px">Aktive easy@work-Mitarbeiter (${rows.length})</div>
+                <div style="font-size:12px;color:#64748b">Sortiert nach Vorname. Diese Liste schreibt noch nichts.</div>
+            </div>
+            <div style="max-height:420px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff">
+                <table class="eaw-sync-table" style="margin:0">
+                    <thead><tr><th>Name</th><th>Nr.</th><th>E-Mail</th><th>Eintritt</th><th></th></tr></thead>
+                    <tbody>${tableRows || '<tr><td colspan="5" style="padding:12px;color:#94a3b8">— keine aktiven MA —</td></tr>'}</tbody>
+                </table>
+            </div>`;
+    } catch (e) {
+        out.innerHTML = `<div class="eaw-result eaw-result-err">
+            <div class="eaw-result-title">Netzwerkfehler</div>
+            <div class="eaw-result-msg">${escapeHtml(String(e))}</div>
+        </div>`;
+    }
+}
+
 async function eawEmpSyncPreview() {
     await _eawEmpSyncRun(false, null);
 }

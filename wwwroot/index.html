@@ -5657,12 +5657,14 @@
                                 <option value="active">Nur aktive</option>
                             </select>
                         </label>
+                        <button class="btn-secondary" onclick="eawEmpChooseEmployees()">👥 Mitarbeiter wählen</button>
                         <button class="btn-primary" onclick="eawEmpSyncPreview()">🔍 Vorschau</button>
                         <button class="btn-secondary" id="eawEmpSyncCommitBtn" onclick="eawEmpSyncCommit()" disabled>💾 Ausgewählte importieren</button>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-bottom:10px">
                         <strong>Alle</strong> = aktive + alle seit dem 1.1.2025 Ausgetretenen (Pre-Mirus-Austritte vor 2025 werden ausgelassen). <strong>Nur aktive</strong> = nur aktuell beschäftigte MA. Geschrieben wird beim Import nur, was du pro MA auswählst.
                     </div>
+                    <div id="eawEmpChooseResult" style="margin-bottom:12px"></div>
                     <div id="eawEmpSyncResult"></div>
 
                     <!-- API-Dump (Diagnose): alle Roh-Felder eines MA ansehen (Walter 22.06.2026) -->
@@ -9252,7 +9254,7 @@ function onBranchChange() {
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
-<script src="js/easyatwork.js?v=20260623b"></script>
+<script src="js/easyatwork.js?v=20260624a"></script>
 <script src="js/employee-merge.js?v=20260621a"></script>
 <script src="js/sollstunden-report.js?v=20260620i"></script>
 <script src="js/ferien-report.js?v=20260622a"></script>
