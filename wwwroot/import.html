@@ -318,6 +318,32 @@ body.theme-dark td { border-color: #334155 !important; color: #f1f5f9 !important
 .addr-field { background: #f8fafc; border-radius: 4px; padding: 4px 8px; }
 .addr-field-label { font-size: 9.5px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em; }
 .addr-field-value { font-size: 11.5px; color: #1e293b; font-weight: 500; margin-top: 1px; line-height: 1.3; }
+
+/* API-Vertragsmodus: nach MA-Auswahl soll der ganze Bildschirm der Vertragserfassung gehören. */
+body.import-contract-mode .topbar { padding: 10px 24px; }
+body.import-contract-mode .container { max-width: 1180px; padding: 12px 18px; }
+body.import-contract-mode .page-title,
+body.import-contract-mode .page-sub { display: none; }
+body.import-contract-mode #apiContractPanel { margin-bottom: 0 !important; }
+body.import-contract-mode .api-contract-card { margin-bottom: 0; border-radius: 12px; }
+body.import-contract-mode .api-contract-card .results-header { padding: 10px 14px; }
+body.import-contract-mode .api-contract-card .row-item { padding: 8px 12px; border-bottom: 0; }
+body.import-contract-mode .api-contract-card .row-header { display: none; }
+body.import-contract-mode .api-contract-card .row-detail { margin-top: 0; padding-top: 0; border-top: 0; }
+body.import-contract-mode .api-contract-card .addr-fields { grid-template-columns: repeat(5, 1fr); gap: 3px 5px; margin-top: 4px; }
+body.import-contract-mode .api-contract-card .addr-field { padding: 3px 6px; }
+body.import-contract-mode .api-contract-card .addr-field-label { font-size: 9px; }
+body.import-contract-mode .api-contract-card .addr-field-value { font-size: 11px; line-height: 1.2; }
+body.import-contract-mode .api-contract-card .contract-form { padding: 8px 10px; margin-top: 6px; }
+body.import-contract-mode .api-contract-card .contract-form-title { margin-bottom: 6px; }
+body.import-contract-mode .api-contract-card .form-grid { gap: 6px 8px; }
+body.import-contract-mode .api-contract-card .form-group { gap: 2px; }
+body.import-contract-mode .api-contract-card .form-input,
+body.import-contract-mode .api-contract-card .form-select { padding: 5px 8px; font-size: 12px; }
+body.import-contract-mode .api-contract-card .form-label { font-size: 10.5px; }
+body.import-contract-mode .api-contract-card .form-hint { margin-top: 1px; }
+body.import-contract-mode .api-contract-card .compliance-box { margin-top: 7px; padding: 8px 10px; }
+body.import-contract-mode .api-contract-card .row-actions { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -657,14 +683,26 @@ function onImportBranchChange() {
     if (easyList) easyList.innerHTML = '';
     const apiPanel = document.getElementById('apiContractPanel');
     if (apiPanel) { apiPanel.style.display = 'none'; apiPanel.innerHTML = ''; }
+    document.body.classList.remove('import-contract-mode');
     document.getElementById('summaryBar').style.display = 'none';
     document.getElementById('resultsSection').style.display = 'none';
     document.getElementById('uploadSection').style.display = 'none';
 }
 
+function importBackToEasyEmployeeList() {
+    document.body.classList.remove('import-contract-mode');
+    const apiPanel = document.getElementById('apiContractPanel');
+    if (apiPanel) { apiPanel.style.display = 'none'; apiPanel.innerHTML = ''; }
+    const easyList = document.getElementById('importEasyEmployeeList');
+    if (easyList) easyList.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 async function importChooseEasyEmployees() {
     const out = document.getElementById('importEasyEmployeeList');
     if (!out) return;
+    document.body.classList.remove('import-contract-mode');
+    out.style.display = 'block';
     if (!companyProfileId) {
         out.innerHTML = `<div class="alert alert-err">Bitte zuerst eine Filiale wählen.</div>`;
         return;
@@ -752,12 +790,15 @@ function renderImportEasyEmployeeRows() {
 async function importPreviewEasyEmployee(eawEmployeeId) {
     if (!eawEmployeeId || !companyProfileId) return;
     const out = document.getElementById('uploadAlert');
+    document.body.classList.add('import-contract-mode');
     document.querySelectorAll('#importEasyEmployeeList tr[data-eaw-id]').forEach(tr => {
         const on = Number(tr.dataset.eawId) === Number(eawEmployeeId);
         tr.style.background = on ? '#dbeafe' : '';
         tr.style.outline = on ? '2px solid #3b82f6' : '';
         tr.style.outlineOffset = on ? '-2px' : '';
     });
+    const easyList = document.getElementById('importEasyEmployeeList');
+    if (easyList) easyList.style.display = 'none';
     const apiPanel = document.getElementById('apiContractPanel');
     if (apiPanel) {
         apiPanel.style.display = 'block';
@@ -769,7 +810,12 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
         const res = await fetch(`/api/easywork/employees/${companyProfileId}/${eawEmployeeId}/import-row`, { headers: ah(), cache: 'no-store' });
         const body = await res.json().catch(() => null);
         if (!res.ok || !body?.row) {
-            if (out) out.innerHTML = `<div class="alert alert-err">${(body && (body.message || body.error)) || ('Fehler HTTP ' + res.status)}</div>`;
+            if (apiPanel) {
+                apiPanel.innerHTML = `<div class="alert alert-err">
+                    ${(body && (body.message || body.error)) || ('Fehler HTTP ' + res.status)}
+                    <div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="importBackToEasyEmployeeList()">← Zurück zur MA-Auswahl</button></div>
+                </div>`;
+            }
             return;
         }
         const row = body.row;
@@ -816,13 +862,13 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
         if (apiPanel) {
             apiPanel.style.display = 'block';
             apiPanel.innerHTML = `
-                <div class="results-card">
+                <div class="results-card api-contract-card">
                     <div class="results-header">
                         <div>
                             <div class="results-title">📋 Vertrag erfassen</div>
                             <div style="font-size:12px;color:#64748b;margin-top:2px">${get(row,'Vorname')} ${get(row,'Nachname')} · Nr. ${get(row,'Nummer')}</div>
                         </div>
-                        <button class="btn btn-outline" onclick="document.getElementById('apiContractPanel').style.display='none';document.getElementById('apiContractPanel').innerHTML='';">Schliessen</button>
+                        <button class="btn btn-outline" onclick="importBackToEasyEmployeeList()">← Zurück zur MA-Auswahl</button>
                     </div>
                     <div id="apiContractContent"></div>
                 </div>`;
@@ -841,7 +887,12 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
         }
         if (out) out.innerHTML = `<div class="alert alert-ok">✅ Mitarbeiter-Stammdaten aktualisiert – Vertrag jetzt prüfen und speichern.</div>`;
     } catch (e) {
-        if (out) out.innerHTML = `<div class="alert alert-err">Verbindungsfehler: ${String(e.message || e)}</div>`;
+        if (apiPanel) {
+            apiPanel.innerHTML = `<div class="alert alert-err">
+                Verbindungsfehler: ${String(e.message || e)}
+                <div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="importBackToEasyEmployeeList()">← Zurück zur MA-Auswahl</button></div>
+            </div>`;
+        }
     }
 }
 
@@ -1769,7 +1820,7 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
         return `<option value="${code}" ${sel}>${name}</option>`;
     }).join('');
 
-    // Build CSV info for display
+    // Build easy@work info for display
     const csvModel = suggestedModel;
     const csvFunktion = get(row, 'Funktion');
     const csvVon = fmtDe(get(row, 'Von'));
@@ -1780,7 +1831,7 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
     const csvAnzahl = get(row, 'Anzahl');
     const csvStore = get(row, 'Store name') || get(row, 'Store number');
 
-    // Info-Banner: bei Lohnänderung Vergleich alt → neu, sonst CSV-Übersicht
+    // Info-Banner: bei Lohnänderung Vergleich alt → neu, sonst easy@work-Übersicht
     const banner = isSalaryChange
         ? (() => {
             const oldFte   = activeContract.monthlySalaryFte;
@@ -1833,7 +1884,7 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
             </div>`;
         })()
         : `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:10px">
-            <div style="font-size:10.5px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Vertragsdaten aus CSV</div>
+            <div style="font-size:10.5px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Vertragsdaten aus easy@work</div>
             <div class="addr-fields">
                 ${addrField('Vertragstyp', csvModel)}
                 ${addrField('Funktion', csvFunktion)}
@@ -2185,7 +2236,7 @@ function renderContractRow(c) {
         </div>
         <div class="row-detail" id="detail-${idx}">
             <div id="rowAlert-${idx}"></div>
-            <div style="font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Personaldaten aus CSV</div>
+            <div style="font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Personaldaten aus easy@work</div>
             <div class="addr-fields" style="margin-bottom:10px">
                 ${addrField('Vorname', get(row,'Vorname'))}
                 ${addrField('Nachname', get(row,'Nachname'))}
