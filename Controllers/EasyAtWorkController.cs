@@ -753,7 +753,15 @@ public class EasyAtWorkController : ControllerBase
         var c = CurrentContract(contracts);
         var monthlyRate = CurrentRate(rates, "month") ?? CurrentRate(rates, "fte");
         var hourlyRate  = CurrentRate(rates, "hour");
-        var position = positions.FirstOrDefault()?.Name ?? Prop(props, "cf_src_job_code") ?? "";
+        var functionValues = positions
+            .Select(p => p.Name?.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var propertyFunction = Prop(props, "cf_src_job_code")?.Trim();
+        if (functionValues.Count == 0 && !string.IsNullOrWhiteSpace(propertyFunction))
+            functionValues.Add(propertyFunction);
+        var position = functionValues.Count == 1 ? functionValues[0] : string.Join(", ", functionValues);
         var isKader = position is "ASST_1" or "ASST_2" or "REST_MANAGER" or "SHIFT_LEADER_1_6" or "SHIFT_LEADER_7_PLUS";
         var info = Services.EasyAtWork.EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, rates, today, isKader);
         var payFrequency = info.SalaryType == "monthly" ? "month" : "hour";
@@ -766,6 +774,8 @@ public class EasyAtWorkController : ControllerBase
         var row = new Dictionary<string, string?>
         {
             ["__source"] = "easywork-api",
+            ["__functionCount"] = functionValues.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["__functionRaw"] = string.Join(", ", functionValues),
             ["Nummer"] = emp.Number,
             ["Vorname"] = emp.FirstName,
             ["Nachname"] = emp.LastName,
