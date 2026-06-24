@@ -1160,7 +1160,7 @@ function validateCcntQualification(raw) {
     if (!s) {
         return {
             ok: false,
-            message: 'Gastroausbildung fehlt in easy@work. Bitte in easy@work im Feld "Qualification CCNT" einen der Werte 1–5 erfassen.'
+            message: `Gastroausbildung fehlt in easy@work. Bitte in easy@work im Feld "Qualification CCNT" einen dieser Werte erfassen: ${Object.values(ALLOWED_CCNT_QUALIFICATIONS).join(', ')}.`
         };
     }
     if (!num || !ALLOWED_CCNT_QUALIFICATIONS[num]) {
