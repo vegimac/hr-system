@@ -1544,6 +1544,9 @@ public class EasyAtWorkEmployeeSyncService
         return $"{Norm(firstName)}|{Norm(lastName)}|{dateOfBirth:yyyy-MM-dd}";
     }
 
+    private static string NameDobKey(string? firstName, string? lastName, DateOnly dateOfBirth)
+        => NameDobKey(firstName, lastName, dateOfBirth.ToDateTime(TimeOnly.MinValue));
+
     /// <summary>
     /// Soll bei einem Nummernwechsel ein Alias gespeichert werden? Nur wenn die
     /// neue Nummer NICHT leer ist, sich von der aktuellen unterscheidet UND noch
@@ -1576,12 +1579,6 @@ public class EasyAtWorkEmployeeSyncService
         });
         emp.EmployeeNumber = newNumber.Trim();
     }
-
-    /// <summary>Schlüssel für den Name+Geburtsdatum-Match (case-insensitiv, getrimmt).</summary>
-    private static string NameDobKey(string? firstName, string? lastName, DateTime dob)
-        => $"{(firstName ?? "").Trim().ToLowerInvariant()}|{(lastName ?? "").Trim().ToLowerInvariant()}|{dob:yyyy-MM-dd}";
-    private static string NameDobKey(string? firstName, string? lastName, DateOnly dob)
-        => $"{(firstName ?? "").Trim().ToLowerInvariant()}|{(lastName ?? "").Trim().ToLowerInvariant()}|{dob:yyyy-MM-dd}";
 
     /// <summary>easy@work-Gender → unser Wert „male"/„female" (sonst null).</summary>
     private static string? NormalizeGender(string? g)
