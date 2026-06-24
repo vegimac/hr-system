@@ -733,7 +733,7 @@ public class EasyAtWorkEmployeeSyncService
         };
     }
 
-    private static string NameDobKey(string? firstName, string? lastName, DateOnly dateOfBirth)
+    private static string NameDobKey(string? firstName, string? lastName, DateTime dateOfBirth)
     {
         static string Norm(string? s)
             => new string((s ?? "")
