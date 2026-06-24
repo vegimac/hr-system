@@ -1147,6 +1147,68 @@ const FUNKTION_MAP = {
 // DB-Codes, die zu FIX-M (Festlohn Management) führen.
 const FIX_M_ROLES = ['ASST_1', 'ASST_2', 'REST_MANAGER', 'SHIFT_LEADER_1_6', 'SHIFT_LEADER_7_PLUS'];
 
+const EMPLOYEE_NUMBER_PREFIX_RULES = {
+    '58':  { prefix: '58',  name: 'Oftringen' },
+    '75':  { prefix: '75',  name: 'Sursee' },
+    '104': { prefix: '104', name: 'Langenthal' },
+    '230': { prefix: '230', name: 'Langenthal Drive' },
+    '129': { prefix: '129', name: 'Reinach' },
+    '122': { prefix: '122', name: 'Lenzburg' },
+    '225': { prefix: '225', name: 'Hendschiken' }
+};
+
+function activeEmployeeNumberRule(row) {
+    const rawStore = String(get(row, 'Store number', 'Store Number') || activeStoreNumber || '').replace(/\D/g, '');
+    const store = String(parseInt(rawStore || '0', 10) || '');
+    return EMPLOYEE_NUMBER_PREFIX_RULES[store] || null;
+}
+
+function validateEmployeeNumberForApiImport(row) {
+    if (!isEasyworkApiImportRow(row)) return { ok: true };
+    const raw = String(get(row, 'Nummer') || '').trim();
+    const digits = raw.replace(/\D/g, '');
+    const rule = activeEmployeeNumberRule(row);
+    if (!raw || digits.length < 6) {
+        return { ok: false, raw, digits, rule, message: 'Die MA-Nummer fehlt oder hat weniger als 6 Stellen.' };
+    }
+    if (!rule) {
+        return { ok: false, raw, digits, rule, message: 'Für diese Filiale ist keine MA-Nummern-Regel hinterlegt.' };
+    }
+    if (!digits.startsWith(rule.prefix)) {
+        return { ok: false, raw, digits, rule, message: `Die MA-Nummer muss in ${rule.name} mit ${rule.prefix} beginnen.` };
+    }
+    return { ok: true, raw, digits, rule };
+}
+
+function employeeNumberErrorHtml(row) {
+    const v = validateEmployeeNumberForApiImport(row);
+    if (v.ok) return '';
+    const name = `${get(row, 'Vorname')} ${get(row, 'Nachname')}`.trim() || 'Mitarbeiter';
+    const nr = get(row, 'Nummer') || 'FEHLT';
+    const branchText = v.rule ? `${v.rule.name} (Prefix ${v.rule.prefix})` : (get(row, 'Store number', 'Store Number') || activeStoreNumber || 'unbekannte Filiale');
+    return `<div class="alert alert-err" style="margin:0 0 10px 0;padding:16px 18px;border-width:2px;font-size:14px;line-height:1.5">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+            <div style="font-size:28px;line-height:1">⛔</div>
+            <div style="flex:1">
+                <div style="font-weight:800;font-size:16px;margin-bottom:6px">MA-Nummer in easy@work korrigieren</div>
+                <div style="margin-bottom:10px">${v.message}<br>Aktueller Wert: <b>${nr}</b> · Erwartete Filiale: <b>${branchText}</b></div>
+                <div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;color:#7f1d1d">
+                    <div style="font-weight:700;margin-bottom:6px">So korrigierst du es:</div>
+                    <ol style="margin-left:18px">
+                        <li>Gehe ins <b>easy@work</b>.</li>
+                        <li>Öffne den Mitarbeiter <b>${nr} – ${name}</b>.</li>
+                        <li>Suche das Feld <b>Employeenumber in Payroll system</b>.</li>
+                        <li>Erfasse dort die korrekte MA-Nummer mit mindestens <b>6 Stellen</b>.</li>
+                        <li>Die Nummer muss für diese Filiale mit <b>${v.rule?.prefix || 'dem korrekten Filial-Code'}</b> beginnen.</li>
+                        <li>Speichere die Änderung und lade den Mitarbeiter im HR-System erneut.</li>
+                    </ol>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:#7f1d1d">Der Vertrag kann erst übernommen werden, wenn easy@work eine gültige MA-Nummer liefert.</div>
+            </div>
+        </div>
+    </div>`;
+}
+
 const ALLOWED_CCNT_QUALIFICATIONS = {
     '1': '1 Avec examen professionnel',
     '2': '2 Avec CFC + 6 jours',
@@ -2295,6 +2357,27 @@ function renderContractRow(c) {
         ? `Nr. ${get(row,'Nummer')} · Neuer Lohn ab ${fmtDe(payRateFromIso)} (alte Vertragsdaten übernommen)`
         : `Nr. ${get(row,'Nummer')} · Neues Vertragsdatum: ${vonDate || '–'}`;
 
+    const blockingNumberError = isEasyworkApiImportRow(row) && !validateEmployeeNumberForApiImport(row).ok;
+    if (blockingNumberError) {
+        return `
+        <div class="row-item" id="row-${idx}">
+            <div class="row-header" onclick="toggleDetail(${idx})">
+                <div class="row-avatar contract">${initials(row)}</div>
+                <div>
+                    <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
+                    <div class="row-meta">${subline}</div>
+                </div>
+                <div class="row-badges">
+                    <span class="badge" style="background:#fee2e2;color:#b91c1c">⛔ easy@work korrigieren</span>
+                </div>
+                <span class="row-chevron" id="chev-${idx}">›</span>
+            </div>
+            <div class="row-detail" id="detail-${idx}">
+                ${employeeNumberErrorHtml(row)}
+            </div>
+        </div>`;
+    }
+
     const blockingCcntError = isEasyworkApiImportRow(row) && !validateCcntQualification(get(row, 'Qualification CCNT')).ok;
     if (blockingCcntError) {
         return `
@@ -2509,6 +2592,16 @@ async function runComplianceCheck(idx) {
     const box     = document.getElementById(`compliance-${idx}`);
     const btn     = document.getElementById(`btnSave-${idx}`);
     if (!box) return;
+
+    const numberCheck = validateEmployeeNumberForApiImport(row);
+    if (!numberCheck.ok) {
+        box.innerHTML = `<div class="compliance-box compliance-err">
+            <div style="font-weight:700;margin-bottom:4px">⛔ MA-Nummer fehlt/ungültig</div>
+            <div>${numberCheck.message}</div>
+        </div>`;
+        if (btn) btn.disabled = true;
+        return;
+    }
 
     const requireCcnt = isEasyworkApiImportRow(row);
     const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
@@ -2910,8 +3003,10 @@ async function saveNewEmployee(idx) {
     const statusEl = document.getElementById(`rowStatus-${idx}`);
 
     const jg = document.getElementById(`jobGroup-${idx}`)?.value;
+    const numberCheck = validateEmployeeNumberForApiImport(row);
     const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
+    if (!numberCheck.ok) { alertEl.innerHTML = employeeNumberErrorHtml(row); return; }
     if (isEasyworkApiImportRow(row) && !ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
     if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
     if (!document.getElementById(`startDate-${idx}`)?.value) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Vertragsbeginn angeben.</div>`; return; }
@@ -2958,8 +3053,10 @@ async function saveContractChange(idx, employeeId) {
     const statusEl = document.getElementById(`rowStatus-${idx}`);
 
     const jg = document.getElementById(`jobGroup-${idx}`)?.value;
+    const numberCheck = validateEmployeeNumberForApiImport(row);
     const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
+    if (!numberCheck.ok) { alertEl.innerHTML = employeeNumberErrorHtml(row); return; }
     if (isEasyworkApiImportRow(row) && !ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
     if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
 
