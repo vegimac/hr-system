@@ -2295,6 +2295,27 @@ function renderContractRow(c) {
         ? `Nr. ${get(row,'Nummer')} · Neuer Lohn ab ${fmtDe(payRateFromIso)} (alte Vertragsdaten übernommen)`
         : `Nr. ${get(row,'Nummer')} · Neues Vertragsdatum: ${vonDate || '–'}`;
 
+    const blockingCcntError = isEasyworkApiImportRow(row) && !validateCcntQualification(get(row, 'Qualification CCNT')).ok;
+    if (blockingCcntError) {
+        return `
+        <div class="row-item" id="row-${idx}">
+            <div class="row-header" onclick="toggleDetail(${idx})">
+                <div class="row-avatar contract">${initials(row)}</div>
+                <div>
+                    <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
+                    <div class="row-meta">${subline}</div>
+                </div>
+                <div class="row-badges">
+                    <span class="badge" style="background:#fee2e2;color:#b91c1c">⛔ easy@work korrigieren</span>
+                </div>
+                <span class="row-chevron" id="chev-${idx}">›</span>
+            </div>
+            <div class="row-detail" id="detail-${idx}">
+                ${ccntErrorHtml(row)}
+            </div>
+        </div>`;
+    }
+
     return `
     <div class="row-item" id="row-${idx}">
         <div class="row-header" onclick="toggleDetail(${idx})">
