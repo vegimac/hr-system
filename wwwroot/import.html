@@ -368,21 +368,12 @@ body.theme-dark td { border-color: #334155 !important; color: #f1f5f9 !important
 
     <div class="container">
         <div class="page-title">📥 Mitarbeiter-Import</div>
-        <div class="page-sub">CSV aus easy@work importieren – Personaldaten werden automatisch aktualisiert, Vertragsänderungen müssen bestätigt werden.</div>
-        <div id="branchBanner" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px">
-            <span style="font-size:20px">🏪</span>
-            <div style="flex:1">
-                <label for="importBranchSelect" style="display:block;font-size:11px;font-weight:600;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Aktive Filiale</label>
-                <select id="importBranchSelect" onchange="onImportBranchChange()"
-                        disabled
-                        style="width:100%;max-width:420px;padding:8px 12px;border:1.5px solid #bfdbfe;border-radius:8px;font-size:14px;font-weight:600;color:#0f172a;background:#f8fafc;cursor:not-allowed;outline:none">
-                    <option value="">— Lade Filialen... —</option>
-                </select>
-                <div style="font-size:11px;color:#64748b;margin-top:4px">Aus dem HR-System übernommen — kann hier nicht gewechselt werden.</div>
-            </div>
-            <button class="btn btn-outline" onclick="importChooseEasyEmployees()" style="white-space:nowrap">👥 Mitarbeiter wählen</button>
-        </div>
-        <div id="importEasyEmployeeList" style="margin-top:-8px;margin-bottom:18px"></div>
+        <div class="page-sub">Aktive easy@work-Mitarbeiter der aktuell gewählten Filiale — auswählen, Stammdaten aktualisieren, Vertrag erfassen.</div>
+        <select id="importBranchSelect" onchange="onImportBranchChange()" style="display:none">
+            <option value="">— Lade Filialen... —</option>
+        </select>
+        <div id="apiContractPanel" style="display:none;margin-bottom:18px"></div>
+        <div id="importEasyEmployeeList" style="margin-bottom:18px"></div>
 
         <!-- UPLOAD -->
         <div class="upload-card" id="uploadSection">
@@ -618,6 +609,7 @@ async function startApp() {
         await Promise.all([loadEmployees(), loadJobGroups(), loadEducationLevels(), loadNationalities(), loadCompanyProfile()]);
         if (activeBranchId) companyProfileId = activeBranchId;
         populateImportBranchSelect();
+        setTimeout(() => importChooseEasyEmployees(), 0);
     } catch(e) {
         console.warn('Preload Fehler:', e);
     }
@@ -663,6 +655,8 @@ function onImportBranchChange() {
     rowStates = {};
     const easyList = document.getElementById('importEasyEmployeeList');
     if (easyList) easyList.innerHTML = '';
+    const apiPanel = document.getElementById('apiContractPanel');
+    if (apiPanel) { apiPanel.style.display = 'none'; apiPanel.innerHTML = ''; }
     document.getElementById('summaryBar').style.display = 'none';
     document.getElementById('resultsSection').style.display = 'none';
     document.getElementById('uploadSection').style.display = '';
@@ -692,7 +686,7 @@ async function importChooseEasyEmployees() {
                 <div class="results-header">
                     <div>
                         <div class="results-title">Aktive easy@work-Mitarbeiter (${rows.length})</div>
-                        <div style="font-size:12px;color:#64748b;margin-top:2px">Sortiert nach Vorname. Diese Liste schreibt noch nichts.</div>
+                        <div style="font-size:12px;color:#64748b;margin-top:2px">Sortiert nach Vorname. Klick oder Enter öffnet die Vertragserfassung.</div>
                     </div>
                 </div>
                 <div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
@@ -729,7 +723,7 @@ function importEasyEmployeeRowsHtml(rows) {
         return s.length === 10 ? `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}` : esc(iso);
     };
     return rows.map(e => `
-        <tr tabindex="0"
+        <tr tabindex="0" data-eaw-id="${Number(e.easyAtWorkEmployeeId || 0)}"
             onclick="importPreviewEasyEmployee(${Number(e.easyAtWorkEmployeeId || 0)})"
             onkeydown="if(event.key==='Enter'){event.preventDefault();importPreviewEasyEmployee(${Number(e.easyAtWorkEmployeeId || 0)})}"
             title="Klicken oder Enter: Import-Vorschau für diesen MA öffnen"
@@ -758,6 +752,12 @@ function renderImportEasyEmployeeRows() {
 async function importPreviewEasyEmployee(eawEmployeeId) {
     if (!eawEmployeeId || !companyProfileId) return;
     const out = document.getElementById('uploadAlert');
+    document.querySelectorAll('#importEasyEmployeeList tr[data-eaw-id]').forEach(tr => {
+        const on = Number(tr.dataset.eawId) === Number(eawEmployeeId);
+        tr.style.background = on ? '#dbeafe' : '';
+        tr.style.outline = on ? '2px solid #3b82f6' : '';
+        tr.style.outlineOffset = on ? '-2px' : '';
+    });
     if (out) out.innerHTML = `<div class="alert alert-info">⏳ Lade easy@work-Daten und aktualisiere Mitarbeiter…</div>`;
     try {
         const res = await fetch(`/api/easywork/employees/${companyProfileId}/${eawEmployeeId}/import-row`, { headers: ah(), cache: 'no-store' });
@@ -802,15 +802,26 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
         rowStates[0] = { status: 'contract', employeeId };
         document.getElementById('uploadSection').style.display = 'none';
         document.getElementById('summaryBar').style.display = 'none';
-        document.getElementById('resultsSection').style.display = 'block';
+        document.getElementById('resultsSection').style.display = 'none';
         ['skipSection','newSection','addrSection','inactiveSection','mismatchSection'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
-        const contractSec = document.getElementById('contractSection');
-        const contractList = document.getElementById('contractList');
-        if (contractSec && contractList) {
-            contractSec.style.display = 'block';
+        const apiPanel = document.getElementById('apiContractPanel');
+        if (apiPanel) {
+            apiPanel.style.display = 'block';
+            apiPanel.innerHTML = `
+                <div class="results-card">
+                    <div class="results-header">
+                        <div>
+                            <div class="results-title">📋 Vertrag erfassen</div>
+                            <div style="font-size:12px;color:#64748b;margin-top:2px">${get(row,'Vorname')} ${get(row,'Nachname')} · Nr. ${get(row,'Nummer')}</div>
+                        </div>
+                        <button class="btn btn-outline" onclick="document.getElementById('apiContractPanel').style.display='none';document.getElementById('apiContractPanel').innerHTML='';">Schliessen</button>
+                    </div>
+                    <div id="apiContractContent"></div>
+                </div>`;
+            const contractList = document.getElementById('apiContractContent');
             contractList.innerHTML = renderContractRow({ idx: 0, row, employeeId, existingEmp });
             const detail = document.getElementById('detail-0');
             const chev = document.getElementById('chev-0');
@@ -821,7 +832,7 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
             recalcSalary(0);
             checkPeriodStart(0);
             triggerComplianceCheck(0);
-            contractSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            apiPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         if (out) out.innerHTML = `<div class="alert alert-ok">✅ Mitarbeiter-Stammdaten aktualisiert – Vertrag jetzt prüfen und speichern.</div>`;
     } catch (e) {
