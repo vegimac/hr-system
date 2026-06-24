@@ -760,6 +760,7 @@ public class EasyAtWorkController : ControllerBase
 
         var row = new Dictionary<string, string?>
         {
+            ["__source"] = "easywork-api",
             ["Nummer"] = emp.Number,
             ["Vorname"] = emp.FirstName,
             ["Nachname"] = emp.LastName,

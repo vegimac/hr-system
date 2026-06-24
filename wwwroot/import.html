@@ -819,6 +819,7 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
             return;
         }
         const row = body.row;
+        row.__easyworkApiImport = true;
         parsedRows = [row];
         rowStates = {};
         await loadEmployees();
@@ -1154,6 +1155,10 @@ const ALLOWED_CCNT_QUALIFICATIONS = {
     '5': '5 Sans qualification'
 };
 
+function isEasyworkApiImportRow(row) {
+    return row && (row.__easyworkApiImport === true || row.__source === 'easywork-api');
+}
+
 function validateCcntQualification(raw) {
     const s = (raw || '').trim();
     const num = (s.match(/^(\d+)/) || [])[1];
@@ -1173,20 +1178,39 @@ function validateCcntQualification(raw) {
 }
 
 function ccntErrorHtml(row) {
+    if (!isEasyworkApiImportRow(row)) return '';
     const v = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (v.ok) return '';
-    return `<div class="alert alert-err" style="margin:0 0 8px 0">
-        <div style="font-weight:700;margin-bottom:4px">⛔ Gastroausbildung in easy@work korrigieren</div>
-        <div>${v.message}</div>
-        <div style="margin-top:4px;font-size:12px;color:#7f1d1d">Der Vertrag kann erst übernommen werden, wenn easy@work einen gültigen CCNT-Wert liefert.</div>
+    const name = `${get(row, 'Vorname')} ${get(row, 'Nachname')}`.trim() || 'Mitarbeiter';
+    const nr = get(row, 'Nummer') || '–';
+    return `<div class="alert alert-err" style="margin:0 0 10px 0;padding:16px 18px;border-width:2px;font-size:14px;line-height:1.5">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+            <div style="font-size:28px;line-height:1">⛔</div>
+            <div style="flex:1">
+                <div style="font-weight:800;font-size:16px;margin-bottom:6px">Gastroausbildung in easy@work korrigieren</div>
+                <div style="margin-bottom:10px">${v.message}</div>
+                <div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;color:#7f1d1d">
+                    <div style="font-weight:700;margin-bottom:6px">So korrigierst du es:</div>
+                    <ol style="margin-left:18px">
+                        <li>Gehe ins <b>easy@work</b>.</li>
+                        <li>Öffne den Mitarbeiter <b>${nr} – ${name}</b>.</li>
+                        <li>Gehe zu <b>Benutzerdefinierte Felder</b>.</li>
+                        <li>Scrolle weiter unten zum Feld <b>Qualification CCNT</b>.</li>
+                        <li>Wähle dort die Gastronomie-Ausbildung. Meistens ist es <b>5 Sans qualification</b> (ohne Ausbildung).</li>
+                        <li>Klicke auf <b>Hinzufügen</b>.</li>
+                    </ol>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:#7f1d1d">Der Vertrag kann erst übernommen werden, wenn easy@work einen gültigen CCNT-Wert liefert.</div>
+            </div>
+        </div>
     </div>`;
 }
 
 // CCNT-Qualifikation aus easy@work → unsere Ausbildungsstufe (L-GAV-Code).
 // Erkennt Variants wie "1", "1 Avec examen professionnel", "1- Avec…" etc.
-function mapCcntToEduLevel(raw) {
+function mapCcntToEduLevel(raw, requireValid = false) {
     const v = validateCcntQualification(raw);
-    if (!v.ok) return '';
+    if (!v.ok) return requireValid ? '' : 'Ia';
     switch (v.num) {
         case '1': return 'IV';
         case '2': return 'IIIb';
@@ -1848,13 +1872,15 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
         return `<option value="${code}" ${sel}>${name}</option>`;
     }).join('');
 
-    // Ausbildungsniveau aus CSV-Spalte "Qualification CCNT" mappen:
+    // Ausbildungsniveau aus easy@work/CSV-Spalte "Qualification CCNT" mappen:
     //   1 Avec examen professionnel → IV
     //   2 Avec CFC + 6 jours        → IIIb
     //   3 Avec CFC                  → IIIa
     //   4 Avec AFP                  → II
-    //   5 Sans qualification / leer / unbekannt → Ia (Default)
-    const suggestedEdu = mapCcntToEduLevel(get(row, 'Qualification CCNT'));
+    //   5 Sans qualification → Ia. Leer/ungültig blockiert nur im API-Einzelimport;
+    //   Legacy/Admin-CSV bleibt beim bisherigen Default Ia.
+    const requireCcnt = isEasyworkApiImportRow(row);
+    const suggestedEdu = mapCcntToEduLevel(get(row, 'Qualification CCNT'), requireCcnt);
     const edOpts = educationLevels.map(e => {
         const code = e.code || e.Code || '';
         const name = e.name || e.Name || code;
@@ -1873,7 +1899,9 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
     const csvAnzahl = get(row, 'Anzahl');
     const csvStore = get(row, 'Store name') || get(row, 'Store number');
     const csvCcnt = get(row, 'Qualification CCNT');
-    const ccntCheck = validateCcntQualification(csvCcnt);
+    const ccntCheck = requireCcnt
+        ? validateCcntQualification(csvCcnt)
+        : { ok: true, label: validateCcntQualification(csvCcnt).ok ? validateCcntQualification(csvCcnt).label : (csvCcnt || '5 Sans qualification') };
 
     // Info-Banner: bei Lohnänderung Vergleich alt → neu, sonst easy@work-Übersicht
     const banner = isSalaryChange
@@ -2461,8 +2489,9 @@ async function runComplianceCheck(idx) {
     const btn     = document.getElementById(`btnSave-${idx}`);
     if (!box) return;
 
+    const requireCcnt = isEasyworkApiImportRow(row);
     const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
-    if (!ccntCheck.ok) {
+    if (requireCcnt && !ccntCheck.ok) {
         box.innerHTML = `<div class="compliance-box compliance-err">
             <div style="font-weight:700;margin-bottom:4px">⛔ Gastroausbildung fehlt/ungültig</div>
             <div>${ccntCheck.message}</div>
@@ -2745,7 +2774,7 @@ function buildContractPayload(idx, employeeId, row) {
     const hourly  = parseFloat((document.getElementById(`hourlyRate-${idx}`)?.value || '0').replace(',', '.')) || null;
     const guar    = parseFloat(document.getElementById(`guarHours-${idx}`)?.value || '0') || null;
     const jobTitle = document.getElementById(`jobGroup-${idx}`)?.value || get(row, 'Funktion') || '';
-    const educationLevelCode = document.getElementById(`edLevel-${idx}`)?.value || '';
+    const educationLevelCode = document.getElementById(`edLevel-${idx}`)?.value || (isEasyworkApiImportRow(row) ? '' : 'Ia');
 
     // Probezeit
     const probMonths = parseInt(document.getElementById(`probation-${idx}`)?.value || '0');
@@ -2862,7 +2891,7 @@ async function saveNewEmployee(idx) {
     const jg = document.getElementById(`jobGroup-${idx}`)?.value;
     const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
-    if (!ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
+    if (isEasyworkApiImportRow(row) && !ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
     if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
     if (!document.getElementById(`startDate-${idx}`)?.value) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Vertragsbeginn angeben.</div>`; return; }
 
@@ -2910,7 +2939,7 @@ async function saveContractChange(idx, employeeId) {
     const jg = document.getElementById(`jobGroup-${idx}`)?.value;
     const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
-    if (!ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
+    if (isEasyworkApiImportRow(row) && !ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
     if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
 
     btn.disabled = true; btn.textContent = '⏳ Wird gespeichert...';
