@@ -1403,6 +1403,16 @@ function ccntErrorHtml(row) {
     </div>`;
 }
 
+function apiImportBlockingErrorHtml(row) {
+    if (!isEasyworkApiImportRow(row)) return '';
+    return [
+        employeeNumberErrorHtml(row),
+        functionErrorHtml(row),
+        maritalStatusErrorHtml(row),
+        ccntErrorHtml(row)
+    ].filter(Boolean).join('');
+}
+
 // CCNT-Qualifikation aus easy@work → unsere Ausbildungsstufe (L-GAV-Code).
 // Erkennt Variants wie "1", "1 Avec examen professionnel", "1- Avec…" etc.
 function mapCcntToEduLevel(raw, requireValid = false) {
@@ -2492,8 +2502,8 @@ function renderContractRow(c) {
         ? `Nr. ${get(row,'Nummer')} · Neuer Lohn ab ${fmtDe(payRateFromIso)} (alte Vertragsdaten übernommen)`
         : `Nr. ${get(row,'Nummer')} · Neues Vertragsdatum: ${vonDate || '–'}`;
 
-    const blockingNumberError = isEasyworkApiImportRow(row) && !validateEmployeeNumberForApiImport(row).ok;
-    if (blockingNumberError) {
+    const blockingErrorsHtml = apiImportBlockingErrorHtml(row);
+    if (blockingErrorsHtml) {
         return `
         <div class="row-item" id="row-${idx}">
             <div class="row-header" onclick="toggleDetail(${idx})">
@@ -2508,70 +2518,7 @@ function renderContractRow(c) {
                 <span class="row-chevron" id="chev-${idx}">›</span>
             </div>
             <div class="row-detail" id="detail-${idx}">
-                ${employeeNumberErrorHtml(row)}
-            </div>
-        </div>`;
-    }
-
-    const blockingFunctionError = isEasyworkApiImportRow(row) && !validateFunctionForApiImport(row).ok;
-    if (blockingFunctionError) {
-        return `
-        <div class="row-item" id="row-${idx}">
-            <div class="row-header" onclick="toggleDetail(${idx})">
-                <div class="row-avatar contract">${initials(row)}</div>
-                <div>
-                    <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
-                    <div class="row-meta">${subline}</div>
-                </div>
-                <div class="row-badges">
-                    <span class="badge" style="background:#fee2e2;color:#b91c1c">⛔ easy@work korrigieren</span>
-                </div>
-                <span class="row-chevron" id="chev-${idx}">›</span>
-            </div>
-            <div class="row-detail" id="detail-${idx}">
-                ${functionErrorHtml(row)}
-            </div>
-        </div>`;
-    }
-
-    const blockingMaritalError = isEasyworkApiImportRow(row) && !validateMaritalStatusForApiImport(row).ok;
-    if (blockingMaritalError) {
-        return `
-        <div class="row-item" id="row-${idx}">
-            <div class="row-header" onclick="toggleDetail(${idx})">
-                <div class="row-avatar contract">${initials(row)}</div>
-                <div>
-                    <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
-                    <div class="row-meta">${subline}</div>
-                </div>
-                <div class="row-badges">
-                    <span class="badge" style="background:#fee2e2;color:#b91c1c">⛔ easy@work korrigieren</span>
-                </div>
-                <span class="row-chevron" id="chev-${idx}">›</span>
-            </div>
-            <div class="row-detail" id="detail-${idx}">
-                ${maritalStatusErrorHtml(row)}
-            </div>
-        </div>`;
-    }
-
-    const blockingCcntError = isEasyworkApiImportRow(row) && !validateCcntQualification(get(row, 'Qualification CCNT')).ok;
-    if (blockingCcntError) {
-        return `
-        <div class="row-item" id="row-${idx}">
-            <div class="row-header" onclick="toggleDetail(${idx})">
-                <div class="row-avatar contract">${initials(row)}</div>
-                <div>
-                    <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
-                    <div class="row-meta">${subline}</div>
-                </div>
-                <div class="row-badges">
-                    <span class="badge" style="background:#fee2e2;color:#b91c1c">⛔ easy@work korrigieren</span>
-                </div>
-                <span class="row-chevron" id="chev-${idx}">›</span>
-            </div>
-            <div class="row-detail" id="detail-${idx}">
-                ${ccntErrorHtml(row)}
+                ${blockingErrorsHtml}
             </div>
         </div>`;
     }
