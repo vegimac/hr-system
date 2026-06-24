@@ -372,12 +372,13 @@ body.theme-dark td { border-color: #334155 !important; color: #f1f5f9 !important
         <div id="branchBanner" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px">
             <span style="font-size:20px">🏪</span>
             <div style="flex:1">
-                <label for="importBranchSelect" style="display:block;font-size:11px;font-weight:600;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Filiale wählen</label>
+                <label for="importBranchSelect" style="display:block;font-size:11px;font-weight:600;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Aktive Filiale</label>
                 <select id="importBranchSelect" onchange="onImportBranchChange()"
-                        style="width:100%;max-width:420px;padding:8px 12px;border:1.5px solid #bfdbfe;border-radius:8px;font-size:14px;font-weight:600;color:#0f172a;background:white;cursor:pointer;outline:none">
+                        disabled
+                        style="width:100%;max-width:420px;padding:8px 12px;border:1.5px solid #bfdbfe;border-radius:8px;font-size:14px;font-weight:600;color:#0f172a;background:#f8fafc;cursor:not-allowed;outline:none">
                     <option value="">— Lade Filialen... —</option>
                 </select>
-                <div style="font-size:11px;color:#64748b;margin-top:4px">Nur Mitarbeiter dieser Filiale werden importiert</div>
+                <div style="font-size:11px;color:#64748b;margin-top:4px">Aus dem HR-System übernommen — kann hier nicht gewechselt werden.</div>
             </div>
             <button class="btn btn-outline" onclick="importChooseEasyEmployees()" style="white-space:nowrap">👥 Mitarbeiter wählen</button>
         </div>
@@ -519,6 +520,7 @@ let currentUser = null;
 let allEmployees = [], jobGroups = [], educationLevels = [], nationalities = [], companyProfileId = 1;
 let parsedRows = [];
 let rowStates = {}; // rowIndex → { status, employeeId, contractDone }
+let _importEasyEmployees = [];
 
 function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
 
@@ -684,12 +686,7 @@ async function importChooseEasyEmployees() {
         const rows = (body.employees || []).slice().sort((a, b) =>
             (a.firstName || '').localeCompare(b.firstName || '', 'de') ||
             (a.lastName || '').localeCompare(b.lastName || '', 'de'));
-        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const fmt = iso => {
-            if (!iso) return '–';
-            const s = String(iso).slice(0, 10);
-            return s.length === 10 ? `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}` : esc(iso);
-        };
+        _importEasyEmployees = rows;
         out.innerHTML = `
             <div class="results-card" style="margin-bottom:16px">
                 <div class="results-header">
@@ -697,6 +694,11 @@ async function importChooseEasyEmployees() {
                         <div class="results-title">Aktive easy@work-Mitarbeiter (${rows.length})</div>
                         <div style="font-size:12px;color:#64748b;margin-top:2px">Sortiert nach Vorname. Diese Liste schreibt noch nichts.</div>
                     </div>
+                </div>
+                <div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
+                    <input id="importEasySearch" type="text" placeholder="Suchen nach Vorname, Name oder Nummer…"
+                           oninput="renderImportEasyEmployeeRows()"
+                           style="width:100%;max-width:360px;padding:8px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;box-sizing:border-box">
                 </div>
                 <div style="max-height:420px;overflow:auto">
                     <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -710,14 +712,7 @@ async function importChooseEasyEmployees() {
                             </tr>
                         </thead>
                         <tbody>
-                            ${rows.map(e => `
-                                <tr style="border-bottom:1px solid #f1f5f9">
-                                    <td style="padding:8px 12px;font-weight:600;color:#0f172a">${esc(((e.firstName||'') + ' ' + (e.lastName||'')).trim() || e.name || '–')}</td>
-                                    <td style="padding:8px 12px;color:#64748b;font-family:monospace">${esc(e.number || '-')}</td>
-                                    <td style="padding:8px 12px;color:#64748b">${esc(e.email || '–')}</td>
-                                    <td style="padding:8px 12px;color:#64748b">${fmt(e.from)}</td>
-                                    <td style="padding:8px 12px;text-align:right"></td>
-                                </tr>`).join('') || '<tr><td colspan="5" style="padding:16px;color:#94a3b8;text-align:center">— keine aktiven MA —</td></tr>'}
+                            ${importEasyEmployeeRowsHtml(rows)}
                         </tbody>
                     </table>
                 </div>
@@ -725,6 +720,37 @@ async function importChooseEasyEmployees() {
     } catch (e) {
         out.innerHTML = `<div class="alert alert-err">Verbindungsfehler: ${String(e.message || e)}</div>`;
     }
+}
+
+function importEasyEmployeeRowsHtml(rows) {
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fmt = iso => {
+        if (!iso) return '–';
+        const s = String(iso).slice(0, 10);
+        return s.length === 10 ? `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}` : esc(iso);
+    };
+    return rows.map(e => `
+        <tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:8px 12px;font-weight:600;color:#0f172a">${esc(((e.firstName||'') + ' ' + (e.lastName||'')).trim() || e.name || '–')}</td>
+            <td style="padding:8px 12px;color:#64748b;font-family:monospace">${esc(e.number || '-')}</td>
+            <td style="padding:8px 12px;color:#64748b">${esc(e.email || '–')}</td>
+            <td style="padding:8px 12px;color:#64748b">${fmt(e.from)}</td>
+            <td style="padding:8px 12px;text-align:right"></td>
+        </tr>`).join('') || '<tr><td colspan="5" style="padding:16px;color:#94a3b8;text-align:center">— keine aktiven MA —</td></tr>';
+}
+
+function renderImportEasyEmployeeRows() {
+    const q = (document.getElementById('importEasySearch')?.value || '').trim().toLowerCase();
+    const rows = !_importEasyEmployees ? [] : _importEasyEmployees.filter(e => {
+        if (!q) return true;
+        const first = (e.firstName || '').toLowerCase();
+        const last = (e.lastName || '').toLowerCase();
+        const name = `${first} ${last}`.trim();
+        const nr = String(e.number || '').toLowerCase();
+        return first.includes(q) || last.includes(q) || name.includes(q) || nr.includes(q);
+    });
+    const tbody = document.querySelector('#importEasyEmployeeList tbody');
+    if (tbody) tbody.innerHTML = importEasyEmployeeRowsHtml(rows);
 }
 
 async function loadEmployees() {
