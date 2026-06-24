@@ -155,6 +155,6 @@ public class EasyAtWorkPayrollSinkTests
             .ToListAsync();
 
         Assert.Equal(3, fuerLohnMa.Count);
-        Assert.Equal(new[] { 5, 6, 7 }, fuerLohnMa.Select(e => e.EasyAtWorkCustomerId).OrderBy(x => x).ToArray());
+        Assert.Equal(new int?[] { 5, 6, 7 }, fuerLohnMa.Select(e => e.EasyAtWorkCustomerId).OrderBy(x => x).ToArray());
     }
 }
