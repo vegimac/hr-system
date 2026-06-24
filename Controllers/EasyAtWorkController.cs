@@ -636,14 +636,25 @@ public class EasyAtWorkController : ControllerBase
         if (mapping == null) return NotFound(new { error = "NOT_MAPPED", message = "Filiale ist nicht mit easy@work verknüpft." });
 
         var emp = await _client.GetEmployeeByIdAsync(mapping.EasyAtWorkCustomerId, eawEmployeeId, ct);
+        if (emp == null)
+        {
+            // Manche easy@work-Listen liefern je nach Endpoint Resource-ID vs.
+            // User-ID unterschiedlich. Für die Import-Zeile reicht der Listen-
+            // Datensatz; Detail-Calls darunter probieren wir weiter mit Resource-ID.
+            var activeAt = DateOnly.FromDateTime(DateTime.Today);
+            var allActive = await _client.GetAllEmployeesActiveAtAsync(mapping.EasyAtWorkCustomerId, activeAt, ct);
+            emp = allActive.FirstOrDefault(e => e.Id == eawEmployeeId || e.UserId == eawEmployeeId);
+        }
         if (emp == null) return NotFound(new { error = "EMP_NOT_FOUND", message = "easy@work-Mitarbeiter nicht gefunden." });
 
-        var contracts = (await _client.GetContractsAsync(mapping.EasyAtWorkCustomerId, eawEmployeeId, ct))?.Data ?? new();
-        var rates     = (await _client.GetPayRatesAsync(mapping.EasyAtWorkCustomerId, eawEmployeeId, ct))?.Data ?? new();
-        var positions = (await _client.GetPositionsAsync(mapping.EasyAtWorkCustomerId, eawEmployeeId, ct))?.Data ?? new();
-        var props = await _client.GetAllPropertiesAsync(mapping.EasyAtWorkCustomerId, eawEmployeeId, ct);
+        var resourceId = emp.Id;
+
+        var contracts = (await _client.GetContractsAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
+        var rates     = (await _client.GetPayRatesAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
+        var positions = (await _client.GetPositionsAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
+        var props = await _client.GetAllPropertiesAsync(mapping.EasyAtWorkCustomerId, resourceId, ct);
         EawFiscalInfo? fiscal = null;
-        try { fiscal = await _client.GetFiscalInfoAsync(mapping.EasyAtWorkCustomerId, eawEmployeeId, ct); } catch { }
+        try { fiscal = await _client.GetFiscalInfoAsync(mapping.EasyAtWorkCustomerId, resourceId, ct); } catch { }
 
         static EawContract? CurrentContract(List<EawContract> rows)
         {
