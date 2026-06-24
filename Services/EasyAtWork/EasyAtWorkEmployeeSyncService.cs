@@ -359,22 +359,6 @@ public class EasyAtWorkEmployeeSyncService
                 row.Reason = "MA war als ausgetreten markiert, ist in dieser Filiale laut easy@work aber aktiv (Filialwechsel) → wird reaktiviert, Austrittsdatum wird entfernt.";
                 res.CountUpdate++;
             }
-            else if (!req.SkipDetailCalls && co != null
-                     && (string.IsNullOrWhiteSpace(co.SocialSecurityNumber)
-                         || string.IsNullOrWhiteSpace(co.MaritalStatus)
-                         || (string.IsNullOrWhiteSpace(co.CantonCode) && !string.IsNullOrWhiteSpace(co.ZipCode))
-                         || (string.IsNullOrWhiteSpace(co.LetterSalutation) && !string.IsNullOrWhiteSpace(co.Gender))
-                         || !bankSet.Contains(co.Id)
-                         || !jobGroupEmpSet.Contains(co.Id)))
-            {
-                // Fehlende Stammdaten (AHV-Nr. / Zivilstand / Kanton / Briefanrede / Bank /
-                // Funktion) nachtragen (Walter 22.06.2026): ohne Feld-Diff wäre der MA
-                // UNCHANGED und würde übersprungen → als UPDATE behandeln, damit der Commit
-                // sie ergänzt (inkl. Funktion → ggf. FIX-M statt UTP).
-                row.Status = "UPDATE";
-                row.Reason = "Stammdaten werden ergänzt (AHV / Zivilstand / Kanton / Briefanrede / Bank / Funktion).";
-                res.CountUpdate++;
-            }
             else if (co != null && empByIdThisBranch.TryGetValue(co.Id, out var curEmp)
                      && EmploymentNeedsFix(curEmp, eaw))
             {
