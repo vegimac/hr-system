@@ -758,7 +758,7 @@ function renderImportEasyEmployeeRows() {
 async function importPreviewEasyEmployee(eawEmployeeId) {
     if (!eawEmployeeId || !companyProfileId) return;
     const out = document.getElementById('uploadAlert');
-    if (out) out.innerHTML = `<div class="alert alert-info">⏳ Lade easy@work-Daten für Import-Vorschau…</div>`;
+    if (out) out.innerHTML = `<div class="alert alert-info">⏳ Lade easy@work-Daten und aktualisiere Mitarbeiter…</div>`;
     try {
         const res = await fetch(`/api/easywork/employees/${companyProfileId}/${eawEmployeeId}/import-row`, { headers: ah(), cache: 'no-store' });
         const body = await res.json().catch(() => null);
@@ -766,12 +766,64 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
             if (out) out.innerHTML = `<div class="alert alert-err">${(body && (body.message || body.error)) || ('Fehler HTTP ' + res.status)}</div>`;
             return;
         }
-        parsedRows = [body.row];
+        const row = body.row;
+        parsedRows = [row];
         rowStates = {};
+        await loadEmployees();
+
+        const nr = String(get(row, 'Nummer') || '').trim();
+        let existingEmp = allEmployees.find(e =>
+            String(e.employeeNumber || e.employee_number || '').trim() === nr);
+        let employeeId = existingEmp?.id || null;
+        const payload = buildPersonPayload(row);
+
+        if (employeeId) {
+            const upd = await fetch(`/api/employees/${employeeId}`, {
+                method: 'PUT',
+                headers: ah(),
+                body: JSON.stringify(payload)
+            });
+            if (!upd.ok) throw new Error('Mitarbeiter aktualisieren: ' + await upd.text());
+            await maybeCreateBankAccountFromCsv(employeeId, row);
+        } else {
+            const cre = await fetch('/api/employees', {
+                method: 'POST',
+                headers: ah(),
+                body: JSON.stringify(payload)
+            });
+            if (!cre.ok) throw new Error('Mitarbeiter anlegen: ' + await cre.text());
+            const created = await cre.json();
+            employeeId = created.id;
+            await maybeCreateBankAccountFromCsv(employeeId, row);
+            await loadEmployees();
+            existingEmp = allEmployees.find(e => Number(e.id) === Number(employeeId)) || created;
+        }
+
+        rowStates[0] = { status: 'contract', employeeId };
         document.getElementById('uploadSection').style.display = 'none';
-        if (out) out.innerHTML = '';
-        await analyzeRows();
-        document.getElementById('summaryBar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('summaryBar').style.display = 'none';
+        document.getElementById('resultsSection').style.display = 'block';
+        ['skipSection','newSection','addrSection','inactiveSection','mismatchSection'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        const contractSec = document.getElementById('contractSection');
+        const contractList = document.getElementById('contractList');
+        if (contractSec && contractList) {
+            contractSec.style.display = 'block';
+            contractList.innerHTML = renderContractRow({ idx: 0, row, employeeId, existingEmp });
+            const detail = document.getElementById('detail-0');
+            const chev = document.getElementById('chev-0');
+            if (detail) detail.classList.add('open');
+            if (chev) chev.classList.add('open');
+            onModelChange(0);
+            calcMtpSalary(0);
+            recalcSalary(0);
+            checkPeriodStart(0);
+            triggerComplianceCheck(0);
+            contractSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (out) out.innerHTML = `<div class="alert alert-ok">✅ Mitarbeiter-Stammdaten aktualisiert – Vertrag jetzt prüfen und speichern.</div>`;
     } catch (e) {
         if (out) out.innerHTML = `<div class="alert alert-err">Verbindungsfehler: ${String(e.message || e)}</div>`;
     }
