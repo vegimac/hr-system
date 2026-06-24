@@ -735,7 +735,9 @@ function importEasyEmployeeRowsHtml(rows) {
             <td style="padding:8px 12px;color:#64748b;font-family:monospace">${esc(e.number || '-')}</td>
             <td style="padding:8px 12px;color:#64748b">${esc(e.email || '–')}</td>
             <td style="padding:8px 12px;color:#64748b">${fmt(e.from)}</td>
-            <td style="padding:8px 12px;text-align:right"></td>
+            <td style="padding:8px 12px;text-align:right;white-space:nowrap">
+                <button class="btn btn-outline" style="font-size:12px;padding:4px 10px" onclick="importPreviewEasyEmployee(${Number(e.easyAtWorkEmployeeId || 0)})">🔍 Vorschau</button>
+            </td>
         </tr>`).join('') || '<tr><td colspan="5" style="padding:16px;color:#94a3b8;text-align:center">— keine aktiven MA —</td></tr>';
 }
 
@@ -751,6 +753,27 @@ function renderImportEasyEmployeeRows() {
     });
     const tbody = document.querySelector('#importEasyEmployeeList tbody');
     if (tbody) tbody.innerHTML = importEasyEmployeeRowsHtml(rows);
+}
+
+async function importPreviewEasyEmployee(eawEmployeeId) {
+    if (!eawEmployeeId || !companyProfileId) return;
+    const out = document.getElementById('uploadAlert');
+    if (out) out.innerHTML = `<div class="alert alert-info">⏳ Lade easy@work-Daten für Import-Vorschau…</div>`;
+    try {
+        const res = await fetch(`/api/easywork/employees/${companyProfileId}/${eawEmployeeId}/import-row`, { headers: ah(), cache: 'no-store' });
+        const body = await res.json().catch(() => null);
+        if (!res.ok || !body?.row) {
+            if (out) out.innerHTML = `<div class="alert alert-err">${(body && (body.message || body.error)) || ('Fehler HTTP ' + res.status)}</div>`;
+            return;
+        }
+        parsedRows = [body.row];
+        rowStates = {};
+        document.getElementById('uploadSection').style.display = 'none';
+        if (out) out.innerHTML = '';
+        await analyzeRows();
+    } catch (e) {
+        if (out) out.innerHTML = `<div class="alert alert-err">Verbindungsfehler: ${String(e.message || e)}</div>`;
+    }
 }
 
 async function loadEmployees() {
