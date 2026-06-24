@@ -1146,19 +1146,54 @@ const FUNKTION_MAP = {
 // DB-Codes, die zu FIX-M (Festlohn Management) führen.
 const FIX_M_ROLES = ['ASST_1', 'ASST_2', 'REST_MANAGER', 'SHIFT_LEADER_1_6', 'SHIFT_LEADER_7_PLUS'];
 
-// CCNT-Qualifikation aus easy@work-CSV → unsere Ausbildungsstufe (L-GAV-Code).
+const ALLOWED_CCNT_QUALIFICATIONS = {
+    '1': '1 Avec examen professionnel',
+    '2': '2 Avec CFC + 6 jours',
+    '3': '3 Avec CFC',
+    '4': '4 Avec AFP',
+    '5': '5 Sans qualification'
+};
+
+function validateCcntQualification(raw) {
+    const s = (raw || '').trim();
+    const num = (s.match(/^(\d+)/) || [])[1];
+    if (!s) {
+        return {
+            ok: false,
+            message: 'Gastroausbildung fehlt in easy@work. Bitte in easy@work im Feld "Qualification CCNT" einen der Werte 1–5 erfassen.'
+        };
+    }
+    if (!num || !ALLOWED_CCNT_QUALIFICATIONS[num]) {
+        return {
+            ok: false,
+            message: `Gastroausbildung "${s}" ist nicht zulässig. Bitte in easy@work einen der Werte erfassen: ${Object.values(ALLOWED_CCNT_QUALIFICATIONS).join(', ')}.`
+        };
+    }
+    return { ok: true, num, label: ALLOWED_CCNT_QUALIFICATIONS[num] };
+}
+
+function ccntErrorHtml(row) {
+    const v = validateCcntQualification(get(row, 'Qualification CCNT'));
+    if (v.ok) return '';
+    return `<div class="alert alert-err" style="margin:0 0 8px 0">
+        <div style="font-weight:700;margin-bottom:4px">⛔ Gastroausbildung in easy@work korrigieren</div>
+        <div>${v.message}</div>
+        <div style="margin-top:4px;font-size:12px;color:#7f1d1d">Der Vertrag kann erst übernommen werden, wenn easy@work einen gültigen CCNT-Wert liefert.</div>
+    </div>`;
+}
+
+// CCNT-Qualifikation aus easy@work → unsere Ausbildungsstufe (L-GAV-Code).
 // Erkennt Variants wie "1", "1 Avec examen professionnel", "1- Avec…" etc.
 function mapCcntToEduLevel(raw) {
-    const s = (raw || '').trim();
-    if (!s) return 'Ia';
-    const num = (s.match(/^(\d+)/) || [])[1];
-    switch (num) {
+    const v = validateCcntQualification(raw);
+    if (!v.ok) return '';
+    switch (v.num) {
         case '1': return 'IV';
         case '2': return 'IIIb';
         case '3': return 'IIIa';
         case '4': return 'II';
         case '5': return 'Ia';
-        default:  return 'Ia';
+        default:  return '';
     }
 }
 
@@ -1837,6 +1872,8 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
     const csvFteDisplay = salaryFteCalc;  // berechnet aus Salary (actual) × 100/Pensum
     const csvAnzahl = get(row, 'Anzahl');
     const csvStore = get(row, 'Store name') || get(row, 'Store number');
+    const csvCcnt = get(row, 'Qualification CCNT');
+    const ccntCheck = validateCcntQualification(csvCcnt);
 
     // Info-Banner: bei Lohnänderung Vergleich alt → neu, sonst easy@work-Übersicht
     const banner = isSalaryChange
@@ -1900,11 +1937,13 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
                 ${csvTarifDisplay && (csvModel==='UTP'||csvModel==='MTP') ? addrField('Stundenlohn', 'CHF ' + csvTarifDisplay) : ''}
                 ${csvFteDisplay && (csvModel==='FIX'||csvModel==='FIX-M') ? addrField('Monatslohn 100%', 'CHF ' + csvFteDisplay) : ''}
                 ${csvAnzahl ? addrField('Pensum/Stunden', csvAnzahl) : ''}
+                ${addrField('Gastroausbildung', ccntCheck.ok ? ccntCheck.label : (csvCcnt || 'FEHLT'))}
                 ${csvStore ? addrField('Filiale', csvStore) : ''}
             </div>
         </div>`;
 
     return `
+    ${ccntErrorHtml(row)}
     ${banner}
     <div class="contract-form">
         <div class="contract-form-title">📋 Neuer Vertrag erfassen</div>
@@ -1928,7 +1967,7 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
             </div>
             <div class="form-group">
                 <label class="form-label">Ausbildungsniveau <span class="required">*</span></label>
-                <select class="form-select" id="edLevel-${idx}" onchange="triggerComplianceCheck(${idx})">
+                <select class="form-select" id="edLevel-${idx}" onchange="triggerComplianceCheck(${idx})" ${ccntCheck.ok ? '' : 'disabled'}>
                     <option value="">– Bitte wählen –</option>
                     ${edOpts}
                 </select>
@@ -2422,8 +2461,19 @@ async function runComplianceCheck(idx) {
     const btn     = document.getElementById(`btnSave-${idx}`);
     if (!box) return;
 
+    const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
+    if (!ccntCheck.ok) {
+        box.innerHTML = `<div class="compliance-box compliance-err">
+            <div style="font-weight:700;margin-bottom:4px">⛔ Gastroausbildung fehlt/ungültig</div>
+            <div>${ccntCheck.message}</div>
+        </div>`;
+        if (btn) btn.disabled = true;
+        return;
+    }
+
     if (!edLevel) {
         box.innerHTML = `<div class="compliance-box compliance-warn">⚠️ Bitte Ausbildungsniveau wählen für Mindestlohn-Prüfung</div>`;
+        if (btn) btn.disabled = true;
         return;
     }
 
@@ -2695,7 +2745,7 @@ function buildContractPayload(idx, employeeId, row) {
     const hourly  = parseFloat((document.getElementById(`hourlyRate-${idx}`)?.value || '0').replace(',', '.')) || null;
     const guar    = parseFloat(document.getElementById(`guarHours-${idx}`)?.value || '0') || null;
     const jobTitle = document.getElementById(`jobGroup-${idx}`)?.value || get(row, 'Funktion') || '';
-    const educationLevelCode = document.getElementById(`edLevel-${idx}`)?.value || 'Ia';
+    const educationLevelCode = document.getElementById(`edLevel-${idx}`)?.value || '';
 
     // Probezeit
     const probMonths = parseInt(document.getElementById(`probation-${idx}`)?.value || '0');
@@ -2810,7 +2860,9 @@ async function saveNewEmployee(idx) {
     const statusEl = document.getElementById(`rowStatus-${idx}`);
 
     const jg = document.getElementById(`jobGroup-${idx}`)?.value;
+    const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
+    if (!ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
     if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
     if (!document.getElementById(`startDate-${idx}`)?.value) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Vertragsbeginn angeben.</div>`; return; }
 
@@ -2856,7 +2908,9 @@ async function saveContractChange(idx, employeeId) {
     const statusEl = document.getElementById(`rowStatus-${idx}`);
 
     const jg = document.getElementById(`jobGroup-${idx}`)?.value;
+    const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
+    if (!ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
     if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
 
     btn.disabled = true; btn.textContent = '⏳ Wird gespeichert...';

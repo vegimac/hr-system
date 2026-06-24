@@ -704,6 +704,27 @@ public class EasyAtWorkController : ControllerBase
         }
         static string? Prop(List<EawProperty> rows, string key)
             => rows.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase))?.Value;
+        static string? PropAny(List<EawProperty> rows, params string[] keys)
+        {
+            static string Norm(string? s)
+                => new string((s ?? "").Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+
+            foreach (var key in keys)
+            {
+                var exact = rows.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase))?.Value;
+                if (!string.IsNullOrWhiteSpace(exact)) return exact;
+            }
+
+            var wanted = keys.Select(Norm).Where(k => !string.IsNullOrWhiteSpace(k)).ToList();
+            foreach (var p in rows)
+            {
+                var nk = Norm(p.Key);
+                if (wanted.Any(w => nk == w || nk.Contains(w) || w.Contains(nk)))
+                    return p.Value;
+            }
+
+            return null;
+        }
         static string? SalutationFromGender(string? g)
         {
             var s = (g ?? "").Trim().ToLowerInvariant();
@@ -764,6 +785,7 @@ public class EasyAtWorkController : ControllerBase
             ["Pay rate from"] = Fmt(payRateFrom),
             ["Tarife"] = (info.HourlyRate != null && info.HourlyRate.Value > 1m) ? info.HourlyRate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
             ["Salary (actual)"] = (info.MonthlySalary != null && info.MonthlySalary.Value > 1m) ? info.MonthlySalary.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
+            ["Qualification CCNT"] = PropAny(props, "cf_qualification_ccnt", "qualification_ccnt", "ccnt_qualification", "Qualification CCNT", "CCNT"),
             ["INTL_BANK_ACCT_NBR1"] = fiscal?.Iban,
             ["AHV"] = Prop(props, "cf_swiss_national_id"),
             ["Marital status"] = Marital(Prop(props, "cf_marital_status"))
