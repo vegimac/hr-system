@@ -1209,6 +1209,66 @@ function employeeNumberErrorHtml(row) {
     </div>`;
 }
 
+const ALLOWED_MARITAL_STATUSES = {
+    ledig: 'Ledig',
+    verheiratet: 'Verheiratet',
+    geschieden: 'Geschieden',
+    verwitwet: 'Verwitwet',
+    getrennt: 'Getrennt',
+    eingetragene_partnerschaft: 'Eingetragene Partnerschaft'
+};
+
+function validateMaritalStatusForApiImport(row) {
+    if (!isEasyworkApiImportRow(row)) return { ok: true };
+    const raw = String(get(row, 'Marital status', 'Familienstand') || '').trim();
+    const normalized = raw.toLowerCase().replace(/\s+/g, '_');
+    const aliases = {
+        single: 'ledig',
+        married: 'verheiratet',
+        divorced: 'geschieden',
+        widowed: 'verwitwet',
+        separated: 'getrennt',
+        registered_partnership: 'eingetragene_partnerschaft',
+        eingetragene_partnerschaft: 'eingetragene_partnerschaft',
+        'eingetr._partnerschaft': 'eingetragene_partnerschaft'
+    };
+    const code = aliases[normalized] || normalized;
+    if (!raw || raw.toLowerCase() === 'unbekannt' || raw.toLowerCase() === 'unknown') {
+        return { ok: false, raw, code: null, message: 'Der Familienstand fehlt in easy@work oder steht auf "Unbekannt".' };
+    }
+    if (!ALLOWED_MARITAL_STATUSES[code]) {
+        return { ok: false, raw, code: null, message: `Der Familienstand "${raw}" ist nicht zulässig.` };
+    }
+    return { ok: true, raw, code, label: ALLOWED_MARITAL_STATUSES[code] };
+}
+
+function maritalStatusErrorHtml(row) {
+    const v = validateMaritalStatusForApiImport(row);
+    if (v.ok) return '';
+    const name = `${get(row, 'Vorname')} ${get(row, 'Nachname')}`.trim() || 'Mitarbeiter';
+    const nr = get(row, 'Nummer') || '–';
+    return `<div class="alert alert-err" style="margin:0 0 10px 0;padding:16px 18px;border-width:2px;font-size:14px;line-height:1.5">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+            <div style="font-size:28px;line-height:1">⛔</div>
+            <div style="flex:1">
+                <div style="font-weight:800;font-size:16px;margin-bottom:6px">Familienstand in easy@work korrigieren</div>
+                <div style="margin-bottom:10px">${v.message}<br>Erlaubt sind: <b>${Object.values(ALLOWED_MARITAL_STATUSES).join(', ')}</b>.</div>
+                <div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;color:#7f1d1d">
+                    <div style="font-weight:700;margin-bottom:6px">So korrigierst du es:</div>
+                    <ol style="margin-left:18px">
+                        <li>Gehe ins <b>easy@work</b>.</li>
+                        <li>Öffne den Mitarbeiter <b>${nr} – ${name}</b>.</li>
+                        <li>Gehe zum Feld <b>Familienstand</b>.</li>
+                        <li>Wähle einen gültigen Wert: <b>${Object.values(ALLOWED_MARITAL_STATUSES).join(', ')}</b>.</li>
+                        <li>Speichere die Änderung und lade den Mitarbeiter im HR-System erneut.</li>
+                    </ol>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:#7f1d1d">Der Vertrag kann erst übernommen werden, wenn easy@work einen gültigen Familienstand liefert.</div>
+            </div>
+        </div>
+    </div>`;
+}
+
 const ALLOWED_CCNT_QUALIFICATIONS = {
     '1': '1 Avec examen professionnel',
     '2': '2 Avec CFC + 6 jours',
@@ -2378,6 +2438,27 @@ function renderContractRow(c) {
         </div>`;
     }
 
+    const blockingMaritalError = isEasyworkApiImportRow(row) && !validateMaritalStatusForApiImport(row).ok;
+    if (blockingMaritalError) {
+        return `
+        <div class="row-item" id="row-${idx}">
+            <div class="row-header" onclick="toggleDetail(${idx})">
+                <div class="row-avatar contract">${initials(row)}</div>
+                <div>
+                    <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
+                    <div class="row-meta">${subline}</div>
+                </div>
+                <div class="row-badges">
+                    <span class="badge" style="background:#fee2e2;color:#b91c1c">⛔ easy@work korrigieren</span>
+                </div>
+                <span class="row-chevron" id="chev-${idx}">›</span>
+            </div>
+            <div class="row-detail" id="detail-${idx}">
+                ${maritalStatusErrorHtml(row)}
+            </div>
+        </div>`;
+    }
+
     const blockingCcntError = isEasyworkApiImportRow(row) && !validateCcntQualification(get(row, 'Qualification CCNT')).ok;
     if (blockingCcntError) {
         return `
@@ -2598,6 +2679,16 @@ async function runComplianceCheck(idx) {
         box.innerHTML = `<div class="compliance-box compliance-err">
             <div style="font-weight:700;margin-bottom:4px">⛔ MA-Nummer fehlt/ungültig</div>
             <div>${numberCheck.message}</div>
+        </div>`;
+        if (btn) btn.disabled = true;
+        return;
+    }
+
+    const maritalCheck = validateMaritalStatusForApiImport(row);
+    if (!maritalCheck.ok) {
+        box.innerHTML = `<div class="compliance-box compliance-err">
+            <div style="font-weight:700;margin-bottom:4px">⛔ Familienstand fehlt/ungültig</div>
+            <div>${maritalCheck.message}</div>
         </div>`;
         if (btn) btn.disabled = true;
         return;
@@ -2833,6 +2924,7 @@ function buildPersonPayload(row) {
     // Hausnummer-Wert aus einem früheren Import überschrieben/geleert wird.
     const addrRaw = get(row, 'Adresse');
     const addr    = splitStreetHouse(addrRaw);
+    const marital = validateMaritalStatusForApiImport(row);
 
     return {
         firstName:       get(row, 'Vorname'),
@@ -2864,6 +2956,7 @@ function buildPersonPayload(row) {
         // ist für den PUT-Pfad nötig (EmployeeUpdateDto), beim POST harmlos.
         exitDate:        exitDate,
         exitDateSet:     true,
+        maritalStatus:   marital.ok ? marital.code : null,
         familyCare:      get(row, 'Familienbetreuung') === '1' || get(row, 'Familienbetreuung').toLowerCase() === 'true',
         // Phantom-MA-Markierung mit ans Backend geben — Walter-Regel:
         // Supervisor = MA ohne Lohn, kein Vertrag.
@@ -3004,9 +3097,11 @@ async function saveNewEmployee(idx) {
 
     const jg = document.getElementById(`jobGroup-${idx}`)?.value;
     const numberCheck = validateEmployeeNumberForApiImport(row);
+    const maritalCheck = validateMaritalStatusForApiImport(row);
     const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
     if (!numberCheck.ok) { alertEl.innerHTML = employeeNumberErrorHtml(row); return; }
+    if (!maritalCheck.ok) { alertEl.innerHTML = maritalStatusErrorHtml(row); return; }
     if (isEasyworkApiImportRow(row) && !ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
     if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
     if (!document.getElementById(`startDate-${idx}`)?.value) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Vertragsbeginn angeben.</div>`; return; }
@@ -3054,9 +3149,11 @@ async function saveContractChange(idx, employeeId) {
 
     const jg = document.getElementById(`jobGroup-${idx}`)?.value;
     const numberCheck = validateEmployeeNumberForApiImport(row);
+    const maritalCheck = validateMaritalStatusForApiImport(row);
     const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
     if (!numberCheck.ok) { alertEl.innerHTML = employeeNumberErrorHtml(row); return; }
+    if (!maritalCheck.ok) { alertEl.innerHTML = maritalStatusErrorHtml(row); return; }
     if (isEasyworkApiImportRow(row) && !ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
     if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
 

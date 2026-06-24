@@ -732,16 +732,21 @@ public class EasyAtWorkController : ControllerBase
             if (s is "male" or "m" or "herr") return "Herr";
             return null;
         }
-        static string? Marital(string? v) => (v ?? "").Trim().ToUpperInvariant() switch
+        static string? Marital(string? v)
         {
-            "S" => "ledig",
-            "M" => "verheiratet",
-            "D" => "geschieden",
-            "W" => "verwitwet",
-            "E" => "getrennt",
-            "P" => "eingetragene_partnerschaft",
-            _ => null
-        };
+            var s = (v ?? "").Trim().ToLowerInvariant();
+            return s switch
+            {
+                "" or "unbekannt" or "unknown" => null,
+                "s" or "ledig" or "single" => "ledig",
+                "m" or "verheiratet" or "married" => "verheiratet",
+                "d" or "geschieden" or "divorced" => "geschieden",
+                "w" or "verwitwet" or "widowed" => "verwitwet",
+                "e" or "getrennt" or "separated" => "getrennt",
+                "p" or "eingetragene partnerschaft" or "eingetr. partnerschaft" or "registered partnership" => "eingetragene_partnerschaft",
+                _ => null
+            };
+        }
         static string Fmt(DateOnly? d) => d?.ToString("yyyy-MM-dd") ?? "";
 
         var today = DateOnly.FromDateTime(DateTime.Today);
@@ -789,7 +794,7 @@ public class EasyAtWorkController : ControllerBase
             ["Qualification CCNT"] = PropAny(props, "cf_qualification_ccnt", "qualification_ccnt", "ccnt_qualification", "Qualification CCNT", "CCNT"),
             ["INTL_BANK_ACCT_NBR1"] = fiscal?.Iban,
             ["AHV"] = Prop(props, "cf_swiss_national_id"),
-            ["Marital status"] = Marital(Prop(props, "cf_marital_status"))
+            ["Marital status"] = Marital(PropAny(props, "cf_marital_status", "marital_status", "Marital status", "Familienstand"))
         };
 
         return Ok(new
