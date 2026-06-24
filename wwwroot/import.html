@@ -1099,12 +1099,19 @@ function get(row, ...keys) {
 // (Quelle: Umwandlung_funktion.xlsx). Global, weil sowohl mapContractType
 // als auch runComplianceCheck dasselbe Mapping brauchen.
 const FUNKTION_MAP = {
+    'ASST_1':                           'ASST_1',
+    'ASST_2':                           'ASST_2',
+    'REST_MANAGER':                     'REST_MANAGER',
+    'SHIFT_LEADER_1_6':                 'SHIFT_LEADER_1_6',
+    'SHIFT_LEADER_7_PLUS':              'SHIFT_LEADER_7_PLUS',
+    'HOST_CT':                          'HOST_CT',
+    'SWING':                            'SWING',
+    'CREW':                             'CREW',
     '1ST ASSISTANT':                    'ASST_1',
     '2ND ASSISTANT':                    'ASST_2',
     'ASSISTANT TRAINEE':                'SHIFT_LEADER_1_6',
     'OWNER OPERATOR TRAINEE':           'CREW',
     'APPRENTI-/E SPÉCIALISTE EN RES':   'CREW',
-    'CREW':                             'CREW',
     'CREW TRAINER':                     'HOST_CT',
     'GUEST EXPERIENCE LEADER':          'HOST_CT',
     'HOSTESS / HOST':                   'HOST_CT',

@@ -677,6 +677,31 @@ public class EasyAtWorkController : ControllerBase
                     .OrderByDescending(r => r.From ?? DateOnly.MinValue)
                     .FirstOrDefault();
         }
+        static string ContractTypeForImport(Services.EasyAtWork.EasyAtWorkEmployeeSyncService.HistContractInfo info)
+            => (info.EmploymentModel ?? "").ToUpperInvariant() switch
+            {
+                "MTP" => "MTP/TPM",
+                "FIX" => "Fix",
+                "FIX-M" => "Fix",
+                "UTP" => "Flex",
+                _ => string.IsNullOrWhiteSpace(info.ContractType) ? "Flex" : info.ContractType!
+            };
+        static string AnzahlForImport(Services.EasyAtWork.EasyAtWorkEmployeeSyncService.HistContractInfo info, EawContract? c)
+        {
+            var model = (info.EmploymentModel ?? "").ToUpperInvariant();
+            if (model is "FIX" or "FIX-M")
+            {
+                var pct = info.EmploymentPercentage ?? c?.Percentage ?? c?.Amount;
+                return pct.HasValue
+                    ? pct.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%"
+                    : "";
+            }
+
+            var hours = info.GuaranteedHoursPerWeek ?? c?.Amount ?? c?.WeekHours;
+            return hours.HasValue
+                ? hours.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " Stunden/Woche"
+                : "";
+        }
         static string? Prop(List<EawProperty> rows, string key)
             => rows.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase))?.Value;
         static string? SalutationFromGender(string? g)
@@ -698,21 +723,19 @@ public class EasyAtWorkController : ControllerBase
         };
         static string Fmt(DateOnly? d) => d?.ToString("yyyy-MM-dd") ?? "";
 
+        var today = DateOnly.FromDateTime(DateTime.Today);
         var c = CurrentContract(contracts);
         var monthlyRate = CurrentRate(rates, "month") ?? CurrentRate(rates, "fte");
         var hourlyRate  = CurrentRate(rates, "hour");
         var position = positions.FirstOrDefault()?.Name ?? Prop(props, "cf_src_job_code") ?? "";
-        var amountType = (c?.AmountType ?? "").Trim().ToLowerInvariant();
-        var payFrequency = (monthlyRate != null || amountType.StartsWith("percent") || amountType.StartsWith("month")) ? "month" : "hour";
-        var contractType = c?.Type;
-        if (string.IsNullOrWhiteSpace(contractType))
-            contractType = payFrequency == "month" ? "Fix" : "Flex";
-
-        decimal? pct = c?.Percentage ?? (amountType.StartsWith("percent") ? c?.Amount : null);
-        string anzahl = "";
-        if (pct.HasValue) anzahl = pct.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
-        else if (c?.Amount != null) anzahl = c.Amount.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " Stunden/Woche";
-        else if (c?.WeekHours != null) anzahl = c.WeekHours.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " Stunden/Woche";
+        var isKader = position is "ASST_1" or "ASST_2" or "REST_MANAGER" or "SHIFT_LEADER_1_6" or "SHIFT_LEADER_7_PLUS";
+        var info = Services.EasyAtWork.EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, rates, today, isKader);
+        var payFrequency = info.SalaryType == "monthly" ? "month" : "hour";
+        var contractType = ContractTypeForImport(info);
+        var anzahl = AnzahlForImport(info, c);
+        var contractFrom = info.ContractFrom ?? c?.From ?? emp.From;
+        var contractTo   = info.ContractTo ?? c?.To;
+        var payRateFrom = info.RateFrom ?? monthlyRate?.From ?? hourlyRate?.From ?? contractFrom;
 
         var row = new Dictionary<string, string?>
         {
@@ -729,8 +752,8 @@ public class EasyAtWorkController : ControllerBase
             ["E-Mail"] = emp.Email,
             ["Telefon"] = emp.Phone,
             ["Nationalität"] = emp.Nationality,
-            ["Von"] = Fmt(emp.From),
-            ["Bis"] = Fmt(emp.To),
+            ["Von"] = Fmt(contractFrom),
+            ["Bis"] = Fmt(contractTo),
             ["Store number"] = mapping.EasyAtWorkCustomerNumber,
             ["Funktion"] = position,
             ["Funktionen"] = position,
@@ -738,9 +761,9 @@ public class EasyAtWorkController : ControllerBase
             ["Contract type"] = contractType,
             ["Pay frequency"] = payFrequency,
             ["Anzahl"] = anzahl,
-            ["Pay rate from"] = Fmt(monthlyRate?.From ?? hourlyRate?.From ?? c?.From),
-            ["Tarife"] = (hourlyRate?.Rate != null && hourlyRate.Rate.Value > 1m) ? hourlyRate.Rate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
-            ["Salary (actual)"] = (monthlyRate?.Rate != null && monthlyRate.Rate.Value > 1m) ? monthlyRate.Rate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
+            ["Pay rate from"] = Fmt(payRateFrom),
+            ["Tarife"] = (info.HourlyRate != null && info.HourlyRate.Value > 1m) ? info.HourlyRate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
+            ["Salary (actual)"] = (info.MonthlySalary != null && info.MonthlySalary.Value > 1m) ? info.MonthlySalary.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
             ["INTL_BANK_ACCT_NBR1"] = fiscal?.Iban,
             ["AHV"] = Prop(props, "cf_swiss_national_id"),
             ["Marital status"] = Marital(Prop(props, "cf_marital_status"))
