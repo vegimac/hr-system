@@ -2782,11 +2782,17 @@
             pointer-events: auto;
         }
         .liquid-dashboard .liquid-branch-select {
-            width: 92px;
+            display: none;
+        }
+        .liquid-dashboard .liquid-branch-menu {
+            position: relative;
+        }
+        .liquid-dashboard .liquid-branch-btn {
+            width: 112px;
             height: 34px;
             border: 1px solid var(--liquid-border);
             border-radius: 15px;
-            padding: 0 24px 0 12px;
+            padding: 0 10px 0 14px;
             background: var(--liquid-glass);
             color: var(--liquid-muted);
             font: inherit;
@@ -2796,6 +2802,67 @@
             -webkit-backdrop-filter: blur(24px) saturate(132%);
             outline: none;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .liquid-dashboard .liquid-branch-btn span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .liquid-dashboard .liquid-branch-btn svg {
+            width: 14px;
+            height: 14px;
+            flex: 0 0 auto;
+        }
+        .liquid-dashboard .liquid-branch-options {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            min-width: 236px;
+            border: 1px solid var(--liquid-border);
+            border-radius: 22px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.50);
+            color: var(--liquid-text);
+            box-shadow: 0 28px 78px rgba(70, 64, 55, 0.22), var(--liquid-inset);
+            backdrop-filter: blur(30px) saturate(138%);
+            -webkit-backdrop-filter: blur(30px) saturate(138%);
+        }
+        .liquid-dashboard .liquid-branch-menu.open .liquid-branch-options {
+            display: grid;
+            gap: 3px;
+        }
+        .liquid-dashboard .liquid-branch-option {
+            height: 34px;
+            border: 0;
+            border-radius: 14px;
+            padding: 0 10px;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            font-size: 13px;
+            text-align: left;
+            cursor: pointer;
+            display: grid;
+            grid-template-columns: 18px 1fr;
+            align-items: center;
+            gap: 8px;
+        }
+        .liquid-dashboard .liquid-branch-option:hover {
+            background: rgba(255, 255, 255, 0.34);
+        }
+        .liquid-dashboard .liquid-branch-option.active {
+            background: rgba(255, 255, 255, 0.58);
+            box-shadow: inset 0 1px 1px rgba(255,255,255,.85);
+            font-weight: 650;
+        }
+        .liquid-dashboard .liquid-branch-check {
+            color: #6b7280;
+            font-weight: 800;
         }
         .liquid-dashboard .liquid-home-user {
             position: fixed;
@@ -3151,12 +3218,19 @@
         body.theme-dark .liquid-dashboard .liquid-todo-row .liquid-todo-sub {
             color: #94a3b8;
         }
-        body.theme-dark .liquid-dashboard .liquid-branch-select,
+        body.theme-dark .liquid-dashboard .liquid-branch-btn,
+        body.theme-dark .liquid-dashboard .liquid-branch-options,
         body.theme-dark .liquid-dashboard .liquid-home-user {
             background: rgba(30,41,59,.64);
             border-color: rgba(148,163,184,.20);
             color: #e5edf8;
             box-shadow: 0 22px 70px rgba(0,0,0,.34), var(--liquid-inset);
+        }
+        body.theme-dark .liquid-dashboard .liquid-branch-option:hover {
+            background: rgba(255,255,255,.10);
+        }
+        body.theme-dark .liquid-dashboard .liquid-branch-option.active {
+            background: rgba(255,255,255,.16);
         }
         body.theme-dark .liquid-dashboard .liquid-user-role {
             color: #94a3b8;
@@ -3382,6 +3456,13 @@
                 <div class="page-body liquid-dashboard-body">
                     <div class="liquid-home-top-left">
                         <select id="liquidBranchSelect" class="liquid-branch-select" onchange="onLiquidBranchChange()" aria-label="Filiale wählen"></select>
+                        <div class="liquid-branch-menu" id="liquidBranchMenu">
+                            <button type="button" class="liquid-branch-btn" onclick="toggleLiquidBranchMenu(event)" aria-haspopup="listbox" aria-expanded="false">
+                                <span id="liquidBranchLabel">Filiale</span>
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                            </button>
+                            <div class="liquid-branch-options" id="liquidBranchOptions" role="listbox"></div>
+                        </div>
                     </div>
                     <div class="liquid-home-user">
                         <div class="liquid-user-avatar" id="liquidUserAvatar">–</div>
@@ -9271,6 +9352,7 @@ function syncLiquidDashboardChrome() {
         lqSel.innerHTML = srcSel.innerHTML;
         lqSel.value = srcSel.value || '';
     }
+    syncLiquidBranchMenu();
     const uname = document.getElementById('liquidUserName');
     const urole = document.getElementById('liquidUserRole');
     const uava  = document.getElementById('liquidUserAvatar');
@@ -9287,6 +9369,57 @@ function onLiquidBranchChange() {
     srcSel.value = lqSel.value;
     onBranchChange();
 }
+
+function syncLiquidBranchMenu() {
+    const lqSel = document.getElementById('liquidBranchSelect');
+    const label = document.getElementById('liquidBranchLabel');
+    const list = document.getElementById('liquidBranchOptions');
+    if (!lqSel || !label || !list) return;
+    const selectedText = lqSel.options[lqSel.selectedIndex]?.textContent || 'Filiale';
+    label.textContent = selectedText;
+    list.innerHTML = Array.from(lqSel.options).map(o => {
+        const active = o.value === lqSel.value;
+        return `<button type="button" class="liquid-branch-option${active ? ' active' : ''}" role="option" aria-selected="${active}" onclick="selectLiquidBranch(${JSON.stringify(o.value)})">
+            <span class="liquid-branch-check">${active ? '✓' : ''}</span>
+            <span>${liquidEscapeHtml(o.textContent || '')}</span>
+        </button>`;
+    }).join('');
+}
+
+function liquidEscapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+}
+
+function toggleLiquidBranchMenu(event) {
+    event?.stopPropagation();
+    const menu = document.getElementById('liquidBranchMenu');
+    const btn = menu?.querySelector('.liquid-branch-btn');
+    if (!menu) return;
+    const open = !menu.classList.contains('open');
+    menu.classList.toggle('open', open);
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function closeLiquidBranchMenu() {
+    const menu = document.getElementById('liquidBranchMenu');
+    const btn = menu?.querySelector('.liquid-branch-btn');
+    menu?.classList.remove('open');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function selectLiquidBranch(value) {
+    const lqSel = document.getElementById('liquidBranchSelect');
+    if (!lqSel) return;
+    lqSel.value = value;
+    closeLiquidBranchMenu();
+    onLiquidBranchChange();
+}
+
+document.addEventListener('click', (event) => {
+    if (!event.target.closest?.('#liquidBranchMenu')) closeLiquidBranchMenu();
+});
 
 function syncLiquidDashboardCards() {
     const role = currentUser?.role || '';
