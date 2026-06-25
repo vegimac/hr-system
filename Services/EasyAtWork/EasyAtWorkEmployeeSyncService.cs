@@ -209,14 +209,11 @@ public class EasyAtWorkEmployeeSyncService
         }
         if (eaw == null)
         {
-            var all = await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct);
-            eaw = all.FirstOrDefault(e =>
-                (emp.EasyAtWorkEmployeeId.HasValue && (e.Id == emp.EasyAtWorkEmployeeId.Value || e.UserId == emp.EasyAtWorkEmployeeId.Value))
-                || string.Equals((e.Number ?? "").Trim(), (emp.EmployeeNumber ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
+            eaw = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, emp.EmployeeNumber, ct);
         }
         if (eaw == null)
         {
-            result.Errors.Add("Mitarbeiter in easy@work nicht gefunden (weder über easy@work-ID noch Personalnummer).");
+            result.Errors.Add("Mitarbeiter in easy@work nicht gefunden (Single-Endpoint per easy@work-ID und n+Personalnummer ohne Treffer).");
             return result;
         }
         result.EasyAtWorkEmployeeId = eaw.Id;
