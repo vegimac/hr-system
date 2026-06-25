@@ -3005,21 +3005,21 @@
             z-index: 5;
             top: 36%;
             right: 56px;
-            width: 216px;
-            border: 1px solid var(--liquid-border);
-            border-radius: 22px;
-            padding: 20px 12px 14px;
-            background: var(--liquid-glass);
-            box-shadow: var(--liquid-shadow), var(--liquid-inset);
-            backdrop-filter: blur(24px) saturate(132%);
-            -webkit-backdrop-filter: blur(24px) saturate(132%);
+            width: 270px;
+            border: 0;
+            border-radius: 0;
+            padding: 0;
+            background: transparent;
+            box-shadow: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
             min-height: 0;
         }
         .liquid-dashboard .liquid-todo-head {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 4px 12px;
+            padding: 0 4px 14px;
             color: #5a554f;
             font-size: 16px;
             font-weight: 750;
@@ -3042,26 +3042,30 @@
         .liquid-dashboard .liquid-todo-panel #dashAlertsContainer {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 10px;
         }
         .liquid-dashboard .liquid-todo-row {
-            height: 44px;
-            border-radius: 15px;
+            min-height: 54px;
+            border-radius: 24px;
             display: grid;
             grid-template-columns: 22px 1fr 14px;
             gap: 8px;
             align-items: center;
-            padding: 0 10px;
+            padding: 9px 14px;
             color: #666;
             font-size: 11px;
-            background: rgba(255, 255, 255, 0.18);
-            border-top: 1px solid rgba(255, 255, 255, 0.28);
+            background: rgba(255, 255, 255, 0.34);
+            border: 1px solid rgba(255, 255, 255, 0.46);
+            box-shadow: 0 16px 42px rgba(70, 64, 55, 0.10), var(--liquid-inset);
+            backdrop-filter: blur(24px) saturate(132%);
+            -webkit-backdrop-filter: blur(24px) saturate(132%);
             cursor: pointer;
-            transition: transform .18s ease, background .18s ease;
+            transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
         }
         .liquid-dashboard .liquid-todo-row:hover {
             transform: translateY(-2px);
-            background: rgba(255,255,255,.42);
+            background: rgba(255,255,255,.50);
+            box-shadow: 0 22px 58px rgba(70, 64, 55, 0.14), var(--liquid-inset);
         }
         .liquid-dashboard .liquid-todo-row .liquid-todo-title {
             font-size: 12px;
@@ -3193,11 +3197,15 @@
         body.theme-dark .liquid-dashboard #dashAlertsContainer h2 {
             color: #d7c7a8 !important;
         }
-        body.theme-dark .liquid-dashboard .liquid-module-card,
-        body.theme-dark .liquid-dashboard .liquid-todo-panel {
+        body.theme-dark .liquid-dashboard .liquid-module-card {
             background: linear-gradient(145deg, rgba(30,41,59,.72), rgba(15,23,42,.38));
             border-color: rgba(148,163,184,.20);
             color: var(--liquid-text);
+        }
+        body.theme-dark .liquid-dashboard .liquid-todo-panel {
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
         }
         body.theme-dark .liquid-dashboard .liquid-module-card:hover {
             background: linear-gradient(145deg, rgba(51,65,85,.74), rgba(15,23,42,.44));
@@ -3208,12 +3216,13 @@
             color: #e5edf8;
         }
         body.theme-dark .liquid-dashboard .liquid-todo-row {
-            background: rgba(255,255,255,.055);
-            border-top-color: rgba(255,255,255,.08);
+            background: rgba(30,41,59,.56);
+            border-color: rgba(148,163,184,.18);
+            box-shadow: 0 18px 48px rgba(0,0,0,.24), var(--liquid-inset);
             color: #d7e0ee;
         }
         body.theme-dark .liquid-dashboard .liquid-todo-row:hover {
-            background: rgba(255,255,255,.10);
+            background: rgba(51,65,85,.68);
         }
         body.theme-dark .liquid-dashboard .liquid-todo-row .liquid-todo-sub {
             color: #94a3b8;
