@@ -861,9 +861,9 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
             } catch {}
         }
         const matchingContract = findMatchingExistingContract(row, existingContracts);
-        if (matchingContract) row.__existingEmploymentId = matchingContract.id;
+        if (matchingContract) row.__existingEmploymentId = objVal(matchingContract, 'id');
         const sameStartContract = matchingContract ? null : findSameStartExistingContract(row, existingContracts);
-        if (sameStartContract) row.__updateEmploymentId = sameStartContract.id;
+        if (sameStartContract) row.__updateEmploymentId = objVal(sameStartContract, 'id');
 
         rowStates[0] = { status: 'contract', employeeId };
         document.getElementById('uploadSection').style.display = 'none';
@@ -1821,6 +1821,13 @@ function sameMoney(a, b) {
     return Math.abs(na - nb) < 0.01;
 }
 
+function objVal(obj, camelName) {
+    if (!obj) return undefined;
+    if (obj[camelName] !== undefined) return obj[camelName];
+    const pascalName = camelName.charAt(0).toUpperCase() + camelName.slice(1);
+    return obj[pascalName];
+}
+
 function findMatchingExistingContract(row, contracts) {
     if (!isEasyworkApiImportRow(row) || !Array.isArray(contracts) || contracts.length === 0) return null;
     const model = mapContractType(row);
@@ -1835,16 +1842,16 @@ function findMatchingExistingContract(row, contracts) {
     const guaranteed = anzahl && (anzahl.type === 'hours' || anzahl.type === 'number') ? Number(anzahl.value) : null;
 
     return contracts.find(c => {
-        const cStart = c.contractStartDate ? String(c.contractStartDate).slice(0, 10) : '';
+        const cStart = objVal(c, 'contractStartDate') ? String(objVal(c, 'contractStartDate')).slice(0, 10) : '';
         if (!start || cStart !== start) return false;
-        if ((c.employmentModel || '') !== model) return false;
-        if (jobGroupCode && (c.jobGroupCode || c.jobTitle || '') !== jobGroupCode) return false;
+        if ((objVal(c, 'employmentModel') || '') !== model) return false;
+        if (jobGroupCode && (objVal(c, 'jobGroupCode') || objVal(c, 'jobTitle') || '') !== jobGroupCode) return false;
         if (isFix) {
-            if (!sameMoney(c.employmentPercentage ?? 100, pct)) return false;
-            if (!sameMoney(c.monthlySalaryFte, fte)) return false;
+            if (!sameMoney(objVal(c, 'employmentPercentage') ?? 100, pct)) return false;
+            if (!sameMoney(objVal(c, 'monthlySalaryFte'), fte)) return false;
         } else {
-            if (!sameMoney(c.hourlyRate, hourly)) return false;
-            if (model === 'MTP' && !sameMoney(c.guaranteedHoursPerWeek, guaranteed)) return false;
+            if (!sameMoney(objVal(c, 'hourlyRate'), hourly)) return false;
+            if (model === 'MTP' && !sameMoney(objVal(c, 'guaranteedHoursPerWeek'), guaranteed)) return false;
         }
         return true;
     }) || null;
@@ -1855,9 +1862,25 @@ function findSameStartExistingContract(row, contracts) {
     const start = formatDate(get(row, 'Von'));
     if (!start) return null;
     return contracts.find(c => {
-        const cStart = c.contractStartDate ? String(c.contractStartDate).slice(0, 10) : '';
+        const cStart = objVal(c, 'contractStartDate') ? String(objVal(c, 'contractStartDate')).slice(0, 10) : '';
         return cStart === start;
     }) || null;
+}
+
+async function resolveSameStartEmploymentId(row, employeeId) {
+    if (!isEasyworkApiImportRow(row) || !employeeId) return null;
+    if (row.__updateEmploymentId) return Number(row.__updateEmploymentId);
+    if (row.__existingEmploymentId) return Number(row.__existingEmploymentId);
+    try {
+        const res = await fetch(`/api/employments/employee/${employeeId}`, { headers: ah(), cache: 'no-store' });
+        if (!res.ok) return null;
+        const contracts = await res.json();
+        const sameStart = findSameStartExistingContract(row, contracts);
+        const id = objVal(sameStart, 'id');
+        return id ? Number(id) : null;
+    } catch {
+        return null;
+    }
 }
 
 async function analyzeRows() {
@@ -3486,6 +3509,7 @@ function buildContractPayload(idx, employeeId, row) {
         contractEndDateSet:     true,
         contractType:           isFixedTerm ? 'befristet' : 'unbefristet',
         jobTitle,
+        jobGroupCode:           jobTitle,
         educationLevelCode,
         hourlyRate:             isFix ? null : hourly,
         monthlySalary:          isFix ? actual : null,
@@ -3648,7 +3672,7 @@ async function saveContractChange(idx, employeeId) {
 
         // 2. Vertrag erstellen oder bei gleicher easy@work-Startzeile den vorhandenen Vertrag aktualisieren
         const contractPayload = buildContractPayload(idx, employeeId, row);
-        const updateEmploymentId = isEasyworkApiImportRow(row) && row.__updateEmploymentId ? Number(row.__updateEmploymentId) : null;
+        const updateEmploymentId = await resolveSameStartEmploymentId(row, employeeId);
         const ctRes = await fetch(updateEmploymentId ? `/api/employments/${updateEmploymentId}` : '/api/employments', {
             method: updateEmploymentId ? 'PUT' : 'POST',
             headers: ah(),
