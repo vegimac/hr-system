@@ -831,6 +831,7 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
             String(e.employeeNumber || e.employee_number || '').trim() === nr);
         let employeeId = existingEmp?.id || null;
         const payload = buildPersonPayload(row);
+        let existingContracts = [];
 
         if (employeeId) {
             const upd = await fetch(`/api/employees/${employeeId}`, {
@@ -853,6 +854,14 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
             await loadEmployees();
             existingEmp = allEmployees.find(e => Number(e.id) === Number(employeeId)) || created;
         }
+        if (employeeId) {
+            try {
+                const cRes = await fetch(`/api/employments/employee/${employeeId}`, { headers: ah(), cache: 'no-store' });
+                if (cRes.ok) existingContracts = await cRes.json();
+            } catch {}
+        }
+        const matchingContract = findMatchingExistingContract(row, existingContracts);
+        if (matchingContract) row.__existingEmploymentId = matchingContract.id;
 
         rowStates[0] = { status: 'contract', employeeId };
         document.getElementById('uploadSection').style.display = 'none';
@@ -1802,6 +1811,41 @@ function contractChangedVsCurrent(row, currentContract) {
     }
 
     return changes.length > 0 ? changes : false;
+}
+
+function sameMoney(a, b) {
+    const na = Number(a ?? 0);
+    const nb = Number(b ?? 0);
+    return Math.abs(na - nb) < 0.01;
+}
+
+function findMatchingExistingContract(row, contracts) {
+    if (!isEasyworkApiImportRow(row) || !Array.isArray(contracts) || contracts.length === 0) return null;
+    const model = mapContractType(row);
+    const start = formatDate(get(row, 'Von'));
+    const jobGroupCode = resolveJobGroupCode(row) || '';
+    const anzahl = parseAnzahl(row);
+    const isFix = model === 'FIX' || model === 'FIX-M';
+    const hourly = parseMoneyValue(get(row, 'Tarife'));
+    const actual = parseMoneyValue(get(row, 'Salary (actual)'));
+    const pct = anzahl?.type === 'percentage' ? Number(anzahl.value) : 100;
+    const fte = actual && pct ? Math.round(actual / pct * 100 * 100) / 100 : actual;
+    const guaranteed = anzahl && (anzahl.type === 'hours' || anzahl.type === 'number') ? Number(anzahl.value) : null;
+
+    return contracts.find(c => {
+        const cStart = c.contractStartDate ? String(c.contractStartDate).slice(0, 10) : '';
+        if (!start || cStart !== start) return false;
+        if ((c.employmentModel || '') !== model) return false;
+        if (jobGroupCode && (c.jobGroupCode || c.jobTitle || '') !== jobGroupCode) return false;
+        if (isFix) {
+            if (!sameMoney(c.employmentPercentage ?? 100, pct)) return false;
+            if (!sameMoney(c.monthlySalaryFte, fte)) return false;
+        } else {
+            if (!sameMoney(c.hourlyRate, hourly)) return false;
+            if (model === 'MTP' && !sameMoney(c.guaranteedHoursPerWeek, guaranteed)) return false;
+        }
+        return true;
+    }) || null;
 }
 
 async function analyzeRows() {
@@ -2809,6 +2853,7 @@ function renderContractRow(c) {
         ? `Nr. ${get(row,'Nummer')} · Neuer Lohn ab ${fmtDe(payRateFromIso)} (alte Vertragsdaten übernommen)`
         : `Nr. ${get(row,'Nummer')} · Neues Vertragsdatum: ${vonDate || '–'}`;
     const apiSingleImport = isEasyworkApiImportRow(row);
+    const existingEmploymentId = row.__existingEmploymentId ? Number(row.__existingEmploymentId) : null;
 
     const blockingErrorsHtml = apiImportBlockingErrorHtml(row);
     if (blockingErrorsHtml) {
@@ -2860,9 +2905,16 @@ function renderContractRow(c) {
                 ${addrField('Nationalität', get(row,'Nationalität'))}
             </div>
             ${contractFormHtml(idx, row, true, activeContract, payRateFromIso)}
+            ${apiSingleImport && existingEmploymentId ? `
+                <div class="compliance-box compliance-ok" style="margin-top:10px">
+                    <div style="font-weight:700;margin-bottom:4px">✅ Vertrag schon vorhanden</div>
+                    <div>Beginn, Funktion, Pensum/Stunden und Lohn stimmen mit easy@work überein.</div>
+                </div>` : ''}
             <div class="row-actions">
                 <div id="rowStatus-${idx}"></div>
-                <button class="btn btn-primary" id="btnSave-${idx}" onclick="saveContractChange(${idx}, ${employeeId})" ${apiSingleImport ? 'style="width:100%;justify-content:center;padding:14px 18px;font-size:16px;border-radius:12px"' : ''} disabled>📋 Vertrag erstellen</button>
+                ${apiSingleImport && existingEmploymentId
+                    ? `<button class="btn btn-primary" onclick="downloadContractPdf(${existingEmploymentId})" style="width:100%;justify-content:center;padding:14px 18px;font-size:16px;border-radius:12px">📄 Vertrag drucken</button>`
+                    : `<button class="btn btn-primary" id="btnSave-${idx}" onclick="saveContractChange(${idx}, ${employeeId})" ${apiSingleImport ? 'style="width:100%;justify-content:center;padding:14px 18px;font-size:16px;border-radius:12px"' : ''} disabled>📋 Vertrag erstellen</button>`}
             </div>
         </div>
     </div>`;
