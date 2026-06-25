@@ -1284,6 +1284,117 @@ function functionErrorHtml(row) {
     </div>`;
 }
 
+function parseMoneyValue(raw) {
+    const n = parseFloat(String(raw || '').replace(',', '.'));
+    return Number.isFinite(n) ? n : 0;
+}
+
+function apiWageValue(row) {
+    const model = mapContractType(row);
+    if (model === 'FIX' || model === 'FIX-M') {
+        return {
+            model,
+            label: 'Monatslohn',
+            value: parseMoneyValue(get(row, 'Salary (actual)')),
+            raw: get(row, 'Salary (actual)')
+        };
+    }
+    return {
+        model,
+        label: 'Stundenlohn',
+        value: parseMoneyValue(get(row, 'Tarife')),
+        raw: get(row, 'Tarife')
+    };
+}
+
+function validateWageForApiImport(row) {
+    if (!isEasyworkApiImportRow(row)) return { ok: true };
+    const w = apiWageValue(row);
+    if (!w.model) return { ok: true };
+    if (!w.value || w.value <= 1) {
+        return {
+            ok: false,
+            model: w.model,
+            label: w.label,
+            raw: w.raw,
+            message: `${w.label} fehlt in easy@work.`
+        };
+    }
+    return { ok: true, ...w };
+}
+
+function wageErrorHtml(row) {
+    const v = validateWageForApiImport(row);
+    if (v.ok) return '';
+    const name = `${get(row, 'Vorname')} ${get(row, 'Nachname')}`.trim() || 'Mitarbeiter';
+    const nr = get(row, 'Nummer') || '–';
+    return `<div class="alert alert-err" style="margin:0 0 10px 0;padding:16px 18px;border-width:2px;font-size:14px;line-height:1.5">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+            <div style="font-size:28px;line-height:1">⛔</div>
+            <div style="flex:1">
+                <div style="font-weight:800;font-size:16px;margin-bottom:6px">Lohn in easy@work erfassen</div>
+                <div style="margin-bottom:10px">${v.message} Der Vertrag kann nicht mit einem lokal berechneten Mindestlohn erstellt werden.</div>
+                <div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;color:#7f1d1d">
+                    <div style="font-weight:700;margin-bottom:6px">So korrigierst du es:</div>
+                    <ol style="margin-left:18px">
+                        <li>Gehe ins <b>easy@work</b>.</li>
+                        <li>Öffne den Mitarbeiter <b>${nr} – ${name}</b>.</li>
+                        <li>Gehe zu <b>Lohnsatz & Vertragsinfos</b>.</li>
+                        <li>Erfasse den korrekten <b>${v.label}</b> in easy@work.</li>
+                        <li>Speichere die Änderung und lade den Mitarbeiter im HR-System erneut.</li>
+                    </ol>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:#7f1d1d">easy@work ist führend. Ohne Lohn aus easy@work wird kein Vertrag übernommen.</div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function mtpWeeklyHours(row) {
+    const anzahl = parseAnzahl(row);
+    return (anzahl && (anzahl.type === 'hours' || anzahl.type === 'number')) ? Number(anzahl.value) : 0;
+}
+
+function validateMtpHoursForApiImport(row) {
+    if (!isEasyworkApiImportRow(row)) return { ok: true };
+    if (mapContractType(row) !== 'MTP') return { ok: true };
+    const hours = mtpWeeklyHours(row);
+    if (!hours || hours < 18) {
+        return {
+            ok: false,
+            hours,
+            message: `MTP-Vertrag hat ${hours || 0} Std./Woche. MTP muss mindestens 18 Std./Woche haben.`
+        };
+    }
+    return { ok: true, hours };
+}
+
+function mtpHoursErrorHtml(row) {
+    const v = validateMtpHoursForApiImport(row);
+    if (v.ok) return '';
+    const name = `${get(row, 'Vorname')} ${get(row, 'Nachname')}`.trim() || 'Mitarbeiter';
+    const nr = get(row, 'Nummer') || '–';
+    return `<div class="alert alert-err" style="margin:0 0 10px 0;padding:16px 18px;border-width:2px;font-size:14px;line-height:1.5">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+            <div style="font-size:28px;line-height:1">⛔</div>
+            <div style="flex:1">
+                <div style="font-weight:800;font-size:16px;margin-bottom:6px">MTP-Stunden in easy@work korrigieren</div>
+                <div style="margin-bottom:10px">${v.message}</div>
+                <div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;color:#7f1d1d">
+                    <div style="font-weight:700;margin-bottom:6px">So korrigierst du es:</div>
+                    <ol style="margin-left:18px">
+                        <li>Gehe ins <b>easy@work</b>.</li>
+                        <li>Öffne den Mitarbeiter <b>${nr} – ${name}</b>.</li>
+                        <li>Gehe zu <b>Lohnsatz & Vertragsinfos</b>.</li>
+                        <li>Setze beim MTP-Vertrag die Wochenstunden auf mindestens <b>18 Std./Woche</b>.</li>
+                        <li>Speichere die Änderung und lade den Mitarbeiter im HR-System erneut.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
 const ALLOWED_MARITAL_STATUSES = {
     ledig: 'Ledig',
     verheiratet: 'Verheiratet',
@@ -1409,6 +1520,8 @@ function apiImportBlockingErrorHtml(row) {
     return [
         employeeNumberErrorHtml(row),
         functionErrorHtml(row),
+        mtpHoursErrorHtml(row),
+        wageErrorHtml(row),
         maritalStatusErrorHtml(row),
         ccntErrorHtml(row)
     ].filter(Boolean).join('');
@@ -2738,6 +2851,26 @@ async function runComplianceCheck(idx) {
         return;
     }
 
+    const mtpHoursCheck = validateMtpHoursForApiImport(row);
+    if (!mtpHoursCheck.ok) {
+        box.innerHTML = `<div class="compliance-box compliance-err">
+            <div style="font-weight:700;margin-bottom:4px">⛔ MTP-Stunden zu tief</div>
+            <div>${mtpHoursCheck.message}</div>
+        </div>`;
+        if (btn) btn.disabled = true;
+        return;
+    }
+
+    const wageCheck = validateWageForApiImport(row);
+    if (!wageCheck.ok) {
+        box.innerHTML = `<div class="compliance-box compliance-err">
+            <div style="font-weight:700;margin-bottom:4px">⛔ Lohn fehlt in easy@work</div>
+            <div>${wageCheck.message}</div>
+        </div>`;
+        if (btn) btn.disabled = true;
+        return;
+    }
+
     const maritalCheck = validateMaritalStatusForApiImport(row);
     if (!maritalCheck.ok) {
         box.innerHTML = `<div class="compliance-box compliance-err">
@@ -2830,28 +2963,29 @@ async function runComplianceCheck(idx) {
             return;
         }
 
-        // Mindestlohn-Default: Feld ist leer ODER der CSV-Wert liegt UNTER dem
-        // Mindestlohn → automatisch auf Mindestlohn anheben (Schutz vor easy@work-
-        // Daten, die aus alten Lohnstufen stammen). User kann nachträglich manuell
-        // höheren Wert eintragen.
-        if (isFix) {
-            const fteEl = document.getElementById(`salaryFte-${idx}`);
-            if (fteEl && cr.minimumMonthlySalaryFte != null) {
-                const cur = parseFloat(fteEl.value) || 0;
-                const min = Number(cr.minimumMonthlySalaryFte);
-                if (cur === 0 || cur < min) {
-                    fteEl.value = min.toFixed(2);
-                    recalcSalary(idx);
+        // Legacy/Admin-CSV: bisheriger Komfort bleibt erhalten (unter Mindestlohn
+        // automatisch auf Minimum anheben). API-Einzelimport: easy@work ist führend,
+        // daher NIE lokal auffüllen.
+        if (!isEasyworkApiImportRow(row)) {
+            if (isFix) {
+                const fteEl = document.getElementById(`salaryFte-${idx}`);
+                if (fteEl && cr.minimumMonthlySalaryFte != null) {
+                    const cur = parseFloat(fteEl.value) || 0;
+                    const min = Number(cr.minimumMonthlySalaryFte);
+                    if (cur === 0 || cur < min) {
+                        fteEl.value = min.toFixed(2);
+                        recalcSalary(idx);
+                    }
                 }
-            }
-        } else {
-            const hrEl = document.getElementById(`hourlyRate-${idx}`);
-            if (hrEl && cr.minimumHourlyRate != null) {
-                const cur = parseFloat((hrEl.value || '').replace(',', '.')) || 0;
-                const min = Number(cr.minimumHourlyRate);
-                if (cur === 0 || cur < min) {
-                    hrEl.value = min.toFixed(2);
-                    calcMtpSalary(idx);
+            } else {
+                const hrEl = document.getElementById(`hourlyRate-${idx}`);
+                if (hrEl && cr.minimumHourlyRate != null) {
+                    const cur = parseFloat((hrEl.value || '').replace(',', '.')) || 0;
+                    const min = Number(cr.minimumHourlyRate);
+                    if (cur === 0 || cur < min) {
+                        hrEl.value = min.toFixed(2);
+                        calcMtpSalary(idx);
+                    }
                 }
             }
         }
@@ -2891,12 +3025,23 @@ async function runComplianceCheck(idx) {
             }
         }
 
+        if (isEasyworkApiImportRow(row) && underpaid) {
+            html += `<div style="margin-top:8px;font-size:12px;font-weight:700;color:#991b1b">Bitte Lohn zuerst in easy@work auf mindestens den Mindestlohn korrigieren und den Mitarbeiter danach neu laden.</div>`;
+        }
+        if (isEasyworkApiImportRow(row) && overpaid) {
+            html += `<label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;padding:8px 10px;background:#ecfdf5;border:1px solid #86efac;border-radius:8px;color:#166534;font-size:12.5px">
+                <input type="checkbox" id="wageConfirm-${idx}" onchange="document.getElementById('btnSave-${idx}').disabled = !this.checked" style="margin-top:2px">
+                <span><b>Lohn liegt über Mindestlohn.</b> Willst du diesen easy@work-Lohn übernehmen? Wenn ja, Haken setzen und weiter. Wenn nein, zurück zu easy@work und dort korrigieren.</span>
+            </label>`;
+        }
         if (isFuture) html += `<div style="font-size:12px;color:#1d4ed8;margin-top:4px">Geprüft per Vertragsbeginn: ${startDate}</div>`;
         html += '</div>';
         box.innerHTML = pastInfo + html;
 
-        // Zu tief → Button sperren, zu hoch → erlauben
-        if (btn) { btn.disabled = underpaid; }
+        if (btn) {
+            if (isEasyworkApiImportRow(row) && overpaid) btn.disabled = true;
+            else btn.disabled = underpaid;
+        }
     } catch(e) {
         box.innerHTML = pastInfo + `<div class="compliance-box compliance-warn">⚠️ Compliance-Check Fehler: ${e.message}</div>`;
     }
@@ -3152,13 +3297,22 @@ async function saveNewEmployee(idx) {
     const jg = document.getElementById(`jobGroup-${idx}`)?.value;
     const numberCheck = validateEmployeeNumberForApiImport(row);
     const functionCheck = validateFunctionForApiImport(row);
+    const mtpHoursCheck = validateMtpHoursForApiImport(row);
+    const wageCheck = validateWageForApiImport(row);
     const maritalCheck = validateMaritalStatusForApiImport(row);
     const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
     if (!numberCheck.ok) { alertEl.innerHTML = employeeNumberErrorHtml(row); return; }
     if (!functionCheck.ok) { alertEl.innerHTML = functionErrorHtml(row); return; }
+    if (!mtpHoursCheck.ok) { alertEl.innerHTML = mtpHoursErrorHtml(row); return; }
+    if (!wageCheck.ok) { alertEl.innerHTML = wageErrorHtml(row); return; }
     if (!maritalCheck.ok) { alertEl.innerHTML = maritalStatusErrorHtml(row); return; }
     if (isEasyworkApiImportRow(row) && !ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
+    const wageConfirm = document.getElementById(`wageConfirm-${idx}`);
+    if (isEasyworkApiImportRow(row) && wageConfirm && !wageConfirm.checked) {
+        alertEl.innerHTML = `<div class="alert alert-err">Bitte bestätigen, dass du den easy@work-Lohn über Mindestlohn übernehmen willst.</div>`;
+        return;
+    }
     if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
     if (!document.getElementById(`startDate-${idx}`)?.value) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Vertragsbeginn angeben.</div>`; return; }
 
@@ -3206,13 +3360,22 @@ async function saveContractChange(idx, employeeId) {
     const jg = document.getElementById(`jobGroup-${idx}`)?.value;
     const numberCheck = validateEmployeeNumberForApiImport(row);
     const functionCheck = validateFunctionForApiImport(row);
+    const mtpHoursCheck = validateMtpHoursForApiImport(row);
+    const wageCheck = validateWageForApiImport(row);
     const maritalCheck = validateMaritalStatusForApiImport(row);
     const ccntCheck = validateCcntQualification(get(row, 'Qualification CCNT'));
     if (!jg) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Funktion wählen.</div>`; return; }
     if (!numberCheck.ok) { alertEl.innerHTML = employeeNumberErrorHtml(row); return; }
     if (!functionCheck.ok) { alertEl.innerHTML = functionErrorHtml(row); return; }
+    if (!mtpHoursCheck.ok) { alertEl.innerHTML = mtpHoursErrorHtml(row); return; }
+    if (!wageCheck.ok) { alertEl.innerHTML = wageErrorHtml(row); return; }
     if (!maritalCheck.ok) { alertEl.innerHTML = maritalStatusErrorHtml(row); return; }
     if (isEasyworkApiImportRow(row) && !ccntCheck.ok) { alertEl.innerHTML = ccntErrorHtml(row); return; }
+    const wageConfirm = document.getElementById(`wageConfirm-${idx}`);
+    if (isEasyworkApiImportRow(row) && wageConfirm && !wageConfirm.checked) {
+        alertEl.innerHTML = `<div class="alert alert-err">Bitte bestätigen, dass du den easy@work-Lohn über Mindestlohn übernehmen willst.</div>`;
+        return;
+    }
     if (!edLevel) { alertEl.innerHTML = `<div class="alert alert-err">Bitte Ausbildungsniveau wählen.</div>`; return; }
 
     btn.disabled = true; btn.textContent = '⏳ Wird gespeichert...';
