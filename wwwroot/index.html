@@ -2260,6 +2260,78 @@
             box-shadow: none;
         }
 
+        /* Liquid-Employee: keine separaten Innen-Frames. Die MA-Seite liegt wie
+           das Dashboard direkt auf der Hintergrundfläche; nur Inhalte/Aktionen
+           zeichnen sich ab. */
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav,
+        #page-mitarbeiter.liquid-employee .emp-list-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-list,
+        #page-mitarbeiter.liquid-employee .emp-detail-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-detail,
+        #page-mitarbeiter.liquid-employee .emp-detail-header,
+        #page-mitarbeiter.liquid-employee .emp-detail-tabs,
+        #page-mitarbeiter.liquid-employee .emp-detail-body,
+        #page-mitarbeiter.liquid-employee .emp-field-grid,
+        #page-mitarbeiter.liquid-employee .emp-field-grid-2,
+        #page-mitarbeiter.liquid-employee .emp-field-grid-3,
+        #page-mitarbeiter.liquid-employee .emp-contract-strip,
+        #page-mitarbeiter.liquid-employee .emp-contract-row,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-panel,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-list,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-panel,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-detail,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-tabs,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid-2,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid-3,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-strip,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
+            background: transparent !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-header {
+            border-bottom: 0 !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-grid-attached {
+            border-top-color: transparent !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-tab,
+        #page-mitarbeiter.liquid-employee .emp-tab.active,
+        #page-mitarbeiter.liquid-employee .emp-list-item,
+        #page-mitarbeiter.liquid-employee .liquid-employee-row,
+        #page-mitarbeiter.liquid-employee .emp-list-item.active,
+        #page-mitarbeiter.liquid-employee .liquid-employee-row-active,
+        #page-mitarbeiter.liquid-employee .emp-contract-row,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-row,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item.active,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-row-active,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
+            border-color: transparent !important;
+            box-shadow: none !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-tab.active,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active {
+            background: transparent !important;
+            color: var(--emp-text-strong) !important;
+            text-decoration: underline;
+            text-underline-offset: 6px;
+            text-decoration-thickness: 2px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-row,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
         /* Sticky-Kopfzeile für lange Detail-/Tab-Ansichten (Walter-Vorgabe
            15.05.2026): Titel + Aktions-Buttons (Speichern, Übertragen …)
            bleiben beim Scrollen oben sichtbar — nie Buttons, die wegscrollen.
