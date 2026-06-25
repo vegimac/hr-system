@@ -862,6 +862,8 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
         }
         const matchingContract = findMatchingExistingContract(row, existingContracts);
         if (matchingContract) row.__existingEmploymentId = matchingContract.id;
+        const sameStartContract = matchingContract ? null : findSameStartExistingContract(row, existingContracts);
+        if (sameStartContract) row.__updateEmploymentId = sameStartContract.id;
 
         rowStates[0] = { status: 'contract', employeeId };
         document.getElementById('uploadSection').style.display = 'none';
@@ -1845,6 +1847,16 @@ function findMatchingExistingContract(row, contracts) {
             if (model === 'MTP' && !sameMoney(c.guaranteedHoursPerWeek, guaranteed)) return false;
         }
         return true;
+    }) || null;
+}
+
+function findSameStartExistingContract(row, contracts) {
+    if (!isEasyworkApiImportRow(row) || !Array.isArray(contracts) || contracts.length === 0) return null;
+    const start = formatDate(get(row, 'Von'));
+    if (!start) return null;
+    return contracts.find(c => {
+        const cStart = c.contractStartDate ? String(c.contractStartDate).slice(0, 10) : '';
+        return cStart === start;
     }) || null;
 }
 
@@ -3634,19 +3646,22 @@ async function saveContractChange(idx, employeeId) {
             method: 'PUT', headers: ah(), body: JSON.stringify(personPayload)
         });
 
-        // 2. Neuen Vertrag erstellen
+        // 2. Vertrag erstellen oder bei gleicher easy@work-Startzeile den vorhandenen Vertrag aktualisieren
         const contractPayload = buildContractPayload(idx, employeeId, row);
-        const ctRes = await fetch('/api/employments', {
-            method: 'POST', headers: ah(), body: JSON.stringify(contractPayload)
+        const updateEmploymentId = isEasyworkApiImportRow(row) && row.__updateEmploymentId ? Number(row.__updateEmploymentId) : null;
+        const ctRes = await fetch(updateEmploymentId ? `/api/employments/${updateEmploymentId}` : '/api/employments', {
+            method: updateEmploymentId ? 'PUT' : 'POST',
+            headers: ah(),
+            body: JSON.stringify(contractPayload)
         });
-        if (!ctRes.ok) throw new Error('Vertrag erstellen: ' + await ctRes.text());
+        if (!ctRes.ok) throw new Error((updateEmploymentId ? 'Vertrag aktualisieren: ' : 'Vertrag erstellen: ') + await ctRes.text());
         const ctResult = await ctRes.json();
-        const savedId = ctResult.employment?.id ?? ctResult.id ?? null;
+        const savedId = updateEmploymentId || ctResult.employment?.id || ctResult.id || null;
 
         // 3. IBAN aus CSV → Bankverbindung anlegen wenn neu.
         await maybeCreateBankAccountFromCsv(employeeId, row);
 
-        markRowDone(idx, 'Adressdaten & neuer Vertrag gespeichert', savedId);
+        markRowDone(idx, updateEmploymentId ? 'Adressdaten & Vertrag aktualisiert' : 'Adressdaten & neuer Vertrag gespeichert', savedId);
     } catch(e) {
         alertEl.innerHTML = `<div class="alert alert-err">Fehler: ${e.message}</div>`;
         btn.disabled = false; btn.textContent = '📋 Neuen Vertrag erstellen';
