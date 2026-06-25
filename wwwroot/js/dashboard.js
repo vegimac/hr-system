@@ -208,7 +208,7 @@ function renderDashAlerts() {
     }
 
     if (isLiquid) {
-        container.innerHTML = alerts.slice(0, 7).map(a => renderDashTodoRow(a)).join('');
+        container.innerHTML = alerts.map(a => renderDashTodoRow(a)).join('');
         return;
     }
 
