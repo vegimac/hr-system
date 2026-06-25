@@ -693,6 +693,54 @@ async function eawEmpSyncCommit() {
     await _eawEmpSyncRun(true, checked.length ? checked : null);
 }
 
+async function eawEmpRepairIds() {
+    const out = document.getElementById('eawEmpSyncResult');
+    if (!confirm('easy@work-IDs für alle bestehenden Mitarbeiter korrigieren?\n\nDieser Lauf ersetzt alte gespeicherte user_id-Werte durch die echte easy@work employee.id.')) return;
+    if (out) out.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px;display:flex;align-items:center;gap:8px">
+        <span class="import-spinner" style="width:14px;height:14px"></span>
+        <span>Korrigiere easy@work-IDs…</span></div>`;
+    try {
+        const r = await fetch('/api/easywork/sync/employees/repair-ids', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' }
+        });
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            if (out) out.innerHTML = `<div class="eaw-result eaw-result-err">
+                <div class="eaw-result-title">Korrektur fehlgeschlagen</div>
+                <div class="eaw-result-msg">${escapeHtml(body.message || body.error || ('HTTP ' + r.status))}</div>
+            </div>`;
+            return;
+        }
+        const rows = (body.rows || []).slice(0, 80).map(x => `<tr>
+            <td>${escapeHtml(x.name || '')}</td>
+            <td>${escapeHtml(x.employeeNumber || '')}</td>
+            <td style="font-family:monospace">${escapeHtml(String(x.oldEasyAtWorkId ?? ''))}</td>
+            <td style="font-family:monospace">${escapeHtml(String(x.newEasyAtWorkId ?? ''))}</td>
+            <td style="font-family:monospace">${escapeHtml(String(x.eawUserId ?? ''))}</td>
+        </tr>`).join('');
+        const conflictTxt = body.conflicts
+            ? `<div style="font-size:12px;color:${body.conflicts ? '#92400e' : '#64748b'};margin-top:6px">${body.conflicts} Konflikt(e) übersprungen.</div>`
+            : '';
+        if (out) out.innerHTML = `<div class="eaw-result eaw-result-ok">
+            <div class="eaw-result-title">easy@work-IDs korrigiert</div>
+            <div class="eaw-result-msg">
+                ${body.repaired || 0} MA korrigiert · ${body.scannedCowork || 0} Cowork-MA · ${body.scannedEasyAtWork || 0} easy@work-Zeilen geprüft.
+                ${conflictTxt}
+            </div>
+            ${rows ? `<table class="eaw-result-table" style="margin-top:10px">
+                <thead><tr><th>Name</th><th>Nr.</th><th>alt</th><th>neu employee.id</th><th>user_id</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>` : '<div class="eaw-empty">Keine ID-Korrekturen nötig.</div>'}
+        </div>`;
+    } catch (e) {
+        if (out) out.innerHTML = `<div class="eaw-result eaw-result-err">
+            <div class="eaw-result-title">Netzwerkfehler</div>
+            <div class="eaw-result-msg">${escapeHtml(String(e))}</div>
+        </div>`;
+    }
+}
+
 // ═══════════════ Einmaliger Tief-Import alle Filialen (ab 2021) ═══════════════
 // Walter-Vorgabe 21.06.2026: holt für ALLE Filialen die inaktiven MA zurück bis
 // 1.1.2021, Pre-Mirus-Austritte (< 1.1.2025) bekommen `alt`-Suffix. Läuft ohne

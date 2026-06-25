@@ -577,6 +577,133 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>
+    /// Massen-Korrektur für Altbestände: Früher wurde teils easy@work user_id
+    /// in employee.easyatwork_employee_id gespeichert. Für die API-Endpunkte ist
+    /// aber employee.id nötig. Dieser Lauf liest pro gemapptem Customer die
+    /// easy@work-MA-Liste und korrigiert bestehende Cowork-MA.
+    /// </summary>
+    [HttpPost("sync/employees/repair-ids")]
+    public async Task<IActionResult> RepairStoredEmployeeIds(CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+
+        var mappings = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .OrderBy(m => m.CompanyProfileId)
+            .ToListAsync(ct);
+        if (mappings.Count == 0)
+            return BadRequest(new { error = "NO_MAPPING", message = "Keine easy@work-Filial-Mappings vorhanden." });
+
+        var coworkers = await _db.Employees
+            .Where(e => !e.IsHidden)
+            .ToListAsync(ct);
+        var byStoredId = coworkers
+            .Where(e => e.EasyAtWorkEmployeeId.HasValue)
+            .GroupBy(e => e.EasyAtWorkEmployeeId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        var byNumber = coworkers
+            .Where(e => !string.IsNullOrWhiteSpace(e.EmployeeNumber))
+            .GroupBy(e => e.EmployeeNumber.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var repaired = new List<object>();
+        var conflicts = new List<object>();
+        var perBranch = new List<object>();
+        var touched = new HashSet<int>();
+        var totalEawRows = 0;
+
+        foreach (var mapping in mappings)
+        {
+            List<EawEmployee> rows;
+            try
+            {
+                rows = await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct);
+            }
+            catch (Exception ex)
+            {
+                conflicts.Add(new { customerId = mapping.EasyAtWorkCustomerId, mapping.CompanyProfileId, error = ex.Message });
+                continue;
+            }
+
+            totalEawRows += rows.Count;
+            var branchFixed = 0;
+            foreach (var eaw in rows)
+            {
+                var candidates = new List<Employee>();
+                void AddCandidates(IEnumerable<Employee>? list)
+                {
+                    if (list == null) return;
+                    foreach (var e in list)
+                        if (candidates.All(x => x.Id != e.Id))
+                            candidates.Add(e);
+                }
+
+                if (eaw.UserId.HasValue && byStoredId.TryGetValue(eaw.UserId.Value, out var byUserId))
+                    AddCandidates(byUserId);
+
+                if (!string.IsNullOrWhiteSpace(eaw.Number)
+                    && byNumber.TryGetValue(eaw.Number.Trim(), out var byNum))
+                {
+                    AddCandidates(byNum.Where(e =>
+                        !e.EasyAtWorkEmployeeId.HasValue
+                        || e.EasyAtWorkEmployeeId == eaw.Id
+                        || (eaw.UserId.HasValue && e.EasyAtWorkEmployeeId == eaw.UserId.Value)));
+                }
+
+                if (candidates.Count == 0) continue;
+                if (candidates.Count > 1)
+                {
+                    conflicts.Add(new
+                    {
+                        customerId = mapping.EasyAtWorkCustomerId,
+                        eawEmployeeId = eaw.Id,
+                        eawUserId = eaw.UserId,
+                        number = eaw.Number,
+                        matches = candidates.Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.EasyAtWorkEmployeeId }).ToList()
+                    });
+                    continue;
+                }
+
+                var emp = candidates[0];
+                if (touched.TryGetValue(emp.Id, out _) && emp.EasyAtWorkEmployeeId != eaw.Id)
+                {
+                    conflicts.Add(new { employeeId = emp.Id, emp.EmployeeNumber, current = emp.EasyAtWorkEmployeeId, proposed = eaw.Id, customerId = mapping.EasyAtWorkCustomerId });
+                    continue;
+                }
+
+                if (emp.EasyAtWorkEmployeeId == eaw.Id) continue;
+                var old = emp.EasyAtWorkEmployeeId;
+                emp.EasyAtWorkEmployeeId = eaw.Id;
+                touched.Add(emp.Id);
+                branchFixed++;
+                repaired.Add(new
+                {
+                    employeeId = emp.Id,
+                    emp.EmployeeNumber,
+                    name = $"{emp.FirstName} {emp.LastName}".Trim(),
+                    oldEasyAtWorkId = old,
+                    newEasyAtWorkId = eaw.Id,
+                    eawUserId = eaw.UserId,
+                    customerId = mapping.EasyAtWorkCustomerId
+                });
+            }
+
+            perBranch.Add(new { mapping.CompanyProfileId, mapping.EasyAtWorkCustomerId, scanned = rows.Count, repaired = branchFixed });
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(new
+        {
+            scannedCowork = coworkers.Count,
+            scannedEasyAtWork = totalEawRows,
+            repaired = repaired.Count,
+            conflicts = conflicts.Count,
+            perBranch,
+            rows = repaired,
+            conflictRows = conflicts
+        });
+    }
+
+    /// <summary>
     /// Aktualisiert genau EINEN bestehenden Cowork-MA aus easy@work.
     /// Wird aus der Mitarbeiter-Maske über den Button „easy@work Abgleich"
     /// aufgerufen. Schreibt erst nach vollständiger Validierung.
