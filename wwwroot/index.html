@@ -1573,20 +1573,20 @@
 
         /* ── LIQUID GLASS: MITARBEITER-MASKE ─────────────────────── */
         #page-mitarbeiter.liquid-employee {
-            --emp-glass-bg: rgba(255,255,255,.48);
-            --emp-glass-strong: rgba(255,255,255,.68);
-            --emp-glass-field: rgba(255,255,255,.74);
-            --emp-glass-border: rgba(255,255,255,.76);
+            --emp-glass-bg: rgba(255,255,255,.38);
+            --emp-glass-strong: rgba(255,255,255,.58);
+            --emp-glass-field: rgba(255,255,255,.94);
+            --emp-glass-border: rgba(255,255,255,.70);
             --emp-glass-inner: rgba(255,255,255,.50);
             --emp-text-strong: #364152;
             --emp-text: #526071;
             --emp-text-soft: #8b96a5;
             --emp-blue: #3b82f6;
-            --emp-shadow: 0 22px 70px rgba(92,78,57,.16), inset 0 1px 0 rgba(255,255,255,.62);
+            --emp-shadow: 0 22px 70px rgba(70,64,55,.14), inset 0 1px 0 rgba(255,255,255,.58);
             background:
-                radial-gradient(circle at 88% 8%, rgba(255,255,255,.82) 0 0, transparent 210px),
-                radial-gradient(circle at 7% 92%, rgba(255,232,198,.52) 0, transparent 300px),
-                linear-gradient(135deg, #f7f2eb 0%, #f4efe7 46%, #fbfaf7 100%);
+                radial-gradient(circle at 58% 47%, rgba(255,255,255,.78), transparent 25%),
+                radial-gradient(circle at 28% 50%, rgba(224,218,209,.42), transparent 36%),
+                linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%);
             color: var(--emp-text);
         }
         #page-mitarbeiter.liquid-employee .page-body {
@@ -1603,7 +1603,7 @@
             padding: 10px 8px;
             border: 1px solid var(--emp-glass-border);
             border-radius: 18px;
-            background: rgba(255,255,255,.32);
+            background: rgba(255,255,255,.34);
             box-shadow: 0 18px 50px rgba(92,78,57,.12), inset 0 1px 0 rgba(255,255,255,.56);
             backdrop-filter: blur(24px) saturate(150%);
             -webkit-backdrop-filter: blur(24px) saturate(150%);
@@ -1619,7 +1619,7 @@
             border: 1px solid rgba(255,255,255,.46);
             border-radius: 16px;
             padding: 7px 8px;
-            background: rgba(255,255,255,.28);
+            background: rgba(255,255,255,.34);
             color: #626d78;
             display: grid;
             grid-template-columns: 28px 1fr;
@@ -1777,7 +1777,7 @@
         #page-mitarbeiter.liquid-employee .emp-detail-header {
             padding: 14px 16px 8px;
             border-bottom: 1px solid rgba(255,255,255,.48);
-            background: rgba(255,255,255,.36);
+            background: rgba(255,255,255,.26);
             backdrop-filter: blur(24px) saturate(160%);
             -webkit-backdrop-filter: blur(24px) saturate(160%);
         }
@@ -1830,7 +1830,7 @@
             gap: 4px;
             border: 1px solid rgba(255,255,255,.48);
             border-radius: 13px;
-            background: rgba(255,255,255,.32);
+            background: rgba(255,255,255,.24);
             box-shadow: inset 0 1px 0 rgba(255,255,255,.54);
         }
         #page-mitarbeiter.liquid-employee .emp-tab {
@@ -1853,7 +1853,7 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body {
             padding: 10px 14px 14px;
-            background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04));
+            background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
         }
         #page-mitarbeiter.liquid-employee .emp-section-title {
             margin: 8px 0 3px;
@@ -1869,12 +1869,12 @@
         #page-mitarbeiter.liquid-employee .emp-field-grid,
         #page-mitarbeiter.liquid-employee .emp-field-grid-2,
         #page-mitarbeiter.liquid-employee .emp-field-grid-3 {
-            background: rgba(255,255,255,.36);
-            border: 1px solid rgba(255,255,255,.50);
+            background: rgba(255,255,255,.20);
+            border: 1px solid rgba(255,255,255,.42);
             border-radius: 12px;
             padding: 8px 9px;
             gap: 7px 9px;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.54), 0 10px 30px rgba(83,72,60,.07);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.48), 0 10px 30px rgba(83,72,60,.05);
         }
         #page-mitarbeiter.liquid-employee .emp-field-grid-3 {
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1906,16 +1906,16 @@
             padding: 5px 9px;
             border-radius: 8px;
             background: var(--emp-glass-field);
-            border: 1px solid rgba(166,176,188,.24);
+            border: 1px solid rgba(184,194,206,.34);
             color: var(--emp-text-strong);
             font-size: 12px;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.68), 0 6px 18px rgba(86,76,63,.07);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.82), 0 8px 18px rgba(86,76,63,.08);
         }
         #page-mitarbeiter.liquid-employee .emp-field-value:hover,
         #page-mitarbeiter.liquid-employee .liquid-field .emp-field-value:hover {
-            border-color: rgba(59,130,246,.36);
-            background: rgba(255,255,255,.84);
-            box-shadow: 0 0 0 3px rgba(59,130,246,.08);
+            border-color: rgba(59,130,246,.32);
+            background: rgba(255,255,255,.98);
+            box-shadow: 0 0 0 3px rgba(59,130,246,.07), 0 8px 18px rgba(86,76,63,.08);
         }
         #page-mitarbeiter.liquid-employee .emp-field-value.empty {
             background: rgba(255,255,255,.32);
@@ -2034,18 +2034,18 @@
             min-height: 25px;
             padding: 3px 7px;
             border-radius: 7px;
-            border: 1px solid rgba(166,176,188,.28);
-            background: rgba(255,255,255,.68);
+            border: 1px solid rgba(184,194,206,.34);
+            background: rgba(255,255,255,.96);
             color: var(--emp-text-strong);
             font: inherit;
             font-size: 12px;
             outline: none;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.60);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.78), 0 6px 14px rgba(70,64,55,.06);
         }
         #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input:not([readonly]):not(:disabled)) {
-            background: rgba(230,236,244,.72);
-            border-color: rgba(126,143,163,.30);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.64), 0 8px 18px rgba(66,75,88,.10);
+            background: rgba(255,255,255,.82);
+            border-color: rgba(184,194,206,.38);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.78), 0 10px 22px rgba(66,75,88,.10);
         }
         #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input[data-easywork-locked]) {
             background: transparent;
