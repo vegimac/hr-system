@@ -2704,6 +2704,195 @@
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* ── Liquid Glass Prototype: Dashboard only ───────────────────────
+           Rücknehmbar über Klassen .liquid-ui / .liquid-dashboard.
+           Keine IDs, Handler oder Fetch-Logik werden verändert. */
+        .liquid-ui {
+            --liquid-cream-1: #fbf3e6;
+            --liquid-cream-2: #f6e7d0;
+            --liquid-glass: rgba(255, 255, 255, 0.54);
+            --liquid-glass-strong: rgba(255, 255, 255, 0.72);
+            --liquid-border: rgba(255, 255, 255, 0.58);
+            --liquid-text: #221f1a;
+            --liquid-muted: #736b5f;
+            --liquid-shadow: 0 22px 70px rgba(83, 62, 36, 0.14);
+            --liquid-inset: inset 0 1px 0 rgba(255,255,255,.75);
+        }
+        .liquid-dashboard {
+            position: relative;
+            min-height: 100%;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 14% 12%, rgba(255,255,255,.92), transparent 28%),
+                radial-gradient(circle at 82% 0%, rgba(235,210,164,.38), transparent 32%),
+                linear-gradient(135deg, var(--liquid-cream-1), var(--liquid-cream-2) 48%, #fff8ef);
+            color: var(--liquid-text);
+        }
+        .liquid-dashboard::before {
+            content: "";
+            position: absolute;
+            inset: -10% -4% auto auto;
+            width: min(62vw, 820px);
+            height: min(62vw, 820px);
+            pointer-events: none;
+            opacity: .13;
+            transform: rotate(-8deg);
+            background:
+                radial-gradient(ellipse at 50% 78%, transparent 0 38%, rgba(54,42,25,.22) 39% 43%, transparent 44%),
+                radial-gradient(ellipse at 50% 77%, transparent 0 52%, rgba(54,42,25,.18) 53% 56%, transparent 57%);
+            filter: blur(.2px);
+        }
+        .liquid-dashboard::after {
+            content: "";
+            position: absolute;
+            inset: auto -10% -18% auto;
+            width: 58vw;
+            height: 42vw;
+            pointer-events: none;
+            opacity: .24;
+            background: radial-gradient(circle, rgba(255,255,255,.62), transparent 62%);
+        }
+        .liquid-dashboard > .page-head,
+        .liquid-dashboard > .page-body {
+            position: relative;
+            z-index: 1;
+        }
+        .liquid-dashboard > .page-head {
+            margin: 18px 24px 0;
+            padding: 22px 24px !important;
+            border: 1px solid var(--liquid-border);
+            border-radius: 26px;
+            background: linear-gradient(135deg, rgba(255,255,255,.68), rgba(255,255,255,.34));
+            box-shadow: var(--liquid-shadow), var(--liquid-inset);
+            backdrop-filter: blur(22px) saturate(155%);
+            -webkit-backdrop-filter: blur(22px) saturate(155%);
+        }
+        .liquid-dashboard .page-title {
+            font-size: 30px;
+            letter-spacing: -0.035em;
+            color: var(--liquid-text);
+        }
+        .liquid-dashboard .page-sub {
+            color: var(--liquid-muted);
+            font-size: 13px;
+            margin-top: 6px;
+        }
+        .liquid-dashboard > .page-body {
+            padding: 18px 24px 40px !important;
+        }
+        .liquid-dashboard #dashWageAdjustBanner > * {
+            border-radius: 20px !important;
+            background: rgba(255, 244, 205, .62) !important;
+            border-color: rgba(234, 179, 8, .42) !important;
+            box-shadow: 0 14px 34px rgba(120, 82, 20, .10), var(--liquid-inset) !important;
+            backdrop-filter: blur(18px) saturate(140%);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+        }
+        .liquid-dashboard #dashSeverityRow {
+            gap: 14px !important;
+            margin-bottom: 16px !important;
+        }
+        .liquid-dashboard #dashSeverityRow button,
+        .liquid-dashboard #dashFilterRow button,
+        .liquid-dashboard #dashAlertsContainer .card,
+        .liquid-dashboard #dashAlertsContainer [style*="border-radius"] {
+            background: linear-gradient(135deg, rgba(255,255,255,.66), rgba(255,255,255,.34)) !important;
+            border: 1px solid rgba(255,255,255,.58) !important;
+            color: var(--liquid-text) !important;
+            box-shadow: 0 16px 42px rgba(74, 55, 34, .10), var(--liquid-inset) !important;
+            backdrop-filter: blur(20px) saturate(150%);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+        }
+        .liquid-dashboard #dashSeverityRow button {
+            min-height: 88px;
+            border-radius: 24px !important;
+            padding: 16px 18px !important;
+            transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+        }
+        .liquid-dashboard #dashSeverityRow button:hover,
+        .liquid-dashboard #dashFilterRow button:hover {
+            transform: translateY(-1px);
+            border-color: rgba(255,255,255,.82) !important;
+            box-shadow: 0 20px 54px rgba(74, 55, 34, .14), var(--liquid-inset) !important;
+        }
+        .liquid-dashboard #dashSeverityRow button > div:first-child {
+            font-size: 34px !important;
+            letter-spacing: -0.04em;
+            color: #3a3125;
+        }
+        .liquid-dashboard #dashSeverityRow button > div:last-child {
+            color: #6b6258 !important;
+            font-size: 12px !important;
+        }
+        .liquid-dashboard #dashFilterRow {
+            gap: 8px !important;
+            margin-bottom: 16px !important;
+        }
+        .liquid-dashboard #dashFilterRow button {
+            border-radius: 999px !important;
+            padding: 7px 12px !important;
+            font-size: 12px !important;
+        }
+        .liquid-dashboard #dashAlertsContainer > div {
+            margin-bottom: 18px !important;
+        }
+        .liquid-dashboard #dashAlertsContainer h2 {
+            color: #4e3d26 !important;
+            letter-spacing: .08em !important;
+        }
+        .liquid-dashboard #dashAlertsContainer [onclick] {
+            border-radius: 18px !important;
+            padding: 12px 16px !important;
+            transition: transform .14s ease, box-shadow .14s ease;
+        }
+        .liquid-dashboard #dashAlertsContainer [onclick]:hover {
+            transform: translateY(-1px);
+        }
+
+        body.theme-dark .liquid-ui {
+            --liquid-glass: rgba(21, 29, 45, .62);
+            --liquid-glass-strong: rgba(30, 41, 59, .72);
+            --liquid-border: rgba(148, 163, 184, .20);
+            --liquid-text: #eef4ff;
+            --liquid-muted: #aab7c9;
+            --liquid-shadow: 0 24px 80px rgba(0, 0, 0, .34);
+            --liquid-inset: inset 0 1px 0 rgba(255,255,255,.08);
+        }
+        body.theme-dark .liquid-dashboard {
+            background:
+                radial-gradient(circle at 18% 8%, rgba(72, 87, 116, .42), transparent 30%),
+                radial-gradient(circle at 88% 2%, rgba(92, 72, 49, .30), transparent 34%),
+                linear-gradient(135deg, #0a101c, #111827 44%, #172033);
+            color: var(--liquid-text);
+        }
+        body.theme-dark .liquid-dashboard::before {
+            opacity: .28;
+            background:
+                radial-gradient(ellipse at 50% 78%, transparent 0 38%, rgba(230,237,247,.25) 39% 43%, transparent 44%),
+                radial-gradient(ellipse at 50% 77%, transparent 0 52%, rgba(230,237,247,.18) 53% 56%, transparent 57%);
+        }
+        body.theme-dark .liquid-dashboard > .page-head,
+        body.theme-dark .liquid-dashboard #dashSeverityRow button,
+        body.theme-dark .liquid-dashboard #dashFilterRow button,
+        body.theme-dark .liquid-dashboard #dashAlertsContainer .card,
+        body.theme-dark .liquid-dashboard #dashAlertsContainer [style*="border-radius"] {
+            background: linear-gradient(135deg, rgba(30,41,59,.74), rgba(15,23,42,.42)) !important;
+            border-color: var(--liquid-border) !important;
+            color: var(--liquid-text) !important;
+            box-shadow: var(--liquid-shadow), var(--liquid-inset) !important;
+        }
+        body.theme-dark .liquid-dashboard .page-title,
+        body.theme-dark .liquid-dashboard #dashSeverityRow button > div:first-child {
+            color: var(--liquid-text) !important;
+        }
+        body.theme-dark .liquid-dashboard .page-sub,
+        body.theme-dark .liquid-dashboard #dashSeverityRow button > div:last-child {
+            color: var(--liquid-muted) !important;
+        }
+        body.theme-dark .liquid-dashboard #dashAlertsContainer h2 {
+            color: #d7c7a8 !important;
+        }
     </style>
 </head>
 <body>
@@ -2917,12 +3106,12 @@
         <main class="main">
 
             <!-- DASHBOARD -->
-            <div class="page active" id="page-dashboard">
+            <div class="page active liquid-ui liquid-dashboard" id="page-dashboard">
                 <div class="page-head"><div>
                     <h1 class="page-title" data-i18n="dash.title">Dashboard</h1>
                     <p class="page-sub" id="dashSubHeader" data-i18n="dash.subtitle">Bewilligungen, Probezeit, Verträge, Lohnläufe — alles auf einen Blick</p>
                 </div></div>
-                <div class="page-body">
+                <div class="page-body liquid-dashboard-body">
                     <!-- Mindestlohn-Vertragsanpassung Warn-Banner (wage-adjustment.js) -->
                     <div id="dashWageAdjustBanner"></div>
 
