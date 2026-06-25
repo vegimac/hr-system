@@ -1916,9 +1916,99 @@ async function updateSameStartContractFromApiRow(row, employeeId, contract) {
             const txt = await res.text();
             return { ok: false, message: `Vertrag aktualisieren: ${txt}` };
         }
+        const closePrev = await closePreviousContractBeforeApiStart(row, employeeId, id);
+        if (!closePrev.ok) return closePrev;
         return { ok: true, id };
     } catch (e) {
         return { ok: false, message: `Vertrag aktualisieren: ${e.message}` };
+    }
+}
+
+function addDaysIso(iso, days) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+}
+
+function contractStartIso(c) {
+    const v = objVal(c, 'contractStartDate');
+    return v ? String(v).slice(0, 10) : '';
+}
+
+function contractEndIso(c) {
+    const v = objVal(c, 'contractEndDate');
+    return v ? String(v).slice(0, 10) : '';
+}
+
+function buildEmploymentPayloadFromExisting(c, contractEndDate) {
+    const employmentPercentage = objVal(c, 'employmentPercentage');
+    const monthlySalaryFte = objVal(c, 'monthlySalaryFte');
+    const monthlySalary = monthlySalaryFte && employmentPercentage
+        ? Math.round(Number(monthlySalaryFte) * Number(employmentPercentage) / 100 * 100) / 100
+        : objVal(c, 'monthlySalary');
+
+    return {
+        employeeId:             objVal(c, 'employeeId'),
+        companyProfileId:       objVal(c, 'companyProfileId'),
+        employmentModel:        objVal(c, 'employmentModel'),
+        salaryType:             objVal(c, 'salaryType'),
+        contractStartDate:      contractStartIso(c),
+        contractEndDate,
+        contractEndDateSet:     true,
+        contractType:           contractEndDate ? 'befristet' : (objVal(c, 'contractType') || 'unbefristet'),
+        jobTitle:               objVal(c, 'jobTitle'),
+        jobGroupId:             objVal(c, 'jobGroupId'),
+        jobGroupCode:           objVal(c, 'jobGroupCode'),
+        educationLevelCode:     objVal(c, 'educationLevelCode'),
+        employmentPercentage,
+        weeklyHours:            objVal(c, 'weeklyHours'),
+        guaranteedHoursPerWeek: objVal(c, 'guaranteedHoursPerWeek'),
+        monthlySalaryFte,
+        monthlySalary,
+        hourlyRate:             objVal(c, 'hourlyRate'),
+        vacationPaymentMode:    objVal(c, 'vacationPaymentMode'),
+        probationPeriodMonths:  objVal(c, 'probationPeriodMonths'),
+        probationEndDate:       objVal(c, 'probationEndDate'),
+        isActive:               !contractEndDate || contractEndDate >= new Date().toISOString().slice(0, 10),
+        easyAtWorkManualOverride: objVal(c, 'easyAtWorkManualOverride') === true
+    };
+}
+
+async function closePreviousContractBeforeApiStart(row, employeeId, targetEmploymentId) {
+    const targetStart = apiEmploymentStartDate(row);
+    const previousEnd = targetStart ? addDaysIso(targetStart, -1) : null;
+    if (!targetStart || !previousEnd) return { ok: true };
+
+    try {
+        const res = await fetch(`/api/employments/employee/${employeeId}`, { headers: ah(), cache: 'no-store' });
+        if (!res.ok) return { ok: false, message: `Vorgaengervertrag laden: HTTP ${res.status}` };
+        const contracts = await res.json();
+        const prev = (Array.isArray(contracts) ? contracts : [])
+            .filter(c => Number(objVal(c, 'id')) !== Number(targetEmploymentId))
+            .filter(c => {
+                const s = contractStartIso(c);
+                const e = contractEndIso(c);
+                return s && s < targetStart && (!e || e >= targetStart);
+            })
+            .sort((a, b) => contractStartIso(b).localeCompare(contractStartIso(a)))[0] || null;
+
+        if (!prev) return { ok: true };
+
+        const prevId = Number(objVal(prev, 'id'));
+        const payload = buildEmploymentPayloadFromExisting(prev, previousEnd);
+        const upd = await fetch(`/api/employments/${prevId}`, {
+            method: 'PUT',
+            headers: ah(),
+            body: JSON.stringify(payload)
+        });
+        if (!upd.ok) {
+            const txt = await upd.text();
+            return { ok: false, message: `Vorgaengervertrag beenden: ${txt}` };
+        }
+        return { ok: true, previousId: prevId, previousEnd };
+    } catch (e) {
+        return { ok: false, message: `Vorgaengervertrag beenden: ${e.message}` };
     }
 }
 
