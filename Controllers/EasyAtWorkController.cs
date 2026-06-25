@@ -545,6 +545,7 @@ public class EasyAtWorkController : ControllerBase
     // OnlyActive ersetzt das frühere „Austritt nach"-Datumsfeld (Walter 19.06.2026):
     // true = nur aktive, false/null = alle (inkl. ausgetretene, ohne Pre-2025).
     public record EmpSyncRequestDto(int CompanyProfileId, DateOnly? ActiveAt, DateOnly? ExitedAfter, bool? IncludeAllInactive, bool? OnlyActive, List<string>? SelectedNumbers, bool? SkipDetailCalls = null);
+    public record SingleCoworkEmployeeSyncDto(int? CompanyProfileId = null);
 
     /// <summary>Dry-Run für MA-Stammdaten — zeigt NEW/UPDATE/UNCHANGED/CONFLICT.</summary>
     [HttpPost("sync/employees/preview")]
@@ -572,6 +573,21 @@ public class EasyAtWorkController : ControllerBase
             SelectedNumbers = dto.SelectedNumbers,
             SkipDetailCalls = dto.SkipDetailCalls ?? false,
         }, ct);
+        return Ok(res);
+    }
+
+    /// <summary>
+    /// Aktualisiert genau EINEN bestehenden Cowork-MA aus easy@work.
+    /// Wird aus der Mitarbeiter-Maske über den Button „easy@work Abgleich"
+    /// aufgerufen. Schreibt erst nach vollständiger Validierung.
+    /// </summary>
+    [HttpPost("employees/cowork/{employeeId:int}/sync")]
+    public async Task<IActionResult> SyncSingleCoworkEmployee(int employeeId, [FromBody] SingleCoworkEmployeeSyncDto? dto, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var res = await _empSync.SyncSingleCoworkEmployeeAsync(employeeId, dto?.CompanyProfileId, ct);
+        if (!res.Success && res.Errors.Count > 0)
+            return BadRequest(new { error = "EAW_SINGLE_SYNC_INVALID", message = string.Join("\n", res.Errors), res.Errors, res.Notes });
         return Ok(res);
     }
 

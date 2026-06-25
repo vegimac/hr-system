@@ -784,6 +784,12 @@ function renderEmployeeDetail(emp) {
                  startEmpEdit() ersetzt den Inhalt dieses Containers durch
                  Speichern/Abbrechen. Postfach-Button nur für nicht-Phantom-MA. -->
             <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:4px;flex-shrink:0">
+                ${['admin','superuser','buchhaltung'].includes(currentUser?.role) ? `
+                <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap"
+                        title="Aktualisiert easy@work-Felder dieses Mitarbeiters aus der API"
+                        onclick="easyworkSyncSelectedEmployee(${emp.id})">
+                    ↻ easy@work Abgleich
+                </button>` : ''}
                 ${!emp.isPayrollExcluded ? `
                 <button class="btn-emp-edit btn-postfach" style="white-space:nowrap"
                         title="${_t('ma.detail.postfachResetHint','Setzt das Postfach-Passwort des Mitarbeiters auf das Initial-Passwort zurück')}"
@@ -1168,6 +1174,44 @@ async function openEmpContractPdf(contractId, printAfterOpen) {
         setTimeout(() => {
             if (typeof filePreviewPrint === 'function') filePreviewPrint();
         }, 450);
+    }
+}
+
+async function easyworkSyncSelectedEmployee(empId) {
+    if (!empId) return;
+    const btn = document.getElementById('btnEmpEasyworkSync');
+    const oldHtml = btn?.innerHTML;
+    if (btn) { btn.disabled = true; btn.innerHTML = '↻ Abgleich…'; }
+    try {
+        const res = await fetch(`/api/easywork/employees/cowork/${empId}/sync`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyProfileId: fixedCompanyProfileId || null })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) {
+            const errors = data.errors && data.errors.length ? data.errors : [data.message || data.error || 'easy@work-Abgleich fehlgeschlagen.'];
+            alert('easy@work-Abgleich nicht möglich:\n\n' + errors.map(e => '• ' + e).join('\n'));
+            return;
+        }
+
+        const fresh = await fetch(`/api/employees/${empId}`, { headers: ah(), cache: 'no-store' });
+        if (fresh.ok) {
+            selectedEmployee = await fresh.json();
+            const idx = allEmployees.findIndex(e => e.id === empId);
+            if (idx >= 0) allEmployees[idx] = { ...allEmployees[idx], ...selectedEmployee };
+            renderEmployeeList(allEmployees);
+            renderEmployeeDetail(selectedEmployee);
+        }
+        const changed = data.updatedFields && data.updatedFields.length
+            ? data.updatedFields.join(', ')
+            : 'keine Änderungen';
+        alert('easy@work-Abgleich abgeschlossen: ' + changed);
+    } catch (e) {
+        alert('easy@work-Abgleich fehlgeschlagen: ' + (e?.message || e));
+    } finally {
+        const btn2 = document.getElementById('btnEmpEasyworkSync');
+        if (btn2) { btn2.disabled = false; btn2.innerHTML = oldHtml || '↻ easy@work Abgleich'; }
     }
 }
 

@@ -155,6 +155,157 @@ public class EasyAtWorkEmployeeSyncService
     public Task<SyncResult> CommitAsync(SyncRequest req, CancellationToken ct = default)
         => SyncCoreAsync(req, commit: true, ct);
 
+    public sealed class SingleEmployeeSyncResult
+    {
+        public bool Success { get; set; }
+        public int EmployeeId { get; set; }
+        public int? EasyAtWorkEmployeeId { get; set; }
+        public List<string> UpdatedFields { get; set; } = new();
+        public List<string> Errors { get; set; } = new();
+        public List<string> Notes { get; set; } = new();
+    }
+
+    public async Task<SingleEmployeeSyncResult> SyncSingleCoworkEmployeeAsync(
+        int employeeId, int? companyProfileId, CancellationToken ct = default)
+    {
+        var result = new SingleEmployeeSyncResult { EmployeeId = employeeId };
+        var emp = await _db.Employees
+            .Include(e => e.Employments)
+            .FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsHidden, ct);
+        if (emp == null)
+        {
+            result.Errors.Add("Mitarbeiter nicht gefunden.");
+            return result;
+        }
+
+        var cpId = companyProfileId
+            ?? emp.Employments
+                .Where(e => e.IsActive)
+                .OrderByDescending(e => e.ContractStartDate)
+                .Select(e => (int?)e.CompanyProfileId)
+                .FirstOrDefault()
+            ?? emp.Employments
+                .OrderByDescending(e => e.ContractStartDate)
+                .Select(e => (int?)e.CompanyProfileId)
+                .FirstOrDefault();
+        if (!cpId.HasValue)
+        {
+            result.Errors.Add("Keine Filiale/kein Vertrag für den easy@work-Abgleich gefunden.");
+            return result;
+        }
+
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == cpId.Value, ct);
+        if (mapping == null)
+        {
+            result.Errors.Add("Diese Filiale ist nicht mit easy@work verknüpft.");
+            return result;
+        }
+
+        EawEmployee? eaw = null;
+        if (emp.EasyAtWorkEmployeeId.HasValue)
+        {
+            eaw = await _client.GetEmployeeByIdAsync(mapping.EasyAtWorkCustomerId, emp.EasyAtWorkEmployeeId.Value, ct);
+        }
+        if (eaw == null)
+        {
+            var all = await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct);
+            eaw = all.FirstOrDefault(e =>
+                (emp.EasyAtWorkEmployeeId.HasValue && (e.Id == emp.EasyAtWorkEmployeeId.Value || e.UserId == emp.EasyAtWorkEmployeeId.Value))
+                || string.Equals((e.Number ?? "").Trim(), (emp.EmployeeNumber ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+        if (eaw == null)
+        {
+            result.Errors.Add("Mitarbeiter in easy@work nicht gefunden (weder über easy@work-ID noch Personalnummer).");
+            return result;
+        }
+        result.EasyAtWorkEmployeeId = eaw.Id;
+
+        var natByCode = await _db.Nationalities.AsNoTracking()
+            .ToDictionaryAsync(n => (n.Code ?? "").ToUpperInvariant(), n => n.Id, ct);
+        var propsInfo = await FetchPropsInfoAsync(mapping.EasyAtWorkCustomerId, eaw.Id, ct);
+        EawFiscalInfo? fiscal = null;
+        try { fiscal = await _client.GetFiscalInfoAsync(mapping.EasyAtWorkCustomerId, eaw.Id, ct); }
+        catch (Exception ex) { result.Notes.Add($"IBAN/Fiscal-Info nicht abrufbar: {ex.Message}"); }
+
+        var normalizedGender = NormalizeGender(eaw.Gender);
+        var salutation = SalutationFromGender(eaw.Gender);
+        var letterSalutation = BuildLetterSalutation(normalizedGender, eaw.FirstName);
+        var (street, houseNumber) = SplitStreetHouse(eaw.Address1);
+        var zip = string.IsNullOrWhiteSpace(eaw.PostalCode) ? null : eaw.PostalCode.Trim();
+        var loc = await ResolveSwissLocationAsync(zip, eaw.City, ct);
+        var phone = NormalizePhone(eaw.Phone);
+        var email = string.IsNullOrWhiteSpace(eaw.Email) ? null : eaw.Email.Trim().ToLowerInvariant();
+        var ahv = propsInfo.Ahv;
+        var iban = fiscal?.Iban?.Replace(" ", "").Trim().ToUpperInvariant();
+        var nationality = ResolveNationalityCode(eaw.Nationality, natByCode);
+
+        if (string.IsNullOrWhiteSpace(eaw.FirstName)) result.Errors.Add("Vorname fehlt in easy@work.");
+        if (string.IsNullOrWhiteSpace(eaw.LastName)) result.Errors.Add("Nachname fehlt in easy@work.");
+        if (!string.IsNullOrWhiteSpace(email) && !IsValidEmail(email)) result.Errors.Add($"E-Mail ist ungültig: {email}");
+        if (!string.IsNullOrWhiteSpace(ahv) && !IsValidAhv(ahv)) result.Errors.Add($"AHV-Nummer ist ungültig: {ahv}");
+        if (!string.IsNullOrWhiteSpace(iban) && !IsValidIban(iban)) result.Errors.Add($"IBAN ist ungültig: {iban}");
+        if (!string.IsNullOrWhiteSpace(zip) && loc.Error != null) result.Errors.Add(loc.Error);
+        if (result.Errors.Count > 0) return result;
+
+        void SetString(string label, string? current, string? next, Action<string?> set, bool allowNull = true)
+        {
+            var value = string.IsNullOrWhiteSpace(next) ? null : next.Trim();
+            if (value == null && !allowNull) return;
+            if (string.Equals(current?.Trim(), value, StringComparison.OrdinalIgnoreCase)) return;
+            set(value);
+            result.UpdatedFields.Add(label);
+        }
+
+        SetString("Vorname", emp.FirstName, eaw.FirstName, v => emp.FirstName = v ?? emp.FirstName, allowNull: false);
+        SetString("Nachname", emp.LastName, eaw.LastName, v => emp.LastName = v ?? emp.LastName, allowNull: false);
+        SetString("Geschlecht", emp.Gender, normalizedGender, v => emp.Gender = v);
+        SetString("Anrede", emp.Salutation, salutation, v => emp.Salutation = v);
+        SetString("Briefanrede", emp.LetterSalutation, letterSalutation, v => emp.LetterSalutation = v);
+        if (eaw.BirthDate.HasValue)
+        {
+            var dob = eaw.BirthDate.Value.ToDateTime(TimeOnly.MinValue);
+            if (emp.DateOfBirth?.Date != dob.Date) { emp.DateOfBirth = dob; result.UpdatedFields.Add("Geburtsdatum"); }
+        }
+        SetString("AHV-Nummer", emp.SocialSecurityNumber, ahv, v => emp.SocialSecurityNumber = v);
+        SetString("Zivilstand", emp.MaritalStatus, propsInfo.Marital, v => emp.MaritalStatus = v);
+        SetString("Sprache", emp.LanguageCode, "de", v => emp.LanguageCode = v);
+        SetString("Nationalität", emp.Nationality, nationality, v => emp.Nationality = v);
+        if (!string.IsNullOrWhiteSpace(nationality) && natByCode.TryGetValue(nationality.ToUpperInvariant(), out var natId) && emp.NationalityId != natId)
+        {
+            emp.NationalityId = natId;
+            if (!result.UpdatedFields.Contains("Nationalität")) result.UpdatedFields.Add("Nationalität");
+        }
+        SetString("Strasse", emp.Street, street, v => emp.Street = v);
+        SetString("Hausnummer", emp.HouseNumber, houseNumber, v => emp.HouseNumber = v);
+        SetString("PLZ", emp.ZipCode, zip, v => emp.ZipCode = v);
+        SetString("Ort", emp.City, loc.City ?? eaw.City, v => emp.City = v);
+        SetString("Kanton", emp.CantonCode, loc.Canton, v => emp.CantonCode = v);
+        SetString("Land", emp.Country, string.IsNullOrWhiteSpace(zip) ? (eaw.CountryKey ?? eaw.Country)?.ToUpperInvariant() : "CH", v => emp.Country = v);
+        SetString("Telefon", emp.PhoneMobile, phone, v => emp.PhoneMobile = v);
+        SetString("E-Mail", emp.Email, email, v => emp.Email = v);
+        if (eaw.From.HasValue)
+        {
+            var entry = eaw.From.Value.ToDateTime(TimeOnly.MinValue);
+            if (emp.EntryDate?.Date != entry.Date) { emp.EntryDate = entry; result.UpdatedFields.Add("Eintrittsdatum"); }
+        }
+        if (emp.EasyAtWorkEmployeeId != (eaw.UserId ?? eaw.Id))
+        {
+            emp.EasyAtWorkEmployeeId = eaw.UserId ?? eaw.Id;
+            result.UpdatedFields.Add("easy@work-ID");
+        }
+        if (!string.IsNullOrWhiteSpace(iban))
+        {
+            var changed = await EnsureBankAccountFromEasyWorkAsync(emp, iban, ct);
+            if (changed) result.UpdatedFields.Add("IBAN");
+        }
+
+        await _db.SaveChangesAsync(ct);
+        result.Success = true;
+        if (result.UpdatedFields.Count == 0) result.Notes.Add("Keine Änderungen — Cowork war bereits aktuell.");
+        return result;
+    }
+
     // ─────────────────────────── Core ───────────────────────────────
 
     private async Task<SyncResult> SyncCoreAsync(SyncRequest req, bool commit, CancellationToken ct)
@@ -1402,6 +1553,45 @@ public class EasyAtWorkEmployeeSyncService
         });
     }
 
+    private async Task<bool> EnsureBankAccountFromEasyWorkAsync(Employee emp, string iban, CancellationToken ct)
+    {
+        if (emp.Id == 0 || string.IsNullOrWhiteSpace(iban)) return false;
+        var clean = iban.Replace(" ", "").Trim().ToUpperInvariant();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var active = await _db.EmployeeBankAccounts
+            .Where(b => b.EmployeeId == emp.Id && b.ValidFrom <= today && (b.ValidTo == null || b.ValidTo >= today))
+            .OrderByDescending(b => b.IsHauptbank)
+            .ThenByDescending(b => b.ValidFrom)
+            .ToListAsync(ct);
+        if (active.Any(b => string.Equals(b.Iban?.Replace(" ", ""), clean, StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        foreach (var old in active.Where(b => b.ValidFrom < today))
+        {
+            old.ValidTo = today.AddDays(-1);
+            old.IsHauptbank = false;
+            old.UpdatedAt = DateTime.UtcNow;
+        }
+        foreach (var old in active.Where(b => b.ValidFrom >= today))
+        {
+            old.IsHauptbank = false;
+            old.UpdatedAt = DateTime.UtcNow;
+        }
+
+        _db.EmployeeBankAccounts.Add(new EmployeeBankAccount
+        {
+            EmployeeId = emp.Id,
+            Iban = clean,
+            IsHauptbank = true,
+            AufteilungTyp = "VOLL",
+            ValidFrom = today,
+            Bemerkung = "easy@work Abgleich",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        });
+        return true;
+    }
+
     /// <summary>
     /// Reiner DB-Schreiber (ohne API) — separat, damit unit-testbar. Legt eine
     /// Employment-Zeile an. Bei <paramref name="isNewEmployee"/>=false (UPDATE)
@@ -1658,6 +1848,26 @@ public class EasyAtWorkEmployeeSyncService
             .FirstOrDefaultAsync(ct);
     }
 
+    private async Task<(string? City, string? Canton, string? Error)> ResolveSwissLocationAsync(string? plz, string? eawCity, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(plz)) return (null, null, null);
+        var p = plz.Trim();
+        var locs = await _db.SwissLocations.AsNoTracking()
+            .Where(l => l.Plz4 == p)
+            .Select(l => new { l.Gemeindename, l.Kantonskuerzel })
+            .ToListAsync(ct);
+        if (locs.Count == 0)
+            return (null, null, $"PLZ {p} wurde im Schweizer Ortschaftsverzeichnis nicht gefunden.");
+
+        var match = locs.FirstOrDefault(l =>
+            string.Equals(l.Gemeindename?.Trim(), eawCity?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (match == null && locs.Select(l => l.Kantonskuerzel).Distinct().Count() == 1)
+            match = locs.OrderBy(l => l.Gemeindename).First();
+        if (match == null)
+            return (null, null, $"PLZ {p} ist mehrdeutig und Ort '{eawCity}' konnte nicht zugeordnet werden.");
+        return (match.Gemeindename, match.Kantonskuerzel, null);
+    }
+
     private static string? MapMaritalStatus(string? v)
     {
         if (string.IsNullOrWhiteSpace(v)) return null;
@@ -1707,6 +1917,48 @@ public class EasyAtWorkEmployeeSyncService
                 return $"{cc} {rest[..2]} {rest[2..5]} {rest[5..7]} {rest[7..9]}";
         }
         return phone.Trim();
+    }
+
+    private static bool IsValidEmail(string email)
+        => System.Text.RegularExpressions.Regex.IsMatch(
+            email.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    private static bool IsValidAhv(string ahv)
+    {
+        var digits = new string((ahv ?? "").Where(char.IsDigit).ToArray());
+        if (digits.Length != 13 || !digits.StartsWith("756")) return false;
+        var sum = 0;
+        for (var i = 0; i < 12; i++)
+        {
+            var d = digits[i] - '0';
+            sum += (i % 2 == 0) ? d : d * 3;
+        }
+        var expected = (10 - (sum % 10)) % 10;
+        return expected == digits[12] - '0';
+    }
+
+    private static bool IsValidIban(string iban)
+    {
+        var clean = new string((iban ?? "").Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpperInvariant();
+        if (clean.Length < 15 || clean.Length > 34) return false;
+        if (!System.Text.RegularExpressions.Regex.IsMatch(clean, @"^[A-Z]{2}\d{2}[A-Z0-9]+$")) return false;
+        var rearranged = clean[4..] + clean[..4];
+        var remainder = 0;
+        foreach (var ch in rearranged)
+        {
+            if (char.IsDigit(ch))
+            {
+                remainder = (remainder * 10 + (ch - '0')) % 97;
+            }
+            else if (ch is >= 'A' and <= 'Z')
+            {
+                var val = ch - 'A' + 10;
+                remainder = (remainder * 10 + (val / 10)) % 97;
+                remainder = (remainder * 10 + (val % 10)) % 97;
+            }
+            else return false;
+        }
+        return remainder == 1;
     }
 
     private static string? ResolveNationalityCode(string? nat, Dictionary<string, int> natByCode)
