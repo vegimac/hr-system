@@ -1598,9 +1598,9 @@
             height: calc(100vh - 86px);
         }
         #page-mitarbeiter.liquid-employee .liquid-employee-nav {
-            width: 54px;
-            min-width: 54px;
-            padding: 8px 6px;
+            width: 132px;
+            min-width: 132px;
+            padding: 10px 8px;
             border: 1px solid var(--emp-glass-border);
             border-radius: 18px;
             background: rgba(255,255,255,.32);
@@ -1609,20 +1609,28 @@
             -webkit-backdrop-filter: blur(24px) saturate(150%);
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: stretch;
             gap: 6px;
             overflow-y: auto;
         }
         #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn {
-            width: 40px;
-            height: 40px;
+            width: 100%;
+            min-height: 46px;
             border: 1px solid rgba(255,255,255,.46);
-            border-radius: 15px;
+            border-radius: 16px;
+            padding: 7px 8px;
             background: rgba(255,255,255,.28);
             color: #626d78;
             display: grid;
-            place-items: center;
+            grid-template-columns: 28px 1fr;
+            align-items: center;
+            gap: 8px;
             cursor: pointer;
+            text-align: left;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 720;
+            line-height: 1.12;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.50);
             transition: transform .14s ease, background .14s ease, box-shadow .14s ease;
         }
@@ -1641,8 +1649,8 @@
             display: none;
         }
         #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn svg {
-            width: 21px;
-            height: 21px;
+            width: 24px;
+            height: 24px;
             stroke-width: 1.9;
         }
         #page-mitarbeiter.liquid-employee .emp-list-panel,
@@ -1914,6 +1922,102 @@
             border-color: rgba(166,176,188,.22);
             color: #a2acb8;
         }
+        #page-mitarbeiter.liquid-employee .emp-contract-strip {
+            margin: 8px 0 2px;
+            border: 1px solid rgba(255,255,255,.48);
+            border-radius: 13px;
+            background: rgba(255,255,255,.28);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.48), 0 8px 24px rgba(83,72,60,.06);
+            overflow: hidden;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-strip.empty {
+            padding: 8px 10px;
+            color: var(--emp-text-soft);
+            font-size: 12px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 10px 5px;
+            color: #2374b7;
+            font-size: 12px;
+            font-weight: 760;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-scroll {
+            max-height: 112px;
+            overflow-y: auto;
+            padding: 0 6px 6px;
+            display: grid;
+            gap: 5px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 2px 8px;
+            align-items: center;
+            padding: 6px 8px;
+            border: 1px solid rgba(166,176,188,.18);
+            border-radius: 10px;
+            background: rgba(255,255,255,.46);
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-main {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-model,
+        #page-mitarbeiter.liquid-employee .emp-contract-status {
+            flex-shrink: 0;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 760;
+            background: rgba(219,234,254,.68);
+            color: #245b92;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-status {
+            background: rgba(241,245,249,.72);
+            color: #64748b;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-status.active {
+            background: rgba(220,252,231,.78);
+            color: #166534;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-title {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--emp-text-strong);
+            font-size: 12px;
+            font-weight: 720;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-meta {
+            grid-column: 1;
+            color: var(--emp-text-soft);
+            font-size: 11px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-actions {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+            display: flex;
+            gap: 5px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-contract-btn {
+            border: 1px solid rgba(147,197,253,.52);
+            border-radius: 8px;
+            background: rgba(239,246,255,.70);
+            color: #1d4ed8;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 720;
+            cursor: pointer;
+        }
         #page-mitarbeiter.liquid-employee .emp-placeholder,
         #page-mitarbeiter.liquid-employee .emp-no-selection {
             color: var(--emp-text-soft);
@@ -2075,6 +2179,23 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.empty {
             background: rgba(10,18,27,.64) !important;
             color: #637484 !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-strip {
+            background: rgba(12,21,30,.42);
+            border-color: rgba(122,145,165,.20);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 8px 24px rgba(0,0,0,.16);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-head {
+            color: #62c6ff;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
+            background: rgba(22,34,46,.58);
+            border-color: rgba(122,145,165,.18);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-btn {
+            background: rgba(30,58,91,.58);
+            border-color: rgba(96,165,250,.28);
+            color: #bfdbfe;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-model-mtp { background: rgba(35,86,58,.70) !important; color: #bbf7d0; }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-model-utp { background: rgba(111,72,26,.72) !important; color: #fed7aa; }
@@ -4070,10 +4191,6 @@
                     </div>
                     <div class="liquid-home-shell">
                         <section class="liquid-module-grid" aria-label="Hauptmodule">
-                            <button class="liquid-module-card" onclick="showPage('vertraege')" type="button">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h4"/><path d="M9 12h6M9 16h6M9 8h2"/></svg>
-                                <span>Verträge</span>
-                            </button>
                             <button class="liquid-module-card" onclick="openLiquidDocumentsCard()" type="button">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 7h7l2 2h9v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 7V5h4l2 2"/></svg>
                                 <span>Dokumente</span>
@@ -4155,36 +4272,43 @@
                         <nav class="liquid-employee-nav" aria-label="Schnellnavigation">
                             <button class="liquid-employee-nav-btn" onclick="showPage('dashboard')" type="button" title="Dashboard" aria-label="Dashboard">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
-                            </button>
-                            <button class="liquid-employee-nav-btn" onclick="showPage('vertraege')" type="button" title="Verträge" aria-label="Verträge">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h4"/><path d="M9 12h6M9 16h6M9 8h2"/></svg>
+                                <span>Dashboard</span>
                             </button>
                             <button class="liquid-employee-nav-btn active" onclick="showPage('mitarbeiter')" type="button" title="Mitarbeiter" aria-label="Mitarbeiter">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M12 20a6 6 0 0 1 9 0"/></svg>
+                                <span>Mitarbeiter</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="openLiquidDocumentsCard()" type="button" title="Dokumente" aria-label="Dokumente">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 7h7l2 2h9v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 7V5h4l2 2"/></svg>
+                                <span>Dokumente</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('posteingang')" type="button" title="Postfach" aria-label="Postfach">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>
+                                <span>Postfach</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="openImportTool()" type="button" title="Mitarbeiter & Verträge importieren" aria-label="Mitarbeiter & Verträge importieren" data-liquid-roles="admin,superuser,user,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M20 8v6"/><path d="M17 11h6"/></svg>
+                                <span>Import</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('lohn')" type="button" title="Lohnlauf" aria-label="Lohnlauf" data-liquid-roles="admin,superuser,user,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                <span>Lohnlauf</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('sollstunden')" type="button" title="Sollstunden" aria-label="Sollstunden" data-liquid-roles="admin,superuser,user,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/><path d="M4 20h16"/></svg>
+                                <span>Sollstunden</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('ferien')" type="button" title="Ferien / Feiertage / Nacht" aria-label="Ferien / Feiertage / Nacht" data-liquid-roles="admin,superuser,user,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 18l4-9 4 5 3-7 6 11z"/><path d="M2 20h20"/><path d="M17 5c.8.6 1.4 1.3 1.8 2.2"/></svg>
+                                <span>Ferien / Nacht</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('fibu')" type="button" title="FIBU" aria-label="FIBU" data-liquid-roles="admin,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+                                <span>FIBU</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('admin-hub')" type="button" title="Systemeinstellungen" aria-label="Systemeinstellungen" data-liquid-roles="admin">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.86l.04.04a2 2 0 0 1-2.83 2.83l-.04-.04A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.05A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.86.34l-.04.04a2 2 0 0 1-2.83-2.83l.04-.04A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.05A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.86l-.04-.04A2 2 0 0 1 7.05 4.27l.04.04A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.05A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.86-.34l.04-.04a2 2 0 0 1 2.83 2.83l-.04.04A1.7 1.7 0 0 0 19.4 9c.7.28 1.1.9 1.1 1.65V11a2 2 0 0 1 0 2h-.05A1.7 1.7 0 0 0 19.4 15z"/></svg>
+                                <span>System</span>
                             </button>
                         </nav>
                         <!-- Liste links -->

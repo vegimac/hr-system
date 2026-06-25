@@ -886,6 +886,7 @@ function renderEmployeeDetail(emp) {
                         : `<span style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">nein</span>`}</div>
                 </div>
             </div>
+            ${renderEmpContractList(emp)}
 
             <!-- Nachtarbeit-Untersuchung als EIGENE Zeile unter Anstellung
                  (Walter-Vorgabe 20.06.2026, ArG). Read-only Anzeige + ⋮-Menü
@@ -1110,6 +1111,64 @@ function renderEmployeeDetail(emp) {
     // er auf "Familie". switchEmpTab triggert den passenden loadXxx()-Aufruf
     // (Bankverbindung beim personal-Tab, Familie beim familie-Tab usw.).
     switchEmpTab(activeEmpTab || 'personal');
+}
+
+function renderEmpContractList(emp) {
+    const contracts = (emp.employments || []).slice().sort((a, b) => {
+        const ad = a.contractStartDate || '';
+        const bd = b.contractStartDate || '';
+        return bd.localeCompare(ad);
+    });
+    if (!contracts.length) {
+        return `<div class="emp-contract-strip empty">Keine Verträge vorhanden.</div>`;
+    }
+    const rows = contracts.map(c => {
+        const id = c.id ?? c.employmentId;
+        const model = c.employmentModel || '–';
+        const from = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
+        const to = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
+        const title = c.jobTitle || c.jobGroupCode || c.position || 'Vertrag';
+        const wage = empContractWageText(c);
+        const active = c.isActive ? `<span class="emp-contract-status active">aktiv</span>` : `<span class="emp-contract-status">archiviert</span>`;
+        const actions = id
+            ? `<button type="button" class="emp-contract-btn" onclick="openEmpContractPdf(${id}, false)">Anschauen</button>
+               <button type="button" class="emp-contract-btn" onclick="openEmpContractPdf(${id}, true)">Drucken</button>`
+            : '';
+        return `<div class="emp-contract-row">
+            <div class="emp-contract-main">
+                <span class="emp-contract-model">${esc(model)}</span>
+                <span class="emp-contract-title">${esc(title)}</span>
+                ${active}
+            </div>
+            <div class="emp-contract-meta">${from} – ${to}${wage ? ' · ' + esc(wage) : ''}</div>
+            <div class="emp-contract-actions">${actions}</div>
+        </div>`;
+    }).join('');
+    return `<div class="emp-contract-strip" aria-label="Verträge">
+        <div class="emp-contract-head">
+            <span>Verträge</span>
+            <span>${contracts.length}</span>
+        </div>
+        <div class="emp-contract-scroll">${rows}</div>
+    </div>`;
+}
+
+function empContractWageText(c) {
+    const fmt = v => Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (c.hourlyRate != null) return `CHF ${fmt(c.hourlyRate)}/h`;
+    if (c.monthlySalaryFte != null) return `CHF ${fmt(c.monthlySalaryFte)} / 100%`;
+    if (c.monthlySalary != null) return `CHF ${fmt(c.monthlySalary)} / Mt.`;
+    return '';
+}
+
+async function openEmpContractPdf(contractId, printAfterOpen) {
+    const filename = `Arbeitsvertrag_${contractId}.pdf`;
+    const ok = await previewUrlFetch(`/api/contracts/employment/${contractId}/pdf`, filename, ah());
+    if (ok && printAfterOpen) {
+        setTimeout(() => {
+            if (typeof filePreviewPrint === 'function') filePreviewPrint();
+        }, 450);
+    }
 }
 
 // ── Tab wechseln ───────────────────────────────
