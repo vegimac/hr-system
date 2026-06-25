@@ -178,51 +178,44 @@ public class EasyAtWorkEmployeeSyncService
             return result;
         }
 
-        var cpId = companyProfileId
-            ?? emp.Employments
-                .Where(e => e.IsActive)
-                .OrderByDescending(e => e.ContractStartDate)
-                .Select(e => (int?)e.CompanyProfileId)
-                .FirstOrDefault()
-            ?? emp.Employments
-                .OrderByDescending(e => e.ContractStartDate)
-                .Select(e => (int?)e.CompanyProfileId)
-                .FirstOrDefault();
-        if (!cpId.HasValue)
+        if (!emp.EasyAtWorkEmployeeId.HasValue)
         {
-            result.Errors.Add("Keine Filiale/kein Vertrag für den easy@work-Abgleich gefunden.");
+            result.Errors.Add("Bei diesem Mitarbeiter ist keine easy@work-ID hinterlegt. Bitte zuerst den easy@work-MA eindeutig zuordnen.");
             return result;
         }
 
-        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
-            .FirstOrDefaultAsync(m => m.CompanyProfileId == cpId.Value, ct);
-        if (mapping == null)
+        var mappings = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .OrderBy(m => m.CompanyProfileId)
+            .ToListAsync(ct);
+        if (mappings.Count == 0)
         {
-            result.Errors.Add("Diese Filiale ist nicht mit easy@work verknüpft.");
+            result.Errors.Add("Es ist keine Filiale mit easy@work verknüpft.");
             return result;
         }
 
         EawEmployee? eaw = null;
-        if (emp.EasyAtWorkEmployeeId.HasValue)
+        int? matchedCustomerId = null;
+        foreach (var mapping in mappings)
         {
             eaw = await _client.GetEmployeeByIdAsync(mapping.EasyAtWorkCustomerId, emp.EasyAtWorkEmployeeId.Value, ct);
+            if (eaw != null)
+            {
+                matchedCustomerId = mapping.EasyAtWorkCustomerId;
+                break;
+            }
         }
         if (eaw == null)
         {
-            eaw = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, emp.EmployeeNumber, ct);
-        }
-        if (eaw == null)
-        {
-            result.Errors.Add("Mitarbeiter in easy@work nicht gefunden (Single-Endpoint per easy@work-ID und n+Personalnummer ohne Treffer).");
+            result.Errors.Add($"Mitarbeiter in easy@work nicht gefunden (Single-Endpoint nur per easy@work-ID {emp.EasyAtWorkEmployeeId.Value}, über alle gemappten Filialen geprüft).");
             return result;
         }
         result.EasyAtWorkEmployeeId = eaw.Id;
 
         var natByCode = await _db.Nationalities.AsNoTracking()
             .ToDictionaryAsync(n => (n.Code ?? "").ToUpperInvariant(), n => n.Id, ct);
-        var propsInfo = await FetchPropsInfoAsync(mapping.EasyAtWorkCustomerId, eaw.Id, ct);
+        var propsInfo = await FetchPropsInfoAsync(matchedCustomerId!.Value, eaw.Id, ct);
         EawFiscalInfo? fiscal = null;
-        try { fiscal = await _client.GetFiscalInfoAsync(mapping.EasyAtWorkCustomerId, eaw.Id, ct); }
+        try { fiscal = await _client.GetFiscalInfoAsync(matchedCustomerId.Value, eaw.Id, ct); }
         catch (Exception ex) { result.Notes.Add($"IBAN/Fiscal-Info nicht abrufbar: {ex.Message}"); }
 
         var normalizedGender = NormalizeGender(eaw.Gender);
