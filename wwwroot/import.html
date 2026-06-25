@@ -1358,11 +1358,12 @@ function isEasyworkApiImportRow(row) {
 
 function validateCcntQualification(raw) {
     const s = (raw || '').trim();
-    const num = (s.match(/^(\d+)/) || [])[1];
+    const upper = s.toUpperCase();
+    const num = (s.match(/^(\d+)/) || upper.match(/SWISS_QUALIFICATION_(\d+)/) || [])[1];
     if (!s) {
         return {
             ok: false,
-            message: `Gastroausbildung fehlt in easy@work. Bitte in easy@work im Feld "Qualification CCNT" einen dieser Werte erfassen: ${Object.values(ALLOWED_CCNT_QUALIFICATIONS).join(', ')}.`
+            message: `Gastroausbildung fehlt in easy@work. Bitte in easy@work im Feld "Qualification CCNT" / "cf_swiss_qualification_ll" einen dieser Werte erfassen: ${Object.values(ALLOWED_CCNT_QUALIFICATIONS).join(', ')}.`
         };
     }
     if (!num || !ALLOWED_CCNT_QUALIFICATIONS[num]) {
@@ -1392,7 +1393,7 @@ function ccntErrorHtml(row) {
                         <li>Gehe ins <b>easy@work</b>.</li>
                         <li>Öffne den Mitarbeiter <b>${nr} – ${name}</b>.</li>
                         <li>Gehe zu <b>Benutzerdefinierte Felder</b>.</li>
-                        <li>Scrolle weiter unten zum Feld <b>Qualification CCNT</b>.</li>
+                        <li>Scrolle weiter unten zum Feld <b>Qualification CCNT</b> / <b>cf_swiss_qualification_ll</b>.</li>
                         <li>Wähle dort die Gastronomie-Ausbildung. Meistens ist es <b>5 Sans qualification</b> (ohne Ausbildung).</li>
                         <li>Klicke auf <b>Hinzufügen</b>.</li>
                     </ol>

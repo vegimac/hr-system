@@ -801,7 +801,7 @@ public class EasyAtWorkController : ControllerBase
             ["Pay rate from"] = Fmt(payRateFrom),
             ["Tarife"] = (info.HourlyRate != null && info.HourlyRate.Value > 1m) ? info.HourlyRate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
             ["Salary (actual)"] = (info.MonthlySalary != null && info.MonthlySalary.Value > 1m) ? info.MonthlySalary.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
-            ["Qualification CCNT"] = PropAny(props, "cf_qualification_ccnt", "qualification_ccnt", "ccnt_qualification", "Qualification CCNT", "CCNT"),
+            ["Qualification CCNT"] = PropAny(props, "cf_swiss_qualification_ll", "swiss_qualification_ll", "cf_qualification_ccnt", "qualification_ccnt", "ccnt_qualification", "Qualification CCNT", "CCNT"),
             ["INTL_BANK_ACCT_NBR1"] = fiscal?.Iban,
             ["AHV"] = Prop(props, "cf_swiss_national_id"),
             ["Marital status"] = Marital(PropAny(props, "cf_marital_status", "marital_status", "Marital status", "Familienstand"))
