@@ -2319,6 +2319,48 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
         ? validateCcntQualification(csvCcnt)
         : { ok: true, label: validateCcntQualification(csvCcnt).ok ? validateCcntQualification(csvCcnt).label : (csvCcnt || '5 Sans qualification') };
 
+    if (isEasyworkApiImportRow(row)) {
+        const isFixModel = suggestedModel === 'FIX' || suggestedModel === 'FIX-M';
+        const fixedTermValue = bis ? 'yes' : 'no';
+        const summaryWage = isFixModel
+            ? (csvFteDisplay ? `CHF ${csvFteDisplay} / Monat 100%` : (csvSalaryActual ? `CHF ${csvSalaryActual} effektiv` : '–'))
+            : (prefillHourly ? `CHF ${prefillHourly} / Stunde` : '–');
+        const summaryHours = suggestedModel === 'MTP'
+            ? `${prefillGuarHours || '–'} Std./Woche`
+            : (isFixModel ? `${prefillPensum || '–'}%` : 'UTP');
+        const hidden = `
+            <input type="hidden" id="model-${idx}" value="${suggestedModel}">
+            <input type="hidden" id="jobGroup-${idx}" value="${suggestedJg}">
+            <input type="hidden" id="edLevel-${idx}" value="${suggestedEdu}">
+            <input type="hidden" id="startDate-${idx}" value="${startDate}">
+            <input type="hidden" id="hourlyRate-${idx}" value="${prefillHourly}">
+            <input type="hidden" id="guarHours-${idx}" value="${prefillGuarHours}">
+            <input type="hidden" id="salaryFte-${idx}" value="${prefillSalaryFte}">
+            <input type="hidden" id="pensum-${idx}" value="${prefillPensum}">
+            <input type="hidden" id="salaryActual-${idx}" value="${csvSalaryActual}">
+            <input type="hidden" id="probation-${idx}" value="0">
+            <input type="hidden" id="fixedTerm-${idx}" value="${fixedTermValue}">
+            <input type="hidden" id="endDate-${idx}" value="${bis}">
+        `;
+        return `
+        ${hidden}
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 16px;margin-top:6px">
+            <div style="font-size:13px;font-weight:800;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Importierte Vertragsdaten aus easy@work</div>
+            <div class="addr-fields" style="grid-template-columns:repeat(3,1fr);gap:8px">
+                ${addrField('Vertragsmodell', suggestedModel || '–')}
+                ${addrField('Funktion', csvFunktion || suggestedJg || '–')}
+                ${addrField('Ausbildungsniveau', ccntCheck.label || suggestedEdu || '–')}
+                ${addrField('Vertragsbeginn', csvVon || '–')}
+                ${addrField('Vertragsende', csvBis)}
+                ${addrField('Lohn', summaryWage)}
+                ${addrField(suggestedModel === 'MTP' ? 'Garantierte Stunden' : 'Pensum/Stunden', summaryHours)}
+                ${addrField('Filiale', csvStore || '–')}
+                ${addrField('Quelle', 'easy@work')}
+            </div>
+            <div id="compliance-${idx}" style="margin-top:10px"></div>
+        </div>`;
+    }
+
     // Info-Banner: bei Lohnänderung Vergleich alt → neu, sonst easy@work-Übersicht
     const banner = isSalaryChange
         ? (() => {
@@ -2710,6 +2752,7 @@ function renderContractRow(c) {
     const subline = isSalaryChange
         ? `Nr. ${get(row,'Nummer')} · Neuer Lohn ab ${fmtDe(payRateFromIso)} (alte Vertragsdaten übernommen)`
         : `Nr. ${get(row,'Nummer')} · Neues Vertragsdatum: ${vonDate || '–'}`;
+    const apiSingleImport = isEasyworkApiImportRow(row);
 
     const blockingErrorsHtml = apiImportBlockingErrorHtml(row);
     if (blockingErrorsHtml) {
@@ -2763,7 +2806,7 @@ function renderContractRow(c) {
             ${contractFormHtml(idx, row, true, activeContract, payRateFromIso)}
             <div class="row-actions">
                 <div id="rowStatus-${idx}"></div>
-                <button class="btn btn-primary" id="btnSave-${idx}" onclick="saveContractChange(${idx}, ${employeeId})" disabled>${isSalaryChange ? '💰 Lohnänderung erfassen' : '📋 Vertrag erstellen'}</button>
+                <button class="btn btn-primary" id="btnSave-${idx}" onclick="saveContractChange(${idx}, ${employeeId})" ${apiSingleImport ? 'style="width:100%;justify-content:center;padding:14px 18px;font-size:16px;border-radius:12px"' : ''} disabled>📋 Vertrag erstellen</button>
             </div>
         </div>
     </div>`;
