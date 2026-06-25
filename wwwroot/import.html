@@ -3450,6 +3450,10 @@ function buildPersonPayload(row) {
 }
 
 function buildContractPayload(idx, employeeId, row) {
+    if (isEasyworkApiImportRow(row)) {
+        return buildApiContractPayloadFromRow(employeeId, row);
+    }
+
     const model   = document.getElementById(`model-${idx}`)?.value;
     const isFix   = model === 'FIX' || model === 'FIX-M';
     const pct     = parseFloat(document.getElementById(`pensum-${idx}`)?.value || '100');
@@ -3520,6 +3524,50 @@ function buildContractPayload(idx, employeeId, row) {
         probationPeriodMonths:  probMonths > 0 ? probMonths : null,
         probationEndDate:       probEndDate,
         vacationPaymentMode:    vacPayMode,
+        isActive:               true,
+    };
+}
+
+function buildApiContractPayloadFromRow(employeeId, row) {
+    const model = mapContractType(row);
+    const isFix = model === 'FIX' || model === 'FIX-M';
+    const startDate = formatDate(get(row, 'Von')) || new Date().toISOString().split('T')[0];
+    const endDate = formatDate(get(row, 'Bis')) || null;
+    const anzahl = parseAnzahl(row);
+    const pct = anzahl?.type === 'percentage' ? Number(anzahl.value) : 100;
+    const actual = parseMoneyValue(get(row, 'Salary (actual)')) || null;
+    const fte = isFix && actual && pct
+        ? Math.round(actual / pct * 100 * 100) / 100
+        : (isFix ? actual : null);
+    const hourly = !isFix ? parseMoneyValue(get(row, 'Tarife')) || null : null;
+    const guar = model === 'MTP' ? mtpWeeklyHours(row) || null : null;
+    const jobGroupCode = resolveJobGroupCode(row) || get(row, 'Funktion') || '';
+    const educationLevelCode = mapCcntToEduLevel(get(row, 'Qualification CCNT'), true);
+    const storeNum = get(row, 'Store number', 'Store Number');
+    const branchId = getBranchIdByStoreNumber(storeNum) || companyProfileId || 1;
+    const isHourly = !isFix;
+
+    return {
+        employeeId,
+        companyProfileId:       branchId,
+        employmentModel:        model,
+        salaryType:             isFix ? 'monthly' : 'hourly',
+        contractStartDate:      startDate,
+        contractEndDate:        endDate,
+        contractEndDateSet:     true,
+        contractType:           endDate ? 'befristet' : 'unbefristet',
+        jobTitle:               jobGroupCode,
+        jobGroupCode:           jobGroupCode,
+        educationLevelCode,
+        hourlyRate:             hourly,
+        monthlySalary:          isFix ? actual : null,
+        monthlySalaryFte:       isFix ? fte : null,
+        employmentPercentage:   isFix ? pct : null,
+        weeklyHours:            null,
+        guaranteedHoursPerWeek: model === 'MTP' ? guar : null,
+        probationPeriodMonths:  null,
+        probationEndDate:       null,
+        vacationPaymentMode:    isHourly ? (companyProfile?.holdBackVacationPayout ? 'vacation_account' : 'paid_with_salary') : null,
         isActive:               true,
     };
 }
