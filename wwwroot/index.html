@@ -3195,10 +3195,10 @@
             position: relative;
             z-index: 1;
         }
-        body.dashboard-shell-active .sidebar {
+        body.liquid-shell-active .sidebar {
             display: none;
         }
-        body.dashboard-shell-active .main {
+        body.liquid-shell-active .main {
             width: 100%;
             min-width: 0;
         }
@@ -9835,6 +9835,8 @@ function doLogout() {
 function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
 
 function updateDashboardShellState(name) {
+    const page = document.getElementById('page-' + name);
+    document.body.classList.toggle('liquid-shell-active', !!page?.classList.contains('liquid-ui'));
     document.body.classList.toggle('dashboard-shell-active', name === 'dashboard');
 }
 
