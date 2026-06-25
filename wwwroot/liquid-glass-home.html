@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liquid Glass HR Home Prototype</title>
+    <style>
+        :root {
+            --lg-bg: #f6f3ee;
+            --lg-ink: #3f3f3f;
+            --lg-ink-soft: #686868;
+            --lg-ink-faint: #8f8f8f;
+            --lg-glass: rgba(255, 255, 255, 0.36);
+            --lg-glass-strong: rgba(255, 255, 255, 0.58);
+            --lg-border: rgba(255, 255, 255, 0.68);
+            --lg-shadow: rgba(70, 64, 55, 0.16);
+            --lg-shadow-strong: rgba(70, 64, 55, 0.24);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            overflow: hidden;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--lg-ink);
+            background:
+                radial-gradient(circle at 58% 47%, rgba(255, 255, 255, 0.78), transparent 25%),
+                radial-gradient(circle at 28% 50%, rgba(224, 218, 209, 0.42), transparent 36%),
+                linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%);
+        }
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            inset: -10vh -8vw;
+            pointer-events: none;
+            opacity: 0.36;
+        }
+
+        body::before {
+            background:
+                radial-gradient(ellipse at 58% 43%, transparent 0 18%, rgba(110, 110, 110, 0.08) 18.4% 19.1%, transparent 19.5% 100%),
+                radial-gradient(ellipse at 58% 43%, transparent 0 26%, rgba(110, 110, 110, 0.06) 26.4% 27.2%, transparent 27.5% 100%),
+                radial-gradient(ellipse at 76% 61%, transparent 0 24%, rgba(110, 110, 110, 0.055) 24.4% 25.2%, transparent 25.6% 100%);
+            filter: blur(0.4px);
+            transform: rotate(-7deg);
+        }
+
+        body::after {
+            background:
+                linear-gradient(88deg, transparent 0 34%, rgba(80, 80, 80, 0.07) 34.2% 34.35%, transparent 34.6% 100%),
+                linear-gradient(1deg, transparent 0 78%, rgba(80, 80, 80, 0.08) 78.1% 78.22%, transparent 78.45% 100%),
+                linear-gradient(90deg, transparent 0 97.5%, rgba(80, 80, 80, 0.12) 97.55% 97.8%, transparent 98% 100%);
+            opacity: 0.26;
+        }
+
+        .stage {
+            position: relative;
+            min-height: 100vh;
+            padding: 24px 28px 28px 164px;
+        }
+
+        .mock-title {
+            position: fixed;
+            top: 22px;
+            left: 164px;
+            z-index: 8;
+            font-size: 13px;
+            letter-spacing: 0.02em;
+            color: rgba(92, 92, 92, 0.78);
+        }
+
+        .glass {
+            background: var(--lg-glass);
+            border: 1px solid var(--lg-border);
+            box-shadow:
+                0 22px 70px var(--lg-shadow),
+                inset 0 1px 1px rgba(255, 255, 255, 0.86),
+                inset 0 -1px 2px rgba(255, 255, 255, 0.22);
+            backdrop-filter: blur(24px) saturate(132%);
+            -webkit-backdrop-filter: blur(24px) saturate(132%);
+        }
+
+        .side-rail {
+            position: fixed;
+            z-index: 6;
+            left: 24px;
+            top: 22px;
+            bottom: 36px;
+            width: 116px;
+            border-radius: 0 0 24px 24px;
+            padding: 20px 12px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 19px;
+        }
+
+        .branch-pill {
+            width: 92px;
+            height: 34px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            color: var(--lg-ink-soft);
+            font-size: 12px;
+        }
+
+        .date-block {
+            margin-top: 2px;
+            text-align: center;
+            color: var(--lg-ink-soft);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .date-block svg {
+            display: block;
+            margin: 0 auto 5px;
+            color: #7e7e7e;
+        }
+
+        .divider {
+            width: 60px;
+            height: 1px;
+            background: rgba(135, 135, 135, 0.18);
+        }
+
+        .avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            color: #f4f1ec;
+            font-weight: 700;
+            background:
+                radial-gradient(circle at 48% 30%, #d7d1c8 0 15%, transparent 16%),
+                linear-gradient(145deg, #59656d, #b8c0c3);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 13px 22px rgba(70, 64, 55, 0.16);
+        }
+
+        .nav-stack,
+        .quick-stack {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .nav-btn {
+            width: 92px;
+            height: 40px;
+            border: 0;
+            border-radius: 12px;
+            color: #707070;
+            background: transparent;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .nav-btn.active {
+            background: rgba(255, 255, 255, 0.42);
+            border: 1px solid rgba(255, 255, 255, 0.74);
+            box-shadow: 0 12px 28px rgba(70, 64, 55, 0.12), inset 0 1px 1px rgba(255,255,255,0.9);
+        }
+
+        .nav-btn:hover,
+        .module-card:hover,
+        .todo-row:hover,
+        .quick-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .quick-stack {
+            margin-top: auto;
+        }
+
+        .quick-btn {
+            width: 92px;
+            min-height: 36px;
+            border: 1px solid rgba(255, 255, 255, 0.58);
+            border-radius: 14px;
+            color: #5f5f5f;
+            background: rgba(255, 255, 255, 0.32);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 9px;
+            font-size: 11px;
+            cursor: pointer;
+            box-shadow: 0 9px 22px rgba(70, 64, 55, 0.08), inset 0 1px 1px rgba(255,255,255,0.72);
+            transition: transform 0.18s ease, background 0.18s ease;
+        }
+
+        .share {
+            position: fixed;
+            top: 24px;
+            right: 30px;
+            z-index: 6;
+            height: 32px;
+            border-radius: 17px;
+            padding: 0 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #5d5d5d;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .main-modules {
+            position: absolute;
+            top: 43%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: grid;
+            grid-template-columns: repeat(5, 112px);
+            gap: 12px;
+            align-items: center;
+        }
+
+        .module-card {
+            height: 136px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            color: #5f5f5f;
+            text-decoration: none;
+            transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .module-card:hover {
+            background: var(--lg-glass-strong);
+            box-shadow:
+                0 28px 78px var(--lg-shadow-strong),
+                inset 0 1px 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .module-card svg {
+            width: 42px;
+            height: 42px;
+            color: #737373;
+            stroke-width: 1.7;
+        }
+
+        .module-card span {
+            font-size: 13px;
+        }
+
+        .todos {
+            position: fixed;
+            z-index: 5;
+            top: 36%;
+            right: 56px;
+            width: 216px;
+            border-radius: 22px;
+            padding: 20px 12px 14px;
+        }
+
+        .todos-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2px 12px;
+            color: #5e5e5e;
+            font-size: 15px;
+            font-weight: 650;
+        }
+
+        .more-btn {
+            width: 26px;
+            height: 26px;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.34);
+            color: #777;
+            cursor: pointer;
+        }
+
+        .todo-row {
+            height: 44px;
+            border-radius: 15px;
+            display: grid;
+            grid-template-columns: 22px 1fr 14px;
+            align-items: center;
+            gap: 8px;
+            padding: 0 10px;
+            color: #666;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.18);
+            border-top: 1px solid rgba(255, 255, 255, 0.28);
+            transition: transform 0.18s ease, background 0.18s ease;
+        }
+
+        .todo-row + .todo-row {
+            margin-top: 4px;
+        }
+
+        .todo-row:hover {
+            background: rgba(255, 255, 255, 0.38);
+        }
+
+        svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 1.7;
+        }
+
+        .plus {
+            width: 16px;
+            height: 16px;
+        }
+
+        @media (max-width: 1080px) {
+            .main-modules {
+                grid-template-columns: repeat(3, 112px);
+                top: 42%;
+            }
+
+            .todos {
+                top: auto;
+                right: 28px;
+                bottom: 38px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mock-title">HR Home Right Half M Blurred Glass Mockup</div>
+
+    <aside class="side-rail glass" aria-label="Liquid Glass Navigation">
+        <div class="branch-pill glass">Sursee <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></div>
+
+        <div class="date-block">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4M16 2v4M5 9h14M6 5h12a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
+            <div>24. Juni</div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="avatar" aria-label="Benutzeravatar">HR</div>
+
+        <nav class="nav-stack" aria-label="Hauptnavigation">
+            <button class="nav-btn active" aria-label="Home"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg></button>
+            <button class="nav-btn" aria-label="Mitarbeiter"><svg viewBox="0 0 24 24"><path d="M16 18a4 4 0 0 0-8 0"/><circle cx="12" cy="8" r="3"/><path d="M21 18a3.5 3.5 0 0 0-5-3.15"/><path d="M3 18a3.5 3.5 0 0 1 5-3.15"/></svg></button>
+            <button class="nav-btn" aria-label="Dokumente"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z"/></svg></button>
+            <button class="nav-btn" aria-label="Postfach"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4Z"/><path d="m4 7 8 6 8-6"/></svg></button>
+            <button class="nav-btn" aria-label="Auswertungen"><svg viewBox="0 0 24 24"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></button>
+        </nav>
+
+        <div class="divider"></div>
+
+        <div class="quick-stack" aria-label="Schnellaktionen">
+            <button class="quick-btn"><svg class="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Vertrag</button>
+            <button class="quick-btn"><svg class="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Dokument</button>
+            <button class="quick-btn"><svg class="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Brief</button>
+        </div>
+    </aside>
+
+    <main class="stage">
+        <div class="share glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.12-2.12a5 5 0 0 0-7.07-7.07L11 4.93"/><path d="M14 11a5 5 0 0 0-7.07 0L4.8 13.12a5 5 0 1 0 7.07 7.07L13 19.07"/></svg> Share <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></div>
+
+        <section class="main-modules" aria-label="HR Hauptmodule">
+            <a class="module-card glass" href="#"><svg viewBox="0 0 24 24"><path d="M6 2h8l4 4v16H6Z"/><path d="M14 2v5h4"/><path d="M9 12h6M9 16h6M9 8h2"/></svg><span>Vertraege</span></a>
+            <a class="module-card glass" href="#"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M21 13h-3v3"/></svg><span>Dokumente</span></a>
+            <a class="module-card glass" href="#"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M12 20a6 6 0 0 1 9 0"/></svg><span>Mitarbeiter</span></a>
+            <a class="module-card glass" href="#"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3Z"/><path d="m3 7 9 7 9-7"/></svg><span>Postfach</span></a>
+            <a class="module-card glass" href="#"><svg viewBox="0 0 24 24"><path d="M5 20V10"/><path d="M11 20V5"/><path d="M17 20v-8"/><path d="M3 20h18"/></svg><span>Auswertungen</span></a>
+        </section>
+
+        <aside class="todos glass" aria-label="To-dos">
+            <div class="todos-head">
+                <span>To-dos</span>
+                <button class="more-btn" aria-label="Mehr">...</button>
+            </div>
+            <div class="todo-row"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg><span>QST pruefen</span><span>&rsaquo;</span></div>
+            <div class="todo-row"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7Z"/><path d="M15 3v5h4"/><path d="M4 12h6M7 9v6"/></svg><span>Vertrag erstellen</span><span>&rsaquo;</span></div>
+            <div class="todo-row"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m7 11 3 3 6-7"/></svg><span>Dokument freigeben</span><span>&rsaquo;</span></div>
+            <div class="todo-row"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></svg><span>Lohnlauf wartet</span><span>&rsaquo;</span></div>
+        </aside>
+    </main>
+</body>
+</html>
