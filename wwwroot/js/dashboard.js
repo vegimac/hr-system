@@ -184,17 +184,31 @@ function renderDashAlerts() {
     if (_dashActiveCategoryFilter) {
         alerts = alerts.filter(a => a.category === _dashActiveCategoryFilter);
     }
+    const isLiquid = document.getElementById('page-dashboard')?.classList.contains('liquid-dashboard');
     if (alerts.length === 0) {
         const isEn = window.i18n && i18n.getLang() === 'en';
         const titleTxt = isEn ? 'No reminders' : 'Keine Erinnerungen';
         const subTxt   = isEn
             ? 'All clear — no action needed in the next 90 days.'
             : 'Alles erledigt — kein Handlungsbedarf in den nächsten 90 Tagen.';
+        if (isLiquid) {
+            container.innerHTML = `<div class="liquid-todo-row" style="cursor:default">
+                <span>✓</span>
+                <span><span class="liquid-todo-title">${titleTxt}</span><span class="liquid-todo-sub">${subTxt}</span></span>
+                <span></span>
+            </div>`;
+            return;
+        }
         container.innerHTML = `<div class="card" style="padding:48px;text-align:center;color:#15803d">
             <div style="font-size:42px">✓</div>
             <div style="font-weight:600;font-size:16px;margin-top:10px">${titleTxt}</div>
             <div style="font-size:13px;color:#94a3b8;margin-top:6px">${subTxt}</div>
         </div>`;
+        return;
+    }
+
+    if (isLiquid) {
+        container.innerHTML = alerts.slice(0, 7).map(a => renderDashTodoRow(a)).join('');
         return;
     }
 
@@ -222,6 +236,44 @@ function renderDashAlerts() {
             ${itemsHtml ? `<div style="display:flex;flex-direction:column;gap:6px">${itemsHtml}</div>` : ''}
         </div>`;
     }).join('');
+}
+
+function renderDashTodoRow(a) {
+    const meta = DASH_CATEGORY_META[a.category] || { icon: '•' };
+    const title = (a.titleKey && window.i18n)
+        ? i18n.tFormat(a.titleKey, a.titleArgs || {})
+        : (a.title || dashMetaLabel(meta) || '');
+    const subtitle = (a.subtitleKey && window.i18n)
+        ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {})
+        : (a.subtitle || '');
+    const onClick = a.employeeId
+        ? (a.category === 'qst_pflicht_offen'
+            ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
+            : a.category === 'spouse_doku_fehlt'
+                ? `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`
+                : a.category === 'employee_doku_fehlt'
+                    ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
+                    : a.category === 'schwangerschaft'
+                        ? `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`
+                        : a.category === 'permit_expiring'
+                            ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
+                            : a.category === 'contract_end'
+                                ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
+                                : (a.category === 'exit_pending_active'
+                                   || a.category === 'birthday'
+                                   || a.category === 'anniversary'
+                                   || a.category === 'night_work_exam_fehlt')
+                                    ? `onclick="dashOpenEmployee(${a.employeeId}, 'personal')"`
+                                    : `onclick="dashOpenEmployee(${a.employeeId})"`)
+        : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
+    return `<div class="liquid-todo-row" ${onClick}>
+        <span>${meta.icon || '•'}</span>
+        <span>
+            <span class="liquid-todo-title">${_e(title)}</span>
+            ${subtitle ? `<span class="liquid-todo-sub">${_e(subtitle)}</span>` : ''}
+        </span>
+        <span>›</span>
+    </div>`;
 }
 
 function renderDashAlertRow(a) {

@@ -2781,6 +2781,128 @@
         .liquid-dashboard > .page-body {
             padding: 18px 24px 40px !important;
         }
+        .liquid-dashboard .liquid-home-shell {
+            position: relative;
+            min-height: calc(100vh - 160px);
+            display: grid;
+            grid-template-columns: minmax(520px, 1fr) minmax(260px, 320px);
+            gap: 24px;
+            align-items: center;
+        }
+        .liquid-dashboard .liquid-module-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(104px, 1fr));
+            gap: 14px;
+            max-width: 760px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .liquid-dashboard .liquid-module-card {
+            min-height: 142px;
+            border: 1px solid rgba(255,255,255,.62);
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(255,255,255,.58), rgba(255,255,255,.24));
+            box-shadow: 0 20px 56px rgba(74,55,34,.12), var(--liquid-inset);
+            backdrop-filter: blur(22px) saturate(145%);
+            -webkit-backdrop-filter: blur(22px) saturate(145%);
+            color: #5f5b55;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            cursor: pointer;
+            transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+        .liquid-dashboard .liquid-module-card:hover {
+            transform: translateY(-3px);
+            background: linear-gradient(135deg, rgba(255,255,255,.72), rgba(255,255,255,.34));
+            box-shadow: 0 28px 76px rgba(74,55,34,.16), var(--liquid-inset);
+        }
+        .liquid-dashboard .liquid-module-card svg {
+            width: 42px;
+            height: 42px;
+            stroke-width: 1.6;
+            color: #7a7770;
+        }
+        .liquid-dashboard .liquid-module-card span {
+            font-size: 14px;
+            font-weight: 650;
+            letter-spacing: -0.02em;
+        }
+        .liquid-dashboard .liquid-todo-panel {
+            align-self: center;
+            border: 1px solid rgba(255,255,255,.62);
+            border-radius: 28px;
+            padding: 18px 14px 14px;
+            background: linear-gradient(145deg, rgba(255,255,255,.64), rgba(255,255,255,.28));
+            box-shadow: 0 24px 72px rgba(74,55,34,.13), var(--liquid-inset);
+            backdrop-filter: blur(24px) saturate(145%);
+            -webkit-backdrop-filter: blur(24px) saturate(145%);
+            min-height: 250px;
+        }
+        .liquid-dashboard .liquid-todo-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 4px 12px;
+            color: #5a554f;
+            font-size: 16px;
+            font-weight: 750;
+        }
+        .liquid-dashboard .liquid-more {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,.55);
+            background: rgba(255,255,255,.32);
+            color: #8b8378;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+        .liquid-dashboard .liquid-legacy-dashboard {
+            display: none;
+        }
+        .liquid-dashboard .liquid-todo-panel #dashAlertsContainer {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .liquid-dashboard .liquid-todo-row {
+            min-height: 44px;
+            border-radius: 16px;
+            display: grid;
+            grid-template-columns: 24px 1fr 14px;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 10px;
+            color: #625d56;
+            background: rgba(255,255,255,.22);
+            border-top: 1px solid rgba(255,255,255,.34);
+            cursor: pointer;
+            transition: transform .16s ease, background .16s ease;
+        }
+        .liquid-dashboard .liquid-todo-row:hover {
+            transform: translateY(-2px);
+            background: rgba(255,255,255,.42);
+        }
+        .liquid-dashboard .liquid-todo-row .liquid-todo-title {
+            font-size: 12px;
+            font-weight: 620;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .liquid-dashboard .liquid-todo-row .liquid-todo-sub {
+            font-size: 10.5px;
+            color: #8c867c;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .liquid-dashboard #dashWageAdjustBanner > * {
             border-radius: 20px !important;
             background: rgba(255, 244, 205, .62) !important;
@@ -2892,6 +3014,31 @@
         }
         body.theme-dark .liquid-dashboard #dashAlertsContainer h2 {
             color: #d7c7a8 !important;
+        }
+        body.theme-dark .liquid-dashboard .liquid-module-card,
+        body.theme-dark .liquid-dashboard .liquid-todo-panel {
+            background: linear-gradient(145deg, rgba(30,41,59,.72), rgba(15,23,42,.38));
+            border-color: rgba(148,163,184,.20);
+            color: var(--liquid-text);
+        }
+        body.theme-dark .liquid-dashboard .liquid-module-card:hover {
+            background: linear-gradient(145deg, rgba(51,65,85,.74), rgba(15,23,42,.44));
+        }
+        body.theme-dark .liquid-dashboard .liquid-module-card svg,
+        body.theme-dark .liquid-dashboard .liquid-module-card span,
+        body.theme-dark .liquid-dashboard .liquid-todo-head {
+            color: #e5edf8;
+        }
+        body.theme-dark .liquid-dashboard .liquid-todo-row {
+            background: rgba(255,255,255,.055);
+            border-top-color: rgba(255,255,255,.08);
+            color: #d7e0ee;
+        }
+        body.theme-dark .liquid-dashboard .liquid-todo-row:hover {
+            background: rgba(255,255,255,.10);
+        }
+        body.theme-dark .liquid-dashboard .liquid-todo-row .liquid-todo-sub {
+            color: #94a3b8;
         }
     </style>
 </head>
@@ -3112,18 +3259,50 @@
                     <p class="page-sub" id="dashSubHeader" data-i18n="dash.subtitle">Bewilligungen, Probezeit, Verträge, Lohnläufe — alles auf einen Blick</p>
                 </div></div>
                 <div class="page-body liquid-dashboard-body">
-                    <!-- Mindestlohn-Vertragsanpassung Warn-Banner (wage-adjustment.js) -->
-                    <div id="dashWageAdjustBanner"></div>
+                    <div class="liquid-home-shell">
+                        <section class="liquid-module-grid" aria-label="Hauptmodule">
+                            <button class="liquid-module-card" onclick="showPage('vertraege')" type="button">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h4"/><path d="M9 12h6M9 16h6M9 8h2"/></svg>
+                                <span>Verträge</span>
+                            </button>
+                            <button class="liquid-module-card" onclick="showPage('dokumente')" type="button">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 7h7l2 2h9v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 7V5h4l2 2"/></svg>
+                                <span>Dokumente</span>
+                            </button>
+                            <button class="liquid-module-card" onclick="showPage('mitarbeiter')" type="button">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M12 20a6 6 0 0 1 9 0"/></svg>
+                                <span>Mitarbeiter</span>
+                            </button>
+                            <button class="liquid-module-card" onclick="showPage('posteingang')" type="button">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>
+                                <span>Postfach</span>
+                            </button>
+                            <button class="liquid-module-card" onclick="showPage('hr-hub')" type="button">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/><path d="M3 20h18"/></svg>
+                                <span>Auswertungen</span>
+                            </button>
+                        </section>
 
-                    <!-- Severity-Übersicht -->
-                    <div id="dashSeverityRow" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px"></div>
+                        <aside class="liquid-todo-panel" aria-label="To-dos">
+                            <div class="liquid-todo-head">
+                                <span>To-dos</span>
+                                <span class="liquid-more">···</span>
+                            </div>
+                            <div id="dashAlertsContainer">
+                                <div style="padding:30px;text-align:center;color:#94a3b8">Lade…</div>
+                            </div>
+                        </aside>
+                    </div>
 
-                    <!-- Kategorie-Filter -->
-                    <div id="dashFilterRow" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;font-size:12px"></div>
+                    <div class="liquid-legacy-dashboard">
+                        <!-- Mindestlohn-Vertragsanpassung Warn-Banner (wage-adjustment.js) -->
+                        <div id="dashWageAdjustBanner"></div>
 
-                    <!-- Alarm-Liste, gruppiert nach Kategorie -->
-                    <div id="dashAlertsContainer">
-                        <div style="padding:30px;text-align:center;color:#94a3b8">Lade…</div>
+                        <!-- Severity-Übersicht -->
+                        <div id="dashSeverityRow" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px"></div>
+
+                        <!-- Kategorie-Filter -->
+                        <div id="dashFilterRow" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;font-size:12px"></div>
                     </div>
                 </div>
             </div>
