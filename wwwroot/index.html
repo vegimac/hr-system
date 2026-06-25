@@ -1571,6 +1571,348 @@
         }
         .emp-section-title:first-child { margin-top: 0; }
 
+        /* ── LIQUID GLASS: MITARBEITER-MASKE ───────────────────────
+           Scoped auf #page-mitarbeiter.liquid-employee: keine Backend-/API-
+           Logik, keine DOM-IDs, keine Tab-Handler werden verändert. */
+        #page-mitarbeiter.liquid-employee {
+            --emp-glass-bg: rgba(255,255,255,.48);
+            --emp-glass-field: rgba(255,255,255,.74);
+            --emp-glass-border: rgba(255,255,255,.76);
+            --emp-text-strong: #364152;
+            --emp-text: #526071;
+            --emp-text-soft: #8b96a5;
+            --emp-shadow: 0 22px 70px rgba(92,78,57,.16), inset 0 1px 0 rgba(255,255,255,.62);
+            background:
+                radial-gradient(circle at 88% 8%, rgba(255,255,255,.82) 0, transparent 210px),
+                radial-gradient(circle at 7% 92%, rgba(255,232,198,.52) 0, transparent 300px),
+                linear-gradient(135deg, #f7f2eb 0%, #f4efe7 46%, #fbfaf7 100%);
+            color: var(--emp-text);
+        }
+        #page-mitarbeiter.liquid-employee .page-body {
+            padding: 12px 14px 14px !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-layout,
+        #page-mitarbeiter.liquid-employee .liquid-employee-layout-grid {
+            gap: 12px;
+            height: calc(100vh - 86px);
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-list,
+        #page-mitarbeiter.liquid-employee .emp-detail-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-detail {
+            background: var(--emp-glass-bg);
+            border: 1px solid var(--emp-glass-border);
+            border-radius: 16px;
+            box-shadow: var(--emp-shadow);
+            backdrop-filter: blur(26px) saturate(160%);
+            -webkit-backdrop-filter: blur(26px) saturate(160%);
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-list {
+            width: 232px;
+            min-width: 232px;
+            overflow: hidden;
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-panel::before {
+            content: "Mitarbeiter";
+            display: block;
+            padding: 14px 14px 4px;
+            font-size: 17px;
+            font-weight: 760;
+            letter-spacing: -.02em;
+            color: var(--emp-text-strong);
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-search {
+            padding: 8px 12px;
+            border-bottom: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-search-input,
+        #page-mitarbeiter.liquid-employee #empSpecialFilter,
+        #page-mitarbeiter.liquid-employee #empExitDateAfter {
+            border-radius: 10px !important;
+            border-color: rgba(160,169,180,.30) !important;
+            background-color: rgba(255,255,255,.45) !important;
+            color: var(--emp-text-strong) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.58), 0 6px 18px rgba(75,67,56,.06);
+        }
+        #page-mitarbeiter.liquid-employee .emp-search-input:focus {
+            border-color: rgba(59,130,246,.42) !important;
+            background-color: rgba(255,255,255,.70) !important;
+            box-shadow: 0 0 0 3px rgba(59,130,246,.10);
+        }
+        #page-mitarbeiter.liquid-employee #empFilterAktiv,
+        #page-mitarbeiter.liquid-employee #empFilterInaktiv,
+        #page-mitarbeiter.liquid-employee #empFilterAlle {
+            border-radius: 10px !important;
+            background: rgba(255,255,255,.38) !important;
+            color: var(--emp-text) !important;
+            border: 1px solid rgba(255,255,255,.42) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.42);
+        }
+        #page-mitarbeiter.liquid-employee #empFilterAktiv[style*="color:white"],
+        #page-mitarbeiter.liquid-employee #empFilterInaktiv[style*="color:white"],
+        #page-mitarbeiter.liquid-employee #empFilterAlle[style*="color:white"] {
+            background: rgba(255,255,255,.72) !important;
+            color: var(--emp-text-strong) !important;
+            box-shadow: 0 8px 24px rgba(78,68,55,.10), inset 0 1px 0 rgba(255,255,255,.72);
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-scroll {
+            padding: 2px 10px 12px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-item,
+        #page-mitarbeiter.liquid-employee .liquid-employee-row {
+            min-height: 27px;
+            gap: 8px;
+            padding: 4px 7px;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 10px;
+            color: var(--emp-text);
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-item:hover,
+        #page-mitarbeiter.liquid-employee .liquid-employee-row:hover {
+            background: rgba(255,255,255,.38);
+            border-color: rgba(255,255,255,.44);
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-item.active,
+        #page-mitarbeiter.liquid-employee .liquid-employee-row-active {
+            background: rgba(219,234,254,.68);
+            border-left: 1px solid rgba(147,197,253,.70);
+            border-color: rgba(147,197,253,.58);
+            box-shadow: 0 8px 22px rgba(37,99,235,.10), inset 0 1px 0 rgba(255,255,255,.64);
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-panel .emp-avatar,
+        #page-mitarbeiter.liquid-employee .emp-list-nr {
+            display: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-name {
+            font-size: 11.5px;
+            font-weight: 680;
+            color: var(--emp-text-strong);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #page-mitarbeiter.liquid-employee .emp-model-badge,
+        #page-mitarbeiter.liquid-employee .liquid-contract-pill {
+            min-width: 36px;
+            text-align: center;
+            padding: 2px 6px !important;
+            border-radius: 999px !important;
+            font-size: 10px !important;
+            line-height: 1.15;
+            border: 1px solid rgba(255,255,255,.55);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.52);
+        }
+        #page-mitarbeiter.liquid-employee .emp-model-mtp { background: rgba(187,247,208,.62) !important; color: #28714a; }
+        #page-mitarbeiter.liquid-employee .emp-model-utp { background: rgba(254,215,170,.62) !important; color: #9a5a17; }
+        #page-mitarbeiter.liquid-employee .emp-model-fix { background: rgba(191,219,254,.62) !important; color: #2f5f98; }
+        #page-mitarbeiter.liquid-employee .emp-model-fix-m { background: rgba(221,214,254,.64) !important; color: #684995; }
+        #page-mitarbeiter.liquid-employee .emp-detail-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-detail {
+            overflow: hidden;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-header {
+            padding: 14px 16px 8px;
+            border-bottom: 1px solid rgba(255,255,255,.48);
+            background: rgba(255,255,255,.36);
+            backdrop-filter: blur(24px) saturate(160%);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
+        }
+        #page-mitarbeiter.liquid-employee #empDetailPhoto {
+            width: 92px !important;
+            height: 92px !important;
+            font-size: 30px !important;
+            border: 2px solid rgba(255,255,255,.72);
+            box-shadow: 0 15px 36px rgba(72,63,53,.18), inset 0 1px 0 rgba(255,255,255,.60);
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-name {
+            font-size: 22px;
+            font-weight: 780;
+            letter-spacing: -.03em;
+            color: var(--emp-text-strong);
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-meta {
+            font-size: 12px;
+            color: var(--emp-text-soft);
+            margin-top: 6px;
+        }
+        #page-mitarbeiter.liquid-employee .btn-emp-edit,
+        #page-mitarbeiter.liquid-employee .btn-emp-add {
+            border-radius: 10px !important;
+            background: rgba(255,255,255,.55) !important;
+            color: var(--emp-text-strong) !important;
+            border: 1px solid rgba(255,255,255,.62) !important;
+            box-shadow: 0 10px 26px rgba(72,63,53,.09), inset 0 1px 0 rgba(255,255,255,.62);
+        }
+        #page-mitarbeiter.liquid-employee .btn-emp-edit.btn-postfach,
+        #page-mitarbeiter.liquid-employee .btn-emp-edit.btn-edit-blue {
+            background: rgba(255,255,255,.62) !important;
+            color: #455264 !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-tabs {
+            margin-top: 12px;
+            padding: 5px;
+            gap: 4px;
+            border: 1px solid rgba(255,255,255,.48);
+            border-radius: 13px;
+            background: rgba(255,255,255,.32);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.54);
+        }
+        #page-mitarbeiter.liquid-employee .emp-tab {
+            padding: 6px 13px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            color: var(--emp-text);
+            font-size: 11px;
+            font-weight: 650;
+        }
+        #page-mitarbeiter.liquid-employee .emp-tab.active {
+            background: rgba(255,255,255,.72);
+            border-color: rgba(255,255,255,.64);
+            color: #2f4771;
+            box-shadow: 0 8px 22px rgba(72,63,53,.10), inset 0 1px 0 rgba(255,255,255,.74);
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body {
+            padding: 10px 14px 14px;
+            background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04));
+        }
+        #page-mitarbeiter.liquid-employee .emp-section-title {
+            margin: 8px 0 3px;
+            padding: 0 0 0 3px;
+            border-left: none;
+            background: transparent;
+            color: #2374b7;
+            font-size: 12px;
+            letter-spacing: -.01em;
+            text-transform: none;
+            font-weight: 760;
+        }
+        #page-mitarbeiter.liquid-employee .emp-field-grid,
+        #page-mitarbeiter.liquid-employee .emp-field-grid-2,
+        #page-mitarbeiter.liquid-employee .emp-field-grid-3 {
+            background: rgba(255,255,255,.36);
+            border: 1px solid rgba(255,255,255,.50);
+            border-radius: 12px;
+            padding: 8px 9px;
+            gap: 7px 9px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.54), 0 10px 30px rgba(83,72,60,.07);
+        }
+        #page-mitarbeiter.liquid-employee .emp-field-grid-3,
+        #page-mitarbeiter.liquid-employee .emp-field-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        #page-mitarbeiter.liquid-employee .emp-field-grid[style*="grid-template-columns"] {
+            grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+            gap: 7px 9px !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-grid-attached {
+            margin-top: -7px !important;
+            padding-top: 8px !important;
+            border-top: 1px solid rgba(255,255,255,.38) !important;
+            border-radius: 12px !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-field-label,
+        #page-mitarbeiter.liquid-employee .liquid-field .emp-field-label {
+            color: #7a8694;
+            font-size: 9px;
+            letter-spacing: .02em;
+            text-transform: none;
+            font-weight: 700;
+        }
+        #page-mitarbeiter.liquid-employee .emp-field-value,
+        #page-mitarbeiter.liquid-employee .liquid-field .emp-field-value {
+            min-height: 29px;
+            padding: 5px 9px;
+            border-radius: 8px;
+            background: var(--emp-glass-field);
+            border: 1px solid rgba(166,176,188,.24);
+            color: var(--emp-text-strong);
+            font-size: 12px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.68), 0 6px 18px rgba(86,76,63,.07);
+        }
+        #page-mitarbeiter.liquid-employee .emp-field-value.empty {
+            background: rgba(255,255,255,.32);
+            border-color: rgba(166,176,188,.22);
+            color: #a2acb8;
+        }
+        #page-mitarbeiter.liquid-employee .ef-input {
+            width: 100%;
+            min-height: 25px;
+            padding: 3px 7px;
+            border-radius: 7px;
+            border: 1px solid rgba(166,176,188,.28);
+            background: rgba(255,255,255,.68);
+            color: var(--emp-text-strong);
+            font: inherit;
+            font-size: 12px;
+            outline: none;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.60);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee {
+            --emp-glass-bg: rgba(12,21,30,.56);
+            --emp-glass-field: rgba(22,34,46,.80);
+            --emp-glass-border: rgba(122,145,165,.22);
+            --emp-text-strong: #edf5ff;
+            --emp-text: #c4d1de;
+            --emp-text-soft: #7f91a4;
+            --emp-shadow: 0 24px 70px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.07);
+            background:
+                radial-gradient(circle at 82% 5%, rgba(108,144,177,.18) 0, transparent 260px),
+                radial-gradient(circle at 15% 100%, rgba(57,96,126,.20) 0, transparent 330px),
+                linear-gradient(135deg, #07111a 0%, #0b1620 52%, #08121b 100%);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-panel,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-list,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-panel,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-detail,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-tabs,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid-2,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid-3 {
+            background: var(--emp-glass-bg) !important;
+            border-color: var(--emp-glass-border) !important;
+            color: var(--emp-text) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-search-input,
+        body.theme-dark #page-mitarbeiter.liquid-employee #empSpecialFilter,
+        body.theme-dark #page-mitarbeiter.liquid-employee #empExitDateAfter,
+        body.theme-dark #page-mitarbeiter.liquid-employee .ef-input {
+            background: rgba(15,26,37,.68) !important;
+            border-color: rgba(122,145,165,.24) !important;
+            color: var(--emp-text) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-name,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-name {
+            color: var(--emp-text-strong) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item.active,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-row-active,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active {
+            background: rgba(70,91,116,.52) !important;
+            color: #f5faff !important;
+            border-color: rgba(126,167,210,.30) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-section-title {
+            color: #62c6ff !important;
+            background: transparent !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-label {
+            color: #8193a5 !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-field .emp-field-value {
+            background: var(--emp-glass-field) !important;
+            border-color: rgba(122,145,165,.25) !important;
+            color: var(--emp-text-strong) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.16);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-model-mtp { background: rgba(35,86,58,.70) !important; color: #bbf7d0; }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-model-utp { background: rgba(111,72,26,.72) !important; color: #fed7aa; }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-model-fix { background: rgba(35,68,105,.75) !important; color: #bfdbfe; }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-model-fix-m { background: rgba(72,52,106,.76) !important; color: #ddd6fe; }
+
         /* Sticky-Kopfzeile für lange Detail-/Tab-Ansichten (Walter-Vorgabe
            15.05.2026): Titel + Aktions-Buttons (Speichern, Übertragen …)
            bleiben beim Scrollen oben sichtbar — nie Buttons, die wegscrollen.
@@ -2940,15 +3282,15 @@
             </div>
 
             <!-- MITARBEITER -->
-            <div class="page" id="page-mitarbeiter">
+            <div class="page liquid-ui liquid-employee liquid-employee-layout" id="page-mitarbeiter">
                 <!-- Walter-Vorgabe 09.06.2026: kein page-head mehr, damit das MA-Foto
                      im Detail-Header weit oben am Bildschirm sitzt. padding-top:50px
                      hält dabei die Header-Buttons (Postfach/Bearbeiten) unter dem
                      fixed #langSwitcher (DE/EN/Theme) sichtbar — sonst überdeckt er sie. -->
                 <div class="page-body" style="padding-top:50px">
-                    <div class="emp-layout">
+                    <div class="emp-layout liquid-employee-layout-grid">
                         <!-- Liste links -->
-                        <div class="emp-list-panel">
+                        <div class="emp-list-panel liquid-employee-list">
                             <div class="emp-list-search">
                                 <input class="emp-search-input" id="empSearch" type="text" data-i18n-placeholder="ma.search" placeholder="Suchen..." oninput="filterEmployeeList()">
                             </div>
@@ -2997,7 +3339,7 @@
                             </div>
                         </div>
                         <!-- Detail rechts -->
-                        <div class="emp-detail-panel" id="empDetailPanel">
+                        <div class="emp-detail-panel liquid-employee-detail" id="empDetailPanel">
                             <div class="emp-no-selection" style="height:100%">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                                 <span>Mitarbeiter auswählen</span>
