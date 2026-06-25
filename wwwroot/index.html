@@ -2914,6 +2914,9 @@
             background: linear-gradient(135deg, rgba(255,255,255,.72), rgba(255,255,255,.34));
             box-shadow: 0 28px 76px rgba(74,55,34,.16), var(--liquid-inset);
         }
+        .liquid-dashboard .liquid-module-card[hidden] {
+            display: none;
+        }
         .liquid-dashboard .liquid-module-card svg {
             width: 38px;
             height: 38px;
@@ -3386,7 +3389,7 @@
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h4"/><path d="M9 12h6M9 16h6M9 8h2"/></svg>
                                 <span>Verträge</span>
                             </button>
-                            <button class="liquid-module-card" onclick="showPage('dokumente')" type="button">
+                            <button class="liquid-module-card" onclick="openLiquidDocumentsCard()" type="button">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 7h7l2 2h9v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 7V5h4l2 2"/></svg>
                                 <span>Dokumente</span>
                             </button>
@@ -3398,35 +3401,35 @@
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>
                                 <span>Postfach</span>
                             </button>
-                            <button class="liquid-module-card" onclick="showPage('hr-hub')" type="button">
+                            <button class="liquid-module-card" onclick="showPage('hr-hub')" type="button" data-liquid-roles="admin,superuser,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/><path d="M3 20h18"/></svg>
                                 <span>Auswertungen</span>
                             </button>
-                            <button class="liquid-module-card" onclick="openImportTool()" type="button">
+                            <button class="liquid-module-card" onclick="openImportTool()" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M20 8v6"/><path d="M17 11h6"/></svg>
                                 <span>Mitarbeiter &amp;<br>Verträge</span>
                             </button>
-                            <button class="liquid-module-card" onclick="showPage('roster-absence-import')" type="button">
+                            <button class="liquid-module-card" onclick="showPage('roster-absence-import')" type="button" data-liquid-roles="admin">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m8 15 2 2 5-5"/></svg>
                                 <span>Absenzen<br>Dienstplan</span>
                             </button>
-                            <button class="liquid-module-card" onclick="showPage('lohn')" type="button">
+                            <button class="liquid-module-card" onclick="showPage('lohn')" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                                 <span>Lohnlauf</span>
                             </button>
-                            <button class="liquid-module-card" onclick="showPage('sollstunden')" type="button">
+                            <button class="liquid-module-card" onclick="showPage('sollstunden')" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/><path d="M4 20h16"/></svg>
                                 <span>Sollstunden</span>
                             </button>
-                            <button class="liquid-module-card" onclick="showPage('ferien')" type="button">
+                            <button class="liquid-module-card" onclick="showPage('ferien')" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 18l4-9 4 5 3-7 6 11z"/><path d="M2 20h20"/><path d="M17 5c.8.6 1.4 1.3 1.8 2.2"/></svg>
                                 <span>Ferien / Feier<br>Nacht</span>
                             </button>
-                            <button class="liquid-module-card" onclick="showPage('fibu')" type="button">
+                            <button class="liquid-module-card" onclick="showPage('fibu')" type="button" data-liquid-roles="admin,buchhaltung">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
                                 <span>FIBU</span>
                             </button>
-                            <button class="liquid-module-card" onclick="showPage('admin-hub')" type="button">
+                            <button class="liquid-module-card" onclick="showPage('admin-hub')" type="button" data-liquid-roles="admin">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.86l.04.04a2 2 0 0 1-2.83 2.83l-.04-.04A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.05A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.86.34l-.04.04a2 2 0 0 1-2.83-2.83l.04-.04A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.05A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.86l-.04-.04A2 2 0 0 1 7.05 4.27l.04.04A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.05A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.86-.34l.04-.04a2 2 0 0 1 2.83 2.83l-.04.04A1.7 1.7 0 0 0 19.4 9c.7.28 1.1.9 1.1 1.65V11a2 2 0 0 1 0 2h-.05A1.7 1.7 0 0 0 19.4 15z"/></svg>
                                 <span>System-<br>einstellungen</span>
                             </button>
@@ -9264,6 +9267,7 @@ function syncLiquidDashboardChrome() {
     if (uname) uname.textContent = currentUser?.username || '–';
     if (urole) urole.textContent = currentUser ? (currentUser.isSuperAdmin ? 'Super-Admin' : roleName(currentUser.role)) : '–';
     if (uava)  uava.textContent = (currentUser?.username || 'U')[0].toUpperCase();
+    syncLiquidDashboardCards();
 }
 
 function onLiquidBranchChange() {
@@ -9272,6 +9276,21 @@ function onLiquidBranchChange() {
     if (!lqSel || !srcSel) return;
     srcSel.value = lqSel.value;
     onBranchChange();
+}
+
+function syncLiquidDashboardCards() {
+    const role = currentUser?.role || '';
+    document.querySelectorAll('.liquid-module-card[data-liquid-roles]').forEach(card => {
+        const roles = (card.dataset.liquidRoles || '').split(',').map(r => r.trim()).filter(Boolean);
+        card.hidden = roles.length > 0 && !roles.includes(role);
+    });
+}
+
+function openLiquidDocumentsCard() {
+    showPage('mitarbeiter');
+    setTimeout(() => {
+        if (typeof switchEmpTab === 'function') switchEmpTab('dokumente');
+    }, 0);
 }
 
 // ── Datenaufbewahrung Stempelzeiten (Walter-Vorgabe 21.06.2026) ──────────
