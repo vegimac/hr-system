@@ -2709,49 +2709,49 @@
            Rücknehmbar über Klassen .liquid-ui / .liquid-dashboard.
            Keine IDs, Handler oder Fetch-Logik werden verändert. */
         .liquid-ui {
-            --liquid-cream-1: #fbf3e6;
-            --liquid-cream-2: #f6e7d0;
-            --liquid-glass: rgba(255, 255, 255, 0.54);
-            --liquid-glass-strong: rgba(255, 255, 255, 0.72);
-            --liquid-border: rgba(255, 255, 255, 0.58);
-            --liquid-text: #221f1a;
-            --liquid-muted: #736b5f;
-            --liquid-shadow: 0 22px 70px rgba(83, 62, 36, 0.14);
-            --liquid-inset: inset 0 1px 0 rgba(255,255,255,.75);
+            --liquid-cream-1: #f7f4ef;
+            --liquid-cream-2: #efebe3;
+            --liquid-glass: rgba(255, 255, 255, 0.36);
+            --liquid-glass-strong: rgba(255, 255, 255, 0.58);
+            --liquid-border: rgba(255, 255, 255, 0.68);
+            --liquid-text: #3f3f3f;
+            --liquid-muted: #686868;
+            --liquid-shadow: 0 22px 70px rgba(70, 64, 55, 0.16);
+            --liquid-shadow-strong: 0 28px 78px rgba(70, 64, 55, 0.24);
+            --liquid-inset: inset 0 1px 1px rgba(255, 255, 255, 0.86), inset 0 -1px 2px rgba(255, 255, 255, 0.22);
         }
         .liquid-dashboard {
             position: relative;
             min-height: 100%;
             overflow: hidden;
             background:
-                radial-gradient(circle at 14% 12%, rgba(255,255,255,.92), transparent 28%),
-                radial-gradient(circle at 82% 0%, rgba(235,210,164,.38), transparent 32%),
-                linear-gradient(135deg, var(--liquid-cream-1), var(--liquid-cream-2) 48%, #fff8ef);
+                radial-gradient(circle at 58% 47%, rgba(255, 255, 255, 0.78), transparent 25%),
+                radial-gradient(circle at 28% 50%, rgba(224, 218, 209, 0.42), transparent 36%),
+                linear-gradient(135deg, var(--liquid-cream-1) 0%, var(--liquid-cream-2) 48%, #faf8f5 100%);
             color: var(--liquid-text);
         }
         .liquid-dashboard::before {
             content: "";
             position: absolute;
-            inset: 0 0 0 auto;
-            width: min(72vw, 980px);
-            height: 100%;
+            inset: -10vh -8vw;
             pointer-events: none;
-            opacity: .46;
+            opacity: .34;
             transform: none;
             background-image: url('img/liquid-glass-arches-reference.png');
             background-repeat: no-repeat;
-            background-position: right 0 bottom -180px;
-            background-size: auto 130%;
+            background-position: center center;
+            background-size: cover;
         }
         .liquid-dashboard::after {
             content: "";
             position: absolute;
-            inset: auto -10% -18% auto;
-            width: 58vw;
-            height: 42vw;
+            inset: -10vh -8vw;
             pointer-events: none;
-            opacity: .24;
-            background: radial-gradient(circle, rgba(255,255,255,.62), transparent 62%);
+            opacity: .18;
+            background:
+                linear-gradient(88deg, transparent 0 34%, rgba(80, 80, 80, 0.07) 34.2% 34.35%, transparent 34.6% 100%),
+                linear-gradient(1deg, transparent 0 78%, rgba(80, 80, 80, 0.08) 78.1% 78.22%, transparent 78.45% 100%),
+                linear-gradient(90deg, transparent 0 97.5%, rgba(80, 80, 80, 0.12) 97.55% 97.8%, transparent 98% 100%);
         }
         .liquid-dashboard > .page-head,
         .liquid-dashboard > .page-body {
@@ -2878,68 +2878,74 @@
         }
         .liquid-dashboard .liquid-home-shell {
             position: relative;
-            min-height: calc(100vh - 160px);
-            display: grid;
-            grid-template-columns: minmax(520px, 1fr) minmax(260px, 320px);
-            gap: 24px;
-            align-items: center;
+            min-height: calc(100vh - 66px);
         }
         .liquid-dashboard .liquid-module-grid {
+            position: absolute;
+            top: 43%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-            gap: 14px;
-            max-width: 900px;
-            margin: 0 auto;
-            width: 100%;
+            grid-template-columns: repeat(5, 112px);
+            gap: 12px;
+            align-items: center;
+            max-width: none;
+            width: auto;
         }
         .liquid-dashboard .liquid-module-card {
-            min-height: 124px;
-            border: 1px solid rgba(255,255,255,.62);
-            border-radius: 24px;
-            background: linear-gradient(135deg, rgba(255,255,255,.58), rgba(255,255,255,.24));
-            box-shadow: 0 20px 56px rgba(74,55,34,.12), var(--liquid-inset);
-            backdrop-filter: blur(22px) saturate(145%);
-            -webkit-backdrop-filter: blur(22px) saturate(145%);
-            color: #5f5b55;
+            width: 112px;
+            height: 136px;
+            min-height: 136px;
+            border: 1px solid var(--liquid-border);
+            border-radius: 20px;
+            background: var(--liquid-glass);
+            box-shadow: var(--liquid-shadow), var(--liquid-inset);
+            backdrop-filter: blur(24px) saturate(132%);
+            -webkit-backdrop-filter: blur(24px) saturate(132%);
+            color: #5f5f5f;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 13px;
+            gap: 18px;
             cursor: pointer;
             transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
         }
         .liquid-dashboard .liquid-module-card:hover {
-            transform: translateY(-3px);
-            background: linear-gradient(135deg, rgba(255,255,255,.72), rgba(255,255,255,.34));
-            box-shadow: 0 28px 76px rgba(74,55,34,.16), var(--liquid-inset);
+            transform: translateY(-2px);
+            background: var(--liquid-glass-strong);
+            box-shadow: var(--liquid-shadow-strong), inset 0 1px 1px rgba(255, 255, 255, 0.9);
         }
         .liquid-dashboard .liquid-module-card[hidden] {
             display: none;
         }
         .liquid-dashboard .liquid-module-card svg {
-            width: 38px;
-            height: 38px;
-            stroke-width: 1.6;
-            color: #7a7770;
+            width: 42px;
+            height: 42px;
+            stroke-width: 1.7;
+            color: #737373;
         }
         .liquid-dashboard .liquid-module-card span {
             font-size: 13px;
             font-weight: 650;
-            letter-spacing: -0.02em;
+            letter-spacing: 0;
             text-align: center;
             line-height: 1.18;
         }
         .liquid-dashboard .liquid-todo-panel {
-            align-self: center;
-            border: 1px solid rgba(255,255,255,.62);
-            border-radius: 28px;
-            padding: 18px 14px 14px;
-            background: linear-gradient(145deg, rgba(255,255,255,.64), rgba(255,255,255,.28));
-            box-shadow: 0 24px 72px rgba(74,55,34,.13), var(--liquid-inset);
-            backdrop-filter: blur(24px) saturate(145%);
-            -webkit-backdrop-filter: blur(24px) saturate(145%);
-            min-height: 250px;
+            position: fixed;
+            z-index: 5;
+            top: 36%;
+            right: 56px;
+            width: 216px;
+            border: 1px solid var(--liquid-border);
+            border-radius: 22px;
+            padding: 20px 12px 14px;
+            background: var(--liquid-glass);
+            box-shadow: var(--liquid-shadow), var(--liquid-inset);
+            backdrop-filter: blur(24px) saturate(132%);
+            -webkit-backdrop-filter: blur(24px) saturate(132%);
+            min-height: 0;
         }
         .liquid-dashboard .liquid-todo-head {
             display: flex;
@@ -2971,18 +2977,19 @@
             gap: 6px;
         }
         .liquid-dashboard .liquid-todo-row {
-            min-height: 44px;
-            border-radius: 16px;
+            height: 44px;
+            border-radius: 15px;
             display: grid;
-            grid-template-columns: 24px 1fr 14px;
+            grid-template-columns: 22px 1fr 14px;
             gap: 8px;
             align-items: center;
-            padding: 8px 10px;
-            color: #625d56;
-            background: rgba(255,255,255,.22);
-            border-top: 1px solid rgba(255,255,255,.34);
+            padding: 0 10px;
+            color: #666;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.18);
+            border-top: 1px solid rgba(255, 255, 255, 0.28);
             cursor: pointer;
-            transition: transform .16s ease, background .16s ease;
+            transition: transform .18s ease, background .18s ease;
         }
         .liquid-dashboard .liquid-todo-row:hover {
             transform: translateY(-2px);
@@ -3089,11 +3096,13 @@
             color: var(--liquid-text);
         }
         body.theme-dark .liquid-dashboard::before {
-            opacity: .32;
+            opacity: .38;
             background-image: url('img/liquid-glass-arches-reference.png');
             background-repeat: no-repeat;
-            background-position: right 0 bottom -180px;
-            background-size: auto 130%;
+            background-position: center center;
+            background-size: cover;
+            filter: invert(1) brightness(.72) contrast(1.08);
+            mix-blend-mode: screen;
         }
         body.theme-dark .liquid-dashboard > .page-head,
         body.theme-dark .liquid-dashboard #dashSeverityRow button,
