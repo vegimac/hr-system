@@ -864,6 +864,16 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
         if (matchingContract) row.__existingEmploymentId = objVal(matchingContract, 'id');
         const sameStartContract = matchingContract ? null : findSameStartExistingContract(row, existingContracts);
         if (sameStartContract) row.__updateEmploymentId = objVal(sameStartContract, 'id');
+        if (sameStartContract && !apiImportBlockingErrorHtml(row)) {
+            const autoUpdate = await updateSameStartContractFromApiRow(row, employeeId, sameStartContract);
+            if (autoUpdate.ok) {
+                row.__existingEmploymentId = autoUpdate.id;
+                row.__apiContractAutoUpdated = true;
+                row.__updateEmploymentId = null;
+            } else {
+                row.__apiAutoUpdateError = autoUpdate.message;
+            }
+        }
 
         rowStates[0] = { status: 'contract', employeeId };
         document.getElementById('uploadSection').style.display = 'none';
@@ -1678,6 +1688,7 @@ function ccntErrorHtml(row) {
 function apiImportBlockingErrorHtml(row) {
     if (!isEasyworkApiImportRow(row)) return '';
     return [
+        apiAutoUpdateErrorHtml(row),
         employeeNumberErrorHtml(row),
         functionErrorHtml(row),
         mtpHoursErrorHtml(row),
@@ -1881,6 +1892,34 @@ async function resolveSameStartEmploymentId(row, employeeId) {
     } catch {
         return null;
     }
+}
+
+async function updateSameStartContractFromApiRow(row, employeeId, contract) {
+    const id = Number(objVal(contract, 'id') || row.__updateEmploymentId || 0);
+    if (!id || !employeeId) return { ok: false, message: 'Bestehender Vertrag konnte nicht eindeutig bestimmt werden.' };
+    try {
+        const payload = buildApiContractPayloadFromRow(employeeId, row);
+        const res = await fetch(`/api/employments/${id}`, {
+            method: 'PUT',
+            headers: ah(),
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            const txt = await res.text();
+            return { ok: false, message: `Vertrag aktualisieren: ${txt}` };
+        }
+        return { ok: true, id };
+    } catch (e) {
+        return { ok: false, message: `Vertrag aktualisieren: ${e.message}` };
+    }
+}
+
+function apiAutoUpdateErrorHtml(row) {
+    if (!row.__apiAutoUpdateError) return '';
+    return `<div class="alert alert-err" style="margin:0 0 10px 0;padding:16px 18px;border-width:2px;font-size:14px;line-height:1.5">
+        <div style="font-weight:800;font-size:16px;margin-bottom:6px">⛔ Vertrag konnte nicht automatisch aktualisiert werden</div>
+        <div>${row.__apiAutoUpdateError}</div>
+    </div>`;
 }
 
 async function analyzeRows() {
@@ -2942,8 +2981,8 @@ function renderContractRow(c) {
             ${contractFormHtml(idx, row, true, activeContract, payRateFromIso)}
             ${apiSingleImport && existingEmploymentId ? `
                 <div class="compliance-box compliance-ok" style="margin-top:10px">
-                    <div style="font-weight:700;margin-bottom:4px">✅ Vertrag schon vorhanden</div>
-                    <div>Beginn, Funktion, Pensum/Stunden und Lohn stimmen mit easy@work überein.</div>
+                    <div style="font-weight:700;margin-bottom:4px">${row.__apiContractAutoUpdated ? '✅ Vertrag automatisch aktualisiert' : '✅ Vertrag schon vorhanden'}</div>
+                    <div>${row.__apiContractAutoUpdated ? 'Der bestehende Vertrag mit gleichem Beginn wurde direkt mit den easy@work-Daten nachgeführt.' : 'Beginn, Funktion, Pensum/Stunden und Lohn stimmen mit easy@work überein.'}</div>
                 </div>` : ''}
             <div class="row-actions">
                 <div id="rowStatus-${idx}"></div>
