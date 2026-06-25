@@ -824,7 +824,7 @@ function renderEmployeeDetail(emp) {
         <!-- TAB: Persönliche Angaben -->
         <div class="emp-tab-content active" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-            <div class="emp-field-grid-3">
+            <div class="emp-field-grid-3 easywork-info-grid">
                 ${field(_t('ma.field.firstName','Vorname'),       emp.firstName, null, true)}
                 ${field(_t('ma.field.lastName','Nachname'),       emp.lastName, null, true)}
                 ${field(_t('ma.field.maidenName','Ledigname'),    emp.maidenName)}
@@ -852,7 +852,7 @@ function renderEmployeeDetail(emp) {
                  Card eingebunden (keine eigenen Section-Titles mehr —
                  platzsparend). Die Felder fügen sich nahtlos an die
                  Personalien an. -->
-            <div class="emp-field-grid-3 emp-grid-attached">
+            <div class="emp-field-grid-3 emp-grid-attached easywork-info-grid">
                 ${field(_t('ma.field.street','Strasse'),          emp.street, null, true)}
                 ${field(_t('ma.field.houseNumber','Hausnummer'),  emp.houseNumber, null, true)}
                 ${field(_t('ma.field.zipCode','PLZ'),             emp.zipCode, null, true)}
@@ -866,7 +866,7 @@ function renderEmployeeDetail(emp) {
             <div class="emp-section-title" style="margin-top:2px">Anstellung</div>
             <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
                  die zwei Booleans (LGAV + <8h) rechts schmaler. -->
-            <div class="emp-field-grid" style="display:grid;grid-template-columns:0.9fr 0.9fr 0.8fr 0.7fr 0.75fr;gap:12px">
+            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:0.9fr 0.9fr 0.8fr 0.7fr 0.75fr;gap:12px">
                 ${field('Eintrittsdatum', emp.entryDate ? formatDate(emp.entryDate) : null, null, true)}
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null)}
                 ${(() => {
@@ -3836,7 +3836,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     const ewSelect = `disabled data-easywork-locked="1" title="${ewTitle}"`;
     return `
     <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-    <div class="emp-field-grid-3">
+    <div class="emp-field-grid-3 easywork-info-grid">
         ${eField(_t('ma.field.firstName','Vorname'),    `<input id="ef-firstName"  class="ef-input" value="${esc(emp.firstName)}" ${ewInput}>`)}
         ${eField(_t('ma.field.lastName','Nachname'),    `<input id="ef-lastName"   class="ef-input" value="${esc(emp.lastName)}" ${ewInput}>`)}
         ${eField(_t('ma.field.maidenName','Ledigname'), `<input id="ef-maidenName" class="ef-input" value="${esc(emp.maidenName)}">`)}
@@ -3893,7 +3893,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     </div>
 
     <!-- Walter 26.05.2026: Adresse + Kontakt in die Personalien-Card. -->
-    <div class="emp-field-grid-3 emp-grid-attached">
+    <div class="emp-field-grid-3 emp-grid-attached easywork-info-grid">
         ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
         ${eField(_t('ma.field.houseNumber','Hausnummer'), `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}" ${ewInput}>`)}
         ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" ${ewInput}>`)}
@@ -3909,7 +3909,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile.
          Eintritt/Austritt/Aktiv links, die zwei Booleans (L-GAV / <8 h)
          rechts schmaler. -->
-    <div class="emp-field-grid" style="display:grid;grid-template-columns:1.1fr 1.1fr 1.1fr 0.75fr 0.85fr;gap:12px">
+    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:1.1fr 1.1fr 1.1fr 0.75fr 0.85fr;gap:12px">
         ${eField(_t('ma.field.entryDate','Eintrittsdatum'),
             `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}" ${ewInput}>`,
             _t('ma.field.entryDateHint','Datum der Betriebszugehörigkeit'))}
