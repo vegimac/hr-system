@@ -822,6 +822,7 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
         row.__easyworkApiImport = true;
         parsedRows = [row];
         rowStates = {};
+        row.__apiMinWage = await runApiImportMinimumWagePreflight(row);
         await loadEmployees();
 
         const nr = String(get(row, 'Nummer') || '').trim();
@@ -1395,6 +1396,99 @@ function mtpHoursErrorHtml(row) {
     </div>`;
 }
 
+async function runApiImportMinimumWagePreflight(row) {
+    if (!isEasyworkApiImportRow(row)) return { status: 'SKIP' };
+
+    // Nur prüfen, wenn die dafür nötigen easy@work-Daten formal vorhanden sind.
+    if (!validateEmployeeNumberForApiImport(row).ok) return { status: 'SKIP' };
+    if (!validateFunctionForApiImport(row).ok) return { status: 'SKIP' };
+    if (!validateMtpHoursForApiImport(row).ok) return { status: 'SKIP' };
+    if (!validateWageForApiImport(row).ok) return { status: 'SKIP' };
+    if (!validateMaritalStatusForApiImport(row).ok) return { status: 'SKIP' };
+    if (!validateCcntQualification(get(row, 'Qualification CCNT')).ok) return { status: 'SKIP' };
+
+    const model = mapContractType(row);
+    const isFix = model === 'FIX' || model === 'FIX-M';
+    const startDate = formatDate(get(row, 'Von')) || new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    const effectiveDate = startDate > today ? startDate : today;
+    const edLevel = mapCcntToEduLevel(get(row, 'Qualification CCNT'), true);
+    const jobGroupCode = resolveJobGroupCode(row);
+    const anzahl = parseAnzahl(row);
+    const pct = isFix
+        ? (anzahl?.type === 'percentage' ? Number(anzahl.value) : 100)
+        : null;
+
+    let hourlyRate = null;
+    let monthlySalary = null;
+    if (isFix) {
+        const actual = parseMoneyValue(get(row, 'Salary (actual)'));
+        monthlySalary = actual && pct ? Math.round(actual / pct * 100 * 100) / 100 : null;
+    } else {
+        hourlyRate = parseMoneyValue(get(row, 'Tarife')) || null;
+    }
+
+    try {
+        const res = await fetch('/api/compliance/check-live', {
+            method: 'POST',
+            headers: ah(),
+            body: JSON.stringify({
+                jobGroupCode,
+                educationLevelCode: edLevel,
+                effectiveDate,
+                employmentModel: model,
+                employmentPercentage: pct ?? 100,
+                hourlyRate,
+                monthlySalary,
+                birthDate: formatDate(get(row, 'Geburtsdatum')) || null
+            })
+        });
+        if (!res.ok) return { status: 'ERROR', message: `Mindestlohnprüfung nicht verfügbar (HTTP ${res.status}).` };
+        const cr = await res.json();
+        if (cr.status === 'UNDERPAID') return { status: 'UNDERPAID', result: cr, effectiveDate, model, jobGroupCode, edLevel };
+        if ((cr.status === 'OK' || cr.status === 'ok') && cr.difference != null && Number(cr.difference) > 0)
+            return { status: 'OVERPAID', result: cr, effectiveDate };
+        return { status: cr.status || 'OK', result: cr, effectiveDate };
+    } catch (e) {
+        return { status: 'ERROR', message: `Mindestlohnprüfung Fehler: ${e.message}` };
+    }
+}
+
+function minWageErrorHtml(row) {
+    const v = row.__apiMinWage;
+    if (!v || v.status !== 'UNDERPAID') return '';
+    const cr = v.result || {};
+    const minimum = cr.minimumHourlyRate ?? cr.minimumMonthlySalaryFte ?? cr.minimumMonthlySalary;
+    const current = apiWageValue(row).value;
+    const unit = (mapContractType(row) === 'FIX' || mapContractType(row) === 'FIX-M') ? 'Monatslohn 100%' : 'Stundenlohn';
+    const minText = minimum != null ? `Mindest-${unit}: CHF ${Number(minimum).toFixed(2)}` : 'Mindestlohn unterschritten';
+    const curText = current ? `easy@work-${unit}: CHF ${Number(current).toFixed(2)}` : 'easy@work-Lohn fehlt';
+    const diffText = cr.difference != null ? `<br>Fehlbetrag: <b>CHF ${Math.abs(Number(cr.difference)).toFixed(2)}</b>` : '';
+    const name = `${get(row, 'Vorname')} ${get(row, 'Nachname')}`.trim() || 'Mitarbeiter';
+    const nr = get(row, 'Nummer') || '–';
+
+    return `<div class="alert alert-err" style="margin:0 0 10px 0;padding:16px 18px;border-width:2px;font-size:14px;line-height:1.5">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+            <div style="font-size:28px;line-height:1">⛔</div>
+            <div style="flex:1">
+                <div style="font-weight:800;font-size:16px;margin-bottom:6px">Mindestlohn in easy@work korrigieren</div>
+                <div style="margin-bottom:10px">${minText}<br>${curText}${diffText}</div>
+                <div style="background:#fff;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;color:#7f1d1d">
+                    <div style="font-weight:700;margin-bottom:6px">So korrigierst du es:</div>
+                    <ol style="margin-left:18px">
+                        <li>Gehe ins <b>easy@work</b>.</li>
+                        <li>Öffne den Mitarbeiter <b>${nr} – ${name}</b>.</li>
+                        <li>Gehe zu <b>Lohnsatz & Vertragsinfos</b>.</li>
+                        <li>Erhöhe den Lohn mindestens auf den angezeigten Mindestlohn.</li>
+                        <li>Speichere die Änderung und lade den Mitarbeiter im HR-System erneut.</li>
+                    </ol>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:#7f1d1d">easy@work ist führend. Ein zu tiefer Lohn wird im HR-System nicht automatisch korrigiert.</div>
+            </div>
+        </div>
+    </div>`;
+}
+
 const ALLOWED_MARITAL_STATUSES = {
     ledig: 'Ledig',
     verheiratet: 'Verheiratet',
@@ -1522,6 +1616,7 @@ function apiImportBlockingErrorHtml(row) {
         functionErrorHtml(row),
         mtpHoursErrorHtml(row),
         wageErrorHtml(row),
+        minWageErrorHtml(row),
         maritalStatusErrorHtml(row),
         ccntErrorHtml(row)
     ].filter(Boolean).join('');
