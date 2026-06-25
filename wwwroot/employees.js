@@ -489,7 +489,13 @@ function renderEmployeeList(employees) {
                    || '';
         let modelBadge = '';
         if (model) {
-            modelBadge = `<span style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:${modelColor[model]||'#f1f5f9'};flex-shrink:0;align-self:center">${model}</span>`;
+            const modelClass = {
+                MTP: 'emp-model-mtp',
+                UTP: 'emp-model-utp',
+                FIX: 'emp-model-fix',
+                'FIX-M': 'emp-model-fix-m'
+            }[model] || 'emp-model-other';
+            modelBadge = `<span class="emp-model-badge ${modelClass}" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:${modelColor[model]||'#f1f5f9'};flex-shrink:0;align-self:center">${model}</span>`;
         } else if (!isInactive) {
             // aktiv aber ohne Vertrag (kein einziges Employment in der DB) → roter Hinweis
             modelBadge = `<span style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:#fee2e2;color:#b91c1c;flex-shrink:0;align-self:center">kein Vertrag</span>`;
