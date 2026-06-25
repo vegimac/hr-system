@@ -331,6 +331,26 @@ public class EasyAtWorkClient
         catch { return null; }
     }
 
+    /// <summary>
+    /// Legacy-Reparaturpfad: einzelne Person per Personalnummer holen
+    /// (API-Syntax: n + Nummer), um alte Cowork-Werte zu korrigieren, bei denen
+    /// versehentlich user_id statt employee.id gespeichert wurde.
+    /// </summary>
+    public virtual async Task<EawEmployee?> GetEmployeeByNumberAsync(int customerId, string employeeNumber, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(employeeNumber)) return null;
+        try
+        {
+            var number = employeeNumber.Trim();
+            if (!number.StartsWith("n", StringComparison.OrdinalIgnoreCase))
+                number = "n" + number;
+            var res = await GetJsonAsync<EawSingle<EawEmployee>>(
+                $"customers/{customerId}/employees/{Uri.EscapeDataString(number)}", ct);
+            return res?.Data;
+        }
+        catch { return null; }
+    }
+
     public virtual Task<EawPaginated<EawContract>> GetContractsAsync(int customerId, int employeeId, CancellationToken ct = default)
         => GetJsonAsync<EawPaginated<EawContract>>(
             $"customers/{customerId}/employees/{employeeId}/contracts", ct);

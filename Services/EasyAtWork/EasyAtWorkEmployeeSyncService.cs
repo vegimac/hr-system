@@ -206,7 +206,30 @@ public class EasyAtWorkEmployeeSyncService
         }
         if (eaw == null)
         {
-            result.Errors.Add($"Mitarbeiter in easy@work nicht gefunden (Single-Endpoint nur per easy@work-ID {emp.EasyAtWorkEmployeeId.Value}, über alle gemappten Filialen geprüft).");
+            // Legacy-Reparatur: In alten Daten steht teils easy@work user_id in
+            // employee.easyatwork_employee_id. Der Single-Endpoint erwartet aber
+            // employee.id. Wir holen genau diesen MA per n+Personalnummer, prüfen
+            // die user_id gegen den gespeicherten Wert und speichern unten die
+            // echte employee.id zurück.
+            var employeeNumber = (emp.EmployeeNumber ?? "").Trim();
+            foreach (var mapping in mappings)
+            {
+                if (employeeNumber.Length == 0) break;
+                var byNumber = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, employeeNumber, ct);
+                if (byNumber == null) continue;
+                var numberMatches = string.Equals((byNumber.Number ?? "").Trim(), employeeNumber, StringComparison.OrdinalIgnoreCase);
+                var userIdMatches = byNumber.UserId == emp.EasyAtWorkEmployeeId.Value;
+                if (!numberMatches && !userIdMatches) continue;
+
+                eaw = byNumber;
+                matchedCustomerId = mapping.EasyAtWorkCustomerId;
+                result.Notes.Add($"Gespeicherte easy@work-ID {emp.EasyAtWorkEmployeeId.Value} war user_id; korrigiere auf employee.id {eaw.Id}.");
+                break;
+            }
+        }
+        if (eaw == null)
+        {
+            result.Errors.Add($"Mitarbeiter in easy@work nicht gefunden (gespeicherte ID {emp.EasyAtWorkEmployeeId.Value}; employee.id-Suche und Legacy-user_id-Reparatur über alle gemappten Filialen ohne Treffer).");
             return result;
         }
         result.EasyAtWorkEmployeeId = eaw.Id;
