@@ -2732,16 +2732,17 @@
         .liquid-dashboard::before {
             content: "";
             position: absolute;
-            inset: -10% -4% auto auto;
-            width: min(62vw, 820px);
-            height: min(62vw, 820px);
+            inset: -6% -6% auto auto;
+            width: min(78vw, 980px);
+            height: min(78vw, 980px);
             pointer-events: none;
-            opacity: .13;
+            opacity: .24;
             transform: rotate(-8deg);
             background:
-                radial-gradient(ellipse at 50% 78%, transparent 0 38%, rgba(54,42,25,.22) 39% 43%, transparent 44%),
-                radial-gradient(ellipse at 50% 77%, transparent 0 52%, rgba(54,42,25,.18) 53% 56%, transparent 57%);
-            filter: blur(.2px);
+                radial-gradient(ellipse at 50% 78%, transparent 0 37%, rgba(54,42,25,.26) 38% 43%, transparent 44%),
+                radial-gradient(ellipse at 50% 77%, transparent 0 51%, rgba(54,42,25,.22) 52% 56%, transparent 57%),
+                linear-gradient(90deg, transparent 0 74%, rgba(54,42,25,.12) 74.2% 74.8%, transparent 75% 100%);
+            filter: blur(.1px);
         }
         .liquid-dashboard::after {
             content: "";
@@ -2770,6 +2771,88 @@
         }
         body.dashboard-shell-active .liquid-dashboard > .page-body {
             padding-top: 26px !important;
+        }
+        .liquid-dashboard .liquid-home-top-left {
+            position: fixed;
+            z-index: 4;
+            top: 24px;
+            left: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: auto;
+        }
+        .liquid-dashboard .liquid-branch-select {
+            min-width: 156px;
+            height: 38px;
+            border: 1px solid rgba(255,255,255,.62);
+            border-radius: 18px;
+            padding: 0 14px;
+            background: rgba(255,255,255,.42);
+            color: #5f5b55;
+            font: inherit;
+            font-size: 12px;
+            box-shadow: 0 14px 36px rgba(74,55,34,.10), var(--liquid-inset);
+            backdrop-filter: blur(20px) saturate(145%);
+            -webkit-backdrop-filter: blur(20px) saturate(145%);
+            outline: none;
+        }
+        .liquid-dashboard .liquid-home-user {
+            position: fixed;
+            z-index: 4;
+            left: 28px;
+            bottom: 24px;
+            min-width: 230px;
+            border: 1px solid rgba(255,255,255,.62);
+            border-radius: 24px;
+            padding: 12px 12px 12px 14px;
+            background: rgba(255,255,255,.44);
+            color: #4f4a43;
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            box-shadow: 0 18px 54px rgba(74,55,34,.12), var(--liquid-inset);
+            backdrop-filter: blur(22px) saturate(145%);
+            -webkit-backdrop-filter: blur(22px) saturate(145%);
+        }
+        .liquid-dashboard .liquid-user-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(145deg, #5f6b73, #b9c0c3);
+            color: white;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+        .liquid-dashboard .liquid-user-copy {
+            min-width: 0;
+            flex: 1;
+        }
+        .liquid-dashboard .liquid-user-name {
+            font-size: 13px;
+            font-weight: 750;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .liquid-dashboard .liquid-user-role {
+            font-size: 11px;
+            color: #7e766c;
+            margin-top: 1px;
+        }
+        .liquid-dashboard .liquid-logout {
+            width: 34px;
+            height: 34px;
+            border-radius: 14px;
+            border: 1px solid rgba(185, 28, 28, .28);
+            background: rgba(254,226,226,.42);
+            color: #b91c1c;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
         }
         .liquid-dashboard > .page-head {
             margin: 18px 24px 0;
@@ -3004,7 +3087,7 @@
             color: var(--liquid-text);
         }
         body.theme-dark .liquid-dashboard::before {
-            opacity: .28;
+            opacity: .38;
             background:
                 radial-gradient(ellipse at 50% 78%, transparent 0 38%, rgba(230,237,247,.25) 39% 43%, transparent 44%),
                 radial-gradient(ellipse at 50% 77%, transparent 0 52%, rgba(230,237,247,.18) 53% 56%, transparent 57%);
@@ -3053,6 +3136,16 @@
             background: rgba(255,255,255,.10);
         }
         body.theme-dark .liquid-dashboard .liquid-todo-row .liquid-todo-sub {
+            color: #94a3b8;
+        }
+        body.theme-dark .liquid-dashboard .liquid-branch-select,
+        body.theme-dark .liquid-dashboard .liquid-home-user {
+            background: rgba(30,41,59,.64);
+            border-color: rgba(148,163,184,.20);
+            color: #e5edf8;
+            box-shadow: 0 22px 70px rgba(0,0,0,.34), var(--liquid-inset);
+        }
+        body.theme-dark .liquid-dashboard .liquid-user-role {
             color: #94a3b8;
         }
     </style>
@@ -3274,6 +3367,19 @@
                     <p class="page-sub" id="dashSubHeader" data-i18n="dash.subtitle">Bewilligungen, Probezeit, Verträge, Lohnläufe — alles auf einen Blick</p>
                 </div></div>
                 <div class="page-body liquid-dashboard-body">
+                    <div class="liquid-home-top-left">
+                        <select id="liquidBranchSelect" class="liquid-branch-select" onchange="onLiquidBranchChange()" aria-label="Filiale wählen"></select>
+                    </div>
+                    <div class="liquid-home-user">
+                        <div class="liquid-user-avatar" id="liquidUserAvatar">–</div>
+                        <div class="liquid-user-copy">
+                            <div class="liquid-user-name" id="liquidUserName">–</div>
+                            <div class="liquid-user-role" id="liquidUserRole">–</div>
+                        </div>
+                        <button class="liquid-logout" onclick="doLogout()" title="Abmelden" aria-label="Abmelden">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        </button>
+                    </div>
                     <div class="liquid-home-shell">
                         <section class="liquid-module-grid" aria-label="Hauptmodule">
                             <button class="liquid-module-card" onclick="showPage('vertraege')" type="button">
@@ -9145,6 +9251,29 @@ function updateDashboardShellState(name) {
     document.body.classList.toggle('dashboard-shell-active', name === 'dashboard');
 }
 
+function syncLiquidDashboardChrome() {
+    const lqSel = document.getElementById('liquidBranchSelect');
+    const srcSel = document.getElementById('branchSelect');
+    if (lqSel && srcSel) {
+        lqSel.innerHTML = srcSel.innerHTML;
+        lqSel.value = srcSel.value || '';
+    }
+    const uname = document.getElementById('liquidUserName');
+    const urole = document.getElementById('liquidUserRole');
+    const uava  = document.getElementById('liquidUserAvatar');
+    if (uname) uname.textContent = currentUser?.username || '–';
+    if (urole) urole.textContent = currentUser ? (currentUser.isSuperAdmin ? 'Super-Admin' : roleName(currentUser.role)) : '–';
+    if (uava)  uava.textContent = (currentUser?.username || 'U')[0].toUpperCase();
+}
+
+function onLiquidBranchChange() {
+    const lqSel = document.getElementById('liquidBranchSelect');
+    const srcSel = document.getElementById('branchSelect');
+    if (!lqSel || !srcSel) return;
+    srcSel.value = lqSel.value;
+    onBranchChange();
+}
+
 // ── Datenaufbewahrung Stempelzeiten (Walter-Vorgabe 21.06.2026) ──────────
 async function loadRetentionYears() {
     const inp = document.getElementById('retentionYearsInput');
@@ -9268,6 +9397,7 @@ async function startApp() {
     document.getElementById('userName').textContent = currentUser.username;
     document.getElementById('userRoleBadge').textContent = currentUser.isSuperAdmin ? 'Super-Admin' : roleName(currentUser.role);
     document.getElementById('userAvatar').textContent = (currentUser.username || 'U')[0].toUpperCase();
+    syncLiquidDashboardChrome();
 
     // Session-/Logout-Wächter starten (Walter-Vorgabe 21.06.2026).
     if (window.SessionGuard) window.SessionGuard.start();
@@ -9547,11 +9677,13 @@ function populateBranchSelector() {
     // manuell klicken muss. Wenn gewünscht kann er oben immer noch auf
     // "Alle Filialen" zurückstellen (nicht bei lowuser, siehe oben).
     if (visible.length >= 1) { sel.value = visible[0].id; onBranchChange(); }
+    syncLiquidDashboardChrome();
 }
 
 function onBranchChange() {
     currentBranchId = document.getElementById('branchSelect').value || null;
     fixedCompanyProfileId = currentBranchId ? parseInt(currentBranchId) : null;
+    syncLiquidDashboardChrome();
 
     if (currentPageName === 'mitarbeiter') {
         loadMitarbeiterList();
