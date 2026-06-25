@@ -1592,11 +1592,13 @@
         #page-mitarbeiter.liquid-employee .page-body {
             padding: 12px 14px 14px !important;
         }
-        #page-mitarbeiter.liquid-employee .emp-layout {
+        #page-mitarbeiter.liquid-employee .emp-layout,
+        #page-mitarbeiter.liquid-employee .liquid-employee-layout-grid {
             gap: 12px;
             height: calc(100vh - 86px);
         }
         #page-mitarbeiter.liquid-employee .emp-list-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-list,
         #page-mitarbeiter.liquid-employee .emp-detail-panel {
             background: var(--emp-glass-bg);
             border: 1px solid var(--emp-glass-border);
@@ -1605,7 +1607,8 @@
             backdrop-filter: blur(26px) saturate(160%);
             -webkit-backdrop-filter: blur(26px) saturate(160%);
         }
-        #page-mitarbeiter.liquid-employee .emp-list-panel {
+        #page-mitarbeiter.liquid-employee .emp-list-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-list {
             width: 232px;
             min-width: 232px;
             overflow: hidden;
@@ -1662,7 +1665,8 @@
         #page-mitarbeiter.liquid-employee .emp-list-scroll {
             padding: 2px 10px 12px;
         }
-        #page-mitarbeiter.liquid-employee .emp-list-item {
+        #page-mitarbeiter.liquid-employee .emp-list-item,
+        #page-mitarbeiter.liquid-employee .liquid-employee-row {
             min-height: 27px;
             gap: 8px;
             padding: 4px 7px;
@@ -1671,11 +1675,13 @@
             border-radius: 10px;
             color: var(--emp-text);
         }
-        #page-mitarbeiter.liquid-employee .emp-list-item:hover {
+        #page-mitarbeiter.liquid-employee .emp-list-item:hover,
+        #page-mitarbeiter.liquid-employee .liquid-employee-row:hover {
             background: rgba(255,255,255,.38);
             border-color: rgba(255,255,255,.44);
         }
-        #page-mitarbeiter.liquid-employee .emp-list-item.active {
+        #page-mitarbeiter.liquid-employee .emp-list-item.active,
+        #page-mitarbeiter.liquid-employee .liquid-employee-row-active {
             background: rgba(219,234,254,.68);
             border-left: 1px solid rgba(147,197,253,.70);
             border-color: rgba(147,197,253,.58);
@@ -1693,7 +1699,8 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        #page-mitarbeiter.liquid-employee .emp-model-badge {
+        #page-mitarbeiter.liquid-employee .emp-model-badge,
+        #page-mitarbeiter.liquid-employee .liquid-contract-pill {
             min-width: 36px;
             text-align: center;
             padding: 2px 6px !important;
@@ -1707,7 +1714,8 @@
         #page-mitarbeiter.liquid-employee .emp-model-utp { background: rgba(254,215,170,.62) !important; color: #9a5a17; }
         #page-mitarbeiter.liquid-employee .emp-model-fix { background: rgba(191,219,254,.62) !important; color: #2f5f98; }
         #page-mitarbeiter.liquid-employee .emp-model-fix-m { background: rgba(221,214,254,.64) !important; color: #684995; }
-        #page-mitarbeiter.liquid-employee .emp-detail-panel {
+        #page-mitarbeiter.liquid-employee .emp-detail-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-detail {
             overflow: hidden;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-header {
@@ -1828,14 +1836,16 @@
             border-top: 1px solid rgba(255,255,255,.38) !important;
             border-radius: 12px !important;
         }
-        #page-mitarbeiter.liquid-employee .emp-field-label {
+        #page-mitarbeiter.liquid-employee .emp-field-label,
+        #page-mitarbeiter.liquid-employee .liquid-field .emp-field-label {
             color: #7a8694;
             font-size: 9px;
             letter-spacing: .02em;
             text-transform: none;
             font-weight: 700;
         }
-        #page-mitarbeiter.liquid-employee .emp-field-value {
+        #page-mitarbeiter.liquid-employee .emp-field-value,
+        #page-mitarbeiter.liquid-employee .liquid-field .emp-field-value {
             min-height: 29px;
             padding: 5px 9px;
             border-radius: 8px;
@@ -1845,7 +1855,8 @@
             font-size: 12px;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.68), 0 6px 18px rgba(86,76,63,.07);
         }
-        #page-mitarbeiter.liquid-employee .emp-field-value:hover {
+        #page-mitarbeiter.liquid-employee .emp-field-value:hover,
+        #page-mitarbeiter.liquid-employee .liquid-field .emp-field-value:hover {
             border-color: rgba(59,130,246,.36);
             background: rgba(255,255,255,.84);
             box-shadow: 0 0 0 3px rgba(59,130,246,.08);
@@ -1866,6 +1877,30 @@
             backdrop-filter: blur(18px) saturate(150%);
             -webkit-backdrop-filter: blur(18px) saturate(150%);
         }
+        #page-mitarbeiter.liquid-employee .ef-input {
+            width: 100%;
+            min-height: 25px;
+            padding: 3px 7px;
+            border-radius: 7px;
+            border: 1px solid rgba(166,176,188,.28);
+            background: rgba(255,255,255,.68);
+            color: var(--emp-text-strong);
+            font: inherit;
+            font-size: 12px;
+            outline: none;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.60);
+        }
+        #page-mitarbeiter.liquid-employee .ef-input:focus {
+            border-color: rgba(59,130,246,.46);
+            background: rgba(255,255,255,.86);
+            box-shadow: 0 0 0 3px rgba(59,130,246,.10), inset 0 1px 0 rgba(255,255,255,.70);
+        }
+        #page-mitarbeiter.liquid-employee #empHeaderActions .btn-primary,
+        #page-mitarbeiter.liquid-employee #empHeaderActions .btn-secondary {
+            border-radius: 10px !important;
+            border: 1px solid rgba(255,255,255,.62) !important;
+            box-shadow: 0 10px 26px rgba(72,63,53,.09), inset 0 1px 0 rgba(255,255,255,.62);
+        }
 
         body.theme-dark #page-mitarbeiter.liquid-employee {
             --emp-glass-bg: rgba(12,21,30,.56);
@@ -1883,7 +1918,9 @@
                 linear-gradient(135deg, #07111a 0%, #0b1620 52%, #08121b 100%);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-panel,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-list,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-panel,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-detail,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-tabs,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid,
@@ -1940,7 +1977,8 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-label {
             color: #8193a5 !important;
         }
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value {
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-field .emp-field-value {
             background: var(--emp-glass-field) !important;
             border-color: rgba(122,145,165,.25) !important;
             color: var(--emp-text-strong) !important;
@@ -1958,6 +1996,17 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-model-utp { background: rgba(111,72,26,.72) !important; color: #fed7aa; }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-model-fix { background: rgba(35,68,105,.75) !important; color: #bfdbfe; }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-model-fix-m { background: rgba(72,52,106,.76) !important; color: #ddd6fe; }
+        body.theme-dark #page-mitarbeiter.liquid-employee .ef-input {
+            background: rgba(13,24,35,.68);
+            border-color: rgba(122,145,165,.26);
+            color: var(--emp-text-strong);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .ef-input:focus {
+            background: rgba(25,39,53,.88);
+            border-color: rgba(112,164,214,.44);
+            box-shadow: 0 0 0 3px rgba(96,165,250,.13);
+        }
 
         /* Sticky-Kopfzeile für lange Detail-/Tab-Ansichten (Walter-Vorgabe
            15.05.2026): Titel + Aktions-Buttons (Speichern, Übertragen …)
@@ -3995,15 +4044,15 @@
             </div>
 
             <!-- MITARBEITER -->
-            <div class="page liquid-ui liquid-employee" id="page-mitarbeiter">
+            <div class="page liquid-ui liquid-employee liquid-employee-layout" id="page-mitarbeiter">
                 <!-- Walter-Vorgabe 09.06.2026: kein page-head mehr, damit das MA-Foto
                      im Detail-Header weit oben am Bildschirm sitzt. padding-top:50px
                      hält dabei die Header-Buttons (Postfach/Bearbeiten) unter dem
                      fixed #langSwitcher (DE/EN/Theme) sichtbar — sonst überdeckt er sie. -->
                 <div class="page-body" style="padding-top:50px">
-                    <div class="emp-layout">
+                    <div class="emp-layout liquid-employee-layout-grid">
                         <!-- Liste links -->
-                        <div class="emp-list-panel">
+                        <div class="emp-list-panel liquid-employee-list">
                             <div class="emp-list-search">
                                 <input class="emp-search-input" id="empSearch" type="text" data-i18n-placeholder="ma.search" placeholder="Suchen..." oninput="filterEmployeeList()">
                             </div>
@@ -4052,7 +4101,7 @@
                             </div>
                         </div>
                         <!-- Detail rechts -->
-                        <div class="emp-detail-panel" id="empDetailPanel">
+                        <div class="emp-detail-panel liquid-employee-detail" id="empDetailPanel">
                             <div class="emp-no-selection" style="height:100%">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                                 <span>Mitarbeiter auswählen</span>

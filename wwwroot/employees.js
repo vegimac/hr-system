@@ -465,7 +465,7 @@ function renderEmployeeList(employees) {
         const name = ((e.firstName ?? '') + ' ' + (e.lastName ?? '')).trim() || '–';
         const initials = getInitials(e.firstName, e.lastName);
         const isFemale = (e.gender ?? '').toLowerCase().startsWith('w') || (e.gender ?? '').toLowerCase() === 'female';
-        const active = e.id === selectedEmployeeId ? 'active' : '';
+        const active = e.id === selectedEmployeeId ? 'active liquid-employee-row-active' : '';
         // "alt"-Suffix → archiviert; konsistent mit applyEmpFilter
         const isArchivedAlt = (e.employeeNumber || '').toLowerCase().endsWith('alt');
         const isInactive = !e.isActive || isArchivedAlt;
@@ -495,7 +495,7 @@ function renderEmployeeList(employees) {
                 FIX: 'emp-model-fix',
                 'FIX-M': 'emp-model-fix-m'
             }[model] || 'emp-model-other';
-            modelBadge = `<span class="emp-model-badge ${modelClass}" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:${modelColor[model]||'#f1f5f9'};flex-shrink:0;align-self:center">${model}</span>`;
+            modelBadge = `<span class="emp-model-badge liquid-contract-pill ${modelClass}" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:${modelColor[model]||'#f1f5f9'};flex-shrink:0;align-self:center">${model}</span>`;
         } else if (!isInactive) {
             // aktiv aber ohne Vertrag (kein einziges Employment in der DB) → roter Hinweis
             modelBadge = `<span style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:#fee2e2;color:#b91c1c;flex-shrink:0;align-self:center">kein Vertrag</span>`;
@@ -508,7 +508,7 @@ function renderEmployeeList(employees) {
             kepLohnBadge = `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:8px;background:#fef3c7;color:#92400e;flex-shrink:0;align-self:center;${modelBadge ? 'margin-left:4px' : 'margin-left:auto'}">kein Lohn</span>`;
         }
         return `
-        <div class="emp-list-item ${active}" onclick="selectEmployee(${e.id})"${isInactive ? ' style="opacity:0.65"' : ''}>
+        <div class="emp-list-item liquid-employee-row ${active}" onclick="selectEmployee(${e.id})"${isInactive ? ' style="opacity:0.65"' : ''}>
             <div class="emp-avatar ${isFemale ? 'female' : ''}">${initials}</div>
             <div style="flex:1;min-width:0">
                 <div class="emp-list-name">${name}${isInactive ? ' <span style="color:#94a3b8;font-weight:400;font-size:11px">(inaktiv)</span>' : ''}</div>
@@ -3443,7 +3443,7 @@ function field(label, value, linkedCode) {
                    <span>Doku</span>
                </button>`;
     }
-    return `<div class="emp-field">
+    return `<div class="emp-field liquid-field">
         <div class="emp-field-label">${label}</div>
         <div class="emp-field-value${empty ? ' empty' : ''}">${empty ? '–' : value}${docBtn}</div>
     </div>`;
@@ -3898,7 +3898,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
 
 // Hilfshelfer: Edit-Feld
 function eField(label, inputHtml, hint) {
-    return `<div class="emp-field">
+    return `<div class="emp-field liquid-field">
         <div class="emp-field-label">${label}</div>
         <div class="emp-field-value">${inputHtml}</div>
         ${hint ? `<div class="emp-field-hint">${hint}</div>` : ''}
