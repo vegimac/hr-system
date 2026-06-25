@@ -279,9 +279,9 @@ public class EasyAtWorkEmployeeSyncService
             var entry = eaw.From.Value.ToDateTime(TimeOnly.MinValue);
             if (emp.EntryDate?.Date != entry.Date) { emp.EntryDate = entry; result.UpdatedFields.Add("Eintrittsdatum"); }
         }
-        if (emp.EasyAtWorkEmployeeId != (eaw.UserId ?? eaw.Id))
+        if (emp.EasyAtWorkEmployeeId != eaw.Id)
         {
-            emp.EasyAtWorkEmployeeId = eaw.UserId ?? eaw.Id;
+            emp.EasyAtWorkEmployeeId = eaw.Id;
             result.UpdatedFields.Add("easy@work-ID");
         }
         if (!string.IsNullOrWhiteSpace(iban))
@@ -454,7 +454,8 @@ public class EasyAtWorkEmployeeSyncService
             if (byNumber.TryGetValue(row.Number, out co)) matchedKey = row.Number;
             else if (!string.Equals(effNumber, rawNumber, StringComparison.OrdinalIgnoreCase)
                      && byNumber.TryGetValue(rawNumber, out co)) matchedKey = rawNumber;
-            else if (byEawId.TryGetValue(eaw.UserId ?? eaw.Id, out co)) matchedByEawId = true;
+            else if (byEawId.TryGetValue(eaw.Id, out co)) matchedByEawId = true;
+            else if (eaw.UserId.HasValue && byEawId.TryGetValue(eaw.UserId.Value, out co)) matchedByEawId = true;
             row.CoworkEmployeeId = co?.Id;
             // Über eine ALTE Nummer gematcht? (matchender Key ≠ aktuelle Personalnr.)
             if (co != null && matchedKey != null
@@ -559,7 +560,7 @@ public class EasyAtWorkEmployeeSyncService
                 if (eaw == null) continue;
                 var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == row.CoworkEmployeeId, ct);
                 if (emp == null) continue;
-                var newId = eaw.UserId ?? eaw.Id;
+                var newId = eaw.Id;
                 if (emp.EasyAtWorkEmployeeId != newId)
                 {
                     emp.EasyAtWorkEmployeeId = newId;
@@ -671,9 +672,9 @@ public class EasyAtWorkEmployeeSyncService
                 {
                     // Duplikat-Prävention Stufe 1 (Walter-Vorgabe 21.06.2026): existiert
                     // schon ein Employee mit dieser easy@work-ID (egal welche Filiale)?
-                    var eawKey = eaw.UserId ?? eaw.Id;
+                    var eawKey = eaw.Id;
                     var existingByEawId = await _db.Employees.FirstOrDefaultAsync(
-                        e => !e.IsHidden && (e.EasyAtWorkEmployeeId == eawKey || e.EasyAtWorkEmployeeId == eaw.Id), ct);
+                        e => !e.IsHidden && (e.EasyAtWorkEmployeeId == eawKey || (eaw.UserId.HasValue && e.EasyAtWorkEmployeeId == eaw.UserId.Value)), ct);
                     // Stufe 2: gleicher Name+Geburtsdatum (Wiedereintritt mit NEUER eaw-ID).
                     // Nur, wenn die Vorschau das vermutet hat (row.PossibleReentry) —
                     // ist ein VORSCHLAG; wer es nicht will, deselektiert die Zeile.
@@ -712,6 +713,8 @@ public class EasyAtWorkEmployeeSyncService
                                 CreatedAt    = DateTime.UtcNow,
                             });
                         }
+                        if (existingByEawId.EasyAtWorkEmployeeId != eaw.Id)
+                            existingByEawId.EasyAtWorkEmployeeId = eaw.Id;
                         // 3) Employment-Timeline in DIESER Filiale spiegeln (2. Durchgang).
                         timelineWork.Add((existingByEawId, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw.To));
                         // 3b) Status-Korrektur (Walter-Bug 22.06.2026, Filialwechsel):
@@ -747,7 +750,7 @@ public class EasyAtWorkEmployeeSyncService
                         LastName             = eaw.LastName ?? "",
                         IsActive             = !(eaw.To.HasValue && eaw.To.Value < activeAt),
                         ExitDate             = eaw.To?.ToDateTime(TimeOnly.MinValue),
-                        EasyAtWorkEmployeeId = eaw.UserId ?? eaw.Id,
+                        EasyAtWorkEmployeeId = eaw.Id,
                     };
                     ApplyDiffs(emp, row.Diffs, eaw, natByCode);
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
@@ -766,7 +769,7 @@ public class EasyAtWorkEmployeeSyncService
                     if (row.CoworkEmployeeId == null) continue;
                     var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == row.CoworkEmployeeId, ct);
                     if (emp == null) continue;
-                    var newEawId = eaw.UserId ?? eaw.Id;
+                    var newEawId = eaw.Id;
                     if (emp.EasyAtWorkEmployeeId != newEawId) emp.EasyAtWorkEmployeeId = newEawId;
                     ApplyDiffs(emp, row.Diffs, eaw, natByCode);
                     if (!string.IsNullOrWhiteSpace(row.NumberChangeTo))
