@@ -1895,6 +1895,14 @@
             background: rgba(255,255,255,.86);
             box-shadow: 0 0 0 3px rgba(59,130,246,.10), inset 0 1px 0 rgba(255,255,255,.70);
         }
+        #page-mitarbeiter.liquid-employee .ef-input[readonly],
+        #page-mitarbeiter.liquid-employee .ef-input:disabled {
+            cursor: not-allowed;
+            opacity: 1;
+            color: var(--emp-text);
+            background: rgba(248,250,252,.58);
+            border-color: rgba(166,176,188,.20);
+        }
         #page-mitarbeiter.liquid-employee #empHeaderActions .btn-primary,
         #page-mitarbeiter.liquid-employee #empHeaderActions .btn-secondary {
             border-radius: 10px !important;
@@ -2006,6 +2014,12 @@
             background: rgba(25,39,53,.88);
             border-color: rgba(112,164,214,.44);
             box-shadow: 0 0 0 3px rgba(96,165,250,.13);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .ef-input[readonly],
+        body.theme-dark #page-mitarbeiter.liquid-employee .ef-input:disabled {
+            color: var(--emp-text);
+            background: rgba(13,24,35,.52);
+            border-color: rgba(122,145,165,.18);
         }
 
         /* Sticky-Kopfzeile für lange Detail-/Tab-Ansichten (Walter-Vorgabe

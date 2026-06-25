@@ -3728,6 +3728,9 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
         }).join('');
     const isMtp = emp.employmentModel === 'MTP';
     const isFix = emp.employmentModel === 'FIX' || emp.employmentModel === 'FIX-M';
+    const ewTitle = 'Kommt aus easy@work und ist hier nicht editierbar.';
+    const ewInput = `readonly data-easywork-locked="1" title="${ewTitle}"`;
+    const ewSelect = `disabled data-easywork-locked="1" title="${ewTitle}"`;
     return `
     <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
     <div class="emp-field-grid-3">
@@ -3735,18 +3738,18 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
         ${eField(_t('ma.field.lastName','Nachname'),    `<input id="ef-lastName"   class="ef-input" value="${esc(emp.lastName)}">`)}
         ${eField(_t('ma.field.maidenName','Ledigname'), `<input id="ef-maidenName" class="ef-input" value="${esc(emp.maidenName)}">`)}
         ${eField(_t('ma.field.shortName','Kurzname'),   `<input id="ef-shortName"  class="ef-input" value="${esc(emp.shortName)}">`)}
-        ${eField(`${_t('ma.field.dob','Geburtsdatum')} <span id="ef-dob-age" style="font-weight:400;color:#94a3b8;margin-left:6px">${emp.dateOfBirth ? '(' + calcAge(emp.dateOfBirth) + ' J.)' : ''}</span>`, `<input id="ef-dob" class="ef-input" type="date" value="${toDateInput(emp.dateOfBirth)}" oninput="updateEfDobAgeDisplay()">`)}
-        ${eField(_t('ma.field.gender','Geschlecht'), `<select id="ef-gender" class="ef-input">
+        ${eField(`${_t('ma.field.dob','Geburtsdatum')} <span id="ef-dob-age" style="font-weight:400;color:#94a3b8;margin-left:6px">${emp.dateOfBirth ? '(' + calcAge(emp.dateOfBirth) + ' J.)' : ''}</span>`, `<input id="ef-dob" class="ef-input" type="date" value="${toDateInput(emp.dateOfBirth)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.gender','Geschlecht'), `<select id="ef-gender" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="female" ${emp.gender==='female'?'selected':''}>${_t('ma.value.gender.female','Weiblich')}</option>
             <option value="male"   ${emp.gender==='male'  ?'selected':''}>${_t('ma.value.gender.male','Männlich')}</option>
         </select>`)}
         ${eField(_t('ma.field.ahv','AHV-Nummer'), `<input id="ef-ahvNummer" class="ef-input" placeholder="756.XXXX.XXXX.XX"
                 value="${esc(emp.socialSecurityNumber)}"
-                oninput="validateAhvField(this)" onblur="validateAhvField(this, true)">
+                ${ewInput}>
             <div id="ef-ahvNummer-status" style="font-size:11px;line-height:1.1"></div>`)}
         ${eField(_t('ma.field.zemis','ZEMIS-Nr.'), `<input id="ef-zemisNumber" class="ef-input" placeholder="${_t('ma.placeholder.zemis','z.B. 22952410')}" value="${esc(emp.zemisNumber)}">`)}
-        ${eField(_t('ma.field.maritalStatus','Zivilstand'), `<select id="ef-zivilstand" class="ef-input">
+        ${eField(_t('ma.field.maritalStatus','Zivilstand'), `<select id="ef-zivilstand" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="unbekannt"                  ${(emp.zivilstand ?? emp.maritalStatus)==='unbekannt'                  ?'selected':''}>${_t('ma.value.maritalStatus.unbekannt','Unbekannt')}</option>
             <option value="ledig"                      ${(emp.zivilstand ?? emp.maritalStatus)==='ledig'                      ?'selected':''}>${_t('ma.value.maritalStatus.ledig','Ledig')}</option>
@@ -3756,8 +3759,8 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="getrennt"                   ${(emp.zivilstand ?? emp.maritalStatus)==='getrennt'                   ?'selected':''}>${_t('ma.value.maritalStatus.getrennt','Getrennt')}</option>
             <option value="eingetragene_partnerschaft" ${(emp.zivilstand ?? emp.maritalStatus)==='eingetragene_partnerschaft' ?'selected':''}>${_t('ma.value.maritalStatus.eingetragene_partnerschaft','Eingetragene Partnerschaft')}</option>
         </select>`)}
-        ${eField(_t('ma.field.maritalSince','Zivilstand seit'), `<input id="ef-maritalStatusSince" class="ef-input" type="date" value="${toDateInput(emp.maritalStatusSince)}">`)}
-        ${eField(_t('ma.field.language','Sprache'), `<select id="ef-lang" class="ef-input">
+        ${eField(_t('ma.field.maritalSince','Zivilstand seit'), `<input id="ef-maritalStatusSince" class="ef-input" type="date" value="${toDateInput(emp.maritalStatusSince)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.language','Sprache'), `<select id="ef-lang" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="de" ${emp.languageCode==='de'?'selected':''}>${_t('ma.value.language.de','Deutsch')}</option>
             <option value="fr" ${emp.languageCode==='fr'?'selected':''}>${_t('ma.value.language.fr','Französisch')}</option>
@@ -3780,7 +3783,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="andere"                 ${emp.religion==='andere'                ?'selected':''}>${_t('ma.value.religion.andere','Andere')}</option>
             <option value="keine"                  ${emp.religion==='keine'                 ?'selected':''}>${_t('ma.value.religion.keine','Keine')}</option>
         </select>`)}
-        ${eField(_t('ma.field.nationality','Nationalität'), `<select id="ef-nationalityId" class="ef-input">
+        ${eField(_t('ma.field.nationality','Nationalität'), `<select id="ef-nationalityId" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             ${nationalityOptions}
         </select>`)}
@@ -3788,14 +3791,14 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
 
     <!-- Walter 26.05.2026: Adresse + Kontakt in die Personalien-Card. -->
     <div class="emp-field-grid-3 emp-grid-attached">
-        ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}">`)}
-        ${eField(_t('ma.field.houseNumber','Hausnummer'), `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}">`)}
-        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" oninput="validateZip(this)" onblur="plzLookup(this.value)" onkeyup="if(this.value.length===4)plzLookup(this.value)">`)}
-        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(emp.city)}" oninput="validateCity(this)">`)}
-        ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode))}
-        ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}">`)}
-        ${eField(_t('ma.field.phone','Telefon'), `<input id="ef-phone" class="ef-input" type="tel"   value="${esc(emp.phoneMobile)}" placeholder="${_t('ma.placeholder.phone','+41 79 409 43 33')}" oninput="validatePhone(this)" onblur="validatePhoneBlur(this)">`)}
-        ${eField(_t('ma.field.email','E-Mail'),  `<input id="ef-email" class="ef-input" type="email" value="${esc(emp.email)}" oninput="validateEmail(this)" onblur="validateEmail(this, true)">`)}
+        ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.houseNumber','Hausnummer'), `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" ${ewInput}>`)}
+        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(emp.city)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
+        ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" ${ewInput}>`)}
+        ${eField(_t('ma.field.phone','Telefon'), `<input id="ef-phone" class="ef-input" type="tel"   value="${esc(emp.phoneMobile)}" placeholder="${_t('ma.placeholder.phone','+41 79 409 43 33')}" ${ewInput}>`)}
+        ${eField(_t('ma.field.email','E-Mail'),  `<input id="ef-email" class="ef-input" type="email" value="${esc(emp.email)}" ${ewInput}>`)}
     </div>
     <div id="ef-plz-hint" style="font-size:12px;margin-top:-6px;margin-bottom:6px"></div>
 
@@ -3805,10 +3808,10 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
          rechts schmaler. -->
     <div class="emp-field-grid" style="display:grid;grid-template-columns:1.1fr 1.1fr 1.1fr 0.75fr 0.85fr;gap:12px">
         ${eField(_t('ma.field.entryDate','Eintrittsdatum'),
-            `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}">`,
+            `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}" ${ewInput}>`,
             _t('ma.field.entryDateHint','Datum der Betriebszugehörigkeit'))}
         ${eField(_t('ma.field.exitDate','Austrittsdatum'),
-            `<input id="ef-exit"  class="ef-input" type="date" value="${toDateInput(emp.exitDate)}">`)}
+            `<input id="ef-exit"  class="ef-input" type="date" value="${toDateInput(emp.exitDate)}" ${ewInput}>`)}
         <!-- Walter-Vorgabe 18.05.2026: Aktiv-Flag ist NICHT mehr automatisch
              aus dem ExitDate abgeleitet. Walter entscheidet bewusst — ein MA
              mit Austritt mitten im Monat bleibt aktiv bis nach dem letzten
@@ -3924,12 +3927,12 @@ const SWISS_KANTONE = [
     ['ZG', 'Zug'],              ['ZH', 'Zürich']
 ];
 
-function renderKantonSelect(id, current) {
+function renderKantonSelect(id, current, extraAttrs = '') {
     const cur = (current ?? '').toString().toUpperCase();
     const opts = SWISS_KANTONE
         .map(([code, name]) => `<option value="${code}" ${code === cur ? 'selected' : ''}>${code} — ${name}</option>`)
         .join('');
-    return `<select id="${id}" class="ef-input">
+    return `<select id="${id}" class="ef-input" ${extraAttrs}>
         <option value="" ${!cur ? 'selected' : ''}>— nicht gepflegt —</option>
         ${opts}
     </select>`;
@@ -4101,10 +4104,12 @@ async function onIsActiveChange(cb, empId) {
 
 async function saveEmpEdit() {
     if (!selectedEmployeeId || !selectedEmployee) return;
+    const emp = selectedEmployee;
+    const easyWorkLocked = true;
 
     // AHV-Nr-Prüfziffer-Check: blockt Save wenn AHV-Nr eingegeben aber ungültig.
     const ahvInput = document.getElementById('ef-ahvNummer');
-    if (ahvInput && ahvInput.value.trim()) {
+    if (!easyWorkLocked && ahvInput && ahvInput.value.trim()) {
         const ahvCheck = validateAhvNummer(ahvInput.value);
         if (ahvCheck.valid === false) {
             alert('AHV-Nr. ist nicht gültig:\n' + ahvCheck.error
@@ -4118,49 +4123,47 @@ async function saveEmpEdit() {
         }
     }
 
-    const emp = selectedEmployee;
-
     // ── Employee Stammdaten ──────────────────────────────────────────────
     // Walter-Vorgabe 01.06.2026: harte Validierung Telefon/E-Mail/PLZ vor dem Save.
-    const _phoneRaw = document.getElementById('ef-phone')?.value || '';
-    const _phoneFmt = _phoneRaw ? window.formatPhoneIntl(_phoneRaw) : '';
-    if (_phoneRaw && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(_phoneFmt)) {
+    const _phoneRaw = easyWorkLocked ? (emp.phoneMobile || '') : (document.getElementById('ef-phone')?.value || '');
+    const _phoneFmt = _phoneRaw ? (easyWorkLocked ? _phoneRaw : window.formatPhoneIntl(_phoneRaw)) : '';
+    if (!easyWorkLocked && _phoneRaw && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(_phoneFmt)) {
         alert('Telefon-Format ungültig (erwartet +99 99 999 99 99, z.B. +41 79 409 43 33).');
         return;
     }
-    if (_phoneFmt) document.getElementById('ef-phone').value = _phoneFmt;
-    const _emailRaw = (document.getElementById('ef-email')?.value || '').trim();
-    if (_emailRaw && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_emailRaw)) {
+    if (!easyWorkLocked && _phoneFmt) document.getElementById('ef-phone').value = _phoneFmt;
+    const _emailRaw = easyWorkLocked ? (emp.email || '') : (document.getElementById('ef-email')?.value || '').trim();
+    if (!easyWorkLocked && _emailRaw && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_emailRaw)) {
         alert('E-Mail-Adresse ist ungültig.');
         return;
     }
-    const _zipRaw = (document.getElementById('ef-zip')?.value || '').trim();
-    if (_zipRaw && !/^\d{4}$/.test(_zipRaw)) {
+    const _zipRaw = easyWorkLocked ? (emp.zipCode || '') : (document.getElementById('ef-zip')?.value || '').trim();
+    if (!easyWorkLocked && _zipRaw && !/^\d{4}$/.test(_zipRaw)) {
         alert('PLZ muss 4-stellig numerisch sein.');
         return;
     }
 
-    const exitVal = document.getElementById('ef-exit')?.value;
+    const exitVal = easyWorkLocked ? toDateInput(emp.exitDate) : document.getElementById('ef-exit')?.value;
     const empPayload = {
         firstName:    document.getElementById('ef-firstName')?.value    || null,
         lastName:     document.getElementById('ef-lastName')?.value     || null,
         salutation:   document.getElementById('ef-salutation')?.value   || null,
-        gender:       document.getElementById('ef-gender')?.value       || null,
-        dateOfBirth:  document.getElementById('ef-dob')?.value          || null,
-        languageCode: document.getElementById('ef-lang')?.value         || null,
-        phoneMobile:  _phoneFmt || null,
-        email:        _emailRaw || null,
-        street:       document.getElementById('ef-street')?.value       || null,
-        houseNumber:  document.getElementById('ef-houseNr')?.value      || null,
+        gender:       easyWorkLocked ? (emp.gender || null) : (document.getElementById('ef-gender')?.value || null),
+        dateOfBirth:  easyWorkLocked ? (toDateInput(emp.dateOfBirth) || null) : (document.getElementById('ef-dob')?.value || null),
+        languageCode: easyWorkLocked ? (emp.languageCode || null) : (document.getElementById('ef-lang')?.value || null),
+        phoneMobile:  easyWorkLocked ? (emp.phoneMobile || null) : (_phoneFmt || null),
+        email:        easyWorkLocked ? (emp.email || null) : (_emailRaw || null),
+        street:       easyWorkLocked ? (emp.street || null) : (document.getElementById('ef-street')?.value || null),
+        houseNumber:  easyWorkLocked ? (emp.houseNumber || null) : (document.getElementById('ef-houseNr')?.value || null),
         zipCode:      _zipRaw || null,
-        city:         document.getElementById('ef-city')?.value         || null,
-        country:      document.getElementById('ef-country')?.value      || null,
-        cantonCode:   document.getElementById('ef-canton')?.value       || null,
+        city:         easyWorkLocked ? (emp.city || null) : (document.getElementById('ef-city')?.value || null),
+        country:      easyWorkLocked ? (emp.country || null) : (document.getElementById('ef-country')?.value || null),
+        cantonCode:   easyWorkLocked ? (emp.cantonCode || null) : (document.getElementById('ef-canton')?.value || null),
         permitTypeId: parseInt(document.getElementById('ef-permitType')?.value) || 0,
         permitExpiryDate: document.getElementById('ef-permitExpiry')?.value || null,
-        nationalityId: parseInt(document.getElementById('ef-nationalityId')?.value) || null,
+        nationalityId: easyWorkLocked ? (emp.nationalityId || null) : (parseInt(document.getElementById('ef-nationalityId')?.value) || null),
         zemisNumber:  document.getElementById('ef-zemisNumber')?.value?.trim() || null,
-        entryDate:    document.getElementById('ef-entry')?.value        || null,
+        entryDate:    easyWorkLocked ? (toDateInput(emp.entryDate) || null) : (document.getElementById('ef-entry')?.value || null),
         exitDateSet:  true,
         exitDate:     exitVal || null,
         // Walter-Vorgabe 18.05.2026: Aktiv-Flag bewusst gesetzt vom UI,
@@ -4169,18 +4172,18 @@ async function saveEmpEdit() {
         // Walter-Vorgabe 07.06.2026: Anstellungs-Booleans aus der zweiten Zeile.
         lgavPflichtig:        document.getElementById('ef-lgavPflichtig')?.checked === true,
         teilzeitUnter8hWoche: document.getElementById('ef-teilzeitUnter8h')?.checked === true,
-        socialSecurityNumber: document.getElementById('ef-ahvNummer')?.value || null,
-        ahvNummer:    document.getElementById('ef-ahvNummer')?.value    || null,
+        socialSecurityNumber: easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
+        ahvNummer:    easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
         shortName:    document.getElementById('ef-shortName')?.value    || null,
-        zivilstand:   document.getElementById('ef-zivilstand')?.value   || null,
-        maritalStatus:document.getElementById('ef-zivilstand')?.value   || null,
+        zivilstand:   easyWorkLocked ? ((emp.zivilstand ?? emp.maritalStatus) || null) : (document.getElementById('ef-zivilstand')?.value || null),
+        maritalStatus:easyWorkLocked ? ((emp.zivilstand ?? emp.maritalStatus) || null) : (document.getElementById('ef-zivilstand')?.value || null),
 
         // Erweiterte Zivilstand-Angaben (allgemein, nicht QST-spezifisch).
         // QST-spezifische Felder (Konkubinat, gemeinsame elterliche Sorge,
         // Unterhalt, höheres Einkommen, Grenzgänger, Wochenaufenthalter)
         // werden im Modul Quellensteuer zeitlich versioniert gepflegt.
         maritalStatusSinceSet: true,
-        maritalStatusSince:    document.getElementById('ef-maritalStatusSince')?.value || null,
+        maritalStatusSince:    easyWorkLocked ? (toDateInput(emp.maritalStatusSince) || null) : (document.getElementById('ef-maritalStatusSince')?.value || null),
         // separatedSince-Feld wurde aus dem UI entfernt (Walter: „Getrennt"
         // ist bereits ein Zivilstand, separates Datum überflüssig). Wir
         // senden separatedSinceSet=false, damit der Backend-Handler das
