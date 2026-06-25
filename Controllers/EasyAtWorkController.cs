@@ -677,8 +677,54 @@ public class EasyAtWorkController : ControllerBase
                     .OrderByDescending(r => r.From ?? DateOnly.MinValue)
                     .FirstOrDefault();
         }
+        static string ContractTypeForImport(Services.EasyAtWork.EasyAtWorkEmployeeSyncService.HistContractInfo info)
+            => (info.EmploymentModel ?? "").ToUpperInvariant() switch
+            {
+                "MTP" => "MTP/TPM",
+                "FIX" => "Fix",
+                "FIX-M" => "Fix",
+                "UTP" => "Flex",
+                _ => string.IsNullOrWhiteSpace(info.ContractType) ? "Flex" : info.ContractType!
+            };
+        static string AnzahlForImport(Services.EasyAtWork.EasyAtWorkEmployeeSyncService.HistContractInfo info, EawContract? c)
+        {
+            var model = (info.EmploymentModel ?? "").ToUpperInvariant();
+            if (model is "FIX" or "FIX-M")
+            {
+                var pct = info.EmploymentPercentage ?? c?.Percentage ?? c?.Amount;
+                return pct.HasValue
+                    ? pct.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%"
+                    : "";
+            }
+
+            var hours = info.GuaranteedHoursPerWeek ?? c?.Amount ?? c?.WeekHours;
+            return hours.HasValue
+                ? hours.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " Stunden/Woche"
+                : "";
+        }
         static string? Prop(List<EawProperty> rows, string key)
             => rows.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase))?.Value;
+        static string? PropAny(List<EawProperty> rows, params string[] keys)
+        {
+            static string Norm(string? s)
+                => new string((s ?? "").Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+
+            foreach (var key in keys)
+            {
+                var exact = rows.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase))?.Value;
+                if (!string.IsNullOrWhiteSpace(exact)) return exact;
+            }
+
+            var wanted = keys.Select(Norm).Where(k => !string.IsNullOrWhiteSpace(k)).ToList();
+            foreach (var p in rows)
+            {
+                var nk = Norm(p.Key);
+                if (wanted.Any(w => nk == w || nk.Contains(w) || w.Contains(nk)))
+                    return p.Value;
+            }
+
+            return null;
+        }
         static string? SalutationFromGender(string? g)
         {
             var s = (g ?? "").Trim().ToLowerInvariant();
@@ -686,36 +732,50 @@ public class EasyAtWorkController : ControllerBase
             if (s is "male" or "m" or "herr") return "Herr";
             return null;
         }
-        static string? Marital(string? v) => (v ?? "").Trim().ToUpperInvariant() switch
+        static string? Marital(string? v)
         {
-            "S" => "ledig",
-            "M" => "verheiratet",
-            "D" => "geschieden",
-            "W" => "verwitwet",
-            "E" => "getrennt",
-            "P" => "eingetragene_partnerschaft",
-            _ => null
-        };
+            var s = (v ?? "").Trim().ToLowerInvariant();
+            return s switch
+            {
+                "" or "unbekannt" or "unknown" => null,
+                "s" or "ledig" or "single" => "ledig",
+                "m" or "verheiratet" or "married" => "verheiratet",
+                "d" or "geschieden" or "divorced" => "geschieden",
+                "w" or "verwitwet" or "widowed" => "verwitwet",
+                "e" or "getrennt" or "separated" => "getrennt",
+                "p" or "eingetragene partnerschaft" or "eingetr. partnerschaft" or "registered partnership" => "eingetragene_partnerschaft",
+                _ => null
+            };
+        }
         static string Fmt(DateOnly? d) => d?.ToString("yyyy-MM-dd") ?? "";
 
+        var today = DateOnly.FromDateTime(DateTime.Today);
         var c = CurrentContract(contracts);
         var monthlyRate = CurrentRate(rates, "month") ?? CurrentRate(rates, "fte");
         var hourlyRate  = CurrentRate(rates, "hour");
-        var position = positions.FirstOrDefault()?.Name ?? Prop(props, "cf_src_job_code") ?? "";
-        var amountType = (c?.AmountType ?? "").Trim().ToLowerInvariant();
-        var payFrequency = (monthlyRate != null || amountType.StartsWith("percent") || amountType.StartsWith("month")) ? "month" : "hour";
-        var contractType = c?.Type;
-        if (string.IsNullOrWhiteSpace(contractType))
-            contractType = payFrequency == "month" ? "Fix" : "Flex";
-
-        decimal? pct = c?.Percentage ?? (amountType.StartsWith("percent") ? c?.Amount : null);
-        string anzahl = "";
-        if (pct.HasValue) anzahl = pct.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
-        else if (c?.Amount != null) anzahl = c.Amount.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " Stunden/Woche";
-        else if (c?.WeekHours != null) anzahl = c.WeekHours.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " Stunden/Woche";
+        var functionValues = positions
+            .Select(p => p.Name?.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var propertyFunction = Prop(props, "cf_src_job_code")?.Trim();
+        if (functionValues.Count == 0 && !string.IsNullOrWhiteSpace(propertyFunction))
+            functionValues.Add(propertyFunction);
+        var position = functionValues.Count == 1 ? functionValues[0] : string.Join(", ", functionValues);
+        var isKader = position is "ASST_1" or "ASST_2" or "REST_MANAGER" or "SHIFT_LEADER_1_6" or "SHIFT_LEADER_7_PLUS";
+        var info = Services.EasyAtWork.EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, rates, today, isKader);
+        var payFrequency = info.SalaryType == "monthly" ? "month" : "hour";
+        var contractType = ContractTypeForImport(info);
+        var anzahl = AnzahlForImport(info, c);
+        var contractFrom = info.ContractFrom ?? c?.From ?? emp.From;
+        var contractTo   = info.ContractTo ?? c?.To;
+        var payRateFrom = info.RateFrom ?? monthlyRate?.From ?? hourlyRate?.From ?? contractFrom;
 
         var row = new Dictionary<string, string?>
         {
+            ["__source"] = "easywork-api",
+            ["__functionCount"] = functionValues.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["__functionRaw"] = string.Join(", ", functionValues),
             ["Nummer"] = emp.Number,
             ["Vorname"] = emp.FirstName,
             ["Nachname"] = emp.LastName,
@@ -729,8 +789,8 @@ public class EasyAtWorkController : ControllerBase
             ["E-Mail"] = emp.Email,
             ["Telefon"] = emp.Phone,
             ["Nationalität"] = emp.Nationality,
-            ["Von"] = Fmt(emp.From),
-            ["Bis"] = Fmt(emp.To),
+            ["Von"] = Fmt(contractFrom),
+            ["Bis"] = Fmt(contractTo),
             ["Store number"] = mapping.EasyAtWorkCustomerNumber,
             ["Funktion"] = position,
             ["Funktionen"] = position,
@@ -738,12 +798,13 @@ public class EasyAtWorkController : ControllerBase
             ["Contract type"] = contractType,
             ["Pay frequency"] = payFrequency,
             ["Anzahl"] = anzahl,
-            ["Pay rate from"] = Fmt(monthlyRate?.From ?? hourlyRate?.From ?? c?.From),
-            ["Tarife"] = (hourlyRate?.Rate != null && hourlyRate.Rate.Value > 1m) ? hourlyRate.Rate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
-            ["Salary (actual)"] = (monthlyRate?.Rate != null && monthlyRate.Rate.Value > 1m) ? monthlyRate.Rate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
+            ["Pay rate from"] = Fmt(payRateFrom),
+            ["Tarife"] = (info.HourlyRate != null && info.HourlyRate.Value > 1m) ? info.HourlyRate.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
+            ["Salary (actual)"] = (info.MonthlySalary != null && info.MonthlySalary.Value > 1m) ? info.MonthlySalary.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "",
+            ["Qualification CCNT"] = PropAny(props, "cf_swiss_qualification_ll", "swiss_qualification_ll", "cf_qualification_ccnt", "qualification_ccnt", "ccnt_qualification", "Qualification CCNT", "CCNT"),
             ["INTL_BANK_ACCT_NBR1"] = fiscal?.Iban,
             ["AHV"] = Prop(props, "cf_swiss_national_id"),
-            ["Marital status"] = Marital(Prop(props, "cf_marital_status"))
+            ["Marital status"] = Marital(PropAny(props, "cf_marital_status", "marital_status", "Marital status", "Familienstand"))
         };
 
         return Ok(new

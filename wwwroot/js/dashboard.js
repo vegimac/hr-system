@@ -12,6 +12,7 @@
 // ══════════════════════════════════════════════
 let _dashAlerts = [];
 let _dashActiveCategoryFilter = null;  // null = alle Kategorien
+let _dashActiveSeverityFilter = null;  // null = alle Stufen
 
 // Reihenfolge entscheidet Sortierung der Filter-Buttons UND der Sektionen in
 // der Alarm-Liste (Frontend nutzt Object.keys, Backend sortiert die Alerts
@@ -93,7 +94,7 @@ async function loadDashboard() {
         renderDashSeverityRow(data.countsBySeverity || {});
 
         // Kategorie-Filter
-        renderDashFilterRow(data.countsByCategory || {});
+        renderDashFilterRow(dashCategoryCounts(dashSeverityFilteredAlerts()));
 
         // Alarm-Liste
         renderDashAlerts();
@@ -112,10 +113,13 @@ function renderDashSeverityRow(counts) {
     row.innerHTML = order.map(sev => {
         const c = counts[sev] || 0;
         const meta = DASH_SEVERITY_META[sev];
-        return `<div style="background:${meta.bg};border:1px solid ${meta.border};color:${meta.text};border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+        const active = _dashActiveSeverityFilter === sev;
+        return `<button type="button" onclick="dashSetSeverityFilter('${sev}')"
+            title="${dashMetaLabel(meta)} filtern"
+            style="background:${meta.bg};border:${active ? '3px solid #2563eb' : `1px solid ${meta.border}`};color:${meta.text};border-radius:10px;padding:${active ? '10px 14px' : '12px 16px'};display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;box-shadow:${active ? '0 0 0 3px rgba(37,99,235,.16)' : 'none'}">
             <div style="font-size:28px;font-weight:700;line-height:1">${c}</div>
             <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">${dashMetaLabel(meta)}</div>
-        </div>`;
+        </button>`;
     }).join('');
 }
 
@@ -123,7 +127,8 @@ function renderDashFilterRow(countsByCategory) {
     const row = document.getElementById('dashFilterRow');
     if (!row) return;
     const cats = Object.keys(DASH_CATEGORY_META);
-    const total = _dashAlerts.length;
+    const baseAlerts = dashSeverityFilteredAlerts();
+    const total = baseAlerts.length;
     const allLabel = (window.i18n && i18n.getLang() === 'en') ? 'All' : 'Alle';
     const allBtn = `<button onclick="dashSetCategoryFilter(null)"
         style="padding:6px 12px;border:1px solid ${_dashActiveCategoryFilter === null ? '#3b82f6' : '#e2e8f0'};border-radius:7px;background:${_dashActiveCategoryFilter === null ? '#dbeafe' : '#fff'};color:${_dashActiveCategoryFilter === null ? '#1e40af' : '#475569'};cursor:pointer;font-weight:600;font-size:12px">
@@ -142,33 +147,68 @@ function renderDashFilterRow(countsByCategory) {
     row.innerHTML = allBtn + others;
 }
 
-function dashSetCategoryFilter(cat) {
-    _dashActiveCategoryFilter = cat;
-    renderDashFilterRow(_dashAlerts.reduce((acc, a) => {
+function dashSeverityFilteredAlerts() {
+    return _dashActiveSeverityFilter
+        ? _dashAlerts.filter(a => a.severity === _dashActiveSeverityFilter)
+        : _dashAlerts;
+}
+
+function dashCategoryCounts(alerts) {
+    return alerts.reduce((acc, a) => {
         acc[a.category] = (acc[a.category] || 0) + 1;
         return acc;
+    }, {});
+}
+
+function dashSetSeverityFilter(sev) {
+    _dashActiveSeverityFilter = _dashActiveSeverityFilter === sev ? null : sev;
+    _dashActiveCategoryFilter = null;
+    renderDashSeverityRow(_dashAlerts.reduce((acc, a) => {
+        acc[a.severity] = (acc[a.severity] || 0) + 1;
+        return acc;
     }, {}));
+    renderDashFilterRow(dashCategoryCounts(dashSeverityFilteredAlerts()));
+    renderDashAlerts();
+}
+
+function dashSetCategoryFilter(cat) {
+    _dashActiveCategoryFilter = cat;
+    renderDashFilterRow(dashCategoryCounts(dashSeverityFilteredAlerts()));
     renderDashAlerts();
 }
 
 function renderDashAlerts() {
     const container = document.getElementById('dashAlertsContainer');
     if (!container) return;
-    let alerts = _dashAlerts;
+    let alerts = dashSeverityFilteredAlerts();
     if (_dashActiveCategoryFilter) {
         alerts = alerts.filter(a => a.category === _dashActiveCategoryFilter);
     }
+    const isLiquid = document.getElementById('page-dashboard')?.classList.contains('liquid-dashboard');
     if (alerts.length === 0) {
         const isEn = window.i18n && i18n.getLang() === 'en';
         const titleTxt = isEn ? 'No reminders' : 'Keine Erinnerungen';
         const subTxt   = isEn
             ? 'All clear — no action needed in the next 90 days.'
             : 'Alles erledigt — kein Handlungsbedarf in den nächsten 90 Tagen.';
+        if (isLiquid) {
+            container.innerHTML = `<div class="liquid-todo-row" style="cursor:default">
+                <span>✓</span>
+                <span><span class="liquid-todo-title">${titleTxt}</span><span class="liquid-todo-sub">${subTxt}</span></span>
+                <span></span>
+            </div>`;
+            return;
+        }
         container.innerHTML = `<div class="card" style="padding:48px;text-align:center;color:#15803d">
             <div style="font-size:42px">✓</div>
             <div style="font-weight:600;font-size:16px;margin-top:10px">${titleTxt}</div>
             <div style="font-size:13px;color:#94a3b8;margin-top:6px">${subTxt}</div>
         </div>`;
+        return;
+    }
+
+    if (isLiquid) {
+        container.innerHTML = alerts.map(a => renderDashTodoRow(a)).join('');
         return;
     }
 
@@ -196,6 +236,44 @@ function renderDashAlerts() {
             ${itemsHtml ? `<div style="display:flex;flex-direction:column;gap:6px">${itemsHtml}</div>` : ''}
         </div>`;
     }).join('');
+}
+
+function renderDashTodoRow(a) {
+    const meta = DASH_CATEGORY_META[a.category] || { icon: '•' };
+    const title = (a.titleKey && window.i18n)
+        ? i18n.tFormat(a.titleKey, a.titleArgs || {})
+        : (a.title || dashMetaLabel(meta) || '');
+    const subtitle = (a.subtitleKey && window.i18n)
+        ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {})
+        : (a.subtitle || '');
+    const onClick = a.employeeId
+        ? (a.category === 'qst_pflicht_offen'
+            ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
+            : a.category === 'spouse_doku_fehlt'
+                ? `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`
+                : a.category === 'employee_doku_fehlt'
+                    ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
+                    : a.category === 'schwangerschaft'
+                        ? `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`
+                        : a.category === 'permit_expiring'
+                            ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
+                            : a.category === 'contract_end'
+                                ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
+                                : (a.category === 'exit_pending_active'
+                                   || a.category === 'birthday'
+                                   || a.category === 'anniversary'
+                                   || a.category === 'night_work_exam_fehlt')
+                                    ? `onclick="dashOpenEmployee(${a.employeeId}, 'personal')"`
+                                    : `onclick="dashOpenEmployee(${a.employeeId})"`)
+        : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
+    return `<div class="liquid-todo-row" ${onClick}>
+        <span>${meta.icon || '•'}</span>
+        <span>
+            <span class="liquid-todo-title">${_e(title)}</span>
+            ${subtitle ? `<span class="liquid-todo-sub">${_e(subtitle)}</span>` : ''}
+        </span>
+        <span>›</span>
+    </div>`;
 }
 
 function renderDashAlertRow(a) {

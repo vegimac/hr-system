@@ -109,4 +109,33 @@ public class EasyAtWorkContractMappingTests
         Assert.Equal(21m, info.GuaranteedHoursPerWeek);
         Assert.Null(info.EmploymentPercentage);
     }
+
+    [Fact]
+    public void MtpTpm25_ImportiertVertragsbeginnFunktionUndStunden()
+    {
+        var c = new EawContract
+        {
+            Type = "MTP/TPM",
+            Title = "HOST_CT",
+            AmountType = "week",
+            Amount = 25m,
+            FromRaw = "2025-10-01",
+        };
+        var rates = new List<EawPayRate>
+        {
+            new EawPayRate { Type = "hour", Rate = 21.66m, FromRaw = "2026-01-01" },
+        };
+
+        var info = EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, rates, Stichtag);
+
+        Assert.Equal("MTP", info.EmploymentModel);
+        Assert.Equal("hourly", info.SalaryType);
+        Assert.Equal("MTP/TPM", info.ContractType);
+        Assert.Equal("HOST_CT", info.JobTitle);
+        Assert.Equal(new DateOnly(2025, 10, 1), info.ContractFrom);
+        Assert.Equal(new DateOnly(2026, 1, 1), info.RateFrom);
+        Assert.Equal(25m, info.GuaranteedHoursPerWeek);
+        Assert.Equal(21.66m, info.HourlyRate);
+        Assert.Null(info.EmploymentPercentage);
+    }
 }
