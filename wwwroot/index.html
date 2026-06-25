@@ -1597,6 +1597,54 @@
             gap: 12px;
             height: calc(100vh - 86px);
         }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav {
+            width: 54px;
+            min-width: 54px;
+            padding: 8px 6px;
+            border: 1px solid var(--emp-glass-border);
+            border-radius: 18px;
+            background: rgba(255,255,255,.32);
+            box-shadow: 0 18px 50px rgba(92,78,57,.12), inset 0 1px 0 rgba(255,255,255,.56);
+            backdrop-filter: blur(24px) saturate(150%);
+            -webkit-backdrop-filter: blur(24px) saturate(150%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            overflow-y: auto;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(255,255,255,.46);
+            border-radius: 15px;
+            background: rgba(255,255,255,.28);
+            color: #626d78;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.50);
+            transition: transform .14s ease, background .14s ease, box-shadow .14s ease;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn:hover {
+            transform: translateY(-1px);
+            background: rgba(255,255,255,.58);
+            color: var(--emp-text-strong);
+            box-shadow: 0 10px 24px rgba(72,63,53,.10), inset 0 1px 0 rgba(255,255,255,.70);
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn.active {
+            background: rgba(219,234,254,.68);
+            color: #245b92;
+            border-color: rgba(147,197,253,.60);
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn[hidden] {
+            display: none;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn svg {
+            width: 21px;
+            height: 21px;
+            stroke-width: 1.9;
+        }
         #page-mitarbeiter.liquid-employee .emp-list-panel,
         #page-mitarbeiter.liquid-employee .liquid-employee-list,
         #page-mitarbeiter.liquid-employee .emp-detail-panel {
@@ -1890,6 +1938,16 @@
             outline: none;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.60);
         }
+        #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input:not([readonly]):not(:disabled)) {
+            background: rgba(230,236,244,.72);
+            border-color: rgba(126,143,163,.30);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.64), 0 8px 18px rgba(66,75,88,.10);
+        }
+        #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input[data-easywork-locked]) {
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
+        }
         #page-mitarbeiter.liquid-employee .ef-input:focus {
             border-color: rgba(59,130,246,.46);
             background: rgba(255,255,255,.86);
@@ -1900,8 +1958,10 @@
             cursor: not-allowed;
             opacity: 1;
             color: var(--emp-text);
-            background: rgba(248,250,252,.58);
-            border-color: rgba(166,176,188,.20);
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
+            padding-left: 0;
         }
         #page-mitarbeiter.liquid-employee #empHeaderActions .btn-primary,
         #page-mitarbeiter.liquid-employee #empHeaderActions .btn-secondary {
@@ -1926,6 +1986,7 @@
                 linear-gradient(135deg, #07111a 0%, #0b1620 52%, #08121b 100%);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-panel,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav,
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-list,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-panel,
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-detail,
@@ -1937,6 +1998,21 @@
             background: var(--emp-glass-bg) !important;
             border-color: var(--emp-glass-border) !important;
             color: var(--emp-text) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn {
+            background: rgba(24,36,49,.48);
+            border-color: rgba(122,145,165,.18);
+            color: #b7c4d2;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn:hover {
+            background: rgba(40,57,75,.66);
+            color: #f5faff;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn.active {
+            background: rgba(72,100,132,.46);
+            color: #d9ecff;
+            border-color: rgba(126,167,210,.30);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body {
             background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.01));
@@ -2010,6 +2086,16 @@
             color: var(--emp-text-strong);
             box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
         }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input:not([readonly]):not(:disabled)) {
+            background: rgba(31,45,60,.78) !important;
+            border-color: rgba(122,145,165,.30) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 8px 18px rgba(0,0,0,.18);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input[data-easywork-locked]) {
+            background: transparent !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+        }
         body.theme-dark #page-mitarbeiter.liquid-employee .ef-input:focus {
             background: rgba(25,39,53,.88);
             border-color: rgba(112,164,214,.44);
@@ -2018,8 +2104,9 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .ef-input[readonly],
         body.theme-dark #page-mitarbeiter.liquid-employee .ef-input:disabled {
             color: var(--emp-text);
-            background: rgba(13,24,35,.52);
-            border-color: rgba(122,145,165,.18);
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
         }
 
         /* Sticky-Kopfzeile für lange Detail-/Tab-Ansichten (Walter-Vorgabe
@@ -4065,6 +4152,41 @@
                      fixed #langSwitcher (DE/EN/Theme) sichtbar — sonst überdeckt er sie. -->
                 <div class="page-body" style="padding-top:50px">
                     <div class="emp-layout liquid-employee-layout-grid">
+                        <nav class="liquid-employee-nav" aria-label="Schnellnavigation">
+                            <button class="liquid-employee-nav-btn" onclick="showPage('dashboard')" type="button" title="Dashboard" aria-label="Dashboard">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
+                            </button>
+                            <button class="liquid-employee-nav-btn" onclick="showPage('vertraege')" type="button" title="Verträge" aria-label="Verträge">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h4"/><path d="M9 12h6M9 16h6M9 8h2"/></svg>
+                            </button>
+                            <button class="liquid-employee-nav-btn active" onclick="showPage('mitarbeiter')" type="button" title="Mitarbeiter" aria-label="Mitarbeiter">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M12 20a6 6 0 0 1 9 0"/></svg>
+                            </button>
+                            <button class="liquid-employee-nav-btn" onclick="openLiquidDocumentsCard()" type="button" title="Dokumente" aria-label="Dokumente">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 7h7l2 2h9v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 7V5h4l2 2"/></svg>
+                            </button>
+                            <button class="liquid-employee-nav-btn" onclick="showPage('posteingang')" type="button" title="Postfach" aria-label="Postfach">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>
+                            </button>
+                            <button class="liquid-employee-nav-btn" onclick="openImportTool()" type="button" title="Mitarbeiter & Verträge importieren" aria-label="Mitarbeiter & Verträge importieren" data-liquid-roles="admin,superuser,user,buchhaltung">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M20 8v6"/><path d="M17 11h6"/></svg>
+                            </button>
+                            <button class="liquid-employee-nav-btn" onclick="showPage('lohn')" type="button" title="Lohnlauf" aria-label="Lohnlauf" data-liquid-roles="admin,superuser,user,buchhaltung">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            </button>
+                            <button class="liquid-employee-nav-btn" onclick="showPage('sollstunden')" type="button" title="Sollstunden" aria-label="Sollstunden" data-liquid-roles="admin,superuser,user,buchhaltung">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/><path d="M4 20h16"/></svg>
+                            </button>
+                            <button class="liquid-employee-nav-btn" onclick="showPage('ferien')" type="button" title="Ferien / Feiertage / Nacht" aria-label="Ferien / Feiertage / Nacht" data-liquid-roles="admin,superuser,user,buchhaltung">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 18l4-9 4 5 3-7 6 11z"/><path d="M2 20h20"/><path d="M17 5c.8.6 1.4 1.3 1.8 2.2"/></svg>
+                            </button>
+                            <button class="liquid-employee-nav-btn" onclick="showPage('fibu')" type="button" title="FIBU" aria-label="FIBU" data-liquid-roles="admin,buchhaltung">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+                            </button>
+                            <button class="liquid-employee-nav-btn" onclick="showPage('admin-hub')" type="button" title="Systemeinstellungen" aria-label="Systemeinstellungen" data-liquid-roles="admin">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.86l.04.04a2 2 0 0 1-2.83 2.83l-.04-.04A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.05A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.86.34l-.04.04a2 2 0 0 1-2.83-2.83l.04-.04A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.05A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.86l-.04-.04A2 2 0 0 1 7.05 4.27l.04.04A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.05A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.86-.34l.04-.04a2 2 0 0 1 2.83 2.83l-.04.04A1.7 1.7 0 0 0 19.4 9c.7.28 1.1.9 1.1 1.65V11a2 2 0 0 1 0 2h-.05A1.7 1.7 0 0 0 19.4 15z"/></svg>
+                            </button>
+                        </nav>
                         <!-- Liste links -->
                         <div class="emp-list-panel liquid-employee-list">
                             <div class="emp-list-search">
@@ -9932,7 +10054,7 @@ document.addEventListener('click', (event) => {
 
 function syncLiquidDashboardCards() {
     const role = currentUser?.role || '';
-    document.querySelectorAll('.liquid-module-card[data-liquid-roles]').forEach(card => {
+    document.querySelectorAll('.liquid-module-card[data-liquid-roles], .liquid-employee-nav-btn[data-liquid-roles]').forEach(card => {
         const roles = (card.dataset.liquidRoles || '').split(',').map(r => r.trim()).filter(Boolean);
         card.hidden = roles.length > 0 && !roles.includes(role);
     });
