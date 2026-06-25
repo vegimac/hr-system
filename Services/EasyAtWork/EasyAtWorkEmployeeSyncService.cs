@@ -210,12 +210,29 @@ public class EasyAtWorkEmployeeSyncService
             // employee.easyatwork_employee_id. Der Single-Endpoint erwartet aber
             // employee.id. Wir holen genau diesen MA per n+Personalnummer, prüfen
             // die user_id gegen den gespeicherten Wert und speichern unten die
-            // echte employee.id zurück.
+            // echte employee.id zurück. Falls der n+Nummer-Single-Endpoint beim
+            // API-Anbieter nicht sauber greift, lösen wir dieselbe Person über
+            // die Employee-Liste des Customers auf (nur für diese Legacy-Reparatur).
             var employeeNumber = (emp.EmployeeNumber ?? "").Trim();
             foreach (var mapping in mappings)
             {
+                EawEmployee? byNumber = null;
                 if (employeeNumber.Length == 0) break;
-                var byNumber = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, employeeNumber, ct);
+                byNumber = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, employeeNumber, ct);
+                if (byNumber == null)
+                {
+                    try
+                    {
+                        var rows = await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct);
+                        byNumber = rows.FirstOrDefault(x =>
+                            x.UserId == emp.EasyAtWorkEmployeeId.Value
+                            || string.Equals((x.Number ?? "").Trim(), employeeNumber, StringComparison.OrdinalIgnoreCase));
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Notes.Add($"Legacy-ID-Reparatur Customer {mapping.EasyAtWorkCustomerId}: Employee-Liste nicht abrufbar ({ex.Message}).");
+                    }
+                }
                 if (byNumber == null) continue;
                 var numberMatches = string.Equals((byNumber.Number ?? "").Trim(), employeeNumber, StringComparison.OrdinalIgnoreCase);
                 var userIdMatches = byNumber.UserId == emp.EasyAtWorkEmployeeId.Value;
@@ -223,7 +240,7 @@ public class EasyAtWorkEmployeeSyncService
 
                 eaw = byNumber;
                 matchedCustomerId = mapping.EasyAtWorkCustomerId;
-                result.Notes.Add($"Gespeicherte easy@work-ID {emp.EasyAtWorkEmployeeId.Value} war user_id; korrigiere auf employee.id {eaw.Id}.");
+                result.Notes.Add($"Gespeicherte easy@work-ID {emp.EasyAtWorkEmployeeId.Value} war user_id; korrigiere auf employee.id {eaw.Id} (Customer {mapping.EasyAtWorkCustomerId}).");
                 break;
             }
         }
