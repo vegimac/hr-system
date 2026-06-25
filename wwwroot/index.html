@@ -2758,6 +2758,19 @@
             position: relative;
             z-index: 1;
         }
+        body.dashboard-shell-active .sidebar {
+            display: none;
+        }
+        body.dashboard-shell-active .main {
+            width: 100%;
+            min-width: 0;
+        }
+        body.dashboard-shell-active .liquid-dashboard > .page-head {
+            display: none !important;
+        }
+        body.dashboard-shell-active .liquid-dashboard > .page-body {
+            padding-top: 26px !important;
+        }
         .liquid-dashboard > .page-head {
             margin: 18px 24px 0;
             padding: 22px 24px !important;
@@ -9128,6 +9141,10 @@ function doLogout() {
 
 function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
 
+function updateDashboardShellState(name) {
+    document.body.classList.toggle('dashboard-shell-active', name === 'dashboard');
+}
+
 // ── Datenaufbewahrung Stempelzeiten (Walter-Vorgabe 21.06.2026) ──────────
 async function loadRetentionYears() {
     const inp = document.getElementById('retentionYearsInput');
@@ -9246,6 +9263,7 @@ async function init() {
 async function startApp() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    updateDashboardShellState('dashboard');
 
     document.getElementById('userName').textContent = currentUser.username;
     document.getElementById('userRoleBadge').textContent = currentUser.isSuperAdmin ? 'Super-Admin' : roleName(currentUser.role);
@@ -9420,6 +9438,7 @@ function applyAdminBreadcrumb(name) {
 
 function showPage(name) {
     currentPageName = name;
+    updateDashboardShellState(name);
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('page-' + name)?.classList.add('active');
