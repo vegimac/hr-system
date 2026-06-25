@@ -2732,17 +2732,16 @@
         .liquid-dashboard::before {
             content: "";
             position: absolute;
-            inset: -6% -6% auto auto;
-            width: min(78vw, 980px);
-            height: min(78vw, 980px);
+            inset: 0 0 0 auto;
+            width: min(72vw, 980px);
+            height: 100%;
             pointer-events: none;
-            opacity: .24;
-            transform: rotate(-8deg);
-            background:
-                radial-gradient(ellipse at 50% 78%, transparent 0 37%, rgba(54,42,25,.26) 38% 43%, transparent 44%),
-                radial-gradient(ellipse at 50% 77%, transparent 0 51%, rgba(54,42,25,.22) 52% 56%, transparent 57%),
-                linear-gradient(90deg, transparent 0 74%, rgba(54,42,25,.12) 74.2% 74.8%, transparent 75% 100%);
-            filter: blur(.1px);
+            opacity: .46;
+            transform: none;
+            background-image: url('img/liquid-glass-arches-reference.png');
+            background-repeat: no-repeat;
+            background-position: center right;
+            background-size: contain;
         }
         .liquid-dashboard::after {
             content: "";
@@ -3087,10 +3086,11 @@
             color: var(--liquid-text);
         }
         body.theme-dark .liquid-dashboard::before {
-            opacity: .38;
-            background:
-                radial-gradient(ellipse at 50% 78%, transparent 0 38%, rgba(230,237,247,.25) 39% 43%, transparent 44%),
-                radial-gradient(ellipse at 50% 77%, transparent 0 52%, rgba(230,237,247,.18) 53% 56%, transparent 57%);
+            opacity: .32;
+            background-image: url('img/liquid-glass-arches-reference.png');
+            background-repeat: no-repeat;
+            background-position: center right;
+            background-size: contain;
         }
         body.theme-dark .liquid-dashboard > .page-head,
         body.theme-dark .liquid-dashboard #dashSeverityRow button,
