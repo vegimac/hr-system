@@ -6,6 +6,20 @@ Die HR-Loesung bekommt einen ruhigen, modernen und einheitlichen Look. Der Stil 
 
 Diese Datei ist ab jetzt der gespeicherte Ankerpunkt fuer die visuelle Richtung. Neue Screens oder CSS-Aenderungen sollen diese Regeln erweitern, nicht nur in einem Chat oder Screenshot existieren.
 
+## Walter-Vorgabe: Liquid Glass als Standard-Designsprache
+
+Alle neuen UI-Elemente und alle groesseren UI-Umbauten sollen sich an Apples Liquid-Glass-Designsprache orientieren. Das gilt fuer Dashboard, Mitarbeiter, Formulare, Tabellen, Modals, Dropdowns und spaetere Module.
+
+- Liquid Glass ist der Standard-Look: fluessig, transparent, weich, hochwertig.
+- Oberflaechen bestehen aus mehreren Ebenen: Hintergrund, Glaslinse, Glasrand, Highlight/Reflex und Inhalt.
+- Hintergrundfarben und Licht sollen durchscheinen, aber nie die Lesbarkeit stoeren.
+- Standard ist transparentes Glas. Fuer dichte Datenbereiche wie Formulare, Tabellen, Lohnzettel, Import-Pruefungen oder Warnmeldungen darf der Look staerker eingefaerbt werden, damit Kontrast und Textlesbarkeit stimmen.
+- Wenn ein Bereich zu unruhig wird, gilt: Transparenz reduzieren, Glas einfärben, Kontrast erhoehen — nicht zur alten flachen Optik zurueckfallen.
+- Farben sparsam einsetzen: Statusfarben bleiben fuer Fachstatus, Warnungen und primaere Aktionen reserviert; die Home-/Dashboard-Flaechen bleiben ruhig und fast monochrom.
+- Keine nativen Browser-Controls sichtbar lassen, wenn sie deutlich aus dem Liquid-Look fallen (z.B. Select-Dropdowns). In solchen Faellen ein eigenes Liquid-Glass-Control bauen und die bestehende Logik/IDs/Handler im Hintergrund weiterverwenden.
+- Bestehende Fachlogik, DOM-IDs, Eventhandler, Fetch-Aufrufe und Tab-Logik haben Vorrang. Der Look wird daruebergelegt, nicht durch einen Funktions-Refactor erzwungen.
+- Schrittweise umsetzen: erst eine Seite oder ein Modul sauber fertigstellen, dann die naechste Flaeche angleichen.
+
 ## Referenzbild
 
 Letzter bekannter Stand aus dem Chat:
