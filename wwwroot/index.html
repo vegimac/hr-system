@@ -1917,10 +1917,22 @@
             background: rgba(255,255,255,.98);
             box-shadow: 0 0 0 3px rgba(59,130,246,.07), 0 8px 18px rgba(86,76,63,.08);
         }
+        #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info,
+        #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info:hover {
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
+            color: var(--emp-text-strong);
+        }
         #page-mitarbeiter.liquid-employee .emp-field-value.empty {
             background: rgba(255,255,255,.32);
             border-color: rgba(166,176,188,.22);
             color: #a2acb8;
+        }
+        #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info.empty {
+            background: transparent;
+            border-color: transparent;
+            color: var(--emp-text-soft);
         }
         #page-mitarbeiter.liquid-employee .emp-contract-strip {
             margin: 8px 0 2px;
@@ -2176,9 +2188,21 @@
             background: rgba(30,45,60,.88) !important;
             border-color: rgba(112,164,214,.36) !important;
         }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info:hover {
+            background: transparent !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+            color: var(--emp-text-strong) !important;
+        }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.empty {
             background: rgba(10,18,27,.64) !important;
             color: #637484 !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info.empty {
+            background: transparent !important;
+            border-color: transparent !important;
+            color: var(--emp-text-soft) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-strip {
             background: rgba(12,21,30,.42);

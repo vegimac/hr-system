@@ -819,19 +819,19 @@ function renderEmployeeDetail(emp) {
         <div class="emp-tab-content active" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
             <div class="emp-field-grid-3">
-                ${field(_t('ma.field.firstName','Vorname'),       emp.firstName)}
-                ${field(_t('ma.field.lastName','Nachname'),       emp.lastName)}
+                ${field(_t('ma.field.firstName','Vorname'),       emp.firstName, null, true)}
+                ${field(_t('ma.field.lastName','Nachname'),       emp.lastName, null, true)}
                 ${field(_t('ma.field.maidenName','Ledigname'),    emp.maidenName)}
                 ${field(_t('ma.field.shortName','Kurzname'),      emp.shortName)}
-                ${field(_t('ma.field.dob','Geburtsdatum'),        emp.dateOfBirth ? `${formatDate(emp.dateOfBirth)} <span style="color:#94a3b8;font-weight:400">(${calcAge(emp.dateOfBirth)} J.)</span>` : null, 'birth_cert')}
-                ${field(_t('ma.field.gender','Geschlecht'),       formatGender(emp.gender))}
-                ${field(_t('ma.field.ahv','AHV-Nummer'),          emp.socialSecurityNumber, 'ahv_card')}
+                ${field(_t('ma.field.dob','Geburtsdatum'),        emp.dateOfBirth ? `${formatDate(emp.dateOfBirth)} <span style="color:#94a3b8;font-weight:400">(${calcAge(emp.dateOfBirth)} J.)</span>` : null, 'birth_cert', true)}
+                ${field(_t('ma.field.gender','Geschlecht'),       formatGender(emp.gender), null, true)}
+                ${field(_t('ma.field.ahv','AHV-Nummer'),          emp.socialSecurityNumber, 'ahv_card', true)}
                 ${field(_t('ma.field.zemis','ZEMIS-Nr.'),         emp.zemisNumber)}
-                ${field(_t('ma.field.maritalStatus','Zivilstand'),formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus), 'marriage_cert')}
+                ${field(_t('ma.field.maritalStatus','Zivilstand'),formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus), 'marriage_cert', true)}
                 ${field(_t('ma.field.maritalSince','Zivilstand seit'), emp.maritalStatusSince ? formatDate(emp.maritalStatusSince) : null)}
-                ${field(_t('ma.field.language','Sprache'),        formatLanguage(emp.languageCode))}
-                ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation))}
-                ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation)}
+                ${field(_t('ma.field.language','Sprache'),        formatLanguage(emp.languageCode), null, true)}
+                ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
+                ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation, null, true)}
                 ${field(_t('ma.field.placeOfOrigin','Heimatort'), emp.placeOfOrigin)}
                 ${field(_t('ma.field.religion','Konfession'),     emp.religion)}
                 ${field(_t('ma.field.nationality','Nationalität'),
@@ -840,28 +840,28 @@ function renderEmployeeDetail(emp) {
                             ? `${emp.nationalityName} <span style="color:#94a3b8;font-weight:400;font-size:11.5px">(${emp.nationalityCode})</span>`
                             : emp.nationalityName)
                         : (emp.nationalityCode ?? emp.nationality ?? null),
-                    'passport')}
+                    'passport', true)}
             </div>
             <!-- Walter-Vorgabe 26.05.2026: Adresse + Kontakt in DIE Personalien-
                  Card eingebunden (keine eigenen Section-Titles mehr —
                  platzsparend). Die Felder fügen sich nahtlos an die
                  Personalien an. -->
             <div class="emp-field-grid-3 emp-grid-attached">
-                ${field(_t('ma.field.street','Strasse'),          emp.street)}
-                ${field(_t('ma.field.houseNumber','Hausnummer'),  emp.houseNumber)}
-                ${field(_t('ma.field.zipCode','PLZ'),             emp.zipCode)}
-                ${field(_t('ma.field.city','Ort'),                emp.city)}
-                ${field(_t('ma.field.canton','Kanton'),           emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null)}
-                ${field(_t('ma.field.country','Land'),            emp.country)}
-                ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile)}
-                ${field(_t('ma.field.email','E-Mail'),            emp.email)}
+                ${field(_t('ma.field.street','Strasse'),          emp.street, null, true)}
+                ${field(_t('ma.field.houseNumber','Hausnummer'),  emp.houseNumber, null, true)}
+                ${field(_t('ma.field.zipCode','PLZ'),             emp.zipCode, null, true)}
+                ${field(_t('ma.field.city','Ort'),                emp.city, null, true)}
+                ${field(_t('ma.field.canton','Kanton'),           emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null, null, true)}
+                ${field(_t('ma.field.country','Land'),            emp.country, null, true)}
+                ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile, null, true)}
+                ${field(_t('ma.field.email','E-Mail'),            emp.email, null, true)}
             </div>
 
             <div class="emp-section-title" style="margin-top:2px">Anstellung</div>
             <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
                  die zwei Booleans (LGAV + <8h) rechts schmaler. -->
             <div class="emp-field-grid" style="display:grid;grid-template-columns:0.9fr 0.9fr 0.8fr 0.7fr 0.75fr;gap:12px">
-                ${field('Eintrittsdatum', emp.entryDate ? formatDate(emp.entryDate) : null)}
+                ${field('Eintrittsdatum', emp.entryDate ? formatDate(emp.entryDate) : null, null, true)}
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null)}
                 ${(() => {
                     // Walter-Vorgabe 18.05.2026: Aktiv-Status hier im Read-Only-View
@@ -3477,7 +3477,7 @@ function validateAhvField(inputEl, onBlur) {
 // Optional 3. Argument: Field-Code (permit, passport, ahv_card, ...).
 // Wenn ein verknüpftes Dokument für diesen MA existiert, erscheint ein
 // 📎-Button rechts vom Wert. Klick öffnet das neueste Dokument im Preview.
-function field(label, value, linkedCode) {
+function field(label, value, linkedCode, easyworkInfo = false) {
     const empty = !value || value === 'null' || value === 'undefined';
     // Doku-Button erscheint sobald ein linkedCode gesetzt ist — egal ob für
     // diesen MA aktuell ein Dokument existiert. Wenn keins vorhanden ist,
@@ -3502,9 +3502,9 @@ function field(label, value, linkedCode) {
                    <span>Doku</span>
                </button>`;
     }
-    return `<div class="emp-field liquid-field">
+    return `<div class="emp-field liquid-field${easyworkInfo ? ' easywork-source-field' : ''}">
         <div class="emp-field-label">${label}</div>
-        <div class="emp-field-value${empty ? ' empty' : ''}">${empty ? '–' : value}${docBtn}</div>
+        <div class="emp-field-value${empty ? ' empty' : ''}${easyworkInfo ? ' easywork-info' : ''}">${empty ? '–' : value}${docBtn}</div>
     </div>`;
 }
 
@@ -3793,8 +3793,8 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     return `
     <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
     <div class="emp-field-grid-3">
-        ${eField(_t('ma.field.firstName','Vorname'),    `<input id="ef-firstName"  class="ef-input" value="${esc(emp.firstName)}">`)}
-        ${eField(_t('ma.field.lastName','Nachname'),    `<input id="ef-lastName"   class="ef-input" value="${esc(emp.lastName)}">`)}
+        ${eField(_t('ma.field.firstName','Vorname'),    `<input id="ef-firstName"  class="ef-input" value="${esc(emp.firstName)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.lastName','Nachname'),    `<input id="ef-lastName"   class="ef-input" value="${esc(emp.lastName)}" ${ewInput}>`)}
         ${eField(_t('ma.field.maidenName','Ledigname'), `<input id="ef-maidenName" class="ef-input" value="${esc(emp.maidenName)}">`)}
         ${eField(_t('ma.field.shortName','Kurzname'),   `<input id="ef-shortName"  class="ef-input" value="${esc(emp.shortName)}">`)}
         ${eField(`${_t('ma.field.dob','Geburtsdatum')} <span id="ef-dob-age" style="font-weight:400;color:#94a3b8;margin-left:6px">${emp.dateOfBirth ? '(' + calcAge(emp.dateOfBirth) + ' J.)' : ''}</span>`, `<input id="ef-dob" class="ef-input" type="date" value="${toDateInput(emp.dateOfBirth)}" ${ewInput}>`)}
@@ -3826,13 +3826,13 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="it" ${emp.languageCode==='it'?'selected':''}>${_t('ma.value.language.it','Italienisch')}</option>
             <option value="en" ${emp.languageCode==='en'?'selected':''}>${_t('ma.value.language.en','Englisch')}</option>
         </select>`)}
-        ${eField(_t('ma.field.salutation','Anrede'), `<select id="ef-salutation" class="ef-input">
+        ${eField(_t('ma.field.salutation','Anrede'), `<select id="ef-salutation" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="Herr"   ${emp.salutation==='Herr'  ?'selected':''}>${_t('ma.value.salutation.herr','Herr')}</option>
             <option value="Frau"   ${emp.salutation==='Frau'  ?'selected':''}>${_t('ma.value.salutation.frau','Frau')}</option>
             <option value="Divers" ${emp.salutation==='Divers'?'selected':''}>${_t('ma.value.salutation.divers','Divers')}</option>
         </select>`)}
-        ${eField(_t('ma.field.letterSalutation','Briefanrede'), `<input id="ef-letterSalutation" class="ef-input" value="${esc(emp.letterSalutation)}" placeholder="${_t('ma.placeholder.letterSalutation','z.B. Sehr geehrte Frau Muster')}">`)}
+        ${eField(_t('ma.field.letterSalutation','Briefanrede'), `<input id="ef-letterSalutation" class="ef-input" value="${esc(emp.letterSalutation)}" placeholder="${_t('ma.placeholder.letterSalutation','z.B. Sehr geehrte Frau Muster')}" ${ewInput}>`)}
         ${eField(_t('ma.field.placeOfOrigin','Heimatort'), `<input id="ef-placeOfOrigin" class="ef-input" value="${esc(emp.placeOfOrigin)}" placeholder="${_t('ma.placeholder.placeOfOrigin','für CH-Bürger')}">`)}
         ${eField(_t('ma.field.religion','Konfession'), `<select id="ef-religion" class="ef-input">
             <option value="">–</option>
@@ -4204,9 +4204,9 @@ async function saveEmpEdit() {
 
     const exitVal = easyWorkLocked ? toDateInput(emp.exitDate) : document.getElementById('ef-exit')?.value;
     const empPayload = {
-        firstName:    document.getElementById('ef-firstName')?.value    || null,
-        lastName:     document.getElementById('ef-lastName')?.value     || null,
-        salutation:   document.getElementById('ef-salutation')?.value   || null,
+        firstName:    easyWorkLocked ? (emp.firstName || null) : (document.getElementById('ef-firstName')?.value || null),
+        lastName:     easyWorkLocked ? (emp.lastName || null) : (document.getElementById('ef-lastName')?.value || null),
+        salutation:   easyWorkLocked ? (emp.salutation || null) : (document.getElementById('ef-salutation')?.value || null),
         gender:       easyWorkLocked ? (emp.gender || null) : (document.getElementById('ef-gender')?.value || null),
         dateOfBirth:  easyWorkLocked ? (toDateInput(emp.dateOfBirth) || null) : (document.getElementById('ef-dob')?.value || null),
         languageCode: easyWorkLocked ? (emp.languageCode || null) : (document.getElementById('ef-lang')?.value || null),
@@ -4250,7 +4250,7 @@ async function saveEmpEdit() {
         separatedSinceSet:     false,
         separatedSince:        null,
         religion:              document.getElementById('ef-religion')?.value || null,
-        letterSalutation:      document.getElementById('ef-letterSalutation')?.value?.trim() || null,
+        letterSalutation:      easyWorkLocked ? (emp.letterSalutation || null) : (document.getElementById('ef-letterSalutation')?.value?.trim() || null),
         placeOfOrigin:         document.getElementById('ef-placeOfOrigin')?.value?.trim() || null,
     };
 
