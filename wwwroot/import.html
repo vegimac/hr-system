@@ -1420,7 +1420,7 @@ function mtpHoursErrorHtml(row) {
 
 async function runApiImportEditLockPreflight(row) {
     if (!isEasyworkApiImportRow(row)) return { status: 'SKIP' };
-    const startDate = formatDate(get(row, 'Von'));
+    const startDate = apiEmploymentStartDate(row);
     if (!startDate || !companyProfileId) return { status: 'SKIP' };
 
     try {
@@ -1485,7 +1485,7 @@ async function runApiImportMinimumWagePreflight(row) {
 
     const model = mapContractType(row);
     const isFix = model === 'FIX' || model === 'FIX-M';
-    const startDate = formatDate(get(row, 'Von')) || new Date().toISOString().split('T')[0];
+    const startDate = apiEmploymentStartDate(row) || new Date().toISOString().split('T')[0];
     const today = new Date().toISOString().split('T')[0];
     const effectiveDate = startDate > today ? startDate : today;
     const edLevel = mapCcntToEduLevel(get(row, 'Qualification CCNT'), true);
@@ -1801,6 +1801,14 @@ function parseAnzahl(row) {
     return null;
 }
 
+function apiEmploymentStartDate(row) {
+    const contractFrom = formatDate(get(row, 'Von'));
+    const payRateFrom  = formatDate(get(row, 'Pay rate from'));
+    return (payRateFrom && (!contractFrom || payRateFrom > contractFrom))
+        ? payRateFrom
+        : contractFrom;
+}
+
 function contractChangedVsCurrent(row, currentContract) {
     if (!currentContract) return true; // no contract = needs one
     const changes = [];
@@ -1842,7 +1850,7 @@ function objVal(obj, camelName) {
 function findMatchingExistingContract(row, contracts) {
     if (!isEasyworkApiImportRow(row) || !Array.isArray(contracts) || contracts.length === 0) return null;
     const model = mapContractType(row);
-    const start = formatDate(get(row, 'Von'));
+    const start = apiEmploymentStartDate(row);
     const jobGroupCode = resolveJobGroupCode(row) || '';
     const anzahl = parseAnzahl(row);
     const isFix = model === 'FIX' || model === 'FIX-M';
@@ -1870,7 +1878,7 @@ function findMatchingExistingContract(row, contracts) {
 
 function findSameStartExistingContract(row, contracts) {
     if (!isEasyworkApiImportRow(row) || !Array.isArray(contracts) || contracts.length === 0) return null;
-    const start = formatDate(get(row, 'Von'));
+    const start = apiEmploymentStartDate(row);
     if (!start) return null;
     return contracts.find(c => {
         const cStart = objVal(c, 'contractStartDate') ? String(objVal(c, 'contractStartDate')).slice(0, 10) : '';
@@ -2405,7 +2413,7 @@ function initials(row) {
 function contractFormHtml(idx, row, hasExistingContract, activeContract = null, payRateFromIso = null) {
     const isSalaryChange = !!activeContract && !!payRateFromIso;
     // Bei reiner Lohnänderung: Vertragsbeginn = Pay rate from, sonst CSV-Von
-    const csvDate = formatDate(get(row, 'Von'));
+    const csvDate = isEasyworkApiImportRow(row) ? apiEmploymentStartDate(row) : formatDate(get(row, 'Von'));
     const today = new Date().toISOString().split('T')[0];
     const startDate = isSalaryChange ? payRateFromIso : (csvDate || today);
     const isPast = false;
@@ -2907,7 +2915,7 @@ function renderContractRow(c) {
     const hasExistingContract = !!existingEmp;
     const vonDate = isSalaryChange
         ? payRateFromIso
-        : formatDate(get(row, 'Von'));
+        : (isEasyworkApiImportRow(row) ? apiEmploymentStartDate(row) : formatDate(get(row, 'Von')));
     // Vertragsmodell-Pille: aus aktivem Vertrag bei Lohnänderung, sonst aus Mapping
     const modelCode = isSalaryChange
         ? (activeContract?.employmentModel || mapContractType(row))
@@ -3570,7 +3578,7 @@ function buildContractPayload(idx, employeeId, row) {
 function buildApiContractPayloadFromRow(employeeId, row) {
     const model = mapContractType(row);
     const isFix = model === 'FIX' || model === 'FIX-M';
-    const startDate = formatDate(get(row, 'Von')) || new Date().toISOString().split('T')[0];
+    const startDate = apiEmploymentStartDate(row) || new Date().toISOString().split('T')[0];
     const endDate = formatDate(get(row, 'Bis')) || null;
     const anzahl = parseAnzahl(row);
     const pct = anzahl?.type === 'percentage' ? Number(anzahl.value) : 100;
