@@ -874,8 +874,8 @@ function renderEmployeeDetail(emp) {
             <div class="emp-section-title" style="margin-top:2px">Anstellung</div>
             <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
                  die zwei Booleans (LGAV + <8h) rechts schmaler. -->
-            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
-                ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null)}
+            <div class="emp-field-grid easywork-info-grid emp-flow-line emp-employment-line">
+                ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null, null, true)}
                 <div class="emp-field">
                     <div class="emp-field-label">L-GAV</div>
                     <div class="emp-field-value">${emp.lgavPflichtig
@@ -3891,7 +3891,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile.
          Eintritt/Austritt/Aktiv links, die zwei Booleans (L-GAV / <8 h)
          rechts schmaler. -->
-    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+    <div class="emp-field-grid easywork-info-grid emp-flow-line emp-employment-line">
         ${eField(_t('ma.field.exitDate','Austrittsdatum'),
             `<input id="ef-exit"  class="ef-input" type="date" value="${toDateInput(emp.exitDate)}" ${ewInput}>`)}
         ${eField('L-GAV',
