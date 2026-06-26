@@ -868,17 +868,11 @@ function renderEmployeeDetail(emp) {
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null, null, true)}
                 <div class="emp-field">
                     <div class="emp-field-label">L-GAV</div>
-                    <div class="emp-field-value"><select id="ef-lgavPflichtig" class="ef-input emp-yesno-select" onchange="empInlineDirty()">
-                        <option value="true" ${emp.lgavPflichtig ? 'selected' : ''}>ja</option>
-                        <option value="false" ${!emp.lgavPflichtig ? 'selected' : ''}>nein</option>
-                    </select></div>
+                    <div class="emp-field-value">${yesNoToggle('ef-lgavPflichtig', !!emp.lgavPflichtig)}</div>
                 </div>
                 <div class="emp-field">
                     <div class="emp-field-label">&lt; 8 h / Wo.</div>
-                    <div class="emp-field-value"><select id="ef-teilzeitUnter8h" class="ef-input emp-yesno-select" onchange="empInlineDirty()">
-                        <option value="true" ${emp.teilzeitUnter8hWoche ? 'selected' : ''}>ja</option>
-                        <option value="false" ${!emp.teilzeitUnter8hWoche ? 'selected' : ''}>nein</option>
-                    </select></div>
+                    <div class="emp-field-value">${yesNoToggle('ef-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div>
                 </div>
             </div>
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
@@ -3541,6 +3535,27 @@ function inlineEditField(label, inputHtml) {
         <div class="emp-field-label">${label}</div>
         <div class="emp-field-value">${inputHtml}</div>
     </div>`;
+}
+
+function yesNoToggle(id, value) {
+    return `<div class="emp-yesno-toggle" data-target="${id}">
+        <input type="hidden" id="${id}" value="${value ? 'true' : 'false'}">
+        <button type="button" class="${value ? 'active' : ''}" onclick="empSetYesNo('${id}', true)">ja</button>
+        <button type="button" class="${!value ? 'active' : ''}" onclick="empSetYesNo('${id}', false)">nein</button>
+    </div>`;
+}
+
+function empSetYesNo(id, value) {
+    const input = document.getElementById(id);
+    if (input) input.value = value ? 'true' : 'false';
+    const wrap = input?.closest('.emp-yesno-toggle');
+    if (wrap) {
+        wrap.querySelectorAll('button').forEach(btn => {
+            const isYes = btn.textContent.trim() === 'ja';
+            btn.classList.toggle('active', isYes === value);
+        });
+    }
+    empInlineDirty();
 }
 
 function empInlineDirty() {
