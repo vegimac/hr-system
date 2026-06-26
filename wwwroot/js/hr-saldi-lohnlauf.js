@@ -317,7 +317,7 @@ function _llAkRenderMaList() {
     const sorted = [...zahlungen].sort((a, b) =>
         (a.firstName||'').localeCompare(b.firstName||'') || (a.lastName||'').localeCompare(b.lastName||''));
 
-    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+    const modelClass = (m) => ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
     el.innerHTML = '';
     sorted.forEach(r => {
         const isSelected = r.id === _llAkSelectedId;
@@ -347,7 +347,7 @@ function _llAkRenderMaList() {
             : `<div style="width:34px;height:34px;border-radius:50%;background:#f1f5f9;color:#475569;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">${initials}</div>`;
 
         const modelBadge = model
-            ? `<span style="background:${modelColor[model]||'#f1f5f9'};color:#475569;padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:600">${model}</span>`
+            ? `<span class="${modelClass(model)}" style="padding:2px 8px;border-radius:8px;font-size:10.5px;font-weight:600">${model}</span>`
             : '';
 
         const hrNote = r.kommentarHr

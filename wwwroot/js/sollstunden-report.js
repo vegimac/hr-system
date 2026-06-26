@@ -136,8 +136,8 @@ function sollRender() {
     };
     const n0 = (v) => (v == null ? '' : Number(v).toLocaleString('de-CH', { maximumFractionDigits: 2 }));
     // Vertrags-Pille wie überall im Programm (per-Modell-Farbe, dunkler Text).
-    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
-    const modelBadge = (m) => `<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:8px;color:#1e293b;background:${modelColor[m] || '#f1f5f9'}">${escapeHtml(m || '')}</span>`;
+    const modelBadgeClass = (m) => ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
+    const modelBadge = (m) => `<span class="${modelBadgeClass(m)}" style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:8px">${escapeHtml(m || '')}</span>`;
     const arrow = (key) => _sollSort && _sollSort.key === key ? (_sollSort.dir > 0 ? ' ▲' : ' ▼') : '';
     const sh = (label, key, cls) =>
         `<th class="sl-num ${cls || ''}" onclick="sollSort('${key}')">${label}${arrow(key)}</th>`;

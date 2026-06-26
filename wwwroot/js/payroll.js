@@ -653,7 +653,7 @@ async function loadLohnList() {
 
         active.forEach(e => {
             const initials   = ((e.firstName||'')[0]||'') + ((e.lastName||'')[0]||'');
-            const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+            const modelClass = (m) => ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
             // Drei-Stufen-Markierung analog Akonto-Tab:
             //   HR-bestätigt (✓✓ blau) — wenn HR oder Periode-Abschluss durch
             //   GF-bestätigt (✓ grün) — wenn GF freigegeben hat
@@ -720,7 +720,7 @@ async function loadLohnList() {
                     <div class="lohn-emp-nr" style="font-size:11px;color:${statusTextColor};word-break:break-word">${statusText}</div>
                 </div>
                 <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100px;flex-shrink:0">
-                    <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:${modelColor[e.employmentModel]||'#f1f5f9'};min-width:40px;text-align:center">${e.employmentModel || ''}</span>
+                    <span class="${modelClass(e.employmentModel)}" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;min-width:40px;text-align:center">${e.employmentModel || ''}</span>
                     <span style="width:38px;display:flex;justify-content:flex-end">${qstBtnHtml}</span>
                 </div>`;
             listEl.appendChild(row);
@@ -814,7 +814,7 @@ function showLohnVertragInfo(emp) {
     }
 
     const modelLabel = { UTP:'Stundenlohn (UTP)', MTP:'Mindestpensum (MTP)', FIX:'Festlohn (FIX)', 'FIX-M':'Management (FIX-M)' };
-    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+    const modelClass = (m) => ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
     const fmt = d => d ? new Date(d).toLocaleDateString('de-CH') : '–';
     const lohn = contract.salaryType === 'monthly' && contract.monthlySalary
         ? `CHF ${Number(contract.monthlySalary).toFixed(2)} / Monat`
@@ -839,7 +839,7 @@ function showLohnVertragInfo(emp) {
     }
 
     const nameHtml = `${emp.firstName} ${emp.lastName}
-        <span style="margin-left:8px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px;background:${modelColor[contract.employmentModel]||'#f1f5f9'}">${modelLabel[contract.employmentModel]||contract.employmentModel}</span>`;
+        <span class="${modelClass(contract.employmentModel)}" style="margin-left:8px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px">${modelLabel[contract.employmentModel]||contract.employmentModel}</span>`;
     const infoHtml = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
             <div>Personal-Nr.: <b style="color:#374151">${emp.employeeNumber||'–'}</b></div>

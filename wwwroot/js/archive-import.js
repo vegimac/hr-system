@@ -161,25 +161,14 @@ function actionBg(action) {
 }
 function renderContractCell(p) {
     if (!p.employmentModel && !p.csvFunktion) return '<span style="color:#cbd5e1">–</span>';
-    const modelColor = {
-        'FIX-M': '#dbeafe',
-        'FIX':   '#e0e7ff',
-        'MTP':   '#fef3c7',
-        'UTP':   '#f1f5f9'
-    }[p.employmentModel] || '#f1f5f9';
-    const modelTextColor = {
-        'FIX-M': '#1d4ed8',
-        'FIX':   '#4338ca',
-        'MTP':   '#a16207',
-        'UTP':   '#475569'
-    }[p.employmentModel] || '#475569';
+    const modelClass = ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[p.employmentModel] || '';
     let detail = '';
     if (p.employmentPercentage != null) detail = `${p.employmentPercentage}%`;
     else if (p.guaranteedHoursPerWeek != null) detail = `${p.guaranteedHoursPerWeek} Std/W`;
     return `
         <div style="font-size:11px;color:#64748b">${p.csvFunktion ?? '–'}${p.csvContractType ? ' · ' + p.csvContractType : ''}</div>
         <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
-            <span style="display:inline-block;background:${modelColor};color:${modelTextColor};padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">${p.employmentModel ?? '–'}</span>
+            <span class="${modelClass}" style="display:inline-block;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">${p.employmentModel ?? '–'}</span>
             ${detail ? `<span style="font-size:11px;color:#475569">${detail}</span>` : ''}
             ${p.jobGroupCode ? `<span style="font-size:10px;color:#94a3b8">[${p.jobGroupCode}${p.isKader ? ' · Kader' : ''}]</span>` : ''}
         </div>

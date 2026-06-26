@@ -460,7 +460,6 @@ function renderEmployeeList(employees) {
         el.innerHTML = '<div class="emp-no-selection" style="height:200px"><span>Keine Mitarbeiter gefunden</span></div>';
         return;
     }
-    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
     el.innerHTML = employees.map(e => {
         const name = ((e.firstName ?? '') + ' ' + (e.lastName ?? '')).trim() || '–';
         const initials = getInitials(e.firstName, e.lastName);
@@ -495,7 +494,7 @@ function renderEmployeeList(employees) {
                 FIX: 'emp-model-fix',
                 'FIX-M': 'emp-model-fix-m'
             }[model] || 'emp-model-other';
-            modelBadge = `<span class="emp-model-badge liquid-contract-pill ${modelClass}" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:${modelColor[model]||'#f1f5f9'};flex-shrink:0;align-self:center">${model}</span>`;
+            modelBadge = `<span class="emp-model-badge liquid-contract-pill ${modelClass}" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;flex-shrink:0;align-self:center">${model}</span>`;
         } else if (!isInactive) {
             // aktiv aber ohne Vertrag (kein einziges Employment in der DB) → roter Hinweis
             modelBadge = `<span style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:#fee2e2;color:#b91c1c;flex-shrink:0;align-self:center">kein Vertrag</span>`;
@@ -1124,7 +1123,7 @@ function renderEmpContractList(emp) {
             : '';
         return `<div class="emp-contract-row">
             <div class="emp-contract-main">
-                <span class="emp-contract-model">${esc(model)}</span>
+                <span class="emp-contract-model ${contractModelClass(model)}">${esc(model)}</span>
                 <span class="emp-contract-title">${esc(title)}</span>
                 ${active}
             </div>
@@ -1139,6 +1138,15 @@ function renderEmpContractList(emp) {
         </div>
         <div class="emp-contract-scroll">${rows}</div>
     </div>`;
+}
+
+function contractModelClass(model) {
+    return ({
+        MTP: 'model-badge-mtp',
+        UTP: 'model-badge-utp',
+        FIX: 'model-badge-fix',
+        'FIX-M': 'model-badge-fix-m'
+    })[model] || '';
 }
 
 function empContractWageText(c) {

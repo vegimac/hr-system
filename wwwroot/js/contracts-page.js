@@ -29,14 +29,14 @@ function renderEmpList(employees) {
         const isFemale = e.gender === 'female';
         const isSelected = selectedEmp?.id === e.id;
         const model = e.employments?.find(v => v.isActive)?.employmentModel || '';
-        const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+        const modelClass = ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[model] || '';
         return `<div class="emp-list-item ${isSelected ? 'active' : ''}" onclick="selectEmployee(${e.id})">
             <div class="emp-avatar ${isFemale ? 'female' : ''}">${initials}</div>
             <div>
                 <div class="emp-list-name">${e.firstName} ${e.lastName}</div>
                 <div class="emp-list-nr">${e.employeeNumber || ''}</div>
             </div>
-            ${model ? `<span style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:${modelColor[model]||'#f1f5f9'};flex-shrink:0">${model}</span>` : ''}
+            ${model ? `<span class="${modelClass}" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;flex-shrink:0">${model}</span>` : ''}
         </div>`;
     }).join('');
 }

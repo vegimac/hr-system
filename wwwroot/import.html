@@ -238,6 +238,10 @@ body.theme-dark td { border-color: #334155 !important; color: #f1f5f9 !important
 .badge-addr { background: #f0fdf4; color: #15803d; }
 .badge-contract { background: #fef3c7; color: #92400e; }
 .badge-skip { background: #fef2f2; color: #dc2626; }
+.model-badge-mtp { background:#d1fae5 !important; color:#065f46 !important; }
+.model-badge-utp { background:#fef3c7 !important; color:#92400e !important; }
+.model-badge-fix { background:#dbeafe !important; color:#1d4ed8 !important; }
+.model-badge-fix-m { background:#ede9fe !important; color:#6d28d9 !important; }
 .row-chevron { color: #94a3b8; font-size: 16px; transition: transform 0.2s; margin-left: 8px; }
 .row-chevron.open { transform: rotate(90deg); }
 
@@ -2861,10 +2865,10 @@ function renderNewRow(e) {
     const { idx, row } = e;
     const modelCode = mapContractType(row);
     const isPhantom = isPhantomRow(row);
-    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+    const modelClass = { MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' };
     // Phantom-MA (Supervisor) ist KEIN Fehler — eigene gelbe Badge.
     const modelPill = modelCode
-        ? `<span class="badge" style="background:${modelColor[modelCode]||'#f1f5f9'};color:#0f172a">${modelCode}</span>`
+        ? `<span class="badge ${modelClass[modelCode]||''}">${modelCode}</span>`
         : isPhantom
             ? `<span class="badge" style="background:#fef3c7;color:#92400e">⛔ MA ohne Lohn</span>`
             : `<span class="badge" style="background:#fee2e2;color:#b91c1c">⚠️ kein Vertrag</span>`;
@@ -2949,9 +2953,9 @@ function markRowDone(idx, statusText, savedEmploymentId) {
     if (badges) {
         // Modell-Pille aus dem aktuell gewählten Vertragsmodell beibehalten
         const modelCode = document.getElementById(`model-${idx}`)?.value || '';
-        const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+        const modelClass = { MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' };
         const modelPill = modelCode
-            ? ` <span class="badge" style="background:${modelColor[modelCode]||'#f1f5f9'};color:#0f172a">${modelCode}</span>`
+            ? ` <span class="badge ${modelClass[modelCode]||''}">${modelCode}</span>`
             : '';
         badges.innerHTML = `<span class="badge" style="background:#dcfce7;color:#15803d">✅ Erfasst</span>${modelPill}`;
     }
@@ -3000,9 +3004,9 @@ function renderContractRow(c) {
         ? (activeContract?.employmentModel || mapContractType(row))
         : mapContractType(row);
     const isPhantom = isPhantomRow(row);
-    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+    const modelClass = { MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' };
     const modelPill = modelCode
-        ? `<span class="badge" style="background:${modelColor[modelCode]||'#f1f5f9'};color:#0f172a">${modelCode}</span>`
+        ? `<span class="badge ${modelClass[modelCode]||''}">${modelCode}</span>`
         : isPhantom
             ? `<span class="badge" style="background:#fef3c7;color:#92400e">⛔ MA ohne Lohn</span>`
             : `<span class="badge" style="background:#fee2e2;color:#b91c1c">⚠️ kein Vertrag</span>`;

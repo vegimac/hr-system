@@ -451,11 +451,11 @@ function renderVtList(employees) {
             ? (e.employments || []).filter(v => Number(v.companyProfileId) === cpid)
             : (e.employments || []);
         const active = matchEmps.find(v => !v.contractEndDate) || matchEmps[0];
-        const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+        const modelClass = ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[model] || '';
         const model = active?.employmentModel || '';
         const isSelected = selectedVtEmployee?.id === e.id;
         const badge = model
-            ? `<span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;background:${modelColor[model]||'#f1f5f9'};flex-shrink:0">${model}</span>`
+            ? `<span class="${modelClass}" style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;flex-shrink:0">${model}</span>`
             : `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:#fee2e2;color:#b91c1c;flex-shrink:0">${_t('vt.badge.noContract')}</span>`;
         return `<div class="emp-list-item ${isSelected ? 'active' : ''}" onclick="selectVtEmployee(${e.id})">
             <div style="display:flex;align-items:center;gap:10px;padding:10px 14px">
@@ -523,7 +523,7 @@ async function renderVtDetail(emp) {
         FIX: _t('vt.model.fix'),
         'FIX-M': _t('vt.model.fixM')
     };
-    const modelColor = { MTP:'#d1fae5', UTP:'#fef3c7', FIX:'#dbeafe', 'FIX-M':'#ede9fe' };
+    const modelClass = (m) => ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
 
     const contracts = (emp.employments || []).sort((a,b) => {
         // Aktiv (kein Enddatum) zuerst
@@ -609,7 +609,7 @@ async function renderVtDetail(emp) {
         <div style="border:1px solid ${isActive ? '#bfdbfe' : '#e2e8f0'};border-radius:10px;padding:16px;margin-bottom:12px;background:${isActive ? '#eff6ff' : '#fafafa'}">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
                 <div style="display:flex;align-items:center;gap:8px">
-                    <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${modelColor[c.employmentModel]||'#f1f5f9'}">${modelLabel[c.employmentModel]||c.employmentModel||'–'}</span>
+                    <span class="${modelClass(c.employmentModel)}" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px">${modelLabel[c.employmentModel]||c.employmentModel||'–'}</span>
                     ${isActive ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#dcfce7;color:#15803d">${_t('vt.badge.active')}</span>` : `<span style="font-size:11px;color:#94a3b8;padding:3px 10px;border-radius:10px;background:#f1f5f9">${_t('vt.badge.completed')}</span>`}
                     ${c.easyAtWorkManualOverride ? `<span title="easy@work-Import blockiert: Dieser Vertrag/Lohn wird lokal gepflegt und nicht vom easy@work-Sync überschrieben." style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">easy@work Block</span>` : ''}
                 </div>
