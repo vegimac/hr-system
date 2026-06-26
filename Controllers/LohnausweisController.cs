@@ -276,7 +276,7 @@ public class LohnausweisController : ControllerBase
 
             MaLastname               = emp.LastName,
             MaFirstname              = emp.FirstName,
-            MaStreet                 = $"{emp.Street ?? ""} {emp.HouseNumber ?? ""}".Trim(),
+            MaStreet                 = emp.Street ?? "",
             MaZip                    = emp.ZipCode,
             MaCity                   = emp.City,
             MaCountry                = ToSwissdecCountry(emp.Country),
@@ -534,7 +534,7 @@ public class LohnausweisController : ControllerBase
     private static string BuildEmployeeAddress(Employee emp)
     {
         var name   = $"{emp.FirstName} {emp.LastName}".Trim();
-        var street = $"{emp.Street ?? ""} {emp.HouseNumber ?? ""}".Trim();
+        var street = emp.Street ?? "";
         var place  = $"{emp.ZipCode ?? ""} {emp.City ?? ""}".Trim();
         var parts  = new[] { name, street, place }.Where(p => !string.IsNullOrWhiteSpace(p));
         return string.Join("\n", parts);
