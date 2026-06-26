@@ -798,7 +798,7 @@ function renderEmployeeDetail(emp) {
                  14.05.2026 — direkt oben statt im Bank-Tab) + Bearbeiten.
                  startEmpEdit() ersetzt den Inhalt dieses Containers durch
                  Speichern/Abbrechen. Postfach-Button nur für nicht-Phantom-MA. -->
-            <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:4px;flex-shrink:0">
+            <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:52px;flex-shrink:0">
                 ${['admin','superuser','buchhaltung'].includes(currentUser?.role) ? `
                 <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap"
                         title="Aktualisiert easy@work-Felder dieses Mitarbeiters aus der API"
