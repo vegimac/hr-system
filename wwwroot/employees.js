@@ -841,9 +841,9 @@ function renderEmployeeDetail(emp) {
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
             <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-main-line">
                 ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
-                ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation)}
-                ${field(_t('ma.field.maidenName','Ledigname'),    emp.maidenName)}
-                ${field(_t('ma.field.shortName','Kurzname'),      emp.shortName)}
+                ${inlineEditField(_t('ma.field.letterSalutation','Briefanrede'), `<input id="ef-letterSalutation" class="ef-input" value="${esc(emp.letterSalutation)}" oninput="empInlineDirty()">`)}
+                ${inlineEditField(_t('ma.field.maidenName','Ledigname'), `<input id="ef-maidenName" class="ef-input" value="${esc(emp.maidenName)}" oninput="empInlineDirty()">`)}
+                ${inlineEditField(_t('ma.field.shortName','Kurzname'), `<input id="ef-shortName" class="ef-input" value="${esc(emp.shortName)}" oninput="empInlineDirty()">`)}
                 ${field(_t('ma.field.gender','Geschlecht'),       formatGender(emp.gender), null, true)}
             </div>
             <div class="emp-field-grid easywork-info-grid emp-flow-line emp-address-line">
@@ -855,8 +855,15 @@ function renderEmployeeDetail(emp) {
             </div>
             <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-extra-line">
                 ${field(_t('ma.field.maritalStatus','Zivilstand'),formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus), 'marriage_cert', true)}
-                ${field(_t('ma.field.maritalSince','Zivilstand seit'), emp.maritalStatusSince ? formatDate(emp.maritalStatusSince) : null)}
-                ${field(_t('ma.field.religion','Konfession'),     emp.religion)}
+                ${inlineEditField(_t('ma.field.maritalSince','Zivilstand seit'), `<input id="ef-maritalStatusSince" class="ef-input" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="empInlineDirty()">`)}
+                ${inlineEditField(_t('ma.field.religion','Konfession'), `<select id="ef-religion" class="ef-input" onchange="empInlineDirty()">
+                    <option value="">–</option>
+                    <option value="evangelisch_reformiert" ${emp.religion==='evangelisch_reformiert'?'selected':''}>${_t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert')}</option>
+                    <option value="roemisch_katholisch"    ${emp.religion==='roemisch_katholisch'   ?'selected':''}>${_t('ma.value.religion.roemisch_katholisch','Röm.-katholisch')}</option>
+                    <option value="christ_katholisch"      ${emp.religion==='christ_katholisch'     ?'selected':''}>${_t('ma.value.religion.christ_katholisch','Christ-katholisch')}</option>
+                    <option value="andere"                 ${emp.religion==='andere'                ?'selected':''}>${_t('ma.value.religion.andere','Andere')}</option>
+                    <option value="keine"                  ${emp.religion==='keine'                 ?'selected':''}>${_t('ma.value.religion.keine','Keine')}</option>
+                </select>`)}
                 ${field(_t('ma.field.nationality','Nationalität'),
                     emp.nationalityName
                         ? (emp.nationalityCode && emp.nationalityCode !== emp.nationalityName
@@ -867,9 +874,10 @@ function renderEmployeeDetail(emp) {
             </div>
             <div class="emp-field-grid easywork-info-grid emp-flow-line emp-contact-line">
                 ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile, null, true)}
-                ${field('Telefon 2',                              emp.phone2)}
+                ${inlineEditField('Telefon 2', `<input id="ef-phone2" class="ef-input" type="tel" value="${esc(emp.phone2)}" oninput="validatePhone(this);empInlineDirty()" onblur="validatePhoneBlur(this)">`)}
                 ${field(_t('ma.field.email','E-Mail'),            emp.email, null, true)}
             </div>
+            <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
 
             <div class="emp-section-title" style="margin-top:2px">Anstellung</div>
             <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
@@ -878,15 +886,17 @@ function renderEmployeeDetail(emp) {
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null, null, true)}
                 <div class="emp-field">
                     <div class="emp-field-label">L-GAV</div>
-                    <div class="emp-field-value">${emp.lgavPflichtig
-                        ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ ja</span>`
-                        : `<span style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">nein</span>`}</div>
+                    <div class="emp-field-value"><select id="ef-lgavPflichtig" class="ef-input" onchange="empInlineDirty()">
+                        <option value="true" ${emp.lgavPflichtig ? 'selected' : ''}>ja</option>
+                        <option value="false" ${!emp.lgavPflichtig ? 'selected' : ''}>nein</option>
+                    </select></div>
                 </div>
                 <div class="emp-field">
                     <div class="emp-field-label">&lt; 8 h / Wo.</div>
-                    <div class="emp-field-value">${emp.teilzeitUnter8hWoche
-                        ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ keine NBU</span>`
-                        : `<span style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">nein</span>`}</div>
+                    <div class="emp-field-value"><select id="ef-teilzeitUnter8h" class="ef-input" onchange="empInlineDirty()">
+                        <option value="true" ${emp.teilzeitUnter8hWoche ? 'selected' : ''}>ja</option>
+                        <option value="false" ${!emp.teilzeitUnter8hWoche ? 'selected' : ''}>nein</option>
+                    </select></div>
                 </div>
             </div>
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
@@ -3535,6 +3545,18 @@ function field(label, value, linkedCode, easyworkInfo = false) {
     </div>`;
 }
 
+function inlineEditField(label, inputHtml) {
+    return `<div class="emp-field liquid-field inline-edit-field">
+        <div class="emp-field-label">${label}</div>
+        <div class="emp-field-value">${inputHtml}</div>
+    </div>`;
+}
+
+function empInlineDirty() {
+    const btn = document.getElementById('empInlineSaveBtn');
+    if (btn) btn.style.display = 'inline-flex';
+}
+
 // Klick auf 📎: springt in den Dokumente-Tab des MA und filtert auf den
 // passenden Dokument-Typ. So sieht der User ALLE Dokumente dieses Typs
 // (auch wenn mehrere vorhanden oder unsauber abgelegt) und kann das
@@ -4214,6 +4236,16 @@ async function saveEmpEdit() {
 
     const exitVal = easyWorkLocked ? toDateInput(emp.exitDate) : document.getElementById('ef-exit')?.value;
     const isActiveInput = document.getElementById('ef-isactive');
+    const boolVal = (id, fallback) => {
+        const el = document.getElementById(id);
+        if (!el) return !!fallback;
+        if (el.type === 'checkbox') return el.checked === true;
+        return el.value === 'true';
+    };
+    const permitTypeEl = document.getElementById('ef-permitType');
+    const permitExpiryEl = document.getElementById('ef-permitExpiry');
+    const zemisEl = document.getElementById('ef-zemisNumber');
+    const placeOfOriginEl = document.getElementById('ef-placeOfOrigin');
     const empPayload = {
         firstName:    easyWorkLocked ? (emp.firstName || null) : (document.getElementById('ef-firstName')?.value || null),
         lastName:     easyWorkLocked ? (emp.lastName || null) : (document.getElementById('ef-lastName')?.value || null),
@@ -4229,10 +4261,10 @@ async function saveEmpEdit() {
         city:         easyWorkLocked ? (emp.city || null) : (document.getElementById('ef-city')?.value || null),
         country:      easyWorkLocked ? (emp.country || null) : (document.getElementById('ef-country')?.value || null),
         cantonCode:   easyWorkLocked ? (emp.cantonCode || null) : (document.getElementById('ef-canton')?.value || null),
-        permitTypeId: parseInt(document.getElementById('ef-permitType')?.value) || 0,
-        permitExpiryDate: document.getElementById('ef-permitExpiry')?.value || null,
+        permitTypeId: permitTypeEl ? (parseInt(permitTypeEl.value) || 0) : (emp.permitTypeId || 0),
+        permitExpiryDate: permitExpiryEl ? (permitExpiryEl.value || null) : (toDateInput(emp.permitExpiryDate) || null),
         nationalityId: easyWorkLocked ? (emp.nationalityId || null) : (parseInt(document.getElementById('ef-nationalityId')?.value) || null),
-        zemisNumber:  document.getElementById('ef-zemisNumber')?.value?.trim() || null,
+        zemisNumber:  zemisEl ? (zemisEl.value?.trim() || null) : (emp.zemisNumber || null),
         entryDate:    easyWorkLocked ? (toDateInput(emp.entryDate) || null) : (document.getElementById('ef-entry')?.value || null),
         exitDateSet:  true,
         exitDate:     exitVal || null,
@@ -4240,10 +4272,11 @@ async function saveEmpEdit() {
         // KEIN Auto-Sync mehr aus ExitDate (Backend nimmt diesen Wert 1:1).
         isActive:     isActiveInput ? isActiveInput.checked === true : !!emp.isActive,
         // Walter-Vorgabe 07.06.2026: Anstellungs-Booleans aus der zweiten Zeile.
-        lgavPflichtig:        document.getElementById('ef-lgavPflichtig')?.checked === true,
-        teilzeitUnter8hWoche: document.getElementById('ef-teilzeitUnter8h')?.checked === true,
+        lgavPflichtig:        boolVal('ef-lgavPflichtig', emp.lgavPflichtig),
+        teilzeitUnter8hWoche: boolVal('ef-teilzeitUnter8h', emp.teilzeitUnter8hWoche),
         socialSecurityNumber: easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
         ahvNummer:    easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
+        maidenName:   document.getElementById('ef-maidenName')?.value   || null,
         shortName:    document.getElementById('ef-shortName')?.value    || null,
         zivilstand:   easyWorkLocked ? ((emp.zivilstand ?? emp.maritalStatus) || null) : (document.getElementById('ef-zivilstand')?.value || null),
         maritalStatus:easyWorkLocked ? ((emp.zivilstand ?? emp.maritalStatus) || null) : (document.getElementById('ef-zivilstand')?.value || null),
@@ -4262,7 +4295,7 @@ async function saveEmpEdit() {
         separatedSince:        null,
         religion:              document.getElementById('ef-religion')?.value || null,
         letterSalutation:      document.getElementById('ef-letterSalutation')?.value?.trim() || null,
-        placeOfOrigin:         document.getElementById('ef-placeOfOrigin')?.value?.trim() || null,
+        placeOfOrigin:         placeOfOriginEl ? (placeOfOriginEl.value?.trim() || null) : (emp.placeOfOrigin || null),
     };
 
     // "Kein Lohn"-Flag — nur senden wenn der Toggle im Formular existiert

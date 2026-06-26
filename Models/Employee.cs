@@ -18,6 +18,8 @@ public class Employee
 
     public string FirstName { get; set; } = "";
     public string LastName { get; set; } = "";
+    public string? MaidenName { get; set; }
+    public string? ShortName { get; set; }
 
     public string? Street { get; set; }
     public string? ZipCode { get; set; }

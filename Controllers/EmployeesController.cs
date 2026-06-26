@@ -223,6 +223,8 @@ public class EmployeesController : ControllerBase
             employee.Salutation,
             employee.FirstName,
             employee.LastName,
+            employee.MaidenName,
+            employee.ShortName,
             employee.Gender,
             employee.DateOfBirth,
             employee.LanguageCode,
@@ -365,6 +367,8 @@ public class EmployeesController : ControllerBase
         // ── Personalien ───────────────────────────────────────────────────
         if (dto.FirstName    is not null) employee.FirstName    = dto.FirstName;
         if (dto.LastName     is not null) employee.LastName     = dto.LastName;
+        if (dto.MaidenName   is not null) employee.MaidenName   = dto.MaidenName   == "" ? null : dto.MaidenName;
+        if (dto.ShortName    is not null) employee.ShortName    = dto.ShortName    == "" ? null : dto.ShortName;
         if (dto.Salutation   is not null) employee.Salutation   = dto.Salutation   == "" ? null : dto.Salutation;
         if (dto.Gender       is not null) employee.Gender       = dto.Gender       == "" ? null : dto.Gender;
         if (dto.DateOfBirth  is not null) employee.DateOfBirth  = dto.DateOfBirth;
@@ -1128,6 +1132,8 @@ public class EmployeeUpdateDto
     // Personalien
     public string?   FirstName    { get; set; }
     public string?   LastName     { get; set; }
+    public string?   MaidenName   { get; set; }
+    public string?   ShortName    { get; set; }
     public string?   Salutation   { get; set; }
     public string?   Gender       { get; set; }
     public DateTime? DateOfBirth  { get; set; }

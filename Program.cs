@@ -1032,7 +1032,9 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS marital_status_since           DATE,
             ADD COLUMN IF NOT EXISTS separated_since                DATE,
             ADD COLUMN IF NOT EXISTS religion                        TEXT,
-            ADD COLUMN IF NOT EXISTS phone2                          VARCHAR(50);
+            ADD COLUMN IF NOT EXISTS phone2                          VARCHAR(50),
+            ADD COLUMN IF NOT EXISTS maiden_name                     VARCHAR(100),
+            ADD COLUMN IF NOT EXISTS short_name                      VARCHAR(100);
     ");
 
     // Mitarbeiter-Hauptadresse: easy@work liefert Strasse + Hausnummer in einem
