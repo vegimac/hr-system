@@ -688,9 +688,10 @@ function renderNumberAliases(empId, rows) {
                     style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:13px;line-height:1;padding:0 2px">×</button>
         </span>`;
     }).join(' ');
-    box.innerHTML = `<span style="font-size:11.5px;color:#94a3b8">Alte Nummern:</span> ${items || '<span style="color:#cbd5e1;font-size:11.5px">—</span>'}
-        <button onclick="addNumberAlias(${empId})" title="Alte Personalnummer hinzufügen"
-                style="border:1px dashed #cbd5e1;background:#fff;color:#64748b;border-radius:10px;padding:1px 8px;font-size:11.5px;cursor:pointer;margin-left:4px">+ Alte Nr.</button>`;
+    box.innerHTML = items
+        ? `${items}<button onclick="addNumberAlias(${empId})" title="Alte Personalnummer hinzufügen"
+                style="border:1px dashed #cbd5e1;background:#fff;color:#64748b;border-radius:999px;width:20px;height:20px;font-size:13px;line-height:1;cursor:pointer;margin-left:2px">+</button>`
+        : '';
 }
 
 async function addNumberAlias(empId) {
@@ -727,7 +728,6 @@ function renderEmployeeDetail(emp) {
     const name = ((emp.firstName ?? '') + ' ' + (emp.lastName ?? '')).trim() || '–';
     const entry = emp.entryDate ? formatDate(emp.entryDate) : '–';
     const exit  = emp.exitDate  ? formatDate(emp.exitDate)  : _t('ma.detail.statusActive', 'Aktiv');
-    const nr    = emp.employeeNumber ?? '–';
     // Walter-Vorgabe 14.06.2026: Header-Status MUSS sich an emp.isActive
     // orientieren — vorher zeigte er nur „● Aktiv" wenn kein ExitDate gesetzt
     // war. Wenn ein MA via Re-Import ohne ExitDate deaktiviert wird (z.B.
@@ -736,7 +736,7 @@ function renderEmployeeDetail(emp) {
     // Reihenfolge: Austrittsdatum (mit Austritt:-Label) > „● Inaktiv" (grau)
     // > „● Aktiv" (grün).
     const headerStatusHtml = emp.exitDate
-        ? `${_t('ma.detail.exitDate','Austritt')}: ${exit}`
+        ? `<span style="color:#64748b">● ${_t('ma.detail.exitDate','Austritt')} ${exit}</span>`
         : (emp.isActive
             ? '<span style="color:#22c55e">● ' + _t('ma.detail.statusActive','Aktiv') + '</span>'
             : '<span style="color:#94a3b8">● ' + _t('ma.detail.statusInactive','Inaktiv') + '</span>');
@@ -764,8 +764,12 @@ function renderEmployeeDetail(emp) {
                             🤰 Mutterschaft
                         </button>` : ''}
                     </div>
-                    <div class="emp-detail-meta">${_t('ma.detail.persNr','Personal-Nr.')} ${nr} &nbsp;·&nbsp; ${_t('ma.detail.entryDate','Eintritt')}: ${entry} &nbsp;·&nbsp; ${headerStatusHtml}</div>
-                    <div id="empNumberAliases" data-emp="${emp.id}" style="margin-top:3px"></div>
+                    <div class="emp-detail-meta" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span>${headerStatusHtml}</span>
+                        <span style="color:#cbd5e1">·</span>
+                        <span>${entry}</span>
+                        <span id="empNumberAliases" data-emp="${emp.id}" style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap"></span>
+                    </div>
                 </div>
             </div>
             <!-- Tab-spezifischer „+ Neu"-Button (Walter-Vorgabe 01.06.2026):
@@ -813,8 +817,6 @@ function renderEmployeeDetail(emp) {
         <div class="emp-tab-content active" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
             <div class="emp-field-grid-3">
-                ${field(_t('ma.field.firstName','Vorname'),       emp.firstName)}
-                ${field(_t('ma.field.lastName','Nachname'),       emp.lastName)}
                 ${field(_t('ma.field.maidenName','Ledigname'),    emp.maidenName)}
                 ${field(_t('ma.field.shortName','Kurzname'),      emp.shortName)}
                 ${field(_t('ma.field.dob','Geburtsdatum'),        emp.dateOfBirth ? `${formatDate(emp.dateOfBirth)} <span style="color:#94a3b8;font-weight:400">(${calcAge(emp.dateOfBirth)} J.)</span>` : null, 'birth_cert')}
@@ -852,21 +854,11 @@ function renderEmployeeDetail(emp) {
             </div>
 
             <div class="emp-section-title" style="margin-top:2px">Anstellung</div>
-            <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
-                 die zwei Booleans (LGAV + <8h) rechts schmaler. -->
-            <div class="emp-field-grid" style="display:grid;grid-template-columns:0.9fr 0.9fr 0.8fr 0.7fr 0.75fr;gap:12px">
+            <!-- Walter 26.06.2026: Eintritt + Status stehen prominent im Header;
+                 hier bleiben nur die nicht redundanten Anstellungs-Felder. -->
+            <div class="emp-field-grid" style="display:grid;grid-template-columns:1fr 0.8fr 0.8fr;gap:12px">
                 ${field('Eintrittsdatum', emp.entryDate ? formatDate(emp.entryDate) : null)}
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null)}
-                ${(() => {
-                    // Walter-Vorgabe 18.05.2026: Aktiv-Status hier im Read-Only-View
-                    // explizit zeigen — Walter setzt ihn bewusst manuell, kein Auto-Sync
-                    // aus ExitDate mehr.
-                    const aktiv = !!emp.isActive;
-                    const html = aktiv
-                        ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ aktiv</span>`
-                        : `<span style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">⊘ inaktiv</span>`;
-                    return `<div class="emp-field"><div class="emp-field-label">Status</div><div class="emp-field-value">${html}</div></div>`;
-                })()}
                 <div class="emp-field">
                     <div class="emp-field-label">L-GAV</div>
                     <div class="emp-field-value">${emp.lgavPflichtig
@@ -3725,8 +3717,6 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     return `
     <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
     <div class="emp-field-grid-3">
-        ${eField(_t('ma.field.firstName','Vorname'),    `<input id="ef-firstName"  class="ef-input" value="${esc(emp.firstName)}">`)}
-        ${eField(_t('ma.field.lastName','Nachname'),    `<input id="ef-lastName"   class="ef-input" value="${esc(emp.lastName)}">`)}
         ${eField(_t('ma.field.maidenName','Ledigname'), `<input id="ef-maidenName" class="ef-input" value="${esc(emp.maidenName)}">`)}
         ${eField(_t('ma.field.shortName','Kurzname'),   `<input id="ef-shortName"  class="ef-input" value="${esc(emp.shortName)}">`)}
         ${eField(`${_t('ma.field.dob','Geburtsdatum')} <span id="ef-dob-age" style="font-weight:400;color:#94a3b8;margin-left:6px">${emp.dateOfBirth ? '(' + calcAge(emp.dateOfBirth) + ' J.)' : ''}</span>`, `<input id="ef-dob" class="ef-input" type="date" value="${toDateInput(emp.dateOfBirth)}" oninput="updateEfDobAgeDisplay()">`)}
@@ -3794,27 +3784,14 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <div id="ef-plz-hint" style="font-size:12px;margin-top:-6px;margin-bottom:6px"></div>
 
     <div class="emp-section-title" style="margin-top:2px">${_t('ma.section.anstellung','Anstellung')}</div>
-    <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile.
-         Eintritt/Austritt/Aktiv links, die zwei Booleans (L-GAV / <8 h)
-         rechts schmaler. -->
-    <div class="emp-field-grid" style="display:grid;grid-template-columns:1.1fr 1.1fr 1.1fr 0.75fr 0.85fr;gap:12px">
+    <!-- Walter 26.06.2026: Aktiv steht nur noch oben im Header; die
+         Eingabemaske zeigt hier nur die verbleibenden Anstellungs-Felder. -->
+    <div class="emp-field-grid" style="display:grid;grid-template-columns:1fr 1fr 0.8fr 0.9fr;gap:12px">
         ${eField(_t('ma.field.entryDate','Eintrittsdatum'),
             `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}">`,
             _t('ma.field.entryDateHint','Datum der Betriebszugehörigkeit'))}
         ${eField(_t('ma.field.exitDate','Austrittsdatum'),
             `<input id="ef-exit"  class="ef-input" type="date" value="${toDateInput(emp.exitDate)}">`)}
-        <!-- Walter-Vorgabe 18.05.2026: Aktiv-Flag ist NICHT mehr automatisch
-             aus dem ExitDate abgeleitet. Walter entscheidet bewusst — ein MA
-             mit Austritt mitten im Monat bleibt aktiv bis nach dem letzten
-             Lohnlauf, dann wird der Haken hier manuell entfernt. -->
-        ${eField(_t('ma.field.isActive','Aktiv'),
-            `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
-                 <input id="ef-isactive" type="checkbox" ${emp.isActive ? 'checked' : ''}
-                        onchange="onIsActiveChange(this, ${emp.id})"
-                        style="width:16px;height:16px;cursor:pointer;margin:0">
-                 <span id="ef-isactive-label" style="font-size:12px;color:#475569">${emp.isActive ? _t('ma.field.isActiveYes','aktiv') : _t('ma.field.isActiveNo','inaktiv')}</span>
-             </label>`,
-            _t('ma.field.isActiveHint','Postfach + Listen'))}
         ${eField('L-GAV',
             `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
                  <input id="ef-lgavPflichtig" type="checkbox" ${emp.lgavPflichtig ? 'checked' : ''}
@@ -4136,8 +4113,8 @@ async function saveEmpEdit() {
 
     const exitVal = document.getElementById('ef-exit')?.value;
     const empPayload = {
-        firstName:    document.getElementById('ef-firstName')?.value    || null,
-        lastName:     document.getElementById('ef-lastName')?.value     || null,
+        firstName:    emp.firstName    || null,
+        lastName:     emp.lastName     || null,
         salutation:   document.getElementById('ef-salutation')?.value   || null,
         gender:       document.getElementById('ef-gender')?.value       || null,
         dateOfBirth:  document.getElementById('ef-dob')?.value          || null,
@@ -4157,9 +4134,9 @@ async function saveEmpEdit() {
         entryDate:    document.getElementById('ef-entry')?.value        || null,
         exitDateSet:  true,
         exitDate:     exitVal || null,
-        // Walter-Vorgabe 18.05.2026: Aktiv-Flag bewusst gesetzt vom UI,
-        // KEIN Auto-Sync mehr aus ExitDate (Backend nimmt diesen Wert 1:1).
-        isActive:     document.getElementById('ef-isactive')?.checked === true,
+        // Walter 26.06.2026: Aktiv steht nur noch als Header-Status in dieser
+        // Maske. Beim Speichern aus dem Personal-Tab bleibt der Wert erhalten.
+        isActive:     !!emp.isActive,
         // Walter-Vorgabe 07.06.2026: Anstellungs-Booleans aus der zweiten Zeile.
         lgavPflichtig:        document.getElementById('ef-lgavPflichtig')?.checked === true,
         teilzeitUnter8hWoche: document.getElementById('ef-teilzeitUnter8h')?.checked === true,
