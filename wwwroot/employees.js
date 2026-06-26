@@ -839,21 +839,14 @@ function renderEmployeeDetail(emp) {
         <!-- TAB: Persönliche Angaben -->
         <div class="emp-tab-content active" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-            <div class="emp-field-grid easywork-info-grid emp-compact-line" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">
+            <div class="emp-field-grid easywork-info-grid emp-compact-line" style="display:grid;grid-template-columns:0.75fr 1.45fr 1fr 1fr 0.85fr;gap:6px">
                 ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
                 ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation)}
                 ${field(_t('ma.field.maidenName','Ledigname'),    emp.maidenName)}
                 ${field(_t('ma.field.shortName','Kurzname'),      emp.shortName)}
                 ${field(_t('ma.field.gender','Geschlecht'),       formatGender(emp.gender), null, true)}
-                ${field(_t('ma.field.nationality','Nationalität'),
-                    emp.nationalityName
-                        ? (emp.nationalityCode && emp.nationalityCode !== emp.nationalityName
-                            ? `${emp.nationalityName} <span style="color:#94a3b8;font-weight:400;font-size:11.5px">(${emp.nationalityCode})</span>`
-                            : emp.nationalityName)
-                        : (emp.nationalityCode ?? emp.nationality ?? null),
-                    'passport', true)}
             </div>
-            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+            <div class="emp-field-grid easywork-info-grid emp-address-line" style="display:grid;grid-template-columns:1.35fr .55fr .55fr 1.15fr .95fr .55fr;gap:6px">
                 ${field(_t('ma.field.street','Strasse'),          emp.street, null, true)}
                 ${field(_t('ma.field.houseNumber','Hausnummer'),  emp.houseNumber, null, true)}
                 ${field(_t('ma.field.zipCode','PLZ'),             emp.zipCode, null, true)}
@@ -861,10 +854,17 @@ function renderEmployeeDetail(emp) {
                 ${field(_t('ma.field.canton','Kanton'),           emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null, null, true)}
                 ${field(_t('ma.field.country','Land'),            emp.country, null, true)}
             </div>
-            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
                 ${field(_t('ma.field.maritalStatus','Zivilstand'),formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus), 'marriage_cert', true)}
                 ${field(_t('ma.field.maritalSince','Zivilstand seit'), emp.maritalStatusSince ? formatDate(emp.maritalStatusSince) : null)}
                 ${field(_t('ma.field.religion','Konfession'),     emp.religion)}
+                ${field(_t('ma.field.nationality','Nationalität'),
+                    emp.nationalityName
+                        ? (emp.nationalityCode && emp.nationalityCode !== emp.nationalityName
+                            ? `${emp.nationalityName} <span style="color:#94a3b8;font-weight:400;font-size:11.5px">(${emp.nationalityCode})</span>`
+                            : emp.nationalityName)
+                        : (emp.nationalityCode ?? emp.nationality ?? null),
+                    'passport', true)}
             </div>
             <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
                 ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile, null, true)}
@@ -3835,7 +3835,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     const ewSelect = `disabled data-easywork-locked="1" title="${ewTitle}"`;
     return `
     <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+    <div class="emp-field-grid easywork-info-grid emp-compact-line" style="display:grid;grid-template-columns:0.75fr 1.45fr 1fr 1fr 0.85fr;gap:6px">
         ${eField(_t('ma.field.salutation','Anrede'), `<select id="ef-salutation" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="Herr"   ${emp.salutation==='Herr'  ?'selected':''}>${_t('ma.value.salutation.herr','Herr')}</option>
@@ -3850,14 +3850,10 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="male"   ${emp.gender==='male'  ?'selected':''}>${_t('ma.value.gender.male','Männlich')}</option>
             <option value="divers" ${emp.gender==='divers'?'selected':''}>${_t('ma.value.gender.divers','Divers')}</option>
         </select>`)}
-        ${eField(_t('ma.field.nationality','Nationalität'), `<select id="ef-nationalityId" class="ef-input" ${ewSelect}>
-            <option value="">–</option>
-            ${nationalityOptions}
-        </select>`)}
     </div>
 
     <!-- Walter 26.05.2026: Adresse + Kontakt in die Personalien-Card. -->
-    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+    <div class="emp-field-grid easywork-info-grid emp-address-line" style="display:grid;grid-template-columns:1.35fr .55fr .55fr 1.15fr .95fr .55fr;gap:6px">
         ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
         ${eField(_t('ma.field.houseNumber','Hausnummer'), `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}" ${ewInput}>`)}
         ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" ${ewInput}>`)}
@@ -3865,7 +3861,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
         ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
         ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" ${ewInput}>`)}
     </div>
-    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
         ${eField(_t('ma.field.maritalStatus','Zivilstand'), `<select id="ef-zivilstand" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="unbekannt"                  ${(emp.zivilstand ?? emp.maritalStatus)==='unbekannt'                  ?'selected':''}>${_t('ma.value.maritalStatus.unbekannt','Unbekannt')}</option>
@@ -3884,6 +3880,10 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="christ_katholisch"      ${emp.religion==='christ_katholisch'     ?'selected':''}>${_t('ma.value.religion.christ_katholisch','Christ-katholisch')}</option>
             <option value="andere"                 ${emp.religion==='andere'                ?'selected':''}>${_t('ma.value.religion.andere','Andere')}</option>
             <option value="keine"                  ${emp.religion==='keine'                 ?'selected':''}>${_t('ma.value.religion.keine','Keine')}</option>
+        </select>`)}
+        ${eField(_t('ma.field.nationality','Nationalität'), `<select id="ef-nationalityId" class="ef-input" ${ewSelect}>
+            <option value="">–</option>
+            ${nationalityOptions}
         </select>`)}
     </div>
     <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
