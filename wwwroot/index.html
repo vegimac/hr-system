@@ -1669,6 +1669,40 @@
             height: 24px;
             stroke-width: 1.9;
         }
+        #page-mitarbeiter.liquid-employee .liquid-employee-branch {
+            padding: 6px 4px 8px;
+            display: grid;
+            gap: 4px;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-branch[hidden] {
+            display: none !important;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-branch label {
+            color: var(--emp-text-soft);
+            font-size: 10px;
+            font-weight: 760;
+            padding-left: 4px;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-branch select {
+            width: 100%;
+            min-height: 34px;
+            border: 1px solid rgba(255,255,255,.42);
+            border-radius: 14px;
+            padding: 5px 24px 5px 8px;
+            background: rgba(255,255,255,.30);
+            color: var(--emp-text-strong);
+            font: inherit;
+            font-size: 11px;
+            font-weight: 720;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.46), 0 8px 20px rgba(72,63,53,.08);
+            backdrop-filter: blur(18px) saturate(145%);
+            -webkit-backdrop-filter: blur(18px) saturate(145%);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-branch select {
+            background: rgba(24,36,49,.54);
+            border-color: rgba(122,145,165,.20);
+            color: var(--emp-text);
+        }
         #page-mitarbeiter.liquid-employee .emp-list-panel,
         #page-mitarbeiter.liquid-employee .liquid-employee-list,
         #page-mitarbeiter.liquid-employee .emp-detail-panel {
@@ -4533,6 +4567,10 @@
                 <div class="page-body" style="padding-top:50px">
                     <div class="emp-layout liquid-employee-layout-grid">
                         <nav class="liquid-employee-nav" aria-label="Schnellnavigation">
+                            <div class="liquid-employee-branch" id="liquidEmployeeBranchWrap" hidden>
+                                <label for="liquidEmployeeBranchSelect">Filiale</label>
+                                <select id="liquidEmployeeBranchSelect" onchange="onLiquidEmployeeBranchChange()" aria-label="Filiale wählen"></select>
+                            </div>
                             <button class="liquid-employee-nav-btn" onclick="showPage('dashboard')" type="button" title="Dashboard" aria-label="Dashboard">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
                                 <span>Dashboard</span>
@@ -10379,6 +10417,7 @@ function syncLiquidDashboardChrome() {
     if (urole) urole.textContent = currentUser ? (currentUser.isSuperAdmin ? 'Super-Admin' : roleName(currentUser.role)) : '–';
     if (uava)  uava.textContent = (currentUser?.username || 'U')[0].toUpperCase();
     syncLiquidDashboardCards();
+    syncLiquidEmployeeBranchSelect();
 }
 
 function onLiquidBranchChange() {
@@ -10386,6 +10425,29 @@ function onLiquidBranchChange() {
     const srcSel = document.getElementById('branchSelect');
     if (!lqSel || !srcSel) return;
     srcSel.value = lqSel.value;
+    onBranchChange();
+}
+
+function syncLiquidEmployeeBranchSelect() {
+    const wrap = document.getElementById('liquidEmployeeBranchWrap');
+    const sel = document.getElementById('liquidEmployeeBranchSelect');
+    const srcSel = document.getElementById('branchSelect');
+    if (!wrap || !sel || !srcSel) return;
+
+    const options = Array.from(srcSel.options)
+        .filter(o => o.value !== '');
+    wrap.hidden = options.length <= 1;
+    if (wrap.hidden) return;
+
+    sel.innerHTML = options.map(o => `<option value="${liquidEscapeHtml(o.value)}">${liquidEscapeHtml(o.textContent || '')}</option>`).join('');
+    sel.value = srcSel.value || options[0]?.value || '';
+}
+
+function onLiquidEmployeeBranchChange() {
+    const sel = document.getElementById('liquidEmployeeBranchSelect');
+    const srcSel = document.getElementById('branchSelect');
+    if (!sel || !srcSel) return;
+    srcSel.value = sel.value;
     onBranchChange();
 }
 
