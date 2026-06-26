@@ -839,14 +839,14 @@ function renderEmployeeDetail(emp) {
         <!-- TAB: Persönliche Angaben -->
         <div class="emp-tab-content active" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-            <div class="emp-field-grid easywork-info-grid emp-compact-line" style="display:grid;grid-template-columns:0.75fr 1.45fr 1fr 1fr 0.85fr;gap:6px">
+            <div class="emp-field-grid easywork-info-grid emp-compact-line" style="display:grid;grid-template-columns:96px 190px 150px 150px 110px;gap:4px 8px;justify-content:start">
                 ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
                 ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation)}
                 ${field(_t('ma.field.maidenName','Ledigname'),    emp.maidenName)}
                 ${field(_t('ma.field.shortName','Kurzname'),      emp.shortName)}
                 ${field(_t('ma.field.gender','Geschlecht'),       formatGender(emp.gender), null, true)}
             </div>
-            <div class="emp-field-grid easywork-info-grid emp-address-line" style="display:grid;grid-template-columns:1.35fr .55fr .55fr 1.15fr .95fr .55fr;gap:6px">
+            <div class="emp-field-grid easywork-info-grid emp-address-line" style="display:grid;grid-template-columns:210px 68px 64px 160px 135px 58px;gap:4px 8px;justify-content:start">
                 ${field(_t('ma.field.street','Strasse'),          emp.street, null, true)}
                 ${field(_t('ma.field.houseNumber','Hausnummer'),  emp.houseNumber, null, true)}
                 ${field(_t('ma.field.zipCode','PLZ'),             emp.zipCode, null, true)}
@@ -3835,7 +3835,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     const ewSelect = `disabled data-easywork-locked="1" title="${ewTitle}"`;
     return `
     <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-    <div class="emp-field-grid easywork-info-grid emp-compact-line" style="display:grid;grid-template-columns:0.75fr 1.45fr 1fr 1fr 0.85fr;gap:6px">
+    <div class="emp-field-grid easywork-info-grid emp-compact-line" style="display:grid;grid-template-columns:96px 190px 150px 150px 110px;gap:4px 8px;justify-content:start">
         ${eField(_t('ma.field.salutation','Anrede'), `<select id="ef-salutation" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="Herr"   ${emp.salutation==='Herr'  ?'selected':''}>${_t('ma.value.salutation.herr','Herr')}</option>
@@ -3853,7 +3853,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     </div>
 
     <!-- Walter 26.05.2026: Adresse + Kontakt in die Personalien-Card. -->
-    <div class="emp-field-grid easywork-info-grid emp-address-line" style="display:grid;grid-template-columns:1.35fr .55fr .55fr 1.15fr .95fr .55fr;gap:6px">
+    <div class="emp-field-grid easywork-info-grid emp-address-line" style="display:grid;grid-template-columns:210px 68px 64px 160px 135px 58px;gap:4px 8px;justify-content:start">
         ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
         ${eField(_t('ma.field.houseNumber','Hausnummer'), `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}" ${ewInput}>`)}
         ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" ${ewInput}>`)}
