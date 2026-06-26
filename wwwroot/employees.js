@@ -739,6 +739,9 @@ function renderEmployeeDetail(emp) {
     const panel = document.getElementById('empDetailPanel');
     const name = ((emp.firstName ?? '') + ' ' + (emp.lastName ?? '')).trim() || '–';
     const entry = emp.entryDate ? formatDate(emp.entryDate) : '–';
+    const birthHeader = emp.dateOfBirth
+        ? `${formatDate(emp.dateOfBirth)} <span style="color:#94a3b8;font-weight:500">(${calcAge(emp.dateOfBirth)} J.)</span>`
+        : '–';
     const exit  = emp.exitDate  ? formatDate(emp.exitDate)  : _t('ma.detail.statusActive', 'Aktiv');
     const nr    = emp.employeeNumber ?? '–';
     // Walter-Vorgabe 14.06.2026: Header-Status MUSS sich an emp.isActive
@@ -781,6 +784,7 @@ function renderEmployeeDetail(emp) {
                     <div class="emp-detail-meta" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
                         <span>${headerStatusHtml}</span>
                         <span>${_t('ma.detail.entryDate','Eintritt')}: ${entry}</span>
+                        <span>Geburtstag: ${birthHeader}${linkedDocButton('birth_cert')}</span>
                         <span id="empNumberAliases" data-emp="${emp.id}"></span>
                     </div>
                 </div>
@@ -835,7 +839,7 @@ function renderEmployeeDetail(emp) {
         <!-- TAB: Persönliche Angaben -->
         <div class="emp-tab-content active" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+            <div class="emp-field-grid easywork-info-grid emp-compact-line" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">
                 ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
                 ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation)}
                 ${field(_t('ma.field.maidenName','Ledigname'),    emp.maidenName)}
@@ -857,8 +861,7 @@ function renderEmployeeDetail(emp) {
                 ${field(_t('ma.field.canton','Kanton'),           emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null, null, true)}
                 ${field(_t('ma.field.country','Land'),            emp.country, null, true)}
             </div>
-            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
-                ${field(_t('ma.field.dob','Geburtsdatum'),        emp.dateOfBirth ? `${formatDate(emp.dateOfBirth)} <span style="color:#94a3b8;font-weight:400">(${calcAge(emp.dateOfBirth)} J.)</span>` : null, 'birth_cert', true)}
+            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
                 ${field(_t('ma.field.maritalStatus','Zivilstand'),formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus), 'marriage_cert', true)}
                 ${field(_t('ma.field.maritalSince','Zivilstand seit'), emp.maritalStatusSince ? formatDate(emp.maritalStatusSince) : null)}
                 ${field(_t('ma.field.religion','Konfession'),     emp.religion)}
@@ -3516,31 +3519,29 @@ function validateAhvField(inputEl, onBlur) {
 // Optional 3. Argument: Field-Code (permit, passport, ahv_card, ...).
 // Wenn ein verknüpftes Dokument für diesen MA existiert, erscheint ein
 // 📎-Button rechts vom Wert. Klick öffnet das neueste Dokument im Preview.
+function linkedDocButton(linkedCode) {
+    if (!linkedCode) return '';
+    const hasDoc = window._linkedDocCodes && window._linkedDocCodes.has(linkedCode);
+    const styleActive   = "background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8";
+    const styleInactive = "background:#f1f5f9;border:1px solid #e2e8f0;color:#94a3b8";
+    const tooltip = hasDoc ? 'Verknüpfte Dokumente öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen';
+    return `<button class="emp-field-docbtn" title="${tooltip}"
+               onclick="openLinkedDoc('${linkedCode}')"
+               style="margin-left:8px;${hasDoc ? styleActive : styleInactive};border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;transition:all .15s">
+               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                 <polyline points="14 2 14 8 20 8"/>
+                 <line x1="16" y1="13" x2="8" y2="13"/>
+                 <line x1="16" y1="17" x2="8" y2="17"/>
+                 <line x1="10" y1="9" x2="8" y2="9"/>
+               </svg>
+               <span>Doku</span>
+           </button>`;
+}
+
 function field(label, value, linkedCode, easyworkInfo = false) {
     const empty = !value || value === 'null' || value === 'undefined';
-    // Doku-Button erscheint sobald ein linkedCode gesetzt ist — egal ob für
-    // diesen MA aktuell ein Dokument existiert. Wenn keins vorhanden ist,
-    // landet der User im (leeren) Filter und kann direkt hochladen.
-    // Färbung: aktiv-blau wenn Dokument vorhanden, dezent-grau wenn nicht.
-    const hasDoc = linkedCode && window._linkedDocCodes && window._linkedDocCodes.has(linkedCode);
-    let docBtn = '';
-    if (linkedCode) {
-        const styleActive   = "background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8";
-        const styleInactive = "background:#f1f5f9;border:1px solid #e2e8f0;color:#94a3b8";
-        const tooltip = hasDoc ? 'Verknüpfte Dokumente öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen';
-        docBtn = `<button class="emp-field-docbtn" title="${tooltip}"
-                   onclick="openLinkedDoc('${linkedCode}')"
-                   style="margin-left:8px;${hasDoc ? styleActive : styleInactive};border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;transition:all .15s">
-                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                     <polyline points="14 2 14 8 20 8"/>
-                     <line x1="16" y1="13" x2="8" y2="13"/>
-                     <line x1="16" y1="17" x2="8" y2="17"/>
-                     <line x1="10" y1="9" x2="8" y2="9"/>
-                   </svg>
-                   <span>Doku</span>
-               </button>`;
-    }
+    const docBtn = linkedDocButton(linkedCode);
     return `<div class="emp-field liquid-field${easyworkInfo ? ' easywork-source-field' : ''}">
         <div class="emp-field-label">${label}</div>
         <div class="emp-field-value${empty ? ' empty' : ''}${easyworkInfo ? ' easywork-info' : ''}">${empty ? '–' : value}${docBtn}</div>
@@ -3864,8 +3865,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
         ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
         ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" ${ewInput}>`)}
     </div>
-    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
-        ${eField(`${_t('ma.field.dob','Geburtsdatum')} <span id="ef-dob-age" style="font-weight:400;color:#94a3b8;margin-left:6px">${emp.dateOfBirth ? '(' + calcAge(emp.dateOfBirth) + ' J.)' : ''}</span>`, `<input id="ef-dob" class="ef-input" type="date" value="${toDateInput(emp.dateOfBirth)}" ${ewInput}>`)}
+    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
         ${eField(_t('ma.field.maritalStatus','Zivilstand'), `<select id="ef-zivilstand" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="unbekannt"                  ${(emp.zivilstand ?? emp.maritalStatus)==='unbekannt'                  ?'selected':''}>${_t('ma.value.maritalStatus.unbekannt','Unbekannt')}</option>
