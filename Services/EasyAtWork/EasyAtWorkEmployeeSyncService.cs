@@ -165,6 +165,35 @@ public class EasyAtWorkEmployeeSyncService
         public List<string> Notes { get; set; } = new();
     }
 
+    private sealed class EmployeeMasterData
+    {
+        public int EawEmployeeId { get; set; }
+        public string? Number { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? Gender { get; set; }
+        public string? Salutation { get; set; }
+        public DateOnly? DateOfBirth { get; set; }
+        public string? Ahv { get; set; }
+        public string? MaritalStatus { get; set; }
+        public string LanguageCode { get; set; } = "de";
+        public string? LetterSalutation { get; set; }
+        public string? Nationality { get; set; }
+        public int? NationalityId { get; set; }
+        public string? Street { get; set; }
+        public string? ZipCode { get; set; }
+        public string? City { get; set; }
+        public string? CantonCode { get; set; }
+        public string? Country { get; set; }
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+        public DateOnly? EntryDate { get; set; }
+        public DateOnly? ExitDate { get; set; }
+        public string? Iban { get; set; }
+        public List<string> Errors { get; set; } = new();
+        public List<string> Notes { get; set; } = new();
+    }
+
     public async Task<SingleEmployeeSyncResult> SyncSingleCoworkEmployeeAsync(
         int employeeId, int? companyProfileId, CancellationToken ct = default)
     {
@@ -253,29 +282,9 @@ public class EasyAtWorkEmployeeSyncService
 
         var natByCode = await _db.Nationalities.AsNoTracking()
             .ToDictionaryAsync(n => (n.Code ?? "").ToUpperInvariant(), n => n.Id, ct);
-        var propsInfo = await FetchPropsInfoAsync(matchedCustomerId!.Value, eaw.Id, ct);
-        EawFiscalInfo? fiscal = null;
-        try { fiscal = await _client.GetFiscalInfoAsync(matchedCustomerId.Value, eaw.Id, ct); }
-        catch (Exception ex) { result.Notes.Add($"IBAN/Fiscal-Info nicht abrufbar: {ex.Message}"); }
-
-        var normalizedGender = NormalizeGender(eaw.Gender);
-        var salutation = SalutationFromGender(eaw.Gender);
-        var letterSalutation = BuildLetterSalutation(normalizedGender, eaw.FirstName);
-        var street = NormalizeStreet(eaw.Address1, eaw.Address2);
-        var zip = string.IsNullOrWhiteSpace(eaw.PostalCode) ? null : eaw.PostalCode.Trim();
-        var loc = await ResolveSwissLocationAsync(zip, eaw.City, ct);
-        var phone = NormalizePhone(eaw.Phone);
-        var email = string.IsNullOrWhiteSpace(eaw.Email) ? null : eaw.Email.Trim().ToLowerInvariant();
-        var ahv = propsInfo.Ahv;
-        var iban = fiscal?.Iban?.Replace(" ", "").Trim().ToUpperInvariant();
-        var nationality = ResolveNationalityCode(eaw.Nationality, natByCode);
-
-        if (string.IsNullOrWhiteSpace(eaw.FirstName)) result.Errors.Add("Vorname fehlt in easy@work.");
-        if (string.IsNullOrWhiteSpace(eaw.LastName)) result.Errors.Add("Nachname fehlt in easy@work.");
-        if (!string.IsNullOrWhiteSpace(email) && !IsValidEmail(email)) result.Errors.Add($"E-Mail ist ungültig: {email}");
-        if (!string.IsNullOrWhiteSpace(ahv) && !IsValidAhv(ahv)) result.Errors.Add($"AHV-Nummer ist ungültig: {ahv}");
-        if (!string.IsNullOrWhiteSpace(iban) && !IsValidIban(iban)) result.Errors.Add($"IBAN ist ungültig: {iban}");
-        if (!string.IsNullOrWhiteSpace(zip) && loc.Error != null) result.Errors.Add(loc.Error);
+        var master = await BuildMasterDataAsync(matchedCustomerId!.Value, eaw, natByCode, includeDetailCalls: true, ct);
+        result.Notes.AddRange(master.Notes);
+        result.Errors.AddRange(master.Errors);
         if (result.Errors.Count > 0) return result;
 
         void SetString(string label, string? current, string? next, Action<string?> set, bool allowNull = true)
@@ -287,35 +296,35 @@ public class EasyAtWorkEmployeeSyncService
             result.UpdatedFields.Add(label);
         }
 
-        SetString("Vorname", emp.FirstName, eaw.FirstName, v => emp.FirstName = v ?? emp.FirstName, allowNull: false);
-        SetString("Nachname", emp.LastName, eaw.LastName, v => emp.LastName = v ?? emp.LastName, allowNull: false);
-        SetString("Geschlecht", emp.Gender, normalizedGender, v => emp.Gender = v);
-        SetString("Anrede", emp.Salutation, salutation, v => emp.Salutation = v);
-        SetString("Briefanrede", emp.LetterSalutation, letterSalutation, v => emp.LetterSalutation = v);
-        if (eaw.BirthDate.HasValue)
+        SetString("Vorname", emp.FirstName, master.FirstName, v => emp.FirstName = v ?? emp.FirstName, allowNull: false);
+        SetString("Nachname", emp.LastName, master.LastName, v => emp.LastName = v ?? emp.LastName, allowNull: false);
+        SetString("Geschlecht", emp.Gender, master.Gender, v => emp.Gender = v);
+        SetString("Anrede", emp.Salutation, master.Salutation, v => emp.Salutation = v);
+        SetString("Briefanrede", emp.LetterSalutation, master.LetterSalutation, v => emp.LetterSalutation = v);
+        if (master.DateOfBirth.HasValue)
         {
-            var dob = eaw.BirthDate.Value.ToDateTime(TimeOnly.MinValue);
+            var dob = master.DateOfBirth.Value.ToDateTime(TimeOnly.MinValue);
             if (emp.DateOfBirth?.Date != dob.Date) { emp.DateOfBirth = dob; result.UpdatedFields.Add("Geburtsdatum"); }
         }
-        SetString("AHV-Nummer", emp.SocialSecurityNumber, ahv, v => emp.SocialSecurityNumber = v);
-        SetString("Zivilstand", emp.MaritalStatus, propsInfo.Marital, v => emp.MaritalStatus = v);
-        SetString("Sprache", emp.LanguageCode, "de", v => emp.LanguageCode = v);
-        SetString("Nationalität", emp.Nationality, nationality, v => emp.Nationality = v);
-        if (!string.IsNullOrWhiteSpace(nationality) && natByCode.TryGetValue(nationality.ToUpperInvariant(), out var natId) && emp.NationalityId != natId)
+        SetString("AHV-Nummer", emp.SocialSecurityNumber, master.Ahv, v => emp.SocialSecurityNumber = v);
+        SetString("Zivilstand", emp.MaritalStatus, master.MaritalStatus, v => emp.MaritalStatus = v);
+        SetString("Sprache", emp.LanguageCode, master.LanguageCode, v => emp.LanguageCode = v);
+        SetString("Nationalität", emp.Nationality, master.Nationality, v => emp.Nationality = v);
+        if (master.NationalityId.HasValue && emp.NationalityId != master.NationalityId.Value)
         {
-            emp.NationalityId = natId;
+            emp.NationalityId = master.NationalityId.Value;
             if (!result.UpdatedFields.Contains("Nationalität")) result.UpdatedFields.Add("Nationalität");
         }
-        SetString("Strasse", emp.Street, street, v => emp.Street = v);
-        SetString("PLZ", emp.ZipCode, zip, v => emp.ZipCode = v);
-        SetString("Ort", emp.City, loc.City ?? eaw.City, v => emp.City = v);
-        SetString("Kanton", emp.CantonCode, loc.Canton, v => emp.CantonCode = v);
-        SetString("Land", emp.Country, string.IsNullOrWhiteSpace(zip) ? (eaw.CountryKey ?? eaw.Country)?.ToUpperInvariant() : "CH", v => emp.Country = v);
-        SetString("Telefon", emp.PhoneMobile, phone, v => emp.PhoneMobile = v);
-        SetString("E-Mail", emp.Email, email, v => emp.Email = v);
-        if (eaw.From.HasValue)
+        SetString("Strasse", emp.Street, master.Street, v => emp.Street = v);
+        SetString("PLZ", emp.ZipCode, master.ZipCode, v => emp.ZipCode = v);
+        SetString("Ort", emp.City, master.City, v => emp.City = v);
+        SetString("Kanton", emp.CantonCode, master.CantonCode, v => emp.CantonCode = v);
+        SetString("Land", emp.Country, master.Country, v => emp.Country = v);
+        SetString("Telefon", emp.PhoneMobile, master.Phone, v => emp.PhoneMobile = v);
+        SetString("E-Mail", emp.Email, master.Email, v => emp.Email = v);
+        if (master.EntryDate.HasValue)
         {
-            var entry = eaw.From.Value.ToDateTime(TimeOnly.MinValue);
+            var entry = master.EntryDate.Value.ToDateTime(TimeOnly.MinValue);
             if (emp.EntryDate?.Date != entry.Date) { emp.EntryDate = entry; result.UpdatedFields.Add("Eintrittsdatum"); }
         }
         if (emp.EasyAtWorkEmployeeId != eaw.Id)
@@ -323,9 +332,9 @@ public class EasyAtWorkEmployeeSyncService
             emp.EasyAtWorkEmployeeId = eaw.Id;
             result.UpdatedFields.Add("easy@work-ID");
         }
-        if (!string.IsNullOrWhiteSpace(iban))
+        if (!string.IsNullOrWhiteSpace(master.Iban))
         {
-            var changed = await EnsureBankAccountFromEasyWorkAsync(emp, iban, ct);
+            var changed = await EnsureBankAccountFromEasyWorkAsync(emp, master.Iban, ct);
             if (changed) result.UpdatedFields.Add("IBAN");
         }
 
@@ -333,6 +342,66 @@ public class EasyAtWorkEmployeeSyncService
         result.Success = true;
         if (result.UpdatedFields.Count == 0) result.Notes.Add("Keine Änderungen — Cowork war bereits aktuell.");
         return result;
+    }
+
+    private async Task<EmployeeMasterData> BuildMasterDataAsync(
+        int customerId, EawEmployee eaw, Dictionary<string, int> natByCode,
+        bool includeDetailCalls, CancellationToken ct)
+    {
+        var data = new EmployeeMasterData
+        {
+            EawEmployeeId = eaw.Id,
+            Number = string.IsNullOrWhiteSpace(eaw.Number) ? null : eaw.Number.Trim(),
+            FirstName = string.IsNullOrWhiteSpace(eaw.FirstName) ? null : eaw.FirstName.Trim(),
+            LastName = string.IsNullOrWhiteSpace(eaw.LastName) ? null : eaw.LastName.Trim(),
+            Gender = NormalizeGender(eaw.Gender),
+            DateOfBirth = eaw.BirthDate,
+            Street = NormalizeStreet(eaw.Address1, eaw.Address2),
+            ZipCode = string.IsNullOrWhiteSpace(eaw.PostalCode) ? null : eaw.PostalCode.Trim(),
+            Phone = NormalizePhone(eaw.Phone),
+            Email = string.IsNullOrWhiteSpace(eaw.Email) ? null : eaw.Email.Trim().ToLowerInvariant(),
+            EntryDate = eaw.From,
+            ExitDate = eaw.To,
+            LanguageCode = "de",
+        };
+
+        data.Salutation = SalutationFromGender(eaw.Gender);
+        data.LetterSalutation = BuildLetterSalutation(data.Gender, data.FirstName);
+        data.Nationality = ResolveNationalityCode(eaw.Nationality, natByCode);
+        if (!string.IsNullOrWhiteSpace(data.Nationality) && natByCode.TryGetValue(data.Nationality.ToUpperInvariant(), out var natId))
+            data.NationalityId = natId;
+
+        var loc = await ResolveSwissLocationAsync(data.ZipCode, eaw.City, ct);
+        data.City = loc.City ?? (string.IsNullOrWhiteSpace(eaw.City) ? null : eaw.City.Trim());
+        data.CantonCode = loc.Canton;
+        data.Country = string.IsNullOrWhiteSpace(data.ZipCode)
+            ? (eaw.CountryKey ?? eaw.Country)?.ToUpperInvariant()
+            : "CH";
+
+        if (includeDetailCalls)
+        {
+            var propsInfo = await FetchPropsInfoAsync(customerId, eaw.Id, ct);
+            data.MaritalStatus = propsInfo.Marital;
+            data.Ahv = propsInfo.Ahv;
+            try
+            {
+                var fiscal = await _client.GetFiscalInfoAsync(customerId, eaw.Id, ct);
+                data.Iban = fiscal?.Iban?.Replace(" ", "").Trim().ToUpperInvariant();
+            }
+            catch (Exception ex)
+            {
+                data.Notes.Add($"IBAN/Fiscal-Info nicht abrufbar: {ex.Message}");
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(data.FirstName)) data.Errors.Add("Vorname fehlt in easy@work.");
+        if (string.IsNullOrWhiteSpace(data.LastName)) data.Errors.Add("Nachname fehlt in easy@work.");
+        if (!string.IsNullOrWhiteSpace(data.Email) && !IsValidEmail(data.Email)) data.Errors.Add($"E-Mail ist ungültig: {data.Email}");
+        if (!string.IsNullOrWhiteSpace(data.Ahv) && !IsValidAhv(data.Ahv)) data.Errors.Add($"AHV-Nummer ist ungültig: {data.Ahv}");
+        if (!string.IsNullOrWhiteSpace(data.Iban) && !IsValidIban(data.Iban)) data.Errors.Add($"IBAN ist ungültig: {data.Iban}");
+        if (!string.IsNullOrWhiteSpace(data.ZipCode) && loc.Error != null) data.Errors.Add(loc.Error);
+
+        return data;
     }
 
     // ─────────────────────────── Core ───────────────────────────────
@@ -442,6 +511,12 @@ public class EasyAtWorkEmployeeSyncService
         var natByCode = await _db.Nationalities.AsNoTracking()
             .ToDictionaryAsync(n => (n.Code ?? "").ToUpperInvariant(), n => n.Id, ct);
 
+        var masterByEaw = new Dictionary<int, EmployeeMasterData>();
+        foreach (var eaw in eawEmps)
+            masterByEaw[eaw.Id] = await BuildMasterDataAsync(
+                mapping.EasyAtWorkCustomerId, eaw, natByCode,
+                includeDetailCalls: !req.SkipDetailCalls, ct);
+
         // Leere Auswahl bedeutet im Frontend bewusst: alle gematchten MA
         // (inkl. UNCHANGED) trotzdem durch den Commit-Pfad schicken, damit
         // Vertrags-/Lohnhistorie, easy@work-IDs und Backfills nachgezogen werden.
@@ -458,6 +533,7 @@ public class EasyAtWorkEmployeeSyncService
 
         foreach (var eaw in eawEmps)
         {
+            var master = masterByEaw[eaw.Id];
             // Pre-Mirus-Austritt (vor 1.1.2025) → Personalnummer mit „alt"-Suffix,
             // damit sie nicht mit der aktuellen Mirus-Nummer kollidiert. Greift
             // für Matching UND Neuanlage (Walter-Vorgabe 21.06.2026).
@@ -470,14 +546,22 @@ public class EasyAtWorkEmployeeSyncService
             {
                 EawEmployeeId = eaw.Id,
                 Number        = effNumber,
-                FirstName     = eaw.FirstName,
-                LastName      = eaw.LastName,
+                FirstName     = master.FirstName,
+                LastName      = master.LastName,
             };
 
             if (string.IsNullOrWhiteSpace(row.Number))
             {
                 row.Status = "CONFLICT";
                 row.Reason = "easy@work-MA hat keine Personalnummer — nicht eindeutig zuordenbar.";
+                res.Rows.Add(row); res.CountConflict++;
+                continue;
+            }
+            if (master.Errors.Count > 0)
+            {
+                row.Status = "CONFLICT";
+                row.Reason = string.Join("; ", master.Errors);
+                row.Diffs = new();
                 res.Rows.Add(row); res.CountConflict++;
                 continue;
             }
@@ -502,7 +586,7 @@ public class EasyAtWorkEmployeeSyncService
                 row.MatchedViaAltNumber = matchedKey;
 
             // Diffs berechnen (auch für NEW — dann sind alle Cowork-Werte leer)
-            var diffs = ComputeDiffs(co, eaw, natByCode);
+            var diffs = ComputeDiffs(co, master);
             row.Diffs = diffs;
 
             // ── Personalnummern-Wechsel (Walter-Vorgabe 21.06.2026) ────────────
@@ -641,9 +725,6 @@ public class EasyAtWorkEmployeeSyncService
             // komplette Employment-Timeline (Walter-Vorgabe 23.06.2026).
             var contractsRawByEaw = new ConcurrentDictionary<int, List<EawContract>>();
             var ratesRawByEaw     = new ConcurrentDictionary<int, List<EawPayRate>>();
-            var maritalByEaw  = new ConcurrentDictionary<int, string?>();
-            var ahvByEaw      = new ConcurrentDictionary<int, string?>();
-            var ibanByEaw     = new ConcurrentDictionary<int, string?>();
             var positionByEaw = new ConcurrentDictionary<int, string?>();
             if (rowsToProcess.Count > 0)
             {
@@ -666,17 +747,12 @@ public class EasyAtWorkEmployeeSyncService
                             catch (Exception ex) { _log.LogDebug(ex, "Pay-Rates für easy@work-MA {Id} nicht abrufbar", eawId); ratesRawByEaw[eawId] = new(); }
                             try { var pos = await _client.GetPositionsAsync(mapping.EasyAtWorkCustomerId, eawId, ct); positionByEaw[eawId] = pos?.Data?.FirstOrDefault()?.Name; }
                             catch (Exception ex) { _log.LogDebug(ex, "Positionen für easy@work-MA {Id} nicht abrufbar", eawId); }
-
-                            // OPTIONALE Zusatz-Stammdaten — nur diese hängen an SkipDetailCalls.
                             if (!req.SkipDetailCalls)
                             {
-                                // Eine Property-Abfrage → Zivilstand UND AHV-Nr.
-                                var (marital, ahv) = await FetchPropsInfoAsync(mapping.EasyAtWorkCustomerId, eawId, ct);
-                                maritalByEaw[eawId] = marital;
-                                ahvByEaw[eawId]     = ahv;
-                                // IBAN aus fiscal_info.
-                                try { var fiscal = await _client.GetFiscalInfoAsync(mapping.EasyAtWorkCustomerId, eawId, ct); ibanByEaw[eawId] = fiscal?.Iban; }
-                                catch (Exception ex) { _log.LogDebug(ex, "Fiscal-Info (IBAN) für easy@work-MA {Id} nicht abrufbar", eawId); }
+                                // Optionale Zusatz-Stammdaten (AHV/Zivilstand/IBAN)
+                                // lädt BuildMasterDataAsync vor der Diff-Berechnung.
+                                // Dieses Gate bleibt hier als Audit-Marker: Verträge,
+                                // Pay-Rates und Positionen stehen bewusst oberhalb.
                             }
                         }
                         finally { sem.Release(); }
@@ -685,9 +761,6 @@ public class EasyAtWorkEmployeeSyncService
             }
             List<EawContract> ContractsFor(int eawId) => contractsRawByEaw.TryGetValue(eawId, out var c) ? c : new();
             List<EawPayRate>  RatesFor(int eawId)     => ratesRawByEaw.TryGetValue(eawId, out var r) ? r : new();
-            string? MaritalFor(int eawId)             => maritalByEaw.TryGetValue(eawId, out var m) ? m : null;
-            string? AhvFor(int eawId)                 => ahvByEaw.TryGetValue(eawId, out var a) ? a : null;
-            string? IbanFor(int eawId)                => ibanByEaw.TryGetValue(eawId, out var b) ? b : null;
             string? PositionFor(int eawId)            => positionByEaw.TryGetValue(eawId, out var p) ? p : null;
             // Timeline-Arbeit + Bankverbindungen sammeln → zweiter Durchgang NACH dem
             // Speichern (emp.Id muss persistiert sein, damit der Natural-Key-Upsert greift).
@@ -791,17 +864,16 @@ public class EasyAtWorkEmployeeSyncService
                         ExitDate             = eaw.To?.ToDateTime(TimeOnly.MinValue),
                         EasyAtWorkEmployeeId = eaw.Id,
                     };
-                    ApplyDiffs(emp, row.Diffs, eaw, natByCode);
+                    var master = masterByEaw[row.EawEmployeeId];
+                    ApplyDiffs(emp, row.Diffs, master);
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
-                    if (string.IsNullOrWhiteSpace(emp.MaritalStatus)) emp.MaritalStatus = MaritalFor(row.EawEmployeeId);
-                    if (string.IsNullOrWhiteSpace(emp.SocialSecurityNumber)) emp.SocialSecurityNumber = AhvFor(row.EawEmployeeId);
                     if (string.IsNullOrWhiteSpace(emp.CantonCode)) emp.CantonCode = await LookupCantonAsync(emp.ZipCode, ct);
                     if (string.IsNullOrWhiteSpace(emp.LetterSalutation)) emp.LetterSalutation = BuildLetterSalutation(emp.Gender, emp.FirstName);
                     _db.Employees.Add(emp);
                     res.CountInserted++;
                     timelineWork.Add((emp, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw.To));
-                    var ibN = IbanFor(row.EawEmployeeId); if (!string.IsNullOrWhiteSpace(ibN)) bankWork.Add((emp, ibN!));
+                    if (!string.IsNullOrWhiteSpace(master.Iban)) bankWork.Add((emp, master.Iban!));
                 }
                 else // UPDATE
                 {
@@ -810,7 +882,8 @@ public class EasyAtWorkEmployeeSyncService
                     if (emp == null) continue;
                     var newEawId = eaw.Id;
                     if (emp.EasyAtWorkEmployeeId != newEawId) emp.EasyAtWorkEmployeeId = newEawId;
-                    ApplyDiffs(emp, row.Diffs, eaw, natByCode);
+                    var master = masterByEaw[row.EawEmployeeId];
+                    ApplyDiffs(emp, row.Diffs, master);
                     if (!string.IsNullOrWhiteSpace(row.NumberChangeTo))
                     {
                         SaveNumberChange(_db, emp, row.NumberChangeTo!);
@@ -818,8 +891,6 @@ public class EasyAtWorkEmployeeSyncService
                     }
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
-                    if (string.IsNullOrWhiteSpace(emp.MaritalStatus)) emp.MaritalStatus = MaritalFor(row.EawEmployeeId);
-                    if (string.IsNullOrWhiteSpace(emp.SocialSecurityNumber)) emp.SocialSecurityNumber = AhvFor(row.EawEmployeeId);
                     if (string.IsNullOrWhiteSpace(emp.CantonCode)) emp.CantonCode = await LookupCantonAsync(emp.ZipCode, ct);
                     if (string.IsNullOrWhiteSpace(emp.LetterSalutation)) emp.LetterSalutation = BuildLetterSalutation(emp.Gender, emp.FirstName);
                     // Aktiv-Status (Walter-Bug 22.06.2026, Filialwechsel): eaw.To ist das
@@ -848,7 +919,7 @@ public class EasyAtWorkEmployeeSyncService
                         }
                     }
                     timelineWork.Add((emp, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw.To));
-                    var ibU = IbanFor(row.EawEmployeeId); if (!string.IsNullOrWhiteSpace(ibU)) bankWork.Add((emp, ibU!));
+                    if (!string.IsNullOrWhiteSpace(master.Iban)) bankWork.Add((emp, master.Iban!));
                     res.CountUpdated++;
                 }
             }
@@ -1671,7 +1742,7 @@ public class EasyAtWorkEmployeeSyncService
 
     // ─────────────────────────── Diff-Logik ─────────────────────────
 
-    private static List<FieldDiff> ComputeDiffs(Employee? co, EawEmployee eaw, Dictionary<string, int> natByCode)
+    private static List<FieldDiff> ComputeDiffs(Employee? co, EmployeeMasterData data)
     {
         var diffs = new List<FieldDiff>();
 
@@ -1683,32 +1754,43 @@ public class EasyAtWorkEmployeeSyncService
             var willSet = trimEaw != null && !string.Equals(trimEaw, trimCur, StringComparison.OrdinalIgnoreCase);
             diffs.Add(new FieldDiff { Field = field, Cowork = trimCur, Easy = trimEaw, WillSet = willSet });
         }
+        void AddNullable(string field, string? cur, string? eawVal, bool mayClear)
+        {
+            var trimEaw = string.IsNullOrWhiteSpace(eawVal) ? null : eawVal.Trim();
+            var trimCur = string.IsNullOrWhiteSpace(cur)    ? null : cur.Trim();
+            var willSet = mayClear
+                ? !string.Equals(trimEaw, trimCur, StringComparison.OrdinalIgnoreCase)
+                : trimEaw != null && !string.Equals(trimEaw, trimCur, StringComparison.OrdinalIgnoreCase);
+            diffs.Add(new FieldDiff { Field = field, Cowork = trimCur, Easy = trimEaw, WillSet = willSet });
+        }
 
-        Add("Vorname",     co?.FirstName,   eaw.FirstName);
-        Add("Nachname",    co?.LastName,    eaw.LastName);
-        Add("Anrede",      co?.Salutation,  SalutationFromGender(eaw.Gender));
-        Add("Geschlecht",  co?.Gender,      NormalizeGender(eaw.Gender));
+        Add("Vorname",     co?.FirstName,   data.FirstName);
+        Add("Nachname",    co?.LastName,    data.LastName);
+        AddNullable("Anrede", co?.Salutation, data.Salutation, data.Gender == "divers");
+        Add("Geschlecht",  co?.Gender,      data.Gender);
         Add("Geburtstag",  co?.DateOfBirth?.ToString("yyyy-MM-dd"),
-                            eaw.BirthDate?.ToString("yyyy-MM-dd"));
-        var street = NormalizeStreet(eaw.Address1, eaw.Address2);
-        Add("Strasse",     co?.Street,      street);
-        Add("PLZ",         co?.ZipCode,     eaw.PostalCode);
-        Add("Ort",         co?.City,        eaw.City);
-        Add("Land",        co?.Country,     (eaw.CountryKey ?? eaw.Country)?.ToUpperInvariant());
-        Add("Nationalität",
-            co?.Nationality,
-            ResolveNationalityCode(eaw.Nationality, natByCode));
-        Add("Telefon",     co?.PhoneMobile, NormalizePhone(eaw.Phone));
-        Add("E-Mail",      co?.Email,       eaw.Email?.ToLowerInvariant());
+                            data.DateOfBirth?.ToString("yyyy-MM-dd"));
+        Add("AHV-Nummer",  co?.SocialSecurityNumber, data.Ahv);
+        Add("Zivilstand",  co?.MaritalStatus, data.MaritalStatus);
+        if (co == null || !string.IsNullOrWhiteSpace(co.LanguageCode))
+            Add("Sprache", co?.LanguageCode, data.LanguageCode);
+        AddNullable("Briefanrede", co?.LetterSalutation, data.LetterSalutation, data.Gender == "divers");
+        Add("Strasse",     co?.Street,      data.Street);
+        Add("PLZ",         co?.ZipCode,     data.ZipCode);
+        Add("Ort",         co?.City,        data.City);
+        Add("Kanton",      co?.CantonCode,  data.CantonCode);
+        Add("Land",        co?.Country,     data.Country);
+        Add("Nationalität", co?.Nationality, data.Nationality);
+        Add("Telefon",     co?.PhoneMobile, data.Phone);
+        Add("E-Mail",      co?.Email,       data.Email);
         Add("Eintritt",    co?.EntryDate?.ToString("yyyy-MM-dd"),
-                            eaw.From?.ToString("yyyy-MM-dd"));
-        // Austritt nur setzen, wenn easy@work einen liefert (sonst überschreiben wir Cowork-Austritte).
+                            data.EntryDate?.ToString("yyyy-MM-dd"));
         Add("Austritt",    co?.ExitDate?.ToString("yyyy-MM-dd"),
-                            eaw.To?.ToString("yyyy-MM-dd"));
+                            data.ExitDate?.ToString("yyyy-MM-dd"));
         return diffs;
     }
 
-    private static void ApplyDiffs(Employee emp, List<FieldDiff> diffs, EawEmployee eaw, Dictionary<string, int> natByCode)
+    private static void ApplyDiffs(Employee emp, List<FieldDiff> diffs, EmployeeMasterData data)
     {
         foreach (var d in diffs.Where(x => x.WillSet))
         {
@@ -1722,14 +1804,18 @@ public class EasyAtWorkEmployeeSyncService
                 // einen Alias an (braucht den DbContext) und läuft im Commit-Pfad
                 // via SaveNumberChange. Der Diff dient nur der Anzeige + Status UPDATE.
                 case "Geburtstag":   emp.DateOfBirth  = DateTime.TryParse(d.Easy, out var dob) ? dob : emp.DateOfBirth; break;
+                case "AHV-Nummer":   emp.SocialSecurityNumber = d.Easy; break;
+                case "Zivilstand":   emp.MaritalStatus = d.Easy; break;
+                case "Sprache":      emp.LanguageCode = d.Easy; break;
+                case "Briefanrede":  emp.LetterSalutation = d.Easy; break;
                 case "Strasse":      emp.Street       = d.Easy; break;
                 case "PLZ":          emp.ZipCode      = d.Easy; break;
                 case "Ort":          emp.City         = d.Easy; break;
+                case "Kanton":       emp.CantonCode   = d.Easy; break;
                 case "Land":         emp.Country      = d.Easy; break;
                 case "Nationalität":
                     emp.Nationality = d.Easy;
-                    if (d.Easy != null && natByCode.TryGetValue(d.Easy.ToUpperInvariant(), out var nid))
-                        emp.NationalityId = nid;
+                    emp.NationalityId = data.NationalityId;
                     break;
                 case "Telefon":      emp.PhoneMobile  = d.Easy; break;
                 case "E-Mail":       emp.Email        = d.Easy; break;
