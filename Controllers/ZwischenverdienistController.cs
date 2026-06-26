@@ -313,7 +313,7 @@ public class ZwischenverdienistController : ControllerBase
         // ── DTO zusammenstellen ───────────────────────────────────────────
         string adresse = string.Join(", ", new[]
         {
-            $"{employee.Street} {employee.HouseNumber}".Trim(),
+            employee.Street,
             $"{employee.ZipCode} {employee.City}".Trim()
         }.Where(s => !string.IsNullOrWhiteSpace(s)));
 

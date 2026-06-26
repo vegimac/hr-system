@@ -1035,6 +1035,29 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS phone2                          VARCHAR(50);
     ");
 
+    // Mitarbeiter-Hauptadresse: easy@work liefert Strasse + Hausnummer in einem
+    // Feld. Cowork führt das ab jetzt ebenfalls nur noch in employee.street.
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'employee' AND column_name = 'house_number'
+            ) THEN
+                UPDATE employee
+                SET street = trim(both from concat_ws(' ', nullif(trim(street), ''), nullif(trim(house_number), '')))
+                WHERE house_number IS NOT NULL
+                  AND trim(house_number) <> ''
+                  AND (
+                      street IS NULL OR trim(street) = ''
+                      OR right(trim(street), length(trim(house_number))) <> trim(house_number)
+                  );
+
+                ALTER TABLE employee DROP COLUMN house_number;
+            END IF;
+        END $$;
+    ");
+
     // Behoerde: zusätzliche Stammdaten für Kontaktperson + Kanton-Verknüpfung.
     // KantonCode wird gebraucht, um beim QST-Anmeldeformular automatisch das
     // Steueramt zur Kanton-spezifischen Filiale zu finden.

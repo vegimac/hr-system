@@ -57,7 +57,7 @@ public class KuendigungController : ControllerBase
                 id   = e.Id,
                 name = ($"{e.FirstName} {e.LastName}").Trim(),
                 briefanrede = Briefanrede(e),
-                strasse = Join(e.Street, e.HouseNumber),
+                strasse = e.Street,
                 plzOrt  = Join(e.ZipCode, e.City),
             },
             company = new
@@ -107,7 +107,7 @@ public class KuendigungController : ControllerBase
             FirmaStrasse: Join(cp?.Street, cp?.HouseNumber),
             FirmaPlzOrt:  Join(cp?.ZipCode, cp?.City),
             MaName:       ($"{e.FirstName} {e.LastName}").Trim(),
-            MaStrasse:    Join(e.Street, e.HouseNumber),
+            MaStrasse:    e.Street,
             MaPlzOrt:     Join(e.ZipCode, e.City),
             Briefanrede:  Briefanrede(e),
             Ort:          ort,

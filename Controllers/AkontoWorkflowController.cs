@@ -115,7 +115,7 @@ public class AkontoWorkflowController : HrControllerBase
             .Where(x => !x.e.IsPayrollExcluded)
             .Select(x => new {
                 x.z.Id, x.z.EmployeeId, x.e.EmployeeNumber, x.e.FirstName, x.e.LastName,
-                x.e.Street, x.e.HouseNumber, x.e.ZipCode, x.e.City,
+                x.e.Street, x.e.ZipCode, x.e.City,
                 x.z.GeschaetzterBrutto, x.z.GeschaetzteAbzuege, x.z.PfaendungAbzug,
                 x.z.NettoAkonto, x.z.Status,
                 x.z.PayoutDate,
@@ -1026,7 +1026,7 @@ public class AkontoWorkflowController : HrControllerBase
             z.Id, z.EmployeeId,
             employee = new {
                 emp.EmployeeNumber, emp.FirstName, emp.LastName,
-                emp.Street, emp.HouseNumber, emp.ZipCode, emp.City,
+                emp.Street, emp.ZipCode, emp.City,
                 emp.DateOfBirth, emp.SocialSecurityNumber, age,
             },
             vertrag = employment == null ? null : (object) new {

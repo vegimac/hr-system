@@ -394,7 +394,7 @@ public static class PayrollCalculations
             employeeId      = employee.Id,
             employeeName    = $"{employee.FirstName} {employee.LastName}",
             salutation      = employee.Salutation,
-            address         = $"{employee.Street} {employee.HouseNumber}".Trim(),
+            address         = employee.Street?.Trim() ?? "",
             zipCity         = $"{employee.ZipCode} {employee.City}".Trim(),
             companyParentName = company.CompanyName,                       // z.B. "Schaub Restaurants GmbH"
             companyName       = company.BranchName ?? company.CompanyName,  // z.B. "Filiale Oftringen"

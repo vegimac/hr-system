@@ -167,7 +167,7 @@ public class EmployeeStammdatenImportController : ControllerBase
                 e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
                 e.DateOfBirth, e.SocialSecurityNumber, e.MaritalStatus,
                 e.LanguageCode,
-                e.Street, e.HouseNumber, e.ZipCode, e.City,
+                e.Street, e.ZipCode, e.City,
                 e.Religion, e.IsActive
             })
             .ToListAsync();
@@ -242,7 +242,6 @@ public class EmployeeStammdatenImportController : ControllerBase
             r.DbMaritalStatus   = match.MaritalStatus;
             r.DbLanguageCode    = match.LanguageCode;
             r.DbStreet          = match.Street;
-            r.DbHouseNumber     = match.HouseNumber;
             r.DbZipCode         = match.ZipCode;
             r.DbCity            = match.City;
             r.DbReligion        = match.Religion;
@@ -257,8 +256,11 @@ public class EmployeeStammdatenImportController : ControllerBase
             // Adresse: WillSet wenn DB-Feld leer ODER abweichend (Walter-Vorgabe
             // 13.05.2026 — die GastroSocial-Liste darf veraltete Adressen
             // überschreiben). Konsistent mit der Commit-Logik (AddrDiffers).
-            r.WillSetStreet      = AddrDiffers(match.Street,      r.CsvStreet);
-            r.WillSetHouseNumber = AddrDiffers(match.HouseNumber, r.CsvHouseNumber);
+            var csvStreetFull = MergeStreetAndHouseNumber(r.CsvStreet, r.CsvHouseNumber);
+            r.CsvStreet = csvStreetFull;
+            r.CsvHouseNumber = null;
+            r.WillSetStreet      = AddrDiffers(match.Street, csvStreetFull);
+            r.WillSetHouseNumber = false;
             r.WillSetZipCode     = AddrDiffers(match.ZipCode,     r.CsvZipCode);
             r.WillSetCity        = AddrDiffers(match.City,        r.CsvCity);
             // Konfession: BVG-File liefert keine — wir setzen Default „keine"
@@ -266,7 +268,7 @@ public class EmployeeStammdatenImportController : ControllerBase
             r.WillSetReligion = string.IsNullOrWhiteSpace(match.Religion);
 
             if (!r.WillSetAhv && !r.WillSetMaritalStatus && !r.WillSetLanguage
-                && !r.WillSetStreet && !r.WillSetHouseNumber
+                && !r.WillSetStreet
                 && !r.WillSetZipCode && !r.WillSetCity
                 && !r.WillSetReligion)
             {
@@ -447,8 +449,6 @@ public class EmployeeStammdatenImportController : ControllerBase
             bool addrTouched = false;
             if (AddrDiffers(emp.Street, r.CsvStreet))
             { emp.Street = r.CsvStreet!.Trim(); addrTouched = true; }
-            if (AddrDiffers(emp.HouseNumber, r.CsvHouseNumber))
-            { emp.HouseNumber = r.CsvHouseNumber!.Trim(); addrTouched = true; }
             if (AddrDiffers(emp.ZipCode, r.CsvZipCode))
             { emp.ZipCode = r.CsvZipCode!.Trim(); addrTouched = true; }
             if (AddrDiffers(emp.City, r.CsvCity))
@@ -715,6 +715,15 @@ public class EmployeeStammdatenImportController : ControllerBase
             return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim());
         }
         return (trimmed, null);
+    }
+
+    private static string? MergeStreetAndHouseNumber(string? street, string? houseNumber)
+    {
+        var parts = new[] { street, houseNumber }
+            .Select(x => string.IsNullOrWhiteSpace(x) ? null : x.Trim())
+            .Where(x => x != null)
+            .ToList();
+        return parts.Count == 0 ? null : string.Join(" ", parts);
     }
 
     // Mirus-Sprache → ISO-Code. Format meist "1 Deutsch", "2 Französisch",

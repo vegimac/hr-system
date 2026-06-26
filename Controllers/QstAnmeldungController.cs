@@ -411,7 +411,7 @@ public class QstAnmeldungController : ControllerBase
             QaGeschlecht    = MapGeschlecht(emp.Gender),
             QaName          = emp.LastName,
             QaVorname       = emp.FirstName,
-            QaStrasse       = JoinNonEmpty(" ", emp.Street, emp.HouseNumber),
+            QaStrasse       = emp.Street,
             QaPlzOrtLand    = JoinNonEmpty(" ", emp.ZipCode, emp.City, emp.Country ?? "CH"),
             QaGeburtsdatum  = emp.DateOfBirth?.ToString("dd.MM.yyyy"),
             QaNationalitaet = emp.NationalityRef?.Code ?? emp.Nationality,
@@ -429,7 +429,7 @@ public class QstAnmeldungController : ControllerBase
             Konfession      = MapKonfession(emp.Religion),
 
             // Aufenthaltsadresse — gleich wie Wohnadresse, falls keine separate gepflegt
-            AufenthaltAdresse      = JoinNonEmpty(" ", emp.Street, emp.HouseNumber),
+            AufenthaltAdresse      = emp.Street,
             AufenthaltPlzOrtKanton = JoinNonEmpty(" ", emp.ZipCode, emp.City, emp.CantonCode),
 
             // Beruf

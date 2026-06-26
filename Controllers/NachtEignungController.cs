@@ -66,7 +66,7 @@ public class NachtEignungController : ControllerBase
             Nachname:       e.LastName ?? "",
             Vorname:        e.FirstName ?? "",
             Geburtsdatum:   e.DateOfBirth?.ToString("dd.MM.yyyy"),
-            PersonStrasse:  Join(e.Street, e.HouseNumber),
+            PersonStrasse:  e.Street,
             PersonPlzOrt:   Join(e.ZipCode, e.City)
         );
 
@@ -129,7 +129,7 @@ public class NachtEignungController : ControllerBase
             ArbeitgeberPlzOrt:  Join(cp?.ZipCode, cp?.City),
             ArbeitgeberOrt:     cp?.City,
             MaName:             ($"{e.FirstName} {e.LastName}").Trim(),
-            MaStrasse:          Join(e.Street, e.HouseNumber),
+            MaStrasse:          e.Street,
             MaPlzOrt:           Join(e.ZipCode, e.City),
             MaGeburtsdatum:     e.DateOfBirth?.ToString("dd.MM.yyyy"),
             UnterzeichnerName:     signerName,
@@ -187,7 +187,7 @@ public class NachtEignungController : ControllerBase
 
         var data = new NachtAusnahmePdfService.NachtAusnahmeData(
             MaName:         ($"{e.FirstName} {e.LastName}").Trim(),
-            MaStrasse:      Join(e.Street, e.HouseNumber),
+            MaStrasse:      e.Street,
             MaPlzOrt:       Join(e.ZipCode, e.City),
             MaGeburtsdatum: e.DateOfBirth?.ToString("dd.MM.yyyy"),
             FilialeName:    cp?.CompanyName,

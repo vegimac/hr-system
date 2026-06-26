@@ -848,7 +848,6 @@ function renderEmployeeDetail(emp) {
             </div>
             <div class="emp-field-grid easywork-info-grid emp-flow-line emp-address-line">
                 ${field(_t('ma.field.street','Strasse'),          emp.street, null, true)}
-                ${field(_t('ma.field.houseNumber','Hausnummer'),  emp.houseNumber, null, true)}
                 ${field(_t('ma.field.zipCode','PLZ'),             emp.zipCode, null, true)}
                 ${field(_t('ma.field.city','Ort'),                emp.city, null, true)}
                 ${field(_t('ma.field.canton','Kanton'),           emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null, null, true)}
@@ -3851,7 +3850,6 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <!-- Walter 26.05.2026: Adresse + Kontakt in die Personalien-Card. -->
     <div class="emp-field-grid easywork-info-grid emp-flow-line emp-address-line">
         ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
-        ${eField(_t('ma.field.houseNumber','Hausnummer'), `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}" ${ewInput}>`)}
         ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" ${ewInput}>`)}
         ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(emp.city)}" ${ewInput}>`)}
         ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
@@ -4235,7 +4233,6 @@ async function saveEmpEdit() {
         phone2:       _phone2Fmt || null,
         email:        easyWorkLocked ? (emp.email || null) : (_emailRaw || null),
         street:       easyWorkLocked ? (emp.street || null) : (document.getElementById('ef-street')?.value || null),
-        houseNumber:  easyWorkLocked ? (emp.houseNumber || null) : (document.getElementById('ef-houseNr')?.value || null),
         zipCode:      _zipRaw || null,
         city:         easyWorkLocked ? (emp.city || null) : (document.getElementById('ef-city')?.value || null),
         country:      easyWorkLocked ? (emp.country || null) : (document.getElementById('ef-country')?.value || null),
@@ -4499,7 +4496,7 @@ async function fmRefreshAddressUi(currentAlternativeAddressId) {
     const emp = selectedEmployee;
     if (summaryEl && emp) {
         const parts = [
-            [emp.street, emp.houseNumber].filter(Boolean).join(' '),
+            emp.street,
             [emp.zipCode, emp.city].filter(Boolean).join(' '),
             emp.country && emp.country.toLowerCase() !== 'schweiz' ? emp.country : null,
         ].filter(Boolean);

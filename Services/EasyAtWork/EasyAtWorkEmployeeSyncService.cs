@@ -261,7 +261,7 @@ public class EasyAtWorkEmployeeSyncService
         var normalizedGender = NormalizeGender(eaw.Gender);
         var salutation = SalutationFromGender(eaw.Gender);
         var letterSalutation = BuildLetterSalutation(normalizedGender, eaw.FirstName);
-        var (street, houseNumber) = SplitStreetHouse(eaw.Address1);
+        var street = NormalizeStreet(eaw.Address1, eaw.Address2);
         var zip = string.IsNullOrWhiteSpace(eaw.PostalCode) ? null : eaw.PostalCode.Trim();
         var loc = await ResolveSwissLocationAsync(zip, eaw.City, ct);
         var phone = NormalizePhone(eaw.Phone);
@@ -307,7 +307,6 @@ public class EasyAtWorkEmployeeSyncService
             if (!result.UpdatedFields.Contains("Nationalität")) result.UpdatedFields.Add("Nationalität");
         }
         SetString("Strasse", emp.Street, street, v => emp.Street = v);
-        SetString("Hausnummer", emp.HouseNumber, houseNumber, v => emp.HouseNumber = v);
         SetString("PLZ", emp.ZipCode, zip, v => emp.ZipCode = v);
         SetString("Ort", emp.City, loc.City ?? eaw.City, v => emp.City = v);
         SetString("Kanton", emp.CantonCode, loc.Canton, v => emp.CantonCode = v);
@@ -1691,9 +1690,8 @@ public class EasyAtWorkEmployeeSyncService
         Add("Geschlecht",  co?.Gender,      NormalizeGender(eaw.Gender));
         Add("Geburtstag",  co?.DateOfBirth?.ToString("yyyy-MM-dd"),
                             eaw.BirthDate?.ToString("yyyy-MM-dd"));
-        var (street, hno) = SplitStreetHouse(eaw.Address1);
+        var street = NormalizeStreet(eaw.Address1, eaw.Address2);
         Add("Strasse",     co?.Street,      street);
-        Add("Hausnr.",     co?.HouseNumber, hno);
         Add("PLZ",         co?.ZipCode,     eaw.PostalCode);
         Add("Ort",         co?.City,        eaw.City);
         Add("Land",        co?.Country,     (eaw.CountryKey ?? eaw.Country)?.ToUpperInvariant());
@@ -1725,7 +1723,6 @@ public class EasyAtWorkEmployeeSyncService
                 // via SaveNumberChange. Der Diff dient nur der Anzeige + Status UPDATE.
                 case "Geburtstag":   emp.DateOfBirth  = DateTime.TryParse(d.Easy, out var dob) ? dob : emp.DateOfBirth; break;
                 case "Strasse":      emp.Street       = d.Easy; break;
-                case "Hausnr.":      emp.HouseNumber  = d.Easy; break;
                 case "PLZ":          emp.ZipCode      = d.Easy; break;
                 case "Ort":          emp.City         = d.Easy; break;
                 case "Land":         emp.Country      = d.Easy; break;
@@ -1926,14 +1923,13 @@ public class EasyAtWorkEmployeeSyncService
         return null;   // unbekannt → bleibt manuell
     }
 
-    private static (string? street, string? hno) SplitStreetHouse(string? addr)
+    private static string? NormalizeStreet(string? address1, string? address2 = null)
     {
-        if (string.IsNullOrWhiteSpace(addr)) return (null, null);
-        var s = addr.Trim();
-        // letzte Zahl(en)+optionaler Buchstabe als Hausnummer
-        var m = System.Text.RegularExpressions.Regex.Match(s, @"^(.+?)\s+(\d+[a-zA-Z]?)$");
-        if (m.Success) return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim());
-        return (s, null);
+        var parts = new[] { address1, address2 }
+            .Select(x => string.IsNullOrWhiteSpace(x) ? null : x.Trim())
+            .Where(x => x != null)
+            .ToList();
+        return parts.Count == 0 ? null : string.Join(" ", parts);
     }
 
     private static string? NormalizePhone(string? phone)

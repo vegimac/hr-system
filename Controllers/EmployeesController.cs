@@ -279,7 +279,6 @@ public class EmployeesController : ControllerBase
 
             // ── Adresse (werden u.a. im QST-Modal angezeigt) ─────────────
             employee.Street,
-            employee.HouseNumber,
             employee.ZipCode,
             employee.City,
             employee.Country,
@@ -380,7 +379,6 @@ public class EmployeesController : ControllerBase
         // Kanton neu aus dem Ortschaftsverzeichnis abgeleitet werden.
         var zipBefore = employee.ZipCode?.Trim();
         if (dto.Street      is not null) employee.Street      = dto.Street      == "" ? null : dto.Street;
-        if (dto.HouseNumber is not null) employee.HouseNumber = dto.HouseNumber == "" ? null : dto.HouseNumber;
         if (dto.ZipCode     is not null) employee.ZipCode     = dto.ZipCode     == "" ? null : dto.ZipCode;
         if (dto.City        is not null) employee.City        = dto.City        == "" ? null : dto.City;
         if (dto.Country     is not null) employee.Country     = dto.Country     == "" ? null : dto.Country;
@@ -1141,7 +1139,6 @@ public class EmployeeUpdateDto
 
     // Adresse
     public string?   Street      { get; set; }
-    public string?   HouseNumber { get; set; }
     public string?   ZipCode     { get; set; }
     public string?   City        { get; set; }
     public string?   Country     { get; set; }

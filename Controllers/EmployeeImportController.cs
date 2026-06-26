@@ -392,9 +392,7 @@ public class EmployeeImportController : ControllerBase
             employee.FirstName = NullIfEmpty(row.FirstName) ?? employee.FirstName;
             employee.LastName = NullIfEmpty(row.LastName) ?? employee.LastName;
 
-            var (street, houseNumber) = SplitAddress(row.Address, row.Address2);
-            employee.Street = street;
-            employee.HouseNumber = houseNumber;
+            employee.Street = MergeAddress(row.Address, row.Address2);
 
             employee.ZipCode = NullIfEmpty(row.ZipCode);
             employee.City = NullIfEmpty(row.City);
@@ -699,19 +697,15 @@ public class EmployeeImportController : ControllerBase
         return null;
     }
 
-    private static (string? street, string? houseNumber) SplitAddress(string? address1, string? address2)
+    private static string? MergeAddress(string? address1, string? address2)
     {
         var line1 = NullIfEmpty(address1);
         var line2 = NullIfEmpty(address2);
 
         if (string.IsNullOrWhiteSpace(line1))
-            return (null, line2);
+            return line2;
 
-        var match = Regex.Match(line1, @"^(.*\D)\s+(\d+[A-Za-z\-\/]*)$");
-        if (match.Success)
-            return (match.Groups[1].Value.Trim(), match.Groups[2].Value.Trim());
-
-        return (line1, line2);
+        return string.Join(" ", new[] { line1, line2 }.Where(x => !string.IsNullOrWhiteSpace(x))).Trim();
     }
 
     private static int? ResolvePermitTypeId(string? rawValue, List<PermitType> permitTypes)

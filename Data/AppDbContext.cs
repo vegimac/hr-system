@@ -87,7 +87,6 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FirstName).HasColumnName("first_name");
             entity.Property(e => e.LastName).HasColumnName("last_name");
             entity.Property(e => e.Street).HasColumnName("street");
-            entity.Property(e => e.HouseNumber).HasColumnName("house_number");
             entity.Property(e => e.ZipCode).HasColumnName("zip_code");
             entity.Property(e => e.City).HasColumnName("city");
             entity.Property(e => e.Country).HasColumnName("country");

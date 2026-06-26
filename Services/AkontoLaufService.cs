@@ -832,9 +832,7 @@ public class AkontoLaufService
             {
                 // MA selbst
                 cdtrName   = maName;
-                cdtrStreet = string.IsNullOrWhiteSpace(emp.HouseNumber)
-                                 ? emp.Street
-                                 : $"{emp.Street} {emp.HouseNumber}".Trim();
+                cdtrStreet = emp.Street;
                 cdtrPlz    = emp.ZipCode;
                 cdtrCity   = emp.City;
                 cdtrCountry = string.IsNullOrWhiteSpace(emp.Country) ? "CH" : emp.Country!;

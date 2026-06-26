@@ -1098,17 +1098,11 @@ async function loadPlzKantonMap(plzs) {
     } catch { plzKantonMap = new Map(); }
 }
 
-// Splittet "Buchslistrasse 2" → { street: "Buchslistrasse", house: "2" }.
-// easy@work liefert Strasse + Hausnummer in EINER Spalte ("Adresse") —
-// das Backend hat aber getrennte Felder Street/HouseNumber. Ohne Split
-// landet die Hausnummer doppelt: einmal in der Strasse, einmal im
-// Hausnummer-Feld (Stale-Wert eines früheren Imports). Spiegelt die
-// Backend-Regex SplitStreetAndHouseNumber (EmployeeStammdatenImportController).
+// Kompatibilitäts-Wrapper: easy@work liefert Strasse + Hausnummer bereits
+// kombiniert. Cowork speichert die MA-Hauptadresse ebenfalls komplett in Street.
 function splitStreetHouse(raw) {
     if (!raw) return { street: '', house: '' };
     const trimmed = String(raw).trim();
-    const m = trimmed.match(/^(.+?)\s+(\d+\s*[a-zA-Z]?(?:[-–]\d+\s*[a-zA-Z]?)?)\s*$/);
-    if (m) return { street: m[1].trim(), house: m[2].trim() };
     return { street: trimmed, house: '' };
 }
 
@@ -2183,7 +2177,6 @@ async function analyzeRows() {
             const csvAddrPh = splitStreetHouse(get(row,'Adresse'));
             const addrFieldsPh = [
                 { csv: csvAddrPh.street,         db: existingEmp?.street      || '' },
-                { csv: csvAddrPh.house,          db: existingEmp?.houseNumber || '' },
                 { csv: get(row,'Postleitzahl'),  db: existingEmp?.zipCode     || '' },
                 { csv: get(row,'Stadt'),         db: existingEmp?.city        || '' },
                 { csv: get(row,'E-Mail'),        db: existingEmp?.email       || '' },
@@ -2283,13 +2276,10 @@ async function analyzeRows() {
             // (street/zipCode/phoneMobile — NICHT address/postalCode/phone).
             // Änderung = CSV hat einen Wert, der sich vom DB-Wert unterscheidet
             // (DB leer ODER abweichend) — Walter-Vorgabe 13.05.2026.
-            // "Adresse" wird in Strasse + Hausnummer gesplittet — getrennt
-            // mit den DB-Feldern vergleichen (sonst meldet "Buchslistrasse 2"
-            // vs DB-Strasse "Buchslistrasse" immer eine Scheinänderung).
+            // Adresse bleibt inkl. Hausnummer zusammen in Street.
             const csvAddr = splitStreetHouse(get(row,'Adresse'));
             const addrFields = [
                 { csv: csvAddr.street,           db: existingEmp?.street      || '' },
-                { csv: csvAddr.house,            db: existingEmp?.houseNumber || '' },
                 { csv: get(row,'Postleitzahl'),  db: existingEmp?.zipCode     || '' },
                 { csv: get(row,'Stadt'),         db: existingEmp?.city        || '' },
                 { csv: get(row,'E-Mail'),        db: existingEmp?.email       || '' },
@@ -2902,8 +2892,7 @@ function renderNewRow(e) {
                 ${addrField('Geburtsdatum', fmtDe(get(row,'Geburtsdatum')))}
                 ${addrField('E-Mail', get(row,'E-Mail'))}
                 ${addrField('Telefon', formatPhone(get(row,'Telefon')))}
-                ${addrField('Strasse', splitStreetHouse(get(row,'Adresse')).street)}
-                ${addrField('Hausnummer', splitStreetHouse(get(row,'Adresse')).house)}
+                ${addrField('Adresse', splitStreetHouse(get(row,'Adresse')).street)}
                 ${addrField('PLZ', get(row,'Postleitzahl'))}
                 ${addrField('Stadt', get(row,'Stadt'))}
                 ${addrField('Nationalität', get(row,'Nationalität'))}
@@ -3070,8 +3059,7 @@ function renderContractRow(c) {
                 ${addrField('Geburtsdatum', fmtDe(get(row,'Geburtsdatum')))}
                 ${addrField('E-Mail', get(row,'E-Mail'))}
                 ${addrField('Telefon', formatPhone(get(row,'Telefon')))}
-                ${addrField('Strasse', splitStreetHouse(get(row,'Adresse')).street)}
-                ${addrField('Hausnummer', splitStreetHouse(get(row,'Adresse')).house)}
+                ${addrField('Adresse', splitStreetHouse(get(row,'Adresse')).street)}
                 ${addrField('PLZ', get(row,'Postleitzahl'))}
                 ${addrField('Stadt', get(row,'Stadt'))}
                 ${addrField('Nationalität', get(row,'Nationalität'))}
@@ -3108,7 +3096,6 @@ function renderAddrRow(a) {
     const cantonMismatch = !!(plzCanton && csvRegionCode && plzCanton !== csvRegionCode);
     const fields = [
         { label: 'Strasse',      csv: csvAddr.street,            db: existingEmp?.street || '' },
-        { label: 'Hausnummer',   csv: csvAddr.house,             db: existingEmp?.houseNumber || '' },
         { label: 'PLZ',          csv: get(row,'Postleitzahl'),   db: existingEmp?.zipCode || '' },
         { label: 'Stadt',        csv: get(row,'Stadt'),          db: existingEmp?.city || '' },
         { label: 'E-Mail',       csv: get(row,'E-Mail'),         db: existingEmp?.email || '' },
@@ -3535,11 +3522,8 @@ function buildPersonPayload(row) {
     const todayIso = new Date().toISOString().slice(0, 10);
     const exitDate = (bisIso && bisIso < todayIso) ? bisIso : null;
 
-    // Adresse: easy@work liefert Strasse + Hausnummer kombiniert in "Adresse".
-    // Aufsplitten, damit Backend-Felder Street/HouseNumber sauber getrennt
-    // gefüllt werden. houseNumber wird NUR mitgesendet wenn die CSV überhaupt
-    // eine Adresse hat — dann aber immer (ggf. ''), damit ein veralteter
-    // Hausnummer-Wert aus einem früheren Import überschrieben/geleert wird.
+    // Adresse: easy@work liefert Strasse + Hausnummer kombiniert in "Adresse";
+    // Cowork speichert sie ebenfalls komplett in street.
     const addrRaw = get(row, 'Adresse');
     const addr    = splitStreetHouse(addrRaw);
     const marital = validateMaritalStatusForApiImport(row);
@@ -3552,7 +3536,6 @@ function buildPersonPayload(row) {
         // Backend-Property heisst PhoneMobile (Employee-Model + EmployeeUpdateDto).
         phoneMobile:     formatPhone(get(row, 'Telefon')) || null,
         street:          addr.street || null,
-        houseNumber:     addrRaw ? addr.house : null,
         city:            get(row, 'Stadt') || null,
         zipCode:         get(row, 'Postleitzahl') || null,
         // Walter-Vorgabe 06.06.2026: CSV-Region (z.B. „Aargau") wird NICHT mehr

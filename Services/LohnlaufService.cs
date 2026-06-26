@@ -239,9 +239,7 @@ public class LohnlaufService
                 {
                     // MA selbst
                     cdtrName   = maName;
-                    cdtrStreet = string.IsNullOrWhiteSpace(snap.Employee.HouseNumber)
-                                     ? snap.Employee.Street
-                                     : $"{snap.Employee.Street} {snap.Employee.HouseNumber}".Trim();
+                    cdtrStreet = snap.Employee.Street;
                     cdtrPlz    = snap.Employee.ZipCode;
                     cdtrCity   = snap.Employee.City;
                     cdtrCountry = string.IsNullOrWhiteSpace(snap.Employee.Country)
