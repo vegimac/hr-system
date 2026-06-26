@@ -1159,35 +1159,44 @@
             color: #fee2e2;
         }
 
-        /* ── Floating Sprach-/Theme-Widget (oben rechts, jeder Screen) ──
-           Im Dunkelmodus bekommt das Widget einen dunklen Hintergrund,
-           sonst stand ein greller weisser Kasten auf dunklem Grund. */
+        /* ── Floating Topbar-Widget (oben rechts, jeder Screen) ── */
+        #langSwitcher {
+            background: rgba(255,255,255,.18) !important;
+            border-color: rgba(255,255,255,.30) !important;
+            box-shadow: 0 12px 36px rgba(70,64,55,.08), inset 0 1px 0 rgba(255,255,255,.36) !important;
+            backdrop-filter: blur(22px) saturate(145%) !important;
+            -webkit-backdrop-filter: blur(22px) saturate(145%) !important;
+        }
+        #langSwitcher .lang-control {
+            display: none !important;
+        }
         body.theme-dark #langSwitcher {
-            background: rgba(30, 41, 59, 0.96) !important;
-            border-color: #475569 !important;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45) !important;
+            background: rgba(15, 26, 37, 0.22) !important;
+            border-color: rgba(122,145,165,.20) !important;
+            box-shadow: 0 12px 34px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.06) !important;
         }
         body.theme-dark #langSwitcher .ls-label   { color: #cbd5e1 !important; }
         body.theme-dark #langSwitcher .ls-divider { background: #475569 !important; }
 
-        /* Theme-Toggle — deutlich erkennbarer Pill-Button mit Icon + Label,
-           hoher Kontrast in BEIDEN Modi:
-             hell  → dunkler Pill, bernsteinfarbener Mond, Label "Dunkel"
-             dunkel→ bernsteinfarbener Pill, dunkle Sonne, Label "Hell" */
+        /* Theme-Toggle — transparente Liquid-Glass-Pille. */
         #themeToggleBtn {
             display: inline-flex; align-items: center; gap: 6px;
-            background: #1e293b; color: #fbbf24;
-            border: 1px solid #1e293b; border-radius: 7px;
-            cursor: pointer; padding: 5px 11px;
-            font-size: 12px; font-weight: 600; font-family: inherit;
-            line-height: 1; transition: background .15s, color .15s;
+            background: rgba(255,255,255,.22); color: #5f4f1f;
+            border: 1px solid rgba(255,255,255,.38); border-radius: 16px;
+            cursor: pointer; padding: 7px 13px;
+            font-size: 12px; font-weight: 700; font-family: inherit;
+            line-height: 1; transition: background .15s, color .15s, transform .15s;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.48), 0 8px 22px rgba(70,64,55,.08);
+            backdrop-filter: blur(18px) saturate(145%);
+            -webkit-backdrop-filter: blur(18px) saturate(145%);
         }
         #themeToggleBtn .tt-icon  { font-size: 14px; line-height: 1; }
-        #themeToggleBtn:hover     { background: #0f172a; }
+        #themeToggleBtn:hover     { background: rgba(255,255,255,.34); transform: translateY(-1px); }
         body.theme-dark #themeToggleBtn {
-            background: #fbbf24; color: #1e293b; border-color: #fbbf24;
+            background: rgba(255,255,255,.08); color: #fde68a; border-color: rgba(253,230,138,.20);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 8px 22px rgba(0,0,0,.14);
         }
-        body.theme-dark #themeToggleBtn:hover { background: #f59e0b; }
+        body.theme-dark #themeToggleBtn:hover { background: rgba(255,255,255,.13); }
 
         /* ── MAIN CONTENT ──────────────────────────────────────── */
         .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; background: #f8fafc; }
@@ -4119,13 +4128,15 @@
                     style="background:transparent;border:1px solid #e2e8f0;cursor:pointer;padding:3px 8px;border-radius:5px;font-size:13px;color:#64748b;line-height:1">
                 ❓
             </button>
-            <span class="ls-divider" style="width:1px;height:18px;background:#e2e8f0;margin:0 3px"></span>
-            <span class="ls-label" style="font-size:11px;color:#64748b" data-i18n="topbar.language">Sprache</span>
+            <span class="ls-divider lang-control" style="width:1px;height:18px;background:#e2e8f0;margin:0 3px"></span>
+            <span class="ls-label lang-control" style="font-size:11px;color:#64748b" data-i18n="topbar.language">Sprache</span>
             <button id="langBtnDe" onclick="i18n.setLang('de',{persist:true})" title="Deutsch"
+                    class="lang-control"
                     style="background:transparent;border:none;cursor:pointer;padding:2px;border-radius:4px;line-height:0;outline:2px solid #3b82f6;outline-offset:1px">
                 <svg width="22" height="14" viewBox="0 0 5 3" aria-hidden="true"><rect width="5" height="1" y="0" fill="#000"/><rect width="5" height="1" y="1" fill="#DD0000"/><rect width="5" height="1" y="2" fill="#FFCE00"/></svg>
             </button>
             <button id="langBtnEn" onclick="i18n.setLang('en',{persist:true})" title="English"
+                    class="lang-control"
                     style="background:transparent;border:none;cursor:pointer;padding:2px;border-radius:4px;line-height:0;outline:none">
                 <svg width="22" height="14" viewBox="0 0 60 30" aria-hidden="true"><clipPath id="ukclipApp"><path d="M0,0 v30 h60 v-30 z"/></clipPath><rect width="60" height="30" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" stroke-width="3" clip-path="url(#ukclipApp)"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></svg>
             </button>
@@ -4135,7 +4146,7 @@
                  (#themeToggleBtn) — Icon + Label, hoher Kontrast in beiden
                  Modi. Label-Text wird von applyTheme() gesetzt (kein
                  data-i18n, da er je nach Modus wechselt). -->
-            <span class="ls-divider" style="width:1px;height:18px;background:#e2e8f0;margin:0 3px"></span>
+            <span class="ls-divider lang-control" style="width:1px;height:18px;background:#e2e8f0;margin:0 3px"></span>
             <button id="themeToggleBtn" onclick="toggleTheme()" title="Hell/Dunkel umschalten">
                 <span class="tt-icon">🌙</span>
                 <span class="tt-label">Dunkel</span>
