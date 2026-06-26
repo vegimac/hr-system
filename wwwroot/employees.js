@@ -1201,10 +1201,6 @@ async function easyworkSyncSelectedEmployee(empId) {
             renderEmployeeList(allEmployees);
             renderEmployeeDetail(selectedEmployee);
         }
-        const changed = data.updatedFields && data.updatedFields.length
-            ? data.updatedFields.join(', ')
-            : 'keine Änderungen';
-        alert('easy@work-Abgleich abgeschlossen: ' + changed);
     } catch (e) {
         alert('easy@work-Abgleich fehlgeschlagen: ' + (e?.message || e));
     } finally {
