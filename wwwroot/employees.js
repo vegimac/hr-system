@@ -839,7 +839,7 @@ function renderEmployeeDetail(emp) {
         <!-- TAB: Persönliche Angaben -->
         <div class="emp-tab-content active" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-            <div class="emp-field-grid easywork-info-grid emp-flow-line">
+            <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-main-line">
                 ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
                 ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation)}
                 ${field(_t('ma.field.maidenName','Ledigname'),    emp.maidenName)}
@@ -854,7 +854,7 @@ function renderEmployeeDetail(emp) {
                 ${field(_t('ma.field.canton','Kanton'),           emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null, null, true)}
                 ${field(_t('ma.field.country','Land'),            emp.country, null, true)}
             </div>
-            <div class="emp-field-grid easywork-info-grid emp-flow-line">
+            <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-extra-line">
                 ${field(_t('ma.field.maritalStatus','Zivilstand'),formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus), 'marriage_cert', true)}
                 ${field(_t('ma.field.maritalSince','Zivilstand seit'), emp.maritalStatusSince ? formatDate(emp.maritalStatusSince) : null)}
                 ${field(_t('ma.field.religion','Konfession'),     emp.religion)}
@@ -866,7 +866,7 @@ function renderEmployeeDetail(emp) {
                         : (emp.nationalityCode ?? emp.nationality ?? null),
                     'passport', true)}
             </div>
-            <div class="emp-field-grid easywork-info-grid emp-flow-line">
+            <div class="emp-field-grid easywork-info-grid emp-flow-line emp-contact-line">
                 ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile, null, true)}
                 ${field('Telefon 2',                              emp.phone2)}
                 ${field(_t('ma.field.email','E-Mail'),            emp.email, null, true)}
@@ -3831,7 +3831,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     const ewSelect = `disabled data-easywork-locked="1" title="${ewTitle}"`;
     return `
     <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-    <div class="emp-field-grid easywork-info-grid emp-flow-line">
+    <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-main-line">
         ${eField(_t('ma.field.salutation','Anrede'), `<select id="ef-salutation" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="Herr"   ${emp.salutation==='Herr'  ?'selected':''}>${_t('ma.value.salutation.herr','Herr')}</option>
@@ -3857,7 +3857,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
         ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
         ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" ${ewInput}>`)}
     </div>
-    <div class="emp-field-grid easywork-info-grid emp-flow-line">
+    <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-extra-line">
         ${eField(_t('ma.field.maritalStatus','Zivilstand'), `<select id="ef-zivilstand" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="unbekannt"                  ${(emp.zivilstand ?? emp.maritalStatus)==='unbekannt'                  ?'selected':''}>${_t('ma.value.maritalStatus.unbekannt','Unbekannt')}</option>
@@ -3882,7 +3882,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             ${nationalityOptions}
         </select>`)}
     </div>
-    <div class="emp-field-grid easywork-info-grid emp-flow-line">
+    <div class="emp-field-grid easywork-info-grid emp-flow-line emp-contact-line">
         ${eField(_t('ma.field.phone','Telefon'), `<input id="ef-phone" class="ef-input" type="tel" value="${esc(emp.phoneMobile)}" placeholder="${_t('ma.placeholder.phone','+41 79 409 43 33')}" ${ewInput}>`)}
         ${eField('Telefon 2', `<input id="ef-phone2" class="ef-input" type="tel" value="${esc(emp.phone2)}" placeholder="${_t('ma.placeholder.phone','+41 79 409 43 33')}" oninput="validatePhone(this)" onblur="validatePhoneBlur(this)">`)}
         ${eField(_t('ma.field.email','E-Mail'),  `<input id="ef-email" class="ef-input" type="email" value="${esc(emp.email)}" ${ewInput}>`)}
