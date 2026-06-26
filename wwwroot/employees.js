@@ -869,14 +869,14 @@ function renderEmployeeDetail(emp) {
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null, null, true)}
                 <div class="emp-field">
                     <div class="emp-field-label">L-GAV</div>
-                    <div class="emp-field-value"><select id="ef-lgavPflichtig" class="ef-input" onchange="empInlineDirty()">
+                    <div class="emp-field-value"><select id="ef-lgavPflichtig" class="ef-input emp-yesno-select" onchange="empInlineDirty()">
                         <option value="true" ${emp.lgavPflichtig ? 'selected' : ''}>ja</option>
                         <option value="false" ${!emp.lgavPflichtig ? 'selected' : ''}>nein</option>
                     </select></div>
                 </div>
                 <div class="emp-field">
                     <div class="emp-field-label">&lt; 8 h / Wo.</div>
-                    <div class="emp-field-value"><select id="ef-teilzeitUnter8h" class="ef-input" onchange="empInlineDirty()">
+                    <div class="emp-field-value"><select id="ef-teilzeitUnter8h" class="ef-input emp-yesno-select" onchange="empInlineDirty()">
                         <option value="true" ${emp.teilzeitUnter8hWoche ? 'selected' : ''}>ja</option>
                         <option value="false" ${!emp.teilzeitUnter8hWoche ? 'selected' : ''}>nein</option>
                     </select></div>
