@@ -799,6 +799,7 @@ function renderEmployeeDetail(emp) {
                  startEmpEdit() ersetzt den Inhalt dieses Containers durch
                  Speichern/Abbrechen. Postfach-Button nur für nicht-Phantom-MA. -->
             <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:52px;flex-shrink:0">
+                <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
                 ${['admin','superuser','buchhaltung'].includes(currentUser?.role) ? `
                 <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap"
                         title="Aktualisiert easy@work-Felder dieses Mitarbeiters aus der API"
@@ -811,15 +812,6 @@ function renderEmployeeDetail(emp) {
                         onclick="postfachResetPassword(${emp.id})">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     ${_t('ma.detail.postfachReset','Postfach-Passwort')}
-                </button>` : ''}
-                <button id="btnEmpEdit" class="btn-emp-edit btn-edit-blue" style="white-space:nowrap" onclick="startEmpEdit()">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    ${_t('ma.detail.edit','Bearbeiten')}
-                </button>
-                ${currentUser?.role === 'admin' ? `
-                <button id="btnEmpDelete" class="btn-emp-edit" style="white-space:nowrap;background:#fee2e2;border:1px solid #fca5a5;color:#991b1b" onclick="openDeleteEmployeeModal(${emp.id})" title="${_t('ma.detail.deleteHint','Mitarbeiter löschen (nur für Admin)')}">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                    ${_t('ma.detail.delete','Löschen')}
                 </button>` : ''}
             </div>
         </div>
@@ -877,8 +869,6 @@ function renderEmployeeDetail(emp) {
                 ${inlineEditField('Telefon 2', `<input id="ef-phone2" class="ef-input" type="tel" value="${esc(emp.phone2)}" oninput="validatePhone(this);empInlineDirty()" onblur="validatePhoneBlur(this)">`)}
                 ${field(_t('ma.field.email','E-Mail'),            emp.email, null, true)}
             </div>
-            <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
-
             <div class="emp-section-title" style="margin-top:2px">Anstellung</div>
             <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
                  die zwei Booleans (LGAV + <8h) rechts schmaler. -->
