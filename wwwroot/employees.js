@@ -699,9 +699,11 @@ function renderNumberAliases(empId, rows) {
                     style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:13px;line-height:1;padding:0 2px">×</button>
         </span>`;
     }).join(' ');
-    box.innerHTML = `${items || ''}
-        <button onclick="addNumberAlias(${empId})" title="Alte Personalnummer hinzufügen"
-                style="border:1px dashed rgba(148,163,184,.45);background:rgba(255,255,255,.26);color:#64748b;border-radius:10px;padding:1px 8px;font-size:11.5px;cursor:pointer;margin-left:4px">+ Alt</button>`;
+    box.innerHTML = items
+        ? `${items}
+            <button onclick="addNumberAlias(${empId})" title="Alte Personalnummer hinzufügen"
+                    style="border:1px dashed rgba(148,163,184,.45);background:rgba(255,255,255,.18);color:#64748b;border-radius:10px;padding:1px 8px;font-size:11.5px;cursor:pointer;margin-left:4px">+ Alt</button>`
+        : '';
 }
 
 async function addNumberAlias(empId) {
@@ -768,7 +770,7 @@ function renderEmployeeDetail(emp) {
                 <div style="min-width:0">
                     <div class="emp-detail-name" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                         <span>${name}</span>
-                        <span style="font-size:13px;font-weight:760;color:#64748b;background:rgba(255,255,255,.34);border:1px solid rgba(255,255,255,.46);border-radius:999px;padding:3px 10px">Nr. ${nr}</span>
+                        <span style="font-size:inherit;font-weight:inherit;color:#64748b">${nr}</span>
                         ${window._activePregnancy ? `
                         <button onclick="switchEmpTab('familie')"
                                 title="Aktuelle Schwangerschaft im Familie-Tab anzeigen"
