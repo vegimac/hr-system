@@ -768,6 +768,7 @@ function renderEmployeeDetail(emp) {
                 <div style="min-width:0">
                     <div class="emp-detail-name" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                         <span>${name}</span>
+                        <span style="font-size:13px;font-weight:760;color:#64748b;background:rgba(255,255,255,.34);border:1px solid rgba(255,255,255,.46);border-radius:999px;padding:3px 10px">Nr. ${nr}</span>
                         ${window._activePregnancy ? `
                         <button onclick="switchEmpTab('familie')"
                                 title="Aktuelle Schwangerschaft im Familie-Tab anzeigen"
