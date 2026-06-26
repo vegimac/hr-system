@@ -889,50 +889,9 @@ function renderEmployeeDetail(emp) {
                         : `<span style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;color:#64748b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">nein</span>`}</div>
                 </div>
             </div>
-            ${renderEmpContractList(emp)}
-
-            <!-- Nachtarbeit-Untersuchung als EIGENE Zeile unter Anstellung
-                 (Walter-Vorgabe 20.06.2026, ArG). Read-only Anzeige + ⋮-Menü
-                 (Walter 21.06.2026) — nicht mehr dauerhaft im Editiermodus. -->
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
-            <div style="padding:6px 2px 2px">
-                <!-- Ansicht (read-only) -->
-                <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null, emp.nightWorkExamValidUntil)}</span>
-                    <!-- Formulare einzeln drucken — inline neben der von–bis-Zeile (Walter 22.06.2026) -->
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
-                        <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
-                        <button onclick="openNachtVerzichtPdf(${emp.id})" title="Verzichtserklärung drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Verzicht</button>
-                        <button onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Ausnahmeregelung</button>
-                        ${emp.nightWorkExamDokumentId
-                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegten Arztbericht / die Verzichtserklärung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Arzt/Verzicht</button>`
-                            : ''}
-                        ${emp.nightWorkAusnahmeDokumentId
-                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Ausnahmeregelung</button>`
-                            : ''}
-                    </div>
-                    <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
-                        <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
-                        <div class="dok-menu" id="nwMenu-${emp.id}">
-                            <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
-                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'Arztbericht/Verzicht ersetzen' : 'Arztbericht/Verzicht verknüpfen'}</button>
-                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausnahmeregelung ersetzen' : 'Ausnahmeregelung verknüpfen'}</button>
-                        </div>
-                    </div>
-                </div>
-                <!-- Editiermodus (versteckt bis „Ausstellungsdatum bearbeiten") -->
-                <div id="nwEdit_${emp.id}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
-                    <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
-                    <input type="date" id="nwDateInput_${emp.id}" value="${emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : ''}"
-                           oninput="nwPreview(${emp.id}, this.value)"
-                           title="Ausstellungsdatum des Arztzeugnisses / Verzichts"
-                           style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
-                    <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
-                    <button onclick="nwSaveEdit(${emp.id})" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 12px;cursor:pointer;color:#15803d;font-size:12px;font-weight:600">Speichern</button>
-                    <button onclick="nwCancelEdit(${emp.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;cursor:pointer;color:#64748b;font-size:12px;font-weight:600">Abbrechen</button>
-                </div>
-            </div>
-
+            ${renderNightWorkBlock(emp)}
+            ${renderEmpContractList(emp)}
             <!-- Bei MA „ohne Lohn" (IsPayrollExcluded — Phantom-MA für easy@work-
                  Zugang wie Supervisor) keine Bewilligung, keine Bank, keine
                  Zusatzadressen anzeigen. Diese Personen haben keinen Vertrag und
@@ -1162,6 +1121,43 @@ function empContractWageText(c) {
     if (c.monthlySalaryFte != null) return `CHF ${fmt(c.monthlySalaryFte)} / 100%`;
     if (c.monthlySalary != null) return `CHF ${fmt(c.monthlySalary)} / Mt.`;
     return '';
+}
+
+function renderNightWorkBlock(emp) {
+    return `<div style="padding:4px 2px 2px">
+        <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null, emp.nightWorkExamValidUntil)}</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
+                <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
+                <button onclick="openNachtVerzichtPdf(${emp.id})" title="Verzichtserklärung drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Verzicht</button>
+                <button onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Ausnahmeregelung</button>
+                ${emp.nightWorkExamDokumentId
+                    ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegten Arztbericht / die Verzichtserklärung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Arzt/Verzicht</button>`
+                    : ''}
+                ${emp.nightWorkAusnahmeDokumentId
+                    ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Ausnahmeregelung</button>`
+                    : ''}
+            </div>
+            <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
+                <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
+                <div class="dok-menu" id="nwMenu-${emp.id}">
+                    <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
+                    <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'Arztbericht/Verzicht ersetzen' : 'Arztbericht/Verzicht verknüpfen'}</button>
+                    <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausnahmeregelung ersetzen' : 'Ausnahmeregelung verknüpfen'}</button>
+                </div>
+            </div>
+        </div>
+        <div id="nwEdit_${emp.id}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
+            <input type="date" id="nwDateInput_${emp.id}" value="${emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : ''}"
+                   oninput="nwPreview(${emp.id}, this.value)"
+                   title="Ausstellungsdatum des Arztzeugnisses / Verzichts"
+                   style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+            <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
+            <button onclick="nwSaveEdit(${emp.id})" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 12px;cursor:pointer;color:#15803d;font-size:12px;font-weight:600">Speichern</button>
+            <button onclick="nwCancelEdit(${emp.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;cursor:pointer;color:#64748b;font-size:12px;font-weight:600">Abbrechen</button>
+        </div>
+    </div>`;
 }
 
 async function openEmpContractPdf(contractId, printAfterOpen) {
