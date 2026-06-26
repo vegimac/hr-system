@@ -829,12 +829,14 @@ function renderEmployeeDetail(emp) {
         <!-- TAB: Persönliche Angaben -->
         <div class="emp-tab-content active" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+            <div class="emp-field-grid easywork-info-grid emp-identity-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
                 ${field(_t('ma.field.firstName','Vorname'),       emp.firstName, null, true)}
                 ${field(_t('ma.field.lastName','Nachname'),       emp.lastName, null, true)}
                 ${field('MA-Nummer', emp.employeeNumber, null, true)}
-                ${field('Alte Nummern', `<span id="empAliasSummaryField">–</span>`, null, true)}
+            </div>
+            <div class="emp-field-grid easywork-info-grid emp-identity-subgrid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
                 ${field('Eintritt', emp.entryDate ? formatDate(emp.entryDate) : null, null, true)}
+                ${field('Alte Nummern', `<span id="empAliasSummaryField">–</span>`, null, true)}
                 ${(() => {
                     const aktiv = !!emp.isActive;
                     const html = aktiv
@@ -3801,6 +3803,7 @@ async function startEmpEdit() {
     // erfasst werden können (Walter-Bug: schien "verloren" zu sein).
     // Bank + Postfach sind NICHT mehr im Edit-Formular — eigener Tab.
     if (selectedEmployeeId) {
+        loadNumberAliases(selectedEmployeeId);
         loadEmployeeAddressesTab(selectedEmployeeId);
         loadPermitHistory(selectedEmployeeId);
     }
@@ -3839,12 +3842,14 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     const ewSelect = `disabled data-easywork-locked="1" title="${ewTitle}"`;
     return `
     <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+    <div class="emp-field-grid easywork-info-grid emp-identity-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
         ${eField(_t('ma.field.firstName','Vorname'),    `<input id="ef-firstName"  class="ef-input" value="${esc(emp.firstName)}" ${ewInput}>`)}
         ${eField(_t('ma.field.lastName','Nachname'),    `<input id="ef-lastName"   class="ef-input" value="${esc(emp.lastName)}" ${ewInput}>`)}
         ${eField('MA-Nummer', `<input class="ef-input" value="${esc(emp.employeeNumber)}" ${ewInput}>`)}
-        ${eField('Alte Nummern', `<div class="ef-input" data-easywork-locked="1" title="${ewTitle}" style="background:transparent;border-color:transparent;box-shadow:none;padding-left:0">werden oben verwaltet</div>`)}
+    </div>
+    <div class="emp-field-grid easywork-info-grid emp-identity-subgrid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
         ${eField(_t('ma.field.entryDate','Eintrittsdatum'), `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}" ${ewInput}>`)}
+        ${eField('Alte Nummern', `<div class="ef-input" data-easywork-locked="1" title="${ewTitle}" style="background:transparent;border-color:transparent;box-shadow:none;padding-left:0"><span id="empAliasSummaryField">–</span></div>`)}
         ${eField(_t('ma.field.isActive','Aktiv'),
             `<div class="ef-input" data-easywork-locked="1" title="${ewTitle}" style="background:transparent;border-color:transparent;box-shadow:none;padding-left:0">${emp.isActive ? '✓ aktiv' : '⊘ inaktiv'}</div>`)}
     </div>
