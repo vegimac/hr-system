@@ -686,24 +686,17 @@ function renderNumberAliases(empId, rows) {
     const box = document.getElementById('empNumberAliases');
     if (!box || String(box.dataset.emp) !== String(empId)) return;
     const summary = document.getElementById('empAliasSummaryField');
+    const activeNumber = (selectedEmployee?.employeeNumber || '').trim();
+    const uniqueNumbers = Array.from(new Set((rows || [])
+        .map(a => (a.number || '').trim())
+        .filter(n => n && n !== activeNumber)));
     if (summary) {
-        const txt = (rows || []).map(a => a.number).filter(Boolean).join(', ');
+        const txt = uniqueNumbers.join(', ');
         summary.textContent = txt || '–';
     }
-    const items = (rows || []).map(a => {
-        const bis = a.validTo ? ' (bis ' + formatDate(a.validTo) + ')' : '';
-        const src = a.source && a.source !== 'manual' ? ' · ' + escapeHtml(a.source) : '';
-        return `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.34);border:1px solid rgba(255,255,255,.44);border-radius:12px;padding:1px 4px 1px 9px;font-size:11.5px;color:#64748b">
-            ${escapeHtml(a.number)}<span style="color:#94a3b8">${bis}${src}</span>
-            <button onclick="deleteNumberAlias(${empId}, ${a.id})" title="Alte Nummer entfernen"
-                    style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:13px;line-height:1;padding:0 2px">×</button>
-        </span>`;
-    }).join(' ');
-    box.innerHTML = items
-        ? `${items}
-            <button onclick="addNumberAlias(${empId})" title="Alte Personalnummer hinzufügen"
-                    style="border:1px dashed rgba(148,163,184,.45);background:rgba(255,255,255,.18);color:#64748b;border-radius:10px;padding:1px 8px;font-size:11.5px;cursor:pointer;margin-left:4px">+ Alt</button>`
-        : '';
+    box.innerHTML = uniqueNumbers
+        .map(n => `<span class="emp-old-number">${escapeHtml(n)}</span>`)
+        .join('');
 }
 
 async function addNumberAlias(empId) {
@@ -774,6 +767,7 @@ function renderEmployeeDetail(emp) {
                     <div class="emp-detail-name" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                         <span>${name}</span>
                         <span style="font-size:inherit;font-weight:inherit;color:#64748b">${nr}</span>
+                        <span id="empNumberAliases" data-emp="${emp.id}"></span>
                         ${window._activePregnancy ? `
                         <button onclick="switchEmpTab('familie')"
                                 title="Aktuelle Schwangerschaft im Familie-Tab anzeigen"
@@ -785,7 +779,6 @@ function renderEmployeeDetail(emp) {
                         <span>${headerStatusHtml}</span>
                         <span>${_t('ma.detail.entryDate','Eintritt')}: ${entry}</span>
                         <span>Geburtstag: ${birthHeader}${linkedDocButton('birth_cert')}</span>
-                        <span id="empNumberAliases" data-emp="${emp.id}"></span>
                     </div>
                 </div>
             </div>
@@ -799,7 +792,7 @@ function renderEmployeeDetail(emp) {
                  startEmpEdit() ersetzt den Inhalt dieses Containers durch
                  Speichern/Abbrechen. Postfach-Button nur für nicht-Phantom-MA. -->
             <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:52px;flex-shrink:0">
-                <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
+                <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="visibility:hidden">Speichern</button>
                 ${['admin','superuser','buchhaltung'].includes(currentUser?.role) ? `
                 <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap"
                         title="Aktualisiert easy@work-Felder dieses Mitarbeiters aus der API"
@@ -3544,7 +3537,7 @@ function inlineEditField(label, inputHtml) {
 
 function empInlineDirty() {
     const btn = document.getElementById('empInlineSaveBtn');
-    if (btn) btn.style.display = 'inline-flex';
+    if (btn) btn.style.visibility = 'visible';
 }
 
 // Klick auf 📎: springt in den Dokumente-Tab des MA und filtert auf den
