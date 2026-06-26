@@ -693,15 +693,15 @@ function renderNumberAliases(empId, rows) {
     const items = (rows || []).map(a => {
         const bis = a.validTo ? ' (bis ' + formatDate(a.validTo) + ')' : '';
         const src = a.source && a.source !== 'manual' ? ' · ' + escapeHtml(a.source) : '';
-        return `<span style="display:inline-flex;align-items:center;gap:4px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:1px 4px 1px 9px;font-size:11.5px;color:#475569">
+        return `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.34);border:1px solid rgba(255,255,255,.44);border-radius:12px;padding:1px 4px 1px 9px;font-size:11.5px;color:#64748b">
             ${escapeHtml(a.number)}<span style="color:#94a3b8">${bis}${src}</span>
             <button onclick="deleteNumberAlias(${empId}, ${a.id})" title="Alte Nummer entfernen"
                     style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:13px;line-height:1;padding:0 2px">×</button>
         </span>`;
     }).join(' ');
-    box.innerHTML = `<span style="font-size:11.5px;color:#94a3b8">Alte Nummern:</span> ${items || '<span style="color:#cbd5e1;font-size:11.5px">—</span>'}
+    box.innerHTML = `${items || ''}
         <button onclick="addNumberAlias(${empId})" title="Alte Personalnummer hinzufügen"
-                style="border:1px dashed #cbd5e1;background:#fff;color:#64748b;border-radius:10px;padding:1px 8px;font-size:11.5px;cursor:pointer;margin-left:4px">+ Alte Nr.</button>`;
+                style="border:1px dashed rgba(148,163,184,.45);background:rgba(255,255,255,.26);color:#64748b;border-radius:10px;padding:1px 8px;font-size:11.5px;cursor:pointer;margin-left:4px">+ Alt</button>`;
 }
 
 async function addNumberAlias(empId) {
@@ -775,8 +775,11 @@ function renderEmployeeDetail(emp) {
                             🤰 Mutterschaft
                         </button>` : ''}
                     </div>
-                    <div class="emp-detail-meta">${_t('ma.detail.persNr','Personal-Nr.')} ${nr} &nbsp;·&nbsp; ${_t('ma.detail.entryDate','Eintritt')}: ${entry} &nbsp;·&nbsp; ${headerStatusHtml}</div>
-                    <div id="empNumberAliases" data-emp="${emp.id}" style="margin-top:3px"></div>
+                    <div class="emp-detail-meta" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                        <span>${headerStatusHtml}</span>
+                        <span>${_t('ma.detail.entryDate','Eintritt')}: ${entry}</span>
+                        <span id="empNumberAliases" data-emp="${emp.id}"></span>
+                    </div>
                 </div>
             </div>
             <!-- Tab-spezifischer „+ Neu"-Button (Walter-Vorgabe 01.06.2026):
@@ -829,22 +832,6 @@ function renderEmployeeDetail(emp) {
         <!-- TAB: Persönliche Angaben -->
         <div class="emp-tab-content active" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-            <div class="emp-field-grid easywork-info-grid emp-identity-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
-                ${field(_t('ma.field.firstName','Vorname'),       emp.firstName, null, true)}
-                ${field(_t('ma.field.lastName','Nachname'),       emp.lastName, null, true)}
-                ${field('MA-Nummer', emp.employeeNumber, null, true)}
-            </div>
-            <div class="emp-field-grid easywork-info-grid emp-identity-subgrid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
-                ${field('Eintritt', emp.entryDate ? formatDate(emp.entryDate) : null, null, true)}
-                ${field('Alte Nummern', `<span id="empAliasSummaryField">–</span>`, null, true)}
-                ${(() => {
-                    const aktiv = !!emp.isActive;
-                    const html = aktiv
-                        ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ aktiv</span>`
-                        : `<span style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">⊘ inaktiv</span>`;
-                    return `<div class="emp-field liquid-field easywork-source-field"><div class="emp-field-label">Aktiv</div><div class="emp-field-value easywork-info">${html}</div></div>`;
-                })()}
-            </div>
             <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
                 ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
                 ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation)}
@@ -3842,17 +3829,6 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     const ewSelect = `disabled data-easywork-locked="1" title="${ewTitle}"`;
     return `
     <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-    <div class="emp-field-grid easywork-info-grid emp-identity-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
-        ${eField(_t('ma.field.firstName','Vorname'),    `<input id="ef-firstName"  class="ef-input" value="${esc(emp.firstName)}" ${ewInput}>`)}
-        ${eField(_t('ma.field.lastName','Nachname'),    `<input id="ef-lastName"   class="ef-input" value="${esc(emp.lastName)}" ${ewInput}>`)}
-        ${eField('MA-Nummer', `<input class="ef-input" value="${esc(emp.employeeNumber)}" ${ewInput}>`)}
-    </div>
-    <div class="emp-field-grid easywork-info-grid emp-identity-subgrid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
-        ${eField(_t('ma.field.entryDate','Eintrittsdatum'), `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}" ${ewInput}>`)}
-        ${eField('Alte Nummern', `<div class="ef-input" data-easywork-locked="1" title="${ewTitle}" style="background:transparent;border-color:transparent;box-shadow:none;padding-left:0"><span id="empAliasSummaryField">–</span></div>`)}
-        ${eField(_t('ma.field.isActive','Aktiv'),
-            `<div class="ef-input" data-easywork-locked="1" title="${ewTitle}" style="background:transparent;border-color:transparent;box-shadow:none;padding-left:0">${emp.isActive ? '✓ aktiv' : '⊘ inaktiv'}</div>`)}
-    </div>
     <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
         ${eField(_t('ma.field.salutation','Anrede'), `<select id="ef-salutation" class="ef-input" ${ewSelect}>
             <option value="">–</option>
