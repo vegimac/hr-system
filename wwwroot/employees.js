@@ -685,6 +685,11 @@ async function loadNumberAliases(empId) {
 function renderNumberAliases(empId, rows) {
     const box = document.getElementById('empNumberAliases');
     if (!box || String(box.dataset.emp) !== String(empId)) return;
+    const summary = document.getElementById('empAliasSummaryField');
+    if (summary) {
+        const txt = (rows || []).map(a => a.number).filter(Boolean).join(', ');
+        summary.textContent = txt || '–';
+    }
     const items = (rows || []).map(a => {
         const bis = a.validTo ? ' (bis ' + formatDate(a.validTo) + ')' : '';
         const src = a.source && a.source !== 'manual' ? ' · ' + escapeHtml(a.source) : '';
@@ -824,22 +829,26 @@ function renderEmployeeDetail(emp) {
         <!-- TAB: Persönliche Angaben -->
         <div class="emp-tab-content active" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-            <div class="emp-field-grid-3 easywork-info-grid">
+            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
                 ${field(_t('ma.field.firstName','Vorname'),       emp.firstName, null, true)}
                 ${field(_t('ma.field.lastName','Nachname'),       emp.lastName, null, true)}
+                ${field('MA-Nummer', emp.employeeNumber, null, true)}
+                ${field('Alte Nummern', `<span id="empAliasSummaryField">–</span>`, null, true)}
+                ${field('Eintritt', emp.entryDate ? formatDate(emp.entryDate) : null, null, true)}
+                ${(() => {
+                    const aktiv = !!emp.isActive;
+                    const html = aktiv
+                        ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ aktiv</span>`
+                        : `<span style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">⊘ inaktiv</span>`;
+                    return `<div class="emp-field liquid-field easywork-source-field"><div class="emp-field-label">Aktiv</div><div class="emp-field-value easywork-info">${html}</div></div>`;
+                })()}
+            </div>
+            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+                ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
+                ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation)}
                 ${field(_t('ma.field.maidenName','Ledigname'),    emp.maidenName)}
                 ${field(_t('ma.field.shortName','Kurzname'),      emp.shortName)}
-                ${field(_t('ma.field.dob','Geburtsdatum'),        emp.dateOfBirth ? `${formatDate(emp.dateOfBirth)} <span style="color:#94a3b8;font-weight:400">(${calcAge(emp.dateOfBirth)} J.)</span>` : null, 'birth_cert', true)}
                 ${field(_t('ma.field.gender','Geschlecht'),       formatGender(emp.gender), null, true)}
-                ${field(_t('ma.field.ahv','AHV-Nummer'),          emp.socialSecurityNumber, 'ahv_card', true)}
-                ${field(_t('ma.field.zemis','ZEMIS-Nr.'),         emp.zemisNumber)}
-                ${field(_t('ma.field.maritalStatus','Zivilstand'),formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus), 'marriage_cert', true)}
-                ${field(_t('ma.field.maritalSince','Zivilstand seit'), emp.maritalStatusSince ? formatDate(emp.maritalStatusSince) : null)}
-                ${field(_t('ma.field.language','Sprache'),        formatLanguage(emp.languageCode), null, true)}
-                ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
-                ${field(_t('ma.field.letterSalutation','Briefanrede'), emp.letterSalutation, null, true)}
-                ${field(_t('ma.field.placeOfOrigin','Heimatort'), emp.placeOfOrigin)}
-                ${field(_t('ma.field.religion','Konfession'),     emp.religion)}
                 ${field(_t('ma.field.nationality','Nationalität'),
                     emp.nationalityName
                         ? (emp.nationalityCode && emp.nationalityCode !== emp.nationalityName
@@ -848,37 +857,31 @@ function renderEmployeeDetail(emp) {
                         : (emp.nationalityCode ?? emp.nationality ?? null),
                     'passport', true)}
             </div>
-            <!-- Walter-Vorgabe 26.05.2026: Adresse + Kontakt in DIE Personalien-
-                 Card eingebunden (keine eigenen Section-Titles mehr —
-                 platzsparend). Die Felder fügen sich nahtlos an die
-                 Personalien an. -->
-            <div class="emp-field-grid-3 emp-grid-attached easywork-info-grid">
+            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
                 ${field(_t('ma.field.street','Strasse'),          emp.street, null, true)}
                 ${field(_t('ma.field.houseNumber','Hausnummer'),  emp.houseNumber, null, true)}
                 ${field(_t('ma.field.zipCode','PLZ'),             emp.zipCode, null, true)}
                 ${field(_t('ma.field.city','Ort'),                emp.city, null, true)}
                 ${field(_t('ma.field.canton','Kanton'),           emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null, null, true)}
                 ${field(_t('ma.field.country','Land'),            emp.country, null, true)}
+            </div>
+            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
+                ${field(_t('ma.field.dob','Geburtsdatum'),        emp.dateOfBirth ? `${formatDate(emp.dateOfBirth)} <span style="color:#94a3b8;font-weight:400">(${calcAge(emp.dateOfBirth)} J.)</span>` : null, 'birth_cert', true)}
+                ${field(_t('ma.field.maritalStatus','Zivilstand'),formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus), 'marriage_cert', true)}
+                ${field(_t('ma.field.maritalSince','Zivilstand seit'), emp.maritalStatusSince ? formatDate(emp.maritalStatusSince) : null)}
+                ${field(_t('ma.field.religion','Konfession'),     emp.religion)}
+            </div>
+            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
                 ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile, null, true)}
+                ${field('Telefon 2',                              emp.phone2)}
                 ${field(_t('ma.field.email','E-Mail'),            emp.email, null, true)}
             </div>
 
             <div class="emp-section-title" style="margin-top:2px">Anstellung</div>
             <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
                  die zwei Booleans (LGAV + <8h) rechts schmaler. -->
-            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:0.9fr 0.9fr 0.8fr 0.7fr 0.75fr;gap:12px">
-                ${field('Eintrittsdatum', emp.entryDate ? formatDate(emp.entryDate) : null, null, true)}
+            <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
                 ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null)}
-                ${(() => {
-                    // Walter-Vorgabe 18.05.2026: Aktiv-Status hier im Read-Only-View
-                    // explizit zeigen — Walter setzt ihn bewusst manuell, kein Auto-Sync
-                    // aus ExitDate mehr.
-                    const aktiv = !!emp.isActive;
-                    const html = aktiv
-                        ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">✓ aktiv</span>`
-                        : `<span style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:9px;font-size:12px;font-weight:600">⊘ inaktiv</span>`;
-                    return `<div class="emp-field"><div class="emp-field-label">Status</div><div class="emp-field-value">${html}</div></div>`;
-                })()}
                 <div class="emp-field">
                     <div class="emp-field-label">L-GAV</div>
                     <div class="emp-field-value">${emp.lgavPflichtig
@@ -3836,22 +3839,47 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     const ewSelect = `disabled data-easywork-locked="1" title="${ewTitle}"`;
     return `
     <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-    <div class="emp-field-grid-3 easywork-info-grid">
+    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
         ${eField(_t('ma.field.firstName','Vorname'),    `<input id="ef-firstName"  class="ef-input" value="${esc(emp.firstName)}" ${ewInput}>`)}
         ${eField(_t('ma.field.lastName','Nachname'),    `<input id="ef-lastName"   class="ef-input" value="${esc(emp.lastName)}" ${ewInput}>`)}
+        ${eField('MA-Nummer', `<input class="ef-input" value="${esc(emp.employeeNumber)}" ${ewInput}>`)}
+        ${eField('Alte Nummern', `<div class="ef-input" data-easywork-locked="1" title="${ewTitle}" style="background:transparent;border-color:transparent;box-shadow:none;padding-left:0">werden oben verwaltet</div>`)}
+        ${eField(_t('ma.field.entryDate','Eintrittsdatum'), `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.isActive','Aktiv'),
+            `<div class="ef-input" data-easywork-locked="1" title="${ewTitle}" style="background:transparent;border-color:transparent;box-shadow:none;padding-left:0">${emp.isActive ? '✓ aktiv' : '⊘ inaktiv'}</div>`)}
+    </div>
+    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+        ${eField(_t('ma.field.salutation','Anrede'), `<select id="ef-salutation" class="ef-input" ${ewSelect}>
+            <option value="">–</option>
+            <option value="Herr"   ${emp.salutation==='Herr'  ?'selected':''}>${_t('ma.value.salutation.herr','Herr')}</option>
+            <option value="Frau"   ${emp.salutation==='Frau'  ?'selected':''}>${_t('ma.value.salutation.frau','Frau')}</option>
+            <option value="Divers" ${emp.salutation==='Divers'?'selected':''}>${_t('ma.value.salutation.divers','Divers')}</option>
+        </select>`)}
+        ${eField(_t('ma.field.letterSalutation','Briefanrede'), `<input id="ef-letterSalutation" class="ef-input" value="${esc(emp.letterSalutation)}" placeholder="${_t('ma.placeholder.letterSalutation','z.B. Sehr geehrte Frau Muster')}">`)}
         ${eField(_t('ma.field.maidenName','Ledigname'), `<input id="ef-maidenName" class="ef-input" value="${esc(emp.maidenName)}">`)}
         ${eField(_t('ma.field.shortName','Kurzname'),   `<input id="ef-shortName"  class="ef-input" value="${esc(emp.shortName)}">`)}
-        ${eField(`${_t('ma.field.dob','Geburtsdatum')} <span id="ef-dob-age" style="font-weight:400;color:#94a3b8;margin-left:6px">${emp.dateOfBirth ? '(' + calcAge(emp.dateOfBirth) + ' J.)' : ''}</span>`, `<input id="ef-dob" class="ef-input" type="date" value="${toDateInput(emp.dateOfBirth)}" ${ewInput}>`)}
         ${eField(_t('ma.field.gender','Geschlecht'), `<select id="ef-gender" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="female" ${emp.gender==='female'?'selected':''}>${_t('ma.value.gender.female','Weiblich')}</option>
             <option value="male"   ${emp.gender==='male'  ?'selected':''}>${_t('ma.value.gender.male','Männlich')}</option>
         </select>`)}
-        ${eField(_t('ma.field.ahv','AHV-Nummer'), `<input id="ef-ahvNummer" class="ef-input" placeholder="756.XXXX.XXXX.XX"
-                value="${esc(emp.socialSecurityNumber)}"
-                ${ewInput}>
-            <div id="ef-ahvNummer-status" style="font-size:11px;line-height:1.1"></div>`)}
-        ${eField(_t('ma.field.zemis','ZEMIS-Nr.'), `<input id="ef-zemisNumber" class="ef-input" placeholder="${_t('ma.placeholder.zemis','z.B. 22952410')}" value="${esc(emp.zemisNumber)}">`)}
+        ${eField(_t('ma.field.nationality','Nationalität'), `<select id="ef-nationalityId" class="ef-input" ${ewSelect}>
+            <option value="">–</option>
+            ${nationalityOptions}
+        </select>`)}
+    </div>
+
+    <!-- Walter 26.05.2026: Adresse + Kontakt in die Personalien-Card. -->
+    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+        ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.houseNumber','Hausnummer'), `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" ${ewInput}>`)}
+        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(emp.city)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
+        ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" ${ewInput}>`)}
+    </div>
+    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
+        ${eField(`${_t('ma.field.dob','Geburtsdatum')} <span id="ef-dob-age" style="font-weight:400;color:#94a3b8;margin-left:6px">${emp.dateOfBirth ? '(' + calcAge(emp.dateOfBirth) + ' J.)' : ''}</span>`, `<input id="ef-dob" class="ef-input" type="date" value="${toDateInput(emp.dateOfBirth)}" ${ewInput}>`)}
         ${eField(_t('ma.field.maritalStatus','Zivilstand'), `<select id="ef-zivilstand" class="ef-input" ${ewSelect}>
             <option value="">–</option>
             <option value="unbekannt"                  ${(emp.zivilstand ?? emp.maritalStatus)==='unbekannt'                  ?'selected':''}>${_t('ma.value.maritalStatus.unbekannt','Unbekannt')}</option>
@@ -3862,22 +3890,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="getrennt"                   ${(emp.zivilstand ?? emp.maritalStatus)==='getrennt'                   ?'selected':''}>${_t('ma.value.maritalStatus.getrennt','Getrennt')}</option>
             <option value="eingetragene_partnerschaft" ${(emp.zivilstand ?? emp.maritalStatus)==='eingetragene_partnerschaft' ?'selected':''}>${_t('ma.value.maritalStatus.eingetragene_partnerschaft','Eingetragene Partnerschaft')}</option>
         </select>`)}
-        ${eField(_t('ma.field.maritalSince','Zivilstand seit'), `<input id="ef-maritalStatusSince" class="ef-input" type="date" value="${toDateInput(emp.maritalStatusSince)}" ${ewInput}>`)}
-        ${eField(_t('ma.field.language','Sprache'), `<select id="ef-lang" class="ef-input" ${ewSelect}>
-            <option value="">–</option>
-            <option value="de" ${emp.languageCode==='de'?'selected':''}>${_t('ma.value.language.de','Deutsch')}</option>
-            <option value="fr" ${emp.languageCode==='fr'?'selected':''}>${_t('ma.value.language.fr','Französisch')}</option>
-            <option value="it" ${emp.languageCode==='it'?'selected':''}>${_t('ma.value.language.it','Italienisch')}</option>
-            <option value="en" ${emp.languageCode==='en'?'selected':''}>${_t('ma.value.language.en','Englisch')}</option>
-        </select>`)}
-        ${eField(_t('ma.field.salutation','Anrede'), `<select id="ef-salutation" class="ef-input" ${ewSelect}>
-            <option value="">–</option>
-            <option value="Herr"   ${emp.salutation==='Herr'  ?'selected':''}>${_t('ma.value.salutation.herr','Herr')}</option>
-            <option value="Frau"   ${emp.salutation==='Frau'  ?'selected':''}>${_t('ma.value.salutation.frau','Frau')}</option>
-            <option value="Divers" ${emp.salutation==='Divers'?'selected':''}>${_t('ma.value.salutation.divers','Divers')}</option>
-        </select>`)}
-        ${eField(_t('ma.field.letterSalutation','Briefanrede'), `<input id="ef-letterSalutation" class="ef-input" value="${esc(emp.letterSalutation)}" placeholder="${_t('ma.placeholder.letterSalutation','z.B. Sehr geehrte Frau Muster')}" ${ewInput}>`)}
-        ${eField(_t('ma.field.placeOfOrigin','Heimatort'), `<input id="ef-placeOfOrigin" class="ef-input" value="${esc(emp.placeOfOrigin)}" placeholder="${_t('ma.placeholder.placeOfOrigin','für CH-Bürger')}">`)}
+        ${eField(_t('ma.field.maritalSince','Zivilstand seit'), `<input id="ef-maritalStatusSince" class="ef-input" type="date" value="${toDateInput(emp.maritalStatusSince)}">`)}
         ${eField(_t('ma.field.religion','Konfession'), `<select id="ef-religion" class="ef-input">
             <option value="">–</option>
             <option value="evangelisch_reformiert" ${emp.religion==='evangelisch_reformiert'?'selected':''}>${_t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert')}</option>
@@ -3886,21 +3899,10 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="andere"                 ${emp.religion==='andere'                ?'selected':''}>${_t('ma.value.religion.andere','Andere')}</option>
             <option value="keine"                  ${emp.religion==='keine'                 ?'selected':''}>${_t('ma.value.religion.keine','Keine')}</option>
         </select>`)}
-        ${eField(_t('ma.field.nationality','Nationalität'), `<select id="ef-nationalityId" class="ef-input" ${ewSelect}>
-            <option value="">–</option>
-            ${nationalityOptions}
-        </select>`)}
     </div>
-
-    <!-- Walter 26.05.2026: Adresse + Kontakt in die Personalien-Card. -->
-    <div class="emp-field-grid-3 emp-grid-attached easywork-info-grid">
-        ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
-        ${eField(_t('ma.field.houseNumber','Hausnummer'), `<input id="ef-houseNr" class="ef-input" value="${esc(emp.houseNumber)}" ${ewInput}>`)}
-        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" ${ewInput}>`)}
-        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(emp.city)}" ${ewInput}>`)}
-        ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
-        ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" ${ewInput}>`)}
-        ${eField(_t('ma.field.phone','Telefon'), `<input id="ef-phone" class="ef-input" type="tel"   value="${esc(emp.phoneMobile)}" placeholder="${_t('ma.placeholder.phone','+41 79 409 43 33')}" ${ewInput}>`)}
+    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+        ${eField(_t('ma.field.phone','Telefon'), `<input id="ef-phone" class="ef-input" type="tel" value="${esc(emp.phoneMobile)}" placeholder="${_t('ma.placeholder.phone','+41 79 409 43 33')}" ${ewInput}>`)}
+        ${eField('Telefon 2', `<input id="ef-phone2" class="ef-input" type="tel" value="${esc(emp.phone2)}" placeholder="${_t('ma.placeholder.phone','+41 79 409 43 33')}" oninput="validatePhone(this)" onblur="validatePhoneBlur(this)">`)}
         ${eField(_t('ma.field.email','E-Mail'),  `<input id="ef-email" class="ef-input" type="email" value="${esc(emp.email)}" ${ewInput}>`)}
     </div>
     <div id="ef-plz-hint" style="font-size:12px;margin-top:-6px;margin-bottom:6px"></div>
@@ -3909,24 +3911,9 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile.
          Eintritt/Austritt/Aktiv links, die zwei Booleans (L-GAV / <8 h)
          rechts schmaler. -->
-    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:1.1fr 1.1fr 1.1fr 0.75fr 0.85fr;gap:12px">
-        ${eField(_t('ma.field.entryDate','Eintrittsdatum'),
-            `<input id="ef-entry" class="ef-input" type="date" value="${toDateInput(emp.entryDate)}" ${ewInput}>`,
-            _t('ma.field.entryDateHint','Datum der Betriebszugehörigkeit'))}
+    <div class="emp-field-grid easywork-info-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
         ${eField(_t('ma.field.exitDate','Austrittsdatum'),
             `<input id="ef-exit"  class="ef-input" type="date" value="${toDateInput(emp.exitDate)}" ${ewInput}>`)}
-        <!-- Walter-Vorgabe 18.05.2026: Aktiv-Flag ist NICHT mehr automatisch
-             aus dem ExitDate abgeleitet. Walter entscheidet bewusst — ein MA
-             mit Austritt mitten im Monat bleibt aktiv bis nach dem letzten
-             Lohnlauf, dann wird der Haken hier manuell entfernt. -->
-        ${eField(_t('ma.field.isActive','Aktiv'),
-            `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
-                 <input id="ef-isactive" type="checkbox" ${emp.isActive ? 'checked' : ''}
-                        onchange="onIsActiveChange(this, ${emp.id})"
-                        style="width:16px;height:16px;cursor:pointer;margin:0">
-                 <span id="ef-isactive-label" style="font-size:12px;color:#475569">${emp.isActive ? _t('ma.field.isActiveYes','aktiv') : _t('ma.field.isActiveNo','inaktiv')}</span>
-             </label>`,
-            _t('ma.field.isActiveHint','Postfach + Listen'))}
         ${eField('L-GAV',
             `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
                  <input id="ef-lgavPflichtig" type="checkbox" ${emp.lgavPflichtig ? 'checked' : ''}
@@ -4245,8 +4232,16 @@ async function saveEmpEdit() {
         alert('PLZ muss 4-stellig numerisch sein.');
         return;
     }
+    const _phone2Raw = document.getElementById('ef-phone2')?.value || '';
+    const _phone2Fmt = _phone2Raw ? window.formatPhoneIntl(_phone2Raw) : '';
+    if (_phone2Raw && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(_phone2Fmt)) {
+        alert('Telefon 2-Format ungültig (erwartet +99 99 999 99 99, z.B. +41 79 409 43 33).');
+        return;
+    }
+    if (_phone2Fmt) document.getElementById('ef-phone2').value = _phone2Fmt;
 
     const exitVal = easyWorkLocked ? toDateInput(emp.exitDate) : document.getElementById('ef-exit')?.value;
+    const isActiveInput = document.getElementById('ef-isactive');
     const empPayload = {
         firstName:    easyWorkLocked ? (emp.firstName || null) : (document.getElementById('ef-firstName')?.value || null),
         lastName:     easyWorkLocked ? (emp.lastName || null) : (document.getElementById('ef-lastName')?.value || null),
@@ -4255,6 +4250,7 @@ async function saveEmpEdit() {
         dateOfBirth:  easyWorkLocked ? (toDateInput(emp.dateOfBirth) || null) : (document.getElementById('ef-dob')?.value || null),
         languageCode: easyWorkLocked ? (emp.languageCode || null) : (document.getElementById('ef-lang')?.value || null),
         phoneMobile:  easyWorkLocked ? (emp.phoneMobile || null) : (_phoneFmt || null),
+        phone2:       _phone2Fmt || null,
         email:        easyWorkLocked ? (emp.email || null) : (_emailRaw || null),
         street:       easyWorkLocked ? (emp.street || null) : (document.getElementById('ef-street')?.value || null),
         houseNumber:  easyWorkLocked ? (emp.houseNumber || null) : (document.getElementById('ef-houseNr')?.value || null),
@@ -4271,7 +4267,7 @@ async function saveEmpEdit() {
         exitDate:     exitVal || null,
         // Walter-Vorgabe 18.05.2026: Aktiv-Flag bewusst gesetzt vom UI,
         // KEIN Auto-Sync mehr aus ExitDate (Backend nimmt diesen Wert 1:1).
-        isActive:     document.getElementById('ef-isactive')?.checked === true,
+        isActive:     isActiveInput ? isActiveInput.checked === true : !!emp.isActive,
         // Walter-Vorgabe 07.06.2026: Anstellungs-Booleans aus der zweiten Zeile.
         lgavPflichtig:        document.getElementById('ef-lgavPflichtig')?.checked === true,
         teilzeitUnter8hWoche: document.getElementById('ef-teilzeitUnter8h')?.checked === true,
@@ -4286,7 +4282,7 @@ async function saveEmpEdit() {
         // Unterhalt, höheres Einkommen, Grenzgänger, Wochenaufenthalter)
         // werden im Modul Quellensteuer zeitlich versioniert gepflegt.
         maritalStatusSinceSet: true,
-        maritalStatusSince:    easyWorkLocked ? (toDateInput(emp.maritalStatusSince) || null) : (document.getElementById('ef-maritalStatusSince')?.value || null),
+        maritalStatusSince:    document.getElementById('ef-maritalStatusSince')?.value || null,
         // separatedSince-Feld wurde aus dem UI entfernt (Walter: „Getrennt"
         // ist bereits ein Zivilstand, separates Datum überflüssig). Wir
         // senden separatedSinceSet=false, damit der Backend-Handler das
@@ -4294,7 +4290,7 @@ async function saveEmpEdit() {
         separatedSinceSet:     false,
         separatedSince:        null,
         religion:              document.getElementById('ef-religion')?.value || null,
-        letterSalutation:      easyWorkLocked ? (emp.letterSalutation || null) : (document.getElementById('ef-letterSalutation')?.value?.trim() || null),
+        letterSalutation:      document.getElementById('ef-letterSalutation')?.value?.trim() || null,
         placeOfOrigin:         document.getElementById('ef-placeOfOrigin')?.value?.trim() || null,
     };
 

@@ -1031,7 +1031,8 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE employee
             ADD COLUMN IF NOT EXISTS marital_status_since           DATE,
             ADD COLUMN IF NOT EXISTS separated_since                DATE,
-            ADD COLUMN IF NOT EXISTS religion                        TEXT;
+            ADD COLUMN IF NOT EXISTS religion                        TEXT,
+            ADD COLUMN IF NOT EXISTS phone2                          VARCHAR(50);
     ");
 
     // Behoerde: zusätzliche Stammdaten für Kontaktperson + Kanton-Verknüpfung.

@@ -39,6 +39,7 @@ public class Employee
     public string? LanguageCode { get; set; }
 
     public string? PhoneMobile { get; set; }
+    public string? Phone2 { get; set; }
     public string? Email { get; set; }
 
     public DateTime? EntryDate { get; set; }

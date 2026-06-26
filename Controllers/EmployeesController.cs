@@ -231,6 +231,7 @@ public class EmployeesController : ControllerBase
             nationalityCode = natCode,
             nationalityName = natName,  // Klartext aus AppText (z.B. "Bosnien und Herzegowina")
             employee.PhoneMobile,
+            employee.Phone2,
             employee.Email,
             employee.EntryDate,
             employee.ExitDate,
@@ -371,6 +372,7 @@ public class EmployeesController : ControllerBase
         if (dto.LanguageCode is not null) employee.LanguageCode = dto.LanguageCode == "" ? null : dto.LanguageCode;
         if (dto.NationalityId.HasValue)   employee.NationalityId = dto.NationalityId == 0 ? null : dto.NationalityId;
         if (dto.PhoneMobile  is not null) employee.PhoneMobile  = dto.PhoneMobile  == "" ? null : dto.PhoneMobile;
+        if (dto.Phone2       is not null) employee.Phone2       = dto.Phone2       == "" ? null : dto.Phone2;
         if (dto.Email        is not null) employee.Email        = dto.Email        == "" ? null : dto.Email;
 
         // ── Adresse ───────────────────────────────────────────────────────
@@ -1134,6 +1136,7 @@ public class EmployeeUpdateDto
     public string?   LanguageCode { get; set; }
     public int?      NationalityId { get; set; }
     public string?   PhoneMobile  { get; set; }
+    public string?   Phone2       { get; set; }
     public string?   Email        { get; set; }
 
     // Adresse
