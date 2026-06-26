@@ -873,6 +873,7 @@ public class EasyAtWorkController : ControllerBase
             var s = (g ?? "").Trim().ToLowerInvariant();
             if (s is "female" or "f" or "frau") return "Frau";
             if (s is "male" or "m" or "herr") return "Herr";
+            if (s is "divers" or "diverse" or "andere" or "other" or "nonbinary" or "non-binary" or "x" or "d") return null;
             return null;
         }
         static string? Marital(string? v)

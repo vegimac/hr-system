@@ -752,7 +752,7 @@ function wireEvents() {
 
 function updateGenderDisplay(employeeId) {
     const g = employeeGenderMap[employeeId] ?? '';
-    document.getElementById('genderDisplay').innerText = g === 'female' ? 'Weiblich' : g === 'male' ? 'Männlich' : '–';
+    document.getElementById('genderDisplay').innerText = g === 'female' ? 'Weiblich' : g === 'male' ? 'Männlich' : g === 'divers' ? 'Divers' : '–';
 }
 
 async function loadEmployees() {

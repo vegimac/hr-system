@@ -235,6 +235,7 @@ public class LseExportService
     {
         if (string.IsNullOrWhiteSpace(gender)) return "";
         var g = gender.Trim().ToLowerInvariant();
+        if (g is "divers" or "diverse" or "andere" or "other" or "x" or "d") return "";
         if (g.StartsWith("m") || g == "male" || g == "männlich") return "1";
         if (g.StartsWith("w") || g == "f" || g == "female" || g == "weiblich") return "2";
         return "";

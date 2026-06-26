@@ -3512,8 +3512,9 @@ function buildPersonPayload(row) {
     const natCode = get(row, 'Nationalität').toUpperCase();
     const nat = nationalities.find(n => (n.code||n.Code||'').toUpperCase() === natCode);
     const genderRaw = get(row, 'Geschlecht').toLowerCase();
-    const gender = genderRaw === 'female' || genderRaw === 'weiblich' ? 'female' :
-                   genderRaw === 'male'   || genderRaw === 'männlich' ? 'male' : null;
+    const gender = genderRaw === 'female' || genderRaw === 'weiblich' || genderRaw === 'w' ? 'female' :
+                   genderRaw === 'male'   || genderRaw === 'männlich' || genderRaw === 'maennlich' || genderRaw === 'm' ? 'male' :
+                   ['divers','diverse','andere','other','x','d'].includes(genderRaw) ? 'divers' : null;
     // Anrede aus CSV oder fallback aus Geschlecht — analog Backend.
     const salutationRaw = (get(row, 'Anrede') || '').trim();
     const salutation = salutationRaw

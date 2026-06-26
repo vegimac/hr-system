@@ -1751,6 +1751,7 @@ public class EasyAtWorkEmployeeSyncService
         {
             "male" or "m" or "herr"   => "Herr",
             "female" or "f" or "frau" => "Frau",
+            "divers" or "diverse" or "andere" or "other" or "nonbinary" or "non-binary" or "x" or "d" => null,
             _                          => null
         };
     }
@@ -1811,6 +1812,7 @@ public class EasyAtWorkEmployeeSyncService
         {
             "male" or "m" or "herr"   => "male",
             "female" or "f" or "frau" => "female",
+            "divers" or "diverse" or "andere" or "other" or "nonbinary" or "non-binary" or "x" or "d" => "divers",
             _                          => null
         };
     }
@@ -1866,6 +1868,7 @@ public class EasyAtWorkEmployeeSyncService
         {
             "female" => $"Liebe {fn}",
             "male"   => $"Lieber {fn}",
+            "divers" => null,
             _        => null
         };
     }

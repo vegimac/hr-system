@@ -491,6 +491,7 @@ public class QstAnmeldungController : ControllerBase
         {
             "m" or "male" or "männlich" or "maennlich" or "herr" => "0",
             "f" or "w" or "female" or "weiblich" or "frau"       => "1",
+            "divers" or "diverse" or "andere" or "other" or "x" or "d" => null,
             _ => null,
         };
 

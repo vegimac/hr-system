@@ -257,6 +257,7 @@ window.i18n = (function () {
         // Status-Werte (DB-Codes → Anzeige)
         'ma.value.gender.female':    { de: 'Weiblich',                     en: 'Female' },
         'ma.value.gender.male':      { de: 'Männlich',                     en: 'Male' },
+        'ma.value.gender.divers':    { de: 'Divers',                       en: 'Diverse' },
         'ma.value.maritalStatus.ledig':                       { de: 'Ledig',                       en: 'Single' },
         'ma.value.maritalStatus.verheiratet':                 { de: 'Verheiratet',                 en: 'Married' },
         'ma.value.maritalStatus.geschieden':                  { de: 'Geschieden',                  en: 'Divorced' },
@@ -289,9 +290,6 @@ window.i18n = (function () {
 
         // Zivilstand erweitert
         'ma.value.maritalStatus.unbekannt': { de: 'Unbekannt',              en: 'Unknown' },
-
-        // Anrede erweitert
-        'ma.value.salutation.divers':       { de: 'Divers',                 en: 'Diverse' },
 
         // Konfessions-Werte
         'ma.value.religion.evangelisch_reformiert': { de: 'Evang.-reformiert',  en: 'Evangelical-reformed' },

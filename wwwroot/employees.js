@@ -3693,6 +3693,7 @@ function formatGender(g) {
     const v = String(g).toLowerCase();
     if (v === 'female' || v === 'f' || v.startsWith('w')) return _t('ma.value.gender.female','Weiblich');
     if (v === 'male'   || v === 'm' || v.startsWith('m')) return _t('ma.value.gender.male',  'Männlich');
+    if (v === 'divers' || v === 'diverse' || v === 'andere' || v === 'other' || v === 'x' || v === 'd') return _t('ma.value.gender.divers','Divers');
     return g;
 }
 
@@ -3727,6 +3728,7 @@ function formatSalutation(s) {
     const v = String(s).toLowerCase().trim();
     if (v === 'herr' || v === 'mr' || v === 'mr.') return _t('ma.value.salutation.herr','Herr');
     if (v === 'frau' || v === 'ms' || v === 'mrs.' || v === 'ms.') return _t('ma.value.salutation.frau','Frau');
+    if (v === 'divers' || v === 'diverse') return null;
     return s;
 }
 
@@ -3837,7 +3839,6 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="">–</option>
             <option value="Herr"   ${emp.salutation==='Herr'  ?'selected':''}>${_t('ma.value.salutation.herr','Herr')}</option>
             <option value="Frau"   ${emp.salutation==='Frau'  ?'selected':''}>${_t('ma.value.salutation.frau','Frau')}</option>
-            <option value="Divers" ${emp.salutation==='Divers'?'selected':''}>${_t('ma.value.salutation.divers','Divers')}</option>
         </select>`)}
         ${eField(_t('ma.field.letterSalutation','Briefanrede'), `<input id="ef-letterSalutation" class="ef-input" value="${esc(emp.letterSalutation)}" placeholder="${_t('ma.placeholder.letterSalutation','z.B. Sehr geehrte Frau Muster')}">`)}
         ${eField(_t('ma.field.maidenName','Ledigname'), `<input id="ef-maidenName" class="ef-input" value="${esc(emp.maidenName)}">`)}
@@ -3846,6 +3847,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="">–</option>
             <option value="female" ${emp.gender==='female'?'selected':''}>${_t('ma.value.gender.female','Weiblich')}</option>
             <option value="male"   ${emp.gender==='male'  ?'selected':''}>${_t('ma.value.gender.male','Männlich')}</option>
+            <option value="divers" ${emp.gender==='divers'?'selected':''}>${_t('ma.value.gender.divers','Divers')}</option>
         </select>`)}
         ${eField(_t('ma.field.nationality','Nationalität'), `<select id="ef-nationalityId" class="ef-input" ${ewSelect}>
             <option value="">–</option>

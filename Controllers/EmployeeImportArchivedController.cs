@@ -489,6 +489,7 @@ public class EmployeeImportArchivedController : ControllerBase
         s = s?.Trim().ToLowerInvariant() ?? "";
         if (s == "male" || s == "m" || s == "männlich") return "male";
         if (s == "female" || s == "f" || s == "weiblich") return "female";
+        if (s == "divers" || s == "diverse" || s == "andere" || s == "other" || s == "x" || s == "d") return "divers";
         return null;
     }
 

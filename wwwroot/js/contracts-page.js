@@ -90,7 +90,7 @@ function renderEmpDetail(emp, contracts, panel) {
                 ${empField('Vorname', emp.firstName)}
                 ${empField('Nachname', emp.lastName)}
                 ${empField('Geburtsdatum', emp.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString('de-CH') : '–')}
-                ${empField('Geschlecht', emp.gender === 'female' ? 'Weiblich' : emp.gender === 'male' ? 'Männlich' : '–')}
+                ${empField('Geschlecht', emp.gender === 'female' ? 'Weiblich' : emp.gender === 'male' ? 'Männlich' : emp.gender === 'divers' ? 'Divers' : '–')}
                 ${empField('E-Mail', emp.email)}
                 ${empField('Telefon', emp.phone)}
                 ${empField('Adresse', emp.address)}

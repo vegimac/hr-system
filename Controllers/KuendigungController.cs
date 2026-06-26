@@ -185,6 +185,9 @@ public class KuendigungController : ControllerBase
         if (!string.IsNullOrWhiteSpace(e.LetterSalutation)) return e.LetterSalutation!.Trim();
         var anrede = !string.IsNullOrWhiteSpace(e.Salutation) ? e.Salutation!.Trim()
             : (e.Gender == "female" ? "Frau" : e.Gender == "male" ? "Herr" : "");
+        if (string.Equals(anrede, "Divers", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(anrede, "Diverse", StringComparison.OrdinalIgnoreCase))
+            anrede = "";
         var ln = (e.LastName ?? "").Trim();
         if (anrede == "Frau") return $"Sehr geehrte Frau {ln}".Trim();
         if (anrede == "Herr") return $"Sehr geehrter Herr {ln}".Trim();

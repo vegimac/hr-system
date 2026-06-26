@@ -571,6 +571,12 @@ public class EmployeeImportController : ControllerBase
             "male"      => "male",
             "weiblich"  => "female",
             "männlich"  => "male",
+            "divers"    => "divers",
+            "diverse"   => "divers",
+            "andere"    => "divers",
+            "other"     => "divers",
+            "x"         => "divers",
+            "d"         => "divers",
             "w"         => "female",
             "m"         => "male",
             _           => null
@@ -873,6 +879,7 @@ public class EmployeeImportController : ControllerBase
         {
             "female" => "Frau",
             "male"   => "Herr",
+            "divers" => null,
             _        => null
         };
     }
