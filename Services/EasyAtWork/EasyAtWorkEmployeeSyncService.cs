@@ -25,15 +25,18 @@ public class EasyAtWorkEmployeeSyncService
     private readonly AppDbContext _db;
     private readonly EasyAtWorkClient _client;
     private readonly ILogger<EasyAtWorkEmployeeSyncService> _log;
+    private readonly LohnEditLockService _editLock;
 
     public EasyAtWorkEmployeeSyncService(
         AppDbContext db,
         EasyAtWorkClient client,
-        ILogger<EasyAtWorkEmployeeSyncService> log)
+        ILogger<EasyAtWorkEmployeeSyncService> log,
+        LohnEditLockService editLock)
     {
         _db = db;
         _client = client;
         _log = log;
+        _editLock = editLock;
     }
 
     // ─────────────────────────── DTOs ───────────────────────────────
@@ -145,15 +148,30 @@ public class EasyAtWorkEmployeeSyncService
         public int     CountExisting     { get; set; }
         public List<EmployeePreviewRow> Rows { get; set; } = new();
         public List<string> Notes { get; set; } = new();
+        /// <summary>Verträge, die wegen abgeschlossener Lohnperiode NICHT importiert wurden (Walter 29.06.2026).</summary>
+        public List<string> SkippedContracts { get; set; } = new();
+        /// <summary>
+        /// Personalnummer-Kollisionen (Walter 29.06.2026): eine Nummer würde doppelt
+        /// vergeben. Jede Zeile nennt die Nummer + beide Seiten (easy@work ↔ Cowork),
+        /// damit Walter es in beiden Systemen prüfen kann. Ist diese Liste beim COMMIT
+        /// nicht leer, wird NICHTS geschrieben (Blocked=true) — kein stilles Überspringen.
+        /// </summary>
+        public List<string> NumberConflicts { get; set; } = new();
+        /// <summary>true, wenn der Commit wegen Nummern-Kollisionen blockiert wurde (kein Schreibvorgang).</summary>
+        public bool Blocked { get; set; }
     }
 
     // ────────────────────────── Public API ──────────────────────────
 
     public Task<SyncResult> PreviewAsync(SyncRequest req, CancellationToken ct = default)
-        => SyncCoreAsync(req, commit: false, ct);
+        => SyncCoreAsync(req, commit: false, progress: null, ct: ct);
 
-    public Task<SyncResult> CommitAsync(SyncRequest req, CancellationToken ct = default)
-        => SyncCoreAsync(req, commit: true, ct);
+    /// <summary>
+    /// progress(done, total, phase) wird vom asynchronen Filial-Import (Hintergrund-
+    /// Job) genutzt, um den Fortschritt zu melden. Bei NULL passiert nichts.
+    /// </summary>
+    public Task<SyncResult> CommitAsync(SyncRequest req, Action<int, int, string>? progress = null, CancellationToken ct = default)
+        => SyncCoreAsync(req, commit: true, progress: progress, ct: ct);
 
     public sealed class SingleEmployeeSyncResult
     {
@@ -163,6 +181,8 @@ public class EasyAtWorkEmployeeSyncService
         public List<string> UpdatedFields { get; set; } = new();
         public List<string> Errors { get; set; } = new();
         public List<string> Notes { get; set; } = new();
+        /// <summary>Verträge, die wegen abgeschlossener Lohnperiode NICHT importiert wurden (Walter 29.06.2026).</summary>
+        public List<string> SkippedContracts { get; set; } = new();
     }
 
     private sealed class EmployeeMasterData
@@ -190,6 +210,9 @@ public class EasyAtWorkEmployeeSyncService
         public DateOnly? EntryDate { get; set; }
         public DateOnly? ExitDate { get; set; }
         public string? Iban { get; set; }
+        /// <summary>Gültig-bis des Nachtarbeit-Arztzeugnisses aus easy@work
+        /// (cf_night_work_doctors_note.to). NULL = kein/abgelaufenes Zeugnis-Flag.</summary>
+        public DateOnly? NightWorkExamValidUntil { get; set; }
         public List<string> Errors { get; set; } = new();
         public List<string> Notes { get; set; } = new();
     }
@@ -339,8 +362,55 @@ public class EasyAtWorkEmployeeSyncService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // ── Verträge aus easy@work mitziehen (Walter-Vorgabe 29.06.2026) ──────
+        // Der Einzel-Button holt jetzt nicht nur Stammdaten, sondern auch die
+        // komplette Vertrags-/Lohnhistorie — gleiche Logik wie der Filial-Sync,
+        // inkl. Abschluss-Schutz (Verträge in geschlossenen Lohnperioden werden
+        // übersprungen + gemeldet).
+        try
+        {
+            var custId = matchedCustomerId!.Value;
+            var cpId   = mappings.First(m => m.EasyAtWorkCustomerId == custId).CompanyProfileId;
+
+            var contracts = (await _client.GetContractsAsync(custId, eaw.Id, ct))?.Data ?? new();
+            var rates     = (await _client.GetPayRatesAsync(custId, eaw.Id, ct))?.Data ?? new();
+
+            // Funktion/JobGroup (Kader-Flag → Modell) aus /positions.
+            string? posName = null;
+            try { posName = (await _client.GetPositionsAsync(custId, eaw.Id, ct))?.Data?.FirstOrDefault()?.Name; }
+            catch (Exception ex) { result.Notes.Add($"Position aus easy@work nicht abrufbar ({ex.Message})."); }
+            int? jgId = null; string? jgCode = null; bool isKader = false;
+            if (!string.IsNullOrWhiteSpace(posName))
+            {
+                var p = posName.Trim();
+                var jg = (await _db.JobGroups.AsNoTracking().ToListAsync(ct))
+                    .FirstOrDefault(g => !string.IsNullOrWhiteSpace(g.Code)
+                                         && string.Equals(g.Code.Trim(), p, StringComparison.OrdinalIgnoreCase));
+                if (jg != null) { jgId = jg.Id; jgCode = jg.Code; isKader = jg.IsKader; }
+            }
+
+            var activeAt = DateOnly.FromDateTime(DateTime.Today);
+            var timeline = BuildEmploymentTimeline(contracts, rates, activeAt, isKader);
+            var firstAllowed = await _editLock.GetFirstAllowedDateAsync(null, cpId);
+
+            await SyncEmploymentTimelineAsync(_db, emp, cpId, timeline, jgId, jgCode, eaw.To,
+                firstAllowed, result.SkippedContracts, ct);
+
+            var contractChanged = _db.ChangeTracker.Entries<Employment>()
+                .Any(e => e.State == EntityState.Added || e.State == EntityState.Modified);
+            await _db.SaveChangesAsync(ct);
+            if (contractChanged) result.UpdatedFields.Add("Verträge");
+        }
+        catch (Exception ex)
+        {
+            result.Notes.Add($"Vertrags-Sync übersprungen: {ex.Message}");
+            _log.LogWarning(ex, "Einzel-MA Vertrags-Sync für Employee {Id} fehlgeschlagen.", emp.Id);
+        }
+
         result.Success = true;
-        if (result.UpdatedFields.Count == 0) result.Notes.Add("Keine Änderungen — Cowork war bereits aktuell.");
+        if (result.UpdatedFields.Count == 0 && result.SkippedContracts.Count == 0)
+            result.Notes.Add("Keine Änderungen — Cowork war bereits aktuell.");
         return result;
     }
 
@@ -383,6 +453,32 @@ public class EasyAtWorkEmployeeSyncService
             var propsInfo = await FetchPropsInfoAsync(customerId, eaw.Id, ct);
             data.MaritalStatus = propsInfo.Marital;
             data.Ahv = propsInfo.Ahv;
+            // Nachtarbeit-Arztzeugnis (Walter 30.06.2026): die Gültigkeit rechnen WIR
+            // aus dem Beginn (Von) — ab 45 Jahren jährlich, sonst 2 Jahre. Das
+            // importierte easy@work-Bis dient nur als Prüfwert: weicht es ab, warnen
+            // + auf unseren Wert korrigieren. Das Beginndatum selbst übernehmen wir
+            // ungeprüft (kann easy@work-seitig nicht verifiziert werden).
+            if (propsInfo.NightWorkFrom.HasValue)
+            {
+                var von = propsInfo.NightWorkFrom.Value;
+                int gueltigkeitJahre = 2;
+                if (data.DateOfBirth.HasValue)
+                {
+                    var dob = data.DateOfBirth.Value;
+                    int alter = von.Year - dob.Year;
+                    if (von < dob.AddYears(alter)) alter--;
+                    if (alter >= 45) gueltigkeitJahre = 1;   // ab 45 jährlich
+                }
+                var unserBis = von.AddYears(gueltigkeitJahre);
+                data.NightWorkExamValidUntil = unserBis;
+                var nwName = $"{data.FirstName} {data.LastName}".Trim();
+                if (propsInfo.NightWorkTo.HasValue && propsInfo.NightWorkTo.Value != unserBis)
+                    data.Notes.Add($"⚠ Nachtarbeit-Arztzeugnis {nwName}: easy@work-Bis {propsInfo.NightWorkTo:dd.MM.yyyy} weicht von der Regel ab "
+                                  + $"(Beginn {von:dd.MM.yyyy} + {gueltigkeitJahre} Jahr(e) = {unserBis:dd.MM.yyyy}) — auf {unserBis:dd.MM.yyyy} korrigiert. "
+                                  + $"Bitte das Bis-Datum in easy@work auf {unserBis:dd.MM.yyyy} korrigieren.");
+                else
+                    data.Notes.Add($"✓ Nachtarbeit-Arztzeugnis {nwName}: gültig bis {unserBis:dd.MM.yyyy} (stimmt mit der Regel überein).");
+            }
             try
             {
                 var fiscal = await _client.GetFiscalInfoAsync(customerId, eaw.Id, ct);
@@ -406,7 +502,7 @@ public class EasyAtWorkEmployeeSyncService
 
     // ─────────────────────────── Core ───────────────────────────────
 
-    private async Task<SyncResult> SyncCoreAsync(SyncRequest req, bool commit, CancellationToken ct)
+    private async Task<SyncResult> SyncCoreAsync(SyncRequest req, bool commit, Action<int, int, string>? progress, CancellationToken ct)
     {
         var res = new SyncResult { IsPreview = !commit };
 
@@ -531,9 +627,26 @@ public class EasyAtWorkEmployeeSyncService
             .Select(c => string.IsNullOrWhiteSpace(c.BranchName) ? c.CompanyName : c.BranchName)
             .FirstOrDefaultAsync(ct);
 
+        int hansMusterSkipped = 0;
         foreach (var eaw in eawEmps)
         {
             var master = masterByEaw[eaw.Id];
+            // Nachtarbeit-Hinweise (✓ korrekt / ⚠ korrigiert) ins Sync-Ergebnis
+            // durchreichen — schon in der Vorschau sichtbar, im Frontend grün/rot
+            // eingefärbt (Walter 30.06.2026).
+            foreach (var n in master.Notes.Where(n => n.StartsWith("⚠") || n.StartsWith("✓")))
+                res.Notes.Add(n);
+
+            // „hans muster" ist ein Test-/Platzhalter-Datensatz (wie „John Doe")
+            // und darf NIE importiert werden (Walter 29.06.2026). Komplett
+            // überspringen — kein Row, kein Insert/Update. Verhindert auch künftige
+            // Nummern-Kollisionen durch solche Alt-Testdaten.
+            if (IsHansMuster(master.FirstName, master.LastName))
+            {
+                hansMusterSkipped++;
+                continue;
+            }
+
             // Pre-Mirus-Austritt (vor 1.1.2025) → Personalnummer mit „alt"-Suffix,
             // damit sie nicht mit der aktuellen Mirus-Nummer kollidiert. Greift
             // für Matching UND Neuanlage (Walter-Vorgabe 21.06.2026).
@@ -578,7 +691,7 @@ public class EasyAtWorkEmployeeSyncService
             else if (!string.Equals(effNumber, rawNumber, StringComparison.OrdinalIgnoreCase)
                      && byNumber.TryGetValue(rawNumber, out co)) matchedKey = rawNumber;
             else if (byEawId.TryGetValue(eaw.Id, out co)) matchedByEawId = true;
-            else if (eaw.UserId.HasValue && byEawId.TryGetValue(eaw.UserId.Value, out co)) matchedByEawId = true;
+            // user_id wird NICHT mehr gematcht (Walter 29.06.2026) — nur eaw.Id.
             row.CoworkEmployeeId = co?.Id;
             // Über eine ALTE Nummer gematcht? (matchender Key ≠ aktuelle Personalnr.)
             if (co != null && matchedKey != null
@@ -625,14 +738,16 @@ public class EasyAtWorkEmployeeSyncService
                 res.CountUpdate++;
             }
             else if (co != null && empByIdThisBranch.TryGetValue(co.Id, out var curEmp)
-                     && EmploymentNeedsFix(curEmp, eaw))
+                     && EmploymentFixReason(curEmp) is { } fixReason)
             {
-                // Falscher Vertrag (Walter 23.06.2026): UTP/MTP mit Pensum %, fehlender
-                // Stundenlohn, MTP ohne garantierte Stunden, oder Enddatum trotz
-                // unbefristet. Ohne Feld-Diff wäre der MA UNCHANGED → der Vertrag würde
-                // nie korrigiert. Als UPDATE behandeln, damit der Backfill greift.
+                // Strukturell falscher Vertrag (Walter 23.06.2026): UTP/MTP mit
+                // Pensum %, fehlendem Stundenlohn, MTP ohne garantierte Stunden, oder
+                // FIX/FIX-M ohne Monatslohn. Ohne Feld-Diff wäre der MA UNCHANGED →
+                // der Vertrag würde nie korrigiert. Als UPDATE behandeln. Der
+                // konkrete Grund steht jetzt im Reason (statt Sammel-Text), damit
+                // man pro MA sieht, welches Feld klemmt.
                 row.Status = "UPDATE";
-                row.Reason = "Vertrag wird korrigiert (Pensum / Stundenlohn / Enddatum gemäss easy@work).";
+                row.Reason = $"Vertrag wird korrigiert: {fixReason}.";
                 res.CountUpdate++;
             }
             else
@@ -668,10 +783,88 @@ public class EasyAtWorkEmployeeSyncService
             res.Rows.Add(row);
         }
         res.CountTotal = res.Rows.Count;
+        if (hansMusterSkipped > 0)
+            res.Notes.Add($"{hansMusterSkipped} Test-Datensatz/-Datensätze „hans muster“ übersprungen (werden nie importiert).");
+
+        // ── Personalnummer-Kollisionen ERKENNEN (Walter 29.06.2026) ──
+        // Nichts überspringen, nichts umbiegen: Würde eine Personalnummer doppelt
+        // vergeben, nennt die Vorschau exakt die Nummer + BEIDE Seiten
+        // (easy@work ↔ Cowork). Beim COMMIT wird dann NICHTS geschrieben (Blocked) —
+        // Walter klärt die Dublette zuerst in beiden Systemen. Geprüft werden:
+        // NEW-Zeilen (neue Nummer) und Nummern-Wechsel beim Filialwechsel
+        // (NumberChangeTo) — gegen bestehende Cowork-MA UND gegeneinander.
+        {
+            var existingByNum = (await _db.Employees.AsNoTracking()
+                    .Where(e => e.EmployeeNumber != null && e.EmployeeNumber != "")
+                    .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.EasyAtWorkEmployeeId })
+                    .ToListAsync(ct))
+                .GroupBy(e => e.EmployeeNumber!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var reported       = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var claimedInBatch = new Dictionary<string, EmployeePreviewRow>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in res.Rows)
+            {
+                // Welche Nummer würde diese Zeile vergeben — und an welchen Cowork-MA?
+                string num; int? ownId;
+                if (row.Status == "NEW") { num = (row.Number ?? "").Trim(); ownId = null; }
+                else if (!string.IsNullOrWhiteSpace(row.NumberChangeTo)) { num = row.NumberChangeTo!.Trim(); ownId = row.CoworkEmployeeId; }
+                else continue;
+                if (string.IsNullOrEmpty(num)) continue;
+
+                var eawSide = $"{(row.FirstName ?? "").Trim()} {(row.LastName ?? "").Trim()}".Trim();
+                if (string.IsNullOrWhiteSpace(eawSide)) eawSide = "?";
+
+                // a) Kollision mit bestehendem Cowork-MA. KEINE Kollision, wenn es
+                //    dieselbe Person ist — entweder derselbe Cowork-Datensatz
+                //    (UPDATE-Nummernwechsel auf die EIGENE Zeile) oder der bestehende
+                //    MA trägt bereits dieselbe easy@work-ID (dann ist es nur ein
+                //    noch nicht erkannter Match, kein echter Doppel-Eintrag).
+                if (existingByNum.TryGetValue(num, out var ex))
+                {
+                    var samePerson = (ownId.HasValue && ex.Id == ownId.Value)
+                                  || (ex.EasyAtWorkEmployeeId.HasValue && ex.EasyAtWorkEmployeeId.Value == row.EawEmployeeId);
+                    if (!samePerson)
+                    {
+                        if (reported.Add(num))
+                            res.NumberConflicts.Add(
+                                $"Personalnummer {num} doppelt: easy@work-MA „{eawSide}“ (eaw-id {row.EawEmployeeId}) " +
+                                $"↔ bereits in Cowork bei MA #{ex.Id} „{($"{ex.FirstName} {ex.LastName}").Trim()}“ (Nr. {num}). " +
+                                $"Bitte in beiden Systemen prüfen.");
+                        continue;
+                    }
+                }
+
+                // b) Within-Batch: zwei easy@work-Zeilen wollen dieselbe Nummer
+                if (claimedInBatch.TryGetValue(num, out var first))
+                {
+                    if (reported.Add(num))
+                    {
+                        var firstSide = $"{(first.FirstName ?? "").Trim()} {(first.LastName ?? "").Trim()}".Trim();
+                        res.NumberConflicts.Add(
+                            $"Personalnummer {num} doppelt in easy@work: „{firstSide}“ (eaw-id {first.EawEmployeeId}) " +
+                            $"UND „{eawSide}“ (eaw-id {row.EawEmployeeId}) tragen dieselbe Nummer. Bitte in easy@work prüfen.");
+                    }
+                }
+                else claimedInBatch[num] = row;
+            }
+        }
 
         // 4) Commit-Pfad
         if (commit)
         {
+            // Personalnummer-Kollision → NICHTS schreiben (Walter 29.06.2026).
+            // Erst muss Walter die doppelte Nummer in easy@work + Cowork klären,
+            // sonst würde der unique-Constraint uq_employee_employee_number den
+            // ganzen (atomaren) Import sprengen. Die genauen Nummern stehen in
+            // res.NumberConflicts und werden im Frontend als Blockmeldung gezeigt.
+            if (res.NumberConflicts.Count > 0)
+            {
+                res.Blocked = true;
+                return res;
+            }
+
             // Silent Backfill: ALLE gematchten MA (auch UNCHANGED) bekommen die
             // easyatwork_employee_id wenn sie fehlt. Das ist nicht-destruktiv
             // (nur null → Wert) und ohne diese ID lässt sich `edited_by_id` aus
@@ -692,6 +885,8 @@ public class EasyAtWorkEmployeeSyncService
             }
             if (backfilled > 0)
             {
+                // Schutz gegen Doppelvergabe derselben easy@work-id (Walter 29.06.2026).
+                await RevertDuplicateEawIdsAsync(res, ct);
                 await _db.SaveChangesAsync(ct);
                 res.Notes.Add($"easy@work-ID stillschweigend bei {backfilled} bestehenden MA nachgetragen.");
             }
@@ -729,9 +924,15 @@ public class EasyAtWorkEmployeeSyncService
             if (rowsToProcess.Count > 0)
             {
                 using var sem = new SemaphoreSlim(10);
-                var detailTasks = rowsToProcess
-                    .Concat(rowsForTimeline)
-                    .Select(r => r.EawEmployeeId).Distinct()
+                // Fortschritt für den asynchronen Hintergrund-Import (Walter 29.06.2026):
+                // diese easy@work-Detail-Calls (Verträge/Lohn/Position pro MA) sind der
+                // langsame Teil (~1 Aufruf/Sekunde) — hier den Balken füttern.
+                var detailIds = rowsToProcess.Concat(rowsForTimeline)
+                    .Select(r => r.EawEmployeeId).Distinct().ToList();
+                var detailTotal = detailIds.Count;
+                int detailDone = 0;
+                progress?.Invoke(0, detailTotal, "Lade Vertrags-/Lohndaten aus easy@work…");
+                var detailTasks = detailIds
                     .Select(async eawId =>
                     {
                         await sem.WaitAsync(ct);
@@ -755,9 +956,15 @@ public class EasyAtWorkEmployeeSyncService
                                 // Pay-Rates und Positionen stehen bewusst oberhalb.
                             }
                         }
-                        finally { sem.Release(); }
+                        finally
+                        {
+                            sem.Release();
+                            var d = System.Threading.Interlocked.Increment(ref detailDone);
+                            progress?.Invoke(d, detailTotal, "Lade Vertrags-/Lohndaten aus easy@work…");
+                        }
                     });
                 await Task.WhenAll(detailTasks);
+                progress?.Invoke(detailTotal, detailTotal, "Schreibe Mitarbeiter & Verträge…");
             }
             List<EawContract> ContractsFor(int eawId) => contractsRawByEaw.TryGetValue(eawId, out var c) ? c : new();
             List<EawPayRate>  RatesFor(int eawId)     => ratesRawByEaw.TryGetValue(eawId, out var r) ? r : new();
@@ -785,8 +992,9 @@ public class EasyAtWorkEmployeeSyncService
                     // Duplikat-Prävention Stufe 1 (Walter-Vorgabe 21.06.2026): existiert
                     // schon ein Employee mit dieser easy@work-ID (egal welche Filiale)?
                     var eawKey = eaw.Id;
+                    // user_id wird NICHT mehr geprüft (Walter 29.06.2026) — nur eaw.Id.
                     var existingByEawId = await _db.Employees.FirstOrDefaultAsync(
-                        e => !e.IsHidden && (e.EasyAtWorkEmployeeId == eawKey || (eaw.UserId.HasValue && e.EasyAtWorkEmployeeId == eaw.UserId.Value)), ct);
+                        e => !e.IsHidden && e.EasyAtWorkEmployeeId == eawKey, ct);
                     // Stufe 2: gleicher Name+Geburtsdatum (Wiedereintritt mit NEUER eaw-ID).
                     // Nur, wenn die Vorschau das vermutet hat (row.PossibleReentry) —
                     // ist ein VORSCHLAG; wer es nicht will, deselektiert die Zeile.
@@ -866,10 +1074,16 @@ public class EasyAtWorkEmployeeSyncService
                     };
                     var master = masterByEaw[row.EawEmployeeId];
                     ApplyDiffs(emp, row.Diffs, master);
+                    // Nachtarbeit-Arztzeugnis-Gültigkeit aus easy@work übernehmen
+                    // (Walter 30.06.2026): easy@work ist die Quelle; nur setzen wenn
+                    // vorhanden, nie leeren (manuell Gepflegtes bleibt sonst stehen).
+                    if (master.NightWorkExamValidUntil.HasValue)
+                        emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil.Value.ToDateTime(TimeOnly.MinValue);
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
                     if (string.IsNullOrWhiteSpace(emp.CantonCode)) emp.CantonCode = await LookupCantonAsync(emp.ZipCode, ct);
                     if (string.IsNullOrWhiteSpace(emp.LetterSalutation)) emp.LetterSalutation = BuildLetterSalutation(emp.Gender, emp.FirstName);
+
                     _db.Employees.Add(emp);
                     res.CountInserted++;
                     timelineWork.Add((emp, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw.To));
@@ -884,6 +1098,11 @@ public class EasyAtWorkEmployeeSyncService
                     if (emp.EasyAtWorkEmployeeId != newEawId) emp.EasyAtWorkEmployeeId = newEawId;
                     var master = masterByEaw[row.EawEmployeeId];
                     ApplyDiffs(emp, row.Diffs, master);
+                    // Nachtarbeit-Arztzeugnis-Gültigkeit aus easy@work übernehmen
+                    // (Walter 30.06.2026): easy@work ist die Quelle; nur setzen wenn
+                    // vorhanden, nie leeren (manuell Gepflegtes bleibt sonst stehen).
+                    if (master.NightWorkExamValidUntil.HasValue)
+                        emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil.Value.ToDateTime(TimeOnly.MinValue);
                     if (!string.IsNullOrWhiteSpace(row.NumberChangeTo))
                     {
                         SaveNumberChange(_db, emp, row.NumberChangeTo!);
@@ -942,6 +1161,68 @@ public class EasyAtWorkEmployeeSyncService
                 }
                 timelineWork.Add((emp, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw?.To));
             }
+
+            // ── Pre-Save-Schutz: Personalnummer-Kollision auf den TATSÄCHLICH zu
+            //    schreibenden Werten (Walter 29.06.2026). Liest die echten
+            //    EmployeeNumber direkt aus dem EF-ChangeTracker — egal über welchen
+            //    Pfad sie gesetzt wurden — und bricht VOR dem Speichern ab, statt
+            //    den unique-Constraint uq_employee_employee_number (und damit den
+            //    ganzen atomaren Import) zu sprengen. Die EXAKTE doppelte Nummer +
+            //    beide Seiten landen in res.NumberConflicts → Walter prüft sie in
+            //    easy@work UND Cowork, bevor irgendetwas geschrieben wird.
+            {
+                var tracked = _db.ChangeTracker.Entries<Employee>()
+                    .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
+                    .ToList();
+                var trackedIds = tracked.Where(e => e.Entity.Id != 0).Select(e => e.Entity.Id).ToHashSet();
+
+                var dbHolders = (await _db.Employees.AsNoTracking()
+                        .Where(e => !trackedIds.Contains(e.Id) && e.EmployeeNumber != null && e.EmployeeNumber != "")
+                        .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
+                        .ToListAsync(ct))
+                    .GroupBy(e => e.EmployeeNumber!.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+                var reported2   = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var batchHolder = new Dictionary<string, Employee>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var entry in tracked)
+                {
+                    var num = (entry.Entity.EmployeeNumber ?? "").Trim();
+                    if (string.IsNullOrEmpty(num)) continue;
+                    var who   = $"{(entry.Entity.FirstName ?? "").Trim()} {(entry.Entity.LastName ?? "").Trim()}".Trim();
+                    var eawId = entry.Entity.EasyAtWorkEmployeeId?.ToString() ?? "?";
+
+                    if (dbHolders.TryGetValue(num, out var h))
+                    {
+                        if (reported2.Add(num))
+                            res.NumberConflicts.Add(
+                                $"Personalnummer {num} doppelt: Import-MA „{who}“ (eaw-id {eawId}) " +
+                                $"↔ bereits in Cowork bei MA #{h.Id} „{($"{h.FirstName} {h.LastName}").Trim()}“. " +
+                                $"Bitte in easy@work + Cowork prüfen.");
+                    }
+                    else if (batchHolder.TryGetValue(num, out var other))
+                    {
+                        if (reported2.Add(num))
+                        {
+                            var otherWho = $"{(other.FirstName ?? "").Trim()} {(other.LastName ?? "").Trim()}".Trim();
+                            res.NumberConflicts.Add(
+                                $"Personalnummer {num} doppelt im Import: „{otherWho}“ UND „{who}“ tragen dieselbe Nummer. Bitte in easy@work prüfen.");
+                        }
+                    }
+                    else batchHolder[num] = entry.Entity;
+                }
+
+                if (res.NumberConflicts.Count > 0)
+                {
+                    res.Blocked = true;
+                    return res;
+                }
+            }
+
+            // Schutz gegen Doppelvergabe derselben easy@work-id (Walter 29.06.2026).
+            await RevertDuplicateEawIdsAsync(res, ct);
+
             await _db.SaveChangesAsync(ct);
 
             // ── Zweiter Durchgang: komplette Employment-Timeline spiegeln (erst JETZT,
@@ -950,6 +1231,9 @@ public class EasyAtWorkEmployeeSyncService
             //    easy@work werden als Employment-Versionen ge-upsertet. Walter 23.06.2026.
             if (timelineWork.Count > 0 || bankWork.Count > 0)
             {
+                // Abschluss-Schutz: Verträge in einer abgeschlossenen/in-Verarbeitung
+                // Lohnperiode dieser Filiale werden nicht importiert (Walter 29.06.2026).
+                var firstAllowed = await _editLock.GetFirstAllowedDateAsync(null, req.CompanyProfileId);
                 foreach (var (temp, teawId, tJgId, tJgCode, tIsKader, tEawTo) in timelineWork)
                 {
                     var tContracts = ContractsFor(teawId);
@@ -957,11 +1241,79 @@ public class EasyAtWorkEmployeeSyncService
                     var timeline   = BuildEmploymentTimeline(tContracts, tRates, activeAt, tIsKader);
                     _log.LogInformation("easy@work-Sync MA {Num}: contracts={C}, payRates={R}, timeline={T}",
                         temp.EmployeeNumber, tContracts.Count, tRates.Count, timeline.Count);
-                    await SyncEmploymentTimelineAsync(_db, temp, req.CompanyProfileId, timeline, tJgId, tJgCode, tEawTo, ct);
+                    await SyncEmploymentTimelineAsync(_db, temp, req.CompanyProfileId, timeline, tJgId, tJgCode, tEawTo,
+                        firstAllowed, res.SkippedContracts, ct);
                 }
                 foreach (var (bemp, iban) in bankWork)
                     await EnsureBankAccountAsync(bemp, iban, ct);
                 await _db.SaveChangesAsync(ct);
+
+                // Probezeit nur bei EINEM einzigen Vertrag (Walter 29.06.2026):
+                // Hat der MA GENAU einen Vertrag (keine Historie) und noch keine
+                // Probezeit, wird sie auf diesem Vertrag gesetzt = Beginn +
+                // Filial-Probezeit − 1 Tag (14 = 14 Tage, 1/2/3 = Monate). Bei
+                // MEHREREN Verträgen (Historie) wird NICHT rückwirkend gesetzt.
+                // Idempotent: Re-Sync ändert nichts, manuell Gesetztes bleibt.
+                var branchProb = await _db.CompanyProfiles
+                    .Where(c => c.Id == req.CompanyProfileId)
+                    .Select(c => c.ProbationMonths)
+                    .FirstOrDefaultAsync(ct);
+                if (branchProb.HasValue)
+                {
+                    var probEmpIds = timelineWork.Select(t => t.emp.Id).Where(eid => eid != 0).Distinct().ToList();
+                    bool probChanged = false;
+                    foreach (var eid in probEmpIds)
+                    {
+                        // ALLE Verträge des MA zählen (filialübergreifend) — nur bei
+                        // genau einem greift die Probezeit.
+                        var emps = await _db.Employments
+                            .Where(e => e.EmployeeId == eid).ToListAsync(ct);
+                        if (emps.Count != 1 || emps[0].ProbationEndDate != null) continue;
+                        var only = emps[0];
+                        // Regel „befristet → keine Probezeit" (Walter 30.06.2026):
+                        // vorbereitet, AKTUELL aber NICHT AKTIV — die laufenden
+                        // befristeten Verträge behalten ihre Probezeit. Bei Bedarf
+                        // SkipProbationForBefristet auf true setzen.
+                        const bool SkipProbationForBefristet = false;
+                        var istBefristet = string.Equals(only.ContractType, "befristet", StringComparison.OrdinalIgnoreCase)
+                                           || only.ContractEndDate.HasValue;
+                        if (SkipProbationForBefristet && istBefristet) continue;
+                        var contractStart = DateOnly.FromDateTime(only.ContractStartDate);
+
+                        // Basis = erste Stempelzeit (1. Arbeitstag), falls schon
+                        // vorhanden → Probezeit direkt verankert (kein Warten auf den
+                        // Stempel-Sync). Sonst provisorisch ab Vertragsbeginn; der
+                        // Stempel-Sync verankert später.
+                        var firstStamp = await _db.EmployeeTimeEntries
+                            .Where(t => t.EmployeeId == eid)
+                            .OrderBy(t => t.EntryDate)
+                            .Select(t => (DateOnly?)t.EntryDate)
+                            .FirstOrDefaultAsync(ct);
+                        var basis = firstStamp ?? contractStart;
+                        var ende = branchProb.Value == 14
+                            ? basis.AddDays(14).AddDays(-1)
+                            : basis.AddMonths(branchProb.Value).AddDays(-1);
+                        only.ProbationEndDate      = ende.ToDateTime(TimeOnly.MinValue);
+                        only.ProbationPeriodMonths = branchProb.Value == 14 ? null : branchProb.Value;
+
+                        if (firstStamp.HasValue)
+                        {
+                            only.ProbationStartDate = firstStamp.Value;
+                            _db.EmploymentProbationLogs.Add(new EmploymentProbationLog
+                            {
+                                EmploymentId         = only.Id,
+                                EventDate            = firstStamp.Value,
+                                EventType            = "ANKER",
+                                DeltaDays            = ProbationAnchor.Delta(contractStart, firstStamp.Value),
+                                Grund                = ProbationAnchor.Grund(contractStart, firstStamp.Value),
+                                ProbezeitEndeNachher = ende,
+                                CreatedAt            = DateTime.Now,   // Spalte ist timestamp WITHOUT time zone → keine UTC-Kind
+                            });
+                        }
+                        probChanged = true;
+                    }
+                    if (probChanged) await _db.SaveChangesAsync(ct);
+                }
             }
 
             // Sync-State
@@ -1249,7 +1601,9 @@ public class EasyAtWorkEmployeeSyncService
     /// </summary>
     public static async Task SyncEmploymentTimelineAsync(
         AppDbContext db, Employee emp, int companyProfileId, List<EmploymentSegment> timeline,
-        int? jobGroupId, string? jobGroupCode, DateOnly? eawTo, CancellationToken ct = default)
+        int? jobGroupId, string? jobGroupCode, DateOnly? eawTo,
+        DateOnly? firstAllowedDate = null, List<string>? skippedContracts = null,
+        CancellationToken ct = default)
     {
         if (emp.Id == 0 || timeline == null || timeline.Count == 0) return;
         var today = DateOnly.FromDateTime(DateTime.Today);
@@ -1282,6 +1636,21 @@ public class EasyAtWorkEmployeeSyncService
                     && e.ContractStartDate == startDt);
             if (existing == null)
                 existing = existingAll.FirstOrDefault(e => !matched.Contains(e) && e.ContractStartDate == startDt);
+
+            // Abschluss-Schutz (Walter-Vorgabe 29.06.2026): Verträge/Segmente,
+            // deren Start in einer bereits abgeschlossenen bzw. in-Verarbeitung
+            // Lohnperiode liegt (Start < FirstAllowedDate der Filiale), werden
+            // NICHT importiert. Ein bereits vorhandenes Segment wird unangetastet
+            // gelassen (matched, damit es nicht gekappt wird); ein fehlendes wird
+            // mit einer klaren Meldung übersprungen. Greift für Filial-Sync UND
+            // Einzel-MA-Sync gleichermassen.
+            if (firstAllowedDate.HasValue && seg.Start < firstAllowedDate.Value)
+            {
+                if (existing != null) matched.Add(existing);
+                else skippedContracts?.Add(
+                    $"Vertrag ab {seg.Start:dd.MM.yyyy} von {emp.FirstName} {emp.LastName} (Nr. {emp.EmployeeNumber}) konnte wegen geschlossener Lohnperiode nicht importiert werden.");
+                continue;
+            }
 
             if (existing == null)
             {
@@ -1368,7 +1737,12 @@ public class EasyAtWorkEmployeeSyncService
         var todayDt = DateTime.Today;
         foreach (var ex in existingAll.Where(e => !matched.Contains(e)))
         {
-            foreach (var seg in timeline.OrderBy(s => s.Start))
+            // Übersprungene (geschützte) Segmente NICHT zum Kappen heranziehen,
+            // sonst würden vorhandene Zeilen anhand nicht-importierter Segmente
+            // gekürzt.
+            foreach (var seg in timeline
+                         .Where(s => !(firstAllowedDate.HasValue && s.Start < firstAllowedDate.Value))
+                         .OrderBy(s => s.Start))
             {
                 var segStart = seg.Start.ToDateTime(TimeOnly.MinValue);
                 if (ex.ContractStartDate <= segStart && (ex.ContractEndDate == null || ex.ContractEndDate >= segStart))
@@ -1403,22 +1777,31 @@ public class EasyAtWorkEmployeeSyncService
     /// braucht garantierte Wochenstunden, FIX/FIX-M einen Monatslohn, und ein
     /// Enddatum darf nur stehen, wenn easy@work ein „Bis" hat. Walter 23.06.2026.
     /// </summary>
-    private static bool EmploymentNeedsFix(Employment e, EawEmployee eaw)
+    /// <summary>
+    /// Liefert den KONKRETEN Grund, warum ein Vertrag strukturell korrigiert werden
+    /// muss — oder null, wenn alles stimmt. Der Grund landet als Klartext im
+    /// Vorschau-Reason, damit man pro MA sieht, welches Feld gemeint ist
+    /// (Walter 29.06.2026). Wichtig: KEINE Enddatum-Regel mehr — die Timeline
+    /// (`SyncEmploymentTimelineAsync`) setzt Vertrags-Enddaten aus den easy@work-
+    /// Contracts, NICHT aus employee.to. Der frühere Vergleich gegen eaw.To
+    /// flaggte ein legitimes contract-seitiges Enddatum bei JEDEM Lauf erneut →
+    /// Endlos-„UPDATE", obwohl die Timeline das Enddatum bereits idempotent
+    /// gespiegelt hatte. Enddaten gehören damit NICHT in diesen Klassifizierer.
+    /// </summary>
+    private static string? EmploymentFixReason(Employment e)
     {
         var m = e.EmploymentModel;
         if (m == "UTP" || m == "MTP")
         {
-            if (e.EmploymentPercentage != null) return true;   // Pensum bei Stundenlohn = falsch
-            if (e.HourlyRate == null)           return true;   // Stundenlohn fehlt
-            if (m == "MTP" && e.GuaranteedHoursPerWeek == null) return true;
+            if (e.EmploymentPercentage != null) return "Pensum % bei Stundenlohn-Vertrag";
+            if (e.HourlyRate == null)           return "Stundenlohn fehlt";
+            if (m == "MTP" && e.GuaranteedHoursPerWeek == null) return "garantierte Wochenstunden fehlen (MTP)";
         }
         else if (m == "FIX" || m == "FIX-M")
         {
-            if (e.MonthlySalary == null && e.MonthlySalaryFte == null) return true;
+            if (e.MonthlySalary == null && e.MonthlySalaryFte == null) return "Monatslohn fehlt";
         }
-        // Enddatum gesetzt, obwohl easy@work unbefristet (Bis leer) meldet.
-        if (e.ContractEndDate != null && !eaw.To.HasValue) return true;
-        return false;
+        return null;
     }
 
     private async Task EnsureEmploymentAsync(
@@ -1874,6 +2257,69 @@ public class EasyAtWorkEmployeeSyncService
     /// Nummernwechsel: die bisherige Personalnummer als Alias sichern (mit
     /// valid_to = heute) und die neue als employee_number setzen.
     /// </summary>
+    /// <summary>
+    /// „hans muster" (Test-/Platzhalter-Datensatz, wie „John Doe") — wird beim
+    /// easy@work-Import NIE angelegt/aktualisiert (Walter 29.06.2026).
+    /// Gross-/Kleinschreibung + umgebende Leerzeichen egal.
+    /// </summary>
+    public static bool IsHansMuster(string? first, string? last)
+        => string.Equals((first ?? "").Trim(), "hans",   StringComparison.OrdinalIgnoreCase)
+        && string.Equals((last  ?? "").Trim(), "muster", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Schutz gegen Doppelvergabe derselben easy@work-id (Walter 29.06.2026):
+    /// genau das erzeugte die „mehrere Lohn-MA"-Blockade (ein „…alt"-Archiv-MA
+    /// trug die id eines aktiven MA). Geht VOR dem Speichern alle getrackten
+    /// Employee-Änderungen durch — trägt ein MA eine easy@work-id, die bereits
+    /// einem ANDEREN MA gehört (in der DB, nicht versteckt, ODER im selben Lauf),
+    /// wird die id auf dem neu/geänderten Datensatz zurückgenommen (Added → null,
+    /// Modified → vorheriger Wert) und gemeldet. Der bestehende rechtmässige
+    /// Träger behält die id. So kann keine id mehr auf zwei MA zeigen.
+    /// </summary>
+    private async Task RevertDuplicateEawIdsAsync(SyncResult res, CancellationToken ct)
+    {
+        var tracked = _db.ChangeTracker.Entries<Employee>()
+            .Where(e => (e.State == EntityState.Added || e.State == EntityState.Modified)
+                        && e.Entity.EasyAtWorkEmployeeId.HasValue)
+            .ToList();
+        if (tracked.Count == 0) return;
+
+        var trackedIds  = tracked.Where(e => e.Entity.Id != 0).Select(e => e.Entity.Id).ToHashSet();
+        var eawValues   = tracked.Select(e => e.Entity.EasyAtWorkEmployeeId!.Value).Distinct().ToList();
+        var dbOwners = (await _db.Employees.AsNoTracking()
+                .Where(e => !e.IsHidden && !trackedIds.Contains(e.Id)
+                            && e.EasyAtWorkEmployeeId.HasValue
+                            && eawValues.Contains(e.EasyAtWorkEmployeeId.Value))
+                .Select(e => new { e.Id, e.EasyAtWorkEmployeeId, e.FirstName, e.LastName })
+                .ToListAsync(ct))
+            .GroupBy(e => e.EasyAtWorkEmployeeId!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var claimed = new Dictionary<int, Employee>();   // eaw-id → erster Träger im Batch
+        foreach (var entry in tracked)
+        {
+            var eid = entry.Entity.EasyAtWorkEmployeeId!.Value;
+            var inDb    = dbOwners.ContainsKey(eid);
+            var inBatch = claimed.ContainsKey(eid);
+            if (!inDb && !inBatch) { claimed[eid] = entry.Entity; continue; }
+
+            var who = $"{(entry.Entity.FirstName ?? "").Trim()} {(entry.Entity.LastName ?? "").Trim()}".Trim();
+            string holder = inDb
+                ? $"MA #{dbOwners[eid].Id} „{($"{dbOwners[eid].FirstName} {dbOwners[eid].LastName}").Trim()}“"
+                : $"„{($"{claimed[eid].FirstName} {claimed[eid].LastName}").Trim()}“";
+
+            if (entry.State == EntityState.Modified)
+            {
+                var orig = entry.OriginalValues["EasyAtWorkEmployeeId"] as int?;
+                entry.Entity.EasyAtWorkEmployeeId = (orig.HasValue && orig.Value != eid) ? orig : null;
+            }
+            else
+                entry.Entity.EasyAtWorkEmployeeId = null;
+
+            res.Notes.Add($"easy@work-id {eid} NICHT an „{who}“ vergeben — gehört bereits {holder} (Doppelvergabe verhindert).");
+        }
+    }
+
     public static void SaveNumberChange(AppDbContext db, Employee emp, string newNumber)
     {
         db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
@@ -1910,7 +2356,7 @@ public class EasyAtWorkEmployeeSyncService
     /// Zivilstand (cf_marital_status) UND AHV-Nummer (cf_swiss_national_id).
     /// Unbekannt/Fehlschlag → null (bleibt manuell). Walter-Vorgabe 22.06.2026.
     /// </summary>
-    private async Task<(string? Marital, string? Ahv)> FetchPropsInfoAsync(int customerId, int eawEmployeeId, CancellationToken ct)
+    private async Task<(string? Marital, string? Ahv, DateOnly? NightWorkFrom, DateOnly? NightWorkTo)> FetchPropsInfoAsync(int customerId, int eawEmployeeId, CancellationToken ct)
     {
         try
         {
@@ -1927,9 +2373,26 @@ public class EasyAtWorkEmployeeSyncService
 
             var marital = MapMaritalStatus(Pick("marital", "civil", "zivil", "familienstand", "family_status"));
             var ahv     = FormatAhv(Pick("swiss_national_id", "national_id", "ahv", "avs", "sozialvers"));
-            return (marital, ahv);
+
+            // Nachtarbeit-Arztzeugnis (cf_night_work_doctors_note, Walter 30.06.2026):
+            // boolean (value "1" = vorhanden) + Gültigkeit von/bis (UTC → Zürich-Datum).
+            // Wir geben Von UND Bis zurück; die Gültigkeit rechnen WIR aus dem Von
+            // nach unserer Regel, und das easy@work-Bis dient als Prüfwert.
+            DateOnly? nwFrom = null, nwTo = null;
+            var nwProp = props
+                .Where(p => (p.Key ?? "").ToLowerInvariant().Contains("night_work_doctors_note"))
+                .OrderByDescending(p => p.To ?? DateOnly.MinValue)
+                .FirstOrDefault();
+            if (nwProp != null)
+            {
+                var v = (nwProp.Value ?? "").Trim().ToLowerInvariant();
+                bool hasNote = v == "1" || v == "true" || v == "yes" || v == "ja";
+                if (hasNote) { nwFrom = nwProp.From; nwTo = nwProp.To; }
+            }
+
+            return (marital, ahv, nwFrom, nwTo);
         }
-        catch (Exception ex) { _log.LogDebug(ex, "Properties (Zivilstand/AHV) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); return (null, null); }
+        catch (Exception ex) { _log.LogDebug(ex, "Properties (Zivilstand/AHV/Nachtarbeit) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); return (null, null, null, null); }
     }
 
     /// <summary>13-stellige AHV-Nr. (756…) → Format 756.XXXX.XXXX.XX. Sonst roh.</summary>

@@ -94,6 +94,15 @@ public class CompanyProfile
     /// </summary>
     public decimal? DefaultThirteenthSalaryPercent { get; set; } = 8.33m;
 
+    /// <summary>
+    /// Probezeit-Vorgabe pro Filiale (Walter-Vorgabe 29.06.2026): gespeichert als
+    /// 14 = 14 Tage, 1/2/3 = Monate. NULL = keine Vorgabe. Die Probezeit darf NICHT
+    /// manuell verlängert werden; sie verlängert sich später automatisch bei
+    /// Krankheit/Unfall/Absenzen (eigener Schritt). Grundlage für Schritt 2
+    /// (Vertrag: „keine Probezeit" + Grund).
+    /// </summary>
+    public int? ProbationMonths { get; set; }
+
     // Nachtstunden-Grenzen (Format "HH:mm", z.B. "00:00" und "07:00")
     public string? NightStartTime { get; set; } = "00:00";
     public string? NightEndTime   { get; set; } = "07:00";

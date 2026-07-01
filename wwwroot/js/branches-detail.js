@@ -208,6 +208,16 @@ function fField(label, value) {
     </div>`;
 }
 
+// Probezeit-Anzeige: 14 = 14 Tage, 1/2/3 = Monate (so in der DB gespeichert).
+function probationLabel(v) {
+    if (v == null || v === '') return '–';
+    const n = Number(v);
+    if (n === 14) return '14 Tage';
+    if (n === 1)  return '1 Monat';
+    if (n >= 2)   return `${n} Monate`;
+    return '–';
+}
+
 function renderFilialenDetail(b) {
     const panel = document.getElementById('filialenDetailPanel');
     if (!panel) return;
@@ -265,6 +275,7 @@ function renderFilialenDetail(b) {
                     (b.lohnausweisPos21VerpflegungMonat == null || b.lohnausweisPos21VerpflegungMonat === 0)
                         ? 'CHF 0 (kein Pauschalbetrag)'
                         : `CHF ${Number(b.lohnausweisPos21VerpflegungMonat).toFixed(2)}`)}
+                ${fField('Probezeit', probationLabel(b.probationMonths))}
             </div>
 
             <!-- ── Bankverbindungen der Filiale (Auftraggeber-Konto fürs DTA) ── -->
@@ -335,7 +346,7 @@ function renderFilialenDetail(b) {
                 Abzüge
                 <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openDeductionDrawer(${b.id}, encodeURI('${name.replace(/'/g,"\'")}'))">✎ Bearbeiten</button>
             </div>
-            <div style="color:#64748b;font-size:13px;padding:20px 0">Klicken Sie auf "Bearbeiten" um die Abzüge zu verwalten.</div>
+            <div style="color:#64748b;font-size:13px;padding:20px 0">Klicke auf "Bearbeiten", um die Abzüge zu verwalten.</div>
         </div>
 
         <!-- TAB: Einstellungen — Felder direkt editierbar in der Maske
@@ -965,6 +976,8 @@ async function openStmModal(id) {
         document.getElementById('stmLohnausweisBoxG').checked = !!b.lohnausweisBoxGKantineGratis;
         document.getElementById('stmLohnausweisPos21').value  =
             (b.lohnausweisPos21VerpflegungMonat == null) ? '' : b.lohnausweisPos21VerpflegungMonat;
+        const stmProb = document.getElementById('stmProbationMonths');
+        if (stmProb) stmProb.value = (b.probationMonths == null) ? '' : String(b.probationMonths);
         document.getElementById('stmPlzHint').innerHTML    = '';
         stmToggleGavName();
     } catch { /* leere Felder anzeigen */ }
@@ -1048,6 +1061,10 @@ async function saveStm() {
             if (!v) return null;
             const n = parseFloat(v);
             return Number.isFinite(n) ? n : null;
+        })(),
+        probationMonths: (() => {
+            const v = (document.getElementById('stmProbationMonths')?.value || '').trim();
+            return v ? parseInt(v, 10) : null;
         })(),
     };
 
@@ -1271,7 +1288,7 @@ async function loadSslListForBranch(companyId) {
         if (!res.ok) { el.innerHTML = '<div style="color:#dc2626;padding:10px;font-size:12px">Fehler beim Laden.</div>'; return; }
         const list = await res.json();
         if (!list.length) {
-            el.innerHTML = '<div style="color:#94a3b8;padding:14px;text-align:center;font-size:12px;font-style:italic">Noch keine SSL-Nummern erfasst — fügen Sie pro Kanton eine Nummer hinzu, in dem diese Filiale QST-pflichtige MA beschäftigt.</div>';
+            el.innerHTML = '<div style="color:#94a3b8;padding:14px;text-align:center;font-size:12px;font-style:italic">Noch keine SSL-Nummern erfasst — füge pro Kanton eine Nummer hinzu, in dem diese Filiale QST-pflichtige MA beschäftigt.</div>';
             return;
         }
         el.innerHTML = `

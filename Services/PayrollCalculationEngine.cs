@@ -590,7 +590,19 @@ public class PayrollCalculationEngine
                 nachtKompStunden += hours;
 
             // 2) Wohin fliessen die Stunden?
-            if (isUTP)
+            if (a.AbsenceType == "UNBEZ_URLAUB")
+            {
+                // Unbezahlter Urlaub (Walter-Vorgabe 27.06.2026): KEINE
+                // Zeitgutschrift und KEINE Auszahlung — darf NICHT in
+                // feiertagStunden landen, sonst würde er fälschlich ausbezahlt.
+                // Die Festlohn-/Sollstunden-Kürzung passiert pro Modell weiter
+                // unten (FIX/FIX-M: Festlohn-Split per Tagessatz; MTP: garantierte
+                // Soll-Stunden runter), analog FERIEN. UTP: keine Wirkung
+                // (ungestempelt = unbezahlt). Hier nur fürs Lohnzettel-Breakdown /
+                // die Bemerkung tracken.
+                AddBreakdown(a.AbsenceType, hours);
+            }
+            else if (isUTP)
             {
                 // UTP: nur wenn der Typ explizit UTP-Auszahlung aktiviert hat
                 // (heute: NACHT_KOMP). Sonst keine automatische Wirkung.
@@ -647,6 +659,23 @@ public class PayrollCalculationEngine
         decimal annualFerienTage    = vacationWeeks * 7m;
         decimal ferienTageAccrual   = Math.Round(annualFerienTage / 12m, 4); // monatliche Gutschrift
 
+        // Walter-Vorgabe 27.06.2026: Bei UNBEZAHLTEM URLAUB wird der Ferien-
+        // ANSPRUCH in TAGEN für ALLE Modelle anteilig gekürzt — während des
+        // unbezahlten Urlaubs entsteht kein Ferienanspruch. Es wird NUR die
+        // Tage-Gutschrift reduziert, NICHT das Ferien-Geld (CHF, separate
+        // %-Rechnung). Anteil = UU-Kalendertage / Kalendertage der Periode.
+        decimal unbezUrlaubTageFerien = absences
+            .Where(a => a.AbsenceType == "UNBEZ_URLAUB")
+            .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
+        if (unbezUrlaubTageFerien > 0)
+        {
+            // 365tel-Basis (Walter-Vorgabe 27.06.2026, konsistent mit dem
+            // Tagessatz 12/365): pro UU-Kalendertag entfällt Jahresanspruch/365
+            // an Ferienanspruch. Beispiel 5 Wochen = 35 Tage/Jahr → 35/365 × UU-Tage.
+            decimal ferienKuerzungUu = annualFerienTage / 365m * unbezUrlaubTageFerien;
+            ferienTageAccrual = Math.Round(Math.Max(0m, ferienTageAccrual - ferienKuerzungUu), 4);
+        }
+
         // Tatsächlich bezogene Ferientage aus FERIEN-Absenzen — nur Tage in
         // der aktuellen Lohnperiode zählen (Absenzen können sich über mehrere
         // Perioden erstrecken).
@@ -691,6 +720,14 @@ public class PayrollCalculationEngine
         if (isFIX)
         {
             feiertagTageAccrual = 0.5m;
+            // UU-Kürzung auf 365tel-Basis (Walter-Vorgabe 27.06.2026): der
+            // Jahres-Feiertaganspruch (0.5/Mt × 12 = 6 Tage) / 365 × UU-Tage
+            // entfällt — gleiche Logik wie bei den Ferien-Tagen.
+            if (unbezUrlaubTageFerien > 0)
+            {
+                decimal feiertagKuerzungUu = (0.5m * 12m) / 365m * unbezUrlaubTageFerien;
+                feiertagTageAccrual = Math.Round(Math.Max(0m, feiertagTageAccrual - feiertagKuerzungUu), 4);
+            }
             foreach (var a in absences.Where(x => x.AbsenceType == "FEIERTAG"))
             {
                 decimal prozent = a.Prozent > 0 ? a.Prozent : 100m;
@@ -1413,12 +1450,22 @@ public class PayrollCalculationEngine
             decimal ferienStundenAequivalent = mtpFerienTage * guaranteedH / 7m;
             decimal krankStundenAequivalent  = mtpKrankWerktage  * guaranteedH / 5m;
             decimal unfallStundenAequivalent = mtpUnfallWerktage * guaranteedH / 5m;
+            // Unbezahlter Urlaub (Walter-Vorgabe 27.06.2026): garantierte Soll-
+            // Stunden um die UU-Tage kürzen — 1/7-Kalender wie Ferien. Dadurch
+            // sinkt der Festlohn (= Soll × Stundenlohn); erreicht der MA die
+            // reduzierte Garantie nicht, ergibt sich ein Minus-Saldo, erreicht/
+            // übertrifft er sie, wird's im Stundenlohn ausbezahlt.
+            decimal mtpUnbezUrlaubTage = absences
+                .Where(a => a.AbsenceType == "UNBEZ_URLAUB")
+                .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
+            decimal unbezUrlaubStundenAequivalent = mtpUnbezUrlaubTage * guaranteedH / 7m;
             // Sollstunden für Stunden-Saldo + Festlohn-Anzahl-Spalte —
             // mit EXAKTEN Werten, dann Cap auf 0 (Festlohn kann nie negativ).
             decimal sollStundenExakt = sollStundenVollExakt
                 - ferienStundenAequivalent
                 - krankStundenAequivalent
-                - unfallStundenAequivalent;
+                - unfallStundenAequivalent
+                - unbezUrlaubStundenAequivalent;
             // Cap: bei voll abgedeckter Periode kann das Stunden-Total der
             // Abzüge das Pro-Rata-Soll geringfügig übersteigen (Ferien 1/7 +
             // Krank 1/5 mischen sich) → auf 0 clampen.
@@ -1463,13 +1510,14 @@ public class PayrollCalculationEngine
                             ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy}"
                             : $"Austritt {periodTo:dd.MM.yyyy}";
                     mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – {reasonTxt})";
-                } else if (mtpFerienTage > 0 || mtpKrankTage > 0 || mtpUnfallTage > 0) {
+                } else if (mtpFerienTage > 0 || mtpKrankTage > 0 || mtpUnfallTage > 0 || mtpUnbezUrlaubTage > 0) {
                     // Walter-Vorgabe 30.05.2026: nur Stunden im Label, keine CHF.
                     // Soll-Stunden minus Stunden-Äquivalente pro Absenz-Typ.
                     var teile = new List<string> { $"{sollStundenVoll:0.00}h Soll" };
                     if (ferienStundenAequivalent  > 0) teile.Add($"− {ferienStundenAequivalent:0.00}h Ferien");
                     if (krankStundenAequivalent   > 0) teile.Add($"− {krankStundenAequivalent:0.00}h Krank");
                     if (unfallStundenAequivalent  > 0) teile.Add($"− {unfallStundenAequivalent:0.00}h Unfall");
+                    if (unbezUrlaubStundenAequivalent > 0) teile.Add($"− {unbezUrlaubStundenAequivalent:0.00}h Unbez. Urlaub");
                     mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} ({string.Join(" ", teile)})";
                 } else {
                     mtpFestlohnLabel = LabelFor("10", "Festlohn");
@@ -2406,6 +2454,29 @@ public class PayrollCalculationEngine
                 });
                 totalLohn += feiertagBetragFix;
                 AddAmount("3", feiertagBetragFix);
+            }
+
+            // ── Unbezahlter Urlaub: Festlohn-Kürzung (FIX / FIX-M) ─────────
+            // Walter-Vorgabe 27.06.2026: pro UU-Tag wird der Festlohn um den
+            // Tagessatz (Monatslohn × 12/365, Kalenderbasis wie Ferien) gekürzt.
+            // Eigene Negativ-Zeile; reduziert totalLohn (und damit die SV-Basis,
+            // unbezahlter Urlaub ist nicht SV-pflichtig).
+            decimal unbezUrlaubTageFix = absences
+                .Where(a => a.AbsenceType == "UNBEZ_URLAUB")
+                .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
+            decimal unbezUrlaubBetragFix = Math.Round(fixTagessatz * unbezUrlaubTageFix, 2);
+            if (unbezUrlaubBetragFix > 0)
+            {
+                lohnLines.Add(new {
+                    bezeichnung = "Unbezahlter Urlaub",
+                    anzahl  = (decimal?)Math.Round(unbezUrlaubTageFix, 2),
+                    prozent = (decimal?)null,
+                    basis   = (decimal?)Math.Round(fixTagessatz, 2),
+                    betrag  = -unbezUrlaubBetragFix,
+                    accrued = (decimal?)(-unbezUrlaubBetragFix)
+                });
+                totalLohn -= unbezUrlaubBetragFix;
+                AddAmount("10", -unbezUrlaubBetragFix);
             }
 
             // ── Krankheit: Lohnkürzung + 88%-Gutschrift (FIX / FIX-M) ──

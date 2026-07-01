@@ -146,7 +146,8 @@ public class EasyAtWorkEmployeeCommitHistoryTests
         };
 
         var svc = new EasyAtWorkEmployeeSyncService(
-            db, client, NullLogger<EasyAtWorkEmployeeSyncService>.Instance);
+            db, client, NullLogger<EasyAtWorkEmployeeSyncService>.Instance,
+            new HrSystem.Services.LohnEditLockService(db));
 
         var res = await svc.CommitAsync(new EasyAtWorkEmployeeSyncService.SyncRequest
         {
@@ -295,7 +296,8 @@ public class EasyAtWorkEmployeeCommitHistoryTests
         };
 
         var svc = new EasyAtWorkEmployeeSyncService(
-            db, client, NullLogger<EasyAtWorkEmployeeSyncService>.Instance);
+            db, client, NullLogger<EasyAtWorkEmployeeSyncService>.Instance,
+            new HrSystem.Services.LohnEditLockService(db));
 
         var res = await svc.CommitAsync(new EasyAtWorkEmployeeSyncService.SyncRequest
         {

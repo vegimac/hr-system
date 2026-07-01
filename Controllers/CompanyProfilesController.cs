@@ -157,6 +157,29 @@ public class CompanyProfilesController : ControllerBase
 
     public record DefaultThirteenthPercentDto(decimal? DefaultThirteenthSalaryPercent);
 
+    // PATCH /api/companyprofiles/{id}/probation
+    // Probezeit-Vorgabe pro Filiale (Walter-Vorgabe 29.06.2026): gespeichert als
+    // 14 = 14 Tage, 1/2/3 = Monate. NULL = keine Vorgabe. KEINE manuelle
+    // Verlängerung (verlängert sich später automatisch bei Krank/Unfall/Absenz).
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/probation")]
+    public async Task<IActionResult> UpdateProbation(int id, [FromBody] ProbationDto dto)
+    {
+        if (dto.ProbationMonths != null && dto.ProbationMonths != 14
+            && dto.ProbationMonths != 1 && dto.ProbationMonths != 2 && dto.ProbationMonths != 3)
+            return BadRequest(new { error = "Probezeit muss 14 (Tage), 1, 2 oder 3 (Monate) sein." });
+
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+
+        profile.ProbationMonths = dto.ProbationMonths;
+        await _context.SaveChangesAsync();
+
+        return Ok(profile);
+    }
+
+    public record ProbationDto(int? ProbationMonths);
+
     // PATCH /api/companyprofiles/{id}/alv
     // Legacy-Endpoint, bleibt aus Rückwärtskompatibilität — neuer Code soll
     // /stammdaten verwenden, der alle Stammdaten in einem Rutsch updated.
@@ -242,6 +265,12 @@ public class CompanyProfilesController : ControllerBase
         // Pos. 2.1: null = keine Verpflegungs-Pauschale (Crew zahlt 50%)
         profile.LohnausweisPos21VerpflegungMonat = dto.LohnausweisPos21VerpflegungMonat;
 
+        // Probezeit-Vorgabe (Walter 29.06.2026): 14 = 14 Tage, 1/2/3 = Monate.
+        if (dto.ProbationMonths != null && dto.ProbationMonths != 14
+            && dto.ProbationMonths != 1 && dto.ProbationMonths != 2 && dto.ProbationMonths != 3)
+            return BadRequest(new { message = "Probezeit muss 14 (Tage), 1, 2 oder 3 (Monate) sein." });
+        profile.ProbationMonths = dto.ProbationMonths;
+
         await _context.SaveChangesAsync();
         return Ok(profile);
     }
@@ -268,7 +297,8 @@ public class CompanyProfilesController : ControllerBase
         // Lohnausweis-Standardwerte
         bool?    LohnausweisBoxFFreierTransport,
         bool?    LohnausweisBoxGKantineGratis,
-        decimal? LohnausweisPos21VerpflegungMonat
+        decimal? LohnausweisPos21VerpflegungMonat,
+        int?     ProbationMonths
     );
 
     // PATCH /api/companyprofiles/{id}/bank
@@ -538,6 +568,7 @@ public class CompanyProfilesController : ControllerBase
             t.DefaultHolidayPercent        = source.DefaultHolidayPercent;
             t.VacationSixWeeksFromAge      = source.VacationSixWeeksFromAge;
             t.DefaultThirteenthSalaryPercent = source.DefaultThirteenthSalaryPercent;
+            t.ProbationMonths              = source.ProbationMonths;
             // ── 13. ML + Ferien-Geld Dezember ──
             t.ThirteenthMonthPayoutMonths     = source.ThirteenthMonthPayoutMonths;
             t.ThirteenthMonthPayoutsPerYear   = source.ThirteenthMonthPayoutsPerYear;

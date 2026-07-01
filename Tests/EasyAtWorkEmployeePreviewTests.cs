@@ -66,7 +66,8 @@ public class EasyAtWorkEmployeePreviewTests
         });
 
         var svc = new EasyAtWorkEmployeeSyncService(
-            db, client, NullLogger<EasyAtWorkEmployeeSyncService>.Instance);
+            db, client, NullLogger<EasyAtWorkEmployeeSyncService>.Instance,
+            new HrSystem.Services.LohnEditLockService(db));
 
         var res = await svc.PreviewAsync(new EasyAtWorkEmployeeSyncService.SyncRequest
         {

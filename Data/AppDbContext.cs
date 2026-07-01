@@ -11,6 +11,13 @@ public class AppDbContext : DbContext
 
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<Employment> Employments => Set<Employment>();
+    public DbSet<EmploymentProbationLog> EmploymentProbationLogs => Set<EmploymentProbationLog>();
+    public DbSet<Moment> Moments => Set<Moment>();
+    public DbSet<MomentPage> MomentPages => Set<MomentPage>();
+    public DbSet<EmployeeMomentConsent> EmployeeMomentConsents => Set<EmployeeMomentConsent>();
+    public DbSet<MomentType> MomentTypes => Set<MomentType>();
+    public DbSet<MomentTone> MomentTones => Set<MomentTone>();
+    public DbSet<MomentText> MomentTexts => Set<MomentText>();
     public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
     public DbSet<CompanyProfileBankAccount> CompanyProfileBankAccounts => Set<CompanyProfileBankAccount>();
     public DbSet<EducationLevel> EducationLevels => Set<EducationLevel>();
@@ -185,9 +192,145 @@ public class AppDbContext : DbContext
             entity.Property(e => e.VacationPaymentMode).HasColumnName("vacation_payment_mode");
             entity.Property(e => e.ProbationPeriodMonths).HasColumnName("probation_period_months");
             entity.Property(e => e.ProbationEndDate).HasColumnName("probation_end_date").HasColumnType("date");
+            entity.Property(e => e.ProbationStartDate).HasColumnName("probation_start_date").HasColumnType("date");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.HasOne(e => e.Employee).WithMany(e => e.Employments).HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
+        });
+
+        modelBuilder.Entity<Moment>(entity =>
+        {
+            entity.ToTable("moment");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Token).HasColumnName("token");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Typ).HasColumnName("typ");
+            entity.Property(e => e.Zustellung).HasColumnName("zustellung");
+            entity.Property(e => e.MailboxDocumentId).HasColumnName("mailbox_document_id");
+            entity.Property(e => e.Absender).HasColumnName("absender");
+            entity.Property(e => e.DokumentName).HasColumnName("dokument_name");
+            entity.Property(e => e.VerifiedAt).HasColumnName("verified_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.SmsText).HasColumnName("sms_text");
+            entity.Property(e => e.FullText).HasColumnName("full_text");
+            entity.Property(e => e.Antwortart).HasColumnName("antwortart");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedById).HasColumnName("created_by_id");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.RespondedAt).HasColumnName("responded_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ResponseValue).HasColumnName("response_value");
+            entity.Property(e => e.ResponseText).HasColumnName("response_text");
+            entity.Property(e => e.ResponseDokumentId).HasColumnName("response_dokument_id");
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        modelBuilder.Entity<MomentPage>(entity =>
+        {
+            entity.ToTable("moment_page");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.SenderId).HasColumnName("sender_id");
+            entity.Property(e => e.MomentType).HasColumnName("moment_type");
+            entity.Property(e => e.Title).HasColumnName("title");
+            entity.Property(e => e.MessageHtml).HasColumnName("message_html");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.RespondedAt).HasColumnName("responded_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ResponseValue).HasColumnName("response_value");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.SmsText).HasColumnName("sms_text");
+            entity.Property(e => e.Antwortart).HasColumnName("antwortart");
+            entity.HasIndex(e => e.TokenHash).IsUnique();
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        modelBuilder.Entity<EmployeeMomentConsent>(entity =>
+        {
+            entity.ToTable("employee_moment_consent");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.MomentsConsentEnabled).HasColumnName("moments_consent_enabled");
+            entity.Property(e => e.AllowBirthdayAndAnniversaryMoments).HasColumnName("allow_birthday_anniversary");
+            entity.Property(e => e.AllowAppreciationMoments).HasColumnName("allow_appreciation");
+            entity.Property(e => e.AllowCareMoments).HasColumnName("allow_care");
+            entity.Property(e => e.ConsentTextVersion).HasColumnName("consent_text_version");
+            entity.Property(e => e.GrantedAt).HasColumnName("granted_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.LastChangedAt).HasColumnName("last_changed_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.LastChangedBy).HasColumnName("last_changed_by");
+            entity.Property(e => e.Source).HasColumnName("source");
+            entity.HasIndex(e => e.EmployeeId).IsUnique();
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        modelBuilder.Entity<MomentType>(entity =>
+        {
+            entity.ToTable("moment_type");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code");
+            entity.Property(e => e.Name).HasColumnName("name");
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.ConsentCategory).HasColumnName("consent_category");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<MomentTone>(entity =>
+        {
+            entity.ToTable("moment_tone");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code");
+            entity.Property(e => e.Name).HasColumnName("name");
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<MomentText>(entity =>
+        {
+            entity.ToTable("moment_text");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.MomentTypeId).HasColumnName("moment_type_id");
+            entity.Property(e => e.MomentToneId).HasColumnName("moment_tone_id");
+            entity.Property(e => e.Titel).HasColumnName("titel");
+            entity.Property(e => e.SmsText).HasColumnName("sms_text");
+            entity.Property(e => e.BodyText).HasColumnName("body_text");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.LanguageCode).HasColumnName("language_code");
+            entity.Property(e => e.Version).HasColumnName("version");
+            entity.Property(e => e.RequiresReview).HasColumnName("requires_review");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasOne(e => e.MomentType).WithMany().HasForeignKey(e => e.MomentTypeId);
+            entity.HasOne(e => e.MomentTone).WithMany().HasForeignKey(e => e.MomentToneId);
+            entity.HasIndex(e => new { e.MomentTypeId, e.MomentToneId });
+        });
+
+        modelBuilder.Entity<EmploymentProbationLog>(entity =>
+        {
+            entity.ToTable("employment_probation_log");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmploymentId).HasColumnName("employment_id");
+            entity.Property(e => e.EventDate).HasColumnName("event_date").HasColumnType("date");
+            entity.Property(e => e.EventType).HasColumnName("event_type");
+            entity.Property(e => e.DeltaDays).HasColumnName("delta_days");
+            entity.Property(e => e.Grund).HasColumnName("grund");
+            entity.Property(e => e.ProbezeitEndeNachher).HasColumnName("probezeit_ende_nachher").HasColumnType("date");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.Employment).WithMany().HasForeignKey(e => e.EmploymentId);
         });
 
         modelBuilder.Entity<CompanyProfile>(entity =>
@@ -224,6 +367,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.DefaultHolidayPercent).HasColumnName("default_holiday_percent");
             entity.Property(e => e.VacationSixWeeksFromAge).HasColumnName("vacation_six_weeks_from_age").HasDefaultValue(50);
             entity.Property(e => e.DefaultThirteenthSalaryPercent).HasColumnName("default_thirteenth_salary_percent");
+            entity.Property(e => e.ProbationMonths).HasColumnName("probation_months");
             entity.Property(e => e.NightStartTime).HasColumnName("night_start_time").HasMaxLength(5);
             entity.Property(e => e.NightEndTime).HasColumnName("night_end_time").HasMaxLength(5);
             entity.Property(e => e.ThirteenthMonthPayoutsPerYear).HasColumnName("thirteenth_month_payouts_per_year").HasDefaultValue(12);
@@ -413,6 +557,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.IsHrTeam).HasColumnName("is_hr_team");
             entity.Property(e => e.IsSuperAdmin).HasColumnName("is_super_admin").HasDefaultValue(false);
+            entity.Property(e => e.AllowedAreas).HasColumnName("allowed_areas");
             entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
             entity.Property(e => e.SignaturePng).HasColumnName("signature_png");
             entity.Property(e => e.Theme).HasColumnName("theme").HasMaxLength(20).HasDefaultValue("light");
@@ -711,6 +856,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Zeitgutschrift).HasColumnName("zeitgutschrift").HasDefaultValue(true);
             entity.Property(e => e.GutschriftModus).HasColumnName("gutschrift_modus").HasMaxLength(5);
             entity.Property(e => e.UtpAuszahlung).HasColumnName("utp_auszahlung").HasDefaultValue(false);
+            entity.Property(e => e.VerlaengertProbezeit).HasColumnName("verlaengert_probezeit").HasDefaultValue(false);
             entity.Property(e => e.ReduziertSaldo).HasColumnName("reduziert_saldo").HasMaxLength(20);
             entity.Property(e => e.BasisStunden).HasColumnName("basis_stunden").HasMaxLength(10).HasDefaultValue("BETRIEB");
             entity.Property(e => e.LohnpositionAuszahlungCode).HasColumnName("lohnposition_auszahlung_code").HasMaxLength(20);

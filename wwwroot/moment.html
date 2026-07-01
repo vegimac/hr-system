@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OneCrew · Moment</title>
+<style>
+    @font-face { font-family:'Speedee'; font-weight:300; font-display:swap; src:url('fonts/Speedee_Lt.woff2') format('woff2'); }
+    @font-face { font-family:'Speedee'; font-weight:700; font-display:swap; src:url('fonts/Speedee_Bd.woff2') format('woff2'); }
+
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body { margin:0; min-height:100%; }
+    body {
+        font-family:'Speedee', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color:#1a1a1a;
+        background:
+            radial-gradient(circle at 58% 38%, rgba(255,255,255,0.80), transparent 26%),
+            radial-gradient(circle at 26% 52%, rgba(224,218,209,0.42), transparent 38%),
+            linear-gradient(135deg, #f7f4ef 0%, #efebe3 50%, #faf8f5 100%);
+        background-attachment:fixed;
+        min-height:100vh;
+        display:flex; flex-direction:column; align-items:center;
+        padding:max(24px, env(safe-area-inset-top)) 18px 40px;
+    }
+    .logo { display:block; width:auto; max-width:230px; max-height:74px; margin:14px auto 6px; }
+    .rule { width:min(320px,80%); height:1px; background:#cdc7bd; border:0; margin:14px auto 0; }
+    .tagline { margin:12px 0 0; font-size:10.5px; letter-spacing:0.28em; color:#6b6b6b; text-transform:uppercase; text-align:center; font-weight:500; }
+
+    .card {
+        width:100%; max-width:440px; margin:26px auto 0;
+        background:rgba(255,255,255,0.62);
+        border:1px solid rgba(255,255,255,0.7);
+        box-shadow:0 18px 50px rgba(60,55,48,0.16);
+        backdrop-filter:blur(18px) saturate(130%);
+        -webkit-backdrop-filter:blur(18px) saturate(130%);
+        border-radius:22px; padding:24px 22px;
+    }
+    .greet { font-size:21px; font-weight:700; color:#111; margin:0 0 14px; }
+    .msg { font-size:15.5px; line-height:1.6; color:#333; white-space:pre-wrap; word-break:break-word; }
+
+    .actions { margin-top:22px; }
+    label.fld { display:block; font-size:13px; color:#555; margin-bottom:6px; }
+    textarea {
+        width:100%; min-height:120px; resize:vertical; font:inherit; font-size:15px;
+        border:1px solid #d8d2c8; border-radius:14px; padding:12px 14px; background:#fff; color:#1a1a1a;
+    }
+    .btn {
+        appearance:none; border:0; cursor:pointer; font:inherit; font-weight:700;
+        border-radius:14px; padding:15px 18px; font-size:16px; width:100%;
+        background:#1a1a1a; color:#fff; transition:transform .08s ease, opacity .15s;
+    }
+    .btn:active { transform:translateY(1px); }
+    .btn.secondary { background:#fff; color:#1a1a1a; border:1px solid #d8d2c8; }
+    .btn[disabled] { opacity:.5; cursor:default; }
+    .btn-row { display:flex; gap:12px; }
+    .btn-row .btn { width:50%; }
+
+    .state { text-align:center; padding:8px 0; }
+    .state .big { font-size:40px; line-height:1; }
+    .state .lead { font-size:17px; font-weight:700; margin:10px 0 4px; color:#111; }
+    .state .sub { font-size:14px; color:#666; }
+    .muted { color:#777; font-size:13px; }
+    .spacer { height:14px; }
+    .err { color:#b91c1c; font-size:13.5px; margin-top:10px; min-height:18px; }
+    .consent { display:flex; gap:10px; align-items:flex-start; margin:18px 0; font-size:13px; line-height:1.5; color:#444; cursor:pointer; }
+    .consent input { width:20px; height:20px; margin-top:1px; flex-shrink:0; accent-color:#1a1a1a; }
+
+    .moment-footer {
+        margin:30px auto max(20px, env(safe-area-inset-bottom)); padding:0 12px;
+        max-width:440px; text-align:center;
+        font-size:10px; letter-spacing:0.16em; line-height:1.9;
+        text-transform:uppercase; color:#7a7367; font-weight:500;
+    }
+    .moment-footer .sep { color:#c8c1b6; margin:0 8px; font-weight:400; }
+</style>
+</head>
+<body>
+    <img class="logo" src="img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+    <hr class="rule">
+    <p class="tagline">Hospitality starts with our Crew.</p>
+
+    <div class="card" id="card">
+        <div class="state"><div class="muted">Wird geladen …</div></div>
+    </div>
+
+
+<script>
+const token = new URLSearchParams(location.search).get('t') || '';
+const card = document.getElementById('card');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function stateView(big, lead, sub) {
+    card.innerHTML = `<div class="state"><div class="big">${big}</div><div class="lead">${esc(lead)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>`;
+}
+
+async function load() {
+    if (!token) { stateView('🔗', 'Ungültiger Link', 'Dieser Link ist unvollständig.'); return; }
+    let m;
+    try {
+        const r = await fetch(`/api/moments/public/${encodeURIComponent(token)}`);
+        if (r.status === 404) { stateView('🔍', 'Nicht gefunden', 'Diesen Moment gibt es nicht (mehr).'); return; }
+        if (r.status === 410) { stateView('⏳', 'Abgelaufen', 'Dieser Moment-Link ist nicht mehr gültig.'); return; }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        m = await r.json();
+    } catch (e) { stateView('⚠️', 'Fehler', 'Bitte später nochmals versuchen.'); return; }
+    render(m);
+}
+
+let MOM = null;   // geladener Moment (für Vorname etc.)
+
+function render(m) {
+    MOM = m;
+    const full = esc(m.messageHtml || '');
+
+    // Bereits beantwortet (Ja/Nein)?
+    if (m.status === 'beantwortet') {
+        const ans = m.responseValue === 'ja' ? '✓ Ja' : (m.responseValue === 'nein' ? '✗ Nein' : '—');
+        card.innerHTML = `<div class="msg">${full}</div>
+            <div class="spacer"></div>
+            <div style="background:#f1efe9;border-radius:14px;padding:14px 16px">
+                <div class="muted" style="margin-bottom:4px">Deine Antwort</div>
+                <div style="font-size:15px;color:#1a1a1a">${ans}</div>
+            </div>`;
+        return;
+    }
+
+    let actions = '';
+    if (m.antwortart === 'janein') {
+        actions = `<div class="actions"><div class="btn-row">
+                <button class="btn" onclick="respond('ja')">Ja</button>
+                <button class="btn secondary" onclick="respond('nein')">Nein</button>
+            </div><div class="err" id="err"></div></div>`;
+    } else {
+        actions = `<div class="actions"><div class="muted">💛 Schön, dass du da bist.</div></div>`;
+    }
+    card.innerHTML = `<div class="msg">${full}</div>${actions}`;
+}
+
+async function respond(value) {
+    const err = document.getElementById('err');
+    document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+    try {
+        const r = await fetch(`/api/moments/public/${encodeURIComponent(token)}/respond`, {
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ value })
+        });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            if (err) err.textContent = j.error || 'Konnte nicht gesendet werden.';
+            document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+            return;
+        }
+        stateView('🙏', 'Danke!', 'Deine Antwort ist bei uns angekommen.');
+    } catch (e) {
+        if (err) err.textContent = 'Netzwerkfehler — bitte nochmals versuchen.';
+        document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+    }
+}
+
+load();
+</script>
+</body>
+</html>

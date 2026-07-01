@@ -332,16 +332,25 @@ async function rosterImportCommit() {
             return;
         }
         const data = await r.json();
+        const locked = data.lockedSkipped || 0;
+        const lockedNote = locked > 0
+            ? `<div style="margin-top:8px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;color:#854d0e;border-radius:9px;font-size:13px">
+                   <b>${locked} Absenz(en) nicht importiert</b> — betreffen eine bereits abgeschlossene oder in Verarbeitung befindliche Lohnperiode:
+                   <ul style="margin:6px 0 0;padding-left:18px">${(data.lockedMessages || []).map(m => `<li>${m}</li>`).join('')}</ul>
+               </div>`
+            : '';
         document.getElementById('rosterImportAlert').innerHTML = `
             <div style="padding:14px 18px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:9px;font-size:14px">
-                <b>Import erfolgreich:</b> ${data.created} Absenzen erfasst${data.duplicates > 0 ? `, ${data.duplicates} Dubletten übersprungen` : ''}${data.skipped > 0 ? `, ${data.skipped} ohne MA-Zuordnung übersprungen` : ''}. Fenster wird in 2 Sekunden geschlossen…
-            </div>`;
+                <b>Import:</b> ${data.created} Absenzen erfasst${data.duplicates > 0 ? `, ${data.duplicates} Dubletten übersprungen` : ''}${data.skipped > 0 ? `, ${data.skipped} ohne MA-Zuordnung übersprungen` : ''}.${locked > 0 ? '' : ' Fenster wird in 2 Sekunden geschlossen…'}
+            </div>${lockedNote}`;
         document.getElementById('rosterImportPreview').innerHTML = '';
         document.getElementById('rosterImportSummary').innerHTML = '';
         document.getElementById('rosterImportPeriodInfo').innerHTML = '';
         btn.textContent = 'Absenzen erfassen';
         _raRows = [];
-        setTimeout(() => { if (typeof showPage === 'function') showPage('admin-hub'); }, 2000);
+        // Bei gesperrten Perioden NICHT automatisch schliessen — der User soll
+        // die Meldung lesen können.
+        if (locked === 0) setTimeout(() => { if (typeof showPage === 'function') showPage('admin-hub'); }, 2000);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
         btn.disabled = false;

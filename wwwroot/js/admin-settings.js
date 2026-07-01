@@ -676,6 +676,11 @@ async function loadAbsenzTypen() {
                         ? '<span style="color:#16a34a;font-weight:600">✓</span>'
                         : '<span style="color:#cbd5e1">—</span>'}
                 </td>
+                <td style="text-align:center">
+                    ${t.verlaengertProbezeit
+                        ? '<span style="color:#16a34a;font-weight:600">✓</span>'
+                        : '<span style="color:#cbd5e1">—</span>'}
+                </td>
                 <td style="text-align:center">${reduziertBadge(t.reduziertSaldo)}</td>
                 <td style="text-align:center">${t.sortOrder}</td>
                 <td style="text-align:center">
@@ -691,7 +696,7 @@ async function loadAbsenzTypen() {
                 </td>
             </tr>`).join('');
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="10" style="color:#dc2626">Fehler: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" style="color:#dc2626">Fehler: ${e.message}</td></tr>`;
     }
 }
 
@@ -708,10 +713,12 @@ function openAbsenzTypForm(t) {
     const modus = d.gutschriftModus;
     if (modus === '1/7') document.getElementById('atModus17').checked = true;
     else document.getElementById('atModus15').checked = true;
-    document.getElementById('atModusWrap').style.display = (d.zeitgutschrift ?? true) ? 'block' : 'none';
+    document.getElementById('atModusWrap').style.display = 'block';
     document.getElementById('atBasisStunden').value   = d.basisStunden   ?? 'BETRIEB';
     document.getElementById('atReduziertSaldo').value = d.reduziertSaldo ?? '';
     document.getElementById('atUtpAuszahlung').checked = d.utpAuszahlung ?? false;
+    const vpEl = document.getElementById('atVerlaengertProbezeit');
+    if (vpEl) vpEl.checked = d.verlaengertProbezeit ?? false;
     const zvSel = document.getElementById('atZvKuerzel');
     if (zvSel) zvSel.value = d.zwischenverdienstKuerzel ?? '';
     document.getElementById('absenzTypForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -722,8 +729,9 @@ function closeAbsenzTypForm() {
 }
 
 function onAtZgChange() {
-    const zg = document.getElementById('atZg').checked;
-    document.getElementById('atModusWrap').style.display = zg ? 'block' : 'none';
+    // Berechnungsmodus (1/5 vs 1/7) bleibt IMMER sichtbar — er steuert auch
+    // Lohn-Kürzungen ohne Zeitgutschrift (z.B. unbezahlter Urlaub: 1/7).
+    document.getElementById('atModusWrap').style.display = 'block';
 }
 
 function showAbsenzAlert(msg, type) {
@@ -747,21 +755,23 @@ async function saveAbsenzTyp() {
 
     if (!code) { alert('Bitte Code eingeben.'); return; }
     if (!bez)  { alert('Bitte Bezeichnung eingeben.'); return; }
-    if (zg && !modus) { alert('Bitte Berechnungsmodus wählen (1/5 oder 1/7).'); return; }
+    if (!modus) { alert('Bitte Berechnungsmodus wählen (1/5 oder 1/7).'); return; }
 
     const basisStunden   = document.getElementById('atBasisStunden').value || 'BETRIEB';
     const reduziertRaw   = document.getElementById('atReduziertSaldo').value;
     const utpAuszahlung  = document.getElementById('atUtpAuszahlung').checked;
+    const verlaengertProbezeit = document.getElementById('atVerlaengertProbezeit')?.checked ?? false;
     const zvKuerzelRaw   = document.getElementById('atZvKuerzel')?.value || '';
 
     const body = {
         code, bezeichnung: bez, zeitgutschrift: zg,
-        gutschriftModus: zg ? modus : null,
+        gutschriftModus: modus,
         sortOrder: parseInt(document.getElementById('atSort').value) || 99,
         aktiv: document.getElementById('atAktiv').checked,
         basisStunden,
         reduziertSaldo: reduziertRaw === '' ? null : reduziertRaw,
         utpAuszahlung,
+        verlaengertProbezeit,
         zwischenverdienstKuerzel: zvKuerzelRaw === '' ? null : zvKuerzelRaw
     };
 

@@ -1,6 +1,7 @@
 using System.Globalization;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -40,11 +41,13 @@ public class RosterAbsenceImportController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ILogger<RosterAbsenceImportController> _log;
+    private readonly LohnEditLockService _editLock;
 
-    public RosterAbsenceImportController(AppDbContext db, ILogger<RosterAbsenceImportController> log)
+    public RosterAbsenceImportController(AppDbContext db, ILogger<RosterAbsenceImportController> log, LohnEditLockService editLock)
     {
         _db  = db;
         _log = log;
+        _editLock = editLock;
     }
 
     // Dienstplan-Code → Absence.AbsenceType. Erweiterbar wenn weitere Codes
@@ -59,6 +62,7 @@ public class RosterAbsenceImportController : ControllerBase
             ["KR"] = "KRANK",
             ["UN"] = "UNFALL",
             ["MV"] = "MUTT_VATER",   // Mutter-/Vaterschaftsurlaub (Walter-Vorgabe 15.05.2026)
+            ["UU"] = "UNBEZ_URLAUB", // Unbezahlter Urlaub (Walter-Vorgabe 27.06.2026)
         };
 
     // ── DTOs ────────────────────────────────────────────────────────────────
@@ -217,7 +221,8 @@ public class RosterAbsenceImportController : ControllerBase
         var absenzTypen = await _db.AbsenzTypen.ToListAsync();
         var profile     = await _db.CompanyProfiles.FirstOrDefaultAsync(p => p.Id == companyProfileId);
 
-        int created = 0, skipped = 0, duplicates = 0;
+        int created = 0, skipped = 0, duplicates = 0, lockedSkipped = 0;
+        var lockedMsgs = new List<string>();
 
         foreach (var r in spans)
         {
@@ -250,6 +255,17 @@ public class RosterAbsenceImportController : ControllerBase
                 && a.DateTo      >= df);
             if (dup) { duplicates++; continue; }
 
+            // Per-Periode-Sperre (Walter-Vorgabe 27.06.2026): KEINE Absenz in eine
+            // bereits abgeschlossene / in Verarbeitung befindliche Lohnperiode
+            // importieren. Offene/nie verarbeitete Perioden bleiben erlaubt.
+            var lockCheck = await _editLock.CheckRangePeriodAsync(User, companyProfileId, df, dt);
+            if (lockCheck.Locked)
+            {
+                lockedSkipped++;
+                lockedMsgs.Add($"{emp.FirstName} {emp.LastName} — {r.AbsenceType} {df:dd.MM.yyyy}–{dt:dd.MM.yyyy}: Lohnperiode abgeschlossen/in Verarbeitung, nicht importiert.");
+                continue;
+            }
+
             var activeEmp = emp.Employments.FirstOrDefault(e => e.IsActive)
                          ?? emp.Employments.FirstOrDefault();
             var typCfg     = absenzTypen.FirstOrDefault(t => t.Code == r.AbsenceType);
@@ -274,10 +290,10 @@ public class RosterAbsenceImportController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
-        _log.LogInformation("[RosterAbsenceImport] Filiale={CP} erstellt={Created}, Dubletten={Dup}, übersprungen={Skip}",
-            companyProfileId, created, duplicates, skipped);
+        _log.LogInformation("[RosterAbsenceImport] Filiale={CP} erstellt={Created}, Dubletten={Dup}, übersprungen={Skip}, gesperrt={Locked}",
+            companyProfileId, created, duplicates, skipped, lockedSkipped);
 
-        return Ok(new { created, duplicates, skipped });
+        return Ok(new { created, duplicates, skipped, lockedSkipped, lockedMessages = lockedMsgs });
     }
 
     // ── MA-Pool ─────────────────────────────────────────────────────────────
@@ -293,10 +309,29 @@ public class RosterAbsenceImportController : ControllerBase
     // dazwischen, das nicht zur Filiale gehört.
     private async Task<List<Employee>> LoadEmployeePoolAsync(int companyProfileId)
     {
+        // Walter-Vorgabe 27.06.2026: auch VERTRAGSLOSE MA dieser Filiale
+        // (Personaldossier) in den Pool nehmen, damit alte Info-Absenzen
+        // importiert werden können. Da kein Vertrag die Filiale liefert, wird
+        // die Filiale über das Personalnummer-Präfix bestimmt (restaurantCode
+        // ohne führende Nullen, z.B. 058 → "58" → Personalnummer 580066…).
+        string prefix = "";
+        if (companyProfileId != 0)
+        {
+            var rc = await _db.CompanyProfiles
+                .Where(p => p.Id == companyProfileId)
+                .Select(p => p.RestaurantCode)
+                .FirstOrDefaultAsync();
+            prefix = (rc ?? "").TrimStart('0');
+        }
+
         return await _db.Employees
             .Include(e => e.Employments)
             .Where(e => companyProfileId == 0
-                     || e.Employments.Any(emp => emp.CompanyProfileId == companyProfileId))
+                     || e.Employments.Any(emp => emp.CompanyProfileId == companyProfileId)
+                     || (!e.Employments.Any()
+                         && prefix != ""
+                         && e.EmployeeNumber != null
+                         && e.EmployeeNumber.StartsWith(prefix)))
             .ToListAsync();
     }
 
@@ -349,10 +384,12 @@ public class RosterAbsenceImportController : ControllerBase
     // ── Stunden- / Tagesberechnung ──────────────────────────────────────────
     // Spiegelt renderAbsDayCheckboxes() in employees.js: bei KRANK/UNFALL/
     // SCHULUNG werden Sa/So NICHT angerechnet, sofern die ganze Mo–So-Woche im
-    // Zeitraum liegt. Bei FERIEN/FEIERTAG zählen alle Kalendertage.
+    // Zeitraum liegt. Bei FERIEN/FEIERTAG/UNBEZ_URLAUB zählen alle Kalendertage.
     private static List<string> ComputeWorkedDays(string absenceType, List<string> allDays)
     {
-        if (absenceType == "FERIEN" || absenceType == "FEIERTAG")
+        // Unbezahlter Urlaub wird wie Ferien kalenderbasiert (1/7) gezählt
+        // (Walter-Vorgabe 27.06.2026) — passt zum Festlohn-Tagessatz 12/365.
+        if (absenceType == "FERIEN" || absenceType == "FEIERTAG" || absenceType == "UNBEZ_URLAUB")
             return new List<string>(allDays);
 
         var daySet = new HashSet<DateOnly>();

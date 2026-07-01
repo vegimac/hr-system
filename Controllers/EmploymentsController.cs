@@ -38,6 +38,19 @@ public class EmploymentsController : ControllerBase
         return DateOnly.FromDateTime(e.ContractStartDate) < firstAllowed.Value;
     }
 
+    /// <summary>
+    /// Probezeit-Ende aus Vertragsbeginn + Filial-Probezeit (Walter 29.06.2026):
+    /// 14 = 14 Tage, 1/2/3 = Monate. Ende = Beginn + Dauer − 1 Tag, damit die
+    /// Probezeit den letzten Tag einschliesst (z.B. 2.1.2026 + 3 Mt. → 1.4.2026,
+    /// 2.1.2026 + 14 Tage → 15.1.2026). NULL = keine Filial-Vorgabe → kein Ende.
+    /// </summary>
+    private static DateTime? ComputeProbationEndDate(DateTime contractStart, int? branchProbation)
+    {
+        if (branchProbation is null) return null;
+        if (branchProbation.Value == 14) return contractStart.AddDays(14).AddDays(-1);
+        return contractStart.AddMonths(branchProbation.Value).AddDays(-1);
+    }
+
     // GET /api/employments — alle Verträge
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -89,6 +102,17 @@ public class EmploymentsController : ControllerBase
             firstAllowedByBranch[branchId] = await GetFirstAllowedAsync(branchId);
         }
 
+        // Neuester Probezeit-Grund pro Vertrag (Walter 29.06.2026) — für die
+        // Anzeige „Probezeit bis … (Grund)". Ein Query für alle Verträge.
+        var empIds = employments.Select(e => e.Id).ToList();
+        var probationGrundByEmp = (await _context.EmploymentProbationLogs
+                .Where(l => empIds.Contains(l.EmploymentId))
+                .OrderByDescending(l => l.EventDate).ThenByDescending(l => l.Id)
+                .Select(l => new { l.EmploymentId, l.Grund })
+                .ToListAsync())
+            .GroupBy(l => l.EmploymentId)
+            .ToDictionary(g => g.Key, g => g.First().Grund);
+
         // Anonymous-Objekt-Liste mit zusätzlichem inLohnVerwendet-Flag.
         var result = employments.Select(e =>
         {
@@ -109,6 +133,8 @@ public class EmploymentsController : ControllerBase
                 e.MonthlySalaryFte, e.MonthlySalary, e.HourlyRate,
                 e.EasyAtWorkManualOverride,
                 e.VacationPaymentMode, e.ProbationPeriodMonths, e.ProbationEndDate,
+                e.ProbationStartDate,
+                probationGrund   = probationGrundByEmp.TryGetValue(e.Id, out var pg) ? pg : null,
                 e.IsActive,
                 inLohnVerwendet  = IsInLohnVerwendet(e, fa),
                 firstAllowedDate = fa?.ToString("yyyy-MM-dd")
@@ -152,6 +178,39 @@ public class EmploymentsController : ControllerBase
             }
         }
 
+        // Probezeit bei GANZ NEUEM Vertrag automatisch eintragen (Walter 29.06.2026):
+        // Hat der MA noch KEINEN Vertrag (= Neueintritt) und ist in der Filiale
+        // eine Probezeit hinterlegt, wird das Probezeit-Ende server-autoritativ
+        // gesetzt: Vertragsbeginn + Filial-Probezeit − 1 Tag (z.B. 2.1.2026 + 3 Mt.
+        // → 1.4.2026; 14 = 14 Tage). Folge-/Änderungsverträge (Filialwechsel,
+        // Lohnänderung) bekommen KEINE neue Probezeit. Die spätere Verschiebung
+        // des Starts auf die erste Stempelzeit + Auto-Verlängerung bei Absenzen
+        // ist ein eigener Schritt.
+        // Regel „befristet → keine Probezeit" (Walter-Vorgabe 30.06.2026):
+        // rechtlich wäre bei einem befristeten Vertrag eine Probezeit grundsätzlich
+        // nicht zulässig. Die Regel ist vorbereitet, AKTUELL aber NICHT AKTIV
+        // (Walter-Vorgabe 30.06.2026): die bereits im Umlauf befindlichen befristeten
+        // Verträge HABEN eine Probezeit und behalten sie. Sobald keine befristeten
+        // Verträge mehr laufen, kann Walter SkipProbationForBefristet auf true setzen.
+        const bool SkipProbationForBefristet = false;
+        var istBefristet = string.Equals(employment.ContractType, "befristet", StringComparison.OrdinalIgnoreCase)
+                           || employment.ContractEndDate.HasValue;
+        var istErstvertrag = !await _context.Employments
+            .AnyAsync(e => e.EmployeeId == employment.EmployeeId);
+        if (istErstvertrag && !(SkipProbationForBefristet && istBefristet) && employment.CompanyProfileId.HasValue)
+        {
+            var branchProb = await _context.CompanyProfiles
+                .Where(c => c.Id == employment.CompanyProfileId.Value)
+                .Select(c => c.ProbationMonths)
+                .FirstOrDefaultAsync();
+            var probEnd = ComputeProbationEndDate(employment.ContractStartDate, branchProb);
+            if (probEnd.HasValue)
+            {
+                employment.ProbationEndDate      = probEnd.Value;
+                employment.ProbationPeriodMonths = branchProb == 14 ? null : branchProb;
+            }
+        }
+
         // Offenen Vertrag (ContractEndDate IS NULL) automatisch schliessen
         var openContract = await _context.Employments
             .Where(e => e.EmployeeId == employment.EmployeeId && e.ContractEndDate == null)
@@ -191,6 +250,24 @@ public class EmploymentsController : ControllerBase
                 ? $"Vorheriger Vertrag wurde per {openContract.ContractEndDate:dd.MM.yyyy} abgeschlossen."
                 : null
         });
+    }
+
+    // GET /api/employments/{id}/probation-log
+    // History aller Probezeit-Verschiebungen (Anker beim 1. Stempel + spätere
+    // Absenz-Verlängerungen), neueste zuerst. Walter 29.06.2026.
+    [HttpGet("{id:int}/probation-log")]
+    public async Task<IActionResult> GetProbationLog(int id)
+    {
+        var logs = await _context.EmploymentProbationLogs
+            .Where(l => l.EmploymentId == id)
+            .OrderByDescending(l => l.EventDate).ThenByDescending(l => l.Id)
+            .Select(l => new
+            {
+                l.Id, l.EventDate, l.EventType, l.DeltaDays, l.Grund,
+                l.ProbezeitEndeNachher, l.CreatedAt
+            })
+            .ToListAsync();
+        return Ok(logs);
     }
 
     // GET /api/employments/{id}/exit-summary?exitDate=YYYY-MM-DD

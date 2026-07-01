@@ -405,6 +405,15 @@ body.import-contract-mode .api-contract-card .row-actions { margin-top: 8px; }
         <div id="apiContractPanel" style="display:none;margin-bottom:18px"></div>
         <div id="importEasyEmployeeList" style="margin-bottom:18px"></div>
 
+        <!-- Doppelte Lohn-MA prüfen — findet Personen mit mehr als einem Lohn-MA
+             (genau die, die den easy@work-Sync blockieren). -->
+        <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-outline" onclick="checkDuplicatePayrollMas()"
+                title="Findet Personen mit mehr als einem Lohn-MA — genau die, die den Sync blockieren">🔍 Doppelte Lohn-MA prüfen</button>
+            <span style="font-size:12.5px;color:#64748b">Findet Personen mit mehr als einem aktiven Lohn-MA (blockieren den easy@work-Sync).</span>
+        </div>
+        <div id="dupMaResult" style="display:none;margin-bottom:18px"></div>
+
         <!-- UPLOAD (Legacy-CSV, im laufenden easy@work-Import ausgeblendet) -->
         <div class="upload-card" id="uploadSection" style="display:none">
             <div class="upload-zone" id="uploadZone"
@@ -545,6 +554,62 @@ let _importEasyEmployees = [];
 
 function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
 
+// ── Doppelte Lohn-MA prüfen (Walter 29.06.2026) ──────────────────────────
+// Listet alle Personen mit MEHR als einem Lohn-MA (IsPayrollExcluded=false) —
+// genau die Fälle, die den easy@work-Sync blockieren.
+function escHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function checkDuplicatePayrollMas() {
+    const box = document.getElementById('dupMaResult');
+    if (!box) return;
+    box.style.display = 'block';
+    box.innerHTML = `<div style="padding:14px;color:#64748b">Prüfe…</div>`;
+    try {
+        const res = await fetch('/api/easywork/duplicate-payroll-employees', { headers: ah(), cache: 'no-store' });
+        if (!res.ok) {
+            box.innerHTML = `<div style="padding:14px;color:#b91c1c;border:1px solid #fecaca;background:#fef2f2;border-radius:10px">Prüfung fehlgeschlagen (${res.status}).</div>`;
+            return;
+        }
+        const data = await res.json();
+        const groups = data.groups || [];
+        if (groups.length === 0) {
+            box.innerHTML = `<div style="padding:14px 16px;color:#166534;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;font-weight:600">✅ Keine doppelten Lohn-MA gefunden — jede Person hat genau einen aktiven Lohn-MA.</div>`;
+            return;
+        }
+        let html = `<div style="border:1px solid #fcd34d;background:#fffbeb;border-radius:10px;padding:14px 16px">
+            <div style="font-weight:700;color:#92400e;margin-bottom:4px">⚠ ${groups.length} Person(en) mit mehreren Lohn-MA</div>
+            <div style="font-size:12.5px;color:#78716c;margin-bottom:12px">Diese blockieren den easy@work-Sync. Pro Person darf es genau EINEN Lohn-MA geben — die übrigen auf „kein Lohn" setzen oder zusammenführen.</div>`;
+        groups.forEach(g => {
+            html += `<div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+                <div style="font-size:12px;color:#92400e;font-weight:600;margin-bottom:6px">${escHtml(g.keyType)}: ${escHtml(g.keyValue)} · ${g.payrollCount} aktive Lohn-MA</div>
+                <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                    <thead><tr style="color:#64748b;text-align:left">
+                        <th style="padding:3px 6px">MA-Nr</th><th style="padding:3px 6px">Name</th>
+                        <th style="padding:3px 6px">easy@work-ID</th><th style="padding:3px 6px">Filiale</th>
+                        <th style="padding:3px 6px">Status</th><th style="padding:3px 6px">Lohn</th>
+                    </tr></thead><tbody>`;
+            g.members.forEach(m => {
+                const lohn = m.isPayrollExcluded
+                    ? `<span style="color:#64748b">kein Lohn</span>`
+                    : `<span style="color:#b91c1c;font-weight:700">Lohn-MA</span>`;
+                const status = m.isActive ? 'aktiv' : '<span style="color:#94a3b8">inaktiv</span>';
+                html += `<tr style="border-top:1px solid #f1f5f9">
+                    <td style="padding:3px 6px">${escHtml(m.number || '–')}</td>
+                    <td style="padding:3px 6px;font-weight:600">${escHtml(m.name)}</td>
+                    <td style="padding:3px 6px">${m.easyAtWorkEmployeeId ? '#' + m.easyAtWorkEmployeeId : '–'}</td>
+                    <td style="padding:3px 6px">${escHtml(m.branch || '–')}</td>
+                    <td style="padding:3px 6px">${status}</td>
+                    <td style="padding:3px 6px">${lohn}</td>
+                </tr>`;
+            });
+            html += `</tbody></table></div>`;
+        });
+        html += `</div>`;
+        box.innerHTML = html;
+    } catch {
+        box.innerHTML = `<div style="padding:14px;color:#b91c1c;border:1px solid #fecaca;background:#fef2f2;border-radius:10px">Verbindungsfehler bei der Prüfung.</div>`;
+    }
+}
+
 // Walter-Vorgabe 13.06.2026: globaler 401-Interceptor (siehe index.html).
 // import.html läuft im iframe innerhalb der App — Reload würde nur das
 // iframe neu laden. Statt eines Reloads schicken wir den Benutzer mit
@@ -566,7 +631,7 @@ function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type':
             alerting = true;
             authToken = null;
             try { localStorage.removeItem('hrToken'); } catch {}
-            alert('Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.');
+            alert('Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.');
             // Parent-Page reloaden (falls in iframe), sonst eigenen Reload.
             try {
                 if (window.parent && window.parent !== window) {
@@ -985,15 +1050,27 @@ async function loadNationalities() {
 }
 
 // ── CSV PARSING ───────────────────────────────────────
+// ── CSV-Import deaktiviert (Walter-Vorgabe 29.06.2026) ────────────────────
+// Mitarbeiter & Verträge werden ausschliesslich über die easy@work-API
+// importiert (matcht stabil über die easy@work-id, deckt Restaurantwechsel +
+// Nummernwechsel sauber ab, ohne Dubletten). Der gesamte CSV-Code bleibt
+// erhalten, ist aber per Riegel INAKTIV — die Upload-Zone wird im UI ohnehin
+// nirgends mehr eingeblendet; dieser Riegel verhindert zusätzlich, dass die
+// Aufnahme je versehentlich (Drag&Drop / Datei-Feld / Direktaufruf) anspringt.
+// Zum Reaktivieren NUR diese Konstante auf true setzen.
+const CSV_IMPORT_ENABLED = false;
+
 function handleDrop(e) {
     e.preventDefault();
-    document.getElementById('uploadZone').classList.remove('drag-over');
+    document.getElementById('uploadZone')?.classList.remove('drag-over');
+    if (!CSV_IMPORT_ENABLED) { showUploadAlert('CSV-Import ist deaktiviert — Mitarbeiter & Verträge werden nur noch über easy@work synchronisiert.', 'err'); return; }
     const file = e.dataTransfer.files[0];
     if (file && file.name.endsWith('.csv')) handleFile(file);
     else showUploadAlert('Bitte eine CSV-Datei verwenden.', 'err');
 }
 
 function handleFile(file) {
+    if (!CSV_IMPORT_ENABLED) { showUploadAlert('CSV-Import ist deaktiviert — Mitarbeiter & Verträge werden nur noch über easy@work synchronisiert.', 'err'); return; }
     if (!file) return;
     const reader = new FileReader();
     reader.onload = e => parseCSV(e.target.result);
@@ -1001,6 +1078,7 @@ function handleFile(file) {
 }
 
 function parseCSV(text) {
+    if (!CSV_IMPORT_ENABLED) return;   // Riegel: CSV-Import deaktiviert
     // Remove BOM
     text = text.replace(/^\uFEFF/, '');
     const lines = text.split('\n').filter(l => l.trim());

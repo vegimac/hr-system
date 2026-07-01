@@ -274,7 +274,7 @@ window.i18n = (function () {
 
         // Loading / Empty States
         'ma.loading':                { de: 'Wird geladen…',                en: 'Loading…' },
-        'ma.selectEmployee':         { de: 'Bitte wählen Sie einen Mitarbeiter', en: 'Please select an employee' },
+        'ma.selectEmployee':         { de: 'Bitte wähle einen Mitarbeiter', en: 'Please select an employee' },
 
         // Phantom-MA-Hinweis
         'ma.phantom.title':          { de: 'MA ohne Lohn',                 en: 'Employee without payroll' },
@@ -476,7 +476,7 @@ window.i18n = (function () {
         'abs.btn.addAbsence':        { de: '+ Absenz erfassen',        en: '+ New absence' },
         'abs.btn.addRecurring':      { de: '+ Zulage / Abzug',         en: '+ Allowance / deduction' },
         'abs.btn.addAssignment':     { de: '+ Lohnabtretung',          en: '+ Wage assignment' },
-        'abs.empty':                 { de: 'Bitte wählen Sie einen Mitarbeiter', en: 'Please select an employee' },
+        'abs.empty':                 { de: 'Bitte wähle einen Mitarbeiter', en: 'Please select an employee' },
         'abs.col.from':              { de: 'Von',                      en: 'From' },
         'abs.col.to':                { de: 'Bis',                      en: 'To' },
         'abs.col.type':              { de: 'Typ',                      en: 'Type' },

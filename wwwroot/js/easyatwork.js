@@ -677,6 +677,50 @@ async function eawEmpDump() {
     }
 }
 
+// API-Dump nach easy@work-ID: holt die Roh-Felder direkt für eine ID. Der
+// passende Customer wird serverseitig über alle gemappten Filialen gesucht —
+// so sieht Walter, welche Personalnummer easy@work für diese ID liefert.
+async function eawEmpDumpById() {
+    const out = document.getElementById('eawDumpByIdResult');
+    const id  = (document.getElementById('eawDumpId')?.value || '').trim();
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    if (!id) { if (out) out.textContent = 'Bitte eine easy@work-ID eingeben.'; return; }
+    if (out) out.textContent = 'Lade…';
+    try {
+        const q = `/api/easywork/debug/employee-dump-by-id?easyAtWorkId=${encodeURIComponent(id)}${cpId ? '&companyProfileId=' + cpId : ''}`;
+        const r = await fetch(q, { headers: ah() });
+        const j = await r.json();
+        if (!r.ok) { out.textContent = 'Fehler: ' + (j?.message || j?.error || ('HTTP ' + r.status)); return; }
+        out.textContent = JSON.stringify(j, null, 2);
+    } catch (e) {
+        if (out) out.textContent = 'Verbindungsfehler: ' + e.message;
+    }
+}
+
+// Probezeiten on-demand verankern (Walter 29.06.2026): unabhängig vom Stempel-
+// Import (dessen Button bei 0 neuen Stempeln gesperrt ist). Führt den Anker-Pass
+// direkt aus und zeigt, welche MA verankert wurden.
+async function eawAnchorProbation() {
+    const out = document.getElementById('eawSyncResult');
+    if (out) out.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px">⏳ Verankere Probezeiten…</div>`;
+    try {
+        const r = await fetch('/api/easywork/probation/anchor', { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            if (out) out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Fehler</div><div class="eaw-result-msg">${escapeHtml(j.message || j.error || ('HTTP ' + r.status))}</div></div>`;
+            return;
+        }
+        const notes = j.notes || [];
+        if (out) out.innerHTML = `
+            <div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">
+                ⚓ ${j.anchored || 0} Probezeit(en) verankert.
+            </div>
+            ${notes.length ? `<div style="margin-top:8px;color:#475569;font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px">${notes.map(n => '• ' + escapeHtml(n)).join('<br>')}</div>` : ''}`;
+    } catch (e) {
+        if (out) out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Netzwerkfehler</div><div class="eaw-result-msg">${escapeHtml(String(e))}</div></div>`;
+    }
+}
+
 async function eawEmpSyncCommit() {
     const checked = Array.from(document.querySelectorAll('.eaw-emp-pick:checked'))
         .map(cb => cb.getAttribute('data-number'))
@@ -1079,8 +1123,14 @@ async function _eawEmpSyncRun(commit, selected) {
         selectedNumbers:  selected
     };
     try {
-        const url = commit ? '/api/easywork/sync/employees/commit'
-                           : '/api/easywork/sync/employees/preview';
+        // Commit läuft als Hintergrund-Job (Walter 29.06.2026): sofort starten,
+        // dann Fortschritt pollen — kein Request-Timeout mehr.
+        if (commit) {
+            stopProgress();
+            await _eawEmpImportAsync(dto, out, commitBtn);
+            return;
+        }
+        const url = '/api/easywork/sync/employees/preview';
         const r = await fetch(url, {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
@@ -1111,14 +1161,24 @@ async function _eawEmpSyncRun(commit, selected) {
         _eawEmpSyncLast = body;
         if (commit) {
             // Nach erfolgreichem Import: Vorschau leeren + knappe Bestätigung.
-            out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — ${body.countInserted||0} angelegt, ${body.countUpdated||0} aktualisiert.</div>`;
+            const skip = body.skippedContracts || [];
+            const skipHtml = skip.length
+                ? `<div style="margin-top:8px;color:#b45309;font-size:12.5px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px">
+                       <strong>⚠ ${skip.length} Vertrag/Verträge wegen geschlossener Lohnperiode NICHT importiert:</strong><br>
+                       ${skip.map(s => '• ' + escapeHtml(s)).join('<br>')}
+                   </div>`
+                : '';
+            out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — ${body.countInserted||0} angelegt, ${body.countUpdated||0} aktualisiert.</div>${skipHtml}`;
             _eawEmpSyncLast = null;
         } else {
             _eawEmpSyncRender(body, commit);
         }
         // Auch enablen wenn nur UNCHANGED-MA da sind — Backfill braucht den Commit.
+        // Bei doppelter Personalnummer bleibt „Importieren" gesperrt, bis Walter
+        // die Dublette in beiden Systemen geklärt hat (Walter 29.06.2026).
+        const hasConflicts = (body.numberConflicts || []).length > 0;
         const hasAny = (body.countNew + body.countUpdate + (body.countTotal - (body.countConflict||0))) > 0;
-        commitBtn.disabled = commit || !hasAny;
+        commitBtn.disabled = commit || !hasAny || hasConflicts;
     } catch (e) {
         stopProgress();
         out.innerHTML = `<div class="eaw-result eaw-result-err">
@@ -1128,9 +1188,113 @@ async function _eawEmpSyncRun(commit, selected) {
     }
 }
 
+// Asynchroner Filial-Import (Walter 29.06.2026): stösst den Hintergrund-Job an
+// und pollt Fortschritt + Ergebnis. So gibt es kein Request-Timeout mehr, auch
+// wenn easy@work mehrere Minuten braucht.
+async function _eawEmpImportAsync(dto, out, commitBtn) {
+    const renderBar = (phase, done, total) => {
+        const pct = total > 0 ? Math.round(done / total * 100) : 0;
+        out.innerHTML = `
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#1d4ed8;font-weight:600;margin-bottom:8px">
+                    <span>${escapeHtml(phase || 'Import läuft…')}</span>
+                    <span>${total > 0 ? done + ' / ' + total : ''}</span>
+                </div>
+                <div style="height:10px;background:#dbeafe;border-radius:6px;overflow:hidden">
+                    <div style="height:100%;width:${pct}%;background:#2563eb;transition:width .3s"></div>
+                </div>
+                <div style="font-size:11.5px;color:#64748b;margin-top:8px">Du kannst das Fenster offen lassen — der Import läuft auf dem Server weiter, auch wenn es etwas dauert.</div>
+            </div>`;
+    };
+    renderBar('Starte Import…', 0, 0);
+
+    let jobId;
+    try {
+        const r = await fetch('/api/easywork/sync/employees/commit-async', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(dto)
+        });
+        const raw = await r.text();
+        const body = raw ? JSON.parse(raw) : null;
+        if (!r.ok || !body?.jobId) throw new Error(body?.message || `HTTP ${r.status}`);
+        jobId = body.jobId;
+    } catch (e) {
+        out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Start fehlgeschlagen</div><div class="eaw-result-msg">${escapeHtml(String(e))}</div></div>`;
+        commitBtn.disabled = false;
+        return;
+    }
+
+    let fails = 0;
+    const poll = async () => {
+        try {
+            const r = await fetch(`/api/easywork/sync/employees/job/${jobId}`, { headers: ah(), cache: 'no-store' });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const j = await r.json();
+            fails = 0;
+            if (j.status === 'running') { renderBar(j.phase, j.done, j.total); setTimeout(poll, 1500); return; }
+            if (j.status === 'error') {
+                out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">✗ Import fehlgeschlagen</div><div class="eaw-result-msg">${escapeHtml(j.error || 'Unbekannter Fehler')}</div></div>`;
+                commitBtn.disabled = false; return;
+            }
+            // status === 'done'
+            const res = j.result || {};
+
+            // Personalnummer-Kollision → Import wurde BLOCKIERT, nichts geschrieben.
+            // Genaue Nummern + beide Seiten anzeigen, damit Walter es in easy@work
+            // UND Cowork prüfen kann (Walter 29.06.2026).
+            const conflicts = res.numberConflicts || [];
+            if (res.blocked || conflicts.length) {
+                out.innerHTML = `
+                    <div style="color:#991b1b;font-size:13px;padding:14px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px">
+                        <div style="font-weight:700;margin-bottom:6px">✗ Import blockiert — doppelte Personalnummer (nichts gespeichert)</div>
+                        <div style="color:#7f1d1d;font-size:12.5px;margin-bottom:8px">Folgende Personalnummer(n) wären doppelt vergeben. Bitte in easy@work und in Cowork prüfen und korrigieren, danach erneut „Vorschau" → „Importieren".</div>
+                        ${conflicts.map(c => '<div style="padding:6px 0;border-top:1px solid #fecaca">• ' + escapeHtml(c) + '</div>').join('')}
+                    </div>`;
+                commitBtn.disabled = true;   // erst neue Vorschau nach Korrektur
+                return;
+            }
+
+            const skip = res.skippedContracts || [];
+            const notes = res.notes || [];
+            const skipHtml = skip.length
+                ? `<div style="margin-top:8px;color:#b45309;font-size:12.5px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px"><strong>⚠ ${skip.length} Vertrag/Verträge wegen geschlossener Lohnperiode NICHT importiert:</strong><br>${skip.map(s => '• ' + escapeHtml(s)).join('<br>')}</div>`
+                : '';
+            const noteColor = n => n.startsWith('✓') ? '#166534' : n.startsWith('⚠') ? '#b91c1c' : '#475569';
+            const notesHtml = notes.length
+                ? `<div style="margin-top:8px;font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px"><strong style="color:#334155">Hinweise (${notes.length}):</strong><br>${notes.map(n => `<div style="color:${noteColor(n)};padding:2px 0">${escapeHtml(n)}</div>`).join('')}</div>`
+                : '';
+            out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — ${res.countInserted || 0} angelegt, ${res.countUpdated || 0} aktualisiert${res.countConflict ? `, ${res.countConflict} übersprungen` : ''}.</div>${skipHtml}${notesHtml}`;
+            _eawEmpSyncLast = null;
+            commitBtn.disabled = true;   // fertig → für erneuten Import zuerst neue Vorschau
+        } catch (e) {
+            if (++fails > 5) {
+                out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Verbindung zum Import-Job verloren</div><div class="eaw-result-msg">${escapeHtml(String(e))} — der Import läuft serverseitig evtl. weiter. Bitte später die Liste prüfen.</div></div>`;
+                commitBtn.disabled = false; return;
+            }
+            setTimeout(poll, 2500);
+        }
+    };
+    setTimeout(poll, 1200);
+}
+
 function _eawEmpSyncRender(res, wasCommit) {
     const out = document.getElementById('eawEmpSyncResult');
-    const notes = (res.notes||[]).map(n => `<div style="color:#b45309;font-size:12px;padding:4px 0">⚠ ${escapeHtml(n)}</div>`).join('');
+    // Personalnummer-Kollision ganz oben, rot — Import bleibt gesperrt bis geklärt.
+    const conflicts = res.numberConflicts || [];
+    const conflictHtml = conflicts.length
+        ? `<div style="color:#991b1b;font-size:13px;padding:14px 16px;margin-bottom:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px">
+               <div style="font-weight:700;margin-bottom:6px">⛔ Doppelte Personalnummer — Import gesperrt</div>
+               <div style="color:#7f1d1d;font-size:12.5px;margin-bottom:8px">Bitte in easy@work UND in Cowork prüfen und korrigieren, danach erneut „Vorschau".</div>
+               ${conflicts.map(c => '<div style="padding:6px 0;border-top:1px solid #fecaca">• ' + escapeHtml(c) + '</div>').join('')}
+           </div>`
+        : '';
+    const _noteColor = n => n.startsWith('✓') ? '#166534' : n.startsWith('⚠') ? '#b91c1c' : '#b45309';
+    const notes = (res.notes||[]).map(n => `<div style="color:${_noteColor(n)};font-size:12px;padding:4px 0">${escapeHtml(n)}</div>`).join('')
+        + ((res.skippedContracts||[]).length
+            ? `<div style="margin-top:6px;color:#b45309;font-size:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px">
+                   <strong>⚠ Verträge wegen geschlossener Lohnperiode NICHT importiert:</strong><br>
+                   ${res.skippedContracts.map(s => '• ' + escapeHtml(s)).join('<br>')}
+               </div>`
+            : '');
     const summary = `
         <div class="eaw-sync-summary">
             <span>Total: <strong>${res.countTotal}</strong></span>
@@ -1186,6 +1350,7 @@ function _eawEmpSyncRender(res, wasCommit) {
     }).join('');
 
     out.innerHTML = `
+        ${conflictHtml}
         ${notes}
         ${summary}
         <table class="eaw-sync-table">

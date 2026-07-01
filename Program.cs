@@ -37,6 +37,16 @@ if (rawConn.Contains("${DB_PASSWORD}"))
             + "/etc/hr-system/env oder im Entwicklungs-Setup als Shell-ENV.");
     connectionString = rawConn.Replace("${DB_PASSWORD}", dbPwd);
 }
+// Include Error Detail aktivieren (Walter 29.06.2026, Diagnose): bei einer
+// Constraint-Verletzung zeigt PostgreSQL dann die betroffene Spalte + den Wert
+// in der Fehlermeldung, z.B. „Key (employee_number)=(580040) already exists."
+// Ohne den Flag wird das Detail als „may contain sensitive data" verborgen.
+// Einzelmandanten-System (nur Walter/HR) → unkritisch, hilft beim Aufspüren
+// doppelter Personalnummern im easy@work-Import.
+{
+    var csb = new Npgsql.NpgsqlConnectionStringBuilder(connectionString) { IncludeErrorDetail = true };
+    connectionString = csb.ConnectionString;
+}
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
     options.UseNpgsql(connectionString);
@@ -222,6 +232,8 @@ builder.Services.AddSingleton<EasyAtWorkClient>(sp =>
 builder.Services.AddScoped<EasyAtWorkTimepunchSyncService>();
 // Mitarbeiter-Stammdaten-Sync (Phase 3.1)
 builder.Services.AddScoped<EasyAtWorkEmployeeSyncService>();
+// Status-Speicher für den asynchronen Filial-Import (Walter 29.06.2026).
+builder.Services.AddSingleton<EasyAtWorkImportJobService>();
 // Automatischer Stempelzeit-Sync (Walter-Vorgabe 19.06.2026): Orchestrator
 // (Singleton, erzeugt pro Filiale eigenen Scope) + täglicher 05:00-Scheduler.
 builder.Services.AddSingleton<EasyAtWorkAutoSyncRunner>();
@@ -632,6 +644,151 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS gav_name        VARCHAR(100),
         ADD COLUMN IF NOT EXISTS ist_gav         BOOLEAN NOT NULL DEFAULT false;
     ");
+
+    // ── OneCrew Moments: Tabellen + Seed (Walter 30.06./01.07.2026) ───────
+    // Idempotent beim Start — Walter muss nichts in TablePlus ausführen.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS moment_page (
+            id serial PRIMARY KEY,
+            employee_id integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            sender_id integer,
+            moment_type text NOT NULL DEFAULT '',
+            title text,
+            message_html text,
+            token_hash text NOT NULL,
+            expires_at timestamp without time zone,
+            opened_at timestamp without time zone,
+            responded_at timestamp without time zone,
+            response_value text,
+            status text NOT NULL DEFAULT 'erstellt',
+            created_at timestamp without time zone NOT NULL DEFAULT now(),
+            sms_text text,
+            antwortart text NOT NULL DEFAULT 'lesen'
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_moment_page_token_hash ON moment_page (token_hash);
+        CREATE INDEX IF NOT EXISTS ix_moment_page_employee ON moment_page (employee_id);
+
+        CREATE TABLE IF NOT EXISTS employee_moment_consent (
+            id serial PRIMARY KEY,
+            employee_id integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            moments_consent_enabled boolean NOT NULL DEFAULT false,
+            allow_birthday_anniversary boolean NOT NULL DEFAULT false,
+            allow_appreciation boolean NOT NULL DEFAULT false,
+            allow_care boolean NOT NULL DEFAULT false,
+            consent_text_version text,
+            granted_at timestamp without time zone,
+            revoked_at timestamp without time zone,
+            last_changed_at timestamp without time zone NOT NULL DEFAULT now(),
+            last_changed_by text,
+            source text
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_employee_moment_consent_employee ON employee_moment_consent (employee_id);
+
+        CREATE TABLE IF NOT EXISTS moment_type (
+            id serial PRIMARY KEY, code text NOT NULL, name text NOT NULL, description text,
+            consent_category text NOT NULL, sort_order integer NOT NULL DEFAULT 0, is_active boolean NOT NULL DEFAULT true
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_moment_type_code ON moment_type (code);
+        ALTER TABLE moment_type ADD COLUMN IF NOT EXISTS description text;
+
+        CREATE TABLE IF NOT EXISTS moment_tone (
+            id serial PRIMARY KEY, code text NOT NULL, name text NOT NULL, description text,
+            sort_order integer NOT NULL DEFAULT 0, is_active boolean NOT NULL DEFAULT true
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_moment_tone_code ON moment_tone (code);
+        ALTER TABLE moment_tone ADD COLUMN IF NOT EXISTS description text;
+
+        CREATE TABLE IF NOT EXISTS moment_text (
+            id serial PRIMARY KEY,
+            moment_type_id integer NOT NULL REFERENCES moment_type(id) ON DELETE CASCADE,
+            moment_tone_id integer NOT NULL REFERENCES moment_tone(id) ON DELETE CASCADE,
+            titel text, sms_text text, body_text text NOT NULL,
+            is_active boolean NOT NULL DEFAULT true, sort_order integer NOT NULL DEFAULT 0,
+            language_code text DEFAULT 'de', version text, requires_review boolean NOT NULL DEFAULT true,
+            created_at timestamp without time zone NOT NULL DEFAULT now(), created_by text
+        );
+        CREATE INDEX IF NOT EXISTS ix_moment_text_combo ON moment_text (moment_type_id, moment_tone_id);
+        ALTER TABLE moment_text ADD COLUMN IF NOT EXISTS language_code text DEFAULT 'de';
+        ALTER TABLE moment_text ADD COLUMN IF NOT EXISTS version text;
+        ALTER TABLE moment_text ADD COLUMN IF NOT EXISTS requires_review boolean NOT NULL DEFAULT true;
+    ");
+
+    // Seed Moment-Typen + Emotionsgrade (idempotent Upsert per Code; keine geschweiften Klammern → safe in Raw-SQL)
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO moment_type (code,name,description,consent_category,sort_order,is_active) VALUES
+          ('EmployeeBirthday','Geburtstag','Geburtstagsgruss an den Mitarbeitenden','birthday',1,true),
+          ('WorkAnniversary','Arbeitsjubiläum','Dank zum Eintritts-/Arbeitsjubiläum','birthday',2,true),
+          ('Appreciation','Danke / Wertschätzung','Persönliches Dankeschön für Einsatz oder Verhalten','appreciation',3,true),
+          ('PromotionCongratulations','Gratulation','Gratulation zu Beförderung oder neuer Aufgabe','appreciation',4,true),
+          ('WelcomeBackVacation','Willkommen zurück','Rückkehr aus den Ferien','care',5,true),
+          ('CareHeatNotice','Fürsorge-Hinweis','Kurzer Hinweis bei Hitze oder ähnlicher Belastung','care',6,true),
+          ('WelcomeBackNeutral','Schön, dass du wieder da bist','Neutrale Willkommensnachricht ohne Angabe des Grundes','care',7,true)
+        ON CONFLICT (code) DO UPDATE SET
+          name = EXCLUDED.name, description = EXCLUDED.description,
+          consent_category = EXCLUDED.consent_category, sort_order = EXCLUDED.sort_order, is_active = EXCLUDED.is_active;
+
+        -- Emotionsgrade nur einfügen wenn neu (schützt spätere UI-Änderungen an Name/Beschreibung).
+        INSERT INTO moment_tone (code,name,description,sort_order,is_active) VALUES
+          ('Calm','Kurz & ruhig','Sehr schlicht, zurückhaltend, sachlich-warm',1,true),
+          ('Warm','Herzlich','Freundlich, menschlich, aber nicht kitschig',2,true),
+          ('Personal','Persönlich','Etwas wärmer und persönlicher, aber weiterhin professionell',3,true)
+        ON CONFLICT (code) DO NOTHING;
+
+        -- Frühere Platzhalter-Emotionsgrade deaktivieren (nicht löschen → keine Datenverluste)
+        UPDATE moment_tone SET is_active = false WHERE code NOT IN ('Calm','Warm','Personal');
+    ");
+
+    // Seed der Text-Vorlagen (Walter-Vorgabe 01.07.2026) via EF — Platzhalter
+    // {Briefanrede}/{Years} als Parameter (kein Brace-Problem in Raw-SQL). Idempotent
+    // je Kombination Typ × Emotionsgrad × Version „1.0": nur einfügen wenn NICHT vorhanden
+    // (spätere UI-Änderungen bleiben erhalten). Frühere Platzhalter-Texte bleiben unberührt.
+    {
+        var _mtTypeIds = db.MomentTypes.ToDictionary(t => t.Code, t => t.Id);
+        var _mtToneIds = db.MomentTones.ToDictionary(t => t.Code, t => t.Id);
+        void UpsertMomentText(string typeCode, string toneCode, string body)
+        {
+            if (!_mtTypeIds.TryGetValue(typeCode, out var ti)) return;
+            if (!_mtToneIds.TryGetValue(toneCode, out var oi)) return;
+            // Nur einfügen, wenn für diese Kombination noch keine 1.0-Vorlage existiert
+            // → spätere UI-Änderungen an den Texten werden beim Neustart NICHT überschrieben.
+            var exists = db.MomentTexts.Any(x => x.MomentTypeId == ti && x.MomentToneId == oi && x.Version == "1.0");
+            if (exists) return;
+            db.MomentTexts.Add(new MomentText {
+                MomentTypeId = ti, MomentToneId = oi, BodyText = body,
+                LanguageCode = "de", Version = "1.0", RequiresReview = true,
+                IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
+        }
+
+        // EmployeeBirthday
+        UpsertMomentText("EmployeeBirthday", "Calm",     "{Briefanrede}\nalles Gute zu deinem Geburtstag. Wir wünschen dir einen schönen Tag.");
+        UpsertMomentText("EmployeeBirthday", "Warm",     "{Briefanrede}\nalles Gute zu deinem Geburtstag. Schön, dass du Teil unserer Crew bist. Wir wünschen dir einen wunderbaren Tag.");
+        UpsertMomentText("EmployeeBirthday", "Personal", "{Briefanrede}\nzu deinem Geburtstag wünsche ich dir von Herzen alles Gute. Schön, dass du bei uns bist und unsere Crew mitprägst.");
+        // WorkAnniversary
+        UpsertMomentText("WorkAnniversary", "Calm",     "{Briefanrede}\nheute bist du seit {Years} Jahr(en) Teil unserer Crew. Vielen Dank für deinen Einsatz.");
+        UpsertMomentText("WorkAnniversary", "Warm",     "{Briefanrede}\nheute bist du seit {Years} Jahr(en) bei uns. Danke für deine Treue, deinen Einsatz und dafür, dass du Teil unserer Crew bist.");
+        UpsertMomentText("WorkAnniversary", "Personal", "{Briefanrede}\n{Years} Jahr(e) OneCrew. Das ist etwas Besonderes. Danke für deinen Einsatz, deine Treue und alles, was du in dieser Zeit beigetragen hast.");
+        // Appreciation
+        UpsertMomentText("Appreciation", "Calm",     "{Briefanrede}\nich möchte dir kurz Danke sagen. Dein Einsatz ist aufgefallen.");
+        UpsertMomentText("Appreciation", "Warm",     "{Briefanrede}\nich möchte dir persönlich Danke sagen. Dein Einsatz und deine Unterstützung werden sehr geschätzt.");
+        UpsertMomentText("Appreciation", "Personal", "{Briefanrede}\nich habe gesehen, wie du dich eingesetzt hast. Genau solche Momente machen unsere Crew stark. Danke dir dafür.");
+        // PromotionCongratulations
+        UpsertMomentText("PromotionCongratulations", "Calm",     "{Briefanrede}\nherzliche Gratulation zu deiner neuen Aufgabe. Wir wünschen dir viel Freude und Erfolg.");
+        UpsertMomentText("PromotionCongratulations", "Warm",     "{Briefanrede}\nherzliche Gratulation zu deiner neuen Aufgabe. Wir freuen uns sehr für dich und wünschen dir einen guten Start.");
+        UpsertMomentText("PromotionCongratulations", "Personal", "{Briefanrede}\nich freue mich sehr über deinen nächsten Schritt. Herzliche Gratulation zu deiner neuen Aufgabe. Du hast dir das verdient.");
+        // WelcomeBackVacation
+        UpsertMomentText("WelcomeBackVacation", "Calm",     "{Briefanrede}\nschön, dass du wieder zurück bist. Wir wünschen dir einen guten Start.");
+        UpsertMomentText("WelcomeBackVacation", "Warm",     "{Briefanrede}\nwillkommen zurück. Schön, dass du wieder da bist. Wir hoffen, du konntest die freie Zeit geniessen.");
+        UpsertMomentText("WelcomeBackVacation", "Personal", "{Briefanrede}\nschön, dass du wieder bei uns bist. Ich hoffe, du konntest gut abschalten und startest mit neuer Energie.");
+        // CareHeatNotice
+        UpsertMomentText("CareHeatNotice", "Calm",     "{Briefanrede}\nmorgen wird es sehr heiss. Bitte trink genug und achte gut auf dich.");
+        UpsertMomentText("CareHeatNotice", "Warm",     "{Briefanrede}\nmorgen wird es sehr heiss. Bitte denk daran, genug zu trinken und gut auf dich und deine Crew zu achten.");
+        UpsertMomentText("CareHeatNotice", "Personal", "{Briefanrede}\nmorgen wird ein heisser Tag. Bitte nimm dir bewusst Zeit zum Trinken und achte gut auf dich. Deine Gesundheit ist wichtig.");
+        // WelcomeBackNeutral
+        UpsertMomentText("WelcomeBackNeutral", "Calm",     "{Briefanrede}\nschön, dass du wieder da bist. Wir wünschen dir einen guten Start.");
+        UpsertMomentText("WelcomeBackNeutral", "Warm",     "{Briefanrede}\nschön, dass du wieder bei uns bist. Wir freuen uns, dich wieder im Team zu haben.");
+        UpsertMomentText("WelcomeBackNeutral", "Personal", "{Briefanrede}\nschön, dich wieder bei uns zu haben. Starte ruhig, und melde dich, falls du Unterstützung brauchst.");
+        db.SaveChanges();
+    }
 
     // ── Lohnpositionen (Lohnraster) ───────────────────────────────────────
     db.Database.ExecuteSqlRaw(@"
@@ -1499,7 +1656,22 @@ app.UseDefaultFiles();
 var mdMime = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
 mdMime.Mappings[".md"] = "text/markdown; charset=utf-8";
 app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions {
-    ContentTypeProvider = mdMime
+    ContentTypeProvider = mdMime,
+    // Walter-Vorgabe 27.06.2026: HTML-Dokumente (index.html, import.html) NIE aus
+    // dem Browser-Cache ausliefern. Das gesamte CSS/Markup steckt inline in der
+    // HTML; die JS-Module werden per ?v= gebustet, die HTML selbst aber nicht —
+    // dadurch sah man nach einem Deploy alte Stände (z.B. verdeckte Buttons,
+    // alte Farben). no-cache zwingt eine Revalidierung → geänderte HTML wird
+    // sofort frisch geladen. JS/CSS-?v=-Busting bleibt unberührt.
+    OnPrepareResponse = ctx =>
+    {
+        if (ctx.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            ctx.Context.Response.Headers["Pragma"]        = "no-cache";
+            ctx.Context.Response.Headers["Expires"]       = "0";
+        }
+    }
 });
 
 // Optimistic-Concurrency-Handler (Walter-Vorgabe 20.05.2026): ändern zwei

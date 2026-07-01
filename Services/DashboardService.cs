@@ -758,10 +758,11 @@ public class DashboardService
 
         // ── Nachtarbeit-Nachweise fehlen (Walter-Vorgabe 22.06.2026, ArGV1 Art. 30) ──
         // MA mit > 18 gearbeiteten Nächten in einem rollierenden 6-Wochen-Fenster
-        // (42 Tage) UND ohne vollständige Nachweise (Arztzeugnis/Verzicht UND
-        // Ausnahmeregelung/Checkliste). Live gerechnet aus den Nacht-Tagen der
-        // letzten 12 Monate; Dokument-Status kommt live vom MA, das Erfassen
-        // entfernt die Warnung sofort.
+        // (42 Tage) UND ohne vollständige Nachweise. Nachtarbeit ist obligatorisch
+        // (kein Verzicht, HQ-Entscheid 30.06.2026): es braucht ein AKTUELLES
+        // Arztzeugnis (nicht abgelaufen) UND die Ausnahmeregelung. Live gerechnet
+        // aus den Nacht-Tagen der letzten 12 Monate; Dokument-Status kommt live vom
+        // MA, das Erfassen entfernt die Warnung sofort.
         {
             var nwRollStart = new DateOnly(today.Year, today.Month, 1).AddMonths(-11);
             // Nacht-Tage (nur Tage mit Nachtstunden) — distinct pro MA.
@@ -776,7 +777,8 @@ public class DashboardService
             var nwExam = await _db.Employees.AsNoTracking()
                 .Where(e => maIds.Contains(e.Id))
                 .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
-                                   e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId, e.ExitDate })
+                                   e.NightWorkExamDokumentId, e.NightWorkExamValidUntil,
+                                   e.NightWorkAusnahmeDokumentId, e.ExitDate })
                 .ToListAsync();
             // MA, die innerhalb der nächsten 30 Tage austreten, NICHT mehr melden
             // (Kein Austrittsdatum = bleibt → melden). Walter-Vorgabe 20.06.2026.
@@ -791,14 +793,26 @@ public class DashboardService
                 var nw = NightWorkComplianceService.Evaluate(dates, today);
                 if (!nw.RequiresDocuments) continue;
 
-                bool hasExam      = emp.NightWorkExamDokumentId.HasValue;
+                // Nachtarbeit ist obligatorisch — KEIN Verzicht mehr (Walter-Vorgabe
+                // 30.06.2026, HQ-Entscheid). Es braucht ein AKTUELLES Arztzeugnis
+                // UND die Ausnahmeregelung. „Aktuell" = die Gültigkeit (aus easy@work
+                // cf_night_work_doctors_note.to ODER aus Cowork) liegt in der Zukunft.
+                // Ein verknüpftes Cowork-Dokument ohne Gültigkeitsdatum zählt auch.
+                bool examCurrent  = (emp.NightWorkExamValidUntil.HasValue
+                                     && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) >= today)
+                                  || (emp.NightWorkExamDokumentId.HasValue && !emp.NightWorkExamValidUntil.HasValue);
+                bool examExpired  = emp.NightWorkExamValidUntil.HasValue
+                                    && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) < today;
                 bool hasChecklist = emp.NightWorkAusnahmeDokumentId.HasValue;
-                if (hasExam && hasChecklist) continue;   // Nachweise vollständig
+                if (examCurrent && hasChecklist) continue;   // Nachweise vollständig + aktuell
 
+                string examTxt = examCurrent ? null
+                               : examExpired ? "Arztzeugnis abgelaufen"
+                               : "Arztzeugnis fehlt";
                 string grund =
-                      (!hasExam && !hasChecklist) ? "Arztzeugnis/Verzicht und Ausnahmeregelung fehlen"
-                    : (!hasExam)                  ? "Arztzeugnis/Verzicht fehlt"
-                    :                               "Ausnahmeregelung fehlt";
+                      (examTxt != null && !hasChecklist) ? $"{examTxt} und Ausnahmeregelung fehlt"
+                    : (examTxt != null)                  ? examTxt
+                    :                                       "Ausnahmeregelung fehlt";
                 alerts.Add(new DashboardAlert
                 {
                     Category = "night_work_exam_fehlt",

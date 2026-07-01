@@ -54,6 +54,10 @@ public class UsersController : ControllerBase
                 u.LastLoginAt,
                 u.IdleTimeoutMinutes,
                 u.MaxSessionMinutes,
+                // Sichtbare Bereiche (Walter 28.06.2026): NULL = Rollen-Default.
+                allowedAreas = u.AllowedAreas == null
+                    ? null
+                    : u.AllowedAreas.Split(',', StringSplitOptions.RemoveEmptyEntries),
                 hasSignature = u.SignaturePng != null && u.SignaturePng.Length > 0,
                 branches = u.BranchAccess.Select(ba => new
                 {
@@ -71,14 +75,22 @@ public class UsersController : ControllerBase
         string Username, string? FirstName, string? LastName,
         string Email, string? Phone, string Password, string Role,
         List<int> BranchIds, bool? IsHrTeam = false,
-        int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null);
+        int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null,
+        List<string>? AllowedAreas = null);
 
     public record UpdateUserRequest(
         string Username, string? FirstName, string? LastName,
         string Email, string? Phone, string? Password,
         string Role, bool IsActive, List<int> BranchIds,
         bool? IsHrTeam = false,
-        int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null);
+        int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null,
+        List<string>? AllowedAreas = null);
+
+    // Bereichs-Schlüssel → komma-separierter DB-String (Walter 28.06.2026).
+    //   NULL-Liste  → null  (Rollen-Default bleibt)
+    //   leere Liste → ""    (sieht nur Dashboard)
+    private static string? JoinAreas(List<string>? areas) =>
+        areas == null ? null : string.Join(",", areas);
 
     // Session-Policy-Validierung (Walter-Vorgabe 21.06.2026): leer = Rollen-
     // Default, sonst 5–1440 Minuten.
@@ -119,6 +131,7 @@ public class UsersController : ControllerBase
             IsHrTeam  = req.IsHrTeam ?? false,
             IdleTimeoutMinutes = req.IdleTimeoutMinutes,
             MaxSessionMinutes  = req.MaxSessionMinutes,
+            AllowedAreas = JoinAreas(req.AllowedAreas),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -171,7 +184,7 @@ public class UsersController : ControllerBase
             return StatusCode(403, new { message = "Nur ein Super-Admin darf einen Super-Admin-Account ändern." });
 
         if (callerId == id && !req.IsActive)
-            return BadRequest(new { message = "Sie können sich nicht selbst deaktivieren." });
+            return BadRequest(new { message = "Du kannst dich nicht selbst deaktivieren." });
 
         user.Username  = req.Username;
         user.FirstName = req.FirstName;
@@ -183,6 +196,7 @@ public class UsersController : ControllerBase
         user.IsHrTeam  = req.IsHrTeam ?? false;
         user.IdleTimeoutMinutes = req.IdleTimeoutMinutes;
         user.MaxSessionMinutes  = req.MaxSessionMinutes;
+        user.AllowedAreas       = JoinAreas(req.AllowedAreas);
 
         if (!string.IsNullOrWhiteSpace(req.Password))
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password);
@@ -215,7 +229,7 @@ public class UsersController : ControllerBase
     {
         var callerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         if (callerId == id)
-            return BadRequest(new { message = "Sie können sich nicht selbst löschen." });
+            return BadRequest(new { message = "Du kannst dich nicht selbst löschen." });
 
         var user = await _context.AppUsers.FindAsync(id);
         if (user == null) return NotFound();

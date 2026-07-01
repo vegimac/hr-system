@@ -464,6 +464,233 @@
             line-height: 1.5;
         }
     </style>
+
+    <!-- ── OneCrew-Skin (Walter 30.06.2026): überlagert den Basis-Stil oben,
+         gleicher Look wie Anmeldeseite / Moment-Landing (beige Glas). ── -->
+    <style>
+        @font-face { font-family:'Speedee'; font-weight:300; font-display:swap; src:url('fonts/Speedee_Lt.woff2') format('woff2'); }
+        @font-face { font-family:'Speedee'; font-weight:700; font-display:swap; src:url('fonts/Speedee_Bd.woff2') format('woff2'); }
+
+        body {
+            background:
+                radial-gradient(circle at 58% 38%, rgba(255,255,255,0.80), transparent 26%),
+                radial-gradient(circle at 26% 52%, rgba(224,218,209,0.42), transparent 38%),
+                linear-gradient(135deg, #f7f4ef 0%, #efebe3 50%, #faf8f5 100%);
+            background-attachment: fixed;
+            color: #1a1a1a;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Header: transparent über Beige, Logo links, Aktionen rechts */
+        .pf-header {
+            background: transparent;
+            color: #1a1a1a;
+            box-shadow: none;
+            padding: max(18px, env(safe-area-inset-top)) 18px 8px;
+            max-width: 600px; margin: 0 auto;
+        }
+        .pf-header-row { margin-bottom: 18px; }
+        .pf-logo { width: auto; height: 34px; max-width: 150px; display: block; }
+        .pf-actions { display: flex; gap: 8px; align-items: center; }
+        .pf-iconbtn {
+            background: rgba(255,255,255,0.6);
+            border: 1px solid rgba(0,0,0,0.06);
+            color: #1a1a1a;
+            width: 38px; height: 38px; border-radius: 12px;
+            font-size: 16px; cursor: pointer; line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        }
+        .pf-iconbtn:active { transform: scale(0.95); }
+        .pf-logout {
+            background: rgba(255,255,255,0.6);
+            border: 1px solid rgba(0,0,0,0.06);
+            color: #1a1a1a;
+            padding: 9px 16px; border-radius: 12px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        }
+        .pf-logout:active { background: rgba(255,255,255,0.85); }
+        /* Abmelden als Grafik-Button (freigestellt) */
+        .pf-logout-img { background: transparent; border: 0; padding: 4px; cursor: pointer; line-height: 0; display: flex; align-items: center; }
+        .pf-logout-img img { height: 38px; width: auto; display: block; }
+        .pf-logout-img:active { opacity: 0.7; }
+        .pf-greeting { font-family: 'Speedee', inherit; font-weight: 700; font-size: 26px; color: #111; }
+        .pf-greeting-sub { color: #6b6b6b; opacity: 1; font-size: 13.5px; }
+
+        /* Tabs: ohne weisse Fläche — transparente Pills, aktiver Tab frostig getönt */
+        .pf-tabs {
+            background: transparent;
+            border: 0;
+            backdrop-filter: none; -webkit-backdrop-filter: none;
+            padding: 0; gap: 8px;
+        }
+        .pf-tab {
+            color: #6b6b6b;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+            padding: 12px 10px;
+            font-size: 12px; font-weight: 600;
+            border: 1px solid rgba(0,0,0,0.08);
+            background: transparent;
+        }
+        .pf-tab.active {
+            background: rgba(255,255,255,0.45);
+            border-color: rgba(255,255,255,0.7);
+            color: #1a1a1a;
+            box-shadow: 0 6px 18px rgba(60,55,48,0.10);
+            backdrop-filter: blur(10px) saturate(125%); -webkit-backdrop-filter: blur(10px) saturate(125%);
+        }
+        .pf-tab-img { width: 104px; height: 104px; object-fit: contain; margin-right: 0; }
+        .pf-tab-count { background: #1a1a1a; }
+        .pf-tab:not(.active) .pf-tab-count { background: #d8d2c8; color: #555; }
+
+        /* Dokument-/Nachrichten-Karten: Glas */
+        .pf-doc {
+            background: rgba(255,255,255,0.62);
+            border: 1px solid rgba(255,255,255,0.7);
+            box-shadow: 0 10px 30px rgba(60,55,48,0.10);
+            backdrop-filter: blur(14px) saturate(125%); -webkit-backdrop-filter: blur(14px) saturate(125%);
+            border-radius: 16px;
+        }
+        .pf-doc-icon { background: #efe9e0; color: #6b5b43; }
+        .pf-doc-title { color: #1a1a1a; }
+        .pf-doc-sub { color: #6b6b6b; }
+        .pf-doc-arrow { color: #b3a99a; }
+
+        .pf-empty {
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            backdrop-filter: none; -webkit-backdrop-filter: none;
+            color: #6b6b6b;
+        }
+        .pf-empty-title { color: #1a1a1a; }
+        .pf-empty-img { width: 110px; height: 110px; object-fit: contain; margin: 0 auto 14px; display: block; }
+        .pf-loading { color: #6b6b6b; }
+
+        /* FAB: dunkel statt blau */
+        .pf-fab {
+            background: #1a1a1a;
+            box-shadow: 0 8px 24px rgba(26,26,26,0.35);
+        }
+        .pf-fab:active { background: #000; }
+
+        /* Footer: Markenzeile */
+        .pf-footer {
+            color: #7a7367; font-size: 10px; letter-spacing: 0.16em;
+            text-transform: uppercase; line-height: 1.9; font-weight: 500;
+            margin-top: 36px;
+        }
+        .pf-footer .pf-foot-rule { width: min(320px,80%); height: 1px; background: #d8d2c8; border: 0; margin: 0 auto 16px; }
+
+        /* „Moments Freigabe"-Karte im Postfach (Einstieg in die Consent-Seite) */
+        .pf-moments-entry {
+            width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
+            background: rgba(255,255,255,0.5); border: 1.5px solid #c2baad;
+            border-radius: 18px 16px 20px 17px; box-shadow: 2px 3px 0 rgba(120,112,98,0.08);
+            padding: 14px 16px; margin: 0 0 18px; cursor: pointer; color: #3a3632;
+        }
+        .pf-moments-entry:active { transform: scale(0.99); }
+        .pf-moments-entry img { width: 46px; height: 46px; object-fit: contain; flex-shrink: 0; }
+        .pf-me-body { flex: 1; min-width: 0; }
+        .pf-me-title { font-size: 15px; font-weight: 700; color: #3a3632; }
+        .pf-me-sub { font-size: 12px; color: #6f685c; margin-top: 2px; line-height: 1.4; }
+        .pf-me-arrow { color: #b3a99a; font-size: 20px; flex-shrink: 0; }
+
+        /* Modale (Passwort / Upload / Moments): Glas-Karten */
+        .pf-up-card, .pf-pwd-card {
+            background: rgba(255,255,255,0.85);
+            border: 1px solid rgba(255,255,255,0.7);
+            backdrop-filter: blur(20px) saturate(130%); -webkit-backdrop-filter: blur(20px) saturate(130%);
+        }
+        .pf-pwd-overlay {
+            background:
+                radial-gradient(circle at 58% 38%, rgba(255,255,255,0.80), transparent 26%),
+                linear-gradient(135deg, #f7f4ef 0%, #efebe3 50%, #faf8f5 100%);
+        }
+        .pf-pwd-card { border-radius: 22px; }
+        .pf-pwd-icon { background: #efe9e0; color: #6b5b43; }
+        .pf-up-card { border-radius: 22px 22px 0 0; }
+        .pf-up-radio.active { border-color: #1a1a1a; background: #f4f1ea; }
+        .pf-up-pick { border-color: #d8d2c8; background: #faf8f5; }
+        .pf-up-btn.primary, .pf-pwd-btn { background: #1a1a1a; }
+        .pf-up-btn.primary:active, .pf-pwd-btn:active { background: #000; }
+        .pf-up-btn.secondary { background: #fff; border-color: #d8d2c8; }
+        .pf-up-input, .pf-pwd-input { border-color: #d8d2c8; }
+        .pf-up-input:focus, .pf-pwd-input:focus { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(26,26,26,0.10); }
+
+        /* ── OneCrew Moments — Freigabeseite im Kohle-Skizzen-Stil ── */
+        .ms-overlay {
+            position: fixed; inset: 0; z-index: 120;
+            display: none; overflow-y: auto;
+            background:
+                radial-gradient(circle at 60% 32%, rgba(255,255,255,0.82), transparent 28%),
+                radial-gradient(circle at 24% 56%, rgba(224,218,209,0.40), transparent 40%),
+                linear-gradient(135deg, #f7f4ef 0%, #efebe3 52%, #faf8f5 100%);
+            color: #3a3632;
+        }
+        .ms-page {
+            width: 100%; max-width: 460px; margin: 0 auto;
+            padding: max(16px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+        }
+        .ms-topbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 6px; }
+        .ms-back { background: transparent; border: 0; padding: 6px; cursor: pointer; line-height: 0; border-radius: 10px; }
+        .ms-back:active { background: rgba(0,0,0,0.05); }
+        .ms-topbar-title { font-size: 15px; font-weight: 600; letter-spacing: 0.04em; color: #3a3632; }
+        .ms-subtitle { text-align: center; color: #6f685c; font-size: 13.5px; line-height: 1.5; margin: 6px 4px 22px; }
+
+        /* Karten — leicht unregelmässige Radien für den handgezeichneten Eindruck */
+        .ms-card {
+            display: flex; align-items: center; gap: 14px;
+            background: rgba(255,255,255,0.5);
+            border: 1.5px solid #c2baad;
+            border-radius: 20px 17px 22px 18px;
+            box-shadow: 2px 3px 0 rgba(120,112,98,0.08);
+            padding: 16px 16px; margin-bottom: 14px;
+        }
+        .ms-card-main { padding: 18px 16px; border-radius: 22px 18px 20px 19px; }
+        .ms-star { width: 58px; height: 58px; object-fit: contain; flex-shrink: 0; }
+        .ms-card-body { flex: 1; min-width: 0; }
+        .ms-card-title { font-size: 15px; font-weight: 700; color: #3a3632; }
+        .ms-card-text { font-size: 12.5px; color: #6f685c; line-height: 1.45; margin-top: 3px; }
+
+        .ms-section-label {
+            font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+            color: #9a9080; font-weight: 600; margin: 22px 6px 12px;
+        }
+        .ms-note { font-size: 11.5px; color: #948c7e; line-height: 1.5; text-align: center; margin: 18px 8px 18px; }
+
+        /* Toggle — modern, ruhig, minimal (Kohle statt Farbe) */
+        .ms-toggle { flex-shrink: 0; cursor: pointer; display: inline-flex; }
+        .ms-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .ms-track {
+            position: relative; width: 50px; height: 28px; border-radius: 999px;
+            background: #ded7ca; border: 1px solid #c2baad; transition: background 0.18s, border-color 0.18s;
+        }
+        .ms-knob {
+            position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%;
+            background: #fff; border: 1px solid #c2baad; transition: transform 0.18s;
+            box-shadow: 0 1px 2px rgba(60,55,48,0.18);
+        }
+        .ms-toggle input:checked + .ms-track { background: #3a3632; border-color: #3a3632; }
+        .ms-toggle input:checked + .ms-track .ms-knob { transform: translateX(22px); border-color: #3a3632; }
+        #msSubs.ms-disabled { opacity: 0.4; pointer-events: none; }
+
+        .ms-save {
+            width: 100%; margin-top: 8px; padding: 15px 18px;
+            background: #3a3632; color: #f7f4ef; border: 0; cursor: pointer;
+            font-size: 15px; font-weight: 600; letter-spacing: 0.04em;
+            border-radius: 16px 13px 17px 14px;
+            box-shadow: 2px 3px 0 rgba(120,112,98,0.18);
+        }
+        .ms-save:active { transform: translateY(1px); background: #2c2924; }
+        .ms-saved { display: none; text-align: center; color: #3a3632; font-size: 13.5px; margin-top: 14px; }
+        .ms-error {
+            display: none; background: #fbeaea; border: 1px solid #e7c3c3; color: #8a3b34;
+            border-radius: 10px; padding: 10px 12px; font-size: 13px; margin: 0 0 14px;
+        }
+    </style>
 </head>
 <body>
 
@@ -496,6 +723,77 @@
         <div class="pf-pwd-hint">
             Tipp: nimm ein Passwort, das du dir merken kannst, aber das andere nicht erraten können — kein Geburtsdatum, kein einfaches Wort.
         </div>
+    </div>
+</div>
+
+<!-- OneCrew Moments — Freigabe durch den Mitarbeitenden (Kohle-Skizzen-Stil) -->
+<div id="msOverlay" class="ms-overlay">
+    <div class="ms-page">
+        <div class="ms-topbar">
+            <button class="ms-back" onclick="closeMomentSettings()" aria-label="Zurück">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3a3632" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+            </button>
+            <div class="ms-topbar-title">OneCrew Moments</div>
+            <div style="width:38px"></div>
+        </div>
+
+        <p class="ms-subtitle">Persönliche kurze Momente, die nur für dich bestimmt sind.</p>
+        <div id="msError" class="ms-error"></div>
+
+        <!-- Hauptkarte -->
+        <div class="ms-card ms-card-main">
+            <img class="ms-star" src="img/sternschnuppe.png?v=20260630b" alt="">
+            <div class="ms-card-body">
+                <div class="ms-card-title">OneCrew Moments erlauben</div>
+                <div class="ms-card-text">Ich möchte persönliche OneCrew Moments per SMS-Link erhalten. Dazu gehören zum Beispiel Geburtstagsgrüsse, Arbeitsjubiläen, Dankeschöns, Glückwünsche, Willkommensnachrichten und kurze Fürsorge-Hinweise. Ich kann diese Einstellung jederzeit ändern.</div>
+            </div>
+            <label class="ms-toggle">
+                <input type="checkbox" id="msMain" onchange="msMainChanged()">
+                <span class="ms-track"><span class="ms-knob"></span></span>
+            </label>
+        </div>
+
+        <div class="ms-section-label">Momente umfassen</div>
+
+        <div id="msSubs">
+            <div class="ms-card">
+                <div class="ms-card-body">
+                    <div class="ms-card-title">Geburtstag &amp; Jubiläum</div>
+                    <div class="ms-card-text">Geburtstagsgrüsse und Dankeschöns zu meinem Arbeitsjubiläum.</div>
+                </div>
+                <label class="ms-toggle">
+                    <input type="checkbox" id="msBirthday">
+                    <span class="ms-track"><span class="ms-knob"></span></span>
+                </label>
+            </div>
+
+            <div class="ms-card">
+                <div class="ms-card-body">
+                    <div class="ms-card-title">Wertschätzung &amp; berufliche Ereignisse</div>
+                    <div class="ms-card-text">Persönliche Dankeschöns, Gratulationen und kurze positive Rückmeldungen.</div>
+                </div>
+                <label class="ms-toggle">
+                    <input type="checkbox" id="msAppreciation">
+                    <span class="ms-track"><span class="ms-knob"></span></span>
+                </label>
+            </div>
+
+            <div class="ms-card">
+                <div class="ms-card-body">
+                    <div class="ms-card-title">Willkommen zurück &amp; Fürsorge-Hinweise</div>
+                    <div class="ms-card-text">Kurze persönliche Hinweise oder Willkommensnachrichten, z.B. nach Ferien oder bei heissem Wetter.</div>
+                </div>
+                <label class="ms-toggle">
+                    <input type="checkbox" id="msCare">
+                    <span class="ms-track"><span class="ms-knob"></span></span>
+                </label>
+            </div>
+        </div>
+
+        <p class="ms-note">Du kannst diese Freigabe jederzeit ändern. OneCrew Moments enthalten keine Lohn-, Vertrags- oder Dokumentendaten.</p>
+
+        <button class="ms-save" id="msSaveBtn" onclick="saveMomentSettings()">Speichern</button>
+        <div id="msSaved" class="ms-saved">Deine Moments-Einstellung wurde gespeichert.</div>
     </div>
 </div>
 
@@ -562,13 +860,11 @@
 
 <header class="pf-header">
     <div class="pf-header-row">
-        <div class="pf-brand">
-            <div class="pf-brand-icon">S</div>
-            <span>Schaub HR</span>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-            <button class="pf-logout" onclick="openPasswordChange(false)" title="Passwort ändern" style="padding:8px 12px">🔑</button>
-            <button class="pf-logout" onclick="pfLogout()">Abmelden</button>
+        <img class="pf-logo" src="img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+        <div class="pf-actions">
+            <button class="pf-logout-img" onclick="openMomentSettings()" title="OneCrew Moments" aria-label="OneCrew Moments"><img src="img/sternschnuppe.png?v=20260630b" alt="Moments"></button>
+            <button class="pf-logout-img" onclick="openPasswordChange(false)" title="Passwort ändern" aria-label="Passwort ändern"><img src="img/Passwortnew.png?v=20260630b" alt="Passwort ändern"></button>
+            <button class="pf-logout-img" onclick="pfLogout()" title="Abmelden" aria-label="Abmelden"><img src="img/abmelden.png?v=20260630b" alt="Abmelden"></button>
         </div>
     </div>
     <h1 class="pf-greeting" id="pfGreeting">Hallo</h1>
@@ -576,17 +872,22 @@
 </header>
 
 <main class="pf-main">
+    <button class="pf-moments-entry" onclick="openMomentSettings()" aria-label="Moments Freigabe">
+        <img src="img/sternschnuppe.png?v=20260630b" alt="">
+        <div class="pf-me-body">
+            <div class="pf-me-title">Moments Freigabe</div>
+            <div class="pf-me-sub">Persönliche kurze Momente, die nur für dich bestimmt sind.</div>
+        </div>
+        <span class="pf-me-arrow">›</span>
+    </button>
     <div class="pf-tabs" role="tablist">
-        <button id="pfTabIn"  class="pf-tab active" onclick="switchTab('in')">📥 Empfangen <span class="pf-tab-count" id="pfTabInCount" style="display:none">0</span></button>
-        <button id="pfTabOut" class="pf-tab"        onclick="switchTab('out')">📤 Gesendet <span class="pf-tab-count" id="pfTabOutCount" style="display:none">0</span></button>
+        <button id="pfTabIn"  class="pf-tab active" onclick="switchTab('in')"><img class="pf-tab-img" src="img/in.png?v=20260630b" alt="">Empfangen <span class="pf-tab-count" id="pfTabInCount" style="display:none">0</span></button>
+        <button id="pfTabOut" class="pf-tab"        onclick="switchTab('out')"><img class="pf-tab-img" src="img/out.png?v=20260630b" alt="">Gesendet <span class="pf-tab-count" id="pfTabOutCount" style="display:none">0</span></button>
     </div>
     <div id="pfList">
         <div class="pf-loading">Wird geladen…</div>
     </div>
-    <div class="pf-footer">
-        Bei Fragen wende dich an deine Geschäftsführung.<br>
-        <span style="opacity:0.6">© Schaub Restaurants GmbH</span>
-    </div>
+    <div class="pf-footer"></div>
 </main>
 
 <script>
@@ -793,9 +1094,8 @@
         if (!docs || docs.length === 0) {
             el.innerHTML =
                 '<div class="pf-empty">' +
-                '<div class="pf-empty-icon">📭</div>' +
+                '<img class="pf-empty-img" src="img/MailboxIcon.png?v=20260630b" alt="">' +
                 '<div class="pf-empty-title">Postfach noch leer</div>' +
-                '<div class="pf-empty-text">Sobald dein nächster Lohnzettel bereit ist, erscheint er hier.</div>' +
                 '</div>';
             return;
         }
@@ -847,9 +1147,8 @@
         if (!docs || docs.length === 0) {
             el.innerHTML =
                 '<div class="pf-empty">' +
-                '<div class="pf-empty-icon">📤</div>' +
+                '<img class="pf-empty-img" src="img/MailboxIcon.png?v=20260630b" alt="">' +
                 '<div class="pf-empty-title">Noch nichts gesendet</div>' +
-                '<div class="pf-empty-text">Tippe auf den + Knopf rechts unten um ein Foto oder PDF an deine Geschäftsführung oder das HR-Team zu senden.</div>' +
                 '</div>';
             return;
         }
@@ -916,6 +1215,68 @@
         localStorage.removeItem('hrToken');
         localStorage.removeItem('hrLastEmail');
         window.location.href = 'index.html';
+    }
+
+    // ── OneCrew Moments — Freigabe (Consent) ────────────────────────────
+    // Untertoggles nur aktivierbar, wenn die Haupt-Freigabe eingeschaltet ist.
+    function msMainChanged() {
+        const on = document.getElementById('msMain').checked;
+        document.getElementById('msSubs').classList.toggle('ms-disabled', !on);
+    }
+
+    async function openMomentSettings() {
+        const err = document.getElementById('msError');
+        const saved = document.getElementById('msSaved');
+        err.style.display = 'none'; saved.style.display = 'none';
+        // Aktuelle Freigabe laden
+        try {
+            const r = await fetch('/api/moments/my-consent', { headers: ah() });
+            if (r.ok) {
+                const o = await r.json();
+                document.getElementById('msMain').checked         = !!o.momentsConsentEnabled;
+                document.getElementById('msBirthday').checked     = !!o.allowBirthdayAndAnniversary;
+                document.getElementById('msAppreciation').checked = !!o.allowAppreciation;
+                document.getElementById('msCare').checked         = !!o.allowCare;
+            }
+        } catch (e) { /* zeigt Defaults (aus) */ }
+        msMainChanged();
+        document.getElementById('msOverlay').style.display = 'block';
+        document.getElementById('msOverlay').scrollTop = 0;
+    }
+    function closeMomentSettings() {
+        document.getElementById('msOverlay').style.display = 'none';
+    }
+    async function saveMomentSettings() {
+        const err = document.getElementById('msError');
+        const saved = document.getElementById('msSaved');
+        const btn = document.getElementById('msSaveBtn');
+        err.style.display = 'none'; saved.style.display = 'none';
+        btn.disabled = true; btn.textContent = 'Speichere…';
+        const enabled = document.getElementById('msMain').checked;
+        const body = {
+            enabled,
+            birthday:     enabled && document.getElementById('msBirthday').checked,
+            appreciation: enabled && document.getElementById('msAppreciation').checked,
+            care:         enabled && document.getElementById('msCare').checked,
+        };
+        try {
+            const r = await fetch('/api/moments/my-consent', {
+                method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+            });
+            if (!r.ok) {
+                const j = await r.json().catch(() => ({}));
+                err.textContent = j.message || j.error || 'Speichern fehlgeschlagen.';
+                err.style.display = 'block';
+                btn.disabled = false; btn.textContent = 'Speichern';
+                return;
+            }
+            btn.disabled = false; btn.textContent = 'Speichern';
+            saved.style.display = 'block';
+        } catch (e) {
+            err.textContent = 'Verbindungsfehler: ' + e.message;
+            err.style.display = 'block';
+            btn.disabled = false; btn.textContent = 'Speichern';
+        }
     }
 
     // ── Upload-Modal ────────────────────────────────────────────────────

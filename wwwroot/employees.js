@@ -757,8 +757,8 @@ function renderEmployeeDetail(emp) {
 
     panel.innerHTML = `
     <div class="emp-detail-header">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-            <div style="display:flex;align-items:center;gap:14px;min-width:0">
+        <div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px">
+            <div style="display:flex;align-items:center;gap:14px;min-width:0;flex-shrink:0">
                 <div id="empDetailPhoto"
                      class="emp-avatar ${isFemale ? 'female' : ''}"
                      style="width:150px;height:150px;border-radius:50%;flex-shrink:0;background-size:cover;background-position:center;font-size:50px;display:flex;align-items:center;justify-content:center;overflow:hidden">${initials}</div>
@@ -785,18 +785,19 @@ function renderEmployeeDetail(emp) {
                  wird in switchEmpTab() pro Tab befüllt — z.B. Familie →
                  + Familienmitglied. Sitzt links neben dem Bearbeiten-Block,
                  damit alle Aktions-Buttons in einer sticky-Zeile zusammen sind. -->
-            <div id="empTabActionBar" style="display:flex;gap:8px;align-items:center;margin-top:4px"></div>
+            <div id="empTabActionBar" style="display:flex;gap:8px;align-items:center;margin-top:52px"></div>
             <!-- Header-Actions: Postfach-Passwort-Reset (Walter-Vorgabe
                  14.05.2026 — direkt oben statt im Bank-Tab) + Bearbeiten.
                  startEmpEdit() ersetzt den Inhalt dieses Containers durch
                  Speichern/Abbrechen. Postfach-Button nur für nicht-Phantom-MA. -->
-            <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:52px;flex-shrink:0">
-                <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="visibility:hidden">Speichern</button>
+            <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:52px;flex-shrink:0;margin-left:48px">
+                <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
                 ${['admin','superuser','buchhaltung'].includes(currentUser?.role) ? `
-                <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap"
+                <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap;display:inline-flex;align-items:center;gap:7px"
                         title="Aktualisiert easy@work-Felder dieses Mitarbeiters aus der API"
                         onclick="easyworkSyncSelectedEmployee(${emp.id})">
-                    ↻ easy@work Abgleich
+                    <img src="img/easyatwork-icon.png?v=20260628a" alt="easy@work" style="width:18px;height:18px;object-fit:contain">
+                    easy@work synchronisieren
                 </button>` : ''}
                 ${!emp.isPayrollExcluded ? `
                 <button class="btn-emp-edit btn-postfach" style="white-space:nowrap"
@@ -881,10 +882,9 @@ function renderEmployeeDetail(emp) {
                     <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null, emp.nightWorkExamValidUntil)}</span>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
                         <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
-                        <button onclick="openNachtVerzichtPdf(${emp.id})" title="Verzichtserklärung drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Verzicht</button>
                         <button onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Ausnahmeregelung</button>
                         ${emp.nightWorkExamDokumentId
-                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegten Arztbericht / die Verzichtserklärung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Arzt/Verzicht</button>`
+                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Arztzeugnis</button>`
                             : ''}
                         ${emp.nightWorkAusnahmeDokumentId
                             ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Ausnahmeregelung</button>`
@@ -894,7 +894,7 @@ function renderEmployeeDetail(emp) {
                         <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="nwMenu-${emp.id}">
                             <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
-                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'Arztbericht/Verzicht ersetzen' : 'Arztbericht/Verzicht verknüpfen'}</button>
+                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'Arztzeugnis ersetzen' : 'Arztzeugnis verknüpfen'}</button>
                             <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausnahmeregelung ersetzen' : 'Ausnahmeregelung verknüpfen'}</button>
                         </div>
                     </div>
@@ -903,7 +903,7 @@ function renderEmployeeDetail(emp) {
                     <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
                     <input type="date" id="nwDateInput_${emp.id}" value="${emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : ''}"
                            oninput="nwPreview(${emp.id}, this.value)"
-                           title="Ausstellungsdatum des Arztzeugnisses / Verzichts"
+                           title="Ausstellungsdatum des Arztzeugnisses"
                            style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
                     <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
                     <button onclick="nwSaveEdit(${emp.id})" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 12px;cursor:pointer;color:#15803d;font-size:12px;font-weight:600">Speichern</button>
@@ -1007,7 +1007,7 @@ function renderEmployeeDetail(emp) {
             <div id="stempelzeitenContent">
                 <div class="emp-placeholder">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span>
+                    <span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span>
                 </div>
             </div>
         </div>
@@ -1020,7 +1020,7 @@ function renderEmployeeDetail(emp) {
             <div id="absenzenContent">
                 <div class="emp-placeholder">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span>
+                    <span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span>
                 </div>
             </div>
         </div>
@@ -1033,7 +1033,7 @@ function renderEmployeeDetail(emp) {
                 <span style="font-size:11px;font-weight:400;color:#94a3b8">${_t('abs.section.recurringHint','Werden bei jedem Lohnlauf im Gültigkeitszeitraum automatisch verrechnet')}</span>
             </div>
             <div id="recurringWagesContent">
-                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span></div>
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
             </div>
 
             <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
@@ -1044,7 +1044,7 @@ function renderEmployeeDetail(emp) {
                 <span style="font-size:11px;font-weight:400;color:#94a3b8">${(window.i18n && i18n.getLang && i18n.getLang() === 'en') ? 'Wage garnishment or assignment to social welfare — calculated on net pay' : 'Lohnpfändung oder Abtretung an Sozialamt — nach Netto berechnet'}</span>
             </div>
             <div id="lohnAssignmentsContent">
-                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span></div>
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
             </div>
 
             <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
@@ -1061,7 +1061,7 @@ function renderEmployeeDetail(emp) {
                 </button>
             </div>
             <div id="bvgZusatzContent">
-                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wählen Sie einen Mitarbeiter')}</span></div>
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
             </div>
         </div>
 
@@ -1121,7 +1121,7 @@ function renderEmpContractList(emp) {
                 <span class="emp-contract-title">${esc(title)}</span>
                 ${active}
             </div>
-            <div class="emp-contract-meta">${from} – ${to}${wage ? ' · ' + esc(wage) : ''}</div>
+            <div class="emp-contract-meta">${from} – ${to}${wage ? ' · ' + esc(wage) : ''}${c.probationEndDate ? ' · Probezeit bis ' + formatDate(c.probationEndDate) : ''}</div>
             <div class="emp-contract-actions">${actions}</div>
         </div>`;
     }).join('');
@@ -1165,7 +1165,7 @@ async function easyworkSyncSelectedEmployee(empId) {
     if (!empId) return;
     const btn = document.getElementById('btnEmpEasyworkSync');
     const oldHtml = btn?.innerHTML;
-    if (btn) { btn.disabled = true; btn.innerHTML = '↻ Abgleich…'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = 'synchronisiere…'; }
     try {
         const res = await fetch(`/api/easywork/employees/cowork/${empId}/sync`, {
             method: 'POST',
@@ -1187,11 +1187,20 @@ async function easyworkSyncSelectedEmployee(empId) {
             renderEmployeeList(allEmployees);
             renderEmployeeDetail(selectedEmployee);
         }
+        // Rückmeldung: was aktualisiert wurde + welche Verträge wegen
+        // geschlossener Lohnperiode NICHT importiert werden konnten.
+        const upd = data.updatedFields || [];
+        const skipped = data.skippedContracts || [];
+        let msg = upd.length ? '✅ Aktualisiert: ' + upd.join(', ')
+                             : (skipped.length ? '' : '✅ easy@work-Abgleich abgeschlossen — keine Änderungen.');
+        if (skipped.length)
+            msg += (msg ? '\n\n' : '') + '⚠ Diese Verträge wurden NICHT importiert (geschlossene Lohnperiode):\n' + skipped.map(s => '• ' + s).join('\n');
+        if (msg) alert(msg);
     } catch (e) {
         alert('easy@work-Abgleich fehlgeschlagen: ' + (e?.message || e));
     } finally {
         const btn2 = document.getElementById('btnEmpEasyworkSync');
-        if (btn2) { btn2.disabled = false; btn2.innerHTML = oldHtml || '↻ easy@work Abgleich'; }
+        if (btn2) { btn2.disabled = false; btn2.innerHTML = oldHtml || 'easy@work synchronisieren'; }
     }
 }
 
@@ -1603,7 +1612,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'c_ausweis'           ? 'C-Ausweis-Dokument verknüpfen'
                    : kind === 'permit_history'      ? 'Bewilligungs-Dokument verknüpfen'
                    : kind === 'spouse'              ? 'Ausweis Ehepartner verknüpfen'
-                   : kind === 'night_work_exam'     ? 'Nachtarbeit: Arztbericht / Verzicht verknüpfen'
+                   : kind === 'night_work_exam'     ? 'Nachtarbeit: Arztzeugnis verknüpfen'
                    : kind === 'night_work_ausnahme' ? 'Nachtarbeit: Ausnahmeregelung verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
@@ -1613,7 +1622,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
             : kind === 'spouse'
                 ? 'Wähle das Ausweis-Dokument des Ehepartners (Pass, ID oder Bewilligung) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
                 : kind === 'night_work_exam'
-                    ? 'Wähle das ärztliche Eignungszeugnis ODER die Verzichtserklärung des MA. Oder lade ein neues Dokument hoch.'
+                    ? 'Wähle das ärztliche Eignungszeugnis (Arztzeugnis) des MA. Oder lade ein neues Dokument hoch.'
                     : kind === 'night_work_ausnahme'
                         ? 'Wähle die unterschriebene Ausnahmeregelung Tag-/Nachtarbeit des MA. Oder lade ein neues Dokument hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
@@ -3193,7 +3202,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             // Klick auf den Header öffnet das Edit-Modal.
             const memberJson = JSON.stringify(m).replace(/"/g, '&quot;');
             const headerRow = `
-            <div onclick="openFamilyModal(${memberJson})"
+            <div class="emp-fam-headrow" onclick="openFamilyModal(${memberJson})"
                  style="display:flex;align-items:center;gap:10px;padding:5px 10px;border:1px solid #94a3b8;border-radius:4px;background:#fff;cursor:pointer;transition:border-color .12s,box-shadow .12s;box-shadow:0 1px 2px rgba(15,23,42,0.08)"
                  onmouseover="this.style.borderColor='#2563eb';this.style.boxShadow='0 2px 4px rgba(37,99,235,0.15)'" onmouseout="this.style.borderColor='#94a3b8';this.style.boxShadow='0 1px 2px rgba(15,23,42,0.08)'">
                 <span style="font-weight:600;color:#0f172a;flex:1;font-size:13.5px">${esc(name)}</span>
@@ -3218,7 +3227,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             if (type === 'Kind') {
                 const allowances = allowanceMap[m.id] || [];
                 const allowanceRows = allowances.length === 0
-                    ? `<div style="padding:8px 10px;color:#94a3b8;font-style:italic;font-size:12px;background:#fff;border:1px dashed #cbd5e1;border-radius:4px">Noch keine Zulagen erfasst.</div>`
+                    ? `<div class="emp-fam-allow-empty" style="padding:8px 10px;color:#94a3b8;font-style:italic;font-size:12px;background:#fff;border:1px dashed #cbd5e1;border-radius:4px">Noch keine Zulagen erfasst.</div>`
                     : allowances.map(a => {
                         const artLabel = a.allowanceType
                             ? `${a.allowanceType}${(_ALLOWANCE_TYPE_LABEL && _ALLOWANCE_TYPE_LABEL[a.allowanceType]) ? ' — ' + _ALLOWANCE_TYPE_LABEL[a.allowanceType] : ''}`
@@ -3257,8 +3266,8 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 kindAllowancesBlock = `
                 <div style="margin-top:4px">
                   <div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px 4px">
-                    <span style="font-size:10.5px;font-weight:800;color:#1e3a8a;letter-spacing:.08em;text-transform:uppercase">Zulagen</span>
-                    <button onclick="openAllowanceFromCard(${m.id}, null)" style="background:#2563eb;color:white;border:none;padding:4px 12px;border-radius:3px;font-size:11px;font-weight:600;cursor:pointer">+ Zulage</button>
+                    <span style="font-size:10.5px;font-weight:800;color:#526071;letter-spacing:.08em;text-transform:uppercase">Zulagen</span>
+                    <button class="btn-emp-add" onclick="openAllowanceFromCard(${m.id}, null)" style="padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer">+ Zulage</button>
                   </div>
                   ${allowanceRows}
                 </div>`;
@@ -3268,7 +3277,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             // (slate-200, kaum gerundete Ecken, wie .emp-field-grid). Bei
             // Kindern enthält der Container Header + Zulagen-Block; bei
             // anderen Typen nur den Header.
-            html += `<div style="background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:8px 10px 10px">
+            html += `<div style="background:transparent;border:0;border-radius:0;padding:6px 2px 10px">
                 ${headerRow}
                 ${kindAllowancesBlock}
             </div>`;
@@ -3284,7 +3293,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
         html += `
         <div class="emp-section-title" style="margin-top:24px;display:flex;align-items:center;justify-content:space-between">
             <span>Mutterschaft</span>
-            <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;margin-left:auto" onclick="mtsOpenNew(${employeeId})">+ Schwangerschaft erfassen</button>
+            <button class="btn-emp-add" style="padding:6px 14px;font-size:12px;margin-left:auto" onclick="mtsOpenNew(${employeeId})">+ Schwangerschaft erfassen</button>
         </div>
         <div id="mutterschaftContent">
             ${pregnancyDetails.length
@@ -5786,10 +5795,12 @@ async function openAbsenceModal(existing) {
     }
     const fromEl = document.getElementById('absDateFrom');
     const toEl   = document.getElementById('absDateTo');
-    fromEl.min = absPeriodFrom || '';
-    fromEl.max = absPeriodTo   || '';
-    toEl.min   = absPeriodFrom || '';
-    toEl.max   = absPeriodTo   || '';
+    // Walter-Vorgabe 27.06.2026: KEINE Begrenzung mehr auf die aktuelle Periode.
+    // Absenzen dürfen in jede noch NICHT definitiv abgeschlossene Periode (auch
+    // rückwirkend). Die Sperre prüft der Server per-Periode beim Speichern und
+    // meldet eine abgeschlossene Periode mit klarer Fehlermeldung (LOHN_EDIT_LOCKED).
+    fromEl.removeAttribute('min'); fromEl.removeAttribute('max');
+    toEl.removeAttribute('min');   toEl.removeAttribute('max');
 
     // Reset form — bei neuer Absenz: heutiges Datum (oder periodFrom falls
     // heute ausserhalb der Periode liegt) in Von/Bis vorbelegen.
@@ -5851,17 +5862,19 @@ async function renderAbsDayCheckboxes() {
         cur.setDate(cur.getDate() + 1);
     }
 
-    if (type === 'FERIEN' || type === 'FEIERTAG') {
-        // Ferien und Feiertag: alle Tage im Zeitraum zählen automatisch —
-        // kein Checkbox-Ankreuzen nötig (das Backend nimmt den DateFrom..DateTo-
-        // Range als Grundlage). Wir zeigen nur einen Info-Text.
-        const typLabel = type === 'FEIERTAG' ? 'Feiertag' : 'Ferien';
-        box.innerHTML = `<div class="abs-day-info">Alle ${days.length} Tag(e) im Zeitraum werden automatisch als ${typLabel} verbucht.</div>`;
+    if (type !== 'KRANK' && type !== 'UNFALL') {
+        // Walter-Vorgabe 27.06.2026: Das Tage-Raster gibt es NUR bei Krankheit
+        // und Unfall (dort wird im 1/5 gerechnet, also zählt welche Tage der MA
+        // gearbeitet hätte). Alle anderen Typen (Ferien, Feiertag, unbezahlter
+        // Urlaub, Schulung …) überspringen das Raster komplett — es zählen
+        // automatisch alle Tage im Zeitraum (das Backend rechnet je nach Typ-
+        // Konfiguration). Nur ein Info-Text.
+        box.innerHTML = `<div class="abs-day-info">Alle ${days.length} Tag(e) im Zeitraum werden automatisch verbucht — ein Tage-Raster gibt es nur bei Krankheit/Unfall (1/5-Berechnung).</div>`;
         calcAbsHoursPreview();
         return;
     }
 
-    // KRANK / UNFALL / SCHULUNG: Tage auswählen.
+    // KRANK / UNFALL: Tage auswählen (1/5).
     // Walter-Vorgabe 28.05.2026: 7-Spalten-Wochenraster Mo-So. Default-
     // Vorauswahl: Mo–Fr markiert, Sa+So NICHT markiert (typische 5-Tage-Woche).
     // Walter-Vorgabe 30.05.2026: in der Gastro arbeiten viele auch am Wochenende
@@ -5949,9 +5962,10 @@ function getAbsWorkedDays() {
     const from = document.getElementById('absDateFrom').value;
     const to   = document.getElementById('absDateTo').value;
 
-    // FERIEN und FEIERTAG: alle Tage im Bereich zählen (keine Tages-Auswahl
-    // durch den User — der Eintrag deckt grundsätzlich alle Tage im Zeitraum ab).
-    if (type === 'FERIEN' || type === 'FEIERTAG') {
+    // Walter-Vorgabe 27.06.2026: NUR Krankheit/Unfall nutzen das Tage-Raster
+    // (angekreuzte Tage, 1/5). ALLE anderen Typen (Ferien, Feiertag, unbezahlter
+    // Urlaub, Schulung …) zählen automatisch alle Tage im Zeitraum.
+    if (type !== 'KRANK' && type !== 'UNFALL') {
         const days = [];
         if (from && to && from <= to) {
             let cur = new Date(from + 'T00:00:00');
@@ -5964,7 +5978,7 @@ function getAbsWorkedDays() {
         return days;
     }
 
-    // KRANK / UNFALL / SCHULUNG: angekreuzte Tage
+    // KRANK / UNFALL: angekreuzte Tage
     return [...document.querySelectorAll('#absDayCheckboxes input[type=checkbox]:checked')]
         .map(cb => cb.value);
 }
@@ -6079,6 +6093,13 @@ async function calcAbsHoursPreview() {
             ? 'als Stundenlohn ausbezahlt, Nacht-Saldo sinkt entsprechend'
             : 'wird zu Ist-Stunden addiert, Nacht-Saldo sinkt entsprechend';
         hint  = `<span class="abs-hours-pos">+${hours.toFixed(2)} h</span> <span class="abs-hours-label">${typCfg?.bezeichnung ?? type}: ${count} Tag${count>1?'e':''} × ${weeklyH.toFixed(2)} h ÷ 5${pSuffix} → ${saldoHint}</span>`;
+    } else if (type === 'UNBEZ_URLAUB') {
+        // Walter-Vorgabe 27.06.2026: Unbezahlter Urlaub wird NICHT ausbezahlt.
+        // Im Lohnlauf wird stattdessen der Festlohn (FIX/FIX-M, Tagessatz 12/365)
+        // bzw. die garantierten Soll-Stunden (MTP, 1/7) um diese Tage gekürzt;
+        // bei UTP wirkt es automatisch (nur gestempelte Stunden werden bezahlt).
+        hours = 0;
+        hint  = `<span class="abs-hours-label">Unbezahlter Urlaub: ${count} Tag${count>1?'e':''} — keine Auszahlung. Im Lohnlauf wird der Festlohn (FIX/FIX-M) bzw. die Soll-Stunden (MTP) um diese Tage gekürzt.</span>`;
     } else if (!hatGutschrift) {
         // Kein Zeitgutschrift → Ausbezahlung
         hours = count * (weeklyH / 5) * pFactor;
@@ -6896,7 +6917,7 @@ async function loadStempelzeitenTab(employeeId) {
     if (!employeeId) {
         el.innerHTML = `<div class="emp-placeholder">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span>Bitte wählen Sie einen Mitarbeiter</span>
+            <span>Bitte wähle einen Mitarbeiter</span>
         </div>`;
         return;
     }
@@ -9233,7 +9254,7 @@ function openBvgZusatzModal(entryId) {
             <button class="ma-modal-close" onclick="document.getElementById('bvgZusatzModal').remove()">✕</button>
         </div>
         <div class="ma-modal-body">
-            <div style="background:#eff6ff;border-left:3px solid #2563eb;padding:10px 12px;border-radius:4px;font-size:12px;color:#1e3a8a;margin-bottom:10px;line-height:1.5">
+            <div style="background:#f6f3ee;border:1px solid #e7e1d8;padding:10px 12px;border-radius:8px;font-size:12px;color:#3f4d5e;margin-bottom:10px;line-height:1.5">
                 Der MA bekommt BVG-Zusatz-Beiträge nur dann berechnet, wenn am Anfang der Lohnperiode eine offene Mitgliedschaft existiert. Beim Austritt aus dem Programm <strong>Gültig bis</strong> setzen.
             </div>
             <input type="hidden" id="bvgZusatzId" value="${entry?.id ?? ''}">

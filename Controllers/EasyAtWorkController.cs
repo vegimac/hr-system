@@ -28,6 +28,8 @@ public class EasyAtWorkController : ControllerBase
     private readonly Services.EasyAtWork.EasyAtWorkTimepunchSyncService _tpSync;
     private readonly Services.EasyAtWork.EasyAtWorkEmployeeSyncService  _empSync;
     private readonly LohnEditLockService _editLock;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly Services.EasyAtWork.EasyAtWorkImportJobService _importJobs;
 
     public EasyAtWorkController(
         EasyAtWorkClient client,
@@ -35,7 +37,9 @@ public class EasyAtWorkController : ControllerBase
         ILogger<EasyAtWorkController> log,
         Services.EasyAtWork.EasyAtWorkTimepunchSyncService tpSync,
         Services.EasyAtWork.EasyAtWorkEmployeeSyncService empSync,
-        LohnEditLockService editLock)
+        LohnEditLockService editLock,
+        IServiceScopeFactory scopeFactory,
+        Services.EasyAtWork.EasyAtWorkImportJobService importJobs)
     {
         _client = client;
         _db = db;
@@ -43,6 +47,8 @@ public class EasyAtWorkController : ControllerBase
         _tpSync = tpSync;
         _empSync = empSync;
         _editLock = editLock;
+        _scopeFactory = scopeFactory;
+        _importJobs = importJobs;
     }
 
     // ─────────────────────── API-Dump (Diagnose) ────────────────────
@@ -130,6 +136,112 @@ public class EasyAtWorkController : ControllerBase
             easyAtWorkResourceId = eid,        // für /employees/{id} verwendet
             easyAtWorkUserId     = match.UserId,
             storedCoworkEawId    = storedCoworkEawId,   // bei uns gespeichert (i.d.R. UserId)
+            results
+        });
+    }
+
+    /// <summary>
+    /// Diagnose-Dump NACH easy@work-ID (Walter 29.06.2026): holt für eine direkt
+    /// angegebene easy@work-employee-Id ALLE erreichbaren Roh-JSON-Antworten. Der
+    /// passende Customer wird automatisch über ALLE gemappten Filialen gesucht
+    /// (die ID kann in einer beliebigen Filiale liegen) — so sieht man, welche
+    /// Personalnummer easy@work für diese ID liefert. Read-only.
+    /// </summary>
+    [HttpGet("debug/employee-dump-by-id")]
+    public async Task<IActionResult> EmployeeDumpById(
+        [FromQuery] int easyAtWorkId, [FromQuery] int? companyProfileId, CancellationToken ct)
+    {
+        if (easyAtWorkId <= 0)
+            return BadRequest(new { error = "ID_REQUIRED", message = "Bitte eine easy@work-ID angeben." });
+
+        var mappings = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .Select(m => new { m.CompanyProfileId, m.EasyAtWorkCustomerId })
+            .ToListAsync(ct);
+        if (mappings.Count == 0)
+            return BadRequest(new { error = "NO_MAPPING", message = "Keine easy@work-Branch-Mappings vorhanden." });
+
+        // Reihenfolge: zuerst die gewählte Filiale (falls übergeben), dann alle
+        // übrigen Customer — wir probieren, bei welchem /employees/{id} 2xx liefert.
+        var customerIds = new List<int>();
+        if (companyProfileId.HasValue)
+        {
+            var sel = mappings.FirstOrDefault(m => m.CompanyProfileId == companyProfileId.Value);
+            if (sel != null) customerIds.Add(sel.EasyAtWorkCustomerId);
+        }
+        foreach (var cid in mappings.Select(m => m.EasyAtWorkCustomerId).Distinct())
+            if (!customerIds.Contains(cid)) customerIds.Add(cid);
+
+        int? foundCustomer = null;
+        var probe = new List<object>();
+        foreach (var cid in customerIds)
+        {
+            try
+            {
+                var (status, _) = await _client.GetRawAsync($"customers/{cid}/employees/{easyAtWorkId}", ct);
+                probe.Add(new { customerId = cid, status });
+                if (status >= 200 && status < 300) { foundCustomer = cid; break; }
+            }
+            catch (Exception ex) { probe.Add(new { customerId = cid, status = -1, error = ex.Message }); }
+        }
+        if (foundCustomer == null)
+            return NotFound(new
+            {
+                error = "NOT_FOUND",
+                message = $"easy@work-ID {easyAtWorkId} in keinem der {customerIds.Count} gemappten Customer gefunden.",
+                checkedCustomers = probe
+            });
+
+        int customerId = foundCustomer.Value;
+        int eid = easyAtWorkId;
+
+        var paths = new[]
+        {
+            $"customers/{customerId}/employees/{eid}",
+            $"customers/{customerId}/employees/{eid}/contracts",
+            $"customers/{customerId}/employees/{eid}/pay_rates",
+            $"customers/{customerId}/employees/{eid}/fiscal_info",
+            $"customers/{customerId}/employees/{eid}/properties?per_page=200",
+            $"customers/{customerId}/employees/{eid}/functions",
+            $"customers/{customerId}/employees/{eid}/function",
+            $"customers/{customerId}/employees/{eid}/groups",
+            $"customers/{customerId}/employees/{eid}/group_memberships",
+            $"customers/{customerId}/employees/{eid}/memberships",
+            $"customers/{customerId}/employees/{eid}/roles",
+            $"customers/{customerId}/employees/{eid}/positions",
+        };
+
+        object ParseBody(string b)
+        {
+            if (string.IsNullOrWhiteSpace(b)) return "";
+            try { return JsonSerializer.Deserialize<JsonElement>(b); }
+            catch { return b; }
+        }
+
+        var results = new List<object>();
+        foreach (var p in paths)
+        {
+            try
+            {
+                var (status, body) = await _client.GetRawAsync(p, ct);
+                results.Add(new { path = p, status, body = ParseBody(body) });
+            }
+            catch (Exception ex)
+            {
+                results.Add(new { path = p, status = -1, error = ex.Message });
+            }
+        }
+
+        // Was haben wir bei dieser ID in Cowork gespeichert (zum Abgleich)?
+        var stored = await _db.Employees.AsNoTracking()
+            .Where(e => e.EasyAtWorkEmployeeId == easyAtWorkId)
+            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
+            .FirstOrDefaultAsync(ct);
+
+        return Ok(new
+        {
+            easyAtWorkResourceId = eid,
+            customerId,
+            storedInCowork = stored,   // null = bei uns ist diese ID (noch) nicht gespeichert
             results
         });
     }
@@ -572,8 +684,102 @@ public class EasyAtWorkController : ControllerBase
             OnlyActive = dto.OnlyActive ?? false,
             SelectedNumbers = dto.SelectedNumbers,
             SkipDetailCalls = dto.SkipDetailCalls ?? false,
-        }, ct);
+        }, ct: ct);
         return Ok(res);
+    }
+
+    /// <summary>
+    /// Asynchroner Filial-Import (Walter-Vorgabe 29.06.2026): Der Commit läuft als
+    /// Hintergrund-Job (eigener DI-Scope, browser-unabhängig) — gibt sofort eine
+    /// Job-ID zurück. Der Browser pollt <c>sync/employees/job/{jobId}</c> für den
+    /// Fortschritt und das Endergebnis. So gibt es kein Request-Timeout mehr,
+    /// auch wenn easy@work mehrere Minuten braucht.
+    /// </summary>
+    [HttpPost("sync/employees/commit-async")]
+    public IActionResult SyncEmployeesCommitAsync([FromBody] EmpSyncRequestDto dto)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+
+        var job = _importJobs.Create();
+        var jobId = job.Id;
+        var req = new Services.EasyAtWork.EasyAtWorkEmployeeSyncService.SyncRequest
+        {
+            CompanyProfileId = dto.CompanyProfileId,
+            OnlyActive       = dto.OnlyActive ?? false,
+            SelectedNumbers  = dto.SelectedNumbers,
+            SkipDetailCalls  = dto.SkipDetailCalls ?? false,
+        };
+
+        // Bewusst NICHT awaiten: läuft im Hintergrund weiter, auch wenn der
+        // Browser die Antwort längst hat. Eigener Scope, da der Request-Scope
+        // (inkl. DbContext) nach der Antwort entsorgt wird.
+        _ = Task.Run(async () =>
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var svc = scope.ServiceProvider
+                .GetRequiredService<Services.EasyAtWork.EasyAtWorkEmployeeSyncService>();
+            try
+            {
+                var res = await svc.CommitAsync(req,
+                    progress: (done, total, phase) => _importJobs.Progress(jobId, done, total, phase),
+                    ct: CancellationToken.None);
+                _importJobs.Complete(jobId, new
+                {
+                    res.CountTotal, res.CountNew, res.CountUpdate, res.CountUnchanged,
+                    res.CountConflict, res.CountInserted, res.CountUpdated, res.CountExisting,
+                    notes = res.Notes, skippedContracts = res.SkippedContracts,
+                    blocked = res.Blocked, numberConflicts = res.NumberConflicts
+                });
+            }
+            catch (Exception ex)
+            {
+                // Inner-Exceptions mitnehmen — bei DbUpdateException steckt die
+                // echte Ursache (Npgsql-Constraint/NULL) erst in der inneren.
+                var msg = ex.Message;
+                for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)
+                    msg += "  →  " + inner.Message;
+                _importJobs.Fail(jobId, msg);
+                _log.LogError(ex, "Asynchroner Filial-Import (Job {JobId}) fehlgeschlagen.", jobId);
+            }
+        });
+
+        return Accepted(new { jobId });
+    }
+
+    /// <summary>
+    /// On-Demand: Probezeiten an die erste Stempelzeit verankern (Walter 29.06.2026),
+    /// unabhängig vom Stempel-Import (der Import-Button ist bei 0 neuen Stempeln
+    /// gesperrt → der Anker lief sonst nie). Geht alle noch nicht verankerten
+    /// Probezeiten durch und verschiebt das Ende auf den tatsächlichen 1. Arbeitstag.
+    /// </summary>
+    [HttpPost("probation/anchor")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> AnchorProbation(CancellationToken ct)
+    {
+        try
+        {
+            var notes = await _tpSync.RunProbationAnchorAsync(ct);
+            return Ok(new { anchored = notes.Count, notes });
+        }
+        catch (Exception ex)
+        {
+            // Inner-Exceptions mitnehmen — bei einer fehlenden Tabelle/Spalte steckt
+            // die echte Ursache erst in der inneren Npgsql-Exception.
+            var msg = ex.Message;
+            for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)
+                msg += "  →  " + inner.Message;
+            _log.LogError(ex, "Probezeit-Anker fehlgeschlagen.");
+            return StatusCode(500, new { error = "PROBATION_ANCHOR_FAILED", message = msg });
+        }
+    }
+
+    /// <summary>Status/Fortschritt/Ergebnis eines asynchronen Filial-Imports.</summary>
+    [HttpGet("sync/employees/job/{jobId}")]
+    public IActionResult GetImportJob(string jobId)
+    {
+        var job = _importJobs.Get(jobId);
+        if (job == null) return NotFound(new { error = "JOB_NOT_FOUND" });
+        return Ok(new { job.Id, job.Status, job.Phase, job.Done, job.Total, job.Error, result = job.Result });
     }
 
     /// <summary>
@@ -716,6 +922,78 @@ public class EasyAtWorkController : ControllerBase
         if (!res.Success && res.Errors.Count > 0)
             return BadRequest(new { error = "EAW_SINGLE_SYNC_INVALID", message = string.Join("\n", res.Errors), res.Errors, res.Notes });
         return Ok(res);
+    }
+
+    private sealed record DupEmpRow(int Id, string? Number, string? First, string? Last,
+        int? EawId, bool Excluded, bool Active, DateTime? Dob);
+
+    /// <summary>
+    /// Findet Personen mit MEHR als einem Lohn-MA (IsPayrollExcluded=false) —
+    /// genau die Fälle, die den easy@work-Sync blockieren („mehrere Lohn-MA für
+    /// eine Person"). Gruppiert nach easy@work-ID, Personalnummer und
+    /// Name+Geburtstag. Reine DB-Auswertung, kein easy@work-API-Aufruf.
+    /// </summary>
+    [HttpGet("duplicate-payroll-employees")]
+    public async Task<IActionResult> GetDuplicatePayrollEmployees(CancellationToken ct)
+    {
+        var emps = await _db.Employees.AsNoTracking()
+            .Where(e => !e.IsHidden)
+            .Select(e => new DupEmpRow(e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
+                e.EasyAtWorkEmployeeId, e.IsPayrollExcluded, e.IsActive, e.DateOfBirth))
+            .ToListAsync(ct);
+
+        // Filiale je MA aus der jüngsten Anstellung (Employee selbst hat keine).
+        var empBranch = (await _db.Employments.AsNoTracking()
+                .Select(em => new { em.EmployeeId, em.CompanyProfileId, em.ContractStartDate })
+                .ToListAsync(ct))
+            .GroupBy(x => x.EmployeeId)
+            .ToDictionary(g => g.Key,
+                g => g.OrderByDescending(x => x.ContractStartDate).First().CompanyProfileId);
+        var branchNames = await _db.CompanyProfiles.AsNoTracking()
+            .ToDictionaryAsync(c => c.Id, c => (string?)(c.BranchName ?? c.CompanyName), ct);
+
+        var groups = new List<object>();
+        var emitted = new HashSet<string>();
+
+        void Emit(string keyType, string keyValue, List<DupEmpRow> members)
+        {
+            var distinct = members.GroupBy(m => m.Id).Select(g => g.First()).ToList();
+            var payrollCount = distinct.Count(m => !m.Excluded);
+            if (payrollCount < 2) return;   // nur echte Mehrdeutigkeit (≥2 Lohn-MA)
+            var sig = string.Join("-", distinct.Select(m => m.Id).OrderBy(x => x));
+            if (!emitted.Add(sig)) return;  // dieselbe Gruppe nicht doppelt melden
+            groups.Add(new
+            {
+                keyType,
+                keyValue,
+                payrollCount,
+                members = distinct
+                    .OrderByDescending(m => !m.Excluded).ThenBy(m => m.Id)
+                    .Select(m => new
+                    {
+                        id = m.Id,
+                        number = m.Number,
+                        name = $"{m.First} {m.Last}".Trim(),
+                        easyAtWorkEmployeeId = m.EawId,
+                        isPayrollExcluded = m.Excluded,
+                        isActive = m.Active,
+                        branch = (empBranch.TryGetValue(m.Id, out var cp) && cp.HasValue
+                                  && branchNames.TryGetValue(cp.Value, out var bn)) ? bn : null
+                    })
+            });
+        }
+
+        foreach (var grp in emps.Where(e => e.EawId.HasValue).GroupBy(e => e.EawId!.Value))
+            Emit("easy@work-ID", "#" + grp.Key, grp.ToList());
+        foreach (var grp in emps.Where(e => !string.IsNullOrWhiteSpace(e.Number))
+                                .GroupBy(e => e.Number!.Trim(), StringComparer.OrdinalIgnoreCase))
+            Emit("Personalnummer", grp.Key, grp.ToList());
+        foreach (var grp in emps.Where(e => !string.IsNullOrWhiteSpace(e.First) || !string.IsNullOrWhiteSpace(e.Last))
+                                .GroupBy(e => ($"{e.First} {e.Last}".Trim().ToLowerInvariant())
+                                              + "|" + (e.Dob?.ToString("yyyy-MM-dd") ?? "")))
+            Emit("Name + Geburtstag", $"{grp.First().First} {grp.First().Last}".Trim(), grp.ToList());
+
+        return Ok(new { count = groups.Count, groups });
     }
 
     /// <summary>
@@ -981,8 +1259,9 @@ public class EasyAtWorkController : ControllerBase
             EmployeeCutoffOverride    = since,
             AltSuffixForPreMirusExits = true,
             SkipDetailCalls           = dto.SkipDetailCalls ?? true,   // Tief-Import: standardmässig schnell
-        }, ct);
-        return Ok(new { companyProfileId = dto.CompanyProfileId, inserted = res.CountInserted, updated = res.CountUpdated, total = res.CountTotal, existing = res.CountExisting });
+        }, ct: ct);
+        return Ok(new { companyProfileId = dto.CompanyProfileId, inserted = res.CountInserted, updated = res.CountUpdated, total = res.CountTotal, existing = res.CountExisting,
+                        blocked = res.Blocked, numberConflicts = res.NumberConflicts });
     }
 
     /// <summary>
@@ -1020,10 +1299,11 @@ public class EasyAtWorkController : ControllerBase
                     EmployeeCutoffOverride    = since,
                     AltSuffixForPreMirusExits = true,
                     SkipDetailCalls           = dto?.SkipDetailCalls ?? true,
-                }, ct);
+                }, ct: ct);
                 totalInserted += res.CountInserted;
                 totalUpdated  += res.CountUpdated;
-                perBranch.Add(new { companyProfileId = cpId, branch = branchName, inserted = res.CountInserted, updated = res.CountUpdated, total = res.CountTotal });
+                perBranch.Add(new { companyProfileId = cpId, branch = branchName, inserted = res.CountInserted, updated = res.CountUpdated, total = res.CountTotal,
+                                    blocked = res.Blocked, numberConflicts = res.NumberConflicts });
             }
             catch (Exception ex)
             {

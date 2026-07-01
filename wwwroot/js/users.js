@@ -6,6 +6,9 @@
 // BENUTZER
 // ══════════════════════════════════════════════
 async function loadUsers() {
+    // View-as/Testmodus-Karte nur für den Superadmin zeigen (Backend erzwingt es zusätzlich).
+    const impCard = document.getElementById('impersonateCard');
+    if (impCard) impCard.style.display = (currentUser?.isSuperAdmin && !localStorage.getItem('hrImpersonating')) ? '' : 'none';
     const tbody = document.getElementById('userTbody');
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:28px;color:#94a3b8">Lade...</td></tr>`;
     try {
@@ -147,6 +150,8 @@ function openUserModal(userId = null) {
             document.querySelectorAll('#umBranches input[type=checkbox]').forEach(cb => {
                 cb.checked = ids.includes(parseInt(cb.value));
             });
+            // Sichtbare Bereiche: null (noch nicht definiert) => alle anhaken.
+            umSetAreas(u.allowedAreas ?? null);
             umUpdateBranchVisibility();
         });
     } else {
@@ -159,12 +164,30 @@ function openUserModal(userId = null) {
         document.getElementById('umIsHrTeam').checked = false;
         document.getElementById('umIdleTimeout').value = '';
         document.getElementById('umMaxSession').value  = '';
+        umSetAreas(null);   // neuer User: standardmässig alle Bereiche sichtbar
         umUpdateBranchVisibility();
     }
     document.getElementById('userModalBg').classList.add('open');
 }
 
 function closeUserModal() { document.getElementById('userModalBg').classList.remove('open'); editingUserId = null; }
+
+// ── Sichtbare Bereiche (8 Menüpunkte) — Walter 28.06.2026 ─────────────
+// arr = Array von Bereichs-Schlüsseln, oder null => alle anhaken (Default für
+// neue/legacy User, die noch keine eigene Auswahl haben).
+function umSetAreas(arr) {
+    document.querySelectorAll('#umAreas input[type=checkbox]').forEach(cb => {
+        const a = cb.getAttribute('data-area');
+        cb.checked = (arr == null) ? true : arr.includes(a);
+    });
+}
+function umAreasSetAll(v) {
+    document.querySelectorAll('#umAreas input[type=checkbox]').forEach(cb => { cb.checked = v; });
+}
+function umGetAreas() {
+    return Array.from(document.querySelectorAll('#umAreas input[type=checkbox]:checked'))
+        .map(cb => cb.getAttribute('data-area'));
+}
 
 // ── Unterschrift-Verwaltung (im Benutzer-Modal) ────────────────────────
 async function umLoadSignaturePreview(userId) {
@@ -321,7 +344,8 @@ async function saveUser() {
     if (!maxP.ok)  { showErr(`${maxP.label} muss zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).`); return; }
 
     const body = { username, firstName, lastName, phone, email, password: password || null, role, isActive, isHrTeam, branchIds,
-                   idleTimeoutMinutes: idleP.value, maxSessionMinutes: maxP.value };
+                   idleTimeoutMinutes: idleP.value, maxSessionMinutes: maxP.value,
+                   allowedAreas: umGetAreas() };
 
     try {
         let res;

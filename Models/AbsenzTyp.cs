@@ -79,9 +79,17 @@ public class AbsenzTyp
     /// </summary>
     public string Pattern { get; set; } = "KEIN";
 
+    /// <summary>
+    /// true = eine Absenz dieses Typs, die in die Probezeit fällt, VERLÄNGERT die
+    /// Probezeit um die Anzahl Absenztage (Walter 30.06.2026). Pflegbar in der
+    /// Absenz-Typen-Konfiguration. Beim Setzen wird eine ABSENZ-Zeile in
+    /// employment_probation_log geschrieben und probation_end_date nachgeführt.
+    /// </summary>
+    public bool VerlaengertProbezeit { get; set; } = false;
+
     public int SortOrder { get; set; } = 99;
     public bool Aktiv { get; set; } = true;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
 
     /// <summary>
     /// Buchstaben-Kürzel im offiziellen ALK-Zwischenverdienst-Formular:

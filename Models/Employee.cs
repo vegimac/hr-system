@@ -176,6 +176,11 @@ public class Employee
     /// </summary>
     public bool KtgKarenzAbgeschlossen { get; set; } = false;
 
+    // Hinweis: Die Moments-Freigabe liegt seit 30.06.2026 in der eigenen Tabelle
+    // employee_moment_consent (Model EmployeeMomentConsent), NICHT mehr als Bool-
+    // Spalten am Employee. Die früheren moments_allow*-Spalten werden nicht mehr
+    // gemappt (kein Lese-Zwang mehr auf eventuell fehlende Spalten).
+
     public PermitType? PermitType { get; set; }
     public Nationality? NationalityRef { get; set; }
 

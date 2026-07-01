@@ -89,6 +89,13 @@ public class Employment
 
     public int? ProbationPeriodMonths { get; set; }
     public DateTime? ProbationEndDate { get; set; }
+    /// <summary>
+    /// Probezeit-Anker (Walter 29.06.2026): erste Stempelzeit des MA, sobald sie
+    /// beim Stempel-Sync bekannt ist. NULL = noch nicht verankert → Probezeit gilt
+    /// provisorisch ab Vertragsbeginn. Dient als Marker, damit der Anker nur EINMAL
+    /// gesetzt wird. Verschiebungen sind in employment_probation_log protokolliert.
+    /// </summary>
+    public DateOnly? ProbationStartDate { get; set; }
 
     public bool IsActive { get; set; } = true;
 

@@ -656,7 +656,10 @@ async function renderVtDetail(emp) {
                 ${c.thirteenthSalaryPercent != null
                     ? vtField(_t('vt.field.thirteenthPctShort'), c.thirteenthSalaryPercent + ' %' + (thirChf    ? ` <span style="color:#64748b;font-weight:400">· ${thirChf}</span>`    : ''))
                     : ''}
-                ${c.probationEndDate ? vtField(_t('vt.field.probationUntil'), fmt(c.probationEndDate)) : ''}
+                ${c.probationEndDate ? vtField(_t('vt.field.probationUntil'),
+                    fmt(c.probationEndDate)
+                    + (c.probationGrund ? ` <span style="color:#94a3b8;font-weight:400">· ${c.probationGrund}</span>` : '')
+                    + ` <a href="#" onclick="event.preventDefault();showProbationHistory(${c.id})" style="font-size:11px;color:#2563eb;margin-left:4px">Verlauf</a>`) : ''}
             </div>
         </div>`;
     }).join('');
@@ -681,6 +684,44 @@ async function renderVtDetail(emp) {
             <div style="font-size:12px">${_t('vt.empty.hint')}</div>
         </div>`}
     </div>`;
+}
+
+// Probezeit-Verlauf (Walter 29.06.2026): zeigt alle Verschiebungen (Anker beim
+// 1. Stempel + spätere Absenz-Verlängerungen) in einem kleinen Overlay.
+async function showProbationHistory(employmentId) {
+    let logs = [];
+    try {
+        const r = await fetch(`/api/employments/${employmentId}/probation-log`, { headers: ah() });
+        if (!r.ok) { alert('Probezeit-Verlauf konnte nicht geladen werden.'); return; }
+        logs = await r.json();
+    } catch (e) { alert('Fehler: ' + e.message); return; }
+
+    const fmtD = iso => iso ? (iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4)) : '–';
+    const escH = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const rows = logs.length
+        ? logs.map(l => `
+            <div style="padding:9px 0;border-top:1px solid #e2e8f0">
+                <div style="font-size:12.5px;color:#0f172a;font-weight:600">
+                    ${l.eventType === 'ANKER' ? '⚓ Anker (1. Arbeitstag)' : '➕ Absenz-Verlängerung'}
+                    · ${l.deltaDays > 0 ? '+' : ''}${l.deltaDays} Tag(e)
+                    → Probezeit bis ${fmtD(l.probezeitEndeNachher)}
+                </div>
+                <div style="font-size:11.5px;color:#64748b;margin-top:2px">${escH(l.grund)}</div>
+            </div>`).join('')
+        : '<div style="color:#94a3b8;font-size:12px;padding:10px 0">Noch keine Verschiebung protokolliert — Probezeit gilt ab Vertragsbeginn.</div>';
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:9999';
+    overlay.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:480px;width:90%;max-height:80vh;overflow:auto;padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="font-weight:700;font-size:15px;color:#0f172a">Probezeit-Verlauf</div>
+            <button data-close style="border:none;background:#f1f5f9;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:16px;line-height:1">×</button>
+        </div>
+        ${rows}
+    </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('[data-close]').addEventListener('click', () => overlay.remove());
+    document.body.appendChild(overlay);
 }
 
 // Öffnet das moderne Edit-Modal im 'new'-Modus, vorbefüllt mit den Werten

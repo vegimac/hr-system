@@ -42,7 +42,10 @@ public class AbsencesController : ControllerBase
             .FirstOrDefaultAsync();
         if (emp?.BranchId is null) return null; // keine Filial-Zuordnung → kein Lock
 
-        var r = await _editLock.CheckRangeAsync(User, emp.BranchId.Value, from, to);
+        // Per-Periode (Walter-Vorgabe 27.06.2026): nur sperren, wenn GENAU die
+        // Periode der Absenz abgeschlossen/in Verarbeitung ist — rückwirkende
+        // Einträge in offene/nie verarbeitete Perioden bleiben erlaubt.
+        var r = await _editLock.CheckRangePeriodAsync(User, emp.BranchId.Value, from, to);
         if (!r.Locked) return null;
 
         return Conflict(new { error = "LOHN_EDIT_LOCKED", message = r.Reason, firstAllowedDate = r.FirstAllowedDate?.ToString("yyyy-MM-dd") });

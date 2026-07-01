@@ -430,12 +430,10 @@ public class EasyAtWorkTimepunchSyncService
 
             eawEmpById.TryGetValue(p.EmployeeId, out var emp);
 
-            // Per hinterlegter easy@work-ID auflösbar → kein Problem (Walter
-            // 21.06.2026, primärer Match — deckt Pre-Mirus-„alt"-MA ab). Der
-            // Stempel referenziert die employee.id; gespeichert wurde `user_id
-            // ?? id` → beide Kandidaten prüfen.
-            if (coworkEawIds != null && (coworkEawIds.Contains(p.EmployeeId)
-                || (emp?.UserId is int uid && coworkEawIds.Contains(uid)))) continue;
+            // Per hinterlegter easy@work-Resource-ID auflösbar → kein Problem
+            // (Walter 21.06.2026, primärer Match — deckt Pre-Mirus-„alt"-MA ab).
+            // user_id wird NICHT mehr geprüft (Walter 29.06.2026) — nur die echte id.
+            if (coworkEawIds != null && coworkEawIds.Contains(p.EmployeeId)) continue;
 
             // Per hinterlegtem Alias auflösbar → kein Problem.
             if (aliasMap.ContainsKey(p.EmployeeId)) continue;
@@ -749,11 +747,23 @@ public class EasyAtWorkTimepunchSyncService
             var seen = new HashSet<int>();
             var list = new List<CoworkCandidate>();
             void AddId(int id, bool excluded) { if (seen.Add(id)) list.Add(new CoworkCandidate(id, excluded)); }
+            // 1) PRIMÄR: die AKTUELLE easy@work-Resource-id ist authoritativ.
+            //    Trifft sie einen MA, ist DAS der MA — nichts anderes wird geprüft
+            //    (Walter 29.06.2026: „nur die id"). user_id wird nie geprüft.
             if (byEawId.TryGetValue(eawEmployeeId, out var g1)) foreach (var e in g1) AddId(e.Id, e.IsPayrollExcluded);
-            if (ee?.UserId is int uid && byEawId.TryGetValue(uid, out var g2)) foreach (var e in g2) AddId(e.Id, e.IsPayrollExcluded);
-            var n = number?.Trim();
-            if (!string.IsNullOrEmpty(n) && byNumber.TryGetValue(n, out var g3)) foreach (var e in g3) AddId(e.Id, e.IsPayrollExcluded);
-            if (aliasMap.TryGetValue(eawEmployeeId, out var aid) && empById.TryGetValue(aid, out var ae)) AddId(ae.Id, ae.IsPayrollExcluded);
+            // 2) FALLBACK nur, wenn die aktuelle id KEINEN MA traf (MA ohne
+            //    gespeicherte eaw-id / alte ID an Stempeln): erst Alias-id, dann
+            //    Personalnummer. So zieht eine wiederverwendete/Alias-Nummer oder ein
+            //    stehengebliebener eaw-Alias NIE einen zweiten Lohn-MA herein, wenn
+            //    die aktuelle id schon eindeutig auflöst — das war die „mehrere
+            //    Lohn-MA"-Blockade.
+            if (list.Count == 0 && aliasMap.TryGetValue(eawEmployeeId, out var aid) && empById.TryGetValue(aid, out var ae))
+                AddId(ae.Id, ae.IsPayrollExcluded);
+            if (list.Count == 0)
+            {
+                var n = number?.Trim();
+                if (!string.IsNullOrEmpty(n) && byNumber.TryGetValue(n, out var g3)) foreach (var e in g3) AddId(e.Id, e.IsPayrollExcluded);
+            }
             return list;
         }
 
@@ -965,7 +975,85 @@ public class EasyAtWorkTimepunchSyncService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // Probezeit-Anker (Walter 29.06.2026): die Probezeit beginnt am tatsächlichen
+        // 1. Arbeitstag (= erste Stempelzeit), nicht am Vertragsbeginn.
+        await AnchorProbationFromFirstStampAsync(res, ct);
+
         return res;
+    }
+
+    /// <summary>
+    /// Öffentlicher On-Demand-Trigger für den Probezeit-Anker (Walter 29.06.2026):
+    /// führt den Anker-Pass aus, OHNE dass ein Stempel-Import nötig ist (der
+    /// Import-Button ist bei 0 neuen Stempeln gesperrt → der Anker lief sonst nie).
+    /// Liefert die Liste der verankerten MA als Klartext zurück.
+    /// </summary>
+    public async Task<List<string>> RunProbationAnchorAsync(CancellationToken ct = default)
+    {
+        var res = new AutoSyncResult();
+        await AnchorProbationFromFirstStampAsync(res, ct);
+        return res.Notes;
+    }
+
+    /// <summary>
+    /// Verankert die Probezeit am tatsächlichen 1. Arbeitstag (Walter 29.06.2026).
+    /// Geht ALLE noch NICHT verankerten Probezeiten durch (ProbationEndDate gesetzt,
+    /// ProbationStartDate == null) — so wird auch ein MA erfasst, dessen Stempel
+    /// schon in einem früheren Lauf importiert wurden. Pro MA nur, wenn er GENAU
+    /// EINEN Vertrag hat:
+    ///   • erste Stempelzeit (min EntryDate) suchen — fehlt sie, später erneut
+    ///   • Probezeit-Ende um (erste Stempelzeit − Vertragsbeginn) verschieben
+    ///   • ProbationStartDate setzen (= Anker, läuft danach nie mehr)
+    ///   • ANKER-Zeile in employment_probation_log mit Status-Grund schreiben
+    /// Idempotent: ist der Anker einmal gesetzt, passiert nichts mehr.
+    /// </summary>
+    private async Task AnchorProbationFromFirstStampAsync(AutoSyncResult res, CancellationToken ct)
+    {
+        // Provisorische (noch nicht verankerte) Probezeiten — i.d.R. wenige.
+        var candidates = await _db.Employments
+            .Where(e => e.ProbationEndDate != null && e.ProbationStartDate == null)
+            .ToListAsync(ct);
+        if (candidates.Count == 0) return;
+        bool changed = false;
+
+        foreach (var emp in candidates)
+        {
+            // Nur bei GENAU einem Vertrag (keine Historie).
+            var contractCount = await _db.Employments.CountAsync(e => e.EmployeeId == emp.EmployeeId, ct);
+            if (contractCount != 1) continue;
+
+            // Erste Stempelzeit (frühester Arbeitstag) des MA.
+            var firstStamp = await _db.EmployeeTimeEntries
+                .Where(t => t.EmployeeId == emp.EmployeeId)
+                .OrderBy(t => t.EntryDate)
+                .Select(t => (DateOnly?)t.EntryDate)
+                .FirstOrDefaultAsync(ct);
+            if (firstStamp == null) continue;
+
+            var contractStart = DateOnly.FromDateTime(emp.ContractStartDate);
+            var delta = ProbationAnchor.Delta(contractStart, firstStamp.Value);
+            var grund = ProbationAnchor.Grund(contractStart, firstStamp.Value);
+
+            var neuesEnde = DateOnly.FromDateTime(emp.ProbationEndDate.Value).AddDays(delta);
+            emp.ProbationEndDate   = neuesEnde.ToDateTime(TimeOnly.MinValue);
+            emp.ProbationStartDate = firstStamp.Value;
+
+            _db.EmploymentProbationLogs.Add(new EmploymentProbationLog
+            {
+                EmploymentId         = emp.Id,
+                EventDate            = firstStamp.Value,
+                EventType            = "ANKER",
+                DeltaDays            = delta,
+                Grund                = grund,
+                ProbezeitEndeNachher = neuesEnde,
+                CreatedAt            = DateTime.Now,   // Spalte ist timestamp WITHOUT time zone → keine UTC-Kind
+            });
+            changed = true;
+            res.Notes.Add($"Probezeit verankert (MA #{emp.EmployeeId}): {grund}.");
+        }
+
+        if (changed) await _db.SaveChangesAsync(ct);
     }
 
     // ─────────────────────────── Core ───────────────────────────────
@@ -1076,11 +1164,23 @@ public class EasyAtWorkTimepunchSyncService
             var seen = new HashSet<int>();
             var list = new List<CoworkCandidate>();
             void AddId(int id, bool excluded) { if (seen.Add(id)) list.Add(new CoworkCandidate(id, excluded)); }
+            // 1) PRIMÄR: die AKTUELLE easy@work-Resource-id ist authoritativ.
+            //    Trifft sie einen MA, ist DAS der MA — nichts anderes wird geprüft
+            //    (Walter 29.06.2026: „nur die id"). user_id wird nie geprüft.
             if (byEawId.TryGetValue(eawEmployeeId, out var g1)) foreach (var e in g1) AddId(e.Id, e.IsPayrollExcluded);
-            if (ee?.UserId is int uid && byEawId.TryGetValue(uid, out var g2)) foreach (var e in g2) AddId(e.Id, e.IsPayrollExcluded);
-            var n = number?.Trim();
-            if (!string.IsNullOrEmpty(n) && byNumber.TryGetValue(n, out var g3)) foreach (var e in g3) AddId(e.Id, e.IsPayrollExcluded);
-            if (aliasMap.TryGetValue(eawEmployeeId, out var aid) && empById.TryGetValue(aid, out var ae)) AddId(ae.Id, ae.IsPayrollExcluded);
+            // 2) FALLBACK nur, wenn die aktuelle id KEINEN MA traf (MA ohne
+            //    gespeicherte eaw-id / alte ID an Stempeln): erst Alias-id, dann
+            //    Personalnummer. So zieht eine wiederverwendete/Alias-Nummer oder ein
+            //    stehengebliebener eaw-Alias NIE einen zweiten Lohn-MA herein, wenn
+            //    die aktuelle id schon eindeutig auflöst — das war die „mehrere
+            //    Lohn-MA"-Blockade.
+            if (list.Count == 0 && aliasMap.TryGetValue(eawEmployeeId, out var aid) && empById.TryGetValue(aid, out var ae))
+                AddId(ae.Id, ae.IsPayrollExcluded);
+            if (list.Count == 0)
+            {
+                var n = number?.Trim();
+                if (!string.IsNullOrEmpty(n) && byNumber.TryGetValue(n, out var g3)) foreach (var e in g3) AddId(e.Id, e.IsPayrollExcluded);
+            }
             return list;
         }
 

@@ -221,9 +221,14 @@ public class EawProperty
     [JsonPropertyName("object_id")]   public int?      ObjectId   { get; set; }
     [JsonPropertyName("key")]         public string?   Key        { get; set; }
     [JsonPropertyName("value")]       public string?   Value      { get; set; }
-    [JsonPropertyName("from")]        public DateOnly? From       { get; set; }
-    [JsonPropertyName("to")]          public DateOnly? To         { get; set; }
+    // from/to kommen als UTC-Datetime-Strings (z.B. "2027-05-22 22:00:00") — ein
+    // direktes DateOnly würde das falsch/gar nicht parsen. Daher roh lesen und mit
+    // EawDateUtil.ParseSwissDate (UTC → Europe/Zurich, kein Off-by-one) auflösen.
+    [JsonPropertyName("from")]        public string?   FromRaw    { get; set; }
+    [JsonPropertyName("to")]          public string?   ToRaw      { get; set; }
     [JsonPropertyName("updated_at")]  public DateTime? UpdatedAt  { get; set; }
+    [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
+    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
 }
 
 /// <summary>Einzelner Kommentar (aus dem `comments`-Array eines Timepunch).</summary>

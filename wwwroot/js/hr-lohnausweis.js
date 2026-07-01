@@ -31,7 +31,7 @@ async function laInit() {
                                             { headers: ah(), cache: 'no-store' });
                 if (!sigRes.ok) {
                     html += `<div style="margin-top:8px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:12px;border-radius:6px">
-                        Hinweis: Sie haben noch keine Unterschrift hinterlegt — die Unterschriften-Stelle im PDF bleibt leer. Im Benutzerprofil kann eine Unterschrift hochgeladen werden.
+                        Hinweis: Du hast noch keine Unterschrift hinterlegt — die Unterschriften-Stelle im PDF bleibt leer. Im Benutzerprofil kannst du eine Unterschrift hochladen.
                     </div>`;
                 }
             }

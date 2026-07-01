@@ -129,7 +129,21 @@
         body.theme-dark .tbl-wrap table { color: #e2e8f0; }
         body.theme-dark th { background: #1e293b !important; color: #94a3b8 !important; border-color: #334155 !important; }
         body.theme-dark td { border-color: #334155 !important; }
-        body.theme-dark tr:hover td { background: #1e293b !important; }
+        /* Globales Dark-Mode-Hover-Sicherheitsnetz (Walter 28.06.2026): die
+           generische helle Regel `tbody tr:hover { background:#f8fafc }` würde im
+           Dunkelmodus durch transparente Zellen weiss DURCHSCHEINEN → weiss-auf-
+           weiss. Darum Zeile UND Zelle auf einen dezenten, immer sichtbaren
+           blaugrauen Schimmer überschreiben. Spezifische Tabellen (mw-/eaw-/dok-/
+           abs-table) haben weiter ihre eigenen, höher spezifischen Hover-Regeln
+           und gewinnen wo nötig. */
+        body.theme-dark tbody tr:hover,
+        body.theme-dark tr:hover td { background: rgba(125,160,205,.13) !important; }
+        /* Stempelzeiten: die sticky Filter-Zeile hat inline background:#fff +
+           weissen Box-Shadow-„Schild". Im Dunkelmodus dunkel überschreiben. */
+        body.theme-dark #stempelFilterRow {
+            background: #0f172a !important;
+            box-shadow: 0 -16px 0 16px #0f172a, inset 0 -1px 0 #334155 !important;
+        }
 
         /* ── Mindestlöhne (L-GAV) — kompakt, damit alles auf eine Seite passt ── */
         .mw-section { margin-bottom: 10px; overflow: hidden; }
@@ -740,6 +754,20 @@
         }
         body.theme-dark .emp-family-name { color: #f1f5f9 !important; }
         body.theme-dark .emp-family-meta { color: #cbd5e1 !important; }
+        /* Familien-Namen-Zeilen (Ehepartner/Kinder) werden mit Inline
+           background:#fff + onmouseover/out gerendert. Dark-Mode-Override per
+           !important schlägt den Inline-Stil — sonst bleiben sie weiss. */
+        body.theme-dark .emp-fam-headrow {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+            box-shadow: none !important;
+        }
+        body.theme-dark .emp-fam-headrow > span:first-child { color: #e2e8f0 !important; }
+        body.theme-dark .emp-fam-allow-empty {
+            background: #0a1019 !important;
+            border-color: #334155 !important;
+            color: #64748b !important;
+        }
         body.theme-dark .btn-emp-edit {
             background: #334155 !important;
             color: #cbd5e1 !important;
@@ -1034,87 +1062,213 @@
             color: #94a3b8 !important;
         }
 
-        /* ── LOGIN ─────────────────────────────────────────────── */
+        /* ── LOGIN — OneCrew (Walter-Spec 28.06.2026) ───────────────
+           Editorial / Dieter Rams / Schweizer Typografie. Extrem
+           reduziert: Off-White, viel Weissraum, keine Karten/Schatten/
+           Verläufe/Glas. Nur Typografie + Architektur-Sketch. */
+        /* McDonald's Speedee für den OneCrew-Schriftzug. Font-Dateien unter
+           wwwroot/fonts/ ablegen (Speedee_Lt.woff2 / Speedee_Bd.woff2);
+           fehlen sie, greift der Fallback-Sans automatisch. */
+        @font-face { font-family: 'Speedee'; font-weight: 300; font-style: normal; font-display: swap; src: url('fonts/Speedee_Lt.woff2') format('woff2'); }
+        @font-face { font-family: 'Speedee'; font-weight: 700; font-style: normal; font-display: swap; src: url('fonts/Speedee_Bd.woff2') format('woff2'); }
         #loginScreen {
-            position: fixed; inset: 0;
-            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
-            display: flex; align-items: center; justify-content: center; z-index: 1000;
+            position: fixed; inset: 0; z-index: 1000;
+            color: #111111;
+            /* Beige-Hintergrund wie im Hauptmenü (Dashboard) */
+            background:
+                radial-gradient(circle at 58% 47%, rgba(255, 255, 255, 0.78), transparent 25%),
+                radial-gradient(circle at 28% 50%, rgba(224, 218, 209, 0.42), transparent 36%),
+                linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%);
+            display: flex; flex-direction: column;
+            overflow: auto;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
-        .login-card {
-            background: white; border-radius: 20px; padding: 48px;
-            width: 420px; box-shadow: 0 32px 64px rgba(0,0,0,0.35);
+        /* Header — ~30% höher als gewöhnlich */
+        .login-header { padding: 7vh 24px 0; text-align: center; flex-shrink: 0; }
+        /* Offizielles OneCrew-Logo (Master-Bild, 1:1 eingebunden — nicht
+           nachgezeichnet, kein SVG, keine Proportions-Änderung). */
+        .login-logo {
+            display: block; margin: 0 auto;
+            width: auto; max-width: 660px; max-height: 188px; height: auto;
         }
-        .login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 36px; }
-        .login-brand-icon {
-            width: 48px; height: 48px; background: #3b82f6; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: 800; font-size: 20px;
+        .login-rule {
+            width: min(825px, 88%); height: 1px; background: #BFBFBF;
+            border: 0; margin: 38px auto 0;
         }
-        .login-brand-name { font-size: 22px; font-weight: 800; color: #0f172a; }
-        .login-brand-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
-        .login-title { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
-        .login-sub { color: #64748b; font-size: 14px; margin-bottom: 32px; }
-        .login-field { margin-bottom: 20px; }
-        .login-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 7px; }
+        .login-tagline {
+            margin: 20px 0 0; font-size: 15px; line-height: 1;
+            letter-spacing: 0.34em; color: #555555;
+            text-transform: uppercase; font-weight: 500;
+        }
+        /* Loginbereich — perfekt zentriert */
+        .login-main {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 48px 24px;
+        }
+        .login-inner { width: 100%; max-width: 360px; }
+        .login-title {
+            font-size: 42px; font-weight: 600; letter-spacing: -0.6px;
+            color: #111111; margin: 0; text-align: center; line-height: 1.05;
+        }
+        .login-sub {
+            color: #777777; font-size: 14px; margin: 10px 0 46px;
+            text-align: center;
+        }
+        /* Felder — nur Unterlinien, keine Rahmen */
+        .login-field { position: relative; margin-bottom: 30px; }
+        .login-field .lf-icon {
+            position: absolute; left: 2px; top: 50%; transform: translateY(-50%);
+            color: #777777; pointer-events: none; display: flex;
+        }
         .login-input {
-            width: 100%; padding: 11px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px;
-            font-size: 15px; font-family: inherit; outline: none; transition: all 0.2s;
+            width: 100%; box-sizing: border-box;
+            border: 0; border-bottom: 1px solid #BFBFBF;
+            background: transparent; color: #111111;
+            padding: 10px 30px 10px 32px; font-size: 15px;
+            font-family: inherit; outline: none;
+            transition: border-color 0.2s;
         }
-        .login-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+        .login-input::placeholder { color: #999999; }
+        .login-input:focus { border-bottom-color: #111111; }
+        .login-eye {
+            position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+            background: none; border: 0; padding: 4px; cursor: pointer;
+            color: #999999; display: flex; line-height: 0;
+        }
+        .login-eye:hover { color: #111111; }
+        /* Button — schwarz, leicht strukturiert */
         .login-btn {
-            width: 100%; padding: 12px; background: #3b82f6; color: white;
-            border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
-            cursor: pointer; font-family: inherit; transition: background 0.2s; margin-top: 4px;
+            width: 100%; margin-top: 10px; padding: 16px 20px;
+            background-color: #111111;
+            background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.025) 0 2px, rgba(255,255,255,0) 2px 4px);
+            color: #ffffff; border: 0; cursor: pointer;
+            font-family: inherit; font-size: 14px; font-weight: 500;
+            letter-spacing: 1.5px;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            transition: background-color 0.2s;
         }
-        .login-btn:hover { background: #2563eb; }
+        .login-btn:hover { background-color: #000000; }
+        .login-btn .login-arrow { font-size: 16px; transition: transform 0.2s; }
+        .login-btn:hover .login-arrow { transform: translateX(4px); }
+        .login-forgot {
+            display: block; text-align: center; margin-top: 22px;
+            font-size: 13px; color: #aaaaaa; text-decoration: none;
+            cursor: pointer; transition: color 0.2s;
+        }
+        .login-forgot:hover { color: #777777; }
         .login-error {
-            background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
-            border-radius: 8px; padding: 11px 14px; font-size: 13px;
-            margin-bottom: 18px; display: none;
+            background: transparent; border: 0; color: #b4322a;
+            padding: 0 0 18px; font-size: 13px; text-align: center;
+            display: none;
         }
+        /* Footer — eine Zeile, ~30% grösser, viel Laufweite */
+        .login-footer {
+            flex-shrink: 0; padding: 24px 24px 36px; text-align: center;
+        }
+        .login-footer-line {
+            font-size: 13px; letter-spacing: 0.28em; color: #111111;
+            text-transform: uppercase; font-weight: 500;
+        }
+        .login-footer-line .sep { color: #BFBFBF; margin: 0 14px; font-weight: 400; }
+        @media (max-width: 600px) {
+            .login-header { padding-top: 5vh; }
+            .login-logo { max-width: 88%; }
+            .login-title { font-size: 34px; }
+            .login-footer-line { font-size: 11px; letter-spacing: 0.18em; }
+            .login-footer-line .sep { margin: 0 7px; }
+        }
+
+        /* Impersonation-/Testmodus-Hinweisbalken (zentrierte Pille oben). */
+        #impersonationBanner {
+            position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 4000;
+            background: #f59e0b; color: #1f2937;
+            font-size: 13px; font-weight: 600; border-radius: 999px;
+            padding: 6px 8px 6px 16px; display: inline-flex; align-items: center; gap: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.22);
+        }
+        #impersonationBanner button {
+            background: #1f2937; color: #fff; border: 0; border-radius: 999px;
+            padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+        }
+        #impersonationBanner button:hover { background: #111827; }
 
         /* ── APP SHELL ─────────────────────────────────────────── */
         #app { display: none; height: 100vh; }
         .layout { display: flex; height: 100vh; }
 
         /* ── SIDEBAR ───────────────────────────────────────────── */
+        /* Globale Sidebar im warmen Liquid-Look (Walter-Vorgabe 27.06.2026) —
+           gilt auf allen Seiten (ausser den Liquid-Shells Dashboard/Mitarbeiter,
+           die ihre eigene Nav haben). Dark-Mode-Varianten weiter unten. */
+        /* Globale Sidebar = exakt die schmale Liquid-Rail der Mitarbeiter-Seite
+           (Walter-Vorgabe 28.06.2026). Alter Marken-/Label-Code entfernt. */
         .sidebar {
-            width: 248px; min-width: 248px; background: #0f172a;
+            width: 140px; min-width: 140px;
+            background: linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%);
+            border-right: 1px solid rgba(120,110,95,0.12);
             display: flex; flex-direction: column; overflow-y: auto;
+            padding: 6px 8px 8px;
         }
-        .sidebar-header { padding: 20px 18px; border-bottom: 1px solid rgba(255,255,255,0.07); }
-        .sidebar-brand { display: flex; align-items: center; gap: 11px; }
-        .sidebar-brand-icon {
-            width: 36px; height: 36px; background: #3b82f6; border-radius: 9px;
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: 800; font-size: 16px; flex-shrink: 0;
-        }
-        .sidebar-brand-name { color: white; font-weight: 700; font-size: 15px; }
-        .sidebar-brand-sub { color: #cbd5e1; font-size: 11px; margin-top: 1px; }
+        .sidebar-header { padding: 6px 2px 8px; border: 0; }
+        /* Offizielles OneCrew-Logo (Master-Bild, 1:1) in der Sidebar. */
+        .sidebar-logo { display: block; width: 100%; max-width: 124px; height: auto; margin: 0 auto; }
+        body.theme-dark .sidebar-logo { filter: invert(1) brightness(1.12); }
 
-        .branch-selector { padding: 10px 18px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+        .branch-selector { padding: 2px 2px 8px; border: 0; }
+        .branch-label { display: block; font-size: 10px; font-weight: 700; color: #8b96a5; text-transform: uppercase; letter-spacing: 0.1em; padding: 0 2px 4px; }
         .branch-select {
-            width: 100%; padding: 7px 10px; background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 7px;
-            color: #cbd5e1; font-size: 12px; font-family: inherit; cursor: pointer; outline: none;
+            width: 100%; padding: 8px 10px; background: rgba(255,255,255,0.55);
+            border: 1px solid rgba(255,255,255,0.62); border-radius: 12px;
+            color: #364152; font-size: 11.5px; font-weight: 700; font-family: inherit; cursor: pointer; outline: none;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 6px 14px rgba(72,63,53,0.06);
         }
-        .branch-select option { background: #1e293b; }
+        .branch-select option { background: #fff; color: #364152; }
 
-        .sidebar-nav { flex: 1; padding: 10px 0; }
-        .nav-section { margin-bottom: 6px; }
-        .nav-label {
-            padding: 14px 18px 6px; font-size: 10.5px; font-weight: 700;
-            color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.12em;
-        }
+        .sidebar-nav { flex: 1; padding: 4px 0; display: flex; flex-direction: column; gap: 6px; }
+        .nav-section { margin: 0; display: flex; flex-direction: column; gap: 6px; }
         .nav-item {
-            display: flex; align-items: center; gap: 11px;
-            padding: 10px 12px; margin: 2px 8px; border-radius: 8px;
-            cursor: pointer; color: #f1f5f9; font-size: 14px; font-weight: 600;
-            transition: all 0.15s; user-select: none;
+            position: relative;
+            width: 100%; min-height: 46px;
+            display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: 8px;
+            padding: 7px 8px; border-radius: 16px;
+            cursor: pointer; color: #626d78; font-size: 11px; font-weight: 720; line-height: 1.12;
+            background: rgba(255,255,255,0.34); border: 1px solid rgba(255,255,255,0.46);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+            transition: transform .14s ease, background .14s ease, box-shadow .14s ease; user-select: none;
         }
-        .nav-item:hover { background: rgba(255,255,255,0.12); color: #ffffff; }
-        .nav-item.active { background: #3b82f6; color: #ffffff; box-shadow: 0 2px 8px rgba(59,130,246,0.4); }
-        .nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 1; }
+        .nav-item:hover { background: rgba(255,255,255,0.58); color: #364152; transform: translateY(-1px); box-shadow: 0 10px 24px rgba(72,63,53,0.10), inset 0 1px 0 rgba(255,255,255,0.70); }
+        .nav-item.active { background: rgba(219,234,254,0.68); color: #245b92; border-color: rgba(147,197,253,0.6); }
+        .nav-icon { width: 24px; height: 24px; flex-shrink: 0; opacity: 1; }
+        .nav-icon-img { width: 32px; height: 32px; flex-shrink: 0; object-fit: contain; mix-blend-mode: multiply; }
+        body.theme-dark .nav-icon-img { mix-blend-mode: screen; filter: invert(1) brightness(1.12); }
+        #posteingangBadge { position: absolute !important; right: 6px; top: 6px; margin: 0 !important; }
+        /* Footer kompakt: nur Logout-Icon (Rail-Breite) */
+        .sidebar-footer { padding: 8px 2px; }
+        .sidebar-footer .user-avatar, .sidebar-footer .user-info { display: none; }
+        .sidebar-footer .user-row { justify-content: center; }
+        .sidebar-footer .logout-btn { margin: 0 !important; }
+
+        /* Dark-Mode: Sidebar bleibt dunkel (Walter 27.06.2026). */
+        body.theme-dark .sidebar {
+            background: #0f172a; border-right-color: rgba(255,255,255,0.07);
+        }
+        body.theme-dark .sidebar-header,
+        body.theme-dark .branch-selector,
+        body.theme-dark .sidebar-footer { border-color: rgba(255,255,255,0.07); }
+        body.theme-dark .branch-label { color: #94a3b8; }
+        body.theme-dark .branch-select {
+            background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); color: #cbd5e1;
+            box-shadow: none;
+        }
+        body.theme-dark .branch-select option { background: #1e293b; color: #cbd5e1; }
+        body.theme-dark .nav-item {
+            background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08);
+            color: #cbd5e1; box-shadow: none;
+        }
+        body.theme-dark .nav-item:hover { background: rgba(255,255,255,0.12); color: #fff; box-shadow: none; transform: none; }
+        body.theme-dark .user-name { color: #e2e8f0; }
         .nav-soon {
             margin-left: auto; font-size: 10px; font-weight: 600; color: #e2e8f0;
             background: rgba(255,255,255,0.14); padding: 2px 8px; border-radius: 10px;
@@ -1139,7 +1293,7 @@
         .admin-card-title { font-weight: 700; font-size: 15px; color: #0f172a; }
         .admin-card-desc  { font-size: 12px; color: #64748b; line-height: 1.4; }
 
-        .sidebar-footer { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.07); }
+        .sidebar-footer { padding: 14px 18px; border-top: 1px solid rgba(120,110,95,0.12); }
         .user-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
         .user-row > .user-info { flex: 1 1 0; min-width: 0; overflow: hidden; }
         .user-row > .user-info .user-name,
@@ -1151,8 +1305,8 @@
             display: flex; align-items: center; justify-content: center;
             color: white; font-weight: 700; font-size: 13px; flex-shrink: 0;
         }
-        .user-name { color: #e2e8f0; font-size: 13px; font-weight: 500; }
-        .user-role-badge { color: #64748b; font-size: 11px; }
+        .user-name { color: #364152; font-size: 13px; font-weight: 500; }
+        .user-role-badge { color: #8b96a5; font-size: 11px; }
         .logout-btn {
             margin-left: auto; padding: 6px 12px;
             background: rgba(239, 68, 68, 0.12);
@@ -1347,6 +1501,10 @@
             line-height: 1; transition: all 0.15s;
         }
         .modal-x:hover { background: #e2e8f0; color: #0f172a; }
+        /* Sichtbare-Bereiche-Häkchen im Benutzer-Modal. */
+        .um-area-cb { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 13.5px; color: #364152; padding: 6px 4px; }
+        .um-area-cb input { width: 17px; height: 17px; cursor: pointer; flex-shrink: 0; }
+        body.theme-dark .um-area-cb { color: #cbd5e1; }
         .modal-body { padding: 26px; }
         .modal-ft { padding: 16px 26px; border-top: 1px solid #f1f5f9; display: flex; gap: 10px; justify-content: flex-end; }
 
@@ -1613,7 +1771,11 @@
             gap: 12px;
             height: calc(100vh - 86px);
         }
-        #page-mitarbeiter.liquid-employee .liquid-employee-nav {
+        /* In-Page-Menü der Mitarbeiter-Seite ausgeblendet — die globale Sidebar
+           übernimmt jetzt überall die Navigation (Walter 28.06.2026, kein Springen
+           mehr). Elemente bleiben im DOM, damit Branch-JS nicht bricht. */
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav { display: none !important; }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-OLD {
             width: 132px;
             min-width: 132px;
             padding: 10px 8px;
@@ -1629,6 +1791,8 @@
             gap: 6px;
             overflow-y: auto;
         }
+        #page-mitarbeiter.liquid-employee .liquid-employee-brand { padding: 2px 2px 8px; }
+        #page-mitarbeiter.liquid-employee .liquid-employee-brand .sidebar-logo { max-width: 116px; }
         #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn {
             width: 100%;
             min-height: 46px;
@@ -1668,6 +1832,12 @@
             width: 24px;
             height: 24px;
             stroke-width: 1.9;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn img.le-nav-img {
+            width: 32px; height: 32px; object-fit: contain; mix-blend-mode: multiply;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn img.le-nav-img {
+            mix-blend-mode: screen; filter: invert(1) brightness(1.12);
         }
         #page-mitarbeiter.liquid-employee .liquid-employee-branch {
             padding: 6px 4px 8px;
@@ -1713,7 +1883,11 @@
             width: 14px;
             height: 14px;
         }
-        #page-mitarbeiter.liquid-employee .liquid-employee-branch-options {
+        /* Dropdown wird beim Öffnen an <body> portalt (siehe toggleLiquidEmployeeBranchMenu),
+           damit es NICHT vom backdrop-filter + overflow der Glas-Nav eingefangen/abgeschnitten
+           wird. Deshalb sind diese Regeln global (kein #page-mitarbeiter-Scope) und nutzen feste
+           Farben statt der --emp-*-Variablen, die nur auf der Seite definiert sind. */
+        .liquid-employee-branch-options {
             display: none;
             position: fixed;
             z-index: 3000;
@@ -1728,16 +1902,16 @@
             backdrop-filter: blur(28px) saturate(145%);
             -webkit-backdrop-filter: blur(28px) saturate(145%);
         }
-        #page-mitarbeiter.liquid-employee .liquid-employee-branch.open .liquid-employee-branch-options {
+        .liquid-employee-branch-options.open {
             display: grid;
             gap: 3px;
         }
-        #page-mitarbeiter.liquid-employee .liquid-employee-branch-option {
+        .liquid-employee-branch-option {
             border: 0;
             border-radius: 13px;
             padding: 8px 10px;
             background: transparent;
-            color: var(--emp-text);
+            color: #526071;
             font: inherit;
             font-size: 12px;
             font-weight: 680;
@@ -1748,19 +1922,22 @@
             gap: 7px;
             align-items: center;
         }
-        #page-mitarbeiter.liquid-employee .liquid-employee-branch-option:hover,
-        #page-mitarbeiter.liquid-employee .liquid-employee-branch-option.active {
+        .liquid-employee-branch-option:hover,
+        .liquid-employee-branch-option.active {
             background: rgba(255,255,255,.48);
-            color: var(--emp-text-strong);
+            color: #364152;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-branch-btn,
-        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-branch-options {
+        body.theme-dark .liquid-employee-branch-options {
             background: rgba(24,36,49,.54);
             border-color: rgba(122,145,165,.20);
-            color: var(--emp-text);
+            color: #cbd5e1;
         }
-        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-branch-option:hover,
-        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-branch-option.active {
+        body.theme-dark .liquid-employee-branch-option {
+            color: #cbd5e1;
+        }
+        body.theme-dark .liquid-employee-branch-option:hover,
+        body.theme-dark .liquid-employee-branch-option.active {
             background: rgba(255,255,255,.10);
             color: #f8fafc;
         }
@@ -1976,7 +2153,7 @@
             padding: 0 0 0 3px;
             border-left: none;
             background: transparent;
-            color: #2374b7;
+            color: var(--emp-text-strong);
             font-size: 12px;
             letter-spacing: -.01em;
             text-transform: none;
@@ -2622,6 +2799,138 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
             padding-left: 0;
             padding-right: 0;
+        }
+
+        /* Liquid-Glass Tab-Leiste im MA-Detail (Walter-Wunsch 27.06.2026): Pillen
+           im selben Look wie die Seiten-Nav. Steht bewusst NACH dem „keine
+           Innen-Frames"-Override oben und gewinnt dadurch (gleiche Spezifität,
+           spätere Quelle + !important). */
+        #page-mitarbeiter.liquid-employee .emp-detail-tabs {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: stretch;
+            gap: 8px !important;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-tab {
+            flex: 1 1 0;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 46px;
+            padding: 7px 10px !important;
+            border: 1px solid rgba(255,255,255,.46) !important;
+            border-radius: 14px !important;
+            background: rgba(255,255,255,.34) !important;
+            color: #526071 !important;
+            font-size: 11px;
+            font-weight: 680 !important;
+            box-shadow: 0 8px 20px rgba(72,63,53,.07), inset 0 1px 0 rgba(255,255,255,.50) !important;
+            backdrop-filter: blur(18px) saturate(150%) !important;
+            -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+            text-decoration: none !important;
+            transition: transform .14s ease, background .14s ease, box-shadow .14s ease;
+        }
+        #page-mitarbeiter.liquid-employee .emp-tab:hover {
+            transform: translateY(-1px);
+            background: rgba(255,255,255,.58) !important;
+            color: #364152 !important;
+            box-shadow: 0 10px 24px rgba(72,63,53,.10), inset 0 1px 0 rgba(255,255,255,.70) !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-tab.active {
+            background: rgba(219,234,254,.68) !important;
+            border-color: rgba(147,197,253,.60) !important;
+            color: #245b92 !important;
+            box-shadow: 0 8px 20px rgba(72,63,53,.10), inset 0 1px 0 rgba(255,255,255,.66) !important;
+            text-decoration: none !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-tabs {
+            background: rgba(24,36,49,.46) !important;
+            border-color: rgba(122,145,165,.20) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab {
+            background: rgba(255,255,255,.05) !important;
+            border-color: rgba(255,255,255,.08) !important;
+            color: #cbd5e1 !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab:hover {
+            background: rgba(255,255,255,.10) !important;
+            color: #f1f5f9 !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active {
+            background: rgba(59,130,246,.30) !important;
+            border-color: rgba(96,165,250,.45) !important;
+            color: #dbeafe !important;
+        }
+
+        /* ── Liquid-Glass Tab-INHALTE (Walter-Wunsch 27.06.2026) ──────────
+           Legt sich über die bestehenden Karten/Tabellen der MA-Detail-Tabs.
+           Logik/IDs/Handler bleiben unangetastet — reiner Look. */
+        /* Familien-Karten (Ehepartner, Kinder) → Glas statt massiv grau */
+        #page-mitarbeiter.liquid-employee .emp-family-card {
+            background: rgba(255,255,255,.32) !important;
+            border: 1px solid rgba(255,255,255,.52) !important;
+            border-radius: 16px !important;
+            box-shadow: 0 12px 32px rgba(72,63,53,.08), inset 0 1px 0 rgba(255,255,255,.52) !important;
+            backdrop-filter: blur(18px) saturate(150%);
+            -webkit-backdrop-filter: blur(18px) saturate(150%);
+        }
+        #page-mitarbeiter.liquid-employee .emp-family-card table.fm-subtable td,
+        #page-mitarbeiter.liquid-employee .emp-family-card .fm-subrow {
+            background: rgba(255,255,255,.62) !important;
+            border: 1px solid rgba(255,255,255,.70) !important;
+            border-radius: 10px !important;
+        }
+        /* Tabellen (Bank, Absenzen, KTG, Dokumente) → Glas-Header + leichte Zeilen */
+        #page-mitarbeiter.liquid-employee .dok-table thead th,
+        #page-mitarbeiter.liquid-employee .abs-table th {
+            background: rgba(255,255,255,.40) !important;
+            color: #526071 !important;
+            border-bottom: 1px solid rgba(255,255,255,.55) !important;
+        }
+        #page-mitarbeiter.liquid-employee .dok-table tbody td,
+        #page-mitarbeiter.liquid-employee .abs-table td {
+            border-bottom: 1px solid rgba(255,255,255,.42) !important;
+        }
+        #page-mitarbeiter.liquid-employee .dok-table tbody tr:hover td,
+        #page-mitarbeiter.liquid-employee .abs-table tbody tr:hover td {
+            background: rgba(255,255,255,.35) !important;
+        }
+        /* Dark-Mode-Hover (Walter 28.06.2026): Die generische Regel
+           `tbody tr:hover { background:#f8fafc }` (oben) macht JEDE Zeile beim
+           Hover fast weiss — im Dunkelmodus unlesbar. Darum hier die TR-
+           Weissfärbung neutralisieren und stattdessen ein dezentes, deckendes
+           Highlight auf den Zellen setzen (helle Schrift bleibt lesbar). */
+        body.theme-dark #page-mitarbeiter.liquid-employee .dok-table tbody tr:hover,
+        body.theme-dark #page-mitarbeiter.liquid-employee .abs-table tbody tr:hover {
+            background: transparent !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .dok-table tbody tr:hover td,
+        body.theme-dark #page-mitarbeiter.liquid-employee .abs-table tbody tr:hover td {
+            background: rgba(125,160,205,.16) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-family-card {
+            background: rgba(24,36,49,.46) !important;
+            border-color: rgba(122,145,165,.20) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-family-card table.fm-subtable td,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-family-card .fm-subrow {
+            background: rgba(255,255,255,.06) !important;
+            border-color: rgba(255,255,255,.10) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .dok-table thead th,
+        body.theme-dark #page-mitarbeiter.liquid-employee .abs-table th {
+            background: rgba(255,255,255,.05) !important;
+            color: #94a3b8 !important;
+            border-bottom-color: rgba(255,255,255,.10) !important;
         }
 
         /* Sticky-Kopfzeile für lange Detail-/Tab-Ansichten (Walter-Vorgabe
@@ -3497,6 +3806,39 @@
             font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s;
         }
         .fmf-input:focus, .fmf-select:focus { border-color: #3b82f6; }
+
+        /* ── Familien-Modal im neuen warmen Look (Walter 27.06.2026) ──────
+           Kein Blau mehr: Sektions-Köpfe neutral, Feld-/Adress-Boxen warm
+           statt blau-grau (#e2e8f0), warmer Fokus statt Blau. */
+        #familyModal .emp-section-title {
+            background: transparent !important;
+            border-left: none !important;
+            border-radius: 0 !important;
+            color: #364152 !important;
+            text-transform: none !important;
+            letter-spacing: -.01em !important;
+            font-size: 12px !important;
+            font-weight: 760 !important;
+            padding: 0 0 0 3px !important;
+            margin: 14px 0 5px !important;
+        }
+        #familyModal .emp-field-grid,
+        #familyModal .emp-field-grid-3,
+        #familyModal .fmf-addr-card {
+            background: #f6f3ee !important;
+            border: 1px solid #e7e1d8 !important;
+            border-radius: 14px !important;
+        }
+        #familyModal .fmf-input,
+        #familyModal .fmf-select {
+            border: 1px solid #e2ddd3 !important;
+            border-radius: 9px !important;
+        }
+        #familyModal .fmf-input:focus,
+        #familyModal .fmf-select:focus {
+            border-color: #c9bfb0 !important;
+            box-shadow: 0 0 0 3px rgba(180,165,140,.14) !important;
+        }
         .fmf-checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #374151; margin-bottom: 14px; }
         .fmf-section { font-size: 11px; font-weight: 700; color: #3b82f6; text-transform: uppercase;
             letter-spacing: 0.08em; margin: 18px 0 10px; padding-bottom: 5px; border-bottom: 1px solid #e2e8f0; }
@@ -3676,6 +4018,40 @@
             background: #1e293b; border-color: #475569; color: #f1f5f9;
         }
 
+        /* ── MA-Modals im neuen warmen Look (Walter 27.06.2026) ────────────
+           Gilt für ALLE .ma-modal-box-Dialoge (Absenz, Bankverbindung, …):
+           kein Blau — Sektions-Köpfe neutral, Feld-Boxen warm statt blau-grau
+           (#e2e8f0), warmer Fokus. Analog Familien-Modal. */
+        .ma-modal-box .emp-section-title {
+            background: transparent !important;
+            border-left: none !important;
+            border-radius: 0 !important;
+            color: #364152 !important;
+            text-transform: none !important;
+            letter-spacing: -.01em !important;
+            font-size: 12px !important;
+            font-weight: 760 !important;
+            padding: 0 0 0 3px !important;
+            margin: 14px 0 5px !important;
+        }
+        .ma-modal-box .ma-grid {
+            background: #f6f3ee !important;
+            border: 1px solid #e7e1d8 !important;
+            border-radius: 14px !important;
+        }
+        .ma-modal-box .ma-input,
+        .ma-modal-box .ma-select,
+        .ma-modal-box .ma-textarea {
+            border: 1px solid #e2ddd3 !important;
+            border-radius: 9px !important;
+        }
+        .ma-modal-box .ma-input:focus,
+        .ma-modal-box .ma-select:focus,
+        .ma-modal-box .ma-textarea:focus {
+            border-color: #c9bfb0 !important;
+            box-shadow: 0 0 0 3px rgba(180,165,140,.14) !important;
+        }
+
         .emp-no-selection {
             display: flex; align-items: center; justify-content: center;
             flex-direction: column; gap: 10px; height: 100%; color: #94a3b8;
@@ -3811,10 +4187,13 @@
             position: relative;
             z-index: 1;
         }
-        body.liquid-shell-active .sidebar {
+        /* Globale Sidebar nur noch auf dem Dashboard ausblenden (Walter 28.06.2026).
+           Auf der Mitarbeiter-Seite zeigt jetzt dieselbe globale Sidebar wie überall
+           — kein Springen mehr beim Seitenwechsel. */
+        body.dashboard-shell-active .sidebar {
             display: none;
         }
-        body.liquid-shell-active .main {
+        body.dashboard-shell-active .main {
             width: 100%;
             min-width: 0;
         }
@@ -4068,6 +4447,13 @@
             filter: drop-shadow(0 4px 8px rgba(255,255,255,.28));
             position: relative;
             z-index: 1;
+        }
+        /* Bild-Icon (Mitarbeiter-Sketch) im Dark-Mode: invertieren + screen,
+           damit die Bleistift-Linien hell auf der dunklen Kachel erscheinen
+           (multiply würde sie sonst schlucken). Walter 28.06.2026 */
+        body.theme-dark .liquid-dashboard .liquid-module-card img {
+            mix-blend-mode: screen !important;
+            filter: invert(1) brightness(1.1);
         }
         .liquid-dashboard .liquid-module-card span {
             font-size: 13px;
@@ -4348,36 +4734,64 @@
 </head>
 <body>
 
-<!-- ═══════════════ LOGIN ═══════════════ -->
+<!-- ═══════════════ LOGIN — OneCrew ═══════════════ -->
 <div id="loginScreen">
-    <div class="login-card">
-        <div class="login-brand">
-            <div class="login-brand-icon">S</div>
-            <div>
-                <div class="login-brand-name">Schaub HR</div>
-                <div class="login-brand-sub">Restaurant Management System</div>
-            </div>
+    <!-- Header: unveränderter Architektur-Sketch (Bogen) + Schriftzug OneCrew,
+         darunter Linie + Purpose Statement -->
+    <header class="login-header">
+        <img class="login-logo" src="img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+        <hr class="login-rule">
+        <p class="login-tagline">Hospitality starts with our Crew.</p>
+    </header>
+
+    <!-- Loginbereich: perfekt zentriert -->
+    <main class="login-main">
+        <div class="login-inner">
+            <h1 class="login-title" id="loginGreeting">Willkommen</h1>
+            <p class="login-sub">Schön, dass du da bist! Melde dich an, um loszulegen.</p>
+            <div id="loginError" class="login-error"></div>
+            <!-- Echte <form> mit submit-Event: triggert den Browser-Passwort-
+                 Manager zuverlässig an. -->
+            <form id="loginForm" onsubmit="event.preventDefault(); doLogin();" autocomplete="on" method="post" action="#">
+                <div class="login-field">
+                    <span class="lf-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg></span>
+                    <input type="text" id="loginEmail" name="email" class="login-input" placeholder="Benutzername" autocomplete="username" required>
+                </div>
+                <div class="login-field">
+                    <span class="lf-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+                    <input type="password" id="loginPassword" name="password" class="login-input" placeholder="Passwort" autocomplete="current-password" required>
+                    <button type="button" class="login-eye" tabindex="-1" aria-label="Passwort anzeigen"
+                            onclick="(function(b){var i=document.getElementById('loginPassword');i.type=i.type==='password'?'text':'password';})(this)">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+                <button type="submit" class="login-btn">Anmelden <span class="login-arrow">→</span></button>
+                <a class="login-forgot" onclick="event.preventDefault(); alert('Bitte wende dich an deine HR-Administration, um dein Passwort zurückzusetzen.');">Passwort vergessen?</a>
+            </form>
         </div>
-        <h2 class="login-title">Willkommen zurück</h2>
-        <p class="login-sub">Bitte melden Sie sich an, um fortzufahren.</p>
-        <div id="loginError" class="login-error"></div>
-        <!-- Echte <form> mit submit-Event: triggert den Browser-Passwort-
-             Manager zuverlässig an. Mit autocomplete=on erkennt Chrome/
-             Safari/Firefox das als Login-Form und bietet "Passwort
-             speichern?" an. -->
-        <form id="loginForm" onsubmit="event.preventDefault(); doLogin();" autocomplete="on" method="post" action="#">
-            <div class="login-field">
-                <label class="login-label" for="loginEmail">E-Mail-Adresse oder Personalnummer</label>
-                <input type="text" id="loginEmail" name="email" class="login-input" placeholder="ihre@email.ch oder 750009" autocomplete="username" required>
-            </div>
-            <div class="login-field">
-                <label class="login-label" for="loginPassword">Passwort</label>
-                <input type="password" id="loginPassword" name="password" class="login-input" placeholder="••••••••" autocomplete="current-password" required>
-            </div>
-            <button type="submit" class="login-btn">Anmelden</button>
-        </form>
-    </div>
+    </main>
+
+    <!-- Footer: eine Zeile, nur Typografie -->
+    <footer class="login-footer">
+        <div class="login-footer-line">
+            People inspire people<span class="sep">|</span>Precision builds trust<span class="sep">|</span>Together we create great guest experiences
+        </div>
+    </footer>
 </div>
+<script>
+    // Tageszeitabhängige, persönliche du-Begrüssung auf der Anmeldeseite
+    (function () {
+        var h = new Date().getHours();
+        var g = (h < 5) ? 'Gute Nacht'
+              : (h < 11) ? 'Guten Morgen'
+              : (h < 13) ? 'Guten Tag'
+              : (h < 18) ? 'Guten Nachmittag'
+              : (h < 22) ? 'Guten Abend'
+              : 'Gute Nacht';
+        var el = document.getElementById('loginGreeting');
+        if (el) el.textContent = g;
+    })();
+</script>
 
 <!-- ═══════════════ APP ═══════════════ -->
 <div id="app">
@@ -4439,101 +4853,81 @@
         <!-- SIDEBAR -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-brand">
-                    <div class="sidebar-brand-icon">S</div>
-                    <div>
-                        <div class="sidebar-brand-name">Schaub HR</div>
-                        <div class="sidebar-brand-sub">Restaurant Management</div>
-                    </div>
-                </div>
+                <img class="sidebar-logo" src="img/onecrew-logo.png?v=20260628a" alt="OneCrew">
             </div>
             <div class="branch-selector">
+                <span class="branch-label">Filiale</span>
                 <select class="branch-select" id="branchSelect" onchange="onBranchChange()">
                     <option value="" data-i18n="dash.allBranches">Alle Filialen</option>
                 </select>
             </div>
+            <!-- Einheitliche Menü-Reihenfolge (Walter 28.06.2026) — identisch zur
+                 Mitarbeiter-Nav & zum Dashboard. JEDER Punkt in seiner eigenen
+                 Rollen-Sektion (overview/people/import/finance/hr/buchhaltung/
+                 admin-only), damit das Rollen-Gating in startApp erhalten bleibt;
+                 mehrere Divs derselben Sektionsklasse sind erlaubt. -->
             <nav class="sidebar-nav">
                 <div class="nav-section overview-section">
-                    <div class="nav-label" data-i18n="side.section.overview">Übersicht</div>
                     <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
                         <span data-i18n="side.dashboard">Dashboard</span>
-                    </div>
-                    <div class="nav-item" data-page="posteingang" onclick="showPage('posteingang')">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                        <span data-i18n="side.posteingang">Posteingang</span>
-                        <span id="posteingangBadge" style="display:none;margin-left:auto;background:#ef4444;color:white;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px"></span>
                     </div>
                 </div>
                 <div class="nav-section people-section">
-                    <div class="nav-label" data-i18n="side.section.people">Personal</div>
                     <div class="nav-item" data-page="mitarbeiter" onclick="showPage('mitarbeiter')">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <img class="nav-icon-img" src="img/mitarbeiter-icon.png?v=20260628b" alt="">
                         <span data-i18n="side.employees">Mitarbeiter</span>
                     </div>
-                    <div class="nav-item" data-page="vertraege" onclick="showPage('vertraege')">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                        <span data-i18n="side.contracts">Verträge</span>
+                    <div class="nav-item" data-page="moments" onclick="showPage('moments')">
+                        <img class="nav-icon-img" src="img/moments-icon.png?v=20260630c" alt="">
+                        <span>Moments</span>
                     </div>
                 </div>
-                <!-- Datenimport: nur admin sichtbar. Laufende Imports.
-                     Filial-Onboarding (Erst-Import einer Filiale mit Archiv,
-                     Bewilligungen, Banken, d.velop) liegt in Systemeinstellungen
-                     unter „Neue Filiale importieren". -->
-                <div class="nav-section import-section" style="display:none">
-                    <div class="nav-label" data-i18n="side.section.dataImport">Datenimport</div>
-                    <div class="nav-item" data-page="import-mitarbeiter" onclick="openImportTool()" title="CSV-Import: Mitarbeiter, Adressen und Verträge aus easy@work">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                        <span data-i18n="side.maImport">Mitarbeiter & Verträge</span>
-                    </div>
-                    <!-- Stempelzeiten-Import entfernt (Walter 17.06.2026):
-                         Stempelzeiten kommen ab sofort ausschliesslich aus easy@work
-                         via API-Sync (Systemeinstellungen → easy@work API). PDF-Import
-                         ist obsolet. -->
-                    <div class="nav-item" data-page="roster-absence-import" onclick="showPage('roster-absence-import')" title="Dienstplan-XLS → Absenzen (Ferien / Krankheit / Unfall)">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        <span>Absenzen (Dienstplan)</span>
+                <div class="nav-section overview-section">
+                    <div class="nav-item" data-page="posteingang" onclick="showPage('posteingang')">
+                        <img class="nav-icon-img" src="img/postfach-icon.png?v=20260628a" alt="">
+                        <span>Postfach</span>
+                        <span id="posteingangBadge" style="display:none;margin-left:auto;background:#ef4444;color:white;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px"></span>
                     </div>
                 </div>
                 <div class="nav-section finance-section" style="display:none">
-                    <div class="nav-label" data-i18n="side.section.payroll">Finanzen</div>
+                    <div class="nav-item" data-page="auswertungen" onclick="showPage('auswertungen')" title="Auswertungen — Sollstunden, Ferien / Feiertage / Nacht">
+                        <img class="nav-icon-img" src="img/auswertung-icon.png?v=20260628a" alt="">
+                        <span>Auswertungen</span>
+                    </div>
+                </div>
+                <!-- Datenimport: nur admin sichtbar. -->
+                <div class="nav-section import-section" style="display:none">
+                    <div class="nav-item" data-page="roster-absence-import" onclick="showPage('roster-absence-import')" title="Mirus-Dienstplan-XLS → Absenzen (Ferien / Krankheit / Unfall / unbez. Urlaub)">
+                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m8 15 2 2 5-5"/></svg>
+                        <span>Mirus Absenz Import</span>
+                    </div>
+                </div>
+                <div class="nav-section finance-section" style="display:none">
                     <div class="nav-item" data-page="lohn" onclick="showPage('lohn')">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        <span data-i18n="side.lohnlauf">Lohn</span>
-                    </div>
-                    <div class="nav-item" data-page="sollstunden" onclick="showPage('sollstunden')" title="Soll-/Ist-Stunden pro MA (FIX/FIX-M/MTP)">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <span>Sollstunden</span>
-                    </div>
-                    <div class="nav-item" data-page="ferien" onclick="showPage('ferien')" title="Ferien / Feiertage / Nacht — Anspruch vs. Bezug pro MA (Jahr)">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 18l4-9 4 5 3-7 6 11z"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-                        <span>Ferien/Feier/Nacht</span>
+                        <img class="nav-icon-img" src="img/lohn-icon.png?v=20260628a" alt="">
+                        <span>Lohnlauf</span>
                     </div>
                 </div>
-
-                <!-- Buchhaltung: nur Rolle buchhaltung + admin. Eigener, abgegrenzter Bereich. -->
-                <div class="nav-section buchhaltung-section" style="display:none">
-                    <div class="nav-label">Buchhaltung</div>
-                    <div class="nav-item" data-page="fibu" onclick="showPage('fibu')">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
-                        <span>Fibu</span>
-                    </div>
-                </div>
-
-                <!-- HR-Bereich: nur admin/superuser -->
+                <!-- HR-Hub: nur admin/superuser/buchhaltung -->
                 <div class="nav-section hr-section" style="display:none">
-                    <div class="nav-label">HR</div>
                     <div class="nav-item" data-page="hr-hub" onclick="showPage('hr-hub')">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                        HR-Bereich
+                        <img class="nav-icon-img" src="img/hr-icon.png?v=20260628a" alt="">
+                        <span>HR-Hub</span>
                     </div>
                 </div>
-
+                <!-- Buchhaltung: nur Rolle buchhaltung + admin. -->
+                <div class="nav-section buchhaltung-section" style="display:none">
+                    <div class="nav-item" data-page="fibu" onclick="showPage('fibu')">
+                        <img class="nav-icon-img" src="img/fibu-icon.png?v=20260628a" alt="">
+                        <span>FIBU</span>
+                    </div>
+                </div>
                 <!-- Systemeinstellungen: nur Admin -->
                 <div class="nav-section admin-only-section" style="display:none">
                     <div class="nav-item" data-page="admin-hub" onclick="showPage('admin-hub')">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                        <span data-i18n="side.settings">Systemeinstellungen</span>
+                        <img class="nav-icon-img" src="img/system-icon.png?v=20260628a" alt="">
+                        <span data-i18n="side.settings">System</span>
                     </div>
                 </div>
             </nav>
@@ -4587,48 +4981,45 @@
                     </div>
                     <div class="liquid-home-shell">
                         <section class="liquid-module-grid" aria-label="Hauptmodule">
-                            <button class="liquid-module-card" onclick="openLiquidDocumentsCard()" type="button">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 7h7l2 2h9v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 7V5h4l2 2"/></svg>
-                                <span>Dokumente</span>
-                            </button>
                             <button class="liquid-module-card" onclick="showPage('mitarbeiter')" type="button">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M12 20a6 6 0 0 1 9 0"/></svg>
+                                <!-- Mitarbeiter-Icon: Original-Sketch (Walter 28.06.2026). mix-blend-mode:multiply
+                                     lässt den cremefarbenen Papier-Hintergrund in der warmen Kachel verschwinden. -->
+                                <img src="img/mitarbeiter-icon.png?v=20260628b" alt="Mitarbeiter"
+                                     style="width:96px;height:96px;object-fit:contain;mix-blend-mode:multiply;position:relative;z-index:1">
                                 <span>Mitarbeiter</span>
                             </button>
+                            <button class="liquid-module-card" onclick="showPage('moments')" type="button">
+                                <!-- Moments-Icon: eng zugeschnittener Sketch, füllt die Kachel fast aus -->
+                                <img src="img/moments-icon.png?v=20260630c" alt="Moments" style="width:108px;height:108px;object-fit:contain;mix-blend-mode:multiply;position:relative;z-index:1">
+                                <span>Moments</span>
+                            </button>
                             <button class="liquid-module-card" onclick="showPage('posteingang')" type="button">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>
+                                <!-- Postfach-Icon: Original-Sketch (Briefumschlag), gleich wie Mitarbeiter-Icon -->
+                                <img src="img/postfach-icon.png?v=20260628a" alt="Postfach" style="width:96px;height:96px;object-fit:contain;mix-blend-mode:multiply;position:relative;z-index:1">
                                 <span>Postfach</span>
                             </button>
-                            <button class="liquid-module-card" onclick="showPage('hr-hub')" type="button" data-liquid-roles="admin,superuser,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/><path d="M3 20h18"/></svg>
+                            <button class="liquid-module-card" onclick="showPage('auswertungen')" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
+                                <img src="img/auswertung-icon.png?v=20260628a" alt="Auswertungen" style="width:96px;height:96px;object-fit:contain;mix-blend-mode:multiply;position:relative;z-index:1">
                                 <span>Auswertungen</span>
                             </button>
-                            <button class="liquid-module-card" onclick="openImportTool()" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M20 8v6"/><path d="M17 11h6"/></svg>
-                                <span>Mitarbeiter &amp;<br>Verträge</span>
-                            </button>
-                            <button class="liquid-module-card" onclick="showPage('roster-absence-import')" type="button" data-liquid-roles="admin">
+                            <button class="liquid-module-card" onclick="showPage('roster-absence-import')" type="button" data-liquid-roles="admin,superuser">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m8 15 2 2 5-5"/></svg>
-                                <span>Absenzen<br>Dienstplan</span>
+                                <span>Mirus Absenz<br>Import</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('lohn')" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                <img src="img/lohn-icon.png?v=20260628a" alt="Lohnlauf" style="width:96px;height:96px;object-fit:contain;mix-blend-mode:multiply;position:relative;z-index:1">
                                 <span>Lohnlauf</span>
                             </button>
-                            <button class="liquid-module-card" onclick="showPage('sollstunden')" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/><path d="M4 20h16"/></svg>
-                                <span>Sollstunden</span>
-                            </button>
-                            <button class="liquid-module-card" onclick="showPage('ferien')" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 18l4-9 4 5 3-7 6 11z"/><path d="M2 20h20"/><path d="M17 5c.8.6 1.4 1.3 1.8 2.2"/></svg>
-                                <span>Ferien / Feier<br>Nacht</span>
+                            <button class="liquid-module-card" onclick="showPage('hr-hub')" type="button" data-liquid-roles="admin,superuser,buchhaltung">
+                                <img src="img/hr-icon.png?v=20260628a" alt="HR-Hub" style="width:96px;height:96px;object-fit:contain;mix-blend-mode:multiply;position:relative;z-index:1">
+                                <span>HR-Hub</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('fibu')" type="button" data-liquid-roles="admin,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+                                <img src="img/fibu-icon.png?v=20260628a" alt="FIBU" style="width:96px;height:96px;object-fit:contain;mix-blend-mode:multiply;position:relative;z-index:1">
                                 <span>FIBU</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('admin-hub')" type="button" data-liquid-roles="admin">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.86l.04.04a2 2 0 0 1-2.83 2.83l-.04-.04A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.05A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.86.34l-.04.04a2 2 0 0 1-2.83-2.83l.04-.04A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.05A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.86l-.04-.04A2 2 0 0 1 7.05 4.27l.04.04A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.05A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.86-.34l.04-.04a2 2 0 0 1 2.83 2.83l-.04.04A1.7 1.7 0 0 0 19.4 9c.7.28 1.1.9 1.1 1.65V11a2 2 0 0 1 0 2h-.05A1.7 1.7 0 0 0 19.4 15z"/></svg>
+                                <img src="img/system-icon.png?v=20260628a" alt="Systemeinstellungen" style="width:96px;height:96px;object-fit:contain;mix-blend-mode:multiply;position:relative;z-index:1">
                                 <span>System-<br>einstellungen</span>
                             </button>
                         </section>
@@ -4666,6 +5057,9 @@
                 <div class="page-body" style="padding-top:50px">
                     <div class="emp-layout liquid-employee-layout-grid">
                         <nav class="liquid-employee-nav" aria-label="Schnellnavigation">
+                            <div class="liquid-employee-brand">
+                                <img class="sidebar-logo" src="img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+                            </div>
                             <div class="liquid-employee-branch" id="liquidEmployeeBranchWrap" hidden>
                                 <label>Filiale</label>
                                 <button type="button" class="liquid-employee-branch-btn" onclick="toggleLiquidEmployeeBranchMenu(event)" aria-haspopup="listbox" aria-expanded="false">
@@ -4679,39 +5073,35 @@
                                 <span>Dashboard</span>
                             </button>
                             <button class="liquid-employee-nav-btn active" onclick="showPage('mitarbeiter')" type="button" title="Mitarbeiter" aria-label="Mitarbeiter">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M12 20a6 6 0 0 1 9 0"/></svg>
+                                <img class="le-nav-img" src="img/mitarbeiter-icon.png?v=20260628b" alt="">
                                 <span>Mitarbeiter</span>
                             </button>
-                            <button class="liquid-employee-nav-btn" onclick="openLiquidDocumentsCard()" type="button" title="Dokumente" aria-label="Dokumente">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 7h7l2 2h9v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 7V5h4l2 2"/></svg>
-                                <span>Dokumente</span>
-                            </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('posteingang')" type="button" title="Postfach" aria-label="Postfach">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>
+                                <img class="le-nav-img" src="img/postfach-icon.png?v=20260628a" alt="">
                                 <span>Postfach</span>
                             </button>
-                            <button class="liquid-employee-nav-btn" onclick="openImportTool()" type="button" title="Mitarbeiter & Verträge importieren" aria-label="Mitarbeiter & Verträge importieren" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M20 8v6"/><path d="M17 11h6"/></svg>
-                                <span>Import</span>
+                            <button class="liquid-employee-nav-btn" onclick="showPage('auswertungen')" type="button" title="Auswertungen" aria-label="Auswertungen" data-liquid-roles="admin,superuser,user,buchhaltung">
+                                <img class="le-nav-img" src="img/auswertung-icon.png?v=20260628a" alt="">
+                                <span>Auswertungen</span>
+                            </button>
+                            <button class="liquid-employee-nav-btn" onclick="showPage('roster-absence-import')" type="button" title="Mirus Absenz Import" aria-label="Mirus Absenz Import" data-liquid-roles="admin,superuser">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m8 15 2 2 5-5"/></svg>
+                                <span>Mirus Absenz<br>Import</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('lohn')" type="button" title="Lohnlauf" aria-label="Lohnlauf" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                <img class="le-nav-img" src="img/lohn-icon.png?v=20260628a" alt="">
                                 <span>Lohnlauf</span>
                             </button>
-                            <button class="liquid-employee-nav-btn" onclick="showPage('sollstunden')" type="button" title="Sollstunden" aria-label="Sollstunden" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/><path d="M4 20h16"/></svg>
-                                <span>Sollstunden</span>
-                            </button>
-                            <button class="liquid-employee-nav-btn" onclick="showPage('ferien')" type="button" title="Ferien / Feiertage / Nacht" aria-label="Ferien / Feiertage / Nacht" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 18l4-9 4 5 3-7 6 11z"/><path d="M2 20h20"/><path d="M17 5c.8.6 1.4 1.3 1.8 2.2"/></svg>
-                                <span>Ferien / Nacht</span>
+                            <button class="liquid-employee-nav-btn" onclick="showPage('hr-hub')" type="button" title="HR-Hub" aria-label="HR-Hub" data-liquid-roles="admin,superuser,buchhaltung">
+                                <img class="le-nav-img" src="img/hr-icon.png?v=20260628a" alt="">
+                                <span>HR-Hub</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('fibu')" type="button" title="FIBU" aria-label="FIBU" data-liquid-roles="admin,buchhaltung">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+                                <img class="le-nav-img" src="img/fibu-icon.png?v=20260628a" alt="">
                                 <span>FIBU</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('admin-hub')" type="button" title="Systemeinstellungen" aria-label="Systemeinstellungen" data-liquid-roles="admin">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.86l.04.04a2 2 0 0 1-2.83 2.83l-.04-.04A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.05A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.86.34l-.04.04a2 2 0 0 1-2.83-2.83l.04-.04A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.05A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.86l-.04-.04A2 2 0 0 1 7.05 4.27l.04.04A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.05A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.86-.34l.04-.04a2 2 0 0 1 2.83 2.83l-.04.04A1.7 1.7 0 0 0 19.4 9c.7.28 1.1.9 1.1 1.65V11a2 2 0 0 1 0 2h-.05A1.7 1.7 0 0 0 19.4 15z"/></svg>
+                                <img class="le-nav-img" src="img/system-icon.png?v=20260628a" alt="">
                                 <span>System</span>
                             </button>
                         </nav>
@@ -4776,6 +5166,163 @@
             </div>
 
             <!-- POSTEINGANG (Mailbox pro Filiale) -->
+            <div class="page" id="page-moments">
+                <div class="page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap"><div>
+                    <h1 class="page-title">Moments</h1>
+                    <p class="page-sub">Persönliche Anlässe per Einmal-Link ohne Login — nur für Mitarbeitende mit aktiver Moments-Freigabe.</p>
+                </div>
+                    <button onclick="momMgmtOpen()" title="Texte verwalten"
+                            style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 12px 6px 6px;cursor:pointer;color:#0f172a;font-weight:600;font-size:13px">
+                        <img src="img/moments-icon.png?v=20260630c" alt="" style="width:34px;height:34px;object-fit:contain;mix-blend-mode:multiply">
+                        Texte verwalten
+                    </button>
+                </div>
+                <div class="page-body">
+                    <div id="momentsAlert" style="margin-bottom:12px"></div>
+
+                    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+                        <!-- Komposition -->
+                        <div style="flex:1;min-width:360px;max-width:580px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
+                            <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+                                <img src="img/moments-icon.png?v=20260630c" alt="" style="width:84px;height:84px;object-fit:contain;mix-blend-mode:multiply">
+                                <div style="font-weight:700;font-size:18px;color:#0f172a">Neuer Moment</div>
+                            </div>
+
+                            <label class="f-label" id="momTypeLabel">Moment-Typ</label>
+                            <select id="momType" class="f-input" style="margin-bottom:12px" onchange="momApplyType()">
+                                <option value="">– wählen –</option>
+                            </select>
+
+                            <div id="momToneWrap" style="display:none">
+                                <label class="f-label">Emotionsgrad</label>
+                                <select id="momTone" class="f-input" style="margin-bottom:12px" onchange="momToneChanged()">
+                                    <option value="">– wählen –</option>
+                                </select>
+                            </div>
+
+                            <div id="momTemplateWrap" style="display:none">
+                                <label class="f-label">Vorlage <span style="font-weight:400;color:#94a3b8">(füllt die Felder vor)</span></label>
+                                <select id="momTemplate" class="f-input" style="margin-bottom:12px" onchange="momTemplatePicked()">
+                                    <option value="">– wählen –</option>
+                                </select>
+                            </div>
+
+                            <label class="f-label">Mitarbeiter/in</label>
+                            <div style="display:inline-flex;margin-bottom:8px;border:1px solid #cbd5e1;border-radius:6px;overflow:hidden">
+                                <button type="button" id="momFilterAktiv"   onclick="momSetFilter('aktiv')"   style="border:0;padding:6px 12px;font-size:12px;cursor:pointer">Aktive</button>
+                                <button type="button" id="momFilterInaktiv" onclick="momSetFilter('inaktiv')" style="border:0;border-left:1px solid #cbd5e1;padding:6px 12px;font-size:12px;cursor:pointer">Inaktive</button>
+                                <button type="button" id="momFilterAlle"    onclick="momSetFilter('alle')"    style="border:0;border-left:1px solid #cbd5e1;padding:6px 12px;font-size:12px;cursor:pointer">Alle</button>
+                            </div>
+                            <select id="momMaSelect" class="f-input" style="margin-bottom:8px" onchange="momMaChanged()">
+                                <option value="">– wählen –</option>
+                            </select>
+                            <div id="momOptInBox" style="display:none;margin-bottom:12px"></div>
+
+                            <label class="f-label">Absender / HR <span style="font-weight:400;color:#94a3b8">(Signatur in der Mitteilung)</span></label>
+                            <input id="momAbsender" class="f-input" style="margin-bottom:12px" placeholder="z.B. Deine HR · Schaub Restaurants">
+
+                            <div id="momAntwortartWrap" style="display:none">
+                                <label class="f-label">Antwortart</label>
+                                <select id="momAntwortart" class="f-input" style="margin-bottom:12px">
+                                    <option value="lesen">Nur lesen</option>
+                                    <option value="janein">Ja / Nein</option>
+                                </select>
+                            </div>
+
+                            <label class="f-label">SMS-Kurztext <span style="font-weight:400;color:#94a3b8">(was per SMS ankommt — kurz halten)</span></label>
+                            <textarea id="momSmsText" class="f-input" rows="2" maxlength="160"
+                                      oninput="momUpdateCount()"
+                                      placeholder="z.B. Hallo {Vorname}, du hast eine neue Mitteilung. Tippe auf den Link:"
+                                      style="margin-bottom:2px;resize:vertical"></textarea>
+                            <div id="momSmsCount" style="font-size:11px;color:#94a3b8;margin-bottom:12px">0 / 160 Zeichen · {Vorname} wird ersetzt</div>
+
+                            <label class="f-label">Vollständige Mitteilung <span style="font-weight:400;color:#94a3b8">(sieht der MA über den Link)</span></label>
+                            <textarea id="momFullText" class="f-input" rows="6"
+                                      placeholder="Ausführlicher Text, den der MA nach dem Tippen auf den SMS-Link sieht."
+                                      style="margin-bottom:14px;resize:vertical"></textarea>
+
+                            <div style="display:flex;gap:10px;justify-content:flex-end">
+                                <button class="btn btn-outline" onclick="momReset()">Zurücksetzen</button>
+                                <button class="btn btn-primary" id="momPreviewBtn" onclick="momPreview()">🔍 Vorschau prüfen</button>
+                            </div>
+                        </div>
+
+                        <!-- Vorschau / Hinweis -->
+                        <div style="flex:0 0 320px;min-width:300px">
+                            <div id="momPreviewPanel" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px"></div>
+                            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;font-size:13px;color:#475569;line-height:1.55">
+                                <div style="font-weight:700;color:#0f172a;margin-bottom:6px">So funktioniert's</div>
+                                <strong>Moment-Typ</strong> → <strong>Emotionsgrad</strong> → passende <strong>Vorlage</strong> füllt die Felder vor. Der MA erhält einen <strong>Einmal-Link ohne Login</strong> — nur wenn er OneCrew Moments freigegeben hat und der Typ erlaubt ist. Keine sensiblen Inhalte, keine Dokumente.
+                                <div style="height:8px"></div>
+                                Texte pflegst du oben rechts über <strong>Texte verwalten</strong>. Administrative/sensible Mitteilungen laufen über den <strong>Postfach</strong>-Bereich (Posteingang).
+                                <div style="margin-top:12px;padding:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:12px">
+                                    ⚙ Der SMS-Versand wird verdrahtet, sobald der SMS-Anbieter feststeht — die Vorschau funktioniert schon.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vorlagen-Verwaltung als Overlay — Zugang oben rechts (Moments-Icon „Texte verwalten") -->
+                    <div id="momMgmtOverlay" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(15,23,42,0.45);overflow-y:auto">
+                      <div style="max-width:840px;margin:40px auto;padding:0 16px">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                          <div style="display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;font-size:18px">
+                            <img src="img/moments-icon.png?v=20260630c" alt="" style="width:38px;height:38px;object-fit:contain"> Moments-Texte verwalten
+                          </div>
+                          <button onclick="momMgmtClose()" title="Schliessen" style="background:rgba(255,255,255,0.92);border:0;border-radius:10px;width:38px;height:38px;font-size:20px;cursor:pointer;color:#0f172a">&times;</button>
+                        </div>
+                        <div id="momMgmt">
+
+                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px;margin-bottom:16px">
+                                <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:10px">Emotionsgrade</div>
+                                <div id="momToneList" style="margin-bottom:12px"></div>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                                    <div><label class="f-label">Code</label><input id="momToneCode" class="f-input" style="width:140px" placeholder="z.B. herzlich"></div>
+                                    <div><label class="f-label">Name</label><input id="momToneName" class="f-input" style="width:180px" placeholder="z.B. Herzlich"></div>
+                                    <div><label class="f-label">Reihenfolge</label><input id="momToneSort" class="f-input" type="number" style="width:110px" value="0"></div>
+                                    <button class="btn btn-primary" onclick="momToneAdd()">+ Hinzufügen</button>
+                                </div>
+                                <div id="momToneMsg" style="font-size:12px;margin-top:8px"></div>
+                            </div>
+
+                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
+                                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+                                    <div style="font-weight:700;font-size:15px;color:#0f172a">Text-Vorlagen</div>
+                                    <select id="momMgmtType" class="f-input" style="width:auto;min-width:180px" onchange="momTextLoadList()"><option value="">Alle Typen</option></select>
+                                    <select id="momMgmtTone" class="f-input" style="width:auto;min-width:160px" onchange="momTextLoadList()"><option value="">Alle Emotionsgrade</option></select>
+                                    <button class="btn btn-primary" style="margin-left:auto" onclick="momTextNew()">+ Neue Vorlage</button>
+                                </div>
+
+                                <div id="momTextForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px">
+                                    <input type="hidden" id="momTextId">
+                                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+                                        <div><label class="f-label">Moment-Typ</label><select id="momTextType" class="f-input" style="min-width:200px"></select></div>
+                                        <div><label class="f-label">Emotionsgrad</label><select id="momTextTone" class="f-input" style="min-width:170px"></select></div>
+                                        <div style="flex:1;min-width:200px"><label class="f-label">Titel / Betreff</label><input id="momTextTitel" class="f-input" placeholder="z.B. Herzlichen Glückwunsch"></div>
+                                    </div>
+                                    <label class="f-label">SMS-Kurztext <span style="font-weight:400;color:#94a3b8">(optional)</span></label>
+                                    <textarea id="momTextSms" class="f-input" rows="2" maxlength="160" style="margin-bottom:10px;resize:vertical" placeholder="z.B. Du hast eine neue Nachricht. Tippe auf den Link:"></textarea>
+                                    <label class="f-label">Mitteilung <span style="font-weight:400;color:#94a3b8">(beginnt mit {Briefanrede}; Platzhalter: {Briefanrede} · {Years} nur Jubiläum · {SenderName})</span></label>
+                                    <textarea id="momTextBody" class="f-input" rows="6" style="margin-bottom:10px;resize:vertical" placeholder="{Briefanrede}&#10;…"></textarea>
+                                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                                        <label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="momTextActive" checked> Aktiv</label>
+                                        <div><label class="f-label" style="display:inline">Reihenfolge</label> <input id="momTextSort" class="f-input" type="number" style="width:90px;display:inline-block" value="0"></div>
+                                        <div style="margin-left:auto;display:flex;gap:8px">
+                                            <button class="btn btn-outline" onclick="momTextCancel()">Abbrechen</button>
+                                            <button class="btn btn-primary" onclick="momTextSave()">Speichern</button>
+                                        </div>
+                                    </div>
+                                    <div id="momTextMsg" style="font-size:12px;margin-top:8px"></div>
+                                </div>
+
+                                <div id="momTextList"></div>
+                            </div>
+                        </div>
+                      </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="page" id="page-posteingang">
                 <div class="page-head"><div>
                     <h1 class="page-title">Posteingang</h1>
@@ -4790,11 +5337,48 @@
                         <select id="pbBranchSelect" onchange="pbLoadList()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;min-width:240px">
                             <option value="">– wählen –</option>
                         </select>
-                        <button class="btn btn-primary" onclick="pbOpenUpload()" style="margin-left:auto">+ Dokument hochladen</button>
+                        <button class="btn btn-outline" onclick="pfxOpen()" style="margin-left:auto">✉ Nachricht ins Postfach senden</button>
+                        <button class="btn btn-primary" onclick="pbOpenUpload()">+ Dokument hochladen</button>
                     </div>
 
                     <!-- Liste -->
                     <div id="pbList" style="display:flex;flex-direction:column;gap:8px"></div>
+                </div>
+
+                <!-- Nachricht ins MA-Postfach (Postfach-Weg: SMS-Push + Login) -->
+                <div id="pfxModal" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(15,23,42,0.45);overflow-y:auto">
+                  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:14px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,0.28)">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                      <h2 style="margin:0;font-size:17px;font-weight:700;color:#0f172a">Nachricht ins Postfach</h2>
+                      <button onclick="pfxClose()" style="background:none;border:0;font-size:22px;cursor:pointer;color:#64748b">&times;</button>
+                    </div>
+                    <p style="margin:0 0 14px;font-size:12.5px;color:#64748b">Administrative/sensible HR-Themen. Die Mitteilung liegt im Postfach des MA; die SMS ist nur ein Push, der Link führt zum Login.</p>
+                    <div id="pfxAlert" style="margin-bottom:10px"></div>
+
+                    <label class="f-label">Thema <span style="font-weight:400;color:#94a3b8">(füllt Texte vor)</span></label>
+                    <select id="pfxThema" class="f-input" style="margin-bottom:12px" onchange="pfxThemaChanged()"><option value="">– frei –</option></select>
+
+                    <label class="f-label">Mitarbeiter/in</label>
+                    <select id="pfxMa" class="f-input" style="margin-bottom:12px"><option value="">– wählen –</option></select>
+
+                    <label class="f-label">Absender / HR</label>
+                    <input id="pfxAbsender" class="f-input" style="margin-bottom:12px" placeholder="z.B. Deine HR · Schaub Restaurants">
+
+                    <label class="f-label">Titel / Betreff</label>
+                    <input id="pfxTitel" class="f-input" style="margin-bottom:12px" placeholder="z.B. Neuer Lohnbeleg">
+
+                    <label class="f-label">SMS-Kurztext</label>
+                    <textarea id="pfxSms" class="f-input" rows="2" maxlength="160" style="margin-bottom:12px;resize:vertical" placeholder="OneCrew: In deinem Postfach wartet eine neue Nachricht."></textarea>
+
+                    <label class="f-label">Mitteilung <span style="font-weight:400;color:#94a3b8">({Anrede} / {Vorname} / {Absender} werden ersetzt)</span></label>
+                    <textarea id="pfxBody" class="f-input" rows="6" style="margin-bottom:14px;resize:vertical" placeholder="{Anrede} …"></textarea>
+
+                    <div style="display:flex;gap:10px;justify-content:flex-end">
+                      <button class="btn btn-outline" onclick="pfxClose()">Abbrechen</button>
+                      <button class="btn btn-primary" onclick="pfxSend()">Ins Postfach legen</button>
+                    </div>
+                    <div id="pfxLinkBox" style="margin-top:12px"></div>
+                  </div>
                 </div>
             </div>
 
@@ -5607,6 +6191,45 @@
             </div>
 
             <!-- HR-HUB (Korrespondenz, Behörden, Reporting, …) -->
+            <div class="page" id="page-auswertungen">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Auswertungen</h1>
+                        <p class="page-sub">Informative Auswertungen — Sollstunden, Ferien/Feiertage/Nacht und weitere</p>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:12px">
+                    <div class="hr-card" style="opacity:1;cursor:pointer" onclick="showPage('sollstunden')">
+                        <div class="hr-card-head">
+                            <div class="hr-card-icon" style="background:#e0e7ff;color:#3730a3">
+                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/><path d="M4 20h16"/></svg>
+                            </div>
+                            <div>
+                                <div class="hr-card-title">Sollstunden</div>
+                                <div class="hr-card-status">Soll-/Ist-Stunden pro Filiale</div>
+                            </div>
+                        </div>
+                        <ul>
+                            <li>Übersicht der Sollstunden und Abweichungen je Mitarbeiter.</li>
+                        </ul>
+                    </div>
+                    <div class="hr-card" style="opacity:1;cursor:pointer" onclick="showPage('ferien')">
+                        <div class="hr-card-head">
+                            <div class="hr-card-icon" style="background:#dcfce7;color:#166534">
+                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 18l4-9 4 5 3-7 6 11z"/><path d="M2 20h20"/><path d="M17 5c.8.6 1.4 1.3 1.8 2.2"/></svg>
+                            </div>
+                            <div>
+                                <div class="hr-card-title">Ferien / Feiertage / Nacht</div>
+                                <div class="hr-card-status">Saldi &amp; Auswertungen</div>
+                            </div>
+                        </div>
+                        <ul>
+                            <li>Ferien-, Feiertags- und Nachtstunden-Auswertung.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <div class="page" id="page-hr-hub">
                 <div class="page-head">
                     <div>
@@ -6761,6 +7384,19 @@
                 </div>
                 <div class="page-body">
                     <div id="userPageAlert"></div>
+                    <!-- View-as / Testmodus (nur Superadmin). Backend erzwingt IsSuperAdmin. -->
+                    <div class="card" id="impersonateCard" style="display:none;margin-bottom:16px;border:1px solid #fcd34d;background:#fffbeb">
+                        <div style="padding:16px 18px">
+                            <div style="font-weight:700;color:#92400e;font-size:14px;margin-bottom:4px">🧪 Als Benutzer testen (View-as)</div>
+                            <div style="font-size:12.5px;color:#78716c;margin-bottom:12px">Gib einen Benutzernamen (oder E-Mail) und <b>dein eigenes</b> Passwort ein, um die App aus Sicht dieses Benutzers zu sehen. Oben erscheint dann ein Hinweis-Balken mit „Zurück zu meinem Konto".</div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                                <input id="impUsername" type="text" placeholder="Benutzername oder E-Mail" autocomplete="off" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px">
+                                <input id="impPassword" type="password" placeholder="Dein Passwort" autocomplete="off" style="flex:1;min-width:160px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px" onkeydown="if(event.key==='Enter')impersonateUser()">
+                                <button class="btn btn-primary" onclick="impersonateUser()">In Benutzer wechseln →</button>
+                            </div>
+                            <div id="impError" style="display:none;color:#b91c1c;font-size:12.5px;margin-top:8px"></div>
+                        </div>
+                    </div>
                     <div class="card">
                         <div class="tbl-wrap"><table>
                             <thead><tr><th>Benutzer</th><th>E-Mail</th><th>Rolle</th><th>Filialen</th><th>Status</th><th>Erstellt</th><th>Letzter Login</th><th></th></tr></thead>
@@ -7410,6 +8046,7 @@
                         </label>
                         <button class="btn-primary" onclick="eawSyncPreview()">🔍 Vorschau</button>
                         <button class="btn-secondary" id="eawSyncCommitBtn" onclick="eawSyncCommit()" disabled>💾 Importieren</button>
+                        <button class="btn-secondary" onclick="eawAnchorProbation()" title="Probezeiten auf die erste Stempelzeit verankern — unabhängig vom Import">⚓ Probezeiten nachführen</button>
                     </div>
                     <div id="eawSyncResult"></div>
 
@@ -7447,6 +8084,19 @@
                             <button class="btn-primary" onclick="eawEmpDump()">🔬 Felder abrufen</button>
                         </div>
                         <pre id="eawDumpResult" style="margin-top:12px;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:11.5px;line-height:1.45;overflow:auto;max-height:520px;white-space:pre-wrap;word-break:break-word"></pre>
+                    </div>
+
+                    <!-- API-Dump nach easy@work-ID (Diagnose): direkt per ID, Customer wird automatisch gesucht (Walter 29.06.2026) -->
+                    <div style="margin-top:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px">
+                        <h3 style="margin:0 0 6px;font-size:15px;color:#0f172a">🔬 API-Dump nach easy@work-ID</h3>
+                        <p style="color:#64748b;font-size:13px;margin:0 0 12px;line-height:1.5">
+                            Holt ALLE Roh-JSON-Antworten direkt für eine <strong>easy@work-ID</strong> (nicht Personalnummer) — so siehst du, welche Personalnummer easy@work für diese ID zurückgibt. Der passende Customer wird automatisch über alle gemappten Filialen gesucht; du musst keine Filiale treffen. Nur zum Anschauen — schreibt nichts.
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                            <input id="eawDumpId" class="eaw-input" placeholder="easy@work-ID z.B. 32510" style="min-width:200px">
+                            <button class="btn-primary" onclick="eawEmpDumpById()">🔬 Felder abrufen</button>
+                        </div>
+                        <pre id="eawDumpByIdResult" style="margin-top:12px;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:11.5px;line-height:1.45;overflow:auto;max-height:520px;white-space:pre-wrap;word-break:break-word"></pre>
                     </div>
 
                     <div style="margin-top:24px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px">
@@ -7934,6 +8584,7 @@
                             <th style="text-align:center">Modus</th>
                             <th style="text-align:center" title="Basis für 1/5- und 1/7-Rechnung">Basis</th>
                             <th style="text-align:center" title="Bei UTP als Stundenlohn auszahlen">UTP Ausz.</th>
+                            <th style="text-align:center" title="Verlängert die Probezeit um die Absenztage, wenn die Absenz in der Probezeit liegt">Verl. Probezeit</th>
                             <th style="text-align:center" title="Welcher Saldo wird reduziert">Reduziert</th>
                             <th style="text-align:center">Sort</th>
                             <th style="text-align:center">Status</th>
@@ -7969,8 +8620,9 @@
                                 <span style="color:#64748b;font-size:12px;display:block">FIX/MTP bekommen Stunden gutgeschrieben</span>
                             </span>
                         </label>
-                        <div id="atModusWrap" style="display:none">
-                            <div class="f-label" style="margin-bottom:6px">Berechnungsmodus *</div>
+                        <div id="atModusWrap" style="display:block">
+                            <div class="f-label" style="margin-bottom:2px">Berechnungsmodus *</div>
+                            <div style="color:#64748b;font-size:11px;margin-bottom:6px">Teiler für die Tag-/Stunden-Rechnung — gilt für die Zeitgutschrift UND für Lohn-Kürzungen ohne Gutschrift (z.B. unbezahlter Urlaub: 1/7).</div>
                             <div style="display:flex;gap:12px">
                                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:2px solid #e2e8f0;border-radius:8px" id="atModus15Label">
                                     <input type="radio" name="atModus" id="atModus15" value="1/5">
@@ -8020,6 +8672,13 @@
                             <span>
                                 <span style="font-weight:500">UTP — als Stundenlohn auszahlen</span>
                                 <span style="color:#64748b;font-size:12px;display:block">Bei UTP-Mitarbeitenden werden die Absenz-Stunden wie normal gearbeitete Stunden vergütet (z.B. Nacht-Kompensation).</span>
+                            </span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:14px">
+                            <input type="checkbox" id="atVerlaengertProbezeit">
+                            <span>
+                                <span style="font-weight:500">Verlängert die Probezeit</span>
+                                <span style="color:#64748b;font-size:12px;display:block">Fällt eine Absenz dieses Typs in die Probezeit, wird die Probezeit um die Anzahl Absenztage verlängert (z.B. Krankheit, Unfall).</span>
                             </span>
                         </label>
                         <div style="margin-top:14px">
@@ -8599,12 +9258,31 @@
                 <div class="card" style="padding:24px">
                     <!-- Filial-Banner aus globaler Sidebar — kein lokaler Picker. -->
                     <div id="rosterImportBranchBanner" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#1e40af"></div>
-                    <div style="display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:flex-end">
-                        <div>
-                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Dienstplan-Datei (XLS / XLSX)</label>
-                            <input type="file" id="rosterImportFileInput" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                   style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
-                        </div>
+                    <div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:10px;padding:14px 16px 14px 18px;margin-bottom:16px;font-size:13px;color:#3f4d5e;line-height:1.75">
+                        <div style="font-weight:760;margin-bottom:8px;font-size:13.5px;color:#364152">📋 So holst du den Dienstplan aus Mirus</div>
+                        <ol style="margin:0;padding-left:20px">
+                            <li>Gehe in <b>Mirus</b>.</li>
+                            <li>Wähle das Programm <b>Dienstplan</b>.</li>
+                            <li>Wähle den zu importierenden <b>Monat und Jahr</b>.</li>
+                            <li>Beginne mit der Kostenstelle <b>Crew&nbsp;FIX</b>.</li>
+                            <li>Gehe auf das <b>Druckerzeichen</b> und aktiviere es.</li>
+                            <li>Wähle <b>Abwesenheitsplan</b>.</li>
+                            <li>Drücke unten <b>Drucken</b>.</li>
+                            <li>Wähle <b>„Drucken in Datei"</b> und Dateityp <b>Excel</b>.</li>
+                            <li>Wähle deinen Ordner (Schreibtisch oder Download) und dann unten auf <b>Drucken</b>.</li>
+                            <li>Importiere diese Datei dann <b>hier im Programm</b> — unten „Datei auswählen" → „Analysieren" → „Absenzen erfassen".</li>
+                            <li>Wiederhole die Schritte <b>4–10</b> anschliessend auch mit den Kostenstellen <b>Crew&nbsp;Flex</b> und <b>Management</b> (je eine eigene Datei, gleicher Import).</li>
+                        </ol>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Dienstplan-Datei (XLS / XLSX)</label>
+                        <input type="file" id="rosterImportFileInput" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                               style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                    </div>
+                    <!-- Aktionsbuttons in eigener Zeile (Walter-Vorgabe 27.06.2026): nicht
+                         in die oberste Zeile rechts, sonst verdeckt der schwebende
+                         Sprach-/Theme-Schalter den Button. -->
+                    <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:14px">
                         <button class="btn btn-primary" onclick="rosterImportPreview()">Analysieren</button>
                         <button class="btn btn-success" id="rosterImportCommitBtn" onclick="rosterImportCommit()" disabled>Absenzen erfassen</button>
                     </div>
@@ -9636,6 +10314,16 @@
                             ESTV-Pauschale CHF 645 wenn AG voll bezahlt. Bei 50%-Eigenanteil: leer.
                         </div>
                     </div>
+                    <div>
+                        <label class="f-label">Probezeit</label>
+                        <select id="stmProbationMonths" class="f-input">
+                            <option value="">— keine Vorgabe —</option>
+                            <option value="14">14 Tage</option>
+                            <option value="1">1 Monat</option>
+                            <option value="2">2 Monate</option>
+                            <option value="3">3 Monate</option>
+                        </select>
+                    </div>
                 </div>
             </section>
         </div>
@@ -10321,6 +11009,26 @@
                 <div class="branch-grid" id="umBranches"><!-- populated --></div>
             </div>
 
+            <!-- ── SICHTBARE BEREICHE (8 Menüpunkte) — Walter 28.06.2026 ───── -->
+            <div class="emp-section-title">Sichtbare Bereiche</div>
+            <div class="f-group">
+                <div class="f-hint" style="margin-bottom:10px">Häkchen = der Benutzer sieht diesen Menüpunkt / diese Dashboard-Kachel. „Dashboard" ist immer sichtbar. (Steuert die Menü-/Anzeige-Sichtbarkeit; harte Server-Sperre folgt später.)</div>
+                <div class="branch-grid" id="umAreas">
+                    <label class="um-area-cb"><input type="checkbox" data-area="mitarbeiter"><span>Mitarbeiter</span></label>
+                    <label class="um-area-cb"><input type="checkbox" data-area="posteingang"><span>Postfach</span></label>
+                    <label class="um-area-cb"><input type="checkbox" data-area="auswertungen"><span>Auswertungen</span></label>
+                    <label class="um-area-cb"><input type="checkbox" data-area="roster-absence-import"><span>Mirus Absenz Import</span></label>
+                    <label class="um-area-cb"><input type="checkbox" data-area="lohn"><span>Lohnlauf</span></label>
+                    <label class="um-area-cb"><input type="checkbox" data-area="hr-hub"><span>HR-Hub</span></label>
+                    <label class="um-area-cb"><input type="checkbox" data-area="fibu"><span>FIBU</span></label>
+                    <label class="um-area-cb"><input type="checkbox" data-area="admin-hub"><span>Systemeinstellungen</span></label>
+                </div>
+                <div style="margin-top:8px;display:flex;gap:8px">
+                    <button type="button" class="btn btn-outline" style="padding:4px 12px;font-size:12px" onclick="umAreasSetAll(true)">Alle</button>
+                    <button type="button" class="btn btn-outline" style="padding:4px 12px;font-size:12px" onclick="umAreasSetAll(false)">Keine</button>
+                </div>
+            </div>
+
             <!-- ── UNTERSCHRIFT ───────────────────────────────────────────── -->
             <div class="emp-section-title" id="umSignatureSectionTitle" style="display:none">Unterschrift</div>
             <div class="f-group" id="umSignatureGroup" style="display:none">
@@ -10415,9 +11123,64 @@ async function doLogin() {
         }
         startApp();
     } catch {
-        errEl.textContent = 'Verbindungsfehler. Bitte versuchen Sie es erneut.';
+        errEl.textContent = 'Verbindungsfehler. Bitte versuch es erneut.';
         errEl.style.display = 'block';
     }
+}
+
+// ── Impersonation / „View-as" (Walter-Vorgabe 28.06.2026) ─────────────
+// Superadmin wechselt mit seinem EIGENEN Passwort in einen anderen Benutzer,
+// um zu testen, was dieser im Programm sieht. Das aktuelle Admin-Token wird
+// gesichert (hrTokenAdmin), damit man zurückwechseln kann.
+async function impersonateUser() {
+    const u = document.getElementById('impUsername')?.value.trim();
+    const p = document.getElementById('impPassword')?.value;
+    const err = document.getElementById('impError');
+    if (err) { err.style.display = 'none'; err.textContent = ''; }
+    if (!u || !p) { if (err) { err.textContent = 'Benutzername und dein Passwort eingeben.'; err.style.display = 'block'; } return; }
+    try {
+        const res = await fetch('/api/auth/impersonate', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ targetUsername: u, password: p })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { if (err) { err.textContent = data.message || 'Wechsel fehlgeschlagen.'; err.style.display = 'block'; } return; }
+        // Admin-Token sichern (nur beim ERSTEN Wechsel, nicht überschreiben).
+        if (!localStorage.getItem('hrTokenAdmin'))
+            localStorage.setItem('hrTokenAdmin', authToken);
+        localStorage.setItem('hrImpersonating', JSON.stringify({ username: data.user.username, role: data.user.role }));
+        authToken = data.token;
+        localStorage.setItem('hrToken', authToken);
+        if (document.getElementById('impPassword')) document.getElementById('impPassword').value = '';
+        // Mitarbeiter-Rolle → schlanke Postfach-Ansicht (wie echter MA-Login).
+        if (data.user?.role === 'employee') { window.location.href = 'postfach.html'; return; }
+        location.reload();
+    } catch {
+        if (err) { err.textContent = 'Verbindungsfehler.'; err.style.display = 'block'; }
+    }
+}
+
+// Zurück ins eigene (Admin-)Konto.
+function stopImpersonation() {
+    const adminTok = localStorage.getItem('hrTokenAdmin');
+    if (!adminTok) { doLogout(); return; }
+    localStorage.setItem('hrToken', adminTok);
+    localStorage.removeItem('hrTokenAdmin');
+    localStorage.removeItem('hrImpersonating');
+    authToken = adminTok;
+    location.reload();
+}
+
+// Hinweis-Balken oben, solange impersoniert wird. Wird aus startApp() gerufen.
+function renderImpersonationBanner() {
+    let info = null;
+    try { info = JSON.parse(localStorage.getItem('hrImpersonating') || 'null'); } catch {}
+    let bar = document.getElementById('impersonationBanner');
+    if (!info) { if (bar) bar.remove(); return; }
+    if (!bar) { bar = document.createElement('div'); bar.id = 'impersonationBanner'; document.body.appendChild(bar); }
+    const uname = (info.username || '?').replace(/</g, '&lt;');
+    bar.innerHTML = `🧪 Testmodus — du siehst die App als <b>${uname}</b> (${info.role || ''}). ` +
+        `<button onclick="stopImpersonation()">↩ Zurück zu meinem Konto</button>`;
 }
 
 // Beim Login-Bildschirm: gespeicherte Email vorausfüllen falls vorhanden.
@@ -10491,6 +11254,9 @@ async function toggleTheme() {
 function doLogout() {
     authToken = null; currentUser = null;
     localStorage.removeItem('hrToken');
+    // Impersonation-/Testmodus-Reste miträumen, sonst hängt der Balken.
+    localStorage.removeItem('hrTokenAdmin');
+    localStorage.removeItem('hrImpersonating');
     // Voller Reload — verhindert Stale-State (alte Dropdown-Listen, allBranches,
     // Postfächer eines anderen Users etc.) Nach dem Reload erscheint das Login,
     // beim nächsten Login lädt der Benutzer mit frischen Daten.
@@ -10547,7 +11313,7 @@ function syncLiquidEmployeeBranchSelect() {
     label.textContent = options.find(o => o.value === current)?.textContent || 'Filiale';
     list.innerHTML = options.map(o => {
         const active = o.value === current;
-        return `<button type="button" class="liquid-employee-branch-option${active ? ' active' : ''}" role="option" aria-selected="${active}" onclick="selectLiquidEmployeeBranch(${JSON.stringify(o.value)})">
+        return `<button type="button" class="liquid-employee-branch-option${active ? ' active' : ''}" role="option" aria-selected="${active}" onclick="selectLiquidEmployeeBranch('${o.value}')">
             <span>${active ? '✓' : ''}</span>
             <span>${liquidEscapeHtml(o.textContent || '')}</span>
         </button>`;
@@ -10559,20 +11325,26 @@ function toggleLiquidEmployeeBranchMenu(event) {
     const wrap = document.getElementById('liquidEmployeeBranchWrap');
     const btn = wrap?.querySelector('.liquid-employee-branch-btn');
     const opts = document.getElementById('liquidEmployeeBranchOptions');
-    if (!wrap || !opts) return;
-    const open = !wrap.classList.contains('open');
-    wrap.classList.toggle('open', open);
-    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open && btn) {
-        const r = btn.getBoundingClientRect();
-        opts.style.left = `${Math.max(8, r.left)}px`;
-        opts.style.top = `${r.bottom + 6}px`;
-    }
+    if (!wrap || !opts || !btn) return;
+    const open = !opts.classList.contains('open');
+    if (!open) { closeLiquidEmployeeBranchMenu(); return; }
+    // Das Dropdown an <body> hängen, damit es nicht vom backdrop-filter +
+    // overflow der Glas-Nav als Containing-Block eingefangen und abgeschnitten
+    // wird. So stimmen die fixed-Koordinaten aus getBoundingClientRect wieder.
+    if (opts.parentElement !== document.body) document.body.appendChild(opts);
+    const r = btn.getBoundingClientRect();
+    opts.style.left = `${Math.max(8, r.left)}px`;
+    opts.style.top = `${r.bottom + 6}px`;
+    opts.classList.add('open');
+    wrap.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
 }
 
 function closeLiquidEmployeeBranchMenu() {
     const wrap = document.getElementById('liquidEmployeeBranchWrap');
     const btn = wrap?.querySelector('.liquid-employee-branch-btn');
+    const opts = document.getElementById('liquidEmployeeBranchOptions');
+    opts?.classList.remove('open');
     wrap?.classList.remove('open');
     if (btn) btn.setAttribute('aria-expanded', 'false');
 }
@@ -10594,7 +11366,7 @@ function syncLiquidBranchMenu() {
     label.textContent = selectedText;
     list.innerHTML = Array.from(lqSel.options).map(o => {
         const active = o.value === lqSel.value;
-        return `<button type="button" class="liquid-branch-option${active ? ' active' : ''}" role="option" aria-selected="${active}" onclick="selectLiquidBranch(${JSON.stringify(o.value)})">
+        return `<button type="button" class="liquid-branch-option${active ? ' active' : ''}" role="option" aria-selected="${active}" onclick="selectLiquidBranch('${o.value}')">
             <span class="liquid-branch-check">${active ? '✓' : ''}</span>
             <span>${liquidEscapeHtml(o.textContent || '')}</span>
         </button>`;
@@ -10711,7 +11483,7 @@ async function saveRetentionYears() {
             alerting = true;
             authToken = null;
             try { localStorage.removeItem('hrToken'); } catch {}
-            alert('Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.');
+            alert('Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.');
             location.reload();
         } catch { /* swallow */ }
         return res;
@@ -10726,7 +11498,7 @@ async function saveRetentionYears() {
 function openImportTool() {
     if (!authToken) { alert('Bitte zuerst anmelden.'); return; }
     if (!fixedCompanyProfileId) {
-        alert('Bitte zuerst eine Filiale auswählen bevor Sie den Import starten.');
+        alert('Bitte zuerst eine Filiale auswählen, bevor du den Import startest.');
         return;
     }
     const branch = allBranches.find(b => b.id === fixedCompanyProfileId);
@@ -10776,6 +11548,9 @@ async function startApp() {
     document.getElementById('userRoleBadge').textContent = currentUser.isSuperAdmin ? 'Super-Admin' : roleName(currentUser.role);
     document.getElementById('userAvatar').textContent = (currentUser.username || 'U')[0].toUpperCase();
     syncLiquidDashboardChrome();
+
+    // Testmodus-Hinweisbalken zeigen, falls gerade impersoniert wird.
+    if (typeof renderImpersonationBanner === 'function') renderImpersonationBanner();
 
     // Session-/Logout-Wächter starten (Walter-Vorgabe 21.06.2026).
     if (window.SessionGuard) window.SessionGuard.start();
@@ -10905,6 +11680,32 @@ async function startApp() {
     populateBranchSelector();
     loadDashboard();
     buildContractPage();
+
+    // Sichtbare Bereiche pro Benutzer ANWENDEN — als Letztes, damit es die
+    // Rollen-Sichtbarkeit (Sektionen + Dashboard-Kacheln) überschreibt.
+    applyAreaVisibility();
+}
+
+// Sichtbare-Bereiche-Filter (Walter 28.06.2026): Wenn der User eine eigene
+// Bereichs-Auswahl hat (currentUser.allowedAreas = Array), zeigt das Menü +
+// die Dashboard-Kacheln GENAU diese 8-Bereiche-Auswahl. „dashboard" ist immer
+// sichtbar. NULL/kein Array = nicht eingreifen (alte Rollen-Sichtbarkeit gilt).
+function applyAreaVisibility() {
+    const aa = currentUser?.allowedAreas;
+    if (!Array.isArray(aa)) return;
+    const allowed = new Set(['dashboard', ...aa]);
+    const ok = (area) => area === 'dashboard' || allowed.has(area);
+    // Globale Sidebar: jede nav-section enthält genau einen nav-item (data-page).
+    document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
+        const item = sec.querySelector('.nav-item[data-page]');
+        if (!item) return;
+        sec.style.display = ok(item.getAttribute('data-page')) ? '' : 'none';
+    });
+    // Dashboard-Kacheln + Mitarbeiter-Nav-Buttons (onclick="showPage('X')").
+    document.querySelectorAll('.liquid-module-card, .liquid-employee-nav-btn').forEach(el => {
+        const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'\)/);
+        if (m) el.hidden = !ok(m[1]);
+    });
 }
 
 function roleName(r) {
@@ -11005,6 +11806,7 @@ function showPage(name) {
     if (name === 'audit-log') alInit();
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
+    if (name === 'moments') momInit();
     if (name === 'qst-anmeldung') qstaInit();
     if (name === 'lohnausweis') laInit();
     if (name === 'kuendigung') kuendigungInit();
@@ -11100,6 +11902,9 @@ function onBranchChange() {
     } else if (currentPageName === 'lohnausweis') {
         // Lohnausweis-Page folgt dem globalen Filial-Selektor.
         laInit();
+    } else if (currentPageName === 'moments') {
+        // Moments folgt dem globalen Filial-Selektor (MA-Liste neu filtern).
+        if (typeof momRenderMaSelect === 'function') momRenderMaSelect();
     } else if (currentPageName === 'kuendigung') {
         // Kündigung-Page folgt dem globalen Filial-Selektor (MA-Liste neu filtern).
         kuRenderEmpList();
@@ -11155,33 +11960,34 @@ function onBranchChange() {
 <script src="js/stammdaten-import.js?v=20260509b"></script>
 <script src="js/saldo-vortrag-import.js?v=20260526a"></script>
 <script src="js/saldo-vortrag-import-stunden.js?v=20260526a"></script>
-<script src="js/roster-absence-import.js?v=20260515a"></script>
+<script src="js/roster-absence-import.js?v=20260627a"></script>
 <script src="js/absence-report.js?v=20260524a"></script>
 <script src="js/akonto-lauf.js?v=20260516a"></script>
 <script src="js/akonto-workflow.js?v=20260607a"></script>
 <script src="js/dok-audit.js?v=20260509b"></script>
-<script src="js/branches-detail.js?v=20260622b"></script>
+<script src="js/branches-detail.js?v=20260629c"></script>
 <script src="js/branch-modals.js?v=20260509b"></script>
 <script src="js/deductions.js?v=20260509b"></script>
 <script src="js/qst-modal.js?v=20260614g"></script>
-<script src="js/users.js?v=20260621a"></script>
+<script src="js/users.js?v=20260628b"></script>
 <script src="js/contracts-page.js?v=20260509b"></script>
 <script src="js/documents.js?v=20260621a"></script>
 <script src="js/dvelop-import.js?v=20260614b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260509b"></script>
-<script src="js/dok-struktur.js?v=20260623c"></script>
+<script src="js/dok-struktur.js?v=20260629a"></script>
+<script src="js/moments.js?v=20260701f"></script>
 <script src="js/austritt.js?v=20260614a"></script>
 <script src="js/contracts-edit.js?v=20260623a"></script>
 <script src="js/payroll.js?v=20260607a"></script>
 <script src="js/fibu.js?v=20260524a"></script>
 <script src="js/payroll-perioden.js?v=20260524a"></script>
 <script src="js/sortable-table.js?v=20260607a"></script>
-<script src="js/admin-settings.js?v=20260614c"></script>
+<script src="js/admin-settings.js?v=20260630a"></script>
 <script src="js/pregnancy-rules.js?v=20260610b"></script>
 <script src="js/minimum-wages.js?v=20260523k"></script>
 <script src="js/kontoplan.js?v=20260614a"></script>
-<script src="js/easyatwork.js?v=20260624a"></script>
+<script src="js/easyatwork.js?v=20260630a"></script>
 <script src="js/employee-merge.js?v=20260621a"></script>
 <script src="js/sollstunden-report.js?v=20260620i"></script>
 <script src="js/ferien-report.js?v=20260622a"></script>
@@ -11459,7 +12265,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260623a"></script>
+<script src="employees.js?v=20260630a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

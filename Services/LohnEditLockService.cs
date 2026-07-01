@@ -210,4 +210,63 @@ public class LohnEditLockService
         if (to < from) (from, to) = (to, from);
         return await CheckDateAsync(user, companyProfileId, from);
     }
+
+    /// <summary>
+    /// PER-PERIODE-Prüfung (Walter-Vorgabe 27.06.2026): blockt ein Datum NUR,
+    /// wenn GENAU seine Lohnperiode (Jahr+Monat dieser Filiale) eingefroren ist
+    /// (abgeschlossen / in Verarbeitung) — anders als die globale
+    /// FirstAllowedDate, die ALLES vor der spätesten gesperrten Periode sperrt.
+    /// Damit sind rückwirkende Einträge in OFFENE / nie verarbeitete Perioden
+    /// erlaubt, ABGESCHLOSSENE bleiben für jeden gesperrt. Nur für date-bezogene
+    /// Daten gedacht, die ausschliesslich ihre eigene Periode betreffen (Absenzen).
+    /// Gleiche „eingefroren"-Definition wie GetFirstAllowedDateAsync.
+    /// </summary>
+    public async Task<LockResult> CheckPeriodAsync(
+        ClaimsPrincipal? user,
+        int companyProfileId,
+        int year,
+        int month)
+    {
+        _ = user;
+        // Walter-Vorgabe 27.06.2026 (final): Eine Absenz wird ERST gesperrt, wenn
+        // der DEFINITIVE Lohn dieser Periode abgeschlossen UND ausbezahlt ist
+        // (payroll_periode.Status == "abgeschlossen"). NICHT bei provisorisch /
+        // HR, NICHT im Akonto-Strang — das Akonto ist nur eine Vorauszahlung, die
+        // im Definitivlauf ohnehin verrechnet wird; Absenzen dürfen bis zum
+        // definitiven Abschluss korrigiert werden.
+        bool frozen = await _db.PayrollPerioden
+            .Where(p => p.CompanyProfileId == companyProfileId
+                     && p.Year == year && p.Month == month)
+            .AnyAsync(p => p.Status == "abgeschlossen");
+
+        if (!frozen) return new LockResult(false, "", null);
+
+        return new LockResult(
+            Locked: true,
+            Reason: $"Die Lohnperiode {month:00}/{year} ist definitiv abgeschlossen und ausbezahlt — " +
+                    $"in eine abgeschlossene Periode können keine Absenzen geschrieben werden.",
+            FirstAllowedDate: null);
+    }
+
+    /// <summary>
+    /// Per-Periode-Prüfung für einen Datumsbereich: blockt, wenn IRGENDEIN Monat
+    /// im Bereich [from, to] eingefroren ist (deckt monatsübergreifende Absenzen ab).
+    /// </summary>
+    public async Task<LockResult> CheckRangePeriodAsync(
+        ClaimsPrincipal? user,
+        int companyProfileId,
+        DateOnly from,
+        DateOnly to)
+    {
+        if (to < from) (from, to) = (to, from);
+        var cursor = new DateOnly(from.Year, from.Month, 1);
+        var last   = new DateOnly(to.Year, to.Month, 1);
+        while (cursor <= last)
+        {
+            var r = await CheckPeriodAsync(user, companyProfileId, cursor.Year, cursor.Month);
+            if (r.Locked) return r;
+            cursor = cursor.AddMonths(1);
+        }
+        return new LockResult(false, "", null);
+    }
 }

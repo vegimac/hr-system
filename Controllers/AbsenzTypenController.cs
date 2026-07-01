@@ -23,7 +23,7 @@ public class AbsenzTypenController : ControllerBase
             .OrderBy(t => t.SortOrder)
             .Select(t => new {
                 t.Id, t.Code, t.Bezeichnung, t.Zeitgutschrift, t.GutschriftModus,
-                t.UtpAuszahlung, t.ReduziertSaldo, t.BasisStunden, t.SortOrder, t.ZwischenverdienstKuerzel
+                t.UtpAuszahlung, t.VerlaengertProbezeit, t.ReduziertSaldo, t.BasisStunden, t.SortOrder, t.ZwischenverdienstKuerzel
             })
             .ToListAsync();
         return Ok(list);
@@ -37,7 +37,7 @@ public class AbsenzTypenController : ControllerBase
             .OrderBy(t => t.SortOrder)
             .Select(t => new {
                 t.Id, t.Code, t.Bezeichnung, t.Zeitgutschrift, t.GutschriftModus,
-                t.UtpAuszahlung, t.ReduziertSaldo, t.BasisStunden, t.SortOrder, t.Aktiv, t.ZwischenverdienstKuerzel
+                t.UtpAuszahlung, t.VerlaengertProbezeit, t.ReduziertSaldo, t.BasisStunden, t.SortOrder, t.Aktiv, t.ZwischenverdienstKuerzel
             })
             .ToListAsync();
         return Ok(list);
@@ -63,8 +63,12 @@ public class AbsenzTypenController : ControllerBase
         typ.Code             = dto.Code.ToUpper().Trim();
         typ.Bezeichnung      = dto.Bezeichnung.Trim();
         typ.Zeitgutschrift   = dto.Zeitgutschrift;
-        typ.GutschriftModus  = dto.Zeitgutschrift ? dto.GutschriftModus : null;
+        // Walter-Vorgabe 27.06.2026: Modus (1/5 vs 1/7) auch OHNE Zeitgutschrift
+        // speichern — er steuert auch Lohn-Kürzungen ohne Gutschrift
+        // (z.B. unbezahlter Urlaub: 1/7).
+        typ.GutschriftModus  = dto.GutschriftModus;
         typ.UtpAuszahlung    = dto.UtpAuszahlung;
+        typ.VerlaengertProbezeit = dto.VerlaengertProbezeit;
         typ.ReduziertSaldo   = string.IsNullOrWhiteSpace(dto.ReduziertSaldo) ? null : dto.ReduziertSaldo;
         typ.BasisStunden     = string.IsNullOrWhiteSpace(dto.BasisStunden)   ? "BETRIEB" : dto.BasisStunden;
         typ.SortOrder        = dto.SortOrder;
@@ -76,7 +80,7 @@ public class AbsenzTypenController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new {
             typ.Id, typ.Code, typ.Bezeichnung, typ.Zeitgutschrift, typ.GutschriftModus,
-            typ.UtpAuszahlung, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv, typ.ZwischenverdienstKuerzel
+            typ.UtpAuszahlung, typ.VerlaengertProbezeit, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv, typ.ZwischenverdienstKuerzel
         });
     }
 
@@ -96,13 +100,14 @@ public class AbsenzTypenController : ControllerBase
             Code            = code,
             Bezeichnung     = dto.Bezeichnung.Trim(),
             Zeitgutschrift  = dto.Zeitgutschrift,
-            GutschriftModus = dto.Zeitgutschrift ? dto.GutschriftModus : null,
+            GutschriftModus = dto.GutschriftModus,
             UtpAuszahlung   = dto.UtpAuszahlung,
+            VerlaengertProbezeit = dto.VerlaengertProbezeit,
             ReduziertSaldo  = string.IsNullOrWhiteSpace(dto.ReduziertSaldo) ? null : dto.ReduziertSaldo,
             BasisStunden    = string.IsNullOrWhiteSpace(dto.BasisStunden)   ? "BETRIEB" : dto.BasisStunden,
             SortOrder       = dto.SortOrder,
             Aktiv           = true,
-            CreatedAt       = DateTime.UtcNow,
+            CreatedAt       = DateTime.Now,
             ZwischenverdienstKuerzel = string.IsNullOrWhiteSpace(dto.ZwischenverdienstKuerzel)
                 ? null
                 : dto.ZwischenverdienstKuerzel.ToUpper().Trim()
@@ -111,7 +116,7 @@ public class AbsenzTypenController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new {
             typ.Id, typ.Code, typ.Bezeichnung, typ.Zeitgutschrift, typ.GutschriftModus,
-            typ.UtpAuszahlung, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv, typ.ZwischenverdienstKuerzel
+            typ.UtpAuszahlung, typ.VerlaengertProbezeit, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv, typ.ZwischenverdienstKuerzel
         });
     }
 
@@ -141,5 +146,6 @@ public record AbsenzTypDto(
     bool    UtpAuszahlung            = false,
     string? ReduziertSaldo           = null,
     string? BasisStunden             = "BETRIEB",
-    string? ZwischenverdienstKuerzel = null
+    string? ZwischenverdienstKuerzel = null,
+    bool    VerlaengertProbezeit     = false
 );

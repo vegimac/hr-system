@@ -63,6 +63,18 @@ public class AppUser
     public bool IsSuperAdmin { get; set; } = false;
 
     /// <summary>
+    /// Sichtbare Programm-Bereiche pro Benutzer (Walter-Vorgabe 28.06.2026),
+    /// komma-separierte Liste der Menü-/Bereichs-Schlüssel:
+    /// mitarbeiter, posteingang, auswertungen, roster-absence-import, lohn,
+    /// hr-hub, fibu, admin-hub. „dashboard" ist immer sichtbar (nicht gelistet).
+    ///   • NULL  = noch nicht definiert → bestehende Rollen-Sichtbarkeit greift.
+    ///   • ""    = sieht nur das Dashboard (alle 8 Bereiche abgewählt).
+    /// Steuert aktuell die MENÜ-/Anzeige-Sichtbarkeit; harte Server-Sperre pro
+    /// Bereich folgt als eigener Schritt.
+    /// </summary>
+    public string? AllowedAreas { get; set; }
+
+    /// <summary>
     /// Verknüpfung zum Mitarbeiter-Datensatz bei MA-Postfach-Accounts
     /// (Rolle "employee"). NULL bei klassischen Backoffice-Usern (admin/
     /// superuser/user). Pro MA max. ein Account (UNIQUE-Index).

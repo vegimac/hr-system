@@ -132,6 +132,10 @@ public class AuthController : ControllerBase
                 employeeId = user.EmployeeId,
                 isHrTeam   = user.IsHrTeam,
                 isSuperAdmin = user.IsSuperAdmin,
+                // Sichtbare Bereiche (Walter 28.06.2026): NULL = Rollen-Default.
+                allowedAreas = user.AllowedAreas == null
+                    ? null
+                    : user.AllowedAreas.Split(',', StringSplitOptions.RemoveEmptyEntries),
                 // Admin + lowuser → "all" (Walter 14.06.2026: lowuser im
                 // Filial-Selektor wie superuser, Einschränkungen sind ÜBER
                 // den Menü-Umfang, nicht über Filialen). Andere → eigene
@@ -184,6 +188,10 @@ public class AuthController : ControllerBase
             mustChangePassword = user.MustChangePassword,
             isHrTeam           = user.IsHrTeam,
             isSuperAdmin       = user.IsSuperAdmin,
+            // Sichtbare Bereiche (Walter 28.06.2026): NULL = Rollen-Default.
+            allowedAreas = user.AllowedAreas == null
+                ? null
+                : user.AllowedAreas.Split(',', StringSplitOptions.RemoveEmptyEntries),
             // Session-Policy für den Frontend-Wächter.
             sessionStartedAt   = sessionStart,
             idleTimeoutMinutes = idleClaim,
@@ -277,6 +285,78 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Passwort wurde geändert." });
     }
 
+    // ── Impersonation / „View-as" (Walter-Vorgabe 28.06.2026) ─────────────
+    // Der Superadmin gibt einen Ziel-Benutzernamen + SEIN EIGENES Passwort
+    // ein und erhält ein Token für den Ziel-User — um zu testen, was jeder
+    // Benutzer im Programm sieht. KEIN fremdes Passwort nötig. Nur IsSuperAdmin.
+    public record ImpersonateRequest(string TargetUsername, string Password);
+
+    [HttpPost("impersonate")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> Impersonate([FromBody] ImpersonateRequest req)
+    {
+        if (req == null || string.IsNullOrWhiteSpace(req.TargetUsername) || string.IsNullOrWhiteSpace(req.Password))
+            return BadRequest(new { message = "Benutzername und dein Passwort sind Pflicht." });
+
+        var callerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var caller = await _context.AppUsers.FindAsync(callerId);
+        if (caller == null) return Unauthorized();
+
+        // Nur der Superadmin darf in andere Benutzer wechseln.
+        if (!caller.IsSuperAdmin)
+            return StatusCode(403, new { message = "Nur der Superadmin darf in andere Benutzer wechseln." });
+
+        // Eigenes Passwort prüfen — BEWUSST ohne Lockout-Nebenwirkung auf den
+        // Admin (kein FailedLoginCount), damit man sich beim Testen nicht aussperrt.
+        if (!BCrypt.Net.BCrypt.Verify(req.Password, caller.PasswordHash))
+            return Unauthorized(new { message = "Dein Passwort ist falsch." });
+
+        var lookup = req.TargetUsername.Trim().ToLower();
+        var target = await _context.AppUsers
+            .Include(u => u.BranchAccess)
+                .ThenInclude(ba => ba.CompanyProfile)
+            .Include(u => u.Employee)
+            .FirstOrDefaultAsync(u => u.Username.ToLower() == lookup || u.Email.ToLower() == lookup);
+
+        if (target == null)
+            return NotFound(new { message = $"Kein Benutzer mit Benutzername/E-Mail '{req.TargetUsername}' gefunden." });
+        if (!target.IsActive)
+            return BadRequest(new { message = "Ziel-Benutzer ist deaktiviert." });
+
+        var sessionStart = DateTime.UtcNow;
+        var token = GenerateToken(target, sessionStart, impersonatedBy: caller.Id);
+
+        return Ok(new
+        {
+            token,
+            impersonating  = true,
+            impersonatedBy = new { caller.Id, caller.Username },
+            sessionStartedAt   = sessionStart.ToString("o"),
+            idleTimeoutMinutes = EffectiveIdleTimeout(target),
+            maxSessionMinutes  = EffectiveMaxSession(target),
+            user = new
+            {
+                target.Id,
+                target.Username,
+                target.Email,
+                target.Role,
+                target.Theme,
+                preferredLanguage = target.PreferredLanguage,
+                employeeId        = target.EmployeeId,
+                isHrTeam          = target.IsHrTeam,
+                isSuperAdmin      = target.IsSuperAdmin,
+                branches = target.Role == "admin" || target.Role == "lowuser"
+                    ? (object)"all"
+                    : target.BranchAccess.Select(ba => new
+                    {
+                        id   = ba.CompanyProfileId,
+                        name = ba.CompanyProfile.BranchName ?? ba.CompanyProfile.CompanyName,
+                        code = ba.CompanyProfile.RestaurantCode
+                    })
+            }
+        });
+    }
+
     // ── Benutzerbezogene Session-/Logout-Policy (Walter-Vorgabe 21.06.2026) ──
     // Effektiver Wert = User-Wert ODER Rollen-Default. Defaults:
     //   employee → idle 15 / max 30 ;  alle übrigen → idle 30 / max 480.
@@ -289,7 +369,7 @@ public class AuthController : ControllerBase
         Clamp(u.MaxSessionMinutes ?? (u.Role == "employee" ? 30 : 480));
     private static int Clamp(int v) => Math.Max(POLICY_MIN, Math.Min(POLICY_MAX, v));
 
-    private string GenerateToken(AppUser user, DateTime sessionStart)
+    private string GenerateToken(AppUser user, DateTime sessionStart, int? impersonatedBy = null)
     {
         // Walter-Vorgabe 13.06.2026: KEIN hardgecodeter Fallback.
         var secret = _config["Jwt:Secret"]
@@ -320,6 +400,12 @@ public class AuthController : ControllerBase
         // Fibu-Endpunkte frei + dient der branch-genauen Zugriffsprüfung.
         if (user.Role == "buchhaltung")
             claims.Add(new Claim(ClaimTypes.Role, "superuser"));
+
+        // Impersonation (Walter-Vorgabe 28.06.2026): wenn ein Superadmin in
+        // diesen User „hineinwechselt", merkt sich der Token wer impersoniert
+        // (Audit-Spur). Aktionen laufen ansonsten als der Ziel-User.
+        if (impersonatedBy.HasValue)
+            claims.Add(new Claim("impersonated_by", impersonatedBy.Value.ToString()));
 
         // JWT-Ablauf = maximale Session-Dauer (Walter-Vorgabe 21.06.2026):
         // läuft der Token ab, MUSS neu eingeloggt werden — der Server erzwingt
