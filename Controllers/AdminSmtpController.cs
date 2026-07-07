@@ -58,7 +58,7 @@ public class AdminSmtpController : ControllerBase
         public string FromName { get; set; } = "Schaub HR";
         public string FromAddress { get; set; } = "";
         public string? TestRedirectTo { get; set; }
-        public string SiteUrl { get; set; } = "https://test.hr-srgmbh.ch/";
+        public string SiteUrl { get; set; } = "https://onecrew.ch/";
         public bool   IsFromDb { get; set; }         // GET — false = noch kein DB-Row, Werte aus appsettings.json
     }
 
@@ -131,7 +131,7 @@ public class AdminSmtpController : ControllerBase
         row.FromName       = string.IsNullOrWhiteSpace(dto.FromName) ? "Schaub HR" : dto.FromName.Trim();
         row.FromAddress    = dto.FromAddress.Trim();
         row.TestRedirectTo = string.IsNullOrWhiteSpace(dto.TestRedirectTo) ? null : dto.TestRedirectTo.Trim();
-        row.SiteUrl        = string.IsNullOrWhiteSpace(dto.SiteUrl) ? "https://test.hr-srgmbh.ch/" : dto.SiteUrl.Trim();
+        row.SiteUrl        = string.IsNullOrWhiteSpace(dto.SiteUrl) ? "https://onecrew.ch/" : dto.SiteUrl.Trim();
         row.UpdatedAt      = DateTime.UtcNow;
         row.UpdatedByUserId = GetCurrentUserId();
 
@@ -210,7 +210,7 @@ public class AdminSmtpController : ControllerBase
             string.IsNullOrWhiteSpace(d.FromName) ? "Schaub HR" : d.FromName.Trim(),
             d.FromAddress.Trim(),
             string.IsNullOrWhiteSpace(d.TestRedirectTo) ? null : d.TestRedirectTo.Trim(),
-            string.IsNullOrWhiteSpace(d.SiteUrl) ? "https://test.hr-srgmbh.ch/" : d.SiteUrl.Trim());
+            string.IsNullOrWhiteSpace(d.SiteUrl) ? "https://onecrew.ch/" : d.SiteUrl.Trim());
 
         try
         {

@@ -75,12 +75,12 @@ function renderQstImportPreview(data) {
     const preview = document.getElementById('qstImportPreview');
     summary.innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
-            <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:12px 14px;color:#1e40af">
+            <div style="background:#ece9e2;border:1px solid #d0c8b8;border-radius:8px;padding:12px 14px;color:#6b6152">
                 <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">Format</div>
                 <div style="font-size:22px;font-weight:700">${_e(data.formatErkannt || '?')}</div>
-                <div style="font-size:11px;color:#1e40af">Jahr ${data.year}</div>
+                <div style="font-size:11px;color:#6b6152">Jahr ${data.year}</div>
             </div>
-            <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:12px 14px;color:#1e40af">
+            <div style="background:#ece9e2;border:1px solid #d0c8b8;border-radius:8px;padding:12px 14px;color:#6b6152">
                 <div style="font-size:24px;font-weight:700">${data.totalRows}</div>
                 <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">MA total</div>
             </div>

@@ -211,10 +211,26 @@ public class EasyAtWorkEmployeeSyncService
         public DateOnly? ExitDate { get; set; }
         public string? Iban { get; set; }
         /// <summary>Gültig-bis des Nachtarbeit-Arztzeugnisses aus easy@work
-        /// (cf_night_work_doctors_note.to). NULL = kein/abgelaufenes Zeugnis-Flag.</summary>
+        /// (cf_night_work_doctors_note.to), 1:1 übernommen. NULL = kein Enddatum.</summary>
         public DateOnly? NightWorkExamValidUntil { get; set; }
+        /// <summary>Ausstellungs-/Beginndatum des Nachtarbeit-Arztzeugnisses aus
+        /// easy@work (cf_night_work_doctors_note.from), 1:1 übernommen.</summary>
+        public DateOnly? NightWorkExamIssued { get; set; }
+        /// <summary>Alle in easy@work erfassten Funktionen/Positionen (distinct).
+        /// Mehr als eine = mehrdeutig → MA wird nicht importiert (Walter 05.07.2026).</summary>
+        public List<string> Functions { get; set; } = new();
         public List<string> Errors { get; set; } = new();
         public List<string> Notes { get; set; } = new();
+    }
+
+    /// <summary>Vorab PARALLEL geholte easy@work-Detail-Daten pro MA (nur _client-
+    /// Calls), damit die Vorschau nicht 3 Calls pro MA sequenziell macht.
+    /// Walter-Vorgabe 05.07.2026.</summary>
+    private sealed class DetailCache
+    {
+        public System.Collections.Concurrent.ConcurrentDictionary<int, (string? Marital, string? Ahv, DateOnly? NightWorkFrom, DateOnly? NightWorkTo, DateOnly? SeniorityDate)> Props { get; } = new();
+        public System.Collections.Concurrent.ConcurrentDictionary<int, List<string>> Functions { get; } = new();
+        public System.Collections.Concurrent.ConcurrentDictionary<int, string?> Iban { get; } = new();
     }
 
     public async Task<SingleEmployeeSyncResult> SyncSingleCoworkEmployeeAsync(
@@ -276,9 +292,11 @@ public class EasyAtWorkEmployeeSyncService
                     try
                     {
                         var rows = await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct);
+                        // NUR über die Personalnummer auflösen — die user_id ist nicht
+                        // personen-eindeutig und könnte hier die FALSCHE Person greifen
+                        // (Walter-Vorgabe 05.07.2026).
                         byNumber = rows.FirstOrDefault(x =>
-                            x.UserId == emp.EasyAtWorkEmployeeId.Value
-                            || string.Equals((x.Number ?? "").Trim(), employeeNumber, StringComparison.OrdinalIgnoreCase));
+                            string.Equals((x.Number ?? "").Trim(), employeeNumber, StringComparison.OrdinalIgnoreCase));
                     }
                     catch (Exception ex)
                     {
@@ -287,12 +305,11 @@ public class EasyAtWorkEmployeeSyncService
                 }
                 if (byNumber == null) continue;
                 var numberMatches = string.Equals((byNumber.Number ?? "").Trim(), employeeNumber, StringComparison.OrdinalIgnoreCase);
-                var userIdMatches = byNumber.UserId == emp.EasyAtWorkEmployeeId.Value;
-                if (!numberMatches && !userIdMatches) continue;
+                if (!numberMatches) continue;
 
                 eaw = byNumber;
                 matchedCustomerId = mapping.EasyAtWorkCustomerId;
-                result.Notes.Add($"Gespeicherte easy@work-ID {emp.EasyAtWorkEmployeeId.Value} war user_id; korrigiere auf employee.id {eaw.Id} (Customer {mapping.EasyAtWorkCustomerId}).");
+                result.Notes.Add($"Gespeicherte easy@work-ID {emp.EasyAtWorkEmployeeId.Value} war veraltet/falsch; über die Personalnummer auf employee.id {eaw.Id} korrigiert (Customer {mapping.EasyAtWorkCustomerId}).");
                 break;
             }
         }
@@ -309,6 +326,16 @@ public class EasyAtWorkEmployeeSyncService
         result.Notes.AddRange(master.Notes);
         result.Errors.AddRange(master.Errors);
         if (result.Errors.Count > 0) return result;
+
+        // Mehrdeutige Funktion (mehr als eine in easy@work erfasst) → MA NICHT
+        // importieren/anpassen — EXAKT dieselbe Logik wie der Massenimport
+        // (Walter-Vorgabe 05.07.2026). Früher Abbruch VOR jeder Feld-/Vertrags-
+        // Änderung, damit der Einzelimport identisch reagiert.
+        if (master.Functions.Count > 1)
+        {
+            result.Errors.Add($"{master.Functions.Count} Funktionen gefunden: {string.Join(", ", master.Functions)} — mehrdeutig, MA wird nicht importiert/angepasst. Bitte in easy@work auf eine Funktion reduzieren.");
+            return result;
+        }
 
         void SetString(string label, string? current, string? next, Action<string?> set, bool allowNull = true)
         {
@@ -359,6 +386,52 @@ public class EasyAtWorkEmployeeSyncService
         {
             var changed = await EnsureBankAccountFromEasyWorkAsync(emp, master.Iban, ct);
             if (changed) result.UpdatedFields.Add("IBAN");
+        }
+
+        // Nachtarbeit-Arztzeugnis: Beginn + Ende aus easy@work übernehmen (Walter
+        // 05.07.2026) — der Einzel-Sync hat das bisher nicht angefasst.
+        if (master.NightWorkExamValidUntil.HasValue
+            && emp.NightWorkExamValidUntil?.Date != master.NightWorkExamValidUntil.Value.ToDateTime(TimeOnly.MinValue).Date)
+        {
+            emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil.Value.ToDateTime(TimeOnly.MinValue);
+            if (!result.UpdatedFields.Contains("Nachtarbeit")) result.UpdatedFields.Add("Nachtarbeit");
+        }
+        if (master.NightWorkExamIssued.HasValue
+            && emp.NightWorkExamIssued?.Date != master.NightWorkExamIssued.Value.ToDateTime(TimeOnly.MinValue).Date)
+        {
+            emp.NightWorkExamIssued = master.NightWorkExamIssued.Value.ToDateTime(TimeOnly.MinValue);
+            if (!result.UpdatedFields.Contains("Nachtarbeit")) result.UpdatedFields.Add("Nachtarbeit");
+        }
+
+        // Austritt / Aktiv aus easy@work (Walter-Vorgabe 05.07.2026): der Einzel-Sync
+        // hat den Austritt bisher NIE angefasst → ein stehengebliebenes (stale)
+        // Austrittsdatum blieb ewig kleben. eaw.To ist der Austritt DIESER Filiale.
+        var nowD = DateOnly.FromDateTime(DateTime.Today);
+        if (!eaw.To.HasValue || eaw.To.Value >= nowD)
+        {
+            // In easy@work (noch) aktiv → Person aktiv, KEIN Austrittsdatum.
+            if (!emp.IsActive) { emp.IsActive = true; result.UpdatedFields.Add("Aktiv"); }
+            if (emp.ExitDate.HasValue) { emp.ExitDate = null; result.UpdatedFields.Add("Austrittsdatum"); }
+        }
+        else
+        {
+            // easy@work-Austritt in der Vergangenheit. Nur zum Personen-Austritt machen,
+            // wenn der MA KEINEN offenen Vertrag mehr hat. Hat er noch einen offenen
+            // Vertrag (Filialwechsel), wird ein stehengebliebener Austritt AKTIV entfernt.
+            var todayDt = DateTime.Today;
+            bool hasOpenContract = await _db.Employments.AnyAsync(em => em.EmployeeId == emp.Id
+                && (em.ContractEndDate == null || em.ContractEndDate >= todayDt), ct);
+            if (hasOpenContract)
+            {
+                if (emp.ExitDate.HasValue) { emp.ExitDate = null; result.UpdatedFields.Add("Austrittsdatum"); }
+                if (!emp.IsActive) { emp.IsActive = true; result.UpdatedFields.Add("Aktiv"); }
+            }
+            else
+            {
+                var exit = eaw.To.Value.ToDateTime(TimeOnly.MinValue);
+                if (emp.ExitDate?.Date != exit.Date) { emp.ExitDate = exit; result.UpdatedFields.Add("Austrittsdatum"); }
+                if (emp.IsActive) { emp.IsActive = false; result.UpdatedFields.Add("Aktiv"); }
+            }
         }
 
         await _db.SaveChangesAsync(ct);
@@ -416,7 +489,7 @@ public class EasyAtWorkEmployeeSyncService
 
     private async Task<EmployeeMasterData> BuildMasterDataAsync(
         int customerId, EawEmployee eaw, Dictionary<string, int> natByCode,
-        bool includeDetailCalls, CancellationToken ct)
+        bool includeDetailCalls, CancellationToken ct, DetailCache? cache = null)
     {
         var data = new EmployeeMasterData
         {
@@ -450,43 +523,74 @@ public class EasyAtWorkEmployeeSyncService
 
         if (includeDetailCalls)
         {
-            var propsInfo = await FetchPropsInfoAsync(customerId, eaw.Id, ct);
+            // Props: aus dem Vorab-Cache (Massenimport, parallel) ODER live (Einzel).
+            var propsInfo = (cache != null && cache.Props.TryGetValue(eaw.Id, out var cp))
+                ? cp
+                : await FetchPropsInfoAsync(customerId, eaw.Id, ct);
             data.MaritalStatus = propsInfo.Marital;
             data.Ahv = propsInfo.Ahv;
-            // Nachtarbeit-Arztzeugnis (Walter 30.06.2026): die Gültigkeit rechnen WIR
-            // aus dem Beginn (Von) — ab 45 Jahren jährlich, sonst 2 Jahre. Das
-            // importierte easy@work-Bis dient nur als Prüfwert: weicht es ab, warnen
-            // + auf unseren Wert korrigieren. Das Beginndatum selbst übernehmen wir
-            // ungeprüft (kann easy@work-seitig nicht verifiziert werden).
+            // Eintritt = Betriebszugehörigkeit/Seniorität aus easy@work (für die
+            // Dienstjubiläen); fällt auf den Anstellungs-Beginn (from) zurück, wenn keine
+            // Seniorität hinterlegt ist. Walter-Vorgabe 05.07.2026.
+            if (propsInfo.SeniorityDate.HasValue) data.EntryDate = propsInfo.SeniorityDate;
+            // Funktionen (Positionen) aus easy@work — für die Mehrdeutigkeits-Prüfung:
+            // mehr als eine distinct Funktion → MA wird nicht importiert (Walter 05.07.2026).
+            if (cache != null && cache.Functions.TryGetValue(eaw.Id, out var cf))
+                data.Functions = cf;
+            else
+            {
+                try
+                {
+                    var posData = (await _client.GetPositionsAsync(customerId, eaw.Id, ct))?.Data ?? new();
+                    data.Functions = posData
+                        .Select(p => (p.Name ?? "").Trim())
+                        .Where(n => n.Length > 0)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+                catch { /* Positionen nicht abrufbar → keine Mehrdeutigkeits-Prüfung */ }
+            }
+            // Nachtarbeit-Arztzeugnis (Walter-Vorgabe 05.07.2026): BEIDE Daten (Beginn
+            // + Ende) werden 1:1 aus easy@work übernommen. Das Soll-Ende rechnen WIR aus
+            // dem Beginn (Alter ≥ 45 → +1 Jahr − 1 Tag, sonst +2 Jahre − 1 Tag). Weicht
+            // das easy@work-Ende von unserem Soll ab, kommt eine Import-Meldung + eine
+            // ToDo (siehe DashboardService), damit die GF das Ende in easy@work
+            // korrigieren — denn die GF prüfen die Gültigkeit BEIDES in Cowork UND easy.
             if (propsInfo.NightWorkFrom.HasValue)
             {
                 var von = propsInfo.NightWorkFrom.Value;
-                int gueltigkeitJahre = 2;
-                if (data.DateOfBirth.HasValue)
+                data.NightWorkExamIssued     = von;                        // Beginn 1:1
+                data.NightWorkExamValidUntil = propsInfo.NightWorkTo;      // Ende 1:1 (kann null sein)
+
+                // Ausgetretene MA NICHT mehr melden — die Nacht-Gültigkeit muss bei
+                // Personen, die nicht mehr da sind, nicht nachgeführt werden
+                // (Walter-Vorgabe 05.07.2026). eaw.To in der Vergangenheit = ausgetreten.
+                bool maAusgetreten = eaw.To.HasValue && eaw.To.Value < DateOnly.FromDateTime(DateTime.Today);
+                if (!maAusgetreten)
                 {
-                    var dob = data.DateOfBirth.Value;
-                    int alter = von.Year - dob.Year;
-                    if (von < dob.AddYears(alter)) alter--;
-                    if (alter >= 45) gueltigkeitJahre = 1;   // ab 45 jährlich
+                    var sollBis = Employee.NightWorkValidUntil(von, data.DateOfBirth);
+                    var nwName = $"{data.FirstName} {data.LastName}".Trim();
+                    if (!propsInfo.NightWorkTo.HasValue)
+                        data.Notes.Add($"⚠ Nachtarbeit-Arztzeugnis {nwName}: in easy@work fehlt das Enddatum. "
+                                      + $"Soll gemäss Regel: {sollBis:dd.MM.yyyy} (Beginn {von:dd.MM.yyyy}). Bitte in easy@work nachtragen.");
+                    else if (propsInfo.NightWorkTo.Value != sollBis)
+                        data.Notes.Add($"⚠ Nachtarbeit-Arztzeugnis {nwName}: easy@work-Enddatum {propsInfo.NightWorkTo:dd.MM.yyyy} stimmt nicht mit der Regel überein "
+                                      + $"(Beginn {von:dd.MM.yyyy} → Soll {sollBis:dd.MM.yyyy}). Bitte das Enddatum in easy@work auf {sollBis:dd.MM.yyyy} korrigieren.");
                 }
-                var unserBis = von.AddYears(gueltigkeitJahre);
-                data.NightWorkExamValidUntil = unserBis;
-                var nwName = $"{data.FirstName} {data.LastName}".Trim();
-                if (propsInfo.NightWorkTo.HasValue && propsInfo.NightWorkTo.Value != unserBis)
-                    data.Notes.Add($"⚠ Nachtarbeit-Arztzeugnis {nwName}: easy@work-Bis {propsInfo.NightWorkTo:dd.MM.yyyy} weicht von der Regel ab "
-                                  + $"(Beginn {von:dd.MM.yyyy} + {gueltigkeitJahre} Jahr(e) = {unserBis:dd.MM.yyyy}) — auf {unserBis:dd.MM.yyyy} korrigiert. "
-                                  + $"Bitte das Bis-Datum in easy@work auf {unserBis:dd.MM.yyyy} korrigieren.");
-                else
-                    data.Notes.Add($"✓ Nachtarbeit-Arztzeugnis {nwName}: gültig bis {unserBis:dd.MM.yyyy} (stimmt mit der Regel überein).");
             }
-            try
+            if (cache != null && cache.Iban.TryGetValue(eaw.Id, out var ci))
+                data.Iban = ci;
+            else
             {
-                var fiscal = await _client.GetFiscalInfoAsync(customerId, eaw.Id, ct);
-                data.Iban = fiscal?.Iban?.Replace(" ", "").Trim().ToUpperInvariant();
-            }
-            catch (Exception ex)
-            {
-                data.Notes.Add($"IBAN/Fiscal-Info nicht abrufbar: {ex.Message}");
+                try
+                {
+                    var fiscal = await _client.GetFiscalInfoAsync(customerId, eaw.Id, ct);
+                    data.Iban = fiscal?.Iban?.Replace(" ", "").Trim().ToUpperInvariant();
+                }
+                catch (Exception ex)
+                {
+                    data.Notes.Add($"IBAN/Fiscal-Info nicht abrufbar: {ex.Message}");
+                }
             }
         }
 
@@ -607,11 +711,50 @@ public class EasyAtWorkEmployeeSyncService
         var natByCode = await _db.Nationalities.AsNoTracking()
             .ToDictionaryAsync(n => (n.Code ?? "").ToUpperInvariant(), n => n.Id, ct);
 
+        // PERFORMANCE (Walter-Vorgabe 05.07.2026): die Detail-Daten pro MA
+        // (Props/Zivilstand/AHV/Nachtarbeit, Positionen/Funktionen, Fiscal/IBAN)
+        // sind 3 easy@work-API-Calls PRO MA. Bisher lief das in BuildMasterDataAsync
+        // SEQUENZIELL für jeden MA → bei vielen MA sehr langsam. Wir holen diese
+        // Calls jetzt VORAB PARALLEL (nur _client = thread-safe, KEIN _db) und
+        // BuildMasterDataAsync liest aus dem Cache. Die restliche (DB-)Arbeit
+        // bleibt sequenziell (DbContext ist nicht thread-safe).
+        var detailCache = new DetailCache();
+        if (!req.SkipDetailCalls)
+        {
+            var custId0 = mapping.EasyAtWorkCustomerId;
+            using var sem = new SemaphoreSlim(10);
+            var pfTasks = eawEmps.Select(async eaw =>
+            {
+                await sem.WaitAsync(ct);
+                try
+                {
+                    try { detailCache.Props[eaw.Id] = await FetchPropsInfoAsync(custId0, eaw.Id, ct); } catch { }
+                    try
+                    {
+                        var pos = (await _client.GetPositionsAsync(custId0, eaw.Id, ct))?.Data ?? new();
+                        detailCache.Functions[eaw.Id] = pos
+                            .Select(p => (p.Name ?? "").Trim())
+                            .Where(n => n.Length > 0)
+                            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    }
+                    catch { }
+                    try
+                    {
+                        var fisc = await _client.GetFiscalInfoAsync(custId0, eaw.Id, ct);
+                        detailCache.Iban[eaw.Id] = fisc?.Iban?.Replace(" ", "").Trim().ToUpperInvariant();
+                    }
+                    catch { }
+                }
+                finally { sem.Release(); }
+            });
+            await Task.WhenAll(pfTasks);
+        }
+
         var masterByEaw = new Dictionary<int, EmployeeMasterData>();
         foreach (var eaw in eawEmps)
             masterByEaw[eaw.Id] = await BuildMasterDataAsync(
                 mapping.EasyAtWorkCustomerId, eaw, natByCode,
-                includeDetailCalls: !req.SkipDetailCalls, ct);
+                includeDetailCalls: !req.SkipDetailCalls, ct, detailCache);
 
         // Leere Auswahl bedeutet im Frontend bewusst: alle gematchten MA
         // (inkl. UNCHANGED) trotzdem durch den Commit-Pfad schicken, damit
@@ -676,6 +819,18 @@ public class EasyAtWorkEmployeeSyncService
                 row.Reason = string.Join("; ", master.Errors);
                 row.Diffs = new();
                 res.Rows.Add(row); res.CountConflict++;
+                continue;
+            }
+            // Mehrdeutige Funktion: mehr als eine Funktion in easy@work erfasst →
+            // MA NICHT importieren/anpassen, als Konflikt melden mit Auflistung
+            // (Walter-Vorgabe 05.07.2026).
+            if (master.Functions.Count > 1)
+            {
+                row.Status = "CONFLICT";
+                row.Reason = $"{master.Functions.Count} Funktionen gefunden: {string.Join(", ", master.Functions)} — mehrdeutig, MA wird nicht importiert/angepasst. Bitte in easy@work auf eine Funktion reduzieren.";
+                row.Diffs = new();
+                res.Rows.Add(row); res.CountConflict++;
+                res.Notes.Add($"⚠ {master.FirstName} {master.LastName} (Nr. {row.Number}): {master.Functions.Count} Funktionen gefunden: {string.Join(", ", master.Functions)} — nicht importiert.");
                 continue;
             }
 
@@ -1049,6 +1204,17 @@ public class EasyAtWorkEmployeeSyncService
                             existingByEawId.ExitDate = null;
                             reactivated = true;
                         }
+                        else if (existingByEawId.IsActive && existingByEawId.ExitDate.HasValue)
+                        {
+                            // Bereits aktiv, aber stehengebliebenes Austrittsdatum. Entfernen,
+                            // wenn easy@work hier unbefristet ist ODER der MA noch einen offenen
+                            // Vertrag hat (Filialwechsel → Filial-Austritt ist nicht der
+                            // Personen-Austritt). Walter-Bug 05.07.2026.
+                            bool clearIt = !eaw.To.HasValue
+                                || await _db.Employments.AnyAsync(em => em.EmployeeId == existingByEawId.Id
+                                        && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today), ct);
+                            if (clearIt) existingByEawId.ExitDate = null;
+                        }
                         // 4) Als EXISTING markieren, NICHT als neuen Employee anlegen.
                         row.Status = "EXISTING";
                         row.CoworkEmployeeId = existingByEawId.Id;
@@ -1079,6 +1245,8 @@ public class EasyAtWorkEmployeeSyncService
                     // vorhanden, nie leeren (manuell Gepflegtes bleibt sonst stehen).
                     if (master.NightWorkExamValidUntil.HasValue)
                         emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil.Value.ToDateTime(TimeOnly.MinValue);
+                    if (master.NightWorkExamIssued.HasValue)
+                        emp.NightWorkExamIssued = master.NightWorkExamIssued.Value.ToDateTime(TimeOnly.MinValue);
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
                     if (string.IsNullOrWhiteSpace(emp.CantonCode)) emp.CantonCode = await LookupCantonAsync(emp.ZipCode, ct);
@@ -1103,6 +1271,8 @@ public class EasyAtWorkEmployeeSyncService
                     // vorhanden, nie leeren (manuell Gepflegtes bleibt sonst stehen).
                     if (master.NightWorkExamValidUntil.HasValue)
                         emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil.Value.ToDateTime(TimeOnly.MinValue);
+                    if (master.NightWorkExamIssued.HasValue)
+                        emp.NightWorkExamIssued = master.NightWorkExamIssued.Value.ToDateTime(TimeOnly.MinValue);
                     if (!string.IsNullOrWhiteSpace(row.NumberChangeTo))
                     {
                         SaveNumberChange(_db, emp, row.NumberChangeTo!);
@@ -1123,23 +1293,42 @@ public class EasyAtWorkEmployeeSyncService
                     }
                     else if (eaw.To.HasValue && eaw.To.Value < activeAt)
                     {
-                        // Nur inaktiv setzen, wenn der MA NICHT in einer ANDEREN Filiale
-                        // noch aktiv ist. C) NICHT über is_active prüfen (kann stale sein),
-                        // sondern über das Vertragsende: offen oder Ende ab heute = aktiv.
+                        // easy@work-Austritt in der Vergangenheit. Er darf NUR dann zum
+                        // Personen-Austritt werden, wenn der MA KEINEN offenen Vertrag mehr
+                        // hat (irgendeine Filiale). Hat er noch einen offenen Vertrag
+                        // (Filialwechsel!), ist dieser Filial-Austritt NICHT sein Austritt →
+                        // ein evtl. stehengebliebenes Austrittsdatum wird AKTIV entfernt.
+                        // Walter-Bug 05.07.2026: die frühere Filial-genaue Prüfung war fragil
+                        // (null-Filiale / Reihenfolge) und liess den Austritt beim
+                        // Gesamt-Import wieder aufleben.
                         var todayD = DateTime.Today;
-                        bool activeElsewhere = await _db.Employments
+                        bool hasOpenContract = await _db.Employments
                             .AnyAsync(em => em.EmployeeId == emp.Id
-                                         && em.CompanyProfileId != req.CompanyProfileId
                                          && (em.ContractEndDate == null || em.ContractEndDate >= todayD), ct);
-                        if (!activeElsewhere)
+                        if (hasOpenContract)
+                        {
+                            if (emp.ExitDate.HasValue) emp.ExitDate = null;
+                            if (!emp.IsActive) emp.IsActive = true;
+                        }
+                        else
                         {
                             emp.IsActive = false;
                             emp.ExitDate = eaw.To.Value.ToDateTime(TimeOnly.MinValue);
                         }
                     }
+                    // Stale Austrittsdatum am BEREITS aktiven MA entfernen, wenn easy@work
+                    // hier unbefristet ist (nahtloser Filialwechsel: Austritt alte Filiale =
+                    // Eintritt neue Filiale → gleiches Datum blieb als Austritt stehen).
+                    if (emp.IsActive && !eaw.To.HasValue && emp.ExitDate.HasValue)
+                        emp.ExitDate = null;
                     timelineWork.Add((emp, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw.To));
                     if (!string.IsNullOrWhiteSpace(master.Iban)) bankWork.Add((emp, master.Iban!));
-                    res.CountUpdated++;
+                    // NUR echte UPDATE-Zeilen als „aktualisiert" zählen. UNCHANGED-MA
+                    // durchlaufen diesen Zweig nur für die Timeline-/Vertrags-Spiegelung
+                    // (leere Auswahl = alle) — sie dürfen die Zahl NICHT hochtreiben,
+                    // sonst zeigt jeder Import „54 aktualisiert" obwohl nichts änderte
+                    // (Walter-Bug 05.07.2026).
+                    if (row.Status == "UPDATE") res.CountUpdated++;
                 }
             }
 
@@ -1799,7 +1988,13 @@ public class EasyAtWorkEmployeeSyncService
         }
         else if (m == "FIX" || m == "FIX-M")
         {
-            if (e.MonthlySalary == null && e.MonthlySalaryFte == null) return "Monatslohn fehlt";
+            // Als Monatslohn-Modell (FIX/FIX-M) erfasst, aber ohne Monatslohn — das
+            // ist meist eine Fehlklassifizierung eines Stundenlohn-MA (Crew → MTP/UTP).
+            // Der Import setzt Modell + Lohn aus easy@work neu (EnsureEmploymentAsync),
+            // korrigiert also z.B. FIX → MTP. Klartext statt „Monatslohn fehlt", damit
+            // es bei einem MTP nicht verwirrt (Walter-Vorgabe 05.07.2026).
+            if (e.MonthlySalary == null && e.MonthlySalaryFte == null)
+                return "als Monatslohn-Vertrag (FIX/FIX-M) erfasst, aber ohne Monatslohn — Modell/Lohn wird aus easy@work korrigiert (z.B. auf MTP/Stundenlohn)";
         }
         return null;
     }
@@ -2356,7 +2551,7 @@ public class EasyAtWorkEmployeeSyncService
     /// Zivilstand (cf_marital_status) UND AHV-Nummer (cf_swiss_national_id).
     /// Unbekannt/Fehlschlag → null (bleibt manuell). Walter-Vorgabe 22.06.2026.
     /// </summary>
-    private async Task<(string? Marital, string? Ahv, DateOnly? NightWorkFrom, DateOnly? NightWorkTo)> FetchPropsInfoAsync(int customerId, int eawEmployeeId, CancellationToken ct)
+    private async Task<(string? Marital, string? Ahv, DateOnly? NightWorkFrom, DateOnly? NightWorkTo, DateOnly? SeniorityDate)> FetchPropsInfoAsync(int customerId, int eawEmployeeId, CancellationToken ct)
     {
         try
         {
@@ -2390,9 +2585,24 @@ public class EasyAtWorkEmployeeSyncService
                 if (hasNote) { nwFrom = nwProp.From; nwTo = nwProp.To; }
             }
 
-            return (marital, ahv, nwFrom, nwTo);
+            // Betriebszugehörigkeit / Seniorität (cf_seniority_date, Walter-Vorgabe
+            // 05.07.2026): das ist der FIRMEN-Eintritt für Dienstjubiläen — überdauert
+            // Filialwechsel (im Gegensatz zum Anstellungs-«from», das nur den aktuellen
+            // Filial-Start ist).
+            DateOnly? seniority = null;
+            var seniorRaw = Pick("seniority_date", "betriebszugeh");
+            if (!string.IsNullOrWhiteSpace(seniorRaw))
+            {
+                var s = seniorRaw.Trim();
+                if (DateOnly.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var sd))
+                    seniority = sd;
+                else if (DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var sdt))
+                    seniority = DateOnly.FromDateTime(sdt);
+            }
+
+            return (marital, ahv, nwFrom, nwTo, seniority);
         }
-        catch (Exception ex) { _log.LogDebug(ex, "Properties (Zivilstand/AHV/Nachtarbeit) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); return (null, null, null, null); }
+        catch (Exception ex) { _log.LogDebug(ex, "Properties (Zivilstand/AHV/Nachtarbeit/Seniorität) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); return (null, null, null, null, null); }
     }
 
     /// <summary>13-stellige AHV-Nr. (756…) → Format 756.XXXX.XXXX.XX. Sonst roh.</summary>

@@ -1224,8 +1224,8 @@ window.i18n = (function () {
         // Flag-Buttons im Header aktualisieren
         const btnDe = document.getElementById('langBtnDe');
         const btnEn = document.getElementById('langBtnEn');
-        if (btnDe) btnDe.style.outline = lang === 'de' ? '2px solid #3b82f6' : 'none';
-        if (btnEn) btnEn.style.outline = lang === 'en' ? '2px solid #3b82f6' : 'none';
+        if (btnDe) btnDe.style.outline = lang === 'de' ? '2px solid #3f3f3f' : 'none';
+        if (btnEn) btnEn.style.outline = lang === 'en' ? '2px solid #3f3f3f' : 'none';
         // Profil-Persistenz nur auf expliziten Wunsch (default: false → Session-only).
         // Bei opts.persist=true geht die Wahl auch in app_user.preferred_language.
         if (opts && opts.persist && typeof authToken !== 'undefined' && authToken) {

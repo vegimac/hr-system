@@ -61,13 +61,13 @@ function renderDokAuditResults(rows) {
         return `<tr style="border-top:1px solid #f1f5f9;background:#fffbeb">
             <td style="padding:8px 12px">
                 <a href="javascript:void(0)" onclick="dokAuditOpenMa(${r.employeeId})"
-                   style="color:#1d4ed8;text-decoration:none;font-weight:600">
+                   style="color:#6b7280;text-decoration:none;font-weight:600">
                    ${r.employeeName || '–'}
                 </a>
                 <div style="font-size:11px;color:#94a3b8">${r.employeeNumber || ''}</div>
             </td>
             <td style="padding:8px 12px">
-                <span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:8px;font-weight:600;font-size:11.5px">
+                <span style="background:#ece9e2;color:#6b6152;padding:2px 8px;border-radius:8px;font-weight:600;font-size:11.5px">
                     ${r.currentBranchCode}
                 </span>
                 <div style="font-size:11px;color:#64748b;margin-top:2px">${r.currentBranchName || ''}</div>

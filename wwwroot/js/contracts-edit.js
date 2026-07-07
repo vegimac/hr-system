@@ -286,7 +286,7 @@ async function checkCeMinimumWage() {
             preHints += `<div style="color:#92400e;font-size:11.5px">${_t('vt.compl.mtpHoursMissing')}</div>`;
         } else {
             if (guaranteed < 17) preHints += `<div style="color:#92400e;font-size:11.5px">${_t('vt.compl.mtpMin17')}</div>`;
-            if (guaranteed >= 33) preHints += `<div style="color:#0369a1;font-size:11.5px">${_t('vt.compl.mtpMax33')}</div>`;
+            if (guaranteed >= 33) preHints += `<div style="color:#6b6152;font-size:11.5px">${_t('vt.compl.mtpMax33')}</div>`;
         }
     }
 
@@ -337,8 +337,8 @@ async function checkCeMinimumWage() {
         if (noRule) {
             infoEl.innerHTML = `<div style="padding:8px 12px;border-radius:6px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:11.5px">${_t('vt.compl.noRule')}</div>`;
         } else {
-            let infoHtml = `<div style="padding:8px 12px;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;font-size:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">`;
-            infoHtml += `<div style="font-weight:700;color:#1d4ed8">${_t('vt.compl.headline')}</div>`;
+            let infoHtml = `<div style="padding:8px 12px;border-radius:6px;background:#f6f3ee;border:1px solid #e5e0d6;color:#5a5348;font-size:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">`;
+            infoHtml += `<div style="font-weight:700;color:#6b7280">${_t('vt.compl.headline')}</div>`;
             if (!isFix && cr.minimumHourlyRate != null) {
                 infoHtml += `<div>${_t('vt.compl.hourlyFrom')} <strong>CHF ${Number(cr.minimumHourlyRate).toFixed(2)}</strong>/h</div>`;
             }
@@ -424,7 +424,7 @@ async function checkCeMinimumWage() {
         }
         if (cr.difference != null && cr.difference !== 0) {
             html += `<div>${_t('vt.compl.lblDiff')}</div>`;
-            html += `<div style="grid-column:span 2;color:${underpaid ? '#dc2626' : '#0369a1'};font-weight:600">CHF ${Number(cr.difference).toFixed(2)} ${underpaid ? _t('vt.compl.diffLow') : _t('vt.compl.diffHigh')}</div>`;
+            html += `<div style="grid-column:span 2;color:${underpaid ? '#dc2626' : '#6b6152'};font-weight:600">CHF ${Number(cr.difference).toFixed(2)} ${underpaid ? _t('vt.compl.diffLow') : _t('vt.compl.diffHigh')}</div>`;
         }
         html += `</div>`;
 

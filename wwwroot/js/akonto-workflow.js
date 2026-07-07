@@ -29,14 +29,14 @@ let _akWfAutoStarting = false;  // In-Flight-Guard fürs Auto-Vorbereiten (Walte
 const _AK_STATUS = {
     OFFEN:             { label: 'Offen',                color: '#94a3b8', bg: '#f1f5f9' },
     IN_BEARBEITUNG_GF: { label: 'In Bearbeitung (GF)',  color: '#92400e', bg: '#fef3c7' },
-    BEI_HR:            { label: 'Bei HR',               color: '#1e40af', bg: '#dbeafe' },
+    BEI_HR:            { label: 'Bei HR',               color: '#6b6152', bg: '#ece9e2' },
     HR_FREIGEGEBEN:    { label: 'HR freigegeben',       color: '#15803d', bg: '#dcfce7' },
     AUSBEZAHLT:        { label: 'Ausbezahlt',           color: '#7c2d12', bg: '#fed7aa' },
 };
 const _AK_BLATT_STATUS = {
     BERECHNET:      { label: 'berechnet',         color: '#92400e', bg: '#fef3c7' },
     FREIGEGEBEN_GF: { label: '✓ GF freigegeben',  color: '#15803d', bg: '#dcfce7' },
-    HR_BESTAETIGT:  { label: '✓ HR-bestätigt',    color: '#1e40af', bg: '#dbeafe' },
+    HR_BESTAETIGT:  { label: '✓ HR-bestätigt',    color: '#6b6152', bg: '#ece9e2' },
     AUSBEZAHLT:     { label: 'ausbezahlt',        color: '#7c2d12', bg: '#fed7aa' },
     STORNIERT:      { label: 'storniert',         color: '#b91c1c', bg: '#fee2e2' },
 };
@@ -284,7 +284,7 @@ function _akWfUpdateModeButtons() {
     const def = document.getElementById('lohnModeDefinitivBtn');
     const ak  = document.getElementById('lohnModeAkontoBtn');
     if (!def || !ak) return;
-    const active   = 'background:#1d4ed8;color:white;border-color:#1d4ed8';
+    const active   = 'background:#6b7280;color:white;border-color:#6b7280';
     const inactive = 'background:white;color:#475569;border-color:#cbd5e1';
     const base     = 'padding:7px 14px;border:1px solid;font-size:13px;font-weight:600;cursor:pointer';
     // Akonto links, Definitiv rechts (Walter-Vorgabe 16.05.2026 — Akonto ist der häufigere Lauf).
@@ -630,8 +630,8 @@ function _akWfRenderStatusBar() {
             }
             break;
         case 'AUSBEZAHLT':
-            actions = `<button class="btn btn-outline btn-sm" onclick="akWfDownloadDta()" style="color:#0369a1;border-color:#7dd3fc" title="pain.001-XML für die Bank">📥 DTA-File</button>
-                       <button class="btn btn-outline btn-sm" onclick="akWfDownloadListePdf()" style="color:#0369a1;border-color:#7dd3fc" title="Akonto-Zahlungsliste als PDF (Begleitliste, Buchhaltungs-Beleg)">📄 Akonto-Liste</button>
+            actions = `<button class="btn btn-outline btn-sm" onclick="akWfDownloadDta()" style="color:#6b6152;border-color:#d0c8b8" title="pain.001-XML für die Bank">📥 DTA-File</button>
+                       <button class="btn btn-outline btn-sm" onclick="akWfDownloadListePdf()" style="color:#6b6152;border-color:#d0c8b8" title="Akonto-Zahlungsliste als PDF (Begleitliste, Buchhaltungs-Beleg)">📄 Akonto-Liste</button>
                        <span class="ak-ausbezahlt-badge" style="font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:8px">🔒 Ausbezahlt ${_akFmtTs(d.akontoAusbezahltAt)} — Admin-Reopen via Lohnperioden-Modul</span>`;
             break;
     }
@@ -728,7 +728,7 @@ function _akWfRenderMaList() {
         // Subline: zeigt den höchsten erreichten Schritt
         let sublineText, sublineColor;
         if (isAusbezahlt)     { sublineText = 'Akonto ausbezahlt'; sublineColor = '#7c2d12'; }
-        else if (hrDone)      { sublineText = 'HR-bestätigt';      sublineColor = '#1e40af'; }
+        else if (hrDone)      { sublineText = 'HR-bestätigt';      sublineColor = '#6b6152'; }
         else if (gfDone)      { sublineText = 'GF freigegeben';    sublineColor = '#16a34a'; }
         else                  { sublineText = r.employeeNumber || ''; sublineColor = '#94a3b8'; }
 
@@ -738,7 +738,7 @@ function _akWfRenderMaList() {
         if (isAusbezahlt) {
             avatarHtml = `<div title="GF freigegeben + HR bestätigt + ausbezahlt" style="width:34px;height:34px;border-radius:50%;background:#fed7aa;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#7c2d12;flex-shrink:0;line-height:1">✓✓</div>`;
         } else if (hrDone) {
-            avatarHtml = `<div title="GF freigegeben + HR-bestätigt" style="width:34px;height:34px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#1e40af;flex-shrink:0;line-height:1">✓✓</div>`;
+            avatarHtml = `<div title="GF freigegeben + HR-bestätigt" style="width:34px;height:34px;border-radius:50%;background:#ece9e2;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#6b6152;flex-shrink:0;line-height:1">✓✓</div>`;
         } else if (gfDone) {
             avatarHtml = `<div title="GF freigegeben — wartet auf HR" style="width:34px;height:34px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#166534;flex-shrink:0">✓</div>`;
         } else {

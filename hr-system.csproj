@@ -45,6 +45,12 @@
          4.16.0 = Patch für GHSA-9j88-vvj5-vhgr (STARTTLS Response Injection /
          SASL-Downgrade durch MitM; betraf alle Versionen < 4.16.0). -->
     <PackageReference Include="MailKit" Version="4.16.0" />
+    <!-- WebAuthn / Passkeys (Face ID / Touch ID / Fingerprint) fürs MA-Postfach-Login.
+         fido2-net-lib übernimmt Attestation/Assertion-Krypto; AspNet-Paket bringt AddFido2. -->
+    <PackageReference Include="Fido2" Version="3.0.1" />
+    <PackageReference Include="Fido2.AspNet" Version="3.0.1" />
+    <!-- QR-Code-Generierung (Onboarding-/Reset-Link fürs MA-Postfach). Dependency-frei (PngByteQRCode). -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
 
 </Project>

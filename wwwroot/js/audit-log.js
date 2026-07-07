@@ -89,7 +89,7 @@ function alFmtTime(iso) {
 function alActionBadge(action) {
     const styles = {
         CREATE: { bg: '#dcfce7', color: '#166534', label: '+ NEU' },
-        UPDATE: { bg: '#dbeafe', color: '#1e40af', label: '✎ ÄND.' },
+        UPDATE: { bg: '#ece9e2', color: '#6b6152', label: '✎ ÄND.' },
         DELETE: { bg: '#fee2e2', color: '#991b1b', label: '✕ LÖSCH' },
     };
     const s = styles[action] || { bg: '#f1f5f9', color: '#475569', label: action };

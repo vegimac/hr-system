@@ -184,7 +184,7 @@ function qstRenderVorschlagBanner() {
     if (!v) { hint.innerHTML = ''; return; }
     const manual = sel?.value || '';
     const passt  = manual && manual === v.tarifCode;
-    const headerColor = passt ? '#16a34a' : '#1d4ed8';
+    const headerColor = passt ? '#16a34a' : '#6b7280';
     const headerIcon  = passt ? '✓' : 'ℹ';
     const begr   = v.begruendung ? `<div style="color:#475569;margin-top:2px">${v.begruendung}</div>` : '';
     const warns  = (v.warnings && v.warnings.length)
@@ -269,7 +269,7 @@ function qstUpdateAutoKinderHint() {
         hint.innerHTML = `
             <span style="color:#dc2626">⚠ Auto: ${auto} (${quelle}), manuell eingetragen: ${manual}</span>
             <button type="button" onclick="qstApplyAutoKinder()"
-                    style="margin-left:6px;background:#2563eb;color:#fff;border:none;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600">Auto übernehmen</button>`;
+                    style="margin-left:6px;background:#1a1a1a;color:#fff;border:none;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600">Auto übernehmen</button>`;
     }
 }
 
@@ -391,8 +391,8 @@ function renderQstHistoryTabs() {
         const to   = fmtDe(e.validTo)   ?? 'offen';
         const active = !e.validTo;
         return `<button onclick="loadQstEntry(${e.id})"
-            style="border:1px solid ${active ? '#2563eb' : '#d1d5db'};background:${active ? '#eff6ff' : '#fff'};
-            color:${active ? '#1d4ed8' : '#374151'};border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer;font-weight:${active ? '600' : '400'}">
+            style="border:1px solid ${active ? '#1a1a1a' : '#d1d5db'};background:${active ? '#f6f3ee' : '#fff'};
+            color:${active ? '#6b7280' : '#374151'};border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer;font-weight:${active ? '600' : '400'}">
             ${from} → ${to}
         </button>`;
     }).join('');

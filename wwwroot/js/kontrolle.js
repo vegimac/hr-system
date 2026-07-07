@@ -164,9 +164,9 @@ async function kontrollePermitRefresh() {
                 <tbody>
                     ${list.map(r => {
                         const severityColor = r.severity === 'expired' || r.severity === 'critical'
-                            ? '#dc2626' : r.severity === 'warning' ? '#d97706' : '#0369a1';
+                            ? '#dc2626' : r.severity === 'warning' ? '#d97706' : '#6b6152';
                         const severityBg = r.severity === 'expired' || r.severity === 'critical'
-                            ? '#fee2e2' : r.severity === 'warning' ? '#fef3c7' : '#dbeafe';
+                            ? '#fee2e2' : r.severity === 'warning' ? '#fef3c7' : '#ece9e2';
                         const daysText = r.daysUntil < 0
                             ? `${-r.daysUntil} Tag(e) überfällig`
                             : r.daysUntil === 0 ? 'läuft heute ab' : `in ${r.daysUntil} Tagen`;
@@ -269,7 +269,7 @@ async function kontrolleEmployeeRefresh() {
                                 <div style="font-size:11.5px;color:#64748b">Nr. ${_e(r.employeeNumber)}</div>
                             </td>
                             <td style="padding:9px 14px;text-align:center">
-                                <span style="font-family:monospace;font-weight:600;font-size:12px;background:${r.kind === 'CH-Buerger' ? '#dcfce7' : '#dbeafe'};color:${r.kind === 'CH-Buerger' ? '#166534' : '#1e40af'};padding:2px 9px;border-radius:5px;white-space:nowrap">
+                                <span style="font-family:monospace;font-weight:600;font-size:12px;background:${r.kind === 'CH-Buerger' ? '#dcfce7' : '#ece9e2'};color:${r.kind === 'CH-Buerger' ? '#166534' : '#6b6152'};padding:2px 9px;border-radius:5px;white-space:nowrap">
                                     ${r.kind === 'CH-Buerger' ? '🇨🇭 CH-Bürger' : 'C-Ausweis'}
                                 </span>
                             </td>
@@ -549,7 +549,7 @@ function _kontrolleExportCombiPdf() {
             tr:nth-child(even) td { background:#fafafa }
             .toolbar { position:sticky; top:0; background:#fff; padding:8px 0 12px; margin-bottom:6px; border-bottom:1px solid #e2e8f0; display:flex; gap:8px; }
             .toolbar button { font-size:13px; padding:7px 14px; border-radius:7px; cursor:pointer; border:1px solid #cbd5e1; background:#fff; color:#0f172a; font-weight:600; }
-            .toolbar button.primary { background:#2563eb; border-color:#2563eb; color:#fff; }
+            .toolbar button.primary { background:#1a1a1a; border-color:#1a1a1a; color:#fff; }
             @media print { body { margin: 10mm } h2 { page-break-after:avoid } .noprint { display:none !important } }
         </style></head><body>
         <div class="toolbar noprint">

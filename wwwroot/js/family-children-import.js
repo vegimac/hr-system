@@ -60,7 +60,7 @@ function renderFciImportPreview(data) {
     const preview = document.getElementById('fciImportPreview');
     summary.innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
-            <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:12px 14px;color:#1e40af">
+            <div style="background:#ece9e2;border:1px solid #d0c8b8;border-radius:8px;padding:12px 14px;color:#6b6152">
                 <div style="font-size:24px;font-weight:700">${data.totalRows}</div>
                 <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">Kinder total</div>
             </div>
@@ -111,8 +111,8 @@ function renderFciImportPreview(data) {
                         const plansHtml = plans.length === 0
                             ? '<span style="color:#94a3b8">–</span>'
                             : plans.map(p => {
-                                const bg = p.type === 'AZ' ? '#dbeafe' : '#dcfce7';
-                                const fg = p.type === 'AZ' ? '#1e40af' : '#166534';
+                                const bg = p.type === 'AZ' ? '#ece9e2' : '#dcfce7';
+                                const fg = p.type === 'AZ' ? '#6b6152' : '#166534';
                                 return `<div style="margin-bottom:3px"><span style="background:${bg};color:${fg};padding:1px 8px;border-radius:9px;font-size:11px;font-weight:700">${p.type}</span> ${fmtDate(p.validFrom)} – ${fmtDate(p.validTo)} · <b>${Number(p.monthlyAmount).toFixed(2)}</b></div>`;
                               }).join('');
                         return `

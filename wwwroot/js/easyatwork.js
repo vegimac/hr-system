@@ -16,6 +16,12 @@ async function eawInit() {
     eawSyncInit();
     _eawEmpSyncInit();
     eawLogLoad();
+    // Native Selects durch helles Custom-Dropdown ersetzen (macOS-Dark-Popup-Fix)
+    if (typeof lightSelect === 'function') {
+        lightSelect(document.getElementById('eawSyncBranchSel'));
+        lightSelect(document.getElementById('eawEmpSyncBranchSel'));
+        lightSelect(document.getElementById('eawEmpSyncScope'));
+    }
 }
 
 // Leert die Vorschau-/Ergebnis-Bereiche + setzt den Zustand zurück. Wird beim
@@ -59,6 +65,51 @@ function eawSyncQuickRange(kind) {
     }
     fromEl.value = iso(from);
     toEl.value   = iso(to);
+}
+
+// Import-Meldungen (Stammdaten-Sync-Ergebnis inkl. Notes/⚠-Hinweise) als PDF
+// sichern/drucken. Öffnet ein Druckfenster mit den Seiten-Styles + Inhalt und
+// startet den Browser-Druck-/„Als PDF sichern"-Dialog. (Walter 04.07.2026)
+function eawEmpPrintResult() {
+    const out = document.getElementById('eawEmpSyncResult');
+    if (!out || !out.textContent.trim()) {
+        alert('Keine Import-Meldung vorhanden — bitte zuerst „Vorschau" oder „Importieren" ausführen.');
+        return;
+    }
+    const sel = document.getElementById('eawEmpSyncBranchSel');
+    const branch = (sel && sel.value) ? sel.options[sel.selectedIndex].textContent : 'Filiale';
+    const scopeSel = document.getElementById('eawEmpSyncScope');
+    const scope = scopeSel ? scopeSel.options[scopeSel.selectedIndex].textContent : '';
+    const when = new Date().toLocaleString('de-CH');
+    const styles = Array.from(document.querySelectorAll('style')).map(s => s.outerHTML).join('');
+    const w = window.open('', '_blank');
+    if (!w) { alert('Bitte Popups für diese Seite erlauben, damit das PDF erstellt werden kann.'); return; }
+    w.document.write(`<!doctype html><html lang="de"><head><meta charset="utf-8">
+        <title>easy@work-Import — Meldungen</title>
+        ${styles}
+        <style>
+            /* Muss NACH den kopierten Seiten-Styles stehen, um deren
+               @media print { body * { visibility:hidden } } (ToDo-Druck) zu
+               neutralisieren — sonst bleiben die Druckseiten leer. */
+            @page { size: portrait; margin: 14mm; }
+            @media print {
+                body * { visibility: visible !important; }
+                #todosPrintArea, #page-todos { display: none !important; }
+                @page { size: portrait; margin: 14mm; }
+            }
+            html, body { height: auto !important; overflow: visible !important; }
+            body { padding: 22px; background: #fff !important; color:#111;
+                   -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .eaw-ph1 { font-size: 20px; font-weight: 800; margin: 0 0 3px; color:#111; }
+            .eaw-pmeta { color: #555; font-size: 12px; margin-bottom: 16px; border-bottom:1px solid #ccc; padding-bottom:10px; }
+            .eaw-sync-table { font-size: 11px; }
+        </style></head><body>
+        <div class="eaw-ph1">easy@work-Import — Meldungen</div>
+        <div class="eaw-pmeta">${escapeHtml(branch)}${scope ? ' · Umfang: ' + escapeHtml(scope) : ''} · ${escapeHtml(when)}</div>
+        ${out.innerHTML}
+        </body></html>`);
+    w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 350);
 }
 
 function eawSyncInit() {
@@ -261,7 +312,7 @@ function _eawSyncRenderResult(res, wasCommit) {
                         <td style="color:#7f1d1d;font-size:12px">${escapeHtml(m.reason || '')}</td>
                         <td style="white-space:nowrap">
                             <button onclick="eawLookupEmployee(${m.eawEmployeeId})" title="In easy@work per ID nachschlagen — auch gelöschte/archivierte MA" style="background:#ede9fe;border:1px solid #c4b5fd;color:#6d28d9;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;white-space:nowrap">🔍 Nachschlagen</button>
-                            <button onclick="eawAssignAlias(${m.eawEmployeeId})" style="margin-left:6px;background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;white-space:nowrap">→ MA zuordnen</button>
+                            <button onclick="eawAssignAlias(${m.eawEmployeeId})" style="margin-left:6px;background:#ece9e2;border:1px solid #d0c8b8;color:#6b7280;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;white-space:nowrap">→ MA zuordnen</button>
                             <button onclick="eawSkipEmployee(${m.eawEmployeeId})" title="Diesen MA überspringen — seine Stempel werden nicht importiert, der Rest schon" style="margin-left:6px;background:#fff;border:1px solid #cbd5e1;color:#475569;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;white-space:nowrap">⏭ Überspringen</button>
                         </td>
                     </tr>`).join('')}</tbody>
@@ -289,7 +340,7 @@ function _eawSyncRenderResult(res, wasCommit) {
     const summary = wasCommit ? `
         <div class="eaw-sync-summary">
             <span style="color:#166534">Importiert: <strong>${res.inserted||0}</strong></span>
-            <span style="color:#1e40af">Geändert: <strong>${res.updated||0}</strong></span>
+            <span style="color:#6b6152">Geändert: <strong>${res.updated||0}</strong></span>
             <span style="color:#991b1b">Gelöscht: <strong>${res.deleted||0}</strong></span>
             <span style="color:#b45309">🔒 Gesperrt übersprungen: <strong>${res.lockedSkipped||0}</strong></span>
             <span style="color:#64748b">Übersprungen: <strong>${res.skipped||0}</strong></span>
@@ -316,7 +367,7 @@ function _eawSyncRenderResult(res, wasCommit) {
         const comment = escapeHtml(r.comment || r.reason || '');
         // Bei UNMATCHED mit bekannter easy@work-ID: Ein-Klick-Zuordnung anbieten.
         const assignBtn = (r.status === 'UNMATCHED' && r.eawEmployeeId)
-            ? `<button onclick="eawAssignAlias(${r.eawEmployeeId})" style="margin-top:4px;display:inline-block;background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer">→ MA zuordnen</button>`
+            ? `<button onclick="eawAssignAlias(${r.eawEmployeeId})" style="margin-top:4px;display:inline-block;background:#ece9e2;border:1px solid #d0c8b8;color:#6b7280;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer">→ MA zuordnen</button>`
             : '';
         let editFlag = '';
         if (r.isEdited) {
@@ -335,7 +386,7 @@ function _eawSyncRenderResult(res, wasCommit) {
             <td>${_eawDate(r.businessDate)}</td>
             <td>${_eawTime(r.timeIn)} → ${_eawTime(r.timeOut)}</td>
             <td style="text-align:right">${r.hours != null ? Number(r.hours).toFixed(2) : ''}</td>
-            <td style="text-align:right;color:${r.nightHours > 0 ? '#1e40af' : '#94a3b8'}">${r.nightHours != null ? Number(r.nightHours).toFixed(2) : ''}</td>
+            <td style="text-align:right;color:${r.nightHours > 0 ? '#6b6152' : '#94a3b8'}">${r.nightHours != null ? Number(r.nightHours).toFixed(2) : ''}</td>
             <td>${editFlag}</td>
             <td style="color:#475569">${comment}${assignBtn ? '<br>' + assignBtn : ''}</td>
         </tr>`;
@@ -397,10 +448,10 @@ function eawLogRender(rows) {
             <td>${badge(r.status)}</td>
             <td style="white-space:nowrap;color:#64748b">${r.periodFrom ? _eawDate(r.periodFrom) + '–' + _eawDate(r.periodTo) : ''} ${r.usedUpdatesFeed ? '<span style="color:#94a3b8" title="Delta-Feed (timepunch_updates)">Δ</span>' : ''}</td>
             <td style="text-align:right;color:#166534">${r.inserted || 0}</td>
-            <td style="text-align:right;color:#1e40af">${r.updated || 0}</td>
+            <td style="text-align:right;color:#6b6152">${r.updated || 0}</td>
             <td style="text-align:right;color:#991b1b">${r.deleted || 0}</td>
             <td style="text-align:right;color:#854d0e" title="in gesperrter Periode übersprungen">${r.lockedSkipped || 0}</td>
-            <td style="color:#475569;font-size:12px">${escapeHtml(r.message || '')}${r.hasDetail ? ` <button onclick="eawLogDetail(${r.id})" style="margin-left:6px;background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;font-size:11px;font-weight:600;padding:2px 9px;border-radius:6px;cursor:pointer;white-space:nowrap">🔍 Detail</button>` : ''}</td>
+            <td style="color:#475569;font-size:12px">${escapeHtml(r.message || '')}${r.hasDetail ? ` <button onclick="eawLogDetail(${r.id})" style="margin-left:6px;background:#f1efe9;border:1px solid #c7d2fe;color:#5a5348;font-size:11px;font-weight:600;padding:2px 9px;border-radius:6px;cursor:pointer;white-space:nowrap">🔍 Detail</button>` : ''}</td>
         </tr>`).join('');
     el.innerHTML = `
         <table class="eaw-sync-table">
@@ -442,7 +493,7 @@ async function eawLogDetail(id) {
         const fmt = (v) => (v == null ? '–' : Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         const actBadge = (a) => a === 'neu'
             ? '<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px">neu</span>'
-            : '<span style="background:#dbeafe;color:#1e40af;font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px">geändert</span>';
+            : '<span style="background:#ece9e2;color:#6b6152;font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px">geändert</span>';
         const rows = changes.map(c => `
             <tr>
                 <td style="white-space:nowrap">${escapeHtml(c.name)} <span style="color:#94a3b8">(${escapeHtml(c.number || '-')})</span></td>
@@ -537,7 +588,7 @@ async function eawAssignAlias(eawEmployeeId, preselectCoworkId) {
             <select id="eawAliasSelect" size="8" style="width:100%;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;padding:4px;box-sizing:border-box">${opts}</select>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
                 <button onclick="eawAliasClose()" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:7px 14px;cursor:pointer">Abbrechen</button>
-                <button onclick="eawAliasSave()" style="background:#1d4ed8;border:1px solid #1d4ed8;color:#fff;border-radius:6px;padding:7px 14px;cursor:pointer">Zuordnen &amp; speichern</button>
+                <button onclick="eawAliasSave()" style="background:#6b7280;border:1px solid #6b7280;color:#fff;border-radius:6px;padding:7px 14px;cursor:pointer">Zuordnen &amp; speichern</button>
             </div>
         </div>`;
     overlay.style.display = 'flex';
@@ -633,12 +684,12 @@ async function eawEmpChooseEmployees() {
                 <td style="padding:7px 10px;color:#64748b">${escapeHtml(e.email || '–')}</td>
                 <td style="padding:7px 10px;color:#64748b">${_eawDate(e.from)}</td>
                 <td style="padding:7px 10px;text-align:right">
-                    <button onclick="document.getElementById('eawDumpNumber').value='${escapeHtml(e.number || '')}';eawEmpDump()" style="background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer">🔬 Felder</button>
+                    <button onclick="document.getElementById('eawDumpNumber').value='${escapeHtml(e.number || '')}';eawEmpDump()" style="background:#f1efe9;border:1px solid #c7d2fe;color:#5a5348;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer">🔬 Felder</button>
                 </td>
             </tr>`).join('');
         out.innerHTML = `
-            <div style="border:1px solid #dbeafe;background:#eff6ff;border-radius:10px;padding:12px 14px;margin-bottom:10px">
-                <div style="font-weight:700;color:#1d4ed8;margin-bottom:3px">Aktive easy@work-Mitarbeiter (${rows.length})</div>
+            <div style="border:1px solid #ece9e2;background:#f6f3ee;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+                <div style="font-weight:700;color:#6b7280;margin-bottom:3px">Aktive easy@work-Mitarbeiter (${rows.length})</div>
                 <div style="font-size:12px;color:#64748b">Sortiert nach Vorname. Diese Liste schreibt noch nichts.</div>
             </div>
             <div style="max-height:420px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff">
@@ -763,9 +814,31 @@ async function eawEmpRepairIds() {
             <td style="font-family:monospace">${escapeHtml(String(x.newEasyAtWorkId ?? ''))}</td>
             <td style="font-family:monospace">${escapeHtml(String(x.eawUserId ?? ''))}</td>
         </tr>`).join('');
-        const conflictTxt = body.conflicts
-            ? `<div style="font-size:12px;color:${body.conflicts ? '#92400e' : '#64748b'};margin-top:6px">${body.conflicts} Konflikt(e) übersprungen.</div>`
-            : '';
+        const cRows = body.conflictRows || [];
+        const conflictTxt = body.conflicts ? (() => {
+            const items = cRows.map(c => {
+                if (c.matches) {
+                    // easy@work-Zeile passt auf MEHRERE Cowork-MA
+                    const cands = (c.matches || []).map(m =>
+                        `<div style="padding-left:14px;color:#78350f">– ${escapeHtml(((m.firstName||'')+' '+(m.lastName||'')).trim()||'(ohne Name)')} · Nr. ${escapeHtml(m.employeeNumber||'–')} · Cowork-#${m.id} · gespeicherte eaw-ID ${m.easyAtWorkEmployeeId ?? '–'}</div>`
+                    ).join('');
+                    return `<div style="padding:6px 0;border-top:1px solid #fde68a">
+                        <strong>easy@work #${c.eawEmployeeId}</strong> (user_id ${c.eawUserId ?? '–'}, Nr. ${escapeHtml(c.number||'–')}) passt auf <strong>mehrere</strong> Cowork-MA:${cands}
+                        <div style="padding-left:14px;color:#92400e;font-size:11px;margin-top:2px">→ In „🧹 Duplikate bereinigen" zusammenführen, dann wird die ID eindeutig.</div></div>`;
+                }
+                if (c.error) {
+                    return `<div style="padding:6px 0;border-top:1px solid #fde68a">Filiale/Customer ${c.customerId}: ${escapeHtml(c.error)}</div>`;
+                }
+                // Ein Cowork-MA soll in EINEM Lauf zwei verschiedene easy@work-IDs bekommen
+                return `<div style="padding:6px 0;border-top:1px solid #fde68a">
+                    <strong>Cowork-MA #${c.employeeId}</strong> (Nr. ${escapeHtml(c.employeeNumber||'–')}) — hat bereits eaw-ID ${c.current ?? '–'}, easy@work #${c.proposed} beansprucht denselben MA.
+                    <div style="padding-left:14px;color:#92400e;font-size:11px;margin-top:2px">→ Zwei easy@work-Datensätze zeigen auf dieselbe Person. In „🧹 Duplikate bereinigen" prüfen/zusammenführen.</div></div>`;
+            }).join('');
+            return `<div style="font-size:12px;color:#92400e;margin-top:6px">
+                ${body.conflicts} Konflikt(e) übersprungen:
+                <div style="margin-top:4px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px">${items}</div>
+            </div>`;
+        })() : '';
         if (out) out.innerHTML = `<div class="eaw-result eaw-result-ok">
             <div class="eaw-result-title">easy@work-IDs korrigiert</div>
             <div class="eaw-result-msg">
@@ -832,7 +905,7 @@ async function eawInitialImport() {
             return `<tr>
                 <td style="padding:3px 10px">${escapeHtml(a.name)}</td>
                 <td style="padding:3px 10px;text-align:right;color:#166534">${a.inserted}</td>
-                <td style="padding:3px 10px;text-align:right;color:#1e40af">${a.updated}</td>
+                <td style="padding:3px 10px;text-align:right;color:#6b6152">${a.updated}</td>
                 <td style="padding:3px 10px">${badge}</td>
             </tr>`;
         }).join('');
@@ -1195,13 +1268,13 @@ async function _eawEmpImportAsync(dto, out, commitBtn) {
     const renderBar = (phase, done, total) => {
         const pct = total > 0 ? Math.round(done / total * 100) : 0;
         out.innerHTML = `
-            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px">
-                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#1d4ed8;font-weight:600;margin-bottom:8px">
+            <div style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:10px;padding:14px 16px">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#6b7280;font-weight:600;margin-bottom:8px">
                     <span>${escapeHtml(phase || 'Import läuft…')}</span>
                     <span>${total > 0 ? done + ' / ' + total : ''}</span>
                 </div>
-                <div style="height:10px;background:#dbeafe;border-radius:6px;overflow:hidden">
-                    <div style="height:100%;width:${pct}%;background:#2563eb;transition:width .3s"></div>
+                <div style="height:10px;background:#ece9e2;border-radius:6px;overflow:hidden">
+                    <div style="height:100%;width:${pct}%;background:#1a1a1a;transition:width .3s"></div>
                 </div>
                 <div style="font-size:11.5px;color:#64748b;margin-top:8px">Du kannst das Fenster offen lassen — der Import läuft auf dem Server weiter, auch wenn es etwas dauert.</div>
             </div>`;
@@ -1299,18 +1372,18 @@ function _eawEmpSyncRender(res, wasCommit) {
         <div class="eaw-sync-summary">
             <span>Total: <strong>${res.countTotal}</strong></span>
             <span style="color:#166534">NEW: <strong>${res.countNew}</strong></span>
-            <span style="color:#1e40af">UPDATE: <strong>${res.countUpdate}</strong></span>
+            <span style="color:#6b6152">UPDATE: <strong>${res.countUpdate}</strong></span>
             <span style="color:#64748b">UNCHANGED: <strong>${res.countUnchanged}</strong></span>
             <span style="color:#991b1b">CONFLICT: <strong>${res.countConflict}</strong></span>
             ${res.countExisting ? `<span style="color:#92400e">EXISTIERT: <strong>${res.countExisting}</strong></span>` : ''}
-            ${wasCommit ? `<span style="color:#166534">Eingefügt: <strong>${res.countInserted}</strong></span><span style="color:#1e40af">Aktualisiert: <strong>${res.countUpdated}</strong></span>` : ''}
+            ${wasCommit ? `<span style="color:#166534">Eingefügt: <strong>${res.countInserted}</strong></span><span style="color:#6b6152">Aktualisiert: <strong>${res.countUpdated}</strong></span>` : ''}
         </div>`;
 
     // Tabelle: pro MA eine Hauptzeile + Detail (Diffs) auf-/zuklappbar
     const rows = (res.rows||[]).map((r, idx) => {
         const pill = {
             NEW:        '<span class="eaw-pill eaw-pill-new">NEW</span>',
-            UPDATE:     '<span class="eaw-pill" style="background:#dbeafe;color:#1e40af">UPDATE</span>',
+            UPDATE:     '<span class="eaw-pill" style="background:#ece9e2;color:#6b6152">UPDATE</span>',
             UNCHANGED:  '<span class="eaw-pill eaw-pill-soft">UNCHANGED</span>',
             EXISTING:   '<span class="eaw-pill" style="background:#fef9c3;color:#92400e">EXISTIERT</span>',
             CONFLICT:   '<span class="eaw-pill eaw-pill-unmatched">CONFLICT</span>',
@@ -1329,10 +1402,10 @@ function _eawEmpSyncRender(res, wasCommit) {
         </td></tr>`;
         // Zusätzliche, on-demand geladene easy@work-Detailzeile (fiscal_info + Custom Fields).
         const eawDetail = r.eawEmployeeId
-            ? ` · <a href="#" onclick="event.preventDefault();eawEmpLoadDetail(${r.eawEmployeeId}, '${detailId}eaw')" style="color:#1d4ed8;font-size:12px">🔎 easy@work-Felder</a>`
+            ? ` · <a href="#" onclick="event.preventDefault();eawEmpLoadDetail(${r.eawEmployeeId}, '${detailId}eaw')" style="color:#6b7280;font-size:12px">🔎 easy@work-Felder</a>`
             : '';
         const eawDetailRow = r.eawEmployeeId
-            ? `<tr id="${detailId}eaw" style="display:none"><td colspan="6" style="background:#eff6ff;padding:10px"></td></tr>`
+            ? `<tr id="${detailId}eaw" style="display:none"><td colspan="6" style="background:#f6f3ee;padding:10px"></td></tr>`
             : '';
         return `<tr>
             <td>${cb}</td>
@@ -1344,7 +1417,7 @@ function _eawEmpSyncRender(res, wasCommit) {
                 ${r.employmentInfo ? `<div style="font-size:11px;color:#475569">Employment: <strong>${escapeHtml(r.employmentInfo)}</strong>${r.assignedBranchName ? ' · Filiale: ' + escapeHtml(r.assignedBranchName) : ''}</div>` : ''}
             </td>
             <td style="font-size:11px;color:#475569">${changesSummary}</td>
-            <td><a href="#" onclick="event.preventDefault();_eawEmpToggle('${detailId}')" style="color:#1e40af;font-size:12px">Diffs</a>${eawDetail}</td>
+            <td><a href="#" onclick="event.preventDefault();_eawEmpToggle('${detailId}')" style="color:#6b6152;font-size:12px">Diffs</a>${eawDetail}</td>
             <td style="color:#94a3b8;font-size:11px">${escapeHtml(r.reason||'')}</td>
         </tr>${detailRow}${eawDetailRow}`;
     }).join('');
@@ -1412,7 +1485,7 @@ function _eawEmpRenderEawDetail(d) {
     const propsHtml = props.length
         ? `<div style="font-weight:600;margin:10px 0 4px">Custom Fields <span style="color:#94a3b8;font-weight:400">(key → value — diese Keys nutze ich fürs Mapping)</span></div>` +
           `<table style="font-size:12px;border-collapse:collapse">${props.map(p =>
-              `<tr><td style="padding:1px 14px 1px 0;color:#1d4ed8;font-family:monospace">${escapeHtml(p.key || '')}</td><td style="padding:1px 0"><strong>${escapeHtml(p.value || '')}</strong></td></tr>`
+              `<tr><td style="padding:1px 14px 1px 0;color:#6b7280;font-family:monospace">${escapeHtml(p.key || '')}</td><td style="padding:1px 0"><strong>${escapeHtml(p.value || '')}</strong></td></tr>`
           ).join('')}</table>`
         : '<div style="color:#94a3b8;margin-top:8px">Keine Custom Fields.</div>';
     const notes = (d.notes || []).map(n => `<div style="color:#b45309;font-size:11px;margin-top:4px">⚠ ${escapeHtml(n)}</div>`).join('');
@@ -1523,6 +1596,11 @@ async function eawLoadMappings() {
             return;
         }
         _eawMappings = await r.json();
+        // Sortierung wie in der Hauptauswahl (Sidebar): nach Filial-Code
+        // aufsteigend, Tie-Break nach Name (Walter-Vorgabe 05.07.2026).
+        _eawMappings.sort((a, b) =>
+            (parseInt(a.restaurantCode || '9999', 10) - parseInt(b.restaurantCode || '9999', 10))
+            || String(a.companyProfileName || '').localeCompare(String(b.companyProfileName || '')));
     } catch {
         _eawMappings = [];
     }

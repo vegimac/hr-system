@@ -185,7 +185,7 @@ function ferRender() {
             .fr-tbl td.fr-nacht-cell{position:relative;padding-right:24px}
             .fr-tbl .fr-nacht-mark{position:absolute;right:5px;top:50%;transform:translateY(-50%);font-weight:400;display:inline-flex;align-items:center;gap:2px}
             .fr-tbl .fr-sep{border-left:2px solid #cbd5e1}
-            .fr-tbl .fr-grp{text-align:center;font-weight:700;background:#eef2ff;color:#3730a3;border-bottom:1px solid #cbd5e1}
+            .fr-tbl .fr-grp{text-align:center;font-weight:700;background:#f1efe9;color:#5a5348;border-bottom:1px solid #cbd5e1}
             .fr-tbl .fr-muted{color:#cbd5e1}
             .fr-tbl .fr-pos{color:#166534;font-weight:700}
             .fr-tbl .fr-neg{color:#b91c1c;font-weight:700}

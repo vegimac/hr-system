@@ -11,6 +11,59 @@
 // Filtert auf die aktuell global gewählte Filiale (oben links).
 // ══════════════════════════════════════════════
 let _dashAlerts = [];
+// Ausgeklappte To-do-Hauptgruppen im Liquid-Dashboard (bleibt über Re-Renders erhalten).
+let _dashExpandedCats = new Set();
+function dashToggleCat(cat) {
+    const g = document.querySelector('.liquid-todo-group[data-cat="' + cat + '"]');
+    if (g) {
+        g.classList.toggle('open');
+        if (g.classList.contains('open')) _dashExpandedCats.add(cat); else _dashExpandedCats.delete(cat);
+    }
+}
+// Ausgeklappte Wichtigkeitsstufen (Kritisch standardmässig offen, Achtung/Info zu).
+let _dashExpandedSevs = new Set(['critical']);
+function dashToggleSev(sev) {
+    const g = document.querySelector('.liquid-todo-sev[data-sev="' + sev + '"]');
+    if (g) {
+        g.classList.toggle('open');
+        if (g.classList.contains('open')) _dashExpandedSevs.add(sev); else _dashExpandedSevs.delete(sev);
+    }
+}
+
+// Rendert die Hauptgruppen (Kategorie-Akkordeon) für eine Alarm-Teilmenge.
+function renderLiquidCatGroups(list) {
+    const byCat = {};
+    const order = [];
+    list.forEach(a => {
+        if (!byCat[a.category]) { byCat[a.category] = []; order.push(a.category); }
+        byCat[a.category].push(a);
+    });
+    return order.map(cat => {
+        const meta = DASH_CATEGORY_META[cat] || { label: cat, icon: '•' };
+        const items = byCat[cat];
+        const label = dashMetaLabel(meta);
+        // „Alle Mindestlöhne ok" o.ä. — reine Kopfzeile, kein Ausklappen.
+        if (cat === 'minimum_wage_ok') {
+            return `<div class="liquid-todo-row" style="cursor:default">
+                <span>${meta.icon || '✓'}</span>
+                <span><span class="liquid-todo-title">${_e(label)}</span></span>
+                <span></span>
+            </div>`;
+        }
+        const open = _dashExpandedCats.has(cat);
+        const rows = items.map(a => renderDashTodoRow(a)).join('');
+        return `<div class="liquid-todo-group ${open ? 'open' : ''}" data-cat="${_e(cat)}">
+            <div class="liquid-todo-group-head" onclick="dashToggleCat('${_e(cat)}')">
+                <span class="ltg-icon">${meta.icon || '•'}</span>
+                <span class="liquid-todo-title" style="flex:1">${_e(label)}</span>
+                <span class="ltg-count">${items.length}</span>
+                <span class="ltg-chevron">›</span>
+            </div>
+            <div class="liquid-todo-group-body">${rows}</div>
+        </div>`;
+    }).join('');
+}
+
 let _dashActiveCategoryFilter = null;  // null = alle Kategorien
 let _dashActiveSeverityFilter = null;  // null = alle Stufen
 
@@ -32,7 +85,9 @@ const DASH_CATEGORY_META = {
     employee_doku_fehlt:    { i18nKey: 'dash.cat.employeeDokuFehlt',label: 'Ausweis Mitarbeiter',    icon: '🪪', color: '#b91c1c' },
     schwangerschaft:        { i18nKey: 'dash.cat.pregnancy',        label: 'Mutterschaft',           icon: '🤰', color: '#be185d' },
     night_work_exam_fehlt:  { i18nKey: 'dash.cat.nightWorkExam',    label: 'Nachtarbeit-Nachweise', icon: '🌙', color: '#92400e' },
-    lohn_provisorisch:      { i18nKey: 'dash.cat.payrollOpen',      label: 'Lohnlauf',               icon: '💰', color: '#0369a1' },
+    night_work_exam_expiring: { i18nKey: 'dash.cat.nightWorkExpiring', label: 'Nachtarbeit-Bewilligung läuft ab', icon: '🌙', color: '#92400e' },
+    night_work_exam_mismatch: { label: 'Nachtarbeit-Enddatum in easy@work falsch', icon: '🌙', color: '#991b1b' },
+    lohn_provisorisch:      { i18nKey: 'dash.cat.payrollOpen',      label: 'Lohnlauf',               icon: '💰', color: '#6b6152' },
     birthday:               { i18nKey: 'dash.cat.birthday',         label: 'Geburtstage',            icon: '🎂', color: '#9333ea' },
     anniversary:            { i18nKey: 'dash.cat.anniversary',      label: 'Dienstjubiläen',         icon: '🎉', color: '#15803d' }
 };
@@ -40,7 +95,7 @@ const DASH_CATEGORY_META = {
 const DASH_SEVERITY_META = {
     critical: { i18nKey: 'dash.severity.critical', label: 'Kritisch', bg: '#fee2e2', border: '#fca5a5', text: '#991b1b' },
     warning:  { i18nKey: 'dash.severity.warning',  label: 'Achtung',  bg: '#fef3c7', border: '#fbbf24', text: '#92400e' },
-    info:     { i18nKey: 'dash.severity.info',     label: 'Info',     bg: '#dbeafe', border: '#93c5fd', text: '#1e40af' }
+    info:     { i18nKey: 'dash.severity.info',     label: 'Info',     bg: '#ece9e2', border: '#d0c8b8', text: '#6b6152' }
 };
 
 // Helfer: holt das übersetzte Label für eine Meta-Zeile. Fallback auf
@@ -99,6 +154,10 @@ async function loadDashboard() {
         // Alarm-Liste
         renderDashAlerts();
 
+        // To-dos-Kachel-Badge + (falls Seite offen) 3-Spalten-Seite aktualisieren
+        dashUpdateTodoBadge();
+        if (document.getElementById('page-todos')?.classList.contains('active')) renderTodosPage();
+
         // Mindestlohn-Vertragsanpassung Warn-Banner (wage-adjustment.js)
         if (typeof waLoadBanner === 'function') waLoadBanner('dashWageAdjustBanner');
     } catch(e) {
@@ -116,7 +175,7 @@ function renderDashSeverityRow(counts) {
         const active = _dashActiveSeverityFilter === sev;
         return `<button type="button" onclick="dashSetSeverityFilter('${sev}')"
             title="${dashMetaLabel(meta)} filtern"
-            style="background:${meta.bg};border:${active ? '3px solid #2563eb' : `1px solid ${meta.border}`};color:${meta.text};border-radius:10px;padding:${active ? '10px 14px' : '12px 16px'};display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;box-shadow:${active ? '0 0 0 3px rgba(37,99,235,.16)' : 'none'}">
+            style="background:${meta.bg};border:${active ? '3px solid #1a1a1a' : `1px solid ${meta.border}`};color:${meta.text};border-radius:10px;padding:${active ? '10px 14px' : '12px 16px'};display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;box-shadow:${active ? '0 0 0 3px rgba(60,55,48,.16)' : 'none'}">
             <div style="font-size:28px;font-weight:700;line-height:1">${c}</div>
             <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">${dashMetaLabel(meta)}</div>
         </button>`;
@@ -131,7 +190,7 @@ function renderDashFilterRow(countsByCategory) {
     const total = baseAlerts.length;
     const allLabel = (window.i18n && i18n.getLang() === 'en') ? 'All' : 'Alle';
     const allBtn = `<button onclick="dashSetCategoryFilter(null)"
-        style="padding:6px 12px;border:1px solid ${_dashActiveCategoryFilter === null ? '#3b82f6' : '#e2e8f0'};border-radius:7px;background:${_dashActiveCategoryFilter === null ? '#dbeafe' : '#fff'};color:${_dashActiveCategoryFilter === null ? '#1e40af' : '#475569'};cursor:pointer;font-weight:600;font-size:12px">
+        style="padding:6px 12px;border:1px solid ${_dashActiveCategoryFilter === null ? '#3f3f3f' : '#e2e8f0'};border-radius:7px;background:${_dashActiveCategoryFilter === null ? '#ece9e2' : '#fff'};color:${_dashActiveCategoryFilter === null ? '#6b6152' : '#475569'};cursor:pointer;font-weight:600;font-size:12px">
         ${allLabel} (${total})
     </button>`;
     const others = cats.map(cat => {
@@ -140,7 +199,7 @@ function renderDashFilterRow(countsByCategory) {
         const meta = DASH_CATEGORY_META[cat];
         const active = _dashActiveCategoryFilter === cat;
         return `<button onclick="dashSetCategoryFilter('${cat}')"
-            style="padding:6px 12px;border:1px solid ${active ? '#3b82f6' : '#e2e8f0'};border-radius:7px;background:${active ? '#dbeafe' : '#fff'};color:${active ? '#1e40af' : '#475569'};cursor:pointer;font-weight:600;font-size:12px;display:inline-flex;align-items:center;gap:5px">
+            style="padding:6px 12px;border:1px solid ${active ? '#3f3f3f' : '#e2e8f0'};border-radius:7px;background:${active ? '#ece9e2' : '#fff'};color:${active ? '#6b6152' : '#475569'};cursor:pointer;font-weight:600;font-size:12px;display:inline-flex;align-items:center;gap:5px">
             ${meta.icon} ${dashMetaLabel(meta)} (${c})
         </button>`;
     }).join('');
@@ -208,7 +267,28 @@ function renderDashAlerts() {
     }
 
     if (isLiquid) {
-        container.innerHTML = alerts.map(a => renderDashTodoRow(a)).join('');
+        // Nach Wichtigkeit (Severity) gruppieren: Kritisch offen zuoberst, Achtung +
+        // Info als eingeklappte Menüpunkte. Innen jeweils die Hauptgruppen (Walter 04.07.2026).
+        const bySev = {};
+        alerts.forEach(a => { (bySev[a.severity] || (bySev[a.severity] = [])).push(a); });
+        const sevOrder = ['critical', 'warning', 'info'];
+        let html = '';
+        sevOrder.forEach(sev => {
+            const list = bySev[sev];
+            if (!list || list.length === 0) return;
+            const meta = DASH_SEVERITY_META[sev] || { label: sev, text: '#3f3f3f' };
+            const open = _dashExpandedSevs.has(sev);
+            html += `<div class="liquid-todo-sev ${open ? 'open' : ''}" data-sev="${sev}">
+                <div class="liquid-todo-sev-head" onclick="dashToggleSev('${sev}')">
+                    <span class="lts-dot" style="background:${meta.text || '#888'}"></span>
+                    <span class="liquid-todo-sev-label" style="flex:1;color:${meta.text || '#3f3f3f'}">${_e(dashMetaLabel(meta))}</span>
+                    <span class="ltg-count">${list.length}</span>
+                    <span class="ltg-chevron">›</span>
+                </div>
+                <div class="liquid-todo-sev-body">${renderLiquidCatGroups(list)}</div>
+            </div>`;
+        });
+        container.innerHTML = html;
         return;
     }
 
@@ -262,7 +342,8 @@ function renderDashTodoRow(a) {
                                 : (a.category === 'exit_pending_active'
                                    || a.category === 'birthday'
                                    || a.category === 'anniversary'
-                                   || a.category === 'night_work_exam_fehlt')
+                                   || a.category === 'night_work_exam_fehlt'
+                                   || a.category === 'night_work_exam_mismatch')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'personal')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
@@ -274,6 +355,122 @@ function renderDashTodoRow(a) {
         </span>
         <span>›</span>
     </div>`;
+}
+
+// ── To-dos als eigene Seite (3 Spalten: Kritisch | Wichtig | Rest) ──────
+// Öffnet die Seite und rendert sie aus dem bereits geladenen _dashAlerts.
+function dashOpenTodos() {
+    showPage('todos');
+    renderTodosPage();   // sofort mit vorhandenen Daten zeichnen (kein Flackern)
+    // Frisch für die AKTUELL gewählte Filiale nachladen — sonst zeigt die ToDo-Seite
+    // die Alarme der Filiale, mit der man ins Programm eingestiegen ist, statt der
+    // aktuell gewählten (Walter-Bug 06.07.2026). loadDashboard() rendert die 3 Spalten
+    // neu, weil page-todos aktiv ist.
+    if (typeof loadDashboard === 'function') loadDashboard();
+}
+
+// Baut eine saubere, klassische To-do-Liste (Dokument-Stil, NICHT der Sketch-
+// Bildschirm) in #todosPrintArea und öffnet den Druck-/„Als PDF sichern"-Dialog.
+function buildTodosPrintHtml() {
+    const bySev = { critical: [], warning: [], info: [] };
+    (_dashAlerts || []).forEach(a => { (bySev[a.severity] || bySev.info).push(a); });
+    let branchLbl = 'Alle Filialen';
+    try {
+        const b = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === Number(fixedCompanyProfileId));
+        if (b) branchLbl = `${b.restaurantCode ? b.restaurantCode + ' – ' : ''}${b.branchName || b.companyName || ''}`;
+    } catch (e) {}
+    const today = new Date().toLocaleDateString('de-CH');
+    const secTitle = { critical: 'Kritisch', warning: 'Wichtig', info: 'Information' };
+    const section = (sev) => {
+        const items = bySev[sev];
+        const rows = items.length
+            ? items.map(a => {
+                const title = (a.titleKey && window.i18n) ? i18n.tFormat(a.titleKey, a.titleArgs || {}) : (a.title || '');
+                const sub   = (a.subtitleKey && window.i18n) ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {}) : (a.subtitle || '');
+                return `<tr><td class="tp-t">${_e(title)}</td><td class="tp-s">${_e(sub)}</td></tr>`;
+              }).join('')
+            : `<tr><td colspan="2" class="tp-empty">— nichts offen —</td></tr>`;
+        return `<h2 class="tp-h tp-${sev}">${secTitle[sev]} <span>(${items.length})</span></h2>
+            <table class="tp-tbl"><tbody>${rows}</tbody></table>`;
+    };
+    return `<div class="tp-head"><h1>To-do-Liste</h1><div class="tp-meta">${_e(branchLbl)} · ${today}</div></div>
+        ${section('critical')}${section('warning')}${section('info')}`;
+}
+
+function todosPrintPdf() {
+    const area = document.getElementById('todosPrintArea');
+    if (area) area.innerHTML = buildTodosPrintHtml();
+    setTimeout(() => window.print(), 80);
+}
+
+// Badge-Marker auf der To-dos-Kachel: Anzahl offener Punkte (ohne die
+// reine „alles ok"-Bestätigung). Rot, versteckt wenn nichts ansteht.
+function dashUpdateTodoBadge() {
+    const badge = document.getElementById('dashTodoBadge');
+    if (!badge) return;
+    const n = (_dashAlerts || []).filter(a => a.category !== 'minimum_wage_ok').length;
+    if (n > 0) { badge.textContent = n > 99 ? '99+' : n; badge.style.display = ''; }
+    else { badge.style.display = 'none'; }
+}
+
+// Liefert das onclick-Attribut (Sprung zum passenden Modul) für einen Alarm.
+function dashTodoOnClick(a) {
+    if (a.employeeId) {
+        switch (a.category) {
+            case 'qst_pflicht_offen':   return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
+            case 'spouse_doku_fehlt':   return `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`;
+            case 'employee_doku_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
+            case 'schwangerschaft':     return `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`;
+            case 'permit_expiring':     return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
+            case 'contract_end':        return `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`;
+            case 'exit_pending_active':
+            case 'birthday':
+            case 'anniversary':
+            case 'night_work_exam_fehlt':
+            case 'night_work_exam_expiring':
+            case 'night_work_exam_mismatch': return `onclick="dashOpenEmployee(${a.employeeId}, 'personal')"`;
+            default:                    return `onclick="dashOpenEmployee(${a.employeeId})"`;
+        }
+    }
+    return a.periodeId ? `onclick="dashOpenLohnlauf()"` : '';
+}
+
+// Gezeichnete Pendenz-Zeile im Kohle-Look (skizzierter Statuskreis + Text + Pfeil).
+function renderTodoSketchRow(a) {
+    const meta = DASH_CATEGORY_META[a.category] || {};
+    const title = (a.titleKey && window.i18n)
+        ? i18n.tFormat(a.titleKey, a.titleArgs || {})
+        : (a.title || dashMetaLabel(meta) || '');
+    const subtitle = (a.subtitleKey && window.i18n)
+        ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {})
+        : (a.subtitle || '');
+    const tip = subtitle ? `${title} — ${subtitle}` : title;
+    return `<div class="td-row" ${dashTodoOnClick(a)} title="${_e(tip)}">
+        <span class="td-check"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="13" fill="none" stroke="#26241f" stroke-width="2" filter="url(#tdRough)"/></svg></span>
+        <span class="td-text">
+            <span class="td-title">${_e(title)}</span>
+            ${subtitle ? `<span class="td-sub">${_e(subtitle)}</span>` : ''}
+        </span>
+        <span class="td-arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4 L18 12 L8 20" fill="none" stroke="#2c2a25" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="url(#tdRough)"/></svg></span>
+    </div>`;
+}
+
+// Rendert eine Spalte als flache Liste gezeichneter Pendenz-Zeilen.
+function renderTodosColumn(list) {
+    if (!list.length) return '<div class="todo-empty">— nichts offen —</div>';
+    return list.map(a => renderTodoSketchRow(a)).join('');
+}
+
+function renderTodosPage() {
+    const bySev = { critical: [], warning: [], info: [] };
+    (_dashAlerts || []).forEach(a => { (bySev[a.severity] || bySev.info).push(a); });
+    const map = { critical: 'Critical', warning: 'Warning', info: 'Info' };
+    Object.keys(map).forEach(sev => {
+        const col = document.getElementById('todosCol' + map[sev]);
+        const cnt = document.getElementById('todosCnt' + map[sev]);
+        if (col) col.innerHTML = renderTodosColumn(bySev[sev]);
+        if (cnt) cnt.textContent = bySev[sev].length;
+    });
 }
 
 function renderDashAlertRow(a) {
@@ -330,7 +527,8 @@ function renderDashAlertRow(a) {
                                 : (a.category === 'exit_pending_active'
                                    || a.category === 'birthday'
                                    || a.category === 'anniversary'
-                                   || a.category === 'night_work_exam_fehlt')
+                                   || a.category === 'night_work_exam_fehlt'
+                                   || a.category === 'night_work_exam_mismatch')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'personal')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');

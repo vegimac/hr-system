@@ -186,12 +186,12 @@ function sollRender() {
             .sl-tbl .sl-st{background:#dbe7ff}
             .sl-tbl thead th.sl-st{background:#c4d8ff}
             .sl-tbl .sl-grp{text-align:center;font-weight:700;border-bottom:1px solid #cbd5e1}
-            .sl-tbl .sl-grp-st{background:#c4d8ff;color:#1e3a8a}
-            .sl-tbl .sl-grp-mt{background:#eef2ff;color:#3730a3}
+            .sl-tbl .sl-grp-st{background:#c4d8ff;color:#5a5348}
+            .sl-tbl .sl-grp-mt{background:#f1efe9;color:#5a5348}
             .sl-tbl tbody tr:not(.sl-spacer):hover td:not(.sl-st){background:#f8fafc}
             .sl-tbl tbody tr:not(.sl-spacer):hover td.sl-st{background:#cfdffb}
             .sl-tbl .sl-spacer td{height:9px;border:none;background:transparent}
-            .sl-tbl .sl-abs{color:#1e40af}
+            .sl-tbl .sl-abs{color:#6b6152}
             .sl-tbl .sl-pos{color:#166534;font-weight:700}
             .sl-tbl .sl-neg{color:#b91c1c;font-weight:700}
             .sl-tbl .sl-zero{color:#64748b;font-weight:700}
@@ -204,11 +204,11 @@ function sollRender() {
             body.theme-dark .sl-tbl .sl-sep{border-left-color:#475569}
             body.theme-dark .sl-tbl .sl-st{background:#1c2a4a}
             body.theme-dark .sl-tbl thead th.sl-st{background:#233358}
-            body.theme-dark .sl-tbl .sl-grp-st{background:#233358;color:#93c5fd}
+            body.theme-dark .sl-tbl .sl-grp-st{background:#233358;color:#d0c8b8}
             body.theme-dark .sl-tbl .sl-grp-mt{background:#1e293b;color:#c7d2fe}
             body.theme-dark .sl-tbl tbody tr:not(.sl-spacer):hover td:not(.sl-st){background:#172033}
             body.theme-dark .sl-tbl tbody tr:not(.sl-spacer):hover td.sl-st{background:#2a3a60}
-            body.theme-dark .sl-tbl .sl-abs{color:#93c5fd}
+            body.theme-dark .sl-tbl .sl-abs{color:#d0c8b8}
             body.theme-dark .sl-tbl .sl-pos{color:#4ade80}
             body.theme-dark .sl-tbl .sl-neg{color:#f87171}
             body.theme-dark .sl-tbl .sl-zero{color:#94a3b8}
@@ -217,7 +217,7 @@ function sollRender() {
             Periode <strong>${_sollDate(_sollData.periodFrom)} – ${_sollDate(_sollData.periodTo)}</strong> ·
             Stichtag <strong>${_sollDate(_sollData.stichtag)}</strong> (Tag ${_sollData.daysToStichtag}/${_sollData.daysInMonth}) · ${_sollData.count} MA<br>
             <strong>Soll red.</strong> = Soll abzüglich Ferien/Krank/Unfall (tatsächlich zu leisten) ·
-            <span style="color:#1e40af">Absenz</span> = gutgeschriebene Absenz-Std (inkl. Krank/Unfall/Ferien) ·
+            <span style="color:#6b6152">Absenz</span> = gutgeschriebene Absenz-Std (inkl. Krank/Unfall/Ferien) ·
             <strong>Total</strong> = Gearbeitet + Absenz (≈ Soll wenn voll abgedeckt) ·
             <strong>Saldo</strong> = laufender Stunden-Saldo wie im Lohnlauf · <span style="color:#b91c1c">rot</span> = Rückstand, <span style="color:#166534">grün</span> = voraus
         </div>

@@ -112,7 +112,7 @@ function renderStImportPreview(data) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
             ${tileCard('Total', data.totalRows, '#475569')}
             ${tileCard('Gefunden', data.matched, '#15803d')}
-            ${tileCard('Importierbar', data.importable, '#1e40af')}
+            ${tileCard('Importierbar', data.importable, '#6b6152')}
             ${tileCard('Manuell wählen', data.noMatch, '#b91c1c')}
         </div>`;
 
@@ -245,17 +245,17 @@ function stImportEmployeeOptions(selectedId) {
 function stImportManualRow(r, idx) {
     const csvDob = r.csvDateOfBirth ? ' · geb. ' + stFmtDob(r.csvDateOfBirth) : '';
     const ahvPending = r.csvAhv
-        ? `<span style="color:#1e40af;font-weight:600">→ ${r.csvAhv}</span>`
+        ? `<span style="color:#6b6152;font-weight:600">→ ${r.csvAhv}</span>`
         : '<span style="color:#94a3b8">–</span>';
     const msPending = r.csvMaritalStatusCode
-        ? `<span style="color:#1e40af">→ ${r.csvMaritalStatusCode}</span>` : '<span style="color:#94a3b8">–</span>';
+        ? `<span style="color:#6b6152">→ ${r.csvMaritalStatusCode}</span>` : '<span style="color:#94a3b8">–</span>';
     const langPending = r.csvLanguageCode
-        ? `<span style="color:#1e40af">→ ${r.csvLanguageCode}</span>` : '<span style="color:#94a3b8">–</span>';
+        ? `<span style="color:#6b6152">→ ${r.csvLanguageCode}</span>` : '<span style="color:#94a3b8">–</span>';
     const addrBits = [r.csvStreet, r.csvHouseNumber, r.csvZipCode, r.csvCity].filter(Boolean);
     const addrPending = addrBits.length
-        ? `<span style="color:#1e40af">→ ${addrBits.join(' ')}</span>` : '<span style="color:#94a3b8">–</span>';
+        ? `<span style="color:#6b6152">→ ${addrBits.join(' ')}</span>` : '<span style="color:#94a3b8">–</span>';
     const isPicked = !!_stImportManual[r.rowNum];
-    return `<tr id="stImportRow-${idx}" style="background:${isPicked ? '#eff6ff' : '#fef2f2'};border-bottom:1px solid #f1f5f9;font-size:12.5px">
+    return `<tr id="stImportRow-${idx}" style="background:${isPicked ? '#f6f3ee' : '#fef2f2'};border-bottom:1px solid #f1f5f9;font-size:12.5px">
         <td style="padding:8px 10px;text-align:center">
             <input type="checkbox" class="stImportSel" id="stImportCb-${r.rowNum}" data-row="${r.rowNum}"
                    ${isPicked ? 'checked' : 'disabled'} onchange="stImportUpdateCommitBtn()"
@@ -286,7 +286,7 @@ function stImportPickEmployee(rowNum, sel) {
     if (empId) {
         _stImportManual[rowNum] = empId;
         if (cb) { cb.disabled = false; cb.checked = true; }
-        if (tr) tr.style.background = '#eff6ff';
+        if (tr) tr.style.background = '#f6f3ee';
     } else {
         delete _stImportManual[rowNum];
         if (cb) { cb.disabled = true; cb.checked = false; }

@@ -802,10 +802,14 @@ public class EasyAtWorkController : ControllerBase
         var coworkers = await _db.Employees
             .Where(e => !e.IsHidden)
             .ToListAsync(ct);
-        var byStoredId = coworkers
-            .Where(e => e.EasyAtWorkEmployeeId.HasValue)
-            .GroupBy(e => e.EasyAtWorkEmployeeId!.Value)
-            .ToDictionary(g => g.Key, g => g.ToList());
+        // WICHTIG (Walter-Vorgabe 05.07.2026): Die EINZIGE eindeutige Kennung ist die
+        // easy@work employee.id. Die user_id (App-Login) wird NICHT mehr zum Matchen
+        // verwendet — sie ist nicht personen-eindeutig und hat zwei VERSCHIEDENE Personen
+        // verknüpft (z.B. easy #4469/user_id 29300 zog Oktavia mit, deren gespeicherte
+        // «eaw-ID» 29300 in Wahrheit eine user_id war). Gematcht wird ausschliesslich über
+        // die Personalnummer; ein gespeicherter Wert, der KEINE gültige easy@work-
+        // employee.id ist (also z.B. eine alte user_id), gilt als «stale» und wird über
+        // die Nummer eindeutig korrigiert.
         var byNumber = coworkers
             .Where(e => !string.IsNullOrWhiteSpace(e.EmployeeNumber))
             .GroupBy(e => e.EmployeeNumber.Trim(), StringComparer.OrdinalIgnoreCase)
@@ -817,6 +821,10 @@ public class EasyAtWorkController : ControllerBase
         var touched = new HashSet<int>();
         var totalEawRows = 0;
 
+        // Pass 1: alle easy@work-Zeilen laden und die Menge ALLER gültigen employee.id
+        // bilden (über alle Filialen) — damit «stale» gespeicherte Werte erkennbar sind.
+        var branchRows = new List<(EasyAtWorkBranchMapping mapping, List<EawEmployee> rows)>();
+        var validEawIds = new HashSet<int>();
         foreach (var mapping in mappings)
         {
             List<EawEmployee> rows;
@@ -829,31 +837,28 @@ public class EasyAtWorkController : ControllerBase
                 conflicts.Add(new { customerId = mapping.EasyAtWorkCustomerId, mapping.CompanyProfileId, error = ex.Message });
                 continue;
             }
-
+            branchRows.Add((mapping, rows));
             totalEawRows += rows.Count;
+            foreach (var r in rows) validEawIds.Add(r.Id);
+        }
+
+        // Pass 2: pro Filiale über die Personalnummer zuordnen und die gespeicherte id
+        // korrigieren.
+        foreach (var (mapping, rows) in branchRows)
+        {
             var branchFixed = 0;
             foreach (var eaw in rows)
             {
-                var candidates = new List<Employee>();
-                void AddCandidates(IEnumerable<Employee>? list)
-                {
-                    if (list == null) return;
-                    foreach (var e in list)
-                        if (candidates.All(x => x.Id != e.Id))
-                            candidates.Add(e);
-                }
+                if (string.IsNullOrWhiteSpace(eaw.Number)) continue;
+                if (!byNumber.TryGetValue(eaw.Number.Trim(), out var byNum)) continue;
 
-                if (eaw.UserId.HasValue && byStoredId.TryGetValue(eaw.UserId.Value, out var byUserId))
-                    AddCandidates(byUserId);
-
-                if (!string.IsNullOrWhiteSpace(eaw.Number)
-                    && byNumber.TryGetValue(eaw.Number.Trim(), out var byNum))
-                {
-                    AddCandidates(byNum.Where(e =>
-                        !e.EasyAtWorkEmployeeId.HasValue
-                        || e.EasyAtWorkEmployeeId == eaw.Id
-                        || (eaw.UserId.HasValue && e.EasyAtWorkEmployeeId == eaw.UserId.Value)));
-                }
+                // Nur MA mit dieser Nummer, deren gespeicherte id fehlt, bereits stimmt
+                // ODER stale ist (keine gültige easy@work-employee.id). Korrekte, aber
+                // abweichende ids (echte andere Person mit valider id) bleiben unberührt.
+                var candidates = byNum.Where(e =>
+                    !e.EasyAtWorkEmployeeId.HasValue
+                    || e.EasyAtWorkEmployeeId == eaw.Id
+                    || !validEawIds.Contains(e.EasyAtWorkEmployeeId.Value)).ToList();
 
                 if (candidates.Count == 0) continue;
                 if (candidates.Count > 1)
@@ -870,7 +875,7 @@ public class EasyAtWorkController : ControllerBase
                 }
 
                 var emp = candidates[0];
-                if (touched.TryGetValue(emp.Id, out _) && emp.EasyAtWorkEmployeeId != eaw.Id)
+                if (touched.Contains(emp.Id) && emp.EasyAtWorkEmployeeId != eaw.Id)
                 {
                     conflicts.Add(new { employeeId = emp.Id, emp.EmployeeNumber, current = emp.EasyAtWorkEmployeeId, proposed = eaw.Id, customerId = mapping.EasyAtWorkCustomerId });
                     continue;

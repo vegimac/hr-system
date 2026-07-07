@@ -84,10 +84,10 @@ function renderArchivImportResult(r, dryRun) {
     summary.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(170px, 1fr));gap:10px">
         ${tileCard('Gesamt Zeilen', r.totalRows, '#0f172a')}
-        ${tileCard('Mit Bis-Datum', r.withExitDate, '#0ea5e9')}
+        ${tileCard('Mit Bis-Datum', r.withExitDate, '#8b8b8b')}
         ${tileCard('Ohne Bis-Datum', r.withoutExitDate, '#94a3b8')}
         ${tileCard(dryRun ? 'Würden neu' : 'Neu angelegt ✓', dryRun ? willCreate : r.imported, '#15803d')}
-        ${tileCard(dryRun ? 'Würden aktualisiert' : 'Aktualisiert ✓', dryRun ? willUpdate : (r.updated ?? 0), '#0ea5e9')}
+        ${tileCard(dryRun ? 'Würden aktualisiert' : 'Aktualisiert ✓', dryRun ? willUpdate : (r.updated ?? 0), '#8b8b8b')}
         ${tileCard('Schon vorhanden', r.skippedAlreadyExists, '#a16207')}
         ${tileCard('Filiale fehlt', r.skippedNoBranch, '#b91c1c')}
         ${tileCard('Ungültig', r.skippedInvalid, '#b91c1c')}
@@ -153,7 +153,7 @@ function tileCard(label, val, color) {
 }
 function actionBg(action) {
     if (action === 'create')          return '#f0fdf4';
-    if (action === 'update')          return '#eff6ff';
+    if (action === 'update')          return '#f6f3ee';
     if (action === 'skip-exists')     return '#fffbeb';
     if (action === 'skip-no-branch')  return '#fef2f2';
     if (action === 'skip-invalid')    return '#fef2f2';
@@ -176,7 +176,7 @@ function renderContractCell(p) {
 }
 function actionBadge(action) {
     if (action === 'create')          return '<span style="display:inline-block;background:#dcfce7;color:#15803d;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">Anlegen</span>';
-    if (action === 'update')          return '<span style="display:inline-block;background:#dbeafe;color:#1d4ed8;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">Aktualisieren</span>';
+    if (action === 'update')          return '<span style="display:inline-block;background:#ece9e2;color:#6b7280;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">Aktualisieren</span>';
     if (action === 'skip-exists')     return '<span style="display:inline-block;background:#fef3c7;color:#a16207;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">Bereits da</span>';
     if (action === 'skip-no-branch')  return '<span style="display:inline-block;background:#fee2e2;color:#b91c1c;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">Filiale fehlt</span>';
     if (action === 'skip-invalid')    return '<span style="display:inline-block;background:#fee2e2;color:#b91c1c;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">Ungültig</span>';

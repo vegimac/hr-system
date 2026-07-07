@@ -183,7 +183,7 @@ function renderAkontoPreview(data) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
             ${_akTile('Berechtigte MA',  data.countEligible, '#15803d')}
             ${_akTile('Ausgeschlossen',  data.countExcluded, '#94a3b8')}
-            ${_akTile('Total Netto-Akonto', _akFmtChf(data.totalNetto), '#1e40af')}
+            ${_akTile('Total Netto-Akonto', _akFmtChf(data.totalNetto), '#6b6152')}
         </div>`;
 
     if (!_akRows.length) {

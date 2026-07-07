@@ -507,32 +507,32 @@ function renderDvelopBackfillResult(r, dryRun) {
         const items = r.updatedItems;
         const rowsHtml = items.map(u => `
             <tr>
-                <td style="padding:5px 8px;border-bottom:1px solid #e0f2fe;font-size:12px;white-space:nowrap">
+                <td style="padding:5px 8px;border-bottom:1px solid #efece5;font-size:12px;white-space:nowrap">
                     <b>${esc(u.maName || '–')}</b>
                     ${u.maNr ? `<div style="font-size:11px;color:#94a3b8">Nr. ${esc(u.maNr)}</div>` : ''}
                 </td>
-                <td style="padding:5px 8px;border-bottom:1px solid #e0f2fe;font-size:12px;color:#0f172a">${esc(u.filename || '–')}</td>
-                <td style="padding:5px 8px;border-bottom:1px solid #e0f2fe;font-size:11.5px;color:#475569">${esc(u.beschreibung || '')}</td>
-                <td style="padding:5px 8px;border-bottom:1px solid #e0f2fe;font-size:11px">
+                <td style="padding:5px 8px;border-bottom:1px solid #efece5;font-size:12px;color:#0f172a">${esc(u.filename || '–')}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #efece5;font-size:11.5px;color:#475569">${esc(u.beschreibung || '')}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #efece5;font-size:11px">
                     ${(u.changedFields || []).map(f =>
-                        `<span style="display:inline-block;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;margin:0 3px 2px 0;font-size:10.5px">${esc(f)}</span>`
+                        `<span style="display:inline-block;background:#ece9e2;color:#6b7280;padding:1px 6px;border-radius:4px;margin:0 3px 2px 0;font-size:10.5px">${esc(f)}</span>`
                     ).join('')}
                 </td>
             </tr>`).join('');
         box.innerHTML += `
-        <details open style="margin-top:14px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px">
-            <summary style="cursor:pointer;font-size:13.5px;font-weight:700;color:#1e40af;list-style:none;display:flex;align-items:center;justify-content:space-between">
+        <details open style="margin-top:14px;padding:12px 14px;background:#f6f3ee;border:1px solid #e5e0d6;border-radius:9px">
+            <summary style="cursor:pointer;font-size:13.5px;font-weight:700;color:#6b6152;list-style:none;display:flex;align-items:center;justify-content:space-between">
                 <span>📋 ${dryRun ? 'Würden aktualisiert' : 'Aktualisiert'}: ${items.length} Zeile${items.length !== 1 ? 'n' : ''}</span>
-                <span style="font-size:11px;color:#1d4ed8;font-weight:400">▼ einklappen</span>
+                <span style="font-size:11px;color:#6b7280;font-weight:400">▼ einklappen</span>
             </summary>
-            <div style="margin-top:8px;max-height:380px;overflow:auto;border:1px solid #bfdbfe;border-radius:6px;background:#fff">
+            <div style="margin-top:8px;max-height:380px;overflow:auto;border:1px solid #e5e0d6;border-radius:6px;background:#fff">
                 <table style="width:100%;border-collapse:collapse">
-                    <thead style="position:sticky;top:0;background:#dbeafe;z-index:1">
+                    <thead style="position:sticky;top:0;background:#ece9e2;z-index:1">
                         <tr>
-                            <th style="padding:6px 8px;text-align:left;font-size:10.5px;color:#1e40af;text-transform:uppercase;letter-spacing:.04em">Mitarbeiter</th>
-                            <th style="padding:6px 8px;text-align:left;font-size:10.5px;color:#1e40af;text-transform:uppercase;letter-spacing:.04em">Dateiname</th>
-                            <th style="padding:6px 8px;text-align:left;font-size:10.5px;color:#1e40af;text-transform:uppercase;letter-spacing:.04em">Beschreibung</th>
-                            <th style="padding:6px 8px;text-align:left;font-size:10.5px;color:#1e40af;text-transform:uppercase;letter-spacing:.04em">Geänderte Felder</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10.5px;color:#6b6152;text-transform:uppercase;letter-spacing:.04em">Mitarbeiter</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10.5px;color:#6b6152;text-transform:uppercase;letter-spacing:.04em">Dateiname</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10.5px;color:#6b6152;text-transform:uppercase;letter-spacing:.04em">Beschreibung</th>
+                            <th style="padding:6px 8px;text-align:left;font-size:10.5px;color:#6b6152;text-transform:uppercase;letter-spacing:.04em">Geänderte Felder</th>
                         </tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
@@ -562,7 +562,7 @@ function renderDvelopBackfillResult(r, dryRun) {
                     ${m.dokumentCount} Dokus
                 </td>
                 <td style="padding:6px 8px;border-bottom:1px solid #fde2e2;font-size:11px;text-align:right;white-space:nowrap">
-                    <button class="btn" style="font-size:11px;padding:4px 10px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;font-weight:600;cursor:pointer" onclick="dvelopCreateMissingEmployee(${i})" title="MA als Personaldossier (inaktiv, kein Vertrag) anlegen — alt-Suffix bei MA-Nr-Kollision">👤 Anlegen</button>
+                    <button class="btn" style="font-size:11px;padding:4px 10px;background:#ece9e2;color:#6b7280;border:1px solid #d0c8b8;border-radius:5px;font-weight:600;cursor:pointer" onclick="dvelopCreateMissingEmployee(${i})" title="MA als Personaldossier (inaktiv, kein Vertrag) anlegen — alt-Suffix bei MA-Nr-Kollision">👤 Anlegen</button>
                 </td>
             </tr>`;
         }).join('');
@@ -599,7 +599,7 @@ function renderDvelopBackfillResult(r, dryRun) {
             if (canQuickUpload) {
                 uploadBtn = `<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
                     <button class="btn" style="font-size:11px;padding:3px 8px;background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:5px;font-weight:600;cursor:pointer" onclick="dvelopMissingQuickUpload(${i})" title="Lokale Datei picken — Metadaten kommen aus dem Excel">📥 Hier hochladen</button>
-                    <button class="btn" style="font-size:10.5px;padding:2px 7px;background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;font-weight:600;cursor:pointer" onclick="dvelopOpenAssignModal(${i})" title="Diese d.velop-Zeile einem bereits existierenden DB-Dokument zuordnen (XG-ID + d.velop-Daten nachtragen)">🔗 Bestehendem zuordnen</button>
+                    <button class="btn" style="font-size:10.5px;padding:2px 7px;background:#f6f3ee;color:#6b7280;border:1px solid #d0c8b8;border-radius:5px;font-weight:600;cursor:pointer" onclick="dvelopOpenAssignModal(${i})" title="Diese d.velop-Zeile einem bereits existierenden DB-Dokument zuordnen (XG-ID + d.velop-Daten nachtragen)">🔗 Bestehendem zuordnen</button>
                 </div>`;
             } else if (!m.dokumentTypId && m.kategorie && m.typ) {
                 // Walter-Vorgabe 06.06.2026 (final): Taxonomie wird AUSSCHLIESSLICH
@@ -623,7 +623,7 @@ function renderDvelopBackfillResult(r, dryRun) {
                 <td style="padding:5px 8px;border-bottom:1px solid #fde2e2;font-size:11.5px;color:#475569">${esc(m.beschreibung || '')}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid #fde2e2;font-size:11px;text-align:right;white-space:nowrap">
                     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
-                        ${m.url ? `<a href="${esc(m.url)}" target="_blank" rel="noopener" style="color:#1d4ed8;text-decoration:underline">→ d.velop</a>` : ''}
+                        ${m.url ? `<a href="${esc(m.url)}" target="_blank" rel="noopener" style="color:#6b7280;text-decoration:underline">→ d.velop</a>` : ''}
                         ${uploadBtn}
                         ${m.dokumentId ? `<div style="color:#94a3b8;font-family:monospace;font-size:10px">${esc(m.dokumentId)}</div>` : ''}
                     </div>
@@ -753,7 +753,7 @@ function _dvelopRenderAssignModal(overlay, m, idx, docs) {
             <td style="padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:right;white-space:nowrap">
                 ${disabled
                     ? '<span style="font-size:10.5px;color:#94a3b8">—</span>'
-                    : `<button onclick="dvelopAssignDoc(${idx}, ${d.id})" style="font-size:11px;padding:3px 9px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:5px;font-weight:600;cursor:pointer">${sameXg ? 'erneut zuordnen' : '✓ Dieses wählen'}</button>`}
+                    : `<button onclick="dvelopAssignDoc(${idx}, ${d.id})" style="font-size:11px;padding:3px 9px;background:#ece9e2;color:#6b7280;border:1px solid #d0c8b8;border-radius:5px;font-weight:600;cursor:pointer">${sameXg ? 'erneut zuordnen' : '✓ Dieses wählen'}</button>`}
             </td>
         </tr>`;
     }).join('');
@@ -809,7 +809,7 @@ async function dvelopAssignDoc(idx, existingDocId) {
         const rowEl = document.getElementById('dvelopMissingRow-' + idx);
         if (rowEl) {
             rowEl.style.transition = 'background .2s, opacity .4s';
-            rowEl.style.background = '#dbeafe';
+            rowEl.style.background = '#ece9e2';
             setTimeout(() => { rowEl.style.opacity = '0'; setTimeout(() => rowEl.remove(), 400); }, 250);
         }
         const cntEl = document.querySelector('.dvelop-missing-count');
@@ -861,7 +861,7 @@ async function dvelopCreateMissingEmployee(idx, forceCreate = false) {
                     `OK = trotzdem als neuer MA anlegen\nABBRECHEN = bestehenden MA verwenden (kein neuer Eintrag)`);
                 if (!ok) {
                     if (actionCell) actionCell.innerHTML = `<span style="font-size:11px;color:#0f172a">✓ Verwende ${esc(body.existingName)}</span>`;
-                    if (rowEl) rowEl.style.background = '#dbeafe';
+                    if (rowEl) rowEl.style.background = '#ece9e2';
                     return;
                 }
                 // User bestätigt: trotzdem anlegen

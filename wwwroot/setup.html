@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OneCrew · Postfach einrichten</title>
+<style>
+    @font-face { font-family:'Speedee'; font-weight:300; font-display:swap; src:url('fonts/Speedee_Lt.woff2') format('woff2'); }
+    @font-face { font-family:'Speedee'; font-weight:700; font-display:swap; src:url('fonts/Speedee_Bd.woff2') format('woff2'); }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body { margin:0; min-height:100%; }
+    body {
+        font-family:'Speedee', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color:#1a1a1a;
+        background:
+            radial-gradient(circle at 58% 38%, rgba(255,255,255,0.80), transparent 26%),
+            radial-gradient(circle at 26% 52%, rgba(224,218,209,0.42), transparent 38%),
+            linear-gradient(135deg, #f7f4ef 0%, #efebe3 50%, #faf8f5 100%);
+        background-attachment:fixed; min-height:100vh;
+        display:flex; flex-direction:column; align-items:center;
+        padding:max(24px, env(safe-area-inset-top)) 18px 40px;
+    }
+    .logo { display:block; width:auto; max-width:230px; max-height:74px; margin:14px auto 6px; }
+    .rule { width:min(320px,80%); height:1px; background:#cdc7bd; border:0; margin:14px auto 0; }
+    .tagline { margin:12px 0 0; font-size:10.5px; letter-spacing:0.28em; color:#6b6b6b; text-transform:uppercase; text-align:center; font-weight:500; }
+    .card {
+        width:100%; max-width:440px; margin:26px auto 0;
+        background:rgba(255,255,255,0.62);
+        border:1px solid rgba(255,255,255,0.7);
+        box-shadow:0 18px 50px rgba(60,55,48,0.16);
+        backdrop-filter:blur(18px) saturate(130%); -webkit-backdrop-filter:blur(18px) saturate(130%);
+        border-radius:22px; padding:24px 22px;
+    }
+    .greet { font-size:21px; font-weight:700; color:#111; margin:0 0 6px; }
+    .sub { font-size:14px; color:#555; margin:0 0 18px; line-height:1.5; }
+    label.fld { display:block; font-size:13px; color:#555; margin:14px 0 6px; }
+    input[type=password] {
+        width:100%; font:inherit; font-size:16px;
+        border:1px solid #d8d2c8; border-radius:14px; padding:13px 14px; background:#fff; color:#1a1a1a;
+    }
+    input:focus { outline:none; border-color:#1a1a1a; }
+    .btn {
+        appearance:none; border:0; cursor:pointer; font:inherit; font-weight:700;
+        border-radius:14px; padding:15px 18px; font-size:16px; width:100%; margin-top:20px;
+        background:#1a1a1a; color:#fff;
+    }
+    .btn[disabled] { opacity:.5; }
+    .err { color:#b91c1c; font-size:13.5px; margin-top:12px; min-height:18px; }
+    .state { text-align:center; padding:8px 0; }
+    .state .big { font-size:40px; line-height:1; }
+    .state .lead { font-size:17px; font-weight:700; margin:10px 0 4px; color:#111; }
+    .state .stxt { font-size:14px; color:#666; }
+    .muted { color:#777; font-size:13px; text-align:center; }
+</style>
+</head>
+<body>
+    <img class="logo" src="img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+    <hr class="rule">
+    <p class="tagline">Hospitality starts with our Crew.</p>
+
+    <div class="card" id="card">
+        <div class="state"><div class="muted">Wird geladen …</div></div>
+    </div>
+
+<script>
+const token = new URLSearchParams(location.search).get('t') || '';
+const card = document.getElementById('card');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function stateView(big, lead, txt) {
+    card.innerHTML = `<div class="state"><div class="big">${big}</div><div class="lead">${esc(lead)}</div>${txt ? `<div class="stxt">${esc(txt)}</div>` : ''}</div>`;
+}
+
+async function load() {
+    if (!token) { stateView('🔗', 'Ungültiger Link', 'Dieser Link ist unvollständig.'); return; }
+    try {
+        const r = await fetch('/api/postfach-setup/verify?token=' + encodeURIComponent(token));
+        if (r.status === 410) { stateView('⏳', 'Link abgelaufen', 'Bitte lass dir von deiner Geschäftsführung einen neuen QR-Code / Link geben.'); return; }
+        if (!r.ok) throw new Error();
+        const m = await r.json();
+        render(m.firstName || '');
+    } catch (e) { stateView('⚠️', 'Fehler', 'Bitte später nochmals versuchen.'); return; }
+}
+
+function render(firstName) {
+    card.innerHTML = `
+        <div class="greet">Willkommen${firstName ? ', ' + esc(firstName) : ''}!</div>
+        <div class="sub">Leg jetzt dein persönliches Passwort für dein OneCrew-Postfach fest.</div>
+        <label class="fld" for="pw1">Neues Passwort (mindestens 8 Zeichen)</label>
+        <input id="pw1" type="password" autocomplete="new-password" minlength="8">
+        <label class="fld" for="pw2">Passwort bestätigen</label>
+        <input id="pw2" type="password" autocomplete="new-password" minlength="8">
+        <button class="btn" id="go" onclick="setPassword()">Passwort setzen und einloggen</button>
+        <div class="err" id="err"></div>`;
+    setTimeout(() => document.getElementById('pw1')?.focus(), 150);
+}
+
+async function setPassword() {
+    const err = document.getElementById('err');
+    const pw1 = document.getElementById('pw1').value;
+    const pw2 = document.getElementById('pw2').value;
+    err.textContent = '';
+    if (pw1.length < 8) { err.textContent = 'Das Passwort muss mindestens 8 Zeichen lang sein.'; return; }
+    if (pw1 !== pw2)   { err.textContent = 'Die beiden Passwörter stimmen nicht überein.'; return; }
+    const btn = document.getElementById('go'); btn.disabled = true; btn.textContent = 'Wird gespeichert …';
+    try {
+        const r = await fetch('/api/postfach-setup/complete', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, newPassword: pw1 }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { err.textContent = j.error || 'Konnte nicht gespeichert werden.'; btn.disabled = false; btn.textContent = 'Passwort setzen und einloggen'; return; }
+        // Direkt eingeloggt → ins Postfach.
+        localStorage.setItem('hrToken', j.token);
+        window.location.href = j.redirect || 'postfach.html';
+    } catch (e) {
+        err.textContent = 'Verbindungsfehler — bitte nochmals versuchen.';
+        btn.disabled = false; btn.textContent = 'Passwort setzen und einloggen';
+    }
+}
+
+load();
+</script>
+</body>
+</html>

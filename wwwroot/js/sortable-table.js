@@ -59,7 +59,7 @@ window.sortableHeaderClick = function(state, key, renderFn) {
 window.sortableHeader = function(label, key, state, stateVarName, renderFnName, extraStyle = '') {
     const isActive = state.key === key;
     const arrow = isActive ? (state.dir === 'asc' ? ' ▲' : ' ▼') : '';
-    const color = isActive ? '#1e40af' : '#475569';
+    const color = isActive ? '#6b6152' : '#475569';
     return `<th onclick="sortableHeaderClick(${stateVarName}, '${key}', ${renderFnName})"
                 style="padding:9px 12px;text-align:left;cursor:pointer;user-select:none;color:${color};${extraStyle}">
                 ${label}<span style="font-size:10px">${arrow}</span>

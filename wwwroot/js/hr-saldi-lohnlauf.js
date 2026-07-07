@@ -44,9 +44,9 @@ function _llUpdateTabUi() {
 
     const isAk = (_llTab === 'akonto');
     // Aktiver Tab: blauer Border-Bottom + dunkler Text.
-    akBtn.style.borderBottomColor = isAk ? '#0369a1' : 'transparent';
+    akBtn.style.borderBottomColor = isAk ? '#6b6152' : 'transparent';
     akBtn.style.color             = isAk ? '#0f172a' : '#64748b';
-    defBtn.style.borderBottomColor = isAk ? 'transparent' : '#0369a1';
+    defBtn.style.borderBottomColor = isAk ? 'transparent' : '#6b6152';
     defBtn.style.color             = isAk ? '#64748b' : '#0f172a';
     akView.style.display = isAk ? '' : 'none';
     dfView.style.display = isAk ? 'none' : '';
@@ -248,7 +248,7 @@ function _llAkRenderStatusBar(data, year, month) {
         bar.innerHTML = `
         <div class="card" style="padding:16px">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-                <span style="background:#e0f2fe;color:#0369a1;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:700">OFFEN</span>
+                <span style="background:#efece5;color:#6b6152;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:700">OFFEN</span>
                 <div style="font-size:13.5px;color:#475569">Akonto-Lauf ${monatStr} wurde vom GF noch nicht gestartet.</div>
             </div>
             <div style="font-size:12px;color:#94a3b8;margin-top:6px">
@@ -260,7 +260,7 @@ function _llAkRenderStatusBar(data, year, month) {
 
     const statusMap = {
         IN_BEARBEITUNG_GF: { txt: 'In Bearbeitung (GF)', bg: '#fef3c7', col: '#92400e' },
-        BEI_HR:            { txt: 'Bei HR',              bg: '#dbeafe', col: '#1e40af' },
+        BEI_HR:            { txt: 'Bei HR',              bg: '#ece9e2', col: '#6b6152' },
         HR_FREIGEGEBEN:    { txt: 'HR-freigegeben',      bg: '#dcfce7', col: '#166534' },
         AUSBEZAHLT:        { txt: 'Ausbezahlt',          bg: '#bbf7d0', col: '#15803d' },
     };
@@ -286,7 +286,7 @@ function _llAkRenderStatusBar(data, year, month) {
             <button class="btn btn-outline" onclick="llAkontoZurueckAnGf()" style="font-size:13px;padding:7px 12px;color:#dc2626;border-color:#fca5a5">↩ Alles zurück an GF</button>
             <span style="font-size:11.5px;color:#92400e;background:#fef3c7;padding:3px 9px;border-radius:8px">Pro MA „✓ HR-bestätigen" — DTA wird frei wenn ${total} / ${total}</span>`;
     } else if (data.akontoStatus === 'HR_FREIGEGEBEN' && isHr) {
-        actionsHtml = `<button class="btn btn-primary" onclick="llAkontoAuszahlen()" style="font-size:13px;padding:7px 12px;background:#0369a1;border-color:#0369a1">💰 Akonto auszahlen (DTA)</button>`;
+        actionsHtml = `<button class="btn btn-primary" onclick="llAkontoAuszahlen()" style="font-size:13px;padding:7px 12px;background:#6b6152;border-color:#6b6152">💰 Akonto auszahlen (DTA)</button>`;
     } else if (data.akontoStatus === 'AUSBEZAHLT') {
         const dt = data.akontoAusbezahltAt ? new Date(data.akontoAusbezahltAt).toLocaleString('de-CH') : '–';
         actionsHtml = `<span style="color:#15803d;font-size:11.5px;font-weight:600;background:#bbf7d0;padding:3px 9px;border-radius:8px">✅ Ausbezahlt ${dt} (${ausbezahltCnt} MA)</span>`;
@@ -339,7 +339,7 @@ function _llAkRenderMaList() {
 
         const sub = isAusbezahlt    ? `<span style="color:#15803d;font-weight:600">Akonto ausbezahlt</span>`
                   : isHrBestaetigt  ? `<span style="color:#15803d;font-weight:600">HR bestätigt</span>`
-                  : isFreigegeben   ? `<span style="color:#1e40af;font-weight:600">GF freigegeben – wartet auf HR</span>`
+                  : isFreigegeben   ? `<span style="color:#6b6152;font-weight:600">GF freigegeben – wartet auf HR</span>`
                   : `<span style="color:#94a3b8">${r.employeeNumber||r.employeeId}</span>`;
 
         const avatar = isDone
@@ -452,7 +452,7 @@ function _llAkRenderDetail(z, slip) {
         : isHrBestaetigt
             ? `<span style="background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">✓ HR bestätigt</span>`
             : isFreigegeben
-                ? `<span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">GF freigegeben – wartet auf HR</span>`
+                ? `<span style="background:#ece9e2;color:#6b6152;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">GF freigegeben – wartet auf HR</span>`
                 : `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">berechnet</span>`;
 
     const gfStamp = z.gfFreigegebenAt
@@ -680,7 +680,7 @@ async function llRenderCockpit(p, cid, year, month) {
         ? `<span style="background:#dcfce7;color:#166534;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:700">${_t('ll.status.closed')}</span>`
         : isProvisorisch
             ? `<span style="background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:700">${_t('ll.status.provisional')}</span>`
-            : `<span style="background:#e0f2fe;color:#0369a1;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:700">${_t('ll.status.open')}</span>`;
+            : `<span style="background:#efece5;color:#6b6152;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:700">${_t('ll.status.open')}</span>`;
 
     const isAdmin     = currentUser?.role === 'admin';
     const isSuperUser = currentUser?.role === 'superuser';
@@ -690,7 +690,7 @@ async function llRenderCockpit(p, cid, year, month) {
     if (isOffen) {
         const issues = validation?.issues || [];
         if (issues.length === 0) {
-            actionsHtml = `<div style="padding:14px;background:#e0f2fe;border-left:3px solid #0369a1;border-radius:7px;color:#0c4a6e;font-size:13px">
+            actionsHtml = `<div style="padding:14px;background:#efece5;border-left:3px solid #6b6152;border-radius:7px;color:#5a5348;font-size:13px">
                 ${_t('ll.preconditionsOk')}
             </div>`;
         } else {
@@ -744,7 +744,7 @@ async function llRenderCockpit(p, cid, year, month) {
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:14px">
             ${tileCard(_t('ll.tile.provisionalAt'), p.provisorischAbgeschlossenAm ? fmtDateTime(p.provisorischAbgeschlossenAm) : '–', '#92400e')}
             ${tileCard(_t('ll.tile.finalAt'),    p.abgeschlossenAm ? fmtDateTime(p.abgeschlossenAm) : '–', '#166534')}
-            ${tileCard(_t('ll.tile.payoutDate'), p.auszahlungsdatum ? fmtDate(p.auszahlungsdatum) : '–', '#0369a1')}
+            ${tileCard(_t('ll.tile.payoutDate'), p.auszahlungsdatum ? fmtDate(p.auszahlungsdatum) : '–', '#6b6152')}
             ${tileCard(_t('ll.tile.periodId'), p.id, '#64748b')}
         </div>
         ${actionsHtml}
@@ -764,7 +764,7 @@ async function llLoadAudit(periodeId) {
             DEFINITIV_ABGESCHLOSSEN:    { txt:_t('ll.audit.action.definitiv'),    col:'#166534', bg:'#dcfce7' },
             ZURUECK_AN_GF:              { txt:_t('ll.audit.action.zurueck'),       col:'#b91c1c', bg:'#fee2e2' },
             WIEDER_GEOEFFNET:           { txt:_t('ll.audit.action.reopened'),      col:'#92400e', bg:'#fef3c7' },
-            AN_GF_GESENDET:             { txt:_t('ll.audit.action.sentToGf'),      col:'#0369a1', bg:'#e0f2fe' },
+            AN_GF_GESENDET:             { txt:_t('ll.audit.action.sentToGf'),      col:'#6b6152', bg:'#efece5' },
         };
         el.innerHTML = `
         <div class="card" style="padding:0;overflow:hidden">

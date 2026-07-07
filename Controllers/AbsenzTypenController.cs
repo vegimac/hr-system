@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -13,6 +14,14 @@ public class AbsenzTypenController : ControllerBase
 {
     private readonly AppDbContext _db;
     public AbsenzTypenController(AppDbContext db) => _db = db;
+
+    // Prüft, ob der eingeloggte User Superadmin ist (Anlegen/Löschen von
+    // Absenz-Typen ist Superadmin-only, Walter-Vorgabe 04.07.2026).
+    private async Task<bool> CallerIsSuperAdminAsync()
+    {
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid)) return false;
+        return await _db.AppUsers.Where(u => u.Id == uid).Select(u => u.IsSuperAdmin).FirstOrDefaultAsync();
+    }
 
     /// <summary>Alle aktiven Typen (für Dropdown in Modal)</summary>
     [HttpGet]
@@ -84,10 +93,13 @@ public class AbsenzTypenController : ControllerBase
         });
     }
 
-    /// <summary>Neuen Typ anlegen</summary>
+    /// <summary>Neuen Typ anlegen — nur Superadmin</summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AbsenzTypDto dto)
     {
+        if (!await CallerIsSuperAdminAsync())
+            return StatusCode(403, "Nur der Superadmin darf neue Absenz-Typen anlegen.");
+
         var code = dto.Code.ToUpper().Trim();
         bool exists = await _db.AbsenzTypen.AnyAsync(t => t.Code == code);
         if (exists) return BadRequest("Ein Typ mit diesem Code existiert bereits.");
@@ -118,6 +130,32 @@ public class AbsenzTypenController : ControllerBase
             typ.Id, typ.Code, typ.Bezeichnung, typ.Zeitgutschrift, typ.GutschriftModus,
             typ.UtpAuszahlung, typ.VerlaengertProbezeit, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv, typ.ZwischenverdienstKuerzel
         });
+    }
+
+    /// <summary>Typ löschen — nur Superadmin, nur wenn NICHT verwendet.</summary>
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        if (!await CallerIsSuperAdminAsync())
+            return StatusCode(403, "Nur der Superadmin darf Absenz-Typen löschen.");
+
+        var typ = await _db.AbsenzTypen.FindAsync(id);
+        if (typ is null) return NotFound();
+
+        // „verwendet" = irgendeine Absenz trägt diesen Code (Absence.AbsenceType
+        // speichert den Code in Grossbuchstaben).
+        int usedCount = await _db.Absences.CountAsync(a => a.AbsenceType == typ.Code);
+        if (usedCount > 0)
+            return Conflict(new
+            {
+                error   = "ABSENZ_TYP_VERWENDET",
+                message = $"Typ «{typ.Code}» wird in {usedCount} Absenz(en) verwendet und kann nicht gelöscht werden. "
+                        + "Setze ihn stattdessen auf inaktiv."
+            });
+
+        _db.AbsenzTypen.Remove(typ);
+        await _db.SaveChangesAsync();
+        return Ok(new { deleted = true });
     }
 
     private static string? ValidateFlags(AbsenzTypDto dto)

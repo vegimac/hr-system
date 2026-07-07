@@ -171,13 +171,13 @@ async function pbLoadList() {
         list.innerHTML = docs.map(d => {
             const sizeKb = d.fileSizeBytes ? Math.round(d.fileSizeBytes / 1024) : 0;
             const dateStr = new Date(d.uploadedAt).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
-            const empInfo = d.employee ? `<span style="color:#1d4ed8;font-weight:600">${d.employee.name} (${d.employee.employeeNumber})</span>` : '<span style="color:#94a3b8">– ohne MA-Bezug –</span>';
+            const empInfo = d.employee ? `<span style="color:#6b7280;font-weight:600">${d.employee.name} (${d.employee.employeeNumber})</span>` : '<span style="color:#94a3b8">– ohne MA-Bezug –</span>';
             const uploaderInfo = d.uploader ? `${d.uploader.name?.trim() || d.uploader.username}` : 'Unbekannt';
             const notifyInfo = d.notifyUser ? `<span style="color:#a16207;font-size:11px">📧 → ${d.notifyUser.name?.trim() || d.notifyUser.username}</span>` : '';
             return `<div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start">
                 <div style="flex:1;min-width:0">
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                        <span style="font-weight:600;color:#1d4ed8;cursor:pointer;text-decoration:underline" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">👁 ${d.originalFilename}</span>
+                        <span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">👁 ${d.originalFilename}</span>
                         <span style="font-size:11px;color:#94a3b8">${sizeKb} KB</span>
                         ${notifyInfo}
                     </div>

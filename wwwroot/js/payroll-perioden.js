@@ -80,15 +80,15 @@ async function perLoadPerioden() {
             else if (isProvisorisch)
                 defBadge = `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600" title="Definitivlauf wartet auf HR-Abschluss">Def. bei HR</span>`;
             else
-                defBadge = `<span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">Def. offen</span>`;
+                defBadge = `<span style="background:#efece5;color:#6b6152;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">Def. offen</span>`;
 
             // Akonto-Pille (neue Anzeige): zeigt den parallelen Akonto-Workflow-Status
             const akS = (p.akontoStatus || 'OFFEN').toUpperCase();
             const akontoMap = {
                 'OFFEN':              { lbl: 'Akonto offen',   bg: '#f1f5f9', fg: '#64748b' },
-                'IN_BEARBEITUNG_GF':  { lbl: 'Akonto bei GF',  bg: '#e0f2fe', fg: '#0369a1' },
+                'IN_BEARBEITUNG_GF':  { lbl: 'Akonto bei GF',  bg: '#efece5', fg: '#6b6152' },
                 'BEI_HR':             { lbl: 'Akonto bei HR',  bg: '#fef3c7', fg: '#92400e' },
-                'HR_FREIGEGEBEN':     { lbl: 'Akonto HR-frei', bg: '#dbeafe', fg: '#1e40af' },
+                'HR_FREIGEGEBEN':     { lbl: 'Akonto HR-frei', bg: '#ece9e2', fg: '#6b6152' },
                 'AUSBEZAHLT':         { lbl: 'Akonto bezahlt', bg: '#dcfce7', fg: '#166534' }
             };
             const akI = akontoMap[akS] || akontoMap['OFFEN'];
@@ -135,7 +135,7 @@ async function perLoadPerioden() {
 
             // Abschliessen-Button: nur bei vollem Definitiv-Offen sinnvoll
             const abschliessenBtn = (!isAbgeschlossen && !isProvisorisch)
-                ? `<button class="btn btn-sm btn-outline" style="color:#0284c7;border-color:#7dd3fc" onclick="perAbschliessen(${p.id},'${p.label}')">Abschliessen</button>`
+                ? `<button class="btn btn-sm btn-outline" style="color:#6b6152;border-color:#d0c8b8" onclick="perAbschliessen(${p.id},'${p.label}')">Abschliessen</button>`
                 : '';
 
             // Akonto-Reset-Button (admin-only, Walter-Vorgabe 17.05.2026):
@@ -163,7 +163,7 @@ async function perLoadPerioden() {
             // Akonto-DTA-Download (Walter 17.05.2026, Phase 3d): bei AUSBEZAHLT
             // kann das pain.001-XML jederzeit re-downloaded werden.
             const akontoDtaBtn = (akS === 'AUSBEZAHLT')
-                ? `<button class="btn btn-sm btn-outline" style="color:#0369a1;border-color:#7dd3fc"
+                ? `<button class="btn btn-sm btn-outline" style="color:#6b6152;border-color:#d0c8b8"
                             onclick="perAkontoDtaDownload(${p.companyProfileId},${p.year},${p.month})"
                             title="pain.001-DTA-File für diesen Akonto-Lauf herunterladen">📥 Akonto-DTA</button>`
                 : '';
@@ -171,7 +171,7 @@ async function perLoadPerioden() {
             // Buchhaltungs-Beleg. Verfügbar sobald der Akonto-Workflow gestartet
             // wurde (auch in der HR-Kontrolle, nicht nur nach AUSBEZAHLT).
             const akontoListeBtn = (akS !== 'OFFEN')
-                ? `<button class="btn btn-sm btn-outline" style="color:#0369a1;border-color:#7dd3fc"
+                ? `<button class="btn btn-sm btn-outline" style="color:#6b6152;border-color:#d0c8b8"
                             onclick="perAkontoListePdf(${p.companyProfileId},${p.year},${p.month})"
                             title="Akonto-Zahlungsliste als PDF herunterladen">📄 Akonto-Liste</button>`
                 : '';
@@ -230,9 +230,9 @@ async function perOpenNewModal() {
         const exists = existingMonths.has(m);
         return `<button data-month="${m}" onclick="perCreateMonth(${parseInt(cid)}, ${year}, ${m})"
             style="padding:10px 8px;border-radius:8px;font-size:13px;font-weight:600;cursor:${exists ? 'default' : 'pointer'};
-                border:2px solid ${exists ? '#e2e8f0' : '#3b82f6'};
-                background:${exists ? '#f8fafc' : '#eff6ff'};
-                color:${exists ? '#94a3b8' : '#1d4ed8'};
+                border:2px solid ${exists ? '#e2e8f0' : 'rgba(63,63,63,.45)'};
+                background:${exists ? '#f8fafc' : 'rgba(255,255,255,.9)'};
+                color:${exists ? '#94a3b8' : '#3f3f3f'};
                 ${exists ? 'opacity:0.7;pointer-events:none;' : ''}">
             ${name}${exists ? '<br><span style="font-size:10px;font-weight:400">✓ offen</span>' : ''}
         </button>`;

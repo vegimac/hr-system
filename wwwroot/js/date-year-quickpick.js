@@ -44,8 +44,8 @@
                 const active = String(y) === sel;
                 b.style.cssText =
                     'font-size:11px;line-height:1;padding:3px 8px;border-radius:6px;cursor:pointer;font-weight:600;' +
-                    'border:1px solid ' + (active ? '#2563eb' : '#cbd5e1') + ';' +
-                    'background:' + (active ? '#2563eb' : '#fff') + ';' +
+                    'border:1px solid ' + (active ? '#1a1a1a' : '#cbd5e1') + ';' +
+                    'background:' + (active ? '#1a1a1a' : '#fff') + ';' +
                     'color:' + (active ? '#fff' : '#475569') + ';';
                 b.addEventListener('click', () => setYear(input, y));
                 row.appendChild(b);

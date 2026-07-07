@@ -101,7 +101,7 @@
                      id="sessionTimeoutMsg"></div>
                 <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
                     <button id="sessionTimeoutStay"
-                            style="background:#2563eb;color:#fff;border:none;border-radius:8px;
+                            style="background:#1a1a1a;color:#fff;border:none;border-radius:8px;
                                    padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer">
                         Angemeldet bleiben
                     </button>

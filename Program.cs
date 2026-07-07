@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using Fido2NetLib;
 using HrSystem.Services;
 using HrSystem.Services.EasyAtWork;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -186,6 +187,26 @@ builder.Services.AddScoped<EmailService>();
 // Word/Office → PDF-Vorschau via LibreOffice headless (Dokumentenverwaltung).
 // Zustandslos → Singleton. Setzt LibreOffice auf dem Server voraus.
 builder.Services.AddSingleton<OfficeToPdfService>();
+
+// ─────────────────── WebAuthn / Passkeys (Face ID etc., Walter 01.07.2026) ───────────────────
+// RP-ID + erlaubte Origins konfigurierbar (appsettings „WebAuthn" oder ENV), damit
+// auf test.hr-srgmbh.ch getestet werden kann; produktiv onecrew.ch. Passkeys sind
+// domaingebunden. Challenges werden kurzlebig im MemoryCache gehalten.
+builder.Services.AddMemoryCache();
+var webAuthnRpId  = builder.Configuration["WebAuthn:RpId"]
+                    ?? Environment.GetEnvironmentVariable("WEBAUTHN_RPID")
+                    ?? "onecrew.ch";
+var webAuthnName  = builder.Configuration["WebAuthn:ServerName"] ?? "OneCrew";
+var webAuthnOrigins = builder.Configuration.GetSection("WebAuthn:Origins").Get<string[]>()
+                    ?? (Environment.GetEnvironmentVariable("WEBAUTHN_ORIGINS")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    ?? new[] { "https://onecrew.ch" };
+builder.Services.AddFido2(options =>
+{
+    options.ServerDomain = webAuthnRpId;
+    options.ServerName   = webAuthnName;
+    options.Origins      = new HashSet<string>(webAuthnOrigins);
+    options.TimestampDriftTolerance = 300000;
+});
 
 // ─────────────────────── easy@work API (Walter 17.06.2026) ───────────────────────
 // Settings aus appsettings.json (Section "EasyAtWork") ODER aus ENV
@@ -444,6 +465,43 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE job_group
         ADD COLUMN IF NOT EXISTS is_kader BOOLEAN NOT NULL DEFAULT false,
         ADD COLUMN IF NOT EXISTS mirus_funktion_aliases TEXT;
+    ");
+
+    // ── Warnungsverwaltung (Walter-Vorgabe 06.07.2026) ────────────────────
+    // Globale Dashboard-Warnungs-Konfig. Idempotent: Tabelle + UNIQUE +
+    // ON CONFLICT DO NOTHING. Seed = heutiges DashboardService-Verhalten.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS dashboard_warning_config (
+            id                 SERIAL PRIMARY KEY,
+            category           TEXT    NOT NULL UNIQUE,
+            label              TEXT    NOT NULL,
+            enabled            BOOLEAN NOT NULL DEFAULT TRUE,
+            warn_days          INT,
+            escalate_days      INT,
+            severity_base      TEXT    NOT NULL DEFAULT 'warning',
+            severity_escalated TEXT,
+            is_date_based      BOOLEAN NOT NULL DEFAULT FALSE,
+            sort_order         INT     NOT NULL DEFAULT 0
+        );
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order)
+        VALUES
+            ('minimum_wage_violation', 'Mindestlohn unterschritten',            TRUE, NULL, NULL, 'critical', NULL,       FALSE,  1),
+            ('permit_expiring',        'Bewilligung läuft ab',                  TRUE,   60,   30, 'warning',  'critical', TRUE,   2),
+            ('probation_end',          'Probezeit endet',                       TRUE,   14,    7, 'info',     'warning',  TRUE,   3),
+            ('contract_end',           'Befristeter Vertrag endet',             TRUE,   30,   14, 'info',     'warning',  TRUE,   4),
+            ('exit_pending_active',    'Austritt erfasst, MA noch aktiv',       TRUE, NULL,   30, 'warning',  'critical', FALSE,  5),
+            ('qst_pflicht_offen',      'QST-Pflicht offen (Lohnlauf gesperrt)', TRUE, NULL, NULL, 'critical', NULL,       FALSE,  6),
+            ('spouse_doku_fehlt',      'Ausweis Ehepartner fehlt (QST)',        TRUE, NULL, NULL, 'critical', NULL,       FALSE,  7),
+            ('employee_doku_fehlt',    'Ausweis Mitarbeiter fehlt (QST)',       TRUE, NULL, NULL, 'critical', NULL,       FALSE,  8),
+            ('schwangerschaft',        'Mutterschaft / Schwangerschaft',        TRUE,   30, NULL, 'info',     'warning',  TRUE,   9),
+            ('lohn_provisorisch',      'Lohn wartet auf Definitiv-Abschluss',   TRUE, NULL, NULL, 'warning',  NULL,       FALSE, 10),
+            ('birthday',               'Geburtstage',                           TRUE,    7, NULL, 'info',     NULL,       TRUE,  11),
+            ('anniversary',            'Dienstjubiläen',                        TRUE,   30, NULL, 'info',     NULL,       TRUE,  12),
+            ('night_work_exam_expiring','Nachtarbeit-Bewilligung läuft ab',     TRUE,   30,    7, 'warning',  'critical', TRUE,  13),
+            ('night_work_exam_fehlt',  'Nachtarbeit-Nachweise fehlen',          TRUE, NULL, NULL, 'critical', NULL,       FALSE, 14),
+            ('night_work_exam_mismatch','Nachtarbeit-Enddatum in easy@work falsch', TRUE, NULL, NULL, 'critical', NULL,   FALSE, 15)
+        ON CONFLICT (category) DO NOTHING;
     ");
 
     // Seed: Kader-Flag + Mirus-Aliases (idempotent — UPDATE auch bei bestehenden)
@@ -754,7 +812,9 @@ using (var scope = app.Services.CreateScope())
             var exists = db.MomentTexts.Any(x => x.MomentTypeId == ti && x.MomentToneId == oi && x.Version == "1.0");
             if (exists) return;
             db.MomentTexts.Add(new MomentText {
-                MomentTypeId = ti, MomentToneId = oi, BodyText = body,
+                MomentTypeId = ti, MomentToneId = oi,
+                // Signatur des Absenders am Ende (aus dem „Absender / HR"-Feld → {SenderName}).
+                BodyText = body + "\n\n{SenderName}",
                 LanguageCode = "de", Version = "1.0", RequiresReview = true,
                 IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
         }
@@ -789,6 +849,38 @@ using (var scope = app.Services.CreateScope())
         UpsertMomentText("WelcomeBackNeutral", "Personal", "{Briefanrede}\nschön, dich wieder bei uns zu haben. Starte ruhig, und melde dich, falls du Unterstützung brauchst.");
         db.SaveChanges();
     }
+
+    // ── WebAuthn / Passkeys: Credential-Tabelle (Walter 01.07.2026, idempotent) ──
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS webauthn_credential (
+            id             serial PRIMARY KEY,
+            app_user_id    integer NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+            credential_id  bytea NOT NULL,
+            public_key     bytea NOT NULL,
+            sign_count     bigint NOT NULL DEFAULT 0,
+            user_handle    bytea,
+            transports     text,
+            aaguid         text,
+            device_label   text,
+            created_at     timestamp without time zone NOT NULL DEFAULT now(),
+            last_used_at   timestamp without time zone
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_webauthn_credential_credid ON webauthn_credential (credential_id);
+        CREATE INDEX IF NOT EXISTS ix_webauthn_credential_user ON webauthn_credential (app_user_id);
+
+        CREATE TABLE IF NOT EXISTS postfach_setup_token (
+            id           serial PRIMARY KEY,
+            app_user_id  integer NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+            token_hash   text NOT NULL,
+            purpose      text NOT NULL DEFAULT 'onboarding',
+            expires_at   timestamp without time zone NOT NULL,
+            used_at      timestamp without time zone,
+            created_at   timestamp without time zone NOT NULL DEFAULT now(),
+            created_by   integer
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_postfach_setup_token_hash ON postfach_setup_token (token_hash);
+        CREATE INDEX IF NOT EXISTS ix_postfach_setup_token_user ON postfach_setup_token (app_user_id);
+    ");
 
     // ── Lohnpositionen (Lohnraster) ───────────────────────────────────────
     db.Database.ExecuteSqlRaw(@"
@@ -1647,6 +1739,11 @@ app.Use(async (context, next) =>
         "connect-src 'self'";
     await next();
 });
+
+// Favicon/Manifest: OneCrew-Branding für BEIDE Domains (Walter-Vorgabe 05.07.2026 —
+// test.hr-srgmbh.ch und onecrew.ch laufen auf demselben Programm, überall OneCrew).
+// Die Dateien liegen direkt im wwwroot-Root und werden von UseStaticFiles bedient;
+// keine Host-Weiche mehr nötig.
 
 // Statische Dateien / Startseite
 app.UseDefaultFiles();

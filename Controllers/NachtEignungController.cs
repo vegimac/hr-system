@@ -13,7 +13,9 @@ namespace HrSystem.Controllers;
 /// MA. Wir füllen Betrieb (Filiale des MA) + die Angaben der untersuchten
 /// Person vor; den Rest füllt die Ärztin/der Arzt.
 /// </summary>
-[Authorize(Roles = "admin,superuser")]
+// Formular-Ausdrucke (nur GET, lesend) dürfen auch GF (user) erstellen —
+// operative Belege für die eigenen Leute. Walter-Vorgabe 05.07.2026.
+[Authorize(Roles = "admin,superuser,user")]
 [ApiController]
 [Route("api/nacht-eignung")]
 public class NachtEignungController : ControllerBase

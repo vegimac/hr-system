@@ -78,7 +78,7 @@ public class EmailService
                 string.IsNullOrWhiteSpace(row.FromName) ? "Schaub HR" : row.FromName,
                 row.FromAddress ?? row.Username ?? "",
                 string.IsNullOrWhiteSpace(row.TestRedirectTo) ? null : row.TestRedirectTo,
-                string.IsNullOrWhiteSpace(row.SiteUrl) ? "https://test.hr-srgmbh.ch/" : row.SiteUrl);
+                string.IsNullOrWhiteSpace(row.SiteUrl) ? "https://onecrew.ch/" : row.SiteUrl);
         }
         else
         {
@@ -92,7 +92,7 @@ public class EmailService
                 smtp["FromName"] ?? "Schaub HR",
                 smtp["FromAddress"] ?? smtp["Username"] ?? "",
                 string.IsNullOrWhiteSpace(smtp["TestRedirectTo"]) ? null : smtp["TestRedirectTo"],
-                string.IsNullOrWhiteSpace(smtp["SiteUrl"]) ? "https://test.hr-srgmbh.ch/" : smtp["SiteUrl"]!);
+                string.IsNullOrWhiteSpace(smtp["SiteUrl"]) ? "https://onecrew.ch/" : smtp["SiteUrl"]!);
         }
 
         lock (_cacheLock)
@@ -201,7 +201,7 @@ public class EmailService
 
         var subject = $"Dein Lohnzettel {monatLabel} ist bereit";
         var greeting = string.IsNullOrWhiteSpace(firstName) ? "Hallo" : $"Hallo {firstName}";
-        var loginUrl = string.IsNullOrWhiteSpace(siteUrl) ? "https://test.hr-srgmbh.ch/" : siteUrl.TrimEnd('/') + "/";
+        var loginUrl = string.IsNullOrWhiteSpace(siteUrl) ? "https://onecrew.ch/" : siteUrl.TrimEnd('/') + "/";
 
         var html = $@"<!DOCTYPE html>
 <html><head><meta charset=""UTF-8""></head>

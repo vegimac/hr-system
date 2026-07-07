@@ -208,7 +208,7 @@ function _smtpResultBox(kind, msg) {
     const styles = {
         success: 'background:#dcfce7;border:1px solid #86efac;color:#166534',
         error:   'background:#fee2e2;border:1px solid #fca5a5;color:#991b1b',
-        info:    'background:#dbeafe;border:1px solid #93c5fd;color:#1e40af'
+        info:    'background:#ece9e2;border:1px solid #d0c8b8;color:#6b6152'
     };
     const s = styles[kind] || styles.info;
     return `<div style="${s};border-radius:8px;padding:12px 14px;font-size:13px;white-space:pre-wrap;line-height:1.55">${msg.replace(/</g,'&lt;')}</div>`;

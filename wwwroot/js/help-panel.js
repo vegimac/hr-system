@@ -150,7 +150,7 @@ function helpOpen(slug) {
                 <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#0f172a">
                     <span style="font-size:16px">❓</span><span>Hilfe</span>
                 </div>
-                ${ctxLabel ? `<div style="font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 Du bist auf: <span style="color:#2563eb;font-weight:500">${ctxLabel}</span></div>` : ''}
+                ${ctxLabel ? `<div style="font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📍 Du bist auf: <span style="color:#1a1a1a;font-weight:500">${ctxLabel}</span></div>` : ''}
             </div>
             <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
                 <button onclick="helpOpen('index')" title="Startseite" style="background:#fff;border:1px solid #cbd5e1;border-radius:4px;padding:3px 8px;font-size:12px;cursor:pointer">🏠</button>
@@ -163,7 +163,7 @@ function helpOpen(slug) {
                 <div onclick="helpOpen('${p.slug}')"
                      id="helpNav-${p.slug}"
                      style="padding:7px 12px;cursor:pointer;color:#334155;border-left:3px solid transparent;line-height:1.3"
-                     onmouseover="if(this.dataset.active!=='1')this.style.background='#eef2ff'"
+                     onmouseover="if(this.dataset.active!=='1')this.style.background='#f1efe9'"
                      onmouseout="if(this.dataset.active!=='1')this.style.background='transparent'">
                     ${p.title}
                 </div>`).join('')}
@@ -201,9 +201,9 @@ async function helpLoad(slug) {
     document.querySelectorAll('#helpNav > div').forEach(el => {
         const isActive = el.id === 'helpNav-' + slug;
         el.dataset.active = isActive ? '1' : '0';
-        el.style.background       = isActive ? '#dbeafe' : 'transparent';
-        el.style.borderLeftColor  = isActive ? '#2563eb' : 'transparent';
-        el.style.color            = isActive ? '#1e40af' : '#334155';
+        el.style.background       = isActive ? '#ece9e2' : 'transparent';
+        el.style.borderLeftColor  = isActive ? '#1a1a1a' : 'transparent';
+        el.style.color            = isActive ? '#6b6152' : '#334155';
         el.style.fontWeight       = isActive ? '600' : '400';
     });
     const cont = document.getElementById('helpContent');
@@ -271,8 +271,8 @@ function helpRenderMarkdown(md) {
 
     // Links [text](url) — internal #slug Links bleiben so, externe oeffnen im neuen Tab
     s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, text, url) => {
-        if (url.startsWith('#')) return `<a href="${url}" style="color:#2563eb;cursor:pointer;text-decoration:underline">${text}</a>`;
-        return `<a href="${url}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:underline">${text}</a>`;
+        if (url.startsWith('#')) return `<a href="${url}" style="color:#1a1a1a;cursor:pointer;text-decoration:underline">${text}</a>`;
+        return `<a href="${url}" target="_blank" rel="noopener" style="color:#1a1a1a;text-decoration:underline">${text}</a>`;
     });
 
     // Lists — Walter-Hilfe: einfache Unordered + Ordered, keine verschachtelten Levels.
@@ -287,7 +287,7 @@ function helpRenderMarkdown(md) {
     });
 
     // Blockquote
-    s = s.replace(/^&gt; (.+)$/gm, '<blockquote style="border-left:3px solid #2563eb;background:#eff6ff;padding:6px 10px;margin:8px 0;color:#1e3a8a">$1</blockquote>');
+    s = s.replace(/^&gt; (.+)$/gm, '<blockquote style="border-left:3px solid #1a1a1a;background:#f6f3ee;padding:6px 10px;margin:8px 0;color:#5a5348">$1</blockquote>');
 
     // Paragraphs — leere Zeile = Absatz. Wir wickeln alle Zeilen die nicht
     // schon Block-Tags sind in <p>.

@@ -24,7 +24,7 @@ public class SmtpSetting
     public string FromName { get; set; } = "Schaub HR";
     public string FromAddress { get; set; } = "";
     public string? TestRedirectTo { get; set; }              // null/leer = Echtbetrieb
-    public string SiteUrl { get; set; } = "https://test.hr-srgmbh.ch/";
+    public string SiteUrl { get; set; } = "https://onecrew.ch/";
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public int?    UpdatedByUserId { get; set; }
 }

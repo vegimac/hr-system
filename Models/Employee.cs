@@ -107,6 +107,31 @@ public class Employee
     /// </summary>
     public DateTime? NightWorkExamValidUntil { get; set; }
 
+    /// <summary>
+    /// Ausstellungs-/Beginndatum des Nachtarbeit-Arztzeugnisses (Walter-Vorgabe
+    /// 05.07.2026). Beim easy@work-Sync wird das easy-«from» 1:1 übernommen; das
+    /// Soll-Ende rechnen WIR daraus (Beginn + 1 bzw. 2 Jahre − 1 Tag, je Alter).
+    /// Weicht das easy-«to» davon ab, kommt eine Meldung + ToDo. NULL = nicht erfasst.
+    /// </summary>
+    public DateTime? NightWorkExamIssued { get; set; }
+
+    /// <summary>
+    /// Zentrale Nachtarbeit-Regel (ArG): gültig bis = Beginn + N Jahre − 1 Tag,
+    /// N = 1 ab Alter 45 (am Ausstellungstag), sonst 2. EINE Quelle für Sync,
+    /// manuellen Endpoint und Dashboard-Kontrolle.
+    /// </summary>
+    public static DateOnly NightWorkValidUntil(DateOnly issued, DateOnly? dob)
+    {
+        int years = 2;
+        if (dob.HasValue)
+        {
+            int age = issued.Year - dob.Value.Year;
+            if (issued < dob.Value.AddYears(age)) age--;
+            if (age >= 45) years = 1;
+        }
+        return issued.AddYears(years).AddDays(-1);
+    }
+
     /// <summary>FK auf das hinterlegte Dokument (Arztbericht/Eignungszeugnis ODER Verzichtserklärung).</summary>
     public int? NightWorkExamDokumentId { get; set; }
 

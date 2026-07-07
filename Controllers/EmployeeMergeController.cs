@@ -55,6 +55,16 @@ public class EmployeeMergeController : ControllerBase
         return t.Length >= 3 && t[^3..].Equals("alt", StringComparison.OrdinalIgnoreCase) ? t[..^3].Trim() : t;
     }
 
+    // Normalisierter Namensteil (getrimmt, klein, Mehrfach-Leerzeichen kollabiert)
+    // für den Personen-Vergleich Vorname+Nachname+Geburtsdatum.
+    private static string NameKey(string? s) => string.Join(' ',
+        (s ?? "").Trim().ToLowerInvariant().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private static string? PersonKey(string? first, string? last, DateTime? dob) =>
+        dob.HasValue && !string.IsNullOrWhiteSpace(first) && !string.IsNullOrWhiteSpace(last)
+            ? NameKey(first) + "|" + NameKey(last) + "|" + dob.Value.ToString("yyyyMMdd")
+            : null;
+
     private async Task<List<string>> ExistingLinkedTablesAsync(CancellationToken ct)
     {
         var rows = await _db.Database.SqlQueryRaw<string>(
@@ -69,48 +79,84 @@ public class EmployeeMergeController : ControllerBase
     [HttpGet("duplicates")]
     public async Task<IActionResult> Duplicates(CancellationToken ct)
     {
-        var emps = await _db.Employees.AsNoTracking()
+        var raw = await _db.Employees.AsNoTracking()
             .Where(e => e.EasyAtWorkEmployeeId != null && !e.IsHidden)
             .Select(e => new
             {
-                e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
+                e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.DateOfBirth,
                 e.EntryDate, e.ExitDate, e.IsActive, e.IsPayrollExcluded,
                 EawId = e.EasyAtWorkEmployeeId!.Value,
+                LatestContractStart = e.Employments.Max(em => (DateTime?)em.ContractStartDate),
                 BranchIds = e.Employments.Where(em => em.CompanyProfileId != null)
                     .Select(em => em.CompanyProfileId!.Value).ToList()
             })
             .ToListAsync(ct);
 
+        var emps = raw.Select(e => new DupEmp(e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
+            e.DateOfBirth, e.EntryDate, e.ExitDate, e.IsActive, e.IsPayrollExcluded, e.EawId,
+            e.LatestContractStart, e.BranchIds)).ToList();
+
         var branchNames = await _db.CompanyProfiles.AsNoTracking()
             .ToDictionaryAsync(c => c.Id, c => string.IsNullOrWhiteSpace(c.BranchName) ? c.CompanyName : c.BranchName, ct);
 
-        var groups = emps.GroupBy(e => e.EawId).Where(g => g.Count() > 1)
-            .Select(g =>
+        // Haupt-MA-Vorschlag = die aktuelle Personalnummer, d.h. der Eintrag mit dem
+        // NEUESTEN Vertrag (Walter-Vorgabe 05.07.2026: bei Filialwechsel gilt die Nummer,
+        // hinter der der jüngste Vertrag liegt). Tie-Break: aktiv > neuester Eintritt > Id.
+        DupGroup BuildGroup(IEnumerable<DupEmp> src, string reason, int? eawKey)
+        {
+            var list = src.ToList();
+            var suggested = list.OrderByDescending(e => e.LatestContractStart ?? DateTime.MinValue)
+                                .ThenByDescending(e => e.IsActive)
+                                .ThenByDescending(e => e.EntryDate ?? DateTime.MinValue)
+                                .ThenBy(e => e.Id).First().Id;
+            var first = list[0];
+            var employees = list.OrderBy(e => e.Id).Select(e => new
             {
-                // Haupt-MA-Vorschlag: aktiv > neuester Eintritt > niedrigste Id.
-                var suggested = g.OrderByDescending(e => e.IsActive)
-                                 .ThenByDescending(e => e.EntryDate ?? DateTime.MinValue)
-                                 .ThenBy(e => e.Id).First().Id;
-                return new
-                {
-                    easyAtWorkId = g.Key,
-                    name = $"{g.First().FirstName} {g.First().LastName}".Trim(),
-                    employees = g.OrderBy(e => e.Id).Select(e => new
-                    {
-                        e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
-                        e.EntryDate, e.ExitDate, e.IsActive, e.IsPayrollExcluded,
-                        branches = e.BranchIds.Distinct().Select(b => branchNames.TryGetValue(b, out var n) ? n : $"#{b}").ToList(),
-                        isSuggestedMain = e.Id == suggested
-                    }).ToList()
-                };
-            })
-            .OrderByDescending(x => x.employees.Count).ThenBy(x => x.name)
+                e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.DateOfBirth,
+                e.EntryDate, e.ExitDate, e.IsActive, e.IsPayrollExcluded,
+                easyAtWorkId = e.EawId,
+                latestContractStart = e.LatestContractStart,
+                branches = e.BranchIds.Distinct().Select(b => branchNames.TryGetValue(b, out var n) ? n : $"#{b}").ToList(),
+                isSuggestedMain = e.Id == suggested
+            }).ToList();
+            return new DupGroup(reason, eawKey, $"{first.FirstName} {first.LastName}".Trim(),
+                first.DateOfBirth, employees, employees.Count);
+        }
+
+        // (1) Gleiche Person: Vorname + Nachname + Geburtsdatum identisch — egal welche
+        //     easy@work-ID (deckt Wiedereintritt mit neuer easy@work-ID ab).
+        var personRaw = emps
+            .Where(e => PersonKey(e.FirstName, e.LastName, e.DateOfBirth) != null)
+            .GroupBy(e => PersonKey(e.FirstName, e.LastName, e.DateOfBirth)!)
+            .Where(g => g.Count() > 1)
+            .ToList();
+        var inPerson = personRaw.SelectMany(g => g).Select(e => e.Id).ToHashSet();
+        var personGroups = personRaw.Select(g => BuildGroup(g, "person", null)).ToList();
+
+        // (2) Gleiche easy@work-ID (klassischer Doppel-Import) — ohne die schon
+        //     über Name+Geburtsdatum erfassten MA.
+        var idGroups = emps.Where(e => !inPerson.Contains(e.Id))
+            .GroupBy(e => e.EawId).Where(g => g.Count() > 1)
+            .Select(g => BuildGroup(g, "easyId", g.Key))
+            .ToList();
+
+        var groups = personGroups.Concat(idGroups)
+            .OrderByDescending(x => x.Size).ThenBy(x => x.Name)
             .ToList();
 
         return Ok(new { count = groups.Count, groups });
     }
 
     // ─────────────────────────── Vorschau + Merge ───────────────────────────
+
+    // In-Memory-Projektion eines MA für die Duplikat-Erkennung.
+    private sealed record DupEmp(int Id, string? EmployeeNumber, string? FirstName, string? LastName,
+        DateTime? DateOfBirth, DateTime? EntryDate, DateTime? ExitDate, bool IsActive, bool IsPayrollExcluded,
+        int EawId, DateTime? LatestContractStart, List<int> BranchIds);
+
+    // Ein erkannter Duplikat-Fall für die UI. MatchReason: "person" (Name+Geb) | "easyId".
+    private sealed record DupGroup(string MatchReason, int? EasyAtWorkId, string Name,
+        DateTime? BirthDate, object Employees, int Size);
 
     public record MergeDto(int MainEmployeeId, List<int> DuplicateEmployeeIds, bool DryRun = false);
 
@@ -128,10 +174,22 @@ public class EmployeeMergeController : ControllerBase
         var dups = await _db.Employees.Where(e => dupIds.Contains(e.Id)).ToListAsync(ct);
         if (dups.Count != dupIds.Count) return NotFound(new { error = "DUP_NOT_FOUND", message = "Mind. ein Duplikat nicht gefunden." });
 
-        // Sicherheit: alle müssen dieselbe easy@work-ID teilen.
+        // Sicherheit: Merge nur, wenn plausibel dieselbe Person — entweder identische
+        // easy@work-ID (klassischer Doppel-Import) ODER identischer Name + Geburtsdatum
+        // (Wiedereintritt mit NEUER easy@work-ID). Sonst blockieren.
         var eawId = main.EasyAtWorkEmployeeId;
-        if (eawId == null || dups.Any(d => d.EasyAtWorkEmployeeId != eawId))
-            return Conflict(new { error = "EAW_ID_MISMATCH", message = "Haupt-MA und Duplikate teilen nicht dieselbe easy@work-ID." });
+        var mainPersonKey = PersonKey(main.FirstName, main.LastName, main.DateOfBirth);
+        bool SamePerson(Employee d) =>
+            (eawId != null && d.EasyAtWorkEmployeeId == eawId) ||
+            (mainPersonKey != null && PersonKey(d.FirstName, d.LastName, d.DateOfBirth) == mainPersonKey);
+        var mismatch = dups.Where(d => !SamePerson(d)).ToList();
+        if (mismatch.Count > 0)
+            return Conflict(new
+            {
+                error = "PERSON_MISMATCH",
+                message = "Haupt-MA und mind. ein Duplikat sind weder über die easy@work-ID noch über Name + Geburtsdatum als dieselbe Person erkennbar: "
+                    + string.Join(", ", mismatch.Select(d => $"{d.FirstName} {d.LastName} (Nr. {d.EmployeeNumber})"))
+            });
 
         var tables = await ExistingLinkedTablesAsync(ct);
 
@@ -151,6 +209,25 @@ public class EmployeeMergeController : ControllerBase
             if (aliasNumbers.Any(x => string.Equals(x, n, StringComparison.OrdinalIgnoreCase))) continue;
             aliasNumbers.Add(n);
         }
+
+        // Abweichende easy@work-IDs der Duplikate als Alias am Haupt-MA sichern —
+        // damit künftige Stempel-/MA-Syncs die alte ID weiter dieser Person zuordnen.
+        var existingEawAliases = (await _db.EasyAtWorkEmployeeAliases.AsNoTracking()
+                .Where(a => a.EmployeeId == main.Id).Select(a => a.EasyAtWorkId).ToListAsync(ct))
+            .ToHashSet();
+        var aliasEawIds = new List<int>();
+        foreach (var d in dups)
+        {
+            var did = d.EasyAtWorkEmployeeId;
+            if (did == null) continue;
+            if (eawId != null && did == eawId) continue;        // gleiche ID → kein Alias nötig
+            if (existingEawAliases.Contains(did.Value)) continue;
+            if (aliasEawIds.Contains(did.Value)) continue;
+            aliasEawIds.Add(did.Value);
+        }
+
+        // Stale Austrittsdatum am aktiven Haupt-MA (Wiedereintritt) wird beim Merge entfernt.
+        var clearExitDate = main.IsActive && main.ExitDate.HasValue;
 
         var dupArr = dupIds.ToArray();
 
@@ -176,6 +253,8 @@ public class EmployeeMergeController : ControllerBase
                 main = new { main.Id, main.EmployeeNumber, name = $"{main.FirstName} {main.LastName}".Trim() },
                 duplicateIds = dupIds,
                 aliasNumbers,
+                aliasEawIds,
+                clearExitDate,
                 moves
             });
         }
@@ -197,8 +276,20 @@ public class EmployeeMergeController : ControllerBase
                 _db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
                 {
                     EmployeeId = main.Id, Number = n, ValidTo = DateOnly.FromDateTime(DateTime.Today),
-                    Source = "merge", CreatedAt = DateTime.UtcNow,
+                    Source = "merge", CreatedAt = DateTime.Now,
                 });
+
+            // Abweichende easy@work-IDs als Alias am Haupt-MA sichern.
+            foreach (var aeaw in aliasEawIds)
+                _db.EasyAtWorkEmployeeAliases.Add(new EasyAtWorkEmployeeAlias
+                {
+                    EmployeeId = main.Id, EasyAtWorkId = aeaw,
+                    Note = "merge", CreatedBy = "merge", CreatedAt = DateTime.Now,
+                });
+
+            // Stale Austrittsdatum am aktiven Haupt-MA (Wiedereintritt) entfernen.
+            if (clearExitDate) main.ExitDate = null;
+
             await _db.SaveChangesAsync(ct);
 
             // Duplikat-Employee-Zeilen löschen.
@@ -214,8 +305,12 @@ public class EmployeeMergeController : ControllerBase
             return Conflict(new { error = "MERGE_FAILED", message = "Zusammenführung fehlgeschlagen (zurückgerollt): " + ex.Message });
         }
 
-        _log.LogInformation("Merge OK: easy@work-ID {Eaw} → Haupt-MA {Main} ({Num}); zusammengeführt: {Dups}; Aliase: {Aliases}",
-            eawId, main.Id, mainNum, string.Join(",", dupIds), string.Join(",", aliasNumbers));
+        _log.LogInformation("Merge OK: Haupt-MA {Main} ({Num}), easy@work-ID {Eaw}; zusammengeführt: {Dups}; Nr-Aliase: {Aliases}; easy@work-ID-Aliase: {EawAliases}; Austritt gelöscht: {ClearExit}",
+            main.Id, mainNum, eawId, string.Join(",", dupIds), string.Join(",", aliasNumbers), string.Join(",", aliasEawIds), clearExitDate);
+
+        var msg = $"{dupIds.Count} Duplikat(e) auf {mainNum} zusammengeführt. {aliasNumbers.Count} alte Nummer(n) als Alias gesichert.";
+        if (aliasEawIds.Count > 0) msg += $" {aliasEawIds.Count} alte easy@work-ID(s) als Alias gesichert.";
+        if (clearExitDate) msg += " Austrittsdatum am Haupt-MA entfernt (Wiedereintritt).";
 
         return Ok(new
         {
@@ -223,7 +318,9 @@ public class EmployeeMergeController : ControllerBase
             mainEmployeeId = main.Id,
             mergedCount = dupIds.Count,
             aliasNumbers,
-            message = $"{dupIds.Count} Duplikat(e) auf {mainNum} zusammengeführt. {aliasNumbers.Count} alte Nummer(n) als Alias gesichert."
+            aliasEawIds,
+            clearExitDate,
+            message = msg
         });
     }
 }

@@ -518,7 +518,7 @@ function einTpRenderGrid() {
     grid.innerHTML = TP_MONTH_NAMES.map((name, i) => {
         const m  = i + 1;
         const on = sel.has(m);
-        return `<label style="display:flex;align-items:center;gap:5px;padding:3px 7px;border:1.5px solid ${on ? '#3b82f6' : '#e2e8f0'};border-radius:7px;background:${on ? '#dbeafe' : '#f8fafc'};color:${on ? '#1d4ed8' : '#475569'};cursor:pointer;font-size:12px;font-weight:600;user-select:none">
+        return `<label style="display:flex;align-items:center;gap:5px;padding:3px 7px;border:1.5px solid ${on ? 'rgba(63,63,63,.55)' : '#e2e8f0'};border-radius:9px;background:${on ? 'rgba(255,255,255,.85)' : '#f8fafc'};color:${on ? '#3f3f3f' : '#475569'};cursor:pointer;font-size:12px;font-weight:600;user-select:none;box-shadow:${on ? '0 3px 10px rgba(60,55,48,.12)' : 'none'}">
             <input type="checkbox" ${on ? 'checked' : ''} value="${m}" onchange="einTpToggle(${m})" style="margin:0">${name}
         </label>`;
     }).join('');
@@ -526,7 +526,7 @@ function einTpRenderGrid() {
     if (hint) {
         if (_einTpMonths.length === 0)       { hint.textContent = '⚠ Keine Auszahlungsmonate gewählt — 13. ML wird nicht ausbezahlt.'; hint.style.color = '#b45309'; }
         else if (_einTpMonths.length === 12) { hint.textContent = '✓ Monatlich — bei jeder Lohnperiode wird der 13. anteilig ausbezahlt.'; hint.style.color = '#15803d'; }
-        else                                  { hint.textContent = `✓ ${_einTpMonths.length}× pro Jahr: ${_einTpMonths.map(m => TP_MONTH_NAMES[m - 1]).join(', ')}`; hint.style.color = '#1d4ed8'; }
+        else                                  { hint.textContent = `✓ ${_einTpMonths.length}× pro Jahr: ${_einTpMonths.map(m => TP_MONTH_NAMES[m - 1]).join(', ')}`; hint.style.color = '#6b7280'; }
     }
 }
 function einTpToggle(m) {
@@ -858,7 +858,7 @@ function renderSignatoryList(list) {
                 ${s.user?.phone ? `<div style="font-size:11px;color:#94a3b8">${s.user.phone}</div>` : ''}
             </div>
             <div style="flex-shrink:0;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
-                ${s.role ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#eff6ff;color:#1d4ed8">${roleLabels[s.role]||s.role}</span>` : ''}
+                ${s.role ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0efeb;color:#6b7280">${roleLabels[s.role]||s.role}</span>` : ''}
                 ${s.isDefault ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0fdf4;color:#15803d">Allgemein</span>` : ''}
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0">
@@ -1021,7 +1021,7 @@ async function stmPlzLookup(rawPlz) {
             return;
         }
         // Mehrere Treffer: nur Hinweis — Ort und Kanton nicht überschreiben falls schon gefüllt
-        hint.innerHTML = `<span style="color:#3b82f6">${locs.length} Orte für PLZ ${plz} gefunden — bitte Ort manuell wählen.</span>`;
+        hint.innerHTML = `<span style="color:#8b8b8b">${locs.length} Orte für PLZ ${plz} gefunden — bitte Ort manuell wählen.</span>`;
     } catch {
         hint.innerHTML = `<span style="color:#b45309">PLZ-Lookup nicht verfügbar.</span>`;
     }
@@ -1125,7 +1125,7 @@ async function loadCompanyBankList(branchId) {
                     ${list.map(e => `
                     <tr style="border-top:1px solid #f1f5f9">
                         <td style="padding:6px 12px">
-                            ${e.isMain ? '<span style="display:inline-block;background:#dbeafe;color:#1d4ed8;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">Hauptbank</span>' : ''}
+                            ${e.isMain ? '<span style="display:inline-block;background:#ecebe7;color:#6b7280;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">Hauptbank</span>' : ''}
                             ${isCurrentlyValid(e) ? '<span style="display:inline-block;background:#dcfce7;color:#15803d;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600;margin-left:4px">aktiv</span>' : '<span style="display:inline-block;background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600;margin-left:4px">inaktiv</span>'}
                         </td>
                         <td style="padding:6px 12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px">${fmtIban(e.iban)}</td>
@@ -1458,9 +1458,9 @@ function tpRenderGrid(selectedMonths) {
     grid.innerHTML = TP_MONTH_NAMES.map((name, i) => {
         const m = i + 1;
         const checked = sel.has(m);
-        const bg = checked ? '#dbeafe' : '#f8fafc';
-        const fg = checked ? '#1d4ed8' : '#475569';
-        const bd = checked ? '#3b82f6' : '#e2e8f0';
+        const bg = checked ? 'rgba(255,255,255,.85)' : '#f8fafc';
+        const fg = checked ? '#3f3f3f' : '#475569';
+        const bd = checked ? 'rgba(63,63,63,.55)' : '#e2e8f0';
         return `<label style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1.5px solid ${bd};border-radius:8px;background:${bg};color:${fg};cursor:pointer;font-size:12.5px;font-weight:600;user-select:none">
             <input type="checkbox" ${checked ? 'checked' : ''} value="${m}" onchange="tpToggleMonth(${m})" style="margin:0">
             ${name}
@@ -1474,7 +1474,7 @@ function tpUpdateHint(months) {
     if (!hint) return;
     if (months.length === 0)       { hint.textContent = '⚠ Keine Auszahlungsmonate gewählt — 13. ML wird nicht ausbezahlt.'; hint.style.color = '#b45309'; }
     else if (months.length === 12) { hint.textContent = '✓ Monatlich — bei jeder Lohnperiode wird der 13. anteilig ausbezahlt.'; hint.style.color = '#15803d'; }
-    else                            { hint.textContent = `✓ ${months.length}× pro Jahr: ${months.map(m => TP_MONTH_NAMES[m-1]).join(', ')}`; hint.style.color = '#1d4ed8'; }
+    else                            { hint.textContent = `✓ ${months.length}× pro Jahr: ${months.map(m => TP_MONTH_NAMES[m-1]).join(', ')}`; hint.style.color = '#6b7280'; }
 }
 
 let _tpSelectedMonths = [];
@@ -1681,7 +1681,7 @@ function bmwRender(items) {
             <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;margin-bottom:7px">
                 <input type="checkbox" id="bmwYouth"> auch für Jugendliche</label>
             <button class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="bmwAdd()">+ Version hinzufügen</button>
-            <div id="bmwCalcHint" style="font-size:11.5px;color:#0369a1;flex-basis:100%"></div>
+            <div id="bmwCalcHint" style="font-size:11.5px;color:#6b6152;flex-basis:100%"></div>
         </div>`;
 
     el.innerHTML = table + form;

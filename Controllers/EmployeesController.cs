@@ -243,6 +243,22 @@ public class EmployeesController : ControllerBase
             employee.TeilzeitUnter8hWoche,
             // Nachtarbeit-Untersuchung (Walter 20.06.2026, ArG)
             employee.NightWorkExamValidUntil,
+            employee.NightWorkExamIssued,
+            // Soll-Ende gemäss Regel (Beginn + 1/2 Jahre − 1 Tag) + Abweichungs-Flag
+            // (Walter 05.07.2026): weicht das gespeicherte (aus easy) Ende vom Soll ab,
+            // muss es in easy@work korrigiert werden.
+            nightWorkExamSollBis = employee.NightWorkExamIssued.HasValue
+                ? Employee.NightWorkValidUntil(
+                    DateOnly.FromDateTime(employee.NightWorkExamIssued.Value),
+                    employee.DateOfBirth.HasValue ? DateOnly.FromDateTime(employee.DateOfBirth.Value) : (DateOnly?)null)
+                  .ToDateTime(TimeOnly.MinValue)
+                : (DateTime?)null,
+            nightWorkExamMismatch = employee.NightWorkExamIssued.HasValue
+                && (!employee.NightWorkExamValidUntil.HasValue
+                    || DateOnly.FromDateTime(employee.NightWorkExamValidUntil.Value)
+                       != Employee.NightWorkValidUntil(
+                           DateOnly.FromDateTime(employee.NightWorkExamIssued.Value),
+                           employee.DateOfBirth.HasValue ? DateOnly.FromDateTime(employee.DateOfBirth.Value) : (DateOnly?)null)),
             employee.NightWorkExamDokumentId,
             employee.NightWorkAusnahmeDokumentId,
             // Walter-Vorgabe 07.06.2026: permitType + Code/Beschreibung kommen
@@ -803,11 +819,24 @@ public class EmployeesController : ControllerBase
     {
         var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Id == id);
         if (emp == null) return NotFound();
-        emp.NightWorkExamValidUntil = dto.ValidUntil;
+        // Erfasst wird das AUSSTELLUNGSdatum; das Gültig-bis rechnen WIR mit der
+        // zentralen Regel (Beginn + 1 bzw. 2 Jahre − 1 Tag, je Alter). Walter 05.07.2026.
+        if (dto.Issued.HasValue)
+        {
+            var issued = DateOnly.FromDateTime(dto.Issued.Value);
+            var dob = emp.DateOfBirth.HasValue ? DateOnly.FromDateTime(emp.DateOfBirth.Value) : (DateOnly?)null;
+            emp.NightWorkExamIssued     = dto.Issued.Value.Date;
+            emp.NightWorkExamValidUntil = Employee.NightWorkValidUntil(issued, dob).ToDateTime(TimeOnly.MinValue);
+        }
+        else
+        {
+            emp.NightWorkExamIssued     = null;
+            emp.NightWorkExamValidUntil = null;
+        }
         await _context.SaveChangesAsync();
-        return Ok(new { id = emp.Id, nightWorkExamValidUntil = emp.NightWorkExamValidUntil });
+        return Ok(new { id = emp.Id, nightWorkExamIssued = emp.NightWorkExamIssued, nightWorkExamValidUntil = emp.NightWorkExamValidUntil });
     }
-    public class NightExamDateDto { public DateTime? ValidUntil { get; set; } }
+    public class NightExamDateDto { public DateTime? Issued { get; set; } }
 
     [HttpPatch("{id:int}/ausweis-doku")]
     public async Task<IActionResult> SetAusweisDoku(int id, [FromBody] AusweisDokuDto dto)

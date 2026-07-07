@@ -115,7 +115,7 @@ function momSetFilter(mode) {
 }
 
 function momRenderFilterButtons() {
-    const on  = 'border:0;padding:6px 12px;font-size:12px;cursor:pointer;background:#2563eb;color:#fff;font-weight:600';
+    const on  = 'border:0;padding:6px 12px;font-size:12px;cursor:pointer;background:#1a1a1a;color:#fff;font-weight:600';
     const off = 'border:0;padding:6px 12px;font-size:12px;cursor:pointer;background:#fff;color:#475569';
     const a = document.getElementById('momFilterAktiv');
     const i = document.getElementById('momFilterInaktiv');
@@ -408,7 +408,7 @@ function momPreview() {
 
         <div style="font-size:12px;color:#64748b">SMS</div>
         <div style="background:#f1f5f9;border-radius:10px;padding:10px 12px;font-size:13px;color:#0f172a;margin-bottom:10px;white-space:pre-wrap">${escapeHtml(smsResolved)}
-            <div style="color:#2563eb;margin-top:4px">${linkPreview}</div></div>
+            <div style="color:#1a1a1a;margin-top:4px">${linkPreview}</div></div>
 
         <div style="font-size:12px;color:#64748b">${moment ? 'Moment (über den Link)' : 'Mitteilung (im Postfach)'}</div>
         <div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:13px;color:#334155;margin-bottom:10px;white-space:pre-wrap;max-height:200px;overflow:auto">${escapeHtml(fullResolved)}</div>
@@ -678,7 +678,7 @@ function momRenderTextList() {
     el.innerHTML = _momTextsAll.map(x => `
         <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:10px;${x.isActive ? '' : 'opacity:0.6'}">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                <span style="font-size:12px;background:#eef2ff;color:#3730a3;border-radius:6px;padding:2px 8px">${escapeHtml(x.typeName || '')}</span>
+                <span style="font-size:12px;background:#f1efe9;color:#5a5348;border-radius:6px;padding:2px 8px">${escapeHtml(x.typeName || '')}</span>
                 <span style="font-size:12px;background:#f1f5f9;color:#475569;border-radius:6px;padding:2px 8px">${escapeHtml(x.toneName || '')}</span>
                 <strong style="font-size:13px">${escapeHtml(x.titel || '(ohne Titel)')}</strong>
                 ${x.isActive ? '' : '<span style="color:#b91c1c;font-size:12px">inaktiv</span>'}

@@ -151,7 +151,7 @@ function gsRender(data, q, errorMsg) {
         <div class="gs-row" data-idx="${i}" data-payload='${gsAttr(JSON.stringify(payload))}'
              onclick="gsActivate(${i})"
              onmouseenter="gsHover(${i})"
-             style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;font-size:13.5px;border-left:3px solid ${sel ? '#2563eb' : 'transparent'};background:${sel ? '#eff6ff' : 'transparent'};color:#0f172a">
+             style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;font-size:13.5px;border-left:3px solid ${sel ? '#1a1a1a' : 'transparent'};background:${sel ? '#f6f3ee' : 'transparent'};color:#0f172a">
              ${content}
         </div>`;
     };
@@ -204,8 +204,8 @@ function gsSelect(i, scroll) {
     _gsState.selectedIdx = Math.max(0, Math.min(_gsState.results.length - 1, i));
     document.querySelectorAll('.gs-row').forEach((el, idx) => {
         const sel = idx === _gsState.selectedIdx;
-        el.style.background = sel ? '#eff6ff' : 'transparent';
-        el.style.borderLeftColor = sel ? '#2563eb' : 'transparent';
+        el.style.background = sel ? '#f6f3ee' : 'transparent';
+        el.style.borderLeftColor = sel ? '#1a1a1a' : 'transparent';
         if (sel && scroll) el.scrollIntoView({ block: 'nearest' });
     });
 }

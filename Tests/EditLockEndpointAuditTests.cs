@@ -67,6 +67,7 @@ public class EditLockEndpointAuditTests
         ["MinimumWageRulesController"]     = "L-GAV Mindestlohn-Sätze (Katalog, versioniert) — keine MA-Daten",
         ["BranchMinWageController"]        = "Kommunaler Mindestlohn pro Filiale (Katalog, versioniert) — keine MA-Daten",
         ["LohnKontoMappingController"]     = "Kontoplan / Lohnart→Konten-Mapping (Katalog) — keine MA-Daten",
+        ["DashboardWarningConfigController"] = "Dashboard-Warnungs-Konfig (global, an/aus/Vorlauf/Schweregrad) — keine MA-Daten",
         // EasyAtWorkController NICHT mehr whitelisted (Walter-Vorgabe 19.06.2026):
         // er schreibt via Stempelzeit-Commit lohnrelevante employee_time_entry-Daten
         // und ist deshalb jetzt ECHT lock-geschützt — der Commit-Endpoint berechnet

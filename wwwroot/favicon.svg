@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="OneCrew favicon">
+  <rect x="24" y="24" width="464" height="464" rx="92" fill="#f8f5ee"/>
+  <path d="M156 487 C192 320 259 106 383 69 C457 47 503 133 518 308" fill="none" stroke="#11110f" stroke-width="42" stroke-linecap="round"/>
+  <path d="M181 487 C220 323 283 131 391 91 C451 70 489 139 501 299" fill="none" stroke="#2b2a27" stroke-width="18" stroke-linecap="round"/>
+  <path d="M136 487 C177 318 244 91 376 55 C463 31 515 131 531 315" fill="none" stroke="#0c0c0b" stroke-width="9" stroke-linecap="round" opacity=".78"/>
+  <path d="M204 487 C241 336 294 165 399 117 C440 98 470 147 480 286" fill="none" stroke="#f8f5ee" stroke-width="8" stroke-linecap="round" opacity=".42"/>
+  <path d="M157 432 L218 356 M168 395 L238 309 M181 349 L258 262 M199 302 L276 222 M220 252 L295 181 M245 203 L318 144 M277 154 L345 116 M314 111 L374 94 M356 82 L414 89 M401 83 L446 118 M438 114 L467 171 M461 169 L481 238" fill="none" stroke="#5a5752" stroke-width="5" stroke-linecap="round" opacity=".42"/>
+</svg>

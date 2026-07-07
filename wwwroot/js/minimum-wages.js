@@ -46,8 +46,8 @@ const MW_GROUP_LABEL = {
 // Vertragsmodell-Farben — identisch zum Rest des Programms (payroll.js,
 // contracts-page.js, akonto-workflow.js …): MTP grün, UTP amber, FIX blau,
 // FIX-M violett. Text dunkel passend zur Pastell-Fläche.
-const MW_MODEL_COLOR = { MTP: '#d1fae5', UTP: '#fef3c7', FIX: '#dbeafe', 'FIX-M': '#ede9fe' };
-const MW_MODEL_TEXT  = { MTP: '#065f46', UTP: '#92400e', FIX: '#1e40af', 'FIX-M': '#5b21b6' };
+const MW_MODEL_COLOR = { MTP: '#d1fae5', UTP: '#fef3c7', FIX: '#ece9e2', 'FIX-M': '#ede9fe' };
+const MW_MODEL_TEXT  = { MTP: '#065f46', UTP: '#92400e', FIX: '#6b6152', 'FIX-M': '#5b21b6' };
 function mwBadge(model, extra) {
     const bg = MW_MODEL_COLOR[model] || '#f1f5f9';
     const fg = MW_MODEL_TEXT[model]  || '#475569';

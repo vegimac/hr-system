@@ -7,7 +7,7 @@
 
 let _kpRows = [];
 
-const KP_KST_COLOR = { '100':'#dbeafe', '200':'#fef3c7', '300':'#ede9fe', '400':'#fae8ff' };
+const KP_KST_COLOR = { '100':'#ece9e2', '200':'#fef3c7', '300':'#ede9fe', '400':'#fae8ff' };
 
 async function kpInit() {
     const cont = document.getElementById('kpContainer');
@@ -99,9 +99,9 @@ function kpEdit(id) {
     const row = document.querySelector(`#kpContainer tr[data-id="${id}"]`);
     if (!row) return;
     const esc = s => String(s ?? '').replace(/"/g,'&quot;');
-    row.querySelector('.kp-soll').innerHTML  = `<input id="kpSoll_${id}"  value="${esc(m.fibukonto)}"  style="width:60px;padding:2px 4px;border:1px solid #93c5fd;border-radius:5px;font-family:monospace">`;
-    row.querySelector('.kp-gegen').innerHTML = `<input id="kpGegen_${id}" value="${esc(m.gegenkonto)}" style="width:60px;padding:2px 4px;border:1px solid #93c5fd;border-radius:5px;font-family:monospace">`;
-    row.querySelector('.kp-bez').innerHTML   = `<input id="kpBez_${id}" value="${esc(m.bezeichnung)}" style="width:100%;min-width:180px;padding:2px 4px;border:1px solid #93c5fd;border-radius:5px">`;
+    row.querySelector('.kp-soll').innerHTML  = `<input id="kpSoll_${id}"  value="${esc(m.fibukonto)}"  style="width:60px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">`;
+    row.querySelector('.kp-gegen').innerHTML = `<input id="kpGegen_${id}" value="${esc(m.gegenkonto)}" style="width:60px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">`;
+    row.querySelector('.kp-bez').innerHTML   = `<input id="kpBez_${id}" value="${esc(m.bezeichnung)}" style="width:100%;min-width:180px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px">`;
     const actionCell = row.querySelector('td:last-child');
     actionCell.innerHTML = `<button class="btn-link" style="font-size:11.5px;color:#16a34a;background:none;border:none;cursor:pointer" onclick="kpSave(${id})">✓ speichern</button>
         <button class="btn-link" style="font-size:11.5px;color:#94a3b8;background:none;border:none;cursor:pointer" onclick="kpRender()">✕</button>`;

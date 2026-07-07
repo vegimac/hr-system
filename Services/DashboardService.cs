@@ -69,6 +69,36 @@ public class DashboardService
         var today = DateOnly.FromDateTime(DateTime.Today);
         var now = DateTime.Today;
 
+        // ── Warnungs-Konfig laden (Walter-Vorgabe 06.07.2026) ──────────────
+        // Globale Steuerung pro Warn-Kategorie: an/aus, Vorlauf (Tage),
+        // Eskalations-Schwelle (Tage), Schweregrad (Basis + eskaliert).
+        // Fehlt eine Zeile → Fallback auf enabled + den im Code hinterlegten
+        // Ist-Wert (die Helfer-Methoden defaulten entsprechend).
+        var warnCfg = await _db.DashboardWarningConfigs
+            .AsNoTracking()
+            .ToDictionaryAsync(c => c.Category, c => c);
+
+        // enabled: true wenn keine Zeile ODER Zeile.enabled
+        bool Enabled(string cat) =>
+            !warnCfg.TryGetValue(cat, out var c) || c.Enabled;
+        // Vorlauf-Fenster in Tagen: konfiguriert (falls gesetzt) sonst fallback
+        int WarnDays(string cat, int fallback) =>
+            warnCfg.TryGetValue(cat, out var c) && c.WarnDays.HasValue
+                ? c.WarnDays.Value : fallback;
+        // Zwei-Stufen-Schweregrad: wenn escalate_days gesetzt und
+        // daysRemaining ≤ escalate_days → eskaliert, sonst Basis.
+        string Severity(string cat, int daysRemaining, string baseFallback, string escFallback)
+        {
+            if (!warnCfg.TryGetValue(cat, out var c))
+                return daysRemaining <= 0 ? escFallback : baseFallback;
+            if (c.EscalateDays.HasValue && daysRemaining <= c.EscalateDays.Value)
+                return c.SeverityEscalated ?? c.SeverityBase;
+            return c.SeverityBase;
+        }
+        // Zustandsbasiert: nur der Basis-Schweregrad.
+        string SeverityState(string cat, string baseFallback) =>
+            warnCfg.TryGetValue(cat, out var c) ? c.SeverityBase : baseFallback;
+
         // ── 1) Bewilligungen die ablaufen ──────────────────────────────────
         // Walter-Vorgabe 01.06.2026: Quelle ist jetzt ausschliesslich
         // EmployeePermitHistory.ValidTo des jüngsten Eintrags pro MA.
@@ -79,7 +109,7 @@ public class DashboardService
         // Walter-Vorgabe 14.06.2026: Cutoff von 90 → 60 Tage. Die blaue
         // „info"-Stufe (60–90 Tage Vorlauf) braucht keine Warnung — Walter
         // sieht sie erst, sobald sie in den orangen warning-Bereich rückt.
-        var dueDateLimit = DateOnly.FromDateTime(now.AddDays(60));
+        var dueDateLimit = DateOnly.FromDateTime(now.AddDays(WarnDays("permit_expiring", 60)));
         var empBase = _db.Employees
             .Where(e => e.IsActive
                      && !e.EmployeeNumber.ToLower().EndsWith("alt"));
@@ -118,14 +148,15 @@ public class DashboardService
                 return true;
             })
             .ToList();
-        foreach (var h in youngestPerMa)
+        foreach (var h in Enabled("permit_expiring") ? youngestPerMa : new List<EmployeePermitHistory>())
         {
             if (!maById.TryGetValue(h.EmployeeId, out var emp)) continue;
             var dueDate = h.ValidTo!.Value.ToDateTime(TimeOnly.MinValue);
             var days = (dueDate - now).Days;
-            // Severity nach Walter 14.06.2026: nur expired/critical/warning;
-            // info (>60 Tage) fällt durch den dueDateLimit-Filter raus.
-            string severity = days < 0 ? "critical" : days <= 30 ? "critical" : "warning";
+            // Severity konfigurierbar (Walter 06.07.2026): eskaliert bei
+            // days ≤ escalate_days (Default 30) → critical, sonst warning.
+            // Abgelaufen (days < 0) ≤ jeder positiven Schwelle → bleibt critical.
+            string severity = Severity("permit_expiring", days, "warning", "critical");
             var permitCode = h.PermitType?.Code ?? "?";
             alerts.Add(new DashboardAlert
             {
@@ -151,18 +182,21 @@ public class DashboardService
         }
 
         // ── 2) Probezeit endet in 14 Tagen ─────────────────────────────────
+        var probaWindow = now.AddDays(WarnDays("probation_end", 14));
         var probaQ = _db.Employments
             .Include(em => em.Employee)
             .Where(em => em.IsActive
                       && em.ProbationEndDate.HasValue
                       && em.ProbationEndDate >= now
-                      && em.ProbationEndDate <= now.AddDays(14)
+                      && em.ProbationEndDate <= probaWindow
                       && em.Employee != null
                       && em.Employee.IsActive
                       && !em.Employee.EmployeeNumber.ToLower().EndsWith("alt"));
         if (companyProfileId.HasValue)
             probaQ = probaQ.Where(em => em.CompanyProfileId == companyProfileId.Value);
-        var probaList = await probaQ.ToListAsync();
+        var probaList = Enabled("probation_end")
+            ? await probaQ.ToListAsync()
+            : new List<Employment>();
         foreach (var em in probaList)
         {
             var dueDate = em.ProbationEndDate!.Value;
@@ -170,7 +204,7 @@ public class DashboardService
             alerts.Add(new DashboardAlert
             {
                 Category = "probation_end",
-                Severity = days <= 7 ? "warning" : "info",
+                Severity = Severity("probation_end", days, "info", "warning"),
                 Title    = $"Probezeit endet in {days} Tagen",
                 TitleKey = "alert.probation.ends_in_days",
                 TitleArgs = new Dictionary<string, object> { ["days"] = days },
@@ -189,18 +223,21 @@ public class DashboardService
         }
 
         // ── 3) Befristete Verträge enden in 30 Tagen ──────────────────────
+        var fixedWindow = now.AddDays(WarnDays("contract_end", 30));
         var fixedQ = _db.Employments
             .Include(em => em.Employee)
             .Where(em => em.IsActive
                       && em.ContractEndDate.HasValue
                       && em.ContractEndDate >= now
-                      && em.ContractEndDate <= now.AddDays(30)
+                      && em.ContractEndDate <= fixedWindow
                       && em.Employee != null
                       && em.Employee.IsActive
                       && !em.Employee.EmployeeNumber.ToLower().EndsWith("alt"));
         if (companyProfileId.HasValue)
             fixedQ = fixedQ.Where(em => em.CompanyProfileId == companyProfileId.Value);
-        var fixedList = await fixedQ.ToListAsync();
+        var fixedList = Enabled("contract_end")
+            ? await fixedQ.ToListAsync()
+            : new List<Employment>();
         foreach (var em in fixedList)
         {
             var dueDate = em.ContractEndDate!.Value;
@@ -208,7 +245,7 @@ public class DashboardService
             alerts.Add(new DashboardAlert
             {
                 Category = "contract_end",
-                Severity = days <= 14 ? "warning" : "info",
+                Severity = Severity("contract_end", days, "info", "warning"),
                 Title    = $"Befristeter Vertrag endet in {days} Tagen",
                 TitleKey = "alert.contract.ends_in_days",
                 TitleArgs = new Dictionary<string, object> { ["days"] = days },
@@ -245,7 +282,18 @@ public class DashboardService
             exitPendingQ = exitPendingQ.Where(e =>
                 e.Employments.Any(em => em.CompanyProfileId == companyProfileId.Value));
         }
-        var exitPendingList = await exitPendingQ.ToListAsync();
+        var exitPendingList = Enabled("exit_pending_active")
+            ? await exitPendingQ.ToListAsync()
+            : new List<Employee>();
+        // exit_pending_active zählt Tage SEIT dem Austritt — escalate_days ist
+        // hier die Schwelle NACH oben (≥ escalate_days → eskaliert), daher eigene
+        // Auswertung statt des Standard-Severity-Helfers (Walter 06.07.2026).
+        int exitEscalateDays = warnCfg.TryGetValue("exit_pending_active", out var exitCfg)
+                               && exitCfg.EscalateDays.HasValue ? exitCfg.EscalateDays.Value : 30;
+        string exitBaseSev = warnCfg.TryGetValue("exit_pending_active", out var exitCfg2)
+                             ? exitCfg2.SeverityBase : "warning";
+        string exitEscSev = warnCfg.TryGetValue("exit_pending_active", out var exitCfg3)
+                            ? (exitCfg3.SeverityEscalated ?? exitCfg3.SeverityBase) : "critical";
         foreach (var e in exitPendingList)
         {
             var exitDate = e.ExitDate!.Value;
@@ -253,8 +301,8 @@ public class DashboardService
             alerts.Add(new DashboardAlert
             {
                 Category = "exit_pending_active",
-                // Nach 30 Tagen kritisch — bis dahin nur Hinweis.
-                Severity = daysAfter > 30 ? "critical" : "warning",
+                // Nach escalate_days Tagen eskaliert — bis dahin nur Hinweis.
+                Severity = daysAfter > exitEscalateDays ? exitEscSev : exitBaseSev,
                 Title    = $"Austritt am {exitDate:dd.MM.yyyy} — MA noch aktiv",
                 TitleKey = "alert.exit.pending_active",
                 TitleArgs = new Dictionary<string, object> { ["date"] = exitDate.ToString("dd.MM.yyyy") },
@@ -286,20 +334,26 @@ public class DashboardService
         if (companyProfileId.HasValue)
             qstCandidatesQ = qstCandidatesQ.Where(e =>
                 e.Employments.Any(em => em.CompanyProfileId == companyProfileId.Value && em.IsActive));
-        var qstCandidateIds = await qstCandidatesQ.Select(e => e.Id).ToListAsync();
+        // Nur laufen, wenn mindestens eine der drei QST-Warnungen aktiv ist
+        // (spart den teuren Per-MA-CheckAsync bei allen deaktiviert).
+        var qstCandidateIds = (Enabled("qst_pflicht_offen")
+                               || Enabled("spouse_doku_fehlt")
+                               || Enabled("employee_doku_fehlt"))
+            ? await qstCandidatesQ.Select(e => e.Id).ToListAsync()
+            : new List<int>();
         foreach (var empId in qstCandidateIds)
         {
             var r = await _qstCheck.CheckAsync(empId, qstStichtag);
 
             // 3c.i) QST-Pflicht offen — critical, blockt Lohnlauf
-            if (r.IsPflichtOffen)
+            if (r.IsPflichtOffen && Enabled("qst_pflicht_offen"))
             {
                 var emp = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
                 if (emp == null) continue;
                 alerts.Add(new DashboardAlert
                 {
                     Category = "qst_pflicht_offen",
-                    Severity = "critical",
+                    Severity = SeverityState("qst_pflicht_offen", "critical"),
                     Title    = "QST-Pflicht offen — Lohnlauf gesperrt",
                     TitleKey = "alert.qst.pflicht_offen",
                     Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · kein Befreiungs-Grund, keine QST erfasst",
@@ -319,7 +373,7 @@ public class DashboardService
             // hinterlegt. Warning, kein Lohnlauf-Block. Spiegelt die
             // KontrollListen-Liste, damit die Lücke auch im Dashboard sichtbar
             // ist. Klick → Familie-Tab (dort Variante-C-Upload des Ausweises).
-            else if (r.SpouseDokumentFehlt
+            else if (r.SpouseDokumentFehlt && Enabled("spouse_doku_fehlt")
                      && (r.BefreiungsGrund == "Ehepartner-CH" || r.BefreiungsGrund == "Ehepartner-C"))
             {
                 var emp = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
@@ -330,7 +384,7 @@ public class DashboardService
                 alerts.Add(new DashboardAlert
                 {
                     Category = "spouse_doku_fehlt",
-                    Severity = "critical",
+                    Severity = SeverityState("spouse_doku_fehlt", "critical"),
                     Title    = "Ausweis Ehepartner fehlt für die QST-Befreiung",
                     TitleKey = "alert.spouseDokuFehlt",
                     Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · {grundText} — Beleg in Dokumenten hochladen",
@@ -350,7 +404,7 @@ public class DashboardService
             //   CH-Bürger → ID-Karte ODER Pass muss hinterlegt sein
             //   C-Ausweis → Bewilligungs-Dokument muss hinterlegt sein
             // Klick → Dokumente-Tab (dort Upload).
-            else if (r.EmployeeDokumentFehlt
+            else if (r.EmployeeDokumentFehlt && Enabled("employee_doku_fehlt")
                      && (r.BefreiungsGrund == "CH-Buerger" || r.BefreiungsGrund == "C-Ausweis"))
             {
                 var emp = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
@@ -364,7 +418,7 @@ public class DashboardService
                 alerts.Add(new DashboardAlert
                 {
                     Category = "employee_doku_fehlt",
-                    Severity = "critical",
+                    Severity = SeverityState("employee_doku_fehlt", "critical"),
                     Title    = titleText,
                     TitleKey = r.BefreiungsGrund == "CH-Buerger"
                                 ? "alert.employeeDokuFehlt.idPass"
@@ -394,7 +448,9 @@ public class DashboardService
             pregnancyQ = pregnancyQ.Where(p =>
                 p.Employee != null && p.Employee.Employments.Any(em =>
                     em.CompanyProfileId == companyProfileId.Value && em.IsActive));
-        var pregnancies = await pregnancyQ.ToListAsync();
+        var pregnancies = Enabled("schwangerschaft")
+            ? await pregnancyQ.ToListAsync()
+            : new List<EmployeePregnancy>();
         if (pregnancies.Any())
         {
             var pRules = await _db.PregnancyRules
@@ -402,6 +458,8 @@ public class DashboardService
                 .OrderBy(r => r.SortOrder)
                 .ToListAsync();
             var heute = DateOnly.FromDateTime(now);
+            // Vorausschau-Fenster für „bevorstehende" Fristen — konfigurierbar.
+            var pregLookahead = WarnDays("schwangerschaft", 30);
 
             foreach (var preg in pregnancies)
             {
@@ -425,8 +483,8 @@ public class DashboardService
 
                     if (f.Status == "bevorstehend")
                     {
-                        // nur die nächsten 30 Tage als Vorausschau anzeigen
-                        if ((f.Datum.DayNumber - heute.DayNumber) <= 30)
+                        // nur die konfigurierte Vorausschau anzeigen (Default 30 Tage)
+                        if ((f.Datum.DayNumber - heute.DayNumber) <= pregLookahead)
                             bevorstehende.Add($"{r.Bezeichnung} (ab {f.Datum:dd.MM.yyyy})");
                     }
                     else if (f.Status == "abgeschlossen")
@@ -449,10 +507,16 @@ public class DashboardService
                 if (bevorstehende.Any())
                     sub.Add("Bald: " + string.Join(" · ", bevorstehende));
 
+                // Schweregrad ist hier zustandsgetrieben (Arbeitsverbot aktiv →
+                // eskaliert, sonst Basis) — Basis/Eskaliert kommen aus der Konfig.
+                string schwEsc = warnCfg.TryGetValue("schwangerschaft", out var schwCfg)
+                    ? (schwCfg.SeverityEscalated ?? schwCfg.SeverityBase) : "warning";
+                string schwBase = warnCfg.TryGetValue("schwangerschaft", out var schwCfg2)
+                    ? schwCfg2.SeverityBase : "info";
                 alerts.Add(new DashboardAlert
                 {
                     Category    = "schwangerschaft",
-                    Severity    = aktivVerbote.Any() ? "warning" : "info",
+                    Severity    = aktivVerbote.Any() ? schwEsc : schwBase,
                     Title       = $"Mutterschaft: {preg.Employee.FirstName} {preg.Employee.LastName}",
                     Subtitle    = string.Join(" — ", sub),
                     EmployeeId     = preg.Employee.Id,
@@ -468,7 +532,9 @@ public class DashboardService
             .Where(p => p.Status == "provisorisch_abgeschlossen");
         if (companyProfileId.HasValue)
             lohnQ = lohnQ.Where(p => p.CompanyProfileId == companyProfileId.Value);
-        var provPeriods = await lohnQ.ToListAsync();
+        var provPeriods = Enabled("lohn_provisorisch")
+            ? await lohnQ.ToListAsync()
+            : new List<PayrollPeriode>();
         foreach (var p in provPeriods)
         {
             var monthNames = new[] {
@@ -482,7 +548,7 @@ public class DashboardService
             alerts.Add(new DashboardAlert
             {
                 Category = "lohn_provisorisch",
-                Severity = "warning",
+                Severity = SeverityState("lohn_provisorisch", "warning"),
                 Title    = $"Lohn {monatLabel} wartet auf Definitiv-Abschluss",
                 TitleKey = "alert.payroll.waits_for_final",
                 TitleArgs = new Dictionary<string, object> {
@@ -511,7 +577,10 @@ public class DashboardService
             var cpid = companyProfileId.Value;
             birthQ = birthQ.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
         }
-        var birthEmps = await birthQ.ToListAsync();
+        var birthEmps = Enabled("birthday")
+            ? await birthQ.ToListAsync()
+            : new List<Employee>();
+        var birthdayWindow = WarnDays("birthday", 7);
         foreach (var e in birthEmps)
         {
             var bd = e.DateOfBirth!.Value;
@@ -519,13 +588,13 @@ public class DashboardService
             var thisYearBday = new DateTime(now.Year, bd.Month, bd.Day == 29 && bd.Month == 2 && !DateTime.IsLeapYear(now.Year) ? 28 : bd.Day);
             if (thisYearBday < now) thisYearBday = thisYearBday.AddYears(1);
             var days = (thisYearBday - now).Days;
-            if (days < 0 || days > 7) continue;
+            if (days < 0 || days > birthdayWindow) continue;
 
             var ageOnBday = thisYearBday.Year - bd.Year;
             alerts.Add(new DashboardAlert
             {
                 Category = "birthday",
-                Severity = "info",
+                Severity = SeverityState("birthday", "info"),
                 Title    = days == 0 ? $"🎂 Heute Geburtstag — {ageOnBday} Jahre"
                                      : $"Geburtstag in {days} Tagen — {ageOnBday} Jahre",
                 TitleKey = days == 0 ? "alert.birthday.today" : "alert.birthday.in_days",
@@ -555,7 +624,10 @@ public class DashboardService
             var cpid = companyProfileId.Value;
             jubQ = jubQ.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
         }
-        var jubEmps = await jubQ.ToListAsync();
+        var jubEmps = Enabled("anniversary")
+            ? await jubQ.ToListAsync()
+            : new List<Employee>();
+        var anniversaryWindow = WarnDays("anniversary", 30);
         foreach (var e in jubEmps)
         {
             var entry = e.EntryDate!.Value;
@@ -565,12 +637,12 @@ public class DashboardService
             var yearsAtEntry = thisYearEntry.Year - entry.Year;
             if (!milestoneYears.Contains(yearsAtEntry)) continue;
             var days = (thisYearEntry - now).Days;
-            if (days < 0 || days > 30) continue;
+            if (days < 0 || days > anniversaryWindow) continue;
 
             alerts.Add(new DashboardAlert
             {
                 Category = "anniversary",
-                Severity = "info",
+                Severity = SeverityState("anniversary", "info"),
                 Title    = days == 0 ? $"🎉 {yearsAtEntry}-jähriges Dienstjubiläum heute"
                                      : $"{yearsAtEntry}-jähriges Dienstjubiläum in {days} Tagen",
                 TitleKey = days == 0 ? "alert.anniversary.today" : "alert.anniversary.in_days",
@@ -716,11 +788,12 @@ public class DashboardService
             if (diff < 0)
             {
                 violationCount++;
+                if (!Enabled("minimum_wage_violation")) continue;
                 var unit = salaryType == "monthly" ? "/Mt." : "/h";
                 alerts.Add(new DashboardAlert
                 {
                     Category = "minimum_wage_violation",
-                    Severity = "critical",
+                    Severity = SeverityState("minimum_wage_violation", "critical"),
                     Title    = $"Mindestlohn unterschritten · CHF {Math.Abs(diff):0.00} fehlen",
                     TitleKey = "alert.minWage.violation",
                     TitleArgs = new Dictionary<string, object> {
@@ -778,6 +851,7 @@ public class DashboardService
                 .Where(e => maIds.Contains(e.Id))
                 .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
                                    e.NightWorkExamDokumentId, e.NightWorkExamValidUntil,
+                                   e.NightWorkExamIssued, e.DateOfBirth,
                                    e.NightWorkAusnahmeDokumentId, e.ExitDate })
                 .ToListAsync();
             // MA, die innerhalb der nächsten 30 Tage austreten, NICHT mehr melden
@@ -793,6 +867,30 @@ public class DashboardService
                 var nw = NightWorkComplianceService.Evaluate(dates, today);
                 if (!nw.RequiresDocuments) continue;
 
+                // Enddatum-Kontrolle (Walter-Vorgabe 05.07.2026): das aus easy@work
+                // übernommene Ende muss der Regel (Beginn + 1/2 Jahre − 1 Tag) entsprechen.
+                // Weicht es ab — oder fehlt bei vorhandenem Beginn — muss es in easy@work
+                // korrigiert werden. Kritische ToDo, bis die Eingabe in easy stimmt.
+                if (emp.NightWorkExamIssued.HasValue)
+                {
+                    var nwIssued = DateOnly.FromDateTime(emp.NightWorkExamIssued.Value);
+                    var nwDob = emp.DateOfBirth.HasValue ? DateOnly.FromDateTime(emp.DateOfBirth.Value) : (DateOnly?)null;
+                    var nwSoll = Employee.NightWorkValidUntil(nwIssued, nwDob);
+                    bool endeStimmt = emp.NightWorkExamValidUntil.HasValue
+                                      && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) == nwSoll;
+                    if (!endeStimmt && Enabled("night_work_exam_mismatch"))
+                        alerts.Add(new DashboardAlert
+                        {
+                            Category = "night_work_exam_mismatch",
+                            Severity = SeverityState("night_work_exam_mismatch", "critical"),
+                            Title    = "Nachtarbeit-Enddatum in easy@work falsch",
+                            Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · Beginn {nwIssued:dd.MM.yyyy} → Soll-Ende {nwSoll:dd.MM.yyyy}. Bitte in easy@work korrigieren.",
+                            EmployeeId     = emp.Id,
+                            EmployeeNumber = emp.EmployeeNumber,
+                            EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                        });
+                }
+
                 // Nachtarbeit ist obligatorisch — KEIN Verzicht mehr (Walter-Vorgabe
                 // 30.06.2026, HQ-Entscheid). Es braucht ein AKTUELLES Arztzeugnis
                 // UND die Ausnahmeregelung. „Aktuell" = die Gültigkeit (aus easy@work
@@ -804,7 +902,36 @@ public class DashboardService
                 bool examExpired  = emp.NightWorkExamValidUntil.HasValue
                                     && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) < today;
                 bool hasChecklist = emp.NightWorkAusnahmeDokumentId.HasValue;
-                if (examCurrent && hasChecklist) continue;   // Nachweise vollständig + aktuell
+
+                // Ablauf-Warnung der Bewilligung (Walter-Vorgabe 05.07.2026):
+                // abgelaufen oder ≤ 7 Tage vor Ablauf → KRITISCH; ≤ 1 Monat → WICHTIG.
+                // Der „abgelaufen"-Fall ist über den „Nachweise fehlen"-Alert unten
+                // (examCurrent=false → kritisch) bereits abgedeckt; hier fangen wir
+                // die noch GÜLTIGE, aber bald ablaufende Bewilligung ab.
+                if (examCurrent && hasChecklist)
+                {
+                    if (emp.NightWorkExamValidUntil.HasValue && Enabled("night_work_exam_expiring"))
+                    {
+                        var bis = DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value);
+                        int tage = bis.DayNumber - today.DayNumber;   // >= 0, weil examCurrent
+                        if (tage <= WarnDays("night_work_exam_expiring", 30))
+                        {
+                            string phrase = tage == 0 ? $"läuft heute ab ({bis:dd.MM.yyyy})"
+                                          : $"läuft in {tage} Tag(en) ab ({bis:dd.MM.yyyy})";
+                            alerts.Add(new DashboardAlert
+                            {
+                                Category = "night_work_exam_expiring",
+                                Severity = Severity("night_work_exam_expiring", tage, "warning", "critical"),
+                                Title    = "Nachtarbeit-Bewilligung läuft ab",
+                                Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · Bewilligung {phrase}",
+                                EmployeeId     = emp.Id,
+                                EmployeeNumber = emp.EmployeeNumber,
+                                EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                            });
+                        }
+                    }
+                    continue;   // Nachweise vollständig + aktuell (Ablauf ggf. oben gemeldet)
+                }
 
                 string examTxt = examCurrent ? null
                                : examExpired ? "Arztzeugnis abgelaufen"
@@ -813,10 +940,14 @@ public class DashboardService
                       (examTxt != null && !hasChecklist) ? $"{examTxt} und Ausnahmeregelung fehlt"
                     : (examTxt != null)                  ? examTxt
                     :                                       "Ausnahmeregelung fehlt";
+                if (!Enabled("night_work_exam_fehlt")) continue;
                 alerts.Add(new DashboardAlert
                 {
                     Category = "night_work_exam_fehlt",
-                    Severity = "warning",
+                    // Nachtarbeit-Nachweise fehlen = IMMER KRITISCH (Walter-Vorgabe
+                    // 04.07.2026): egal ob Arztzeugnis oder Ausnahmeregelung fehlt —
+                    // Nachtarbeit ist obligatorisch dokumentationspflichtig.
+                    Severity = SeverityState("night_work_exam_fehlt", "critical"),
                     Title    = "Nachtarbeit-Nachweise fehlen",
                     Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · max. {nw.MaxNightsInSixWeeks} Nächte in 6 Wochen · {grund}",
                     EmployeeId     = emp.Id,

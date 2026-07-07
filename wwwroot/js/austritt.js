@@ -196,7 +196,7 @@ function renderTerminateSummary(s) {
 
     // Saldo-Quelle transparent anzeigen (Periode + Status)
     const saldoInfo = s.saldoVorhanden
-        ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:6px 10px;border-radius:6px;font-size:10px;margin-bottom:10px">${_t('austritt.info.balanceFrom', { month: String(s.saldoQuelleMonth).padStart(2,'0'), year: s.saldoQuelleYear, status: s.saldoQuelleStatus ? _t('austritt.info.statusSuffix', { status: s.saldoQuelleStatus }) : '' })}</div>`
+        ? `<div style="background:#f6f3ee;border:1px solid #e5e0d6;color:#6b6152;padding:6px 10px;border-radius:6px;font-size:10px;margin-bottom:10px">${_t('austritt.info.balanceFrom', { month: String(s.saldoQuelleMonth).padStart(2,'0'), year: s.saldoQuelleYear, status: s.saldoQuelleStatus ? _t('austritt.info.statusSuffix', { status: s.saldoQuelleStatus }) : '' })}</div>`
         : '';
 
     return noSaldo + saldoInfo + stundenBlock + ferienBlock + restBlock;

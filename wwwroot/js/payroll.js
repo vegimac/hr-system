@@ -311,7 +311,7 @@ let _lohnMwUnderpaid = {};
 
 // Periode-Status-Optik (analog _AK_STATUS im Akonto-Tab).
 const _LOHN_STATUS = {
-    offen:                      { label: 'Offen',                       color: '#0369a1', bg: '#e0f2fe' },
+    offen:                      { label: 'Offen',                       color: '#6b6152', bg: '#efece5' },
     provisorisch_abgeschlossen: { label: 'Provisorisch abgeschlossen',  color: '#92400e', bg: '#fef3c7' },
     abgeschlossen:              { label: 'Abgeschlossen',               color: '#166534', bg: '#dcfce7' },
 };
@@ -669,16 +669,16 @@ async function loadLohnList() {
             const statusIcon = isHrConfirmed ? '✓✓'
                               : isGfConfirmed ? '✓'
                               : initials.toUpperCase();
-            const statusBg   = isHrConfirmed ? '#dbeafe'
+            const statusBg   = isHrConfirmed ? '#ece9e2'
                               : isGfConfirmed ? '#dcfce7'
                               : '#e2e8f0';
-            const statusFg   = isHrConfirmed ? '#1e40af'
+            const statusFg   = isHrConfirmed ? '#6b6152'
                               : isGfConfirmed ? '#166534'
                               : '#475569';
             const statusText = isHrConfirmed ? 'HR-bestätigt'
                               : isGfConfirmed ? 'GF bestätigt'
                               : (e.employeeNumber || '');
-            const statusTextColor = isHrConfirmed ? '#1e40af'
+            const statusTextColor = isHrConfirmed ? '#6b6152'
                                   : isGfConfirmed ? '#16a34a'
                                   : '#94a3b8';
             const row = document.createElement('div');
@@ -1264,7 +1264,7 @@ function renderLohnSlip(s, targetEl) {
                     <td colspan="4"></td>
                     <td class="ls-amt" style="color:#dc2626">${fmt(l.betrag)}</td>
                 </tr>`).join('')}` : ''}
-                <tr class="ls-netto-row" style="border-top:2px solid #1e40af">
+                <tr class="ls-netto-row" style="border-top:2px solid #6b6152">
                     <td colspan="4" class="ls-desc">Auszahlungsbetrag</td>
                     <td class="ls-amt"></td>
                     <td class="ls-amt">${fmt(s.auszahlungsbetrag)}</td>
@@ -1718,8 +1718,8 @@ function _lohnMarkRowConfirmed(empId, mode) {
     const avatar = row.firstElementChild;
     const sub    = row.querySelector('.lohn-emp-nr');
     if (mode === 'hr') {
-        if (avatar) { avatar.style.background = '#dbeafe'; avatar.style.color = '#1e40af'; avatar.textContent = '✓✓'; }
-        if (sub)    { sub.textContent = 'HR-bestätigt'; sub.style.color = '#1e40af'; }
+        if (avatar) { avatar.style.background = '#ece9e2'; avatar.style.color = '#6b6152'; avatar.textContent = '✓✓'; }
+        if (sub)    { sub.textContent = 'HR-bestätigt'; sub.style.color = '#6b6152'; }
     } else {
         if (avatar) { avatar.style.background = '#dcfce7'; avatar.style.color = '#166534'; avatar.textContent = '✓'; }
         if (sub)    { sub.textContent = 'GF bestätigt'; sub.style.color = '#16a34a'; }
@@ -1835,8 +1835,8 @@ async function loadLohnPeriodBanner(companyId, year, month) {
         const isProvisorisch    = p.status === 'provisorisch_abgeschlossen';
         const isOffen           = !isAbgeschlossen && !isProvisorisch;
         const statusLabel = isAbgeschlossen ? 'Abgeschlossen' : isProvisorisch ? 'Provisorisch abgeschlossen' : 'Offen';
-        const pillBg    = isAbgeschlossen ? '#dcfce7' : isProvisorisch ? '#fef3c7' : '#e0f2fe';
-        const pillColor = isAbgeschlossen ? '#166534' : isProvisorisch ? '#92400e' : '#0369a1';
+        const pillBg    = isAbgeschlossen ? '#dcfce7' : isProvisorisch ? '#fef3c7' : '#efece5';
+        const pillColor = isAbgeschlossen ? '#166534' : isProvisorisch ? '#92400e' : '#6b6152';
 
         // Bestätigt-Zähler (Walter-Bugfix 20.05.2026): GF-bestätigte MA werden
         // aus den ECHTEN Snapshot-Status gezählt (zuverlässig), NICHT aus dem

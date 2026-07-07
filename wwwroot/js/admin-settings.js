@@ -136,7 +136,7 @@ async function bePlzLookup(rawPlz) {
         if (list) {
             list.innerHTML = locs.map(l => `<option value="${l.gemeindename}">${l.kantonskuerzel}</option>`).join('');
         }
-        if (hint) hint.innerHTML = `<span style="color:#0369a1">${locs.length} Gemeinden — bitte im Ort-Feld auswählen oder tippen.</span>`;
+        if (hint) hint.innerHTML = `<span style="color:#6b6152">${locs.length} Gemeinden — bitte im Ort-Feld auswählen oder tippen.</span>`;
     } catch { /* still */ }
 }
 
@@ -520,7 +520,7 @@ function renderQstStatusGrid(dateien) {
     grid.innerHTML = dateien.map(d => `
         <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:14px 16px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                <div style="width:32px;height:32px;background:#dbeafe;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#1d4ed8">${d.kanton}</div>
+                <div style="width:32px;height:32px;background:#ece9e2;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#6b7280">${d.kanton}</div>
                 <div>
                     <div style="font-weight:700;font-size:14px;color:#0f172a">${d.kanton} ${d.jahr}</div>
                     <div style="font-size:11px;color:#94a3b8">${d.dateiname}</div>
@@ -555,7 +555,7 @@ function qstDateiGewaehlt(files) {
     btnRow.style.display = 'flex';
     liste.innerHTML = _qstSelectedFiles.map(f => `
         <div style="padding:10px 14px;background:#f8fafc;border-radius:8px;display:flex;align-items:center;gap:10px;border:1px solid #e2e8f0">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#3b82f6" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <span style="font-size:13px;color:#1e293b;font-weight:500;flex:1">${f.name}</span>
             <span style="font-size:11px;color:#94a3b8">${(f.size/1024).toFixed(0)} KB</span>
         </div>
@@ -638,6 +638,9 @@ async function reloadQstTarife() {
 async function loadAbsenzTypen() {
     const tbody = document.getElementById('absenzTypTable');
     if (!tbody) return;
+    // „+ Neuer Absenz-Typ" nur für Superadmin (Walter-Vorgabe 04.07.2026)
+    const newBtn = document.getElementById('atNewBtn');
+    if (newBtn) newBtn.style.display = (typeof currentUser !== 'undefined' && currentUser?.isSuperAdmin) ? '' : 'none';
     tbody.innerHTML = '<tr><td colspan="10" style="color:#94a3b8;padding:12px">Wird geladen…</td></tr>';
     try {
         const res = await fetch('/api/absenz-typen/all', { headers: ah() });
@@ -667,7 +670,7 @@ async function loadAbsenzTypen() {
                 </td>
                 <td style="text-align:center">
                     ${t.gutschriftModus
-                        ? `<span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:12px;background:${t.gutschriftModus === '1/7' ? '#ede9fe;color:#6d28d9' : '#e0f2fe;color:#0369a1'}">${t.gutschriftModus}</span>`
+                        ? `<span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:12px;background:${t.gutschriftModus === '1/7' ? '#ede9fe;color:#6d28d9' : '#efece5;color:#6b6152'}">${t.gutschriftModus}</span>`
                         : '<span style="color:#94a3b8;font-size:12px">—</span>'}
                 </td>
                 <td style="text-align:center">${basisBadge(t.basisStunden)}</td>
@@ -691,6 +694,9 @@ async function loadAbsenzTypen() {
                         <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'at-${t.id}')" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="dokMenu-at-${t.id}">
                             <button class="dok-menu-item" onclick='dokCloseAllMenus();openAbsenzTypForm(${JSON.stringify(t).replace(/'/g, "&apos;")})'>Bearbeiten</button>
+                            ${(typeof currentUser !== 'undefined' && currentUser?.isSuperAdmin)
+                                ? `<button class="dok-menu-item danger" onclick='dokCloseAllMenus();deleteAbsenzTyp(${t.id}, ${JSON.stringify(t.code)})'>Löschen</button>`
+                                : ''}
                         </div>
                     </div>
                 </td>
@@ -703,6 +709,8 @@ async function loadAbsenzTypen() {
 function openAbsenzTypForm(t) {
     // Kompatibilität: erlaubt sowohl das neue Objekt als auch alte positionale Aufrufe
     const d = (typeof t === 'object' && t !== null) ? t : {};
+    const titleEl = document.getElementById('absenzTypFormTitle');
+    if (titleEl) titleEl.textContent = d.id ? 'Absenz-Typ bearbeiten' : 'Neuer Absenz-Typ';
     document.getElementById('absenzTypForm').style.display = 'block';
     document.getElementById('atId').value    = d.id ?? '';
     document.getElementById('atCode').value  = d.code ?? '';
@@ -726,6 +734,27 @@ function openAbsenzTypForm(t) {
 
 function closeAbsenzTypForm() {
     document.getElementById('absenzTypForm').style.display = 'none';
+}
+
+// Absenz-Typ löschen (nur Superadmin; Backend blockt, wenn verwendet).
+async function deleteAbsenzTyp(id, code) {
+    if (!confirm(`Absenz-Typ „${code}" wirklich löschen?\n\nGeht nur, wenn der Typ in keiner Absenz verwendet wird.`)) return;
+    try {
+        const res = await fetch(`/api/absenz-typen/${id}`, { method: 'DELETE', headers: ah() });
+        if (res.ok) {
+            showAbsenzAlert(`Absenz-Typ „${code}" gelöscht.`, 'ok');
+            loadAbsenzTypen();
+            return;
+        }
+        if (res.status === 409) {
+            let msg = 'Typ wird verwendet und kann nicht gelöscht werden.';
+            try { const j = await res.json(); if (j?.message) msg = j.message; } catch {}
+            showAbsenzAlert(msg, 'err');
+            return;
+        }
+        if (res.status === 403) { showAbsenzAlert('Nur der Superadmin darf Absenz-Typen löschen.', 'err'); return; }
+        showAbsenzAlert('Fehler beim Löschen: ' + (await res.text()), 'err');
+    } catch { showAbsenzAlert('Verbindungsfehler.', 'err'); }
 }
 
 function onAtZgChange() {
@@ -826,7 +855,7 @@ function lpRender() {
     }
 
     const katColor = {
-        'Festlohn':       '#dbeafe', 'Stundenlohn':   '#e0f2fe',
+        'Festlohn':       '#ece9e2', 'Stundenlohn':   '#efece5',
         'Überstunden':    '#fef9c3', 'Taggelder':     '#fce7f3',
         '13. ML':         '#dcfce7', 'Familienzulagen':'#ede9fe',
         'Ferienentsch.':  '#ffedd5', 'Bonus':         '#d1fae5',
@@ -840,7 +869,7 @@ function lpRender() {
             ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ABZUG</span>'
             : '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ZULAGE</span>';
         return `<tr class="lp-row" style="${bg}border-bottom:1px solid #f1f5f9">
-            <td style="padding:10px 14px;font-weight:600;font-family:monospace;color:#1e40af">${l.code}</td>
+            <td style="padding:10px 14px;font-weight:600;font-family:monospace;color:#6b6152">${l.code}</td>
             <td style="padding:10px 14px">${l.bezeichnung}</td>
             <td style="padding:10px 14px"><span style="background:${kbg};color:#374151;padding:2px 8px;border-radius:8px;font-size:12px">${l.kategorie || '—'}</span></td>
             <td style="padding:10px 14px;text-align:center">${chk(l.ahvAlvPflichtig)}</td>
@@ -1079,7 +1108,7 @@ function svRender() {
         return;
     }
 
-    const codeColor = { AHV: '#3b82f6', ALV: '#f59e0b', NBUV: '#10b981', KTG: '#06b6d4', BVG: '#8b5cf6', BVG_ZUSATZ: '#ec4899' };
+    const codeColor = { AHV: '#3f3f3f', ALV: '#f59e0b', NBUV: '#10b981', KTG: '#06b6d4', BVG: '#8b5cf6', BVG_ZUSATZ: '#ec4899' };
     const basisLabel = { gross: 'Brutto', bvg_basis: 'BVG-Basis', coord_deduction: 'Koord.-Abzug' };
     // Kompakte Grenzen-Zeile (Koordinationsabzug / Min / Max / Eintrittsschwelle /
     // Höchstlohn) als kleine 2. Zeile in der Basis-Spalte — damit man BVG-Limits &
@@ -1117,7 +1146,7 @@ function svRender() {
         const vt = r.validTo   ? String(r.validTo).slice(0, 10)   : null;
         const vf = r.validFrom ? String(r.validFrom).slice(0, 10) : null;
         if (vt && vt < _todayIso) return { label: 'Abgelaufen', bg: '#f1f5f9', fg: '#94a3b8', dim: true };
-        if (vf && vf > _todayIso) return { label: 'Künftig',    bg: '#dbeafe', fg: '#1e40af', dim: false };
+        if (vf && vf > _todayIso) return { label: 'Künftig',    bg: '#ece9e2', fg: '#6b6152', dim: false };
         return { label: 'Aktiv', bg: '#dcfce7', fg: '#166534', dim: false };
     };
 

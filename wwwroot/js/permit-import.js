@@ -68,7 +68,7 @@ function renderPermitImportPreview(data) {
     // Walter-Vorgabe 07.06.2026: zwei neue Status für „bestehende Bewilligung".
     summary.innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
-            <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:12px 14px;color:#1e40af">
+            <div style="background:#ece9e2;border:1px solid #d0c8b8;border-radius:8px;padding:12px 14px;color:#6b6152">
                 <div style="font-size:24px;font-weight:700">${data.totalRows}</div>
                 <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">Zeilen total</div>
             </div>

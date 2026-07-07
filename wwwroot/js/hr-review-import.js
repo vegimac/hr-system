@@ -81,7 +81,7 @@ function renderHrrImportPreview(data) {
     const preview = document.getElementById('hrrImportPreview');
     summary.innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
-            <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:12px 14px;color:#1e40af">
+            <div style="background:#ece9e2;border:1px solid #d0c8b8;border-radius:8px;padding:12px 14px;color:#6b6152">
                 <div style="font-size:24px;font-weight:700">${data.totalRows}</div>
                 <div style="font-size:11.5px;font-weight:600;text-transform:uppercase">Zeilen total</div>
             </div>
@@ -132,7 +132,7 @@ function renderHrrImportPreview(data) {
     const statusBadge = (s) => {
         const map = {
             OK:             { bg:'#dcfce7', fg:'#166534', label:'NEU' },
-            NO_PERMIT:      { bg:'#dbeafe', fg:'#1e40af', label:'CH/keine' },
+            NO_PERMIT:      { bg:'#ece9e2', fg:'#6b6152', label:'CH/keine' },
             EXISTING_SAME:  { bg:'#f1f5f9', fg:'#475569', label:'identisch' },
             EXISTING_DIFF:  { bg:'#fef9c3', fg:'#854d0e', label:'andere Bew.' },
             NO_MATCH:       { bg:'#fee2e2', fg:'#991b1b', label:'kein MA' },

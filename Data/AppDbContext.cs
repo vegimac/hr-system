@@ -18,6 +18,8 @@ public class AppDbContext : DbContext
     public DbSet<MomentType> MomentTypes => Set<MomentType>();
     public DbSet<MomentTone> MomentTones => Set<MomentTone>();
     public DbSet<MomentText> MomentTexts => Set<MomentText>();
+    public DbSet<WebAuthnCredential> WebAuthnCredentials => Set<WebAuthnCredential>();
+    public DbSet<PostfachSetupToken> PostfachSetupTokens => Set<PostfachSetupToken>();
     public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
     public DbSet<CompanyProfileBankAccount> CompanyProfileBankAccounts => Set<CompanyProfileBankAccount>();
     public DbSet<EducationLevel> EducationLevels => Set<EducationLevel>();
@@ -25,6 +27,7 @@ public class AppDbContext : DbContext
     public DbSet<PermitType> PermitTypes => Set<PermitType>();
     public DbSet<MinimumWageRuleNew> MinimumWageRulesNew => Set<MinimumWageRuleNew>();
     public DbSet<JobGroup> JobGroups => Set<JobGroup>();
+    public DbSet<DashboardWarningConfig> DashboardWarningConfigs => Set<DashboardWarningConfig>();
     public DbSet<AppText> AppTexts => Set<AppText>();
     public DbSet<Nationality> Nationalities => Set<Nationality>();
     public DbSet<EmployeeImportSnapshot> EmployeeImportSnapshots => Set<EmployeeImportSnapshot>();
@@ -127,6 +130,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IdPassDokumentId).HasColumnName("id_pass_dokument_id");
             entity.Property(e => e.CAusweisDokumentId).HasColumnName("c_ausweis_dokument_id");
             entity.Property(e => e.NightWorkExamValidUntil).HasColumnName("night_work_exam_valid_until").HasColumnType("date");
+            entity.Property(e => e.NightWorkExamIssued).HasColumnName("night_work_exam_issued").HasColumnType("date");
             entity.Property(e => e.NightWorkExamDokumentId).HasColumnName("night_work_exam_dokument_id");
             entity.Property(e => e.NightWorkAusnahmeDokumentId).HasColumnName("night_work_ausnahme_dokument_id");
             entity.Property(e => e.EasyAtWorkEmployeeId).HasColumnName("easyatwork_employee_id");
@@ -318,6 +322,41 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => new { e.MomentTypeId, e.MomentToneId });
         });
 
+        modelBuilder.Entity<WebAuthnCredential>(entity =>
+        {
+            entity.ToTable("webauthn_credential");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AppUserId).HasColumnName("app_user_id");
+            entity.Property(e => e.CredentialId).HasColumnName("credential_id");
+            entity.Property(e => e.PublicKey).HasColumnName("public_key");
+            entity.Property(e => e.SignCount).HasColumnName("sign_count");
+            entity.Property(e => e.UserHandle).HasColumnName("user_handle");
+            entity.Property(e => e.Transports).HasColumnName("transports");
+            entity.Property(e => e.Aaguid).HasColumnName("aaguid");
+            entity.Property(e => e.DeviceLabel).HasColumnName("device_label");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.LastUsedAt).HasColumnName("last_used_at").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.CredentialId).IsUnique();
+            entity.HasOne(e => e.AppUser).WithMany().HasForeignKey(e => e.AppUserId);
+        });
+
+        modelBuilder.Entity<PostfachSetupToken>(entity =>
+        {
+            entity.ToTable("postfach_setup_token");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AppUserId).HasColumnName("app_user_id");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash");
+            entity.Property(e => e.Purpose).HasColumnName("purpose");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UsedAt).HasColumnName("used_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => e.TokenHash).IsUnique();
+            entity.HasOne(e => e.AppUser).WithMany().HasForeignKey(e => e.AppUserId);
+        });
+
         modelBuilder.Entity<EmploymentProbationLog>(entity =>
         {
             entity.ToTable("employment_probation_log");
@@ -488,6 +527,23 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.IsKader).HasColumnName("is_kader");
             entity.Property(e => e.MirusFunktionAliases).HasColumnName("mirus_funktion_aliases");
+        });
+
+        modelBuilder.Entity<DashboardWarningConfig>(entity =>
+        {
+            entity.ToTable("dashboard_warning_config");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Category).HasColumnName("category");
+            entity.Property(e => e.Label).HasColumnName("label");
+            entity.Property(e => e.Enabled).HasColumnName("enabled");
+            entity.Property(e => e.WarnDays).HasColumnName("warn_days");
+            entity.Property(e => e.EscalateDays).HasColumnName("escalate_days");
+            entity.Property(e => e.SeverityBase).HasColumnName("severity_base");
+            entity.Property(e => e.SeverityEscalated).HasColumnName("severity_escalated");
+            entity.Property(e => e.IsDateBased).HasColumnName("is_date_based");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.HasIndex(e => e.Category).IsUnique();
         });
 
         modelBuilder.Entity<AppText>(entity =>

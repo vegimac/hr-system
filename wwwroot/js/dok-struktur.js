@@ -87,7 +87,7 @@ function renderDokstrukturTypen() {
     };
     el.innerHTML = kat.typen.map(t => {
         const link = t.linkedFieldCode
-            ? `<span style="margin-left:6px;font-size:10px;font-weight:600;background:#dbeafe;color:#1e40af;padding:1px 7px;border-radius:9px">📎 ${fieldLabel[t.linkedFieldCode] || t.linkedFieldCode}</span>`
+            ? `<span style="margin-left:6px;font-size:10px;font-weight:600;background:#ece9e2;color:#6b6152;padding:1px 7px;border-radius:9px">📎 ${fieldLabel[t.linkedFieldCode] || t.linkedFieldCode}</span>`
             : '';
         return `
         <div class="dokstruktur-row">
@@ -142,7 +142,7 @@ function dokstrukturEditKat(id) {
           <div id="dskStatus" style="font-size:12px;color:#64748b"></div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
             <button onclick="closeDokstrukturModal()" style="padding:7px 14px;background:#f1f5f9;border:none;border-radius:7px;cursor:pointer">Abbrechen</button>
-            <button onclick="dokstrukturSaveKat(${id || 'null'})" style="padding:7px 18px;background:#3b82f6;color:white;border:none;border-radius:7px;font-weight:600;cursor:pointer">Speichern</button>
+            <button onclick="dokstrukturSaveKat(${id || 'null'})" style="padding:7px 18px;background:#3f3f3f;color:white;border:none;border-radius:7px;font-weight:600;cursor:pointer">Speichern</button>
           </div>
         </div>
       </div>
@@ -249,7 +249,7 @@ function dokstrukturEditTyp(id) {
           <div id="dstStatus" style="font-size:12px;color:#64748b"></div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
             <button onclick="closeDokstrukturModal()" style="padding:7px 14px;background:#f1f5f9;border:none;border-radius:7px;cursor:pointer">Abbrechen</button>
-            <button onclick="dokstrukturSaveTyp(${id || 'null'})" style="padding:7px 18px;background:#3b82f6;color:white;border:none;border-radius:7px;font-weight:600;cursor:pointer">Speichern</button>
+            <button onclick="dokstrukturSaveTyp(${id || 'null'})" style="padding:7px 18px;background:#3f3f3f;color:white;border:none;border-radius:7px;font-weight:600;cursor:pointer">Speichern</button>
           </div>
         </div>
       </div>
@@ -370,7 +370,7 @@ function setVtFilter(mode) {
     const colorize = (id, on) => {
         const el = document.getElementById(id);
         if (!el) return;
-        el.style.background = on ? '#3b82f6' : '#f1f5f9';
+        el.style.background = on ? '#3f3f3f' : '#f1f5f9';
         el.style.color      = on ? 'white'   : '#475569';
     };
     colorize('vtFilterAktiv',   mode === 'aktiv');
@@ -606,7 +606,7 @@ async function renderVtDetail(emp) {
             lohnInfoValue = effHourly.toFixed(2);
         }
         return `
-        <div style="border:1px solid ${isActive ? '#bfdbfe' : '#e2e8f0'};border-radius:10px;padding:16px;margin-bottom:12px;background:${isActive ? '#eff6ff' : '#fafafa'}">
+        <div style="border:1px solid ${isActive ? '#e5e0d6' : '#e2e8f0'};border-radius:10px;padding:16px;margin-bottom:12px;background:${isActive ? '#f6f3ee' : '#fafafa'}">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
                 <div style="display:flex;align-items:center;gap:8px">
                     <span class="${modelClass(c.employmentModel)}" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px">${modelLabel[c.employmentModel]||c.employmentModel||'–'}</span>
@@ -659,7 +659,7 @@ async function renderVtDetail(emp) {
                 ${c.probationEndDate ? vtField(_t('vt.field.probationUntil'),
                     fmt(c.probationEndDate)
                     + (c.probationGrund ? ` <span style="color:#94a3b8;font-weight:400">· ${c.probationGrund}</span>` : '')
-                    + ` <a href="#" onclick="event.preventDefault();showProbationHistory(${c.id})" style="font-size:11px;color:#2563eb;margin-left:4px">Verlauf</a>`) : ''}
+                    + ` <a href="#" onclick="event.preventDefault();showProbationHistory(${c.id})" style="font-size:11px;color:#1a1a1a;margin-left:4px">Verlauf</a>`) : ''}
             </div>
         </div>`;
     }).join('');

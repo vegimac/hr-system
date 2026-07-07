@@ -81,7 +81,7 @@ function arUpdateModeButtons() {
     const bBranch = document.getElementById('arModeBranchBtn');
     const bCross  = document.getElementById('arModeCrossBtn');
     if (!bBranch || !bCross) return;
-    const active   = 'background:#1d4ed8;color:white;border-color:#1d4ed8';
+    const active   = 'background:#6b7280;color:white;border-color:#6b7280';
     const inactive = 'background:white;color:#475569;border-color:#cbd5e1';
     bBranch.setAttribute('style',
         `padding:7px 14px;border:1px solid;border-radius:7px 0 0 7px;font-size:13px;font-weight:600;cursor:pointer;margin-right:-1px;${_arMode === 'branch' ? active : inactive}`);
@@ -165,7 +165,7 @@ function renderAbsenceReport(data) {
     // Summary: in Cross-Mode zusätzlich „Anzahl Filialen"
     const tiles = [
         _arTile('MA mit Absenzen', data.totalEmployees, '#475569'),
-        _arTile('Total Fälle',     data.totalCases,     '#1e40af'),
+        _arTile('Total Fälle',     data.totalCases,     '#6b6152'),
         _arTile('Total Tage',      data.totalDays,      '#b91c1c'),
     ];
     if (isCross && data.totalBranches != null) {

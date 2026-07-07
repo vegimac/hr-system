@@ -78,6 +78,14 @@ public class EasyAtWorkAutoSyncRunner
 
             try
             {
+                // STUFE 1 (Walter-Vorgabe 05.07.2026): MA-Stammdaten-Sync VOR den
+                // Stempelzeiten — damit neue/geänderte MA existieren, bevor ihre
+                // Stempel importiert werden (sonst laufen die Stempel ins Leere).
+                // Eigener Scope, best-effort: schlägt der MA-Sync fehl, läuft der
+                // Stempel-Sync trotzdem (er hat seine eigene Fehlende-MA-Sperre).
+                await RunEmployeeSyncAsync(mapping, ct);
+
+                // STUFE 2: Stempelzeiten-Sync.
                 using var scope = _scopeFactory.CreateScope();
                 var db     = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 var tpSync = scope.ServiceProvider.GetRequiredService<EasyAtWorkTimepunchSyncService>();
@@ -165,6 +173,38 @@ public class EasyAtWorkAutoSyncRunner
         }
 
         await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// STUFE 1 des Auto-Syncs: MA-Stammdaten-Sync einer Filiale (eigener Scope,
+    /// best-effort). Läuft VOR dem Stempel-Sync, damit neue/geänderte MA existieren.
+    /// Nutzt den normalen Massenimport-Commit (SelectedNumbers=null → alle NEW+UPDATE
+    /// automatisch; Konflikte wie 2 Funktionen werden übersprungen). Walter 05.07.2026.
+    /// </summary>
+    private async Task RunEmployeeSyncAsync(EasyAtWorkBranchMapping mapping, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var empSync = scope.ServiceProvider.GetRequiredService<EasyAtWorkEmployeeSyncService>();
+            var req = new EasyAtWorkEmployeeSyncService.SyncRequest
+            {
+                CompanyProfileId = mapping.CompanyProfileId,
+                OnlyActive       = false,   // alle relevanten MA (inkl. ausgetretene, ohne Pre-Mirus) — wie der Stempel-Filter
+                SelectedNumbers  = null     // alle NEW+UPDATE automatisch übernehmen
+            };
+            var res = await empSync.CommitAsync(req, null, ct);
+            _log.LogInformation(
+                "easy@work Auto-Sync Filiale {Cp}: MA-Vorstufe +{Ins} neu / ~{Upd} geändert / {Conf} Konflikt(e) / {Exist} Wiedereintritt(e).",
+                mapping.CompanyProfileId, res.CountInserted, res.CountUpdated, res.CountConflict, res.CountExisting);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex,
+                "easy@work Auto-Sync Filiale {Cp}: MA-Vorstufe fehlgeschlagen — Stempel-Sync läuft trotzdem.",
+                mapping.CompanyProfileId);
+        }
     }
 
     /// <summary>Fehler in last_error schreiben — eigener Scope (frischer DbContext).</summary>

@@ -133,7 +133,7 @@ function renderDokumenteUi() {
     // separat selektiert via _dokState.selectedPostfach.
     const pfActive = _dokState.selectedPostfach ? 'active' : '';
     treeHtml += `<div class="dok-tree-node" style="margin-top:8px;border-top:1px solid #e2e8f0;padding-top:10px"></div>`;
-    treeHtml += `<div class="dok-tree-node dok-tree-cat ${pfActive}" style="background:${_dokState.selectedPostfach ? '#dbeafe' : 'transparent'}" onclick="dokSelectPostfach()">
+    treeHtml += `<div class="dok-tree-node dok-tree-cat ${pfActive}" style="background:${_dokState.selectedPostfach ? '#ece9e2' : 'transparent'}" onclick="dokSelectPostfach()">
         <span>📬 <b>${(window._t ? _t('docs.personalMailbox','Persönliches Postfach') : 'Persönliches Postfach')}</b></span>
     </div>`;
 
@@ -183,7 +183,7 @@ function renderDokumenteUi() {
                             <tr style="border-bottom:1px solid #f1f5f9">
                                 <td style="padding:10px 12px;color:#0f172a">
                                     <span style="margin-right:6px">📄</span>
-                                    <a href="javascript:void(0)" onclick="postfachDocPreview(${d.id})" style="color:#1d4ed8;text-decoration:none;font-weight:500">${esc(d.originalFilename || '–')}</a>
+                                    <a href="javascript:void(0)" onclick="postfachDocPreview(${d.id})" style="color:#6b7280;text-decoration:none;font-weight:500">${esc(d.originalFilename || '–')}</a>
                                 </td>
                                 <td style="padding:10px 12px;color:#475569">${esc(d.bemerkung || '')}</td>
                                 <td style="padding:10px 12px;color:#64748b;font-size:12px">${fmtDt(d.uploadedAt)}</td>
@@ -236,7 +236,7 @@ function renderDokumenteUi() {
                    value="${esc(search)}" oninput="dokSetSearch(this.value)"
                    onkeydown="if(event.key==='Enter'){event.preventDefault();dokRunSearchNow();}" style="flex:1">
             <button onclick="dokRunSearchNow()" title="${tt('docs.search','Suchen…')}"
-                    style="flex-shrink:0;background:#2563eb;border:1px solid #2563eb;color:#fff;border-radius:7px;padding:0 14px;cursor:pointer;font-size:15px;display:inline-flex;align-items:center;justify-content:center">🔍</button>
+                    style="flex-shrink:0;background:#1a1a1a;border:1px solid #1a1a1a;color:#fff;border-radius:7px;padding:0 14px;cursor:pointer;font-size:15px;display:inline-flex;align-items:center;justify-content:center">🔍</button>
         </div>
     </div>
     <div class="dok-layout">
@@ -398,7 +398,7 @@ function renderDokTableRow(d, showCategoryColumns) {
     const clickable = isPdf || isImg || isOffice;
     const titleAttr = (d.filenameOriginal || '').replace(/"/g,'&quot;');
     const description = clickable
-        ? `<span class="dok-name-line" style="cursor:pointer;color:#1d4ed8;text-decoration:underline" title="Vorschau öffnen: ${titleAttr}" onclick="dokOpenPreviewPanel(${d.id})">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}`
+        ? `<span class="dok-name-line" style="cursor:pointer;color:#6b7280;text-decoration:underline" title="Vorschau öffnen: ${titleAttr}" onclick="dokOpenPreviewPanel(${d.id})">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}`
         : `<span class="dok-name-line" title="${titleAttr}">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}`;
     const dateCells = `<td class="dok-date-cell">${fmtD(erstelltIso)}</td><td class="dok-date-cell">${fmtD(d.geaendertAm)}</td><td class="dok-date-cell">${fmtD(d.zugriffAm)}</td>`;
 
@@ -609,7 +609,7 @@ async function dokOpenPreviewPanel(id) {
                    min="50" max="300" step="10" value="100"
                    oninput="dokPreviewZoomSet(this.value)"
                    title="Zoom 50–300 %"
-                   style="flex:1;cursor:pointer;accent-color:#3b82f6">
+                   style="flex:1;cursor:pointer;accent-color:#3f3f3f">
             <button onclick="dokPreviewZoomSet(100)" title="Auf Originalgrösse zurücksetzen"
                     id="dokPreviewZoomLabel"
                     style="background:white;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:11px;color:#475569;padding:2px 8px;min-width:48px;font-weight:600">100%</button>
@@ -1190,7 +1190,7 @@ function openDokUploadModal() {
                     <button type="button" onclick="closeDokUploadModal()"
                         style="padding:8px 14px;background:#f1f5f9;border:none;border-radius:7px;font-weight:500;cursor:pointer">Abbrechen</button>
                     <button type="submit" id="dokUploadSubmit"
-                        style="padding:8px 18px;background:#3b82f6;color:white;border:none;border-radius:7px;font-weight:600;cursor:pointer">Hochladen</button>
+                        style="padding:8px 18px;background:#3f3f3f;color:white;border:none;border-radius:7px;font-weight:600;cursor:pointer">Hochladen</button>
                 </div>
             </form>
         </div>
@@ -1784,7 +1784,7 @@ function openDokBulkModal() {
           <button onclick="closeDokBulkModal()"
             style="padding:8px 14px;background:#f1f5f9;border:none;border-radius:7px;font-weight:500;cursor:pointer">Abbrechen</button>
           <button id="dokBulkUploadBtn" disabled onclick="dokBulkStartUpload()"
-            style="padding:8px 18px;background:#3b82f6;color:white;border:none;border-radius:7px;font-weight:600;cursor:pointer">
+            style="padding:8px 18px;background:#3f3f3f;color:white;border:none;border-radius:7px;font-weight:600;cursor:pointer">
             Hochladen
           </button>
         </div>
@@ -1796,7 +1796,7 @@ function openDokBulkModal() {
     const dz = document.getElementById('dokBulkDropzone');
     ['dragover','dragenter'].forEach(ev => dz.addEventListener(ev, e => {
         e.preventDefault();
-        dz.style.borderColor = '#3b82f6'; dz.style.background = '#eff6ff';
+        dz.style.borderColor = '#3f3f3f'; dz.style.background = '#f6f3ee';
     }));
     ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => {
         e.preventDefault();
@@ -1909,7 +1909,7 @@ function renderDokBulkTable() {
         const isImgLocal = item.file.type?.startsWith('image/') || /\.(png|jpe?g|gif|tiff?)$/i.test(item.filename);
         const previewable = isPdfLocal || isImgLocal;
         const filenameCell = previewable
-            ? `<div class="filename" title="${item.filename}" style="cursor:pointer;color:#1d4ed8;text-decoration:underline" onclick="dokBulkPreview(${idx})">👁 ${item.filename}</div>`
+            ? `<div class="filename" title="${item.filename}" style="cursor:pointer;color:#6b7280;text-decoration:underline" onclick="dokBulkPreview(${idx})">👁 ${item.filename}</div>`
             : `<div class="filename" title="${item.filename}">${item.filename}</div>`;
         return `<tr class="${rowCls}" data-idx="${idx}">
             <td>${idx+1}</td>
@@ -1942,7 +1942,7 @@ function renderDokBulkTable() {
     summary.innerHTML = `
         <strong>${total}</strong> Datei${total!==1?'en':''} ·
         <span style="color:#15803d">✓ ${done} hochgeladen</span> ·
-        <span style="color:#1d4ed8">→ ${ready} bereit</span>${need > 0 ? ` · <span style="color:#a16207">⚠ ${need} brauchen Korrektur</span>` : ''}${dups > 0 ? ` · <span style="color:#475569">⊘ ${dups} Duplikat${dups!==1?'e':''}</span>` : ''}`;
+        <span style="color:#6b7280">→ ${ready} bereit</span>${need > 0 ? ` · <span style="color:#a16207">⚠ ${need} brauchen Korrektur</span>` : ''}${dups > 0 ? ` · <span style="color:#475569">⊘ ${dups} Duplikat${dups!==1?'e':''}</span>` : ''}`;
     uploadBtn.disabled = ready === 0;
 }
 

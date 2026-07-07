@@ -396,7 +396,7 @@ function applyEmpFilter() {
 /// Schaltet zwischen Aktive / Inaktive / Alle um (von den Buttons aufgerufen).
 function setEmpFilter(mode) {
     _empFilter = mode;
-    const styleActive   = 'flex:1;padding:6px 8px;font-size:11.5px;font-weight:600;background:#3b82f6;color:white;border:none;cursor:pointer';
+    const styleActive   = 'flex:1;padding:6px 8px;font-size:11.5px;font-weight:600;background:#3f3f3f;color:white;border:none;cursor:pointer';
     const styleInactive = 'flex:1;padding:6px 8px;font-size:11.5px;font-weight:600;background:#f1f5f9;color:#475569;border:none;cursor:pointer';
     const a = document.getElementById('empFilterAktiv');
     const i = document.getElementById('empFilterInaktiv');
@@ -426,9 +426,9 @@ function setEmpExitDateAfter(val) {
     // Visuelles Feedback: aktiv = blauer Rahmen + heller Hintergrund (analog
     // empSpecialFilter), damit Walter sofort sieht, dass ein Filter greift.
     if (inp) {
-        inp.style.borderColor = _empExitDateAfter ? '#3b82f6' : '#e2e8f0';
-        inp.style.background  = _empExitDateAfter ? '#eff6ff' : '#f8fafc';
-        inp.style.color       = _empExitDateAfter ? '#1d4ed8' : '#475569';
+        inp.style.borderColor = _empExitDateAfter ? '#3f3f3f' : '#e2e8f0';
+        inp.style.background  = _empExitDateAfter ? '#f6f3ee' : '#f8fafc';
+        inp.style.color       = _empExitDateAfter ? '#6b7280' : '#475569';
         inp.style.fontWeight  = _empExitDateAfter ? '600' : '400';
     }
     applyEmpFilter();
@@ -445,9 +445,9 @@ async function setEmpSpecialFilter(value) {
     // Visuelles Feedback: aktiv = blauer Rahmen + heller Hintergrund.
     const sel = document.getElementById('empSpecialFilter');
     if (sel) {
-        sel.style.borderColor = _empSpecialFilter ? '#3b82f6' : '#e2e8f0';
-        sel.style.background  = _empSpecialFilter ? '#eff6ff' : '#f8fafc';
-        sel.style.color       = _empSpecialFilter ? '#1d4ed8' : '#475569';
+        sel.style.borderColor = _empSpecialFilter ? '#3f3f3f' : '#e2e8f0';
+        sel.style.background  = _empSpecialFilter ? '#f6f3ee' : '#f8fafc';
+        sel.style.color       = _empSpecialFilter ? '#6b7280' : '#475569';
         sel.style.fontWeight  = _empSpecialFilter ? '600' : '400';
     }
     applyEmpFilter();
@@ -785,12 +785,12 @@ function renderEmployeeDetail(emp) {
                  wird in switchEmpTab() pro Tab befüllt — z.B. Familie →
                  + Familienmitglied. Sitzt links neben dem Bearbeiten-Block,
                  damit alle Aktions-Buttons in einer sticky-Zeile zusammen sind. -->
-            <div id="empTabActionBar" style="display:flex;gap:8px;align-items:center;margin-top:52px"></div>
+            <div id="empTabActionBar" style="display:flex;gap:8px;align-items:center;margin-top:10px"></div>
             <!-- Header-Actions: Postfach-Passwort-Reset (Walter-Vorgabe
                  14.05.2026 — direkt oben statt im Bank-Tab) + Bearbeiten.
                  startEmpEdit() ersetzt den Inhalt dieses Containers durch
                  Speichern/Abbrechen. Postfach-Button nur für nicht-Phantom-MA. -->
-            <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:52px;flex-shrink:0;margin-left:48px">
+            <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:58px;flex:1 1 auto;flex-wrap:wrap;justify-content:flex-end;align-content:flex-start;min-width:0">
                 <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
                 ${['admin','superuser','buchhaltung'].includes(currentUser?.role) ? `
                 <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap;display:inline-flex;align-items:center;gap:7px"
@@ -805,6 +805,17 @@ function renderEmployeeDetail(emp) {
                         onclick="postfachResetPassword(${emp.id})">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     ${_t('ma.detail.postfachReset','Postfach-Passwort')}
+                </button>
+                <button class="btn-emp-edit btn-postfach" style="white-space:nowrap"
+                        title="Onboarding-/Reset-QR erzeugen — der MA scannt ihn und setzt direkt sein Passwort"
+                        onclick="postfachSetupQr(${emp.id})">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v7h-7"/></svg>
+                    Onboarding-QR
+                </button>
+                <button class="btn-emp-edit" style="white-space:nowrap"
+                        title="Alle Face-ID-Geräte dieses MA entfernen (z.B. bei Geräteverlust)"
+                        onclick="faceIdAdminReset(${emp.id})">
+                    Face ID zurücksetzen
                 </button>` : ''}
             </div>
         </div>
@@ -879,10 +890,10 @@ function renderEmployeeDetail(emp) {
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
             <div style="padding:6px 2px 2px">
                 <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null, emp.nightWorkExamValidUntil)}</span>
+                    <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis)}</span>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
-                        <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
-                        <button onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;cursor:pointer;color:#1d4ed8;font-size:11px;font-weight:600;white-space:nowrap">🖨 Ausnahmeregelung</button>
+                        <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
+                        <button onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Ausnahmeregelung</button>
                         ${emp.nightWorkExamDokumentId
                             ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Arztzeugnis</button>`
                             : ''}
@@ -892,16 +903,18 @@ function renderEmployeeDetail(emp) {
                     </div>
                     <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
                         <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
-                        <div class="dok-menu" id="nwMenu-${emp.id}">
+                        <div class="dok-menu" id="nwMenu-${emp.id}" style="top:auto;bottom:calc(100% + 4px)">
                             <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
-                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'Arztzeugnis ersetzen' : 'Arztzeugnis verknüpfen'}</button>
-                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausnahmeregelung ersetzen' : 'Ausnahmeregelung verknüpfen'}</button>
+                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'ArztZeug. ersetzen' : 'ArztZeug. verknüpfen'}</button>
+                            ${emp.nightWorkExamDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_exam','Arztzeugnis')">ArztZeug. lösen</button>` : ''}
+                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausn.Reg. ersetzen' : 'Ausn.Reg. verknüpfen'}</button>
+                            ${emp.nightWorkAusnahmeDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_ausnahme','Ausnahmeregelung')">Ausn.Reg. lösen</button>` : ''}
                         </div>
                     </div>
                 </div>
                 <div id="nwEdit_${emp.id}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
                     <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
-                    <input type="date" id="nwDateInput_${emp.id}" value="${emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : ''}"
+                    <input type="date" id="nwDateInput_${emp.id}" value="${emp.nightWorkExamIssued ? String(emp.nightWorkExamIssued).slice(0,10) : (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : '')}"
                            oninput="nwPreview(${emp.id}, this.value)"
                            title="Ausstellungsdatum des Arztzeugnisses"
                            style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
@@ -961,7 +974,7 @@ function renderEmployeeDetail(emp) {
                     ${_t('ma.section.bank','Bankverbindung')}
                     <button title="Verknüpfte Dokumente öffnen (Bankkarte / IBAN-Beleg)"
                             onclick="openLinkedDoc('bank_card')"
-                            style="background:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#dbeafe' : '#f1f5f9'};border:1px solid ${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#93c5fd' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#1d4ed8' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
+                            style="background:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#ece9e2' : '#f1f5f9'};border:1px solid ${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#d0c8b8' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#6b7280' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
@@ -1502,10 +1515,10 @@ function renderQstPflichtBanner(pflicht) {
         // 26.05.2026: trotzdem den Befreiungs-Button anbieten, falls der MA
         // später eine Bestätigung von der Steuerbehörde erhält.
         return `
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+        <div style="background:#f6f3ee;border:1px solid #e5e0d6;border-left:4px solid #1a1a1a;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
             <span style="font-size:16px">ℹ️</span>
-            <div style="color:#1e40af;font-size:12px;flex:1">QST-pflichtig — Erfassung vorhanden.</div>
-            <button onclick="openQstBefreiungModal()" style="background:#fff;border:1px solid #2563eb;color:#2563eb;padding:5px 10px;border-radius:5px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">
+            <div style="color:#6b6152;font-size:12px;flex:1">QST-pflichtig — Erfassung vorhanden.</div>
+            <button onclick="openQstBefreiungModal()" style="background:#fff;border:1px solid #1a1a1a;color:#1a1a1a;padding:5px 10px;border-radius:5px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">
                 📄 Behörden-Befreiung erfassen
             </button>
         </div>`;
@@ -1685,13 +1698,13 @@ async function openAusweisDokuModal(empId, kind, extra) {
             background: #fff;
         }
         #ausweisDokuModal .ausweis-doku-row.relevant { background: #f0fdf4; }
-        #ausweisDokuModal .ausweis-doku-row:hover    { background: #eff6ff; }
+        #ausweisDokuModal .ausweis-doku-row:hover    { background: #f6f3ee; }
         body.theme-dark #ausweisDokuModal .ausweis-doku-row {
             background: #1e293b;
             border-bottom-color: #334155;
         }
         body.theme-dark #ausweisDokuModal .ausweis-doku-row.relevant { background: #064e3b; }
-        body.theme-dark #ausweisDokuModal .ausweis-doku-row:hover    { background: #1e3a8a; }
+        body.theme-dark #ausweisDokuModal .ausweis-doku-row:hover    { background: #5a5348; }
     </style>
     <div id="ausweisDokuModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2400;display:flex;align-items:center;justify-content:center;padding:20px"
          onclick="if(event.target===this)closeAusweisDokuModal()">
@@ -1702,7 +1715,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                     <div style="font-weight:700;color:#0f172a;font-size:14.5px">${titleText}</div>
                     <div style="color:#64748b;font-size:12px;margin-top:2px">${hintText}</div>
                 </div>
-                <button onclick="ausweisDokuUploadNew()" style="background:#2563eb;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+                <button onclick="ausweisDokuUploadNew()" style="background:#1a1a1a;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
                     <span>＋</span> Neues Dokument
                 </button>
                 <button onclick="closeAusweisDokuModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;margin-left:4px">×</button>
@@ -2001,10 +2014,16 @@ function _nwGueltigBisHtml(validUntil) {
     return `<span style="color:${c};font-size:11.5px;font-weight:600">gültig bis ${formatDate(validUntil)}${exp ? ' · abgelaufen' : ''}</span>`;
 }
 
-// Read-only Anzeige der Nachtarbeit-Zeile (Walter 21.06.2026).
-function _nwViewTextHtml(issueIso, validUntil) {
-    if (!validUntil) return '<span style="color:#94a3b8;font-size:12.5px;font-style:italic">Keine Untersuchung erfasst</span>';
-    return `<span style="font-size:12px;color:#64748b">Ausgestellt:</span> <strong style="font-size:13px;color:#334155">${formatDate(issueIso)}</strong> &nbsp;·&nbsp; ${_nwGueltigBisHtml(validUntil)}`;
+// Read-only Anzeige der Nachtarbeit-Zeile (Walter 21.06.2026 / 05.07.2026).
+// mismatch = das (aus easy@work übernommene) Enddatum weicht von der Regel ab.
+function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso) {
+    if (!validUntil && !issueIso) return '<span style="color:#94a3b8;font-size:12.5px;font-style:italic">Keine Untersuchung erfasst</span>';
+    let html = `<span style="font-size:12px;color:#64748b">Ausgestellt:</span> <strong style="font-size:13px;color:#334155">${formatDate(issueIso)}</strong> &nbsp;·&nbsp; ${_nwGueltigBisHtml(validUntil)}`;
+    if (mismatch) {
+        const soll = sollBisIso ? formatDate(sollBisIso) : '—';
+        html += ` &nbsp; <span style="color:#991b1b;font-size:11px;font-weight:700" title="Das Enddatum in easy@work stimmt nicht mit der Regel überein und muss dort korrigiert werden">⚠ easy@work-Enddatum korrigieren (Soll: ${soll})</span>`;
+    }
+    return html;
 }
 
 // ⋮-Menü + Edit-Toggle für die Nachtarbeit-Zeile.
@@ -2022,6 +2041,24 @@ function nwCancelEdit(empId) {
     if (e) e.style.display = 'none';
     if (v) v.style.display = 'flex';
 }
+// Verknüpftes Nachtarbeit-Dokument (Arztzeugnis / Ausnahmeregelung) vom MA lösen —
+// nur die Verknüpfung wird entfernt, das Dokument selbst bleibt erhalten.
+async function nwUnlinkDoku(empId, kind, label) {
+    if (!confirm(`${label} von diesem Mitarbeiter lösen?\n\nNur die Verknüpfung wird entfernt — das Dokument selbst bleibt im Dokumente-Tab erhalten.`)) return;
+    try {
+        const res = await fetch(`/api/employees/${empId}/ausweis-doku`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind, dokumentId: null })
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => null);
+            alert(j?.message || `Lösen fehlgeschlagen (${res.status})`);
+            return;
+        }
+        if (typeof selectEmployee === 'function') selectEmployee(empId);
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}
 // Live-Vorschau „gültig bis" während des Tippens (+2 Jahre).
 function nwPreview(empId, val) {
     const v = val ? _nwAddYears(val, 2) : null;
@@ -2036,20 +2073,22 @@ async function nwSaveEdit(empId) {
         const y = parseInt(String(issueVal).slice(0, 4), 10);
         if (!y || y < 1990 || y > new Date().getFullYear() + 1) { alert('Bitte ein gültiges Ausstellungsdatum eingeben.'); return; }
     }
-    const validUntil = issueVal ? _nwAddYears(issueVal, 2) : null;
     try {
         const res = await fetch(`/api/employees/${empId}/night-work-exam-date`, {
             method: 'PATCH',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ validUntil })
+            body: JSON.stringify({ issued: issueVal || null })
         });
         if (!res.ok) {
             let body = ''; try { body = await res.text(); } catch (_) {}
             alert('Speichern des Datums fehlgeschlagen (HTTP ' + res.status + ').\n' + (body || '').slice(0, 300));
             return;
         }
+        const data = await res.json().catch(() => ({}));
+        const validUntil = data.nightWorkExamValidUntil || null;
         const vt = document.getElementById('nwViewText_' + empId);
-        if (vt) vt.innerHTML = _nwViewTextHtml(issueVal || null, validUntil);
+        // Manuell erfasst = immer regelkonform → keine Abweichungswarnung.
+        if (vt) vt.innerHTML = _nwViewTextHtml(issueVal || null, validUntil, false, validUntil);
         nwCancelEdit(empId);
     } catch (e) { alert('Netzwerkfehler beim Speichern.'); }
 }
@@ -2065,21 +2104,21 @@ async function saveNightExamDate(empId, issueVal) {
         const y = parseInt(String(issueVal).slice(0, 4), 10);
         if (!y || y < 1990 || y > new Date().getFullYear() + 1) return;
     }
-    const validUntil = issueVal ? _nwAddYears(issueVal, 2) : null;
     try {
         const res = await fetch(`/api/employees/${empId}/night-work-exam-date`, {
             method: 'PATCH',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ validUntil })
+            body: JSON.stringify({ issued: issueVal || null })
         });
         if (!res.ok) {
             let body = ''; try { body = await res.text(); } catch (_) {}
             alert('Speichern des Datums fehlgeschlagen (HTTP ' + res.status + ').\n' + (body || '').slice(0, 300));
             return;
         }
+        const data = await res.json().catch(() => ({}));
         // In-place aktualisieren statt selectEmployee → Fokus/Cursor bleibt im Feld.
         const span = document.getElementById('nwGueltigBis_' + empId);
-        if (span) span.innerHTML = _nwGueltigBisHtml(validUntil);
+        if (span) span.innerHTML = _nwGueltigBisHtml(data.nightWorkExamValidUntil || null);
     } catch (e) { alert('Netzwerkfehler beim Speichern.'); }
 }
 
@@ -2383,7 +2422,7 @@ async function openQstBefreiungModal() {
         const o = opts || {};
         const catSlug = slug(t.katName);
         const isDefault = _defaultTyp && _defaultTyp.id === t.id;
-        const sel = isDefault ? 'background:#dbeafe;outline:2px solid #2563eb;outline-offset:-2px' : '';
+        const sel = isDefault ? 'background:#ece9e2;outline:2px solid #1a1a1a;outline-offset:-2px' : '';
         const hidden = o.hidden ? 'display:none' : '';
         const extraClass = o.rest ? 'qst-typ-rest' : '';
         const style = [hidden, 'cursor:pointer', sel].filter(Boolean).join(';');
@@ -2404,7 +2443,7 @@ async function openQstBefreiungModal() {
                  ${_typQst.map(t => renderTypRow(t, { highlight: true })).join('')}
                  ${_hasRest ? `<tr id="qstBefTypRestToggleRow"><td colspan="2" style="padding:6px 12px;background:#f8fafc">
                     <button type="button" id="qstBefTypRestToggle" onclick="qstBefTypToggleRest()"
-                            style="background:transparent;border:none;color:#2563eb;font-size:11.5px;cursor:pointer;font-weight:600">
+                            style="background:transparent;border:none;color:#1a1a1a;font-size:11.5px;cursor:pointer;font-weight:600">
                         Weitere Typen anzeigen (${_typRest.length}) ▾
                     </button></td></tr>` : ''}
                  ${_typRest.map(t => renderTypRow(t, { hidden: true, rest: true })).join('')}
@@ -2434,7 +2473,7 @@ async function openQstBefreiungModal() {
 
         <!-- Option A: Datei direkt hochladen -->
         <div style="border:1px solid #cbd5e1;border-radius:8px;padding:14px;margin-bottom:12px">
-            <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">A · Datei hochladen</div>
+            <div style="font-size:12px;font-weight:700;color:#5a5348;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">A · Datei hochladen</div>
             <input type="file" id="qstBefFile" accept=".pdf,image/*" style="width:100%;font-size:12.5px"
                    onchange="qstBefFileChanged(this)">
             <div id="qstBefFileLabel" style="font-size:11.5px;color:#64748b;margin-top:6px"></div>
@@ -2448,7 +2487,7 @@ async function openQstBefreiungModal() {
 
         <!-- Option B: Bestehendes Dokument auswählen -->
         <div style="border:1px solid #cbd5e1;border-radius:8px;padding:14px;margin-bottom:16px">
-            <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">B · Bestehendes Dokument</div>
+            <div style="font-size:12px;font-weight:700;color:#5a5348;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">B · Bestehendes Dokument</div>
             <input type="hidden" id="qstBefDok" value="">
             ${dokChipsHtml}
             ${dokSearchHtml}
@@ -2513,8 +2552,8 @@ function qstBefSelectDok(dokId) {
     let picked = null;
     document.querySelectorAll('#qstBefDokTable tr[data-dok-id]').forEach(tr => {
         if (parseInt(tr.getAttribute('data-dok-id'), 10) === dokId) {
-            tr.style.background = '#dbeafe';
-            tr.style.outline = '2px solid #2563eb';
+            tr.style.background = '#ece9e2';
+            tr.style.outline = '2px solid #1a1a1a';
             tr.style.outlineOffset = '-2px';
             picked = tr;
         } else {
@@ -2610,8 +2649,8 @@ function qstBefSelectTyp(typId) {
     let picked = null;
     document.querySelectorAll('#qstBefTypTable tr[data-typ-id]').forEach(tr => {
         if (parseInt(tr.getAttribute('data-typ-id'), 10) === typId) {
-            tr.style.background = '#dbeafe';
-            tr.style.outline = '2px solid #2563eb';
+            tr.style.background = '#ece9e2';
+            tr.style.outline = '2px solid #1a1a1a';
             tr.style.outlineOffset = '-2px';
             picked = tr;
         } else {
@@ -2732,7 +2771,7 @@ function renderQuellensteuerTab(el, entries, pflicht) {
     const permitHasDoc = window._linkedDocCodes && window._linkedDocCodes.has('permit');
     const permitDocBtn = `<button title="${permitHasDoc ? 'Verknüpftes Bewilligungs-Dokument öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen'}"
                                   onclick="openLinkedDoc('permit')"
-                                  style="background:${permitHasDoc ? '#dbeafe' : '#f1f5f9'};border:1px solid ${permitHasDoc ? '#93c5fd' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${permitHasDoc ? '#1d4ed8' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
+                                  style="background:${permitHasDoc ? '#ece9e2' : '#f1f5f9'};border:1px solid ${permitHasDoc ? '#d0c8b8' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${permitHasDoc ? '#6b7280' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                   <polyline points="14 2 14 8 20 8"/>
@@ -2792,11 +2831,11 @@ function renderQuellensteuerTab(el, entries, pflicht) {
         const gemeinde = e.qstGemeinde    ? ` · ${e.qstGemeinde}` : '';
 
         html += `
-        <div class="emp-family-card" style="border-left:3px solid ${isCurrent ? '#2563eb' : '#e2e8f0'};margin-bottom:12px">
+        <div class="emp-family-card" style="border-left:3px solid ${isCurrent ? '#1a1a1a' : '#e2e8f0'};margin-bottom:12px">
             <div class="emp-family-card-head">
                 <div>
                     <div class="emp-family-name" style="display:flex;align-items:center;gap:8px">
-                        ${isCurrent ? '<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.04em">AKTUELL</span>' : ''}
+                        ${isCurrent ? '<span style="background:#f6f3ee;color:#6b7280;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.04em">AKTUELL</span>' : ''}
                         <span>${vonStr} → ${bisStr}</span>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-top:3px">
@@ -3070,7 +3109,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
     const typeOrder = ['Ehepartner', 'Kind', 'Mutter', 'Vater', 'Sonstige'];
     const typeBadge = {
         Ehepartner: { color:'#9d174d', bg:'#fce7f3' },
-        Kind:       { color:'#1e40af', bg:'#dbeafe' },
+        Kind:       { color:'#6b6152', bg:'#ece9e2' },
         Mutter:     { color:'#92400e', bg:'#fef3c7' },
         Vater:      { color:'#92400e', bg:'#fef3c7' },
         Sonstige:   { color:'#475569', bg:'#f1f5f9' }
@@ -3188,7 +3227,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 const land = a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : '';
                 const tip  = [a.description, [a.street, a.street2].filter(Boolean).join(' / '), ort, land].filter(Boolean).join(' · ');
                 const short = ort || a.description || a.country || 'andere Adresse';
-                addrBadge = `<span title="${esc(tip)}" style="font-size:11px;color:#0369a1;background:#e0f2fe;padding:2px 8px;border-radius:3px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px">📍 ${esc(short)}</span>`;
+                addrBadge = `<span title="${esc(tip)}" style="font-size:11px;color:#6b6152;background:#efece5;padding:2px 8px;border-radius:3px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px">📍 ${esc(short)}</span>`;
             }
 
             // Walter-Vorgabe 27.05.2026: Familie-Tab im MA-Maske-Stil.
@@ -3204,7 +3243,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             const headerRow = `
             <div class="emp-fam-headrow" onclick="openFamilyModal(${memberJson})"
                  style="display:flex;align-items:center;gap:10px;padding:5px 10px;border:1px solid #94a3b8;border-radius:4px;background:#fff;cursor:pointer;transition:border-color .12s,box-shadow .12s;box-shadow:0 1px 2px rgba(15,23,42,0.08)"
-                 onmouseover="this.style.borderColor='#2563eb';this.style.boxShadow='0 2px 4px rgba(37,99,235,0.15)'" onmouseout="this.style.borderColor='#94a3b8';this.style.boxShadow='0 1px 2px rgba(15,23,42,0.08)'">
+                 onmouseover="this.style.borderColor='#1a1a1a';this.style.boxShadow='0 2px 4px rgba(60,55,48,0.15)'" onmouseout="this.style.borderColor='#94a3b8';this.style.boxShadow='0 1px 2px rgba(15,23,42,0.08)'">
                 <span style="font-weight:600;color:#0f172a;flex:1;font-size:13.5px">${esc(name)}</span>
                 ${spousePermitBadge}
                 ${spouseDocBtn}
@@ -3339,7 +3378,7 @@ function showFamilyDetailPopup(memberId) {
                     ${row(_t('fam.field.qstUntil','QST bis'),   m.qstDeductibleUntil ? formatDate(m.qstDeductibleUntil) : '–')}
                 </div>
                 <div style="padding:14px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px">
-                    <button onclick="closeFamilyDetailPopup();openFamilyModal(${JSON.stringify(m).replace(/"/g, '&quot;')})" style="background:#2563eb;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">✎ ${_t('docs.btn.edit','Bearbeiten')}</button>
+                    <button onclick="closeFamilyDetailPopup();openFamilyModal(${JSON.stringify(m).replace(/"/g, '&quot;')})" style="background:#1a1a1a;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">✎ ${_t('docs.btn.edit','Bearbeiten')}</button>
                     <button onclick="closeFamilyDetailPopup()" style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">${_t('common.close','Schliessen')}</button>
                 </div>
             </div>
@@ -3513,7 +3552,7 @@ function validateAhvField(inputEl, onBlur) {
 function linkedDocButton(linkedCode) {
     if (!linkedCode) return '';
     const hasDoc = window._linkedDocCodes && window._linkedDocCodes.has(linkedCode);
-    const styleActive   = "background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8";
+    const styleActive   = "background:#ece9e2;border:1px solid #d0c8b8;color:#6b7280";
     const styleInactive = "background:#f1f5f9;border:1px solid #e2e8f0;color:#94a3b8";
     const tooltip = hasDoc ? 'Verknüpfte Dokumente öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen';
     return `<button class="emp-field-docbtn" title="${tooltip}"
@@ -5504,7 +5543,7 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
             const docBtn = (a.absenceType === 'KRANK' || a.absenceType === 'UNFALL')
                 ? `<button title="Arztzeugnis im Dokumente-Tab öffnen"
                            onclick="openAbsenceArztzeugnis()"
-                           style="background:#dbeafe;border:1px solid #93c5fd;cursor:pointer;color:#1d4ed8;padding:5px 10px;border-radius:6px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
+                           style="background:#ece9e2;border:1px solid #d0c8b8;cursor:pointer;color:#6b7280;padding:5px 10px;border-radius:6px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                          <polyline points="14 2 14 8 20 8"/>
@@ -5648,7 +5687,7 @@ function renderKarenzPanel(history) {
         ? `<span style="color:#b91c1c;font-weight:600">Grenze am ${fmtDate(curInfo.grenzErreichtAm)} erreicht → reduzierte Lohnfortzahlung</span>`
         : `<span style="color:#16a34a">Innerhalb der Karenz — volle Lohnfortzahlung</span>`;
 
-    const barColor = curInfo.grenzErreichtAm ? '#dc2626' : (pct > 75 ? '#f59e0b' : '#3b82f6');
+    const barColor = curInfo.grenzErreichtAm ? '#dc2626' : (pct > 75 ? '#f59e0b' : '#3f3f3f');
 
     const olderBlocks = older.map(j => {
         const jInfo = j.info;
@@ -6489,7 +6528,7 @@ function renderLohnAssignmentsList(el, list) {
         const aJson = JSON.stringify(a).replace(/'/g,"&#39;");
 
         cards += `
-        <div style="background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px;margin-bottom:6px">
+        <div style="background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.62);border-radius:12px;padding:9px 12px 11px;margin-bottom:6px;box-shadow:0 8px 20px rgba(86,76,63,.08)">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
                 ${statusPill}
                 <span style="font-weight:600;color:#0f172a;font-size:13.5px;flex:1">${esc(a.bezeichnung || 'Lohnpfändung')}</span>
@@ -6800,7 +6839,7 @@ async function loadZulagenTab(employeeId) {
                 <label class="f-label">Bemerkung (optional)</label>
                 <input type="text" id="zulagenBemerkung" class="f-input" placeholder="z.B. 312 km × CHF 0.70">
             </div>
-            <div id="zulagenFlags" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12.5px;color:#1e40af"></div>
+            <div id="zulagenFlags" style="display:none;background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12.5px;color:#6b6152"></div>
             <div style="display:flex;gap:8px">
                 <button class="btn btn-primary" onclick="saveZulage(${employeeId}, '${periode}')">Speichern</button>
                 <button class="btn btn-secondary" onclick="closeZulageForm()">Abbrechen</button>
@@ -7185,8 +7224,8 @@ async function stempelLadeQuickNav(employeeId) {
             const cnt   = byYear[y] && byYear[y][m];
             const has   = cnt > 0;
             const isSel = (y === selY && m === selM);
-            const border = isSel ? '#2563eb' : (has ? '#cbd5e1' : '#eef2f6');
-            const bg     = isSel ? '#2563eb' : (has ? '#fff'    : '#fafafa');
+            const border = isSel ? '#1a1a1a' : (has ? '#cbd5e1' : '#eef2f6');
+            const bg     = isSel ? '#1a1a1a' : (has ? '#fff'    : '#fafafa');
             const color  = isSel ? '#fff'    : (has ? '#334155' : '#cbd5e1');
             html += `<button onclick="stempelJumpTo(${y},${m})" title="${mon[m-1]} ${y}${has ? ' · ' + cnt + ' Einträge' : ' · keine Einträge'}" style="font-size:11px;padding:5px 0;border-radius:6px;cursor:pointer;border:1px solid ${border};background:${bg};color:${color};font-weight:${has ? 600 : 400}">${has ? cnt : '·'}</button>`;
         }
@@ -7314,7 +7353,7 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
                 <td style="padding:3px 6px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor};width:55px">${stempelFmtTime(r.timeIn)}</td>
                 <td style="padding:3px 6px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor};width:55px">${stempelFmtTime(r.timeOut)}</td>
                 <td style="padding:3px 6px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;width:55px">${stempelFmtHours(r.durationHours)}</td>
-                <td style="padding:3px 6px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;color:${Number(r.nightHours||0)>0?'#1d4ed8':'#94a3b8'};width:55px">${stempelFmtHours(r.nightHours)}</td>
+                <td style="padding:3px 6px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;color:${Number(r.nightHours||0)>0?'#6b7280':'#94a3b8'};width:55px">${stempelFmtHours(r.nightHours)}</td>
                 <td style="padding:3px 6px;font-size:12px;text-align:right;font-family:monospace;font-weight:600;vertical-align:top;width:60px">${totalRow}</td>
                 <td style="padding:3px 8px;font-size:11.5px;color:#64748b;vertical-align:top">${kommentarCell}</td>
             </tr>`;
@@ -7349,7 +7388,7 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
     // (box-shadow:0 -8px 0 #fff) deckt etwaige Lücken zwischen Filter-Row und
     // <thead> während des Scrollens ab. inset-shadow unten = visuelle Trennung.
     const th = 'padding:6px 8px;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:var(--stempel-filter-h,48px);z-index:15;box-shadow:0 -8px 0 #fff, inset 0 -1px 0 #e2e8f0';
-    const ft = 'padding:6px 8px;font-weight:700;background:#eff6ff;border-top:2px solid #bfdbfe';
+    const ft = 'padding:6px 8px;font-weight:700;background:#f6f3ee;border-top:2px solid #e5e0d6';
     listEl.innerHTML = `
         <table style="width:100%;border-collapse:separate;border-spacing:0;background:#fff">
             <thead>
@@ -7366,10 +7405,10 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
             <tbody>${trs}${empty}</tbody>
             ${sorted.length > 0 ? `<tfoot>
                 <tr>
-                    <td colspan="3" style="${ft};font-size:12px;color:#1d4ed8">Summe</td>
-                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;color:#1d4ed8">${stempelFmtHours(sumH)}</td>
-                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;color:#1d4ed8">${stempelFmtHours(sumN)}</td>
-                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;font-weight:700;color:#1d4ed8">${stempelFmtHours((sumH||0) + (sumN||0))}</td>
+                    <td colspan="3" style="${ft};font-size:12px;color:#6b7280">Summe</td>
+                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;color:#6b7280">${stempelFmtHours(sumH)}</td>
+                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;color:#6b7280">${stempelFmtHours(sumN)}</td>
+                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;font-weight:700;color:#6b7280">${stempelFmtHours((sumH||0) + (sumN||0))}</td>
                     <td style="${ft}"></td>
                 </tr>
             </tfoot>` : ''}
@@ -7436,7 +7475,7 @@ async function loadKtgTab(employeeId) {
             ? `<span style="background:#fee2e2;color:#991b1b;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">MANUELL · aus altem Lohnsystem</span>`
             : d.regel === 'A'
                 ? `<span style="background:#fef3c7;color:#92400e;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">REGEL A · Hochrechnung</span>`
-                : `<span style="background:#dbeafe;color:#1e40af;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">REGEL B · Durchschnitt</span>`;
+                : `<span style="background:#ece9e2;color:#6b6152;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">REGEL B · Durchschnitt</span>`;
 
         // Hilfs-Renderer für Monatsliste (bei Regel A nur Info, bei Regel B Berechnungsgrundlage)
         const renderMonate = (titel, istBerechnungsbasis) => {
@@ -7449,9 +7488,9 @@ async function loadKtgTab(employeeId) {
                 </tr>`).join('');
             const avg = monate.reduce((s, m) => s + Number(m.brutto), 0) / monate.length;
             const footer = istBerechnungsbasis
-                ? `<tr style="border-top:2px solid #e2e8f0;background:#eff6ff">
-                       <td style="padding:8px 10px;font-size:12px;font-weight:700;color:#1d4ed8">Ø pro Monat</td>
-                       <td style="padding:8px 10px;font-size:12px;text-align:right;font-family:monospace;font-weight:700;color:#1d4ed8">CHF ${fmt(avg)}</td>
+                ? `<tr style="border-top:2px solid #e2e8f0;background:#f6f3ee">
+                       <td style="padding:8px 10px;font-size:12px;font-weight:700;color:#6b7280">Ø pro Monat</td>
+                       <td style="padding:8px 10px;font-size:12px;text-align:right;font-family:monospace;font-weight:700;color:#6b7280">CHF ${fmt(avg)}</td>
                    </tr>`
                 : '';
             return `
@@ -7811,13 +7850,13 @@ function renderBankAccountsList(el, list) {
         const status = active
             ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#166534">Aktiv</span>'
             : (b.validFrom > today
-                ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1e40af">Geplant</span>'
+                ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#ece9e2;color:#6b6152">Geplant</span>'
                 : '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#f1f5f9;color:#64748b">Abgelaufen</span>');
         const bisTxt = b.validTo ? fmtDate(b.validTo) : '<span style="color:#94a3b8">offen</span>';
         const inhaber = b.kontoinhaber ? `<div style="font-size:11px;color:#64748b;margin-top:2px">Inhaber: ${b.kontoinhaber}</div>` : '';
         const ref     = b.zahlungsreferenz ? `<div style="font-size:11px;color:#64748b;font-family:ui-monospace,Menlo,Consolas,monospace">Ref: ${b.zahlungsreferenz}</div>` : '';
         const hauptbankBadge = b.isHauptbank
-            ? '<span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:10px;background:#dbeafe;color:#1e40af;margin-left:6px">Hauptbank</span>'
+            ? '<span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:10px;background:#ece9e2;color:#6b6152;margin-left:6px">Hauptbank</span>'
             : '';
         let aufteilungInfo = '';
         if (b.aufteilungTyp && b.aufteilungTyp !== 'VOLL' && b.aufteilungWert != null) {
@@ -8227,7 +8266,7 @@ function renderEmployeeAddressesList(el, list) {
         return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:8px;background:#fafafa">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#dbeafe;color:#1d4ed8">${a.addressType || 'Adresse'}</span>
+                    <span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#ece9e2;color:#6b7280">${a.addressType || 'Adresse'}</span>
                     ${a.validFrom ? `<span style="font-size:11px;color:#64748b">gültig ab ${fmtDate(a.validFrom)}</span>` : ''}
                 </div>
                 <div style="display:flex;gap:6px">
@@ -8458,7 +8497,7 @@ function renderPostfachAccountBlock(el, s) {
     // Buttons (nur sinnvoll wenn Account existiert und MA aktiv ist)
     let buttons = '';
     if (s.exists && s.employeeIsActive) {
-        buttons += `<button class="btn-emp-add" style="background:#3b82f6;color:#fff" onclick="postfachResetPassword(${s.employeeId})">
+        buttons += `<button class="btn-emp-add" style="background:#3f3f3f;color:#fff" onclick="postfachResetPassword(${s.employeeId})">
                         Passwort zurücksetzen
                     </button>`;
         if (s.locked) {
@@ -8466,10 +8505,16 @@ function renderPostfachAccountBlock(el, s) {
                             Sperre aufheben
                         </button>`;
         }
+        buttons += `<button class="btn-emp-add" style="background:#fff;color:#475569;border:1px solid #cbd5e1;margin-left:6px" onclick="faceIdAdminReset(${s.employeeId})">
+                        Face ID zurücksetzen
+                    </button>`;
+        buttons += `<button class="btn-emp-add" style="background:#0f766e;color:#fff;margin-left:6px" onclick="postfachSetupQr(${s.employeeId})">
+                        Onboarding-QR
+                    </button>`;
     } else if (!s.exists && s.employeeIsActive) {
         // Sollte normalerweise nicht passieren (Auto-Erstellung beim Anlegen)
         // — Backfill-Button als Notlösung.
-        buttons += `<button class="btn-emp-add" style="background:#3b82f6;color:#fff" onclick="postfachResetPassword(${s.employeeId})">
+        buttons += `<button class="btn-emp-add" style="background:#3f3f3f;color:#fff" onclick="postfachResetPassword(${s.employeeId})">
                         Account jetzt erstellen
                     </button>`;
     }
@@ -8679,6 +8724,66 @@ async function postfachResetPassword(employeeId) {
     }
 }
 
+// HR: Onboarding-/Reset-QR erzeugen (MA scannt → setzt Passwort → direkt eingeloggt).
+async function postfachSetupQr(employeeId) {
+    if (!employeeId) return;
+    try {
+        const res = await fetch(`/api/postfach-setup/create/${employeeId}`, { method: 'POST', headers: ah() });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) { alert(j.error || j.message || 'Fehler beim Erzeugen des QR-Codes.'); return; }
+        showSetupQrModal(j);
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}
+
+function showSetupQrModal(j) {
+    let ov = document.getElementById('setupQrModal');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'setupQrModal';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:400;background:rgba(15,23,42,0.5);display:flex;align-items:center;justify-content:center;padding:20px';
+        ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+        document.body.appendChild(ov);
+    }
+    const bis = j.expiresAt ? new Date(j.expiresAt).toLocaleString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    ov.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:20px;max-width:420px;width:100%;padding:24px;box-shadow:0 24px 60px rgba(60,55,48,0.22);text-align:center">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <h2 style="margin:0;font-size:18px;font-weight:700;color:#3f3f3f">Postfach einrichten</h2>
+                <button onclick="document.getElementById('setupQrModal').style.display='none'" aria-label="Schliessen" style="background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.06);border-radius:10px;width:34px;height:34px;font-size:19px;cursor:pointer;color:#646464">&times;</button>
+            </div>
+            <p style="font-size:13px;color:#646464;margin:0 0 16px;text-align:left;line-height:1.5">${escapeHtml(j.firstName || 'Der Mitarbeitende')} scannt diesen QR-Code mit der Handykamera und setzt direkt sein Passwort — danach ist er automatisch in seinem Postfach. Gültig bis ${escapeHtml(bis)}.</p>
+            <img src="${escapeHtml(j.qrPng)}" alt="QR-Code" style="width:240px;height:240px;image-rendering:pixelated;background:#fff;border:1px solid rgba(255,255,255,0.62);border-radius:14px;padding:8px;box-shadow:0 8px 24px rgba(60,55,48,0.12)">
+            <div style="display:flex;gap:8px;align-items:center;margin-top:16px">
+                <input id="setupQrLink" readonly value="${escapeHtml(j.url)}" style="flex:1;min-width:0;font-size:12px;padding:10px 12px;border:1px solid rgba(0,0,0,0.10);border-radius:12px;background:rgba(255,255,255,0.55);color:#3f3f3f">
+                <button style="background:#3f3f3f;color:#faf8f5;border:0;white-space:nowrap;font-weight:600;font-size:13px;padding:10px 16px;border-radius:12px;cursor:pointer;box-shadow:0 6px 16px rgba(60,55,48,0.18)" onclick="(function(){var e=document.getElementById('setupQrLink');e.select();navigator.clipboard&&navigator.clipboard.writeText(e.value);})()">Link kopieren</button>
+            </div>
+        </div>`;
+    ov.style.display = 'flex';
+}
+
+// HR: alle Face-ID-/Passkey-Geräte eines MA löschen (z.B. bei Geräteverlust).
+async function faceIdAdminReset(employeeId) {
+    if (!employeeId) return;
+    let count = null;
+    try {
+        const r = await fetch(`/api/webauthn/admin/by-employee/${employeeId}`, { headers: ah() });
+        if (r.ok) count = (await r.json())?.count;
+    } catch (e) { /* egal, Löschung trotzdem anbieten */ }
+    const msg = (count != null)
+        ? `Face ID zurücksetzen?\n\nDer MA hat ${count} aktivierte(s) Gerät(e). Alle werden entfernt — der MA meldet sich dann wieder mit Passwort an und kann Face ID neu aktivieren.`
+        : 'Face ID zurücksetzen?\n\nAlle aktivierten Geräte dieses MA werden entfernt.';
+    if (!confirm(msg)) return;
+    try {
+        const res = await fetch(`/api/webauthn/admin/by-employee/${employeeId}`, { method: 'DELETE', headers: ah() });
+        if (!res.ok) { alert('Fehler beim Zurücksetzen.'); return; }
+        const d = await res.json().catch(() => ({}));
+        alert(`Face ID zurückgesetzt (${d.removed ?? 0} Gerät(e) entfernt).`);
+        await loadPostfachAccountBlock(employeeId);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
 async function postfachUnlock(employeeId) {
     if (!employeeId) return;
     try {
@@ -8747,7 +8852,7 @@ function showInitialPasswordModal(username, password) {
     }
     overlay.innerHTML = `
         <div style="background:#fff;border-radius:14px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,0.28);overflow:hidden">
-            <div style="padding:18px 22px;background:linear-gradient(180deg,#dbeafe,#fff);border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
+            <div style="padding:18px 22px;background:linear-gradient(180deg,#ece9e2,#fff);border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
                 <span style="font-size:20px">📬</span>
                 <div>
                     <div style="font-weight:700;font-size:15px;color:#0f172a">Initial-Passwort gesetzt</div>
@@ -8764,7 +8869,7 @@ function showInitialPasswordModal(username, password) {
                     <div style="display:flex;gap:6px">
                         <div style="flex:1;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;font-weight:600;color:#0f172a;background:#f1f5f9;padding:8px 12px;border-radius:8px">${esc(password)}</div>
                         <button onclick="navigator.clipboard.writeText('${esc(password)}').then(()=>this.textContent='✓ Kopiert')"
-                                style="background:#3b82f6;color:#fff;border:none;padding:0 14px;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;white-space:nowrap">Kopieren</button>
+                                style="background:#3f3f3f;color:#fff;border:none;padding:0 14px;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;white-space:nowrap">Kopieren</button>
                     </div>
                 </div>
                 <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;line-height:1.5">
