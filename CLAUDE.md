@@ -31,9 +31,13 @@ DB-Backup/Restore: siehe `RESTORE.md`. Backups laufen täglich um 03:00 auf dem 
 ### Schichten
 
 ```
-wwwroot/index.html (12k Zeilen)  ←── Single-Page-App, alle Module außer Mitarbeiter-Liste
-wwwroot/employees.js (4k Zeilen) ←── MA-Liste, MA-Detail, Tabs, Adressen, Bankkonten
-wwwroot/import.html (2k Zeilen)  ←── CSV-Import (eigene Page, eigener Login-Flow)
+wwwroot/index.html (~7.6k Zeilen) ←── Single-Page-App: nur noch HTML (34 Seiten-Divs) + Script-Tags
+wwwroot/css/app.css (~5.1k Z)     ←── ausgelagerter Head-Style-Block (Refactor Etappe 1, 08.07.2026)
+wwwroot/js/app-core.js (~1.1k Z)  ←── ausgelagerter Inline-Kern (Etappe 2): State, Auth/Login, showPage,
+                                      Filial-Selektor, Theme. Script-Tag-POSITION in index.html NICHT
+                                      verschieben (läuft VOR save-blob.js & allen Modulen)!
+wwwroot/employees.js (4k Zeilen)  ←── MA-Liste, MA-Detail, Tabs, Adressen, Bankkonten
+wwwroot/import.html (2k Zeilen)   ←── CSV-Import (eigene Page, eigener Login-Flow)
 
            ↓ JWT Bearer Token
 Controllers/*.cs (47 Stück)       ←── REST-Endpoints, gruppiert pro Domäne
@@ -82,6 +86,7 @@ Wichtig: `PayrollCalculations` ist statisch und seiteneffektfrei (alle Daten als
 
 ### Frontend-Eigenheiten (wichtig!)
 
+- **Refactor-Regeln index.html (Walter-Vorgabe 08.07.2026):** CSS-Änderungen gehören in `css/app.css` (Cache-Buster im `<link>` hochzählen!), Kern-JS in `js/app-core.js` (Cache-Buster im Script-Tag). Beide wurden byte-identisch VERSCHOBEN, nicht verändert. Kleine seitenlokale `<style>`-Blöcke + Mini-Inline-Scripts (Login-Begrüssung, WebAuthn-Check) bleiben bewusst in index.html. **Etappe 3 (HTML-Seiten aufteilen) bewusst ZURÜCKGESTELLT bis nach dem Lohn-Go-live** — Laufzeit-Nachladen würde getElementById-Timing app-weit ändern.
 - `wwwroot/index.html` ist die Haupt-App. **Alle wichtigen Module** sind hier (Verträge, Lohn, Quellensteuer, Posteingang, Filialen, Lohnpositionen, Periode-Config, etc.). Sehr lange Datei — bei Änderungen mit `grep`/`Read` gezielt suchen, nie blind editieren.
 - `wwwroot/employees.js` enthält den **Mitarbeiter-Tab** (linke Liste + rechtes Detail mit Sub-Tabs Personal / Familie / **Bank** / Quellensteuer / Stempelzeiten / Absenzen / KTG/UVG / Dokumente). Der Sub-Tab „Bank" (Walter-Vorgabe 14.05.2026) hält nur noch die Bankverbindungs-Liste — aus dem Personal-Tab ausgelagert, damit die Seite nicht so lang ist. Reihenfolge der Tabs steht zusätzlich in `_empTabsOrder` (für Pfeil-Navigation) und muss mit der Tab-Bar in `renderEmployeeDetail` synchron bleiben. Lade-Logik pro Tab in `switchEmpTab`: `bank` → `loadBankAccountsTab`. Phantom-MA (`isPayrollExcluded`) zeigen im Bank-Tab nur den „MA ohne Lohn"-Hinweis. **Postfach-Passwort-Reset:** sitzt als Button im Detail-Header (`#empHeaderActions`, neben „Bearbeiten") und ruft direkt `postfachResetPassword(empId)` — kein eigener Tab/Block mehr. `startEmpEdit()` ersetzt den Inhalt von `#empHeaderActions` durch Speichern/Abbrechen. Backend `ResetPasswordAsync` setzt nebst dem Passwort auch `FailedLoginCount=0` + `LockedUntil=null` — der Reset hebt also eine Login-Sperre gleich mit auf, ein separater Unlock-Button ist nicht nötig. Die Funktionen `loadPostfachAccountBlock` / `renderPostfachAccountBlock` / `postfachUnlock` bleiben als Code erhalten, werden aber nicht mehr aus dem UI aufgerufen.
 - `wwwroot/import.html` ist eine **separate Page** für CSV-Import aus easy@work. Wird via `openImportTool()` mit Token+BranchId als URL-Parameter aufgerufen.
