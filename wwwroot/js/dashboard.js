@@ -89,7 +89,8 @@ const DASH_CATEGORY_META = {
     night_work_exam_mismatch: { label: 'Nachtarbeit-Enddatum in easy@work falsch', icon: '🌙', color: '#991b1b' },
     lohn_provisorisch:      { i18nKey: 'dash.cat.payrollOpen',      label: 'Lohnlauf',               icon: '💰', color: '#6b6152' },
     birthday:               { i18nKey: 'dash.cat.birthday',         label: 'Geburtstage',            icon: '🎂', color: '#9333ea' },
-    anniversary:            { i18nKey: 'dash.cat.anniversary',      label: 'Dienstjubiläen',         icon: '🎉', color: '#15803d' }
+    anniversary:            { i18nKey: 'dash.cat.anniversary',      label: 'Dienstjubiläen',         icon: '🎉', color: '#15803d' },
+    availability_missing:   { i18nKey: 'dash.cat.availabilityMissing', label: 'Verfügbarkeit fehlt', icon: '🕒', color: '#92400e' }
 };
 
 const DASH_SEVERITY_META = {
@@ -339,6 +340,8 @@ function renderDashTodoRow(a) {
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
+                                : a.category === 'availability_missing'
+                                ? `onclick="dashOpenEmployeeVerfuegbarkeit(${a.employeeId})"`
                                 : (a.category === 'exit_pending_active'
                                    || a.category === 'birthday'
                                    || a.category === 'anniversary'
@@ -524,6 +527,8 @@ function renderDashAlertRow(a) {
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
+                                : a.category === 'availability_missing'
+                                ? `onclick="dashOpenEmployeeVerfuegbarkeit(${a.employeeId})"`
                                 : (a.category === 'exit_pending_active'
                                    || a.category === 'birthday'
                                    || a.category === 'anniversary'
@@ -576,6 +581,9 @@ function dashOpenEmployeeFamilie(employeeId) { dashOpenEmployee(employeeId, 'fam
 // Walter-Vorgabe 13.06.2026: Sprung in den Dokumente-Tab, wo ID/Pass (CH-
 // Bürger) oder Bewilligung (C-Ausweis) für den MA hochgeladen werden kann.
 function dashOpenEmployeeDokumente(employeeId) { dashOpenEmployee(employeeId, 'dokumente'); }
+// Walter-Vorgabe 07.07.2026: Sprung in den Verfügbarkeit-Tab, wo die
+// verfügbaren Arbeitszeiten (L-GAV-Anlage) erfasst werden.
+function dashOpenEmployeeVerfuegbarkeit(employeeId) { dashOpenEmployee(employeeId, 'verfuegbarkeit'); }
 // Walter-Vorgabe 20.06.2026: „Vertrag läuft aus" springt in die Verträge-Seite
 // des MA (eigene Seite, kein MA-Tab) und selektiert dort den Mitarbeiter.
 function dashOpenEmployeeVertrag(employeeId) {

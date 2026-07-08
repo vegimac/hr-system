@@ -1864,7 +1864,7 @@ function mapContractType(row) {
     if (pf.startsWith('month') || pf.startsWith('monat')) return 'FIX';
     if (ct.includes('mtp') || ct.includes('tpm'))         return 'MTP';
     // hour + Flex / leer / unbekannt → UTP (Default)
-    return 'UTP';
+    return 'FLEX';
 }
 
 function parseAnzahl(row) {
@@ -2675,7 +2675,7 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
             : (prefillHourly ? `CHF ${prefillHourly} / Stunde` : '–');
         const summaryHours = suggestedModel === 'MTP'
             ? `${prefillGuarHours || '–'} Std./Woche`
-            : (isFixModel ? `${prefillPensum || '–'}%` : 'UTP');
+            : (isFixModel ? `${prefillPensum || '–'}%` : 'FLEX');
         const hidden = `
             <input type="hidden" id="model-${idx}" value="${suggestedModel}">
             <input type="hidden" id="jobGroup-${idx}" value="${suggestedJg}">
@@ -2741,7 +2741,7 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
             return `
             <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin-bottom:10px">
                 <div style="font-size:10.5px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">💰 Lohnänderung — alle übrigen Vertragsdaten bleiben</div>
-                ${(suggestedModel === 'UTP' || suggestedModel === 'MTP')
+                ${(suggestedModel === 'FLEX' || suggestedModel === 'MTP')
                     ? diffRow('Stundenlohn', oldHrly, newHrly, true)
                     : diffRow('Monatslohn 100%', oldFte, newFte, true)}
                 <div style="display:flex;justify-content:space-between;padding:2px 0;border-top:1px solid #fcd34d;margin-top:4px;padding-top:5px">
@@ -2768,7 +2768,7 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
                 ${addrField('Funktion', csvFunktion)}
                 ${addrField('Von', csvVon)}
                 ${addrField('Bis', csvBis)}
-                ${csvTarifDisplay && (csvModel==='UTP'||csvModel==='MTP') ? addrField('Stundenlohn', 'CHF ' + csvTarifDisplay) : ''}
+                ${csvTarifDisplay && (csvModel==='FLEX'||csvModel==='MTP') ? addrField('Stundenlohn', 'CHF ' + csvTarifDisplay) : ''}
                 ${csvFteDisplay && (csvModel==='FIX'||csvModel==='FIX-M') ? addrField('Monatslohn 100%', 'CHF ' + csvFteDisplay) : ''}
                 ${csvAnzahl ? addrField('Pensum/Stunden', csvAnzahl) : ''}
                 ${addrField('Gastroausbildung', ccntCheck.ok ? ccntCheck.label : (csvCcnt || 'FEHLT'))}
@@ -2786,7 +2786,7 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
                 <label class="form-label">Vertragsmodell <span class="required">*</span></label>
                 <select class="form-select" id="model-${idx}" onchange="onModelChange(${idx})">
                     <option value="">– Bitte wählen –</option>
-                    <option value="UTP" ${suggestedModel==='UTP'?'selected':''}>UTP – Stundenlohn</option>
+                    <option value="FLEX" ${suggestedModel==='FLEX'?'selected':''}>UTP – Stundenlohn</option>
                     <option value="MTP" ${suggestedModel==='MTP'?'selected':''}>MTP – Stundenlohn garantiert</option>
                     <option value="FIX" ${suggestedModel==='FIX'?'selected':''}>FIX – Fixlohn</option>
                     <option value="FIX-M" ${suggestedModel==='FIX-M'?'selected':''}>FIX-M – Fixlohn Management</option>
@@ -2872,7 +2872,7 @@ function onModelChange(idx) {
     const model = document.getElementById(`model-${idx}`)?.value;
     const isFix = model === 'FIX' || model === 'FIX-M';
     const isMtp = model === 'MTP';
-    const isUtp = model === 'UTP';
+    const isUtp = model === 'FLEX';
     const show = (id, v) => { const el = document.getElementById(id); if (el) el.style.display = v ? '' : 'none'; };
     show(`hourlyGroup-${idx}`, (isMtp || isUtp) && !!model);
     show(`hoursGroup-${idx}`, isMtp);
@@ -2947,7 +2947,7 @@ function renderNewRow(e) {
     const { idx, row } = e;
     const modelCode = mapContractType(row);
     const isPhantom = isPhantomRow(row);
-    const modelClass = { MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' };
+    const modelClass = { MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' };
     // Phantom-MA (Supervisor) ist KEIN Fehler — eigene gelbe Badge.
     const modelPill = modelCode
         ? `<span class="badge ${modelClass[modelCode]||''}">${modelCode}</span>`
@@ -3035,7 +3035,7 @@ function markRowDone(idx, statusText, savedEmploymentId) {
     if (badges) {
         // Modell-Pille aus dem aktuell gewählten Vertragsmodell beibehalten
         const modelCode = document.getElementById(`model-${idx}`)?.value || '';
-        const modelClass = { MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' };
+        const modelClass = { MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' };
         const modelPill = modelCode
             ? ` <span class="badge ${modelClass[modelCode]||''}">${modelCode}</span>`
             : '';
@@ -3086,7 +3086,7 @@ function renderContractRow(c) {
         ? (activeContract?.employmentModel || mapContractType(row))
         : mapContractType(row);
     const isPhantom = isPhantomRow(row);
-    const modelClass = { MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' };
+    const modelClass = { MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' };
     const modelPill = modelCode
         ? `<span class="badge ${modelClass[modelCode]||''}">${modelCode}</span>`
         : isPhantom

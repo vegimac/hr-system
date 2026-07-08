@@ -645,7 +645,7 @@ window.i18n = (function () {
         'vt.modal.contractType.fixed':     { de: 'befristet',         en: 'fixed-term' },
         'vt.modal.statusActive':     { de: 'Aktiv',                   en: 'Active' },
         'vt.modal.statusInactive':   { de: 'Inaktiv',                 en: 'Inactive' },
-        'vt.modal.modelUtp':         { de: 'UTP – Stundenlohn Teilzeit', en: 'UTP – Hourly part-time' },
+        'vt.modal.modelUtp':         { de: 'FLEX – Stundenlohn (flexibel)', en: 'FLEX – Hourly (flexible)' },
         'vt.modal.modelMtp':         { de: 'MTP – Mindest-Teilzeitpensum', en: 'MTP – Minimum part-time hours' },
         'vt.modal.modelFix':         { de: 'FIX – Festpensum',        en: 'FIX – Fixed schedule' },
         'vt.modal.modelFixM':        { de: 'FIX-M – Management',      en: 'FIX-M – Management' },
@@ -718,7 +718,7 @@ window.i18n = (function () {
                                         en: 'Use "+ New contract" in the top right to record the first contract.' },
 
         // Vertragsmodell-Labels (lange Form für Card-Header)
-        'vt.model.utp':              { de: 'Stundenlohn (UTP)',       en: 'Hourly (UTP)' },
+        'vt.model.utp':              { de: 'Stundenlohn (FLEX)',       en: 'Hourly (FLEX)' },
         'vt.model.mtp':              { de: 'Mindestpensum (MTP)',     en: 'Guaranteed-hours (MTP)' },
         'vt.model.fix':              { de: 'Festpensum (FIX)',        en: 'Fixed schedule (FIX)' },
         'vt.model.fixM':             { de: 'Management (FIX-M)',      en: 'Management (FIX-M)' },
@@ -801,8 +801,8 @@ window.i18n = (function () {
         'austritt.status.vacOver':   { de: 'Vorbezug — Korrektur nötig',
                                         en: 'over-use — correction required' },
         'austritt.payout.holiday':   { de: 'Feiertag-Saldo',           en: 'Holiday balance' },
-        'austritt.payout.vacMoney':  { de: 'Ferien-Geld-Saldo (UTP/MTP)',
-                                        en: 'Vacation pay balance (UTP/MTP)' },
+        'austritt.payout.vacMoney':  { de: 'Ferien-Geld-Saldo (FLEX/MTP)',
+                                        en: 'Vacation pay balance (FLEX/MTP)' },
         'austritt.payout.thirteenth':{ de: '13. ML (kumuliert per {date})',
                                         en: '13th salary (accrued at {date})' },
         'austritt.unit.days':        { de: '{n} Tage',                 en: '{n} days' },

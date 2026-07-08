@@ -1417,7 +1417,7 @@ async function svSave(event) {
 // Phase 1 (jetzt): Stammdatenpflege. Der PayrollController liest die
 // Tabelle noch nicht — das kommt in Phase 2.
 
-let vtCurrentModel = null;      // 'FIX' | 'FIX-M' | 'MTP' | 'UTP'
+let vtCurrentModel = null;      // 'FIX' | 'FIX-M' | 'MTP' | 'FLEX'
 let vtAllComponents = [];       // alle Einträge des aktuellen Modells
 let vtAllLohnpositionen = [];   // Katalog (für Drawer-Auswahl)
 
@@ -1425,7 +1425,7 @@ const VT_MODEL_INFO = {
     'FIX':   'Festlohn / Monatslohn — pro Pensum. Feiertage und Ferien sind im Monatslohn enthalten. 13. ML als Rückstellung.',
     'FIX-M': 'Kader — Monatslohn wie FIX, zusätzlich BVG-Zusatzbeitrag möglich.',
     'MTP':   'Monatslohn mit Pensum + Stunden-Saldo. Zusatzstunden werden separat verrechnet. Feiertagsentschädigung anteilig.',
-    'UTP':   'Stundenlöhner — Stundenlohn plus Feiertags-, Ferien- und 13.-ML-Entschädigung. 13. ML monatlich ausbezahlt.'
+    'FLEX':   'Stundenlöhner — Stundenlohn plus Feiertags-, Ferien- und 13.-ML-Entschädigung. 13. ML monatlich ausbezahlt.'
 };
 
 async function loadVertragstypen() {

@@ -161,7 +161,7 @@ function actionBg(action) {
 }
 function renderContractCell(p) {
     if (!p.employmentModel && !p.csvFunktion) return '<span style="color:#cbd5e1">–</span>';
-    const modelClass = ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[p.employmentModel] || '';
+    const modelClass = ({ MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[p.employmentModel] || '';
     let detail = '';
     if (p.employmentPercentage != null) detail = `${p.employmentPercentage}%`;
     else if (p.guaranteedHoursPerWeek != null) detail = `${p.guaranteedHoursPerWeek} Std/W`;

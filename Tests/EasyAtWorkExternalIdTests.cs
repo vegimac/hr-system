@@ -126,7 +126,7 @@ public class EasyAtWorkExternalIdTests
         {
             EmployeeId = emp.Id, CompanyProfileId = 1,
             ContractStartDate = new DateTime(2026, 1, 1), ContractEndDate = null, IsActive = true,
-            EmploymentModel = "UTP", SalaryType = "hourly",
+            EmploymentModel = "FLEX", SalaryType = "hourly",
             EasyAtWorkContractId = null, EasyAtWorkPayRateId = null,
         });
         await db.SaveChangesAsync();
@@ -250,8 +250,15 @@ public class EasyAtWorkExternalIdTests
         Assert.Equal(78034, one.EasyAtWorkPayRateId);
     }
 
+    // DOKTRIN-WECHSEL (Walter-Vorgabe 08.07.2026, Strict-Import): easy@work ist
+    // die Mutter der Daten. Der Override gilt NUR, solange easy@work KEINEN
+    // echten Lohn liefert (Platzhalter ≤ 1.00 / kein Tarif = GF-Fall). Liefert
+    // easy@work wieder einen echten Lohn, wird der Override AUFGELÖST und der
+    // easy@work-Lohn übernommen — sonst blieben Zeilen aus der Fehl-Import-Ära
+    // für immer eingefroren (Fall Beza 750080). Früher schützte der Override
+    // auch vor echten easy-Löhnen; dieses Verhalten ist bewusst entfernt.
     [Fact]
-    public async Task Test8_ManualOverride_SchuetztVorEchtemEasyLohn()
+    public async Task Test8_EchterEasyLohn_LoestOverrideUndFuehrt()
     {
         using var db = NewDb();
         var emp = await SeedAsync(db, "2300003");
@@ -285,9 +292,9 @@ public class EasyAtWorkExternalIdTests
         await db.SaveChangesAsync();
 
         var one = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
-        Assert.True(one.EasyAtWorkManualOverride);
-        Assert.Equal(6100m, one.MonthlySalary);
-        Assert.Equal(6100m, one.MonthlySalaryFte);
+        Assert.False(one.EasyAtWorkManualOverride);   // Sperre aufgelöst — easy@work liefert echten Lohn
+        Assert.Equal(5000m, one.MonthlySalary);       // easy@work-Lohn ist führend
+        Assert.Equal(5000m, one.MonthlySalaryFte);
         Assert.Equal(46093, one.EasyAtWorkContractId);
         Assert.Equal(78035, one.EasyAtWorkPayRateId);
     }

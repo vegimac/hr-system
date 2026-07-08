@@ -847,7 +847,7 @@ public class EmployeeImportController : ControllerBase
             model = "MTP";
         else
             // hour + Flex / leer / unbekannt → UTP (Default)
-            model = "UTP";
+            model = "FLEX";
 
         // CREW kann auch HOST_CT (Crew Trainer / Hostess) sein — aus Funktion
         // ableiten falls dort etwas spezifischeres steht; sonst CREW.
@@ -884,7 +884,7 @@ public class EmployeeImportController : ControllerBase
     {
         if (parsed.HasValue) return parsed;
         var m = (employmentModel ?? "").ToUpperInvariant();
-        if (m == "UTP") return 17m;
+        if (m == "FLEX") return 17m;
         return null;
     }
 
@@ -960,7 +960,7 @@ public class EmployeeImportController : ControllerBase
     private static bool IsHourlyModel(string? model)
     {
         var m = (model ?? "").ToUpperInvariant();
-        return m == "UTP" || m == "MTP";
+        return m == "FLEX" || m == "MTP";
     }
 
     private static decimal? ParseWeeklyHours(string? value)

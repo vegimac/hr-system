@@ -751,7 +751,7 @@ public class DashboardService
                 "FIX-M" => "FIX-M",
                 "FIX"   => "FIX",
                 "MTP"   => "MTP",
-                _       => "UTP"
+                _       => "FLEX"
             };
             var salaryType = (modelCode == "FIX" || modelCode == "FIX-M") ? "monthly" : "hourly";
 
@@ -954,6 +954,65 @@ public class DashboardService
                     EmployeeNumber = emp.EmployeeNumber,
                     EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
                 });
+            }
+        }
+
+        // ── Verfügbarkeit fehlt (Walter-Vorgabe 07.07.2026) ───────────────
+        // Aktive MA mit einem aktiven Vertrag (ContractEndDate null oder ≥ heute),
+        // aber OHNE gültige Verfügbarkeit heute (keine employee_availability-Zeile
+        // mit valid_from ≤ heute ≤ valid_to|null). Die Verfügbarkeit ist eine
+        // L-GAV-Anlage zum Vertrag und muss hinterlegt sein.
+        if (Enabled("availability_missing"))
+        {
+            var availQ = _db.Employees
+                .Where(e => e.IsActive
+                         && !e.EmployeeNumber.ToLower().EndsWith("alt")
+                         && !e.IsHidden
+                         && !e.IsPayrollExcluded
+                         && e.Employments.Any(em => em.IsActive
+                                && (!em.ContractEndDate.HasValue || em.ContractEndDate.Value >= now)));
+            if (companyProfileId.HasValue)
+            {
+                var cpid = companyProfileId.Value;
+                availQ = availQ.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+            }
+            var availCandidates = await availQ
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+                .ToListAsync();
+
+            if (availCandidates.Count > 0)
+            {
+                var candIds = availCandidates.Select(x => x.Id).ToList();
+                // MA-Ids mit einer HEUTE gültigen Verfügbarkeit.
+                var haveAvail = await _db.EmployeeAvailabilities
+                    .Where(a => candIds.Contains(a.EmployeeId)
+                             && a.ValidFrom <= today
+                             && (a.ValidTo == null || a.ValidTo >= today))
+                    .Select(a => a.EmployeeId)
+                    .Distinct()
+                    .ToListAsync();
+                var haveSet = haveAvail.ToHashSet();
+
+                foreach (var e in availCandidates.Where(x => !haveSet.Contains(x.Id)))
+                {
+                    var name = $"{e.FirstName} {e.LastName}".Trim();
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "availability_missing",
+                        Severity = SeverityState("availability_missing", "warning"),
+                        Title    = "Verfügbarkeit fehlt",
+                        TitleKey = "alert.availability.missing",
+                        Subtitle = $"{name} · Personalnr. {e.EmployeeNumber} · aktiver Vertrag ohne hinterlegte Verfügbarkeit",
+                        SubtitleKey  = "subtitle.availabilityMissing",
+                        SubtitleArgs = new Dictionary<string, object> {
+                            ["name"] = name,
+                            ["empNr"] = e.EmployeeNumber
+                        },
+                        EmployeeId     = e.Id,
+                        EmployeeNumber = e.EmployeeNumber,
+                        EmployeeName   = name
+                    });
+                }
             }
         }
 

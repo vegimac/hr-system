@@ -29,7 +29,7 @@ function renderEmpList(employees) {
         const isFemale = e.gender === 'female';
         const isSelected = selectedEmp?.id === e.id;
         const model = e.employments?.find(v => v.isActive)?.employmentModel || '';
-        const modelClass = ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[model] || '';
+        const modelClass = ({ MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[model] || '';
         return `<div class="emp-list-item ${isSelected ? 'active' : ''}" onclick="selectEmployee(${e.id})">
             <div class="emp-avatar ${isFemale ? 'female' : ''}">${initials}</div>
             <div>

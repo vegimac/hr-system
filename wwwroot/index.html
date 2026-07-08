@@ -1756,13 +1756,13 @@
            „emp-grid-attached" docks die Card oben an die vorherige Card,
            ohne Gap und ohne wiederholten Section-Title. */
         .emp-field-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px 10px;
-                            background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px;
+                            background: #f6f3ee; border: 1px solid #e7e1d8; border-radius: 14px;
                             padding: 9px 12px 11px; margin-bottom: 6px; }
         .emp-field-grid-3 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px 10px;
-                            background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px;
+                            background: #f6f3ee; border: 1px solid #e7e1d8; border-radius: 14px;
                             padding: 9px 12px 11px; margin-bottom: 6px; }
         .emp-field-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 10px;
-                            background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px;
+                            background: #f6f3ee; border: 1px solid #e7e1d8; border-radius: 14px;
                             padding: 9px 12px 11px; margin-bottom: 6px; }
         /* „attached"-Variante: docks die Card nahtlos an die vorherige an
            (keine Top-Border, keine obere Rundung, kein Top-Margin). Wird in
@@ -1808,7 +1808,7 @@
            Background untergehen. */
         .emp-field-value {
             font-size: 13px; color: #0f172a; font-weight: 500;
-            background: #fff; border: 1px solid #94a3b8; border-radius: 4px;
+            background: #fff; border: 1px solid #e2ddd3; border-radius: 9px;
             padding: 4px 9px; min-height: 27px;
             display: flex; align-items: center; gap: 6px;
             line-height: 1.2;
@@ -1816,7 +1816,7 @@
             transition: border-color .12s, box-shadow .12s;
         }
         .emp-field-value:hover { border-color: #1a1a1a; box-shadow: 0 2px 4px rgba(60,55,48, 0.15); }
-        .emp-field-value.empty { color: #94a3b8; font-style: italic; font-weight: 400; background: #f1f5f9; border-color: #cbd5e1; border-style: dashed; box-shadow: none; }
+        .emp-field-value.empty { color: #94a3b8; font-style: italic; font-weight: 400; background: #faf8f5; border-color: #e7e1d8; border-style: dashed; box-shadow: none; }
         /* Sektions-Titel: kompakter blauer Akzent-Block, oben angedockt an
            die Card. */
         .emp-section-title {
@@ -4059,8 +4059,8 @@
         #familyModal .emp-field-grid   .fmf-input,
         #familyModal .emp-field-grid   .fmf-select {
             background: #fff;
-            border: 1px solid #94a3b8;
-            border-radius: 4px;
+            border: 1px solid #e2ddd3;
+            border-radius: 9px;
             padding: 4px 9px;
             min-height: 27px;
             font-size: 13px;
@@ -4089,20 +4089,20 @@
             padding-left: 2px; line-height: 1.2;
         }
         #familyModal .fmf-checkbox-card {
-            background: #fff; border: 1px solid #94a3b8; border-radius: 4px;
+            background: #fff; border: 1px solid #e2ddd3; border-radius: 9px;
             padding: 4px 9px; min-height: 27px;
             display: flex; align-items: center; gap: 8px;
             font-size: 13px; color: #0f172a;
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
         }
         #familyModal .fmf-addr-card {
-            background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px;
+            background: #f6f3ee; border: 1px solid #e7e1d8; border-radius: 14px;
             padding: 9px 12px 11px; margin-bottom: 6px;
             display: flex; flex-direction: column; gap: 8px;
         }
 
         .emp-family-card {
-            background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 4px;
+            background: #f6f3ee; border: 1px solid #e7e1d8; border-radius: 14px;
             padding: 10px 14px 12px; margin-bottom: 8px;
         }
         .emp-family-card-head { display: flex; align-items: baseline; gap: 12px; }
@@ -4116,8 +4116,8 @@
         .emp-family-card table.fm-subtable td,
         .emp-family-card .fm-subrow {
             background: #fff;
-            border: 1px solid #94a3b8;
-            border-radius: 4px;
+            border: 1px solid #e2ddd3;
+            border-radius: 9px;
             padding: 5px 10px;
         }
         .emp-family-card table.fm-subtable {
@@ -4181,7 +4181,7 @@
         .ma-grid .ma-input,
         .ma-grid .ma-select,
         .ma-grid .ma-textarea {
-            background: #fff; border: 1px solid #94a3b8; border-radius: 4px;
+            background: #fff; border: 1px solid #e2ddd3; border-radius: 9px;
             padding: 4px 9px; min-height: 27px;
             font-size: 13px; color: #0f172a; font-weight: 500;
             font-family: inherit; outline: none;
@@ -4205,7 +4205,7 @@
         .ma-field-label .opt { color: #94a3b8; font-weight: 500; text-transform: none; letter-spacing: 0; }
         /* Card-Wrapper analog .emp-field-grid */
         .ma-grid   { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px 10px;
-                     background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 4px;
+                     background: #f6f3ee; border: 1px solid #e7e1d8; border-radius: 14px;
                      padding: 9px 12px 11px; margin-bottom: 6px; }
         .ma-grid.cols-1 { grid-template-columns: 1fr; }
         .ma-grid.cols-2 { grid-template-columns: 1fr 1fr; }
@@ -5547,6 +5547,17 @@
                             <div class="emp-list-search">
                                 <input class="emp-search-input" id="empSearch" type="text" data-i18n-placeholder="ma.search" placeholder="Suchen..." oninput="filterEmployeeList()">
                             </div>
+                            <!-- Neuer MA kommt NUR noch aus easy@work (Walter-Vorgabe 08.07.2026):
+                                 zuerst dort anlegen, dann hier importieren. Öffnet ein Modal mit dem
+                                 eingeschränkten Einzelimport (nur NEUE MA + Updates aktiver MA;
+                                 inaktive werden nie angefasst). Für alle HR-Rollen sichtbar. -->
+                            <div class="liquid-role-el" data-liquid-roles="admin,superuser,user,buchhaltung" style="padding:0 12px 6px">
+                                <button type="button" onclick="empImportFromEasy()"
+                                        title="Neuen MA zuerst in easy@work anlegen — dieser Knopf holt ihn dann per Stammdaten-Sync ins System"
+                                        style="width:100%;padding:7px 10px;font-size:11.5px;font-weight:600;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:8px;cursor:pointer">
+                                    ＋ Neuer MA aus easy@work
+                                </button>
+                            </div>
                             <div style="display:flex;gap:0;padding:0 12px 6px">
                                 <button id="empFilterAktiv"   onclick="setEmpFilter('aktiv')" data-i18n="ma.filter.active"
                                     style="flex:1;padding:6px 8px;font-size:11.5px;font-weight:600;background:#3f3f3f;color:white;border:none;border-radius:6px 0 0 6px;cursor:pointer">Aktive</button>
@@ -5609,7 +5620,7 @@
                     <p class="page-sub">Persönliche Anlässe per Einmal-Link ohne Login — nur für Mitarbeitende mit aktiver Moments-Freigabe.</p>
                 </div>
                     <button onclick="momMgmtOpen()" title="Texte verwalten"
-                            style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 12px 6px 6px;cursor:pointer;color:#0f172a;font-weight:600;font-size:13px">
+                            style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 12px 6px 6px;cursor:pointer;color:#0f172a;font-weight:600;font-size:13px;margin-top:58px">
                         <img src="img/moments-icon.png?v=20260630c" alt="" style="width:34px;height:34px;object-fit:contain;mix-blend-mode:multiply">
                         Texte verwalten
                     </button>
@@ -5693,7 +5704,7 @@
                                 <div style="height:8px"></div>
                                 Texte pflegst du oben rechts über <strong>Texte verwalten</strong>. Administrative/sensible Mitteilungen laufen über den <strong>Postfach</strong>-Bereich (Posteingang).
                                 <div style="margin-top:12px;padding:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:12px">
-                                    ⚙ Der SMS-Versand wird verdrahtet, sobald der SMS-Anbieter feststeht — die Vorschau funktioniert schon.
+                                    📲 Die SMS geht beim Senden direkt über eCall an die Mobilnummer des MA. Solange in den Systemeinstellungen → SMS (eCall) eine <strong>Test-Umleitung</strong> hinterlegt ist, gehen alle SMS an die Test-Nummer.
                                 </div>
                             </div>
                         </div>
@@ -5733,11 +5744,12 @@
                                 <div id="momTextForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px">
                                     <input type="hidden" id="momTextId">
                                     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-                                        <div><label class="f-label">Moment-Typ</label><select id="momTextType" class="f-input" style="min-width:200px"></select></div>
+                                        <div><label class="f-label">Moment-Typ</label><select id="momTextType" class="f-input" style="min-width:200px" onchange="momTextTypeChanged()"></select></div>
                                         <div><label class="f-label">Emotionsgrad</label><select id="momTextTone" class="f-input" style="min-width:170px"></select></div>
                                         <div style="flex:1;min-width:200px"><label class="f-label">Titel / Betreff</label><input id="momTextTitel" class="f-input" placeholder="z.B. Herzlichen Glückwunsch"></div>
                                     </div>
                                     <label class="f-label">SMS-Kurztext <span style="font-weight:400;color:#94a3b8">(optional)</span></label>
+                                    <div id="momTextVertragHint" style="display:none;font-size:12px;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;margin-bottom:8px">Arbeitsvertrag-Link: verfügbare Platzhalter im SMS-Text: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Link}</b> · <b>{GueltigBis}</b></div>
                                     <textarea id="momTextSms" class="f-input" rows="2" maxlength="160" style="margin-bottom:10px;resize:vertical" placeholder="z.B. Du hast eine neue Nachricht. Tippe auf den Link:"></textarea>
                                     <label class="f-label">Mitteilung <span style="font-weight:400;color:#94a3b8">(beginnt mit {Briefanrede}; Platzhalter: {Briefanrede} · {Years} nur Jubiläum · {SenderName})</span></label>
                                     <textarea id="momTextBody" class="f-input" rows="6" style="margin-bottom:10px;resize:vertical" placeholder="{Briefanrede}&#10;…"></textarea>
@@ -6640,6 +6652,13 @@
                         <div class="admin-card-title">E-Mail-Versand</div>
                         <div class="admin-card-desc">SMTP-Konfiguration + Test-Mail (Lohnzettel-Benachrichtigungen)</div>
                     </div>
+                    <div class="admin-card" onclick="showPage('ecall')">
+                        <div class="admin-card-icon" style="background:#e5e0d8;color:#3f3f3f">
+                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H8l-4 4V6c0-1.1.9-2 2-2z"/></svg>
+                        </div>
+                        <div class="admin-card-title">SMS (eCall)</div>
+                        <div class="admin-card-desc">eCall-Zugangsdaten (F24 Schweiz) + Test-SMS</div>
+                    </div>
                 </div>
             </div>
 
@@ -6789,6 +6808,7 @@
                             <li style="color:#94a3b8;font-size:11.5px;margin-top:6px">Weitere Kontroll-Listen folgen (abgelaufene Bewilligungen, fehlende AHV-Nr., …).</li>
                         </ul>
                     </div>
+
 
                     <!-- Card „Lohnlauf" entfernt (Walter-Vorgabe 18.05.2026):
                          Sammel-Aktionen (Vorab-PDF, DTA) sind jetzt direkt im
@@ -7027,25 +7047,29 @@
                         </ul>
                     </div>
 
-                    <div class="hr-card">
+                    <!-- Altersstruktur-Report lebt UNTER dieser Karte (Walter-Vorgabe
+                         08.07.2026: kein neuer Menüpunkt im HR — Klick öffnet den
+                         Report; weitere Reports kommen später hier dazu). -->
+                    <div class="hr-card liquid-role-el" data-liquid-roles="admin,superuser,buchhaltung" style="opacity:1;cursor:pointer" onclick="showPage('alter-report')">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#cffafe;color:#0e7490">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                             </div>
                             <div>
                                 <div class="hr-card-title" data-i18n="hr.card.reporting">Auswertungen / Reporting</div>
-                                <div class="hr-card-status" data-i18n="hr.status.planned">In Planung</div>
+                                <div class="hr-card-status" style="color:#15803d">1. Report verfügbar → öffnen</div>
                             </div>
                         </div>
                         <ul>
+                            <li><b>Altersstruktur</b> alle Filialen, namentlich (&lt;16 / &lt;18 / &lt;30 / &lt;45 / &lt;50 / 50+ / Pension) <span style="color:#15803d">✓ verfügbar</span></li>
                             <li><b>Personalbestand</b>: FTE / Headcount pro Filiale</li>
-                            <li>Verteilung Vertragstyp (FIX / MTP / UTP)</li>
+                            <li>Verteilung Vertragstyp (FIX / MTP / FLEX)</li>
                             <li><b>Fluktuationsrate</b> Quartal/Jahr, Verbleibedauer</li>
                             <li>Eintritte / Austritte pro Monat (Trendlinie)</li>
                             <li>Krankheits-Quote pro Filiale</li>
                             <li>Ferien-Saldo Übersicht (rote Flags)</li>
                             <li>Überstunden-Übersicht</li>
-                            <li>Demografie (Alter, Nationalität, Sprache)</li>
+                            <li>Demografie (Nationalität, Sprache)</li>
                             <li>Termine: Geburtstage / Jubiläen / Probezeit-Ende / Bewilligungen</li>
                             <li>Compliance: überfällige Schulungen, L-GAV-Verstösse</li>
                         </ul>
@@ -7865,7 +7889,7 @@
                                 <div class="sv-field" data-saldo="feriengeld">
                                     <label>Ferien-Geld-Saldo <span class="sv-unit">(CHF)</span></label>
                                     <input id="svFerienGeldSaldo" type="number" step="0.05" placeholder="0.00">
-                                    <div class="sv-hint">UTP / MTP</div>
+                                    <div class="sv-hint">FLEX / MTP</div>
                                 </div>
                                 <div class="sv-field" data-saldo="dreizehnter">
                                     <label>13. Monatslohn-Saldo <span class="sv-unit">(CHF)</span></label>
@@ -7875,7 +7899,7 @@
                             </div>
 
                             <div style="margin-top:18px;padding:12px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#854d0e;line-height:1.5">
-                                💡 <b>Hervorgehobene Felder</b> sind für diesen Vertragstyp relevant. Ausgegraute Felder werden bei diesem Modell normalerweise nicht geführt (z.B. UTP zahlt Feiertag/13. ML monatlich aus → keine Saldi).
+                                💡 <b>Hervorgehobene Felder</b> sind für diesen Vertragstyp relevant. Ausgegraute Felder werden bei diesem Modell normalerweise nicht geführt (z.B. FLEX zahlt Feiertag/13. ML monatlich aus → keine Saldi).
                             </div>
                         </div>
 
@@ -8365,7 +8389,7 @@
                             <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gilt für Vertragstyp</label>
                             <select id="svEmploymentModel" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
                                 <option value="">Alle Vertragstypen</option>
-                                <option value="UTP">UTP – Stundenlohn</option>
+                                <option value="FLEX">FLEX – Stundenlohn</option>
                                 <option value="MTP">MTP – Garantierte Stunden</option>
                                 <option value="FIX">FIX – Festlohn</option>
                                 <option value="FIX-M">FIX-M – Kader / Management</option>
@@ -8510,7 +8534,7 @@
                             <select id="kpKstFilter" onchange="kpRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
                                 <option value="">alle</option>
                                 <option value="100">100 Crew Fix (MTP/FIX)</option>
-                                <option value="200">200 Crew Flex (UTP)</option>
+                                <option value="200">200 Crew Flex (FLEX)</option>
                                 <option value="300">300 Management</option>
                                 <option value="400">400 Gerant</option>
                             </select>
@@ -8637,7 +8661,7 @@
                     <div style="margin-top:24px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px">
                         <h3 style="margin:0 0 6px;font-size:15px;color:#92400e">⚠ Einmaliger Tief-Import (alle Filialen, ab 2021)</h3>
                         <p style="color:#92400e;font-size:13px;margin:0 0 12px;line-height:1.5">
-                            Holt <strong>für ALLE Filialen</strong> die inaktiven Mitarbeiter zurück bis <strong>1.1.2021</strong> ins System, damit anschliessend deren Stempelzeiten importiert werden können.
+                            Holt <strong>für ALLE Filialen</strong> die inaktiven Mitarbeiter zurück bis <strong>1.1.2021</strong> ins System — <strong>nur Stammdaten, KEINE Verträge</strong> (Zweck: Dokumentenverwaltung + Stempelzeiten-Zuordnung).
                             Pre-Mirus-Austritte (Austritt vor dem 1.1.2025) bekommen automatisch das Suffix <code>alt</code> an der Personalnummer (z.&nbsp;B. <code>58001</code> → <code>58001alt</code>), um Nummern­kollisionen zu vermeiden.
                             Läuft <strong>ohne Vorschau direkt durch</strong> (Upsert — bestehende MA werden nicht doppelt angelegt).
                         </p>
@@ -8673,8 +8697,8 @@
                         <div id="eawBatchResult" style="margin-top:12px"></div>
                     </div>
 
-                    <h3 style="margin:30px 0 8px;font-size:15px">Auto-Sync-Protokoll</h3>
-                    <p style="color:#64748b;font-size:13px;margin-bottom:10px">Läufe des automatischen täglichen Stempelzeiten-Sync (05:00 Europe/Zurich). Pro Filiale und Lauf eine Zeile — so siehst du, ob alles durchgelaufen ist, ohne aufs Server-Log zu schauen.</p>
+                    <h3 style="margin:30px 0 8px;font-size:15px">Sync-Protokoll</h3>
+                    <p style="color:#64748b;font-size:13px;margin-bottom:10px">Alle Sync-Läufe: automatischer täglicher Stempelzeiten-Sync (05:00 Europe/Zurich) UND manuelle Mitarbeiter-Sync-Commits (Zeilen mit „MA-Sync…" — BLOCKIERT = nichts geschrieben, z.B. wegen Personalnummern-Kollision). Pro Filiale und Lauf eine Zeile —so siehst du, ob alles durchgelaufen ist, ohne aufs Server-Log zu schauen.</p>
                     <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
                         <button class="btn-secondary" onclick="eawLogLoad()">↻ Aktualisieren</button>
                         <span style="color:#94a3b8;font-size:12px">neueste zuerst, max. 100 Einträge · Aufbewahrung 90 Tage</span>
@@ -8739,6 +8763,21 @@
                     <div id="ferResult"></div>
                 </div>
             </div>
+            <!-- ═══ ALTERSSTRUKTUR alle Filialen (Walter-Vorgabe 08.07.2026) ═══ -->
+            <div class="page" id="page-alter-report">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Altersstruktur — alle Filialen</h1>
+                    <p class="page-sub">Alterskategorien: unter 16, 16–17, 18–29, 30–44, 45–49, 50 und älter sowie alle mit AHV-Pension in einem Jahr oder weniger — namentlich, ausser 18–29 und 30–44 (nur Anzahl). Filialen als Spalten, jeder aktive Mitarbeiter mit laufendem Vertrag erscheint genau einmal; unten das Total pro Filiale.</p>
+                </div></div>
+                <div class="page-body">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+                        <button class="btn-primary" onclick="alterLoad()">🔄 Aktualisieren</button>
+                        <button onclick="alterPdf()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(60,55,48,0.18)">📄 PDF (A4 hoch)</button>
+                        <span style="font-size:12px;color:#8b8b8b">Stichtag = heute · immer über alle Filialen (unabhängig vom Sidebar-Filter)</span>
+                    </div>
+                    <div id="alterResult"></div>
+                </div>
+            </div>
             <!-- ═══ AUDIT-LOG (Walter-Vorgabe 27.05.2026, admin-only) ═══ -->
             <div class="page" id="page-audit-log">
                 <div class="page-head"><div>
@@ -8748,30 +8787,30 @@
                 <div class="page-body">
                     <!-- Filter-Block (sticky) -->
                     <div class="sticky-section-head" style="padding:10px 0;margin-bottom:8px">
-                        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:7px 10px;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px">
+                        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px">
                             <div class="ma-field">
                                 <div class="ma-field-label">Von</div>
-                                <input type="date" id="alFrom" class="ma-input" onchange="alLoad()" style="background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                                <input type="date" id="alFrom" class="ma-input" onchange="alLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
                             </div>
                             <div class="ma-field">
                                 <div class="ma-field-label">Bis</div>
-                                <input type="date" id="alTo" class="ma-input" onchange="alLoad()" style="background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                                <input type="date" id="alTo" class="ma-input" onchange="alLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
                             </div>
                             <div class="ma-field">
                                 <div class="ma-field-label">User</div>
-                                <select id="alUserSel" class="ma-select" onchange="alLoad()" style="background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                                <select id="alUserSel" class="ma-select" onchange="alLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
                                     <option value="">– alle User –</option>
                                 </select>
                             </div>
                             <div class="ma-field">
                                 <div class="ma-field-label">Entität</div>
-                                <select id="alEntitySel" class="ma-select" onchange="alLoad()" style="background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                                <select id="alEntitySel" class="ma-select" onchange="alLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
                                     <option value="">– alle Entitäten –</option>
                                 </select>
                             </div>
                             <div class="ma-field">
                                 <div class="ma-field-label">Aktion</div>
-                                <select id="alActionSel" class="ma-select" onchange="alLoad()" style="background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                                <select id="alActionSel" class="ma-select" onchange="alLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
                                     <option value="">– alle –</option>
                                     <option value="CREATE">CREATE</option>
                                     <option value="UPDATE">UPDATE</option>
@@ -8780,11 +8819,11 @@
                             </div>
                             <div class="ma-field" style="grid-column:span 2">
                                 <div class="ma-field-label">Volltext (User-Name, Route, Änderungs-JSON)</div>
-                                <input type="text" id="alSearch" placeholder="z.B. 580003, hourly_rate, Lohnabtretung…" onkeyup="if(event.key==='Enter')alLoad()" style="background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                                <input type="text" id="alSearch" placeholder="z.B. 580003, hourly_rate, Lohnabtretung…" onkeyup="if(event.key==='Enter')alLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
                             </div>
                             <div class="ma-field">
                                 <div class="ma-field-label">Max. Einträge</div>
-                                <select id="alLimit" onchange="alLoad()" style="background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                                <select id="alLimit" onchange="alLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
                                     <option value="100">100</option>
                                     <option value="200" selected>200</option>
                                     <option value="500">500</option>
@@ -9104,7 +9143,7 @@
                 <!-- Info-Box -->
                 <div style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:#6b6152">
                     <strong>Hinweis:</strong> Bei <strong>FIX/MTP</strong> wirkt die <em>Zeitgutschrift</em> (Stunden werden zu den Sollstunden addiert).
-                    Bei <strong>UTP</strong> wirkt der separate Schalter <em>UTP — als Stundenlohn auszahlen</em>: nur Absenz-Typen mit gesetztem Flag (z.B. Nacht-Kompensation, Schulung) bekommen die Stunden als Lohn ausbezahlt.
+                    Bei <strong>FLEX</strong> wirkt der separate Schalter <em>FLEX — als Stundenlohn auszahlen</em>: nur Absenz-Typen mit gesetztem Flag (z.B. Nacht-Kompensation, Schulung) bekommen die Stunden als Lohn ausbezahlt.
                     <span style="display:block;margin-top:4px;color:#6b7280">
                         <strong>1/5</strong> = Wochenstunden ÷ 5 pro Arbeitstag &nbsp;·&nbsp;
                         <strong>1/7</strong> = Wochenstunden ÷ 7 pro Kalendertag
@@ -9119,7 +9158,7 @@
                             <th style="text-align:center">Zeitgutschrift</th>
                             <th style="text-align:center">Modus</th>
                             <th style="text-align:center" title="Basis für 1/5- und 1/7-Rechnung">Basis</th>
-                            <th style="text-align:center" title="Bei UTP als Stundenlohn auszahlen">UTP Ausz.</th>
+                            <th style="text-align:center" title="Bei FLEX als Stundenlohn auszahlen">FLEX Ausz.</th>
                             <th style="text-align:center" title="Verlängert die Probezeit um die Absenztage, wenn die Absenz in der Probezeit liegt">Verl. Probezeit</th>
                             <th style="text-align:center" title="Welcher Saldo wird reduziert">Reduziert</th>
                             <th style="text-align:center">Sort</th>
@@ -9206,8 +9245,8 @@
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:14px">
                             <input type="checkbox" id="atUtpAuszahlung">
                             <span>
-                                <span style="font-weight:500">UTP — als Stundenlohn auszahlen</span>
-                                <span style="color:#64748b;font-size:12px;display:block">Bei UTP-Mitarbeitenden werden die Absenz-Stunden wie normal gearbeitete Stunden vergütet (z.B. Nacht-Kompensation).</span>
+                                <span style="font-weight:500">FLEX — als Stundenlohn auszahlen</span>
+                                <span style="color:#64748b;font-size:12px;display:block">Bei FLEX-Mitarbeitenden werden die Absenz-Stunden wie normal gearbeitete Stunden vergütet (z.B. Nacht-Kompensation).</span>
                             </span>
                         </label>
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:14px">
@@ -9389,6 +9428,85 @@
                         <button class="btn btn-primary" onclick="smtpSendTest()" id="smtpTestBtn">Test-Mail senden</button>
                     </div>
                     <div id="smtpTestResult" style="margin-top:14px"></div>
+                </div>
+            </div>
+
+            <!-- ═══════════════ SMS (eCall) — F24 Schweiz REST ═══════════════ -->
+            <div class="page liquid-mask" id="page-ecall">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">SMS (eCall)</h1>
+                        <p class="page-sub">Zugangsdaten für den SMS-Versand über eCall (F24 Schweiz) und Test-Versand.</p>
+                    </div>
+                </div>
+
+                <div id="ecallAlert" style="margin-bottom:14px"></div>
+
+                <div class="card" style="padding:20px;max-width:640px;background:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.62);box-shadow:0 4px 18px rgba(60,55,48,0.14)">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+                        <input id="ecallEnabled" type="checkbox"
+                               style="width:18px;height:18px;cursor:pointer">
+                        <label for="ecallEnabled" style="font-size:13.5px;font-weight:600;color:#3f3f3f;cursor:pointer">
+                            SMS-Versand über eCall aktiv
+                        </label>
+                    </div>
+
+                    <div style="display:grid;gap:14px">
+                        <div>
+                            <label style="font-size:12.5px;font-weight:600;color:#646464;display:block;margin-bottom:4px">API-Benutzer</label>
+                            <input id="ecallUsername" type="text" placeholder="eCall API-Benutzername" autocomplete="off"
+                                   style="width:100%;padding:9px 11px;border:1px solid rgba(139,139,139,0.4);border-radius:8px;font-size:13.5px;background:rgba(255,255,255,0.7)">
+                        </div>
+                        <div>
+                            <label style="font-size:12.5px;font-weight:600;color:#646464;display:block;margin-bottom:4px">
+                                API-Passwort
+                                <span id="ecallPwState" style="font-weight:500;color:#8b8b8b;font-size:11.5px;margin-left:6px"></span>
+                            </label>
+                            <input id="ecallPassword" type="password" placeholder="leer lassen = unverändert" autocomplete="new-password"
+                                   style="width:100%;padding:9px 11px;border:1px solid rgba(139,139,139,0.4);border-radius:8px;font-size:13.5px;background:rgba(255,255,255,0.7)">
+                            <div style="font-size:11.5px;color:#8b8b8b;margin-top:3px">
+                                Wird AES-verschlüsselt in der Datenbank abgelegt.
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:12.5px;font-weight:600;color:#646464;display:block;margin-bottom:4px">Absender</label>
+                            <input id="ecallSender" type="text" placeholder="z.B. OneCrew"
+                                   style="width:100%;padding:9px 11px;border:1px solid rgba(139,139,139,0.4);border-radius:8px;font-size:13.5px;background:rgba(255,255,255,0.7)">
+                            <div style="font-size:11.5px;color:#8b8b8b;margin-top:3px">
+                                Bis 16 numerisch ODER bis 11 alphanumerisch (z.B. «OneCrew»).
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:12.5px;font-weight:600;color:#646464;display:block;margin-bottom:4px">
+                                Test-Umleitung (optional) <span style="font-weight:500;color:#8b8b8b">— alle SMS an diese Nummer</span>
+                            </label>
+                            <input id="ecallTestRedirect" type="text" placeholder="z.B. +41 79 123 45 67 — leer = Echtbetrieb" autocomplete="off"
+                                   style="width:100%;padding:9px 11px;border:1px solid rgba(139,139,139,0.4);border-radius:8px;font-size:13.5px;background:rgba(255,255,255,0.7)">
+                            <div style="font-size:11.5px;color:#8b8b8b;margin-top:3px">
+                                Solange dieses Feld gefüllt ist, gehen alle SMS an die Test-Nummer statt an MA.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(139,139,139,0.25);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <button onclick="ecallSave()" id="ecallSaveBtn"
+                                style="padding:10px 20px;border:none;border-radius:12px;background:#3f3f3f;color:#fff;cursor:pointer;font-size:13.5px;font-weight:600">Speichern</button>
+                        <button type="button" onclick="ecallLoad()"
+                                style="padding:10px 18px;border:1px solid rgba(255,255,255,0.62);border-radius:12px;background:rgba(255,255,255,0.5);cursor:pointer;font-size:13px;color:#646464">
+                            Verwerfen / Neu laden
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card" style="padding:20px;max-width:640px;margin-top:16px;background:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.62);box-shadow:0 4px 18px rgba(60,55,48,0.14)">
+                    <div style="font-size:14.5px;font-weight:700;color:#3f3f3f;margin-bottom:8px">Test-SMS senden</div>
+                    <div style="font-size:12.5px;color:#646464;margin-bottom:14px">
+                        Sendet mit den <strong>gespeicherten</strong> Zugangsdaten eine kurze Test-SMS an eine
+                        von dir eingegebene Nummer. Speichere die Konfig zuerst.
+                    </div>
+                    <button onclick="ecallSendTest()" id="ecallTestBtn"
+                            style="padding:10px 20px;border:none;border-radius:12px;background:#3f3f3f;color:#fff;cursor:pointer;font-size:13.5px;font-weight:600">Test-SMS senden</button>
+                    <div id="ecallTestResult" style="margin-top:14px"></div>
                 </div>
             </div>
 
@@ -9726,7 +9844,7 @@
                         <b>Erwartete Datei:</b> Mirus „Rückstellungsliste Saldomethode" als .xls — Kostenstellen-Gruppen (z.B. „100 Crew Fix", „200 Crew Flex", „300 Management") mit MA-Zeilen.<br>
                         <b>Spalten:</b> <code>G</code> = 13. MLohn CHF (Vortrag-Code 906) · <code>K</code> = Ferien-Geld CHF (905) · <code>M</code> = Stunden in CHF (IGNORIERT — kommt aus der Saldiübersicht in Stunden).<br>
                         <b>Match:</b> Token-basiert auf Vor-/Nachname unter den MA der Sidebar-Filiale; bei Unklarheit oder fehlendem Match wird der MA manuell wählbar.<br>
-                        <b>Wirkung:</b> Idempotent — bestehende Vortrag-Einträge derselben MA (905/906) werden überschrieben, nicht doppelt angelegt. Andere Vortrag-Codes (901–904, 907) bleiben unberührt. Vertragsmodell-Filter: 905 nur UTP/MTP, 906 nur MTP/FIX/FIX-M.
+                        <b>Wirkung:</b> Idempotent — bestehende Vortrag-Einträge derselben MA (905/906) werden überschrieben, nicht doppelt angelegt. Andere Vortrag-Codes (901–904, 907) bleiben unberührt. Vertragsmodell-Filter: 905 nur FLEX/MTP, 906 nur MTP/FIX/FIX-M.
                     </div>
                 </div>
                 </div><!-- /.sticky-page-head -->
@@ -9770,7 +9888,7 @@
                         <b>Erwartete Datei:</b> Mirus „Monatsblatt" (JasperReports-XLS) mit MA-Blöcken (Header „Personalnummer:" → Name + Nr) und Summary-Block je MA mit Zeilen „Überstunden" + „Zeitzuschlag" und Saldo in Spalte 64 (Excel: BL).<br>
                         <b>Werte:</b> Dezimalstunden (Mirus-Konvention 1/100, kein hh:mm).<br>
                         <b>Match:</b> per <b>Personalnummer</b> direkt — robust, kein Namen-Vergleich.<br>
-                        <b>Wirkung:</b> Idempotent — Vortrag 901 (Stunden) + 904 (Nacht) werden überschrieben. Codes 902/903/905/906 bleiben unangetastet. Vertragsmodell-Filter: 901+904 nur MTP/FIX/FIX-M (UTP führt keinen Stunden-/Nacht-Saldo).
+                        <b>Wirkung:</b> Idempotent — Vortrag 901 (Stunden) + 904 (Nacht) werden überschrieben. Codes 902/903/905/906 bleiben unangetastet. Vertragsmodell-Filter: 901+904 nur MTP/FIX/FIX-M (FLEX führt keinen Stunden-/Nacht-Saldo).
                     </div>
                 </div>
                 </div><!-- /.sticky-page-head -->
@@ -9894,7 +10012,7 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Akonto-Lohn-Lauf</h1>
-                        <p class="page-sub">Vorauszahlung Mitte Monat — pro MA berechnet aus Stempelzeiten (UTP/MTP) bzw. % vom Monatslohn (FIX/FIX-M), mit SV-/BVG-Schätzung und Pfändungs-Cap.</p>
+                        <p class="page-sub">Vorauszahlung Mitte Monat — pro MA berechnet aus Stempelzeiten (FLEX/MTP) bzw. % vom Monatslohn (FIX/FIX-M), mit SV-/BVG-Schätzung und Pfändungs-Cap.</p>
                     </div>
                 </div>
                 <div id="akAlert" style="margin-bottom:12px"></div>
@@ -10084,7 +10202,7 @@
                         <div style="font-size:13px;color:#0f172a">
                             <b>Voll-Migration (einmalig bei Filial-Umstellung)</b>
                             <div style="font-size:11.5px;color:#64748b;margin-top:2px">
-                                Importiert ALLE Zeilen — auch ohne Bis-Datum (= aktive MA). <b>Aktiv</b> = Bis leer ODER Bis ≥ heute. Inaktiv sonst. Vertragsmodell wird automatisch gesetzt: <code>Fix</code>+Manager → <b>FIX-M</b>, <code>Fix</code> sonst → <b>FIX</b>, <code>MTP/TPM</code>+Stunden/Woche → <b>MTP</b>, alles andere → <b>UTP</b>. Lohn/Pensum aus CSV-Spalten Tarifsatz, Salary, Anzahl. Nutze diesen Modus nur einmalig pro Filiale.
+                                Importiert ALLE Zeilen — auch ohne Bis-Datum (= aktive MA). <b>Aktiv</b> = Bis leer ODER Bis ≥ heute. Inaktiv sonst. Vertragsmodell wird automatisch gesetzt: <code>Fix</code>+Manager → <b>FIX-M</b>, <code>Fix</code> sonst → <b>FIX</b>, <code>MTP/TPM</code>+Stunden/Woche → <b>MTP</b>, alles andere → <b>FLEX</b>. Lohn/Pensum aus CSV-Spalten Tarifsatz, Salary, Anzahl. Nutze diesen Modus nur einmalig pro Filiale.
                             </div>
                         </div>
                     </label>
@@ -11115,7 +11233,7 @@
             </div>
             <div style="font-size:12px;color:#475569;line-height:1.6;background:#f8fafc;padding:10px 14px;border-radius:8px">
                 <b>FIX / FIX-M / MTP:</b> Auszahlung im gewählten Monat = Saldo + aktueller Monatsanteil. Saldo wird auf 0 gesetzt.<br>
-                <b>UTP:</b> immer monatlich, unabhängig von dieser Einstellung.
+                <b>FLEX:</b> immer monatlich, unabhängig von dieser Einstellung.
             </div>
         </div>
         <div style="padding:16px 24px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:10px">
@@ -11138,7 +11256,7 @@
                 Im Dezember-Lohnlauf das gesamte Ferien-Geld-Saldo automatisch auszahlen
             </label>
             <p style="font-size:12px;color:#94a3b8;margin:0;line-height:1.5">
-                Gilt für UTP- und MTP-Mitarbeitende. Es wird automatisch eine Lohnzeile <b>Ferien-Geld-Auszahlung (Jahresende)</b> mit dem aktuellen Saldo erzeugt; das Saldo geht auf 0. FIX/FIX-M sind nicht betroffen (Ferien sind im Monatslohn enthalten). Bei Austritt mid-year weiterhin manuelle Buchung über die 195.3-Zulage.
+                Gilt für FLEX- und MTP-Mitarbeitende. Es wird automatisch eine Lohnzeile <b>Ferien-Geld-Auszahlung (Jahresende)</b> mit dem aktuellen Saldo erzeugt; das Saldo geht auf 0. FIX/FIX-M sind nicht betroffen (Ferien sind im Monatslohn enthalten). Bei Austritt mid-year weiterhin manuelle Buchung über die 195.3-Zulage.
             </p>
         </div>
         <div style="padding:16px 24px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:10px">
@@ -11278,7 +11396,7 @@
                 <br>• <b>FIX / FIX-M</b> → voller Beitrag
                 <br>• <b>MTP</b> bei > 50% Pensum UND > 6 Monate Anstellung → voller Beitrag
                 <br>• <b>MTP</b> sonst → reduzierter Beitrag
-                <br>• <b>UTP</b> → reduzierter Beitrag
+                <br>• <b>FLEX</b> → reduzierter Beitrag
                 <br>Neue MA die nach dem Trigger-Monat eintreten, bekommen den Abzug in ihrer ersten Lohnperiode.
             </p>
         </div>
@@ -11602,6 +11720,72 @@
 // STATE
 // ══════════════════════════════════════════════
 let currentUser = null;
+
+// ── Vertragsmodell-ANZEIGE (Walter-Vorgabe 08.07.2026) ──────────────────
+// Nur die Anzeige: intern (DB, API, Engine, CSS-Klassen) heisst das Modell
+// weiterhin «UTP» — dem Benutzer zeigen wir überall «FLEX» (der Begriff aus
+// easy@work). Bei neuen Anzeige-Stellen IMMER modelDisplay(model) rendern,
+// nie den rohen Code.
+function modelDisplay(m) {
+    return m === 'UTP' ? 'FLEX' : (m || '');
+}
+
+// ── CHF-Beträge immer mit 2 Nachkommastellen anzeigen (Walter 08.07.2026) ──
+// Gilt für alle <input type="number" step="0.01"> (= CHF-/Betragsfelder).
+// WICHTIG: es wird nur AUFGEFÜLLT (20.4 → 20.40, 150 → 150.00), NIE gerundet —
+// Werte mit mehr als 2 Dezimalstellen (z.B. SV-Satz 1.635) bleiben unberührt.
+// Greift beim Verlassen des Feldes UND periodisch für programmatisch gefüllte
+// Felder (Modal-Befüllung via JS löst kein Event aus).
+function chfPadValue(el) {
+    if (!el || el === document.activeElement) return;
+    const v = (el.value || '').trim();
+    if (!v) return;
+    const n = parseFloat(String(v).replace(',', '.'));
+    if (isNaN(n)) return;
+    if (Math.abs(n - Math.round(n * 100) / 100) > 1e-9) return; // >2 Dezimalen → nicht anfassen
+    const f = n.toFixed(2);
+    if (el.value !== f) el.value = f;
+}
+document.addEventListener('focusout', (e) => {
+    const el = e.target;
+    if (el && el.matches && el.matches('input[type="number"][step="0.01"]')) {
+        setTimeout(() => chfPadValue(el), 0);
+    }
+}, true);
+// SOFORT-Formatierung bei programmatischer Befüllung (Modal-Öffnung setzt
+// .value per JS — dafür den nativen value-Setter abfangen, kein sichtbares
+// Nachspringen mehr). Direkt desc.set → keine Rekursion.
+(function () {
+    const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    if (!desc || !desc.set) return;
+    Object.defineProperty(HTMLInputElement.prototype, 'value', {
+        configurable: true,
+        get: desc.get,
+        set(v) {
+            desc.set.call(this, v);
+            if (this.type === 'number' && this.getAttribute('step') === '0.01'
+                && this !== document.activeElement) {
+                const s = (desc.get.call(this) || '').trim();
+                if (s) {
+                    const n = parseFloat(s.replace(',', '.'));
+                    if (!isNaN(n) && Math.abs(n - Math.round(n * 100) / 100) < 1e-9) {
+                        const f = n.toFixed(2);
+                        if (s !== f) desc.set.call(this, f);
+                    }
+                }
+            }
+        }
+    });
+})();
+// Inline gerendertes HTML (value="…" im Template-String) sofort beim
+// Einfügen ins DOM formatieren.
+new MutationObserver((muts) => {
+    for (const m of muts) for (const node of m.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        if (node.matches && node.matches('input[type="number"][step="0.01"]')) chfPadValue(node);
+        if (node.querySelectorAll) node.querySelectorAll('input[type="number"][step="0.01"]').forEach(chfPadValue);
+    }
+}).observe(document.body, { childList: true, subtree: true });
 let authToken = localStorage.getItem('hrToken');
 let allBranches = [];
 let editingUserId = null;
@@ -12069,7 +12253,7 @@ document.addEventListener('click', (event) => {
 
 function syncLiquidDashboardCards() {
     const role = currentUser?.role || '';
-    document.querySelectorAll('.liquid-module-card[data-liquid-roles], .liquid-employee-nav-btn[data-liquid-roles]').forEach(card => {
+    document.querySelectorAll('.liquid-module-card[data-liquid-roles], .liquid-employee-nav-btn[data-liquid-roles], .liquid-role-el[data-liquid-roles]').forEach(card => {
         const roles = (card.dataset.liquidRoles || '').split(',').map(r => r.trim()).filter(Boolean);
         card.hidden = roles.length > 0 && !roles.includes(role);
     });
@@ -12382,7 +12566,7 @@ function roleName(r) {
 const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne','kontoplan','warnungen',
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
-                         'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','smtp-settings','filial-onboarding','postfach-backfill',
+                         'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','smtp-settings','ecall','filial-onboarding','postfach-backfill',
                          'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
@@ -12477,7 +12661,9 @@ function showPage(name) {
     if (name === 'perioden') initPeriodenPage();
     if (name === 'sollstunden') sollInit();
     if (name === 'ferien') ferienInit();
+    if (name === 'alter-report') alterInit();
     if (name === 'smtp-settings') smtpLoad();
+    if (name === 'ecall') ecallLoad();
     if (name === 'lse-export')   lseInit();
 }
 
@@ -12626,43 +12812,44 @@ function onBranchChange() {
 <script src="js/saldo-vortrag-import-stunden.js?v=20260704p"></script>
 <script src="js/roster-absence-import.js?v=20260704p"></script>
 <script src="js/absence-report.js?v=20260704p"></script>
-<script src="js/akonto-lauf.js?v=20260704p"></script>
-<script src="js/akonto-workflow.js?v=20260704p"></script>
+<script src="js/akonto-lauf.js?v=20260708flex"></script>
+<script src="js/akonto-workflow.js?v=20260708flex"></script>
 <script src="js/dok-audit.js?v=20260704p"></script>
-<script src="js/branches-detail.js?v=20260704p"></script>
+<script src="js/branches-detail.js?v=20260708flex"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260704p"></script>
 <script src="js/users.js?v=20260704p"></script>
-<script src="js/contracts-page.js?v=20260704p"></script>
+<script src="js/contracts-page.js?v=20260708flex"></script>
 <script src="js/documents.js?v=20260704p"></script>
 <script src="js/dvelop-import.js?v=20260704p"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
-<script src="js/archive-import.js?v=20260704p"></script>
-<script src="js/dok-struktur.js?v=20260704p"></script>
-<script src="js/moments.js?v=20260704p"></script>
+<script src="js/archive-import.js?v=20260708flex"></script>
+<script src="js/dok-struktur.js?v=20260708flex"></script>
+<script src="js/moments.js?v=20260707b"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260704p"></script>
-<script src="js/contracts-edit.js?v=20260704p"></script>
-<script src="js/payroll.js?v=20260704p"></script>
+<script src="js/contracts-edit.js?v=20260708flex"></script>
+<script src="js/payroll.js?v=20260708flex"></script>
 <script src="js/fibu.js?v=20260704p"></script>
 <script src="js/payroll-perioden.js?v=20260704p"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260704p"></script>
+<script src="js/admin-settings.js?v=20260708flex"></script>
 <script src="js/pregnancy-rules.js?v=20260704p"></script>
-<script src="js/minimum-wages.js?v=20260704p"></script>
+<script src="js/minimum-wages.js?v=20260708flex"></script>
 <script src="js/kontoplan.js?v=20260704p"></script>
 <script src="js/warning-config.js?v=20260706a"></script>
-<script src="js/easyatwork.js?v=20260705a"></script>
+<script src="js/easyatwork.js?v=20260708b"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
-<script src="js/sollstunden-report.js?v=20260704p"></script>
-<script src="js/ferien-report.js?v=20260704p"></script>
+<script src="js/sollstunden-report.js?v=20260708flex"></script>
+<script src="js/ferien-report.js?v=20260708flex"></script>
+<script src="js/alters-report.js?v=20260708h"></script>
 <script src="js/audit-log.js?v=20260704p"></script>
 <script src="js/global-search.js?v=20260704p"></script>
-<script src="js/help-panel.js?v=20260704p"></script>
+<script src="js/help-panel.js?v=20260707a"></script>
 <script src="js/lohn-edit-lock.js?v=20260704p"></script>
-<script src="js/i18n.js?v=20260704p"></script>
+<script src="js/i18n.js?v=20260708flex"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">
     <div class="family-modal-box">
@@ -12790,7 +12977,7 @@ function onBranchChange() {
                 </label>
                 <div id="fmAddrAltBox" style="display:none;padding-left:24px">
                     <div style="display:flex;gap:8px;align-items:center">
-                        <select id="fmAlternativeAddressId" style="flex:1;background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;font-size:13px;min-height:27px;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                        <select id="fmAlternativeAddressId" style="flex:1;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;font-size:13px;min-height:27px;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
                             <option value="" data-i18n="fam.addr.choose">— Adresse wählen —</option>
                         </select>
                         <button type="button" onclick="openEmployeeAddressModalFromFamily()"
@@ -12932,7 +13119,7 @@ function onBranchChange() {
     </div>
 </div>
 
-<script src="employees.js?v=20260706a"></script>
+<script src="employees.js?v=20260708flex"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -13206,7 +13393,7 @@ function onBranchChange() {
             </div>
 
             <!-- Punktlandungs-Vorschau: Saldi & Restzeit -->
-            <div id="terminateSummary" style="display:none;margin-top:10px;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:10px 12px">
+            <div id="terminateSummary" style="display:none;margin-top:10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:10px 12px">
                 <div style="font-size:10.5px;font-weight:800;color:#5a5348;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;padding:4px 0 4px 10px;border-left:4px solid #1a1a1a;background:linear-gradient(to right,#ece9e2 0%,#f6f3ee 60%,transparent 90%);border-radius:3px 3px 0 0" data-i18n="austritt.preview.title">📊 Austritts-Vorschau (Punktlandung)</div>
                 <div id="terminateSummaryBody" style="font-size:12px;color:#334155"></div>
             </div>
@@ -13257,7 +13444,7 @@ function onBranchChange() {
     <div style="padding:12px 20px" id="qstFormWrap">
 
         <div class="emp-section-title">Gültigkeit &amp; Berechnung</div>
-        <div class="qst-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px;margin-bottom:6px">
+        <div class="qst-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
             <div>
                 <label class="qst-lbl">Gültig ab *</label>
                 <input type="date" id="qstValidFrom" class="qst-inp">
@@ -13355,7 +13542,7 @@ function onBranchChange() {
         </div>
 
         <div class="emp-section-title">Partner</div>
-        <div style="display:grid;grid-template-columns:2fr 1fr 2fr;gap:7px 10px;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px;margin-bottom:6px;align-items:end">
+        <div style="display:grid;grid-template-columns:2fr 1fr 2fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
             <div style="background:#f8fafc;border-radius:5px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;height:30px">
                 <span style="color:#64748b;font-weight:600">Partner:</span>
                 <span id="qstPartnerName" style="color:#1e293b">–</span>
@@ -13386,7 +13573,7 @@ function onBranchChange() {
         </div>
 
         <div class="emp-section-title">Zusätzliche Angaben</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px;margin-bottom:6px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
             <div>
                 <label class="qst-lbl">Halbfamilie</label>
                 <select id="qstHalbfamilie" class="qst-inp">
@@ -13409,7 +13596,7 @@ function onBranchChange() {
             </div>
         </div>
         <!-- Weitere Beschäftigungen — Toggle + Felder kompakt in 1 Zeile -->
-        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:7px 10px;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px;margin-bottom:6px;align-items:end">
+        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
             <label class="qst-cb" style="padding-bottom:6px;white-space:nowrap">
                 <input type="checkbox" id="qstWeitere" onchange="toggleQstWeitere()">
                 Weitere Beschäftigungen
@@ -13428,7 +13615,7 @@ function onBranchChange() {
             <span>Tarif-relevante Stammdaten</span>
             <span style="font-weight:400;font-size:10px;color:#64748b;letter-spacing:0;text-transform:none">leer = weder Ja noch Nein auf dem Anmeldeformular</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px 10px;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px;margin-bottom:6px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
             <label class="qst-cb"><input type="checkbox" id="qstLivesInKonkubinat"> Konkubinat</label>
             <label class="qst-cb"><input type="checkbox" id="qstHasJointParentalCare"> Gemeinsame elterl. Sorge</label>
             <label class="qst-cb"><input type="checkbox" id="qstPaysAlimonyAdultChildren"> Unterhalt volljährige Kinder</label>
@@ -13451,10 +13638,10 @@ function onBranchChange() {
 /* QST-Modal: kompakte Inputs + Labels im MA-Maske-Stil
    (Walter-Vorgabe 27.05.2026): weisse Wert-Boxen mit border #94a3b8 + Schatten. */
 #qstModal .qst-lbl   { font-size:9.5px;font-weight:700;color:#475569;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em;padding-left:2px;line-height:1.2 }
-#qstModal .qst-inp   { width:100%;background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;min-height:27px;font-size:13px;color:#0f172a;font-weight:500;font-family:inherit;outline:none;box-shadow:0 1px 2px rgba(15,23,42,0.08);box-sizing:border-box;transition:border-color .12s,box-shadow .12s }
+#qstModal .qst-inp   { width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;color:#0f172a;font-weight:500;font-family:inherit;outline:none;box-shadow:0 1px 2px rgba(15,23,42,0.08);box-sizing:border-box;transition:border-color .12s,box-shadow .12s }
 #qstModal .qst-inp:hover { border-color:#1a1a1a;box-shadow:0 2px 4px rgba(60,55,48,0.15) }
 #qstModal .qst-inp:focus { border-color:#1a1a1a;box-shadow:0 0 0 3px rgba(60,55,48,.15) }
-#qstModal .qst-cb    { display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:#0f172a;white-space:nowrap;background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;min-height:27px;box-shadow:0 1px 2px rgba(15,23,42,0.08) }
+#qstModal .qst-cb    { display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:#0f172a;white-space:nowrap;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;box-shadow:0 1px 2px rgba(15,23,42,0.08) }
 #qstModal .qst-cb input[type=checkbox] { width:14px;height:14px;margin:0 }
 </style>
 
@@ -13478,7 +13665,7 @@ function onBranchChange() {
             <input type="hidden" id="ceEmployeeId">
 
             <div class="emp-section-title" data-i18n="vt.modal.section.basics">Vertragsgrundlagen</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px;margin-bottom:6px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
                 <div>
                     <label class="ce-lbl" data-i18n="vt.modal.field.startDate">Vertragsbeginn *</label>
                     <input type="date" id="ceStartDate" class="ce-inp" onchange="checkCeMinimumWage()">
@@ -13486,7 +13673,7 @@ function onBranchChange() {
                 <div>
                     <label class="ce-lbl" data-i18n="vt.modal.field.model">Vertragsmodell *</label>
                     <select id="ceEmploymentModel" class="ce-inp" onchange="onCeModelChange()">
-                        <option value="UTP" data-i18n="vt.modal.modelUtp">UTP – Stundenlohn Teilzeit</option>
+                        <option value="FLEX" data-i18n="vt.modal.modelUtp">FLEX – Stundenlohn (flexibel)</option>
                         <option value="MTP" data-i18n="vt.modal.modelMtp">MTP – Mindest-Teilzeitpensum</option>
                         <option value="FIX" data-i18n="vt.modal.modelFix">FIX – Festpensum</option>
                         <option value="FIX-M" data-i18n="vt.modal.modelFixM">FIX-M – Management</option>
@@ -13522,7 +13709,7 @@ function onBranchChange() {
 
             <!-- Qualifikation & Mindestlohn — ZUERST Ausbildung + Funktion, damit Mindestlohn vor der Lohn-Eingabe sichtbar ist -->
             <div class="emp-section-title" data-i18n="vt.modal.section.qualif">Qualifikation &amp; Mindestlohn</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px;margin-bottom:6px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
                 <div>
                     <label class="ce-lbl" data-i18n="vt.modal.field.eduLevel">Gastronomische Ausbildung *</label>
                     <select id="ceEducationLevel" class="ce-inp" onchange="checkCeMinimumWage()">
@@ -13540,7 +13727,7 @@ function onBranchChange() {
 
             <!-- Lohn -->
             <div class="emp-section-title" data-i18n="vt.modal.section.salary">Lohn &amp; Pensum</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:4px;padding:9px 12px 11px;margin-bottom:6px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
                 <div id="ceHourlyWrap">
                     <label class="ce-lbl" data-i18n="vt.modal.field.hourly">Stundenlohn (CHF)</label>
                     <input type="number" id="ceHourlyRate" class="ce-inp" step="0.01" oninput="checkCeMinimumWage()">
@@ -13551,7 +13738,7 @@ function onBranchChange() {
                 </div>
                 <div id="ceMonthlyWrap" style="display:none">
                     <label class="ce-lbl" data-i18n="vt.modal.field.monthlyAtPensum">Monatslohn (Pensum)</label>
-                    <input type="number" id="ceMonthlySalary" class="ce-inp" step="0.01" readonly style="background:#f8fafc;color:#64748b">
+                    <input type="number" id="ceMonthlySalary" class="ce-inp" step="0.01" readonly style="background:#faf8f5;color:#8b8b8b">
                 </div>
                 <div id="cePensumWrap" style="display:none">
                     <label class="ce-lbl" data-i18n="vt.modal.field.pensumPct">Pensum (%)</label>
@@ -13565,7 +13752,7 @@ function onBranchChange() {
                     <label class="ce-lbl" data-i18n="vt.modal.field.guarHours">Garantierte h/Woche</label>
                     <input type="number" id="ceGuaranteedHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
                 </div>
-                <div style="grid-column:span 4;display:flex;align-items:center;gap:8px;margin-top:2px;background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:6px 8px">
+                <div style="grid-column:span 4;display:flex;align-items:center;gap:8px;margin-top:2px;background:#fdf1ee;border:1px solid #ecc8bf;border-radius:9px;padding:6px 10px">
                     <input type="checkbox" id="ceEasyAtWorkManualOverride" style="width:16px;height:16px;accent-color:#dc2626">
                     <label for="ceEasyAtWorkManualOverride" style="font-size:12px;color:#b91c1c;font-weight:700;cursor:pointer">
                         easy@work Block – lokal nicht überschreiben
@@ -13589,12 +13776,26 @@ function onBranchChange() {
     </div>
 </div>
 <style>
-/* Walter-Vorgabe 27.05.2026: ce-lbl/ce-inp im MA-Maske-Stil — weisse Wert-Box
-   mit border #94a3b8 + Schatten, blauer Hover/Focus. */
+/* Walter-Vorgabe 08.07.2026: Vertrags-Modal im modernen Familie-Modal-Look
+   (Liquid Glass) — warme Off-White-Karten (#f6f3ee, Rand #e7e1d8, Radius 14),
+   weisse Inputs mit warmem Rand statt Blau-Grau. Logik/IDs unverändert. */
 #contractEditModal .ce-lbl { font-size:9.5px;font-weight:700;color:#475569;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em;padding-left:2px;line-height:1.2 }
-#contractEditModal .ce-inp { width:100%;background:#fff;border:1px solid #94a3b8;border-radius:4px;padding:4px 9px;min-height:27px;font-size:13px;color:#0f172a;font-weight:500;font-family:inherit;outline:none;box-shadow:0 1px 2px rgba(15,23,42,0.08);box-sizing:border-box;transition:border-color .12s,box-shadow .12s }
-#contractEditModal .ce-inp:hover { border-color:#1a1a1a;box-shadow:0 2px 4px rgba(60,55,48,0.15) }
-#contractEditModal .ce-inp:focus { border-color:#1a1a1a;box-shadow:0 0 0 3px rgba(60,55,48,.15) }
+#contractEditModal .ce-inp { width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;color:#0f172a;font-weight:500;font-family:inherit;outline:none;box-shadow:0 1px 2px rgba(60,55,48,0.08);box-sizing:border-box;transition:border-color .12s,box-shadow .12s }
+#contractEditModal .ce-inp:hover { border-color:#c9bfb0;box-shadow:0 2px 4px rgba(60,55,48,0.12) }
+#contractEditModal .ce-inp:focus { border-color:#c9bfb0;box-shadow:0 0 0 3px rgba(180,165,140,.14) }
+/* Sektions-Titel wie im Familie-Modal: ruhig, ohne Balken/Grossbuchstaben */
+#contractEditModal .emp-section-title {
+    background: transparent !important;
+    border-left: none !important;
+    border-radius: 0 !important;
+    color: #364152 !important;
+    text-transform: none !important;
+    letter-spacing: -.01em !important;
+    font-size: 12px !important;
+    font-weight: 760 !important;
+    padding: 0 0 0 3px !important;
+    margin: 14px 0 5px !important;
+}
 </style>
 
 <div class="modal-bg" id="vtImportModalBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center">
@@ -13629,7 +13830,7 @@ function onBranchChange() {
 <!-- ═══════════════ MODUL-SCRIPTS Block 2 (Phase A) ═══════════════ -->
 <script src="js/posteingang.js?v=20260704p"></script>
 <script src="js/hr-rav.js?v=20260704p"></script>
-<script src="js/hr-saldi-lohnlauf.js?v=20260704p"></script>
+<script src="js/hr-saldi-lohnlauf.js?v=20260708flex"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260704p"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
 <script src="js/kuendigung.js?v=20260704p"></script>
@@ -13644,6 +13845,7 @@ function onBranchChange() {
 <!-- ═══════════════ MODUL-SCRIPTS Block 3 (Phase A) ═══════════════ -->
 <script src="js/keyboard-nav.js?v=20260704p"></script>
 <script src="js/smtp-settings.js?v=20260704p"></script>
+<script src="js/ecall-settings.js?v=20260707b"></script>
 <script src="js/bfs-lse.js?v=20260704p"></script>
 <script>init();</script>
 </body>

@@ -92,6 +92,16 @@ public class EasyAtWorkEmployeeSyncService
         /// UTP-Default angelegt, Zivilstand bleibt leer.
         /// </summary>
         public bool SkipDetailCalls { get; set; } = false;
+
+        /// <summary>
+        /// Tiefenimport-Modus (Walter-Vorgabe 08.07.2026): importiert NUR
+        /// MA-Stammdaten, KEINE Verträge/Bankverbindungen. Zweck des
+        /// Tiefenimports ist ausschliesslich, dass alte MA im System existieren,
+        /// damit ihre Dokumente/Stempelzeiten angehängt werden können. Ersetzt
+        /// die frühere Regel «Vertrags-Historie darf nie übersprungen werden»
+        /// (23.06.2026) für diesen Import-Typ.
+        /// </summary>
+        public bool SkipContracts { get; set; } = false;
     }
 
     public class FieldDiff
@@ -130,6 +140,14 @@ public class EasyAtWorkEmployeeSyncService
         public int?     ReentryNewEawId           { get; set; }   // die NEUE eaw-ID, die als Alias gesichert würde
         /// <summary>„wird angelegt" / „wird nachgeholt" / „existiert" — nur beim Massenimport.</summary>
         public string?  EmploymentInfo            { get; set; }
+
+        /// <summary>
+        /// Wiedereintritts-Duplikat (Walter 08.07.2026): dieselbe Person existiert
+        /// in easy@work mehrfach (alter Datensatz + neuer nach Wiedereintritt) und
+        /// beide matchen denselben Cowork-MA. true = dieser (ältere) Datensatz wird
+        /// beim Commit KOMPLETT übersprungen — massgebend ist nur der neueste.
+        /// </summary>
+        public bool     SupersededDuplicate       { get; set; }
         public int?     AssignedCompanyProfileId  { get; set; }
         public string?  AssignedBranchName        { get; set; }
     }
@@ -231,6 +249,11 @@ public class EasyAtWorkEmployeeSyncService
         public System.Collections.Concurrent.ConcurrentDictionary<int, (string? Marital, string? Ahv, DateOnly? NightWorkFrom, DateOnly? NightWorkTo, DateOnly? SeniorityDate)> Props { get; } = new();
         public System.Collections.Concurrent.ConcurrentDictionary<int, List<string>> Functions { get; } = new();
         public System.Collections.Concurrent.ConcurrentDictionary<int, string?> Iban { get; } = new();
+        // STRICT-Import (Walter 08.07.2026): Verträge + Tarife schon in der
+        // VORSCHAU laden, damit Erfassungsfehler (Lohn fehlt, Überlappung,
+        // Flex/Monat) pro MA als CONFLICT sichtbar sind — nicht erst im Commit.
+        public System.Collections.Concurrent.ConcurrentDictionary<int, List<EawContract>> Contracts { get; } = new();
+        public System.Collections.Concurrent.ConcurrentDictionary<int, List<EawPayRate>>  Rates     { get; } = new();
     }
 
     public async Task<SingleEmployeeSyncResult> SyncSingleCoworkEmployeeAsync(
@@ -467,13 +490,23 @@ public class EasyAtWorkEmployeeSyncService
             var timeline = BuildEmploymentTimeline(contracts, rates, activeAt, isKader);
             var firstAllowed = await _editLock.GetFirstAllowedDateAsync(null, cpId);
 
-            await SyncEmploymentTimelineAsync(_db, emp, cpId, timeline, jgId, jgCode, eaw.To,
-                firstAllowed, result.SkippedContracts, ct);
+            // STRICT (Walter 08.07.2026): überlappende AKTIVE Verträge in easy@work
+            // → KEIN Vertragsimport für diesen MA. Historische Überlappungen egal.
+            var overlapErr = ValidateContractOverlaps(contracts, activeAt);
+            if (overlapErr != null)
+            {
+                result.SkippedContracts.Add(overlapErr);
+            }
+            else
+            {
+                await SyncEmploymentTimelineAsync(_db, emp, cpId, timeline, jgId, jgCode, eaw.To,
+                    firstAllowed, result.SkippedContracts, result.Notes, ct);
 
-            var contractChanged = _db.ChangeTracker.Entries<Employment>()
-                .Any(e => e.State == EntityState.Added || e.State == EntityState.Modified);
-            await _db.SaveChangesAsync(ct);
-            if (contractChanged) result.UpdatedFields.Add("Verträge");
+                var contractChanged = _db.ChangeTracker.Entries<Employment>()
+                    .Any(e => e.State == EntityState.Added || e.State == EntityState.Modified);
+                await _db.SaveChangesAsync(ct);
+                if (contractChanged) result.UpdatedFields.Add("Verträge");
+            }
         }
         catch (Exception ex)
         {
@@ -711,6 +744,16 @@ public class EasyAtWorkEmployeeSyncService
         var natByCode = await _db.Nationalities.AsNoTracking()
             .ToDictionaryAsync(n => (n.Code ?? "").ToUpperInvariant(), n => n.Id, ct);
 
+        // Kader-Funktionsgruppen (is_kader, z.B. REST_MANAGER, ASST_1/2,
+        // SHIFT_LEADER_*) — für die FIX→FIX-M-Erkennung in der Vorschau
+        // (Walter 08.07.2026): Manager-Funktionen sind IMMER FIX-M.
+        var kaderCodes = (await _db.JobGroups.AsNoTracking()
+                .Where(g => g.IsKader && g.Code != null)
+                .Select(g => g.Code!)
+                .ToListAsync(ct))
+            .Select(c => c.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         // PERFORMANCE (Walter-Vorgabe 05.07.2026): die Detail-Daten pro MA
         // (Props/Zivilstand/AHV/Nachtarbeit, Positionen/Funktionen, Fiscal/IBAN)
         // sind 3 easy@work-API-Calls PRO MA. Bisher lief das in BuildMasterDataAsync
@@ -744,6 +787,9 @@ public class EasyAtWorkEmployeeSyncService
                         detailCache.Iban[eaw.Id] = fisc?.Iban?.Replace(" ", "").Trim().ToUpperInvariant();
                     }
                     catch { }
+                    // STRICT: Verträge + Tarife für die Fehlerprüfung in der Vorschau.
+                    try { detailCache.Contracts[eaw.Id] = (await _client.GetContractsAsync(custId0, eaw.Id, ct))?.Data ?? new(); } catch { }
+                    try { detailCache.Rates[eaw.Id]     = (await _client.GetPayRatesAsync(custId0, eaw.Id, ct))?.Data ?? new(); } catch { }
                 }
                 finally { sem.Release(); }
             });
@@ -872,6 +918,59 @@ public class EasyAtWorkEmployeeSyncService
                 diffs.Add(new FieldDiff { Field = "Personalnummer", Cowork = row.NumberChangeFrom, Easy = rawNumber, WillSet = true });
             }
 
+            // Austritt-Diff unterdrücken, wenn der Commit ihn ohnehin verwerfen
+            // würde (Walter 08.07.2026, Endlos-UPDATE-Fix): der Vergangenheits-
+            // Austritt eines ALTEN Filial-Datensatzes gilt NICHT als Personen-
+            // Austritt, solange der MA irgendwo einen offenen Vertrag hat
+            // (Filialwechsel/Wiedereintritt). Der Commit macht genau das (setzt
+            // den Austritt sofort wieder zurück) — die Vorschau muss dieselbe
+            // Regel anwenden, sonst erscheint derselbe MA bei JEDEM Import
+            // erneut als UPDATE, obwohl netto nie etwas ändert.
+            if (co != null && eaw.To.HasValue && eaw.To.Value < activeAt
+                && diffs.Any(d => d.Field == "Austritt" && d.WillSet))
+            {
+                var todayDt = DateTime.Today;
+                bool hasOpenContract = await _db.Employments.AsNoTracking()
+                    .AnyAsync(em => em.EmployeeId == co.Id
+                                 && (em.ContractEndDate == null || em.ContractEndDate >= todayDt), ct);
+                if (hasOpenContract)
+                    diffs.RemoveAll(d => d.Field == "Austritt");
+            }
+
+            // STRICT-Vertragsprüfung (Walter-Vorgabe 08.07.2026): Erfassungsfehler
+            // in den easy@work-Verträgen (Überlappung, offener Alt-Vertrag,
+            // FLEX/MTP mit Stunden pro Monat, fehlender Lohn ausser FIX-M) werden
+            // HART als CONFLICT gezeigt — für diesen MA wird NICHTS importiert,
+            // bis easy@work korrigiert ist. Kein Raten, kein «nächstbester Vertrag».
+            string? vertragsFehler = null;
+            if (!req.SkipDetailCalls)
+            {
+                var vContracts = detailCache.Contracts.TryGetValue(eaw.Id, out var vc) ? vc : new List<EawContract>();
+                var vRates     = detailCache.Rates.TryGetValue(eaw.Id, out var vr) ? vr : new List<EawPayRate>();
+                // Nur Fehler an AKTIVEN/zukünftigen Verträgen melden (Walter
+                // 08.07.2026) — fehlerhafte abgelaufene Verträge werden beim
+                // Import einfach still weggelassen (Historie = altes Lohnprogramm).
+                vertragsFehler = ValidateContractOverlaps(vContracts, activeAt);
+                if (vertragsFehler == null && vContracts.Count > 0)
+                {
+                    bool vKader = detailCache.Functions.TryGetValue(eaw.Id, out var vf)
+                                  && vf.Any(f => kaderCodes.Contains(f.Trim()));
+                    var tlPrev = BuildEmploymentTimeline(vContracts, vRates, activeAt, vKader);
+                    vertragsFehler = tlPrev
+                        .Where(s => !s.End.HasValue || s.End.Value >= activeAt)   // nur aktive/zukünftige Segmente
+                        .Select(s => s.Info.DataError)
+                        .FirstOrDefault(e2 => e2 != null);
+                }
+            }
+
+            if (vertragsFehler != null)
+            {
+                row.Status = "CONFLICT";
+                row.Reason = vertragsFehler;
+                res.Rows.Add(row); res.CountConflict++;
+                continue;
+            }
+
             if (co == null)
             {
                 row.Status = "NEW";
@@ -893,16 +992,62 @@ public class EasyAtWorkEmployeeSyncService
                 res.CountUpdate++;
             }
             else if (co != null && empByIdThisBranch.TryGetValue(co.Id, out var curEmp)
+                     && !(eaw.To.HasValue && eaw.To.Value < activeAt)
                      && EmploymentFixReason(curEmp) is { } fixReason)
             {
-                // Strukturell falscher Vertrag (Walter 23.06.2026): UTP/MTP mit
+                // Strukturell falscher Vertrag (Walter 23.06.2026): FLEX/MTP mit
                 // Pensum %, fehlendem Stundenlohn, MTP ohne garantierte Stunden, oder
                 // FIX/FIX-M ohne Monatslohn. Ohne Feld-Diff wäre der MA UNCHANGED →
-                // der Vertrag würde nie korrigiert. Als UPDATE behandeln. Der
-                // konkrete Grund steht jetzt im Reason (statt Sammel-Text), damit
-                // man pro MA sieht, welches Feld klemmt.
+                // der Vertrag würde nie korrigiert. Als UPDATE behandeln.
+                // NUR für AKTIVE MA (Walter 08.07.2026): bei Ausgetretenen ist der
+                // Vertrag Geschichte — es gibt keine künftigen Lohnläufe, eine
+                // «Korrektur» wäre reines Rauschen im Massenimport («Alle»).
                 row.Status = "UPDATE";
                 row.Reason = $"Vertrag wird korrigiert: {fixReason}.";
+
+                // Konkretes Ziel aus den (bereits geladenen) easy@work-Daten in den
+                // Text — statt eines vagen «wird korrigiert». Fehler-Fälle (Lohn
+                // fehlt, Überlappung, Flex/Monat) sind hier bereits als CONFLICT
+                // abgefangen (STRICT-Prüfung weiter oben).
+                if (!req.SkipDetailCalls
+                    && (fixReason.Contains("Stundenlohn fehlt") || fixReason.Contains("ohne Monatslohn")))
+                {
+                    try
+                    {
+                        var vc2 = detailCache.Contracts.TryGetValue(eaw.Id, out var c2) ? c2 : new List<EawContract>();
+                        var vr2 = detailCache.Rates.TryGetValue(eaw.Id, out var r2) ? r2 : new List<EawPayRate>();
+                        bool vKader2 = detailCache.Functions.TryGetValue(eaw.Id, out var vf2)
+                                       && vf2.Any(f => kaderCodes.Contains(f.Trim()));
+                        var ordered2  = vc2.OrderBy(x => x.From ?? DateOnly.MinValue).ToList();
+                        var currentC2 = ordered2.LastOrDefault(x => (x.From ?? DateOnly.MinValue) <= activeAt) ?? ordered2.FirstOrDefault();
+                        var curInfo   = ComputeContractInfo(currentC2, vr2, activeAt, vKader2);
+                        var zielLohn = curInfo.HourlyRate.HasValue
+                            ? $"Stundenlohn CHF {curInfo.HourlyRate:0.00}"
+                            : curInfo.MonthlySalary.HasValue
+                                ? $"Monatslohn CHF {curInfo.MonthlySalary:0.00}"
+                                : curInfo.MonthlySalaryFte.HasValue
+                                    ? $"Monatslohn CHF {curInfo.MonthlySalaryFte:0.00} (100 %)"
+                                    : "ohne Lohn (FIX-M)";
+                        row.Reason = $"Vertrag wird korrigiert: {fixReason.Split('—')[0].Trim()} — "
+                                   + $"aus easy@work kommt {curInfo.EmploymentModel}, {zielLohn}.";
+                    }
+                    catch { /* nur Anzeige-Komfort — bei Fehler bleibt der Standardtext */ }
+                }
+                res.CountUpdate++;
+            }
+            else if (co != null && !req.SkipDetailCalls
+                     && !(eaw.To.HasValue && eaw.To.Value < activeAt)
+                     && empByIdThisBranch.TryGetValue(co.Id, out var curEmpK)
+                     && curEmpK.EmploymentModel == "FIX"
+                     && detailCache.Functions.TryGetValue(eaw.Id, out var fnsK)
+                     && fnsK.FirstOrDefault(f => kaderCodes.Contains(f.Trim())) is { } kaderFn)
+            {
+                // Kader-Funktion mit FIX-Vertrag (Walter 08.07.2026): Manager-
+                // Funktionen (is_kader) sind IMMER FIX-M. Ohne Feld-Diff wäre der
+                // MA UNCHANGED und die Korrektur liefe nie. Der Lohn bleibt beim
+                // Commit unangetastet (gleiche Monatslohn-Basis).
+                row.Status = "UPDATE";
+                row.Reason = $"Funktion «{kaderFn}» ist Kader/Management → Vertragsmodell wird auf FIX-M korrigiert. Der erfasste Lohn bleibt unverändert.";
                 res.CountUpdate++;
             }
             else
@@ -929,6 +1074,14 @@ public class EasyAtWorkEmployeeSyncService
             row.AssignedBranchName       = assignBranchName;
             if (co == null)
                 row.EmploymentInfo = "wird angelegt";
+            else if (co.IsPayrollExcluded)
+            {
+                // Phantom-MA (Supervisor, Walter-Vorgabe 08.07.2026): ist in JEDER
+                // Filiale in easy@work erfasst, hat aber nirgends Vertrag/Lohn/
+                // Stempel. Der Sync legt für ihn NIE ein Employment an —
+                // Stammdaten-Updates (Adresse, Eintritt …) bleiben erlaubt.
+                row.EmploymentInfo = "MA ohne Lohn — kein Vertrag";
+            }
             else
             {
                 var hasEmp = await _db.Employments
@@ -940,6 +1093,40 @@ public class EasyAtWorkEmployeeSyncService
         res.CountTotal = res.Rows.Count;
         if (hansMusterSkipped > 0)
             res.Notes.Add($"{hansMusterSkipped} Test-Datensatz/-Datensätze „hans muster“ übersprungen (werden nie importiert).");
+
+        // ── Wiedereintritts-Duplikate entschärfen (Walter 08.07.2026) ──────
+        // Dieselbe Person kann in easy@work MEHRFACH existieren: alter Datensatz
+        // (vor dem Wiedereintritt, alte Personalnummer) + neuer Datensatz — beide
+        // matchen denselben Cowork-MA (der alte über die Alt-Nummer). Ohne diesen
+        // Pass würde der ALTE Datensatz veraltete Werte zurückschreiben (z.B. das
+        // frühere Austrittsdatum über den aktuellen Stand). Massgebend ist:
+        // der in easy@work AKTIVE Datensatz, sonst der mit dem jüngsten Eintritt.
+        // Alle übrigen werden markiert und beim Commit komplett übersprungen.
+        {
+            var eawById = eawEmps.ToDictionary(e => e.Id);
+            var dupGroups = res.Rows
+                .Where(r => r.CoworkEmployeeId.HasValue && r.Status != "CONFLICT")
+                .GroupBy(r => r.CoworkEmployeeId!.Value)
+                .Where(g => g.Count() > 1);
+            foreach (var g in dupGroups)
+            {
+                var winner = g
+                    .OrderByDescending(r => eawById.TryGetValue(r.EawEmployeeId, out var e)
+                        && (!e.To.HasValue || e.To.Value >= activeAt) ? 1 : 0)   // aktiv zuerst
+                    .ThenByDescending(r => eawById.TryGetValue(r.EawEmployeeId, out var e2)
+                        ? (e2.From ?? DateOnly.MinValue) : DateOnly.MinValue)    // jüngster Eintritt
+                    .ThenByDescending(r => r.EawEmployeeId)
+                    .First();
+                foreach (var loser in g.Where(r => r != winner))
+                {
+                    loser.SupersededDuplicate = true;
+                    if (loser.Status == "UPDATE") { res.CountUpdate--; res.CountUnchanged++; }
+                    loser.Status = "UNCHANGED";
+                    loser.Reason = $"Älterer easy@work-Datensatz derselben Person (Wiedereintritt) — wird übersprungen; massgebend ist Nr. {winner.Number}.";
+                    loser.Diffs.Clear();
+                }
+            }
+        }
 
         // ── Personalnummer-Kollisionen ERKENNEN (Walter 29.06.2026) ──
         // Nichts überspringen, nichts umbiegen: Würde eine Personalnummer doppelt
@@ -1017,6 +1204,7 @@ public class EasyAtWorkEmployeeSyncService
             if (res.NumberConflicts.Count > 0)
             {
                 res.Blocked = true;
+                await LogEmployeeSyncRunAsync(req, res, ct);
                 return res;
             }
 
@@ -1025,7 +1213,10 @@ public class EasyAtWorkEmployeeSyncService
             // (nur null → Wert) und ohne diese ID lässt sich `edited_by_id` aus
             // Stempel-Audits nicht zum Manager auflösen. Walter 17.06.2026.
             int backfilled = 0;
-            foreach (var row in res.Rows.Where(r => r.CoworkEmployeeId.HasValue))
+            // SupersededDuplicate ausschliessen — sonst würde der ALTE Wieder-
+            // eintritts-Datensatz seine easy@work-ID über die des aktuellen
+            // Datensatzes schreiben (letzter Loop-Durchlauf gewinnt).
+            foreach (var row in res.Rows.Where(r => r.CoworkEmployeeId.HasValue && !r.SupersededDuplicate))
             {
                 var eaw = eawEmps.FirstOrDefault(e => e.Id == row.EawEmployeeId);
                 if (eaw == null) continue;
@@ -1046,12 +1237,61 @@ public class EasyAtWorkEmployeeSyncService
                 res.Notes.Add($"easy@work-ID stillschweigend bei {backfilled} bestehenden MA nachgetragen.");
             }
 
+            // ── Wiedereintritts-Duplikate: alte easy@work-ID + Nummer als Alias
+            // sichern (Walter 08.07.2026). Die Stempelzeiten laufen EINDEUTIG über
+            // die easy@work-ID — der alte Datensatz wird zwar beim Schreiben
+            // übersprungen, aber seine ID muss in easy_at_work_employee_alias auf
+            // den Haupt-MA zeigen, sonst wären dessen Stempel nicht zuordenbar
+            // (gleicher Mechanismus wie 2 Personalnummern in 2 Filialen).
+            {
+                int aliasAdded = 0;
+                foreach (var dup in res.Rows.Where(r => r.SupersededDuplicate && r.CoworkEmployeeId.HasValue))
+                {
+                    var empId = dup.CoworkEmployeeId!.Value;
+                    if (!await _db.EasyAtWorkEmployeeAliases.AnyAsync(
+                            a => a.EmployeeId == empId && a.EasyAtWorkId == dup.EawEmployeeId, ct))
+                    {
+                        _db.EasyAtWorkEmployeeAliases.Add(new EasyAtWorkEmployeeAlias
+                        {
+                            EmployeeId   = empId,
+                            EasyAtWorkId = dup.EawEmployeeId,
+                            Note         = $"Wiedereintritt: alter easy@work-Datensatz (Nr. {dup.Number})",
+                            CreatedAt    = DateTime.UtcNow,
+                        });
+                        aliasAdded++;
+                    }
+                    // Alte Personalnummer ebenfalls als Alias (falls abweichend + neu).
+                    var num = (dup.Number ?? "").Trim();
+                    if (num.Length > 0)
+                    {
+                        var empRow = await _db.Employees.AsNoTracking()
+                            .Where(e => e.Id == empId).Select(e => e.EmployeeNumber).FirstOrDefaultAsync(ct);
+                        if (!string.Equals((empRow ?? "").Trim(), num, StringComparison.OrdinalIgnoreCase)
+                            && !await _db.EmployeeNumberAliases.AnyAsync(a => a.EmployeeId == empId && a.Number == num, ct))
+                        {
+                            _db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
+                            {
+                                EmployeeId = empId, Number = num,
+                                Source = "easyatwork_sync", CreatedAt = DateTime.UtcNow,
+                            });
+                            aliasAdded++;
+                        }
+                    }
+                }
+                if (aliasAdded > 0)
+                {
+                    await _db.SaveChangesAsync(ct);
+                    res.Notes.Add($"Wiedereintritts-Duplikate: {aliasAdded} alte easy@work-ID(s)/Nummer(n) als Alias am Haupt-MA gesichert (Stempel-Zuordnung bleibt intakt).");
+                }
+            }
+
             // Zu schreibende Zeilen: NEW/UPDATE PLUS bereits zugeordnete UNCHANGED-MA
             // (Walter-Vorgabe 23.06.2026). Letztere werden still mit easy@work
             // abgeglichen — sonst bliebe ein einmal falsch angelegter Vertrag (z.B.
             // UTP statt MTP) für immer stehen, weil ohne Feld-Diff niemand ihn anfasst.
             // EnsureEmploymentAsync ist idempotent (Modell führend, Lohn fill-if-empty).
             var rowsToProcess = res.Rows
+                .Where(r => !r.SupersededDuplicate)   // alte Wiedereintritts-Datensätze NIE schreiben (Walter 08.07.2026)
                 .Where(r =>
                     // NEW/UPDATE bleiben selektiv: nur schreiben, wenn ausgewählt
                     // (oder wenn selected=null = "alle"). UNCHANGED-MA mit Cowork-
@@ -1064,19 +1304,24 @@ public class EasyAtWorkEmployeeSyncService
                         : (r.Status == "UNCHANGED" && r.CoworkEmployeeId.HasValue))
                 .ToList();
             var rowsForTimeline = res.Rows
-                .Where(r => r.CoworkEmployeeId.HasValue)
+                .Where(r => r.CoworkEmployeeId.HasValue && !r.SupersededDuplicate
+                            && r.Status != "CONFLICT")   // STRICT: bei Vertrags-Fehlern NICHTS importieren
                 .ToList();
+            // Tiefenimport (Walter-Vorgabe 08.07.2026): NUR Stammdaten, KEINE
+            // Verträge — die Timeline-Arbeit entfällt komplett.
+            if (req.SkipContracts) rowsForTimeline.Clear();
 
             // Detail-Daten (Verträge/Pay-Rates/Zivilstand) PARALLEL vorladen (max. 10
             // gleichzeitig) statt 3 sequenzielle API-Calls pro MA. Diese Calls nutzen
             // NUR den HTTP-Client (nicht den DbContext) → thread-safe. Beim Schnell-
             // Import (SkipDetailCalls) ganz überspringen. Walter-Vorgabe 21.06.2026.
             // Rohe Verträge + Pay-Rates pro MA → daraus baut der zweite Durchgang die
-            // komplette Employment-Timeline (Walter-Vorgabe 23.06.2026).
+            // komplette Employment-Timeline (Walter-Vorgabe 23.06.2026); beim
+            // Tiefenimport (SkipContracts) komplett überflüssig → überspringen.
             var contractsRawByEaw = new ConcurrentDictionary<int, List<EawContract>>();
             var ratesRawByEaw     = new ConcurrentDictionary<int, List<EawPayRate>>();
             var positionByEaw = new ConcurrentDictionary<int, string?>();
-            if (rowsToProcess.Count > 0)
+            if (rowsToProcess.Count > 0 && !req.SkipContracts)
             {
                 using var sem = new SemaphoreSlim(10);
                 // Fortschritt für den asynchronen Hintergrund-Import (Walter 29.06.2026):
@@ -1191,7 +1436,10 @@ public class EasyAtWorkEmployeeSyncService
                         if (existingByEawId.EasyAtWorkEmployeeId != eaw.Id)
                             existingByEawId.EasyAtWorkEmployeeId = eaw.Id;
                         // 3) Employment-Timeline in DIESER Filiale spiegeln (2. Durchgang).
-                        timelineWork.Add((existingByEawId, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw.To));
+                        //    Phantom-MA (Supervisor, IsPayrollExcluded) ausgenommen —
+                        //    für ihn wird NIE ein Vertrag angelegt (Walter 08.07.2026).
+                        if (!existingByEawId.IsPayrollExcluded)
+                            timelineWork.Add((existingByEawId, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw.To));
                         // 3b) Status-Korrektur (Walter-Bug 22.06.2026, Filialwechsel):
                         //     Ist der MA bei uns inaktiv, aber diese easy@work-Anstellung
                         //     hat KEIN Austrittsdatum (oder in der Zukunft), dann ist er in
@@ -1321,8 +1569,13 @@ public class EasyAtWorkEmployeeSyncService
                     // Eintritt neue Filiale → gleiches Datum blieb als Austritt stehen).
                     if (emp.IsActive && !eaw.To.HasValue && emp.ExitDate.HasValue)
                         emp.ExitDate = null;
-                    timelineWork.Add((emp, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw.To));
-                    if (!string.IsNullOrWhiteSpace(master.Iban)) bankWork.Add((emp, master.Iban!));
+                    // Phantom-MA (Supervisor): Stammdaten ja, aber NIE Vertrag/Bank
+                    // anlegen (Walter 08.07.2026).
+                    if (!emp.IsPayrollExcluded)
+                    {
+                        timelineWork.Add((emp, row.EawEmployeeId, jobGroupId, jobGroupCode, isKader, eaw.To));
+                        if (!string.IsNullOrWhiteSpace(master.Iban)) bankWork.Add((emp, master.Iban!));
+                    }
                     // NUR echte UPDATE-Zeilen als „aktualisiert" zählen. UNCHANGED-MA
                     // durchlaufen diesen Zweig nur für die Timeline-/Vertrags-Spiegelung
                     // (leere Auswahl = alle) — sie dürfen die Zahl NICHT hochtreiben,
@@ -1341,6 +1594,7 @@ public class EasyAtWorkEmployeeSyncService
             {
                 var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == row.CoworkEmployeeId, ct);
                 if (emp == null) continue;
+                if (emp.IsPayrollExcluded) continue;   // Phantom-MA: nie ein Vertrag (Walter 08.07.2026)
                 var eaw = eawEmps.FirstOrDefault(e => e.Id == row.EawEmployeeId);
                 var posName = PositionFor(row.EawEmployeeId);
                 int? jobGroupId = null; string? jobGroupCode = null; bool isKader = false;
@@ -1405,6 +1659,9 @@ public class EasyAtWorkEmployeeSyncService
                 if (res.NumberConflicts.Count > 0)
                 {
                     res.Blocked = true;
+                    // WICHTIG: Direkt-INSERT (kein SaveChanges) — die pendenten,
+                    // verworfenen Entity-Änderungen dürfen NICHT mitgespeichert werden.
+                    await LogEmployeeSyncRunAsync(req, res, ct);
                     return res;
                 }
             }
@@ -1413,6 +1670,9 @@ public class EasyAtWorkEmployeeSyncService
             await RevertDuplicateEawIdsAsync(res, ct);
 
             await _db.SaveChangesAsync(ct);
+
+            // Tiefenimport: keine Verträge, keine Bankverbindungen (Walter 08.07.2026).
+            if (req.SkipContracts) { timelineWork.Clear(); bankWork.Clear(); }
 
             // ── Zweiter Durchgang: komplette Employment-Timeline spiegeln (erst JETZT,
             //    wo alle Employee-IDs gespeichert sind → Natural-Key-Upsert greift).
@@ -1427,11 +1687,20 @@ public class EasyAtWorkEmployeeSyncService
                 {
                     var tContracts = ContractsFor(teawId);
                     var tRates     = RatesFor(teawId);
+                    // STRICT (Walter 08.07.2026): überlappende AKTIVE Verträge in
+                    // easy@work → für diesen MA wird KEIN Vertrag importiert.
+                    // Rein historische Überlappungen werden ignoriert.
+                    var overlapErr = ValidateContractOverlaps(tContracts, activeAt);
+                    if (overlapErr != null)
+                    {
+                        res.SkippedContracts.Add($"{temp.FirstName} {temp.LastName} ({temp.EmployeeNumber}): {overlapErr}");
+                        continue;
+                    }
                     var timeline   = BuildEmploymentTimeline(tContracts, tRates, activeAt, tIsKader);
                     _log.LogInformation("easy@work-Sync MA {Num}: contracts={C}, payRates={R}, timeline={T}",
                         temp.EmployeeNumber, tContracts.Count, tRates.Count, timeline.Count);
                     await SyncEmploymentTimelineAsync(_db, temp, req.CompanyProfileId, timeline, tJgId, tJgCode, tEawTo,
-                        firstAllowed, res.SkippedContracts, ct);
+                        firstAllowed, res.SkippedContracts, res.Notes, ct);
                 }
                 foreach (var (bemp, iban) in bankWork)
                     await EnsureBankAccountAsync(bemp, iban, ct);
@@ -1513,6 +1782,10 @@ public class EasyAtWorkEmployeeSyncService
             st.LastRowCount = res.CountInserted + res.CountUpdated;
             st.LastError = null;
             await _db.SaveChangesAsync(ct);
+
+            // Lauf protokollieren (Walter 08.07.2026) — sichtbar im Sync-Log
+            // auf der easy@work-Seite, wie der Stempel-Auto-Sync.
+            await LogEmployeeSyncRunAsync(req, res, ct);
         }
         return res;
     }
@@ -1536,6 +1809,16 @@ public class EasyAtWorkEmployeeSyncService
         public decimal?  GuaranteedHoursPerWeek; // MTP: garantierte Wochenstunden
         public decimal?  EmploymentPercentage;
         public decimal?  HourlyRate;
+
+        /// <summary>
+        /// Erfassungsfehler in easy@work (Walter-Vorgabe 08.07.2026): gesetzt,
+        /// wenn der Vertrag in sich widersprüchlich ist (z.B. Typ Flex/MTP mit
+        /// Stunden pro MONAT — FLEX/MTP haben IMMER Stunden pro Woche). Ein
+        /// Vertrag mit DataError wird NIE importiert (EnsureEmployment +
+        /// Timeline überspringen ihn mit Meldung); Korrektur erfolgt in easy@work.
+        /// </summary>
+        public string?   DataError;
+
         public decimal?  MonthlySalary;
         public decimal?  MonthlySalaryFte;       // FIX/FIX-M: 100%-Lohn
     }
@@ -1609,13 +1892,34 @@ public class EasyAtWorkEmployeeSyncService
             // Leeres amount_type → Contract-Type Fix/Full ⇒ month, sonst week.
             if (string.IsNullOrEmpty(amt))
                 amt = (typ.Contains("FIX") || typ.Contains("FULL")) ? "month" : "week";
-            if (amt.StartsWith("month") || amt.StartsWith("percent")) { info.EmploymentModel = "FIX"; info.SalaryType = "monthly"; }
+
+            // Erfassungsfehler-Validierung (Walter-Vorgabe 08.07.2026): FLEX und
+            // MTP sind Stundenlohn-Modelle mit Stunden PRO WOCHE — «17 h pro
+            // Monat» gibt es nicht. Sagt der easy@work-Typ Flex/MTP, aber die
+            // Vertragsart steht auf Monat/Prozent, ist der Vertrag in easy@work
+            // falsch erfasst → DataError, wird NIE importiert. (Ohne diese
+            // Prüfung wurde z.B. «Flex, 17.00, Monat» still zu FIX klassifiziert,
+            // fand keinen Monatslohn und blieb als Dauer-Hinweis hängen — Fall
+            // Beza 750080.)
+            bool typIstStundenlohn = typ.Contains("FLEX") || typ.Contains("MTP") || typ.Contains("TPM");
+            if (typIstStundenlohn && (amt.StartsWith("month") || amt.StartsWith("percent")))
+            {
+                var anz = c.Amount ?? c.WeekHours;
+                info.DataError = $"Erfassungsfehler in easy@work: Vertragstyp «{c.Type}» (Stundenlohn) "
+                               + $"mit Vertragsart «{c.AmountType}»{(anz.HasValue ? $" ({anz:0.##})" : "")} erfasst — "
+                               + "FLEX/MTP haben IMMER Stunden pro WOCHE. Vertrag wird NICHT importiert; "
+                               + "bitte in easy@work auf «Woche» korrigieren.";
+                // Modell nur für die Anzeige nach Typ setzen — importiert wird nichts.
+                info.EmploymentModel = typ.Contains("FLEX") ? "FLEX" : "MTP";
+                info.SalaryType = "hourly";
+            }
+            else if (amt.StartsWith("month") || amt.StartsWith("percent")) { info.EmploymentModel = "FIX"; info.SalaryType = "monthly"; }
             else
             {
                 var wochenStd = c.Amount ?? c.WeekHours;
                 bool isMtp = typ.Contains("MTP") || typ.Contains("TPM")
                              || (wochenStd.HasValue && wochenStd.Value > 17m);
-                info.EmploymentModel = isMtp ? "MTP" : "UTP";
+                info.EmploymentModel = isMtp ? "MTP" : "FLEX";
                 info.SalaryType = "hourly";
             }
         }
@@ -1660,7 +1964,65 @@ public class EasyAtWorkEmployeeSyncService
             info.EmploymentModel = "FIX-M";
             info.SalaryType      = "monthly";
         }
+
+        // STRICT: Lohn ist PFLICHT (Walter-Vorgabe 08.07.2026) — der Import rät
+        // nie und akzeptiert nie einen Vertrag ohne Lohn. EINZIGE Ausnahme:
+        // FIX-M (Kader/GF) — dort darf der Lohn aus Vertraulichkeit fehlen und
+        // wird direkt im OneCrew-Vertrag erfasst. Platzhalter ≤ CHF 1.00 gilt
+        // als «kein Lohn».
+        if (info.DataError == null && c != null && info.EmploymentModel != "FIX-M")
+        {
+            if ((info.EmploymentModel == "FLEX" || info.EmploymentModel == "MTP") && !info.HourlyRate.HasValue)
+                info.DataError = $"Kein Stundenlohn-Tarif in easy@work erfasst (gültig per {rateDate:dd.MM.yyyy}) — "
+                               + "FLEX/MTP brauchen zwingend einen Stundenlohn. Vertrag wird NICHT importiert; "
+                               + "bitte den Tarif in easy@work erfassen.";
+            else if (info.EmploymentModel == "FIX" && !info.MonthlySalary.HasValue && !info.MonthlySalaryFte.HasValue)
+                info.DataError = $"Kein Monatslohn-Tarif in easy@work erfasst (gültig per {rateDate:dd.MM.yyyy}) — "
+                               + "FIX braucht zwingend einen Monatslohn (nur FIX-M darf ohne Lohn sein). "
+                               + "Vertrag wird NICHT importiert; bitte den Tarif in easy@work erfassen.";
+        }
         return info;
+    }
+
+    /// <summary>
+    /// STRICT-Validierung der easy@work-Verträge eines MA (Walter-Vorgabe
+    /// 08.07.2026): Verträge dürfen sich NICHT überschneiden — auch nicht um
+    /// einen Tag (Ende 1.4. + neuer Beginn 1.4. ist falsch; korrekt wäre Ende
+    /// 31.3.). Ebenso darf es nur EINEN offenen (unbefristeten) Vertrag geben.
+    /// Liefert die Fehlermeldung oder null. Bei Fehler wird für diesen MA
+    /// KEIN Vertrag importiert — Korrektur erfolgt in easy@work.
+    /// </summary>
+    public static string? ValidateContractOverlaps(List<EawContract>? contracts, DateOnly? nurAktiveAb = null)
+    {
+        if (contracts == null || contracts.Count < 2) return null;
+        var ordered = contracts.Where(c => c.From.HasValue)
+            .OrderBy(c => c.From!.Value).ThenBy(c => c.To ?? DateOnly.MaxValue)
+            .ToList();
+        for (int i = 0; i < ordered.Count - 1; i++)
+        {
+            var a = ordered[i];
+            var b = ordered[i + 1];
+            // Nur-Historie-Filter (Walter-Vorgabe 08.07.2026): Überlappungen, die
+            // AUSSCHLIESSLICH abgelaufene Verträge betreffen, werden NICHT gemeldet —
+            // die Historie lebt im alten Lohnprogramm / in den MA-Dokumenten. Gemeldet
+            // wird nur, wenn ein beteiligter Vertrag aktiv/zukünftig ist.
+            if (nurAktiveAb.HasValue)
+            {
+                bool aAktiv = !a.To.HasValue || a.To.Value >= nurAktiveAb.Value;
+                bool bAktiv = !b.To.HasValue || b.To.Value >= nurAktiveAb.Value;
+                if (!aAktiv && !bAktiv) continue;
+            }
+            if (!a.To.HasValue)
+                return $"Erfassungsfehler in easy@work: Vertrag ab {a.From:dd.MM.yyyy} ist OFFEN (kein Bis-Datum), "
+                     + $"aber es existiert ein weiterer Vertrag ab {b.From:dd.MM.yyyy}. "
+                     + "Verträge werden NICHT importiert; bitte den älteren Vertrag in easy@work beenden.";
+            if (a.To.Value >= b.From!.Value)
+                return $"Erfassungsfehler in easy@work: Verträge überschneiden sich — "
+                     + $"«{a.Type}» endet am {a.To:dd.MM.yyyy}, der nächste «{b.Type}» beginnt bereits am {b.From:dd.MM.yyyy}. "
+                     + $"Korrekt wäre: Ende am {b.From.Value.AddDays(-1):dd.MM.yyyy}. "
+                     + "Verträge werden NICHT importiert; bitte in easy@work korrigieren.";
+        }
+        return null;
     }
 
     /// <summary>Ein Segment der easy@work-Employment-Timeline (eine Vertrags-/Lohnperiode).</summary>
@@ -1742,7 +2104,16 @@ public class EasyAtWorkEmployeeSyncService
                 EasyAtWorkContractId = (cAt != null && cAt.Id != 0) ? cAt.Id : (int?)null,
                 EasyAtWorkPayRateId  = (rAt != null && rAt.Id != 0) ? rAt.Id : (int?)null,
                 EasyAtWorkUpdatedAt  = MaxUpdated(cAt?.UpdatedAt, rAt?.UpdatedAt),
-                EasyAtWorkManualOverride = rAt?.Rate.HasValue == true && rAt.Rate.Value <= 1.00m,
+                // ManualOverride = Lohn wird LOKAL in OneCrew gepflegt, easy@work
+                // fasst ihn nie an. Zwei Auslöser:
+                //   a) Platzhalterlohn ≤ 1.00 (bestehende Regel), ODER
+                //   b) GAR KEIN Tarif in easy@work erfasst («Pas de taux») —
+                //      Walter-Vorgabe 08.07.2026: vertrauliche Löhne (z.B. GF)
+                //      stehen bewusst nicht in easy@work; der Lohn wird im
+                //      OneCrew-Vertrag erfasst (inkl. Mindestlohn-Prüfung) und
+                //      darf vom Sync weder geleert noch das Modell gekippt werden.
+                EasyAtWorkManualOverride = rAt == null
+                    || (rAt.Rate.HasValue && rAt.Rate.Value <= 1.00m),
             });
         }
 
@@ -1792,6 +2163,7 @@ public class EasyAtWorkEmployeeSyncService
         AppDbContext db, Employee emp, int companyProfileId, List<EmploymentSegment> timeline,
         int? jobGroupId, string? jobGroupCode, DateOnly? eawTo,
         DateOnly? firstAllowedDate = null, List<string>? skippedContracts = null,
+        List<string>? cleanupNotes = null,
         CancellationToken ct = default)
     {
         if (emp.Id == 0 || timeline == null || timeline.Count == 0) return;
@@ -1807,6 +2179,21 @@ public class EasyAtWorkEmployeeSyncService
             var endDt    = seg.End.HasValue ? seg.End.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null;
             bool active  = !seg.End.HasValue || seg.End.Value >= today;
             var info     = seg.Info;
+
+            // Erfassungsfehler in easy@work (Walter 08.07.2026, z.B. FLEX mit
+            // Stunden pro Monat, fehlender Lohn): Segment wird NIE importiert.
+            // ABGELAUFENE Segmente werden STILL weggelassen (Historie lebt im
+            // alten Lohnprogramm / in den MA-Dokumenten) — nur bei AKTIVEN/
+            // zukünftigen Segmenten gibt es die Meldung. Ein evtl. schon
+            // vorhandener Vertrag bleibt unangetastet (matched → nicht gekappt).
+            if (info.DataError != null)
+            {
+                if (active)
+                    skippedContracts?.Add($"{emp.FirstName} {emp.LastName} ({emp.EmployeeNumber}), Segment ab {seg.Start:dd.MM.yyyy}: {info.DataError}");
+                var already = existingAll.FirstOrDefault(e => !matched.Contains(e) && e.ContractStartDate == startDt);
+                if (already != null) matched.Add(already);
+                continue;
+            }
 
             // Match-Reihenfolge (Walter-Vorgabe 23.06.2026):
             //   1) externe IDs Contract + PayRate (stabilster Schlüssel)
@@ -1851,7 +2238,7 @@ public class EasyAtWorkEmployeeSyncService
                     ContractStartDate    = startDt,
                     ContractEndDate      = endDt,
                     IsActive             = active,
-                    EmploymentModel      = string.IsNullOrWhiteSpace(info.EmploymentModel) ? "UTP"    : info.EmploymentModel!,
+                    EmploymentModel      = string.IsNullOrWhiteSpace(info.EmploymentModel) ? "FLEX"    : info.EmploymentModel!,
                     SalaryType           = string.IsNullOrWhiteSpace(info.SalaryType)      ? "hourly" : info.SalaryType!,
                     ContractType         = info.ContractType,
                     JobGroupId           = jobGroupId,
@@ -1878,6 +2265,32 @@ public class EasyAtWorkEmployeeSyncService
                 existing.EasyAtWorkPayRateId  = seg.EasyAtWorkPayRateId;
                 existing.EasyAtWorkUpdatedAt  = seg.EasyAtWorkUpdatedAt;
                 if (seg.EasyAtWorkManualOverride) existing.EasyAtWorkManualOverride = true;
+                else if (wasManualOverride)
+                {
+                    // Override AUFLÖSEN (Walter 08.07.2026): easy@work liefert für
+                    // dieses Segment jetzt einen ECHTEN Lohn (kein Platzhalter, kein
+                    // fehlender Tarif mehr) — der Sperr-Grund ist weg, easy@work ist
+                    // wieder führend. Ohne diese Auflösung blieben Zeilen, die in der
+                    // Fehl-Import-Ära den Override-Stempel bekamen, FÜR IMMER
+                    // eingefroren (Fall Beza 750080: FIX 1.4.–1.4. statt FLEX offen).
+                    existing.EasyAtWorkManualOverride = false;
+                    wasManualOverride = false;
+                    cleanupNotes?.Add($"{emp.FirstName} {emp.LastName} ({emp.EmployeeNumber}): "
+                        + $"easy@work-Override am Vertrag ab {seg.Start:dd.MM.yyyy} aufgelöst — "
+                        + "easy@work liefert wieder einen echten Lohn und ist führend.");
+                }
+
+                // Kader-Korrektur AUCH bei lokal gepflegtem Lohn (Walter 08.07.2026):
+                // FIX → FIX-M ist eine reine Modell-Umbenennung ohne Wechsel der
+                // Lohnbasis (beide Monatslohn) — der vertraulich in OneCrew erfasste
+                // Lohn bleibt unangetastet. Manager-Funktionen (is_kader, z.B.
+                // REST_MANAGER) sind IMMER FIX-M.
+                if (info.EmploymentModel == "FIX-M" && existing.EmploymentModel == "FIX")
+                {
+                    existing.EmploymentModel = "FIX-M";
+                    existing.SalaryType      = "monthly";
+                    if (jobGroupId != null) { existing.JobGroupId = jobGroupId; existing.JobTitle = jobGroupCode ?? existing.JobTitle; }
+                }
 
                 // Lokaler Override schützt Vertrag UND Lohn vollständig vor
                 // easy@work-Überschreibung. Nur externe IDs/UpdatedAt werden oben
@@ -1919,13 +2332,57 @@ public class EasyAtWorkEmployeeSyncService
             }
         }
 
-        // Überlappende Cowork-Zeilen, die NICHT von der Timeline gematcht wurden,
-        // korrigieren (NICHT löschen): hinten auf den Tag vor dem frühesten
-        // überlappenden Segment kappen. So verschwinden Doppel-/Altzeilen, die
-        // Historie bleibt erhalten.
+        // Überlappende Cowork-Zeilen, die NICHT von der Timeline gematcht wurden:
+        //
+        // AUTO-CLEANUP (Walter-Vorgabe 08.07.2026): sync-erzeugte Vertrags-Leichen
+        // aus früheren (Fehl-)Importen werden GELÖSCHT statt nur gekappt — aber
+        // NUR unter drei strengen Bedingungen:
+        //   1) die Zeile stammt vom easy@work-Sync (EasyAtWorkContractId gesetzt),
+        //   2) sie ist NICHT lokal gepflegt (kein EasyAtWorkManualOverride —
+        //      vertrauliche Löhne bleiben unantastbar),
+        //   3) sie wurde NIE in einem abgeschlossenen Lohnlauf verwendet
+        //      (gleiche Prüfung wie EmploymentsController.CanDelete).
+        // Alles andere wird wie bisher gekappt (Historie bleibt).
         var todayDt = DateTime.Today;
         foreach (var ex in existingAll.Where(e => !matched.Contains(e)))
         {
+            // Override-Zeilen sind grundsätzlich geschützt — AUSSER ihr Zeitraum
+            // ist von der neuen Timeline VOLL abgedeckt (Walter 08.07.2026): dann
+            // ist die Zeile ein redundanter Splitter aus der Fehl-Import-Ära
+            // (der Override wurde damals automatisch gestempelt), kein manuell
+            // gepflegter Vertrag. Nicht abgedeckte Override-Zeilen (z.B. GF-
+            // Verträge, die easy@work gar nicht kennt) bleiben unantastbar.
+            bool zeitraumAbgedeckt = timeline.Any(s =>
+                s.Info.DataError == null
+                && s.Start <= DateOnly.FromDateTime(ex.ContractStartDate)
+                && (!s.End.HasValue || (ex.ContractEndDate.HasValue
+                        && s.End.Value >= DateOnly.FromDateTime(ex.ContractEndDate.Value))));
+            bool syncErzeugt = ex.EasyAtWorkContractId.HasValue
+                               && (!ex.EasyAtWorkManualOverride || zeitraumAbgedeckt);
+            if (syncErzeugt)
+            {
+                var exStart = DateOnly.FromDateTime(ex.ContractStartDate);
+                var exEnd   = ex.ContractEndDate.HasValue
+                    ? (DateOnly?)DateOnly.FromDateTime(ex.ContractEndDate.Value) : null;
+                bool inLohnVerwendet = await (
+                    from snap in db.PayrollSnapshots
+                    join per in db.PayrollPerioden on snap.PayrollPeriodeId equals per.Id
+                    where snap.EmployeeId == emp.Id
+                       && per.Status == "abgeschlossen"
+                       && per.PeriodTo >= exStart
+                       && (exEnd == null || per.PeriodFrom <= exEnd)
+                    select snap.Id).AnyAsync(ct);
+                if (!inLohnVerwendet)
+                {
+                    db.Employments.Remove(ex);
+                    cleanupNotes?.Add($"{emp.FirstName} {emp.LastName} ({emp.EmployeeNumber}): "
+                        + $"veralteter Sync-Vertrag {ex.EmploymentModel} {ex.ContractStartDate:dd.MM.yyyy}"
+                        + $"–{(ex.ContractEndDate.HasValue ? ex.ContractEndDate.Value.ToString("dd.MM.yyyy") : "offen")} "
+                        + "gelöscht (von keinem easy@work-Segment mehr abgedeckt, nie im Lohn verwendet).");
+                    continue;
+                }
+            }
+
             // Übersprungene (geschützte) Segmente NICHT zum Kappen heranziehen,
             // sonst würden vorhandene Zeilen anhand nicht-importierter Segmente
             // gekürzt.
@@ -1980,21 +2437,21 @@ public class EasyAtWorkEmployeeSyncService
     private static string? EmploymentFixReason(Employment e)
     {
         var m = e.EmploymentModel;
-        if (m == "UTP" || m == "MTP")
+        if (m == "FLEX" || m == "MTP")
         {
             if (e.EmploymentPercentage != null) return "Pensum % bei Stundenlohn-Vertrag";
             if (e.HourlyRate == null)           return "Stundenlohn fehlt";
             if (m == "MTP" && e.GuaranteedHoursPerWeek == null) return "garantierte Wochenstunden fehlen (MTP)";
         }
-        else if (m == "FIX" || m == "FIX-M")
+        else if (m == "FIX")
         {
-            // Als Monatslohn-Modell (FIX/FIX-M) erfasst, aber ohne Monatslohn — das
-            // ist meist eine Fehlklassifizierung eines Stundenlohn-MA (Crew → MTP/UTP).
-            // Der Import setzt Modell + Lohn aus easy@work neu (EnsureEmploymentAsync),
-            // korrigiert also z.B. FIX → MTP. Klartext statt „Monatslohn fehlt", damit
-            // es bei einem MTP nicht verwirrt (Walter-Vorgabe 05.07.2026).
+            // Als FIX erfasst, aber ohne Monatslohn — meist eine Fehlklassifizierung.
+            // Der Import korrigiert Modell + Lohn aus easy@work.
+            // FIX-M ist hier bewusst AUSGENOMMEN (Walter-Vorgabe 08.07.2026):
+            // FIX-M ohne Monatslohn ist der legale GF-Fall (vertraulicher Lohn,
+            // wird direkt im OneCrew-Vertrag erfasst) — kein Korrektur-Flag.
             if (e.MonthlySalary == null && e.MonthlySalaryFte == null)
-                return "als Monatslohn-Vertrag (FIX/FIX-M) erfasst, aber ohne Monatslohn — Modell/Lohn wird aus easy@work korrigiert (z.B. auf MTP/Stundenlohn)";
+                return "als Monatslohn-Vertrag (FIX) erfasst, aber ohne Monatslohn — Modell/Lohn wird aus easy@work korrigiert";
         }
         return null;
     }
@@ -2002,6 +2459,10 @@ public class EasyAtWorkEmployeeSyncService
     private async Task EnsureEmploymentAsync(
         Employee emp, EawEmployee eaw, int companyProfileId, bool isNewEmployee, HistContractInfo info, CancellationToken ct)
     {
+        // Erfassungsfehler in easy@work (Walter 08.07.2026, z.B. FLEX mit Stunden
+        // pro Monat): Vertrag wird NIE angelegt/verändert — Korrektur in easy@work.
+        if (info.DataError != null) return;
+
         // UPDATE-MA: existiert schon ein Employment für (MA, Filiale)? Dann NICHT mehr
         // früh raus, sondern leere Felder aus easy@work NACHFÜLLEN (Walter 22.06.2026,
         // fill-if-empty — bestehende, ggf. manuell gepflegte Werte NIE überschreiben).
@@ -2039,7 +2500,27 @@ public class EasyAtWorkEmployeeSyncService
                 // bereits abgerechnete Perioden nicht verändert werden. Walter 23.06.2026.
                 bool istAktuellerVertrag = existing.ContractEndDate == null
                                            || existing.ContractEndDate >= DateTime.Today;
-                if (istAktuellerVertrag && !string.IsNullOrWhiteSpace(info.EmploymentModel))
+
+                // Ausnahmeregelung «vertraulicher Lohn» (Walter-Vorgabe 08.07.2026):
+                // liefert easy@work KEINEN Lohn (kein Tarif erfasst, z.B. GF aus
+                // Vertraulichkeit) und ist der Lohn im OneCrew-Vertrag bereits
+                // erfasst (oder der Vertrag als lokal gepflegt markiert), dann
+                // Modell + Strukturfelder NICHT anfassen — sonst würde z.B. ein
+                // FIX-Vertrag auf MTP gekippt und der manuell erfasste Monatslohn
+                // geleert. Der Lohn wird in OneCrew gepflegt (Mindestlohn-Prüfung
+                // greift dort wie überall).
+                bool eawHatLohn = info.HourlyRate.HasValue || info.MonthlySalary.HasValue || info.MonthlySalaryFte.HasValue;
+                bool coHatLohn  = existing.HourlyRate.HasValue || existing.MonthlySalary.HasValue || existing.MonthlySalaryFte.HasValue;
+                bool lohnLokalGepflegt = !eawHatLohn && (coHatLohn || existing.EasyAtWorkManualOverride);
+
+                // FIX ↔ FIX-M ist trotz lokal gepflegtem Lohn erlaubt (Walter
+                // 08.07.2026): gleiche Monatslohn-Basis, der erfasste Lohn bleibt.
+                // Wichtig für Kader-Funktionen (REST_MANAGER etc.) ⇒ FIX-M.
+                bool monatsZuMonats = (info.EmploymentModel == "FIX" || info.EmploymentModel == "FIX-M")
+                                   && (existing.EmploymentModel == "FIX" || existing.EmploymentModel == "FIX-M");
+
+                if (istAktuellerVertrag && !string.IsNullOrWhiteSpace(info.EmploymentModel)
+                    && (!lohnLokalGepflegt || monatsZuMonats))
                 {
                     existing.EmploymentModel = info.EmploymentModel!;
                     if (!string.IsNullOrWhiteSpace(info.SalaryType)) existing.SalaryType = info.SalaryType!;
@@ -2061,7 +2542,7 @@ public class EasyAtWorkEmployeeSyncService
                 //            (z.B. 40.48 % bei UTP). Walter-Vorgabe 23.06.2026.
                 // Nur am AKTUELLEN Vertrag (historische unangetastet, s.o.).
                 var effModel = existing.EmploymentModel;
-                if (istAktuellerVertrag && (effModel == "UTP" || effModel == "MTP"))
+                if (istAktuellerVertrag && !lohnLokalGepflegt && (effModel == "FLEX" || effModel == "MTP"))
                 {
                     existing.EmploymentPercentage = null;
                     existing.MonthlySalary        = null;
@@ -2071,7 +2552,7 @@ public class EasyAtWorkEmployeeSyncService
                         ? (info.GuaranteedHoursPerWeek ?? existing.GuaranteedHoursPerWeek)
                         : null;
                 }
-                else if (istAktuellerVertrag && (effModel == "FIX" || effModel == "FIX-M"))
+                else if (istAktuellerVertrag && !lohnLokalGepflegt && (effModel == "FIX" || effModel == "FIX-M"))
                 {
                     // Monatslohn: easy@work ist führend → auch eine LOHNÄNDERUNG übernehmen
                     // (nicht nur „if null"). MonthlySalaryFte = 100%-Lohn, MonthlySalary =
@@ -2194,7 +2675,7 @@ public class EasyAtWorkEmployeeSyncService
             ContractStartDate    = futureStart,
             ContractEndDate      = null,
             IsActive             = true,
-            EmploymentModel      = string.IsNullOrWhiteSpace(future.EmploymentModel) ? "UTP"    : future.EmploymentModel!.Trim(),
+            EmploymentModel      = string.IsNullOrWhiteSpace(future.EmploymentModel) ? "FLEX"    : future.EmploymentModel!.Trim(),
             SalaryType           = string.IsNullOrWhiteSpace(future.SalaryType)      ? "hourly" : future.SalaryType!.Trim(),
             ContractType         = future.ContractType,
             JobTitle             = future.JobGroupCode ?? future.JobTitle,
@@ -2304,7 +2785,7 @@ public class EasyAtWorkEmployeeSyncService
             ContractStartDate    = startDate,
             ContractEndDate      = endDate,
             IsActive             = isActive,
-            EmploymentModel      = string.IsNullOrWhiteSpace(employmentModel) ? "UTP"    : employmentModel!.Trim(),
+            EmploymentModel      = string.IsNullOrWhiteSpace(employmentModel) ? "FLEX"    : employmentModel!.Trim(),
             SalaryType           = string.IsNullOrWhiteSpace(salaryType)      ? "hourly" : salaryType!.Trim(),
             ContractType         = contractType,
             JobTitle             = jobTitle,
@@ -2471,6 +2952,41 @@ public class EasyAtWorkEmployeeSyncService
     /// Modified → vorheriger Wert) und gemeldet. Der bestehende rechtmässige
     /// Träger behält die id. So kann keine id mehr auf zwei MA zeigen.
     /// </summary>
+    /// <summary>
+    /// MA-Sync-Lauf ins easyatwork_sync_log protokollieren (Walter 08.07.2026) —
+    /// bisher loggte nur der Stempel-Auto-Sync; manuelle MA-Commits waren nicht
+    /// nachvollziehbar (v.a. BLOCKIERTE Läufe gingen unter). Direkt-INSERT per
+    /// SQL, damit bei einem blockierten Lauf NICHT versehentlich die pendenten
+    /// (verworfenen) Entity-Änderungen mitgespeichert werden.
+    /// </summary>
+    private async Task LogEmployeeSyncRunAsync(SyncRequest req, SyncResult res, CancellationToken ct)
+    {
+        try
+        {
+            var status = res.Blocked ? "BLOCKED" : "OK";
+            var message = res.Blocked
+                ? "MA-Sync BLOCKIERT — nichts geschrieben. " + string.Join(" | ", res.NumberConflicts.Take(2))
+                  + (res.NumberConflicts.Count > 2 ? " …" : "")
+                : $"MA-Sync: {res.CountNew} neu / {res.CountUpdate} Updates in der Vorschau; "
+                  + $"geschrieben: {res.CountInserted} neu, {res.CountUpdated} aktualisiert"
+                  + (res.CountConflict > 0 ? $"; ⚠ {res.CountConflict} CONFLICT(s) übersprungen (Fehler in easy@work)" : "")
+                  + (res.SkippedContracts.Count > 0 ? $"; {res.SkippedContracts.Count} Vertrag/Verträge übersprungen" : "")
+                  + (req.SkipContracts ? " (Tiefenimport: ohne Verträge)" : "")
+                  + (req.SelectedNumbers is { Count: > 0 } ? $" (Auswahl: {req.SelectedNumbers.Count} MA)" : " (alle)");
+            await _db.Database.ExecuteSqlInterpolatedAsync($@"
+                INSERT INTO easyatwork_sync_log
+                    (company_profile_id, run_at, status, used_updates_feed,
+                     inserted, updated, deleted, locked_skipped, skipped, missing_count, message)
+                VALUES ({req.CompanyProfileId}, {DateTime.UtcNow}, {status}, {false},
+                        {res.CountInserted}, {res.CountUpdated}, {0}, {res.SkippedContracts.Count},
+                        {res.CountUnchanged}, {0}, {message})", ct);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "MA-Sync-Log-Eintrag konnte nicht geschrieben werden.");
+        }
+    }
+
     private async Task RevertDuplicateEawIdsAsync(SyncResult res, CancellationToken ct)
     {
         var tracked = _db.ChangeTracker.Entries<Employee>()
@@ -2640,6 +3156,20 @@ public class EasyAtWorkEmployeeSyncService
             .FirstOrDefaultAsync(ct);
     }
 
+    /// <summary>Ortsname für den PLZ-Abgleich normalisieren: Klammer-Zusatz
+    /// («Roggwil (BE)» → «roggwil»), angehängtes Kantonskürzel («Roggwil BE»)
+    /// und Gross-/Kleinschreibung entfernen.</summary>
+    public static string NormalizeCityName(string? s)
+    {
+        var t = (s ?? "").Trim();
+        var i = t.IndexOf('(');
+        if (i > 0) t = t[..i].Trim();
+        var parts = t.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length > 1 && parts[^1].Length == 2 && parts[^1] == parts[^1].ToUpperInvariant())
+            t = string.Join(' ', parts[..^1]);
+        return t.ToLowerInvariant();
+    }
+
     private async Task<(string? City, string? Canton, string? Error)> ResolveSwissLocationAsync(string? plz, string? eawCity, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(plz)) return (null, null, null);
@@ -2651,12 +3181,24 @@ public class EasyAtWorkEmployeeSyncService
         if (locs.Count == 0)
             return (null, null, $"PLZ {p} wurde im Schweizer Ortschaftsverzeichnis nicht gefunden.");
 
+        // 1) exakter Treffer, 2) normalisierter Treffer — das BFS-Verzeichnis führt
+        //    mehrdeutige Orte mit Kanton-Zusatz («Roggwil (BE)»), easy@work liefert
+        //    aber nur «Roggwil» (Walter-Bug 08.07.2026, PLZ 4914 Murgenthal/Roggwil).
         var match = locs.FirstOrDefault(l =>
             string.Equals(l.Gemeindename?.Trim(), eawCity?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (match == null)
+        {
+            var eawNorm = NormalizeCityName(eawCity);
+            if (eawNorm.Length > 0)
+            {
+                var normMatches = locs.Where(l => NormalizeCityName(l.Gemeindename) == eawNorm).ToList();
+                if (normMatches.Count == 1) match = normMatches[0];
+            }
+        }
         if (match == null && locs.Select(l => l.Kantonskuerzel).Distinct().Count() == 1)
             match = locs.OrderBy(l => l.Gemeindename).First();
         if (match == null)
-            return (null, null, $"PLZ {p} ist mehrdeutig und Ort '{eawCity}' konnte nicht zugeordnet werden.");
+            return (null, null, $"PLZ {p} ist mehrdeutig ({string.Join(" / ", locs.Select(l => l.Gemeindename).OrderBy(n => n))}) und Ort '{eawCity}' konnte nicht zugeordnet werden.");
         return (match.Gemeindename, match.Kantonskuerzel, null);
     }
 

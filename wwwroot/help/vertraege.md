@@ -12,7 +12,7 @@ Wenn du oben in der Sidebar eine Filiale gewählt hast, siehst du nur MA dieser 
 
 | Modell | Wer ist das | Lohn-Logik |
 |---|---|---|
-| **UTP** | Aushilfen, flexible Einsätze | Stundenlohn — wer arbeitet, kriegt |
+| **FLEX** *(früher „UTP")* | Aushilfen, flexible Einsätze | Stundenlohn — wer arbeitet, kriegt |
 | **MTP** | Crew mit festem Stunden-Versprechen | Stundenlohn mit garantierten Wochenstunden |
 | **FIX** | Crew mit festem Pensum | Monatslohn (z.B. 80 % von 4'500 = 3'600 CHF) |
 | **FIX-M** | Restaurant-Manager, Shift-Manager | Festlohn ohne Stundenrechnung |
@@ -24,7 +24,7 @@ Wenn du oben in der Sidebar eine Filiale gewählt hast, siehst du nur MA dieser 
 **Im MA-Detail oder in der Vertragsliste oben auf „+ Neuer Vertrag" klicken.** Du wählst:
 
 1. **Vertragsbeginn** — Datum ab dem dieser Vertrag gilt.
-2. **Vertragsmodell** — UTP / MTP / FIX / FIX-M.
+2. **Vertragsmodell** — FLEX / MTP / FIX / FIX-M.
 3. **Funktion** (z.B. Crew, Shift Manager) und **Ausbildung** (z.B. „Ia — ohne Gastronomische Berufslehre"). Daraus rechnet das System sofort den L-GAV-Mindestlohn aus.
 4. **Lohn** — Stundenlohn oder Monatslohn, je nach Modell.
 5. **Pensum** (bei FIX und FIX-M) oder **garantierte Wochenstunden** (bei MTP).
@@ -40,7 +40,7 @@ Klick auf **Speichern** → das System beendet automatisch den Vorgänger-Vertra
 |---|---|
 | Lohn erhöhen | Neuen Vertrag ab dem neuen Datum |
 | Pensum von 60 % auf 80 % | Neuen Vertrag |
-| Vertragsmodell wechseln (z.B. UTP → MTP) | Neuen Vertrag |
+| Vertragsmodell wechseln (z.B. FLEX → MTP) | Neuen Vertrag |
 | Funktion ändern (Crew → Shift Manager) | Neuen Vertrag |
 | Tippfehler in der Stellenbezeichnung | Bestehenden ändern |
 | Probezeit erfasst aber falsch | Bestehenden ändern |
@@ -55,6 +55,33 @@ Während du Lohn und Pensum eingibst, prüft das System **gleichzeitig** gegen d
 - ❌ **Rot** „Mindestlohn unterschritten" — der gewählte Lohn ist zu tief. Du kannst zwar speichern, aber der Lohnlauf wird ihn **blockieren**.
 
 💡 **Filial-Mindestlohn:** In Städten mit eigenem Mindestlohn (z.B. höher als L-GAV) gilt der höhere Wert. Das System nimmt automatisch das Maximum aus L-GAV und Filial-Floor.
+
+## Import-Regeln (Strict-Modus) — easy@work muss sauber sein
+
+Der easy@work-Import **rät nie**. Ist ein **aktiver oder zukünftiger** Vertrag in easy@work fehlerhaft erfasst, erscheint der MA in der Import-Vorschau als roter **CONFLICT** mit Klartext-Meldung — und es wird für ihn **kein Vertrag importiert**, bis easy@work korrigiert ist. Fehlerhafte **abgelaufene** Verträge werden dagegen **still weggelassen** (die Historie liegt im alten Lohnprogramm und in den MA-Dokumenten). Die harten Regeln:
+
+1. **FLEX und MTP haben IMMER Stunden pro WOCHE.** «17 Stunden pro Monat» ist ein Erfassungsfehler → in easy@work die Vertragsart auf «Woche» stellen.
+2. **Der Lohn ist Pflicht.** FLEX/MTP brauchen einen Stundenlohn-Tarif, FIX einen Monatslohn-Tarif — fehlt er (oder steht nur der Platzhalter CHF 1.00), wird der Vertrag nicht importiert. **Einzige Ausnahme: FIX-M** (siehe unten).
+3. **Verträge dürfen sich nicht überschneiden** — auch nicht um einen Tag: endet ein Vertrag am 1.4., darf der nächste **nicht** am 1.4. beginnen (korrekt: Ende 31.3., Beginn 1.4.). Auch ein noch offener Alt-Vertrag mit Folgevertrag ist ein Fehler.
+
+## Vertraulicher Lohn — nur bei FIX-M
+
+Bei Kader/GF (Modell **FIX-M**) darf der Lohn aus Vertraulichkeit in easy@work fehlen («Pas de taux»). Nur dort gilt:
+
+1. Der Sync legt den FIX-M-Vertrag **ohne Lohn** an und markiert ihn als «lokal gepflegt» (easy@work-Override).
+2. **Lohn direkt im OneCrew-Vertrag erfassen** — MA-Detail → Vertrags-Leiste → «Bearbeiten», Mindestlohn-Prüfung greift wie überall.
+3. Der Sync fasst Modell und erfassten Lohn danach **nie** mehr an. Bis der Lohn erfasst ist, sperrt die **«Lohnsumme fehlt»-Sperre** den Lohnlauf.
+
+Liefert easy@work später wieder einen echten Lohn für den Vertrag, löst der Sync den Override automatisch und easy@work ist wieder führend.
+
+## Arbeitsvertrag dem MA aufs Handy schicken
+
+Im **Mitarbeiter-Detail** hat jeder Vertrag in der Vertrags-Leiste die Aktionen **Anschauen · Drucken · SMS · Link ⊘**:
+
+- **SMS** — erzeugt einen persönlichen Link (14 Tage gültig) und schickt ihn nach einer Rückfrage per SMS an die Mobilnummer des MA. Der MA sieht eine neutrale Seite mit Button „Arbeitsvertrag öffnen"; erst der Klick lädt das PDF. Beim erneuten Senden werden alte Links automatisch ungültig.
+- **Link ⊘** — widerruft alle aktiven Links dieses Vertrags sofort (z.B. wenn eine SMS an die falsche Nummer ging).
+
+Details, Sicherheit und Test-Umleitung: [SMS & Vertrags-Link](#sms).
 
 ## Wie verlängere ich einen befristeten Vertrag?
 

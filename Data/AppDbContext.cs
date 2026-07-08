@@ -20,6 +20,10 @@ public class AppDbContext : DbContext
     public DbSet<MomentText> MomentTexts => Set<MomentText>();
     public DbSet<WebAuthnCredential> WebAuthnCredentials => Set<WebAuthnCredential>();
     public DbSet<PostfachSetupToken> PostfachSetupTokens => Set<PostfachSetupToken>();
+    public DbSet<ContractShareToken> ContractShareTokens => Set<ContractShareToken>();
+    public DbSet<SmsLog>             SmsLogs             => Set<SmsLog>();
+    public DbSet<EmployeeAvailability> EmployeeAvailabilities => Set<EmployeeAvailability>();
+    public DbSet<EmployeeAvailabilitySlot> EmployeeAvailabilitySlots => Set<EmployeeAvailabilitySlot>();
     public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
     public DbSet<CompanyProfileBankAccount> CompanyProfileBankAccounts => Set<CompanyProfileBankAccount>();
     public DbSet<EducationLevel> EducationLevels => Set<EducationLevel>();
@@ -77,6 +81,7 @@ public class AppDbContext : DbContext
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
+    public DbSet<EcallSetting>              EcallSettings               => Set<EcallSetting>();
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
     public DbSet<EasyAtWorkBranchMapping>   EasyAtWorkBranchMappings    => Set<EasyAtWorkBranchMapping>();
     public DbSet<EasyAtWorkSyncState>       EasyAtWorkSyncStates        => Set<EasyAtWorkSyncState>();
@@ -355,6 +360,78 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasIndex(e => e.TokenHash).IsUnique();
             entity.HasOne(e => e.AppUser).WithMany().HasForeignKey(e => e.AppUserId);
+        });
+
+        modelBuilder.Entity<ContractShareToken>(entity =>
+        {
+            entity.ToTable("contract_share_token");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.EmploymentId).HasColumnName("employment_id");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UsedAt).HasColumnName("used_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => e.TokenHash).IsUnique();
+        });
+
+        // ── SmsLog — Protokoll aller eCall-SMS-Versandversuche ────────────
+        modelBuilder.Entity<SmsLog>(entity =>
+        {
+            entity.ToTable("sms_log");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Purpose).HasColumnName("purpose");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.ToPhone).HasColumnName("to_phone");
+            entity.Property(e => e.RedirectedTo).HasColumnName("redirected_to");
+            entity.Property(e => e.Ok).HasColumnName("ok");
+            entity.Property(e => e.MessageId).HasColumnName("message_id");
+            entity.Property(e => e.Error).HasColumnName("error");
+            entity.HasIndex(e => new { e.EmployeeId, e.Purpose });
+        });
+
+        modelBuilder.Entity<EmployeeAvailability>(entity =>
+        {
+            entity.ToTable("employee_availability");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Type).HasColumnName("type");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => e.EmployeeId);
+            entity.HasMany(e => e.Slots)
+                  .WithOne(s => s.Availability!)
+                  .HasForeignKey(s => s.AvailabilityId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EmployeeAvailabilitySlot>(entity =>
+        {
+            entity.ToTable("employee_availability_slot");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AvailabilityId).HasColumnName("availability_id");
+            entity.Property(e => e.Von).HasColumnName("von").HasColumnType("time without time zone");
+            entity.Property(e => e.Bis).HasColumnName("bis").HasColumnType("time without time zone");
+            entity.Property(e => e.Mon).HasColumnName("mon");
+            entity.Property(e => e.Tue).HasColumnName("tue");
+            entity.Property(e => e.Wed).HasColumnName("wed");
+            entity.Property(e => e.Thu).HasColumnName("thu");
+            entity.Property(e => e.Fri).HasColumnName("fri");
+            entity.Property(e => e.Sat).HasColumnName("sat");
+            entity.Property(e => e.Sun).HasColumnName("sun");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.HasIndex(e => e.AvailabilityId);
         });
 
         modelBuilder.Entity<EmploymentProbationLog>(entity =>
@@ -1718,6 +1795,21 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SiteUrl).HasColumnName("site_url").HasMaxLength(300);
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+        });
+
+        // ── EcallSetting (Singleton, Id=1) — eCall-SMS-Konfig ─────────────
+        modelBuilder.Entity<EcallSetting>(entity =>
+        {
+            entity.ToTable("ecall_setting");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Enabled).HasColumnName("enabled");
+            entity.Property(e => e.Username).HasColumnName("username");
+            entity.Property(e => e.PasswordEncrypted).HasColumnName("password_encrypted");
+            entity.Property(e => e.Sender).HasColumnName("sender");
+            entity.Property(e => e.TestRedirectTo).HasColumnName("test_redirect_to");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
         });
     }
 }

@@ -177,23 +177,23 @@ public class ComplianceController : ControllerBase
         });
     }
 
-    // Vertragsmodell-Code für Mindestlohn-Lookup. Seit der DB-Migration sind die
-    // Codes 1:1 wie im Frontend (UTP / MTP / FIX / FIX-M). Legacy-Werte (FLEX, GMTP,
-    // PARTTIME, FULLTIME) werden weiterhin gemappt für Rückwärts-Kompatibilität.
+    // Vertragsmodell-Code für Mindestlohn-Lookup. Seit dem Rename 08.07.2026 sind
+    // die Codes 1:1 wie in easy@work (FLEX / MTP / FIX / FIX-M). Legacy-Werte
+    // (UTP, GMTP, PARTTIME, FULLTIME) werden weiterhin gemappt.
     private static string MapEmploymentModel(string model)
     {
         return model.ToUpperInvariant() switch
         {
-            "UTP"      => "UTP",
+            "FLEX"     => "FLEX",
             "MTP"      => "MTP",
             "FIX"      => "FIX",
             "FIX-M"    => "FIX-M",
             // Legacy-Mappings
-            "FLEX"     => "UTP",
+            "UTP"      => "FLEX",
             "GMTP"     => "MTP",
-            "PARTTIME" => "UTP",
+            "PARTTIME" => "FLEX",
             "FULLTIME" => "FIX",
-            _          => "UTP"
+            _          => "FLEX"
         };
     }
 

@@ -233,7 +233,7 @@ public class LohnSaldoListePdfService
                                 content(table.Cell().Background(bg).PaddingVertical(2.5f).PaddingHorizontal(2)
                                     .BorderBottom(0.3f).BorderColor("#CCCCCC"));
                             // UTP: kein 13.-ML-Saldo (monatlich ausbezahlt) → "—"
-                            var dreizehntStr = r.Model == "UTP" ? "—" : ChfOrDash(r.Dreizehnter);
+                            var dreizehntStr = r.Model == "FLEX" ? "—" : ChfOrDash(r.Dreizehnter);
                             cell(x => x.Text(r.PersonalNr).FontSize(8f));
                             cell(x => x.Text($"{r.FirstName} {r.LastName}".Trim()).FontSize(8f));
                             cell(x => x.Text(r.Model.Length > 0 ? r.Model : "—").FontSize(8f).FontColor(Muted));
@@ -252,7 +252,7 @@ public class LohnSaldoListePdfService
                         decimal sBrutto = rows.Sum(r => r.Brutto);
                         decimal sNetto  = rows.Sum(r => r.Netto);
                         decimal sFerien = rows.Sum(r => r.FerienGeld);
-                        decimal s13     = rows.Where(r => r.Model != "UTP").Sum(r => r.Dreizehnter);
+                        decimal s13     = rows.Where(r => r.Model != "FLEX").Sum(r => r.Dreizehnter);
                         void sumLabel(int span, string txt) =>
                             table.Cell().ColumnSpan((uint)span).PaddingTop(4).PaddingHorizontal(2)
                                 .BorderTop(1).BorderColor(Dark).Text(txt).Bold().FontSize(8.5f);
@@ -346,7 +346,7 @@ public class LohnSaldoListePdfService
                             void cell(Action<QuestPDF.Infrastructure.IContainer> content) =>
                                 content(table.Cell().Background(bg).PaddingVertical(3).PaddingHorizontal(3)
                                     .BorderBottom(0.3f).BorderColor("#CCCCCC"));
-                            var dreizehntStr = r.Model == "UTP" ? "—" : ChfOrDash(r.Dreizehnter);
+                            var dreizehntStr = r.Model == "FLEX" ? "—" : ChfOrDash(r.Dreizehnter);
                             cell(x => x.Text(r.PersonalNr).FontSize(8.5f));
                             cell(x => x.Text($"{r.FirstName} {r.LastName}".Trim()).FontSize(8.5f));
                             cell(x => x.Text(r.Model.Length > 0 ? r.Model : "—").FontSize(8.5f).FontColor(Muted));

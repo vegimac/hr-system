@@ -529,7 +529,7 @@ public class EmployeeImportArchivedController : ControllerBase
             return isKader ? "FIX-M" : "FIX";
         if ((ct.Contains("mtp") || ct.Contains("tpm")) && an.Contains("stunden/woche"))
             return "MTP";
-        return "UTP";
+        return "FLEX";
     }
 
     /// <summary>
@@ -552,7 +552,7 @@ public class EmployeeImportArchivedController : ControllerBase
     }
 
     private static string MapSalaryType(string employmentModel)
-        => employmentModel == "UTP" ? "hourly" : "monthly";
+        => employmentModel == "FLEX" ? "hourly" : "monthly";
 
     /// <summary>
     /// Parsed "Anzahl"-Feld:

@@ -675,7 +675,7 @@ function _akWfRenderMaList() {
         }
         return;
     }
-    const modelClass = (m) => ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
+    const modelClass = (m) => ({ MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
 
     // Lokale MA-Liste leeren und Zeile-für-Zeile aufbauen — damit der
     // QST-Button mit einem komplexen JS-Objekt sicher per addEventListener
@@ -788,7 +788,7 @@ function _akWfRenderMaList() {
                  rechts, beide in einem Slot mit fester Breite damit die Spalten
                  über alle Zeilen aligniert sind — auch wenn QST fehlt. -->
             <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100px;flex-shrink:0">
-                <span class="${modelClass(model)}" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;min-width:40px;text-align:center">${model || ''}</span>
+                <span class="${modelClass(model)}" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;min-width:40px;text-align:center">${modelDisplay(model)}</span>
                 <span style="width:38px;display:flex;justify-content:flex-end">
                 ${(_akWfQstIds && _akWfQstIds.has(r.employeeId))
                     ? `<button class="ak-qst-btn" title="Quellensteuer bearbeiten"

@@ -30,79 +30,20 @@ public class ContractsController : ControllerBase
     [HttpGet("employment/{employmentId}/pdf")]
     public async Task<IActionResult> DownloadContractPdf(int employmentId)
     {
+        // PDF-Bau ausgelagert nach ContractPdfBuilder (Walter 07.07.2026) — dieselbe
+        // Methode nutzt der öffentliche Token-Link (ContractShareController). Für den
+        // Dateinamen wird hier noch der MA + Startdatum geladen.
         var employment = await _context.Employments
             .Include(e => e.Employee)
             .FirstOrDefaultAsync(e => e.Id == employmentId);
         if (employment == null) return NotFound("Employment not found.");
         if (employment.CompanyProfileId == null) return BadRequest("No company profile.");
-
-        // Neu: ohne .Include(c => c.Signatories)
-        var company = await _context.CompanyProfiles
-            .FirstOrDefaultAsync(c => c.Id == employment.CompanyProfileId.Value);
-        if (company == null) return BadRequest("Company profile not found.");
-
         var employee = employment.Employee;
         if (employee == null) return BadRequest("Employee not found.");
 
-        // Neu: Unterzeichner aus UserBranchAccess laden
-        var signatory = await _context.UserBranchAccesses
-            .Include(s => s.User)
-            .Where(s => s.CompanyProfileId == employment.CompanyProfileId.Value
-                     && s.IsDefault == true)
-            .FirstOrDefaultAsync();
+        var pdfBytes = await ContractPdfBuilder.BuildAsync(_context, employmentId);
+        if (pdfBytes == null) return BadRequest("Contract PDF could not be generated.");
 
-        var salaryType = employment.SalaryType ?? GetSalaryType(employment.EmploymentModel);
-        var jobTitleDisplay = await GetJobTitleDisplayName(_context, employment.JobTitle, "de") ?? employment.JobTitle ?? "";
-
-        var addressParts = new[] { company.Street, company.HouseNumber }
-            .Where(s => !string.IsNullOrWhiteSpace(s));
-        var streetAddress = string.Join(" ", addressParts);
-        var companyAddress = $"{streetAddress}, {company.ZipCode} {company.City}".Trim().TrimStart(',').Trim();
-
-        var input = new ContractPdfInput(
-            CompanyName:             company.FullDisplayName,
-            CompanyAddress:          companyAddress,
-            WorkLocation:            company.WorkLocation ?? "",
-            // Neu: Name und Funktion aus UserBranchAccess + User
-            SignatoryName:           signatory != null
-                                         ? $"{signatory.User.FirstName} {signatory.User.LastName}".Trim()
-                                         : "",
-            SignatoryTitle:          signatory?.FunctionTitle ?? "",
-            SignatureCity:           company.City ?? "",
-            ContractDate:            DateTime.Today,
-            DefaultVacationWeeks:    company.DefaultVacationWeeks,
-            Salutation:              employee.Salutation ?? "",
-            FirstName:               employee.FirstName,
-            LastName:                employee.LastName,
-            DateOfBirth:             employee.DateOfBirth,
-            EmployeeStreet:          employee.Street,
-            EmployeeZipCity:         !string.IsNullOrWhiteSpace(employee.ZipCode) || !string.IsNullOrWhiteSpace(employee.City)
-                                         ? $"{employee.ZipCode} {employee.City}".Trim() : null,
-            EmploymentModel:         employment.EmploymentModel,
-            SalaryType:              salaryType,
-            JobTitle:                jobTitleDisplay,
-            ContractType:            employment.ContractType,
-            ContractStartDate:       employment.ContractStartDate,
-            ContractEndDate:         employment.ContractEndDate,
-            ProbationMonths:         employment.ProbationPeriodMonths,
-            MonthlySalary:           employment.MonthlySalary,
-            MonthlySalaryFte:        employment.MonthlySalaryFte,
-            HourlyRate:              employment.HourlyRate,
-            EmploymentPercentage:    employment.EmploymentPercentage,
-            WeeklyHours:             employment.EmploymentModel == "MTP"
-                                         ? (decimal?)company.NormalWeeklyHours : employment.WeeklyHours,
-            GuaranteedHoursPerWeek:  employment.GuaranteedHoursPerWeek,
-            // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
-            // kommen jetzt AUSSCHLIESSLICH aus der Filiale. Vertragsfelder wurden
-            // entfernt. Bei Ferien % wird das Alter am Vertragsbeginn geprüft —
-            // ist der MA ≥ Filial-Schwelle, erscheint der 6-Wochen-Satz im PDF.
-            VacationPercent:         ResolveVacationPctForContract(employee, company, employment.ContractStartDate),
-            HolidayPercent:          company.DefaultHolidayPercent,
-            ThirteenthSalaryPercent: company.DefaultThirteenthSalaryPercent,
-            Gender:                  employee.Gender
-        );
-
-        var pdfBytes = new ContractPdfService().Generate(input);
         var fileName = $"Vertrag_{employee.LastName}_{employee.FirstName}_{employment.ContractStartDate:yyyyMMdd}.pdf";
         return File(pdfBytes, "application/pdf", fileName);
     }
@@ -209,13 +150,14 @@ public class ContractsController : ControllerBase
     }
 
     // 1:1-Mapping (Mindestlohn-DB nutzt seit der Migration die gleichen Codes wie
-    // im Frontend: UTP / MTP / FIX / FIX-M). Legacy-Werte trotzdem unterstützen.
+    // im Frontend: FLEX / MTP / FIX / FIX-M). Legacy-Werte trotzdem unterstützen —
+    // «UTP» ist seit dem Rename 08.07.2026 ein Legacy-Alias für FLEX.
     private static string MapEmploymentModel(string? model) =>
         (model ?? "").ToUpperInvariant() switch
         {
-            "UTP" => "UTP", "MTP" => "MTP", "FIX" => "FIX", "FIX-M" => "FIX-M",
-            "PARTTIME" => "UTP", "FULLTIME" => "FIX", "FLEX" => "UTP",
-            _ => "UTP"
+            "FLEX" => "FLEX", "MTP" => "MTP", "FIX" => "FIX", "FIX-M" => "FIX-M",
+            "PARTTIME" => "FLEX", "FULLTIME" => "FIX", "UTP" => "FLEX",
+            _ => "FLEX"
         };
 
     private static string GetSalaryType(string? m) =>
@@ -244,7 +186,8 @@ public class ContractsController : ControllerBase
     private static string GetEmploymentModelText(string? model) =>
         (model ?? "").ToUpperInvariant() switch
         {
-            "UTP" => "Stundenlohn Teilzeit (UTP)", "MTP" => "Garantiertes Mindest-Teilzeitpensum (MTP)",
+            "FLEX" => "Stundenlohn flexibel (FLEX)", "UTP" => "Stundenlohn flexibel (FLEX)",
+            "MTP" => "Garantiertes Mindest-Teilzeitpensum (MTP)",
             "FIX" => "Festpensum Vollzeit/Teilzeit (FIX)", "FIX-M" => "Management Vollzeit/Teilzeit (FIX-M)",
             _ => model ?? ""
         };

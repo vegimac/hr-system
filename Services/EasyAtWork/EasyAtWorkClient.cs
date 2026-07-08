@@ -155,7 +155,8 @@ public class EasyAtWorkClient
         var body = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
             throw new HttpRequestException(
-                $"easy@work GET /{path} fehlgeschlagen ({(int)resp.StatusCode}): {body}");
+                $"easy@work GET /{path} fehlgeschlagen ({(int)resp.StatusCode}): {body}",
+                null, resp.StatusCode);   // StatusCode mitgeben → Caller kann 404 gezielt behandeln
         var data = JsonSerializer.Deserialize<T>(body, JsonOpts);
         if (data == null)
             throw new InvalidOperationException($"easy@work GET /{path}: leere Antwort.");
@@ -364,9 +365,25 @@ public class EasyAtWorkClient
         => GetJsonAsync<EawPaginated<EawPosition>>(
             $"customers/{customerId}/employees/{employeeId}/positions", ct);
 
-    public virtual Task<EawFiscalInfo?> GetFiscalInfoAsync(int customerId, int employeeId, CancellationToken ct = default)
-        => GetJsonAsync<EawFiscalInfo?>(
-            $"customers/{customerId}/employees/{employeeId}/fiscal_info", ct);
+    /// <summary>
+    /// fiscal_info eines MA. easy@work liefert 404, wenn für den MA schlicht
+    /// KEIN fiscal_info-Datensatz erfasst ist (kein Fehler) — das wird hier
+    /// als <c>null</c> zurückgegeben statt als Exception (Walter 08.07.2026,
+    /// vorher erschien in der Sync-Detail-Ansicht eine irritierende ⚠-Notiz).
+    /// Andere Fehler (401/500/…) werfen weiterhin.
+    /// </summary>
+    public virtual async Task<EawFiscalInfo?> GetFiscalInfoAsync(int customerId, int employeeId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await GetJsonAsync<EawFiscalInfo?>(
+                $"customers/{customerId}/employees/{employeeId}/fiscal_info", ct);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// Custom Fields / „Properties" eines MA (Walter-Vorgabe 19.06.2026). Hier

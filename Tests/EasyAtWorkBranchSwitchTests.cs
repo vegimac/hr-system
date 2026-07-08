@@ -40,7 +40,7 @@ public class EasyAtWorkBranchSwitchTests
         {
             EmployeeId = empId, CompanyProfileId = branch,
             ContractStartDate = start, ContractEndDate = end, IsActive = active,
-            EmploymentModel = "UTP", SalaryType = "hourly",
+            EmploymentModel = "FLEX", SalaryType = "hourly",
         };
 
     // ───────────────────── B) Alten Filialvertrag schließen ─────────────────────

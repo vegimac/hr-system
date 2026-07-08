@@ -397,7 +397,7 @@ function renderFilialenDetail(b) {
                 </div>
             </div>
             <div class="emp-field-grid">
-                <div class="emp-field"><div class="emp-field-label">Ferien-Geld Dezember (UTP/MTP)</div>
+                <div class="emp-field"><div class="emp-field-label">Ferien-Geld Dezember (FLEX/MTP)</div>
                     <div class="emp-field-value"><select id="einAutoFerienGeld" class="ef-input">
                         <option value="true"  ${b.autoFerienGeldAuszahlungDezember !== false ? 'selected' : ''}>Auto-Auszahlung Dezember</option>
                         <option value="false" ${b.autoFerienGeldAuszahlungDezember === false ? 'selected' : ''}>Manuell</option>
@@ -442,7 +442,7 @@ function renderFilialenDetail(b) {
                     <div class="emp-field-value"><input type="number" id="einAkontoProzent" class="ef-input" min="0" max="100" step="1" value="${Number(b.akontoProzentFix ?? 80).toFixed(0)}"></div></div>
                 <div class="emp-field"><div class="emp-field-label">Akonto-% FIX-M</div>
                     <div class="emp-field-value"><input type="number" id="einAkontoProzentFixM" class="ef-input" min="0" max="100" step="1" value="${Number(b.akontoProzentFixM ?? 90).toFixed(0)}"></div></div>
-                <div class="emp-field"><div class="emp-field-label">Akonto-% UTP / MTP</div>
+                <div class="emp-field"><div class="emp-field-label">Akonto-% FLEX / MTP</div>
                     <div class="emp-field-value"><input type="number" id="einAkontoProzentHourly" class="ef-input" min="0" max="100" step="1" value="${Number(b.akontoProzentHourly ?? 100).toFixed(0)}"></div></div>
             </div>
             <div style="margin-top:6px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;font-size:11.5px;color:#78350f;line-height:1.45">
@@ -451,7 +451,7 @@ function renderFilialenDetail(b) {
                 ② Kein Akonto bei Krankheit / Unfall / Mutterschaft am Stichtag.<br>
                 ③ FIX: <b>Akonto-% (FIX) × Definitiv-Auszahlung</b>, abgerundet auf CHF 10.<br>
                 ④ FIX-M: <b>Akonto-% (FIX-M) × Definitiv-Auszahlung</b>, abgerundet auf CHF 10.<br>
-                ⑤ UTP / MTP: <b>Akonto-% (UTP/MTP) × (gestempelte Stunden × Stundenlohn + Ferien-Pott − SV-Abzüge)</b>, abgerundet auf CHF 10.<br>
+                ⑤ FLEX / MTP: <b>Akonto-% (FLEX/MTP) × (gestempelte Stunden × Stundenlohn + Ferien-Pott − SV-Abzüge)</b>, abgerundet auf CHF 10.<br>
                 <span style="color:#92400e">Ferien-Pott: nur bis Stichtag vollständig abgeschlossene Bezüge — anteilsmässig aus (Vormonats-Saldo + Akkumulation diesen Monat).</span>
             </div>
             <div style="margin-top:6px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px">

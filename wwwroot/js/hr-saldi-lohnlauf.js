@@ -317,7 +317,7 @@ function _llAkRenderMaList() {
     const sorted = [...zahlungen].sort((a, b) =>
         (a.firstName||'').localeCompare(b.firstName||'') || (a.lastName||'').localeCompare(b.lastName||''));
 
-    const modelClass = (m) => ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
+    const modelClass = (m) => ({ MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
     el.innerHTML = '';
     sorted.forEach(r => {
         const isSelected = r.id === _llAkSelectedId;
@@ -1053,7 +1053,7 @@ function svRenderList() {
         // Vertragstyp-Badge (nutzt gleichen Stil wie im Modal-Header)
         const model = (e.employmentModel || '').toUpperCase();
         const badgeClass = model === 'FIX-M' ? 'fix-m'
-                         : model === 'UTP'   ? 'utp'
+                         : model === 'FLEX'   ? 'utp'
                          : model === 'MTP'   ? 'mtp'
                          : model === 'FIX'   ? 'fix'
                          : 'none';
@@ -1135,7 +1135,7 @@ async function svLoadPeriodenForBranch(companyProfileId) {
 // FIX/FIX-M haben das Ferien-Geld im Festlohn drin.
 // Nacht-Saldo: nur MTP/FIX/FIX-M (UTP trackt keine Stunden).
 const SV_FIELD_RELEVANCE = {
-    'UTP':   { zeit: false, feiertag: false, ferien: true, nacht: false, feriengeld: true,  dreizehnter: false },
+    'FLEX':   { zeit: false, feiertag: false, ferien: true, nacht: false, feriengeld: true,  dreizehnter: false },
     'MTP':   { zeit: true,  feiertag: false, ferien: true, nacht: true,  feriengeld: true,  dreizehnter: true  },
     'FIX':   { zeit: true,  feiertag: true,  ferien: true, nacht: true,  feriengeld: false, dreizehnter: true  },
     'FIX-M': { zeit: true,  feiertag: true,  ferien: true, nacht: true,  feriengeld: false, dreizehnter: true  }
@@ -1161,7 +1161,7 @@ async function svOpenModal(employeeId) {
     // Header-Subtitle inkl. Vertragstyp-Badge
     const model = (emp.employmentModel || '').toUpperCase();
     const badgeClass = model === 'FIX-M' ? 'fix-m'
-                     : model === 'UTP'   ? 'utp'
+                     : model === 'FLEX'   ? 'utp'
                      : model === 'MTP'   ? 'mtp'
                      : model === 'FIX'   ? 'fix'
                      : 'none';

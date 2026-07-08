@@ -86,7 +86,7 @@ public class EasyAtWorkEmployeeCommitHistoryTests
                 ContractStartDate = new DateTime(2021, 8, 10),
                 ContractEndDate = new DateTime(2024, 12, 8),
                 IsActive = false,
-                EmploymentModel = "UTP",
+                EmploymentModel = "FLEX",
                 SalaryType = "hourly"
             },
             new Employment
@@ -227,7 +227,7 @@ public class EasyAtWorkEmployeeCommitHistoryTests
                 ContractStartDate = new DateTime(2021, 8, 10),
                 ContractEndDate = new DateTime(2024, 12, 8),
                 IsActive = false,
-                EmploymentModel = "UTP",
+                EmploymentModel = "FLEX",
                 SalaryType = "hourly"
             },
             new Employment

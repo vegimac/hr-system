@@ -47,7 +47,7 @@ public class EasyAtWorkInactiveEmploymentTests
         await EasyAtWorkEmployeeSyncService.AddEmploymentIfMissingAsync(
             db, emp, companyProfileId: 5, isNewEmployee: true,
             startDate: new System.DateTime(2021, 7, 21), endDate: new System.DateTime(2024, 6, 30), isActive: false,
-            employmentModel: "UTP", salaryType: "hourly", contractType: "Flex", jobTitle: null,
+            employmentModel: "FLEX", salaryType: "hourly", contractType: "Flex", jobTitle: null,
             weeklyHours: 17m, percentage: null, hourlyRate: 22m, monthlySalary: null);
         await db.SaveChangesAsync();
 
@@ -56,7 +56,7 @@ public class EasyAtWorkInactiveEmploymentTests
         Assert.False(one.IsActive);
         Assert.Equal(5, one.CompanyProfileId);
         Assert.Equal(new System.DateTime(2024, 6, 30), one.ContractEndDate);
-        Assert.Equal("UTP", one.EmploymentModel);
+        Assert.Equal("FLEX", one.EmploymentModel);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class EasyAtWorkInactiveEmploymentTests
         await db.SaveChangesAsync();
 
         var one = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
-        Assert.Equal("UTP", one.EmploymentModel);
+        Assert.Equal("FLEX", one.EmploymentModel);
         Assert.Equal("hourly", one.SalaryType);
     }
 
@@ -106,7 +106,7 @@ public class EasyAtWorkInactiveEmploymentTests
         await EasyAtWorkEmployeeSyncService.AddEmploymentIfMissingAsync(
             db, emp, companyProfileId: 5, isNewEmployee: true,
             startDate: new System.DateTime(2021, 1, 1), endDate: new System.DateTime(2024, 6, 30), isActive: false,
-            employmentModel: "UTP", salaryType: "hourly", contractType: null, jobTitle: null,
+            employmentModel: "FLEX", salaryType: "hourly", contractType: null, jobTitle: null,
             weeklyHours: null, percentage: null, hourlyRate: null, monthlySalary: null);
         await db.SaveChangesAsync();
 
@@ -136,7 +136,7 @@ public class EasyAtWorkInactiveEmploymentTests
             await EasyAtWorkEmployeeSyncService.AddEmploymentIfMissingAsync(
                 db, emp, companyProfileId: 5, isNewEmployee: false,
                 startDate: new System.DateTime(2021, 7, 21), endDate: new System.DateTime(2024, 6, 30), isActive: false,
-                employmentModel: "UTP", salaryType: "hourly", contractType: null, jobTitle: null,
+                employmentModel: "FLEX", salaryType: "hourly", contractType: null, jobTitle: null,
                 weeklyHours: null, percentage: null, hourlyRate: 22m, monthlySalary: null);
             await db.SaveChangesAsync();
         }

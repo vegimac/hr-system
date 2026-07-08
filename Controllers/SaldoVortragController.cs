@@ -72,7 +72,7 @@ public class SaldoVortragController : ControllerBase
     /// </summary>
     private static bool IsRelevantForModel(string saldoCode, string model) => model switch
     {
-        "UTP"   => saldoCode is CodeFerienTage or CodeFerienGeld,
+        "FLEX"   => saldoCode is CodeFerienTage or CodeFerienGeld,
         "MTP"   => saldoCode is CodeZeit or CodeFerienTage or CodeNacht or CodeFerienGeld or CodeDreizehnter,
         "FIX"   => saldoCode is CodeZeit or CodeFeiertag or CodeFerienTage or CodeNacht or CodeDreizehnter,
         "FIX-M" => saldoCode is CodeZeit or CodeFeiertag or CodeFerienTage or CodeNacht or CodeDreizehnter,

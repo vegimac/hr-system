@@ -70,7 +70,7 @@ public class MinimumWageCheckService
             "FIX-M" => "FIX-M",
             "FIX"   => "FIX",
             "MTP"   => "MTP",
-            _       => "UTP"
+            _       => "FLEX"
         };
         var salaryType = (modelCode == "FIX" || modelCode == "FIX-M") ? "monthly" : "hourly";
 

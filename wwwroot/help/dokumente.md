@@ -82,6 +82,12 @@ Was du machst:
 2. Falls die Datei zu einem MA gehört: **„Zu MA zuordnen"** → MA suchen → Kategorie+Typ wählen → speichern. Datei wandert physisch in den MA-Ordner und verschwindet aus dem Posteingang.
 3. Falls die Datei generell wichtig ist (z.B. neue Filial-Vorlage): Posteingang behalten oder löschen.
 
+## Postfach-Nachricht an einen MA senden
+
+Administrative Text-Mitteilungen (z.B. „Dein Lohn steigt per …") schickst du aus dem **Posteingang-Bereich** als **Postfach-Nachricht**: MA wählen, Titel + Mitteilung schreiben, senden. Die Nachricht landet im persönlichen **MA-Postfach** (Login nötig — dadurch geschützt), und der MA bekommt automatisch eine **SMS mit dem Hinweis** und dem Link zum Postfach.
+
+💡 Für persönliche Grüsse (Geburtstag, Jubiläum) nutze stattdessen [Moments](#moments) — sensible Themen gehören hierhin, ins geschützte Postfach.
+
 ## Office-Dateien anschauen
 
 Word, Excel und PowerPoint kann der Browser nicht direkt zeigen. Das System macht das so:

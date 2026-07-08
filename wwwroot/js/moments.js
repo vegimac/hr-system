@@ -3,7 +3,8 @@
 //     Postfach, SMS ist nur Push, der Link führt zum Login.
 //   • Moment — persönlicher Anlass. Einmal-Token-Link OHNE Login, nur für MA
 //     mit aktivem Opt-in, keine sensiblen Inhalte, keine Dokumente.
-// Versand wird verdrahtet, sobald der SMS-Anbieter feststeht; Vorschau läuft.
+// SMS-Direktversand über eCall (Backend, Walter 07.07.2026) — Test-Umleitung
+// aus Systemeinstellungen → SMS (eCall) greift zentral im EcallSmsService.
 
 let _momEmployees = [];        // gefilterte + sortierte Liste (im Dropdown)
 let _momAllEmployees = [];      // alle geladenen MA (für Filter)
@@ -443,20 +444,30 @@ async function momCreate() {
         if (!r.ok) { if (box) box.innerHTML = momAlert(j.message || j.error || ('Fehler HTTP ' + r.status), 'warn'); return; }
         const moment = (j.zustellung || 'moment') === 'moment';
         const titel = moment ? '✓ Moment erstellt' : '✓ Mitteilung ins Postfach gelegt';
-        const linkText = moment
-            ? 'Einmal-Link (SMS-Direktversand folgt mit ASPSMS):'
-            : 'SMS-Push-Link zum Postfach (SMS-Direktversand folgt mit ASPSMS):';
-        const smsWarn = (moment && j.smsAllowed === false)
-            ? `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px;font-size:12px;margin-top:8px">Hinweis: dieser MA hat den SMS-Link für Moments deaktiviert — bitte den Link auf anderem Weg übergeben.</div>` : '';
+
+        // SMS-Direktversand (eCall, Walter 07.07.2026): Backend sendet direkt.
+        // smsSent=true → grüne Bestätigung (+ Test-Umleitungs-Hinweis).
+        // smsSent=false → Moment existiert, aber SMS scheiterte → Link manuell übergeben.
+        let smsLine;
+        if (j.smsSent) {
+            smsLine = `<div style="font-size:12.5px;color:#166534;margin-bottom:6px">📲 SMS gesendet an ${escapeHtml(j.smsTo || '')}.</div>` +
+                (j.redirectedTo
+                    ? `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px;font-size:12px;margin-bottom:8px">⚠ Test-Umleitung aktiv — die SMS ging an ${escapeHtml(j.redirectedTo)} statt an den MA.</div>`
+                    : '');
+        } else {
+            smsLine = `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px;font-size:12px;margin-bottom:8px">⚠ SMS nicht gesendet: ${escapeHtml(j.smsError || 'unbekannter Fehler')} — bitte den Link manuell übergeben.</div>`;
+        }
+
         if (box) box.innerHTML = `
             <div style="background:#dcfce7;border:1px solid #bbf7d0;border-radius:10px;padding:12px">
                 <div style="font-weight:700;color:#166534;font-size:13px;margin-bottom:6px">${titel}</div>
-                <div style="font-size:12px;color:#475569;margin-bottom:6px">${linkText}</div>
+                ${smsLine}
+                <div style="font-size:12px;color:#475569;margin-bottom:6px">${moment ? 'Einmal-Link:' : 'Link zum Postfach:'}</div>
                 <div style="display:flex;gap:8px;align-items:center">
                     <input id="momLinkInput" readonly value="${escapeHtml(j.url)}" style="flex:1;min-width:0;font-size:12px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f172a">
                     <button class="btn btn-outline" style="white-space:nowrap" onclick="momCopyLink()">Kopieren</button>
                     <a class="btn btn-outline" style="white-space:nowrap;text-decoration:none" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Öffnen</a>
-                </div>${smsWarn}
+                </div>
             </div>`;
     } catch (e) {
         if (box) box.innerHTML = momAlert('Netzwerkfehler: ' + e.message, 'warn');
@@ -558,10 +569,17 @@ async function pfxSend() {
         const r = await fetch('/api/moments', { method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) { if (box) box.innerHTML = momAlert(j.message || j.error || ('Fehler HTTP ' + r.status), 'warn'); return; }
+        const pfxSmsLine = j.smsSent
+            ? `<div style="font-size:12.5px;color:#166534;margin-bottom:6px">📲 SMS-Push gesendet an ${escapeHtml(j.smsTo || '')}.</div>` +
+              (j.redirectedTo
+                  ? `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px;font-size:12px;margin-bottom:8px">⚠ Test-Umleitung aktiv — die SMS ging an ${escapeHtml(j.redirectedTo)} statt an den MA.</div>`
+                  : '')
+            : `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px;font-size:12px;margin-bottom:8px">⚠ SMS-Push nicht gesendet: ${escapeHtml(j.smsError || 'unbekannter Fehler')} — die Mitteilung liegt trotzdem im Postfach.</div>`;
         if (box) box.innerHTML = `
             <div style="background:#dcfce7;border:1px solid #bbf7d0;border-radius:10px;padding:12px">
                 <div style="font-weight:700;color:#166534;font-size:13px;margin-bottom:6px">✓ Mitteilung ins Postfach gelegt</div>
-                <div style="font-size:12px;color:#475569;margin-bottom:6px">SMS-Push-Link zum Postfach (SMS-Direktversand folgt mit ASPSMS):</div>
+                ${pfxSmsLine}
+                <div style="font-size:12px;color:#475569;margin-bottom:6px">Link zum Postfach:</div>
                 <div style="display:flex;gap:8px;align-items:center">
                     <input id="pfxLinkInput" readonly value="${escapeHtml(j.url)}" style="flex:1;min-width:0;font-size:12px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f172a">
                     <button class="btn btn-outline" style="white-space:nowrap" onclick="(function(){var e=document.getElementById('pfxLinkInput');e.select();navigator.clipboard&&navigator.clipboard.writeText(e.value);})()">Kopieren</button>
@@ -703,6 +721,16 @@ function momTextNew() {
     document.getElementById('momTextSort').value = '0';
     document.getElementById('momTextMsg').textContent = '';
     document.getElementById('momTextForm').style.display = 'block';
+    momTextTypeChanged();
+}
+
+// Platzhalter-Hinweis für den Typ „Arbeitsvertrag-Link" (Code VERTRAG_LINK) ein-/ausblenden.
+function momTextTypeChanged() {
+    const hint = document.getElementById('momTextVertragHint');
+    if (!hint) return;
+    const typeId = parseInt(document.getElementById('momTextType')?.value, 10);
+    const t = _momTypesAll.find(x => x.id === typeId);
+    hint.style.display = (t && t.code === 'VERTRAG_LINK') ? 'block' : 'none';
 }
 
 function momTextEdit(id) {
@@ -718,6 +746,7 @@ function momTextEdit(id) {
     document.getElementById('momTextMsg').textContent = '';
     document.getElementById('momTextForm').style.display = 'block';
     document.getElementById('momTextForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    momTextTypeChanged();
 }
 
 function momTextCancel() { document.getElementById('momTextForm').style.display = 'none'; }

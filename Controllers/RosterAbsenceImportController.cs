@@ -426,7 +426,7 @@ public class RosterAbsenceImportController : ControllerBase
         if (count <= 0) return 0m;
 
         // MTP/UTP bei FERIEN oder FEIERTAG → keine Stunden-Gutschrift.
-        if ((empModel == "MTP" || empModel == "UTP")
+        if ((empModel == "MTP" || empModel == "FLEX")
             && (absenceType == "FERIEN" || absenceType == "FEIERTAG"))
             return 0m;
 
@@ -437,7 +437,7 @@ public class RosterAbsenceImportController : ControllerBase
         string? reduziertSaldo = typCfg?.ReduziertSaldo;
 
         // UTP ohne UtpAuszahlung-Flag → keine automatische Gutschrift.
-        if (empModel == "UTP" && !utpAuszahlung) return 0m;
+        if (empModel == "FLEX" && !utpAuszahlung) return 0m;
 
         decimal betriebWeekly = profile?.NormalWeeklyHours ?? 42m;
         decimal weeklyH       = betriebWeekly;

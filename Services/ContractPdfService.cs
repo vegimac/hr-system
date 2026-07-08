@@ -61,7 +61,7 @@ public class ContractPdfService
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
-        bool isUTP  = d.EmploymentModel == "UTP";
+        bool isUTP  = d.EmploymentModel == "FLEX";
         bool isMTP  = d.EmploymentModel == "MTP";
         bool isFix  = d.EmploymentModel == "FIX";
         bool isFixM = d.EmploymentModel == "FIX-M";

@@ -153,7 +153,7 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('ceContractId').value      = mode === 'edit' ? (c.id ?? '') : '';
     document.getElementById('ceEmployeeId').value      = c.employeeId ?? selectedVtEmployee?.id ?? '';
     document.getElementById('ceStartDate').value       = c.contractStartDate ? c.contractStartDate.slice(0,10) : '';
-    document.getElementById('ceEmploymentModel').value = c.employmentModel ?? 'UTP';
+    document.getElementById('ceEmploymentModel').value = c.employmentModel ?? 'FLEX';
     document.getElementById('ceContractType').value    = isBefristet ? 'befristet' : 'unbefristet';
     document.getElementById('ceEndDate').value         = c.contractEndDate ? c.contractEndDate.slice(0,10) : '';
     document.getElementById('ceJobTitle').value        = c.jobTitle ?? '';
@@ -208,7 +208,7 @@ function onCeModelChange() {
     const m = document.getElementById('ceEmploymentModel').value;
     const isFix = m === 'FIX' || m === 'FIX-M';
     const isMtp = m === 'MTP';
-    const isUtp = m === 'UTP';
+    const isUtp = m === 'FLEX';
     const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
     show('ceHourlyWrap',     !isFix);
     show('ceFteWrap',        isFix);
@@ -570,6 +570,15 @@ async function saveContractEdit() {
         if (typeof loadVtList === 'function') {
             await loadVtList();
         }
+        // Rücksprung-Hook (Walter 08.07.2026): wurde das Modal aus dem
+        // MA-Detail geöffnet (empContractEdit in employees.js), lädt der Hook
+        // das MA-Detail neu, damit die Vertrags-Leiste den neuen Stand zeigt.
+        // Einmalig — danach wieder null.
+        if (typeof window._ceAfterSave === 'function') {
+            const cb = window._ceAfterSave;
+            window._ceAfterSave = null;
+            try { await cb(); } catch (_) { /* nur Anzeige-Komfort */ }
+        }
     } catch (e) {
         errEl.textContent = _t('vt.err.connectionError', { msg: e.message });
     }
@@ -660,7 +669,7 @@ function buildContractPage() {
                 <input type="date" id="startDate">
                 <label>Vertragstyp</label>
                 <select id="employmentModel">
-                    <option value="UTP" selected>UTP – Stundenlohn Teilzeit</option>
+                    <option value="FLEX" selected>FLEX – Stundenlohn (flexibel)</option>
                     <option value="MTP">MTP – Garantiertes Mindest-Teilzeitpensum</option>
                     <option value="FIX">FIX – Festpensum (50–100%)</option>
                     <option value="FIX-M">FIX-M – Management (50–100%)</option>
@@ -837,7 +846,7 @@ async function loadContractHistory(employeeId) {
         if (!contracts.length) { hist.style.display = 'none'; return; }
 
         const fmt = d => d ? new Date(d).toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'}) : '–';
-        const modelLabel = { UTP:'Stundenlohn', MTP:'Mindestpensum', FIX:'Festpensum', 'FIX-M':'Management' };
+        const modelLabel = { FLEX:'Stundenlohn', MTP:'Mindestpensum', FIX:'Festpensum', 'FIX-M':'Management' };
 
         const rows = contracts.map(c => {
             const isActive = !c.contractEndDate;
@@ -1028,7 +1037,7 @@ function updateForm() {
     const salaryTypeInput = document.getElementById('salaryType');
     if (!model || !salaryTypeInput) return;
     ['hourlyRateLabel','hourlyRateField','monthlySalaryFteLabel','monthlySalaryFteField','monthlySalaryLabel','monthlySalaryField','percentageLabel','percentageField','guaranteedHoursLabel','guaranteedHoursField'].forEach(id => showElement(id, false));
-    if (model === 'UTP') { salaryTypeInput.value = 'hourly'; showElement('hourlyRateLabel', true); showElement('hourlyRateField', true); }
+    if (model === 'FLEX') { salaryTypeInput.value = 'hourly'; showElement('hourlyRateLabel', true); showElement('hourlyRateField', true); }
     if (model === 'MTP') { salaryTypeInput.value = 'hourly'; showElement('hourlyRateLabel', true); showElement('hourlyRateField', true); showElement('guaranteedHoursLabel', true); showElement('guaranteedHoursField', true); }
     if (model === 'FIX' || model === 'FIX-M') { salaryTypeInput.value = 'monthly'; showElement('monthlySalaryFteLabel', true); showElement('monthlySalaryFteField', true); showElement('monthlySalaryLabel', true); showElement('monthlySalaryField', true); showElement('percentageLabel', true); showElement('percentageField', true); }
     updateContractRules(); calculateContractEndDate(); calculateProbationEndDate();
@@ -1356,7 +1365,7 @@ async function vtImportFileChosen(file) {
         const importContract = {
             id: null,
             employeeId: vtImportEmployeeId,
-            employmentModel: s.employmentModel || 'UTP',
+            employmentModel: s.employmentModel || 'FLEX',
             jobTitle: s.jobTitle ?? '',
             jobGroupCode: s.jobGroupCode ?? selectedVtEmployee?.jobGroupCode ?? '',
             educationLevelCode: s.educationLevelCode ?? selectedVtEmployee?.educationLevelCode ?? '',

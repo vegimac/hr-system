@@ -106,6 +106,18 @@ public class EasyAtWorkController : ControllerBase
             $"customers/{customerId}/employees/{eid}/memberships",
             $"customers/{customerId}/employees/{eid}/roles",
             $"customers/{customerId}/employees/{eid}/positions",
+            // Verfügbarkeit / gewünschte Arbeitszeiten — Kandidaten-Pfade (Walter 07.07.2026):
+            // easy@work zeigt das im UI («Verfügbarkeit»: Wochen-Muster + gewünschte Tage +
+            // Genehmigung). Wir probieren mehrere Endpunkt-Namen durch; welcher Status 200 +
+            // Daten liefert, ist der richtige → danach den echten Sync anhängen.
+            $"customers/{customerId}/employees/{eid}/availabilities",
+            $"customers/{customerId}/employees/{eid}/availability",
+            $"customers/{customerId}/employees/{eid}/desired_days",
+            $"customers/{customerId}/employees/{eid}/desired_availabilities",
+            $"customers/{customerId}/employees/{eid}/availability_requests",
+            $"customers/{customerId}/employees/{eid}/preferences",
+            $"customers/{customerId}/employees/{eid}/schedules",
+            $"customers/{customerId}/employees/{eid}/weekly_availabilities",
         };
 
         object ParseBody(string b)
@@ -138,6 +150,29 @@ public class EasyAtWorkController : ControllerBase
             storedCoworkEawId    = storedCoworkEawId,   // bei uns gespeichert (i.d.R. UserId)
             results
         });
+    }
+
+    // Generischer Roh-Pfad-Prober (Walter 07.07.2026): fragt einen BELIEBIGEN
+    // easy@work-API-Pfad ab und gibt Status + Body zurück. Für die Endpunkt-
+    // Discovery (z.B. availabilities/{id} + Unter-Ressourcen für die Zeitfenster).
+    [HttpGet("debug/raw")]
+    public async Task<IActionResult> DebugRaw([FromQuery] string path, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return BadRequest(new { error = "Query-Parameter «path» fehlt (z.B. customers/769/employees/8039/availabilities/775081)." });
+        var clean = path.TrimStart('/');
+        try
+        {
+            var (status, body) = await _client.GetRawAsync(clean, ct);
+            object parsed;
+            try { parsed = JsonSerializer.Deserialize<JsonElement>(body); }
+            catch { parsed = body; }
+            return Ok(new { path = clean, status, body = parsed });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { path = clean, status = -1, error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -208,6 +243,18 @@ public class EasyAtWorkController : ControllerBase
             $"customers/{customerId}/employees/{eid}/memberships",
             $"customers/{customerId}/employees/{eid}/roles",
             $"customers/{customerId}/employees/{eid}/positions",
+            // Verfügbarkeit / gewünschte Arbeitszeiten — Kandidaten-Pfade (Walter 07.07.2026):
+            // easy@work zeigt das im UI («Verfügbarkeit»: Wochen-Muster + gewünschte Tage +
+            // Genehmigung). Wir probieren mehrere Endpunkt-Namen durch; welcher Status 200 +
+            // Daten liefert, ist der richtige → danach den echten Sync anhängen.
+            $"customers/{customerId}/employees/{eid}/availabilities",
+            $"customers/{customerId}/employees/{eid}/availability",
+            $"customers/{customerId}/employees/{eid}/desired_days",
+            $"customers/{customerId}/employees/{eid}/desired_availabilities",
+            $"customers/{customerId}/employees/{eid}/availability_requests",
+            $"customers/{customerId}/employees/{eid}/preferences",
+            $"customers/{customerId}/employees/{eid}/schedules",
+            $"customers/{customerId}/employees/{eid}/weekly_availabilities",
         };
 
         object ParseBody(string b)
@@ -561,6 +608,7 @@ public class EasyAtWorkController : ControllerBase
     public record SyncRequestDto(int CompanyProfileId, DateOnly From, DateOnly To, List<int>? SkipEawEmployeeIds = null, DateOnly? EmployeeCutoffOverride = null, bool? IgnoreMissing = null);
 
     /// <summary>Dry-Run: zeigt, was importiert/dedupliziert/unmatched wäre. Schreibt nichts.</summary>
+    [Authorize(Roles = "admin")]
     [HttpPost("sync/timepunches/preview")]
     public async Task<IActionResult> SyncTimepunchesPreview([FromBody] SyncRequestDto dto, CancellationToken ct)
     {
@@ -612,6 +660,7 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>Commit: schreibt die NEW-Zeilen in employee_time_entry.</summary>
+    [Authorize(Roles = "admin")]
     [HttpPost("sync/timepunches/commit")]
     public async Task<IActionResult> SyncTimepunchesCommit([FromBody] SyncRequestDto dto, CancellationToken ct)
     {
@@ -659,8 +708,11 @@ public class EasyAtWorkController : ControllerBase
     public record EmpSyncRequestDto(int CompanyProfileId, DateOnly? ActiveAt, DateOnly? ExitedAfter, bool? IncludeAllInactive, bool? OnlyActive, List<string>? SelectedNumbers, bool? SkipDetailCalls = null);
     public record SingleCoworkEmployeeSyncDto(int? CompanyProfileId = null);
 
-    /// <summary>Dry-Run für MA-Stammdaten — zeigt NEW/UPDATE/UNCHANGED/CONFLICT.</summary>
+    /// <summary>Dry-Run für MA-Stammdaten — zeigt NEW/UPDATE/UNCHANGED/CONFLICT.
+    /// Onboarding-Werkzeug (Walter-Vorgabe 08.07.2026): nur Admin — der laufende
+    /// Betrieb nutzt den Einzelimport im Mitarbeitermodul (Neuzugang-Controller).</summary>
     [HttpPost("sync/employees/preview")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> SyncEmployeesPreview([FromBody] EmpSyncRequestDto dto, CancellationToken ct)
     {
         if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
@@ -673,8 +725,10 @@ public class EasyAtWorkController : ControllerBase
         return Ok(res);
     }
 
-    /// <summary>Commit: INSERTet NEW-MA + UPDATEt ausgewählte UPDATE-MA in employee.</summary>
+    /// <summary>Commit: INSERTet NEW-MA + UPDATEt ausgewählte UPDATE-MA in employee.
+    /// Onboarding-Werkzeug — nur Admin (Walter-Vorgabe 08.07.2026).</summary>
     [HttpPost("sync/employees/commit")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> SyncEmployeesCommit([FromBody] EmpSyncRequestDto dto, CancellationToken ct)
     {
         if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
@@ -696,6 +750,7 @@ public class EasyAtWorkController : ControllerBase
     /// auch wenn easy@work mehrere Minuten braucht.
     /// </summary>
     [HttpPost("sync/employees/commit-async")]
+    [Authorize(Roles = "admin")]
     public IActionResult SyncEmployeesCommitAsync([FromBody] EmpSyncRequestDto dto)
     {
         if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
@@ -1109,7 +1164,8 @@ public class EasyAtWorkController : ControllerBase
                 "MTP" => "MTP/TPM",
                 "FIX" => "Fix",
                 "FIX-M" => "Fix",
-                "UTP" => "Flex",
+                "FLEX" => "Flex",
+                "UTP" => "Flex",   // Legacy-Alias (Rename 08.07.2026)
                 _ => string.IsNullOrWhiteSpace(info.ContractType) ? "Flex" : info.ContractType!
             };
         static string AnzahlForImport(Services.EasyAtWork.EasyAtWorkEmployeeSyncService.HistContractInfo info, EawContract? c)
@@ -1264,6 +1320,7 @@ public class EasyAtWorkController : ControllerBase
             EmployeeCutoffOverride    = since,
             AltSuffixForPreMirusExits = true,
             SkipDetailCalls           = dto.SkipDetailCalls ?? true,   // Tief-Import: standardmässig schnell
+            SkipContracts             = true,   // Tiefenimport = NUR Stammdaten, NIE Verträge (Walter 08.07.2026)
         }, ct: ct);
         return Ok(new { companyProfileId = dto.CompanyProfileId, inserted = res.CountInserted, updated = res.CountUpdated, total = res.CountTotal, existing = res.CountExisting,
                         blocked = res.Blocked, numberConflicts = res.NumberConflicts });
@@ -1304,6 +1361,7 @@ public class EasyAtWorkController : ControllerBase
                     EmployeeCutoffOverride    = since,
                     AltSuffixForPreMirusExits = true,
                     SkipDetailCalls           = dto?.SkipDetailCalls ?? true,
+                    SkipContracts             = true,   // Tiefenimport = NUR Stammdaten, NIE Verträge (Walter 08.07.2026)
                 }, ct: ct);
                 totalInserted += res.CountInserted;
                 totalUpdated  += res.CountUpdated;

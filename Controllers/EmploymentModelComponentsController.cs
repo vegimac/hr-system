@@ -24,7 +24,7 @@ namespace HrSystem.Controllers;
 [Authorize]
 public class EmploymentModelComponentsController : ControllerBase
 {
-    private static readonly string[] AllowedModels = { "FIX", "FIX-M", "MTP", "UTP" };
+    private static readonly string[] AllowedModels = { "FIX", "FIX-M", "MTP", "FLEX" };
 
     private readonly AppDbContext _db;
     public EmploymentModelComponentsController(AppDbContext db) => _db = db;

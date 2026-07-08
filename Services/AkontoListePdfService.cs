@@ -108,7 +108,7 @@ public class AkontoListePdfService
 
         // Gestempelte Stunden pro UTP/MTP-MA bis Akonto-Stichtag.
         var utpMtpEmpIds = contracts
-            .Where(kv => kv.Value.EmploymentModel == "UTP"
+            .Where(kv => kv.Value.EmploymentModel == "FLEX"
                       || kv.Value.EmploymentModel == "MTP")
             .Select(kv => kv.Key)
             .ToList();
@@ -159,7 +159,7 @@ public class AkontoListePdfService
                         ? lohn.ToString("N0", chCulture)
                         : "—";
                 }
-                else if (model == "MTP" || model == "UTP")
+                else if (model == "MTP" || model == "FLEX")
                 {
                     stundenByEmp.TryGetValue(z.EmployeeId, out var hWorked);
                     var hourly = ct?.HourlyRate ?? 0m;

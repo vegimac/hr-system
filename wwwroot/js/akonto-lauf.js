@@ -256,7 +256,7 @@ function renderAkontoPreview(data) {
             </table>
         </div>
         <div style="margin-top:10px;font-size:11.5px;color:#94a3b8;line-height:1.55">
-            <b>UTP/MTP</b>: gestempelte Stunden bis Stichtag × Ansatz + Feriengeld für bezogene Ferientage → 100% des geschätzten Netto.<br>
+            <b>FLEX/MTP</b>: gestempelte Stunden bis Stichtag × Ansatz + Feriengeld für bezogene Ferientage → 100% des geschätzten Netto.<br>
             <b>FIX/FIX-M</b>: voraussichtlicher Monatslohn × Filial-Prozentsatz (Default 80%) als Sicherheitsabschlag. Auf CHF 10 abgerundet.<br>
             <b>Ausgeschlossen</b>: Probezeit, geplanter Austritt (aktuelle/nächste Periode), aktive Krankheit/Unfall/Mutter-Vater, oder Lohnpfändung mit Freigrenze 0.
         </div>`;

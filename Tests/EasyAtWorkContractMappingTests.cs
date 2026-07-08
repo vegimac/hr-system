@@ -87,7 +87,7 @@ public class EasyAtWorkContractMappingTests
 
         var info = EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, rates, Stichtag);
 
-        Assert.Equal("UTP", info.EmploymentModel);
+        Assert.Equal("FLEX", info.EmploymentModel);
         Assert.Equal(20.40m, info.HourlyRate);
         Assert.Null(info.EmploymentPercentage);
         Assert.Null(info.MonthlySalaryFte);
@@ -138,4 +138,132 @@ public class EasyAtWorkContractMappingTests
         Assert.Equal(21.66m, info.HourlyRate);
         Assert.Null(info.EmploymentPercentage);
     }
+
+    // Erfassungsfehler (Walter-Vorgabe 08.07.2026): FLEX/MTP haben IMMER Stunden
+    // pro WOCHE — «Flex, 17.00, Monat» ist ein easy@work-Erfassungsfehler und
+    // darf NIE importiert werden (Fall Beza 750080: wurde still zu FIX ohne
+    // Monatslohn klassifiziert und blieb als Dauer-Hinweis haengen).
+    [Fact]
+    public void FlexMitStundenProMonat_IstErfassungsfehler()
+    {
+        var c = new EawContract { Type = "Flex", AmountType = "month", Amount = 17m };
+        var rates = new List<EawPayRate>
+        {
+            new EawPayRate { Type = "hour", Rate = 20.40m, FromRaw = "2026-04-01" },
+        };
+
+        var info = EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, rates, Stichtag);
+
+        Assert.NotNull(info.DataError);
+        Assert.Equal("FLEX", info.EmploymentModel);   // Anzeige nach Typ, importiert wird nichts
+    }
+
+    [Fact]
+    public void FlexMitStundenProWoche_IstKeinFehler()
+    {
+        var c = new EawContract { Type = "Flex", AmountType = "week", Amount = 17m };
+        var rates = new List<EawPayRate>
+        {
+            new EawPayRate { Type = "hour", Rate = 20.40m, FromRaw = "2026-04-01" },
+        };
+
+        var info = EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, rates, Stichtag);
+
+        Assert.Null(info.DataError);
+        Assert.Equal("FLEX", info.EmploymentModel);
+        Assert.Equal("hourly", info.SalaryType);
+        Assert.Equal(20.40m, info.HourlyRate);
+    }
+
+    // ───── STRICT-Validierungen (Walter-Vorgabe 08.07.2026) ─────
+
+    [Fact]
+    public void UeberlappendeVertraege_SindErfassungsfehler()
+    {
+        // Ende 1.4. + neuer Beginn 1.4. = 1 Tag Ueberlappung → Fehler.
+        var contracts = new List<EawContract>
+        {
+            new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2025-10-10", ToRaw = "2026-04-01" },
+            new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2026-04-01" },
+        };
+        var err = EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(contracts);
+        Assert.NotNull(err);
+        Assert.Contains("überschneiden", err);
+    }
+
+    [Fact]
+    public void OffenerAltVertrag_MitFolgevertrag_IstErfassungsfehler()
+    {
+        var contracts = new List<EawContract>
+        {
+            new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2025-10-10" },   // offen!
+            new() { Type = "Fix",  AmountType = "percent", Amount = 100m, FromRaw = "2026-04-01" },
+        };
+        var err = EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(contracts);
+        Assert.NotNull(err);
+        Assert.Contains("OFFEN", err);
+    }
+
+    [Fact]
+    public void NahtloseVertraege_SindKeinFehler()
+    {
+        var contracts = new List<EawContract>
+        {
+            new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2025-10-10", ToRaw = "2026-03-31" },
+            new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2026-04-01" },
+        };
+        Assert.Null(EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(contracts));
+    }
+
+    [Fact]
+    public void FlexOhneLohn_IstErfassungsfehler()
+    {
+        var c = new EawContract { Type = "Flex", AmountType = "week", Amount = 17m };
+        var info = EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, new List<EawPayRate>(), Stichtag);
+        Assert.NotNull(info.DataError);
+        Assert.Contains("Stundenlohn", info.DataError);
+    }
+
+    [Fact]
+    public void FixOhneLohn_IstErfassungsfehler()
+    {
+        var c = new EawContract { AmountType = "percent", Amount = 100m, Percentage = 100m };
+        var info = EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, new List<EawPayRate>(), Stichtag, isKader: false);
+        Assert.NotNull(info.DataError);
+        Assert.Contains("Monatslohn", info.DataError);
+    }
+
+    [Fact]
+    public void FixM_OhneLohn_IstLegal()
+    {
+        // GF-Fall: FIX-M darf ohne Lohn sein (vertraulich, wird in OneCrew erfasst).
+        var c = new EawContract { AmountType = "percent", Amount = 100m, Percentage = 100m };
+        var info = EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, new List<EawPayRate>(), Stichtag, isKader: true);
+        Assert.Null(info.DataError);
+        Assert.Equal("FIX-M", info.EmploymentModel);
+    }
+
+    [Fact]
+    public void HistorischeUeberlappung_WirdIgnoriert_AktiveGemeldet()
+    {
+        // Rein historische Ueberlappung (beide Vertraege abgelaufen) → kein Fehler
+        // (Walter 08.07.2026: Historie lebt im alten Lohnprogramm).
+        var vergangen = new List<EawContract>
+        {
+            new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2023-01-01", ToRaw = "2023-06-30" },
+            new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2023-06-30", ToRaw = "2023-12-31" },
+        };
+        Assert.Null(EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(vergangen, Stichtag));
+
+        // Dieselbe Ueberlappung, aber der zweite Vertrag laeuft noch → Fehler.
+        var aktiv = new List<EawContract>
+        {
+            new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2023-01-01", ToRaw = "2023-06-30" },
+            new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2023-06-30" },
+        };
+        Assert.NotNull(EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(aktiv, Stichtag));
+    }
 }
+
+
+

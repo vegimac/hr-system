@@ -5,11 +5,18 @@ using Xunit;
 namespace HrSystem.Tests;
 
 /// <summary>
-/// Source-Audit (Walter-Vorgabe 23.06.2026): Die Vertrags-/Lohn-/Funktionshistorie
-/// (contracts, pay_rates, positions) darf NIE an <c>SkipDetailCalls</c> hängen —
-/// sonst kann der Timeline-Sync alte falsche Verträge nicht korrigieren. Nur
-/// optionale Zusatz-Stammdaten (Fiscal/IBAN, Properties/AHV/Zivilstand) dürfen
-/// bei <c>SkipDetailCalls=true</c> übersprungen werden.
+/// Source-Audit (Walter-Vorgabe 23.06.2026, präzisiert 08.07.2026): Die
+/// Vertrags-/Lohn-/Funktionshistorie (contracts, pay_rates, positions) darf
+/// NIE an <c>SkipDetailCalls</c> hängen — sonst kann der Timeline-Sync alte
+/// falsche Verträge nicht korrigieren. Nur optionale Zusatz-Stammdaten
+/// (Fiscal/IBAN, Properties/AHV/Zivilstand) dürfen bei
+/// <c>SkipDetailCalls=true</c> übersprungen werden.
+///
+/// AUSNAHME (Walter-Vorgabe 08.07.2026): der TIEFENIMPORT (<c>SkipContracts</c>)
+/// importiert bewusst NUR Stammdaten und NIE Verträge — dort darf (und soll)
+/// der komplette Vertrags-Fetch entfallen. Der Detail-Fetch-Block ist daher
+/// mit <c>&amp;&amp; !req.SkipContracts</c> gegated; das SkipDetailCalls-Verbot
+/// gilt unverändert.
 ///
 /// Der Test prüft die Struktur des Detail-Fetch-Blocks in
 /// EasyAtWorkEmployeeSyncService: GetContractsAsync / GetPayRatesAsync /
@@ -24,9 +31,10 @@ public class EasyAtWorkSkipDetailCallsAuditTests
         var file = FindServiceFile();
         var src  = File.ReadAllText(file);
 
-        // Detail-Fetch-Block: beginnt mit der Mengen-Bedingung (NICHT mehr mit SkipDetailCalls).
-        var fetchStart = src.IndexOf("if (rowsToProcess.Count > 0)", StringComparison.Ordinal);
-        Assert.True(fetchStart > 0, "Detail-Fetch-Block (if (rowsToProcess.Count > 0)) nicht gefunden.");
+        // Detail-Fetch-Block: beginnt mit der Mengen-Bedingung + Tiefenimport-Gate
+        // (SkipContracts ist erlaubt — SkipDetailCalls wäre verboten).
+        var fetchStart = src.IndexOf("if (rowsToProcess.Count > 0 && !req.SkipContracts)", StringComparison.Ordinal);
+        Assert.True(fetchStart > 0, "Detail-Fetch-Block (if (rowsToProcess.Count > 0 && !req.SkipContracts)) nicht gefunden.");
 
         // Das optionale Gate MUSS innerhalb des Detail-Fetch existieren …
         var gate = src.IndexOf("if (!req.SkipDetailCalls)", fetchStart, StringComparison.Ordinal);

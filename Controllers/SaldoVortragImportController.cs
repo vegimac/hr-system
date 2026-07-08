@@ -269,7 +269,7 @@ public class SaldoVortragImportController : ControllerBase
     // ── Vertragsmodell-Relevanz (analog SaldoVortragController) ─────────────
 
     private static bool IsRelevant905(string model) =>   // Ferien-Geld CHF
-        model == "UTP" || model == "MTP";
+        model == "FLEX" || model == "MTP";
     private static bool IsRelevant906(string model) =>   // 13. ML CHF
         model == "MTP" || model == "FIX" || model == "FIX-M";
 

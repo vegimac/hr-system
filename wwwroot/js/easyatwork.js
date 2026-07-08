@@ -650,7 +650,20 @@ function _eawEmpSyncInit() {
             `<option value="${m.companyProfileId}">${escapeHtml(m.companyProfileName||'')} (${escapeHtml(m.restaurantCode||'')}) → ${m.easyAtWorkCustomerId}</option>`
           ).join('')
         : '<option value="">— keine Filiale gemappt —</option>';
+
+    // Global gewählte Filiale (Sidebar-Selektor) vorauswählen, sofern gemappt —
+    // gleiche Sub-Page-Konvention wie eawSyncInit (Walter-Vorgabe 13.05.2026).
+    if (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId
+        && mapped.some(m => Number(m.companyProfileId) === Number(fixedCompanyProfileId))) {
+        sel.value = String(fixedCompanyProfileId);
+    }
 }
+
+// Hinweis (Walter-Vorgabe 08.07.2026): der Einstieg „＋ Neuer MA aus easy@work"
+// aus der Mitarbeiter-Verwaltung lebt als eigenes Modal in employees.js
+// (empImportFromEasy) und nutzt den eingeschränkten Endpoint
+// /api/easywork/neuzugang/* — NICHT diese Admin-Seite. Der Massen-Sync hier
+// bleibt unverändert (admin/superuser).
 
 async function eawEmpChooseEmployees() {
     const sel = document.getElementById('eawEmpSyncBranchSel');

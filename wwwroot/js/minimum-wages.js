@@ -31,7 +31,7 @@ const MW_EDU = [
 
 // Zeilen-Reihenfolge (Funktion + Modell)
 const MW_GROUP_ORDER = ['CREW','HOST_CT','SWING','SHIFT_LEADER_1_6','SHIFT_LEADER_7_PLUS','ASST_2','ASST_1','REST_MANAGER'];
-const MW_MODEL_ORDER = ['UTP','MTP','FIX','FIX-M'];
+const MW_MODEL_ORDER = ['FLEX','MTP','FIX','FIX-M'];
 const MW_GROUP_LABEL = {
     CREW: 'Crew',
     HOST_CT: 'Host (CT)',
@@ -46,12 +46,12 @@ const MW_GROUP_LABEL = {
 // Vertragsmodell-Farben — identisch zum Rest des Programms (payroll.js,
 // contracts-page.js, akonto-workflow.js …): MTP grün, UTP amber, FIX blau,
 // FIX-M violett. Text dunkel passend zur Pastell-Fläche.
-const MW_MODEL_COLOR = { MTP: '#d1fae5', UTP: '#fef3c7', FIX: '#ece9e2', 'FIX-M': '#ede9fe' };
-const MW_MODEL_TEXT  = { MTP: '#065f46', UTP: '#92400e', FIX: '#6b6152', 'FIX-M': '#5b21b6' };
+const MW_MODEL_COLOR = { MTP: '#d1fae5', FLEX: '#fef3c7', FIX: '#ece9e2', 'FIX-M': '#ede9fe' };
+const MW_MODEL_TEXT  = { MTP: '#065f46', FLEX: '#92400e', FIX: '#6b6152', 'FIX-M': '#5b21b6' };
 function mwBadge(model, extra) {
     const bg = MW_MODEL_COLOR[model] || '#f1f5f9';
     const fg = MW_MODEL_TEXT[model]  || '#475569';
-    return `<span class="mw-badge" style="background:${bg};color:${fg};${extra || ''}">${model}</span>`;
+    return `<span class="mw-badge" style="background:${bg};color:${fg};${extra || ''}">${model === 'FLEX' ? 'FLEX' : model}</span>`;
 }
 
 function mwGroupIdx(g) { const i = MW_GROUP_ORDER.indexOf(g); return i < 0 ? 999 : i; }

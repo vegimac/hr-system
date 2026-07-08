@@ -376,7 +376,7 @@ public class AkontoLaufService
         string  bruttoErlaeuterung;
         switch (model)
         {
-            case "UTP":
+            case "FLEX":
             case "MTP":
                 // Regel 5/6: Stunden bis Stichtag × Rate + Ferien-Pott (nur abgeschlossene Bezüge)
                 (brutto, bruttoErlaeuterung) = ComputeBruttoHourly(
@@ -389,7 +389,7 @@ public class AkontoLaufService
                 // strukturell viel zu niedrig (Definitiv-Netto >> Akonto).
                 // MTP braucht das nicht: dort deckt der Garantie-Festlohn bereits
                 // die Krank/Feiertag-Komponenten ab (kein Lohn-Ausfall bei MTP).
-                if (model == "UTP")
+                if (model == "FLEX")
                 {
                     // Krank-Karenz 88% (nur Tage VOR Stichtag)
                     decimal krankTageBisStichtag = absences

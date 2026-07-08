@@ -184,6 +184,10 @@ builder.Services.AddScoped<LseExportService>();
 builder.Services.AddScoped<DashboardService>();
 // SMTP-Versand für MA-Postfach-Benachrichtigungen (Lohnzettel-Bereit etc.)
 builder.Services.AddScoped<EmailService>();
+// SMS-Versand über eCall (F24 Schweiz, REST). DB-gekoppelt → Scoped;
+// nutzt IHttpClientFactory (via AddHttpClient unten registriert).
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<EcallSmsService>();
 // Word/Office → PDF-Vorschau via LibreOffice headless (Dokumentenverwaltung).
 // Zustandslos → Singleton. Setzt LibreOffice auf dem Server voraus.
 builder.Services.AddSingleton<OfficeToPdfService>();
@@ -500,7 +504,8 @@ using (var scope = app.Services.CreateScope())
             ('anniversary',            'Dienstjubiläen',                        TRUE,   30, NULL, 'info',     NULL,       TRUE,  12),
             ('night_work_exam_expiring','Nachtarbeit-Bewilligung läuft ab',     TRUE,   30,    7, 'warning',  'critical', TRUE,  13),
             ('night_work_exam_fehlt',  'Nachtarbeit-Nachweise fehlen',          TRUE, NULL, NULL, 'critical', NULL,       FALSE, 14),
-            ('night_work_exam_mismatch','Nachtarbeit-Enddatum in easy@work falsch', TRUE, NULL, NULL, 'critical', NULL,   FALSE, 15)
+            ('night_work_exam_mismatch','Nachtarbeit-Enddatum in easy@work falsch', TRUE, NULL, NULL, 'critical', NULL,   FALSE, 15),
+            ('availability_missing',   'Verfügbarkeit fehlt',                    TRUE, NULL, NULL, 'warning',  NULL,       FALSE, 16)
         ON CONFLICT (category) DO NOTHING;
     ");
 
@@ -780,7 +785,8 @@ using (var scope = app.Services.CreateScope())
           ('PromotionCongratulations','Gratulation','Gratulation zu Beförderung oder neuer Aufgabe','appreciation',4,true),
           ('WelcomeBackVacation','Willkommen zurück','Rückkehr aus den Ferien','care',5,true),
           ('CareHeatNotice','Fürsorge-Hinweis','Kurzer Hinweis bei Hitze oder ähnlicher Belastung','care',6,true),
-          ('WelcomeBackNeutral','Schön, dass du wieder da bist','Neutrale Willkommensnachricht ohne Angabe des Grundes','care',7,true)
+          ('WelcomeBackNeutral','Schön, dass du wieder da bist','Neutrale Willkommensnachricht ohne Angabe des Grundes','care',7,true),
+          ('VERTRAG_LINK','Arbeitsvertrag-Link','SMS-Vorlage für den öffentlichen Vertrags-Link. Platzhalter (in geschweiften Klammern): Vorname, Firma, Link, GueltigBis','appreciation',8,true)
         ON CONFLICT (code) DO UPDATE SET
           name = EXCLUDED.name, description = EXCLUDED.description,
           consent_category = EXCLUDED.consent_category, sort_order = EXCLUDED.sort_order, is_active = EXCLUDED.is_active;
@@ -847,6 +853,27 @@ using (var scope = app.Services.CreateScope())
         UpsertMomentText("WelcomeBackNeutral", "Calm",     "{Briefanrede}\nschön, dass du wieder da bist. Wir wünschen dir einen guten Start.");
         UpsertMomentText("WelcomeBackNeutral", "Warm",     "{Briefanrede}\nschön, dass du wieder bei uns bist. Wir freuen uns, dich wieder im Team zu haben.");
         UpsertMomentText("WelcomeBackNeutral", "Personal", "{Briefanrede}\nschön, dich wieder bei uns zu haben. Starte ruhig, und melde dich, falls du Unterstützung brauchst.");
+
+        // VERTRAG_LINK (Walter 07.07.2026): SMS-Vorlage für den öffentlichen Vertrags-Link.
+        // Hier zählt der SmsText (nicht der BodyText); Platzhalter {Vorname}/{Firma}/{Link}/{GueltigBis}
+        // werden von ContractShareController.Create ersetzt. Nur einfügen, wenn für diesen Typ
+        // noch KEIN Text existiert (spätere UI-Änderungen bleiben erhalten).
+        if (_mtTypeIds.TryGetValue("VERTRAG_LINK", out var _vlTypeId))
+        {
+            var _vlToneId = _mtToneIds.TryGetValue("Calm", out var _c) ? _c
+                          : db.MomentTones.OrderBy(t => t.SortOrder).ThenBy(t => t.Id).Select(t => t.Id).FirstOrDefault();
+            if (_vlToneId != 0 && !db.MomentTexts.Any(x => x.MomentTypeId == _vlTypeId))
+            {
+                db.MomentTexts.Add(new MomentText {
+                    MomentTypeId = _vlTypeId, MomentToneId = _vlToneId,
+                    Titel = "Arbeitsvertrag-Link",
+                    SmsText = "Hallo {Vorname}, hier ist dein Arbeitsvertrag bei {Firma}: {Link}",
+                    BodyText = "Vorlage für den SMS-Text des öffentlichen Vertrags-Links. Platzhalter: {Vorname}, {Firma}, {Link}, {GueltigBis}.",
+                    LanguageCode = "de", Version = "1.0", RequiresReview = false,
+                    IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
+            }
+        }
+
         db.SaveChanges();
     }
 
@@ -880,6 +907,51 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE UNIQUE INDEX IF NOT EXISTS ux_postfach_setup_token_hash ON postfach_setup_token (token_hash);
         CREATE INDEX IF NOT EXISTS ix_postfach_setup_token_user ON postfach_setup_token (app_user_id);
+
+        -- Öffentlicher Vertrags-Link-Token (Walter 07.07.2026) ─────────────────
+        CREATE TABLE IF NOT EXISTS contract_share_token (
+            id            serial PRIMARY KEY,
+            employee_id   integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            employment_id integer NOT NULL,
+            token_hash    text NOT NULL,
+            expires_at    timestamp without time zone NOT NULL,
+            used_at       timestamp without time zone,
+            created_at    timestamp without time zone NOT NULL DEFAULT now(),
+            created_by    integer
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_contract_share_token_hash ON contract_share_token (token_hash);
+        CREATE INDEX IF NOT EXISTS ix_contract_share_token_employee ON contract_share_token (employee_id);
+    ");
+
+    // ── Verfügbare Arbeitszeiten pro MA (versioniert) — Walter 07.07.2026 ──
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS employee_availability (
+            id          serial PRIMARY KEY,
+            employee_id integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            type        text NOT NULL,
+            valid_from  date NOT NULL,
+            valid_to    date,
+            bemerkung   text,
+            created_at  timestamp without time zone NOT NULL DEFAULT now(),
+            created_by  integer
+        );
+        CREATE INDEX IF NOT EXISTS ix_employee_availability_employee ON employee_availability (employee_id);
+
+        CREATE TABLE IF NOT EXISTS employee_availability_slot (
+            id              serial PRIMARY KEY,
+            availability_id integer NOT NULL REFERENCES employee_availability(id) ON DELETE CASCADE,
+            von             time without time zone,
+            bis             time without time zone,
+            mon             boolean NOT NULL DEFAULT false,
+            tue             boolean NOT NULL DEFAULT false,
+            wed             boolean NOT NULL DEFAULT false,
+            thu             boolean NOT NULL DEFAULT false,
+            fri             boolean NOT NULL DEFAULT false,
+            sat             boolean NOT NULL DEFAULT false,
+            sun             boolean NOT NULL DEFAULT false,
+            sort_order      integer NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS ix_employee_availability_slot_avail ON employee_availability_slot (availability_id);
     ");
 
     // ── Lohnpositionen (Lohnraster) ───────────────────────────────────────
@@ -1559,6 +1631,44 @@ using (var scope = app.Services.CreateScope())
             value      text NOT NULL DEFAULT '',
             updated_at timestamptz NOT NULL DEFAULT now()
         );
+        -- eCall-SMS-Konfiguration (F24 Schweiz, REST). Singleton, Id=1 (Walter 07.07.2026)
+        CREATE TABLE IF NOT EXISTS ecall_setting (
+            id                 integer PRIMARY KEY,
+            enabled            boolean NOT NULL DEFAULT false,
+            username           text,
+            password_encrypted text,
+            sender             text,
+            test_redirect_to   text,
+            updated_at         timestamp without time zone NOT NULL DEFAULT now()
+        );
+        -- SMS-Test-Umleitung analog SMTP-Test-Umleitung (Walter 07.07.2026)
+        ALTER TABLE ecall_setting ADD COLUMN IF NOT EXISTS test_redirect_to text;
+        -- Vertrags-Link: Öffnungs-Log + manueller Widerruf (Walter 07.07.2026)
+        ALTER TABLE contract_share_token ADD COLUMN IF NOT EXISTS opened_at  timestamp without time zone;
+        ALTER TABLE contract_share_token ADD COLUMN IF NOT EXISTS revoked_at timestamp without time zone;
+        -- Vertragsmodell-Rename UTP → FLEX (Walter 08.07.2026) — idempotent.
+        -- FLEX ist der easy@work-Begriff; «UTP» war der alte Mirus-/interne Code.
+        -- ACHTUNG: absenz_typ.code = 'UTP' ist ein ANDERER Namensraum
+        -- (Absenz-Typ) und bleibt bewusst unangetastet.
+        UPDATE employment SET employment_model = 'FLEX' WHERE employment_model = 'UTP';
+        UPDATE minimum_wage_rule_new SET employment_model_code = 'FLEX' WHERE employment_model_code = 'UTP';
+        UPDATE social_insurance_rate SET employment_model_code = 'FLEX' WHERE employment_model_code = 'UTP';
+        UPDATE vertragstyp_lohnposition SET vertragstyp_code = 'FLEX' WHERE vertragstyp_code = 'UTP';
+        UPDATE employment_model_component SET employment_model_code = 'FLEX' WHERE employment_model_code = 'UTP';
+        UPDATE contract_text SET contract_types = REPLACE(contract_types, 'UTP', 'FLEX') WHERE contract_types LIKE '%UTP%';
+        -- SMS-Versand-Protokoll (Walter 07.07.2026, Stufe 1)
+        CREATE TABLE IF NOT EXISTS sms_log (
+            id            serial PRIMARY KEY,
+            created_at    timestamp without time zone NOT NULL DEFAULT now(),
+            purpose       text,
+            employee_id   integer,
+            to_phone      text,
+            redirected_to text,
+            ok            boolean NOT NULL DEFAULT false,
+            message_id    text,
+            error         text
+        );
+        CREATE INDEX IF NOT EXISTS ix_sms_log_employee_purpose ON sms_log (employee_id, purpose);
         -- Nachtarbeit-Untersuchung am MA (Walter 20.06.2026, ArG)
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_valid_until DATE;
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_dokument_id INTEGER REFERENCES employee_dokument(id) ON DELETE SET NULL;

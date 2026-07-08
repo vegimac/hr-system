@@ -10,7 +10,7 @@ public class VertragstypLohnposition
 {
     public int Id { get; set; }
 
-    /// <summary>'FIX' | 'FIX-M' | 'MTP' | 'UTP'</summary>
+    /// <summary>'FIX' | 'FIX-M' | 'MTP' | 'FLEX' (bis 08.07.2026 «UTP»)</summary>
     public string VertragstypCode { get; set; } = "";
 
     /// <summary>Lohnposition-Code (z.B. "10" Festlohn, "70" Krankheit).</summary>

@@ -8,17 +8,36 @@
 // Saemtliche Inhalte liegen als statische .md-Files unter wwwroot/help/
 // und koennen vom Admin direkt im Server bearbeitet werden.
 
+// Rollenbasierte Kapitel (Walter-Vorgabe 07.07.2026): jedes Kapitel trägt
+// eine `roles`-Liste — der Benutzer sieht NUR die Kapitel der Programmteile,
+// zu denen seine Rolle berechtigt ist. Kein `roles`-Feld = für alle sichtbar.
+// Rollen: admin, superuser, user (GF), buchhaltung, lowuser (employee nutzt
+// die separate Postfach-Seite und sieht dieses Panel nie).
 const HELP_PAGES = [
     { slug: 'index',         title: '🏠 Übersicht' },
     { slug: 'mitarbeiter',   title: 'Mitarbeiter' },
     { slug: 'vertraege',     title: 'Verträge' },
-    { slug: 'lohnlauf',      title: 'Lohnlauf' },
-    { slug: 'qst',           title: 'Quellensteuer' },
-    { slug: 'dokumente',     title: 'Dokumente & Posteingang' },
-    { slug: 'audit',         title: 'Aktivitäts-Log' },
+    { slug: 'lohnlauf',      title: 'Lohnlauf',                    roles: ['admin', 'superuser', 'user', 'buchhaltung'] },
+    { slug: 'qst',           title: 'Quellensteuer',               roles: ['admin', 'superuser', 'user', 'buchhaltung'] },
+    { slug: 'moments',       title: 'Moments (Mitteilungen)',      roles: ['admin', 'superuser', 'user', 'buchhaltung'] },
+    { slug: 'sms',           title: 'SMS & Vertrags-Link',         roles: ['admin', 'superuser', 'user', 'buchhaltung'] },
+    { slug: 'dokumente',     title: 'Dokumente & Posteingang',     roles: ['admin', 'superuser', 'user', 'buchhaltung'] },
+    { slug: 'fibu',          title: 'Buchhaltung (Fibu)',          roles: ['admin', 'buchhaltung'] },
+    { slug: 'audit',         title: 'Aktivitäts-Log',              roles: ['admin'] },
     { slug: 'suche',         title: 'Globale Suche (⌘K)' },
-    { slug: 'rollen',        title: 'Rollen & Berechtigungen' },
+    { slug: 'rollen',        title: 'Rollen & Berechtigungen',     roles: ['admin'] },
 ];
+
+// Sichtbare Kapitel für den eingeloggten Benutzer. Unbekannte Rolle
+// (currentUser noch nicht geladen) → nur die rollen-freien Kapitel.
+function helpVisiblePages() {
+    const role = (typeof currentUser !== 'undefined' && currentUser && currentUser.role) || null;
+    return HELP_PAGES.filter(p => !p.roles || (role && p.roles.includes(role)));
+}
+
+function helpCanSee(slug) {
+    return helpVisiblePages().some(p => p.slug === slug);
+}
 
 // Walter-Vorgabe 28.05.2026: kontextuelle Hilfe — `helpOpen()` ohne
 // Parameter findet die passende Hilfe-Seite zur aktuell sichtbaren
@@ -41,6 +60,9 @@ const HELP_PAGE_BY_APP_PAGE = {
     'audit-log':         'audit',
     'benutzer':          'rollen',
     'admin-hub':         'index',
+    'moments':           'moments',
+    'fibu':              'fibu',
+    'ecall':             'sms',
 };
 
 // Tab-spezifisches Mapping: wenn auf Mitarbeiter-Seite ein bestimmter
@@ -75,6 +97,9 @@ function helpContextLabel(ctx) {
         'audit-log': 'Aktivitäts-Log',
         'benutzer': 'Benutzer',
         'admin-hub': 'Systemeinstellungen',
+        'moments': 'Moments',
+        'fibu': 'Buchhaltung (Fibu)',
+        'ecall': 'SMS (eCall)',
     };
     const tabLabels = {
         'personal': 'Persönliche Angaben',
@@ -131,6 +156,8 @@ function helpOpen(slug) {
         try { console.log('[Help] Kontext-Detektion:', ctx, '→ slug:', initial); } catch (_) {}
     }
     if (!initial) initial = 'index';   // Kontext > letzter Slug > index
+    // Rollen-Filter: Kapitel ausserhalb der Berechtigung → auf Übersicht.
+    if (!helpCanSee(initial)) initial = 'index';
 
     // Kontext-Hinweis-Text fuer den Header („Du bist auf: …")
     const ctxLabel = helpContextLabel(ctxInfo);
@@ -159,7 +186,7 @@ function helpOpen(slug) {
         </div>
         <div style="display:flex;flex:1;overflow:hidden">
             <nav id="helpNav" style="width:200px;flex-shrink:0;border-right:1px solid #e2e8f0;overflow-y:auto;padding:8px 0;background:#f8fafc;font-size:12.5px">
-                ${HELP_PAGES.map(p => `
+                ${helpVisiblePages().map(p => `
                 <div onclick="helpOpen('${p.slug}')"
                      id="helpNav-${p.slug}"
                      style="padding:7px 12px;cursor:pointer;color:#334155;border-left:3px solid transparent;line-height:1.3"
@@ -195,6 +222,8 @@ function _helpEscHandler(e) {
 }
 
 async function helpLoad(slug) {
+    // Rollen-Filter auch bei internen Links (#slug) durchsetzen.
+    if (!helpCanSee(slug)) slug = 'index';
     helpReadLastSlug.last = slug;
     try { localStorage.setItem('helpLastSlug', slug); } catch (_) {}
     // Nav-Highlight

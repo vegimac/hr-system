@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,14 +32,44 @@ namespace HrSystem.Controllers;
 public class MomentsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly EcallSmsService _sms;
 
-    public MomentsController(AppDbContext db)
+    public MomentsController(AppDbContext db, EcallSmsService sms)
     {
         _db = db;
+        _sms = sms;
     }
 
     private int? UserId() =>
         int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
+
+    /// <summary>
+    /// SMS-Direktversand nach dem Erstellen (Walter 07.07.2026, Etappe 2) —
+    /// best-effort NACH dem Commit (Moment/Postfach-Notiz existiert auch, wenn
+    /// die SMS scheitert; dann Link manuell übergeben). Versand über
+    /// EcallSmsService — dessen Test-Umleitung greift zentral (solange eine
+    /// Test-Nummer hinterlegt ist, geht JEDE SMS dorthin, nie an den MA).
+    /// Rückgabe-Objekt für die UI: smsSent/smsTo/redirectedTo/smsError.
+    /// </summary>
+    private async Task<(bool sent, string? to, string? redirectedTo, string? error)>
+        TrySendMomentSmsAsync(Employee emp, string smsBody, string purpose)
+    {
+        var phone = (emp.PhoneMobile ?? "").Trim();
+        if (phone.Length == 0)
+            return (false, null, null, "Keine Mobilnummer hinterlegt.");
+        try
+        {
+            var res = await _sms.SendSmsAsync(phone, smsBody, purpose: purpose, employeeId: emp.Id);
+            if (!res.Ok) return (false, phone, null, res.Error);
+            var redirect = await _db.EcallSettings.AsNoTracking()
+                .Where(r => r.Id == 1).Select(r => r.TestRedirectTo).FirstOrDefaultAsync();
+            return (true, phone, string.IsNullOrWhiteSpace(redirect) ? null : redirect!.Trim(), null);
+        }
+        catch (Exception ex)
+        {
+            return (false, phone, null, ex.Message);
+        }
+    }
 
     // ── Token: Klartext im Link, nur der SHA-256-Hash in der DB ─────────────
     private static (string token, string hash) NewToken()
@@ -204,12 +235,20 @@ public class MomentsController : ControllerBase
                     ? "OneCrew: In deinem persönlichen Postfach wartet eine neue HR-Nachricht."
                     : Resolve(dto.SmsText);
 
+                var pfUrl = $"{baseUrl}/postfach.html";
+                var (sent, smsTo, redirectedTo, smsError) =
+                    await TrySendMomentSmsAsync(emp, $"{pushSms}\n{pfUrl}", "POSTFACH");
+
                 return Ok(new
                 {
                     zustellung = "postfach",
-                    url = $"{baseUrl}/postfach.html",
+                    url = pfUrl,
                     smsText = pushSms,
                     mailboxDocumentId = mbox.Id,
+                    smsSent = sent,
+                    smsTo,
+                    redirectedTo,
+                    smsError,
                 });
             }
             catch (Exception ex)
@@ -276,11 +315,22 @@ public class MomentsController : ControllerBase
             return StatusCode(500, new { error = "MOMENT_CREATE_FAILED", message = Flatten(ex) });
         }
 
+        var momentUrl = $"{baseUrl}/moment.html?t={token}";
+        var momentSms = string.IsNullOrWhiteSpace(m.SmsText)
+            ? "OneCrew: Du hast eine persönliche Nachricht. Tippe auf den Link:"
+            : m.SmsText!;
+        var (mSent, mTo, mRedirect, mError) =
+            await TrySendMomentSmsAsync(emp, $"{momentSms}\n{momentUrl}", "MOMENT");
+
         return Ok(new
         {
             zustellung = "moment",
-            url = $"{baseUrl}/moment.html?t={token}",
+            url = momentUrl,
             momentId = m.Id,
+            smsSent = mSent,
+            smsTo = mTo,
+            redirectedTo = mRedirect,
+            smsError = mError,
         });
     }
 

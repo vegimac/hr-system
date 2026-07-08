@@ -214,7 +214,7 @@ const EMP_SPECIAL_FILTERS = {
 // den Familie-Tab. Aktive Schwangerschaft wird zusätzlich als roter Badge
 // neben dem MA-Namen im Header angezeigt.
 const _empTabsOrder = ['personal', 'familie', 'bank', 'quellensteuer',
-                       'stempelzeiten', 'absenzen', 'zulagen', 'ktg', 'dokumente'];
+                       'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'ktg', 'dokumente'];
 
 // Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
 let _stempelGlobalPeriodeId = null;
@@ -490,11 +490,11 @@ function renderEmployeeList(employees) {
         if (model) {
             const modelClass = {
                 MTP: 'emp-model-mtp',
-                UTP: 'emp-model-utp',
+                FLEX: 'emp-model-utp',
                 FIX: 'emp-model-fix',
                 'FIX-M': 'emp-model-fix-m'
             }[model] || 'emp-model-other';
-            modelBadge = `<span class="emp-model-badge liquid-contract-pill ${modelClass}" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;flex-shrink:0;align-self:center">${model}</span>`;
+            modelBadge = `<span class="emp-model-badge liquid-contract-pill ${modelClass}" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;flex-shrink:0;align-self:center">${modelDisplay(model)}</span>`;
         } else if (!isInactive) {
             // aktiv aber ohne Vertrag (kein einziges Employment in der DB) → roter Hinweis
             modelBadge = `<span style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:#fee2e2;color:#b91c1c;flex-shrink:0;align-self:center">kein Vertrag</span>`;
@@ -826,6 +826,7 @@ function renderEmployeeDetail(emp) {
             <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung<br>QST')}</div>
             <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
             <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')">${_t('ma.tab.absencesOnly','Absenzen')}</div>
+            <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availability','Verfügbarkeit')}</div>
             <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen Abzüge<br>Abtretung BVG')}</div>
             <div class="emp-tab"        data-tab="ktg"        onclick="switchEmpTab('ktg')">${_t('ma.tab.ktg','KTG/UVG')}</div>
             <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')">${_t('ma.tab.docs','Dokumente')}</div>
@@ -1038,6 +1039,13 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
 
+        <!-- TAB: Verfügbarkeit (verfügbare Arbeitszeiten, versioniert) -->
+        <div class="emp-tab-content" id="emp-tab-verfuegbarkeit">
+            <div id="verfuegbarkeitContent">
+                <div class="emp-placeholder" style="height:200px">${_t('ma.loading','Wird geladen...')}</div>
+            </div>
+        </div>
+
         <!-- TAB: Zulagen & Abzüge -->
         <div class="emp-tab-content" id="emp-tab-zulagen">
             <!-- Bereich 1: Wiederkehrende Zulagen & Abzüge -->
@@ -1125,12 +1133,15 @@ function renderEmpContractList(emp) {
         const wage = empContractWageText(c);
         const active = c.isActive ? `<span class="emp-contract-status active">aktiv</span>` : `<span class="emp-contract-status">archiviert</span>`;
         const actions = id
-            ? `<button type="button" class="emp-contract-btn" onclick="openEmpContractPdf(${id}, false)">Anschauen</button>
-               <button type="button" class="emp-contract-btn" onclick="openEmpContractPdf(${id}, true)">Drucken</button>`
+            ? `<button type="button" class="emp-contract-btn" title="Vertrag bearbeiten (z.B. vertraulichen Lohn erfassen) — öffnet die Vertrags-Maske mit Mindestlohn-Prüfung" onclick="empContractEdit(${id}, ${emp.id})">Bearbeiten</button>
+               <button type="button" class="emp-contract-btn" onclick="openEmpContractPdf(${id}, false)">Anschauen</button>
+               <button type="button" class="emp-contract-btn" onclick="openEmpContractPdf(${id}, true)">Drucken</button>
+               <button type="button" class="emp-contract-btn" title="Vertrags-Link (14 Tage) per SMS direkt an den MA senden" onclick="contractShareSendSms(${emp.id}, ${id}, '${esc(emp.phoneMobile || '')}')">SMS</button>
+               <button type="button" class="emp-contract-btn" title="Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen" onclick="contractShareRevoke(${id})">Link ⊘</button>`
             : '';
         return `<div class="emp-contract-row">
             <div class="emp-contract-main">
-                <span class="emp-contract-model ${contractModelClass(model)}">${esc(model)}</span>
+                <span class="emp-contract-model ${contractModelClass(model)}">${esc(modelDisplay(model))}</span>
                 <span class="emp-contract-title">${esc(title)}</span>
                 ${active}
             </div>
@@ -1144,13 +1155,14 @@ function renderEmpContractList(emp) {
             <span>${contracts.length}</span>
         </div>
         <div class="emp-contract-scroll">${rows}</div>
-    </div>`;
+    </div>
+    <div id="contractShareBox" style="margin:10px 0 0"></div>`;
 }
 
 function contractModelClass(model) {
     return ({
         MTP: 'model-badge-mtp',
-        UTP: 'model-badge-utp',
+        FLEX: 'model-badge-utp',
         FIX: 'model-badge-fix',
         'FIX-M': 'model-badge-fix-m'
     })[model] || '';
@@ -1245,6 +1257,8 @@ function switchEmpTab(tab) {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openQstFromTab(null)">${plusIcon} Neuer Eintrag</button>`;
         } else if (tab === 'absenzen') {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openAbsenceModal(null)">${plusIcon} Absenz erfassen</button>`;
+        } else if (tab === 'verfuegbarkeit' && !isExcluded) {
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="verfNewForm()">${plusIcon} Neue Verfügbarkeit</button>`;
         } else if (tab === 'dokumente') {
             // Walter-Vorgabe 09.06.2026: „Dokument hochladen" sitzt jetzt im Doku-
             // Body (rechts in der .dok-list-header-Zeile, auf Höhe des Kategorie-
@@ -1276,6 +1290,7 @@ function switchEmpTab(tab) {
     if (tab === 'quellensteuer'  && selectedEmployeeId) loadQuellensteuerTab(selectedEmployeeId);
     if (tab === 'stempelzeiten'  && selectedEmployeeId) loadStempelzeitenTab(selectedEmployeeId);
     if (tab === 'absenzen'       && selectedEmployeeId) loadAbsenzenTab(selectedEmployeeId);
+    if (tab === 'verfuegbarkeit' && selectedEmployeeId && typeof loadVerfuegbarkeitTab === 'function') loadVerfuegbarkeitTab(selectedEmployeeId);
     if (tab === 'zulagen'        && selectedEmployeeId) {
         // Walter-Vorgabe 26.05.2026: BVG-Zusatz + Recurring + Lohnabtretungen
         // teilen sich den neuen „Zulagen & Abzüge"-Tab.
@@ -3242,7 +3257,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             const memberJson = JSON.stringify(m).replace(/"/g, '&quot;');
             const headerRow = `
             <div class="emp-fam-headrow" onclick="openFamilyModal(${memberJson})"
-                 style="display:flex;align-items:center;gap:10px;padding:5px 10px;border:1px solid #94a3b8;border-radius:4px;background:#fff;cursor:pointer;transition:border-color .12s,box-shadow .12s;box-shadow:0 1px 2px rgba(15,23,42,0.08)"
+                 style="display:flex;align-items:center;gap:10px;padding:5px 10px;border:1px solid #e2ddd3;border-radius:9px;background:#fff;cursor:pointer;transition:border-color .12s,box-shadow .12s;box-shadow:0 1px 2px rgba(15,23,42,0.08)"
                  onmouseover="this.style.borderColor='#1a1a1a';this.style.boxShadow='0 2px 4px rgba(60,55,48,0.15)'" onmouseout="this.style.borderColor='#94a3b8';this.style.boxShadow='0 1px 2px rgba(15,23,42,0.08)'">
                 <span style="font-weight:600;color:#0f172a;flex:1;font-size:13.5px">${esc(name)}</span>
                 ${spousePermitBadge}
@@ -5502,7 +5517,7 @@ async function loadAbsenzenTab(employeeId) {
 
 function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrfrist = null, lockState = null) {
     const empModel = selectedEmployee?.employmentModel ?? '';
-    const noHours  = empModel === 'UTP';
+    const noHours  = empModel === 'FLEX';
     const sperrHtml  = renderSperrfristPanel(sperrfrist);
     const karenzHtml = renderKarenzPanel(karenzHistory);
 
@@ -6059,7 +6074,7 @@ async function calcAbsHoursPreview() {
     // garantiertem Mindestpensum). Feiertagentschädigung wird als % auf den
     // Stundenlohn berechnet und jeden Monat mit dem Lohn ausbezahlt — daher
     // kein Eintrag in den Arbeitsstunden-Saldo und kein Feiertag-Tage-Saldo.
-    if ((empModel === 'MTP' || empModel === 'UTP') && type === 'FEIERTAG') {
+    if ((empModel === 'MTP' || empModel === 'FLEX') && type === 'FEIERTAG') {
         previewEl.innerHTML = `<span class="abs-hours-label">${empModel}: Feiertagentschädigung wird als % monatlich mit dem Lohn ausbezahlt (kein Saldo-Eintrag)</span>`;
         previewEl.dataset.hours = '0';
         return;
@@ -6068,11 +6083,11 @@ async function calcAbsHoursPreview() {
     // MTP und UTP bei FERIEN: KEINE Zeitgutschrift. Stattdessen:
     //   - MTP: Garantie-Festlohn (10.5) wird um die Ferientage gekürzt;
     //          Ferien-Auszahlung anteilig aus Ferien-Geld-Saldo (CHF).
-    //   - UTP: Auszahlung anteilig aus Ferien-Geld-Saldo (CHF) —
+    //   - FLEX: Auszahlung anteilig aus Ferien-Geld-Saldo (CHF) —
     //          sofern der Firmenparameter "Feriengeld auf Konto"
     //          aktiv ist (sonst wird Ferien mit Stundenlohn ausbezahlt).
     //   Beide: Ferien-Tage-Saldo wird um die bezogenen Ferientage reduziert.
-    if ((empModel === 'MTP' || empModel === 'UTP') && type === 'FERIEN') {
+    if ((empModel === 'MTP' || empModel === 'FLEX') && type === 'FERIEN') {
         const modellInfo = empModel === 'MTP'
             ? 'Festlohn wird um diese Tage gekürzt, Auszahlung aus Ferien-Geld-Saldo (CHF)'
             : 'Auszahlung anteilig aus Ferien-Geld-Saldo (CHF)';
@@ -6113,22 +6128,22 @@ async function calcAbsHoursPreview() {
             }
             // KRANK, UNFALL, SCHULUNG, MILITAER: weeklyH bleibt auf betriebWeekly
         }
-        // UTP: bleibt auf betriebWeekly
+        // FLEX: bleibt auf betriebWeekly
     }
 
     let hours = 0;
     let hint  = '';
 
-    // UTP: nur Typen mit UtpAuszahlung-Flag bekommen etwas
-    if (empModel === 'UTP' && !utpAuszahlung) {
-        previewEl.innerHTML = '<span class="abs-hours-label">UTP: keine automatische Stundengutschrift für diesen Typ — kann pro Absenz-Typ aktiviert werden (Systemeinstellungen → Absenz-Typen → „UTP als Stundenlohn auszahlen")</span>';
+    // FLEX: nur Typen mit UtpAuszahlung-Flag bekommen etwas
+    if (empModel === 'FLEX' && !utpAuszahlung) {
+        previewEl.innerHTML = '<span class="abs-hours-label">FLEX: keine automatische Stundengutschrift für diesen Typ — kann pro Absenz-Typ aktiviert werden (Systemeinstellungen → Absenz-Typen → „UTP als Stundenlohn auszahlen")</span>';
         previewEl.dataset.hours = '0';
         return;
     }
 
     if (reduziertSaldo === 'NACHT_STUNDEN') {
         hours = count * (weeklyH / 5) * pFactor;
-        const saldoHint = empModel === 'UTP'
+        const saldoHint = empModel === 'FLEX'
             ? 'als Stundenlohn ausbezahlt, Nacht-Saldo sinkt entsprechend'
             : 'wird zu Ist-Stunden addiert, Nacht-Saldo sinkt entsprechend';
         hint  = `<span class="abs-hours-pos">+${hours.toFixed(2)} h</span> <span class="abs-hours-label">${typCfg?.bezeichnung ?? type}: ${count} Tag${count>1?'e':''} × ${weeklyH.toFixed(2)} h ÷ 5${pSuffix} → ${saldoHint}</span>`;
@@ -7520,7 +7535,7 @@ async function loadKtgTab(employeeId) {
                         <div><b>Stundenlohn (Basis):</b> CHF ${fmt(bd.stundenlohnBasis, 2)}</div>
                         <div>+ Ferien ${fmt(bd.ferienPct, 2)} %, + Feiertag ${fmt(bd.feiertagPct, 2)} %, + 13. ML ${fmt(bd.zehnterMLPct, 2)} %</div>
                         <div><b>= Brutto-Stundenlohn:</b> CHF ${fmt(bd.stundenlohnBrutto, 4)}</div>
-                        <div style="margin-top:6px"><b>Wochenstunden:</b> ${fmt(bd.wochenStunden, 2)} h (${d.vertragsModell === 'MTP' ? 'garantiert' : 'FLEX/UTP aus Filiale'})</div>
+                        <div style="margin-top:6px"><b>Wochenstunden:</b> ${fmt(bd.wochenStunden, 2)} h (${d.vertragsModell === 'MTP' ? 'garantiert' : 'FLEX aus Filiale'})</div>
                         <div style="margin-top:4px;color:#64748b">Formel: Wochenstunden × Std-Lohn brutto × 52 ÷ 365 = Tagessatz 100 %</div>
                     </div>`;
             }
@@ -8722,6 +8737,316 @@ async function postfachResetPassword(employeeId) {
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
+}
+
+// HR: Vertrags-Link direkt per SMS an den MA senden (Walter 07.07.2026, Etappe 2).
+// Nur eine Rückfrage «Vertrag per SMS an Nr. X wirklich senden?» — dann sendet
+// das Backend über eCall (Test-Umleitung greift dort automatisch).
+async function contractShareSendSms(employeeId, employmentId, phone) {
+    if (!employeeId && !employmentId) return;
+    const nr = (phone || '').trim();
+    if (!nr) {
+        alert('Für diesen Mitarbeitenden ist keine Handynummer hinterlegt.\n\nBitte zuerst im Personal-Tab die Telefonnummer erfassen.');
+        return;
+    }
+
+    // «bereits gesendet»-Hinweis (Punkt 5): letzter Versand + Link-Status in
+    // die Rückfrage aufnehmen. Best-effort — ohne Status normal fragen.
+    let hint = '';
+    if (employmentId) {
+        try {
+            const sr = await fetch(`/api/contract-share/status?employmentId=${employmentId}`, { headers: ah() });
+            if (sr.ok) {
+                const s = await sr.json();
+                if (s.lastSmsSentAt) {
+                    const d = new Date(s.lastSmsSentAt);
+                    hint += `\n\nBereits gesendet am ${d.toLocaleDateString('de-CH')} ${d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}.`;
+                }
+                if (s.activeLink) {
+                    hint += s.activeLink.openedAt
+                        ? `\nDer aktuelle Link wurde vom MA geöffnet${s.activeLink.usedAt ? ' (PDF abgerufen)' : ''}.`
+                        : '\nDer aktuelle Link wurde noch nicht geöffnet.';
+                }
+                if (hint) hint += '\nBeim erneuten Senden werden alte Links ungültig.';
+            }
+        } catch (_) { /* Status ist nur Komfort */ }
+    }
+    if (!confirm(`Vertrag per SMS an ${nr} wirklich senden?${hint}`)) return;
+
+    const box = document.getElementById('contractShareBox');
+    if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0">📲 SMS wird gesendet …</div>';
+    try {
+        const res = await fetch('/api/contract-share/send', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(employmentId ? { employmentId } : { employeeId }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok) {
+            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">✗ ${escapeHtml(j.error || j.message || ('Fehler HTTP ' + res.status))}</div>`;
+            return;
+        }
+        const exp = j.expiresAt ? new Date(j.expiresAt) : null;
+        const expStr = exp && !isNaN(exp.getTime()) ? exp.toLocaleDateString('de-CH') : '';
+        const redirectNote = j.redirectedTo
+            ? `<div style="margin-top:6px;color:#6b5a1f">⚠ Test-Umleitung aktiv — die SMS ging an ${escapeHtml(j.redirectedTo)}.</div>`
+            : '';
+        if (box) box.innerHTML = `
+            <div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55">
+                ✓ Vertrags-SMS gesendet an ${escapeHtml(j.to || nr)}.${expStr ? ` Link gültig bis ${escapeHtml(expStr)}.` : ''}
+                ${redirectNote}
+            </div>`;
+        box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) {
+        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// Vertrag direkt aus dem MA-Detail bearbeiten (Walter-Vorgabe 08.07.2026):
+// öffnet dasselbe Vertrags-Modal wie das Verträge-Modul (contracts-edit.js,
+// inkl. Mindestlohn-Live-Prüfung + easy@work-Override-Checkbox). Der volle
+// Vertrag wird frisch vom Server geholt — die Strip-Daten sind nur eine
+// Projektion. Nach dem Speichern lädt _ceAfterSave das MA-Detail neu.
+async function empContractEdit(employmentId, employeeId) {
+    if (!employmentId) return;
+    try {
+        const r = await fetch(`/api/employments/${employmentId}`, { headers: ah() });
+        if (!r.ok) { alert('Vertrag konnte nicht geladen werden (HTTP ' + r.status + ').'); return; }
+        const c = await r.json();
+        window._ceAfterSave = async () => {
+            if (typeof selectEmployee === 'function' && employeeId) await selectEmployee(employeeId);
+        };
+        await openContractEditModal(c, 'edit');
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+// ═══════════ „＋ Neuer MA aus easy@work" (Walter-Vorgabe 08.07.2026) ═══════════
+// Einzelimport für die Mitarbeiter-Verwaltung: neuer MA wird IMMER zuerst in
+// easy@work erfasst (CSV ist Vergangenheit), dann hier reingeholt. Zeigt NUR
+// neue MA (NEW) + Änderungen bei AKTIVEN MA (UPDATE) — inaktive werden vom
+// Backend nie angefasst (OnlyActive fest verdrahtet). Für admin/superuser/
+// user(GF)/buchhaltung; GF nur für seine Filialen (Server prüft).
+async function empImportFromEasy() {
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : null;
+    if (!cpId) { alert('Bitte zuerst oben in der Sidebar eine Filiale wählen.'); return; }
+
+    let ov = document.getElementById('empEasyImportModal');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'empEasyImportModal';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:400;background:rgba(60,55,48,0.4);display:flex;align-items:flex-start;justify-content:center;padding:40px 20px';
+        ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+        document.body.appendChild(ov);
+    }
+    ov.style.display = 'flex';
+    ov.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:720px;width:100%;max-height:calc(100vh - 80px);display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px 10px">
+                <div>
+                    <div style="font-size:17px;font-weight:700;color:#3f3f3f">＋ Neuer MA aus easy@work</div>
+                    <div style="font-size:12.5px;color:#8b8b8b;margin-top:2px">Neue MA zuerst in easy@work erfassen — hier erscheinen sie als NEU. Aktive MA mit Änderungen als UPDATE. Inaktive werden nicht angefasst.</div>
+                </div>
+                <button onclick="document.getElementById('empEasyImportModal').style.display='none'" aria-label="Schliessen"
+                        style="background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.06);border-radius:10px;width:34px;height:34px;font-size:19px;cursor:pointer;color:#646464;flex-shrink:0">&times;</button>
+            </div>
+            <div id="empEasyImportBody" style="padding:6px 22px 12px;overflow-y:auto;flex:1">
+                <div style="color:#8b8b8b;font-size:13px;padding:14px 0">⏳ Hole Daten aus easy@work — das kann einen Moment dauern …</div>
+            </div>
+            <div id="empEasyImportFoot" style="display:flex;gap:10px;justify-content:flex-end;align-items:center;padding:12px 22px 18px;border-top:1px solid rgba(139,139,139,0.2)"></div>
+        </div>`;
+
+    const body = document.getElementById('empEasyImportBody');
+    const foot = document.getElementById('empEasyImportFoot');
+    try {
+        const r = await fetch('/api/easywork/neuzugang/preview', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyProfileId: cpId }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px">✗ ${escapeHtml(j.error || j.message || ('Fehler HTTP ' + r.status))}</div>`;
+            return;
+        }
+        const rows = j.rows || [];
+        if (!rows.length) {
+            body.innerHTML = `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px;font-size:13px">✓ Alles aktuell — keine neuen MA und keine Änderungen bei aktiven MA.</div>`
+                + _empEasyNotes(j);
+            return;
+        }
+        body.innerHTML = `
+            <div style="font-size:12.5px;color:#646464;margin-bottom:8px">${j.countNew} neu · ${j.countUpdate} mit Änderungen — abwählen, was (noch) nicht übernommen werden soll:</div>
+            ${rows.map((x, i) => {
+                const isNew = x.status === 'NEW';
+                const badge = isNew
+                    ? '<span style="font-size:10.5px;font-weight:700;background:#e7f0e7;color:#3f5540;border:1px solid #b8ccb8;border-radius:10px;padding:2px 8px">NEU</span>'
+                    : '<span style="font-size:10.5px;font-weight:700;background:#ece9e2;color:#6b6152;border:1px solid #d0c8b8;border-radius:10px;padding:2px 8px">UPDATE</span>';
+                const detail = isNew
+                    ? escapeHtml(x.employmentInfo || 'wird neu angelegt')
+                    : escapeHtml((x.changedFields || []).join(', ') || x.reason || 'Änderungen');
+                const reentry = x.possibleReentry
+                    ? `<div style="font-size:11.5px;color:#92400e;margin-top:2px">⚠ Möglicher Wiedereintritt (bestehende Nr. ${escapeHtml(x.reentryEmployeeNumber || '?')})</div>` : '';
+                return `
+                <label style="display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid rgba(139,139,139,0.22);border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,0.55);cursor:pointer">
+                    <input type="checkbox" class="empEasyRow" data-number="${escapeHtml(x.number || '')}" checked style="margin-top:3px;width:15px;height:15px" onchange="_empEasyCount()">
+                    <div style="min-width:0">
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <span style="font-weight:600;color:#3f3f3f;font-size:13.5px">${escapeHtml(((x.firstName||'') + ' ' + (x.lastName||'')).trim())}</span>
+                            <span style="color:#8b8b8b;font-size:12px;font-family:monospace">${escapeHtml(x.number || '')}</span>
+                            ${badge}
+                        </div>
+                        <div style="font-size:12px;color:#646464;margin-top:2px;word-break:break-word">${detail}</div>
+                        ${reentry}
+                    </div>
+                </label>`;
+            }).join('')}
+            ${_empEasyNotes(j)}`;
+        foot.innerHTML = `
+            <button onclick="document.getElementById('empEasyImportModal').style.display='none'"
+                    style="padding:9px 16px;border:1px solid rgba(139,139,139,0.35);border-radius:12px;background:rgba(255,255,255,0.5);cursor:pointer;font-size:13px;color:#646464">Abbrechen</button>
+            <button id="empEasyCommitBtn" onclick="empEasyImportCommit(${cpId})"
+                    style="padding:9px 18px;border:none;border-radius:12px;background:#3f3f3f;color:#fff;cursor:pointer;font-size:13.5px;font-weight:600">Ausgewählte importieren (${rows.length})</button>`;
+    } catch (e) {
+        body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px">Netzwerkfehler: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function _empEasyNotes(j) {
+    let html = '';
+    if (j.conflicts && j.conflicts.length)
+        html += `<div style="background:#fdf6dd;border:1px solid #e4d28a;color:#6b5a1f;border-radius:10px;padding:10px 12px;font-size:12px;margin-top:8px;white-space:pre-wrap">⚠ Konflikte (werden NICHT importiert — bitte Admin prüfen lassen):\n${j.conflicts.map(escapeHtml).join('\n')}</div>`;
+    return html;
+}
+
+function _empEasyCount() {
+    const n = document.querySelectorAll('#empEasyImportModal .empEasyRow:checked').length;
+    const btn = document.getElementById('empEasyCommitBtn');
+    if (btn) { btn.textContent = `Ausgewählte importieren (${n})`; btn.disabled = n === 0; btn.style.opacity = n === 0 ? '0.5' : '1'; }
+}
+
+async function empEasyImportCommit(cpId) {
+    const numbers = Array.from(document.querySelectorAll('#empEasyImportModal .empEasyRow:checked'))
+        .map(el => el.dataset.number).filter(Boolean);
+    if (!numbers.length) return;
+    const btn = document.getElementById('empEasyCommitBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Importiere …'; }
+    const body = document.getElementById('empEasyImportBody');
+    try {
+        const r = await fetch('/api/easywork/neuzugang/commit', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyProfileId: cpId, selectedNumbers: numbers }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.blocked) {
+            const msg = j.blocked
+                ? 'Import blockiert — Personalnummern-Kollision:\n' + (j.numberConflicts || []).join('\n')
+                : (j.error || j.message || ('Fehler HTTP ' + r.status));
+            body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px;white-space:pre-wrap">✗ ${escapeHtml(msg)}</div>`;
+            if (btn) { btn.disabled = false; btn.textContent = 'Erneut versuchen'; }
+            return;
+        }
+        const skipped = (j.skippedContracts && j.skippedContracts.length)
+            ? `<div style="background:#fdf6dd;border:1px solid #e4d28a;color:#6b5a1f;border-radius:10px;padding:10px 12px;font-size:12px;margin-top:8px;white-space:pre-wrap">⚠ Nicht importierte Verträge (Periode abgeschlossen):\n${j.skippedContracts.map(escapeHtml).join('\n')}</div>` : '';
+        body.innerHTML = `
+            <div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px;font-size:13px">
+                ✓ Import abgeschlossen — ${j.inserted || 0} neu angelegt, ${j.updated || 0} aktualisiert.
+            </div>${skipped}`;
+        const foot = document.getElementById('empEasyImportFoot');
+        if (foot) foot.innerHTML = `
+            <button onclick="document.getElementById('empEasyImportModal').style.display='none'"
+                    style="padding:9px 18px;border:none;border-radius:12px;background:#3f3f3f;color:#fff;cursor:pointer;font-size:13.5px;font-weight:600">Schliessen</button>`;
+        // MA-Liste auffrischen — der neue MA soll sofort links erscheinen.
+        if (typeof invalidateEmployeeLookupCache === 'function') invalidateEmployeeLookupCache();
+        if (typeof loadMitarbeiterList === 'function') await loadMitarbeiterList();
+    } catch (e) {
+        body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px">Netzwerkfehler: ${escapeHtml(e.message)}</div>`;
+        if (btn) { btn.disabled = false; btn.textContent = 'Erneut versuchen'; }
+    }
+}
+
+// HR: alle aktiven Vertrags-Links dieses Vertrags widerrufen (Walter 07.07.2026).
+async function contractShareRevoke(employmentId) {
+    if (!employmentId) return;
+    if (!confirm('Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen?\n\nBereits verschickte Links zeigen danach «Link nicht mehr gültig».')) return;
+    const box = document.getElementById('contractShareBox');
+    try {
+        const res = await fetch('/api/contract-share/revoke', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employmentId }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok) {
+            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">✗ ${escapeHtml(j.error || ('Fehler HTTP ' + res.status))}</div>`;
+            return;
+        }
+        if (box) box.innerHTML = `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px;font-size:13px">✓ ${j.revoked === 0 ? 'Kein aktiver Link vorhanden.' : `${j.revoked} Link(s) widerrufen — verschickte Links sind ab sofort ungültig.`}</div>`;
+    } catch (e) {
+        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+// HR: öffentlichen Vertrags-Link + SMS-Text erzeugen (Copy-Variante).
+// Wird vom SMS-Button nicht mehr aufgerufen (Direktversand oben), bleibt
+// als Code erhalten für manuelles Kopieren/Verlinken.
+async function contractShareCreate(employeeId, employmentId) {
+    if (!employeeId && !employmentId) return;
+    const box = document.getElementById('contractShareBox');
+    if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0">⏳ Link wird erzeugt …</div>';
+    try {
+        const res = await fetch('/api/contract-share', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            // employmentId = genau dieser Vertrag; sonst (Fallback) der aktive.
+            body: JSON.stringify(employmentId ? { employmentId } : { employeeId }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">${escapeHtml(j.error || j.message || ('Fehler HTTP ' + res.status))}</div>`;
+            return;
+        }
+        const exp = j.expiresAt ? new Date(j.expiresAt) : null;
+        const expStr = exp && !isNaN(exp.getTime())
+            ? exp.toLocaleDateString('de-CH')
+            : '';
+        if (box) box.innerHTML = `
+            <div style="background:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.62);box-shadow:0 6px 20px rgba(60,55,48,0.14);border-radius:14px;padding:14px 16px">
+                <div style="font-weight:700;color:#3f3f3f;font-size:14px;margin-bottom:8px">📄 Arbeitsvertrag-Link erstellt</div>
+
+                <div style="font-size:12px;color:#8b8b8b;margin-bottom:4px">Öffentlicher Link (ohne Login):</div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+                    <input id="contractShareLinkInput" readonly value="${escapeHtml(j.url)}"
+                        style="flex:1 1 260px;min-width:0;font-size:12px;padding:8px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:9px;background:#faf8f5;color:#3f3f3f">
+                    <button onclick="contractShareCopy('contractShareLinkInput')"
+                        style="white-space:nowrap;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">Kopieren</button>
+                    <a href="${escapeHtml(j.url)}" target="_blank" rel="noopener"
+                        style="white-space:nowrap;text-decoration:none;background:rgba(255,255,255,0.58);color:#3f3f3f;border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:8px 14px;font-size:13px;font-weight:600">Öffnen</a>
+                </div>
+
+                <div style="font-size:12px;color:#8b8b8b;margin-bottom:4px">SMS-Text (zum Kopieren):</div>
+                <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px">
+                    <textarea id="contractShareSmsInput" readonly rows="2"
+                        style="flex:1 1 260px;min-width:0;font-size:12px;padding:8px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:9px;background:#faf8f5;color:#3f3f3f;resize:vertical;white-space:pre-wrap">${escapeHtml(j.smsText || '')}</textarea>
+                    <button onclick="contractShareCopy('contractShareSmsInput')"
+                        style="white-space:nowrap;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">SMS kopieren</button>
+                </div>
+
+                <div style="font-size:12px;color:#8b8b8b;line-height:1.5">
+                    ${expStr ? `Gültig bis ${escapeHtml(expStr)}. ` : ''}SMS-Direktversand folgt später — Text + Link vorerst manuell senden.
+                </div>
+            </div>`;
+        box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) {
+        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function contractShareCopy(inputId) {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    el.select();
+    navigator.clipboard?.writeText(el.value).catch(() => { try { document.execCommand('copy'); } catch (_) {} });
 }
 
 // HR: Onboarding-/Reset-QR erzeugen (MA scannt → setzt Passwort → direkt eingeloggt).

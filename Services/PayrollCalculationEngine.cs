@@ -454,7 +454,7 @@ public class PayrollCalculationEngine
 
         // ── Berechnung je Modell ───────────────────────────────────────────
         var isMTP = emp.EmploymentModel == "MTP";
-        var isUTP = emp.EmploymentModel == "UTP";
+        var isUTP = emp.EmploymentModel == "FLEX";
         var isFIX = emp.EmploymentModel is "FIX" or "FIX-M";
 
         decimal hourlyRate    = emp.HourlyRate      ?? 0;

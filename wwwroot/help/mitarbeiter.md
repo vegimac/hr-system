@@ -12,21 +12,19 @@ Wenn du links in der Sidebar auf **Mitarbeiter** klickst, siehst du drei Bereich
 
 ## Wie lege ich einen neuen Mitarbeiter an?
 
-Drei Wege:
+**Neue MA kommen ausschliesslich aus easy@work.** Der Ablauf ist immer:
 
-**1. Aus easy@work importieren** *(empfohlen — schnell und vollständig)*
+1. **Zuerst in easy@work anlegen** (dort entsteht auch die Personalnummer).
+2. In der Mitarbeiter-Liste auf **„＋ Neuer MA aus easy@work"** klicken. Es öffnet sich ein Fenster mit allem, was sich für deine Filiale geändert hat: **NEU** (noch nicht im System) und **UPDATE** (aktive MA mit Änderungen). Inaktive MA (Austritt in easy@work) werden **nie** angefasst.
+3. Alles ist vorangehakt — abwählen, was (noch) nicht übernommen werden soll, dann **„Ausgewählte importieren"**. Stammdaten, Vertrag, Funktion und Lohnmodell kommen mit; der neue MA erscheint sofort in der Liste links.
 
-→ Sidebar **Datenimport → Mitarbeiter & Verträge**. Du wirfst die CSV rein, das System macht den Rest: Stammdaten, Vertrag, Funktion, Lohnmodell — alles in einem Schwung. Mehrere MA in derselben Aktion.
+Der Button steht allen HR-Rollen zur Verfügung (GF sieht nur seine Filialen). Der frühere **CSV-Import ist Vergangenheit** — bitte nicht mehr verwenden.
 
-**2. Einzeln neu erfassen**
+💡 **Vertraulicher Lohn (z.B. GF):** Ist in easy@work bewusst kein Lohn erfasst, importierst du den MA trotzdem und erfässt den Lohn danach **direkt im OneCrew-Vertrag** — der Import verändert solche Verträge nie. Details: [Verträge](#vertraege), Abschnitt „Vertraulicher Lohn".
 
-→ Im Mitarbeiter-Tab kannst du oben rechts auf **„Neuer MA"** klicken. Du füllst Vorname, Nachname, Geburtsdatum, AHV-Nummer, Adresse aus. Vertrag wird separat im Vertragsmodul angelegt.
+**Stammdaten anreichern:** Bestehende MA bekommen über die Importer **GastroSocial-XLSX** und **Bewilligungsliste** zusätzlich AHV-Nr, Zivilstand, Sprache, Bewilligung etc.
 
-**3. Stammdaten anreichern**
-
-Bestehende MA bekommen über die Importer **GastroSocial-XLSX** und **Bewilligungsliste** automatisch AHV-Nr, Zivilstand, Sprache, Bewilligung etc.
-
-💡 **Tipp:** Die Personalnummer wird automatisch aus dem Filial-Schema vergeben (580001 für Oftringen, 750001 für Sursee usw.). Du musst nichts erfinden.
+💡 **Tipp:** Auch später geänderte Stammdaten (Adresse, Telefon …) holst du über denselben Stammdaten-Sync nach — die Vorschau zeigt sie als **UPDATE**-Zeilen, du wählst pro MA, was übernommen wird.
 
 ## Wie finde ich einen bestimmten Mitarbeiter?
 
@@ -64,7 +62,7 @@ Auch hier sitzt das Feld **Postfach-Passwort** (oben im Header) — Klick setzt 
 💡 **Lohnlauf-Sperre:** Wenn QST-pflichtig aber nicht erfasst → der Lohn lässt sich nicht abschliessen. Das Dashboard warnt dich rechtzeitig.
 
 ### Stempelzeiten
-Anzeige der gestempelten Zeiten aus easy@work. **Nur lesend** — Korrekturen passieren in easy@work und werden neu importiert. Pro Woche siehst du das Total. Wenn das Wochentotal die Filial-Max-Stunden überschreitet, erscheint ein rotes ⚠.
+Anzeige der gestempelten Zeiten aus easy@work. **Nur lesend** — Korrekturen passieren in easy@work und kommen mit dem nächsten Sync automatisch rein (täglicher Auto-Sync über die easy@work-Schnittstelle; manueller Sync in den Systemeinstellungen). Pro Woche siehst du das Total. Wenn das Wochentotal die Filial-Max-Stunden überschreitet, erscheint ein rotes ⚠.
 
 ### Absenzen
 Krankheit, Unfall, Ferien, Feiertag (ausbezahlt), Schulung, Militär, Nacht-Kompensation. Pro Eintrag wählst du Tage und Ausfall-Prozent. Berechnete Stunden werden automatisch angezeigt.
@@ -88,6 +86,10 @@ Tagessatz-Berechnung für Krankentaggeld und Unfall — wird vom System automati
 - **PDF drehen** ↺ ↻ direkt im Vorschau-Panel — wird gespeichert.
 - **Office-Dateien** (Word/Excel/PowerPoint) werden serverseitig nach PDF konvertiert und im selben Panel angezeigt.
 
+## Verträge-Leiste im MA-Detail
+
+Unter dem MA-Kopf siehst du alle Verträge als Leiste. Pro Vertrag: **Bearbeiten** (öffnet die Vertrags-Maske — z.B. um einen vertraulichen Lohn zu erfassen, Mindestlohn-Prüfung inklusive), **Anschauen** (PDF-Vorschau), **Drucken**, **SMS** (Arbeitsvertrag als sicheren Link aufs Handy des MA — mit Rückfrage) und **Link ⊘** (verschickte Links widerrufen). Details: [SMS & Vertrags-Link](#sms) und [Verträge](#vertraege).
+
 ## Wie trage ich einen Austritt ein?
 
 Oben im MA-Header der 🛑-Button. Du gibst das **Austrittsdatum** ein. Das System rechnet automatisch:
@@ -110,7 +112,7 @@ Im Edit-Modus auf der Personalien-Seite. Wähle aus der Liste — das System spe
 **Was bedeuten die farbigen Punkte vor dem Namen?**
 - 🟢 Aktiv
 - 🔴 Inaktiv (Austritt erfasst und Datum erreicht)
-- Daneben das Vertragsmodell-Tag: **UTP · MTP · FIX · FIX-M**
+- Daneben das Vertragsmodell-Tag: **FLEX · MTP · FIX · FIX-M**
 
 **Kann ich einen Mitarbeiter löschen?**
 Nein — und das ist Absicht. Stattdessen markierst du ihn als inaktiv. Lohnzettel, Verträge, Dokumente bleiben für mindestens 10 Jahre erhalten (gesetzliche Aufbewahrungspflicht).

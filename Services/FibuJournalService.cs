@@ -66,7 +66,7 @@ public class FibuJournalService
     // Modell → Kostenstelle (Walter-Vorgabe 22.05.2026): FIX ist IMMER Crew.
     private static string KstFor(string? model) => (model ?? "").ToUpperInvariant() switch
     {
-        "UTP"   => "200",
+        "FLEX"   => "200",
         "MTP"   => "100",
         "FIX"   => "100",
         "FIX-M" => "300",
@@ -285,7 +285,7 @@ public class FibuJournalService
                     tagessatz = Math.Round((emp?.MonthlySalary ?? (emp?.MonthlySalaryFte * (emp?.EmploymentPercentage / 100m)) ?? 0m) * 12m / 365m, 4);
 
                 // Ferien-RST: UTP/MTP in CHF (Ferien-Geld), FIX/FIX-M Tage × Tagessatz.
-                decimal ferienRst = (modelU is "UTP" or "MTP")
+                decimal ferienRst = (modelU is "FLEX" or "MTP")
                     ? SlipDec("ferienGeldAccrual") - SlipDec("ferienGeldAuszahlung")
                     : (SlipDec("ferienTageAccrual") - SlipDec("ferienTageGenommen")) * tagessatz;
                 ferienRst = Math.Round(ferienRst, 2);

@@ -451,11 +451,11 @@ function renderVtList(employees) {
             ? (e.employments || []).filter(v => Number(v.companyProfileId) === cpid)
             : (e.employments || []);
         const active = matchEmps.find(v => !v.contractEndDate) || matchEmps[0];
-        const modelClass = ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[model] || '';
+        const modelClass = ({ MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[model] || '';
         const model = active?.employmentModel || '';
         const isSelected = selectedVtEmployee?.id === e.id;
         const badge = model
-            ? `<span class="${modelClass}" style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;flex-shrink:0">${model}</span>`
+            ? `<span class="${modelClass}" style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;flex-shrink:0">${modelDisplay(model)}</span>`
             : `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:#fee2e2;color:#b91c1c;flex-shrink:0">${_t('vt.badge.noContract')}</span>`;
         return `<div class="emp-list-item ${isSelected ? 'active' : ''}" onclick="selectVtEmployee(${e.id})">
             <div style="display:flex;align-items:center;gap:10px;padding:10px 14px">
@@ -518,12 +518,12 @@ async function renderVtDetail(emp) {
         }
     }
     const modelLabel = {
-        UTP: _t('vt.model.utp'),
+        FLEX: _t('vt.model.utp'),
         MTP: _t('vt.model.mtp'),
         FIX: _t('vt.model.fix'),
         'FIX-M': _t('vt.model.fixM')
     };
-    const modelClass = (m) => ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
+    const modelClass = (m) => ({ MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
 
     const contracts = (emp.employments || []).sort((a,b) => {
         // Aktiv (kein Enddatum) zuerst
@@ -601,7 +601,7 @@ async function renderVtDetail(emp) {
                 + (guarMonthlyIncl != null
                     ? ` <span style="color:#64748b;font-weight:400">${_t('vt.label.inclAllowances', { value: guarMonthlyIncl.toFixed(2) })}</span>`
                     : '');
-        } else if (c.employmentModel === 'UTP' && effHourly != null) {
+        } else if (c.employmentModel === 'FLEX' && effHourly != null) {
             lohnInfoLabel = _t('vt.field.hourlyInclAllowances');
             lohnInfoValue = effHourly.toFixed(2);
         }
@@ -609,7 +609,7 @@ async function renderVtDetail(emp) {
         <div style="border:1px solid ${isActive ? '#e5e0d6' : '#e2e8f0'};border-radius:10px;padding:16px;margin-bottom:12px;background:${isActive ? '#f6f3ee' : '#fafafa'}">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
                 <div style="display:flex;align-items:center;gap:8px">
-                    <span class="${modelClass(c.employmentModel)}" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px">${modelLabel[c.employmentModel]||c.employmentModel||'–'}</span>
+                    <span class="${modelClass(c.employmentModel)}" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px">${modelLabel[c.employmentModel]||modelDisplay(c.employmentModel)||'–'}</span>
                     ${isActive ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#dcfce7;color:#15803d">${_t('vt.badge.active')}</span>` : `<span style="font-size:11px;color:#94a3b8;padding:3px 10px;border-radius:10px;background:#f1f5f9">${_t('vt.badge.completed')}</span>`}
                     ${c.easyAtWorkManualOverride ? `<span title="easy@work-Import blockiert: Dieser Vertrag/Lohn wird lokal gepflegt und nicht vom easy@work-Sync überschrieben." style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">easy@work Block</span>` : ''}
                 </div>
@@ -762,7 +762,7 @@ async function openNewContractInModal(employeeId) {
     const c = {
         id: null,
         employeeId,
-        employmentModel:         src.employmentModel || 'UTP',
+        employmentModel:         src.employmentModel || 'FLEX',
         jobTitle:                src.jobTitle ?? '',
         jobGroupCode:            src.jobGroupCode ?? selectedVtEmployee?.jobGroupCode ?? '',
         educationLevelCode:      src.educationLevelCode ?? selectedVtEmployee?.educationLevelCode ?? '',

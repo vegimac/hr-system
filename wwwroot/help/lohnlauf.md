@@ -58,7 +58,7 @@ Manchmal lässt sich der Lohnlauf nicht abschliessen. Drei häufige Gründe:
 
 🚫 **„QST-Pflicht offen"** — MA müsste Quellensteuer zahlen aber kein Tarif erfasst. Lösung: im MA-Detail → QST-Tab → **„🔴 Höchsten Tarif erfassen"** klicken (dauert 3 Sekunden).
 
-🚫 **„Lohnsumme fehlt"** — Vertrag hat keinen Lohn-Betrag (z.B. UTP ohne Stundenlohn). Vertrag öffnen, Lohn nachtragen.
+🚫 **„Lohnsumme fehlt"** — Vertrag hat keinen Lohn-Betrag (z.B. FLEX ohne Stundenlohn). Vertrag öffnen, Lohn nachtragen.
 
 ## Geschäftsführer-Sicht vs. HR-Sicht
 
@@ -70,6 +70,12 @@ Manchmal lässt sich der Lohnlauf nicht abschliessen. Drei häufige Gründe:
 | Bei Status „Bei HR" → alles gesperrt für dich | Du übernimmst die Kontrolle ab „Bei HR" |
 
 Das System zeigt dir je nach Rolle nur die Buttons, die du auch benutzen darfst.
+
+## Listen & Auswertungen zum Abschluss
+
+Sobald der Definitivlauf mindestens **provisorisch abgeschlossen** ist, stehen in der Aktionszeile zwei Saldo-Listen bereit: **„📊 Buchhaltung"** (alle Saldi, Brutto/Netto, IBAN, Summenzeile) und **„📋 GF-Übersicht"** (kompakt). Das **Fibu-Journal** und die Buchhaltungs-Saldo-Liste für die Finanzbuchhaltung liegen im eigenen [Fibu-Bereich](#fibu) (Rollen buchhaltung + admin).
+
+💡 **DTA-Hinweis:** MA mit Auszahlungsbetrag 0.00 (z.B. FLEX ohne gestempelte Stunden) erscheinen bewusst **nicht** im DTA-File — Banken lehnen Aufträge mit Null-Zeilen ab. Lohnzettel und Abschluss sind davon nicht betroffen.
 
 ## Notfälle: Periode wieder öffnen
 
@@ -84,13 +90,13 @@ Das System zeigt dir je nach Rolle nur die Buttons, die du auch benutzen darfst.
 
 - **Nacht-Saldo** (in Stunden) — Nachtstunden werden gesammelt, kein direkter Geld-Wert. Der MA kompensiert sie irgendwann mit Ruhetag.
 - **Ferien-Saldo (Tage)** — wie viele Ferientage hat der MA noch offen.
-- **Ferien-Geld (CHF)** — bei UTP: Ferienanspruch in CHF auf den Brutto. Beim Austritt wird das ausbezahlt.
-- **Rückstellung 13. ML** — bei MTP/FIX/FIX-M wird der 13. monatlich angesammelt und am Auszahlungsmonat (meist November oder Dezember) komplett ausbezahlt. UTP-MA kriegen den 13. monatlich anteilig.
+- **Ferien-Geld (CHF)** — bei FLEX: Ferienanspruch in CHF auf den Brutto. Beim Austritt wird das ausbezahlt.
+- **Rückstellung 13. ML** — bei MTP/FIX/FIX-M wird der 13. monatlich angesammelt und am Auszahlungsmonat (meist November oder Dezember) komplett ausbezahlt. FLEX-MA kriegen den 13. monatlich anteilig.
 
 ## Häufige Fragen
 
 **Wer kriegt was und wann?**
-- UTP: Ferien-Geld monatlich, 13. ML monatlich.
+- FLEX: Ferien-Geld monatlich, 13. ML monatlich.
 - MTP: Feiertag monatlich, 13. ML nach Vorgabe (meist November/Dezember).
 - FIX/FIX-M: Ferien akkumulieren (Auszahlung beim Austritt), 13. ML nach Vorgabe.
 

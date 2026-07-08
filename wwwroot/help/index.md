@@ -1,16 +1,21 @@
-# Willkommen im HR-System
+# Willkommen bei OneCrew
 
 Schön, dass du da bist. Diese Hilfe ist deine Anlaufstelle, wenn du irgendwo nicht mehr weiter weisst.
 
+💡 **Hinweis:** Die Kapitelliste links zeigt nur die Programmteile, zu denen **deine Rolle** berechtigt ist. Wenn dir hier ein Link nichts anzeigt, gehört der Bereich nicht zu deinem Zugang.
+
 ## Was möchtest du tun?
 
-Drei der häufigsten Aufgaben — Klick führt direkt zur passenden Hilfe-Seite:
+Die häufigsten Aufgaben — Klick führt direkt zur passenden Hilfe-Seite:
 
 - **Einen neuen Mitarbeiter anlegen** → [Mitarbeiter](#mitarbeiter)
 - **Den monatlichen Lohnlauf machen** → [Lohnlauf](#lohnlauf)
 - **Einen Vertrag ändern (Lohn, Pensum, Beendigung)** → [Verträge](#vertraege)
+- **Arbeitsvertrag per SMS an den MA schicken** → [SMS & Vertrags-Link](#sms)
+- **Geburtstags-/Jubiläums-Gruss senden** → [Moments](#moments)
 - **Quellensteuer erfassen** → [Quellensteuer](#qst)
 - **Ein Dokument hochladen oder anschauen** → [Dokumente & Posteingang](#dokumente)
+- **Fibu-Journal / Saldo-Liste ziehen** → [Buchhaltung (Fibu)](#fibu)
 - **Wer hat wann was geändert?** → [Aktivitäts-Log](#audit)
 - **Einen Mitarbeiter oder ein Dokument blitzschnell finden** → [Globale Suche](#suche)
 - **Wer darf was im Programm?** → [Rollen & Berechtigungen](#rollen)
@@ -41,13 +46,19 @@ Beides folgt dem **4-Augen-Prinzip**: zuerst gibt der Geschäftsführer pro MA f
 
 **Posteingang** ist deine Eingangs-Schale: jede Filiale hat eine eigene, plus eine für HR und eine für Buchhaltung. Du nimmst Dokumente entgegen und sortierst sie zu MA.
 
+**Moments** — persönliche Grüsse (Geburtstag, Jubiläum, Wertschätzung) per SMS-Einmal-Link ans Handy des MA. Nur mit dessen Freigabe, keine sensiblen Inhalte.
+
+**SMS-Versand** — läuft über eCall (F24 Schweiz). Damit gehen Moments, Postfach-Hinweise und der Arbeitsvertrag-Link direkt aufs Handy. Solange die Test-Umleitung aktiv ist, landen alle SMS auf der Test-Nummer.
+
+**Stempelzeiten** kommen ausschliesslich über die **easy@work-Schnittstelle** (automatischer täglicher Sync + manueller Sync). Im Programm sind sie nur lesbar — Korrekturen macht man in easy@work.
+
 **Aktivitäts-Log** (nur Admin) — zeigt alle Änderungen mit User, Zeit und Detail. Dein Sicherheitsnetz.
 
 ## Wichtige Konzepte in 30 Sekunden
 
 **Vertragsmodelle:**
 
-- **UTP** — Stundenlohn, keine Garantie. Aushilfen, flexible Einsätze.
+- **FLEX** — Stundenlohn, keine Garantie. Aushilfen, flexible Einsätze.
 - **MTP** — Stundenlohn mit garantierten Wochenstunden.
 - **FIX** — Fixes Pensum, Monatslohn. Klassisches Anstellungsverhältnis.
 - **FIX-M** — Management. Festlohn, keine Stunden-Garantie nötig.

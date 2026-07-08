@@ -193,7 +193,7 @@ public class ZwischenverdienistController : ControllerBase
         // Bei UTP ist die Ferien-Entschädigung schon im Stundenlohn (10.64% etc.)
         // enthalten. Nur Krank/Unfall werden separat als "Taggeldleistungen"
         // ausgewiesen (per KTG-Tagessatz, nicht im Bruttolohn).
-        bool isUtp = string.Equals(employment?.EmploymentModel, "UTP", StringComparison.OrdinalIgnoreCase);
+        bool isUtp = string.Equals(employment?.EmploymentModel, "FLEX", StringComparison.OrdinalIgnoreCase);
 
         decimal absenzStunden = 0;
         int krankUnfallTage   = 0;

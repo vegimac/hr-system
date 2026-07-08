@@ -135,7 +135,7 @@ public class LgavBeitragService
         if (model == "FIX" || model == "FIX-M")
             return profile.LgavBeitragVoll;
 
-        if (model == "UTP")
+        if (model == "FLEX")
             return profile.LgavBeitragReduziert;
 
         if (model == "MTP")

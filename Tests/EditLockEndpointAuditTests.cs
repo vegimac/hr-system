@@ -44,6 +44,7 @@ public class EditLockEndpointAuditTests
         ["UsersController"]                = "Benutzer-Stammdaten (Anlage, Rolle) — keine Lohndaten",
         ["UserBranchController"]           = "User↔Filial-Zuordnung — keine Lohndaten",
         ["AdminSmtpController"]            = "SMTP-Konfiguration — keine Lohndaten",
+        ["EcallController"]                = "eCall-SMS-Konfig + Test-Versand — keine Lohndaten",
         ["AppSettingsController"]          = "Globale App-Einstellung (Stempelzeiten-Aufbewahrung) — keine Lohndaten",
 
         // Stammdaten / Lookups / Kataloge — Lohn-neutral
@@ -68,12 +69,18 @@ public class EditLockEndpointAuditTests
         ["BranchMinWageController"]        = "Kommunaler Mindestlohn pro Filiale (Katalog, versioniert) — keine MA-Daten",
         ["LohnKontoMappingController"]     = "Kontoplan / Lohnart→Konten-Mapping (Katalog) — keine MA-Daten",
         ["DashboardWarningConfigController"] = "Dashboard-Warnungs-Konfig (global, an/aus/Vorlauf/Schweregrad) — keine MA-Daten",
+        ["EmployeeAvailabilityController"] = "Verfügbarkeit (verfügbare Arbeitszeiten, versioniert am MA) — reine Planungsangabe, kein datum-basiertes Lohn-Objekt (kein Betrag/Absenz/Snapshot)",
         // EasyAtWorkController NICHT mehr whitelisted (Walter-Vorgabe 19.06.2026):
         // er schreibt via Stempelzeit-Commit lohnrelevante employee_time_entry-Daten
         // und ist deshalb jetzt ECHT lock-geschützt — der Commit-Endpoint berechnet
         // firstAllowed über _editLock (LohnEditLockService) und reicht es in den
         // gemeinsamen, lock-gegateten Schreibpfad. Der Audit erkennt das am
         // LohnEditLockService-Bezug im Controller.
+        ["EasyAtWorkNeuzugangController"]  = "GF-Einzelimport neuer/aktiver MA (Walter 08.07.2026) — delegiert an EasyAtWorkEmployeeSyncService (derselbe lock-bewusste Schreibpfad wie der Admin-Emp-Sync: Verträge in abgeschlossenen Perioden → SkippedContracts, keine Stempel-/Betrags-Writes); OnlyActive=true fest verdrahtet",
+        ["WebAuthnController"]             = "Passkey/WebAuthn-Login (Registrierung + Assertion) — reine Authentifizierung, keine Lohndaten",
+        ["PostfachSetupController"]        = "Onboarding-/Reset-QR für das MA-Postfach (Token + Passwort-Setzen) — Login-Sachen, keine Lohndaten",
+        ["MomentsController"]              = "Moments (persönliche Mitteilungen): Token-Link/Postfach-Notiz + eCall-SMS — keine Lohndaten, kein datum-basiertes Lohn-Objekt",
+        ["MomentContentController"]        = "Moments-Vorlagen-Katalog (Typen, Emotionsgrade, Texte) — reine Vorlagen, keine MA-Daten",
 
         // Firmen-Stammdaten — admin only, gehört nicht in den User-Lock
         ["CompanyProfilesController"]      = "Filial-Stammdaten — admin-only, kein User-Edit-Pfad",
@@ -137,7 +144,8 @@ public class EditLockEndpointAuditTests
         ["EmployeesController"]                    = "MA-Stammdaten (Name, Telefon, AHV-Nr) — gehört NICHT in Lock; lohnrelevante Felder sind in EmploymentsController",
         ["EmployeeNumberAliasController"]          = "Alte Personalnummern (Identitäts-/Stammdaten) — gehört NICHT in Lock, kein Lohn-Datum",
         ["EmployeeMergeController"]                = "Einmalige Duplikat-Bereinigung (admin) — Stammdaten-Zusammenführung, kein Lohn-Datum",
-        ["ContractsController"]                    = "Arbeitsvertrags-PDF + Vertragstexte — read-only/Generation"
+        ["ContractsController"]                    = "Arbeitsvertrags-PDF + Vertragstexte — read-only/Generation",
+        ["ContractShareController"]                = "Öffentlicher Vertrags-Link-Token (Create) + anonyme PDF-Auslieferung — read-only-Generation, kein Lohn-Datum"
     };
 
     [Fact]

@@ -1,8 +1,10 @@
 # Rollen & Berechtigungen
 
-Im Programm gibt es **fünf Rollen**. Jede sieht eine andere Welt — vom kompletten Admin-Zugriff bis hin zum Mitarbeiter, der nur sein eigenes Postfach öffnen kann.
+Im Programm gibt es **sechs Rollen**. Jede sieht eine andere Welt — vom kompletten Admin-Zugriff bis hin zum Mitarbeiter, der nur sein eigenes Postfach öffnen kann.
 
-## Die fünf Rollen
+💡 Auch **dieses Handbuch** ist rollenbasiert: jeder Benutzer sieht nur die Kapitel der Programmteile, zu denen er berechtigt ist.
+
+## Die sechs Rollen
 
 | Rolle | Wer ist das typischerweise | Was sieht sie |
 |---|---|---|
@@ -10,6 +12,7 @@ Im Programm gibt es **fünf Rollen**. Jede sieht eine andere Welt — vom komple
 | **superuser** | HR-Verantwortliche | Wie admin, aber ohne Systemeinstellungen. Über alle Filialen. |
 | **user** | Filial-Geschäftsführer | Nur die zugewiesenen Filialen. Kein HR-Modul, kein Admin-Bereich. |
 | **buchhaltung** | Buchhaltungs-Personal | Wie superuser PLUS Fibu-Bereich. Aber auf zugewiesene Filialen beschränkt. |
+| **lowuser** | Eingeschränkter Benutzer | Nur Dashboard, Mitarbeiter und Verträge. Kein Lohnlauf, kein HR-Bereich, keine Systemeinstellungen, kein Datenimport. |
 | **employee** | Mitarbeiter selbst | Nur das eigene Postfach + eigene Lohnzettel. Kein Programm-Zugang. |
 
 ## Was darf wer im Lohnlauf?
@@ -35,6 +38,8 @@ Das 4-Augen-Prinzip: GF bereitet vor und gibt frei, HR bestätigt und sendet. Ad
 **user** (GF) — Dashboard, Mitarbeiter, Verträge, Lohn, Posteingang. Filtert automatisch auf die zugeteilten Filialen.
 
 **buchhaltung** — wie superuser, plus zusätzlich der **Buchhaltungs-Bereich** (Fibu-Journal, Saldo-Listen). Filtert ebenfalls auf zugeteilte Filialen.
+
+**lowuser** — nur Dashboard, Mitarbeiter, Verträge. Für Personen, die Stammdaten nachschlagen, aber nichts mit Lohn zu tun haben.
 
 **employee** — sieht nichts vom Programm. Logt sich auf einer separaten Postfach-Seite ein und sieht nur seine eigenen Lohnzettel + Mitteilungen.
 

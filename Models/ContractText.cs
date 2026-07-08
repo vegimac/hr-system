@@ -3,7 +3,7 @@ namespace HrSystem.Models;
 /// <summary>
 /// Mehrsprachige Vertragstexte aus der Excel Parameters-Tabelle.
 /// TextKey = Zeilennummer aus Excel (E-Spalte), z.B. "15", "17", "48"
-/// ContractTypes = kommasepariert: "ALL", "FIX", "MTP", "UTP", "FIX-M"
+/// ContractTypes = kommasepariert: "ALL", "FIX", "MTP", "FLEX", "FIX-M"
 /// LanguageCode = "de" | "fr" | "it"
 /// </summary>
 public class ContractText

@@ -138,7 +138,7 @@ function ferRender() {
     const arrow = (key) => _ferSort && _ferSort.key === key ? (_ferSort.dir > 0 ? ' ▲' : ' ▼') : '';
     const th = (label, key, cls) => `<th class="${cls || ''}" onclick="ferSort('${key}')">${label}${arrow(key)}</th>`;
 
-    const modelBadgeClass = (m) => ({ MTP:'model-badge-mtp', UTP:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
+    const modelBadgeClass = (m) => ({ MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
     const modelBadge = (m) => `<span class="${modelBadgeClass(m)}" style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:8px">${escapeHtml(m || '')}</span>`;
 
     const groupByModel = !_ferSort || _ferSort.key === 'model';
@@ -220,7 +220,7 @@ function ferRender() {
             <strong>Kürzung</strong> = Ferienkürzung bei langer Krankheit (Art. 329b OR) ·
             <strong>Bezug</strong> = bezogene Ferien aus den Absenzen ·
             <strong>Saldo</strong> = Anspruch − Kürzung − Bezug (<span style="color:#166534">grün</span> = Rest-Guthaben, <span style="color:#b91c1c">rot</span> = Vorbezug) ·
-            <strong>Feiertage</strong> (Tage) nur FIX/FIX-M (0.5/Monat, − Feiertag-Absenzen); MTP/UTP ausbezahlt → „–" ·
+            <strong>Feiertage</strong> (Tage) nur FIX/FIX-M (0.5/Monat, − Feiertag-Absenzen); MTP/FLEX ausbezahlt → „–" ·
             <strong>Nacht</strong>: <strong>Max 6W</strong> = höchste Anzahl Nächte in einem 6-Wochen-Fenster (>18 rot = Nachtarbeit-Nachweise fehlen, grün = vollständig) · Std/Zuschlag(10%)/Komp/Saldo in Stunden
         </div>
         ${(_ferData.nachtWarnTotal || 0) > 0 ? `<div style="background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:12.5px;font-weight:600">⚠ ${_ferData.nachtWarnTotal} Mitarbeiter mit >18 Nächten in 6 Wochen ohne vollständige Nachtarbeit-Nachweise (Arztzeugnis/Verzicht + Ausnahmeregelung) — siehe ⚠ in der Spalte „Max 6W".</div>` : ''}
