@@ -74,8 +74,11 @@ public static class ContractPdfBuilder
         var jobTitleDisplay = await GetJobTitleDisplayName(db, employment.JobTitle, "de") ?? employment.JobTitle ?? "";
 
         // ── Verfügbarkeit für Seite 3 (Walter-Vorgabe 09.07.2026) ────────────
-        // Version gültig am Vertragsbeginn; sonst die heute gültige; sonst die
-        // neueste. Keine Verfügbarkeit erfasst → leeres Formular wie bisher.
+        // Die Beilage zeigt den JETZT geltenden Stand: Referenz = heute (bei
+        // Vertragsbeginn in der Zukunft: dessen Datum). Unter mehreren an dem
+        // Tag gültigen Versionen gewinnt das jüngste Gültig-ab (Tie: höhere Id).
+        // Fallbacks: am Vertragsbeginn gültige, sonst die neueste überhaupt.
+        // Keine Verfügbarkeit erfasst → leeres Formular wie bisher.
         ContractAvailability? availability = null;
         var avList = await db.EmployeeAvailabilities.AsNoTracking()
             .Include(a => a.Slots)
@@ -87,8 +90,11 @@ public static class ContractPdfBuilder
                 .Where(a => a.ValidFrom <= d && (!a.ValidTo.HasValue || a.ValidTo.Value >= d))
                 .OrderByDescending(a => a.ValidFrom).ThenByDescending(a => a.Id)
                 .FirstOrDefault();
-            var pick = PickAt(DateOnly.FromDateTime(employment.ContractStartDate))
-                       ?? PickAt(DateOnly.FromDateTime(DateTime.Today))
+            var start   = DateOnly.FromDateTime(employment.ContractStartDate);
+            var today   = DateOnly.FromDateTime(DateTime.Today);
+            var refDate = start > today ? start : today;
+            var pick = PickAt(refDate)
+                       ?? PickAt(start)
                        ?? avList.OrderByDescending(a => a.ValidFrom).ThenByDescending(a => a.Id).First();
 
             var rows = pick.Slots
