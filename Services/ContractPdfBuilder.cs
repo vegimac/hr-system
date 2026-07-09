@@ -73,6 +73,39 @@ public static class ContractPdfBuilder
         var salaryType = employment.SalaryType ?? GetSalaryType(employment.EmploymentModel);
         var jobTitleDisplay = await GetJobTitleDisplayName(db, employment.JobTitle, "de") ?? employment.JobTitle ?? "";
 
+        // ── Verfügbarkeit für Seite 3 (Walter-Vorgabe 09.07.2026) ────────────
+        // Version gültig am Vertragsbeginn; sonst die heute gültige; sonst die
+        // neueste. Keine Verfügbarkeit erfasst → leeres Formular wie bisher.
+        ContractAvailability? availability = null;
+        var avList = await db.EmployeeAvailabilities.AsNoTracking()
+            .Include(a => a.Slots)
+            .Where(a => a.EmployeeId == employee.Id)
+            .ToListAsync();
+        if (avList.Count > 0)
+        {
+            Models.EmployeeAvailability? PickAt(DateOnly d) => avList
+                .Where(a => a.ValidFrom <= d && (!a.ValidTo.HasValue || a.ValidTo.Value >= d))
+                .OrderByDescending(a => a.ValidFrom).ThenByDescending(a => a.Id)
+                .FirstOrDefault();
+            var pick = PickAt(DateOnly.FromDateTime(employment.ContractStartDate))
+                       ?? PickAt(DateOnly.FromDateTime(DateTime.Today))
+                       ?? avList.OrderByDescending(a => a.ValidFrom).ThenByDescending(a => a.Id).First();
+
+            var rows = pick.Slots
+                .OrderBy(s => s.SortOrder).ThenBy(s => s.Id)
+                .Select(s => new ContractAvailabilityRow(
+                    s.Von == null && s.Bis == null ? "ganztags"
+                        : s.Von != null && s.Bis != null ? $"{s.Von:HH\\:mm} – {s.Bis:HH\\:mm}"
+                        : s.Von != null ? $"ab {s.Von:HH\\:mm}" : $"bis {s.Bis:HH\\:mm}",
+                    new[] { s.Mon, s.Tue, s.Wed, s.Thu, s.Fri, s.Sat, s.Sun }))
+                .ToList();
+            availability = new ContractAvailability(
+                Unrestricted: pick.Type == "unrestricted",
+                ValidFrom: pick.ValidFrom,
+                ValidTo: pick.ValidTo,
+                Rows: rows);
+        }
+
         var addressParts = new[] { company.Street, company.HouseNumber }
             .Where(s => !string.IsNullOrWhiteSpace(s));
         var streetAddress = string.Join(" ", addressParts);
@@ -113,7 +146,8 @@ public static class ContractPdfBuilder
             VacationPercent:         ResolveVacationPctForContract(employee, company, employment.ContractStartDate),
             HolidayPercent:          company.DefaultHolidayPercent,
             ThirteenthSalaryPercent: company.DefaultThirteenthSalaryPercent,
-            Gender:                  employee.Gender
+            Gender:                  employee.Gender,
+            Availability:            availability
         );
 
         return new ContractPdfService().Generate(input);

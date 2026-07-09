@@ -36,8 +36,22 @@ public record ContractPdfInput(
     decimal? VacationPercent,
     decimal? HolidayPercent,
     decimal? ThirteenthSalaryPercent,
-    string? Gender
+    string? Gender,
+    ContractAvailability? Availability = null
 );
+
+/// <summary>Verfügbarkeit für Seite 3 des Arbeitsvertrags (Walter 09.07.2026):
+/// wird aus EmployeeAvailability (easy@work-Sync oder manuell) befüllt.
+/// NULL = leeres Formular wie bisher (von Hand ausfüllen).</summary>
+public record ContractAvailability(
+    bool Unrestricted,
+    DateOnly ValidFrom,
+    DateOnly? ValidTo,
+    List<ContractAvailabilityRow> Rows
+);
+
+/// <summary>Eine Tabellen-Zeile: Zeitfenster + Wochentag-Flags Mo..So.</summary>
+public record ContractAvailabilityRow(string Zeit, bool[] Days);
 
 public class ContractPdfService
 {
@@ -619,16 +633,20 @@ public class ContractPdfService
                         "Bestandteil des Vertrages. Jede \u00c4nderung der verf\u00fcgbaren Arbeitszeiten kann eine " +
                         "Ab\u00e4nderung des Durchschnitts, der normalerweise durch den Mitarbeiter absolvierten Stunden, " +
                         "mit sich bringen.");
-                    col.Item().PaddingTop(8).Row(r =>
+                    // Verf\u00fcgbarkeit aus dem System vor-ausgef\u00fcllt (Walter 09.07.2026):
+                    // d.Availability = null \u2192 leeres Formular wie bisher.
+                    var av = d.Availability;
+                    void CheckRow(float padTop, bool check, string label)
                     {
-                        r.ConstantItem(14).Height(14).Border(1).BorderColor(Dark);
-                        r.RelativeItem().PaddingLeft(4).AlignMiddle().Text("a) uneingeschr\u00e4nkte Verf\u00fcgbarkeit**");
-                    });
-                    col.Item().PaddingTop(3).Row(r =>
-                    {
-                        r.ConstantItem(14).Height(14).Border(1).BorderColor(Dark);
-                        r.RelativeItem().PaddingLeft(4).AlignMiddle().Text("b) gem\u00e4ss unten stehender Tabelle:**");
-                    });
+                        col.Item().PaddingTop(padTop).Row(r =>
+                        {
+                            var box = r.ConstantItem(14).Height(14).Border(1).BorderColor(Dark);
+                            if (check) box.AlignCenter().AlignMiddle().Text("X").Bold().FontSize(10f);
+                            r.RelativeItem().PaddingLeft(4).AlignMiddle().Text(label);
+                        });
+                    }
+                    CheckRow(8, av?.Unrestricted == true, "a) uneingeschr\u00e4nkte Verf\u00fcgbarkeit**");
+                    CheckRow(3, av is { Unrestricted: false }, "b) gem\u00e4ss unten stehender Tabelle:**");
                     col.Item().PaddingTop(6).Table(tbl =>
                     {
                         tbl.ColumnsDefinition(c =>
@@ -642,23 +660,30 @@ public class ContractPdfService
                         H("Zeit");
                         foreach (var day in new[] { "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag" })
                             H(day);
-                        for (int r2 = 0; r2 < 7; r2++)
+                        var rows = (av is { Unrestricted: false } ? av.Rows : new List<ContractAvailabilityRow>());
+                        foreach (var zeile in rows.Take(7))
+                        {
+                            tbl.Cell().Border(0.5f).BorderColor(Colors.Grey.Medium).MinHeight(16)
+                                .Padding(2).AlignCenter().AlignMiddle().Text(zeile.Zeit).FontSize(8f);
+                            for (int c2 = 0; c2 < 7; c2++)
+                            {
+                                var cell = tbl.Cell().Border(0.5f).BorderColor(Colors.Grey.Medium).MinHeight(16);
+                                if (zeile.Days.Length > c2 && zeile.Days[c2])
+                                    cell.AlignCenter().AlignMiddle().Text("X").Bold().FontSize(9f);
+                            }
+                        }
+                        for (int r2 = rows.Count; r2 < 7; r2++)
                         {
                             tbl.Cell().Border(0.5f).BorderColor(Colors.Grey.Medium).Height(16);
                             for (int c2 = 0; c2 < 7; c2++)
                                 tbl.Cell().Border(0.5f).BorderColor(Colors.Grey.Medium).Height(16);
                         }
                     });
-                    col.Item().PaddingTop(6).Row(r =>
-                    {
-                        r.ConstantItem(14).Height(14).Border(1).BorderColor(Dark);
-                        r.RelativeItem().PaddingLeft(4).AlignMiddle().Text("a) G\u00fcltig f\u00fcr eine unbefristete Dauer**");
-                    });
-                    col.Item().PaddingTop(3).Row(r =>
-                    {
-                        r.ConstantItem(14).Height(14).Border(1).BorderColor(Dark);
-                        r.RelativeItem().PaddingLeft(4).AlignMiddle().Text("b) G\u00fcltig f\u00fcr die Zeit vom**                    bis");
-                    });
+                    CheckRow(6, av is { ValidTo: null }, "a) G\u00fcltig f\u00fcr eine unbefristete Dauer**");
+                    CheckRow(3, av?.ValidTo != null,
+                        av?.ValidTo != null
+                            ? $"b) G\u00fcltig f\u00fcr die Zeit vom** {av!.ValidFrom:dd.MM.yyyy} bis {av.ValidTo:dd.MM.yyyy}"
+                            : "b) G\u00fcltig f\u00fcr die Zeit vom**                    bis");
                     col.Item().PaddingTop(6).Text(
                         "Wenn der Mitarbeiter nicht in der Lage ist, die Arbeitsstunden w\u00e4hrend den Tagen, " +
                         "welche in diesem Dokument festgelegt sind, zu absolvieren, hat er nicht das Recht darauf, " +
