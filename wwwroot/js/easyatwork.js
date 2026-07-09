@@ -338,7 +338,7 @@ async function _eawSyncRun(commit) {
                      || (body.ambiguousEmployees && body.ambiguousEmployees.length > 0);
         if (commit && !blocked) {
             // Nach erfolgreichem Import: Vorschau leeren + knappe Bestätigung.
-            out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — ${body.inserted||0} neu, ${body.updated||0} geändert, ${body.deleted||0} gelöscht${body.lockedSkipped ? ', ' + body.lockedSkipped + ' gesperrt übersprungen' : ''}.</div>`;
+            out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — <b>${body.inserted||0} neu</b>, ${body.updated||0} geändert, ${body.deleted||0} gelöscht${body.unchanged ? ', ' + body.unchanged + ' bereits vorhanden (unverändert)' : ''}${body.lockedSkipped ? ', ' + body.lockedSkipped + ' gesperrt übersprungen' : ''}.</div>`;
             _eawSyncLastPreview = null;
         } else {
             _eawSyncRenderResult(body, commit);
