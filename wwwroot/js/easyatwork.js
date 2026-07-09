@@ -209,8 +209,9 @@ async function eawSyncCommit() {
     const btn    = document.getElementById('eawSyncCommitBtn');
     if (!sel.value) { alert('Bitte zuerst Filiale wählen.'); return; }
     if (!fromEl.value || !toEl.value) { alert('Bitte Datumsbereich angeben.'); return; }
-    const fmt = iso => iso.slice(8,10) + '.' + iso.slice(5,7) + '.' + iso.slice(0,4);
-    if (!confirm(`Stempelzeiten ${fmt(fromEl.value)} – ${fmt(toEl.value)} jetzt direkt importieren?\n\nNur NEUE Stempel werden geschrieben; abgeschlossene Lohnperioden werden automatisch übersprungen.`)) return;
+    // Bewusst KEINE Rückfrage (Walter-Vorgabe 09.07.2026): der Import ist
+    // idempotent (nur NEUE Stempel) und respektiert geschlossene Perioden —
+    // Klick startet direkt, der Fortschrittsbalken zeigt den Lauf.
 
     const preMirusEl = document.getElementById('eawSyncPreMirus');
     const dto = {
