@@ -18,3 +18,4 @@ wwwroot/index.html.backup
 
 # Claude Code linked worktrees (tooling-generated, never commit)
 .claude/worktrees/
+~$*
