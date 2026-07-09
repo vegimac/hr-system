@@ -270,7 +270,7 @@ async function _eawPollTimepunchJob(jobId, out) {
         } else {
             const notes = (body.notes && body.notes.length)
                 ? `<div style="color:#64748b;font-size:12px;margin-top:6px">${body.notes.map(n => '• ' + escapeHtml(n)).join('<br>')}</div>` : '';
-            out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — ${body.inserted||0} neu, ${body.updated||0} geändert, ${body.deleted||0} gelöscht${body.lockedSkipped ? ', ' + body.lockedSkipped + ' gesperrt übersprungen' : ''}.${notes}</div>`;
+            out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — <b>${body.inserted||0} neu</b>, ${body.updated||0} geändert, ${body.deleted||0} gelöscht${body.unchanged ? ', ' + body.unchanged + ' bereits vorhanden (unverändert)' : ''}${body.lockedSkipped ? ', ' + body.lockedSkipped + ' gesperrt übersprungen' : ''}.${notes}</div>`;
             _eawSyncLastPreview = null;
         }
         return;

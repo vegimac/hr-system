@@ -343,6 +343,9 @@ public class EasyAtWorkTimepunchSyncService
         public int       Inserted { get; set; }
         public int       Updated  { get; set; }
         public int       Deleted  { get; set; }
+        /// <summary>Bereits vorhanden und komplett identisch — nicht angefasst
+        /// (Walter 09.07.2026: zählte früher fälschlich als «geändert»).</summary>
+        public int       Unchanged { get; set; }
         public int       LockedSkipped { get; set; }   // wegen gesperrter Periode übersprungen
         public int       Skipped  { get; set; }        // Duplikate / nicht zuordenbar (Delete-Ziel fehlt)
         public DateTime? MaxUpdatedAt { get; set; }     // höchstes updated_at → neuer Cursor
@@ -914,7 +917,7 @@ public class EasyAtWorkTimepunchSyncService
             var editorName = p.IsEdited ? ExtractEditorName(p, eawEmpById, coworkNameByEawId) : null;
             var editorTime = p.IsEdited ? ExtractEditorTime(p) : (DateTime?)null;
 
-            // b) Bekannte easy@work-ID → UPDATE.
+            // b) Bekannte easy@work-ID → UPDATE (nur bei ECHTER Änderung).
             if (existing != null)
             {
                 // ECHTE Änderung erkennen (vor dem Überschreiben), um identische
@@ -924,6 +927,20 @@ public class EasyAtWorkTimepunchSyncService
                                || existing.TimeIn     != inLocal
                                || existing.TimeOut    != outLocal
                                || existing.EntryDate  != businessDate;
+                // Walter-Frage 09.07.2026 («wieso xxx geändert, wenn alle neu sind»):
+                // bisher zählte JEDER bereits vorhandene Stempel als «geändert»,
+                // auch wenn er identisch war. Jetzt: komplett identisch (inkl.
+                // Metadaten) → gar nicht anfassen, als «unverändert» zählen.
+                bool metaChange = existing.EmployeeId != coworkId.Value
+                               || existing.Comment    != p.JoinedComments
+                               || existing.DurationHours != duration
+                               || existing.EditedBy   != editorName
+                               || existing.EditedAt   != editorTime
+                               || existing.OriginalTimeIn  != origIn
+                               || existing.OriginalTimeOut != origOut
+                               || existing.EasyAtWorkCustomerId   != mapping.EasyAtWorkCustomerId
+                               || existing.SourceCompanyProfileId != mapping.CompanyProfileId;
+                if (!realChange && !metaChange) { res.Unchanged++; continue; }
                 decimal? oldTotal = existing.TotalHours;
                 decimal? oldNight = existing.NightHours;
 
