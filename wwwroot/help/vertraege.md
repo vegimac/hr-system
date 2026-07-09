@@ -76,7 +76,7 @@ Liefert easy@work später wieder einen echten Lohn für den Vertrag, löst der S
 
 ## Arbeitsvertrag dem MA aufs Handy schicken
 
-Im **Mitarbeiter-Detail** hat jeder Vertrag in der Vertrags-Leiste die Aktionen **Anschauen · Drucken · SMS · Link ⊘**:
+Im **Mitarbeiter-Detail** hat jeder Vertrag in der Vertrags-Leiste die Aktionen **Bearbeiten · Anschauen · SMS · Link ⊘** (Drucken und Herunterladen direkt im Vorschaufenster von „Anschauen“):
 
 - **SMS** — erzeugt einen persönlichen Link (14 Tage gültig) und schickt ihn nach einer Rückfrage per SMS an die Mobilnummer des MA. Der MA sieht eine neutrale Seite mit Button „Arbeitsvertrag öffnen"; erst der Klick lädt das PDF. Beim erneuten Senden werden alte Links automatisch ungültig.
 - **Link ⊘** — widerruft alle aktiven Links dieses Vertrags sofort (z.B. wenn eine SMS an die falsche Nummer ging).

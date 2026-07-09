@@ -1134,8 +1134,7 @@ function renderEmpContractList(emp) {
         const active = c.isActive ? `<span class="emp-contract-status active">aktiv</span>` : `<span class="emp-contract-status">archiviert</span>`;
         const actions = id
             ? `<button type="button" class="emp-contract-btn" title="Vertrag bearbeiten (z.B. vertraulichen Lohn erfassen) — öffnet die Vertrags-Maske mit Mindestlohn-Prüfung" onclick="empContractEdit(${id}, ${emp.id})">Bearbeiten</button>
-               <button type="button" class="emp-contract-btn" onclick="openEmpContractPdf(${id}, false)">Anschauen</button>
-               <button type="button" class="emp-contract-btn" onclick="openEmpContractPdf(${id}, true)">Drucken</button>
+               <button type="button" class="emp-contract-btn" title="Vertrag im Vorschaufenster öffnen — Drucken/Herunterladen direkt dort" onclick="openEmpContractPdf(${id}, false)">Anschauen</button>
                <button type="button" class="emp-contract-btn" title="Vertrags-Link (14 Tage) per SMS direkt an den MA senden" onclick="contractShareSendSms(${emp.id}, ${id}, '${esc(emp.phoneMobile || '')}')">SMS</button>
                <button type="button" class="emp-contract-btn" title="Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen" onclick="contractShareRevoke(${id})">Link ⊘</button>`
             : '';
