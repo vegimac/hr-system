@@ -1199,7 +1199,8 @@ async function easyworkSyncSelectedEmployee(empId) {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || data.success === false) {
             const errors = data.errors && data.errors.length ? data.errors : [data.message || data.error || 'easy@work-Abgleich fehlgeschlagen.'];
-            alert('easy@work-Abgleich nicht möglich:\n\n' + errors.map(e => '• ' + e).join('\n'));
+            const notes = (data.notes && data.notes.length) ? '\n\nHinweise:\n' + data.notes.map(n => '• ' + n).join('\n') : '';
+            alert('easy@work-Abgleich nicht möglich:\n\n' + errors.map(e => '• ' + e).join('\n') + notes);
             return;
         }
 

@@ -288,7 +288,17 @@ public class EasyAtWorkEmployeeSyncService
         int? matchedCustomerId = null;
         foreach (var mapping in mappings)
         {
-            eaw = await _client.GetEmployeeByIdAsync(mapping.EasyAtWorkCustomerId, emp.EasyAtWorkEmployeeId.Value, ct);
+            try
+            {
+                eaw = await _client.GetEmployeeByIdAsync(mapping.EasyAtWorkCustomerId, emp.EasyAtWorkEmployeeId.Value, ct);
+            }
+            catch (Exception ex)
+            {
+                // API-Störung ≠ «MA nicht gefunden» — echten Grund melden und
+                // abbrechen (Walter-Bug 09.07.2026).
+                result.Errors.Add($"easy@work-API nicht erreichbar (Customer {mapping.EasyAtWorkCustomerId}): {ex.Message} — bitte später erneut versuchen.");
+                return result;
+            }
             if (eaw != null)
             {
                 matchedCustomerId = mapping.EasyAtWorkCustomerId;
@@ -309,7 +319,11 @@ public class EasyAtWorkEmployeeSyncService
             {
                 EawEmployee? byNumber = null;
                 if (employeeNumber.Length == 0) break;
-                byNumber = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, employeeNumber, ct);
+                try { byNumber = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, employeeNumber, ct); }
+                catch (Exception ex)
+                {
+                    result.Notes.Add($"Nummer-Suche Customer {mapping.EasyAtWorkCustomerId}: API-Fehler ({ex.Message}).");
+                }
                 if (byNumber == null)
                 {
                     try

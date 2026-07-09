@@ -323,13 +323,18 @@ public class EasyAtWorkClient
     /// </summary>
     public virtual async Task<EawEmployee?> GetEmployeeByIdAsync(int customerId, int employeeId, CancellationToken ct = default)
     {
+        // NUR 404 = «gibt es hier nicht» → null. Alle anderen Fehler (Timeout,
+        // 401, 429, 500) werfen — sonst meldet der Sync fälschlich «MA nicht
+        // gefunden», obwohl die API nur gerade nicht erreichbar war
+        // (Walter-Bug 09.07.2026, Behija/580009).
         try
         {
             var res = await GetJsonAsync<EawSingle<EawEmployee>>(
                 $"customers/{customerId}/employees/{employeeId}", ct);
             return res?.Data;
         }
-        catch { return null; }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        { return null; }
     }
 
     /// <summary>
@@ -349,7 +354,8 @@ public class EasyAtWorkClient
                 $"customers/{customerId}/employees/{Uri.EscapeDataString(number)}", ct);
             return res?.Data;
         }
-        catch { return null; }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        { return null; }
     }
 
     public virtual Task<EawPaginated<EawContract>> GetContractsAsync(int customerId, int employeeId, CancellationToken ct = default)
