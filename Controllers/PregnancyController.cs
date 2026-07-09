@@ -53,7 +53,8 @@ public class PregnancyController : HrControllerBase
     public async Task<IActionResult> GetByEmployee([FromQuery] int employeeId)
     {
         var list = await _db.EmployeePregnancies
-            .Where(p => p.EmployeeId == employeeId)
+            // Alt-Datenbestand: früher soft-gelöschte (IsActive=false) nicht mehr zeigen.
+            .Where(p => p.EmployeeId == employeeId && p.IsActive)
             .OrderByDescending(p => p.ErrechneterTermin)
             .Select(p => new PregnancyListDto(
                 p.Id, p.EmployeeId, p.Meldedatum, p.ErrechneterTermin,
@@ -154,9 +155,13 @@ public class PregnancyController : HrControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
+        // Walter-Bug 09.07.2026: das frühere Soft-Delete (IsActive=false) liess
+        // die Karte im Familie-Tab stehen (GET lieferte auch Inaktive) — nur der
+        // Badge verschwand. «Löschen» heisst jetzt wirklich löschen; es gibt
+        // keine abhängigen Tabellen (Fristen werden live gerechnet).
         var p = await _db.EmployeePregnancies.FindAsync(id);
         if (p is null) return NotFound();
-        p.IsActive = false;
+        _db.EmployeePregnancies.Remove(p);
         await _db.SaveChangesAsync();
         return Ok();
     }
