@@ -332,6 +332,23 @@
         body.theme-dark .hr-card ul li::marker { color: #475569 !important; }
         body.theme-dark .hr-card b      { color: #f1f5f9 !important; }
 
+        /* Geplant vs. realisiert im HR-Hub (Walter 09.07.2026) — Dark-Pendants
+           zu .hr-plan/.hr-done/.hr-idea (Light-Regeln im page-lokalen Style). */
+        body.theme-dark .hr-card.hr-plan { background: #172032 !important; border-color: #22304a !important; }
+        body.theme-dark .hr-card.hr-plan .hr-card-icon { filter: grayscale(1); opacity: 0.3; }
+        body.theme-dark .hr-card.hr-plan .hr-card-title  { color: #45536b !important; }
+        body.theme-dark .hr-card.hr-plan .hr-card-status { color: #3a475c !important; }
+        body.theme-dark .hr-card.hr-plan ul,
+        body.theme-dark .hr-card.hr-plan ul li,
+        body.theme-dark .hr-card.hr-plan b,
+        body.theme-dark .hr-card.hr-plan ul li span { color: #45536b !important; }
+        body.theme-dark .hr-card ul li.hr-done,
+        body.theme-dark .hr-card ul li.hr-done b { color: #e2e8f0 !important; }
+        body.theme-dark .hr-card ul li.hr-done span { color: #4ade80 !important; }
+        body.theme-dark .hr-card ul li.hr-idea,
+        body.theme-dark .hr-card ul li.hr-idea b,
+        body.theme-dark .hr-card ul li.hr-idea span { color: #45536b !important; }
+
         /* Admin-Hub-Cards (gleicher Style wie hr-card) */
         body.theme-dark .admin-card {
             background: #1e293b !important;

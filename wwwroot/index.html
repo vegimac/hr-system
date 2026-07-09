@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260708a">
+    <link rel="stylesheet" href="css/app.css?v=20260709a">
 </head>
 <body>
 
@@ -1640,8 +1640,8 @@
                     </div>
                 </div>
                 <style>
-                    .hr-card { background:white; border:1px solid #e2e8f0; border-radius:14px; padding:18px; opacity:0.85; transition:all 0.2s; }
-                    .hr-card:hover { opacity:1; border-color:#cbd5e1; box-shadow: 0 4px 14px rgba(0,0,0,0.06); transform: translateY(-2px); }
+                    .hr-card { background:white; border:1px solid #e2e8f0; border-radius:14px; padding:18px; transition:all 0.2s; }
+                    .hr-card:hover { border-color:#cbd5e1; box-shadow: 0 4px 14px rgba(0,0,0,0.06); transform: translateY(-2px); }
                     .hr-card-head { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
                     .hr-card-icon { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
                     .hr-card-title { font-size:15px; font-weight:700; color:#0f172a; }
@@ -1649,6 +1649,25 @@
                     .hr-card ul { margin:0; padding:0 0 0 18px; font-size:12.5px; color:#475569; line-height:1.55; }
                     .hr-card ul li { margin-bottom:2px; }
                     .hr-card ul li::marker { color:#94a3b8; }
+                    /* ── Geplant vs. realisiert (Walter-Vorgabe 09.07.2026) ──
+                       .hr-plan  = ganze Karte ist nur Idee → ganz hellgrau/schwach
+                       .hr-done  = realisierter Einzelpunkt IN einer Plan-Karte → wieder stark
+                       .hr-idea  = geplanter Einzelpunkt in einer AKTIVEN Karte → schwach */
+                    .hr-card.hr-plan { background:#fbfaf8; border-color:#f0ede7; }
+                    .hr-card.hr-plan:hover { border-color:#e2ddd3; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+                    .hr-card.hr-plan .hr-card-icon { filter:grayscale(1); opacity:0.35; }
+                    .hr-card.hr-plan .hr-card-title { color:#c2beb5; }
+                    .hr-card.hr-plan .hr-card-status { color:#d1cdc4; }
+                    .hr-card.hr-plan ul li { color:#cdc9c0; }
+                    .hr-card.hr-plan ul li b { color:#cdc9c0; font-weight:600; }
+                    .hr-card.hr-plan ul li::marker { color:#e2ddd3; }
+                    .hr-card.hr-plan ul li span { color:#cdc9c0 !important; }
+                    .hr-card ul li.hr-done, .hr-card.hr-plan ul li.hr-done { color:#334155; }
+                    .hr-card.hr-plan ul li.hr-done b { color:#334155; font-weight:700; }
+                    .hr-card.hr-plan ul li.hr-done::marker { color:#15803d; }
+                    .hr-card.hr-plan ul li.hr-done span { color:#15803d !important; }
+                    .hr-card ul li.hr-idea, .hr-card ul li.hr-idea b, .hr-card ul li.hr-idea span { color:#cdc9c0 !important; font-weight:400; }
+                    .hr-card ul li.hr-idea::marker { color:#e2ddd3; }
                 </style>
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:12px">
@@ -1780,7 +1799,7 @@
                         </ul>
                     </div>
 
-                    <div class="hr-card">
+                    <div class="hr-card hr-plan">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#ece9e2;color:#6b6152">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -1804,7 +1823,7 @@
                         </ul>
                     </div>
 
-                    <div class="hr-card">
+                    <div class="hr-card hr-plan">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#fef3c7;color:#854d0e">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6"/></svg>
@@ -1816,7 +1835,7 @@
                         </div>
                         <ul>
                             <li>AHV-Anmeldung / -Abmeldung</li>
-                            <li style="cursor:pointer" onclick="showPage('qst-anmeldung')"
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('qst-anmeldung')"
                                 onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
                                 <b><u data-i18n="qsta.pageTitle">Quellensteuer-Anmeldung</u></b>
                                 <span style="color:#15803d" data-i18n="hr.status.available">✓ vorhanden</span>
@@ -1828,7 +1847,7 @@
                             <li>Familienzulagen-Antrag</li>
                             <li>Mutterschafts- / Vaterschafts-Anmeldung</li>
                             <li>RAV-Arbeitgeberbescheinigung</li>
-                            <li style="cursor:pointer" onclick="showPage('zwischenverdienst')"
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('zwischenverdienst')"
                                 onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
                                 <b><u data-i18n="zvi.pageTitle">RAV-Zwischenverdienst</u></b>
                                 <span style="color:#15803d" data-i18n="hr.status.available">✓ vorhanden</span>
@@ -1839,7 +1858,7 @@
                         </ul>
                     </div>
 
-                    <div class="hr-card">
+                    <div class="hr-card hr-plan">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#dcfce7;color:#166534">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -1863,7 +1882,7 @@
                         </ul>
                     </div>
 
-                    <div class="hr-card">
+                    <div class="hr-card hr-plan">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#ede9fe;color:#5b21b6">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
@@ -1886,7 +1905,7 @@
                         </ul>
                     </div>
 
-                    <div class="hr-card">
+                    <div class="hr-card hr-plan">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#fecaca;color:#991b1b">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
@@ -1902,8 +1921,8 @@
                             <li><b>KTG-Schadenmeldung auto-generieren</b> (PDF)</li>
                             <li><b>UVG-Schadenmeldung SUVA-Format</b></li>
                             <li>IV-Anmeldung bei Langzeit (>3 Mt)</li>
-                            <li>Karenz-Übersicht pro MA <span style="color:#15803d">✓ Daten da</span></li>
-                            <li>Sperrfrist-Berechnung Art. 336c OR <span style="color:#15803d">✓ vorhanden</span></li>
+                            <li class="hr-done">Karenz-Übersicht pro MA <span style="color:#15803d">✓ Daten da</span></li>
+                            <li class="hr-done">Sperrfrist-Berechnung Art. 336c OR <span style="color:#15803d">✓ vorhanden</span></li>
                             <li>BVG-Beitragsbefreiungs-Antrag</li>
                             <li>Wiedereingliederungsplan</li>
                             <li>Übersicht aktive Fälle (Dashboard-Widget)</li>
@@ -1925,20 +1944,20 @@
                         </div>
                         <ul>
                             <li><b>Altersstruktur</b> alle Filialen, namentlich (&lt;16 / &lt;18 / &lt;30 / &lt;45 / &lt;50 / 50+ / Pension) <span style="color:#15803d">✓ verfügbar</span></li>
-                            <li><b>Personalbestand</b>: FTE / Headcount pro Filiale</li>
-                            <li>Verteilung Vertragstyp (FIX / MTP / FLEX)</li>
-                            <li><b>Fluktuationsrate</b> Quartal/Jahr, Verbleibedauer</li>
-                            <li>Eintritte / Austritte pro Monat (Trendlinie)</li>
-                            <li>Krankheits-Quote pro Filiale</li>
-                            <li>Ferien-Saldo Übersicht (rote Flags)</li>
-                            <li>Überstunden-Übersicht</li>
-                            <li>Demografie (Nationalität, Sprache)</li>
-                            <li>Termine: Geburtstage / Jubiläen / Probezeit-Ende / Bewilligungen</li>
-                            <li>Compliance: überfällige Schulungen, L-GAV-Verstösse</li>
+                            <li class="hr-idea"><b>Personalbestand</b>: FTE / Headcount pro Filiale</li>
+                            <li class="hr-idea">Verteilung Vertragstyp (FIX / MTP / FLEX)</li>
+                            <li class="hr-idea"><b>Fluktuationsrate</b> Quartal/Jahr, Verbleibedauer</li>
+                            <li class="hr-idea">Eintritte / Austritte pro Monat (Trendlinie)</li>
+                            <li class="hr-idea">Krankheits-Quote pro Filiale</li>
+                            <li class="hr-idea">Ferien-Saldo Übersicht (rote Flags)</li>
+                            <li class="hr-idea">Überstunden-Übersicht</li>
+                            <li class="hr-idea">Demografie (Nationalität, Sprache)</li>
+                            <li class="hr-idea">Termine: Geburtstage / Jubiläen / Probezeit-Ende / Bewilligungen</li>
+                            <li class="hr-idea">Compliance: überfällige Schulungen, L-GAV-Verstösse</li>
                         </ul>
                     </div>
 
-                    <div class="hr-card">
+                    <div class="hr-card hr-plan">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#fef3c7;color:#92400e">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -1961,7 +1980,7 @@
                         </ul>
                     </div>
 
-                    <div class="hr-card">
+                    <div class="hr-card hr-plan">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#e0e7ff;color:#5a5348">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
