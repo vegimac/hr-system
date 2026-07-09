@@ -176,6 +176,81 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>
+    /// Verfügbarkeits-Dump (Walter 09.07.2026): easy@work-Support hat die
+    /// Endpunkte bestätigt — GET …/availabilities/{availability}/days (+ /days/{day}).
+    /// Holt für einen MA (Personalnummer) die Verfügbarkeits-LISTE und pro
+    /// Verfügbarkeit die kompletten /days roh — zum Anschauen der JSON-Struktur,
+    /// BEVOR der echte Sync gebaut wird. Read-only.
+    /// </summary>
+    [HttpGet("debug/availability-dump")]
+    public async Task<IActionResult> AvailabilityDump(
+        [FromQuery] int companyProfileId, [FromQuery] string number, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(number))
+            return BadRequest(new { error = "NUMBER_REQUIRED" });
+        var num = number.Trim();
+
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null)
+            return BadRequest(new { error = "NO_MAPPING", message = "Filiale hat kein easy@work-Mapping." });
+        int customerId = mapping.EasyAtWorkCustomerId;
+
+        List<EawEmployee> eawList;
+        try { eawList = await _client.GetAllEmployeesIncludingInactiveAsync(customerId, ct); }
+        catch (Exception ex) { return StatusCode(502, new { error = "EAW_LIST_FAILED", message = ex.Message }); }
+        var match = eawList.FirstOrDefault(e => (e.Number ?? "").Trim() == num);
+        if (match == null)
+            return NotFound(new { error = "NOT_IN_CUSTOMER", message = $"Personalnr. {num} nicht in easy@work-Customer {customerId} gefunden." });
+        int eid = match.Id;
+
+        object ParseBody(string b)
+        {
+            if (string.IsNullOrWhiteSpace(b)) return "";
+            try { return JsonSerializer.Deserialize<JsonElement>(b); }
+            catch { return b; }
+        }
+
+        // 1) Liste der Verfügbarkeiten
+        var listPath = $"customers/{customerId}/employees/{eid}/availabilities";
+        int listStatus; string listBody;
+        try { (listStatus, listBody) = await _client.GetRawAsync(listPath, ct); }
+        catch (Exception ex) { return StatusCode(502, new { error = "EAW_AVAIL_FAILED", message = ex.Message }); }
+        var results = new List<object> { new { path = listPath, status = listStatus, body = ParseBody(listBody) } };
+
+        // 2) Availability-Ids tolerant aus dem JSON fischen (Array direkt ODER
+        //    unter «data»/«availabilities») und pro Id die /days holen.
+        var ids = new List<long>();
+        try
+        {
+            using var doc = JsonDocument.Parse(listBody);
+            var root = doc.RootElement;
+            var arr = root.ValueKind == JsonValueKind.Array ? root
+                : root.ValueKind == JsonValueKind.Object && root.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Array ? d
+                : root.ValueKind == JsonValueKind.Object && root.TryGetProperty("availabilities", out var av) && av.ValueKind == JsonValueKind.Array ? av
+                : default;
+            if (arr.ValueKind == JsonValueKind.Array)
+                foreach (var item in arr.EnumerateArray())
+                    if (item.ValueKind == JsonValueKind.Object && item.TryGetProperty("id", out var idEl) && idEl.TryGetInt64(out var idVal))
+                        ids.Add(idVal);
+        }
+        catch { /* Struktur unbekannt — dann liefert der Dump nur die Liste */ }
+
+        foreach (var aid in ids.Take(20))
+        {
+            var daysPath = $"customers/{customerId}/employees/{eid}/availabilities/{aid}/days";
+            try
+            {
+                var (st, body) = await _client.GetRawAsync(daysPath, ct);
+                results.Add(new { path = daysPath, status = st, body = ParseBody(body) });
+            }
+            catch (Exception ex) { results.Add(new { path = daysPath, status = -1, error = ex.Message }); }
+        }
+
+        return Ok(new { number = num, customerId, easyAtWorkResourceId = eid, availabilityIds = ids, results });
+    }
+
+    /// <summary>
     /// Diagnose-Dump NACH easy@work-ID (Walter 29.06.2026): holt für eine direkt
     /// angegebene easy@work-employee-Id ALLE erreichbaren Roh-JSON-Antworten. Der
     /// passende Customer wird automatisch über ALLE gemappten Filialen gesucht
