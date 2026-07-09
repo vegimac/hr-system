@@ -1211,15 +1211,15 @@ async function easyworkSyncSelectedEmployee(empId) {
             renderEmployeeList(allEmployees);
             renderEmployeeDetail(selectedEmployee);
         }
-        // Rückmeldung: was aktualisiert wurde + welche Verträge wegen
-        // geschlossener Lohnperiode NICHT importiert werden konnten.
+        // Rückmeldung (Walter-Vorgabe 09.07.2026): Erfolg nur als kurzer,
+        // nicht-blockierender Toast. Nur übersprungene Verträge (geschlossene
+        // Lohnperiode) bleiben als alert — die muss man gesehen haben.
         const upd = data.updatedFields || [];
         const skipped = data.skippedContracts || [];
-        let msg = upd.length ? '✅ Aktualisiert: ' + upd.join(', ')
-                             : (skipped.length ? '' : '✅ easy@work-Abgleich abgeschlossen — keine Änderungen.');
         if (skipped.length)
-            msg += (msg ? '\n\n' : '') + '⚠ Diese Verträge wurden NICHT importiert (geschlossene Lohnperiode):\n' + skipped.map(s => '• ' + s).join('\n');
-        if (msg) alert(msg);
+            alert('⚠ Diese Verträge wurden NICHT importiert (geschlossene Lohnperiode):\n' + skipped.map(s => '• ' + s).join('\n'));
+        else if (typeof showToast === 'function')
+            showToast(upd.length ? 'Daten aktualisiert' : 'Keine Änderungen', 'success');
     } catch (e) {
         alert('easy@work-Abgleich fehlgeschlagen: ' + (e?.message || e));
     } finally {
