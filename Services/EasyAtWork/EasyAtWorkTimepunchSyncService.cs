@@ -571,7 +571,8 @@ public class EasyAtWorkTimepunchSyncService
     /// kommt aus dem Controller (User-aware LohnEditLockService). Aktualisiert
     /// zusätzlich den TIMEPUNCH-Sync-State (Cursor + UI-Status).
     /// </summary>
-    public async Task<AutoSyncResult> CommitAsync(SyncRequest req, DateOnly? firstAllowed, CancellationToken ct = default)
+    public async Task<AutoSyncResult> CommitAsync(SyncRequest req, DateOnly? firstAllowed,
+        Action<int, int, string>? progress = null, CancellationToken ct = default)
     {
         var res = new AutoSyncResult { From = req.From, To = req.To };
         if (req.To < req.From) { res.Notes.Add("Ungültiger Datumsbereich (Bis ist vor Von)."); return res; }
@@ -581,9 +582,17 @@ public class EasyAtWorkTimepunchSyncService
             .FirstOrDefaultAsync(m => m.CompanyProfileId == req.CompanyProfileId, ct);
         if (mapping == null) { res.Notes.Add("Diese Filiale hat kein easy@work-Mapping."); return res; }
 
+        progress?.Invoke(0, 0, "Stempel laden aus easy@work…");
         List<EawTimepunch> punches;
-        try { punches = await _client.GetAllTimepunchesAsync(mapping.EasyAtWorkCustomerId, req.From, req.To, ct); }
+        try
+        {
+            punches = progress == null
+                ? await _client.GetAllTimepunchesAsync(mapping.EasyAtWorkCustomerId, req.From, req.To, ct)
+                : await _client.GetAllTimepunchesAsync(mapping.EasyAtWorkCustomerId, req.From, req.To,
+                    (done, total) => progress(done, total, $"Stempel laden aus easy@work — Seite {done}/{total}"), ct);
+        }
         catch (Exception ex) { res.Notes.Add($"easy@work-Aufruf fehlgeschlagen: {ex.Message}"); return res; }
+        progress?.Invoke(0, 0, $"{punches.Count} Stempel verarbeiten & speichern…");
 
         var maxUpd = punches.Where(p => p.UpdatedAt.HasValue).Select(p => p.UpdatedAt!.Value).DefaultIfEmpty().Max();
 

@@ -259,27 +259,51 @@ public class EasyAtWorkClient
     /// Per-Page 200 (API-Max). Sicherheits-Stop bei 500 Seiten (= 100k Stempel,
     /// das wäre absurd).
     /// </summary>
-    public virtual async Task<List<EawTimepunch>> GetAllTimepunchesAsync(
+    public virtual Task<List<EawTimepunch>> GetAllTimepunchesAsync(
         int customerId, DateOnly from, DateOnly to, CancellationToken ct = default)
+        => GetAllTimepunchesAsync(customerId, from, to, pageProgress: null, ct);
+
+    /// <summary>Wie oben, zusätzlich mit Seiten-Fortschritt (done, total) für
+    /// den Async-Import-Job (Walter-Vorgabe 09.07.2026). Separate Überladung,
+    /// damit bestehende Test-Overrides der 4-Parameter-Signatur intakt bleiben.</summary>
+    public virtual async Task<List<EawTimepunch>> GetAllTimepunchesAsync(
+        int customerId, DateOnly from, DateOnly to, Action<int, int>? pageProgress, CancellationToken ct = default)
     {
-        var all = new List<EawTimepunch>();
-        int page = 1;
         const int perPage = 200;
-        while (true)
+        // `with[]=comments` lädt das Comments-Array mit (Default: nur ID-Felder).
+        // URL-encoded: `with%5B%5D=comments`.
+        string PathFor(int page) =>
+            $"customers/{customerId}/timepunches"
+            + $"?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}"
+            + $"&per_page={perPage}"
+            + $"&page={page}"
+            + "&with%5B%5D=comments";
+
+        // Seite 1 sequenziell (liefert LastPage + wärmt den Token-Cache),
+        // Rest PARALLEL mit Drossel — Walter-Vorgabe 09.07.2026 (der frühere
+        // rein sequenzielle Page-Loop war der Flaschenhals des Imports).
+        var first = await GetJsonAsync<EawPaginated<EawTimepunch>>(PathFor(1), ct);
+        var all = new List<EawTimepunch>(first.Data ?? new());
+        var lastPage = Math.Min(first.LastPage ?? 1, 500);
+        pageProgress?.Invoke(1, lastPage);
+        if (lastPage <= 1) return all;
+
+        var sem = new SemaphoreSlim(4); // max. 4 gleichzeitige Requests (API schonen)
+        var doneCount = 1;
+        var tasks = Enumerable.Range(2, lastPage - 1).Select(async page =>
         {
-            // `with[]=comments` lädt das Comments-Array mit (Default: nur ID-Felder).
-            // URL-encoded: `with%5B%5D=comments`.
-            var path = $"customers/{customerId}/timepunches"
-                     + $"?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}"
-                     + $"&per_page={perPage}"
-                     + $"&page={page}"
-                     + "&with%5B%5D=comments";
-            var res = await GetJsonAsync<EawPaginated<EawTimepunch>>(path, ct);
+            await sem.WaitAsync(ct);
+            try
+            {
+                var res = await GetJsonAsync<EawPaginated<EawTimepunch>>(PathFor(page), ct);
+                pageProgress?.Invoke(Interlocked.Increment(ref doneCount), lastPage);
+                return (page, res);
+            }
+            finally { sem.Release(); }
+        }).ToList();
+        var pages = await Task.WhenAll(tasks);
+        foreach (var (_, res) in pages.OrderBy(p => p.page))
             if (res.Data != null) all.AddRange(res.Data);
-            if (res.LastPage == null || page >= res.LastPage.Value) break;
-            page++;
-            if (page > 500) break;
-        }
         return all;
     }
 

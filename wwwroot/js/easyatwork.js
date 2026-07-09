@@ -32,7 +32,9 @@ function eawClearResults() {
     const e = document.getElementById('eawEmpSyncResult');  if (e) e.innerHTML = '';
     _eawSyncLastPreview = null;
     _eawEmpSyncLast     = null;
-    const c1 = document.getElementById('eawSyncCommitBtn');     if (c1) c1.disabled = true;
+    // Stempel-Import ist seit 09.07.2026 ein Direkt-Import (kein Vorschau-
+    // Pflichtschritt) — der Button bleibt aktiv, nur der MA-Sync-Commit gated.
+    const c1 = document.getElementById('eawSyncCommitBtn');     if (c1) c1.disabled = false;
     const c2 = document.getElementById('eawEmpSyncCommitBtn');  if (c2) c2.disabled = true;
 }
 
@@ -193,23 +195,99 @@ function eawSkipEmployee(eawId) {
     const blocked = (p.missingEmployees && p.missingEmployees.length > 0)
                  || (p.ambiguousEmployees && p.ambiguousEmployees.length > 0);
     const commitBtn = document.getElementById('eawSyncCommitBtn');
-    if (commitBtn) commitBtn.disabled = blocked || !(p.countNew > 0);
+    if (commitBtn) commitBtn.disabled = false; // Direkt-Import: immer klickbar
 }
+// Direkt-Import (Walter-Vorgabe 09.07.2026): keine Vorschau-Pflicht mehr —
+// der Import holt selbst alles Neue, blockiert serverseitig bei fehlenden/
+// mehrdeutigen MA und überspringt geschlossene Perioden. Läuft als
+// Hintergrund-Job mit Fortschrittsbalken (Polling, kein Proxy-Timeout).
 async function eawSyncCommit() {
-    if (!_eawSyncLastPreview || !_eawSyncLastPreview.countNew) {
-        alert('Keine NEW-Zeilen zum Importieren.');
+    const sel    = document.getElementById('eawSyncBranchSel');
+    const fromEl = document.getElementById('eawSyncFrom');
+    const toEl   = document.getElementById('eawSyncTo');
+    const out    = document.getElementById('eawSyncResult');
+    const btn    = document.getElementById('eawSyncCommitBtn');
+    if (!sel.value) { alert('Bitte zuerst Filiale wählen.'); return; }
+    if (!fromEl.value || !toEl.value) { alert('Bitte Datumsbereich angeben.'); return; }
+    const fmt = iso => iso.slice(8,10) + '.' + iso.slice(5,7) + '.' + iso.slice(0,4);
+    if (!confirm(`Stempelzeiten ${fmt(fromEl.value)} – ${fmt(toEl.value)} jetzt direkt importieren?\n\nNur NEUE Stempel werden geschrieben; abgeschlossene Lohnperioden werden automatisch übersprungen.`)) return;
+
+    const preMirusEl = document.getElementById('eawSyncPreMirus');
+    const dto = {
+        companyProfileId: parseInt(sel.value, 10),
+        from: fromEl.value,
+        to:   toEl.value,
+        skipEawEmployeeIds: _eawSkipIds,
+        employeeCutoffOverride: (preMirusEl && preMirusEl.checked) ? '2021-01-01' : null
+    };
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/easywork/sync/timepunches/commit-async', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(dto)
+        });
+        const j = await r.json();
+        if (!r.ok || !j.jobId) {
+            out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">✗ Fehler ${r.status}</div><div class="eaw-result-msg">${escapeHtml(j.message || j.error || 'Job konnte nicht gestartet werden.')}</div></div>`;
+            return;
+        }
+        await _eawPollTimepunchJob(j.jobId, out);
+    } catch (e) {
+        out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Netzwerkfehler</div><div class="eaw-result-msg">${escapeHtml(String(e))}</div></div>`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Pollt den Import-Job und rendert den Fortschrittsbalken.
+async function _eawPollTimepunchJob(jobId, out) {
+    const t0 = Date.now();
+    while (true) {
+        await new Promise(res => setTimeout(res, 700));
+        let job;
+        try {
+            const r = await fetch(`/api/easywork/sync/employees/job/${jobId}`, { headers: ah() });
+            job = await r.json();
+            if (!r.ok) throw new Error(job.error || ('HTTP ' + r.status));
+        } catch (e) {
+            out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Job-Status nicht abrufbar</div><div class="eaw-result-msg">${escapeHtml(String(e))}</div></div>`;
+            return;
+        }
+        if (job.status === 'running') { out.innerHTML = _eawJobProgressHtml(job, t0); continue; }
+        if (job.status === 'error') {
+            out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">✗ Import fehlgeschlagen</div><div class="eaw-result-msg">${escapeHtml(job.error || 'Unbekannter Fehler')}</div></div>`;
+            return;
+        }
+        const body = job.result || {};
+        const blocked = (body.missingEmployees && body.missingEmployees.length > 0)
+                     || (body.ambiguousEmployees && body.ambiguousEmployees.length > 0)
+                     || body.isBlocked === true;
+        if (blocked) {
+            _eawSyncLastPreview = body;
+            _eawSyncRenderResult(body, true);
+        } else {
+            const notes = (body.notes && body.notes.length)
+                ? `<div style="color:#64748b;font-size:12px;margin-top:6px">${body.notes.map(n => '• ' + escapeHtml(n)).join('<br>')}</div>` : '';
+            out.innerHTML = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">✓ Import abgeschlossen — ${body.inserted||0} neu, ${body.updated||0} geändert, ${body.deleted||0} gelöscht${body.lockedSkipped ? ', ' + body.lockedSkipped + ' gesperrt übersprungen' : ''}.${notes}</div>`;
+            _eawSyncLastPreview = null;
+        }
         return;
     }
-    if (_eawSyncLastPreview.missingEmployees && _eawSyncLastPreview.missingEmployees.length) {
-        alert('Import blockiert: Es gibt easy@work-MA ohne Cowork-Zuordnung. Bitte diese zuerst zuordnen („→ MA zuordnen") oder in Cowork anlegen.');
-        return;
-    }
-    if (_eawSyncLastPreview.ambiguousEmployees && _eawSyncLastPreview.ambiguousEmployees.length) {
-        alert('Import blockiert: Es gibt Personen mit mehreren Lohn-MA (IsPayrollExcluded=false). Bitte je Person genau einen Lohn-MA führen, die übrigen auf „kein Lohn" setzen.');
-        return;
-    }
-    if (!confirm(`${_eawSyncLastPreview.countNew} Stempelzeit(en) jetzt importieren?`)) return;
-    await _eawSyncRun(true);
+}
+
+// Fortschrittsbalken: Seiten-Fortschritt wenn total bekannt, sonst Puls-Phase.
+function _eawJobProgressHtml(job, t0) {
+    const s = Math.round((Date.now() - t0) / 1000);
+    const pct = job.total > 0 ? Math.max(2, Math.round(job.done / job.total * 100)) : null;
+    const bar = pct !== null
+        ? `<div style="background:#e7e1d8;border-radius:99px;height:10px;overflow:hidden;margin-top:6px"><div style="background:#3f3f3f;height:100%;width:${pct}%;border-radius:99px;transition:width .4s"></div></div>`
+        : `<div style="background:#e7e1d8;border-radius:99px;height:10px;overflow:hidden;margin-top:6px"><div style="background:#b8ab93;height:100%;width:100%;opacity:.45"></div></div>`;
+    return `<div style="font-size:13px;color:#475569;padding:10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:10px;max-width:520px">
+        <div style="display:flex;align-items:center;gap:8px">
+            <span class="import-spinner" style="width:14px;height:14px"></span>
+            <span>${escapeHtml(job.phase || 'Importiere…')}${pct !== null ? ` — <strong>${pct}%</strong>` : ''} <span style="color:#94a3b8">(${s}s)</span></span>
+        </div>${bar}</div>`;
 }
 
 async function _eawSyncRun(commit) {

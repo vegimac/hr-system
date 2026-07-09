@@ -756,8 +756,58 @@ public class EasyAtWorkController : ControllerBase
             SkipEawEmployeeIds = dto.SkipEawEmployeeIds ?? new(),
             EmployeeCutoffOverride = dto.EmployeeCutoffOverride,
             IgnoreMissing = dto.IgnoreMissing ?? false
-        }, firstAllowed, ct);
+        }, firstAllowed, progress: null, ct);
         return Ok(res);
+    }
+
+    /// <summary>
+    /// Direkt-Import als Hintergrund-Job mit Fortschritt (Walter-Vorgabe
+    /// 09.07.2026): kein Vorschau-Pflichtschritt mehr — der Commit lädt selbst,
+    /// blockiert bei fehlenden/mehrdeutigen MA und überspringt geschlossene
+    /// Perioden. Der Browser pollt den Job-Status (gleicher Endpoint wie der
+    /// MA-Import: GET sync/employees/job/{jobId}).
+    /// </summary>
+    [Authorize(Roles = "admin")]
+    [HttpPost("sync/timepunches/commit-async")]
+    public IActionResult SyncTimepunchesCommitAsync([FromBody] SyncRequestDto dto)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+
+        var job = _importJobs.Create();
+        var jobId = job.Id;
+        var req = new Services.EasyAtWork.EasyAtWorkTimepunchSyncService.SyncRequest
+        {
+            CompanyProfileId = dto.CompanyProfileId,
+            From = dto.From,
+            To = dto.To,
+            SkipEawEmployeeIds = dto.SkipEawEmployeeIds ?? new(),
+            EmployeeCutoffOverride = dto.EmployeeCutoffOverride,
+            IgnoreMissing = dto.IgnoreMissing ?? false
+        };
+
+        _ = Task.Run(async () =>
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var svc = scope.ServiceProvider
+                .GetRequiredService<Services.EasyAtWork.EasyAtWorkTimepunchSyncService>();
+            try
+            {
+                var res = await svc.CommitAsync(req, firstAllowed: null,
+                    progress: (done, total, phase) => _importJobs.Progress(jobId, done, total, phase),
+                    ct: CancellationToken.None);
+                _importJobs.Complete(jobId, res);
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.Message;
+                for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)
+                    msg += "  →  " + inner.Message;
+                _importJobs.Fail(jobId, msg);
+                _log.LogError(ex, "Asynchroner Stempelzeiten-Import (Job {JobId}) fehlgeschlagen.", jobId);
+            }
+        });
+
+        return Ok(new { jobId });
     }
 
     // Liefert die gemappten Filialen (Id + Name) — fürs Frontend, das den
