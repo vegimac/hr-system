@@ -741,6 +741,26 @@ async function eawEmpDump() {
     }
 }
 
+// Verfügbarkeits-Dump (Walter 09.07.2026): availabilities-Liste + pro
+// Verfügbarkeit die /days — Endpunkte von easy@work-Support bestätigt.
+// Nutzt dasselbe Personalnummer-Feld + Ausgabefenster wie der Felder-Dump.
+async function eawAvailabilityDump() {
+    const out = document.getElementById('eawDumpResult');
+    const number = (document.getElementById('eawDumpNumber')?.value || '').trim();
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    if (!number) { if (out) out.textContent = 'Bitte eine Personalnummer eingeben.'; return; }
+    if (!cpId)   { if (out) out.textContent = 'Bitte zuerst oben eine Filiale wählen.'; return; }
+    if (out) out.textContent = 'Lade Verfügbarkeiten…';
+    try {
+        const r = await fetch(`/api/easywork/debug/availability-dump?companyProfileId=${cpId}&number=${encodeURIComponent(number)}`, { headers: ah() });
+        const j = await r.json();
+        if (!r.ok) { out.textContent = 'Fehler: ' + (j?.message || j?.error || ('HTTP ' + r.status)); return; }
+        out.textContent = JSON.stringify(j, null, 2);
+    } catch (e) {
+        if (out) out.textContent = 'Verbindungsfehler: ' + e.message;
+    }
+}
+
 // API-Dump nach easy@work-ID: holt die Roh-Felder direkt für eine ID. Der
 // passende Customer wird serverseitig über alle gemappten Filialen gesucht —
 // so sieht Walter, welche Personalnummer easy@work für diese ID liefert.
