@@ -403,6 +403,15 @@ Auto-Import auseinander:
 - Alte (Pre-Mirus) MA mit potentieller Nummernkollision werden über den **Archiv-Import** mit `+alt`-Suffix angelegt (`750038alt`).
 - Im normalen Import werden nur AKTIVE MA angelegt (Bis-Datum offen oder ≥ heute). Inaktive werden übersprungen — Logik in `EmployeeImportController.UploadCsv`, Variable `isActiveByNumber`.
 
+## Verfügbarkeit aus easy@work (Walter-Vorgabe 09.07.2026)
+
+Die Verfügbarkeit (wann ein MA grundsätzlich einsetzbar ist, L-GAV-Anlage) wird in **easy@work gepflegt** und zu uns gespiegelt. Endpunkte (von easy@work-Support bestätigt): `GET customers/{c}/employees/{e}/availabilities` (Laravel-paginiert) + `…/availabilities/{a}/days`. Struktur (aus echtem Dump MA 580009 verifiziert): availability = Gültigkeits-Kopf (`from`/`to` UTC, `to` NULL = unbefristet, `repeat=7` Wochenmuster, `work_days` vermutlich Wunsch-Arbeitstage/Woche — nur informativ); day = Muster-Tag mit `day`-Index 0..6 AB dem from-Datum (NICHT fix Mo=0!), `offset`/`length` in Sekunden ab LOKALEM Tagesbeginn, `whole_day` = ganztags. **FEHLENDE Tage im Muster = an dem Wochentag nicht verfügbar.** UTC→lokal IMMER via `EawDateUtil` (Europe/Zurich).
+
+- **Sync:** `EasyAtWorkEmployeeSyncService.SyncAvailabilitiesAsync` — läuft im EINZEL-MA-Abgleich (`SyncSingleCoworkEmployeeAsync`, Button «easy@work synchronisieren» im MA-Detail) als best-effort nach dem Vertrags-Sync. Mapping: alle 7 Tage ganztags → `type='unrestricted'`, sonst `table` mit Slot-Zeilen (gleiche Zeitfenster zu einer Zeile mit Wochentag-Flags gruppiert). Upsert-Schlüssel = neue Spalte `employee_availability.easyatwork_availability_id` (bigint NULL; Migration `add_availability_easyatwork_id.sql` + idempotent in Program.cs): Sync-Versionen werden aktualisiert/entfernt (in easy@work gelöschte → bei uns weg), MANUELL erfasste (Id NULL) bleiben unangetastet. Änderungs-Erkennung per Signatur-Vergleich (kein Blind-Rewrite).
+- **NICHT im Massen-/Auto-Sync:** bewusst nur der Einzel-Abgleich (der Massen-Sync müsste pro MA 1+N Zusatz-Calls machen — offen, bei Bedarf mit Drossel nachrüsten).
+- **UI:** MA-Detail-Tab «Verfügbarkeit» (`js/verfuegbarkeit.js`, `loadVerfuegbarkeitTab` — der Hook in `switchEmpTab` existierte schon). Read-only-Anzeige: Karte pro Version (Aktuell-Badge, «easy@work»- vs «manuell»-Badge), Wochentabelle Mo–So (nicht verfügbare Tage «—»), Bemerkung. `EmployeeAvailabilityController` GET liefert `easyAtWorkAvailabilityId` mit; die manuellen CRUD-Endpoints bleiben (kein UI-Editor — Pflege in easy@work).
+- **Diagnose:** easy@work-Modul → API-Dump → Button «📅 Verfügbarkeit abrufen» (`debug/availability-dump`) zeigt Liste + /days roh.
+
 ## i18n (Phase 1)
 
 - Top-Bar-Flaggen-Toggle (`#langSwitcher` als floating fixed-position Widget) ist auf jedem Bildschirm oben rechts sichtbar. Klick auf DE/UK ruft `i18n.setLang(lang, {persist:true})` — das schreibt sofort in `app_user.preferred_language` (Endpoint `PUT /api/auth/language`) und übersetzt alle Strings ohne Reload.

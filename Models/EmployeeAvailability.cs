@@ -27,6 +27,12 @@ public class EmployeeAvailability
 
     public string? Bemerkung { get; set; }
 
+    /// <summary>easy@work availability.id, wenn diese Version aus dem
+    /// easy@work-Sync stammt (Walter 09.07.2026). NULL = manuell erfasst.
+    /// Sync-Upsert-Schlüssel: sync-erzeugte Versionen werden beim nächsten
+    /// Abgleich aktualisiert/entfernt, manuelle bleiben unangetastet.</summary>
+    public long? EasyAtWorkAvailabilityId { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public int? CreatedBy { get; set; }
 

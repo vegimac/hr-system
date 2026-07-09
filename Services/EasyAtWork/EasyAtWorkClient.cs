@@ -365,6 +365,17 @@ public class EasyAtWorkClient
         => GetJsonAsync<EawPaginated<EawPosition>>(
             $"customers/{customerId}/employees/{employeeId}/positions", ct);
 
+    /// <summary>Verfügbarkeiten eines MA (Walter 09.07.2026, Endpunkt von easy@work
+    /// bestätigt). per_page hochgesetzt, damit die Historie in einem Call kommt.</summary>
+    public virtual Task<EawPaginated<EawAvailability>> GetAvailabilitiesAsync(int customerId, int employeeId, CancellationToken ct = default)
+        => GetJsonAsync<EawPaginated<EawAvailability>>(
+            $"customers/{customerId}/employees/{employeeId}/availabilities?per_page=200", ct);
+
+    /// <summary>Wochenmuster-Tage EINER Verfügbarkeit (max. 7 Zeilen bei repeat=7).</summary>
+    public virtual Task<EawPaginated<EawAvailabilityDay>> GetAvailabilityDaysAsync(int customerId, int employeeId, long availabilityId, CancellationToken ct = default)
+        => GetJsonAsync<EawPaginated<EawAvailabilityDay>>(
+            $"customers/{customerId}/employees/{employeeId}/availabilities/{availabilityId}/days?per_page=200", ct);
+
     /// <summary>
     /// fiscal_info eines MA. easy@work liefert 404, wenn für den MA schlicht
     /// KEIN fiscal_info-Datensatz erfasst ist (kein Fehler) — das wird hier

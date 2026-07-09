@@ -327,3 +327,53 @@ public class EawTimepunch
             : string.Join(" / ",
                 Comments.Select(c => c.AnyText).Where(t => !string.IsNullOrWhiteSpace(t)));
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// Verfügbarkeit (Walter 09.07.2026) — Endpunkte von easy@work-Support bestätigt:
+//   GET customers/{c}/employees/{e}/availabilities            (Laravel-paginiert)
+//   GET customers/{c}/employees/{e}/availabilities/{a}/days
+// Struktur aus echtem Dump (MA 580009): availability = Gültigkeits-Kopf mit
+// Wochenmuster (repeat=7); day = Zeile pro Wochentag — day-Index 0..6 zählt AB
+// dem from-Datum, offset/length in SEKUNDEN ab LOKALEM Tagesbeginn,
+// whole_day=true → ganztags. FEHLENDE Tage = an dem Wochentag NICHT verfügbar.
+// from/to sind UTC-Timestamps → EawDateUtil (Europe/Zurich) verwenden.
+// ════════════════════════════════════════════════════════════════════════
+
+public class EawAvailability
+{
+    [JsonPropertyName("id")]          public long      Id         { get; set; }
+    [JsonPropertyName("employee_id")] public int       EmployeeId { get; set; }
+    [JsonPropertyName("from")]        public string?   FromRaw    { get; set; }
+    [JsonPropertyName("to")]          public string?   ToRaw      { get; set; }
+    [JsonPropertyName("repeat")]      public int?      Repeat     { get; set; }
+    [JsonPropertyName("active")]      public bool?     Active     { get; set; }
+    [JsonPropertyName("deleted_at")]  public string?   DeletedAtRaw { get; set; }
+    /// <summary>Bedeutung nicht offiziell dokumentiert — im Dump [5]; vermutlich
+    /// gewünschte Arbeitstage pro Woche. Nur informativ übernommen.</summary>
+    [JsonPropertyName("work_days")]   public List<int>? WorkDays  { get; set; }
+
+    [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
+    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
+    [JsonIgnore] public bool IsDeleted => !string.IsNullOrWhiteSpace(DeletedAtRaw);
+}
+
+public class EawAvailabilityDay
+{
+    [JsonPropertyName("id")]              public long    Id             { get; set; }
+    [JsonPropertyName("availability_id")] public long    AvailabilityId { get; set; }
+    /// <summary>Tag-Index 0..6 AB dem availability-from (NICHT fix Mo=0!).</summary>
+    [JsonPropertyName("day")]             public int     Day            { get; set; }
+    /// <summary>Sekunden ab lokalem Tagesbeginn (28800 = 08:00).</summary>
+    [JsonPropertyName("offset")]          public long    Offset         { get; set; }
+    /// <summary>Dauer in Sekunden (86400 = ganztags).</summary>
+    [JsonPropertyName("length")]          public long    Length         { get; set; }
+    [JsonPropertyName("whole_day")]       public bool    WholeDay       { get; set; }
+    [JsonPropertyName("from")]            public string? FromRaw        { get; set; }
+    [JsonPropertyName("to")]              public string? ToRaw          { get; set; }
+    [JsonPropertyName("date")]            public string? DateRaw        { get; set; }
+    [JsonPropertyName("deleted_at")]      public string? DeletedAtRaw   { get; set; }
+
+    /// <summary>LOKALES Datum des Muster-Tags → daraus der Wochentag.</summary>
+    [JsonIgnore] public DateOnly? LocalDate => EawDateUtil.ParseSwissDate(FromRaw ?? DateRaw);
+    [JsonIgnore] public bool IsDeleted => !string.IsNullOrWhiteSpace(DeletedAtRaw);
+}

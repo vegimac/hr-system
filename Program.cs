@@ -952,6 +952,11 @@ using (var scope = app.Services.CreateScope())
             sort_order      integer NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS ix_employee_availability_slot_avail ON employee_availability_slot (availability_id);
+
+        -- easy@work-Sync-Quelle (Walter 09.07.2026): availability.id aus easy@work,
+        -- NULL = manuell erfasst. Upsert-Schlüssel für den Verfügbarkeits-Sync.
+        ALTER TABLE employee_availability ADD COLUMN IF NOT EXISTS easyatwork_availability_id bigint;
+        CREATE INDEX IF NOT EXISTS ix_employee_availability_eaw ON employee_availability (easyatwork_availability_id);
     ");
 
     // ── Lohnpositionen (Lohnraster) ───────────────────────────────────────

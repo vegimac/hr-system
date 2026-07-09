@@ -514,10 +514,162 @@ public class EasyAtWorkEmployeeSyncService
             _log.LogWarning(ex, "Einzel-MA Vertrags-Sync für Employee {Id} fehlgeschlagen.", emp.Id);
         }
 
+        // ── Verfügbarkeit aus easy@work mitziehen (Walter-Vorgabe 09.07.2026) ──
+        // Best-effort: ein Fehler hier bricht den restlichen Sync nicht ab.
+        try
+        {
+            var changed = await SyncAvailabilitiesAsync(emp, matchedCustomerId!.Value, eaw.Id, result.Notes, ct);
+            if (changed) result.UpdatedFields.Add("Verfügbarkeit");
+        }
+        catch (Exception ex)
+        {
+            result.Notes.Add($"Verfügbarkeits-Sync übersprungen: {ex.Message}");
+            _log.LogWarning(ex, "Einzel-MA Verfügbarkeits-Sync für Employee {Id} fehlgeschlagen.", emp.Id);
+        }
+
         result.Success = true;
         if (result.UpdatedFields.Count == 0 && result.SkippedContracts.Count == 0)
             result.Notes.Add("Keine Änderungen — Cowork war bereits aktuell.");
         return result;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  Verfügbarkeits-Sync (Walter-Vorgabe 09.07.2026)
+    //  easy@work availabilities + /days → EmployeeAvailability + Slots.
+    //  Mapping (aus echtem Dump MA 580009 verifiziert):
+    //    • availability.from/to (UTC) → ValidFrom/ValidTo (lokal, Europe/Zurich)
+    //    • day.from (UTC) → lokales Datum → Wochentag der Slot-Zeile
+    //    • day.offset/length = Sekunden ab LOKALEM Tagesbeginn; whole_day → ganztags
+    //    • FEHLENDER Wochentag im Muster = nicht verfügbar (= unser Slot-Modell)
+    //    • alle 7 Tage ganztags → Type 'unrestricted', sonst 'table'
+    //  Upsert über EasyAtWorkAvailabilityId: sync-erzeugte Versionen werden
+    //  aktualisiert/entfernt, MANUELL erfasste (Id NULL) bleiben unangetastet.
+    // ═════════════════════════════════════════════════════════════════════
+    private async Task<bool> SyncAvailabilitiesAsync(
+        Employee emp, int customerId, int eawEmployeeId, List<string> notes, CancellationToken ct)
+    {
+        var eawList = (await _client.GetAvailabilitiesAsync(customerId, eawEmployeeId, ct))?.Data ?? new();
+        var relevant = eawList.Where(a => a.Active != false && !a.IsDeleted && a.From.HasValue).ToList();
+
+        var existing = await _db.EmployeeAvailabilities
+            .Include(a => a.Slots)
+            .Where(a => a.EmployeeId == emp.Id && a.EasyAtWorkAvailabilityId != null)
+            .ToListAsync(ct);
+
+        var changed = false;
+        var seenIds = new HashSet<long>();
+
+        foreach (var eawAv in relevant)
+        {
+            seenIds.Add(eawAv.Id);
+            List<EawAvailabilityDay> days;
+            try { days = (await _client.GetAvailabilityDaysAsync(customerId, eawEmployeeId, eawAv.Id, ct))?.Data ?? new(); }
+            catch (Exception ex)
+            {
+                notes.Add($"Verfügbarkeit {eawAv.Id}: Tage nicht abrufbar ({ex.Message}) — übersprungen.");
+                continue;
+            }
+            days = days.Where(d => !d.IsDeleted).ToList();
+
+            // Wochentag + Zeitfenster pro Muster-Tag
+            var perDay = new List<(DayOfWeek Dow, TimeOnly? Von, TimeOnly? Bis, bool Ganz)>();
+            foreach (var d in days)
+            {
+                if (d.LocalDate is not DateOnly ld) continue;
+                var dow = ld.DayOfWeek;
+                if (d.WholeDay || (d.Offset == 0 && d.Length >= 86400))
+                {
+                    perDay.Add((dow, null, null, true));
+                    continue;
+                }
+                var vonSec = Math.Clamp(d.Offset, 0, 86399);
+                var bisSec = Math.Clamp(d.Offset + d.Length, 0, 86400) % 86400; // 24:00 → 00:00
+                perDay.Add((dow,
+                    TimeOnly.FromTimeSpan(TimeSpan.FromSeconds(vonSec)),
+                    TimeOnly.FromTimeSpan(TimeSpan.FromSeconds(bisSec)), false));
+            }
+
+            var isUnrestricted = perDay.Count(p => p.Ganz) >= 7
+                                 && perDay.Select(p => p.Dow).Distinct().Count() == 7;
+
+            // Gleiche Zeitfenster zu EINER Slot-Zeile mit Wochentag-Flags gruppieren
+            var newSlots = new List<EmployeeAvailabilitySlot>();
+            if (!isUnrestricted)
+            {
+                var sort = 0;
+                foreach (var grp in perDay.GroupBy(p => (p.Von, p.Bis, p.Ganz))
+                                          .OrderBy(g => g.Key.Ganz ? TimeOnly.MinValue : (g.Key.Von ?? TimeOnly.MinValue)))
+                {
+                    var s = new EmployeeAvailabilitySlot
+                    {
+                        Von = grp.Key.Ganz ? null : grp.Key.Von,
+                        Bis = grp.Key.Ganz ? null : grp.Key.Bis,
+                        SortOrder = sort++,
+                    };
+                    foreach (var p in grp)
+                        switch (p.Dow)
+                        {
+                            case DayOfWeek.Monday:    s.Mon = true; break;
+                            case DayOfWeek.Tuesday:   s.Tue = true; break;
+                            case DayOfWeek.Wednesday: s.Wed = true; break;
+                            case DayOfWeek.Thursday:  s.Thu = true; break;
+                            case DayOfWeek.Friday:    s.Fri = true; break;
+                            case DayOfWeek.Saturday:  s.Sat = true; break;
+                            case DayOfWeek.Sunday:    s.Sun = true; break;
+                        }
+                    newSlots.Add(s);
+                }
+            }
+
+            var wunschTage = eawAv.WorkDays is { Count: 1 } ? eawAv.WorkDays[0] : (int?)null;
+            var bemerkung = "easy@work-Sync" + (wunschTage.HasValue ? $" · Wunsch-Arbeitstage/Woche: {wunschTage}" : "");
+            var type = isUnrestricted ? "unrestricted" : "table";
+            var validFrom = eawAv.From!.Value;
+            var validTo = eawAv.To;
+
+            string Sig(string ty, DateOnly vf, DateOnly? vt, IEnumerable<EmployeeAvailabilitySlot> slots) =>
+                ty + "|" + vf + "|" + vt + "|" + string.Join(";", slots
+                    .OrderBy(s => s.SortOrder)
+                    .Select(s => $"{s.Von}-{s.Bis}-{(s.Mon?1:0)}{(s.Tue?1:0)}{(s.Wed?1:0)}{(s.Thu?1:0)}{(s.Fri?1:0)}{(s.Sat?1:0)}{(s.Sun?1:0)}"));
+
+            var match = existing.FirstOrDefault(a => a.EasyAtWorkAvailabilityId == eawAv.Id);
+            if (match == null)
+            {
+                _db.EmployeeAvailabilities.Add(new EmployeeAvailability
+                {
+                    EmployeeId = emp.Id,
+                    Type = type,
+                    ValidFrom = validFrom,
+                    ValidTo = validTo,
+                    Bemerkung = bemerkung,
+                    EasyAtWorkAvailabilityId = eawAv.Id,
+                    Slots = newSlots,
+                });
+                changed = true;
+            }
+            else if (Sig(match.Type, match.ValidFrom, match.ValidTo, match.Slots)
+                     != Sig(type, validFrom, validTo, newSlots))
+            {
+                match.Type = type;
+                match.ValidFrom = validFrom;
+                match.ValidTo = validTo;
+                match.Bemerkung = bemerkung;
+                _db.EmployeeAvailabilitySlots.RemoveRange(match.Slots);
+                match.Slots = newSlots;
+                changed = true;
+            }
+        }
+
+        // In easy@work gelöschte/deaktivierte Verfügbarkeiten: sync-erzeugte
+        // Spiegel-Version bei uns entfernen (manuelle bleiben).
+        foreach (var orphan in existing.Where(a => !seenIds.Contains(a.EasyAtWorkAvailabilityId!.Value)))
+        {
+            _db.EmployeeAvailabilities.Remove(orphan);
+            changed = true;
+        }
+
+        if (changed) await _db.SaveChangesAsync(ct);
+        return changed;
     }
 
     private async Task<EmployeeMasterData> BuildMasterDataAsync(

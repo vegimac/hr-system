@@ -54,6 +54,7 @@ public class EmployeeAvailabilityController : ControllerBase
             a.ValidFrom,
             a.ValidTo,
             a.Bemerkung,
+            a.EasyAtWorkAvailabilityId,
             a.CreatedAt,
             a.CreatedBy,
             isCurrent = a.ValidFrom <= today && (!a.ValidTo.HasValue || a.ValidTo.Value >= today),
