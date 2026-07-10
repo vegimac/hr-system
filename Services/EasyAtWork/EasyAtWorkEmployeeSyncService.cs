@@ -398,17 +398,20 @@ public class EasyAtWorkEmployeeSyncService
             return result;
         }
 
-        void SetString(string label, string? current, string? next, Action<string?> set, bool allowNull = true)
+        void SetString(string label, string? current, string? next, Action<string?> set, bool allowNull = true, bool exactCase = false)
         {
             var value = string.IsNullOrWhiteSpace(next) ? null : next.Trim();
             if (value == null && !allowNull) return;
-            if (string.Equals(current?.Trim(), value, StringComparison.OrdinalIgnoreCase)) return;
+            // Namen case-SENSITIV vergleichen (Walter 10.07.2026): «KITANOVSKA» ≠
+            // «Kitanovska» — easy@work-Schreibweise ist führend (Lohnzettel!).
+            var cmp = exactCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            if (string.Equals(current?.Trim(), value, cmp)) return;
             set(value);
             result.UpdatedFields.Add(label);
         }
 
-        SetString("Vorname", emp.FirstName, master.FirstName, v => emp.FirstName = v ?? emp.FirstName, allowNull: false);
-        SetString("Nachname", emp.LastName, master.LastName, v => emp.LastName = v ?? emp.LastName, allowNull: false);
+        SetString("Vorname", emp.FirstName, master.FirstName, v => emp.FirstName = v ?? emp.FirstName, allowNull: false, exactCase: true);
+        SetString("Nachname", emp.LastName, master.LastName, v => emp.LastName = v ?? emp.LastName, allowNull: false, exactCase: true);
         SetString("Geschlecht", emp.Gender, master.Gender, v => emp.Gender = v);
         SetString("Anrede", emp.Salutation, master.Salutation, v => emp.Salutation = v);
         SetString("Briefanrede", emp.LetterSalutation, master.LetterSalutation, v => emp.LetterSalutation = v);
@@ -3023,12 +3026,14 @@ public class EasyAtWorkEmployeeSyncService
     {
         var diffs = new List<FieldDiff>();
 
-        void Add(string field, string? cur, string? eawVal)
+        void Add(string field, string? cur, string? eawVal, bool exactCase = false)
         {
             var trimEaw = string.IsNullOrWhiteSpace(eawVal) ? null : eawVal.Trim();
             var trimCur = string.IsNullOrWhiteSpace(cur)    ? null : cur.Trim();
             // Nur setzen, wenn easy@work einen NICHT-leeren Wert hat UND sich unterscheidet.
-            var willSet = trimEaw != null && !string.Equals(trimEaw, trimCur, StringComparison.OrdinalIgnoreCase);
+            // Namen case-SENSITIV (Walter 10.07.2026): «KITANOVSKA» → «Kitanovska».
+            var cmp = exactCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            var willSet = trimEaw != null && !string.Equals(trimEaw, trimCur, cmp);
             diffs.Add(new FieldDiff { Field = field, Cowork = trimCur, Easy = trimEaw, WillSet = willSet });
         }
         void AddNullable(string field, string? cur, string? eawVal, bool mayClear)
@@ -3041,8 +3046,8 @@ public class EasyAtWorkEmployeeSyncService
             diffs.Add(new FieldDiff { Field = field, Cowork = trimCur, Easy = trimEaw, WillSet = willSet });
         }
 
-        Add("Vorname",     co?.FirstName,   data.FirstName);
-        Add("Nachname",    co?.LastName,    data.LastName);
+        Add("Vorname",     co?.FirstName,   data.FirstName,  exactCase: true);
+        Add("Nachname",    co?.LastName,    data.LastName,   exactCase: true);
         AddNullable("Anrede", co?.Salutation, data.Salutation, data.Gender == "divers");
         Add("Geschlecht",  co?.Gender,      data.Gender);
         Add("Geburtstag",  co?.DateOfBirth?.ToString("yyyy-MM-dd"),
