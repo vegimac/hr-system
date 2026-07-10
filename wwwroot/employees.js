@@ -373,21 +373,27 @@ function applyEmpFilter() {
     // beim Betreten der Seite vorselektiert, sofern in der gefilterten Liste.
     // Höchste Priorität: überschreibt eine veraltete Auswahl, damit der Wechsel
     // z.B. aus dem Lohnlauf direkt auf diesen MA springt.
-    if (window.activeEmpId && window.activeEmpId !== selectedEmployeeId) {
-        if (allEmployees.find(e => e.id === window.activeEmpId)) {
-            selectEmployee(window.activeEmpId);
-        } else if ((_empAllRaw || []).find(e => e.id === window.activeEmpId)) {
-            // Walter 10.07.2026: Ziel-MA existiert, ist aber vom Filter verdeckt
-            // (z.B. ⌘K-Sprung auf inaktiven MA ohne Filial-Zuordnung — Dossier
-            // mit «alt»-Nummer). Aktiv/Inaktiv-Filter passend umschalten; bleibt
-            // er wegen des Filial-Filters trotzdem draussen, das Detail dennoch
-            // öffnen — die linke Liste zeigt ihn dann einfach nicht.
-            const t = (_empAllRaw || []).find(e => e.id === window.activeEmpId);
+    if (window.activeEmpId && window.activeEmpId !== selectedEmployeeId
+        && allEmployees.find(e => e.id === window.activeEmpId)) {
+        selectEmployee(window.activeEmpId);
+    }
+
+    // EINMALIGER Reveal-Sprung aus der ⌘K-Suche (Walter 10.07.2026, korrigiert:
+    // der frühere Dauer-Umschalter torpedierte die Aktiv/Inaktiv-Buttons, weil
+    // er bei JEDEM Filterwechsel zurückschaltete, solange ein verdeckter MA
+    // selektiert war). _empRevealEmpId wird in der globalen Suche gesetzt und
+    // hier GENAU EINMAL konsumiert: Filter passend umschalten + Detail öffnen;
+    // bleibt der MA wegen des Filial-Filters draussen, öffnet nur das Detail.
+    if (window._empRevealEmpId) {
+        const revealId = window._empRevealEmpId;
+        window._empRevealEmpId = null;   // one-shot!
+        const t = (_empAllRaw || []).find(e => e.id === revealId);
+        if (t) {
             const archived = !t.isActive || (t.employeeNumber || '').toLowerCase().endsWith('alt');
             if (archived && _empFilter === 'aktiv' && typeof setEmpFilter === 'function') {
-                setEmpFilter('inaktiv');
+                setEmpFilter('inaktiv');   // Flag ist schon geleert — keine Endlos-Schleife
             }
-            selectEmployee(window.activeEmpId);
+            selectEmployee(revealId);
         }
     }
 

@@ -229,6 +229,9 @@ function gsActivate(i) {
     if (r.kind === 'emp' || r.data.kind === 'emp') {
         const empId = r.data.id;
         window.activeEmpId = empId;
+        // Einmaliger Reveal (Walter 10.07.2026): auch vom Filter verdeckte MA
+        // (inaktiv / «alt»-Nummer / ohne Filial-Zuordnung) öffnen.
+        window._empRevealEmpId = empId;
         showPage('mitarbeiter');
         return;
     }
