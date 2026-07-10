@@ -994,7 +994,7 @@ function renderEmployeeDetail(emp) {
                     ${_t('ma.section.bank','Bankverbindung')}
                     <button title="Verknüpfte Dokumente öffnen (Bankkarte / IBAN-Beleg)"
                             onclick="openLinkedDoc('bank_card')"
-                            style="background:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#ece9e2' : '#f1f5f9'};border:1px solid ${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#d0c8b8' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#6b7280' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
+                            style="background:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#dcfce7' : '#f8f7f4'};border:1px ${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? 'solid #86efac' : 'dashed #d5d0c6'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#15803d' : '#b3ada1'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
@@ -1002,7 +1002,7 @@ function renderEmployeeDetail(emp) {
                             <line x1="16" y1="17" x2="8" y2="17"/>
                             <line x1="10" y1="9" x2="8" y2="9"/>
                         </svg>
-                        <span>Doku</span>
+                        <span>Doku${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? ' ✓' : ''}</span>
                     </button>
                 </span>
                 <!-- „+ Neue Bankverbindung" sitzt jetzt im Header (empTabActionBar,
@@ -2808,7 +2808,7 @@ function renderQuellensteuerTab(el, entries, pflicht) {
     const permitHasDoc = window._linkedDocCodes && window._linkedDocCodes.has('permit');
     const permitDocBtn = `<button title="${permitHasDoc ? 'Verknüpftes Bewilligungs-Dokument öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen'}"
                                   onclick="openLinkedDoc('permit')"
-                                  style="background:${permitHasDoc ? '#ece9e2' : '#f1f5f9'};border:1px solid ${permitHasDoc ? '#d0c8b8' : '#e2e8f0'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${permitHasDoc ? '#6b7280' : '#94a3b8'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
+                                  style="background:${permitHasDoc ? '#dcfce7' : '#f8f7f4'};border:1px ${permitHasDoc ? 'solid #86efac' : 'dashed #d5d0c6'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${permitHasDoc ? '#15803d' : '#b3ada1'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                   <polyline points="14 2 14 8 20 8"/>
@@ -2816,7 +2816,7 @@ function renderQuellensteuerTab(el, entries, pflicht) {
                                   <line x1="16" y1="17" x2="8" y2="17"/>
                                   <line x1="10" y1="9" x2="8" y2="9"/>
                               </svg>
-                              <span>Doku</span>
+                              <span>Doku${permitHasDoc ? ' ✓' : ''}</span>
                           </button>`;
     const permitsSection = `
     <div style="margin-bottom:22px">
@@ -3589,9 +3589,11 @@ function validateAhvField(inputEl, onBlur) {
 function linkedDocButton(linkedCode) {
     if (!linkedCode) return '';
     const hasDoc = window._linkedDocCodes && window._linkedDocCodes.has(linkedCode);
-    const styleActive   = "background:#ece9e2;border:1px solid #d0c8b8;color:#6b7280";
-    const styleInactive = "background:#f1f5f9;border:1px solid #e2e8f0;color:#94a3b8";
-    const tooltip = hasDoc ? 'Verknüpfte Dokumente öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen';
+    // Walter-Vorgabe 10.07.2026: «vorhanden» muss klar erkennbar sein —
+    // GRÜN mit Häkchen; «fehlt» bleibt blass mit gestricheltem Rand.
+    const styleActive   = "background:#dcfce7;border:1px solid #86efac;color:#15803d";
+    const styleInactive = "background:#f8f7f4;border:1px dashed #d5d0c6;color:#b3ada1";
+    const tooltip = hasDoc ? 'Dokument vorhanden — klicken zum Öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen';
     return `<button class="emp-field-docbtn" title="${tooltip}"
                onclick="openLinkedDoc('${linkedCode}')"
                style="margin-left:8px;${hasDoc ? styleActive : styleInactive};border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;transition:all .15s">
@@ -3602,7 +3604,7 @@ function linkedDocButton(linkedCode) {
                  <line x1="16" y1="17" x2="8" y2="17"/>
                  <line x1="10" y1="9" x2="8" y2="9"/>
                </svg>
-               <span>Doku</span>
+               <span>Doku${hasDoc ? ' ✓' : ''}</span>
            </button>`;
 }
 
