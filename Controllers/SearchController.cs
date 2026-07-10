@@ -78,6 +78,15 @@ public class SearchController : ControllerBase
                 ssn             = e.SocialSecurityNumber,
                 permitCode      = e.PermitType != null ? e.PermitType.Code : null,
                 permitDesc      = e.PermitType != null ? e.PermitType.Description : null,
+                // Filiale des jüngsten Vertrags (Walter-Vorgabe 10.07.2026) —
+                // z.B. «104 Langenthal»; auch bei inaktiven MA hilfreich, um zu
+                // sehen, wo die Person zugeordnet war.
+                branch          = _db.Employments
+                    .Where(c => c.EmployeeId == e.Id && c.CompanyProfileId != null)
+                    .OrderByDescending(c => c.ContractStartDate)
+                    .Select(c => ((c.CompanyProfile!.RestaurantCode ?? "") + " "
+                                + (c.CompanyProfile.City ?? c.CompanyProfile.BranchName ?? c.CompanyProfile.CompanyName)).Trim())
+                    .FirstOrDefault(),
             })
             .ToListAsync();
 

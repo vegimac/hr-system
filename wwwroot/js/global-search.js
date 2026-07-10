@@ -157,7 +157,7 @@ function gsRender(data, q, errorMsg) {
     };
 
     html += grp('Mitarbeiter', data.employees || [], e => {
-        const sub = `Nr ${gsEsc(e.employeeNumber || '–')}${e.ssn ? ' · AHV ' + gsEsc(e.ssn) : ''}${e.isActive === false ? ' · <span style="color:#dc2626">inaktiv</span>' : ''}`;
+        const sub = `Nr ${gsEsc(e.employeeNumber || '–')}${e.branch ? ' · ' + gsEsc(e.branch) : ''}${e.ssn ? ' · AHV ' + gsEsc(e.ssn) : ''}${e.isActive === false ? ' · <span style="color:#dc2626">inaktiv</span>' : ''}`;
         return row('emp',
             `<span style="font-size:14px">👤</span>
              <div style="flex:1;line-height:1.3"><div style="font-weight:600">${gsEsc((e.firstName || '') + ' ' + (e.lastName || ''))}</div>
