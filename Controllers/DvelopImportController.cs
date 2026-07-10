@@ -196,10 +196,16 @@ public class DvelopImportController : ControllerBase
         var kategorien = await _db.DokumentKategorien.Where(k => k.Aktiv).ToListAsync();
         var typen = await _db.DokumentTypen.Where(t => t.Aktiv).ToListAsync();
 
-        // Vorhandene Documents pro Employee zur Duplikat-Erkennung
-        var existingDocs = await _db.EmployeeDokumente
-            .Select(d => new { d.EmployeeId, d.FilenameOriginal })
-            .ToListAsync();
+        // Vorhandene Documents pro Employee zur Duplikat-Erkennung.
+        // Walter-Bug 10.07.2026: d.velop erlaubt MEHRERE Dokumente mit gleichem
+        // Dateinamen (unterscheidbar nur per XG-ID) — der reine Dateinamen-Check
+        // verschluckte das zweite Dokument («22 statt 23»). Daher XG-ID mitladen
+        // und bevorzugt darüber deduplizieren.
+        var existingDocs = (await _db.EmployeeDokumente
+            .Select(d => new { d.EmployeeId, d.FilenameOriginal, d.DvelopDokumentId })
+            .ToListAsync())
+            .Select(d => (d.EmployeeId, d.FilenameOriginal, d.DvelopDokumentId))
+            .ToList();
 
         result.TotalRows = dataRows.Count;
 
@@ -314,9 +320,18 @@ public class DvelopImportController : ControllerBase
                 continue;
             }
 
-            // 5) Duplikat-Check (Employee + Original-Filename) — pro tatsächlichem Ziel-MA
+            // 5) Duplikat-Check pro tatsächlichem Ziel-MA (Walter-Bug 10.07.2026):
+            //    BEVORZUGT über die d.velop-XG-ID (eindeutig). Der Dateinamen-
+            //    Fallback greift nur noch, wenn eine der beiden Seiten KEINE
+            //    XG-ID hat (Alt-Importe vor 06.06.2026 / CSV ohne ID) — zwei
+            //    VERSCHIEDENE Dokumente mit gleichem Namen werden so beide importiert.
             var fnOrig = string.IsNullOrEmpty(row.Filename) ? entry.Name : row.Filename;
-            if (existingDocs.Any(d => d.EmployeeId == targetEmp.Id && d.FilenameOriginal == fnOrig))
+            var rowXg  = (row.XgId ?? "").Trim();
+            if (existingDocs.Any(d => d.EmployeeId == targetEmp.Id
+                    && ((rowXg.Length > 0 && !string.IsNullOrEmpty(d.DvelopDokumentId)
+                            && string.Equals(d.DvelopDokumentId, rowXg, StringComparison.OrdinalIgnoreCase))
+                     || (d.FilenameOriginal == fnOrig
+                            && (string.IsNullOrEmpty(d.DvelopDokumentId) || rowXg.Length == 0)))))
             {
                 row.Action = "skip-duplicate";
                 row.Reason = $"Schon vorhanden: {fnOrig}";
@@ -373,7 +388,7 @@ public class DvelopImportController : ControllerBase
                 await _db.SaveChangesAsync();
 
                 // In existing-Cache aufnehmen für nachfolgende Zeilen
-                existingDocs.Add(new { EmployeeId = targetEmp.Id, FilenameOriginal = fnOrig });
+                existingDocs.Add((targetEmp.Id, fnOrig, doc.DvelopDokumentId));
             }
             result.Imported++;
             result.Preview.Add(row);
