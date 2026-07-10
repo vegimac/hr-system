@@ -1596,18 +1596,46 @@ public class EasyAtWorkEmployeeSyncService
                     }
                     if (existingByEawId != null)
                     {
-                        // 1) Personalnummer als Alias sichern (falls anders + neu).
+                        // 1) Personalnummer übernehmen/sichern (Walter-Bug 10.07.2026,
+                        //    Laila Seifeddin): Beim Wiedereintritts-Merge blieb bisher
+                        //    IMMER die alte Hauptnummer stehen und die NEUE landete nur
+                        //    als Alias — falsch herum, wenn der easy@work-Datensatz der
+                        //    AKTUELLE ist (aktiv) oder die alte Hauptnummer eine
+                        //    Archiv-«alt»-Nummer ist. Dann: neue Nummer wird HAUPTnummer,
+                        //    alte wandert als Alias in die Historie. Kollisionsschutz:
+                        //    gehört die Nummer schon einem ANDEREN MA, bleibt es beim
+                        //    Alias (+ Hinweis) — nichts wird doppelt vergeben.
                         var newNum   = (eaw.Number ?? "").Trim();
                         var existNum = (existingByEawId.EmployeeNumber ?? "").Trim();
                         if (!string.IsNullOrWhiteSpace(newNum)
-                            && !string.Equals(newNum, existNum, StringComparison.OrdinalIgnoreCase)
-                            && !await _db.EmployeeNumberAliases.AnyAsync(a => a.EmployeeId == existingByEawId.Id && a.Number == newNum, ct))
+                            && !string.Equals(newNum, existNum, StringComparison.OrdinalIgnoreCase))
                         {
-                            _db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
+                            bool eawRecordAktiv = !eaw.To.HasValue || eaw.To.Value >= activeAt;
+                            bool mainIstArchiv  = existNum.EndsWith("alt", StringComparison.OrdinalIgnoreCase);
+                            bool neueIstArchiv  = newNum.EndsWith("alt", StringComparison.OrdinalIgnoreCase);
+                            bool nummerBesetzt  = await _db.Employees.AnyAsync(
+                                x => x.Id != existingByEawId.Id && !x.IsHidden && x.EmployeeNumber == newNum, ct);
+
+                            if ((eawRecordAktiv || mainIstArchiv) && !neueIstArchiv && !nummerBesetzt)
                             {
-                                EmployeeId = existingByEawId.Id, Number = newNum,
-                                Source = "easyatwork_sync", CreatedAt = DateTime.UtcNow,
-                            });
+                                // Falls die neue Nummer schon als Alias hinterlegt war:
+                                // Alias entfernen — sie wird jetzt die Hauptnummer.
+                                var aliasRow = await _db.EmployeeNumberAliases.FirstOrDefaultAsync(
+                                    a => a.EmployeeId == existingByEawId.Id && a.Number == newNum, ct);
+                                if (aliasRow != null) _db.EmployeeNumberAliases.Remove(aliasRow);
+                                SaveNumberChange(_db, existingByEawId, newNum); // alte Hauptnr. → Alias
+                                res.Notes.Add($"{existingByEawId.FirstName} {existingByEawId.LastName}: Personalnummer {existNum} → {newNum} (alte Nummer als Alias gesichert).");
+                            }
+                            else if (!await _db.EmployeeNumberAliases.AnyAsync(a => a.EmployeeId == existingByEawId.Id && a.Number == newNum, ct))
+                            {
+                                _db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
+                                {
+                                    EmployeeId = existingByEawId.Id, Number = newNum,
+                                    Source = "easyatwork_sync", CreatedAt = DateTime.UtcNow,
+                                });
+                                if (nummerBesetzt)
+                                    res.Notes.Add($"⚠ {existingByEawId.FirstName} {existingByEawId.LastName}: Nummer {newNum} gehört bereits einem anderen MA — nur als Alias gesichert, bitte Dublette klären.");
+                            }
                         }
                         // 2) easy@work-ID als Alias sichern, wenn die eaw-ID des
                         //    Duplikats abweicht (v.a. beim Name+Geb.-Match: alte ID
