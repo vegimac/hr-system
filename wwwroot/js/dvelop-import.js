@@ -168,13 +168,12 @@ async function dvelopAutoDetect(file) {
 
         let branchInfo = '';
         if (branchHit) {
-            const sel = document.getElementById('branchSelect');
-            if (sel && String(sel.value) !== String(branchHit.id)) {
-                sel.value = String(branchHit.id);
-                if (typeof onBranchChange === 'function') onBranchChange();
-            }
-            branchInfo = `Filiale <b>${branchHit.restaurantCode} · ${branchHit.branchName || branchHit.companyName}</b>`;
-            // MA-Liste für die neu gewählte Filiale frisch holen
+            // Walter-Vorgabe 10.07.2026: der Auto-Detect wechselt die GLOBALE
+            // Filiale NICHT mehr (Restaurant-Wechsler: Dossier unter Mandant 104,
+            // MA heute in 230 — der Import muss in der aktuellen Filiale laufen
+            // können). Der Mandant wird nur angezeigt; die Ablage-Filiale kommt
+            // serverseitig pro CSV-Zeile aus der Mandant-Spalte.
+            branchInfo = `Dossier-Mandant <b>${branchHit.restaurantCode} · ${branchHit.branchName || branchHit.companyName}</b>`;
             await dvelopLoadEmployees();
         } else if (mandant) {
             branchInfo = `<span style="color:#b45309">Mandant „${mandant}" — keine zugehörige Filiale gefunden</span>`;
