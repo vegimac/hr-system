@@ -180,26 +180,46 @@ async function dvelopAutoDetect(file) {
             branchInfo = `<span style="color:#b45309">Mandant „${mandant}" — keine zugehörige Filiale gefunden</span>`;
         }
 
-        // ── 2) MA-Match: zuerst MA-Nummer, dann Vorname+Nachname (+Geb) ──
-        let maHit = null;
-        if (maNr) {
-            maHit = _dvelopEmployees.find(e =>
-                (e.employeeNumber || '').replace(/alt$/i, '') === maNr);
-        }
-        if (!maHit && vorname && nachname) {
-            const vn = vorname.toLowerCase();
-            const nn = nachname.toLowerCase();
-            const nameMatches = _dvelopEmployees.filter(e =>
+        // ── 2) MA-Match: zuerst MA-Nummer (inkl. ALTER Nummern/Aliase), dann
+        //    Vorname+Nachname (+Geb). Walter 10.07.2026: Restaurant-Wechsler
+        //    (z.B. Dossier unter 104374, heute 2300022 mit Alias 104374alt)
+        //    werden über die Alias-Nummern und notfalls FILIALÜBERGREIFEND gefunden.
+        const stripAlt = n => (n || '').replace(/alt$/i, '');
+        const numMatch = (e, nr) => stripAlt(e.employeeNumber) === nr
+            || (e.numberAliases || []).some(a => stripAlt(a) === nr);
+        const nameMatchIn = list => {
+            const vn = (vorname || '').toLowerCase();
+            const nn = (nachname || '').toLowerCase();
+            if (!vn || !nn) return null;
+            const hits = list.filter(e =>
                 (e.firstName || '').toLowerCase() === vn
                 && (e.lastName || '').toLowerCase() === nn);
-            if (nameMatches.length === 1) {
-                maHit = nameMatches[0];
-            } else if (nameMatches.length > 1) {
-                // Mehrere gleichnamige → über Geburtsdatum disambiguieren
-                maHit = geb
-                    ? (nameMatches.find(e => (e.dateOfBirth || '').startsWith(geb)) ?? nameMatches[0])
-                    : nameMatches[0];
-            }
+            if (hits.length === 1) return hits[0];
+            if (hits.length > 1)
+                return geb ? (hits.find(e => (e.dateOfBirth || '').startsWith(geb)) ?? hits[0]) : hits[0];
+            return null;
+        };
+
+        let maHit = null;
+        let crossBranch = false;
+        if (maNr) maHit = _dvelopEmployees.find(e => numMatch(e, maNr));
+        if (!maHit) maHit = nameMatchIn(_dvelopEmployees);
+        if (!maHit) {
+            // Fallback über ALLE Filialen (MA hat das Restaurant gewechselt)
+            try {
+                const all = await loadEmployeeLookup();
+                if (maNr) maHit = all.find(e => numMatch(e, maNr));
+                if (!maHit) maHit = nameMatchIn(all);
+                if (maHit) {
+                    crossBranch = true;
+                    // In die (filial-gefilterte) Picker-Liste aufnehmen, sonst
+                    // würde dvelopEmpInputChanged die Auswahl gleich wieder leeren.
+                    if (!_dvelopEmployees.some(e => e.id === maHit.id)) {
+                        _dvelopEmployees.push(maHit);
+                        renderDvelopEmployeeOptions();
+                    }
+                }
+            } catch (_) { /* Lookup nicht verfügbar → manuell wählen */ }
         }
 
         let maInfo = '';
@@ -211,7 +231,8 @@ async function dvelopAutoDetect(file) {
             if (typeof dvelopEmpInputChanged === 'function') {
                 dvelopEmpInputChanged(inp ? inp.value : '');
             }
-            maInfo = `MA <b>${maHit.firstName} ${maHit.lastName}</b> (${maHit.employeeNumber})`;
+            maInfo = `MA <b>${maHit.firstName} ${maHit.lastName}</b> (${maHit.employeeNumber})`
+                + (crossBranch ? ` <span style="color:#b45309">— heute in anderer Filiale, über alte Nummer/Name gefunden</span>` : '');
         } else if (vorname || nachname || maNr) {
             const label = `${vorname} ${nachname}`.trim() + (maNr ? ` · MA-Nr ${maNr}` : '');
             maInfo = `<span style="color:#b45309">MA „${label}" nicht in dieser Filiale gefunden — bitte manuell wählen</span>`;

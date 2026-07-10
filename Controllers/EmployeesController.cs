@@ -89,6 +89,11 @@ public class EmployeesController : ControllerBase
                 firstName         = e.FirstName,
                 lastName          = e.LastName,
                 employeeNumber    = e.EmployeeNumber,
+                // Alte Personalnummern (Restaurant-Wechsel/Archiv, Walter 10.07.2026):
+                // damit Picker/Auto-Matcher (z.B. d.velop-Import) einen MA auch über
+                // seine frühere Nummer finden (104374 → heute 2300022).
+                numberAliases     = e.NumberAliases.Select(a => a.Number).ToList(),
+                dateOfBirth       = e.DateOfBirth,
                 isActive          = e.IsActive,
                 isPayrollExcluded = e.IsPayrollExcluded,
                 employments = e.Employments.Select(em => new {
