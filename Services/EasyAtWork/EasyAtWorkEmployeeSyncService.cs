@@ -315,11 +315,17 @@ public class EasyAtWorkEmployeeSyncService
             // API-Anbieter nicht sauber greift, lösen wir dieselbe Person über
             // die Employee-Liste des Customers auf (nur für diese Legacy-Reparatur).
             var employeeNumber = (emp.EmployeeNumber ?? "").Trim();
+            // «alt»-Suffix (Pre-Mirus-Archiv, z.B. «9999356alt») ist eine reine
+            // Cowork-Konvention — easy@work kennt nur die Original-Badge-Nummer.
+            // Für die Suche entfernen (Walter-Bug 10.07.2026, Thu Chan Myae).
+            var lookupNumber = System.Text.RegularExpressions.Regex.Replace(
+                employeeNumber, "alt$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+            var suffixStripped = !string.Equals(lookupNumber, employeeNumber, StringComparison.OrdinalIgnoreCase);
             foreach (var mapping in mappings)
             {
                 EawEmployee? byNumber = null;
-                if (employeeNumber.Length == 0) break;
-                try { byNumber = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, employeeNumber, ct); }
+                if (lookupNumber.Length == 0) break;
+                try { byNumber = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, lookupNumber, ct); }
                 catch (Exception ex)
                 {
                     result.Notes.Add($"Nummer-Suche Customer {mapping.EasyAtWorkCustomerId}: API-Fehler ({ex.Message}).");
@@ -333,7 +339,7 @@ public class EasyAtWorkEmployeeSyncService
                         // personen-eindeutig und könnte hier die FALSCHE Person greifen
                         // (Walter-Vorgabe 05.07.2026).
                         byNumber = rows.FirstOrDefault(x =>
-                            string.Equals((x.Number ?? "").Trim(), employeeNumber, StringComparison.OrdinalIgnoreCase));
+                            string.Equals((x.Number ?? "").Trim(), lookupNumber, StringComparison.OrdinalIgnoreCase));
                     }
                     catch (Exception ex)
                     {
@@ -341,12 +347,30 @@ public class EasyAtWorkEmployeeSyncService
                     }
                 }
                 if (byNumber == null) continue;
-                var numberMatches = string.Equals((byNumber.Number ?? "").Trim(), employeeNumber, StringComparison.OrdinalIgnoreCase);
+                var numberMatches = string.Equals((byNumber.Number ?? "").Trim(), lookupNumber, StringComparison.OrdinalIgnoreCase);
                 if (!numberMatches) continue;
+
+                // Beim «alt»-MA zusätzlich die IDENTITÄT absichern: die Original-
+                // nummer könnte theoretisch inzwischen neu vergeben sein. Person
+                // gilt als dieselbe, wenn die gespeicherte ID (employee.id ODER
+                // user_id) passt — sonst der Name (case-insensitive).
+                if (suffixStripped)
+                {
+                    var idMatch = byNumber.Id == emp.EasyAtWorkEmployeeId.Value
+                               || byNumber.UserId == emp.EasyAtWorkEmployeeId.Value;
+                    var nameMatch =
+                        string.Equals((byNumber.FirstName ?? "").Trim(), (emp.FirstName ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
+                     && string.Equals((byNumber.LastName ?? "").Trim(), (emp.LastName ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+                    if (!idMatch && !nameMatch)
+                    {
+                        result.Notes.Add($"Nummer {lookupNumber} in Customer {mapping.EasyAtWorkCustomerId} gefunden, aber weder ID noch Name passen ({byNumber.FirstName} {byNumber.LastName}) — vermutlich neu vergebene Nummer, übersprungen.");
+                        continue;
+                    }
+                }
 
                 eaw = byNumber;
                 matchedCustomerId = mapping.EasyAtWorkCustomerId;
-                result.Notes.Add($"Gespeicherte easy@work-ID {emp.EasyAtWorkEmployeeId.Value} war veraltet/falsch; über die Personalnummer auf employee.id {eaw.Id} korrigiert (Customer {mapping.EasyAtWorkCustomerId}).");
+                result.Notes.Add($"Gespeicherte easy@work-ID {emp.EasyAtWorkEmployeeId.Value} war veraltet/falsch; über die Personalnummer {lookupNumber} auf employee.id {eaw.Id} korrigiert (Customer {mapping.EasyAtWorkCustomerId}).");
                 break;
             }
         }
