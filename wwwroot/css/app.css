@@ -5152,28 +5152,36 @@
             color: #94a3b8;
         }
 
-        /* ══ Auswahlbalken in Auswahl-Listen DEUTLICHER (Walter-Vorgabe 10.07.2026) ══
-           Die selektierte Zeile war v.a. bei inaktiven (grauen) MA kaum erkennbar.
-           Gilt app-weit für alle Links-Listen: Mitarbeiter (inkl. Liquid-Look),
-           Verträge/Dok-Struktur, Lohnlauf Definitiv + Akonto. Ruhiges Blau-Glas
-           + 4px-Kohle-Balken links (Liquid-Palette, kein grelles Fachblau). */
+        /* ══ Auswahl in Auswahl-Listen deutlicher (Walter-Vorgabe 10.07.2026, v2) ══
+           Dezent statt Balken: die selektierte Zeile bekommt nur einen etwas
+           dunkleren Hintergrund und SCHWARZE, FETTE Schrift — kein Seitenbalken,
+           kein Schatten (Walter: «das Zeichen links ist too much»). Gilt app-weit:
+           Mitarbeiter (inkl. Liquid, auch graue Inaktiv-Zeilen), Verträge/
+           Dok-Struktur, Lohnlauf Definitiv + Akonto. */
         .emp-list-item.active,
         .dokstruktur-row.active,
         .lohn-emp-active,
         #page-mitarbeiter.liquid-employee .emp-list-item.active,
         #page-mitarbeiter.liquid-employee .liquid-employee-row-active {
-            background: rgba(202,224,252,0.95) !important;
-            border-left: 4px solid #3f3f3f !important;
-            box-shadow: 0 1px 6px rgba(60,55,48,0.14) !important;
+            background: rgba(60,55,48,0.13) !important;
+            border-left-color: transparent !important;
+            box-shadow: none !important;
+            color: #000 !important;
+            font-weight: 700;
         }
         .emp-list-item.active .emp-list-item-name,
-        .dokstruktur-row.active { font-weight: 700; }
+        #page-mitarbeiter.liquid-employee .emp-list-item.active .emp-list-item-name {
+            color: #000 !important;
+            font-weight: 700 !important;
+        }
+        .emp-list-item.active .emp-list-item-nr { color: #3f3f3f !important; }
         body.theme-dark .emp-list-item.active,
         body.theme-dark .dokstruktur-row.active,
         body.theme-dark .lohn-emp-active,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item.active,
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-row-active {
-            background: #26354a !important;
-            border-left: 4px solid #93c5fd !important;
-            box-shadow: none !important;
+            background: rgba(255,255,255,0.14) !important;
+            border-left-color: transparent !important;
+            color: #fff !important;
         }
+        body.theme-dark .emp-list-item.active .emp-list-item-name { color: #fff !important; }
