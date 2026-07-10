@@ -5169,12 +5169,18 @@
             color: #000 !important;
             font-weight: 700;
         }
-        .emp-list-item.active .emp-list-item-name,
-        #page-mitarbeiter.liquid-employee .emp-list-item.active .emp-list-item-name {
-            color: #000 !important;
-            font-weight: 700 !important;
+        .emp-list-item.active,
+        #page-mitarbeiter.liquid-employee .emp-list-item.active {
+            opacity: 1 !important;   /* Inaktiv-Zeilen haben inline opacity:0.65 */
         }
-        .emp-list-item.active .emp-list-item-nr { color: #3f3f3f !important; }
+        .emp-list-item.active .emp-list-name,
+        #page-mitarbeiter.liquid-employee .emp-list-item.active .emp-list-name,
+        .lohn-emp-active .lohn-emp-name,
+        .dokstruktur-row.active {
+            color: #000 !important;
+            font-weight: 800 !important;
+        }
+        .emp-list-item.active .emp-list-nr { color: #3f3f3f !important; }
         body.theme-dark .emp-list-item.active,
         body.theme-dark .dokstruktur-row.active,
         body.theme-dark .lohn-emp-active,
@@ -5184,4 +5190,6 @@
             border-left-color: transparent !important;
             color: #fff !important;
         }
-        body.theme-dark .emp-list-item.active .emp-list-item-name { color: #fff !important; }
+        body.theme-dark .emp-list-item.active .emp-list-name,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item.active .emp-list-name,
+        body.theme-dark .lohn-emp-active .lohn-emp-name { color: #fff !important; font-weight: 800 !important; }
