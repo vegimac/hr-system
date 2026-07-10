@@ -351,9 +351,26 @@ async function dvelopImportRun(dryRun) {
         alertBox.innerHTML = '';
         // Walter-Vorgabe 13.05.2026: nach echtem Import (kein Dry-Run) zurück
         // zur Übersicht. Beim Analysieren (dryRun=true) bleibt die Seite offen.
+        // Walter-Vorgabe 10.07.2026: wurde der Import aus dem MA-Dokumente-Tab
+        // geöffnet, zurück ZUM MA und die Dokumentenliste frisch laden.
         if (!dryRun) {
             alertBox.innerHTML = `<div style="padding:10px 14px;background:#dcfce7;color:#15803d;border-radius:7px;font-size:13px">✓ Import abgeschlossen — Fenster wird in 2 Sekunden geschlossen…</div>`;
-            setTimeout(() => { if (typeof showPage === 'function') showPage('admin-hub'); }, 2000);
+            setTimeout(() => {
+                const empId = window._dvelopReturnEmpId || null;
+                window._dvelopReturnEmpId = null;
+                if (typeof showPage !== 'function') return;
+                if (empId) {
+                    window.activeEmpId = empId;   // loadMitarbeiterList selektiert ihn mit höchster Priorität
+                    showPage('mitarbeiter');
+                    // Doku-Tab (re)aktivieren, sobald das Detail gerendert ist —
+                    // switchEmpTab('dokumente') lädt die Liste immer frisch.
+                    setTimeout(() => {
+                        if (typeof switchEmpTab === 'function') switchEmpTab('dokumente');
+                    }, 900);
+                } else {
+                    showPage('admin-hub');
+                }
+            }, 2000);
         }
     } catch (err) {
         alertBox.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:13px">Fehler: ${err.message}</div>`;

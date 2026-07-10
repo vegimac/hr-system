@@ -248,9 +248,9 @@ function renderDokumenteUi() {
                     <!-- Walter-Vorgabe 14.06.2026: Direkt-Shortcut zur d.velop-Import-Page
                          für ALLE Benutzer (nicht nur Admin/Superuser). Klick führt zum
                          Bulk-Importer (Metadaten-CSV + ZIP). -->
-                    <button class="btn btn-outline" onclick="showPage('dvelop-import')"
+                    <button class="btn btn-outline" onclick="window._dvelopReturnEmpId = _dokState.empId; showPage('dvelop-import')"
                             style="padding:6px 12px;font-size:12.5px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px"
-                            title="d.velop-Bulk-Import (CSV/XLSX + ZIP)">
+                            title="d.velop-Bulk-Import (CSV/XLSX + ZIP) — kehrt nach dem Import zu diesem MA zurück">
                         📦 d.velop Import
                     </button>
                     <button class="btn btn-primary" onclick="openDokUploadModal()"
@@ -2087,5 +2087,8 @@ async function dokBulkStartUpload() {
 
     _dokBulk.uploading = false;
     progressText.textContent = `Fertig: ${okCount} hochgeladen, ${errorCount} Fehler`;
+    // Walter-Vorgabe 10.07.2026: Dokumentenliste nach dem Massen-Upload sofort
+    // aktualisieren (vorher blieb die alte Liste stehen, bis man den Tab wechselte).
+    if (okCount > 0) loadEmpDokumente(_dokState.empId);
 }
 
