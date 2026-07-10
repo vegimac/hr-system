@@ -1237,7 +1237,10 @@ async function easyworkSyncSelectedEmployee(empId) {
         const upd = data.updatedFields || [];
         const skipped = data.skippedContracts || [];
         if (skipped.length)
-            alert('⚠ Diese Verträge wurden NICHT importiert (geschlossene Lohnperiode):\n' + skipped.map(s => '• ' + s).join('\n'));
+            // Neutrale Überschrift (Walter 10.07.2026): die Liste enthält nicht nur
+            // Perioden-Sperren, sondern auch Strict-Fehler (fehlender Lohn-Tarif,
+            // Überlappung …) — der konkrete Grund steht in jeder Zeile.
+            alert('⚠ Diese Verträge wurden NICHT importiert:\n' + skipped.map(s => '• ' + s).join('\n'));
         else if (typeof showToast === 'function')
             showToast(upd.length ? 'Daten aktualisiert' : 'Keine Änderungen', 'success');
     } catch (e) {
