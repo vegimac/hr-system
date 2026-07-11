@@ -1637,6 +1637,12 @@ using (var scope = app.Services.CreateScope())
             updated_at timestamptz NOT NULL DEFAULT now()
         );
         -- eCall-SMS-Konfiguration (F24 Schweiz, REST). Singleton, Id=1 (Walter 07.07.2026)
+        CREATE TABLE IF NOT EXISTS dvelop_setting (
+            id                 integer PRIMARY KEY,
+            base_url           text,
+            api_key_encrypted  text,
+            updated_at         timestamp without time zone NOT NULL DEFAULT now()
+        );
         CREATE TABLE IF NOT EXISTS ecall_setting (
             id                 integer PRIMARY KEY,
             enabled            boolean NOT NULL DEFAULT false,

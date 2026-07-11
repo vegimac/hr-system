@@ -916,7 +916,7 @@ function showPage(name) {
     if (name === 'absenz-typen') loadAbsenzTypen();
     if (name === 'behoerden')    loadBehoerden();
     if (name === 'dokumentstruktur') loadDokumentStruktur();
-    if (name === 'dvelop-import') { if (typeof dvelopResetUi === 'function') dvelopResetUi(); dvelopLoadEmployees(); }
+    if (name === 'dvelop-import') { if (typeof dvelopResetUi === 'function') dvelopResetUi(); dvelopLoadEmployees(); if (typeof dvApiLoadSettings === 'function') dvApiLoadSettings(); }
     if (name === 'permit-import') permitImportInit();
     if (name === 'hr-review-import') hrrImportInit();
     if (name === 'qst-import')   qstImportInit();

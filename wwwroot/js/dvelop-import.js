@@ -1043,3 +1043,54 @@ function dvelopActionBadge(action) {
     return `<span style="display:inline-block;background:${v[1]};color:${v[2]};padding:1px 8px;border-radius:8px;font-size:10.5px;font-weight:600">${v[0]}</span>`;
 }
 
+
+// ══════════════════════════════════════════════════════════════════════
+// d.velop-API Direktzugriff, Etappe 1 (Walter-Vorgabe 10.07.2026):
+// Konfig speichern + Verbindungstest + Roh-Probe (read-only). Der
+// API-Voll-Scan aller Dossiers folgt als Etappe 2, sobald die echte
+// JSON-Struktur gesichtet ist (Discovery-Doktrin wie easy@work).
+// ══════════════════════════════════════════════════════════════════════
+
+async function dvApiLoadSettings() {
+    try {
+        const r = await fetch('/api/dvelop-api/settings', { headers: ah() });
+        if (!r.ok) return;
+        const s = await r.json();
+        const url = document.getElementById('dvApiBaseUrl');
+        const hint = document.getElementById('dvApiKeyHint');
+        if (url && s.baseUrl) url.value = s.baseUrl;
+        if (hint) hint.textContent = s.hasApiKey ? '(gespeichert ✓)' : '(noch keiner hinterlegt)';
+    } catch (_) {}
+}
+
+async function dvApiSave() {
+    const baseUrl = (document.getElementById('dvApiBaseUrl')?.value || '').trim();
+    const apiKey  = (document.getElementById('dvApiKey')?.value || '').trim();
+    const r = await fetch('/api/dvelop-api/settings', {
+        method: 'PUT',
+        headers: { ...ah(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseUrl, apiKey: apiKey || null })
+    });
+    if (r.ok) {
+        const keyInp = document.getElementById('dvApiKey');
+        if (keyInp) keyInp.value = '';
+        await dvApiLoadSettings();
+        if (typeof showToast === 'function') showToast('d.velop-Konfig gespeichert', 'success');
+        else alert('Gespeichert.');
+    } else {
+        alert('Fehler beim Speichern: HTTP ' + r.status);
+    }
+}
+
+async function dvApiProbe(fixedPath) {
+    const out = document.getElementById('dvApiResult');
+    const path = fixedPath || (document.getElementById('dvApiProbePath')?.value || '').trim() || 'dms/r';
+    if (out) { out.style.display = 'block'; out.textContent = 'Frage ' + path + ' ab…'; }
+    try {
+        const r = await fetch('/api/dvelop-api/probe?path=' + encodeURIComponent(path), { headers: ah() });
+        const j = await r.json();
+        if (out) out.textContent = JSON.stringify(j, null, 2);
+    } catch (e) {
+        if (out) out.textContent = 'Verbindungsfehler: ' + e.message;
+    }
+}

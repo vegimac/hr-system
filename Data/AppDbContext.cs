@@ -82,6 +82,7 @@ public class AppDbContext : DbContext
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
     public DbSet<EcallSetting>              EcallSettings               => Set<EcallSetting>();
+    public DbSet<DvelopSetting>             DvelopSettings              => Set<DvelopSetting>();
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
     public DbSet<EasyAtWorkBranchMapping>   EasyAtWorkBranchMappings    => Set<EasyAtWorkBranchMapping>();
     public DbSet<EasyAtWorkSyncState>       EasyAtWorkSyncStates        => Set<EasyAtWorkSyncState>();
@@ -1796,6 +1797,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SiteUrl).HasColumnName("site_url").HasMaxLength(300);
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+        });
+
+        // ── DvelopSetting (Singleton, Id=1) — d.velop-API-Konfig (Walter 10.07.2026) ──
+        modelBuilder.Entity<DvelopSetting>(entity =>
+        {
+            entity.ToTable("dvelop_setting");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(e => e.BaseUrl).HasColumnName("base_url");
+            entity.Property(e => e.ApiKeyEncrypted).HasColumnName("api_key_encrypted");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
         });
 
         // ── EcallSetting (Singleton, Id=1) — eCall-SMS-Konfig ─────────────
