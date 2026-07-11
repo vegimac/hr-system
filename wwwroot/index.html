@@ -4449,6 +4449,20 @@
                     <pre id="dvApiResult" style="display:none;margin-top:10px;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:11.5px;line-height:1.45;overflow:auto;max-height:420px;white-space:pre-wrap;word-break:break-word"></pre>
                 </div>
 
+                <!-- DATEI-IMPORT ohne CSV (Walter 11.07.2026): für den d.velop-
+                     Massen-Download (lose Dateien mit XG-ID im Namen). Lädt die
+                     Dateien EINZELN hoch — kein 1-GB-ZIP-Problem. -->
+                <div class="card" style="padding:18px 24px;margin-bottom:14px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px">
+                    <h3 style="margin:0 0 4px;font-size:14.5px;color:#3f3f3f">📁 Datei-Import ohne CSV (Massen-Download)</h3>
+                    <p style="color:#8b8b8b;font-size:12.5px;margin:0 0 10px">Für den d.velop-Massen-Download (lose Dateien, XG-ID im Namen): alle Dateien auswählen (⌘A) — sie werden einzeln hochgeladen und automatisch zugeordnet (MA aus dem Dateinamen, Typ aus der Taxonomie, Duplikate via XG-ID + Inhalt übersprungen).</p>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <input type="file" id="dvFilesInput" multiple style="font-size:12.5px">
+                        <button id="dvFilesStartBtn" onclick="dvFilesStart()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">⬆ Import starten</button>
+                    </div>
+                    <div id="dvFilesProgress" style="display:none;margin-top:10px"></div>
+                    <div id="dvFilesResult" style="margin-top:10px"></div>
+                </div>
+
                 <div class="card" style="padding:24px">
                     <!-- Hidden Inputs: werden vom Auto-Detect gefüllt — keine manuelle UI mehr. -->
                     <input type="hidden" id="dvelopEmployeeId">
@@ -6653,7 +6667,7 @@
 <script src="js/users.js?v=20260704p"></script>
 <script src="js/contracts-page.js?v=20260708flex"></script>
 <script src="js/documents.js?v=20260710a"></script>
-<script src="js/dvelop-import.js?v=20260710e"></script>
+<script src="js/dvelop-import.js?v=20260711a"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260708flex"></script>
 <script src="js/dok-struktur.js?v=20260708flex"></script>

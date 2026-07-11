@@ -1097,3 +1097,108 @@ async function dvApiProbe(fixedPath) {
         if (out) out.textContent = 'Verbindungsfehler: ' + e.message;
     }
 }
+
+// ══════════════════════════════════════════════════════════════════════
+// DATEI-IMPORT ohne CSV (Walter-Vorgabe 11.07.2026): lädt den d.velop-
+// Massen-Download Datei für Datei hoch (kein ZIP-Grössenlimit). Server
+// ordnet pro Datei zu (XG-ID-Dedupe, MA-Namens-Match, Typ, Inhalts-Hash);
+// nicht zuordenbare Dateien bleiben als offene Zeilen mit MA-Picker stehen.
+// ══════════════════════════════════════════════════════════════════════
+let _dvFilesOpen = [];   // { file, xgId, filename, reason }
+
+async function dvFilesStart() {
+    const inp = document.getElementById('dvFilesInput');
+    const btn = document.getElementById('dvFilesStartBtn');
+    const prog = document.getElementById('dvFilesProgress');
+    const out = document.getElementById('dvFilesResult');
+    const files = Array.from(inp?.files || []);
+    if (!files.length) { alert('Bitte zuerst Dateien auswählen (im Download-Ordner alle markieren).'); return; }
+
+    const branch = (typeof allBranches !== 'undefined' && typeof fixedCompanyProfileId !== 'undefined')
+        ? (allBranches.find(b => b.id === fixedCompanyProfileId)?.restaurantCode || '') : '';
+
+    btn.disabled = true;
+    prog.style.display = 'block';
+    _dvFilesOpen = [];
+    let ok = 0, skip = 0, open = 0, err = 0;
+    const t0 = Date.now();
+
+    for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const pct = Math.round((i) / files.length * 100);
+        prog.innerHTML = `<div style="font-size:12.5px;color:#475569;margin-bottom:4px">${i + 1} / ${files.length} — ${escapeHtml(f.name)} <span style="color:#94a3b8">(${Math.round((Date.now() - t0) / 1000)}s · ✓${ok} · ⏭${skip} · ❓${open}${err ? ' · ✗' + err : ''})</span></div>
+            <div style="background:#e7e1d8;border-radius:99px;height:10px;overflow:hidden"><div style="background:#3f3f3f;height:100%;width:${pct}%;transition:width .2s"></div></div>`;
+        try {
+            const fd = new FormData();
+            fd.append('file', f);
+            if (branch) fd.append('branchCode', branch);
+            const r = await fetch('/api/documents/import-dvelop/file-import', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${authToken}` },
+                body: fd
+            });
+            const j = await r.json();
+            if (!r.ok) { err++; _dvFilesOpen.push({ file: f, filename: f.name, reason: 'HTTP ' + r.status }); }
+            else if (j.status === 'imported') ok++;
+            else if (j.status === 'skip') skip++;
+            else { open++; _dvFilesOpen.push({ file: f, filename: j.filename || f.name, reason: j.reason || '' }); }
+        } catch (e) {
+            err++; _dvFilesOpen.push({ file: f, filename: f.name, reason: String(e) });
+        }
+    }
+
+    prog.innerHTML = '';
+    prog.style.display = 'none';
+    btn.disabled = false;
+    dvFilesRenderResult(ok, skip, err);
+}
+
+async function dvFilesRenderResult(ok, skip, err) {
+    const out = document.getElementById('dvFilesResult');
+    let html = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">
+        ✓ Fertig — <b>${ok} importiert</b>, ${skip} übersprungen (schon vorhanden)${err ? `, <span style="color:#b91c1c">${err} Fehler</span>` : ''}${_dvFilesOpen.length ? `, <b>${_dvFilesOpen.length} offen</b> (unten zuordnen)` : ''}.</div>`;
+
+    if (_dvFilesOpen.length) {
+        let emps = [];
+        try { emps = await loadEmployeeLookup(); } catch (_) {}
+        const dl = `<datalist id="dvFilesEmpList">${emps.map(e =>
+            `<option value="${escapeHtml(`${e.firstName} ${e.lastName} — ${e.employeeNumber}`)}" data-id="${e.id}"></option>`).join('')}</datalist>`;
+        html += dl + `<table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px">
+            <tr><th style="text-align:left;padding:6px;background:#efeae2">Datei</th><th style="text-align:left;padding:6px;background:#efeae2">Grund</th><th style="text-align:left;padding:6px;background:#efeae2">Ziel-MA wählen</th><th style="background:#efeae2"></th></tr>`
+            + _dvFilesOpen.map((o, idx) => `<tr id="dvFilesOpenRow${idx}">
+                <td style="padding:6px;border-bottom:1px solid #e7e1d8">${escapeHtml(o.filename)}</td>
+                <td style="padding:6px;border-bottom:1px solid #e7e1d8;color:#b45309">${escapeHtml(o.reason)}</td>
+                <td style="padding:6px;border-bottom:1px solid #e7e1d8"><input list="dvFilesEmpList" id="dvFilesEmpPick${idx}" class="eaw-input" style="min-width:220px" placeholder="Name oder Nummer…"></td>
+                <td style="padding:6px;border-bottom:1px solid #e7e1d8"><button onclick="dvFilesRetry(${idx})" style="background:#3f3f3f;color:#fff;border:none;border-radius:9px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">Importieren</button></td>
+            </tr>`).join('') + '</table>';
+    }
+    out.innerHTML = html;
+}
+
+async function dvFilesRetry(idx) {
+    const o = _dvFilesOpen[idx];
+    if (!o) return;
+    const val = (document.getElementById('dvFilesEmpPick' + idx)?.value || '').trim();
+    let emps = [];
+    try { emps = await loadEmployeeLookup(); } catch (_) {}
+    const emp = emps.find(e => `${e.firstName} ${e.lastName} — ${e.employeeNumber}` === val);
+    if (!emp) { alert('Bitte MA aus der Liste wählen.'); return; }
+    const branch = (typeof allBranches !== 'undefined' && typeof fixedCompanyProfileId !== 'undefined')
+        ? (allBranches.find(b => b.id === fixedCompanyProfileId)?.restaurantCode || '') : '';
+    const fd = new FormData();
+    fd.append('file', o.file);
+    fd.append('employeeId', emp.id);
+    if (branch) fd.append('branchCode', branch);
+    const r = await fetch('/api/documents/import-dvelop/file-import', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` },
+        body: fd
+    });
+    const j = await r.json().catch(() => ({}));
+    const row = document.getElementById('dvFilesOpenRow' + idx);
+    if (r.ok && (j.status === 'imported' || j.status === 'skip')) {
+        if (row) row.innerHTML = `<td colspan="4" style="padding:6px;color:#166534;border-bottom:1px solid #e7e1d8">✓ ${escapeHtml(o.filename)} — ${j.status === 'imported' ? 'importiert' : 'schon vorhanden'} (${escapeHtml(j.employee || val)})</td>`;
+    } else {
+        alert('Fehler: ' + (j.reason || j.message || ('HTTP ' + r.status)));
+    }
+}

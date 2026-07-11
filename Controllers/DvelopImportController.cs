@@ -508,6 +508,158 @@ public class DvelopImportController : ControllerBase
     }
 
     // ──────────────────────────────────────────────────────────────────
+    // DATEI-IMPORT OHNE CSV (Walter-Vorgabe 11.07.2026)
+    // Problem: d.velop liefert die Metadaten-CSV nur pro MA, und das Filial-ZIP
+    // ist >1 GB. Lösung: der Massen-Download (lose Dateien, XG-ID im Namen)
+    // wird DATEI FÜR DATEI hochgeladen — kein Grössenlimit, Fortschritt im UI.
+    // Pro Datei: XG-ID aus dem Namen (Dedupe), MA per Namens-Token-Match
+    // (alle Vor- UND Nachnamen-Tokens müssen im Dateinamen vorkommen),
+    // Inhalts-Hash gegen die bestehenden Dokumente des MA, Dokumenttyp per
+    // Substring-Match über die Taxonomie (Fallback «Diverses»).
+    // ──────────────────────────────────────────────────────────────────
+
+    [HttpPost("file-import")]
+    [DisableRequestSizeLimit]
+    [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
+    public async Task<IActionResult> FileImport(
+        [FromForm] IFormFile file,
+        [FromForm] int? employeeId = null,
+        [FromForm] string? branchCode = null)
+    {
+        if (file == null || file.Length == 0) return BadRequest("Datei fehlt.");
+        var rawName = Path.GetFileName(file.FileName ?? "datei");
+
+        // 1) XG-ID aus dem Namen — primärer Dedupe-Schlüssel.
+        var xg = Regex.Match(rawName, @"\((XG\d+)\)", RegexOptions.IgnoreCase).Groups[1].Value.ToUpperInvariant();
+        if (xg.Length > 0 && await _db.EmployeeDokumente.AnyAsync(d => d.DvelopDokumentId == xg))
+            return Ok(new { status = "skip", reason = "Schon vorhanden (XG-ID)", xgId = xg, filename = rawName });
+
+        // «Sauberer» Original-Dateiname ohne XG-Zusatz.
+        var fnOrig = Regex.Replace(rawName, @"\s*\((XG\d+)\)", "", RegexOptions.IgnoreCase).Trim();
+
+        // 2) MA bestimmen: explizite Wahl > Namens-Token-Match über den Dateinamen.
+        Employee? emp = null;
+        if (employeeId is > 0)
+            emp = await _db.Employees.Include(e => e.Employments).ThenInclude(em => em.CompanyProfile)
+                .FirstOrDefaultAsync(e => e.Id == employeeId.Value);
+        if (emp == null)
+        {
+            var nameTokens = Regex.Matches(fnOrig.ToLowerInvariant(), @"[\p{L}]{2,}")
+                .Select(m => m.Value).ToHashSet();
+            var all = await _db.Employees
+                .Include(e => e.Employments).ThenInclude(em => em.CompanyProfile)
+                .Where(e => !e.IsHidden)
+                .ToListAsync();
+            bool TokensIn(string? s) => !string.IsNullOrWhiteSpace(s)
+                && Regex.Matches(s.ToLowerInvariant(), @"[\p{L}]{2,}")
+                    .All(m => nameTokens.Contains(m.Value));
+            var hits = all.Where(e => TokensIn(e.FirstName) && TokensIn(e.LastName)).ToList();
+            if (hits.Count == 1) emp = hits[0];
+            else
+                return Ok(new
+                {
+                    status = "needs-employee",
+                    reason = hits.Count == 0
+                        ? "Kein MA-Name im Dateinamen erkannt — bitte MA wählen."
+                        : $"{hits.Count} MA passen ({string.Join(", ", hits.Take(4).Select(h => h.FirstName + " " + h.LastName))}) — bitte wählen.",
+                    xgId = xg, filename = rawName,
+                });
+        }
+
+        // 3) Inhalt lesen + Hash-Dedupe gegen bestehende Dokumente DIESES MA.
+        byte[] bytes;
+        using (var ms = new MemoryStream()) { await file.CopyToAsync(ms); bytes = ms.ToArray(); }
+        string hash;
+        using (var sha = System.Security.Cryptography.SHA256.Create())
+            hash = Convert.ToHexString(sha.ComputeHash(bytes));
+        var empDocs = await _db.EmployeeDokumente
+            .Where(d => d.EmployeeId == emp.Id)
+            .Select(d => new { d.BranchCode, d.FilenameStorage })
+            .ToListAsync();
+        foreach (var d in empDocs)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(d.BranchCode) || string.IsNullOrEmpty(d.FilenameStorage)) continue;
+                var p = Path.Combine(_storagePath, d.BranchCode, emp.Id.ToString(), d.FilenameStorage);
+                if (!System.IO.File.Exists(p)) continue;
+                using var sha2 = System.Security.Cryptography.SHA256.Create();
+                using var fs = System.IO.File.OpenRead(p);
+                if (Convert.ToHexString(sha2.ComputeHash(fs)) == hash)
+                    return Ok(new { status = "skip", reason = "Schon vorhanden (Inhalt identisch)", xgId = xg, filename = rawName, employee = $"{emp.FirstName} {emp.LastName}" });
+            }
+            catch { /* Datei nicht lesbar → weiter */ }
+        }
+
+        // 4) Dokumenttyp: längster Taxonomie-Name, der im Dateinamen vorkommt;
+        //    Fallback «Diverses».
+        var typen = await _db.DokumentTypen.Where(ty => ty.Aktiv).ToListAsync();
+        var fnLower = fnOrig.ToLowerInvariant();
+        DokumentTyp? typ = null;
+        foreach (var ty in typen)
+        {
+            var n = (ty.Name ?? "").Trim().ToLowerInvariant();
+            if (n.Length >= 4 && fnLower.Contains(n) && (typ == null || n.Length > typ.Name.Length))
+                typ = ty;
+        }
+        typ ??= typen.FirstOrDefault(ty => string.Equals(ty.Name, "Diverses", StringComparison.OrdinalIgnoreCase));
+        if (typ == null)
+            return Ok(new { status = "skip", reason = "Kein Dokumenttyp zuordenbar (auch kein «Diverses» in der Taxonomie).", xgId = xg, filename = rawName });
+
+        // 5) Filiale: neuester Vertrag des MA, sonst Parameter (globaler Selektor).
+        var branch = emp.Employments?
+            .Where(em => em.CompanyProfile?.RestaurantCode != null)
+            .OrderByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfile!.RestaurantCode)
+            .FirstOrDefault() ?? (string.IsNullOrWhiteSpace(branchCode) ? null : branchCode!.Trim());
+        if (string.IsNullOrEmpty(branch))
+            return Ok(new { status = "skip", reason = "Keine Filiale bestimmbar (MA ohne Vertrag) — bitte Filiale im Selektor wählen.", xgId = xg, filename = rawName });
+
+        // 6) Speichern.
+        var ext = Path.GetExtension(fnOrig);
+        if (string.IsNullOrEmpty(ext)) ext = ".pdf";
+        var storageName = Guid.NewGuid().ToString("N") + ext;
+        var dir = Path.Combine(_storagePath, branch, emp.Id.ToString());
+        Directory.CreateDirectory(dir);
+        await System.IO.File.WriteAllBytesAsync(Path.Combine(dir, storageName), bytes);
+
+        _db.EmployeeDokumente.Add(new EmployeeDokument
+        {
+            EmployeeId = emp.Id,
+            DokumentTypId = typ.Id,
+            BranchCode = branch,
+            FilenameOriginal = fnOrig,
+            FilenameStorage = storageName,
+            MimeType = ext.ToLowerInvariant() switch
+            {
+                ".pdf" => "application/pdf",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".doc" => "application/msword",
+                ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                _ => "application/octet-stream"
+            },
+            GroesseBytes = bytes.LongLength,
+            HochgeladenVon = GetCurrentUserId(),
+            HochgeladenAm = DateTime.UtcNow,
+            DvelopDokumentId = xg.Length > 0 ? xg : null,
+        });
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            status = "imported",
+            filename = rawName,
+            xgId = xg,
+            employee = $"{emp.FirstName} {emp.LastName}",
+            employeeId = emp.Id,
+            typ = typ.Name,
+            branch,
+        });
+    }
+
+    // ──────────────────────────────────────────────────────────────────
     // METADATEN-BACKFILL (Walter-Vorgabe 24.05.2026)
     // Trägt zu BEREITS importierten Dokumenten die d.velop-Metadaten nach:
     // Erstellt / Geändert / Datei geändert / Zugriff + „Im Besitz von".
