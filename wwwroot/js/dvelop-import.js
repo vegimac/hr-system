@@ -310,9 +310,12 @@ async function dvelopImportRun(dryRun) {
     const alertBox = document.getElementById('dvelopImportAlert');
     const analyzeBtn = document.querySelector('button[onclick="dvelopImportAnalyze()"]');
     const commitBtn  = document.getElementById('dvelopImportCommitBtn');
+    // Walter-Vorgabe 10.07.2026: KEIN Pflicht-MA mehr — ohne Auswahl läuft der
+    // MASSEN-MODUS: der Server löst den Ziel-MA pro CSV-Zeile selbst auf
+    // (Nummer inkl. Alias-Nummern, sonst Name+Geburtsdatum). Damit lässt sich
+    // ein d.velop-Export über viele Dossiers in einem Lauf importieren.
     if (!empId) {
-        alertBox.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:13px">Bitte erst einen Mitarbeiter wählen (oben).</div>`;
-        return;
+        alertBox.innerHTML = `<div style="padding:10px 14px;background:#eff6ff;color:#1d4ed8;border-radius:7px;font-size:13px">ℹ️ Kein Ziel-MA gewählt — <b>Massen-Modus</b>: Mitarbeiter werden pro Zeile automatisch zugeordnet (nicht zuordenbare Zeilen erscheinen in der Vorschau).</div>`;
     }
     if (!csvIn.files.length || !zipIn.files.length) {
         alertBox.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:13px">Bitte Metadaten-Datei (CSV oder XLSX) UND ZIP wählen.</div>`;
@@ -347,7 +350,7 @@ async function dvelopImportRun(dryRun) {
     const fd = new FormData();
     fd.append('csvFile', csvIn.files[0]);
     fd.append('zipFile', zipIn.files[0]);
-    fd.append('employeeId', empId);
+    fd.append('employeeId', empId || '0');
     fd.append('dryRun', dryRun ? 'true' : 'false');
     // Per-Row MA-Overrides aus dem Preview mitschicken — Backend wendet sie an.
     // Beim Erst-Analyze sind sie noch leer, beim Commit enthalten sie evtl. die

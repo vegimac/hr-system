@@ -82,13 +82,17 @@ public class DvelopImportController : ControllerBase
     public async Task<IActionResult> Import(
         [FromForm] IFormFile csvFile,
         [FromForm] IFormFile zipFile,
-        [FromForm] int employeeId,
+        [FromForm] int employeeId = 0,
         [FromForm] bool dryRun = true,
         [FromForm] string? rowOverrides = null)
     {
-        if (employeeId <= 0) return BadRequest("Mitarbeiter muss vor dem Import ausgewählt werden.");
-        var selectedEmp = await _db.Employees.FindAsync(employeeId);
-        if (selectedEmp == null) return BadRequest("Gewählter Mitarbeiter nicht gefunden.");
+        // Walter-Vorgabe 10.07.2026 (Massen-Modus): employeeId ist OPTIONAL.
+        // Ohne Vorauswahl (0) wird der Ziel-MA PRO ZEILE aus den CSV-Spalten
+        // aufgelöst (MA-Nummer inkl. Alias-Nummern «alt»-tolerant, sonst
+        // Vorname+Nachname+Geburtsdatum) — damit lässt sich ein d.velop-Export
+        // über VIELE Dossiers (z.B. ganze Filiale) in einem Lauf importieren.
+        var selectedEmp = employeeId > 0 ? await _db.Employees.FindAsync(employeeId) : null;
+        if (employeeId > 0 && selectedEmp == null) return BadRequest("Gewählter Mitarbeiter nicht gefunden.");
         if (csvFile == null || csvFile.Length == 0) return BadRequest("Metadaten-Datei (CSV oder XLSX) fehlt.");
         if (zipFile == null || zipFile.Length == 0) return BadRequest("ZIP fehlt.");
 
@@ -115,6 +119,48 @@ public class DvelopImportController : ControllerBase
                 .Where(e => overrideEmps.Contains(e.Id))
                 .ToDictionaryAsync(e => e.Id)
             : new Dictionary<int, Employee>();
+
+        // Pro-Zeile-Auflösung: alle MA + Alias-Nummern einmal laden.
+        var allEmps = await _db.Employees
+            .Include(e => e.NumberAliases)
+            .Where(e => !e.IsHidden)
+            .ToListAsync();
+        static string NormNum(string? n) =>
+            System.Text.RegularExpressions.Regex.Replace((n ?? "").Trim(), "alt$", "",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var empsByNum = new Dictionary<string, List<Employee>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in allEmps)
+        {
+            void AddNum(string? n)
+            {
+                var k = NormNum(n);
+                if (k.Length == 0) return;
+                if (!empsByNum.TryGetValue(k, out var l)) empsByNum[k] = l = new List<Employee>();
+                if (!l.Contains(e)) l.Add(e);
+            }
+            AddNum(e.EmployeeNumber);
+            foreach (var a in e.NumberAliases) AddNum(a.Number);
+        }
+        Employee? ResolveRowEmployee(string? maNr, string? vn, string? nn, DateOnly? geb)
+        {
+            var k = NormNum(maNr);
+            if (k.Length > 0 && empsByNum.TryGetValue(k, out var byN) && byN.Count == 1) return byN[0];
+            if (!string.IsNullOrWhiteSpace(vn) && !string.IsNullOrWhiteSpace(nn))
+            {
+                var hits = allEmps.Where(e =>
+                        string.Equals((e.FirstName ?? "").Trim(), vn.Trim(), StringComparison.OrdinalIgnoreCase)
+                     && string.Equals((e.LastName ?? "").Trim(), nn.Trim(), StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (hits.Count == 1) return hits[0];
+                if (hits.Count > 1 && geb.HasValue)
+                {
+                    var byDob = hits.Where(e => e.DateOfBirth.HasValue
+                        && DateOnly.FromDateTime(e.DateOfBirth.Value) == geb.Value).ToList();
+                    if (byDob.Count == 1) return byDob[0];
+                }
+            }
+            return null;
+        }
 
         var result = new DvelopResult { DryRun = dryRun };
 
@@ -260,18 +306,31 @@ public class DvelopImportController : ControllerBase
                 if (dateMatch.Success) row.DateOfBirth = ParseDate(dateMatch.Value);
             }
 
-            // Ziel-MA bestimmen: per-Row-Override aus dem Preview > globaler
-            // selectedEmp. Walter kann in der Preview-Tabelle pro Datei einen
-            // anderen MA wählen, alle anderen gehen wie gewohnt zu selectedEmp.
-            Employee targetEmp = selectedEmp;
+            // Ziel-MA bestimmen (Walter-Vorgabe 10.07.2026, Massen-Modus):
+            //   1. per-Row-Override aus dem Preview (manuelle Wahl gewinnt immer)
+            //   2. PRO-ZEILE-Auflösung aus den CSV-Spalten (Nummer inkl. Aliase,
+            //      sonst Name+Geburtsdatum) — macht Multi-MA-Exporte importierbar
+            //   3. Fallback: der global vorgewählte MA (bisheriges Verhalten)
+            var csvVorname  = F(colVorname);
+            var csvNachname = F(colNachname);
+            var csvMaNr     = F(colMaNummer);
+            Employee? targetEmp = null;
             if (overrides.TryGetValue(row.XgId, out var overrideEmpId)
                 && overrideEmpsById.TryGetValue(overrideEmpId, out var ovEmp))
             {
                 targetEmp = ovEmp;
             }
+            targetEmp ??= ResolveRowEmployee(csvMaNr, csvVorname, csvNachname, row.DateOfBirth);
+            targetEmp ??= selectedEmp;
+            if (targetEmp == null)
+            {
+                row.Action = "skip-no-employee";
+                row.Reason = $"MA nicht zuordenbar: {csvVorname} {csvNachname}{(string.IsNullOrEmpty(csvMaNr) ? "" : $" (Nr. {csvMaNr})")} — bitte Ziel-MA in der Zeile wählen.";
+                result.SkippedNoEmployee++;
+                result.Preview.Add(row);
+                continue;
+            }
             row.EmployeeId = targetEmp.Id;
-            var csvVorname = F(colVorname);
-            var csvNachname = F(colNachname);
             bool sanityWarning = !string.IsNullOrEmpty(csvVorname) &&
                                  !targetEmp.FirstName.Equals(csvVorname, StringComparison.OrdinalIgnoreCase);
 
