@@ -202,10 +202,39 @@ public class DvelopImportController : ControllerBase
         // verschluckte das zweite Dokument («22 statt 23»). Daher XG-ID mitladen
         // und bevorzugt darüber deduplizieren.
         var existingDocs = (await _db.EmployeeDokumente
-            .Select(d => new { d.EmployeeId, d.FilenameOriginal, d.DvelopDokumentId })
+            .Select(d => new { d.EmployeeId, d.FilenameOriginal, d.DvelopDokumentId, d.BranchCode, d.FilenameStorage })
             .ToListAsync())
-            .Select(d => (d.EmployeeId, d.FilenameOriginal, d.DvelopDokumentId))
+            .Select(d => (d.EmployeeId, d.FilenameOriginal, d.DvelopDokumentId, d.BranchCode, d.FilenameStorage))
             .ToList();
+
+        // Inhalt-Vergleich (Walter-Frage 10.07.2026 «ist der Inhalt wirklich
+        // unterschiedlich?»): bei Namensgleichheit mit ANDERER/fehlender XG-ID
+        // wird die ZIP-Datei per SHA-256 gegen die gespeicherte Datei verglichen —
+        // identischer Inhalt = echtes d.velop-Duplikat (skip), unterschiedlicher
+        // Inhalt = zweites eigenständiges Dokument (importieren).
+        string? HashZipEntry(System.IO.Compression.ZipArchiveEntry e)
+        {
+            try
+            {
+                using var sha = System.Security.Cryptography.SHA256.Create();
+                using var s = e.Open();
+                return Convert.ToHexString(sha.ComputeHash(s));
+            }
+            catch { return null; }
+        }
+        string? HashStoredFile(int empId, string? branchCode, string? storageName)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(branchCode) || string.IsNullOrEmpty(storageName)) return null;
+                var p = Path.Combine(_storagePath, branchCode, empId.ToString(), storageName);
+                if (!System.IO.File.Exists(p)) return null;
+                using var sha = System.Security.Cryptography.SHA256.Create();
+                using var s = System.IO.File.OpenRead(p);
+                return Convert.ToHexString(sha.ComputeHash(s));
+            }
+            catch { return null; }
+        }
 
         result.TotalRows = dataRows.Count;
 
@@ -327,17 +356,39 @@ public class DvelopImportController : ControllerBase
             //    VERSCHIEDENE Dokumente mit gleichem Namen werden so beide importiert.
             var fnOrig = string.IsNullOrEmpty(row.Filename) ? entry.Name : row.Filename;
             var rowXg  = (row.XgId ?? "").Trim();
-            if (existingDocs.Any(d => d.EmployeeId == targetEmp.Id
-                    && ((rowXg.Length > 0 && !string.IsNullOrEmpty(d.DvelopDokumentId)
-                            && string.Equals(d.DvelopDokumentId, rowXg, StringComparison.OrdinalIgnoreCase))
-                     || (d.FilenameOriginal == fnOrig
-                            && (string.IsNullOrEmpty(d.DvelopDokumentId) || rowXg.Length == 0)))))
+
+            // a) XG-ID bereits importiert → sicher dasselbe Dokument.
+            if (rowXg.Length > 0 && existingDocs.Any(d => d.EmployeeId == targetEmp.Id
+                    && !string.IsNullOrEmpty(d.DvelopDokumentId)
+                    && string.Equals(d.DvelopDokumentId, rowXg, StringComparison.OrdinalIgnoreCase)))
             {
                 row.Action = "skip-duplicate";
-                row.Reason = $"Schon vorhanden: {fnOrig}";
+                row.Reason = $"Schon vorhanden (XG-ID): {fnOrig}";
                 result.SkippedDuplicate++;
                 result.Preview.Add(row);
                 continue;
+            }
+
+            // b) Gleicher Dateiname beim selben MA, aber andere/fehlende XG-ID →
+            //    INHALT vergleichen (SHA-256). Identisch = Duplikat, sonst import.
+            var nameTwins = existingDocs.Where(d => d.EmployeeId == targetEmp.Id
+                                                 && d.FilenameOriginal == fnOrig).ToList();
+            if (nameTwins.Count > 0)
+            {
+                var zipHash = HashZipEntry(entry);
+                var identical = zipHash != null && nameTwins.Any(d =>
+                    HashStoredFile(d.EmployeeId, d.BranchCode, d.FilenameStorage) == zipHash);
+                if (identical || zipHash == null)
+                {
+                    row.Action = "skip-duplicate";
+                    row.Reason = identical
+                        ? $"Schon vorhanden (Inhalt identisch): {fnOrig}"
+                        : $"Schon vorhanden (gleicher Name, Inhalt nicht prüfbar): {fnOrig}";
+                    result.SkippedDuplicate++;
+                    result.Preview.Add(row);
+                    continue;
+                }
+                row.Reason = $"Hinweis: gleicher Dateiname wie bestehendes Dokument, aber ANDERER Inhalt — wird als eigenes Dokument importiert.";
             }
 
             // 6) Importieren!
@@ -388,7 +439,7 @@ public class DvelopImportController : ControllerBase
                 await _db.SaveChangesAsync();
 
                 // In existing-Cache aufnehmen für nachfolgende Zeilen
-                existingDocs.Add((targetEmp.Id, fnOrig, doc.DvelopDokumentId));
+                existingDocs.Add((targetEmp.Id, fnOrig, doc.DvelopDokumentId, doc.BranchCode, doc.FilenameStorage));
             }
             result.Imported++;
             result.Preview.Add(row);
