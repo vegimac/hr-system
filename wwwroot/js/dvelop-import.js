@@ -1106,6 +1106,20 @@ async function dvApiProbe(fixedPath) {
 // ══════════════════════════════════════════════════════════════════════
 let _dvFilesOpen = [];   // { file, xgId, filename, reason }
 
+// Liest ALLE Zeilen einer CSV/XLSX (volle Datei — anders als dvelopReadFirstRows).
+async function dvReadAllRows(file) {
+    const name = (file.name || '').toLowerCase();
+    const isXlsx = name.endsWith('.xlsx') || name.endsWith('.xlsm');
+    if (isXlsx) {
+        if (typeof XLSX === 'undefined') throw new Error('SheetJS noch nicht geladen — Seite neu laden.');
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' });
+    }
+    const text = (await file.text()).replace(/^\ufeff/, '');
+    return text.split(/\r?\n/).filter(l => l.length).map(l => l.split(';'));
+}
+
 async function dvFilesStart() {
     const inp = document.getElementById('dvFilesInput');
     const btn = document.getElementById('dvFilesStartBtn');
@@ -1113,6 +1127,8 @@ async function dvFilesStart() {
     const out = document.getElementById('dvFilesResult');
     const files = Array.from(inp?.files || []);
     if (!files.length) { alert('Bitte zuerst Dateien auswählen (im Download-Ordner alle markieren).'); return; }
+    const metaFiles = Array.from(document.getElementById('dvFilesMetaInput')?.files || []);
+    if (metaFiles.length) { await dvFilesMetaStart(files, metaFiles); return; }
 
     const branch = (typeof allBranches !== 'undefined' && typeof fixedCompanyProfileId !== 'undefined')
         ? (allBranches.find(b => b.id === fixedCompanyProfileId)?.restaurantCode || '') : '';
@@ -1153,10 +1169,10 @@ async function dvFilesStart() {
     dvFilesRenderResult(ok, skip, err);
 }
 
-async function dvFilesRenderResult(ok, skip, err) {
+async function dvFilesRenderResult(ok, skip, err, missing = 0) {
     const out = document.getElementById('dvFilesResult');
     let html = `<div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">
-        ✓ Fertig — <b>${ok} importiert</b>, ${skip} übersprungen (schon vorhanden)${err ? `, <span style="color:#b91c1c">${err} Fehler</span>` : ''}${_dvFilesOpen.length ? `, <b>${_dvFilesOpen.length} offen</b> (unten zuordnen)` : ''}.</div>`;
+        ✓ Fertig — <b>${ok} importiert</b>, ${skip} übersprungen (schon vorhanden)${missing ? `, <span style="color:#b45309">${missing} Datei(en) nicht im Ordner</span>` : ''}${err ? `, <span style="color:#b91c1c">${err} Fehler</span>` : ''}${_dvFilesOpen.length ? `, <b>${_dvFilesOpen.length} offen</b> (unten zuordnen)` : ''}.</div>`;
 
     if (_dvFilesOpen.length) {
         let emps = [];
@@ -1185,11 +1201,13 @@ async function dvFilesRetry(idx) {
     if (!emp) { alert('Bitte MA aus der Liste wählen.'); return; }
     const branch = (typeof allBranches !== 'undefined' && typeof fixedCompanyProfileId !== 'undefined')
         ? (allBranches.find(b => b.id === fixedCompanyProfileId)?.restaurantCode || '') : '';
+    if (!o.file) { alert('Für diese Zeile fehlt die Datei im gewählten Ordner — bitte Ordner-Auswahl ergänzen und Import erneut starten.'); return; }
     const fd = new FormData();
     fd.append('file', o.file);
     fd.append('employeeId', emp.id);
+    if (o.meta) fd.append('meta', JSON.stringify(o.meta));
     if (branch) fd.append('branchCode', branch);
-    const r = await fetch('/api/documents/import-dvelop/file-import', {
+    const r = await fetch(o.meta ? '/api/documents/import-dvelop/file-import-meta' : '/api/documents/import-dvelop/file-import', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${authToken}` },
         body: fd
@@ -1201,4 +1219,87 @@ async function dvFilesRetry(idx) {
     } else {
         alert('Fehler: ' + (j.reason || j.message || ('HTTP ' + r.status)));
     }
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+// Excel-Metadaten-Flow (Walter-Vorgabe 11.07.2026): pro Excel-Zeile die
+// lokale Datei über die XG-ID im Dateinamen finden und mit den ECHTEN
+// Metadaten (Kategorie/Typ/Beschreibung/Datumsfelder) hochladen.
+// ══════════════════════════════════════════════════════════════════════
+async function dvFilesMetaStart(files, metaFiles) {
+    const btn = document.getElementById('dvFilesStartBtn');
+    const prog = document.getElementById('dvFilesProgress');
+    const out = document.getElementById('dvFilesResult');
+    btn.disabled = true;
+    prog.style.display = 'block';
+    out.innerHTML = '';
+    _dvFilesOpen = [];
+
+    // 1) Alle Excel-Zeilen einsammeln (Header → Objekt pro Zeile).
+    const rows = [];
+    for (const mf of metaFiles) {
+        let arr;
+        try { arr = await dvReadAllRows(mf); }
+        catch (e) { alert(`${mf.name}: ${e.message}`); btn.disabled = false; return; }
+        if (!arr.length) continue;
+        const header = arr[0].map(h => String(h || '').trim().replace(/^\ufeff/, ''));
+        for (let r = 1; r < arr.length; r++) {
+            const obj = {};
+            header.forEach((h, c) => { if (h) obj[h] = String(arr[r][c] ?? '').trim(); });
+            if (obj['Dokument-ID'] || obj['Dateiname']) rows.push(obj);
+        }
+    }
+    if (!rows.length) { alert('Keine Datenzeilen in den Excel-Dateien gefunden.'); btn.disabled = false; return; }
+
+    // 2) Lokale Dateien nach XG-ID indexieren.
+    const byXg = {};
+    for (const f of files) {
+        const m = (f.name || '').match(/\((XG\d+)\)/i);
+        if (m) byXg[m[1].toUpperCase()] = f;
+    }
+
+    const branch = (typeof allBranches !== 'undefined' && typeof fixedCompanyProfileId !== 'undefined')
+        ? (allBranches.find(b => b.id === fixedCompanyProfileId)?.restaurantCode || '') : '';
+
+    let ok = 0, skip = 0, open = 0, err = 0, missing = 0;
+    const t0 = Date.now();
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const xg = (row['Dokument-ID'] || '').toUpperCase();
+        const label = row['Dateiname'] || xg;
+        const pct = Math.round(i / rows.length * 100);
+        prog.innerHTML = `<div style="font-size:12.5px;color:#475569;margin-bottom:4px">${i + 1} / ${rows.length} — ${escapeHtml(label)} <span style="color:#94a3b8">(${Math.round((Date.now() - t0) / 1000)}s · ✓${ok} · ⏭${skip} · ❓${open}${missing ? ' · 📂' + missing : ''}${err ? ' · ✗' + err : ''})</span></div>
+            <div style="background:#e7e1d8;border-radius:99px;height:10px;overflow:hidden"><div style="background:#3f3f3f;height:100%;width:${pct}%;transition:width .2s"></div></div>`;
+
+        const f = xg ? byXg[xg] : null;
+        if (!f) {
+            missing++;
+            _dvFilesOpen.push({ file: null, meta: row, filename: label, reason: `Datei mit ${xg || 'XG-ID'} nicht im gewählten Ordner` });
+            continue;
+        }
+        try {
+            const fd = new FormData();
+            fd.append('file', f);
+            fd.append('meta', JSON.stringify(row));
+            if (branch) fd.append('branchCode', branch);
+            const r = await fetch('/api/documents/import-dvelop/file-import-meta', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${authToken}` },
+                body: fd
+            });
+            const j = await r.json();
+            if (!r.ok) { err++; _dvFilesOpen.push({ file: f, meta: row, filename: label, reason: 'HTTP ' + r.status }); }
+            else if (j.status === 'imported') ok++;
+            else if (j.status === 'skip') skip++;
+            else { open++; _dvFilesOpen.push({ file: f, meta: row, filename: j.filename || label, reason: j.reason || '' }); }
+        } catch (e) {
+            err++; _dvFilesOpen.push({ file: f, meta: row, filename: label, reason: String(e) });
+        }
+    }
+
+    prog.innerHTML = '';
+    prog.style.display = 'none';
+    btn.disabled = false;
+    dvFilesRenderResult(ok, skip, err, missing);
 }

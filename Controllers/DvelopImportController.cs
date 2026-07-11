@@ -660,6 +660,191 @@ public class DvelopImportController : ControllerBase
     }
 
     // ──────────────────────────────────────────────────────────────────
+    // DATEI-IMPORT MIT EXCEL-METADATEN (Walter-Vorgabe 11.07.2026)
+    // Der d.3one-Excel-Export (gleiche Spalten wie der CSV-Import) liefert die
+    // ECHTEN Metadaten (Kategorie, Typ-Spalten, Beschreibung, MA, Datumsfelder);
+    // die zugehörige Datei kommt aus dem lokalen Massen-Download-Ordner und
+    // wird vom Frontend per XG-ID im Dateinamen gefunden und einzeln
+    // hochgeladen. Dieser Endpoint verarbeitet EINE Datei + ihre Excel-Zeile —
+    // identische Zuordnungslogik wie der CSV+ZIP-Import, ohne ZIP-Limit.
+    // ──────────────────────────────────────────────────────────────────
+
+    [HttpPost("file-import-meta")]
+    [DisableRequestSizeLimit]
+    [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
+    public async Task<IActionResult> FileImportMeta(
+        [FromForm] IFormFile file,
+        [FromForm] string meta,
+        [FromForm] int? employeeId = null,
+        [FromForm] string? branchCode = null)
+    {
+        if (file == null || file.Length == 0) return BadRequest("Datei fehlt.");
+        Dictionary<string, string> m;
+        try
+        {
+            m = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(meta)
+                ?? new Dictionary<string, string>();
+        }
+        catch { return BadRequest("Metadaten (meta) sind kein gültiges JSON."); }
+        string M(string key) => m.TryGetValue(key, out var v) ? (v ?? "").Trim() : "";
+
+        var rawName = Path.GetFileName(file.FileName ?? "datei");
+        var xg = M("Dokument-ID");
+        if (string.IsNullOrEmpty(xg))
+            xg = Regex.Match(rawName, @"\((XG\d+)\)", RegexOptions.IgnoreCase).Groups[1].Value;
+        xg = xg.ToUpperInvariant();
+
+        // 1) Dedupe per XG-ID.
+        if (xg.Length > 0 && await _db.EmployeeDokumente.AnyAsync(d => d.DvelopDokumentId == xg))
+            return Ok(new { status = "skip", reason = "Schon vorhanden (XG-ID)", xgId = xg, filename = rawName });
+
+        // Original-Dateiname: aus dem Excel («Dateiname»), sonst Upload-Name ohne XG-Zusatz.
+        var fnOrig = M("Dateiname");
+        if (string.IsNullOrEmpty(fnOrig))
+            fnOrig = Regex.Replace(rawName, @"\s*\((XG\d+)\)", "", RegexOptions.IgnoreCase).Trim();
+
+        // 2) Kategorie + Typ — exakt wie der CSV-Import (generische Typ-Spalte
+        //    «Dokumenttyp {Kategorie}», Fallback «Diverses» der Kategorie).
+        var kategorien = await _db.DokumentKategorien.Where(k => k.Aktiv).ToListAsync();
+        var typen = await _db.DokumentTypen.Where(ty => ty.Aktiv).ToListAsync();
+        var kategorieRaw = M("Kategorie").Replace("HR:", "").Trim();
+        var kat = MatchKategorie(kategorieRaw, kategorien);
+        if (kat == null)
+            return Ok(new { status = "skip", reason = $"Kategorie «{kategorieRaw}» nicht in unserer Taxonomie", xgId = xg, filename = rawName });
+        var typRaw = M($"Dokumenttyp {kat.Name}");
+        var typ = MatchTyp(typRaw, kat.Id, typen)
+                  ?? typen.FirstOrDefault(ty => ty.KategorieId == kat.Id && ty.Name == "Diverses");
+        if (typ == null)
+            return Ok(new { status = "skip", reason = $"Typ «{typRaw}» nicht gefunden, kein «Diverses» in Kategorie {kat.Name}", xgId = xg, filename = rawName });
+
+        // 3) MA: explizite Wahl > Nummer (inkl. Alias, «alt»-tolerant) > Name+Geb.
+        Employee? emp = null;
+        if (employeeId is > 0)
+            emp = await _db.Employees.Include(e => e.Employments).ThenInclude(em => em.CompanyProfile)
+                .FirstOrDefaultAsync(e => e.Id == employeeId.Value);
+        if (emp == null)
+        {
+            static string NormN(string? n) => Regex.Replace((n ?? "").Trim(), "alt$", "", RegexOptions.IgnoreCase);
+            var maNr = NormN(M("Mitarbeiter Nummer"));
+            var all = await _db.Employees
+                .Include(e => e.NumberAliases)
+                .Include(e => e.Employments).ThenInclude(em => em.CompanyProfile)
+                .Where(e => !e.IsHidden)
+                .ToListAsync();
+            if (maNr.Length > 0)
+            {
+                var byNum = all.Where(e => NormN(e.EmployeeNumber) == maNr
+                        || e.NumberAliases.Any(a => NormN(a.Number) == maNr)).ToList();
+                if (byNum.Count == 1) emp = byNum[0];
+            }
+            if (emp == null)
+            {
+                var vn = M("Vorname"); var nn = M("Nachname");
+                var geb = ParseDate(M("Geburtsdatum"));
+                if (vn.Length > 0 && nn.Length > 0)
+                {
+                    var hits = all.Where(e =>
+                            string.Equals((e.FirstName ?? "").Trim(), vn, StringComparison.OrdinalIgnoreCase)
+                         && string.Equals((e.LastName ?? "").Trim(), nn, StringComparison.OrdinalIgnoreCase)).ToList();
+                    if (hits.Count > 1 && geb.HasValue)
+                        hits = hits.Where(e => e.DateOfBirth.HasValue
+                            && DateOnly.FromDateTime(e.DateOfBirth.Value) == geb.Value).ToList();
+                    if (hits.Count == 1) emp = hits[0];
+                }
+            }
+            if (emp == null)
+                return Ok(new
+                {
+                    status = "needs-employee",
+                    reason = $"MA nicht zuordenbar: {M("Vorname")} {M("Nachname")} (Nr. {M("Mitarbeiter Nummer")})",
+                    xgId = xg, filename = rawName,
+                });
+        }
+
+        // 4) Inhalt + Hash-Dedupe gegen bestehende Dokumente dieses MA.
+        byte[] bytes;
+        using (var ms = new MemoryStream()) { await file.CopyToAsync(ms); bytes = ms.ToArray(); }
+        string hash;
+        using (var sha = System.Security.Cryptography.SHA256.Create())
+            hash = Convert.ToHexString(sha.ComputeHash(bytes));
+        var empDocs = await _db.EmployeeDokumente
+            .Where(d => d.EmployeeId == emp.Id)
+            .Select(d => new { d.BranchCode, d.FilenameStorage })
+            .ToListAsync();
+        foreach (var d in empDocs)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(d.BranchCode) || string.IsNullOrEmpty(d.FilenameStorage)) continue;
+                var p = Path.Combine(_storagePath, d.BranchCode, emp.Id.ToString(), d.FilenameStorage);
+                if (!System.IO.File.Exists(p)) continue;
+                using var sha2 = System.Security.Cryptography.SHA256.Create();
+                using var fs = System.IO.File.OpenRead(p);
+                if (Convert.ToHexString(sha2.ComputeHash(fs)) == hash)
+                    return Ok(new { status = "skip", reason = "Schon vorhanden (Inhalt identisch)", xgId = xg, filename = rawName, employee = $"{emp.FirstName} {emp.LastName}" });
+            }
+            catch { /* weiter */ }
+        }
+
+        // 5) Filiale: Mandant («58 McDonald's …» → 058) > neuester Vertrag > Selektor.
+        string? branch = null;
+        var mandantNum = Regex.Match(M("Mandant"), @"^\s*(\d+)").Groups[1].Value;
+        if (!string.IsNullOrEmpty(mandantNum)) branch = mandantNum.PadLeft(3, '0');
+        branch ??= emp.Employments?
+            .Where(em => em.CompanyProfile?.RestaurantCode != null)
+            .OrderByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfile!.RestaurantCode)
+            .FirstOrDefault();
+        branch ??= string.IsNullOrWhiteSpace(branchCode) ? null : branchCode!.Trim();
+        if (string.IsNullOrEmpty(branch))
+            return Ok(new { status = "skip", reason = "Keine Filiale bestimmbar (kein Mandant, MA ohne Vertrag).", xgId = xg, filename = rawName });
+
+        // 6) Speichern — Metadaten 1:1 aus dem Excel (wie der CSV-Import).
+        var ext = Path.GetExtension(fnOrig);
+        if (string.IsNullOrEmpty(ext)) ext = Path.GetExtension(rawName);
+        if (string.IsNullOrEmpty(ext)) ext = ".pdf";
+        var storageName = Guid.NewGuid().ToString("N") + ext;
+        var dir = Path.Combine(_storagePath, branch, emp.Id.ToString());
+        Directory.CreateDirectory(dir);
+        await System.IO.File.WriteAllBytesAsync(Path.Combine(dir, storageName), bytes);
+
+        var beschreibung = M("Beschreibung Dokument");
+        _db.EmployeeDokumente.Add(new EmployeeDokument
+        {
+            EmployeeId = emp.Id,
+            DokumentTypId = typ.Id,
+            BranchCode = branch,
+            FilenameOriginal = fnOrig,
+            FilenameStorage = storageName,
+            MimeType = string.IsNullOrEmpty(M("MIME-Typ")) ? "application/pdf" : M("MIME-Typ"),
+            GroesseBytes = bytes.LongLength,
+            Bemerkung = string.IsNullOrWhiteSpace(beschreibung) ? null : beschreibung,
+            GueltigVon = ParseDate(M("Erstellt am")),
+            HochgeladenVon = GetCurrentUserId(),
+            HochgeladenAm = DateTime.UtcNow,
+            ErstelltAm = ParseDateTime(M("Erstellt am")),
+            GeaendertAm = ParseDateTime(M("Geändert am")),
+            DateiGeaendertAm = ParseDateTime(M("Datei geändert am")),
+            ZugriffAm = ParseDateTime(M("Zugriffsdatum")),
+            GeaendertVon = string.IsNullOrWhiteSpace(M("Im Besitz von")) ? null : M("Im Besitz von"),
+            DvelopDokumentId = xg.Length > 0 ? xg : null,
+        });
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            status = "imported",
+            filename = rawName,
+            xgId = xg,
+            employee = $"{emp.FirstName} {emp.LastName}",
+            employeeId = emp.Id,
+            typ = typ.Name,
+            kategorie = kat.Name,
+            branch,
+        });
+    }
+
+    // ──────────────────────────────────────────────────────────────────
     // METADATEN-BACKFILL (Walter-Vorgabe 24.05.2026)
     // Trägt zu BEREITS importierten Dokumenten die d.velop-Metadaten nach:
     // Erstellt / Geändert / Datei geändert / Zugriff + „Im Besitz von".

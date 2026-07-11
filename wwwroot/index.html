@@ -4453,10 +4453,17 @@
                      Massen-Download (lose Dateien mit XG-ID im Namen). Lädt die
                      Dateien EINZELN hoch — kein 1-GB-ZIP-Problem. -->
                 <div class="card" style="padding:18px 24px;margin-bottom:14px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px">
-                    <h3 style="margin:0 0 4px;font-size:14.5px;color:#3f3f3f">📁 Datei-Import ohne CSV (Massen-Download)</h3>
-                    <p style="color:#8b8b8b;font-size:12.5px;margin:0 0 10px">Für den d.velop-Massen-Download (lose Dateien, XG-ID im Namen): alle Dateien auswählen (⌘A) — sie werden einzeln hochgeladen und automatisch zugeordnet (MA aus dem Dateinamen, Typ aus der Taxonomie, Duplikate via XG-ID + Inhalt übersprungen).</p>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-                        <input type="file" id="dvFilesInput" multiple style="font-size:12.5px">
+                    <h3 style="margin:0 0 4px;font-size:14.5px;color:#3f3f3f">📁 Datei-Import aus Massen-Download (mit Excel-Metadaten)</h3>
+                    <p style="color:#8b8b8b;font-size:12.5px;margin:0 0 10px">
+                        <b>1.</b> Alle Dateien aus dem d.velop-Download-Ordner auswählen (⌘A).
+                        <b>2.</b> Dazu die d.3one-Excel-Exporte (pro MA, mehrere aufs Mal möglich) — sie liefern Kategorie, Typ und Beschreibung; die passende Datei wird über die XG-ID gefunden und mit den echten Metadaten importiert. Ohne Excel wird notfalls aus dem Dateinamen geraten. Duplikate (XG-ID + Inhalt) werden übersprungen — mehrfach ausführen ist gefahrlos.</p>
+                    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+                        <label style="font-size:12px;color:#646464;display:flex;flex-direction:column;gap:4px">Dateien (Download-Ordner)
+                            <input type="file" id="dvFilesInput" multiple style="font-size:12.5px">
+                        </label>
+                        <label style="font-size:12px;color:#646464;display:flex;flex-direction:column;gap:4px">Excel-Metadaten (d.3one-Export, optional mehrere)
+                            <input type="file" id="dvFilesMetaInput" multiple accept=".xlsx,.xlsm,.csv" style="font-size:12.5px">
+                        </label>
                         <button id="dvFilesStartBtn" onclick="dvFilesStart()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">⬆ Import starten</button>
                     </div>
                     <div id="dvFilesProgress" style="display:none;margin-top:10px"></div>
@@ -6667,7 +6674,7 @@
 <script src="js/users.js?v=20260704p"></script>
 <script src="js/contracts-page.js?v=20260708flex"></script>
 <script src="js/documents.js?v=20260710a"></script>
-<script src="js/dvelop-import.js?v=20260711a"></script>
+<script src="js/dvelop-import.js?v=20260711b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260708flex"></script>
 <script src="js/dok-struktur.js?v=20260708flex"></script>
