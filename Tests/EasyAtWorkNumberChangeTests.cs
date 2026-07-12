@@ -82,4 +82,31 @@ public class EasyAtWorkNumberChangeTests
             .Select(a => a.Number).OrderBy(n => n).ToListAsync();
         Assert.Equal(new[] { "1030011", "1040025" }, nums);
     }
+
+    // Rollen-Tausch (Walter 12.07.2026, Alaa/Rasakumary): ist die neue
+    // Hauptnummer bereits ein ALIAS des MA, wird diese Alias-Zeile zur alten
+    // Hauptnummer umgeschrieben — dieselbe Nummer darf nie doppelt existieren
+    // (als Haupt- UND Alias-Nummer).
+    [Fact]
+    public async Task WechselAufBestehendenAlias_TauschtRollen_OhneDuplikat()
+    {
+        using var db = NewDb();
+        var emp = new Employee { EmployeeNumber = "581026", FirstName = "Alaa", LastName = "Aerni" };
+        db.Employees.Add(emp);
+        await db.SaveChangesAsync();
+        db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
+        {
+            EmployeeId = emp.Id, Number = "1040001", Source = "easyatwork_sync"
+        });
+        await db.SaveChangesAsync();
+
+        EasyAtWorkEmployeeSyncService.SaveNumberChange(db, emp, "1040001");
+        await db.SaveChangesAsync();
+
+        Assert.Equal("1040001", emp.EmployeeNumber);
+        var aliases = await db.EmployeeNumberAliases.Where(a => a.EmployeeId == emp.Id).ToListAsync();
+        var alias = Assert.Single(aliases);               // KEINE zweite Zeile
+        Assert.Equal("581026", alias.Number);             // Rollen getauscht
+        Assert.NotNull(alias.ValidTo);
+    }
 }

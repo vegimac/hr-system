@@ -379,6 +379,60 @@ public class EasyAtWorkEmployeeSyncService
             result.Errors.Add($"Mitarbeiter in easy@work nicht gefunden (gespeicherte ID {emp.EasyAtWorkEmployeeId.Value}; employee.id-Suche und Legacy-user_id-Reparatur über alle gemappten Filialen ohne Treffer).");
             return result;
         }
+
+        // ── Aktiv-Vorrang (Walter 12.07.2026, Alaa/Rasakumary): ist der
+        //    aufgelöste Datensatz BEENDET (to in der Vergangenheit), die
+        //    anderen gemappten Filialen nach einem AKTIVEN Datensatz derselben
+        //    Person absuchen (über Haupt- UND Alias-Nummern, «alt»-Suffix
+        //    gestrippt). Der aktive Datensatz gewinnt: er definiert Identität,
+        //    Anker und Hauptnummer — sonst bleibt der Sync ewig am toten
+        //    Filial-Datensatz hängen. Identitäts-Guard: user_id ODER Name
+        //    ODER Vorname+Geburtsdatum (Nummern könnten neu vergeben sein). ──
+        var eawTodayD = DateOnly.FromDateTime(DateTime.Today);
+        if (eaw.To.HasValue && eaw.To.Value < eawTodayD)
+        {
+            var candNumbers = new List<string>();
+            void AddCand(string? x)
+            {
+                var t = System.Text.RegularExpressions.Regex.Replace(
+                    (x ?? "").Trim(), "alt$", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+                if (t.Length > 0 && !candNumbers.Contains(t, StringComparer.OrdinalIgnoreCase)) candNumbers.Add(t);
+            }
+            AddCand(emp.EmployeeNumber);
+            foreach (var a in await _db.EmployeeNumberAliases.AsNoTracking()
+                         .Where(a => a.EmployeeId == emp.Id).Select(a => a.Number).ToListAsync(ct))
+                AddCand(a);
+
+            foreach (var mapping in mappings)
+            {
+                EawEmployee? aktiv = null;
+                foreach (var num in candNumbers)
+                {
+                    EawEmployee? cand = null;
+                    try { cand = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, num, ct); }
+                    catch { /* best-effort — Kandidaten-Suche darf den Sync nie brechen */ }
+                    if (cand == null || cand.Id == eaw.Id) continue;
+                    if (cand.To.HasValue && cand.To.Value < eawTodayD) continue; // auch beendet
+                    bool sameUser = cand.UserId.HasValue && cand.UserId == eaw.UserId;
+                    bool sameName =
+                        string.Equals((cand.FirstName ?? "").Trim(), (emp.FirstName ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
+                     && string.Equals((cand.LastName ?? "").Trim(), (emp.LastName ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+                    bool sameDobFirst = cand.BirthDate.HasValue && emp.DateOfBirth.HasValue
+                     && cand.BirthDate.Value == DateOnly.FromDateTime(emp.DateOfBirth.Value)
+                     && string.Equals((cand.FirstName ?? "").Trim(), (emp.FirstName ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+                    if (!sameUser && !sameName && !sameDobFirst) continue;
+                    aktiv = cand;
+                    break;
+                }
+                if (aktiv != null)
+                {
+                    result.Notes.Add($"Aktiv-Vorrang: gespeicherter easy@work-Datensatz (Nummer {eaw.Number}, Austritt {eaw.To:dd.MM.yyyy}) ist beendet — aktiver Datensatz Nummer {aktiv.Number} in Customer {mapping.EasyAtWorkCustomerId} übernimmt (Anker + Hauptnummer).");
+                    eaw = aktiv;
+                    matchedCustomerId = mapping.EasyAtWorkCustomerId;
+                    break;
+                }
+            }
+        }
         result.EasyAtWorkEmployeeId = eaw.Id;
 
         var natByCode = await _db.Nationalities.AsNoTracking()
@@ -445,6 +499,29 @@ public class EasyAtWorkEmployeeSyncService
         {
             emp.EasyAtWorkEmployeeId = eaw.Id;
             result.UpdatedFields.Add("easy@work-ID");
+        }
+        // Hauptnummer folgt dem AKTIVEN Datensatz (Walter 12.07.2026): trägt der
+        // (aktive) easy@work-Datensatz eine andere Nummer als unsere Hauptnummer,
+        // wird getauscht — die bisherige Hauptnummer wandert als Alias in die
+        // Historie (bzw. Rollen-Tausch, wenn die neue schon Alias war).
+        // Kollisionsschutz: gehört die Nummer einem anderen MA, nur Hinweis.
+        {
+            var eawNum = (eaw.Number ?? "").Trim();
+            bool eawAktivJetzt = !eaw.To.HasValue || eaw.To.Value >= DateOnly.FromDateTime(DateTime.Today);
+            if (eawAktivJetzt && eawNum.Length > 0
+                && !string.Equals(eawNum, (emp.EmployeeNumber ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                bool besetzt = await _db.Employees.AnyAsync(
+                    x => x.Id != emp.Id && !x.IsHidden && x.EmployeeNumber == eawNum, ct);
+                if (besetzt)
+                    result.Notes.Add($"⚠ Nummer {eawNum} gehört bereits einem anderen MA — Hauptnummer bleibt {emp.EmployeeNumber}, bitte Dublette klären.");
+                else
+                {
+                    var alteNr = emp.EmployeeNumber;
+                    SaveNumberChange(_db, emp, eawNum);
+                    result.UpdatedFields.Add($"Personalnummer ({alteNr} → {eawNum})");
+                }
+            }
         }
         if (!string.IsNullOrWhiteSpace(master.Iban))
         {
@@ -1102,7 +1179,12 @@ public class EasyAtWorkEmployeeSyncService
             // aktuellen unterscheidet UND noch nicht in alt1/alt2 steht (keine
             // Endlos-Rotation). Dann: Diff „Personalnummer" → wird beim Commit
             // rotiert (aktuelle → alt1, alt1 → alt2) und die neue Nr. gesetzt.
+            // Nur ein AKTIVER Datensatz darf die Hauptnummer wechseln (Walter
+            // 12.07.2026, Alaa/Rasakumary): der beendete Datensatz einer alten
+            // Filiale hatte via eaw-ID-Match die Hauptnummer auf seine tote
+            // Nummer rotiert.
             if (matchedByEawId && co != null
+                && (!eaw.To.HasValue || eaw.To.Value >= activeAt)
                 && ShouldSaveNumberChange(co.EmployeeNumber, rawNumber,
                        aliasesByEmp.TryGetValue(co.Id, out var coAliases) ? coAliases : null))
             {
@@ -1732,7 +1814,16 @@ public class EasyAtWorkEmployeeSyncService
                     var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == row.CoworkEmployeeId, ct);
                     if (emp == null) continue;
                     var newEawId = eaw.Id;
-                    if (emp.EasyAtWorkEmployeeId != newEawId) emp.EasyAtWorkEmployeeId = newEawId;
+                    // Anker-Schutz (Walter 12.07.2026, Alaa/Rasakumary): ein BEENDETER
+                    // easy@work-Datensatz (to in der Vergangenheit) darf die Verknüpfung
+                    // NICHT mehr an sich reissen. Vorher überschrieb jeder Filial-Lauf
+                    // blind den Anker — matchte danach ein Lauf den MA über die ID des
+                    // toten Datensatzes, rotierte er die Hauptnummer auf die tote Nummer
+                    // (so entstanden 581026/104188 als Hauptnummern am 21.06.2026).
+                    bool eawStillActiveUp = !eaw.To.HasValue || eaw.To.Value >= activeAt;
+                    if (emp.EasyAtWorkEmployeeId != newEawId
+                        && (eawStillActiveUp || emp.EasyAtWorkEmployeeId == null))
+                        emp.EasyAtWorkEmployeeId = newEawId;
                     var master = masterByEaw[row.EawEmployeeId];
                     ApplyDiffs(emp, row.Diffs, master);
                     // Nachtarbeit-Arztzeugnis-Gültigkeit aus easy@work übernehmen
@@ -1744,8 +1835,20 @@ public class EasyAtWorkEmployeeSyncService
                         emp.NightWorkExamIssued = master.NightWorkExamIssued.Value.ToDateTime(TimeOnly.MinValue);
                     if (!string.IsNullOrWhiteSpace(row.NumberChangeTo))
                     {
-                        SaveNumberChange(_db, emp, row.NumberChangeTo!);
-                        res.Notes.Add($"Personalnummer geändert: {row.NumberChangeFrom} → {row.NumberChangeTo} (alte Nr. als Alias gesichert).");
+                        // Nur ein AKTIVER Datensatz darf die Hauptnummer setzen
+                        // (Walter 12.07.2026) + Kollisionsschutz wie im Merge-Pfad.
+                        var ncTo = row.NumberChangeTo!.Trim();
+                        bool ncBesetzt = await _db.Employees.AnyAsync(
+                            x => x.Id != emp.Id && !x.IsHidden && x.EmployeeNumber == ncTo, ct);
+                        if (!eawStillActiveUp)
+                            res.Notes.Add($"{emp.FirstName} {emp.LastName}: Nummernwechsel {row.NumberChangeFrom} → {ncTo} übersprungen — der easy@work-Datensatz ist beendet (Austritt {eaw.To:dd.MM.yyyy}).");
+                        else if (ncBesetzt)
+                            res.Notes.Add($"⚠ {emp.FirstName} {emp.LastName}: Nummer {ncTo} gehört bereits einem anderen MA — Nummernwechsel übersprungen, bitte Dublette klären.");
+                        else
+                        {
+                            SaveNumberChange(_db, emp, ncTo);
+                            res.Notes.Add($"Personalnummer geändert: {row.NumberChangeFrom} → {ncTo} (alte Nr. als Alias gesichert).");
+                        }
                     }
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
@@ -1753,7 +1856,7 @@ public class EasyAtWorkEmployeeSyncService
                     if (string.IsNullOrWhiteSpace(emp.LetterSalutation)) emp.LetterSalutation = BuildLetterSalutation(emp.Gender, emp.FirstName);
                     // Aktiv-Status (Walter-Bug 22.06.2026, Filialwechsel): eaw.To ist das
                     // Austrittsdatum DIESER Filiale, nicht des Menschen.
-                    bool eawStillActiveUp = !eaw.To.HasValue || eaw.To.Value >= activeAt;
+                    // (eawStillActiveUp ist oben beim Anker-Schutz deklariert.)
                     if (!emp.IsActive && eawStillActiveUp)
                     {
                         // In dieser Filiale laut easy@work noch aktiv → Person reaktivieren.
@@ -3256,15 +3359,34 @@ public class EasyAtWorkEmployeeSyncService
 
     public static void SaveNumberChange(AppDbContext db, Employee emp, string newNumber)
     {
-        db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
+        var n = newNumber.Trim();
+        // Rollen-Tausch (Walter 12.07.2026, Alaa/Rasakumary): hängt die neue
+        // Hauptnummer bereits als ALIAS am MA (Wiedereintritt/Filialwechsel),
+        // wird DIESE Alias-Zeile zur bisherigen Hauptnummer umgeschrieben —
+        // sonst stünde dieselbe Nummer doppelt (als Haupt- UND Alias-Nummer).
+        var lowered = n.ToLowerInvariant();
+        var aliasRow = db.EmployeeNumberAliases.Local.FirstOrDefault(a =>
+                a.EmployeeId == emp.Id
+                && string.Equals((a.Number ?? "").Trim(), n, StringComparison.OrdinalIgnoreCase))
+            ?? db.EmployeeNumberAliases.FirstOrDefault(a =>
+                a.EmployeeId == emp.Id && a.Number.ToLower() == lowered);
+        if (aliasRow != null)
         {
-            Employee   = emp,
-            EmployeeId = emp.Id,
-            Number     = emp.EmployeeNumber,
-            ValidTo    = DateOnly.FromDateTime(DateTime.Today),
-            Source     = "easyatwork_sync",
-        });
-        emp.EmployeeNumber = newNumber.Trim();
+            aliasRow.Number  = emp.EmployeeNumber;
+            aliasRow.ValidTo = DateOnly.FromDateTime(DateTime.Today);
+        }
+        else
+        {
+            db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
+            {
+                Employee   = emp,
+                EmployeeId = emp.Id,
+                Number     = emp.EmployeeNumber,
+                ValidTo    = DateOnly.FromDateTime(DateTime.Today),
+                Source     = "easyatwork_sync",
+            });
+        }
+        emp.EmployeeNumber = n;
     }
 
     /// <summary>easy@work-Gender → unser Wert „male"/„female" (sonst null).</summary>
