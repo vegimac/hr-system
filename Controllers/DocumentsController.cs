@@ -499,6 +499,12 @@ public class DocumentsController : ControllerBase
         // hinter «Bewilligung» — kein Standalone-Treffer (Rausch-Falle).
         m = Regex.Match(txt, @"Bewilligung\s+([LBCGNF])\b", RegexOptions.IgnoreCase);
         if (m.Success) return m.Groups[1].Value.ToUpperInvariant();
+        // OCR-tolerante Kopf-Variante (Walter 12.07.2026, B-Ausweis Aurelio):
+        // «CHE» wird bei kleinen Scans gern verstümmelt («cH B AUFENTHALTS-
+        // TITEL») — der Buchstabe DIREKT vor dem AUFENTHALTSTITEL-Wort ist
+        // trotzdem eindeutig (gleiche ENTHALTSTITE-Toleranz wie das Kopf-Band).
+        m = Regex.Match(txt, @"\b([LBCGNF])\s+\w*ENTHALTSTITE", RegexOptions.IgnoreCase);
+        if (m.Success) return m.Groups[1].Value.ToUpperInvariant();
         return null;
     }
 
@@ -689,6 +695,45 @@ public class DocumentsController : ControllerBase
             // ── Bewilligungs-Typ: Kartenkopf «CHE L» (Band-Text zuerst, dann
             //    Volltext); kein Standalone-Buchstabe (Rausch-Falle). ──
             var permitCode = ParsePermitType(mrzText) ?? ParsePermitType(text);
+
+            // ── Eskalation (Walter 12.07.2026, B-Ausweis Aurelio): kleine Karte
+            //    auf grossem A4-Scan → der 200-dpi-Basistext ist unlesbar, das
+            //    Kopf-Band («ENTHALTSTITE») wird nie gefunden und der Typ steht
+            //    bei diesem Layout NUR im Kopf («CHE B AUFENTHALTSTITEL» — der
+            //    Titel-Block sagt bloss «Ausweis EU/EFTA», ohne Buchstabe).
+            //    NUR wenn der Typ fehlt: Seiten einzeln in 400 dpi nachlesen,
+            //    Abbruch sobald er sitzt. Der Zusatztext hilft anschliessend
+            //    auch den Datums-/Label-Regexen weiter unten. ──
+            if (permitCode == null && (ext == ".pdf" || doc.MimeType == "application/pdf")
+                && FindBinary("pdftoppm") is string ppm3)
+            {
+                try
+                {
+                    for (var pageNo = 1; pageNo <= imgPaths.Length; pageNo++)
+                    {
+                        var hiBase = Path.Combine(tmpDir, $"hi{pageNo}");
+                        await RunProcessAsync(ppm3, $"-png -r 400 -f {pageNo} -l {pageNo} \"{fullPath}\" \"{hiBase}\"", timeoutMs: 60000);
+                        var hiImg = Directory.GetFiles(tmpDir, $"hi{pageNo}*.png").OrderBy(x => x).FirstOrDefault();
+                        if (hiImg == null) continue;
+                        var hiOut = Path.Combine(tmpDir, $"hiout{pageNo}");
+                        int hc;
+                        try { (hc, _, _) = await RunProcessAsync(tesseract, $"\"{hiImg}\" \"{hiOut}\" -l deu --psm 6", timeoutMs: 60000); }
+                        catch (TimeoutException) { continue; }
+                        if (hc != 0)
+                        {
+                            try { (hc, _, _) = await RunProcessAsync(tesseract, $"\"{hiImg}\" \"{hiOut}\" --psm 6", timeoutMs: 60000); }
+                            catch (TimeoutException) { continue; }
+                        }
+                        if (hc != 0 || !System.IO.File.Exists(hiOut + ".txt")) continue;
+                        var hiText = await System.IO.File.ReadAllTextAsync(hiOut + ".txt");
+                        if (string.IsNullOrWhiteSpace(hiText)) continue;
+                        text += "\n----\n" + hiText;
+                        permitCode ??= ParsePermitType(hiText);
+                        if (permitCode != null) break;
+                    }
+                }
+                catch { /* Eskalation ist best-effort — Teil-Resultat bleibt */ }
+            }
 
             // ── «Gültig bis»-Datum (OCR-tolerant: GULTIG/GÜLTIG/G0LTIG …) ──
             DateOnly? validUntil = null;
