@@ -109,8 +109,8 @@ window.i18n = (function () {
         'common.search':             { de: 'Suchen…',        en: 'Search…' },
 
         // ── Dashboard Alert-Titel (mit {placeholder}-Substitution) ──
-        'alert.permit.expired':           { de: 'Bewilligung {code} ist abgelaufen',
-                                             en: 'Permit {code} has expired' },
+        'alert.permit.expired':           { de: 'Bewilligung {code} seit {days} Tag(en) abgelaufen',
+                                             en: 'Permit {code} expired {days} day(s) ago' },
         'alert.permit.expires_in_days':   { de: 'Bewilligung {code} läuft ab in {days} Tagen',
                                              en: 'Permit {code} expires in {days} days' },
         'alert.permitMissing':            { de: 'Aufenthaltsbewilligung fehlt',
@@ -119,6 +119,8 @@ window.i18n = (function () {
                                              en: 'Probation period ends in {days} days' },
         'alert.contract.ends_in_days':    { de: 'Befristeter Vertrag endet in {days} Tagen',
                                              en: 'Fixed-term contract ends in {days} days' },
+        'alert.contract.expired_since':   { de: 'Befristeter Vertrag seit {days} Tag(en) abgelaufen',
+                                             en: 'Fixed-term contract expired {days} day(s) ago' },
         'alert.exit.pending_active':      { de: 'Austritt am {date} — MA noch aktiv',
                                              en: 'Exit on {date} — employee still active' },
         'alert.qst.pflicht_offen':        { de: 'QST-Pflicht offen — Lohnlauf gesperrt',

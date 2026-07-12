@@ -168,11 +168,13 @@ public class DashboardService
             {
                 Category = "permit_expiring",
                 Severity = severity,
+                // Abgelaufene Warnungen laufen WEITER als «seit X Tagen abgelaufen»
+                // (Walter-Vorgabe 12.07.2026) — sie verschwinden nie von selbst.
                 Title    = days < 0
-                    ? $"Bewilligung {permitCode} ist abgelaufen"
+                    ? $"Bewilligung {permitCode} seit {-days} Tag(en) abgelaufen"
                     : $"Bewilligung {permitCode} läuft ab in {days} Tagen",
                 TitleKey = days < 0 ? "alert.permit.expired" : "alert.permit.expires_in_days",
-                TitleArgs = new Dictionary<string, object> { ["code"] = permitCode, ["days"] = days },
+                TitleArgs = new Dictionary<string, object> { ["code"] = permitCode, ["days"] = days < 0 ? -days : days },
                 Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}",
                 SubtitleKey  = "subtitle.maPersonalnr",
                 SubtitleArgs = new Dictionary<string, object> {
@@ -269,21 +271,40 @@ public class DashboardService
         }
 
         // ── 3) Befristete Verträge enden in 30 Tagen ──────────────────────
+        // Walter-Vorgabe 12.07.2026: die Warnung läuft nach dem Ablauf WEITER
+        // («seit X Tagen abgelaufen») — ein aktiver MA ohne laufenden Vertrag
+        // ist ein echtes Problem und darf nicht aus der Liste fallen. Kein
+        // Alarm, wenn ein Folge-/anderer Vertrag den heutigen Tag abdeckt.
         var fixedWindow = now.AddDays(WarnDays("contract_end", 30));
         var fixedQ = _db.Employments
             .Include(em => em.Employee)
             .Where(em => em.IsActive
                       && em.ContractEndDate.HasValue
-                      && em.ContractEndDate >= now
                       && em.ContractEndDate <= fixedWindow
                       && em.Employee != null
                       && em.Employee.IsActive
                       && !em.Employee.EmployeeNumber.ToLower().EndsWith("alt"));
         if (companyProfileId.HasValue)
             fixedQ = fixedQ.Where(em => em.CompanyProfileId == companyProfileId.Value);
-        var fixedList = Enabled("contract_end")
+        var fixedListAll = Enabled("contract_end")
             ? await fixedQ.ToListAsync()
             : new List<Employment>();
+        // Abgelaufene: pro MA nur der JÜNGSTE abgelaufene Vertrag, und nur wenn
+        // KEIN anderer aktiver Vertrag den heutigen Tag abdeckt (Folgevertrag).
+        var fixedEmpIds = fixedListAll.Select(em => em.EmployeeId).Distinct().ToList();
+        var heuteAbgedeckt = (await _db.Employments.AsNoTracking()
+            .Where(x => fixedEmpIds.Contains(x.EmployeeId) && x.IsActive
+                     && x.ContractStartDate <= now
+                     && (x.ContractEndDate == null || x.ContractEndDate >= now))
+            .Select(x => x.EmployeeId).Distinct().ToListAsync()).ToHashSet();
+        var fixedList = fixedListAll
+            .Where(em => em.ContractEndDate!.Value.Date >= now)
+            .Concat(fixedListAll
+                .Where(em => em.ContractEndDate!.Value.Date < now
+                          && !heuteAbgedeckt.Contains(em.EmployeeId))
+                .GroupBy(em => em.EmployeeId)
+                .Select(g => g.OrderByDescending(x => x.ContractEndDate).First()))
+            .ToList();
         foreach (var em in fixedList)
         {
             var dueDate = em.ContractEndDate!.Value;
@@ -292,9 +313,11 @@ public class DashboardService
             {
                 Category = "contract_end",
                 Severity = Severity("contract_end", days, "info", "warning"),
-                Title    = $"Befristeter Vertrag endet in {days} Tagen",
-                TitleKey = "alert.contract.ends_in_days",
-                TitleArgs = new Dictionary<string, object> { ["days"] = days },
+                Title    = days < 0
+                    ? $"Befristeter Vertrag seit {-days} Tag(en) abgelaufen"
+                    : $"Befristeter Vertrag endet in {days} Tagen",
+                TitleKey = days < 0 ? "alert.contract.expired_since" : "alert.contract.ends_in_days",
+                TitleArgs = new Dictionary<string, object> { ["days"] = days < 0 ? -days : days },
                 Subtitle = $"{em.Employee!.FirstName} {em.Employee.LastName} · Personalnr. {em.Employee.EmployeeNumber} · {em.EmploymentModel}",
                 SubtitleKey  = "subtitle.maPersonalnrModel",
                 SubtitleArgs = new Dictionary<string, object> {
@@ -907,11 +930,45 @@ public class DashboardService
             {
                 if (emp.ExitDate.HasValue
                     && DateOnly.FromDateTime(emp.ExitDate.Value) <= nwExitCutoff) continue;
-                if (!nightDatesByEmp.TryGetValue(emp.Id, out var dates) || dates.Count == 0) continue;
+
+                // Abgelaufenes Arztzeugnis IMMER melden (Walter-Vorgabe 12.07.2026):
+                // auch wenn der MA aktuell nicht dokumentationspflichtig viele Nächte
+                // arbeitet — vor der nächsten Nacht-Planung muss erneuert werden.
+                // Läuft als «seit X Tagen abgelaufen» weiter, verschwindet nie von
+                // selbst. (Für dokupflichtige Nacht-MA übernimmt weiter unten die
+                // «Nachweise fehlen»-Karte — keine Doppel-Meldung.)
+                int? abgelaufenSeit = emp.NightWorkExamValidUntil.HasValue
+                    && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) < today
+                    ? today.DayNumber - DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value).DayNumber
+                    : (int?)null;
+                void MeldeAbgelaufen()
+                {
+                    if (abgelaufenSeit == null || !Enabled("night_work_exam_expiring")) return;
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "night_work_exam_expiring",
+                        Severity = Severity("night_work_exam_expiring", -abgelaufenSeit.Value, "warning", "critical"),
+                        Title    = $"Nachtarbeit-Arztzeugnis seit {abgelaufenSeit} Tag(en) abgelaufen",
+                        Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · gültig bis {emp.NightWorkExamValidUntil:dd.MM.yyyy} — vor der nächsten Nacht-Planung erneuern",
+                        EmployeeId     = emp.Id,
+                        EmployeeNumber = emp.EmployeeNumber,
+                        EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                    });
+                }
+
+                if (!nightDatesByEmp.TryGetValue(emp.Id, out var dates) || dates.Count == 0)
+                {
+                    MeldeAbgelaufen();
+                    continue;
+                }
 
                 // NEUE Regel: > 18 Nächte in einem rollierenden 6-Wochen-Fenster.
                 var nw = NightWorkComplianceService.Evaluate(dates, today);
-                if (!nw.RequiresDocuments) continue;
+                if (!nw.RequiresDocuments)
+                {
+                    MeldeAbgelaufen();
+                    continue;
+                }
 
                 // Enddatum-Kontrolle (Walter-Vorgabe 05.07.2026): das aus easy@work
                 // übernommene Ende muss der Regel (Beginn + 1/2 Jahre − 1 Tag) entsprechen.
@@ -980,7 +1037,7 @@ public class DashboardService
                 }
 
                 string examTxt = examCurrent ? null
-                               : examExpired ? "Arztzeugnis abgelaufen"
+                               : examExpired ? $"Arztzeugnis seit {abgelaufenSeit ?? 0} Tag(en) abgelaufen"
                                : "Arztzeugnis fehlt";
                 string grund =
                       (examTxt != null && !hasChecklist) ? $"{examTxt} und Ausnahmeregelung fehlt"
