@@ -3322,19 +3322,29 @@ public class EasyAtWorkEmployeeSyncService
             // gehören zur FELD-DEFINITION (id 64, updated 2020) — als Versions-
             // Kriterium unbrauchbar. Auswahl daher: HEUTE GÜLTIGE Version zuerst
             // (from ≤ heute ≤ to/offen), dann jüngstes Von.
+            // Walter-Bug 12.07.2026 («abgelaufene Nachtarbeit wird nicht mehr
+            // synchronisiert»): liegt das Bis der letzten JA-Version in der
+            // Vergangenheit, zeigt easy@work aktuell «N/A» — je nach Datenlage
+            // existiert dann eine NEUERE Version mit Wert leer/«0», welche die
+            // Auswahl gewann und hasNote=false ergab → nichts wurde übernommen
+            // und der veraltete Cowork-Stand blieb stehen. Massgebend sind
+            // daher NUR Versionen mit Wert «Ja»: davon die heute gültige,
+            // sonst die JÜNGSTE (auch wenn abgelaufen) — deren Von/Bis ist die
+            // historische Wahrheit («ausgestellt … gültig bis … · abgelaufen»).
             var nwToday = DateOnly.FromDateTime(DateTime.Today);
+            static bool NwJa(EawProperty p)
+            {
+                var v = (p.Value ?? "").Trim().ToLowerInvariant();
+                return v == "1" || v == "true" || v == "yes" || v == "ja";
+            }
             var nwProp = props
                 .Where(p => (p.Key ?? "").ToLowerInvariant().Contains("night_work_doctors_note"))
+                .Where(NwJa)
                 .OrderByDescending(p => (p.From ?? DateOnly.MinValue) <= nwToday
                                      && (!p.To.HasValue || p.To.Value >= nwToday) ? 1 : 0)
                 .ThenByDescending(p => p.From ?? DateOnly.MinValue)
                 .FirstOrDefault();
-            if (nwProp != null)
-            {
-                var v = (nwProp.Value ?? "").Trim().ToLowerInvariant();
-                bool hasNote = v == "1" || v == "true" || v == "yes" || v == "ja";
-                if (hasNote) { nwFrom = nwProp.From; nwTo = nwProp.To; }
-            }
+            if (nwProp != null) { nwFrom = nwProp.From; nwTo = nwProp.To; }
 
             // Betriebszugehörigkeit / Seniorität (cf_seniority_date, Walter-Vorgabe
             // 05.07.2026): das ist der FIRMEN-Eintritt für Dienstjubiläen — überdauert
