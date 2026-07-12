@@ -320,16 +320,18 @@ function renderDashAlerts() {
     }).join('');
 }
 
-// ROTE Schrift NUR für die von Walter definierten Fälle (12.07.2026):
-// unterschrittener Mindestlohn (immer) sowie ABGELAUFENE Bewilligung bzw.
-// ABGELAUFENES Nachtarbeit-Arztzeugnis (daysUntil < 0 = abgelaufen; das
-// blosse «läuft ab in X Tagen» bleibt schwarz). NICHT alle kritischen.
+// ROTE Schrift NUR für die von Walter definierten Fälle (12.07.2026, final):
+// - Mindestlohn unterschritten (immer)
+// - Bewilligung ABGELAUFEN oder FEHLT komplett
+// - Nachtarbeit-Arztzeugnis ABGELAUFEN (eigene «seit X Tagen»-Karte)
+// «Nachtarbeit-Nachweise fehlen» bleibt wie immer SCHWARZ, ebenso QST usw.
+// daysUntil < 0 = abgelaufen; «läuft ab in X Tagen» bleibt schwarz.
 function dashIsRedAlert(a) {
     if (a.category === 'minimum_wage_violation') return true;
+    if (a.category === 'permit_missing') return true;
     const abgelaufen = a.daysUntil != null && a.daysUntil < 0;
     return abgelaufen && (a.category === 'permit_expiring'
-                       || a.category === 'night_work_exam_expiring'
-                       || a.category === 'night_work_exam_fehlt');
+                       || a.category === 'night_work_exam_expiring');
 }
 
 function renderDashTodoRow(a) {
