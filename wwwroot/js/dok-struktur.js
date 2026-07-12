@@ -451,8 +451,8 @@ function renderVtList(employees) {
             ? (e.employments || []).filter(v => Number(v.companyProfileId) === cpid)
             : (e.employments || []);
         const active = matchEmps.find(v => !v.contractEndDate) || matchEmps[0];
-        const modelClass = ({ MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[model] || '';
         const model = active?.employmentModel || '';
+        const modelClass = ({ MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[model] || '';
         const isSelected = selectedVtEmployee?.id === e.id;
         const badge = model
             ? `<span class="${modelClass}" style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:8px;flex-shrink:0">${modelDisplay(model)}</span>`
