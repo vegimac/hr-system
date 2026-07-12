@@ -839,7 +839,7 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
         <div class="emp-detail-tabs">
-            <div class="emp-tab active" data-tab="personal"   onclick="switchEmpTab('personal')">${_t('ma.tab.personal','Persönliche Angaben')}</div>
+            <div class="emp-tab active" data-tab="personal"   onclick="switchEmpTab('personal')" style="line-height:1.2;text-align:center">${_t('ma.tab.personal','Persönliche<br>Angaben')}</div>
             <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')" style="line-height:1.2;text-align:center">${_t('ma.tab.family','Familie<br>Schwanger')}</div>
             <div class="emp-tab"        data-tab="bank"       onclick="switchEmpTab('bank')">${_t('ma.tab.bank','Bank')}</div>
             <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung<br>QST')}</div>
