@@ -588,14 +588,10 @@ function dashOpenEmployeeDokumente(employeeId) { dashOpenEmployee(employeeId, 'd
 function dashOpenEmployeeVerfuegbarkeit(employeeId) { dashOpenEmployee(employeeId, 'verfuegbarkeit'); }
 // Walter-Vorgabe 20.06.2026: „Vertrag läuft aus" springt in die Verträge-Seite
 // des MA (eigene Seite, kein MA-Tab) und selektiert dort den Mitarbeiter.
-function dashOpenEmployeeVertrag(employeeId) {
-    if (!employeeId) return;
-    window.activeEmpId = employeeId;
-    showPage('vertraege');
-    setTimeout(() => {
-        if (typeof selectVtEmployee === 'function') selectVtEmployee(employeeId);
-    }, 350);
-}
+// Walter-Vorgabe 12.07.2026: die alte Verträge-Seite ist verwaist (Verträge
+// kommen aus easy@work und stehen im MA-Detail unter Persönliche Angaben →
+// Block «Verträge»). Sprung daher in die MA-Maske statt auf page-vertraege.
+function dashOpenEmployeeVertrag(employeeId) { dashOpenEmployee(employeeId, 'personal'); }
 
 function dashOpenLohnlauf() { showPage('lohnlauf'); }
 

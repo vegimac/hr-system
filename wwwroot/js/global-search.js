@@ -236,8 +236,11 @@ function gsActivate(i) {
         return;
     }
     if (r.kind === 'vt') {
+        // Walter-Vorgabe 12.07.2026: alte Verträge-Seite ist verwaist —
+        // Verträge stehen im MA-Detail (Persönliche Angaben → «Verträge»).
         window.activeEmpId = p.employeeId;
-        showPage('vertraege');
+        window._empRevealEmpId = p.employeeId;
+        showPage('mitarbeiter');
         return;
     }
     if (r.kind === 'doc') {

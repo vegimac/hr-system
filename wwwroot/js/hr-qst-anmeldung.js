@@ -217,19 +217,16 @@ function qstaJumpToFix(empId, section) {
         if (typeof showPage === 'function') showPage('filialen');
         return;
     }
-    // Mitarbeiter-Detail mit passendem Sub-Tab öffnen
+    // Mitarbeiter-Detail mit passendem Sub-Tab öffnen.
+    // Walter-Vorgabe 12.07.2026: die alte Verträge-Seite ist verwaist —
+    // Verträge stehen im MA-Detail unter Persönliche Angaben («Verträge»-Block).
     const tabBySection = {
         'personalien':   'personal',
         'familie':       'familie',
         'quellensteuer': 'quellensteuer',
-        'vertraege':     'vertraege'
+        'vertraege':     'personal'
     };
     const tab = tabBySection[section] || 'personal';
-    if (section === 'vertraege') {
-        // Verträge sind eine eigene Page, nicht ein MA-Sub-Tab
-        if (typeof showPage === 'function') showPage('vertraege');
-        return;
-    }
     if (typeof showPage === 'function') showPage('mitarbeiter');
     // Kurz warten bis die MA-Liste gerendert ist, dann selektieren + Tab umschalten
     setTimeout(() => {
