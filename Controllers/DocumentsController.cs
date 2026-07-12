@@ -545,7 +545,10 @@ public class DocumentsController : ControllerBase
                     return StatusCode(501, new { error = "OCR_NOT_INSTALLED", message = "poppler-utils fehlt (pdftoppm) — sudo apt install -y poppler-utils" });
                 // ALLE Seiten (Rückseite mit MRZ/Ausstellungsdatum kann Seite 3+
                 // sein — Walter-Scan 12.07.2026 hatte sie auf Seite 3); Cap bei 5.
-                await RunProcessAsync(ppm, $"-png -r 400 -f 1 -l 5 \"{fullPath}\" \"{Path.Combine(tmpDir, "page")}\"", timeoutMs: 60000);
+                // 200 dpi als Basis (Walter 12.07.2026, Performance): reicht fürs
+                // Lokalisieren der Bänder + Label-Fallbacks; die präzise Lesung
+                // passiert ohnehin in den hochauflösenden Band-Crops.
+                await RunProcessAsync(ppm, $"-png -r 200 -f 1 -l 5 \"{fullPath}\" \"{Path.Combine(tmpDir, "page")}\"", timeoutMs: 60000);
                 imgPath = Directory.GetFiles(tmpDir, "page*.png").OrderBy(x => x).FirstOrDefault()
                           ?? throw new InvalidOperationException("PDF-Seite konnte nicht gerendert werden.");
             }
@@ -553,26 +556,43 @@ public class DocumentsController : ControllerBase
                 ? Directory.GetFiles(tmpDir, "page*.png").OrderBy(x => x).ToArray()
                 : new[] { imgPath };
 
-            // Mehrere OCR-Durchgänge (psm 6 = Block, psm 11 = sparse) und die
-            // Texte zusammenführen — Karten-Layouts liefern je nach Scan mal im
-            // einen, mal im anderen Modus das bessere Resultat (Walter 12.07.2026).
-            async Task<string?> OcrPass(string img, string psm, bool tryDeu)
+            // Performance-Umbau (Walter 12.07.2026, «40 Sekunden»): pro Seite
+            // genau EIN tesseract-Lauf (psm 6, tsv) — daraus entstehen BEIDES:
+            // der Volltext (Wörter je Zeile zusammensetzen) UND die Band-
+            // Koordinaten für die MRZ-Crops. Alle Seiten laufen PARALLEL.
+            async Task<(string text, int top, int bottom)> TsvPass(string img, int pageNo)
             {
-                var ob = Path.Combine(tmpDir, "out_" + Path.GetFileNameWithoutExtension(img) + "_" + psm + (tryDeu ? "d" : "e"));
-                var (c, _, _) = tryDeu
-                    ? await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" -l deu+eng --psm {psm}")
-                    : await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" --psm {psm}");
-                if (c != 0) return null;
-                try { return await System.IO.File.ReadAllTextAsync(ob + ".txt"); } catch { return null; }
+                var ob = Path.Combine(tmpDir, $"tsv{pageNo}");
+                var (c, _, _) = await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" -l deu --psm 6 tsv", timeoutMs: 40000);
+                if (c != 0)
+                    (c, _, _) = await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" --psm 6 tsv", timeoutMs: 40000);
+                if (c != 0 || !System.IO.File.Exists(ob + ".tsv")) return ("", int.MaxValue, 0);
+
+                var sb = new System.Text.StringBuilder();
+                string lastKey = "";
+                int top = int.MaxValue, bottom = 0;
+                foreach (var line in await System.IO.File.ReadAllLinesAsync(ob + ".tsv"))
+                {
+                    var cols = line.Split('\t');
+                    if (cols.Length < 12) continue;
+                    var word = cols[11].Trim();
+                    if (word.Length == 0 || cols[0] == "level") continue;
+                    var key = cols[1] + "/" + cols[2] + "/" + cols[3] + "/" + cols[4]; // page/block/par/line
+                    if (key != lastKey) { if (sb.Length > 0) sb.Append('\n'); lastKey = key; }
+                    else sb.Append(' ');
+                    sb.Append(word);
+                    // MRZ-Kandidat: lange A-Z/0-9/<-Kette → Band-Koordinaten merken.
+                    if (word.Length >= 15 && Regex.IsMatch(word, @"^[A-Z0-9<]{15,}$")
+                        && int.TryParse(cols[7], out var y) && int.TryParse(cols[9], out var hh))
+                    {
+                        top = Math.Min(top, y);
+                        bottom = Math.Max(bottom, y + hh);
+                    }
+                }
+                return (sb.ToString(), top, bottom);
             }
-            // Performance (Walter 12.07.2026): pro Seite nur EIN Volltext-Pass
-            // (psm 6) — Typ/Labels kommen zuverlässig aus den Band-Crops unten.
-            var texts = new List<string>();
-            foreach (var img in imgPaths)
-            {
-                var tx = await OcrPass(img, "6", tryDeu: true) ?? await OcrPass(img, "6", tryDeu: false);
-                if (!string.IsNullOrWhiteSpace(tx)) texts.Add(tx);
-            }
+            var pageResults = await Task.WhenAll(imgPaths.Select((img, i) => TsvPass(img, i + 1)));
+            var texts = pageResults.Select(p => p.text).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
             if (texts.Count == 0)
                 return StatusCode(500, new { error = "OCR_FAILED", message = "tesseract lieferte keinen Text (Sprachpaket deu installiert? Scan lesbar?)." });
             var text = string.Join("\n----\n", texts);
@@ -587,29 +607,11 @@ public class DocumentsController : ControllerBase
             {
                 if ((ext == ".pdf" || doc.MimeType == "application/pdf") && FindBinary("pdftoppm") is string ppm2)
                 {
-                    // 1) Text-Bänder (MRZ/Labels) pro Seite EINMAL per TSV lokalisieren.
-                    var bands = new List<(int pageNo, int top, int bottom)>();
-                    for (var pageNo = 1; pageNo <= imgPaths.Length; pageNo++)
-                    {
-                        var tsvBase = Path.Combine(tmpDir, $"tsv{pageNo}");
-                        await RunProcessAsync(tesseract, $"\"{imgPaths[pageNo - 1]}\" \"{tsvBase}\" --psm 6 tsv");
-                        var tsvPath = tsvBase + ".tsv";
-                        if (!System.IO.File.Exists(tsvPath)) continue;
-                        int top = int.MaxValue, bottom = 0;
-                        foreach (var line in await System.IO.File.ReadAllLinesAsync(tsvPath))
-                        {
-                            var cols = line.Split('\t');
-                            if (cols.Length < 12) continue;
-                            var word = cols[11].Trim();
-                            // MRZ-Kandidat: lange A-Z/0-9/<-Kette (OCR liest < oft
-                            // als Buchstaben — daher genügt Länge + Ziffern-Anteil).
-                            if (word.Length < 15 || !Regex.IsMatch(word, @"^[A-Z0-9<]{15,}$")) continue;
-                            if (!int.TryParse(cols[7], out var y) || !int.TryParse(cols[9], out var hh)) continue;
-                            top = Math.Min(top, y);
-                            bottom = Math.Max(bottom, y + hh);
-                        }
-                        if (top != int.MaxValue) bands.Add((pageNo, top, bottom));
-                    }
+                    // 1) Band-Koordinaten kommen bereits aus dem TSV-Lauf oben.
+                    var bands = pageResults
+                        .Select((p, i) => (pageNo: i + 1, p.top, p.bottom))
+                        .Where(b => b.top != int.MaxValue)
+                        .ToList();
 
                     // 2) Auflösungs-Kaskade mit FRÜH-ABBRUCH (Walter 12.07.2026,
                     //    Performance): sobald ein Ablaufdatum die ICAO-Prüfziffer
@@ -618,8 +620,8 @@ public class DocumentsController : ControllerBase
                     {
                         foreach (var (pageNo, top, bottom) in bands)
                         {
-                            var y0 = Math.Max(0, (top * res / 400) - (res * 3 / 20));
-                            var hBand = (bottom - top) * res / 400 + res * 33 / 100;
+                            var y0 = Math.Max(0, (top * res / 200) - (res * 3 / 20));
+                            var hBand = (bottom - top) * res / 200 + res * 33 / 100;
                             var cropBase = Path.Combine(tmpDir, $"mrz{pageNo}_{res}");
                             await RunProcessAsync(ppm2,
                                 $"-png -r {res} -f {pageNo} -l {pageNo} -y {y0} -H {hBand} -gray \"{fullPath}\" \"{cropBase}\"");
