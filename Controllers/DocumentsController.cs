@@ -456,6 +456,34 @@ public class DocumentsController : ControllerBase
     // Fehlt tesseract → 501 mit Klartext-Hinweis (Feature degradiert sauber).
     // ──────────────────────────────────────────────────────────────────
 
+    /// <summary>ICAO-9303-Prüfziffer (Gewichte 7-3-1) für MRZ-Felder.</summary>
+    private static int IcaoCheck(string s)
+    {
+        int[] w = { 7, 3, 1 }; var sum = 0;
+        for (var i = 0; i < s.Length; i++)
+        {
+            var c = s[i];
+            var v = char.IsDigit(c) ? c - '0' : c == '<' ? 0 : c - 'A' + 10;
+            sum += v * w[i % 3];
+        }
+        return sum % 10;
+    }
+
+    /// <summary>Ablaufdatum aus MRZ-Text: [Geschlecht](JJMMTT)(Prüfziffer) — nur
+    /// mit korrekter Prüfziffer. NULL wenn kein valider Treffer.</summary>
+    private static DateOnly? ParseMrzExpiry(string mrz)
+    {
+        foreach (Match m in Regex.Matches(mrz, @"[MF<](\d{6})(\d)"))
+        {
+            var e6 = m.Groups[1].Value;
+            if (IcaoCheck(e6) != m.Groups[2].Value[0] - '0') continue;
+            if (!int.TryParse(e6[..2], out var ey) || !int.TryParse(e6[2..4], out var em)
+                || !int.TryParse(e6[4..], out var ed) || em is < 1 or > 12 || ed is < 1 or > 31) continue;
+            try { return new DateOnly(2000 + ey, em, ed); } catch { }
+        }
+        return null;
+    }
+
     private static string? FindBinary(string name)
     {
         foreach (var p in new[] { $"/usr/bin/{name}", $"/usr/local/bin/{name}", $"/opt/homebrew/bin/{name}" })
@@ -525,13 +553,14 @@ public class DocumentsController : ControllerBase
                 if (c != 0) return null;
                 try { return await System.IO.File.ReadAllTextAsync(ob + ".txt"); } catch { return null; }
             }
+            // Performance (Walter 12.07.2026): pro Seite nur EIN Volltext-Pass
+            // (psm 6) — Typ/Labels kommen zuverlässig aus den Band-Crops unten.
             var texts = new List<string>();
             foreach (var img in imgPaths)
-                foreach (var psm in new[] { "6", "11", "3" })
-                {
-                    var tx = await OcrPass(img, psm, tryDeu: true) ?? await OcrPass(img, psm, tryDeu: false);
-                    if (!string.IsNullOrWhiteSpace(tx)) texts.Add(tx);
-                }
+            {
+                var tx = await OcrPass(img, "6", tryDeu: true) ?? await OcrPass(img, "6", tryDeu: false);
+                if (!string.IsNullOrWhiteSpace(tx)) texts.Add(tx);
+            }
             if (texts.Count == 0)
                 return StatusCode(500, new { error = "OCR_FAILED", message = "tesseract lieferte keinen Text (Sprachpaket deu installiert? Scan lesbar?)." });
             var text = string.Join("\n----\n", texts);
@@ -546,6 +575,8 @@ public class DocumentsController : ControllerBase
             {
                 if ((ext == ".pdf" || doc.MimeType == "application/pdf") && FindBinary("pdftoppm") is string ppm2)
                 {
+                    // 1) Text-Bänder (MRZ/Labels) pro Seite EINMAL per TSV lokalisieren.
+                    var bands = new List<(int pageNo, int top, int bottom)>();
                     for (var pageNo = 1; pageNo <= imgPaths.Length; pageNo++)
                     {
                         var tsvBase = Path.Combine(tmpDir, $"tsv{pageNo}");
@@ -565,12 +596,15 @@ public class DocumentsController : ControllerBase
                             top = Math.Min(top, y);
                             bottom = Math.Max(bottom, y + hh);
                         }
-                        if (top == int.MaxValue) continue;
+                        if (top != int.MaxValue) bands.Add((pageNo, top, bottom));
+                    }
 
-                        // Band in MEHREREN Auflösungen neu rendern — OCR-Fehler sind
-                        // auflösungsabhängig; die Prüfziffern-Validierung unten wählt
-                        // den korrekten Lauf (Walter 12.07.2026).
-                        foreach (var res in new[] { 1000, 600, 800 })
+                    // 2) Auflösungs-Kaskade mit FRÜH-ABBRUCH (Walter 12.07.2026,
+                    //    Performance): sobald ein Ablaufdatum die ICAO-Prüfziffer
+                    //    besteht, keine weiteren Renderings mehr.
+                    foreach (var res in new[] { 1000, 600, 800 })
+                    {
+                        foreach (var (pageNo, top, bottom) in bands)
                         {
                             var y0 = Math.Max(0, (top * res / 400) - (res * 3 / 20));
                             var hBand = (bottom - top) * res / 400 + res * 33 / 100;
@@ -585,6 +619,7 @@ public class DocumentsController : ControllerBase
                             if (System.IO.File.Exists(mrzBase + ".txt"))
                                 mrzText += await System.IO.File.ReadAllTextAsync(mrzBase + ".txt") + "\n";
                         }
+                        if (ParseMrzExpiry(mrzText) != null) break;   // Prüfziffer ok → fertig
                     }
                 }
             }
@@ -643,7 +678,9 @@ public class DocumentsController : ControllerBase
             // ── Ausstellungsdatum (Rückseite: «Ausstellungsdatum» / «Ausgestellt am»
             //    / franz. «Date de délivrance») → Vorschlag für «Gültig ab». ──
             DateOnly? issued = null;
-            var im = Regex.Match(text, @"(AUSSTELLUNG\w*|AUSGESTELLT\s*AM|D.{0,2}LIVRANCE)\D{0,90}?(\d{2})[\s./-]?(\d{2})[\s./-]?(\d{4})",
+            // Auch im MRZ-Band suchen — dort liest das Label oft am saubersten
+            // («AUSSTELLUNGSDATUMORTBEHORDE 24062026», Walter 12.07.2026).
+            var im = Regex.Match(mrzText + "\n" + text, @"(AUSSTELLUNG\w*|AUSGESTELLT\s*AM|D.{0,2}LIVRANCE)\D{0,90}?(\d{2})[\s./-]?(\d{2})[\s./-]?(\d{4})",
                 RegexOptions.IgnoreCase | RegexOptions.Singleline);
             if (im.Success
                 && int.TryParse(im.Groups[2].Value, out var d2)
@@ -660,28 +697,9 @@ public class DocumentsController : ControllerBase
             string? zemisNr = null;
             if (mrzText.Length > 0)
             {
-                // ICAO-Prüfziffer (Gewichte 7-3-1): filtert fehlerhafte OCR-Läufe aus.
-                static int IcaoCheck(string s)
-                {
-                    int[] w = { 7, 3, 1 }; var sum = 0;
-                    for (var i = 0; i < s.Length; i++)
-                    {
-                        var c = s[i];
-                        var v = char.IsDigit(c) ? c - '0' : c == '<' ? 0 : c - 'A' + 10;
-                        sum += v * w[i % 3];
-                    }
-                    return sum % 10;
-                }
-                // Ablaufdatum: [Geschlecht](6-stelliges Datum)(Prüfziffer) — nur
-                // übernehmen, wenn die Prüfziffer stimmt (Vorrang vor Label-Lesung).
-                foreach (Match mrzM in Regex.Matches(mrzText, @"[MF<](\d{6})(\d)"))
-                {
-                    var e6 = mrzM.Groups[1].Value;
-                    if (IcaoCheck(e6) != mrzM.Groups[2].Value[0] - '0') continue;
-                    if (!int.TryParse(e6[..2], out var ey) || !int.TryParse(e6[2..4], out var em)
-                        || !int.TryParse(e6[4..], out var ed) || em is < 1 or > 12 || ed is < 1 or > 31) continue;
-                    try { validUntil = new DateOnly(2000 + ey, em, ed); break; } catch { }
-                }
+                // Ablaufdatum aus der MRZ (prüfziffern-validiert) hat VORRANG.
+                var mrzExp = ParseMrzExpiry(mrzText);
+                if (mrzExp.HasValue) validUntil = mrzExp;
                 foreach (var line in mrzText.Split('\n'))
                 {
                     // Zeile 1: beginnt mit Dok-Code+CHE; ZEMIS = letzte 9 Ziffern
