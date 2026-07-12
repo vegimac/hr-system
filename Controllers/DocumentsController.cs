@@ -511,6 +511,10 @@ public class DocumentsController : ControllerBase
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        // tesseract startet sonst pro Prozess ~4 OpenMP-Threads — bei parallelen
+        // Seiten auf einem kleinen VPS führt das zu Thrash statt Tempo
+        // (Walter-Bug 12.07.2026: «dauert länger + HTTP 500»).
+        psi.EnvironmentVariables["OMP_THREAD_LIMIT"] = "1";
         using var proc = System.Diagnostics.Process.Start(psi)!;
         var so = proc.StandardOutput.ReadToEndAsync();
         var se = proc.StandardError.ReadToEndAsync();
@@ -560,12 +564,21 @@ public class DocumentsController : ControllerBase
             // genau EIN tesseract-Lauf (psm 6, tsv) — daraus entstehen BEIDES:
             // der Volltext (Wörter je Zeile zusammensetzen) UND die Band-
             // Koordinaten für die MRZ-Crops. Alle Seiten laufen PARALLEL.
+            var ocrSem = new SemaphoreSlim(Math.Clamp(Environment.ProcessorCount - 1, 1, 4));
             async Task<(string text, int top, int bottom)> TsvPass(string img, int pageNo)
             {
+                await ocrSem.WaitAsync();
+                try
+                {
                 var ob = Path.Combine(tmpDir, $"tsv{pageNo}");
-                var (c, _, _) = await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" -l deu --psm 6 tsv", timeoutMs: 40000);
+                int c;
+                try { (c, _, _) = await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" -l deu --psm 6 tsv", timeoutMs: 40000); }
+                catch (TimeoutException) { return ("", int.MaxValue, 0); }
                 if (c != 0)
-                    (c, _, _) = await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" --psm 6 tsv", timeoutMs: 40000);
+                {
+                    try { (c, _, _) = await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" --psm 6 tsv", timeoutMs: 40000); }
+                    catch (TimeoutException) { return ("", int.MaxValue, 0); }
+                }
                 if (c != 0 || !System.IO.File.Exists(ob + ".tsv")) return ("", int.MaxValue, 0);
 
                 var sb = new System.Text.StringBuilder();
@@ -590,6 +603,8 @@ public class DocumentsController : ControllerBase
                     }
                 }
                 return (sb.ToString(), top, bottom);
+                }
+                finally { ocrSem.Release(); }
             }
             var pageResults = await Task.WhenAll(imgPaths.Select((img, i) => TsvPass(img, i + 1)));
             var texts = pageResults.Select(p => p.text).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
