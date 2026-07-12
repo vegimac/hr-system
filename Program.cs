@@ -1711,7 +1711,24 @@ using (var scope = app.Services.CreateScope())
         -- Walter 10.06.2026: Altlast aus erster Version droppen (Arztzeugnisse
         -- werden über den Absenzen-Tab als KRANK erfasst, nicht doppelt hier).
         ALTER TABLE employee_pregnancy DROP COLUMN IF EXISTS arztzeugnis_vorhanden;
+        -- ISO alpha-3 (Ausweis-Kürzel BGR/MKD/…, Walter 12.07.2026) — Seed
+        -- unten in C# aus der statischen Tabelle CountryIso3 (nur wo leer).
+        ALTER TABLE nationality ADD COLUMN IF NOT EXISTS code3 text;
     ");
+
+    // ISO alpha-3 nachrüsten (Walter 12.07.2026): Ausweise drucken den
+    // Dreibuchstaben-Code — idempotent nur füllen, wo code3 noch leer ist
+    // (manuelle Korrekturen in der DB bleiben stehen, z.B. Kosovo).
+    {
+        var natsOhneCode3 = db.Nationalities
+            .Where(n => n.Code3 == null || n.Code3 == "")
+            .ToList();
+        var natChanged = 0;
+        foreach (var n in natsOhneCode3)
+            if (HrSystem.Services.CountryIso3.ByAlpha2.TryGetValue((n.Code ?? "").ToUpperInvariant(), out var c3))
+            { n.Code3 = c3; natChanged++; }
+        if (natChanged > 0) db.SaveChanges();
+    }
 
     // Seed: gesetzliche Default-Regeln. ON CONFLICT (code) DO NOTHING — Walter
     // kann die Regeln per UI anpassen, ohne dass der Seed sie zurücksetzt.

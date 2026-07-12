@@ -13,6 +13,14 @@ public class Nationality
     /// </summary>
     public string? Code2 { get; set; }
     /// <summary>
+    /// Walter-Vorgabe 12.07.2026: ISO-3166 alpha-3 (BGR, MKD, ESP ...) - die
+    /// Auslaenderausweise drucken den DREIbuchstaben-Code, das System fuehrt
+    /// alpha-2. Wird beim Server-Start idempotent aus der statischen Tabelle
+    /// CountryIso3 gefuellt (nur wo leer) und in den Nationalitaets-Dropdowns
+    /// mit angezeigt, damit man direkt ab Ausweis erfassen kann.
+    /// </summary>
+    public string? Code3 { get; set; }
+    /// <summary>
     /// Walter-Vorgabe 13.06.2026: deutscher Klartext-Name aus der DB.
     /// Vorher griff der NationalitiesController nur auf die statische
     /// Fallback-Tabelle `CountryNamesDe` zu — Änderungen an `name_de`

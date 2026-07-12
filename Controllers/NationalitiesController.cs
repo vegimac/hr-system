@@ -32,9 +32,10 @@ public class NationalitiesController : ControllerBase
         var result = nationalities
             .Select(n => new
             {
-                id   = n.Id,
-                code = n.Code,
-                name = string.IsNullOrWhiteSpace(n.NameDe) ? n.Code : n.NameDe
+                id    = n.Id,
+                code  = n.Code,
+                code3 = n.Code3,   // Ausweis-Kuerzel BGR/MKD/... (Walter 12.07.2026)
+                name  = string.IsNullOrWhiteSpace(n.NameDe) ? n.Code : n.NameDe
             })
             .OrderBy(x => x.name, StringComparer.Create(new System.Globalization.CultureInfo("de-CH"), ignoreCase: true))
             .ToList();

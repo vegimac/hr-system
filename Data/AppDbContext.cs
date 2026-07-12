@@ -646,6 +646,8 @@ public class AppDbContext : DbContext
             // Walter-Vorgabe 07.06.2026: optionaler Alternativ-Code (z.B. XZ
             // für Kosovo aus Mirus). Wird beim Import zusätzlich gematcht.
             entity.Property(e => e.Code2).HasColumnName("code2");
+            // ISO alpha-3 (Ausweis-Kürzel BGR/MKD/…, Walter 12.07.2026).
+            entity.Property(e => e.Code3).HasColumnName("code3");
             // Walter-Vorgabe 13.06.2026: deutscher Klartextname direkt aus
             // der DB — ersetzt die statische CountryNamesDe-Fallback-Tabelle.
             entity.Property(e => e.NameDe).HasColumnName("name_de");

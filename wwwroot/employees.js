@@ -883,7 +883,7 @@ function renderEmployeeDetail(emp) {
                 ${field(_t('ma.field.nationality','Nationalität'),
                     emp.nationalityName
                         ? (emp.nationalityCode && emp.nationalityCode !== emp.nationalityName
-                            ? `${emp.nationalityName} <span style="color:#94a3b8;font-weight:400;font-size:11.5px">(${emp.nationalityCode})</span>`
+                            ? `${emp.nationalityName} <span style="color:#94a3b8;font-weight:400;font-size:11.5px">(${emp.nationalityCode}${emp.nationalityCode3 ? ' / ' + emp.nationalityCode3 : ''})</span>`
                             : emp.nationalityName)
                         : (emp.nationalityCode ?? emp.nationality ?? null),
                     'passport', true)}
@@ -3930,7 +3930,9 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             const code  = n.code ?? n.Code ?? '';
             const name  = n.name ?? n.Name ?? code;
             const sel   = (emp.nationalityId == id) ? 'selected' : '';
-            return `<option value="${id}" ${sel}>${name}${code && code !== name ? ' (' + code + ')' : ''}</option>`;
+            // Ausweis-Kürzel (alpha-3) mit anzeigen (Walter 12.07.2026).
+            const codes = code ? (n.code3 ? `${code} / ${n.code3}` : code) : '';
+            return `<option value="${id}" ${sel}>${name}${codes && code !== name ? ' (' + codes + ')' : ''}</option>`;
         }).join('');
     const isMtp = emp.employmentModel === 'MTP';
     const isFix = emp.employmentModel === 'FIX' || emp.employmentModel === 'FIX-M';
@@ -4685,7 +4687,10 @@ async function fmFillPermitAndNationalitySelects(currentPermitTypeId, currentNat
                         const code  = n.code ?? n.Code ?? '';
                         const name  = n.name ?? n.Name ?? code;
                         const sel   = (currentNationalityId == id) ? 'selected' : '';
-                        return `<option value="${id}" ${sel}>${name}${code && code !== name ? ' (' + code + ')' : ''}</option>`;
+                        // Ausweis-Kürzel (alpha-3) mit anzeigen (Walter 12.07.2026):
+                        // die Ausweise drucken BGR/MKD/… — so kann man direkt abtippen.
+                        const codes = code ? (n.code3 ? `${code} / ${n.code3}` : code) : '';
+                        return `<option value="${id}" ${sel}>${name}${codes && code !== name ? ' (' + codes + ')' : ''}</option>`;
                     }).join('');
         } catch { /* ignore */ }
     }

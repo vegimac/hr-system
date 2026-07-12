@@ -255,6 +255,7 @@ public class EmployeesController : ControllerBase
             employee.Nationality,
             employee.NationalityId,
             nationalityCode = natCode,
+            nationalityCode3 = employee.NationalityRef?.Code3,  // Ausweis-Kürzel BGR/MKD/… (Walter 12.07.2026)
             nationalityName = natName,  // Klartext aus AppText (z.B. "Bosnien und Herzegowina")
             employee.PhoneMobile,
             employee.Phone2,
