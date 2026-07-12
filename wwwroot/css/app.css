@@ -4770,6 +4770,7 @@
         #todosPrintArea .tp-tbl { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
         #todosPrintArea .tp-tbl td { padding: 5px 8px 5px 0; vertical-align: top; border-bottom: 1px solid #eee; font-size: 12px; }
         #todosPrintArea .tp-t { font-weight: 700; color: #111; width: 42%; }
+        #todosPrintArea .tp-t.tp-crit { color: #b91c1c; }
         #todosPrintArea .tp-s { color: #444; }
         #todosPrintArea .tp-empty { color: #999; font-style: italic; }
 
@@ -4845,6 +4846,10 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         body.theme-dark #page-todos .td-title { color:#efe9dc; }
+        /* Kritische Punkte in ROTER Schrift (Walter-Vorgabe 12.07.2026):
+           abgelaufene Bewilligung/Nachtzeugnis, Mindestlohn unterschritten … */
+        #page-todos .td-title.td-crit { color: #b91c1c; font-weight: 700; }
+        body.theme-dark #page-todos .td-title.td-crit { color: #f87171; }
         #page-todos .td-sub { display: block; font-size: 12px; color: #8a8072; margin-top: 2px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #page-todos .td-arrow svg { width: 22px; height: 22px; display: block; }
@@ -4922,6 +4927,14 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        /* Kritische Punkte in ROTER Schrift (Walter-Vorgabe 12.07.2026). */
+        .liquid-dashboard .liquid-todo-row .liquid-todo-title.liquid-todo-crit {
+            color: #b91c1c;
+            font-weight: 700;
+        }
+        body.theme-dark .liquid-dashboard .liquid-todo-row .liquid-todo-title.liquid-todo-crit {
+            color: #f87171;
         }
         .liquid-dashboard .liquid-todo-row .liquid-todo-sub {
             font-size: 10.5px;
