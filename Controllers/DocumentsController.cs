@@ -565,7 +565,7 @@ public class DocumentsController : ControllerBase
             // der Volltext (Wörter je Zeile zusammensetzen) UND die Band-
             // Koordinaten für die MRZ-Crops. Alle Seiten laufen PARALLEL.
             var ocrSem = new SemaphoreSlim(Math.Clamp(Environment.ProcessorCount - 1, 1, 4));
-            async Task<(string text, int top, int bottom)> TsvPass(string img, int pageNo)
+            async Task<(string text, int top, int bottom, int hdrTop, int hdrBottom)> TsvPass(string img, int pageNo)
             {
                 await ocrSem.WaitAsync();
                 try
@@ -573,17 +573,17 @@ public class DocumentsController : ControllerBase
                 var ob = Path.Combine(tmpDir, $"tsv{pageNo}");
                 int c;
                 try { (c, _, _) = await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" -l deu --psm 6 tsv", timeoutMs: 40000); }
-                catch (TimeoutException) { return ("", int.MaxValue, 0); }
+                catch (TimeoutException) { return ("", int.MaxValue, 0, int.MaxValue, 0); }
                 if (c != 0)
                 {
                     try { (c, _, _) = await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" --psm 6 tsv", timeoutMs: 40000); }
-                    catch (TimeoutException) { return ("", int.MaxValue, 0); }
+                    catch (TimeoutException) { return ("", int.MaxValue, 0, int.MaxValue, 0); }
                 }
-                if (c != 0 || !System.IO.File.Exists(ob + ".tsv")) return ("", int.MaxValue, 0);
+                if (c != 0 || !System.IO.File.Exists(ob + ".tsv")) return ("", int.MaxValue, 0, int.MaxValue, 0);
 
                 var sb = new System.Text.StringBuilder();
                 string lastKey = "";
-                int top = int.MaxValue, bottom = 0;
+                int top = int.MaxValue, bottom = 0, hdrTop = int.MaxValue, hdrBottom = 0;
                 foreach (var line in await System.IO.File.ReadAllLinesAsync(ob + ".tsv"))
                 {
                     var cols = line.Split('\t');
@@ -594,15 +594,26 @@ public class DocumentsController : ControllerBase
                     if (key != lastKey) { if (sb.Length > 0) sb.Append('\n'); lastKey = key; }
                     else sb.Append(' ');
                     sb.Append(word);
-                    // MRZ-Kandidat: lange A-Z/0-9/<-Kette → Band-Koordinaten merken.
+                    // MRZ-Kandidat: lange Kette MIT Ziffern oder «<» — reine
+                    // Buchstaben-Wörter (GESCHLECHTNATIONALITAT …) zählen NICHT,
+                    // sonst wird die halbe Karte zum Band (Walter-Bug 12.07.2026).
                     if (word.Length >= 15 && Regex.IsMatch(word, @"^[A-Z0-9<]{15,}$")
+                        && (word.Contains('<') || word.Any(char.IsDigit))
                         && int.TryParse(cols[7], out var y) && int.TryParse(cols[9], out var hh))
                     {
                         top = Math.Min(top, y);
                         bottom = Math.Max(bottom, y + hh);
                     }
+                    // Kopf-Band für den TYP: enge Zone um «AUFENTHALTSTITEL»
+                    // (dort steht links davor «CHE L»).
+                    if (word.Contains("ENTHALTSTITE", StringComparison.Ordinal)
+                        && int.TryParse(cols[7], out var hy) && int.TryParse(cols[9], out var hhh))
+                    {
+                        hdrTop = Math.Min(hdrTop, hy);
+                        hdrBottom = Math.Max(hdrBottom, hy + hhh);
+                    }
                 }
-                return (sb.ToString(), top, bottom);
+                return (sb.ToString(), top, bottom, hdrTop, hdrBottom);
                 }
                 finally { ocrSem.Release(); }
             }
@@ -622,10 +633,15 @@ public class DocumentsController : ControllerBase
             {
                 if ((ext == ".pdf" || doc.MimeType == "application/pdf") && FindBinary("pdftoppm") is string ppm2)
                 {
-                    // 1) Band-Koordinaten kommen bereits aus dem TSV-Lauf oben.
+                    // 1) Band-Koordinaten kommen bereits aus dem TSV-Lauf oben —
+                    //    getrennt: MRZ-Bänder (mit 1-Zoll-Label-Zone darüber) und
+                    //    enge Kopf-Bänder für den Typ («CHE L AUFENTHALTSTITEL»).
                     var bands = pageResults
-                        .Select((p, i) => (pageNo: i + 1, p.top, p.bottom))
+                        .Select((p, i) => (pageNo: i + 1, p.top, p.bottom, wide: true))
                         .Where(b => b.top != int.MaxValue)
+                        .Concat(pageResults
+                            .Select((p, i) => (pageNo: i + 1, top: p.hdrTop, bottom: p.hdrBottom, wide: false))
+                            .Where(b => b.top != int.MaxValue))
                         .ToList();
 
                     // 2) Auflösungs-Kaskade mit FRÜH-ABBRUCH (Walter 12.07.2026,
@@ -633,20 +649,20 @@ public class DocumentsController : ControllerBase
                     //    besteht, keine weiteren Renderings mehr.
                     foreach (var res in new[] { 1000, 600, 800 })
                     {
-                        foreach (var (pageNo, top, bottom) in bands)
+                        foreach (var (pageNo, top, bottom, wide) in bands)
                         {
-                            // Zuschnitt grosszügig nach OBEN erweitern (~1 Zoll):
-                            // über der MRZ stehen die Rückseiten-Labels mit dem
-                            // AUSSTELLUNGSDATUM (Walter 12.07.2026 — fiel beim
-                            // 200-dpi-Umbau aus dem Band).
-                            var y0 = Math.Max(0, (top * res / 200) - res);
-                            var hBand = (bottom - top) * res / 200 + res + res / 5;
-                            var cropBase = Path.Combine(tmpDir, $"mrz{pageNo}_{res}");
+                            // MRZ-Band («wide»): ~1 Zoll nach oben — dort stehen die
+                            // Rückseiten-Labels (AUSSTELLUNGSDATUM). Kopf-Band: eng.
+                            var up   = wide ? res : res * 3 / 20;
+                            var down = wide ? res / 5 : res * 3 / 20;
+                            var y0 = Math.Max(0, (top * res / 200) - up);
+                            var hBand = (bottom - top) * res / 200 + up + down;
+                            var cropBase = Path.Combine(tmpDir, $"mrz{pageNo}_{res}_{(wide ? "w" : "h")}");
                             await RunProcessAsync(ppm2,
                                 $"-png -r {res} -f {pageNo} -l {pageNo} -y {y0} -H {hBand} -gray \"{fullPath}\" \"{cropBase}\"");
-                            var cropImg = Directory.GetFiles(tmpDir, $"mrz{pageNo}_{res}*.png").OrderBy(x => x).FirstOrDefault();
+                            var cropImg = Directory.GetFiles(tmpDir, $"mrz{pageNo}_{res}_{(wide ? "w" : "h")}*.png").OrderBy(x => x).FirstOrDefault();
                             if (cropImg == null) continue;
-                            var mrzBase = Path.Combine(tmpDir, $"mrzout{pageNo}_{res}");
+                            var mrzBase = Path.Combine(tmpDir, $"mrzout{pageNo}_{res}_{(wide ? "w" : "h")}");
                             await RunProcessAsync(tesseract,
                                 $"\"{cropImg}\" \"{mrzBase}\" --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<");
                             if (System.IO.File.Exists(mrzBase + ".txt"))
