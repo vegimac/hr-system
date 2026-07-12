@@ -535,6 +535,60 @@ public class DocumentsController : ControllerBase
                 return StatusCode(500, new { error = "OCR_FAILED", message = "tesseract lieferte keinen Text (Sprachpaket deu installiert? Scan lesbar?)." });
             var text = string.Join("\n----\n", texts);
 
+            // ── MRZ (Maschinenlese-Zone, Karten-Rückseite) — zuverlässigste
+            //    Quelle für Ablaufdatum + ZEMIS-Nr (Walter-Vorgabe 12.07.2026).
+            //    Vorgehen: Position der MRZ per TSV-Lauf finden, dann NUR dieses
+            //    Band in doppelter Auflösung neu rendern (pdftoppm -x/-y/-W/-H)
+            //    und mit Zeichen-Whitelist A–Z/0–9/< lesen. ──
+            string mrzText = "";
+            try
+            {
+                if ((ext == ".pdf" || doc.MimeType == "application/pdf") && FindBinary("pdftoppm") is string ppm2)
+                {
+                    for (var pageNo = 1; pageNo <= imgPaths.Length; pageNo++)
+                    {
+                        var tsvBase = Path.Combine(tmpDir, $"tsv{pageNo}");
+                        await RunProcessAsync(tesseract, $"\"{imgPaths[pageNo - 1]}\" \"{tsvBase}\" --psm 6 tsv");
+                        var tsvPath = tsvBase + ".tsv";
+                        if (!System.IO.File.Exists(tsvPath)) continue;
+                        int top = int.MaxValue, bottom = 0;
+                        foreach (var line in await System.IO.File.ReadAllLinesAsync(tsvPath))
+                        {
+                            var cols = line.Split('\t');
+                            if (cols.Length < 12) continue;
+                            var word = cols[11].Trim();
+                            // MRZ-Kandidat: lange A-Z/0-9/<-Kette (OCR liest < oft
+                            // als Buchstaben — daher genügt Länge + Ziffern-Anteil).
+                            if (word.Length < 15 || !Regex.IsMatch(word, @"^[A-Z0-9<]{15,}$")) continue;
+                            if (!int.TryParse(cols[7], out var y) || !int.TryParse(cols[9], out var hh)) continue;
+                            top = Math.Min(top, y);
+                            bottom = Math.Max(bottom, y + hh);
+                        }
+                        if (top == int.MaxValue) continue;
+
+                        // Band in MEHREREN Auflösungen neu rendern — OCR-Fehler sind
+                        // auflösungsabhängig; die Prüfziffern-Validierung unten wählt
+                        // den korrekten Lauf (Walter 12.07.2026).
+                        foreach (var res in new[] { 1000, 600, 800 })
+                        {
+                            var y0 = Math.Max(0, (top * res / 400) - (res * 3 / 20));
+                            var hBand = (bottom - top) * res / 400 + res * 33 / 100;
+                            var cropBase = Path.Combine(tmpDir, $"mrz{pageNo}_{res}");
+                            await RunProcessAsync(ppm2,
+                                $"-png -r {res} -f {pageNo} -l {pageNo} -y {y0} -H {hBand} -gray \"{fullPath}\" \"{cropBase}\"");
+                            var cropImg = Directory.GetFiles(tmpDir, $"mrz{pageNo}_{res}*.png").OrderBy(x => x).FirstOrDefault();
+                            if (cropImg == null) continue;
+                            var mrzBase = Path.Combine(tmpDir, $"mrzout{pageNo}_{res}");
+                            await RunProcessAsync(tesseract,
+                                $"\"{cropImg}\" \"{mrzBase}\" --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<");
+                            if (System.IO.File.Exists(mrzBase + ".txt"))
+                                mrzText += await System.IO.File.ReadAllTextAsync(mrzBase + ".txt") + "\n";
+                        }
+                    }
+                }
+            }
+            catch { /* MRZ ist best-effort — die Label-Erkennung unten bleibt */ }
+
             // ── Bewilligungs-Typ: «CHE L», standalone-Buchstabe oder «Ausweis B» ──
             string? permitCode = null;
             var mChe = Regex.Match(text, @"\bCHE\s+([LBCGNF])\b");
@@ -599,12 +653,58 @@ public class DocumentsController : ControllerBase
                 try { issued = new DateOnly(y2, m2, d2); } catch { }
             }
 
+            // ── MRZ auswerten: Zeile 2 = Geb(6) Prüf(1) Geschlecht(1) Ablauf(6)
+            //    Prüf(1) Nationalität; Zeile 1 endet mit der ZEMIS-Nr (9 Ziffern,
+            //    Format 12345678.9). MRZ hat VORRANG vor der Label-Erkennung. ──
+            string? zemisNr = null;
+            if (mrzText.Length > 0)
+            {
+                // ICAO-Prüfziffer (Gewichte 7-3-1): filtert fehlerhafte OCR-Läufe aus.
+                static int IcaoCheck(string s)
+                {
+                    int[] w = { 7, 3, 1 }; var sum = 0;
+                    for (var i = 0; i < s.Length; i++)
+                    {
+                        var c = s[i];
+                        var v = char.IsDigit(c) ? c - '0' : c == '<' ? 0 : c - 'A' + 10;
+                        sum += v * w[i % 3];
+                    }
+                    return sum % 10;
+                }
+                // Ablaufdatum: [Geschlecht](6-stelliges Datum)(Prüfziffer) — nur
+                // übernehmen, wenn die Prüfziffer stimmt (Vorrang vor Label-Lesung).
+                foreach (Match m2 in Regex.Matches(mrzText, @"[MF<](\d{6})(\d)"))
+                {
+                    var e6 = m2.Groups[1].Value;
+                    if (IcaoCheck(e6) != m2.Groups[2].Value[0] - '0') continue;
+                    if (!int.TryParse(e6[..2], out var ey) || !int.TryParse(e6[2..4], out var em)
+                        || !int.TryParse(e6[4..], out var ed) || em is < 1 or > 12 || ed is < 1 or > 31) continue;
+                    try { validUntil = new DateOnly(2000 + ey, em, ed); break; } catch { }
+                }
+                foreach (var line in mrzText.Split('\n'))
+                {
+                    // Zeile 1: beginnt mit Dok-Code+CHE; ZEMIS = letzte 9 Ziffern
+                    // des Ziffern-Schwanzes (robust gegen OCR-Einschübe).
+                    var clean = line.Trim().Replace("<", "");
+                    if (clean.Length < 15 || !clean.Contains("CHE", StringComparison.Ordinal)) continue;
+                    var digits = new string(clean.Where(char.IsDigit).ToArray());
+                    if (digits.Length >= 9)
+                    {
+                        var z = digits[^9..];
+                        zemisNr = z[..8] + "." + z[8..];
+                        break;
+                    }
+                }
+            }
+
             return Ok(new
             {
                 permitCode,
                 validUntil = validUntil?.ToString("yyyy-MM-dd"),
                 issued = issued?.ToString("yyyy-MM-dd"),
-                excerpt = text.Length > 2500 ? text[..2500] : text,
+                zemisNr,
+                mrzGelesen = mrzText.Length > 0,
+                excerpt = ((mrzText.Length > 0 ? "── MRZ ──\n" + mrzText + "\n" : "") + text) is var full && full.Length > 2500 ? full[..2500] : full,
             });
         }
         finally

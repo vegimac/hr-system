@@ -2824,6 +2824,7 @@ function renderQuellensteuerTab(el, entries, pflicht) {
             <span style="display:inline-flex;align-items:center;gap:8px">
                 Bewilligungen
                 ${permitDocBtn}
+                ${selectedEmployee?.zemisNr ? `<span style="font-size:11px;font-weight:600;color:#6b7280;background:#ece9e2;border-radius:999px;padding:2px 10px;text-transform:none;letter-spacing:0" title="ZEMIS-Nummer (Ausländerregister) — von der Ausweis-Rückseite">ZEMIS ${esc(selectedEmployee.zemisNr)}</span>` : ''}
             </span>
             ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser') ? `
             <button class="btn-emp-add" onclick="openPermitHistoryModal(null)">
@@ -9869,7 +9870,22 @@ async function phfOcrPermit(docId) {
         if (j.validUntil) {
             const inp = document.getElementById('phf-validTo');
             if (inp) inp.value = j.validUntil;
-            parts.push('gültig bis ' + fmtIso(j.validUntil));
+            parts.push('gültig bis ' + fmtIso(j.validUntil) + (j.mrzGelesen ? ' (MRZ ✓)' : ''));
+        }
+        // ZEMIS-Nr (MRZ Zeile 1) direkt am MA speichern — Personen-Stammdatum
+        // (Walter 12.07.2026), unabhängig von der Bewilligungs-Version.
+        if (j.zemisNr && selectedEmployeeId) {
+            try {
+                const zr = await fetch(`/api/employees/${selectedEmployeeId}/zemis-nr`, {
+                    method: 'PATCH',
+                    headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ zemisNr: j.zemisNr })
+                });
+                if (zr.ok) {
+                    parts.push('ZEMIS-Nr ' + j.zemisNr + ' am MA gespeichert');
+                    if (selectedEmployee) selectedEmployee.zemisNr = j.zemisNr;
+                }
+            } catch (_) {}
         }
         // Rohtext IMMER einblendbar (Diagnose, Walter 12.07.2026) — auch bei Teilerfolg.
         const rohtext = j.excerpt

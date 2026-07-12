@@ -154,6 +154,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.KtgTagessatzManuell).HasColumnName("ktg_tagessatz_manuell").HasColumnType("numeric(10,2)");
             entity.Property(e => e.KtgKarenzAbgeschlossen).HasColumnName("ktg_karenz_abgeschlossen").HasDefaultValue(false);
             entity.Property(e => e.SocialSecurityNumber).HasColumnName("social_security_number").HasMaxLength(20);
+            entity.Property(e => e.ZemisNr).HasColumnName("zemis_nr");
             entity.Property(e => e.MaritalStatus).HasColumnName("marital_status").HasMaxLength(40);
             entity.Property(e => e.MaritalStatusSince).HasColumnName("marital_status_since").HasColumnType("date");
             entity.Property(e => e.SeparatedSince).HasColumnName("separated_since").HasColumnType("date");

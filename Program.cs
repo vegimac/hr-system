@@ -1637,6 +1637,8 @@ using (var scope = app.Services.CreateScope())
             updated_at timestamptz NOT NULL DEFAULT now()
         );
         -- eCall-SMS-Konfiguration (F24 Schweiz, REST). Singleton, Id=1 (Walter 07.07.2026)
+        -- ZEMIS-Nr am MA (Ausweis-Rückseite, Walter 12.07.2026)
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS zemis_nr text;
         CREATE TABLE IF NOT EXISTS dvelop_setting (
             id                 integer PRIMARY KEY,
             base_url           text,

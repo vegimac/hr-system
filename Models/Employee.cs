@@ -215,6 +215,10 @@ public class Employee
     /// <summary>AHV-Versichertennummer, Format 756.XXXX.XXXX.XX</summary>
     public string? SocialSecurityNumber { get; set; }
 
+    /// <summary>ZEMIS-Nummer (Ausländerregister, Format 12345678.9) — von der
+    /// Ausweis-Rückseite (MRZ/Feld «ZEMIS NR»), Walter-Vorgabe 12.07.2026.</summary>
+    public string? ZemisNr { get; set; }
+
     /// <summary>
     /// Zivilstand. Mögliche Werte:
     ///   ledig | verheiratet | getrennt | geschieden | verwitwet

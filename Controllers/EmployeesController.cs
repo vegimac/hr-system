@@ -42,6 +42,19 @@ public class EmployeesController : ControllerBase
         return Ok(employees);
     }
 
+    /// <summary>ZEMIS-Nr setzen (Walter 12.07.2026) — von der Ausweis-OCR
+    /// (MRZ-Zeile 1) oder manuell. Format 12345678.9.</summary>
+    [HttpPatch("{id:int}/zemis-nr")]
+    public async Task<IActionResult> SetZemisNr(int id, [FromBody] ZemisDto dto)
+    {
+        var emp = await _context.Employees.FindAsync(id);
+        if (emp == null) return NotFound();
+        emp.ZemisNr = string.IsNullOrWhiteSpace(dto.ZemisNr) ? null : dto.ZemisNr.Trim();
+        await _context.SaveChangesAsync();
+        return Ok(new { ok = true, zemisNr = emp.ZemisNr });
+    }
+    public record ZemisDto(string? ZemisNr);
+
     [HttpGet("lookup")]
     public async Task<IActionResult> GetLookup()
     {
