@@ -503,28 +503,44 @@ public class DocumentsController : ControllerBase
                 var ppm = FindBinary("pdftoppm");
                 if (ppm == null)
                     return StatusCode(501, new { error = "OCR_NOT_INSTALLED", message = "poppler-utils fehlt (pdftoppm) — sudo apt install -y poppler-utils" });
-                await RunProcessAsync(ppm, $"-png -r 300 -f 1 -l 1 \"{fullPath}\" \"{Path.Combine(tmpDir, "page")}\"");
+                await RunProcessAsync(ppm, $"-png -r 400 -f 1 -l 1 \"{fullPath}\" \"{Path.Combine(tmpDir, "page")}\"");
                 imgPath = Directory.GetFiles(tmpDir, "page*.png").OrderBy(x => x).FirstOrDefault()
                           ?? throw new InvalidOperationException("PDF-Seite konnte nicht gerendert werden.");
             }
 
-            var outBase = Path.Combine(tmpDir, "out");
-            // deu+eng: falls das deu-Sprachpaket fehlt, nochmal nur mit eng.
-            var (code, _, err) = await RunProcessAsync(tesseract, $"\"{imgPath}\" \"{outBase}\" -l deu+eng --psm 6");
-            if (code != 0)
-                (code, _, err) = await RunProcessAsync(tesseract, $"\"{imgPath}\" \"{outBase}\" --psm 6");
-            if (code != 0)
-                return StatusCode(500, new { error = "OCR_FAILED", message = err });
-            var text = await System.IO.File.ReadAllTextAsync(outBase + ".txt");
+            // Mehrere OCR-Durchgänge (psm 6 = Block, psm 11 = sparse) und die
+            // Texte zusammenführen — Karten-Layouts liefern je nach Scan mal im
+            // einen, mal im anderen Modus das bessere Resultat (Walter 12.07.2026).
+            async Task<string?> OcrPass(string psm, bool tryDeu)
+            {
+                var ob = Path.Combine(tmpDir, "out_" + psm + (tryDeu ? "d" : "e"));
+                var (c, _, _) = tryDeu
+                    ? await RunProcessAsync(tesseract, $"\"{imgPath}\" \"{ob}\" -l deu+eng --psm {psm}")
+                    : await RunProcessAsync(tesseract, $"\"{imgPath}\" \"{ob}\" --psm {psm}");
+                if (c != 0) return null;
+                try { return await System.IO.File.ReadAllTextAsync(ob + ".txt"); } catch { return null; }
+            }
+            var texts = new List<string>();
+            foreach (var psm in new[] { "6", "11", "3" })
+            {
+                var tx = await OcrPass(psm, tryDeu: true) ?? await OcrPass(psm, tryDeu: false);
+                if (!string.IsNullOrWhiteSpace(tx)) texts.Add(tx);
+            }
+            if (texts.Count == 0)
+                return StatusCode(500, new { error = "OCR_FAILED", message = "tesseract lieferte keinen Text (Sprachpaket deu installiert? Scan lesbar?)." });
+            var text = string.Join("\n----\n", texts);
 
             // ── Bewilligungs-Typ: «CHE L», standalone-Buchstabe oder «Ausweis B» ──
             string? permitCode = null;
             var mChe = Regex.Match(text, @"\bCHE\s+([LBCGNF])\b");
             if (mChe.Success) permitCode = mChe.Groups[1].Value;
             if (permitCode == null)
-                foreach (var line in text.Split('\n').Take(10))
+                foreach (var line in text.Split('\n'))
                 {
-                    var m = Regex.Match(line.Trim(), @"^([LBCGNF])$");
+                    // GESCHLECHT-Zeile ausnehmen — dort steht das standalone «F»
+                    // des Geschlechts (Walter 12.07.2026, Falsch-Positiv-Falle).
+                    if (line.Contains("GESCHLECHT", StringComparison.OrdinalIgnoreCase)) continue;
+                    var m = Regex.Match(line.Trim(), @"^([LBCGN])$");
                     if (m.Success) { permitCode = m.Groups[1].Value; break; }
                 }
             if (permitCode == null)
@@ -568,7 +584,7 @@ public class DocumentsController : ControllerBase
             {
                 permitCode,
                 validUntil = validUntil?.ToString("yyyy-MM-dd"),
-                excerpt = text.Length > 800 ? text[..800] : text,
+                excerpt = text.Length > 1500 ? text[..1500] : text,
             });
         }
         finally

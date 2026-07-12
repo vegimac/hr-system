@@ -9513,7 +9513,10 @@ async function openPermitHistoryModal(entryId) {
         <div id="phf-docpanel" style="display:none;background:#fff;border-radius:14px;flex:1;min-width:380px;max-height:90vh;padding:14px;flex-direction:column;gap:8px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
                 <div id="phf-docname" style="font-size:12.5px;font-weight:700;color:#3f3f3f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
-                <button id="phf-ocrbtn" style="display:none;background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0">🔍 Ausweis lesen</button>
+                <div style="display:flex;gap:6px;flex-shrink:0">
+                    <button id="phf-zoombtn" style="display:none;background:rgba(255,255,255,0.6);border:1px solid #e2ddd3;color:#3f3f3f;border-radius:10px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer" title="Im grossen Vorschaufenster öffnen (mit Drucken/Zoom)">⤢ Vergrössern</button>
+                    <button id="phf-ocrbtn" style="display:none;background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer">🔍 Ausweis lesen</button>
+                </div>
             </div>
             <div id="phf-ocrresult" style="display:none;font-size:12px;padding:7px 10px;border-radius:8px"></div>
             <div id="phf-docview" style="flex:1;min-height:300px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center"></div>
@@ -9816,6 +9819,10 @@ async function phfLoadPermitDoc(empId) {
         const ocrBtn = document.getElementById('phf-ocrbtn');
         ocrBtn.style.display = 'inline-flex';
         ocrBtn.onclick = () => phfOcrPermit(doc.id);
+        const zoomBtn = document.getElementById('phf-zoombtn');
+        zoomBtn.style.display = 'inline-flex';
+        // Grosses Vorschaufenster (previewFileModal) — mit Drucken/Herunterladen.
+        zoomBtn.onclick = () => previewUrlFetch(`/api/documents/preview/${doc.id}`, doc.filenameOriginal || 'ausweis', ah());
 
         // Vorschau als Blob (iframe kann keinen Bearer-Header senden)
         const pr = await fetch(`/api/documents/preview/${doc.id}`, { headers: ah() });
@@ -9864,7 +9871,8 @@ async function phfOcrPermit(docId) {
             res.textContent = '✓ Gelesen: ' + parts.join(' · ') + ' — bitte mit dem Ausweis abgleichen, dann Speichern.';
         } else {
             res.style.cssText += ';background:#fef3c7;border:1px solid #fde68a;color:#92400e;display:block';
-            res.textContent = 'Nichts Verwertbares erkannt — bitte von Hand erfassen.';
+            res.innerHTML = 'Nichts Verwertbares erkannt — bitte von Hand erfassen.'
+                + (j.excerpt ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">Gelesener Rohtext anzeigen</summary><pre style="white-space:pre-wrap;font-size:10.5px;max-height:160px;overflow:auto;margin:4px 0 0">${esc(j.excerpt)}</pre></details>` : '');
         }
     } catch (e) {
         res.style.display = 'block';
