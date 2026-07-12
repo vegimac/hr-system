@@ -503,8 +503,9 @@ public class DocumentsController : ControllerBase
                 var ppm = FindBinary("pdftoppm");
                 if (ppm == null)
                     return StatusCode(501, new { error = "OCR_NOT_INSTALLED", message = "poppler-utils fehlt (pdftoppm) — sudo apt install -y poppler-utils" });
-                // Vorder- UND Rückseite (Ausstellungsdatum steht hinten) — bis 2 Seiten.
-                await RunProcessAsync(ppm, $"-png -r 400 -f 1 -l 2 \"{fullPath}\" \"{Path.Combine(tmpDir, "page")}\"");
+                // ALLE Seiten (Rückseite mit MRZ/Ausstellungsdatum kann Seite 3+
+                // sein — Walter-Scan 12.07.2026 hatte sie auf Seite 3); Cap bei 5.
+                await RunProcessAsync(ppm, $"-png -r 400 -f 1 -l 5 \"{fullPath}\" \"{Path.Combine(tmpDir, "page")}\"", timeoutMs: 60000);
                 imgPath = Directory.GetFiles(tmpDir, "page*.png").OrderBy(x => x).FirstOrDefault()
                           ?? throw new InvalidOperationException("PDF-Seite konnte nicht gerendert werden.");
             }
@@ -695,6 +696,14 @@ public class DocumentsController : ControllerBase
                         break;
                     }
                 }
+            }
+            // ZEMIS-Fallback (Walter 12.07.2026): die Nummer steht auch VORNE auf
+            // der Karte (klein, «12345678.4») und neben «ZEMIS NR» auf der Rück-
+            // seite — standalone 9-Ziffern-Block (mit oder ohne Punkt) im Gesamttext.
+            if (zemisNr == null)
+            {
+                var zm = Regex.Match(mrzText + "\n" + text, @"\b(\d{8})[.]?(\d)\b");
+                if (zm.Success) zemisNr = zm.Groups[1].Value + "." + zm.Groups[2].Value;
             }
 
             return Ok(new
