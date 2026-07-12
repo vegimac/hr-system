@@ -423,8 +423,13 @@ public class QstAnmeldungController : ControllerBase
             // verheiratet. Auf den kantonalen QST-Formularen gibt's "getrennt" nie
             // als eigenständigen Zivilstand — wir bilden's daher als verheiratet
             // + Trennung-Häkchen Ja ab.
+            // Walter-Vorgabe 12.07.2026: das Trennung-Häkchen NUR setzen, wenn der
+            // Zivilstand wirklich «getrennt» ist — sonst GAR KEIN Kreuz (auch nicht
+            // «Nein»; null → alle Kanton-Mapper überspringen das Feld). Vorher
+            // triggerte auch ein verwaistes SeparatedSince fälschlich «Ja»
+            // (z.B. bei ledigen MA).
             Zivilstand      = MapZivilstand(emp.MaritalStatus == "getrennt" ? "verheiratet" : emp.MaritalStatus),
-            GetrenntJaNein  = (emp.MaritalStatus == "getrennt" || emp.SeparatedSince.HasValue) ? Ja : Nein,
+            GetrenntJaNein  = emp.MaritalStatus == "getrennt" ? Ja : null,
             DatumZivilstand = emp.MaritalStatusSince?.ToString("dd.MM.yyyy"),
             Konfession      = MapKonfession(emp.Religion),
 
