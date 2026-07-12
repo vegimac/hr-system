@@ -3862,39 +3862,78 @@ async function getPermitTypes() {
 
 // Nationalitäten-Cache (analog zu PermitTypes). Wird einmalig geladen und
 // für den Nationalitäten-Dropdown im Edit-Formular wiederverwendet.
-// ── Tipp-Suche in Nationalitäts-Selects (Walter 12.07.2026) ─────────────
-// Die native Browser-Suche matcht nur den ANFANG des Options-Texts
-// («Bulgarien…») — die Ausweis-Kürzel (BGR/MKD/…) stehen aber hinten in
-// der Klammer. Eigener Tipp-Puffer (1 s Timeout): matcht Code, Ausweis-
-// Kürzel ODER Namensanfang. Angehängt via focusin-Delegation (Selects
-// werden per innerHTML neu erzeugt, direkte Listener gingen verloren).
-function natAttachTypeahead(sel) {
-    if (!sel || sel._natTypeahead) return;
-    sel._natTypeahead = true;
-    let buf = '', timer = null;
-    sel.addEventListener('keydown', (e) => {
-        if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
-        buf += e.key.toUpperCase();
-        clearTimeout(timer);
-        timer = setTimeout(() => { buf = ''; }, 1000);
-        const q = buf;
-        const hit = Array.from(sel.options).find(o => {
-            const t = (o.textContent || '').toUpperCase();
-            const m = t.match(/\(([^)]*)\)\s*$/);                       // «(BG / BGR)»
-            const codes = m ? m[1].split('/').map(x => x.trim()) : [];
-            return codes.some(c => c.startsWith(q)) || t.startsWith(q);
-        });
-        if (hit) {
-            e.preventDefault();   // native Anfangs-Suche nicht dazwischenfunken lassen
-            sel.value = hit.value;
-            sel.dispatchEvent(new Event('change'));
-        }
+// ── Nationalitäts-Combobox (Walter 12.07.2026, v2) ──────────────────────
+// Die native Select-Aufklappliste fängt alle Tasten selbst ab — «BGR»
+// tippen landet auf Bhutan. Darum wird das Select durch ein SUCH-FELD mit
+// eigener Liste ersetzt (Liquid-Glass-Konvention: native Selects ersetzen,
+// Original-Select bleibt versteckt im DOM und trägt weiterhin den Wert —
+// alle Speicher-Pfade lesen unverändert sel.value). Suche matcht Name,
+// alpha-2 UND Ausweis-Kürzel alpha-3, als «enthält»-Suche.
+function natMakeCombo(sel) {
+    if (!sel || sel._natCombo || sel.disabled) return;   // easy@work-gesperrt → nativ lassen
+    sel._natCombo = true;
+    const opts = Array.from(sel.options).map(o => ({ value: o.value, label: (o.textContent || '').trim() }));
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative';
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(sel);
+    sel.style.display = 'none';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = sel.className || 'ef-input';
+    inp.placeholder = 'Name oder Kürzel, z.B. BGR…';
+    inp.autocomplete = 'off';
+    const list = document.createElement('div');
+    list.style.cssText = 'position:absolute;top:100%;left:0;right:0;z-index:3000;background:#fff;border:1px solid #e2ddd3;border-radius:10px;box-shadow:0 12px 28px rgba(60,55,48,0.18);max-height:260px;overflow:auto;display:none;margin-top:4px';
+    wrap.appendChild(inp);
+    wrap.appendChild(list);
+    const curLabel = () => {
+        const c = opts.find(o => o.value === sel.value);
+        return c && c.value !== '' ? c.label : '';
+    };
+    inp.value = curLabel();
+    let items = [], hi = -1;
+    const norm = s => (s || '').toUpperCase();
+    function render(q) {
+        const Q = norm(q);
+        items = opts.filter(o => o.value !== '' && (!Q || norm(o.label).includes(Q)));
+        hi = items.length ? 0 : -1;
+        list.innerHTML = items.slice(0, 300).map((o, i) =>
+            `<div data-i="${i}" style="padding:7px 12px;font-size:13px;cursor:pointer;color:#3f3f3f;${i === hi ? 'background:#ece9e2' : ''}">${esc(o.label)}</div>`).join('')
+            || '<div style="padding:8px 12px;color:#8b8b8b;font-size:12.5px">kein Treffer</div>';
+        list.style.display = 'block';
+    }
+    function paint() {
+        Array.from(list.children).forEach((el, i) => { el.style.background = i === hi ? '#ece9e2' : ''; });
+        const el = list.children[hi];
+        if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    }
+    function choose(i) {
+        const o = items[i];
+        if (!o) return;
+        sel.value = o.value;
+        sel.dispatchEvent(new Event('change'));
+        inp.value = o.label;
+        list.style.display = 'none';
+    }
+    inp.addEventListener('focus', () => { inp.select(); render(''); });
+    inp.addEventListener('input', () => render(inp.value));
+    inp.addEventListener('keydown', (e) => {
+        if (list.style.display === 'none' && (e.key === 'ArrowDown' || e.key === 'Enter')) { render(inp.value); e.preventDefault(); return; }
+        if (e.key === 'ArrowDown')      { hi = Math.min(hi + 1, items.length - 1); paint(); e.preventDefault(); }
+        else if (e.key === 'ArrowUp')   { hi = Math.max(hi - 1, 0); paint(); e.preventDefault(); }
+        else if (e.key === 'Enter')     { choose(hi); e.preventDefault(); }
+        else if (e.key === 'Escape')    { list.style.display = 'none'; }
     });
+    list.addEventListener('mousedown', (e) => {   // mousedown: feuert VOR blur
+        const t = e.target.closest('[data-i]');
+        if (t) { choose(parseInt(t.getAttribute('data-i'), 10)); e.preventDefault(); }
+    });
+    inp.addEventListener('blur', () => setTimeout(() => {
+        list.style.display = 'none';
+        inp.value = curLabel();   // Tipp-Rest ohne Auswahl → zurück auf den gewählten Stand
+    }, 150));
 }
-document.addEventListener('focusin', (e) => {
-    const id = e.target?.id;
-    if (id === 'ef-nationalityId' || id === 'fmNationalityId') natAttachTypeahead(e.target);
-});
 
 let _nationalityCache = null;
 async function getNationalities() {
@@ -3928,6 +3967,9 @@ async function startEmpEdit() {
     // Bankverbindung sind nun ebenfalls im Personal-Tab integriert.
     const personalTab = document.getElementById('emp-tab-personal');
     if (personalTab) personalTab.innerHTML = buildEmpEditPersonal(emp, permitTypes, nationalities);
+    // Nationalität als Such-Combobox (Walter 12.07.2026) — matcht auch die
+    // Ausweis-Kürzel (BGR/MKD/…); easy@work-gesperrte Selects bleiben nativ.
+    natMakeCombo(document.getElementById('ef-nationalityId'));
 
     // "Weitere Adressen"-Liste laden — der Container otherAddressesContent
     // ist jetzt auch im Edit-Mode vorhanden, damit Zusatzadressen weiterhin
@@ -4726,6 +4768,7 @@ async function fmFillPermitAndNationalitySelects(currentPermitTypeId, currentNat
                         const codes = code ? (n.code3 ? `${code} / ${n.code3}` : code) : '';
                         return `<option value="${id}" ${sel}>${name}${codes && code !== name ? ' (' + codes + ')' : ''}</option>`;
                     }).join('');
+            natMakeCombo(natSel);   // Such-Combobox statt nativem Dropdown (Walter 12.07.2026)
         } catch { /* ignore */ }
     }
 }
