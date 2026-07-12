@@ -3318,11 +3318,16 @@ public class EasyAtWorkEmployeeSyncService
             // Von, dann jüngste Änderung) — NICHT die mit dem spätesten Bis
             // (Walter-Bug 11.07.2026: alte Version 17.7.2028 überdeckte die
             // korrigierte aktuelle mit Bis 3.7.2028).
+            // ACHTUNG (Walter-Dump 11.07.2026): id/updated_at im Property-JSON
+            // gehören zur FELD-DEFINITION (id 64, updated 2020) — als Versions-
+            // Kriterium unbrauchbar. Auswahl daher: HEUTE GÜLTIGE Version zuerst
+            // (from ≤ heute ≤ to/offen), dann jüngstes Von.
+            var nwToday = DateOnly.FromDateTime(DateTime.Today);
             var nwProp = props
                 .Where(p => (p.Key ?? "").ToLowerInvariant().Contains("night_work_doctors_note"))
-                .OrderByDescending(p => p.From ?? DateOnly.MinValue)
-                .ThenByDescending(p => p.UpdatedAt ?? DateTime.MinValue)
-                .ThenByDescending(p => p.Id ?? 0)
+                .OrderByDescending(p => (p.From ?? DateOnly.MinValue) <= nwToday
+                                     && (!p.To.HasValue || p.To.Value >= nwToday) ? 1 : 0)
+                .ThenByDescending(p => p.From ?? DateOnly.MinValue)
                 .FirstOrDefault();
             if (nwProp != null)
             {
