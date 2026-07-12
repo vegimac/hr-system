@@ -484,6 +484,18 @@ public class DocumentsController : ControllerBase
         return null;
     }
 
+    /// <summary>Bewilligungs-Typ aus OCR-Text: «CHE L …» (Kartenkopf, auch
+    /// OCR-Doppler «CHE LL») oder «Ausweis B». BEWUSST kein Standalone-
+    /// Buchstabe mehr — zu rauschanfällig (Walter-Bug 12.07.2026: falsches N).</summary>
+    private static string? ParsePermitType(string txt)
+    {
+        var m = Regex.Match(txt, @"\bCHE\s+([LBCGNF])\1?\b");
+        if (m.Success) return m.Groups[1].Value;
+        m = Regex.Match(txt, @"Ausweis\s+([LBCGNF])\b", RegexOptions.IgnoreCase);
+        if (m.Success) return m.Groups[1].Value.ToUpperInvariant();
+        return null;
+    }
+
     private static string? FindBinary(string name)
     {
         foreach (var p in new[] { $"/usr/bin/{name}", $"/usr/local/bin/{name}", $"/opt/homebrew/bin/{name}" })
@@ -619,30 +631,18 @@ public class DocumentsController : ControllerBase
                             if (System.IO.File.Exists(mrzBase + ".txt"))
                                 mrzText += await System.IO.File.ReadAllTextAsync(mrzBase + ".txt") + "\n";
                         }
-                        if (ParseMrzExpiry(mrzText) != null) break;   // Prüfziffer ok → fertig
+                        // Früh-Abbruch erst, wenn BEIDES sitzt: Ablaufdatum mit
+                        // gültiger Prüfziffer UND der Typ aus dem Kartenkopf
+                        // (Walter-Bug 12.07.2026: L ging in der 1000er-Runde verloren).
+                        if (ParseMrzExpiry(mrzText) != null && ParsePermitType(mrzText) != null) break;
                     }
                 }
             }
             catch { /* MRZ ist best-effort — die Label-Erkennung unten bleibt */ }
 
-            // ── Bewilligungs-Typ: «CHE L», standalone-Buchstabe oder «Ausweis B» ──
-            string? permitCode = null;
-            var mChe = Regex.Match(text, @"\bCHE\s+([LBCGNF])\b");
-            if (mChe.Success) permitCode = mChe.Groups[1].Value;
-            if (permitCode == null)
-                foreach (var line in text.Split('\n'))
-                {
-                    // GESCHLECHT-Zeile ausnehmen — dort steht das standalone «F»
-                    // des Geschlechts (Walter 12.07.2026, Falsch-Positiv-Falle).
-                    if (line.Contains("GESCHLECHT", StringComparison.OrdinalIgnoreCase)) continue;
-                    var m = Regex.Match(line.Trim(), @"^([LBCGN])$");
-                    if (m.Success) { permitCode = m.Groups[1].Value; break; }
-                }
-            if (permitCode == null)
-            {
-                var m = Regex.Match(text, @"Ausweis\s+([LBCGNF])\b", RegexOptions.IgnoreCase);
-                if (m.Success) permitCode = m.Groups[1].Value.ToUpperInvariant();
-            }
+            // ── Bewilligungs-Typ: Kartenkopf «CHE L» (Band-Text zuerst, dann
+            //    Volltext); kein Standalone-Buchstabe (Rausch-Falle). ──
+            var permitCode = ParsePermitType(mrzText) ?? ParsePermitType(text);
 
             // ── «Gültig bis»-Datum (OCR-tolerant: GULTIG/GÜLTIG/G0LTIG …) ──
             DateOnly? validUntil = null;
