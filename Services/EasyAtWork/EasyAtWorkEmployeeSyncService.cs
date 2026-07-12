@@ -403,14 +403,30 @@ public class EasyAtWorkEmployeeSyncService
                          .Where(a => a.EmployeeId == emp.Id).Select(a => a.Number).ToListAsync(ct))
                 AddCand(a);
 
+            bool aktivGefunden = false;
             foreach (var mapping in mappings)
             {
                 EawEmployee? aktiv = null;
+                List<EawEmployee>? fullList = null; // lazy — nur wenn n+Nummer nichts liefert
                 foreach (var num in candNumbers)
                 {
                     EawEmployee? cand = null;
                     try { cand = await _client.GetEmployeeByNumberAsync(mapping.EasyAtWorkCustomerId, num, ct); }
                     catch { /* best-effort — Kandidaten-Suche darf den Sync nie brechen */ }
+                    if (cand == null)
+                    {
+                        // Der «n+Nummer»-Einzel-Endpoint greift beim API-Anbieter
+                        // nicht überall sauber (gleiches Problem wie bei der
+                        // Legacy-ID-Reparatur oben) — Fallback: Employee-Liste
+                        // des Customers, EINMAL pro Filiale geladen.
+                        if (fullList == null)
+                        {
+                            try { fullList = await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct); }
+                            catch { fullList = new List<EawEmployee>(); }
+                        }
+                        cand = fullList.FirstOrDefault(x =>
+                            string.Equals((x.Number ?? "").Trim(), num, StringComparison.OrdinalIgnoreCase));
+                    }
                     if (cand == null || cand.Id == eaw.Id) continue;
                     if (cand.To.HasValue && cand.To.Value < eawTodayD) continue; // auch beendet
                     bool sameUser = cand.UserId.HasValue && cand.UserId == eaw.UserId;
@@ -429,9 +445,12 @@ public class EasyAtWorkEmployeeSyncService
                     result.Notes.Add($"Aktiv-Vorrang: gespeicherter easy@work-Datensatz (Nummer {eaw.Number}, Austritt {eaw.To:dd.MM.yyyy}) ist beendet — aktiver Datensatz Nummer {aktiv.Number} in Customer {mapping.EasyAtWorkCustomerId} übernimmt (Anker + Hauptnummer).");
                     eaw = aktiv;
                     matchedCustomerId = mapping.EasyAtWorkCustomerId;
+                    aktivGefunden = true;
                     break;
                 }
             }
+            if (!aktivGefunden)
+                result.Notes.Add($"Hinweis: der verknüpfte easy@work-Datensatz (Nummer {eaw.Number}) ist seit {eaw.To:dd.MM.yyyy} beendet — über die Nummern {string.Join(", ", candNumbers)} wurde in keiner gemappten Filiale ein aktiver Datensatz gefunden.");
         }
         result.EasyAtWorkEmployeeId = eaw.Id;
 
