@@ -673,10 +673,10 @@ public class DocumentsController : ControllerBase
                 }
                 // Ablaufdatum: [Geschlecht](6-stelliges Datum)(Prüfziffer) — nur
                 // übernehmen, wenn die Prüfziffer stimmt (Vorrang vor Label-Lesung).
-                foreach (Match m2 in Regex.Matches(mrzText, @"[MF<](\d{6})(\d)"))
+                foreach (Match mrzM in Regex.Matches(mrzText, @"[MF<](\d{6})(\d)"))
                 {
-                    var e6 = m2.Groups[1].Value;
-                    if (IcaoCheck(e6) != m2.Groups[2].Value[0] - '0') continue;
+                    var e6 = mrzM.Groups[1].Value;
+                    if (IcaoCheck(e6) != mrzM.Groups[2].Value[0] - '0') continue;
                     if (!int.TryParse(e6[..2], out var ey) || !int.TryParse(e6[2..4], out var em)
                         || !int.TryParse(e6[4..], out var ed) || em is < 1 or > 12 || ed is < 1 or > 31) continue;
                     try { validUntil = new DateOnly(2000 + ey, em, ed); break; } catch { }
