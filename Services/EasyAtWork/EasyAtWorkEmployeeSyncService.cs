@@ -3313,9 +3313,16 @@ public class EasyAtWorkEmployeeSyncService
             // Wir geben Von UND Bis zurück; die Gültigkeit rechnen WIR aus dem Von
             // nach unserer Regel, und das easy@work-Bis dient als Prüfwert.
             DateOnly? nwFrom = null, nwTo = null;
+            // Benutzerdefinierte Felder sind in easy@work VERSIONIERT (mehrere
+            // Zeilen mit Von/Bis). Massgebend ist die NEUESTE Version (jüngstes
+            // Von, dann jüngste Änderung) — NICHT die mit dem spätesten Bis
+            // (Walter-Bug 11.07.2026: alte Version 17.7.2028 überdeckte die
+            // korrigierte aktuelle mit Bis 3.7.2028).
             var nwProp = props
                 .Where(p => (p.Key ?? "").ToLowerInvariant().Contains("night_work_doctors_note"))
-                .OrderByDescending(p => p.To ?? DateOnly.MinValue)
+                .OrderByDescending(p => p.From ?? DateOnly.MinValue)
+                .ThenByDescending(p => p.UpdatedAt ?? DateTime.MinValue)
+                .ThenByDescending(p => p.Id ?? 0)
                 .FirstOrDefault();
             if (nwProp != null)
             {
