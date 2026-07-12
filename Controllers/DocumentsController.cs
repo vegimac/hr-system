@@ -771,13 +771,24 @@ public class DocumentsController : ControllerBase
             DateOnly? issued = null;
             // Auch im MRZ-Band suchen — dort liest das Label oft am saubersten
             // («AUSSTELLUNGSDATUMORTBEHORDE 24062026», Walter 12.07.2026).
-            var im = Regex.Match(mrzText + "\n" + text, @"(AUSSTELLUNG\w*|AUSGESTELLT\s*AM|D.{0,2}LIVRANCE)\D{0,90}?(\d{2})[\s./-]?(\d{2})[\s./-]?(\d{4})",
+            // Die Whitelist-OCR liest führende Nullen gern als Buchstabe «O»
+            // («O7112024», Walter-Bug 12.07.2026 Aurelio) — deshalb vor der
+            // Suche jedes O in Ziffern-Nachbarschaft zu 0 normalisieren
+            // (Schleife, damit auch «OO7…» vollständig kippt).
+            var issuedSearch = mrzText + "\n" + text;
+            for (var prev = ""; prev != issuedSearch;)
+            {
+                prev = issuedSearch;
+                issuedSearch = Regex.Replace(issuedSearch, @"[Oo](?=\d)|(?<=\d)[Oo]", "0");
+            }
+            var im = Regex.Match(issuedSearch, @"(AUSSTELLUNG\w*|AUSGESTELLT\s*AM|D.{0,2}LIVRANCE)\D{0,90}?(\d{2})[\s./-]?(\d{2})[\s./-]?(\d{4})",
                 RegexOptions.IgnoreCase | RegexOptions.Singleline);
             if (im.Success
                 && int.TryParse(im.Groups[2].Value, out var d2)
                 && int.TryParse(im.Groups[3].Value, out var m2)
                 && int.TryParse(im.Groups[4].Value, out var y2)
-                && m2 is >= 1 and <= 12 && d2 is >= 1 and <= 31)
+                && m2 is >= 1 and <= 12 && d2 is >= 1 and <= 31
+                && y2 is >= 2000 and <= 2100)
             {
                 try { issued = new DateOnly(y2, m2, d2); } catch { }
             }
