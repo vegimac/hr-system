@@ -950,6 +950,8 @@ public class DashboardService
                         Severity = Severity("night_work_exam_expiring", -abgelaufenSeit.Value, "warning", "critical"),
                         Title    = $"Nachtarbeit-Arztzeugnis seit {abgelaufenSeit} Tag(en) abgelaufen",
                         Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · gültig bis {emp.NightWorkExamValidUntil:dd.MM.yyyy} — vor der nächsten Nacht-Planung erneuern",
+                        DueDate  = emp.NightWorkExamValidUntil,
+                        DaysUntil = -abgelaufenSeit.Value,   // negativ = abgelaufen (ToDo: rote Schrift)
                         EmployeeId     = emp.Id,
                         EmployeeNumber = emp.EmployeeNumber,
                         EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
@@ -1053,6 +1055,9 @@ public class DashboardService
                     Severity = SeverityState("night_work_exam_fehlt", "critical"),
                     Title    = "Nachtarbeit-Nachweise fehlen",
                     Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · max. {nw.MaxNightsInSixWeeks} Nächte in 6 Wochen · {grund}",
+                    // Abgelaufenes Zeugnis (statt nie erfasst) → negativ markieren,
+                    // damit die ToDo-Liste die Zeile ROT zeichnet (Walter 12.07.2026).
+                    DaysUntil = examExpired && abgelaufenSeit != null ? -abgelaufenSeit.Value : (int?)null,
                     EmployeeId     = emp.Id,
                     EmployeeNumber = emp.EmployeeNumber,
                     EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()

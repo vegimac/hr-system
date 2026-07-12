@@ -320,6 +320,18 @@ function renderDashAlerts() {
     }).join('');
 }
 
+// ROTE Schrift NUR für die von Walter definierten Fälle (12.07.2026):
+// unterschrittener Mindestlohn (immer) sowie ABGELAUFENE Bewilligung bzw.
+// ABGELAUFENES Nachtarbeit-Arztzeugnis (daysUntil < 0 = abgelaufen; das
+// blosse «läuft ab in X Tagen» bleibt schwarz). NICHT alle kritischen.
+function dashIsRedAlert(a) {
+    if (a.category === 'minimum_wage_violation') return true;
+    const abgelaufen = a.daysUntil != null && a.daysUntil < 0;
+    return abgelaufen && (a.category === 'permit_expiring'
+                       || a.category === 'night_work_exam_expiring'
+                       || a.category === 'night_work_exam_fehlt');
+}
+
 function renderDashTodoRow(a) {
     const meta = DASH_CATEGORY_META[a.category] || { icon: '•' };
     const title = (a.titleKey && window.i18n)
@@ -351,9 +363,7 @@ function renderDashTodoRow(a) {
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'personal')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
-    // Kritische Punkte (abgelaufene Bewilligung/Nachtzeugnis, Mindestlohn …)
-    // in ROTER Schrift (Walter-Vorgabe 12.07.2026).
-    const critCls = a.severity === 'critical' ? ' liquid-todo-crit' : '';
+    const critCls = dashIsRedAlert(a) ? ' liquid-todo-crit' : '';
     return `<div class="liquid-todo-row" ${onClick}>
         <span>${meta.icon || '•'}</span>
         <span>
@@ -390,12 +400,12 @@ function buildTodosPrintHtml() {
     const secTitle = { critical: 'Kritisch', warning: 'Wichtig', info: 'Information' };
     const section = (sev) => {
         const items = bySev[sev];
-        // Kritische Zeilen in ROTER Schrift, auch im Druck (Walter 12.07.2026).
-        const critCls = sev === 'critical' ? ' tp-crit' : '';
         const rows = items.length
             ? items.map(a => {
                 const title = (a.titleKey && window.i18n) ? i18n.tFormat(a.titleKey, a.titleArgs || {}) : (a.title || '');
                 const sub   = (a.subtitleKey && window.i18n) ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {}) : (a.subtitle || '');
+                // ROT nur für Walters definierte Fälle (12.07.2026), auch im Druck.
+                const critCls = dashIsRedAlert(a) ? ' tp-crit' : '';
                 return `<tr><td class="tp-t${critCls}">${_e(title)}</td><td class="tp-s">${_e(sub)}</td></tr>`;
               }).join('')
             : `<tr><td colspan="2" class="tp-empty">— nichts offen —</td></tr>`;
@@ -455,8 +465,7 @@ function renderTodoSketchRow(a) {
         ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {})
         : (a.subtitle || '');
     const tip = subtitle ? `${title} — ${subtitle}` : title;
-    // Kritische Punkte in ROTER Schrift (Walter-Vorgabe 12.07.2026).
-    const critCls = a.severity === 'critical' ? ' td-crit' : '';
+    const critCls = dashIsRedAlert(a) ? ' td-crit' : '';
     return `<div class="td-row" ${dashTodoOnClick(a)} title="${_e(tip)}">
         <span class="td-check"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="13" fill="none" stroke="#26241f" stroke-width="2" filter="url(#tdRough)"/></svg></span>
         <span class="td-text">
