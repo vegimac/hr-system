@@ -9815,25 +9815,47 @@ async function phfLoadPermitDoc(empId) {
     const panel = document.getElementById('phf-docpanel');
     if (!panel || !empId) return;
     try {
-        const r = await fetch(`/api/documents/by-field?employeeId=${empId}&code=permit`, { headers: ah() });
-        if (!r.ok) {
+        const r = await fetch(`/api/documents/by-field?employeeId=${empId}&code=permit&all=true`, { headers: ah() });
+        const docs = r.ok ? await r.json() : [];
+        if (!Array.isArray(docs) || docs.length === 0) {
             panel.style.display = 'flex';
             document.getElementById('phf-docview').innerHTML =
                 '<div style="color:#8b8b8b;font-size:12.5px;padding:18px;text-align:center">Kein Ausweis-Dokument hinterlegt.<br>Im Dokumente-Tab hochladen (Typ mit Feld-Verknüpfung «Bewilligung»), dann erscheint es hier.</div>';
             return;
         }
-        const doc = await r.json();
         panel.style.display = 'flex';
-        document.getElementById('phf-docname').textContent = doc.filenameOriginal || 'Ausweis';
-        const ocrBtn = document.getElementById('phf-ocrbtn');
-        ocrBtn.style.display = 'inline-flex';
-        ocrBtn.onclick = () => phfOcrPermit(doc.id);
-        const zoomBtn = document.getElementById('phf-zoombtn');
-        zoomBtn.style.display = 'inline-flex';
-        // Grosses Vorschaufenster (previewFileModal) — mit Drucken/Herunterladen.
-        zoomBtn.onclick = () => previewUrlFetch(`/api/documents/preview/${doc.id}`, doc.filenameOriginal || 'ausweis', ah());
+        // Mehrere Ausweis-Scans → Auswahl (Walter 12.07.2026): bisher wurde
+        // stillschweigend der neueste genommen — der richtige muss wählbar sein.
+        window._phfDocs = docs;
+        const nameEl = document.getElementById('phf-docname');
+        if (docs.length > 1) {
+            nameEl.innerHTML = `<select id="phf-docselect" onchange="phfShowPermitDoc(parseInt(this.value))"
+                style="max-width:100%;background:rgba(255,255,255,0.7);border:1px solid #e2ddd3;border-radius:10px;padding:5px 9px;font-size:12.5px;font-weight:600;color:#3f3f3f;cursor:pointer">
+                ${docs.map(d => `<option value="${d.id}">${esc(d.filenameOriginal || 'Dokument')}${d.hochgeladenAm ? ' · ' + formatDate(d.hochgeladenAm) : ''}</option>`).join('')}
+            </select>`;
+        }
+        await phfShowPermitDoc(docs[0].id);
+    } catch (_) { /* Panel bleibt leer */ }
+}
 
-        // Vorschau als Blob (iframe kann keinen Bearer-Header senden)
+// Zeigt EINEN gewählten Ausweis-Scan im Panel (Vorschau + Buttons umbinden).
+async function phfShowPermitDoc(docId) {
+    const doc = (window._phfDocs || []).find(d => d.id === docId);
+    if (!doc) return;
+    if ((window._phfDocs || []).length <= 1)
+        document.getElementById('phf-docname').textContent = doc.filenameOriginal || 'Ausweis';
+    const res = document.getElementById('phf-ocrresult');
+    if (res) res.style.display = 'none';   // OCR-Ergebnis gehört zum vorherigen Scan
+    const ocrBtn = document.getElementById('phf-ocrbtn');
+    ocrBtn.style.display = 'inline-flex';
+    ocrBtn.onclick = () => phfOcrPermit(doc.id);
+    const zoomBtn = document.getElementById('phf-zoombtn');
+    zoomBtn.style.display = 'inline-flex';
+    // Grosses Vorschaufenster (previewFileModal) — mit Drucken/Herunterladen.
+    zoomBtn.onclick = () => previewUrlFetch(`/api/documents/preview/${doc.id}`, doc.filenameOriginal || 'ausweis', ah());
+
+    // Vorschau als Blob (iframe kann keinen Bearer-Header senden)
+    try {
         const pr = await fetch(`/api/documents/preview/${doc.id}`, { headers: ah() });
         if (!pr.ok) return;
         const blob = await pr.blob();
@@ -9844,7 +9866,7 @@ async function phfLoadPermitDoc(empId) {
         } else {
             view.innerHTML = `<iframe src="${url}" style="width:100%;height:100%;border:none"></iframe>`;
         }
-    } catch (_) { /* Panel bleibt leer */ }
+    } catch (_) { /* Vorschau best-effort */ }
 }
 
 async function phfOcrPermit(docId) {

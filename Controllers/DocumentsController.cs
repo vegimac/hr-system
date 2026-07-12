@@ -96,12 +96,13 @@ public class DocumentsController : ControllerBase
     [HttpGet("by-field")]
     public async Task<IActionResult> GetByField(
         [FromQuery] int employeeId,
-        [FromQuery] string code)
+        [FromQuery] string code,
+        [FromQuery] bool all = false)
     {
         if (string.IsNullOrWhiteSpace(code))
             return BadRequest("Field-Code fehlt.");
 
-        var doc = await _db.EmployeeDokumente
+        var q = _db.EmployeeDokumente
             .Where(d => d.EmployeeId == employeeId
                      && _db.DokumentTypen
                           .Where(t => t.LinkedFieldCode == code && t.Aktiv)
@@ -117,9 +118,14 @@ public class DocumentsController : ControllerBase
                 d.Bemerkung,
                 d.GueltigVon,
                 d.GueltigBis
-            })
-            .FirstOrDefaultAsync();
+            });
 
+        // all=true → ALLE passenden Dokumente (neueste zuerst) — z.B. für die
+        // Ausweis-Auswahl im Bewilligungs-Modal (Walter 12.07.2026: ein MA kann
+        // mehrere Ausweis-Scans haben, der richtige muss wählbar sein).
+        if (all) return Ok(await q.ToListAsync());
+
+        var doc = await q.FirstOrDefaultAsync();
         if (doc == null) return NotFound();
         return Ok(doc);
     }
