@@ -635,8 +635,12 @@ public class DocumentsController : ControllerBase
                     {
                         foreach (var (pageNo, top, bottom) in bands)
                         {
-                            var y0 = Math.Max(0, (top * res / 200) - (res * 3 / 20));
-                            var hBand = (bottom - top) * res / 200 + res * 33 / 100;
+                            // Zuschnitt grosszügig nach OBEN erweitern (~1 Zoll):
+                            // über der MRZ stehen die Rückseiten-Labels mit dem
+                            // AUSSTELLUNGSDATUM (Walter 12.07.2026 — fiel beim
+                            // 200-dpi-Umbau aus dem Band).
+                            var y0 = Math.Max(0, (top * res / 200) - res);
+                            var hBand = (bottom - top) * res / 200 + res + res / 5;
                             var cropBase = Path.Combine(tmpDir, $"mrz{pageNo}_{res}");
                             await RunProcessAsync(ppm2,
                                 $"-png -r {res} -f {pageNo} -l {pageNo} -y {y0} -H {hBand} -gray \"{fullPath}\" \"{cropBase}\"");
