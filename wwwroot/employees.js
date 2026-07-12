@@ -9461,8 +9461,13 @@ async function openPermitHistoryModal(entryId) {
         modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px';
         document.body.appendChild(modal);
     }
+    // Code→TypId-Map für die OCR-Übernahme (Walter 12.07.2026)
+    window._phfPermitCodeMap = {};
+    permitTypes.forEach(p => { if (p.code) window._phfPermitCodeMap[p.code.toUpperCase()] = p.id; });
+
     modal.innerHTML = `
-        <div style="background:#fff;border-radius:14px;max-width:540px;width:100%;max-height:90vh;overflow:auto;padding:22px 24px">
+        <div style="display:flex;gap:14px;align-items:stretch;max-width:1100px;width:100%;max-height:90vh">
+        <div style="background:#fff;border-radius:14px;max-width:540px;width:100%;max-height:90vh;overflow:auto;padding:22px 24px;flex-shrink:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
                 <h3 style="margin:0;font-size:18px;color:#0f172a">${isEdit ? _t('permit.modalTitleEdit','Bewilligung bearbeiten') : _t('permit.modalTitleNew','Neue Bewilligung')}</h3>
                 <button onclick="closePermitHistoryModal()" style="background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer">×</button>
@@ -9504,8 +9509,20 @@ async function openPermitHistoryModal(entryId) {
                         style="padding:9px 18px;font-size:13px">${_t('permit.btn.save','Speichern')}</button>
             </div>
             <div id="phf-error" style="margin-top:10px;color:#b91c1c;font-size:12.5px"></div>
+        </div>
+        <div id="phf-docpanel" style="display:none;background:#fff;border-radius:14px;flex:1;min-width:380px;max-height:90vh;padding:14px;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <div id="phf-docname" style="font-size:12.5px;font-weight:700;color:#3f3f3f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+                <button id="phf-ocrbtn" style="display:none;background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0">🔍 Ausweis lesen</button>
+            </div>
+            <div id="phf-ocrresult" style="display:none;font-size:12px;padding:7px 10px;border-radius:8px"></div>
+            <div id="phf-docview" style="flex:1;min-height:300px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center"></div>
+        </div>
         </div>`;
     modal.style.display = 'flex';
+    // Ausweis-Dokument (linked_field_code='permit') daneben anzeigen —
+    // Walter-Vorgabe 12.07.2026: erleichtert das Abtippen; OCR füllt vor.
+    phfLoadPermitDoc(selectedEmployeeId);
     // Walter-Vorgabe 07.06.2026: Hinweis sofort prüfen (bei Bearbeitung
     // schon C ausgewählt, oder bei Neu wenn vorherige Bewilligung B war
     // und User wechselt auf C).
@@ -9779,4 +9796,80 @@ async function deleteBvgZusatz(id) {
         return;
     }
     loadBvgZusatzTab(selectedEmployeeId);
+}
+
+// ── Bewilligungs-Modal: Ausweis-Vorschau + OCR (Walter-Vorgabe 12.07.2026) ──
+async function phfLoadPermitDoc(empId) {
+    const panel = document.getElementById('phf-docpanel');
+    if (!panel || !empId) return;
+    try {
+        const r = await fetch(`/api/documents/by-field?employeeId=${empId}&code=permit`, { headers: ah() });
+        if (!r.ok) {
+            panel.style.display = 'flex';
+            document.getElementById('phf-docview').innerHTML =
+                '<div style="color:#8b8b8b;font-size:12.5px;padding:18px;text-align:center">Kein Ausweis-Dokument hinterlegt.<br>Im Dokumente-Tab hochladen (Typ mit Feld-Verknüpfung «Bewilligung»), dann erscheint es hier.</div>';
+            return;
+        }
+        const doc = await r.json();
+        panel.style.display = 'flex';
+        document.getElementById('phf-docname').textContent = doc.filenameOriginal || 'Ausweis';
+        const ocrBtn = document.getElementById('phf-ocrbtn');
+        ocrBtn.style.display = 'inline-flex';
+        ocrBtn.onclick = () => phfOcrPermit(doc.id);
+
+        // Vorschau als Blob (iframe kann keinen Bearer-Header senden)
+        const pr = await fetch(`/api/documents/preview/${doc.id}`, { headers: ah() });
+        if (!pr.ok) return;
+        const blob = await pr.blob();
+        const url = URL.createObjectURL(blob);
+        const view = document.getElementById('phf-docview');
+        if ((blob.type || '').startsWith('image/')) {
+            view.innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">`;
+        } else {
+            view.innerHTML = `<iframe src="${url}" style="width:100%;height:100%;border:none"></iframe>`;
+        }
+    } catch (_) { /* Panel bleibt leer */ }
+}
+
+async function phfOcrPermit(docId) {
+    const btn = document.getElementById('phf-ocrbtn');
+    const res = document.getElementById('phf-ocrresult');
+    if (btn) { btn.disabled = true; btn.textContent = 'liest…'; }
+    try {
+        const r = await fetch(`/api/documents/${docId}/ocr-permit`, { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            res.style.display = 'block';
+            res.style.cssText += ';background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;display:block';
+            res.textContent = j.message || j.error || ('OCR fehlgeschlagen (HTTP ' + r.status + ')');
+            return;
+        }
+        const parts = [];
+        if (j.permitCode) {
+            const typId = window._phfPermitCodeMap?.[j.permitCode.toUpperCase()];
+            if (typId) {
+                const sel = document.getElementById('phf-permitType');
+                if (sel) { sel.value = String(typId); if (typeof phfCheckCTypeHint === 'function') phfCheckCTypeHint(); }
+            }
+            parts.push('Typ ' + j.permitCode);
+        }
+        if (j.validUntil) {
+            const inp = document.getElementById('phf-validTo');
+            if (inp) inp.value = j.validUntil;
+            parts.push('gültig bis ' + j.validUntil.slice(8,10) + '.' + j.validUntil.slice(5,7) + '.' + j.validUntil.slice(0,4));
+        }
+        res.style.display = 'block';
+        if (parts.length) {
+            res.style.cssText += ';background:#dcfce7;border:1px solid #86efac;color:#15803d;display:block';
+            res.textContent = '✓ Gelesen: ' + parts.join(' · ') + ' — bitte mit dem Ausweis abgleichen, dann Speichern.';
+        } else {
+            res.style.cssText += ';background:#fef3c7;border:1px solid #fde68a;color:#92400e;display:block';
+            res.textContent = 'Nichts Verwertbares erkannt — bitte von Hand erfassen.';
+        }
+    } catch (e) {
+        res.style.display = 'block';
+        res.textContent = 'OCR-Fehler: ' + e.message;
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔍 Ausweis lesen'; }
+    }
 }

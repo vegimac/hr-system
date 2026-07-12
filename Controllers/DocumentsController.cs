@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace HrSystem.Controllers;
 
@@ -446,6 +447,136 @@ public class DocumentsController : ControllerBase
     /// die gedrehte Datei zurück (Walter-Vorgabe 24.05.2026). Setzt dabei
     /// datei_geaendert_am + geaendert_von. Nur für echte PDF-Dokumente.
     /// </summary>
+    // ──────────────────────────────────────────────────────────────────
+    // AUSWEIS-OCR (Walter-Vorgabe 12.07.2026): liest den Schweizer
+    // Aufenthaltstitel (Kreditkarten-Format) aus dem hinterlegten Scan und
+    // liefert Bewilligungs-Typ (L/B/C/G/N/F) + «Gültig bis» als VORSCHLAG für
+    // das Bewilligungs-Modal — der Benutzer prüft und speichert selbst.
+    // SERVER-VORAUSSETZUNG: sudo apt install -y tesseract-ocr tesseract-ocr-deu poppler-utils
+    // Fehlt tesseract → 501 mit Klartext-Hinweis (Feature degradiert sauber).
+    // ──────────────────────────────────────────────────────────────────
+
+    private static string? FindBinary(string name)
+    {
+        foreach (var p in new[] { $"/usr/bin/{name}", $"/usr/local/bin/{name}", $"/opt/homebrew/bin/{name}" })
+            if (System.IO.File.Exists(p)) return p;
+        return null;
+    }
+
+    private static async Task<(int code, string stdout, string stderr)> RunProcessAsync(string bin, string args, int timeoutMs = 30000)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo(bin, args)
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        using var proc = System.Diagnostics.Process.Start(psi)!;
+        var so = proc.StandardOutput.ReadToEndAsync();
+        var se = proc.StandardError.ReadToEndAsync();
+        using var cts = new CancellationTokenSource(timeoutMs);
+        try { await proc.WaitForExitAsync(cts.Token); }
+        catch (OperationCanceledException) { try { proc.Kill(true); } catch { } throw new TimeoutException($"{Path.GetFileName(bin)} Timeout."); }
+        return (proc.ExitCode, await so, await se);
+    }
+
+    [HttpPost("{id:int}/ocr-permit")]
+    public async Task<IActionResult> OcrPermit(int id)
+    {
+        var doc = await _db.EmployeeDokumente.FindAsync(id);
+        if (doc is null) return NotFound();
+        var fullPath = ResolveFilePath(doc);
+        if (fullPath is null) return NotFound("Datei nicht im Storage gefunden.");
+
+        var tesseract = FindBinary("tesseract");
+        if (tesseract == null)
+            return StatusCode(501, new { error = "OCR_NOT_INSTALLED", message = "OCR nicht verfügbar — auf dem Server installieren: sudo apt install -y tesseract-ocr tesseract-ocr-deu poppler-utils" });
+
+        var tmpDir = Path.Combine(Path.GetTempPath(), "ocr_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tmpDir);
+        try
+        {
+            var imgPath = fullPath;
+            var ext = Path.GetExtension(fullPath).ToLowerInvariant();
+            if (ext == ".pdf" || doc.MimeType == "application/pdf")
+            {
+                var ppm = FindBinary("pdftoppm");
+                if (ppm == null)
+                    return StatusCode(501, new { error = "OCR_NOT_INSTALLED", message = "poppler-utils fehlt (pdftoppm) — sudo apt install -y poppler-utils" });
+                await RunProcessAsync(ppm, $"-png -r 300 -f 1 -l 1 \"{fullPath}\" \"{Path.Combine(tmpDir, "page")}\"");
+                imgPath = Directory.GetFiles(tmpDir, "page*.png").OrderBy(x => x).FirstOrDefault()
+                          ?? throw new InvalidOperationException("PDF-Seite konnte nicht gerendert werden.");
+            }
+
+            var outBase = Path.Combine(tmpDir, "out");
+            // deu+eng: falls das deu-Sprachpaket fehlt, nochmal nur mit eng.
+            var (code, _, err) = await RunProcessAsync(tesseract, $"\"{imgPath}\" \"{outBase}\" -l deu+eng --psm 6");
+            if (code != 0)
+                (code, _, err) = await RunProcessAsync(tesseract, $"\"{imgPath}\" \"{outBase}\" --psm 6");
+            if (code != 0)
+                return StatusCode(500, new { error = "OCR_FAILED", message = err });
+            var text = await System.IO.File.ReadAllTextAsync(outBase + ".txt");
+
+            // ── Bewilligungs-Typ: «CHE L», standalone-Buchstabe oder «Ausweis B» ──
+            string? permitCode = null;
+            var mChe = Regex.Match(text, @"\bCHE\s+([LBCGNF])\b");
+            if (mChe.Success) permitCode = mChe.Groups[1].Value;
+            if (permitCode == null)
+                foreach (var line in text.Split('\n').Take(10))
+                {
+                    var m = Regex.Match(line.Trim(), @"^([LBCGNF])$");
+                    if (m.Success) { permitCode = m.Groups[1].Value; break; }
+                }
+            if (permitCode == null)
+            {
+                var m = Regex.Match(text, @"Ausweis\s+([LBCGNF])\b", RegexOptions.IgnoreCase);
+                if (m.Success) permitCode = m.Groups[1].Value.ToUpperInvariant();
+            }
+
+            // ── «Gültig bis»-Datum (OCR-tolerant: GULTIG/GÜLTIG/G0LTIG …) ──
+            DateOnly? validUntil = null;
+            var gm = Regex.Match(text, @"G.{0,2}LTIG\s*BIS\D{0,30}?(\d{2})[\s./-](\d{2})[\s./-](\d{4})",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (gm.Success
+                && int.TryParse(gm.Groups[1].Value, out var d1)
+                && int.TryParse(gm.Groups[2].Value, out var m1)
+                && int.TryParse(gm.Groups[3].Value, out var y1)
+                && m1 is >= 1 and <= 12 && d1 is >= 1 and <= 31)
+            {
+                try { validUntil = new DateOnly(y1, m1, d1); } catch { }
+            }
+            // Fallback: spätestes Datum auf der Karte (Geburtsdatum liegt in der
+            // Vergangenheit, das Ablaufdatum ist das späteste).
+            if (validUntil == null)
+            {
+                foreach (Match m in Regex.Matches(text, @"(\d{2})[\s./-](\d{2})[\s./-](\d{4})"))
+                {
+                    if (!int.TryParse(m.Groups[1].Value, out var dd)) continue;
+                    if (!int.TryParse(m.Groups[2].Value, out var mm)) continue;
+                    if (!int.TryParse(m.Groups[3].Value, out var yy)) continue;
+                    if (mm is < 1 or > 12 || dd is < 1 or > 31 || yy < 2000 || yy > 2100) continue;
+                    try
+                    {
+                        var dt = new DateOnly(yy, mm, dd);
+                        if (validUntil == null || dt > validUntil) validUntil = dt;
+                    }
+                    catch { }
+                }
+            }
+
+            return Ok(new
+            {
+                permitCode,
+                validUntil = validUntil?.ToString("yyyy-MM-dd"),
+                excerpt = text.Length > 800 ? text[..800] : text,
+            });
+        }
+        finally
+        {
+            try { Directory.Delete(tmpDir, true); } catch { }
+        }
+    }
+
     [HttpPost("{id:int}/rotate")]
     public async Task<IActionResult> Rotate(int id, [FromQuery] int deg = 90, [FromQuery] int page = 0)
     {
