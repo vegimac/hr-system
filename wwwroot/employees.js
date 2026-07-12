@@ -4566,6 +4566,74 @@ function openFamilyModal(member) {
     if (allowanceAddBtn) allowanceAddBtn.style.display = member?.id ? 'inline-block' : 'none';
 
     document.getElementById('familyModal').style.display = 'flex';
+    // Ausweis des Ehepartners daneben anzeigen (Walter-Vorgabe 12.07.2026):
+    // beim Erfassen soll der geöffnete Scan sichtbar BLEIBEN — gleiche
+    // Panel-Mechanik wie im Bewilligungs-Modal.
+    famLoadSpouseDocs();
+}
+
+// ── Ehegatten-Ausweis-Panel neben dem Familien-Modal (Walter 12.07.2026) ──
+// Zeigt die spouse-verknüpften Dokumente des MA; bei mehreren mit Auswahl.
+// Kein Dokument → Panel bleibt unsichtbar (kein Lärm bei Kindern etc.).
+async function famLoadSpouseDocs() {
+    const modal = document.getElementById('familyModal');
+    if (!modal || !selectedEmployeeId) return;
+    let panel = document.getElementById('fam-docpanel');
+    if (!panel) {
+        modal.style.gap = '14px';
+        panel = document.createElement('div');
+        panel.id = 'fam-docpanel';
+        panel.style.cssText = 'display:none;background:#fff;border-radius:14px;flex:1;min-width:380px;max-width:44vw;max-height:92vh;padding:14px;flex-direction:column;gap:8px;box-shadow:0 24px 48px rgba(0,0,0,0.25)';
+        panel.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <div id="fam-docname" style="font-size:12.5px;font-weight:700;color:#3f3f3f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0"></div>
+                <button id="fam-doczoom" style="display:none;background:rgba(255,255,255,0.6);border:1px solid #e2ddd3;color:#3f3f3f;border-radius:10px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0" title="Im grossen Vorschaufenster öffnen (mit Drucken/Zoom)">⤢ Vergrössern</button>
+            </div>
+            <div id="fam-docview" style="flex:1;min-height:320px;overflow:auto;display:flex;align-items:flex-start;justify-content:center;background:#f6f3ee;border-radius:10px"></div>`;
+        modal.appendChild(panel);
+    }
+    panel.style.display = 'none';
+    try {
+        const r = await fetch(`/api/documents/by-field?employeeId=${selectedEmployeeId}&code=spouse&all=true`, { headers: ah() });
+        const docs = r.ok ? await r.json() : [];
+        if (!Array.isArray(docs) || docs.length === 0) return;
+        window._famDocs = docs;
+        panel.style.display = 'flex';
+        const nameEl = document.getElementById('fam-docname');
+        if (docs.length > 1) {
+            nameEl.innerHTML = `<select onchange="famShowSpouseDoc(parseInt(this.value))"
+                style="max-width:100%;background:rgba(255,255,255,0.7);border:1px solid #e2ddd3;border-radius:10px;padding:5px 9px;font-size:12.5px;font-weight:600;color:#3f3f3f;cursor:pointer">
+                ${docs.map(d => `<option value="${d.id}">${esc(d.filenameOriginal || 'Dokument')}${d.hochgeladenAm ? ' · ' + formatDate(d.hochgeladenAm) : ''}</option>`).join('')}
+            </select>`;
+        }
+        await famShowSpouseDoc(docs[0].id);
+    } catch (_) { /* Panel bleibt unsichtbar */ }
+}
+
+async function famShowSpouseDoc(docId) {
+    const doc = (window._famDocs || []).find(d => d.id === docId);
+    if (!doc) return;
+    if ((window._famDocs || []).length <= 1) {
+        const nameEl = document.getElementById('fam-docname');
+        if (nameEl) nameEl.textContent = doc.filenameOriginal || 'Ausweis Ehepartner';
+    }
+    const zoomBtn = document.getElementById('fam-doczoom');
+    if (zoomBtn) {
+        zoomBtn.style.display = 'inline-flex';
+        zoomBtn.onclick = () => previewUrlFetch(`/api/documents/preview/${doc.id}`, doc.filenameOriginal || 'ausweis', ah());
+    }
+    try {
+        const pr = await fetch(`/api/documents/preview/${doc.id}`, { headers: ah() });
+        if (!pr.ok) return;
+        const blob = await pr.blob();
+        const url = URL.createObjectURL(blob);
+        const view = document.getElementById('fam-docview');
+        if ((blob.type || '').startsWith('image/')) {
+            view.innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">`;
+        } else {
+            view.innerHTML = `<iframe src="${url}" style="width:100%;height:100%;border:none;min-height:480px"></iframe>`;
+        }
+    } catch (_) { /* Vorschau best-effort */ }
 }
 
 // Permit-Typen + Nationalitäten ins Familienmitglied-Modal laden.
