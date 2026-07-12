@@ -832,6 +832,48 @@ public class DocumentsController : ControllerBase
                 if (zm.Success) zemisNr = zm.Groups[1].Value + "." + zm.Groups[2].Value;
             }
 
+            // ── Ausstellungsdatum-Fallback (Walter 12.07.2026, Martina S.):
+            //    auf manchen Rückseiten ist das AUSSTELLUNG-Label unleserlich
+            //    («SESBARESASA»), das Datum selbst aber klar («20042026»).
+            //    Dann: alle FREISTEHENDEN 8-stelligen Datums-Token im O→0-
+            //    normalisierten Text einsammeln, plausibel filtern (echtes
+            //    Datum, Vergangenheit, nicht Geburts-/Ablaufdatum) und das
+            //    JÜNGSTE nehmen — die Ausstellung liegt stets NACH dem
+            //    Einreisedatum, das als zweiter Vergangenheits-Kandidat
+            //    auf der Karte steht. ──
+            if (issued == null)
+            {
+                var heuteD = DateOnly.FromDateTime(DateTime.Today);
+                // Geburtsdatum aus MRZ Zeile 2 (yymmdd) — beide Jahrhundert-
+                // Varianten ausschliessen, damit es nie als Ausstellung gilt.
+                var geb = new List<DateOnly>();
+                var gm2 = Regex.Match(mrzText, @"^(\d{2})(\d{2})(\d{2})\d[MF<]", RegexOptions.Multiline);
+                if (gm2.Success
+                    && int.TryParse(gm2.Groups[1].Value, out var gy)
+                    && int.TryParse(gm2.Groups[2].Value, out var gmo)
+                    && int.TryParse(gm2.Groups[3].Value, out var gd)
+                    && gmo is >= 1 and <= 12 && gd is >= 1 and <= 31)
+                {
+                    try { geb.Add(new DateOnly(1900 + gy, gmo, gd)); } catch { }
+                    try { geb.Add(new DateOnly(2000 + gy, gmo, gd)); } catch { }
+                }
+                DateOnly? best = null;
+                foreach (Match dm in Regex.Matches(issuedSearch, @"\b(\d{2})(\d{2})(\d{4})\b"))
+                {
+                    if (!int.TryParse(dm.Groups[1].Value, out var fd)
+                        || !int.TryParse(dm.Groups[2].Value, out var fm)
+                        || !int.TryParse(dm.Groups[3].Value, out var fy)) continue;
+                    if (fm is < 1 or > 12 || fd is < 1 or > 31 || fy is < 2000 or > 2100) continue;
+                    DateOnly cand;
+                    try { cand = new DateOnly(fy, fm, fd); } catch { continue; }
+                    if (cand > heuteD) continue;                                  // Zukunft = Ablaufdatum o.ä.
+                    if (validUntil.HasValue && cand == validUntil.Value) continue;
+                    if (geb.Contains(cand)) continue;
+                    if (best == null || cand > best.Value) best = cand;
+                }
+                issued = best;
+            }
+
             return Ok(new
             {
                 permitCode,
