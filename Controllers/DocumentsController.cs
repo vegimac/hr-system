@@ -493,6 +493,12 @@ public class DocumentsController : ControllerBase
         if (m.Success) return m.Groups[1].Value;
         m = Regex.Match(txt, @"Ausweis\s+([LBCGNF])\b", RegexOptions.IgnoreCase);
         if (m.Success) return m.Groups[1].Value.ToUpperInvariant();
+        // Neueres Karten-Layout (Walter 12.07.2026, B-Ausweis Tomova):
+        // kein «AUFENTHALTSTITEL CHE B» mehr, sondern Block
+        // «ART DES TITELS … Bewilligung B». Der Buchstabe steht direkt
+        // hinter «Bewilligung» — kein Standalone-Treffer (Rausch-Falle).
+        m = Regex.Match(txt, @"Bewilligung\s+([LBCGNF])\b", RegexOptions.IgnoreCase);
+        if (m.Success) return m.Groups[1].Value.ToUpperInvariant();
         return null;
     }
 
@@ -671,7 +677,10 @@ public class DocumentsController : ControllerBase
                         // Früh-Abbruch erst, wenn BEIDES sitzt: Ablaufdatum mit
                         // gültiger Prüfziffer UND der Typ aus dem Kartenkopf
                         // (Walter-Bug 12.07.2026: L ging in der 1000er-Runde verloren).
-                        if (ParseMrzExpiry(mrzText) != null && ParsePermitType(mrzText) != null) break;
+                        // Der Typ darf auch aus dem VOLLTEXT kommen (neueres
+                        // B-Karten-Layout «Bewilligung B» steht nicht im Band).
+                        if (ParseMrzExpiry(mrzText) != null
+                            && (ParsePermitType(mrzText) != null || ParsePermitType(text) != null)) break;
                     }
                 }
             }
