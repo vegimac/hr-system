@@ -122,7 +122,13 @@ public class DashboardService
         // (= aktive Bewilligung). NUR der jüngste — dessen ValidTo ist das
         // relevante Ablauf-Datum.
         var maList = await empBase
-            .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.ExitDate })
+            .Select(e => new
+            {
+                e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.ExitDate,
+                e.IsPayrollExcluded,
+                NationalityCode   = e.NationalityRef != null ? e.NationalityRef.Code : null,
+                NationalityLegacy = e.Nationality
+            })
             .ToListAsync();
         var maIds = maList.Select(e => e.Id).ToList();
         var histories = await _db.EmployeePermitHistories
@@ -179,6 +185,46 @@ public class DashboardService
                 EmployeeNumber = emp.EmployeeNumber,
                 EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
             });
+        }
+
+        // ── 1b) Bewilligung fehlt komplett (Walter-Vorgabe 12.07.2026,
+        //    KRITISCH): aktiver Ausländer (Nationalität ≠ CH) ganz OHNE
+        //    Bewilligungs-Eintrag in der Historie — nicht mal ein CH-/
+        //    Einbürgerungs-Eintrag (PermitTypeId NULL zählt als Eintrag).
+        //    Ohne Bewilligung darf der MA nicht beschäftigt werden → Karte
+        //    auf der Kritisch-Liste, Klick in den Bewilligung/QST-Tab.
+        //    Unbekannte Nationalität (weder FK noch Legacy-Text) löst KEINE
+        //    Warnung aus (keine Fehlalarme); Phantom-MA (ohne Lohn) auch nicht. ──
+        if (Enabled("permit_missing"))
+        {
+            var mitEintrag = (await _db.EmployeePermitHistories
+                .Where(h => maIds.Contains(h.EmployeeId))
+                .Select(h => h.EmployeeId)
+                .Distinct()
+                .ToListAsync()).ToHashSet();
+            foreach (var emp in maList)
+            {
+                if (emp.IsPayrollExcluded || mitEintrag.Contains(emp.Id)) continue;
+                var nat = (emp.NationalityCode ?? emp.NationalityLegacy ?? "").Trim().ToUpperInvariant();
+                if (nat.Length == 0) continue; // Nationalität unbekannt → kein Alarm
+                if (nat is "CH" or "SCHWEIZ" or "SWITZERLAND" or "SUISSE" or "SVIZZERA") continue;
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "permit_missing",
+                    Severity = SeverityState("permit_missing", "critical"),
+                    Title    = "Aufenthaltsbewilligung fehlt",
+                    TitleKey = "alert.permitMissing",
+                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}",
+                    SubtitleKey  = "subtitle.maPersonalnr",
+                    SubtitleArgs = new Dictionary<string, object> {
+                        ["name"]  = $"{emp.FirstName} {emp.LastName}".Trim(),
+                        ["empNr"] = emp.EmployeeNumber
+                    },
+                    EmployeeId     = emp.Id,
+                    EmployeeNumber = emp.EmployeeNumber,
+                    EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                });
+            }
         }
 
         // ── 2) Probezeit endet in 14 Tagen ─────────────────────────────────

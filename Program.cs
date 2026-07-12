@@ -505,7 +505,8 @@ using (var scope = app.Services.CreateScope())
             ('night_work_exam_expiring','Nachtarbeit-Bewilligung läuft ab',     TRUE,   30,    7, 'warning',  'critical', TRUE,  13),
             ('night_work_exam_fehlt',  'Nachtarbeit-Nachweise fehlen',          TRUE, NULL, NULL, 'critical', NULL,       FALSE, 14),
             ('night_work_exam_mismatch','Nachtarbeit-Enddatum in easy@work falsch', TRUE, NULL, NULL, 'critical', NULL,   FALSE, 15),
-            ('availability_missing',   'Verfügbarkeit fehlt',                    TRUE, NULL, NULL, 'warning',  NULL,       FALSE, 16)
+            ('availability_missing',   'Verfügbarkeit fehlt',                    TRUE, NULL, NULL, 'warning',  NULL,       FALSE, 16),
+            ('permit_missing',         'Aufenthaltsbewilligung fehlt',           TRUE, NULL, NULL, 'critical', NULL,       FALSE, 17)
         ON CONFLICT (category) DO NOTHING;
     ");
 

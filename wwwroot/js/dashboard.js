@@ -77,6 +77,7 @@ const DASH_CATEGORY_META = {
     minimum_wage_violation: { i18nKey: 'dash.cat.minWageViolation', label: 'Mindestlohn-Verletzung', icon: '⚠️', color: '#b91c1c' },
     minimum_wage_ok:        { i18nKey: 'dash.cat.minWageOk',        label: 'Mindestlohn ok',         icon: '✅', color: '#15803d' },
     permit_expiring:        { i18nKey: 'dash.cat.permitExpiring',   label: 'Bewilligungen',          icon: '🪪', color: '#b91c1c' },
+    permit_missing:         { i18nKey: 'dash.cat.permitMissing',    label: 'Bewilligung fehlt',      icon: '🪪', color: '#b91c1c' },
     probation_end:          { i18nKey: 'dash.cat.probationEnding',  label: 'Probezeit',              icon: '📋', color: '#92400e' },
     contract_end:           { i18nKey: 'dash.cat.contractEnding',   label: 'Vertragsende',           icon: '📅', color: '#92400e' },
     exit_pending_active:    { i18nKey: 'dash.cat.exitPendingActive',label: 'Austritt offen',         icon: '🚪', color: '#b91c1c' },
@@ -336,7 +337,7 @@ function renderDashTodoRow(a) {
                     ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                     : a.category === 'schwangerschaft'
                         ? `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`
-                        : a.category === 'permit_expiring'
+                        : (a.category === 'permit_expiring' || a.category === 'permit_missing')
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
@@ -425,6 +426,7 @@ function dashTodoOnClick(a) {
             case 'employee_doku_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'schwangerschaft':     return `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`;
             case 'permit_expiring':     return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
+            case 'permit_missing':      return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'contract_end':        return `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`;
             case 'exit_pending_active':
             case 'birthday':
@@ -523,7 +525,7 @@ function renderDashAlertRow(a) {
                     ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                     : a.category === 'schwangerschaft'
                         ? `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`
-                        : a.category === 'permit_expiring'
+                        : (a.category === 'permit_expiring' || a.category === 'permit_missing')
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
