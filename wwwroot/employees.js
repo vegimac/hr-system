@@ -9860,19 +9860,28 @@ async function phfOcrPermit(docId) {
             }
             parts.push('Typ ' + j.permitCode);
         }
+        const fmtIso = iso => iso.slice(8,10) + '.' + iso.slice(5,7) + '.' + iso.slice(0,4);
+        if (j.issued) {
+            const inp = document.getElementById('phf-validFrom');
+            if (inp) inp.value = j.issued;
+            parts.push('ausgestellt ' + fmtIso(j.issued));
+        }
         if (j.validUntil) {
             const inp = document.getElementById('phf-validTo');
             if (inp) inp.value = j.validUntil;
-            parts.push('gültig bis ' + j.validUntil.slice(8,10) + '.' + j.validUntil.slice(5,7) + '.' + j.validUntil.slice(0,4));
+            parts.push('gültig bis ' + fmtIso(j.validUntil));
         }
+        // Rohtext IMMER einblendbar (Diagnose, Walter 12.07.2026) — auch bei Teilerfolg.
+        const rohtext = j.excerpt
+            ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">Gelesener Rohtext anzeigen</summary><pre style="white-space:pre-wrap;font-size:10.5px;max-height:160px;overflow:auto;margin:4px 0 0">${esc(j.excerpt)}</pre></details>`
+            : '';
         res.style.display = 'block';
         if (parts.length) {
             res.style.cssText += ';background:#dcfce7;border:1px solid #86efac;color:#15803d;display:block';
-            res.textContent = '✓ Gelesen: ' + parts.join(' · ') + ' — bitte mit dem Ausweis abgleichen, dann Speichern.';
+            res.innerHTML = '✓ Gelesen: ' + esc(parts.join(' · ')) + ' — bitte mit dem Ausweis abgleichen, dann Speichern.' + rohtext;
         } else {
             res.style.cssText += ';background:#fef3c7;border:1px solid #fde68a;color:#92400e;display:block';
-            res.innerHTML = 'Nichts Verwertbares erkannt — bitte von Hand erfassen.'
-                + (j.excerpt ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px">Gelesener Rohtext anzeigen</summary><pre style="white-space:pre-wrap;font-size:10.5px;max-height:160px;overflow:auto;margin:4px 0 0">${esc(j.excerpt)}</pre></details>` : '');
+            res.innerHTML = 'Nichts Verwertbares erkannt — bitte von Hand erfassen.' + rohtext;
         }
     } catch (e) {
         res.style.display = 'block';

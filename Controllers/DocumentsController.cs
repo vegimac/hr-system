@@ -503,29 +503,34 @@ public class DocumentsController : ControllerBase
                 var ppm = FindBinary("pdftoppm");
                 if (ppm == null)
                     return StatusCode(501, new { error = "OCR_NOT_INSTALLED", message = "poppler-utils fehlt (pdftoppm) — sudo apt install -y poppler-utils" });
-                await RunProcessAsync(ppm, $"-png -r 400 -f 1 -l 1 \"{fullPath}\" \"{Path.Combine(tmpDir, "page")}\"");
+                // Vorder- UND Rückseite (Ausstellungsdatum steht hinten) — bis 2 Seiten.
+                await RunProcessAsync(ppm, $"-png -r 400 -f 1 -l 2 \"{fullPath}\" \"{Path.Combine(tmpDir, "page")}\"");
                 imgPath = Directory.GetFiles(tmpDir, "page*.png").OrderBy(x => x).FirstOrDefault()
                           ?? throw new InvalidOperationException("PDF-Seite konnte nicht gerendert werden.");
             }
+            var imgPaths = Directory.Exists(tmpDir) && Directory.GetFiles(tmpDir, "page*.png").Length > 0
+                ? Directory.GetFiles(tmpDir, "page*.png").OrderBy(x => x).ToArray()
+                : new[] { imgPath };
 
             // Mehrere OCR-Durchgänge (psm 6 = Block, psm 11 = sparse) und die
             // Texte zusammenführen — Karten-Layouts liefern je nach Scan mal im
             // einen, mal im anderen Modus das bessere Resultat (Walter 12.07.2026).
-            async Task<string?> OcrPass(string psm, bool tryDeu)
+            async Task<string?> OcrPass(string img, string psm, bool tryDeu)
             {
-                var ob = Path.Combine(tmpDir, "out_" + psm + (tryDeu ? "d" : "e"));
+                var ob = Path.Combine(tmpDir, "out_" + Path.GetFileNameWithoutExtension(img) + "_" + psm + (tryDeu ? "d" : "e"));
                 var (c, _, _) = tryDeu
-                    ? await RunProcessAsync(tesseract, $"\"{imgPath}\" \"{ob}\" -l deu+eng --psm {psm}")
-                    : await RunProcessAsync(tesseract, $"\"{imgPath}\" \"{ob}\" --psm {psm}");
+                    ? await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" -l deu+eng --psm {psm}")
+                    : await RunProcessAsync(tesseract, $"\"{img}\" \"{ob}\" --psm {psm}");
                 if (c != 0) return null;
                 try { return await System.IO.File.ReadAllTextAsync(ob + ".txt"); } catch { return null; }
             }
             var texts = new List<string>();
-            foreach (var psm in new[] { "6", "11", "3" })
-            {
-                var tx = await OcrPass(psm, tryDeu: true) ?? await OcrPass(psm, tryDeu: false);
-                if (!string.IsNullOrWhiteSpace(tx)) texts.Add(tx);
-            }
+            foreach (var img in imgPaths)
+                foreach (var psm in new[] { "6", "11", "3" })
+                {
+                    var tx = await OcrPass(img, psm, tryDeu: true) ?? await OcrPass(img, psm, tryDeu: false);
+                    if (!string.IsNullOrWhiteSpace(tx)) texts.Add(tx);
+                }
             if (texts.Count == 0)
                 return StatusCode(500, new { error = "OCR_FAILED", message = "tesseract lieferte keinen Text (Sprachpaket deu installiert? Scan lesbar?)." });
             var text = string.Join("\n----\n", texts);
@@ -551,7 +556,7 @@ public class DocumentsController : ControllerBase
 
             // ── «Gültig bis»-Datum (OCR-tolerant: GULTIG/GÜLTIG/G0LTIG …) ──
             DateOnly? validUntil = null;
-            var gm = Regex.Match(text, @"G.{0,2}LTIG\s*BIS\D{0,30}?(\d{2})[\s./-](\d{2})[\s./-](\d{4})",
+            var gm = Regex.Match(text, @"G.{0,2}LTIG\s*BIS\D{0,90}?(\d{2})[\s./-]?(\d{2})[\s./-]?(\d{4})",
                 RegexOptions.IgnoreCase | RegexOptions.Singleline);
             if (gm.Success
                 && int.TryParse(gm.Groups[1].Value, out var d1)
@@ -580,11 +585,26 @@ public class DocumentsController : ControllerBase
                 }
             }
 
+            // ── Ausstellungsdatum (Rückseite: «Ausstellungsdatum» / «Ausgestellt am»
+            //    / franz. «Date de délivrance») → Vorschlag für «Gültig ab». ──
+            DateOnly? issued = null;
+            var im = Regex.Match(text, @"(AUSSTELLUNG\w*|AUSGESTELLT\s*AM|D.{0,2}LIVRANCE)\D{0,90}?(\d{2})[\s./-]?(\d{2})[\s./-]?(\d{4})",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (im.Success
+                && int.TryParse(im.Groups[2].Value, out var d2)
+                && int.TryParse(im.Groups[3].Value, out var m2)
+                && int.TryParse(im.Groups[4].Value, out var y2)
+                && m2 is >= 1 and <= 12 && d2 is >= 1 and <= 31)
+            {
+                try { issued = new DateOnly(y2, m2, d2); } catch { }
+            }
+
             return Ok(new
             {
                 permitCode,
                 validUntil = validUntil?.ToString("yyyy-MM-dd"),
-                excerpt = text.Length > 1500 ? text[..1500] : text,
+                issued = issued?.ToString("yyyy-MM-dd"),
+                excerpt = text.Length > 2500 ? text[..2500] : text,
             });
         }
         finally
