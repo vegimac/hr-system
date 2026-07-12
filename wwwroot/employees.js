@@ -4569,13 +4569,15 @@ function openFamilyModal(member) {
     // Ausweis des Ehepartners daneben anzeigen (Walter-Vorgabe 12.07.2026):
     // beim Erfassen soll der geöffnete Scan sichtbar BLEIBEN — gleiche
     // Panel-Mechanik wie im Bewilligungs-Modal.
-    famLoadSpouseDocs();
+    famLoadSpouseDocs(member);
 }
 
 // ── Ehegatten-Ausweis-Panel neben dem Familien-Modal (Walter 12.07.2026) ──
-// Zeigt die spouse-verknüpften Dokumente des MA; bei mehreren mit Auswahl.
+// Zeigt die Ausweis-Dokumente aus ZWEI Quellen: das DIREKT am Familienmitglied
+// verknüpfte Doku (member.dokumentId — der grüne «Doku verknüpft»-Badge) und
+// alle spouse-getypten Dokumente des MA; bei mehreren mit Auswahl.
 // Kein Dokument → Panel bleibt unsichtbar (kein Lärm bei Kindern etc.).
-async function famLoadSpouseDocs() {
+async function famLoadSpouseDocs(member) {
     const modal = document.getElementById('familyModal');
     if (!modal || !selectedEmployeeId) return;
     let panel = document.getElementById('fam-docpanel');
@@ -4595,8 +4597,26 @@ async function famLoadSpouseDocs() {
     panel.style.display = 'none';
     try {
         const r = await fetch(`/api/documents/by-field?employeeId=${selectedEmployeeId}&code=spouse&all=true`, { headers: ah() });
-        const docs = r.ok ? await r.json() : [];
-        if (!Array.isArray(docs) || docs.length === 0) return;
+        let docs = r.ok ? await r.json() : [];
+        if (!Array.isArray(docs)) docs = [];
+        // Direkt verknüpftes Doku ergänzen (falls nicht spouse-getypt) und
+        // ZUOBERST einreihen — es ist der explizit gewählte Ausweis.
+        if (member?.dokumentId) {
+            if (!docs.some(d => d.id === member.dokumentId)) {
+                try {
+                    const rd = await fetch(`/api/documents/by-employee/${selectedEmployeeId}`, { headers: ah() });
+                    if (rd.ok) {
+                        const alle = await rd.json();
+                        const dm = (alle || []).find(d => d.id === member.dokumentId);
+                        if (dm) docs.unshift(dm);
+                    }
+                } catch (_) { /* best-effort */ }
+            } else {
+                docs = [docs.find(d => d.id === member.dokumentId)]
+                    .concat(docs.filter(d => d.id !== member.dokumentId));
+            }
+        }
+        if (docs.length === 0) return;
         window._famDocs = docs;
         panel.style.display = 'flex';
         const nameEl = document.getElementById('fam-docname');
