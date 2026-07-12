@@ -167,9 +167,11 @@ async function kontrollePermitRefresh() {
                             ? '#dc2626' : r.severity === 'warning' ? '#d97706' : '#6b6152';
                         const severityBg = r.severity === 'expired' || r.severity === 'critical'
                             ? '#fee2e2' : r.severity === 'warning' ? '#fef3c7' : '#ece9e2';
-                        const daysText = r.daysUntil < 0
-                            ? `${-r.daysUntil} Tag(e) überfällig`
-                            : r.daysUntil === 0 ? 'läuft heute ab' : `in ${r.daysUntil} Tagen`;
+                        const daysText = !r.validTo
+                            ? 'keine Bewilligung erfasst'   // permit_missing (Walter 12.07.2026)
+                            : r.daysUntil < 0
+                                ? `${-r.daysUntil} Tag(e) überfällig`
+                                : r.daysUntil === 0 ? 'läuft heute ab' : `in ${r.daysUntil} Tagen`;
                         return `
                         <tr style="border-bottom:1px solid #f1f5f9">
                             <td style="padding:9px 14px">
@@ -384,9 +386,11 @@ function _kontrolleExportCombiExcel() {
         rows.push(['BEWILLIGUNGEN LAUFEN AB']);
         rows.push(['Personal-Nr.', 'Mitarbeiter', 'Bew.', 'Gültig bis', 'Status', 'Bemerkung']);
         for (const r of _kontrollePermitCache) {
-            const statusText = r.daysUntil < 0
-                ? `${-r.daysUntil} Tag(e) überfällig`
-                : r.daysUntil === 0 ? 'läuft heute ab' : `in ${r.daysUntil} Tagen`;
+            const statusText = !r.validTo
+                ? 'keine Bewilligung erfasst'
+                : r.daysUntil < 0
+                    ? `${-r.daysUntil} Tag(e) überfällig`
+                    : r.daysUntil === 0 ? 'läuft heute ab' : `in ${r.daysUntil} Tagen`;
             rows.push([
                 r.employeeNumber || '',
                 r.employeeName || '',
@@ -475,9 +479,11 @@ function _kontrolleExportCombiPdf() {
         </tr>`).join('');
 
     const permitRows = (_kontrollePermitCache || []).map(r => {
-        const statusText = r.daysUntil < 0
-            ? `${-r.daysUntil} Tag(e) überfällig`
-            : r.daysUntil === 0 ? 'läuft heute ab' : `in ${r.daysUntil} Tagen`;
+        const statusText = !r.validTo
+            ? 'keine Bewilligung erfasst'
+            : r.daysUntil < 0
+                ? `${-r.daysUntil} Tag(e) überfällig`
+                : r.daysUntil === 0 ? 'läuft heute ab' : `in ${r.daysUntil} Tagen`;
         return `
         <tr>
             <td>${_kEsc(r.employeeNumber || '')}</td>

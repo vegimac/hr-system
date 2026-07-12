@@ -269,7 +269,13 @@ public class KontrollListenController : ControllerBase
             empQuery = empQuery.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
         }
         var emps = await empQuery
-            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.ExitDate })
+            .Select(e => new
+            {
+                e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.ExitDate,
+                e.IsPayrollExcluded,
+                NationalityCode   = e.NationalityRef != null ? e.NationalityRef.Code : null,
+                NationalityLegacy = e.Nationality
+            })
             .ToListAsync();
         var empIds = emps.Select(e => e.Id).ToList();
         if (empIds.Count == 0) return Ok(Array.Empty<object>());
@@ -278,6 +284,36 @@ public class KontrollListenController : ControllerBase
             .Include(h => h.PermitType)
             .Where(h => empIds.Contains(h.EmployeeId) && h.PermitTypeId != null)
             .ToListAsync();
+
+        // Bewilligung fehlt KOMPLETT (Walter-Vorgabe 12.07.2026, Mariangela):
+        // aktiver Ausländer ohne jeglichen Historie-Eintrag (auch kein CH-/
+        // Einbürgerungs-Eintrag mit PermitTypeId NULL). Gleiche Logik wie die
+        // Dashboard-Karte permit_missing — sonst meldet die Liste fälschlich
+        // «keine offenen Lücken». Phantom-MA + unbekannte Nationalität: kein Alarm.
+        var idsMitIrgendeinemEintrag = (await _db.EmployeePermitHistories
+            .Where(h => empIds.Contains(h.EmployeeId))
+            .Select(h => h.EmployeeId)
+            .Distinct()
+            .ToListAsync()).ToHashSet();
+        var fehltRows = emps
+            .Where(e => !e.IsPayrollExcluded && !idsMitIrgendeinemEintrag.Contains(e.Id))
+            .Where(e =>
+            {
+                var nat = (e.NationalityCode ?? e.NationalityLegacy ?? "").Trim().ToUpperInvariant();
+                return nat.Length > 0
+                    && nat is not ("CH" or "SCHWEIZ" or "SWITZERLAND" or "SUISSE" or "SVIZZERA");
+            })
+            .Select(e => new {
+                employeeId      = e.Id,
+                employeeNumber  = e.EmployeeNumber,
+                employeeName    = ($"{e.FirstName} {e.LastName}").Trim(),
+                permitCode      = "—",
+                validTo         = (string?)null,
+                daysUntil       = int.MinValue,   // sortiert VOR allen abgelaufenen
+                severity        = "expired",
+                reason          = "Keine Aufenthaltsbewilligung erfasst — Beschäftigung ohne Bewilligung unzulässig"
+            })
+            .ToList();
 
         var empById = emps.ToDictionary(e => e.Id);
         var youngestPerEmp = histAll
@@ -332,12 +368,13 @@ public class KontrollListenController : ControllerBase
                 employeeNumber  = e.EmployeeNumber,
                 employeeName    = ($"{e.FirstName} {e.LastName}").Trim(),
                 permitCode      = permitCd,
-                validTo         = validTo.ToString("yyyy-MM-dd"),
+                validTo         = (string?)validTo.ToString("yyyy-MM-dd"),
                 daysUntil       = days,
                 severity,
                 reason
             };
         })
+        .Concat(fehltRows)                    // «fehlt komplett» (daysUntil=MinValue → ganz oben)
         .OrderBy(r => r.daysUntil)            // abgelaufene (neg.) zuerst, dann nächste Termine
         .ThenBy(r => r.employeeName)
         .ToList();
