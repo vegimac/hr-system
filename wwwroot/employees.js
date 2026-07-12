@@ -3862,6 +3862,40 @@ async function getPermitTypes() {
 
 // Nationalitäten-Cache (analog zu PermitTypes). Wird einmalig geladen und
 // für den Nationalitäten-Dropdown im Edit-Formular wiederverwendet.
+// ── Tipp-Suche in Nationalitäts-Selects (Walter 12.07.2026) ─────────────
+// Die native Browser-Suche matcht nur den ANFANG des Options-Texts
+// («Bulgarien…») — die Ausweis-Kürzel (BGR/MKD/…) stehen aber hinten in
+// der Klammer. Eigener Tipp-Puffer (1 s Timeout): matcht Code, Ausweis-
+// Kürzel ODER Namensanfang. Angehängt via focusin-Delegation (Selects
+// werden per innerHTML neu erzeugt, direkte Listener gingen verloren).
+function natAttachTypeahead(sel) {
+    if (!sel || sel._natTypeahead) return;
+    sel._natTypeahead = true;
+    let buf = '', timer = null;
+    sel.addEventListener('keydown', (e) => {
+        if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+        buf += e.key.toUpperCase();
+        clearTimeout(timer);
+        timer = setTimeout(() => { buf = ''; }, 1000);
+        const q = buf;
+        const hit = Array.from(sel.options).find(o => {
+            const t = (o.textContent || '').toUpperCase();
+            const m = t.match(/\(([^)]*)\)\s*$/);                       // «(BG / BGR)»
+            const codes = m ? m[1].split('/').map(x => x.trim()) : [];
+            return codes.some(c => c.startsWith(q)) || t.startsWith(q);
+        });
+        if (hit) {
+            e.preventDefault();   // native Anfangs-Suche nicht dazwischenfunken lassen
+            sel.value = hit.value;
+            sel.dispatchEvent(new Event('change'));
+        }
+    });
+}
+document.addEventListener('focusin', (e) => {
+    const id = e.target?.id;
+    if (id === 'ef-nationalityId' || id === 'fmNationalityId') natAttachTypeahead(e.target);
+});
+
 let _nationalityCache = null;
 async function getNationalities() {
     if (_nationalityCache) return _nationalityCache;
