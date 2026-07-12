@@ -9335,12 +9335,15 @@ function renderPermitListHtml(entries) {
             : '';
         // Walter-Vorgabe 14.06.2026: pro Bewilligungs-Eintrag das verknüpfte
         // Doku zeigen (klein, grün wenn vorhanden, rot/„fehlt" wenn nicht).
-        // Klick öffnet den Doku-Picker für GENAU diesen History-Eintrag.
+        // Walter-Vorgabe 12.07.2026: der GRÜNE Button öffnet das verknüpfte
+        // Dokument im Vorschau-Panel (anschauen!) — neu verknüpfen/ersetzen
+        // läuft über das ⋮-Menü. Nur der gestrichelte «verknüpfen»-Button
+        // (kein Doku) öffnet weiterhin direkt den Picker.
         const dokBtn = h.dokumentId
-            ? `<button type="button" onclick='permitOpenDokuModal(${h.id})'
+            ? `<button type="button" onclick='qstOpenBefreiungsDok(selectedEmployeeId, ${h.dokumentId})'
                    style="flex-shrink:0;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px"
-                   title="${esc(h.dokumentName || '')}">
-                   📎 Doku
+                   title="${esc(h.dokumentName || 'Dokument')} anschauen">
+                   👁 Doku
                </button>`
             : `<button type="button" onclick='permitOpenDokuModal(${h.id})'
                    style="flex-shrink:0;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:4px 10px;border-radius:6px;font-size:11.5px;cursor:pointer">
@@ -9361,6 +9364,7 @@ function renderPermitListHtml(entries) {
                 <button class="dok-menu-btn" onclick="permitToggleMenu(event, ${h.id})" title="Aktionen">⋮</button>
                 <div class="dok-menu" id="permitMenu-${h.id}">
                     <button class="dok-menu-item" onclick='openPermitHistoryModal(${h.id})'>Bearbeiten</button>
+                    ${h.dokumentId ? `<button class="dok-menu-item" onclick='permitOpenDokuModal(${h.id})'>Doku ersetzen</button>` : ''}
                     <button class="dok-menu-item danger" onclick='deletePermitHistoryEntry(${h.id})'>Löschen</button>
                 </div>
             </div>` : ''}
