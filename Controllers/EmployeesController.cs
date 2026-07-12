@@ -43,15 +43,21 @@ public class EmployeesController : ControllerBase
     }
 
     /// <summary>ZEMIS-Nr setzen (Walter 12.07.2026) — von der Ausweis-OCR
-    /// (MRZ-Zeile 1) oder manuell. Format 12345678.9.</summary>
+    /// (MRZ-Zeile 1) oder manuell. Format 12345678.9. Schreibt in das
+    /// EINZIGE ZEMIS-Feld <c>ZemisNumber</c> (zemis_number); das kurzlebige
+    /// Duplikat zemis_nr ist konsolidiert/entfernt. OCR ÜBERSCHREIBT einen
+    /// manuell erfassten Wert bewusst nicht (nur füllen wenn leer).</summary>
     [HttpPatch("{id:int}/zemis-nr")]
     public async Task<IActionResult> SetZemisNr(int id, [FromBody] ZemisDto dto)
     {
         var emp = await _context.Employees.FindAsync(id);
         if (emp == null) return NotFound();
-        emp.ZemisNr = string.IsNullOrWhiteSpace(dto.ZemisNr) ? null : dto.ZemisNr.Trim();
+        var neu = string.IsNullOrWhiteSpace(dto.ZemisNr) ? null : dto.ZemisNr.Trim();
+        if (neu != null && !string.IsNullOrWhiteSpace(emp.ZemisNumber) && emp.ZemisNumber != neu)
+            return Ok(new { ok = true, zemisNr = emp.ZemisNumber, kept = true });
+        emp.ZemisNumber = neu ?? emp.ZemisNumber;
         await _context.SaveChangesAsync();
-        return Ok(new { ok = true, zemisNr = emp.ZemisNr });
+        return Ok(new { ok = true, zemisNr = emp.ZemisNumber });
     }
     public record ZemisDto(string? ZemisNr);
 

@@ -1637,8 +1637,16 @@ using (var scope = app.Services.CreateScope())
             updated_at timestamptz NOT NULL DEFAULT now()
         );
         -- eCall-SMS-Konfiguration (F24 Schweiz, REST). Singleton, Id=1 (Walter 07.07.2026)
-        -- ZEMIS-Nr am MA (Ausweis-Rückseite, Walter 12.07.2026)
-        ALTER TABLE employee ADD COLUMN IF NOT EXISTS zemis_nr text;
+        -- ZEMIS-Nr: Duplikat zemis_nr wieder in das bestehende zemis_number
+        -- konsolidiert (Walter 12.07.2026) — Daten retten, dann Spalte weg.
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns
+                       WHERE table_name='employee' AND column_name='zemis_nr') THEN
+                UPDATE employee SET zemis_number = zemis_nr
+                 WHERE zemis_number IS NULL AND zemis_nr IS NOT NULL;
+                ALTER TABLE employee DROP COLUMN zemis_nr;
+            END IF;
+        END $$;
         CREATE TABLE IF NOT EXISTS dvelop_setting (
             id                 integer PRIMARY KEY,
             base_url           text,

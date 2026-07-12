@@ -51,10 +51,12 @@ public class Employee
     // läuft jetzt über EmployeePermitHistory.ValidTo des jüngsten Eintrags.
 
     /// <summary>
-    /// ZEMIS-Nummer (Zentrales Migrationsinformationssystem).
+    /// ZEMIS-Nummer (Zentrales Migrationsinformationssystem), Format 12345678.9.
     /// Bleibt während des ganzen Aufenthalts in der Schweiz gleich, auch wenn
     /// die Bewilligung wechselt (B → C → CH). Daher als personenbezogene
     /// Stammdaten und nicht bei der Bewilligung gepflegt.
+    /// EINZIGES ZEMIS-Feld (Walter 12.07.2026): die Ausweis-OCR schreibt
+    /// ebenfalls hierhin — das kurzlebige Duplikat zemis_nr wurde entfernt.
     /// </summary>
     public string? ZemisNumber { get; set; }
 
@@ -214,10 +216,6 @@ public class Employee
 
     /// <summary>AHV-Versichertennummer, Format 756.XXXX.XXXX.XX</summary>
     public string? SocialSecurityNumber { get; set; }
-
-    /// <summary>ZEMIS-Nummer (Ausländerregister, Format 12345678.9) — von der
-    /// Ausweis-Rückseite (MRZ/Feld «ZEMIS NR»), Walter-Vorgabe 12.07.2026.</summary>
-    public string? ZemisNr { get; set; }
 
     /// <summary>
     /// Zivilstand. Mögliche Werte:

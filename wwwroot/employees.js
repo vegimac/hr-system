@@ -887,6 +887,7 @@ function renderEmployeeDetail(emp) {
                             : emp.nationalityName)
                         : (emp.nationalityCode ?? emp.nationality ?? null),
                     'passport', true)}
+                ${field(_t('ma.field.zemis','ZEMIS-Nr.'), esc(emp.zemisNumber))}
             </div>
             <div class="emp-field-grid easywork-info-grid emp-flow-line emp-contact-line">
                 ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile, null, true)}
@@ -2824,7 +2825,7 @@ function renderQuellensteuerTab(el, entries, pflicht) {
             <span style="display:inline-flex;align-items:center;gap:8px">
                 Bewilligungen
                 ${permitDocBtn}
-                ${selectedEmployee?.zemisNr ? `<span style="font-size:11px;font-weight:600;color:#6b7280;background:#ece9e2;border-radius:999px;padding:2px 10px;text-transform:none;letter-spacing:0" title="ZEMIS-Nummer (Ausländerregister) — von der Ausweis-Rückseite">ZEMIS ${esc(selectedEmployee.zemisNr)}</span>` : ''}
+                ${selectedEmployee?.zemisNumber ? `<span style="font-size:11px;font-weight:600;color:#6b7280;background:#ece9e2;border-radius:999px;padding:2px 10px;text-transform:none;letter-spacing:0" title="ZEMIS-Nummer (Ausländerregister) — von der Ausweis-Rückseite">ZEMIS ${esc(selectedEmployee.zemisNumber)}</span>` : ''}
             </span>
             ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser') ? `
             <button class="btn-emp-add" onclick="openPermitHistoryModal(null)">
@@ -3987,6 +3988,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="">–</option>
             ${nationalityOptions}
         </select>`)}
+        ${eField(_t('ma.field.zemis','ZEMIS-Nr.'), `<input id="ef-zemisNumber" class="ef-input" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}">`)}
     </div>
     <div class="emp-field-grid easywork-info-grid emp-flow-line emp-contact-line">
         ${eField(_t('ma.field.phone','Telefon'), `<input id="ef-phone" class="ef-input" type="tel" value="${esc(emp.phoneMobile)}" placeholder="${_t('ma.placeholder.phone','+41 79 409 43 33')}" ${ewInput}>`)}
@@ -4358,7 +4360,9 @@ async function saveEmpEdit() {
         permitTypeId: permitTypeEl ? (parseInt(permitTypeEl.value) || 0) : (emp.permitTypeId || 0),
         permitExpiryDate: permitExpiryEl ? (permitExpiryEl.value || null) : (toDateInput(emp.permitExpiryDate) || null),
         nationalityId: easyWorkLocked ? (emp.nationalityId || null) : (parseInt(document.getElementById('ef-nationalityId')?.value) || null),
-        zemisNumber:  zemisEl ? (zemisEl.value?.trim() || null) : (emp.zemisNumber || null),
+        // ZEMIS: Backend-Konvention — null = «nicht ändern», '' = «löschen».
+        // Feld gerendert → Wert (oder '' zum Löschen) senden; sonst null.
+        zemisNumber:  zemisEl ? (zemisEl.value || '').trim() : null,
         entryDate:    easyWorkLocked ? (toDateInput(emp.entryDate) || null) : (document.getElementById('ef-entry')?.value || null),
         exitDateSet:  true,
         exitDate:     exitVal || null,
@@ -9882,8 +9886,13 @@ async function phfOcrPermit(docId) {
                     body: JSON.stringify({ zemisNr: j.zemisNr })
                 });
                 if (zr.ok) {
-                    parts.push('ZEMIS-Nr ' + j.zemisNr + ' am MA gespeichert');
-                    if (selectedEmployee) selectedEmployee.zemisNr = j.zemisNr;
+                    const zj = await zr.json().catch(() => null);
+                    if (zj?.kept) {
+                        parts.push('ZEMIS-Nr belassen (manuell erfasst: ' + zj.zemisNr + ')');
+                    } else {
+                        parts.push('ZEMIS-Nr ' + j.zemisNr + ' am MA gespeichert');
+                        if (selectedEmployee) selectedEmployee.zemisNumber = j.zemisNr;
+                    }
                 }
             } catch (_) {}
         }
