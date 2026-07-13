@@ -602,8 +602,8 @@ public class ContractPdfService
                 });
                 page.Footer().Column(f =>
                 {
-                    f.Item().LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
-                    f.Item().PaddingTop(2).AlignCenter()
+                    // Ohne Trennstrich, Fussnote MINIMAL angehoben (Walter 13.07.2026).
+                    f.Item().PaddingBottom(4).AlignCenter()
                         .Text("*Der Begriff \"Mitarbeiter\" umfasst ebenfalls die Mitarbeiterinnen. " +
                               "Aus Gr\u00fcnden der Einfachheit wird auf eine Differenzierung.")
                         .FontSize(7).Italic();
@@ -756,11 +756,10 @@ public class ContractPdfService
                             c.Item().PaddingTop(3).Text($"{d.FirstName} {d.LastName}");
                         });
                     });
-                    // NACHHER (im Footer):
                     page.Footer().Column(f =>
                     {
-                        f.Item().PaddingTop(8).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
-                        f.Item().PaddingTop(2)
+                        // Ohne Trennstrich, Fussnote MINIMAL angehoben (Walter 13.07.2026).
+                        f.Item().PaddingBottom(4)
                             .Text("*Der Begriff \u00abMitarbeiter\u00bb umfasst ebenfalls die Mitarbeiterinnen. " +
                                     "Aus Gr\u00fcnden der Einfachheit wird auf eine Differenzierung im Text verzichtet.")
                             .FontSize(7).Italic();
