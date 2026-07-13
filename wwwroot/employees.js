@@ -919,7 +919,8 @@ function renderEmployeeDetail(emp) {
                             : emp.nationalityName)
                         : (emp.nationalityCode ?? emp.nationality ?? null),
                     'passport', true)}
-                ${field(_t('ma.field.zemis','ZEMIS-Nr.'), esc(emp.zemisNumber))}
+                ${inlineEditField(_t('ma.field.zemis','ZEMIS-Nr.'),
+                    `<input id="ef-zemisNumber" class="ef-input" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" oninput="empInlineDirty()">`)}
             </div>
             <div class="emp-field-grid easywork-info-grid emp-flow-line emp-contact-line">
                 ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile, null, true)}
