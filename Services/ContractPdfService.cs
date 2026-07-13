@@ -124,15 +124,17 @@ public class ContractPdfService
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                // Oberer Rand 1.2 cm (Walter 13.07.2026): mit 0.5 cm lag die
+                // Oberer Rand 1.0 cm (Walter 13.07.2026): mit 0.5 cm lag die
                 // oberste Zeile (gelb hinterlegt) in der nicht bedruckbaren
                 // Zone der Drucker (~4-6 mm) und wurde auf JEDER Seite
                 // abgeschnitten. Fix im PDF statt Drucker-Einstellungen pro
-                // Filiale - so stimmt es auf jedem Geraet.
-                page.MarginTop(1.2f, Unit.Centimetre);
-                page.MarginBottom(0.8f, Unit.Centimetre);
+                // Filiale. Der Platzverlust (0.5 cm/Seite) wird ueber minimal
+                // engere Zeilenabstaende kompensiert, damit der Vertrag sicher
+                // auf 2 Seiten bleibt (Walter-Vorgabe 13.07.2026).
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(0.5f, Unit.Centimetre);
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(isMTP ? 8f : 11f).LineHeight(isMTP ? 1.05f : 1.3f).FontColor(Dark));
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(isMTP ? 8f : 11f).LineHeight(isMTP ? 1.03f : 1.27f).FontColor(Dark));
 
                 // Header: Titel wird ÜBER das Banner-Bild gelegt
                 // NACHHER:
@@ -459,12 +461,16 @@ public class ContractPdfService
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginTop(0.3f, Unit.Centimetre);
-                page.MarginBottom(0.8f, Unit.Centimetre);
+                // Oberer Rand 1.0 cm (Walter 13.07.2026, Drucker-Sperrzone) —
+                // Verlust via engeren Zeilenabstand kompensiert (bleibt 1 Seite).
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(0.5f, Unit.Centimetre);
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark));
+                // Zeilenabstand 1.12 (Walter 13.07.2026): kompensiert den auf
+                // 1.0 cm erhoehten oberen Rand — die Seite bleibt EINE Seite.
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).LineHeight(1.12f).FontColor(Dark));
                 page.Header().Image(BannerBytes).FitWidth();
-                page.Content().PaddingTop(4).Column(col =>
+                page.Content().PaddingTop(2).Column(col =>
                 {
                     // MTP Mehrstunden
                     if (isMTP)
@@ -610,12 +616,15 @@ public class ContractPdfService
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginTop(0.3f, Unit.Centimetre);
+                // Oberer Rand 1.0 cm (Walter 13.07.2026, Drucker-Sperrzone) —
+                // kompensiert via kleinerem Content-Padding + Zeilenabstand,
+                // damit die Verfuegbarkeits-Seite EINE Seite bleibt.
+                page.MarginTop(1.0f, Unit.Centimetre);
                 page.MarginBottom(0.5f, Unit.Centimetre);
                 page.MarginHorizontal(2f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark));
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).LineHeight(1.12f).FontColor(Dark));
                 page.Header().Image(BannerBytes).FitWidth();
-                page.Content().PaddingTop(10).Column(col =>
+                page.Content().PaddingTop(4).Column(col =>
                 {
                     col.Item().Table(tbl =>
                     {
@@ -760,8 +769,10 @@ public class ContractPdfService
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    page.MarginTop(0.3f, Unit.Centimetre);
-                    page.MarginBottom(1.5f, Unit.Centimetre);
+                    // Oberer Rand 1.0 cm (Walter 13.07.2026, Drucker-Sperrzone) —
+                    // Ausgleich aus dem grosszuegigen unteren Rand (1.5 → 0.8).
+                    page.MarginTop(1.0f, Unit.Centimetre);
+                    page.MarginBottom(0.8f, Unit.Centimetre);
                     page.MarginHorizontal(2f, Unit.Centimetre);
                     page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(sizeText).FontColor(Dark));
                     page.Header().Image(BannerBytes).FitWidth();
