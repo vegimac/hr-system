@@ -336,11 +336,18 @@ function applyEmpFilter() {
                 return true;
             }
             // Filial-Treffer nach Vertragsstatus (Walter-Vorgabe 23.06.2026):
-            //   aktiv  → nur wenn HEUTE ein aktiver Vertrag in dieser Filiale läuft
-            //            (Filialwechsel: alte Filiale zeigt den MA nicht mehr)
+            //   aktiv  → wenn in dieser Filiale ein Vertrag HEUTE läuft ODER in
+            //            der ZUKUNFT beginnt (Walter 12.07.2026: neu importierte
+            //            MA mit künftigem Eintritt — z.B. Vertrag ab 23.7. —
+            //            gehören zu den Aktiven, nicht nur unter «Alle»).
+            //            Filialwechsel bleibt korrekt: der Vertrag der alten
+            //            Filiale ist beendet (Ende < heute) und zählt nicht.
             //   inaktiv→ jeder (auch historische) Vertrag in dieser Filiale zählt
             const matchBranchActive = emps.some(v =>
-                Number(v.companyProfileId) === cpid && _empContractActiveOn(v, today));
+                Number(v.companyProfileId) === cpid
+                && (_empContractActiveOn(v, today)
+                    || (v.contractStartDate && new Date(v.contractStartDate) > today
+                        && (!v.contractEndDate || new Date(v.contractEndDate) >= today))));
             const matchBranchAny = emps.some(v => Number(v.companyProfileId) === cpid);
             if (_empFilter === 'aktiv')   return matchBranchActive;
             if (_empFilter === 'inaktiv') return matchBranchAny;
