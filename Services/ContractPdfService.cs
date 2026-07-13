@@ -784,15 +784,17 @@ public class ContractPdfService
                     page.MarginBottom(0.8f, Unit.Centimetre);
                     page.MarginHorizontal(2f, Unit.Centimetre);
                     page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(sizeText).FontColor(Dark));
-                    // Header exakt wie Seite 1 (Walter-Vorgabe 13.07.2026):
-                    // Titel liegt als Text-Ebene AUF dem gelben Banner-Balken.
+                    // Titel wie auf dem ALTEN Vertrags-Formular (Walter-Vorgabe
+                    // 13.07.2026, Muster «Befristet 30.11.25»): ZWEIZEILIG und
+                    // ZENTRIERT auf dem gelben Banner-Balken.
                     page.Header().Height(38).Layers(layers =>
                     {
                         layers.Layer().Image(BannerBytes).FitWidth();
-                        layers.PrimaryLayer()
-                            .PaddingHorizontal(10)
-                            .PaddingTop(10)
-                            .Text("Informationsblatt Mutterschutz").Bold().FontSize(11f).FontColor(Dark);
+                        layers.PrimaryLayer().PaddingTop(6).Column(t =>
+                        {
+                            t.Item().AlignCenter().Text("Arbeitssicherheit und Gesundheitsschutz. Mutterschutz").Bold().FontSize(9.5f).FontColor(Dark);
+                            t.Item().AlignCenter().Text("Informationsblatt Mutterschutz").Bold().FontSize(9.5f).FontColor(Dark);
+                        });
                     });
                     page.Content().PaddingTop(6).Column(col =>
                     {
