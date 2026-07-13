@@ -708,7 +708,19 @@ async function startApp() {
         await Promise.all([loadEmployees(), loadJobGroups(), loadEducationLevels(), loadNationalities(), loadCompanyProfile()]);
         if (activeBranchId) companyProfileId = activeBranchId;
         populateImportBranchSelect();
-        setTimeout(() => importChooseEasyEmployees(), 0);
+        if (CSV_IMPORT_ENABLED) {
+            // CSV-Fallback-Modus (Walter 12.07.2026): Upload-Zone zeigen,
+            // KEINE easy@work-API-Liste laden (die sieht fremd-gesperrte
+            // Datensätze ohnehin nicht und lieferte hier 403).
+            const up = document.getElementById('uploadSection');
+            if (up) up.style.display = '';
+            const sub = document.querySelector('.page-sub');
+            if (sub) sub.textContent = 'CSV-Fallback: easy@work-Export-Liste hochladen — für MA, deren Datensatz in einem fremden Restaurant gesperrt ist. Importiert werden nur die per Häkchen bestätigten Zeilen.';
+            const autoBtn0 = document.getElementById('btnAutoImport');
+            if (autoBtn0) autoBtn0.textContent = '🚀 Ausgewählte importieren';
+        } else {
+            setTimeout(() => importChooseEasyEmployees(), 0);
+        }
     } catch(e) {
         console.warn('Preload Fehler:', e);
     }
@@ -1054,15 +1066,16 @@ async function loadNationalities() {
 }
 
 // ── CSV PARSING ───────────────────────────────────────
-// ── CSV-Import deaktiviert (Walter-Vorgabe 29.06.2026) ────────────────────
-// Mitarbeiter & Verträge werden ausschliesslich über die easy@work-API
-// importiert (matcht stabil über die easy@work-id, deckt Restaurantwechsel +
-// Nummernwechsel sauber ab, ohne Dubletten). Der gesamte CSV-Code bleibt
-// erhalten, ist aber per Riegel INAKTIV — die Upload-Zone wird im UI ohnehin
-// nirgends mehr eingeblendet; dieser Riegel verhindert zusätzlich, dass die
-// Aufnahme je versehentlich (Drag&Drop / Datei-Feld / Direktaufruf) anspringt.
-// Zum Reaktivieren NUR diese Konstante auf true setzen.
-const CSV_IMPORT_ENABLED = false;
+// ── CSV-Import: nur noch als FALLBACK-Modus (Walter-Vorgaben 29.06. + 12.07.2026) ──
+// Normalfall bleibt die easy@work-API (matcht stabil über die easy@work-id,
+// deckt Restaurantwechsel + Nummernwechsel sauber ab, ohne Dubletten).
+// AUSNAHME (12.07.2026): ist der easy@work-Datensatz eines neuen MA in einem
+// FREMDEN Restaurant gesperrt (gehört einem anderen Betreiber), sieht unsere
+// API ihn nicht — dann führt der Weg über die easy@work-Export-Liste (CSV).
+// Der CSV-Modus wird per URL-Parameter ?csv=1 aktiviert (Wegwahl im
+// «Neuer MA aus easy@work»-Dialog) und importiert NUR die per Checkbox
+// bestätigten Zeilen (siehe runAutoImportAll).
+let CSV_IMPORT_ENABLED = _urlParams.get('csv') === '1';
 
 function handleDrop(e) {
     e.preventDefault();
@@ -2954,9 +2967,18 @@ function renderNewRow(e) {
         : isPhantom
             ? `<span class="badge" style="background:#fef3c7;color:#92400e">⛔ MA ohne Lohn</span>`
             : `<span class="badge" style="background:#fee2e2;color:#b91c1c">⚠️ kein Vertrag</span>`;
+    // CSV-Fallback (Walter 12.07.2026): der Nutzer bestätigt per Häkchen,
+    // WELCHE neuen MA importiert werden. Default: NICHT angehakt — bewusst
+    // auswählen (die Export-Liste enthält meist die ganze Filiale).
+    const selBox = CSV_IMPORT_ENABLED
+        ? `<input type="checkbox" class="imp-sel" data-idx="${idx}" onclick="event.stopPropagation()"
+                  title="Diesen MA importieren"
+                  style="width:18px;height:18px;flex-shrink:0;accent-color:#16a34a;margin-right:6px;cursor:pointer">`
+        : '';
     return `
     <div class="row-item" id="row-${idx}">
         <div class="row-header" onclick="toggleDetail(${idx})">
+            ${selBox}
             <div class="row-avatar new-emp">${initials(row)}</div>
             <div>
                 <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
@@ -3123,9 +3145,16 @@ function renderContractRow(c) {
         </div>`;
     }
 
+    // CSV-Fallback (Walter 12.07.2026): Auswahl-Häkchen wie bei den Neu-Zeilen.
+    const selBoxC = CSV_IMPORT_ENABLED
+        ? `<input type="checkbox" class="imp-sel" data-idx="${idx}" onclick="event.stopPropagation()"
+                  title="Diese Zeile importieren"
+                  style="width:18px;height:18px;flex-shrink:0;accent-color:#16a34a;margin-right:6px;cursor:pointer">`
+        : '';
     return `
     <div class="row-item" id="row-${idx}">
         <div class="row-header" onclick="toggleDetail(${idx})">
+            ${selBoxC}
             <div class="row-avatar contract">${initials(row)}</div>
             <div>
                 <div class="row-name">${get(row,'Vorname')} ${get(row,'Nachname')}</div>
@@ -3978,6 +4007,20 @@ async function runAllNew() {
 // Funktion mappbar (resolveJobGroupCode != null). Compliance-Check setzt
 // automatisch den Mindestlohn als Default, falls Lohnfeld leer/zu tief.
 async function runAutoImportAll() {
+    // CSV-Fallback-Auswahl (Walter-Vorgabe 12.07.2026): im CSV-Modus bestätigt
+    // der Nutzer per Häkchen, WELCHE Zeilen importiert werden. Zeilen ohne
+    // Häkchen — und Zeilen ohne Checkbox (addr/inactive-Massen-Updates aus
+    // einer womöglich veralteten Export-Liste) — werden ÜBERSPRUNGEN.
+    // Im API-Modus (keine Checkboxen im DOM) bleibt alles beim Alten.
+    const selBoxes = document.querySelectorAll('.imp-sel');
+    const selByIdx = {};
+    selBoxes.forEach(cb => { selByIdx[cb.getAttribute('data-idx')] = cb.checked; });
+    const hasSel = selBoxes.length > 0;
+    if (hasSel && ![...selBoxes].some(cb => cb.checked)) {
+        alert('Bitte zuerst per Häkchen auswählen, welche Zeilen importiert werden sollen.');
+        return;
+    }
+
     // Welche Zeilen sind aktuell offen?
     const openRows = [];
     for (let i = 0; i < parsedRows.length; i++) {
@@ -3988,6 +4031,7 @@ async function runAutoImportAll() {
         // Phantom (Supervisor), inaktive (Personaldossier) UND Adress-/
         // Kontaktdaten-Updates bestehender MA ('addr').
         if (!['new', 'contract', 'inactive', 'addr'].includes(st.status)) continue;
+        if (hasSel && selByIdx[String(i)] !== true) continue;   // nur bestätigte Zeilen
         openRows.push({ idx: i, row: parsedRows[i], state: st });
     }
     if (!openRows.length) {

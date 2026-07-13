@@ -626,7 +626,11 @@ async function saveRetentionYears() {
 // wie Stempelzeiten — alles bleibt in derselben Page, kein Kontextverlust.
 // Token + branchId werden via URL-Param weitergegeben damit import.html den
 // eigenen Login-Flow überspringen kann.
-function openImportTool() {
+// mode='csv' (Walter 12.07.2026): CSV-Fallback-Modus — für neue MA, deren
+// easy@work-Datensatz in einem FREMDEN Restaurant gesperrt ist (die API
+// sieht sie nicht). Der Importer zeigt dann die Upload-Zone statt der
+// easy@work-API-Liste.
+function openImportTool(mode) {
     if (!authToken) { alert('Bitte zuerst anmelden.'); return; }
     if (!fixedCompanyProfileId) {
         alert('Bitte zuerst eine Filiale auswählen, bevor du den Import startest.');
@@ -645,6 +649,7 @@ function openImportTool() {
               + themeParam
               + '&storeNumber=' + encodeURIComponent(restaurantCode)
               + '&v=' + Date.now()
+              + (mode === 'csv' ? '&csv=1' : '')
               + '&embedded=1';
     // iframe füllen + Page sichtbar schalten. iframe-src wird bei jedem
     // Öffnen neu gesetzt, damit der Importer auf die aktuelle Filiale +

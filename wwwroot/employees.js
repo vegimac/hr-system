@@ -9082,7 +9082,7 @@ function empImportFromEasy() {
                     <div style="font-size:14px;font-weight:700">Via easy@work-API <span style="font-weight:400;opacity:0.75">(Normalfall)</span></div>
                     <div style="font-size:12px;opacity:0.75;margin-top:2px">Holt neue MA + Änderungen aktiver MA direkt aus easy@work.</div>
                 </button>
-                <button onclick="document.getElementById('empEasyImportModal').style.display='none'; openImportTool();"
+                <button onclick="document.getElementById('empEasyImportModal').style.display='none'; openImportTool('csv');"
                         style="text-align:left;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:13px 16px;cursor:pointer">
                     <div style="font-size:14px;font-weight:700">Via CSV-Datei <span style="font-weight:400;color:#8b8b8b">(alter Importer)</span></div>
                     <div style="font-size:12px;color:#8b8b8b;margin-top:2px">Für MA, deren easy@work-Datensatz in einem fremden Restaurant gesperrt ist — die API sieht sie nicht. Export-Liste aus easy@work als CSV hochladen.</div>
