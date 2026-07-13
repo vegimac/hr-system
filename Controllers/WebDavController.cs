@@ -409,9 +409,15 @@ public class WebDavController : ControllerBase
         var password = decoded.Substring(idx + 1);
         if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password)) return null;
 
+        // Login case-INSENSITIV + getrimmt (Walter 12.07.2026, Genius-Scan-401):
+        // Scan-Apps normalisieren E-Mail-Adressen gern klein — der exakte
+        // Vergleich schlug dann fehl, obwohl die Zugangsdaten stimmten.
+        var loginNorm = login.Trim().ToLowerInvariant();
         var user = await _db.AppUsers
             .Include(u => u.BranchAccess)
-            .FirstOrDefaultAsync(u => u.IsActive && (u.Email == login || u.Username == login));
+            .FirstOrDefaultAsync(u => u.IsActive
+                && ((u.Email ?? "").ToLower() == loginNorm
+                 || (u.Username ?? "").ToLower() == loginNorm));
         if (user == null) return null;
         try
         {
