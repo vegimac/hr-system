@@ -1010,6 +1010,40 @@ async function loadEmployees() {
         const res = await fetch('/api/employees', { headers: ah() });
         allEmployees = await res.json();
     } catch { allEmployees = []; }
+    // Alias-Nummern nachladen (Walter 12.07.2026, Nihat-Fall): ein MA kann
+    // unter einer ANDEREN Hauptnummer existieren (pro Filiale eigene
+    // easy@work-Nummer, Filialwechsel). lookup-full liefert numberAliases.
+    try {
+        const rl = await fetch('/api/employees/lookup-full', { headers: ah() });
+        allEmployeesLookup = rl.ok ? await rl.json() : [];
+    } catch { allEmployeesLookup = []; }
+}
+
+let allEmployeesLookup = [];
+
+// Bestehenden MA finden (Walter 12.07.2026): 1) Hauptnummer, 2) Alias-Nummer
+// («alt»-Suffix gestrippt), 3) Name+Geburtsdatum (beide Seiten müssen das
+// Geburtsdatum haben — Namensgleichheit allein reicht nicht). Verhindert,
+// dass der CSV-Import Dubletten anlegt (z.B. Phantom-MA Nihat, der unter
+// der Nummer einer anderen Filiale schon im System ist).
+function findExistingEmp(nr, row) {
+    const n = String(nr).trim();
+    let e = allEmployees.find(x => String(x.employeeNumber || x.employee_number || '').trim() === n);
+    if (e) return e;
+    const lk = (allEmployeesLookup || []).find(x =>
+        (x.numberAliases || []).some(a => String(a || '').replace(/alt$/i, '').trim() === n));
+    if (lk) return allEmployees.find(x => x.id === lk.id) || lk;
+    const vor  = (get(row, 'Vorname')  || '').trim().toLowerCase();
+    const nach = (get(row, 'Nachname') || '').trim().toLowerCase();
+    const dob  = formatDate(get(row, 'Geburtsdatum'));
+    if (vor && nach && dob) {
+        const cand = allEmployees.find(x =>
+            (x.firstName || '').trim().toLowerCase() === vor
+         && (x.lastName  || '').trim().toLowerCase() === nach
+         && x.dateOfBirth && String(x.dateOfBirth).slice(0, 10) === dob);
+        if (cand) return cand;
+    }
+    return null;
 }
 
 async function loadJobGroups() {
@@ -2244,9 +2278,7 @@ async function analyzeRows() {
         // Inaktiv-Bucket: MA mit allen Bis-Daten in der Vergangenheit
         // → reines Personaldossier, kein Vertrag, kein Lohn-Check.
         if (isActiveByNr[String(nr).trim()] === false) {
-            const existingEmpInactive = allEmployees.find(e =>
-                String(e.employeeNumber || e.employee_number || '').trim() === String(nr).trim()
-            );
+            const existingEmpInactive = findExistingEmp(nr, row);
             inactive.push({ idx: i, row, existingEmp: existingEmpInactive || null });
             rowStates[i] = {
                 status: 'inactive',
@@ -2255,9 +2287,10 @@ async function analyzeRows() {
             continue;
         }
 
-        const existingEmp = allEmployees.find(e =>
-            String(e.employeeNumber || e.employee_number || '').trim() === String(nr).trim()
-        );
+        // Match über Hauptnummer, Alias ODER Name+Geburtsdatum (Walter 12.07.2026,
+        // Nihat-Fall) — sonst legt der CSV-Import Dubletten von MA an, die unter
+        // der Nummer einer anderen Filiale schon existieren.
+        const existingEmp = findExistingEmp(nr, row);
 
         if (!existingEmp) {
             newEmps.push({ idx: i, row });
