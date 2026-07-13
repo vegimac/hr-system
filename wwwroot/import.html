@@ -4299,6 +4299,23 @@ async function runAutoImportAll() {
     countEl.textContent  = `${done + phantomDone + inactiveDone + addrDone} / ${totalSteps}`;
     autoBtn.style.display = 'none';
     setTimeout(() => { autoBtn.disabled = false; autoBtn.style.opacity = '1'; }, 5000);
+
+    // Importer schliessen nach Erfolg (Walter-Vorgaben 13.05. + 12.07.2026):
+    // bei fehlerfreiem Commit nach 2 s zurück in die MA-Verwaltung (der
+    // Importer läuft im iframe — same-origin, Parent-Funktionen direkt
+    // aufrufbar) und die MA-Liste frisch laden. Bei Fehlern bleibt die
+    // Seite offen, damit man sie sieht.
+    if (!errors && (done + phantomDone + inactiveDone + addrDone) > 0) {
+        statusEl.textContent += ' — Fenster wird in 2 Sekunden geschlossen…';
+        setTimeout(() => {
+            try {
+                if (window.parent && window.parent !== window && typeof window.parent.showPage === 'function') {
+                    window.parent.showPage('mitarbeiter');
+                    if (typeof window.parent.loadMitarbeiterList === 'function') window.parent.loadMitarbeiterList();
+                }
+            } catch (_) { /* Parent nicht erreichbar → Seite bleibt offen */ }
+        }, 2000);
+    }
 }
 
 // ── RUN ALL (Adress-Updates) ──────────────────────────
