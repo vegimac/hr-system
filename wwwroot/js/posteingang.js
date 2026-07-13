@@ -168,6 +168,13 @@ async function pbLoadList() {
             return;
         }
         const isAdmin = (currentUser?.role === 'admin' || currentUser?.role === 'superuser');
+        // Sortierung nach ABSENDER (Walter-Vorgabe 13.07.2026), innerhalb
+        // desselben Absenders neueste zuerst — so bleiben z.B. alle
+        // Genius-Scan-Uploads einer Person beisammen.
+        const senderName = d => (d.uploader ? (d.uploader.name?.trim() || d.uploader.username || '') : 'Unbekannt');
+        docs.sort((a, b) =>
+            senderName(a).localeCompare(senderName(b), 'de', { sensitivity: 'base' })
+            || String(b.uploadedAt || '').localeCompare(String(a.uploadedAt || '')));
         list.innerHTML = docs.map(d => {
             const sizeKb = d.fileSizeBytes ? Math.round(d.fileSizeBytes / 1024) : 0;
             const dateStr = new Date(d.uploadedAt).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
@@ -182,8 +189,10 @@ async function pbLoadList() {
                         ${notifyInfo}
                     </div>
                     ${d.bemerkung ? `<div style="font-size:13px;color:#475569;margin-top:4px">${d.bemerkung}</div>` : ''}
-                    <div style="font-size:11.5px;color:#64748b;margin-top:6px">
-                        ${empInfo} · hochgeladen am ${dateStr} von ${uploaderInfo}
+                    <div style="font-size:12px;color:#64748b;margin-top:6px">
+                        <!-- Absender GROSS zuerst (Walter-Vorgabe 13.07.2026) -->
+                        <span style="font-size:13.5px;font-weight:700;color:#3f3f3f">${uploaderInfo}</span>
+                        · ${empInfo} · hochgeladen am ${dateStr}
                     </div>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0">
