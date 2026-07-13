@@ -318,8 +318,12 @@ public class EmployeePermitHistoryController : ControllerBase
     /// Aufenthalt-Block der MA-Maske aufgerufen. Body = { dokumentId: int? }
     /// — null bedeutet „Verknüpfung lösen".
     /// </summary>
+    // Walter-Vorgabe 13.07.2026: auch GF (user) + Buchhaltung dürfen den
+    // Ausweis-Scan verknüpfen — sie pflegen die MA ihrer Filialen. Das
+    // ERFASSEN/ÄNDERN/LÖSCHEN der Bewilligungs-Einträge selbst bleibt
+    // admin/superuser (QST-relevant).
     [HttpPatch("{id:int}/dokument")]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user,buchhaltung")]
     public async Task<IActionResult> PatchDokument(int employeeId, int id, [FromBody] PermitDokumentPatchDto dto)
     {
         var entry = await _db.EmployeePermitHistories
