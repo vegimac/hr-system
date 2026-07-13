@@ -2541,6 +2541,23 @@ function renderResults(skipped, newEmps, contracts, addrOnly, inactive = [], mis
     if (newEmps.length) {
         newSec.style.display = 'block';
         newList.innerHTML = [...newEmps].sort(byVorname).map(e => renderNewRow(e)).join('');
+    } else if (CSV_IMPORT_ENABLED) {
+        newSec.style.display = 'block';
+        newList.innerHTML = '<div class="alert alert-info">Keine neuen MA in der CSV — alle Personen sind bereits im System.</div>';
+    }
+
+    // CSV-Fallback (Walter-Vorgabe 12.07.2026, final): der CSV-Weg dient NUR
+    // dem Nachholen NEUER MA, deren easy@work-Datensatz in einem fremden
+    // Restaurant gesperrt ist. Bestehende MA (Vertragsänderungen, Adress-
+    // Updates) laufen ausschliesslich über die easy@work-API — diese
+    // Sektionen werden im CSV-Modus weder angezeigt noch importiert.
+    if (CSV_IMPORT_ENABLED) {
+        const hideIds = ['contractSection', 'addrSection', 'inactiveSection'];
+        hideIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.style.display = 'none'; }
+        });
+        return;
     }
 
     // CONTRACT CHANGES
@@ -4031,6 +4048,9 @@ async function runAutoImportAll() {
         // Phantom (Supervisor), inaktive (Personaldossier) UND Adress-/
         // Kontaktdaten-Updates bestehender MA ('addr').
         if (!['new', 'contract', 'inactive', 'addr'].includes(st.status)) continue;
+        // CSV-Fallback: NUR neue MA (Walter 12.07.2026) — Bestehendes läuft
+        // ausschliesslich über die easy@work-API.
+        if (CSV_IMPORT_ENABLED && st.status !== 'new') continue;
         if (hasSel && selByIdx[String(i)] !== true) continue;   // nur bestätigte Zeilen
         openRows.push({ idx: i, row: parsedRows[i], state: st });
     }
