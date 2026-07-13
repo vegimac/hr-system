@@ -2175,6 +2175,24 @@
             letter-spacing: -.02em;
             color: var(--emp-text-strong);
         }
+        /* Letzte vergebene Personalnummern der Filiale (Walter 12.07.2026) —
+           Erfassungs-Hilfe für die fortlaufende Nummernvergabe. Inhalt kommt
+           per data-lastnums aus applyEmpFilter (employees.js). */
+        #page-mitarbeiter.liquid-employee .emp-list-panel { position: relative; }
+        #page-mitarbeiter.liquid-employee .emp-list-panel::after {
+            content: attr(data-lastnums);
+            position: absolute;
+            top: 15px;
+            right: 14px;
+            font-size: 10.5px;
+            font-weight: 600;
+            line-height: 1.35;
+            color: #8b8b8b;
+            white-space: pre;
+            text-align: right;
+            pointer-events: none;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-panel::after { color: #a9a294; }
         #page-mitarbeiter.liquid-employee .emp-list-search {
             padding: 8px 12px;
             border-bottom: none;

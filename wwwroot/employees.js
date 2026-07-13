@@ -348,6 +348,31 @@ function applyEmpFilter() {
         });
     }
 
+    // Letzte vergebene Personalnummern der Filiale (Walter 12.07.2026, Versuch):
+    // die zwei HÖCHSTEN rein numerischen Nummern mit Filial-Präfix — als
+    // Erfassungs-Hilfe für die fortlaufende Nummernvergabe oben rechts neben
+    // dem «Mitarbeiter»-Titel (CSS ::after liest data-lastnums). Basis ist
+    // _empAllRaw (ALLE MA, unabhängig vom Aktiv-Filter — vergeben ist vergeben);
+    // «alt»-Archive und 9999er-Platzhalter zählen nicht.
+    try {
+        const lnPanel = document.querySelector('#page-mitarbeiter .emp-list-panel');
+        if (lnPanel) {
+            let lnPrefix = '';
+            if (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
+                const lnB = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === Number(fixedCompanyProfileId));
+                lnPrefix = (lnB?.restaurantCode || '').replace(/^0+/, '');
+            }
+            const lnTop = [...new Set(_empAllRaw
+                .map(e => (e.employeeNumber || '').trim())
+                .filter(n => /^\d+$/.test(n) && !n.startsWith('9999'))
+                .filter(n => !lnPrefix || n.startsWith(lnPrefix))
+                .map(Number))]
+                .sort((a, b) => b - a)
+                .slice(0, 2);
+            lnPanel.setAttribute('data-lastnums', lnTop.length ? 'letzte Nr.\n' + lnTop.join('\n') : '');
+        }
+    } catch (_) { /* reine Anzeige-Hilfe */ }
+
     allEmployees = filtered.sort((a, b) => {
         const na = ((a.firstName ?? '') + ' ' + (a.lastName ?? '')).trim().toLowerCase();
         const nb = ((b.firstName ?? '') + ' ' + (b.lastName ?? '')).trim().toLowerCase();
