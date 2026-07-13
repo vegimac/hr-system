@@ -124,8 +124,13 @@ public class ContractPdfService
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginTop(0.5f, Unit.Centimetre);
-                page.MarginBottom(0.5f, Unit.Centimetre);
+                // Oberer Rand 1.2 cm (Walter 13.07.2026): mit 0.5 cm lag die
+                // oberste Zeile (gelb hinterlegt) in der nicht bedruckbaren
+                // Zone der Drucker (~4-6 mm) und wurde auf JEDER Seite
+                // abgeschnitten. Fix im PDF statt Drucker-Einstellungen pro
+                // Filiale - so stimmt es auf jedem Geraet.
+                page.MarginTop(1.2f, Unit.Centimetre);
+                page.MarginBottom(0.8f, Unit.Centimetre);
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
                 page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(isMTP ? 8f : 11f).LineHeight(isMTP ? 1.05f : 1.3f).FontColor(Dark));
 
