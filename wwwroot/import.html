@@ -2306,6 +2306,15 @@ async function analyzeRows() {
         const existingEmp = findExistingEmp(nr, row);
 
         if (!existingEmp) {
+            // CSV-Fallback (Walter 12.07.2026, final): Supervisor/Phantom-MA
+            // werden hier GAR NICHT angeboten — sie existieren pro Filiale
+            // unter eigener easy@work-Nummer und gehören ausschliesslich in
+            // den API-Sync. Landet eingeklappt unter «Übersprungen».
+            if (CSV_IMPORT_ENABLED && isPhantomRow(row)) {
+                skipped.push({ idx: i, row, reason: 'Supervisor (MA ohne Lohn) — wird im CSV-Fallback nicht importiert' });
+                rowStates[i] = { status: 'skip' };
+                continue;
+            }
             newEmps.push({ idx: i, row });
             rowStates[i] = { status: 'new' };
             continue;
