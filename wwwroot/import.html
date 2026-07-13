@@ -1006,15 +1006,18 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
 }
 
 async function loadEmployees() {
+    // cache:'no-store' (Walter 12.07.2026): der Browser cachte die MA-Liste
+    // im iframe — eben per API importierte MA erschienen im CSV weiter als
+    // «Neu» (Raj-Kaur-Fall).
     try {
-        const res = await fetch('/api/employees', { headers: ah() });
+        const res = await fetch('/api/employees', { headers: ah(), cache: 'no-store' });
         allEmployees = await res.json();
     } catch { allEmployees = []; }
     // Alias-Nummern nachladen (Walter 12.07.2026, Nihat-Fall): ein MA kann
     // unter einer ANDEREN Hauptnummer existieren (pro Filiale eigene
     // easy@work-Nummer, Filialwechsel). lookup-full liefert numberAliases.
     try {
-        const rl = await fetch('/api/employees/lookup-full', { headers: ah() });
+        const rl = await fetch('/api/employees/lookup-full', { headers: ah(), cache: 'no-store' });
         allEmployeesLookup = rl.ok ? await rl.json() : [];
     } catch { allEmployeesLookup = []; }
 }
@@ -1042,6 +1045,16 @@ function findExistingEmp(nr, row) {
          && (x.lastName  || '').trim().toLowerCase() === nach
          && x.dateOfBirth && String(x.dateOfBirth).slice(0, 10) === dob);
         if (cand) return cand;
+    }
+    // Phantom-MA (Supervisor wie Nihat, Walter 12.07.2026): NAME allein genügt —
+    // er hat pro Filiale eine eigene easy@work-Nummer, meist keinen Alias der
+    // neuen Filiale und teils kein Geburtsdatum. Nur gegen isPayrollExcluded-MA,
+    // die Menge ist winzig und eindeutig.
+    if (vor && nach) {
+        const ph = allEmployees.find(x => x.isPayrollExcluded === true
+            && (x.firstName || '').trim().toLowerCase() === vor
+            && (x.lastName  || '').trim().toLowerCase() === nach);
+        if (ph) return ph;
     }
     return null;
 }
