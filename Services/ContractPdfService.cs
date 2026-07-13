@@ -626,6 +626,9 @@ public class ContractPdfService
                 page.Header().Image(BannerBytes).FitWidth();
                 page.Content().PaddingTop(4).Column(col =>
                 {
+                    // Seitentitel (Walter-Vorgabe 13.07.2026) — gab es vorher nicht.
+                    col.Item().PaddingBottom(4)
+                        .Text("Verf\u00fcgbare Arbeitszeiten").Bold().FontSize(12f);
                     col.Item().Table(tbl =>
                     {
                         tbl.ColumnsDefinition(c => { c.ConstantColumn(110); c.RelativeColumn(); });
@@ -778,6 +781,9 @@ public class ContractPdfService
                     page.Header().Image(BannerBytes).FitWidth();
                     page.Content().PaddingTop(6).Column(col =>
                     {
+                        // Seitentitel (Walter-Vorgabe 13.07.2026) — gab es vorher nicht.
+                        col.Item().PaddingBottom(4)
+                            .Text("Informationsblatt Mutterschutz").Bold().FontSize(12f);
                         col.Item().Element(c => T(c, "1. Information f\u00fcr Frauen \u201eim geb\u00e4rf\u00e4higen\u201c Alter", sizeTitle));
                         col.Item().Element(c => P(c, "Gem\u00e4ss gesetzlicher Regelung muss der Arbeitgeber Frauen im geb\u00e4rf\u00e4higen Alter bei Stellenantritt \u00fcber allf\u00e4llige arbeitsplatzbezogene Gefahren w\u00e4hrend einer Schwangerschaft informieren.", sizeText));
                         col.Item().Element(c => P(c, "Das Risiko einer Sch\u00e4digung des ungeborenen Kindes ist in den ersten drei Schwangerschaftsmonaten am gr\u00f6ssten. Wird eine Schwangerschaft vermutet oder nachgewiesen, sollte die Mitarbeiterin dies deshalb umgehend dem Vorgesetzten mitteilen, damit allf\u00e4llige Risiken bei der weiteren Besch\u00e4ftigung beurteilt und besprochen werden k\u00f6nnen.", sizeText));
