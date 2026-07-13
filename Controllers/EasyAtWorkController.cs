@@ -1099,10 +1099,28 @@ public class EasyAtWorkController : ControllerBase
     /// Wird aus der Mitarbeiter-Maske über den Button „easy@work Abgleich"
     /// aufgerufen. Schreibt erst nach vollständiger Validierung.
     /// </summary>
+    // Walter-Vorgabe 13.07.2026: der Einzel-Abgleich steht auch dem GF (user)
+    // + Buchhaltung offen — sie pflegen die MA ihrer Filialen. Filial-Guard:
+    // user/buchhaltung nur mit companyProfileId aus ihrer UserBranchAccess-
+    // Liste (analog Neuzugangs-Import; buchhaltung ZUERST, wegen des
+    // superuser-Doppel-Claims).
+    [Authorize(Roles = "admin,superuser,user,buchhaltung")]
     [HttpPost("employees/cowork/{employeeId:int}/sync")]
     public async Task<IActionResult> SyncSingleCoworkEmployee(int employeeId, [FromBody] SingleCoworkEmployeeSyncDto? dto, CancellationToken ct)
     {
         if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+
+        var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToHashSet();
+        var istGlobal = !roles.Contains("buchhaltung") && (roles.Contains("admin") || roles.Contains("superuser"));
+        if (!istGlobal)
+        {
+            if (dto?.CompanyProfileId is not int cpid)
+                return StatusCode(403, new { error = "Bitte zuerst oben eine Filiale w\u00e4hlen." });
+            var uidClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(uidClaim, out var uid)
+                || !await _db.UserBranchAccesses.AnyAsync(a => a.UserId == uid && a.CompanyProfileId == cpid))
+                return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+        }
         var res = await _empSync.SyncSingleCoworkEmployeeAsync(employeeId, dto?.CompanyProfileId, ct);
         if (!res.Success && res.Errors.Count > 0)
             return BadRequest(new { error = "EAW_SINGLE_SYNC_INVALID", message = string.Join("\n", res.Errors), res.Errors, res.Notes });

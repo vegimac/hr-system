@@ -843,7 +843,7 @@ function renderEmployeeDetail(emp) {
                  Speichern/Abbrechen. Postfach-Button nur für nicht-Phantom-MA. -->
             <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:58px;flex:1 1 auto;flex-wrap:wrap;justify-content:flex-end;align-content:flex-start;min-width:0">
                 <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
-                ${['admin','superuser','buchhaltung'].includes(currentUser?.role) ? `
+                ${['admin','superuser','buchhaltung','user'].includes(currentUser?.role) ? `
                 <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap;display:inline-flex;align-items:center;gap:7px"
                         title="Aktualisiert easy@work-Felder dieses Mitarbeiters aus der API"
                         onclick="easyworkSyncSelectedEmployee(${emp.id})">
