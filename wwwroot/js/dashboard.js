@@ -394,7 +394,18 @@ function dashOpenTodos() {
 
 // Baut eine saubere, klassische To-do-Liste (Dokument-Stil, NICHT der Sketch-
 // Bildschirm) in #todosPrintArea und öffnet den Druck-/„Als PDF sichern"-Dialog.
-function buildTodosPrintHtml() {
+// Anonymisierung (Walter-Vorgabe 13.07.2026): fuer PDFs an GF/Treuhaender
+// duerfen KEINE Namen erscheinen — nur die Personalnummer. Entfernt den
+// employeeName aus dem Text und raeumt Trennzeichen auf.
+function _tpAnon(text, a) {
+    let t = String(text || '');
+    if (a && a.employeeName) {
+        t = t.split(a.employeeName).join('');
+    }
+    return t.replace(/\s*·\s*·\s*/g, ' · ').replace(/^\s*[·—-]\s*/, '').trim();
+}
+
+function buildTodosPrintHtml(anonym = false) {
     const bySev = { critical: [], warning: [], info: [] };
     (_dashAlerts || []).forEach(a => { (bySev[a.severity] || bySev.info).push(a); });
     // Gleiche Sortierung wie am Bildschirm (Walter 13.07.2026).
@@ -410,8 +421,9 @@ function buildTodosPrintHtml() {
         const items = bySev[sev];
         const rows = items.length
             ? items.map(a => {
-                const title = (a.titleKey && window.i18n) ? i18n.tFormat(a.titleKey, a.titleArgs || {}) : (a.title || '');
-                const sub   = (a.subtitleKey && window.i18n) ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {}) : (a.subtitle || '');
+                let title = (a.titleKey && window.i18n) ? i18n.tFormat(a.titleKey, a.titleArgs || {}) : (a.title || '');
+                let sub   = (a.subtitleKey && window.i18n) ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {}) : (a.subtitle || '');
+                if (anonym) { title = _tpAnon(title, a); sub = _tpAnon(sub, a); }
                 // ROT nur für Walters definierte Fälle (12.07.2026), auch im Druck.
                 const critCls = dashIsRedAlert(a) ? ' tp-crit' : '';
                 return `<tr><td class="tp-t${critCls}">${_e(title)}</td><td class="tp-s">${_e(sub)}</td></tr>`;
@@ -420,13 +432,43 @@ function buildTodosPrintHtml() {
         return `<h2 class="tp-h tp-${sev}">${secTitle[sev]} <span>(${items.length})</span></h2>
             <table class="tp-tbl"><tbody>${rows}</tbody></table>`;
     };
-    return `<div class="tp-head"><h1>To-do-Liste</h1><div class="tp-meta">${_e(branchLbl)} · ${today}</div></div>
+    return `<div class="tp-head"><h1>To-do-Liste</h1><div class="tp-meta">${_e(branchLbl)} · ${today}${anonym ? ' · anonymisiert (nur Personalnummern)' : ''}</div></div>
         ${section('critical')}${section('warning')}${section('info')}`;
 }
 
+// Vor dem Druck waehlen (Walter-Vorgabe 13.07.2026): mit Namen (intern)
+// oder anonymisiert (nur Personalnummern — fuer GF/Treuhaender).
 function todosPrintPdf() {
+    let ov = document.getElementById('todosPrintChoice');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'todosPrintChoice';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(60,55,48,0.4);display:flex;align-items:center;justify-content:center;padding:20px';
+        ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+        ov.innerHTML = `
+            <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:440px;width:100%;padding:20px 22px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
+                <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:4px">To-do-Liste drucken</div>
+                <div style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px">Für den Versand an GF/Treuhänder die anonymisierte Variante wählen — sie enthält keine Namen, nur Personalnummern.</div>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                    <button onclick="_todosPrintRun(true)"
+                            style="text-align:left;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:12px 16px;cursor:pointer;font-size:14px;font-weight:700">
+                        🔒 Anonymisiert — nur Personalnummern
+                    </button>
+                    <button onclick="_todosPrintRun(false)"
+                            style="text-align:left;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:12px 16px;cursor:pointer;font-size:14px;font-weight:700">
+                        Mit Namen (interner Gebrauch)
+                    </button>
+                </div>
+            </div>`;
+        document.body.appendChild(ov);
+    }
+    ov.style.display = 'flex';
+}
+function _todosPrintRun(anonym) {
+    const ov = document.getElementById('todosPrintChoice');
+    if (ov) ov.style.display = 'none';
     const area = document.getElementById('todosPrintArea');
-    if (area) area.innerHTML = buildTodosPrintHtml();
+    if (area) area.innerHTML = buildTodosPrintHtml(anonym);
     setTimeout(() => window.print(), 80);
 }
 
