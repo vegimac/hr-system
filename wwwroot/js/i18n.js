@@ -435,7 +435,7 @@ window.i18n = (function () {
         'famTab.title':              { de: 'Familie',                 en: 'Family' },
         'famTab.empty':              { de: 'Keine Familienmitglieder erfasst',
                                         en: 'No family members recorded' },
-        'famTab.add':                { de: '+ Familienmitglied',       en: '+ Family member' },
+        'famTab.add':                { de: 'Familienmitglied',       en: 'Family member' },
         'famTab.col.type':           { de: 'Typ',                      en: 'Type' },
         'famTab.col.name':           { de: 'Name',                     en: 'Name' },
         'famTab.col.dob':            { de: 'Geburtsdatum',             en: 'Date of birth' },

@@ -1309,7 +1309,7 @@ function switchEmpTab(tab) {
         const isExcluded = !!selectedEmployee?.isPayrollExcluded;
         const plusIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
         if (tab === 'familie' && !isExcluded) {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openFamilyModal(null)">${plusIcon} ${_t('famTab.add','+ Familienmitglied')}</button>`;
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openFamilyModal(null)">${plusIcon} ${_t('famTab.add','Familienmitglied')}</button>`;
         } else if (tab === 'bank' && !isExcluded) {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openBankAccountModal(null)">${plusIcon} ${_t('ma.btn.newBank','Neue Bankverbindung')}</button>`;
         } else if (tab === 'quellensteuer') {
