@@ -138,19 +138,29 @@ async function loadQstFamilyKinder(employeeId) {
 // gesetzte Felder NICHT überschrieben (Walter's Edit-Modus + manuelle
 // Korrektur). `qstRenderVorschlagBanner` zeigt Begründung + Warnungen.
 // ══════════════════════════════════════════════════════════════════════
+let _qstServerVorschlagError = null;
 async function qstFetchServerVorschlag(stichtagIso) {
     _qstServerVorschlag = null;
-    if (!qstCurrentEmployeeId) return null;
+    _qstServerVorschlagError = null;
+    if (!qstCurrentEmployeeId) { _qstServerVorschlagError = 'kein MA-Kontext'; return null; }
     const date = (stichtagIso || '').toString().slice(0, 10) ||
                  new Date().toISOString().slice(0, 10);
     try {
         const res = await fetch(
             `/api/employees/${qstCurrentEmployeeId}/quellensteuer/vorschlag?date=${date}`,
             { headers: ah() });
-        if (!res.ok) return null;
+        if (!res.ok) {
+            // Grund sichtbar machen (Walter 13.07.2026): «nicht verfügbar»
+            // ohne Ursache war nicht diagnostizierbar.
+            let msg = '';
+            try { const j = await res.json(); msg = j.message || j.error || ''; } catch (_) {}
+            _qstServerVorschlagError = `HTTP ${res.status}${msg ? ' — ' + msg : ''}`;
+            return null;
+        }
         _qstServerVorschlag = await res.json();
         return _qstServerVorschlag;
-    } catch {
+    } catch (e) {
+        _qstServerVorschlagError = 'Netzwerkfehler: ' + (e?.message || e);
         return null;
     }
 }
@@ -340,9 +350,9 @@ function qstSuggestTarif() {
     const kinder   = parseInt(document.getElementById('qstKinder')?.value ?? '0', 10) || 0;
     const suggested = qstSuggestTarifBuchstabe(zivil, kinder);
     if (suggested && sel.value && suggested !== sel.value) {
-        hint.innerHTML = `<span style="color:#94a3b8">ℹ Vorschlag aus Zivilstand wäre <b>${suggested}</b> — du hast bewusst <b>${sel.value}</b> gewählt. (Server-Vorschlag nicht verfügbar.)</span>`;
+        hint.innerHTML = `<span style="color:#94a3b8">ℹ Vorschlag aus Zivilstand wäre <b>${suggested}</b> — du hast bewusst <b>${sel.value}</b> gewählt. (Server-Vorschlag nicht verfügbar${_qstServerVorschlagError ? ': ' + _qstServerVorschlagError : ''}.)</span>`;
     } else if (suggested) {
-        hint.innerHTML = `<span style="color:#94a3b8">ℹ Vorschlag aus Zivilstand: <b>${suggested}</b> (Server-Vorschlag nicht verfügbar — bitte manuell prüfen).</span>`;
+        hint.innerHTML = `<span style="color:#94a3b8">ℹ Vorschlag aus Zivilstand: <b>${suggested}</b> (Server-Vorschlag nicht verfügbar${_qstServerVorschlagError ? ': ' + _qstServerVorschlagError : ''} — bitte manuell prüfen).</span>`;
     } else {
         hint.innerHTML = `<span style="color:#94a3b8">ℹ Kein Vorschlag möglich — Zivilstand „${zivil}" nicht erkannt.</span>`;
     }
