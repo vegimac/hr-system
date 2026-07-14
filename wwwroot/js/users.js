@@ -96,10 +96,61 @@ function umUpdateBranchVisibility() {
     if (hrGroup) hrGroup.style.display = (isAdmin || role === 'buchhaltung' || role === 'lowuser') ? 'none' : 'block';
 }
 
+// ── «Aus Mitarbeiter übernehmen» (Walter-Vorgabe 13.07.2026) ────────────
+// Für GF-Konten: MA im Picker wählen → Name/E-Mail/Telefon aus dem MA-
+// Datensatz übernehmen, Rolle auf «user» setzen, Filiale(n) der aktiven
+// Verträge anhaken. Nur beim ERSTELLEN sichtbar.
+let _umEmpByLabel = {};
+async function umFillFromEmpPicker() {
+    const dl = document.getElementById('umFromEmpList');
+    const grp = document.getElementById('umFromEmpGroup');
+    const inp = document.getElementById('umFromEmp');
+    if (!dl || !grp) return;
+    grp.style.display = 'block';
+    if (inp) inp.value = '';
+    try {
+        const emps = (await loadEmployeeLookup())
+            .filter(e => e.isActive && !e.isPayrollExcluded);
+        _umEmpByLabel = {};
+        dl.innerHTML = emps.map(e => {
+            const label = `${e.firstName || ''} ${e.lastName || ''} (${e.employeeNumber || ''})`.trim();
+            _umEmpByLabel[label] = e;
+            return `<option value="${label.replace(/"/g, '&quot;')}"></option>`;
+        }).join('');
+    } catch (_) { /* Picker best-effort */ }
+}
+async function umFromEmpPicked() {
+    const inp = document.getElementById('umFromEmp');
+    const e = inp ? _umEmpByLabel[inp.value] : null;
+    if (!e) return;   // erst bei exakter Auswahl aus der Liste reagieren
+    try {
+        const r = await fetch(`/api/employees/${e.id}`, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) return;
+        const emp = await r.json();
+        document.getElementById('umFirstName').value = emp.firstName || '';
+        document.getElementById('umLastName').value  = emp.lastName  || '';
+        document.getElementById('umEmail').value     = emp.email     || '';
+        document.getElementById('umPhone').value     = emp.phoneMobile || '';
+        // Rolle GF vorschlagen + Filialen der aktiven Verträge anhaken
+        const roleSel = document.getElementById('umRole');
+        if (roleSel) { roleSel.value = 'user'; if (typeof umUpdateBranchVisibility === 'function') umUpdateBranchVisibility(); }
+        const cpids = new Set((e.employments || [])
+            .filter(v => v.isActive !== false && (!v.contractEndDate || new Date(v.contractEndDate) >= new Date()))
+            .map(v => Number(v.companyProfileId)).filter(Boolean));
+        document.querySelectorAll('#umBranches input[type=checkbox]').forEach(cb => {
+            if (cpids.has(Number(cb.value))) cb.checked = true;
+        });
+    } catch (_) { /* best-effort */ }
+}
+
 function openUserModal(userId = null) {
     editingUserId = userId;
     document.getElementById('userModalAlert').innerHTML = '';
     document.getElementById('userModalTitle').textContent = userId ? 'Benutzer bearbeiten' : 'Benutzer erstellen';
+    // MA-Übernahme-Picker nur beim Erstellen (Walter 13.07.2026)
+    const feGrp = document.getElementById('umFromEmpGroup');
+    if (feGrp) feGrp.style.display = 'none';
+    if (!userId) umFillFromEmpPicker();
     document.getElementById('umPwHint').textContent = userId ? 'Leer lassen = Passwort unverändert' : 'Pflichtfeld';
     document.getElementById('umStatusGroup').style.display = userId ? 'block' : 'none';
 

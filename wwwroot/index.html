@@ -6505,6 +6505,16 @@
 
             <!-- ── PERSON ─────────────────────────────────────────────────── -->
             <div class="emp-section-title">Person</div>
+            <!-- Aus MA uebernehmen (Walter-Vorgabe 13.07.2026): fuer GF-Benutzer
+                 die Angaben direkt aus dem Mitarbeiter-Datensatz ziehen. -->
+            <div class="f-group" id="umFromEmpGroup" style="display:none">
+                <label class="f-label">Aus Mitarbeiter übernehmen (optional)</label>
+                <input type="text" class="f-input" id="umFromEmp" list="umFromEmpList"
+                       placeholder="MA suchen (Vorname/Nr.) — füllt Name, E-Mail, Telefon, Filiale"
+                       oninput="umFromEmpPicked()">
+                <datalist id="umFromEmpList"></datalist>
+                <div class="f-hint">Praktisch für Geschäftsführer-Konten: Rolle wird auf «Benutzer (GF)» gesetzt, Filiale angehakt.</div>
+            </div>
             <div class="f-grid">
                 <div class="f-group">
                     <label class="f-label">Vorname</label>
@@ -6672,7 +6682,7 @@
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260704p"></script>
-<script src="js/users.js?v=20260704p"></script>
+<script src="js/users.js?v=20260713a"></script>
 <script src="js/contracts-page.js?v=20260708flex"></script>
 <script src="js/documents.js?v=20260710a"></script>
 <script src="js/dvelop-import.js?v=20260711b"></script>
