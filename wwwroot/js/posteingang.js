@@ -139,6 +139,34 @@ async function pbInit() {
     pbStartAutoRefresh();
 }
 
+// Zähler im Postfach-Dropdown auffrischen (Walter-Vorgabe 13.07.2026):
+// nach Löschen/Ablegen/Upload blieb z.B. «HR-Postfach (3)» stehen, obwohl
+// leer. Aktualisiert NUR die Options-Texte, Auswahl bleibt erhalten.
+async function pbRefreshPostfachCounts() {
+    const sel = document.getElementById('pbBranchSelect');
+    if (!sel || sel.options.length <= 1) return;
+    try {
+        const r = await fetch('/api/mailbox/postfaecher', { headers: ah(), cache: 'no-store' });
+        if (!r.ok) return;
+        const postfaecher = await r.json();
+        const byVal = {};
+        postfaecher.forEach(p => {
+            const val = p.type === 'BRANCH' ? `BRANCH:${p.companyProfileId}` : p.type;
+            byVal[val] = p;
+        });
+        Array.from(sel.options).forEach(o => {
+            const p = byVal[o.value];
+            if (!p) return;
+            const cnt = p.count > 0 ? ` (${p.count})` : '';
+            const base = p.type === 'BRANCH' ? `${p.code || ''} ${p.name || ''}`
+                       : p.type === 'HR'     ? 'HR-Postfach'
+                       : p.type === 'BUCH'   ? 'Buchhaltungs-Postfach'
+                       :                       'Admin-Postfach';
+            o.textContent = `${base}${cnt}`;
+        });
+    } catch { /* reine Anzeige */ }
+}
+
 // Postfach-Wahl-Wert parsen: "BRANCH:58" | "HR" | "ADMIN" | ""
 function pbParsePostfach(val) {
     if (!val) return null;
@@ -206,6 +234,7 @@ async function pbLoadList() {
         list.innerHTML = `<div style="padding:16px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:13px">Fehler: ${err.message}</div>`;
     }
     pbUpdateBadge();
+    pbRefreshPostfachCounts();   // Dropdown-Zähler mitziehen (Walter 13.07.2026)
 }
 
 async function pbUpdateBadge() {
