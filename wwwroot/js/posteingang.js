@@ -121,6 +121,9 @@ async function pbInit() {
                         : withContent.type;
                 }
             }
+            // Liquid-Select-Button nach programmatischem value-Set auffrischen
+            // (Walter 13.07.2026 — natives Select ist versteckt).
+            branchSel._lqRefresh?.();
         } catch {}
     }
     // Dokument-Typen laden (hierarchisch + flach)

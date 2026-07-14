@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260713a">
+    <link rel="stylesheet" href="css/app.css?v=20260713b">
 </head>
 <body>
 
@@ -646,7 +646,7 @@
                     <!-- Toolbar: Filial-Filter + Upload-Button -->
                     <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
                         <label style="font-size:13px;color:#475569">Filiale:</label>
-                        <select id="pbBranchSelect" onchange="pbLoadList()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;min-width:240px">
+                        <select id="pbBranchSelect" data-liquid-select onchange="pbLoadList()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;min-width:240px">
                             <option value="">– wählen –</option>
                         </select>
                         <button class="btn btn-outline" onclick="pfxOpen()" style="margin-left:auto">✉ Nachricht ins Postfach senden</button>
@@ -6645,6 +6645,7 @@
 <script src="js/app-core.js?v=20260712a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
+<script src="js/liquid-select.js?v=20260713a"></script>
 <script src="js/save-blob.js?v=20260704p"></script>
 <script src="js/file-preview.js?v=20260704p"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
@@ -7681,7 +7682,7 @@
      POSTEINGANG (Mailbox pro Filiale)
      ═══════════════════════════════════════════════════════════════════ -->
 <!-- ═══════════════ MODUL-SCRIPTS Block 2 (Phase A) ═══════════════ -->
-<script src="js/posteingang.js?v=20260713b"></script>
+<script src="js/posteingang.js?v=20260713c"></script>
 <script src="js/hr-rav.js?v=20260704p"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260708flex"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260712a"></script>

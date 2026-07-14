@@ -2193,6 +2193,54 @@
             pointer-events: none;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-panel::after { color: #a9a294; }
+        /* ── Liquid-Select (Walter-Vorgabe 13.07.2026) ─────────────────────
+           Generisches Liquid-Glass-Dropdown als Ersatz für native Selects
+           (js/liquid-select.js). Original-Select bleibt versteckt im DOM. */
+        .lqsel-wrap { position: relative; display: inline-block; min-width: 200px; }
+        .lqsel-btn {
+            display: inline-flex; align-items: center; justify-content: space-between;
+            gap: 10px; width: 100%;
+            background: rgba(255,255,255,0.55);
+            border: 1px solid rgba(139,139,139,0.35);
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-size: 13px; font-weight: 600; color: #3f3f3f;
+            cursor: pointer; text-align: left;
+            transition: background .15s, box-shadow .15s;
+        }
+        .lqsel-btn:hover { background: rgba(255,255,255,0.8); box-shadow: 0 2px 8px rgba(60,55,48,0.14); }
+        .lqsel-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+        .lqsel-chev { flex-shrink: 0; color: #8b8b8b; font-size: 11px; }
+        .lqsel-panel {
+            position: absolute; top: calc(100% + 4px); left: 0; z-index: 3000;
+            min-width: 100%; max-height: 340px; overflow-y: auto;
+            background: #faf8f5;
+            border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 12px;
+            box-shadow: 0 16px 40px rgba(60,55,48,0.22);
+            padding: 6px;
+        }
+        .lqsel-group {
+            padding: 8px 10px 3px;
+            font-size: 10.5px; font-weight: 700; letter-spacing: .05em;
+            text-transform: uppercase; color: #8b8b8b;
+        }
+        .lqsel-opt {
+            padding: 8px 12px; border-radius: 8px;
+            font-size: 13px; color: #3f3f3f; cursor: pointer;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .lqsel-opt:hover { background: #ece9e2; }
+        .lqsel-opt.sel { font-weight: 700; }
+        .lqsel-opt.sel::before { content: "✓ "; color: #6b7280; }
+        .lqsel-opt.dis { color: #b8b2a7; cursor: default; }
+        body.theme-dark .lqsel-btn { background: rgba(40,38,34,0.6); border-color: rgba(139,139,139,0.4); color: #efe9dc; }
+        body.theme-dark .lqsel-btn:hover { background: rgba(50,48,43,0.8); }
+        body.theme-dark .lqsel-panel { background: #2b2925; border-color: rgba(255,255,255,0.12); }
+        body.theme-dark .lqsel-group { color: #a9a294; }
+        body.theme-dark .lqsel-opt { color: #efe9dc; }
+        body.theme-dark .lqsel-opt:hover { background: #3a372f; }
+
         /* Drehender Spinner im «easy@work synchronisieren»-Button
            (Walter-Vorgabe 13.07.2026) — sichtbares Laufzeichen. */
         .eaw-spin {
