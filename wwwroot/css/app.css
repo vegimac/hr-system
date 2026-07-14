@@ -4840,6 +4840,8 @@
             @page { size: portrait; margin: 16mm 14mm; }
         }
         #todosPrintArea .tp-head { border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 14px; }
+        /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
+        #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }
         #todosPrintArea .tp-head h1 { font-size: 22px; margin: 0; font-weight: 800; letter-spacing: 0.3px; }
         #todosPrintArea .tp-meta { font-size: 12px; color: #444; margin-top: 3px; }
         #todosPrintArea .tp-h {

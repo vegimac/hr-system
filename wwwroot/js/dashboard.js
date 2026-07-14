@@ -432,7 +432,7 @@ function buildTodosPrintHtml(anonym = false) {
         return `<h2 class="tp-h tp-${sev}">${secTitle[sev]} <span>(${items.length})</span></h2>
             <table class="tp-tbl"><tbody>${rows}</tbody></table>`;
     };
-    return `<div class="tp-head"><h1>To-do-Liste</h1><div class="tp-meta">${_e(branchLbl)} · ${today}${anonym ? ' · anonymisiert (nur Personalnummern)' : ''}</div></div>
+    return `<div class="tp-head"><img class="tp-logo" src="img/onecrew-logo.png" alt="OneCrew"><h1>To-do-Liste</h1><div class="tp-meta">${_e(branchLbl)} · ${today}${anonym ? ' · anonymisiert (nur Personalnummern)' : ''}</div></div>
         ${section('critical')}${section('warning')}${section('info')}`;
 }
 

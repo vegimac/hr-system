@@ -546,6 +546,7 @@ function _kontrolleExportCombiPdf() {
         <style>
             body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; color: #0f172a; }
             h1 { color:#991b1b; font-size:18px; margin:0 0 4px; }
+            .oc-logo { display:block; height:26px; width:auto; margin:0 0 10px; }
             h2 { color:#991b1b; font-size:14px; margin:0 0 8px; font-weight:700; }
             h2 .cnt { color:#94a3b8; font-weight:400; font-size:12px; margin-left:6px }
             .sub { color:#64748b; font-size:12px; margin-bottom:18px; }
@@ -562,6 +563,7 @@ function _kontrolleExportCombiPdf() {
             <button onclick="window.close()">← Schliessen</button>
             <button class="primary" onclick="window.print()">🖨 Drucken / PDF</button>
         </div>
+        <img class="oc-logo" src="${location.origin}/img/onecrew-logo.png" alt="OneCrew">
         <h1>⚠ Kontrolle — Lücken-Erkennung</h1>
         <div class="sub">Stand ${today}</div>
         ${empSection}
@@ -748,6 +750,7 @@ function _kontrolleSpouseExportPdf_LEGACY() {
         <style>
             body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; color: #0f172a; }
             h1 { color:#991b1b; font-size:18px; margin:0 0 4px; }
+            .oc-logo { display:block; height:26px; width:auto; margin:0 0 10px; }
             .sub { color:#64748b; font-size:12px; margin-bottom:14px; }
             table { width:100%; border-collapse:collapse; font-size:11.5px }
             th, td { border:1px solid #e2e8f0; padding:6px 8px; text-align:left; vertical-align:top }
@@ -755,6 +758,7 @@ function _kontrolleSpouseExportPdf_LEGACY() {
             tr:nth-child(even) td { background:#fafafa }
             @media print { body { margin: 10mm } }
         </style></head><body>
+        <img class="oc-logo" src="${location.origin}/img/onecrew-logo.png" alt="OneCrew">
         <h1>⚠ Kontrolle — Ausweis Ehegatte fehlt</h1>
         <div class="sub">${_kontrolleSpouseCache.length} MA · Stand ${today}</div>
         <table>
