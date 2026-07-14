@@ -2065,6 +2065,9 @@ async function spouseDokuUnlink(empId, familyMemberId) {
             return;
         }
         loadQuellensteuerTab(empId);
+        // Auch den Familie-Tab auffrischen (Walter 13.07.2026): der Loesen-
+        // Knopf sitzt neu auch in der Ehepartner-Zeile dort.
+        if (typeof loadFamilieTab === 'function') loadFamilieTab(empId);
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -3285,7 +3288,10 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                         style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:3px 9px;cursor:pointer;color:#15803d;display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;line-height:1">📄 Doku verknüpft</button>
                         <button onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})"
                         title="Anderes Dokument verknüpfen / hochladen"
-                        style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;cursor:pointer;color:#64748b;font-size:11.5px;font-weight:600;line-height:1">↻</button>`;
+                        style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;cursor:pointer;color:#64748b;font-size:11.5px;font-weight:600;line-height:1">↻</button>
+                        <button onclick="event.stopPropagation();spouseDokuUnlink(${employeeId}, ${m.id})"
+                        title="Verknüpfung lösen (falsches Dokument hinterlegt)"
+                        style="background:#fff;border:1px solid #fecaca;border-radius:6px;padding:3px 8px;cursor:pointer;color:#b91c1c;font-size:11.5px;font-weight:600;line-height:1">✕</button>`;
                 } else {
                     spouseDocBtn = `<button onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})"
                         title="Beleg-Dokument verknüpfen"
