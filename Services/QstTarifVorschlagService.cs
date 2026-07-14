@@ -290,12 +290,19 @@ public static class QstTarifVorschlagLogic
         if (tabelle.Any(t => t.Tarif == tarif && t.Kinder == kinder && t.Kirchensteuer == kirche))
             return (kinder, kirche, true);
 
-        // 2) Kirchensteuer-Variante umdrehen
-        var altKirche = tabelle.FirstOrDefault(t => t.Tarif == tarif && t.Kinder == kinder);
-        if (altKirche != null)
+        // 2) Kirchensteuer-Variante umdrehen — NUR in Richtung Y→N (Walter-
+        //    Vorgabe 13.07.2026): wer kirchensteuerpflichtig ist, dessen
+        //    Kanton kennt evtl. keine Y-Variante (einheitliche Tabelle) →
+        //    N ist akzeptabel. Umgekehrt NIE: einem Konfessionslosen darf
+        //    der Vorschlag keine Kirchensteuer (…Y) unterschieben.
+        if (kirche)
         {
-            warnings.Add($"Tarif {tarif}{kinder}{(kirche ? "Y" : "N")} nicht in Tariftabelle — Kirchensteuer-Variante {altKirche.Kirchensteuer} verwendet.");
-            return (kinder, altKirche.Kirchensteuer, true);
+            var altKirche = tabelle.FirstOrDefault(t => t.Tarif == tarif && t.Kinder == kinder && !t.Kirchensteuer);
+            if (altKirche != null)
+            {
+                warnings.Add($"Tarif {tarif}{kinder}Y nicht in Tariftabelle — Variante ohne Kirchensteuer (N) verwendet.");
+                return (kinder, false, true);
+            }
         }
 
         // 3) selbe Kirche, höchste Kinderzahl ≤ gewünscht
