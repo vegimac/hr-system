@@ -2193,6 +2193,23 @@
             pointer-events: none;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-panel::after { color: #a9a294; }
+        /* Drehender Spinner im «easy@work synchronisieren»-Button
+           (Walter-Vorgabe 13.07.2026) — sichtbares Laufzeichen. */
+        .eaw-spin {
+            display: inline-block;
+            width: 13px;
+            height: 13px;
+            border: 2px solid rgba(63,63,63,0.25);
+            border-top-color: #3f3f3f;
+            border-radius: 50%;
+            animation: eawspin 0.8s linear infinite;
+            vertical-align: -2px;
+        }
+        @keyframes eawspin { to { transform: rotate(360deg); } }
+        body.theme-dark .eaw-spin {
+            border-color: rgba(239,233,220,0.25);
+            border-top-color: #efe9dc;
+        }
         #page-mitarbeiter.liquid-employee .emp-list-search {
             padding: 8px 12px;
             border-bottom: none;

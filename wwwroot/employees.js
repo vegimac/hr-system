@@ -1242,7 +1242,10 @@ async function easyworkSyncSelectedEmployee(empId) {
     if (!empId) return;
     const btn = document.getElementById('btnEmpEasyworkSync');
     const oldHtml = btn?.innerHTML;
-    if (btn) { btn.disabled = true; btn.innerHTML = 'synchronisiere…'; }
+    // Laufender Sync sichtbar machen (Walter-Vorgabe 13.07.2026): drehender
+    // Spinner im Button, solange die API-Calls laufen (kann einige Sekunden
+    // dauern — Verträge, Properties, Verfügbarkeit).
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="eaw-spin"></span> synchronisiere…'; }
     try {
         const res = await fetch(`/api/easywork/employees/cowork/${empId}/sync`, {
             method: 'POST',
