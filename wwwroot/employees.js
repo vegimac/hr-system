@@ -3908,7 +3908,8 @@ async function getPermitTypes() {
 function natMakeCombo(sel) {
     if (!sel || sel._natCombo || sel.disabled) return;   // easy@work-gesperrt → nativ lassen
     sel._natCombo = true;
-    const opts = Array.from(sel.options).map(o => ({ value: o.value, label: (o.textContent || '').trim() }));
+    const readOpts = () => Array.from(sel.options).map(o => ({ value: o.value, label: (o.textContent || '').trim() }));
+    let opts = readOpts();
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:relative';
     sel.parentNode.insertBefore(wrap, sel);
@@ -3969,6 +3970,17 @@ function natMakeCombo(sel) {
         list.style.display = 'none';
         inp.value = curLabel();   // Tipp-Rest ohne Auswahl → zurück auf den gewählten Stand
     }, 150));
+
+    // KRITISCH (Walter-Bug 13.07.2026, Enisa/Shkozjan): das Familien-Modal
+    // baut die Optionen bei JEDEM Öffnen neu (innerHTML) — die Combobox
+    // zeigte dann noch den ALTEN Text («Schweiz»), obwohl sel.value leer
+    // war → nationality_id wurde als NULL gespeichert. Options-Änderungen
+    // beobachten und Optionsliste + Anzeige neu synchronisieren.
+    new MutationObserver(() => {
+        opts = readOpts();
+        inp.value = curLabel();
+        if (list.style.display !== 'none') render(inp.value);
+    }).observe(sel, { childList: true, subtree: true });
 }
 
 let _nationalityCache = null;
