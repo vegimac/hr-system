@@ -456,7 +456,7 @@ public class DashboardService
                     Severity = SeverityState("spouse_doku_fehlt", "critical"),
                     Title    = "Ausweis Ehepartner fehlt für die QST-Befreiung",
                     TitleKey = "alert.spouseDokuFehlt",
-                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · {grundText} — Beleg in Dokumenten hochladen",
+                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · {grundText}",
                     SubtitleKey = "subtitle.spouseDokuFehlt",
                     SubtitleArgs = new Dictionary<string, object> {
                         ["name"]  = $"{emp.FirstName} {emp.LastName}".Trim(),
@@ -492,7 +492,7 @@ public class DashboardService
                     TitleKey = r.BefreiungsGrund == "CH-Buerger"
                                 ? "alert.employeeDokuFehlt.idPass"
                                 : "alert.employeeDokuFehlt.permit",
-                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · {grundText} — Beleg in Dokumenten hochladen",
+                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · {grundText}",
                     SubtitleKey = "subtitle.employeeDokuFehlt",
                     SubtitleArgs = new Dictionary<string, object> {
                         ["name"]  = $"{emp.FirstName} {emp.LastName}".Trim(),
@@ -941,6 +941,17 @@ public class DashboardService
                     && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) < today
                     ? today.DayNumber - DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value).DayNumber
                     : (int?)null;
+                // Ab 45 gilt das Nachtarbeit-Zeugnis nur 1 Jahr (ArGV1) — auf den
+                // ToDo-/PDF-Zeilen sichtbar machen (Walter-Vorgabe 14.07.2026).
+                bool ist45Plus = false;
+                if (emp.DateOfBirth.HasValue)
+                {
+                    var nwDob45 = DateOnly.FromDateTime(emp.DateOfBirth.Value);
+                    int alter = today.Year - nwDob45.Year;
+                    if (today < nwDob45.AddYears(alter)) alter--;
+                    ist45Plus = alter >= 45;
+                }
+                string hinweis45 = ist45Plus ? " · ab 45: Zeugnis nur 1 Jahr gültig" : "";
                 void MeldeAbgelaufen()
                 {
                     if (abgelaufenSeit == null || !Enabled("night_work_exam_expiring")) return;
@@ -949,7 +960,7 @@ public class DashboardService
                         Category = "night_work_exam_expiring",
                         Severity = Severity("night_work_exam_expiring", -abgelaufenSeit.Value, "warning", "critical"),
                         Title    = $"Nachtarbeit-Arztzeugnis seit {abgelaufenSeit} Tag(en) abgelaufen",
-                        Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · gültig bis {emp.NightWorkExamValidUntil:dd.MM.yyyy} — vor der nächsten Nacht-Planung erneuern",
+                        Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · gültig bis {emp.NightWorkExamValidUntil:dd.MM.yyyy} — vor der nächsten Nacht-Planung erneuern{hinweis45}",
                         DueDate  = emp.NightWorkExamValidUntil,
                         DaysUntil = -abgelaufenSeit.Value,   // negativ = abgelaufen (ToDo: rote Schrift)
                         EmployeeId     = emp.Id,
@@ -1028,7 +1039,7 @@ public class DashboardService
                                 Category = "night_work_exam_expiring",
                                 Severity = Severity("night_work_exam_expiring", tage, "warning", "critical"),
                                 Title    = "Nachtarbeit-Bewilligung läuft ab",
-                                Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · Bewilligung {phrase}",
+                                Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · Bewilligung {phrase}{hinweis45}",
                                 EmployeeId     = emp.Id,
                                 EmployeeNumber = emp.EmployeeNumber,
                                 EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
@@ -1038,9 +1049,13 @@ public class DashboardService
                     continue;   // Nachweise vollständig + aktuell (Ablauf ggf. oben gemeldet)
                 }
 
+                // Wortwahl (Walter-Vorgabe 14.07.2026): OHNE Beginndatum wurde nie
+                // ein Untersuch gemacht → «Untersuch fehlt»; MIT Beginndatum ist das
+                // Zeugnis schlicht abgelaufen → «Zeugnis (seit N Tagen) abgelaufen».
                 string examTxt = examCurrent ? null
-                               : examExpired ? $"Arztzeugnis seit {abgelaufenSeit ?? 0} Tag(en) abgelaufen"
-                               : "Arztzeugnis fehlt";
+                               : !emp.NightWorkExamIssued.HasValue ? "Untersuch fehlt"
+                               : examExpired ? $"Zeugnis seit {abgelaufenSeit ?? 0} Tag(en) abgelaufen"
+                               : "Zeugnis abgelaufen";
                 string grund =
                       (examTxt != null && !hasChecklist) ? $"{examTxt} und Ausnahmeregelung fehlt"
                     : (examTxt != null)                  ? examTxt
@@ -1054,7 +1069,7 @@ public class DashboardService
                     // Nachtarbeit ist obligatorisch dokumentationspflichtig.
                     Severity = SeverityState("night_work_exam_fehlt", "critical"),
                     Title    = "Nachtarbeit-Nachweise fehlen",
-                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · max. {nw.MaxNightsInSixWeeks} Nächte in 6 Wochen · {grund}",
+                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen · {grund}{hinweis45}",
                     // Abgelaufenes Zeugnis (statt nie erfasst) → negativ markieren,
                     // damit die ToDo-Liste die Zeile ROT zeichnet (Walter 12.07.2026).
                     DaysUntil = examExpired && abgelaufenSeit != null ? -abgelaufenSeit.Value : (int?)null,

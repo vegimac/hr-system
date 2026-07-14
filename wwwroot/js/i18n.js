@@ -161,10 +161,10 @@ window.i18n = (function () {
                                              en: '{name} · Personnel #{empNr} · {days} day(s) after exit' },
         'subtitle.qstPflichtOffen':       { de: '{name} · Personalnr. {empNr} · kein Befreiungs-Grund, keine QST erfasst',
                                              en: '{name} · Personnel #{empNr} · no exemption, no withholding tax registered' },
-        'subtitle.spouseDokuFehlt':       { de: '{name} · Personalnr. {empNr} · {grund} — Beleg in Dokumenten hochladen',
-                                             en: '{name} · Personnel #{empNr} · {grund} — upload supporting document' },
-        'subtitle.employeeDokuFehlt':     { de: '{name} · Personalnr. {empNr} · {grund} — Beleg in Dokumenten hochladen',
-                                             en: '{name} · Personnel #{empNr} · {grund} — upload supporting document' },
+        'subtitle.spouseDokuFehlt':       { de: '{name} · Personalnr. {empNr} · {grund}',
+                                             en: '{name} · Personnel #{empNr} · {grund}' },
+        'subtitle.employeeDokuFehlt':     { de: '{name} · Personalnr. {empNr} · {grund}',
+                                             en: '{name} · Personnel #{empNr} · {grund}' },
 
         // ── Relative Datums-Phrasen (frontend-only) ──
         'relative.daysOverdue':           { de: '{days} Tage überfällig',
