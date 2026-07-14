@@ -51,7 +51,11 @@ function renderLiquidCatGroups(list) {
             </div>`;
         }
         const open = _dashExpandedCats.has(cat);
-        const rows = items.map(a => renderDashTodoRow(a)).join('');
+        // Innerhalb der Aufgabe nach Vorname sortiert (Walter 13.07.2026).
+        const rows = [...items]
+            .sort((a, b) => String(a.employeeName || a.title || '')
+                .localeCompare(String(b.employeeName || b.title || ''), 'de', { sensitivity: 'base' }))
+            .map(a => renderDashTodoRow(a)).join('');
         return `<div class="liquid-todo-group ${open ? 'open' : ''}" data-cat="${_e(cat)}">
             <div class="liquid-todo-group-head" onclick="dashToggleCat('${_e(cat)}')">
                 <span class="ltg-icon">${meta.icon || '•'}</span>
@@ -393,6 +397,8 @@ function dashOpenTodos() {
 function buildTodosPrintHtml() {
     const bySev = { critical: [], warning: [], info: [] };
     (_dashAlerts || []).forEach(a => { (bySev[a.severity] || bySev.info).push(a); });
+    // Gleiche Sortierung wie am Bildschirm (Walter 13.07.2026).
+    Object.keys(bySev).forEach(k => { bySev[k] = dashTodoSort(bySev[k]); });
     let branchLbl = 'Alle Filialen';
     try {
         const b = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === Number(fixedCompanyProfileId));
@@ -484,6 +490,19 @@ function renderTodosColumn(list) {
     return list.map(a => renderTodoSketchRow(a)).join('');
 }
 
+// Sortierung der ToDo-Listen (Walter-Vorgabe 13.07.2026): zuerst nach
+// AUFGABE (Kategorie-Label — gleiche Aufgaben stehen beisammen), innerhalb
+// der Aufgabe nach VORNAME des MA (employeeName = «Vorname Nachname»).
+function dashTodoSort(list) {
+    const catLabel = a => {
+        const meta = DASH_CATEGORY_META[a.category] || {};
+        return String(dashMetaLabel(meta) || a.category || '');
+    };
+    return [...list].sort((a, b) =>
+        catLabel(a).localeCompare(catLabel(b), 'de', { sensitivity: 'base' })
+        || String(a.employeeName || a.title || '').localeCompare(String(b.employeeName || b.title || ''), 'de', { sensitivity: 'base' }));
+}
+
 function renderTodosPage() {
     const bySev = { critical: [], warning: [], info: [] };
     (_dashAlerts || []).forEach(a => { (bySev[a.severity] || bySev.info).push(a); });
@@ -491,7 +510,7 @@ function renderTodosPage() {
     Object.keys(map).forEach(sev => {
         const col = document.getElementById('todosCol' + map[sev]);
         const cnt = document.getElementById('todosCnt' + map[sev]);
-        if (col) col.innerHTML = renderTodosColumn(bySev[sev]);
+        if (col) col.innerHTML = renderTodosColumn(dashTodoSort(bySev[sev]));
         if (cnt) cnt.textContent = bySev[sev].length;
     });
 }
