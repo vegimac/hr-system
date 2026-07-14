@@ -140,10 +140,24 @@ public class EmployeeQuellensteuerController : ControllerBase
     public async Task<IActionResult> GetVorschlag(int employeeId, [FromQuery] DateOnly? date,
         [FromServices] QstTarifVorschlagService service)
     {
-        var stichtag = date ?? DateOnly.FromDateTime(DateTime.Today);
-        var result   = await service.BerechneAsync(employeeId, stichtag);
-        if (result == null) return NotFound(new { error = "MA_NICHT_GEFUNDEN" });
-        return Ok(result);
+        // try/catch mit Klartext-Meldung (Walter 13.07.2026): der Endpoint
+        // lieferte einen nackten 500 — das QST-Modal zeigt die message jetzt
+        // im Hinweis an, damit die Ursache diagnostizierbar ist.
+        try
+        {
+            var stichtag = date ?? DateOnly.FromDateTime(DateTime.Today);
+            var result   = await service.BerechneAsync(employeeId, stichtag);
+            if (result == null) return NotFound(new { error = "MA_NICHT_GEFUNDEN" });
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                error = "VORSCHLAG_FEHLGESCHLAGEN",
+                message = ex.GetBaseException().Message
+            });
+        }
     }
 
     // GET /api/employees/{employeeId}/quellensteuer/{id}
