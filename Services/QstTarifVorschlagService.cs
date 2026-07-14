@@ -43,17 +43,24 @@ public class QstTarifVorschlagService
         if (emp == null) return null;
 
         // Kinder mit allen für die Berechnung nötigen Feldern laden.
-        var kinder = await _db.EmployeeFamilyMembers
+        // WICHTIG (Walter-Bug 13.07.2026, HTTP 500): DateOnly.FromDateTime darf
+        // NICHT in der SQL-Projektion stehen — Npgsql kann das auf date-Spalten
+        // nicht übersetzen («Can only apply TimeOnly.FromDateTime on a
+        // timestamp …»). Erst roh laden, dann im Speicher konvertieren.
+        var kinderRaw = await _db.EmployeeFamilyMembers
             .Where(f => f.EmployeeId == employeeId
                      && f.MemberType  == "Kind"
                      && f.DateOfDeath == null)
+            .Select(f => new { f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId })
+            .ToListAsync();
+        var kinder = kinderRaw
             .Select(f => new QstKindInput(
                 f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : (DateOnly?)null,
                 f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : (DateOnly?)null,
                 f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : (DateOnly?)null,
                 f.AlternativeAddressId
             ))
-            .ToListAsync();
+            .ToList();
 
         // Tariftabelle vom gewünschten Jahr (Stichtag.Year) — wenn der
         // Wohnkanton fehlt, leere Liste, das Logic-Modul liefert dann
