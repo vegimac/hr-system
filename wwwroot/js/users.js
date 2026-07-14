@@ -14,6 +14,11 @@ async function loadUsers() {
     try {
         const res = await fetch('/api/users', { headers: ah() });
         const users = await res.json();
+        // Sortierung nach Vorname, dann Nachname (Walter-Vorgabe 13.07.2026 —
+        // gleiche Konvention wie alle MA-Listen).
+        users.sort((a, b) =>
+            String(a.firstName || '').localeCompare(String(b.firstName || ''), 'de', { sensitivity: 'base' })
+            || String(a.lastName || '').localeCompare(String(b.lastName || ''), 'de', { sensitivity: 'base' }));
         tbody.innerHTML = '';
         users.forEach(u => {
             // Super-Admin (Walter-Vorgabe 15.05.2026) wirkt als Badge UND ersetzt
