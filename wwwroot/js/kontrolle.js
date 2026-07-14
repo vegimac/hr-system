@@ -557,7 +557,7 @@ function _kontrolleExportCombiPdf() {
             .toolbar { position:sticky; top:0; background:#fff; padding:8px 0 12px; margin-bottom:6px; border-bottom:1px solid #e2e8f0; display:flex; gap:8px; }
             .toolbar button { font-size:13px; padding:7px 14px; border-radius:7px; cursor:pointer; border:1px solid #cbd5e1; background:#fff; color:#0f172a; font-weight:600; }
             .toolbar button.primary { background:#1a1a1a; border-color:#1a1a1a; color:#fff; }
-            @media print { body { margin: 10mm } h2 { page-break-after:avoid } .noprint { display:none !important } }
+            @media print { @page { margin: 0 } body { margin: 12mm } h2 { page-break-after:avoid } .noprint { display:none !important } }
         </style></head><body>
         <div class="toolbar noprint">
             <button onclick="window.close()">← Schliessen</button>
@@ -756,7 +756,7 @@ function _kontrolleSpouseExportPdf_LEGACY() {
             th, td { border:1px solid #e2e8f0; padding:6px 8px; text-align:left; vertical-align:top }
             th { background:#fef2f2; color:#7f1d1d; font-weight:700; }
             tr:nth-child(even) td { background:#fafafa }
-            @media print { body { margin: 10mm } }
+            @media print { @page { margin: 0 } body { margin: 12mm } }
         </style></head><body>
         <img class="oc-logo" src="${location.origin}/img/onecrew-logo.png" alt="OneCrew">
         <h1>⚠ Kontrolle — Ausweis Ehegatte fehlt</h1>
