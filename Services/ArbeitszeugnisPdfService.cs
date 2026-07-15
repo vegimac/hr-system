@@ -238,10 +238,10 @@ public class ArbeitszeugnisPdfService
 
         // Arbeitsbestaetigung (nur 1 Satz): Inhalt vertikal ausbalancieren,
         // damit der Brief nicht in der oberen Haelfte klebt (Walter 15.07.2026).
-        float padDatum = d.Bestaetigung ? 56f : 28f;
-        float padTitel = d.Bestaetigung ? 72f : 24f;
+        float padDatum = d.Bestaetigung ? 56f : 20f;
+        float padTitel = d.Bestaetigung ? 72f : 18f;
         float padSatz  = d.Bestaetigung ? 60f : 22f;
-        float padGruss = d.Bestaetigung ? 88f : 20f;
+        float padGruss = d.Bestaetigung ? 88f : 14f;
 
         return Document.Create(container =>
         {
@@ -249,19 +249,19 @@ public class ArbeitszeugnisPdfService
             {
                 page.Size(PageSizes.A4);
                 page.MarginTop(1.0f, Unit.Centimetre);
-                page.MarginBottom(1.2f, Unit.Centimetre);
+                page.MarginBottom(0.8f, Unit.Centimetre);
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).LineHeight(1.25f).FontColor(Dark));
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).LineHeight(1.16f).FontColor(Dark));
 
                 // Briefkopf: gelbes Banner wie überall (Walter-Vorgabe).
                 page.Header().Image(BannerBytes).FitWidth();
 
-                page.Content().PaddingTop(18).Column(col =>
+                page.Content().PaddingTop(12).Column(col =>
                 {
                     // ── Adressblock: links Empfänger, rechts Filiale ──
                     col.Item().Row(row =>
                     {
-                        row.RelativeItem().PaddingTop(16).Column(c =>
+                        row.RelativeItem().PaddingTop(12).Column(c =>
                         {
                             c.Item().Text(anrede);
                             c.Item().Text($"{d.FirstName} {d.LastName}".Trim());
@@ -300,7 +300,7 @@ public class ArbeitszeugnisPdfService
                     }
                     else
                     {
-                    col.Item().PaddingTop(22).Text(t =>
+                    col.Item().PaddingTop(16).Text(t =>
                     {
                         t.Justify();
                         t.Span($"{anrede} ");
@@ -308,36 +308,36 @@ public class ArbeitszeugnisPdfService
                         t.Span(introRest);
                     });
 
-                    col.Item().PaddingTop(12).Text(aufgabenIntro);
+                    col.Item().PaddingTop(10).Text(aufgabenIntro);
 
-                    col.Item().PaddingTop(8).PaddingLeft(14).Column(c =>
+                    col.Item().PaddingTop(6).PaddingLeft(14).Column(c =>
                     {
                         foreach (var a in aufgaben)
-                            c.Item().Row(r =>
+                            c.Item().PaddingBottom(1).Row(r =>
                             {
                                 r.ConstantItem(14).Text("•");
                                 r.RelativeItem().Text(a);
                             });
                     });
 
-                    col.Item().PaddingTop(12).Text(schulung).Justify();
+                    col.Item().PaddingTop(10).Text(schulung).Justify();
                     if (zw)
                     {
-                        col.Item().PaddingTop(12).Text(zwArbeitsmittel).Justify();
-                        col.Item().PaddingTop(12).Text(zwBeurteilung).Justify();
-                        col.Item().PaddingTop(12).Text(zwAbschluss).Justify();
+                        col.Item().PaddingTop(10).Text(zwArbeitsmittel).Justify();
+                        col.Item().PaddingTop(10).Text(zwBeurteilung).Justify();
+                        col.Item().PaddingTop(10).Text(zwAbschluss).Justify();
                     }
                     else
                     {
-                        col.Item().PaddingTop(12).Text(beurteilung).Justify();
-                        col.Item().PaddingTop(12).Text(austritt).Justify();
-                        col.Item().PaddingTop(12).Text(dank).Justify();
+                        col.Item().PaddingTop(10).Text(beurteilung).Justify();
+                        col.Item().PaddingTop(10).Text(austritt).Justify();
+                        col.Item().PaddingTop(10).Text(dank).Justify();
                     }
                     }   // Ende Zeugnis-Absätze (nicht Bestätigung)
 
                     col.Item().PaddingTop(padGruss).Text("Freundliche Grüsse");
 
-                    col.Item().PaddingTop(10).Column(c =>
+                    col.Item().PaddingTop(8).Column(c =>
                     {
                         c.Item().Text(d.CompanyName).Bold();
                         c.Item().Text(d.RestaurantName);
@@ -348,9 +348,9 @@ public class ArbeitszeugnisPdfService
                     col.Item().PaddingTop(6).Column(c =>
                     {
                         if (d.SignaturePng is { Length: > 0 })
-                            c.Item().MaxHeight(52).AlignLeft().Image(d.SignaturePng).FitHeight();
+                            c.Item().MaxHeight(42).AlignLeft().Image(d.SignaturePng).FitHeight();
                         else
-                            c.Item().PaddingTop(34); // Platz für handschriftliche Unterschrift
+                            c.Item().PaddingTop(26); // Platz für handschriftliche Unterschrift
 
                         c.Item().PaddingTop(2).Width(180).LineHorizontal(0.8f).LineColor(Dark);
                         c.Item().Text(d.SignatoryName);
