@@ -10282,7 +10282,7 @@ function renderVerwarnungenTab(el) {
             <div style="position:relative;display:inline-block">
                 <button class="dok-menu-btn" onclick="vwToggleMenu(event, ${v.id})">⋮</button>
                 <div class="dok-menu" id="vwMenu${v.id}" style="display:none;position:absolute;right:0;top:32px;z-index:50;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:180px">
-                    ${!v.storniert ? `<div class="dok-menu-item" onclick="openVerwarnungModal(${v.id})">✎ Bearbeiten</div>` : ''}
+                    ${!v.storniert ? `<div class="dok-menu-item" onclick="openVerwarnungModal(${v.id})">✎ Bearbeiten / Scan nachreichen</div><div class="dok-menu-item" onclick="vwPrintFormular(${v.id})">🖨 Formular drucken</div>` : ''}
                     ${!v.storniert && (currentUser?.role === 'admin' || currentUser?.role === 'superuser')
                         ? `<div class="dok-menu-item danger" onclick="vwStorno(${v.id})">⊘ Stornieren</div>` : ''}
                     ${v.storniert ? `<div class="dok-menu-item" style="cursor:default;color:#94a3b8">${esc(v.stornoGrund || 'storniert')}</div>` : ''}
@@ -10294,7 +10294,9 @@ function renderVerwarnungenTab(el) {
                 <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${st.bg};color:${st.fg}">${st.label}</span>
                 ${stornoBadge}
                 <span style="flex:1"></span>
-                ${v.dokumentId ? `<button class="dok-menu-btn" title="Verwarnungsschreiben ansehen (${esc(v.dokumentName || '')})" style="min-width:auto;padding:4px 10px" onclick="vwViewDoc(${v.dokumentId})">👁 Doku</button>` : ''}
+                ${v.dokumentId
+                    ? `<button class="dok-menu-btn" title="Verwarnungsschreiben ansehen (${esc(v.dokumentName || '')})" style="min-width:auto;padding:4px 10px" onclick="vwViewDoc(${v.dokumentId})">👁 Doku</button>`
+                    : (!v.storniert ? `<span title="Formular drucken, unterschreiben lassen und den Scan über ✎ Bearbeiten hinterlegen" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#fee2e2;color:#991b1b">⚠ Schreiben fehlt</span>` : '')}
                 ${menu}
             </div>
             ${gruende.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${gruende.map(g =>
@@ -10381,7 +10383,8 @@ async function openVerwarnungModal(id) {
             <textarea id="vwBeschreibung" rows="3" placeholder="Was ist vorgefallen? Was wird erwartet?"
                       style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:8px 12px;font-size:13px;color:#3f3f3f;resize:vertical;margin-bottom:14px">${edit?.beschreibung ? esc(edit.beschreibung) : ''}</textarea>
 
-            <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:6px">Unterschriebenes Verwarnungsschreiben (Pflicht)</div>
+            <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:6px">Unterschriebenes Verwarnungsschreiben</div>
+            <div style="font-size:11.5px;color:#8b8b8b;margin:-2px 0 8px">Ablauf: unten «Formular drucken» → von MA + Schichtführer unterschreiben lassen → Scan hier hochladen (auch nachträglich über ✎ Bearbeiten möglich).</div>
             <div style="background:rgba(255,255,255,0.45);border:1px solid rgba(139,139,139,0.25);border-radius:12px;padding:12px;margin-bottom:14px">
                 ${edit?.dokumentId ? `<div style="font-size:12.5px;color:#15803d;font-weight:600;margin-bottom:8px">✓ Verknüpft: ${esc(edit.dokumentName || 'Dokument #' + edit.dokumentId)} <span style="color:#8b8b8b;font-weight:400">— neues Hochladen/Wählen ersetzt es</span></div>` : ''}
                 <label style="${pill};margin-bottom:8px"><input type="radio" name="vwDocMode" value="upload" checked> 📤 Datei hochladen (Scan)</label>
@@ -10393,7 +10396,10 @@ async function openVerwarnungModal(id) {
             </div>
 
             <div id="vwAlert"></div>
-            <div style="display:flex;gap:10px;justify-content:flex-end">
+            <div style="display:flex;gap:10px;align-items:center">
+                <button onclick="vwFormularPdf()"
+                        style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">🖨 Formular drucken</button>
+                <span style="flex:1"></span>
                 <button onclick="document.getElementById('vwModal').remove()"
                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
                 <button id="vwSaveBtn" onclick="vwSave()"
@@ -10468,7 +10474,8 @@ async function vwSave() {
         } else if (mode === 'existing' && existingId) {
             dokumentId = existingId;
         }
-        if (!dokumentId) { showErr('Bitte das unterschriebene Verwarnungsschreiben hochladen oder ein Dokument wählen.'); return; }
+        // Dokument optional (Walter 15.07.2026): Formular-Workflow — Scan wird
+        // nach der Unterschrift über ✎ Bearbeiten nachgereicht («Schreiben fehlt»).
 
         // 2) Verwarnung speichern
         const body = JSON.stringify({
@@ -10493,6 +10500,50 @@ async function vwSave() {
     } finally {
         btn.disabled = false; btn.textContent = 'Speichern';
     }
+}
+
+// Formular-PDF aus den aktuellen Modal-Feldern (speichert nichts).
+async function vwFormularPdf() {
+    const gruende = [...document.querySelectorAll('.vwGrund:checked')].map(c => c.value);
+    const body = JSON.stringify({
+        datum: document.getElementById('vwDatum')?.value || null,
+        stufe: document.getElementById('vwStufe')?.value || 'VERWARNUNG_1',
+        gruende,
+        beschreibung: document.getElementById('vwBeschreibung')?.value.trim() || null
+    });
+    await _vwFetchFormular(body);
+}
+
+// Formular-PDF aus einer bestehenden Verwarnungs-Zeile (z.B. Nachdruck).
+async function vwPrintFormular(id) {
+    const v = _vwList.find(x => x.id === id);
+    if (!v) return;
+    const body = JSON.stringify({
+        datum: v.datum ? String(v.datum).slice(0, 10) : null,
+        stufe: v.stufe,
+        gruende: (v.gruende || '').split('\n').filter(Boolean),
+        beschreibung: v.beschreibung || null
+    });
+    await _vwFetchFormular(body);
+}
+
+async function _vwFetchFormular(body) {
+    try {
+        const r = await fetch(`/api/verwarnungen/${selectedEmployeeId}/formular-pdf`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body
+        });
+        if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            alert(err.message || err.error || ('Formular fehlgeschlagen: HTTP ' + r.status));
+            return;
+        }
+        const blob = await r.blob();
+        const cd = r.headers.get('Content-Disposition') || '';
+        const m = cd.match(/filename="?([^"]+)"?/);
+        await previewFileModal(blob, m ? m[1] : 'Verwarnung.pdf');
+    } catch (e) { alert('Netzwerkfehler: ' + e.message); }
 }
 
 async function vwStorno(id) {
