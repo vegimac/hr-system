@@ -29,7 +29,7 @@ public class KuendigungController : ControllerBase
     }
 
     public record NoticeInfo(bool InProbation, int Dienstjahr, int? Months, int? Days,
-                             string FristText, DateOnly LetzterArbeitstag);
+                             string FristText, DateOnly LetzterArbeitstag, string RuleText);
 
     public class KuendigungPdfDto
     {
@@ -73,6 +73,7 @@ public class KuendigungController : ControllerBase
             noticeMonths     = notice.Months,
             noticeDays       = notice.Days,
             noticeText       = notice.FristText,
+            noticeRule       = notice.RuleText,
             kuendigungsDatum = kdat.ToString("yyyy-MM-dd"),
             letzterArbeitstag = notice.LetzterArbeitstag.ToString("yyyy-MM-dd"),
             sperrfrist = new
@@ -158,8 +159,13 @@ public class KuendigungController : ControllerBase
         if (probeEnde.HasValue && kdat <= probeEnde.Value)
         {
             int days = cp?.NoticePeriodDuringProbationDays ?? 7;   // OR Art. 335b
+            string probeRule = $"Regel: waehrend der Probezeit (bis {probeEnde:dd.MM.yyyy}) "
+                + $"gilt eine Frist von {days} Tagen"
+                + (cp?.NoticePeriodDuringProbationDays != null
+                    ? " gemaess Arbeitsvertrag/Filial-Einstellung (OR Art. 335b laesst Verkuerzung zu)."
+                    : " (OR Art. 335b: 7 Tage).");
             return new NoticeInfo(true, dienstjahr, null, days,
-                $"{days} Tagen", kdat.AddDays(days));
+                $"{days} Tagen", kdat.AddDays(days), probeRule);
         }
 
         // Nach der Probezeit: Monatsfrist auf Ende eines Monats (OR Art. 335c).
@@ -168,7 +174,21 @@ public class KuendigungController : ControllerBase
             : (cp?.NoticePeriodAfterProbationMonths ?? (dienstjahr <= 1 ? 1 : 2));
         var letzter = new DateOnly(kdat.Year, kdat.Month, 1).AddMonths(months + 1).AddDays(-1);
         string txt = $"{months} Monat{(months == 1 ? "" : "en")} auf Ende eines Monats";
-        return new NoticeInfo(false, dienstjahr, months, null, txt, letzter);
+
+        // Regel-Herkunft transparent machen (Walter 15.07.2026): WARUM diese Frist?
+        string rule;
+        if (dienstjahr >= 10 && cp?.NoticePeriodFromTenthYearMonths != null)
+            rule = $"Regel: ab 10. Dienstjahr {months} Monate gemaess Arbeitsvertrag/Filial-Einstellung (OR Art. 335c: 3 Monate).";
+        else if (dienstjahr >= 10)
+            rule = "Regel: ab 10. Dienstjahr 3 Monate (OR Art. 335c).";
+        else if (cp?.NoticePeriodAfterProbationMonths != null)
+            rule = $"Regel: nach der Probezeit {months} Monat{(months == 1 ? "" : "e")} gemaess Arbeitsvertrag/Filial-Einstellung "
+                 + $"(gilt bis zum 9. Dienstjahr; L-GAV/OR Art. 335c).";
+        else if (dienstjahr <= 1)
+            rule = "Regel: im 1. Dienstjahr 1 Monat (OR Art. 335c).";
+        else
+            rule = "Regel: im 2.-9. Dienstjahr 2 Monate (OR Art. 335c).";
+        return new NoticeInfo(false, dienstjahr, months, null, txt, letzter, rule);
     }
 
     private static int ComputeDienstjahr(DateOnly entry, DateOnly at)

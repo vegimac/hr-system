@@ -90,9 +90,14 @@ async function kuLoadInfo() {
         if (gt && info.inProbation && gt.value === 'ordentlich') gt.value = 'probezeit';
 
         const hint = document.getElementById('kuFristHint');
-        if (hint) hint.textContent = info.inProbation
-            ? `Probezeit · Frist ${info.noticeText}`
-            : `${info.dienstjahr}. Dienstjahr · Frist ${info.noticeText}`;
+        if (hint) {
+            const kopf = info.inProbation
+                ? `Probezeit · Frist ${info.noticeText}`
+                : `${info.dienstjahr}. Dienstjahr · Frist ${info.noticeText}`;
+            // Regel-Herkunft (Walter 15.07.2026): WARUM gilt diese Frist?
+            hint.innerHTML = `${escapeHtml(kopf)}${info.noticeRule
+                ? `<br><span style="color:#8b8b8b">${escapeHtml(info.noticeRule)}</span>` : ''}`;
+        }
 
         kuRenderSperr(info.sperrfrist);
         kuLoadVerwarnungen(id);
