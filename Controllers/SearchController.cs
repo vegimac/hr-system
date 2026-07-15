@@ -148,13 +148,15 @@ public class SearchController : ControllerBase
             })
             .ToListAsync();
         var docEmpIds = documentsRaw.Select(d => d.employeeId).Distinct().ToList();
-        var docEmpNames = await _db.Employees
+        var docEmps = await _db.Employees
             .Where(e => docEmpIds.Contains(e.Id))
-            .Select(e => new { e.Id, e.FirstName, e.LastName })
-            .ToDictionaryAsync(x => x.Id, x => (x.FirstName + " " + x.LastName).Trim());
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+            .ToDictionaryAsync(x => x.Id, x => x);
         var documents = documentsRaw.Select(d => new {
             d.id, d.filename, d.bemerkung, d.employeeId, d.uploadedAt,
-            employeeName = docEmpNames.TryGetValue(d.employeeId, out var n) ? n : null,
+            employeeName   = docEmps.TryGetValue(d.employeeId, out var n) ? (n.FirstName + " " + n.LastName).Trim() : null,
+            // Suche geht ueber ALLE Filialen → MA-Nummer zeigt die Filiale (Walter 15.07.2026).
+            employeeNumber = docEmps.TryGetValue(d.employeeId, out var n2) ? n2.EmployeeNumber : null,
         }).ToList();
 
         // ── Posteingang (Mailbox-Dokumente) ─────────────────────────

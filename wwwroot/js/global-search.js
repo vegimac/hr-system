@@ -177,7 +177,7 @@ function gsRender(data, q, errorMsg) {
         return row('doc',
             `<span style="font-size:14px">📄</span>
              <div style="flex:1;line-height:1.3"><div style="font-weight:600">${gsEsc(d.filename || '–')}</div>
-             <div style="font-size:11.5px;color:#64748b">${gsEsc(d.employeeName || 'Mitarbeiter')} ${d.bemerkung ? '· ' + gsEsc(d.bemerkung) : ''}</div></div>`,
+             <div style="font-size:11.5px;color:#64748b">${gsEsc(d.employeeName || 'Mitarbeiter')}${d.employeeNumber ? ' · Nr ' + gsEsc(d.employeeNumber) : ''} ${d.bemerkung ? '· ' + gsEsc(d.bemerkung) : ''}</div></div>`,
             { kind: 'doc', empId: d.employeeId, docId: d.id });
     });
     html += grp('Posteingang', data.mailbox || [], m => {
