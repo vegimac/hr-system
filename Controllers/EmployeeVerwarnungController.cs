@@ -20,7 +20,9 @@ namespace HrSystem.Controllers;
 public class EmployeeVerwarnungController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public EmployeeVerwarnungController(AppDbContext db) { _db = db; }
+    private readonly HrSystem.Services.VerwarnungPdfService _pdf;
+    public EmployeeVerwarnungController(AppDbContext db, HrSystem.Services.VerwarnungPdfService pdf)
+    { _db = db; _pdf = pdf; }
 
     /// <summary>Die Ankreuz-Gründe des heutigen Papier-Formulars (14.07.2026).</summary>
     public static readonly string[] StandardGruende =
@@ -121,13 +123,16 @@ public class EmployeeVerwarnungController : ControllerBase
         var err = Validate(dto, out var stufe);
         if (err != null) return BadRequest(err);
 
-        // Dokument-PFLICHT: ohne unterschriebenes Schreiben keine Verwarnung.
-        if (dto.DokumentId == null)
-            return BadRequest(new { error = "DOKUMENT_FEHLT", message = "Bitte das unterschriebene Verwarnungsschreiben hochladen oder verknüpfen." });
-        var docOk = await _db.EmployeeDokumente
-            .AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == empId);
-        if (!docOk)
-            return BadRequest(new { error = "DOKUMENT_UNGUELTIG", message = "Das Dokument gehört nicht zu diesem Mitarbeiter." });
+        // Dokument OPTIONAL bei der Erfassung (Walter 15.07.2026, Formular-
+        // Workflow: erfassen → Formular drucken → unterschreiben → Scan
+        // nachreichen). Ohne Dokument zeigt die Zeile «Schreiben fehlt» in Rot.
+        if (dto.DokumentId != null)
+        {
+            var docOk = await _db.EmployeeDokumente
+                .AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == empId);
+            if (!docOk)
+                return BadRequest(new { error = "DOKUMENT_UNGUELTIG", message = "Das Dokument gehört nicht zu diesem Mitarbeiter." });
+        }
 
         var v = new EmployeeVerwarnung
         {
@@ -172,6 +177,52 @@ public class EmployeeVerwarnungController : ControllerBase
         v.GeaendertAm  = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(new { v.Id });
+    }
+
+    /// <summary>Verwarnungs-Formular als PDF (Walter 15.07.2026) — vorausgefüllt
+    /// mit Stufe/Gründen/Bemerkung aus dem Modal. Speichert NICHTS: drucken,
+    /// unterschreiben lassen (MA + Schichtführer), Scan als Dokument nachreichen.</summary>
+    [HttpPost("{empId:int}/formular-pdf")]
+    public async Task<IActionResult> FormularPdf(int empId, [FromBody] VerwarnungDto dto)
+    {
+        var e = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == empId)
+            .Select(x => new { x.FirstName, x.LastName, x.EmployeeNumber })
+            .FirstOrDefaultAsync();
+        if (e == null) return NotFound(new { error = "EMP_NOT_FOUND" });
+
+        var err = Validate(dto, out var stufe);
+        if (err != null) return BadRequest(err);
+
+        // Filiale des juengsten Vertrags fuer den Briefkopf-Text.
+        var cp = await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == empId && em.CompanyProfileId != null)
+            .OrderByDescending(em => em.IsActive).ThenByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfile)
+            .FirstOrDefaultAsync();
+
+        string stufeLabel = stufe switch
+        {
+            "VERWARNUNG_2" => "2. Verwarnung",
+            "LETZTE"       => "Letzte Verwarnung (Kündigungsandrohung)",
+            _              => "1. Verwarnung"
+        };
+
+        var input = new HrSystem.Services.VerwarnungFormularInput(
+            CompanyName:      cp?.CompanyName ?? "Schaub Restaurants GmbH",
+            RestaurantName:   cp?.BranchName ?? cp?.FullDisplayName ?? "",
+            MaName:           ($"{e.FirstName} {e.LastName}").Trim(),
+            EmployeeNumber:   e.EmployeeNumber,
+            Datum:            dto.Datum.HasValue ? dto.Datum.Value.ToDateTime(TimeOnly.MinValue) : DateTime.Today,
+            StufeLabel:       stufeLabel,
+            StufeKritisch:    stufe == "LETZTE",
+            AlleGruende:      StandardGruende,
+            GewaehlteGruende: dto.Gruende,
+            Beschreibung:     dto.Beschreibung
+        );
+        var bytes = _pdf.Generate(input);
+        return File(bytes, "application/pdf",
+            $"Verwarnung_{e.LastName}_{e.FirstName}_{input.Datum:yyyyMMdd}.pdf".Replace(" ", "_"));
     }
 
     /// <summary>Storno statt Löschen — nur admin/superuser, mit Pflicht-Grund.</summary>
