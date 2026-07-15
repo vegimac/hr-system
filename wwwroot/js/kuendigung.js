@@ -159,6 +159,19 @@ function kuRenderSperr(s) {
     }
 }
 
+// Dokument-Kacheln auf der Kuendigungs-Seite (Walter 15.07.2026): oeffnen
+// dieselben Modale wie im Restaurant-Admin-Tab fuer den gewaehlten MA.
+function kuOpenDoc(art) {
+    const id = +(document.getElementById('kuEmpSelect')?.value || 0);
+    if (!id) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }
+    window.activeEmpId = id;
+    // Globale MA-Auswahl der MA-Maske mitziehen (Verwarnungs-Modal speichert
+    // gegen selectedEmployeeId; stale selectedEmployee vermeiden).
+    try { selectedEmployeeId = id; selectedEmployee = null; } catch (_) {}
+    if (art === 'verwarnung') { openVerwarnungModal(null); return; }
+    openZeugnisModal(id, art === 'zwischen', art === 'best');
+}
+
 // Abbrechen (Walter 15.07.2026): Formular zuruecksetzen + zurueck zum HR-Hub.
 function kuAbbrechen() {
     const sel = document.getElementById('kuEmpSelect');

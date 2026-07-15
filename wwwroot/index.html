@@ -1707,12 +1707,13 @@
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                             </div>
                             <div>
-                                <div class="hr-card-title">Kündigung</div>
-                                <div class="hr-card-status">Kündigungsschreiben erstellen</div>
+                                <div class="hr-card-title">Kündigung / Zeugnisse</div>
+                                <div class="hr-card-status">Kündigungsschreiben · Zeugnisse · Bestätigungen</div>
                             </div>
                         </div>
                         <ul>
                             <li><b>MA wählen</b> → Frist + letzter Arbeitstag automatisch aus Vertrag (OR Art. 335b/c)</li>
+                            <li><b>Zeugnisse direkt hier:</b> Arbeitszeugnis, Zwischenzeugnis, Arbeitsbestätigung + Verwarnung für den gewählten MA</li>
                             <li><b>Sperrfrist-Prüfung</b> (Krankheit/Unfall/Schwangerschaft, Art. 336c OR)</li>
                             <li><b>PDF</b> im Haus-Stil mit Unterschrift des eingeloggten Users</li>
                         </ul>
@@ -2337,8 +2338,8 @@
             <div class="page liquid-mask" id="page-kuendigung">
                 <div class="page-head">
                     <div>
-                        <h1 class="page-title">Kündigung</h1>
-                        <p class="page-sub">Kündigungsschreiben als PDF — Frist und letzter Arbeitstag werden aus dem Vertrag berechnet (OR Art. 335b/c), die Sperrfrist (Art. 336c OR) wird automatisch geprüft.</p>
+                        <h1 class="page-title">Kündigung / Zeugnisse</h1>
+                        <p class="page-sub">Kündigungsschreiben, Arbeits-/Zwischenzeugnis, Arbeitsbestätigung und Verwarnung — Frist und letzter Arbeitstag werden aus dem Vertrag berechnet (OR Art. 335b/c), die Sperrfrist (Art. 336c OR) wird automatisch geprüft.</p>
                     </div>
                 </div>
                 <div class="page-body">
@@ -2357,7 +2358,25 @@
 
                         <!-- Schritt 2: Kündigungsdetails -->
                         <div id="kuDetails" style="display:none;margin-top:18px">
-                            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">2. Kündigungsdetails</div>
+                            <!-- Dokumente fuer den gewaehlten MA (Walter 15.07.2026):
+                                 gleiche Kacheln wie im Restaurant-Admin-Tab. -->
+                            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">2. Dokumente für diesen Mitarbeiter</div>
+                            <div class="ra-tile-row">
+                                <button type="button" class="ra-tile" onclick="kuOpenDoc('verwarnung')">
+                                    <img src="img/verwarnung.png?v=20260715f" alt="" loading="lazy"><span>Verwarnung</span>
+                                </button>
+                                <button type="button" class="ra-tile" onclick="kuOpenDoc('arbeitszeugnis')">
+                                    <img src="img/Schlusszeugnis.png?v=20260715f" alt="" loading="lazy"><span>Arbeitszeugnis</span>
+                                </button>
+                                <button type="button" class="ra-tile" onclick="kuOpenDoc('zwischen')">
+                                    <img src="img/zwischenzeugnis.png?v=20260715f" alt="" loading="lazy"><span>Zwischenzeugnis</span>
+                                </button>
+                                <button type="button" class="ra-tile" onclick="kuOpenDoc('best')">
+                                    <img src="img/arbeitsbestaetigung.png?v=20260715f" alt="" loading="lazy"><span>Arbeitsbestätigung</span>
+                                </button>
+                            </div>
+
+                            <div style="font-size:13px;font-weight:700;color:#0f172a;margin:14px 0 8px">3. Kündigungsdetails</div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                                 <label style="font-size:12.5px;color:#334155">Kündigungsgrund
                                     <select id="kuGrundType" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white">
@@ -7704,7 +7723,7 @@
 <script src="js/hr-saldi-lohnlauf.js?v=20260708flex"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260712a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
-<script src="js/kuendigung.js?v=20260715d"></script>
+<script src="js/kuendigung.js?v=20260715e"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
