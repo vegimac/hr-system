@@ -4863,7 +4863,7 @@
     backdrop-filter: blur(24px) saturate(132%);
     -webkit-backdrop-filter: blur(24px) saturate(132%);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 12px; padding: 14px 10px; cursor: pointer;
+    gap: 6px; padding: 8px 6px 10px; cursor: pointer;
     color: #3f3f3f; font-size: 12.5px; font-weight: 700; line-height: 1.25; text-align: center;
     transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
 }
@@ -4872,7 +4872,8 @@
     background: rgba(255,255,255,0.58);
     box-shadow: 0 28px 78px rgba(70,64,55,0.24), inset 0 1px 1px rgba(255,255,255,0.9);
 }
-.ra-tile img { width: 82px; height: 82px; object-fit: contain; display: block; }
+/* Icon fuellt die Kachel fast aus (Walter 15.07.2026) */
+.ra-tile img { width: 112px; height: 112px; object-fit: contain; display: block; }
 body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #d6d3cc; }
 body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
 
