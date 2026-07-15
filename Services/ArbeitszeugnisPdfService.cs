@@ -308,26 +308,23 @@ public class ArbeitszeugnisPdfService
 
                 page.Content().PaddingTop(12).Column(col =>
                 {
-                    // ── Adressblock: links Empfänger, rechts Filiale ──
-                    col.Item().Row(row =>
+                    // ── Moderner Adressblock (Walter-Vorgabe 15.07.2026):
+                    // Absenderzeile der Filiale EINZEILIG klein oben links
+                    // (Fenster-Kuvert-Stil), darunter die MA-Adresse. ──
+                    col.Item().PaddingTop(10).Text(string.Join("  –  ", new[]
+                        {
+                            $"{d.CompanyName} · {d.RestaurantName}",
+                            d.CompanyStreet,
+                            d.CompanyZipCity
+                        }.Where(x => !string.IsNullOrWhiteSpace(x))))
+                        .FontSize(8f).FontColor("#6b6152");
+
+                    col.Item().PaddingTop(10).Column(c =>
                     {
-                        row.RelativeItem().PaddingTop(12).Column(c =>
-                        {
-                            c.Item().Text(anrede);
-                            c.Item().Text($"{d.FirstName} {d.LastName}".Trim());
-                            if (!string.IsNullOrWhiteSpace(d.EmpStreet))  c.Item().Text(d.EmpStreet);
-                            if (!string.IsNullOrWhiteSpace(d.EmpZipCity)) c.Item().Text(d.EmpZipCity);
-                        });
-                        row.ConstantItem(200).Column(c =>
-                        {
-                            var small = TextStyle.Default.FontSize(8.5f);
-                            c.Item().Text(d.CompanyName).Style(small);
-                            c.Item().Text(d.RestaurantName).Style(small);
-                            c.Item().Text(d.CompanyStreet).Style(small);
-                            c.Item().Text(d.CompanyZipCity).Style(small);
-                            if (!string.IsNullOrWhiteSpace(d.CompanyPhone)) c.Item().Text($"T {d.CompanyPhone}").Style(small);
-                            if (!string.IsNullOrWhiteSpace(d.CompanyEmail)) c.Item().Text(d.CompanyEmail).Style(small);
-                        });
+                        c.Item().Text(anrede);
+                        c.Item().Text($"{d.FirstName} {d.LastName}".Trim());
+                        if (!string.IsNullOrWhiteSpace(d.EmpStreet))  c.Item().Text(d.EmpStreet);
+                        if (!string.IsNullOrWhiteSpace(d.EmpZipCity)) c.Item().Text(d.EmpZipCity);
                     });
 
                     col.Item().PaddingTop(padDatum).Text(datumZeile);
