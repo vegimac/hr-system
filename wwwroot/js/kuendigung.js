@@ -13,10 +13,16 @@ async function kuendigungInit() {
 }
 
 function kuRenderEmpList() {
-    const sel = document.getElementById('kuEmpSelect');
+    _renderEmpPicker('kuEmpFilter', 'kuEmpSearch', 'kuEmpSelect');
+}
+
+// Gemeinsamer MA-Picker-Renderer fuer Kuendigungs- und Dokument-Seite
+// (Filial-Regel + Vorname-Sortierung identisch).
+function _renderEmpPicker(filterId, searchId, selectId) {
+    const sel = document.getElementById(selectId);
     if (!sel) return;
-    const filter = document.getElementById('kuEmpFilter')?.value || 'active';
-    const search = (document.getElementById('kuEmpSearch')?.value || '').toLowerCase().trim();
+    const filter = document.getElementById(filterId)?.value || 'active';
+    const search = (document.getElementById(searchId)?.value || '').toLowerCase().trim();
     const cid = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
 
     // Filial-Zuordnung (Walter 15.07.2026, gleiche Regel wie ToDo/Kontrolle):
@@ -57,25 +63,16 @@ function kuRenderEmpList() {
         return `<option value="${e.id}">${escapeHtml(name)}${escapeHtml(nr)}${tag}</option>`;
     }).join('');
     if (cur) sel.value = cur;
-    // Wenn die aktuelle Auswahl rausgefiltert wurde, Details ausblenden.
-    if (sel.value !== cur) { const det = document.getElementById('kuDetails'); if (det) det.style.display = 'none'; }
+    // Wenn die aktuelle Auswahl rausgefiltert wurde, Details ausblenden (nur Kuendigung).
+    if (selectId === 'kuEmpSelect' && sel.value !== cur) {
+        const det = document.getElementById('kuDetails'); if (det) det.style.display = 'none';
+    }
 }
 
 function kuOnEmpChange() {
     const id = +(document.getElementById('kuEmpSelect')?.value || 0);
     const det = document.getElementById('kuDetails');
     if (!id) { if (det) det.style.display = 'none'; return; }
-    // Dokument-zuerst-Ablauf (Walter 15.07.2026): ist bereits ein anderes
-    // Dokument als Kuendigung gewaehlt, direkt dessen Modal oeffnen.
-    const art = document.getElementById('kuDocArt')?.value || 'kuendigung';
-    const block = document.getElementById('kuKuendigungBlock');
-    if (block) block.style.display = art === 'kuendigung' ? '' : 'none';
-    if (art !== 'kuendigung') {
-        window.activeEmpId = id;
-        if (det) det.style.display = 'block';
-        kuOpenDoc(art);
-        return;
-    }
     window.activeEmpId = id;
     if (det) det.style.display = 'block';
     kuLoadInfo();
@@ -170,19 +167,41 @@ function kuRenderSperr(s) {
     }
 }
 
-// Dokument-Auswahl = SCHRITT 1 (Walter 15.07.2026): zuerst das Dokument,
-// dann den MA. Kuendigung → Details unten abarbeiten; alle anderen → das
-// jeweilige Modal oeffnet sich, sobald ein MA gewaehlt ist.
-function kuDocArtChanged() {
-    const art = document.getElementById('kuDocArt')?.value || 'kuendigung';
-    const block = document.getElementById('kuKuendigungBlock');
-    if (block) block.style.display = art === 'kuendigung' ? '' : 'none';
-    const id = +(document.getElementById('kuEmpSelect')?.value || 0);
-    if (art !== 'kuendigung' && id) kuOpenDoc(art);
+// ── Schlanke Dokument-Seite (Walter 15.07.2026): eigener Menuepunkt pro
+// Dokument in der HR-Hub-Karte «Kuendigung / Zeugnisse». zdOpen(art) zeigt
+// die Seite mit passendem Titel; MA waehlen → Modal oeffnet sich direkt.
+let _zdArt = 'arbeitszeugnis';
+const _ZD_TITEL = {
+    arbeitszeugnis: 'Arbeitszeugnis',
+    zwischen:       'Zwischenzeugnis',
+    best:           'Arbeitsbestätigung',
+    verwarnung:     'Verwarnung'
+};
+
+async function zdOpen(art) {
+    _zdArt = art;
+    const t = document.getElementById('zdTitle');
+    if (t) t.textContent = _ZD_TITEL[art] || 'Dokument';
+    showPage('zeugnis-doc');
+    const sel = document.getElementById('zdEmpSelect');
+    if (sel) sel.value = '';
+    try { _kuAllEmployees = await loadEmployeeLookup(); } catch { _kuAllEmployees = []; }
+    zdRenderEmpList();
 }
 
-function kuOpenDoc(art) {
-    const id = +(document.getElementById('kuEmpSelect')?.value || 0);
+function zdRenderEmpList() {
+    _renderEmpPicker('zdEmpFilter', 'zdEmpSearch', 'zdEmpSelect');
+}
+
+function zdOnEmpChange() {
+    const id = +(document.getElementById('zdEmpSelect')?.value || 0);
+    if (!id) return;
+    kuOpenDoc(_zdArt, id);
+}
+
+// Oeffnet das Dokument-Modal fuer einen MA (aus zd-Seite).
+function kuOpenDoc(art, empId) {
+    const id = empId || 0;
     if (!id) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }
     window.activeEmpId = id;
     // Globale MA-Auswahl der MA-Maske mitziehen (Verwarnungs-Modal speichert

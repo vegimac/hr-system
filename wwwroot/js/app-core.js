@@ -1052,6 +1052,9 @@ function onBranchChange() {
     } else if (currentPageName === 'kuendigung') {
         // Kündigung-Page folgt dem globalen Filial-Selektor (MA-Liste neu filtern).
         kuRenderEmpList();
+    } else if (currentPageName === 'zeugnis-doc') {
+        // Dokument-Seite (Zeugnisse/Verwarnung) folgt dem Filial-Selektor.
+        if (typeof zdRenderEmpList === 'function') zdRenderEmpList();
     } else if (currentPageName === 'zwischenverdienst') {
         // RAV-Zwischenverdienst folgt dem globalen Filial-Selektor.
         zviInit();
