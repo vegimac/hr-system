@@ -296,6 +296,26 @@ const AZ_AUFGABEN = [
     'Qualitätsprüfungen bei Lebensmitteln (Fleischqualität, Ölkontrolle und Einhaltung der lebensmittelrechtlichen Temperaturvorschriften) und Verantwortung der Lebensmittelkontrollen'
 ];
 
+// Aufgaben-Gruppen (Walter-Vorgabe 15.07.2026, kompaktes Modal):
+// basis   = immer sichtbar (Crew-Aufgaben, Index 0-5)
+// trainer = ab Crew-Trainer/in (Training-System, Index 6)
+// schicht = NUR Schichtkoordinator/in (Fuehrung/Equipment/Bestellwesen/
+//           Brandverhuetung/Abrechnungen/Qualitaetspruefungen, Index 7-12)
+function _azGroupOf(i) { return i <= 5 ? 'basis' : i === 6 ? 'trainer' : 'schicht'; }
+
+// Sichtbarkeit der Aufgaben-Gruppen nach gewaehlter Funktion.
+function azUpdateTaskVisibility() {
+    const fn = document.getElementById('azFunktion')?.value || '';
+    const istSchicht  = fn.startsWith('Schichtkoordinator');
+    const istTrainer  = fn.startsWith('Crew-Trainer') || istSchicht;
+    document.querySelectorAll('.azTaskRow').forEach(row => {
+        const g = row.dataset.group;
+        const zeigen = g === 'basis' || (g === 'trainer' && istTrainer) || (g === 'schicht' && istSchicht);
+        row.style.display = zeigen ? '' : 'none';
+        if (!zeigen) { const c = row.querySelector('input'); if (c) c.checked = false; }
+    });
+}
+
 // Funktions-Vorschlag aus JobGroup + Pensum des juengsten Vertrags.
 function _azFunktionVorschlag(emp, female) {
     const es = (emp?.employments || []).slice()
@@ -332,7 +352,7 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
         : ['Teilzeit-Crewmitarbeiter', 'Vollzeit-Crewmitarbeiter', 'Crew-Trainer', 'Schichtkoordinator'];
     const vorschlag = emp ? _azFunktionVorschlag(emp, female) : funktionen[0];
 
-    const pill = 'display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 12px;cursor:pointer;font-size:13px;font-weight:600;color:#3f3f3f';
+    const pill = 'display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 11px;cursor:pointer;font-size:12.5px;font-weight:600;color:#3f3f3f';
     const pillS = 'display:flex;align-items:flex-start;gap:8px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:12px;color:#3f3f3f';
     const label = 'font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px';
     const inp = 'width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 12px;font-size:13px;color:#3f3f3f';
@@ -359,7 +379,7 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
             <div style="display:flex;gap:12px;margin-bottom:16px">
                 <div style="flex:1.4">
                     <div style="${label}">Funktion</div>
-                    <select id="azFunktion" style="${inp}">
+                    <select id="azFunktion" style="${inp}" onchange="azUpdateTaskVisibility()">
                         ${funktionen.map(fn => `<option value="${fn}" ${fn === vorschlag ? 'selected' : ''}>${fn}</option>`).join('')}
                     </select>
                 </div>
@@ -376,9 +396,9 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
                 <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azDrive" checked onchange="azQuickTasks()"> Drive</label>
             </div>
 
-            <div style="${label};${_azBest ? 'display:none' : ''}">Aufgaben (wie Word-Vorlage, Mehrfachauswahl)</div>
-            <div style="display:${_azBest ? 'none' : 'flex'};flex-direction:column;gap:6px;margin-bottom:16px">
-                ${AZ_AUFGABEN.map((a, i) => `<label style="${pillS}"><input type="checkbox" class="azAufgabe" data-i="${i}" value="${a.replace(/"/g, '&quot;')}"> <span>${a}</span></label>`).join('')}
+            <div style="${label};${_azBest ? 'display:none' : ''}">Aufgaben (Mehrfachauswahl — Umfang folgt der Funktion)</div>
+            <div style="display:${_azBest ? 'none' : 'flex'};flex-direction:column;gap:4px;margin-bottom:14px">
+                ${AZ_AUFGABEN.map((a, i) => `<label class="azTaskRow" data-group="${_azGroupOf(i)}" style="${pillS};padding:5px 9px;font-size:11.5px;line-height:1.3"><input type="checkbox" class="azAufgabe" data-i="${i}" value="${a.replace(/"/g, '&quot;')}"> <span>${a}</span></label>`).join('')}
             </div>
 
             <label style="${pill};margin-bottom:16px;${(_azZwischen || _azBest) ? 'display:none' : ''}"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
@@ -394,6 +414,7 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
     document.body.appendChild(ov);
     document.getElementById('azDatum').value = isoLocalDate(new Date());
     azQuickTasks();
+    azUpdateTaskVisibility();
 }
 
 // Bereichs-Schnellwahl → passende Katalog-Aufgaben ankreuzen (Grundset).
