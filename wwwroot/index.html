@@ -2344,8 +2344,18 @@
                 </div>
                 <div class="page-body">
                     <div class="card" style="padding:20px;max-width:760px">
-                        <!-- Schritt 1: Mitarbeiter -->
-                        <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">1. Mitarbeiter wählen</div>
+                        <!-- Schritt 1: Dokument (Walter 15.07.2026) -->
+                        <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">1. Dokument wählen</div>
+                        <select id="kuDocArt" onchange="kuDocArtChanged()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;background:white;margin-bottom:16px">
+                            <option value="kuendigung" selected>Kündigung</option>
+                            <option value="arbeitszeugnis">Arbeitszeugnis</option>
+                            <option value="zwischen">Zwischenzeugnis</option>
+                            <option value="best">Arbeitsbestätigung</option>
+                            <option value="verwarnung">Verwarnung</option>
+                        </select>
+
+                        <!-- Schritt 2: Mitarbeiter -->
+                        <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">2. Mitarbeiter wählen</div>
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
                             <select id="kuEmpFilter" onchange="kuRenderEmpList()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;background:white">
                                 <option value="active">Nur Aktive</option>
@@ -2358,18 +2368,6 @@
 
                         <!-- Schritt 2: Kündigungsdetails -->
                         <div id="kuDetails" style="display:none;margin-top:18px">
-                            <!-- Dokument-Auswahl (Walter 15.07.2026, einfach ohne Icons):
-                                 Kuendigung zeigt die Details unten; die anderen oeffnen
-                                 direkt das jeweilige Modal. -->
-                            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">2. Dokument wählen</div>
-                            <select id="kuDocArt" onchange="kuDocArtChanged()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;background:white;margin-bottom:4px">
-                                <option value="kuendigung" selected>Kündigung</option>
-                                <option value="arbeitszeugnis">Arbeitszeugnis</option>
-                                <option value="zwischen">Zwischenzeugnis</option>
-                                <option value="best">Arbeitsbestätigung</option>
-                                <option value="verwarnung">Verwarnung</option>
-                            </select>
-
                             <div id="kuKuendigungBlock">
                             <div style="font-size:13px;font-weight:700;color:#0f172a;margin:14px 0 8px">3. Kündigungsdetails</div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -7719,7 +7717,7 @@
 <script src="js/hr-saldi-lohnlauf.js?v=20260708flex"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260712a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
-<script src="js/kuendigung.js?v=20260715f"></script>
+<script src="js/kuendigung.js?v=20260715g"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 

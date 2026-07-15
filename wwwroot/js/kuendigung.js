@@ -64,12 +64,18 @@ function kuRenderEmpList() {
 function kuOnEmpChange() {
     const id = +(document.getElementById('kuEmpSelect')?.value || 0);
     const det = document.getElementById('kuDetails');
-    // Dokument-Auswahl zuruecksetzen (Walter 15.07.2026).
-    const art = document.getElementById('kuDocArt');
-    if (art) art.value = 'kuendigung';
-    const block = document.getElementById('kuKuendigungBlock');
-    if (block) block.style.display = '';
     if (!id) { if (det) det.style.display = 'none'; return; }
+    // Dokument-zuerst-Ablauf (Walter 15.07.2026): ist bereits ein anderes
+    // Dokument als Kuendigung gewaehlt, direkt dessen Modal oeffnen.
+    const art = document.getElementById('kuDocArt')?.value || 'kuendigung';
+    const block = document.getElementById('kuKuendigungBlock');
+    if (block) block.style.display = art === 'kuendigung' ? '' : 'none';
+    if (art !== 'kuendigung') {
+        window.activeEmpId = id;
+        if (det) det.style.display = 'block';
+        kuOpenDoc(art);
+        return;
+    }
     window.activeEmpId = id;
     if (det) det.style.display = 'block';
     kuLoadInfo();
@@ -164,13 +170,15 @@ function kuRenderSperr(s) {
     }
 }
 
-// Dokument-Auswahl (Walter 15.07.2026, einfaches Dropdown): Kuendigung
-// zeigt die Details unten, alle anderen oeffnen direkt das Modal.
+// Dokument-Auswahl = SCHRITT 1 (Walter 15.07.2026): zuerst das Dokument,
+// dann den MA. Kuendigung → Details unten abarbeiten; alle anderen → das
+// jeweilige Modal oeffnet sich, sobald ein MA gewaehlt ist.
 function kuDocArtChanged() {
     const art = document.getElementById('kuDocArt')?.value || 'kuendigung';
     const block = document.getElementById('kuKuendigungBlock');
     if (block) block.style.display = art === 'kuendigung' ? '' : 'none';
-    if (art !== 'kuendigung') kuOpenDoc(art);
+    const id = +(document.getElementById('kuEmpSelect')?.value || 0);
+    if (art !== 'kuendigung' && id) kuOpenDoc(art);
 }
 
 function kuOpenDoc(art) {
