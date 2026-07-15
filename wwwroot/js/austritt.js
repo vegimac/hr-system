@@ -330,6 +330,19 @@ function _azFunktionVorschlag(emp, female) {
     return (vollzeit ? 'Vollzeit-' : 'Teilzeit-') + (female ? 'Crewmitarbeiterin' : 'Crewmitarbeiter');
 }
 
+// Braucht das ARBEITSzeugnis ein fiktives Austrittsdatum? (Walter 15.07.2026:
+// letzter Vertrag offen + kein Austritt erfasst). Zwischenzeugnis/Bestaetigung
+// brauchen kein Bis-Datum. Bei unbekanntem MA-Objekt: Feld sicherheitshalber zeigen.
+function _azNeedsAustritt(emp) {
+    if (_azZwischen || _azBest) return false;
+    if (!emp) return true;
+    if (emp.exitDate) return false;
+    const es = (emp.employments || []).slice()
+        .sort((a, b) => (b.contractStartDate || '').localeCompare(a.contractStartDate || ''));
+    const last = es[0];
+    return !last || !last.contractEndDate;
+}
+
 function _azEmpObj(employeeId) {
     if (typeof selectedVtEmployee !== 'undefined' && selectedVtEmployee?.id === employeeId) return selectedVtEmployee;
     if (typeof selectedEmployee !== 'undefined' && selectedEmployee?.id === employeeId) return selectedEmployee;
@@ -389,6 +402,13 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
                 </div>
             </div>
 
+            ${_azNeedsAustritt(emp) ? `
+            <div style="margin-bottom:16px">
+                <div style="${label}">Austrittsdatum (für «war vom … bis …»)</div>
+                <input type="date" id="azAustritt" style="${inp}">
+                <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">Der letzte Vertrag ist noch offen und kein Austritt erfasst — bitte das (geplante) Austrittsdatum angeben. Vorschlag: Ende des laufenden Monats.</div>
+            </div>` : ''}
+
             <div style="${label};${_azBest ? 'display:none' : ''}">Bereich (Schnellwahl — kreuzt die passenden Aufgaben an)</div>
             <div style="display:${_azBest ? 'none' : 'flex'};gap:8px;margin-bottom:12px">
                 <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKueche" onchange="azQuickTasks()"> Küche</label>
@@ -413,6 +433,12 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
         </div>`;
     document.body.appendChild(ov);
     document.getElementById('azDatum').value = isoLocalDate(new Date());
+    // Fiktives Austrittsdatum: Vorschlag = Ende des laufenden Monats.
+    const azA = document.getElementById('azAustritt');
+    if (azA) {
+        const now = new Date();
+        azA.value = isoLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    }
     azQuickTasks();
     azUpdateTaskVisibility();
 }
@@ -464,7 +490,8 @@ async function azGenerate() {
                 funktion: document.getElementById('azFunktion')?.value || null,
                 aufEigenenWunsch: document.getElementById('azWunsch')?.checked ?? true,
                 zwischen: _azZwischen,
-                bestaetigung: _azBest
+                bestaetigung: _azBest,
+                austritt: document.getElementById('azAustritt')?.value || null
             })
         });
         if (!res.ok) {

@@ -48,6 +48,10 @@ public class ArbeitszeugnisController : ControllerBase
         /// <summary>true = ARBEITSBESTÄTIGUNG (Vorlage «244 Sursee») — nur der
         /// Bestätigungssatz, keine Qualität/Bereiche/Aufgaben nötig.</summary>
         public bool Bestaetigung { get; set; }
+        /// <summary>Fiktives Austrittsdatum (Walter 15.07.2026): nur fürs
+        /// ARBEITSzeugnis, wenn der LETZTE Vertrag offen ist und kein Austritt
+        /// erfasst wurde. Vorschlag im UI: Ende des laufenden Monats.</summary>
+        public DateOnly? Austritt { get; set; }
     }
 
     [HttpPost("{empId:int}/pdf")]
@@ -86,10 +90,17 @@ public class ArbeitszeugnisController : ControllerBase
         var von = e.EntryDate
                   ?? emps.OrderBy(x => x.ContractStartDate).FirstOrDefault()?.ContractStartDate
                   ?? DateTime.Today;
+        // Bis-Datum (Walter-Korrektur 15.07.2026): IMMER der LETZTE Vertrag —
+        // nicht das juengste Enddatum irgendeines (alten) Vertrags. Ist der
+        // letzte Vertrag offen und kein Austritt erfasst, kommt das fiktive
+        // Austrittsdatum aus dem Modal (Fallback: Ende laufender Monat).
+        var lastByStart = emps.OrderByDescending(x => x.ContractStartDate).FirstOrDefault();
+        var monatsEnde = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1)
+                             .AddMonths(1).AddDays(-1);
         var bis = e.ExitDate
-                  ?? emps.Where(x => x.ContractEndDate.HasValue).Select(x => x.ContractEndDate)
-                         .OrderByDescending(x => x).FirstOrDefault()
-                  ?? DateTime.Today;
+                  ?? lastByStart?.ContractEndDate
+                  ?? (dto.Austritt.HasValue ? dto.Austritt.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null)
+                  ?? monatsEnde;
 
         // Vollzeit nur bei FIX/FIX-M mit Pensum ≥ 100 % — Crew/FLEX/MTP = Teilzeit.
         bool vollzeit = last != null
