@@ -1204,7 +1204,10 @@ function renderEmpContractList(emp) {
     return `<div class="emp-contract-strip" aria-label="Verträge">
         <div class="emp-contract-head">
             <span>Verträge</span>
-            <span>${contracts.length}</span>
+            <span style="display:flex;align-items:center;gap:10px">
+                <button type="button" class="emp-contract-btn" title="Arbeitszeugnis erstellen (Qualität + verrichtete Arbeit wählen)" onclick="openZeugnisModal(${emp.id})">📄 Arbeitszeugnis</button>
+                <span>${contracts.length}</span>
+            </span>
         </div>
         <div class="emp-contract-scroll">${rows}</div>
     </div>

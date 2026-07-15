@@ -323,8 +323,11 @@ function openZeugnisModal(employeeId) {
     // Datum default heute; Untertitel = MA-Name falls greifbar
     const d = new Date();
     document.getElementById('azDatum').value = isoLocalDate(d);
-    const emp = (typeof selectedVtEmployee !== 'undefined' && selectedVtEmployee?.id === employeeId)
-        ? selectedVtEmployee : null;
+    // MA-Name: aus Verträge-Seite ODER Mitarbeiter-Maske (beide Kontexte).
+    let emp = null;
+    if (typeof selectedVtEmployee !== 'undefined' && selectedVtEmployee?.id === employeeId) emp = selectedVtEmployee;
+    else if (typeof selectedEmployee !== 'undefined' && selectedEmployee?.id === employeeId) emp = selectedEmployee;
+    else if (window._empDetailCache?.id === employeeId) emp = window._empDetailCache;
     document.getElementById('azSub').textContent = emp
         ? `${emp.firstName} ${emp.lastName} · Personalnr. ${emp.employeeNumber || '–'}` : '';
     document.getElementById('azAlert').innerHTML = '';
