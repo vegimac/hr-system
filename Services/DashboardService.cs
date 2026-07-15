@@ -116,7 +116,10 @@ public class DashboardService
         if (companyProfileId.HasValue)
         {
             var cpid = companyProfileId.Value;
-            empBase = empBase.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+            // Filial-Zuordnung (Walter-Bug 15.07.2026, «Berin»): aktive Verträge
+            // bestimmen die Filiale; ohne aktiven Vertrag zählt der JÜNGSTE
+            // Vertrag — alte, beendete Verträge (Filialwechsel) zählen NICHT mehr.
+            empBase = empBase.Where(e => e.Employments.Any(em => em.IsActive && em.CompanyProfileId == cpid) || (!e.Employments.Any(em => em.IsActive) && e.Employments.OrderByDescending(em => em.ContractStartDate).Select(em => em.CompanyProfileId).FirstOrDefault() == cpid));
         }
         // Pro MA den jüngsten History-Eintrag mit PermitTypeId != NULL holen
         // (= aktive Bewilligung). NUR der jüngste — dessen ValidTo ist das
@@ -348,8 +351,11 @@ public class DashboardService
         if (companyProfileId.HasValue)
         {
             // MA hat in einer der Filialen einen Vertrag → filtere auf passende.
+            // Filial-Zuordnung (Walter-Bug 15.07.2026, «Berin»): aktive Verträge
+            // bestimmen die Filiale; ohne aktiven Vertrag zählt der JÜNGSTE
+            // Vertrag — alte, beendete Verträge (Filialwechsel) zählen NICHT mehr.
             exitPendingQ = exitPendingQ.Where(e =>
-                e.Employments.Any(em => em.CompanyProfileId == companyProfileId.Value));
+                e.Employments.Any(em => em.IsActive && em.CompanyProfileId == companyProfileId.Value) || (!e.Employments.Any(em => em.IsActive) && e.Employments.OrderByDescending(em => em.ContractStartDate).Select(em => em.CompanyProfileId).FirstOrDefault() == companyProfileId.Value));
         }
         var exitPendingList = Enabled("exit_pending_active")
             ? await exitPendingQ.ToListAsync()
@@ -644,7 +650,10 @@ public class DashboardService
         if (companyProfileId.HasValue)
         {
             var cpid = companyProfileId.Value;
-            birthQ = birthQ.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+            // Filial-Zuordnung (Walter-Bug 15.07.2026, «Berin»): aktive Verträge
+            // bestimmen die Filiale; ohne aktiven Vertrag zählt der JÜNGSTE
+            // Vertrag — alte, beendete Verträge (Filialwechsel) zählen NICHT mehr.
+            birthQ = birthQ.Where(e => e.Employments.Any(em => em.IsActive && em.CompanyProfileId == cpid) || (!e.Employments.Any(em => em.IsActive) && e.Employments.OrderByDescending(em => em.ContractStartDate).Select(em => em.CompanyProfileId).FirstOrDefault() == cpid));
         }
         var birthEmps = Enabled("birthday")
             ? await birthQ.ToListAsync()
@@ -691,7 +700,10 @@ public class DashboardService
         if (companyProfileId.HasValue)
         {
             var cpid = companyProfileId.Value;
-            jubQ = jubQ.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+            // Filial-Zuordnung (Walter-Bug 15.07.2026, «Berin»): aktive Verträge
+            // bestimmen die Filiale; ohne aktiven Vertrag zählt der JÜNGSTE
+            // Vertrag — alte, beendete Verträge (Filialwechsel) zählen NICHT mehr.
+            jubQ = jubQ.Where(e => e.Employments.Any(em => em.IsActive && em.CompanyProfileId == cpid) || (!e.Employments.Any(em => em.IsActive) && e.Employments.OrderByDescending(em => em.ContractStartDate).Select(em => em.CompanyProfileId).FirstOrDefault() == cpid));
         }
         var jubEmps = Enabled("anniversary")
             ? await jubQ.ToListAsync()
@@ -1097,7 +1109,10 @@ public class DashboardService
             if (companyProfileId.HasValue)
             {
                 var cpid = companyProfileId.Value;
-                availQ = availQ.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+                // Filial-Zuordnung (Walter-Bug 15.07.2026, «Berin»): aktive Verträge
+            // bestimmen die Filiale; ohne aktiven Vertrag zählt der JÜNGSTE
+            // Vertrag — alte, beendete Verträge (Filialwechsel) zählen NICHT mehr.
+            availQ = availQ.Where(e => e.Employments.Any(em => em.IsActive && em.CompanyProfileId == cpid) || (!e.Employments.Any(em => em.IsActive) && e.Employments.OrderByDescending(em => em.ContractStartDate).Select(em => em.CompanyProfileId).FirstOrDefault() == cpid));
             }
             var availCandidates = await availQ
                 .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })

@@ -51,7 +51,13 @@ public class KontrollListenController : ControllerBase
         if (companyProfileId.HasValue)
         {
             var cpid = companyProfileId.Value;
-            empQuery = empQuery.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+            // Filial-Zuordnung (Walter-Bug 15.07.2026): aktive Verträge zählen;
+            // ohne aktiven Vertrag der jüngste — beendete Fremd-Filial-Verträge nicht.
+            empQuery = empQuery.Where(e =>
+                e.Employments.Any(em => em.IsActive && em.CompanyProfileId == cpid)
+                || (!e.Employments.Any(em => em.IsActive)
+                    && e.Employments.OrderByDescending(em => em.ContractStartDate)
+                        .Select(em => em.CompanyProfileId).FirstOrDefault() == cpid));
         }
         var emps = await empQuery
             .Select(e => new {
@@ -172,7 +178,13 @@ public class KontrollListenController : ControllerBase
         if (companyProfileId.HasValue)
         {
             var cpid = companyProfileId.Value;
-            empQuery = empQuery.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+            // Filial-Zuordnung (Walter-Bug 15.07.2026): aktive Verträge zählen;
+            // ohne aktiven Vertrag der jüngste — beendete Fremd-Filial-Verträge nicht.
+            empQuery = empQuery.Where(e =>
+                e.Employments.Any(em => em.IsActive && em.CompanyProfileId == cpid)
+                || (!e.Employments.Any(em => em.IsActive)
+                    && e.Employments.OrderByDescending(em => em.ContractStartDate)
+                        .Select(em => em.CompanyProfileId).FirstOrDefault() == cpid));
         }
 
         var emps = await empQuery
@@ -266,7 +278,13 @@ public class KontrollListenController : ControllerBase
         if (companyProfileId.HasValue)
         {
             var cpid = companyProfileId.Value;
-            empQuery = empQuery.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+            // Filial-Zuordnung (Walter-Bug 15.07.2026): aktive Verträge zählen;
+            // ohne aktiven Vertrag der jüngste — beendete Fremd-Filial-Verträge nicht.
+            empQuery = empQuery.Where(e =>
+                e.Employments.Any(em => em.IsActive && em.CompanyProfileId == cpid)
+                || (!e.Employments.Any(em => em.IsActive)
+                    && e.Employments.OrderByDescending(em => em.ContractStartDate)
+                        .Select(em => em.CompanyProfileId).FirstOrDefault() == cpid));
         }
         var emps = await empQuery
             .Select(e => new
@@ -407,7 +425,13 @@ public class KontrollListenController : ControllerBase
         if (companyProfileId.HasValue)
         {
             var cpid = companyProfileId.Value;
-            empQuery = empQuery.Where(e => e.Employments.Any(em => em.CompanyProfileId == cpid));
+            // Filial-Zuordnung (Walter-Bug 15.07.2026): aktive Verträge zählen;
+            // ohne aktiven Vertrag der jüngste — beendete Fremd-Filial-Verträge nicht.
+            empQuery = empQuery.Where(e =>
+                e.Employments.Any(em => em.IsActive && em.CompanyProfileId == cpid)
+                || (!e.Employments.Any(em => em.IsActive)
+                    && e.Employments.OrderByDescending(em => em.ContractStartDate)
+                        .Select(em => em.CompanyProfileId).FirstOrDefault() == cpid));
         }
         var emps = await empQuery
             .Select(e => new {
