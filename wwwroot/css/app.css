@@ -4843,6 +4843,34 @@
             #todosPrintArea { padding: 14mm 14mm 16mm; box-sizing: border-box; }
         }
         #todosPrintArea .tp-head { border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 14px; }
+/* ── Restaurant-Admin-Kacheln (Walter 15.07.2026): Icon-Buttons im
+   Startseiten-Stil, Sketch-Icons, Liquid-Glass-Look ── */
+.ra-tile-row {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    margin: 4px 0 22px;
+}
+.ra-tile {
+    width: 128px; min-height: 128px;
+    border: 1px solid rgba(255,255,255,0.62);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.45);
+    box-shadow: 0 10px 26px rgba(60,55,48,0.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; padding: 12px 8px; cursor: pointer;
+    color: #3f3f3f; font-size: 12.5px; font-weight: 700; line-height: 1.25; text-align: center;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.ra-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 32px rgba(60,55,48,0.2);
+    background: rgba(255,255,255,0.6);
+}
+.ra-tile img {
+    width: 64px; height: 64px; object-fit: contain;
+    mix-blend-mode: multiply;   /* cremefarbener Sketch-Hintergrund verschwindet */
+}
+body.theme-dark .ra-tile { background: rgba(255,255,255,0.85); color: #2b2b2b; }
+
         /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
         #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }
         #todosPrintArea .tp-head h1 { font-size: 22px; margin: 0; font-weight: 800; letter-spacing: 0.3px; }

@@ -1328,11 +1328,10 @@ function switchEmpTab(tab) {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openQstFromTab(null)">${plusIcon} QST-Eintrag</button>`
                 + (!isExcluded ? `<button class="btn-emp-add" onclick="openBankAccountModal(null)" style="margin-left:8px">${plusIcon} ${_t('ma.btn.newBank','Bankverbindung')}</button>` : '');
         } else if (tab === 'verwarnungen' && !isExcluded) {
-            // Restaurant Admin: Verwarnungen + Arbeitszeugnis (Walter 15.07.2026).
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openVerwarnungModal(null)">${plusIcon} Verwarnung erfassen</button>`
-                + `<button class="btn-emp-add" style="margin-left:8px" onclick="openZeugnisModal(selectedEmployeeId)">📄 Arbeitszeugnis</button>`
-                + `<button class="btn-emp-add" style="margin-left:8px" onclick="openZeugnisModal(selectedEmployeeId, true)">📄 Zwischenzeugnis</button>`
-                + `<button class="btn-emp-add" style="margin-left:8px" onclick="openZeugnisModal(selectedEmployeeId, false, true)">📄 Arbeitsbestätigung</button>`;
+            // Restaurant Admin: Aktionen als Icon-Kacheln IM Tab-Body (Walter
+            // 15.07.2026) — oben rechts kollidierten die Buttons mit dem
+            // langSwitcher (reservierte Zone, CLAUDE.md).
+            tabBar.innerHTML = '';
         } else if (tab === 'absenzen') {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openAbsenceModal(null)">${plusIcon} Absenz erfassen</button>`;
         } else if (tab === 'verfuegbarkeit' && !isExcluded) {
@@ -10308,9 +10307,26 @@ function renderVerwarnungenTab(el) {
     }).join('');
 
     el.innerHTML = `
+        ${_raTilesHtml()}
         <div class="emp-section-title">Verwarnungen</div>
         ${banner}
         ${rows}`;
+}
+
+// Restaurant-Admin-Kacheln (Walter 15.07.2026): Icon-Buttons im Stil der
+// Startseiten-Module (Sketch-Icons von Walter in wwwroot/img).
+function _raTilesHtml() {
+    const tile = (img, label, onclick) => `
+        <button type="button" class="ra-tile" onclick="${onclick}">
+            <img src="img/${img}" alt="" loading="lazy">
+            <span>${label}</span>
+        </button>`;
+    return `<div class="ra-tile-row">
+        ${tile('verwarnung.png', 'Verwarnung<br>erfassen', 'openVerwarnungModal(null)')}
+        ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
+        ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
+        ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
+    </div>`;
 }
 
 function vwToggleMenu(ev, id) {
