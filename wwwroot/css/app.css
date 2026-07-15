@@ -4843,22 +4843,33 @@
             #todosPrintArea { padding: 14mm 14mm 16mm; box-sizing: border-box; }
         }
         #todosPrintArea .tp-head { border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 14px; }
-/* ── Restaurant-Admin-Kacheln (Walter 15.07.2026, v2): NUR das Sketch-Icon
-   in voller Groesse — Beschriftung steckt im PNG, kein weisser Kachel-
-   Hintergrund. Hover hebt sanft (Liquid-Regel: max 2-4px). ── */
+/* ── Restaurant-Admin-Kacheln (Walter 15.07.2026, v5): wie die Modul-
+   Kacheln der Startseite — Glas-Kachel, freigestelltes Sketch-Icon,
+   Beschriftung darunter. Hover hebt sanft (Liquid-Regel 2-4px). ── */
 .ra-tile-row {
-    display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start;
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start;
     margin: 4px 0 22px;
 }
 .ra-tile {
-    background: transparent; border: none; padding: 0; cursor: pointer;
-    transition: transform .18s ease, filter .18s ease;
+    width: 132px; min-height: 150px;
+    border: 1px solid rgba(255,255,255,0.62);
+    border-radius: 20px;
+    background: rgba(255,255,255,0.42);
+    box-shadow: 0 10px 26px rgba(60,55,48,0.14), inset 0 1px 0 rgba(255,255,255,0.55);
+    backdrop-filter: blur(24px) saturate(132%);
+    -webkit-backdrop-filter: blur(24px) saturate(132%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 14px 10px; cursor: pointer;
+    color: #3f3f3f; font-size: 12.5px; font-weight: 700; line-height: 1.25; text-align: center;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
 }
-.ra-tile:hover { transform: translateY(-3px); filter: drop-shadow(0 10px 18px rgba(60,55,48,0.25)); }
-.ra-tile img {
-    width: 140px; height: 140px; object-fit: contain; display: block;
-    /* PNGs sind seit 15.07.2026 echt freigestellt (transparenter Hintergrund) */
+.ra-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 32px rgba(60,55,48,0.2), inset 0 1px 0 rgba(255,255,255,0.55);
+    background: rgba(255,255,255,0.58);
 }
+.ra-tile img { width: 82px; height: 82px; object-fit: contain; display: block; }
+body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #d6d3cc; }
 body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
 
         /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */

@@ -10316,13 +10316,15 @@ function renderVerwarnungenTab(el) {
 // Restaurant-Admin-Kacheln (Walter 15.07.2026): Icon-Buttons im Stil der
 // Startseiten-Module (Sketch-Icons von Walter in wwwroot/img).
 function _raTilesHtml() {
-    // Beschriftung steckt bereits im Icon (Walter 15.07.2026) — nur das Bild.
+    // Startseiten-Stil (Walter 15.07.2026 v5): Glas-Kachel, freigestelltes
+    // Sketch-Icon oben, Beschriftung darunter.
     const tile = (img, title, onclick) => `
-        <button type="button" class="ra-tile" title="${title}" onclick="${onclick}">
-            <img src="img/${img}?v=20260715c" alt="${title}" loading="lazy">
+        <button type="button" class="ra-tile" onclick="${onclick}">
+            <img src="img/${img}?v=20260715d" alt="" loading="lazy">
+            <span>${title}</span>
         </button>`;
     return `<div class="ra-tile-row">
-        ${tile('verwarnung.png', 'Verwarnung erfassen', 'openVerwarnungModal(null)')}
+        ${tile('verwarnung.png', 'Verwarnung', 'openVerwarnungModal(null)')}
         ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
