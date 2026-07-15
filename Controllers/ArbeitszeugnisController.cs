@@ -37,6 +37,12 @@ public class ArbeitszeugnisController : ControllerBase
         public DateOnly? Datum { get; set; }
         /// <summary>«verlässt unser Unternehmen auf eigenen Wunsch» (Default: true).</summary>
         public bool AufEigenenWunsch { get; set; } = true;
+        /// <summary>Funktion aus der Vorlage (z.B. «Crew-Trainerin», «Schichtkoordinator»).
+        /// Leer = Teilzeit/Vollzeit-Mitarbeiter/in aus dem Vertrag.</summary>
+        public string? Funktion { get; set; }
+        /// <summary>Explizit gewählte Aufgaben (13er-Katalog der Word-Vorlage, 15.07.2026).
+        /// Leer = Ableitung aus den Bereichen.</summary>
+        public List<string>? Aufgaben { get; set; }
     }
 
     [HttpPost("{empId:int}/pdf")]
@@ -46,8 +52,8 @@ public class ArbeitszeugnisController : ControllerBase
         if (e == null) return NotFound(new { error = "EMP_NOT_FOUND" });
 
         var quali = (dto.Qualitaet ?? "gut").Trim().ToLowerInvariant();
-        if (quali is not ("durchschnitt" or "gut" or "sehr_gut"))
-            return BadRequest(new { error = "QUALITAET_UNGUELTIG", message = "Qualität muss durchschnitt, gut oder sehr_gut sein." });
+        if (quali is not ("genuegend" or "durchschnitt" or "gut" or "sehr_gut"))
+            return BadRequest(new { error = "QUALITAET_UNGUELTIG", message = "Qualität muss genuegend, durchschnitt, gut oder sehr_gut sein." });
 
         var bereiche = (dto.Bereiche ?? new())
             .Select(b => b.Trim().ToLowerInvariant())
@@ -143,7 +149,9 @@ public class ArbeitszeugnisController : ControllerBase
             SignatoryName:  signerName,
             SignatoryTitle: signerTitle,
             SignaturePng:   sigPng,
-            AufEigenenWunsch: dto.AufEigenenWunsch
+            AufEigenenWunsch: dto.AufEigenenWunsch,
+            Funktion:       string.IsNullOrWhiteSpace(dto.Funktion) ? null : dto.Funktion.Trim(),
+            Aufgaben:       dto.Aufgaben
         );
 
         var bytes = _pdf.Generate(input);

@@ -38,7 +38,13 @@ public record ArbeitszeugnisInput(
     string SignatoryName,
     string? SignatoryTitle,
     byte[]? SignaturePng,
-    bool AufEigenenWunsch = false
+    bool AufEigenenWunsch = false,
+    /// <summary>Funktions-Text aus der Vorlage (z.B. «Crew-Trainerin»,
+    /// «Schichtkoordinator»). NULL = Fallback Teilzeit/Vollzeit-Mitarbeiter/in.</summary>
+    string? Funktion = null,
+    /// <summary>Explizit gewählte Aufgaben (13er-Katalog der Vorlage).
+    /// NULL/leer = Ableitung aus den Bereichen (Kasse/Drive/Küche).</summary>
+    IReadOnlyList<string>? Aufgaben = null
 );
 
 public class ArbeitszeugnisPdfService
@@ -77,13 +83,23 @@ public class ArbeitszeugnisPdfService
         bool hatDrive  = d.Bereiche.Contains("drive");
         bool hatGast   = hatKasse || hatDrive;
 
-        var aufgaben = new List<string>();
-        if (hatKasse && hatDrive) aufgaben.Add("Bedienen unserer Gäste an der Kasse und am Drive");
-        else if (hatKasse)        aufgaben.Add("Bedienen unserer Gäste an der Kasse");
-        else if (hatDrive)        aufgaben.Add("Bedienen unserer Gäste am Drive");
-        if (hatKueche)            aufgaben.Add("Produzieren und Garnieren unserer Qualitätsprodukte");
-        aufgaben.Add("Diverse Reinigungsarbeiten im ganzen Restaurant");
-        aufgaben.Add("Gästebetreuung");
+        List<string> aufgaben;
+        if (d.Aufgaben != null && d.Aufgaben.Count > 0)
+        {
+            // Explizite Auswahl aus dem 13er-Katalog der Word-Vorlage (15.07.2026).
+            aufgaben = d.Aufgaben.Where(a => !string.IsNullOrWhiteSpace(a))
+                                 .Select(a => a.Trim()).Distinct().ToList();
+        }
+        else
+        {
+            aufgaben = new List<string>();
+            if (hatKasse && hatDrive) aufgaben.Add("Bedienen unserer Gäste an der Kasse und am Drive");
+            else if (hatKasse)        aufgaben.Add("Bedienen unserer Gäste an der Kasse");
+            else if (hatDrive)        aufgaben.Add("Bedienen unserer Gäste am Drive");
+            if (hatKueche)            aufgaben.Add("Produzieren und Garnieren unserer Qualitätsprodukte");
+            aufgaben.Add("Diverse Reinigungsarbeiten im ganzen Restaurant");
+            aufgaben.Add("Gästebetreuung");
+        }
 
         bool sehrGut = d.Qualitaet == "sehr_gut";
 
@@ -101,6 +117,11 @@ public class ArbeitszeugnisPdfService
                 $"stets zu unserer vollsten Zufriedenheit. {ihrC} Verhalten gegenüber Vorgesetzten, Mitarbeitern sowie " +
                 $"Gästen war jederzeit vorbildlich. Aufgrund {ihrer} freundlichen, hilfsbereiten und teamorientierten Art " +
                 $"war {er} bei allen sehr geschätzt.",
+            "genuegend" =>
+                $"Wir haben {nameKurz} als teamfähige{(f ? "" : "n")} und hilfsbereite{(f ? "" : "n")} {maWort} kennen und schätzen gelernt. " +
+                $"{erCap} arbeitete gewissenhaft und erledigte sämtliche Arbeiten zu unserer Zufriedenheit. " +
+                $"In aussergewöhnlichen Situationen arbeitete {er} routiniert und war bereit länger zu arbeiten, sofern es erforderlich war. " +
+                $"Bei Vorgesetzten, Mitarbeitern und Gästen war {er} beliebt.",
             "durchschnitt" =>
                 $"Wir haben {nameKurz} als teamfähige{(f ? "" : "n")} und hilfsbereite{(f ? "" : "n")} {maWort} kennen und schätzen gelernt. " +
                 $"{erCap} arbeitete stets gewissenhaft und erledigte sämtliche Arbeiten zu unserer vollen Zufriedenheit. " +
@@ -117,9 +138,10 @@ public class ArbeitszeugnisPdfService
         string herkunft = string.IsNullOrWhiteSpace(d.WohnOrt) ? "" : $" aus {d.WohnOrt},";
 
         // Intro in zwei Teilen: Name wird im PDF fett gesetzt (wie im Muster).
+        string funktion = !string.IsNullOrWhiteSpace(d.Funktion) ? d.Funktion!.Trim() : $"{pensumTxt}{maWort}";
         string introRest =
             $",{geboren}{herkunft} war vom {d.Von:dd.MM.yyyy} bis {d.Bis:dd.MM.yyyy} " +
-            $"in unserem Restaurant in {d.Ort} als {pensumTxt}{maWort} tätig.";
+            $"in unserem Restaurant in {d.Ort} als {funktion} tätig.";
 
         // Bereichs-Text: Muster «Fodor» (sehr gut) nutzt «sowohl … als auch»,
         // «Gherasim/Körner» (gut/durchschnitt) die kompakte Form.

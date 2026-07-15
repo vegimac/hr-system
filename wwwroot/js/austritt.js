@@ -279,61 +279,135 @@ async function downloadContractPdfById(employeeId, contractId) {
 // verrichteten Arbeit (Küche/Kasse/Drive). PDF im Vorschaufenster.
 let _azEmployeeId = null;
 
+// 13er-Aufgaben-Katalog aus der Word-Vorlage «216 Oftringen» (Walter 15.07.2026).
+const AZ_AUFGABEN = [
+    'Produzieren und Garnieren unserer Qualitätsprodukte',
+    'Bedienen unserer Gäste an der Kasse',
+    'Bedienen unserer Gäste an der Kasse und am Drive',
+    'Gästebetreuung',
+    'Bearbeitung der Lieferung',
+    'Diverse Reinigungsarbeiten im ganzen Restaurant',
+    'Verfolgen des Training-Systems der Mitarbeiter am Arbeitsplatz',
+    'Verantwortungen während einer Schichtführung: fachliche und personelle Führung des Teams',
+    'Verwaltung und Unterhalt des Restaurant Equipments',
+    'Verwaltung des Bestellwesens',
+    'Verantwortung für Brandverhütung; Einhaltung der Arbeitssicherheit und des Gesundheitsschutzes, insbesondere für die Einhaltung der jeweiligen Reglemente (kant. Gewerbegesetz und Alkoholgesetz)',
+    'Erstellung der Tagesabrechnungen resp. Schlussabrechnungen sowie Kassenabrechnungen',
+    'Qualitätsprüfungen bei Lebensmitteln (Fleischqualität, Ölkontrolle und Einhaltung der lebensmittelrechtlichen Temperaturvorschriften) und Verantwortung der Lebensmittelkontrollen'
+];
+
+// Funktions-Vorschlag aus JobGroup + Pensum des juengsten Vertrags.
+function _azFunktionVorschlag(emp, female) {
+    const es = (emp?.employments || []).slice()
+        .sort((a, b) => (b.contractStartDate || '').localeCompare(a.contractStartDate || ''));
+    const c = es[0] || {};
+    const jg = String(c.jobGroupCode || c.jobTitle || '').toUpperCase();
+    if (jg.includes('SHIFT')) return female ? 'Schichtkoordinatorin' : 'Schichtkoordinator';
+    if (jg.includes('HOST_CT') || jg.includes('TRAINER') || jg === 'CT')
+        return female ? 'Crew-Trainerin' : 'Crew-Trainer';
+    const vollzeit = (c.employmentModel === 'FIX' || c.employmentModel === 'FIX-M')
+        && Number(c.employmentPercentage ?? 100) >= 100;
+    return (vollzeit ? 'Vollzeit-' : 'Teilzeit-') + (female ? 'Crewmitarbeiterin' : 'Crewmitarbeiter');
+}
+
+function _azEmpObj(employeeId) {
+    if (typeof selectedVtEmployee !== 'undefined' && selectedVtEmployee?.id === employeeId) return selectedVtEmployee;
+    if (typeof selectedEmployee !== 'undefined' && selectedEmployee?.id === employeeId) return selectedEmployee;
+    return null;
+}
+
 function openZeugnisModal(employeeId) {
     _azEmployeeId = employeeId;
+    const emp = _azEmpObj(employeeId);
+    const female = String(emp?.gender || '').toLowerCase().startsWith('f')
+        || String(emp?.gender || '').toLowerCase() === 'w'
+        || emp?.salutation === 'Frau';
+    const funktionen = female
+        ? ['Teilzeit-Crewmitarbeiterin', 'Vollzeit-Crewmitarbeiterin', 'Crew-Trainerin', 'Schichtkoordinatorin']
+        : ['Teilzeit-Crewmitarbeiter', 'Vollzeit-Crewmitarbeiter', 'Crew-Trainer', 'Schichtkoordinator'];
+    const vorschlag = emp ? _azFunktionVorschlag(emp, female) : funktionen[0];
+
+    const pill = 'display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 12px;cursor:pointer;font-size:13px;font-weight:600;color:#3f3f3f';
+    const pillS = 'display:flex;align-items:flex-start;gap:8px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:12px;color:#3f3f3f';
+    const label = 'font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px';
+    const inp = 'width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 12px;font-size:13px;color:#3f3f3f';
+
     let ov = document.getElementById('azModal');
-    if (!ov) {
-        ov = document.createElement('div');
-        ov.id = 'azModal';
-        ov.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(60,55,48,0.4);display:flex;align-items:center;justify-content:center;padding:20px';
-        ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
-        const pill = 'display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 14px;cursor:pointer;font-size:13.5px;font-weight:600;color:#3f3f3f';
-        ov.innerHTML = `
-            <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:460px;width:100%;padding:20px 22px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
-                <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:2px">Arbeitszeugnis erstellen</div>
-                <div id="azSub" style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px"></div>
+    if (ov) ov.remove();
+    ov = document.createElement('div');
+    ov.id = 'azModal';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(60,55,48,0.4);display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:620px;width:100%;max-height:92vh;overflow:auto;padding:20px 22px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
+            <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:2px">Arbeitszeugnis erstellen</div>
+            <div id="azSub" style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px">${emp ? `${emp.firstName} ${emp.lastName} · Personalnr. ${emp.employeeNumber || '–'}` : ''}</div>
 
-                <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Qualität</div>
-                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-                    <label style="${pill}"><input type="radio" name="azQuali" value="sehr_gut"> Sehr gut <span style="color:#8b8b8b;font-weight:400">— stets zu unserer vollsten Zufriedenheit</span></label>
-                    <label style="${pill}"><input type="radio" name="azQuali" value="gut" checked> Gut <span style="color:#8b8b8b;font-weight:400">— stets zu unserer vollen Zufriedenheit</span></label>
-                    <label style="${pill}"><input type="radio" name="azQuali" value="durchschnitt"> Durchschnitt <span style="color:#8b8b8b;font-weight:400">— zu unserer Zufriedenheit</span></label>
+            <div style="${label}">Qualität</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+                <label style="${pill}"><input type="radio" name="azQuali" value="sehr_gut"> Sehr gut</label>
+                <label style="${pill}"><input type="radio" name="azQuali" value="gut" checked> Gut</label>
+                <label style="${pill}"><input type="radio" name="azQuali" value="durchschnitt"> Durchschnitt</label>
+                <label style="${pill}"><input type="radio" name="azQuali" value="genuegend"> Genügend</label>
+            </div>
+
+            <div style="display:flex;gap:12px;margin-bottom:16px">
+                <div style="flex:1.4">
+                    <div style="${label}">Funktion</div>
+                    <select id="azFunktion" style="${inp}">
+                        ${funktionen.map(fn => `<option value="${fn}" ${fn === vorschlag ? 'selected' : ''}>${fn}</option>`).join('')}
+                    </select>
                 </div>
-
-                <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Verrichtete Arbeit</div>
-                <div style="display:flex;gap:8px;margin-bottom:16px">
-                    <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKueche"> Küche</label>
-                    <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKasse" checked> Kasse</label>
-                    <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azDrive" checked> Drive</label>
+                <div style="flex:1">
+                    <div style="${label}">Zeugnis-Datum</div>
+                    <input type="date" id="azDatum" style="${inp}">
                 </div>
+            </div>
 
-                <label style="${pill};margin-bottom:16px"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
+            <div style="${label}">Bereich (Schnellwahl — kreuzt die passenden Aufgaben an)</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+                <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKueche" onchange="azQuickTasks()"> Küche</label>
+                <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKasse" checked onchange="azQuickTasks()"> Kasse</label>
+                <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azDrive" checked onchange="azQuickTasks()"> Drive</label>
+            </div>
 
-                <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Zeugnis-Datum</div>
-                <input type="date" id="azDatum" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 14px;font-size:13.5px;color:#3f3f3f;margin-bottom:16px">
+            <div style="${label}">Aufgaben (wie Word-Vorlage, Mehrfachauswahl)</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+                ${AZ_AUFGABEN.map((a, i) => `<label style="${pillS}"><input type="checkbox" class="azAufgabe" data-i="${i}" value="${a.replace(/"/g, '&quot;')}"> <span>${a}</span></label>`).join('')}
+            </div>
 
-                <div id="azAlert"></div>
-                <div style="display:flex;gap:10px;justify-content:flex-end">
-                    <button onclick="document.getElementById('azModal').style.display='none'"
-                            style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
-                    <button id="azGoBtn" onclick="azGenerate()"
-                            style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">📄 PDF erstellen</button>
-                </div>
-            </div>`;
-        document.body.appendChild(ov);
-    }
-    // Datum default heute; Untertitel = MA-Name falls greifbar
-    const d = new Date();
-    document.getElementById('azDatum').value = isoLocalDate(d);
-    // MA-Name: aus Verträge-Seite ODER Mitarbeiter-Maske (beide Kontexte).
-    let emp = null;
-    if (typeof selectedVtEmployee !== 'undefined' && selectedVtEmployee?.id === employeeId) emp = selectedVtEmployee;
-    else if (typeof selectedEmployee !== 'undefined' && selectedEmployee?.id === employeeId) emp = selectedEmployee;
-    else if (window._empDetailCache?.id === employeeId) emp = window._empDetailCache;
-    document.getElementById('azSub').textContent = emp
-        ? `${emp.firstName} ${emp.lastName} · Personalnr. ${emp.employeeNumber || '–'}` : '';
-    document.getElementById('azAlert').innerHTML = '';
-    ov.style.display = 'flex';
+            <label style="${pill};margin-bottom:16px"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
+
+            <div id="azAlert"></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+                <button onclick="document.getElementById('azModal').remove()"
+                        style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+                <button id="azGoBtn" onclick="azGenerate()"
+                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">📄 PDF erstellen</button>
+            </div>
+        </div>`;
+    document.body.appendChild(ov);
+    document.getElementById('azDatum').value = isoLocalDate(new Date());
+    azQuickTasks();
+}
+
+// Bereichs-Schnellwahl → passende Katalog-Aufgaben ankreuzen (Grundset).
+function azQuickTasks() {
+    const k = document.getElementById('azKueche')?.checked;
+    const ka = document.getElementById('azKasse')?.checked;
+    const d = document.getElementById('azDrive')?.checked;
+    const want = new Set();
+    if (ka && d) want.add('Bedienen unserer Gäste an der Kasse und am Drive');
+    else if (ka) want.add('Bedienen unserer Gäste an der Kasse');
+    if (k) want.add('Produzieren und Garnieren unserer Qualitätsprodukte');
+    want.add('Gästebetreuung');
+    want.add('Diverse Reinigungsarbeiten im ganzen Restaurant');
+    document.querySelectorAll('.azAufgabe').forEach((c, i) => {
+        // Nur die Grundset-Aufgaben umschalten — manuell gewählte Zusatz-
+        // Aufgaben (Trainer/Schichtleiter, Index 4+6..12) nicht anfassen.
+        const isBasis = i <= 5 && AZ_AUFGABEN[i] !== 'Bearbeitung der Lieferung';
+        if (isBasis) c.checked = want.has(c.value);
+    });
 }
 
 async function azGenerate() {
@@ -343,8 +417,13 @@ async function azGenerate() {
     if (document.getElementById('azKueche').checked) bereiche.push('kueche');
     if (document.getElementById('azKasse').checked)  bereiche.push('kasse');
     if (document.getElementById('azDrive').checked)  bereiche.push('drive');
+    const aufgaben = [...document.querySelectorAll('.azAufgabe:checked')].map(c => c.value);
     if (bereiche.length === 0) {
         alertEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Bitte mindestens einen Bereich wählen (Küche, Kasse, Drive).</div>';
+        return;
+    }
+    if (aufgaben.length === 0) {
+        alertEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Bitte mindestens eine Aufgabe ankreuzen.</div>';
         return;
     }
     const quali = document.querySelector('input[name="azQuali"]:checked')?.value || 'gut';
@@ -354,8 +433,11 @@ async function azGenerate() {
         const res = await fetch(`/api/arbeitszeugnis/${_azEmployeeId}/pdf`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ qualitaet: quali, bereiche, datum,
-                aufEigenenWunsch: document.getElementById('azWunsch')?.checked ?? true })
+            body: JSON.stringify({
+                qualitaet: quali, bereiche, datum, aufgaben,
+                funktion: document.getElementById('azFunktion')?.value || null,
+                aufEigenenWunsch: document.getElementById('azWunsch')?.checked ?? true
+            })
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -365,7 +447,7 @@ async function azGenerate() {
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
         const m = cd.match(/filename="?([^"]+)"?/);
-        document.getElementById('azModal').style.display = 'none';
+        document.getElementById('azModal').remove();
         await previewFileModal(blob, m ? m[1] : 'Arbeitszeugnis.pdf');
     } catch (e) {
         alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Netzwerkfehler: ${e.message}</div>`;
@@ -373,3 +455,4 @@ async function azGenerate() {
         btn.disabled = false; btn.textContent = '📄 PDF erstellen';
     }
 }
+
