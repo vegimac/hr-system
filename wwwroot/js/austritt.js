@@ -273,3 +273,97 @@ async function downloadContractPdfById(employeeId, contractId) {
     finally { if (btn) { btn.textContent = '📄 PDF'; btn.disabled = false; } }
 }
 
+
+// ═══════════════ ARBEITSZEUGNIS (Walter-Vorgabe 14.07.2026) ═══════════════
+// Drei Qualitätsstufen (Durchschnitt/Gut/Sehr gut) + Mehrfachauswahl der
+// verrichteten Arbeit (Küche/Kasse/Drive). PDF im Vorschaufenster.
+let _azEmployeeId = null;
+
+function openZeugnisModal(employeeId) {
+    _azEmployeeId = employeeId;
+    let ov = document.getElementById('azModal');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'azModal';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(60,55,48,0.4);display:flex;align-items:center;justify-content:center;padding:20px';
+        ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+        const pill = 'display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 14px;cursor:pointer;font-size:13.5px;font-weight:600;color:#3f3f3f';
+        ov.innerHTML = `
+            <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:460px;width:100%;padding:20px 22px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
+                <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:2px">Arbeitszeugnis erstellen</div>
+                <div id="azSub" style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px"></div>
+
+                <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Qualität</div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+                    <label style="${pill}"><input type="radio" name="azQuali" value="sehr_gut"> Sehr gut <span style="color:#8b8b8b;font-weight:400">— stets zu unserer vollsten Zufriedenheit</span></label>
+                    <label style="${pill}"><input type="radio" name="azQuali" value="gut" checked> Gut <span style="color:#8b8b8b;font-weight:400">— stets zu unserer vollen Zufriedenheit</span></label>
+                    <label style="${pill}"><input type="radio" name="azQuali" value="durchschnitt"> Durchschnitt <span style="color:#8b8b8b;font-weight:400">— zu unserer Zufriedenheit</span></label>
+                </div>
+
+                <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Verrichtete Arbeit</div>
+                <div style="display:flex;gap:8px;margin-bottom:16px">
+                    <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKueche"> Küche</label>
+                    <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKasse" checked> Kasse</label>
+                    <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azDrive" checked> Drive</label>
+                </div>
+
+                <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Zeugnis-Datum</div>
+                <input type="date" id="azDatum" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 14px;font-size:13.5px;color:#3f3f3f;margin-bottom:16px">
+
+                <div id="azAlert"></div>
+                <div style="display:flex;gap:10px;justify-content:flex-end">
+                    <button onclick="document.getElementById('azModal').style.display='none'"
+                            style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+                    <button id="azGoBtn" onclick="azGenerate()"
+                            style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">📄 PDF erstellen</button>
+                </div>
+            </div>`;
+        document.body.appendChild(ov);
+    }
+    // Datum default heute; Untertitel = MA-Name falls greifbar
+    const d = new Date();
+    document.getElementById('azDatum').value = isoLocalDate(d);
+    const emp = (typeof selectedVtEmployee !== 'undefined' && selectedVtEmployee?.id === employeeId)
+        ? selectedVtEmployee : null;
+    document.getElementById('azSub').textContent = emp
+        ? `${emp.firstName} ${emp.lastName} · Personalnr. ${emp.employeeNumber || '–'}` : '';
+    document.getElementById('azAlert').innerHTML = '';
+    ov.style.display = 'flex';
+}
+
+async function azGenerate() {
+    const alertEl = document.getElementById('azAlert');
+    const btn = document.getElementById('azGoBtn');
+    const bereiche = [];
+    if (document.getElementById('azKueche').checked) bereiche.push('kueche');
+    if (document.getElementById('azKasse').checked)  bereiche.push('kasse');
+    if (document.getElementById('azDrive').checked)  bereiche.push('drive');
+    if (bereiche.length === 0) {
+        alertEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Bitte mindestens einen Bereich wählen (Küche, Kasse, Drive).</div>';
+        return;
+    }
+    const quali = document.querySelector('input[name="azQuali"]:checked')?.value || 'gut';
+    const datum = document.getElementById('azDatum').value || null;
+    btn.disabled = true; btn.textContent = '⏳ erstelle…';
+    try {
+        const res = await fetch(`/api/arbeitszeugnis/${_azEmployeeId}/pdf`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ qualitaet: quali, bereiche, datum })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">${err.message || err.error || ('HTTP ' + res.status)}</div>`;
+            return;
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const m = cd.match(/filename="?([^"]+)"?/);
+        document.getElementById('azModal').style.display = 'none';
+        await previewFileModal(blob, m ? m[1] : 'Arbeitszeugnis.pdf');
+    } catch (e) {
+        alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Netzwerkfehler: ${e.message}</div>`;
+    } finally {
+        btn.disabled = false; btn.textContent = '📄 PDF erstellen';
+    }
+}

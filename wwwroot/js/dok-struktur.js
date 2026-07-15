@@ -673,6 +673,7 @@ async function renderVtDetail(emp) {
                 <div class="emp-detail-meta">${_t('vt.label.personalNr')} ${emp.employeeNumber || '–'} &nbsp;·&nbsp; ${_t(contractsCountKey, { count: contracts.length })}</div>
             </div>
             <div style="display:flex;gap:8px">
+                    <button class="btn btn-outline" style="font-size:12px;padding:5px 14px;white-space:nowrap" onclick="openZeugnisModal(${emp.id})">📄 Arbeitszeugnis</button>
                     <button class="btn btn-outline" style="font-size:12px;padding:5px 14px;white-space:nowrap" onclick="openVtImport(${emp.id}, '${emp.employeeNumber}')">${_t('vt.btn.csvImport')}</button>
                     <button class="btn btn-primary" style="font-size:12px;padding:5px 14px;white-space:nowrap" onclick="openNewContractInModal(${emp.id})">${_t('vt.btn.newContract')}</button>
                 </div>

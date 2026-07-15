@@ -149,6 +149,7 @@ builder.Services.AddScoped<NachtVerzichtPdfService>();
 builder.Services.AddScoped<NachtAusnahmePdfService>();
 // Kündigungsschreiben (Walter-Vorgabe 22.06.2026).
 builder.Services.AddScoped<KuendigungPdfService>();
+builder.Services.AddScoped<ArbeitszeugnisPdfService>();
 // Fibu-Journal-Generator (Buchungsjournal aus den bestätigten Snapshots).
 builder.Services.AddScoped<FibuJournalService>();
 // Edit-Sperre während HR Lohnlauf prüft (Walter-Vorgabe 17.05.2026, Variante 2).
