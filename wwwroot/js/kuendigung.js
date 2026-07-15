@@ -154,6 +154,18 @@ function kuRenderSperr(s) {
     }
 }
 
+// Abbrechen (Walter 15.07.2026): Formular zuruecksetzen + zurueck zum HR-Hub.
+function kuAbbrechen() {
+    const sel = document.getElementById('kuEmpSelect');
+    if (sel) sel.value = '';
+    const det = document.getElementById('kuDetails');
+    if (det) det.style.display = 'none';
+    const grund = document.getElementById('kuGrund');
+    if (grund) grund.value = '';
+    _kuInfo = null;
+    if (typeof showPage === 'function') showPage('hr-hub');
+}
+
 async function kuGenerate() {
     const id = +(document.getElementById('kuEmpSelect')?.value || 0);
     if (!id) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }
