@@ -236,12 +236,23 @@ public class ArbeitszeugnisPdfService
 
         string datumZeile = $"{d.Ort}, {d.Datum.ToString("d. MMMM yyyy", ci)}";
 
-        // Arbeitsbestaetigung (nur 1 Satz): Inhalt vertikal ausbalancieren,
-        // damit der Brief nicht in der oberen Haelfte klebt (Walter 15.07.2026).
-        float padDatum = d.Bestaetigung ? 56f : 24f;
-        float padTitel = d.Bestaetigung ? 72f : 22f;
+        // Adaptive Dichte (Walter 15.07.2026): je mehr Inhalt, desto kompakter —
+        // Einseitigkeit ist Pflicht. Stufe 0 = luftig (wenige Aufgaben),
+        // Stufe 1 = mittel, Stufe 2 = kompakt (Schichtkoordinator mit vollem
+        // Katalog + Sehr-gut-Langtext). Der Extend-Spacer vor dem Gruss
+        // verteilt verbleibenden Freiraum in jedem Fall.
+        int last = aufgaben.Count + (sehrGut ? 2 : 0) + (zw ? 1 : 0);
+        int stufe = last <= 6 ? 0 : last <= 9 ? 1 : 2;
+        float lh       = stufe == 0 ? 1.22f : stufe == 1 ? 1.15f : 1.09f;
+        float padAbs   = stufe == 0 ? 12f : stufe == 1 ? 9f : 7f;
+        float padIntro = stufe == 0 ? 18f : stufe == 1 ? 14f : 10f;
+        float bulletPad = stufe == 2 ? 0f : 2f;
+
+        // Arbeitsbestaetigung (nur 1 Satz): grosszuegige Abstaende.
+        float padDatum = d.Bestaetigung ? 56f : (stufe == 0 ? 24f : stufe == 1 ? 18f : 12f);
+        float padTitel = d.Bestaetigung ? 72f : (stufe == 0 ? 22f : stufe == 1 ? 16f : 10f);
         float padSatz  = d.Bestaetigung ? 60f : 22f;
-        float padGruss = d.Bestaetigung ? 48f : 18f;
+        float padGruss = d.Bestaetigung ? 48f : (stufe == 0 ? 18f : 12f);
 
         return Document.Create(container =>
         {
@@ -249,19 +260,19 @@ public class ArbeitszeugnisPdfService
             {
                 page.Size(PageSizes.A4);
                 page.MarginTop(1.0f, Unit.Centimetre);
-                page.MarginBottom(1.3f, Unit.Centimetre);
+                page.MarginBottom(stufe == 2 ? 0.8f : 1.3f, Unit.Centimetre);
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).LineHeight(1.22f).FontColor(Dark));
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).LineHeight(lh).FontColor(Dark));
 
                 // Briefkopf: gelbes Banner wie überall (Walter-Vorgabe).
                 page.Header().Image(BannerBytes).FitWidth();
 
-                page.Content().PaddingTop(12).Column(col =>
+                page.Content().PaddingTop(stufe == 2 ? 8 : 12).Column(col =>
                 {
                     // ── Adressblock: links Empfänger, rechts Filiale ──
                     col.Item().Row(row =>
                     {
-                        row.RelativeItem().PaddingTop(12).Column(c =>
+                        row.RelativeItem().PaddingTop(stufe == 2 ? 8 : 12).Column(c =>
                         {
                             c.Item().Text(anrede);
                             c.Item().Text($"{d.FirstName} {d.LastName}".Trim());
@@ -300,7 +311,7 @@ public class ArbeitszeugnisPdfService
                     }
                     else
                     {
-                    col.Item().PaddingTop(18).Text(t =>
+                    col.Item().PaddingTop(padIntro).Text(t =>
                     {
                         t.Justify();
                         t.Span($"{anrede} ");
@@ -308,30 +319,30 @@ public class ArbeitszeugnisPdfService
                         t.Span(introRest);
                     });
 
-                    col.Item().PaddingTop(12).Text(aufgabenIntro);
+                    col.Item().PaddingTop(padAbs).Text(aufgabenIntro);
 
-                    col.Item().PaddingTop(8).PaddingLeft(14).Column(c =>
+                    col.Item().PaddingTop(stufe == 0 ? 8 : 5).PaddingLeft(14).Column(c =>
                     {
                         foreach (var a in aufgaben)
-                            c.Item().PaddingBottom(2).Row(r =>
+                            c.Item().PaddingBottom(bulletPad).Row(r =>
                             {
                                 r.ConstantItem(14).Text("•");
                                 r.RelativeItem().Text(a);
                             });
                     });
 
-                    col.Item().PaddingTop(12).Text(schulung).Justify();
+                    col.Item().PaddingTop(padAbs).Text(schulung).Justify();
                     if (zw)
                     {
-                        col.Item().PaddingTop(12).Text(zwArbeitsmittel).Justify();
-                        col.Item().PaddingTop(12).Text(zwBeurteilung).Justify();
-                        col.Item().PaddingTop(12).Text(zwAbschluss).Justify();
+                        col.Item().PaddingTop(padAbs).Text(zwArbeitsmittel).Justify();
+                        col.Item().PaddingTop(padAbs).Text(zwBeurteilung).Justify();
+                        col.Item().PaddingTop(padAbs).Text(zwAbschluss).Justify();
                     }
                     else
                     {
-                        col.Item().PaddingTop(12).Text(beurteilung).Justify();
-                        col.Item().PaddingTop(12).Text(austritt).Justify();
-                        col.Item().PaddingTop(12).Text(dank).Justify();
+                        col.Item().PaddingTop(padAbs).Text(beurteilung).Justify();
+                        col.Item().PaddingTop(padAbs).Text(austritt).Justify();
+                        col.Item().PaddingTop(padAbs).Text(dank).Justify();
                     }
                     }   // Ende Zeugnis-Absätze (nicht Bestätigung)
 
@@ -353,9 +364,9 @@ public class ArbeitszeugnisPdfService
                     col.Item().PaddingTop(6).Column(c =>
                     {
                         if (d.SignaturePng is { Length: > 0 })
-                            c.Item().MaxHeight(42).AlignLeft().Image(d.SignaturePng).FitHeight();
+                            c.Item().MaxHeight(stufe == 2 ? 36 : 42).AlignLeft().Image(d.SignaturePng).FitHeight();
                         else
-                            c.Item().PaddingTop(26); // Platz für handschriftliche Unterschrift
+                            c.Item().PaddingTop(stufe == 2 ? 20 : 26); // Platz für handschriftliche Unterschrift
 
                         c.Item().PaddingTop(2).Width(180).LineHorizontal(0.8f).LineColor(Dark);
                         c.Item().Text(d.SignatoryName);
