@@ -37,7 +37,8 @@ public record ArbeitszeugnisInput(
     IReadOnlyList<string> Bereiche,   // kueche | kasse | drive
     string SignatoryName,
     string? SignatoryTitle,
-    byte[]? SignaturePng
+    byte[]? SignaturePng,
+    bool AufEigenenWunsch = false
 );
 
 public class ArbeitszeugnisPdfService
@@ -64,42 +65,51 @@ public class ArbeitszeugnisPdfService
         string maWort    = f ? "Mitarbeiterin" : "Mitarbeiter";
         string pensumTxt = d.Vollzeit ? "Vollzeit-" : "Teilzeit-";
 
+        // Possessiv-Formen für den Sehr-gut-Text (Fodor-Muster).
+        string ihrer  = f ? "ihrer"  : "seiner";   // «im Rahmen ihrer Tätigkeit»
+        string ihren  = f ? "ihren"  : "seinen";   // «zu ihren Hauptaufgaben»
+        string ihreC  = f ? "Ihre"   : "Seine";    // «Ihre Arbeiten»
+        string ihrC   = f ? "Ihr"    : "Sein";     // «Ihr Verhalten»
+
         // ── Aufgaben nach Bereichen (Mehrfachauswahl) ──────────────────
         bool hatKueche = d.Bereiche.Contains("kueche");
         bool hatKasse  = d.Bereiche.Contains("kasse");
         bool hatDrive  = d.Bereiche.Contains("drive");
-
-        string bereichTxt = hatKueche && (hatKasse || hatDrive)
-            ? "im Küchen- und Gästebereich"
-            : hatKueche ? "im Küchenbereich" : "im Gästebereich";
+        bool hatGast   = hatKasse || hatDrive;
 
         var aufgaben = new List<string>();
         if (hatKasse && hatDrive) aufgaben.Add("Bedienen unserer Gäste an der Kasse und am Drive");
         else if (hatKasse)        aufgaben.Add("Bedienen unserer Gäste an der Kasse");
         else if (hatDrive)        aufgaben.Add("Bedienen unserer Gäste am Drive");
-        if (hatKueche)            aufgaben.Add("Zubereitung unserer Produkte in der Küche");
+        if (hatKueche)            aufgaben.Add("Produzieren und Garnieren unserer Qualitätsprodukte");
         aufgaben.Add("Diverse Reinigungsarbeiten im ganzen Restaurant");
         aufgaben.Add("Gästebetreuung");
 
-        // ── Beurteilungs-Absatz nach Qualitätsstufe ────────────────────
-        // gut = Original-Muster; sehr_gut = verstärkte Formeln («vollste
-        // Zufriedenheit»); durchschnitt = korrekt-neutrale Formeln.
+        bool sehrGut = d.Qualitaet == "sehr_gut";
+
+        // ── Beurteilungs-Absatz nach Qualitätsstufe (14.07.2026) ───────
+        // Alle drei Stufen folgen ECHTEN Reinach-Vorlagen:
+        //   sehr_gut     = Muster «Fodor»    (vollste Zufriedenheit, vorbildlich)
+        //   gut          = Muster «Körner»   (sehr teamfähig, vollste Zufriedenheit)
+        //   durchschnitt = Muster «Gherasim» (volle Zufriedenheit)
         string beurteilung = d.Qualitaet switch
         {
             "sehr_gut" =>
-                $"Wir haben {nameKurz} als äusserst teamfähige{(f ? "" : "n")} und hilfsbereite{(f ? "" : "n")} {maWort} kennen und schätzen gelernt. " +
-                $"{erCap} arbeitete stets äusserst gewissenhaft und erledigte sämtliche Arbeiten stets zu unserer vollsten Zufriedenheit. " +
-                $"In aussergewöhnlichen Situationen behielt {er} stets den Überblick, arbeitete routiniert und war jederzeit bereit, länger zu arbeiten, sofern es erforderlich war. " +
-                $"Bei Vorgesetzten, Mitarbeitern und Gästen war {er} gleichermassen sehr beliebt.",
+                $"{nameKurz} überzeugte durch eine sehr schnelle Auffassungsgabe, hohe Belastbarkeit und eine " +
+                $"überdurchschnittliche Einsatzbereitschaft. {ihreC} Arbeiten erledigte {er} stets äusserst zuverlässig, " +
+                $"effizient und selbstständig. Auch in stressigen Situationen behielt {er} stets den Überblick und handelte " +
+                $"stets zu unserer vollsten Zufriedenheit. {ihrC} Verhalten gegenüber Vorgesetzten, Mitarbeitern sowie " +
+                $"Gästen war jederzeit vorbildlich. Aufgrund {ihrer} freundlichen, hilfsbereiten und teamorientierten Art " +
+                $"war {er} bei allen sehr geschätzt.",
             "durchschnitt" =>
-                $"Wir haben {nameKurz} als hilfsbereite{(f ? "" : "n")} {maWort} kennengelernt. " +
-                $"{erCap} arbeitete gewissenhaft und erledigte die {ihm} übertragenen Arbeiten zu unserer Zufriedenheit. " +
-                $"{erCap} war bereit, bei Bedarf länger zu arbeiten. " +
-                $"Das Verhältnis zu Vorgesetzten, Mitarbeitern und Gästen war einwandfrei.",
-            _ => // gut (Default, Original-Muster)
                 $"Wir haben {nameKurz} als teamfähige{(f ? "" : "n")} und hilfsbereite{(f ? "" : "n")} {maWort} kennen und schätzen gelernt. " +
                 $"{erCap} arbeitete stets gewissenhaft und erledigte sämtliche Arbeiten zu unserer vollen Zufriedenheit. " +
                 $"In aussergewöhnlichen Situationen arbeitete {er} stets routiniert und war bereit länger zu arbeiten, sofern es erforderlich war. " +
+                $"Bei Vorgesetzten, Mitarbeitern und Gästen war {er} gleichermassen beliebt.",
+            _ => // gut (Default, Muster «Körner»)
+                $"Wir haben {nameKurz} als sehr teamfähige{(f ? "" : "n")} und hilfsbereite{(f ? "" : "n")} {maWort} kennen und schätzen gelernt. " +
+                $"{erCap} arbeitete stets gewissenhaft und erledigte sämtliche Arbeiten zu unserer vollsten Zufriedenheit. " +
+                $"In aussergewöhnlichen Situationen arbeitete {er} stets routiniert und war auch bereit länger zu arbeiten, sofern es erforderlich war. " +
                 $"Bei Vorgesetzten, Mitarbeitern und Gästen war {er} gleichermassen beliebt."
         };
 
@@ -111,20 +121,37 @@ public class ArbeitszeugnisPdfService
             $",{geboren}{herkunft} war vom {d.Von:dd.MM.yyyy} bis {d.Bis:dd.MM.yyyy} " +
             $"in unserem Restaurant in {d.Ort} als {pensumTxt}{maWort} tätig.";
 
-        string aufgabenIntro =
-            $"{nameKurz} kann von uns {bereichTxt} mit folgenden Aufgaben betraut werden:";
+        // Bereichs-Text: Muster «Fodor» (sehr gut) nutzt «sowohl … als auch»,
+        // «Gherasim/Körner» (gut/durchschnitt) die kompakte Form.
+        string bereichSowohl = hatKueche && hatGast
+            ? "sowohl im Küchen- als auch im Gästebereich"
+            : hatKueche ? "im Küchenbereich" : "im Gästebereich";
+        string bereichKurz = hatKueche && hatGast
+            ? "im Küchen- und Gästebereich"
+            : hatKueche ? "im Küchenbereich" : "im Gästebereich";
 
-        string schulung =
-            $"Für die Verrichtung dieser Aufgaben wurde {er} von uns intern geschult. Somit kann {er} unsere " +
-            "Richtlinien; Qualität, Service, Sauberkeit, Hygiene und Umweltschutz umsetzen.";
+        string aufgabenIntro = sehrGut
+            ? $"Im Rahmen {ihrer} Tätigkeit wurde {nameKurz} {bereichSowohl} eingesetzt. " +
+              $"Zu {ihren} Hauptaufgaben gehörten:"
+            : $"{nameKurz} konnte von uns {bereichKurz} mit folgenden Aufgaben betraut werden:";
 
+        string schulung = sehrGut
+            ? $"Für die Verrichtung dieser Aufgaben wurde {er} von uns intern umfassend geschult und war in der " +
+              "Lage sämtliche Aufgaben gemäss unseren Richtlinien; Qualität, Service, Sauberkeit, Hygiene und " +
+              "Umweltschutz kompetent umzusetzen."
+            : $"Für die Verrichtung dieser Aufgaben wurde {er} von uns intern geschult. Somit konnte {er} unsere " +
+              "Richtlinien; Qualität, Service, Sauberkeit, Hygiene und Umweltschutz umsetzen.";
+
+        string wunsch = d.AufEigenenWunsch ? " auf eigenen Wunsch," : "";
         string austritt =
-            $"{nameKurz} verlässt unser Unternehmen frei von jeglicher Verpflichtung mit Ausnahme der " +
+            $"{nameKurz} verlässt unser Unternehmen{wunsch} frei von jeglicher Verpflichtung mit Ausnahme der " +
             "gesetzlichen Schweigepflicht.";
 
-        string dank =
-            $"Wir möchten {ihm} für die erbrachten Arbeitsleistungen recht herzlich danken und wünschen {ihm} in " +
-            "privater und beruflicher Hinsicht alles erdenklich Gute für die Zukunft.";
+        string dank = sehrGut
+            ? $"Wir möchten {ihm} für die stets hervorragende Zusammenarbeit danken und wünschen {ihm} in " +
+              "privater und beruflicher Hinsicht weiterhin viel Erfolg und alles Gute für die Zukunft."
+            : $"Wir möchten {ihm} für die erbrachten Arbeitsleistungen recht herzlich danken und wünschen {ihm} in " +
+              "privater und beruflicher Hinsicht alles erdenklich Gute für die Zukunft.";
 
         string datumZeile = $"{d.Ort}, {d.Datum.ToString("d. MMMM yyyy", ci)}";
 

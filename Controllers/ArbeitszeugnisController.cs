@@ -35,6 +35,8 @@ public class ArbeitszeugnisController : ControllerBase
         public List<string> Bereiche { get; set; } = new();
         /// <summary>Zeugnis-Datum (Default: heute).</summary>
         public DateOnly? Datum { get; set; }
+        /// <summary>«verlässt unser Unternehmen auf eigenen Wunsch» (Default: true).</summary>
+        public bool AufEigenenWunsch { get; set; } = true;
     }
 
     [HttpPost("{empId:int}/pdf")]
@@ -140,7 +142,8 @@ public class ArbeitszeugnisController : ControllerBase
             Bereiche:       bereiche,
             SignatoryName:  signerName,
             SignatoryTitle: signerTitle,
-            SignaturePng:   sigPng
+            SignaturePng:   sigPng,
+            AufEigenenWunsch: dto.AufEigenenWunsch
         );
 
         var bytes = _pdf.Generate(input);

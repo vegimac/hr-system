@@ -307,6 +307,8 @@ function openZeugnisModal(employeeId) {
                     <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azDrive" checked> Drive</label>
                 </div>
 
+                <label style="${pill};margin-bottom:16px"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
+
                 <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Zeugnis-Datum</div>
                 <input type="date" id="azDatum" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 14px;font-size:13.5px;color:#3f3f3f;margin-bottom:16px">
 
@@ -352,7 +354,8 @@ async function azGenerate() {
         const res = await fetch(`/api/arbeitszeugnis/${_azEmployeeId}/pdf`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ qualitaet: quali, bereiche, datum })
+            body: JSON.stringify({ qualitaet: quali, bereiche, datum,
+                aufEigenenWunsch: document.getElementById('azWunsch')?.checked ?? true })
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
