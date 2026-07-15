@@ -56,7 +56,7 @@ function gsOpen() {
                    style="flex:1;border:none;outline:none;font-size:15px;color:#0f172a;background:transparent" autocomplete="off">
             <span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:2px 7px;border-radius:4px;font-family:ui-monospace,Menlo,Consolas,monospace">ESC</span>
         </div>
-        <div id="gsResults" style="flex:1;overflow-y:auto;padding:6px 0">
+        <div id="gsResults" style="flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px 0">
             <div style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">Mindestens 2 Zeichen eingeben …</div>
         </div>
         <div style="padding:8px 14px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;display:flex;justify-content:space-between;gap:8px">
