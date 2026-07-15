@@ -86,6 +86,44 @@ async function kuLoadInfo() {
             : `${info.dienstjahr}. Dienstjahr · Frist ${info.noticeText}`;
 
         kuRenderSperr(info.sperrfrist);
+        kuLoadVerwarnungen(id);
+    } catch (_) { /* still */ }
+}
+
+// Verwarnungs-Verlauf des MA (Walter 14.07.2026): zeigt beim Kündigungs-
+// Entscheid die Eskalations-Historie direkt an (aktive, nicht stornierte).
+async function kuLoadVerwarnungen(empId) {
+    const host = document.getElementById('kuSperr');
+    if (!host) return;
+    let box = document.getElementById('kuVerwarnungen');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'kuVerwarnungen';
+        host.parentNode.insertBefore(box, host.nextSibling);
+    }
+    box.innerHTML = '';
+    try {
+        const r = await fetch(`/api/verwarnungen/by-employee/${empId}`, { headers: ah() });
+        if (!r.ok) return;
+        const list = (await r.json()).filter(v => !v.storniert);
+        if (!list.length) {
+            box.innerHTML = `<div style="margin-top:8px;background:#f6f3ee;border:1px solid #e5e0d6;color:#6b6152;padding:8px 14px;border-radius:8px;font-size:12px">Keine Verwarnungen im Verlauf.</div>`;
+            return;
+        }
+        const stufeLbl = { VERWARNUNG_1: '1. Verwarnung', VERWARNUNG_2: '2. Verwarnung', LETZTE: 'Letzte Verwarnung' };
+        const rows = list.map(v => {
+            const g = (v.gruende || '').split('\n').filter(Boolean).join(', ');
+            return `<div style="display:flex;gap:10px;font-size:12px;padding:3px 0">
+                <span style="font-weight:700;white-space:nowrap">${_kuFmt(v.datum)}</span>
+                <span style="font-weight:600;color:${v.stufe === 'LETZTE' ? '#991b1b' : '#92400e'};white-space:nowrap">${stufeLbl[v.stufe] || v.stufe}</span>
+                <span style="color:#6b6152">${escapeHtml(g || v.beschreibung || '')}</span>
+            </div>`;
+        }).join('');
+        const hatLetzte = list.some(v => v.stufe === 'LETZTE');
+        box.innerHTML = `<div style="margin-top:8px;background:${hatLetzte ? '#fef2f2' : '#fffbeb'};border:1px solid ${hatLetzte ? '#fecaca' : '#fde68a'};padding:10px 14px;border-radius:8px">
+            <div style="font-size:12px;font-weight:700;color:${hatLetzte ? '#991b1b' : '#92400e'};margin-bottom:4px">⚠ ${list.length} Verwarnung(en) im Verlauf</div>
+            ${rows}
+        </div>`;
     } catch (_) { /* still */ }
 }
 
