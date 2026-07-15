@@ -4857,9 +4857,9 @@
 .ra-tile:hover { transform: translateY(-3px); filter: drop-shadow(0 10px 18px rgba(60,55,48,0.25)); }
 .ra-tile img {
     width: 140px; height: 140px; object-fit: contain; display: block;
-    mix-blend-mode: multiply;   /* cremefarbener Sketch-Hintergrund verschwindet */
+    /* PNGs sind seit 15.07.2026 echt freigestellt (transparenter Hintergrund) */
 }
-body.theme-dark .ra-tile img { mix-blend-mode: normal; border-radius: 14px; }
+body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
 
         /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
         #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }

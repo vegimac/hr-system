@@ -10319,7 +10319,7 @@ function _raTilesHtml() {
     // Beschriftung steckt bereits im Icon (Walter 15.07.2026) — nur das Bild.
     const tile = (img, title, onclick) => `
         <button type="button" class="ra-tile" title="${title}" onclick="${onclick}">
-            <img src="img/${img}" alt="${title}" loading="lazy">
+            <img src="img/${img}?v=20260715b" alt="${title}" loading="lazy">
         </button>`;
     return `<div class="ra-tile-row">
         ${tile('verwarnung.png', 'Verwarnung erfassen', 'openVerwarnungModal(null)')}
