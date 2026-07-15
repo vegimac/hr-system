@@ -247,7 +247,7 @@ public class ArbeitszeugnisPdfService
         // verankerte Footer ab (Rest landet oberhalb des Grusses).
         float contentW = 595f - 2f * 51.0f;              // A4-Breite − 2×1.8cm, in pt
         float bannerH  = contentW * 0.066f;              // letterhead_banner (1500×99)
-        float availH   = 842f - 2f * 28.35f - bannerH;   // A4 − Raender (je 1cm) − Banner
+        float availH   = 842f - 2f * 28.35f - bannerH - 12f;   // A4 − Raender − Banner (+12pt Banner-Luft)
 
         static int LinesFor(string t, float w) => Math.Max(1, (int)Math.Ceiling(t.Length * 5.6f / w));
 
@@ -266,7 +266,7 @@ public class ArbeitszeugnisPdfService
         foreach (var tryLh in lhOpts)
         {
             float lineH = 10.5f * tryLh;
-            float est = 12f + 75f                                   // Content-Pad + Adressblock
+            float est = 5f + 70f                                    // Content-Pad + Adressblock
                       + padDatum + lineH                            // Ortszeile
                       + padTitel + 20f;                             // Titel
             foreach (var a in absaetze) est += padAbs + LinesFor(a, contentW) * lineH;
@@ -304,14 +304,14 @@ public class ArbeitszeugnisPdfService
                 page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).LineHeight(lh).FontColor(Dark));
 
                 // Briefkopf: gelbes Banner wie überall (Walter-Vorgabe).
-                page.Header().Image(BannerBytes).FitWidth();
+                page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
 
-                page.Content().PaddingTop(12).Column(col =>
+                page.Content().PaddingTop(5).Column(col =>
                 {
                     // ── Moderner Adressblock (Walter-Vorgabe 15.07.2026):
                     // Absenderzeile der Filiale EINZEILIG klein oben links
                     // (Fenster-Kuvert-Stil), darunter die MA-Adresse. ──
-                    col.Item().PaddingTop(10).Text(string.Join("  –  ", new[]
+                    col.Item().Text(string.Join("  –  ", new[]
                         {
                             $"{d.CompanyName} · {d.RestaurantName}",
                             d.CompanyStreet,
