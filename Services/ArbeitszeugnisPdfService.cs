@@ -44,7 +44,11 @@ public record ArbeitszeugnisInput(
     string? Funktion = null,
     /// <summary>Explizit gewählte Aufgaben (13er-Katalog der Vorlage).
     /// NULL/leer = Ableitung aus den Bereichen (Kasse/Drive/Küche).</summary>
-    IReadOnlyList<string>? Aufgaben = null
+    IReadOnlyList<string>? Aufgaben = null,
+    /// <summary>true = ZWISCHENzeugnis (Vorlage «289 Hendschiken», 15.07.2026):
+    /// Präsens, «ist seit dem … tätig», Arbeitsmittel-Absatz, Abschluss
+    /// «wird auf Wunsch ausgestellt» — kein Austritts-/Dank-Absatz.</summary>
+    bool Zwischen = false
 );
 
 public class ArbeitszeugnisPdfService
@@ -139,9 +143,14 @@ public class ArbeitszeugnisPdfService
 
         // Intro in zwei Teilen: Name wird im PDF fett gesetzt (wie im Muster).
         string funktion = !string.IsNullOrWhiteSpace(d.Funktion) ? d.Funktion!.Trim() : $"{pensumTxt}{maWort}";
-        string introRest =
-            $",{geboren}{herkunft} war vom {d.Von:dd.MM.yyyy} bis {d.Bis:dd.MM.yyyy} " +
-            $"in unserem Restaurant in {d.Ort} als {funktion} tätig.";
+        // Kurzform ohne Pensum-Präfix («Ihr Aufgabenbereich als Crewmitarbeiterin …»).
+        string funktionKurz = funktion.Replace("Teilzeit-", "").Replace("Vollzeit-", "");
+        bool zw = d.Zwischen;
+        string introRest = zw
+            ? $",{geboren}{herkunft} ist seit dem {d.Von:dd.MM.yyyy} " +
+              $"in unserem Restaurant in {d.Ort} als {funktion} tätig."
+            : $",{geboren}{herkunft} war vom {d.Von:dd.MM.yyyy} bis {d.Bis:dd.MM.yyyy} " +
+              $"in unserem Restaurant in {d.Ort} als {funktion} tätig.";
 
         // Bereichs-Text: Muster «Fodor» (sehr gut) nutzt «sowohl … als auch»,
         // «Gherasim/Körner» (gut/durchschnitt) die kompakte Form.
@@ -152,17 +161,54 @@ public class ArbeitszeugnisPdfService
             ? "im Küchen- und Gästebereich"
             : hatKueche ? "im Küchenbereich" : "im Gästebereich";
 
-        string aufgabenIntro = sehrGut
-            ? $"Im Rahmen {ihrer} Tätigkeit wurde {nameKurz} {bereichSowohl} eingesetzt. " +
-              $"Zu {ihren} Hauptaufgaben gehörten:"
-            : $"{nameKurz} konnte von uns {bereichKurz} mit folgenden Aufgaben betraut werden:";
+        string aufgabenIntro = zw
+            ? $"{ihrC} Aufgabenbereich als {funktionKurz} umfasst folgende Tätigkeiten:"
+            : sehrGut
+                ? $"Im Rahmen {ihrer} Tätigkeit wurde {nameKurz} {bereichSowohl} eingesetzt. " +
+                  $"Zu {ihren} Hauptaufgaben gehörten:"
+                : $"{nameKurz} konnte von uns {bereichKurz} mit folgenden Aufgaben betraut werden:";
 
-        string schulung = sehrGut
+        string schulung = zw
+            ? $"Für die Verrichtung dieser Aufgaben wurde {er} von uns intern geschult. Somit kann {er} unsere " +
+              "Richtlinien; Qualität, Service, Sauberkeit, Hygiene und Umweltschutz umsetzen."
+            : sehrGut
             ? $"Für die Verrichtung dieser Aufgaben wurde {er} von uns intern umfassend geschult und war in der " +
               "Lage sämtliche Aufgaben gemäss unseren Richtlinien; Qualität, Service, Sauberkeit, Hygiene und " +
               "Umweltschutz kompetent umzusetzen."
             : $"Für die Verrichtung dieser Aufgaben wurde {er} von uns intern geschult. Somit konnte {er} unsere " +
               "Richtlinien; Qualität, Service, Sauberkeit, Hygiene und Umweltschutz umsetzen.";
+
+        // ── Zwischenzeugnis-Absätze (Vorlage «289 Hendschiken») ────────
+        // Abstufungen: Arbeitsmittel «sinnvoll/stets sinnvoll», «routiniert/
+        // stets routiniert», Baustein-Dropdown (teamfähig / sehr teamfähig /
+        // sehr zuverlässig+einsatzfreudig+belastbar), «gewissenhaft/stets»,
+        // Zufriedenheit 3-stufig, «vorbildlich/sehr vorbildlich».
+        bool topStufe  = d.Qualitaet is "sehr_gut";
+        bool mindGut   = d.Qualitaet is "sehr_gut" or "gut";
+        bool mindDsch  = d.Qualitaet is "sehr_gut" or "gut" or "durchschnitt";
+        string zwArbeitsmittel =
+            $"Die {ihm} zur Verfügung stehenden Arbeitsmittel setzt {er} {(mindDsch ? "stets sinnvoll" : "sinnvoll")} ein " +
+            $"und die Produkte behandelt {er} jederzeit gemäss den Vorschriften. In aussergewöhnlichen Situationen " +
+            $"arbeitet {er} {(mindDsch ? "stets routiniert" : "routiniert")} und ist auch bereit länger zu arbeiten, " +
+            "sofern es erforderlich ist.";
+        string zwBaustein = topStufe
+            ? (f ? "sehr zuverlässige, jederzeit einsatzfreudige und stark belastbare Mitarbeiterin"
+                 : "sehr zuverlässigen, jederzeit einsatzfreudigen und stark belastbaren Mitarbeiter")
+            : mindGut
+                ? $"sehr teamfähige{(f ? "" : "n")} und hilfsbereite{(f ? "" : "n")} {maWort}"
+                : $"teamfähige{(f ? "" : "n")} und hilfsbereite{(f ? "" : "n")} {maWort}";
+        string zwZufriedenheit = topStufe || mindGut ? "vollsten Zufriedenheit"
+                               : mindDsch ? "vollen Zufriedenheit" : "Zufriedenheit";
+        string zwBeurteilung =
+            $"Wir haben {nameKurz} als {zwBaustein} kennen und schätzen gelernt. " +
+            $"{erCap} arbeitet {(mindDsch ? "stets gewissenhaft" : "gewissenhaft")} und erledigt sämtliche Arbeiten " +
+            $"zu unserer {zwZufriedenheit}. Gegenüber {ihren} Vorgesetzten, Kollegen und unseren Gästen zeigt {er} " +
+            $"sich in jeder Hinsicht {(topStufe ? "sehr vorbildlich" : "vorbildlich")}.";
+        string frauHerrn = f ? "Frau" : "Herrn";
+        string ihreSeine = f ? "ihre" : "seine";
+        string zwAbschluss =
+            $"Dieses Zwischenzeugnis wird auf Wunsch von {frauHerrn} {d.LastName} ausgestellt. " +
+            $"An dieser Stelle bedanken wir uns für {ihreSeine} wertvolle Mitarbeit.";
 
         string wunsch = d.AufEigenenWunsch ? " auf eigenen Wunsch," : "";
         string austritt =
@@ -217,7 +263,7 @@ public class ArbeitszeugnisPdfService
                     col.Item().PaddingTop(28).Text(datumZeile);
 
                     col.Item().PaddingTop(24).AlignCenter()
-                        .Text("Arbeitszeugnis").FontSize(15f).Bold();
+                        .Text(zw ? "Zwischenzeugnis" : "Arbeitszeugnis").FontSize(15f).Bold();
 
                     col.Item().PaddingTop(22).Text(t =>
                     {
@@ -240,9 +286,18 @@ public class ArbeitszeugnisPdfService
                     });
 
                     col.Item().PaddingTop(12).Text(schulung).Justify();
-                    col.Item().PaddingTop(12).Text(beurteilung).Justify();
-                    col.Item().PaddingTop(12).Text(austritt).Justify();
-                    col.Item().PaddingTop(12).Text(dank).Justify();
+                    if (zw)
+                    {
+                        col.Item().PaddingTop(12).Text(zwArbeitsmittel).Justify();
+                        col.Item().PaddingTop(12).Text(zwBeurteilung).Justify();
+                        col.Item().PaddingTop(12).Text(zwAbschluss).Justify();
+                    }
+                    else
+                    {
+                        col.Item().PaddingTop(12).Text(beurteilung).Justify();
+                        col.Item().PaddingTop(12).Text(austritt).Justify();
+                        col.Item().PaddingTop(12).Text(dank).Justify();
+                    }
 
                     col.Item().PaddingTop(20).Text("Freundliche Grüsse");
 

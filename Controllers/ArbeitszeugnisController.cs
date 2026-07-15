@@ -43,6 +43,8 @@ public class ArbeitszeugnisController : ControllerBase
         /// <summary>Explizit gewählte Aufgaben (13er-Katalog der Word-Vorlage, 15.07.2026).
         /// Leer = Ableitung aus den Bereichen.</summary>
         public List<string>? Aufgaben { get; set; }
+        /// <summary>true = ZWISCHENzeugnis (Vorlage «289 Hendschiken»).</summary>
+        public bool Zwischen { get; set; }
     }
 
     [HttpPost("{empId:int}/pdf")]
@@ -151,11 +153,13 @@ public class ArbeitszeugnisController : ControllerBase
             SignaturePng:   sigPng,
             AufEigenenWunsch: dto.AufEigenenWunsch,
             Funktion:       string.IsNullOrWhiteSpace(dto.Funktion) ? null : dto.Funktion.Trim(),
-            Aufgaben:       dto.Aufgaben
+            Aufgaben:       dto.Aufgaben,
+            Zwischen:       dto.Zwischen
         );
 
         var bytes = _pdf.Generate(input);
+        var art = dto.Zwischen ? "Zwischenzeugnis" : "Arbeitszeugnis";
         return File(bytes, "application/pdf",
-            $"Arbeitszeugnis_{e.LastName}_{e.FirstName}.pdf".Replace(" ", "_"));
+            $"{art}_{e.LastName}_{e.FirstName}.pdf".Replace(" ", "_"));
     }
 }

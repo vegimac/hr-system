@@ -316,8 +316,11 @@ function _azEmpObj(employeeId) {
     return null;
 }
 
-function openZeugnisModal(employeeId) {
+let _azZwischen = false;
+
+function openZeugnisModal(employeeId, zwischen = false) {
     _azEmployeeId = employeeId;
+    _azZwischen = !!zwischen;
     const emp = _azEmpObj(employeeId);
     const female = String(emp?.gender || '').toLowerCase().startsWith('f')
         || String(emp?.gender || '').toLowerCase() === 'w'
@@ -340,7 +343,7 @@ function openZeugnisModal(employeeId) {
     ov.onclick = e => { if (e.target === ov) ov.remove(); };
     ov.innerHTML = `
         <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:620px;width:100%;max-height:92vh;overflow:auto;padding:20px 22px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
-            <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:2px">Arbeitszeugnis erstellen</div>
+            <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:2px">${_azZwischen ? 'Zwischenzeugnis' : 'Arbeitszeugnis'} erstellen</div>
             <div id="azSub" style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px">${emp ? `${emp.firstName} ${emp.lastName} · Personalnr. ${emp.employeeNumber || '–'}` : ''}</div>
 
             <div style="${label}">Qualität</div>
@@ -376,7 +379,7 @@ function openZeugnisModal(employeeId) {
                 ${AZ_AUFGABEN.map((a, i) => `<label style="${pillS}"><input type="checkbox" class="azAufgabe" data-i="${i}" value="${a.replace(/"/g, '&quot;')}"> <span>${a}</span></label>`).join('')}
             </div>
 
-            <label style="${pill};margin-bottom:16px"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
+            <label style="${pill};margin-bottom:16px;${_azZwischen ? 'display:none' : ''}"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
 
             <div id="azAlert"></div>
             <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -436,7 +439,8 @@ async function azGenerate() {
             body: JSON.stringify({
                 qualitaet: quali, bereiche, datum, aufgaben,
                 funktion: document.getElementById('azFunktion')?.value || null,
-                aufEigenenWunsch: document.getElementById('azWunsch')?.checked ?? true
+                aufEigenenWunsch: document.getElementById('azWunsch')?.checked ?? true,
+                zwischen: _azZwischen
             })
         });
         if (!res.ok) {
@@ -448,7 +452,7 @@ async function azGenerate() {
         const cd = res.headers.get('Content-Disposition') || '';
         const m = cd.match(/filename="?([^"]+)"?/);
         document.getElementById('azModal').remove();
-        await previewFileModal(blob, m ? m[1] : 'Arbeitszeugnis.pdf');
+        await previewFileModal(blob, m ? m[1] : (_azZwischen ? 'Zwischenzeugnis.pdf' : 'Arbeitszeugnis.pdf'));
     } catch (e) {
         alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Netzwerkfehler: ${e.message}</div>`;
     } finally {

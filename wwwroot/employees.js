@@ -1330,7 +1330,8 @@ function switchEmpTab(tab) {
         } else if (tab === 'verwarnungen' && !isExcluded) {
             // Restaurant Admin: Verwarnungen + Arbeitszeugnis (Walter 15.07.2026).
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openVerwarnungModal(null)">${plusIcon} Verwarnung erfassen</button>`
-                + `<button class="btn-emp-add" style="margin-left:8px" onclick="openZeugnisModal(selectedEmployeeId)">📄 Arbeitszeugnis</button>`;
+                + `<button class="btn-emp-add" style="margin-left:8px" onclick="openZeugnisModal(selectedEmployeeId)">📄 Arbeitszeugnis</button>`
+                + `<button class="btn-emp-add" style="margin-left:8px" onclick="openZeugnisModal(selectedEmployeeId, true)">📄 Zwischenzeugnis</button>`;
         } else if (tab === 'absenzen') {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openAbsenceModal(null)">${plusIcon} Absenz erfassen</button>`;
         } else if (tab === 'verfuegbarkeit' && !isExcluded) {
