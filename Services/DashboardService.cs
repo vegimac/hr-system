@@ -142,9 +142,27 @@ public class DashboardService
         // Walter-Vorgabe 07.06.2026: keine Warnung wenn die Bewilligung
         // mindestens bis zum Austrittsdatum gültig ist — der MA verlässt
         // die Firma vorher, eine Erneuerung wäre unnötig.
+        // Massgebender Eintrag pro MA (Walter-Bug 15.07.2026, «Berin»):
+        // NICHT stur der juengste nach Gueltig-ab — ein Datenmuell-Eintrag
+        // (Ende VOR Beginn, HR-Review-Import) gewann sonst gegen die echte,
+        // heute gueltige Bewilligung. Regel: 1) unplausible Zeilen
+        // (ValidTo < ValidFrom) ignorieren, solange plausible existieren;
+        // 2) HEUTE gueltige Bewilligung gewinnt; 3) sonst spaetestes Ende
+        // (NULL = unbefristet = nie warnen).
+        var heuteDo = DateOnly.FromDateTime(now);
         var youngestPerMa = histories
             .GroupBy(h => h.EmployeeId)
-            .Select(g => g.OrderByDescending(x => x.ValidFrom).ThenByDescending(x => x.Id).First())
+            .Select(g =>
+            {
+                var pool = g.Where(x => !x.ValidTo.HasValue || x.ValidTo.Value >= x.ValidFrom).ToList();
+                if (pool.Count == 0) pool = g.ToList();
+                return pool
+                    .OrderByDescending(x => (x.ValidFrom <= heuteDo
+                        && (!x.ValidTo.HasValue || x.ValidTo.Value >= heuteDo)) ? 1 : 0)
+                    .ThenByDescending(x => x.ValidTo ?? DateOnly.MaxValue)
+                    .ThenByDescending(x => x.Id)
+                    .First();
+            })
             .Where(h => h.ValidTo.HasValue && h.ValidTo.Value <= dueDateLimit)
             .Where(h =>
             {

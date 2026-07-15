@@ -334,9 +334,23 @@ public class KontrollListenController : ControllerBase
             .ToList();
 
         var empById = emps.ToDictionary(e => e.Id);
+        // Massgebender Eintrag (Walter-Bug 15.07.2026, «Berin» — gleiche Regel
+        // wie DashboardService): unplausible Zeilen (Ende < Beginn) ignorieren,
+        // heute gueltige Bewilligung gewinnt, sonst spaetestes Ende.
+        var kontrolleHeute = DateOnly.FromDateTime(DateTime.Today);
         var youngestPerEmp = histAll
             .GroupBy(h => h.EmployeeId)
-            .Select(g => g.OrderByDescending(x => x.ValidFrom).ThenByDescending(x => x.Id).First())
+            .Select(g =>
+            {
+                var pool = g.Where(x => !x.ValidTo.HasValue || x.ValidTo.Value >= x.ValidFrom).ToList();
+                if (pool.Count == 0) pool = g.ToList();
+                return pool
+                    .OrderByDescending(x => (x.ValidFrom <= kontrolleHeute
+                        && (!x.ValidTo.HasValue || x.ValidTo.Value >= kontrolleHeute)) ? 1 : 0)
+                    .ThenByDescending(x => x.ValidTo ?? DateOnly.MaxValue)
+                    .ThenByDescending(x => x.Id)
+                    .First();
+            })
             .Where(h => h.ValidTo.HasValue && h.ValidTo.Value <= limit)
             .Where(h =>
             {
