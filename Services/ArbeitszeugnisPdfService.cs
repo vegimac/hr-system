@@ -236,6 +236,13 @@ public class ArbeitszeugnisPdfService
 
         string datumZeile = $"{d.Ort}, {d.Datum.ToString("d. MMMM yyyy", ci)}";
 
+        // Arbeitsbestaetigung (nur 1 Satz): Inhalt vertikal ausbalancieren,
+        // damit der Brief nicht in der oberen Haelfte klebt (Walter 15.07.2026).
+        float padDatum = d.Bestaetigung ? 56f : 28f;
+        float padTitel = d.Bestaetigung ? 72f : 24f;
+        float padSatz  = d.Bestaetigung ? 60f : 22f;
+        float padGruss = d.Bestaetigung ? 88f : 20f;
+
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -273,17 +280,18 @@ public class ArbeitszeugnisPdfService
                         });
                     });
 
-                    col.Item().PaddingTop(28).Text(datumZeile);
+                    col.Item().PaddingTop(padDatum).Text(datumZeile);
 
-                    col.Item().PaddingTop(24).AlignCenter()
+                    col.Item().PaddingTop(padTitel).AlignCenter()
                         .Text(d.Bestaetigung ? "Arbeitsbestätigung" : zw ? "Zwischenzeugnis" : "Arbeitszeugnis")
                         .FontSize(15f).Bold();
 
                     if (d.Bestaetigung)
                     {
-                        col.Item().PaddingTop(22).Text(t =>
+                        col.Item().PaddingTop(padSatz).PaddingHorizontal(14).Text(t =>
                         {
                             t.Justify();
+                            t.DefaultTextStyle(x => x.FontSize(11.5f).LineHeight(1.5f));
                             t.Span("Wir bestätigen hiermit, dass ");
                             t.Span($"{anrede} ");
                             t.Span($"{d.FirstName} {d.LastName}".Trim()).Bold();
@@ -327,7 +335,7 @@ public class ArbeitszeugnisPdfService
                     }
                     }   // Ende Zeugnis-Absätze (nicht Bestätigung)
 
-                    col.Item().PaddingTop(20).Text("Freundliche Grüsse");
+                    col.Item().PaddingTop(padGruss).Text("Freundliche Grüsse");
 
                     col.Item().PaddingTop(10).Column(c =>
                     {

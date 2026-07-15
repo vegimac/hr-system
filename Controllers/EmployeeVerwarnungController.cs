@@ -9,10 +9,9 @@ namespace HrSystem.Controllers;
 
 /// <summary>
 /// Verwarnungs-Verlauf pro MA (Walter-Vorgabe 14.07.2026). GF (user) darf
-/// erfassen und bearbeiten — er spricht die Verwarnung aus. Löschen gibt es
-/// NICHT: nur Storno (admin/superuser, mit Pflicht-Grund), damit der Verlauf
-/// als Kündigungsgrundlage lückenlos und gerichtsfest bleibt.
-/// Kein Lohnbezug → im EditLock-Audit whitelisted.
+/// erfassen und bearbeiten — er spricht die Verwarnung aus. Löschen =
+/// ECHTES Löschen (Walter-Entscheid 15.07.2026, admin/superuser) — kein
+/// Storno-Behalten mehr. Kein Lohnbezug → im EditLock-Audit whitelisted.
 /// </summary>
 [Authorize(Roles = "admin,superuser,user")]
 [ApiController]
@@ -225,22 +224,17 @@ public class EmployeeVerwarnungController : ControllerBase
             $"Verwarnung_{e.LastName}_{e.FirstName}_{input.Datum:yyyyMMdd}.pdf".Replace(" ", "_"));
     }
 
-    /// <summary>Storno statt Löschen — nur admin/superuser, mit Pflicht-Grund.</summary>
-    [HttpPost("{id:int}/storno")]
+    /// <summary>Echtes Löschen (Walter-Entscheid 15.07.2026) — admin/superuser.
+    /// Das verknüpfte Dokument bleibt in der Personalakte erhalten.</summary>
+    [HttpDelete("{id:int}")]
     [Authorize(Roles = "admin,superuser")]
-    public async Task<IActionResult> Storno(int id, [FromBody] StornoDto dto)
+    public async Task<IActionResult> Delete(int id)
     {
-        if (string.IsNullOrWhiteSpace(dto.Grund))
-            return BadRequest(new { error = "GRUND_FEHLT", message = "Bitte einen Storno-Grund angeben." });
         var v = await _db.EmployeeVerwarnungen.FirstOrDefaultAsync(x => x.Id == id);
         if (v == null) return NotFound(new { error = "NOT_FOUND" });
-        if (v.Storniert) return Conflict(new { error = "BEREITS_STORNIERT" });
-
-        v.Storniert   = true;
-        v.StornoGrund = $"{dto.Grund.Trim()} ({await GetActorNameAsync()}, {DateTime.Now:dd.MM.yyyy})";
-        v.GeaendertAm = DateTime.Now;
+        _db.EmployeeVerwarnungen.Remove(v);
         await _db.SaveChangesAsync();
-        return Ok(new { v.Id, v.Storniert });
+        return Ok(new { deleted = id });
     }
 
     private static object? Validate(VerwarnungDto dto, out string stufe)

@@ -10283,9 +10283,8 @@ function renderVerwarnungenTab(el) {
                 <button class="dok-menu-btn" onclick="vwToggleMenu(event, ${v.id})">⋮</button>
                 <div class="dok-menu" id="vwMenu${v.id}" style="display:none;position:absolute;right:0;top:32px;z-index:50;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:180px">
                     ${!v.storniert ? `<div class="dok-menu-item" onclick="openVerwarnungModal(${v.id})">✎ Bearbeiten / Scan nachreichen</div><div class="dok-menu-item" onclick="vwPrintFormular(${v.id})">🖨 Formular drucken</div>` : ''}
-                    ${!v.storniert && (currentUser?.role === 'admin' || currentUser?.role === 'superuser')
-                        ? `<div class="dok-menu-item danger" onclick="vwStorno(${v.id})">⊘ Stornieren</div>` : ''}
-                    ${v.storniert ? `<div class="dok-menu-item" style="cursor:default;color:#94a3b8">${esc(v.stornoGrund || 'storniert')}</div>` : ''}
+                    ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser')
+                        ? `<div class="dok-menu-item danger" onclick="vwDelete(${v.id})">🗑 Löschen</div>` : ''}
                 </div>
             </div>`;
         return `<div style="border:1px solid #e5e0d6;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#faf8f5;${stil}">
@@ -10565,16 +10564,12 @@ async function _vwFetchFormular(body) {
     } catch (e) { alert('Netzwerkfehler: ' + e.message); }
 }
 
-async function vwStorno(id) {
-    const grund = prompt('Storno-Grund (Pflicht) — die Verwarnung bleibt im Verlauf sichtbar, gilt aber nicht mehr:');
-    if (!grund || !grund.trim()) return;
+// Echtes Löschen (Walter-Entscheid 15.07.2026) — kein Storno-Behalten mehr.
+async function vwDelete(id) {
+    if (!confirm('Verwarnung endgültig löschen? Das hinterlegte Dokument bleibt in der Personalakte.')) return;
     try {
-        const r = await fetch(`/api/verwarnungen/${id}/storno`, {
-            method: 'POST',
-            headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ grund: grund.trim() })
-        });
-        if (!r.ok) { alert('Storno fehlgeschlagen (' + r.status + ')'); return; }
+        const r = await fetch(`/api/verwarnungen/${id}`, { method: 'DELETE', headers: ah() });
+        if (!r.ok) { alert('Löschen fehlgeschlagen (' + r.status + ')'); return; }
         loadVerwarnungenTab(selectedEmployeeId);
     } catch (e) { alert('Netzwerkfehler: ' + e.message); }
 }
