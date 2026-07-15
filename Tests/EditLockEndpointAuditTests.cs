@@ -98,6 +98,7 @@ public class EditLockEndpointAuditTests
         ["LohnausweisController"]          = "Lohnausweis-PDF generieren — read-only",
         ["KuendigungController"]           = "Kündigungsschreiben-PDF generieren — read-only, keine Lohndaten",
         ["ArbeitszeugnisController"]       = "Arbeitszeugnis-PDF generieren — read-only, keine Lohndaten",
+        ["EmployeeVerwarnungController"]   = "Verwarnungs-Verlauf — Personalakte, kein Lohnbezug (Storno statt Löschen)",
         ["LseExportController"]            = "LSE-Export — read-only",
         ["LohnEditLockController"]         = "Lock-Service selbst — read-only-Query",
 

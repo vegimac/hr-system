@@ -213,7 +213,9 @@ const EMP_SPECIAL_FILTERS = {
 // Walter-Vorgabe 11.06.2026: Mutterschafts-Tab entfernt — wandert komplett in
 // den Familie-Tab. Aktive Schwangerschaft wird zusätzlich als roter Badge
 // neben dem MA-Namen im Header angezeigt.
-const _empTabsOrder = ['personal', 'familie', 'bank', 'quellensteuer',
+// «Mitarbeiter Admin» (Key bleibt 'quellensteuer') buendelt Bewilligung + QST
+// + Bank (Walter-Vorgabe 14.07.2026); 'verwarnungen' ist neu.
+const _empTabsOrder = ['personal', 'familie', 'quellensteuer', 'verwarnungen',
                        'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'ktg', 'dokumente'];
 
 // Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
@@ -745,7 +747,7 @@ function renderNumberAliases(empId, rows) {
         summary.textContent = txt || '–';
     }
     box.innerHTML = uniqueNumbers
-        .map(n => `<span class="emp-old-number">${escapeHtml(n)}</span>`)
+        .map(n => `<span class="emp-old-number">${esc(n)}</span>`)
         .join('');
 }
 
@@ -873,8 +875,8 @@ function renderEmployeeDetail(emp) {
         <div class="emp-detail-tabs">
             <div class="emp-tab active" data-tab="personal"   onclick="switchEmpTab('personal')" style="line-height:1.2;text-align:center">${_t('ma.tab.personal','Persönliche<br>Angaben')}</div>
             <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')" style="line-height:1.2;text-align:center">${_t('ma.tab.family','Familie<br>Schwanger')}</div>
-            <div class="emp-tab"        data-tab="bank"       onclick="switchEmpTab('bank')">${_t('ma.tab.bank','Bank')}</div>
-            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung<br>QST')}</div>
+            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.maAdmin','Mitarbeiter<br>Admin')}</div>
+            <div class="emp-tab"        data-tab="verwarnungen" onclick="switchEmpTab('verwarnungen')">${_t('ma.tab.verwarnungen','Verwarnungen')}</div>
             <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
             <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')">${_t('ma.tab.absencesOnly','Absenzen')}</div>
             <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availability','Verfügbarkeit')}</div>
@@ -1019,9 +1021,18 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
 
-        <!-- TAB: Bank & Postfach (Walter-Vorgabe 14.05.2026 — aus dem
-             Personal-Tab ausgelagert, damit die Seite nicht so lang ist) -->
-        <div class="emp-tab-content" id="emp-tab-bank">
+        <!-- TAB: Mitarbeiter Admin (Walter-Vorgabe 14.07.2026) —
+             buendelt Bewilligung + QST (quellensteuerContent) und die
+             Bankverbindung (ehem. eigener Bank-Tab). Tab-Key bleibt
+             'quellensteuer' (Persistenz/Quersprünge funktionieren weiter). -->
+        <div class="emp-tab-content" id="emp-tab-quellensteuer">
+            <div id="quellensteuerContent">
+                <div class="emp-placeholder">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                    <span>${_t('ma.loading','Wird geladen...')}</span>
+                </div>
+            </div>
+            <div style="margin-top:28px">
             ${!emp.isPayrollExcluded ? `
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 <span style="display:inline-flex;align-items:center;gap:8px">
@@ -1057,15 +1068,13 @@ function renderEmployeeDetail(emp) {
                 <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.bankDesc','Phantom-MA für easy@work-Zugang. Bankverbindung wird nicht angezeigt — dieser MA hat keinen Vertrag und keine Lohnzahlung.')}
             </div>
             `}
+            </div>
         </div>
 
-        <!-- TAB: Quellensteuer -->
-        <div class="emp-tab-content" id="emp-tab-quellensteuer">
-            <div id="quellensteuerContent">
-                <div class="emp-placeholder">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                    <span>${_t('ma.loading','Wird geladen...')}</span>
-                </div>
+        <!-- TAB: Verwarnungen (Walter-Vorgabe 14.07.2026) -->
+        <div class="emp-tab-content" id="emp-tab-verwarnungen">
+            <div id="verwarnungenContent">
+                <div class="emp-placeholder"><span>${_t('ma.loading','Wird geladen...')}</span></div>
             </div>
         </div>
 
@@ -1293,6 +1302,9 @@ async function easyworkSyncSelectedEmployee(empId) {
 
 // ── Tab wechseln ───────────────────────────────
 function switchEmpTab(tab) {
+    // Alt-Aufrufer/persistierter State: Bank ist seit 14.07.2026 Teil von
+    // «Mitarbeiter Admin» (Key 'quellensteuer').
+    if (tab === 'bank') tab = 'quellensteuer';
     activeEmpTab = tab;
     document.querySelectorAll('.emp-tab').forEach(t =>
         t.classList.toggle('active', t.dataset.tab === tab));
@@ -1313,10 +1325,11 @@ function switchEmpTab(tab) {
         const plusIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
         if (tab === 'familie' && !isExcluded) {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openFamilyModal(null)">${plusIcon} ${_t('famTab.add','Familienmitglied')}</button>`;
-        } else if (tab === 'bank' && !isExcluded) {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openBankAccountModal(null)">${plusIcon} ${_t('ma.btn.newBank','Neue Bankverbindung')}</button>`;
         } else if (tab === 'quellensteuer') {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openQstFromTab(null)">${plusIcon} Neuer Eintrag</button>`;
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openQstFromTab(null)">${plusIcon} QST-Eintrag</button>`
+                + (!isExcluded ? `<button class="btn-emp-add" onclick="openBankAccountModal(null)" style="margin-left:8px">${plusIcon} ${_t('ma.btn.newBank','Bankverbindung')}</button>` : '');
+        } else if (tab === 'verwarnungen' && !isExcluded) {
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openVerwarnungModal(null)">${plusIcon} Verwarnung erfassen</button>`;
         } else if (tab === 'absenzen') {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openAbsenceModal(null)">${plusIcon} Absenz erfassen</button>`;
         } else if (tab === 'verfuegbarkeit' && !isExcluded) {
@@ -1344,12 +1357,13 @@ function switchEmpTab(tab) {
             loadPermitHistory(selectedEmployeeId);
         }
     }
-    if (tab === 'bank'           && selectedEmployeeId) {
-        const isExcluded = !!selectedEmployee?.isPayrollExcluded;
-        if (!isExcluded) loadBankAccountsTab(selectedEmployeeId);
-    }
     if (tab === 'familie'        && selectedEmployeeId) loadFamilieTab(selectedEmployeeId);
-    if (tab === 'quellensteuer'  && selectedEmployeeId) loadQuellensteuerTab(selectedEmployeeId);
+    if (tab === 'quellensteuer'  && selectedEmployeeId) {
+        loadQuellensteuerTab(selectedEmployeeId);
+        // «Mitarbeiter Admin» zeigt auch die Bankverbindung (Walter 14.07.2026).
+        if (!selectedEmployee?.isPayrollExcluded) loadBankAccountsTab(selectedEmployeeId);
+    }
+    if (tab === 'verwarnungen'   && selectedEmployeeId) loadVerwarnungenTab(selectedEmployeeId);
     if (tab === 'stempelzeiten'  && selectedEmployeeId) loadStempelzeitenTab(selectedEmployeeId);
     if (tab === 'absenzen'       && selectedEmployeeId) loadAbsenzenTab(selectedEmployeeId);
     if (tab === 'verfuegbarkeit' && selectedEmployeeId && typeof loadVerfuegbarkeitTab === 'function') loadVerfuegbarkeitTab(selectedEmployeeId);
@@ -9039,22 +9053,22 @@ async function contractShareSendSms(employeeId, employmentId, phone) {
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok || !j.ok) {
-            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">✗ ${escapeHtml(j.error || j.message || ('Fehler HTTP ' + res.status))}</div>`;
+            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">✗ ${esc(j.error || j.message || ('Fehler HTTP ' + res.status))}</div>`;
             return;
         }
         const exp = j.expiresAt ? new Date(j.expiresAt) : null;
         const expStr = exp && !isNaN(exp.getTime()) ? exp.toLocaleDateString('de-CH') : '';
         const redirectNote = j.redirectedTo
-            ? `<div style="margin-top:6px;color:#6b5a1f">⚠ Test-Umleitung aktiv — die SMS ging an ${escapeHtml(j.redirectedTo)}.</div>`
+            ? `<div style="margin-top:6px;color:#6b5a1f">⚠ Test-Umleitung aktiv — die SMS ging an ${esc(j.redirectedTo)}.</div>`
             : '';
         if (box) box.innerHTML = `
             <div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55">
-                ✓ Vertrags-SMS gesendet an ${escapeHtml(j.to || nr)}.${expStr ? ` Link gültig bis ${escapeHtml(expStr)}.` : ''}
+                ✓ Vertrags-SMS gesendet an ${esc(j.to || nr)}.${expStr ? ` Link gültig bis ${esc(expStr)}.` : ''}
                 ${redirectNote}
             </div>`;
         box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (e) {
-        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${escapeHtml(e.message)}</div>`;
+        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${esc(e.message)}</div>`;
     }
 }
 
@@ -9161,7 +9175,7 @@ async function empImportFromEasyApi() {
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) {
-            body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px">✗ ${escapeHtml(j.error || j.message || ('Fehler HTTP ' + r.status))}</div>`;
+            body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px">✗ ${esc(j.error || j.message || ('Fehler HTTP ' + r.status))}</div>`;
             return;
         }
         const rows = j.rows || [];
@@ -9178,17 +9192,17 @@ async function empImportFromEasyApi() {
                     ? '<span style="font-size:10.5px;font-weight:700;background:#e7f0e7;color:#3f5540;border:1px solid #b8ccb8;border-radius:10px;padding:2px 8px">NEU</span>'
                     : '<span style="font-size:10.5px;font-weight:700;background:#ece9e2;color:#6b6152;border:1px solid #d0c8b8;border-radius:10px;padding:2px 8px">UPDATE</span>';
                 const detail = isNew
-                    ? escapeHtml(x.employmentInfo || 'wird neu angelegt')
-                    : escapeHtml((x.changedFields || []).join(', ') || x.reason || 'Änderungen');
+                    ? esc(x.employmentInfo || 'wird neu angelegt')
+                    : esc((x.changedFields || []).join(', ') || x.reason || 'Änderungen');
                 const reentry = x.possibleReentry
-                    ? `<div style="font-size:11.5px;color:#92400e;margin-top:2px">⚠ Möglicher Wiedereintritt (bestehende Nr. ${escapeHtml(x.reentryEmployeeNumber || '?')})</div>` : '';
+                    ? `<div style="font-size:11.5px;color:#92400e;margin-top:2px">⚠ Möglicher Wiedereintritt (bestehende Nr. ${esc(x.reentryEmployeeNumber || '?')})</div>` : '';
                 return `
                 <label style="display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid rgba(139,139,139,0.22);border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,0.55);cursor:pointer">
-                    <input type="checkbox" class="empEasyRow" data-number="${escapeHtml(x.number || '')}" checked style="margin-top:3px;width:15px;height:15px" onchange="_empEasyCount()">
+                    <input type="checkbox" class="empEasyRow" data-number="${esc(x.number || '')}" checked style="margin-top:3px;width:15px;height:15px" onchange="_empEasyCount()">
                     <div style="min-width:0">
                         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                            <span style="font-weight:600;color:#3f3f3f;font-size:13.5px">${escapeHtml(((x.firstName||'') + ' ' + (x.lastName||'')).trim())}</span>
-                            <span style="color:#8b8b8b;font-size:12px;font-family:monospace">${escapeHtml(x.number || '')}</span>
+                            <span style="font-weight:600;color:#3f3f3f;font-size:13.5px">${esc(((x.firstName||'') + ' ' + (x.lastName||'')).trim())}</span>
+                            <span style="color:#8b8b8b;font-size:12px;font-family:monospace">${esc(x.number || '')}</span>
                             ${badge}
                         </div>
                         <div style="font-size:12px;color:#646464;margin-top:2px;word-break:break-word">${detail}</div>
@@ -9203,7 +9217,7 @@ async function empImportFromEasyApi() {
             <button id="empEasyCommitBtn" onclick="empEasyImportCommit(${cpId})"
                     style="padding:9px 18px;border:none;border-radius:12px;background:#3f3f3f;color:#fff;cursor:pointer;font-size:13.5px;font-weight:600">Ausgewählte importieren (${rows.length})</button>`;
     } catch (e) {
-        body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px">Netzwerkfehler: ${escapeHtml(e.message)}</div>`;
+        body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px">Netzwerkfehler: ${esc(e.message)}</div>`;
     }
 }
 
@@ -9237,7 +9251,7 @@ async function empEasyImportCommit(cpId) {
             const msg = j.blocked
                 ? 'Import blockiert — Personalnummern-Kollision:\n' + (j.numberConflicts || []).join('\n')
                 : (j.error || j.message || ('Fehler HTTP ' + r.status));
-            body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px;white-space:pre-wrap">✗ ${escapeHtml(msg)}</div>`;
+            body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px;white-space:pre-wrap">✗ ${esc(msg)}</div>`;
             if (btn) { btn.disabled = false; btn.textContent = 'Erneut versuchen'; }
             return;
         }
@@ -9255,7 +9269,7 @@ async function empEasyImportCommit(cpId) {
         if (typeof invalidateEmployeeLookupCache === 'function') invalidateEmployeeLookupCache();
         if (typeof loadMitarbeiterList === 'function') await loadMitarbeiterList();
     } catch (e) {
-        body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px">Netzwerkfehler: ${escapeHtml(e.message)}</div>`;
+        body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px">Netzwerkfehler: ${esc(e.message)}</div>`;
         if (btn) { btn.disabled = false; btn.textContent = 'Erneut versuchen'; }
     }
 }
@@ -9273,12 +9287,12 @@ async function contractShareRevoke(employmentId) {
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok || !j.ok) {
-            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">✗ ${escapeHtml(j.error || ('Fehler HTTP ' + res.status))}</div>`;
+            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">✗ ${esc(j.error || ('Fehler HTTP ' + res.status))}</div>`;
             return;
         }
         if (box) box.innerHTML = `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px;font-size:13px">✓ ${j.revoked === 0 ? 'Kein aktiver Link vorhanden.' : `${j.revoked} Link(s) widerrufen — verschickte Links sind ab sofort ungültig.`}</div>`;
     } catch (e) {
-        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${escapeHtml(e.message)}</div>`;
+        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${esc(e.message)}</div>`;
     }
 }
 
@@ -9298,7 +9312,7 @@ async function contractShareCreate(employeeId, employmentId) {
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) {
-            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">${escapeHtml(j.error || j.message || ('Fehler HTTP ' + res.status))}</div>`;
+            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">${esc(j.error || j.message || ('Fehler HTTP ' + res.status))}</div>`;
             return;
         }
         const exp = j.expiresAt ? new Date(j.expiresAt) : null;
@@ -9311,29 +9325,29 @@ async function contractShareCreate(employeeId, employmentId) {
 
                 <div style="font-size:12px;color:#8b8b8b;margin-bottom:4px">Öffentlicher Link (ohne Login):</div>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-                    <input id="contractShareLinkInput" readonly value="${escapeHtml(j.url)}"
+                    <input id="contractShareLinkInput" readonly value="${esc(j.url)}"
                         style="flex:1 1 260px;min-width:0;font-size:12px;padding:8px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:9px;background:#faf8f5;color:#3f3f3f">
                     <button onclick="contractShareCopy('contractShareLinkInput')"
                         style="white-space:nowrap;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">Kopieren</button>
-                    <a href="${escapeHtml(j.url)}" target="_blank" rel="noopener"
+                    <a href="${esc(j.url)}" target="_blank" rel="noopener"
                         style="white-space:nowrap;text-decoration:none;background:rgba(255,255,255,0.58);color:#3f3f3f;border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:8px 14px;font-size:13px;font-weight:600">Öffnen</a>
                 </div>
 
                 <div style="font-size:12px;color:#8b8b8b;margin-bottom:4px">SMS-Text (zum Kopieren):</div>
                 <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px">
                     <textarea id="contractShareSmsInput" readonly rows="2"
-                        style="flex:1 1 260px;min-width:0;font-size:12px;padding:8px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:9px;background:#faf8f5;color:#3f3f3f;resize:vertical;white-space:pre-wrap">${escapeHtml(j.smsText || '')}</textarea>
+                        style="flex:1 1 260px;min-width:0;font-size:12px;padding:8px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:9px;background:#faf8f5;color:#3f3f3f;resize:vertical;white-space:pre-wrap">${esc(j.smsText || '')}</textarea>
                     <button onclick="contractShareCopy('contractShareSmsInput')"
                         style="white-space:nowrap;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">SMS kopieren</button>
                 </div>
 
                 <div style="font-size:12px;color:#8b8b8b;line-height:1.5">
-                    ${expStr ? `Gültig bis ${escapeHtml(expStr)}. ` : ''}SMS-Direktversand folgt später — Text + Link vorerst manuell senden.
+                    ${expStr ? `Gültig bis ${esc(expStr)}. ` : ''}SMS-Direktversand folgt später — Text + Link vorerst manuell senden.
                 </div>
             </div>`;
         box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (e) {
-        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${escapeHtml(e.message)}</div>`;
+        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${esc(e.message)}</div>`;
     }
 }
 
@@ -9371,10 +9385,10 @@ function showSetupQrModal(j) {
                 <h2 style="margin:0;font-size:18px;font-weight:700;color:#3f3f3f">Postfach einrichten</h2>
                 <button onclick="document.getElementById('setupQrModal').style.display='none'" aria-label="Schliessen" style="background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.06);border-radius:10px;width:34px;height:34px;font-size:19px;cursor:pointer;color:#646464">&times;</button>
             </div>
-            <p style="font-size:13px;color:#646464;margin:0 0 16px;text-align:left;line-height:1.5">${escapeHtml(j.firstName || 'Der Mitarbeitende')} scannt diesen QR-Code mit der Handykamera und setzt direkt sein Passwort — danach ist er automatisch in seinem Postfach. Gültig bis ${escapeHtml(bis)}.</p>
-            <img src="${escapeHtml(j.qrPng)}" alt="QR-Code" style="width:240px;height:240px;image-rendering:pixelated;background:#fff;border:1px solid rgba(255,255,255,0.62);border-radius:14px;padding:8px;box-shadow:0 8px 24px rgba(60,55,48,0.12)">
+            <p style="font-size:13px;color:#646464;margin:0 0 16px;text-align:left;line-height:1.5">${esc(j.firstName || 'Der Mitarbeitende')} scannt diesen QR-Code mit der Handykamera und setzt direkt sein Passwort — danach ist er automatisch in seinem Postfach. Gültig bis ${esc(bis)}.</p>
+            <img src="${esc(j.qrPng)}" alt="QR-Code" style="width:240px;height:240px;image-rendering:pixelated;background:#fff;border:1px solid rgba(255,255,255,0.62);border-radius:14px;padding:8px;box-shadow:0 8px 24px rgba(60,55,48,0.12)">
             <div style="display:flex;gap:8px;align-items:center;margin-top:16px">
-                <input id="setupQrLink" readonly value="${escapeHtml(j.url)}" style="flex:1;min-width:0;font-size:12px;padding:10px 12px;border:1px solid rgba(0,0,0,0.10);border-radius:12px;background:rgba(255,255,255,0.55);color:#3f3f3f">
+                <input id="setupQrLink" readonly value="${esc(j.url)}" style="flex:1;min-width:0;font-size:12px;padding:10px 12px;border:1px solid rgba(0,0,0,0.10);border-radius:12px;background:rgba(255,255,255,0.55);color:#3f3f3f">
                 <button style="background:#3f3f3f;color:#faf8f5;border:0;white-space:nowrap;font-weight:600;font-size:13px;padding:10px 16px;border-radius:12px;cursor:pointer;box-shadow:0 6px 16px rgba(60,55,48,0.18)" onclick="(function(){var e=document.getElementById('setupQrLink');e.select();navigator.clipboard&&navigator.clipboard.writeText(e.value);})()">Link kopieren</button>
             </div>
         </div>`;
@@ -10206,4 +10220,289 @@ async function phfOcrPermit(docId) {
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = '🔍 Ausweis lesen'; }
     }
+}
+
+// ══════════════════════════════════════════════
+// VERWARNUNGEN (Walter-Vorgabe 14.07.2026)
+// ──────────────────────────────────────────────
+// Eskalations-Verlauf pro MA: Stufe (1./2./letzte Verwarnung), angekreuzte
+// Gründe aus dem Papier-Formular, Beschreibung, PFLICHT-Dokument
+// (unterschriebenes Schreiben — Upload direkt im Modal oder bestehendes
+// Dokument wählen). Kein Löschen: nur Storno (admin/superuser) mit Grund.
+// ══════════════════════════════════════════════
+let _vwList = [];
+let _vwGruende = null;
+let _vwEditId = null;
+
+const VW_STUFEN = {
+    VERWARNUNG_1: { label: '1. Verwarnung',      bg: '#fef3c7', fg: '#92400e' },
+    VERWARNUNG_2: { label: '2. Verwarnung',      bg: '#fed7aa', fg: '#9a3412' },
+    LETZTE:       { label: 'Letzte Verwarnung',  bg: '#fee2e2', fg: '#991b1b' }
+};
+
+async function loadVerwarnungenTab(employeeId) {
+    const el = document.getElementById('verwarnungenContent');
+    if (!el) return;
+    if (selectedEmployee?.isPayrollExcluded) {
+        el.innerHTML = `<div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px">
+            <strong>⛔ MA ohne Lohn</strong> — keine Verwarnungs-Verwaltung für Phantom-MA.</div>`;
+        return;
+    }
+    el.innerHTML = '<div class="emp-placeholder" style="height:120px"><span>Wird geladen…</span></div>';
+    try {
+        const r = await fetch(`/api/verwarnungen/by-employee/${employeeId}`, { headers: ah() });
+        if (!r.ok) { el.innerHTML = `<div style="color:#dc2626;padding:16px">Fehler beim Laden (${r.status})</div>`; return; }
+        _vwList = await r.json();
+        renderVerwarnungenTab(el);
+    } catch (e) {
+        el.innerHTML = `<div style="color:#dc2626;padding:16px">Netzwerkfehler: ${e.message}</div>`;
+    }
+}
+
+function renderVerwarnungenTab(el) {
+    const aktiv = _vwList.filter(v => !v.storniert);
+    // Hinweis-Banner: bei «Letzte Verwarnung» aktiv → rot.
+    const hatLetzte = aktiv.some(v => v.stufe === 'LETZTE');
+    const banner = aktiv.length === 0
+        ? `<div style="padding:24px;text-align:center;color:#16a34a;font-size:13.5px;font-weight:600">✓ Keine Verwarnungen erfasst.</div>`
+        : hatLetzte
+            ? `<div style="margin-bottom:14px;padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;color:#991b1b;font-size:12.5px;font-weight:600">⚠ Letzte Verwarnung mit Kündigungsandrohung ausgesprochen — ${aktiv.length} aktive Verwarnung(en) im Verlauf.</div>`
+            : `<div style="margin-bottom:14px;padding:10px 14px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:12.5px">${aktiv.length} aktive Verwarnung(en) im Verlauf.</div>`;
+
+    const rows = _vwList.map(v => {
+        const st = VW_STUFEN[v.stufe] || { label: v.stufe, bg: '#ece9e2', fg: '#6b6152' };
+        const datum = v.datum ? new Date(v.datum).toLocaleDateString('de-CH') : '–';
+        const gruende = (v.gruende || '').split('\n').filter(Boolean);
+        const stil = v.storniert ? 'opacity:0.55' : '';
+        const stornoBadge = v.storniert
+            ? `<span title="${esc(v.stornoGrund || '')}" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#e2e8f0;color:#475569;text-decoration:none">STORNIERT</span>` : '';
+        const menu = `
+            <div style="position:relative;display:inline-block">
+                <button class="dok-menu-btn" onclick="vwToggleMenu(event, ${v.id})">⋮</button>
+                <div class="dok-menu" id="vwMenu${v.id}" style="display:none;position:absolute;right:0;top:32px;z-index:50;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:180px">
+                    ${!v.storniert ? `<div class="dok-menu-item" onclick="openVerwarnungModal(${v.id})">✎ Bearbeiten</div>` : ''}
+                    ${!v.storniert && (currentUser?.role === 'admin' || currentUser?.role === 'superuser')
+                        ? `<div class="dok-menu-item danger" onclick="vwStorno(${v.id})">⊘ Stornieren</div>` : ''}
+                    ${v.storniert ? `<div class="dok-menu-item" style="cursor:default;color:#94a3b8">${esc(v.stornoGrund || 'storniert')}</div>` : ''}
+                </div>
+            </div>`;
+        return `<div style="border:1px solid #e5e0d6;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#faf8f5;${stil}">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <span style="font-weight:700;font-size:13px">${datum}</span>
+                <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:${st.bg};color:${st.fg}">${st.label}</span>
+                ${stornoBadge}
+                <span style="flex:1"></span>
+                ${v.dokumentId ? `<button class="dok-menu-btn" title="Verwarnungsschreiben ansehen (${esc(v.dokumentName || '')})" style="min-width:auto;padding:4px 10px" onclick="vwViewDoc(${v.dokumentId})">👁 Doku</button>` : ''}
+                ${menu}
+            </div>
+            ${gruende.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${gruende.map(g =>
+                `<span style="font-size:11.5px;padding:2px 9px;border-radius:10px;background:#ece9e2;color:#6b6152">${esc(g)}</span>`).join('')}</div>` : ''}
+            ${v.beschreibung ? `<div style="margin-top:8px;font-size:12.5px;color:#3f3f3f;white-space:pre-wrap">${esc(v.beschreibung)}</div>` : ''}
+            <div style="margin-top:8px;font-size:11px;color:#8b8b8b">Erfasst von ${esc(v.erstelltVon || '–')}${v.erstelltAm ? ' am ' + new Date(v.erstelltAm).toLocaleDateString('de-CH') : ''}</div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+        <div class="emp-section-title">Verwarnungen</div>
+        ${banner}
+        ${rows}`;
+}
+
+function vwToggleMenu(ev, id) {
+    ev.stopPropagation();
+    document.querySelectorAll('[id^="vwMenu"]').forEach(m => { if (m.id !== 'vwMenu' + id) m.style.display = 'none'; });
+    const m = document.getElementById('vwMenu' + id);
+    if (m) m.style.display = m.style.display === 'none' ? 'block' : 'none';
+    document.addEventListener('click', () => document.querySelectorAll('[id^="vwMenu"]').forEach(x => x.style.display = 'none'), { once: true });
+}
+
+async function vwViewDoc(dokId) {
+    if (typeof previewUrlFetch === 'function') {
+        await previewUrlFetch(`/api/documents/preview/${dokId}`, 'Verwarnung.pdf', ah());
+    }
+}
+
+async function _vwLoadGruende() {
+    if (_vwGruende) return _vwGruende;
+    try {
+        const r = await fetch('/api/verwarnungen/gruende', { headers: ah() });
+        if (r.ok) _vwGruende = await r.json();
+    } catch {}
+    return _vwGruende || [];
+}
+
+async function openVerwarnungModal(id) {
+    if (!selectedEmployeeId) return;
+    _vwEditId = id;
+    const edit = id ? _vwList.find(v => v.id === id) : null;
+    const gruende = await _vwLoadGruende();
+    const gewaehlt = new Set(edit ? (edit.gruende || '').split('\n').filter(Boolean) : []);
+
+    let ov = document.getElementById('vwModal');
+    if (ov) ov.remove();
+    ov = document.createElement('div');
+    ov.id = 'vwModal';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(60,55,48,0.4);display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.onclick = e => { if (e.target === ov) ov.remove(); };
+
+    const pill = 'display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:12.5px;color:#3f3f3f';
+    const heute = new Date();
+    const heuteIso = `${heute.getFullYear()}-${String(heute.getMonth()+1).padStart(2,'0')}-${String(heute.getDate()).padStart(2,'0')}`;
+
+    ov.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px 22px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
+            <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:2px">${edit ? 'Verwarnung bearbeiten' : 'Verwarnung erfassen'}</div>
+            <div style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px">${selectedEmployee ? esc(selectedEmployee.firstName + ' ' + selectedEmployee.lastName) : ''}</div>
+
+            <div style="display:flex;gap:12px;margin-bottom:14px">
+                <div style="flex:1">
+                    <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:5px">Datum</div>
+                    <input type="date" id="vwDatum" value="${edit?.datum ? String(edit.datum).slice(0,10) : heuteIso}"
+                           style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:8px 12px;font-size:13px;color:#3f3f3f">
+                </div>
+                <div style="flex:1.4">
+                    <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:5px">Stufe</div>
+                    <select id="vwStufe" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:8px 12px;font-size:13px;color:#3f3f3f">
+                        <option value="VERWARNUNG_1" ${(!edit || edit.stufe==='VERWARNUNG_1')?'selected':''}>1. Verwarnung</option>
+                        <option value="VERWARNUNG_2" ${edit?.stufe==='VERWARNUNG_2'?'selected':''}>2. Verwarnung</option>
+                        <option value="LETZTE" ${edit?.stufe==='LETZTE'?'selected':''}>Letzte Verwarnung (Kündigungsandrohung)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:6px">Gründe (wie Papier-Formular, Mehrfachauswahl)</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px">
+                ${gruende.map((g, i) => `<label style="${pill}"><input type="checkbox" class="vwGrund" value="${esc(g)}" ${gewaehlt.has(g)?'checked':''}> ${esc(g)}</label>`).join('')}
+            </div>
+
+            <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:5px">Beschreibung / Bemerkung</div>
+            <textarea id="vwBeschreibung" rows="3" placeholder="Was ist vorgefallen? Was wird erwartet?"
+                      style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:8px 12px;font-size:13px;color:#3f3f3f;resize:vertical;margin-bottom:14px">${edit?.beschreibung ? esc(edit.beschreibung) : ''}</textarea>
+
+            <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:6px">Unterschriebenes Verwarnungsschreiben (Pflicht)</div>
+            <div style="background:rgba(255,255,255,0.45);border:1px solid rgba(139,139,139,0.25);border-radius:12px;padding:12px;margin-bottom:14px">
+                ${edit?.dokumentId ? `<div style="font-size:12.5px;color:#15803d;font-weight:600;margin-bottom:8px">✓ Verknüpft: ${esc(edit.dokumentName || 'Dokument #' + edit.dokumentId)} <span style="color:#8b8b8b;font-weight:400">— neues Hochladen/Wählen ersetzt es</span></div>` : ''}
+                <label style="${pill};margin-bottom:8px"><input type="radio" name="vwDocMode" value="upload" checked> 📤 Datei hochladen (Scan)</label>
+                <input type="file" id="vwFile" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff" style="font-size:12px;margin:0 0 10px 24px;display:block">
+                <label style="${pill};margin-bottom:8px"><input type="radio" name="vwDocMode" value="existing"> 📁 Bestehendes Dokument wählen</label>
+                <select id="vwExistingDoc" style="display:none;width:calc(100% - 24px);margin-left:24px;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:8px 12px;font-size:12.5px;color:#3f3f3f">
+                    <option value="">– lädt… –</option>
+                </select>
+            </div>
+
+            <div id="vwAlert"></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+                <button onclick="document.getElementById('vwModal').remove()"
+                        style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+                <button id="vwSaveBtn" onclick="vwSave()"
+                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
+            </div>
+        </div>`;
+    document.body.appendChild(ov);
+
+    // Radio-Umschaltung Upload vs. bestehendes Dokument
+    ov.querySelectorAll('input[name="vwDocMode"]').forEach(r => r.addEventListener('change', async () => {
+        const mode = ov.querySelector('input[name="vwDocMode"]:checked')?.value;
+        document.getElementById('vwFile').style.display = mode === 'upload' ? 'block' : 'none';
+        const sel = document.getElementById('vwExistingDoc');
+        sel.style.display = mode === 'existing' ? 'block' : 'none';
+        if (mode === 'existing' && sel.options.length <= 1) await _vwFillExistingDocs(sel);
+    }));
+}
+
+async function _vwFillExistingDocs(sel) {
+    try {
+        const r = await fetch(`/api/documents/by-employee/${selectedEmployeeId}?all=true`, { headers: ah() });
+        if (!r.ok) return;
+        const docs = await r.json();
+        sel.innerHTML = '<option value="">– Dokument wählen –</option>' +
+            (Array.isArray(docs) ? docs : []).map(d =>
+                `<option value="${d.id}">${esc(d.filenameOriginal || ('Dokument #' + d.id))}${d.geaendertAm || d.hochgeladenAm ? ' (' + new Date(d.geaendertAm || d.hochgeladenAm).toLocaleDateString('de-CH') + ')' : ''}</option>`).join('');
+    } catch {}
+}
+
+async function vwSave() {
+    const alertEl = document.getElementById('vwAlert');
+    const btn = document.getElementById('vwSaveBtn');
+    const showErr = msg => alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">${msg}</div>`;
+
+    const gruende = [...document.querySelectorAll('.vwGrund:checked')].map(c => c.value);
+    const beschreibung = document.getElementById('vwBeschreibung').value.trim();
+    if (gruende.length === 0 && !beschreibung) { showErr('Mindestens einen Grund ankreuzen oder eine Beschreibung erfassen.'); return; }
+
+    const edit = _vwEditId ? _vwList.find(v => v.id === _vwEditId) : null;
+    const mode = document.querySelector('input[name="vwDocMode"]:checked')?.value;
+    const file = document.getElementById('vwFile')?.files?.[0];
+    const existingId = parseInt(document.getElementById('vwExistingDoc')?.value) || null;
+
+    let dokumentId = edit?.dokumentId || null;
+    btn.disabled = true; btn.textContent = '⏳ speichere…';
+    try {
+        // 1) Dokument beschaffen (Pflicht bei Neuerfassung)
+        if (mode === 'upload' && file) {
+            const branch = (typeof allBranches !== 'undefined' ? allBranches : [])?.find(b => b.id === fixedCompanyProfileId);
+            const branchCode = branch?.restaurantCode || '';
+            if (!branchCode) { showErr('Filiale nicht gewählt — bitte zuerst links eine Filiale wählen.'); return; }
+            const typR = await fetch('/api/verwarnungen/dokument-typ', { headers: ah() });
+            if (!typR.ok) { showErr('Dokument-Typ «Verwarnung» konnte nicht ermittelt werden.'); return; }
+            const typ = await typR.json();
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('employeeId', selectedEmployeeId);
+            fd.append('dokumentTypId', typ.id);
+            fd.append('branchCode', branchCode);
+            fd.append('bemerkung', 'Verwarnungsschreiben');
+            // WICHTIG: nur Authorization — ah() setzt Content-Type json und wuerde multipart brechen.
+            const up = await fetch('/api/documents/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd });
+            if (up.status === 409) {
+                const dup = await up.json().catch(() => ({}));
+                dokumentId = dup.duplicateId || dokumentId;   // gleiche Datei schon da → verknüpfen
+            } else if (!up.ok) {
+                showErr('Upload fehlgeschlagen: ' + (await up.text()).slice(0, 200)); return;
+            } else {
+                const doc = await up.json();
+                dokumentId = doc.id || doc.Id || dokumentId;
+            }
+        } else if (mode === 'existing' && existingId) {
+            dokumentId = existingId;
+        }
+        if (!dokumentId) { showErr('Bitte das unterschriebene Verwarnungsschreiben hochladen oder ein Dokument wählen.'); return; }
+
+        // 2) Verwarnung speichern
+        const body = JSON.stringify({
+            datum: document.getElementById('vwDatum').value || null,
+            stufe: document.getElementById('vwStufe').value,
+            gruende, beschreibung, dokumentId
+        });
+        const url = _vwEditId ? `/api/verwarnungen/${_vwEditId}` : `/api/verwarnungen/${selectedEmployeeId}`;
+        const r = await fetch(url, {
+            method: _vwEditId ? 'PUT' : 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body
+        });
+        if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            showErr(err.message || err.error || ('HTTP ' + r.status)); return;
+        }
+        document.getElementById('vwModal')?.remove();
+        loadVerwarnungenTab(selectedEmployeeId);
+    } catch (e) {
+        showErr('Netzwerkfehler: ' + e.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Speichern';
+    }
+}
+
+async function vwStorno(id) {
+    const grund = prompt('Storno-Grund (Pflicht) — die Verwarnung bleibt im Verlauf sichtbar, gilt aber nicht mehr:');
+    if (!grund || !grund.trim()) return;
+    try {
+        const r = await fetch(`/api/verwarnungen/${id}/storno`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grund: grund.trim() })
+        });
+        if (!r.ok) { alert('Storno fehlgeschlagen (' + r.status + ')'); return; }
+        loadVerwarnungenTab(selectedEmployeeId);
+    } catch (e) { alert('Netzwerkfehler: ' + e.message); }
 }

@@ -200,6 +200,8 @@ window.i18n = (function () {
         'ma.tab.personal':           { de: 'Persönliche<br>Angaben',       en: 'Personal<br>data' },
         'ma.tab.family':             { de: 'Familie<br>Schwanger',         en: 'Family<br>Maternity' },
         'ma.tab.bank':               { de: 'Bank',                         en: 'Bank' },
+        'ma.tab.maAdmin':            { de: 'Mitarbeiter<br>Admin',         en: 'Employee<br>Admin' },
+        'ma.tab.verwarnungen':       { de: 'Verwarnungen',                 en: 'Warnings' },
         'ma.tab.qst':                { de: 'Quellensteuer',                en: 'Withholding tax' },
         'ma.tab.timeRecords':        { de: 'Stempelzeiten',                en: 'Time records' },
         'ma.tab.absences':           { de: 'Absenzen Zulagen Abzüge',      en: 'Absences, allowances, deductions' },

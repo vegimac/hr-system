@@ -84,6 +84,7 @@ public class AppDbContext : DbContext
     public DbSet<EcallSetting>              EcallSettings               => Set<EcallSetting>();
     public DbSet<DvelopSetting>             DvelopSettings              => Set<DvelopSetting>();
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
+    public DbSet<EmployeeVerwarnung>        EmployeeVerwarnungen        => Set<EmployeeVerwarnung>();
     public DbSet<EasyAtWorkBranchMapping>   EasyAtWorkBranchMappings    => Set<EasyAtWorkBranchMapping>();
     public DbSet<EasyAtWorkSyncState>       EasyAtWorkSyncStates        => Set<EasyAtWorkSyncState>();
     public DbSet<EasyAtWorkEmployeeAlias>   EasyAtWorkEmployeeAliases   => Set<EasyAtWorkEmployeeAlias>();
@@ -1781,6 +1782,28 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.PermitType).WithMany().HasForeignKey(e => e.PermitTypeId);
+        });
+
+        // ── EmployeeVerwarnung (Walter-Vorgabe 14.07.2026) ────────────────
+        modelBuilder.Entity<EmployeeVerwarnung>(entity =>
+        {
+            entity.ToTable("employee_verwarnung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Datum).HasColumnName("datum").HasColumnType("date");
+            entity.Property(e => e.Stufe).HasColumnName("stufe");
+            entity.Property(e => e.Gruende).HasColumnName("gruende");
+            entity.Property(e => e.Beschreibung).HasColumnName("beschreibung");
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            entity.Property(e => e.Storniert).HasColumnName("storniert");
+            entity.Property(e => e.StornoGrund).HasColumnName("storno_grund");
+            entity.Property(e => e.ErstelltVon).HasColumnName("erstellt_von");
+            entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am").HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasOne(e => e.Dokument).WithMany().HasForeignKey(e => e.DokumentId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── SmtpSetting (Singleton, Id=1) ──────────────────────────────────
