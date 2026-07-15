@@ -19,11 +19,20 @@ function kuRenderEmpList() {
     const search = (document.getElementById('kuEmpSearch')?.value || '').toLowerCase().trim();
     const cid = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
 
+    // Filial-Zuordnung (Walter 15.07.2026, gleiche Regel wie ToDo/Kontrolle):
+    // AKTIVE Vertraege bestimmen die Filiale; ohne aktiven Vertrag zaehlt der
+    // juengste (offenes Ende = juengster). Alte Fremd-Filial-Vertraege und
+    // MA ohne Vertrag erscheinen NICHT mehr. Number() gegen Typ-Mismatch.
+    const cidN = cid != null && cid !== '' ? Number(cid) : null;
     const inBranch = (e) => {
-        if (!cid) return true;
+        if (!cidN) return true;
         const emps = e.employments || [];
-        if (emps.length === 0) return true;
-        return emps.some(v => v.companyProfileId === cid || v.companyProfileId == null);
+        if (emps.length === 0) return false;
+        const aktive = emps.filter(v => v.isActive);
+        if (aktive.length > 0) return aktive.some(v => Number(v.companyProfileId) === cidN);
+        const juengster = emps.slice().sort((a, b) =>
+            String(b.contractEndDate || '9999-12-31').localeCompare(String(a.contractEndDate || '9999-12-31')))[0];
+        return Number(juengster?.companyProfileId) === cidN;
     };
 
     let list = _kuAllEmployees.filter(inBranch);

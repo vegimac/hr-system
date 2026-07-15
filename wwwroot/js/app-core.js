@@ -1019,6 +1019,9 @@ function onBranchChange() {
     } else if (currentPageName === 'lohnlauf') {
         // Lohnlauf folgt der globalen Filial-Auswahl — kein eigener Picker mehr.
         llSyncFromGlobalBranch();
+    } else if (currentPageName === 'kuendigung') {
+        // MA-Picker folgt dem globalen Filial-Selektor (Walter 15.07.2026).
+        if (typeof kuRenderEmpList === 'function') kuRenderEmpList();
     } else if (currentPageName === 'dvelop-import') {
         // Auswahl-Liste der MA neu filtern (auf neue Filiale)
         dvelopLoadEmployees();
