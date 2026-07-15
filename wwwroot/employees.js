@@ -213,10 +213,11 @@ const EMP_SPECIAL_FILTERS = {
 // Walter-Vorgabe 11.06.2026: Mutterschafts-Tab entfernt — wandert komplett in
 // den Familie-Tab. Aktive Schwangerschaft wird zusätzlich als roter Badge
 // neben dem MA-Namen im Header angezeigt.
-// 'verwarnungen' neu (Walter 14.07.2026). Der Versuch, Bank+QST zu einem
-// «Mitarbeiter Admin»-Tab zu verschmelzen, wurde auf Walters Wunsch
-// zurueckgebaut (15.07.2026) — alte Struktur.
-const _empTabsOrder = ['personal', 'familie', 'bank', 'quellensteuer', 'verwarnungen',
+// Tab-Struktur (Walter-Vorgabe 15.07.2026, final): «Bewilligung QST Bank»
+// (Key 'quellensteuer') enthaelt Bewilligung + QST + Bankverwaltung;
+// «Restaurant Admin» (Key 'verwarnungen') enthaelt die Verwarnungen —
+// weitere Restaurant-Admin-Funktionen kommen kuenftig dort hinein.
+const _empTabsOrder = ['personal', 'familie', 'quellensteuer', 'verwarnungen',
                        'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'ktg', 'dokumente'];
 
 // Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
@@ -876,9 +877,8 @@ function renderEmployeeDetail(emp) {
         <div class="emp-detail-tabs">
             <div class="emp-tab active" data-tab="personal"   onclick="switchEmpTab('personal')" style="line-height:1.2;text-align:center">${_t('ma.tab.personal','Persönliche<br>Angaben')}</div>
             <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')" style="line-height:1.2;text-align:center">${_t('ma.tab.family','Familie<br>Schwanger')}</div>
-            <div class="emp-tab"        data-tab="bank"       onclick="switchEmpTab('bank')">${_t('ma.tab.bank','Bank')}</div>
-            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung<br>QST')}</div>
-            <div class="emp-tab"        data-tab="verwarnungen" onclick="switchEmpTab('verwarnungen')">${_t('ma.tab.verwarnungen','Verwarnungen')}</div>
+            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung QST<br>Bank')}</div>
+            <div class="emp-tab"        data-tab="verwarnungen" onclick="switchEmpTab('verwarnungen')" style="line-height:1.2;text-align:center">${_t('ma.tab.restAdmin','Restaurant<br>Admin')}</div>
             <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
             <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')">${_t('ma.tab.absencesOnly','Absenzen')}</div>
             <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availability','Verfügbarkeit')}</div>
@@ -1023,9 +1023,18 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
 
-        <!-- TAB: Bank & Postfach (Walter-Vorgabe 14.05.2026 — aus dem
-             Personal-Tab ausgelagert, damit die Seite nicht so lang ist) -->
-        <div class="emp-tab-content" id="emp-tab-bank">
+        <!-- TAB: Bewilligung QST Bank (Walter-Vorgabe 15.07.2026, final) —
+             Bewilligung + QST (quellensteuerContent) und darunter die
+             Bankverwaltung (ehem. eigener Bank-Tab). Tab-Key bleibt
+             'quellensteuer'. -->
+        <div class="emp-tab-content" id="emp-tab-quellensteuer">
+            <div id="quellensteuerContent">
+                <div class="emp-placeholder">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                    <span>${_t('ma.loading','Wird geladen...')}</span>
+                </div>
+            </div>
+            <div style="margin-top:28px">
             ${!emp.isPayrollExcluded ? `
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 <span style="display:inline-flex;align-items:center;gap:8px">
@@ -1061,19 +1070,11 @@ function renderEmployeeDetail(emp) {
                 <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.bankDesc','Phantom-MA für easy@work-Zugang. Bankverbindung wird nicht angezeigt — dieser MA hat keinen Vertrag und keine Lohnzahlung.')}
             </div>
             `}
-        </div>
-
-        <!-- TAB: Quellensteuer -->
-        <div class="emp-tab-content" id="emp-tab-quellensteuer">
-            <div id="quellensteuerContent">
-                <div class="emp-placeholder">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                    <span>${_t('ma.loading','Wird geladen...')}</span>
-                </div>
             </div>
         </div>
 
-        <!-- TAB: Verwarnungen (Walter-Vorgabe 14.07.2026) -->
+        <!-- TAB: Restaurant Admin (Walter-Vorgabe 15.07.2026) — enthaelt die
+             Verwarnungs-Verwaltung; weitere Admin-Funktionen kommen hier dazu. -->
         <div class="emp-tab-content" id="emp-tab-verwarnungen">
             <div id="verwarnungenContent">
                 <div class="emp-placeholder"><span>${_t('ma.loading','Wird geladen...')}</span></div>
@@ -1304,6 +1305,8 @@ async function easyworkSyncSelectedEmployee(empId) {
 
 // ── Tab wechseln ───────────────────────────────
 function switchEmpTab(tab) {
+    // Bank ist seit 15.07.2026 Teil von «Bewilligung QST Bank».
+    if (tab === 'bank') tab = 'quellensteuer';
     activeEmpTab = tab;
     document.querySelectorAll('.emp-tab').forEach(t =>
         t.classList.toggle('active', t.dataset.tab === tab));
@@ -1324,10 +1327,9 @@ function switchEmpTab(tab) {
         const plusIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
         if (tab === 'familie' && !isExcluded) {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openFamilyModal(null)">${plusIcon} ${_t('famTab.add','Familienmitglied')}</button>`;
-        } else if (tab === 'bank' && !isExcluded) {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openBankAccountModal(null)">${plusIcon} ${_t('ma.btn.newBank','Neue Bankverbindung')}</button>`;
         } else if (tab === 'quellensteuer') {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openQstFromTab(null)">${plusIcon} Neuer Eintrag</button>`;
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openQstFromTab(null)">${plusIcon} QST-Eintrag</button>`
+                + (!isExcluded ? `<button class="btn-emp-add" onclick="openBankAccountModal(null)" style="margin-left:8px">${plusIcon} ${_t('ma.btn.newBank','Bankverbindung')}</button>` : '');
         } else if (tab === 'verwarnungen' && !isExcluded) {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openVerwarnungModal(null)">${plusIcon} Verwarnung erfassen</button>`;
         } else if (tab === 'absenzen') {
@@ -1357,12 +1359,12 @@ function switchEmpTab(tab) {
             loadPermitHistory(selectedEmployeeId);
         }
     }
-    if (tab === 'bank'           && selectedEmployeeId) {
-        const isExcluded = !!selectedEmployee?.isPayrollExcluded;
-        if (!isExcluded) loadBankAccountsTab(selectedEmployeeId);
-    }
     if (tab === 'familie'        && selectedEmployeeId) loadFamilieTab(selectedEmployeeId);
-    if (tab === 'quellensteuer'  && selectedEmployeeId) loadQuellensteuerTab(selectedEmployeeId);
+    if (tab === 'quellensteuer'  && selectedEmployeeId) {
+        loadQuellensteuerTab(selectedEmployeeId);
+        // Bankverwaltung gehoert zu «Bewilligung QST Bank» (Walter 15.07.2026).
+        if (!selectedEmployee?.isPayrollExcluded) loadBankAccountsTab(selectedEmployeeId);
+    }
     if (tab === 'verwarnungen'   && selectedEmployeeId) loadVerwarnungenTab(selectedEmployeeId);
     if (tab === 'stempelzeiten'  && selectedEmployeeId) loadStempelzeitenTab(selectedEmployeeId);
     if (tab === 'absenzen'       && selectedEmployeeId) loadAbsenzenTab(selectedEmployeeId);
