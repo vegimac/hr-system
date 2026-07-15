@@ -1216,10 +1216,7 @@ function renderEmpContractList(emp) {
     return `<div class="emp-contract-strip" aria-label="Verträge">
         <div class="emp-contract-head">
             <span>Verträge</span>
-            <span style="display:flex;align-items:center;gap:10px">
-                <button type="button" class="emp-contract-btn" title="Arbeitszeugnis erstellen (Qualität + verrichtete Arbeit wählen)" onclick="openZeugnisModal(${emp.id})">📄 Arbeitszeugnis</button>
-                <span>${contracts.length}</span>
-            </span>
+            <span>${contracts.length}</span>
         </div>
         <div class="emp-contract-scroll">${rows}</div>
     </div>
@@ -1331,7 +1328,9 @@ function switchEmpTab(tab) {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openQstFromTab(null)">${plusIcon} QST-Eintrag</button>`
                 + (!isExcluded ? `<button class="btn-emp-add" onclick="openBankAccountModal(null)" style="margin-left:8px">${plusIcon} ${_t('ma.btn.newBank','Bankverbindung')}</button>` : '');
         } else if (tab === 'verwarnungen' && !isExcluded) {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openVerwarnungModal(null)">${plusIcon} Verwarnung erfassen</button>`;
+            // Restaurant Admin: Verwarnungen + Arbeitszeugnis (Walter 15.07.2026).
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openVerwarnungModal(null)">${plusIcon} Verwarnung erfassen</button>`
+                + `<button class="btn-emp-add" style="margin-left:8px" onclick="openZeugnisModal(selectedEmployeeId)">📄 Arbeitszeugnis</button>`;
         } else if (tab === 'absenzen') {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openAbsenceModal(null)">${plusIcon} Absenz erfassen</button>`;
         } else if (tab === 'verfuegbarkeit' && !isExcluded) {
