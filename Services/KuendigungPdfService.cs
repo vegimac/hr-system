@@ -28,7 +28,8 @@ public class KuendigungPdfService
         string  FristText,            // z.B. "2 Monaten auf Ende eines Monats" / "7 Tagen"
         DateOnly LetzterArbeitstag,
         string? Grund,                // optional, sonst null
-        string? UnterzeichnerName);
+        string? UnterzeichnerName,
+        bool    Eingeschrieben = false);   // «EINSCHREIBEN» ueber der MA-Adresse
 
     public byte[] Generate(KuendigungData d, byte[]? signaturePng)
     {
@@ -46,37 +47,42 @@ public class KuendigungPdfService
             doc.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginTop(0.6f, Unit.Centimetre);
-                page.MarginBottom(1.5f, Unit.Centimetre);
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(1.3f, Unit.Centimetre);
                 page.MarginHorizontal(2.2f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(sizeText).FontColor(Dark).LineHeight(1.35f));
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(sizeText).FontColor(Dark).LineHeight(1.4f));
 
-                page.Header().Image(BannerBytes).FitWidth();
+                page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
 
-                page.Content().PaddingTop(16).Column(col =>
+                page.Content().PaddingTop(14).Column(col =>
                 {
-                    // Absender (Filiale) — klein oben links.
+                    // Absender (Filiale) — klein oben links (Walter 15.07.2026:
+                    // Filiale, MA und Datum ALLE linksbuendig).
                     foreach (var ln in firmaLines)
                         col.Item().Text(ln).FontSize(8.5f).FontColor("#475569");
 
+                    // «EINSCHREIBEN» ueber der Empfaenger-Adresse (Walter 15.07.2026).
+                    if (d.Eingeschrieben)
+                        col.Item().PaddingTop(26).Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f);
+
                     // Empfänger-Adressblock.
-                    col.Item().PaddingTop(28).Column(c =>
+                    col.Item().PaddingTop(d.Eingeschrieben ? 4 : 26).Column(c =>
                     {
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
 
-                    // Ort, Datum — rechtsbündig.
-                    col.Item().PaddingTop(22).AlignRight()
+                    // Ort, Datum — linksbuendig (Walter 15.07.2026).
+                    col.Item().PaddingTop(30)
                         .Text($"{d.Ort}, {d.KuendigungsDatum:dd.MM.yyyy}");
 
                     // Betreff.
-                    col.Item().PaddingTop(22).Text("Kündigung des Arbeitsverhältnisses").Bold().FontSize(12f);
+                    col.Item().PaddingTop(30).Text("Kündigung des Arbeitsverhältnisses").Bold().FontSize(12.5f);
 
                     // Anrede.
-                    col.Item().PaddingTop(16).Text($"{d.Briefanrede},");
+                    col.Item().PaddingTop(22).Text($"{d.Briefanrede},");
 
                     // Haupttext.
-                    col.Item().PaddingTop(10).Text(t =>
+                    col.Item().PaddingTop(14).Text(t =>
                     {
                         t.Span("hiermit kündigen wir das mit Ihnen bestehende Arbeitsverhältnis ordentlich unter Einhaltung der vertraglichen bzw. gesetzlichen Kündigungsfrist von ");
                         t.Span(d.FristText).Bold();
@@ -86,16 +92,21 @@ public class KuendigungPdfService
                     });
 
                     if (!string.IsNullOrWhiteSpace(d.Grund))
-                        col.Item().PaddingTop(10).Text($"Grund der Kündigung: {d.Grund}");
+                        col.Item().PaddingTop(14).Text($"Grund der Kündigung: {d.Grund}");
 
-                    col.Item().PaddingTop(10).Text(
+                    col.Item().PaddingTop(14).Text(
                         "Wir bitten Sie, bis zu Ihrem letzten Arbeitstag Ihre Aufgaben ordnungsgemäss zu übergeben und sämtliches Firmeneigentum (Schlüssel, Badge, Uniform etc.) zurückzugeben.");
 
-                    col.Item().PaddingTop(10).Text(
+                    col.Item().PaddingTop(14).Text(
                         "Wir wünschen Ihnen für Ihre berufliche und private Zukunft alles Gute.");
+                });
 
-                    // Grussformel + Firmenname.
-                    col.Item().PaddingTop(20).Text("Freundliche Grüsse");
+                // Gruss + Unterschrift als FOOTER — am Seitenende verankert,
+                // der Brief verteilt sich damit ueber die ganze Seite
+                // (Walter 15.07.2026, gleiches Muster wie die Zeugnisse).
+                page.Footer().Column(col =>
+                {
+                    col.Item().Text("Freundliche Grüsse");
                     if (!string.IsNullOrWhiteSpace(d.FirmaName))
                         col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
 

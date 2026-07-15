@@ -189,7 +189,8 @@ async function kuGenerate() {
         kuendigungsDatum:  document.getElementById('kuDatum')?.value || null,
         letzterArbeitstag: document.getElementById('kuLetzter')?.value || null,
         ort:               (document.getElementById('kuOrt')?.value || '').trim() || null,
-        grund
+        grund,
+        eingeschrieben:    document.getElementById('kuEingeschrieben')?.checked ?? false
     };
     try {
         const r = await fetch(`/api/kuendigung/${id}/pdf`, {

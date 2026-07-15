@@ -37,6 +37,8 @@ public class KuendigungController : ControllerBase
         public DateOnly? LetzterArbeitstag { get; set; }   // optionaler Override
         public string?   Ort { get; set; }
         public string?   Grund { get; set; }               // optional (Freitext / Auswahl)
+        /// <summary>true = Versand per Einschreiben («EINSCHREIBEN» ueber der Adresse).</summary>
+        public bool      Eingeschrieben { get; set; }
     }
 
     [HttpGet("{empId:int}/info")]
@@ -116,7 +118,8 @@ public class KuendigungController : ControllerBase
             FristText:    notice.FristText,
             LetzterArbeitstag: letzter,
             Grund:        string.IsNullOrWhiteSpace(dto.Grund) ? null : dto.Grund!.Trim(),
-            UnterzeichnerName: signerName);
+            UnterzeichnerName: signerName,
+            Eingeschrieben: dto.Eingeschrieben);
 
         var bytes = _pdf.Generate(data, sigPng);
         return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Kuendigung.pdf");
