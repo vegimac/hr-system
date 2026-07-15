@@ -10320,7 +10320,7 @@ function _raTilesHtml() {
     // Sketch-Icon oben, Beschriftung darunter.
     const tile = (img, title, onclick) => `
         <button type="button" class="ra-tile" onclick="${onclick}">
-            <img src="img/${img}?v=20260715d" alt="" loading="lazy">
+            <img src="img/${img}?v=20260715e" alt="" loading="lazy">
             <span>${title}</span>
         </button>`;
     return `<div class="ra-tile-row">
