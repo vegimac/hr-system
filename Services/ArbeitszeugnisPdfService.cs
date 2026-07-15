@@ -345,12 +345,14 @@ public class ArbeitszeugnisPdfService
                         col.Item().PaddingTop(padAbs).Text(dank).Justify();
                     }
                     }   // Ende Zeugnis-Absätze (nicht Bestätigung)
+                });
 
-                    // Rest-Freiraum hier aufgehen lassen (QuestPDF Extend):
-                    // Gruss + Firma + Unterschrift sitzen am Seitenende — die
-                    // Seite wirkt gefuellt, egal wie viele Aufgaben gewaehlt sind.
-                    col.Item().Extend();
-
+                // ── Gruss + Firma + Unterschrift als FOOTER (Walter 15.07.2026):
+                // sauber am Seitenende verankert, der Freiraum geht automatisch
+                // zwischen Text und Gruss auf. (Extend im Content schob den
+                // Gruss-Block faelschlich auf Seite 2 — daher Footer.)
+                page.Footer().Column(col =>
+                {
                     col.Item().PaddingTop(padGruss).Text("Freundliche Grüsse");
 
                     col.Item().PaddingTop(8).Column(c =>
