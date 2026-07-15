@@ -238,10 +238,10 @@ public class ArbeitszeugnisPdfService
 
         // Arbeitsbestaetigung (nur 1 Satz): Inhalt vertikal ausbalancieren,
         // damit der Brief nicht in der oberen Haelfte klebt (Walter 15.07.2026).
-        float padDatum = d.Bestaetigung ? 56f : 20f;
-        float padTitel = d.Bestaetigung ? 72f : 18f;
+        float padDatum = d.Bestaetigung ? 56f : 24f;
+        float padTitel = d.Bestaetigung ? 72f : 22f;
         float padSatz  = d.Bestaetigung ? 60f : 22f;
-        float padGruss = d.Bestaetigung ? 88f : 14f;
+        float padGruss = d.Bestaetigung ? 48f : 18f;
 
         return Document.Create(container =>
         {
@@ -249,9 +249,9 @@ public class ArbeitszeugnisPdfService
             {
                 page.Size(PageSizes.A4);
                 page.MarginTop(1.0f, Unit.Centimetre);
-                page.MarginBottom(0.8f, Unit.Centimetre);
+                page.MarginBottom(1.3f, Unit.Centimetre);
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).LineHeight(1.16f).FontColor(Dark));
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).LineHeight(1.22f).FontColor(Dark));
 
                 // Briefkopf: gelbes Banner wie überall (Walter-Vorgabe).
                 page.Header().Image(BannerBytes).FitWidth();
@@ -300,7 +300,7 @@ public class ArbeitszeugnisPdfService
                     }
                     else
                     {
-                    col.Item().PaddingTop(16).Text(t =>
+                    col.Item().PaddingTop(18).Text(t =>
                     {
                         t.Justify();
                         t.Span($"{anrede} ");
@@ -308,32 +308,37 @@ public class ArbeitszeugnisPdfService
                         t.Span(introRest);
                     });
 
-                    col.Item().PaddingTop(10).Text(aufgabenIntro);
+                    col.Item().PaddingTop(12).Text(aufgabenIntro);
 
-                    col.Item().PaddingTop(6).PaddingLeft(14).Column(c =>
+                    col.Item().PaddingTop(8).PaddingLeft(14).Column(c =>
                     {
                         foreach (var a in aufgaben)
-                            c.Item().PaddingBottom(1).Row(r =>
+                            c.Item().PaddingBottom(2).Row(r =>
                             {
                                 r.ConstantItem(14).Text("•");
                                 r.RelativeItem().Text(a);
                             });
                     });
 
-                    col.Item().PaddingTop(10).Text(schulung).Justify();
+                    col.Item().PaddingTop(12).Text(schulung).Justify();
                     if (zw)
                     {
-                        col.Item().PaddingTop(10).Text(zwArbeitsmittel).Justify();
-                        col.Item().PaddingTop(10).Text(zwBeurteilung).Justify();
-                        col.Item().PaddingTop(10).Text(zwAbschluss).Justify();
+                        col.Item().PaddingTop(12).Text(zwArbeitsmittel).Justify();
+                        col.Item().PaddingTop(12).Text(zwBeurteilung).Justify();
+                        col.Item().PaddingTop(12).Text(zwAbschluss).Justify();
                     }
                     else
                     {
-                        col.Item().PaddingTop(10).Text(beurteilung).Justify();
-                        col.Item().PaddingTop(10).Text(austritt).Justify();
-                        col.Item().PaddingTop(10).Text(dank).Justify();
+                        col.Item().PaddingTop(12).Text(beurteilung).Justify();
+                        col.Item().PaddingTop(12).Text(austritt).Justify();
+                        col.Item().PaddingTop(12).Text(dank).Justify();
                     }
                     }   // Ende Zeugnis-Absätze (nicht Bestätigung)
+
+                    // Rest-Freiraum hier aufgehen lassen (QuestPDF Extend):
+                    // Gruss + Firma + Unterschrift sitzen am Seitenende — die
+                    // Seite wirkt gefuellt, egal wie viele Aufgaben gewaehlt sind.
+                    col.Item().Extend();
 
                     col.Item().PaddingTop(padGruss).Text("Freundliche Grüsse");
 
