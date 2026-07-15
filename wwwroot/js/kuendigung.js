@@ -160,8 +160,10 @@ function kuAbbrechen() {
     if (sel) sel.value = '';
     const det = document.getElementById('kuDetails');
     if (det) det.style.display = 'none';
-    const grund = document.getElementById('kuGrund');
+    const grund = document.getElementById('kuGrundText');
     if (grund) grund.value = '';
+    const suche = document.getElementById('kuEmpSearch');
+    if (suche) suche.value = '';
     _kuInfo = null;
     if (typeof showPage === 'function') showPage('hr-hub');
 }
