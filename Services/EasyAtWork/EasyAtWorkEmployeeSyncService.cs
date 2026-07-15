@@ -651,6 +651,25 @@ public class EasyAtWorkEmployeeSyncService
             _log.LogWarning(ex, "Einzel-MA Vertrags-Sync für Employee {Id} fehlgeschlagen.", emp.Id);
         }
 
+        // ── Austritt NACH dem Vertrags-Sync bewerten (Walter-Bug 15.07.2026) ──
+        // Zwei Luecken der 05.07.-Logik: (a) ein ZUKUENFTIGER Austritt
+        // («Eingestellt bis» gesetzt, Datum noch nicht erreicht) wurde nie als
+        // Austrittsdatum uebernommen; (b) die Pruefung lief VOR dem Vertrags-
+        // Sync — der noch offene Vertrag blockierte die Uebernahme, obwohl der
+        // Sync ihn gleich danach beendete. Jetzt: nach dem Vertrags-Sync.
+        try
+        {
+            if (await ApplyExitAfterContractSyncAsync(emp, eaw.To, ct))
+            {
+                await _db.SaveChangesAsync(ct);
+                if (!result.UpdatedFields.Contains("Austrittsdatum")) result.UpdatedFields.Add("Austrittsdatum");
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Notes.Add($"Austritts-Bewertung übersprungen: {ex.Message}");
+        }
+
         // ── Verfügbarkeit aus easy@work mitziehen (Walter-Vorgabe 09.07.2026) ──
         // Best-effort: ein Fehler hier bricht den restlichen Sync nicht ab.
         try
@@ -2049,6 +2068,14 @@ public class EasyAtWorkEmployeeSyncService
                     await EnsureBankAccountAsync(bemp, iban, ct);
                 await _db.SaveChangesAsync(ct);
 
+                // Austritt je MA NACH der Vertrags-Timeline bewerten (Walter-Bug
+                // 15.07.2026): uebernimmt auch ZUKUENFTIGE «Eingestellt bis»-Daten
+                // als Austrittsdatum, sofern kein Vertrag darueber hinaus laeuft.
+                bool exitChanged = false;
+                foreach (var (temp2, _, _, _, _, tEawTo2) in timelineWork)
+                    if (await ApplyExitAfterContractSyncAsync(temp2, tEawTo2, ct)) exitChanged = true;
+                if (exitChanged) await _db.SaveChangesAsync(ct);
+
                 // Probezeit nur bei EINEM einzigen Vertrag (Walter 29.06.2026):
                 // Hat der MA GENAU einen Vertrag (keine Historie) und noch keine
                 // Probezeit, wird sie auf diesem Vertrag gesetzt = Beginn +
@@ -3029,6 +3056,28 @@ public class EasyAtWorkEmployeeSyncService
             MonthlySalary        = future.MonthlySalary,
             MonthlySalaryFte     = future.MonthlySalaryFte,
         });
+    }
+
+    /// <summary>Austritt nach dem Vertrags-Sync bewerten (Walter-Bug 15.07.2026):
+    /// Ist in easy@work «Eingestellt bis» (eaw.To) gesetzt und läuft KEIN Vertrag
+    /// über dieses Datum hinaus (kein offenes Ende, kein späteres Ende — sonst
+    /// Filialwechsel/Zweitfiliale), wird eaw.To als Austrittsdatum übernommen —
+    /// auch wenn es in der ZUKUNFT liegt (geplanter Austritt sichtbar).
+    /// IsActive bleibt true bis zum Austrittstag. Liefert true bei Änderung
+    /// (Aufrufer speichert).</summary>
+    private async Task<bool> ApplyExitAfterContractSyncAsync(Employee emp, DateOnly? eawTo, CancellationToken ct)
+    {
+        if (!eawTo.HasValue) return false;
+        var toDt = eawTo.Value.ToDateTime(TimeOnly.MinValue);
+        bool laeuftWeiter = await _db.Employments.AnyAsync(em => em.EmployeeId == emp.Id
+            && (em.ContractEndDate == null || em.ContractEndDate > toDt), ct);
+        if (laeuftWeiter) return false;
+
+        bool changed = false;
+        if (emp.ExitDate?.Date != toDt.Date) { emp.ExitDate = toDt; changed = true; }
+        bool aktivSoll = eawTo.Value >= DateOnly.FromDateTime(DateTime.Today);
+        if (emp.IsActive != aktivSoll) { emp.IsActive = aktivSoll; changed = true; }
+        return changed;
     }
 
     /// <summary>
