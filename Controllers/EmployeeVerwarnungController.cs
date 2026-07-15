@@ -207,21 +207,30 @@ public class EmployeeVerwarnungController : ControllerBase
             _              => "1. Verwarnung"
         };
 
-        var input = new HrSystem.Services.VerwarnungFormularInput(
-            CompanyName:      cp?.CompanyName ?? "Schaub Restaurants GmbH",
-            RestaurantName:   cp?.BranchName ?? cp?.FullDisplayName ?? "",
-            MaName:           ($"{e.FirstName} {e.LastName}").Trim(),
-            EmployeeNumber:   e.EmployeeNumber,
-            Datum:            dto.Datum.HasValue ? dto.Datum.Value.ToDateTime(TimeOnly.MinValue) : DateTime.Today,
-            StufeLabel:       stufeLabel,
-            StufeKritisch:    stufe == "LETZTE",
-            AlleGruende:      StandardGruende,
-            GewaehlteGruende: dto.Gruende,
-            Beschreibung:     dto.Beschreibung
-        );
-        var bytes = _pdf.Generate(input);
-        return File(bytes, "application/pdf",
-            $"Verwarnung_{e.LastName}_{e.FirstName}_{input.Datum:yyyyMMdd}.pdf".Replace(" ", "_"));
+        try
+        {
+            var input = new HrSystem.Services.VerwarnungFormularInput(
+                CompanyName:      cp?.CompanyName ?? "Schaub Restaurants GmbH",
+                RestaurantName:   cp?.BranchName ?? cp?.FullDisplayName ?? "",
+                MaName:           ($"{e.FirstName} {e.LastName}").Trim(),
+                EmployeeNumber:   e.EmployeeNumber,
+                Datum:            dto.Datum.HasValue ? dto.Datum.Value.ToDateTime(TimeOnly.MinValue) : DateTime.Today,
+                StufeLabel:       stufeLabel,
+                StufeKritisch:    stufe == "LETZTE",
+                AlleGruende:      StandardGruende,
+                GewaehlteGruende: dto.Gruende,
+                Beschreibung:     dto.Beschreibung
+            );
+            var bytes = _pdf.Generate(input);
+            return File(bytes, "application/pdf",
+                $"Verwarnung_{e.LastName}_{e.FirstName}_{input.Datum:yyyyMMdd}.pdf".Replace(" ", "_"));
+        }
+        catch (Exception ex)
+        {
+            // Klartext statt stummem 500 (Lehre QST-Vorschlag 13.07.2026).
+            return StatusCode(500, new { error = "FORMULAR_FEHLGESCHLAGEN",
+                message = ex.GetBaseException().Message });
+        }
     }
 
     /// <summary>Echtes Löschen (Walter-Entscheid 15.07.2026) — admin/superuser.

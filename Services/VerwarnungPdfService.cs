@@ -87,10 +87,13 @@ public class VerwarnungPdfService
                             {
                                 r.ConstantItem(20).AlignMiddle().Element(e =>
                                 {
-                                    var box = e.Width(12).Height(12).Border(1.1f).BorderColor(Dark);
+                                    // Kaestchen 13pt, X mit LineHeight 1 und 8pt — sonst
+                                    // passt der Text nicht in die fixe Box und QuestPDF
+                                    // wirft eine DocumentLayoutException (HTTP 500).
+                                    var box = e.Width(13).Height(13).Border(1.1f).BorderColor(Dark);
                                     if (isChecked)
                                         box.AlignCenter().AlignMiddle().Text("X")
-                                           .FontSize(9.5f).Bold();
+                                           .FontSize(8f).Bold().LineHeight(1f);
                                 });
                                 var label = r.RelativeItem().AlignMiddle().Text(g).FontSize(11f);
                                 if (isChecked) label.Bold();
