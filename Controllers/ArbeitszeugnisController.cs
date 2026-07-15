@@ -45,6 +45,9 @@ public class ArbeitszeugnisController : ControllerBase
         public List<string>? Aufgaben { get; set; }
         /// <summary>true = ZWISCHENzeugnis (Vorlage «289 Hendschiken»).</summary>
         public bool Zwischen { get; set; }
+        /// <summary>true = ARBEITSBESTÄTIGUNG (Vorlage «244 Sursee») — nur der
+        /// Bestätigungssatz, keine Qualität/Bereiche/Aufgaben nötig.</summary>
+        public bool Bestaetigung { get; set; }
     }
 
     [HttpPost("{empId:int}/pdf")]
@@ -61,7 +64,7 @@ public class ArbeitszeugnisController : ControllerBase
             .Select(b => b.Trim().ToLowerInvariant())
             .Where(b => b is "kueche" or "kasse" or "drive")
             .Distinct().ToList();
-        if (bereiche.Count == 0)
+        if (bereiche.Count == 0 && !dto.Bestaetigung)
             return BadRequest(new { error = "BEREICH_FEHLT", message = "Mindestens einen Bereich wählen (Küche, Kasse, Drive)." });
 
         // Verträge: jüngster für Filiale + Pensum, ältester Start + jüngstes Ende
@@ -154,11 +157,12 @@ public class ArbeitszeugnisController : ControllerBase
             AufEigenenWunsch: dto.AufEigenenWunsch,
             Funktion:       string.IsNullOrWhiteSpace(dto.Funktion) ? null : dto.Funktion.Trim(),
             Aufgaben:       dto.Aufgaben,
-            Zwischen:       dto.Zwischen
+            Zwischen:       dto.Zwischen,
+            Bestaetigung:   dto.Bestaetigung
         );
 
         var bytes = _pdf.Generate(input);
-        var art = dto.Zwischen ? "Zwischenzeugnis" : "Arbeitszeugnis";
+        var art = dto.Bestaetigung ? "Arbeitsbestaetigung" : dto.Zwischen ? "Zwischenzeugnis" : "Arbeitszeugnis";
         return File(bytes, "application/pdf",
             $"{art}_{e.LastName}_{e.FirstName}.pdf".Replace(" ", "_"));
     }

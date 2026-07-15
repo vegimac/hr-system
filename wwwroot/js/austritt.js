@@ -317,10 +317,12 @@ function _azEmpObj(employeeId) {
 }
 
 let _azZwischen = false;
+let _azBest = false;   // Arbeitsbestätigung (Vorlage «244 Sursee»)
 
-function openZeugnisModal(employeeId, zwischen = false) {
+function openZeugnisModal(employeeId, zwischen = false, best = false) {
     _azEmployeeId = employeeId;
     _azZwischen = !!zwischen;
+    _azBest = !!best;
     const emp = _azEmpObj(employeeId);
     const female = String(emp?.gender || '').toLowerCase().startsWith('f')
         || String(emp?.gender || '').toLowerCase() === 'w'
@@ -343,11 +345,11 @@ function openZeugnisModal(employeeId, zwischen = false) {
     ov.onclick = e => { if (e.target === ov) ov.remove(); };
     ov.innerHTML = `
         <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:620px;width:100%;max-height:92vh;overflow:auto;padding:20px 22px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
-            <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:2px">${_azZwischen ? 'Zwischenzeugnis' : 'Arbeitszeugnis'} erstellen</div>
+            <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:2px">${_azBest ? 'Arbeitsbestätigung' : _azZwischen ? 'Zwischenzeugnis' : 'Arbeitszeugnis'} erstellen</div>
             <div id="azSub" style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px">${emp ? `${emp.firstName} ${emp.lastName} · Personalnr. ${emp.employeeNumber || '–'}` : ''}</div>
 
-            <div style="${label}">Qualität</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+            <div style="${label};${_azBest ? 'display:none' : ''}">Qualität</div>
+            <div style="display:${_azBest ? 'none' : 'grid'};grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
                 <label style="${pill}"><input type="radio" name="azQuali" value="sehr_gut"> Sehr gut</label>
                 <label style="${pill}"><input type="radio" name="azQuali" value="gut" checked> Gut</label>
                 <label style="${pill}"><input type="radio" name="azQuali" value="durchschnitt"> Durchschnitt</label>
@@ -367,19 +369,19 @@ function openZeugnisModal(employeeId, zwischen = false) {
                 </div>
             </div>
 
-            <div style="${label}">Bereich (Schnellwahl — kreuzt die passenden Aufgaben an)</div>
-            <div style="display:flex;gap:8px;margin-bottom:12px">
+            <div style="${label};${_azBest ? 'display:none' : ''}">Bereich (Schnellwahl — kreuzt die passenden Aufgaben an)</div>
+            <div style="display:${_azBest ? 'none' : 'flex'};gap:8px;margin-bottom:12px">
                 <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKueche" onchange="azQuickTasks()"> Küche</label>
                 <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKasse" checked onchange="azQuickTasks()"> Kasse</label>
                 <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azDrive" checked onchange="azQuickTasks()"> Drive</label>
             </div>
 
-            <div style="${label}">Aufgaben (wie Word-Vorlage, Mehrfachauswahl)</div>
-            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+            <div style="${label};${_azBest ? 'display:none' : ''}">Aufgaben (wie Word-Vorlage, Mehrfachauswahl)</div>
+            <div style="display:${_azBest ? 'none' : 'flex'};flex-direction:column;gap:6px;margin-bottom:16px">
                 ${AZ_AUFGABEN.map((a, i) => `<label style="${pillS}"><input type="checkbox" class="azAufgabe" data-i="${i}" value="${a.replace(/"/g, '&quot;')}"> <span>${a}</span></label>`).join('')}
             </div>
 
-            <label style="${pill};margin-bottom:16px;${_azZwischen ? 'display:none' : ''}"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
+            <label style="${pill};margin-bottom:16px;${(_azZwischen || _azBest) ? 'display:none' : ''}"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
 
             <div id="azAlert"></div>
             <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -421,11 +423,11 @@ async function azGenerate() {
     if (document.getElementById('azKasse').checked)  bereiche.push('kasse');
     if (document.getElementById('azDrive').checked)  bereiche.push('drive');
     const aufgaben = [...document.querySelectorAll('.azAufgabe:checked')].map(c => c.value);
-    if (bereiche.length === 0) {
+    if (bereiche.length === 0 && !_azBest) {
         alertEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Bitte mindestens einen Bereich wählen (Küche, Kasse, Drive).</div>';
         return;
     }
-    if (aufgaben.length === 0) {
+    if (aufgaben.length === 0 && !_azBest) {
         alertEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Bitte mindestens eine Aufgabe ankreuzen.</div>';
         return;
     }
@@ -440,7 +442,8 @@ async function azGenerate() {
                 qualitaet: quali, bereiche, datum, aufgaben,
                 funktion: document.getElementById('azFunktion')?.value || null,
                 aufEigenenWunsch: document.getElementById('azWunsch')?.checked ?? true,
-                zwischen: _azZwischen
+                zwischen: _azZwischen,
+                bestaetigung: _azBest
             })
         });
         if (!res.ok) {
@@ -452,7 +455,7 @@ async function azGenerate() {
         const cd = res.headers.get('Content-Disposition') || '';
         const m = cd.match(/filename="?([^"]+)"?/);
         document.getElementById('azModal').remove();
-        await previewFileModal(blob, m ? m[1] : (_azZwischen ? 'Zwischenzeugnis.pdf' : 'Arbeitszeugnis.pdf'));
+        await previewFileModal(blob, m ? m[1] : (_azBest ? 'Arbeitsbestaetigung.pdf' : _azZwischen ? 'Zwischenzeugnis.pdf' : 'Arbeitszeugnis.pdf'));
     } catch (e) {
         alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Netzwerkfehler: ${e.message}</div>`;
     } finally {

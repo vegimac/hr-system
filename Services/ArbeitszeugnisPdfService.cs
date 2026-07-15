@@ -48,7 +48,11 @@ public record ArbeitszeugnisInput(
     /// <summary>true = ZWISCHENzeugnis (Vorlage «289 Hendschiken», 15.07.2026):
     /// Präsens, «ist seit dem … tätig», Arbeitsmittel-Absatz, Abschluss
     /// «wird auf Wunsch ausgestellt» — kein Austritts-/Dank-Absatz.</summary>
-    bool Zwischen = false
+    bool Zwischen = false,
+    /// <summary>true = ARBEITSBESTÄTIGUNG (Vorlage «244 Sursee», 15.07.2026):
+    /// nur der Bestätigungssatz — «angestellt ist» (aktiv, seit Eintritt)
+    /// bzw. «angestellt war» (Von–Bis), abgeleitet aus Bis &lt; Datum.</summary>
+    bool Bestaetigung = false
 );
 
 public class ArbeitszeugnisPdfService
@@ -221,6 +225,15 @@ public class ArbeitszeugnisPdfService
             : $"Wir möchten {ihm} für die erbrachten Arbeitsleistungen recht herzlich danken und wünschen {ihm} in " +
               "privater und beruflicher Hinsicht alles erdenklich Gute für die Zukunft.";
 
+        // ── Arbeitsbestätigung (Vorlage «244 Sursee») ──────────────────
+        // «war»-Variante, sobald das Ende VOR dem Ausstell-Datum liegt.
+        bool bestPast = d.Bis.Date < d.Datum.Date;
+        string bestRest = bestPast
+            ? $", geboren am {d.DateOfBirth:dd.MM.yyyy}, wohnhaft in {d.WohnOrt}, vom {d.Von:dd.MM.yyyy} bis am {d.Bis:dd.MM.yyyy} " +
+              $"in unserem McDonald's Restaurant in {d.Ort} als {funktion} angestellt war."
+            : $", geboren am {d.DateOfBirth:dd.MM.yyyy}, wohnhaft in {d.WohnOrt}, seit dem {d.Von:dd.MM.yyyy} " +
+              $"in unserem McDonald's Restaurant in {d.Ort} als {funktion} angestellt ist.";
+
         string datumZeile = $"{d.Ort}, {d.Datum.ToString("d. MMMM yyyy", ci)}";
 
         return Document.Create(container =>
@@ -263,8 +276,22 @@ public class ArbeitszeugnisPdfService
                     col.Item().PaddingTop(28).Text(datumZeile);
 
                     col.Item().PaddingTop(24).AlignCenter()
-                        .Text(zw ? "Zwischenzeugnis" : "Arbeitszeugnis").FontSize(15f).Bold();
+                        .Text(d.Bestaetigung ? "Arbeitsbestätigung" : zw ? "Zwischenzeugnis" : "Arbeitszeugnis")
+                        .FontSize(15f).Bold();
 
+                    if (d.Bestaetigung)
+                    {
+                        col.Item().PaddingTop(22).Text(t =>
+                        {
+                            t.Justify();
+                            t.Span("Wir bestätigen hiermit, dass ");
+                            t.Span($"{anrede} ");
+                            t.Span($"{d.FirstName} {d.LastName}".Trim()).Bold();
+                            t.Span(bestRest);
+                        });
+                    }
+                    else
+                    {
                     col.Item().PaddingTop(22).Text(t =>
                     {
                         t.Justify();
@@ -298,6 +325,7 @@ public class ArbeitszeugnisPdfService
                         col.Item().PaddingTop(12).Text(austritt).Justify();
                         col.Item().PaddingTop(12).Text(dank).Justify();
                     }
+                    }   // Ende Zeugnis-Absätze (nicht Bestätigung)
 
                     col.Item().PaddingTop(20).Text("Freundliche Grüsse");
 
