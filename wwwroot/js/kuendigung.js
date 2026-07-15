@@ -64,6 +64,11 @@ function kuRenderEmpList() {
 function kuOnEmpChange() {
     const id = +(document.getElementById('kuEmpSelect')?.value || 0);
     const det = document.getElementById('kuDetails');
+    // Dokument-Auswahl zuruecksetzen (Walter 15.07.2026).
+    const art = document.getElementById('kuDocArt');
+    if (art) art.value = 'kuendigung';
+    const block = document.getElementById('kuKuendigungBlock');
+    if (block) block.style.display = '';
     if (!id) { if (det) det.style.display = 'none'; return; }
     window.activeEmpId = id;
     if (det) det.style.display = 'block';
@@ -159,8 +164,15 @@ function kuRenderSperr(s) {
     }
 }
 
-// Dokument-Kacheln auf der Kuendigungs-Seite (Walter 15.07.2026): oeffnen
-// dieselben Modale wie im Restaurant-Admin-Tab fuer den gewaehlten MA.
+// Dokument-Auswahl (Walter 15.07.2026, einfaches Dropdown): Kuendigung
+// zeigt die Details unten, alle anderen oeffnen direkt das Modal.
+function kuDocArtChanged() {
+    const art = document.getElementById('kuDocArt')?.value || 'kuendigung';
+    const block = document.getElementById('kuKuendigungBlock');
+    if (block) block.style.display = art === 'kuendigung' ? '' : 'none';
+    if (art !== 'kuendigung') kuOpenDoc(art);
+}
+
 function kuOpenDoc(art) {
     const id = +(document.getElementById('kuEmpSelect')?.value || 0);
     if (!id) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }

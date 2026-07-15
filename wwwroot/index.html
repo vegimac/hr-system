@@ -2358,24 +2358,19 @@
 
                         <!-- Schritt 2: Kündigungsdetails -->
                         <div id="kuDetails" style="display:none;margin-top:18px">
-                            <!-- Dokumente fuer den gewaehlten MA (Walter 15.07.2026):
-                                 gleiche Kacheln wie im Restaurant-Admin-Tab. -->
-                            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">2. Dokumente für diesen Mitarbeiter</div>
-                            <div class="ra-tile-row">
-                                <button type="button" class="ra-tile" onclick="kuOpenDoc('verwarnung')">
-                                    <img src="img/verwarnung.png?v=20260715f" alt="" loading="lazy"><span>Verwarnung</span>
-                                </button>
-                                <button type="button" class="ra-tile" onclick="kuOpenDoc('arbeitszeugnis')">
-                                    <img src="img/Schlusszeugnis.png?v=20260715f" alt="" loading="lazy"><span>Arbeitszeugnis</span>
-                                </button>
-                                <button type="button" class="ra-tile" onclick="kuOpenDoc('zwischen')">
-                                    <img src="img/zwischenzeugnis.png?v=20260715f" alt="" loading="lazy"><span>Zwischenzeugnis</span>
-                                </button>
-                                <button type="button" class="ra-tile" onclick="kuOpenDoc('best')">
-                                    <img src="img/arbeitsbestaetigung.png?v=20260715f" alt="" loading="lazy"><span>Arbeitsbestätigung</span>
-                                </button>
-                            </div>
+                            <!-- Dokument-Auswahl (Walter 15.07.2026, einfach ohne Icons):
+                                 Kuendigung zeigt die Details unten; die anderen oeffnen
+                                 direkt das jeweilige Modal. -->
+                            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">2. Dokument wählen</div>
+                            <select id="kuDocArt" onchange="kuDocArtChanged()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;background:white;margin-bottom:4px">
+                                <option value="kuendigung" selected>Kündigung</option>
+                                <option value="arbeitszeugnis">Arbeitszeugnis</option>
+                                <option value="zwischen">Zwischenzeugnis</option>
+                                <option value="best">Arbeitsbestätigung</option>
+                                <option value="verwarnung">Verwarnung</option>
+                            </select>
 
+                            <div id="kuKuendigungBlock">
                             <div style="font-size:13px;font-weight:700;color:#0f172a;margin:14px 0 8px">3. Kündigungsdetails</div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                                 <label style="font-size:12.5px;color:#334155">Kündigungsgrund
@@ -2416,6 +2411,7 @@
                                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
                                 <button class="btn-primary" onclick="kuGenerate()" style="background:#991b1b;border-color:#991b1b">📄 Kündigungsschreiben erstellen</button>
                             </div>
+                            </div><!-- /kuKuendigungBlock -->
                         </div>
                     </div>
                 </div>
@@ -7723,7 +7719,7 @@
 <script src="js/hr-saldi-lohnlauf.js?v=20260708flex"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260712a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
-<script src="js/kuendigung.js?v=20260715e"></script>
+<script src="js/kuendigung.js?v=20260715f"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
