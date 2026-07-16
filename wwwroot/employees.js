@@ -5590,12 +5590,15 @@ function renderPregnancyCard(d) {
             </div>
             <div style="display:flex;align-items:center;gap:10px">
                 ${geburtsBtn}
+                <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="mvOpen(${p.id})" title="Checkliste fürs Gespräch + Mutterschaftsvereinbarung">🤝 Vereinbarung</button>
                 <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="mtsOpenDokuTab()" title="Dokumente: Absenzen › Mutter-/Vaterschaft">📁 Dokumente</button>
                 <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="mtsDownloadPdf(${p.id})">📄 PDF</button>
                 <div class="dok-menu-wrap" style="display:inline-block">
                     <button class="dok-menu-btn" onclick="mtsToggleMenu(event, ${p.id})" title="Aktionen">⋮</button>
                     <div class="dok-menu" id="mtsMenu-${p.id}">
                         <button class="dok-menu-item" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
+                        <button class="dok-menu-item" onclick="mvCheckliste(${p.id})">Gesprächs-Checkliste (PDF)</button>
+                        <button class="dok-menu-item" onclick="mvOpen(${p.id})">Mutterschaftsvereinbarung…</button>
                         <button class="dok-menu-item" onclick="mtsDownloadPdf(${p.id})">Übersicht als PDF</button>
                         <button class="dok-menu-item danger" onclick="mtsDelete(${p.id})">Löschen</button>
                     </div>
@@ -5735,6 +5738,135 @@ async function mtsOpenGeburt(id) {
     });
     if (!r.ok) return alert('Fehler: ' + await r.text());
     loadFamilieTab(selectedEmployeeId);
+}
+
+// ── Mutterschafts-Gespräch: Checkliste + Vereinbarung (Walter 16.07.2026,
+// nach Word-Vorlage «Mutterschaftsvereinbarung.docx»). Ablauf: Checkliste
+// drucken → Gespräch mit der MA → Varianten im Modal wählen → Vereinbarung
+// als PDF (Vorschaufenster, dann drucken/unterschreiben/ablegen).
+let _mvPregId = null;
+
+function _mvEnsureModal() {
+    if (document.getElementById('mvModal')) return;
+    const div = document.createElement('div');
+    div.id = 'mvModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
+    div.innerHTML = `
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:560px;width:94%;max-height:92vh;overflow-y:auto;padding:22px 24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:16px;font-weight:800;color:#3f3f3f">Mutterschaftsvereinbarung</div>
+            <button onclick="mvClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+        </div>
+        <div style="font-size:12px;color:#646464;margin-bottom:14px">Zuerst die Checkliste mit der Mitarbeiterin durcharbeiten — danach hier die vereinbarten Varianten wählen.</div>
+
+        <button onclick="mvCheckliste()" style="width:100%;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 14px;cursor:pointer;font-size:13px;font-weight:700;margin-bottom:16px">📋 Gesprächs-Checkliste drucken</button>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+            <div style="grid-column:1/3">
+                <label style="font-size:11.5px;font-weight:700;color:#646464">Gesprächsdatum</label>
+                <input type="date" id="mvGespraech" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+            <div>
+                <label style="font-size:11.5px;font-weight:700;color:#646464">Verlängerung: bezahlte Urlaubstage</label>
+                <input type="number" id="mvVerlBez" min="0" value="0" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+            <div>
+                <label style="font-size:11.5px;font-weight:700;color:#646464">Verlängerung: unbezahlte Urlaubstage</label>
+                <input type="number" id="mvVerlUnbez" min="0" value="0" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+        </div>
+
+        <div style="margin-top:14px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Rückkehr nach der Mutterschaft</div>
+            <label style="display:block;font-size:13px;margin-bottom:3px"><input type="radio" name="mvRueck" value="GLEICH" checked onchange="mvRueckChanged()"> dieselben Vertragsbedingungen</label>
+            <label style="display:block;font-size:13px;margin-bottom:3px"><input type="radio" name="mvRueck" value="ANDERS" onchange="mvRueckChanged()"> geänderte Bedingungen</label>
+            <label style="display:block;font-size:13px"><input type="radio" name="mvRueck" value="KEINE" onchange="mvRueckChanged()"> keine Rückkehr (Wunsch der Mitarbeiterin)</label>
+            <div id="mvAndersFields" style="display:none;margin-top:8px;padding:10px;background:rgba(255,255,255,0.5);border:1px solid rgba(139,139,139,0.25);border-radius:10px">
+                <div style="display:grid;grid-template-columns:120px 1fr;gap:10px">
+                    <div>
+                        <label style="font-size:11.5px;font-weight:700;color:#646464">Pensum %</label>
+                        <input type="number" id="mvPensum" min="1" max="100" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px;font-weight:700;color:#646464">Restaurant (bei Wechsel, sonst leer)</label>
+                        <input type="text" id="mvRestaurant" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                    </div>
+                </div>
+                <div style="font-size:11px;color:#8b8b8b;margin-top:6px">Neue Verfügbarkeitszeiten der Vereinbarung beilegen.</div>
+            </div>
+        </div>
+
+        <div style="margin-top:14px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
+            <label style="font-size:13px;margin-right:16px"><input type="radio" name="mvZustell" value="P" checked> persönliche Aushändigung</label>
+            <label style="font-size:13px"><input type="radio" name="mvZustell" value="E"> per Einschreiben</label>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+            <button onclick="mvClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button onclick="mvGenerate()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Vereinbarung erstellen</button>
+        </div>
+    </div>`;
+    document.body.appendChild(div);
+}
+
+function mvOpen(pregId) {
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    _mvEnsureModal();
+    _mvPregId = pregId;
+    const heute = new Date();
+    document.getElementById('mvGespraech').value =
+        `${heute.getFullYear()}-${String(heute.getMonth()+1).padStart(2,'0')}-${String(heute.getDate()).padStart(2,'0')}`;
+    document.getElementById('mvModal').style.display = 'flex';
+}
+
+function mvClose() {
+    const m = document.getElementById('mvModal');
+    if (m) m.style.display = 'none';
+}
+
+function mvRueckChanged() {
+    const v = document.querySelector('input[name="mvRueck"]:checked')?.value;
+    document.getElementById('mvAndersFields').style.display = v === 'ANDERS' ? 'block' : 'none';
+}
+
+async function mvCheckliste(pregId) {
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    const id = pregId || _mvPregId;
+    if (!id) return;
+    try {
+        const r = await fetch(`/api/mutterschaft-vereinbarung/${id}/checkliste-pdf`, { headers: ah() });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
+        const blob = await r.blob();
+        previewFileModal(blob, 'Mutterschafts-Checkliste.pdf');
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+async function mvGenerate() {
+    if (!_mvPregId) return;
+    const dto = {
+        gespraechsDatum: document.getElementById('mvGespraech').value || null,
+        verlBezahlt:     +(document.getElementById('mvVerlBez').value || 0),
+        verlUnbezahlt:   +(document.getElementById('mvVerlUnbez').value || 0),
+        rueckkehr:       document.querySelector('input[name="mvRueck"]:checked')?.value || 'GLEICH',
+        pensumProzent:   document.getElementById('mvPensum').value ? +document.getElementById('mvPensum').value : null,
+        rueckkehrRestaurant: document.getElementById('mvRestaurant').value || null,
+        eingeschrieben:  document.querySelector('input[name="mvZustell"]:checked')?.value === 'E'
+    };
+    if (dto.rueckkehr === 'ANDERS' && !dto.pensumProzent) {
+        return alert('Bei geänderten Bedingungen bitte das Pensum in % angeben.');
+    }
+    try {
+        const r = await fetch(`/api/mutterschaft-vereinbarung/${_mvPregId}/vereinbarung-pdf`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(dto)
+        });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
+        const blob = await r.blob();
+        mvClose();
+        previewFileModal(blob, 'Mutterschaftsvereinbarung.pdf');
+    } catch (e) { alert('Fehler: ' + e.message); }
 }
 
 async function mtsDownloadPdf(id) {
