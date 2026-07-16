@@ -5783,21 +5783,58 @@ async function mtsSaveForm() {
     loadFamilieTab(employeeId);
 }
 
-async function mtsOpenGeburt(id) {
-    const datum = prompt('Geburtsdatum (TT.MM.JJJJ oder YYYY-MM-DD):');
-    if (!datum) return;
-    let iso;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) iso = datum;
-    else if (/^\d{2}\.\d{2}\.\d{4}$/.test(datum)) {
-        const [d,m,y] = datum.split('.');
-        iso = `${y}-${m}-${d}`;
-    } else return alert('Ungültiges Datum.');
-    const r = await fetch(`/api/pregnancies/${id}`, {
+// Geburt eintragen — Liquid-Dialog statt natives prompt() (Walter 16.07.2026).
+// Gespeichert wird in employee_pregnancy.geburtsdatum (PUT /api/pregnancies/{id});
+// davon haengen Kuendigungsschutz-Ende (Geburt + 16 Wochen) und Fristen ab.
+let _mtsGeburtPregId = null;
+
+function _mtsGeburtEnsureModal() {
+    if (document.getElementById('mtsGeburtModal')) return;
+    const div = document.createElement('div');
+    div.id = 'mtsGeburtModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
+    div.innerHTML = `
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:420px;width:92%;padding:22px 24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:16px;font-weight:800;color:#3f3f3f">Geburt eintragen</div>
+            <button onclick="mtsGeburtClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+        </div>
+        <div style="font-size:12px;color:#646464;margin-bottom:14px">Das effektive Geburtsdatum präzisiert das Ende des Kündigungsschutzes (Geburt + 16 Wochen) und die Mutterschafts-Fristen.</div>
+        <label style="font-size:11.5px;font-weight:700;color:#646464">Geburtsdatum</label>
+        <input type="date" id="mtsGeburtDatum" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:18px">
+        <div style="display:flex;justify-content:flex-end;gap:10px">
+            <button onclick="mtsGeburtClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button onclick="mtsGeburtSpeichern()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
+        </div>
+    </div>`;
+    document.body.appendChild(div);
+}
+
+function mtsOpenGeburt(id) {
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    _mtsGeburtEnsureModal();
+    _mtsGeburtPregId = id;
+    const heute = new Date();
+    document.getElementById('mtsGeburtDatum').value =
+        `${heute.getFullYear()}-${String(heute.getMonth()+1).padStart(2,'0')}-${String(heute.getDate()).padStart(2,'0')}`;
+    document.getElementById('mtsGeburtModal').style.display = 'flex';
+}
+
+function mtsGeburtClose() {
+    const m = document.getElementById('mtsGeburtModal');
+    if (m) m.style.display = 'none';
+}
+
+async function mtsGeburtSpeichern() {
+    const iso = document.getElementById('mtsGeburtDatum').value;
+    if (!iso) return alert('Bitte das Geburtsdatum wählen.');
+    const r = await fetch(`/api/pregnancies/${_mtsGeburtPregId}`, {
         method: 'PUT',
         headers: { ...ah(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ geburtsdatum: iso })
     });
     if (!r.ok) return alert('Fehler: ' + await r.text());
+    mtsGeburtClose();
     loadFamilieTab(selectedEmployeeId);
 }
 
