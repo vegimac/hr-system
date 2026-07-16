@@ -274,6 +274,230 @@ public class MutterschaftPdfService
         }).GeneratePdf();
     }
 
+    // ═══════ EIGNUNGSBEURTEILUNG — AERZTLICHES ZEUGNIS (MuSchV Art. 3) ══════
+    // (Walter-Vorgabe 16.07.2026, nach Word-Vorlage «Eignungsbeurteilung Arzt»:
+    // wird dem Arzt zusammen mit der Risikobeurteilung mitgegeben. Arzt,
+    // Arbeitgeber und untersuchte Frau vorausgefuellt; Entscheid-Kaestchen
+    // kreuzt der Arzt an. Seite 2 = Rechtsgrundlagen-Auszug.)
+    public byte[] GenerateEignung(MvCommon d, ArztInfo? a)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        var arztName = a == null ? null : string.Join(" ", new[] { a.Titel, a.Vorname, a.Nachname }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+        var arztLines = a == null ? new List<string>() :
+            new[] { a.PraxisName, arztName, a.Fachgebiet, a.Strasse, a.PlzOrt }
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).ToList();
+        var firmaLines = new[]
+            {
+                $"{d.FirmaName}{(string.IsNullOrWhiteSpace(d.RestaurantName) ? "" : " · " + d.RestaurantName)}",
+                d.FirmaStrasse, d.FirmaPlzOrt,
+                string.IsNullOrWhiteSpace(d.FirmaTelefon) ? null : $"Tel. {d.FirmaTelefon}"
+            }
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).ToList();
+        var maAdresse = string.Join(", ", new[] { d.MaStrasse, d.MaPlzOrt }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        return Document.Create(doc =>
+        {
+            // ── Seite 1: das Formular ──
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(1.2f, Unit.Centimetre);
+                page.MarginHorizontal(2.0f, Unit.Centimetre);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9.5f).LineHeight(1.25f).FontColor(Dark));
+
+                page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
+
+                page.Content().PaddingTop(12).Column(col =>
+                {
+                    col.Item().AlignCenter().Text("Ärztliches Zeugnis").FontSize(15f).Bold();
+                    col.Item().AlignCenter().Text("für schwangere Frauen und stillende Mütter (nach Artikel 3 der Mutterschutzverordnung)")
+                        .FontSize(9f).FontColor(Muted);
+
+                    // Arzt links, Arbeitgeber rechts
+                    col.Item().PaddingTop(12).Row(r =>
+                    {
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text("Betreuende Ärztin / betreuender Arzt:").Bold().FontSize(9f);
+                            if (arztLines.Count > 0)
+                                foreach (var ln in arztLines) c.Item().Text(ln);
+                            else
+                                for (int i = 0; i < 3; i++) c.Item().PaddingTop(8).Text("……………………………………………………").FontColor(Muted);
+                        });
+                        r.ConstantItem(24);
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text("Arbeitgeber:").Bold().FontSize(9f);
+                            foreach (var ln in firmaLines) c.Item().Text(ln);
+                        });
+                    });
+
+                    // Untersuchte Frau
+                    col.Item().PaddingTop(12).Border(0.8f).BorderColor(Dark).Padding(8).Column(c =>
+                    {
+                        c.Item().Text("Untersuchte Frau").Bold();
+                        c.Item().PaddingTop(3).Text(t =>
+                        {
+                            t.Span("Name, Vorname, Geburtsdatum:  ").FontColor(Muted).FontSize(9f);
+                            t.Span($"{d.MaName} {d.MaVorname}").Bold();
+                            if (d.MaGeburtsdatum.HasValue) t.Span($", {d.MaGeburtsdatum.Value:dd.MM.yyyy}").Bold();
+                        });
+                        c.Item().PaddingTop(3).Text(t =>
+                        {
+                            t.Span("Adresse:  ").FontColor(Muted).FontSize(9f);
+                            t.Span(maAdresse).Bold();
+                        });
+                        c.Item().PaddingTop(3).Text(t =>
+                        {
+                            t.Span("Berechneter Geburtstermin:  ").FontColor(Muted).FontSize(9f);
+                            t.Span($"{d.ErrechneterTermin:dd.MM.yyyy}").Bold();
+                        });
+                    });
+
+                    // Entscheid
+                    col.Item().PaddingTop(12).Text("Entscheid").Bold().FontSize(11f);
+                    col.Item().PaddingTop(2).Text(
+                        "Bei der vorgenannten schwangeren Frau / stillenden Mutter wurde von mir eine Beurteilung der Beschäftigung im vorgesehenen Betrieb oder Betriebsteil während der Schwangerschaft / Stillzeit vorgenommen. Das Ergebnis der Beurteilung lautet (Zutreffendes ankreuzen):")
+                        .FontSize(9f).FontColor(Muted);
+
+                    void Haupt(ColumnDescriptor c, string text)
+                    {
+                        c.Item().PaddingTop(8).Row(r =>
+                        {
+                            r.ConstantItem(18).Element(e => e.PaddingTop(1).Width(12).Height(12).Border(1.1f).BorderColor(Dark));
+                            r.RelativeItem().Text(text).Bold().FontSize(10f);
+                        });
+                    }
+                    void Sub(ColumnDescriptor c, string text)
+                    {
+                        c.Item().PaddingTop(3).PaddingLeft(18).Row(r =>
+                        {
+                            r.ConstantItem(15).Element(e => e.PaddingTop(1).Width(9).Height(9).Border(0.9f).BorderColor(Dark));
+                            r.RelativeItem().Text(text).FontSize(9f);
+                        });
+                    }
+
+                    col.Item().Column(c =>
+                    {
+                        Haupt(c, "Die Beschäftigung ist vorbehaltlos möglich.");
+
+                        Haupt(c, "Die Beschäftigung ist nur unter folgenden bestimmten Voraussetzungen möglich:");
+                        Sub(c, "Einsatz unter folgenden Bedingungen (Schutzmassnahmen): …………………………………………………………");
+                        c.Item().PaddingLeft(33).Text("……………………………………………………………………………………………………………………").FontSize(9f).FontColor(Muted);
+                        Sub(c, $"Entsprechend der vorliegenden Risikobeurteilung, datiert vom {DateTime.Today:dd.MM.yyyy}.");
+                        Sub(c, "Andere: ………………………………………………………………………………………………………………");
+                        c.Item().PaddingTop(3).PaddingLeft(18).Text("Bemerkungen: …………………………………………………………………………………………………………").FontSize(9f);
+                        Sub(c, "Eine Rücksprache mit dem Arbeitgeber ist erforderlich.");
+                        Sub(c, "Eine Rücksprache mit dem ASA-Spezialisten ist erforderlich.");
+
+                        Haupt(c, "Die Beschäftigung ist aus folgendem Grund nicht oder zurzeit nicht möglich (Beschäftigungsverbot):");
+                        Sub(c, "Fehlende oder ungenügende Risikobeurteilung.");
+                        Sub(c, "Die erforderlichen Schutzmassnahmen sind nicht umgesetzt / werden nicht eingehalten.");
+                        Sub(c, "Die erforderlichen Schutzmassnahmen sind nicht genügend wirksam.");
+                        Sub(c, "Andere Hinweise auf eine Gefährdung: ……………………………………………………………………………");
+
+                        c.Item().PaddingTop(10).Row(r =>
+                        {
+                            r.ConstantItem(18).Element(e => e.PaddingTop(1).Width(12).Height(12).Border(1.1f).BorderColor(Dark));
+                            r.RelativeItem().Text("Neubeurteilung in ………… Wochen").FontSize(10f);
+                        });
+                    });
+
+                    col.Item().PaddingTop(10).Text(
+                        "Zur Beurteilung wurden die Kriterienliste der Mutterschutzverordnung, die Risikobeurteilung (falls vorhanden), die Befragung und die Untersuchung der Arbeitnehmerin berücksichtigt.")
+                        .FontSize(8.5f).FontColor(Muted);
+                });
+
+                page.Footer().Column(col =>
+                {
+                    col.Item().Row(r =>
+                    {
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
+                            c.Item().PaddingTop(3).Text("Ort und Datum").FontSize(9f);
+                        });
+                        r.ConstantItem(40);
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Width(220).LineHorizontal(0.8f).LineColor(Dark);
+                            c.Item().PaddingTop(3).Text("Unterschrift und Stempel Ärztin / Arzt").FontSize(9f);
+                        });
+                    });
+                    col.Item().PaddingTop(6).Text("Der Entscheid geht an die untersuchte Frau und deren Arbeitgeber.")
+                        .FontSize(8.5f).FontColor(Muted).Italic();
+                });
+            });
+
+            // ── Seite 2: Rechtsgrundlagen (Auszug WBF-Verordnung) ──
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(1.2f, Unit.Centimetre);
+                page.MarginHorizontal(2.0f, Unit.Centimetre);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(7.5f).LineHeight(1.25f).FontColor(Dark));
+
+                page.Content().Column(col =>
+                {
+                    col.Item().Text("Rechtsgrundlagen").Bold().FontSize(11f);
+                    col.Item().Text("Auszug aus der Verordnung des WBF über gefährliche und beschwerliche Arbeiten bei Schwangerschaft und Mutterschaft vom 20. März 2001 (Stand am 1. Juli 2015)")
+                        .FontSize(8f).FontColor(Muted);
+
+                    col.Item().PaddingTop(8).Row(r =>
+                    {
+                        r.RelativeItem().Column(c =>
+                        {
+                            void T(string titel, string text)
+                            {
+                                c.Item().PaddingTop(5).Text(titel).Bold().FontSize(7.5f);
+                                c.Item().Text(text).FontSize(7.5f);
+                            }
+                            T("Art. 2 Grundsatz",
+                              "1 Die Beurteilung des Gesundheitszustandes der schwangeren Frau oder der stillenden Mutter ist durch den Arzt oder die Ärztin vorzunehmen, der oder die im Rahmen der Schwangerschaft die Arbeitnehmerin medizinisch betreut. "
+                            + "2 Der Arzt oder die Ärztin nimmt eine Eignungsuntersuchung vor und berücksichtigt: die Befragung und Untersuchung der Arbeitnehmerin; das Ergebnis der vom Betrieb durch eine fachlich kompetente Person nach Artikel 17 veranlassten Risikobeurteilung; allenfalls weitere Informationen aus einer Rücksprache mit dem Verfasser oder der Verfasserin der Risikobeurteilung oder dem Arbeitgeber. "
+                            + "3 Eine schwangere Frau oder eine stillende Mutter darf im von einer Gefahr betroffenen Betrieb oder Betriebsteil nicht beschäftigt werden, wenn der Arzt oder die Ärztin feststellt, dass: a. keine oder eine ungenügende Risikobeurteilung vorgenommen wurde; b. die erforderlichen Schutzmassnahmen nicht umgesetzt oder nicht eingehalten werden; c. die getroffenen Schutzmassnahmen nicht genügend wirksam sind; oder d. Hinweise auf eine Gefährdung bestehen.");
+                            T("Art. 3 Ärztliches Zeugnis",
+                              "1 Der untersuchende Arzt oder die untersuchende Ärztin hält in einem Zeugnis fest, ob eine Beschäftigung am betreffenden Arbeitsplatz vorbehaltlos, nur unter bestimmten Voraussetzungen oder nicht mehr möglich ist. "
+                            + "2 Er oder sie teilt der betroffenen Arbeitnehmerin und dem Arbeitgeber das Ergebnis der Beurteilung mit, damit der Arbeitgeber nötigenfalls die erforderlichen Massnahmen treffen kann.");
+                            T("Art. 4 Kostentragung",
+                              "Der Arbeitgeber trägt die Kosten für die Aufwendungen nach den Artikeln 2 und 3.");
+                            T("Art. 5 Vermutung der Gefährdung",
+                              "Sind die Voraussetzungen nach den Artikeln 7-13 erfüllt, wird eine Gefährdung von Mutter und Kind vermutet.");
+                            T("Art. 6 Gewichtung der Kriterien",
+                              "Bei der Gewichtung der Kriterien sind auch die konkreten Umstände im Betrieb zu berücksichtigen, namentlich das Zusammenwirken verschiedener Belastungen, die Expositionsdauer, die Häufigkeit der Belastung oder der Gefährdung und weitere Faktoren mit Einfluss auf das Gefahrenpotenzial.");
+                            T("Art. 7-13 (Kriterien)",
+                              "Art. 7 Bewegen schwerer Lasten · Art. 8 Arbeiten bei Kälte, Hitze oder Nässe · Art. 9 Bewegungen und Körperhaltungen, die zu vorzeitiger Ermüdung führen · Art. 10 Mikroorganismen · Art. 11 Einwirkung von Lärm · Art. 12 Arbeiten unter Einwirkung von ionisierender und nichtionisierender Strahlung · Art. 13 Einwirkung von chemischen Gefahrstoffen.");
+                        });
+                        r.ConstantItem(18);
+                        r.RelativeItem().Column(c =>
+                        {
+                            void T(string titel, string text)
+                            {
+                                c.Item().PaddingTop(5).Text(titel).Bold().FontSize(7.5f);
+                                c.Item().Text(text).FontSize(7.5f);
+                            }
+                            T("Art. 14 Stark belastende Arbeitszeitsysteme",
+                              "Frauen dürfen während der gesamten Schwangerschaft und danach während der Stillzeit nicht Nacht- und Schichtarbeit leisten, wenn diese mit gefährlichen oder beschwerlichen Arbeiten nach den Artikeln 7-13 verbunden sind oder wenn ein besonders gesundheitsbelastendes Schichtsystem vorliegt. Als besonders gesundheitsbelastend gelten Schichtsysteme mit regelmässiger Rückwärtsrotation (Nacht-, Spät-, Frühschicht) oder mit mehr als drei hintereinander liegenden Nachtschichten.");
+                            T("Art. 15 Akkordarbeit und taktgebundene Arbeit",
+                              "Nicht zulässig ist Arbeit im Akkord oder taktgebundene Arbeit, wenn der Arbeitsrhythmus durch eine Maschine oder technische Einrichtung vorgegeben wird und von der Arbeitnehmerin nicht beeinflusst werden kann.");
+                            T("Art. 16 Besondere Beschäftigungsverbote",
+                              "1 Schwangere Frauen dürfen nicht beschäftigt werden für Arbeiten bei Überdruck wie Arbeiten in Druckkammern oder Taucharbeiten. 2 Schwangere Frauen dürfen Räumlichkeiten mit sauerstoffreduzierter Atmosphäre nicht betreten. 3 Der Arbeitgeber muss Frauen vor einer solchen Beschäftigung in angemessener Weise über die Gefahren während der Schwangerschaft informieren.");
+                            T("Art. 17 Fachlich kompetente Personen",
+                              "1 Fachlich kompetente Personen nach Artikel 63 Absatz 1 ArGV 1 sind Arbeitsärzte und Arbeitsärztinnen sowie Arbeitshygieniker und Arbeitshygienikerinnen sowie weitere Fachspezialisten, die sich über die notwendigen Kenntnisse und Erfahrungen zur Durchführung einer Risikobeurteilung ausweisen können. 2 Es ist sicherzustellen, dass alle zu beurteilenden Fachbereiche kompetent abgedeckt werden.");
+                            T("Art. 18 Information",
+                              "1 Der Arbeitgeber sorgt dafür, dass die zur Risikobeurteilung beigezogenen Personen zu allen Informationen gelangen, die für eine Beurteilung der betrieblichen Situation und zur Überprüfung der getroffenen Schutzmassnahmen notwendig sind. 2 Er sorgt auch dafür, dass der Arzt oder die Ärztin nach Artikel 2 zu den für die Beurteilung notwendigen Informationen gelangt.");
+                        });
+                    });
+                });
+            });
+        }).GeneratePdf();
+    }
+
     // ═════════════════════════════ CHECKLISTE ═══════════════════════════════
     public byte[] GenerateCheckliste(MvCommon d)
     {

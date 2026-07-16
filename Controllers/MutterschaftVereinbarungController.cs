@@ -177,6 +177,31 @@ public class MutterschaftVereinbarungController : ControllerBase
     }
 
     /// <summary>
+    /// Eignungsbeurteilung — Ärztliches Zeugnis nach MuSchV Art. 3
+    /// (Walter-Vorgabe 16.07.2026, nach Word-Vorlage): dem Arzt zusammen
+    /// mit der Risikobeurteilung mitgegeben. Arzt optional (arztId 0 = leer).
+    /// </summary>
+    [HttpPost("{pregnancyId:int}/eignung-pdf")]
+    public async Task<IActionResult> EignungPdf(int pregnancyId, [FromBody] ArztbriefDto dto)
+    {
+        var common = await LoadCommonAsync(pregnancyId);
+        if (common == null) return NotFound(new { error = "PREGNANCY_NOT_FOUND" });
+        Arzt? arzt = null;
+        if (dto.ArztId > 0)
+            arzt = await _db.Aerzte.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.ArztId);
+        try
+        {
+            var bytes = _pdf.GenerateEignung(common, arzt == null ? null : ToArztInfo(arzt));
+            return File(bytes, "application/pdf",
+                $"Eignungsbeurteilung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "PDF_FEHLER", message = ex.GetBaseException().Message });
+        }
+    }
+
+    /// <summary>
     /// Arztbrief direkt per E-Mail an die Praxis senden (PDF im Anhang).
     /// Wird vom Frontend NUR nach expliziter Bestätigung aufgerufen.
     /// </summary>
@@ -214,6 +239,13 @@ public class MutterschaftVereinbarungController : ControllerBase
             };
             if (risiko != null)
                 anhaenge.Add((risiko, $"Risikobeurteilung_Mutterschutz_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_")));
+            // Beilage 2: Eignungsbeurteilung (Aerztliches Zeugnis, MuSchV Art. 3)
+            try
+            {
+                var eignung = _pdf.GenerateEignung(common, ToArztInfo(arzt));
+                anhaenge.Add((eignung, $"Eignungsbeurteilung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_")));
+            }
+            catch { /* Brief geht trotzdem raus */ }
             var ok = await _email.SendWithAttachmentsAsync(arzt.Email!, arztName, subject, html, text, anhaenge);
             if (!ok)
                 return StatusCode(500, new { error = "MAIL_FEHLER", message = "E-Mail-Versand fehlgeschlagen — SMTP-Konfiguration prüfen (Systemeinstellungen → E-Mail)." });
