@@ -45,7 +45,12 @@ public class KuendigungPdfService
         DateOnly KuendigungVom,          // Datum der urspruenglichen Kuendigung
         string? Grund,                   // optionaler Rueckzugs-Grund
         string? UnterzeichnerName,
-        bool    Eingeschrieben = false);
+        bool    Eingeschrieben = false,
+        // Schwangerschafts-Variante (Walter-Text 16.07.2026): die Kuendigung
+        // ist nach OR 336c NICHTIG — Bestaetigungs-Brief «Fortbestehen des
+        // Arbeitsverhaeltnisses», KEIN Einverstaendnis-Block noetig.
+        bool    NichtigSchwangerschaft = false,
+        DateOnly? SchwangerschaftGemeldetAm = null);
 
     public byte[] GenerateRueckzug(RueckzugData d, byte[]? signaturePng)
     {
@@ -83,29 +88,70 @@ public class KuendigungPdfService
 
                     col.Item().PaddingTop(30).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
 
-                    col.Item().PaddingTop(30).Text($"Rückzug unserer Kündigung vom {d.KuendigungVom:dd.MM.yyyy}")
-                        .Bold().FontSize(12.5f);
-
-                    col.Item().PaddingTop(22).Text($"{d.Briefanrede},");
-
-                    col.Item().PaddingTop(14).Text(t =>
+                    if (d.NichtigSchwangerschaft)
                     {
-                        t.Span("hiermit ziehen wir die Ihnen gegenüber am ");
-                        t.Span($"{d.KuendigungVom:dd.MM.yyyy}").Bold();
-                        t.Span(" ausgesprochene Kündigung des Arbeitsverhältnisses zurück.");
-                    });
+                        // Walter-Textvorschlag 16.07.2026: nachtraeglich gemeldete
+                        // Schwangerschaft → Kuendigung nichtig (OR 336c).
+                        col.Item().PaddingTop(30).Text($"Kündigung vom {d.KuendigungVom:dd.MM.yyyy} – Fortbestehen des Arbeitsverhältnisses")
+                            .Bold().FontSize(12.5f);
 
-                    if (!string.IsNullOrWhiteSpace(d.Grund))
-                        col.Item().PaddingTop(14).Text($"Grund des Rückzugs: {d.Grund}");
+                        col.Item().PaddingTop(22).Text($"{d.Briefanrede},");
 
-                    col.Item().PaddingTop(14).Text(
-                        "Das Arbeitsverhältnis wird unverändert und ohne Unterbruch zu den bisherigen Vertragsbedingungen fortgesetzt, wie wenn die Kündigung nie ausgesprochen worden wäre.");
+                        col.Item().PaddingTop(14).Text(t =>
+                        {
+                            t.Span("Sie haben uns");
+                            if (d.SchwangerschaftGemeldetAm.HasValue)
+                            {
+                                t.Span(" am ");
+                                t.Span($"{d.SchwangerschaftGemeldetAm.Value:dd.MM.yyyy}").Bold();
+                            }
+                            t.Span(" darüber informiert, dass Sie schwanger sind und die Schwangerschaft bereits zum Zeitpunkt der Zustellung unserer Kündigung vom ");
+                            t.Span($"{d.KuendigungVom:dd.MM.yyyy}").Bold();
+                            t.Span(" bestanden hat.");
+                        });
 
-                    col.Item().PaddingTop(14).Text(
-                        "Da der Rückzug einer Kündigung rechtlich nur mit Ihrem Einverständnis wirksam wird, bitten wir Sie, Ihr Einverständnis mit Ihrer Unterschrift auf der Kopie dieses Schreibens zu bestätigen und uns diese zurückzugeben.");
+                        col.Item().PaddingTop(14).Text(
+                            "Gemäss Art. 336c OR ist eine nach Ablauf der Probezeit während der Schwangerschaft ausgesprochene Kündigung durch den Arbeitgeber nichtig.");
 
-                    col.Item().PaddingTop(14).Text(
-                        "Wir freuen uns auf die weitere Zusammenarbeit mit Ihnen.");
+                        col.Item().PaddingTop(14).Text(t =>
+                        {
+                            t.Span("Wir bestätigen Ihnen deshalb, dass unsere Kündigung vom ");
+                            t.Span($"{d.KuendigungVom:dd.MM.yyyy}").Bold();
+                            t.Span(" keine Rechtswirkung entfaltet. Ihr Arbeitsverhältnis besteht ohne Unterbruch und zu den bisherigen vertraglichen Bedingungen weiter.");
+                        });
+
+                        col.Item().PaddingTop(14).Text(
+                            "Sämtliche Rechte und Pflichten aus dem Arbeitsverhältnis bleiben unverändert bestehen.");
+
+                        col.Item().PaddingTop(14).Text(
+                            "Wir entschuldigen uns für die entstandene Unsicherheit.");
+                    }
+                    else
+                    {
+                        col.Item().PaddingTop(30).Text($"Rückzug unserer Kündigung vom {d.KuendigungVom:dd.MM.yyyy}")
+                            .Bold().FontSize(12.5f);
+
+                        col.Item().PaddingTop(22).Text($"{d.Briefanrede},");
+
+                        col.Item().PaddingTop(14).Text(t =>
+                        {
+                            t.Span("hiermit ziehen wir die Ihnen gegenüber am ");
+                            t.Span($"{d.KuendigungVom:dd.MM.yyyy}").Bold();
+                            t.Span(" ausgesprochene Kündigung des Arbeitsverhältnisses zurück.");
+                        });
+
+                        if (!string.IsNullOrWhiteSpace(d.Grund))
+                            col.Item().PaddingTop(14).Text($"Grund des Rückzugs: {d.Grund}");
+
+                        col.Item().PaddingTop(14).Text(
+                            "Das Arbeitsverhältnis wird unverändert und ohne Unterbruch zu den bisherigen Vertragsbedingungen fortgesetzt, wie wenn die Kündigung nie ausgesprochen worden wäre.");
+
+                        col.Item().PaddingTop(14).Text(
+                            "Da der Rückzug einer Kündigung rechtlich nur mit Ihrem Einverständnis wirksam wird, bitten wir Sie, Ihr Einverständnis mit Ihrer Unterschrift auf der Kopie dieses Schreibens zu bestätigen und uns diese zurückzugeben.");
+
+                        col.Item().PaddingTop(14).Text(
+                            "Wir freuen uns auf die weitere Zusammenarbeit mit Ihnen.");
+                    }
                 });
 
                 page.Footer().Column(col =>
@@ -121,22 +167,27 @@ public class KuendigungPdfService
 
                     col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
 
-                    // Einverstaendnis-Block der/des MA
-                    col.Item().PaddingTop(18).Text("Mit dem Rückzug der Kündigung einverstanden:").FontSize(9f).FontColor("#475569");
-                    col.Item().PaddingTop(16).Row(r =>
+                    // Einverstaendnis-Block der/des MA — nur beim STANDARD-Rueckzug
+                    // (bei der Schwangerschafts-Variante ist die Kuendigung von
+                    // Gesetzes wegen nichtig, kein Einverstaendnis noetig).
+                    if (!d.NichtigSchwangerschaft)
                     {
-                        r.RelativeItem().Column(c =>
+                        col.Item().PaddingTop(18).Text("Mit dem Rückzug der Kündigung einverstanden:").FontSize(9f).FontColor("#475569");
+                        col.Item().PaddingTop(16).Row(r =>
                         {
-                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text("Ort und Datum").FontSize(8.5f).FontColor("#475569");
+                            r.RelativeItem().Column(c =>
+                            {
+                                c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
+                                c.Item().PaddingTop(3).Text("Ort und Datum").FontSize(8.5f).FontColor("#475569");
+                            });
+                            r.ConstantItem(40);
+                            r.RelativeItem().Column(c =>
+                            {
+                                c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
+                                c.Item().PaddingTop(3).Text($"Unterschrift {d.MaName}").FontSize(8.5f).FontColor("#475569");
+                            });
                         });
-                        r.ConstantItem(40);
-                        r.RelativeItem().Column(c =>
-                        {
-                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text($"Unterschrift {d.MaName}").FontSize(8.5f).FontColor("#475569");
-                        });
-                    });
+                    }
                 });
             });
         }).GeneratePdf();

@@ -237,7 +237,7 @@ function _krEnsureModal() {
         <label style="font-size:11.5px;font-weight:700;color:#646464">Grund des Rückzugs (optional, erscheint im Brief)</label>
         <select id="krGrundSelect" onchange="krGrundChanged()" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:8px">
             <option value="">— kein Grund im Brief —</option>
-            <option value="Nachträglich gemeldete Schwangerschaft — Kündigungsschutz nach OR Art. 336c">Nachträglich gemeldete Schwangerschaft (OR Art. 336c)</option>
+            <option value="__SCHWANGERSCHAFT__">Nachträglich gemeldete Schwangerschaft — Kündigung nichtig (OR Art. 336c)</option>
             <option value="Die Kündigung wurde während einer laufenden Sperrfrist ausgesprochen (Krankheit/Unfall, OR Art. 336c) und ist damit nichtig">Kündigung fiel in eine Sperrfrist — Krankheit/Unfall (OR Art. 336c)</option>
             <option value="Aufgrund unseres Gesprächs haben wir uns auf die Weiterführung des Arbeitsverhältnisses geeinigt">Aufgrund unseres Gesprächs — einvernehmliche Weiterbeschäftigung</option>
             <option value="Der Sachverhalt, der zur Kündigung geführt hat, hat sich nach nochmaliger Prüfung anders dargestellt">Sachverhalt geklärt / Missverständnis ausgeräumt</option>
@@ -246,6 +246,11 @@ function _krEnsureModal() {
             <option value="__ANDERER__">Anderer Grund…</option>
         </select>
         <input type="text" id="krGrund" placeholder="Grund frei formulieren" style="display:none;width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
+        <div id="krSchwBlock" style="display:none;margin-bottom:12px">
+            <label style="font-size:11.5px;font-weight:700;color:#646464">Schwangerschaft gemeldet am</label>
+            <input type="date" id="krSchwGemeldet" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Brief-Variante «Fortbestehen des Arbeitsverhältnisses»: die Kündigung ist nach OR 336c nichtig — kein Einverständnis der MA nötig.</div>
+        </div>
         <div style="margin-bottom:16px">
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
             <label style="font-size:13px;margin-right:16px"><input type="radio" name="krZustell" value="P" checked> persönliche Aushändigung</label>
@@ -265,6 +270,8 @@ async function krOpen(empId) {
     document.getElementById('krKuendigungVom').value = '';
     document.getElementById('krGrundSelect').value = '';
     document.getElementById('krGrund').value = '';
+    const schwInp = document.getElementById('krSchwGemeldet');
+    if (schwInp) schwInp.value = '';
     krGrundChanged();
     document.getElementById('krModal').style.display = 'flex';
     // Liegt am MA eine erfasste Kuendigung vor («Gekuendigt am», vom
@@ -286,6 +293,21 @@ function krGrundChanged() {
     if (!sel || !txt) return;
     txt.style.display = sel.value === '__ANDERER__' ? 'block' : 'none';
     if (sel.value !== '__ANDERER__') txt.value = '';
+    // Schwangerschafts-Variante: Meldedatum-Feld zeigen und aus der erfassten
+    // Schwangerschaft vorbefuellen (Walter 16.07.2026).
+    const schw = document.getElementById('krSchwBlock');
+    if (schw) schw.style.display = sel.value === '__SCHWANGERSCHAFT__' ? 'block' : 'none';
+    if (sel.value === '__SCHWANGERSCHAFT__' && _krEmpId) {
+        const inp = document.getElementById('krSchwGemeldet');
+        if (inp && !inp.value) {
+            fetch(`/api/pregnancies?employeeId=${_krEmpId}`, { headers: ah() })
+                .then(r => r.ok ? r.json() : [])
+                .then(list => {
+                    const akt = (list || [])[0];
+                    if (akt?.meldedatum) inp.value = String(akt.meldedatum).slice(0, 10);
+                }).catch(() => {});
+        }
+    }
 }
 
 function krClose() {
@@ -298,13 +320,17 @@ async function krGenerate() {
     const vom = document.getElementById('krKuendigungVom').value;
     if (!vom) return alert('Bitte das Datum der ausgesprochenen Kündigung angeben.');
     const grundSel = document.getElementById('krGrundSelect')?.value || '';
+    const istSchwangerschaft = grundSel === '__SCHWANGERSCHAFT__';
     const grund = grundSel === '__ANDERER__'
         ? (document.getElementById('krGrund').value || null)
-        : (grundSel || null);
+        : (istSchwangerschaft ? null : (grundSel || null));
     const dto = {
         kuendigungVom:  vom,
         grund:          grund,
-        eingeschrieben: document.querySelector('input[name="krZustell"]:checked')?.value === 'E'
+        eingeschrieben: document.querySelector('input[name="krZustell"]:checked')?.value === 'E',
+        nichtigSchwangerschaft: istSchwangerschaft,
+        schwangerschaftGemeldetAm: istSchwangerschaft
+            ? (document.getElementById('krSchwGemeldet')?.value || null) : null
     };
     try {
         const r = await fetch(`/api/kuendigung/${_krEmpId}/rueckzug-pdf`, {

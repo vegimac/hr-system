@@ -147,6 +147,11 @@ public class KuendigungController : ControllerBase
         public string?   Ort { get; set; }
         public string?   Grund { get; set; }            // optionaler Rueckzugs-Grund
         public bool      Eingeschrieben { get; set; }
+        /// <summary>true = Schwangerschafts-Variante (Kuendigung nichtig, OR 336c) —
+        /// Brief «Fortbestehen des Arbeitsverhaeltnisses» nach Walter-Text 16.07.2026.</summary>
+        public bool      NichtigSchwangerschaft { get; set; }
+        /// <summary>Datum, an dem die MA die Schwangerschaft gemeldet hat.</summary>
+        public DateOnly? SchwangerschaftGemeldetAm { get; set; }
     }
 
     /// <summary>
@@ -181,7 +186,9 @@ public class KuendigungController : ControllerBase
             KuendigungVom: dto.KuendigungVom,
             Grund:        string.IsNullOrWhiteSpace(dto.Grund) ? null : dto.Grund!.Trim(),
             UnterzeichnerName: signerName,
-            Eingeschrieben: dto.Eingeschrieben);
+            Eingeschrieben: dto.Eingeschrieben,
+            NichtigSchwangerschaft: dto.NichtigSchwangerschaft,
+            SchwangerschaftGemeldetAm: dto.SchwangerschaftGemeldetAm);
 
         try
         {
