@@ -83,12 +83,14 @@ public class RisikobeurteilungPdfService
             // Kurzbeschrieb: IN der grossen Box (Rahmen x 57-539, top 639.5-757.4
             // — vermessen; Walter-Feedback 16.07.2026: Text sass zu hoch und
             // lief rechts ueber den Rahmen).
-            var lines = Wrap(BetriebsBeschrieb, font, 9f, 455f);
+            // Groesser (Walter 16.07.2026) — Box (57-539 / 639.5-757.4) bietet
+            // genug Hoehe: 11pt, Zeilenabstand 14.5pt, Umbruch bei 450pt.
+            var lines = Wrap(BetriebsBeschrieb, font, 11f, 450f);
             float y = 646f;
             foreach (var line in lines)
             {
-                Text(line, 66, y, 9f);
-                y += 11.5f;
+                Text(line, 66, y, 11f);
+                y += 14.5f;
             }
 
             // ── Letzte Seite: «Diese Risikobeurteilung wurde mit der
