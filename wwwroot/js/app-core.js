@@ -861,7 +861,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','smtp-settings','ecall','filial-onboarding','postfach-backfill',
-                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung'];
+                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','aerzte'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
 // Widget. Wird auf allen Admin-Sub-Pages eingeblendet, sonst versteckt.
@@ -904,6 +904,7 @@ function showPage(name) {
     if (name === 'qst-tarife') loadQstTarifeStatus();
     if (name === 'fz-tarife') fzLoad();
     if (name === 'mitarbeiter') loadMitarbeiterList();
+    if (name === 'aerzte' && typeof aerzteInit === 'function') aerzteInit();
     if (name === 'lohn') {
         // initLohnPage ist async (befüllt Periode-Selects). Modus wird DANACH
         // automatisch je nach Akonto-Status der Periode gewählt (Walter 16.05.2026):

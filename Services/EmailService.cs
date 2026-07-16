@@ -141,7 +141,28 @@ public class EmailService
         await SendCoreAsync(cfg, to, null, subject, htmlBody, textBody, throwOnError: true);
     }
 
-    private async Task SendCoreAsync(EffectiveSmtpConfig cfg, string to, string? toName, string subject, string htmlBody, string textBody, bool throwOnError)
+    /// <summary>
+    /// Versand mit PDF-Anhang (Walter 16.07.2026, z.B. Arztbrief).
+    /// Liefert true bei Erfolg, wirft bei Fehler NICHT (loggt nur).
+    /// </summary>
+    public async Task<bool> SendWithAttachmentAsync(string to, string? toName, string subject,
+        string htmlBody, string textBody, byte[] attachment, string attachmentName)
+    {
+        var cfg = await GetEffectiveConfigAsync();
+        try
+        {
+            await SendCoreAsync(cfg, to, toName, subject, htmlBody, textBody,
+                throwOnError: true, attachment: attachment, attachmentName: attachmentName);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "[EmailService] Mail mit Anhang fehlgeschlagen an {To} — {Subject}", to, subject);
+            return false;
+        }
+    }
+
+    private async Task SendCoreAsync(EffectiveSmtpConfig cfg, string to, string? toName, string subject, string htmlBody, string textBody, bool throwOnError, byte[]? attachment = null, string? attachmentName = null)
     {
         if (string.IsNullOrWhiteSpace(cfg.Host) || string.IsNullOrWhiteSpace(cfg.FromAddress))
         {
@@ -167,6 +188,9 @@ public class EmailService
         mime.Subject = effectiveSubject;
 
         var builder = new BodyBuilder { HtmlBody = htmlBody, TextBody = textBody };
+        if (attachment is { Length: > 0 })
+            builder.Attachments.Add(attachmentName ?? "Anhang.pdf", attachment,
+                new MimeKit.ContentType("application", "pdf"));
         mime.Body = builder.ToMessageBody();
 
         using var client = new SmtpClient();

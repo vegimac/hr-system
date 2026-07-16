@@ -38,6 +38,7 @@ public class AppDbContext : DbContext
     public DbSet<ContractText> ContractTexts => Set<ContractText>();
     public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<UserBranchAccess> UserBranchAccesses => Set<UserBranchAccess>();
+    public DbSet<Arzt> Aerzte => Set<Arzt>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<EmployeeFamilyMember> EmployeeFamilyMembers => Set<EmployeeFamilyMember>();
     public DbSet<EmployeeAddress> EmployeeAddresses => Set<EmployeeAddress>();
@@ -722,6 +723,25 @@ public class AppDbContext : DbContext
         });
 
         // ── UserBranchAccess ───────────────────────────────────────────────
+        modelBuilder.Entity<Arzt>(entity =>
+        {
+            entity.ToTable("arzt");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Titel).HasColumnName("titel");
+            entity.Property(e => e.Vorname).HasColumnName("vorname");
+            entity.Property(e => e.Nachname).HasColumnName("nachname");
+            entity.Property(e => e.Fachgebiet).HasColumnName("fachgebiet");
+            entity.Property(e => e.PraxisName).HasColumnName("praxis_name");
+            entity.Property(e => e.Strasse).HasColumnName("strasse");
+            entity.Property(e => e.Plz).HasColumnName("plz");
+            entity.Property(e => e.Ort).HasColumnName("ort");
+            entity.Property(e => e.Telefon).HasColumnName("telefon");
+            entity.Property(e => e.Email).HasColumnName("email");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.Aktiv).HasColumnName("aktiv");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+        });
+
         modelBuilder.Entity<UserBranchAccess>(entity =>
         {
             entity.ToTable("user_branch_access");

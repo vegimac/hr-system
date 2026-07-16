@@ -5653,6 +5653,7 @@ function renderPregnancyCard(d) {
                         <button class="dok-menu-item" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
                         <button class="dok-menu-item" onclick="mvCheckliste(${p.id})">Gesprächs-Checkliste (PDF)</button>
                         <button class="dok-menu-item" onclick="mvOpen(${p.id})">Mutterschaftsvereinbarung…</button>
+                        <button class="dok-menu-item" onclick="abOpen(${p.id})">Brief an behandelnden Arzt…</button>
                         <button class="dok-menu-item" onclick="mtsDownloadPdf(${p.id})">Übersicht als PDF</button>
                         <button class="dok-menu-item danger" onclick="mtsDelete(${p.id})">Löschen</button>
                     </div>
@@ -5792,6 +5793,109 @@ async function mtsOpenGeburt(id) {
     });
     if (!r.ok) return alert('Fehler: ' + await r.text());
     loadFamilieTab(selectedEmployeeId);
+}
+
+// ── Brief an den behandelnden Arzt (Walter 16.07.2026, nach Word-Vorlage):
+// medizinische Eignungsuntersuchung Mutterschutz. Arzt aus dem Ärzte-
+// Verzeichnis (Systemeinstellungen → Ärzte); PDF im Vorschaufenster oder
+// direkt per E-Mail an die Praxis (mit Liquid-Bestätigung).
+let _abPregId = null;
+
+function _abEnsureModal() {
+    if (document.getElementById('abModal')) return;
+    const div = document.createElement('div');
+    div.id = 'abModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
+    div.innerHTML = `
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:520px;width:94%;padding:22px 24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:16px;font-weight:800;color:#3f3f3f">Brief an den behandelnden Arzt</div>
+            <button onclick="abClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+        </div>
+        <div style="font-size:12px;color:#646464;margin-bottom:14px">Medizinische Eignungsuntersuchung Mutterschutz — Beilagen: Risikobeurteilung + Eignungsbeurteilung. Ärzte werden in den Systemeinstellungen → Ärzte gepflegt.</div>
+        <label style="font-size:11.5px;font-weight:700;color:#646464">Behandelnde Ärztin / behandelnder Arzt</label>
+        <select id="abArzt" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:16px"></select>
+        <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap">
+            <button onclick="abClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button onclick="abPdf()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">📄 PDF erstellen</button>
+            <button onclick="abEmail()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">✉ Per E-Mail senden</button>
+        </div>
+    </div>`;
+    document.body.appendChild(div);
+}
+
+async function abOpen(pregId) {
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    _abEnsureModal();
+    _abPregId = pregId;
+    const sel = document.getElementById('abArzt');
+    sel.innerHTML = '<option value="">— Arzt wählen —</option>';
+    try {
+        const r = await fetch('/api/aerzte', { headers: ah() });
+        if (r.ok) {
+            const list = await r.json();
+            for (const a of list) {
+                const name = [a.titel, a.vorname, a.nachname].filter(Boolean).join(' ');
+                const extra = [a.praxisName, a.ort].filter(Boolean).join(', ');
+                const o = document.createElement('option');
+                o.value = a.id;
+                o.textContent = extra ? `${name} — ${extra}` : name;
+                o.dataset.email = a.email || '';
+                sel.appendChild(o);
+            }
+        }
+    } catch (_) {}
+    document.getElementById('abModal').style.display = 'flex';
+}
+
+function abClose() {
+    const m = document.getElementById('abModal');
+    if (m) m.style.display = 'none';
+}
+
+function _abArztId() {
+    const id = +(document.getElementById('abArzt')?.value || 0);
+    if (!id) { alert('Bitte zuerst einen Arzt wählen.'); return null; }
+    return id;
+}
+
+async function abPdf() {
+    const arztId = _abArztId();
+    if (!arztId || !_abPregId) return;
+    try {
+        const r = await fetch(`/api/mutterschaft-vereinbarung/${_abPregId}/arztbrief-pdf`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ arztId })
+        });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
+        const blob = await r.blob();
+        abClose();
+        previewFileModal(blob, 'Arztbrief_Eignungsuntersuchung.pdf');
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+async function abEmail() {
+    const arztId = _abArztId();
+    if (!arztId || !_abPregId) return;
+    const sel = document.getElementById('abArzt');
+    const opt = sel.options[sel.selectedIndex];
+    const email = opt?.dataset?.email || '';
+    if (!email) return alert('Für diesen Arzt ist keine E-Mail-Adresse hinterlegt — bitte in Systemeinstellungen → Ärzte ergänzen.');
+    const ja = await liquidConfirm(
+        `Arztbrief jetzt per E-Mail an ${email} senden?\n\nDas PDF wird als Anhang mitgeschickt.`,
+        { title: 'E-Mail senden?', yesLabel: 'Ja, senden', noLabel: 'Nein' });
+    if (!ja) return;
+    try {
+        const r = await fetch(`/api/mutterschaft-vereinbarung/${_abPregId}/arztbrief-email`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ arztId })
+        });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('E-Mail-Fehler: ' + t); }
+        abClose();
+        alert('Arztbrief wurde per E-Mail an ' + email + ' gesendet.');
+    } catch (e) { alert('Fehler: ' + e.message); }
 }
 
 // ── Mutterschafts-Gespräch: Checkliste + Vereinbarung (Walter 16.07.2026,

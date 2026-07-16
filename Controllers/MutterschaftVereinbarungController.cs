@@ -21,10 +21,11 @@ public class MutterschaftVereinbarungController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly MutterschaftPdfService _pdf;
+    private readonly EmailService _email;
 
-    public MutterschaftVereinbarungController(AppDbContext db, MutterschaftPdfService pdf)
+    public MutterschaftVereinbarungController(AppDbContext db, MutterschaftPdfService pdf, EmailService email)
     {
-        _db = db; _pdf = pdf;
+        _db = db; _pdf = pdf; _email = email;
     }
 
     public class VereinbarungDto
@@ -86,6 +87,91 @@ public class MutterschaftVereinbarungController : ControllerBase
             return StatusCode(500, new { error = "PDF_FEHLER", message = ex.GetBaseException().Message });
         }
     }
+
+    public class ArztbriefDto
+    {
+        public int ArztId { get; set; }
+    }
+
+    /// <summary>
+    /// Brief an den behandelnden Arzt (Walter-Vorgabe 16.07.2026, nach
+    /// Word-Vorlage): medizinische Eignungsuntersuchung Mutterschutz.
+    /// Arzt aus dem Ärzte-Verzeichnis; read-only PDF.
+    /// </summary>
+    [HttpPost("{pregnancyId:int}/arztbrief-pdf")]
+    public async Task<IActionResult> ArztbriefPdf(int pregnancyId, [FromBody] ArztbriefDto dto)
+    {
+        var common = await LoadCommonAsync(pregnancyId);
+        if (common == null) return NotFound(new { error = "PREGNANCY_NOT_FOUND" });
+        var arzt = await _db.Aerzte.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.ArztId);
+        if (arzt == null) return NotFound(new { error = "ARZT_NOT_FOUND", message = "Arzt nicht im Verzeichnis gefunden." });
+        try
+        {
+            var bytes = _pdf.GenerateArztbrief(common, ToArztInfo(arzt));
+            return File(bytes, "application/pdf",
+                $"Arztbrief_Eignungsuntersuchung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "PDF_FEHLER", message = ex.GetBaseException().Message });
+        }
+    }
+
+    /// <summary>
+    /// Arztbrief direkt per E-Mail an die Praxis senden (PDF im Anhang).
+    /// Wird vom Frontend NUR nach expliziter Bestätigung aufgerufen.
+    /// </summary>
+    [HttpPost("{pregnancyId:int}/arztbrief-email")]
+    public async Task<IActionResult> ArztbriefEmail(int pregnancyId, [FromBody] ArztbriefDto dto)
+    {
+        var common = await LoadCommonAsync(pregnancyId);
+        if (common == null) return NotFound(new { error = "PREGNANCY_NOT_FOUND" });
+        var arzt = await _db.Aerzte.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.ArztId);
+        if (arzt == null) return NotFound(new { error = "ARZT_NOT_FOUND", message = "Arzt nicht im Verzeichnis gefunden." });
+        if (string.IsNullOrWhiteSpace(arzt.Email))
+            return BadRequest(new { error = "ARZT_OHNE_EMAIL", message = "Für diesen Arzt ist keine E-Mail-Adresse hinterlegt." });
+
+        try
+        {
+            var bytes = _pdf.GenerateArztbrief(common, ToArztInfo(arzt));
+            var arztName = string.Join(" ", new[] { arzt.Titel, arzt.Vorname, arzt.Nachname }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+            var subject = $"Medizinische Eignungsuntersuchung Mutterschutz — Frau {common.MaVorname} {common.MaName}";
+            var text = $"Sehr geehrte Damen und Herren
+
+"
+                     + $"Im Anhang erhalten Sie unser Schreiben betreffend die medizinische Eignungsuntersuchung "
+                     + $"für Frau {common.MaVorname} {common.MaName}"
+                     + (common.MaGeburtsdatum.HasValue ? $", geb. {common.MaGeburtsdatum.Value:dd.MM.yyyy}" : "")
+                     + ".
+
+Freundliche Grüsse
+"
+                     + $"{common.UnterzeichnerName}
+{common.FirmaName}{(string.IsNullOrWhiteSpace(common.RestaurantName) ? "" : " · " + common.RestaurantName)}";
+            var html = text.Replace("
+", "<br>");
+            var ok = await _email.SendWithAttachmentAsync(
+                arzt.Email!, arztName, subject, html, text,
+                bytes, $"Arztbrief_Eignungsuntersuchung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_"));
+            if (!ok)
+                return StatusCode(500, new { error = "MAIL_FEHLER", message = "E-Mail-Versand fehlgeschlagen — SMTP-Konfiguration prüfen (Systemeinstellungen → E-Mail)." });
+            return Ok(new { ok = true, to = arzt.Email });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "MAIL_FEHLER", message = ex.GetBaseException().Message });
+        }
+    }
+
+    private static MutterschaftPdfService.ArztInfo ToArztInfo(Arzt a) => new(
+        Titel:      a.Titel,
+        Vorname:    a.Vorname,
+        Nachname:   a.Nachname,
+        Fachgebiet: a.Fachgebiet,
+        PraxisName: a.PraxisName,
+        Strasse:    a.Strasse,
+        PlzOrt:     string.Join(" ", new[] { a.Plz, a.Ort }.Where(x => !string.IsNullOrWhiteSpace(x))));
 
     // ── Helfer ──────────────────────────────────────────────────────────────
 

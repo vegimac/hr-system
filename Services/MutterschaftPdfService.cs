@@ -40,6 +40,100 @@ public class MutterschaftPdfService
         string? RueckkehrRestaurant,    // nur bei ANDERS
         bool Eingeschrieben);           // sonst persönliche Aushändigung
 
+    // ── Arzt-Angaben fuer den Arztbrief ─────────────────────────────────────
+    public record ArztInfo(
+        string? Titel, string Vorname, string Nachname,
+        string? Fachgebiet, string? PraxisName,
+        string? Strasse, string? PlzOrt);
+
+    // ═══════════════ BRIEF AN DEN BEHANDELNDEN ARZT ═════════════════════════
+    // (Walter-Vorgabe 16.07.2026, nach Word-Vorlage «Brief an den behandelnden
+    // Arzt»: medizinische Eignungsuntersuchung bei schwangeren Frauen und
+    // stillenden Muettern. Arzt-Adresse im C5-Fenster.)
+    public byte[] GenerateArztbrief(MvCommon d, ArztInfo a)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        var arztName = string.Join(" ", new[] { a.Titel, a.Vorname, a.Nachname }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+        var arztLines = new[] { a.PraxisName, arztName, a.Fachgebiet, a.Strasse, a.PlzOrt }
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).ToList();
+        var firmaLines = new[] { d.FirmaName, d.RestaurantName, d.FirmaStrasse, d.FirmaPlzOrt }
+            .Where(x => !string.IsNullOrWhiteSpace(x));
+
+        return Document.Create(doc =>
+        {
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(1.3f, Unit.Centimetre);
+                page.MarginHorizontal(2.2f, Unit.Centimetre);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).FontColor(Dark).LineHeight(1.35f));
+
+                page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
+
+                page.Content().PaddingTop(14).Column(col =>
+                {
+                    col.Item().Text(string.Join(" · ", firmaLines)).FontSize(8.5f).FontColor(Muted);
+
+                    // Arzt-Adresse in der C5-Fensterzone (wie Kuendigung/Rueckzug).
+                    col.Item().Height(40);
+                    col.Item().Column(c =>
+                    {
+                        foreach (var ln in arztLines) c.Item().Text(ln);
+                    });
+
+                    col.Item().PaddingTop(30).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+
+                    col.Item().PaddingTop(30).Text("Medizinische Eignungsuntersuchung bei schwangeren Frauen und stillenden Müttern")
+                        .Bold().FontSize(12.5f);
+
+                    col.Item().PaddingTop(20).Text(t =>
+                    {
+                        t.Span("An die behandelnde Ärztin / den behandelnden Arzt von ");
+                        t.Span($"Frau {d.MaVorname} {d.MaName}").Bold();
+                        if (d.MaGeburtsdatum.HasValue)
+                        {
+                            t.Span(", geb. ");
+                            t.Span($"{d.MaGeburtsdatum.Value:dd.MM.yyyy}").Bold();
+                        }
+                        t.Span(".");
+                    });
+
+                    col.Item().PaddingTop(18).Text(
+                        "Gemäss den Bestimmungen zum Mutterschutz hat unser Betrieb die Risikobeurteilung zum Schutz von schwangeren oder stillenden Frauen vor gefährlichen und beschwerlichen Arbeiten vorgenommen. Die Risikobeurteilung für den Arbeitsplatz der genannten Mitarbeiterin hat ergeben, dass unter Einhaltung der allfällig genannten Schutzmassnahmen eine gesundheitliche Belastung für Mutter und Kind weitgehend ausgeschlossen werden kann.");
+
+                    col.Item().PaddingTop(18).Text(
+                        "Bitte teilen Sie uns nach erfolgter Eignungsuntersuchung die Eignung mittels beiliegendem Formular «Eignungsbeurteilung» mit.");
+
+                    col.Item().PaddingTop(18).Text(
+                        "Für ergänzende Auskünfte oder Rückfragen stehen wir Ihnen gerne zur Verfügung.");
+
+                    // Gruss + Unterschrift (Unterschriftsberechtigte der Filiale;
+                    // Bild nur wenn die eingeloggte Person selbst unterzeichnet).
+                    col.Item().PaddingTop(30).Text("Freundliche Grüsse");
+                    if (!string.IsNullOrWhiteSpace(d.FirmaName))
+                        col.Item().PaddingTop(2).Text($"{d.FirmaName}{(string.IsNullOrWhiteSpace(d.RestaurantName) ? "" : " · " + d.RestaurantName)}").Bold();
+                    if (d.SignaturePng is { Length: > 0 })
+                        col.Item().PaddingTop(8).Height(52).AlignLeft().Image(d.SignaturePng).FitHeight();
+                    else
+                        col.Item().PaddingTop(8).Height(56);
+                    col.Item().Text(d.UnterzeichnerName ?? "");
+                    if (!string.IsNullOrWhiteSpace(d.UnterzeichnerTitel))
+                        col.Item().Text(d.UnterzeichnerTitel!).FontColor(Muted);
+                });
+
+                page.Footer().Column(col =>
+                {
+                    col.Item().Text("Beilagen:").FontSize(9.5f).Bold();
+                    col.Item().Text("Risikobeurteilung Mutterschutz").FontSize(9.5f).FontColor(Muted);
+                    col.Item().Text("Eignungsbeurteilung").FontSize(9.5f).FontColor(Muted);
+                });
+            });
+        }).GeneratePdf();
+    }
+
     // ═════════════════════════════ CHECKLISTE ═══════════════════════════════
     public byte[] GenerateCheckliste(MvCommon d)
     {

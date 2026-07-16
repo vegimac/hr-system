@@ -358,6 +358,35 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS kuendigung_per date;
     ");
 
+    // Ärzte-Verzeichnis (Walter 16.07.2026) — fuer den Brief an den
+    // behandelnden Arzt (Eignungsuntersuchung Mutterschutz).
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS arzt (
+            id           serial PRIMARY KEY,
+            titel        text,
+            vorname      text NOT NULL DEFAULT '',
+            nachname     text NOT NULL,
+            fachgebiet   text,
+            praxis_name  text,
+            strasse      text,
+            plz          text,
+            ort          text,
+            telefon      text,
+            email        text,
+            bemerkung    text,
+            aktiv        boolean NOT NULL DEFAULT true,
+            created_at   timestamp without time zone NOT NULL DEFAULT now()
+        );
+    ");
+    // Erst-Seed NUR in die leere Tabelle (CLAUDE.md-Muster): der von Walter
+    // gelieferte erste Eintrag (Frauenzentrum Sursee).
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO arzt (titel, vorname, nachname, fachgebiet, praxis_name, strasse, plz, ort, telefon, email)
+        SELECT 'Dr. med.', 'Málna', 'Makai', 'Gynäkologie/Geburtshilfe', 'Frauenzentrum Sursee',
+               'Centralstrasse 14a', '6210', 'Sursee', '+41 41 921 70 22', 'info@frauenzentrum-sursee.ch'
+        WHERE NOT EXISTS (SELECT 1 FROM arzt);
+    ");
+
     // Audit-Felder für Stempelzeit-Änderungen
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employee_time_entry
