@@ -54,27 +54,29 @@ public class RisikobeurteilungPdfService
             var page = pdf.GetPage(1);
             var canvas = new PdfCanvas(page);
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+            var bold = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
             float pageH = page.GetPageSize().GetHeight();   // 840
 
             // Koordinaten aus der Vorlage vermessen (pdfplumber, top-basiert):
             // Name 62/547 · Adresse 62/563.6 · PLZ 312/563.6 ·
             // Kontaktperson 62/580.4 · Tel. 312/580.4 · Kurzbeschrieb 57/620.
-            void Text(string? t, float x, float topY, float size = 9f)
+            void Text(string? t, float x, float topY, float size = 9f, bool fett = false)
             {
                 if (string.IsNullOrWhiteSpace(t)) return;
                 canvas.BeginText()
-                      .SetFontAndSize(font, size)
+                      .SetFontAndSize(fett ? bold : font, size)
                       .SetColor(ColorConstants.BLACK, true)
                       .MoveText(x, pageH - topY - 8f)
                       .ShowText(t)
                       .EndText();
             }
 
-            Text(b.Name,          150, 547f);
-            Text(b.Strasse,       150, 563.6f);
-            Text(b.PlzOrt,        360, 563.6f);
-            Text(b.Kontaktperson, 150, 580.4f);
-            Text(b.Telefon,       360, 580.4f);
+            // Ausfuell-Werte FETT + groesser (Walter-Feedback 16.07.2026).
+            Text(b.Name,          150, 546f, 10.5f, true);
+            Text(b.Strasse,       150, 562.6f, 10.5f, true);
+            Text(b.PlzOrt,        360, 562.6f, 10.5f, true);
+            Text(b.Kontaktperson, 150, 579.4f, 10.5f, true);
+            Text(b.Telefon,       360, 579.4f, 10.5f, true);
 
             // Kurzbeschrieb: IN der grossen Box (Rahmen x 57-539, top 639.5-757.4
             // — vermessen; Walter-Feedback 16.07.2026: Text sass zu hoch und
@@ -98,13 +100,15 @@ public class RisikobeurteilungPdfService
             var lastPage = pdf.GetPage(pdf.GetNumberOfPages());
             var lastCanvas = new PdfCanvas(lastPage);
             float lastH = lastPage.GetPageSize().GetHeight();
-            void TextL(string? t, float x, float topY, float size = 9.5f)
+            // Ausfuell-Werte FETT + groesser (Walter-Feedback 16.07.2026:
+            // «diese schrift zum ausfuellen groesser und fett»).
+            void TextL(string? t, float x, float topY, float size = 12f)
             {
                 if (string.IsNullOrWhiteSpace(t)) return;
                 lastCanvas.BeginText()
-                          .SetFontAndSize(font, size)
+                          .SetFontAndSize(bold, size)
                           .SetColor(ColorConstants.BLACK, true)
-                          .MoveText(x, lastH - topY - 9f)
+                          .MoveText(x, lastH - topY - 11f)
                           .ShowText(t)
                           .EndText();
             }
