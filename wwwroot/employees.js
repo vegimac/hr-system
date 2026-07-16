@@ -5651,16 +5651,17 @@ function renderPregnancyCard(d) {
                 <div class="dok-menu-wrap" style="display:inline-block">
                     <button onclick="mtsToggleMenu(event, ${p.id})" title="Alle Schritte des Mutterschafts-Prozesses"
                             style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:700">🧭 Fahrplan ▾</button>
-                    <div class="dok-menu" id="mtsMenu-${p.id}">
-                        <button class="dok-menu-item" onclick="mvCheckliste(${p.id})">1 · Gesprächs-Checkliste (PDF)</button>
-                        <button class="dok-menu-item" onclick="mvOpen(${p.id})">2 · Mutterschaftsvereinbarung…</button>
-                        <button class="dok-menu-item" onclick="abOpen(${p.id})">3 · Brief an behandelnden Arzt…</button>
-                        <button class="dok-menu-item" onclick="abRisiko(${p.id})">4 · Risikobeurteilung (PDF)</button>
-                        ${p.geburtsdatum ? '' : `<button class="dok-menu-item" onclick="mtsOpenGeburt(${p.id})">5 · Geburt eintragen</button>`}
-                        <button class="dok-menu-item" onclick="mtsOpenDokuTab()">📁 Dokumente</button>
-                        <button class="dok-menu-item" onclick="mtsDownloadPdf(${p.id})">Übersicht als PDF</button>
-                        <button class="dok-menu-item" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
-                        <button class="dok-menu-item danger" onclick="mtsDelete(${p.id})">Löschen</button>
+                    <!-- Walter 16.07.2026: Uebersicht zuoberst, kein Dokumente-
+                         Eintrag, jeder Punkt auf EINER Zeile (nowrap + Breite). -->
+                    <div class="dok-menu" id="mtsMenu-${p.id}" style="min-width:290px">
+                        <button class="dok-menu-item" style="white-space:nowrap" onclick="mtsDownloadPdf(${p.id})">Übersicht als PDF</button>
+                        <button class="dok-menu-item" style="white-space:nowrap" onclick="mvCheckliste(${p.id})">1 · Gesprächs-Checkliste (PDF)</button>
+                        <button class="dok-menu-item" style="white-space:nowrap" onclick="mvOpen(${p.id})">2 · Mutterschaftsvereinbarung…</button>
+                        <button class="dok-menu-item" style="white-space:nowrap" onclick="abOpen(${p.id})">3 · Brief an behandelnden Arzt…</button>
+                        <button class="dok-menu-item" style="white-space:nowrap" onclick="abRisiko(${p.id})">4 · Risikobeurteilung (PDF)</button>
+                        ${p.geburtsdatum ? '' : `<button class="dok-menu-item" style="white-space:nowrap" onclick="mtsOpenGeburt(${p.id})">5 · Geburt eintragen</button>`}
+                        <button class="dok-menu-item" style="white-space:nowrap" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
+                        <button class="dok-menu-item danger" style="white-space:nowrap" onclick="mtsDelete(${p.id})">Löschen</button>
                     </div>
                 </div>
             </div>
