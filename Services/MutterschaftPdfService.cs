@@ -304,46 +304,42 @@ public class MutterschaftPdfService
                     });
 
                     col.Item().PaddingTop(14).Text("Solltest du Fragen haben, stehen wir dir gern zur Verfügung.");
-                });
 
-                page.Footer().Column(col =>
-                {
-                    col.Item().Text("Freundliche Grüsse");
+                    // Gruss + Unterschrift der Geschäftsführerin direkt nach dem
+                    // Text (Walter 16.07.2026: weiter nach oben, nicht am
+                    // Seitenende verankert) — mit grosszügigem Platz zum
+                    // Unterschreiben vor dem Namen.
+                    col.Item().PaddingTop(24).Text("Freundliche Grüsse");
                     if (!string.IsNullOrWhiteSpace(d.FirmaName))
                         col.Item().PaddingTop(2).Text($"{d.FirmaName}{(string.IsNullOrWhiteSpace(d.RestaurantName) ? "" : " · " + d.RestaurantName)}").Bold();
 
                     if (d.SignaturePng is { Length: > 0 })
-                        col.Item().PaddingTop(6).Height(44).AlignLeft().Image(d.SignaturePng).FitHeight();
+                        col.Item().PaddingTop(8).Height(56).AlignLeft().Image(d.SignaturePng).FitHeight();
                     else
-                        col.Item().PaddingTop(6).Height(36);
+                        col.Item().PaddingTop(8).Height(64);
 
-                    col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
+                    col.Item().Text(d.UnterzeichnerName ?? "");
                     if (!string.IsNullOrWhiteSpace(d.UnterzeichnerTitel))
                         col.Item().Text(d.UnterzeichnerTitel!).FontColor(Muted);
-
-                    // Empfangs-/Einverständnis-Bestätigung der MA — NUR bei
-                    // persönlicher Aushändigung (Walter 16.07.2026); beim
-                    // Einschreiben-Versand entfällt der Block (Vorlage:
-                    // «Variante bei persönlicher Überreichung»).
-                    if (!o.Eingeschrieben)
-                    {
-                        col.Item().PaddingTop(18).Text("Einverstanden und Original erhalten:").FontSize(9f).FontColor(Muted);
-                        col.Item().PaddingTop(16).Row(r =>
-                        {
-                            r.RelativeItem().Column(c =>
-                            {
-                                c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                                c.Item().PaddingTop(3).Text("Ort und Datum").FontSize(8.5f).FontColor(Muted);
-                            });
-                            r.ConstantItem(40);
-                            r.RelativeItem().Column(c =>
-                            {
-                                c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                                c.Item().PaddingTop(3).Text($"{d.MaVorname} {d.MaName}").FontSize(8.5f).FontColor(Muted);
-                            });
-                        });
-                    }
                 });
+
+                // Empfangs-/Einverständnis-Bestätigung der MA — NUR bei
+                // persönlicher Aushändigung (Walter 16.07.2026); beim
+                // Einschreiben-Versand entfällt der Block. Ohne Striche —
+                // nur Beschriftungen mit Platz darüber.
+                if (!o.Eingeschrieben)
+                {
+                    page.Footer().Column(col =>
+                    {
+                        col.Item().Text("Einverstanden und Original erhalten:").FontSize(9f).FontColor(Muted);
+                        col.Item().PaddingTop(42).Row(r =>
+                        {
+                            r.RelativeItem().Text("Ort und Datum").FontSize(8.5f).FontColor(Muted);
+                            r.ConstantItem(40);
+                            r.RelativeItem().Text($"{d.MaVorname} {d.MaName}").FontSize(8.5f).FontColor(Muted);
+                        });
+                    });
+                }
             });
         }).GeneratePdf();
     }
