@@ -3172,6 +3172,26 @@ async function loadFamilieTab(employeeId) {
     }
 }
 
+// Mutterschafts-Block des Familie-Tabs (Walter 11.06.2026; als Helper
+// extrahiert 16.07.2026, weil er bei MA OHNE Familienmitglieder durch den
+// early-return verloren ging — Walter-Bug: «hier konnte ich frueher die
+// mutterschaft eintragen»). Nur bei Frauen.
+function _familieMutterschaftHtml(employeeId, pregnancyDetails) {
+    const empF = selectedEmployee;
+    if (!empF || !IstWeiblich(empF.gender)) return '';
+    return `
+        <div class="emp-section-title" style="margin-top:24px;display:flex;align-items:center;justify-content:space-between">
+            <span>Mutterschaft</span>
+            <button class="btn-emp-add" style="padding:6px 14px;font-size:12px;margin-left:auto" onclick="mtsOpenNew(${employeeId})">+ Schwangerschaft erfassen</button>
+        </div>
+        <div id="mutterschaftContent">
+            ${(pregnancyDetails && pregnancyDetails.length)
+                ? pregnancyDetails.map(d => renderPregnancyCard(d)).join('')
+                : `<div class="emp-placeholder" style="padding:24px"><span>Keine Schwangerschaft erfasst.</span></div>`
+            }
+        </div>`;
+}
+
 function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyDetails = [], pflicht = null) {
     // Cache für Detail-Popup-Lookup
     window._familyMembersCache = members;
@@ -3192,7 +3212,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
         <div class="emp-placeholder">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>${_t('famTab.empty','Keine Familienangehörigen erfasst')}</span>
-        </div>`;
+        </div>` + _familieMutterschaftHtml(employeeId, pregnancyDetails);
         return;
     }
 
@@ -3425,22 +3445,8 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
     });
 
     // Walter 11.06.2026: Mutterschafts-Modul komplett im Familie-Tab — nur
-    // bei Frauen. Volle Funktionalität: Erfassen, Bearbeiten, Geburt eintragen,
-    // PDF, Löschen. Mutterschafts-Tab in der Tab-Bar gibt es nicht mehr.
-    const empF = selectedEmployee;
-    if (empF && IstWeiblich(empF.gender)) {
-        html += `
-        <div class="emp-section-title" style="margin-top:24px;display:flex;align-items:center;justify-content:space-between">
-            <span>Mutterschaft</span>
-            <button class="btn-emp-add" style="padding:6px 14px;font-size:12px;margin-left:auto" onclick="mtsOpenNew(${employeeId})">+ Schwangerschaft erfassen</button>
-        </div>
-        <div id="mutterschaftContent">
-            ${pregnancyDetails.length
-                ? pregnancyDetails.map(d => renderPregnancyCard(d)).join('')
-                : `<div class="emp-placeholder" style="padding:24px"><span>Keine Schwangerschaft erfasst.</span></div>`
-            }
-        </div>`;
-    }
+    // bei Frauen (Helper _familieMutterschaftHtml, siehe oben).
+    html += _familieMutterschaftHtml(employeeId, pregnancyDetails);
 
     el.innerHTML = html;
 }
