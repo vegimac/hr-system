@@ -945,10 +945,13 @@ function renderEmployeeDetail(emp) {
                     <div class="emp-field-value">${yesNoToggle('ef-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div>
                 </div>
                 <!-- Kündigungs-Daten (Walter 16.07.2026): vom Kündigungsschreiben
-                     gesetzt, vom Rückzug gelöscht. Austrittsdatum bleibt separat
-                     (kann früher liegen); ToDo 2 Wochen vor Ablauf. -->
-                ${field('Gekündigt am', emp.kuendigungAusgesprochenAm ? formatDate(emp.kuendigungAusgesprochenAm) : null, null, true)}
-                ${field('Kündigung per', emp.kuendigungPer ? formatDate(emp.kuendigungPer) : null, null, true)}
+                     gesetzt, vom Rückzug gelöscht — hier DIREKT inline editierbar
+                     (wie Telefon 2). Austrittsdatum bleibt separat (kann früher
+                     liegen); ToDo 2 Wochen vor Ablauf. Wichtig: die Inputs
+                     ef-kuendAm/ef-kuendPer existieren damit in Ansicht UND
+                     Edit-Modus — saveEmpEdit liest sie in beiden Fällen. -->
+                ${inlineEditField('Gekündigt am', `<input id="ef-kuendAm" class="ef-input" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" oninput="empInlineDirty()" style="width:auto">`)}
+                ${inlineEditField('Kündigung per', `<input id="ef-kuendPer" class="ef-input" type="date" value="${toDateInput(emp.kuendigungPer)}" oninput="empInlineDirty()" style="width:auto">`)}
             </div>
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
             <div style="padding:6px 2px 2px">
