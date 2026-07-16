@@ -56,8 +56,8 @@ public class PregnancyPdfService
                         .OrderBy(f => f.Datum).ThenBy(f => f.SortOrder)
                         .ToList();
 
-        var basis = preg.Geburtsdatum ?? preg.ErrechneterTermin;
-        var schutzEnde = basis.AddDays(16 * 7);
+        var schutzBeginn = PregnancyFristCalculator.SchwangerschaftsBeginn(preg);
+        var schutzEnde   = PregnancyFristCalculator.KuendigungsschutzEnde(preg);
 
         var doc = Document.Create(c =>
         {
@@ -87,6 +87,9 @@ public class PregnancyPdfService
                         t.Span("Meldedatum: ").SemiBold();
                         t.Span(FmtFullDate(preg.Meldedatum));
                         t.Span("    ·    ").FontColor("#f9a8d4");
+                        t.Span("Beginn (ET − 280 T.): ").SemiBold();
+                        t.Span(FmtFullDate(schutzBeginn));
+                        t.Span("    ·    ").FontColor("#f9a8d4");
                         t.Span("ET: ").SemiBold();
                         t.Span(FmtFullDate(preg.ErrechneterTermin));
                         t.Span("    ·    ").FontColor("#f9a8d4");
@@ -96,8 +99,8 @@ public class PregnancyPdfService
                         else
                             t.Span("offen").FontColor(Muted);
                         t.Span("    ·    ").FontColor("#f9a8d4");
-                        t.Span("Kündigungsschutz bis: ").SemiBold();
-                        t.Span(FmtFullDate(schutzEnde));
+                        t.Span("Kündigungsschutz: ").SemiBold();
+                        t.Span($"{FmtFullDate(schutzBeginn)} – {FmtFullDate(schutzEnde)}");
                     });
                     if (!string.IsNullOrWhiteSpace(preg.Bemerkung))
                     {

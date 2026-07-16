@@ -152,9 +152,13 @@ public class SperrfristService
             .FirstOrDefaultAsync();
         if (pregnancy != null)
         {
-            var schutzBasis = pregnancy.Geburtsdatum ?? pregnancy.ErrechneterTermin;
-            var schutzEnde  = schutzBasis.AddDays(16 * 7);   // 16 Wochen nach Geburt
-            if (stichtag <= schutzEnde)
+            // Walter-Vorgabe 16.07.2026: der Schutz gilt AB BEGINN der
+            // Schwangerschaft (errechneter Termin − 280 Tage) BIS 16 Wochen
+            // nach der Niederkunft (effektives Geburtsdatum; solange keines
+            // erfasst ist, der errechnete Termin als Basis).
+            var schutzBeginn = PregnancyFristCalculator.SchwangerschaftsBeginn(pregnancy);
+            var schutzEnde   = PregnancyFristCalculator.KuendigungsschutzEnde(pregnancy);
+            if (stichtag >= schutzBeginn && stichtag <= schutzEnde)
             {
                 int verbleibendMts  = Math.Max(0, schutzEnde.DayNumber - stichtag.DayNumber);
                 var kuendigungAbMts = schutzEnde.AddDays(1);
@@ -162,15 +166,15 @@ public class SperrfristService
                     Status:               "GESCHUETZT",
                     StatusText:           $"Kündigungsschutz wegen Schwangerschaft/Mutterschaft (OR Art. 336c Abs. 1 Bst. c) — frühestens am {kuendigungAbMts:dd.MM.yyyy} kündbar ({verbleibendMts} Tag{(verbleibendMts == 1 ? "" : "e")} verbleibend).",
                     Hinweis:              pregnancy.Geburtsdatum.HasValue
-                        ? $"Schutz endet 16 Wochen nach Geburt ({pregnancy.Geburtsdatum.Value:dd.MM.yyyy})."
-                        : $"Schutz endet 16 Wochen nach errechnetem Termin ({pregnancy.ErrechneterTermin:dd.MM.yyyy}) — wird mit dem effektiven Geburtsdatum aktualisiert.",
+                        ? $"Schutz ab Beginn der Schwangerschaft ({schutzBeginn:dd.MM.yyyy}, ET − 280 Tage) bis 16 Wochen nach Geburt ({pregnancy.Geburtsdatum.Value:dd.MM.yyyy})."
+                        : $"Schutz ab Beginn der Schwangerschaft ({schutzBeginn:dd.MM.yyyy}, ET − 280 Tage) bis 16 Wochen nach errechnetem Termin ({pregnancy.ErrechneterTermin:dd.MM.yyyy}) — wird mit dem effektiven Geburtsdatum aktualisiert.",
                     EntryDate:            entryDate,
                     DienstjahrAmStichtag: dienstjahr,
                     ProbezeitEndDate:     probezeitEnde,
-                    AuBeginn:             pregnancy.Meldedatum,
+                    AuBeginn:             schutzBeginn,
                     AuGrund:              "MUTTERSCHAFT",
-                    AuDauerTage:          stichtag.DayNumber - pregnancy.Meldedatum.DayNumber + 1,
-                    SperrfristTage:       schutzEnde.DayNumber - pregnancy.Meldedatum.DayNumber + 1,
+                    AuDauerTage:          stichtag.DayNumber - schutzBeginn.DayNumber + 1,
+                    SperrfristTage:       schutzEnde.DayNumber - schutzBeginn.DayNumber + 1,
                     SperrfristTageHoechstenfalls: null,
                     SperrfristEnde:       schutzEnde,
                     KuendigungAbDatum:    kuendigungAbMts,

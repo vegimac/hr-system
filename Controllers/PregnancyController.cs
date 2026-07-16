@@ -25,7 +25,9 @@ public class PregnancyController : HrControllerBase
     public record PregnancyListDto(
         int Id, int EmployeeId, DateOnly Meldedatum, DateOnly ErrechneterTermin,
         DateOnly? Geburtsdatum, string? Bemerkung, bool IsActive,
-        DateTime CreatedAt, DateTime? UpdatedAt);
+        DateTime CreatedAt, DateTime? UpdatedAt,
+        // Walter 16.07.2026: Beginn Schwangerschaft = ET − 280 Tage (berechnet).
+        DateOnly SchwangerschaftsBeginn);
 
     public record FristDto(
         string Code, string Bezeichnung, string? Beschreibung, string? Gesetz,
@@ -52,15 +54,19 @@ public class PregnancyController : HrControllerBase
     [HttpGet]
     public async Task<IActionResult> GetByEmployee([FromQuery] int employeeId)
     {
-        var list = await _db.EmployeePregnancies
+        // Datums-Regelwerk 13.07.2026: erst roh laden, DANN im Speicher mappen
+        // (AddDays für den Schwangerschafts-Beginn gehört nicht in die EF-Projektion).
+        var rows = await _db.EmployeePregnancies
             // Alt-Datenbestand: früher soft-gelöschte (IsActive=false) nicht mehr zeigen.
             .Where(p => p.EmployeeId == employeeId && p.IsActive)
             .OrderByDescending(p => p.ErrechneterTermin)
-            .Select(p => new PregnancyListDto(
+            .ToListAsync();
+        var list = rows.Select(p => new PregnancyListDto(
                 p.Id, p.EmployeeId, p.Meldedatum, p.ErrechneterTermin,
                 p.Geburtsdatum, p.Bemerkung, p.IsActive,
-                p.CreatedAt, p.UpdatedAt))
-            .ToListAsync();
+                p.CreatedAt, p.UpdatedAt,
+                PregnancyFristCalculator.SchwangerschaftsBeginn(p)))
+            .ToList();
         return Ok(list);
     }
 
@@ -77,17 +83,21 @@ public class PregnancyController : HrControllerBase
         var today    = DateOnly.FromDateTime(DateTime.Today);
         var fristen  = rules.Select(r => CalcFrist(r, p, today)).ToList();
 
-        // Kündigungsschutz-Block separat (Anzeige als Banner): von = Meldedatum,
-        // bis = KUENDIG_SCHUTZ-Datum (16 Wochen nach Geburt/ET).
-        KuendigungsschutzDto? ks = null;
-        var kuendigungSchutz = fristen.FirstOrDefault(f => f.Code == "KUENDIG_SCHUTZ");
-        if (kuendigungSchutz != null)
-            ks = new KuendigungsschutzDto(p.Meldedatum, kuendigungSchutz.Datum);
+        // Kündigungsschutz-Block separat (Anzeige als Banner) — Walter-Vorgabe
+        // 16.07.2026: von = BEGINN der Schwangerschaft (ET − 280 Tage, nicht
+        // Meldedatum), bis = 16 Wochen nach Geburt (effektives Geburtsdatum,
+        // solange keines erfasst ist: errechneter Termin). Direkt berechnet,
+        // NICHT aus dem konfigurierbaren Regelwerk — der Schutz nach OR 336c
+        // ist gesetzlich fix.
+        var ks = new KuendigungsschutzDto(
+            PregnancyFristCalculator.SchwangerschaftsBeginn(p),
+            PregnancyFristCalculator.KuendigungsschutzEnde(p));
 
         var dto = new PregnancyDetailDto(
             new PregnancyListDto(p.Id, p.EmployeeId, p.Meldedatum, p.ErrechneterTermin,
                 p.Geburtsdatum, p.Bemerkung, p.IsActive,
-                p.CreatedAt, p.UpdatedAt),
+                p.CreatedAt, p.UpdatedAt,
+                PregnancyFristCalculator.SchwangerschaftsBeginn(p)),
             fristen,
             ks);
         return Ok(dto);

@@ -15,6 +15,22 @@ namespace HrSystem.Services;
 public static class PregnancyFristCalculator
 {
     /// <summary>
+    /// Beginn der Schwangerschaft (Walter-Vorgabe 16.07.2026):
+    /// errechneter Geburtstermin − 280 Tage (40 Wochen). Ab diesem Datum
+    /// gilt der Kündigungsschutz nach OR Art. 336c Abs. 1 Bst. c.
+    /// </summary>
+    public static DateOnly SchwangerschaftsBeginn(EmployeePregnancy p)
+        => p.ErrechneterTermin.AddDays(-280);
+
+    /// <summary>
+    /// Ende des Kündigungsschutzes: 16 Wochen nach der Niederkunft.
+    /// Solange kein effektives Geburtsdatum erfasst ist, wird der
+    /// errechnete Termin als Basis genommen (wird mit der Geburt präziser).
+    /// </summary>
+    public static DateOnly KuendigungsschutzEnde(EmployeePregnancy p)
+        => (p.Geburtsdatum ?? p.ErrechneterTermin).AddDays(16 * 7);
+
+    /// <summary>
     /// Berechnete Frist + Status für eine Regel-Anwendung auf eine
     /// konkrete Schwangerschaft. `DatumEnde` ist nullable — nur gesetzt
     /// wenn die Regel ein Phasen-Ende definiert (Variante B).
