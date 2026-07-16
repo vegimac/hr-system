@@ -22,10 +22,11 @@ public class MutterschaftVereinbarungController : ControllerBase
     private readonly AppDbContext _db;
     private readonly MutterschaftPdfService _pdf;
     private readonly EmailService _email;
+    private readonly RisikobeurteilungPdfService _risiko;
 
-    public MutterschaftVereinbarungController(AppDbContext db, MutterschaftPdfService pdf, EmailService email)
+    public MutterschaftVereinbarungController(AppDbContext db, MutterschaftPdfService pdf, EmailService email, RisikobeurteilungPdfService risiko)
     {
-        _db = db; _pdf = pdf; _email = email;
+        _db = db; _pdf = pdf; _email = email; _risiko = risiko;
     }
 
     public class VereinbarungDto
@@ -146,9 +147,16 @@ public class MutterschaftVereinbarungController : ControllerBase
                      + $"{common.UnterzeichnerName}" + nl
                      + $"{common.FirmaName}{(string.IsNullOrWhiteSpace(common.RestaurantName) ? "" : " · " + common.RestaurantName)}";
             var html = text.Replace(nl, "<br>");
-            var ok = await _email.SendWithAttachmentAsync(
-                arzt.Email!, arztName, subject, html, text,
-                bytes, $"Arztbrief_Eignungsuntersuchung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_"));
+            // Beilage: personalisierte Risikobeurteilung (Walter 16.07.2026)
+            byte[]? risiko = null;
+            try { risiko = _risiko.Generate(await BuildBetriebsAngabenAsync(pregnancyId, common)); } catch { /* Brief geht trotzdem raus */ }
+            var anhaenge = new List<(byte[] Data, string Name)>
+            {
+                (bytes, $"Arztbrief_Eignungsuntersuchung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_"))
+            };
+            if (risiko != null)
+                anhaenge.Add((risiko, $"Risikobeurteilung_Mutterschutz_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_")));
+            var ok = await _email.SendWithAttachmentsAsync(arzt.Email!, arztName, subject, html, text, anhaenge);
             if (!ok)
                 return StatusCode(500, new { error = "MAIL_FEHLER", message = "E-Mail-Versand fehlgeschlagen — SMTP-Konfiguration prüfen (Systemeinstellungen → E-Mail)." });
             return Ok(new { ok = true, to = arzt.Email });
@@ -157,6 +165,53 @@ public class MutterschaftVereinbarungController : ControllerBase
         {
             return StatusCode(500, new { error = "MAIL_FEHLER", message = ex.GetBaseException().Message });
         }
+    }
+
+    /// <summary>
+    /// Risikobeurteilung Mutterschutz «Für den Arzt» — das offizielle
+    /// 7-Seiten-PDF mit den Angaben der Filiale/MA auf Seite 1
+    /// (Walter-Vorgabe 16.07.2026). Beilage zum Arztbrief.
+    /// </summary>
+    [HttpGet("{pregnancyId:int}/risikobeurteilung-pdf")]
+    public async Task<IActionResult> RisikobeurteilungPdf(int pregnancyId)
+    {
+        var common = await LoadCommonAsync(pregnancyId);
+        if (common == null) return NotFound(new { error = "PREGNANCY_NOT_FOUND" });
+        try
+        {
+            var bytes = _risiko.Generate(await BuildBetriebsAngabenAsync(pregnancyId, common));
+            return File(bytes, "application/pdf",
+                $"Risikobeurteilung_Mutterschutz_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "PDF_FEHLER", message = ex.GetBaseException().Message });
+        }
+    }
+
+    private async Task<RisikobeurteilungPdfService.BetriebsAngaben> BuildBetriebsAngabenAsync(
+        int pregnancyId, MutterschaftPdfService.MvCommon common)
+    {
+        // Filial-Telefon (Konvention: IMMER CompanyProfile.Phone, nie privat).
+        var empId = await _db.EmployeePregnancies.AsNoTracking()
+            .Where(x => x.Id == pregnancyId).Select(x => x.EmployeeId).FirstOrDefaultAsync();
+        var cpId = await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == empId)
+            .OrderByDescending(em => em.IsActive)
+            .ThenByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfileId)
+            .FirstOrDefaultAsync();
+        string? phone = null;
+        if (cpId != null)
+            phone = await _db.CompanyProfiles.AsNoTracking()
+                .Where(c => c.Id == cpId.Value).Select(c => c.Phone).FirstOrDefaultAsync();
+
+        return new RisikobeurteilungPdfService.BetriebsAngaben(
+            Name:          $"{common.FirmaName}{(string.IsNullOrWhiteSpace(common.RestaurantName) ? "" : " · " + common.RestaurantName)}",
+            Strasse:       common.FirmaStrasse,
+            PlzOrt:        common.FirmaPlzOrt,
+            Kontaktperson: common.UnterzeichnerName,
+            Telefon:       phone);
     }
 
     private static MutterschaftPdfService.ArztInfo ToArztInfo(Arzt a) => new(

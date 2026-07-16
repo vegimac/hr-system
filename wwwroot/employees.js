@@ -5817,7 +5817,8 @@ function _abEnsureModal() {
         <select id="abArzt" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:16px"></select>
         <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap">
             <button onclick="abClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
-            <button onclick="abPdf()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">📄 PDF erstellen</button>
+            <button onclick="abRisiko()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">📋 Risikobeurteilung</button>
+            <button onclick="abPdf()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">📄 Brief (PDF)</button>
             <button onclick="abEmail()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">✉ Per E-Mail senden</button>
         </div>
     </div>`;
@@ -5875,6 +5876,18 @@ async function abPdf() {
     } catch (e) { alert('Fehler: ' + e.message); }
 }
 
+// Personalisierte Risikobeurteilung (offizielles 7-Seiten-PDF, Seite 1 mit
+// Filiale/Kontakt/Betriebsbeschrieb ausgefuellt) im Vorschaufenster.
+async function abRisiko() {
+    if (!_abPregId) return;
+    try {
+        const r = await fetch(`/api/mutterschaft-vereinbarung/${_abPregId}/risikobeurteilung-pdf`, { headers: ah() });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
+        const blob = await r.blob();
+        previewFileModal(blob, 'Risikobeurteilung_Mutterschutz.pdf');
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
 async function abEmail() {
     const arztId = _abArztId();
     if (!arztId || !_abPregId) return;
@@ -5883,7 +5896,7 @@ async function abEmail() {
     const email = opt?.dataset?.email || '';
     if (!email) return alert('Für diesen Arzt ist keine E-Mail-Adresse hinterlegt — bitte in Systemeinstellungen → Ärzte ergänzen.');
     const ja = await liquidConfirm(
-        `Arztbrief jetzt per E-Mail an ${email} senden?\n\nDas PDF wird als Anhang mitgeschickt.`,
+        `Arztbrief jetzt per E-Mail an ${email} senden?\n\nAls Anhang mitgeschickt werden der Brief und die personalisierte Risikobeurteilung Mutterschutz.`,
         { title: 'E-Mail senden?', yesLabel: 'Ja, senden', noLabel: 'Nein' });
     if (!ja) return;
     try {

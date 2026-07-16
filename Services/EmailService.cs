@@ -147,12 +147,19 @@ public class EmailService
     /// </summary>
     public async Task<bool> SendWithAttachmentAsync(string to, string? toName, string subject,
         string htmlBody, string textBody, byte[] attachment, string attachmentName)
+        => await SendWithAttachmentsAsync(to, toName, subject, htmlBody, textBody,
+               new List<(byte[], string)> { (attachment, attachmentName) });
+
+    /// <summary>Versand mit MEHREREN PDF-Anhaengen (Walter 16.07.2026,
+    /// z.B. Arztbrief + Risikobeurteilung).</summary>
+    public async Task<bool> SendWithAttachmentsAsync(string to, string? toName, string subject,
+        string htmlBody, string textBody, List<(byte[] Data, string Name)> attachments)
     {
         var cfg = await GetEffectiveConfigAsync();
         try
         {
             await SendCoreAsync(cfg, to, toName, subject, htmlBody, textBody,
-                throwOnError: true, attachment: attachment, attachmentName: attachmentName);
+                throwOnError: true, attachments: attachments);
             return true;
         }
         catch (Exception ex)
@@ -162,7 +169,7 @@ public class EmailService
         }
     }
 
-    private async Task SendCoreAsync(EffectiveSmtpConfig cfg, string to, string? toName, string subject, string htmlBody, string textBody, bool throwOnError, byte[]? attachment = null, string? attachmentName = null)
+    private async Task SendCoreAsync(EffectiveSmtpConfig cfg, string to, string? toName, string subject, string htmlBody, string textBody, bool throwOnError, List<(byte[] Data, string Name)>? attachments = null)
     {
         if (string.IsNullOrWhiteSpace(cfg.Host) || string.IsNullOrWhiteSpace(cfg.FromAddress))
         {
@@ -188,9 +195,10 @@ public class EmailService
         mime.Subject = effectiveSubject;
 
         var builder = new BodyBuilder { HtmlBody = htmlBody, TextBody = textBody };
-        if (attachment is { Length: > 0 })
-            builder.Attachments.Add(attachmentName ?? "Anhang.pdf", attachment,
-                new MimeKit.ContentType("application", "pdf"));
+        if (attachments != null)
+            foreach (var (data, name) in attachments)
+                if (data is { Length: > 0 })
+                    builder.Attachments.Add(name, data, new MimeKit.ContentType("application", "pdf"));
         mime.Body = builder.ToMessageBody();
 
         using var client = new SmtpClient();
