@@ -320,7 +320,7 @@ public class MutterschaftPdfService
                             c.Item().Text("Betreuende Ärztin / betreuender Arzt:").Bold().FontSize(9f);
                             // Bewusst LEER — jeder Arzt setzt hier seinen
                             // eigenen Praxis-Stempel (Walter 16.07.2026).
-                            c.Item().PaddingTop(4).Height(66)
+                            c.Item().PaddingTop(4).Height(118)
                                 .Border(0.7f).BorderColor(Muted).Padding(6)
                                 .AlignBottom().Text("Stempel der Praxis").FontSize(7.5f).FontColor(Muted).Italic();
                         });
@@ -430,62 +430,62 @@ public class MutterschaftPdfService
             });
 
             // ── Seite 2: Rechtsgrundlagen (Auszug WBF-Verordnung) ──
-            // MUSS auf EINE Seite passen (Walter 16.07.2026), aber lesbar:
-            // 8.5pt zweispaltig, Spalten nach Textmenge balanciert
-            // (Art. 2-6 links, Art. 7-18 rechts), schmalere Raender.
+            // Walter 16.07.2026: MUSS auf EINE Seite UND gut lesbar sein.
+            // Loesung: 9.5pt zweispaltig + Artikel-Texte sinngemaess
+            // gestrafft (als «sinngemaess gekuerzter Auszug» deklariert).
             doc.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginTop(1.1f, Unit.Centimetre);
-                page.MarginBottom(1.1f, Unit.Centimetre);
-                page.MarginHorizontal(1.5f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(8.5f).LineHeight(1.2f).FontColor(Dark));
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(1.0f, Unit.Centimetre);
+                page.MarginHorizontal(1.3f, Unit.Centimetre);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9.5f).LineHeight(1.2f).FontColor(Dark));
 
                 page.Content().Column(col =>
                 {
-                    col.Item().Text("Rechtsgrundlagen").Bold().FontSize(12.5f);
-                    col.Item().Text("Auszug aus der Verordnung des WBF über gefährliche und beschwerliche Arbeiten bei Schwangerschaft und Mutterschaft vom 20. März 2001 (Stand am 1. Juli 2015)")
+                    col.Item().Text("Rechtsgrundlagen").Bold().FontSize(13f);
+                    col.Item().Text("Sinngemäss gekürzter Auszug aus der Verordnung des WBF über gefährliche und beschwerliche Arbeiten bei Schwangerschaft und Mutterschaft vom 20. März 2001 (Stand am 1. Juli 2015)")
                         .FontSize(8.5f).FontColor(Muted);
 
-                    col.Item().PaddingTop(7).Row(r =>
+                    col.Item().PaddingTop(6).Row(r =>
                     {
                         void T(ColumnDescriptor c, string titel, string text)
                         {
-                            c.Item().PaddingTop(7).Text(titel).Bold().FontSize(9f);
+                            c.Item().PaddingTop(8).Text(titel).Bold().FontSize(10f);
                             c.Item().PaddingTop(1).Text(text);
                         }
 
                         r.RelativeItem().Column(c =>
                         {
                             T(c, "Art. 2 Grundsatz",
-                              "1 Die Beurteilung des Gesundheitszustandes der schwangeren Frau oder der stillenden Mutter ist durch den Arzt oder die Ärztin vorzunehmen, der oder die im Rahmen der Schwangerschaft die Arbeitnehmerin medizinisch betreut. "
-                            + "2 Der Arzt oder die Ärztin nimmt eine Eignungsuntersuchung vor und berücksichtigt: die Befragung und Untersuchung der Arbeitnehmerin; das Ergebnis der vom Betrieb durch eine fachlich kompetente Person nach Artikel 17 veranlassten Risikobeurteilung; allenfalls weitere Informationen aus einer Rücksprache mit dem Verfasser oder der Verfasserin der Risikobeurteilung oder dem Arbeitgeber. "
-                            + "3 Eine schwangere Frau oder eine stillende Mutter darf im von einer Gefahr betroffenen Betrieb oder Betriebsteil nicht beschäftigt werden, wenn der Arzt oder die Ärztin feststellt, dass: a. keine oder eine ungenügende Risikobeurteilung vorgenommen wurde; b. die erforderlichen Schutzmassnahmen nicht umgesetzt oder nicht eingehalten werden; c. die getroffenen Schutzmassnahmen nicht genügend wirksam sind; oder d. Hinweise auf eine Gefährdung bestehen.");
+                              "1 Die Beurteilung des Gesundheitszustandes der schwangeren Frau oder der stillenden Mutter nimmt der Arzt oder die Ärztin vor, der oder die die Arbeitnehmerin im Rahmen der Schwangerschaft medizinisch betreut. "
+                            + "2 Bei der Eignungsuntersuchung werden berücksichtigt: die Befragung und Untersuchung der Arbeitnehmerin, das Ergebnis der vom Betrieb veranlassten Risikobeurteilung (Art. 17) sowie allenfalls eine Rücksprache mit deren Verfasser/in oder dem Arbeitgeber. "
+                            + "3 Eine schwangere Frau oder stillende Mutter darf im betroffenen Betrieb oder Betriebsteil nicht beschäftigt werden, wenn der Arzt oder die Ärztin feststellt, dass: a. keine oder eine ungenügende Risikobeurteilung vorliegt; b. die erforderlichen Schutzmassnahmen nicht umgesetzt oder nicht eingehalten werden; c. die Schutzmassnahmen nicht genügend wirksam sind; oder d. Hinweise auf eine Gefährdung bestehen.");
                             T(c, "Art. 3 Ärztliches Zeugnis",
                               "1 Der untersuchende Arzt oder die untersuchende Ärztin hält in einem Zeugnis fest, ob eine Beschäftigung am betreffenden Arbeitsplatz vorbehaltlos, nur unter bestimmten Voraussetzungen oder nicht mehr möglich ist. "
-                            + "2 Er oder sie teilt der betroffenen Arbeitnehmerin und dem Arbeitgeber das Ergebnis der Beurteilung mit, damit der Arbeitgeber nötigenfalls die erforderlichen Massnahmen treffen kann.");
+                            + "2 Er oder sie teilt das Ergebnis der Arbeitnehmerin und dem Arbeitgeber mit, damit dieser nötigenfalls die erforderlichen Massnahmen treffen kann.");
                             T(c, "Art. 4 Kostentragung",
                               "Der Arbeitgeber trägt die Kosten für die Aufwendungen nach den Artikeln 2 und 3.");
                             T(c, "Art. 5 Vermutung der Gefährdung",
                               "Sind die Voraussetzungen nach den Artikeln 7-13 erfüllt, wird eine Gefährdung von Mutter und Kind vermutet.");
                             T(c, "Art. 6 Gewichtung der Kriterien",
-                              "Bei der Gewichtung der Kriterien sind auch die konkreten Umstände im Betrieb zu berücksichtigen, namentlich das Zusammenwirken verschiedener Belastungen, die Expositionsdauer, die Häufigkeit der Belastung oder der Gefährdung und weitere Faktoren mit Einfluss auf das Gefahrenpotenzial.");
+                              "Zu berücksichtigen sind auch die konkreten Umstände im Betrieb, namentlich das Zusammenwirken verschiedener Belastungen, die Expositionsdauer und die Häufigkeit der Belastung oder Gefährdung.");
                         });
                         r.ConstantItem(16);
                         r.RelativeItem().Column(c =>
                         {
                             T(c, "Art. 7-13 (Kriterien)",
-                              "Art. 7 Bewegen schwerer Lasten · Art. 8 Arbeiten bei Kälte, Hitze oder Nässe · Art. 9 Bewegungen und Körperhaltungen, die zu vorzeitiger Ermüdung führen · Art. 10 Mikroorganismen · Art. 11 Einwirkung von Lärm · Art. 12 Arbeiten unter Einwirkung von ionisierender und nichtionisierender Strahlung · Art. 13 Einwirkung von chemischen Gefahrstoffen.");
+                              "Art. 7 Bewegen schwerer Lasten · Art. 8 Arbeiten bei Kälte, Hitze oder Nässe · Art. 9 Bewegungen und Körperhaltungen, die zu vorzeitiger Ermüdung führen · Art. 10 Mikroorganismen · Art. 11 Einwirkung von Lärm · Art. 12 Ionisierende und nichtionisierende Strahlung · Art. 13 Chemische Gefahrstoffe.");
                             T(c, "Art. 14 Stark belastende Arbeitszeitsysteme",
-                              "Frauen dürfen während der gesamten Schwangerschaft und danach während der Stillzeit nicht Nacht- und Schichtarbeit leisten, wenn diese mit gefährlichen oder beschwerlichen Arbeiten nach den Artikeln 7-13 verbunden sind oder wenn ein besonders gesundheitsbelastendes Schichtsystem vorliegt. Als besonders gesundheitsbelastend gelten Schichtsysteme mit regelmässiger Rückwärtsrotation (Nacht-, Spät-, Frühschicht) oder mit mehr als drei hintereinander liegenden Nachtschichten.");
+                              "Während der ganzen Schwangerschaft und der Stillzeit ist Nacht- und Schichtarbeit unzulässig, wenn sie mit gefährlichen oder beschwerlichen Arbeiten nach den Artikeln 7-13 verbunden ist oder ein besonders gesundheitsbelastendes Schichtsystem vorliegt (regelmässige Rückwärtsrotation Nacht-/Spät-/Frühschicht oder mehr als drei aufeinanderfolgende Nachtschichten).");
                             T(c, "Art. 15 Akkordarbeit und taktgebundene Arbeit",
-                              "Nicht zulässig ist Arbeit im Akkord oder taktgebundene Arbeit, wenn der Arbeitsrhythmus durch eine Maschine oder technische Einrichtung vorgegeben wird und von der Arbeitnehmerin nicht beeinflusst werden kann.");
+                              "Nicht zulässig ist Akkordarbeit oder taktgebundene Arbeit, wenn der Arbeitsrhythmus durch eine Maschine oder technische Einrichtung vorgegeben wird und von der Arbeitnehmerin nicht beeinflusst werden kann.");
                             T(c, "Art. 16 Besondere Beschäftigungsverbote",
-                              "1 Schwangere Frauen dürfen nicht beschäftigt werden für Arbeiten bei Überdruck wie Arbeiten in Druckkammern oder Taucharbeiten. 2 Schwangere Frauen dürfen Räumlichkeiten mit sauerstoffreduzierter Atmosphäre nicht betreten. 3 Der Arbeitgeber muss Frauen vor einer solchen Beschäftigung in angemessener Weise über die Gefahren während der Schwangerschaft informieren.");
+                              "1 Schwangere Frauen dürfen nicht für Arbeiten bei Überdruck (Druckkammern, Taucharbeiten) beschäftigt werden. 2 Sie dürfen Räume mit sauerstoffreduzierter Atmosphäre nicht betreten. 3 Der Arbeitgeber informiert Frauen vor einer solchen Beschäftigung angemessen über die Gefahren während der Schwangerschaft.");
                             T(c, "Art. 17 Fachlich kompetente Personen",
-                              "1 Fachlich kompetente Personen nach Artikel 63 Absatz 1 ArGV 1 sind Arbeitsärzte und Arbeitsärztinnen sowie Arbeitshygieniker und Arbeitshygienikerinnen sowie weitere Fachspezialisten, die sich über die notwendigen Kenntnisse und Erfahrungen zur Durchführung einer Risikobeurteilung ausweisen können. 2 Es ist sicherzustellen, dass alle zu beurteilenden Fachbereiche kompetent abgedeckt werden.");
+                              "1 Fachlich kompetente Personen (Art. 63 Abs. 1 ArGV 1) sind Arbeitsärztinnen/-ärzte, Arbeitshygienikerinnen/-hygieniker sowie weitere Fachspezialisten mit den notwendigen Kenntnissen und Erfahrungen zur Durchführung einer Risikobeurteilung. 2 Alle zu beurteilenden Fachbereiche müssen kompetent abgedeckt sein.");
                             T(c, "Art. 18 Information",
-                              "1 Der Arbeitgeber sorgt dafür, dass die zur Risikobeurteilung beigezogenen Personen zu allen Informationen gelangen, die für eine Beurteilung der betrieblichen Situation und zur Überprüfung der getroffenen Schutzmassnahmen notwendig sind. 2 Er sorgt auch dafür, dass der Arzt oder die Ärztin nach Artikel 2 zu den für die Beurteilung notwendigen Informationen gelangt.");
+                              "Der Arbeitgeber sorgt dafür, dass die zur Risikobeurteilung beigezogenen Personen und der Arzt oder die Ärztin nach Artikel 2 alle Informationen erhalten, die für die Beurteilung der betrieblichen Situation und die Überprüfung der Schutzmassnahmen notwendig sind.");
                         });
                     });
                 });
