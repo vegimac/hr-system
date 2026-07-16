@@ -342,6 +342,16 @@ async function krGenerate() {
         const blob = await r.blob();
         krClose();
         previewFileModal(blob, 'Kuendigungsrueckzug.pdf');
+        // Walter-Vorgabe 16.07.2026: erst NACH dem Brief fragen, ob die am MA
+        // erfasste Kuendigung (Gekuendigt am / Kuendigung per) aufgehoben wird.
+        if (confirm('Soll die Kündigung beim Mitarbeiter aufgehoben werden?\n\n«Gekündigt am» und «Kündigung per» werden gelöscht — die ToDo «Vertragsende wegen Kündigung» verschwindet damit.')) {
+            try {
+                const ra = await fetch(`/api/kuendigung/${_krEmpId}/kuendigung-aufheben`, {
+                    method: 'POST', headers: ah()
+                });
+                if (!ra.ok) alert('Aufheben fehlgeschlagen: ' + ra.status);
+            } catch (e2) { alert('Aufheben fehlgeschlagen: ' + e2.message); }
+        }
     } catch (e) { alert('Fehler: ' + e.message); }
 }
 

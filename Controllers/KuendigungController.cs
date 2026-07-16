@@ -193,24 +193,33 @@ public class KuendigungController : ControllerBase
         try
         {
             var bytes = _pdf.GenerateRueckzug(data, sigPng);
-
-            // Kündigungsrückzug löscht die Kündigungs-Daten am MA
-            // (Walter-Vorgabe 16.07.2026) — die ToDo «Vertragsende wegen
-            // Kündigung» verschwindet damit automatisch.
-            var tracked = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
-            if (tracked != null)
-            {
-                tracked.KuendigungAusgesprochenAm = null;
-                tracked.KuendigungPer             = null;
-                await _db.SaveChangesAsync();
-            }
-
+            // Walter-Vorgabe 16.07.2026 (Praezisierung): das PDF loescht die
+            // Kuendigungs-Daten NICHT mehr automatisch — erst nach dem Brief
+            // fragt das Frontend «Soll die Kuendigung beim MA aufgehoben
+            // werden?» und ruft dann POST …/kuendigung-aufheben.
             return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Kuendigungsrueckzug.pdf");
         }
         catch (Exception ex)
         {
             return StatusCode(500, new { error = "PDF_FEHLER", message = ex.GetBaseException().Message });
         }
+    }
+
+    /// <summary>
+    /// Hebt die am MA erfasste Kuendigung auf (Walter-Vorgabe 16.07.2026):
+    /// loescht «gekuendigt am» + «Kuendigung per» — die ToDo «Vertragsende
+    /// wegen Kuendigung» verschwindet damit. Wird vom Frontend NACH der
+    /// Erstellung des Rueckzugs-Briefs auf Nachfrage aufgerufen.
+    /// </summary>
+    [HttpPost("{empId:int}/kuendigung-aufheben")]
+    public async Task<IActionResult> KuendigungAufheben(int empId)
+    {
+        var tracked = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
+        if (tracked == null) return NotFound(new { error = "EMP_NOT_FOUND" });
+        tracked.KuendigungAusgesprochenAm = null;
+        tracked.KuendigungPer             = null;
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
     }
 
     // ── Helfer ──────────────────────────────────────────────────────────────
