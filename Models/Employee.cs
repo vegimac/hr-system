@@ -46,6 +46,15 @@ public class Employee
     public DateTime? EntryDate { get; set; }
     public DateTime? ExitDate { get; set; }
 
+    /// <summary>Kündigung ausgesprochen am (Walter 16.07.2026) — wird beim
+    /// Erstellen des Kündigungsschreibens gesetzt, beim Kündigungsrückzug
+    /// gelöscht. NICHT das Austrittsdatum (das kann früher liegen).</summary>
+    public DateTime? KuendigungAusgesprochenAm { get; set; }
+
+    /// <summary>Kündigung per (letzter Arbeitstag gemäss Kündigungsschreiben).
+    /// 2 Wochen vor Ablauf erscheint eine ToDo «Vertragsende wegen Kündigung».</summary>
+    public DateTime? KuendigungPer { get; set; }
+
     public int? PermitTypeId { get; set; }
     // PermitExpiryDate (denormalisierte Kopie) entfernt 01.06.2026 — Dashboard-Warnung
     // läuft jetzt über EmployeePermitHistory.ValidTo des jüngsten Eintrags.

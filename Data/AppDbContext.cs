@@ -119,6 +119,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Email).HasColumnName("email");
             entity.Property(e => e.EntryDate).HasColumnName("entry_date").HasColumnType("date");
             entity.Property(e => e.ExitDate).HasColumnName("exit_date").HasColumnType("date");
+            entity.Property(e => e.KuendigungAusgesprochenAm).HasColumnName("kuendigung_ausgesprochen_am").HasColumnType("date");
+            entity.Property(e => e.KuendigungPer).HasColumnName("kuendigung_per").HasColumnType("date");
             entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");
             // permit_expiry_date entfernt 01.06.2026 — Dashboard liest jetzt
             // EmployeePermitHistory.ValidTo des jüngsten Eintrags.

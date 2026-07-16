@@ -122,6 +122,20 @@ public class KuendigungController : ControllerBase
             Eingeschrieben: dto.Eingeschrieben);
 
         var bytes = _pdf.Generate(data, sigPng);
+
+        // Kündigungs-Daten am MA persistieren (Walter-Vorgabe 16.07.2026):
+        // «ausgesprochen am» + «per» werden beim Erstellen des Schreibens
+        // gesetzt (Anzeige in der Anstellungs-Zeile; ToDo 2 Wochen vor Ablauf).
+        // Das Austrittsdatum wird bewusst NICHT gesetzt — es kann früher liegen
+        // und wird beim effektiven Vertragsende erfasst.
+        var tracked = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
+        if (tracked != null)
+        {
+            tracked.KuendigungAusgesprochenAm = kdat.ToDateTime(TimeOnly.MinValue);
+            tracked.KuendigungPer             = letzter.ToDateTime(TimeOnly.MinValue);
+            await _db.SaveChangesAsync();
+        }
+
         return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Kuendigung.pdf");
     }
 
@@ -172,6 +186,18 @@ public class KuendigungController : ControllerBase
         try
         {
             var bytes = _pdf.GenerateRueckzug(data, sigPng);
+
+            // Kündigungsrückzug löscht die Kündigungs-Daten am MA
+            // (Walter-Vorgabe 16.07.2026) — die ToDo «Vertragsende wegen
+            // Kündigung» verschwindet damit automatisch.
+            var tracked = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
+            if (tracked != null)
+            {
+                tracked.KuendigungAusgesprochenAm = null;
+                tracked.KuendigungPer             = null;
+                await _db.SaveChangesAsync();
+            }
+
             return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Kuendigungsrueckzug.pdf");
         }
         catch (Exception ex)

@@ -361,6 +361,47 @@ public class DashboardService
         // Hinweis erscheint sobald ExitDate erreicht ist; Walter entscheidet
         // wann er den Haken in der MA-Maske wegnimmt (typisch: nach der
         // letzten Lohnabrechnung des Monats).
+        // ── Kündigungs-Ablauf (Walter-Vorgabe 16.07.2026): am MA ist eine
+        // ausgesprochene Kündigung erfasst (kuendigung_per, vom Kündigungs-
+        // schreiben gesetzt). 2 Wochen VOR Ablauf erscheint die ToDo
+        // «Vertragsende wegen Kündigung per …» — als Erinnerung, Austritts-
+        // datum + Vertragsende zu erfassen. Ein Kündigungsrückzug löscht die
+        // Daten am MA → die ToDo verschwindet automatisch.
+        if (Enabled("kuendigung_ablauf"))
+        {
+            var kuendQ = _db.Employees
+                .Where(e => e.IsActive
+                         && e.KuendigungPer.HasValue
+                         && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+            if (companyProfileId.HasValue)
+            {
+                kuendQ = kuendQ.Where(e =>
+                    e.Employments.Any(em => em.IsActive && em.CompanyProfileId == companyProfileId.Value) || (!e.Employments.Any(em => em.IsActive) && e.Employments.OrderByDescending(em => em.ContractStartDate).Select(em => em.CompanyProfileId).FirstOrDefault() == companyProfileId.Value));
+            }
+            var kuendList = await kuendQ.ToListAsync();
+            int kuendVorlauf = WarnDays("kuendigung_ablauf", 14);
+            foreach (var e in kuendList)
+            {
+                var per = e.KuendigungPer!.Value.Date;
+                int daysUntil = (per - now).Days;
+                if (daysUntil > kuendVorlauf) continue;   // noch zu früh
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "kuendigung_ablauf",
+                    Severity = Severity("kuendigung_ablauf", daysUntil, "warning", "critical"),
+                    Title    = $"Vertragsende wegen Kündigung per {per:dd.MM.yyyy}",
+                    Subtitle = $"{e.FirstName} {e.LastName} · Personalnr. {e.EmployeeNumber}"
+                             + (e.KuendigungAusgesprochenAm.HasValue ? $" · gekündigt am {e.KuendigungAusgesprochenAm:dd.MM.yyyy}" : "")
+                             + " — Austrittsdatum erfassen und Vertrag beenden",
+                    DueDate  = e.KuendigungPer,
+                    DaysUntil = daysUntil,
+                    EmployeeId     = e.Id,
+                    EmployeeNumber = e.EmployeeNumber,
+                    EmployeeName   = $"{e.FirstName} {e.LastName}".Trim()
+                });
+            }
+        }
+
         var exitPendingQ = _db.Employees
             .Where(e => e.IsActive
                      && e.ExitDate.HasValue

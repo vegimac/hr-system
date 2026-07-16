@@ -262,6 +262,10 @@ public class EmployeesController : ControllerBase
             employee.Email,
             employee.EntryDate,
             employee.ExitDate,
+            // Kündigungs-Daten (Walter 16.07.2026): vom Kündigungsschreiben
+            // gesetzt, vom Rückzug gelöscht; in der Anstellungs-Zeile editierbar.
+            employee.KuendigungAusgesprochenAm,
+            employee.KuendigungPer,
             employee.IsActive,
             employee.IsPayrollExcluded,
             employee.LgavPflichtig,
@@ -455,6 +459,11 @@ public class EmployeesController : ControllerBase
         // ── Ein-/Austritt ─────────────────────────────────────────────────
         if (dto.EntryDate.HasValue) employee.EntryDate = dto.EntryDate;
         if (dto.ExitDateSet)        employee.ExitDate  = dto.ExitDate;
+        if (dto.KuendigungSet)
+        {
+            employee.KuendigungAusgesprochenAm = dto.KuendigungAusgesprochenAm;
+            employee.KuendigungPer             = dto.KuendigungPer;
+        }
 
         // ── Nachtarbeit-Untersuchung gültig bis (Walter 20.06.2026) ──────────
         if (dto.NightWorkExamValidUntilSet) employee.NightWorkExamValidUntil = dto.NightWorkExamValidUntil;
@@ -1228,6 +1237,10 @@ public class EmployeeUpdateDto
     public DateTime? EntryDate   { get; set; }
     public bool      ExitDateSet { get; set; } = false;
     public DateTime? ExitDate    { get; set; }
+    /// <summary>Kündigungs-Daten nur schreiben wenn true (alte Clients senden nichts → kein Wipe).</summary>
+    public bool      KuendigungSet { get; set; } = false;
+    public DateTime? KuendigungAusgesprochenAm { get; set; }
+    public DateTime? KuendigungPer { get; set; }
 
     // Nachtarbeit-Untersuchung gültig bis (Walter 20.06.2026)
     public bool      NightWorkExamValidUntilSet { get; set; } = false;

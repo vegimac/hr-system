@@ -350,6 +350,14 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS job_title TEXT;
     ");
 
+    // Kündigungs-Daten am MA (Walter 16.07.2026): gesetzt beim Erstellen des
+    // Kündigungsschreibens, gelöscht beim Kündigungsrückzug.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee
+        ADD COLUMN IF NOT EXISTS kuendigung_ausgesprochen_am date,
+        ADD COLUMN IF NOT EXISTS kuendigung_per date;
+    ");
+
     // Audit-Felder für Stempelzeit-Änderungen
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employee_time_entry

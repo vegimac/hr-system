@@ -944,6 +944,11 @@ function renderEmployeeDetail(emp) {
                     <div class="emp-field-label">&lt; 8 h / Wo.</div>
                     <div class="emp-field-value">${yesNoToggle('ef-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div>
                 </div>
+                <!-- Kündigungs-Daten (Walter 16.07.2026): vom Kündigungsschreiben
+                     gesetzt, vom Rückzug gelöscht. Austrittsdatum bleibt separat
+                     (kann früher liegen); ToDo 2 Wochen vor Ablauf. -->
+                ${field('Gekündigt am', emp.kuendigungAusgesprochenAm ? formatDate(emp.kuendigungAusgesprochenAm) : null, null, true)}
+                ${field('Kündigung per', emp.kuendigungPer ? formatDate(emp.kuendigungPer) : null, null, true)}
             </div>
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
             <div style="padding:6px 2px 2px">
@@ -4161,6 +4166,12 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <div class="emp-field-grid easywork-info-grid emp-flow-line emp-employment-line">
         ${eField(_t('ma.field.exitDate','Austrittsdatum'),
             `<input id="ef-exit"  class="ef-input" type="date" value="${toDateInput(emp.exitDate)}" ${ewInput}>`)}
+        ${eField('Gekündigt am',
+            `<input id="ef-kuendAm" class="ef-input" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}">`,
+            'Vom Kündigungsschreiben gesetzt')}
+        ${eField('Kündigung per',
+            `<input id="ef-kuendPer" class="ef-input" type="date" value="${toDateInput(emp.kuendigungPer)}">`,
+            'Letzter Arbeitstag gemäss Kündigung')}
         ${eField('L-GAV',
             `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
                  <input id="ef-lgavPflichtig" type="checkbox" ${emp.lgavPflichtig ? 'checked' : ''}
@@ -4523,6 +4534,11 @@ async function saveEmpEdit() {
         entryDate:    easyWorkLocked ? (toDateInput(emp.entryDate) || null) : (document.getElementById('ef-entry')?.value || null),
         exitDateSet:  true,
         exitDate:     exitVal || null,
+        // Kündigungs-Daten (Walter 16.07.2026) — kuendigungSet:true, damit das
+        // Backend sie schreibt (leer = löschen, z.B. nach manuellem Rückzug).
+        kuendigungSet: true,
+        kuendigungAusgesprochenAm: document.getElementById('ef-kuendAm')?.value || null,
+        kuendigungPer:             document.getElementById('ef-kuendPer')?.value || null,
         // Walter-Vorgabe 18.05.2026: Aktiv-Flag bewusst gesetzt vom UI,
         // KEIN Auto-Sync mehr aus ExitDate (Backend nimmt diesen Wert 1:1).
         isActive:     isActiveInput ? isActiveInput.checked === true : !!emp.isActive,
