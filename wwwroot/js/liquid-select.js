@@ -6,13 +6,19 @@
 // Wert — alle bestehenden IDs, onchange-Handler und Lese-Pfade
 // funktionieren unverändert (Liquid-Glass-Konvention, CLAUDE.md).
 //
-// Verwendung:
-//   • <select data-liquid-select …> → wird beim Laden automatisch umgebaut
+// Verwendung (Walter-Vorgabe 16.07.2026, ABSOLUT: «immer und immer wieder
+// unsere alte, schwarze Liste» — Schluss damit):
+//   • ALLE <select> der App werden AUTOMATISCH umgebaut (opt-out statt
+//     opt-in). Ausnahmen: multiple, size>1, Klasse .no-liquid.
+//   • Später eingefügte Selects (Modals, JS-Re-Render) erfasst ein
+//     MutationObserver auf document.body automatisch.
 //   • window.liquidifySelect(el)    → gezielt per JS
 //   • el._lqRefresh()               → Button-Text nach programmatischem
-//                                     value-Set auffrischen
+//                                     value-Set auffrischen (zusätzlich
+//                                     synct ein 400ms-Timer die Labels).
 // Options-/Text-Änderungen (z.B. Zähler) werden per MutationObserver
-// automatisch übernommen.
+// automatisch übernommen. Panel ist FIXED positioniert — kein Clipping
+// in scrollenden Modals/Containern.
 // ══════════════════════════════════════════════════════════════════════
 (function () {
     'use strict';
@@ -23,10 +29,16 @@
 
     function liquidifySelect(sel) {
         if (!sel || sel._lq || sel.tagName !== 'SELECT') return;
+        if (sel.multiple || (sel.size && sel.size > 1)) return;
+        if (sel.classList.contains('no-liquid')) return;
         sel._lq = true;
 
         const wrap = document.createElement('div');
         wrap.className = 'lqsel-wrap';
+        // Breite des Original-Selects uebernehmen (width:100% / flex bleiben erhalten)
+        if (sel.style.width)    wrap.style.width    = sel.style.width;
+        if (sel.style.minWidth) wrap.style.minWidth = sel.style.minWidth;
+        if (sel.style.flex)     wrap.style.flex     = sel.style.flex;
         sel.parentNode.insertBefore(wrap, sel);
         wrap.appendChild(sel);
         sel.style.display = 'none';
@@ -63,16 +75,37 @@
         }
 
         function onDocDown(e) { if (!wrap.contains(e.target)) close(); }
+        function onScroll(e) { if (!panel.contains(e.target)) close(); }
         function open()  {
             renderPanel();
             panel.style.display = 'block';
+            // FIXED unter/ueber dem Button positionieren — so wird das Panel
+            // in scrollenden Modals/Containern nie abgeschnitten (16.07.2026).
+            const r = btn.getBoundingClientRect();
+            const w = Math.max(r.width, 180);
+            panel.style.position = 'fixed';
+            panel.style.minWidth = w + 'px';
+            panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+            const below = window.innerHeight - r.bottom;
+            const panelH = Math.min(panel.scrollHeight, 340);
+            if (below < panelH + 12 && r.top > panelH + 12) {
+                panel.style.top = (r.top - panelH - 4) + 'px';
+                panel.style.bottom = 'auto';
+            } else {
+                panel.style.top = (r.bottom + 4) + 'px';
+                panel.style.bottom = 'auto';
+            }
             document.addEventListener('mousedown', onDocDown, true);
+            document.addEventListener('scroll', onScroll, true);
+            window.addEventListener('resize', close);
             const cur = panel.querySelector('.lqsel-opt.sel');
             if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
         }
         function close() {
             panel.style.display = 'none';
             document.removeEventListener('mousedown', onDocDown, true);
+            document.removeEventListener('scroll', onScroll, true);
+            window.removeEventListener('resize', close);
         }
 
         btn.addEventListener('click', () => (panel.style.display === 'none' ? open() : close()));
@@ -101,14 +134,38 @@
     }
 
     function liquidifyScan(root) {
-        (root || document).querySelectorAll('select[data-liquid-select]').forEach(liquidifySelect);
+        // Walter-Vorgabe 16.07.2026: ALLE Selects, nicht mehr nur data-liquid-select.
+        (root || document).querySelectorAll('select').forEach(liquidifySelect);
     }
+
+    // Spaeter eingefuegte Selects (Modals, JS-Re-Render) automatisch umbauen.
+    const bodyObserver = new MutationObserver(muts => {
+        for (const m of muts) {
+            m.addedNodes.forEach(n => {
+                if (n.nodeType !== 1) return;
+                if (n.tagName === 'SELECT') liquidifySelect(n);
+                else if (n.querySelectorAll) n.querySelectorAll('select').forEach(liquidifySelect);
+            });
+        }
+    });
+
+    // Programmatisches .value-Setzen ohne change-Event (sel.value = '' beim
+    // Zuruecksetzen) — Labels alle 400ms nachziehen.
+    setInterval(() => {
+        document.querySelectorAll('select').forEach(sel => {
+            if (sel._lq && sel._lqRefresh) sel._lqRefresh();
+        });
+    }, 400);
 
     window.liquidifySelect = liquidifySelect;
     window.liquidifyScan = liquidifyScan;
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => liquidifyScan());
-    } else {
+    function lqInit() {
         liquidifyScan();
+        bodyObserver.observe(document.body, { childList: true, subtree: true });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', lqInit);
+    } else {
+        lqInit();
     }
 })();

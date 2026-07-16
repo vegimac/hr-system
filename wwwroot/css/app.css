@@ -2201,7 +2201,7 @@
         /* ── Liquid-Select (Walter-Vorgabe 13.07.2026) ─────────────────────
            Generisches Liquid-Glass-Dropdown als Ersatz für native Selects
            (js/liquid-select.js). Original-Select bleibt versteckt im DOM. */
-        .lqsel-wrap { position: relative; display: inline-block; min-width: 200px; }
+        .lqsel-wrap { position: relative; display: inline-block; min-width: 140px; max-width: 100%; vertical-align: middle; }
         .lqsel-btn {
             display: inline-flex; align-items: center; justify-content: space-between;
             gap: 10px; width: 100%;
