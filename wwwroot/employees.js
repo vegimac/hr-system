@@ -952,6 +952,12 @@ function renderEmployeeDetail(emp) {
                      Edit-Modus — saveEmpEdit liest sie in beiden Fällen. -->
                 ${inlineEditField('Gekündigt am', `<input id="ef-kuendAm" class="ef-input" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="kuendAmChanged(${emp.id})" oninput="empInlineDirty()" style="width:auto">`)}
                 ${inlineEditField('Kündigung per', `<input id="ef-kuendPer" class="ef-input" type="date" value="${toDateInput(emp.kuendigungPer)}" oninput="empInlineDirty()" style="width:auto">`)}
+                <!-- Speichern DIREKT neben den Feldern (Walter 16.07.2026) —
+                     erscheint bei jeder Inline-Aenderung, gleiche Aktion wie
+                     der Button oben (saveEmpEdit). -->
+                <div class="emp-field" style="display:flex;align-items:flex-end">
+                    <button class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
+                </div>
             </div>
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
             <div style="padding:6px 2px 2px">
@@ -3724,9 +3730,13 @@ function empSetYesNo(id, value) {
 
 function empInlineDirty() {
     // Walter-Bug 16.07.2026: der Button steht mit style="display:none" im DOM —
-    // visibility allein machte ihn nie sichtbar. display umschalten.
-    const btn = document.getElementById('empInlineSaveBtn');
-    if (btn) { btn.style.display = 'inline-flex'; btn.style.visibility = 'visible'; }
+    // visibility allein machte ihn nie sichtbar. display umschalten. Es gibt
+    // mehrere Inline-Speichern-Buttons (oben + direkt neben den Kuendigungs-
+    // Feldern) — alle einblenden.
+    document.querySelectorAll('.emp-inline-save').forEach(btn => {
+        btn.style.display = 'inline-flex';
+        btn.style.visibility = 'visible';
+    });
 }
 
 // «Gekündigt am» erfasst → «Kündigung per» automatisch aus der Kündigungs-
