@@ -206,12 +206,45 @@ public class MutterschaftVereinbarungController : ControllerBase
             phone = await _db.CompanyProfiles.AsNoTracking()
                 .Where(c => c.Id == cpId.Value).Select(c => c.Phone).FirstOrDefaultAsync();
 
+        // MA-Funktion: Klartext aus app_text (JOB_GROUP), Fallback Code.
+        var jobCode = await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == empId)
+            .OrderByDescending(em => em.IsActive)
+            .ThenByDescending(em => em.ContractStartDate)
+            .Select(em => em.JobTitle)
+            .FirstOrDefaultAsync();
+        string? jobDisplay = null;
+        if (!string.IsNullOrWhiteSpace(jobCode))
+        {
+            var key = $"{jobCode}.NAME";
+            jobDisplay = await _db.AppTexts.AsNoTracking()
+                .Where(t => t.Module == "JOB_GROUP" && t.TextKey == key && t.LanguageCode == "de" && t.IsActive)
+                .Select(t => t.Content)
+                .FirstOrDefaultAsync() ?? jobCode;
+        }
+
+        // Unterzeichner-Name in Vorname/Name splitten (letztes Wort = Nachname).
+        string? vVor = null, vNach = null;
+        if (!string.IsNullOrWhiteSpace(common.UnterzeichnerName))
+        {
+            var teile = common.UnterzeichnerName.Trim().Split(' ');
+            vNach = teile[^1];
+            vVor  = teile.Length > 1 ? string.Join(" ", teile[..^1]) : null;
+        }
+
         return new RisikobeurteilungPdfService.BetriebsAngaben(
             Name:          $"{common.FirmaName}{(string.IsNullOrWhiteSpace(common.RestaurantName) ? "" : " · " + common.RestaurantName)}",
             Strasse:       common.FirmaStrasse,
             PlzOrt:        common.FirmaPlzOrt,
             Kontaktperson: common.UnterzeichnerName,
-            Telefon:       phone);
+            Telefon:       phone,
+            MaVorname:     common.MaVorname,
+            MaName:        common.MaName,
+            MaFunktion:    jobDisplay,
+            MaGeburtsdatum: common.MaGeburtsdatum,
+            VerantwortlichVorname:  vVor,
+            VerantwortlichName:     vNach,
+            VerantwortlichFunktion: common.UnterzeichnerTitel);
     }
 
     private static MutterschaftPdfService.ArztInfo ToArztInfo(Arzt a) => new(

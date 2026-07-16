@@ -5631,9 +5631,13 @@ function renderPregnancyCard(d) {
             ${dateBlock}
         </div>`;
     }).join('');
-    const geburtsBtn = p.geburtsdatum
+    // Walter-Vorgabe 16.07.2026: KEINE Einzelbuttons mehr auf der Karte —
+    // ein einziger «Fahrplan»-Button (Kohle-Pille) buendelt den ganzen
+    // Mutterschafts-Prozess in Ablauf-Reihenfolge. Geburtsdatum bleibt als
+    // gruene Info sichtbar, sobald erfasst.
+    const geburtsInfo = p.geburtsdatum
         ? `<span style="color:#16a34a;font-size:12px;font-weight:600">Geburt: ${fmt(p.geburtsdatum)}</span>`
-        : `<button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="mtsOpenGeburt(${p.id})">Geburt eintragen</button>`;
+        : '';
     return `
     <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;background:white">
         <div style="padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:10px">
@@ -5643,18 +5647,19 @@ function renderPregnancyCard(d) {
                 <div style="font-size:12px;color:#64748b;margin-top:2px">Gemeldet: ${fmt(p.meldedatum)}${p.bemerkung ? ' · ' + esc(p.bemerkung) : ''}</div>
             </div>
             <div style="display:flex;align-items:center;gap:10px">
-                ${geburtsBtn}
-                <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="mvOpen(${p.id})" title="Checkliste fürs Gespräch + Mutterschaftsvereinbarung">🤝 Vereinbarung</button>
-                <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="mtsOpenDokuTab()" title="Dokumente: Absenzen › Mutter-/Vaterschaft">📁 Dokumente</button>
-                <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="mtsDownloadPdf(${p.id})">📄 PDF</button>
+                ${geburtsInfo}
                 <div class="dok-menu-wrap" style="display:inline-block">
-                    <button class="dok-menu-btn" onclick="mtsToggleMenu(event, ${p.id})" title="Aktionen">⋮</button>
+                    <button onclick="mtsToggleMenu(event, ${p.id})" title="Alle Schritte des Mutterschafts-Prozesses"
+                            style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:700">🧭 Fahrplan ▾</button>
                     <div class="dok-menu" id="mtsMenu-${p.id}">
-                        <button class="dok-menu-item" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
-                        <button class="dok-menu-item" onclick="mvCheckliste(${p.id})">Gesprächs-Checkliste (PDF)</button>
-                        <button class="dok-menu-item" onclick="mvOpen(${p.id})">Mutterschaftsvereinbarung…</button>
-                        <button class="dok-menu-item" onclick="abOpen(${p.id})">Brief an behandelnden Arzt…</button>
+                        <button class="dok-menu-item" onclick="mvCheckliste(${p.id})">1 · Gesprächs-Checkliste (PDF)</button>
+                        <button class="dok-menu-item" onclick="mvOpen(${p.id})">2 · Mutterschaftsvereinbarung…</button>
+                        <button class="dok-menu-item" onclick="abOpen(${p.id})">3 · Brief an behandelnden Arzt…</button>
+                        <button class="dok-menu-item" onclick="abRisiko(${p.id})">4 · Risikobeurteilung (PDF)</button>
+                        ${p.geburtsdatum ? '' : `<button class="dok-menu-item" onclick="mtsOpenGeburt(${p.id})">5 · Geburt eintragen</button>`}
+                        <button class="dok-menu-item" onclick="mtsOpenDokuTab()">📁 Dokumente</button>
                         <button class="dok-menu-item" onclick="mtsDownloadPdf(${p.id})">Übersicht als PDF</button>
+                        <button class="dok-menu-item" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
                         <button class="dok-menu-item danger" onclick="mtsDelete(${p.id})">Löschen</button>
                     </div>
                 </div>
@@ -5878,10 +5883,12 @@ async function abPdf() {
 
 // Personalisierte Risikobeurteilung (offizielles 7-Seiten-PDF, Seite 1 mit
 // Filiale/Kontakt/Betriebsbeschrieb ausgefuellt) im Vorschaufenster.
-async function abRisiko() {
-    if (!_abPregId) return;
+async function abRisiko(pregId) {
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    const id = pregId || _abPregId;
+    if (!id) return;
     try {
-        const r = await fetch(`/api/mutterschaft-vereinbarung/${_abPregId}/risikobeurteilung-pdf`, { headers: ah() });
+        const r = await fetch(`/api/mutterschaft-vereinbarung/${id}/risikobeurteilung-pdf`, { headers: ah() });
         if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
         const blob = await r.blob();
         previewFileModal(blob, 'Risikobeurteilung_Mutterschutz.pdf');

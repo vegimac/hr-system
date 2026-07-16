@@ -35,7 +35,16 @@ public class RisikobeurteilungPdfService
         string? Strasse,        // Strasse Nr.
         string? PlzOrt,
         string? Kontaktperson,  // Unterschriftsberechtigte der Filiale
-        string? Telefon);       // Filial-Telefon (nie private Nummer)
+        string? Telefon,        // Filial-Telefon (nie private Nummer)
+        // Letzte Seite «wurde mit der schwangeren MA durchgegangen»
+        // (Walter 16.07.2026): MA + verantwortliche Person ausfuellen.
+        string? MaVorname = null,
+        string? MaName = null,
+        string? MaFunktion = null,
+        DateTime? MaGeburtsdatum = null,
+        string? VerantwortlichVorname = null,
+        string? VerantwortlichName = null,
+        string? VerantwortlichFunktion = null);
 
     public byte[] Generate(BetriebsAngaben b)
     {
@@ -67,14 +76,47 @@ public class RisikobeurteilungPdfService
             Text(b.Kontaktperson, 150, 580.4f);
             Text(b.Telefon,       360, 580.4f);
 
-            // Kurzbeschrieb: rechts neben dem Label, umbrochen (max ~290pt breit).
-            var lines = Wrap(BetriebsBeschrieb, font, 8.5f, 300f);
-            float y = 616f;
+            // Kurzbeschrieb: IN der grossen Box (Rahmen x 57-539, top 639.5-757.4
+            // — vermessen; Walter-Feedback 16.07.2026: Text sass zu hoch und
+            // lief rechts ueber den Rahmen).
+            var lines = Wrap(BetriebsBeschrieb, font, 9f, 455f);
+            float y = 648f;
             foreach (var line in lines)
             {
-                Text(line, 250, y, 8.5f);
-                y += 10.5f;
+                Text(line, 66, y, 9f);
+                y += 11.5f;
             }
+
+            // ── Letzte Seite: «Diese Risikobeurteilung wurde mit der
+            // schwangeren Mitarbeiterin durchgegangen …» — MA + verantwortliche
+            // Person ausfuellen (Unterschriften bleiben handschriftlich).
+            // Labels vermessen (Querformat 840x595.8, top-basiert):
+            // links  Name 56.6/288.9 · Vorname 236/288.9 · Funktion 56.6/312.1 ·
+            //        Geburtsdatum 56.6/335.3 · Datum 56.6/358.5
+            // rechts Name 415.6/288.9 · Vorname 595/288.9 · Funktion 415.6/312.1 ·
+            //        Telefonnummer 415.6/335.3
+            var lastPage = pdf.GetPage(pdf.GetNumberOfPages());
+            var lastCanvas = new PdfCanvas(lastPage);
+            float lastH = lastPage.GetPageSize().GetHeight();
+            void TextL(string? t, float x, float topY, float size = 9.5f)
+            {
+                if (string.IsNullOrWhiteSpace(t)) return;
+                lastCanvas.BeginText()
+                          .SetFontAndSize(font, size)
+                          .SetColor(ColorConstants.BLACK, true)
+                          .MoveText(x, lastH - topY - 9f)
+                          .ShowText(t)
+                          .EndText();
+            }
+            TextL(b.MaName,      110, 288.9f);
+            TextL(b.MaVorname,   290, 288.9f);
+            TextL(b.MaFunktion,  110, 312.1f);
+            TextL(b.MaGeburtsdatum.HasValue ? b.MaGeburtsdatum.Value.ToString("dd.MM.yyyy") : null, 135, 335.3f);
+            TextL(DateTime.Today.ToString("dd.MM.yyyy"), 100, 358.5f);
+            TextL(b.VerantwortlichName,     465, 288.9f);
+            TextL(b.VerantwortlichVorname,  650, 288.9f);
+            TextL(b.VerantwortlichFunktion, 465, 312.1f);
+            TextL(b.Telefon,                500, 335.3f);
         }
         return ms.ToArray();
     }
