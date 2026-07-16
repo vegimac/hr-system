@@ -112,15 +112,17 @@ public class RisikobeurteilungPdfService
                           .ShowText(t)
                           .EndText();
             }
-            TextL(b.MaName,      110, 288.9f);
-            TextL(b.MaVorname,   290, 288.9f);
-            TextL(b.MaFunktion,  110, 312.1f);
-            TextL(b.MaGeburtsdatum.HasValue ? b.MaGeburtsdatum.Value.ToString("dd.MM.yyyy") : null, 135, 335.3f);
-            TextL(DateTime.Today.ToString("dd.MM.yyyy"), 100, 358.5f);
-            TextL(b.VerantwortlichName,     465, 288.9f);
-            TextL(b.VerantwortlichVorname,  650, 288.9f);
-            TextL(b.VerantwortlichFunktion, 465, 312.1f);
-            TextL(b.Telefon,                500, 335.3f);
+            // Abstand zum Label vergroessert (Walter 16.07.2026: «Eintraege
+            // schoener verteilen» — Werte klebten am Doppelpunkt).
+            TextL(b.MaName,      130, 288.9f);
+            TextL(b.MaVorname,   310, 288.9f);
+            TextL(b.MaFunktion,  135, 312.1f);
+            TextL(b.MaGeburtsdatum.HasValue ? b.MaGeburtsdatum.Value.ToString("dd.MM.yyyy") : null, 165, 335.3f);
+            TextL(DateTime.Today.ToString("dd.MM.yyyy"), 125, 358.5f);
+            TextL(b.VerantwortlichName,     490, 288.9f);
+            TextL(b.VerantwortlichVorname,  670, 288.9f);
+            TextL(b.VerantwortlichFunktion, 490, 312.1f);
+            TextL(b.Telefon,                530, 335.3f);
         }
         return ms.ToArray();
     }
