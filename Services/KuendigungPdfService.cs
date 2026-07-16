@@ -31,6 +31,117 @@ public class KuendigungPdfService
         string? UnterzeichnerName,
         bool    Eingeschrieben = false);   // «EINSCHREIBEN» ueber der MA-Adresse
 
+    /// <summary>
+    /// Rückzug einer ausgesprochenen Kündigung (Walter-Vorgabe 16.07.2026) —
+    /// z.B. wegen nachträglich gemeldeter Schwangerschaft (Sperrfrist OR 336c).
+    /// Rechtlich braucht der Rückzug das Einverständnis der/des MA → der Brief
+    /// enthält unten einen Einverständnis-Block mit Unterschriftszeile.
+    /// </summary>
+    public record RueckzugData(
+        string? FirmaName, string? FirmaStrasse, string? FirmaPlzOrt,
+        string? MaName, string? MaStrasse, string? MaPlzOrt,
+        string  Briefanrede,
+        string  Ort, DateOnly Datum,
+        DateOnly KuendigungVom,          // Datum der urspruenglichen Kuendigung
+        string? Grund,                   // optionaler Rueckzugs-Grund
+        string? UnterzeichnerName,
+        bool    Eingeschrieben = false);
+
+    public byte[] GenerateRueckzug(RueckzugData d, byte[]? signaturePng)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        var firmaLines = new[] { d.FirmaName, d.FirmaStrasse, d.FirmaPlzOrt }
+            .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList();
+        var maLines = new[] { d.MaName, d.MaStrasse, d.MaPlzOrt }
+            .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList();
+
+        return Document.Create(doc =>
+        {
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(1.3f, Unit.Centimetre);
+                page.MarginHorizontal(2.2f, Unit.Centimetre);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).FontColor(Dark).LineHeight(1.4f));
+
+                page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
+
+                page.Content().PaddingTop(14).Column(col =>
+                {
+                    foreach (var ln in firmaLines)
+                        col.Item().Text(ln).FontSize(8.5f).FontColor("#475569");
+
+                    if (d.Eingeschrieben)
+                        col.Item().PaddingTop(26).Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f);
+
+                    col.Item().PaddingTop(d.Eingeschrieben ? 4 : 26).Column(c =>
+                    {
+                        foreach (var ln in maLines) c.Item().Text(ln);
+                    });
+
+                    col.Item().PaddingTop(30).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+
+                    col.Item().PaddingTop(30).Text($"Rückzug unserer Kündigung vom {d.KuendigungVom:dd.MM.yyyy}")
+                        .Bold().FontSize(12.5f);
+
+                    col.Item().PaddingTop(22).Text($"{d.Briefanrede},");
+
+                    col.Item().PaddingTop(14).Text(t =>
+                    {
+                        t.Span("hiermit ziehen wir die Ihnen gegenüber am ");
+                        t.Span($"{d.KuendigungVom:dd.MM.yyyy}").Bold();
+                        t.Span(" ausgesprochene Kündigung des Arbeitsverhältnisses zurück.");
+                    });
+
+                    if (!string.IsNullOrWhiteSpace(d.Grund))
+                        col.Item().PaddingTop(14).Text($"Grund des Rückzugs: {d.Grund}");
+
+                    col.Item().PaddingTop(14).Text(
+                        "Das Arbeitsverhältnis wird unverändert und ohne Unterbruch zu den bisherigen Vertragsbedingungen fortgesetzt, wie wenn die Kündigung nie ausgesprochen worden wäre.");
+
+                    col.Item().PaddingTop(14).Text(
+                        "Da der Rückzug einer Kündigung rechtlich nur mit Ihrem Einverständnis wirksam wird, bitten wir Sie, Ihr Einverständnis mit Ihrer Unterschrift auf der Kopie dieses Schreibens zu bestätigen und uns diese zurückzugeben.");
+
+                    col.Item().PaddingTop(14).Text(
+                        "Wir freuen uns auf die weitere Zusammenarbeit mit Ihnen.");
+                });
+
+                page.Footer().Column(col =>
+                {
+                    col.Item().Text("Freundliche Grüsse");
+                    if (!string.IsNullOrWhiteSpace(d.FirmaName))
+                        col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
+
+                    if (signaturePng is { Length: > 0 })
+                        col.Item().PaddingTop(6).Height(44).AlignLeft().Image(signaturePng).FitHeight();
+                    else
+                        col.Item().PaddingTop(6).Height(36);
+
+                    col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
+
+                    // Einverstaendnis-Block der/des MA
+                    col.Item().PaddingTop(18).Text("Mit dem Rückzug der Kündigung einverstanden:").FontSize(9f).FontColor("#475569");
+                    col.Item().PaddingTop(16).Row(r =>
+                    {
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
+                            c.Item().PaddingTop(3).Text("Ort und Datum").FontSize(8.5f).FontColor("#475569");
+                        });
+                        r.ConstantItem(40);
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
+                            c.Item().PaddingTop(3).Text($"Unterschrift {d.MaName}").FontSize(8.5f).FontColor("#475569");
+                        });
+                    });
+                });
+            });
+        }).GeneratePdf();
+    }
+
     public byte[] Generate(KuendigungData d, byte[]? signaturePng)
     {
         QuestPDF.Settings.License = LicenseType.Community;

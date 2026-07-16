@@ -125,6 +125,61 @@ public class KuendigungController : ControllerBase
         return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Kuendigung.pdf");
     }
 
+    public class RueckzugPdfDto
+    {
+        /// <summary>Datum der urspruenglich ausgesprochenen Kuendigung (Pflicht).</summary>
+        public DateOnly KuendigungVom { get; set; }
+        public DateOnly? Datum { get; set; }            // Briefdatum, Default heute
+        public string?   Ort { get; set; }
+        public string?   Grund { get; set; }            // optionaler Rueckzugs-Grund
+        public bool      Eingeschrieben { get; set; }
+    }
+
+    /// <summary>
+    /// Rueckzug einer ausgesprochenen Kuendigung (Walter-Vorgabe 16.07.2026) —
+    /// im HR-Bereich abgelegt (Hub-Karte «Kuendigung / Zeugnisse»). Read-only
+    /// PDF; das Einverstaendnis der/des MA wird auf dem Schreiben unterzeichnet.
+    /// </summary>
+    [HttpPost("{empId:int}/rueckzug-pdf")]
+    public async Task<IActionResult> GetRueckzugPdf(int empId, [FromBody] RueckzugPdfDto dto)
+    {
+        var ctx = await LoadContextAsync(empId);
+        if (ctx is null) return NotFound(new { error = "EMP_NOT_FOUND" });
+        var (e, _, cp) = ctx.Value;
+
+        if (dto.KuendigungVom == default)
+            return BadRequest(new { error = "KUENDIGUNG_VOM_FEHLT", message = "Bitte das Datum der ausgesprochenen Kündigung angeben." });
+
+        var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
+        var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
+        var (sigPng, signerName) = await GetSignerAsync();
+
+        var data = new KuendigungPdfService.RueckzugData(
+            FirmaName:    cp?.CompanyName,
+            FirmaStrasse: Join(cp?.Street, cp?.HouseNumber),
+            FirmaPlzOrt:  Join(cp?.ZipCode, cp?.City),
+            MaName:       ($"{e.FirstName} {e.LastName}").Trim(),
+            MaStrasse:    e.Street,
+            MaPlzOrt:     Join(e.ZipCode, e.City),
+            Briefanrede:  Briefanrede(e),
+            Ort:          ort,
+            Datum:        datum,
+            KuendigungVom: dto.KuendigungVom,
+            Grund:        string.IsNullOrWhiteSpace(dto.Grund) ? null : dto.Grund!.Trim(),
+            UnterzeichnerName: signerName,
+            Eingeschrieben: dto.Eingeschrieben);
+
+        try
+        {
+            var bytes = _pdf.GenerateRueckzug(data, sigPng);
+            return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Kuendigungsrueckzug.pdf");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "PDF_FEHLER", message = ex.GetBaseException().Message });
+        }
+    }
+
     // ── Helfer ──────────────────────────────────────────────────────────────
 
     private async Task<(Employee e, Employment? emp, CompanyProfile? cp)?> LoadContextAsync(int empId)

@@ -177,7 +177,8 @@ const _ZD_TITEL = {
     arbeitszeugnis: 'Arbeitszeugnis',
     zwischen:       'Zwischenzeugnis',
     best:           'Arbeitsbestätigung',
-    verwarnung:     'Verwarnung'
+    verwarnung:     'Verwarnung',
+    rueckzug:       'Kündigungsrückzug'
 };
 
 async function zdOpen(art) {
@@ -210,7 +211,77 @@ function kuOpenDoc(art, empId) {
     // gegen selectedEmployeeId; stale selectedEmployee vermeiden).
     try { selectedEmployeeId = id; selectedEmployee = null; } catch (_) {}
     if (art === 'verwarnung') { openVerwarnungModal(null); return; }
+    if (art === 'rueckzug')   { krOpen(id); return; }
     openZeugnisModal(id, art === 'zwischen', art === 'best');
+}
+
+// ── Kuendigungsrueckzug (Walter 16.07.2026): zieht eine ausgesprochene
+// Kuendigung zurueck — z.B. wegen nachtraeglich gemeldeter Schwangerschaft.
+// Kleines Modal: Datum der Kuendigung (Pflicht), optionaler Grund, Zustellart.
+let _krEmpId = null;
+
+function _krEnsureModal() {
+    if (document.getElementById('krModal')) return;
+    const div = document.createElement('div');
+    div.id = 'krModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
+    div.innerHTML = `
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:480px;width:94%;padding:22px 24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:16px;font-weight:800;color:#3f3f3f">Kündigungsrückzug</div>
+            <button onclick="krClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+        </div>
+        <div style="font-size:12px;color:#646464;margin-bottom:14px">Der Rückzug wird erst mit dem Einverständnis des MA wirksam — das Schreiben enthält dafür eine Unterschriftszeile.</div>
+        <label style="font-size:11.5px;font-weight:700;color:#646464">Kündigung ausgesprochen am (Pflicht)</label>
+        <input type="date" id="krKuendigungVom" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
+        <label style="font-size:11.5px;font-weight:700;color:#646464">Grund des Rückzugs (optional, erscheint im Brief)</label>
+        <input type="text" id="krGrund" placeholder="z.B. Kündigungsschutz wegen Schwangerschaft (OR Art. 336c)" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
+        <div style="margin-bottom:16px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
+            <label style="font-size:13px;margin-right:16px"><input type="radio" name="krZustell" value="P" checked> persönliche Aushändigung</label>
+            <label style="font-size:13px"><input type="radio" name="krZustell" value="E"> per Einschreiben</label>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px">
+            <button onclick="krClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button onclick="krGenerate()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Rückzug erstellen</button>
+        </div>
+    </div>`;
+    document.body.appendChild(div);
+}
+
+function krOpen(empId) {
+    _krEnsureModal();
+    _krEmpId = empId;
+    document.getElementById('krKuendigungVom').value = '';
+    document.getElementById('krGrund').value = '';
+    document.getElementById('krModal').style.display = 'flex';
+}
+
+function krClose() {
+    const m = document.getElementById('krModal');
+    if (m) m.style.display = 'none';
+}
+
+async function krGenerate() {
+    if (!_krEmpId) return;
+    const vom = document.getElementById('krKuendigungVom').value;
+    if (!vom) return alert('Bitte das Datum der ausgesprochenen Kündigung angeben.');
+    const dto = {
+        kuendigungVom:  vom,
+        grund:          document.getElementById('krGrund').value || null,
+        eingeschrieben: document.querySelector('input[name="krZustell"]:checked')?.value === 'E'
+    };
+    try {
+        const r = await fetch(`/api/kuendigung/${_krEmpId}/rueckzug-pdf`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(dto)
+        });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
+        const blob = await r.blob();
+        krClose();
+        previewFileModal(blob, 'Kuendigungsrueckzug.pdf');
+    } catch (e) { alert('Fehler: ' + e.message); }
 }
 
 // Abbrechen (Walter 15.07.2026): Formular zuruecksetzen + zurueck zum HR-Hub.
