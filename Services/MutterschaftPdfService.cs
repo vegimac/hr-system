@@ -77,10 +77,15 @@ public class MutterschaftPdfService
                             if (!string.IsNullOrWhiteSpace(d.EmployeeNumber))
                                 t.Span($"  (Personalnr. {d.EmployeeNumber})").FontColor(Muted);
                         });
-                        r.ConstantItem(200).AlignRight().Text(t =>
+                        r.ConstantItem(250).AlignRight().Column(c =>
                         {
-                            t.Span("Gesprächsdatum:  ").Bold();
-                            t.Span("____________");
+                            c.Item().AlignRight().Text(t =>
+                            {
+                                t.Span("Gesprächsdatum:  ").Bold();
+                                t.Span("______ / ______ / ________");
+                            });
+                            c.Item().AlignRight().PaddingRight(30).Text("Tag         Monat        Jahr")
+                                .FontSize(7f).FontColor(Muted);
                         });
                     });
                     col.Item().PaddingTop(3).Text(t =>
@@ -95,7 +100,7 @@ public class MutterschaftPdfService
                     var punkte = new (string Titel, string? Detail)[]
                     {
                         ("Voraussichtlicher Geburtstermin besprochen",
-                         $"Die Geburt findet voraussichtlich um den {d.ErrechneterTermin:dd.MM.yyyy} herum statt (ärztliche Terminbestätigung liegt vor / wird nachgereicht)."),
+                         $"Die Geburt findet voraussichtlich um den {d.ErrechneterTermin:dd.MM.yyyy} herum statt — die ärztliche Terminbestätigung liegt vor."),
                         ("Anspruch erklärt: 14 Wochen bezahlte Mutterschaft",
                          "14 Wochen (98 Tage) bezahlter Mutterschaftsurlaub, beginnend mit dem Tag der Geburt (Mutterschaftsentschädigung EO)."),
                         ("Kündigungsschutz erklärt (OR Art. 336c)",
@@ -111,12 +116,26 @@ public class MutterschaftPdfService
                          "Unterlagen zur Beantragung der Mutterschaftsentschädigung sowie der Familien-/Kinderzulagen werden nach der Geburtsmeldung per Post zugestellt."),
                         ("Geburtsmeldung vereinbart",
                          "Die Mitarbeiterin meldet die Geburt umgehend der Filiale (Geburtsurkunde nachreichen)."),
-                        ("Zustellung der Vereinbarung",
-                         "☐ persönliche Aushändigung        ☐ per Einschreiben"),
+                        ("Zustellung der Vereinbarung", null),
                     };
 
                     col.Item().PaddingTop(12).Column(list =>
                     {
+                        // Unter-Option mit eigenem kleinen Ankreuz-Kaestchen
+                        // (gezeichnet — das Zeichen ☐ fehlt in Arial und wuerde
+                        // als Fragezeichen gerendert, Walter-Feedback 16.07.2026).
+                        void SubOption(ColumnDescriptor c, string text)
+                        {
+                            c.Item().PaddingTop(2).Row(sr =>
+                            {
+                                sr.ConstantItem(16).Element(e =>
+                                {
+                                    e.PaddingTop(1).Width(10).Height(10).Border(1.0f).BorderColor(Dark);
+                                });
+                                sr.RelativeItem().Text(text).FontSize(9.5f).FontColor(Muted);
+                            });
+                        }
+
                         foreach (var (titel, detail) in punkte)
                         {
                             list.Item().PaddingBottom(7).Row(r =>
@@ -132,9 +151,14 @@ public class MutterschaftPdfService
                                         c.Item().Text(detail).FontSize(9.5f).FontColor(Muted);
                                     if (titel.StartsWith("Rückkehr"))
                                     {
-                                        c.Item().PaddingTop(2).Text("☐ dieselben Vertragsbedingungen wie vor der Geburt").FontSize(9.5f).FontColor(Muted);
-                                        c.Item().Text("☐ geänderte Bedingungen: Pensum ______ %, Restaurant ______________________, neue Verfügbarkeitszeiten beilegen").FontSize(9.5f).FontColor(Muted);
-                                        c.Item().Text("☐ keine Rückkehr nach dem Mutterschaftsurlaub (auf Wunsch der Mitarbeiterin)").FontSize(9.5f).FontColor(Muted);
+                                        SubOption(c, "dieselben Vertragsbedingungen wie vor der Geburt");
+                                        SubOption(c, "geänderte Bedingungen: Pensum ______ %, Restaurant ______________________, neue Verfügbarkeitszeiten beilegen");
+                                        SubOption(c, "keine Rückkehr nach dem Mutterschaftsurlaub (auf Wunsch der Mitarbeiterin)");
+                                    }
+                                    if (titel.StartsWith("Zustellung"))
+                                    {
+                                        SubOption(c, "persönliche Aushändigung");
+                                        SubOption(c, "per Einschreiben");
                                     }
                                 });
                             });
