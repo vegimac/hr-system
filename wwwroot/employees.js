@@ -5819,8 +5819,36 @@ function _abEnsureModal() {
             <button onclick="abClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
         </div>
         <div style="font-size:12px;color:#646464;margin-bottom:14px">Medizinische Eignungsuntersuchung Mutterschutz — Beilagen: Risikobeurteilung + Eignungsbeurteilung. Ärzte werden in den Systemeinstellungen → Ärzte gepflegt.</div>
-        <label style="font-size:11.5px;font-weight:700;color:#646464">Behandelnde Ärztin / behandelnder Arzt</label>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+            <label style="font-size:11.5px;font-weight:700;color:#646464">Behandelnde Ärztin / behandelnder Arzt</label>
+            <button onclick="abToggleNeu()" style="background:none;border:none;color:#3f3f3f;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">+ Neuer Arzt</button>
+        </div>
         <select id="abArzt" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:16px"></select>
+        <!-- Schnell-Erfassung neuer Arzt (Walter 16.07.2026) — landet im
+             Ärzte-Verzeichnis und wird direkt vorselektiert. -->
+        <div id="abNeuBlock" style="display:none;margin:-6px 0 16px;padding:12px;background:rgba(255,255,255,0.5);border:1px solid rgba(139,139,139,0.25);border-radius:10px">
+            <div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:8px">
+                <input type="text" id="abNeuTitel" placeholder="Titel" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                <input type="text" id="abNeuVorname" placeholder="Vorname" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                <input type="text" id="abNeuNachname" placeholder="Nachname (Pflicht)" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+                <input type="text" id="abNeuFach" placeholder="Fachgebiet" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                <input type="text" id="abNeuPraxis" placeholder="Praxis / Institution" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+            <div style="display:grid;grid-template-columns:2fr 80px 1fr;gap:8px;margin-top:8px">
+                <input type="text" id="abNeuStrasse" placeholder="Strasse Nr." style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                <input type="text" id="abNeuPlz" placeholder="PLZ" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                <input type="text" id="abNeuOrt" placeholder="Ort" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+                <input type="text" id="abNeuTelefon" placeholder="Telefon" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                <input type="text" id="abNeuEmail" placeholder="E-Mail" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:10px">
+                <button onclick="abNeuSpeichern()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:700">Arzt speichern</button>
+            </div>
+        </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap">
             <button onclick="abClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
             <button onclick="abRisiko()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">📋 Risikobeurteilung</button>
@@ -5835,6 +5863,13 @@ async function abOpen(pregId) {
     document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
     _abEnsureModal();
     _abPregId = pregId;
+    const neu = document.getElementById('abNeuBlock');
+    if (neu) neu.style.display = 'none';
+    await abLoadAerzte();
+    document.getElementById('abModal').style.display = 'flex';
+}
+
+async function abLoadAerzte(selectId) {
     const sel = document.getElementById('abArzt');
     sel.innerHTML = '<option value="">— Arzt wählen —</option>';
     try {
@@ -5852,7 +5887,44 @@ async function abOpen(pregId) {
             }
         }
     } catch (_) {}
-    document.getElementById('abModal').style.display = 'flex';
+    if (selectId) { sel.value = String(selectId); sel.dispatchEvent(new Event('change')); }
+}
+
+function abToggleNeu() {
+    const b = document.getElementById('abNeuBlock');
+    if (b) b.style.display = b.style.display === 'none' ? 'block' : 'none';
+}
+
+// Schnell-Erfassung: speichert ins Ärzte-Verzeichnis und selektiert den
+// neuen Arzt direkt im Dropdown.
+async function abNeuSpeichern() {
+    const v = id => (document.getElementById(id)?.value || '').trim();
+    const dto = {
+        titel: v('abNeuTitel') || null,
+        vorname: v('abNeuVorname'),
+        nachname: v('abNeuNachname'),
+        fachgebiet: v('abNeuFach') || null,
+        praxisName: v('abNeuPraxis') || null,
+        strasse: v('abNeuStrasse') || null,
+        plz: v('abNeuPlz') || null,
+        ort: v('abNeuOrt') || null,
+        telefon: v('abNeuTelefon') || null,
+        email: v('abNeuEmail') || null
+    };
+    if (!dto.nachname) return alert('Bitte mindestens den Nachnamen erfassen.');
+    try {
+        const r = await fetch('/api/aerzte', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(dto)
+        });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('Speichern fehlgeschlagen: ' + t); }
+        const neu = await r.json();
+        ['abNeuTitel','abNeuVorname','abNeuNachname','abNeuFach','abNeuPraxis','abNeuStrasse','abNeuPlz','abNeuOrt','abNeuTelefon','abNeuEmail']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        document.getElementById('abNeuBlock').style.display = 'none';
+        await abLoadAerzte(neu.id);
+    } catch (e) { alert('Fehler: ' + e.message); }
 }
 
 function abClose() {
