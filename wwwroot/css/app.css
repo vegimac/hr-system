@@ -1852,6 +1852,11 @@
             background: linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%);
             color: var(--emp-text);
         }
+        /* Walter-Bug 16.07.2026 («warum ist der untere Bereich weiss?»):
+           der Verlauf deckte nur die Inhaltshoehe — bei kurzen Seiten
+           (z.B. Kuendigung) schien darunter das weisse .main durch.
+           Aktive liquid-Seiten fuellen jetzt die volle Resthoehe. */
+        .main > .page.liquid-mask.active { flex: 1 0 auto; }
         .liquid-mask .page-body { padding: 12px 14px 14px !important; }
         .liquid-mask .emp-layout { gap: 12px; height: calc(100vh - 86px); }
         .liquid-mask .emp-detail-panel {
