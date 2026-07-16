@@ -186,12 +186,11 @@ public class MutterschaftVereinbarungController : ControllerBase
     {
         var common = await LoadCommonAsync(pregnancyId);
         if (common == null) return NotFound(new { error = "PREGNANCY_NOT_FOUND" });
-        Arzt? arzt = null;
-        if (dto.ArztId > 0)
-            arzt = await _db.Aerzte.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.ArztId);
+        // Arzt-Feld bleibt bewusst LEER (Walter 16.07.2026: dort setzt jeder
+        // Arzt seinen eigenen Praxis-Stempel) — dto.ArztId wird ignoriert.
         try
         {
-            var bytes = _pdf.GenerateEignung(common, arzt == null ? null : ToArztInfo(arzt));
+            var bytes = _pdf.GenerateEignung(common);
             return File(bytes, "application/pdf",
                 $"Eignungsbeurteilung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_"));
         }
@@ -242,7 +241,7 @@ public class MutterschaftVereinbarungController : ControllerBase
             // Beilage 2: Eignungsbeurteilung (Aerztliches Zeugnis, MuSchV Art. 3)
             try
             {
-                var eignung = _pdf.GenerateEignung(common, ToArztInfo(arzt));
+                var eignung = _pdf.GenerateEignung(common);
                 anhaenge.Add((eignung, $"Eignungsbeurteilung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_")));
             }
             catch { /* Brief geht trotzdem raus */ }
