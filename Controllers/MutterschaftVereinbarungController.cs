@@ -89,6 +89,64 @@ public class MutterschaftVereinbarungController : ControllerBase
         }
     }
 
+    public class BestaetigungDto
+    {
+        /// <summary>GLEICH | ANDERS | KEINE</summary>
+        public string Rueckkehr { get; set; } = "GLEICH";
+        public int UrlaubBezahlt { get; set; }
+        public int UrlaubUnbezahlt { get; set; }
+        public DateOnly? Wiederaufnahme { get; set; }
+        public decimal? PensumProzent { get; set; }
+        public string? RueckkehrRestaurant { get; set; }
+        public bool Pensionskasse { get; set; }
+        public string? KindName { get; set; }
+        public bool Eingeschrieben { get; set; }
+    }
+
+    /// <summary>
+    /// Mutterschaftsbestätigung nach der Geburt (Walter-Vorgabe 16.07.2026,
+    /// nach Word-Vorlage): Gratulation, Urlaubs-Zeitraum 98 Tage ab Geburt,
+    /// Rückkehr-Varianten bzw. Beendigung, EO-Formular-Frist. Setzt das
+    /// erfasste effektive Geburtsdatum voraus.
+    /// </summary>
+    [HttpPost("{pregnancyId:int}/bestaetigung-pdf")]
+    public async Task<IActionResult> BestaetigungPdf(int pregnancyId, [FromBody] BestaetigungDto dto)
+    {
+        var common = await LoadCommonAsync(pregnancyId);
+        if (common == null) return NotFound(new { error = "PREGNANCY_NOT_FOUND" });
+        var geburt = await _db.EmployeePregnancies.AsNoTracking()
+            .Where(x => x.Id == pregnancyId).Select(x => x.Geburtsdatum).FirstOrDefaultAsync();
+        if (!geburt.HasValue)
+            return Conflict(new { error = "GEBURT_FEHLT", message = "Bitte zuerst das definitive Geburtsdatum eintragen (Fahrplan → Geburt eintragen)." });
+
+        var rueckkehr = (dto.Rueckkehr ?? "GLEICH").Trim().ToUpperInvariant();
+        if (rueckkehr is not ("GLEICH" or "ANDERS" or "KEINE"))
+            return BadRequest(new { error = "RUECKKEHR_UNGUELTIG", message = "Rückkehr muss GLEICH, ANDERS oder KEINE sein." });
+
+        var opt = new MutterschaftPdfService.BestOptionen(
+            Geburt:              geburt.Value,
+            Rueckkehr:           rueckkehr,
+            UrlaubBezahlt:       Math.Max(0, dto.UrlaubBezahlt),
+            UrlaubUnbezahlt:     Math.Max(0, dto.UrlaubUnbezahlt),
+            Wiederaufnahme:      dto.Wiederaufnahme,
+            PensumProzent:       dto.PensumProzent,
+            RueckkehrRestaurant: dto.RueckkehrRestaurant,
+            Pensionskasse:       dto.Pensionskasse,
+            KindName:            dto.KindName,
+            Eingeschrieben:      dto.Eingeschrieben);
+
+        try
+        {
+            var bytes = _pdf.GenerateBestaetigung(common, opt);
+            return File(bytes, "application/pdf",
+                $"Mutterschaftsbestaetigung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "PDF_FEHLER", message = ex.GetBaseException().Message });
+        }
+    }
+
     public class ArztbriefDto
     {
         public int ArztId { get; set; }

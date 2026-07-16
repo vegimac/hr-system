@@ -43,6 +43,19 @@ public class MutterschaftPdfService
         string? RueckkehrRestaurant,    // nur bei ANDERS
         bool Eingeschrieben);           // sonst persönliche Aushändigung
 
+    // ── Optionen Mutterschaftsbestaetigung (nach der Geburt) ────────────────
+    public record BestOptionen(
+        DateOnly Geburt,                 // effektives Geburtsdatum (entbunden am)
+        string Rueckkehr,                // GLEICH | ANDERS | KEINE
+        int UrlaubBezahlt,               // Resturlaubstage im Anschluss (0 = keine)
+        int UrlaubUnbezahlt,             // unbezahlte Tage im Anschluss (0 = keine)
+        DateOnly? Wiederaufnahme,        // Datum Wiederaufnahme (GLEICH/ANDERS)
+        decimal? PensumProzent,          // nur ANDERS
+        string? RueckkehrRestaurant,     // nur ANDERS
+        bool Pensionskasse,              // nur KEINE: zahlt in die PK ein → Freizuegigkeit
+        string? KindName,                // optional: Vorname des Kindes
+        bool Eingeschrieben);
+
     // ── Arzt-Angaben fuer den Arztbrief ─────────────────────────────────────
     public record ArztInfo(
         string? Titel, string Vorname, string Nachname,
@@ -142,6 +155,120 @@ public class MutterschaftPdfService
                     col.Item().Text("Beilagen:").FontSize(9.5f).Bold();
                     col.Item().Text("Risikobeurteilung Mutterschutz").FontSize(9.5f).FontColor(Muted);
                     col.Item().Text("Eignungsbeurteilung").FontSize(9.5f).FontColor(Muted);
+                });
+            });
+        }).GeneratePdf();
+    }
+
+    // ═══════════════ MUTTERSCHAFTSBESTAETIGUNG (nach der Geburt) ════════════
+    // (Walter-Vorgabe 16.07.2026, nach Word-Vorlage «Mutterschaftsbestaetigung»:
+    // nach Erfassung des definitiven Geburtsdatums — Gratulation, Urlaubs-
+    // Zeitraum 14 Wochen/98 Tage ab Geburt, Rueckkehr-Varianten bzw.
+    // Beendigung, EO-Formular-Frist 4 Wochen nach Entbindung.)
+    public byte[] GenerateBestaetigung(MvCommon d, BestOptionen o)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        var urlaubEnde = o.Geburt.AddDays(97);          // 98 Tage inkl. Geburtstag
+        var eoFrist    = o.Geburt.AddDays(28);          // 4 Wochen nach Entbindung
+        bool beendigung = o.Rueckkehr == "KEINE";
+
+        var firmaLines = new[] { d.FirmaName, d.RestaurantName, d.FirmaStrasse, d.FirmaPlzOrt }
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).ToList();
+        var maLines = new[] { $"{d.MaVorname} {d.MaName}".Trim(), d.MaStrasse, d.MaPlzOrt }
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).ToList();
+
+        // Absaetze nach Vorlage zusammenstellen
+        var absaetze = new List<string>();
+        absaetze.Add(string.IsNullOrWhiteSpace(o.KindName)
+            ? "Wir freuen uns mit euch über die Geburt eures Kindes und wünschen euch viel Freude und Glück."
+            : $"Wir freuen uns mit euch über die Geburt von {o.KindName.Trim()} und wünschen euch viel Freude und Glück.");
+        absaetze.Add("Wie vereinbart bestätigen wir dir nun deine Mutterschaft wie folgt:");
+        absaetze.Add($"Du hast am {o.Geburt:dd.MM.yyyy} entbunden.");
+        absaetze.Add($"Dein Mutterschaftsurlaub über einen Zeitraum von 14 Wochen, d.h. 98 Tagen, hat am {o.Geburt:dd.MM.yyyy} begonnen und endet am {urlaubEnde:dd.MM.yyyy}.");
+
+        // Urlaub im Anschluss (Vorlage: Variante bezahlter/unbezahlter Urlaub)
+        if (o.UrlaubBezahlt > 0 && o.UrlaubUnbezahlt > 0)
+            absaetze.Add($"Du hast beschlossen, im Anschluss an die Mutterschaft {o.UrlaubBezahlt} bezahlte Urlaubstage und {o.UrlaubUnbezahlt} Tage unbezahlten Urlaub zu nehmen.");
+        else if (o.UrlaubBezahlt > 0)
+            absaetze.Add($"Du hast beschlossen, im Anschluss an die Mutterschaft {o.UrlaubBezahlt} bezahlte Urlaubstage zu nehmen.");
+        else if (o.UrlaubUnbezahlt > 0)
+            absaetze.Add($"Du hast beschlossen, im Anschluss an deinen Mutterschaftsurlaub {o.UrlaubUnbezahlt} Tage unbezahlten Urlaub zu nehmen.");
+
+        if (o.Rueckkehr == "GLEICH" && o.Wiederaufnahme.HasValue)
+            absaetze.Add($"Die Wiederaufnahme deiner Arbeit erfolgt am {o.Wiederaufnahme.Value:dd.MM.yyyy} zu denselben Bedingungen wie vor der Mutterschaft.");
+        else if (o.Rueckkehr == "ANDERS" && o.Wiederaufnahme.HasValue)
+        {
+            var pensum = o.PensumProzent.HasValue ? $"{o.PensumProzent.Value:0.##} %" : "____ %";
+            var rest   = string.IsNullOrWhiteSpace(o.RueckkehrRestaurant) ? d.RestaurantName : o.RueckkehrRestaurant;
+            absaetze.Add($"Die Wiederaufnahme deiner Arbeit erfolgt am {o.Wiederaufnahme.Value:dd.MM.yyyy} zu {pensum} im Restaurant {rest}. Dein entsprechender Stundenlohn bleibt unverändert. Beiliegend senden wir dir den Zusatz zu deinem derzeitigen Vertrag in zweifacher Ausfertigung — bitte unterzeichne diesen und sende ihn so bald wie möglich mithilfe des Antwortkuverts an uns zurück.");
+        }
+        else if (beendigung)
+        {
+            var ende = urlaubEnde;
+            absaetze.Add($"Entsprechend deiner eigenen Entscheidung bestätigen wir dir hiermit die Beendigung unseres Arbeitsverhältnisses zum {ende:dd.MM.yyyy}, dem letzten Tag deines Mutterschaftsurlaubs. Die Mutterschaftsentschädigung wird dir bis zu diesem Datum ausbezahlt.");
+            absaetze.Add("Wir bitten dich, die beiliegenden Dokumente zu lesen, zu unterzeichnen und mit dem Antwortkuvert an uns zurückzusenden: das Formular «Bitte um Referenzen» (bei fehlender Rücksendung gehen wir davon aus, dass du keine Übermittlung von Referenzen wünschst) sowie die Information «Taggeldversicherung und Unfalldeckung» (bei fehlender Rücksendung gehen wir davon aus, dass du entsprechend informiert worden bist).");
+            if (o.Pensionskasse)
+                absaetze.Add("An GastroSocial zurückzusenden: das Formular «Freizügigkeitsleistung».");
+            absaetze.Add("Dein Arbeitszeugnis senden wir dir auf das Ende des Arbeitsverhältnisses zu.");
+        }
+
+        absaetze.Add($"Bitte fülle im Formular «Beantragung der Mutterschaftsentschädigung» den Teil A «Von der Mutter auszufüllen» (Seite 1 und 2) aus, unterzeichne es anschliessend auf Seite 4 und sende es uns bis spätestens am {eoFrist:dd.MM.yyyy} (4 Wochen nach der Entbindung) gemeinsam mit den angeforderten Nachweisen zurück.");
+        absaetze.Add("Bis zur Rücksendung der Unterlagen stehen wir dir gerne zur Beantwortung möglicher Fragen zur Verfügung und verbleiben mit freundlichen Grüssen.");
+
+        return Document.Create(doc =>
+        {
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(1.3f, Unit.Centimetre);
+                page.MarginHorizontal(2.2f, Unit.Centimetre);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).FontColor(Dark).LineHeight(1.35f));
+
+                page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
+
+                page.Content().PaddingTop(14).Column(col =>
+                {
+                    col.Item().Text(string.Join(" · ", firmaLines)).FontSize(8.5f).FontColor(Muted);
+
+                    // MA-Adresse im C5-Fenster (wie Vereinbarung/Kuendigung)
+                    col.Item().Height(40);
+                    if (o.Eingeschrieben)
+                        col.Item().Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f).FontSize(9.5f);
+                    col.Item().PaddingTop(o.Eingeschrieben ? 3 : 16).Column(c =>
+                    {
+                        foreach (var ln in maLines) c.Item().Text(ln);
+                    });
+
+                    col.Item().PaddingTop(22).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+
+                    col.Item().PaddingTop(22).Text(beendigung
+                        ? "Mutterschaftsurlaub und Beendigung des Arbeitsverhältnisses"
+                        : "Mutterschaftsurlaub und Wiederaufnahme der Arbeit").Bold().FontSize(12.5f);
+
+                    col.Item().PaddingTop(16).Text($"Liebe {d.MaVorname},");
+
+                    foreach (var a in absaetze)
+                        col.Item().PaddingTop(10).Text(a);
+
+                    // Gruss + Unterschrift (Unterschriftsberechtigte; Platz zum
+                    // handschriftlichen Unterschreiben, Bild nur wenn selbst).
+                    col.Item().PaddingTop(20).Text("Freundliche Grüsse");
+                    if (!string.IsNullOrWhiteSpace(d.FirmaName))
+                        col.Item().PaddingTop(2).Text($"{d.FirmaName}{(string.IsNullOrWhiteSpace(d.RestaurantName) ? "" : " · " + d.RestaurantName)}").Bold();
+                    if (d.SignaturePng is { Length: > 0 })
+                        col.Item().PaddingTop(6).Height(44).AlignLeft().Image(d.SignaturePng).FitHeight();
+                    else
+                        col.Item().PaddingTop(6).Height(50);
+                    col.Item().Text(d.UnterzeichnerName ?? "");
+                    if (!string.IsNullOrWhiteSpace(d.UnterzeichnerTitel))
+                        col.Item().Text(d.UnterzeichnerTitel!).FontColor(Muted);
+                });
+
+                page.Footer().Column(col =>
+                {
+                    col.Item().Text("Anhänge: erwähnt").FontSize(9.5f).FontColor(Muted);
                 });
             });
         }).GeneratePdf();

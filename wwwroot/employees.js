@@ -5659,7 +5659,9 @@ function renderPregnancyCard(d) {
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mvOpen(${p.id})">2 · Mutterschaftsvereinbarung…</button>
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="abOpen(${p.id})">3 · Brief an behandelnden Arzt…</button>
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="abRisiko(${p.id})">4 · Risikobeurteilung (PDF)</button>
-                        ${p.geburtsdatum ? '' : `<button class="dok-menu-item" style="white-space:nowrap" onclick="mtsOpenGeburt(${p.id})">5 · Geburt eintragen</button>`}
+                        ${p.geburtsdatum
+                            ? `<button class="dok-menu-item" style="white-space:nowrap" onclick="mbOpen(${p.id}, '${String(p.geburtsdatum).slice(0,10)}')">5 · Mutterschaftsbestätigung…</button>`
+                            : `<button class="dok-menu-item" style="white-space:nowrap" onclick="mtsOpenGeburt(${p.id})">5 · Geburt eintragen</button>`}
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
                         <button class="dok-menu-item danger" style="white-space:nowrap" onclick="mtsDelete(${p.id})">Löschen</button>
                     </div>
@@ -5836,6 +5838,144 @@ async function mtsGeburtSpeichern() {
     if (!r.ok) return alert('Fehler: ' + await r.text());
     mtsGeburtClose();
     loadFamilieTab(selectedEmployeeId);
+}
+
+// ── Mutterschaftsbestätigung nach der Geburt (Walter 16.07.2026, nach
+// Word-Vorlage): Gratulation, Urlaubs-Zeitraum 98 Tage ab Geburt,
+// Rückkehr-Varianten bzw. Beendigung, EO-Formular-Frist. Fahrplan-Punkt 5,
+// sobald das definitive Geburtsdatum erfasst ist.
+let _mbPregId = null;
+let _mbGeburtIso = null;
+
+function _mbEnsureModal() {
+    if (document.getElementById('mbModal')) return;
+    const div = document.createElement('div');
+    div.id = 'mbModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
+    div.innerHTML = `
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:560px;width:94%;max-height:92vh;overflow-y:auto;padding:22px 24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:16px;font-weight:800;color:#3f3f3f">Mutterschaftsbestätigung</div>
+            <button onclick="mbClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+        </div>
+        <div id="mbInfo" style="font-size:12px;color:#646464;margin-bottom:14px"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+            <div>
+                <label style="font-size:11.5px;font-weight:700;color:#646464">Vorname des Kindes (optional)</label>
+                <input type="text" id="mbKind" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+            <div>
+                <label style="font-size:11.5px;font-weight:700;color:#646464">Wiederaufnahme der Arbeit am</label>
+                <input type="date" id="mbWieder" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+            <div>
+                <label style="font-size:11.5px;font-weight:700;color:#646464">Bezahlte Urlaubstage im Anschluss</label>
+                <input type="number" id="mbUrlaubBez" min="0" value="0" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+            <div>
+                <label style="font-size:11.5px;font-weight:700;color:#646464">Unbezahlte Urlaubstage im Anschluss</label>
+                <input type="number" id="mbUrlaubUnbez" min="0" value="0" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            </div>
+        </div>
+
+        <div style="margin-top:14px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Rückkehr</div>
+            <label style="display:block;font-size:13px;margin-bottom:3px"><input type="radio" name="mbRueck" value="GLEICH" checked onchange="mbRueckChanged()"> zu denselben Bedingungen</label>
+            <label style="display:block;font-size:13px;margin-bottom:3px"><input type="radio" name="mbRueck" value="ANDERS" onchange="mbRueckChanged()"> zu geänderten Bedingungen</label>
+            <label style="display:block;font-size:13px"><input type="radio" name="mbRueck" value="KEINE" onchange="mbRueckChanged()"> Beendigung des Arbeitsverhältnisses</label>
+            <div id="mbAndersFields" style="display:none;margin-top:8px;padding:10px;background:rgba(255,255,255,0.5);border:1px solid rgba(139,139,139,0.25);border-radius:10px">
+                <div style="display:grid;grid-template-columns:120px 1fr;gap:10px">
+                    <div>
+                        <label style="font-size:11.5px;font-weight:700;color:#646464">Pensum %</label>
+                        <input type="number" id="mbPensum" min="1" max="100" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px;font-weight:700;color:#646464">Restaurant (bei Wechsel, sonst leer)</label>
+                        <input type="text" id="mbRestaurant" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                    </div>
+                </div>
+            </div>
+            <div id="mbKeineFields" style="display:none;margin-top:8px;padding:10px;background:rgba(255,255,255,0.5);border:1px solid rgba(139,139,139,0.25);border-radius:10px">
+                <label style="font-size:13px;cursor:pointer"><input type="checkbox" id="mbPk" style="width:15px;height:15px;cursor:pointer"> Mitarbeiterin zahlt in die Pensionskasse ein (Formular «Freizügigkeitsleistung» beilegen)</label>
+            </div>
+        </div>
+
+        <div style="margin-top:14px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
+            <label style="font-size:13px;margin-right:16px"><input type="radio" name="mbZustell" value="P" checked> persönliche Aushändigung</label>
+            <label style="font-size:13px"><input type="radio" name="mbZustell" value="E"> per Einschreiben</label>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+            <button onclick="mbClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button onclick="mbGenerate()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Bestätigung erstellen</button>
+        </div>
+    </div>`;
+    document.body.appendChild(div);
+}
+
+function mbOpen(pregId, geburtIso) {
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    _mbEnsureModal();
+    _mbPregId = pregId;
+    _mbGeburtIso = geburtIso;
+    const geburt = new Date(geburtIso);
+    const ende = new Date(geburt); ende.setDate(ende.getDate() + 97);
+    const wieder = new Date(ende); wieder.setDate(wieder.getDate() + 1);
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const ch = d => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+    document.getElementById('mbInfo').textContent =
+        `Entbunden am ${ch(geburt)} — Mutterschaftsurlaub 14 Wochen (98 Tage) bis ${ch(ende)}. Wiederaufnahme-Vorschlag: Folgetag (bei Urlaub im Anschluss entsprechend anpassen).`;
+    document.getElementById('mbWieder').value = iso(wieder);
+    document.getElementById('mbKind').value = '';
+    document.getElementById('mbUrlaubBez').value = 0;
+    document.getElementById('mbUrlaubUnbez').value = 0;
+    document.querySelector('input[name="mbRueck"][value="GLEICH"]').checked = true;
+    mbRueckChanged();
+    document.getElementById('mbModal').style.display = 'flex';
+}
+
+function mbClose() {
+    const m = document.getElementById('mbModal');
+    if (m) m.style.display = 'none';
+}
+
+function mbRueckChanged() {
+    const v = document.querySelector('input[name="mbRueck"]:checked')?.value;
+    document.getElementById('mbAndersFields').style.display = v === 'ANDERS' ? 'block' : 'none';
+    document.getElementById('mbKeineFields').style.display  = v === 'KEINE'  ? 'block' : 'none';
+    const w = document.getElementById('mbWieder');
+    if (w) w.disabled = v === 'KEINE';
+}
+
+async function mbGenerate() {
+    if (!_mbPregId) return;
+    const rueckkehr = document.querySelector('input[name="mbRueck"]:checked')?.value || 'GLEICH';
+    const dto = {
+        rueckkehr,
+        urlaubBezahlt:   +(document.getElementById('mbUrlaubBez').value || 0),
+        urlaubUnbezahlt: +(document.getElementById('mbUrlaubUnbez').value || 0),
+        wiederaufnahme:  rueckkehr === 'KEINE' ? null : (document.getElementById('mbWieder').value || null),
+        pensumProzent:   document.getElementById('mbPensum').value ? +document.getElementById('mbPensum').value : null,
+        rueckkehrRestaurant: document.getElementById('mbRestaurant').value || null,
+        pensionskasse:   document.getElementById('mbPk').checked,
+        kindName:        document.getElementById('mbKind').value || null,
+        eingeschrieben:  document.querySelector('input[name="mbZustell"]:checked')?.value === 'E'
+    };
+    if (rueckkehr !== 'KEINE' && !dto.wiederaufnahme) return alert('Bitte das Datum der Wiederaufnahme wählen.');
+    if (rueckkehr === 'ANDERS' && !dto.pensumProzent) return alert('Bei geänderten Bedingungen bitte das Pensum in % angeben.');
+    try {
+        const r = await fetch(`/api/mutterschaft-vereinbarung/${_mbPregId}/bestaetigung-pdf`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(dto)
+        });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
+        const blob = await r.blob();
+        mbClose();
+        previewFileModal(blob, 'Mutterschaftsbestaetigung.pdf');
+    } catch (e) { alert('Fehler: ' + e.message); }
 }
 
 // ── Brief an den behandelnden Arzt (Walter 16.07.2026, nach Word-Vorlage):
