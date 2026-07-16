@@ -31,6 +31,15 @@
         if (!sel || sel._lq || sel.tagName !== 'SELECT') return;
         if (sel.multiple || (sel.size && sel.size > 1)) return;
         if (sel.classList.contains('no-liquid')) return;
+        // Selects, die SELBST bewusst versteckt sind, sind Datenquellen eines
+        // bereits gebauten Custom-Controls (z.B. #branchSelect hinter dem
+        // Sidebar-Filial-Selektor, #liquidBranchSelect auf dem Dashboard) —
+        // NICHT umbauen, sonst erscheint ein zweites Auswahlfeld
+        // (Walter-Bug 16.07.2026: «ploetzlich 2 filial auswahl felder»).
+        // Wichtig: NUR das Inline-Style/hidden-Attribut pruefen — Selects in
+        // (noch) versteckten Seiten/Modals sollen normal umgebaut werden.
+        if (sel.style.display === 'none' || sel.hasAttribute('hidden')) return;
+        if (sel.classList.contains('liquid-branch-select')) return;
         sel._lq = true;
 
         const wrap = document.createElement('div');
