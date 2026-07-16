@@ -215,6 +215,52 @@ function kuOpenDoc(art, empId) {
     openZeugnisModal(id, art === 'zwischen', art === 'best');
 }
 
+// dd.mm.yyyy aus ISO (fuer Titel der Dokument-Ablage)
+function _krFmtCh(iso) {
+    return iso ? `${iso.slice(8,10)}.${iso.slice(5,7)}.${iso.slice(0,4)}` : '';
+}
+
+// Rueckzugs-Schreiben als MA-Dokument ablegen (Walter 16.07.2026):
+// Vertragsunterlagen › Kuendigung, Bemerkung «Aufhebung Kuendigung vom X».
+async function _krDokumentAblegen(empId, blob, kuendigungVomIso) {
+    try {
+        // Dokument-Typ «Kuendigung» aus der Taxonomie (bevorzugt in der
+        // Kategorie «Vertragsunterlagen») suchen.
+        const rt = await fetch('/api/documents/taxonomie', { headers: ah() });
+        if (!rt.ok) return alert('Ablage fehlgeschlagen: Dokument-Struktur nicht ladbar.');
+        const taxonomy = await rt.json();
+        let typ = null;
+        const isKuend = t => (t.name || '').toLowerCase().startsWith('kündigung')
+                          || (t.name || '').toLowerCase().startsWith('kuendigung');
+        for (const k of taxonomy) {
+            const t = (k.typen || []).find(isKuend);
+            if (t && (k.name || '').toLowerCase().includes('vertrag')) { typ = t; break; }
+            if (t && !typ) typ = t;
+        }
+        if (!typ) return alert('Ablage fehlgeschlagen: kein Dokument-Typ «Kündigung» in der Dokument-Struktur gefunden.');
+
+        // Filiale des MA fuer den Storage-Pfad (globaler Selektor, sonst erste).
+        const branch = (typeof allBranches !== 'undefined' ? allBranches : [])
+            .find(b => b.id === Number(typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : 0))
+            || (typeof allBranches !== 'undefined' ? allBranches[0] : null);
+        const branchCode = branch?.restaurantCode || '';
+        if (!branchCode) return alert('Ablage fehlgeschlagen: keine Filiale gewählt.');
+
+        const titel = `Aufhebung Kündigung vom ${_krFmtCh(kuendigungVomIso)}`;
+        const fd = new FormData();
+        fd.append('file', new File([blob], `${titel.replace(/[^A-Za-z0-9äöüÄÖÜ ._-]/g, '')}.pdf`, { type: 'application/pdf' }));
+        fd.append('employeeId', empId);
+        fd.append('dokumentTypId', typ.id);
+        fd.append('branchCode', branchCode);
+        fd.append('bemerkung', titel);
+        const ru = await fetch('/api/documents/upload', { method: 'POST', headers: ah(), body: fd });
+        if (!ru.ok) {
+            let t = await ru.text(); try { t = JSON.parse(t).message || JSON.parse(t).error || t; } catch (_) {}
+            alert('Ablage fehlgeschlagen: ' + t);
+        }
+    } catch (e) { alert('Ablage fehlgeschlagen: ' + e.message); }
+}
+
 // ── Kuendigungsrueckzug (Walter 16.07.2026): zieht eine ausgesprochene
 // Kuendigung zurueck — z.B. wegen nachtraeglich gemeldeter Schwangerschaft.
 // Kleines Modal: Datum der Kuendigung (Pflicht), optionaler Grund, Zustellart.
@@ -342,13 +388,19 @@ async function krGenerate() {
         const blob = await r.blob();
         krClose();
         const empId = _krEmpId;
+        const kuendigungVomIso = vom;
         previewFileModal(blob, 'Kuendigungsrueckzug.pdf');
-        // Walter-Vorgabe 16.07.2026 (final): ZUERST das Schreiben ansehen —
-        // die Frage kommt erst, wenn das Vorschaufenster GESCHLOSSEN wird
-        // (Liquid-Dialog, kein natives confirm). Bei Ja: Kuendigung am MA
-        // loeschen + Seite neu laden, damit sie ueberall verschwindet.
+        // Walter-Vorgabe 16.07.2026 (final): ZUERST das Schreiben ansehen.
+        // Nach dem Schliessen der Vorschau ZWEI Liquid-Fragen:
+        //   1. Dokument beim MA ablegen? → Vertragsunterlagen › Kuendigung,
+        //      Titel «Aufhebung Kuendigung vom dd.mm.yyyy»
+        //   2. Kuendigung beim MA aufheben? → loeschen + zur MA-Seite
         if (typeof filePreviewOnClose === 'function') {
             filePreviewOnClose(async () => {
+                const ablegen = await liquidConfirm(
+                    'Soll das Rückzugs-Schreiben beim Mitarbeiter abgelegt werden?\n\nAblage: Vertragsunterlagen › Kündigung als «Aufhebung Kündigung vom ' + _krFmtCh(kuendigungVomIso) + '».',
+                    { title: 'Dokument ablegen?', yesLabel: 'Ja, ablegen', noLabel: 'Nein' });
+                if (ablegen) await _krDokumentAblegen(empId, blob, kuendigungVomIso);
                 const ja = await liquidConfirm(
                     'Soll die Kündigung beim Mitarbeiter aufgehoben werden?\n\n«Gekündigt am» und «Kündigung per» werden gelöscht — die ToDo «Vertragsende wegen Kündigung» verschwindet damit.',
                     { title: 'Kündigung aufheben?', yesLabel: 'Ja, aufheben', noLabel: 'Nein' });
