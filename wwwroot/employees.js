@@ -950,7 +950,7 @@ function renderEmployeeDetail(emp) {
                      liegen); ToDo 2 Wochen vor Ablauf. Wichtig: die Inputs
                      ef-kuendAm/ef-kuendPer existieren damit in Ansicht UND
                      Edit-Modus — saveEmpEdit liest sie in beiden Fällen. -->
-                ${inlineEditField('Gekündigt am', `<input id="ef-kuendAm" class="ef-input" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" oninput="empInlineDirty()" style="width:auto">`)}
+                ${inlineEditField('Gekündigt am', `<input id="ef-kuendAm" class="ef-input" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="kuendAmChanged(${emp.id})" oninput="empInlineDirty()" style="width:auto">`)}
                 ${inlineEditField('Kündigung per', `<input id="ef-kuendPer" class="ef-input" type="date" value="${toDateInput(emp.kuendigungPer)}" oninput="empInlineDirty()" style="width:auto">`)}
             </div>
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
@@ -3723,8 +3723,27 @@ function empSetYesNo(id, value) {
 }
 
 function empInlineDirty() {
+    // Walter-Bug 16.07.2026: der Button steht mit style="display:none" im DOM —
+    // visibility allein machte ihn nie sichtbar. display umschalten.
     const btn = document.getElementById('empInlineSaveBtn');
-    if (btn) btn.style.visibility = 'visible';
+    if (btn) { btn.style.display = 'inline-flex'; btn.style.visibility = 'visible'; }
+}
+
+// «Gekündigt am» erfasst → «Kündigung per» automatisch aus der Kündigungs-
+// frist des MA berechnen (Walter 16.07.2026). Gleiche Quelle wie die
+// Kündigungs-Seite: GET /api/kuendigung/{id}/info?datum=… liefert den
+// letzten Arbeitstag (Probezeit/Dienstjahre/Filial-Einstellung inklusive).
+async function kuendAmChanged(empId) {
+    const am = document.getElementById('ef-kuendAm')?.value;
+    const perEl = document.getElementById('ef-kuendPer');
+    if (!am || !perEl) return;
+    try {
+        const r = await fetch(`/api/kuendigung/${empId}/info?datum=${am}`, { headers: ah() });
+        if (!r.ok) return;
+        const info = await r.json();
+        const per = info?.notice?.letzterArbeitstag || info?.letzterArbeitstag;
+        if (per) { perEl.value = String(per).slice(0, 10); empInlineDirty(); }
+    } catch (_) {}
 }
 
 // Klick auf 📎: springt in den Dokumente-Tab des MA und filtert auf den
