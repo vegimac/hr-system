@@ -235,7 +235,17 @@ function _krEnsureModal() {
         <label style="font-size:11.5px;font-weight:700;color:#646464">Kündigung ausgesprochen am (Pflicht)</label>
         <input type="date" id="krKuendigungVom" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
         <label style="font-size:11.5px;font-weight:700;color:#646464">Grund des Rückzugs (optional, erscheint im Brief)</label>
-        <input type="text" id="krGrund" placeholder="z.B. Kündigungsschutz wegen Schwangerschaft (OR Art. 336c)" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
+        <select id="krGrundSelect" onchange="krGrundChanged()" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:8px">
+            <option value="">— kein Grund im Brief —</option>
+            <option value="Nachträglich gemeldete Schwangerschaft — Kündigungsschutz nach OR Art. 336c">Nachträglich gemeldete Schwangerschaft (OR Art. 336c)</option>
+            <option value="Die Kündigung wurde während einer laufenden Sperrfrist ausgesprochen (Krankheit/Unfall, OR Art. 336c) und ist damit nichtig">Kündigung fiel in eine Sperrfrist — Krankheit/Unfall (OR Art. 336c)</option>
+            <option value="Aufgrund unseres Gesprächs haben wir uns auf die Weiterführung des Arbeitsverhältnisses geeinigt">Aufgrund unseres Gesprächs — einvernehmliche Weiterbeschäftigung</option>
+            <option value="Der Sachverhalt, der zur Kündigung geführt hat, hat sich nach nochmaliger Prüfung anders dargestellt">Sachverhalt geklärt / Missverständnis ausgeräumt</option>
+            <option value="Nach dem Verwarnungsgespräch geben wir dem Arbeitsverhältnis eine weitere Chance">Bewährung nach Verwarnungsgespräch</option>
+            <option value="Die betrieblichen Gründe für die Kündigung sind weggefallen — eine Weiterbeschäftigung ist wieder möglich">Betriebliche Gründe weggefallen (Personalbedarf)</option>
+            <option value="__ANDERER__">Anderer Grund…</option>
+        </select>
+        <input type="text" id="krGrund" placeholder="Grund frei formulieren" style="display:none;width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
         <div style="margin-bottom:16px">
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
             <label style="font-size:13px;margin-right:16px"><input type="radio" name="krZustell" value="P" checked> persönliche Aushändigung</label>
@@ -253,7 +263,9 @@ async function krOpen(empId) {
     _krEnsureModal();
     _krEmpId = empId;
     document.getElementById('krKuendigungVom').value = '';
+    document.getElementById('krGrundSelect').value = '';
     document.getElementById('krGrund').value = '';
+    krGrundChanged();
     document.getElementById('krModal').style.display = 'flex';
     // Liegt am MA eine erfasste Kuendigung vor («Gekuendigt am», vom
     // Kuendigungsschreiben gesetzt), das Datum vorbefuellen (Walter 16.07.2026).
@@ -268,6 +280,14 @@ async function krOpen(empId) {
     } catch (_) {}
 }
 
+function krGrundChanged() {
+    const sel = document.getElementById('krGrundSelect');
+    const txt = document.getElementById('krGrund');
+    if (!sel || !txt) return;
+    txt.style.display = sel.value === '__ANDERER__' ? 'block' : 'none';
+    if (sel.value !== '__ANDERER__') txt.value = '';
+}
+
 function krClose() {
     const m = document.getElementById('krModal');
     if (m) m.style.display = 'none';
@@ -277,9 +297,13 @@ async function krGenerate() {
     if (!_krEmpId) return;
     const vom = document.getElementById('krKuendigungVom').value;
     if (!vom) return alert('Bitte das Datum der ausgesprochenen Kündigung angeben.');
+    const grundSel = document.getElementById('krGrundSelect')?.value || '';
+    const grund = grundSel === '__ANDERER__'
+        ? (document.getElementById('krGrund').value || null)
+        : (grundSel || null);
     const dto = {
         kuendigungVom:  vom,
-        grund:          document.getElementById('krGrund').value || null,
+        grund:          grund,
         eingeschrieben: document.querySelector('input[name="krZustell"]:checked')?.value === 'E'
     };
     try {
