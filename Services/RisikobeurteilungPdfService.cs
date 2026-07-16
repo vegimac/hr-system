@@ -66,23 +66,25 @@ public class RisikobeurteilungPdfService
                 canvas.BeginText()
                       .SetFontAndSize(fett ? bold : font, size)
                       .SetColor(ColorConstants.BLACK, true)
-                      .MoveText(x, pageH - topY - 8f)
+                      // Baseline auf die Label-Baseline ausgerichtet (Walter
+                      // 16.07.2026: Werte schwebten leicht ueber der Linie).
+                      .MoveText(x, pageH - topY - 11f)
                       .ShowText(t)
                       .EndText();
             }
 
-            // Ausfuell-Werte FETT + groesser (Walter-Feedback 16.07.2026).
-            Text(b.Name,          150, 546f, 10.5f, true);
-            Text(b.Strasse,       150, 562.6f, 10.5f, true);
-            Text(b.PlzOrt,        360, 562.6f, 10.5f, true);
-            Text(b.Kontaktperson, 150, 579.4f, 10.5f, true);
-            Text(b.Telefon,       360, 579.4f, 10.5f, true);
+            // Ausfuell-Werte FETT + groesser; PLZ/Tel mit mehr Abstand zum Label.
+            Text(b.Name,          150, 547f, 10.5f, true);
+            Text(b.Strasse,       150, 563.6f, 10.5f, true);
+            Text(b.PlzOrt,        375, 563.6f, 10.5f, true);
+            Text(b.Kontaktperson, 150, 580.4f, 10.5f, true);
+            Text(b.Telefon,       375, 580.4f, 10.5f, true);
 
             // Kurzbeschrieb: IN der grossen Box (Rahmen x 57-539, top 639.5-757.4
             // — vermessen; Walter-Feedback 16.07.2026: Text sass zu hoch und
             // lief rechts ueber den Rahmen).
             var lines = Wrap(BetriebsBeschrieb, font, 9f, 455f);
-            float y = 648f;
+            float y = 646f;
             foreach (var line in lines)
             {
                 Text(line, 66, y, 9f);
