@@ -72,7 +72,9 @@ function _renderEmpPicker(filterId, searchId, selectId) {
 function kuOnEmpChange() {
     const id = +(document.getElementById('kuEmpSelect')?.value || 0);
     const det = document.getElementById('kuDetails');
-    if (!id) { if (det) det.style.display = 'none'; return; }
+    const back = document.getElementById('kuBackRow');
+    if (!id) { if (det) det.style.display = 'none'; if (back) back.style.display = 'flex'; return; }
+    if (back) back.style.display = 'none'; // Details haben eigenen Abbrechen-Button
     window.activeEmpId = id;
     if (det) det.style.display = 'block';
     kuLoadInfo();
@@ -221,6 +223,8 @@ function kuAbbrechen() {
     if (grund) grund.value = '';
     const suche = document.getElementById('kuEmpSearch');
     if (suche) suche.value = '';
+    const back = document.getElementById('kuBackRow');
+    if (back) back.style.display = 'flex';
     _kuInfo = null;
     if (typeof showPage === 'function') showPage('hr-hub');
 }

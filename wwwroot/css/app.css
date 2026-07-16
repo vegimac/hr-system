@@ -4846,15 +4846,14 @@
 /* ── Menuepunkte in der HR-Hub-Karte «Kuendigung / Zeugnisse»
    (Walter 15.07.2026): schlichte klickbare Zeilen, Liquid-Look. ── */
 .kz-menu-item {
-    text-align: left; width: 100%;
-    background: rgba(255,255,255,0.45);
-    border: 1px solid rgba(139,139,139,0.28);
-    border-radius: 10px; padding: 8px 12px; cursor: pointer;
+    display: block; text-align: left; width: 100%;
+    background: none; border: none; padding: 4px 0; cursor: pointer;
     font-size: 13px; font-weight: 600; color: #3f3f3f;
-    transition: background .15s ease, transform .15s ease;
+    transition: color .15s ease;
 }
-.kz-menu-item:hover { background: rgba(255,255,255,0.75); transform: translateY(-1px); }
-body.theme-dark .kz-menu-item { background: rgba(255,255,255,0.08); color: #d6d3cc; border-color: rgba(148,163,184,0.25); }
+.kz-menu-item:hover { color: #0f172a; text-decoration: underline; }
+body.theme-dark .kz-menu-item { color: #d6d3cc; }
+body.theme-dark .kz-menu-item:hover { color: #ffffff; }
 
 /* ── Restaurant-Admin-Kacheln (Walter 15.07.2026, v5): wie die Modul-
    Kacheln der Startseite — Glas-Kachel, freigestelltes Sketch-Icon,

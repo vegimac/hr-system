@@ -15,13 +15,37 @@ namespace HrSystem.Controllers;
 /// vom Ehegatten abhängt, aber das Beleg-Dokument (Ausweis Ehegatte)
 /// noch nicht in der Personalakte ist.
 /// </summary>
-[Authorize(Roles = "admin,superuser")]
+[Authorize(Roles = "admin,superuser,user")]
 [ApiController]
 [Route("api/kontrolle")]
 public class KontrollListenController : ControllerBase
 {
     private readonly AppDbContext _db;
     public KontrollListenController(AppDbContext db) => _db = db;
+
+    /// <summary>
+    /// GF-Zugang (Walter 16.07.2026): Rolle «user» sieht die Kontroll-Listen
+    /// NUR fuer eine ihm zugeteilte Filiale (user_branch_access) — vorher 403
+    /// fuer GF, obwohl die Card im HR-Hub sichtbar war. admin/superuser
+    /// (inkl. buchhaltung via Doppel-Claim) bleiben unbeschraenkt.
+    /// Liefert null wenn erlaubt, sonst das 403-Result.
+    /// </summary>
+    private async Task<IActionResult?> GuardBranchAsync(int? companyProfileId)
+    {
+        if (User.IsInRole("admin") || User.IsInRole("superuser")) return null;
+        if (!companyProfileId.HasValue)
+            return StatusCode(403, new { error = "BRANCH_REQUIRED",
+                message = "Kontroll-Listen sind fuer GF nur pro Filiale verfuegbar — bitte Filiale im Selektor waehlen." });
+        var idStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idStr, out var uid))
+            return StatusCode(403, new { error = "NO_USER" });
+        var ok = await _db.UserBranchAccesses
+            .AnyAsync(a => a.UserId == uid && a.CompanyProfileId == companyProfileId.Value);
+        if (!ok)
+            return StatusCode(403, new { error = "BRANCH_FORBIDDEN",
+                message = "Kein Zugriff auf diese Filiale." });
+        return null;
+    }
 
     /// <summary>
     /// MA, die QST-pflichtig wären, aber durch den Ehegatten befreit
@@ -39,6 +63,9 @@ public class KontrollListenController : ControllerBase
     [HttpGet("spouse-doku-fehlt")]
     public async Task<IActionResult> SpouseDokuFehlt([FromQuery] int? companyProfileId = null)
     {
+        var deny = await GuardBranchAsync(companyProfileId);
+        if (deny != null) return deny;
+
         // 1) Aktive MA (optional auf Filiale beschränkt) + neueste C-Permit-Info
         // Walter-Vorgabe 13.06.2026: Phantom-MA (IsPayrollExcluded=true) UND
         // soft-deleted MA (IsHidden=true) sind für die HR-Kontrollen irrelevant.
@@ -168,6 +195,9 @@ public class KontrollListenController : ControllerBase
     [HttpGet("employee-ausweis-fehlt")]
     public async Task<IActionResult> EmployeeAusweisFehlt([FromQuery] int? companyProfileId = null)
     {
+        var deny = await GuardBranchAsync(companyProfileId);
+        if (deny != null) return deny;
+
         var empQuery = _db.Employees
             .Include(e => e.NationalityRef)
             .Where(e => e.IsActive
@@ -268,6 +298,9 @@ public class KontrollListenController : ControllerBase
     [HttpGet("permit-expiring")]
     public async Task<IActionResult> PermitExpiring([FromQuery] int? companyProfileId = null)
     {
+        var deny = await GuardBranchAsync(companyProfileId);
+        if (deny != null) return deny;
+
         var today = DateOnly.FromDateTime(DateTime.Today);
         var limit = DateOnly.FromDateTime(DateTime.Today.AddDays(60));
 
@@ -428,6 +461,9 @@ public class KontrollListenController : ControllerBase
     [HttpGet("nacht-untersuchung-fehlt")]
     public async Task<IActionResult> NachtUntersuchungFehlt([FromQuery] int? companyProfileId = null)
     {
+        var deny = await GuardBranchAsync(companyProfileId);
+        if (deny != null) return deny;
+
         var today     = DateOnly.FromDateTime(DateTime.Today);
         var rollStart = new DateOnly(today.Year, today.Month, 1).AddMonths(-11);
 
