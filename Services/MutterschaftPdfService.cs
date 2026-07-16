@@ -321,24 +321,28 @@ public class MutterschaftPdfService
                     if (!string.IsNullOrWhiteSpace(d.UnterzeichnerTitel))
                         col.Item().Text(d.UnterzeichnerTitel!).FontColor(Muted);
 
-                    // Empfangs-/Einverständnis-Bestätigung der MA (Vorlage:
-                    // Variante bei persönlicher Überreichung — hier immer sinnvoll,
-                    // die Vereinbarung ist beidseitig).
-                    col.Item().PaddingTop(18).Text("Einverstanden und Original erhalten:").FontSize(9f).FontColor(Muted);
-                    col.Item().PaddingTop(16).Row(r =>
+                    // Empfangs-/Einverständnis-Bestätigung der MA — NUR bei
+                    // persönlicher Aushändigung (Walter 16.07.2026); beim
+                    // Einschreiben-Versand entfällt der Block (Vorlage:
+                    // «Variante bei persönlicher Überreichung»).
+                    if (!o.Eingeschrieben)
                     {
-                        r.RelativeItem().Column(c =>
+                        col.Item().PaddingTop(18).Text("Einverstanden und Original erhalten:").FontSize(9f).FontColor(Muted);
+                        col.Item().PaddingTop(16).Row(r =>
                         {
-                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text("Ort und Datum").FontSize(8.5f).FontColor(Muted);
+                            r.RelativeItem().Column(c =>
+                            {
+                                c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
+                                c.Item().PaddingTop(3).Text("Ort und Datum").FontSize(8.5f).FontColor(Muted);
+                            });
+                            r.ConstantItem(40);
+                            r.RelativeItem().Column(c =>
+                            {
+                                c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
+                                c.Item().PaddingTop(3).Text($"{d.MaVorname} {d.MaName}").FontSize(8.5f).FontColor(Muted);
+                            });
                         });
-                        r.ConstantItem(40);
-                        r.RelativeItem().Column(c =>
-                        {
-                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text($"{d.MaVorname} {d.MaName}").FontSize(8.5f).FontColor(Muted);
-                        });
-                    });
+                    }
                 });
             });
         }).GeneratePdf();
