@@ -193,9 +193,13 @@ public class MutterschaftPdfService
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
+                            // Wie beim Arbeitsvertrag: Name + Funktion der
+                            // Unterschriftsberechtigten (Walter 16.07.2026).
                             c.Item().PaddingTop(3).Text(string.IsNullOrWhiteSpace(d.UnterzeichnerName)
                                 ? "Arbeitgeber"
-                                : $"Arbeitgeber — {d.UnterzeichnerName}").FontSize(9f);
+                                : d.UnterzeichnerName!).FontSize(9f);
+                            if (!string.IsNullOrWhiteSpace(d.UnterzeichnerTitel))
+                                c.Item().Text(d.UnterzeichnerTitel!).FontSize(9f).FontColor(Muted);
                         });
                         r.ConstantItem(40);
                         r.RelativeItem().Column(c =>
@@ -313,12 +317,9 @@ public class MutterschaftPdfService
                     else
                         col.Item().PaddingTop(6).Height(36);
 
-                    col.Item().PaddingTop(2).Text(t =>
-                    {
-                        t.Span(d.UnterzeichnerName ?? "");
-                        if (!string.IsNullOrWhiteSpace(d.UnterzeichnerTitel))
-                            t.Span($" — {d.UnterzeichnerTitel}").FontColor(Muted);
-                    });
+                    col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
+                    if (!string.IsNullOrWhiteSpace(d.UnterzeichnerTitel))
+                        col.Item().Text(d.UnterzeichnerTitel!).FontColor(Muted);
 
                     // Empfangs-/Einverständnis-Bestätigung der MA (Vorlage:
                     // Variante bei persönlicher Überreichung — hier immer sinnvoll,
