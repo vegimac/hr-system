@@ -249,12 +249,23 @@ function _krEnsureModal() {
     document.body.appendChild(div);
 }
 
-function krOpen(empId) {
+async function krOpen(empId) {
     _krEnsureModal();
     _krEmpId = empId;
     document.getElementById('krKuendigungVom').value = '';
     document.getElementById('krGrund').value = '';
     document.getElementById('krModal').style.display = 'flex';
+    // Liegt am MA eine erfasste Kuendigung vor («Gekuendigt am», vom
+    // Kuendigungsschreiben gesetzt), das Datum vorbefuellen (Walter 16.07.2026).
+    try {
+        const r = await fetch(`/api/employees/${empId}`, { headers: ah() });
+        if (r.ok) {
+            const e = await r.json();
+            if (e?.kuendigungAusgesprochenAm)
+                document.getElementById('krKuendigungVom').value =
+                    String(e.kuendigungAusgesprochenAm).slice(0, 10);
+        }
+    } catch (_) {}
 }
 
 function krClose() {
