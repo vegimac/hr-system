@@ -205,7 +205,7 @@ public class MutterschaftPdfService
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text($"Mitarbeiterin — {d.MaVorname} {d.MaName}").FontSize(9f);
+                            c.Item().PaddingTop(3).Text($"{d.MaVorname} {d.MaName}").FontSize(9f);
                         });
                     });
                 });
@@ -336,7 +336,7 @@ public class MutterschaftPdfService
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text($"Unterschrift {d.MaVorname} {d.MaName}").FontSize(8.5f).FontColor(Muted);
+                            c.Item().PaddingTop(3).Text($"{d.MaVorname} {d.MaName}").FontSize(8.5f).FontColor(Muted);
                         });
                     });
                 });
