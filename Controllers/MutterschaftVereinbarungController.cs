@@ -137,20 +137,15 @@ public class MutterschaftVereinbarungController : ControllerBase
             var arztName = string.Join(" ", new[] { arzt.Titel, arzt.Vorname, arzt.Nachname }
                 .Where(x => !string.IsNullOrWhiteSpace(x)));
             var subject = $"Medizinische Eignungsuntersuchung Mutterschutz — Frau {common.MaVorname} {common.MaName}";
-            var text = $"Sehr geehrte Damen und Herren
-
-"
-                     + $"Im Anhang erhalten Sie unser Schreiben betreffend die medizinische Eignungsuntersuchung "
+            var nl = Environment.NewLine;
+            var text = "Sehr geehrte Damen und Herren" + nl + nl
+                     + "Im Anhang erhalten Sie unser Schreiben betreffend die medizinische Eignungsuntersuchung "
                      + $"für Frau {common.MaVorname} {common.MaName}"
                      + (common.MaGeburtsdatum.HasValue ? $", geb. {common.MaGeburtsdatum.Value:dd.MM.yyyy}" : "")
-                     + ".
-
-Freundliche Grüsse
-"
-                     + $"{common.UnterzeichnerName}
-{common.FirmaName}{(string.IsNullOrWhiteSpace(common.RestaurantName) ? "" : " · " + common.RestaurantName)}";
-            var html = text.Replace("
-", "<br>");
+                     + "." + nl + nl + "Freundliche Grüsse" + nl
+                     + $"{common.UnterzeichnerName}" + nl
+                     + $"{common.FirmaName}{(string.IsNullOrWhiteSpace(common.RestaurantName) ? "" : " · " + common.RestaurantName)}";
+            var html = text.Replace(nl, "<br>");
             var ok = await _email.SendWithAttachmentAsync(
                 arzt.Email!, arztName, subject, html, text,
                 bytes, $"Arztbrief_Eignungsuntersuchung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_"));
