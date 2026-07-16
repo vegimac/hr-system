@@ -382,17 +382,29 @@ public class DashboardService
             int kuendVorlauf = WarnDays("kuendigung_ablauf", 14);
             foreach (var e in kuendList)
             {
+                // Ist der Austritt bereits erfasst, braucht es keine Erinnerung
+                // mehr (die exit_pending_active-Karte übernimmt danach).
+                if (e.ExitDate.HasValue) continue;
                 var per = e.KuendigungPer!.Value.Date;
                 int daysUntil = (per - now).Days;
                 if (daysUntil > kuendVorlauf) continue;   // noch zu früh
+                // Walter-Vorgabe 16.07.2026 (Verschärfung): ist die Frist schon
+                // ABGELAUFEN und noch immer kein Austritt erfasst → rote Warnung
+                // mit eigenem Titel, verschwindet nie von selbst.
+                bool abgelaufen = daysUntil < 0;
                 alerts.Add(new DashboardAlert
                 {
                     Category = "kuendigung_ablauf",
-                    Severity = Severity("kuendigung_ablauf", daysUntil, "warning", "critical"),
-                    Title    = $"Vertragsende wegen Kündigung per {per:dd.MM.yyyy}",
+                    Severity = abgelaufen ? "critical"
+                             : Severity("kuendigung_ablauf", daysUntil, "warning", "critical"),
+                    Title    = abgelaufen
+                        ? $"Kündigungsfrist abgelaufen ohne Austritt — Kündigung per {per:dd.MM.yyyy}"
+                        : $"Vertragsende wegen Kündigung per {per:dd.MM.yyyy}",
                     Subtitle = $"{e.FirstName} {e.LastName} · Personalnr. {e.EmployeeNumber}"
                              + (e.KuendigungAusgesprochenAm.HasValue ? $" · gekündigt am {e.KuendigungAusgesprochenAm:dd.MM.yyyy}" : "")
-                             + " — Austrittsdatum erfassen und Vertrag beenden",
+                             + (abgelaufen
+                                 ? $" — seit {-daysUntil} Tag(en) überfällig: Austrittsdatum erfassen oder Kündigung aufheben"
+                                 : " — Austrittsdatum erfassen und Vertrag beenden"),
                     DueDate  = e.KuendigungPer,
                     DaysUntil = daysUntil,
                     EmployeeId     = e.Id,
