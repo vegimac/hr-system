@@ -352,13 +352,19 @@ async function krGenerate() {
                 const ja = await liquidConfirm(
                     'Soll die Kündigung beim Mitarbeiter aufgehoben werden?\n\n«Gekündigt am» und «Kündigung per» werden gelöscht — die ToDo «Vertragsende wegen Kündigung» verschwindet damit.',
                     { title: 'Kündigung aufheben?', yesLabel: 'Ja, aufheben', noLabel: 'Nein' });
-                if (!ja) return;
+                if (!ja) return;   // Nein → hier im HR-Bereich bleiben
                 try {
                     const ra = await fetch(`/api/kuendigung/${empId}/kuendigung-aufheben`, {
                         method: 'POST', headers: ah()
                     });
                     if (!ra.ok) return alert('Aufheben fehlgeschlagen: ' + ra.status);
-                    location.reload();
+                    // Walter-Vorgabe 16.07.2026: bei Ja direkt auf die MA-Seite
+                    // dieses Mitarbeiters springen — loadMitarbeiterList laedt
+                    // frisch vom Server und selektiert activeEmpId, man sieht
+                    // sofort, dass die Kuendigung raus ist.
+                    window.activeEmpId = empId;
+                    try { selectedEmployeeId = empId; selectedEmployee = null; } catch (_) {}
+                    showPage('mitarbeiter');
                 } catch (e2) { alert('Aufheben fehlgeschlagen: ' + e2.message); }
             });
         }
