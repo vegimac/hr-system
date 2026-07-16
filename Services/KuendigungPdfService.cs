@@ -160,10 +160,10 @@ public class KuendigungPdfService
                     if (!string.IsNullOrWhiteSpace(d.FirmaName))
                         col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
 
-                    if (signaturePng is { Length: > 0 })
-                        col.Item().PaddingTop(6).Height(44).AlignLeft().Image(signaturePng).FitHeight();
-                    else
-                        col.Item().PaddingTop(6).Height(36);
+                    // Walter-Vorgabe 16.07.2026: der Kuendigungsrueckzug wird
+                    // IMMER original von Hand unterschrieben — KEIN Unterschrift-
+                    // Bild einfuegen, nur Freiraum.
+                    col.Item().PaddingTop(6).Height(56);
 
                     col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
 
