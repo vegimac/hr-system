@@ -409,7 +409,13 @@ function applyEmpFilter() {
     // beim Betreten der Seite vorselektiert, sofern in der gefilterten Liste.
     // Höchste Priorität: überschreibt eine veraltete Auswahl, damit der Wechsel
     // z.B. aus dem Lohnlauf direkt auf diesen MA springt.
-    if (window.activeEmpId && window.activeEmpId !== selectedEmployeeId
+    // Walter-Bug 16.07.2026: auch wenn die ID schon als selektiert gilt, aber
+    // das Detail NICHT gerendert ist (selectedEmployee === null — passiert wenn
+    // Kuendigungs-/Zeugnis-Seiten die Auswahl setzen, z.B. nach Abbruch im
+    // Rueckzugs-Modal), muss selectEmployee laufen — sonst steht der MA zwar
+    // markiert in der Liste, rechts aber «Mitarbeiter auswaehlen».
+    if (window.activeEmpId
+        && (window.activeEmpId !== selectedEmployeeId || !selectedEmployee)
         && allEmployees.find(e => e.id === window.activeEmpId)) {
         selectEmployee(window.activeEmpId);
     }
