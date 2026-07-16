@@ -328,6 +328,8 @@ public class MutterschaftVereinbarungController : ControllerBase
             ErrechneterTermin: p.ErrechneterTermin,
             UnterzeichnerName: signerName,
             UnterzeichnerTitel: signerTitle,
-            SignaturePng:      sigPng);
+            SignaturePng:      sigPng,
+            FirmaTelefon:      cp?.Phone,
+            FirmaEmail:        cp?.Email);
     }
 }

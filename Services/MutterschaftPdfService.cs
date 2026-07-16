@@ -28,7 +28,10 @@ public class MutterschaftPdfService
         DateTime? MaGeburtsdatum,
         string  Ort, DateOnly Datum,
         DateOnly ErrechneterTermin,
-        string? UnterzeichnerName, string? UnterzeichnerTitel, byte[]? SignaturePng);
+        string? UnterzeichnerName, string? UnterzeichnerTitel, byte[]? SignaturePng,
+        // Erreichbarkeit der Filiale (Walter 16.07.2026, fuer den Arztbrief):
+        // Restaurant-Telefon + -E-Mail — nie private Nummern.
+        string? FirmaTelefon = null, string? FirmaEmail = null);
 
     // ── Vereinbarungs-Optionen (Ergebnis des Gesprächs) ─────────────────────
     public record MvOptionen(
@@ -122,6 +125,16 @@ public class MutterschaftPdfService
                     col.Item().Text(d.UnterzeichnerName ?? "");
                     if (!string.IsNullOrWhiteSpace(d.UnterzeichnerTitel))
                         col.Item().Text(d.UnterzeichnerTitel!).FontColor(Muted);
+
+                    // Erreichbarkeit fuer Rueckfragen (Walter 16.07.2026):
+                    // Restaurant-Telefon + -E-Mail unter der Unterschrift.
+                    var kontakt = string.Join("  ·  ", new[]
+                    {
+                        string.IsNullOrWhiteSpace(d.FirmaTelefon) ? null : $"Tel. {d.FirmaTelefon}",
+                        d.FirmaEmail
+                    }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                    if (!string.IsNullOrWhiteSpace(kontakt))
+                        col.Item().PaddingTop(6).Text(kontakt).FontSize(9.5f).FontColor(Muted);
                 });
 
                 page.Footer().Column(col =>
