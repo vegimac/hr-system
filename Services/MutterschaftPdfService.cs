@@ -273,7 +273,7 @@ public class MutterschaftPdfService
                     foreach (var ln in firmaLines)
                         col.Item().Text(ln).FontSize(8.5f).FontColor(Muted);
 
-                    col.Item().PaddingTop(20).Text(o.Eingeschrieben ? "PER EINSCHREIBEN" : "PERSÖNLICHE AUSHÄNDIGUNG")
+                    col.Item().PaddingTop(20).Text(o.Eingeschrieben ? "EINSCHREIBEN" : "PERSÖNLICHE AUSHÄNDIGUNG")
                         .Bold().LetterSpacing(0.06f).FontSize(9.5f);
 
                     col.Item().PaddingTop(4).Column(c =>
