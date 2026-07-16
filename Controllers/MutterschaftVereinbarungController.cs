@@ -109,27 +109,32 @@ public class MutterschaftVereinbarungController : ControllerBase
             cp = await _db.CompanyProfiles.AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == emp.CompanyProfileId.Value);
 
-        // Unterschrift + Klarname des EINGELOGGTEN Users (nie eine andere Person).
+        // Unterzeichnerin = UNTERSCHRIFTSBERECHTIGTE der Filiale (Walter-Vorgabe
+        // 16.07.2026): der Standard-Unterzeichner aus user_branch_access
+        // (IsDefault=true) — gleiche Quelle wie beim Arbeitsvertrag. Das
+        // Unterschrifts-BILD wird nur eingebettet, wenn die eingeloggte Person
+        // selbst diese Unterzeichnerin ist (NIE die Unterschrift einer anderen
+        // Person automatisch einsetzen) — sonst bleibt Platz zum Unterschreiben.
         byte[]? sigPng = null; string? signerName = null; string? signerTitle = null;
-        var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (int.TryParse(idStr, out var uid))
+        if (cp != null)
         {
-            var u = await _db.AppUsers.AsNoTracking()
-                .Where(x => x.Id == uid)
-                .Select(x => new { x.SignaturePng, x.FirstName, x.LastName, x.Username })
+            var signatory = await _db.UserBranchAccesses.AsNoTracking()
+                .Include(a => a.User)
+                .Where(a => a.CompanyProfileId == cp.Id && a.IsDefault)
                 .FirstOrDefaultAsync();
-            if (u != null)
+            if (signatory?.User != null)
             {
-                sigPng = u.SignaturePng;
-                var full = $"{u.FirstName} {u.LastName}".Trim();
-                signerName = string.IsNullOrWhiteSpace(full) ? u.Username : full;
+                var full = $"{signatory.User.FirstName} {signatory.User.LastName}".Trim();
+                signerName  = string.IsNullOrWhiteSpace(full) ? signatory.User.Username : full;
+                signerTitle = signatory.FunctionTitle;
+
+                var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (int.TryParse(idStr, out var uid) && uid == signatory.UserId)
+                    sigPng = await _db.AppUsers.AsNoTracking()
+                        .Where(x => x.Id == uid)
+                        .Select(x => x.SignaturePng)
+                        .FirstOrDefaultAsync();
             }
-            if (cp != null)
-                signerTitle = await _db.UserBranchAccesses.AsNoTracking()
-                    .Where(a => a.UserId == uid && a.CompanyProfileId == cp.Id
-                             && a.FunctionTitle != null && a.FunctionTitle != "")
-                    .Select(a => a.FunctionTitle)
-                    .FirstOrDefaultAsync();
         }
 
         string? Join(string? a, string? b)
