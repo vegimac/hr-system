@@ -25,6 +25,7 @@ public class MutterschaftPdfService
         string? FirmaName, string? RestaurantName, string? FirmaStrasse, string? FirmaPlzOrt,
         string  MaVorname, string MaName, string? MaStrasse, string? MaPlzOrt,
         string? EmployeeNumber,
+        DateTime? MaGeburtsdatum,
         string  Ort, DateOnly Datum,
         DateOnly ErrechneterTermin,
         string? UnterzeichnerName, string? UnterzeichnerTitel, byte[]? SignaturePng);
@@ -58,8 +59,10 @@ public class MutterschaftPdfService
 
                 page.Content().PaddingTop(14).Column(col =>
                 {
-                    col.Item().Text($"{d.FirmaName} · {d.RestaurantName}")
-                        .FontSize(9f).FontColor("#6b6152");
+                    // Ganze Filial-Adresse in EINER Zeile (Walter 16.07.2026).
+                    var absender = string.Join(" · ", new[] { d.FirmaName, d.RestaurantName, d.FirmaStrasse, d.FirmaPlzOrt }
+                        .Where(x => !string.IsNullOrWhiteSpace(x)));
+                    col.Item().Text(absender).FontSize(9f).FontColor("#6b6152");
 
                     col.Item().PaddingTop(14).AlignCenter().Text("CHECKLISTE MUTTERSCHAFTSGESPRÄCH")
                         .FontSize(15f).Bold().LetterSpacing(0.06f);
@@ -70,12 +73,22 @@ public class MutterschaftPdfService
                     // Eckdaten
                     col.Item().PaddingTop(14).Row(r =>
                     {
-                        r.RelativeItem().Text(t =>
+                        r.RelativeItem().Column(rc =>
                         {
-                            t.Span("Mitarbeiterin:  ").Bold();
-                            t.Span($"{d.MaVorname} {d.MaName}");
-                            if (!string.IsNullOrWhiteSpace(d.EmployeeNumber))
-                                t.Span($"  (Personalnr. {d.EmployeeNumber})").FontColor(Muted);
+                            rc.Item().Text(t =>
+                            {
+                                t.Span("Mitarbeiterin:  ").Bold();
+                                t.Span($"{d.MaVorname} {d.MaName}");
+                            });
+                            // 2. Zeile: MA-Adresse + Geburtsdatum, KEINE Personalnummer
+                            // (Walter 16.07.2026).
+                            var teile = new List<string>();
+                            var adr = string.Join(", ", new[] { d.MaStrasse, d.MaPlzOrt }
+                                .Where(x => !string.IsNullOrWhiteSpace(x)));
+                            if (!string.IsNullOrWhiteSpace(adr)) teile.Add(adr);
+                            if (d.MaGeburtsdatum.HasValue) teile.Add($"geb. {d.MaGeburtsdatum.Value:dd.MM.yyyy}");
+                            if (teile.Count > 0)
+                                rc.Item().Text(string.Join("  ·  ", teile)).FontSize(9f).FontColor(Muted);
                         });
                         r.ConstantItem(250).AlignRight().Column(c =>
                         {
@@ -165,12 +178,14 @@ public class MutterschaftPdfService
                         }
                     });
 
-                    // Bemerkungen
+                    // Bemerkungen — nur Titel, freier Platz zum Schreiben
+                    // (Walter 16.07.2026: keine Striche).
                     col.Item().PaddingTop(6).Text("Bemerkungen:").Bold().FontSize(10f);
-                    col.Item().PaddingTop(14).LineHorizontal(0.6f).LineColor("#9a958c");
-                    col.Item().PaddingTop(16).LineHorizontal(0.6f).LineColor("#9a958c");
                 });
 
+                // Unterschriften: Arbeitgeber (Name der Geschäftsführerin) LINKS,
+                // Mitarbeiterin RECHTS — Walter-Vorgabe 16.07.2026, gilt für
+                // JEDES Formular mit zwei Unterschriften.
                 page.Footer().Column(col =>
                 {
                     col.Item().Row(r =>
@@ -178,13 +193,15 @@ public class MutterschaftPdfService
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text($"Mitarbeiterin — {d.MaVorname} {d.MaName}").FontSize(9f);
+                            c.Item().PaddingTop(3).Text(string.IsNullOrWhiteSpace(d.UnterzeichnerName)
+                                ? "Arbeitgeber"
+                                : $"Arbeitgeber — {d.UnterzeichnerName}").FontSize(9f);
                         });
                         r.ConstantItem(40);
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text("Arbeitgeber").FontSize(9f);
+                            c.Item().PaddingTop(3).Text($"Mitarbeiterin — {d.MaVorname} {d.MaName}").FontSize(9f);
                         });
                     });
                 });

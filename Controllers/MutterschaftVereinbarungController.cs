@@ -148,6 +148,7 @@ public class MutterschaftVereinbarungController : ControllerBase
             MaStrasse:         e.Street,
             MaPlzOrt:          Join(e.ZipCode, e.City),
             EmployeeNumber:    e.EmployeeNumber,
+            MaGeburtsdatum:    e.DateOfBirth,
             Ort:               cp?.City ?? "",
             Datum:             DateOnly.FromDateTime(DateTime.Today),
             ErrechneterTermin: p.ErrechneterTermin,
