@@ -103,7 +103,7 @@ public class KuendigungController : ControllerBase
         var ort     = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
 
         // Unterschrift + Name des EINGELOGGTEN Users (nie eine andere Person).
-        var (sigPng, signerName) = await GetSignerAsync();
+        var (sigPng, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
 
         var data = new KuendigungPdfService.KuendigungData(
             FirmaName:    cp?.CompanyName,
@@ -119,7 +119,8 @@ public class KuendigungController : ControllerBase
             LetzterArbeitstag: letzter,
             Grund:        string.IsNullOrWhiteSpace(dto.Grund) ? null : dto.Grund!.Trim(),
             UnterzeichnerName: signerName,
-            Eingeschrieben: dto.Eingeschrieben);
+            Eingeschrieben: dto.Eingeschrieben,
+            UnterzeichnerFunktion: signerFunktion);
 
         var bytes = _pdf.Generate(data, sigPng);
 
@@ -171,7 +172,7 @@ public class KuendigungController : ControllerBase
 
         var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
         var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
-        var (sigPng, signerName) = await GetSignerAsync();
+        var (sigPng, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
 
         var data = new KuendigungPdfService.RueckzugData(
             FirmaName:    cp?.CompanyName,
@@ -186,6 +187,7 @@ public class KuendigungController : ControllerBase
             KuendigungVom: dto.KuendigungVom,
             Grund:        string.IsNullOrWhiteSpace(dto.Grund) ? null : dto.Grund!.Trim(),
             UnterzeichnerName: signerName,
+            UnterzeichnerFunktion: signerFunktion,
             Eingeschrieben: dto.Eingeschrieben,
             NichtigSchwangerschaft: dto.NichtigSchwangerschaft,
             SchwangerschaftGemeldetAm: dto.SchwangerschaftGemeldetAm);
@@ -320,7 +322,7 @@ public class KuendigungController : ControllerBase
         return string.IsNullOrWhiteSpace(s) ? null : s;
     }
 
-    private async Task<(byte[]? png, string? name)> GetSignerAsync()
+    private async Task<(byte[]? png, string? name, string? funktion)> GetSignerAsync(int? companyProfileId = null)
     {
         var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (int.TryParse(idStr, out var uid))
@@ -331,10 +333,21 @@ public class KuendigungController : ControllerBase
                 .FirstOrDefaultAsync();
             if (u != null)
             {
+                // Funktion aus dem Filial-Zugang (user_branch_access.FunctionTitle,
+                // z.B. «HR-Verantwortliche») — Walter 16.07.2026: unter dem Namen
+                // auf dem Schreiben. Geschlechtsform steuert Walter ueber den
+                // Feld-Text pro Benutzer (Verantwortliche/Verantwortlicher).
+                string? funktion = null;
+                if (companyProfileId.HasValue)
+                    funktion = await _db.UserBranchAccesses.AsNoTracking()
+                        .Where(a => a.UserId == uid && a.CompanyProfileId == companyProfileId.Value
+                                 && a.FunctionTitle != null && a.FunctionTitle != "")
+                        .Select(a => a.FunctionTitle)
+                        .FirstOrDefaultAsync();
                 var full = $"{u.FirstName} {u.LastName}".Trim();
-                return (u.SignaturePng, string.IsNullOrWhiteSpace(full) ? u.Username : full);
+                return (u.SignaturePng, string.IsNullOrWhiteSpace(full) ? u.Username : full, funktion);
             }
         }
-        return (null, null);
+        return (null, null, null);
     }
 }

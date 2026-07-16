@@ -29,7 +29,8 @@ public class KuendigungPdfService
         DateOnly LetzterArbeitstag,
         string? Grund,                // optional, sonst null
         string? UnterzeichnerName,
-        bool    Eingeschrieben = false);   // «EINSCHREIBEN» ueber der MA-Adresse
+        bool    Eingeschrieben = false,    // «EINSCHREIBEN» ueber der MA-Adresse
+        string? UnterzeichnerFunktion = null);  // z.B. «HR-Verantwortliche» (user_branch_access.FunctionTitle)
 
     /// <summary>
     /// Rückzug einer ausgesprochenen Kündigung (Walter-Vorgabe 16.07.2026) —
@@ -45,6 +46,7 @@ public class KuendigungPdfService
         DateOnly KuendigungVom,          // Datum der urspruenglichen Kuendigung
         string? Grund,                   // optionaler Rueckzugs-Grund
         string? UnterzeichnerName,
+        string? UnterzeichnerFunktion = null,   // z.B. «HR-Verantwortliche»
         bool    Eingeschrieben = false,
         // Schwangerschafts-Variante (Walter-Text 16.07.2026): die Kuendigung
         // ist nach OR 336c NICHTIG — Bestaetigungs-Brief «Fortbestehen des
@@ -78,26 +80,30 @@ public class KuendigungPdfService
                     foreach (var ln in firmaLines)
                         col.Item().Text(ln).FontSize(8.5f).FontColor("#475569");
 
+                    // MA-Adresse im COUVERT-FENSTER (Walter 16.07.2026): Schweizer
+                    // C5-Fenster links beginnt ~4.5 cm ab Papierkante. Bis hier
+                    // sind es ~3.0 cm (1 cm Rand + 1.1 cm Banner + Abstaende) —
+                    // fixer Abstandhalter schiebt den Adressblock in die Zone.
+                    col.Item().Height(40);
                     if (d.Eingeschrieben)
-                        col.Item().PaddingTop(26).Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f);
-
-                    col.Item().PaddingTop(d.Eingeschrieben ? 4 : 26).Column(c =>
+                        col.Item().Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f).FontSize(9.5f);
+                    col.Item().PaddingTop(d.Eingeschrieben ? 3 : 16).Column(c =>
                     {
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
 
-                    col.Item().PaddingTop(30).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+                    col.Item().PaddingTop(34).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
 
                     if (d.NichtigSchwangerschaft)
                     {
                         // Walter-Textvorschlag 16.07.2026: nachtraeglich gemeldete
                         // Schwangerschaft → Kuendigung nichtig (OR 336c).
-                        col.Item().PaddingTop(30).Text($"Kündigung vom {d.KuendigungVom:dd.MM.yyyy} – Fortbestehen des Arbeitsverhältnisses")
+                        col.Item().PaddingTop(34).Text($"Kündigung vom {d.KuendigungVom:dd.MM.yyyy} – Fortbestehen des Arbeitsverhältnisses")
                             .Bold().FontSize(12.5f);
 
-                        col.Item().PaddingTop(22).Text($"{d.Briefanrede},");
+                        col.Item().PaddingTop(26).Text($"{d.Briefanrede},");
 
-                        col.Item().PaddingTop(14).Text(t =>
+                        col.Item().PaddingTop(18).Text(t =>
                         {
                             t.Span("Sie haben uns");
                             if (d.SchwangerschaftGemeldetAm.HasValue)
@@ -110,30 +116,30 @@ public class KuendigungPdfService
                             t.Span(" bestanden hat.");
                         });
 
-                        col.Item().PaddingTop(14).Text(
+                        col.Item().PaddingTop(18).Text(
                             "Gemäss Art. 336c OR ist eine nach Ablauf der Probezeit während der Schwangerschaft ausgesprochene Kündigung durch den Arbeitgeber nichtig.");
 
-                        col.Item().PaddingTop(14).Text(t =>
+                        col.Item().PaddingTop(18).Text(t =>
                         {
                             t.Span("Wir bestätigen Ihnen deshalb, dass unsere Kündigung vom ");
                             t.Span($"{d.KuendigungVom:dd.MM.yyyy}").Bold();
                             t.Span(" keine Rechtswirkung entfaltet. Ihr Arbeitsverhältnis besteht ohne Unterbruch und zu den bisherigen vertraglichen Bedingungen weiter.");
                         });
 
-                        col.Item().PaddingTop(14).Text(
+                        col.Item().PaddingTop(18).Text(
                             "Sämtliche Rechte und Pflichten aus dem Arbeitsverhältnis bleiben unverändert bestehen.");
 
-                        col.Item().PaddingTop(14).Text(
+                        col.Item().PaddingTop(18).Text(
                             "Wir entschuldigen uns für die entstandene Unsicherheit.");
                     }
                     else
                     {
-                        col.Item().PaddingTop(30).Text($"Rückzug unserer Kündigung vom {d.KuendigungVom:dd.MM.yyyy}")
+                        col.Item().PaddingTop(34).Text($"Rückzug unserer Kündigung vom {d.KuendigungVom:dd.MM.yyyy}")
                             .Bold().FontSize(12.5f);
 
-                        col.Item().PaddingTop(22).Text($"{d.Briefanrede},");
+                        col.Item().PaddingTop(26).Text($"{d.Briefanrede},");
 
-                        col.Item().PaddingTop(14).Text(t =>
+                        col.Item().PaddingTop(18).Text(t =>
                         {
                             t.Span("hiermit ziehen wir die Ihnen gegenüber am ");
                             t.Span($"{d.KuendigungVom:dd.MM.yyyy}").Bold();
@@ -141,32 +147,32 @@ public class KuendigungPdfService
                         });
 
                         if (!string.IsNullOrWhiteSpace(d.Grund))
-                            col.Item().PaddingTop(14).Text($"Grund des Rückzugs: {d.Grund}");
+                            col.Item().PaddingTop(18).Text($"Grund des Rückzugs: {d.Grund}");
 
-                        col.Item().PaddingTop(14).Text(
+                        col.Item().PaddingTop(18).Text(
                             "Das Arbeitsverhältnis wird unverändert und ohne Unterbruch zu den bisherigen Vertragsbedingungen fortgesetzt, wie wenn die Kündigung nie ausgesprochen worden wäre.");
 
-                        col.Item().PaddingTop(14).Text(
+                        col.Item().PaddingTop(18).Text(
                             "Da der Rückzug einer Kündigung rechtlich nur mit Ihrem Einverständnis wirksam wird, bitten wir Sie, Ihr Einverständnis mit Ihrer Unterschrift auf der Kopie dieses Schreibens zu bestätigen und uns diese zurückzugeben.");
 
-                        col.Item().PaddingTop(14).Text(
+                        col.Item().PaddingTop(18).Text(
                             "Wir freuen uns auf die weitere Zusammenarbeit mit Ihnen.");
                     }
+
+                    // Gruss + Unterschrift direkt nach dem Text (Walter 16.07.2026:
+                    // nicht mehr ganz unten am Seitenende). IMMER von Hand
+                    // unterschreiben — kein Unterschrift-Bild, nur Freiraum.
+                    col.Item().PaddingTop(34).Text("Freundliche Grüsse");
+                    if (!string.IsNullOrWhiteSpace(d.FirmaName))
+                        col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
+                    col.Item().PaddingTop(6).Height(56);
+                    col.Item().Text(d.UnterzeichnerName ?? "");
+                    if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
+                        col.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
                 });
 
                 page.Footer().Column(col =>
                 {
-                    col.Item().Text("Freundliche Grüsse");
-                    if (!string.IsNullOrWhiteSpace(d.FirmaName))
-                        col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
-
-                    // Walter-Vorgabe 16.07.2026: der Kuendigungsrueckzug wird
-                    // IMMER original von Hand unterschrieben — KEIN Unterschrift-
-                    // Bild einfuegen, nur Freiraum.
-                    col.Item().PaddingTop(6).Height(56);
-
-                    col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
-
                     // Einverstaendnis-Block der/des MA — nur beim STANDARD-Rueckzug
                     // (bei der Schwangerschafts-Variante ist die Kuendigung von
                     // Gesetzes wegen nichtig, kein Einverstaendnis noetig).
@@ -223,12 +229,15 @@ public class KuendigungPdfService
                     foreach (var ln in firmaLines)
                         col.Item().Text(ln).FontSize(8.5f).FontColor("#475569");
 
-                    // «EINSCHREIBEN» ueber der Empfaenger-Adresse (Walter 15.07.2026).
+                    // MA-Adresse im COUVERT-FENSTER (Walter 16.07.2026, wie Rueckzug):
+                    // fixer Abstandhalter schiebt den Block in die C5-Fensterzone
+                    // (~4.5 cm ab Papierkante).
+                    col.Item().Height(40);
                     if (d.Eingeschrieben)
-                        col.Item().PaddingTop(26).Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f);
+                        col.Item().Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f).FontSize(9.5f);
 
                     // Empfänger-Adressblock.
-                    col.Item().PaddingTop(d.Eingeschrieben ? 4 : 26).Column(c =>
+                    col.Item().PaddingTop(d.Eingeschrieben ? 3 : 16).Column(c =>
                     {
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
@@ -279,6 +288,8 @@ public class KuendigungPdfService
                         col.Item().PaddingTop(8).Height(40); // Freiraum zum Unterschreiben
 
                     col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
+                    if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
+                        col.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
                 });
             });
         }).GeneratePdf();
