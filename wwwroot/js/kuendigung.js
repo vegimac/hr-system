@@ -341,16 +341,26 @@ async function krGenerate() {
         if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
         const blob = await r.blob();
         krClose();
+        const empId = _krEmpId;
         previewFileModal(blob, 'Kuendigungsrueckzug.pdf');
-        // Walter-Vorgabe 16.07.2026: erst NACH dem Brief fragen, ob die am MA
-        // erfasste Kuendigung (Gekuendigt am / Kuendigung per) aufgehoben wird.
-        if (confirm('Soll die Kündigung beim Mitarbeiter aufgehoben werden?\n\n«Gekündigt am» und «Kündigung per» werden gelöscht — die ToDo «Vertragsende wegen Kündigung» verschwindet damit.')) {
-            try {
-                const ra = await fetch(`/api/kuendigung/${_krEmpId}/kuendigung-aufheben`, {
-                    method: 'POST', headers: ah()
-                });
-                if (!ra.ok) alert('Aufheben fehlgeschlagen: ' + ra.status);
-            } catch (e2) { alert('Aufheben fehlgeschlagen: ' + e2.message); }
+        // Walter-Vorgabe 16.07.2026 (final): ZUERST das Schreiben ansehen —
+        // die Frage kommt erst, wenn das Vorschaufenster GESCHLOSSEN wird
+        // (Liquid-Dialog, kein natives confirm). Bei Ja: Kuendigung am MA
+        // loeschen + Seite neu laden, damit sie ueberall verschwindet.
+        if (typeof filePreviewOnClose === 'function') {
+            filePreviewOnClose(async () => {
+                const ja = await liquidConfirm(
+                    'Soll die Kündigung beim Mitarbeiter aufgehoben werden?\n\n«Gekündigt am» und «Kündigung per» werden gelöscht — die ToDo «Vertragsende wegen Kündigung» verschwindet damit.',
+                    { title: 'Kündigung aufheben?', yesLabel: 'Ja, aufheben', noLabel: 'Nein' });
+                if (!ja) return;
+                try {
+                    const ra = await fetch(`/api/kuendigung/${empId}/kuendigung-aufheben`, {
+                        method: 'POST', headers: ah()
+                    });
+                    if (!ra.ok) return alert('Aufheben fehlgeschlagen: ' + ra.status);
+                    location.reload();
+                } catch (e2) { alert('Aufheben fehlgeschlagen: ' + e2.message); }
+            });
         }
     } catch (e) { alert('Fehler: ' + e.message); }
 }

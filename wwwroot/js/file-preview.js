@@ -104,6 +104,12 @@ async function previewUrlFetch(url, filenameFallback, headers) {
     }
 }
 
+// One-Shot-Callback nach dem Schliessen des Vorschaufensters (Walter
+// 16.07.2026): damit Folge-Fragen («Kuendigung aufheben?») ERST nach dem
+// Schreiben kommen, nicht ueber der Vorschau.
+let _fpOnClose = null;
+function filePreviewOnClose(cb) { _fpOnClose = cb; }
+
 function filePreviewClose() {
     const modal = document.getElementById('filePreviewModal');
     if (modal) modal.style.display = 'none';
@@ -111,6 +117,8 @@ function filePreviewClose() {
     if (frame) frame.src = 'about:blank';
     if (_fpUrl) { URL.revokeObjectURL(_fpUrl); _fpUrl = null; }
     _fpBlob = null;
+    const cb = _fpOnClose; _fpOnClose = null;
+    if (cb) { try { cb(); } catch (_) {} }
 }
 
 async function filePreviewDownload() {
