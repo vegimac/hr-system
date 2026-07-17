@@ -2446,15 +2446,24 @@
             background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
         }
         #page-mitarbeiter.liquid-employee .emp-section-title {
-            margin: 8px 0 3px;
-            padding: 0 0 0 3px;
+            /* Bereichs-Trennung (Walter 17.07.2026): feine Linie ueber jedem
+               Titel — trennt Personalien / Anstellung / Nachtarbeit /
+               Weitere Adressen optisch, ohne die Seite zu verlaengern. */
+            margin: 5px 0 3px;
+            padding: 7px 0 0 3px;
             border-left: none;
+            border-top: 1px solid rgba(120, 113, 100, 0.22);
             background: transparent;
             color: var(--emp-text-strong);
             font-size: 12px;
             letter-spacing: -.01em;
             text-transform: none;
             font-weight: 760;
+        }
+        #page-mitarbeiter.liquid-employee .emp-section-title:first-child {
+            border-top: none;
+            padding-top: 0;
+            margin-top: 8px;
         }
         #page-mitarbeiter.liquid-employee .emp-field-grid,
         #page-mitarbeiter.liquid-employee .emp-field-grid-2,
@@ -2949,6 +2958,7 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-section-title {
             color: #62c6ff !important;
             background: transparent !important;
+            border-top-color: rgba(255, 255, 255, 0.14);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-label {
             color: #8193a5 !important;
