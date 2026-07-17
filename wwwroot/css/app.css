@@ -3115,12 +3115,16 @@
            groessere Schrift + tiefes Schwarz. Leere Felder («–») bleiben
            bewusst blass (die .empty-Regeln sind spezifischer). ── */
         #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info {
-            font-size: 14px;
+            font-size: 15.5px;
+            font-weight: 650;
+            letter-spacing: -0.01em;
             color: #0a0a0a;
         }
         #page-mitarbeiter.liquid-employee .ef-input[readonly],
         #page-mitarbeiter.liquid-employee .ef-input:disabled {
-            font-size: 14px;
+            font-size: 15.5px;
+            font-weight: 650;
+            letter-spacing: -0.01em;
             color: #0a0a0a;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info {
