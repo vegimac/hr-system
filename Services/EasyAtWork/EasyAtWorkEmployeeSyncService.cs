@@ -209,6 +209,8 @@ public class EasyAtWorkEmployeeSyncService
         public string? Number { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
+        /// <summary>easy@work Nickname → Employee.ShortName.</summary>
+        public string? ShortName { get; set; }
         public string? Gender { get; set; }
         public string? Salutation { get; set; }
         public DateOnly? DateOfBirth { get; set; }
@@ -485,6 +487,8 @@ public class EasyAtWorkEmployeeSyncService
 
         SetString("Vorname", emp.FirstName, master.FirstName, v => emp.FirstName = v ?? emp.FirstName, allowNull: false, exactCase: true);
         SetString("Nachname", emp.LastName, master.LastName, v => emp.LastName = v ?? emp.LastName, allowNull: false, exactCase: true);
+        // Kurzname = easy@work Nickname (Walter 17.07.2026) — UI nur Anzeige.
+        SetString("Kurzname", emp.ShortName, master.ShortName, v => emp.ShortName = v);
         SetString("Geschlecht", emp.Gender, master.Gender, v => emp.Gender = v);
         SetString("Anrede", emp.Salutation, master.Salutation, v => emp.Salutation = v);
         SetString("Briefanrede", emp.LetterSalutation, master.LetterSalutation, v => emp.LetterSalutation = v);
@@ -838,6 +842,7 @@ public class EasyAtWorkEmployeeSyncService
             Number = string.IsNullOrWhiteSpace(eaw.Number) ? null : eaw.Number.Trim(),
             FirstName = string.IsNullOrWhiteSpace(eaw.FirstName) ? null : eaw.FirstName.Trim(),
             LastName = string.IsNullOrWhiteSpace(eaw.LastName) ? null : eaw.LastName.Trim(),
+            ShortName = string.IsNullOrWhiteSpace(eaw.Nickname) ? null : eaw.Nickname.Trim(),
             Gender = NormalizeGender(eaw.Gender),
             DateOfBirth = eaw.BirthDate,
             Street = NormalizeStreet(eaw.Address1, eaw.Address2),
@@ -3219,6 +3224,7 @@ public class EasyAtWorkEmployeeSyncService
 
         Add("Vorname",     co?.FirstName,   data.FirstName,  exactCase: true);
         Add("Nachname",    co?.LastName,    data.LastName,   exactCase: true);
+        Add("Kurzname",    co?.ShortName,   data.ShortName,  exactCase: true);
         AddNullable("Anrede", co?.Salutation, data.Salutation, data.Gender == "divers");
         Add("Geschlecht",  co?.Gender,      data.Gender);
         Add("Geburtstag",  co?.DateOfBirth?.ToString("yyyy-MM-dd"),
@@ -3251,6 +3257,7 @@ public class EasyAtWorkEmployeeSyncService
             {
                 case "Vorname":      emp.FirstName    = d.Easy ?? ""; break;
                 case "Nachname":     emp.LastName     = d.Easy ?? ""; break;
+                case "Kurzname":     emp.ShortName    = d.Easy; break;
                 case "Anrede":       emp.Salutation   = d.Easy; break;
                 case "Geschlecht":   emp.Gender       = d.Easy; break;
                 // „Personalnummer" wird NICHT hier angewendet — der Wechsel legt

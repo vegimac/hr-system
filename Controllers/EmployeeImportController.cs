@@ -131,6 +131,12 @@ public class EmployeeImportController : ControllerBase
                         GetValue(fields, headerMap, "Name"),
                         GetValue(fields, headerMap, "Last name")
                     ),
+                    // easy@work Nickname → short_name (Walter 17.07.2026).
+                    ShortName = FirstNonEmpty(
+                        GetValue(fields, headerMap, "Nickname"),
+                        GetValue(fields, headerMap, "Kurzname"),
+                        GetValue(fields, headerMap, "nickname")
+                    ),
                     Address = FirstNonEmpty(
                         GetValue(fields, headerMap, "Adresse"),
                         GetValue(fields, headerMap, "Adresse 1")
@@ -391,6 +397,9 @@ public class EmployeeImportController : ControllerBase
             employee.Salutation = NullIfEmpty(row.Salutation);
             employee.FirstName = NullIfEmpty(row.FirstName) ?? employee.FirstName;
             employee.LastName = NullIfEmpty(row.LastName) ?? employee.LastName;
+            // Kurzname nur setzen wenn CSV einen Wert liefert (nie still leeren).
+            if (!string.IsNullOrWhiteSpace(row.ShortName))
+                employee.ShortName = row.ShortName.Trim();
 
             employee.Street = MergeAddress(row.Address, row.Address2);
 
@@ -1029,6 +1038,7 @@ public class EmployeeImportController : ControllerBase
         public string? Gender { get; set; }        // NEU
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
+        public string? ShortName { get; set; }
         public string? Address { get; set; }
         public string? Address2 { get; set; }
         public string? ZipCode { get; set; }

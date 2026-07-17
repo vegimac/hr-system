@@ -3719,6 +3719,8 @@ function buildPersonPayload(row) {
     return {
         firstName:       get(row, 'Vorname'),
         lastName:        get(row, 'Nachname'),
+        // easy@work Nickname → Cowork short_name (Kurzname, nur Anzeige im UI).
+        shortName:       get(row, 'Nickname', 'Kurzname', 'nickname') || null,
         salutation:      salutation,
         email:           get(row, 'E-Mail'),
         // Backend-Property heisst PhoneMobile (Employee-Model + EmployeeUpdateDto).

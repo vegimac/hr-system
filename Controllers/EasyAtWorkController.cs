@@ -1405,6 +1405,8 @@ public class EasyAtWorkController : ControllerBase
             ["Nummer"] = emp.Number,
             ["Vorname"] = emp.FirstName,
             ["Nachname"] = emp.LastName,
+            ["Nickname"] = emp.Nickname,
+            ["Kurzname"] = emp.Nickname,
             ["Geschlecht"] = emp.Gender,
             ["Anrede"] = SalutationFromGender(emp.Gender),
             ["Geburtsdatum"] = Fmt(emp.BirthDate),

@@ -110,6 +110,8 @@ public class EawEmployee
     public string? Number { get; set; }   // = unsere employee_number
     [JsonPropertyName("first_name")]   public string?  FirstName   { get; set; }
     [JsonPropertyName("last_name")]    public string?  LastName    { get; set; }
+    /// <summary>easy@work Nickname → Cowork <c>short_name</c> (Kurzname).</summary>
+    [JsonPropertyName("nickname")]     public string?  Nickname    { get; set; }
     [JsonPropertyName("gender")]       public string?  Gender      { get; set; }
     [JsonPropertyName("birth_date")]   public DateOnly? BirthDate  { get; set; }
     [JsonPropertyName("address1")]     public string?  Address1    { get; set; }
