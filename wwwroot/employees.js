@@ -1303,7 +1303,7 @@ function loadUebersichtTab() {
             ${_pf('PLZ', esc(emp.zipCode))}
             ${_pf(_t('ma.field.city','Ort'), esc(emp.city))}
             ${_pf('Kanton', esc(emp.cantonCode))}
-            ${_pfE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …', 'text', 150)}
+            <div style="margin-left:auto">${_pfE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …', 'text', 150)}</div>
         </div>
         <div class="ov-frow" style="margin-bottom:2px">
             ${_pf('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
