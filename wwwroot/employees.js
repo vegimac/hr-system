@@ -100,7 +100,7 @@ window.validateEmail = function(el, showError) {
 let allEmployees = [];
 let selectedEmployeeId = null;
 let selectedEmployee   = null;   // Ganzes Mitarbeiter-Objekt (für Sollstunden etc.)
-let activeEmpTab = 'personal';
+let activeEmpTab = 'uebersicht';   // Etappe 2 (Walter 17.07.2026): Uebersicht = Lande-Tab
 
 // Austrittsdatum-Filter (greift NUR im Inaktive-Modus). Wenn gesetzt, zeigt
 // die Liste nur MA mit Austritt am oder nach diesem Datum. Walter-Vorgabe
@@ -217,7 +217,7 @@ const EMP_SPECIAL_FILTERS = {
 // (Key 'quellensteuer') enthaelt Bewilligung + QST + Bankverwaltung;
 // «Restaurant Admin» (Key 'verwarnungen') enthaelt die Verwarnungen —
 // weitere Restaurant-Admin-Funktionen kommen kuenftig dort hinein.
-const _empTabsOrder = ['personal', 'familie', 'quellensteuer', 'verwarnungen',
+const _empTabsOrder = ['uebersicht', 'personal', 'familie', 'quellensteuer', 'verwarnungen',
                        'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'ktg', 'dokumente'];
 
 // Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
@@ -658,7 +658,7 @@ async function selectEmployee(id) {
         // die Belegschaft scrollen und schauen ob die Ablage stimmt.
         // renderEmployeeDetail() setzt das HTML auf Default-Tab „personal";
         // wir korrigieren das hier, falls der User in einem anderen Tab war.
-        if (activeEmpTab && activeEmpTab !== 'personal'
+        if (activeEmpTab && activeEmpTab !== 'uebersicht'
             && typeof switchEmpTab === 'function') {
             switchEmpTab(activeEmpTab);
         }
@@ -903,7 +903,8 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
         <div class="emp-detail-tabs">
-            <div class="emp-tab active" data-tab="personal"   onclick="switchEmpTab('personal')" style="line-height:1.2;text-align:center">${_t('ma.tab.personal','Persönliche<br>Angaben')}</div>
+            <div class="emp-tab active" data-tab="uebersicht" onclick="switchEmpTab('uebersicht')" style="line-height:1.2;text-align:center">${_t('ma.tab.overview','Übersicht')}</div>
+            <div class="emp-tab"        data-tab="personal"   onclick="switchEmpTab('personal')" style="line-height:1.2;text-align:center">${_t('ma.tab.personal','Persönliche<br>Angaben')}</div>
             <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')" style="line-height:1.2;text-align:center">${_t('ma.tab.family','Familie<br>Schwanger')}</div>
             <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung QST<br>Bank')}</div>
             <div class="emp-tab"        data-tab="verwarnungen" onclick="switchEmpTab('verwarnungen')" style="line-height:1.2;text-align:center">${_t('ma.tab.restAdmin','Restaurant<br>Admin')}</div>
@@ -916,8 +917,13 @@ function renderEmployeeDetail(emp) {
         </div>
     </div>
     <div class="emp-detail-body">
+        <!-- TAB: Uebersicht (Etappe 2, Walter 17.07.2026) — read-only Karten,
+             Bearbeiten weiterhin nur in den Fach-Tabs. -->
+        <div class="emp-tab-content active" id="emp-tab-uebersicht">
+            <div id="uebersichtContent"><div class="emp-placeholder"><span>Wird geladen…</span></div></div>
+        </div>
         <!-- TAB: Persönliche Angaben -->
-        <div class="emp-tab-content active" id="emp-tab-personal">
+        <div class="emp-tab-content" id="emp-tab-personal">
             <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
             <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-main-line">
                 ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
@@ -1226,7 +1232,142 @@ function renderEmployeeDetail(emp) {
     const _lsBtn = document.getElementById('lsEmpSyncBtn');
     if (_lsBtn) _lsBtn.style.display = window._lsEmpSyncAllowed ? 'inline-flex' : 'none';
 
-    switchEmpTab(activeEmpTab || 'personal');
+    switchEmpTab(activeEmpTab || 'uebersicht');
+}
+
+// ═══════════ TAB «UEBERSICHT» (Etappe 2, Walter 17.07.2026) ═══════════
+// Read-only Karten-Grid nach Prototyp: Personalien · Kontakt & Adresse ·
+// Anstellung · Nachtarbeit · Vertraege · Dokumente. Jede Karte hat einen
+// Sprung-Pfeil in ihren Fach-Tab — bearbeitet wird NUR dort. Daten kommen
+// aus dem bereits geladenen selectedEmployee; nur die Dokumente werden
+// nachgeladen (bestehender Endpoint by-employee).
+function _ovCard(title, jumpTab, jumpTitle, bodyHtml) {
+    const jump = jumpTab
+        ? `<button class="ov-jump" title="${jumpTitle}" onclick="switchEmpTab('${jumpTab}')">→</button>`
+        : '';
+    return `<div class="ov-card">
+        <div class="ov-card-h"><span>${title}</span>${jump}</div>
+        ${bodyHtml}
+    </div>`;
+}
+function _ovF(label, value) {
+    return `<div class="ov-f"><div class="ov-fl">${label}</div><div class="ov-fv">${value || '<span class="ov-empty">–</span>'}</div></div>`;
+}
+
+function loadUebersichtTab() {
+    const el = document.getElementById('uebersichtContent');
+    const emp = selectedEmployee;
+    if (!el || !emp) return;
+
+    const heute = new Date().toISOString().slice(0, 10);
+    const aktivVertrag = (emp.employments || []).filter(c => c.isActive)
+        .sort((a, b) => String(b.contractStartDate || '').localeCompare(String(a.contractStartDate || '')))[0] || null;
+
+    // ── Karte Personalien ──
+    const kPers = _ovCard('Personalien', 'personal', 'Zu den Persönlichen Angaben', `
+        <div class="ov-grid4">
+            ${_ovF(_t('ma.field.salutation','Anrede'), formatSalutation(emp.salutation))}
+            ${_ovF('Name', esc(emp.lastName))}
+            ${_ovF('Vorname', esc(emp.firstName))}
+            ${_ovF(_t('ma.field.letterSalutation','Briefanrede'), esc(emp.letterSalutation))}
+            ${_ovF(_t('ma.field.maritalStatus','Zivilstand'), formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus))}
+            ${_ovF(_t('ma.field.nationality','Nationalität'), emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality))}
+            ${_ovF(_t('ma.field.gender','Geschlecht'), formatGender(emp.gender))}
+            ${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
+        </div>`);
+
+    // ── Karte Kontakt & Adresse ──
+    const adresse = [emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const kKontakt = _ovCard('Kontakt & Adresse', 'personal', 'Bearbeiten im Personal-Tab', `
+        <div class="ov-grid2">
+            ${_ovF('Adresse', esc(adresse))}
+            ${_ovF(_t('ma.field.phone','Telefon'), esc(emp.phoneMobile))}
+            ${_ovF('Telefon 2', esc(emp.phone2))}
+            ${_ovF('E-Mail', emp.email ? `<a href="mailto:${esc(emp.email)}" style="color:inherit;text-decoration:none;border-bottom:1px dotted #b7ad9e">${esc(emp.email)}</a>` : null)}
+        </div>`);
+
+    // ── Karte Anstellung ──
+    let pensum = null;
+    if (aktivVertrag) {
+        const m = (aktivVertrag.employmentModel || '').toUpperCase();
+        if ((m === 'FIX' || m === 'FIX-M') && aktivVertrag.employmentPercentage != null) pensum = Number(aktivVertrag.employmentPercentage) + ' %';
+        else if (m === 'MTP' && (aktivVertrag.guaranteedHoursPerWeek != null || aktivVertrag.weeklyHours != null)) pensum = Number(aktivVertrag.guaranteedHoursPerWeek ?? aktivVertrag.weeklyHours) + ' h/Wo.';
+        else if (aktivVertrag.weeklyHours != null) pensum = Number(aktivVertrag.weeklyHours) + ' h/Wo.';
+    }
+    const kAnst = _ovCard('Anstellung', 'personal', 'Bearbeiten im Personal-Tab', `
+        <div class="ov-grid4">
+            ${_ovF(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
+            ${_ovF(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
+            ${_ovF('Pensum', pensum)}
+            ${_ovF('Kanton', esc(emp.cantonCode))}
+            ${_ovF('Gekündigt am', emp.kuendigungAusgesprochenAm ? formatDate(emp.kuendigungAusgesprochenAm) : null)}
+            ${_ovF('Kündigung per', emp.kuendigungPer ? formatDate(emp.kuendigungPer) : null)}
+            ${_ovF('ZEMIS-Nr.', esc(emp.zemisNumber))}
+            ${_ovF('L-GAV', emp.lgavPflichtig ? 'ja' : 'nein')}
+        </div>`);
+
+    // ── Karte Nachtarbeit ──
+    const nwIssued = emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null);
+    const kNacht = _ovCard('Nachtarbeit', 'personal', 'Details im Personal-Tab (unten)', `
+        <div class="ov-grid4">
+            ${_ovF('Ausgestellt', nwIssued ? formatDate(nwIssued) : null)}
+            ${_ovF('Gültig bis', emp.nightWorkExamValidUntil ? formatDate(emp.nightWorkExamValidUntil) : null)}
+            ${_ovF('Arztformular', emp.nightWorkExamDokumentId ? '<span class="ov-tag ok">✓ Vorhanden</span>' : '<span class="ov-tag min">–</span>')}
+            ${_ovF('Ausnahmeregelung', emp.nightWorkAusnahmeDokumentId ? '<span class="ov-tag ok">✓ Vorhanden</span>' : '<span class="ov-tag min">–</span>')}
+        </div>`);
+
+    // ── Karte Vertraege (max. 3 neueste) ──
+    const contracts = (emp.employments || []).slice()
+        .sort((a, b) => String(b.contractStartDate || '').localeCompare(String(a.contractStartDate || '')));
+    const vRows = contracts.slice(0, 3).map(c => {
+        const von = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
+        const bis = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
+        const lohn = empContractWageText(c);
+        return `<div class="ov-vrow${c.isActive ? '' : ' archiv'}">
+            <span class="ov-vdot${c.isActive ? ' g' : ''}"></span>
+            <span class="emp-contract-model ${contractModelClass(c.employmentModel || '')}">${esc(modelDisplay(c.employmentModel || '–'))}</span>
+            <span class="ov-vrole">${esc(c.jobTitle || c.jobGroupCode || 'Vertrag')}</span>
+            <span class="ov-vmeta">${von} – ${bis}${lohn ? ' · ' + esc(lohn) : ''}</span>
+        </div>`;
+    }).join('') || '<div class="ov-empty" style="padding:4px 0">Keine Verträge vorhanden.</div>';
+    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, 'personal', 'Alle Verträge im Personal-Tab', vRows);
+
+    // ── Karte Dokumente (Platzhalter, wird async befuellt) ──
+    const kDok = _ovCard('Dokumente', 'dokumente', 'Alle Dokumente anzeigen',
+        `<div id="ovDokBody"><div class="ov-empty" style="padding:4px 0">Wird geladen…</div></div>`);
+
+    // Phantom-MA: nur Personalien + Kontakt + Dokumente
+    el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
+        ? kPers + kKontakt + kDok
+        : kPers + kKontakt + kAnst + kNacht + kVert + kDok}</div>`;
+
+    // Dokumente nachladen (letzte 3 nach Aenderungs-/Upload-Datum)
+    _ovLoadDokumente(emp.id);
+}
+
+async function _ovLoadDokumente(empId) {
+    const body = document.getElementById('ovDokBody');
+    if (!body) return;
+    try {
+        const r = await fetch(`/api/documents/by-employee/${empId}`, { headers: ah() });
+        if (!r.ok) { body.innerHTML = '<div class="ov-empty">Dokumente konnten nicht geladen werden.</div>'; return; }
+        const docs = await r.json();
+        if (selectedEmployeeId !== empId) return;   // MA inzwischen gewechselt
+        const sorted = (docs || []).slice().sort((a, b) =>
+            String(b.geaendertAm || b.gueltigVon || b.hochgeladenAm || '').localeCompare(String(a.geaendertAm || a.gueltigVon || a.hochgeladenAm || '')));
+        if (!sorted.length) { body.innerHTML = '<div class="ov-empty" style="padding:4px 0">Keine Dokumente vorhanden.</div>'; return; }
+        body.innerHTML = sorted.slice(0, 3).map(d => {
+            const datum = d.geaendertAm || d.gueltigVon || d.hochgeladenAm;
+            const name = d.bemerkung || d.typName || d.filenameOriginal || 'Dokument';
+            return `<div class="ov-drow" onclick="qstOpenBefreiungsDok(${empId}, ${d.id})" title="Im Vorschaufenster öffnen">
+                <span class="ov-dic">📄</span>
+                <span class="ov-dname">${esc(name)}</span>
+                <span class="ov-dmeta">${datum ? new Date(datum).toLocaleDateString('de-CH') : ''}</span>
+            </div>`;
+        }).join('') + `<div class="ov-more" onclick="switchEmpTab('dokumente')">Alle Dokumente anzeigen</div>`;
+    } catch {
+        body.innerHTML = '<div class="ov-empty">Dokumente konnten nicht geladen werden.</div>';
+    }
 }
 
 // ⋮-Menue der Kopf-Card — seit 17.07.2026 nicht mehr verdrahtet (Buttons
@@ -1411,6 +1552,7 @@ function switchEmpTab(tab) {
     // Bank, Zusatzadressen, Bewilligungs-Verlauf UND Postfach-Zugang im UI gar
     // nicht gerendert — sie nutzen das Postfach der GF/HR, kein eigenes — wir
     // laden also nichts davon.
+    if (tab === 'uebersicht'     && selectedEmployeeId) loadUebersichtTab();
     if (tab === 'personal'       && selectedEmployeeId) {
         const isExcluded = !!selectedEmployee?.isPayrollExcluded;
         if (!isExcluded) {
