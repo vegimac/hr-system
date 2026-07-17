@@ -3329,6 +3329,11 @@
            Breite, der Rest fliesst nach). */
         .ov-pflow { display: flex; flex-wrap: wrap; gap: 11px 30px; }
         .ov-pflow .ov-pf { margin-bottom: 0; width: auto; }
+        /* Vier logische Fluss-Zeilen (Walter 17.07.2026, final): jede Zeile
+           eine Themengruppe, Felder in natuerlicher Breite, kein Raster. */
+        .ov-frow { display: flex; flex-wrap: wrap; gap: 11px 34px; align-items: flex-end; margin-bottom: 14px; }
+        .ov-frow .ov-pf { margin-bottom: 0; width: auto; }
+        .ov-frow .lqsel-wrap { width: 170px; }
         .ov-pfl {
             font-size: 10.5px; font-weight: 700; color: #8b8b8b;
             letter-spacing: 0.04em; text-transform: uppercase;
