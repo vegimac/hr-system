@@ -942,7 +942,7 @@ function renderEmployeeDetail(emp) {
             <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung QST<br>Bank')}</div>
             <div class="emp-tab"        data-tab="verwarnungen" onclick="switchEmpTab('verwarnungen')" style="line-height:1.2;text-align:center">${_t('ma.tab.restAdmin','Restaurant<br>Admin')}</div>
             <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
-            <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')">${_t('ma.tab.absencesOnly','Absenzen')}</div>
+            <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')" style="line-height:1.2;text-align:center">${_t('ma.tab.absencesKtg','Absenzen /<br>KTG/UVG')}</div>
             <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availability','Verfügbarkeit')}</div>
             <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen Abzüge<br>Abtretung BVG')}</div>
             <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')">${_t('ma.tab.docs','Dokumente')}</div>

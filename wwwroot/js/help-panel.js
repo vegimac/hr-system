@@ -108,10 +108,10 @@ function helpContextLabel(ctx) {
         'bank': 'Bank',
         'quellensteuer': 'Quellensteuer',
         'stempelzeiten': 'Stempelzeiten',
-        'absenzen': 'Absenzen',
-        'zeiten': 'Absenzen', // Kurzzeit-Alias
+        'absenzen': 'Absenzen / KTG/UVG',
+        'zeiten': 'Absenzen / KTG/UVG', // Kurzzeit-Alias
         'zulagen': 'Zulagen & Abzüge',
-        'ktg': 'Absenzen', // Tab entfernt → Alias
+        'ktg': 'Absenzen / KTG/UVG', // Tab entfernt → Alias
         'dokumente': 'Dokumente',
     };
     const pageLbl = pageLabels[ctx.page] || ctx.page;
