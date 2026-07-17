@@ -1290,9 +1290,9 @@ function loadUebersichtTab() {
             <div style="flex:1.6;min-width:0">${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}</div>
         </div>
         <div class="ov-row">
-            <div style="flex:1.4;min-width:0">${_ovF(_t('ma.field.nationality','Nationalität'), emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality))}</div>
-            <div style="flex:1.2;min-width:0">${_ovE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}</div>
-            <div style="flex:1.4;min-width:0">${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}</div>
+            <div style="flex:0 0 190px">${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}</div>
+            <div style="flex:0 0 160px">${_ovE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}</div>
+            <div style="flex:1;min-width:0">${_ovF(_t('ma.field.nationality','Nationalität'), (emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality) || '') + linkedDocButton('passport') || null)}</div>
         </div>`,
         `<button id="ovSaveBtn" class="emp-inline-save" onclick="ovSave()" style="display:none">Speichern</button>`);
     const kKontakt = '';
