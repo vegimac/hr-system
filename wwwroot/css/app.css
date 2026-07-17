@@ -3271,6 +3271,10 @@
         .ov-f { min-width: 0; }
         .ov-span3 { grid-column: span 3; }
         .ov-span2 { grid-column: span 2; }
+        /* Freie Fluss-Zeilen (Walter 17.07.2026): proportionale Breiten
+           statt starrem Raster — Edit-Felder bekommen genug Platz. */
+        .ov-row { display: flex; gap: 18px; align-items: flex-end; }
+        .ov-row + .ov-row { margin-top: 12px; }
         /* Edit-Feld im Text-Look (Walter 17.07.2026): identisch zu den
            Read-only-Werten, nur gestrichelte Unterlinie als Hinweis —
            Rahmen erscheint erst beim Fokus. */

@@ -1275,17 +1275,24 @@ function loadUebersichtTab() {
     const _ovE = (label, id, value, ph = '') => `
         <div class="ov-f"><div class="ov-fl">${label}</div>
         <input id="${id}" class="ov-editin" value="${esc(value)}" placeholder="${ph}" oninput="ovDirty()" title="Klicken zum Bearbeiten"></div>`;
+    // Geschlecht kurz w/m/d (Walter 17.07.2026); Anrede ist damit redundant
+    // und faellt weg. Zeilen frei proportioniert statt starrem 4er-Raster.
+    const _g = (emp.gender || '').toLowerCase();
+    const gKurz = _g.startsWith('m') ? 'm' : (_g.startsWith('f') || _g === 'w' || _g === 'weiblich') ? 'w' : (emp.gender ? 'd' : null);
     const kPers = _ovCard('Personalien & Adresse', 'personal', 'Alle Details im Personal-Tab', `
-        <div class="ov-grid4">
-            ${_ovF(_t('ma.field.salutation','Anrede'), formatSalutation(emp.salutation))}
-            ${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}
-            ${_ovF(_t('ma.field.maritalStatus','Zivilstand'), formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus))}
-            ${_ovF(_t('ma.field.gender','Geschlecht'), formatGender(emp.gender))}
-            <div class="ov-span3">${_ovF('Adresse', esc(adresse))}</div>
-            ${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}
-            ${_ovF(_t('ma.field.nationality','Nationalität'), emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality))}
-            ${_ovE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}
-            ${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
+        <div class="ov-row">
+            <div style="flex:2.2;min-width:0">${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}</div>
+            <div style="flex:1.2;min-width:0">${_ovF(_t('ma.field.maritalStatus','Zivilstand'), formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus))}</div>
+            <div style="flex:0 0 70px">${_ovF(_t('ma.field.gender','Geschlecht'), gKurz)}</div>
+        </div>
+        <div class="ov-row">
+            <div style="flex:2.2;min-width:0">${_ovF('Adresse', esc(adresse))}</div>
+            <div style="flex:1.6;min-width:0">${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}</div>
+        </div>
+        <div class="ov-row">
+            <div style="flex:1.4;min-width:0">${_ovF(_t('ma.field.nationality','Nationalität'), emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality))}</div>
+            <div style="flex:1.2;min-width:0">${_ovE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}</div>
+            <div style="flex:1.4;min-width:0">${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}</div>
         </div>`,
         `<button id="ovSaveBtn" class="emp-inline-save" onclick="ovSave()" style="display:none">Speichern</button>`);
     const kKontakt = '';
