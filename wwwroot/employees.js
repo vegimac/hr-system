@@ -1281,11 +1281,12 @@ function loadUebersichtTab() {
     const gKurz = _g.startsWith('m') ? 'm' : (_g.startsWith('f') || _g === 'w' || _g === 'weiblich') ? 'w' : (emp.gender ? 'd' : null);
     const _rel = emp.religion || '';
     const _relOpt = (v, label) => `<option value="${v}" ${_rel === v ? 'selected' : ''}>${label}</option>`;
-    const kPers = _ovCard('Personalien & Adresse', 'personal', 'Alle Details im Personal-Tab', `
+    const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-row">
             <div style="flex:1.6;min-width:0">${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}</div>
             <div style="flex:1;min-width:0">${_ovE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName)}</div>
-            <div style="flex:1.2;min-width:0">${_ovF(_t('ma.field.maritalStatus','Zivilstand'), (formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '') + linkedDocButton('marriage_cert') || null)}</div>
+            <div style="flex:1.4;min-width:0"><div class="ov-f"><div class="ov-fl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
+                <div class="ov-fv" style="display:flex;align-items:center;gap:6px"><span style="overflow:hidden;text-overflow:ellipsis">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'}</span><span style="flex-shrink:0">${linkedDocButton('marriage_cert')}</span></div></div></div>
             <div style="flex:0 0 135px">
                 <div class="ov-f"><div class="ov-fl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
                 <input id="ov-maritalStatusSince" class="ov-editin" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="ovDirty()" title="Klicken zum Bearbeiten"></div>
@@ -1310,13 +1311,14 @@ function loadUebersichtTab() {
         <div class="ov-row">
             <div style="flex:0 0 190px">${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}</div>
             <div style="flex:0 0 160px">${_ovE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}</div>
-            <div style="flex:1;min-width:0">${_ovF(_t('ma.field.nationality','Nationalität'), (emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality) || '') + linkedDocButton('passport') || null)}</div>
+            <div style="flex:1;min-width:0"><div class="ov-f"><div class="ov-fl">${_t('ma.field.nationality','Nationalität')}</div>
+                <div class="ov-fv" style="display:flex;align-items:center;gap:6px"><span style="overflow:hidden;text-overflow:ellipsis">${emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : (esc(emp.nationalityCode ?? emp.nationality) || '–')}</span><span style="flex-shrink:0">${linkedDocButton('passport')}</span></div></div></div>
         </div>`,
         `<button id="ovSaveBtn" class="emp-inline-save" onclick="ovSave()" style="display:none">Speichern</button>`);
     const kKontakt = '';
 
     // ── Karte Anstellung ──
-    const kAnst = _ovCard('Anstellung', 'personal', 'Bearbeiten im Personal-Tab', `
+    const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-grid4">
             ${_ovF(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
             ${_ovF('Gekündigt am', emp.kuendigungAusgesprochenAm ? formatDate(emp.kuendigungAusgesprochenAm) : null)}
@@ -1326,7 +1328,7 @@ function loadUebersichtTab() {
 
     // ── Karte Nachtarbeit ──
     const nwIssued = emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null);
-    const kNacht = _ovCard('Nachtarbeit', 'personal', 'Details im Personal-Tab (unten)', `
+    const kNacht = _ovCard('Nachtarbeit', null, '', `
         <div class="ov-grid4">
             ${_ovF('Ausgestellt', nwIssued ? formatDate(nwIssued) : null)}
             ${_ovF('Gültig bis', emp.nightWorkExamValidUntil ? formatDate(emp.nightWorkExamValidUntil) : null)}
@@ -1348,10 +1350,10 @@ function loadUebersichtTab() {
             <span class="ov-vmeta">${von} – ${bis}${lohn ? ' · ' + esc(lohn) : ''}</span>
         </div>`;
     }).join('') || '<div class="ov-empty" style="padding:4px 0">Keine Verträge vorhanden.</div>';
-    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, 'personal', 'Alle Verträge im Personal-Tab', vRows);
+    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vRows + `<div class="ov-more" onclick="switchEmpTab('personal')">Alle Verträge anzeigen</div>`);
 
     // ── Karte Dokumente (Platzhalter, wird async befuellt) ──
-    const kDok = _ovCard('Dokumente', 'dokumente', 'Alle Dokumente anzeigen',
+    const kDok = _ovCard('Dokumente', null, '',
         `<div id="ovDokBody"><div class="ov-empty" style="padding:4px 0">Wird geladen…</div></div>`);
 
     // Phantom-MA: nur Personalien + Kontakt + Dokumente
