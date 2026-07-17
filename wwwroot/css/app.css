@@ -3204,18 +3204,18 @@
             z-index: 6;
         }
         body.theme-dark .emp-hbadge.hb-vert { background: rgba(255,255,255,.10); color: #f2f5f8; }
-        /* Festes 2x2-Raster (Walter 17.07.2026): Spaltenbreite fix, damit
-           beim MA-Wechsel nichts horizontal springt. Zeile 1: Eintritt ·
-           Geburtstag — Zeile 2: Telefon · E-Mail, links buendig. */
+        /* EINE Fakten-Zeile mit fixen Spalten-Positionen (Walter 17.07.2026):
+           Eintritt | Geburtstag | Telefon | E-Mail — alles linksbuendig an
+           festen X-Positionen, springt bei keinem MA. Spart eine Zeile. */
         .emp-hfacts {
             display: grid;
-            grid-template-columns: 180px minmax(0, 1fr);
-            margin-top: 10px; row-gap: 10px;
+            grid-template-columns: 150px 250px 210px minmax(0, 1fr);
+            margin-top: 10px;
         }
-        .emp-hfact { min-width: 0; padding: 0 18px 0 0; }
-        .emp-hfacts .emp-hfact:nth-child(2n) {
+        .emp-hfact { min-width: 0; padding: 0 16px 0 0; }
+        .emp-hfacts .emp-hfact:nth-child(n+2) {
             border-left: 1px solid #eee8de;
-            padding-left: 18px;
+            padding-left: 16px;
         }
         .emp-hfact-l {
             font-size: 10.5px; font-weight: 700; color: #8b8b8b;

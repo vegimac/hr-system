@@ -877,7 +877,7 @@ function renderEmployeeDetail(emp) {
                     ${_hcBadges.join('')}
                 </div>
                 <div class="emp-hvertrag">${_hcVertragLine}</div>
-                <!-- 2x2-Grid: Eintritt|Geburtstag / Telefon|E-Mail (feste Spalten) -->
+                <!-- EINE Fakten-Zeile, fixe Spalten: Eintritt|Geburtstag|Telefon|E-Mail -->
                 <div class="emp-hfacts">
                     ${_hcFact(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? entry : null)}
                     ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${linkedDocButton('birth_cert')}` : null)}
