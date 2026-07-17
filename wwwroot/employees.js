@@ -1176,16 +1176,10 @@ function loadUebersichtTab() {
     const _ovE = (label, id, value, ph = '') => `
         <div class="ov-f"><div class="ov-fl">${label}</div>
         <input id="${id}" class="ov-editin" value="${esc(value)}" placeholder="${ph}" oninput="ovDirty()" title="Klicken zum Bearbeiten"></div>`;
-    // Geschlecht kurz w/m/d (Walter 17.07.2026); Anrede ist damit redundant
-    // und faellt weg. Zeilen frei proportioniert statt starrem 4er-Raster.
-    // ── Personalien & Adresse (Walter 17.07.2026, FINAL nach bestaetigtem
-    //    Mockup): VIER logische Zeilen, frei fliessend, KEINE Boxen/Spalten,
-    //    KEIN Bearbeiten-Modus — editierbare Felder sind IMMER als sanfte
-    //    Soft-Inputs sichtbar, Speichern-Pille erscheint erst bei Aenderung.
-    //    Z1 Briefanrede·Kurzname·Ledigname·Geschl. / Z2 Strasse·PLZ·Ort·Kanton·Tel 2 /
-    //    Z3 AHV·Zivilstand(+Doku)·seit·Konfession / Z4 Nationalitaet(+Doku)·
-    //    ZEMIS (nur Nicht-Schweizer). Ledigname: einziges Feld, das früher
-    //    nur im entfernten Personal-Tab stand (Walter 17.07.2026). ──
+    // Geschlecht kurz als «Sex» w/m/d (Walter 17.07.2026). Anrede redundant.
+    // ── Personalien & Adresse: Z1 Ledigname·Briefanrede·Kurzname(ro)·Sex·
+    //    Strasse·PLZ·Ort·Kanton(schmal)·Tel 2. Kurzname = easy@work Nickname,
+    //    nur Anzeige (Walter 17.07.2026). ──
     const _rel = emp.religion || '';
     const _relOpt = (v, label) => `<option value="${v}" ${_rel === v ? 'selected' : ''}>${label}</option>`;
     const _pf = (label, valueHtml) => `
@@ -1198,14 +1192,14 @@ function loadUebersichtTab() {
     const istCH = (emp.nationalityCode || '').toUpperCase() === 'CH';
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-frow">
-            ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 180)}
-            ${_pfE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName, '', 'text', 140)}
             ${_pfE(_t('ma.field.maidenName','Ledigname'), 'ov-maidenName', emp.maidenName, '', 'text', 160)}
-            ${_pf('Geschl.', gKurz2)}
+            ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 170)}
+            <div class="ov-pf" style="flex:0 0 auto;min-width:0" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">${_pf(_t('ma.field.shortName','Kurzname'), esc(emp.shortName))}</div>
+            <div class="ov-pf" style="flex:0 0 36px;min-width:0">${_pf('Sex', gKurz2)}</div>
             ${_pf(_t('ma.field.street','Strasse'), esc(emp.street))}
-            ${_pf('PLZ', esc(emp.zipCode))}
+            <div class="ov-pf" style="flex:0 0 52px;min-width:0">${_pf('PLZ', esc(emp.zipCode))}</div>
             ${_pf(_t('ma.field.city','Ort'), esc(emp.city))}
-            ${_pf('Kanton', esc(emp.cantonCode))}
+            <div class="ov-pf" style="flex:0 0 36px;min-width:0">${_pf('Kanton', esc(emp.cantonCode))}</div>
             <div style="margin-left:auto"><div class="ov-pf"><div class="ov-pfl">Telefon 2</div>
             <input id="ov-phone2" class="ov-softin" style="width:150px" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div></div>
         </div>
@@ -4760,7 +4754,11 @@ async function saveEmpEdit() {
         socialSecurityNumber: easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
         ahvNummer:    easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
         maidenName:   formVal('ef-maidenName', 'ov-maidenName') || null,
-        shortName:    formVal('ef-shortName', 'ov-shortName') || null,
+        // Kurzname = easy@work Nickname — nur anzeigen, beim Save nicht
+        // ueberschreiben wenn kein Formularfeld (Uebersicht ist read-only).
+        shortName:    formEl('ef-shortName', 'ov-shortName')
+                        ? (formVal('ef-shortName', 'ov-shortName') || null)
+                        : (emp.shortName || null),
         zivilstand:   easyWorkLocked ? ((emp.zivilstand ?? emp.maritalStatus) || null) : (document.getElementById('ef-zivilstand')?.value || null),
         maritalStatus:easyWorkLocked ? ((emp.zivilstand ?? emp.maritalStatus) || null) : (document.getElementById('ef-zivilstand')?.value || null),
 
