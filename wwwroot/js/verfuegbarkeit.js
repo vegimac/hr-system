@@ -5,6 +5,7 @@
 //  synchronisieren») spiegelt availabilities + /days hierher. Sync-Versionen
 //  tragen easyAtWorkAvailabilityId (Badge «easy@work»), manuelle sind ohne.
 //  Anzeige read-only — gepflegt wird in easy@work.
+//  Dark-Mode: Klassen .vf-* (Liquid Glass, Walter 17.07.2026).
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function loadVerfuegbarkeitTab(empId) {
@@ -28,7 +29,7 @@ function vfFmtTime(t) { return t ? t.slice(0, 5) : ''; }
 
 function vfRender(box, list) {
     if (!Array.isArray(list) || !list.length) {
-        box.innerHTML = `<div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:18px;color:#8b8b8b;font-size:13px">
+        box.innerHTML = `<div class="vf-empty">
             Keine Verfügbarkeit erfasst. Die Verfügbarkeit wird in <b>easy@work</b> gepflegt und beim
             «easy@work synchronisieren» (Button oben) übernommen.</div>`;
         return;
@@ -51,32 +52,31 @@ function vfRender(box, list) {
         if (a.type === 'unrestricted') {
             inhalt = '<div style="font-size:13px;color:#166534;font-weight:600;padding:4px 0">Uneingeschränkt verfügbar — alle Tage, ganztags</div>';
         } else {
-            // Pro Wochentag die Zeitfenster aus den Slot-Zeilen einsammeln
             const perDow = {};
             for (const [key] of dows) perDow[key] = [];
             for (const s of (a.slots || []))
                 for (const [key] of dows)
                     if (s[key]) perDow[key].push(s.von || s.bis ? `${vfFmtTime(s.von)}–${vfFmtTime(s.bis)}` : 'ganztags');
             inhalt = '<table style="border-collapse:collapse;width:100%;max-width:660px"><tr>'
-                + dows.map(([, lbl]) => `<th style="text-align:center;padding:4px 6px;background:#efeae2;font-size:12px;color:#3f3f3f;border:1px solid #e7e1d8">${lbl}</th>`).join('')
+                + dows.map(([, lbl]) => `<th class="vf-th">${lbl}</th>`).join('')
                 + '</tr><tr>'
                 + dows.map(([key]) => {
                     const v = perDow[key];
-                    return `<td style="text-align:center;padding:6px;font-size:12px;border:1px solid #e7e1d8;${v.length ? 'color:#3f3f3f' : 'color:#c2bbae;background:#faf8f5'}">${v.length ? v.join('<br>') : '—'}</td>`;
+                    return `<td class="vf-td${v.length ? '' : ' empty'}">${v.length ? v.join('<br>') : '—'}</td>`;
                 }).join('')
                 + '</tr></table>';
         }
 
-        html += `<div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:14px 16px;margin-bottom:12px${a.isCurrent ? '' : ';opacity:0.75'}">
+        html += `<div class="vf-card"${a.isCurrent ? '' : ' style="opacity:0.75"'}>
             <div style="display:flex;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-                <span style="font-weight:700;font-size:13.5px;color:#3f3f3f">${zeitraum}</span>${badges}
+                <span class="vf-title">${zeitraum}</span>${badges}
             </div>
             ${inhalt}
-            ${a.bemerkung ? `<div style="font-size:11.5px;color:#8b8b8b;margin-top:6px">${a.bemerkung}</div>` : ''}
+            ${a.bemerkung ? `<div class="vf-foot" style="margin-top:6px">${a.bemerkung}</div>` : ''}
         </div>`;
     }
 
-    html += `<div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">
+    html += `<div class="vf-foot">
         Nicht aufgeführte Wochentage gelten als <b>nicht verfügbar</b>. Quelle: easy@work —
         Änderungen dort erfassen und den MA oben mit «easy@work synchronisieren» abgleichen.</div>`;
     box.innerHTML = html;

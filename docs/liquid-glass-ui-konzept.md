@@ -98,6 +98,26 @@ Nicht alles auf einmal ersetzen. Reihenfolge:
 4. Cards, Tabellen und Statusleisten in Detailseiten schrittweise konsolidieren
 5. Dark Mode separat definieren, nicht automatisch vom hellen Liquid-Glass-Look ableiten
 
+### 8.5 Dark Liquid Glass (Walter 17.07.2026)
+
+Eigene Nacht-Palette — ruhig, glasig, ohne knalliges Cyan/Gelb:
+
+| Token | Wert |
+|---|---|
+| Hintergrund | radial soft-blues + `#07111a → #0b1620 → #08121b` |
+| Glas | `rgba(14,24,36,.58)` |
+| Glas stark | `rgba(18,30,44,.78)` |
+| Feld | `rgba(12,22,34,.72)` |
+| Rand | `rgba(122,145,165,.22)` |
+| Text stark | `#edf5ff` |
+| Text | `#c4d1de` |
+| Text soft | `#8595a8` |
+| Active | `rgba(72,100,132,.42)` / Text `#d9ecff` |
+| Primär-Button | Kohle `#3f3f3f` (wie hell) |
+| Theme-Toggle (im Dark) | helle Glas-Pille, kein Gelb |
+
+CSS-Variablen auf `body.theme-dark`: `--dlg-*` in `wwwroot/css/app.css`.
+
 ## Regeln fuer Umsetzung
 
 - Produktive Fachlogik bleibt unberuehrt.

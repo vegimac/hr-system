@@ -13,80 +13,106 @@
             height: 100vh; overflow: hidden;
         }
 
-        /* ── DARK MODE — Per-User-Toggle ────────────────────────────────
-           Aktiv via <body class="theme-dark"> — wird im Login geladen,
-           gespeichert pro User in app_user.theme. Toggle-Button im
-           Sidebar-Footer. Echtes Dark-Theme: alle Hintergründe dunkel,
-           Text hell, Inputs/Cards angepasst.
-           Farb-Hierarchie:
-             body                #0f172a (am dunkelsten)
-             .main / cards       #1e293b (etwas heller)
-             inputs              #334155 (heller — auf cards lesbar)
-             borders             #475569
-             text primary        #e2e8f0
-             text muted          #94a3b8 */
+        /* ── DARK MODE — Liquid Glass (Walter 17.07.2026, vereinheitlicht) ──
+           Aktiv via <body class="theme-dark">. Nicht vom hellen Look
+           abgeleitet, sondern eigene ruhige Glas-Palette (Konzept §8.5):
+           tiefer Nachthimmel + halbtransparente Glasflächen + feiner Rand. */
         body.theme-dark {
-            background: #0f172a;
-            color: #e2e8f0;
-        }
-        body.theme-dark .main { background: #0f172a; }
-        body.theme-dark .page-head {
-            background: #0f172a;
-            border-color: #334155;
-        }
-        body.theme-dark .page-title { color: #f1f5f9; }
-        body.theme-dark .page-sub   { color: #94a3b8; }
-        body.theme-dark .page-body  { color: #e2e8f0; }
+            /* Design-Tokens — überall wiederverwenden */
+            --dlg-bg:
+                radial-gradient(circle at 78% 6%, rgba(90,130,170,.16) 0, transparent 280px),
+                radial-gradient(circle at 14% 96%, rgba(48,88,120,.14) 0, transparent 340px),
+                linear-gradient(135deg, #07111a 0%, #0b1620 52%, #08121b 100%);
+            --dlg-glass:        rgba(14, 24, 36, 0.58);
+            --dlg-glass-strong: rgba(18, 30, 44, 0.78);
+            --dlg-glass-field:  rgba(12, 22, 34, 0.72);
+            --dlg-glass-border: rgba(122, 145, 165, 0.22);
+            --dlg-glass-inner:  rgba(255, 255, 255, 0.06);
+            --dlg-shadow:       0 14px 36px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            --dlg-text-strong:  #edf5ff;
+            --dlg-text:         #c4d1de;
+            --dlg-text-soft:    #8595a8;
+            --dlg-text-muted:   #6b7c8f;
+            --dlg-active:       rgba(72, 100, 132, 0.42);
+            --dlg-active-text:  #d9ecff;
+            --dlg-active-border: rgba(126, 167, 210, 0.28);
 
-        /* Cards / Detail-Panels / Listen — dunkel mit etwas Abhebung */
+            background: #07111a;
+            color: var(--dlg-text);
+        }
+        body.theme-dark .main {
+            background: var(--dlg-bg);
+        }
+        body.theme-dark .page-head {
+            background: transparent;
+            border-color: var(--dlg-glass-border);
+        }
+        body.theme-dark .page-title { color: var(--dlg-text-strong); }
+        body.theme-dark .page-sub   { color: var(--dlg-text-soft); }
+        body.theme-dark .page-body  { color: var(--dlg-text); }
+
+        /* Cards / Detail-Panels / Listen — Glas statt flachem Slate */
         body.theme-dark .card,
         body.theme-dark .emp-detail-panel,
         body.theme-dark .emp-list,
         body.theme-dark .emp-list-panel,
         body.theme-dark .lohn-emp-list {
-            background: #1e293b !important;
-            color: #e2e8f0 !important;
-            border-color: #334155 !important;
+            background: var(--dlg-glass) !important;
+            color: var(--dlg-text) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: var(--dlg-shadow) !important;
+            backdrop-filter: blur(18px) saturate(130%);
+            -webkit-backdrop-filter: blur(18px) saturate(130%);
         }
-        body.theme-dark .emp-list-search { border-color: #334155 !important; }
-        body.theme-dark .emp-list-item { border-bottom-color: #1e293b !important; color: #e2e8f0 !important; }
-        body.theme-dark .emp-list-name { color: #f1f5f9 !important; }
-        body.theme-dark .emp-list-nr { color: #94a3b8 !important; }
+        body.theme-dark .emp-list-search { border-color: var(--dlg-glass-border) !important; }
+        body.theme-dark .emp-list-item { border-bottom-color: rgba(255,255,255,.04) !important; color: var(--dlg-text) !important; }
+        body.theme-dark .emp-list-name { color: var(--dlg-text-strong) !important; }
+        body.theme-dark .emp-list-nr { color: var(--dlg-text-soft) !important; }
         body.theme-dark .emp-detail-header,
         body.theme-dark .emp-detail-tabs {
-            background: #1e293b !important;
-            border-color: #334155 !important;
+            background: transparent !important;
+            border-color: rgba(122,145,165,.16) !important;
         }
         body.theme-dark .emp-detail-name,
         body.theme-dark .emp-list-item-name,
-        body.theme-dark .lohn-emp-name { color: #f1f5f9 !important; }
+        body.theme-dark .lohn-emp-name { color: var(--dlg-text-strong) !important; }
         body.theme-dark .emp-detail-meta,
         body.theme-dark .emp-list-item-nr,
-        body.theme-dark .lohn-emp-nr { color: #94a3b8 !important; }
-        body.theme-dark .emp-list-item:hover { background: #2a3849 !important; }
+        body.theme-dark .lohn-emp-nr { color: var(--dlg-text-soft) !important; }
+        body.theme-dark .emp-list-item:hover { background: rgba(255,255,255,.06) !important; }
         body.theme-dark .emp-list-item.active,
         body.theme-dark .emp-list-item.lohn-emp-active {
-            background: #172554 !important;
-            border-left: 3px solid #3f3f3f !important;
+            background: var(--dlg-active) !important;
+            border-left: 3px solid rgba(126,167,210,.55) !important;
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
         }
-        body.theme-dark .emp-tab { color: #94a3b8 !important; }
-        body.theme-dark .emp-tab.active { color: #cfc9bd !important; }
-        /* Aktive Filter-Pills (Aktive/Inaktive/Alle) etwas weniger knallig */
-        body.theme-dark button.btn-primary,
-        body.theme-dark .filter-active,
+        body.theme-dark .emp-tab { color: var(--dlg-text-soft) !important; }
+        body.theme-dark .emp-tab.active { color: var(--dlg-active-text) !important; }
+
+        /* Primär-Buttons = Kohle-Pille (Walter-Spec). Active-Nav/Filter getrennt. */
+        body.theme-dark button.btn-primary {
+            background: #3f3f3f !important;
+            color: #ffffff !important;
+            border-color: #1a1a1a !important;
+        }
+        body.theme-dark .filter-active {
+            background: var(--dlg-active) !important;
+            color: var(--dlg-active-text) !important;
+            border-color: var(--dlg-active-border) !important;
+        }
         body.theme-dark .nav-item.active {
-            background: #5a5348 !important;
-            color: #f1f5f9 !important;
+            background: var(--dlg-active) !important;
+            color: var(--dlg-active-text) !important;
+            border-color: var(--dlg-active-border) !important;
         }
 
-        /* Werte und Labels in der Detail-Maske (Walter 26.05.2026: Box vom
-           Wrapper auf den Wert verschoben — Dark-Mode-Overrides angepasst). */
+        /* Werte und Labels in der Detail-Maske */
         body.theme-dark .emp-field { background: transparent !important; border: none !important; }
         body.theme-dark .emp-field-grid,
         body.theme-dark .emp-field-grid-2,
         body.theme-dark .emp-field-grid-3 {
-            background: #0f172a !important;
-            border-color: #1e293b !important;
+            background: rgba(255,255,255,.03) !important;
+            border-color: var(--dlg-glass-border) !important;
         }
         body.theme-dark .emp-field-grid.emp-grid-attached,
         body.theme-dark .emp-field-grid-2.emp-grid-attached,
@@ -94,21 +120,28 @@
             border-top: none !important;
         }
         body.theme-dark .emp-field-value {
-            color: #e2e8f0 !important;
-            background: #1e293b !important;
-            border-color: #334155 !important;
+            color: var(--dlg-text-strong) !important;
+            background: var(--dlg-glass-field) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
         }
-        body.theme-dark .emp-field-value:hover { background: #243044 !important; border-color: #475569 !important; }
-        body.theme-dark .emp-field-value.empty { color: #475569 !important; background: #0a1019 !important; }
-        body.theme-dark .emp-field-label { color: #64748b !important; }
-        body.theme-dark .emp-field-hint  { color: #64748b !important; }
+        body.theme-dark .emp-field-value:hover {
+            background: rgba(30, 45, 60, 0.88) !important;
+            border-color: rgba(112,164,214,.32) !important;
+        }
+        body.theme-dark .emp-field-value.empty {
+            color: var(--dlg-text-muted) !important;
+            background: rgba(8, 14, 22, 0.55) !important;
+        }
+        body.theme-dark .emp-field-label { color: var(--dlg-text-muted) !important; }
+        body.theme-dark .emp-field-hint  { color: var(--dlg-text-muted) !important; }
         body.theme-dark .emp-section-title {
-            color: #e2e8f0 !important;
-            border-left-color: #3f3f3f !important;
-            background: linear-gradient(to right, #1e293b 0%, transparent 70%) !important;
+            color: var(--dlg-text-strong) !important;
+            border-left-color: rgba(126,167,210,.45) !important;
+            background: linear-gradient(to right, rgba(72,100,132,.22) 0%, transparent 72%) !important;
         }
 
-        /* Inputs / Selects / Textareas — dunkel */
+        /* Inputs — transluzentes Glas statt flachem Slate */
         body.theme-dark input,
         body.theme-dark select,
         body.theme-dark textarea,
@@ -116,32 +149,29 @@
         body.theme-dark .form-control,
         body.theme-dark .f-input,
         body.theme-dark .f-select {
-            background: #334155 !important;
-            color: #f1f5f9 !important;
-            border-color: #475569 !important;
+            background: var(--dlg-glass-field) !important;
+            color: var(--dlg-text-strong) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
         }
         body.theme-dark input::placeholder,
-        body.theme-dark textarea::placeholder { color: #64748b; }
+        body.theme-dark textarea::placeholder { color: var(--dlg-text-muted); }
 
-        /* Tabellen */
+        /* Tabellen — Glas-Header statt opaker Platte */
         body.theme-dark table,
-        body.theme-dark .tbl-wrap table { color: #e2e8f0; }
-        body.theme-dark th { background: #1e293b !important; color: #94a3b8 !important; border-color: #334155 !important; }
-        body.theme-dark td { border-color: #334155 !important; }
-        /* Globales Dark-Mode-Hover-Sicherheitsnetz (Walter 28.06.2026): die
-           generische helle Regel `tbody tr:hover { background:#f8fafc }` würde im
-           Dunkelmodus durch transparente Zellen weiss DURCHSCHEINEN → weiss-auf-
-           weiss. Darum Zeile UND Zelle auf einen dezenten, immer sichtbaren
-           blaugrauen Schimmer überschreiben. Spezifische Tabellen (mw-/eaw-/dok-/
-           abs-table) haben weiter ihre eigenen, höher spezifischen Hover-Regeln
-           und gewinnen wo nötig. */
+        body.theme-dark .tbl-wrap table { color: var(--dlg-text); }
+        body.theme-dark th {
+            background: rgba(255,255,255,.04) !important;
+            color: var(--dlg-text-soft) !important;
+            border-color: var(--dlg-glass-border) !important;
+        }
+        body.theme-dark td { border-color: rgba(122,145,165,.14) !important; }
+        /* Globales Dark-Mode-Hover-Sicherheitsnetz (Walter 28.06.2026) */
         body.theme-dark tbody tr:hover,
-        body.theme-dark tr:hover td { background: rgba(125,160,205,.13) !important; }
-        /* Stempelzeiten: die sticky Filter-Zeile hat inline background:#fff +
-           weissen Box-Shadow-„Schild". Im Dunkelmodus dunkel überschreiben. */
+        body.theme-dark tr:hover td { background: rgba(125,160,205,.12) !important; }
         body.theme-dark #stempelFilterRow {
-            background: #0f172a !important;
-            box-shadow: 0 -16px 0 16px #0f172a, inset 0 -1px 0 #334155 !important;
+            background: rgba(8, 16, 26, 0.92) !important;
+            box-shadow: 0 -16px 0 16px rgba(8,16,26,.92), inset 0 -1px 0 var(--dlg-glass-border) !important;
         }
 
         /* ── Mindestlöhne (L-GAV) — kompakt, damit alles auf eine Seite passt ── */
@@ -303,34 +333,44 @@
         body.theme-dark .emp-search,
         body.theme-dark .lohn-search { background: #334155 !important; color: #f1f5f9 !important; border-color: #475569 !important; }
 
-        /* Modals */
+        /* Modals — dunkles Glas */
         body.theme-dark .modal,
         body.theme-dark .modal-content,
         body.theme-dark .stamp-modal,
         body.theme-dark [class*="modal"] > [class*="content"] {
-            background: #1e293b !important;
-            color: #e2e8f0 !important;
+            background: var(--dlg-glass-strong) !important;
+            color: var(--dlg-text) !important;
+            border: 1px solid var(--dlg-glass-border) !important;
+            box-shadow: 0 24px 60px rgba(0,0,0,.45), inset 0 1px 0 var(--dlg-glass-inner) !important;
+        }
+        body.theme-dark .modal-hd {
+            background: rgba(12, 22, 34, 0.92) !important;
+            border-bottom-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text-strong) !important;
         }
 
-        /* Hinweisboxen mit hellem Hintergrund — leicht abgedunkelt aber lesbar */
+        /* Hinweisboxen — ruhiges Glas, kein knalliges Blau */
         body.theme-dark .alert,
         body.theme-dark .info-box,
         body.theme-dark .compliance-box {
-            background: #1e3a5f !important;
-            color: #ece9e2 !important;
-            border-color: #1a1a1a !important;
+            background: rgba(56, 100, 140, 0.22) !important;
+            color: var(--dlg-text) !important;
+            border-color: rgba(126,167,210,.28) !important;
         }
 
-        /* HR-Bereich Cards (hr-card) — Mock-up-Karten dunkel */
+        /* HR-Bereich Cards — Glas */
         body.theme-dark .hr-card {
-            background: #1e293b !important;
-            border-color: #334155 !important;
+            background: var(--dlg-glass) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: var(--dlg-shadow) !important;
+            backdrop-filter: blur(16px) saturate(120%);
+            -webkit-backdrop-filter: blur(16px) saturate(120%);
         }
-        body.theme-dark .hr-card-title  { color: #f1f5f9 !important; }
-        body.theme-dark .hr-card-status { color: #64748b !important; }
-        body.theme-dark .hr-card ul     { color: #cbd5e1 !important; }
-        body.theme-dark .hr-card ul li::marker { color: #475569 !important; }
-        body.theme-dark .hr-card b      { color: #f1f5f9 !important; }
+        body.theme-dark .hr-card-title  { color: var(--dlg-text-strong) !important; }
+        body.theme-dark .hr-card-status { color: var(--dlg-text-muted) !important; }
+        body.theme-dark .hr-card ul     { color: var(--dlg-text) !important; }
+        body.theme-dark .hr-card ul li::marker { color: var(--dlg-text-muted) !important; }
+        body.theme-dark .hr-card b      { color: var(--dlg-text-strong) !important; }
 
         /* Geplant vs. realisiert im HR-Hub (Walter 09.07.2026) — Dark-Pendants
            zu .hr-plan/.hr-done/.hr-idea (Light-Regeln im page-lokalen Style). */
@@ -349,14 +389,26 @@
         body.theme-dark .hr-card ul li.hr-idea b,
         body.theme-dark .hr-card ul li.hr-idea span { color: #45536b !important; }
 
-        /* Admin-Hub-Cards (gleicher Style wie hr-card) */
+        /* Admin-Hub-Cards — Glas (wie hr-card) */
         body.theme-dark .admin-card {
-            background: #1e293b !important;
-            border-color: #334155 !important;
-            color: #e2e8f0 !important;
+            background: var(--dlg-glass) !important;
+            border-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text) !important;
+            box-shadow: var(--dlg-shadow) !important;
+            backdrop-filter: blur(16px) saturate(120%);
+            -webkit-backdrop-filter: blur(16px) saturate(120%);
         }
-        body.theme-dark .admin-card-title { color: #f1f5f9 !important; }
-        body.theme-dark .admin-card-desc  { color: #94a3b8 !important; }
+        body.theme-dark .admin-card-title { color: var(--dlg-text-strong) !important; }
+        body.theme-dark .admin-card-desc  { color: var(--dlg-text-soft) !important; }
+        body.theme-dark .admin-card:hover {
+            border-color: rgba(126,167,210,.40) !important;
+            box-shadow: 0 16px 40px rgba(0,0,0,.32), inset 0 1px 0 var(--dlg-glass-inner) !important;
+        }
+        body.theme-dark .stat-card {
+            background: var(--dlg-glass) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: var(--dlg-shadow) !important;
+        }
 
         /* ── DARK MODE — STUFE 3: Inline-Styles + Komponenten-Polish ──
            Das HR-System hat tausende Inline-Styles (background:white,
@@ -424,56 +476,67 @@
         body.theme-dark [style*="color:#1e293b"],
         body.theme-dark [style*="color: #1e293b"] { color: #f1f5f9 !important; }
 
-        /* Stat-Cards (Dashboard) */
+        /* Stat-Cards (Dashboard) — Glas */
         body.theme-dark .stat-card {
-            background: #1e293b !important;
-            border-color: #334155 !important;
-            color: #e2e8f0 !important;
+            background: var(--dlg-glass) !important;
+            border-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text) !important;
+            box-shadow: var(--dlg-shadow) !important;
+            backdrop-filter: blur(16px) saturate(120%);
+            -webkit-backdrop-filter: blur(16px) saturate(120%);
         }
-        body.theme-dark .stat-label { color: #94a3b8 !important; }
-        body.theme-dark .stat-value { color: #f1f5f9 !important; }
-        body.theme-dark .stat-hint  { color: #64748b !important; }
+        body.theme-dark .stat-label { color: var(--dlg-text-soft) !important; }
+        body.theme-dark .stat-value { color: var(--dlg-text-strong) !important; }
+        body.theme-dark .stat-hint  { color: var(--dlg-text-muted) !important; }
 
-        /* Buttons */
-        body.theme-dark .btn-outline {
-            background: #334155 !important;
-            color: #e2e8f0 !important;
-            border-color: #475569 !important;
+        /* Buttons — Glas-Outline */
+        body.theme-dark .btn-outline,
+        body.theme-dark .btn-secondary {
+            background: rgba(255,255,255,.06) !important;
+            color: var(--dlg-text) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
         }
-        body.theme-dark .btn-outline:hover {
-            background: #475569 !important;
-            border-color: #64748b !important;
+        body.theme-dark .btn-outline:hover,
+        body.theme-dark .btn-secondary:hover {
+            background: rgba(255,255,255,.12) !important;
+            border-color: rgba(126,167,210,.35) !important;
+            color: var(--dlg-text-strong) !important;
         }
 
-        /* Dokumenten-Liste / Tabelle / Menu */
+        /* Dokumenten-Liste / Tabelle / Menu — Glas */
         body.theme-dark .dok-list {
-            background: #1e293b !important;
-            border-color: #334155 !important;
+            background: var(--dlg-glass) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: var(--dlg-shadow) !important;
         }
         body.theme-dark .dok-list-header,
         body.theme-dark .dok-list-empty {
-            background: #0f172a !important;
-            border-color: #334155 !important;
-            color: #94a3b8 !important;
+            background: rgba(255,255,255,.03) !important;
+            border-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text-soft) !important;
         }
         body.theme-dark .dok-table thead th {
-            background: #0f172a !important;
-            color: #94a3b8 !important;
-            border-color: #334155 !important;
+            background: rgba(255,255,255,.04) !important;
+            color: var(--dlg-text-soft) !important;
+            border-color: var(--dlg-glass-border) !important;
         }
         body.theme-dark .dok-table tbody td {
-            border-color: #334155 !important;
-            color: #e2e8f0 !important;
+            border-color: rgba(122,145,165,.14) !important;
+            color: var(--dlg-text) !important;
         }
-        body.theme-dark .dok-table tbody tr:hover td { background: #0f172a !important; }
-        body.theme-dark .dok-date-cell { color: #cbd5e1 !important; }
-        body.theme-dark .dok-table thead th.dok-sort-th:hover { background: #1e293b !important; color: #d0c8b8 !important; }
+        body.theme-dark .dok-table tbody tr:hover td { background: rgba(125,160,205,.10) !important; }
+        body.theme-dark .dok-date-cell { color: var(--dlg-text) !important; }
+        body.theme-dark .dok-table thead th.dok-sort-th:hover {
+            background: rgba(255,255,255,.07) !important;
+            color: var(--dlg-active-text) !important;
+        }
         body.theme-dark .dok-menu-btn {
-            background: #334155 !important;
-            border-color: #475569 !important;
-            color: #cbd5e1 !important;
+            background: rgba(255,255,255,.06) !important;
+            border-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text) !important;
         }
-        body.theme-dark .dok-menu-btn:hover { background: #475569 !important; }
+        body.theme-dark .dok-menu-btn:hover { background: rgba(255,255,255,.12) !important; }
         body.theme-dark .dok-menu {
             background: #1e293b !important;
             border-color: #475569 !important;
@@ -591,17 +654,24 @@
         body.theme-dark .stamp-row-edited .stamp-time,
         body.theme-dark .stamp-row-edited .stamp-hrs { color: #fcd34d !important; }
 
-        /* Absenz-Tabelle */
-        body.theme-dark .abs-table th { background: #0f172a !important; color: #94a3b8 !important; }
-        body.theme-dark .abs-table td { border-color: #334155 !important; color: #e2e8f0 !important; }
+        /* Absenz-Tabelle — Glas */
+        body.theme-dark .abs-table th {
+            background: rgba(255,255,255,.04) !important;
+            color: var(--dlg-text-soft) !important;
+        }
+        body.theme-dark .abs-table td {
+            border-color: rgba(122,145,165,.14) !important;
+            color: var(--dlg-text) !important;
+        }
         body.theme-dark .abs-modal-box {
-            background: #1e293b !important;
-            color: #e2e8f0 !important;
+            background: var(--dlg-glass-strong) !important;
+            color: var(--dlg-text) !important;
+            border: 1px solid var(--dlg-glass-border) !important;
         }
         body.theme-dark .abs-hours-preview-box {
-            background: #0f172a !important;
-            border-color: #334155 !important;
-            color: #cbd5e1 !important;
+            background: rgba(255,255,255,.04) !important;
+            border-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text) !important;
         }
 
         /* Lohn-Hours-Box (Summary unter Stempelzeiten) */
@@ -738,8 +808,13 @@
         }
         body.theme-dark [style*="background:#ece9e2"],
         body.theme-dark [style*="background: #ece9e2"],
+        /* Warme Light-Glas-Töne → dunkles Glas (nicht flaches Slate) */
         body.theme-dark [style*="background:#f6f3ee"],
-        body.theme-dark [style*="background: #f6f3ee"] {
+        body.theme-dark [style*="background: #f6f3ee"],
+        body.theme-dark [style*="background:#faf8f5"],
+        body.theme-dark [style*="background: #faf8f5"],
+        body.theme-dark [style*="background:#efeae2"],
+        body.theme-dark [style*="background: #efeae2"] {
             background: #172554 !important;
             color: #d0c8b8 !important;
         }
@@ -794,38 +869,34 @@
         body.theme-dark .ls-wrap table td,
         body.theme-dark .ls-wrap td[style*="font-family:monospace"] { color: #1e293b !important; }
 
-        /* Familien-/QST-/Adress-Cards: rendern als Sub-Cards via Klasse
-           `.emp-family-card`, NICHT via Inline-Style — darum braucht's
-           hier eine explizite Klassen-Override-Regel. */
+        /* Familien-/QST-/Adress-Cards — Glas */
         body.theme-dark .emp-family-card {
-            background: #1e293b !important;
-            border-color: #334155 !important;
-            color: #e2e8f0 !important;
+            background: var(--dlg-glass) !important;
+            border-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text) !important;
+            box-shadow: var(--dlg-shadow) !important;
         }
-        body.theme-dark .emp-family-name { color: #f1f5f9 !important; }
-        body.theme-dark .emp-family-meta { color: #cbd5e1 !important; }
-        /* Familien-Namen-Zeilen (Ehepartner/Kinder) werden mit Inline
-           background:#fff + onmouseover/out gerendert. Dark-Mode-Override per
-           !important schlägt den Inline-Stil — sonst bleiben sie weiss. */
+        body.theme-dark .emp-family-name { color: var(--dlg-text-strong) !important; }
+        body.theme-dark .emp-family-meta { color: var(--dlg-text) !important; }
         body.theme-dark .emp-fam-headrow {
-            background: #1e293b !important;
-            border-color: #334155 !important;
-            box-shadow: none !important;
+            background: rgba(255,255,255,.05) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner) !important;
         }
-        body.theme-dark .emp-fam-headrow > span:first-child { color: #e2e8f0 !important; }
+        body.theme-dark .emp-fam-headrow > span:first-child { color: var(--dlg-text-strong) !important; }
         body.theme-dark .emp-fam-allow-empty {
-            background: #0a1019 !important;
-            border-color: #334155 !important;
-            color: #64748b !important;
+            background: rgba(255,255,255,.03) !important;
+            border-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text-muted) !important;
         }
         body.theme-dark .btn-emp-edit {
-            background: #334155 !important;
-            color: #cbd5e1 !important;
-            border-color: #475569 !important;
+            background: rgba(255,255,255,.06) !important;
+            color: var(--dlg-text) !important;
+            border-color: var(--dlg-glass-border) !important;
         }
         body.theme-dark .btn-emp-edit:hover {
-            background: #475569 !important;
-            color: #f1f5f9 !important;
+            background: rgba(255,255,255,.12) !important;
+            color: var(--dlg-text-strong) !important;
         }
 
         /* Zeilen-Trenner in Tabellen mit hellem Inline-Border (#f1f5f9):
@@ -847,34 +918,33 @@
             border-top-color: #92400e !important;
         }
 
-        /* Dokumenten-Sidebar (Kategorien-Tree). Wie .emp-family-card eine
-           Klasse mit hellem Hintergrund — kein Inline-Style. Darum
-           explizite Klassen-Override-Regeln. */
+        /* Dokumenten-Sidebar (Kategorien-Tree) — Glas */
         body.theme-dark .dok-tree {
-            background: #1e293b !important;
-            border-color: #334155 !important;
+            background: var(--dlg-glass) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: var(--dlg-shadow) !important;
         }
         body.theme-dark .dok-tree-node {
-            color: #e2e8f0 !important;
+            color: var(--dlg-text) !important;
         }
         body.theme-dark .dok-tree-node:hover {
-            background: #334155 !important;
+            background: rgba(255,255,255,.08) !important;
         }
         body.theme-dark .dok-tree-node.active {
-            background: #172554 !important;
-            color: #d0c8b8 !important;
+            background: var(--dlg-active) !important;
+            color: var(--dlg-active-text) !important;
         }
-        body.theme-dark .dok-tree-cat   { color: #f1f5f9 !important; }
-        body.theme-dark .dok-tree-typ   { color: #cbd5e1 !important; }
+        body.theme-dark .dok-tree-cat   { color: var(--dlg-text-strong) !important; }
+        body.theme-dark .dok-tree-typ   { color: var(--dlg-text) !important; }
         body.theme-dark .dok-tree-count {
-            background: #334155 !important;
-            color: #cbd5e1 !important;
+            background: rgba(255,255,255,.08) !important;
+            color: var(--dlg-text) !important;
         }
         body.theme-dark .dok-tree-node.active .dok-tree-count {
-            background: #5a5348 !important;
-            color: #e5e0d6 !important;
+            background: rgba(255,255,255,.14) !important;
+            color: var(--dlg-active-text) !important;
         }
-        body.theme-dark .dok-tree-chevron { color: #64748b !important; }
+        body.theme-dark .dok-tree-chevron { color: var(--dlg-text-muted) !important; }
         /* Sidebar-Kategorie-Akzente: hellere Variante als Light Mode,
            damit der 3px-Strich auf dem dunklen Karten-Background sichtbar
            ist. */
@@ -1337,25 +1407,41 @@
         .sidebar-footer .user-row { justify-content: center; }
         .sidebar-footer .logout-btn { margin: 0 !important; }
 
-        /* Dark-Mode: Sidebar bleibt dunkel (Walter 27.06.2026). */
+        /* Dark-Mode Sidebar = Liquid Glass Rail (Walter 17.07.2026). */
         body.theme-dark .sidebar {
-            background: #0f172a; border-right-color: rgba(255,255,255,0.07);
+            background:
+                radial-gradient(circle at 30% 0%, rgba(80,120,160,.14) 0, transparent 180px),
+                rgba(8, 15, 24, 0.82);
+            border-right-color: var(--dlg-glass-border);
+            backdrop-filter: blur(20px) saturate(120%);
+            -webkit-backdrop-filter: blur(20px) saturate(120%);
+            box-shadow: inset -1px 0 0 rgba(255,255,255,.04);
         }
         body.theme-dark .sidebar-header,
         body.theme-dark .branch-selector,
-        body.theme-dark .sidebar-footer { border-color: rgba(255,255,255,0.07); }
-        body.theme-dark .branch-label { color: #94a3b8; }
+        body.theme-dark .sidebar-footer { border-color: rgba(122,145,165,.12); }
+        body.theme-dark .branch-label { color: var(--dlg-text-soft); }
         body.theme-dark .branch-select {
-            background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); color: #cbd5e1;
-            box-shadow: none;
+            background: rgba(255,255,255,.06);
+            border-color: var(--dlg-glass-border);
+            color: var(--dlg-text);
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
         }
-        body.theme-dark .branch-select option { background: #1e293b; color: #cbd5e1; }
+        body.theme-dark .branch-select option { background: #121c28; color: var(--dlg-text); }
         body.theme-dark .nav-item {
-            background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08);
-            color: #cbd5e1; box-shadow: none;
+            background: rgba(255,255,255,.05);
+            border-color: rgba(122,145,165,.16);
+            color: var(--dlg-text);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
         }
-        body.theme-dark .nav-item:hover { background: rgba(255,255,255,0.12); color: #fff; box-shadow: none; transform: none; }
-        body.theme-dark .user-name { color: #e2e8f0; }
+        body.theme-dark .nav-item:hover {
+            background: rgba(255,255,255,.10);
+            color: var(--dlg-text-strong);
+            border-color: rgba(126,167,210,.28);
+            box-shadow: 0 8px 20px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.08);
+            transform: translateY(-1px);
+        }
+        body.theme-dark .user-name { color: var(--dlg-text-strong); }
         .nav-soon {
             margin-left: auto; font-size: 10px; font-weight: 600; color: #e2e8f0;
             background: rgba(255,255,255,0.14); padding: 2px 8px; border-radius: 10px;
@@ -1425,31 +1511,38 @@
             display: none !important;
         }
         body.theme-dark #langSwitcher {
-            background: rgba(23, 36, 49, 0.92) !important;
-            border-color: rgba(122,145,165,.28) !important;
-            box-shadow: 0 12px 34px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.06) !important;
+            background: rgba(14, 24, 36, 0.78) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: 0 12px 34px rgba(0,0,0,.32), inset 0 1px 0 var(--dlg-glass-inner) !important;
+            backdrop-filter: blur(22px) saturate(140%) !important;
+            -webkit-backdrop-filter: blur(22px) saturate(140%) !important;
         }
-        body.theme-dark #langSwitcher .ls-label   { color: #cbd5e1 !important; }
-        body.theme-dark #langSwitcher .ls-divider { background: #475569 !important; }
+        body.theme-dark #langSwitcher .ls-label   { color: var(--dlg-text) !important; }
+        body.theme-dark #langSwitcher .ls-divider { background: rgba(122,145,165,.28) !important; }
 
-        /* Theme-Toggle: Kohle-Pille im Hellmodus (immer sichtbar),
-           warme Pille im Dunkelmodus. */
+        /* Theme-Toggle: Kohle-Pille hell; im Dark = ruhige Glas-Pille
+           (kein grelles Gelb — passt zum Liquid-Glass-Dunkel). */
         #themeToggleBtn {
             display: inline-flex; align-items: center; gap: 6px;
             background: #3f3f3f; color: #ffffff;
             border: 1px solid #1a1a1a; border-radius: 16px;
             cursor: pointer; padding: 7px 13px;
             font-size: 12px; font-weight: 700; font-family: inherit;
-            line-height: 1; transition: background .15s, color .15s, transform .15s;
+            line-height: 1; transition: background .15s, color .15s, transform .15s, border-color .15s;
             box-shadow: 0 6px 16px rgba(60,55,48,.18);
         }
         #themeToggleBtn .tt-icon  { font-size: 14px; line-height: 1; }
         #themeToggleBtn:hover     { background: #1a1a1a; transform: translateY(-1px); }
         body.theme-dark #themeToggleBtn {
-            background: #fde68a; color: #1a1a1a; border-color: #fbbf24;
-            box-shadow: 0 6px 16px rgba(0,0,0,.22);
+            background: rgba(233, 236, 240, 0.92);
+            color: #1a1a1a;
+            border-color: rgba(255,255,255,.35);
+            box-shadow: 0 8px 20px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.45);
         }
-        body.theme-dark #themeToggleBtn:hover { background: #fcd34d; }
+        body.theme-dark #themeToggleBtn:hover {
+            background: #ffffff;
+            transform: translateY(-1px);
+        }
 
         /* ── MAIN CONTENT ──────────────────────────────────────── */
         .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; background: #f8fafc; }
@@ -1956,12 +2049,15 @@
         .liquid-mask .data-table th { color: var(--emp-text-soft); border-bottom: 1px solid rgba(90,80,66,.12); }
         .liquid-mask .data-table td { border-bottom: 1px solid rgba(90,80,66,.08); }
         body.theme-dark .page.liquid-mask {
-            --emp-glass-bg: rgba(30,41,59,.42);
+            --emp-glass-bg: rgba(14,24,36,.58);
             --emp-glass-border: rgba(122,145,165,.22);
             --emp-text-strong: #edf5ff;
-            --emp-text: #b8c4d4;
+            --emp-text: #c4d1de;
             --emp-text-soft: #8595a8;
-            background: linear-gradient(135deg, #1a2130 0%, #131922 48%, #1c2432 100%);
+            background:
+                radial-gradient(circle at 78% 6%, rgba(90,130,170,.16) 0, transparent 280px),
+                radial-gradient(circle at 14% 96%, rgba(48,88,120,.14) 0, transparent 340px),
+                linear-gradient(135deg, #07111a 0%, #0b1620 52%, #08121b 100%);
         }
 
         /* ── LIQUID GLASS: MITARBEITER-MASKE ─────────────────────── */
@@ -2984,10 +3080,11 @@
             border-color: rgba(126,167,210,.30) !important;
             box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
         }
+        /* Section-Titel: ruhiges Eisblau statt knalligem Cyan */
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-section-title {
-            color: #62c6ff !important;
+            color: #d0e8f8 !important;
             background: transparent !important;
-            border-top-color: rgba(255, 255, 255, 0.14);
+            border-top-color: rgba(255, 255, 255, 0.12);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-label {
             color: #8193a5 !important;
@@ -3647,6 +3744,80 @@
         body.theme-dark .ov-vrole, body.theme-dark .ov-dname { color: #f2f5f8; }
         body.theme-dark .ov-jump { background: transparent; color: #94a3b8; }
         body.theme-dark .ov-tag.min { background: rgba(255,255,255,.08); }
+        body.theme-dark .ov-tag.ok {
+            background: rgba(52, 130, 80, 0.28) !important;
+            color: #6ee7b7 !important;
+        }
+        body.theme-dark .ov-card {
+            background: rgba(14, 24, 36, 0.62) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: var(--dlg-shadow) !important;
+            backdrop-filter: blur(16px) saturate(120%);
+            -webkit-backdrop-filter: blur(16px) saturate(120%);
+        }
+
+        /* ── Dark Liquid Glass: MA-Tab-Flächen (Verfügbarkeit, Leerstates) ── */
+        .vf-card {
+            background: #f6f3ee; border: 1px solid #e7e1d8; border-radius: 14px;
+            padding: 14px 16px; margin-bottom: 12px;
+        }
+        .vf-empty {
+            background: #f6f3ee; border: 1px solid #e7e1d8; border-radius: 14px;
+            padding: 18px; color: #8b8b8b; font-size: 13px;
+        }
+        .vf-th {
+            text-align: center; padding: 4px 6px; background: #efeae2;
+            font-size: 12px; color: #3f3f3f; border: 1px solid #e7e1d8;
+        }
+        .vf-td {
+            text-align: center; padding: 6px; font-size: 12px;
+            border: 1px solid #e7e1d8; color: #3f3f3f;
+        }
+        .vf-td.empty { color: #c2bbae; background: #faf8f5; }
+        .vf-title { font-weight: 700; font-size: 13.5px; color: #3f3f3f; }
+        .vf-foot { font-size: 11.5px; color: #8b8b8b; margin-top: 4px; }
+        body.theme-dark .vf-card,
+        body.theme-dark .vf-empty {
+            background: var(--dlg-glass) !important;
+            border-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text) !important;
+            box-shadow: var(--dlg-shadow);
+        }
+        body.theme-dark .vf-th {
+            background: rgba(255,255,255,.06) !important;
+            color: var(--dlg-text-strong) !important;
+            border-color: var(--dlg-glass-border) !important;
+        }
+        body.theme-dark .vf-td {
+            color: var(--dlg-text) !important;
+            border-color: var(--dlg-glass-border) !important;
+        }
+        body.theme-dark .vf-td.empty {
+            color: var(--dlg-text-muted) !important;
+            background: rgba(255,255,255,.03) !important;
+        }
+        body.theme-dark .vf-title { color: var(--dlg-text-strong) !important; }
+        body.theme-dark .vf-foot { color: var(--dlg-text-soft) !important; }
+
+        /* MA-Tabs: aktive Emp-Tabs als Glas-Pillen (auch ausserhalb liquid overrides) */
+        body.theme-dark #page-mitarbeiter .emp-tab {
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(122,145,165,.14);
+            border-radius: 12px;
+            color: var(--dlg-text-soft) !important;
+        }
+        body.theme-dark #page-mitarbeiter .emp-tab.active {
+            background: var(--dlg-active) !important;
+            border-color: var(--dlg-active-border) !important;
+            color: var(--dlg-active-text) !important;
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
+        }
+        /* Leerstates mit dashed Border → ruhiges Glas */
+        body.theme-dark [style*="border:1px dashed"],
+        body.theme-dark [style*="border: 1px dashed"] {
+            border-color: var(--dlg-glass-border) !important;
+            background: rgba(255,255,255,.03) !important;
+        }
 
 
         /* Liquid-Employee: keine separaten Innen-Frames. Die MA-Seite liegt wie
