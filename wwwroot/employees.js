@@ -1241,12 +1241,12 @@ function renderEmployeeDetail(emp) {
 // Sprung-Pfeil in ihren Fach-Tab — bearbeitet wird NUR dort. Daten kommen
 // aus dem bereits geladenen selectedEmployee; nur die Dokumente werden
 // nachgeladen (bestehender Endpoint by-employee).
-function _ovCard(title, jumpTab, jumpTitle, bodyHtml) {
+function _ovCard(title, jumpTab, jumpTitle, bodyHtml, extraHeader = '') {
     const jump = jumpTab
         ? `<button class="ov-jump" title="${jumpTitle}" onclick="switchEmpTab('${jumpTab}')">→</button>`
         : '';
     return `<div class="ov-card">
-        <div class="ov-card-h"><span>${title}</span>${jump}</div>
+        <div class="ov-card-h"><span>${title}</span><span style="display:flex;gap:8px;align-items:center">${extraHeader}${jump}</span></div>
         ${bodyHtml}
     </div>`;
 }
@@ -1267,25 +1267,24 @@ function loadUebersichtTab() {
     //    ov-Inputs spiegeln ihre Werte beim Speichern in die (versteckten)
     //    ef-*-Inputs des Personal-Tabs und rufen saveEmpEdit() — derselbe
     //    geprüfte Save-Pfad, keine doppelten DOM-IDs. ──
-    const adresse = [emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-    const _ovE = (label, id, value, ph = '') => `
-        <div class="ov-f"><div class="ov-fl">${label}</div>
+    const adresse = [emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+        + (emp.cantonCode ? ' ' + emp.cantonCode : '');
+    const _ovE = (label, id, value, ph = '', cls = '') => `
+        <div class="ov-f ${cls}"><div class="ov-fl">${label}</div>
         <input id="${id}" class="ef-input" value="${esc(value)}" placeholder="${ph}" oninput="ovDirty()"></div>`;
     const kPers = _ovCard('Personalien & Adresse', 'personal', 'Alle Details im Personal-Tab', `
         <div class="ov-grid4">
             ${_ovF(_t('ma.field.salutation','Anrede'), formatSalutation(emp.salutation))}
-            ${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}
+            ${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'ov-span2')}
             ${_ovF(_t('ma.field.maritalStatus','Zivilstand'), formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus))}
+            <div class="ov-span2">${_ovF('Adresse', esc(adresse))}</div>
+            ${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …', 'ov-span2')}
             ${_ovF(_t('ma.field.gender','Geschlecht'), formatGender(emp.gender))}
-            <div class="ov-span3">${_ovF('Adresse', esc(adresse))}</div>
-            ${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}
             ${_ovF(_t('ma.field.nationality','Nationalität'), emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality))}
             ${_ovE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}
             ${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
-            <div class="ov-f" style="display:flex;align-items:flex-end">
-                <button id="ovSaveBtn" class="emp-inline-save" onclick="ovSave()" style="display:none">Speichern</button>
-            </div>
-        </div>`);
+        </div>`,
+        `<button id="ovSaveBtn" class="emp-inline-save" onclick="ovSave()" style="display:none">Speichern</button>`);
     const kKontakt = '';
 
     // ── Karte Anstellung ──
@@ -1294,7 +1293,6 @@ function loadUebersichtTab() {
             ${_ovF(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
             ${_ovF('Gekündigt am', emp.kuendigungAusgesprochenAm ? formatDate(emp.kuendigungAusgesprochenAm) : null)}
             ${_ovF('Kündigung per', emp.kuendigungPer ? formatDate(emp.kuendigungPer) : null)}
-            ${_ovF('Kanton', esc(emp.cantonCode))}
             ${_ovF('L-GAV', emp.lgavPflichtig ? 'ja' : 'nein')}
         </div>`);
 
