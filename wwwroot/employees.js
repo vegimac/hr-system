@@ -1310,12 +1310,15 @@ function loadUebersichtTab() {
             ${actions}
         </div>`;
     }).join('') || '<div class="ov-empty" style="padding:4px 0">Keine Verträge vorhanden.</div>';
+    // Feste 4-Zeilen-Hoehe (Walter 17.07.2026): sonst springt die Seite beim
+    // MA-Wechsel (3 vs. 4 Vertraege). Mehr als 4 → scrollen.
+    const vList = `<div class="ov-vlist">${vRows}</div>`;
     // SMS-/Link-Feedback-Container fuer die Uebersicht (Klasse statt ID —
     // der Personal-Strip hat seinen eigenen; siehe contractShareBox-Lookup).
     const vShare = '<div class="contractShareBox" style="margin:8px 0 0"></div>';
     // Vertraege schmaler (Walter 17.07.2026): nicht mehr volle Breite —
     // daneben die kompakte KTG/UVG-Tagessatz-Karte (vor allem MTP/FLEX).
-    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vRows + vShare);
+    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vList + vShare);
     const kKtg = _ovCard('KTG/UVG-Tagessatz', 'absenzen', 'Zu Absenzen & Tagessatz',
         `<div id="ovKtgContent"><div class="ov-empty" style="padding:6px 0">Wird geladen…</div></div>`);
 
