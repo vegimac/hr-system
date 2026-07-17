@@ -816,42 +816,67 @@ function renderEmployeeDetail(emp) {
     const initials = ((emp.firstName?.[0] ?? '') + (emp.lastName?.[0] ?? '')).toUpperCase() || '?';
     const isFemale = (emp.gender || '').toLowerCase() === 'female' || (emp.salutation || '').toLowerCase() === 'frau';
 
+    // ── KOPF-CARD (Etappe 1, Walter 17.07.2026, nach Mockup) ──
+    // Badges nur wenn zutreffend; Fakten-Zeile: Eintritt · Geburtstag ·
+    // Vertrag · Telefon · E-Mail (Wohnort/Kanton bewusst NICHT — stehen in
+    // den Karten; Restaurant NICHT — Filiale ist global gewählt).
+    const _hcToday = new Date().toISOString().slice(0, 10);
+    const _hcActive = (emp.employments || []).filter(c => c.isActive)
+        .sort((a, b) => String(b.contractStartDate || '').localeCompare(String(a.contractStartDate || '')))[0] || null;
+    const _hcBadges = [];
+    if (emp.exitDate)
+        _hcBadges.push(`<span class="emp-hbadge hb-exit">${_t('ma.detail.exitDate','Austritt')} ${exit}</span>`);
+    else if (emp.isActive)
+        _hcBadges.push(`<span class="emp-hbadge hb-ok">● ${_t('ma.detail.statusActive','Aktiv')}</span>`);
+    else
+        _hcBadges.push(`<span class="emp-hbadge hb-inak">● ${_t('ma.detail.statusInactive','Inaktiv')}</span>`);
+    if (window._activePregnancy) {
+        const _p = window._activePregnancy;
+        const _mutTxt = _p.geburtsdatum
+            ? `Mutterschaft — Geburt ${formatDate(_p.geburtsdatum)}`
+            : (_p.errechneterTermin ? `Mutterschaft — ET ${formatDate(_p.errechneterTermin)}` : 'Mutterschaft');
+        _hcBadges.push(`<span class="emp-hbadge hb-mut" style="cursor:pointer" title="Zur Schwangerschaft im Familie-Tab" onclick="switchEmpTab('familie')">🤰 ${_mutTxt}</span>`);
+    }
+    if (emp.kuendigungPer)
+        _hcBadges.push(`<span class="emp-hbadge hb-kuend">✕ Gekündigt per ${formatDate(emp.kuendigungPer)}</span>`);
+    if (_hcActive?.probationEndDate && String(_hcActive.probationEndDate).slice(0, 10) >= _hcToday)
+        _hcBadges.push(`<span class="emp-hbadge hb-prob">⏳ Probezeit bis ${formatDate(_hcActive.probationEndDate)}</span>`);
+    if (emp.isPayrollExcluded)
+        _hcBadges.push(`<span class="emp-hbadge hb-inak">⛔ MA ohne Lohn</span>`);
+    const _hcVertrag = _hcActive
+        ? `<span class="emp-contract-model ${contractModelClass(_hcActive.employmentModel || '')}" style="margin-right:5px;vertical-align:1px">${esc(modelDisplay(_hcActive.employmentModel || '–'))}</span>${esc(_hcActive.jobTitle || _hcActive.jobGroupCode || '')}${_hcActive.employmentPercentage != null ? ' · ' + Number(_hcActive.employmentPercentage) + ' %' : ''}`
+        : null;
+    const _hcFact = (label, value) => `<div class="emp-hfact"><div class="emp-hfact-l">${label}</div><div class="emp-hfact-v">${value || '<span style="color:#8b8b8b;font-weight:500">–</span>'}</div></div>`;
+
     panel.innerHTML = `
     <div class="emp-detail-header">
-        <div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px">
-            <div style="display:flex;align-items:center;gap:14px;min-width:0;flex-shrink:0">
-                <div id="empDetailPhoto"
-                     class="emp-avatar ${isFemale ? 'female' : ''}"
-                     style="width:150px;height:150px;border-radius:50%;flex-shrink:0;background-size:cover;background-position:center;font-size:50px;display:flex;align-items:center;justify-content:center;overflow:hidden">${initials}</div>
-                <div style="min-width:0">
-                    <div class="emp-detail-name" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                        <span>${name}</span>
-                        <span style="font-size:inherit;font-weight:inherit;color:#64748b">${nr}</span>
-                        <span id="empNumberAliases" data-emp="${emp.id}"></span>
-                        ${window._activePregnancy ? `
-                        <button onclick="switchEmpTab('familie')"
-                                title="Aktuelle Schwangerschaft im Familie-Tab anzeigen"
-                                style="background:#dc2626;color:white;border:none;border-radius:14px;padding:3px 12px;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;letter-spacing:0.02em">
-                            🤰 Mutterschaft
-                        </button>` : ''}
-                    </div>
-                    <div class="emp-detail-meta" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-                        <span>${headerStatusHtml}</span>
-                        <span>${_t('ma.detail.entryDate','Eintritt')}: ${entry}</span>
-                        <span>Geburtstag: ${birthHeader}${linkedDocButton('birth_cert')}</span>
-                    </div>
+        <div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:16px">
+            <div id="empDetailPhoto"
+                 class="emp-avatar ${isFemale ? 'female' : ''}"
+                 style="border-radius:50%;flex-shrink:0;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;overflow:hidden">${initials}</div>
+            <div style="min-width:0;flex:1 1 auto">
+                <div class="emp-detail-name" style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+                    <span>${name}</span>
+                    <span style="font-size:16px;font-weight:650;color:#8b8b8b">${nr}</span>
+                    <span id="empNumberAliases" data-emp="${emp.id}"></span>
+                    ${_hcBadges.join('')}
+                </div>
+                <div class="emp-hfacts">
+                    ${_hcFact(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? entry : null)}
+                    ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${linkedDocButton('birth_cert')}` : null)}
+                    ${_hcFact('Vertrag', _hcVertrag)}
+                    ${_hcFact(_t('ma.field.phone','Telefon'), emp.phoneMobile ? esc(emp.phoneMobile) : null)}
+                    ${_hcFact('E-Mail', emp.email ? esc(emp.email) : null)}
                 </div>
             </div>
             <!-- Tab-spezifischer „+ Neu"-Button (Walter-Vorgabe 01.06.2026):
-                 wird in switchEmpTab() pro Tab befüllt — z.B. Familie →
-                 + Familienmitglied. Sitzt links neben dem Bearbeiten-Block,
-                 damit alle Aktions-Buttons in einer sticky-Zeile zusammen sind. -->
+                 wird in switchEmpTab() pro Tab befüllt. -->
             <div id="empTabActionBar" style="display:flex;gap:8px;align-items:center;margin-top:10px"></div>
-            <!-- Header-Actions: Postfach-Passwort-Reset (Walter-Vorgabe
-                 14.05.2026 — direkt oben statt im Bank-Tab) + Bearbeiten.
-                 startEmpEdit() ersetzt den Inhalt dieses Containers durch
-                 Speichern/Abbrechen. Postfach-Button nur für nicht-Phantom-MA. -->
-            <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:58px;flex:1 1 auto;flex-wrap:wrap;justify-content:flex-end;align-content:flex-start;min-width:0">
+            <!-- Header-Actions: bestehende Funktionen unveraendert. Face ID
+                 sitzt seit Etappe 1 im ⋮-Menue (Walter 17.07.2026).
+                 startEmpEdit() ersetzt den Inhalt durch Speichern/Abbrechen.
+                 margin-top:58px = reservierte langSwitcher-Zone (CLAUDE.md). -->
+            <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:58px;flex-wrap:wrap;justify-content:flex-end;align-content:flex-start;min-width:0;flex-shrink:1;max-width:480px">
                 <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
                 ${['admin','superuser','buchhaltung','user'].includes(currentUser?.role) ? `
                 <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap;display:inline-flex;align-items:center;gap:7px"
@@ -873,11 +898,12 @@ function renderEmployeeDetail(emp) {
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v7h-7"/></svg>
                     Onboarding-QR
                 </button>
-                <button class="btn-emp-edit" style="white-space:nowrap"
-                        title="Alle Face-ID-Geräte dieses MA entfernen (z.B. bei Geräteverlust)"
-                        onclick="faceIdAdminReset(${emp.id})">
-                    Face ID zurücksetzen
-                </button>` : ''}
+                <div class="dok-menu-wrap" style="position:relative;flex-shrink:0">
+                    <button class="dok-menu-btn" style="height:31px" title="Weitere Aktionen" onclick="empHeadMenuToggle(event)">⋮</button>
+                    <div class="dok-menu" id="empHeadMenu">
+                        <button class="dok-menu-item" onclick="faceIdAdminReset(${emp.id})">Face ID zurücksetzen</button>
+                    </div>
+                </div>` : ''}
             </div>
         </div>
         <div class="emp-detail-tabs">
@@ -1199,6 +1225,15 @@ function renderEmployeeDetail(emp) {
     // er auf "Familie". switchEmpTab triggert den passenden loadXxx()-Aufruf
     // (Bankverbindung beim personal-Tab, Familie beim familie-Tab usw.).
     switchEmpTab(activeEmpTab || 'personal');
+}
+
+// ⋮-Menue der Kopf-Card (Face ID etc.) — dok-menu-Standard.
+function empHeadMenuToggle(ev) {
+    ev.stopPropagation();
+    const menu = document.getElementById('empHeadMenu');
+    const wasOpen = menu?.classList.contains('show');
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    if (menu && !wasOpen) menu.classList.add('show');
 }
 
 function renderEmpContractList(emp) {

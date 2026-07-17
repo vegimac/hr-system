@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Kopf-Card MA-Detail (Feld-Vorschlag)</title>
+<!-- ═══════════════════════════════════════════════════════════════════
+     MOCKUP Kopf-Card (Walter 17.07.2026) — zeigt EXAKT die vorgeschlagenen
+     Felder mit ihrer Datenquelle im heutigen System. Zwei Beispiel-MA:
+     Normalfall (mit Mutterschaft) und Spezialfall (Kündigung + Probezeit).
+     Keine Anbindung, keine echten Daten.
+     ═══════════════════════════════════════════════════════════════════ -->
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        background: linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%);
+        color: #364152;
+        padding: 34px 40px 60px;
+    }
+    h1 { font-size: 19px; font-weight: 800; color: #1a1a1a; margin-bottom: 4px; }
+    .sub { font-size: 13px; color: #8b8b8b; margin-bottom: 26px; }
+    h3 { font-size: 13px; font-weight: 800; color: #5a5348; text-transform: uppercase; letter-spacing: .06em; margin: 30px 0 10px; }
+
+    .headcard {
+        background: #fff; border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(60,55,48,.08);
+        padding: 20px 24px 16px;
+        display: flex; gap: 20px;
+        max-width: 1280px;
+    }
+    .avatar {
+        width: 92px; height: 92px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 30px; font-weight: 800; flex-shrink: 0;
+        overflow: hidden;
+    }
+    .av-pink { background: #fce7f3; color: #ec4899; }
+    .av-blue { background: #e0ecf7; color: #2374b7; }
+    .mid { flex: 1; min-width: 0; }
+    .nameline { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .nameline h2 { font-size: 25px; font-weight: 800; color: #1a1a1a; }
+    .pnr { font-size: 17px; color: #8b8b8b; font-weight: 650; }
+    .badges { display: flex; gap: 8px; margin-top: 7px; flex-wrap: wrap; }
+    .badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; }
+    .b-ok   { background: #e7f0e4; color: #2f7d32; }
+    .b-mut  { background: #fde7ef; color: #be185d; }
+    .b-kuend{ background: #fee2e2; color: #b91c1c; }
+    .b-prob { background: #fdf1dc; color: #96690f; }
+    .b-inak { background: #f1f5f9; color: #64748b; }
+    .factrow { display: flex; margin-top: 16px; flex-wrap: wrap; row-gap: 12px; }
+    .fact { padding: 0 20px; border-left: 1px solid #eee8de; position: relative; }
+    .fact:first-child { border-left: none; padding-left: 0; }
+    .fl { font-size: 10.5px; font-weight: 700; color: #8b8b8b; letter-spacing: .04em; margin-bottom: 3px; }
+    .fv { font-size: 15px; font-weight: 700; color: #1a1a1a; white-space: nowrap; }
+    .fv .soft { color: #8b8b8b; font-weight: 600; }
+    .fv .pill { background: #f1ede5; border-radius: 7px; padding: 1px 9px; }
+    .fv .chip { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 7px; background: #e7f0e4; color: #3f6b34; vertical-align: 1px; margin-right: 4px; }
+    .src {
+        position: absolute; top: -17px; left: 20px;
+        font-size: 9.5px; color: #b7ad9e; font-weight: 600; white-space: nowrap;
+    }
+    .fact:first-child .src { left: 0; }
+    .headbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; align-content: start; }
+    .hbtn {
+        background: #fff; border: 1px solid rgba(140,132,120,.3); border-radius: 11px;
+        padding: 9px 16px; font-size: 13px; font-weight: 650; color: #3f3f3f;
+        cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 8px;
+    }
+    .hbtn.primary { background: #3f3f3f; color: #fff; border-color: #3f3f3f; }
+
+    table { border-collapse: collapse; max-width: 1280px; width: 100%; background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 24px rgba(60,55,48,.06); font-size: 13px; }
+    th { text-align: left; background: #3f3f3f; color: #fff; font-size: 11.5px; letter-spacing: .04em; padding: 8px 14px; font-weight: 700; }
+    td { padding: 8px 14px; border-top: 1px solid #f0ece4; vertical-align: top; }
+    td:first-child { font-weight: 750; color: #1a1a1a; white-space: nowrap; }
+    td code { background: #f6f3ee; border-radius: 5px; padding: 1px 6px; font-size: 12px; color: #7a5c14; }
+    .note { max-width: 1280px; background: #fdf6e7; border: 1px solid #f5e3b8; border-radius: 11px; padding: 10px 16px; font-size: 13px; color: #7a5c14; font-weight: 600; margin-top: 14px; }
+</style>
+</head>
+<body>
+
+    <h1>Kopf-Card — Feld-Vorschlag</h1>
+    <div class="sub">Die kleinen Beschriftungen ÜBER den Feldern zeigen, woher der Wert heute schon kommt. Zwei Beispiel-Zustände.</div>
+
+    <h3>Beispiel 1 — Normalfall (aktiv, mit Mutterschaft)</h3>
+    <div class="headcard">
+        <div class="avatar av-pink">AA</div>
+        <div class="mid">
+            <div class="nameline">
+                <h2>Andreja Angjelkoska</h2>
+                <span class="pnr">750060</span>
+            </div>
+            <div class="badges">
+                <span class="badge b-ok">● Aktiv</span>
+                <span class="badge b-mut">🤰 Mutterschaft — ET 12.10.2026</span>
+            </div>
+            <div class="factrow" style="margin-top:26px">
+                <div class="fact"><div class="src">emp.entryDate</div><div class="fl">EINTRITT</div><div class="fv">18.01.2025</div></div>
+                <div class="fact"><div class="src">emp.birthDate</div><div class="fl">GEBURTSTAG</div><div class="fv">12.02.2001 <span class="soft">(25 J.)</span></div></div>
+                <div class="fact"><div class="src">aktiver Vertrag → Modell + Funktion</div><div class="fl">VERTRAG</div><div class="fv"><span class="chip">MTP</span>CREW · 80 %</div></div>
+                <div class="fact"><div class="src">emp.phoneMobile</div><div class="fl">TELEFON</div><div class="fv">+41 76 628 58 68</div></div>
+                <div class="fact"><div class="src">emp.email</div><div class="fl">E-MAIL</div><div class="fv">andreja682@gmail.com</div></div>
+            </div>
+        </div>
+        <div class="headbtns">
+            <div class="hbtn primary">✎ Bearbeiten</div>
+            <div class="hbtn">@ easy@work sync</div>
+            <div class="hbtn">🔒 Postfach-Passwort</div>
+            <div class="hbtn">▦ Onboarding-QR</div>
+        </div>
+    </div>
+
+    <h3>Beispiel 2 — mit Kündigung, Probezeit &amp; inaktiv-Variante der Badges</h3>
+    <div class="headcard">
+        <div class="avatar av-blue">DN</div>
+        <div class="mid">
+            <div class="nameline">
+                <h2>Daniela Nikollaj</h2>
+                <span class="pnr">750115</span>
+            </div>
+            <div class="badges">
+                <span class="badge b-ok">● Aktiv</span>
+                <span class="badge b-kuend">✕ Gekündigt per 31.08.2026</span>
+                <span class="badge b-prob">⏳ Probezeit bis 30.09.2026</span>
+            </div>
+            <div class="factrow" style="margin-top:26px">
+                <div class="fact"><div class="src">emp.entryDate</div><div class="fl">EINTRITT</div><div class="fv">01.06.2026</div></div>
+                <div class="fact"><div class="src">emp.birthDate</div><div class="fl">GEBURTSTAG</div><div class="fv">03.07.1994 <span class="soft">(32 J.)</span></div></div>
+                <div class="fact"><div class="src">aktiver Vertrag → Modell + Funktion</div><div class="fl">VERTRAG</div><div class="fv"><span class="chip" style="background:#efe4f4;color:#7a3f96">FIX-M</span>ASST 1 · 100 %</div></div>
+                <div class="fact"><div class="src">emp.phoneMobile</div><div class="fl">TELEFON</div><div class="fv">+41 79 123 45 67</div></div>
+                <div class="fact"><div class="src">emp.email</div><div class="fl">E-MAIL</div><div class="fv">d.nikollaj@bluewin.ch</div></div>
+            </div>
+        </div>
+        <div class="headbtns">
+            <div class="hbtn primary">✎ Bearbeiten</div>
+            <div class="hbtn">@ easy@work sync</div>
+            <div class="hbtn">🔒 Postfach-Passwort</div>
+            <div class="hbtn">▦ Onboarding-QR</div>
+        </div>
+    </div>
+
+    <h3>Feld-Übersicht (alles existiert heute schon)</h3>
+    <table>
+        <tr><th style="width:220px">ELEMENT</th><th>QUELLE HEUTE</th><th>BEMERKUNG</th></tr>
+        <tr><td>Avatar / Foto</td><td>MA-Foto, sonst Initialen</td><td>wie heute im Detail-Header</td></tr>
+        <tr><td>Name + Personalnummer</td><td><code>firstName lastName</code> · <code>employeeNumber</code></td><td>Anzeigeformat Vorname Nachname (Konvention)</td></tr>
+        <tr><td>Badge Aktiv / Inaktiv</td><td><code>emp.isActive</code></td><td>grün / grau</td></tr>
+        <tr><td>Badge Mutterschaft</td><td>aktive Schwangerschaft (Pregnancy)</td><td>mit errechnetem Termin — Klick springt in den Familie-Tab</td></tr>
+        <tr><td>Badge Gekündigt per</td><td><code>emp.kuendigungPer</code></td><td>rot; erscheint nur wenn gesetzt (unsere neuen Felder)</td></tr>
+        <tr><td>Badge Probezeit bis</td><td>aktiver Vertrag <code>probationEndDate</code></td><td>nur solange Probezeit läuft</td></tr>
+        <tr><td>Badge MA ohne Lohn</td><td><code>isPayrollExcluded</code></td><td>Phantom-MA (Supervisor) — ersetzt dann Vertrag/Restaurant-Fakten</td></tr>
+        <tr><td>Fakt Eintritt</td><td><code>emp.entryDate</code></td><td>&nbsp;</td></tr>
+        <tr><td>Fakt Geburtstag (+ Alter)</td><td><code>emp.birthDate</code></td><td>Alter gerechnet, wie heute</td></tr>
+        <tr><td>Fakt Vertrag</td><td>Modell-Chip + Funktion + Pensum des aktiven Vertrags</td><td>MTP/FLEX-Farben wie in der MA-Liste; ohne Lohn (bewusst — Lohn nur im Vertrags-Detail)</td></tr>
+        <tr><td>Fakt Telefon</td><td><code>emp.phoneMobile</code></td><td>fürs schnelle Anrufen im Alltag</td></tr>
+        <tr><td>Fakt E-Mail</td><td><code>emp.email</code></td><td>fürs schnelle Anschreiben im Alltag</td></tr>
+        <tr><td>Buttons rechts</td><td>Bearbeiten · easy@work sync · Postfach-Passwort · Onboarding-QR</td><td>bestehende Funktionen, unverändert. Face ID + Doku-Knopf wandern ins ⋮-Menü daneben (weniger Lärm)</td></tr>
+    </table>
+
+    <div class="note">
+        Bewusst NICHT im Kopf: Lohn (nur im Vertrags-Detail), AHV-Nr. (Personalien-Card), E-Mail/Adresse (Kontakt-Card).
+        Entschieden (Walter 17.07.2026): Wohnort + Kanton RAUS (Kontakt-/Personalien-Card), Telefon + E-Mail DRIN. Face ID + Doku im ⋮-Menü.
+    </div>
+
+</body>
+</html>

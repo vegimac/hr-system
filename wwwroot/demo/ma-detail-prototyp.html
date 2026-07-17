@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prototyp — MA-Detail Karten-Layout (nur Darstellung)</title>
+<!-- ═══════════════════════════════════════════════════════════════════
+     PROBESEITE (Walter 17.07.2026) — reines Design-Mockup nach Vorlage.
+     KEINE Anbindung ans Programm, keine echten Daten, keine Fetches.
+     Aufruf direkt: /demo/ma-detail-prototyp.html (oder Datei doppelklicken).
+     ═══════════════════════════════════════════════════════════════════ -->
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        background: linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%);
+        color: #364152;
+        height: 100vh;
+        display: flex;
+        overflow: hidden;
+    }
+
+    /* ── Schmale Icon-Rail (nur Deko im Prototyp) ── */
+    .rail {
+        width: 76px; flex-shrink: 0;
+        background: rgba(255,255,255,.55);
+        border-right: 1px solid rgba(255,255,255,.7);
+        display: flex; flex-direction: column; align-items: center;
+        padding: 14px 0; gap: 6px;
+    }
+    .rail .logo {
+        width: 44px; height: 44px; border-radius: 12px;
+        background: #1a1a1a; color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 15px; margin-bottom: 14px;
+    }
+    .rail .ric {
+        width: 44px; height: 44px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 19px; color: #8b8b8b; cursor: pointer;
+    }
+    .rail .ric.active { background: rgba(63,63,63,.10); color: #1a1a1a; }
+    .rail .spacer { flex: 1; }
+    .rail .avatar-me {
+        width: 40px; height: 40px; border-radius: 50%;
+        background: #e8e2d8; color: #5a5348;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 13px;
+    }
+
+    /* ── MA-Liste ── */
+    .malist {
+        width: 285px; flex-shrink: 0;
+        display: flex; flex-direction: column;
+        padding: 16px 12px 10px 14px; gap: 10px;
+    }
+    .malist h1 { font-size: 20px; font-weight: 800; color: #1a1a1a; padding-left: 4px; }
+    .search {
+        display: flex; align-items: center; gap: 8px;
+        background: #fff; border: 1px solid rgba(140,132,120,.28);
+        border-radius: 10px; padding: 8px 12px; color: #8b8b8b; font-size: 13px;
+    }
+    .btn-new {
+        background: #fff; border: 1px solid rgba(140,132,120,.28); border-radius: 10px;
+        padding: 8px 12px; font-size: 13px; font-weight: 650; color: #3f3f3f;
+        text-align: center; cursor: pointer;
+    }
+    .seg { display: flex; background: rgba(255,255,255,.5); border: 1px solid rgba(140,132,120,.2); border-radius: 10px; padding: 3px; }
+    .seg div { flex: 1; text-align: center; font-size: 12.5px; font-weight: 650; padding: 5px 0; border-radius: 8px; color: #8b8b8b; cursor: pointer; }
+    .seg div.on { background: #fff; color: #1a1a1a; box-shadow: 0 2px 6px rgba(60,55,48,.1); }
+    .marows { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding-right: 4px; }
+    .marow {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 10px; border-radius: 10px; cursor: pointer;
+    }
+    .marow:hover { background: rgba(255,255,255,.55); }
+    .marow.sel { background: #fff; box-shadow: 0 4px 14px rgba(60,55,48,.1); }
+    .marow .nm { font-size: 13.5px; font-weight: 650; color: #1a1a1a; }
+    .marow .nr { font-size: 11px; color: #8b8b8b; margin-top: 1px; }
+    .chip { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 7px; letter-spacing: .03em; }
+    .chip.mtp  { background: #e7f0e4; color: #3f6b34; }
+    .chip.flex { background: #fdf1dc; color: #96690f; }
+    .chip.fixm { background: #efe4f4; color: #7a3f96; }
+    .pager { font-size: 11.5px; color: #8b8b8b; display: flex; justify-content: space-between; padding: 4px 6px 0; }
+
+    /* ── Hauptbereich ── */
+    .main { flex: 1; overflow-y: auto; padding: 16px 18px 20px 8px; }
+
+    /* Kopf-Card */
+    .headcard {
+        background: #fff; border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(60,55,48,.08);
+        padding: 20px 24px 14px;
+        display: flex; gap: 20px;
+    }
+    .headcard .avatar {
+        width: 92px; height: 92px; border-radius: 50%;
+        background: #fce7f3; color: #ec4899;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 30px; font-weight: 800; flex-shrink: 0;
+    }
+    .headcard .mid { flex: 1; min-width: 0; }
+    .headcard .nameline { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .headcard .nameline h2 { font-size: 25px; font-weight: 800; color: #1a1a1a; }
+    .headcard .nameline .pnr { font-size: 17px; color: #8b8b8b; font-weight: 650; }
+    .badges { display: flex; gap: 8px; margin-top: 7px; }
+    .badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; }
+    .badge.ok   { background: #e7f0e4; color: #2f7d32; }
+    .badge.mut  { background: #fde7ef; color: #be185d; }
+    .factrow { display: flex; gap: 0; margin-top: 16px; }
+    .fact { padding: 0 22px; border-left: 1px solid #eee8de; }
+    .fact:first-child { border-left: none; padding-left: 0; }
+    .fact .fl { font-size: 10.5px; font-weight: 700; color: #8b8b8b; letter-spacing: .04em; margin-bottom: 3px; }
+    .fact .fv { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+    .fact .fv .pill { background: #f1ede5; border-radius: 7px; padding: 1px 9px; }
+    .headbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; align-content: start; }
+    .hbtn {
+        background: #fff; border: 1px solid rgba(140,132,120,.3); border-radius: 11px;
+        padding: 9px 16px; font-size: 13px; font-weight: 650; color: #3f3f3f;
+        cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 8px;
+    }
+    .hbtn:hover { border-color: #3f3f3f; }
+
+    /* Tab-Bar */
+    .tabbar {
+        display: flex; gap: 4px; margin: 14px 2px 14px;
+        border-bottom: 1.5px solid rgba(140,132,120,.2);
+    }
+    .tab {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 18px 11px; font-size: 13.5px; font-weight: 650; color: #7d7a74;
+        cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px;
+    }
+    .tab.active { color: #1a1a1a; border-bottom-color: #1a1a1a; }
+    .tab:hover:not(.active) { color: #3f3f3f; }
+
+    /* Karten-Grid */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card {
+        background: #fff; border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(60,55,48,.06);
+        padding: 18px 22px 16px;
+    }
+    .card-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .card-h .t { display: flex; align-items: center; gap: 10px; font-size: 15.5px; font-weight: 750; color: #1a1a1a; }
+    .card-h .t .ic { font-size: 16px; color: #8b8b8b; }
+    .card-h .act {
+        background: #fff; border: 1px solid rgba(140,132,120,.28); border-radius: 9px;
+        padding: 5px 12px; font-size: 12px; font-weight: 650; color: #3f3f3f; cursor: pointer;
+    }
+    .fgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 18px; }
+    .fgrid.c3 { grid-template-columns: repeat(3, 1fr); }
+    .fgrid.c2 { grid-template-columns: 130px 1fr; gap: 10px 14px; }
+    .f .l { font-size: 10.5px; font-weight: 700; color: #8b8b8b; letter-spacing: .04em; margin-bottom: 3px; }
+    .f .v { font-size: 14.5px; font-weight: 700; color: #0a0a0a; }
+    .f .v.soft { color: #8b8b8b; font-weight: 600; }
+    .f .v .code { color: #94a3b8; font-weight: 500; font-size: 12px; }
+    .tag-ok { background: #e7f0e4; color: #2f7d32; font-size: 11.5px; font-weight: 700; padding: 2px 10px; border-radius: 7px; }
+    .tag-min { background: #f1f5f9; color: #94a3b8; font-size: 11.5px; font-weight: 700; padding: 2px 10px; border-radius: 7px; }
+
+    /* Verträge */
+    .vrow {
+        display: grid; grid-template-columns: 90px 70px 84px 1fr 1fr 1fr 30px;
+        align-items: center; gap: 10px;
+        background: #fbfaf7; border: 1px solid #f0ece4; border-radius: 12px;
+        padding: 10px 14px; margin-bottom: 8px;
+    }
+    .vst { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 750; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot.g { background: #34a853; }
+    .vrole { font-size: 13px; font-weight: 750; color: #1a1a1a; }
+    .vmeta .l { font-size: 10px; font-weight: 700; color: #8b8b8b; }
+    .vmeta .v { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+    .menu3 { color: #8b8b8b; font-weight: 800; text-align: center; cursor: pointer; }
+    .linkline { font-size: 12.5px; font-weight: 650; color: #2374b7; margin-top: 4px; cursor: pointer; }
+
+    /* Dokumente */
+    .hint {
+        background: #fdf6e7; border: 1px solid #f5e3b8; border-radius: 11px;
+        padding: 10px 14px; font-size: 13px; color: #7a5c14; font-weight: 600;
+        display: flex; align-items: center; gap: 9px; margin-bottom: 10px;
+    }
+    .docrow {
+        display: flex; align-items: center; gap: 12px;
+        border: 1px solid #f0ece4; border-radius: 12px;
+        padding: 10px 14px; margin-bottom: 8px; background: #fbfaf7;
+    }
+    .docrow .dn { flex: 1; font-size: 13.5px; font-weight: 700; color: #1a1a1a; }
+    .docrow .dm { font-size: 12px; color: #8b8b8b; font-weight: 600; }
+    .docrow .dm b { color: #3f3f3f; }
+    .dbtn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid rgba(140,132,120,.28); background: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #64748b; cursor: pointer; }
+
+    .democover {
+        position: fixed; right: 16px; bottom: 14px;
+        background: #1a1a1a; color: #fff; font-size: 11.5px; font-weight: 700;
+        padding: 6px 14px; border-radius: 9px; opacity: .85; letter-spacing: .03em;
+    }
+</style>
+</head>
+<body>
+
+    <!-- Icon-Rail (Deko) -->
+    <div class="rail">
+        <div class="logo">OC</div>
+        <div class="ric active">👥</div>
+        <div class="ric">📅</div>
+        <div class="ric">📄</div>
+        <div class="ric">💬</div>
+        <div class="ric">📊</div>
+        <div class="spacer"></div>
+        <div class="ric">⚙️</div>
+        <div class="ric">?</div>
+        <div class="avatar-me">AD</div>
+    </div>
+
+    <!-- MA-Liste -->
+    <div class="malist">
+        <h1>Mitarbeiter</h1>
+        <div class="search">🔍 Suchen...</div>
+        <div class="btn-new">＋ Neuer MA aus easy@work</div>
+        <div class="seg"><div class="on">Alle</div><div>Aktive</div><div>Inaktive</div></div>
+        <div class="marows">
+            <div class="marow sel"><div><div class="nm">Andreja Angjelkoska</div><div class="nr">750060</div></div><span class="chip mtp">MTP</span></div>
+            <div class="marow"><div><div class="nm">Angela Atanasovski</div><div class="nr">750223</div></div><span class="chip mtp">MTP</span></div>
+            <div class="marow"><div><div class="nm">Anita Djonlagic</div><div class="nr">750102</div></div><span class="chip fixm">FIX-M</span></div>
+            <div class="marow"><div><div class="nm">Arbesa Behdjeti</div><div class="nr">750215</div></div><span class="chip flex">FLEX</span></div>
+            <div class="marow"><div><div class="nm">Arman Djonlagic</div><div class="nr">750103</div></div><span class="chip flex">FLEX</span></div>
+            <div class="marow"><div><div class="nm">Atifete Berisha</div><div class="nr">750216</div></div><span class="chip flex">FLEX</span></div>
+            <div class="marow"><div><div class="nm">Azbije Ponik</div><div class="nr">750224</div></div><span class="chip mtp">MTP</span></div>
+            <div class="marow"><div><div class="nm">Beza Kassahun Mamo</div><div class="nr">750105</div></div><span class="chip flex">FLEX</span></div>
+            <div class="marow"><div><div class="nm">Bojana Zafirov</div><div class="nr">750108</div></div><span class="chip flex">FLEX</span></div>
+            <div class="marow"><div><div class="nm">Carmensitta Rattaggis</div><div class="nr">750110</div></div><span class="chip mtp">MTP</span></div>
+            <div class="marow"><div><div class="nm">Crystal Tyra Raubald</div><div class="nr">750112</div></div><span class="chip flex">FLEX</span></div>
+            <div class="marow"><div><div class="nm">Daniela Dedaj</div><div class="nr">750114</div></div><span class="chip mtp">MTP</span></div>
+            <div class="marow"><div><div class="nm">Daniela Nikollaj</div><div class="nr">750115</div></div><span class="chip fixm">FIX-M</span></div>
+            <div class="marow"><div><div class="nm">Dep Nguyen</div><div class="nr">750117</div></div><span class="chip flex">FLEX</span></div>
+        </div>
+        <div class="pager"><span>1–25 von 142 Mitarbeitern</span><span>‹ ›</span></div>
+    </div>
+
+    <!-- Hauptbereich -->
+    <div class="main">
+
+        <!-- Kopf-Card -->
+        <div class="headcard">
+            <div class="avatar">AA</div>
+            <div class="mid">
+                <div class="nameline">
+                    <h2>Andreja Angjelkoska</h2>
+                    <span class="pnr">750060</span>
+                </div>
+                <div class="badges">
+                    <span class="badge ok">● Aktiv</span>
+                    <span class="badge mut">🤰 Mutterschaft</span>
+                </div>
+                <div class="factrow">
+                    <div class="fact"><div class="fl">EINTRITT</div><div class="fv">18.01.2025</div></div>
+                    <div class="fact"><div class="fl">GEBURTSTAG</div><div class="fv">12.02.2001 <span style="color:#8b8b8b;font-weight:600">(25 J.)</span></div></div>
+                    <div class="fact"><div class="fl">RESTAURANT</div><div class="fv"><span class="pill">Triengen</span></div></div>
+                    <div class="fact"><div class="fl">VERTRAG</div><div class="fv">CREW</div></div>
+                    <div class="fact"><div class="fl">KANTON / LAND</div><div class="fv">LU – Luzern / CH</div></div>
+                </div>
+            </div>
+            <div class="headbtns">
+                <div class="hbtn">@ easy@work synchronisieren</div>
+                <div class="hbtn">🔒 Postfach-Passwort</div>
+                <div class="hbtn">▦ Onboarding-QR</div>
+                <div class="hbtn">👤 Face ID zurücksetzen</div>
+            </div>
+        </div>
+
+        <!-- Tab-Bar -->
+        <div class="tabbar">
+            <div class="tab active">🏠 Übersicht</div>
+            <div class="tab">👤 Person &amp; Kontakt</div>
+            <div class="tab">💼 Anstellung</div>
+            <div class="tab">🗓 Absenzen &amp; Zeiten</div>
+            <div class="tab">📁 Dokumente &amp; Verträge</div>
+            <div class="tab">💳 Finanzen &amp; Bewilligung</div>
+        </div>
+
+        <!-- Karten-Grid -->
+        <div class="grid">
+
+            <!-- Personalien -->
+            <div class="card">
+                <div class="card-h"><div class="t"><span class="ic">👤</span> Personalien</div></div>
+                <div class="fgrid">
+                    <div class="f"><div class="l">ANREDE</div><div class="v">Frau</div></div>
+                    <div class="f"><div class="l">NAME</div><div class="v">Angjelkoska</div></div>
+                    <div class="f"><div class="l">VORNAME</div><div class="v">Andreja</div></div>
+                    <div class="f"><div class="l">BRIEFANREDE</div><div class="v">Liebe Andreja</div></div>
+                    <div class="f"><div class="l">ZIVILSTAND</div><div class="v">Verheiratet</div></div>
+                    <div class="f"><div class="l">NATIONALITÄT</div><div class="v">Mazedonien <span class="code">(MK)</span></div></div>
+                    <div class="f"><div class="l">GESCHLECHT</div><div class="v">Weiblich</div></div>
+                    <div class="f"></div>
+                </div>
+            </div>
+
+            <!-- Kontakt & Adresse -->
+            <div class="card">
+                <div class="card-h"><div class="t"><span class="ic">📞</span> Kontakt &amp; Adresse</div><div class="act">📍</div></div>
+                <div class="fgrid c2">
+                    <div class="f"><div class="l">ADRESSE</div></div>
+                    <div class="f"><div class="v">Wintermatte 4, 6234 Triengen</div></div>
+                    <div class="f"><div class="l">TELEFON 1</div></div>
+                    <div class="f"><div class="v">+41 76 628 58 68</div></div>
+                    <div class="f"><div class="l">E-MAIL</div></div>
+                    <div class="f"><div class="v">andreja682@gmail.com</div></div>
+                </div>
+            </div>
+
+            <!-- Anstellung -->
+            <div class="card">
+                <div class="card-h"><div class="t"><span class="ic">💼</span> Anstellung</div></div>
+                <div class="fgrid">
+                    <div class="f"><div class="l">EINTRITTSDATUM</div><div class="v">18.01.2025</div></div>
+                    <div class="f"><div class="l">PENSUM (L-GAV)</div><div class="v">80 %</div></div>
+                    <div class="f"><div class="l">GEKÜNDIGT AM</div><div class="v soft">–</div></div>
+                    <div class="f"><div class="l">KÜNDIGUNG PER</div><div class="v soft">–</div></div>
+                    <div class="f"><div class="l">RESTAURANT</div><div class="v"><span class="pill" style="background:#f1ede5;border-radius:7px;padding:1px 9px">Triengen</span></div></div>
+                    <div class="f"><div class="l">STEMPELZEITEN</div><div class="v">Ja</div></div>
+                    <div class="f"><div class="l">KANTON</div><div class="v">LU – Luzern</div></div>
+                    <div class="f"><div class="l">ZEMIS-NR.</div><div class="v">22952410</div></div>
+                </div>
+            </div>
+
+            <!-- Nachtarbeit -->
+            <div class="card">
+                <div class="card-h"><div class="t"><span class="ic">🌙</span> Nachtarbeit</div></div>
+                <div class="fgrid">
+                    <div class="f"><div class="l">AUSGESTELLT</div><div class="v">10.01.2025</div></div>
+                    <div class="f"><div class="l">GÜLTIG BIS</div><div class="v">30.09.2027</div></div>
+                    <div class="f"><div class="l">ARZTFORMULAR</div><div class="v"><span class="tag-ok">✓ Vorhanden</span></div></div>
+                    <div class="f"><div class="l">AUSNAHMEREGELUNG</div><div class="v"><span class="tag-min">–</span></div></div>
+                </div>
+            </div>
+
+            <!-- Verträge -->
+            <div class="card">
+                <div class="card-h"><div class="t"><span class="ic">📄</span> Verträge</div><div class="act">＋</div></div>
+                <div class="vrow">
+                    <div class="vst"><span class="dot g"></span> Aktiv</div>
+                    <div class="vrole">CREW</div>
+                    <div><span class="chip mtp">aktiv</span></div>
+                    <div class="vmeta"><div class="l">SEIT</div><div class="v">01.01.2026</div></div>
+                    <div class="vmeta"><div class="l">PENSUM</div><div class="v">80 %</div></div>
+                    <div class="vmeta"><div class="l">LOHN</div><div class="v">CHF 20.40 / h</div></div>
+                    <div class="menu3">⋮</div>
+                </div>
+                <div class="vrow" style="opacity:.75">
+                    <div class="vst" style="color:#8b8b8b"><span class="dot" style="background:#b9b2a6"></span> Archiviert</div>
+                    <div class="vrole">CREW</div>
+                    <div><span class="chip" style="background:#f1f5f9;color:#94a3b8">archiviert</span></div>
+                    <div class="vmeta"><div class="l">VON / BIS</div><div class="v">15.05. – 31.12.2025</div></div>
+                    <div class="vmeta"><div class="l">PENSUM</div><div class="v">80 %</div></div>
+                    <div class="vmeta"><div class="l">LOHN</div><div class="v">CHF 20.36 / h</div></div>
+                    <div class="menu3">⋮</div>
+                </div>
+                <div class="linkline">Alle Verträge anzeigen</div>
+            </div>
+
+            <!-- Dokumente / Hinweise -->
+            <div class="card">
+                <div class="card-h"><div class="t"><span class="ic">📁</span> Dokumente / Hinweise</div><div class="act">＋ Dokument hinzufügen</div></div>
+                <div class="hint">ⓘ Keine offenen Hinweise oder Dokumente.</div>
+                <div class="docrow">
+                    <span style="color:#2f7d32">📄</span>
+                    <div class="dn">Arbeitsvertrag</div>
+                    <div class="dm">Erstellt am <b>18.01.2025</b></div>
+                    <div class="dbtn">⬇</div><div class="dbtn">⋮</div>
+                </div>
+                <div class="docrow">
+                    <span style="color:#2f7d32">📄</span>
+                    <div class="dn">Nachtarbeitsbewilligung</div>
+                    <div class="dm">Gültig bis <b>30.09.2027</b></div>
+                    <div class="dbtn">⬇</div><div class="dbtn">⋮</div>
+                </div>
+                <div class="linkline">Alle Dokumente anzeigen</div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="democover">PROTOTYP — nur Darstellung, keine echten Daten</div>
+
+</body>
+</html>
