@@ -8638,12 +8638,12 @@ function _ktgFmtChf(n, dec = 2) {
     });
 }
 
-function _ktgBadgeHtml(regel) {
+function _ktgBadgeHtml(regel, compact = false) {
     if (regel === 'MANUELL')
         return `<span class="ktg-badge ktg-badge-man">MANUELL</span>`;
     if (regel === 'A')
-        return `<span class="ktg-badge ktg-badge-a">REGEL A · Hochrechnung</span>`;
-    return `<span class="ktg-badge ktg-badge-b">REGEL B · Durchschnitt</span>`;
+        return `<span class="ktg-badge ktg-badge-a">${compact ? 'REGEL A' : 'REGEL A · Hochrechnung'}</span>`;
+    return `<span class="ktg-badge ktg-badge-b">${compact ? 'REGEL B' : 'REGEL B · Durchschnitt'}</span>`;
 }
 
 function _ktgBreakdownHtml(d) {
@@ -8760,8 +8760,10 @@ function _ktgOverrideBtnHtml(d) {
 function renderKtgTagessatzHtml(d, mode = 'full') {
     const fmt = _ktgFmtChf;
     const vs = d.vertragsStart ? new Date(d.vertragsStart).toLocaleDateString('de-CH') : '—';
-    const badge = _ktgBadgeHtml(d.regel);
-    const meta = `Vertrag <b>${d.vertragsModell || '?'}</b> seit ${vs} · ${d.anzahlPerioden} Periode${d.anzahlPerioden === 1 ? '' : 'n'}`;
+    const badge = _ktgBadgeHtml(d.regel, mode === 'compact');
+    const meta = mode === 'compact'
+        ? `<b>${d.vertragsModell || '?'}</b> · ${vs} · ${d.anzahlPerioden} Per.`
+        : `Vertrag <b>${d.vertragsModell || '?'}</b> seit ${vs} · ${d.anzahlPerioden} Periode${d.anzahlPerioden === 1 ? '' : 'n'}`;
 
     if (mode === 'compact') {
         return `
