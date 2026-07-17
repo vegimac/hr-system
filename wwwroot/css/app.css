@@ -3454,6 +3454,102 @@
         /* Dark-Mode */
         body.theme-dark .ov-card { background: rgba(23, 36, 49, 0.94); border-color: rgba(122, 145, 165, 0.25); }
         body.theme-dark .ov-card-h { color: #f2f5f8; }
+
+        /* ══ Absenzen + KTG-Tagessatz zweispaltig (Walter 17.07.2026) ══ */
+        .abs-ktg-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+            gap: 16px;
+            align-items: start;
+        }
+        @media (max-width: 1100px) {
+            .abs-ktg-layout { grid-template-columns: 1fr; }
+            .abs-ktg-side { position: static; }
+        }
+        .abs-ktg-main { min-width: 0; }
+        .abs-ktg-side {
+            position: sticky;
+            top: 8px;
+            min-width: 0;
+        }
+        .ktg-side-card {
+            background: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(60, 55, 48, 0.06);
+            overflow: hidden;
+        }
+        .ktg-panel-h {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+        .ktg-panel-title { font-weight: 700; font-size: 14px; color: #0f172a; }
+        .ktg-panel-meta { font-size: 12px; color: #64748b; margin-bottom: 12px; line-height: 1.45; }
+        .ktg-badge {
+            padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600;
+        }
+        .ktg-badge-a { background: #fef3c7; color: #92400e; }
+        .ktg-badge-b { background: #ece9e2; color: #6b6152; }
+        .ktg-badge-man { background: #fee2e2; color: #991b1b; }
+        .ktg-rates-table {
+            width: 100%; border-collapse: collapse;
+            background: #f8fafc; border-radius: 10px; overflow: hidden;
+        }
+        .ktg-rates-table th {
+            padding: 8px 12px; text-align: left; font-size: 11px;
+            color: #64748b; font-weight: 600; background: #f1f5f9;
+        }
+        .ktg-rates-table th:last-child,
+        .ktg-rates-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+        .ktg-rates-table td {
+            padding: 10px 12px; font-size: 13px; color: #334155;
+            border-top: 1px solid #e2e8f0; font-family: ui-monospace, Menlo, Consolas, monospace;
+        }
+        .ktg-rates-table td:first-child { font-family: inherit; }
+        .ktg-rates-table tr.ktg-row-88 { background: #fef3c7; }
+        .ktg-rates-table tr.ktg-row-88 td { font-weight: 700; color: #92400e; border-top-color: #f1f5f9; }
+        .ktg-rates-table tr.ktg-row-80 { background: #dcfce7; }
+        .ktg-rates-table tr.ktg-row-80 td { font-weight: 700; color: #15803d; border-top-color: #f1f5f9; }
+        .ktg-rates-table tr.ktg-row-muted td {
+            font-size: 11.5px; color: #64748b; font-style: italic;
+            font-family: inherit; font-weight: 500; background: #f1f5f9;
+        }
+        .ktg-panel-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
+        .ktg-ov-btn { font-size: 11.5px !important; padding: 5px 12px !important; }
+        .ktg-details { margin-top: 10px; font-size: 12px; color: #475569; }
+        .ktg-details summary {
+            cursor: pointer; font-weight: 600; color: #64748b; padding: 4px 0;
+            list-style: none;
+        }
+        .ktg-details summary::-webkit-details-marker { display: none; }
+        .ktg-details summary::before { content: '▸ '; }
+        .ktg-details[open] summary::before { content: '▾ '; }
+        .ktg-compact-top { margin-bottom: 6px; }
+        .ktg-compact-meta { font-size: 11.5px; color: #64748b; margin-bottom: 10px; line-height: 1.4; }
+        .ktg-compact-rows { display: flex; flex-direction: column; gap: 6px; }
+        .ktg-compact-rows > div {
+            display: flex; justify-content: space-between; align-items: baseline;
+            font-size: 13px; color: #334155;
+        }
+        .ktg-compact-rows strong { font-variant-numeric: tabular-nums; font-weight: 750; color: #0f172a; }
+        .ktg-compact-rows .r88 strong { color: #92400e; }
+        .ktg-compact-rows .r80 strong { color: #15803d; }
+        .ktg-compact-rows .muted { color: #94a3b8; }
+        .ktg-tab-hint {
+            margin: 0 0 10px; padding: 8px 12px; border-radius: 10px;
+            background: #f6f3ee; border: 1px solid #e5e0d6;
+            font-size: 12.5px; color: #646464;
+        }
+        .ktg-tab-hint-link {
+            background: none; border: none; padding: 0; cursor: pointer;
+            color: #3f3f3f; font-weight: 700; text-decoration: underline;
+            font: inherit;
+        }
+        body.theme-dark .ktg-side-card { background: rgba(23, 36, 49, 0.94); border-color: rgba(122, 145, 165, 0.25); }
+        body.theme-dark .ktg-panel-title { color: #f2f5f8; }
+        body.theme-dark .ktg-rates-table,
+        body.theme-dark .ktg-rates-table th { background: rgba(255,255,255,.04); }
+        body.theme-dark .ktg-tab-hint { background: rgba(255,255,255,.04); border-color: rgba(122,145,165,.25); color: #cbd5e1; }
         body.theme-dark .ov-fv { color: #f2f5f8; }
         body.theme-dark .ov-vrow, body.theme-dark .ov-drow { background: rgba(255,255,255,.05); border-color: rgba(122,145,165,.2); }
         body.theme-dark .ov-vrole, body.theme-dark .ov-dname { color: #f2f5f8; }

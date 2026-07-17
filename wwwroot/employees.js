@@ -1130,14 +1130,24 @@ function renderEmployeeDetail(emp) {
         <!-- TAB: Absenzen — Walter-Vorgabe 26.05.2026: vom alten kombinierten
              „Absenzen Zulagen Abzüge"-Tab abgetrennt; Zulagen/Abzüge sind
              jetzt ein eigener Tab.
-             Zeiten-Kombi (17.07.2026) wieder zurückgenommen — eigene Tabs. -->
+             Walter 17.07.2026: zweispaltig — Absenzen links scrollen,
+             KTG/UVG-Tagessatz schmal rechts (Arbeitsplatz Krank/Unfall). -->
         <div class="emp-tab-content" id="emp-tab-absenzen">
-            <div class="emp-section-title">${_t('abs.section.absences','Absenzen')}</div>
-            <div id="absenzenContent">
-                <div class="emp-placeholder">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span>
+            <div class="abs-ktg-layout">
+                <div class="abs-ktg-main">
+                    <div class="emp-section-title">${_t('abs.section.absences','Absenzen')}</div>
+                    <div id="absenzenContent">
+                        <div class="emp-placeholder">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span>
+                        </div>
+                    </div>
                 </div>
+                <aside class="abs-ktg-side" aria-label="KTG/UVG-Tagessatz">
+                    <div id="ktgTagessatzSidebar">
+                        <div class="emp-placeholder" style="padding:24px 12px"><span>${_t('ma.loading','Wird geladen...')}</span></div>
+                    </div>
+                </aside>
             </div>
         </div>
 
@@ -1190,9 +1200,11 @@ function renderEmployeeDetail(emp) {
 
 <!-- TAB: KTG/UVG -->
 <!-- Walter-Vorgabe 27.05.2026: Arbeitslosigkeit (ALV-Meldungen) hier entfernt
-     — wird im HR-Modul gepflegt, gehört nicht ins MA-Detail. -->
+     — wird im HR-Modul gepflegt, gehört nicht ins MA-Detail.
+     Walter 17.07.2026: Arbeitsplatz ist jetzt Absenzen-Tab (rechts);
+     dieser Tab bleibt als Detail-/Formel-Ansicht. -->
         <div class="emp-tab-content" id="emp-tab-ktg">
-          <!-- KTG-/UVG-Durchschnitt (Tagessatz nach Spezialistenvorgabe) -->
+          <div class="ktg-tab-hint">Arbeitsplatz Krank/Unfall: Tagessatz steht auch rechts im Tab <button type="button" class="ktg-tab-hint-link" onclick="switchEmpTab('absenzen')">Absenzen</button>.</div>
           <div id="ktgDurchschnittContent">
             <div style="padding:40px;text-align:center;color:#94a3b8">${_t('ma.loading','Wird geladen...')}</div>
           </div>
@@ -1404,19 +1416,25 @@ function loadUebersichtTab() {
     // SMS-/Link-Feedback-Container fuer die Uebersicht (Klasse statt ID —
     // der Personal-Strip hat seinen eigenen; siehe contractShareBox-Lookup).
     const vShare = '<div class="contractShareBox" style="margin:8px 0 0"></div>';
+    // Vertraege schmaler (Walter 17.07.2026): nicht mehr volle Breite —
+    // daneben die kompakte KTG/UVG-Tagessatz-Karte (vor allem MTP/FLEX).
     const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vRows + vShare + (contracts.length > 3 ? `<div class="ov-more" onclick="switchEmpTab('personal')">Alle Verträge anzeigen</div>` : ''));
+    const kKtg = _ovCard('KTG/UVG-Tagessatz', 'absenzen', 'Zu Absenzen & Tagessatz',
+        `<div id="ovKtgContent"><div class="ov-empty" style="padding:6px 0">Wird geladen…</div></div>`);
 
     // Dokumente-Karte entfernt (Walter 17.07.2026) — Dokumente haben wie
     // gehabt ihren eigenen Bereich (Tab «Dokumente»).
     // Weitere Adressen (Fussbereich der Personalien-Karte) nachladen.
 
     // Personalien & Adresse ueber die VOLLE Breite (wichtigster Block),
-    // darunter Anstellung | Nachtarbeit, dann Vertraege volle Breite.
+    // darunter Anstellung | Nachtarbeit, dann Vertraege | Tagessatz.
     el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
         ? `<div class="ov-full">${kPers}</div>`
-        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-full">${kVert}</div>`}</div>`;
+        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}${kVert}${kKtg}`}</div>`;
     if (!emp.isPayrollExcluded && typeof loadEmployeeAddressesTab === 'function')
         loadEmployeeAddressesTab(emp.id);
+    if (!emp.isPayrollExcluded && typeof loadKtgTab === 'function')
+        loadKtgTab(emp.id);
 }
 
 // Inline-Edit in der Uebersicht (Walter 17.07.2026): Werte in die ef-*-
@@ -1673,7 +1691,11 @@ function switchEmpTab(tab) {
     }
     if (tab === 'verwarnungen'   && selectedEmployeeId) loadVerwarnungenTab(selectedEmployeeId);
     if (tab === 'stempelzeiten'  && selectedEmployeeId) loadStempelzeitenTab(selectedEmployeeId);
-    if (tab === 'absenzen'       && selectedEmployeeId) loadAbsenzenTab(selectedEmployeeId);
+    if (tab === 'absenzen'       && selectedEmployeeId) {
+        loadAbsenzenTab(selectedEmployeeId);
+        // Tagessatz rechts neben den Absenzen (Walter 17.07.2026).
+        if (typeof loadKtgTab === 'function') loadKtgTab(selectedEmployeeId);
+    }
     if (tab === 'verfuegbarkeit' && selectedEmployeeId && typeof loadVerfuegbarkeitTab === 'function') loadVerfuegbarkeitTab(selectedEmployeeId);
     if (tab === 'zulagen'        && selectedEmployeeId) {
         // Walter-Vorgabe 26.05.2026: BVG-Zusatz + Recurring + Lohnabtretungen
@@ -8606,10 +8628,190 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
 // TAB: KTG/UVG – Tagessatz nach Spezialistenvorgabe
 // Regel A (≤ 4 Perioden seit Vertragsstart): Hochrechnung aus Vertrag
 // Regel B (≥ 4 Perioden):                    Durchschnitt aus AHV-Brutto (+ Mehrstunden bei MTP)
+// Walter 17.07.2026: gleiche Rechnung an drei Orten —
+//   full  = Tab «KTG/UVG»
+//   side  = Absenzen-Tab rechts (Arbeitsplatz Krank/Unfall)
+//   compact = Übersicht-Karte neben Verträge
+function _ktgFmtChf(n, dec = 2) {
+    return Number(n || 0).toLocaleString('de-CH', {
+        minimumFractionDigits: dec, maximumFractionDigits: dec
+    });
+}
+
+function _ktgBadgeHtml(regel) {
+    if (regel === 'MANUELL')
+        return `<span class="ktg-badge ktg-badge-man">MANUELL</span>`;
+    if (regel === 'A')
+        return `<span class="ktg-badge ktg-badge-a">REGEL A · Hochrechnung</span>`;
+    return `<span class="ktg-badge ktg-badge-b">REGEL B · Durchschnitt</span>`;
+}
+
+function _ktgBreakdownHtml(d) {
+    const bd = d.breakdown || {};
+    const fmt = _ktgFmtChf;
+    const renderMonate = (titel, istBerechnungsbasis) => {
+        const monate = bd.monate || [];
+        if (monate.length === 0) return '';
+        const rows = monate.map(m => `
+            <tr style="border-top:1px solid #f1f5f9">
+                <td style="padding:6px 10px;font-size:12px;color:#475569">${m.monatName} ${m.jahr}</td>
+                <td style="padding:6px 10px;font-size:12px;text-align:right;font-family:monospace">CHF ${fmt(m.brutto)}</td>
+            </tr>`).join('');
+        const avg = monate.reduce((s, m) => s + Number(m.brutto), 0) / monate.length;
+        const footer = istBerechnungsbasis
+            ? `<tr style="border-top:2px solid #e2e8f0;background:#f6f3ee">
+                   <td style="padding:8px 10px;font-size:12px;font-weight:700;color:#6b7280">Ø pro Monat</td>
+                   <td style="padding:8px 10px;font-size:12px;text-align:right;font-family:monospace;font-weight:700;color:#6b7280">CHF ${fmt(avg)}</td>
+               </tr>`
+            : '';
+        return `
+            <div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155">
+                <div style="font-weight:600;margin-bottom:6px">${titel}</div>
+                <table style="width:100%;border-collapse:collapse">
+                    <tbody>${rows}</tbody>
+                    ${footer ? `<tfoot>${footer}</tfoot>` : ''}
+                </table>
+            </div>`;
+    };
+
+    let breakdownHtml = '';
+    if (d.regel === 'A') {
+        if (d.vertragsModell === 'FIX' || d.vertragsModell === 'FIX-M') {
+            breakdownHtml = `
+                <div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155">
+                    <div><b>Monatslohn:</b> CHF ${fmt(bd.monatsLohn)}</div>
+                    <div style="margin-top:4px;color:#64748b">Formel: Monatslohn × 12 ÷ 365 = Tagessatz 100 %</div>
+                </div>`;
+        } else {
+            breakdownHtml = `
+                <div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155;line-height:1.7">
+                    <div><b>Stundenlohn (Basis):</b> CHF ${fmt(bd.stundenlohnBasis, 2)}</div>
+                    <div>+ Ferien ${fmt(bd.ferienPct, 2)} %, + Feiertag ${fmt(bd.feiertagPct, 2)} %, + 13. ML ${fmt(bd.zehnterMLPct, 2)} %</div>
+                    <div><b>= Brutto-Stundenlohn:</b> CHF ${fmt(bd.stundenlohnBrutto, 4)}</div>
+                    <div style="margin-top:6px"><b>Wochenstunden:</b> ${fmt(bd.wochenStunden, 2)} h (${d.vertragsModell === 'MTP' ? 'garantiert' : 'FLEX aus Filiale'})</div>
+                    <div style="margin-top:4px;color:#64748b">Formel: Wochenstunden × Std-Lohn brutto × 52 ÷ 365 = Tagessatz 100 %</div>
+                </div>`;
+        }
+        breakdownHtml += renderMonate(
+            `ℹ️ Bisherige Lohnperioden <span style="font-weight:400;color:#64748b">(zur Information — flie\u00dft bei Regel A nicht in die Berechnung ein)</span>`,
+            false
+        );
+    } else if (d.regel !== 'MANUELL') {
+        const monate = bd.monate || [];
+        breakdownHtml = renderMonate(
+            `AHV-Brutto der letzten ${monate.length} Perioden`,
+            true
+        );
+        if (d.vertragsModell === 'MTP') {
+            breakdownHtml += `
+                <div style="margin-top:8px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155;line-height:1.7">
+                    <div style="font-weight:600;margin-bottom:4px">MTP-Aufteilung:</div>
+                    <div>Garantie-Basis/Monat: CHF ${fmt(bd.garantieBasisMonat)} &rarr; Tagessatz CHF ${fmt(bd.garantieTagessatz)}</div>
+                    <div>Ø Mehrstunden/Monat (brutto): CHF ${fmt(bd.mehrstundenAnteilMonat)} &rarr; Tagessatz CHF ${fmt(bd.mehrstundenTagessatz)}</div>
+                </div>`;
+        }
+        breakdownHtml += `
+            <div style="margin-top:4px;font-size:12px;color:#64748b;padding:0 16px">
+                Formel: Ø × 12 ÷ 365 = Tagessatz 100 %${d.vertragsModell === 'MTP' ? ' (Garantie- und Mehrstunden-Anteil summiert)' : ''}
+            </div>`;
+    }
+    return breakdownHtml;
+}
+
+function _ktgRatesTableHtml(d) {
+    const fmt = _ktgFmtChf;
+    return `
+        <table class="ktg-rates-table">
+            <thead>
+                <tr>
+                    <th>TAGESSATZ</th>
+                    <th>CHF / TAG</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>100 %</td>
+                    <td>CHF ${fmt(d.tagessatz100)}</td>
+                </tr>
+                ${d.karenzAbgeschlossen ? `
+                <tr class="ktg-row-muted">
+                    <td colspan="2">88 % — Karenz übersprungen (altes System)</td>
+                </tr>
+                ` : `
+                <tr class="ktg-row-88">
+                    <td>88 % — Karenzfrist</td>
+                    <td>CHF ${fmt(d.tagessatz88)}</td>
+                </tr>
+                `}
+                <tr class="ktg-row-80">
+                    <td>80 % — Meldebetrag</td>
+                    <td>CHF ${fmt(d.tagessatz80)}</td>
+                </tr>
+            </tbody>
+        </table>`;
+}
+
+function _ktgOverrideBtnHtml(d) {
+    const empId = selectedEmployee?.id || 0;
+    const manuell = d.regel === 'MANUELL' ? d.tagessatz100 : '';
+    return `<button class="btn btn-outline ktg-ov-btn" onclick="openKtgOverrideModal(${empId}, ${d.tagessatz100 || 0}, ${d.karenzAbgeschlossen ? 'true' : 'false'}, '${manuell}')">✎ Tagessatz übersteuern…</button>`;
+}
+
+function renderKtgTagessatzHtml(d, mode = 'full') {
+    const fmt = _ktgFmtChf;
+    const vs = d.vertragsStart ? new Date(d.vertragsStart).toLocaleDateString('de-CH') : '—';
+    const badge = _ktgBadgeHtml(d.regel);
+    const meta = `Vertrag <b>${d.vertragsModell || '?'}</b> seit ${vs} · ${d.anzahlPerioden} Periode${d.anzahlPerioden === 1 ? '' : 'n'}`;
+
+    if (mode === 'compact') {
+        return `
+            <div class="ktg-compact">
+                <div class="ktg-compact-top">${badge}</div>
+                <div class="ktg-compact-meta">${meta}</div>
+                <div class="ktg-compact-rows">
+                    <div><span>100 %</span><strong>CHF ${fmt(d.tagessatz100)}</strong></div>
+                    ${d.karenzAbgeschlossen
+                        ? `<div class="muted"><span>88 %</span><strong>übersprungen</strong></div>`
+                        : `<div class="r88"><span>88 %</span><strong>CHF ${fmt(d.tagessatz88)}</strong></div>`}
+                    <div class="r80"><span>80 %</span><strong>CHF ${fmt(d.tagessatz80)}</strong></div>
+                </div>
+                <button type="button" class="ov-more" style="margin-top:8px;border:none;background:none;padding:0;cursor:pointer;text-align:left"
+                        onclick="switchEmpTab('absenzen')">Bei Absenzen anzeigen →</button>
+            </div>`;
+    }
+
+    const breakdown = _ktgBreakdownHtml(d);
+    const pad = mode === 'side' ? '12px 14px' : '20px';
+    const title = mode === 'side' ? 'KTG/UVG-Tagessatz' : '📊 KTG/UVG-Tagessatz';
+    const details = mode === 'side'
+        ? (breakdown
+            ? `<details class="ktg-details"><summary>Berechnung anzeigen</summary>${breakdown}</details>`
+            : '')
+        : breakdown;
+
+    return `
+        <div class="ktg-panel ktg-panel-${mode}" style="padding:${pad}">
+            <div class="ktg-panel-h">
+                <div class="ktg-panel-title">${title}</div>
+                ${badge}
+            </div>
+            <div class="ktg-panel-meta">${meta}</div>
+            ${_ktgRatesTableHtml(d)}
+            <div class="ktg-panel-actions">${_ktgOverrideBtnHtml(d)}</div>
+            ${details}
+        </div>`;
+}
+
 async function loadKtgTab(employeeId) {
-    const el = document.getElementById('ktgDurchschnittContent');
-    if (!el) return;
-    el.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Lade…</div>';
+    const targets = [
+        document.getElementById('ktgDurchschnittContent'),
+        document.getElementById('ktgTagessatzSidebar'),
+        document.getElementById('ovKtgContent')
+    ].filter(Boolean);
+    if (!targets.length || !employeeId) return;
+
+    const setAll = (html) => { targets.forEach(el => { el.innerHTML = html; }); };
+    setAll('<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>');
 
     try {
         const cid = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
@@ -8618,7 +8820,7 @@ async function loadKtgTab(employeeId) {
             ? selectedCompanyProfile.id
             : null;
         if (!cid) {
-            el.innerHTML = '<div style="padding:20px;color:#94a3b8">Bitte Filiale wählen.</div>';
+            setAll('<div style="padding:16px;color:#94a3b8;font-size:13px">Bitte Filiale wählen.</div>');
             return;
         }
 
@@ -8626,152 +8828,24 @@ async function loadKtgTab(employeeId) {
             { headers: { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` } });
 
         if (res.status === 404) {
-            el.innerHTML = `<div style="padding:28px;text-align:center;color:#94a3b8">
-                <div style="font-size:28px;margin-bottom:8px">📊</div>
-                <div style="font-size:13px">Kein aktives Anstellungsverhältnis gefunden.</div>
-            </div>`;
+            const miss = `<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Kein aktives Anstellungsverhältnis gefunden.</div>`;
+            setAll(miss);
             return;
         }
         if (!res.ok) {
-            el.innerHTML = `<div style="padding:20px;color:#dc2626">Fehler ${res.status}</div>`;
+            setAll(`<div style="padding:16px;color:#dc2626;font-size:13px">Fehler ${res.status}</div>`);
             return;
         }
 
-        const d  = await res.json();
-        const bd = d.breakdown || {};
-        const fmt = (n, dec = 2) => Number(n || 0).toLocaleString('de-CH', {
-            minimumFractionDigits: dec, maximumFractionDigits: dec
-        });
-
-        // Vertragsstart-Datum aus ISO-String
-        const vs   = d.vertragsStart ? new Date(d.vertragsStart).toLocaleDateString('de-CH') : '—';
-        const badge = d.regel === 'MANUELL'
-            ? `<span style="background:#fee2e2;color:#991b1b;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">MANUELL · aus altem Lohnsystem</span>`
-            : d.regel === 'A'
-                ? `<span style="background:#fef3c7;color:#92400e;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">REGEL A · Hochrechnung</span>`
-                : `<span style="background:#ece9e2;color:#6b6152;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600">REGEL B · Durchschnitt</span>`;
-
-        // Hilfs-Renderer für Monatsliste (bei Regel A nur Info, bei Regel B Berechnungsgrundlage)
-        const renderMonate = (titel, istBerechnungsbasis) => {
-            const monate = bd.monate || [];
-            if (monate.length === 0) return '';
-            const rows = monate.map(m => `
-                <tr style="border-top:1px solid #f1f5f9">
-                    <td style="padding:6px 10px;font-size:12px;color:#475569">${m.monatName} ${m.jahr}</td>
-                    <td style="padding:6px 10px;font-size:12px;text-align:right;font-family:monospace">CHF ${fmt(m.brutto)}</td>
-                </tr>`).join('');
-            const avg = monate.reduce((s, m) => s + Number(m.brutto), 0) / monate.length;
-            const footer = istBerechnungsbasis
-                ? `<tr style="border-top:2px solid #e2e8f0;background:#f6f3ee">
-                       <td style="padding:8px 10px;font-size:12px;font-weight:700;color:#6b7280">Ø pro Monat</td>
-                       <td style="padding:8px 10px;font-size:12px;text-align:right;font-family:monospace;font-weight:700;color:#6b7280">CHF ${fmt(avg)}</td>
-                   </tr>`
-                : '';
-            return `
-                <div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155">
-                    <div style="font-weight:600;margin-bottom:6px">${titel}</div>
-                    <table style="width:100%;border-collapse:collapse">
-                        <tbody>${rows}</tbody>
-                        ${footer ? `<tfoot>${footer}</tfoot>` : ''}
-                    </table>
-                </div>`;
-        };
-
-        // Breakdown-Block je nach Regel
-        let breakdownHtml = '';
-        if (d.regel === 'A') {
-            // Hochrechnung
-            if (d.vertragsModell === 'FIX' || d.vertragsModell === 'FIX-M') {
-                breakdownHtml = `
-                    <div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155">
-                        <div><b>Monatslohn:</b> CHF ${fmt(bd.monatsLohn)}</div>
-                        <div style="margin-top:4px;color:#64748b">Formel: Monatslohn × 12 ÷ 365 = Tagessatz 100 %</div>
-                    </div>`;
-            } else {
-                // UTP / MTP
-                breakdownHtml = `
-                    <div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155;line-height:1.7">
-                        <div><b>Stundenlohn (Basis):</b> CHF ${fmt(bd.stundenlohnBasis, 2)}</div>
-                        <div>+ Ferien ${fmt(bd.ferienPct, 2)} %, + Feiertag ${fmt(bd.feiertagPct, 2)} %, + 13. ML ${fmt(bd.zehnterMLPct, 2)} %</div>
-                        <div><b>= Brutto-Stundenlohn:</b> CHF ${fmt(bd.stundenlohnBrutto, 4)}</div>
-                        <div style="margin-top:6px"><b>Wochenstunden:</b> ${fmt(bd.wochenStunden, 2)} h (${d.vertragsModell === 'MTP' ? 'garantiert' : 'FLEX aus Filiale'})</div>
-                        <div style="margin-top:4px;color:#64748b">Formel: Wochenstunden × Std-Lohn brutto × 52 ÷ 365 = Tagessatz 100 %</div>
-                    </div>`;
-            }
-            // Zusätzlich: bisherige Lohnperioden als Info (nicht in Berechnung)
-            breakdownHtml += renderMonate(
-                `ℹ️ Bisherige Lohnperioden <span style="font-weight:400;color:#64748b">(zur Information — flie\u00dft bei Regel A nicht in die Berechnung ein)</span>`,
-                false
-            );
-        } else {
-            // Durchschnitt: Monatsliste ist Berechnungsbasis
-            const monate = bd.monate || [];
-            breakdownHtml = renderMonate(
-                `AHV-Brutto der letzten ${monate.length} Perioden`,
-                true
-            );
-            if (d.vertragsModell === 'MTP') {
-                breakdownHtml += `
-                    <div style="margin-top:8px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155;line-height:1.7">
-                        <div style="font-weight:600;margin-bottom:4px">MTP-Aufteilung:</div>
-                        <div>Garantie-Basis/Monat: CHF ${fmt(bd.garantieBasisMonat)} &rarr; Tagessatz CHF ${fmt(bd.garantieTagessatz)}</div>
-                        <div>Ø Mehrstunden/Monat (brutto): CHF ${fmt(bd.mehrstundenAnteilMonat)} &rarr; Tagessatz CHF ${fmt(bd.mehrstundenTagessatz)}</div>
-                    </div>`;
-            }
-            breakdownHtml += `
-                <div style="margin-top:4px;font-size:12px;color:#64748b;padding:0 16px">
-                    Formel: Ø × 12 ÷ 365 = Tagessatz 100 %${d.vertragsModell === 'MTP' ? ' (Garantie- und Mehrstunden-Anteil summiert)' : ''}
-                </div>`;
-        }
-
-        el.innerHTML = `
-            <div style="padding:20px">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-                    <div style="font-weight:700;font-size:14px;color:#0f172a">📊 KTG/UVG-Tagessatz</div>
-                    ${badge}
-                </div>
-                <div style="font-size:12px;color:#64748b;margin-bottom:16px">
-                    Vertrag <b>${d.vertragsModell || '?'}</b> seit ${vs} · ${d.anzahlPerioden} abgeschlossene Periode${d.anzahlPerioden === 1 ? '' : 'n'}
-                </div>
-
-                <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:10px;overflow:hidden">
-                    <thead>
-                        <tr style="background:#f1f5f9">
-                            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#64748b;font-weight:600">TAGESSATZ</th>
-                            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#64748b;font-weight:600">CHF / TAG</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="border-top:1px solid #e2e8f0">
-                            <td style="padding:10px 12px;font-size:13px;color:#334155">100 %</td>
-                            <td style="padding:10px 12px;font-size:13px;text-align:right;font-family:monospace">CHF ${fmt(d.tagessatz100)}</td>
-                        </tr>
-                        ${d.karenzAbgeschlossen ? `
-                        <tr style="border-top:1px solid #f1f5f9;background:#f1f5f9">
-                            <td colspan="2" style="padding:8px 12px;font-size:11.5px;color:#64748b;font-style:italic">88 % — Karenzfrist (übersprungen: bereits im alten System abgelaufen)</td>
-                        </tr>
-                        ` : `
-                        <tr style="border-top:1px solid #f1f5f9;background:#fef3c7">
-                            <td style="padding:10px 12px;font-size:13px;font-weight:600;color:#92400e">88 % — Karenzfrist</td>
-                            <td style="padding:10px 12px;font-size:14px;text-align:right;font-family:monospace;font-weight:700;color:#92400e">CHF ${fmt(d.tagessatz88)}</td>
-                        </tr>
-                        `}
-                        <tr style="border-top:1px solid #f1f5f9;background:#dcfce7">
-                            <td style="padding:10px 12px;font-size:13px;font-weight:600;color:#15803d">80 % — Meldebetrag Versicherung</td>
-                            <td style="padding:10px 12px;font-size:14px;text-align:right;font-family:monospace;font-weight:700;color:#15803d">CHF ${fmt(d.tagessatz80)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div style="margin-top:10px;display:flex;justify-content:flex-end">
-                    <button class="btn btn-outline" style="font-size:11.5px;padding:5px 12px" onclick="openKtgOverrideModal(${selectedEmployee?.id || 0}, ${d.tagessatz100 || 0}, ${d.karenzAbgeschlossen ? 'true' : 'false'}, '${d.regel === 'MANUELL' ? d.tagessatz100 : ''}')">
-                        ✎ Tagessatz übersteuern…
-                    </button>
-                </div>
-
-                ${breakdownHtml}
-            </div>`;
-    } catch(e) {
-        el.innerHTML = `<div style="padding:20px;color:#dc2626">Fehler: ${e.message}</div>`;
+        const d = await res.json();
+        const main = document.getElementById('ktgDurchschnittContent');
+        const side = document.getElementById('ktgTagessatzSidebar');
+        const ov   = document.getElementById('ovKtgContent');
+        if (main) main.innerHTML = renderKtgTagessatzHtml(d, 'full');
+        if (side) side.innerHTML = `<div class="ktg-side-card">${renderKtgTagessatzHtml(d, 'side')}</div>`;
+        if (ov)   ov.innerHTML   = renderKtgTagessatzHtml(d, 'compact');
+    } catch (e) {
+        setAll(`<div style="padding:16px;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`);
     }
 }
 
