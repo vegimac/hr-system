@@ -855,11 +855,12 @@ function renderEmployeeDetail(emp) {
         else if (_m === 'FLEX' && _hcActive.weeklyHours != null)
             _hcVertragZusatz = ' · ' + Number(_hcActive.weeklyHours) + ' h/Wo.';
     }
-    // Vertrag in der OBERSTEN Zeile als neutrale Pille (Walter 17.07.2026 —
-    // kein Springen/Abschneiden mehr in der Fakten-Zeile).
-    if (_hcActive) {
-        _hcBadges.push(`<span class="emp-hbadge hb-vert"><span class="emp-contract-model ${contractModelClass(_hcActive.employmentModel || '')}" style="margin-right:2px">${esc(modelDisplay(_hcActive.employmentModel || '–'))}</span>${esc(_hcActive.jobTitle || _hcActive.jobGroupCode || '')}${_hcVertragZusatz}</span>`);
-    }
+    // Vertrag als EIGENE fixe Zeile unter dem Namen (Walter 17.07.2026,
+    // final): in der Badge-Zeile wrappte die Pille je nach Namenslaenge —
+    // jetzt hat jede Info ihren festen Platz, bei jedem MA identisch.
+    const _hcVertragLine = _hcActive
+        ? `<span class="emp-hbadge hb-vert"><span class="emp-contract-model ${contractModelClass(_hcActive.employmentModel || '')}" style="margin-right:2px">${esc(modelDisplay(_hcActive.employmentModel || '–'))}</span>${esc(_hcActive.jobTitle || _hcActive.jobGroupCode || '')}${_hcVertragZusatz}</span>`
+        : `<span class="emp-hbadge hb-inak">kein aktiver Vertrag</span>`;
     const _hcFact = (label, value) => `<div class="emp-hfact"><div class="emp-hfact-l">${label}</div><div class="emp-hfact-v">${value || '<span style="color:#8b8b8b;font-weight:500">–</span>'}</div></div>`;
 
     panel.innerHTML = `
@@ -875,6 +876,7 @@ function renderEmployeeDetail(emp) {
                     <span id="empNumberAliases" data-emp="${emp.id}"></span>
                     ${_hcBadges.join('')}
                 </div>
+                <div class="emp-hvertrag">${_hcVertragLine}</div>
                 <!-- 2x2-Grid: Eintritt|Geburtstag / Telefon|E-Mail (feste Spalten) -->
                 <div class="emp-hfacts">
                     ${_hcFact(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? entry : null)}
