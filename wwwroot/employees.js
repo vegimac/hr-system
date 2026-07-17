@@ -1269,17 +1269,20 @@ function loadUebersichtTab() {
     //    geprüfte Save-Pfad, keine doppelten DOM-IDs. ──
     const adresse = [emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
         + (emp.cantonCode ? ' ' + emp.cantonCode : '');
-    const _ovE = (label, id, value, ph = '', cls = '') => `
-        <div class="ov-f ${cls}"><div class="ov-fl">${label}</div>
-        <input id="${id}" class="ef-input" value="${esc(value)}" placeholder="${ph}" oninput="ovDirty()"></div>`;
+    // Edit-Felder im TEXT-Look (Walter 17.07.2026: grosse Input-Kaesten
+    // zerstoerten die ruhige Karte): sehen aus wie Werte, nur mit dezenter
+    // gestrichelter Unterlinie — erst bei Fokus wird der Rahmen sichtbar.
+    const _ovE = (label, id, value, ph = '') => `
+        <div class="ov-f"><div class="ov-fl">${label}</div>
+        <input id="${id}" class="ov-editin" value="${esc(value)}" placeholder="${ph}" oninput="ovDirty()" title="Klicken zum Bearbeiten"></div>`;
     const kPers = _ovCard('Personalien & Adresse', 'personal', 'Alle Details im Personal-Tab', `
         <div class="ov-grid4">
             ${_ovF(_t('ma.field.salutation','Anrede'), formatSalutation(emp.salutation))}
-            ${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'ov-span2')}
+            ${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}
             ${_ovF(_t('ma.field.maritalStatus','Zivilstand'), formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus))}
-            <div class="ov-span2">${_ovF('Adresse', esc(adresse))}</div>
-            ${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …', 'ov-span2')}
             ${_ovF(_t('ma.field.gender','Geschlecht'), formatGender(emp.gender))}
+            <div class="ov-span3">${_ovF('Adresse', esc(adresse))}</div>
+            ${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}
             ${_ovF(_t('ma.field.nationality','Nationalität'), emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality))}
             ${_ovE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}
             ${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}

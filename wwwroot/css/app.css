@@ -3271,6 +3271,27 @@
         .ov-f { min-width: 0; }
         .ov-span3 { grid-column: span 3; }
         .ov-span2 { grid-column: span 2; }
+        /* Edit-Feld im Text-Look (Walter 17.07.2026): identisch zu den
+           Read-only-Werten, nur gestrichelte Unterlinie als Hinweis —
+           Rahmen erscheint erst beim Fokus. */
+        .ov-editin {
+            width: 100%;
+            font: inherit; font-size: 14px; font-weight: 700; color: #0a0a0a;
+            background: transparent;
+            border: none;
+            border-bottom: 1px dashed rgba(140, 132, 120, 0.5);
+            border-radius: 0;
+            padding: 0 0 2px;
+            outline: none;
+        }
+        .ov-editin::placeholder { color: #b8c0ca; font-weight: 500; }
+        .ov-editin:hover { border-bottom-color: rgba(63, 63, 63, 0.55); }
+        .ov-editin:focus {
+            background: #ffffff;
+            border-bottom: 1px solid #3f3f3f;
+        }
+        body.theme-dark .ov-editin { color: #f2f5f8; border-bottom-color: rgba(255,255,255,.25); }
+        body.theme-dark .ov-editin:focus { background: rgba(13,24,35,.68); border-bottom-color: #94a3b8; }
         .ov-fl {
             font-size: 10.5px; font-weight: 700; color: #8b8b8b;
             letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 2px;
