@@ -218,15 +218,14 @@ function qstaJumpToFix(empId, section) {
         return;
     }
     // Mitarbeiter-Detail mit passendem Sub-Tab öffnen.
-    // Walter-Vorgabe 12.07.2026: die alte Verträge-Seite ist verwaist —
-    // Verträge stehen im MA-Detail unter Persönliche Angaben («Verträge»-Block).
+    // Verträge / Personalien → Übersicht (Personal-Tab entfernt 17.07.2026).
     const tabBySection = {
-        'personalien':   'personal',
+        'personalien':   'uebersicht',
         'familie':       'familie',
         'quellensteuer': 'quellensteuer',
-        'vertraege':     'personal'
+        'vertraege':     'uebersicht'
     };
-    const tab = tabBySection[section] || 'personal';
+    const tab = tabBySection[section] || 'uebersicht';
     if (typeof showPage === 'function') showPage('mitarbeiter');
     // Kurz warten bis die MA-Liste gerendert ist, dann selektieren + Tab umschalten
     setTimeout(() => {

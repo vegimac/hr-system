@@ -1111,8 +1111,8 @@ window.i18n = (function () {
                                         en: 'Interim earnings certificate (ALV 716.105) — pre-filled with time records and absences of the selected month.' },
         'zvi.field.month':           { de: 'Monat',                   en: 'Month' },
         'zvi.field.year':             { de: 'Jahr',                   en: 'Year' },
-        'zvi.info':                  { de: 'AHV-Nr. und Zivilstand müssen unter <b>Persönliche Angaben</b> hinterlegt sein. Die Stempelzeiten und Absenzen des gewählten Monats werden automatisch in die Tabelle übernommen.',
-                                        en: 'AHV number and marital status must be set under <b>Personal data</b>. Time records and absences of the selected month are taken into the table automatically.' },
+        'zvi.info':                  { de: 'AHV-Nr. und Zivilstand müssen unter <b>Übersicht</b> hinterlegt sein. Die Stempelzeiten und Absenzen des gewählten Monats werden automatisch in die Tabelle übernommen.',
+                                        en: 'AHV number and marital status must be set under <b>Overview</b>. Time records and absences of the selected month are taken into the table automatically.' },
         'zvi.modal.title':           { de: 'RAV-Zwischenverdienst',   en: 'Unemployment office: interim earnings' },
         'zvi.modal.preview.notePh':  { de: 'z.B. Zwischenverdienst Mai 2026', en: 'e.g. Interim earnings May 2026' },
 

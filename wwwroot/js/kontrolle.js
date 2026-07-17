@@ -97,14 +97,13 @@ async function kontrolleNachtRefresh() {
     }
 }
 
-/** Sprung in die Persönlichen Angaben des MA — dort steht im ANSTELLUNG-Block
- *  das Feld „Nachtarbeit ausgestellt" + Dokument-Verknüpfung. */
+/** Sprung in die Übersicht des MA — Nachtarbeit-Karte + Dokument-Verknüpfung. */
 function kontrolleOpenEmployeeNacht(empId) {
     if (!empId) return;
     window.activeEmpId = empId;
     if (typeof showPage === 'function') showPage('mitarbeiter');
     setTimeout(() => {
-        if (typeof switchEmpTab === 'function') switchEmpTab('personal');
+        if (typeof switchEmpTab === 'function') switchEmpTab('uebersicht');
     }, 300);
 }
 

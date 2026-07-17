@@ -69,7 +69,8 @@ const HELP_PAGE_BY_APP_PAGE = {
 // Tab aktiv ist, springe direkt in die passende Hilfe (statt nur auf
 // die allgemeine Mitarbeiter-Seite).
 const HELP_PAGE_BY_EMP_TAB = {
-    'personal':       'mitarbeiter',
+    'uebersicht':     'mitarbeiter',
+    'personal':       'mitarbeiter', // Alias → Übersicht (Tab entfernt)
     'familie':        'mitarbeiter',
     'bank':           'mitarbeiter',
     'quellensteuer':  'qst',
@@ -103,7 +104,8 @@ function helpContextLabel(ctx) {
         'ecall': 'SMS (eCall)',
     };
     const tabLabels = {
-        'personal': 'Persönliche Angaben',
+        'uebersicht': 'Übersicht',
+        'personal': 'Übersicht', // Tab entfernt → Alias
         'familie': 'Familie',
         'bank': 'Bank',
         'quellensteuer': 'Quellensteuer',

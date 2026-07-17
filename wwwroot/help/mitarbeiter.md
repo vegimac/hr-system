@@ -35,13 +35,10 @@ Der Button steht allen HR-Rollen zur Verfügung (GF sieht nur seine Filialen). D
 
 ## Die Tabs im MA-Detail
 
-### Persönliche Angaben
-Vorname, Nachname, Geburtsdatum, Geschlecht, AHV-Nr, Zivilstand, Konfession, Nationalität, Sprache, Adresse, Telefon, E-Mail, Eintrittsdatum.
+### Übersicht
+Stammdaten auf einen Blick: Briefanrede, Kurzname, Ledigname, Adresse, AHV, Zivilstand, Konfession, Nationalität, ZEMIS (Nicht-CH), Telefon 2, Eintritt/Austritt, L-GAV / &lt;8h, Kündigung, Nachtarbeit, Verträge und kompakte KTG/UVG-Tagessatz-Karte. Editierbare Felder speichern direkt in der Karte.
 
-**Darunter — drei Sub-Bereiche:**
-- **Aufenthalt** *(nur bei nicht-CH-Bürgern):* Bewilligungstyp (B/C/L/G), gültig bis, ZEMIS-Nr. Versioniert — pro Verlängerung ein neuer Eintrag.
-- **Weitere Adressen:** Korrespondenz, Wohnsitz Ausland, getrennt lebend, c/o Mutter — alles was nicht die Hauptadresse ist.
-- **Persönliches Postfach:** falls der MA sich selbst einloggt um seine Lohnzettel zu sehen.
+**Weitere Adressen** sitzen in der Personalien-Karte. Bewilligung und Bank sind im Tab «Bewilligung QST Bank».
 
 ### Familie
 Ehepartner und Kinder. Jedes Kind hat eine eigene Karte mit Geburtsdatum und Alter. **Kinderzulagen** sind direkt unter dem Kind versioniert (z.B. 215 CHF/Monat ab 1.6.2025).

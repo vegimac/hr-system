@@ -239,7 +239,7 @@ const EMP_SPECIAL_FILTERS = {
 // Menü-Etappe 1 (Zeiten-Kombi) am 17.07.2026 wieder zurückgenommen —
 // Stempelzeiten + Absenzen bleiben getrennte Tabs (Walter-Feedback).
 // Tab «KTG/UVG» entfernt 17.07.2026 — Tagessatz lebt bei Absenzen + Übersicht.
-const _empTabsOrder = ['uebersicht', 'personal', 'familie', 'quellensteuer', 'verwarnungen',
+const _empTabsOrder = ['uebersicht', 'familie', 'quellensteuer', 'verwarnungen',
                        'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'dokumente'];
 
 // Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
@@ -284,6 +284,7 @@ document.addEventListener('keydown', e => {
         let curTab = activeEmpTab;
         if (curTab === 'bank') curTab = 'quellensteuer';
         if (curTab === 'zeiten' || curTab === 'ktg') curTab = 'absenzen';
+        if (curTab === 'personal') curTab = 'uebersicht';
         const idx = _empTabsOrder.indexOf(curTab);
         if (idx < 0) return;
         let next = idx;
@@ -689,7 +690,7 @@ async function selectEmployee(id) {
         // Walter-Vorgabe 26.05.2026 (Audit-Modus): nach MA-Wechsel den vorher
         // aktiven Sub-Tab beibehalten — so kann man mit fixem Doku-Filter durch
         // die Belegschaft scrollen und schauen ob die Ablage stimmt.
-        // renderEmployeeDetail() setzt das HTML auf Default-Tab „personal";
+        // renderEmployeeDetail() setzt das HTML auf Default-Tab „uebersicht";
         // wir korrigieren das hier, falls der User in einem anderen Tab war.
         if (activeEmpTab && activeEmpTab !== 'uebersicht'
             && typeof switchEmpTab === 'function') {
@@ -937,7 +938,6 @@ function renderEmployeeDetail(emp) {
         </div>
         <div class="emp-detail-tabs">
             <div class="emp-tab active" data-tab="uebersicht" onclick="switchEmpTab('uebersicht')" style="line-height:1.2;text-align:center">${_t('ma.tab.overview','Übersicht')}</div>
-            <div class="emp-tab"        data-tab="personal"   onclick="switchEmpTab('personal')" style="line-height:1.2;text-align:center">${_t('ma.tab.personal','Persönliche<br>Angaben')}</div>
             <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')" style="line-height:1.2;text-align:center">${_t('ma.tab.family','Familie<br>Schwanger')}</div>
             <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung QST<br>Bank')}</div>
             <div class="emp-tab"        data-tab="verwarnungen" onclick="switchEmpTab('verwarnungen')" style="line-height:1.2;text-align:center">${_t('ma.tab.restAdmin','Restaurant<br>Admin')}</div>
@@ -954,100 +954,10 @@ function renderEmployeeDetail(emp) {
         <div class="emp-tab-content active" id="emp-tab-uebersicht">
             <div id="uebersichtContent"><div class="emp-placeholder"><span>Wird geladen…</span></div></div>
         </div>
-        <!-- TAB: Persönliche Angaben -->
-        <div class="emp-tab-content" id="emp-tab-personal">
-            <div class="emp-section-title">${_t('ma.section.personalien','Personalien')}</div>
-            <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-main-line">
-                ${field(_t('ma.field.salutation','Anrede'),       formatSalutation(emp.salutation), null, true)}
-                ${inlineEditField(_t('ma.field.letterSalutation','Briefanrede'), `<input id="ef-letterSalutation" class="ef-input" value="${esc(emp.letterSalutation)}" oninput="empInlineDirty()">`)}
-                ${inlineEditField(_t('ma.field.maidenName','Ledigname'), `<input id="ef-maidenName" class="ef-input" value="${esc(emp.maidenName)}" oninput="empInlineDirty()">`)}
-                ${inlineEditField(_t('ma.field.shortName','Kurzname'), `<input id="ef-shortName" class="ef-input" value="${esc(emp.shortName)}" oninput="empInlineDirty()">`)}
-                ${field(_t('ma.field.gender','Geschlecht'),       formatGender(emp.gender), null, true)}
-            </div>
-            <div class="emp-field-grid easywork-info-grid emp-flow-line emp-address-line">
-                ${field(_t('ma.field.street','Strasse'),          emp.street, null, true)}
-                ${field(_t('ma.field.zipCode','PLZ'),             emp.zipCode, null, true)}
-                ${field(_t('ma.field.city','Ort'),                emp.city, null, true)}
-                ${field(_t('ma.field.canton','Kanton'),           emp.cantonCode ? (kantonNameFor(emp.cantonCode) ? `${emp.cantonCode} — ${kantonNameFor(emp.cantonCode)}` : emp.cantonCode) : null, null, true)}
-                ${field(_t('ma.field.country','Land'),            emp.country, null, true)}
-            </div>
-            <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-extra-line">
-                ${field(_t('ma.field.maritalStatus','Zivilstand'),formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus), 'marriage_cert', true)}
-                ${inlineEditField(_t('ma.field.maritalSince','Zivilstand seit'), `<input id="ef-maritalStatusSince" class="ef-input" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="empInlineDirty()">`)}
-                ${inlineEditField(_t('ma.field.religion','Konfession'), `<select id="ef-religion" class="ef-input" onchange="empInlineDirty()">
-                    <option value="">–</option>
-                    <option value="evangelisch_reformiert" ${emp.religion==='evangelisch_reformiert'?'selected':''}>${_t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert')}</option>
-                    <option value="roemisch_katholisch"    ${emp.religion==='roemisch_katholisch'   ?'selected':''}>${_t('ma.value.religion.roemisch_katholisch','Röm.-katholisch')}</option>
-                    <option value="christ_katholisch"      ${emp.religion==='christ_katholisch'     ?'selected':''}>${_t('ma.value.religion.christ_katholisch','Christ-katholisch')}</option>
-                    <option value="andere"                 ${emp.religion==='andere'                ?'selected':''}>${_t('ma.value.religion.andere','Andere')}</option>
-                    <option value="keine"                  ${emp.religion==='keine'                 ?'selected':''}>${_t('ma.value.religion.keine','Keine')}</option>
-                </select>`)}
-                ${field(_t('ma.field.nationality','Nationalität'),
-                    emp.nationalityName
-                        ? (emp.nationalityCode && emp.nationalityCode !== emp.nationalityName
-                            ? `${emp.nationalityName} <span style="color:#94a3b8;font-weight:400;font-size:11.5px">(${emp.nationalityCode}${emp.nationalityCode3 ? ' / ' + emp.nationalityCode3 : ''})</span>`
-                            : emp.nationalityName)
-                        : (emp.nationalityCode ?? emp.nationality ?? null),
-                    'passport', true)}
-                ${inlineEditField(_t('ma.field.zemis','ZEMIS-Nr.'),
-                    `<input id="ef-zemisNumber" class="ef-input" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" oninput="empInlineDirty()">`)}
-            </div>
-            <div class="emp-field-grid easywork-info-grid emp-flow-line emp-contact-line">
-                ${field(_t('ma.field.phone','Telefon'),           emp.phoneMobile, null, true)}
-                ${inlineEditField('Telefon 2', `<input id="ef-phone2" class="ef-input" type="tel" value="${esc(emp.phone2)}" oninput="validatePhone(this);empInlineDirty()" onblur="validatePhoneBlur(this)">`)}
-                ${field(_t('ma.field.email','E-Mail'),            emp.email, null, true)}
-            </div>
-            <div class="emp-section-title" style="margin-top:2px">Anstellung</div>
-            <!-- Walter-Vorgabe 07.06.2026: 5 Anstellungs-Felder in EINER Zeile,
-                 die zwei Booleans (LGAV + <8h) rechts schmaler. -->
-            <div class="emp-field-grid easywork-info-grid emp-flow-line emp-employment-line">
-                ${field('Austrittsdatum', emp.exitDate  ? formatDate(emp.exitDate)  : null, null, true)}
-                <div class="emp-field">
-                    <div class="emp-field-label">L-GAV</div>
-                    <div class="emp-field-value">${yesNoToggle('ef-lgavPflichtig', !!emp.lgavPflichtig)}</div>
-                </div>
-                <div class="emp-field">
-                    <div class="emp-field-label">&lt; 8 h / Wo.</div>
-                    <div class="emp-field-value">${yesNoToggle('ef-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div>
-                </div>
-                <!-- Kündigungs-Daten (Walter 16.07.2026): vom Kündigungsschreiben
-                     gesetzt, vom Rückzug gelöscht — hier DIREKT inline editierbar
-                     (wie Telefon 2). Austrittsdatum bleibt separat (kann früher
-                     liegen); ToDo 2 Wochen vor Ablauf. Wichtig: die Inputs
-                     ef-kuendAm/ef-kuendPer existieren damit in Ansicht UND
-                     Edit-Modus — saveEmpEdit liest sie in beiden Fällen. -->
-                ${inlineEditField('Gekündigt am', `<input id="ef-kuendAm" class="ef-input" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="kuendAmChanged(${emp.id})" oninput="empInlineDirty()" style="width:auto">`)}
-                ${inlineEditField('Kündigung per', `<input id="ef-kuendPer" class="ef-input" type="date" value="${toDateInput(emp.kuendigungPer)}" oninput="empInlineDirty()" style="width:auto">`)}
-                <!-- Speichern DIREKT neben den Feldern (Walter 16.07.2026) —
-                     erscheint bei jeder Inline-Aenderung, gleiche Aktion wie
-                     der Button oben (saveEmpEdit). -->
-                <div class="emp-field" style="display:flex;align-items:flex-end">
-                    <button class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
-                </div>
-            </div>
-            ${renderEmpContractList(emp)}
-            <!-- Bei MA „ohne Lohn" (IsPayrollExcluded — Phantom-MA für easy@work-
-                 Zugang wie Supervisor) keine Bewilligung, keine Bank, keine
-                 Zusatzadressen anzeigen. Diese Personen haben keinen Vertrag und
-                 brauchen für die Lohn- und Compliance-Pipeline nichts davon.
-                 Walter 18.05.2026: ZUSÄTZLICH den Aufenthalt-Block für Schweizer
-                 Bürger ausblenden — die brauchen keine Bewilligung. -->
-            ${emp.isPayrollExcluded ? `
-            <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
-                <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.desc','Phantom-MA für easy@work-Zugang. Bewilligung, Bankverbindung, Zusatzadressen und persönliches Postfach werden nicht angezeigt — dieser MA hat keinen Vertrag, keine Lohnzahlung und nutzt das Postfach der Geschäftsführung/HR.')}
-            </div>
-            ` : `
-            <!-- Aufenthalt/Bewilligung-Block hier entfernt (Walter-Vorgabe 20.06.2026):
-                 war doppelt — Anzeige + Pflege der Bewilligung laufen ausschliesslich
-                 im Tab „Bewilligung / QST". -->
-
-            <!-- Bankverbindung + Postfach-Zugang sind in den eigenen Tab
-                 „Bank & Postfach" gewandert (Walter-Vorgabe 14.05.2026) —
-                 hier im Personal-Tab nur noch Aufenthalt + Weitere Adressen. -->
-            <!-- Weitere Adressen leben seit 17.07.2026 in der Uebersicht-Karte
-                 «Personalien & Adresse» (einzige otherAddressesContent-Instanz). -->
-            `}
-        </div>
+        <!-- TAB «Persönliche Angaben» entfernt 17.07.2026 (Walter): Inhalt lebt
+             in der Übersicht (Personalien/Anstellung/Verträge/Nachtarbeit).
+             Alias personal → uebersicht in switchEmpTab. buildEmpEditPersonal
+             bleibt als Code erhalten (nicht mehr verdrahtet). -->
 
         <!-- TAB: Familie -->
         <div class="emp-tab-content" id="emp-tab-familie">
@@ -1272,9 +1182,10 @@ function loadUebersichtTab() {
     //    Mockup): VIER logische Zeilen, frei fliessend, KEINE Boxen/Spalten,
     //    KEIN Bearbeiten-Modus — editierbare Felder sind IMMER als sanfte
     //    Soft-Inputs sichtbar, Speichern-Pille erscheint erst bei Aenderung.
-    //    Z1 Briefanrede·Kurzname·Geschl. / Z2 Strasse·PLZ·Ort·Kanton·Tel 2 /
+    //    Z1 Briefanrede·Kurzname·Ledigname·Geschl. / Z2 Strasse·PLZ·Ort·Kanton·Tel 2 /
     //    Z3 AHV·Zivilstand(+Doku)·seit·Konfession / Z4 Nationalitaet(+Doku)·
-    //    ZEMIS (nur Nicht-Schweizer). ──
+    //    ZEMIS (nur Nicht-Schweizer). Ledigname: einziges Feld, das früher
+    //    nur im entfernten Personal-Tab stand (Walter 17.07.2026). ──
     const _rel = emp.religion || '';
     const _relOpt = (v, label) => `<option value="${v}" ${_rel === v ? 'selected' : ''}>${label}</option>`;
     const _pf = (label, valueHtml) => `
@@ -1287,8 +1198,9 @@ function loadUebersichtTab() {
     const istCH = (emp.nationalityCode || '').toUpperCase() === 'CH';
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-frow">
-            ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 200)}
-            ${_pfE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName, '', 'text', 170)}
+            ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 180)}
+            ${_pfE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName, '', 'text', 140)}
+            ${_pfE(_t('ma.field.maidenName','Ledigname'), 'ov-maidenName', emp.maidenName, '', 'text', 160)}
             ${_pf('Geschl.', gKurz2)}
             ${_pf(_t('ma.field.street','Strasse'), esc(emp.street))}
             ${_pf('PLZ', esc(emp.zipCode))}
@@ -1382,10 +1294,10 @@ function loadUebersichtTab() {
             </div>
 `);
 
-    // ── Karte Vertraege (max. 3 neueste) ──
+    // ── Karte Vertraege (alle — Personal-Tab entfernt, kein «Alle anzeigen») ──
     const contracts = (emp.employments || []).slice()
         .sort((a, b) => String(b.contractStartDate || '').localeCompare(String(a.contractStartDate || '')));
-    const vRows = contracts.slice(0, 3).map(c => {
+    const vRows = contracts.map(c => {
         const von = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
         const bis = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
         const lohn = empContractWageText(c);
@@ -1409,7 +1321,7 @@ function loadUebersichtTab() {
     const vShare = '<div class="contractShareBox" style="margin:8px 0 0"></div>';
     // Vertraege schmaler (Walter 17.07.2026): nicht mehr volle Breite —
     // daneben die kompakte KTG/UVG-Tagessatz-Karte (vor allem MTP/FLEX).
-    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vRows + vShare + (contracts.length > 3 ? `<div class="ov-more" onclick="switchEmpTab('personal')">Alle Verträge anzeigen</div>` : ''));
+    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vRows + vShare);
     const kKtg = _ovCard('KTG/UVG-Tagessatz', 'absenzen', 'Zu Absenzen & Tagessatz',
         `<div id="ovKtgContent"><div class="ov-empty" style="padding:6px 0">Wird geladen…</div></div>`);
 
@@ -1428,40 +1340,16 @@ function loadUebersichtTab() {
         loadKtgTab(emp.id);
 }
 
-// Inline-Edit in der Uebersicht (Walter 17.07.2026): Werte in die ef-*-
-// Inputs des Personal-Tabs spiegeln und den bestehenden Save-Pfad nutzen.
+// Inline-Edit in der Uebersicht (Walter 17.07.2026): Speichern liest ov-*
+// direkt (Personal-Tab entfernt — kein Spiegeln mehr auf ef-*).
 function ovDirty() {
     document.querySelectorAll('.ov-savebtn').forEach(b => b.style.display = 'inline-flex');
 }
-// Gekuendigt am in der Uebersicht: Frist automatisch berechnen — nutzt den
-// bestehenden Pfad (ef-kuendAm -> kuendAmChanged -> ef-kuendPer) und
-// spiegelt das Ergebnis zurueck ins Uebersicht-Feld.
 async function ovKuendAmChanged(empId) {
-    const ovAm = document.getElementById('ov-kuendAm');
-    const efAm = document.getElementById('ef-kuendAm');
-    if (ovAm && efAm) efAm.value = ovAm.value;
     if (typeof kuendAmChanged === 'function') await kuendAmChanged(empId);
-    const ovPer = document.getElementById('ov-kuendPer');
-    const efPer = document.getElementById('ef-kuendPer');
-    if (ovPer && efPer && efPer.value) ovPer.value = efPer.value;
     ovDirty();
 }
 function ovSave() {
-    const map = [['ov-letterSalutation', 'ef-letterSalutation'],
-                 ['ov-shortName', 'ef-shortName'],
-                 ['ov-maritalStatusSince', 'ef-maritalStatusSince'],
-                 ['ov-religion', 'ef-religion'],
-                 ['ov-phone2', 'ef-phone2'],
-                 ['ov-zemisNumber', 'ef-zemisNumber'],
-                 ['ov-lgavPflichtig', 'ef-lgavPflichtig'],
-                 ['ov-teilzeitUnter8h', 'ef-teilzeitUnter8h'],
-                 ['ov-kuendAm', 'ef-kuendAm'],
-                 ['ov-kuendPer', 'ef-kuendPer']];
-    for (const [ovId, efId] of map) {
-        const ov = document.getElementById(ovId);
-        const ef = document.getElementById(efId);
-        if (ov && ef) ef.value = ov.value;
-    }
     saveEmpEdit();
 }
 
@@ -1619,17 +1507,18 @@ function switchEmpTab(tab) {
     // dem Kurzzeit-Key «zeiten» hängt → Absenzen (war der Fokus-Tab).
     // Tab «KTG/UVG» entfernt 17.07.2026 → Absenzen (Tagessatz rechts).
     if (tab === 'zeiten' || tab === 'ktg') tab = 'absenzen';
+    // Tab «Persönliche Angaben» entfernt 17.07.2026 → Übersicht.
+    if (tab === 'personal') tab = 'uebersicht';
     activeEmpTab = tab;
     document.querySelectorAll('.emp-tab').forEach(t =>
         t.classList.toggle('active', t.dataset.tab === tab));
     document.querySelectorAll('.emp-tab-content').forEach(c =>
         c.classList.toggle('active', c.id === 'emp-tab-' + tab));
-    // Walter-Vorgabe 01.06.2026: Postfach-Passwort + Bearbeiten sind nur im
-    // Personal-Tab sinnvoll. In den anderen Tabs (Familie, Bank, QST, etc.)
-    // hat jede Karte ihren eigenen Edit-Button. Header-Buttons ausblenden.
+    // Header-Actions (Inline-Speichern) — Übersicht speichert über ov-savebtn
+    // in den Karten; andere Tabs haben eigene Edit-Buttons.
     const headerActions = document.getElementById('empHeaderActions');
     if (headerActions) {
-        headerActions.style.display = (tab === 'personal') ? 'flex' : 'none';
+        headerActions.style.display = 'none';
     }
     // Tab-spezifischer „+ Neu"-Button im Header (Walter 01.06.2026, Standard
     // wie Lohn-Tab: Aktionen oben sticky, nicht in der Liste unten).
@@ -1661,20 +1550,7 @@ function switchEmpTab(tab) {
             tabBar.innerHTML = '';
         }
     }
-    // Personal-Tab: Bewilligungs-Verlauf + Weitere Adressen.
-    // Bank & Postfach sind ein eigener Tab (Walter-Vorgabe 14.05.2026).
-    // Bei MA „ohne Lohn" (IsPayrollExcluded — Phantom-MA wie Supervisor) werden
-    // Bank, Zusatzadressen, Bewilligungs-Verlauf UND Postfach-Zugang im UI gar
-    // nicht gerendert — sie nutzen das Postfach der GF/HR, kein eigenes — wir
-    // laden also nichts davon.
     if (tab === 'uebersicht'     && selectedEmployeeId) loadUebersichtTab();
-    if (tab === 'personal'       && selectedEmployeeId) {
-        const isExcluded = !!selectedEmployee?.isPayrollExcluded;
-        if (!isExcluded) {
-            loadEmployeeAddressesTab(selectedEmployeeId);
-            loadPermitHistory(selectedEmployeeId);
-        }
-    }
     if (tab === 'familie'        && selectedEmployeeId) loadFamilieTab(selectedEmployeeId);
     if (tab === 'quellensteuer'  && selectedEmployeeId) {
         loadQuellensteuerTab(selectedEmployeeId);
@@ -4046,15 +3922,22 @@ function empInlineDirty() {
 // Kündigungs-Seite: GET /api/kuendigung/{id}/info?datum=… liefert den
 // letzten Arbeitstag (Probezeit/Dienstjahre/Filial-Einstellung inklusive).
 async function kuendAmChanged(empId) {
-    const am = document.getElementById('ef-kuendAm')?.value;
-    const perEl = document.getElementById('ef-kuendPer');
+    // Übersicht (ov-*) ist die aktive Quelle; ef-* nur noch Fallback (Edit-Legacy).
+    const am = document.getElementById('ov-kuendAm')?.value
+            || document.getElementById('ef-kuendAm')?.value;
+    const perEl = document.getElementById('ov-kuendPer')
+               || document.getElementById('ef-kuendPer');
     if (!am || !perEl) return;
     try {
         const r = await fetch(`/api/kuendigung/${empId}/info?datum=${am}`, { headers: ah() });
         if (!r.ok) return;
         const info = await r.json();
         const per = info?.notice?.letzterArbeitstag || info?.letzterArbeitstag;
-        if (per) { perEl.value = String(per).slice(0, 10); empInlineDirty(); }
+        if (per) {
+            perEl.value = String(per).slice(0, 10);
+            if (typeof ovDirty === 'function') ovDirty();
+            else empInlineDirty();
+        }
     } catch (_) {}
 }
 
@@ -4386,42 +4269,11 @@ async function getNationalities() {
     return _nationalityCache;
 }
 
+// Personal-Tab entfernt (Walter 17.07.2026) — Bearbeiten läuft über die
+// Soft-Inputs in der Übersicht. Stub bleibt für Alt-Aufrufer.
 async function startEmpEdit() {
     if (!selectedEmployee) return;
-    const emp = selectedEmployee;
-
-    // Permit-Types und Nationalitäten parallel aus DB laden
-    const [permitTypes, nationalities] = await Promise.all([
-        getPermitTypes(),
-        getNationalities()
-    ]);
-
-    // Personal-Tab mit Formularfeldern ersetzen — Adresse, Kontakt und
-    // Bankverbindung sind nun ebenfalls im Personal-Tab integriert.
-    const personalTab = document.getElementById('emp-tab-personal');
-    if (personalTab) personalTab.innerHTML = buildEmpEditPersonal(emp, permitTypes, nationalities);
-    // Nationalität als Such-Combobox (Walter 12.07.2026) — matcht auch die
-    // Ausweis-Kürzel (BGR/MKD/…); easy@work-gesperrte Selects bleiben nativ.
-    natMakeCombo(document.getElementById('ef-nationalityId'));
-
-    // "Weitere Adressen"-Liste laden — der Container otherAddressesContent
-    // ist jetzt auch im Edit-Mode vorhanden, damit Zusatzadressen weiterhin
-    // erfasst werden können (Walter-Bug: schien "verloren" zu sein).
-    // Bank + Postfach sind NICHT mehr im Edit-Formular — eigener Tab.
-    if (selectedEmployeeId) {
-        loadNumberAliases(selectedEmployeeId);
-        loadEmployeeAddressesTab(selectedEmployeeId);
-        loadPermitHistory(selectedEmployeeId);
-    }
-
-    // Header-Actions (Postfach + Bearbeiten) durch Speichern/Abbrechen
-    // ersetzen — der Container #empHeaderActions ist flex, die Buttons
-    // fliessen also direkt ein. cancelEmpEdit/saveEmpEdit rendern das
-    // Detail komplett neu, dann sind die Original-Buttons wieder da.
-    const actions = document.getElementById('empHeaderActions');
-    if (actions) actions.innerHTML = `
-        <button class="btn-primary" style="padding:6px 16px;font-size:13px" onclick="saveEmpEdit()">${_t('ma.btn.save','Speichern')}</button>
-        <button class="btn-secondary" style="padding:6px 14px;font-size:13px" onclick="cancelEmpEdit()">${_t('ma.btn.cancel','Abbrechen')}</button>`;
+    switchEmpTab('uebersicht');
 }
 
 function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
@@ -4839,25 +4691,36 @@ async function saveEmpEdit() {
         alert('PLZ muss 4-stellig numerisch sein.');
         return;
     }
-    const _phone2Raw = document.getElementById('ef-phone2')?.value || '';
+    // Übersicht (ov-*) ist die aktive Edit-Quelle; ef-* nur noch Legacy
+    // (buildEmpEditPersonal, nicht mehr verdrahtet).
+    const formVal = (efId, ovId) => {
+        const ef = document.getElementById(efId);
+        if (ef) return ef.value;
+        const ov = ovId ? document.getElementById(ovId) : null;
+        return ov ? ov.value : '';
+    };
+    const formEl = (efId, ovId) => document.getElementById(efId) || (ovId ? document.getElementById(ovId) : null);
+
+    const _phone2Raw = formVal('ef-phone2', 'ov-phone2');
     const _phone2Fmt = _phone2Raw ? window.formatPhoneIntl(_phone2Raw) : '';
     if (_phone2Raw && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(_phone2Fmt)) {
         alert('Telefon 2-Format ungültig (erwartet +99 99 999 99 99, z.B. +41 79 409 43 33).');
         return;
     }
-    if (_phone2Fmt) document.getElementById('ef-phone2').value = _phone2Fmt;
+    const phone2El = formEl('ef-phone2', 'ov-phone2');
+    if (_phone2Fmt && phone2El) phone2El.value = _phone2Fmt;
 
     const exitVal = easyWorkLocked ? toDateInput(emp.exitDate) : document.getElementById('ef-exit')?.value;
     const isActiveInput = document.getElementById('ef-isactive');
-    const boolVal = (id, fallback) => {
-        const el = document.getElementById(id);
+    const boolVal = (efId, ovId, fallback) => {
+        const el = formEl(efId, ovId);
         if (!el) return !!fallback;
         if (el.type === 'checkbox') return el.checked === true;
         return el.value === 'true';
     };
     const permitTypeEl = document.getElementById('ef-permitType');
     const permitExpiryEl = document.getElementById('ef-permitExpiry');
-    const zemisEl = document.getElementById('ef-zemisNumber');
+    const zemisEl = formEl('ef-zemisNumber', 'ov-zemisNumber');
     const placeOfOriginEl = document.getElementById('ef-placeOfOrigin');
     const empPayload = {
         firstName:    easyWorkLocked ? (emp.firstName || null) : (document.getElementById('ef-firstName')?.value || null),
@@ -4886,18 +4749,18 @@ async function saveEmpEdit() {
         // Kündigungs-Daten (Walter 16.07.2026) — kuendigungSet:true, damit das
         // Backend sie schreibt (leer = löschen, z.B. nach manuellem Rückzug).
         kuendigungSet: true,
-        kuendigungAusgesprochenAm: document.getElementById('ef-kuendAm')?.value || null,
-        kuendigungPer:             document.getElementById('ef-kuendPer')?.value || null,
+        kuendigungAusgesprochenAm: formVal('ef-kuendAm', 'ov-kuendAm') || null,
+        kuendigungPer:             formVal('ef-kuendPer', 'ov-kuendPer') || null,
         // Walter-Vorgabe 18.05.2026: Aktiv-Flag bewusst gesetzt vom UI,
         // KEIN Auto-Sync mehr aus ExitDate (Backend nimmt diesen Wert 1:1).
         isActive:     isActiveInput ? isActiveInput.checked === true : !!emp.isActive,
-        // Walter-Vorgabe 07.06.2026: Anstellungs-Booleans aus der zweiten Zeile.
-        lgavPflichtig:        boolVal('ef-lgavPflichtig', emp.lgavPflichtig),
-        teilzeitUnter8hWoche: boolVal('ef-teilzeitUnter8h', emp.teilzeitUnter8hWoche),
+        // Walter-Vorgabe 07.06.2026: Anstellungs-Booleans (Übersicht ov-*).
+        lgavPflichtig:        boolVal('ef-lgavPflichtig', 'ov-lgavPflichtig', emp.lgavPflichtig),
+        teilzeitUnter8hWoche: boolVal('ef-teilzeitUnter8h', 'ov-teilzeitUnter8h', emp.teilzeitUnter8hWoche),
         socialSecurityNumber: easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
         ahvNummer:    easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
-        maidenName:   document.getElementById('ef-maidenName')?.value   || null,
-        shortName:    document.getElementById('ef-shortName')?.value    || null,
+        maidenName:   formVal('ef-maidenName', 'ov-maidenName') || null,
+        shortName:    formVal('ef-shortName', 'ov-shortName') || null,
         zivilstand:   easyWorkLocked ? ((emp.zivilstand ?? emp.maritalStatus) || null) : (document.getElementById('ef-zivilstand')?.value || null),
         maritalStatus:easyWorkLocked ? ((emp.zivilstand ?? emp.maritalStatus) || null) : (document.getElementById('ef-zivilstand')?.value || null),
 
@@ -4906,15 +4769,15 @@ async function saveEmpEdit() {
         // Unterhalt, höheres Einkommen, Grenzgänger, Wochenaufenthalter)
         // werden im Modul Quellensteuer zeitlich versioniert gepflegt.
         maritalStatusSinceSet: true,
-        maritalStatusSince:    document.getElementById('ef-maritalStatusSince')?.value || null,
+        maritalStatusSince:    formVal('ef-maritalStatusSince', 'ov-maritalStatusSince') || null,
         // separatedSince-Feld wurde aus dem UI entfernt (Walter: „Getrennt"
         // ist bereits ein Zivilstand, separates Datum überflüssig). Wir
         // senden separatedSinceSet=false, damit der Backend-Handler das
         // Feld unverändert lässt.
         separatedSinceSet:     false,
         separatedSince:        null,
-        religion:              document.getElementById('ef-religion')?.value || null,
-        letterSalutation:      document.getElementById('ef-letterSalutation')?.value?.trim() || null,
+        religion:              formVal('ef-religion', 'ov-religion') || null,
+        letterSalutation:      (formVal('ef-letterSalutation', 'ov-letterSalutation') || '').trim() || null,
         placeOfOrigin:         placeOfOriginEl ? (placeOfOriginEl.value?.trim() || null) : (emp.placeOfOrigin || null),
     };
 

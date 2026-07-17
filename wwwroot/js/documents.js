@@ -492,12 +492,12 @@ function postfachDocPreview(docId) {
         });
 }
 
-// Vom Dokumente-Tab zurück zur Mitarbeiter-Liste — wechselt auf Persönliche Angaben
+// Vom Dokumente-Tab zurück zur Mitarbeiter-Liste — wechselt auf Übersicht
 function dokBackToList() {
-    // Auf "Persönliche Angaben" Tab wechseln, damit die Liste links wieder erscheint
     const tabs = document.querySelectorAll('.emp-tab');
-    const personalTab = Array.from(tabs).find(t => t.dataset?.tab === 'personal');
-    if (personalTab) personalTab.click();
+    const overviewTab = Array.from(tabs).find(t => t.dataset?.tab === 'uebersicht');
+    if (overviewTab) overviewTab.click();
+    else if (typeof switchEmpTab === 'function') switchEmpTab('uebersicht');
 }
 function dokToggleCat(kategorieId) {
     if (_dokState.expandedCats.has(kategorieId)) {
