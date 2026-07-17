@@ -1315,7 +1315,6 @@ function loadUebersichtTab() {
                 <div class="ov-fv" style="display:flex;align-items:center;gap:6px"><span style="overflow:hidden;text-overflow:ellipsis">${emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : (esc(emp.nationalityCode ?? emp.nationality) || '–')}</span><span style="flex-shrink:0">${linkedDocButton('passport')}</span></div></div></div>
         </div>`,
         `<button id="ovSaveBtn" class="emp-inline-save" onclick="ovSave()" style="display:none">Speichern</button>`);
-    const kKontakt = '';
 
     // ── Karte Anstellung ──
     const kAnst = _ovCard('Anstellung', null, '', `
@@ -1352,17 +1351,14 @@ function loadUebersichtTab() {
     }).join('') || '<div class="ov-empty" style="padding:4px 0">Keine Verträge vorhanden.</div>';
     const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vRows + `<div class="ov-more" onclick="switchEmpTab('personal')">Alle Verträge anzeigen</div>`);
 
-    // ── Karte Dokumente (Platzhalter, wird async befuellt) ──
-    const kDok = _ovCard('Dokumente', null, '',
-        `<div id="ovDokBody"><div class="ov-empty" style="padding:4px 0">Wird geladen…</div></div>`);
+    // Dokumente-Karte entfernt (Walter 17.07.2026) — Dokumente haben wie
+    // gehabt ihren eigenen Bereich (Tab «Dokumente»).
 
-    // Phantom-MA: nur Personalien + Kontakt + Dokumente
+    // Personalien & Adresse ueber die VOLLE Breite (wichtigster Block),
+    // darunter Anstellung | Nachtarbeit, dann Vertraege volle Breite.
     el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
-        ? kPers + kKontakt + kDok
-        : kPers + kKontakt + kAnst + kNacht + kVert + kDok}</div>`;
-
-    // Dokumente nachladen (letzte 3 nach Aenderungs-/Upload-Datum)
-    _ovLoadDokumente(emp.id);
+        ? `<div class="ov-full">${kPers}</div>`
+        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-full">${kVert}</div>`}</div>`;
 }
 
 // Inline-Edit in der Uebersicht (Walter 17.07.2026): Werte in die ef-*-
@@ -1386,30 +1382,6 @@ function ovSave() {
     saveEmpEdit();
 }
 
-async function _ovLoadDokumente(empId) {
-    const body = document.getElementById('ovDokBody');
-    if (!body) return;
-    try {
-        const r = await fetch(`/api/documents/by-employee/${empId}`, { headers: ah() });
-        if (!r.ok) { body.innerHTML = '<div class="ov-empty">Dokumente konnten nicht geladen werden.</div>'; return; }
-        const docs = await r.json();
-        if (selectedEmployeeId !== empId) return;   // MA inzwischen gewechselt
-        const sorted = (docs || []).slice().sort((a, b) =>
-            String(b.geaendertAm || b.gueltigVon || b.hochgeladenAm || '').localeCompare(String(a.geaendertAm || a.gueltigVon || a.hochgeladenAm || '')));
-        if (!sorted.length) { body.innerHTML = '<div class="ov-empty" style="padding:4px 0">Keine Dokumente vorhanden.</div>'; return; }
-        body.innerHTML = sorted.slice(0, 3).map(d => {
-            const datum = d.geaendertAm || d.gueltigVon || d.hochgeladenAm;
-            const name = d.bemerkung || d.typName || d.filenameOriginal || 'Dokument';
-            return `<div class="ov-drow" onclick="qstOpenBefreiungsDok(${empId}, ${d.id})" title="Im Vorschaufenster öffnen">
-                <span class="ov-dic">📄</span>
-                <span class="ov-dname">${esc(name)}</span>
-                <span class="ov-dmeta">${datum ? new Date(datum).toLocaleDateString('de-CH') : ''}</span>
-            </div>`;
-        }).join('') + `<div class="ov-more" onclick="switchEmpTab('dokumente')">Alle Dokumente anzeigen</div>`;
-    } catch {
-        body.innerHTML = '<div class="ov-empty">Dokumente konnten nicht geladen werden.</div>';
-    }
-}
 
 // ⋮-Menue der Kopf-Card — seit 17.07.2026 nicht mehr verdrahtet (Buttons
 // leben im Restaurant-Admin-Tab), Funktion bleibt als Code erhalten.
