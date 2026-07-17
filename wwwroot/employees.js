@@ -1028,43 +1028,6 @@ function renderEmployeeDetail(emp) {
                 <div class="emp-placeholder"><span>Wird geladen…</span></div>
             </div>
             `}
-            <!-- Nachtarbeit ganz nach unten (Walter 17.07.2026) -->
-            <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
-            <div style="padding:6px 2px 2px">
-                <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis)}</span>
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
-                        <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
-                        <button onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Ausnahmeregelung</button>
-                        ${emp.nightWorkExamDokumentId
-                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Arztzeugnis</button>`
-                            : ''}
-                        ${emp.nightWorkAusnahmeDokumentId
-                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Ausnahmeregelung</button>`
-                            : ''}
-                    </div>
-                    <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
-                        <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
-                        <div class="dok-menu" id="nwMenu-${emp.id}" style="top:auto;bottom:calc(100% + 4px)">
-                            <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
-                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'ArztZeug. ersetzen' : 'ArztZeug. verknüpfen'}</button>
-                            ${emp.nightWorkExamDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_exam','Arztzeugnis')">ArztZeug. lösen</button>` : ''}
-                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausn.Reg. ersetzen' : 'Ausn.Reg. verknüpfen'}</button>
-                            ${emp.nightWorkAusnahmeDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_ausnahme','Ausnahmeregelung')">Ausn.Reg. lösen</button>` : ''}
-                        </div>
-                    </div>
-                </div>
-                <div id="nwEdit_${emp.id}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
-                    <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
-                    <input type="date" id="nwDateInput_${emp.id}" value="${emp.nightWorkExamIssued ? String(emp.nightWorkExamIssued).slice(0,10) : (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : '')}"
-                           oninput="nwPreview(${emp.id}, this.value)"
-                           title="Ausstellungsdatum des Arztzeugnisses"
-                           style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
-                    <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
-                    <button onclick="nwSaveEdit(${emp.id})" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 12px;cursor:pointer;color:#15803d;font-size:12px;font-weight:600">Speichern</button>
-                    <button onclick="nwCancelEdit(${emp.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;cursor:pointer;color:#64748b;font-size:12px;font-weight:600">Abbrechen</button>
-                </div>
-            </div>
         </div>
 
         <!-- TAB: Familie -->
@@ -1346,15 +1309,48 @@ function loadUebersichtTab() {
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
-    // ── Karte Nachtarbeit ──
-    const nwIssued = emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null);
+    // ── Karte Nachtarbeit (Walter 17.07.2026): der VOLLE Funktions-Block
+    //    aus dem frueheren Personal-Tab lebt jetzt HIER (einzige Instanz,
+    //    keine DOM-ID-Dubletten): Status mit Ablauf-Warnung, Drucken-Buttons,
+    //    Zeugnis-/Ausnahme-Anzeige, ⋮-Menue (Datum bearbeiten, verknuepfen,
+    //    loesen) + Inline-Datum-Edit. ──
     const kNacht = _ovCard('Nachtarbeit', null, '', `
-        <div class="ov-grid4">
-            ${_ovF('Ausgestellt', nwIssued ? formatDate(nwIssued) : null)}
-            ${_ovF('Gültig bis', emp.nightWorkExamValidUntil ? formatDate(emp.nightWorkExamValidUntil) : null)}
-            ${_ovF('Arztformular', emp.nightWorkExamDokumentId ? '<span class="ov-tag ok">✓ Vorhanden</span>' : '<span class="ov-tag min">–</span>')}
-            ${_ovF('Ausnahmeregelung', emp.nightWorkAusnahmeDokumentId ? '<span class="ov-tag ok">✓ Vorhanden</span>' : '<span class="ov-tag min">–</span>')}
-        </div>`);
+            <div style="padding:6px 2px 2px">
+                <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis)}</span>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
+                        <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
+                        <button onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Ausnahmeregelung</button>
+                        ${emp.nightWorkExamDokumentId
+                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Arztzeugnis</button>`
+                            : ''}
+                        ${emp.nightWorkAusnahmeDokumentId
+                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Ausnahmeregelung</button>`
+                            : ''}
+                    </div>
+                    <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
+                        <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="nwMenu-${emp.id}" style="top:auto;bottom:calc(100% + 4px)">
+                            <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
+                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'ArztZeug. ersetzen' : 'ArztZeug. verknüpfen'}</button>
+                            ${emp.nightWorkExamDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_exam','Arztzeugnis')">ArztZeug. lösen</button>` : ''}
+                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausn.Reg. ersetzen' : 'Ausn.Reg. verknüpfen'}</button>
+                            ${emp.nightWorkAusnahmeDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_ausnahme','Ausnahmeregelung')">Ausn.Reg. lösen</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div id="nwEdit_${emp.id}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
+                    <input type="date" id="nwDateInput_${emp.id}" value="${emp.nightWorkExamIssued ? String(emp.nightWorkExamIssued).slice(0,10) : (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : '')}"
+                           oninput="nwPreview(${emp.id}, this.value)"
+                           title="Ausstellungsdatum des Arztzeugnisses"
+                           style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                    <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
+                    <button onclick="nwSaveEdit(${emp.id})" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 12px;cursor:pointer;color:#15803d;font-size:12px;font-weight:600">Speichern</button>
+                    <button onclick="nwCancelEdit(${emp.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;cursor:pointer;color:#64748b;font-size:12px;font-weight:600">Abbrechen</button>
+                </div>
+            </div>
+`);
 
     // ── Karte Vertraege (max. 3 neueste) ──
     const contracts = (emp.employments || []).slice()
