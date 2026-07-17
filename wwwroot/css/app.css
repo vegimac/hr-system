@@ -2449,24 +2449,34 @@
             background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
         }
         #page-mitarbeiter.liquid-employee .emp-section-title {
-            /* Bereichs-Trennung (Walter 17.07.2026): feine Linie ueber jedem
-               Titel — trennt Personalien / Anstellung / Nachtarbeit /
-               Weitere Adressen optisch, ohne die Seite zu verlaengern. */
-            margin: 5px 0 3px;
-            padding: 7px 0 0 3px;
+            /* Invertierte Kohle-Leiste (Walter 17.07.2026): markante
+               Bereichs-Titel — dunkler Balken, weisse Schrift. Ersetzt die
+               fruehere Hairline; trennt die Bereiche noch deutlicher. */
+            margin: 7px 0 5px;
+            padding: 4px 12px;
             border-left: none;
-            border-top: 1px solid rgba(120, 113, 100, 0.22);
-            background: transparent;
-            color: var(--emp-text-strong);
-            font-size: 12px;
-            letter-spacing: -.01em;
+            border-top: none;
+            border-radius: 8px;
+            background: #3f3f3f;
+            color: #ffffff;
+            font-size: 12.5px;
+            letter-spacing: .02em;
             text-transform: none;
-            font-weight: 760;
+            font-weight: 720;
         }
         #page-mitarbeiter.liquid-employee .emp-section-title:first-child {
-            border-top: none;
-            padding-top: 0;
-            margin-top: 8px;
+            margin-top: 2px;
+        }
+        /* Hinweis-Text + Buttons IN der dunklen Leiste (Weitere Adressen) */
+        #page-mitarbeiter.liquid-employee .emp-section-title span span {
+            color: rgba(255,255,255,.62) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-section-title {
+            background: rgba(233, 236, 240, 0.92);
+            color: #1a1a1a;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-section-title span span {
+            color: rgba(26,26,26,.55) !important;
         }
         #page-mitarbeiter.liquid-employee .emp-field-grid,
         #page-mitarbeiter.liquid-employee .emp-field-grid-2,
@@ -2743,13 +2753,16 @@
             font-size: 12px;
         }
         #page-mitarbeiter.liquid-employee .emp-contract-head {
+            /* Invertiert wie .emp-section-title (Walter 17.07.2026) */
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 7px 10px 5px;
-            color: #2374b7;
-            font-size: 12px;
-            font-weight: 760;
+            padding: 4px 12px;
+            background: #3f3f3f;
+            color: #ffffff;
+            font-size: 12.5px;
+            font-weight: 720;
+            letter-spacing: .02em;
         }
         #page-mitarbeiter.liquid-employee .emp-contract-scroll {
             max-height: 112px;
@@ -3006,7 +3019,8 @@
             box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 8px 24px rgba(0,0,0,.16);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-head {
-            color: #62c6ff;
+            background: rgba(233, 236, 240, 0.92);
+            color: #1a1a1a;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
             background: rgba(22,34,46,.58);
@@ -3060,12 +3074,12 @@
             padding: 0;
         }
         #page-mitarbeiter.liquid-employee .ef-input {
-            min-height: 26px;
-            padding: 3px 8px;
+            min-height: 29px;
+            padding: 3px 9px;
             border-radius: 6px;
             border: 1px solid rgba(140, 132, 120, 0.38);
             background: #ffffff;
-            font-size: 12.5px;
+            font-size: 14px;
             box-shadow: none;
         }
         #page-mitarbeiter.liquid-employee .ef-input:focus {
@@ -3080,12 +3094,12 @@
             display: block;
         }
         #page-mitarbeiter.liquid-employee .emp-field-value .lqsel-btn {
-            min-height: 26px;
-            padding: 3px 8px;
+            min-height: 29px;
+            padding: 3px 9px;
             border-radius: 6px;
             border: 1px solid rgba(140, 132, 120, 0.38);
             background: #ffffff;
-            font-size: 12.5px;
+            font-size: 14px;
             font-weight: 500;
             color: var(--emp-text-strong);
             box-shadow: none;
