@@ -3971,13 +3971,8 @@ async function kuendAmChanged(empId) {
 // richtige selbst auswählen.
 async function openLinkedDoc(code) {
     if (!selectedEmployeeId) return;
-    // Auf Dokumente-Tab umschalten — triggert loadEmpDokumente().
-    if (typeof switchEmpTab === 'function') switchEmpTab('dokumente');
-
-    // Warten bis _dokState.taxonomy geladen ist (loadEmpDokumente ist async).
-    // Achtung: _dokState ist mit `let` in index.html deklariert → NICHT auf
-    // window verfügbar. Wir holen die Taxonomie deshalb über die API direkt
-    // (gleiche URL die auch der Dokumente-Tab nutzt).
+    // Taxonomie direkt über die API holen (_dokState ist mit `let` in
+    // index.html deklariert → nicht auf window verfügbar).
     let taxonomy = null;
     try {
         const r = await fetch('/api/documents/taxonomie', { headers: ah() });
@@ -4000,6 +3995,26 @@ async function openLinkedDoc(code) {
             + 'mit dem passenden Code anlegen.');
         return;
     }
+
+    // Walter-Vorgabe 17.07.2026 (Ruecknahme des Umwegs): existiert genau EIN
+    // Dokument dieses Typs, wird es DIREKT im Vorschaufenster geoeffnet —
+    // OHNE Wechsel in die Doku-Verwaltung (gruene Pille = ansehen). Erst bei
+    // keinem (Upload noetig) oder mehreren Dokumenten (Auswahl noetig) geht
+    // es wie bisher in den Dokumente-Tab mit gesetztem Filter.
+    try {
+        const rd = await fetch(`/api/documents/by-employee/${selectedEmployeeId}`, { headers: ah() });
+        if (rd.ok) {
+            const alle = await rd.json();
+            const typDocs = (alle || []).filter(d => d.dokumentTypId === matchedTyp.id);
+            if (typDocs.length === 1 && typeof qstOpenBefreiungsDok === 'function') {
+                qstOpenBefreiungsDok(selectedEmployeeId, typDocs[0].id);
+                return;
+            }
+        }
+    } catch {}
+
+    // Auf Dokumente-Tab umschalten — triggert loadEmpDokumente().
+    if (typeof switchEmpTab === 'function') switchEmpTab('dokumente');
 
     // Warten bis loadEmpDokumente die Liste fertig geladen hat — sonst
     // überschreibt sein renderDokumenteUi unseren Filter wieder.
