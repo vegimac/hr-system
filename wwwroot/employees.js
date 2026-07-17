@@ -1289,14 +1289,14 @@ function loadUebersichtTab() {
     const _relOpt = (v, label) => `<option value="${v}" ${_rel === v ? 'selected' : ''}>${label}</option>`;
     const _pf = (label, valueHtml) => `
         <div class="ov-pf"><div class="ov-pfl">${label}</div><div class="ov-pfv">${valueHtml || '<span class="ov-empty">–</span>'}</div></div>`;
-    const _pfE = (label, id, value, ph = '', type = 'text') => edit
+    const _pfE = (label, id, value, ph = '', type = 'text', w = 190) => edit
         ? `<div class="ov-pf"><div class="ov-pfl">${label}</div>
-           <input id="${id}" class="ov-softin" type="${type}" value="${type === 'date' ? toDateInput(value) : esc(value)}" placeholder="${ph}" ${type === 'date' ? 'onchange="ovDirty()"' : 'oninput="ovDirty()"'}></div>`
+           <input id="${id}" class="ov-softin" style="width:${w}px" type="${type}" value="${type === 'date' ? toDateInput(value) : esc(value)}" placeholder="${ph}" ${type === 'date' ? 'onchange="ovDirty()"' : 'oninput="ovDirty()"'}></div>`
         : _pf(label, type === 'date' ? (value ? formatDate(value) : null) : esc(value));
     const zivilstandView = `${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'}${emp.maritalStatusSince && !edit ? ` <span class="ov-code">seit ${formatDate(emp.maritalStatusSince)}</span>` : ''} ${linkedDocButton('marriage_cert')}`;
     const konfessionEdit = `
         <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.religion','Konfession')}</div>
-        <select id="ov-religion" class="ov-softin" onchange="ovDirty()">
+        <select id="ov-religion" class="ov-softin" style="width:180px" onchange="ovDirty()">
             <option value="">–</option>
             ${_relOpt('evangelisch_reformiert', _t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert'))}
             ${_relOpt('roemisch_katholisch', _t('ma.value.religion.roemisch_katholisch','Röm.-katholisch'))}
@@ -1313,27 +1313,29 @@ function loadUebersichtTab() {
         <div class="ov-panels">
             <div class="ov-panel">
                 <div class="ov-ptitle">Person</div>
-                <div class="ov-pgrid2">
-                    ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}
-                    ${_pfE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName)}
+                <div class="ov-pflow">
+                    ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 200)}
+                    ${_pfE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName, '', 'text', 140)}
                     ${_pf(_t('ma.field.gender','Geschlecht'), formatGender(emp.gender))}
                     ${_pf(_t('ma.field.maritalStatus','Zivilstand'), zivilstandView)}
-                    ${edit ? _pfE(_t('ma.field.maritalSince','Zivilstand seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date') : ''}
+                    ${edit ? _pfE(_t('ma.field.maritalSince','Zivilstand seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date', 155) : ''}
                 </div>
             </div>
             <div class="ov-panel">
                 <div class="ov-ptitle">Kontakt</div>
-                ${_pf('Adresse', esc([emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')) + (emp.cantonCode ? ` <span class="ov-code">${esc(emp.cantonCode)}</span>` : ''))}
-                <div class="ov-pgrid2">
-                    ${_pfE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}
+                <div class="ov-pflow">
+                    ${_pf('Adresse', esc([emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')) + (emp.cantonCode ? ` <span class="ov-code">${esc(emp.cantonCode)}</span>` : ''))}
+                    ${_pfE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …', 'text', 170)}
                     ${edit ? konfessionEdit : _pf(_t('ma.field.religion','Konfession'), relLabels[_rel] || (_rel ? esc(_rel) : null))}
                 </div>
             </div>
             <div class="ov-panel">
                 <div class="ov-ptitle">Amtlich</div>
-                ${_pf('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
-                ${_pfE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}
-                ${_pf(_t('ma.field.nationality','Nationalität'), `${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${linkedDocButton('passport')}`)}
+                <div class="ov-pflow">
+                    ${_pf('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
+                    ${_pfE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'), 'text', 150)}
+                    ${_pf(_t('ma.field.nationality','Nationalität'), `${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${linkedDocButton('passport')}`)}
+                </div>
             </div>
         </div>`,
         headerBtns);
