@@ -1983,7 +1983,10 @@
         #page-mitarbeiter.liquid-employee .emp-layout,
         #page-mitarbeiter.liquid-employee .liquid-employee-layout-grid {
             gap: 12px;
-            height: calc(100vh - 86px);
+            /* Bildschirm bis ganz unten nutzen (Walter 17.07.2026): page-body
+               hat effektiv 12px oben + 14px unten (!important-Padding) —
+               die frueheren 86px liessen unten einen weissen Streifen. */
+            height: calc(100vh - 27px);
         }
         /* In-Page-Menü der Mitarbeiter-Seite ausgeblendet — die globale Sidebar
            übernimmt jetzt überall die Navigation (Walter 28.06.2026, kein Springen

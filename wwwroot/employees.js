@@ -965,6 +965,37 @@ function renderEmployeeDetail(emp) {
                     <button class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
                 </div>
             </div>
+            ${renderEmpContractList(emp)}
+            <!-- Bei MA „ohne Lohn" (IsPayrollExcluded — Phantom-MA für easy@work-
+                 Zugang wie Supervisor) keine Bewilligung, keine Bank, keine
+                 Zusatzadressen anzeigen. Diese Personen haben keinen Vertrag und
+                 brauchen für die Lohn- und Compliance-Pipeline nichts davon.
+                 Walter 18.05.2026: ZUSÄTZLICH den Aufenthalt-Block für Schweizer
+                 Bürger ausblenden — die brauchen keine Bewilligung. -->
+            ${emp.isPayrollExcluded ? `
+            <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
+                <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.desc','Phantom-MA für easy@work-Zugang. Bewilligung, Bankverbindung, Zusatzadressen und persönliches Postfach werden nicht angezeigt — dieser MA hat keinen Vertrag, keine Lohnzahlung und nutzt das Postfach der Geschäftsführung/HR.')}
+            </div>
+            ` : `
+            <!-- Aufenthalt/Bewilligung-Block hier entfernt (Walter-Vorgabe 20.06.2026):
+                 war doppelt — Anzeige + Pflege der Bewilligung laufen ausschliesslich
+                 im Tab „Bewilligung / QST". -->
+
+            <!-- Bankverbindung + Postfach-Zugang sind in den eigenen Tab
+                 „Bank & Postfach" gewandert (Walter-Vorgabe 14.05.2026) —
+                 hier im Personal-Tab nur noch Aufenthalt + Weitere Adressen. -->
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">
+                <span>${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
+                <button class="btn-emp-add" onclick="openEmployeeAddressModal(null)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    ${_t('ma.btn.addAddress','Adresse hinzufügen')}
+                </button>
+            </div>
+            <div id="otherAddressesContent">
+                <div class="emp-placeholder"><span>Wird geladen…</span></div>
+            </div>
+            `}
+            <!-- Nachtarbeit ganz nach unten (Walter 17.07.2026) -->
             <div class="emp-section-title" style="margin-top:2px">Nachtarbeit</div>
             <div style="padding:6px 2px 2px">
                 <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1001,36 +1032,6 @@ function renderEmployeeDetail(emp) {
                     <button onclick="nwCancelEdit(${emp.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;cursor:pointer;color:#64748b;font-size:12px;font-weight:600">Abbrechen</button>
                 </div>
             </div>
-            ${renderEmpContractList(emp)}
-            <!-- Bei MA „ohne Lohn" (IsPayrollExcluded — Phantom-MA für easy@work-
-                 Zugang wie Supervisor) keine Bewilligung, keine Bank, keine
-                 Zusatzadressen anzeigen. Diese Personen haben keinen Vertrag und
-                 brauchen für die Lohn- und Compliance-Pipeline nichts davon.
-                 Walter 18.05.2026: ZUSÄTZLICH den Aufenthalt-Block für Schweizer
-                 Bürger ausblenden — die brauchen keine Bewilligung. -->
-            ${emp.isPayrollExcluded ? `
-            <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
-                <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.desc','Phantom-MA für easy@work-Zugang. Bewilligung, Bankverbindung, Zusatzadressen und persönliches Postfach werden nicht angezeigt — dieser MA hat keinen Vertrag, keine Lohnzahlung und nutzt das Postfach der Geschäftsführung/HR.')}
-            </div>
-            ` : `
-            <!-- Aufenthalt/Bewilligung-Block hier entfernt (Walter-Vorgabe 20.06.2026):
-                 war doppelt — Anzeige + Pflege der Bewilligung laufen ausschliesslich
-                 im Tab „Bewilligung / QST". -->
-
-            <!-- Bankverbindung + Postfach-Zugang sind in den eigenen Tab
-                 „Bank & Postfach" gewandert (Walter-Vorgabe 14.05.2026) —
-                 hier im Personal-Tab nur noch Aufenthalt + Weitere Adressen. -->
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">
-                <span>${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
-                <button class="btn-emp-add" onclick="openEmployeeAddressModal(null)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    ${_t('ma.btn.addAddress','Adresse hinzufügen')}
-                </button>
-            </div>
-            <div id="otherAddressesContent">
-                <div class="emp-placeholder"><span>Wird geladen…</span></div>
-            </div>
-            `}
         </div>
 
         <!-- TAB: Familie -->
