@@ -3156,6 +3156,59 @@
             color: #f2f5f8;
         }
 
+        /* ══ KOPF-CARD ETAPPE 1 (Walter 17.07.2026, nach Mockup) ══
+           Der Detail-Header wird zur weissen Karte: Avatar 92px, Name +
+           Badges, Fakten-Zeile (Eintritt · Geburtstag · Vertrag · Telefon ·
+           E-Mail), Buttons rechts. Tab-Bar bleibt am Karten-Fuss. */
+        #page-mitarbeiter.liquid-employee .emp-detail-header {
+            margin: 0 0 10px;
+            padding: 16px 18px 0;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            background: #ffffff;
+            box-shadow: 0 10px 30px rgba(60, 55, 48, 0.08);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+        #page-mitarbeiter.liquid-employee #empDetailPhoto {
+            width: 92px !important;
+            height: 92px !important;
+            font-size: 30px !important;
+        }
+        .emp-hbadge {
+            font-size: 12px; font-weight: 700; padding: 3px 10px;
+            border-radius: 8px; display: inline-flex; align-items: center;
+            gap: 5px; vertical-align: 2px; white-space: nowrap;
+        }
+        .emp-hbadge.hb-ok    { background: #e7f0e4; color: #2f7d32; }
+        .emp-hbadge.hb-inak  { background: #f1f5f9; color: #64748b; }
+        .emp-hbadge.hb-mut   { background: #fde7ef; color: #be185d; }
+        .emp-hbadge.hb-kuend { background: #fee2e2; color: #b91c1c; }
+        .emp-hbadge.hb-prob,
+        .emp-hbadge.hb-exit  { background: #fdf1dc; color: #96690f; }
+        .emp-hfacts {
+            display: flex; flex-wrap: wrap;
+            margin-top: 12px; row-gap: 10px;
+        }
+        .emp-hfact { padding: 0 18px; border-left: 1px solid #eee8de; min-width: 0; }
+        .emp-hfact:first-child { border-left: none; padding-left: 0; }
+        .emp-hfact-l {
+            font-size: 10.5px; font-weight: 700; color: #8b8b8b;
+            letter-spacing: 0.04em; margin-bottom: 2px; text-transform: uppercase;
+        }
+        .emp-hfact-v {
+            font-size: 15px; font-weight: 700; color: #0a0a0a;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 260px;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header {
+            background: rgba(23, 36, 49, 0.94);
+            border-color: rgba(122, 145, 165, 0.25);
+        }
+        body.theme-dark .emp-hfact { border-left-color: rgba(255, 255, 255, 0.12); }
+        body.theme-dark .emp-hfact-v { color: #f2f5f8; }
+        body.theme-dark .emp-hbadge.hb-inak { background: rgba(255,255,255,.08); color: #94a3b8; }
+
 
         /* Liquid-Employee: keine separaten Innen-Frames. Die MA-Seite liegt wie
            das Dashboard direkt auf der Hintergrundfläche; nur Inhalte/Aktionen
