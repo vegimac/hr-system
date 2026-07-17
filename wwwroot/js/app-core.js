@@ -266,9 +266,13 @@ function applyTheme(theme) {
 }
 
 // Hell ↔ Dunkel umschalten und persistent speichern.
+// Quelle der Wahrheit = body-Klasse (nicht nur currentUser.theme) —
+// sonst bleibt der Toggle stecken, wenn Profil/State auseinanderlaufen.
 async function toggleTheme() {
-    const current = (currentUser?.theme === 'dark') ? 'dark' : 'light';
-    const next    = (current === 'dark') ? 'light' : 'dark';
+    const current = document.body.classList.contains('theme-dark')
+        || (currentUser?.theme === 'dark')
+        ? 'dark' : 'light';
+    const next = (current === 'dark') ? 'light' : 'dark';
     applyTheme(next);   // sofort sichtbar
     try {
         await fetch('/api/auth/theme', {
@@ -278,6 +282,8 @@ async function toggleTheme() {
         });
     } catch { /* Server-Fehler ignorieren — UI-State bleibt korrekt */ }
 }
+window.toggleTheme = toggleTheme;
+window.applyTheme = applyTheme;
 
 function doLogout() {
     authToken = null; currentUser = null;
