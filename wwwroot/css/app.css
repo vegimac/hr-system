@@ -2566,10 +2566,17 @@
         #page-mitarbeiter.liquid-employee .emp-address-line .emp-field:nth-child(3) { width: 170px; }
         #page-mitarbeiter.liquid-employee .emp-address-line .emp-field:nth-child(4) { width: 150px; }
         #page-mitarbeiter.liquid-employee .emp-address-line .emp-field:nth-child(5) { width: 58px; }
-        #page-mitarbeiter.liquid-employee .emp-personal-extra-line .emp-field:nth-child(1) { width: 145px; }
-        #page-mitarbeiter.liquid-employee .emp-personal-extra-line .emp-field:nth-child(2) { width: 145px; }
-        #page-mitarbeiter.liquid-employee .emp-personal-extra-line .emp-field:nth-child(3) { width: 120px; }
-        #page-mitarbeiter.liquid-employee .emp-personal-extra-line .emp-field:nth-child(4) { width: 245px; }
+        /* Zivilstand-Zeile (Walter 17.07.2026): Nationalitaet flexibel, damit
+           auch lange Laendernamen Platz haben; Zivilstand wachsend (groessere
+           Read-only-Schrift + Doku-Button), Datum/Konfession/ZEMIS fix. */
+        #page-mitarbeiter.liquid-employee .emp-personal-extra-line .emp-field:nth-child(1) { width: auto; min-width: 160px; flex: 0 1 auto; }
+        #page-mitarbeiter.liquid-employee .emp-personal-extra-line .emp-field:nth-child(2) { width: 155px; }
+        #page-mitarbeiter.liquid-employee .emp-personal-extra-line .emp-field:nth-child(3) { width: 150px; }
+        #page-mitarbeiter.liquid-employee .emp-personal-extra-line .emp-field:nth-child(4) { width: auto; min-width: 260px; flex: 1 1 auto; }
+        #page-mitarbeiter.liquid-employee .emp-personal-extra-line .emp-field:nth-child(5) { width: 200px; flex: 0 0 auto; }
+        #page-mitarbeiter.liquid-employee .emp-personal-extra-line .emp-field:nth-child(4) .emp-field-value {
+            white-space: nowrap;
+        }
         #page-mitarbeiter.liquid-employee .emp-contact-line .emp-field:nth-child(1) { width: 150px; }
         #page-mitarbeiter.liquid-employee .emp-contact-line .emp-field:nth-child(2) { width: 150px; }
         #page-mitarbeiter.liquid-employee .emp-contact-line .emp-field:nth-child(3) { width: 280px; }
