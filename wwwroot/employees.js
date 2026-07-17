@@ -9397,7 +9397,8 @@ async function loadEmployeeAddressesTab(employeeId) {
 
 function renderEmployeeAddressesList(el, list) {
     if (!Array.isArray(list) || list.length === 0) {
-        el.innerHTML = '<div style="padding:12px;color:#94a3b8;font-style:italic;font-size:13px">Keine Zusatzadressen erfasst.</div>';
+        // Kein Hinweis-Text (Walter 17.07.2026): keine Adressen = leer.
+        el.innerHTML = '';
         return;
     }
     const fmtDate = d => d ? new Date(d).toLocaleDateString('de-CH') : '';
