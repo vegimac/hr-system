@@ -893,33 +893,12 @@ function renderEmployeeDetail(emp) {
             <div class="emp-head-right">
             <div id="empTabActionBar" style="display:flex;gap:8px;align-items:center;justify-content:flex-end"></div>
             <div id="empHeaderActions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-content:flex-start;min-width:0">
+                <!-- Walter 17.07.2026: alle Aktions-Buttons in den Tab
+                     «Restaurant Admin» verschoben (_raTilesHtml); easy@work-
+                     Sync sitzt global oben im langSwitcher (#lsEmpSyncBtn).
+                     Hier bleibt nur das Inline-Speichern; startEmpEdit()
+                     ersetzt den Inhalt durch Speichern/Abbrechen. -->
                 <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
-                ${['admin','superuser','buchhaltung','user'].includes(currentUser?.role) ? `
-                <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap;display:inline-flex;align-items:center;gap:7px"
-                        title="Aktualisiert easy@work-Felder dieses Mitarbeiters aus der API"
-                        onclick="easyworkSyncSelectedEmployee(${emp.id})">
-                    <img src="img/easyatwork-icon.png?v=20260628a" alt="easy@work" style="width:18px;height:18px;object-fit:contain">
-                    easy@work synchronisieren
-                </button>` : ''}
-                ${!emp.isPayrollExcluded ? `
-                <button class="btn-emp-edit btn-postfach" style="white-space:nowrap"
-                        title="${_t('ma.detail.postfachResetHint','Setzt das Postfach-Passwort des Mitarbeiters auf das Initial-Passwort zurück')}"
-                        onclick="postfachResetPassword(${emp.id})">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    ${_t('ma.detail.postfachReset','Postfach-Passwort')}
-                </button>
-                <button class="btn-emp-edit btn-postfach" style="white-space:nowrap"
-                        title="Onboarding-/Reset-QR erzeugen — der MA scannt ihn und setzt direkt sein Passwort"
-                        onclick="postfachSetupQr(${emp.id})">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v7h-7"/></svg>
-                    Onboarding-QR
-                </button>
-                <div class="dok-menu-wrap" style="position:relative;flex-shrink:0">
-                    <button class="dok-menu-btn" style="height:31px" title="Weitere Aktionen" onclick="empHeadMenuToggle(event)">⋮</button>
-                    <div class="dok-menu" id="empHeadMenu">
-                        <button class="dok-menu-item" onclick="faceIdAdminReset(${emp.id})">Face ID zurücksetzen</button>
-                    </div>
-                </div>` : ''}
             </div>
             </div>
         </div>
@@ -1241,10 +1220,17 @@ function renderEmployeeDetail(emp) {
     // Wenn Walter z.B. "Familie" angezeigt hat und einen anderen MA wählt, bleibt
     // er auf "Familie". switchEmpTab triggert den passenden loadXxx()-Aufruf
     // (Bankverbindung beim personal-Tab, Familie beim familie-Tab usw.).
+    // easy@work-Sync-Button oben im langSwitcher (Walter 17.07.2026):
+    // sichtbar sobald ein MA gewaehlt ist und die Rolle es erlaubt.
+    window._lsEmpSyncAllowed = ['admin','superuser','buchhaltung','user'].includes(currentUser?.role);
+    const _lsBtn = document.getElementById('lsEmpSyncBtn');
+    if (_lsBtn) _lsBtn.style.display = window._lsEmpSyncAllowed ? 'inline-flex' : 'none';
+
     switchEmpTab(activeEmpTab || 'personal');
 }
 
-// ⋮-Menue der Kopf-Card (Face ID etc.) — dok-menu-Standard.
+// ⋮-Menue der Kopf-Card — seit 17.07.2026 nicht mehr verdrahtet (Buttons
+// leben im Restaurant-Admin-Tab), Funktion bleibt als Code erhalten.
 function empHeadMenuToggle(ev) {
     ev.stopPropagation();
     const menu = document.getElementById('empHeadMenu');
@@ -10960,11 +10946,23 @@ function _raTilesHtml() {
             <img src="img/${img}?v=20260715f" alt="" loading="lazy">
             <span>${title}</span>
         </button>`;
+    // Emoji-Kachel (Walter 17.07.2026): fuer Aktionen ohne Sketch-Icon —
+    // Postfach-Passwort / Onboarding-QR / Face ID (aus dem Kopf hierher).
+    const etile = (emoji, title, onclick) => `
+        <button type="button" class="ra-tile" onclick="${onclick}">
+            <span style="font-size:36px;line-height:52px" aria-hidden="true">${emoji}</span>
+            <span>${title}</span>
+        </button>`;
+    const kontoTiles = selectedEmployee?.isPayrollExcluded ? '' : `
+        ${etile('🔐', 'Postfach-Passwort', 'postfachResetPassword(selectedEmployeeId)')}
+        ${etile('▦', 'Onboarding-QR', 'postfachSetupQr(selectedEmployeeId)')}
+        ${etile('🙂', 'Face ID zurücksetzen', 'faceIdAdminReset(selectedEmployeeId)')}`;
     return `<div class="ra-tile-row">
         ${tile('verwarnung.png', 'Verwarnung', 'openVerwarnungModal(null)')}
         ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
+        ${kontoTiles}
     </div>`;
 }
 
