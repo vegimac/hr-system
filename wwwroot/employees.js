@@ -1427,10 +1427,10 @@ function loadUebersichtTab() {
     // Weitere Adressen (Fussbereich der Personalien-Karte) nachladen.
 
     // Personalien & Adresse ueber die VOLLE Breite (wichtigster Block),
-    // darunter Anstellung | Nachtarbeit, dann Vertraege | Tagessatz.
+    // darunter Anstellung | Nachtarbeit, dann Vertraege breit + Tagessatz schmal.
     el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
         ? `<div class="ov-full">${kPers}</div>`
-        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}${kVert}${kKtg}`}</div>`;
+        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kKtg}</div>`}</div>`;
     if (!emp.isPayrollExcluded && typeof loadEmployeeAddressesTab === 'function')
         loadEmployeeAddressesTab(emp.id);
     if (!emp.isPayrollExcluded && typeof loadKtgTab === 'function')

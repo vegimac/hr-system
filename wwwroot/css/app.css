@@ -3245,10 +3245,21 @@
             gap: 14px;
             padding: 4px 2px 10px;
         }
-        /* Volle Breite (Walter 17.07.2026): Personalien & Adresse +
-           Vertraege spannen ueber beide Spalten. */
+        /* Volle Breite (Walter 17.07.2026): Personalien & Adresse spannt
+           ueber beide Spalten. */
         .ov-full { grid-column: 1 / -1; min-width: 0; }
-        @media (max-width: 1100px) { .ov-wrap { grid-template-columns: 1fr; } }
+        /* Vertraege breit + Tagessatz schmal (Walter 17.07.2026) — nicht 50/50. */
+        .ov-vertraege-ktg {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
+            gap: 14px;
+            min-width: 0;
+        }
+        @media (max-width: 1100px) {
+            .ov-wrap { grid-template-columns: 1fr; }
+            .ov-vertraege-ktg { grid-template-columns: 1fr; }
+        }
         .ov-card {
             background: #ffffff;
             border: 1px solid rgba(255, 255, 255, 0.72);
@@ -3525,16 +3536,18 @@
         .ktg-details summary::before { content: '▸ '; }
         .ktg-details[open] summary::before { content: '▾ '; }
         .ktg-compact-top { margin-bottom: 6px; }
-        .ktg-compact-meta { font-size: 11.5px; color: #64748b; margin-bottom: 10px; line-height: 1.4; }
-        .ktg-compact-rows { display: flex; flex-direction: column; gap: 6px; }
+        .ktg-compact-meta { font-size: 11px; color: #64748b; margin-bottom: 8px; line-height: 1.35; }
+        .ktg-compact-rows { display: flex; flex-direction: column; gap: 4px; }
         .ktg-compact-rows > div {
             display: flex; justify-content: space-between; align-items: baseline;
-            font-size: 13px; color: #334155;
+            gap: 8px; font-size: 12.5px; color: #334155;
         }
-        .ktg-compact-rows strong { font-variant-numeric: tabular-nums; font-weight: 750; color: #0f172a; }
+        .ktg-compact-rows strong { font-variant-numeric: tabular-nums; font-weight: 750; color: #0f172a; white-space: nowrap; }
         .ktg-compact-rows .r88 strong { color: #92400e; }
         .ktg-compact-rows .r80 strong { color: #15803d; }
         .ktg-compact-rows .muted { color: #94a3b8; }
+        .ov-vertraege-ktg .ov-card:last-child { padding: 12px 14px; }
+        .ov-vertraege-ktg .ktg-badge { font-size: 10px; padding: 2px 7px; }
         .ktg-tab-hint {
             margin: 0 0 10px; padding: 8px 12px; border-radius: 10px;
             background: #f6f3ee; border: 1px solid #e5e0d6;
