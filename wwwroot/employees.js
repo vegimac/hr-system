@@ -8782,14 +8782,11 @@ function renderKtgTagessatzHtml(d, mode = 'full') {
             </div>`;
     }
 
+    // Absenzen-Sidebar (side): Formel IMMER sichtbar (Walter 17.07.2026) —
+    // kein Aufklappen noetig. Full-Tab ebenfalls offen.
     const breakdown = _ktgBreakdownHtml(d);
     const pad = mode === 'side' ? '12px 14px' : '20px';
     const title = mode === 'side' ? 'KTG/UVG-Tagessatz' : '📊 KTG/UVG-Tagessatz';
-    const details = mode === 'side'
-        ? (breakdown
-            ? `<details class="ktg-details"><summary>Berechnung anzeigen</summary>${breakdown}</details>`
-            : '')
-        : breakdown;
 
     return `
         <div class="ktg-panel ktg-panel-${mode}" style="padding:${pad}">
@@ -8800,7 +8797,7 @@ function renderKtgTagessatzHtml(d, mode = 'full') {
             <div class="ktg-panel-meta">${meta}</div>
             ${_ktgRatesTableHtml(d)}
             <div class="ktg-panel-actions">${_ktgOverrideBtnHtml(d)}</div>
-            ${details}
+            ${breakdown}
         </div>`;
 }
 
