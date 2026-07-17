@@ -1306,10 +1306,12 @@ function loadUebersichtTab() {
             <div style="margin-left:auto">${_pfE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …', 'text', 150)}</div>
         </div>
         <div class="ov-frow" style="margin-bottom:2px">
-            ${_pf('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
-            ${_pf(_t('ma.field.maritalStatus','Zivilstand'), `${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}`)}
-            ${_pfE(_t('ma.field.maritalSince','seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date', 135)}
-            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.religion','Konfession')}</div>
+            <!-- Feste Spalten-Breiten (Walter 17.07.2026): AHV/Zivilstand/
+                 seit/Konfession springen beim MA-Blaettern nicht mehr. -->
+            <div style="flex:0 0 200px;min-width:0">${_pf('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}</div>
+            <div style="flex:0 0 235px;min-width:0">${_pf(_t('ma.field.maritalStatus','Zivilstand'), `${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}`)}</div>
+            <div style="flex:0 0 165px;min-width:0">${_pfE(_t('ma.field.maritalSince','Zivilstand seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date', 155)}</div>
+            <div class="ov-pf" style="flex:0 0 180px;min-width:0"><div class="ov-pfl">${_t('ma.field.religion','Konfession')}</div>
             <select id="ov-religion" class="ov-softin" style="width:160px" onchange="ovDirty()">
                 <option value="">–</option>
                 ${_relOpt('evangelisch_reformiert', _t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert'))}
