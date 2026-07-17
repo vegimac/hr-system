@@ -1287,37 +1287,38 @@ function loadUebersichtTab() {
     //    Inputs im Text-Look — Unterlinie erscheint erst bei Hover/Fokus. ──
     const _kv  = (label, valueHtml) => `
         <div class="ov-kv"><div class="ov-kl">${label}</div><div class="ov-kval">${valueHtml || '<span class="ov-empty">–</span>'}</div></div>`;
-    // Editierbare Zeilen: Klasse ov-kv-edit (nur SIE reagieren auf Hover)
-    // + dezentes ✎ als dauerhafte, moderne Kennzeichnung.
-    const _kvE = (label, id, value, ph = '', type = 'text') => `
-        <div class="ov-kv ov-kv-edit"><div class="ov-kl">${label}</div>
-        <div class="ov-kval"><input id="${id}" class="ov-editin" type="${type}" value="${type === 'date' ? toDateInput(value) : esc(value)}" placeholder="${ph}" ${type === 'date' ? 'onchange="ovDirty()"' : 'oninput="ovDirty()"'} title="Klicken zum Bearbeiten"><span class="ov-pen" aria-hidden="true">✎</span></div></div>`;
+    // Edit-Kennzeichnung (Walter 17.07.2026, final): NUR das Eingabefeld
+    // bekommt eine kompakte getoente Box in passender Breite — Label und
+    // Zeile bleiben ruhig, keine unterschiedlich breiten Streifen mehr.
+    const _kvE = (label, id, value, ph = '', type = 'text', w = 200) => `
+        <div class="ov-kv"><div class="ov-kl">${label}</div>
+        <div class="ov-kval"><span class="ov-fieldbox" style="width:${w}px"><input id="${id}" class="ov-editin" type="${type}" value="${type === 'date' ? toDateInput(value) : esc(value)}" placeholder="${ph}" ${type === 'date' ? 'onchange="ovDirty()"' : 'oninput="ovDirty()"'} title="Klicken zum Bearbeiten"><span class="ov-pen" aria-hidden="true">✎</span></span></div></div>`;
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-cols">
             <div class="ov-col">
-                ${_kvE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}
-                ${_kvE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName)}
+                ${_kvE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 220)}
+                ${_kvE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName, '', 'text', 180)}
                 ${_kv(_t('ma.field.maritalStatus','Zivilstand'), `<span class="ov-ell">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'}</span><span style="flex-shrink:0">${linkedDocButton('marriage_cert')}</span>`)}
-                ${_kvE(_t('ma.field.maritalSince','seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date')}
+                ${_kvE(_t('ma.field.maritalSince','seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date', 155)}
                 ${_kv(_t('ma.field.gender','Geschlecht'), gKurz)}
             </div>
             <div class="ov-col ov-colsep">
                 ${_kv(_t('ma.field.street','Strasse'), esc(emp.street))}
                 ${_kv('PLZ / Ort', esc([emp.zipCode, emp.city].filter(Boolean).join(' ')) + (emp.cantonCode ? ` <span class="ov-code">${esc(emp.cantonCode)}</span>` : ''))}
-                ${_kvE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}
-                <div class="ov-kv ov-kv-edit"><div class="ov-kl">${_t('ma.field.religion','Konfession')}</div>
-                <div class="ov-kval"><select id="ov-religion" class="ov-editin" onchange="ovDirty()" title="Klicken zum Bearbeiten">
+                ${_kvE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …', 'text', 185)}
+                <div class="ov-kv"><div class="ov-kl">${_t('ma.field.religion','Konfession')}</div>
+                <div class="ov-kval"><span class="ov-fieldbox" style="width:185px"><select id="ov-religion" class="ov-editin" onchange="ovDirty()" title="Klicken zum Bearbeiten">
                     <option value="">–</option>
                     ${_relOpt('evangelisch_reformiert', _t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert'))}
                     ${_relOpt('roemisch_katholisch', _t('ma.value.religion.roemisch_katholisch','Röm.-katholisch'))}
                     ${_relOpt('christ_katholisch', _t('ma.value.religion.christ_katholisch','Christ-katholisch'))}
                     ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
                     ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
-                </select><span class="ov-pen" aria-hidden="true">✎</span></div></div>
+                </select><span class="ov-pen" aria-hidden="true">✎</span></span></div></div>
             </div>
             <div class="ov-col ov-colsep">
                 ${_kv('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
-                ${_kvE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}
+                ${_kvE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'), 'text', 160)}
                 ${_kv(_t('ma.field.nationality','Nationalität'), `<span class="ov-ell">${emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : (esc(emp.nationalityCode ?? emp.nationality) || '–')}</span><span style="flex-shrink:0">${linkedDocButton('passport')}</span>`)}
             </div>
         </div>`,
