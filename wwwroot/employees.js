@@ -52,8 +52,27 @@ window.validateCity = function(el) {
     el.value = el.value.replace(/[^A-Za-zÀ-ÿ\s\-'\.]/g, '');
 };
 window.validatePhone = function(el) {
-    // Live-Tipp-Filter: erlaube nur valide Telefon-Zeichen.
-    el.value = el.value.replace(/[^0-9+\s()\-\/]/g, '');
+    // Live-Maske (Walter 17.07.2026): begleitet die Eingabe direkt zum
+    // Zielformat «+41 78 333 22 22» — fuehrende 0 (078…) und nackte
+    // Mobile-Nummern (78…) werden automatisch zu +41, Gruppierung
+    // 2-2-3-2-2 waechst beim Tippen mit. Auslaendische Nummern: mit «+»
+    // beginnen, dann wird keine 41 vorangestellt.
+    const hadPlus = (el.value || '').trimStart().startsWith('+');
+    let digits = (el.value || '').replace(/\D/g, '');
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    if (!hadPlus) {
+        if (digits.startsWith('0')) digits = '41' + digits.slice(1);
+        else if (digits && !digits.startsWith('41') && /^[2-9]/.test(digits)) digits = '41' + digits;
+    }
+    digits = digits.slice(0, 13);
+    if (!digits) { el.value = hadPlus ? '+' : ''; return; }
+    let out = '+' + digits.slice(0, 2);
+    if (digits.length > 2)  out += ' ' + digits.slice(2, 4);
+    if (digits.length > 4)  out += ' ' + digits.slice(4, 7);
+    if (digits.length > 7)  out += ' ' + digits.slice(7, 9);
+    if (digits.length > 9)  out += ' ' + digits.slice(9, 11);
+    if (digits.length > 11) out += digits.slice(11);
+    el.value = out;
 };
 window.formatPhoneIntl = function(raw) {
     // Format „+99 99 999 99 99" (12 Ziffern: 2 Country + 9 lokal).
@@ -1263,7 +1282,8 @@ function loadUebersichtTab() {
             ${_pf('PLZ', esc(emp.zipCode))}
             ${_pf(_t('ma.field.city','Ort'), esc(emp.city))}
             ${_pf('Kanton', esc(emp.cantonCode))}
-            <div style="margin-left:auto">${_pfE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …', 'text', 150)}</div>
+            <div style="margin-left:auto"><div class="ov-pf"><div class="ov-pfl">Telefon 2</div>
+            <input id="ov-phone2" class="ov-softin" style="width:150px" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div></div>
         </div>
         <div class="ov-frow" style="margin-bottom:2px">
             <!-- Feste Spalten-Breiten (Walter 17.07.2026): AHV/Zivilstand/
