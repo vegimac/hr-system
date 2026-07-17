@@ -843,8 +843,20 @@ function renderEmployeeDetail(emp) {
         _hcBadges.push(`<span class="emp-hbadge hb-prob">⏳ Probezeit bis ${formatDate(_hcActive.probationEndDate)}</span>`);
     if (emp.isPayrollExcluded)
         _hcBadges.push(`<span class="emp-hbadge hb-inak">⛔ MA ohne Lohn</span>`);
+    // Zusatz-Angabe je Modell (Walter 17.07.2026): FIX/FIX-M = Pensum %,
+    // MTP = garantierte Wochenstunden, FLEX = Wochenstunden (informativ).
+    let _hcVertragZusatz = '';
+    if (_hcActive) {
+        const _m = (_hcActive.employmentModel || '').toUpperCase();
+        if ((_m === 'FIX' || _m === 'FIX-M') && _hcActive.employmentPercentage != null)
+            _hcVertragZusatz = ' · ' + Number(_hcActive.employmentPercentage) + ' %';
+        else if (_m === 'MTP' && (_hcActive.guaranteedHoursPerWeek != null || _hcActive.weeklyHours != null))
+            _hcVertragZusatz = ' · ' + Number(_hcActive.guaranteedHoursPerWeek ?? _hcActive.weeklyHours) + ' h/Wo.';
+        else if (_m === 'FLEX' && _hcActive.weeklyHours != null)
+            _hcVertragZusatz = ' · ' + Number(_hcActive.weeklyHours) + ' h/Wo.';
+    }
     const _hcVertrag = _hcActive
-        ? `<span class="emp-contract-model ${contractModelClass(_hcActive.employmentModel || '')}" style="margin-right:5px;vertical-align:1px">${esc(modelDisplay(_hcActive.employmentModel || '–'))}</span>${esc(_hcActive.jobTitle || _hcActive.jobGroupCode || '')}${_hcActive.employmentPercentage != null ? ' · ' + Number(_hcActive.employmentPercentage) + ' %' : ''}`
+        ? `<span class="emp-contract-model ${contractModelClass(_hcActive.employmentModel || '')}" style="margin-right:5px;vertical-align:1px">${esc(modelDisplay(_hcActive.employmentModel || '–'))}</span>${esc(_hcActive.jobTitle || _hcActive.jobGroupCode || '')}${_hcVertragZusatz}`
         : null;
     const _hcFact = (label, value) => `<div class="emp-hfact"><div class="emp-hfact-l">${label}</div><div class="emp-hfact-v">${value || '<span style="color:#8b8b8b;font-weight:500">–</span>'}</div></div>`;
 
@@ -865,8 +877,10 @@ function renderEmployeeDetail(emp) {
                     ${_hcFact(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? entry : null)}
                     ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${linkedDocButton('birth_cert')}` : null)}
                     ${_hcFact('Vertrag', _hcVertrag)}
+                </div>
+                <div class="emp-hfacts" style="margin-top:8px">
                     ${_hcFact(_t('ma.field.phone','Telefon'), emp.phoneMobile ? esc(emp.phoneMobile) : null)}
-                    ${_hcFact('E-Mail', emp.email ? esc(emp.email) : null)}
+                    ${_hcFact('E-Mail', emp.email ? `<a href="mailto:${esc(emp.email)}" title="E-Mail an ${esc(emp.email)} schreiben" style="color:inherit;text-decoration:none;border-bottom:1px dotted #b7ad9e">${esc(emp.email)}</a>` : null)}
                 </div>
             </div>
             <!-- Tab-spezifischer „+ Neu"-Button (Walter-Vorgabe 01.06.2026):
