@@ -366,7 +366,7 @@ function renderDashTodoRow(a) {
                                    || a.category === 'anniversary'
                                    || a.category === 'night_work_exam_fehlt'
                                    || a.category === 'night_work_exam_mismatch')
-                                    ? `onclick="dashOpenEmployee(${a.employeeId}, 'personal')"`
+                                    ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
     const critCls = dashIsRedAlert(a) ? ' liquid-todo-crit' : '';
@@ -498,7 +498,7 @@ function dashTodoOnClick(a) {
             case 'anniversary':
             case 'night_work_exam_fehlt':
             case 'night_work_exam_expiring':
-            case 'night_work_exam_mismatch': return `onclick="dashOpenEmployee(${a.employeeId}, 'personal')"`;
+            case 'night_work_exam_mismatch': return `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`;
             default:                    return `onclick="dashOpenEmployee(${a.employeeId})"`;
         }
     }
@@ -615,7 +615,7 @@ function renderDashAlertRow(a) {
                                    || a.category === 'anniversary'
                                    || a.category === 'night_work_exam_fehlt'
                                    || a.category === 'night_work_exam_mismatch')
-                                    ? `onclick="dashOpenEmployee(${a.employeeId}, 'personal')"`
+                                    ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
     const cursor = onClick ? 'cursor:pointer' : '';
