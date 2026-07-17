@@ -2631,43 +2631,47 @@
                 url("data:image/svg+xml,%3Csvg width='10' height='7' viewBox='0 0 10 7' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5 5 5.5 9 1.5' fill='none' stroke='%23cbd5e1' stroke-width='1.7' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 9px center / 10px 7px !important;
             border-color: rgba(122,145,165,.22) !important;
         }
+        /* ja/nein: aktiver Zustand als Kohle-Pille (Walter 17.07.2026) —
+           weiss-auf-hell war auf der Übersicht-Karte kaum sichtbar. */
         #page-mitarbeiter.liquid-employee .emp-yesno-toggle {
             display: inline-flex;
             align-items: center;
             gap: 2px;
             padding: 3px;
-            border: 1px solid rgba(255,255,255,.42);
+            border: 1px solid rgba(60,55,48,.16);
             border-radius: 15px;
-            background: rgba(255,255,255,.18);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.42), 0 8px 18px rgba(72,63,53,.08);
-            backdrop-filter: blur(18px) saturate(145%);
-            -webkit-backdrop-filter: blur(18px) saturate(145%);
+            background: #f0ece4;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
         }
         #page-mitarbeiter.liquid-employee .emp-yesno-toggle button {
             border: 0;
             border-radius: 12px;
             background: transparent;
-            color: var(--emp-text);
+            color: #8b8b8b;
             font: inherit;
             font-size: 12px;
             font-weight: 760;
             line-height: 1;
-            padding: 6px 10px;
+            padding: 6px 12px;
             cursor: pointer;
         }
         #page-mitarbeiter.liquid-employee .emp-yesno-toggle button.active {
-            background: rgba(255,255,255,.55);
-            color: var(--emp-text-strong);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.70), 0 4px 12px rgba(72,63,53,.10);
+            background: #3f3f3f;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(60,55,48,.18);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-yesno-toggle {
-            background: rgba(255,255,255,.06);
-            border-color: rgba(122,145,165,.20);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 8px 18px rgba(0,0,0,.14);
+            background: rgba(255,255,255,.08);
+            border-color: rgba(122,145,165,.28);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-yesno-toggle button {
+            color: #94a3b8;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-yesno-toggle button.active {
-            background: rgba(255,255,255,.14);
-            color: #f8fafc;
+            background: #e8e4dc;
+            color: #1a1a1a;
+            box-shadow: 0 4px 12px rgba(0,0,0,.22);
         }
         /* Walter 16.07.2026: Gruen ist nicht die Standard-Farbe — Inline-
            Speichern als Kohle-Pille (Liquid-Glass-Palette, wie Primaer-Buttons). */
