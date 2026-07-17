@@ -238,8 +238,9 @@ const EMP_SPECIAL_FILTERS = {
 // weitere Restaurant-Admin-Funktionen kommen kuenftig dort hinein.
 // Menü-Etappe 1 (Zeiten-Kombi) am 17.07.2026 wieder zurückgenommen —
 // Stempelzeiten + Absenzen bleiben getrennte Tabs (Walter-Feedback).
+// Tab «KTG/UVG» entfernt 17.07.2026 — Tagessatz lebt bei Absenzen + Übersicht.
 const _empTabsOrder = ['uebersicht', 'personal', 'familie', 'quellensteuer', 'verwarnungen',
-                       'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'ktg', 'dokumente'];
+                       'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'dokumente'];
 
 // Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
 let _stempelGlobalPeriodeId = null;
@@ -282,7 +283,7 @@ document.addEventListener('keydown', e => {
         // zeiten→absenzen nach Rücknahme der Zeiten-Kombi).
         let curTab = activeEmpTab;
         if (curTab === 'bank') curTab = 'quellensteuer';
-        if (curTab === 'zeiten') curTab = 'absenzen';
+        if (curTab === 'zeiten' || curTab === 'ktg') curTab = 'absenzen';
         const idx = _empTabsOrder.indexOf(curTab);
         if (idx < 0) return;
         let next = idx;
@@ -944,7 +945,6 @@ function renderEmployeeDetail(emp) {
             <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')">${_t('ma.tab.absencesOnly','Absenzen')}</div>
             <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availability','Verfügbarkeit')}</div>
             <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen Abzüge<br>Abtretung BVG')}</div>
-            <div class="emp-tab"        data-tab="ktg"        onclick="switchEmpTab('ktg')">${_t('ma.tab.ktg','KTG/UVG')}</div>
             <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')">${_t('ma.tab.docs','Dokumente')}</div>
         </div>
     </div>
@@ -1198,17 +1198,8 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
 
-<!-- TAB: KTG/UVG -->
-<!-- Walter-Vorgabe 27.05.2026: Arbeitslosigkeit (ALV-Meldungen) hier entfernt
-     — wird im HR-Modul gepflegt, gehört nicht ins MA-Detail.
-     Walter 17.07.2026: Arbeitsplatz ist jetzt Absenzen-Tab (rechts);
-     dieser Tab bleibt als Detail-/Formel-Ansicht. -->
-        <div class="emp-tab-content" id="emp-tab-ktg">
-          <div class="ktg-tab-hint">Arbeitsplatz Krank/Unfall: Tagessatz steht auch rechts im Tab <button type="button" class="ktg-tab-hint-link" onclick="switchEmpTab('absenzen')">Absenzen</button>.</div>
-          <div id="ktgDurchschnittContent">
-            <div style="padding:40px;text-align:center;color:#94a3b8">${_t('ma.loading','Wird geladen...')}</div>
-          </div>
-        </div>
+<!-- TAB KTG/UVG entfernt 17.07.2026 (Walter): Inhalt lebt bei Absenzen
+     (rechts) + Übersicht-Kompaktkarte. loadKtgTab / Override bleiben. -->
 
 <!-- Mutterschafts-Tab entfernt am 11.06.2026 (Walter-Vorgabe): Modul lebt
      jetzt komplett im Familie-Tab. Die mts*-Funktionen + renderPregnancyCard
@@ -1626,7 +1617,8 @@ function switchEmpTab(tab) {
     if (tab === 'bank') tab = 'quellensteuer';
     // Zeiten-Kombi zurückgenommen (Walter 17.07.2026): falls noch jemand auf
     // dem Kurzzeit-Key «zeiten» hängt → Absenzen (war der Fokus-Tab).
-    if (tab === 'zeiten') tab = 'absenzen';
+    // Tab «KTG/UVG» entfernt 17.07.2026 → Absenzen (Tagessatz rechts).
+    if (tab === 'zeiten' || tab === 'ktg') tab = 'absenzen';
     activeEmpTab = tab;
     document.querySelectorAll('.emp-tab').forEach(t =>
         t.classList.toggle('active', t.dataset.tab === tab));
@@ -1703,11 +1695,6 @@ function switchEmpTab(tab) {
         if (typeof loadBvgZusatzTab === 'function') loadBvgZusatzTab(selectedEmployeeId);
         loadRecurringWagesTab(selectedEmployeeId);
         loadLohnAssignmentsTab(selectedEmployeeId);
-    }
-    if (tab === 'ktg'            && selectedEmployeeId) {
-        // Walter-Vorgabe 27.05.2026: ALV-Meldungen (Arbeitslosigkeit) hier entfernt,
-        // weil sie im HR-Modul gepflegt werden. loadFormulareTab nicht mehr aufrufen.
-        loadKtgTab(selectedEmployeeId);
     }
     if (tab === 'dokumente'      && selectedEmployeeId) loadEmpDokumente(selectedEmployeeId);
 
@@ -8802,8 +8789,8 @@ function renderKtgTagessatzHtml(d, mode = 'full') {
 }
 
 async function loadKtgTab(employeeId) {
+    // Tab «KTG/UVG» entfernt — nur noch Absenzen-Sidebar + Übersicht-Kompakt.
     const targets = [
-        document.getElementById('ktgDurchschnittContent'),
         document.getElementById('ktgTagessatzSidebar'),
         document.getElementById('ovKtgContent')
     ].filter(Boolean);
@@ -8837,10 +8824,8 @@ async function loadKtgTab(employeeId) {
         }
 
         const d = await res.json();
-        const main = document.getElementById('ktgDurchschnittContent');
         const side = document.getElementById('ktgTagessatzSidebar');
         const ov   = document.getElementById('ovKtgContent');
-        if (main) main.innerHTML = renderKtgTagessatzHtml(d, 'full');
         if (side) side.innerHTML = `<div class="ktg-side-card">${renderKtgTagessatzHtml(d, 'side')}</div>`;
         if (ov)   ov.innerHTML   = renderKtgTagessatzHtml(d, 'compact');
     } catch (e) {

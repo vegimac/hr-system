@@ -77,7 +77,7 @@ const HELP_PAGE_BY_EMP_TAB = {
     'absenzen':       'mitarbeiter',
     'zeiten':         'mitarbeiter', // Kurzzeit-Alias → Absenzen
     'zulagen':        'mitarbeiter',
-    'ktg':            'mitarbeiter',
+    'ktg':            'mitarbeiter', // Alias → Absenzen (Tab entfernt)
     'dokumente':      'dokumente',
 };
 
@@ -111,7 +111,7 @@ function helpContextLabel(ctx) {
         'absenzen': 'Absenzen',
         'zeiten': 'Absenzen', // Kurzzeit-Alias
         'zulagen': 'Zulagen & Abzüge',
-        'ktg': 'KTG/UVG',
+        'ktg': 'Absenzen', // Tab entfernt → Alias
         'dokumente': 'Dokumente',
     };
     const pageLbl = pageLabels[ctx.page] || ctx.page;
