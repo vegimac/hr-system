@@ -1281,38 +1281,43 @@ function loadUebersichtTab() {
     const gKurz = _g.startsWith('m') ? 'm' : (_g.startsWith('f') || _g === 'w' || _g === 'weiblich') ? 'w' : (emp.gender ? 'd' : null);
     const _rel = emp.religion || '';
     const _relOpt = (v, label) => `<option value="${v}" ${_rel === v ? 'selected' : ''}>${label}</option>`;
+    // ── Personalien & Adresse als 3-Spalten-Steckbrief (Walter 17.07.2026,
+    //    Neuaufbau): Spalten mit Hairline getrennt (wie die Kopf-Fakten),
+    //    darin buendige Label-Wert-Zeilen. Editierbare Werte sind normale
+    //    Inputs im Text-Look — Unterlinie erscheint erst bei Hover/Fokus. ──
+    const _kv  = (label, valueHtml) => `
+        <div class="ov-kv"><div class="ov-kl">${label}</div><div class="ov-kval">${valueHtml || '<span class="ov-empty">–</span>'}</div></div>`;
+    const _kvE = (label, id, value, ph = '', type = 'text') => `
+        <div class="ov-kv"><div class="ov-kl">${label}</div>
+        <div class="ov-kval"><input id="${id}" class="ov-editin" type="${type}" value="${type === 'date' ? toDateInput(value) : esc(value)}" placeholder="${ph}" ${type === 'date' ? 'onchange="ovDirty()"' : 'oninput="ovDirty()"'} title="Klicken zum Bearbeiten"></div></div>`;
     const kPers = _ovCard('Personalien & Adresse', null, '', `
-        <div class="ov-row">
-            <div style="flex:1.6;min-width:0">${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}</div>
-            <div style="flex:1;min-width:0">${_ovE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName)}</div>
-            <div style="flex:1.4;min-width:0"><div class="ov-f"><div class="ov-fl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
-                <div class="ov-fv" style="display:flex;align-items:center;gap:6px"><span style="overflow:hidden;text-overflow:ellipsis">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'}</span><span style="flex-shrink:0">${linkedDocButton('marriage_cert')}</span></div></div></div>
-            <div style="flex:0 0 135px">
-                <div class="ov-f"><div class="ov-fl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
-                <input id="ov-maritalStatusSince" class="ov-editin" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="ovDirty()" title="Klicken zum Bearbeiten"></div>
+        <div class="ov-cols">
+            <div class="ov-col">
+                ${_kvE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}
+                ${_kvE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName)}
+                ${_kv(_t('ma.field.maritalStatus','Zivilstand'), `<span class="ov-ell">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'}</span><span style="flex-shrink:0">${linkedDocButton('marriage_cert')}</span>`)}
+                ${_kvE(_t('ma.field.maritalSince','seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date')}
+                ${_kv(_t('ma.field.gender','Geschlecht'), gKurz)}
             </div>
-            <div style="flex:0 0 70px">${_ovF(_t('ma.field.gender','Geschlecht'), gKurz)}</div>
-        </div>
-        <div class="ov-row">
-            <div style="flex:2;min-width:0">${_ovF('Adresse', esc(adresse))}</div>
-            <div style="flex:1.1;min-width:0">
-                <div class="ov-f"><div class="ov-fl">${_t('ma.field.religion','Konfession')}</div>
-                <select id="ov-religion" class="ov-editin no-liquid" onchange="ovDirty()" title="Klicken zum Bearbeiten">
+            <div class="ov-col ov-colsep">
+                ${_kv(_t('ma.field.street','Strasse'), esc(emp.street))}
+                ${_kv('PLZ / Ort', esc([emp.zipCode, emp.city].filter(Boolean).join(' ')) + (emp.cantonCode ? ` <span class="ov-code">${esc(emp.cantonCode)}</span>` : ''))}
+                ${_kvE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}
+                <div class="ov-kv"><div class="ov-kl">${_t('ma.field.religion','Konfession')}</div>
+                <div class="ov-kval"><select id="ov-religion" class="ov-editin no-liquid" onchange="ovDirty()" title="Klicken zum Bearbeiten">
                     <option value="">–</option>
                     ${_relOpt('evangelisch_reformiert', _t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert'))}
                     ${_relOpt('roemisch_katholisch', _t('ma.value.religion.roemisch_katholisch','Röm.-katholisch'))}
                     ${_relOpt('christ_katholisch', _t('ma.value.religion.christ_katholisch','Christ-katholisch'))}
                     ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
                     ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
-                </select></div>
+                </select></div></div>
             </div>
-            <div style="flex:1.3;min-width:0">${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}</div>
-        </div>
-        <div class="ov-row">
-            <div style="flex:0 0 190px">${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}</div>
-            <div style="flex:0 0 160px">${_ovE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}</div>
-            <div style="flex:1;min-width:0"><div class="ov-f"><div class="ov-fl">${_t('ma.field.nationality','Nationalität')}</div>
-                <div class="ov-fv" style="display:flex;align-items:center;gap:6px"><span style="overflow:hidden;text-overflow:ellipsis">${emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : (esc(emp.nationalityCode ?? emp.nationality) || '–')}</span><span style="flex-shrink:0">${linkedDocButton('passport')}</span></div></div></div>
+            <div class="ov-col ov-colsep">
+                ${_kv('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
+                ${_kvE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}
+                ${_kv(_t('ma.field.nationality','Nationalität'), `<span class="ov-ell">${emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : (esc(emp.nationalityCode ?? emp.nationality) || '–')}</span><span style="flex-shrink:0">${linkedDocButton('passport')}</span>`)}
+            </div>
         </div>`,
         `<button id="ovSaveBtn" class="emp-inline-save" onclick="ovSave()" style="display:none">Speichern</button>`);
 
