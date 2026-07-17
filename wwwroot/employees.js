@@ -1323,16 +1323,22 @@ function loadUebersichtTab() {
             ${_pf(_t('ma.field.nationality','Nationalität'), `${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${linkedDocButton('passport')}`)}
             ${istCH ? '' : `<div style="margin-left:auto">${_pfE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'), 'text', 140)}</div>`}
         </div>`,
-        `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary" style="display:none" onclick="ovSave()">Speichern</button>`);
+        `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
-    // ── Karte Anstellung ──
+    // ── Karte Anstellung (Walter 17.07.2026: ALLE Anstellungs-Infos des
+    //    Personal-Tabs hier, direkt editierbar — L-GAV/<8h-Toggles +
+    //    Kuendigungs-Daten mit Auto-Fristberechnung wie gehabt) ──
     const kAnst = _ovCard('Anstellung', null, '', `
-        <div class="ov-grid4">
-            ${_ovF(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
-            ${_ovF('Gekündigt am', emp.kuendigungAusgesprochenAm ? formatDate(emp.kuendigungAusgesprochenAm) : null)}
-            ${_ovF('Kündigung per', emp.kuendigungPer ? formatDate(emp.kuendigungPer) : null)}
-            ${_ovF('L-GAV', emp.lgavPflichtig ? 'ja' : 'nein')}
-        </div>`);
+        <div class="ov-frow" style="margin-bottom:2px">
+            ${_pf(_t('ma.detail.exitDate','Austrittsdatum'), emp.exitDate ? formatDate(emp.exitDate) : null)}
+            <div class="ov-pf"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
+            <div class="ov-pf"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
+            <div class="ov-pf"><div class="ov-pfl">Gekündigt am</div>
+            <input id="ov-kuendAm" class="ov-softin" style="width:150px" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
+            <div class="ov-pf"><div class="ov-pfl">Kündigung per</div>
+            <input id="ov-kuendPer" class="ov-softin" style="width:150px" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
+        </div>`,
+        `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
     // ── Karte Nachtarbeit ──
     const nwIssued = emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null);
@@ -1373,8 +1379,20 @@ function loadUebersichtTab() {
 // Inline-Edit in der Uebersicht (Walter 17.07.2026): Werte in die ef-*-
 // Inputs des Personal-Tabs spiegeln und den bestehenden Save-Pfad nutzen.
 function ovDirty() {
-    const b = document.getElementById('ovSaveBtn');
-    if (b) b.style.display = 'inline-flex';
+    document.querySelectorAll('.ov-savebtn').forEach(b => b.style.display = 'inline-flex');
+}
+// Gekuendigt am in der Uebersicht: Frist automatisch berechnen — nutzt den
+// bestehenden Pfad (ef-kuendAm -> kuendAmChanged -> ef-kuendPer) und
+// spiegelt das Ergebnis zurueck ins Uebersicht-Feld.
+async function ovKuendAmChanged(empId) {
+    const ovAm = document.getElementById('ov-kuendAm');
+    const efAm = document.getElementById('ef-kuendAm');
+    if (ovAm && efAm) efAm.value = ovAm.value;
+    if (typeof kuendAmChanged === 'function') await kuendAmChanged(empId);
+    const ovPer = document.getElementById('ov-kuendPer');
+    const efPer = document.getElementById('ef-kuendPer');
+    if (ovPer && efPer && efPer.value) ovPer.value = efPer.value;
+    ovDirty();
 }
 function ovSave() {
     const map = [['ov-letterSalutation', 'ef-letterSalutation'],
@@ -1382,7 +1400,11 @@ function ovSave() {
                  ['ov-maritalStatusSince', 'ef-maritalStatusSince'],
                  ['ov-religion', 'ef-religion'],
                  ['ov-phone2', 'ef-phone2'],
-                 ['ov-zemisNumber', 'ef-zemisNumber']];
+                 ['ov-zemisNumber', 'ef-zemisNumber'],
+                 ['ov-lgavPflichtig', 'ef-lgavPflichtig'],
+                 ['ov-teilzeitUnter8h', 'ef-teilzeitUnter8h'],
+                 ['ov-kuendAm', 'ef-kuendAm'],
+                 ['ov-kuendPer', 'ef-kuendPer']];
     for (const [ovId, efId] of map) {
         const ov = document.getElementById(ovId);
         const ef = document.getElementById(efId);
@@ -3935,6 +3957,7 @@ function empSetYesNo(id, value) {
         });
     }
     empInlineDirty();
+    if (id.startsWith('ov-') && typeof ovDirty === 'function') ovDirty();
 }
 
 function empInlineDirty() {
