@@ -3161,6 +3161,7 @@
            Badges, Fakten-Zeile (Eintritt · Geburtstag · Vertrag · Telefon ·
            E-Mail), Buttons rechts. Tab-Bar bleibt am Karten-Fuss. */
         #page-mitarbeiter.liquid-employee .emp-detail-header {
+            position: relative;
             margin: 0 0 10px;
             padding: 16px 18px 0;
             border-radius: 18px;
@@ -3190,7 +3191,18 @@
             background: #f1ede5; color: #1a1a1a;
             font-size: 13px; font-weight: 750;
         }
-        .emp-hvertrag { margin-top: 7px; }
+        .emp-hvertrag { margin-top: 7px; white-space: nowrap; }
+        /* Rechte Aktions-Spalte: aus dem Fluss genommen, oben rechts fixiert
+           (unterhalb der langSwitcher-Zone) — Namen-/Fakten-Zeilen behalten
+           die volle Breite, nichts wrappt mehr. */
+        .emp-head-right {
+            position: absolute;
+            top: 54px; right: 16px;
+            display: flex; flex-direction: column;
+            align-items: flex-end; gap: 8px;
+            max-width: 480px;
+            z-index: 6;
+        }
         body.theme-dark .emp-hbadge.hb-vert { background: rgba(255,255,255,.10); color: #f2f5f8; }
         /* Festes 2x2-Raster (Walter 17.07.2026): Spaltenbreite fix, damit
            beim MA-Wechsel nichts horizontal springt. Zeile 1: Eintritt ·

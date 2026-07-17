@@ -870,7 +870,7 @@ function renderEmployeeDetail(emp) {
                  class="emp-avatar ${isFemale ? 'female' : ''}"
                  style="border-radius:50%;flex-shrink:0;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;overflow:hidden">${initials}</div>
             <div style="min-width:0;flex:1 1 auto">
-                <div class="emp-detail-name" style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+                <div class="emp-detail-name" style="display:flex;align-items:baseline;gap:10px;flex-wrap:nowrap;white-space:nowrap;min-width:0">
                     <span>${name}</span>
                     <span style="font-size:16px;font-weight:650;color:#8b8b8b">${nr}</span>
                     <span id="empNumberAliases" data-emp="${emp.id}"></span>
@@ -885,14 +885,14 @@ function renderEmployeeDetail(emp) {
                     ${_hcFact('E-Mail', emp.email ? `<a href="mailto:${esc(emp.email)}" title="E-Mail an ${esc(emp.email)} schreiben" style="color:inherit;text-decoration:none;border-bottom:1px dotted #b7ad9e">${esc(emp.email)}</a>` : null)}
                 </div>
             </div>
-            <!-- Tab-spezifischer „+ Neu"-Button (Walter-Vorgabe 01.06.2026):
-                 wird in switchEmpTab() pro Tab befüllt. -->
-            <div id="empTabActionBar" style="display:flex;gap:8px;align-items:center;margin-top:10px"></div>
-            <!-- Header-Actions: bestehende Funktionen unveraendert. Face ID
-                 sitzt seit Etappe 1 im ⋮-Menue (Walter 17.07.2026).
-                 startEmpEdit() ersetzt den Inhalt durch Speichern/Abbrechen.
-                 margin-top:58px = reservierte langSwitcher-Zone (CLAUDE.md). -->
-            <div id="empHeaderActions" style="display:flex;gap:8px;margin-top:58px;flex-wrap:wrap;justify-content:flex-end;align-content:flex-start;min-width:0;flex-shrink:1;max-width:480px">
+            <!-- Rechte Aktions-Spalte ABSOLUT positioniert (Walter 17.07.2026:
+                 «Zeilen und Positionen heilig») — nimmt dem Namen-/Fakten-
+                 Bereich keine Breite weg. top:54px = unter der reservierten
+                 langSwitcher-Zone (CLAUDE.md). startEmpEdit() ersetzt weiterhin
+                 den Inhalt von #empHeaderActions. -->
+            <div class="emp-head-right">
+            <div id="empTabActionBar" style="display:flex;gap:8px;align-items:center;justify-content:flex-end"></div>
+            <div id="empHeaderActions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-content:flex-start;min-width:0">
                 <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
                 ${['admin','superuser','buchhaltung','user'].includes(currentUser?.role) ? `
                 <button class="btn-emp-edit" id="btnEmpEasyworkSync" style="white-space:nowrap;display:inline-flex;align-items:center;gap:7px"
@@ -920,6 +920,7 @@ function renderEmployeeDetail(emp) {
                         <button class="dok-menu-item" onclick="faceIdAdminReset(${emp.id})">Face ID zurücksetzen</button>
                     </div>
                 </div>` : ''}
+            </div>
             </div>
         </div>
         <div class="emp-detail-tabs">
