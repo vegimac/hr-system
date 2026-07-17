@@ -1260,19 +1260,31 @@ function loadUebersichtTab() {
     if (!el || !emp) return;
 
 
-    // ── Karte Personalien & Adresse (Walter 17.07.2026: KEINE Dubletten
-    //    zur Kopf-Card — Name/Vorname/Telefon/E-Mail/Eintritt stehen oben) ──
+    // ── Karte Personalien & Adresse (Walter 17.07.2026, 3 fixe Zeilen):
+    //    Z1 Anrede·Briefanrede·Zivilstand·Geschlecht — Z2 Adresse (breit)
+    //    ·Telefon 2 — Z3 Nationalität·ZEMIS·AHV·Speichern.
+    //    Briefanrede/Telefon 2/ZEMIS sind DIREKT HIER editierbar: die
+    //    ov-Inputs spiegeln ihre Werte beim Speichern in die (versteckten)
+    //    ef-*-Inputs des Personal-Tabs und rufen saveEmpEdit() — derselbe
+    //    geprüfte Save-Pfad, keine doppelten DOM-IDs. ──
     const adresse = [emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-    const kPers = _ovCard('Personalien & Adresse', 'personal', 'Zu den Persönlichen Angaben', `
+    const _ovE = (label, id, value, ph = '') => `
+        <div class="ov-f"><div class="ov-fl">${label}</div>
+        <input id="${id}" class="ef-input" value="${esc(value)}" placeholder="${ph}" oninput="ovDirty()"></div>`;
+    const kPers = _ovCard('Personalien & Adresse', 'personal', 'Alle Details im Personal-Tab', `
         <div class="ov-grid4">
             ${_ovF(_t('ma.field.salutation','Anrede'), formatSalutation(emp.salutation))}
-            ${_ovF(_t('ma.field.letterSalutation','Briefanrede'), esc(emp.letterSalutation))}
+            ${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}
             ${_ovF(_t('ma.field.maritalStatus','Zivilstand'), formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus))}
             ${_ovF(_t('ma.field.gender','Geschlecht'), formatGender(emp.gender))}
+            <div class="ov-span3">${_ovF('Adresse', esc(adresse))}</div>
+            ${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}
             ${_ovF(_t('ma.field.nationality','Nationalität'), emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality))}
+            ${_ovE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}
             ${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
-            ${_ovF('Adresse', esc(adresse))}
-            ${_ovF('Telefon 2', esc(emp.phone2))}
+            <div class="ov-f" style="display:flex;align-items:flex-end">
+                <button id="ovSaveBtn" class="emp-inline-save" onclick="ovSave()" style="display:none">Speichern</button>
+            </div>
         </div>`);
     const kKontakt = '';
 
@@ -1283,7 +1295,6 @@ function loadUebersichtTab() {
             ${_ovF('Gekündigt am', emp.kuendigungAusgesprochenAm ? formatDate(emp.kuendigungAusgesprochenAm) : null)}
             ${_ovF('Kündigung per', emp.kuendigungPer ? formatDate(emp.kuendigungPer) : null)}
             ${_ovF('Kanton', esc(emp.cantonCode))}
-            ${_ovF('ZEMIS-Nr.', esc(emp.zemisNumber))}
             ${_ovF('L-GAV', emp.lgavPflichtig ? 'ja' : 'nein')}
         </div>`);
 
@@ -1324,6 +1335,24 @@ function loadUebersichtTab() {
 
     // Dokumente nachladen (letzte 3 nach Aenderungs-/Upload-Datum)
     _ovLoadDokumente(emp.id);
+}
+
+// Inline-Edit in der Uebersicht (Walter 17.07.2026): Werte in die ef-*-
+// Inputs des Personal-Tabs spiegeln und den bestehenden Save-Pfad nutzen.
+function ovDirty() {
+    const b = document.getElementById('ovSaveBtn');
+    if (b) b.style.display = 'inline-flex';
+}
+function ovSave() {
+    const map = [['ov-letterSalutation', 'ef-letterSalutation'],
+                 ['ov-phone2', 'ef-phone2'],
+                 ['ov-zemisNumber', 'ef-zemisNumber']];
+    for (const [ovId, efId] of map) {
+        const ov = document.getElementById(ovId);
+        const ef = document.getElementById(efId);
+        if (ov && ef) ef.value = ov.value;
+    }
+    saveEmpEdit();
 }
 
 async function _ovLoadDokumente(empId) {
