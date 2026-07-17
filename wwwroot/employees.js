@@ -1194,12 +1194,12 @@ function loadUebersichtTab() {
         <div class="ov-frow">
             ${_pfE(_t('ma.field.maidenName','Ledigname'), 'ov-maidenName', emp.maidenName, '', 'text', 160)}
             ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 170)}
-            <div class="ov-pf" style="flex:0 0 auto;min-width:0" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">${_pf(_t('ma.field.shortName','Kurzname'), esc(emp.shortName))}</div>
-            <div class="ov-pf" style="flex:0 0 36px;min-width:0">${_pf('Sex', gKurz2)}</div>
+            <div style="flex:0 0 auto;min-width:0" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">${_pf(_t('ma.field.shortName','Kurzname'), esc(emp.shortName))}</div>
+            <div style="flex:0 0 40px;min-width:0">${_pf('Sex', gKurz2)}</div>
             ${_pf(_t('ma.field.street','Strasse'), esc(emp.street))}
-            <div class="ov-pf" style="flex:0 0 52px;min-width:0">${_pf('PLZ', esc(emp.zipCode))}</div>
+            <div style="flex:0 0 52px;min-width:0">${_pf('PLZ', esc(emp.zipCode))}</div>
             ${_pf(_t('ma.field.city','Ort'), esc(emp.city))}
-            <div class="ov-pf" style="flex:0 0 36px;min-width:0">${_pf('Kanton', esc(emp.cantonCode))}</div>
+            <div style="flex:0 0 48px;min-width:0">${_pf('Kanton', esc(emp.cantonCode))}</div>
             <div style="margin-left:auto"><div class="ov-pf"><div class="ov-pfl">Telefon 2</div>
             <input id="ov-phone2" class="ov-softin" style="width:150px" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div></div>
         </div>
