@@ -1279,50 +1279,64 @@ function loadUebersichtTab() {
     // und faellt weg. Zeilen frei proportioniert statt starrem 4er-Raster.
     const _g = (emp.gender || '').toLowerCase();
     const gKurz = _g.startsWith('m') ? 'm' : (_g.startsWith('f') || _g === 'w' || _g === 'weiblich') ? 'w' : (emp.gender ? 'd' : null);
+    // ── Personalien & Adresse (Walter 17.07.2026, nach Mockup-Richtung):
+    //    drei ruhige Unter-Panels PERSON / KONTAKT / AMTLICH, Label ueber
+    //    Wert. Normal = ruhiger ANSICHTSMODUS; der «Bearbeiten»-Button oben
+    //    schaltet in den Edit-Modus, in dem die editierbaren Felder als
+    //    sanfte Input-Flaechen erscheinen (Speichern/Abbrechen im Kopf). ──
+    const edit = window._ovEditMode === emp.id;   // Modus gilt pro MA
     const _rel = emp.religion || '';
     const _relOpt = (v, label) => `<option value="${v}" ${_rel === v ? 'selected' : ''}>${label}</option>`;
-    // ── Personalien & Adresse als 3-Spalten-Steckbrief (Walter 17.07.2026,
-    //    Neuaufbau): Spalten mit Hairline getrennt (wie die Kopf-Fakten),
-    //    darin buendige Label-Wert-Zeilen. Editierbare Werte sind normale
-    //    Inputs im Text-Look — Unterlinie erscheint erst bei Hover/Fokus. ──
-    const _kv  = (label, valueHtml) => `
-        <div class="ov-kv"><div class="ov-kl">${label}</div><div class="ov-kval">${valueHtml || '<span class="ov-empty">–</span>'}</div></div>`;
-    // Edit-Kennzeichnung (Walter 17.07.2026, final): NUR das Eingabefeld
-    // bekommt eine kompakte getoente Box in passender Breite — Label und
-    // Zeile bleiben ruhig, keine unterschiedlich breiten Streifen mehr.
-    const _kvE = (label, id, value, ph = '', type = 'text', w = 200) => `
-        <div class="ov-kv"><div class="ov-kl">${label}</div>
-        <div class="ov-kval"><span class="ov-fieldbox" style="width:${w}px"><input id="${id}" class="ov-editin" type="${type}" value="${type === 'date' ? toDateInput(value) : esc(value)}" placeholder="${ph}" ${type === 'date' ? 'onchange="ovDirty()"' : 'oninput="ovDirty()"'} title="Klicken zum Bearbeiten"><span class="ov-pen" aria-hidden="true">✎</span></span></div></div>`;
+    const _pf = (label, valueHtml) => `
+        <div class="ov-pf"><div class="ov-pfl">${label}</div><div class="ov-pfv">${valueHtml || '<span class="ov-empty">–</span>'}</div></div>`;
+    const _pfE = (label, id, value, ph = '', type = 'text') => edit
+        ? `<div class="ov-pf"><div class="ov-pfl">${label}</div>
+           <input id="${id}" class="ov-softin" type="${type}" value="${type === 'date' ? toDateInput(value) : esc(value)}" placeholder="${ph}" ${type === 'date' ? 'onchange="ovDirty()"' : 'oninput="ovDirty()"'}></div>`
+        : _pf(label, type === 'date' ? (value ? formatDate(value) : null) : esc(value));
+    const zivilstandView = `${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'}${emp.maritalStatusSince && !edit ? ` <span class="ov-code">seit ${formatDate(emp.maritalStatusSince)}</span>` : ''} ${linkedDocButton('marriage_cert')}`;
+    const konfessionEdit = `
+        <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.religion','Konfession')}</div>
+        <select id="ov-religion" class="ov-softin" onchange="ovDirty()">
+            <option value="">–</option>
+            ${_relOpt('evangelisch_reformiert', _t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert'))}
+            ${_relOpt('roemisch_katholisch', _t('ma.value.religion.roemisch_katholisch','Röm.-katholisch'))}
+            ${_relOpt('christ_katholisch', _t('ma.value.religion.christ_katholisch','Christ-katholisch'))}
+            ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
+            ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
+        </select></div>`;
+    const relLabels = { evangelisch_reformiert: 'Evang.-reformiert', roemisch_katholisch: 'Röm.-katholisch', christ_katholisch: 'Christ-katholisch', andere: 'Andere', keine: 'Keine' };
+    const headerBtns = edit
+        ? `<button class="ov-hbtn ov-hbtn-primary" onclick="ovSave()">Speichern</button>
+           <button class="ov-hbtn" onclick="ovCancelEdit()">Abbrechen</button>`
+        : `<button class="ov-hbtn" onclick="ovStartEdit()">✎ Bearbeiten</button>`;
     const kPers = _ovCard('Personalien & Adresse', null, '', `
-        <div class="ov-cols">
-            <div class="ov-col">
-                ${_kvE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 220)}
-                ${_kvE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName, '', 'text', 180)}
-                ${_kv(_t('ma.field.maritalStatus','Zivilstand'), `<span class="ov-ell">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'}</span><span style="flex-shrink:0">${linkedDocButton('marriage_cert')}</span>`)}
-                ${_kvE(_t('ma.field.maritalSince','seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date', 155)}
-                ${_kv(_t('ma.field.gender','Geschlecht'), gKurz)}
+        <div class="ov-panels">
+            <div class="ov-panel">
+                <div class="ov-ptitle">Person</div>
+                <div class="ov-pgrid2">
+                    ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}
+                    ${_pfE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName)}
+                    ${_pf(_t('ma.field.gender','Geschlecht'), formatGender(emp.gender))}
+                    ${_pf(_t('ma.field.maritalStatus','Zivilstand'), zivilstandView)}
+                    ${edit ? _pfE(_t('ma.field.maritalSince','Zivilstand seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date') : ''}
+                </div>
             </div>
-            <div class="ov-col ov-colsep">
-                ${_kv(_t('ma.field.street','Strasse'), esc(emp.street))}
-                ${_kv('PLZ / Ort', esc([emp.zipCode, emp.city].filter(Boolean).join(' ')) + (emp.cantonCode ? ` <span class="ov-code">${esc(emp.cantonCode)}</span>` : ''))}
-                ${_kvE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …', 'text', 185)}
-                <div class="ov-kv"><div class="ov-kl">${_t('ma.field.religion','Konfession')}</div>
-                <div class="ov-kval"><span class="ov-fieldbox" style="width:185px"><select id="ov-religion" class="ov-editin" onchange="ovDirty()" title="Klicken zum Bearbeiten">
-                    <option value="">–</option>
-                    ${_relOpt('evangelisch_reformiert', _t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert'))}
-                    ${_relOpt('roemisch_katholisch', _t('ma.value.religion.roemisch_katholisch','Röm.-katholisch'))}
-                    ${_relOpt('christ_katholisch', _t('ma.value.religion.christ_katholisch','Christ-katholisch'))}
-                    ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
-                    ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
-                </select><span class="ov-pen" aria-hidden="true">✎</span></span></div></div>
+            <div class="ov-panel">
+                <div class="ov-ptitle">Kontakt</div>
+                ${_pf('Adresse', esc([emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')) + (emp.cantonCode ? ` <span class="ov-code">${esc(emp.cantonCode)}</span>` : ''))}
+                <div class="ov-pgrid2">
+                    ${_pfE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}
+                    ${edit ? konfessionEdit : _pf(_t('ma.field.religion','Konfession'), relLabels[_rel] || (_rel ? esc(_rel) : null))}
+                </div>
             </div>
-            <div class="ov-col ov-colsep">
-                ${_kv('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
-                ${_kvE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'), 'text', 160)}
-                ${_kv(_t('ma.field.nationality','Nationalität'), `<span class="ov-ell">${emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : (esc(emp.nationalityCode ?? emp.nationality) || '–')}</span><span style="flex-shrink:0">${linkedDocButton('passport')}</span>`)}
+            <div class="ov-panel">
+                <div class="ov-ptitle">Amtlich</div>
+                ${_pf('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
+                ${_pfE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'))}
+                ${_pf(_t('ma.field.nationality','Nationalität'), `${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${linkedDocButton('passport')}`)}
             </div>
         </div>`,
-        `<button id="ovSaveBtn" class="emp-inline-save" onclick="ovSave()" style="display:none">Speichern</button>`);
+        headerBtns);
 
     // ── Karte Anstellung ──
     const kAnst = _ovCard('Anstellung', null, '', `
@@ -1371,11 +1385,19 @@ function loadUebersichtTab() {
 
 // Inline-Edit in der Uebersicht (Walter 17.07.2026): Werte in die ef-*-
 // Inputs des Personal-Tabs spiegeln und den bestehenden Save-Pfad nutzen.
-function ovDirty() {
-    const b = document.getElementById('ovSaveBtn');
-    if (b) b.style.display = 'inline-flex';
+function ovDirty() { window._ovDirty = true; }
+function ovStartEdit() {
+    window._ovEditMode = selectedEmployee?.id;
+    window._ovDirty = false;
+    loadUebersichtTab();
+}
+function ovCancelEdit() {
+    window._ovEditMode = null;
+    window._ovDirty = false;
+    loadUebersichtTab();
 }
 function ovSave() {
+    window._ovEditMode = null;
     const map = [['ov-letterSalutation', 'ef-letterSalutation'],
                  ['ov-shortName', 'ef-shortName'],
                  ['ov-maritalStatusSince', 'ef-maritalStatusSince'],

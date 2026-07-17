@@ -3301,27 +3301,62 @@
         .ov-kv { display: flex; align-items: center; gap: 12px; padding: 4.5px 0; min-height: 27px; }
         /* NUR editierbare Zeilen reagieren (Walter 17.07.2026): dezentes ✎
            kennzeichnet sie dauerhaft, Hover/Fokus gibt sanften Ton. */
-        /* Edit-Kennzeichnung (Walter 17.07.2026, final): kompakte getoente
-           Box NUR um das Eingabefeld — sofort als Feld erkennbar, Zeile und
-           Label bleiben ruhig. Breite pro Feld passend (inline width). */
-        .ov-fieldbox {
-            display: inline-flex; align-items: center; gap: 6px;
-            max-width: 100%;
-            background: rgba(238, 233, 223, 0.65);
-            border-radius: 7px;
-            padding: 2px 8px 3px;
-            transition: background .12s;
+        /* ── Unter-Panels PERSON/KONTAKT/AMTLICH (Walter 17.07.2026, nach
+           Mockup-Richtung): ruhige Inset-Flaechen, Label ueber Wert.
+           Ansichtsmodus ohne Input-Optik; «Bearbeiten» schaltet die
+           editierbaren Felder auf sanfte Soft-Inputs um. ── */
+        .ov-panels {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr 0.95fr;
+            gap: 14px;
         }
-        .ov-fieldbox:hover,
-        .ov-fieldbox:focus-within { background: rgba(230, 223, 209, 0.95); }
-        .ov-fieldbox .ov-editin { min-width: 0; flex: 1; }
-        .ov-pen {
-            flex-shrink: 0;
-            font-size: 11.5px; color: #a89f8d;
-            transition: color .12s;
+        @media (max-width: 1200px) { .ov-panels { grid-template-columns: 1fr; } }
+        .ov-panel {
+            background: #faf8f5;
+            border: 1px solid #f0ece4;
+            border-radius: 14px;
+            padding: 13px 16px 6px;
+            min-width: 0;
         }
-        .ov-fieldbox:hover .ov-pen,
-        .ov-fieldbox:focus-within .ov-pen { color: #3f3f3f; }
+        .ov-ptitle {
+            font-size: 10.5px; font-weight: 780; color: #a89f8d;
+            letter-spacing: 0.09em; text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .ov-pf { margin-bottom: 11px; min-width: 0; }
+        .ov-pfl {
+            font-size: 10.5px; font-weight: 700; color: #8b8b8b;
+            letter-spacing: 0.04em; text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .ov-pfv {
+            font-size: 14.5px; font-weight: 650; color: #0a0a0a;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .ov-pgrid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+        /* Soft-Inputs im Bearbeiten-Modus */
+        .ov-softin {
+            width: 100%;
+            font: inherit; font-size: 14px; font-weight: 600; color: #0a0a0a;
+            background: #ffffff;
+            border: 1px solid #e7e1d6;
+            border-radius: 9px;
+            padding: 6px 10px;
+            outline: none;
+            box-shadow: inset 0 1px 2px rgba(60, 55, 48, 0.04);
+        }
+        .ov-softin:focus { border-color: #3f3f3f; }
+        .ov-softin::placeholder { color: #b8c0ca; font-weight: 500; }
+        /* Karten-Kopf-Buttons: Bearbeiten (hell) / Speichern (Kohle) */
+        .ov-hbtn {
+            background: #fff; border: 1px solid rgba(140, 132, 120, 0.32);
+            border-radius: 10px; padding: 6px 15px;
+            font-size: 12.5px; font-weight: 700; color: #3f3f3f;
+            cursor: pointer;
+        }
+        .ov-hbtn:hover { border-color: #3f3f3f; }
+        .ov-hbtn-primary { background: #3f3f3f; border-color: #3f3f3f; color: #fff; }
+        .ov-hbtn-primary:hover { background: #1a1a1a; }
         /* Liquid-Select-Trigger IN der kv-Zeile flach im Text-Look (kein
            Pill-Rahmen — das PANEL bleibt das normale Liquid-Menue). */
         .ov-kval .lqsel-wrap { flex: 1; min-width: 0; display: block; }
@@ -3349,12 +3384,11 @@
         .ov-ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         body.theme-dark .ov-colsep { border-left-color: rgba(255,255,255,.12); }
         body.theme-dark .ov-kval { color: #f2f5f8; }
-        body.theme-dark .ov-fieldbox { background: rgba(255,255,255,.07); }
-        body.theme-dark .ov-fieldbox:hover,
-        body.theme-dark .ov-fieldbox:focus-within { background: rgba(255,255,255,.12); }
-        body.theme-dark .ov-pen { color: #7d8b99; }
-        body.theme-dark .ov-fieldbox:hover .ov-pen,
-        body.theme-dark .ov-fieldbox:focus-within .ov-pen { color: #e5e9ee; }
+        body.theme-dark .ov-panel { background: rgba(255,255,255,.04); border-color: rgba(122,145,165,.2); }
+        body.theme-dark .ov-pfv { color: #f2f5f8; }
+        body.theme-dark .ov-softin { background: rgba(13,24,35,.68); border-color: rgba(122,145,165,.32); color: #f2f5f8; }
+        body.theme-dark .ov-hbtn { background: transparent; color: #cbd5e1; border-color: rgba(122,145,165,.4); }
+        body.theme-dark .ov-hbtn-primary { background: #e9ecf0; color: #1a1a1a; border-color: #e9ecf0; }
         body.theme-dark .ov-kval .lqsel-btn { color: #f2f5f8; }
         .ov-editin:focus {
             background: #ffffff;
