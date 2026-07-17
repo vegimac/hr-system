@@ -1377,14 +1377,25 @@ function loadUebersichtTab() {
         const von = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
         const bis = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
         const lohn = empContractWageText(c);
+        const cid = c.id ?? c.employmentId;
+        const actions = cid ? `<span style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">
+            <button type="button" class="emp-contract-btn" title="Vertrag bearbeiten (z.B. vertraulichen Lohn erfassen) — öffnet die Vertrags-Maske mit Mindestlohn-Prüfung" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
+            <button type="button" class="emp-contract-btn" title="Vertrag im Vorschaufenster öffnen — Drucken/Herunterladen direkt dort" onclick="openEmpContractPdf(${cid}, false)">Anschauen</button>
+            <button type="button" class="emp-contract-btn" title="Vertrags-Link (14 Tage) per SMS direkt an den MA senden" onclick="contractShareSendSms(${emp.id}, ${cid}, '${esc(emp.phoneMobile || '')}')">SMS</button>
+            <button type="button" class="emp-contract-btn" title="Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen" onclick="contractShareRevoke(${cid})">Link ⊘</button>
+        </span>` : '';
         return `<div class="ov-vrow${c.isActive ? '' : ' archiv'}">
             <span class="ov-vdot${c.isActive ? ' g' : ''}"></span>
             <span class="emp-contract-model ${contractModelClass(c.employmentModel || '')}">${esc(modelDisplay(c.employmentModel || '–'))}</span>
             <span class="ov-vrole">${esc(c.jobTitle || c.jobGroupCode || 'Vertrag')}</span>
             <span class="ov-vmeta">${von} – ${bis}${lohn ? ' · ' + esc(lohn) : ''}</span>
+            ${actions}
         </div>`;
     }).join('') || '<div class="ov-empty" style="padding:4px 0">Keine Verträge vorhanden.</div>';
-    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vRows + `<div class="ov-more" onclick="switchEmpTab('personal')">Alle Verträge anzeigen</div>`);
+    // SMS-/Link-Feedback-Container fuer die Uebersicht (Klasse statt ID —
+    // der Personal-Strip hat seinen eigenen; siehe contractShareBox-Lookup).
+    const vShare = '<div class="contractShareBox" style="margin:8px 0 0"></div>';
+    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vRows + vShare + (contracts.length > 3 ? `<div class="ov-more" onclick="switchEmpTab('personal')">Alle Verträge anzeigen</div>` : ''));
 
     // Dokumente-Karte entfernt (Walter 17.07.2026) — Dokumente haben wie
     // gehabt ihren eigenen Bereich (Tab «Dokumente»).
@@ -1487,7 +1498,7 @@ function renderEmpContractList(emp) {
         </div>
         <div class="emp-contract-scroll">${rows}</div>
     </div>
-    <div id="contractShareBox" style="margin:10px 0 0"></div>`;
+    <div class="contractShareBox" style="margin:10px 0 0"></div>`;
 }
 
 function contractModelClass(model) {
@@ -9909,7 +9920,10 @@ async function contractShareSendSms(employeeId, employmentId, phone) {
     }
     if (!(await liquidConfirm(`Vertrag per SMS an ${nr} wirklich senden?${hint}`))) return;
 
-    const box = document.getElementById('contractShareBox');
+    // Feedback-Box im AKTIVEN Tab suchen (Uebersicht ODER Personal-Strip —
+    // Klasse statt ID, damit beide Instanzen erlaubt sind, Walter 17.07.2026).
+    const box = document.querySelector('.emp-tab-content.active .contractShareBox')
+        || document.querySelector('.contractShareBox');
     if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0">📲 SMS wird gesendet …</div>';
     try {
         const res = await fetch('/api/contract-share/send', {
@@ -10144,7 +10158,10 @@ async function empEasyImportCommit(cpId) {
 async function contractShareRevoke(employmentId) {
     if (!employmentId) return;
     if (!(await liquidConfirm('Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen?\n\nBereits verschickte Links zeigen danach «Link nicht mehr gültig».'))) return;
-    const box = document.getElementById('contractShareBox');
+    // Feedback-Box im AKTIVEN Tab suchen (Uebersicht ODER Personal-Strip —
+    // Klasse statt ID, damit beide Instanzen erlaubt sind, Walter 17.07.2026).
+    const box = document.querySelector('.emp-tab-content.active .contractShareBox')
+        || document.querySelector('.contractShareBox');
     try {
         const res = await fetch('/api/contract-share/revoke', {
             method: 'POST',
@@ -10167,7 +10184,10 @@ async function contractShareRevoke(employmentId) {
 // als Code erhalten für manuelles Kopieren/Verlinken.
 async function contractShareCreate(employeeId, employmentId) {
     if (!employeeId && !employmentId) return;
-    const box = document.getElementById('contractShareBox');
+    // Feedback-Box im AKTIVEN Tab suchen (Uebersicht ODER Personal-Strip —
+    // Klasse statt ID, damit beide Instanzen erlaubt sind, Walter 17.07.2026).
+    const box = document.querySelector('.emp-tab-content.active .contractShareBox')
+        || document.querySelector('.contractShareBox');
     if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0">⏳ Link wird erzeugt …</div>';
     try {
         const res = await fetch('/api/contract-share', {
