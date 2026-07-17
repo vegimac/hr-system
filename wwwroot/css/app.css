@@ -3301,12 +3301,21 @@
         .ov-kv { display: flex; align-items: center; gap: 12px; padding: 4.5px 0; min-height: 27px; }
         /* NUR editierbare Zeilen reagieren (Walter 17.07.2026): dezentes ✎
            kennzeichnet sie dauerhaft, Hover/Fokus gibt sanften Ton. */
-        .ov-kv-edit { border-radius: 6px; cursor: text; }
+        /* Editierbare Zeilen SOFORT erkennbar (Walter 17.07.2026): dauerhaft
+           sanft getoenter Grund + sichtbares ✎ — ohne erst zu hovern.
+           Negative Marge haelt Label/Wert buendig zu den Read-only-Zeilen. */
+        .ov-kv-edit {
+            border-radius: 7px;
+            cursor: text;
+            background: rgba(238, 233, 223, 0.6);
+            padding-left: 8px; padding-right: 4px;
+            margin-left: -8px;
+        }
         .ov-kv-edit:hover,
-        .ov-kv-edit:focus-within { background: rgba(246, 243, 238, 0.75); }
+        .ov-kv-edit:focus-within { background: rgba(232, 226, 213, 0.85); }
         .ov-pen {
             flex-shrink: 0;
-            font-size: 12px; color: #c9c2b4;
+            font-size: 12px; color: #a89f8d;
             padding-right: 6px;
             transition: color .12s;
         }
@@ -3339,9 +3348,10 @@
         .ov-ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         body.theme-dark .ov-colsep { border-left-color: rgba(255,255,255,.12); }
         body.theme-dark .ov-kval { color: #f2f5f8; }
+        body.theme-dark .ov-kv-edit { background: rgba(255,255,255,.05); }
         body.theme-dark .ov-kv-edit:hover,
-        body.theme-dark .ov-kv-edit:focus-within { background: rgba(255,255,255,.06); }
-        body.theme-dark .ov-pen { color: #5c6a78; }
+        body.theme-dark .ov-kv-edit:focus-within { background: rgba(255,255,255,.10); }
+        body.theme-dark .ov-pen { color: #7d8b99; }
         body.theme-dark .ov-kv-edit:hover .ov-pen,
         body.theme-dark .ov-kv-edit:focus-within .ov-pen { color: #e5e9ee; }
         body.theme-dark .ov-kval .lqsel-btn { color: #f2f5f8; }
