@@ -3331,8 +3331,13 @@
         .ov-pflow .ov-pf { margin-bottom: 0; width: auto; }
         /* Vier logische Fluss-Zeilen (Walter 17.07.2026, final): jede Zeile
            eine Themengruppe, Felder in natuerlicher Breite, kein Raster. */
-        .ov-frow { display: flex; flex-wrap: wrap; gap: 11px 34px; align-items: flex-end; margin-bottom: 14px; }
+        /* Hoehen-Ausrichtung (Walter 17.07.2026): Labels alle auf gleicher
+           OBERKANTE, Werte vertikal mittig auf Input-Hoehe — Text-Felder
+           und Input-Felder stehen damit exakt auf einer Linie. */
+        .ov-frow { display: flex; flex-wrap: wrap; gap: 11px 34px; align-items: flex-start; margin-bottom: 14px; }
         .ov-frow .ov-pf { margin-bottom: 0; width: auto; }
+        .ov-frow .ov-pfl { margin-bottom: 4px; }
+        .ov-frow .ov-pfv { min-height: 36px; display: flex; align-items: center; gap: 6px; }
         .ov-frow .lqsel-wrap { width: 170px; }
         .ov-pfl {
             font-size: 10.5px; font-weight: 700; color: #8b8b8b;

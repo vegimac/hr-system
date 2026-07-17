@@ -1319,7 +1319,7 @@ function loadUebersichtTab() {
                 ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
             </select></div>
             ${_pf(_t('ma.field.nationality','Nationalität'), `${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${linkedDocButton('passport')}`)}
-            ${istCH ? '' : _pfE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'), 'text', 140)}
+            ${istCH ? '' : `<div style="margin-left:auto">${_pfE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'), 'text', 140)}</div>`}
         </div>`,
         `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary" style="display:none" onclick="ovSave()">Speichern</button>`);
 
