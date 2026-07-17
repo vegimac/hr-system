@@ -3111,6 +3111,26 @@
             box-shadow: none;
         }
 
+        /* ── Nicht editierbare Werte DEUTLICHER (Walter 17.07.2026):
+           groessere Schrift + tiefes Schwarz. Leere Felder («–») bleiben
+           bewusst blass (die .empty-Regeln sind spezifischer). ── */
+        #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info {
+            font-size: 14px;
+            color: #0a0a0a;
+        }
+        #page-mitarbeiter.liquid-employee .ef-input[readonly],
+        #page-mitarbeiter.liquid-employee .ef-input:disabled {
+            font-size: 14px;
+            color: #0a0a0a;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info {
+            color: #f2f5f8;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .ef-input[readonly],
+        body.theme-dark #page-mitarbeiter.liquid-employee .ef-input:disabled {
+            color: #f2f5f8;
+        }
+
 
         /* Liquid-Employee: keine separaten Innen-Frames. Die MA-Seite liegt wie
            das Dashboard direkt auf der Hintergrundfläche; nur Inhalte/Aktionen
