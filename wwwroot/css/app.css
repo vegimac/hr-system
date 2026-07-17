@@ -3335,6 +3335,14 @@
            OBERKANTE, Werte vertikal mittig auf Input-Hoehe — Text-Felder
            und Input-Felder stehen damit exakt auf einer Linie. */
         .ov-frow { display: flex; flex-wrap: wrap; gap: 11px 34px; align-items: flex-start; margin-bottom: 14px; }
+        /* Fussbereich «Weitere Adressen» in der Personalien-Karte */
+        .ov-addrsep {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px;
+            border-top: 1px solid #eee8de;
+            margin-top: 4px; padding-top: 10px; margin-bottom: 8px;
+        }
+        body.theme-dark .ov-addrsep { border-top-color: rgba(255,255,255,.12); }
         .ov-frow .ov-pf { margin-bottom: 0; width: auto; }
         .ov-frow .ov-pfl { margin-bottom: 4px; }
         .ov-frow .ov-pfv { min-height: 36px; display: flex; align-items: center; gap: 6px; }

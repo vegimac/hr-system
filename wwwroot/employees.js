@@ -1017,16 +1017,8 @@ function renderEmployeeDetail(emp) {
             <!-- Bankverbindung + Postfach-Zugang sind in den eigenen Tab
                  „Bank & Postfach" gewandert (Walter-Vorgabe 14.05.2026) —
                  hier im Personal-Tab nur noch Aufenthalt + Weitere Adressen. -->
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">
-                <span>${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
-                <button class="btn-emp-add" onclick="openEmployeeAddressModal(null)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    ${_t('ma.btn.addAddress','Adresse hinzufügen')}
-                </button>
-            </div>
-            <div id="otherAddressesContent">
-                <div class="emp-placeholder"><span>Wird geladen…</span></div>
-            </div>
+            <!-- Weitere Adressen leben seit 17.07.2026 in der Uebersicht-Karte
+                 «Personalien & Adresse» (einzige otherAddressesContent-Instanz). -->
             `}
         </div>
 
@@ -1290,7 +1282,13 @@ function loadUebersichtTab() {
             </select></div>
             ${_pf(_t('ma.field.nationality','Nationalität'), `${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${linkedDocButton('passport')}`)}
             ${istCH ? '' : `<div style="margin-left:auto">${_pfE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'), 'text', 140)}</div>`}
-        </div>`,
+        </div>
+        ${emp.isPayrollExcluded ? '' : `
+        <div class="ov-addrsep">
+            <span class="ov-pfl" style="margin-bottom:0">${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#a2acb8">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
+            <button class="ov-hbtn" style="padding:4px 12px;font-size:12px" onclick="openEmployeeAddressModal(null)">＋ ${_t('ma.btn.addAddress','Adresse hinzufügen')}</button>
+        </div>
+        <div id="otherAddressesContent"></div>`}`,
         `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
     // ── Karte Anstellung (Walter 17.07.2026: ALLE Anstellungs-Infos des
@@ -1370,12 +1368,15 @@ function loadUebersichtTab() {
 
     // Dokumente-Karte entfernt (Walter 17.07.2026) — Dokumente haben wie
     // gehabt ihren eigenen Bereich (Tab «Dokumente»).
+    // Weitere Adressen (Fussbereich der Personalien-Karte) nachladen.
 
     // Personalien & Adresse ueber die VOLLE Breite (wichtigster Block),
     // darunter Anstellung | Nachtarbeit, dann Vertraege volle Breite.
     el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
         ? `<div class="ov-full">${kPers}</div>`
         : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-full">${kVert}</div>`}</div>`;
+    if (!emp.isPayrollExcluded && typeof loadEmployeeAddressesTab === 'function')
+        loadEmployeeAddressesTab(emp.id);
 }
 
 // Inline-Edit in der Uebersicht (Walter 17.07.2026): Werte in die ef-*-
