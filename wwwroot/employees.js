@@ -1259,49 +1259,30 @@ function loadUebersichtTab() {
     const emp = selectedEmployee;
     if (!el || !emp) return;
 
-    const heute = new Date().toISOString().slice(0, 10);
-    const aktivVertrag = (emp.employments || []).filter(c => c.isActive)
-        .sort((a, b) => String(b.contractStartDate || '').localeCompare(String(a.contractStartDate || '')))[0] || null;
 
-    // ── Karte Personalien ──
-    const kPers = _ovCard('Personalien', 'personal', 'Zu den Persönlichen Angaben', `
+    // ── Karte Personalien & Adresse (Walter 17.07.2026: KEINE Dubletten
+    //    zur Kopf-Card — Name/Vorname/Telefon/E-Mail/Eintritt stehen oben) ──
+    const adresse = [emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const kPers = _ovCard('Personalien & Adresse', 'personal', 'Zu den Persönlichen Angaben', `
         <div class="ov-grid4">
             ${_ovF(_t('ma.field.salutation','Anrede'), formatSalutation(emp.salutation))}
-            ${_ovF('Name', esc(emp.lastName))}
-            ${_ovF('Vorname', esc(emp.firstName))}
             ${_ovF(_t('ma.field.letterSalutation','Briefanrede'), esc(emp.letterSalutation))}
             ${_ovF(_t('ma.field.maritalStatus','Zivilstand'), formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus))}
-            ${_ovF(_t('ma.field.nationality','Nationalität'), emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality))}
             ${_ovF(_t('ma.field.gender','Geschlecht'), formatGender(emp.gender))}
+            ${_ovF(_t('ma.field.nationality','Nationalität'), emp.nationalityName ? `${esc(emp.nationalityName)}${emp.nationalityCode ? ` <span class="ov-code">(${esc(emp.nationalityCode)})</span>` : ''}` : esc(emp.nationalityCode ?? emp.nationality))}
             ${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
-        </div>`);
-
-    // ── Karte Kontakt & Adresse ──
-    const adresse = [emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-    const kKontakt = _ovCard('Kontakt & Adresse', 'personal', 'Bearbeiten im Personal-Tab', `
-        <div class="ov-grid2">
             ${_ovF('Adresse', esc(adresse))}
-            ${_ovF(_t('ma.field.phone','Telefon'), esc(emp.phoneMobile))}
             ${_ovF('Telefon 2', esc(emp.phone2))}
-            ${_ovF('E-Mail', emp.email ? `<a href="mailto:${esc(emp.email)}" style="color:inherit;text-decoration:none;border-bottom:1px dotted #b7ad9e">${esc(emp.email)}</a>` : null)}
         </div>`);
+    const kKontakt = '';
 
     // ── Karte Anstellung ──
-    let pensum = null;
-    if (aktivVertrag) {
-        const m = (aktivVertrag.employmentModel || '').toUpperCase();
-        if ((m === 'FIX' || m === 'FIX-M') && aktivVertrag.employmentPercentage != null) pensum = Number(aktivVertrag.employmentPercentage) + ' %';
-        else if (m === 'MTP' && (aktivVertrag.guaranteedHoursPerWeek != null || aktivVertrag.weeklyHours != null)) pensum = Number(aktivVertrag.guaranteedHoursPerWeek ?? aktivVertrag.weeklyHours) + ' h/Wo.';
-        else if (aktivVertrag.weeklyHours != null) pensum = Number(aktivVertrag.weeklyHours) + ' h/Wo.';
-    }
     const kAnst = _ovCard('Anstellung', 'personal', 'Bearbeiten im Personal-Tab', `
         <div class="ov-grid4">
-            ${_ovF(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
             ${_ovF(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
-            ${_ovF('Pensum', pensum)}
-            ${_ovF('Kanton', esc(emp.cantonCode))}
             ${_ovF('Gekündigt am', emp.kuendigungAusgesprochenAm ? formatDate(emp.kuendigungAusgesprochenAm) : null)}
             ${_ovF('Kündigung per', emp.kuendigungPer ? formatDate(emp.kuendigungPer) : null)}
+            ${_ovF('Kanton', esc(emp.cantonCode))}
             ${_ovF('ZEMIS-Nr.', esc(emp.zemisNumber))}
             ${_ovF('L-GAV', emp.lgavPflichtig ? 'ja' : 'nein')}
         </div>`);
