@@ -3171,9 +3171,9 @@
             -webkit-backdrop-filter: none;
         }
         #page-mitarbeiter.liquid-employee #empDetailPhoto {
-            width: 92px !important;
-            height: 92px !important;
-            font-size: 30px !important;
+            width: 116px !important;
+            height: 116px !important;
+            font-size: 38px !important;
         }
         .emp-hbadge {
             font-size: 12px; font-weight: 700; padding: 3px 10px;
@@ -3186,6 +3186,11 @@
         .emp-hbadge.hb-kuend { background: #fee2e2; color: #b91c1c; }
         .emp-hbadge.hb-prob,
         .emp-hbadge.hb-exit  { background: #fdf1dc; color: #96690f; }
+        .emp-hbadge.hb-vert  {
+            background: #f1ede5; color: #1a1a1a;
+            font-size: 13px; font-weight: 750;
+        }
+        body.theme-dark .emp-hbadge.hb-vert { background: rgba(255,255,255,.10); color: #f2f5f8; }
         .emp-hfacts {
             display: flex; flex-wrap: wrap;
             margin-top: 12px; row-gap: 10px;
@@ -3199,7 +3204,7 @@
         .emp-hfact-v {
             font-size: 15px; font-weight: 700; color: #0a0a0a;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            max-width: 260px;
+            max-width: 340px;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header {
             background: rgba(23, 36, 49, 0.94);
