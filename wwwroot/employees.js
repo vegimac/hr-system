@@ -1279,15 +1279,33 @@ function loadUebersichtTab() {
     // und faellt weg. Zeilen frei proportioniert statt starrem 4er-Raster.
     const _g = (emp.gender || '').toLowerCase();
     const gKurz = _g.startsWith('m') ? 'm' : (_g.startsWith('f') || _g === 'w' || _g === 'weiblich') ? 'w' : (emp.gender ? 'd' : null);
+    const _rel = emp.religion || '';
+    const _relOpt = (v, label) => `<option value="${v}" ${_rel === v ? 'selected' : ''}>${label}</option>`;
     const kPers = _ovCard('Personalien & Adresse', 'personal', 'Alle Details im Personal-Tab', `
         <div class="ov-row">
-            <div style="flex:2.2;min-width:0">${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}</div>
-            <div style="flex:1.2;min-width:0">${_ovF(_t('ma.field.maritalStatus','Zivilstand'), formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus))}</div>
+            <div style="flex:1.6;min-width:0">${_ovE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation)}</div>
+            <div style="flex:1;min-width:0">${_ovE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName)}</div>
+            <div style="flex:1.2;min-width:0">${_ovF(_t('ma.field.maritalStatus','Zivilstand'), (formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '') + linkedDocButton('marriage_cert') || null)}</div>
+            <div style="flex:0 0 135px">
+                <div class="ov-f"><div class="ov-fl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
+                <input id="ov-maritalStatusSince" class="ov-editin" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="ovDirty()" title="Klicken zum Bearbeiten"></div>
+            </div>
             <div style="flex:0 0 70px">${_ovF(_t('ma.field.gender','Geschlecht'), gKurz)}</div>
         </div>
         <div class="ov-row">
-            <div style="flex:2.2;min-width:0">${_ovF('Adresse', esc(adresse))}</div>
-            <div style="flex:1.6;min-width:0">${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}</div>
+            <div style="flex:2;min-width:0">${_ovF('Adresse', esc(adresse))}</div>
+            <div style="flex:1.1;min-width:0">
+                <div class="ov-f"><div class="ov-fl">${_t('ma.field.religion','Konfession')}</div>
+                <select id="ov-religion" class="ov-editin no-liquid" onchange="ovDirty()" title="Klicken zum Bearbeiten">
+                    <option value="">–</option>
+                    ${_relOpt('evangelisch_reformiert', _t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert'))}
+                    ${_relOpt('roemisch_katholisch', _t('ma.value.religion.roemisch_katholisch','Röm.-katholisch'))}
+                    ${_relOpt('christ_katholisch', _t('ma.value.religion.christ_katholisch','Christ-katholisch'))}
+                    ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
+                    ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
+                </select></div>
+            </div>
+            <div style="flex:1.3;min-width:0">${_ovE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}</div>
         </div>
         <div class="ov-row">
             <div style="flex:0 0 190px">${_ovF('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}</div>
@@ -1353,6 +1371,9 @@ function ovDirty() {
 }
 function ovSave() {
     const map = [['ov-letterSalutation', 'ef-letterSalutation'],
+                 ['ov-shortName', 'ef-shortName'],
+                 ['ov-maritalStatusSince', 'ef-maritalStatusSince'],
+                 ['ov-religion', 'ef-religion'],
                  ['ov-phone2', 'ef-phone2'],
                  ['ov-zemisNumber', 'ef-zemisNumber']];
     for (const [ovId, efId] of map) {

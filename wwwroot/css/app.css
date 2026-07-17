@@ -3289,6 +3289,16 @@
             outline: none;
         }
         .ov-editin::placeholder { color: #b8c0ca; font-weight: 500; }
+        select.ov-editin {
+            appearance: none; -webkit-appearance: none;
+            cursor: pointer; padding-right: 14px;
+            background-image: linear-gradient(45deg, transparent 50%, #8b8b8b 50%),
+                              linear-gradient(135deg, #8b8b8b 50%, transparent 50%);
+            background-position: calc(100% - 9px) 55%, calc(100% - 4px) 55%;
+            background-size: 5px 5px, 5px 5px;
+            background-repeat: no-repeat;
+        }
+        input[type="date"].ov-editin { min-height: 22px; }
         .ov-editin:hover { border-bottom-color: rgba(63, 63, 63, 0.55); }
         .ov-editin:focus {
             background: #ffffff;
