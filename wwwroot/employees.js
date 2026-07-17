@@ -803,7 +803,7 @@ async function addNumberAlias(empId) {
 }
 
 async function deleteNumberAlias(empId, aliasId) {
-    if (!confirm('Diese alte Nummer wirklich entfernen?')) return;
+    if (!(await liquidConfirm('Diese alte Nummer wirklich entfernen?'))) return;
     try {
         const r = await fetch(`/api/employees/${empId}/number-aliases/${aliasId}`, { method: 'DELETE', headers: ah() });
         if (!r.ok && r.status !== 204) { alert('Fehler beim Löschen.'); return; }
@@ -2263,7 +2263,7 @@ function closeAusweisDokuModal() {
 
 async function ausweisDokuUnlink(empId, kind) {
     if (!empId || !kind) return;
-    if (!confirm('Verknüpfung wirklich aufheben? Der Banner zeigt danach wieder „Beleg fehlt".')) return;
+    if (!(await liquidConfirm('Verknüpfung wirklich aufheben? Der Banner zeigt danach wieder „Beleg fehlt".'))) return;
     try {
         const res = await fetch(`/api/employees/${empId}/ausweis-doku`, {
             method: 'PATCH',
@@ -2354,7 +2354,7 @@ async function openNachtAusnahmePdf(empId) {
 // analog ausweisDokuUnlink, nur über den Family-Member-Dokument-PATCH.
 async function spouseDokuUnlink(empId, familyMemberId) {
     if (!empId || !familyMemberId) return;
-    if (!confirm('Verknüpfung wirklich aufheben? Der Banner zeigt danach wieder „Ausweis des Ehepartners fehlt".')) return;
+    if (!(await liquidConfirm('Verknüpfung wirklich aufheben? Der Banner zeigt danach wieder „Ausweis des Ehepartners fehlt".'))) return;
     try {
         const res = await fetch(`/api/employees/${empId}/family/${familyMemberId}/dokument`, {
             method: 'PATCH',
@@ -2423,7 +2423,7 @@ function nwCancelEdit(empId) {
 // Verknüpftes Nachtarbeit-Dokument (Arztzeugnis / Ausnahmeregelung) vom MA lösen —
 // nur die Verknüpfung wird entfernt, das Dokument selbst bleibt erhalten.
 async function nwUnlinkDoku(empId, kind, label) {
-    if (!confirm(`${label} von diesem Mitarbeiter lösen?\n\nNur die Verknüpfung wird entfernt — das Dokument selbst bleibt im Dokumente-Tab erhalten.`)) return;
+    if (!(await liquidConfirm(`${label} von diesem Mitarbeiter lösen?\n\nNur die Verknüpfung wird entfernt — das Dokument selbst bleibt im Dokumente-Tab erhalten.`))) return;
     try {
         const res = await fetch(`/api/employees/${empId}/ausweis-doku`, {
             method: 'PATCH',
@@ -2502,7 +2502,7 @@ async function saveNightExamDate(empId, issueVal) {
 }
 
 async function qstBefreiungAufheben(empId) {
-    if (!confirm('Soll die Behörden-Befreiung wirklich aufgehoben werden? Der MA wird danach wieder QST-pflichtig.')) return;
+    if (!(await liquidConfirm('Soll die Behörden-Befreiung wirklich aufgehoben werden? Der MA wird danach wieder QST-pflichtig.'))) return;
     const res = await fetch(`/api/employees/${empId}/qst-befreiung`, {
         method: 'PATCH', headers: { ...ah(), 'Content-Type':'application/json' },
         body: JSON.stringify({ befreit: false })
@@ -3305,7 +3305,7 @@ async function fmOpenSpouseDocUpload() {
 
 async function deleteQstEntry(entryId) {
     if (!selectedEmployeeId || !entryId) return;
-    if (!confirm('Diesen Quellensteuer-Eintrag wirklich löschen?\n\nDer aktuelle QST-Status wird automatisch neu ermittelt.')) return;
+    if (!(await liquidConfirm('Diesen Quellensteuer-Eintrag wirklich löschen?\n\nDer aktuelle QST-Status wird automatisch neu ermittelt.'))) return;
     try {
         const res = await fetch(`/api/employees/${selectedEmployeeId}/quellensteuer/${entryId}`, {
             method: 'DELETE', headers: ah()
@@ -5335,7 +5335,7 @@ async function saveFamilyMember() {
 }
 
 async function deleteFamilyMember(id) {
-    if (!confirm('Diesen Eintrag wirklich löschen?')) return;
+    if (!(await liquidConfirm('Diesen Eintrag wirklich löschen?'))) return;
     try {
         const res = await fetch(`/api/employees/${selectedEmployeeId}/family/${id}`, {
             method: 'DELETE',
@@ -5617,7 +5617,7 @@ async function saveAllowance() {
 async function deleteAllowance() {
     const id = document.getElementById('alId').value;
     if (!id || !editingFamilyMemberId) return;
-    if (!confirm('Diese Zulagen-Position wirklich löschen?')) return;
+    if (!(await liquidConfirm('Diese Zulagen-Position wirklich löschen?'))) return;
     try {
         const res = await fetch(`/api/family-members/${editingFamilyMemberId}/allowances/${id}`, {
             method: 'DELETE', headers: ah()
@@ -5772,7 +5772,7 @@ async function saveTimeEntry() {
 }
 
 async function deleteTimeEntry(id) {
-    if (!confirm('Diesen Eintrag wirklich löschen?')) return;
+    if (!(await liquidConfirm('Diesen Eintrag wirklich löschen?'))) return;
     try {
         const res = await fetch(`/api/employees/${selectedEmployeeId}/timeentries/${id}`, {
             method: 'DELETE',
@@ -6610,7 +6610,7 @@ async function mtsDownloadPdf(id) {
 
 async function mtsDelete(id) {
     document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
-    if (!confirm('Schwangerschaft wirklich löschen?')) return;
+    if (!(await liquidConfirm('Schwangerschaft wirklich löschen?'))) return;
     const r = await fetch(`/api/pregnancies/${id}`, { method: 'DELETE', headers: ah() });
     if (!r.ok) return alert('Fehler: ' + await r.text());
     loadFamilieTab(selectedEmployeeId);
@@ -7422,7 +7422,7 @@ function allowToggleMenu(event, id) { rowMenuToggle(event, 'allow',  id); }
 async function deleteAbsence(id) {
     // ⋮-Menü schließen bevor der Confirm-Dialog kommt
     document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
-    if (!confirm('Absenz wirklich löschen?')) return;
+    if (!(await liquidConfirm('Absenz wirklich löschen?'))) return;
     try {
         const res = await fetch(`/api/absences/${id}`, { method: 'DELETE', headers: ah() });
         // Lohnlauf-Sperre? Zeigt Toast und bricht ab.
@@ -7593,7 +7593,7 @@ async function saveRecurringWage() {
 }
 
 async function deleteRecurringWage(id) {
-    if (!confirm('Eintrag wirklich löschen?')) return;
+    if (!(await liquidConfirm('Eintrag wirklich löschen?'))) return;
     try {
         const res = await fetch(`/api/employee-recurring-wages/${id}`, { method: 'DELETE', headers: ah() });
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
@@ -7773,7 +7773,7 @@ async function saveLohnAssignment() {
     if (to && to < from)    { alert('"Gültig bis" muss grösser oder gleich "Gültig ab" sein.'); return; }
     if (refZahlung) {
         const check = validateReferenz(refZahlung);
-        if (!check.valid && !confirm(`Die Zahlungsreferenz scheint ungültig zu sein:\n${check.error}\n\nTrotzdem speichern?`)) return;
+        if (!check.valid && !(await liquidConfirm(`Die Zahlungsreferenz scheint ungültig zu sein:\n${check.error}\n\nTrotzdem speichern?`))) return;
     }
 
     const body = {
@@ -7803,7 +7803,7 @@ async function saveLohnAssignment() {
 }
 
 async function deleteLohnAssignment(id) {
-    if (!confirm('Lohnabtretung wirklich löschen?')) return;
+    if (!(await liquidConfirm('Lohnabtretung wirklich löschen?'))) return;
     try {
         const res = await fetch(`/api/employee-lohn-assignments/${id}`, { method: 'DELETE', headers: ah() });
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
@@ -8087,7 +8087,7 @@ async function saveZulage(employeeId, periode) {
 }
 
 async function deleteZulage(id) {
-    if (!confirm('Eintrag wirklich löschen?')) return;
+    if (!(await liquidConfirm('Eintrag wirklich löschen?'))) return;
     try {
         const res = await fetch(`/api/lohn-zulagen/${id}`, { method: 'DELETE', headers: ah() });
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
@@ -8939,7 +8939,7 @@ async function saveArbeitslosigkeit() {
 }
 
 async function deleteArbeitslosigkeit(id, employeeId) {
-    if (!confirm('Eintrag löschen?')) return;
+    if (!(await liquidConfirm('Eintrag löschen?'))) return;
     try {
         const res = await fetch(`/api/zwischenverdienist/arbeitslosigkeit/${id}`, { method: 'DELETE', headers: ah() });
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
@@ -9194,7 +9194,7 @@ async function saveBankAccount() {
     // IBAN-Validierung vor dem Speichern (mit Confirm falls ungültig)
     if (typeof validateIban === 'function') {
         const r = validateIban(iban, 'IBAN');
-        if (!r.valid && !confirm(`Die IBAN scheint ungültig:\n${r.error}\n\nTrotzdem speichern?`)) return;
+        if (!r.valid && !(await liquidConfirm(`Die IBAN scheint ungültig:\n${r.error}\n\nTrotzdem speichern?`))) return;
     }
 
     // Sicherheits-Check: Bemerkung wie „Lohnzahlung Iksarenko Maryna 756.5352.1067.16"
@@ -9213,7 +9213,7 @@ async function saveBankAccount() {
         const ahvMatch = bemerkungVal.match(/756\.\d{4}\.\d{4}\.\d{2}/);
         if (ahvMatch && maAhv && ahvMatch[0] !== maAhv) {
             const msg = `Achtung: Die Bemerkung enthält die AHV-Nummer ${ahvMatch[0]}, der aktuell ausgewählte MA ${maFirst} ${maLast} hat aber AHV ${maAhv}.\n\nWird das Konto wirklich diesem MA zugeordnet?`;
-            if (!confirm(msg)) return;
+            if (!(await liquidConfirm(msg))) return;
         }
         // 2. Name-Match — Bemerkung beginnt typisch mit "Lohnzahlung X Y".
         else {
@@ -9225,7 +9225,7 @@ async function saveBankAccount() {
                 const bSwap = (maLast + ' ' + maFirst).toLowerCase();
                 if (a !== b && a !== bSwap) {
                     const msg = `Achtung: Die Bemerkung enthält den Namen „${nm[1]} ${nm[2]}", der ausgewählte MA heisst aber ${maFirst} ${maLast}.\n\nWird das Konto wirklich diesem MA zugeordnet?`;
-                    if (!confirm(msg)) return;
+                    if (!(await liquidConfirm(msg))) return;
                 }
             }
         }
@@ -9285,7 +9285,7 @@ async function saveBankAccount() {
 }
 
 async function deleteBankAccount(id) {
-    if (!confirm('Bankverbindung wirklich löschen?')) return;
+    if (!(await liquidConfirm('Bankverbindung wirklich löschen?'))) return;
     try {
         const res = await fetch(`/api/employee-bank-accounts/${id}`, { method: 'DELETE', headers: ah() });
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
@@ -9855,7 +9855,7 @@ async function confirmDeleteEmployee(employeeId, expectedMode) {
 
 async function postfachResetPassword(employeeId) {
     if (!employeeId) return;
-    if (!confirm('Passwort zurücksetzen?\n\nDer MA muss beim nächsten Login ein neues Passwort setzen. Das aktuelle Passwort wird verworfen.')) return;
+    if (!(await liquidConfirm('Passwort zurücksetzen?\n\nDer MA muss beim nächsten Login ein neues Passwort setzen. Das aktuelle Passwort wird verworfen.'))) return;
     try {
         const res = await fetch(`/api/employees/${employeeId}/postfach-account/reset-password`, {
             method: 'POST',
@@ -9906,7 +9906,7 @@ async function contractShareSendSms(employeeId, employmentId, phone) {
             }
         } catch (_) { /* Status ist nur Komfort */ }
     }
-    if (!confirm(`Vertrag per SMS an ${nr} wirklich senden?${hint}`)) return;
+    if (!(await liquidConfirm(`Vertrag per SMS an ${nr} wirklich senden?${hint}`))) return;
 
     const box = document.getElementById('contractShareBox');
     if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0">📲 SMS wird gesendet …</div>';
@@ -10142,7 +10142,7 @@ async function empEasyImportCommit(cpId) {
 // HR: alle aktiven Vertrags-Links dieses Vertrags widerrufen (Walter 07.07.2026).
 async function contractShareRevoke(employmentId) {
     if (!employmentId) return;
-    if (!confirm('Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen?\n\nBereits verschickte Links zeigen danach «Link nicht mehr gültig».')) return;
+    if (!(await liquidConfirm('Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen?\n\nBereits verschickte Links zeigen danach «Link nicht mehr gültig».'))) return;
     const box = document.getElementById('contractShareBox');
     try {
         const res = await fetch('/api/contract-share/revoke', {
@@ -10271,7 +10271,7 @@ async function faceIdAdminReset(employeeId) {
     const msg = (count != null)
         ? `Face ID zurücksetzen?\n\nDer MA hat ${count} aktivierte(s) Gerät(e). Alle werden entfernt — der MA meldet sich dann wieder mit Passwort an und kann Face ID neu aktivieren.`
         : 'Face ID zurücksetzen?\n\nAlle aktivierten Geräte dieses MA werden entfernt.';
-    if (!confirm(msg)) return;
+    if (!(await liquidConfirm(msg))) return;
     try {
         const res = await fetch(`/api/webauthn/admin/by-employee/${employeeId}`, { method: 'DELETE', headers: ah() });
         if (!res.ok) { alert('Fehler beim Zurücksetzen.'); return; }
@@ -10300,7 +10300,7 @@ async function postfachUnlock(employeeId) {
 // Bulk: Postfach für alle aktiven MA erstellen (einmaliger Backfill nach
 // Phase-1-Deploy). Idempotent — bestehende Accounts werden übersprungen.
 async function postfachBackfillRun() {
-    if (!confirm(
+    if (!(await liquidConfirm(
         'Postfach-Backfill ausführen?\n\n' +
         'Für alle aktiven Mitarbeiter ohne Postfach-Account wird einer angelegt.\n' +
         '  • Username = Personalnummer\n' +
@@ -10308,7 +10308,7 @@ async function postfachBackfillRun() {
         '  • Beim ersten Login muss der MA das Passwort zwingend wechseln.\n\n' +
         'Bestehende Accounts bleiben unverändert. Vorgang ist idempotent und ' +
         'kann beliebig oft ausgeführt werden.'
-    )) return;
+    ))) return;
 
     try {
         const res = await fetch('/api/admin/postfach-backfill', {
@@ -10385,7 +10385,7 @@ function showInitialPasswordModal(username, password) {
 
 async function deleteEmployeeAddress(addrId) {
     if (!selectedEmployeeId || !addrId) return;
-    if (!confirm('Adresse wirklich löschen?')) return;
+    if (!(await liquidConfirm('Adresse wirklich löschen?'))) return;
     try {
         const res = await fetch(`/api/employees/${selectedEmployeeId}/addresses/${addrId}`, {
             method: 'DELETE', headers: ah()
@@ -10784,7 +10784,7 @@ async function savePermitHistoryEntry(entryId) {
 
 async function deletePermitHistoryEntry(entryId) {
     if (!selectedEmployeeId || !entryId) return;
-    if (!confirm('Diesen Bewilligungs-Eintrag wirklich löschen?\n\nDie aktuelle Bewilligung wird automatisch neu berechnet.')) return;
+    if (!(await liquidConfirm('Diesen Bewilligungs-Eintrag wirklich löschen?\n\nDie aktuelle Bewilligung wird automatisch neu berechnet.'))) return;
     try {
         const res = await fetch(`/api/employees/${selectedEmployeeId}/permit-history/${entryId}`, {
             method: 'DELETE', headers: ah()
@@ -10942,7 +10942,7 @@ async function saveBvgZusatz() {
 }
 
 async function deleteBvgZusatz(id) {
-    if (!confirm('Diese Mitgliedschaft wirklich löschen? Wenn der MA aus dem Programm austritt, lieber „Gültig bis" setzen statt löschen.')) return;
+    if (!(await liquidConfirm('Diese Mitgliedschaft wirklich löschen? Wenn der MA aus dem Programm austritt, lieber „Gültig bis" setzen statt löschen.'))) return;
     const res = await fetch(`/api/employees/${selectedEmployeeId}/bvg-zusatz-member/${id}`, {
         method: 'DELETE', headers: ah()
     });
@@ -11441,7 +11441,7 @@ async function _vwFetchFormular(body) {
 
 // Echtes Löschen (Walter-Entscheid 15.07.2026) — kein Storno-Behalten mehr.
 async function vwDelete(id) {
-    if (!confirm('Verwarnung endgültig löschen? Das hinterlegte Dokument bleibt in der Personalakte.')) return;
+    if (!(await liquidConfirm('Verwarnung endgültig löschen? Das hinterlegte Dokument bleibt in der Personalakte.'))) return;
     try {
         const r = await fetch(`/api/verwarnungen/${id}`, { method: 'DELETE', headers: ah() });
         if (!r.ok) { alert('Löschen fehlgeschlagen (' + r.status + ')'); return; }
