@@ -1192,16 +1192,16 @@ function loadUebersichtTab() {
     const istCH = (emp.nationalityCode || '').toUpperCase() === 'CH';
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-frow">
-            ${_pfE(_t('ma.field.maidenName','Ledigname'), 'ov-maidenName', emp.maidenName, '', 'text', 160)}
-            ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 170)}
+            ${_pfE(_t('ma.field.maidenName','Ledigname'), 'ov-maidenName', emp.maidenName, '', 'text', 140)}
+            ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 150)}
             <div style="flex:0 0 auto;min-width:0" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">${_pf(_t('ma.field.shortName','Kurzname'), esc(emp.shortName))}</div>
-            <div style="flex:0 0 40px;min-width:0">${_pf('Sex', gKurz2)}</div>
-            ${_pf(_t('ma.field.street','Strasse'), esc(emp.street))}
-            <div style="flex:0 0 52px;min-width:0">${_pf('PLZ', esc(emp.zipCode))}</div>
-            ${_pf(_t('ma.field.city','Ort'), esc(emp.city))}
-            <div style="flex:0 0 48px;min-width:0">${_pf('Kanton', esc(emp.cantonCode))}</div>
-            <div style="margin-left:auto"><div class="ov-pf"><div class="ov-pfl">Telefon 2</div>
-            <input id="ov-phone2" class="ov-softin" style="width:150px" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div></div>
+            <div style="flex:0 0 36px;min-width:0">${_pf('Sex', gKurz2)}</div>
+            <div class="ov-pf ov-pf-shrink" title="${esc(emp.street || '')}"><div class="ov-pfl">${_t('ma.field.street','Strasse')}</div><div class="ov-pfv">${esc(emp.street) || '<span class="ov-empty">–</span>'}</div></div>
+            <div style="flex:0 0 48px;min-width:0">${_pf('PLZ', esc(emp.zipCode))}</div>
+            <div class="ov-pf ov-pf-shrink" style="max-width:140px" title="${esc(emp.city || '')}"><div class="ov-pfl">${_t('ma.field.city','Ort')}</div><div class="ov-pfv">${esc(emp.city) || '<span class="ov-empty">–</span>'}</div></div>
+            <div style="flex:0 0 44px;min-width:0">${_pf('Kanton', esc(emp.cantonCode))}</div>
+            <div style="flex:0 0 auto;margin-left:auto"><div class="ov-pf"><div class="ov-pfl">Telefon 2</div>
+            <input id="ov-phone2" class="ov-softin" style="width:140px" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div></div>
         </div>
         <div class="ov-frow" style="margin-bottom:2px">
             <!-- Feste Spalten-Breiten (Walter 17.07.2026): AHV/Zivilstand/
@@ -1310,12 +1310,12 @@ function loadUebersichtTab() {
             ${actions}
         </div>`;
     }).join('') || '<div class="ov-empty" style="padding:4px 0">Keine Verträge vorhanden.</div>';
-    // Feste 4-Zeilen-Hoehe (Walter 17.07.2026): sonst springt die Seite beim
-    // MA-Wechsel (3 vs. 4 Vertraege). Mehr als 4 → scrollen.
+    // Feste 3-Zeilen-Hoehe (Walter 17.07.2026): 4 passten nicht ohne Masken-
+    // Scroll. Mehr Verträge → nur die innere Liste scrollt, Maske bleibt fix.
     const vList = `<div class="ov-vlist">${vRows}</div>`;
     // SMS-/Link-Feedback-Container fuer die Uebersicht (Klasse statt ID —
     // der Personal-Strip hat seinen eigenen; siehe contractShareBox-Lookup).
-    const vShare = '<div class="contractShareBox" style="margin:8px 0 0"></div>';
+    const vShare = '<div class="contractShareBox" style="margin:4px 0 0"></div>';
     // Vertraege schmaler (Walter 17.07.2026): nicht mehr volle Breite —
     // daneben die kompakte KTG/UVG-Tagessatz-Karte (vor allem MTP/FLEX).
     const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vList + vShare);
@@ -1511,6 +1511,10 @@ function switchEmpTab(tab) {
         t.classList.toggle('active', t.dataset.tab === tab));
     document.querySelectorAll('.emp-tab-content').forEach(c =>
         c.classList.toggle('active', c.id === 'emp-tab-' + tab));
+    // Übersicht: Detail-Body ohne Scroll (Walter 17.07.2026) — Maske fix.
+    // Andere Tabs brauchen Overflow (Stempelzeiten, Dokumente, Absenzen).
+    document.querySelectorAll('#page-mitarbeiter .emp-detail-body').forEach(b =>
+        b.classList.toggle('ov-noscroll', tab === 'uebersicht'));
     // Header-Actions (Inline-Speichern) — Übersicht speichert über ov-savebtn
     // in den Karten; andere Tabs haben eigene Edit-Buttons.
     const headerActions = document.getElementById('empHeaderActions');

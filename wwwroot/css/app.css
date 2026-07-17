@@ -3245,11 +3245,47 @@
         body.theme-dark .emp-hbadge.hb-inak { background: rgba(255,255,255,.08); color: #94a3b8; }
 
         /* ══ TAB «UEBERSICHT» — Karten-Grid (Etappe 2, Walter 17.07.2026) ══ */
+        /* Walter 17.07.2026: gesamte Übersicht FIX im Viewport — kein Scrollen,
+           kein Springen. Andere MA-Tabs behalten .emp-detail-body-Scroll. */
+        .main:has(#page-mitarbeiter.active) { overflow: hidden; }
+        #page-mitarbeiter.liquid-employee.active {
+            height: 100%; max-height: 100%; overflow: hidden;
+            display: flex; flex-direction: column; min-height: 0;
+        }
+        #page-mitarbeiter.liquid-employee .page-body {
+            flex: 1 1 auto; min-height: 0; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        #page-mitarbeiter.liquid-employee .emp-layout,
+        #page-mitarbeiter.liquid-employee .liquid-employee-layout-grid {
+            flex: 1 1 auto; min-height: 0; height: auto !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-panel {
+            min-height: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll {
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            min-height: 0;
+            padding-bottom: 6px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll #emp-tab-uebersicht.active {
+            display: flex; flex-direction: column;
+            flex: 1 1 auto; min-height: 0; overflow: hidden;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll #uebersichtContent {
+            flex: 1 1 auto; min-height: 0; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
+            flex: 1 1 auto; min-height: 0; overflow: hidden;
+            align-content: start;
+        }
         .ov-wrap {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
-            padding: 4px 2px 10px;
+            gap: 8px;
+            padding: 2px 2px 4px;
         }
         /* Volle Breite (Walter 17.07.2026): Personalien & Adresse spannt
            ueber beide Spalten. */
@@ -3259,7 +3295,7 @@
             grid-column: 1 / -1;
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
-            gap: 14px;
+            gap: 8px;
             min-width: 0;
         }
         @media (max-width: 1100px) {
@@ -3269,15 +3305,15 @@
         .ov-card {
             background: #ffffff;
             border: 1px solid rgba(255, 255, 255, 0.72);
-            border-radius: 16px;
+            border-radius: 14px;
             box-shadow: 0 8px 24px rgba(60, 55, 48, 0.06);
-            padding: 14px 18px 14px;
+            padding: 10px 14px 10px;
             min-width: 0;
         }
         .ov-card-h {
             display: flex; align-items: center; justify-content: space-between;
-            font-size: 14.5px; font-weight: 760; color: #1a1a1a;
-            margin-bottom: 11px;
+            font-size: 13.5px; font-weight: 760; color: #1a1a1a;
+            margin-bottom: 7px;
         }
         .ov-count { font-weight: 650; color: #8b8b8b; font-size: 13px; margin-left: 4px; }
         .ov-jump {
@@ -3351,18 +3387,43 @@
         /* Hoehen-Ausrichtung (Walter 17.07.2026): Labels alle auf gleicher
            OBERKANTE, Werte vertikal mittig auf Input-Hoehe — Text-Felder
            und Input-Felder stehen damit exakt auf einer Linie. */
-        .ov-frow { display: flex; flex-wrap: wrap; gap: 11px 34px; align-items: flex-start; margin-bottom: 14px; }
+        /* nowrap (Walter 17.07.2026): lange Strasse darf KEINE 2. Zeile
+           erzeugen — sonst springt die ganze Maske. Stattdessen Ellipsis. */
+        .ov-frow {
+            display: flex; flex-wrap: nowrap; gap: 8px 18px;
+            align-items: flex-start; margin-bottom: 8px;
+            overflow: hidden; min-width: 0;
+        }
         /* Fussbereich «Weitere Adressen» in der Personalien-Karte */
         .ov-addrsep {
             display: flex; align-items: center; justify-content: space-between;
             gap: 12px;
             border-top: 1px solid #eee8de;
-            margin-top: 4px; padding-top: 10px; margin-bottom: 8px;
+            margin-top: 2px; padding-top: 6px; margin-bottom: 4px;
         }
         body.theme-dark .ov-addrsep { border-top-color: rgba(255,255,255,.12); }
-        .ov-frow .ov-pf { margin-bottom: 0; width: auto; }
-        .ov-frow .ov-pfl { margin-bottom: 4px; }
-        .ov-frow .ov-pfv { min-height: 36px; display: flex; align-items: center; gap: 6px; }
+        /* Zusatzadressen: max. 1 Zeile Höhe — sonst wächst die Maske */
+        #otherAddressesContent {
+            max-height: 38px; overflow-x: hidden; overflow-y: auto; min-width: 0;
+        }
+        .ov-frow .ov-pf { margin-bottom: 0; width: auto; min-width: 0; flex: 0 1 auto; }
+        .ov-frow .ov-pfl { margin-bottom: 2px; }
+        .ov-frow .ov-pfv {
+            min-height: 32px; display: flex; align-items: center; gap: 6px;
+            max-width: 100%; overflow: hidden;
+        }
+        .ov-frow .ov-pfv > span,
+        .ov-frow .ov-pfv {
+            text-overflow: ellipsis; white-space: nowrap;
+        }
+        /* Strasse / Ort: duerfen schrumpfen, Truncate statt Zeilenumbruch */
+        .ov-frow .ov-pf-shrink {
+            flex: 1 1 0; min-width: 0; max-width: 200px;
+        }
+        .ov-frow .ov-pf-shrink .ov-pfv {
+            display: block; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap; line-height: 32px; min-height: 32px;
+        }
         .ov-frow .lqsel-wrap { width: 170px; }
         .ov-pfl {
             font-size: 10.5px; font-weight: 700; color: #8b8b8b;
@@ -3376,13 +3437,14 @@
         /* Soft-Inputs im Bearbeiten-Modus */
         .ov-softin {
             max-width: 100%;
-            font: inherit; font-size: 14px; font-weight: 600; color: #0a0a0a;
+            font: inherit; font-size: 13.5px; font-weight: 600; color: #0a0a0a;
             background: #ffffff;
             border: 1px solid #e7e1d6;
             border-radius: 9px;
-            padding: 6px 10px;
+            padding: 5px 9px;
             outline: none;
             box-shadow: inset 0 1px 2px rgba(60, 55, 48, 0.04);
+            box-sizing: border-box;
         }
         .ov-softin:focus { border-color: #3f3f3f; }
         .ov-softin::placeholder { color: #b8c0ca; font-weight: 500; }
@@ -3448,20 +3510,22 @@
         .ov-tag { font-size: 11.5px; font-weight: 700; padding: 2px 10px; border-radius: 7px; }
         .ov-tag.ok  { background: #e7f0e4; color: #2f7d32; }
         .ov-tag.min { background: #f1f5f9; color: #94a3b8; }
-        /* Feste Liste = 4 Zeilen (Walter 17.07.2026): verhindert Layout-Sprung
-           beim MA-Wechsel. Zeile 48px + 7px Abstand; letzte ohne Abstand. */
+        /* Feste Liste = 3 dichte Zeilen (Walter 17.07.2026): 4 passten nicht
+           ohne Seiten-Scroll. Mehr Verträge → nur innere Liste scrollt. */
         .ov-vlist {
-            height: calc(4 * 48px + 3 * 7px);
+            height: calc(3 * 36px + 2 * 3px);
+            overflow-x: hidden;
             overflow-y: auto;
             min-width: 0;
         }
         .ov-vrow {
-            display: flex; align-items: center; gap: 9px;
-            background: #fbfaf7; border: 1px solid #f0ece4; border-radius: 11px;
-            padding: 8px 12px; margin-bottom: 7px; min-width: 0;
-            height: 48px; box-sizing: border-box;
+            display: flex; align-items: center; gap: 7px;
+            background: #fbfaf7; border: 1px solid #f0ece4; border-radius: 9px;
+            padding: 4px 10px; margin-bottom: 3px; min-width: 0;
+            height: 36px; box-sizing: border-box;
         }
         .ov-vlist .ov-vrow:last-child { margin-bottom: 0; }
+        .ov-vlist + .contractShareBox { margin-top: 4px !important; }
         .ov-vrow.archiv { opacity: .65; }
         .ov-vdot { width: 8px; height: 8px; border-radius: 50%; background: #b9b2a6; flex-shrink: 0; }
         .ov-vdot.g { background: #34a853; }
