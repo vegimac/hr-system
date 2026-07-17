@@ -3039,6 +3039,79 @@
             box-shadow: none;
         }
 
+        /* ══ SCHLICHTE EDIT-FELDER IM MA-DETAIL (Walter 17.07.2026) ══
+           Die editierbaren Inline-Felder wirkten «komisch»: doppelte Pille
+           (Glas-Wrapper MIT Schatten UM den Input MIT eigenem Schatten) und
+           das Liquid-Select fiel aus der Reihe. Ab jetzt: EIN flacher,
+           schlichter Rahmen fuer ALLE editierbaren Felder — Input, Datum
+           und Select identisch. Steht bewusst NACH den aelteren Regeln. */
+        #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input:not([readonly]):not(:disabled)),
+        #page-mitarbeiter.liquid-employee .emp-field-value:has(.lqsel-wrap) {
+            background: transparent !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+            padding: 0;
+        }
+        #page-mitarbeiter.liquid-employee .ef-input {
+            min-height: 26px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(140, 132, 120, 0.38);
+            background: #ffffff;
+            font-size: 12.5px;
+            box-shadow: none;
+        }
+        #page-mitarbeiter.liquid-employee .ef-input:focus {
+            border-color: rgba(63, 63, 63, 0.55);
+            background: #ffffff;
+            box-shadow: none;
+        }
+        /* Liquid-Select (z.B. Konfession) exakt im selben Look wie die Inputs */
+        #page-mitarbeiter.liquid-employee .emp-field-value .lqsel-wrap {
+            min-width: 0;
+            width: 100%;
+            display: block;
+        }
+        #page-mitarbeiter.liquid-employee .emp-field-value .lqsel-btn {
+            min-height: 26px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(140, 132, 120, 0.38);
+            background: #ffffff;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--emp-text-strong);
+            box-shadow: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-field-value .lqsel-btn:hover {
+            background: #ffffff;
+            box-shadow: none;
+            border-color: rgba(63, 63, 63, 0.45);
+        }
+        /* Dark-Mode: gleiche Flach-Logik */
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input:not([readonly]):not(:disabled)),
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:has(.lqsel-wrap) {
+            background: transparent !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .ef-input {
+            background: rgba(13, 24, 35, 0.68);
+            border: 1px solid rgba(122, 145, 165, 0.32);
+            box-shadow: none;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .ef-input:focus {
+            border-color: rgba(112, 164, 214, 0.5);
+            box-shadow: none;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value .lqsel-btn {
+            background: rgba(13, 24, 35, 0.68);
+            border: 1px solid rgba(122, 145, 165, 0.32);
+            color: var(--emp-text-strong);
+            box-shadow: none;
+        }
+
+
         /* Liquid-Employee: keine separaten Innen-Frames. Die MA-Seite liegt wie
            das Dashboard direkt auf der Hintergrundfläche; nur Inhalte/Aktionen
            zeichnen sich ab. */
