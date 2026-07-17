@@ -1330,6 +1330,7 @@ function loadUebersichtTab() {
     //    Kuendigungs-Daten mit Auto-Fristberechnung wie gehabt) ──
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-frow" style="margin-bottom:2px">
+            ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
             ${_pf(_t('ma.detail.exitDate','Austrittsdatum'), emp.exitDate ? formatDate(emp.exitDate) : null)}
             <div class="ov-pf"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             <div class="ov-pf"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
