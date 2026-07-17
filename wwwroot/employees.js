@@ -1118,19 +1118,11 @@ function renderEmployeeDetail(emp) {
         </div>
 
         <!-- TAB: Absenzen & Zeiten (Etappe 1 Menü-Vereinfachung, Walter 17.07.2026)
-             Stempelzeiten + Absenzen unter EINEM Tab — Inhalte/Loader/DOM-IDs
-             unverändert (#stempelzeitenContent, #absenzenContent). -->
+             Absenzen + Stempelzeiten unter EINEM Tab — Inhalte/Loader/DOM-IDs
+             unverändert (#absenzenContent, #stempelzeitenContent).
+             Reihenfolge Walter 17.07.2026: Absenzen ZUERST (kürzer, oft
+             wichtiger), Stempelzeiten darunter (lange Liste). -->
         <div class="emp-tab-content" id="emp-tab-zeiten">
-            <div class="emp-section-title">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
-            <div id="stempelzeitenContent">
-                <div class="emp-placeholder">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span>
-                </div>
-            </div>
-
-            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
-
             <!-- Absenzen — Walter-Vorgabe 26.05.2026: vom alten kombinierten
                  „Absenzen Zulagen Abzüge"-Tab abgetrennt; Zulagen/Abzüge sind
                  ein eigener Tab. Seit 17.07.2026 hier unter «Absenzen & Zeiten». -->
@@ -1138,6 +1130,16 @@ function renderEmployeeDetail(emp) {
             <div id="absenzenContent">
                 <div class="emp-placeholder">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span>
+                </div>
+            </div>
+
+            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
+
+            <div class="emp-section-title">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
+            <div id="stempelzeitenContent">
+                <div class="emp-placeholder">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     <span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span>
                 </div>
             </div>
