@@ -206,6 +206,8 @@ window.i18n = (function () {
         'ma.tab.qst':                { de: 'Quellensteuer',                en: 'Withholding tax' },
         'ma.tab.timeRecords':        { de: 'Stempelzeiten',                en: 'Time records' },
         'ma.tab.absences':           { de: 'Absenzen Zulagen Abzüge',      en: 'Absences, allowances, deductions' },
+        'ma.tab.absencesOnly':       { de: 'Absenzen',                     en: 'Absences' },
+        'ma.tab.absencesTimes':      { de: 'Absenzen &<br>Zeiten',         en: 'Absences &<br>Times' },
         'ma.tab.ktg':                { de: 'KTG/UVG',                      en: 'Sick pay / accident' },
         'ma.tab.docs':               { de: 'Dokumente',                    en: 'Documents' },
 

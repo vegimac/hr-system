@@ -236,8 +236,11 @@ const EMP_SPECIAL_FILTERS = {
 // (Key 'quellensteuer') enthaelt Bewilligung + QST + Bankverwaltung;
 // «Restaurant Admin» (Key 'verwarnungen') enthaelt die Verwarnungen —
 // weitere Restaurant-Admin-Funktionen kommen kuenftig dort hinein.
+// Etappe 1 Menü-Vereinfachung (Walter 17.07.2026): Stempelzeiten + Absenzen
+// → ein Tab «Absenzen & Zeiten» (Key 'zeiten'). Alte Keys bleiben als Alias
+// in switchEmpTab (Persistenz / alte Sprünge).
 const _empTabsOrder = ['uebersicht', 'personal', 'familie', 'quellensteuer', 'verwarnungen',
-                       'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'ktg', 'dokumente'];
+                       'zeiten', 'verfuegbarkeit', 'zulagen', 'ktg', 'dokumente'];
 
 // Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
 let _stempelGlobalPeriodeId = null;
@@ -276,7 +279,13 @@ document.addEventListener('keydown', e => {
         }
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         if (!selectedEmployeeId) return;
-        const idx = _empTabsOrder.indexOf(activeEmpTab);
+        // Alias-Keys (alte Tab-Namen) auf den aktuellen Key normalisieren,
+        // sonst liefert indexOf -1 und die Pfeil-Navigation hängt.
+        let curTab = activeEmpTab;
+        if (curTab === 'stempelzeiten' || curTab === 'absenzen') curTab = 'zeiten';
+        if (curTab === 'bank') curTab = 'quellensteuer';
+        const idx = _empTabsOrder.indexOf(curTab);
+        if (idx < 0) return;
         let next = idx;
         if (e.key === 'ArrowRight') next = Math.min(idx + 1, _empTabsOrder.length - 1);
         if (e.key === 'ArrowLeft')  next = Math.max(idx - 1, 0);
@@ -932,8 +941,7 @@ function renderEmployeeDetail(emp) {
             <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')" style="line-height:1.2;text-align:center">${_t('ma.tab.family','Familie<br>Schwanger')}</div>
             <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung QST<br>Bank')}</div>
             <div class="emp-tab"        data-tab="verwarnungen" onclick="switchEmpTab('verwarnungen')" style="line-height:1.2;text-align:center">${_t('ma.tab.restAdmin','Restaurant<br>Admin')}</div>
-            <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
-            <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')">${_t('ma.tab.absencesOnly','Absenzen')}</div>
+            <div class="emp-tab"        data-tab="zeiten" onclick="switchEmpTab('zeiten')" style="line-height:1.2;text-align:center">${_t('ma.tab.absencesTimes','Absenzen &amp;<br>Zeiten')}</div>
             <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availability','Verfügbarkeit')}</div>
             <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen Abzüge<br>Abtretung BVG')}</div>
             <div class="emp-tab"        data-tab="ktg"        onclick="switchEmpTab('ktg')">${_t('ma.tab.ktg','KTG/UVG')}</div>
@@ -1109,20 +1117,23 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
 
-        <!-- TAB: Stempelzeiten -->
-        <div class="emp-tab-content" id="emp-tab-stempelzeiten">
+        <!-- TAB: Absenzen & Zeiten (Etappe 1 Menü-Vereinfachung, Walter 17.07.2026)
+             Stempelzeiten + Absenzen unter EINEM Tab — Inhalte/Loader/DOM-IDs
+             unverändert (#stempelzeitenContent, #absenzenContent). -->
+        <div class="emp-tab-content" id="emp-tab-zeiten">
+            <div class="emp-section-title">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
             <div id="stempelzeitenContent">
                 <div class="emp-placeholder">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     <span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span>
                 </div>
             </div>
-        </div>
 
-        <!-- TAB: Absenzen — Walter-Vorgabe 26.05.2026: vom alten kombinierten
-             „Absenzen Zulagen Abzüge"-Tab abgetrennt; Zulagen/Abzüge sind
-             jetzt ein eigener Tab. -->
-        <div class="emp-tab-content" id="emp-tab-absenzen">
+            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
+
+            <!-- Absenzen — Walter-Vorgabe 26.05.2026: vom alten kombinierten
+                 „Absenzen Zulagen Abzüge"-Tab abgetrennt; Zulagen/Abzüge sind
+                 ein eigener Tab. Seit 17.07.2026 hier unter «Absenzen & Zeiten». -->
             <div class="emp-section-title">${_t('abs.section.absences','Absenzen')}</div>
             <div id="absenzenContent">
                 <div class="emp-placeholder">
@@ -1597,6 +1608,8 @@ async function easyworkSyncSelectedEmployee(empId) {
 function switchEmpTab(tab) {
     // Bank ist seit 15.07.2026 Teil von «Bewilligung QST Bank».
     if (tab === 'bank') tab = 'quellensteuer';
+    // Etappe 1 Menü-Vereinfachung (Walter 17.07.2026): alte Keys → neuer Tab.
+    if (tab === 'stempelzeiten' || tab === 'absenzen') tab = 'zeiten';
     activeEmpTab = tab;
     document.querySelectorAll('.emp-tab').forEach(t =>
         t.classList.toggle('active', t.dataset.tab === tab));
@@ -1625,7 +1638,7 @@ function switchEmpTab(tab) {
             // 15.07.2026) — oben rechts kollidierten die Buttons mit dem
             // langSwitcher (reservierte Zone, CLAUDE.md).
             tabBar.innerHTML = '';
-        } else if (tab === 'absenzen') {
+        } else if (tab === 'zeiten') {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openAbsenceModal(null)">${plusIcon} Absenz erfassen</button>`;
         } else if (tab === 'verfuegbarkeit' && !isExcluded) {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="verfNewForm()">${plusIcon} Neue Verfügbarkeit</button>`;
@@ -1660,8 +1673,10 @@ function switchEmpTab(tab) {
         if (!selectedEmployee?.isPayrollExcluded) loadBankAccountsTab(selectedEmployeeId);
     }
     if (tab === 'verwarnungen'   && selectedEmployeeId) loadVerwarnungenTab(selectedEmployeeId);
-    if (tab === 'stempelzeiten'  && selectedEmployeeId) loadStempelzeitenTab(selectedEmployeeId);
-    if (tab === 'absenzen'       && selectedEmployeeId) loadAbsenzenTab(selectedEmployeeId);
+    if (tab === 'zeiten'         && selectedEmployeeId) {
+        loadStempelzeitenTab(selectedEmployeeId);
+        loadAbsenzenTab(selectedEmployeeId);
+    }
     if (tab === 'verfuegbarkeit' && selectedEmployeeId && typeof loadVerfuegbarkeitTab === 'function') loadVerfuegbarkeitTab(selectedEmployeeId);
     if (tab === 'zulagen'        && selectedEmployeeId) {
         // Walter-Vorgabe 26.05.2026: BVG-Zusatz + Recurring + Lohnabtretungen
