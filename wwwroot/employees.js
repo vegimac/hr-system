@@ -1297,17 +1297,15 @@ function loadUebersichtTab() {
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-frow">
             ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 200)}
-            ${_pfE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName, '', 'text', 180)}
+            ${_pfE(_t('ma.field.shortName','Kurzname'), 'ov-shortName', emp.shortName, '', 'text', 170)}
             ${_pf('Geschl.', gKurz2)}
-        </div>
-        <div class="ov-frow">
             ${_pf(_t('ma.field.street','Strasse'), esc(emp.street))}
             ${_pf('PLZ', esc(emp.zipCode))}
             ${_pf(_t('ma.field.city','Ort'), esc(emp.city))}
             ${_pf('Kanton', esc(emp.cantonCode))}
             ${_pfE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …', 'text', 150)}
         </div>
-        <div class="ov-frow">
+        <div class="ov-frow" style="margin-bottom:2px">
             ${_pf('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
             ${_pf(_t('ma.field.maritalStatus','Zivilstand'), `${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}`)}
             ${_pfE(_t('ma.field.maritalSince','seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date', 135)}
@@ -1320,8 +1318,6 @@ function loadUebersichtTab() {
                 ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
                 ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
             </select></div>
-        </div>
-        <div class="ov-frow" style="margin-bottom:2px">
             ${_pf(_t('ma.field.nationality','Nationalität'), `${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${linkedDocButton('passport')}`)}
             ${istCH ? '' : _pfE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'), 'text', 140)}
         </div>`,
