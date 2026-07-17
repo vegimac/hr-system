@@ -397,6 +397,7 @@ function applyEmpFilter() {
     // den MA der vorherigen Filiale weiter zeigen — Walter-Feedback 13.05.2026).
     if (selectedEmployeeId && !allEmployees.find(e => e.id === selectedEmployeeId)) {
         selectedEmployeeId = null;
+        window.selectedEmployeeId = null;
         selectedEmployee   = null;
         const panel = document.getElementById('empDetailPanel');
         if (panel) {
@@ -593,6 +594,10 @@ function filterEmployeeList() {
 // ── Mitarbeiter auswählen ──────────────────────
 async function selectEmployee(id) {
     selectedEmployeeId = id;
+    // Bug-Fix 17.07.2026: top-level `let` liegt NICHT auf window — der
+    // easy@work-Sync-Button im langSwitcher (index.html) und showPage
+    // (app-core.js) pruefen aber window.selectedEmployeeId. Spiegeln.
+    window.selectedEmployeeId = id;
     // Cross-Modul-Sprung (Walter 21.05.2026): aktiver MA merken, damit
     // Verträge/Lohnlauf-Wechsel auf denselben MA springen.
     window.activeEmpId = id;
@@ -9804,6 +9809,7 @@ async function confirmDeleteEmployee(employeeId, expectedMode) {
         // wird — applyEmpFilter (in loadMitarbeiterList) liest
         // window.activeEmpId mit höchster Priorität und selektiert den.
         selectedEmployeeId = null;
+        window.selectedEmployeeId = null;
         selectedEmployee   = null;
         window.activeEmpId = _nextEmpAfterDelete; // null → fällt auf allEmployees[0]
         if (typeof loadMitarbeiterList === 'function') await loadMitarbeiterList();

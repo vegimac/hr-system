@@ -31,6 +31,10 @@
         if (!sel || sel._lq || sel.tagName !== 'SELECT') return;
         if (sel.multiple || (sel.size && sel.size > 1)) return;
         if (sel.classList.contains('no-liquid')) return;
+        // Bug-Fix 17.07.2026: disabled Selects (z.B. easy@work-gesperrte
+        // Felder mit data-easywork-locked im MA-Edit) NICHT umbauen — sonst
+        // wird das gesperrte Feld ueber den Liquid-Button doch aenderbar.
+        if (sel.disabled) return;
         // Selects, die SELBST bewusst versteckt sind, sind Datenquellen eines
         // bereits gebauten Custom-Controls (z.B. #branchSelect hinter dem
         // Sidebar-Filial-Selektor, #liquidBranchSelect auf dem Dashboard) —
@@ -67,7 +71,13 @@
         };
         function renderBtn() {
             btn.innerHTML = `<span class="lqsel-label">${lqEsc(curLabel() || '– wählen –')}</span><span class="lqsel-chev">▾</span>`;
+            // disabled-State des Original-Selects auf den Button spiegeln
+            // (Bug-Fix 17.07.2026 — Sperre darf nicht umgehbar sein).
+            btn.disabled = sel.disabled;
+            btn.style.cursor = sel.disabled ? 'not-allowed' : '';
+            btn.style.opacity = sel.disabled ? '0.55' : '';
         }
+        new MutationObserver(renderBtn).observe(sel, { attributes: true, attributeFilter: ['disabled'] });
         const optHtml = (o) =>
             `<div class="lqsel-opt${o.value === sel.value ? ' sel' : ''}${o.disabled ? ' dis' : ''}" data-v="${lqEsc(o.value)}">${lqEsc(o.textContent.trim())}</div>`;
         function renderPanel() {
