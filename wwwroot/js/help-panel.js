@@ -73,9 +73,9 @@ const HELP_PAGE_BY_EMP_TAB = {
     'familie':        'mitarbeiter',
     'bank':           'mitarbeiter',
     'quellensteuer':  'qst',
-    'stempelzeiten':  'mitarbeiter', // Alias → zeiten
-    'absenzen':       'mitarbeiter', // Alias → zeiten
-    'zeiten':         'mitarbeiter',
+    'stempelzeiten':  'mitarbeiter',
+    'absenzen':       'mitarbeiter',
+    'zeiten':         'mitarbeiter', // Kurzzeit-Alias → Absenzen
     'zulagen':        'mitarbeiter',
     'ktg':            'mitarbeiter',
     'dokumente':      'dokumente',
@@ -107,9 +107,9 @@ function helpContextLabel(ctx) {
         'familie': 'Familie',
         'bank': 'Bank',
         'quellensteuer': 'Quellensteuer',
-        'stempelzeiten': 'Absenzen & Zeiten', // Alias
-        'absenzen': 'Absenzen & Zeiten',     // Alias
-        'zeiten': 'Absenzen & Zeiten',
+        'stempelzeiten': 'Stempelzeiten',
+        'absenzen': 'Absenzen',
+        'zeiten': 'Absenzen', // Kurzzeit-Alias
         'zulagen': 'Zulagen & Abzüge',
         'ktg': 'KTG/UVG',
         'dokumente': 'Dokumente',
