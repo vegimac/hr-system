@@ -3187,9 +3187,13 @@
         .emp-hbadge.hb-kuend { background: #fee2e2; color: #b91c1c; }
         .emp-hbadge.hb-prob,
         .emp-hbadge.hb-exit  { background: #fdf1dc; color: #96690f; }
+        /* Vertrags-Zeile OHNE Huellen-Pille (Walter 17.07.2026: die drei
+           Zeilen links buendig — die 10px-Innenpolsterung der hellen Pille
+           rueckte den Chip optisch ein). Chip + Text starten flush bei 0. */
         .emp-hbadge.hb-vert  {
-            background: #f1ede5; color: #1a1a1a;
-            font-size: 13px; font-weight: 750;
+            background: transparent; color: #1a1a1a;
+            padding: 0; border-radius: 0;
+            font-size: 13.5px; font-weight: 750;
         }
         .emp-hvertrag { margin-top: 7px; white-space: nowrap; }
         /* Rechte Aktions-Spalte: aus dem Fluss genommen, oben rechts fixiert
@@ -3203,7 +3207,7 @@
             max-width: 480px;
             z-index: 6;
         }
-        body.theme-dark .emp-hbadge.hb-vert { background: rgba(255,255,255,.10); color: #f2f5f8; }
+        body.theme-dark .emp-hbadge.hb-vert { background: transparent; color: #f2f5f8; }
         /* EINE Fakten-Zeile mit fixen Spalten-Positionen (Walter 17.07.2026):
            Eintritt | Geburtstag | Telefon | E-Mail — alles linksbuendig an
            festen X-Positionen, springt bei keinem MA. Spart eine Zeile. */
