@@ -1676,8 +1676,9 @@ function switchEmpTab(tab) {
     }
     if (tab === 'verwarnungen'   && selectedEmployeeId) loadVerwarnungenTab(selectedEmployeeId);
     if (tab === 'zeiten'         && selectedEmployeeId) {
-        loadStempelzeitenTab(selectedEmployeeId);
+        // Absenzen zuerst laden (stehen oben im Tab), dann Stempelzeiten.
         loadAbsenzenTab(selectedEmployeeId);
+        loadStempelzeitenTab(selectedEmployeeId);
     }
     if (tab === 'verfuegbarkeit' && selectedEmployeeId && typeof loadVerfuegbarkeitTab === 'function') loadVerfuegbarkeitTab(selectedEmployeeId);
     if (tab === 'zulagen'        && selectedEmployeeId) {
