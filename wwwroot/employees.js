@@ -1500,9 +1500,23 @@ async function openEmpContractPdf(contractId, printAfterOpen) {
     }
 }
 
+// Klick-Handler der langSwitcher-Pill (Walter 17.07.2026, Bug-Fix v2):
+// MA-Id robust aufloesen — window-Spiegel ODER Modul-Variable — und bei
+// fehlender Auswahl eine klare Meldung statt stillem Nichtstun.
+function lsEmpSyncClick() {
+    const id = window.selectedEmployeeId
+        || (typeof selectedEmployeeId !== 'undefined' ? selectedEmployeeId : null);
+    if (!id) { alert('Bitte zuerst einen Mitarbeiter auswählen.'); return; }
+    easyworkSyncSelectedEmployee(id);
+}
+
 async function easyworkSyncSelectedEmployee(empId) {
     if (!empId) return;
-    const btn = document.getElementById('btnEmpEasyworkSync');
+    // Spinner auf dem Button zeigen, der tatsaechlich existiert: der alte
+    // Header-Button (btnEmpEasyworkSync) ist seit 17.07.2026 entfernt —
+    // die Pill oben im langSwitcher (#lsEmpSyncBtn) uebernimmt.
+    const btn = document.getElementById('btnEmpEasyworkSync')
+        || document.getElementById('lsEmpSyncBtn');
     const oldHtml = btn?.innerHTML;
     // Laufender Sync sichtbar machen (Walter-Vorgabe 13.07.2026): drehender
     // Spinner im Button, solange die API-Calls laufen (kann einige Sekunden
@@ -1545,8 +1559,9 @@ async function easyworkSyncSelectedEmployee(empId) {
     } catch (e) {
         alert('easy@work-Abgleich fehlgeschlagen: ' + (e?.message || e));
     } finally {
-        const btn2 = document.getElementById('btnEmpEasyworkSync');
-        if (btn2) { btn2.disabled = false; btn2.innerHTML = oldHtml || 'easy@work synchronisieren'; }
+        const btn2 = document.getElementById('btnEmpEasyworkSync')
+            || document.getElementById('lsEmpSyncBtn');
+        if (btn2) { btn2.disabled = false; if (oldHtml) btn2.innerHTML = oldHtml; }
     }
 }
 

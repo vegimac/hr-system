@@ -98,7 +98,7 @@
                  in Zeile 1, links vor Lupe + Fragezeichen. Sichtbar nur auf der
                  Mitarbeiter-Seite mit gewaehltem MA (showPage + employees.js). -->
             <button id="lsEmpSyncBtn" title="Aktualisiert easy@work-Felder des gewählten Mitarbeiters aus der API"
-                    onclick="if (window.selectedEmployeeId) easyworkSyncSelectedEmployee(selectedEmployeeId)"
+                    onclick="lsEmpSyncClick()"
                     style="display:none;background:#fff;border:1px solid #e2e8f0;cursor:pointer;padding:5px 11px;border-radius:10px;align-items:center;gap:6px;font-size:12.5px;color:#3f3f3f;font-weight:600">
                 <img src="img/easyatwork-icon.png?v=20260628a" alt="easy@work" style="width:16px;height:16px;object-fit:contain">
                 <span>easy@work sync</span>
@@ -7059,7 +7059,7 @@
     </div>
 </div>
 
-<script src="employees.js?v=20260718h"></script>
+<script src="employees.js?v=20260718i"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
