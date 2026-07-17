@@ -1287,9 +1287,11 @@ function loadUebersichtTab() {
     //    Inputs im Text-Look — Unterlinie erscheint erst bei Hover/Fokus. ──
     const _kv  = (label, valueHtml) => `
         <div class="ov-kv"><div class="ov-kl">${label}</div><div class="ov-kval">${valueHtml || '<span class="ov-empty">–</span>'}</div></div>`;
+    // Editierbare Zeilen: Klasse ov-kv-edit (nur SIE reagieren auf Hover)
+    // + dezentes ✎ als dauerhafte, moderne Kennzeichnung.
     const _kvE = (label, id, value, ph = '', type = 'text') => `
-        <div class="ov-kv"><div class="ov-kl">${label}</div>
-        <div class="ov-kval"><input id="${id}" class="ov-editin" type="${type}" value="${type === 'date' ? toDateInput(value) : esc(value)}" placeholder="${ph}" ${type === 'date' ? 'onchange="ovDirty()"' : 'oninput="ovDirty()"'} title="Klicken zum Bearbeiten"></div></div>`;
+        <div class="ov-kv ov-kv-edit"><div class="ov-kl">${label}</div>
+        <div class="ov-kval"><input id="${id}" class="ov-editin" type="${type}" value="${type === 'date' ? toDateInput(value) : esc(value)}" placeholder="${ph}" ${type === 'date' ? 'onchange="ovDirty()"' : 'oninput="ovDirty()"'} title="Klicken zum Bearbeiten"><span class="ov-pen" aria-hidden="true">✎</span></div></div>`;
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-cols">
             <div class="ov-col">
@@ -1303,15 +1305,15 @@ function loadUebersichtTab() {
                 ${_kv(_t('ma.field.street','Strasse'), esc(emp.street))}
                 ${_kv('PLZ / Ort', esc([emp.zipCode, emp.city].filter(Boolean).join(' ')) + (emp.cantonCode ? ` <span class="ov-code">${esc(emp.cantonCode)}</span>` : ''))}
                 ${_kvE('Telefon 2', 'ov-phone2', emp.phone2, '+41 79 …')}
-                <div class="ov-kv"><div class="ov-kl">${_t('ma.field.religion','Konfession')}</div>
-                <div class="ov-kval"><select id="ov-religion" class="ov-editin no-liquid" onchange="ovDirty()" title="Klicken zum Bearbeiten">
+                <div class="ov-kv ov-kv-edit"><div class="ov-kl">${_t('ma.field.religion','Konfession')}</div>
+                <div class="ov-kval"><select id="ov-religion" class="ov-editin" onchange="ovDirty()" title="Klicken zum Bearbeiten">
                     <option value="">–</option>
                     ${_relOpt('evangelisch_reformiert', _t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert'))}
                     ${_relOpt('roemisch_katholisch', _t('ma.value.religion.roemisch_katholisch','Röm.-katholisch'))}
                     ${_relOpt('christ_katholisch', _t('ma.value.religion.christ_katholisch','Christ-katholisch'))}
                     ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
                     ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
-                </select></div></div>
+                </select><span class="ov-pen" aria-hidden="true">✎</span></div></div>
             </div>
             <div class="ov-col ov-colsep">
                 ${_kv('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}
