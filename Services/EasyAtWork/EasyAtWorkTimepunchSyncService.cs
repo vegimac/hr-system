@@ -165,9 +165,45 @@ public class EasyAtWorkTimepunchSyncService
             .FirstOrDefault(t => t.HasValue);
         utc ??= p.UpdatedAt;
         if (!utc.HasValue) return null;
-        return utc.Value.Kind == DateTimeKind.Utc
-            ? utc.Value
-            : DateTime.SpecifyKind(utc.Value, DateTimeKind.Utc);
+        return AsUtc(utc.Value);
+    }
+
+    /// <summary>
+    /// Wie <see cref="ExtractEditorTime"/>, aber OHNE UpdatedAt-Fallback —
+    /// für Updates: fehlende Comments dürfen den gespeicherten EditedAt nicht
+    /// mit einem anderen Zeitstempel ersetzen (sonst ewig «geändert»).
+    /// </summary>
+    private static DateTime? ExtractEditorTimePreferComments(EawTimepunch? p)
+    {
+        if (p?.Comments == null) return null;
+        var utc = p.Comments.Select(c => c.CreatedAt).FirstOrDefault(t => t.HasValue);
+        return utc.HasValue ? AsUtc(utc.Value) : null;
+    }
+
+    private static DateTime AsUtc(DateTime dt)
+        => dt.Kind == DateTimeKind.Utc ? dt : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+
+    /// <summary>Schwache Platzhalter-Namen nicht über bessere DB-Werte stülpen.</summary>
+    private static string? PreferEditorName(string? incoming, string? existing)
+    {
+        if (IsWeakEditorName(incoming) && !string.IsNullOrWhiteSpace(existing))
+            return existing;
+        return incoming ?? existing;
+    }
+
+    private static bool IsWeakEditorName(string? n)
+        => string.IsNullOrWhiteSpace(n)
+           || string.Equals(n, "easy@work", StringComparison.OrdinalIgnoreCase)
+           || n.StartsWith("User #", StringComparison.Ordinal);
+
+    /// <summary>DateTime-Vergleich auf Sekunden (Kind egal) — Npgsql/Kind-Drift.</summary>
+    private static bool SameInstant(DateTime? a, DateTime? b)
+    {
+        if (!a.HasValue && !b.HasValue) return true;
+        if (!a.HasValue || !b.HasValue) return false;
+        var ta = a.Value.Ticks / TimeSpan.TicksPerSecond;
+        var tb = b.Value.Ticks / TimeSpan.TicksPerSecond;
+        return ta == tb;
     }
 
     /// <summary>
@@ -990,23 +1026,34 @@ public class EasyAtWorkTimepunchSyncService
                 origIn = UtcToSwissLocal(p.OriginalIn.Value);
             if (!origOut.HasValue && p.OriginalOut.HasValue)
                 origOut = UtcToSwissLocal(p.OriginalOut.Value);
-            // Fallback: created_at als Näherung für Original-IN (nur bei echtem Edit).
-            if (!origIn.HasValue && p.IsEdited && p.CreatedAt.HasValue
-                && Math.Abs((p.CreatedAt.Value - p.In.Value).TotalMinutes) >= 1)
-            {
-                origIn = UtcToSwissLocal(p.CreatedAt.Value);
-            }
-            var editorName = p.IsEdited ? ExtractEditorName(p, eawEmpById, coworkNameByEawId) : null;
-            var editorTime = p.IsEdited ? ExtractEditorTime(p) : (DateTime?)null;
 
             // b) Bekannte easy@work-ID → UPDATE (nur bei ECHTER Änderung).
             if (existing != null)
             {
-                // Original-Zeiten NIE mit null überschreiben (Walter 18.07.2026):
-                // ein späterer Sync ohne parsebaren Audit-Text hat sonst die
-                // bereits gespeicherten Original-Zeiten gelöscht → UI «↳ Original» leer.
+                // created_at-Fallback NUR wenn noch keine Originalzeit gespeichert ist.
+                // Sonst überschreibt er bei fehlendem Changelog eine bessere
+                // geparste Originalzeit und der Re-Import zählt ewig «geändert»
+                // (Walter-Bug 18.07.2026: 24 geändert nach wiederholtem Import).
+                if (!origIn.HasValue && !existing.OriginalTimeIn.HasValue
+                    && p.IsEdited && p.CreatedAt.HasValue
+                    && Math.Abs((p.CreatedAt.Value - p.In.Value).TotalMinutes) >= 1)
+                {
+                    origIn = UtcToSwissLocal(p.CreatedAt.Value);
+                }
+
+                // Schwache/fehlende API-Daten (List ohne comments, Enrich-Miss)
+                // dürfen gespeicherte Metadaten NICHT löschen oder mit
+                // «easy@work»/UpdatedAt-Fallback ersetzen.
                 var keepOrigIn  = origIn  ?? existing.OriginalTimeIn;
                 var keepOrigOut = origOut ?? existing.OriginalTimeOut;
+                var keepComment = !string.IsNullOrWhiteSpace(p.JoinedComments)
+                    ? p.JoinedComments : existing.Comment;
+                var editorName = p.IsEdited
+                    ? PreferEditorName(ExtractEditorName(p, eawEmpById, coworkNameByEawId), existing.EditedBy)
+                    : existing.EditedBy;
+                var editorTime = p.IsEdited
+                    ? (ExtractEditorTimePreferComments(p) ?? existing.EditedAt)
+                    : existing.EditedAt;
 
                 // ECHTE Änderung erkennen (vor dem Überschreiben), um identische
                 // Neuschreibungen NICHT ins Detail-Log zu nehmen (Variante A).
@@ -1020,12 +1067,12 @@ public class EasyAtWorkTimepunchSyncService
                 // auch wenn er identisch war. Jetzt: komplett identisch (inkl.
                 // Metadaten) → gar nicht anfassen, als «unverändert» zählen.
                 bool metaChange = existing.EmployeeId != coworkId.Value
-                               || existing.Comment    != p.JoinedComments
+                               || existing.Comment    != keepComment
                                || existing.DurationHours != duration
                                || existing.EditedBy   != editorName
-                               || existing.EditedAt   != editorTime
-                               || existing.OriginalTimeIn  != keepOrigIn
-                               || existing.OriginalTimeOut != keepOrigOut
+                               || !SameInstant(existing.EditedAt, editorTime)
+                               || !SameInstant(existing.OriginalTimeIn, keepOrigIn)
+                               || !SameInstant(existing.OriginalTimeOut, keepOrigOut)
                                || existing.EasyAtWorkCustomerId   != mapping.EasyAtWorkCustomerId
                                || existing.SourceCompanyProfileId != mapping.CompanyProfileId;
                 if (!realChange && !metaChange) { res.Unchanged++; continue; }
@@ -1036,7 +1083,7 @@ public class EasyAtWorkTimepunchSyncService
                 existing.EntryDate     = businessDate;
                 existing.TimeIn        = inLocal;
                 existing.TimeOut       = outLocal;
-                existing.Comment       = p.JoinedComments;
+                existing.Comment       = keepComment;
                 existing.TotalHours    = total;
                 existing.NightHours    = night;
                 existing.DurationHours = duration;
@@ -1062,6 +1109,15 @@ public class EasyAtWorkTimepunchSyncService
                 continue;
             }
 
+            // Fallback created_at nur beim INSERT (kein vorhandener Wert).
+            if (!origIn.HasValue && p.IsEdited && p.CreatedAt.HasValue
+                && Math.Abs((p.CreatedAt.Value - p.In.Value).TotalMinutes) >= 1)
+            {
+                origIn = UtcToSwissLocal(p.CreatedAt.Value);
+            }
+            var editorNameNew = p.IsEdited ? ExtractEditorName(p, eawEmpById, coworkNameByEawId) : null;
+            var editorTimeNew = p.IsEdited ? ExtractEditorTime(p) : (DateTime?)null;
+
             // c) Dedup gegen Lokalzeit → sonst INSERT.
             var key = coworkId.Value + "|" + inLocal.ToString("yyyy-MM-ddTHH:mm:ss");
             if (existingKeys.Contains(key)) { res.Skipped++; continue; }
@@ -1077,8 +1133,8 @@ public class EasyAtWorkTimepunchSyncService
                 DurationHours = duration,
                 CreatedAt     = DateTime.UtcNow,
                 UpdatedAt     = DateTime.UtcNow,
-                EditedBy      = editorName,
-                EditedAt      = editorTime,
+                EditedBy      = editorNameNew,
+                EditedAt      = editorTimeNew,
                 EasyAtWorkTimepunchId = p.Id,
                 EasyAtWorkCustomerId    = mapping.EasyAtWorkCustomerId,
                 SourceCompanyProfileId  = mapping.CompanyProfileId,

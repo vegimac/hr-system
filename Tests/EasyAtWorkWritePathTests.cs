@@ -42,6 +42,10 @@ public class EasyAtWorkWritePathTests
             => ThrowOnFetch ? throw new HttpRequestException("boom") : Task.FromResult(Timepunches);
         public override Task<List<EawTimepunch>> GetAllTimepunchUpdatesAsync(int c, DateTime ls, CancellationToken ct = default)
             => ThrowOnFetch ? throw new HttpRequestException("boom") : Task.FromResult(Timepunches);
+        // EnrichEditedChangelogsAsync holt Einzel-Stempel — Fake liefert den
+        // Listeneintrag (oder null), nie HTTP.
+        public override Task<EawTimepunch?> GetTimepunchAsync(int c, int timepunchId, CancellationToken ct = default)
+            => Task.FromResult(Timepunches.FirstOrDefault(p => p.Id == timepunchId));
     }
 
     private static AppDbContext NewDb(string name)
@@ -144,6 +148,80 @@ public class EasyAtWorkWritePathTests
 
         Assert.True(res.IsBlocked);
         Assert.Empty(db.EmployeeTimeEntries);   // nichts geschrieben
+    }
+
+    /// <summary>
+    /// Walter-Bug 18.07.2026: Re-Import zeigte immer wieder «N geändert».
+    /// Ursache: List-API ohne Comments + CreatedAt-/UpdatedAt-Fallback hat
+    /// gespeicherte Metadaten überschrieben. Zweiter Lauf ohne Enrich-Daten
+    /// muss «unverändert» bleiben.
+    /// </summary>
+    [Fact]
+    public async Task Reimport_WithoutComments_DoesNotRecountAsUpdated()
+    {
+        var db = NewDb(nameof(Reimport_WithoutComments_DoesNotRecountAsUpdated));
+        db.CompanyProfiles.Add(new CompanyProfile { Id = 10 });
+        db.Employees.Add(new Employee { Id = 1, EmployeeNumber = "580099", FirstName = "Anna", LastName = "Meier" });
+        db.EasyAtWorkBranchMappings.Add(new EasyAtWorkBranchMapping { Id = 1, CompanyProfileId = 10, EasyAtWorkCustomerId = 769 });
+        await db.SaveChangesAsync();
+
+        var date = new DateOnly(2026, 7, 10);
+        var client = new FakeEawClient();
+        client.Employees.Add(new EawEmployee { Id = 47, Number = "580099", FirstName = "Anna", LastName = "Meier" });
+
+        // 1. Lauf: bearbeiteter Stempel MIT Comment + Changelog (wie nach Enrich).
+        var rich = Punch(700, 47, date);
+        rich.EditedById = 99;
+        rich.CreatedAt = new DateTime(2026, 7, 10, 5, 38, 12, DateTimeKind.Utc); // ≠ In
+        rich.UpdatedAt = new DateTime(2026, 7, 10, 14, 0, 0, DateTimeKind.Utc);
+        rich.Comments = new List<EawTimepunchComment>
+        {
+            new()
+            {
+                Text = "Falsch gestempelt",
+                CreatedAt = new DateTime(2026, 7, 10, 13, 0, 0, DateTimeKind.Utc),
+                CreatedByName = "Max Manager"
+            }
+        };
+        rich.Changelog = new List<EawTimepunchChangelogEntry>
+        {
+            new() { Text = "Ein vom 10.7.2026, 07:38 bis zum 10.7.2026, 08:00 geändert" }
+        };
+        client.Timepunches.Add(rich);
+
+        var svc = NewService(db, client);
+        var req = new EasyAtWorkTimepunchSyncService.SyncRequest
+        {
+            CompanyProfileId = 10, From = new DateOnly(2026, 7, 1), To = new DateOnly(2026, 7, 17)
+        };
+        var first = await svc.CommitAsync(req, firstAllowed: null);
+        Assert.Equal(1, first.Inserted);
+
+        var stored = db.EmployeeTimeEntries.Single();
+        Assert.Equal("Falsch gestempelt", stored.Comment);
+        Assert.NotNull(stored.OriginalTimeIn);
+        Assert.Equal("Max Manager", stored.EditedBy);
+
+        // 2. Lauf: dieselben Stempelzeiten, aber OHNE Comments/Changelog
+        // (List-API / Enrich-Miss) — darf NICHT als «geändert» zählen.
+        client.Timepunches.Clear();
+        var bare = Punch(700, 47, date);
+        bare.EditedById = 99;
+        bare.CreatedAt = rich.CreatedAt;
+        bare.UpdatedAt = rich.UpdatedAt;
+        client.Timepunches.Add(bare);
+
+        // EF trackt die Entity noch — neuen Scope via Reload simulieren:
+        db.ChangeTracker.Clear();
+        var second = await svc.CommitAsync(req, firstAllowed: null);
+        Assert.Equal(0, second.Inserted);
+        Assert.Equal(0, second.Updated);
+        Assert.Equal(1, second.Unchanged);
+
+        var again = db.EmployeeTimeEntries.Single();
+        Assert.Equal("Falsch gestempelt", again.Comment);
+        Assert.Equal(stored.OriginalTimeIn, again.OriginalTimeIn);
+        Assert.Equal("Max Manager", again.EditedBy);
     }
 
     // ─────────── Tief-Import: Matching wie Vorschau (Walter 21.06.2026) ───────────
