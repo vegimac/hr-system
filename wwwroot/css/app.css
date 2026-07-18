@@ -3582,9 +3582,12 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-person > .ov-pf-tel2 .ov-softin {
             max-width: none;
         }
-        /* Adresse: eng zusammen (Strasse PLZ Ort Kanton) — sonst schlecht lesbar */
+        /* Adresse: zusammen, aber kompakt (Walter 18.07.2026 — nicht spreizen,
+           nicht zu luftig). Mittelweg zwischen Lesbarkeit und Platz. */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-addr {
-            gap: 10px 16px;
+            gap: 6px 12px;
+            margin-bottom: 10px;
+            padding-bottom: 0;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-addr > .ov-pf,
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-addr > .ov-pf-slot {
@@ -3593,17 +3596,26 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-addr > .ov-pf-street {
             flex: 0 1 auto;
-            max-width: 280px;
+            max-width: 220px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-addr > .ov-pf-city {
             flex: 0 1 auto;
-            max-width: 180px;
+            max-width: 140px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-addr > .ov-pf-plz {
-            flex: 0 0 56px;
+            flex: 0 0 48px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-addr > .ov-pf-kt {
-            flex: 0 0 48px;
+            flex: 0 0 40px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-addr .ov-pfl {
+            margin-bottom: 2px;
+            font-size: 10.5px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-addr .ov-pfv {
+            font-size: 14.5px;
+            min-height: 28px;
+            line-height: 28px;
         }
         /* Amtliche Daten: 2 Zeilen à ~3 Felder, grosszügiger Abstand */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-amt,
