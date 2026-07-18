@@ -3519,11 +3519,11 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
             flex: 1 1 auto; min-height: 0; overflow: hidden;
             /* Walter 18.07.2026: Personalien = Inhalts­höhe (kein leerer
-               Adress-Puffer — Zusatzadressen <1%), Anstellung+Nacht fix,
-               Rest-Spur unten hält Verträge+KTG am Boden (kein Hüpf). */
+               Adress-Puffer), Anstellung+Nacht genug für 2 Zeilen inkl.
+               Kündigungs-Dates, Rest-Spur hält Verträge+KTG am Boden. */
             height: 100%;
             align-content: stretch;
-            grid-template-rows: auto 128px minmax(172px, 1fr);
+            grid-template-rows: auto 158px minmax(172px, 1fr);
         }
         .ov-wrap {
             display: grid;
@@ -3544,13 +3544,13 @@
             min-height: 0;
             box-sizing: border-box;
         }
-        /* Anstellung / Nachtarbeit = mittlere Zeile, Höhe = Track (128px) */
+        /* Anstellung / Nachtarbeit = mittlere Zeile (158px — 2 Zeilen + Dates) */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
             grid-row: 2;
             min-height: 0;
             height: 100%;
             max-height: 100%;
-            overflow: auto;
+            overflow: hidden;
             align-self: stretch;
         }
         /* Vertraege breit + Tagessatz schmal (Walter 17.07.2026) — nicht 50/50. */
@@ -3602,7 +3602,7 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: auto 128px 128px minmax(172px, 1fr);
+                grid-template-rows: auto 158px 158px minmax(172px, 1fr);
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
