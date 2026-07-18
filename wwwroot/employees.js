@@ -8642,9 +8642,13 @@ async function loadKtgTab(employeeId) {
             : (typeof selectedCompanyProfile !== 'undefined' && selectedCompanyProfile?.id)
             ? selectedCompanyProfile.id
             : null;
+        // Übersicht: Fehlermeldungen in gleicher Kartenhöhe halten (kein Kollabieren).
+        const ovMsg = (text, color = '#94a3b8') =>
+            `<div class="ktg-compact" style="display:flex;align-items:center;justify-content:center;color:${color};font-size:13px;text-align:center;padding:12px">${text}</div>`;
+
         if (!cid) {
             const msg = '<div style="padding:16px;color:#94a3b8;font-size:13px">Bitte Filiale wählen.</div>';
-            if (ov) ov.innerHTML = msg;
+            if (ov) ov.innerHTML = ovMsg('Bitte Filiale wählen.');
             if (side) side.innerHTML = msg;
             return;
         }
@@ -8656,13 +8660,13 @@ async function loadKtgTab(employeeId) {
 
         if (res.status === 404) {
             const miss = `<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Kein aktives Anstellungsverhältnis gefunden.</div>`;
-            if (ov) ov.innerHTML = miss;
+            if (ov) ov.innerHTML = ovMsg('Kein aktives Anstellungsverhältnis gefunden.');
             if (side) side.innerHTML = miss;
             return;
         }
         if (!res.ok) {
             const err = `<div style="padding:16px;color:#dc2626;font-size:13px">Fehler ${res.status}</div>`;
-            if (ov) ov.innerHTML = err;
+            if (ov) ov.innerHTML = ovMsg(`Fehler ${res.status}`, '#dc2626');
             if (side) side.innerHTML = err;
             return;
         }
@@ -8674,7 +8678,7 @@ async function loadKtgTab(employeeId) {
     } catch (e) {
         if (gen !== window._ktgLoadGen) return;
         const err = `<div style="padding:16px;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`;
-        if (ov) ov.innerHTML = err;
+        if (ov) ov.innerHTML = `<div class="ktg-compact" style="display:flex;align-items:center;justify-content:center;color:#dc2626;font-size:13px;text-align:center;padding:12px">Fehler: ${e.message}</div>`;
         if (side) side.innerHTML = err;
     }
 }
@@ -9311,14 +9315,19 @@ async function plzLookupGeneric(rawPlz, cityId, cantonId, bfsId, hintId) {
 async function loadEmployeeAddressesTab(employeeId) {
     const el = document.getElementById('otherAddressesContent');
     if (!el) return;
-    el.innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
+    // Kein «Wird geladen…»-Platzhalter (Walter 18.07.2026): der würde die
+    // Personalien-Karte kurz aufblasen und Verträge+KTG nach unten schieben.
+    const gen = (window._addrLoadGen = (window._addrLoadGen || 0) + 1);
     try {
         const res = await fetch(`/api/employees/${employeeId}/addresses`, { headers: ah() });
-        if (!res.ok) { el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>'; return; }
+        if (gen !== window._addrLoadGen) return;
+        if (!res.ok) { el.innerHTML = ''; return; }
         const list = await res.json();
+        if (gen !== window._addrLoadGen) return;
         renderEmployeeAddressesList(el, list);
     } catch {
-        el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>';
+        if (gen !== window._addrLoadGen) return;
+        el.innerHTML = '';
     }
 }
 
