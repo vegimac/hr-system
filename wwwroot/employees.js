@@ -1216,12 +1216,16 @@ function loadUebersichtTab() {
             <div class="ov-pf ov-pf-city" title="${esc(emp.city || '')}"><div class="ov-pfl">${_t('ma.field.city','Ort')}</div><div class="ov-pfv">${esc(emp.city) || '<span class="ov-empty">–</span>'}</div></div>
             <div class="ov-pf-slot ov-pf-kt">${_pf('Kanton', esc(emp.cantonCode))}</div>
         </div>
+        <!-- Amtliche Daten auf 2 Zeilen (Walter 18.07.2026): 6 Felder in einer
+             Zeile waren zu gedrängt; AHV/Zivilstand getrennt von Konfession/Nat. -->
         <div class="ov-frow ov-frow-amt">
             <div class="ov-pf-slot">${_pf('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}</div>
             <div class="ov-pf-slot">${_pf(_t('ma.field.maritalStatus','Zivilstand'), `${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}`)}</div>
             <div class="ov-pf-slot">${_pfE(_t('ma.field.maritalSince','Zivilstand seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date', 160)}</div>
-            <div class="ov-pf ov-pf-slot"><div class="ov-pfl">${_t('ma.field.religion','Konfession')}</div>
-            <select id="ov-religion" class="ov-softin" onchange="ovDirty()">
+        </div>
+        <div class="ov-frow ov-frow-amt2">
+            <div class="ov-pf ov-pf-slot ov-pf-konf"><div class="ov-pfl">${_t('ma.field.religion','Konfession')}</div>
+            <select id="ov-religion" class="ov-softin" style="width:180px" onchange="ovDirty()">
                 <option value="">–</option>
                 ${_relOpt('evangelisch_reformiert', _t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert'))}
                 ${_relOpt('roemisch_katholisch', _t('ma.value.religion.roemisch_katholisch','Röm.-katholisch'))}
