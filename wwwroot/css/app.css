@@ -6501,8 +6501,19 @@
             border-radius: 6px;
             overflow: hidden;
         }
+        /* Dark ToDo: Kohle-Skizze mit Tiefe (Walter 18.07.2026) —
+           nicht flach-schwarz; warmes Papier + Textur wie Hell, weichere Kontraste. */
         body.theme-dark #page-todos .todo-paper {
-            background-color: #26241f; color: #efe9dc;
+            color: #e4ddd0;
+            background-color: #1a1814;
+            background-image:
+                radial-gradient(rgba(228, 221, 208, 0.045) 1px, transparent 1px),
+                linear-gradient(rgba(228, 221, 208, 0.04) 1px, transparent 1px),
+                radial-gradient(ellipse 72% 48% at 82% -8%, rgba(140, 115, 75, 0.16) 0%, transparent 58%),
+                radial-gradient(ellipse 55% 42% at 8% 105%, rgba(90, 75, 50, 0.18) 0%, transparent 55%),
+                linear-gradient(160deg, #1e1b16 0%, #141210 48%, #1a1814 100%);
+            background-size: 22px 22px, 100% 30px, auto, auto, auto;
+            box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.28);
         }
         #page-todos .todo-frame {
             position: absolute; inset: 6px;
@@ -6510,7 +6521,9 @@
             pointer-events: none;
         }
         body.theme-dark #page-todos .todo-frame rect,
-        body.theme-dark #page-todos .todo-frame line { stroke: #efe9dc; }
+        body.theme-dark #page-todos .todo-frame line {
+            stroke: rgba(228, 221, 208, 0.28);
+        }
         #page-todos .todo-back {
             position: absolute; top: 22px; left: 30px; z-index: 3;
             background: transparent; border: none; cursor: pointer;
@@ -6518,7 +6531,8 @@
             letter-spacing: 0.3px; padding: 6px 4px;
         }
         #page-todos .todo-back:hover { color: #26241f; }
-        body.theme-dark #page-todos .todo-back { color:#c9c0af; }
+        body.theme-dark #page-todos .todo-back { color: #a89f8d; }
+        body.theme-dark #page-todos .todo-back:hover { color: #e4ddd0; }
 
         #page-todos .todo-pdf {
             position: absolute; top: 60px; right: 30px; z-index: 3;
@@ -6528,7 +6542,18 @@
             box-shadow: 0 5px 14px rgba(38,36,31,0.22);
         }
         #page-todos .todo-pdf:hover { background: #000; }
-        body.theme-dark #page-todos .todo-pdf { background:#efe9dc; color:#26241f; }
+        body.theme-dark #page-todos .todo-pdf {
+            background: linear-gradient(160deg, #3a342c 0%, #2a2620 100%);
+            color: #e4ddd0;
+            border: 1px solid rgba(228, 221, 208, 0.22);
+            box-shadow:
+                0 4px 12px rgba(0, 0, 0, 0.35),
+                inset 0 1px 0 rgba(255, 245, 220, 0.08);
+        }
+        body.theme-dark #page-todos .todo-pdf:hover {
+            background: linear-gradient(160deg, #4a4238 0%, #322e28 100%);
+            color: #f2ebe0;
+        }
 
         /* Druck / PDF: nur die ToDo-Seite, Chrome ausblenden */
         /* Saubere, klassische Druck-/PDF-Ansicht der To-do-Liste (nicht der
@@ -6615,7 +6640,10 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
 
         #page-todos .todo-logo { text-align: center; margin: 8px 0 20px; position: relative; z-index: 2; }
         #page-todos .todo-logo img { width: 170px; max-width: 29%; height: auto; display: inline-block; }
-        body.theme-dark #page-todos .todo-logo img { filter: invert(1) brightness(1.18); }
+        body.theme-dark #page-todos .todo-logo img {
+            filter: invert(0.92) sepia(0.18) brightness(0.95) contrast(0.92);
+            opacity: 0.92;
+        }
 
         #page-todos .todo-cols {
             position: relative; z-index: 2;
@@ -6625,8 +6653,31 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         }
         /* gezeichnete vertikale Trennung zwischen den Spalten (mittig im Abstand) */
         #page-todos .todo-col + .todo-col { border-left: 1px solid rgba(60,55,48,0.16); }
+        body.theme-dark #page-todos .todo-col + .todo-col {
+            border-left-color: rgba(228, 221, 208, 0.12);
+        }
         #page-todos .todo-col { padding: 0 0 0 32px; min-width: 0; overflow: hidden; }
         #page-todos .todo-col:first-child { padding-left: 0; }
+        /* Dark: Spalten leicht angehoben = Tiefe ohne Karten-Lärm */
+        body.theme-dark #page-todos .todo-col {
+            padding: 14px 18px 18px;
+            border-radius: 14px;
+            background: linear-gradient(165deg,
+                rgba(48, 42, 34, 0.55) 0%,
+                rgba(28, 25, 20, 0.35) 100%);
+            box-shadow:
+                0 0 0 1px rgba(228, 221, 208, 0.06),
+                0 10px 28px rgba(0, 0, 0, 0.28),
+                inset 0 1px 0 rgba(255, 245, 220, 0.05);
+        }
+        body.theme-dark #page-todos .todo-col + .todo-col {
+            border-left: none;
+            margin-left: 0;
+        }
+        body.theme-dark #page-todos .todo-cols {
+            column-gap: 22px;
+        }
+        body.theme-dark #page-todos .todo-col:first-child { padding-left: 18px; }
 
         #page-todos .todo-col-head {
             display: flex; align-items: center; gap: 12px;
@@ -6635,17 +6686,18 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         }
         #page-todos .tch-ico { width: 34px; height: 34px; flex: none; }
         body.theme-dark #page-todos .tch-ico circle,
-        body.theme-dark #page-todos .tch-ico line { stroke: #efe9dc; }
-        body.theme-dark #page-todos .tch-ico circle[fill="#26241f"] { fill:#efe9dc; }
+        body.theme-dark #page-todos .tch-ico line { stroke: rgba(228, 221, 208, 0.72); }
+        body.theme-dark #page-todos .tch-ico circle[fill="#26241f"] { fill: rgba(228, 221, 208, 0.85); }
         #page-todos .tch-label {
             flex: 1; font-size: 22px; font-weight: 600; letter-spacing: 0.4px;
             font-family: 'Helvetica Neue', Arial, sans-serif; color: #2c2a25;
         }
-        body.theme-dark #page-todos .tch-label { color:#efe9dc; }
+        body.theme-dark #page-todos .tch-label { color: #e8e0d2; }
         #page-todos .tch-cnt {
             font-size: 13px; font-weight: 700; color: #8a8072;
             min-width: 22px; text-align: center;
         }
+        body.theme-dark #page-todos .tch-cnt { color: #9a9080; }
         /* rauhe Kohle-Unterstreichung unter jeder Spaltenüberschrift */
         #page-todos .todo-col-head::after {
             content: ""; position: absolute; left: 2px; right: 2px; bottom: 0; height: 7px;
@@ -6653,7 +6705,12 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
                 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 7' preserveAspectRatio='none'><path d='M2 4 q30 -3 62 -1 t60 1 t62 -2 t60 2 t50 0' fill='none' stroke='%2326241f' stroke-width='2.4' stroke-linecap='round'/></svg>");
             opacity: 0.85;
         }
-        body.theme-dark #page-todos .todo-col-head::after { filter: invert(1) brightness(1.4); }
+        body.theme-dark #page-todos .todo-col-head::after {
+            background: no-repeat center/100% 100%
+                url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 7' preserveAspectRatio='none'><path d='M2 4 q30 -3 62 -1 t60 1 t62 -2 t60 2 t50 0' fill='none' stroke='%23c9bda8' stroke-width='2.4' stroke-linecap='round'/></svg>");
+            opacity: 0.55;
+            filter: none;
+        }
         #page-todos .todo-col-body { padding-top: 6px; }
 
         /* gezeichnete Pendenz-Zeile */
@@ -6670,13 +6727,22 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
                 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 6' preserveAspectRatio='none'><path d='M2 3 q34 -2.5 70 -0.5 t70 0 t70 -1 t56 1' fill='none' stroke='%232c2a25' stroke-width='1' stroke-linecap='round'/></svg>");
             opacity: 0.4;
         }
-        body.theme-dark #page-todos .td-row::after { filter: invert(1) brightness(1.3); }
+        body.theme-dark #page-todos .td-row::after {
+            background: no-repeat center/100% 100%
+                url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 6' preserveAspectRatio='none'><path d='M2 3 q34 -2.5 70 -0.5 t70 0 t70 -1 t56 1' fill='none' stroke='%23c9bda8' stroke-width='1' stroke-linecap='round'/></svg>");
+            opacity: 0.28;
+            filter: none;
+        }
         #page-todos .td-row:hover { background: rgba(120,105,80,0.06); border-radius: 8px; }
+        body.theme-dark #page-todos .td-row:hover {
+            background: rgba(228, 221, 208, 0.06);
+            box-shadow: inset 0 0 0 1px rgba(228, 221, 208, 0.06);
+        }
         #page-todos .td-check { width: 40px; height: 40px; }
         #page-todos .td-check svg { width: 40px; height: 40px; display: block; }
         body.theme-dark #page-todos .td-check circle,
         body.theme-dark #page-todos .td-check path,
-        body.theme-dark #page-todos .td-check line { stroke: #efe9dc; }
+        body.theme-dark #page-todos .td-check line { stroke: rgba(228, 221, 208, 0.55); }
         #page-todos .td-text { min-width: 0; overflow: hidden; }
         #page-todos .td-title {
             display: block;
@@ -6684,22 +6750,28 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             font-family: 'Helvetica Neue', Arial, sans-serif;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        body.theme-dark #page-todos .td-title { color:#efe9dc; }
+        body.theme-dark #page-todos .td-title { color: #e0d8c8; }
         /* Kritische Punkte in ROTER Schrift (Walter-Vorgabe 12.07.2026):
            abgelaufene Bewilligung/Nachtzeugnis, Mindestlohn unterschritten … */
         #page-todos .td-title.td-crit { color: #b91c1c; font-weight: 700; }
-        body.theme-dark #page-todos .td-title.td-crit { color: #f87171; }
+        body.theme-dark #page-todos .td-title.td-crit { color: #e8a0a0; }
         #page-todos .td-sub { display: block; font-size: 12px; color: #8a8072; margin-top: 2px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        body.theme-dark #page-todos .td-sub { color: #9a9080; }
         #page-todos .td-arrow svg { width: 22px; height: 22px; display: block; }
-        body.theme-dark #page-todos .td-arrow path { stroke: #efe9dc; }
+        body.theme-dark #page-todos .td-arrow path { stroke: rgba(228, 221, 208, 0.45); }
         #page-todos .todo-empty {
             padding: 24px 6px; color: #a49a88; font-size: 13.5px;
             font-family: 'Helvetica Neue', Arial, sans-serif;
         }
+        body.theme-dark #page-todos .todo-empty { color: #7a7264; }
         @media (max-width: 900px) {
             #page-todos .todo-cols { grid-template-columns: 1fr; }
             #page-todos .todo-col + .todo-col { border-left: none; border-top: 1px solid rgba(60,55,48,0.16); padding-top: 18px; margin-top: 10px; }
+            body.theme-dark #page-todos .todo-col + .todo-col {
+                border-top: none;
+                margin-top: 12px;
+            }
         }
         .liquid-dashboard .liquid-todo-head {
             display: flex;
