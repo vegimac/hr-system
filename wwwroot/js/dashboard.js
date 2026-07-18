@@ -505,7 +505,7 @@ function dashTodoOnClick(a) {
     return a.periodeId ? `onclick="dashOpenLohnlauf()"` : '';
 }
 
-// Gezeichnete Pendenz-Zeile im Kohle-Look (skizzierter Statuskreis + Text + Pfeil).
+// Pendenz-Zeile im Liquid-Glass-Look (sauberer Kreis + Text + Chevron).
 function renderTodoSketchRow(a) {
     const meta = DASH_CATEGORY_META[a.category] || {};
     const title = (a.titleKey && window.i18n)
@@ -517,16 +517,16 @@ function renderTodoSketchRow(a) {
     const tip = subtitle ? `${title} — ${subtitle}` : title;
     const critCls = dashIsRedAlert(a) ? ' td-crit' : '';
     return `<div class="td-row" ${dashTodoOnClick(a)} title="${_e(tip)}">
-        <span class="td-check"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="13" fill="none" stroke="#26241f" stroke-width="2" filter="url(#tdRough)"/></svg></span>
+        <span class="td-check"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="12" stroke-width="1.8"/></svg></span>
         <span class="td-text">
             <span class="td-title${critCls}">${_e(title)}</span>
             ${subtitle ? `<span class="td-sub">${_e(subtitle)}</span>` : ''}
         </span>
-        <span class="td-arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4 L18 12 L8 20" fill="none" stroke="#2c2a25" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="url(#tdRough)"/></svg></span>
+        <span class="td-arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 L16 12 L9 19" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
     </div>`;
 }
 
-// Rendert eine Spalte als flache Liste gezeichneter Pendenz-Zeilen.
+// Rendert eine Spalte als flache Liste von Pendenz-Zeilen.
 function renderTodosColumn(list) {
     if (!list.length) return '<div class="todo-empty">— nichts offen —</div>';
     return list.map(a => renderTodoSketchRow(a)).join('');
