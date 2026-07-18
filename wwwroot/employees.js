@@ -1198,27 +1198,31 @@ function loadUebersichtTab() {
     const _g = (emp.gender || '').toLowerCase();
     const gKurz2 = _g.startsWith('m') ? 'M' : (_g.startsWith('f') || _g === 'w' || _g === 'weiblich') ? 'W' : (emp.gender ? 'D' : null);
     const istCH = (emp.nationalityCode || '').toUpperCase() === 'CH';
+    // 3 Themen-Zeilen (Walter 18.07.2026): Person · Adresse · Amtliche Daten
+    // — MA-Daten sind die Hauptinfo, nutzen den Platz lesbarer (nicht gedrückt).
     const kPers = _ovCard('Personalien & Adresse', null, '', `
-        <div class="ov-frow">
-            ${_pfE(_t('ma.field.maidenName','Ledigname'), 'ov-maidenName', emp.maidenName, '', 'text', 140)}
-            ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 150)}
+        <div class="ov-pers-body">
+        <div class="ov-frow ov-frow-person">
+            ${_pfE(_t('ma.field.maidenName','Ledigname'), 'ov-maidenName', emp.maidenName, '', 'text', 150)}
+            ${_pfE(_t('ma.field.letterSalutation','Briefanrede'), 'ov-letterSalutation', emp.letterSalutation, '', 'text', 170)}
             <div style="flex:0 0 auto;min-width:0" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">${_pf(_t('ma.field.shortName','Kurzname'), esc(emp.shortName))}</div>
-            <div style="flex:0 0 36px;min-width:0">${_pf('Sex', gKurz2)}</div>
-            <div class="ov-pf ov-pf-shrink" title="${esc(emp.street || '')}"><div class="ov-pfl">${_t('ma.field.street','Strasse')}</div><div class="ov-pfv">${esc(emp.street) || '<span class="ov-empty">–</span>'}</div></div>
-            <div style="flex:0 0 48px;min-width:0">${_pf('PLZ', esc(emp.zipCode))}</div>
-            <div class="ov-pf ov-pf-shrink" style="max-width:140px" title="${esc(emp.city || '')}"><div class="ov-pfl">${_t('ma.field.city','Ort')}</div><div class="ov-pfv">${esc(emp.city) || '<span class="ov-empty">–</span>'}</div></div>
-            <div style="flex:0 0 44px;min-width:0">${_pf('Kanton', esc(emp.cantonCode))}</div>
+            <div style="flex:0 0 40px;min-width:0">${_pf('Sex', gKurz2)}</div>
             <div style="flex:0 0 auto;margin-left:auto"><div class="ov-pf"><div class="ov-pfl">Telefon 2</div>
-            <input id="ov-phone2" class="ov-softin" style="width:140px" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div></div>
+            <input id="ov-phone2" class="ov-softin" style="width:150px" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div></div>
         </div>
-        <div class="ov-frow" style="margin-bottom:2px">
-            <!-- Feste Spalten-Breiten (Walter 17.07.2026): AHV/Zivilstand/
-                 seit/Konfession springen beim MA-Blaettern nicht mehr. -->
-            <div style="flex:0 0 150px;min-width:0">${_pf('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}</div>
-            <div style="flex:0 0 180px;min-width:0">${_pf(_t('ma.field.maritalStatus','Zivilstand'), `${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}`)}</div>
-            <div style="flex:0 0 155px;min-width:0">${_pfE(_t('ma.field.maritalSince','Zivilstand seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date', 155)}</div>
-            <div class="ov-pf" style="flex:0 0 160px;min-width:0"><div class="ov-pfl">${_t('ma.field.religion','Konfession')}</div>
-            <select id="ov-religion" class="ov-softin" style="width:160px" onchange="ovDirty()">
+        <div class="ov-frow ov-frow-addr">
+            <div class="ov-pf ov-pf-shrink ov-pf-street" title="${esc(emp.street || '')}"><div class="ov-pfl">${_t('ma.field.street','Strasse')}</div><div class="ov-pfv">${esc(emp.street) || '<span class="ov-empty">–</span>'}</div></div>
+            <div style="flex:0 0 56px;min-width:0">${_pf('PLZ', esc(emp.zipCode))}</div>
+            <div class="ov-pf ov-pf-shrink ov-pf-city" title="${esc(emp.city || '')}"><div class="ov-pfl">${_t('ma.field.city','Ort')}</div><div class="ov-pfv">${esc(emp.city) || '<span class="ov-empty">–</span>'}</div></div>
+            <div style="flex:0 0 48px;min-width:0">${_pf('Kanton', esc(emp.cantonCode))}</div>
+        </div>
+        <div class="ov-frow ov-frow-amt">
+            <!-- Feste Spalten-Breiten: AHV/Zivilstand/seit/Konfession springen nicht. -->
+            <div style="flex:0 0 168px;min-width:0">${_pf('AHV-Nr.', esc(emp.ahvNumber ?? emp.socialSecurityNumber))}</div>
+            <div style="flex:0 0 190px;min-width:0">${_pf(_t('ma.field.maritalStatus','Zivilstand'), `${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}`)}</div>
+            <div style="flex:0 0 160px;min-width:0">${_pfE(_t('ma.field.maritalSince','Zivilstand seit'), 'ov-maritalStatusSince', emp.maritalStatusSince, '', 'date', 160)}</div>
+            <div class="ov-pf" style="flex:0 0 170px;min-width:0"><div class="ov-pfl">${_t('ma.field.religion','Konfession')}</div>
+            <select id="ov-religion" class="ov-softin" style="width:170px" onchange="ovDirty()">
                 <option value="">–</option>
                 ${_relOpt('evangelisch_reformiert', _t('ma.value.religion.evangelisch_reformiert','Evang.-reformiert'))}
                 ${_relOpt('roemisch_katholisch', _t('ma.value.religion.roemisch_katholisch','Röm.-katholisch'))}
@@ -1227,14 +1231,15 @@ function loadUebersichtTab() {
                 ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
             </select></div>
             ${_pf(_t('ma.field.nationality','Nationalität'), `${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${linkedDocButton('passport')}`)}
-            ${istCH ? '' : `<div style="margin-left:auto">${_pfE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'), 'text', 140)}</div>`}
+            ${istCH ? '' : `<div style="margin-left:auto">${_pfE('ZEMIS-Nr.', 'ov-zemisNumber', emp.zemisNumber, _t('ma.placeholder.zemis','z.B. 12345678.9'), 'text', 150)}</div>`}
         </div>
         ${emp.isPayrollExcluded ? '' : `
         <div class="ov-addrsep">
             <span class="ov-pfl" style="margin-bottom:0">${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#a2acb8">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
             <button class="ov-hbtn" style="padding:4px 12px;font-size:12px" onclick="openEmployeeAddressModal(null)">＋ ${_t('ma.btn.addAddress','Adresse hinzufügen')}</button>
         </div>
-        <div id="otherAddressesContent"></div>`}`,
+        <div id="otherAddressesContent"></div>`}
+        </div>`,
         `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
     // ── Karte Anstellung (Walter 17.07.2026: ALLE Anstellungs-Infos des

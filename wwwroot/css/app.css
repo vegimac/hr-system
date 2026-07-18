@@ -3544,6 +3544,49 @@
             min-height: 0;
             box-sizing: border-box;
         }
+        /* MA-Daten: Hauptblock — luftiger, 3 Themen-Zeilen, klarere Typo */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card {
+            padding: 14px 18px 12px !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card > .ov-card-h {
+            font-size: 15px;
+            margin-bottom: 12px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow {
+            gap: 12px 24px;
+            margin-bottom: 14px;
+            padding-bottom: 2px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-amt {
+            margin-bottom: 10px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfl {
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfv {
+            font-size: 15.5px;
+            font-weight: 700;
+            min-height: 34px;
+            line-height: 34px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-softin {
+            font-size: 14.5px;
+            min-height: 34px;
+            padding: 5px 10px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-street {
+            flex: 1 1 220px;
+            max-width: 360px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-city {
+            flex: 1 1 160px;
+            max-width: 220px;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfl {
+            color: rgba(210, 220, 232, 0.78) !important;
+        }
         /* Anstellung / Nachtarbeit = mittlere Zeile (158px — 2 Zeilen + Dates) */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
             grid-row: 2;
@@ -3552,6 +3595,16 @@
             max-height: 100%;
             overflow: hidden;
             align-self: stretch;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-card-h {
+            flex: 0 0 auto;
+            margin-bottom: 6px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-anst-row {
+            margin-bottom: 0;
         }
         /* Vertraege breit + Tagessatz schmal (Walter 17.07.2026) — nicht 50/50. */
         .ov-vertraege-ktg {
