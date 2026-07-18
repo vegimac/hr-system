@@ -231,10 +231,11 @@ public class EasyAtWorkTimepunchSyncService
 
     /// <summary>
     /// Für bearbeitete Stempel den Changelog nachladen (List-API liefert ihn nicht).
-    /// Nur IsEdited, parallel gedrosselt — best-effort.
+    /// Nur IsEdited, parallel gedrosselt (10) — best-effort.
     /// </summary>
     private async Task EnrichEditedChangelogsAsync(
-        int customerId, List<EawTimepunch> punches, CancellationToken ct)
+        int customerId, List<EawTimepunch> punches,
+        Action<int, int, string>? progress = null, CancellationToken ct = default)
     {
         var need = punches.Where(p => p.IsEdited
                                       && p.Id > 0
@@ -242,7 +243,11 @@ public class EasyAtWorkTimepunchSyncService
                           .ToList();
         if (need.Count == 0) return;
 
-        var sem = new SemaphoreSlim(4);
+        progress?.Invoke(0, need.Count, $"Originalzeiten nachladen — 0/{need.Count}");
+        var done = 0;
+        // Drossel 10 (wie MA-Detail-Sync) — 4 war spürbar langsam bei vielen Korrekturen
+        // (Walter 18.07.2026: «Import dauert wieder sehr lange»).
+        var sem = new SemaphoreSlim(10);
         var tasks = need.Select(async p =>
         {
             await sem.WaitAsync(ct);
@@ -257,7 +262,13 @@ public class EasyAtWorkTimepunchSyncService
                     && detail.Comments is { Count: > 0 })
                     p.Comments = detail.Comments;
             }
-            finally { sem.Release(); }
+            finally
+            {
+                sem.Release();
+                var d = Interlocked.Increment(ref done);
+                if (d == need.Count || d % 5 == 0)
+                    progress?.Invoke(d, need.Count, $"Originalzeiten nachladen — {d}/{need.Count}");
+            }
         });
         await Task.WhenAll(tasks);
         _log.LogInformation(
@@ -652,8 +663,8 @@ public class EasyAtWorkTimepunchSyncService
                     (done, total) => progress(done, total, $"Stempel laden aus easy@work — Seite {done}/{total}"), ct);
         }
         catch (Exception ex) { res.Notes.Add($"easy@work-Aufruf fehlgeschlagen: {ex.Message}"); return res; }
+        await EnrichEditedChangelogsAsync(mapping.EasyAtWorkCustomerId, punches, progress, ct);
         progress?.Invoke(0, 0, $"{punches.Count} Stempel verarbeiten & speichern…");
-        await EnrichEditedChangelogsAsync(mapping.EasyAtWorkCustomerId, punches, ct);
 
         var maxUpd = punches.Where(p => p.UpdatedAt.HasValue).Select(p => p.UpdatedAt!.Value).DefaultIfEmpty().Max();
 
@@ -718,7 +729,7 @@ public class EasyAtWorkTimepunchSyncService
             punches = await _client.GetAllTimepunchesAsync(mapping.EasyAtWorkCustomerId, from, to, ct);
         }
 
-        await EnrichEditedChangelogsAsync(mapping.EasyAtWorkCustomerId, punches, ct);
+        await EnrichEditedChangelogsAsync(mapping.EasyAtWorkCustomerId, punches, ct: ct);
 
         // Cursor: höchstes updated_at über ALLE geholten Punches (auch die wir
         // gleich ausserhalb des Fensters ignorieren) → nächster Lauf macht weiter.
@@ -1307,7 +1318,7 @@ public class EasyAtWorkTimepunchSyncService
             res.Notes.Add($"easy@work-Aufruf fehlgeschlagen: {ex.Message}");
             return res;
         }
-        await EnrichEditedChangelogsAsync(mapping.EasyAtWorkCustomerId, punches, ct);
+        await EnrichEditedChangelogsAsync(mapping.EasyAtWorkCustomerId, punches, ct: ct);
 
         // 4) Vorhandene Stempel laden (für Dedup) — gleiche Filiale, gleicher Zeitraum.
         //    Zwei Dedup-Pfade: (a) easy@work-Timepunch-Id wenn vorhanden (sauberer),

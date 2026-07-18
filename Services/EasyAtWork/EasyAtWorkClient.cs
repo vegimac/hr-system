@@ -318,12 +318,13 @@ public class EasyAtWorkClient
         catch (HttpRequestException ex) when ((int?)ex.StatusCode is >= 500 and < 600
                                               && !(from.Year == to.Year && from.Month == to.Month))
         {
-            // easy@work 500 auf dem ganzen Quartal → monatsweise nachladen.
+            // easy@work 500 auf dem ganzen Quartal → monatsweise PARALLEL nachladen
+            // (Walter 18.07.2026: sequenzieller Fallback war der Flaschenhals).
             _log.LogWarning(ex,
-                "easy@work timepunches {From}–{To} (Customer {C}) → {Status}; Fallback monatsweise.",
+                "easy@work timepunches {From}–{To} (Customer {C}) → {Status}; Fallback monatsweise parallel.",
                 from, to, customerId, (int?)ex.StatusCode);
-            var all = new List<EawTimepunch>();
-            var seen = new HashSet<int>();
+
+            var months = new List<(DateOnly From, DateOnly To)>();
             var cursor = new DateOnly(from.Year, from.Month, 1);
             var endMonth = new DateOnly(to.Year, to.Month, 1);
             while (cursor <= endMonth)
@@ -331,45 +332,88 @@ public class EasyAtWorkClient
                 var chunkFrom = cursor < from ? from : cursor;
                 var chunkTo = chunkFrom.AddMonths(1).AddDays(-1);
                 if (chunkTo > to) chunkTo = to;
-                try
-                {
-                    var chunk = await GetAllTimepunchesRangeAsync(
-                        customerId, chunkFrom, chunkTo, pageProgress: null, ct);
-                    foreach (var p in chunk)
-                        if (seen.Add(p.Id)) all.Add(p);
-                }
-                catch (HttpRequestException ex2) when ((int?)ex2.StatusCode is >= 500 and < 600)
-                {
-                    // Einzelmonat knallt auch → wochenweise.
-                    _log.LogWarning(ex2,
-                        "easy@work timepunches Monat {From}–{To} (Customer {C}) → 5xx; Fallback wochenweise.",
-                        chunkFrom, chunkTo, customerId);
-                    var weekStart = chunkFrom;
-                    while (weekStart <= chunkTo)
-                    {
-                        var weekEnd = weekStart.AddDays(6);
-                        if (weekEnd > chunkTo) weekEnd = chunkTo;
-                        try
-                        {
-                            var week = await GetAllTimepunchesRangeAsync(
-                                customerId, weekStart, weekEnd, pageProgress: null, ct);
-                            foreach (var p in week)
-                                if (seen.Add(p.Id)) all.Add(p);
-                        }
-                        catch (HttpRequestException ex3) when ((int?)ex3.StatusCode is >= 500 and < 600)
-                        {
-                            _log.LogError(ex3,
-                                "easy@work timepunches Woche {From}–{To} (Customer {C}) übersprungen (5xx).",
-                                weekStart, weekEnd, customerId);
-                        }
-                        weekStart = weekEnd.AddDays(1);
-                    }
-                }
+                months.Add((chunkFrom, chunkTo));
                 cursor = cursor.AddMonths(1);
             }
-            pageProgress?.Invoke(1, 1);
+
+            var all = new List<EawTimepunch>();
+            var seen = new HashSet<int>();
+            var doneMonths = 0;
+            // Max. 2 Monate gleichzeitig — jeder Monat lädt Seiten selbst parallel
+            // (Drossel 4) → Gesamtlast bleibt unter ~8 Requests.
+            var monthSem = new SemaphoreSlim(2);
+            var monthTasks = months.Select(async m =>
+            {
+                await monthSem.WaitAsync(ct);
+                try
+                {
+                    try
+                    {
+                        return await GetAllTimepunchesRangeAsync(
+                            customerId, m.From, m.To, pageProgress: null, ct);
+                    }
+                    catch (HttpRequestException ex2) when ((int?)ex2.StatusCode is >= 500 and < 600)
+                    {
+                        _log.LogWarning(ex2,
+                            "easy@work timepunches Monat {From}–{To} (Customer {C}) → 5xx; Fallback wochenweise parallel.",
+                            m.From, m.To, customerId);
+                        return await GetAllTimepunchesWeeklyAsync(customerId, m.From, m.To, ct);
+                    }
+                }
+                finally
+                {
+                    monthSem.Release();
+                    var d = Interlocked.Increment(ref doneMonths);
+                    pageProgress?.Invoke(d, months.Count);
+                }
+            }).ToList();
+
+            foreach (var chunk in await Task.WhenAll(monthTasks))
+                foreach (var p in chunk)
+                    if (seen.Add(p.Id)) all.Add(p);
             return all;
         }
+    }
+
+    /// <summary>Wochenweise parallel laden (5xx-Fallback innerhalb eines Monats).</summary>
+    private async Task<List<EawTimepunch>> GetAllTimepunchesWeeklyAsync(
+        int customerId, DateOnly from, DateOnly to, CancellationToken ct)
+    {
+        var weeks = new List<(DateOnly From, DateOnly To)>();
+        var weekStart = from;
+        while (weekStart <= to)
+        {
+            var weekEnd = weekStart.AddDays(6);
+            if (weekEnd > to) weekEnd = to;
+            weeks.Add((weekStart, weekEnd));
+            weekStart = weekEnd.AddDays(1);
+        }
+
+        var all = new List<EawTimepunch>();
+        var seen = new HashSet<int>();
+        var weekSem = new SemaphoreSlim(4);
+        var weekTasks = weeks.Select(async w =>
+        {
+            await weekSem.WaitAsync(ct);
+            try
+            {
+                return await GetAllTimepunchesRangeAsync(
+                    customerId, w.From, w.To, pageProgress: null, ct);
+            }
+            catch (HttpRequestException ex3) when ((int?)ex3.StatusCode is >= 500 and < 600)
+            {
+                _log.LogError(ex3,
+                    "easy@work timepunches Woche {From}–{To} (Customer {C}) übersprungen (5xx).",
+                    w.From, w.To, customerId);
+                return new List<EawTimepunch>();
+            }
+            finally { weekSem.Release(); }
+        }).ToList();
+
+        foreach (var week in await Task.WhenAll(weekTasks))
+            foreach (var p in week)
+                if (seen.Add(p.Id)) all.Add(p);
+        return all;
     }
 
     /// <summary>Eine Range paginiert laden (ohne comments).</summary>
