@@ -2701,16 +2701,18 @@
             background: transparent;
         }
         #page-mitarbeiter.liquid-employee .emp-section-title {
-            /* Invertierte Kohle-Leiste (Walter 17.07.2026): markante
-               Bereichs-Titel — dunkler Balken, weisse Schrift. Ersetzt die
-               fruehere Hairline; trennt die Bereiche noch deutlicher. */
+            /* Hell: weiche Kohle-Leiste (Walter 18.07.2026) — kein hartes
+               Schwarz mehr; analog Dark als sanfter Verlauf, Text Kohle. */
             margin: 7px 0 5px;
-            padding: 4px 12px;
+            padding: 5px 12px;
             border-left: none;
             border-top: none;
             border-radius: 8px;
-            background: #3f3f3f;
-            color: #ffffff;
+            background: linear-gradient(90deg,
+                rgba(90, 80, 65, 0.14) 0%,
+                rgba(90, 80, 65, 0.05) 55%,
+                transparent 100%);
+            color: #3f3f3f;
             font-size: 12.5px;
             letter-spacing: .02em;
             text-transform: none;
@@ -2719,9 +2721,16 @@
         #page-mitarbeiter.liquid-employee .emp-section-title:first-child {
             margin-top: 2px;
         }
-        /* Hinweis-Text + Buttons IN der dunklen Leiste (Weitere Adressen) */
+        /* Hinweis-Text in der Leiste */
         #page-mitarbeiter.liquid-employee .emp-section-title span span {
-            color: rgba(255,255,255,.62) !important;
+            color: rgba(63, 63, 63, 0.55) !important;
+        }
+        /* Buttons in der Section-Leiste (z.B. + Schwangerschaft) */
+        #page-mitarbeiter.liquid-employee .emp-section-title .btn-emp-add {
+            background: #ffffff !important;
+            color: #3f3f3f !important;
+            border: 1px solid rgba(90, 80, 65, 0.22) !important;
+            box-shadow: 0 2px 8px rgba(60, 55, 48, 0.08) !important;
         }
         /* Dark Section-Titel: siehe Mockup-Block weiter unten (Eisblau-Label) */
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-section-title span span {
