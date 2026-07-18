@@ -8070,17 +8070,19 @@ async function loadStempelzeitenTab(employeeId) {
                 <div class="stempel-loading">Lade…</div>
             </div>
         </div>`;
-    // Nach DOM-Render: tatsächliche Höhe der Filter-Row messen und als
-    // CSS-Var setzen, damit der Tabellen-Header genau darunter klebt.
-    requestAnimationFrame(() => {
-        const filterEl = document.getElementById('stempelFilterRow');
-        if (filterEl) {
-            const h = filterEl.getBoundingClientRect().height;
-            document.documentElement.style.setProperty('--stempel-filter-h', h + 'px');
-        }
-    });
+    stempelUpdateFilterStickyOffset();
 
     await stempelLadeEintraege(employeeId);
+}
+
+/** Sticky-Offset: Tabellen-Header klebt unter der Filter-Row (emp-detail-body scrollt). */
+function stempelUpdateFilterStickyOffset() {
+    requestAnimationFrame(() => {
+        const filterEl = document.getElementById('stempelFilterRow');
+        if (!filterEl) return;
+        const h = Math.ceil(filterEl.getBoundingClientRect().height);
+        document.documentElement.style.setProperty('--stempel-filter-h', h + 'px');
+    });
 }
 
 function stempelFmtDateShort(iso) {
@@ -8502,6 +8504,7 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
                 </tfoot>` : ''}
             </table>
         </div>`;
+    stempelUpdateFilterStickyOffset();
 }
 
 // ────────────────────────────────────────────────────────────────────────────
