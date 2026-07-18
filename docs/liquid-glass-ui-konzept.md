@@ -98,27 +98,24 @@ Nicht alles auf einmal ersetzen. Reihenfolge:
 4. Cards, Tabellen und Statusleisten in Detailseiten schrittweise konsolidieren
 5. Dark Mode separat definieren, nicht automatisch vom hellen Liquid-Glass-Look ableiten
 
-### 8.5 Dark Liquid Glass (Walter 18.07.2026, Mockup-Favorit)
+### 8.5 Dark Liquid Glass (Walter 18.07.2026, final)
 
-Weniger Grau, mehr **Blau-Licht** + **echter Eisblau-Verlaufs-Rand**
-(VisionOS-nah, wie freigegebenes Mockup). Ziel: elegant **und** lesbar —
-durchscheinendes Glas über Cyan-Blooms, Werte in Weiss, Labels weich.
+**Verlaufs-Rahmen JA, Milch/Nebel NEIN.** Opake Kartenflächen, klarer Text,
+Eisblau-Rim ohne Backdrop-Blur.
 
 | Token | Wert |
 |---|---|
-| Hintergrund | Cyan-Blooms + `#08101c → #122038 → #0a1528`, `background-attachment: fixed` |
-| Glas-Fill | `--dlg-fill` ≈ `rgba(14,30,52,.58)` — durchscheinend, nicht opakes Navy |
+| Hintergrund | dezente Blooms + `#0a1220 → #121e34 → #0b1526` |
+| Karten-Fill | `--dlg-fill` = `#14233a` (opak) |
 | Rand | `--dlg-rim` = `linear-gradient(135deg, hell-cyan → tief-blau → eisblau)` |
-| Technik | `border: 1px solid transparent` + Fill/Rim als zwei Background-Layer (`padding-box` / `border-box`) + Glow via `--dlg-shadow` |
-| Active | ice-blue Gradient + `--dlg-rim-hot` + weicher Blau-Glow (Tabs/Liste) |
+| Technik | `border: 1px solid transparent` + Fill/Rim (`padding-box` / `border-box`); **kein** `backdrop-filter` auf Karten |
+| Schatten | Tiefe ohne blauen Glow-Nebel |
 | Text | Werte `#ffffff`, Labels `--dlg-text-muted` |
 | Primär-Button | Kohle `#3f3f3f` |
-| Theme-Toggle (im Dark) | helle Glas-Pille |
 
-Anti-Flash: dunkle Basis vor dem Paint, aber **kein** opakes Einfarb-Navy, das das Glas erstickt.
+Familienmitglied-Modal folgt demselben MA-Übersicht-Standard (`.ov-card`-Look).
 
 CSS-Variablen auf `body.theme-dark`: `--dlg-*` in `wwwroot/css/app.css`.
-Gilt für Karten, Panels, Inputs, Nav, Tabs, Modals, Familie-Kacheln, Sidebar-Menüs.
 
 ## Regeln fuer Umsetzung
 

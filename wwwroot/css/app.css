@@ -13,57 +13,56 @@
             height: 100vh; overflow: hidden;
         }
 
-        /* ── DARK MODE — Mockup-nah (Walter 18.07.2026) ──
-           Favorit-Look: Atmosphäre (Cyan-Blooms) + durchscheinendes Glas +
-           Eisblau-Rand. Werte hell/lesbar. Kein Neon-Zirkus, kein flaches Grau. */
+        /* ── DARK MODE — finaler Stand (Walter 18.07.2026) ──
+           Verlaufs-Rahmen JA, Milch/Nebel NEIN: opake Kartenflächen,
+           klarer Text, dezente Blooms, Eisblau-Rim ohne Glow-Nebel. */
         body.theme-dark {
             --dlg-bg:
-                radial-gradient(ellipse 72% 52% at 82% -8%, rgba(80, 170, 255, 0.26) 0%, transparent 58%),
-                radial-gradient(ellipse 58% 48% at 6% 108%, rgba(40, 120, 220, 0.18) 0%, transparent 56%),
-                radial-gradient(ellipse 42% 34% at 48% 42%, rgba(50, 100, 180, 0.10) 0%, transparent 62%),
-                linear-gradient(155deg, #08101c 0%, #122038 44%, #0a1528 100%);
-            --dlg-glass:        rgba(16, 32, 54, 0.58);
-            --dlg-glass-strong: rgba(20, 40, 66, 0.72);
-            --dlg-glass-field:  rgba(10, 22, 40, 0.70);
-            --dlg-glass-border: rgba(150, 205, 255, 0.40);
-            --dlg-glass-inner:  rgba(200, 230, 255, 0.16);
-            --dlg-fill:         rgba(14, 30, 52, 0.58);
-            --dlg-fill-strong:  rgba(18, 38, 64, 0.78);
-            --dlg-fill-field:   rgba(8, 20, 38, 0.72);
-            /* Karten-Rand: klar + weich leuchtend (Mockup, nicht Neon) */
+                radial-gradient(ellipse 70% 48% at 82% -6%, rgba(70, 150, 230, 0.14) 0%, transparent 58%),
+                radial-gradient(ellipse 55% 42% at 8% 108%, rgba(40, 100, 180, 0.10) 0%, transparent 56%),
+                linear-gradient(155deg, #0a1220 0%, #121e34 48%, #0b1526 100%);
+            --dlg-glass:        #14233a;
+            --dlg-glass-strong: #172840;
+            --dlg-glass-field:  #0e1a2e;
+            --dlg-glass-border: rgba(145, 200, 255, 0.36);
+            --dlg-glass-inner:  rgba(190, 220, 255, 0.12);
+            /* Opak genug, dass Werte nicht im Nebel verschwinden */
+            --dlg-fill:         #14233a;
+            --dlg-fill-strong:  #172840;
+            --dlg-fill-field:   #0e1a2e;
+            /* Karten-Rand: klarer Verlauf — Definition ohne Milch */
             --dlg-rim:
                 linear-gradient(135deg,
-                    rgba(220, 240, 255, 0.82) 0%,
-                    rgba(80, 145, 220, 0.28) 48%,
-                    rgba(165, 220, 255, 0.62) 100%);
+                    rgba(210, 235, 255, 0.78) 0%,
+                    rgba(80, 140, 210, 0.26) 48%,
+                    rgba(155, 210, 255, 0.58) 100%);
             --dlg-rim-soft:
                 linear-gradient(135deg,
-                    rgba(185, 220, 255, 0.48) 0%,
-                    rgba(70, 130, 205, 0.18) 100%);
+                    rgba(175, 215, 255, 0.42) 0%,
+                    rgba(70, 125, 195, 0.16) 100%);
             --dlg-rim-hot:
                 linear-gradient(135deg,
-                    rgba(230, 245, 255, 0.92) 0%,
-                    rgba(110, 180, 250, 0.42) 50%,
-                    rgba(175, 225, 255, 0.70) 100%);
-            /* Schwebende Tiefe + ruhiger Eisblau-Hauch */
+                    rgba(225, 242, 255, 0.88) 0%,
+                    rgba(100, 170, 240, 0.38) 50%,
+                    rgba(165, 220, 255, 0.64) 100%);
+            /* Tiefe ohne blauen Nebel-Glow */
             --dlg-shadow:
-                0 0 0 1px rgba(145, 205, 255, 0.16),
-                0 0 26px rgba(55, 140, 235, 0.20),
-                0 18px 42px rgba(0, 6, 18, 0.48),
-                inset 0 1px 0 rgba(225, 242, 255, 0.24);
+                0 0 0 1px rgba(130, 185, 245, 0.12),
+                0 14px 32px rgba(0, 6, 18, 0.42),
+                inset 0 1px 0 rgba(210, 235, 255, 0.16);
             --dlg-text-strong:  #ffffff;
-            --dlg-text:         #e8f0fa;
-            --dlg-text-soft:    #a9bfd8;
-            --dlg-text-muted:   #8aa0ba;
-            --dlg-active:       rgba(48, 110, 190, 0.52);
+            --dlg-text:         #e6eef8;
+            --dlg-text-soft:    #a8bdd4;
+            --dlg-text-muted:   #8a9fb8;
+            --dlg-active:       rgba(45, 100, 175, 0.48);
             --dlg-active-text:  #ffffff;
-            --dlg-active-border: rgba(155, 210, 255, 0.55);
+            --dlg-active-border: rgba(145, 200, 255, 0.48);
 
             background: var(--dlg-bg);
             background-attachment: fixed;
             color: var(--dlg-text);
         }
-        /* Karten/Panels: dunkles Glas + sichtbarer Eisblau-Verlaufs-Rand */
+        /* Karten: opake Fläche + Verlaufs-Rahmen — kein Backdrop-Blur (Milch) */
         body.theme-dark .dlg-rim,
         body.theme-dark .card,
         body.theme-dark .emp-detail-panel,
@@ -93,8 +92,8 @@
             background-origin: padding-box, border-box !important;
             background-clip: padding-box, border-box !important;
             box-shadow: var(--dlg-shadow) !important;
-            backdrop-filter: blur(22px) saturate(145%);
-            -webkit-backdrop-filter: blur(22px) saturate(145%);
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
             color: var(--dlg-text) !important;
         }
         body.theme-dark .main {
@@ -1857,23 +1856,21 @@
             position: sticky; top: 0; z-index: 20;
             background: white;
         }
-        /* Anti-Flackern (Walter 18.07.2026): dunkle Basisfarbe VOR dem Paint,
-           aber durchscheinend genug, dass Blooms/Glas des Mockups sichtbar bleiben. */
+        /* Anti-Flackern: opake dunkle Basis — kein Milch-Nebel */
         body.theme-dark .emp-detail-panel,
         body.theme-dark #empDetailPanel {
-            background-color: rgba(10, 20, 36, 0.92) !important;
+            background-color: var(--dlg-fill) !important;
         }
         body.theme-dark .emp-detail-header {
-            background: rgba(12, 24, 42, 0.55) !important;
-            border-bottom-color: rgba(150, 205, 255, 0.22) !important;
-            backdrop-filter: blur(22px) saturate(140%);
-            -webkit-backdrop-filter: blur(22px) saturate(140%);
+            background: var(--dlg-fill-strong) !important;
+            border-bottom-color: rgba(140, 195, 255, 0.18) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
         }
         body.theme-dark .emp-detail-body {
             background: transparent !important;
         }
         body.theme-dark .ov-card {
-            /* Glas-Fill (nicht opakes Navy) — Rim kommt von der globalen Karten-Regel */
             background-color: var(--dlg-fill) !important;
         }
         /* Postfach-Passwort-Button visuell hervorgehoben (orange/amber), damit
@@ -3103,11 +3100,11 @@
         }
 
         body.theme-dark #page-mitarbeiter.liquid-employee {
-            --emp-glass-bg: rgba(14, 30, 52, 0.50);
-            --emp-glass-strong: rgba(20, 42, 70, 0.68);
-            --emp-glass-field: rgba(10, 22, 40, 0.62);
-            --emp-glass-border: rgba(150, 205, 255, 0.40);
-            --emp-glass-inner: rgba(200, 230, 255, 0.16);
+            --emp-glass-bg: var(--dlg-fill);
+            --emp-glass-strong: var(--dlg-fill-strong);
+            --emp-glass-field: var(--dlg-fill-field);
+            --emp-glass-border: var(--dlg-glass-border);
+            --emp-glass-inner: var(--dlg-glass-inner);
             --emp-text-strong: #ffffff;
             --emp-text: #e4eef8;
             --emp-text-soft: #a4bbd4;
@@ -3127,8 +3124,8 @@
             background-clip: padding-box, border-box !important;
             color: var(--emp-text) !important;
             box-shadow: var(--dlg-shadow) !important;
-            backdrop-filter: blur(26px) saturate(155%);
-            -webkit-backdrop-filter: blur(26px) saturate(155%);
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
         }
         /* Innenraster rahmenlos — Karten-Look kommt von .ov-card / Panels */
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-tabs,
@@ -3141,12 +3138,12 @@
             box-shadow: none !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header {
-            background: rgba(12, 26, 46, 0.42) !important;
+            background: var(--dlg-fill-strong) !important;
             border-color: transparent !important;
             color: var(--emp-text) !important;
             box-shadow: none !important;
-            backdrop-filter: blur(22px) saturate(145%);
-            -webkit-backdrop-filter: blur(22px) saturate(145%);
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn {
             border: 1px solid rgba(120, 170, 230, 0.16) !important;
@@ -3206,9 +3203,9 @@
             border-color: rgba(122,145,165,.18) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item.active {
-            background: rgba(48, 110, 190, 0.42) !important;
-            border-color: rgba(155, 210, 255, 0.40) !important;
-            box-shadow: inset 0 1px 0 rgba(210, 235, 255, 0.14), 0 0 18px rgba(55, 130, 220, 0.16);
+            background: rgba(45, 100, 175, 0.42) !important;
+            border-color: rgba(145, 200, 255, 0.36) !important;
+            box-shadow: inset 0 1px 0 rgba(210, 235, 255, 0.12);
         }
         /* Section-Titel: weiches Eisblau-Label (Mockup), keine helle Platte */
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-section-title {
@@ -3465,10 +3462,10 @@
             max-width: 340px;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header {
-            background: rgba(12, 26, 46, 0.42) !important;
+            background: var(--dlg-fill-strong) !important;
             border-color: transparent !important;
-            backdrop-filter: blur(22px) saturate(145%);
-            -webkit-backdrop-filter: blur(22px) saturate(145%);
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
         }
         body.theme-dark .emp-hfact { border-left-color: rgba(150, 200, 255, 0.14); }
         body.theme-dark .emp-hfact-l { color: var(--dlg-text-muted) !important; }
@@ -4117,29 +4114,27 @@
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab {
             border: 1px solid transparent !important;
-            background-image: linear-gradient(rgba(12, 26, 46, 0.55), rgba(12, 26, 46, 0.55)), var(--dlg-rim-soft) !important;
+            background-color: var(--dlg-fill-field) !important;
+            background-image: linear-gradient(var(--dlg-fill-field), var(--dlg-fill-field)), var(--dlg-rim-soft) !important;
             background-origin: padding-box, border-box !important;
             background-clip: padding-box, border-box !important;
             color: var(--dlg-text-soft) !important;
-            box-shadow: 0 8px 20px rgba(0, 8, 24, 0.22), inset 0 1px 0 rgba(200, 230, 255, 0.08) !important;
-            backdrop-filter: blur(18px) saturate(145%) !important;
-            -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+            box-shadow: inset 0 1px 0 rgba(200, 230, 255, 0.08) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab:hover {
-            background-image: linear-gradient(rgba(22, 42, 70, 0.72), rgba(22, 42, 70, 0.72)), var(--dlg-rim) !important;
+            background-image: linear-gradient(#172840, #172840), var(--dlg-rim) !important;
             color: #ffffff !important;
-            box-shadow: 0 10px 24px rgba(0, 8, 24, 0.28), 0 0 14px rgba(55, 140, 230, 0.12) !important;
+            box-shadow: inset 0 1px 0 rgba(210, 235, 255, 0.12) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active {
             border: 1px solid transparent !important;
-            background-image: linear-gradient(rgba(42, 100, 175, 0.58), rgba(28, 75, 140, 0.55)), var(--dlg-rim-hot) !important;
+            background-image: linear-gradient(#1e4a7a, #163a62), var(--dlg-rim-hot) !important;
             background-origin: padding-box, border-box !important;
             background-clip: padding-box, border-box !important;
             color: #ffffff !important;
-            box-shadow:
-                0 0 22px rgba(60, 145, 240, 0.28),
-                0 10px 24px rgba(0, 8, 24, 0.30),
-                inset 0 1px 0 rgba(220, 240, 255, 0.22) !important;
+            box-shadow: inset 0 1px 0 rgba(220, 240, 255, 0.18) !important;
             text-decoration: none !important;
         }
 
@@ -5241,94 +5236,154 @@
             font-size: 11.5px; color: #94a3b8; margin-top: 5px; line-height: 1.35;
         }
 
-        /* Dark Liquid Glass — Familienmitglied-Erfassungsmaske (Walter 18.07.2026)
-           Vorher: helles Modal + dunkle Inputs + Inline-Farben → Adresse unsichtbar.
-           Jetzt: durchgängig dunkles Glas, Adress-Wahl als klare Karten. */
+        /* Familienmitglied-Maske = MA-Übersicht-Standard (Walter 18.07.2026)
+           Opake Sektions-Karten mit Verlaufs-Rim, Labels/Inputs wie .ov-card. */
         body.theme-dark #familyModal {
-            background: rgba(4, 10, 20, 0.62);
+            background: rgba(4, 10, 20, 0.68);
         }
         body.theme-dark #familyModal .family-modal-box {
-            border-radius: 18px;
+            border-radius: 16px;
         }
         body.theme-dark #familyModal .family-modal-head,
         body.theme-dark #familyModal .family-modal-foot {
-            border-color: rgba(140, 195, 255, 0.16) !important;
+            border-color: rgba(140, 195, 255, 0.14) !important;
         }
         body.theme-dark #familyModal .family-modal-title {
-            color: var(--dlg-text-strong) !important;
+            color: #ffffff !important;
+            font-size: 16px;
+            font-weight: 760;
+            letter-spacing: -0.01em;
         }
         body.theme-dark #familyModal .family-modal-close {
-            background: rgba(12, 24, 42, 0.78) !important;
+            background: var(--dlg-fill-field) !important;
             color: var(--dlg-text-soft) !important;
         }
+        /* Section-Titel wie .ov-card-h */
         body.theme-dark #familyModal .emp-section-title {
-            color: var(--dlg-text-strong) !important;
+            color: #ffffff !important;
             background: transparent !important;
             border-left: none !important;
+            font-size: 13.5px !important;
+            font-weight: 760 !important;
+            letter-spacing: -0.01em !important;
+            text-transform: none !important;
+            margin: 16px 0 8px !important;
+            padding: 0 !important;
         }
+        /* Sektions-Karten wie .ov-card: opak + Verlaufs-Rim */
         body.theme-dark #familyModal .emp-field-grid,
         body.theme-dark #familyModal .emp-field-grid-3,
         body.theme-dark #familyModal .fmf-addr-card {
-            background: rgba(10, 22, 40, 0.55) !important;
-            border: 1px solid rgba(140, 195, 255, 0.22) !important;
-            box-shadow: inset 0 1px 0 rgba(190, 220, 255, 0.08) !important;
+            border: 1px solid transparent !important;
+            background-color: var(--dlg-fill) !important;
+            background-image: linear-gradient(var(--dlg-fill), var(--dlg-fill)), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: var(--dlg-shadow) !important;
+            border-radius: 14px !important;
+            padding: 12px 14px !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
         }
+        /* Labels wie .ov-pfl / .ov-fl */
         body.theme-dark #familyModal .fmf-label {
             color: var(--dlg-text-muted) !important;
+            font-size: 10.5px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.04em !important;
+        }
+        /* Inputs wie .ov-softin / MA-Dark-Felder */
+        body.theme-dark #familyModal .fmf-input,
+        body.theme-dark #familyModal .fmf-select,
+        body.theme-dark #familyModal .emp-field-grid-3 .fmf-input,
+        body.theme-dark #familyModal .emp-field-grid-3 .fmf-select,
+        body.theme-dark #familyModal .emp-field-grid-2 .fmf-input,
+        body.theme-dark #familyModal .emp-field-grid-2 .fmf-select,
+        body.theme-dark #familyModal .emp-field-grid .fmf-input,
+        body.theme-dark #familyModal .emp-field-grid .fmf-select,
+        body.theme-dark #familyModal .fmf-addr-select {
+            background: var(--dlg-fill-field) !important;
+            border: 1px solid rgba(145, 200, 255, 0.28) !important;
+            border-radius: 8px !important;
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            min-height: 29px !important;
+            padding: 4px 10px !important;
+            box-shadow: inset 0 1px 0 rgba(200, 230, 255, 0.05) !important;
+        }
+        body.theme-dark #familyModal .fmf-input:focus,
+        body.theme-dark #familyModal .fmf-select:focus,
+        body.theme-dark #familyModal .emp-field-grid-3 .fmf-input:focus,
+        body.theme-dark #familyModal .emp-field-grid-3 .fmf-select:focus,
+        body.theme-dark #familyModal .fmf-addr-select:focus {
+            border-color: rgba(165, 220, 255, 0.50) !important;
+            background: #0c1a30 !important;
+            box-shadow: 0 0 0 2px rgba(60, 140, 230, 0.14) !important;
         }
         body.theme-dark #familyModal .fmf-checkbox-card {
-            background: rgba(8, 18, 34, 0.88) !important;
-            border-color: rgba(130, 185, 240, 0.30) !important;
-            color: var(--dlg-text-strong) !important;
-            box-shadow: inset 0 1px 0 rgba(180, 210, 245, 0.06) !important;
+            background: var(--dlg-fill-field) !important;
+            border: 1px solid rgba(145, 200, 255, 0.28) !important;
+            color: #ffffff !important;
+            box-shadow: none !important;
+            border-radius: 8px !important;
+            min-height: 29px !important;
         }
         body.theme-dark #familyModal .fmf-checkbox-text {
             color: var(--dlg-text) !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
         }
         body.theme-dark #familyModal .fmf-radio-row {
-            background: rgba(8, 18, 34, 0.78) !important;
-            border: 1px solid rgba(130, 185, 240, 0.28) !important;
-            box-shadow: inset 0 1px 0 rgba(180, 210, 245, 0.06) !important;
+            background: var(--dlg-fill-field) !important;
+            border: 1px solid rgba(145, 200, 255, 0.26) !important;
+            box-shadow: none !important;
+            border-radius: 10px !important;
         }
         body.theme-dark #familyModal .fmf-radio-row:hover {
-            border-color: rgba(155, 205, 255, 0.45) !important;
-            background: rgba(12, 26, 46, 0.88) !important;
+            border-color: rgba(165, 220, 255, 0.42) !important;
+            background: #12263e !important;
         }
         body.theme-dark #familyModal .fmf-radio-row:has(input:checked) {
-            border-color: rgba(155, 205, 255, 0.55) !important;
-            background: rgba(28, 70, 120, 0.42) !important;
-            box-shadow:
-                inset 0 0 0 1px rgba(155, 205, 255, 0.25),
-                inset 0 1px 0 rgba(190, 220, 255, 0.10) !important;
+            border-color: transparent !important;
+            background-color: #1a3a5c !important;
+            background-image: linear-gradient(#1a3a5c, #1a3a5c), var(--dlg-rim-hot) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: inset 0 1px 0 rgba(210, 235, 255, 0.12) !important;
         }
         body.theme-dark #familyModal .fmf-radio-title {
-            color: var(--dlg-text-strong) !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
         }
         body.theme-dark #familyModal .fmf-radio-hint,
         body.theme-dark #familyModal .fmf-addr-alt-hint,
         body.theme-dark #familyModal #fmAgeDisplay {
             color: var(--dlg-text-soft) !important;
         }
-        body.theme-dark #familyModal .fmf-addr-select,
         body.theme-dark #familyModal .fmf-addr-add-btn {
-            background: rgba(8, 18, 34, 0.88) !important;
-            border-color: rgba(130, 185, 240, 0.30) !important;
-            color: var(--dlg-text-strong) !important;
-            box-shadow: inset 0 1px 0 rgba(180, 210, 245, 0.06) !important;
+            background: var(--dlg-fill-field) !important;
+            border: 1px solid rgba(145, 200, 255, 0.28) !important;
+            color: #ffffff !important;
+            border-radius: 8px !important;
+            font-weight: 650 !important;
+            box-shadow: none !important;
         }
         body.theme-dark #familyModal .fmf-addr-add-btn:hover {
-            background: rgba(14, 28, 50, 0.95) !important;
-            border-color: rgba(155, 205, 255, 0.45) !important;
+            background: #12263e !important;
+            border-color: rgba(165, 220, 255, 0.45) !important;
         }
         body.theme-dark #familyModal #fmSpouseDocBtn {
             background: #3f3f3f !important;
             color: #fff !important;
             border-color: #1a1a1a !important;
+            border-radius: 8px !important;
         }
         body.theme-dark #familyModal .family-modal-foot .btn-outline {
-            background: rgba(12, 24, 42, 0.72) !important;
+            background: var(--dlg-fill-field) !important;
             color: var(--dlg-text) !important;
-            border-color: rgba(140, 195, 255, 0.28) !important;
+            border-color: rgba(145, 200, 255, 0.28) !important;
         }
         body.theme-dark #familyModal .family-modal-foot .btn-primary {
             background: #3f3f3f !important;
@@ -5425,23 +5480,16 @@
         }
         .fam-tile-zulage-btn:hover { border-color: #3f3f3f; color: #3f3f3f; background: rgba(255,255,255,.5); }
         body.theme-dark .fam-tile {
-            border-radius: 16px !important;
-            padding: 14px 16px 12px !important;
-            /* Mockup: klarer Eisblau-Rand + weicher Glow, Name hell */
-            box-shadow:
-                0 0 0 1px rgba(145, 205, 255, 0.18),
-                0 0 28px rgba(55, 140, 235, 0.22),
-                0 14px 32px rgba(0, 6, 18, 0.42),
-                inset 0 1px 0 rgba(225, 242, 255, 0.22) !important;
+            border-radius: 14px !important;
+            padding: 12px 14px 10px !important;
+            /* Rim kommt global — kein Extra-Glow (Milch) */
         }
         body.theme-dark .fam-tile:hover {
-            border-color: rgba(165, 220, 255, 0.45) !important;
-            transform: translateY(-2px);
+            transform: translateY(-1px);
             box-shadow:
-                0 0 0 1px rgba(165, 220, 255, 0.28),
-                0 0 34px rgba(70, 155, 245, 0.28),
-                0 18px 36px rgba(0, 6, 18, 0.48),
-                inset 0 1px 0 rgba(230, 245, 255, 0.28) !important;
+                0 0 0 1px rgba(145, 200, 255, 0.18),
+                0 16px 34px rgba(0, 6, 18, 0.48),
+                inset 0 1px 0 rgba(210, 235, 255, 0.18) !important;
         }
         body.theme-dark .fam-tile-name { color: #ffffff; font-size: 15px; }
         body.theme-dark .fam-tile-meta { color: var(--dlg-text-soft); }
