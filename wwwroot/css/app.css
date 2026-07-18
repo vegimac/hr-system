@@ -145,12 +145,12 @@
             box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
         }
         body.theme-dark .emp-field-value:hover {
-            background: rgba(30, 45, 60, 0.88) !important;
-            border-color: rgba(112,164,214,.32) !important;
+            background: linear-gradient(165deg, rgba(140,190,255,.18), rgba(80,130,200,.10)) !important;
+            border-color: rgba(150,205,255,.50) !important;
         }
         body.theme-dark .emp-field-value.empty {
             color: var(--dlg-text-muted) !important;
-            background: rgba(8, 14, 22, 0.55) !important;
+            background: rgba(60,100,160,.10) !important;
         }
         body.theme-dark .emp-field-label { color: var(--dlg-text-muted) !important; }
         body.theme-dark .emp-field-hint  { color: var(--dlg-text-muted) !important; }
@@ -3040,15 +3040,24 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav,
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-list,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-panel,
-        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-detail,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-detail {
+            background:
+                linear-gradient(165deg, rgba(160,200,255,.12) 0%, rgba(80,130,200,.06) 42%, rgba(40,80,140,.08) 100%) !important;
+            border-color: var(--emp-glass-border) !important;
+            color: var(--emp-text) !important;
+            box-shadow: var(--dlg-shadow) !important;
+            backdrop-filter: blur(22px) saturate(145%);
+            -webkit-backdrop-filter: blur(22px) saturate(145%);
+        }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-tabs,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid-2,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid-3 {
-            background: var(--emp-glass-bg) !important;
-            border-color: var(--emp-glass-border) !important;
+            background: transparent !important;
+            border-color: transparent !important;
             color: var(--emp-text) !important;
+            box-shadow: none !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn {
             background: linear-gradient(165deg, rgba(130,180,255,.14), rgba(60,110,180,.08));
