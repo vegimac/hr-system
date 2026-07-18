@@ -3518,12 +3518,11 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
             flex: 1 1 auto; min-height: 0; overflow: hidden;
-            /* Walter 18.07.2026: Personalien = Inhalts­höhe (kein leerer
-               Adress-Puffer), Anstellung+Nacht genug für 2 Zeilen inkl.
-               Kündigungs-Dates, Rest-Spur hält Verträge+KTG am Boden. */
+            /* Walter 18.07.2026: Blöcke oben dicht gestapelt — Verträge
+               direkt unter Anstellung/Nacht; freier Platz darunter. */
             height: 100%;
-            align-content: stretch;
-            grid-template-rows: auto 158px minmax(172px, 1fr);
+            align-content: start;
+            grid-template-rows: auto 158px 172px;
         }
         .ov-wrap {
             display: grid;
@@ -3553,12 +3552,44 @@
             margin-bottom: 12px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow {
-            gap: 12px 24px;
+            gap: 12px 20px;
             margin-bottom: 14px;
             padding-bottom: 2px;
+            width: 100%;
+            justify-content: space-between;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-amt {
             margin-bottom: 10px;
+        }
+        /* Horizontale Verteilung: Felder nutzen die volle Kartenbreite */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow > .ov-pf,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow > .ov-pf-slot {
+            flex: 1 1 0;
+            min-width: 0;
+            max-width: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow > .ov-pf-sex {
+            flex: 0 0 48px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow > .ov-pf-plz {
+            flex: 0 0 64px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow > .ov-pf-kt {
+            flex: 0 0 56px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow > .ov-pf-street {
+            flex: 2.2 1 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow > .ov-pf-city {
+            flex: 1.4 1 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow .ov-softin {
+            width: 100% !important;
+            box-sizing: border-box;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-slot > .ov-pf {
+            width: 100%;
+            margin-bottom: 0;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfl {
             font-size: 11px;
@@ -3576,14 +3607,6 @@
             min-height: 34px;
             padding: 5px 10px;
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-street {
-            flex: 1 1 220px;
-            max-width: 360px;
-        }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-city {
-            flex: 1 1 160px;
-            max-width: 220px;
-        }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfl {
             color: rgba(210, 220, 232, 0.78) !important;
         }
@@ -3597,11 +3620,12 @@
             align-self: stretch;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-start;
+            gap: 8px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-card-h {
             flex: 0 0 auto;
-            margin-bottom: 6px;
+            margin-bottom: 2px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-anst-row {
             margin-bottom: 0;
@@ -3621,7 +3645,7 @@
             min-height: 172px;
             max-height: 172px;
             overflow: hidden;
-            align-self: end; /* am unteren Rand der Rest-Spur */
+            align-self: start; /* direkt unter Anstellung/Nacht — kein Luftspalt */
             contain: layout size;
         }
         /* Feste Höhe = 3 Vertragszeilen — KTG-Nachladen darf nicht springen */
@@ -3655,7 +3679,7 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: auto 158px 158px minmax(172px, 1fr);
+                grid-template-rows: auto 158px 158px 172px;
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
@@ -3666,7 +3690,7 @@
                 height: 172px;
                 min-height: 172px;
                 max-height: 172px;
-                align-self: end;
+                align-self: start;
             }
         }
         .ov-card {
