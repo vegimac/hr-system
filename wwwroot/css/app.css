@@ -3582,12 +3582,20 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-panel {
             min-height: 0;
+            flex: 1 1 auto;
+            align-self: stretch;
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-list {
+            align-self: stretch;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll {
             overflow: hidden;
             display: flex; flex-direction: column;
             min-height: 0;
+            flex: 1 1 auto;
             padding-bottom: 6px;
+            background: transparent !important;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll #emp-tab-uebersicht.active {
             display: flex; flex-direction: column;
@@ -4392,14 +4400,10 @@
         }
 
 
-        /* Liquid-Employee Light: keine separaten Innen-Frames.
-           Dark bewusst AUSGESCHLOSSEN — dort behalten Aussen-Schalen den
-           Eisblau-Verlaufs-Rand (Walter 18.07.2026). */
+        /* Liquid-Employee Light: Innen-Frames rahmenlos — Aussen-Schalen
+           (Liste + Detail) behalten Kohle-Fill bis ganz unten, sonst scheint
+           .main-Weiss durch (Walter 18.07.2026). */
         body:not(.theme-dark) #page-mitarbeiter.liquid-employee .liquid-employee-nav,
-        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-list-panel,
-        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .liquid-employee-list,
-        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-detail-panel,
-        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .liquid-employee-detail,
         body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-detail-header,
         body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-detail-tabs,
         body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-detail-body,
@@ -4413,6 +4417,26 @@
             box-shadow: none !important;
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
+        }
+        /* Hell: Aussen-Schalen warm durchgezogen (kein Weiss-Streifen unten) */
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-list-panel,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .liquid-employee-list,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-detail-panel,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .liquid-employee-detail {
+            background-color: var(--emp-fill) !important;
+            background-image: var(--emp-fill-grad), var(--emp-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: var(--emp-shadow) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+        body:not(.theme-dark) .main:has(#page-mitarbeiter.active),
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee {
+            background:
+                radial-gradient(ellipse 70% 50% at 85% -5%, rgba(255, 255, 255, 0.70) 0%, transparent 55%),
+                radial-gradient(ellipse 55% 45% at 8% 100%, rgba(180, 165, 140, 0.14) 0%, transparent 55%),
+                linear-gradient(160deg, #f6f3ee 0%, #efebe3 48%, #faf8f5 100%) !important;
         }
         /* Dark: Innen-Raster rahmenlos — Header bleibt Glas (Mockup),
            Tabs bekommen eigene Pillen-Regeln weiter unten. */
