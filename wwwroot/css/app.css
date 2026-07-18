@@ -3518,14 +3518,12 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
             flex: 1 1 auto; min-height: 0; overflow: hidden;
-            /* 3 Zeilen ALLE fix (Walter 18.07.2026): Personalien flex ·
-               Anstellung+Nacht 128px · Verträge+KTG 172px unten.
-               auto-Zeile war der Hüpf: Nachtarbeit-Buttons / Adressen
-               haben die mittlere Spur gestreckt und den unteren Block
-               nach unten geschoben. */
+            /* Walter 18.07.2026: Personalien = Inhalts­höhe (kein leerer
+               Adress-Puffer — Zusatzadressen <1%), Anstellung+Nacht fix,
+               Rest-Spur unten hält Verträge+KTG am Boden (kein Hüpf). */
             height: 100%;
             align-content: stretch;
-            grid-template-rows: minmax(0, 1fr) 128px 172px;
+            grid-template-rows: auto 128px minmax(172px, 1fr);
         }
         .ov-wrap {
             display: grid;
@@ -3539,12 +3537,11 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full {
             grid-row: 1;
             min-height: 0;
-            max-height: 100%;
-            overflow: auto;
-            align-self: stretch;
+            overflow: visible;
+            align-self: start; /* Karte nicht in die 1fr-Lücke strecken */
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card {
-            min-height: 100%;
+            min-height: 0;
             box-sizing: border-box;
         }
         /* Anstellung / Nachtarbeit = mittlere Zeile, Höhe = Track (128px) */
@@ -3571,7 +3568,7 @@
             min-height: 172px;
             max-height: 172px;
             overflow: hidden;
-            /* Layout-Containment: Nachbarn dürfen diese Box nicht verschieben */
+            align-self: end; /* am unteren Rand der Rest-Spur */
             contain: layout size;
         }
         /* Feste Höhe = 3 Vertragszeilen — KTG-Nachladen darf nicht springen */
@@ -3594,18 +3591,18 @@
             height: 100%;
             box-sizing: border-box;
         }
-        /* Zusatzadressen: max. 1 Zeile sichtbar — Rest scrollt, Layout bleibt */
+        /* Zusatzadressen: leer = kein Platz; sonst max. 1 Zeile */
         #otherAddressesContent {
-            max-height: 38px;
+            max-height: 28px;
             overflow-x: hidden;
             overflow-y: auto;
             min-height: 0;
         }
-        #otherAddressesContent:empty { display: none; }
+        #otherAddressesContent:empty { display: none; margin: 0; padding: 0; }
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: minmax(0, 1fr) 128px 128px 172px;
+                grid-template-rows: auto 128px 128px minmax(172px, 1fr);
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
@@ -3616,6 +3613,7 @@
                 height: 172px;
                 min-height: 172px;
                 max-height: 172px;
+                align-self: end;
             }
         }
         .ov-card {
@@ -3715,15 +3713,14 @@
         .ov-anst-row:last-child { margin-bottom: 2px; }
         .ov-anst-kuend .ov-anst-date { flex: 1 1 0; min-width: 0; max-width: 220px; }
         .ov-anst-kuend .ov-softin { width: 100%; min-width: 0; box-sizing: border-box; }
-        /* Fussbereich «Weitere Adressen» in der Personalien-Karte */
+        /* Fussbereich «Weitere Adressen» — kompakt (selten belegt) */
         .ov-addrsep {
             display: flex; align-items: center; justify-content: space-between;
             gap: 12px;
             border-top: 1px solid #eee8de;
-            margin-top: 2px; padding-top: 6px; margin-bottom: 4px;
+            margin-top: 2px; padding-top: 4px; margin-bottom: 0;
         }
         body.theme-dark .ov-addrsep { border-top-color: rgba(255,255,255,.12); }
-        /* Zusatzadressen: Höhe oben bei ov-noscroll bereits gedeckelt */
         .ov-frow .ov-pf { margin-bottom: 0; width: auto; min-width: 0; flex: 0 1 auto; }
         .ov-frow .ov-pfl { margin-bottom: 2px; }
         .ov-frow .ov-pfv {
