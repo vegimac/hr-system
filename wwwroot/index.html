@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260718z">
+    <link rel="stylesheet" href="css/app.css?v=20260718aa">
 </head>
 <body>
 
@@ -6844,7 +6844,7 @@
                     <label class="fmf-label" data-i18n="fam.field.livesInCh">In der Schweiz lebend</label>
                     <label class="fmf-checkbox-card">
                         <input type="checkbox" id="fmLivesInSwitzerland">
-                        <span style="font-size:12px;color:#475569" data-i18n="fam.field.livesInCh.short">Ja</span>
+                        <span class="fmf-checkbox-text" data-i18n="fam.field.livesInCh.short">Ja</span>
                     </label>
                 </div>
             </div>
@@ -6897,37 +6897,36 @@
             <!-- ── Adresse: lebt beim MA oder eigene (Zusatz-)Adresse ────────────── -->
             <div class="emp-section-title" data-i18n="fam.section.address">Adresse</div>
             <div class="fmf-addr-card">
-                <label class="fmf-radio-row" style="display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+                <label class="fmf-radio-row">
                     <input type="radio" name="fmAddrMode" id="fmAddrSameAsEmp" value="same" checked
-                           onchange="fmAddrModeChanged()" style="margin-top:3px">
-                    <span style="flex:1">
-                        <span style="font-weight:600;font-size:13px;color:#0f172a" data-i18n="fam.addr.same">Lebt beim Mitarbeiter (Hauptadresse)</span>
-                        <span id="fmAddrEmpSummary" style="display:block;color:#64748b;font-size:11.5px;margin-top:1px"></span>
+                           onchange="fmAddrModeChanged()">
+                    <span class="fmf-radio-body">
+                        <span class="fmf-radio-title" data-i18n="fam.addr.same">Lebt beim Mitarbeiter (Hauptadresse)</span>
+                        <span class="fmf-radio-hint" id="fmAddrEmpSummary"></span>
                     </span>
                 </label>
-                <label class="fmf-radio-row" style="display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+                <label class="fmf-radio-row">
                     <input type="radio" name="fmAddrMode" id="fmAddrAlt" value="alt"
-                           onchange="fmAddrModeChanged()" style="margin-top:3px">
-                    <span style="flex:1">
-                        <span style="font-weight:600;font-size:13px;color:#0f172a" data-i18n="fam.addr.alt">Andere Adresse</span>
-                        <span style="display:block;color:#64748b;font-size:11.5px;margin-top:1px" data-i18n="fam.addr.altHint">
+                           onchange="fmAddrModeChanged()">
+                    <span class="fmf-radio-body">
+                        <span class="fmf-radio-title" data-i18n="fam.addr.alt">Andere Adresse</span>
+                        <span class="fmf-radio-hint" data-i18n="fam.addr.altHint">
                             Wählen aus den Zusatzadressen des Mitarbeiters (z.B. Wohnsitz Ausland, getrennt lebend, c/o Mutter).
                         </span>
                     </span>
                 </label>
-                <div id="fmAddrAltBox" style="display:none;padding-left:24px">
-                    <div style="display:flex;gap:8px;align-items:center">
-                        <select id="fmAlternativeAddressId" style="flex:1;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;font-size:13px;min-height:27px;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                <div id="fmAddrAltBox" class="fmf-addr-alt-box" style="display:none">
+                    <div class="fmf-addr-alt-row">
+                        <select id="fmAlternativeAddressId" class="fmf-select fmf-addr-select">
                             <option value="" data-i18n="fam.addr.choose">— Adresse wählen —</option>
                         </select>
-                        <button type="button" onclick="openEmployeeAddressModalFromFamily()"
+                        <button type="button" class="fmf-addr-add-btn" onclick="openEmployeeAddressModalFromFamily()"
                                 title="Neue Zusatzadresse beim Mitarbeiter anlegen"
-                                data-i18n="fam.addr.addNew"
-                                style="font-size:11.5px;padding:6px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;color:#1e293b;cursor:pointer;font-weight:500;white-space:nowrap">
+                                data-i18n="fam.addr.addNew">
                             + Neue Zusatzadresse
                         </button>
                     </div>
-                    <div id="fmAddrAltHint" style="font-size:11.5px;color:#94a3b8;margin-top:5px"></div>
+                    <div id="fmAddrAltHint" class="fmf-addr-alt-hint"></div>
                 </div>
             </div>
 
