@@ -409,7 +409,10 @@ function applyEmpFilter() {
                 .map(Number))]
                 .sort((a, b) => b - a)
                 .slice(0, 2);
-            lnPanel.setAttribute('data-lastnums', lnTop.length ? 'letzte Nr.\n' + lnTop.join('\n') : '');
+            // Eine Zeile — sonst überlappen lange Nummern das Suchfeld
+            // (Walter 18.07.2026).
+            lnPanel.setAttribute('data-lastnums',
+                lnTop.length ? 'letzte Nr. ' + lnTop.join(' · ') : '');
         }
     } catch (_) { /* reine Anzeige-Hilfe */ }
 
