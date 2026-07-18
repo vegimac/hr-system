@@ -6171,13 +6171,16 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         body.theme-dark .lohn-emp-active,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item.active,
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-row-active {
-            background: rgba(255,255,255,0.14) !important;
+            background: var(--dlg-active) !important;
             border-left-color: transparent !important;
-            color: #fff !important;
+            color: var(--dlg-active-text) !important;
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
         }
         body.theme-dark .emp-list-item.active .emp-list-name,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item.active .emp-list-name,
-        body.theme-dark .lohn-emp-active .lohn-emp-name { color: #fff !important; font-weight: 800 !important; }
+        body.theme-dark .lohn-emp-active .lohn-emp-name {
+            color: var(--dlg-active-text) !important; font-weight: 800 !important;
+        }
 
         /* ══ DARK MOCKUP UNIFY (Walter 18.07.2026) ══
            Letzte Schicht: Rest-Screens (Admin, HR-Hub, Perioden, Import)
