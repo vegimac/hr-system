@@ -117,6 +117,23 @@ Familienmitglied-Modal = selber MA-Übersicht-Standard.
 
 CSS-Variablen auf `body.theme-dark`: `--dlg-*` in `wwwroot/css/app.css`.
 
+### 8.6 Hell = Kohle + Tiefe (Walter 18.07.2026)
+
+Gleicher Aufbau wie Dark, andere Palette — **Kohle bleibt**, kein Hellblau-Aktiv:
+
+| Token | Wert |
+|---|---|
+| Hintergrund | warmes Off-White `#f6f3ee` + dezente Blooms |
+| Karten-Fill | `--emp-fill-grad` (opaker warm-weiss → sand) |
+| Rand | Pearl/Kohle-Rim (weiss → warmgrau → weiss) |
+| Technik | Fill-Grad + Rim (`padding-box` / `border-box`); **kein** `backdrop-filter` |
+| Schatten | Kohle-Ring + Ambient + Drop + Top-Inset (wie Dark gestaffelt) |
+| Text | stark `#2f2f2f` / normal `#4a4a4a` / Labels `#8b8b8b` |
+| Aktiv (Tab/Liste) | Kohle `#3f3f3f` (weiss auf Kohle), **kein** Default-Blau |
+
+Scope: `#page-mitarbeiter.liquid-employee` — Variablen `--emp-*` in `wwwroot/css/app.css`.
+Layout der Übersicht (3 Zeilen Personalien, gepinnte Verträge) ist theme-unabhängig.
+
 ## Regeln fuer Umsetzung
 
 - Produktive Fachlogik bleibt unberuehrt.

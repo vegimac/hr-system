@@ -2168,19 +2168,52 @@
             background: var(--dlg-bg);
         }
 
-        /* ── LIQUID GLASS: MITARBEITER-MASKE ─────────────────────── */
+        /* ── LIQUID GLASS: MITARBEITER-MASKE (Hell = Kohle + Tiefe) ──
+           Walter 18.07.2026: dasselbe Prinzip wie Dark (Fill-Grad + Rim +
+           gestaffelte Schatten), aber warmes Off-White / Kohle — kein
+           Eisblau, kein Milch-Blur. */
         #page-mitarbeiter.liquid-employee {
-            --emp-glass-bg: rgba(255,255,255,.38);
-            --emp-glass-strong: rgba(255,255,255,.58);
-            --emp-glass-field: rgba(255,255,255,.94);
-            --emp-glass-border: rgba(255,255,255,.70);
-            --emp-glass-inner: rgba(255,255,255,.50);
-            --emp-text-strong: #364152;
-            --emp-text: #526071;
-            --emp-text-soft: #8b96a5;
+            --emp-glass-bg: #f4f0e8;
+            --emp-glass-strong: #faf7f2;
+            --emp-glass-field: #ffffff;
+            --emp-glass-border: rgba(255, 255, 255, 0.78);
+            --emp-glass-inner: rgba(255, 255, 255, 0.72);
+            --emp-text-strong: #2f2f2f;
+            --emp-text: #4a4a4a;
+            --emp-text-soft: #7a7a7a;
             --emp-blue: #3f3f3f;
-            --emp-shadow: 0 22px 70px rgba(70,64,55,.14), inset 0 1px 0 rgba(255,255,255,.58);
-            background: linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%);
+            /* Opaker Innen-Verlauf = Volumen (analog Dark) */
+            --emp-fill: #f4f0e8;
+            --emp-fill-grad: linear-gradient(160deg,
+                                #fffcf8 0%,
+                                #f7f3eb 42%,
+                                #efe9df 78%,
+                                #e8e1d6 100%);
+            /* Pearl/Kohle-Rim statt Eisblau */
+            --emp-rim: linear-gradient(135deg,
+                                rgba(255, 255, 255, 0.98) 0%,
+                                rgba(210, 200, 185, 0.55) 35%,
+                                rgba(120, 110, 95, 0.22) 62%,
+                                rgba(255, 255, 255, 0.88) 100%);
+            /* Gestaffelte Tiefe: Ring → Ambient → Drop → Bevel */
+            --emp-shadow:
+                0 0 0 1px rgba(90, 80, 65, 0.10),
+                0 0 18px rgba(90, 80, 65, 0.06),
+                0 4px 12px rgba(60, 55, 48, 0.08),
+                0 16px 36px rgba(60, 55, 48, 0.14),
+                inset 0 1px 0 rgba(255, 255, 255, 0.85),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.06);
+            --emp-shadow-lift:
+                0 0 0 1px rgba(90, 80, 65, 0.12),
+                0 0 22px rgba(90, 80, 65, 0.08),
+                0 6px 14px rgba(60, 55, 48, 0.10),
+                0 20px 42px rgba(60, 55, 48, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.92),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.08);
+            background:
+                radial-gradient(ellipse 70% 50% at 85% -5%, rgba(255, 255, 255, 0.70) 0%, transparent 55%),
+                radial-gradient(ellipse 55% 45% at 8% 100%, rgba(180, 165, 140, 0.14) 0%, transparent 55%),
+                linear-gradient(160deg, #f6f3ee 0%, #efebe3 48%, #faf8f5 100%);
             color: var(--emp-text);
         }
         #page-mitarbeiter.liquid-employee .page-body {
@@ -2367,12 +2400,15 @@
         #page-mitarbeiter.liquid-employee .emp-list-panel,
         #page-mitarbeiter.liquid-employee .liquid-employee-list,
         #page-mitarbeiter.liquid-employee .emp-detail-panel {
-            background: var(--emp-glass-bg);
-            border: 1px solid var(--emp-glass-border);
+            border: 1px solid transparent;
             border-radius: 16px;
+            background-color: var(--emp-fill);
+            background-image: var(--emp-fill-grad), var(--emp-rim);
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
             box-shadow: var(--emp-shadow);
-            backdrop-filter: blur(26px) saturate(160%);
-            -webkit-backdrop-filter: blur(26px) saturate(160%);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
         }
         #page-mitarbeiter.liquid-employee .emp-list-panel,
         #page-mitarbeiter.liquid-employee .liquid-employee-list {
@@ -2541,10 +2577,11 @@
         }
         #page-mitarbeiter.liquid-employee .emp-list-item.active,
         #page-mitarbeiter.liquid-employee .liquid-employee-row-active {
-            background: rgba(219,234,254,.68);
-            border-left: 1px solid rgba(147,197,253,.70);
-            border-color: rgba(147,197,253,.58);
-            box-shadow: 0 8px 22px rgba(60,55,48,.10), inset 0 1px 0 rgba(255,255,255,.64);
+            /* Kohle-Aktiv statt Hellblau — passt zum Hell-Kohle-Look */
+            background: rgba(63, 63, 63, 0.10);
+            border-left: 3px solid #3f3f3f;
+            border-color: rgba(63, 63, 63, 0.18);
+            box-shadow: 0 6px 16px rgba(60, 55, 48, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.70);
         }
         #page-mitarbeiter.liquid-employee .emp-list-panel .emp-avatar,
         #page-mitarbeiter.liquid-employee .emp-list-nr {
@@ -2575,10 +2612,10 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-header {
             padding: 14px 16px 8px;
-            border-bottom: 1px solid rgba(255,255,255,.48);
-            background: rgba(255,255,255,.26);
-            backdrop-filter: blur(24px) saturate(160%);
-            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            border-bottom: 1px solid rgba(90, 80, 65, 0.10);
+            background: linear-gradient(180deg, rgba(255, 252, 248, 0.92) 0%, rgba(244, 240, 232, 0.88) 100%);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
         }
         #page-mitarbeiter.liquid-employee #empDetailPhoto {
             width: 120px !important;
@@ -3736,6 +3773,49 @@
             padding: 10px 14px 10px;
             min-width: 0;
         }
+        /* Hell: Übersicht-Karten mit Kohle-Tiefe (Rim + Fill-Grad + Lift) */
+        #page-mitarbeiter.liquid-employee .ov-card {
+            border: 1px solid transparent;
+            border-radius: 16px;
+            padding: 12px 16px 12px;
+            background-color: var(--emp-fill);
+            background-image: var(--emp-fill-grad), var(--emp-rim);
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: var(--emp-shadow-lift);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            color: var(--emp-text);
+        }
+        #page-mitarbeiter.liquid-employee .ov-card-h {
+            color: var(--emp-text-strong);
+            letter-spacing: -0.01em;
+        }
+        #page-mitarbeiter.liquid-employee .ov-pfl,
+        #page-mitarbeiter.liquid-employee .ov-fl {
+            color: #8b8b8b;
+        }
+        #page-mitarbeiter.liquid-employee .ov-pfv,
+        #page-mitarbeiter.liquid-employee .ov-fv,
+        #page-mitarbeiter.liquid-employee .ov-vrole {
+            color: #2a2a2a;
+        }
+        #page-mitarbeiter.liquid-employee .ov-softin {
+            background: #ffffff;
+            border: 1px solid rgba(90, 80, 65, 0.18);
+            color: #2a2a2a;
+            box-shadow: inset 0 1px 2px rgba(60, 55, 48, 0.05);
+        }
+        #page-mitarbeiter.liquid-employee .ov-softin:focus {
+            border-color: #3f3f3f;
+            box-shadow: 0 0 0 2px rgba(63, 63, 63, 0.10);
+        }
+        #page-mitarbeiter.liquid-employee .ov-addrsep {
+            border-top-color: rgba(90, 80, 65, 0.12);
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body {
+            background: transparent;
+        }
         .ov-card-h {
             display: flex; align-items: center; justify-content: space-between;
             font-size: 13.5px; font-weight: 760; color: #1a1a1a;
@@ -4365,10 +4445,13 @@
             box-shadow: 0 10px 24px rgba(72,63,53,.10), inset 0 1px 0 rgba(255,255,255,.70) !important;
         }
         #page-mitarbeiter.liquid-employee .emp-tab.active {
-            background: rgba(219,234,254,.68) !important;
-            border-color: rgba(147,197,253,.60) !important;
-            color: #245b92 !important;
-            box-shadow: 0 8px 20px rgba(72,63,53,.10), inset 0 1px 0 rgba(255,255,255,.66) !important;
+            /* Kohle-Pille (Hell) — analog Dark-Tiefe, ohne Hellblau */
+            background: #3f3f3f !important;
+            border-color: #2a2a2a !important;
+            color: #ffffff !important;
+            box-shadow:
+                0 6px 16px rgba(60, 55, 48, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
             text-decoration: none !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-tabs {
