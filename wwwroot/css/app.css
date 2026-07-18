@@ -3461,9 +3461,9 @@
             -webkit-backdrop-filter: none;
         }
         #page-mitarbeiter.liquid-employee #empDetailPhoto {
-            width: 116px !important;
-            height: 116px !important;
-            font-size: 38px !important;
+            width: 112px !important;
+            height: 112px !important;
+            font-size: 36px !important;
         }
         .emp-hbadge {
             font-size: 12px; font-weight: 700; padding: 3px 10px;
