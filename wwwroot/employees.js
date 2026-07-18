@@ -3464,10 +3464,9 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
         if (!groups[type]) return;
         const sectionTitle = typeLabel(type, groups[type].length);
         html += `<div class="emp-section-title" style="margin-top:14px">${sectionTitle}</div>`;
-        // Walter-Vorgabe 28.05.2026: deutlich mehr Abstand zwischen den
-        // Karten — speziell zwischen mehreren Kindern, die je einen eigenen
-        // Zulagen-Block tragen, sonst kleben sie aufeinander.
-        html += `<div style="display:flex;flex-direction:column;gap:14px">`;
+        // Walter 18.07.2026: kompakte Kachel-Raster statt vollbreiter
+        // Listen + leerer Zulagen-Boxen (war unübersichtlich bei mehreren Kindern).
+        html += `<div class="fam-tile-grid">`;
         groups[type].forEach(m => {
             const name = ((m.firstName ?? '') + ' ' + (m.lastName ?? '')).trim() || '–';
             const dob  = m.dateOfBirth ? formatDate(m.dateOfBirth) : '';
@@ -3477,24 +3476,13 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
 
             // Walter-Vorgabe 07.06.2026: Beim EHEPARTNER (nicht bei Kindern!)
             // die Bewilligung + Ablaufdatum als Badge anzeigen, plus einen
-            // Doku-Button für die Ausweis-Kopie. Der Linked-Field-Code
-            // 'spouse_permit' kann in der Dokument-Struktur als eigener Typ
-            // gepflegt werden — analog 'permit' beim MA selbst.
+            // Doku-Button für die Ausweis-Kopie.
             let spousePermitBadge = '';
-            // Walter-Vorgabe 07.06.2026: Doku-Button beim Ehepartner-Eintrag.
-            // Robuste Variante: keine linked_field_code-Magie — Klick springt
-            // einfach in den Dokumente-Tab des MA, wo Walter die Ablage
-            // sieht und neue Dokumente hochladen kann.
             let spouseDocBtn = '';
             if (type === 'Ehepartner') {
-                // Walter-Vorgabe 07.06.2026: vollen Bewilligungs-Text anzeigen
-                // statt „Typ 7" — Code + Description aus PermitType.
                 const pCode = m.permitType?.code || null;
                 const pDesc = m.permitType?.description || null;
                 const pExp  = m.permitExpiryDate ? formatDate(m.permitExpiryDate) : null;
-                // Walter-Vorgabe 07.06.2026: Wenn der Ehepartner CH-Bürger ist
-                // (Nationalität=CH UND kein Permit erfasst), klare „CH-Bürger"-
-                // Anzeige statt verwirrendem „ohne Bewilligung".
                 const natCode = (m.nationalityCode || '').toUpperCase();
                 const isCh = natCode === 'CH';
                 if (pCode || pDesc || pExp) {
@@ -3506,36 +3494,22 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                     const label = nameLabel
                         ? (pExp ? `${nameLabel} bis ${pExp}` : nameLabel)
                         : `bis ${pExp}`;
-                    spousePermitBadge = `<span title="Bewilligung Ehepartner" style="font-size:11.5px;font-weight:600;color:#fff;background:#7c3aed;border:1px solid #6d28d9;padding:3px 10px;border-radius:5px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px">📋 ${label}</span>`;
+                    spousePermitBadge = `<span class="fam-tile-badge fam-tile-badge-permit" title="Bewilligung Ehepartner">📋 ${label}</span>`;
                 } else if (isCh) {
-                    spousePermitBadge = `<span title="CH-Bürger — keine Bewilligung nötig" style="font-size:11.5px;font-weight:600;color:#fff;background:#16a34a;border:1px solid #15803d;padding:3px 10px;border-radius:5px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px">🇨🇭 CH-Bürger</span>`;
+                    spousePermitBadge = `<span class="fam-tile-badge fam-tile-badge-ch" title="CH-Bürger — keine Bewilligung nötig">🇨🇭 CH-Bürger</span>`;
                 } else {
-                    spousePermitBadge = `<span title="Keine Bewilligung erfasst" style="font-size:11.5px;font-weight:600;color:#fff;background:#ea580c;border:1px solid #c2410c;padding:3px 10px;border-radius:5px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px">⚠ Keine Bewilligung</span>`;
+                    spousePermitBadge = `<span class="fam-tile-badge fam-tile-badge-warn" title="Keine Bewilligung erfasst">⚠ Keine Bewilligung</span>`;
                 }
-                // Walter-Vorgabe 13.06.2026: Doku-Button öffnet jetzt das
-                // gleiche Auswahl+Upload-Modal wie für ID/Pass/C-Ausweis am MA.
-                // Wenn DokumentId verknüpft → grüner „📄 Doku verknüpft"-Style
-                // mit Klick auf Vorschau-Panel. Sonst grauer „📎 Verknüpfen".
                 const hasSpouseDok = !!m.dokumentId;
                 if (hasSpouseDok) {
-                    spouseDocBtn = `<button onclick="event.stopPropagation();qstOpenBefreiungsDok(${employeeId}, ${m.dokumentId})"
-                        title="Verknüpftes Beleg-Dokument im Vorschau-Panel öffnen"
-                        style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:3px 9px;cursor:pointer;color:#15803d;display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;line-height:1">📄 Doku verknüpft</button>
-                        <button onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})"
-                        title="Anderes Dokument verknüpfen / hochladen"
-                        style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:3px 8px;cursor:pointer;color:#64748b;font-size:11.5px;font-weight:600;line-height:1">↻</button>
-                        <button onclick="event.stopPropagation();spouseDokuUnlink(${employeeId}, ${m.id})"
-                        title="Verknüpfung lösen (falsches Dokument hinterlegt)"
-                        style="background:#fff;border:1px solid #fecaca;border-radius:6px;padding:3px 8px;cursor:pointer;color:#b91c1c;font-size:11.5px;font-weight:600;line-height:1">✕</button>`;
+                    spouseDocBtn = `<button class="fam-tile-doc fam-tile-doc-ok" onclick="event.stopPropagation();qstOpenBefreiungsDok(${employeeId}, ${m.dokumentId})" title="Verknüpftes Beleg-Dokument öffnen">📄 Doku</button>
+                        <button class="fam-tile-doc" onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})" title="Anderes Dokument verknüpfen">↻</button>
+                        <button class="fam-tile-doc fam-tile-doc-danger" onclick="event.stopPropagation();spouseDokuUnlink(${employeeId}, ${m.id})" title="Verknüpfung lösen">✕</button>`;
                 } else {
-                    spouseDocBtn = `<button onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})"
-                        title="Beleg-Dokument verknüpfen"
-                        style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#475569;display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;line-height:1">📎 Doku verknüpfen</button>`;
+                    spouseDocBtn = `<button class="fam-tile-doc" onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})" title="Beleg-Dokument verknüpfen">📎 Doku</button>`;
                 }
             }
 
-            // Adress-Badge: erscheint nur wenn das Familienmitglied eine
-            // abweichende Adresse aus den Zusatzadressen des MA hat.
             let addrBadge = '';
             if (m.alternativeAddress) {
                 const a = m.alternativeAddress;
@@ -3543,97 +3517,58 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 const land = a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : '';
                 const tip  = [a.description, [a.street, a.street2].filter(Boolean).join(' / '), ort, land].filter(Boolean).join(' · ');
                 const short = ort || a.description || a.country || 'andere Adresse';
-                addrBadge = `<span title="${esc(tip)}" style="font-size:11px;color:#6b6152;background:#efece5;padding:2px 8px;border-radius:3px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px">📍 ${esc(short)}</span>`;
+                addrBadge = `<span class="fam-tile-badge fam-tile-badge-addr" title="${esc(tip)}">📍 ${esc(short)}</span>`;
             }
 
-            // Walter-Vorgabe 27.05.2026: Familie-Tab im MA-Maske-Stil.
-            // Jedes Familienmitglied = EIN grauer Card-Container (slate-200,
-            // border-radius 4px wie .emp-field-grid). Innen: weisse Name-Box
-            // wie .emp-field-value, kein 8px-Rounding mehr.
-            // Walter-Vorgabe 27.05.2026 (zusätzlich): KEIN Typ-Badge vor dem
-            // Namen — der Section-Titel oben sagt schon „Ehepartner"/„Kinder",
-            // doppelte Beschriftung ist redundant. typeBadge bleibt im Code,
-            // wird aber im Header nicht mehr gerendert.
-            // Klick auf den Header öffnet das Edit-Modal.
             const memberJson = JSON.stringify(m).replace(/"/g, '&quot;');
-            const headerRow = `
-            <div class="emp-fam-headrow" onclick="openFamilyModal(${memberJson})"
-                 style="display:flex;align-items:center;gap:10px;padding:5px 10px;border:1px solid #e2ddd3;border-radius:9px;background:#fff;cursor:pointer;transition:border-color .12s,box-shadow .12s;box-shadow:0 1px 2px rgba(15,23,42,0.08)"
-                 onmouseover="this.style.borderColor='#1a1a1a';this.style.boxShadow='0 2px 4px rgba(60,55,48,0.15)'" onmouseout="this.style.borderColor='#94a3b8';this.style.boxShadow='0 1px 2px rgba(15,23,42,0.08)'">
-                <span style="font-weight:600;color:#0f172a;flex:1;font-size:13.5px">${esc(name)}</span>
-                ${spousePermitBadge}
-                ${spouseDocBtn}
-                ${addrBadge}
-                <span style="font-size:12.5px;color:#64748b;white-space:nowrap">${meta}</span>
-                <div class="dok-menu-wrap" onclick="event.stopPropagation()">
-                    <button class="dok-menu-btn" onclick="famToggleMenu(event, ${m.id})" title="Aktionen">⋮</button>
-                    <div class="dok-menu" id="famMenu-${m.id}">
-                        <button class="dok-menu-item" onclick="openFamilyModal(${memberJson})">Bearbeiten</button>
-                        <button class="dok-menu-item danger" onclick="deleteFamilyMember(${m.id})">Löschen</button>
-                    </div>
-                </div>
-            </div>`;
 
-            // Bei Kindern: Inline-Zulagen-Liste darunter (Walter-Vorgabe 18.05.2026).
-            // Walter-Vorgabe 27.05.2026: Zulagen-Block + Header-Zeile in EINEM
-            // grauen Card-Container (emp-field-grid-Look) — wie die
-            // MA-Maske, statt zwei getrennten Cards.
+            // Kinder: Zulagen kompakt — KEINE leere gestrichelte Box mehr.
+            // Ohne Zulagen nur „+ Zulage"; mit Zulagen eine Chip-Zeile + Detail.
             let kindAllowancesBlock = '';
             if (type === 'Kind') {
                 const allowances = allowanceMap[m.id] || [];
-                const allowanceRows = allowances.length === 0
-                    ? `<div class="emp-fam-allow-empty" style="padding:8px 10px;color:#94a3b8;font-style:italic;font-size:12px;background:#fff;border:1px dashed #cbd5e1;border-radius:4px">Noch keine Zulagen erfasst.</div>`
-                    : allowances.map(a => {
-                        const artLabel = a.allowanceType
-                            ? `${a.allowanceType}${(_ALLOWANCE_TYPE_LABEL && _ALLOWANCE_TYPE_LABEL[a.allowanceType]) ? ' — ' + _ALLOWANCE_TYPE_LABEL[a.allowanceType] : ''}`
-                            : '–';
-                        const bisStr = a.validTo ? formatDate(a.validTo) : '<span style="color:#16a34a;font-weight:600">offen</span>';
+                if (allowances.length === 0) {
+                    kindAllowancesBlock = `
+                    <div class="fam-tile-foot" onclick="event.stopPropagation()">
+                        <button type="button" class="fam-tile-zulage-btn" onclick="openAllowanceFromCard(${m.id}, null)">+ Zulage</button>
+                    </div>`;
+                } else {
+                    const chips = allowances.map(a => {
+                        const artShort = a.allowanceType || 'Zulage';
+                        const bisShort = a.validTo ? formatDate(a.validTo) : 'offen';
                         const locked = a.inLohnVerwendet === true;
-                        const editBtn = locked
-                            ? `<span title="Zulage in Lohn verwendet — nicht editierbar" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:3px 10px;border-radius:3px;cursor:help">🔒 In Lohn verwendet</span>`
-                            : `<div class="dok-menu-wrap" onclick="event.stopPropagation()">
-                                  <button class="dok-menu-btn" onclick="allowToggleMenu(event, ${a.id})" title="Aktionen">⋮</button>
-                                  <div class="dok-menu" id="allowMenu-${a.id}">
-                                      <button class="dok-menu-item" onclick="openAllowanceFromCard(${m.id}, ${JSON.stringify(a).replace(/"/g, '&quot;')})">Bearbeiten</button>
-                                  </div>
-                               </div>`;
-                        return `
-                        <div style="display:grid;grid-template-columns:repeat(4,1fr) auto;gap:7px 10px;align-items:end;padding:7px 0">
-                            <div class="emp-field">
-                                <div class="emp-field-label">Von</div>
-                                <div class="emp-field-value">${formatDate(a.validFrom)}</div>
-                            </div>
-                            <div class="emp-field">
-                                <div class="emp-field-label">Bis</div>
-                                <div class="emp-field-value">${bisStr}</div>
-                            </div>
-                            <div class="emp-field">
-                                <div class="emp-field-label">CHF / Monat <span style="font-weight:400;color:#94a3b8;text-transform:none">aktuell</span></div>
-                                <div class="emp-field-value" style="font-family:ui-monospace,Menlo,Consolas,monospace" title="Live aus dem aktuell gültigen FAK-Tarif berechnet">${Number(a.monthlyAmount).toFixed(2)}</div>
-                            </div>
-                            <div class="emp-field">
-                                <div class="emp-field-label">Art</div>
-                                <div class="emp-field-value">${artLabel}</div>
-                            </div>
-                            <div style="display:flex;align-items:center;justify-content:flex-end;height:27px">${editBtn}</div>
-                        </div>`;
-                    }).join('<div style="border-top:1px dashed #cbd5e1;margin:0"></div>');
-                kindAllowancesBlock = `
-                <div style="margin-top:4px">
-                  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 2px 4px">
-                    <span style="font-size:10.5px;font-weight:800;color:#526071;letter-spacing:.08em;text-transform:uppercase">Zulagen</span>
-                    <button class="btn-emp-add" onclick="openAllowanceFromCard(${m.id}, null)" style="padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer">+ Zulage</button>
-                  </div>
-                  ${allowanceRows}
-                </div>`;
+                        const aJson = JSON.stringify(a).replace(/"/g, '&quot;');
+                        return `<button type="button" class="fam-tile-chip${locked ? ' is-locked' : ''}"
+                            title="${esc(artShort)} · CHF ${Number(a.monthlyAmount).toFixed(2)} · bis ${bisShort}${locked ? ' · in Lohn verwendet' : ''}"
+                            onclick="event.stopPropagation();openAllowanceFromCard(${m.id}, ${aJson})">
+                            ${locked ? '🔒 ' : ''}${esc(artShort)} · ${Number(a.monthlyAmount).toFixed(0)}
+                        </button>`;
+                    }).join('');
+                    kindAllowancesBlock = `
+                    <div class="fam-tile-foot" onclick="event.stopPropagation()">
+                        <div class="fam-tile-chips">${chips}</div>
+                        <button type="button" class="fam-tile-zulage-btn" onclick="openAllowanceFromCard(${m.id}, null)">+</button>
+                    </div>`;
+                }
             }
 
-            // Walter-Vorgabe 27.05.2026: Mitglieder-Block als grauer Container
-            // (slate-200, kaum gerundete Ecken, wie .emp-field-grid). Bei
-            // Kindern enthält der Container Header + Zulagen-Block; bei
-            // anderen Typen nur den Header.
-            html += `<div style="background:transparent;border:0;border-radius:0;padding:6px 2px 10px">
-                ${headerRow}
+            const tileWide = type === 'Ehepartner' ? ' fam-tile-wide' : '';
+            html += `
+            <div class="fam-tile${tileWide}" onclick="openFamilyModal(${memberJson})">
+                <div class="fam-tile-top">
+                    <div class="fam-tile-name">${esc(name)}</div>
+                    <div class="dok-menu-wrap" onclick="event.stopPropagation()">
+                        <button class="dok-menu-btn" onclick="famToggleMenu(event, ${m.id})" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="famMenu-${m.id}">
+                            <button class="dok-menu-item" onclick="openFamilyModal(${memberJson})">Bearbeiten</button>
+                            <button class="dok-menu-item danger" onclick="deleteFamilyMember(${m.id})">Löschen</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="fam-tile-meta">${meta || '–'}</div>
+                ${(spousePermitBadge || spouseDocBtn || addrBadge)
+                    ? `<div class="fam-tile-badges" onclick="event.stopPropagation()">${spousePermitBadge}${spouseDocBtn}${addrBadge}</div>`
+                    : ''}
                 ${kindAllowancesBlock}
             </div>`;
         });
