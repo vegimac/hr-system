@@ -8112,9 +8112,38 @@ function stempelChangePeriod() {
 // Date-Objekt — das vermeidet jede Browser-TZ-Interpretation.
 const stempelPad2    = (n) => String(n).padStart(2, '0');
 const stempelFmtTime = (iso) => {
-    if (!iso) return '';
-    const m = /T(\d{2}):(\d{2})/.exec(iso);
-    return m ? `${m[1]}:${m[2]}` : '';
+    if (iso == null || iso === '') return '';
+    const s = String(iso);
+    // ISO: 2026-07-12T16:05:00(.fff)(Z|+02:00)
+    let m = /T(\d{2}):(\d{2})/.exec(s);
+    if (m) return `${m[1]}:${m[2]}`;
+    // Space-Variante: 2026-07-12 16:05:00
+    m = /^\d{4}-\d{2}-\d{2}[ ](\d{2}):(\d{2})/.exec(s);
+    if (m) return `${m[1]}:${m[2]}`;
+    // Nur Zeit: 16:05[:00]
+    m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(s.trim());
+    if (m) return `${stempelPad2(m[1])}:${m[2]}`;
+    return '';
+};
+// Original-Zeiten aus easy@work-Audit-Text (wie Backend ParseEditedTimesFromComments).
+// "Ein vom 17 Januar 07:38 bis zum 17 Jan 07:15 geändert" → 07:38
+const stempelParseOrigFromText = (text) => {
+    if (!text) return { in: '', out: '' };
+    const inM  = /Ein\s+vom\s+.+?(\d{1,2}):(\d{2})\s+bis\s+zum/i.exec(text);
+    const outM = /Aus\s+vom\s+.+?(\d{1,2}):(\d{2})\s+bis\s+zum/i.exec(text);
+    const fmt = (m) => m ? `${stempelPad2(m[1])}:${m[2]}` : '';
+    return { in: fmt(inM), out: fmt(outM) };
+};
+const stempelOriginalTimes = (r) => {
+    let tin  = stempelFmtTime(r.originalTimeIn  ?? r.OriginalTimeIn);
+    let tout = stempelFmtTime(r.originalTimeOut ?? r.OriginalTimeOut);
+    if (!tin || !tout) {
+        const fromText = stempelParseOrigFromText(
+            [r.comment, r.originalComment, r.OriginalComment].filter(Boolean).join('\n'));
+        if (!tin)  tin  = fromText.in;
+        if (!tout) tout = fromText.out;
+    }
+    return { in: tin, out: tout };
 };
 const stempelFmtDate = (iso) => {
     if (!iso) return '';
@@ -8421,13 +8450,17 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
 
         if (!wasEdited) return mainRow;
 
-        // Original-Zeile direkt darunter (Pfeil ↳ zur Korrektur)
+        // Original-Zeile direkt darunter (Pfeil ↳ zur Korrektur).
+        // Zeiten aus DB-Feldern, Fallback Audit-Text im Kommentar.
+        const orig = stempelOriginalTimes(r);
+        const origInShow  = orig.in  || '—';
+        const origOutShow = orig.out || '—';
         const origRow = `
             <tr class="stempel-orig-row${isLastOfWeek ? ' stempel-row-week-end' : ''}">
                 <td class="stempel-td stempel-orig-label">↳ Original</td>
-                <td class="stempel-td stempel-td-time">${stempelFmtTime(r.originalTimeIn)}</td>
-                <td class="stempel-td stempel-td-time">${stempelFmtTime(r.originalTimeOut)}</td>
-                <td colspan="3"></td>
+                <td class="stempel-td stempel-td-time stempel-orig-time">${origInShow}</td>
+                <td class="stempel-td stempel-td-time stempel-orig-time">${origOutShow}</td>
+                <td class="stempel-td stempel-orig-spacer" colspan="3"></td>
                 <td class="stempel-td stempel-orig-comment">${esc(r.originalComment || '')}</td>
             </tr>`;
 

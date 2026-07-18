@@ -914,12 +914,25 @@ public class EasyAtWorkTimepunchSyncService
             decimal duration = Math.Round(total - night, 2);
             var businessDate = p.BusinessDate ?? DateOnly.FromDateTime(inLocal);
             var (origIn, origOut) = ParseEditedTimesFromComments(businessDate, p.Comments);
+            // Fallback wie in der Preview: wenn Audit-Text keine Original-Zeit
+            // liefert, created_at als Näherung für Original-IN (nur bei echtem Edit).
+            if (!origIn.HasValue && p.IsEdited && p.CreatedAt.HasValue
+                && Math.Abs((p.CreatedAt.Value - p.In.Value).TotalMinutes) >= 1)
+            {
+                origIn = UtcToSwissLocal(p.CreatedAt.Value);
+            }
             var editorName = p.IsEdited ? ExtractEditorName(p, eawEmpById, coworkNameByEawId) : null;
             var editorTime = p.IsEdited ? ExtractEditorTime(p) : (DateTime?)null;
 
             // b) Bekannte easy@work-ID → UPDATE (nur bei ECHTER Änderung).
             if (existing != null)
             {
+                // Original-Zeiten NIE mit null überschreiben (Walter 18.07.2026):
+                // ein späterer Sync ohne parsebaren Audit-Text hat sonst die
+                // bereits gespeicherten Original-Zeiten gelöscht → UI «↳ Original» leer.
+                var keepOrigIn  = origIn  ?? existing.OriginalTimeIn;
+                var keepOrigOut = origOut ?? existing.OriginalTimeOut;
+
                 // ECHTE Änderung erkennen (vor dem Überschreiben), um identische
                 // Neuschreibungen NICHT ins Detail-Log zu nehmen (Variante A).
                 bool realChange = existing.TotalHours != total
@@ -936,8 +949,8 @@ public class EasyAtWorkTimepunchSyncService
                                || existing.DurationHours != duration
                                || existing.EditedBy   != editorName
                                || existing.EditedAt   != editorTime
-                               || existing.OriginalTimeIn  != origIn
-                               || existing.OriginalTimeOut != origOut
+                               || existing.OriginalTimeIn  != keepOrigIn
+                               || existing.OriginalTimeOut != keepOrigOut
                                || existing.EasyAtWorkCustomerId   != mapping.EasyAtWorkCustomerId
                                || existing.SourceCompanyProfileId != mapping.CompanyProfileId;
                 if (!realChange && !metaChange) { res.Unchanged++; continue; }
@@ -952,11 +965,11 @@ public class EasyAtWorkTimepunchSyncService
                 existing.TotalHours    = total;
                 existing.NightHours    = night;
                 existing.DurationHours = duration;
-                existing.UpdatedAt     = DateTime.UtcNow;
+                existing.UpdatedAt     = DateTime.Now;
                 existing.EditedBy      = editorName;
                 existing.EditedAt      = editorTime;
-                existing.OriginalTimeIn  = origIn;
-                existing.OriginalTimeOut = origOut;
+                existing.OriginalTimeIn  = keepOrigIn;
+                existing.OriginalTimeOut = keepOrigOut;
                 existing.EasyAtWorkCustomerId   = mapping.EasyAtWorkCustomerId;
                 existing.SourceCompanyProfileId = mapping.CompanyProfileId;
                 res.Updated++;
