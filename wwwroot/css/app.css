@@ -13,56 +13,60 @@
             height: 100vh; overflow: hidden;
         }
 
-        /* ── DARK MODE — finaler Stand (Walter 18.07.2026) ──
-           Verlaufs-Rahmen JA, Milch/Nebel NEIN: opake Kartenflächen,
-           klarer Text, dezente Blooms, Eisblau-Rim ohne Glow-Nebel. */
+        /* ── DARK MODE — Mittelweg (Walter 18.07.2026) ──
+           Zwischen Milch und Flach: opake Karten (Text klar) +
+           deutlich sichtbarer Eisblau-Verlaufsrahmen + leichte Tiefe.
+           Kein Backdrop-Blur (= Milch), kein totes Einfarb-Navy (= flach). */
         body.theme-dark {
             --dlg-bg:
-                radial-gradient(ellipse 70% 48% at 82% -6%, rgba(70, 150, 230, 0.14) 0%, transparent 58%),
-                radial-gradient(ellipse 55% 42% at 8% 108%, rgba(40, 100, 180, 0.10) 0%, transparent 56%),
-                linear-gradient(155deg, #0a1220 0%, #121e34 48%, #0b1526 100%);
-            --dlg-glass:        #14233a;
-            --dlg-glass-strong: #172840;
-            --dlg-glass-field:  #0e1a2e;
-            --dlg-glass-border: rgba(145, 200, 255, 0.36);
-            --dlg-glass-inner:  rgba(190, 220, 255, 0.12);
-            /* Opak genug, dass Werte nicht im Nebel verschwinden */
-            --dlg-fill:         #14233a;
-            --dlg-fill-strong:  #172840;
-            --dlg-fill-field:   #0e1a2e;
-            /* Karten-Rand: klarer Verlauf — Definition ohne Milch */
+                radial-gradient(ellipse 72% 50% at 80% -4%, rgba(75, 155, 235, 0.18) 0%, transparent 58%),
+                radial-gradient(ellipse 56% 44% at 10% 106%, rgba(45, 110, 190, 0.12) 0%, transparent 56%),
+                linear-gradient(155deg, #09111e 0%, #132036 48%, #0b1526 100%);
+            --dlg-glass:        #16283f;
+            --dlg-glass-strong: #1a2e48;
+            --dlg-glass-field:  #0f1c30;
+            --dlg-glass-border: rgba(155, 210, 255, 0.42);
+            --dlg-glass-inner:  rgba(200, 230, 255, 0.16);
+            /* Opak — aber mit leichtem Innen-Verlauf für Volumen */
+            --dlg-fill:         #16283f;
+            --dlg-fill-strong:  #1a2e48;
+            --dlg-fill-field:   #0f1c30;
+            --dlg-fill-grad:    linear-gradient(165deg, #1c334f 0%, #15263d 55%, #122038 100%);
+            /* Rim klar sichtbar (Mittelweg) */
             --dlg-rim:
                 linear-gradient(135deg,
-                    rgba(210, 235, 255, 0.78) 0%,
-                    rgba(80, 140, 210, 0.26) 48%,
-                    rgba(155, 210, 255, 0.58) 100%);
+                    rgba(230, 245, 255, 0.92) 0%,
+                    rgba(95, 155, 225, 0.34) 42%,
+                    rgba(55, 110, 180, 0.22) 68%,
+                    rgba(170, 220, 255, 0.72) 100%);
             --dlg-rim-soft:
                 linear-gradient(135deg,
-                    rgba(175, 215, 255, 0.42) 0%,
-                    rgba(70, 125, 195, 0.16) 100%);
+                    rgba(195, 225, 255, 0.55) 0%,
+                    rgba(75, 135, 205, 0.20) 100%);
             --dlg-rim-hot:
                 linear-gradient(135deg,
-                    rgba(225, 242, 255, 0.88) 0%,
-                    rgba(100, 170, 240, 0.38) 50%,
-                    rgba(165, 220, 255, 0.64) 100%);
-            /* Tiefe ohne blauen Nebel-Glow */
+                    rgba(235, 248, 255, 0.95) 0%,
+                    rgba(120, 185, 250, 0.48) 50%,
+                    rgba(175, 225, 255, 0.78) 100%);
+            /* Rand-Hauch + Schatten — Tiefe ohne Nebel */
             --dlg-shadow:
-                0 0 0 1px rgba(130, 185, 245, 0.12),
-                0 14px 32px rgba(0, 6, 18, 0.42),
-                inset 0 1px 0 rgba(210, 235, 255, 0.16);
+                0 0 0 1px rgba(155, 210, 255, 0.22),
+                0 0 14px rgba(70, 145, 230, 0.14),
+                0 12px 28px rgba(0, 6, 18, 0.44),
+                inset 0 1px 0 rgba(225, 242, 255, 0.22);
             --dlg-text-strong:  #ffffff;
-            --dlg-text:         #e6eef8;
-            --dlg-text-soft:    #a8bdd4;
-            --dlg-text-muted:   #8a9fb8;
-            --dlg-active:       rgba(45, 100, 175, 0.48);
+            --dlg-text:         #e8f0fa;
+            --dlg-text-soft:    #a9bfd8;
+            --dlg-text-muted:   #8ba1ba;
+            --dlg-active:       rgba(45, 105, 180, 0.50);
             --dlg-active-text:  #ffffff;
-            --dlg-active-border: rgba(145, 200, 255, 0.48);
+            --dlg-active-border: rgba(155, 210, 255, 0.52);
 
             background: var(--dlg-bg);
             background-attachment: fixed;
             color: var(--dlg-text);
         }
-        /* Karten: opake Fläche + Verlaufs-Rahmen — kein Backdrop-Blur (Milch) */
+        /* Karten: opaker Innen-Verlauf + klarer Rim — kein Blur */
         body.theme-dark .dlg-rim,
         body.theme-dark .card,
         body.theme-dark .emp-detail-panel,
@@ -88,7 +92,7 @@
         body.theme-dark .modal-content {
             border: 1px solid transparent !important;
             background-color: var(--dlg-fill) !important;
-            background-image: linear-gradient(var(--dlg-fill), var(--dlg-fill)), var(--dlg-rim) !important;
+            background-image: var(--dlg-fill-grad), var(--dlg-rim) !important;
             background-origin: padding-box, border-box !important;
             background-clip: padding-box, border-box !important;
             box-shadow: var(--dlg-shadow) !important;
@@ -3119,7 +3123,7 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-detail {
             border: 1px solid transparent !important;
             background-color: var(--dlg-fill) !important;
-            background-image: linear-gradient(var(--dlg-fill), var(--dlg-fill)), var(--dlg-rim) !important;
+            background-image: var(--dlg-fill-grad), var(--dlg-rim) !important;
             background-origin: padding-box, border-box !important;
             background-clip: padding-box, border-box !important;
             color: var(--emp-text) !important;
@@ -5270,13 +5274,13 @@
             margin: 16px 0 8px !important;
             padding: 0 !important;
         }
-        /* Sektions-Karten wie .ov-card: opak + Verlaufs-Rim */
+        /* Sektions-Karten wie .ov-card: Innen-Verlauf + klarer Rim */
         body.theme-dark #familyModal .emp-field-grid,
         body.theme-dark #familyModal .emp-field-grid-3,
         body.theme-dark #familyModal .fmf-addr-card {
             border: 1px solid transparent !important;
             background-color: var(--dlg-fill) !important;
-            background-image: linear-gradient(var(--dlg-fill), var(--dlg-fill)), var(--dlg-rim) !important;
+            background-image: var(--dlg-fill-grad), var(--dlg-rim) !important;
             background-origin: padding-box, border-box !important;
             background-clip: padding-box, border-box !important;
             box-shadow: var(--dlg-shadow) !important;

@@ -98,22 +98,22 @@ Nicht alles auf einmal ersetzen. Reihenfolge:
 4. Cards, Tabellen und Statusleisten in Detailseiten schrittweise konsolidieren
 5. Dark Mode separat definieren, nicht automatisch vom hellen Liquid-Glass-Look ableiten
 
-### 8.5 Dark Liquid Glass (Walter 18.07.2026, final)
+### 8.5 Dark Liquid Glass (Walter 18.07.2026, Mittelweg)
 
-**Verlaufs-Rahmen JA, Milch/Nebel NEIN.** Opake Kartenflächen, klarer Text,
-Eisblau-Rim ohne Backdrop-Blur.
+**Zwischen Milch und Flach:** opake Karten (Text klar) + deutlich sichtbarer
+Eisblau-Verlaufsrahmen + leichte Tiefe. Kein Backdrop-Blur.
 
 | Token | Wert |
 |---|---|
-| Hintergrund | dezente Blooms + `#0a1220 → #121e34 → #0b1526` |
-| Karten-Fill | `--dlg-fill` = `#14233a` (opak) |
-| Rand | `--dlg-rim` = `linear-gradient(135deg, hell-cyan → tief-blau → eisblau)` |
-| Technik | `border: 1px solid transparent` + Fill/Rim (`padding-box` / `border-box`); **kein** `backdrop-filter` auf Karten |
-| Schatten | Tiefe ohne blauen Glow-Nebel |
+| Hintergrund | dezente Blooms + dunkler Navy-Verlauf |
+| Karten-Fill | `--dlg-fill-grad` (opaker Innen-Verlauf für Volumen) |
+| Rand | `--dlg-rim` hell-cyan → tief-blau → eisblau (klar sichtbar) |
+| Technik | Fill-Grad + Rim (`padding-box` / `border-box`); **kein** `backdrop-filter` |
+| Schatten | feiner Eisblau-Ring + kurzer Soft-Glow + Drop-Shadow + Top-Inset |
 | Text | Werte `#ffffff`, Labels `--dlg-text-muted` |
 | Primär-Button | Kohle `#3f3f3f` |
 
-Familienmitglied-Modal folgt demselben MA-Übersicht-Standard (`.ov-card`-Look).
+Familienmitglied-Modal = selber MA-Übersicht-Standard.
 
 CSS-Variablen auf `body.theme-dark`: `--dlg-*` in `wwwroot/css/app.css`.
 
