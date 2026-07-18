@@ -62,7 +62,7 @@ public class EmployeePermitHistoryController : ControllerBase
         public string?   DokumentName { get; set; }
         public DateTime CreatedAt { get; set; }
         public int?     CreatedByUserId { get; set; }
-        public bool     IsCurrent { get; set; }   // valid_to NULL und valid_from <= heute
+        public bool     IsCurrent { get; set; }   // heute gültig (from ≤ heute ≤ to/offen)
         public bool     InLohnVerwendet { get; set; }
     }
 
@@ -98,6 +98,44 @@ public class EmployeePermitHistoryController : ControllerBase
         return Ok(ids);
     }
 
+    /// <summary>
+    /// MA-IDs deren massgebende Bewilligung abgelaufen ist (ValidTo &lt; heute).
+    /// Auswahl pro MA wie Dashboard (Walter-Bug 15.07.2026): heute gültige
+    /// gewinnt, sonst spätestes Ende. Frontend-Filter «Bewilligung abgelaufen»
+    /// — die Spalte employee.permit_expiry_date gibt es seit 01.06.2026 nicht mehr
+    /// (Walter-Bug 18.07.2026: Filter fand niemand).
+    /// </summary>
+    [HttpGet("/api/employee-permit-history/employee-ids-with-expired")]
+    public async Task<IActionResult> GetEmployeeIdsWithExpiredPermit()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var histories = await _db.EmployeePermitHistories
+            .AsNoTracking()
+            .Where(h => h.PermitTypeId != null)
+            .Select(h => new { h.Id, h.EmployeeId, h.ValidFrom, h.ValidTo })
+            .ToListAsync();
+
+        var expiredIds = histories
+            .GroupBy(h => h.EmployeeId)
+            .Select(g =>
+            {
+                var pool = g.Where(x => !x.ValidTo.HasValue || x.ValidTo.Value >= x.ValidFrom).ToList();
+                if (pool.Count == 0) pool = g.ToList();
+                return pool
+                    .OrderByDescending(x => (x.ValidFrom <= today
+                        && (!x.ValidTo.HasValue || x.ValidTo.Value >= today)) ? 1 : 0)
+                    .ThenByDescending(x => x.ValidTo ?? DateOnly.MaxValue)
+                    .ThenByDescending(x => x.Id)
+                    .First();
+            })
+            .Where(h => h.ValidTo.HasValue && h.ValidTo.Value < today)
+            .Select(h => h.EmployeeId)
+            .Distinct()
+            .ToList();
+
+        return Ok(expiredIds);
+    }
+
     [HttpGet]
     public async Task<IActionResult> List(int employeeId)
     {
@@ -131,12 +169,15 @@ public class EmployeePermitHistoryController : ControllerBase
             ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
             : null;
 
-        // Walter-Vorgabe 07.06.2026 (final): „neueste" = höchstes ValidTo,
-        // bei Gleichheit ÄLTESTES ValidFrom — der ältere ValidFrom-Eintrag
-        // ist der Original, der jüngere ist meist ein Import-Duplikat.
-        // NULL-ValidTo (Einbürgerung / offener Eintrag) zählt als max(9999-12-31).
-        var max         = new DateOnly(9999, 12, 31);
-        var currentId   = entries
+        // «AKTUELL» = heute gültig (ValidFrom ≤ heute ≤ ValidTo/offen).
+        // Abgelaufene Einträge dürfen die Pille NICHT tragen — sonst steht
+        // z.B. «30.6.2026» + AKTUELL obwohl Dashboard schon «seit N Tagen
+        // abgelaufen» meldet (Walter-Bug 18.07.2026, Monika Tomikj).
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var max   = new DateOnly(9999, 12, 31);
+        var currentId = entries
+            .Where(h => h.ValidFrom <= today
+                     && (!h.ValidTo.HasValue || h.ValidTo.Value >= today))
             .OrderByDescending(h => h.ValidTo ?? max)
             .ThenBy(h => h.ValidFrom)
             .ThenBy(h => h.Id)

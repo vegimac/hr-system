@@ -140,6 +140,7 @@ let _empSpecialFilter = '';
 let _empIdsWithActiveBank   = null;   // MA-IDs mit aktiver Bankverbindung
 let _empIdsWithActiveQst    = null;   // MA-IDs mit aktivem QST-Tarif
 let _empIdsWithPermitHistory = null;  // MA-IDs mit MINDESTENS einem Permit-History-Eintrag
+let _empIdsWithExpiredPermit = null;  // MA-IDs mit abgelaufener massgebender Bewilligung
 
 // Hilfsfunktion: hat der MA aktuell einen gültigen Vertrag?
 // = mindestens ein Employment mit ContractStartDate <= heute und
@@ -211,16 +212,22 @@ const EMP_SPECIAL_FILTERS = {
             return !_empIdsWithPermitHistory || !_empIdsWithPermitHistory.has(Number(e.id));
         }
     },
-    // Bewilligung abgelaufen — PermitExpiryDate liegt in der Vergangenheit.
-    // Walter 18.05.2026: MA hat einen Bewilligungs-Eintrag, der nicht mehr
-    // gültig ist und erneuert werden muss.
+    // Bewilligung abgelaufen (Walter 18.05.2026).
+    // Quelle = Permit-History (employee.permit_expiry_date entfernt 01.06.2026).
+    // Endpoint spiegelt die Dashboard-Auswahl «massgebende Bewilligung».
     'permit-expired': {
-        predicate: (e) => {
-            if (!e.permitExpiryDate) return false;
-            const exp = new Date(e.permitExpiryDate);
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            return exp < today;
-        }
+        prepare: async () => {
+            if (_empIdsWithExpiredPermit !== null) return;
+            try {
+                const r = await fetch('/api/employee-permit-history/employee-ids-with-expired',
+                                       { headers: ah(), cache: 'no-store' });
+                _empIdsWithExpiredPermit = r.ok
+                    ? new Set((await r.json()).map(Number))
+                    : new Set();
+            } catch { _empIdsWithExpiredPermit = new Set(); }
+        },
+        predicate: (e) => _empIdsWithExpiredPermit
+            && _empIdsWithExpiredPermit.has(Number(e.id))
     },
     // Quellensteuerpflichtig — hat per heute einen aktiven QST-Eintrag (Walter 18.05.2026).
     'qst-pflichtig': {
@@ -10491,7 +10498,9 @@ function renderPermitListHtml(entries) {
     }
 
     const isAdmin = (currentUser?.role === 'admin' || currentUser?.role === 'superuser');
-    const cur = list.find(h => h.isCurrent) ?? list.find(h => !h.validTo);
+    // Nur wirklich heute gültige Einträge als «AKTUELL» — kein Fallback auf
+    // den neuesten abgelaufenen (sonst grüne Pille trotz Ablauf).
+    const cur = list.find(h => h.isCurrent) ?? null;
 
     // Überlapp-Erkennung (paarweise) — für oranger Hinweis-Banner.
     const dates = list.map(h => ({
@@ -10515,6 +10524,7 @@ function renderPermitListHtml(entries) {
         return (b.validFrom || '').localeCompare(a.validFrom || '');
     });
 
+    const todayIso = new Date().toISOString().slice(0, 10);
     const rowsHtml = sorted.map(h => {
         const fromTxt   = h.validFrom ? formatDate(h.validFrom) : '–';
         const toTxt     = h.validTo   ? formatDate(h.validTo)   : '<span style="color:#15803d;font-weight:600">offen</span>';
@@ -10522,11 +10532,16 @@ function renderPermitListHtml(entries) {
         const desc      = h.permitDescription ? ' <span style="color:#94a3b8;font-size:11px">— ' + esc(h.permitDescription) + '</span>' : '';
         const noteTxt   = h.note ? `<div style="font-size:11.5px;color:#64748b;margin-top:3px">${esc(h.note)}</div>` : '';
         const isCur     = cur && h.id === cur.id;
+        const isExpired = !!(h.validTo && h.validTo.slice(0, 10) < todayIso);
         const rowStyle  = isCur
             ? 'padding:8px 12px;border:1.5px solid #16a34a;border-radius:6px;background:#f0fdf4;margin-bottom:5px;display:flex;align-items:center;gap:12px'
+            : isExpired
+            ? 'padding:8px 12px;border:1.5px solid #fca5a5;border-radius:6px;background:#fef2f2;margin-bottom:5px;display:flex;align-items:center;gap:12px'
             : 'padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa;margin-bottom:5px;display:flex;align-items:center;gap:12px';
         const aktuellPille = isCur
             ? '<span style="display:inline-block;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle">AKTUELL</span>'
+            : isExpired
+            ? '<span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle">ABGELAUFEN</span>'
             : '';
         // Walter-Vorgabe 14.06.2026: pro Bewilligungs-Eintrag das verknüpfte
         // Doku zeigen (klein, grün wenn vorhanden, rot/„fehlt" wenn nicht).
