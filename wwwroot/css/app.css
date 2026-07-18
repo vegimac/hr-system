@@ -4841,6 +4841,292 @@
             color: var(--dlg-text-soft) !important;
         }
 
+        /* ── Stempelzeiten-Tab: Liquid Glass / Kohle (Walter 18.07.2026) ──
+           Filter sticky + Tabelle als Glas-Karte; Zahlen bleiben tabular/
+           mono für Ausrichtung, aber kein Terminal-Report-Look mehr. */
+        #page-mitarbeiter.liquid-employee .stempel-tab-wrap {
+            padding: 0 14px 18px;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-filter-row,
+        #page-mitarbeiter.liquid-employee #stempelFilterRow.stempel-filter-row {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 12px 4px 12px;
+            margin: 0 -2px;
+            background: rgba(250, 248, 245, 0.92) !important;
+            backdrop-filter: blur(14px) saturate(140%);
+            -webkit-backdrop-filter: blur(14px) saturate(140%);
+            box-shadow:
+                0 -18px 0 18px rgba(250, 248, 245, 0.92),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.10) !important;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-period-sel {
+            border: 1px solid transparent !important;
+            border-radius: 12px !important;
+            font-size: 13px !important;
+            color: #3f3f3f !important;
+            background-color: #fff !important;
+            background-image:
+                linear-gradient(#ffffff, #ffffff),
+                linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(210,200,185,0.45) 40%, rgba(255,255,255,0.88) 100%) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow:
+                0 0 0 1px rgba(90, 80, 65, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+            padding: 7px 10px !important;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-period-year { width: 96px; }
+        #page-mitarbeiter.liquid-employee .stempel-period-month { width: 150px; }
+        #page-mitarbeiter.liquid-employee .stempel-count {
+            font-size: 12.5px;
+            color: #8b8b8b;
+            letter-spacing: 0.01em;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-liste {
+            min-height: 100px;
+            margin-top: 4px;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-loading,
+        #page-mitarbeiter.liquid-employee .stempel-empty {
+            padding: 28px 16px;
+            text-align: center;
+            font-size: 13px;
+            color: #8b8b8b;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-quick-nav {
+            margin-top: 12px;
+            text-align: left;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-table-card {
+            border: 1px solid transparent;
+            border-radius: 16px;
+            overflow: hidden;
+            background-color: var(--emp-fill);
+            background-image: var(--emp-fill-grad), var(--emp-rim);
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: var(--emp-shadow);
+        }
+        #page-mitarbeiter.liquid-employee .stempel-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: transparent;
+            font-size: 12.5px;
+            color: var(--emp-text-strong, #2f2f2f);
+        }
+        #page-mitarbeiter.liquid-employee .stempel-th {
+            padding: 9px 10px;
+            font-size: 10.5px;
+            font-weight: 650;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #646464 !important;
+            background: rgba(90, 80, 65, 0.07) !important;
+            position: sticky;
+            top: var(--stempel-filter-h, 48px);
+            z-index: 15;
+            box-shadow:
+                0 -10px 0 rgba(250, 248, 245, 0.92),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.12) !important;
+            border: none;
+            white-space: nowrap;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-th-left { text-align: left; }
+        #page-mitarbeiter.liquid-employee .stempel-th-right { text-align: right; }
+        #page-mitarbeiter.liquid-employee .stempel-td {
+            padding: 7px 10px;
+            vertical-align: top;
+            border-top: 1px solid rgba(90, 80, 65, 0.07);
+            color: #3f3f3f;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-row:first-child .stempel-td {
+            border-top: none;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-row:hover .stempel-td {
+            background: rgba(63, 63, 63, 0.035);
+        }
+        #page-mitarbeiter.liquid-employee .stempel-row-week-end .stempel-td {
+            border-bottom: 2px solid rgba(90, 80, 65, 0.14);
+        }
+        #page-mitarbeiter.liquid-employee .stempel-td-date {
+            white-space: nowrap;
+            width: 98px;
+            color: #646464;
+            font-variant-numeric: tabular-nums;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-td-time,
+        #page-mitarbeiter.liquid-employee .stempel-td-num {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-variant-numeric: tabular-nums;
+            font-size: 12px;
+            width: 58px;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-td-num { text-align: right; }
+        #page-mitarbeiter.liquid-employee .stempel-td-total {
+            width: 64px;
+            font-weight: 650;
+            color: #2f2f2f;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-night { color: #646464; }
+        #page-mitarbeiter.liquid-employee .stempel-night-zero { color: #b0aaa0; }
+        #page-mitarbeiter.liquid-employee .stempel-td-comment {
+            font-size: 12px;
+            color: #646464;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-kommentar-wrap {
+            display: flex;
+            gap: 22px;
+            align-items: baseline;
+            flex-wrap: wrap;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-week-badge {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 10px;
+            white-space: nowrap;
+            margin-right: 8px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(63, 63, 63, 0.06);
+            box-shadow: inset 0 0 0 1px rgba(90, 80, 65, 0.08);
+            font-size: 11.5px;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-week-kw {
+            font-weight: 500;
+            color: #8b8b8b;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-week-hrs {
+            font-weight: 700;
+            color: #2f2f2f;
+            font-variant-numeric: tabular-nums;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-week-hrs.over {
+            color: #b45309;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-time-edited {
+            color: #b45309 !important;
+            font-weight: 650;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-edit-meta {
+            color: #8b8b8b;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-orig-row .stempel-td {
+            background: rgba(245, 210, 140, 0.22);
+            border-top: 1px dashed rgba(180, 140, 60, 0.35);
+            color: #7c5a1a;
+            font-size: 11px;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-orig-label {
+            padding-left: 22px !important;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-orig-comment {
+            font-style: italic;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-ft {
+            padding: 10px;
+            font-weight: 650;
+            background: rgba(90, 80, 65, 0.07) !important;
+            border-top: 1px solid rgba(90, 80, 65, 0.14);
+            color: #646464;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-ft-label {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-ft-num {
+            text-align: right;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12.5px;
+            font-variant-numeric: tabular-nums;
+        }
+        #page-mitarbeiter.liquid-employee .stempel-ft-total {
+            font-weight: 750;
+            color: #2f2f2f;
+        }
+
+        /* Dark: Stempelzeiten mit dlg-Tokens */
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-filter-row,
+        body.theme-dark #page-mitarbeiter.liquid-employee #stempelFilterRow.stempel-filter-row {
+            background: rgba(30, 42, 58, 0.94) !important;
+            box-shadow:
+                0 -18px 0 18px rgba(30, 42, 58, 0.94),
+                inset 0 -1px 0 var(--dlg-glass-border) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-period-sel {
+            background-color: var(--dlg-fill-field) !important;
+            background-image:
+                linear-gradient(var(--dlg-fill-field), var(--dlg-fill-field)),
+                var(--dlg-rim-soft) !important;
+            color: var(--dlg-text-strong) !important;
+            box-shadow: none !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-count {
+            color: var(--dlg-text-soft);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-loading,
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-empty {
+            color: var(--dlg-text-muted);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-table-card {
+            background-color: var(--dlg-fill) !important;
+            background-image: var(--dlg-fill-grad), var(--dlg-rim) !important;
+            box-shadow: var(--dlg-shadow) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-th {
+            background: rgba(80, 140, 210, 0.10) !important;
+            color: var(--dlg-text-soft) !important;
+            box-shadow:
+                0 -10px 0 rgba(30, 42, 58, 0.94),
+                inset 0 -1px 0 var(--dlg-glass-border) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-td {
+            border-top-color: rgba(165, 215, 255, 0.10);
+            color: var(--dlg-text);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-row:hover .stempel-td {
+            background: rgba(125, 160, 205, 0.10) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-row-week-end .stempel-td {
+            border-bottom-color: rgba(165, 215, 255, 0.18);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-td-date,
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-td-comment {
+            color: var(--dlg-text-soft);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-td-total {
+            color: var(--dlg-text-strong);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-night { color: var(--dlg-text-soft); }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-night-zero { color: var(--dlg-text-muted); }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-week-badge {
+            background: rgba(80, 140, 210, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(165, 215, 255, 0.14);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-week-kw { color: var(--dlg-text-muted); }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-week-hrs { color: var(--dlg-text-strong); }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-week-hrs.over { color: #fbbf24; }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-time-edited { color: #fbbf24 !important; }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-orig-row .stempel-td {
+            background: rgba(120, 80, 20, 0.28) !important;
+            border-top-color: rgba(252, 211, 77, 0.28);
+            color: #fcd34d;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-ft {
+            background: rgba(80, 140, 210, 0.10) !important;
+            border-top-color: var(--dlg-glass-border);
+            color: var(--dlg-text-soft);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-ft-total {
+            color: var(--dlg-text-strong);
+        }
+
         /* Sticky-Kopfzeile für lange Detail-/Tab-Ansichten (Walter-Vorgabe
            15.05.2026): Titel + Aktions-Buttons (Speichern, Übertragen …)
            bleiben beim Scrollen oben sichtbar — nie Buttons, die wegscrollen.

@@ -8045,8 +8045,8 @@ async function loadStempelzeitenTab(employeeId) {
     const monthOpts = MONATSNAMEN_DE.map((n, i) => `
         <option value="${i+1}" ${i+1 === el._stempelMonth ? 'selected' : ''}>${n}</option>`).join('');
     const filterHtml = `
-        <select id="stempelYearSel" class="f-input" style="width:90px;font-size:13px" onchange="stempelChangePeriod()">${yearOpts}</select>
-        <select id="stempelMonthSel" class="f-input" style="width:150px;font-size:13px" onchange="stempelChangePeriod()">${monthOpts}</select>`;
+        <select id="stempelYearSel" class="f-input stempel-period-sel stempel-period-year" onchange="stempelChangePeriod()">${yearOpts}</select>
+        <select id="stempelMonthSel" class="f-input stempel-period-sel stempel-period-month" onchange="stempelChangePeriod()">${monthOpts}</select>`;
 
     // Walter 17.06.2026: nur die Zeiteinträge scrollen — Filter + Tabellen-Header
     // bleiben oben kleben. Realisiert über sticky relativ zum .emp-detail-body
@@ -8057,16 +8057,17 @@ async function loadStempelzeitenTab(employeeId) {
     // 16px-Padding-Bereich darüber durch (transparent → Daten schimmern durch).
     // box-shadow nach OBEN als „weisser Schild" deckt etwaige restliche
     // .emp-detail-body-padding ab.
+    // Look: Liquid Glass / Kohle (Walter 18.07.2026) — Klassen in app.css.
     el.innerHTML = `
-        <div style="padding:0 16px 16px">
+        <div class="stempel-tab-wrap">
             <!-- 1. sticky-Block: Periode-Filter + Count (klebt ganz oben) -->
-            <div id="stempelFilterRow" style="position:sticky;top:0;background:#fff;z-index:20;padding:12px 0 10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 -16px 0 16px #fff, inset 0 -1px 0 #f1f5f9">
+            <div id="stempelFilterRow" class="stempel-filter-row">
                 ${filterHtml}
-                <div id="stempelCount" style="font-size:12px;color:#64748b"></div>
+                <div id="stempelCount" class="stempel-count"></div>
             </div>
             <!-- 2. Liste: Tabelle, <thead> wird drinnen sticky mit top = Höhe von Filter-Row. -->
-            <div id="stempelListe" style="min-height:100px">
-                <div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>
+            <div id="stempelListe" class="stempel-liste">
+                <div class="stempel-loading">Lade…</div>
             </div>
         </div>`;
     // Nach DOM-Render: tatsächliche Höhe der Filter-Row messen und als
@@ -8171,7 +8172,7 @@ async function stempelLadeEintraege(employeeId) {
     const listEl  = document.getElementById('stempelListe');
     const countEl = document.getElementById('stempelCount');
     if (!listEl || !el) return;
-    listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>`;
+    listEl.innerHTML = `<div class="stempel-loading">Lade…</div>`;
 
     // URL bauen. Wir laden IMMER per Datumsbereich — und zwar ERWEITERT um die
     // vollen ISO-Wochen an den Periodenrändern (Mo der ersten Woche bis So der
@@ -8371,106 +8372,103 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
         const wk = stempelWeekMonday(r.entryDate);
         const isLastOfWeek = wk && lastIdOfWeek[wk] === r.id;
 
-        // Wochentotal-Badge: KW schwach/grau, das Total fett (rot wenn über Max).
-        // Etwas nach links gerückt (margin-right), damit es besser lesbar ist.
+        // Wochentotal-Badge: KW schwach, Total fett (über Max → .over).
+        // Look via .stempel-week-* in app.css (Liquid Glass).
         let weekBadge = '';
         if (isLastOfWeek) {
             const wt   = weekSum[wk] || 0;
             const over = maxWeekly != null && wt > maxWeekly + 1e-9;
             const kw   = stempelIsoWeek(r.entryDate);
-            const kwLabel  = `<span style="font-weight:400;color:#94a3b8;margin-right:16px">∑ KW${kw}</span>`;
-            const hrsLabel = `<span style="font-weight:700;${over ? 'color:#dc2626' : 'color:#0f172a'}">${stempelFmtHours(wt)} h${over ? ` ⚠ &gt; ${stempelFmtHours(maxWeekly)}` : ''}</span>`;
-            weekBadge = `<span style="white-space:nowrap;margin-right:28px" title="Wochentotal Mo–So (gestempelt)${maxWeekly != null ? ' · Max ' + stempelFmtHours(maxWeekly) + ' h' : ''}">${kwLabel}${hrsLabel}</span>`;
+            const kwLabel  = `<span class="stempel-week-kw">∑ KW${kw}</span>`;
+            const hrsLabel = `<span class="stempel-week-hrs${over ? ' over' : ''}">${stempelFmtHours(wt)} h${over ? ` ⚠ &gt; ${stempelFmtHours(maxWeekly)}` : ''}</span>`;
+            weekBadge = `<span class="stempel-week-badge" title="Wochentotal Mo–So (gestempelt)${maxWeekly != null ? ' · Max ' + stempelFmtHours(maxWeekly) + ' h' : ''}">${kwLabel}${hrsLabel}</span>`;
         }
 
-        // Korrekturzeile (oben): geänderte Werte in Rot, Kommentar ergänzt um "geändert am X von Y"
-        const timeColor = wasEdited ? 'color:#dc2626;font-weight:600' : '';
+        // Korrekturzeile (oben): geänderte Werte markiert, Kommentar mit Audit.
+        const timeCls = wasEdited ? ' stempel-time-edited' : '';
         const korrekturKommentar = wasEdited
-            ? `${esc(r.comment || '')}${r.comment ? ' · ' : ''}<span style="color:#64748b">geändert ${new Date(r.editedAt).toLocaleDateString('de-CH')} von ${esc(r.editedBy)}</span>`
+            ? `${esc(r.comment || '')}${r.comment ? ' · ' : ''}<span class="stempel-edit-meta">geändert ${new Date(r.editedAt).toLocaleDateString('de-CH')} von ${esc(r.editedBy)}</span>`
             : esc(r.comment);
 
         // Kommentar-Zelle: Kommentar + (optional) Wochentotal direkt dahinter.
         // Walter 17.06.2026: Wochentotal nicht am rechten Rand „pinnen", sondern
-        // mit 28-px-Lücke nach dem Kommentar — wirkt zusammenhängend.
+        // mit Lücke nach dem Kommentar — wirkt zusammenhängend.
         const kommentarCell = weekBadge
-            ? `<div style="display:flex;gap:28px;align-items:baseline;flex-wrap:wrap"><span>${korrekturKommentar}</span>${weekBadge}</div>`
+            ? `<div class="stempel-kommentar-wrap"><span>${korrekturKommentar}</span>${weekBadge}</div>`
             : korrekturKommentar;
 
-        // Wochen-Trennlinie unter dem letzten Eintrag der Woche.
-        const sep = isLastOfWeek && !wasEdited ? ';border-bottom:2px solid #cbd5e1' : '';
+        const nightH = Number(r.nightHours || 0);
+        const rowCls = [
+            'stempel-row',
+            isLastOfWeek ? 'stempel-row-week-end' : '',
+            wasEdited ? 'stempel-row-edited' : '',
+        ].filter(Boolean).join(' ');
 
         // Stempelzeiten sind read-only (Walter-Vorgabe 17.05.2026): keine
         // Edit-/Löschen-Buttons mehr — easy@work ist die Quelle der Wahrheit.
 
-        // Walter 17.06.2026: Spalten kompakter (padding 4→3 horizontal, 4→3 vertikal,
-        // schmaler-Zeitformat) damit die Kommentar-Spalte mehr Platz bekommt.
-        const totalRow = (Number(r.durationHours||0) + Number(r.nightHours||0)).toFixed(2);
+        const totalRow = (Number(r.durationHours||0) + nightH).toFixed(2);
         const mainRow = `
-            <tr style="border-top:1px solid #f1f5f9${sep}" data-row-id="${r.id}">
-                <td style="padding:3px 6px;font-size:12px;color:#475569;vertical-align:top;white-space:nowrap;width:90px">${stempelFmtDate(r.entryDate)}</td>
-                <td style="padding:3px 6px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor};width:55px">${stempelFmtTime(r.timeIn)}</td>
-                <td style="padding:3px 6px;font-size:12px;font-family:monospace;vertical-align:top;${timeColor};width:55px">${stempelFmtTime(r.timeOut)}</td>
-                <td style="padding:3px 6px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;width:55px">${stempelFmtHours(r.durationHours)}</td>
-                <td style="padding:3px 6px;font-size:12px;text-align:right;font-family:monospace;vertical-align:top;color:${Number(r.nightHours||0)>0?'#6b7280':'#94a3b8'};width:55px">${stempelFmtHours(r.nightHours)}</td>
-                <td style="padding:3px 6px;font-size:12px;text-align:right;font-family:monospace;font-weight:600;vertical-align:top;width:60px">${totalRow}</td>
-                <td style="padding:3px 8px;font-size:11.5px;color:#64748b;vertical-align:top">${kommentarCell}</td>
+            <tr class="${rowCls}" data-row-id="${r.id}">
+                <td class="stempel-td stempel-td-date">${stempelFmtDate(r.entryDate)}</td>
+                <td class="stempel-td stempel-td-time${timeCls}">${stempelFmtTime(r.timeIn)}</td>
+                <td class="stempel-td stempel-td-time${timeCls}">${stempelFmtTime(r.timeOut)}</td>
+                <td class="stempel-td stempel-td-num">${stempelFmtHours(r.durationHours)}</td>
+                <td class="stempel-td stempel-td-num ${nightH > 0 ? 'stempel-night' : 'stempel-night-zero'}">${stempelFmtHours(r.nightHours)}</td>
+                <td class="stempel-td stempel-td-num stempel-td-total">${totalRow}</td>
+                <td class="stempel-td stempel-td-comment">${kommentarCell}</td>
             </tr>`;
 
         if (!wasEdited) return mainRow;
 
-        // Original-Zeile direkt darunter, braun hinterlegt (Pfeil ↲ zur Korrektur zeigt)
-        const origSep = isLastOfWeek ? ';border-bottom:2px solid #cbd5e1' : '';
+        // Original-Zeile direkt darunter (Pfeil ↳ zur Korrektur)
         const origRow = `
-            <tr style="background:#fef3c7;border-top:1px dashed #fde68a${origSep}">
-                <td style="padding:3px 8px;font-size:11px;color:#92400e;vertical-align:top;padding-left:20px">↳ Original</td>
-                <td style="padding:3px 8px;font-size:11px;font-family:monospace;color:#92400e;vertical-align:top">${stempelFmtTime(r.originalTimeIn)}</td>
-                <td style="padding:3px 8px;font-size:11px;font-family:monospace;color:#92400e;vertical-align:top">${stempelFmtTime(r.originalTimeOut)}</td>
+            <tr class="stempel-orig-row${isLastOfWeek ? ' stempel-row-week-end' : ''}">
+                <td class="stempel-td stempel-orig-label">↳ Original</td>
+                <td class="stempel-td stempel-td-time">${stempelFmtTime(r.originalTimeIn)}</td>
+                <td class="stempel-td stempel-td-time">${stempelFmtTime(r.originalTimeOut)}</td>
                 <td colspan="3"></td>
-                <td style="padding:3px 8px;font-size:11px;color:#92400e;vertical-align:top;font-style:italic">${esc(r.originalComment || '')}</td>
+                <td class="stempel-td stempel-orig-comment">${esc(r.originalComment || '')}</td>
             </tr>`;
 
         return mainRow + origRow;
     }).join('');
 
     const empty = sorted.length === 0
-        ? `<tr><td colspan="7" style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">
+        ? `<tr><td colspan="7" class="stempel-empty">
             Keine Einträge
-            <div id="stempelQuickNav" style="margin-top:12px;text-align:left"></div>
+            <div id="stempelQuickNav" class="stempel-quick-nav"></div>
         </td></tr>`
         : '';
 
-    // Sticky-Header: klebt UNTER der Filter-Row (deren Höhe in --stempel-filter-h
-    // gespeichert ist). Opaker Hintergrund + box-shadow als Trennlinie damit
-    // beim Scrollen kein Pixel durch die border-collapse-Lücken blitzt.
-    // Sticky-Header klebt UNTER der Filter-Row. „weisser Schild" nach oben
-    // (box-shadow:0 -8px 0 #fff) deckt etwaige Lücken zwischen Filter-Row und
-    // <thead> während des Scrollens ab. inset-shadow unten = visuelle Trennung.
-    const th = 'padding:6px 8px;font-size:11px;color:#64748b;font-weight:600;background:#f8fafc;position:sticky;top:var(--stempel-filter-h,48px);z-index:15;box-shadow:0 -8px 0 #fff, inset 0 -1px 0 #e2e8f0';
-    const ft = 'padding:6px 8px;font-weight:700;background:#f6f3ee;border-top:2px solid #e5e0d6';
+    // Sticky-Header: klebt UNTER der Filter-Row (--stempel-filter-h).
+    // Look + sticky-Schatten in app.css (.stempel-table th).
     listEl.innerHTML = `
-        <table style="width:100%;border-collapse:separate;border-spacing:0;background:#fff">
-            <thead>
-                <tr>
-                    <th style="${th};text-align:left">DATUM</th>
-                    <th style="${th};text-align:left">IN</th>
-                    <th style="${th};text-align:left">OUT</th>
-                    <th style="${th};text-align:right">TAG</th>
-                    <th style="${th};text-align:right">NACHT</th>
-                    <th style="${th};text-align:right">TOTAL</th>
-                    <th style="${th};text-align:left">KOMMENTAR / WOCHE</th>
-                </tr>
-            </thead>
-            <tbody>${trs}${empty}</tbody>
-            ${sorted.length > 0 ? `<tfoot>
-                <tr>
-                    <td colspan="3" style="${ft};font-size:12px;color:#6b7280">Summe</td>
-                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;color:#6b7280">${stempelFmtHours(sumH)}</td>
-                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;color:#6b7280">${stempelFmtHours(sumN)}</td>
-                    <td style="${ft};text-align:right;font-family:monospace;font-size:13px;font-weight:700;color:#6b7280">${stempelFmtHours((sumH||0) + (sumN||0))}</td>
-                    <td style="${ft}"></td>
-                </tr>
-            </tfoot>` : ''}
-        </table>`;
+        <div class="stempel-table-card">
+            <table class="stempel-table">
+                <thead>
+                    <tr>
+                        <th class="stempel-th stempel-th-left">Datum</th>
+                        <th class="stempel-th stempel-th-left">In</th>
+                        <th class="stempel-th stempel-th-left">Out</th>
+                        <th class="stempel-th stempel-th-right">Tag</th>
+                        <th class="stempel-th stempel-th-right">Nacht</th>
+                        <th class="stempel-th stempel-th-right">Total</th>
+                        <th class="stempel-th stempel-th-left">Kommentar / Woche</th>
+                    </tr>
+                </thead>
+                <tbody>${trs}${empty}</tbody>
+                ${sorted.length > 0 ? `<tfoot>
+                    <tr class="stempel-foot-row">
+                        <td colspan="3" class="stempel-ft stempel-ft-label">Summe</td>
+                        <td class="stempel-ft stempel-ft-num">${stempelFmtHours(sumH)}</td>
+                        <td class="stempel-ft stempel-ft-num">${stempelFmtHours(sumN)}</td>
+                        <td class="stempel-ft stempel-ft-num stempel-ft-total">${stempelFmtHours((sumH||0) + (sumN||0))}</td>
+                        <td class="stempel-ft"></td>
+                    </tr>
+                </tfoot>` : ''}
+            </table>
+        </div>`;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
