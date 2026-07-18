@@ -908,14 +908,16 @@ public class AppDbContext : DbContext
             // Herkunft (Walter 21.06.2026): in welchem easy@work-Customer/Filiale gestempelt.
             entity.Property(e => e.EasyAtWorkCustomerId).HasColumnName("easyatwork_customer_id");
             entity.Property(e => e.SourceCompanyProfileId).HasColumnName("source_company_profile_id");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            // created_at/updated_at = Schweizer Lokalzeit (Walter 30.06.2026)
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OriginalTimeIn).HasColumnName("original_time_in").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OriginalTimeOut).HasColumnName("original_time_out").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OriginalComment).HasColumnName("original_comment");
             entity.Property(e => e.EditedBy).HasColumnName("edited_by").HasMaxLength(100);
-            // edited_at ist in der DB „timestamp with time zone" → Npgsql 6+ verlangt
-            // Kind=Utc beim Schreiben. ExtractEditorTime liefert daher UTC zurück.
+            // edited_at ist in der DB noch „timestamp with time zone" → Npgsql 6+
+            // verlangt Kind=Utc. ExtractEditorTime liefert daher UTC zurück.
+            // (Separate Ausnahme — nicht anfassen ohne Spalten-Migration.)
             entity.Property(e => e.EditedAt).HasColumnName("edited_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
         });

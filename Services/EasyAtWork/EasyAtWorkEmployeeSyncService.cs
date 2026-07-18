@@ -40,20 +40,15 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     /// <summary>
-    /// SaveChanges mit Npgsql-Kind-Sanitizer (Walter-Bug 18.07.2026).
-    /// Schweizer Spalten (<c>timestamp without time zone</c>): Kind → Unspecified
-    /// (Wanduhr bleibt). Noch-timestamptz / Npgsql-Default: Local → UTC, sonst kracht
-    /// «Cannot write DateTime with Kind=Local to timestamptz».
+    /// SaveChanges für Schweizer Zeitstempel (Walter-Vorgabe 30.06.2026):
+    /// Spalten sind <c>timestamp without time zone</c>, Werte = <c>DateTime.Now</c>
+    /// (Lokalzeit). Npgsql will dafür Kind=Unspecified — Wanduhr bleibt, KEINE
+    /// UTC-Konvertierung. Bewusst kein Local→UTC-Fallback (das wäre eine
+    /// Abweichung von der System-Zeitzone).
     /// </summary>
     private Task SaveSwissAsync(CancellationToken ct = default)
     {
-        SanitizeDateTimesForNpgsql(_db);
-        return _db.SaveChangesAsync(ct);
-    }
-
-    private static void SanitizeDateTimesForNpgsql(DbContext db)
-    {
-        foreach (var entry in db.ChangeTracker.Entries())
+        foreach (var entry in _db.ChangeTracker.Entries())
         {
             if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
             foreach (var prop in entry.Properties)
@@ -65,13 +60,12 @@ public class EasyAtWorkEmployeeSyncService
                 var isWithoutTz =
                     col.Contains("without time zone", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(col, "timestamp", StringComparison.OrdinalIgnoreCase);
+                if (!isWithoutTz) continue;
 
-                if (isWithoutTz)
-                    prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Unspecified);
-                else if (dt.Kind == DateTimeKind.Local)
-                    prop.CurrentValue = dt.ToUniversalTime();
+                prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Unspecified);
             }
         }
+        return _db.SaveChangesAsync(ct);
     }
 
     // ─────────────────────────── DTOs ───────────────────────────────

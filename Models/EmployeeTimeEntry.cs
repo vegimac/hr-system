@@ -35,8 +35,8 @@ public class EmployeeTimeEntry
     /// <summary>Herkunftsfiliale als Cowork-CompanyProfile (optional, sofern auflösbar).</summary>
     public int? SourceCompanyProfileId { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
     // Audit-Felder: werden beim ersten Bearbeiten gesetzt
     public DateTime? OriginalTimeIn  { get; set; }

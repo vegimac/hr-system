@@ -438,36 +438,30 @@ using (var scope = app.Services.CreateScope())
         END $$;
     ");
 
-    // Walter-Vorgabe 30.06.2026 / Bug 18.07.2026: Alias-created_at waren
-    // timestamptz, Sync schreibt Schweizer Lokalzeit (DateTime.Now) → Npgsql
-    // «Cannot write DateTime with Kind=Local to timestamptz». Auf
-    // timestamp without time zone umstellen (Schweizer Zeit systemweit).
-    // udt_name + table_schema=public: zuverlässiger als data_type allein.
+    // Walter-Vorgabe 30.06.2026: Schweizer Lokalzeit = timestamp without time zone
+    // + DateTime.Now. Alias- und Stempel-Metadaten-Spalten, die noch timestamptz
+    // sind, hier idempotent umstellen (sonst Npgsql Kind=Local-Fehler).
     db.Database.ExecuteSqlRaw(@"
         DO $$
+        DECLARE
+            r record;
         BEGIN
-            IF EXISTS (
-                SELECT 1 FROM information_schema.columns
+            FOR r IN
+                SELECT table_name, column_name
+                FROM information_schema.columns
                 WHERE table_schema = 'public'
-                  AND table_name = 'employee_number_alias'
-                  AND column_name = 'created_at'
                   AND udt_name = 'timestamptz'
-            ) THEN
-                ALTER TABLE public.employee_number_alias
-                    ALTER COLUMN created_at TYPE timestamp without time zone
-                    USING (created_at AT TIME ZONE 'Europe/Zurich');
-            END IF;
-            IF EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_schema = 'public'
-                  AND table_name = 'easyatwork_employee_alias'
-                  AND column_name = 'created_at'
-                  AND udt_name = 'timestamptz'
-            ) THEN
-                ALTER TABLE public.easyatwork_employee_alias
-                    ALTER COLUMN created_at TYPE timestamp without time zone
-                    USING (created_at AT TIME ZONE 'Europe/Zurich');
-            END IF;
+                  AND (
+                        (table_name = 'employee_number_alias' AND column_name = 'created_at')
+                     OR (table_name = 'easyatwork_employee_alias' AND column_name = 'created_at')
+                     OR (table_name = 'employee_time_entry' AND column_name IN ('created_at','updated_at'))
+                     OR (table_name = 'easyatwork_sync_state' AND column_name IN ('last_sync_at','last_seen_updated_at'))
+                  )
+            LOOP
+                EXECUTE format(
+                    'ALTER TABLE public.%I ALTER COLUMN %I TYPE timestamp without time zone USING (%I AT TIME ZONE %L)',
+                    r.table_name, r.column_name, r.column_name, 'Europe/Zurich');
+            END LOOP;
         END $$;
     ");
 

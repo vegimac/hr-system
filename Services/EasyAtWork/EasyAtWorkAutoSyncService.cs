@@ -148,7 +148,7 @@ public class EasyAtWorkAutoSyncRunner
                 : "MA ohne eindeutige Cowork-Zuordnung";
             var blockMsg = $"Sync blockiert: {blockers.Count} {ursache}: {names}";
             state.LastError  = Truncate(blockMsg, 1000);
-            state.LastSyncAt = DateTime.UtcNow;
+            state.LastSyncAt = DateTime.Now; // last_sync_at = timestamp without time zone
             // Cursor (last_seen_updated_at) bewusst NICHT vorrücken → nächster
             // Lauf versucht es erneut, bis die MA zugeordnet sind.
             AddLog(db, mapping.CompanyProfileId, "BLOCKED", window, result, blockMsg);
@@ -157,7 +157,7 @@ public class EasyAtWorkAutoSyncRunner
         }
         else
         {
-            state.LastSyncAt = DateTime.UtcNow;
+            state.LastSyncAt = DateTime.Now; // last_sync_at = timestamp without time zone
             if (result.MaxUpdatedAt.HasValue) state.LastSeenUpdatedAt = result.MaxUpdatedAt;
             state.LastRowCount = result.RowCount;
             state.LastError = null;
@@ -222,7 +222,7 @@ public class EasyAtWorkAutoSyncRunner
                 db.EasyAtWorkSyncStates.Add(state);
             }
             state.LastError  = Truncate(error, 1000);
-            state.LastSyncAt = DateTime.UtcNow;
+            state.LastSyncAt = DateTime.Now; // last_sync_at = timestamp without time zone
             AddLog(db, companyProfileId, "ERROR", null, null, error);
             await db.SaveChangesAsync(ct);
         }
@@ -269,13 +269,12 @@ public class EasyAtWorkAutoSyncRunner
             .ToListAsync(ct);
         var lastByCp = states.ToDictionary(s => s.CompanyProfileId, s => s.LastSyncAt);
 
+        // last_sync_at = Schweizer Wanduhrzeit (timestamp without time zone).
+        // Kein UTC-Reinterpret — Datum direkt aus dem gespeicherten Wert.
         var dates = activeCpIds.Select(cp =>
         {
             if (lastByCp.TryGetValue(cp, out var last) && last.HasValue)
-            {
-                var utc = DateTime.SpecifyKind(last.Value, DateTimeKind.Utc);
-                return (DateOnly?)DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utc, SwissTz));
-            }
+                return (DateOnly?)DateOnly.FromDateTime(last.Value);
             return (DateOnly?)null;   // noch nie gelaufen → zählt als „heute nicht"
         }).ToList();
 
