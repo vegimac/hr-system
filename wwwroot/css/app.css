@@ -2417,6 +2417,40 @@
             min-width: 278px;
             overflow: hidden;
         }
+        /* «Neuer MA aus easy@work» = selber Weiss-Pill-Look wie #lsEmpSyncBtn */
+        #page-mitarbeiter .emp-eaw-new-btn {
+            width: 100%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 6px 11px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+            color: #3f3f3f;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(60, 55, 48, 0.08);
+            transition: transform .14s ease, box-shadow .14s ease;
+        }
+        #page-mitarbeiter .emp-eaw-new-btn img {
+            width: 16px;
+            height: 16px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+        #page-mitarbeiter .emp-eaw-new-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(60, 55, 48, 0.14);
+        }
+        body.theme-dark #page-mitarbeiter .emp-eaw-new-btn {
+            background: #fff;
+            border-color: #e2e8f0;
+            color: #3f3f3f;
+        }
         #page-mitarbeiter.liquid-employee .emp-list-panel::before {
             content: "Mitarbeiter";
             display: block;
