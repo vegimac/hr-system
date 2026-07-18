@@ -109,4 +109,52 @@ public class EasyAtWorkNumberChangeTests
         Assert.Equal("581026", alias.Number);             // Rollen getauscht
         Assert.NotNull(alias.ValidTo);
     }
+
+    // ───────────────────── Archiv-«alt» vs. nackte easy@work-Nummer ─────────────
+    // Walter-Bug 18.07.2026 (Sweeba Akhtar): Sync darf «581039alt» nicht zu
+    // «581039» hochstufen — easy@work kennt das Suffix nie, es ist dieselbe Badge.
+
+    [Theory]
+    [InlineData("581039alt", "581039")]
+    [InlineData("581039", "581039alt")]
+    [InlineData("58631alt", "58631")]
+    public void IsSameNumberIgnoringAlt_GleicheBadge(string a, string b)
+    {
+        Assert.True(EasyAtWorkEmployeeSyncService.IsSameNumberIgnoringAlt(a, b));
+    }
+
+    [Theory]
+    [InlineData("581039alt", "580050")]
+    [InlineData("581039", "581040")]
+    [InlineData("", "581039")]
+    [InlineData(null, "581039")]
+    public void IsSameNumberIgnoringAlt_AndereBadge(string? a, string b)
+    {
+        Assert.False(EasyAtWorkEmployeeSyncService.IsSameNumberIgnoringAlt(a, b));
+    }
+
+    [Fact]
+    public void ShouldPromote_ArchivAlt_NichtZuNackterNummer()
+    {
+        Assert.False(EasyAtWorkEmployeeSyncService.ShouldPromoteEawNumberToMain(
+            "581039alt", "581039", eawRecordAktiv: true, nummerBesetzt: false));
+        Assert.False(EasyAtWorkEmployeeSyncService.ShouldPromoteEawNumberToMain(
+            "581039alt", "581039", eawRecordAktiv: false, nummerBesetzt: false));
+    }
+
+    [Fact]
+    public void ShouldPromote_EchteNeueNummer_BeiWiedereintritt()
+    {
+        Assert.True(EasyAtWorkEmployeeSyncService.ShouldPromoteEawNumberToMain(
+            "580050alt", "581100", eawRecordAktiv: true, nummerBesetzt: false));
+        Assert.True(EasyAtWorkEmployeeSyncService.ShouldPromoteEawNumberToMain(
+            "580050alt", "581100", eawRecordAktiv: false, nummerBesetzt: false));
+    }
+
+    [Fact]
+    public void ShouldPromote_BesetzteNummer_Nein()
+    {
+        Assert.False(EasyAtWorkEmployeeSyncService.ShouldPromoteEawNumberToMain(
+            "580050alt", "581100", eawRecordAktiv: true, nummerBesetzt: true));
+    }
 }

@@ -528,11 +528,15 @@ public class EasyAtWorkEmployeeSyncService
         // wird getauscht — die bisherige Hauptnummer wandert als Alias in die
         // Historie (bzw. Rollen-Tausch, wenn die neue schon Alias war).
         // Kollisionsschutz: gehört die Nummer einem anderen MA, nur Hinweis.
+        // Archiv-«alt» vs. nackte easy@work-Nummer = dieselbe Badge → behalten
+        // (Walter-Bug 18.07.2026, Sweeba Akhtar).
         {
             var eawNum = (eaw.Number ?? "").Trim();
+            var curNum = (emp.EmployeeNumber ?? "").Trim();
             bool eawAktivJetzt = !eaw.To.HasValue || eaw.To.Value >= DateOnly.FromDateTime(DateTime.Today);
             if (eawAktivJetzt && eawNum.Length > 0
-                && !string.Equals(eawNum, (emp.EmployeeNumber ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+                && !string.Equals(eawNum, curNum, StringComparison.OrdinalIgnoreCase)
+                && !IsSameNumberIgnoringAlt(curNum, eawNum))
             {
                 bool besetzt = await _db.Employees.AnyAsync(
                     x => x.Id != emp.Id && !x.IsHidden && x.EmployeeNumber == eawNum, ct);
@@ -1739,12 +1743,14 @@ public class EasyAtWorkEmployeeSyncService
                             && !string.Equals(newNum, existNum, StringComparison.OrdinalIgnoreCase))
                         {
                             bool eawRecordAktiv = !eaw.To.HasValue || eaw.To.Value >= activeAt;
-                            bool mainIstArchiv  = existNum.EndsWith("alt", StringComparison.OrdinalIgnoreCase);
-                            bool neueIstArchiv  = newNum.EndsWith("alt", StringComparison.OrdinalIgnoreCase);
                             bool nummerBesetzt  = await _db.Employees.AnyAsync(
                                 x => x.Id != existingByEawId.Id && !x.IsHidden && x.EmployeeNumber == newNum, ct);
 
-                            if ((eawRecordAktiv || mainIstArchiv) && !neueIstArchiv && !nummerBesetzt)
+                            // Walter-Bug 18.07.2026 (Sweeba Akhtar 581039): easy@work
+                            // kennt kein «alt»-Suffix. «581039alt» vs. «581039» ist
+                            // DIESELBE Badge — nie zum nackten Wert hochstufen.
+                            // Echte Wiedereintritts-Nummern (andere Basis) bleiben ok.
+                            if (ShouldPromoteEawNumberToMain(existNum, newNum, eawRecordAktiv, nummerBesetzt))
                             {
                                 // Falls die neue Nummer schon als Alias hinterlegt war:
                                 // Alias entfernen — sie wird jetzt die Hauptnummer.
@@ -1754,12 +1760,13 @@ public class EasyAtWorkEmployeeSyncService
                                 SaveNumberChange(_db, existingByEawId, newNum); // alte Hauptnr. → Alias
                                 res.Notes.Add($"{existingByEawId.FirstName} {existingByEawId.LastName}: Personalnummer {existNum} → {newNum} (alte Nummer als Alias gesichert).");
                             }
-                            else if (!await _db.EmployeeNumberAliases.AnyAsync(a => a.EmployeeId == existingByEawId.Id && a.Number == newNum, ct))
+                            else if (!IsSameNumberIgnoringAlt(existNum, newNum)
+                                     && !await _db.EmployeeNumberAliases.AnyAsync(a => a.EmployeeId == existingByEawId.Id && a.Number == newNum, ct))
                             {
                                 _db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
                                 {
                                     EmployeeId = existingByEawId.Id, Number = newNum,
-                                    Source = "easyatwork_sync", CreatedAt = DateTime.UtcNow,
+                                    Source = "easyatwork_sync", CreatedAt = DateTime.Now,
                                 });
                                 if (nummerBesetzt)
                                     res.Notes.Add($"⚠ {existingByEawId.FirstName} {existingByEawId.LastName}: Nummer {newNum} gehört bereits einem anderen MA — nur als Alias gesichert, bitte Dublette klären.");
@@ -3328,6 +3335,50 @@ public class EasyAtWorkEmployeeSyncService
         if (existingAliases != null && existingAliases.Any(a =>
                 string.Equals(a?.Trim(), n, StringComparison.OrdinalIgnoreCase))) return false;
         return true;
+    }
+
+    /// <summary>
+    /// «alt»-Suffix der Pre-Mirus-Archivnummern entfernen (nur End-Suffix).
+    /// easy@work kennt das Suffix nie — Vergleich immer über die Basis.
+    /// </summary>
+    public static string StripAltSuffix(string? number)
+    {
+        var n = (number ?? "").Trim();
+        if (n.Length >= 3 && n.EndsWith("alt", StringComparison.OrdinalIgnoreCase))
+            return n[..^3];
+        return n;
+    }
+
+    /// <summary>
+    /// Dieselbe Badge-Nummer, egal ob mit oder ohne Archiv-«alt»-Suffix
+    /// (z.B. «581039alt» ≡ «581039»). Leere Werte gelten nicht als gleich.
+    /// </summary>
+    public static bool IsSameNumberIgnoringAlt(string? a, string? b)
+    {
+        var sa = StripAltSuffix(a);
+        var sb = StripAltSuffix(b);
+        if (sa.Length == 0 || sb.Length == 0) return false;
+        return string.Equals(sa, sb, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Darf die easy@work-Nummer die Hauptnummer werden?
+    /// Nie, wenn sie nur das «alt»-Suffix der bestehenden Archivnummer
+    /// abstreift (Walter-Bug 18.07.2026). Echte neue Nummern (Wiedereintritt)
+    /// bleiben erlaubt.
+    /// </summary>
+    public static bool ShouldPromoteEawNumberToMain(
+        string? existNum, string? newNum, bool eawRecordAktiv, bool nummerBesetzt)
+    {
+        if (string.IsNullOrWhiteSpace(newNum)) return false;
+        var neu = newNum.Trim();
+        var alt = (existNum ?? "").Trim();
+        if (string.Equals(neu, alt, StringComparison.OrdinalIgnoreCase)) return false;
+        if (nummerBesetzt) return false;
+        if (neu.EndsWith("alt", StringComparison.OrdinalIgnoreCase)) return false;
+        if (IsSameNumberIgnoringAlt(alt, neu)) return false;
+        bool mainIstArchiv = alt.EndsWith("alt", StringComparison.OrdinalIgnoreCase);
+        return eawRecordAktiv || mainIstArchiv;
     }
 
     /// <summary>
