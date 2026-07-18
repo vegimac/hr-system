@@ -100,20 +100,21 @@ Nicht alles auf einmal ersetzen. Reihenfolge:
 
 ### 8.5 Dark Liquid Glass (Walter 18.07.2026, Mockup-Favorit)
 
-Weniger Grau, mehr **Blau-Licht** + leuchtender Eisblau-Glasrand
+Weniger Grau, mehr **Blau-Licht** + **echter Eisblau-Verlaufs-Rand**
 (VisionOS-nah, wie freigegebenes Mockup):
 
 | Token | Wert |
 |---|---|
 | Hintergrund | cyan blooms + `#101c30 → #162640 → #0e1a2c` |
-| Glas | blau getönt `rgba(120,165,230,.10)` + Verlauf |
-| Glas stark | `rgba(140,185,245,.14)` |
-| Rand | `rgba(130,190,255,.38)` + Rim-Glow via `--dlg-shadow` |
-| Active | ice-blue Gradient / Text `#eaf4ff` |
+| Glas-Fill | `--dlg-fill` / `--dlg-fill-field` (blau getönte Verläufe) |
+| Rand | `--dlg-rim` = `linear-gradient(135deg, hell-cyan → tief-blau → eisblau)` |
+| Technik | `border: 1px solid transparent` + Fill/Rim als zwei Background-Layer (`padding-box` / `border-box`) + Glow via `--dlg-shadow` |
+| Active | ice-blue Gradient + `--dlg-rim-hot` / Text `#eaf4ff` |
 | Primär-Button | Kohle `#3f3f3f` |
 | Theme-Toggle (im Dark) | helle Glas-Pille |
 
 CSS-Variablen auf `body.theme-dark`: `--dlg-*` in `wwwroot/css/app.css`.
+Gilt für Karten, Panels, Inputs, Nav, Tabs, Modals, Familie-Kacheln, Sidebar-Menüs.
 
 ## Regeln fuer Umsetzung
 

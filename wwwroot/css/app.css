@@ -14,8 +14,10 @@
         }
 
         /* ── DARK MODE — Liquid Glass Mockup (Walter 18.07.2026) ──
-           Favorit-Mockup: weniger Grau, mehr Blau-Licht + leuchtender
-           Glasrand (cyan/eisblau Verlauf über box-shadow), VisionOS-nah. */
+           Favorit-Mockup: weniger Grau, mehr Blau-Licht + ECHTER
+           Eisblau-Verlaufs-Rand (border-box Gradient), VisionOS-nah.
+           Technik: transparenter border + fill/rim als zwei Background-
+           Layer (padding-box / border-box). */
         body.theme-dark {
             /* Design-Tokens — überall wiederverwenden */
             --dlg-bg:
@@ -27,15 +29,37 @@
             --dlg-glass:        rgba(120, 165, 230, 0.10);
             --dlg-glass-strong: rgba(140, 185, 245, 0.14);
             --dlg-glass-field:  rgba(100, 150, 220, 0.10);
-            /* Leuchtender Eisblau-Rand */
-            --dlg-glass-border: rgba(130, 190, 255, 0.38);
-            --dlg-glass-inner:  rgba(200, 230, 255, 0.22);
-            /* Tiefe + blauer Rim-Glow (Mockup-«blaue Umrandung als Verlauf») */
+            /* Fallback-Farbe (wenn kein Verlauf möglich) */
+            --dlg-glass-border: rgba(150, 210, 255, 0.48);
+            --dlg-glass-inner:  rgba(210, 235, 255, 0.28);
+            /* Füllung + Verlaufs-Rand (Mockup) */
+            --dlg-fill:
+                linear-gradient(165deg, rgba(170,210,255,.16) 0%, rgba(90,140,210,.08) 45%, rgba(45,95,165,.11) 100%);
+            --dlg-fill-strong:
+                linear-gradient(165deg, rgba(180,215,255,.20) 0%, rgba(100,150,220,.12) 48%, rgba(50,100,170,.14) 100%);
+            --dlg-fill-field:
+                linear-gradient(180deg, rgba(120,175,240,.16) 0%, rgba(70,125,195,.10) 100%);
+            --dlg-rim:
+                linear-gradient(135deg,
+                    rgba(210, 235, 255, 0.82) 0%,
+                    rgba(90, 155, 235, 0.22) 42%,
+                    rgba(165, 215, 255, 0.62) 100%);
+            --dlg-rim-soft:
+                linear-gradient(135deg,
+                    rgba(190, 225, 255, 0.58) 0%,
+                    rgba(80, 140, 220, 0.16) 48%,
+                    rgba(145, 200, 255, 0.42) 100%);
+            --dlg-rim-hot:
+                linear-gradient(135deg,
+                    rgba(230, 245, 255, 0.95) 0%,
+                    rgba(120, 180, 255, 0.38) 45%,
+                    rgba(180, 225, 255, 0.78) 100%);
+            /* Tiefe + weicher Cyan-Glow um den Verlaufs-Rand */
             --dlg-shadow:
-                0 0 0 1px rgba(120, 185, 255, 0.22),
-                0 0 18px rgba(80, 150, 255, 0.14),
+                0 0 0 1px rgba(140, 200, 255, 0.16),
+                0 0 20px rgba(80, 150, 255, 0.16),
                 0 14px 36px rgba(0, 20, 50, 0.32),
-                inset 0 1px 0 rgba(220, 240, 255, 0.34),
+                inset 0 1px 0 rgba(230, 245, 255, 0.36),
                 inset 0 -1px 0 rgba(70, 140, 220, 0.14);
             --dlg-text-strong:  #f2f7ff;
             --dlg-text:         #d4e2f4;
@@ -43,23 +67,13 @@
             --dlg-text-muted:   #7a94b4;
             --dlg-active:       rgba(90, 155, 230, 0.36);
             --dlg-active-text:  #eaf4ff;
-            --dlg-active-border: rgba(140, 200, 255, 0.55);
+            --dlg-active-border: rgba(160, 215, 255, 0.70);
 
             background: #101c30;
             color: var(--dlg-text);
         }
-        body.theme-dark .main {
-            background: var(--dlg-bg);
-        }
-        body.theme-dark .page-head {
-            background: transparent;
-            border-color: var(--dlg-glass-border);
-        }
-        body.theme-dark .page-title { color: var(--dlg-text-strong); }
-        body.theme-dark .page-sub   { color: var(--dlg-text-soft); }
-        body.theme-dark .page-body  { color: var(--dlg-text); }
-
-        /* Cards / Detail-Panels / Listen — blaues Frostglas + Rim-Glow */
+        /* Helper: Eisblau-Verlaufs-Rand (auf Surfaces anwenden) */
+        body.theme-dark .dlg-rim,
         body.theme-dark .card,
         body.theme-dark .emp-detail-panel,
         body.theme-dark .emp-list,
@@ -74,15 +88,33 @@
         body.theme-dark .dok-tree,
         body.theme-dark .emp-family-card,
         body.theme-dark .vf-card,
-        body.theme-dark .vf-empty {
-            background:
-                linear-gradient(165deg, rgba(160,200,255,.12) 0%, rgba(80,130,200,.06) 42%, rgba(40,80,140,.08) 100%) !important;
-            color: var(--dlg-text) !important;
-            border: 1px solid var(--dlg-glass-border) !important;
+        body.theme-dark .vf-empty,
+        body.theme-dark .fam-tile,
+        body.theme-dark .mw-section,
+        body.theme-dark .liquid-role-el,
+        body.theme-dark .ma-modal-box,
+        body.theme-dark .stamp-modal,
+        body.theme-dark .modal-content {
+            border: 1px solid transparent !important;
+            background-color: transparent !important;
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             box-shadow: var(--dlg-shadow) !important;
-            backdrop-filter: blur(22px) saturate(145%);
-            -webkit-backdrop-filter: blur(22px) saturate(145%);
+            backdrop-filter: blur(22px) saturate(150%);
+            -webkit-backdrop-filter: blur(22px) saturate(150%);
+            color: var(--dlg-text) !important;
         }
+        body.theme-dark .main {
+            background: var(--dlg-bg);
+        }
+        body.theme-dark .page-head {
+            background: transparent;
+            border-color: var(--dlg-glass-border);
+        }
+        body.theme-dark .page-title { color: var(--dlg-text-strong); }
+        body.theme-dark .page-sub   { color: var(--dlg-text-soft); }
+        body.theme-dark .page-body  { color: var(--dlg-text); }
         body.theme-dark .emp-list-search { border-color: var(--dlg-glass-border) !important; }
         body.theme-dark .emp-list-item { border-bottom-color: rgba(255,255,255,.04) !important; color: var(--dlg-text) !important; }
         body.theme-dark .emp-list-name { color: var(--dlg-text-strong) !important; }
@@ -115,14 +147,13 @@
             border-color: #1a1a1a !important;
         }
         body.theme-dark .filter-active {
-            background: var(--dlg-active) !important;
+            border: 1px solid transparent !important;
+            background-image:
+                linear-gradient(180deg, rgba(140,200,255,.40), rgba(70,140,220,.26)),
+                var(--dlg-rim-hot) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: var(--dlg-active-text) !important;
-            border-color: var(--dlg-active-border) !important;
-        }
-        body.theme-dark .nav-item.active {
-            background: var(--dlg-active) !important;
-            color: var(--dlg-active-text) !important;
-            border-color: var(--dlg-active-border) !important;
         }
 
         /* Werte und Labels in der Detail-Maske */
@@ -140,13 +171,14 @@
         }
         body.theme-dark .emp-field-value {
             color: var(--dlg-text-strong) !important;
-            background: var(--dlg-glass-field) !important;
-            border-color: var(--dlg-glass-border) !important;
-            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner), 0 0 10px rgba(80,150,255,.08) !important;
         }
         body.theme-dark .emp-field-value:hover {
-            background: linear-gradient(165deg, rgba(140,190,255,.18), rgba(80,130,200,.10)) !important;
-            border-color: rgba(150,205,255,.50) !important;
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
         }
         body.theme-dark .emp-field-value.empty {
             color: var(--dlg-text-muted) !important;
@@ -160,18 +192,33 @@
             background: linear-gradient(to right, rgba(72,100,132,.22) 0%, transparent 72%) !important;
         }
 
-        /* Inputs — transluzentes Glas statt flachem Slate */
-        body.theme-dark input,
+        /* Inputs — Feldglas + weicher Verlaufs-Rand */
+        body.theme-dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
         body.theme-dark select,
         body.theme-dark textarea,
         body.theme-dark .ef-input,
         body.theme-dark .form-control,
         body.theme-dark .f-input,
-        body.theme-dark .f-select {
-            background: var(--dlg-glass-field) !important;
+        body.theme-dark .f-select,
+        body.theme-dark .ov-softin,
+        body.theme-dark .emp-search-input,
+        body.theme-dark .lqsel-btn {
+            border: 1px solid transparent !important;
+            background-color: transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: var(--dlg-text-strong) !important;
-            border-color: var(--dlg-glass-border) !important;
-            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner), 0 0 10px rgba(80,150,255,.08) !important;
+        }
+        body.theme-dark input:not([type="checkbox"]):not([type="radio"]):focus,
+        body.theme-dark select:focus,
+        body.theme-dark textarea:focus,
+        body.theme-dark .ef-input:focus,
+        body.theme-dark .ov-softin:focus,
+        body.theme-dark .lqsel-btn:focus {
+            background-image: var(--dlg-fill-field), var(--dlg-rim-hot) !important;
+            box-shadow: 0 0 0 2px rgba(120,180,255,.28), inset 0 1px 0 rgba(230,245,255,.30) !important;
         }
         body.theme-dark input::placeholder,
         body.theme-dark textarea::placeholder { color: var(--dlg-text-muted); }
@@ -352,19 +399,21 @@
         body.theme-dark .emp-search,
         body.theme-dark .lohn-search { background: var(--dlg-glass-strong) !important; color: #f1f5f9 !important; border-color: var(--dlg-glass-border) !important; }
 
-        /* Modals — dunkles Glas */
-        body.theme-dark .modal,
-        body.theme-dark .modal-content,
-        body.theme-dark .stamp-modal,
-        body.theme-dark [class*="modal"] > [class*="content"] {
-            background: var(--dlg-glass-strong) !important;
+        /* Modals — dunkles Glas + Verlaufs-Rand (Rim kommt über .modal-content/.stamp-modal) */
+        body.theme-dark .modal {
+            background: transparent !important;
+        }
+        body.theme-dark [class*="modal"] > [class*="content"]:not(.ls-wrap) {
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-strong), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: var(--dlg-text) !important;
-            border: 1px solid var(--dlg-glass-border) !important;
-            box-shadow: 0 24px 60px rgba(0,0,0,.45), inset 0 1px 0 var(--dlg-glass-inner) !important;
+            box-shadow: var(--dlg-shadow), 0 28px 70px rgba(0,10,40,.50) !important;
         }
         body.theme-dark .modal-hd {
-            background: rgba(12, 22, 34, 0.92) !important;
-            border-bottom-color: var(--dlg-glass-border) !important;
+            background: rgba(12, 22, 34, 0.55) !important;
+            border-bottom: 1px solid rgba(140,200,255,.28) !important;
             color: var(--dlg-text-strong) !important;
         }
 
@@ -377,14 +426,6 @@
             border-color: rgba(126,167,210,.28) !important;
         }
 
-        /* HR-Bereich Cards — Glas */
-        body.theme-dark .hr-card {
-            background: var(--dlg-glass) !important;
-            border-color: var(--dlg-glass-border) !important;
-            box-shadow: var(--dlg-shadow) !important;
-            backdrop-filter: blur(16px) saturate(120%);
-            -webkit-backdrop-filter: blur(16px) saturate(120%);
-        }
         body.theme-dark .hr-card-title  { color: var(--dlg-text-strong) !important; }
         body.theme-dark .hr-card-status { color: var(--dlg-text-muted) !important; }
         body.theme-dark .hr-card ul     { color: var(--dlg-text) !important; }
@@ -508,18 +549,25 @@
         body.theme-dark .stat-value { color: var(--dlg-text-strong) !important; }
         body.theme-dark .stat-hint  { color: var(--dlg-text-muted) !important; }
 
-        /* Buttons — Glas-Outline */
+        /* Buttons — Glas-Outline mit Verlaufs-Rand */
         body.theme-dark .btn-outline,
-        body.theme-dark .btn-secondary {
-            background: rgba(255,255,255,.06) !important;
+        body.theme-dark .btn-secondary,
+        body.theme-dark .btn-emp-add,
+        body.theme-dark .ov-hbtn:not(.ov-hbtn-primary),
+        body.theme-dark .emp-contract-btn {
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: var(--dlg-text) !important;
-            border-color: var(--dlg-glass-border) !important;
-            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner), 0 0 10px rgba(80,150,255,.08) !important;
         }
         body.theme-dark .btn-outline:hover,
-        body.theme-dark .btn-secondary:hover {
-            background: rgba(255,255,255,.12) !important;
-            border-color: rgba(126,167,210,.35) !important;
+        body.theme-dark .btn-secondary:hover,
+        body.theme-dark .btn-emp-add:hover,
+        body.theme-dark .ov-hbtn:not(.ov-hbtn-primary):hover,
+        body.theme-dark .emp-contract-btn:hover {
+            background-image: var(--dlg-fill-field), var(--dlg-rim-hot) !important;
             color: var(--dlg-text-strong) !important;
         }
 
@@ -1400,8 +1448,21 @@
         .sb-branch-option:hover { background: rgba(120,110,95,0.09); }
         .sb-branch-option.active { background: rgba(255,255,255,0.92); font-weight: 750; box-shadow: 0 3px 10px rgba(72,63,53,0.10); }
         .sb-branch-check { width: 13px; flex: none; color: #3f3f3f; }
-        body.theme-dark .sb-branch-btn { background: rgba(30,41,59,.5); color: #e2e8f0; border-color: rgba(122,145,165,.28); }
-        body.theme-dark .sb-branch-options { background: rgba(18,24,32,.98); border-color: rgba(122,145,165,.28); }
+        body.theme-dark .sb-branch-btn {
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            color: var(--dlg-text-strong);
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
+        }
+        body.theme-dark .sb-branch-options {
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-strong), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: var(--dlg-shadow), 0 24px 60px rgba(0,10,40,.45) !important;
+        }
         body.theme-dark .sb-branch-option { color: #cbd5e1; }
         body.theme-dark .sb-branch-option.active { background: rgba(51,65,85,.7); }
         body.theme-dark .sb-branch-check { color: #e2e8f0; }
@@ -1452,17 +1513,27 @@
         }
         body.theme-dark .branch-select option { background: #121c28; color: var(--dlg-text); }
         body.theme-dark .nav-item {
-            background: rgba(120,170,240,.08);
-            border-color: rgba(130,190,255,.22);
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: var(--dlg-text);
-            box-shadow: inset 0 1px 0 rgba(200,230,255,.12);
+            box-shadow: inset 0 1px 0 rgba(200,230,255,.14), 0 0 12px rgba(80,150,255,.08);
         }
         body.theme-dark .nav-item:hover {
-            background: rgba(120,170,240,.16);
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
             color: var(--dlg-text-strong);
-            border-color: rgba(140,200,255,.42);
-            box-shadow: 0 8px 22px rgba(20,60,120,.28), inset 0 1px 0 rgba(210,235,255,.20);
+            box-shadow: 0 8px 22px rgba(20,60,120,.28), inset 0 1px 0 rgba(210,235,255,.22);
             transform: translateY(-1px);
+        }
+        body.theme-dark .nav-item.active {
+            background-image:
+                linear-gradient(180deg, rgba(140,200,255,.42), rgba(70,140,220,.26)),
+                var(--dlg-rim-hot) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            color: var(--dlg-active-text) !important;
+            box-shadow: 0 0 16px rgba(90,160,255,.20), inset 0 1px 0 rgba(230,245,255,.35);
         }
         body.theme-dark .user-name { color: var(--dlg-text-strong); }
         .nav-soon {
@@ -2368,12 +2439,21 @@
         .lqsel-opt.sel { font-weight: 700; }
         .lqsel-opt.sel::before { content: "✓ "; color: #6b7280; }
         .lqsel-opt.dis { color: #b8b2a7; cursor: default; }
-        body.theme-dark .lqsel-btn { background: rgba(40,38,34,0.6); border-color: rgba(139,139,139,0.4); color: #efe9dc; }
-        body.theme-dark .lqsel-btn:hover { background: rgba(50,48,43,0.8); }
-        body.theme-dark .lqsel-panel { background: #2b2925; border-color: rgba(255,255,255,0.12); }
-        body.theme-dark .lqsel-group { color: #a9a294; }
-        body.theme-dark .lqsel-opt { color: #efe9dc; }
-        body.theme-dark .lqsel-opt:hover { background: #3a372f; }
+        body.theme-dark .lqsel-btn { color: var(--dlg-text-strong) !important; }
+        body.theme-dark .lqsel-btn:hover {
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
+        }
+        body.theme-dark .lqsel-panel {
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-strong), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: var(--dlg-shadow), 0 18px 40px rgba(0,10,40,.45) !important;
+            color: var(--dlg-text);
+        }
+        body.theme-dark .lqsel-group { color: var(--dlg-text-soft); }
+        body.theme-dark .lqsel-opt { color: var(--dlg-text); }
+        body.theme-dark .lqsel-opt:hover { background: rgba(120,170,240,.16); }
 
         /* Drehender Spinner im «easy@work synchronisieren»-Button
            (Walter-Vorgabe 13.07.2026) — sichtbares Laufzeichen. */
@@ -3041,13 +3121,14 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-list,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-panel,
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-detail {
-            background:
-                linear-gradient(165deg, rgba(160,200,255,.12) 0%, rgba(80,130,200,.06) 42%, rgba(40,80,140,.08) 100%) !important;
-            border-color: var(--emp-glass-border) !important;
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: var(--emp-text) !important;
             box-shadow: var(--dlg-shadow) !important;
-            backdrop-filter: blur(22px) saturate(145%);
-            -webkit-backdrop-filter: blur(22px) saturate(145%);
+            backdrop-filter: blur(22px) saturate(150%);
+            -webkit-backdrop-filter: blur(22px) saturate(150%);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-tabs,
@@ -3060,20 +3141,25 @@
             box-shadow: none !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn {
-            background: linear-gradient(165deg, rgba(130,180,255,.14), rgba(60,110,180,.08));
-            border-color: rgba(130,190,255,.32);
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: var(--emp-text-soft);
             box-shadow: inset 0 1px 0 rgba(210,235,255,.18), 0 0 12px rgba(80,150,255,.08);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn:hover {
-            background: linear-gradient(165deg, rgba(140,190,255,.22), rgba(70,130,200,.12));
-            border-color: rgba(150,205,255,.48);
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
             color: #f5faff;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn.active {
-            background: linear-gradient(180deg, rgba(130,190,255,.40), rgba(70,140,220,.26));
+            border: 1px solid transparent !important;
+            background-image:
+                linear-gradient(180deg, rgba(130,190,255,.40), rgba(70,140,220,.26)),
+                var(--dlg-rim-hot) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: #eaf4ff;
-            border-color: rgba(160,210,255,.55);
             box-shadow: 0 0 0 1px rgba(120,180,255,.18), inset 0 1px 0 rgba(220,240,255,.30);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body {
@@ -3128,14 +3214,15 @@
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value,
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-field .emp-field-value {
-            background: linear-gradient(165deg, rgba(130,180,255,.12), rgba(70,120,190,.07)) !important;
-            border-color: var(--emp-glass-border) !important;
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: var(--emp-text-strong) !important;
             box-shadow: inset 0 1px 0 rgba(210,235,255,.20), 0 0 12px rgba(80,150,255,.08);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:hover {
-            background: linear-gradient(165deg, rgba(140,190,255,.18), rgba(80,130,200,.10)) !important;
-            border-color: rgba(150,205,255,.50) !important;
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info:hover {
@@ -3154,8 +3241,10 @@
             color: var(--emp-text-soft) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-strip {
-            background: linear-gradient(165deg, rgba(140,190,255,.10), rgba(60,110,180,.06));
-            border-color: rgba(130,190,255,.32);
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             box-shadow: var(--dlg-shadow);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-head {
@@ -3164,24 +3253,17 @@
             border-color: rgba(140,200,255,.28);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
-            background: linear-gradient(90deg, rgba(120,170,240,.10), rgba(80,130,200,.06));
-            border-color: rgba(130,190,255,.28);
-        }
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-btn {
-            background: linear-gradient(165deg, rgba(130,180,255,.16), rgba(70,120,190,.10));
-            border-color: rgba(140,200,255,.42);
-            color: #eaf4ff;
-            box-shadow: inset 0 1px 0 rgba(210,235,255,.20), 0 0 10px rgba(80,150,255,.10);
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .ef-input {
-            background: rgba(100,150,220,.10);
-            border-color: rgba(130,190,255,.34);
+            /* Rim über globale Input-Regel */
             color: var(--emp-text-strong);
-            box-shadow: inset 0 1px 0 rgba(200,230,255,.16);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input:not([readonly]):not(:disabled)) {
-            background: linear-gradient(165deg, rgba(130,180,255,.14), rgba(70,120,190,.08)) !important;
-            border-color: rgba(140,200,255,.42) !important;
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
             box-shadow: inset 0 1px 0 rgba(210,235,255,.20), 0 0 12px rgba(80,150,255,.10);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input[data-easywork-locked]) {
@@ -3793,35 +3875,15 @@
             background: rgba(52, 130, 80, 0.28) !important;
             color: #6ee7b7 !important;
         }
-        body.theme-dark .ov-card {
-            /* Mockup: blauer Glas-Verlauf + leuchtender Rim (muss stärker sein
-               als flache slate-Karten — das war der sichtbare Gap zum Mockup) */
-            background:
-                linear-gradient(165deg, rgba(170,210,255,.18) 0%, rgba(100,150,220,.10) 42%, rgba(50,100,170,.12) 100%) !important;
-            border: 1px solid rgba(150,210,255,.50) !important;
-            box-shadow: var(--dlg-shadow) !important;
-            backdrop-filter: blur(22px) saturate(155%);
-            -webkit-backdrop-filter: blur(22px) saturate(155%);
-        }
+        /* ov-card / ov-softin: Rim kommt aus der zentralen Surface-/Input-Liste.
+           Hier nur Innenzeilen (Vertragszeilen) nachschärfen. */
         body.theme-dark .ov-vrow,
         body.theme-dark .ov-drow {
-            background: linear-gradient(90deg, rgba(120,170,240,.10), rgba(80,130,200,.06)) !important;
-            border-color: rgba(130,190,255,.28) !important;
-            box-shadow: inset 0 1px 0 rgba(200,230,255,.12);
-        }
-        body.theme-dark .ov-softin,
-        body.theme-dark input.ov-softin,
-        body.theme-dark select.ov-softin {
-            background: linear-gradient(180deg, rgba(110,165,235,.16), rgba(70,120,190,.10)) !important;
-            border-color: rgba(150,210,255,.48) !important;
-            color: var(--dlg-text-strong) !important;
-            box-shadow: inset 0 1px 0 rgba(220,240,255,.22), 0 0 10px rgba(80,150,255,.10);
-        }
-        body.theme-dark .ov-softin:focus,
-        body.theme-dark input.ov-softin:focus,
-        body.theme-dark select.ov-softin:focus {
-            border-color: rgba(170,220,255,.72) !important;
-            box-shadow: 0 0 0 2px rgba(110,175,255,.28), inset 0 1px 0 rgba(230,245,255,.28);
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: inset 0 1px 0 rgba(200,230,255,.14);
         }
 
         /* ── Dark Liquid Glass: MA-Tab-Flächen (Verfügbarkeit, Leerstates) ── */
@@ -3888,36 +3950,37 @@
         }
 
 
-        /* Liquid-Employee: keine separaten Innen-Frames. Die MA-Seite liegt wie
-           das Dashboard direkt auf der Hintergrundfläche; nur Inhalte/Aktionen
-           zeichnen sich ab. */
-        #page-mitarbeiter.liquid-employee .liquid-employee-nav,
-        #page-mitarbeiter.liquid-employee .emp-list-panel,
-        #page-mitarbeiter.liquid-employee .liquid-employee-list,
-        #page-mitarbeiter.liquid-employee .emp-detail-panel,
-        #page-mitarbeiter.liquid-employee .liquid-employee-detail,
-        #page-mitarbeiter.liquid-employee .emp-detail-header,
-        #page-mitarbeiter.liquid-employee .emp-detail-tabs,
-        #page-mitarbeiter.liquid-employee .emp-detail-body,
-        #page-mitarbeiter.liquid-employee .emp-field-grid,
-        #page-mitarbeiter.liquid-employee .emp-field-grid-2,
-        #page-mitarbeiter.liquid-employee .emp-field-grid-3,
-        #page-mitarbeiter.liquid-employee .emp-contract-strip,
-        #page-mitarbeiter.liquid-employee .emp-contract-row,
-        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-panel,
-        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-list,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-panel,
-        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-detail,
+        /* Liquid-Employee Light: keine separaten Innen-Frames.
+           Dark bewusst AUSGESCHLOSSEN — dort behalten Aussen-Schalen den
+           Eisblau-Verlaufs-Rand (Walter 18.07.2026). */
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .liquid-employee-nav,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-list-panel,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .liquid-employee-list,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-detail-panel,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .liquid-employee-detail,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-detail-header,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-detail-tabs,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-detail-body,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-field-grid,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-field-grid-2,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-field-grid-3,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-contract-strip,
+        body:not(.theme-dark) #page-mitarbeiter.liquid-employee .emp-contract-row {
+            background: transparent !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+        /* Dark: nur Innen-Raster rahmenlos (Header/Tabs/Body/Felder) */
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-tabs,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid-2,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid-3,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-strip,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-grid-3 {
             background: transparent !important;
+            background-image: none !important;
             border-color: transparent !important;
             box-shadow: none !important;
             backdrop-filter: none !important;
@@ -3935,27 +3998,23 @@
         #page-mitarbeiter.liquid-employee .liquid-employee-row,
         #page-mitarbeiter.liquid-employee .emp-list-item.active,
         #page-mitarbeiter.liquid-employee .liquid-employee-row-active,
-        #page-mitarbeiter.liquid-employee .emp-contract-row,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item,
-        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-row,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item.active,
-        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-row-active,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
+        #page-mitarbeiter.liquid-employee .emp-contract-row {
             border-color: transparent !important;
             box-shadow: none !important;
         }
-        #page-mitarbeiter.liquid-employee .emp-tab.active,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active {
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-row {
+            border-color: transparent !important;
+            box-shadow: none !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-tab.active {
             background: transparent !important;
             color: var(--emp-text-strong) !important;
             text-decoration: underline;
             text-underline-offset: 6px;
             text-decoration-thickness: 2px;
         }
-        #page-mitarbeiter.liquid-employee .emp-contract-row,
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
+        #page-mitarbeiter.liquid-employee .emp-contract-row {
             padding-left: 0;
             padding-right: 0;
         }
@@ -4016,19 +4075,24 @@
             border-color: var(--dlg-glass-border) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab {
-            background: linear-gradient(165deg, rgba(120,170,240,.12), rgba(60,110,180,.07)) !important;
-            border-color: rgba(130,190,255,.36) !important;
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: var(--dlg-text-soft) !important;
             box-shadow: inset 0 1px 0 rgba(210,235,255,.16), 0 0 12px rgba(80,150,255,.08) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab:hover {
-            background: linear-gradient(165deg, rgba(140,190,255,.20), rgba(80,130,200,.12)) !important;
-            border-color: rgba(150,205,255,.50) !important;
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
             color: var(--dlg-text-strong) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active {
-            background: linear-gradient(180deg, rgba(140,200,255,.48), rgba(70,140,220,.30)) !important;
-            border-color: rgba(170,220,255,.68) !important;
+            border: 1px solid transparent !important;
+            background-image:
+                linear-gradient(180deg, rgba(140,200,255,.48), rgba(70,140,220,.30)),
+                var(--dlg-rim-hot) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
             color: #f0f7ff !important;
             box-shadow: 0 0 0 1px rgba(130,190,255,.28), 0 0 16px rgba(90,160,255,.18), inset 0 1px 0 rgba(230,245,255,.40) !important;
             text-decoration: none !important;
@@ -4080,15 +4144,12 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .abs-table tbody tr:hover td {
             background: rgba(125,160,205,.16) !important;
         }
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-family-card {
-            background: linear-gradient(165deg, rgba(160,200,255,.12) 0%, rgba(80,130,200,.06) 42%, rgba(40,80,140,.08) 100%) !important;
-            border-color: rgba(140,200,255,.40) !important;
-            box-shadow: var(--dlg-shadow) !important;
-        }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-family-card table.fm-subtable td,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-family-card .fm-subrow {
-            background: linear-gradient(90deg, rgba(120,170,240,.10), rgba(80,130,200,.06)) !important;
-            border-color: rgba(130,190,255,.28) !important;
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .dok-table thead th,
         body.theme-dark #page-mitarbeiter.liquid-employee .abs-table th {
@@ -5169,14 +5230,9 @@
             cursor: pointer; white-space: nowrap;
         }
         .fam-tile-zulage-btn:hover { border-color: #3f3f3f; color: #3f3f3f; background: rgba(255,255,255,.5); }
-        body.theme-dark .fam-tile {
-            background: linear-gradient(165deg, rgba(160,200,255,.14) 0%, rgba(80,130,200,.07) 45%, rgba(40,90,160,.10) 100%);
-            border-color: rgba(140,200,255,.42);
-            box-shadow: var(--dlg-shadow);
-        }
         body.theme-dark .fam-tile:hover {
-            border-color: rgba(160,210,255,.62);
-            box-shadow: 0 0 0 1px rgba(120,185,255,.22), 0 0 18px rgba(80,150,255,.16), 0 14px 36px rgba(0,20,50,.35), inset 0 1px 0 rgba(220,240,255,.34);
+            background-image: var(--dlg-fill-strong), var(--dlg-rim-hot) !important;
+            box-shadow: 0 0 0 1px rgba(140,200,255,.22), 0 0 22px rgba(90,160,255,.20), 0 14px 36px rgba(0,20,50,.35), inset 0 1px 0 rgba(230,245,255,.40) !important;
         }
         body.theme-dark .fam-tile-name { color: var(--dlg-text-strong); }
         body.theme-dark .fam-tile-meta { color: var(--dlg-text-soft); }
