@@ -93,12 +93,13 @@
             background-origin: padding-box, border-box !important;
             background-clip: padding-box, border-box !important;
             box-shadow: var(--dlg-shadow) !important;
-            backdrop-filter: blur(16px) saturate(115%);
-            -webkit-backdrop-filter: blur(16px) saturate(115%);
+            backdrop-filter: blur(22px) saturate(145%);
+            -webkit-backdrop-filter: blur(22px) saturate(145%);
             color: var(--dlg-text) !important;
         }
         body.theme-dark .main {
             background: var(--dlg-bg);
+            background-attachment: fixed;
         }
         body.theme-dark .page-head {
             background: transparent;
@@ -3808,7 +3809,7 @@
         .ov-more { font-size: 12.5px; font-weight: 650; color: #2374b7; cursor: pointer; margin-top: 3px; }
         .ov-more:hover { text-decoration: underline; }
         /* Dark-Mode Overview-Cards (volle Glas-Regel weiter unten) */
-        body.theme-dark .ov-card-h { color: #f2f5f8; }
+        body.theme-dark .ov-card-h { color: #ffffff !important; }
 
         /* ══ Absenzen + KTG-Tagessatz zweispaltig (Walter 17.07.2026) ══ */
         .abs-ktg-layout {
