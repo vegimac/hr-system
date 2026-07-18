@@ -13,31 +13,32 @@
             height: 100vh; overflow: hidden;
         }
 
-        /* ── DARK MODE — Liquid Glass (Walter 17.07.2026, vereinheitlicht) ──
-           Aktiv via <body class="theme-dark">. Nicht vom hellen Look
-           abgeleitet, sondern eigene ruhige Glas-Palette (Konzept §8.5):
-           tiefer Nachthimmel + halbtransparente Glasflächen + feiner Rand. */
+        /* ── DARK MODE — Liquid Glass (Walter 18.07.2026, elevated) ──
+           Moderner Standard (Apple/VisionOS/Material): NICHT Tiefschwarz,
+           sondern mitteldunkler «elevated» Nachthimmel + hellere Glas-
+           flächen (weiss-getönt), damit Karten/Inputs klar abheben. */
         body.theme-dark {
             /* Design-Tokens — überall wiederverwenden */
             --dlg-bg:
-                radial-gradient(circle at 78% 6%, rgba(90,130,170,.16) 0, transparent 280px),
-                radial-gradient(circle at 14% 96%, rgba(48,88,120,.14) 0, transparent 340px),
-                linear-gradient(135deg, #07111a 0%, #0b1620 52%, #08121b 100%);
-            --dlg-glass:        rgba(14, 24, 36, 0.58);
-            --dlg-glass-strong: rgba(18, 30, 44, 0.78);
-            --dlg-glass-field:  rgba(12, 22, 34, 0.72);
-            --dlg-glass-border: rgba(122, 145, 165, 0.22);
-            --dlg-glass-inner:  rgba(255, 255, 255, 0.06);
-            --dlg-shadow:       0 14px 36px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-            --dlg-text-strong:  #edf5ff;
-            --dlg-text:         #c4d1de;
-            --dlg-text-soft:    #8595a8;
-            --dlg-text-muted:   #6b7c8f;
-            --dlg-active:       rgba(72, 100, 132, 0.42);
-            --dlg-active-text:  #d9ecff;
-            --dlg-active-border: rgba(126, 167, 210, 0.28);
+                radial-gradient(circle at 78% 6%, rgba(130,170,210,.22) 0, transparent 300px),
+                radial-gradient(circle at 14% 96%, rgba(80,120,160,.18) 0, transparent 360px),
+                linear-gradient(135deg, #1a2433 0%, #1e2a3c 52%, #182232 100%);
+            /* Glas = weiss-getönte Frostschicht über elevated Base */
+            --dlg-glass:        rgba(255, 255, 255, 0.08);
+            --dlg-glass-strong: rgba(255, 255, 255, 0.12);
+            --dlg-glass-field:  rgba(255, 255, 255, 0.07);
+            --dlg-glass-border: rgba(180, 200, 220, 0.22);
+            --dlg-glass-inner:  rgba(255, 255, 255, 0.10);
+            --dlg-shadow:       0 12px 32px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+            --dlg-text-strong:  #f4f7fb;
+            --dlg-text:         #d5dee8;
+            --dlg-text-soft:    #9aabbc;
+            --dlg-text-muted:   #7d8fa2;
+            --dlg-active:       rgba(96, 140, 190, 0.38);
+            --dlg-active-text:  #e8f3ff;
+            --dlg-active-border: rgba(150, 190, 230, 0.36);
 
-            background: #07111a;
+            background: #1a2433;
             color: var(--dlg-text);
         }
         body.theme-dark .main {
@@ -170,8 +171,8 @@
         body.theme-dark tbody tr:hover,
         body.theme-dark tr:hover td { background: rgba(125,160,205,.12) !important; }
         body.theme-dark #stempelFilterRow {
-            background: rgba(8, 16, 26, 0.92) !important;
-            box-shadow: 0 -16px 0 16px rgba(8,16,26,.92), inset 0 -1px 0 var(--dlg-glass-border) !important;
+            background: rgba(30, 42, 58, 0.94) !important;
+            box-shadow: 0 -16px 0 16px rgba(30,42,58,.94), inset 0 -1px 0 var(--dlg-glass-border) !important;
         }
 
         /* ── Mindestlöhne (L-GAV) — kompakt, damit alles auf eine Seite passt ── */
@@ -808,15 +809,16 @@
         }
         body.theme-dark [style*="background:#ece9e2"],
         body.theme-dark [style*="background: #ece9e2"],
-        /* Warme Light-Glas-Töne → dunkles Glas (nicht flaches Slate) */
+        /* Warme Light-Glas-Töne → dunkles Nachtglas (nicht Kaltblau) */
         body.theme-dark [style*="background:#f6f3ee"],
         body.theme-dark [style*="background: #f6f3ee"],
         body.theme-dark [style*="background:#faf8f5"],
         body.theme-dark [style*="background: #faf8f5"],
         body.theme-dark [style*="background:#efeae2"],
         body.theme-dark [style*="background: #efeae2"] {
-            background: #172554 !important;
-            color: #d0c8b8 !important;
+            background: rgba(255, 255, 255, 0.10) !important;
+            color: var(--dlg-text, #d5dee8) !important;
+            border-color: rgba(180,200,220,.22) !important;
         }
         body.theme-dark [style*="background:#f0fdf4"],
         body.theme-dark [style*="background: #f0fdf4"],
@@ -1407,15 +1409,15 @@
         .sidebar-footer .user-row { justify-content: center; }
         .sidebar-footer .logout-btn { margin: 0 !important; }
 
-        /* Dark-Mode Sidebar = Liquid Glass Rail (Walter 17.07.2026). */
+        /* Dark-Mode Sidebar = Liquid Glass Rail (elevated, Walter 18.07.2026). */
         body.theme-dark .sidebar {
             background:
-                radial-gradient(circle at 30% 0%, rgba(80,120,160,.14) 0, transparent 180px),
-                rgba(8, 15, 24, 0.82);
+                radial-gradient(circle at 30% 0%, rgba(120,160,200,.16) 0, transparent 200px),
+                rgba(28, 38, 52, 0.78);
             border-right-color: var(--dlg-glass-border);
-            backdrop-filter: blur(20px) saturate(120%);
-            -webkit-backdrop-filter: blur(20px) saturate(120%);
-            box-shadow: inset -1px 0 0 rgba(255,255,255,.04);
+            backdrop-filter: blur(20px) saturate(130%);
+            -webkit-backdrop-filter: blur(20px) saturate(130%);
+            box-shadow: inset -1px 0 0 rgba(255,255,255,.08);
         }
         body.theme-dark .sidebar-header,
         body.theme-dark .branch-selector,
@@ -1511,9 +1513,9 @@
             display: none !important;
         }
         body.theme-dark #langSwitcher {
-            background: rgba(14, 24, 36, 0.78) !important;
+            background: rgba(40, 54, 72, 0.82) !important;
             border-color: var(--dlg-glass-border) !important;
-            box-shadow: 0 12px 34px rgba(0,0,0,.32), inset 0 1px 0 var(--dlg-glass-inner) !important;
+            box-shadow: 0 12px 34px rgba(0,0,0,.28), inset 0 1px 0 var(--dlg-glass-inner) !important;
             backdrop-filter: blur(22px) saturate(140%) !important;
             -webkit-backdrop-filter: blur(22px) saturate(140%) !important;
         }
@@ -2049,15 +2051,15 @@
         .liquid-mask .data-table th { color: var(--emp-text-soft); border-bottom: 1px solid rgba(90,80,66,.12); }
         .liquid-mask .data-table td { border-bottom: 1px solid rgba(90,80,66,.08); }
         body.theme-dark .page.liquid-mask {
-            --emp-glass-bg: rgba(14,24,36,.58);
-            --emp-glass-border: rgba(122,145,165,.22);
-            --emp-text-strong: #edf5ff;
-            --emp-text: #c4d1de;
-            --emp-text-soft: #8595a8;
+            --emp-glass-bg: rgba(255,255,255,.08);
+            --emp-glass-border: rgba(180,200,220,.22);
+            --emp-text-strong: #f4f7fb;
+            --emp-text: #d5dee8;
+            --emp-text-soft: #9aabbc;
             background:
-                radial-gradient(circle at 78% 6%, rgba(90,130,170,.16) 0, transparent 280px),
-                radial-gradient(circle at 14% 96%, rgba(48,88,120,.14) 0, transparent 340px),
-                linear-gradient(135deg, #07111a 0%, #0b1620 52%, #08121b 100%);
+                radial-gradient(circle at 78% 6%, rgba(130,170,210,.22) 0, transparent 300px),
+                radial-gradient(circle at 14% 96%, rgba(80,120,160,.18) 0, transparent 360px),
+                linear-gradient(135deg, #1a2433 0%, #1e2a3c 52%, #182232 100%);
         }
 
         /* ── LIQUID GLASS: MITARBEITER-MASKE ─────────────────────── */
@@ -2997,19 +2999,19 @@
         }
 
         body.theme-dark #page-mitarbeiter.liquid-employee {
-            --emp-glass-bg: rgba(12,21,30,.56);
-            --emp-glass-strong: rgba(20,31,43,.72);
-            --emp-glass-field: rgba(22,34,46,.80);
-            --emp-glass-border: rgba(122,145,165,.22);
-            --emp-glass-inner: rgba(255,255,255,.05);
-            --emp-text-strong: #edf5ff;
-            --emp-text: #c4d1de;
-            --emp-text-soft: #7f91a4;
-            --emp-shadow: 0 24px 70px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.07);
+            --emp-glass-bg: rgba(255,255,255,.08);
+            --emp-glass-strong: rgba(255,255,255,.12);
+            --emp-glass-field: rgba(255,255,255,.07);
+            --emp-glass-border: rgba(180,200,220,.22);
+            --emp-glass-inner: rgba(255,255,255,.10);
+            --emp-text-strong: #f4f7fb;
+            --emp-text: #d5dee8;
+            --emp-text-soft: #9aabbc;
+            --emp-shadow: 0 20px 50px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.10);
             background:
-                radial-gradient(circle at 82% 5%, rgba(108,144,177,.18) 0, transparent 260px),
-                radial-gradient(circle at 15% 100%, rgba(57,96,126,.20) 0, transparent 330px),
-                linear-gradient(135deg, #07111a 0%, #0b1620 52%, #08121b 100%);
+                radial-gradient(circle at 82% 5%, rgba(130,170,210,.22) 0, transparent 280px),
+                radial-gradient(circle at 15% 100%, rgba(80,120,160,.18) 0, transparent 340px),
+                linear-gradient(135deg, #1a2433 0%, #1e2a3c 52%, #182232 100%);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-panel,
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav,
@@ -3046,8 +3048,8 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-search-input,
         body.theme-dark #page-mitarbeiter.liquid-employee #empSpecialFilter,
         body.theme-dark #page-mitarbeiter.liquid-employee #empExitDateAfter {
-            background: rgba(15,26,37,.68) !important;
-            border-color: rgba(122,145,165,.24) !important;
+            background: rgba(255,255,255,.07) !important;
+            border-color: rgba(180,200,220,.24) !important;
             color: var(--emp-text) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAktiv,
@@ -3055,10 +3057,10 @@
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAlle,
         body.theme-dark #page-mitarbeiter.liquid-employee .btn-emp-edit,
         body.theme-dark #page-mitarbeiter.liquid-employee .btn-emp-add {
-            background: rgba(24,36,49,.68) !important;
-            border-color: rgba(122,145,165,.24) !important;
+            background: rgba(255,255,255,.08) !important;
+            border-color: rgba(180,200,220,.24) !important;
             color: var(--emp-text) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAktiv[style*="color:white"],
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterInaktiv[style*="color:white"],
@@ -3097,8 +3099,8 @@
             box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.16);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:hover {
-            background: rgba(30,45,60,.88) !important;
-            border-color: rgba(112,164,214,.36) !important;
+            background: rgba(255,255,255,.12) !important;
+            border-color: rgba(150,190,230,.40) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info:hover {
@@ -3108,8 +3110,8 @@
             color: var(--emp-text-strong) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.empty {
-            background: rgba(10,18,27,.64) !important;
-            color: #637484 !important;
+            background: rgba(255,255,255,.04) !important;
+            color: #8a9aab !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info.empty {
             background: transparent !important;
@@ -3117,9 +3119,9 @@
             color: var(--emp-text-soft) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-strip {
-            background: rgba(12,21,30,.42);
-            border-color: rgba(122,145,165,.20);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 8px 24px rgba(0,0,0,.16);
+            background: rgba(255,255,255,.06);
+            border-color: rgba(180,200,220,.20);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 8px 24px rgba(0,0,0,.16);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-head {
             background: rgba(233, 236, 240, 0.92);
@@ -3584,7 +3586,7 @@
         body.theme-dark .ov-kval { color: #f2f5f8; }
         body.theme-dark .ov-panel { background: rgba(255,255,255,.04); border-color: rgba(122,145,165,.2); }
         body.theme-dark .ov-pfv { color: #f2f5f8; }
-        body.theme-dark .ov-softin { background: rgba(13,24,35,.68); border-color: rgba(122,145,165,.32); color: #f2f5f8; }
+        body.theme-dark .ov-softin { background: rgba(255,255,255,.07); border-color: rgba(180,200,220,.28); color: #f2f5f8; }
         body.theme-dark .ov-hbtn { background: transparent; color: #cbd5e1; border-color: rgba(122,145,165,.4); }
         body.theme-dark .ov-hbtn-primary { background: #e9ecf0; color: #1a1a1a; border-color: #e9ecf0; }
         body.theme-dark .ov-kval .lqsel-btn { color: #f2f5f8; }
@@ -3593,7 +3595,7 @@
             border-bottom: 1px solid #3f3f3f;
         }
         body.theme-dark .ov-editin { color: #f2f5f8; border-bottom-color: rgba(255,255,255,.25); }
-        body.theme-dark .ov-editin:focus { background: rgba(13,24,35,.68); border-bottom-color: #94a3b8; }
+        body.theme-dark .ov-editin:focus { background: rgba(255,255,255,.08); border-bottom-color: #b8c8d8; }
         .ov-fl {
             font-size: 10.5px; font-weight: 700; color: #8b8b8b;
             letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 2px;
@@ -3638,8 +3640,7 @@
         .ov-dmeta { font-size: 12px; font-weight: 600; color: #8b8b8b; white-space: nowrap; }
         .ov-more { font-size: 12.5px; font-weight: 650; color: #2374b7; cursor: pointer; margin-top: 3px; }
         .ov-more:hover { text-decoration: underline; }
-        /* Dark-Mode */
-        body.theme-dark .ov-card { background: rgba(23, 36, 49, 0.94); border-color: rgba(122, 145, 165, 0.25); }
+        /* Dark-Mode Overview-Cards (volle Glas-Regel weiter unten) */
         body.theme-dark .ov-card-h { color: #f2f5f8; }
 
         /* ══ Absenzen + KTG-Tagessatz zweispaltig (Walter 17.07.2026) ══ */
@@ -3734,7 +3735,7 @@
             color: #3f3f3f; font-weight: 700; text-decoration: underline;
             font: inherit;
         }
-        body.theme-dark .ktg-side-card { background: rgba(23, 36, 49, 0.94); border-color: rgba(122, 145, 165, 0.25); }
+        body.theme-dark .ktg-side-card { background: rgba(255,255,255,.10); border-color: rgba(180,200,220,.22); }
         body.theme-dark .ktg-panel-title { color: #f2f5f8; }
         body.theme-dark .ktg-rates-table,
         body.theme-dark .ktg-rates-table th { background: rgba(255,255,255,.04); }
@@ -3749,11 +3750,11 @@
             color: #6ee7b7 !important;
         }
         body.theme-dark .ov-card {
-            background: rgba(14, 24, 36, 0.62) !important;
+            background: var(--dlg-glass-strong) !important;
             border-color: var(--dlg-glass-border) !important;
             box-shadow: var(--dlg-shadow) !important;
-            backdrop-filter: blur(16px) saturate(120%);
-            -webkit-backdrop-filter: blur(16px) saturate(120%);
+            backdrop-filter: blur(16px) saturate(130%);
+            -webkit-backdrop-filter: blur(16px) saturate(130%);
         }
 
         /* ── Dark Liquid Glass: MA-Tab-Flächen (Verfügbarkeit, Leerstates) ── */
