@@ -16,12 +16,8 @@ async function eawInit() {
     eawSyncInit();
     _eawEmpSyncInit();
     eawLogLoad();
-    // Native Selects durch helles Custom-Dropdown ersetzen (macOS-Dark-Popup-Fix)
-    if (typeof lightSelect === 'function') {
-        lightSelect(document.getElementById('eawSyncBranchSel'));
-        lightSelect(document.getElementById('eawEmpSyncBranchSel'));
-        lightSelect(document.getElementById('eawEmpSyncScope'));
-    }
+    // Selects werden global von liquid-select.js umgebaut — kein lightSelect
+    // mehr hier (sonst doppelte Filial-Dropdowns, Walter-Bug 18.07.2026).
 }
 
 // Leert die Vorschau-/Ergebnis-Bereiche + setzt den Zustand zurück. Wird beim

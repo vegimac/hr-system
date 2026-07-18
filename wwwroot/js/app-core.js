@@ -400,6 +400,9 @@ function selectLiquidEmployeeBranch(value) {
 // nachgezogen. Idempotent (mehrfach aufrufbar). (Walter 05.07.2026)
 function lightSelect(sel) {
     if (!sel || sel.dataset.ls2) return;
+    // Schon von liquid-select.js umgebaut → nicht nochmals wrappen
+    // (sonst doppelte Dropdowns, Walter-Bug 18.07.2026).
+    if (sel._lq || sel.closest('.lqsel-wrap')) return;
     sel.dataset.ls2 = '1';
     sel.style.display = 'none';
     const wrap = document.createElement('span');

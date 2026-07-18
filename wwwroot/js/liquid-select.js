@@ -44,6 +44,8 @@
         // (noch) versteckten Seiten/Modals sollen normal umgebaut werden.
         if (sel.style.display === 'none' || sel.hasAttribute('hidden')) return;
         if (sel.classList.contains('liquid-branch-select')) return;
+        // Schon von lightSelect (.ls2) umgebaut → nicht doppelt wrappen.
+        if (sel.dataset.ls2 || sel.closest('.ls2')) return;
         sel._lq = true;
 
         const wrap = document.createElement('div');
