@@ -418,7 +418,7 @@ using (var scope = app.Services.CreateScope())
             valid_from  DATE,
             valid_to    DATE,
             source      VARCHAR(50) DEFAULT 'manual',
-            created_at  TIMESTAMPTZ DEFAULT NOW()
+            created_at  TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS idx_emp_number_alias_number ON employee_number_alias(number);
         CREATE INDEX IF NOT EXISTS idx_emp_number_alias_emp    ON employee_number_alias(employee_id);
@@ -434,6 +434,36 @@ using (var scope = app.Services.CreateScope())
                 FROM employee WHERE employee_number_alt2 IS NOT NULL AND employee_number_alt2 <> '';
                 ALTER TABLE employee DROP COLUMN IF EXISTS employee_number_alt1;
                 ALTER TABLE employee DROP COLUMN IF EXISTS employee_number_alt2;
+            END IF;
+        END $$;
+    ");
+
+    // Walter-Vorgabe 30.06.2026 / Bug 18.07.2026: Alias-created_at waren
+    // timestamptz, Sync schreibt Schweizer Lokalzeit (DateTime.Now) → Npgsql
+    // «Cannot write DateTime with Kind=Local to timestamptz». Auf
+    // timestamp without time zone umstellen (Schweizer Zeit systemweit).
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'employee_number_alias'
+                  AND column_name = 'created_at'
+                  AND data_type = 'timestamp with time zone'
+            ) THEN
+                ALTER TABLE employee_number_alias
+                    ALTER COLUMN created_at TYPE timestamp without time zone
+                    USING created_at AT TIME ZONE 'Europe/Zurich';
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'easyatwork_employee_alias'
+                  AND column_name = 'created_at'
+                  AND data_type = 'timestamp with time zone'
+            ) THEN
+                ALTER TABLE easyatwork_employee_alias
+                    ALTER COLUMN created_at TYPE timestamp without time zone
+                    USING created_at AT TIME ZONE 'Europe/Zurich';
             END IF;
         END $$;
     ");

@@ -94,6 +94,34 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Alias-Tabellen: created_at = Schweizer Lokalzeit (timestamp without time zone).
+        // Sonst schreibt Npgsql Default timestamptz und DateTime.Now (Kind=Local) kracht.
+        modelBuilder.Entity<EmployeeNumberAlias>(entity =>
+        {
+            entity.ToTable("employee_number_alias");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Number).HasColumnName("number");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.Source).HasColumnName("source");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+        modelBuilder.Entity<EasyAtWorkEmployeeAlias>(entity =>
+        {
+            entity.ToTable("easyatwork_employee_alias");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.EasyAtWorkId).HasColumnName("easyatwork_id");
+            entity.Property(e => e.Note).HasColumnName("note");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
         modelBuilder.Entity<Employee>(entity =>
         {
             entity.ToTable("employee");

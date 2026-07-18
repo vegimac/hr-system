@@ -1578,7 +1578,7 @@ public class EasyAtWorkEmployeeSyncService
                             EmployeeId   = empId,
                             EasyAtWorkId = dup.EawEmployeeId,
                             Note         = $"Wiedereintritt: alter easy@work-Datensatz (Nr. {dup.Number})",
-                            CreatedAt    = DateTime.UtcNow,
+                            CreatedAt    = DateTime.Now,
                         });
                         aliasAdded++;
                     }
@@ -1594,7 +1594,7 @@ public class EasyAtWorkEmployeeSyncService
                             _db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
                             {
                                 EmployeeId = empId, Number = num,
-                                Source = "easyatwork_sync", CreatedAt = DateTime.UtcNow,
+                                Source = "easyatwork_sync", CreatedAt = DateTime.Now,
                             });
                             aliasAdded++;
                         }
@@ -1783,7 +1783,7 @@ public class EasyAtWorkEmployeeSyncService
                                 EmployeeId   = existingByEawId.Id,
                                 EasyAtWorkId = eaw.Id,
                                 Note         = viaNameDob ? "Auto-Merge: gleicher Name+Geb.datum, neue eaw-ID" : "Merge: zweite easy@work-ID",
-                                CreatedAt    = DateTime.UtcNow,
+                                CreatedAt    = DateTime.Now,
                             });
                         }
                         if (existingByEawId.EasyAtWorkEmployeeId != eaw.Id)

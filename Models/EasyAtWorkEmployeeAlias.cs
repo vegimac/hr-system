@@ -31,7 +31,7 @@ public class EasyAtWorkEmployeeAlias
     public string? Note { get; set; }
 
     [Column("created_at")]
-    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CreatedAt { get; set; } = DateTime.Now;
 
     [Column("created_by")]
     public string? CreatedBy { get; set; }

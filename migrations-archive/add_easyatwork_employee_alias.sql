@@ -21,10 +21,10 @@ CREATE TABLE IF NOT EXISTS easyatwork_employee_alias (
     employee_id   INTEGER NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
     easyatwork_id INTEGER NOT NULL,
     note          TEXT,
-    -- timestamptz, weil Npgsql ein DateTime-Feld standardmässig so erwartet
-    -- (CreatedAt wird als UTC geschrieben). „without time zone" würde beim
-    -- Speichern eine Npgsql-Exception werfen.
-    created_at    TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    -- Schweizer Lokalzeit (Walter-Vorgabe 30.06.2026): timestamp WITHOUT time
+    -- zone + DateTime.Now. timestamptz + DateTime.Now → Npgsql-Fehler
+    -- «Cannot write DateTime with Kind=Local…» (Bug 18.07.2026).
+    created_at    TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
     created_by    TEXT
 );
 
