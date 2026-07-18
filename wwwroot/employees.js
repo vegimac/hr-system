@@ -156,6 +156,20 @@ function _empHasActiveContract(e) {
     });
 }
 
+// Nationalitäts-Code für Listen-Filter (Walter 18.07.2026).
+// Reihenfolge: Detail-Projektion → FK-Navigation → Legacy-Freitext.
+// «Schweiz»/«Switzerland»/… → CH (sonst fielen CH-MA in «Keine Bewilligung»).
+function _empNationalityCode(e) {
+    const raw = (e.nationalityCode || e.nationalityRef?.code || e.nationality || '')
+        .toString().trim().toUpperCase();
+    if (!raw) return '';
+    if (raw === 'CH' || raw === 'CHE'
+        || raw === 'SCHWEIZ' || raw === 'SWITZERLAND'
+        || raw === 'SUISSE' || raw === 'SVIZZERA' || raw === 'SWISS')
+        return 'CH';
+    return raw;
+}
+
 // Filter-Registry — ein Eintrag pro Spezialfilter-Option im Dropdown.
 // `predicate` liefert true für MA, die im Resultat bleiben sollen.
 // `prepare`  optional: async Initialisierung (z.B. Cache befüllen).
@@ -177,6 +191,9 @@ const EMP_SPECIAL_FILTERS = {
     // Ausländer (Nationalität ≠ CH), die noch NIE einen Permit-History-Eintrag
     // hatten. Abgelaufene Bewilligungen sind ein anderer Fall (siehe
     // permit-expired und Dashboard) und werden hier nicht angezeigt.
+    // Walter-Bug 18.07.2026: Schweizerinnen mit Klartext «Schweiz» (oder nur
+    // nationalityId/FK) landeten fälschlich hier — Liste hatte oft kein
+    // nationalityCode, nur Legacy-Freitext.
     'no-permit': {
         prepare: async () => {
             if (_empIdsWithPermitHistory !== null) return;
@@ -189,8 +206,8 @@ const EMP_SPECIAL_FILTERS = {
             } catch { _empIdsWithPermitHistory = new Set(); }
         },
         predicate: (e) => {
-            const nat = (e.nationalityCode || e.nationality || '').toUpperCase();
-            if (nat === 'CH' || nat === '') return false;
+            const nat = _empNationalityCode(e);
+            if (!nat || nat === 'CH') return false;
             return !_empIdsWithPermitHistory || !_empIdsWithPermitHistory.has(Number(e.id));
         }
     },

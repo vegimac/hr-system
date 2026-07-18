@@ -36,6 +36,7 @@ public class EmployeesController : ControllerBase
         var employees = await _context.Employees
             .Where(e => !e.IsHidden && (isAdmin || !e.IsPayrollExcluded))
             .Include(e => e.Employments).ThenInclude(em => em.JobGroup)   // FK-Code für Frontend (Walter 26.05.2026)
+            .Include(e => e.NationalityRef)  // für no-permit-Filter: Code CH statt nur Legacy-Freitext «Schweiz»
             .OrderBy(e => ((e.FirstName ?? "") + " " + (e.LastName ?? "")).Trim())
             .ToListAsync();
 
