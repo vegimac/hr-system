@@ -654,7 +654,10 @@ async function selectEmployee(id) {
         const emp = await res.json();
         if (_selGen !== window._empSelectGen) return;
         selectedEmployee = emp;
-        window._linkedDocCodes = window._linkedDocCodes || new Set();
+        // Linked-Docs leeren — sonst zeigt der erste Paint noch den VORHERIGEN MA.
+        // Nachladen patcht die Doku-Buttons IN PLACE (kein zweites Full-Render
+        // der Übersicht → Verträge/KTG-Zeile springt nicht mehr).
+        window._linkedDocCodes = new Set();
         window._activePregnancy = null;
         renderEmployeeDetail(emp);
         loadEmployeePhoto(id);
@@ -687,8 +690,9 @@ async function selectEmployee(id) {
                 aktiv.sort((a, b) => (b.errechneterTermin || '').localeCompare(a.errechneterTermin || ''));
                 window._activePregnancy = aktiv[0] || null;
             }
-            // Schwangerschaft-Badge braucht Header-Refresh; Linked-Docs nur
-            // den aktuellen Tab-Inhalt (kein zweites Full-Render → kein Flash).
+            // Schwangerschaft-Badge braucht Header-Refresh.
+            // Linked-Docs: nur Buttons patchen — KEIN zweites loadUebersichtTab
+            // (sonst hüpft Verträge+KTG bei jedem MA-Wechsel).
             if (window._activePregnancy) {
                 const keepTab = activeEmpTab;
                 renderEmployeeDetail(selectedEmployee);
@@ -696,9 +700,8 @@ async function selectEmployee(id) {
                     switchEmpTab(keepTab);
                 loadEmployeePhoto(id);
                 loadNumberAliases(id);
-            } else if ((activeEmpTab || 'uebersicht') === 'uebersicht'
-                && typeof loadUebersichtTab === 'function') {
-                loadUebersichtTab();
+            } else if (typeof _ovPatchLinkedDocButtons === 'function') {
+                _ovPatchLinkedDocButtons();
             }
         });
     } catch {}
@@ -1329,7 +1332,7 @@ function loadUebersichtTab() {
     // daneben die kompakte KTG/UVG-Tagessatz-Karte (vor allem MTP/FLEX).
     const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vList + vShare);
     const kKtg = _ovCard('KTG/UVG-Tagessatz', 'absenzen', 'Zu Absenzen & Tagessatz',
-        `<div id="ovKtgContent"><div class="ov-empty" style="padding:6px 0">Wird geladen…</div></div>`);
+        `<div id="ovKtgContent" class="ov-ktg-slot">${_ovKtgSkeletonHtml()}</div>`);
 
     // Dokumente-Karte entfernt (Walter 17.07.2026) — Dokumente haben wie
     // gehabt ihren eigenen Bereich (Tab «Dokumente»).
@@ -3791,7 +3794,7 @@ function linkedDocButton(linkedCode) {
     const styleActive   = "background:#dcfce7;border:1px solid #86efac;color:#15803d";
     const styleInactive = "background:#f8f7f4;border:1px dashed #d5d0c6;color:#b3ada1";
     const tooltip = hasDoc ? 'Dokument vorhanden — klicken zum Öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen';
-    return `<button class="emp-field-docbtn" title="${tooltip}"
+    return `<button class="emp-field-docbtn" data-linked-code="${linkedCode}" title="${tooltip}"
                onclick="openLinkedDoc('${linkedCode}')"
                style="margin-left:8px;${hasDoc ? styleActive : styleInactive};border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;transition:all .15s">
                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -3803,6 +3806,21 @@ function linkedDocButton(linkedCode) {
                </svg>
                <span>Doku${hasDoc ? ' ✓' : ''}</span>
            </button>`;
+}
+
+// Nachgeladenes linked-codes-Set → bestehende Doku-Buttons tauschen,
+// OHNE die ganze Übersicht (Verträge/KTG) neu zu bauen.
+function _ovPatchLinkedDocButtons() {
+    document.querySelectorAll('.emp-field-docbtn[data-linked-code]').forEach(btn => {
+        const code = btn.getAttribute('data-linked-code');
+        if (!code) return;
+        const html = linkedDocButton(code);
+        if (!html) return;
+        const tmp = document.createElement('span');
+        tmp.innerHTML = html;
+        const neu = tmp.firstElementChild;
+        if (neu) btn.replaceWith(neu);
+    });
 }
 
 function field(label, value, linkedCode, easyworkInfo = false) {
@@ -8592,16 +8610,31 @@ function renderKtgTagessatzHtml(d, mode = 'full') {
         </div>`;
 }
 
+function _ovKtgSkeletonHtml() {
+    // Gleiche Struktur/Höhe wie die fertige Kompaktkarte — verhindert
+    // Höhensprung der Verträge+KTG-Zeile beim asynchronen Nachladen.
+    return `<div class="ktg-compact ktg-compact-skel" aria-busy="true">
+        <div class="ktg-compact-top"><span class="ktg-badge ktg-badge-a" style="opacity:.35">…</span></div>
+        <div class="ktg-compact-meta" style="opacity:.45">— · — · —</div>
+        <div class="ktg-compact-rows">
+            <div><span>100 %</span><strong>· · ·</strong></div>
+            <div class="r88"><span>88 %</span><strong>· · ·</strong></div>
+            <div class="r80"><span>80 %</span><strong>· · ·</strong></div>
+        </div>
+        <div class="ov-more" style="margin-top:8px;opacity:.4">Bei Absenzen anzeigen →</div>
+    </div>`;
+}
+
 async function loadKtgTab(employeeId) {
     // Tab «KTG/UVG» entfernt — nur noch Absenzen-Sidebar + Übersicht-Kompakt.
-    const targets = [
-        document.getElementById('ktgTagessatzSidebar'),
-        document.getElementById('ovKtgContent')
-    ].filter(Boolean);
-    if (!targets.length || !employeeId) return;
+    const side = document.getElementById('ktgTagessatzSidebar');
+    const ov   = document.getElementById('ovKtgContent');
+    if ((!side && !ov) || !employeeId) return;
 
-    const setAll = (html) => { targets.forEach(el => { el.innerHTML = html; }); };
-    setAll('<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>');
+    const gen = (window._ktgLoadGen = (window._ktgLoadGen || 0) + 1);
+    // Übersicht: Skelett gleicher Höhe (kein Kollabieren). Sidebar: kurzer Loader ok.
+    if (ov) ov.innerHTML = _ovKtgSkeletonHtml();
+    if (side) side.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>';
 
     try {
         const cid = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
@@ -8610,30 +8643,39 @@ async function loadKtgTab(employeeId) {
             ? selectedCompanyProfile.id
             : null;
         if (!cid) {
-            setAll('<div style="padding:16px;color:#94a3b8;font-size:13px">Bitte Filiale wählen.</div>');
+            const msg = '<div style="padding:16px;color:#94a3b8;font-size:13px">Bitte Filiale wählen.</div>';
+            if (ov) ov.innerHTML = msg;
+            if (side) side.innerHTML = msg;
             return;
         }
 
         const res = await fetch(`/api/payroll/ktg-tagessatz?employeeId=${employeeId}&companyProfileId=${cid}`,
             { headers: { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` } });
 
+        if (gen !== window._ktgLoadGen) return;
+
         if (res.status === 404) {
             const miss = `<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Kein aktives Anstellungsverhältnis gefunden.</div>`;
-            setAll(miss);
+            if (ov) ov.innerHTML = miss;
+            if (side) side.innerHTML = miss;
             return;
         }
         if (!res.ok) {
-            setAll(`<div style="padding:16px;color:#dc2626;font-size:13px">Fehler ${res.status}</div>`);
+            const err = `<div style="padding:16px;color:#dc2626;font-size:13px">Fehler ${res.status}</div>`;
+            if (ov) ov.innerHTML = err;
+            if (side) side.innerHTML = err;
             return;
         }
 
         const d = await res.json();
-        const side = document.getElementById('ktgTagessatzSidebar');
-        const ov   = document.getElementById('ovKtgContent');
+        if (gen !== window._ktgLoadGen) return;
         if (side) side.innerHTML = `<div class="ktg-side-card">${renderKtgTagessatzHtml(d, 'side')}</div>`;
         if (ov)   ov.innerHTML   = renderKtgTagessatzHtml(d, 'compact');
     } catch (e) {
-        setAll(`<div style="padding:16px;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`);
+        if (gen !== window._ktgLoadGen) return;
+        const err = `<div style="padding:16px;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`;
+        if (ov) ov.innerHTML = err;
+        if (side) side.innerHTML = err;
     }
 }
 
