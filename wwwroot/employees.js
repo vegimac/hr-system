@@ -10498,9 +10498,23 @@ function renderPermitListHtml(entries) {
     }
 
     const isAdmin = (currentUser?.role === 'admin' || currentUser?.role === 'superuser');
-    // Nur wirklich heute gültige Einträge als «AKTUELL» — kein Fallback auf
-    // den neuesten abgelaufenen (sonst grüne Pille trotz Ablauf).
-    const cur = list.find(h => h.isCurrent) ?? null;
+    // Schweizer Lokaldatum (nicht UTC) — sonst kann um Mitternacht das Datum kippen.
+    const _n = new Date();
+    const todayIso = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-${String(_n.getDate()).padStart(2, '0')}`;
+    const _iso = (d) => (d || '').toString().slice(0, 10);
+    const _isExpired = (h) => !!(_iso(h.validTo) && _iso(h.validTo) < todayIso);
+    const _isValidToday = (h) => {
+        const from = _iso(h.validFrom);
+        const to   = _iso(h.validTo);
+        if (from && from > todayIso) return false;
+        if (to && to < todayIso) return false;
+        return true;
+    };
+    // «AKTUELL» nur wenn wirklich heute gültig — Datum schlägt Server-Flag
+    // (Walter 18.07.2026: abgelaufene Bewilligung nie grün).
+    const cur = list.find(h => _isValidToday(h) && (h.isCurrent || !h.validTo))
+        ?? list.find(h => _isValidToday(h))
+        ?? null;
 
     // Überlapp-Erkennung (paarweise) — für oranger Hinweis-Banner.
     const dates = list.map(h => ({
@@ -10524,24 +10538,24 @@ function renderPermitListHtml(entries) {
         return (b.validFrom || '').localeCompare(a.validFrom || '');
     });
 
-    const todayIso = new Date().toISOString().slice(0, 10);
     const rowsHtml = sorted.map(h => {
         const fromTxt   = h.validFrom ? formatDate(h.validFrom) : '–';
         const toTxt     = h.validTo   ? formatDate(h.validTo)   : '<span style="color:#15803d;font-weight:600">offen</span>';
         const code      = h.permitCode || (h.permitTypeId ? 'Typ ' + h.permitTypeId : '<span style="color:#94a3b8">— keine —</span>');
         const desc      = h.permitDescription ? ' <span style="color:#94a3b8;font-size:11px">— ' + esc(h.permitDescription) + '</span>' : '';
         const noteTxt   = h.note ? `<div style="font-size:11.5px;color:#64748b;margin-top:3px">${esc(h.note)}</div>` : '';
-        const isCur     = cur && h.id === cur.id;
-        const isExpired = !!(h.validTo && h.validTo.slice(0, 10) < todayIso);
-        const rowStyle  = isCur
-            ? 'padding:8px 12px;border:1.5px solid #16a34a;border-radius:6px;background:#f0fdf4;margin-bottom:5px;display:flex;align-items:center;gap:12px'
-            : isExpired
+        const isExpired = _isExpired(h);
+        // Abgelaufen schlägt immer — nie grün/AKTUELL trotz isCurrent=true.
+        const isCur     = !isExpired && cur && h.id === cur.id;
+        const rowStyle  = isExpired
             ? 'padding:8px 12px;border:1.5px solid #fca5a5;border-radius:6px;background:#fef2f2;margin-bottom:5px;display:flex;align-items:center;gap:12px'
+            : isCur
+            ? 'padding:8px 12px;border:1.5px solid #16a34a;border-radius:6px;background:#f0fdf4;margin-bottom:5px;display:flex;align-items:center;gap:12px'
             : 'padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;background:#fafafa;margin-bottom:5px;display:flex;align-items:center;gap:12px';
-        const aktuellPille = isCur
-            ? '<span style="display:inline-block;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle">AKTUELL</span>'
-            : isExpired
+        const aktuellPille = isExpired
             ? '<span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle">ABGELAUFEN</span>'
+            : isCur
+            ? '<span style="display:inline-block;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:9px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle">AKTUELL</span>'
             : '';
         // Walter-Vorgabe 14.06.2026: pro Bewilligungs-Eintrag das verknüpfte
         // Doku zeigen (klein, grün wenn vorhanden, rot/„fehlt" wenn nicht).
