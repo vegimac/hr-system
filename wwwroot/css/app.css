@@ -2064,7 +2064,7 @@
            Aktive liquid-Seiten fuellen jetzt die volle Resthoehe. */
         .main > .page.liquid-mask.active { flex: 1 0 auto; }
         .liquid-mask .page-body { padding: 12px 14px 14px !important; }
-        .liquid-mask .emp-layout { gap: 12px; height: calc(100vh - 86px); }
+        .liquid-mask .emp-layout { gap: 10px; height: calc(100vh - 86px); }
         .liquid-mask .emp-detail-panel {
             background: var(--emp-glass-bg);
             border: 1px solid var(--emp-glass-border);
@@ -2410,10 +2410,11 @@
             backdrop-filter: none;
             -webkit-backdrop-filter: none;
         }
+        /* Liste etwas breiter (Walter 18.07.2026) — Platz sparsam aus Detail */
         #page-mitarbeiter.liquid-employee .emp-list-panel,
         #page-mitarbeiter.liquid-employee .liquid-employee-list {
-            width: 250px;
-            min-width: 250px;
+            width: 278px;
+            min-width: 278px;
             overflow: hidden;
         }
         #page-mitarbeiter.liquid-employee .emp-list-panel::before {
@@ -2562,9 +2563,9 @@
         }
         #page-mitarbeiter.liquid-employee .emp-list-item,
         #page-mitarbeiter.liquid-employee .liquid-employee-row {
-            min-height: 27px;
+            min-height: 29px;
             gap: 8px;
-            padding: 4px 7px;
+            padding: 5px 8px;
             border: 1px solid transparent;
             border-bottom: none;
             border-radius: 10px;
@@ -2588,7 +2589,7 @@
             display: none;
         }
         #page-mitarbeiter.liquid-employee .emp-list-name {
-            font-size: 11.5px;
+            font-size: 12.5px;
             font-weight: 680;
             color: var(--emp-text-strong);
             white-space: nowrap;
@@ -2611,21 +2612,21 @@
             overflow: hidden;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-header {
-            padding: 14px 16px 8px;
+            padding: 12px 14px 7px;
             border-bottom: 1px solid rgba(90, 80, 65, 0.10);
             background: linear-gradient(180deg, rgba(255, 252, 248, 0.92) 0%, rgba(244, 240, 232, 0.88) 100%);
             backdrop-filter: none;
             -webkit-backdrop-filter: none;
         }
         #page-mitarbeiter.liquid-employee #empDetailPhoto {
-            width: 120px !important;
-            height: 120px !important;
-            font-size: 39px !important;
+            width: 112px !important;
+            height: 112px !important;
+            font-size: 36px !important;
             border: 2px solid rgba(255,255,255,.72);
             box-shadow: 0 15px 36px rgba(72,63,53,.18), inset 0 1px 0 rgba(255,255,255,.60);
         }
         #page-mitarbeiter.liquid-employee .emp-detail-name {
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 780;
             letter-spacing: -.02em;
             color: var(--emp-text-strong);
@@ -2697,7 +2698,7 @@
             box-shadow: 0 8px 22px rgba(72,63,53,.10), inset 0 1px 0 rgba(255,255,255,.74);
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body {
-            padding: 10px 14px 14px;
+            padding: 8px 12px 12px;
             background: transparent;
         }
         #page-mitarbeiter.liquid-employee .emp-section-title {
@@ -3574,7 +3575,7 @@
         .ov-wrap {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
+            gap: 7px;
             padding: 2px 2px 4px;
         }
         /* Volle Breite (Walter 17.07.2026): Personalien & Adresse spannt
@@ -3592,15 +3593,15 @@
         }
         /* MA-Daten: Hauptblock — luftiger, 3 Themen-Zeilen, klarere Typo */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card {
-            padding: 14px 18px 12px !important;
+            padding: 12px 14px 10px !important;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card > .ov-card-h {
             font-size: 15px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow {
-            gap: 10px 20px;
-            margin-bottom: 11px;
+            gap: 10px 16px;
+            margin-bottom: 10px;
             padding-bottom: 0;
             width: 100%;
             justify-content: flex-start;
@@ -3703,11 +3704,11 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            gap: 8px;
+            gap: 6px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-card-h {
             flex: 0 0 auto;
-            margin-bottom: 2px;
+            margin-bottom: 0;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-anst-row {
             margin-bottom: 0;
