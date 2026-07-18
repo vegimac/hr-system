@@ -8592,7 +8592,7 @@ function renderKtgTagessatzHtml(d, mode = 'full') {
                         : `<div class="r88"><span>88 %</span><strong>CHF ${fmt(d.tagessatz88)}</strong></div>`}
                     <div class="r80"><span>80 %</span><strong>CHF ${fmt(d.tagessatz80)}</strong></div>
                 </div>
-                <button type="button" class="ov-more" style="margin-top:8px;border:none;background:none;padding:0;cursor:pointer;text-align:left"
+                <button type="button" class="ov-more" style="margin-top:4px;border:none;background:none;padding:0;cursor:pointer;text-align:left"
                         onclick="switchEmpTab('absenzen')">Bei Absenzen anzeigen →</button>
             </div>`;
     }
@@ -8627,7 +8627,7 @@ function _ovKtgSkeletonHtml() {
             <div class="r88"><span>88 %</span><strong>· · ·</strong></div>
             <div class="r80"><span>80 %</span><strong>· · ·</strong></div>
         </div>
-        <div class="ov-more" style="margin-top:8px;opacity:.4">Bei Absenzen anzeigen →</div>
+        <div class="ov-more" style="margin-top:4px;opacity:.4">Bei Absenzen anzeigen →</div>
     </div>`;
 }
 
