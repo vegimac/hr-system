@@ -4682,8 +4682,7 @@
         #page-mitarbeiter.liquid-employee #empTabDokumente {
             display: flex;
             flex-direction: column;
-            min-height: 0;
-            flex: 1 1 auto;
+            min-height: calc(100vh - 300px);
         }
         #page-mitarbeiter.liquid-employee #empTabDokumente > .dok-toolbar {
             flex: 0 0 auto;
@@ -4691,7 +4690,7 @@
         }
         #page-mitarbeiter.liquid-employee #empTabDokumente > .dok-layout {
             flex: 1 1 auto;
-            min-height: 0;
+            min-height: 420px;
             align-items: stretch;
             gap: 12px;
             grid-template-columns: 220px minmax(0, 1fr);
