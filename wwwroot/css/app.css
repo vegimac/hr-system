@@ -3532,6 +3532,11 @@
             align-items: flex-start; margin-bottom: 8px;
             overflow: hidden; min-width: 0;
         }
+        /* Anstellung: 2 Zeilen statt 6 Felder in einer Halbbreiten-Zeile */
+        .ov-anst-row { margin-bottom: 8px; gap: 10px 20px; }
+        .ov-anst-row:last-child { margin-bottom: 2px; }
+        .ov-anst-kuend .ov-anst-date { flex: 1 1 0; min-width: 0; max-width: 220px; }
+        .ov-anst-kuend .ov-softin { width: 100%; min-width: 0; box-sizing: border-box; }
         /* Fussbereich «Weitere Adressen» in der Personalien-Karte */
         .ov-addrsep {
             display: flex; align-items: center; justify-content: space-between;

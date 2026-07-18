@@ -1231,17 +1231,21 @@ function loadUebersichtTab() {
 
     // ── Karte Anstellung (Walter 17.07.2026: ALLE Anstellungs-Infos des
     //    Personal-Tabs hier, direkt editierbar — L-GAV/<8h-Toggles +
-    //    Kuendigungs-Daten mit Auto-Fristberechnung wie gehabt) ──
+    //    Kuendigungs-Daten mit Auto-Fristberechnung wie gehabt.
+    //    2 Zeilen (Walter 18.07.2026): 1× Stammdaten/Toggles, 1× Kündigung —
+    //    sonst in der Halbbreiten-Karte alles abgeschnitten/gedrängt.) ──
     const kAnst = _ovCard('Anstellung', null, '', `
-        <div class="ov-frow" style="margin-bottom:2px">
+        <div class="ov-frow ov-anst-row">
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
             ${_pf(_t('ma.detail.exitDate','Austrittsdatum'), emp.exitDate ? formatDate(emp.exitDate) : null)}
             <div class="ov-pf"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             <div class="ov-pf"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
-            <div class="ov-pf"><div class="ov-pfl">Gekündigt am</div>
-            <input id="ov-kuendAm" class="ov-softin" style="width:150px" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
-            <div class="ov-pf"><div class="ov-pfl">Kündigung per</div>
-            <input id="ov-kuendPer" class="ov-softin" style="width:150px" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
+        </div>
+        <div class="ov-frow ov-anst-row ov-anst-kuend">
+            <div class="ov-pf ov-anst-date"><div class="ov-pfl">Gekündigt am</div>
+            <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
+            <div class="ov-pf ov-anst-date"><div class="ov-pfl">Kündigung per</div>
+            <input id="ov-kuendPer" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
