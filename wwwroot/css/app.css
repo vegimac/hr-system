@@ -13,74 +13,55 @@
             height: 100vh; overflow: hidden;
         }
 
-        /* ── DARK MODE — Liquid Glass Mockup (Walter 18.07.2026) ──
-           Favorit-Mockup: DUNKLES Frostglas (nicht milchig-hell) +
-           feiner Eisblau-Verlaufs-Rand. Fill = dunkles Navy-Glas,
-           Licht nur am Rand / als Bloom im Hintergrund. */
+        /* ── DARK MODE — ruhig, lesbar (Walter 18.07.2026) ──
+           Information first: dunkle Flächen, dezenter Eisblau-Rand,
+           KEIN Glow-Zirkus auf Inputs/Buttons. Inhalt > Effekt. */
         body.theme-dark {
-            /* Design-Tokens — überall wiederverwenden */
             --dlg-bg:
-                radial-gradient(circle at 78% 8%, rgba(70,130,220,.18) 0, transparent 380px),
-                radial-gradient(circle at 14% 92%, rgba(40,90,170,.14) 0, transparent 420px),
-                radial-gradient(circle at 48% 42%, rgba(30,60,110,.10) 0, transparent 520px),
-                linear-gradient(145deg, #0b1424 0%, #101c30 48%, #0a1220 100%);
-            /* Glas = dunkel + leicht blau (Mockup: dunkle Scheibe, kein Milchglas) */
-            --dlg-glass:        rgba(22, 38, 62, 0.52);
-            --dlg-glass-strong: rgba(28, 48, 78, 0.62);
-            --dlg-glass-field:  rgba(16, 30, 52, 0.55);
-            /* Fallback-Farbe (wenn kein Verlauf möglich) */
-            --dlg-glass-border: rgba(140, 195, 255, 0.38);
-            --dlg-glass-inner:  rgba(180, 215, 255, 0.14);
-            /* Füllung = dunkles Navy-Glas (NICHT hellblau) */
-            --dlg-fill:
-                linear-gradient(165deg,
-                    rgba(48, 78, 120, 0.34) 0%,
-                    rgba(18, 34, 56, 0.58) 46%,
-                    rgba(10, 22, 40, 0.72) 100%);
-            --dlg-fill-strong:
-                linear-gradient(165deg,
-                    rgba(55, 88, 132, 0.42) 0%,
-                    rgba(22, 40, 66, 0.68) 48%,
-                    rgba(12, 26, 46, 0.80) 100%);
-            --dlg-fill-field:
-                linear-gradient(180deg,
-                    rgba(28, 48, 78, 0.55) 0%,
-                    rgba(14, 28, 48, 0.68) 100%);
-            /* Rand = helles Eisblau (das «Licht» sitzt am Rand, nicht in der Fläche) */
+                radial-gradient(circle at 80% 0%, rgba(50,100,180,.10) 0, transparent 420px),
+                radial-gradient(circle at 10% 100%, rgba(30,70,140,.08) 0, transparent 460px),
+                linear-gradient(145deg, #0b1424 0%, #101c30 50%, #0a1220 100%);
+            --dlg-glass:        rgba(18, 32, 52, 0.72);
+            --dlg-glass-strong: rgba(22, 38, 60, 0.82);
+            --dlg-glass-field:  rgba(12, 24, 42, 0.78);
+            /* Dezenter Rand — kein leuchtendes Band */
+            --dlg-glass-border: rgba(120, 170, 230, 0.22);
+            --dlg-glass-inner:  rgba(180, 210, 245, 0.08);
+            --dlg-fill:         rgba(16, 30, 50, 0.78);
+            --dlg-fill-strong:  rgba(20, 36, 58, 0.88);
+            --dlg-fill-field:   rgba(10, 22, 40, 0.82);
+            /* Verlaufs-Rand nur noch sehr dezent (Karten) */
             --dlg-rim:
                 linear-gradient(135deg,
-                    rgba(200, 230, 255, 0.72) 0%,
-                    rgba(70, 130, 210, 0.18) 45%,
-                    rgba(140, 195, 255, 0.48) 100%);
+                    rgba(170, 210, 255, 0.34) 0%,
+                    rgba(70, 120, 190, 0.10) 50%,
+                    rgba(130, 185, 240, 0.24) 100%);
             --dlg-rim-soft:
                 linear-gradient(135deg,
-                    rgba(170, 210, 255, 0.42) 0%,
-                    rgba(60, 110, 180, 0.12) 50%,
-                    rgba(120, 180, 240, 0.30) 100%);
+                    rgba(140, 185, 235, 0.22) 0%,
+                    rgba(60, 100, 160, 0.08) 100%);
             --dlg-rim-hot:
                 linear-gradient(135deg,
-                    rgba(220, 240, 255, 0.88) 0%,
-                    rgba(100, 165, 245, 0.32) 45%,
-                    rgba(160, 210, 255, 0.62) 100%);
-            /* Weicher Glow um den Rand — zurückhaltend */
+                    rgba(180, 215, 255, 0.48) 0%,
+                    rgba(80, 140, 210, 0.18) 50%,
+                    rgba(140, 195, 245, 0.36) 100%);
+            /* Kaum Glow — nur leichte Tiefe */
             --dlg-shadow:
-                0 0 0 1px rgba(110, 170, 255, 0.10),
-                0 0 18px rgba(50, 120, 220, 0.10),
-                0 16px 40px rgba(0, 8, 24, 0.45),
-                inset 0 1px 0 rgba(200, 230, 255, 0.16),
-                inset 0 -1px 0 rgba(40, 90, 160, 0.18);
-            --dlg-text-strong:  #f2f7ff;
-            --dlg-text:         #c8d7eb;
-            --dlg-text-soft:    #8fa6c4;
-            --dlg-text-muted:   #6b849f;
-            --dlg-active:       rgba(60, 120, 200, 0.42);
-            --dlg-active-text:  #eaf4ff;
-            --dlg-active-border: rgba(140, 200, 255, 0.55);
+                0 8px 24px rgba(0, 8, 24, 0.35),
+                inset 0 1px 0 rgba(180, 210, 245, 0.08);
+            /* Text: hohe Lesbarkeit */
+            --dlg-text-strong:  #ffffff;
+            --dlg-text:         #e2eaf6;
+            --dlg-text-soft:    #a8bad0;
+            --dlg-text-muted:   #8a9db5;
+            --dlg-active:       rgba(45, 100, 175, 0.48);
+            --dlg-active-text:  #ffffff;
+            --dlg-active-border: rgba(130, 185, 240, 0.40);
 
             background: #0b1424;
             color: var(--dlg-text);
         }
-        /* Helper: dunkles Frostglas + Eisblau-Verlaufs-Rand */
+        /* Nur grosse Flächen: ruhiges dunkles Glas + dezenter Verlaufs-Rand */
         body.theme-dark .dlg-rim,
         body.theme-dark .card,
         body.theme-dark .emp-detail-panel,
@@ -104,13 +85,13 @@
         body.theme-dark .stamp-modal,
         body.theme-dark .modal-content {
             border: 1px solid transparent !important;
-            background-color: transparent !important;
-            background-image: var(--dlg-fill), var(--dlg-rim) !important;
+            background-color: var(--dlg-fill) !important;
+            background-image: linear-gradient(var(--dlg-fill), var(--dlg-fill)), var(--dlg-rim) !important;
             background-origin: padding-box, border-box !important;
             background-clip: padding-box, border-box !important;
             box-shadow: var(--dlg-shadow) !important;
-            backdrop-filter: blur(20px) saturate(120%);
-            -webkit-backdrop-filter: blur(20px) saturate(120%);
+            backdrop-filter: blur(14px) saturate(110%);
+            -webkit-backdrop-filter: blur(14px) saturate(110%);
             color: var(--dlg-text) !important;
         }
         body.theme-dark .main {
@@ -178,15 +159,15 @@
             border-top: none !important;
         }
         body.theme-dark .emp-field-value {
-            color: var(--dlg-text-strong) !important;
-            border: 1px solid transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            box-shadow: inset 0 1px 0 var(--dlg-glass-inner), 0 0 10px rgba(80,150,255,.08) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(120, 170, 230, 0.18) !important;
+            background: rgba(8, 18, 34, 0.55) !important;
+            background-image: none !important;
+            box-shadow: none !important;
         }
         body.theme-dark .emp-field-value:hover {
-            background-image: var(--dlg-fill), var(--dlg-rim) !important;
+            border-color: rgba(140, 195, 245, 0.32) !important;
+            background: rgba(10, 22, 40, 0.70) !important;
         }
         body.theme-dark .emp-field-value.empty {
             color: var(--dlg-text-muted) !important;
@@ -200,7 +181,7 @@
             background: linear-gradient(to right, rgba(72,100,132,.22) 0%, transparent 72%) !important;
         }
 
-        /* Inputs — Feldglas + weicher Verlaufs-Rand */
+        /* Inputs — ruhig, lesbar (kein Glow/Verlaufs-Rand) */
         body.theme-dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
         body.theme-dark select,
         body.theme-dark textarea,
@@ -211,13 +192,11 @@
         body.theme-dark .ov-softin,
         body.theme-dark .emp-search-input,
         body.theme-dark .lqsel-btn {
-            border: 1px solid transparent !important;
-            background-color: transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            color: var(--dlg-text-strong) !important;
-            box-shadow: inset 0 1px 0 var(--dlg-glass-inner), 0 0 10px rgba(80,150,255,.08) !important;
+            border: 1px solid rgba(120, 170, 230, 0.22) !important;
+            background: rgba(8, 18, 34, 0.88) !important;
+            background-image: none !important;
+            color: #ffffff !important;
+            box-shadow: none !important;
         }
         body.theme-dark input:not([type="checkbox"]):not([type="radio"]):focus,
         body.theme-dark select:focus,
@@ -225,8 +204,9 @@
         body.theme-dark .ef-input:focus,
         body.theme-dark .ov-softin:focus,
         body.theme-dark .lqsel-btn:focus {
-            background-image: var(--dlg-fill-field), var(--dlg-rim-hot) !important;
-            box-shadow: 0 0 0 2px rgba(120,180,255,.28), inset 0 1px 0 rgba(230,245,255,.30) !important;
+            border-color: rgba(140, 195, 245, 0.45) !important;
+            background: rgba(10, 22, 40, 0.95) !important;
+            box-shadow: 0 0 0 2px rgba(80, 140, 210, 0.18) !important;
         }
         body.theme-dark input::placeholder,
         body.theme-dark textarea::placeholder { color: var(--dlg-text-muted); }
@@ -557,26 +537,26 @@
         body.theme-dark .stat-value { color: var(--dlg-text-strong) !important; }
         body.theme-dark .stat-hint  { color: var(--dlg-text-muted) !important; }
 
-        /* Buttons — Glas-Outline mit Verlaufs-Rand */
+        /* Buttons — ruhige Outline, kein Rim-Glow */
         body.theme-dark .btn-outline,
         body.theme-dark .btn-secondary,
         body.theme-dark .btn-emp-add,
         body.theme-dark .ov-hbtn:not(.ov-hbtn-primary),
         body.theme-dark .emp-contract-btn {
-            border: 1px solid transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
+            border: 1px solid rgba(120, 170, 230, 0.24) !important;
+            background: rgba(16, 30, 50, 0.72) !important;
+            background-image: none !important;
             color: var(--dlg-text) !important;
-            box-shadow: inset 0 1px 0 var(--dlg-glass-inner), 0 0 10px rgba(80,150,255,.08) !important;
+            box-shadow: none !important;
         }
         body.theme-dark .btn-outline:hover,
         body.theme-dark .btn-secondary:hover,
         body.theme-dark .btn-emp-add:hover,
         body.theme-dark .ov-hbtn:not(.ov-hbtn-primary):hover,
         body.theme-dark .emp-contract-btn:hover {
-            background-image: var(--dlg-fill-field), var(--dlg-rim-hot) !important;
-            color: var(--dlg-text-strong) !important;
+            border-color: rgba(140, 195, 245, 0.40) !important;
+            background: rgba(24, 42, 68, 0.85) !important;
+            color: #ffffff !important;
         }
 
         /* Dokumenten-Liste / Tabelle / Menu — Glas */
@@ -1521,27 +1501,25 @@
         }
         body.theme-dark .branch-select option { background: #121c28; color: var(--dlg-text); }
         body.theme-dark .nav-item {
-            border: 1px solid transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
+            border: 1px solid rgba(120, 170, 230, 0.16) !important;
+            background: rgba(14, 26, 44, 0.55) !important;
+            background-image: none !important;
             color: var(--dlg-text);
-            box-shadow: inset 0 1px 0 rgba(200,230,255,.14), 0 0 12px rgba(80,150,255,.08);
+            box-shadow: none;
         }
         body.theme-dark .nav-item:hover {
-            background-image: var(--dlg-fill), var(--dlg-rim) !important;
-            color: var(--dlg-text-strong);
-            box-shadow: 0 8px 22px rgba(20,60,120,.28), inset 0 1px 0 rgba(210,235,255,.22);
-            transform: translateY(-1px);
+            background: rgba(22, 40, 66, 0.72) !important;
+            border-color: rgba(120, 170, 230, 0.28) !important;
+            color: #ffffff;
+            box-shadow: none;
+            transform: none;
         }
         body.theme-dark .nav-item.active {
-            background-image:
-                linear-gradient(180deg, rgba(50,110,190,.52), rgba(24,65,120,.48)),
-                var(--dlg-rim-hot) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            color: var(--dlg-active-text) !important;
-            box-shadow: 0 0 14px rgba(60,130,220,.18), inset 0 1px 0 rgba(200,230,255,.20);
+            border: 1px solid rgba(120, 175, 235, 0.36) !important;
+            background: rgba(40, 90, 160, 0.42) !important;
+            background-image: none !important;
+            color: #ffffff !important;
+            box-shadow: none;
         }
         body.theme-dark .user-name { color: var(--dlg-text-strong); }
         .nav-soon {
@@ -3657,9 +3635,9 @@
         .ov-frow .ov-pfv {
             text-overflow: ellipsis; white-space: nowrap;
         }
-        /* Strasse / Ort: duerfen schrumpfen, Truncate statt Zeilenumbruch */
+        /* Strasse / Ort: mehr Platz, Truncate nur als Notbremse */
         .ov-frow .ov-pf-shrink {
-            flex: 1 1 0; min-width: 0; max-width: 200px;
+            flex: 1 1 140px; min-width: 100px; max-width: 280px;
         }
         .ov-frow .ov-pf-shrink .ov-pfv {
             display: block; overflow: hidden; text-overflow: ellipsis;
@@ -3675,6 +3653,20 @@
             font-size: 14.5px; font-weight: 650; color: #0a0a0a;
             white-space: nowrap;
         }
+        /* Dark: Labels lesbar, Werte klar weiss — Inhalt vor Effekt */
+        body.theme-dark .ov-pfl,
+        body.theme-dark .ov-fl,
+        body.theme-dark .ov-card-h {
+            color: #a8bad0 !important;
+        }
+        body.theme-dark .ov-pfv,
+        body.theme-dark .ov-fv,
+        body.theme-dark .ov-vrole,
+        body.theme-dark .ov-dname {
+            color: #ffffff !important;
+            font-weight: 650;
+        }
+        body.theme-dark .ov-empty { color: #7a8fa8 !important; }
         /* Soft-Inputs im Bearbeiten-Modus */
         .ov-softin {
             max-width: 100%;
@@ -4091,26 +4083,22 @@
             border-color: var(--dlg-glass-border) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab {
-            border: 1px solid transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
+            border: 1px solid rgba(120, 170, 230, 0.18) !important;
+            background: rgba(14, 26, 44, 0.55) !important;
+            background-image: none !important;
             color: var(--dlg-text-soft) !important;
-            box-shadow: inset 0 1px 0 rgba(210,235,255,.16), 0 0 12px rgba(80,150,255,.08) !important;
+            box-shadow: none !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab:hover {
-            background-image: var(--dlg-fill), var(--dlg-rim) !important;
-            color: var(--dlg-text-strong) !important;
+            background: rgba(22, 40, 66, 0.72) !important;
+            color: #ffffff !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active {
-            border: 1px solid transparent !important;
-            background-image:
-                linear-gradient(180deg, rgba(50,110,190,.55), rgba(24,65,120,.50)),
-                var(--dlg-rim-hot) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            color: #f0f7ff !important;
-            box-shadow: 0 0 14px rgba(60,130,220,.16), inset 0 1px 0 rgba(200,230,255,.18) !important;
+            border: 1px solid rgba(120, 175, 235, 0.38) !important;
+            background: rgba(40, 90, 160, 0.48) !important;
+            background-image: none !important;
+            color: #ffffff !important;
+            box-shadow: none !important;
             text-decoration: none !important;
         }
 
