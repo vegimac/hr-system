@@ -3420,13 +3420,6 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
     });
 
     const typeOrder = ['Ehepartner', 'Kind', 'Mutter', 'Vater', 'Sonstige'];
-    const typeBadge = {
-        Ehepartner: { color:'#9d174d', bg:'#fce7f3' },
-        Kind:       { color:'#6b6152', bg:'#ece9e2' },
-        Mutter:     { color:'#92400e', bg:'#fef3c7' },
-        Vater:      { color:'#92400e', bg:'#fef3c7' },
-        Sonstige:   { color:'#475569', bg:'#f1f5f9' }
-    };
     // Walter-Vorgabe 13.06.2026: roter Warnbanner ganz oben, wenn die QST-
     // Befreiung über den Ehepartner läuft und das Beleg-Doku noch nicht am
     // Family-Member verknüpft ist. Klick öffnet das gleiche Auswahl+Upload-
@@ -3472,7 +3465,6 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             const dob  = m.dateOfBirth ? formatDate(m.dateOfBirth) : '';
             const age  = m.dateOfBirth ? calcAge(m.dateOfBirth) : null;
             const meta = dob ? `${dob}${age !== null ? ' · ' + age + ' ' + yearsLabel : ''}` : '';
-            const b    = typeBadge[type] ?? typeBadge.Sonstige;
 
             // Walter-Vorgabe 07.06.2026: Beim EHEPARTNER (nicht bei Kindern!)
             // die Bewilligung + Ablaufdatum als Badge anzeigen, plus einen
