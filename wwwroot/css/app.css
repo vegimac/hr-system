@@ -32,10 +32,11 @@
             --dlg-glass-inner:  rgba(200, 230, 255, 0.22);
             /* Tiefe + blauer Rim-Glow (Mockup-«blaue Umrandung als Verlauf») */
             --dlg-shadow:
-                0 0 0 1px rgba(100, 170, 255, 0.12),
-                0 14px 36px rgba(0, 20, 50, 0.35),
-                inset 0 1px 0 rgba(210, 235, 255, 0.28),
-                inset 0 -1px 0 rgba(60, 120, 200, 0.10);
+                0 0 0 1px rgba(120, 185, 255, 0.22),
+                0 0 18px rgba(80, 150, 255, 0.14),
+                0 14px 36px rgba(0, 20, 50, 0.32),
+                inset 0 1px 0 rgba(220, 240, 255, 0.34),
+                inset 0 -1px 0 rgba(70, 140, 220, 0.14);
             --dlg-text-strong:  #f2f7ff;
             --dlg-text:         #d4e2f4;
             --dlg-text-soft:    #9eb6d4;
@@ -3050,46 +3051,49 @@
             color: var(--emp-text) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn {
-            background: rgba(24,36,49,.48);
-            border-color: rgba(122,145,165,.18);
-            color: #b7c4d2;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+            background: linear-gradient(165deg, rgba(130,180,255,.14), rgba(60,110,180,.08));
+            border-color: rgba(130,190,255,.32);
+            color: var(--emp-text-soft);
+            box-shadow: inset 0 1px 0 rgba(210,235,255,.18), 0 0 12px rgba(80,150,255,.08);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn:hover {
-            background: rgba(40,57,75,.66);
+            background: linear-gradient(165deg, rgba(140,190,255,.22), rgba(70,130,200,.12));
+            border-color: rgba(150,205,255,.48);
             color: #f5faff;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn.active {
-            background: rgba(72,100,132,.46);
-            color: #d9ecff;
-            border-color: rgba(126,167,210,.30);
+            background: linear-gradient(180deg, rgba(130,190,255,.40), rgba(70,140,220,.26));
+            color: #eaf4ff;
+            border-color: rgba(160,210,255,.55);
+            box-shadow: 0 0 0 1px rgba(120,180,255,.18), inset 0 1px 0 rgba(220,240,255,.30);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body {
-            background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.01));
+            background: linear-gradient(180deg, rgba(100,160,230,.06), rgba(40,80,140,.03));
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-search-input,
         body.theme-dark #page-mitarbeiter.liquid-employee #empSpecialFilter,
         body.theme-dark #page-mitarbeiter.liquid-employee #empExitDateAfter {
-            background: rgba(255,255,255,.07) !important;
-            border-color: rgba(180,200,220,.24) !important;
+            background: rgba(100,150,220,.10) !important;
+            border-color: rgba(130,190,255,.32) !important;
             color: var(--emp-text) !important;
+            box-shadow: inset 0 1px 0 rgba(200,230,255,.14);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAktiv,
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterInaktiv,
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAlle,
         body.theme-dark #page-mitarbeiter.liquid-employee .btn-emp-edit,
         body.theme-dark #page-mitarbeiter.liquid-employee .btn-emp-add {
-            background: rgba(255,255,255,.08) !important;
-            border-color: rgba(180,200,220,.24) !important;
+            background: linear-gradient(165deg, rgba(130,180,255,.14), rgba(70,120,190,.08)) !important;
+            border-color: rgba(130,190,255,.34) !important;
             color: var(--emp-text) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+            box-shadow: inset 0 1px 0 rgba(210,235,255,.18), 0 0 10px rgba(80,150,255,.08);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAktiv[style*="color:white"],
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterInaktiv[style*="color:white"],
-        body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAlle[style*="color:white"],
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active {
-            background: rgba(70,91,116,.52) !important;
-            color: #f5faff !important;
+        body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAlle[style*="color:white"] {
+            background: linear-gradient(180deg, rgba(130,190,255,.42), rgba(70,140,220,.28)) !important;
+            color: #f0f7ff !important;
+            border-color: rgba(160,210,255,.55) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-name,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-name {
@@ -3115,14 +3119,14 @@
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value,
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-field .emp-field-value {
-            background: var(--emp-glass-field) !important;
-            border-color: rgba(122,145,165,.25) !important;
+            background: linear-gradient(165deg, rgba(130,180,255,.12), rgba(70,120,190,.07)) !important;
+            border-color: var(--emp-glass-border) !important;
             color: var(--emp-text-strong) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.16);
+            box-shadow: inset 0 1px 0 rgba(210,235,255,.20), 0 0 12px rgba(80,150,255,.08);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:hover {
-            background: rgba(255,255,255,.12) !important;
-            border-color: rgba(150,190,230,.40) !important;
+            background: linear-gradient(165deg, rgba(140,190,255,.18), rgba(80,130,200,.10)) !important;
+            border-color: rgba(150,205,255,.50) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info:hover {
@@ -3141,33 +3145,35 @@
             color: var(--emp-text-soft) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-strip {
-            background: rgba(255,255,255,.06);
-            border-color: rgba(180,200,220,.20);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 8px 24px rgba(0,0,0,.16);
+            background: linear-gradient(165deg, rgba(140,190,255,.10), rgba(60,110,180,.06));
+            border-color: rgba(130,190,255,.32);
+            box-shadow: var(--dlg-shadow);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-head {
-            background: rgba(233, 236, 240, 0.92);
-            color: #1a1a1a;
+            background: linear-gradient(90deg, rgba(130,180,255,.22), rgba(90,140,210,.12));
+            color: #eaf4ff;
+            border-color: rgba(140,200,255,.28);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-row {
-            background: rgba(255,255,255,.07);
-            border-color: rgba(180,200,220,.20);
+            background: linear-gradient(90deg, rgba(120,170,240,.10), rgba(80,130,200,.06));
+            border-color: rgba(130,190,255,.28);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-contract-btn {
-            background: rgba(255,255,255,.10);
-            border-color: rgba(150,190,230,.30);
-            color: #e8f0f8;
+            background: linear-gradient(165deg, rgba(130,180,255,.16), rgba(70,120,190,.10));
+            border-color: rgba(140,200,255,.42);
+            color: #eaf4ff;
+            box-shadow: inset 0 1px 0 rgba(210,235,255,.20), 0 0 10px rgba(80,150,255,.10);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .ef-input {
-            background: rgba(255,255,255,.07);
-            border-color: rgba(180,200,220,.26);
+            background: rgba(100,150,220,.10);
+            border-color: rgba(130,190,255,.34);
             color: var(--emp-text-strong);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+            box-shadow: inset 0 1px 0 rgba(200,230,255,.16);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input:not([readonly]):not(:disabled)) {
-            background: rgba(255,255,255,.10) !important;
-            border-color: rgba(180,200,220,.30) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 8px 18px rgba(0,0,0,.14);
+            background: linear-gradient(165deg, rgba(130,180,255,.14), rgba(70,120,190,.08)) !important;
+            border-color: rgba(140,200,255,.42) !important;
+            box-shadow: inset 0 1px 0 rgba(210,235,255,.20), 0 0 12px rgba(80,150,255,.10);
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:has(.ef-input[data-easywork-locked]) {
             background: transparent !important;
@@ -3774,13 +3780,14 @@
             color: #6ee7b7 !important;
         }
         body.theme-dark .ov-card {
-            /* Mockup: blauer Glas-Verlauf + leuchtender Rim */
+            /* Mockup: blauer Glas-Verlauf + leuchtender Rim (muss stärker sein
+               als flache slate-Karten — das war der sichtbare Gap zum Mockup) */
             background:
-                linear-gradient(165deg, rgba(160,200,255,.14) 0%, rgba(90,140,210,.08) 45%, rgba(40,90,160,.10) 100%) !important;
-            border: 1px solid rgba(140,200,255,.42) !important;
+                linear-gradient(165deg, rgba(170,210,255,.18) 0%, rgba(100,150,220,.10) 42%, rgba(50,100,170,.12) 100%) !important;
+            border: 1px solid rgba(150,210,255,.50) !important;
             box-shadow: var(--dlg-shadow) !important;
-            backdrop-filter: blur(22px) saturate(150%);
-            -webkit-backdrop-filter: blur(22px) saturate(150%);
+            backdrop-filter: blur(22px) saturate(155%);
+            -webkit-backdrop-filter: blur(22px) saturate(155%);
         }
         body.theme-dark .ov-vrow,
         body.theme-dark .ov-drow {
@@ -3791,10 +3798,16 @@
         body.theme-dark .ov-softin,
         body.theme-dark input.ov-softin,
         body.theme-dark select.ov-softin {
-            background: rgba(80,130,200,.14) !important;
-            border-color: rgba(140,200,255,.35) !important;
+            background: linear-gradient(180deg, rgba(110,165,235,.16), rgba(70,120,190,.10)) !important;
+            border-color: rgba(150,210,255,.48) !important;
             color: var(--dlg-text-strong) !important;
-            box-shadow: inset 0 1px 0 rgba(200,230,255,.14);
+            box-shadow: inset 0 1px 0 rgba(220,240,255,.22), 0 0 10px rgba(80,150,255,.10);
+        }
+        body.theme-dark .ov-softin:focus,
+        body.theme-dark input.ov-softin:focus,
+        body.theme-dark select.ov-softin:focus {
+            border-color: rgba(170,220,255,.72) !important;
+            box-shadow: 0 0 0 2px rgba(110,175,255,.28), inset 0 1px 0 rgba(230,245,255,.28);
         }
 
         /* ── Dark Liquid Glass: MA-Tab-Flächen (Verfügbarkeit, Leerstates) ── */
@@ -3989,23 +4002,22 @@
             border-color: var(--dlg-glass-border) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab {
-            background: rgba(255,255,255,.05) !important;
-            border-color: rgba(180,200,220,.16) !important;
+            background: linear-gradient(165deg, rgba(120,170,240,.12), rgba(60,110,180,.07)) !important;
+            border-color: rgba(130,190,255,.36) !important;
             color: var(--dlg-text-soft) !important;
+            box-shadow: inset 0 1px 0 rgba(210,235,255,.16), 0 0 12px rgba(80,150,255,.08) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab:hover {
-            background: rgba(255,255,255,.10) !important;
+            background: linear-gradient(165deg, rgba(140,190,255,.20), rgba(80,130,200,.12)) !important;
+            border-color: rgba(150,205,255,.50) !important;
             color: var(--dlg-text-strong) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab.active {
-            background: linear-gradient(180deg, rgba(130,190,255,.42), rgba(70,140,220,.28)) !important;
-            border-color: rgba(160,210,255,.60) !important;
+            background: linear-gradient(180deg, rgba(140,200,255,.48), rgba(70,140,220,.30)) !important;
+            border-color: rgba(170,220,255,.68) !important;
             color: #f0f7ff !important;
-            box-shadow: 0 0 0 1px rgba(120,180,255,.20), inset 0 1px 0 rgba(220,240,255,.35);
-        }
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab {
-            border-color: rgba(130,190,255,.22) !important;
-            background: rgba(100,150,220,.08) !important;
+            box-shadow: 0 0 0 1px rgba(130,190,255,.28), 0 0 16px rgba(90,160,255,.18), inset 0 1px 0 rgba(230,245,255,.40) !important;
+            text-decoration: none !important;
         }
 
         /* ── Liquid-Glass Tab-INHALTE (Walter-Wunsch 27.06.2026) ──────────
@@ -4055,13 +4067,14 @@
             background: rgba(125,160,205,.16) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-family-card {
-            background: rgba(24,36,49,.46) !important;
-            border-color: rgba(122,145,165,.20) !important;
+            background: linear-gradient(165deg, rgba(160,200,255,.12) 0%, rgba(80,130,200,.06) 42%, rgba(40,80,140,.08) 100%) !important;
+            border-color: rgba(140,200,255,.40) !important;
+            box-shadow: var(--dlg-shadow) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-family-card table.fm-subtable td,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-family-card .fm-subrow {
-            background: rgba(255,255,255,.06) !important;
-            border-color: rgba(255,255,255,.10) !important;
+            background: linear-gradient(90deg, rgba(120,170,240,.10), rgba(80,130,200,.06)) !important;
+            border-color: rgba(130,190,255,.28) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .dok-table thead th,
         body.theme-dark #page-mitarbeiter.liquid-employee .abs-table th {
