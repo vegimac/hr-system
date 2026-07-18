@@ -36,5 +36,5 @@ public class EmployeeNumberAlias
     public string Source { get; set; } = "manual";
 
     [Column("created_at")]
-    public DateTime? CreatedAt { get; set; } = DateTime.Now;
+    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 }

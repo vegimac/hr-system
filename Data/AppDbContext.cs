@@ -94,46 +94,6 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Alias-Tabellen: created_at = Schweizer Lokalzeit (timestamp without time zone).
-        // Sonst schreibt Npgsql Default timestamptz und DateTime.Now (Kind=Local) kracht.
-        modelBuilder.Entity<EmployeeNumberAlias>(entity =>
-        {
-            entity.ToTable("employee_number_alias");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
-            entity.Property(e => e.Number).HasColumnName("number");
-            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
-            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
-            entity.Property(e => e.Source).HasColumnName("source");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
-            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
-        });
-        modelBuilder.Entity<EasyAtWorkEmployeeAlias>(entity =>
-        {
-            entity.ToTable("easyatwork_employee_alias");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
-            entity.Property(e => e.EasyAtWorkId).HasColumnName("easyatwork_id");
-            entity.Property(e => e.Note).HasColumnName("note");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
-            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
-            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
-        });
-        modelBuilder.Entity<EasyAtWorkSyncState>(entity =>
-        {
-            entity.ToTable("easyatwork_sync_state");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
-            entity.Property(e => e.Resource).HasColumnName("resource");
-            entity.Property(e => e.LastSyncAt).HasColumnName("last_sync_at").HasColumnType("timestamp without time zone");
-            entity.Property(e => e.LastSeenUpdatedAt).HasColumnName("last_seen_updated_at").HasColumnType("timestamp without time zone");
-            entity.Property(e => e.LastRowCount).HasColumnName("last_row_count");
-            entity.Property(e => e.LastError).HasColumnName("last_error");
-        });
-
         modelBuilder.Entity<Employee>(entity =>
         {
             entity.ToTable("employee");
@@ -908,16 +868,14 @@ public class AppDbContext : DbContext
             // Herkunft (Walter 21.06.2026): in welchem easy@work-Customer/Filiale gestempelt.
             entity.Property(e => e.EasyAtWorkCustomerId).HasColumnName("easyatwork_customer_id");
             entity.Property(e => e.SourceCompanyProfileId).HasColumnName("source_company_profile_id");
-            // created_at/updated_at = Schweizer Lokalzeit (Walter 30.06.2026)
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.OriginalTimeIn).HasColumnName("original_time_in").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OriginalTimeOut).HasColumnName("original_time_out").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OriginalComment).HasColumnName("original_comment");
             entity.Property(e => e.EditedBy).HasColumnName("edited_by").HasMaxLength(100);
-            // edited_at ist in der DB noch „timestamp with time zone" → Npgsql 6+
-            // verlangt Kind=Utc. ExtractEditorTime liefert daher UTC zurück.
-            // (Separate Ausnahme — nicht anfassen ohne Spalten-Migration.)
+            // edited_at ist in der DB „timestamp with time zone" → Npgsql 6+ verlangt
+            // Kind=Utc beim Schreiben. ExtractEditorTime liefert daher UTC zurück.
             entity.Property(e => e.EditedAt).HasColumnName("edited_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
         });
@@ -1527,8 +1485,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AufteilungWert).HasColumnName("aufteilung_wert").HasColumnType("numeric(10,2)");
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom, e.ValidTo })
                   .HasDatabaseName("idx_emp_bank_period");

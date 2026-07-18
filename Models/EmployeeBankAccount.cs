@@ -60,9 +60,8 @@ public class EmployeeBankAccount
     public DateOnly  ValidFrom        { get; set; }
     public DateOnly? ValidTo          { get; set; }
 
-    // Schweizer Lokalzeit, Spalten timestamp without time zone (Walter-Vorgabe).
-    public DateTime  CreatedAt        { get; set; } = DateTime.Now;
-    public DateTime  UpdatedAt        { get; set; } = DateTime.Now;
+    public DateTime  CreatedAt        { get; set; } = DateTime.UtcNow;
+    public DateTime  UpdatedAt        { get; set; } = DateTime.UtcNow;
 
     public Employee? Employee         { get; set; }
 }

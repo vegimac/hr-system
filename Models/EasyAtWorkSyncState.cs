@@ -26,11 +26,11 @@ public class EasyAtWorkSyncState
     [MaxLength(32)]
     public string Resource { get; set; } = "";
 
-    /// <summary>Letzter erfolgreicher Sync-Lauf (Schweizer Lokalzeit).</summary>
+    /// <summary>Letzter erfolgreicher Sync-Lauf (UTC).</summary>
     [Column("last_sync_at")]
     public DateTime? LastSyncAt { get; set; }
 
-    /// <summary>Höchstes verarbeitetes updated_at aus easy@work (Lokalzeit-Marker).</summary>
+    /// <summary>Höchstes verarbeitetes updated_at aus easy@work (UTC).</summary>
     [Column("last_seen_updated_at")]
     public DateTime? LastSeenUpdatedAt { get; set; }
 

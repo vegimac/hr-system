@@ -418,7 +418,7 @@ using (var scope = app.Services.CreateScope())
             valid_from  DATE,
             valid_to    DATE,
             source      VARCHAR(50) DEFAULT 'manual',
-            created_at  TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+            created_at  TIMESTAMPTZ DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS idx_emp_number_alias_number ON employee_number_alias(number);
         CREATE INDEX IF NOT EXISTS idx_emp_number_alias_emp    ON employee_number_alias(employee_id);
@@ -438,9 +438,11 @@ using (var scope = app.Services.CreateScope())
         END $$;
     ");
 
-    // Walter-Vorgabe 30.06.2026: Schweizer Lokalzeit = timestamp without time zone
-    // + DateTime.Now. Alias- und Stempel-Metadaten-Spalten, die noch timestamptz
-    // sind, hier idempotent umstellen (sonst Npgsql Kind=Local-Fehler).
+
+
+    // Rollback der Sync-Metadaten-Spalten auf timestamptz (wie vor dem
+    // 18.07.2026-Experiment). Sync schreibt dort DateTime.UtcNow — wie bisher
+    // funktionierend. Stempel-Wanduhrzeiten (time_in/out) bleiben without TZ.
     db.Database.ExecuteSqlRaw(@"
         DO $$
         DECLARE
@@ -450,7 +452,7 @@ using (var scope = app.Services.CreateScope())
                 SELECT table_name, column_name
                 FROM information_schema.columns
                 WHERE table_schema = 'public'
-                  AND udt_name = 'timestamptz'
+                  AND udt_name = 'timestamp'
                   AND (
                         (table_name = 'employee_number_alias' AND column_name = 'created_at')
                      OR (table_name = 'easyatwork_employee_alias' AND column_name = 'created_at')
@@ -459,7 +461,7 @@ using (var scope = app.Services.CreateScope())
                   )
             LOOP
                 EXECUTE format(
-                    'ALTER TABLE public.%I ALTER COLUMN %I TYPE timestamp without time zone USING (%I AT TIME ZONE %L)',
+                    'ALTER TABLE public.%I ALTER COLUMN %I TYPE timestamptz USING (%I AT TIME ZONE %L)',
                     r.table_name, r.column_name, r.column_name, 'Europe/Zurich');
             END LOOP;
         END $$;

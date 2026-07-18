@@ -1614,7 +1614,7 @@ public class EasyAtWorkController : ControllerBase
         {
             existing.EmployeeId = dto.CoworkEmployeeId;
             existing.Note       = dto.Note;
-            existing.CreatedAt  = DateTime.Now;
+            existing.CreatedAt  = DateTime.UtcNow;
             existing.CreatedBy  = actor;
         }
         else
@@ -1624,7 +1624,7 @@ public class EasyAtWorkController : ControllerBase
                 EasyAtWorkId = dto.EasyAtWorkId,
                 EmployeeId   = dto.CoworkEmployeeId,
                 Note         = dto.Note,
-                CreatedAt    = DateTime.Now,
+                CreatedAt    = DateTime.UtcNow,
                 CreatedBy    = actor,
             });
         }

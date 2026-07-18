@@ -39,35 +39,6 @@ public class EasyAtWorkEmployeeSyncService
         _editLock = editLock;
     }
 
-    /// <summary>
-    /// SaveChanges für Schweizer Zeitstempel (Walter-Vorgabe 30.06.2026):
-    /// Spalten sind <c>timestamp without time zone</c>, Werte = <c>DateTime.Now</c>
-    /// (Lokalzeit). Npgsql will dafür Kind=Unspecified — Wanduhr bleibt, KEINE
-    /// UTC-Konvertierung. Explizite timestamptz-Spalten bleiben unangetastet.
-    /// Unmapped/leerer ColumnType → wie without-TZ behandeln (System-Default).
-    /// </summary>
-    private Task SaveSwissAsync(CancellationToken ct = default)
-    {
-        foreach (var entry in _db.ChangeTracker.Entries())
-        {
-            if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
-            foreach (var prop in entry.Properties)
-            {
-                if (prop.CurrentValue is not DateTime dt) continue;
-                if (dt.Kind == DateTimeKind.Unspecified) continue;
-
-                var col = prop.Metadata.GetColumnType() ?? "";
-                var isTimestamptz = col.Contains("with time zone", StringComparison.OrdinalIgnoreCase)
-                    && !col.Contains("without time zone", StringComparison.OrdinalIgnoreCase);
-                if (isTimestamptz) continue; // z.B. edited_at — erwartet UTC
-
-                // without TZ oder nicht gemappt → Wanduhr behalten, Kind weg.
-                prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Unspecified);
-            }
-        }
-        return _db.SaveChangesAsync(ct);
-    }
-
     // ─────────────────────────── DTOs ───────────────────────────────
 
     public class SyncRequest
@@ -631,7 +602,7 @@ public class EasyAtWorkEmployeeSyncService
             }
         }
 
-        await SaveSwissAsync(ct);
+        await _db.SaveChangesAsync(ct);
 
         // ── Verträge aus easy@work mitziehen (Walter-Vorgabe 29.06.2026) ──────
         // Der Einzel-Button holt jetzt nicht nur Stammdaten, sondern auch die
@@ -678,7 +649,7 @@ public class EasyAtWorkEmployeeSyncService
 
                 var contractChanged = _db.ChangeTracker.Entries<Employment>()
                     .Any(e => e.State == EntityState.Added || e.State == EntityState.Modified);
-                await SaveSwissAsync(ct);
+                await _db.SaveChangesAsync(ct);
                 if (contractChanged) result.UpdatedFields.Add("Verträge");
             }
         }
@@ -698,7 +669,7 @@ public class EasyAtWorkEmployeeSyncService
         {
             if (await ApplyExitAfterContractSyncAsync(emp, eaw.To, ct))
             {
-                await SaveSwissAsync(ct);
+                await _db.SaveChangesAsync(ct);
                 if (!result.UpdatedFields.Contains("Austrittsdatum")) result.UpdatedFields.Add("Austrittsdatum");
             }
         }
@@ -861,7 +832,7 @@ public class EasyAtWorkEmployeeSyncService
             changed = true;
         }
 
-        if (changed) await SaveSwissAsync(ct);
+        if (changed) await _db.SaveChangesAsync(ct);
         return changed;
     }
 
@@ -1584,7 +1555,7 @@ public class EasyAtWorkEmployeeSyncService
             {
                 // Schutz gegen Doppelvergabe derselben easy@work-id (Walter 29.06.2026).
                 await RevertDuplicateEawIdsAsync(res, ct);
-                await SaveSwissAsync(ct);
+                await _db.SaveChangesAsync(ct);
                 res.Notes.Add($"easy@work-ID stillschweigend bei {backfilled} bestehenden MA nachgetragen.");
             }
 
@@ -1607,7 +1578,7 @@ public class EasyAtWorkEmployeeSyncService
                             EmployeeId   = empId,
                             EasyAtWorkId = dup.EawEmployeeId,
                             Note         = $"Wiedereintritt: alter easy@work-Datensatz (Nr. {dup.Number})",
-                            CreatedAt    = DateTime.Now,
+                            CreatedAt    = DateTime.UtcNow,
                         });
                         aliasAdded++;
                     }
@@ -1623,7 +1594,7 @@ public class EasyAtWorkEmployeeSyncService
                             _db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
                             {
                                 EmployeeId = empId, Number = num,
-                                Source = "easyatwork_sync", CreatedAt = DateTime.Now,
+                                Source = "easyatwork_sync", CreatedAt = DateTime.UtcNow,
                             });
                             aliasAdded++;
                         }
@@ -1631,7 +1602,7 @@ public class EasyAtWorkEmployeeSyncService
                 }
                 if (aliasAdded > 0)
                 {
-                    await SaveSwissAsync(ct);
+                    await _db.SaveChangesAsync(ct);
                     res.Notes.Add($"Wiedereintritts-Duplikate: {aliasAdded} alte easy@work-ID(s)/Nummer(n) als Alias am Haupt-MA gesichert (Stempel-Zuordnung bleibt intakt).");
                 }
             }
@@ -1795,7 +1766,7 @@ public class EasyAtWorkEmployeeSyncService
                                 _db.EmployeeNumberAliases.Add(new EmployeeNumberAlias
                                 {
                                     EmployeeId = existingByEawId.Id, Number = newNum,
-                                    Source = "easyatwork_sync", CreatedAt = DateTime.Now,
+                                    Source = "easyatwork_sync", CreatedAt = DateTime.UtcNow,
                                 });
                                 if (nummerBesetzt)
                                     res.Notes.Add($"⚠ {existingByEawId.FirstName} {existingByEawId.LastName}: Nummer {newNum} gehört bereits einem anderen MA — nur als Alias gesichert, bitte Dublette klären.");
@@ -1812,7 +1783,7 @@ public class EasyAtWorkEmployeeSyncService
                                 EmployeeId   = existingByEawId.Id,
                                 EasyAtWorkId = eaw.Id,
                                 Note         = viaNameDob ? "Auto-Merge: gleicher Name+Geb.datum, neue eaw-ID" : "Merge: zweite easy@work-ID",
-                                CreatedAt    = DateTime.Now,
+                                CreatedAt    = DateTime.UtcNow,
                             });
                         }
                         if (existingByEawId.EasyAtWorkEmployeeId != eaw.Id)
@@ -2072,7 +2043,7 @@ public class EasyAtWorkEmployeeSyncService
             // Schutz gegen Doppelvergabe derselben easy@work-id (Walter 29.06.2026).
             await RevertDuplicateEawIdsAsync(res, ct);
 
-            await SaveSwissAsync(ct);
+            await _db.SaveChangesAsync(ct);
 
             // Tiefenimport: keine Verträge, keine Bankverbindungen (Walter 08.07.2026).
             if (req.SkipContracts) { timelineWork.Clear(); bankWork.Clear(); }
@@ -2107,7 +2078,7 @@ public class EasyAtWorkEmployeeSyncService
                 }
                 foreach (var (bemp, iban) in bankWork)
                     await EnsureBankAccountAsync(bemp, iban, ct);
-                await SaveSwissAsync(ct);
+                await _db.SaveChangesAsync(ct);
 
                 // Austritt je MA NACH der Vertrags-Timeline bewerten (Walter-Bug
                 // 15.07.2026): uebernimmt auch ZUKUENFTIGE «Eingestellt bis»-Daten
@@ -2115,7 +2086,7 @@ public class EasyAtWorkEmployeeSyncService
                 bool exitChanged = false;
                 foreach (var (temp2, _, _, _, _, tEawTo2) in timelineWork)
                     if (await ApplyExitAfterContractSyncAsync(temp2, tEawTo2, ct)) exitChanged = true;
-                if (exitChanged) await SaveSwissAsync(ct);
+                if (exitChanged) await _db.SaveChangesAsync(ct);
 
                 // Probezeit nur bei EINEM einzigen Vertrag (Walter 29.06.2026):
                 // Hat der MA GENAU einen Vertrag (keine Historie) und noch keine
@@ -2181,7 +2152,7 @@ public class EasyAtWorkEmployeeSyncService
                         }
                         probChanged = true;
                     }
-                    if (probChanged) await SaveSwissAsync(ct);
+                    if (probChanged) await _db.SaveChangesAsync(ct);
                 }
             }
 
@@ -2189,10 +2160,10 @@ public class EasyAtWorkEmployeeSyncService
             var st = await _db.EasyAtWorkSyncStates
                 .FirstOrDefaultAsync(s => s.CompanyProfileId == req.CompanyProfileId && s.Resource == "EMPLOYEE", ct);
             if (st == null) { st = new EasyAtWorkSyncState { CompanyProfileId = req.CompanyProfileId, Resource = "EMPLOYEE" }; _db.EasyAtWorkSyncStates.Add(st); }
-            st.LastSyncAt = DateTime.Now; // last_sync_at = timestamp without time zone
+            st.LastSyncAt = DateTime.UtcNow;
             st.LastRowCount = res.CountInserted + res.CountUpdated;
             st.LastError = null;
-            await SaveSwissAsync(ct);
+            await _db.SaveChangesAsync(ct);
 
             // Lauf protokollieren (Walter 08.07.2026) — sichtbar im Sync-Log
             // auf der easy@work-Seite, wie der Stempel-Auto-Sync.
@@ -3143,8 +3114,8 @@ public class EasyAtWorkEmployeeSyncService
                 ? DateOnly.FromDateTime(emp.EntryDate.Value)
                 : DateOnly.FromDateTime(DateTime.Today),
             Bemerkung     = "Import easy@work",
-            CreatedAt     = DateTime.Now,
-            UpdatedAt     = DateTime.Now,
+            CreatedAt     = DateTime.UtcNow,
+            UpdatedAt     = DateTime.UtcNow,
         });
     }
 
@@ -3165,12 +3136,12 @@ public class EasyAtWorkEmployeeSyncService
         {
             old.ValidTo = today.AddDays(-1);
             old.IsHauptbank = false;
-            old.UpdatedAt = DateTime.Now;
+            old.UpdatedAt = DateTime.UtcNow;
         }
         foreach (var old in active.Where(b => b.ValidFrom >= today))
         {
             old.IsHauptbank = false;
-            old.UpdatedAt = DateTime.Now;
+            old.UpdatedAt = DateTime.UtcNow;
         }
 
         _db.EmployeeBankAccounts.Add(new EmployeeBankAccount
@@ -3181,8 +3152,8 @@ public class EasyAtWorkEmployeeSyncService
             AufteilungTyp = "VOLL",
             ValidFrom = today,
             Bemerkung = "easy@work Abgleich",
-            CreatedAt = DateTime.Now,
-            UpdatedAt = DateTime.Now,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
         });
         return true;
     }

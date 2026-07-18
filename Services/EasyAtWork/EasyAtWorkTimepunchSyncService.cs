@@ -615,7 +615,7 @@ public class EasyAtWorkTimepunchSyncService
                 st = new EasyAtWorkSyncState { CompanyProfileId = req.CompanyProfileId, Resource = "TIMEPUNCH" };
                 _db.EasyAtWorkSyncStates.Add(st);
             }
-            st.LastSyncAt = DateTime.Now; // last_sync_at = timestamp without time zone
+            st.LastSyncAt = DateTime.UtcNow;
             if (res.MaxUpdatedAt.HasValue) st.LastSeenUpdatedAt = res.MaxUpdatedAt;
             st.LastRowCount = res.RowCount;
             st.LastError = null;
@@ -965,7 +965,7 @@ public class EasyAtWorkTimepunchSyncService
                 existing.TotalHours    = total;
                 existing.NightHours    = night;
                 existing.DurationHours = duration;
-                existing.UpdatedAt     = DateTime.Now; // Schweizer Lokalzeit
+                existing.UpdatedAt     = DateTime.UtcNow;
                 existing.EditedBy      = editorName;
                 existing.EditedAt      = editorTime;
                 existing.OriginalTimeIn  = keepOrigIn;
@@ -994,8 +994,8 @@ public class EasyAtWorkTimepunchSyncService
                 TotalHours    = total,
                 NightHours    = night,
                 DurationHours = duration,
-                CreatedAt     = DateTime.Now,
-                UpdatedAt     = DateTime.Now,
+                CreatedAt     = DateTime.UtcNow,
+                UpdatedAt     = DateTime.UtcNow,
                 EditedBy      = editorName,
                 EditedAt      = editorTime,
                 EasyAtWorkTimepunchId = p.Id,
@@ -1567,8 +1567,8 @@ public class EasyAtWorkTimepunchSyncService
                     DurationHours= duration,
                     NightHours   = night,
                     TotalHours   = total ?? 0m,
-                    CreatedAt    = DateTime.Now,
-                    UpdatedAt    = DateTime.Now,
+                    CreatedAt    = DateTime.UtcNow,
+                    UpdatedAt    = DateTime.UtcNow,
                     // Bearbeiter + Zeitpunkt: edited_by_id → erst Cowork-DB-Lookup
                     // (via easyatwork_employee_id), dann easy@work-MA-Liste, dann
                     // Comment-Display-Name. Walter 17.06.2026.
@@ -1601,7 +1601,7 @@ public class EasyAtWorkTimepunchSyncService
                 st = new EasyAtWorkSyncState { CompanyProfileId = req.CompanyProfileId, Resource = stateRes };
                 _db.EasyAtWorkSyncStates.Add(st);
             }
-            st.LastSyncAt = DateTime.Now; // last_sync_at = timestamp without time zone
+            st.LastSyncAt = DateTime.UtcNow;
             st.LastRowCount = res.CountInserted;
             st.LastError = null;
             var maxUpd = punches.Where(p => p.UpdatedAt.HasValue).Select(p => p.UpdatedAt!.Value).DefaultIfEmpty().Max();

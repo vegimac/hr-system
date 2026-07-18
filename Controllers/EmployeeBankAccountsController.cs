@@ -148,8 +148,8 @@ public class EmployeeBankAccountsController : ControllerBase
             AufteilungWert   = dto.AufteilungWert,
             ValidFrom        = DateOnly.Parse(dto.ValidFrom),
             ValidTo          = string.IsNullOrWhiteSpace(dto.ValidTo) ? null : DateOnly.Parse(dto.ValidTo),
-            CreatedAt        = DateTime.Now,
-            UpdatedAt        = DateTime.Now
+            CreatedAt        = DateTime.UtcNow,
+            UpdatedAt        = DateTime.UtcNow
         };
         // Walter-Vorgabe 07.06.2026: Auto-Close — bestehende Vorgänger schliessen,
         // wenn die neue Verbindung als Voll-/Hauptkonto eintritt. Bei einer
@@ -167,7 +167,7 @@ public class EmployeeBankAccountsController : ControllerBase
             {
                 p.ValidTo     = newFrom.AddDays(-1);
                 p.IsHauptbank = false;
-                p.UpdatedAt   = DateTime.Now;
+                p.UpdatedAt   = DateTime.UtcNow;
             }
         }
 
@@ -220,7 +220,7 @@ public class EmployeeBankAccountsController : ControllerBase
         entry.AufteilungWert   = dto.AufteilungWert;
         entry.ValidFrom        = DateOnly.Parse(dto.ValidFrom);
         entry.ValidTo          = string.IsNullOrWhiteSpace(dto.ValidTo) ? null : DateOnly.Parse(dto.ValidTo);
-        entry.UpdatedAt        = DateTime.Now;
+        entry.UpdatedAt        = DateTime.UtcNow;
 
         await EnforceSingleHauptbank(entry);
         await _db.SaveChangesAsync();
@@ -299,7 +299,7 @@ public class EmployeeBankAccountsController : ControllerBase
         foreach (var o in others)
         {
             o.IsHauptbank = false;
-            o.UpdatedAt   = DateTime.Now;
+            o.UpdatedAt   = DateTime.UtcNow;
         }
     }
 
