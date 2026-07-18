@@ -2698,7 +2698,7 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body {
             padding: 10px 14px 14px;
-            background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+            background: transparent;
         }
         #page-mitarbeiter.liquid-employee .emp-section-title {
             /* Invertierte Kohle-Leiste (Walter 17.07.2026): markante
@@ -3812,9 +3812,6 @@
         }
         #page-mitarbeiter.liquid-employee .ov-addrsep {
             border-top-color: rgba(90, 80, 65, 0.12);
-        }
-        #page-mitarbeiter.liquid-employee .emp-detail-body {
-            background: transparent;
         }
         .ov-card-h {
             display: flex; align-items: center; justify-content: space-between;
