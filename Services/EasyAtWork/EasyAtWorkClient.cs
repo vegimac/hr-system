@@ -308,19 +308,36 @@ public class EasyAtWorkClient
         int customerId, DateOnly from, DateOnly to, Action<int, int>? pageProgress, CancellationToken ct = default)
     {
         const int perPage = 200;
-        // `with[]=comments` lädt das Comments-Array mit (Default: nur ID-Felder).
-        // URL-encoded: `with%5B%5D=comments`.
-        string PathFor(int page) =>
+        // `with[]=comments` lädt das Comments-Array mit. Manche easy@work-Seiten
+        // knallen mit 500 «Trying to get property of non-object» (kaputter Comment-
+        // Join) — dann Retry OHNE comments (Walter-Bug 18.07.2026). Originalzeiten
+        // kommen ohnehin über den Changelog-Einzelabruf nach.
+        string PathFor(int page, bool withComments) =>
             $"customers/{customerId}/timepunches"
             + $"?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}"
             + $"&per_page={perPage}"
             + $"&page={page}"
-            + "&with%5B%5D=comments";
+            + (withComments ? "&with%5B%5D=comments" : "");
+
+        async Task<EawPaginated<EawTimepunch>> FetchPageAsync(int page)
+        {
+            try
+            {
+                return await GetJsonAsync<EawPaginated<EawTimepunch>>(PathFor(page, withComments: true), ct);
+            }
+            catch (HttpRequestException ex) when ((int?)ex.StatusCode is >= 500 and < 600)
+            {
+                _log.LogWarning(ex,
+                    "easy@work timepunches Seite {Page} (Customer {C}) mit comments → {Status}; Retry ohne comments.",
+                    page, customerId, (int?)ex.StatusCode);
+                return await GetJsonAsync<EawPaginated<EawTimepunch>>(PathFor(page, withComments: false), ct);
+            }
+        }
 
         // Seite 1 sequenziell (liefert LastPage + wärmt den Token-Cache),
         // Rest PARALLEL mit Drossel — Walter-Vorgabe 09.07.2026 (der frühere
         // rein sequenzielle Page-Loop war der Flaschenhals des Imports).
-        var first = await GetJsonAsync<EawPaginated<EawTimepunch>>(PathFor(1), ct);
+        var first = await FetchPageAsync(1);
         var all = new List<EawTimepunch>(first.Data ?? new());
         var lastPage = Math.Min(first.LastPage ?? 1, 500);
         pageProgress?.Invoke(1, lastPage);
@@ -333,7 +350,7 @@ public class EasyAtWorkClient
             await sem.WaitAsync(ct);
             try
             {
-                var res = await GetJsonAsync<EawPaginated<EawTimepunch>>(PathFor(page), ct);
+                var res = await FetchPageAsync(page);
                 pageProgress?.Invoke(Interlocked.Increment(ref doneCount), lastPage);
                 return (page, res);
             }
@@ -363,12 +380,25 @@ public class EasyAtWorkClient
         const int perPage = 200;
         while (true)
         {
-            var path = $"customers/{customerId}/timepunch_updates"
-                     + $"?last_sync={Uri.EscapeDataString(lastSyncUtc)}"
-                     + $"&per_page={perPage}"
-                     + $"&page={page}"
-                     + "&with%5B%5D=comments";
-            var res = await GetJsonAsync<EawPaginated<EawTimepunch>>(path, ct);
+            string Path(bool withComments) =>
+                $"customers/{customerId}/timepunch_updates"
+                + $"?last_sync={Uri.EscapeDataString(lastSyncUtc)}"
+                + $"&per_page={perPage}"
+                + $"&page={page}"
+                + (withComments ? "&with%5B%5D=comments" : "");
+
+            EawPaginated<EawTimepunch> res;
+            try
+            {
+                res = await GetJsonAsync<EawPaginated<EawTimepunch>>(Path(withComments: true), ct);
+            }
+            catch (HttpRequestException ex) when ((int?)ex.StatusCode is >= 500 and < 600)
+            {
+                _log.LogWarning(ex,
+                    "easy@work timepunch_updates Seite {Page} (Customer {C}) mit comments → {Status}; Retry ohne comments.",
+                    page, customerId, (int?)ex.StatusCode);
+                res = await GetJsonAsync<EawPaginated<EawTimepunch>>(Path(withComments: false), ct);
+            }
             if (res.Data != null) all.AddRange(res.Data);
             if (res.LastPage == null || page >= res.LastPage.Value) break;
             page++;
