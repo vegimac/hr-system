@@ -1284,7 +1284,8 @@ function loadUebersichtTab() {
                     </div>
                     <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
                         <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
-                        <div class="dok-menu" id="nwMenu-${emp.id}" style="top:auto;bottom:calc(100% + 4px)">
+                        <!-- Position via nwToggleMenu (fixed) — Karte hat overflow:hidden -->
+                        <div class="dok-menu" id="nwMenu-${emp.id}">
                             <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
                             <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'ArztZeug. ersetzen' : 'ArztZeug. verknüpfen'}</button>
                             ${emp.nightWorkExamDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_exam','Arztzeugnis')">ArztZeug. lösen</button>` : ''}
@@ -2333,7 +2334,50 @@ function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso) {
 }
 
 // ⋮-Menü + Edit-Toggle für die Nachtarbeit-Zeile.
-function nwToggleMenu(event, id) { rowMenuToggle(event, 'nw', id); }
+function _nwClearMenuPos(menu) {
+    if (!menu) return;
+    menu.style.position = '';
+    menu.style.top = '';
+    menu.style.left = '';
+    menu.style.right = '';
+    menu.style.bottom = '';
+    menu.style.zIndex = '';
+}
+// Fixed-Position: Übersicht-Karten clippen absolute Menüs (overflow:hidden).
+function nwToggleMenu(event, id) {
+    event.stopPropagation();
+    const menu = document.getElementById('nwMenu-' + id);
+    const wasOpen = menu?.classList.contains('show');
+    document.querySelectorAll('.dok-menu.show').forEach(m => {
+        m.classList.remove('show');
+        _nwClearMenuPos(m);
+    });
+    if (wasOpen || !menu) return;
+    const btn = event.currentTarget;
+    const r = btn.getBoundingClientRect();
+    menu.classList.add('show');
+    const mh = menu.offsetHeight || 200;
+    const spaceBelow = window.innerHeight - r.bottom;
+    menu.style.position = 'fixed';
+    menu.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+    menu.style.left = 'auto';
+    menu.style.zIndex = '6000';
+    if (spaceBelow < mh + 8) {
+        menu.style.top = 'auto';
+        menu.style.bottom = Math.max(8, window.innerHeight - r.top + 4) + 'px';
+    } else {
+        menu.style.top = (r.bottom + 4) + 'px';
+        menu.style.bottom = 'auto';
+    }
+    setTimeout(() => {
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.dok-menu.show').forEach(m => {
+                m.classList.remove('show');
+                _nwClearMenuPos(m);
+            });
+        }, { once: true });
+    }, 10);
+}
 function nwStartEdit(empId) {
     document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
     const v = document.getElementById('nwView_' + empId), e = document.getElementById('nwEdit_' + empId);
