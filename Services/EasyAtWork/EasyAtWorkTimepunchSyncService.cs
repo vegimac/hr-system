@@ -171,41 +171,98 @@ public class EasyAtWorkTimepunchSyncService
     }
 
     /// <summary>
-    /// Parst aus dem easy@work-Audit-Text die Original-Zeiten:
-    ///   "Ein vom 17 Januar 07:38 bis zum 17 Jan 07:15 geändert" → OriginalIn 07:38
-    ///   "Aus vom 13 Juni 14:00 bis zum 13 Jun 15:00 geändert"  → OriginalOut 14:00
-    /// Liest die HH:MM direkt (Audit-Text ist bereits in Lokalzeit, KEINE
-    /// weitere Konvertierung nötig). Datum kommt aus business_date.
+    /// Parst aus easy@work-Audit-Texten die Original-Zeiten:
+    ///   «Ein vom 17 Januar 07:38 bis zum 17 Jan 07:15 geändert» → OriginalIn 07:38
+    ///   «Aus vom 2.7.2026, 13:37 bis zum 2.7.2026, 15:15 geändert» → OriginalOut 13:37
+    /// Quelle: Comments UND Changelog (Changelog kommt nur mit include_changelog).
+    /// Zeiten im Text sind Lokalzeit — keine weitere TZ-Umwandlung. Datum = business_date.
     /// </summary>
-    private static (DateTime? originalIn, DateTime? originalOut) ParseEditedTimesFromComments(
-        DateOnly businessDate, List<EawTimepunchComment>? comments)
+    public static (DateTime? originalIn, DateTime? originalOut) ParseEditedTimesFromComments(
+        DateOnly businessDate,
+        List<EawTimepunchComment>? comments,
+        List<EawTimepunchChangelogEntry>? changelog = null)
     {
-        if (comments == null || comments.Count == 0) return (null, null);
+        var texts = new List<string>();
+        if (comments != null)
+            foreach (var c in comments)
+                if (!string.IsNullOrWhiteSpace(c.AnyText)) texts.Add(c.AnyText!);
+        if (changelog != null)
+            foreach (var c in changelog)
+                if (!string.IsNullOrWhiteSpace(c.AnyText)) texts.Add(c.AnyText!);
+        return ParseEditedTimesFromTexts(businessDate, texts);
+    }
+
+    /// <summary>Testbarer Parser über beliebige Audit-Strings.</summary>
+    public static (DateTime? originalIn, DateTime? originalOut) ParseEditedTimesFromTexts(
+        DateOnly businessDate, IEnumerable<string?> texts)
+    {
         DateTime? oin = null, oout = null;
-        var inRx  = new System.Text.RegularExpressions.Regex(@"^Ein\s+vom\s+.+?(\d{1,2}):(\d{2})\s+bis\s+zum\s+.+?\d{1,2}:\d{2}\s+geändert",
+        // Kein ^-Anker: Audit-Zeile kann mit Icon/Präfix kommen oder in Freitext stecken.
+        // «geändert» am Ende optional (API-Varianten / Punkt).
+        var inRx  = new System.Text.RegularExpressions.Regex(
+            @"Ein\s+vom\s+.+?(\d{1,2}):(\d{2})\s+bis\s+zum",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        var outRx = new System.Text.RegularExpressions.Regex(@"^Aus\s+vom\s+.+?(\d{1,2}):(\d{2})\s+bis\s+zum\s+.+?\d{1,2}:\d{2}\s+geändert",
+        var outRx = new System.Text.RegularExpressions.Regex(
+            @"Aus\s+vom\s+.+?(\d{1,2}):(\d{2})\s+bis\s+zum",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         var baseDate = businessDate.ToDateTime(TimeOnly.MinValue);
-        foreach (var c in comments)
+        foreach (var raw in texts)
         {
-            var text = (c.AnyText ?? "").Trim();
-            if (string.IsNullOrEmpty(text)) continue;
-            var mIn = inRx.Match(text);
-            if (mIn.Success && !oin.HasValue)
+            var text = (raw ?? "").Trim();
+            if (text.Length == 0) continue;
+            if (!oin.HasValue)
             {
-                oin = baseDate.AddHours(int.Parse(mIn.Groups[1].Value))
-                              .AddMinutes(int.Parse(mIn.Groups[2].Value));
-                continue;
+                var mIn = inRx.Match(text);
+                if (mIn.Success)
+                    oin = baseDate.AddHours(int.Parse(mIn.Groups[1].Value))
+                                  .AddMinutes(int.Parse(mIn.Groups[2].Value));
             }
-            var mOut = outRx.Match(text);
-            if (mOut.Success && !oout.HasValue)
+            if (!oout.HasValue)
             {
-                oout = baseDate.AddHours(int.Parse(mOut.Groups[1].Value))
-                               .AddMinutes(int.Parse(mOut.Groups[2].Value));
+                var mOut = outRx.Match(text);
+                if (mOut.Success)
+                    oout = baseDate.AddHours(int.Parse(mOut.Groups[1].Value))
+                                   .AddMinutes(int.Parse(mOut.Groups[2].Value));
             }
+            if (oin.HasValue && oout.HasValue) break;
         }
         return (oin, oout);
+    }
+
+    /// <summary>
+    /// Für bearbeitete Stempel den Changelog nachladen (List-API liefert ihn nicht).
+    /// Nur IsEdited, parallel gedrosselt — best-effort.
+    /// </summary>
+    private async Task EnrichEditedChangelogsAsync(
+        int customerId, List<EawTimepunch> punches, CancellationToken ct)
+    {
+        var need = punches.Where(p => p.IsEdited
+                                      && p.Id > 0
+                                      && (p.Changelog == null || p.Changelog.Count == 0))
+                          .ToList();
+        if (need.Count == 0) return;
+
+        var sem = new SemaphoreSlim(4);
+        var tasks = need.Select(async p =>
+        {
+            await sem.WaitAsync(ct);
+            try
+            {
+                var detail = await _client.GetTimepunchAsync(customerId, p.Id, ct);
+                if (detail == null) return;
+                if (detail.Changelog is { Count: > 0 })
+                    p.Changelog = detail.Changelog;
+                // Comments nachziehen, falls die Liste sie nicht hatte.
+                if ((p.Comments == null || p.Comments.Count == 0)
+                    && detail.Comments is { Count: > 0 })
+                    p.Comments = detail.Comments;
+            }
+            finally { sem.Release(); }
+        });
+        await Task.WhenAll(tasks);
+        _log.LogInformation(
+            "easy@work Changelog nachgeladen: {N}/{Total} bearbeitete Stempel (Customer {C}).",
+            need.Count, punches.Count, customerId);
     }
 
     private static IEnumerable<(DateTime start, DateTime end)> NightWindowsForDay(DateTime day, TimeSpan ns, TimeSpan ne)
@@ -596,6 +653,7 @@ public class EasyAtWorkTimepunchSyncService
         }
         catch (Exception ex) { res.Notes.Add($"easy@work-Aufruf fehlgeschlagen: {ex.Message}"); return res; }
         progress?.Invoke(0, 0, $"{punches.Count} Stempel verarbeiten & speichern…");
+        await EnrichEditedChangelogsAsync(mapping.EasyAtWorkCustomerId, punches, ct);
 
         var maxUpd = punches.Where(p => p.UpdatedAt.HasValue).Select(p => p.UpdatedAt!.Value).DefaultIfEmpty().Max();
 
@@ -659,6 +717,8 @@ public class EasyAtWorkTimepunchSyncService
         {
             punches = await _client.GetAllTimepunchesAsync(mapping.EasyAtWorkCustomerId, from, to, ct);
         }
+
+        await EnrichEditedChangelogsAsync(mapping.EasyAtWorkCustomerId, punches, ct);
 
         // Cursor: höchstes updated_at über ALLE geholten Punches (auch die wir
         // gleich ausserhalb des Fensters ignorieren) → nächster Lauf macht weiter.
@@ -913,9 +973,13 @@ public class EasyAtWorkTimepunchSyncService
             decimal night = outLocal.HasValue ? CalcNightHours(inLocal, outLocal.Value, nightStart, nightEnd) : 0m;
             decimal duration = Math.Round(total - night, 2);
             var businessDate = p.BusinessDate ?? DateOnly.FromDateTime(inLocal);
-            var (origIn, origOut) = ParseEditedTimesFromComments(businessDate, p.Comments);
-            // Fallback wie in der Preview: wenn Audit-Text keine Original-Zeit
-            // liefert, created_at als Näherung für Original-IN (nur bei echtem Edit).
+            var (origIn, origOut) = ParseEditedTimesFromComments(businessDate, p.Comments, p.Changelog);
+            // API-Felder original_in/out (falls vorhanden) — UTC → Schweiz.
+            if (!origIn.HasValue && p.OriginalIn.HasValue)
+                origIn = UtcToSwissLocal(p.OriginalIn.Value);
+            if (!origOut.HasValue && p.OriginalOut.HasValue)
+                origOut = UtcToSwissLocal(p.OriginalOut.Value);
+            // Fallback: created_at als Näherung für Original-IN (nur bei echtem Edit).
             if (!origIn.HasValue && p.IsEdited && p.CreatedAt.HasValue
                 && Math.Abs((p.CreatedAt.Value - p.In.Value).TotalMinutes) >= 1)
             {
@@ -970,6 +1034,12 @@ public class EasyAtWorkTimepunchSyncService
                 existing.EditedAt      = editorTime;
                 existing.OriginalTimeIn  = keepOrigIn;
                 existing.OriginalTimeOut = keepOrigOut;
+                // Freitext + Audit-Zeilen (Changelog) für UI-Fallback behalten.
+                var joinedAudit = string.Join(" / ",
+                    new[] { p.JoinedComments, p.JoinedChangelog }
+                        .Where(s => !string.IsNullOrWhiteSpace(s)));
+                if (!string.IsNullOrWhiteSpace(joinedAudit))
+                    existing.OriginalComment = joinedAudit;
                 existing.EasyAtWorkCustomerId   = mapping.EasyAtWorkCustomerId;
                 existing.SourceCompanyProfileId = mapping.CompanyProfileId;
                 res.Updated++;
@@ -1003,7 +1073,9 @@ public class EasyAtWorkTimepunchSyncService
                 SourceCompanyProfileId  = mapping.CompanyProfileId,
                 OriginalTimeIn  = origIn,
                 OriginalTimeOut = origOut,
-                OriginalComment = p.JoinedComments,
+                OriginalComment = string.Join(" / ",
+                    new[] { p.JoinedComments, p.JoinedChangelog }
+                        .Where(s => !string.IsNullOrWhiteSpace(s))),
             });
             existingKeys.Add(key);
             res.Inserted++;
@@ -1235,6 +1307,7 @@ public class EasyAtWorkTimepunchSyncService
             res.Notes.Add($"easy@work-Aufruf fehlgeschlagen: {ex.Message}");
             return res;
         }
+        await EnrichEditedChangelogsAsync(mapping.EasyAtWorkCustomerId, punches, ct);
 
         // 4) Vorhandene Stempel laden (für Dedup) — gleiche Filiale, gleicher Zeitraum.
         //    Zwei Dedup-Pfade: (a) easy@work-Timepunch-Id wenn vorhanden (sauberer),
@@ -1388,16 +1461,18 @@ public class EasyAtWorkTimepunchSyncService
                 res.Rows.Add(row); res.CountSkipped++; continue;
             }
             // Original-Zeit (vor manueller Korrektur):
-            // 1. PRIMÄR: aus dem Audit-Text in den Comments parsen (Walter 17.06.2026).
-            //    Format: "Ein vom 17 Januar 07:38 bis zum 17 Jan 07:15 geändert".
-            //    Diese Zeiten sind in LOKALZEIT (wie easy@work-UI sie zeigt) → KEINE
-            //    weitere Konvertierung.
-            // 2. Fallback (nur wenn Comments nichts ergeben): aus `created_at` ableiten
-            //    (Ur-Stempel-Zeitpunkt; weniger zuverlässig, kann durch DB-Latenz
-            //    leicht abweichen).
-            var (origIn, origOut) = ParseEditedTimesFromComments(row.BusinessDate, p.Comments);
+            // 1. PRIMÄR: Audit-Text aus Comments + Changelog (Walter 18.07.2026:
+            //    Changelog kommt nur mit include_changelog am Einzelabruf —
+            //    «Aus vom 2.7.2026, 13:37 bis …»). Lokalzeit, keine TZ-Umwandlung.
+            // 2. API-Felder original_in/out falls vorhanden.
+            // 3. Fallback created_at → Original-IN.
+            var (origIn, origOut) = ParseEditedTimesFromComments(row.BusinessDate, p.Comments, p.Changelog);
             row.OriginalTimeIn  = origIn;
             row.OriginalTimeOut = origOut;
+            if (!row.OriginalTimeIn.HasValue && p.OriginalIn.HasValue)
+                row.OriginalTimeIn = UtcToSwissLocal(p.OriginalIn.Value);
+            if (!row.OriginalTimeOut.HasValue && p.OriginalOut.HasValue)
+                row.OriginalTimeOut = UtcToSwissLocal(p.OriginalOut.Value);
             if (!row.OriginalTimeIn.HasValue && p.IsEdited && p.CreatedAt.HasValue && inLocal.HasValue
                 && Math.Abs((p.CreatedAt.Value - p.In!.Value).TotalMinutes) >= 1)
             {
@@ -1555,6 +1630,11 @@ public class EasyAtWorkTimepunchSyncService
                     ? Math.Round(total.Value - (night ?? 0m), 2)
                     : (decimal?)null;
 
+                var punch = _punchById(row.EawTimepunchId, punches);
+                var origComment = string.Join(" / ",
+                    new[] { punch?.JoinedComments, punch?.JoinedChangelog, row.Comment }
+                        .Where(s => !string.IsNullOrWhiteSpace(s)));
+
                 var entry = new EmployeeTimeEntry
                 {
                     EmployeeId   = row.CoworkEmployeeId!.Value,
@@ -1572,8 +1652,8 @@ public class EasyAtWorkTimepunchSyncService
                     // Bearbeiter + Zeitpunkt: edited_by_id → erst Cowork-DB-Lookup
                     // (via easyatwork_employee_id), dann easy@work-MA-Liste, dann
                     // Comment-Display-Name. Walter 17.06.2026.
-                    EditedBy     = row.IsEdited ? ExtractEditorName(_punchById(row.EawTimepunchId, punches), eawEmpById, coworkNameByEawId) : null,
-                    EditedAt     = row.IsEdited ? ExtractEditorTime(_punchById(row.EawTimepunchId, punches)) : (DateTime?)null,
+                    EditedBy     = row.IsEdited ? ExtractEditorName(punch, eawEmpById, coworkNameByEawId) : null,
+                    EditedAt     = row.IsEdited ? ExtractEditorTime(punch) : (DateTime?)null,
                     EasyAtWorkTimepunchId = row.EawTimepunchId,
                     // Herkunft (Walter 21.06.2026): in welcher Filiale (easy@work-
                     // Customer) wurde gestempelt — bleibt nachvollziehbar, auch wenn
@@ -1582,10 +1662,10 @@ public class EasyAtWorkTimepunchSyncService
                     EasyAtWorkCustomerId    = mapping.EasyAtWorkCustomerId,
                     SourceCompanyProfileId  = req.CompanyProfileId,
                     // Original-Zeit (vor manueller Korrektur) — bereits in der
-                    // Preview-Row korrekt aus created_at abgeleitet, hier nur durchreichen.
+                    // Preview-Row korrekt aus Changelog/Comments abgeleitet.
                     OriginalTimeIn  = row.OriginalTimeIn,
                     OriginalTimeOut = row.OriginalTimeOut,
-                    OriginalComment = row.Comment,   // Audit-Kommentar aus easy@work
+                    OriginalComment = origComment,
                 };
                 _db.EmployeeTimeEntries.Add(entry);
                 res.CountInserted++;

@@ -255,6 +255,44 @@ public class EasyAtWorkClient
             $"customers/{customerId}/timepunches?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}", ct);
 
     /// <summary>
+    /// Einzelner Stempel inkl. Changelog (Walter 18.07.2026). Die List-API liefert
+    /// die Audit-Zeilen «Ein/Aus vom … geändert» nicht — nur der Einzelabruf mit
+    /// <c>include_changelog=true</c>. Best-effort: null bei Fehler/404.
+    /// </summary>
+    public virtual async Task<EawTimepunch?> GetTimepunchAsync(
+        int customerId, int timepunchId, CancellationToken ct = default)
+    {
+        var path = $"customers/{customerId}/timepunches/{timepunchId}"
+                 + "?include_changelog=true"
+                 + "&with%5B%5D=comments";
+        var (status, body) = await GetRawAsync(path, ct);
+        if (status == 404 || string.IsNullOrWhiteSpace(body)) return null;
+        if (status < 200 || status >= 300)
+        {
+            _log.LogDebug("easy@work Timepunch {Id} (Customer {C}): HTTP {Status}.", timepunchId, customerId, status);
+            return null;
+        }
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            // { "data": { … } } oder nacktes Objekt
+            if (root.ValueKind == JsonValueKind.Object
+                && root.TryGetProperty("data", out var dataEl)
+                && dataEl.ValueKind == JsonValueKind.Object)
+            {
+                return dataEl.Deserialize<EawTimepunch>(JsonOpts);
+            }
+            return root.Deserialize<EawTimepunch>(JsonOpts);
+        }
+        catch (Exception ex)
+        {
+            _log.LogDebug(ex, "easy@work Timepunch {Id} (Customer {C}): JSON nicht lesbar.", timepunchId, customerId);
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Lädt ALLE Stempelzeiten der Filiale im Zeitraum (folgt der Pagination).
     /// Per-Page 200 (API-Max). Sicherheits-Stop bei 500 Seiten (= 100k Stempel,
     /// das wäre absurd).

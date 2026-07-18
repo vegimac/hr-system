@@ -8127,8 +8127,8 @@ const stempelFmtTime = (iso) => {
     if (m) return `${stempelPad2(m[1])}:${m[2]}`;
     return '';
 };
-// Original-Zeiten aus easy@work-Audit-Text (wie Backend ParseEditedTimesFromComments).
-// "Ein vom 17 Januar 07:38 bis zum 17 Jan 07:15 geändert" → 07:38
+// Original-Zeiten aus easy@work-Audit-Text (wie Backend ParseEditedTimesFromTexts).
+// «Aus vom 2.7.2026, 13:37 bis zum … geändert» → 13:37 (auch mit Icon-Präfix).
 const stempelParseOrigFromText = (text) => {
     if (!text) return { in: '', out: '' };
     const inM  = /Ein\s+vom\s+.+?(\d{1,2}):(\d{2})\s+bis\s+zum/i.exec(text);
