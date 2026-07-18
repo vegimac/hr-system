@@ -630,72 +630,77 @@ async function selectEmployee(id) {
     // Cross-Modul-Sprung (Walter 21.05.2026): aktiver MA merken, damit
     // Verträge/Lohnlauf-Wechsel auf denselben MA springen.
     window.activeEmpId = id;
-    // Aktiven Eintrag in Liste markieren
-    document.querySelectorAll('.emp-list-item').forEach(el => {
-        el.classList.toggle('active', parseInt(el.onclick?.toString().match(/\d+/)?.[0]) === id);
-    });
-    // Re-render list to update active state
-    const q = document.getElementById('empSearch')?.value ?? '';
-    const list = q ? allEmployees.filter(e => {
-        const name = ((e.firstName ?? '') + ' ' + (e.lastName ?? '')).toLowerCase();
-        return name.includes(q.toLowerCase()) || (e.employeeNumber ?? '').toLowerCase().includes(q.toLowerCase());
-    }) : allEmployees;
-    renderEmployeeList(list);
 
-    // Aktiven Eintrag in Sicht scrollen (Walter 21.05.2026): nach einem Cross-
-    // Modul-Sprung steht der MA oft weit unten in der alphabetischen Liste und
-    // wäre sonst markiert, aber unsichtbar. block:'nearest' scrollt nur wenn nötig.
+    // Aktiven Eintrag nur per Klasse markieren — KEIN kompletter Listen-
+    // Rebuild (Walter 18.07.2026: volles Re-render flackerte bei jedem Klick).
+    document.querySelectorAll('#empList .emp-list-item').forEach(el => {
+        const m = (el.getAttribute('onclick') || '').match(/selectEmployee\((\d+)\)/);
+        el.classList.toggle('active', m && parseInt(m[1], 10) === id);
+        el.classList.toggle('liquid-employee-row-active', m && parseInt(m[1], 10) === id);
+    });
+
+    // Aktiven Eintrag in Sicht scrollen (Walter 21.05.2026)
     const _activeEl = document.querySelector('#empList .emp-list-item.active');
     if (_activeEl && typeof _activeEl.scrollIntoView === 'function') {
         _activeEl.scrollIntoView({ block: 'nearest' });
     }
 
-    // Detail laden
+    // Detail laden — zuerst Stammdaten zeichnen, Neben-Fetches danach
+    // (sonst wartet der Screen auf Schwangerschaft/Linked-Docs → Flackern).
+    const _selGen = (window._empSelectGen = (window._empSelectGen || 0) + 1);
     try {
         const res = await fetch(`/api/employees/${id}`, { headers: ah() });
-        if (!res.ok) return;
+        if (!res.ok || _selGen !== window._empSelectGen) return;
         const emp = await res.json();
+        if (_selGen !== window._empSelectGen) return;
         selectedEmployee = emp;
-        // Verknüpfte Dokument-Field-Codes parallel laden, damit die 📎-Buttons
-        // direkt im ersten Render der MA-Maske erscheinen.
-        try {
-            const lnk = await fetch(`/api/documents/linked-codes-for-employee?employeeId=${id}`, { headers: ah() });
-            window._linkedDocCodes = lnk.ok ? new Set(await lnk.json()) : new Set();
-        } catch { window._linkedDocCodes = new Set(); }
-        // Walter 11.06.2026: aktive Schwangerschaft schon vor dem Header-Render
-        // ermitteln, damit das rote „Mutterschaft"-Badge sofort erscheint.
+        window._linkedDocCodes = window._linkedDocCodes || new Set();
         window._activePregnancy = null;
-        if (IstWeiblich(emp.gender)) {
-            try {
-                const r = await fetch(`/api/pregnancies?employeeId=${id}`, { headers: ah() });
-                if (r.ok) {
-                    const list = await r.json();
-                    const heuteIso = new Date().toISOString().slice(0,10);
-                    const aktiv = (list || []).filter(p => {
-                        const basis = p.geburtsdatum || p.errechneterTermin;
-                        if (!basis) return false;
-                        const ende = new Date(basis); ende.setDate(ende.getDate() + 16 * 7);
-                        return ende.toISOString().slice(0,10) >= heuteIso && p.isActive !== false;
-                    });
-                    aktiv.sort((a,b) => (b.errechneterTermin || '').localeCompare(a.errechneterTermin || ''));
-                    window._activePregnancy = aktiv[0] || null;
-                }
-            } catch {}
-        }
         renderEmployeeDetail(emp);
-        // Walter-Vorgabe 07.06.2026: Mitarbeiterfoto im Header asynchron
-        // nachladen, sobald der Detail-Header gerendert ist.
         loadEmployeePhoto(id);
         loadNumberAliases(id);
-        // Walter-Vorgabe 26.05.2026 (Audit-Modus): nach MA-Wechsel den vorher
-        // aktiven Sub-Tab beibehalten — so kann man mit fixem Doku-Filter durch
-        // die Belegschaft scrollen und schauen ob die Ablage stimmt.
-        // renderEmployeeDetail() setzt das HTML auf Default-Tab „uebersicht";
-        // wir korrigieren das hier, falls der User in einem anderen Tab war.
         if (activeEmpTab && activeEmpTab !== 'uebersicht'
             && typeof switchEmpTab === 'function') {
             switchEmpTab(activeEmpTab);
         }
+
+        // Nebeninfos nachziehen — Badge/Doc-Buttons aktualisieren ohne Full-Flash
+        Promise.all([
+            fetch(`/api/documents/linked-codes-for-employee?employeeId=${id}`, { headers: ah() })
+                .then(r => r.ok ? r.json() : []).catch(() => []),
+            IstWeiblich(emp.gender)
+                ? fetch(`/api/pregnancies?employeeId=${id}`, { headers: ah() })
+                    .then(r => r.ok ? r.json() : []).catch(() => [])
+                : Promise.resolve([])
+        ]).then(([codes, pregnancies]) => {
+            if (_selGen !== window._empSelectGen || selectedEmployeeId !== id) return;
+            window._linkedDocCodes = new Set(codes || []);
+            window._activePregnancy = null;
+            if (IstWeiblich(emp.gender) && pregnancies && pregnancies.length) {
+                const heuteIso = new Date().toISOString().slice(0, 10);
+                const aktiv = pregnancies.filter(p => {
+                    const basis = p.geburtsdatum || p.errechneterTermin;
+                    if (!basis) return false;
+                    const ende = new Date(basis); ende.setDate(ende.getDate() + 16 * 7);
+                    return ende.toISOString().slice(0, 10) >= heuteIso && p.isActive !== false;
+                });
+                aktiv.sort((a, b) => (b.errechneterTermin || '').localeCompare(a.errechneterTermin || ''));
+                window._activePregnancy = aktiv[0] || null;
+            }
+            // Schwangerschaft-Badge braucht Header-Refresh; Linked-Docs nur
+            // den aktuellen Tab-Inhalt (kein zweites Full-Render → kein Flash).
+            if (window._activePregnancy) {
+                const keepTab = activeEmpTab;
+                renderEmployeeDetail(selectedEmployee);
+                if (keepTab && keepTab !== 'uebersicht' && typeof switchEmpTab === 'function')
+                    switchEmpTab(keepTab);
+                loadEmployeePhoto(id);
+                loadNumberAliases(id);
+            } else if ((activeEmpTab || 'uebersicht') === 'uebersicht'
+                && typeof loadUebersichtTab === 'function') {
+                loadUebersichtTab();
+            }
+        });
     } catch {}
 }
 
