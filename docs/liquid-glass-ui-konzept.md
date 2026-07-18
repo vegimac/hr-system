@@ -98,24 +98,20 @@ Nicht alles auf einmal ersetzen. Reihenfolge:
 4. Cards, Tabellen und Statusleisten in Detailseiten schrittweise konsolidieren
 5. Dark Mode separat definieren, nicht automatisch vom hellen Liquid-Glass-Look ableiten
 
-### 8.5 Dark Liquid Glass (Walter 18.07.2026, elevated)
+### 8.5 Dark Liquid Glass (Walter 18.07.2026, Mockup-Favorit)
 
-Moderner Standard (Apple/VisionOS/Material): **nicht Tiefschwarz**, sondern
-mitteldunkler elevated Nachthimmel + weiss-getönte Glasflächen.
+Weniger Grau, mehr **Blau-Licht** + leuchtender Eisblau-Glasrand
+(VisionOS-nah, wie freigegebenes Mockup):
 
 | Token | Wert |
 |---|---|
-| Hintergrund | soft blues + `#1a2433 → #1e2a3c → #182232` |
-| Glas | `rgba(255,255,255,.08)` |
-| Glas stark | `rgba(255,255,255,.12)` |
-| Feld | `rgba(255,255,255,.07)` |
-| Rand | `rgba(180,200,220,.22)` |
-| Text stark | `#f4f7fb` |
-| Text | `#d5dee8` |
-| Text soft | `#9aabbc` |
-| Active | `rgba(96,140,190,.38)` / Text `#e8f3ff` |
-| Primär-Button | Kohle `#3f3f3f` (wie hell) |
-| Theme-Toggle (im Dark) | helle Glas-Pille, kein Gelb |
+| Hintergrund | cyan blooms + `#101c30 → #162640 → #0e1a2c` |
+| Glas | blau getönt `rgba(120,165,230,.10)` + Verlauf |
+| Glas stark | `rgba(140,185,245,.14)` |
+| Rand | `rgba(130,190,255,.38)` + Rim-Glow via `--dlg-shadow` |
+| Active | ice-blue Gradient / Text `#eaf4ff` |
+| Primär-Button | Kohle `#3f3f3f` |
+| Theme-Toggle (im Dark) | helle Glas-Pille |
 
 CSS-Variablen auf `body.theme-dark`: `--dlg-*` in `wwwroot/css/app.css`.
 
