@@ -43,8 +43,8 @@ public class EasyAtWorkEmployeeSyncService
     /// SaveChanges für Schweizer Zeitstempel (Walter-Vorgabe 30.06.2026):
     /// Spalten sind <c>timestamp without time zone</c>, Werte = <c>DateTime.Now</c>
     /// (Lokalzeit). Npgsql will dafür Kind=Unspecified — Wanduhr bleibt, KEINE
-    /// UTC-Konvertierung. Bewusst kein Local→UTC-Fallback (das wäre eine
-    /// Abweichung von der System-Zeitzone).
+    /// UTC-Konvertierung. Explizite timestamptz-Spalten bleiben unangetastet.
+    /// Unmapped/leerer ColumnType → wie without-TZ behandeln (System-Default).
     /// </summary>
     private Task SaveSwissAsync(CancellationToken ct = default)
     {
@@ -57,11 +57,11 @@ public class EasyAtWorkEmployeeSyncService
                 if (dt.Kind == DateTimeKind.Unspecified) continue;
 
                 var col = prop.Metadata.GetColumnType() ?? "";
-                var isWithoutTz =
-                    col.Contains("without time zone", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(col, "timestamp", StringComparison.OrdinalIgnoreCase);
-                if (!isWithoutTz) continue;
+                var isTimestamptz = col.Contains("with time zone", StringComparison.OrdinalIgnoreCase)
+                    && !col.Contains("without time zone", StringComparison.OrdinalIgnoreCase);
+                if (isTimestamptz) continue; // z.B. edited_at — erwartet UTC
 
+                // without TZ oder nicht gemappt → Wanduhr behalten, Kind weg.
                 prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Unspecified);
             }
         }
@@ -3143,8 +3143,8 @@ public class EasyAtWorkEmployeeSyncService
                 ? DateOnly.FromDateTime(emp.EntryDate.Value)
                 : DateOnly.FromDateTime(DateTime.Today),
             Bemerkung     = "Import easy@work",
-            CreatedAt     = DateTime.UtcNow,
-            UpdatedAt     = DateTime.UtcNow,
+            CreatedAt     = DateTime.Now,
+            UpdatedAt     = DateTime.Now,
         });
     }
 
@@ -3165,12 +3165,12 @@ public class EasyAtWorkEmployeeSyncService
         {
             old.ValidTo = today.AddDays(-1);
             old.IsHauptbank = false;
-            old.UpdatedAt = DateTime.UtcNow;
+            old.UpdatedAt = DateTime.Now;
         }
         foreach (var old in active.Where(b => b.ValidFrom >= today))
         {
             old.IsHauptbank = false;
-            old.UpdatedAt = DateTime.UtcNow;
+            old.UpdatedAt = DateTime.Now;
         }
 
         _db.EmployeeBankAccounts.Add(new EmployeeBankAccount
@@ -3181,8 +3181,8 @@ public class EasyAtWorkEmployeeSyncService
             AufteilungTyp = "VOLL",
             ValidFrom = today,
             Bemerkung = "easy@work Abgleich",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.Now,
+            UpdatedAt = DateTime.Now,
         });
         return true;
     }
