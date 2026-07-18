@@ -442,28 +442,31 @@ using (var scope = app.Services.CreateScope())
     // timestamptz, Sync schreibt Schweizer Lokalzeit (DateTime.Now) → Npgsql
     // «Cannot write DateTime with Kind=Local to timestamptz». Auf
     // timestamp without time zone umstellen (Schweizer Zeit systemweit).
+    // udt_name + table_schema=public: zuverlässiger als data_type allein.
     db.Database.ExecuteSqlRaw(@"
         DO $$
         BEGIN
             IF EXISTS (
                 SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'employee_number_alias'
+                WHERE table_schema = 'public'
+                  AND table_name = 'employee_number_alias'
                   AND column_name = 'created_at'
-                  AND data_type = 'timestamp with time zone'
+                  AND udt_name = 'timestamptz'
             ) THEN
-                ALTER TABLE employee_number_alias
+                ALTER TABLE public.employee_number_alias
                     ALTER COLUMN created_at TYPE timestamp without time zone
-                    USING created_at AT TIME ZONE 'Europe/Zurich';
+                    USING (created_at AT TIME ZONE 'Europe/Zurich');
             END IF;
             IF EXISTS (
                 SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'easyatwork_employee_alias'
+                WHERE table_schema = 'public'
+                  AND table_name = 'easyatwork_employee_alias'
                   AND column_name = 'created_at'
-                  AND data_type = 'timestamp with time zone'
+                  AND udt_name = 'timestamptz'
             ) THEN
-                ALTER TABLE easyatwork_employee_alias
+                ALTER TABLE public.easyatwork_employee_alias
                     ALTER COLUMN created_at TYPE timestamp without time zone
-                    USING created_at AT TIME ZONE 'Europe/Zurich';
+                    USING (created_at AT TIME ZONE 'Europe/Zurich');
             END IF;
         END $$;
     ");

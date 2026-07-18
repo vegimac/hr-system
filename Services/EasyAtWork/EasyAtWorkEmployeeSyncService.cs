@@ -39,6 +39,41 @@ public class EasyAtWorkEmployeeSyncService
         _editLock = editLock;
     }
 
+    /// <summary>
+    /// SaveChanges mit Npgsql-Kind-Sanitizer (Walter-Bug 18.07.2026).
+    /// Schweizer Spalten (<c>timestamp without time zone</c>): Kind → Unspecified
+    /// (Wanduhr bleibt). Noch-timestamptz / Npgsql-Default: Local → UTC, sonst kracht
+    /// «Cannot write DateTime with Kind=Local to timestamptz».
+    /// </summary>
+    private Task SaveSwissAsync(CancellationToken ct = default)
+    {
+        SanitizeDateTimesForNpgsql(_db);
+        return _db.SaveChangesAsync(ct);
+    }
+
+    private static void SanitizeDateTimesForNpgsql(DbContext db)
+    {
+        foreach (var entry in db.ChangeTracker.Entries())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
+            foreach (var prop in entry.Properties)
+            {
+                if (prop.CurrentValue is not DateTime dt) continue;
+                if (dt.Kind == DateTimeKind.Unspecified) continue;
+
+                var col = prop.Metadata.GetColumnType() ?? "";
+                var isWithoutTz =
+                    col.Contains("without time zone", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(col, "timestamp", StringComparison.OrdinalIgnoreCase);
+
+                if (isWithoutTz)
+                    prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Unspecified);
+                else if (dt.Kind == DateTimeKind.Local)
+                    prop.CurrentValue = dt.ToUniversalTime();
+            }
+        }
+    }
+
     // ─────────────────────────── DTOs ───────────────────────────────
 
     public class SyncRequest
@@ -602,7 +637,7 @@ public class EasyAtWorkEmployeeSyncService
             }
         }
 
-        await _db.SaveChangesAsync(ct);
+        await SaveSwissAsync(ct);
 
         // ── Verträge aus easy@work mitziehen (Walter-Vorgabe 29.06.2026) ──────
         // Der Einzel-Button holt jetzt nicht nur Stammdaten, sondern auch die
@@ -649,7 +684,7 @@ public class EasyAtWorkEmployeeSyncService
 
                 var contractChanged = _db.ChangeTracker.Entries<Employment>()
                     .Any(e => e.State == EntityState.Added || e.State == EntityState.Modified);
-                await _db.SaveChangesAsync(ct);
+                await SaveSwissAsync(ct);
                 if (contractChanged) result.UpdatedFields.Add("Verträge");
             }
         }
@@ -669,7 +704,7 @@ public class EasyAtWorkEmployeeSyncService
         {
             if (await ApplyExitAfterContractSyncAsync(emp, eaw.To, ct))
             {
-                await _db.SaveChangesAsync(ct);
+                await SaveSwissAsync(ct);
                 if (!result.UpdatedFields.Contains("Austrittsdatum")) result.UpdatedFields.Add("Austrittsdatum");
             }
         }
@@ -832,7 +867,7 @@ public class EasyAtWorkEmployeeSyncService
             changed = true;
         }
 
-        if (changed) await _db.SaveChangesAsync(ct);
+        if (changed) await SaveSwissAsync(ct);
         return changed;
     }
 
@@ -1555,7 +1590,7 @@ public class EasyAtWorkEmployeeSyncService
             {
                 // Schutz gegen Doppelvergabe derselben easy@work-id (Walter 29.06.2026).
                 await RevertDuplicateEawIdsAsync(res, ct);
-                await _db.SaveChangesAsync(ct);
+                await SaveSwissAsync(ct);
                 res.Notes.Add($"easy@work-ID stillschweigend bei {backfilled} bestehenden MA nachgetragen.");
             }
 
@@ -1602,7 +1637,7 @@ public class EasyAtWorkEmployeeSyncService
                 }
                 if (aliasAdded > 0)
                 {
-                    await _db.SaveChangesAsync(ct);
+                    await SaveSwissAsync(ct);
                     res.Notes.Add($"Wiedereintritts-Duplikate: {aliasAdded} alte easy@work-ID(s)/Nummer(n) als Alias am Haupt-MA gesichert (Stempel-Zuordnung bleibt intakt).");
                 }
             }
@@ -2043,7 +2078,7 @@ public class EasyAtWorkEmployeeSyncService
             // Schutz gegen Doppelvergabe derselben easy@work-id (Walter 29.06.2026).
             await RevertDuplicateEawIdsAsync(res, ct);
 
-            await _db.SaveChangesAsync(ct);
+            await SaveSwissAsync(ct);
 
             // Tiefenimport: keine Verträge, keine Bankverbindungen (Walter 08.07.2026).
             if (req.SkipContracts) { timelineWork.Clear(); bankWork.Clear(); }
@@ -2078,7 +2113,7 @@ public class EasyAtWorkEmployeeSyncService
                 }
                 foreach (var (bemp, iban) in bankWork)
                     await EnsureBankAccountAsync(bemp, iban, ct);
-                await _db.SaveChangesAsync(ct);
+                await SaveSwissAsync(ct);
 
                 // Austritt je MA NACH der Vertrags-Timeline bewerten (Walter-Bug
                 // 15.07.2026): uebernimmt auch ZUKUENFTIGE «Eingestellt bis»-Daten
@@ -2086,7 +2121,7 @@ public class EasyAtWorkEmployeeSyncService
                 bool exitChanged = false;
                 foreach (var (temp2, _, _, _, _, tEawTo2) in timelineWork)
                     if (await ApplyExitAfterContractSyncAsync(temp2, tEawTo2, ct)) exitChanged = true;
-                if (exitChanged) await _db.SaveChangesAsync(ct);
+                if (exitChanged) await SaveSwissAsync(ct);
 
                 // Probezeit nur bei EINEM einzigen Vertrag (Walter 29.06.2026):
                 // Hat der MA GENAU einen Vertrag (keine Historie) und noch keine
@@ -2152,7 +2187,7 @@ public class EasyAtWorkEmployeeSyncService
                         }
                         probChanged = true;
                     }
-                    if (probChanged) await _db.SaveChangesAsync(ct);
+                    if (probChanged) await SaveSwissAsync(ct);
                 }
             }
 
@@ -2160,10 +2195,10 @@ public class EasyAtWorkEmployeeSyncService
             var st = await _db.EasyAtWorkSyncStates
                 .FirstOrDefaultAsync(s => s.CompanyProfileId == req.CompanyProfileId && s.Resource == "EMPLOYEE", ct);
             if (st == null) { st = new EasyAtWorkSyncState { CompanyProfileId = req.CompanyProfileId, Resource = "EMPLOYEE" }; _db.EasyAtWorkSyncStates.Add(st); }
-            st.LastSyncAt = DateTime.UtcNow;
+            st.LastSyncAt = DateTime.Now; // last_sync_at = timestamp without time zone
             st.LastRowCount = res.CountInserted + res.CountUpdated;
             st.LastError = null;
-            await _db.SaveChangesAsync(ct);
+            await SaveSwissAsync(ct);
 
             // Lauf protokollieren (Walter 08.07.2026) — sichtbar im Sync-Log
             // auf der easy@work-Seite, wie der Stempel-Auto-Sync.

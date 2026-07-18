@@ -121,6 +121,18 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
         });
+        modelBuilder.Entity<EasyAtWorkSyncState>(entity =>
+        {
+            entity.ToTable("easyatwork_sync_state");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Resource).HasColumnName("resource");
+            entity.Property(e => e.LastSyncAt).HasColumnName("last_sync_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.LastSeenUpdatedAt).HasColumnName("last_seen_updated_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.LastRowCount).HasColumnName("last_row_count");
+            entity.Property(e => e.LastError).HasColumnName("last_error");
+        });
 
         modelBuilder.Entity<Employee>(entity =>
         {
