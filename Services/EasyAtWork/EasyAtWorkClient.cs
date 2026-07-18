@@ -307,50 +307,98 @@ public class EasyAtWorkClient
     public virtual async Task<List<EawTimepunch>> GetAllTimepunchesAsync(
         int customerId, DateOnly from, DateOnly to, Action<int, int>? pageProgress, CancellationToken ct = default)
     {
+        // Bewusst OHNE with[]=comments (Walter-Bug 18.07.2026): die List-API
+        // knallt bei kaputten Comment-Joins mit 500 «Trying to get property of
+        // non-object». Comments + Changelog holen wir nur für bearbeitete
+        // Stempel nach (GetTimepunchAsync / EnrichEditedChangelogsAsync).
+        try
+        {
+            return await GetAllTimepunchesRangeAsync(customerId, from, to, pageProgress, ct);
+        }
+        catch (HttpRequestException ex) when ((int?)ex.StatusCode is >= 500 and < 600
+                                              && !(from.Year == to.Year && from.Month == to.Month))
+        {
+            // easy@work 500 auf dem ganzen Quartal → monatsweise nachladen.
+            _log.LogWarning(ex,
+                "easy@work timepunches {From}–{To} (Customer {C}) → {Status}; Fallback monatsweise.",
+                from, to, customerId, (int?)ex.StatusCode);
+            var all = new List<EawTimepunch>();
+            var seen = new HashSet<int>();
+            var cursor = new DateOnly(from.Year, from.Month, 1);
+            var endMonth = new DateOnly(to.Year, to.Month, 1);
+            while (cursor <= endMonth)
+            {
+                var chunkFrom = cursor < from ? from : cursor;
+                var chunkTo = chunkFrom.AddMonths(1).AddDays(-1);
+                if (chunkTo > to) chunkTo = to;
+                try
+                {
+                    var chunk = await GetAllTimepunchesRangeAsync(
+                        customerId, chunkFrom, chunkTo, pageProgress: null, ct);
+                    foreach (var p in chunk)
+                        if (seen.Add(p.Id)) all.Add(p);
+                }
+                catch (HttpRequestException ex2) when ((int?)ex2.StatusCode is >= 500 and < 600)
+                {
+                    // Einzelmonat knallt auch → wochenweise.
+                    _log.LogWarning(ex2,
+                        "easy@work timepunches Monat {From}–{To} (Customer {C}) → 5xx; Fallback wochenweise.",
+                        chunkFrom, chunkTo, customerId);
+                    var weekStart = chunkFrom;
+                    while (weekStart <= chunkTo)
+                    {
+                        var weekEnd = weekStart.AddDays(6);
+                        if (weekEnd > chunkTo) weekEnd = chunkTo;
+                        try
+                        {
+                            var week = await GetAllTimepunchesRangeAsync(
+                                customerId, weekStart, weekEnd, pageProgress: null, ct);
+                            foreach (var p in week)
+                                if (seen.Add(p.Id)) all.Add(p);
+                        }
+                        catch (HttpRequestException ex3) when ((int?)ex3.StatusCode is >= 500 and < 600)
+                        {
+                            _log.LogError(ex3,
+                                "easy@work timepunches Woche {From}–{To} (Customer {C}) übersprungen (5xx).",
+                                weekStart, weekEnd, customerId);
+                        }
+                        weekStart = weekEnd.AddDays(1);
+                    }
+                }
+                cursor = cursor.AddMonths(1);
+            }
+            pageProgress?.Invoke(1, 1);
+            return all;
+        }
+    }
+
+    /// <summary>Eine Range paginiert laden (ohne comments).</summary>
+    private async Task<List<EawTimepunch>> GetAllTimepunchesRangeAsync(
+        int customerId, DateOnly from, DateOnly to, Action<int, int>? pageProgress, CancellationToken ct)
+    {
         const int perPage = 200;
-        // `with[]=comments` lädt das Comments-Array mit. Manche easy@work-Seiten
-        // knallen mit 500 «Trying to get property of non-object» (kaputter Comment-
-        // Join) — dann Retry OHNE comments (Walter-Bug 18.07.2026). Originalzeiten
-        // kommen ohnehin über den Changelog-Einzelabruf nach.
-        string PathFor(int page, bool withComments) =>
+        string PathFor(int page) =>
             $"customers/{customerId}/timepunches"
             + $"?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}"
             + $"&per_page={perPage}"
-            + $"&page={page}"
-            + (withComments ? "&with%5B%5D=comments" : "");
-
-        async Task<EawPaginated<EawTimepunch>> FetchPageAsync(int page)
-        {
-            try
-            {
-                return await GetJsonAsync<EawPaginated<EawTimepunch>>(PathFor(page, withComments: true), ct);
-            }
-            catch (HttpRequestException ex) when ((int?)ex.StatusCode is >= 500 and < 600)
-            {
-                _log.LogWarning(ex,
-                    "easy@work timepunches Seite {Page} (Customer {C}) mit comments → {Status}; Retry ohne comments.",
-                    page, customerId, (int?)ex.StatusCode);
-                return await GetJsonAsync<EawPaginated<EawTimepunch>>(PathFor(page, withComments: false), ct);
-            }
-        }
+            + $"&page={page}";
 
         // Seite 1 sequenziell (liefert LastPage + wärmt den Token-Cache),
-        // Rest PARALLEL mit Drossel — Walter-Vorgabe 09.07.2026 (der frühere
-        // rein sequenzielle Page-Loop war der Flaschenhals des Imports).
-        var first = await FetchPageAsync(1);
+        // Rest PARALLEL mit Drossel — Walter-Vorgabe 09.07.2026.
+        var first = await GetJsonAsync<EawPaginated<EawTimepunch>>(PathFor(1), ct);
         var all = new List<EawTimepunch>(first.Data ?? new());
         var lastPage = Math.Min(first.LastPage ?? 1, 500);
         pageProgress?.Invoke(1, lastPage);
         if (lastPage <= 1) return all;
 
-        var sem = new SemaphoreSlim(4); // max. 4 gleichzeitige Requests (API schonen)
+        var sem = new SemaphoreSlim(4);
         var doneCount = 1;
         var tasks = Enumerable.Range(2, lastPage - 1).Select(async page =>
         {
             await sem.WaitAsync(ct);
             try
             {
-                var res = await FetchPageAsync(page);
+                var res = await GetJsonAsync<EawPaginated<EawTimepunch>>(PathFor(page), ct);
                 pageProgress?.Invoke(Interlocked.Increment(ref doneCount), lastPage);
                 return (page, res);
             }
@@ -380,25 +428,12 @@ public class EasyAtWorkClient
         const int perPage = 200;
         while (true)
         {
-            string Path(bool withComments) =>
-                $"customers/{customerId}/timepunch_updates"
-                + $"?last_sync={Uri.EscapeDataString(lastSyncUtc)}"
-                + $"&per_page={perPage}"
-                + $"&page={page}"
-                + (withComments ? "&with%5B%5D=comments" : "");
-
-            EawPaginated<EawTimepunch> res;
-            try
-            {
-                res = await GetJsonAsync<EawPaginated<EawTimepunch>>(Path(withComments: true), ct);
-            }
-            catch (HttpRequestException ex) when ((int?)ex.StatusCode is >= 500 and < 600)
-            {
-                _log.LogWarning(ex,
-                    "easy@work timepunch_updates Seite {Page} (Customer {C}) mit comments → {Status}; Retry ohne comments.",
-                    page, customerId, (int?)ex.StatusCode);
-                res = await GetJsonAsync<EawPaginated<EawTimepunch>>(Path(withComments: false), ct);
-            }
+            // Ohne with[]=comments — siehe GetAllTimepunchesAsync (easy@work-500).
+            var path = $"customers/{customerId}/timepunch_updates"
+                     + $"?last_sync={Uri.EscapeDataString(lastSyncUtc)}"
+                     + $"&per_page={perPage}"
+                     + $"&page={page}";
+            var res = await GetJsonAsync<EawPaginated<EawTimepunch>>(path, ct);
             if (res.Data != null) all.AddRange(res.Data);
             if (res.LastPage == null || page >= res.LastPage.Value) break;
             page++;
