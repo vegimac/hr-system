@@ -136,13 +136,10 @@
             border-color: #1a1a1a !important;
         }
         body.theme-dark .filter-active {
-            border: 1px solid transparent !important;
-            background-image:
-                linear-gradient(180deg, rgba(50,110,190,.55), rgba(28,70,130,.48)),
-                var(--dlg-rim-hot) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            color: var(--dlg-active-text) !important;
+            border: 1px solid rgba(120, 175, 235, 0.36) !important;
+            background: rgba(40, 90, 160, 0.45) !important;
+            background-image: none !important;
+            color: #ffffff !important;
         }
 
         /* Werte und Labels in der Detail-Maske */
@@ -3127,26 +3124,22 @@
             box-shadow: none !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn {
-            border: 1px solid transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
+            border: 1px solid rgba(120, 170, 230, 0.16) !important;
+            background: rgba(14, 26, 44, 0.55) !important;
+            background-image: none !important;
             color: var(--emp-text-soft);
-            box-shadow: inset 0 1px 0 rgba(210,235,255,.18), 0 0 12px rgba(80,150,255,.08);
+            box-shadow: none;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn:hover {
-            background-image: var(--dlg-fill), var(--dlg-rim) !important;
-            color: #f5faff;
+            background: rgba(22, 40, 66, 0.72) !important;
+            color: #ffffff;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn.active {
-            border: 1px solid transparent !important;
-            background-image:
-                linear-gradient(180deg, rgba(50,110,190,.52), rgba(24,65,120,.48)),
-                var(--dlg-rim-hot) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            color: #eaf4ff;
-            box-shadow: 0 0 12px rgba(60,130,220,.16), inset 0 1px 0 rgba(200,230,255,.18);
+            border: 1px solid rgba(120, 175, 235, 0.36) !important;
+            background: rgba(40, 90, 160, 0.42) !important;
+            background-image: none !important;
+            color: #ffffff;
+            box-shadow: none;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body {
             background: transparent;
@@ -3154,35 +3147,30 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-search-input,
         body.theme-dark #page-mitarbeiter.liquid-employee #empSpecialFilter,
         body.theme-dark #page-mitarbeiter.liquid-employee #empExitDateAfter {
-            border: 1px solid transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            color: var(--emp-text) !important;
-            box-shadow: inset 0 1px 0 rgba(180,215,255,.10);
+            border: 1px solid rgba(120, 170, 230, 0.22) !important;
+            background: rgba(8, 18, 34, 0.88) !important;
+            background-image: none !important;
+            color: #ffffff !important;
+            box-shadow: none;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAktiv,
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterInaktiv,
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAlle,
         body.theme-dark #page-mitarbeiter.liquid-employee .btn-emp-edit,
         body.theme-dark #page-mitarbeiter.liquid-employee .btn-emp-add {
-            border: 1px solid transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
+            border: 1px solid rgba(120, 170, 230, 0.22) !important;
+            background: rgba(14, 26, 44, 0.65) !important;
+            background-image: none !important;
             color: var(--emp-text) !important;
-            box-shadow: inset 0 1px 0 rgba(180,215,255,.10);
+            box-shadow: none;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAktiv[style*="color:white"],
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterInaktiv[style*="color:white"],
         body.theme-dark #page-mitarbeiter.liquid-employee #empFilterAlle[style*="color:white"] {
-            border: 1px solid transparent !important;
-            background-image:
-                linear-gradient(180deg, rgba(50,110,190,.52), rgba(24,65,120,.48)),
-                var(--dlg-rim-hot) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            color: #f0f7ff !important;
+            border: 1px solid rgba(120, 175, 235, 0.36) !important;
+            background: rgba(40, 90, 160, 0.45) !important;
+            background-image: none !important;
+            color: #ffffff !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-name,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-name {
@@ -3208,15 +3196,15 @@
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value,
         body.theme-dark #page-mitarbeiter.liquid-employee .liquid-field .emp-field-value {
-            border: 1px solid transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            color: var(--emp-text-strong) !important;
-            box-shadow: inset 0 1px 0 rgba(210,235,255,.20), 0 0 12px rgba(80,150,255,.08);
+            border: 1px solid rgba(120, 170, 230, 0.16) !important;
+            background: rgba(8, 18, 34, 0.45) !important;
+            background-image: none !important;
+            color: #ffffff !important;
+            box-shadow: none;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value:hover {
-            background-image: var(--dlg-fill), var(--dlg-rim) !important;
+            border-color: rgba(140, 195, 245, 0.30) !important;
+            background: rgba(10, 22, 40, 0.65) !important;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info,
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-field-value.easywork-info:hover {
@@ -3887,11 +3875,10 @@
            Hier nur Innenzeilen (Vertragszeilen) nachschärfen. */
         body.theme-dark .ov-vrow,
         body.theme-dark .ov-drow {
-            border: 1px solid transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            box-shadow: inset 0 1px 0 rgba(200,230,255,.14);
+            border: 1px solid rgba(120, 170, 230, 0.16) !important;
+            background: rgba(8, 18, 34, 0.45) !important;
+            background-image: none !important;
+            box-shadow: none;
         }
 
         /* ── Dark Liquid Glass: MA-Tab-Flächen (Verfügbarkeit, Leerstates) ── */
@@ -5235,8 +5222,8 @@
         }
         .fam-tile-zulage-btn:hover { border-color: #3f3f3f; color: #3f3f3f; background: rgba(255,255,255,.5); }
         body.theme-dark .fam-tile:hover {
-            background-image: var(--dlg-fill-strong), var(--dlg-rim-hot) !important;
-            box-shadow: 0 0 0 1px rgba(140,200,255,.22), 0 0 22px rgba(90,160,255,.20), 0 14px 36px rgba(0,20,50,.35), inset 0 1px 0 rgba(230,245,255,.40) !important;
+            border-color: rgba(140, 195, 245, 0.36) !important;
+            box-shadow: 0 8px 22px rgba(0, 8, 24, 0.40) !important;
         }
         body.theme-dark .fam-tile-name { color: var(--dlg-text-strong); }
         body.theme-dark .fam-tile-meta { color: var(--dlg-text-soft); }
