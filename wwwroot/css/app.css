@@ -6488,6 +6488,9 @@
         }
         /* ── To-dos: Kohle-Skizzen-Look ─────────────────────────────── */
         #page-todos { padding: 0; }
+        body.theme-dark #page-todos {
+            background: #141210;
+        }
         #page-todos .todo-paper {
             position: relative;
             min-height: calc(100vh - 40px);
