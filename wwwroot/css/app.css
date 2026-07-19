@@ -3557,6 +3557,36 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             max-width: 340px;
         }
+        /* Direkt-Anruf / E-Mail-Icon neben Telefon/E-Mail (Walter 19.07.2026) */
+        .emp-hfact-with-act {
+            display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0;
+        }
+        .emp-hfact-with-act .emp-hfact-txt {
+            overflow: hidden; text-overflow: ellipsis; min-width: 0;
+        }
+        .emp-hfact-act {
+            flex-shrink: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 26px; height: 26px; border-radius: 8px;
+            color: #3f3f3f; background: rgba(255,255,255,0.55);
+            border: 1px solid rgba(60,55,48,0.12);
+            text-decoration: none; transition: background .15s, transform .15s, box-shadow .15s;
+        }
+        .emp-hfact-act:hover {
+            background: rgba(255,255,255,0.85);
+            box-shadow: 0 2px 8px rgba(60,55,48,0.12);
+            transform: translateY(-1px);
+            color: #1a1a1a;
+        }
+        body.theme-dark .emp-hfact-act {
+            color: #e8eef5; background: rgba(255,255,255,0.08);
+            border-color: rgba(150,200,255,0.18);
+        }
+        body.theme-dark .emp-hfact-act:hover {
+            background: rgba(255,255,255,0.14); color: #fff;
+        }
+        .emp-hfact-v-PLACEHOLDER-REMOVE {
+        }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header {
             background: var(--dlg-fill-strong) !important;
             border-color: transparent !important;

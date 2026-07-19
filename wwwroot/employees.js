@@ -931,6 +931,18 @@ function renderEmployeeDetail(emp) {
         ? `<span class="emp-hbadge hb-vert"><span class="emp-contract-model ${contractModelClass(_hcActive.employmentModel || '')}" style="margin-right:2px">${esc(modelDisplay(_hcActive.employmentModel || '–'))}</span>${esc(_hcActive.jobTitle || _hcActive.jobGroupCode || '')}${_hcVertragZusatz}</span>`
         : `<span class="emp-hbadge hb-inak">kein aktiver Vertrag</span>`;
     const _hcFact = (label, value) => `<div class="emp-hfact"><div class="emp-hfact-l">${label}</div><div class="emp-hfact-v">${value || '<span style="color:#8b8b8b;font-weight:500">–</span>'}</div></div>`;
+    // Direkt anrufen / E-Mail schreiben (Walter 19.07.2026) — Icon öffnet
+    // tel:/mailto:, Nummer bzw. Adresse bleiben lesbar daneben.
+    const _hcActIcon = (kind) => kind === 'tel'
+        ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.68 2.34a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.74.32 1.53.55 2.34.68A2 2 0 0 1 22 16.92z"/></svg>`
+        : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`;
+    const _hcPhoneHref = (emp.phoneMobile || '').replace(/[\s\-().]/g, '');
+    const _hcPhoneVal = emp.phoneMobile
+        ? `<span class="emp-hfact-with-act"><span class="emp-hfact-txt" title="${esc(emp.phoneMobile)}">${esc(emp.phoneMobile)}</span><a class="emp-hfact-act" href="tel:${esc(_hcPhoneHref)}" title="Anrufen: ${esc(emp.phoneMobile)}">${_hcActIcon('tel')}</a></span>`
+        : null;
+    const _hcEmailVal = emp.email
+        ? `<span class="emp-hfact-with-act"><span class="emp-hfact-txt" title="${esc(emp.email)}">${esc(emp.email)}</span><a class="emp-hfact-act" href="mailto:${esc(emp.email)}" title="E-Mail an ${esc(emp.email)}">${_hcActIcon('mail')}</a></span>`
+        : null;
 
     panel.innerHTML = `
     <div class="emp-detail-header">
@@ -950,8 +962,8 @@ function renderEmployeeDetail(emp) {
                 <div class="emp-hfacts">
                     ${_hcFact(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? entry : null)}
                     ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${linkedDocButton('birth_cert')}` : null)}
-                    ${_hcFact(_t('ma.field.phone','Telefon'), emp.phoneMobile ? esc(emp.phoneMobile) : null)}
-                    ${_hcFact('E-Mail', emp.email ? `<a href="mailto:${esc(emp.email)}" title="E-Mail an ${esc(emp.email)} schreiben" style="color:inherit;text-decoration:none;border-bottom:1px dotted #b7ad9e">${esc(emp.email)}</a>` : null)}
+                    ${_hcFact(_t('ma.field.phone','Telefon'), _hcPhoneVal)}
+                    ${_hcFact('E-Mail', _hcEmailVal)}
                 </div>
             </div>
             <!-- Rechte Aktions-Spalte ABSOLUT positioniert (Walter 17.07.2026:
