@@ -1398,15 +1398,11 @@ function loadUebersichtTab() {
         const von = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
         const bis = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
         const lohn = empContractWageText(c);
-        const cid = c.id ?? c.employmentId;
-        const actions = cid ? `<span style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">
-            <button type="button" class="emp-contract-btn" title="Vertrag bearbeiten (z.B. vertraulichen Lohn erfassen) — öffnet die Vertrags-Maske mit Mindestlohn-Prüfung" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
-            <button type="button" class="emp-contract-btn" title="Vertrag im Vorschaufenster öffnen — Drucken/Herunterladen direkt dort" onclick="openEmpContractPdf(${cid}, false)">Anschauen</button>
-            <button type="button" class="emp-contract-btn" title="Vertrags-Link (14 Tage) per SMS direkt an den MA senden" onclick="contractShareSendSms(${emp.id}, ${cid}, '${esc(emp.phoneMobile || '')}')">SMS</button>
-            <button type="button" class="emp-contract-btn" title="Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen" onclick="contractShareRevoke(${cid})">Link ⊘</button>
-        </span>` : '';
-        return `<div class="ov-vrow${c.isActive ? '' : ' archiv'}">
-            <span class="ov-vdot${c.isActive ? ' g' : ''}"></span>
+        const actions = _empContractActionsHtml(emp, c, contracts);
+        // Punkt: offen/laufend = grün, beendet = grau (unabhängig von den Aktions-Buttons)
+        const laufend = !_empContractIsEnded(c);
+        return `<div class="ov-vrow${laufend ? '' : ' archiv'}">
+            <span class="ov-vdot${laufend ? ' g' : ''}"></span>
             <span class="emp-contract-model ${contractModelClass(c.employmentModel || '')}">${esc(modelDisplay(c.employmentModel || '–'))}</span>
             <span class="ov-vrole">${esc(c.jobTitle || c.jobGroupCode || 'Vertrag')}</span>
             <span class="ov-vmeta">${von} – ${bis}${lohn ? ' · ' + esc(lohn) : ''}</span>
@@ -1481,19 +1477,15 @@ function renderEmpContractList(emp) {
         return `<div class="emp-contract-strip empty">Keine Verträge vorhanden.</div>`;
     }
     const rows = contracts.map(c => {
-        const id = c.id ?? c.employmentId;
         const model = c.employmentModel || '–';
         const from = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
         const to = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
         const title = c.jobTitle || c.jobGroupCode || c.position || 'Vertrag';
         const wage = empContractWageText(c);
-        const active = c.isActive ? `<span class="emp-contract-status active">aktiv</span>` : `<span class="emp-contract-status">archiviert</span>`;
-        const actions = id
-            ? `<button type="button" class="emp-contract-btn" title="Vertrag bearbeiten (z.B. vertraulichen Lohn erfassen) — öffnet die Vertrags-Maske mit Mindestlohn-Prüfung" onclick="empContractEdit(${id}, ${emp.id})">Bearbeiten</button>
-               <button type="button" class="emp-contract-btn" title="Vertrag im Vorschaufenster öffnen — Drucken/Herunterladen direkt dort" onclick="openEmpContractPdf(${id}, false)">Anschauen</button>
-               <button type="button" class="emp-contract-btn" title="Vertrags-Link (14 Tage) per SMS direkt an den MA senden" onclick="contractShareSendSms(${emp.id}, ${id}, '${esc(emp.phoneMobile || '')}')">SMS</button>
-               <button type="button" class="emp-contract-btn" title="Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen" onclick="contractShareRevoke(${id})">Link ⊘</button>`
-            : '';
+        const active = _empContractIsEnded(c)
+            ? `<span class="emp-contract-status">archiviert</span>`
+            : `<span class="emp-contract-status active">aktiv</span>`;
+        const actions = _empContractActionsHtml(emp, c, contracts);
         return `<div class="emp-contract-row">
             <div class="emp-contract-main">
                 <span class="emp-contract-model ${contractModelClass(model)}">${esc(modelDisplay(model))}</span>
@@ -1529,6 +1521,35 @@ function empContractWageText(c) {
     if (c.monthlySalaryFte != null) return `CHF ${fmt(c.monthlySalaryFte)} / 100%`;
     if (c.monthlySalary != null) return `CHF ${fmt(c.monthlySalary)} / Mt.`;
     return '';
+}
+
+function _empContractIsEnded(c) {
+    const today = new Date().toISOString().slice(0, 10);
+    const end = c.contractEndDate ? String(c.contractEndDate).slice(0, 10) : '';
+    return !!(end && end < today);
+}
+
+// Historischer Vertrag = beendet UND es gibt bereits einen neueren Vertrag.
+// Dann nur noch Anschauen — kein Bearbeiten / SMS / Link-Reset (Walter 19.07.2026).
+function _empContractIsHistorisch(c, allContracts) {
+    if (!_empContractIsEnded(c)) return false;
+    const start = String(c.contractStartDate || '');
+    return (allContracts || []).some(o => String(o.contractStartDate || '') > start);
+}
+
+function _empContractActionsHtml(emp, c, allContracts) {
+    const cid = c.id ?? c.employmentId;
+    if (!cid) return '';
+    const viewBtn = `<button type="button" class="emp-contract-btn" title="Vertrag im Vorschaufenster öffnen — Drucken/Herunterladen direkt dort" onclick="openEmpContractPdf(${cid}, false)">Anschauen</button>`;
+    if (_empContractIsHistorisch(c, allContracts)) {
+        return `<span style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">${viewBtn}</span>`;
+    }
+    return `<span style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">
+        <button type="button" class="emp-contract-btn" title="Vertrag bearbeiten (z.B. vertraulichen Lohn erfassen) — öffnet die Vertrags-Maske mit Mindestlohn-Prüfung" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
+        ${viewBtn}
+        <button type="button" class="emp-contract-btn" title="Vertrags-Link (14 Tage) per SMS direkt an den MA senden" onclick="contractShareSendSms(${emp.id}, ${cid}, '${esc(emp.phoneMobile || '')}')">SMS</button>
+        <button type="button" class="emp-contract-btn" title="Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen" onclick="contractShareRevoke(${cid})">Link ⊘</button>
+    </span>`;
 }
 
 async function openEmpContractPdf(contractId, printAfterOpen) {
