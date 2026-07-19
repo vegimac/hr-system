@@ -5378,6 +5378,25 @@ async function openAllowanceModal(existing) {
     const lblInfo = document.getElementById('alTarifInfoLbl');
     if (lblInfo) lblInfo.textContent = '';
     document.getElementById('allowanceModalTitle').textContent = d.id ? 'Zulage bearbeiten' : 'Zulage hinzufügen';
+    // Kind-Name sichtbar in der Maske (Walter 19.07.2026) — bei mehreren
+    // Kindern im FAK-Entscheid sonst unklar, für wen erfasst wird.
+    const child = (window._familyMembersCache || []).find(m => m.id === editingFamilyMemberId);
+    const childName = child
+        ? [child.firstName, child.lastName].filter(Boolean).join(' ').trim()
+        : '';
+    const childDob = child?.dateOfBirth ? formatDate(child.dateOfBirth) : '';
+    const subEl = document.getElementById('allowanceModalSub');
+    if (subEl) {
+        if (childName) {
+            subEl.textContent = childDob
+                ? `${childName} · geb. ${childDob}`
+                : childName;
+            subEl.style.display = '';
+        } else {
+            subEl.textContent = '';
+            subEl.style.display = 'none';
+        }
+    }
     document.getElementById('alDeleteBtn').style.display = d.id ? 'inline-block' : 'none';
     document.getElementById('allowanceModal').style.display = 'flex';
 
