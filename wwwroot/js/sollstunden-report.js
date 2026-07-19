@@ -34,8 +34,8 @@ function sollInit() {
     if (out) out.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:10px">Monat + Stichtag wählen und auf „🔄 Laden" klicken.</div>';
 }
 
-// Stichtag an den gewählten Monat anpassen:
-//  · gewählter Monat = aktueller Monat → gestern (heute − 1)
+// Stichtag an den gewählten Monat anpassen (Walter 19.07.2026):
+//  · gewählter Monat = aktueller Monat → heute
 //  · sonst → letzter Tag des gewählten Monats
 function sollSyncStichtag() {
     const m = parseInt((document.getElementById('sollMonth') || {}).value, 10);
@@ -45,8 +45,7 @@ function sollSyncStichtag() {
     const now = new Date();
     let d;
     if (y === now.getFullYear() && m === (now.getMonth() + 1)) {
-        d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);   // gestern
-        if (d.getMonth() !== now.getMonth()) d = new Date(y, m - 1, 1);       // am 1. → Monatsanfang
+        d = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // heute
     } else {
         d = new Date(y, m, 0);   // letzter Tag des gewählten Monats
     }
