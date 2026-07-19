@@ -1306,34 +1306,35 @@ function loadUebersichtTab() {
     const kNacht = _ovCard('Nachtarbeit', null, '', `
             <div class="nw-card-body">
                 <div id="nwView_${emp.id}" class="nw-layout">
-                    <div class="nw-panel">
-                        <div class="nw-row nw-row-status">
-                            <div class="nw-col-duty">${_nwDutyBadgeOnlyHtml(emp)}</div>
-                            <div class="nw-col-count">${_nwDutyCountHtml(emp)}</div>
-                            <div class="nw-col-menu">
-                                <div class="dok-menu-wrap">
-                                    <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
-                                    <div class="dok-menu" id="nwMenu-${emp.id}">
-                                        <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
-                                        <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'ArztZeug. ersetzen' : 'ArztZeug. verknüpfen'}</button>
-                                        ${emp.nightWorkExamDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_exam','Arztzeugnis')">ArztZeug. lösen</button>` : ''}
-                                        <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausn.Reg. ersetzen' : 'Ausn.Reg. verknüpfen'}</button>
-                                        ${emp.nightWorkAusnahmeDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_ausnahme','Ausnahmeregelung')">Ausn.Reg. lösen</button>` : ''}
-                                    </div>
+                    <div class="nw-row nw-row1">
+                        ${_nwDutyBadgeOnlyHtml(emp)}
+                        ${_nwDutyCountHtml(emp)}
+                        <span class="nw-dotsep" aria-hidden="true">·</span>
+                        <div class="nw-dates" id="nwViewText_${emp.id}">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</div>
+                        <div class="nw-col-menu">
+                            <div class="dok-menu-wrap">
+                                <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
+                                <div class="dok-menu" id="nwMenu-${emp.id}">
+                                    <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
+                                    <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'ArztZeug. ersetzen' : 'ArztZeug. verknüpfen'}</button>
+                                    ${emp.nightWorkExamDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_exam','Arztzeugnis')">ArztZeug. lösen</button>` : ''}
+                                    <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausn.Reg. ersetzen' : 'Ausn.Reg. verknüpfen'}</button>
+                                    ${emp.nightWorkAusnahmeDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_ausnahme','Ausnahmeregelung')">Ausn.Reg. lösen</button>` : ''}
                                 </div>
                             </div>
                         </div>
-                        <div class="nw-row nw-row-dates" id="nwViewText_${emp.id}">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</div>
-                        <div class="nw-row nw-row-warn">${_nwMissingDocsHtml(emp) || '<span class="nw-warn-empty"></span>'}</div>
-                        <div class="nw-row nw-row-actions">
+                    </div>
+                    <div class="nw-row nw-row2">
+                        <div class="nw-warns">${_nwMissingDocsHtml(emp)}</div>
+                        <div class="nw-actions">
                             <button class="nw-act-btn" onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken">🖨 Arztformular</button>
                             <button class="nw-act-btn" onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken">🖨 Ausnahmeregelung</button>
                             ${emp.nightWorkExamDokumentId
                                 ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen">👁 Arztzeugnis</button>`
-                                : `<span class="nw-act-slot" aria-hidden="true"></span>`}
+                                : ''}
                             ${emp.nightWorkAusnahmeDokumentId
                                 ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen">👁 Ausnahmeregelung</button>`
-                                : `<span class="nw-act-slot" aria-hidden="true"></span>`}
+                                : ''}
                         </div>
                     </div>
                 </div>
@@ -2361,35 +2362,28 @@ function _nwAddYears(iso, n) {
 }
 
 // „gültig bis"-Anzeige (inneres HTML der id'd Span) — wird in-place aktualisiert.
-// Gültig-bis-Zelle. Grün = akzeptiert NUR mit verknüpftem Arztzeugnis-Dokument
-// (Walter 19.07.2026): Datum allein zählt nicht als Nachweis.
+// Kompaktes «gültig bis» (inline). Grün nur mit verknüpftem Arztzeugnis.
 function _nwGueltigBisHtml(validUntil, hasArztDoc) {
-    if (!validUntil) {
-        return `<div class="nw-date-cell"><span class="nw-date-lbl">Gültig bis</span><span class="nw-date-val nw-date-muted">—</span></div>`;
-    }
+    if (!validUntil) return `<span class="nw-inline-muted">gültig bis —</span>`;
     const t = new Date(); t.setHours(0, 0, 0, 0);
     const exp = new Date(validUntil) < t;
-    let cls = 'nw-date-val';
-    let extra = '';
-    if (exp) { cls += ' nw-date-expired'; extra = '<span class="nw-date-tag">abgelaufen</span>'; }
-    else if (hasArztDoc) { cls += ' nw-date-ok'; }
-    else { cls += ' nw-date-pending'; }
+    let cls = 'nw-inline-val';
+    if (exp) cls += ' nw-date-expired';
+    else if (hasArztDoc) cls += ' nw-date-ok';
     const tip = hasArztDoc ? '' : ' title="Datum hinterlegt — gilt erst mit verknüpftem Arztzeugnis"';
-    return `<div class="nw-date-cell"${tip}><span class="nw-date-lbl">Gültig bis</span><span class="${cls}">${formatDate(validUntil)}</span>${extra}</div>`;
+    return `<span class="nw-inline-lbl">gültig bis</span> <span class="${cls}"${tip}>${formatDate(validUntil)}</span>${exp ? ' <span class="nw-date-tag">abgelaufen</span>' : ''}`;
 }
 
-// Datum-Zeile: zwei feste Zellen (Ausgestellt | Gültig bis) — springt nicht.
+// Kompakte Datumszeile (eine Linie, feste Reihenfolge).
 function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso, hasArztDoc) {
     if (!validUntil && !issueIso) {
-        return `<div class="nw-dates-empty">Keine Untersuchung erfasst</div>`;
+        return `<span class="nw-inline-muted nw-dates-empty">Keine Untersuchung erfasst</span>`;
     }
-    let html = `<div class="nw-dates-grid">
-        <div class="nw-date-cell"><span class="nw-date-lbl">Ausgestellt</span><span class="nw-date-val">${formatDate(issueIso)}</span></div>
-        ${_nwGueltigBisHtml(validUntil, !!hasArztDoc)}
-    </div>`;
+    let html = `<span class="nw-inline-lbl">Ausgestellt</span> <span class="nw-inline-val">${formatDate(issueIso)}</span>`
+             + ` <span class="nw-dotsep">·</span> ${_nwGueltigBisHtml(validUntil, !!hasArztDoc)}`;
     if (mismatch) {
         const soll = sollBisIso ? formatDate(sollBisIso) : '—';
-        html += `<span class="nw-warn-chip" title="Das Enddatum in easy@work stimmt nicht mit der Regel überein und muss dort korrigiert werden">easy@work-Ende korrigieren (Soll: ${soll})</span>`;
+        html += ` <span class="nw-warn-chip nw-warn-chip-sm" title="Das Enddatum in easy@work stimmt nicht mit der Regel überein und muss dort korrigiert werden">easy@work-Ende ≠ ${soll}</span>`;
     }
     return html;
 }

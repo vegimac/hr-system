@@ -3646,9 +3646,9 @@
                direkt unter Anstellung/Nacht; freier Platz darunter. */
             height: 100%;
             align-content: start;
-            /* Zeile 2 höher: Nachtarbeit braucht Badge+Datum+Warnungen+Buttons
-               (Walter 19.07.2026). 196px: KTG inkl. «Bei Absenzen…». */
-            grid-template-rows: auto 232px 196px;
+            /* Zeile 2: Anstellung | Nachtarbeit kompakt (2 Zeilen).
+               196px: KTG inkl. «Bei Absenzen…». */
+            grid-template-rows: auto 168px 196px;
         }
         .ov-wrap {
             display: grid;
