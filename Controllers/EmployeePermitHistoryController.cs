@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
@@ -35,9 +37,14 @@ public class EmployeePermitHistoryController : ControllerBase
     private readonly LohnEditLockService _editLock;
     private readonly EcallSmsService     _sms;
 
-    // Fallback wenn keine Moments-Vorlage BEWILLIGUNG_ABGELAUFEN gepflegt ist.
+    // Kurz-SMS (≤ 160 Zeichen) — lange Mitteilung liegt auf der Link-Seite
+    // (Walter 19.07.2026, analog Moments/Gratulation).
     private const string DefaultPermitExpiredSms =
-        "Hallo {Vorname}, deine Bewilligung ({PermitCode}) ist am {GueltigBis} abgelaufen. Kannst du bitte die neue Bewilligung so bald wie möglich bei HR nachreichen? Danke!";
+        "Hallo {Vorname}, deine Bewilligung ist abgelaufen. Tippe auf den Link:";
+    private const string DefaultPermitExpiredBody =
+        "{Briefanrede}\n\ndeine Bewilligung ({PermitCode}) ist am {GueltigBis} abgelaufen. Kannst du bitte die neue Bewilligung so bald wie möglich bei HR nachreichen?\n\nDanke und freundliche Grüsse\n{SenderName}";
+    private const int SmsMaxChars = 160;
+    private const int LinkExpiryDays = 14;
 
     public EmployeePermitHistoryController(AppDbContext db, LohnEditLockService editLock, EcallSmsService sms)
     {
@@ -414,9 +421,9 @@ public class EmployeePermitHistoryController : ControllerBase
     }
 
     // ── SMS-Erinnerung bei abgelaufener Bewilligung (Walter 19.07.2026) ──
-    // Direktversand über eCall, analog Vertrags-SMS. Text aus Moments-Vorlage
-    // BEWILLIGUNG_ABGELAUFEN (SmsText) mit Platzhaltern {Vorname}/{PermitCode}/
-    // {GueltigBis}. Kein Lohn-Edit — EditLock greift hier nicht.
+    // Kurz-SMS (≤ 160) + Token-Link zur langen Mitteilung — analog Moments/
+    // Gratulation. Vorlage BEWILLIGUNG_ABGELAUFEN: SmsText = Push, BodyText =
+    // Landing-Page. Kein Lohn-Edit — EditLock greift hier nicht.
     [HttpGet("{id:int}/sms-preview")]
     [Authorize(Roles = "admin,superuser,user,buchhaltung")]
     public async Task<IActionResult> SmsPreview(int employeeId, int id)
@@ -435,9 +442,13 @@ public class EmployeePermitHistoryController : ControllerBase
             ok = true,
             phone = built.Phone,
             smsText = built.SmsText,
+            bodyPreview = built.BodyPlain,
+            smsChars = built.SmsText?.Length ?? 0,
+            smsMaxChars = SmsMaxChars,
             permitCode = built.PermitCode,
             validTo = built.ValidTo?.ToString("yyyy-MM-dd"),
             lastSmsSentAt = lastSms,
+            hint = "Die SMS enthält nur den Kurztext; die ausführliche Mitteilung öffnet der MA über den angehängten Link.",
         });
     }
 
@@ -448,7 +459,39 @@ public class EmployeePermitHistoryController : ControllerBase
         var built = await BuildPermitExpiredSmsAsync(employeeId, id);
         if (built.Error != null) return built.Error;
 
-        var res = await _sms.SendSmsAsync(built.Phone!, built.SmsText!, purpose: "BEWILLIGUNG", employeeId: employeeId);
+        var (token, tokenHash) = NewToken();
+        var expiresAt = DateTime.Now.AddDays(LinkExpiryDays);
+
+        // Alte aktive Links derselben Bewilligung entwerten.
+        var now = DateTime.Now;
+        await _db.PermitReminderTokens
+            .Where(t => t.PermitHistoryId == id && t.RevokedAt == null && t.ExpiresAt > now)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now));
+
+        _db.PermitReminderTokens.Add(new PermitReminderToken
+        {
+            EmployeeId = employeeId,
+            PermitHistoryId = id,
+            TokenHash = tokenHash,
+            MessageHtml = built.BodyHtml!,
+            Title = built.Title,
+            ExpiresAt = expiresAt,
+            CreatedAt = DateTime.Now,
+            CreatedBy = GetCurrentUserId(),
+        });
+        await _db.SaveChangesAsync();
+
+        var siteRow = await _db.SmtpSettings.AsNoTracking().FirstOrDefaultAsync();
+        var baseUrl = (siteRow != null && !string.IsNullOrWhiteSpace(siteRow.SiteUrl))
+            ? siteRow.SiteUrl.Trim()
+            : "https://onecrew.ch/";
+        var url = $"{baseUrl.TrimEnd('/')}/bewilligung/{token}";
+
+        var smsBody = built.SmsText!.Contains("{Link}")
+            ? built.SmsText.Replace("{Link}", url)
+            : $"{built.SmsText}\n{url}";
+
+        var res = await _sms.SendSmsAsync(built.Phone!, smsBody, purpose: "BEWILLIGUNG", employeeId: employeeId);
         if (!res.Ok)
             return StatusCode(502, new { error = $"SMS-Versand fehlgeschlagen: {res.Error}" });
 
@@ -461,7 +504,36 @@ public class EmployeePermitHistoryController : ControllerBase
             to = built.Phone,
             redirectedTo = string.IsNullOrWhiteSpace(redirect) ? null : redirect!.Trim(),
             messageId = res.MessageId,
+            url,
+            expiresAt,
         });
+    }
+
+    // Öffentliche Landing-Page (kurze SMS → lange Mitteilung).
+    [AllowAnonymous]
+    [HttpGet("/bewilligung/{token}")]
+    public async Task<IActionResult> PublicLanding(string token)
+    {
+        var hash = HashToken(token);
+        var t = await _db.PermitReminderTokens.FirstOrDefaultAsync(x => x.TokenHash == hash);
+        string html;
+        if (t == null)
+            html = ReminderLandingHtml("Link nicht gefunden", "Dieser Link ist ungültig.", null);
+        else if (t.RevokedAt != null)
+            html = ReminderLandingHtml("Link nicht mehr gültig", "Dieser Link wurde ersetzt oder zurückgezogen. Bitte fordere einen neuen an.", null);
+        else if (t.ExpiresAt < DateTime.Now)
+            html = ReminderLandingHtml("Link abgelaufen", "Dieser Link ist abgelaufen. Bitte fordere einen neuen an.", null);
+        else
+        {
+            if (t.OpenedAt == null)
+            {
+                t.OpenedAt = DateTime.Now;
+                try { await _db.SaveChangesAsync(); } catch { /* best-effort */ }
+            }
+            var title = string.IsNullOrWhiteSpace(t.Title) ? "Bewilligung" : t.Title!;
+            html = ReminderLandingHtml(title, t.MessageHtml, t.ExpiresAt.ToString("dd.MM.yyyy"));
+        }
+        return Content(html, "text/html; charset=utf-8");
     }
 
     private sealed class PermitSmsBuild
@@ -469,6 +541,9 @@ public class EmployeePermitHistoryController : ControllerBase
         public IActionResult? Error { get; init; }
         public string? Phone { get; init; }
         public string? SmsText { get; init; }
+        public string? BodyHtml { get; init; }
+        public string? BodyPlain { get; init; }
+        public string? Title { get; init; }
         public string? PermitCode { get; init; }
         public DateOnly? ValidTo { get; init; }
     }
@@ -498,30 +573,101 @@ public class EmployeePermitHistoryController : ControllerBase
         var code = (entry.PermitType?.Code ?? "").Trim();
         if (code.Length == 0) code = "Bewilligung";
         var gueltigBis = entry.ValidTo!.Value.ToString("dd.MM.yyyy");
+        var briefanrede = !string.IsNullOrWhiteSpace(emp.LetterSalutation)
+            ? emp.LetterSalutation!.Trim()
+            : (vorname.Length > 0 ? $"Hallo {vorname}" : "Hallo");
 
-        string template;
+        var senderName = "";
+        var uid = GetCurrentUserId();
+        if (uid.HasValue)
+        {
+            var u = await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == uid.Value);
+            senderName = (u?.DisplayName ?? "").Trim();
+            if (senderName.Length == 0)
+                senderName = $"{u?.FirstName} {u?.LastName}".Trim();
+        }
+
         var tpl = await _db.MomentTexts
             .Include(t => t.MomentType)
             .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "BEWILLIGUNG_ABGELAUFEN")
             .OrderBy(t => t.SortOrder).ThenBy(t => t.Id)
             .FirstOrDefaultAsync();
-        if (tpl != null && !string.IsNullOrWhiteSpace(tpl.SmsText))
-            template = tpl.SmsText;
-        else
-            template = DefaultPermitExpiredSms;
 
-        var smsText = template
+        var smsTpl = (tpl != null && !string.IsNullOrWhiteSpace(tpl.SmsText))
+            ? tpl.SmsText! : DefaultPermitExpiredSms;
+        var bodyTpl = (tpl != null && !string.IsNullOrWhiteSpace(tpl.BodyText)
+                       && !tpl.BodyText.Contains("SMS-Vorlage bei abgelaufener", StringComparison.Ordinal))
+            ? tpl.BodyText! : DefaultPermitExpiredBody;
+        var title = !string.IsNullOrWhiteSpace(tpl?.Titel) ? tpl!.Titel!.Trim() : "Bewilligung abgelaufen";
+
+        string Resolve(string s) => s
             .Replace("{Vorname}", vorname)
             .Replace("{PermitCode}", code)
-            .Replace("{GueltigBis}", gueltigBis);
+            .Replace("{GueltigBis}", gueltigBis)
+            .Replace("{Briefanrede}", briefanrede)
+            .Replace("{SenderName}", senderName)
+            .Replace("{Absender}", senderName);
+
+        // SMS-Kurztext: {Link} zählt nicht zur 160-Grenze (wird erst beim Senden gesetzt).
+        var smsRaw = Resolve(smsTpl).Replace("{Link}", "").Trim();
+        if (smsRaw.Length == 0)
+            return new PermitSmsBuild { Error = BadRequest(new { error = "SMS-Kurztext der Vorlage ist leer." }) };
+        if (smsRaw.Length > SmsMaxChars)
+            return new PermitSmsBuild { Error = Conflict(new {
+                error = "SMS_TOO_LONG",
+                message = $"Der SMS-Kurztext ist {smsRaw.Length} Zeichen lang (max. {SmsMaxChars}). Bitte unter Systemeinstellungen → Moments-Texte kürzen — die ausführliche Mitteilung gehört in das Feld «Mitteilung»."
+            }) };
+
+        var bodyPlain = Resolve(bodyTpl);
+        static string E(string s) => System.Net.WebUtility.HtmlEncode(s ?? "");
+        var bodyHtml = E(bodyPlain.Replace("\r\n", "\n")).Replace("\n", "<br>");
 
         return new PermitSmsBuild
         {
             Phone = phone,
-            SmsText = smsText,
+            SmsText = smsRaw,
+            BodyHtml = bodyHtml,
+            BodyPlain = bodyPlain,
+            Title = title,
             PermitCode = code,
             ValidTo = entry.ValidTo,
         };
+    }
+
+    private static (string token, string hash) NewToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(24);
+        var token = Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+        return (token, HashToken(token));
+    }
+
+    private static string HashToken(string token)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static string ReminderLandingHtml(string title, string bodyHtml, string? gueltigBis)
+    {
+        var validNote = !string.IsNullOrWhiteSpace(gueltigBis)
+            ? $"<div class='valid'>Link gültig bis {System.Net.WebUtility.HtmlEncode(gueltigBis)}</div>"
+            : "";
+        return $@"<!DOCTYPE html>
+<html lang='de'><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<meta name='description' content='Mitteilung zu deiner Bewilligung.'>
+<meta property='og:title' content='Bewilligung'>
+<meta property='og:description' content='Mitteilung zu deiner Bewilligung.'>
+<title>Bewilligung — OneCrew</title>
+<link rel='icon' href='/favicon.svg' type='image/svg+xml'>
+<style>
+  body{{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f3ee;color:#3f3f3f;display:flex;min-height:100vh;align-items:flex-start;justify-content:center}}
+  .card{{background:#faf8f5;border:1px solid rgba(255,255,255,.62);box-shadow:0 8px 30px rgba(60,55,48,.16);border-radius:18px;padding:34px 28px;max-width:440px;width:90%;box-sizing:border-box;text-align:center;margin-top:clamp(20px,7vh,90px);margin-bottom:40px}}
+  h1{{font-size:19px;margin:0 0 12px}}
+  .msg{{font-size:14px;color:#3f3f3f;margin:0 0 12px;line-height:1.6;text-align:left}}
+  .valid{{font-size:12px;color:#8b8b8b;margin-top:8px}}
+</style></head>
+<body><div class='card'><h1>{System.Net.WebUtility.HtmlEncode(title)}</h1><div class='msg'>{bodyHtml}</div>{validNote}</div></body></html>";
     }
 
     [HttpDelete("{id:int}")]

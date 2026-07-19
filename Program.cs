@@ -946,9 +946,8 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
-        // BEWILLIGUNG_ABGELAUFEN (Walter 19.07.2026): SMS-Erinnerung bei abgelaufener
-        // Aufenthaltsbewilligung. SmsText wird von EmployeePermitHistoryController ersetzt
-        // ({Vorname}/{PermitCode}/{GueltigBis}). Nur einfügen wenn noch kein Text existiert.
+        // BEWILLIGUNG_ABGELAUFEN (Walter 19.07.2026): Kurz-SMS + Link-Seite.
+        // SmsText ≤ 160 Zeichen (Push); BodyText = Mitteilung auf /bewilligung/{token}.
         if (_mtTypeIds.TryGetValue("BEWILLIGUNG_ABGELAUFEN", out var _baTypeId))
         {
             var _baToneId = _mtToneIds.TryGetValue("Calm", out var _bc) ? _bc
@@ -958,10 +957,25 @@ using (var scope = app.Services.CreateScope())
                 db.MomentTexts.Add(new MomentText {
                     MomentTypeId = _baTypeId, MomentToneId = _baToneId,
                     Titel = "Bewilligung abgelaufen",
-                    SmsText = "Hallo {Vorname}, deine Bewilligung ({PermitCode}) ist am {GueltigBis} abgelaufen. Kannst du bitte die neue Bewilligung so bald wie möglich bei HR nachreichen? Danke!",
-                    BodyText = "SMS-Vorlage bei abgelaufener Bewilligung. Platzhalter: {Vorname}, {PermitCode}, {GueltigBis}.",
+                    SmsText = "Hallo {Vorname}, deine Bewilligung ist abgelaufen. Tippe auf den Link:",
+                    BodyText = "{Briefanrede}\n\ndeine Bewilligung ({PermitCode}) ist am {GueltigBis} abgelaufen. Kannst du bitte die neue Bewilligung so bald wie möglich bei HR nachreichen?\n\nDanke und freundliche Grüsse\n{SenderName}",
                     LanguageCode = "de", Version = "1.0", RequiresReview = false,
                     IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
+            }
+            else if (_baToneId != 0)
+            {
+                // Einmalig zu lange Alt-SMS kürzen (nur wenn > 160 Zeichen).
+                foreach (var old in db.MomentTexts.Where(x => x.MomentTypeId == _baTypeId
+                             && x.SmsText != null && x.SmsText.Length > 160).ToList())
+                {
+                    old.SmsText = "Hallo {Vorname}, deine Bewilligung ist abgelaufen. Tippe auf den Link:";
+                    if (string.IsNullOrWhiteSpace(old.BodyText)
+                        || old.BodyText.Contains("SMS-Vorlage bei abgelaufener"))
+                    {
+                        old.BodyText = "{Briefanrede}\n\ndeine Bewilligung ({PermitCode}) ist am {GueltigBis} abgelaufen. Kannst du bitte die neue Bewilligung so bald wie möglich bei HR nachreichen?\n\nDanke und freundliche Grüsse\n{SenderName}";
+                    }
+                    if (string.IsNullOrWhiteSpace(old.Titel)) old.Titel = "Bewilligung abgelaufen";
+                }
             }
         }
 
@@ -1031,6 +1045,23 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE UNIQUE INDEX IF NOT EXISTS ux_contract_share_token_hash ON contract_share_token (token_hash);
         CREATE INDEX IF NOT EXISTS ix_contract_share_token_employee ON contract_share_token (employee_id);
+
+        -- Bewilligungs-Erinnerung per Kurz-SMS + Link (Walter 19.07.2026)
+        CREATE TABLE IF NOT EXISTS permit_reminder_token (
+            id                 serial PRIMARY KEY,
+            employee_id        integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            permit_history_id  integer NOT NULL,
+            token_hash         text NOT NULL,
+            message_html       text NOT NULL,
+            title              text,
+            expires_at         timestamp without time zone NOT NULL,
+            opened_at          timestamp without time zone,
+            revoked_at         timestamp without time zone,
+            created_at         timestamp without time zone NOT NULL DEFAULT now(),
+            created_by         integer
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_permit_reminder_token_hash ON permit_reminder_token (token_hash);
+        CREATE INDEX IF NOT EXISTS ix_permit_reminder_token_employee ON permit_reminder_token (employee_id);
     ");
 
     // ── Verfügbare Arbeitszeiten pro MA (versioniert) — Walter 07.07.2026 ──

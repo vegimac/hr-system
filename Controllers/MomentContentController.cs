@@ -152,12 +152,27 @@ public class MomentContentController : ControllerBase
 
     public record TextDto(int MomentTypeId, int MomentToneId, string? Titel, string? SmsText, string BodyText, bool IsActive, int SortOrder);
 
+    private const int SmsMaxChars = 160;
+
+    private static IActionResult? ValidateSmsLength(string? smsText)
+    {
+        if (string.IsNullOrWhiteSpace(smsText)) return null;
+        // {Link} wird erst beim Versand ersetzt — zählt nicht zur 160-Grenze.
+        var len = smsText.Replace("{Link}", "", StringComparison.Ordinal).Trim().Length;
+        if (len > SmsMaxChars)
+            return new BadRequestObjectResult(new {
+                error = $"SMS-Kurztext ist {len} Zeichen (max. {SmsMaxChars}). Ausführlichen Text ins Feld «Mitteilung» — der Link wird automatisch angehängt."
+            });
+        return null;
+    }
+
     [HttpPost("texts")]
     [Authorize(Roles = "admin,superuser")]
     public async Task<IActionResult> CreateText([FromBody] TextDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.BodyText))
             return BadRequest(new { error = "Mitteilungstext ist Pflicht." });
+        if (ValidateSmsLength(dto.SmsText) is { } smsErr) return smsErr;
         if (!await _db.MomentTypes.AnyAsync(t => t.Id == dto.MomentTypeId))
             return BadRequest(new { error = "Moment-Typ nicht gefunden." });
         if (!await _db.MomentTones.AnyAsync(t => t.Id == dto.MomentToneId))
@@ -187,6 +202,7 @@ public class MomentContentController : ControllerBase
         if (t == null) return NotFound();
         if (string.IsNullOrWhiteSpace(dto.BodyText))
             return BadRequest(new { error = "Mitteilungstext ist Pflicht." });
+        if (ValidateSmsLength(dto.SmsText) is { } smsErr) return smsErr;
         t.MomentTypeId = dto.MomentTypeId;
         t.MomentToneId = dto.MomentToneId;
         t.Titel = string.IsNullOrWhiteSpace(dto.Titel) ? null : dto.Titel.Trim();

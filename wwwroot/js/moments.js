@@ -738,13 +738,23 @@ function momTextTypeChanged() {
     const t = _momTypesAll.find(x => x.id === typeId);
     if (t && t.code === 'VERTRAG_LINK') {
         hint.style.display = 'block';
-        hint.innerHTML = 'Arbeitsvertrag-Link: verfügbare Platzhalter im SMS-Text: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Link}</b> · <b>{GueltigBis}</b>';
+        hint.innerHTML = 'Arbeitsvertrag-Link: SMS kurz halten (max. 160). Platzhalter: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Link}</b> · <b>{GueltigBis}</b>. Die Mitteilung erscheint auf der Link-Seite.';
     } else if (t && t.code === 'BEWILLIGUNG_ABGELAUFEN') {
         hint.style.display = 'block';
-        hint.innerHTML = 'Bewilligung abgelaufen: verfügbare Platzhalter im SMS-Text: <b>{Vorname}</b> · <b>{PermitCode}</b> · <b>{GueltigBis}</b>';
+        hint.innerHTML = 'Bewilligung abgelaufen: SMS = kurzer Push (max. 160), ausführlicher Text ins Feld «Mitteilung». SMS-Platzhalter: <b>{Vorname}</b>. Mitteilung: <b>{Briefanrede}</b> · <b>{PermitCode}</b> · <b>{GueltigBis}</b> · <b>{SenderName}</b>. Der Link wird automatisch angehängt.';
     } else {
         hint.style.display = 'none';
     }
+    momTextSmsCount();
+}
+
+function momTextSmsCount() {
+    const t = document.getElementById('momTextSms');
+    const c = document.getElementById('momTextSmsCount');
+    if (!t || !c) return;
+    const n = (t.value || '').length;
+    c.textContent = `${n} / 160 Zeichen`;
+    c.style.color = n >= 160 ? '#b91c1c' : '#94a3b8';
 }
 
 function momTextEdit(id) {
@@ -761,6 +771,7 @@ function momTextEdit(id) {
     document.getElementById('momTextForm').style.display = 'block';
     document.getElementById('momTextForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     momTextTypeChanged();
+    momTextSmsCount();
 }
 
 function momTextCancel() { document.getElementById('momTextForm').style.display = 'none'; }
@@ -778,6 +789,11 @@ async function momTextSave() {
     };
     const msg = document.getElementById('momTextMsg');
     if (!body.bodyText) { msg.style.color = '#b91c1c'; msg.textContent = 'Mitteilungstext ist Pflicht.'; return; }
+    if (body.smsText && body.smsText.replaceAll('{Link}', '').trim().length > 160) {
+        msg.style.color = '#b91c1c';
+        msg.textContent = 'SMS-Kurztext max. 160 Zeichen — ausführlichen Text ins Feld «Mitteilung».';
+        return;
+    }
     const url = id ? '/api/moment-content/texts/' + id : '/api/moment-content/texts';
     const r = await fetch(url, { method: id ? 'PUT' : 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));

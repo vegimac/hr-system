@@ -37,9 +37,11 @@ Klick auf **SMS**:
 2. Bei OK geht die Erinnerung über eCall an die Mobilnummer des MA.
 3. Ohne Handynummer ist der Button grau/gesperrt — Nummer zuerst im Personal-Tab erfassen.
 
-Standardtext (anpassbar): *«Hallo {Vorname}, deine Bewilligung ({PermitCode}) ist am {GueltigBis} abgelaufen. Kannst du bitte die neue Bewilligung so bald wie möglich bei HR nachreichen? Danke!»*
+Wie bei Moments/Gratulation: die **SMS bleibt kurz** (max. 160 Zeichen) und enthält einen Link. Die ausführliche Mitteilung steht auf der Link-Seite (`/bewilligung/…`, 14 Tage gültig).
 
-Vorlage **BEWILLIGUNG_ABGELAUFEN** unter Systemeinstellungen → Moments-Texte. Platzhalter: `{Vorname}`, `{PermitCode}`, `{GueltigBis}`.
+Vorlage **BEWILLIGUNG_ABGELAUFEN** unter Systemeinstellungen → Moments-Texte:
+- **SMS-Kurztext:** z.B. *«Hallo {Vorname}, deine Bewilligung ist abgelaufen. Tippe auf den Link:»* (max. 160)
+- **Mitteilung:** langer Text mit `{Briefanrede}`, `{PermitCode}`, `{GueltigBis}`, `{SenderName}`
 
 ## Test-Umleitung — gefahrlos testen
 

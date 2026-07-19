@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<WebAuthnCredential> WebAuthnCredentials => Set<WebAuthnCredential>();
     public DbSet<PostfachSetupToken> PostfachSetupTokens => Set<PostfachSetupToken>();
     public DbSet<ContractShareToken> ContractShareTokens => Set<ContractShareToken>();
+    public DbSet<PermitReminderToken> PermitReminderTokens => Set<PermitReminderToken>();
     public DbSet<SmsLog>             SmsLogs             => Set<SmsLog>();
     public DbSet<EmployeeAvailability> EmployeeAvailabilities => Set<EmployeeAvailability>();
     public DbSet<EmployeeAvailabilitySlot> EmployeeAvailabilitySlots => Set<EmployeeAvailabilitySlot>();
@@ -377,6 +378,25 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TokenHash).HasColumnName("token_hash");
             entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UsedAt).HasColumnName("used_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => e.TokenHash).IsUnique();
+        });
+
+        // ── PermitReminderToken — SMS-Link Bewilligung abgelaufen ────────
+        modelBuilder.Entity<PermitReminderToken>(entity =>
+        {
+            entity.ToTable("permit_reminder_token");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.PermitHistoryId).HasColumnName("permit_history_id");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash");
+            entity.Property(e => e.MessageHtml).HasColumnName("message_html");
+            entity.Property(e => e.Title).HasColumnName("title");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
