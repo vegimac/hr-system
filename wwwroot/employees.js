@@ -1326,16 +1326,16 @@ function loadUebersichtTab() {
                     </div>
                     <div class="nw-row nw-row2">
                         <div class="nw-warns">${_nwMissingDocsHtml(emp)}</div>
-                        <div class="nw-actions">
-                            <button class="nw-act-btn" onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken">🖨 Arztformular</button>
-                            <button class="nw-act-btn" onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken">🖨 Ausnahmeregelung</button>
-                            ${emp.nightWorkExamDokumentId
-                                ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen">👁 Arztzeugnis</button>`
-                                : ''}
-                            ${emp.nightWorkAusnahmeDokumentId
-                                ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen">👁 Ausnahmeregelung</button>`
-                                : ''}
-                        </div>
+                    </div>
+                    <div class="nw-row nw-row3 nw-actions">
+                        <button class="nw-act-btn" onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken">🖨 Arztformular</button>
+                        <button class="nw-act-btn" onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken">🖨 Ausnahmeregelung</button>
+                        ${emp.nightWorkExamDokumentId
+                            ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen">👁 Arztzeugnis</button>`
+                            : ''}
+                        ${emp.nightWorkAusnahmeDokumentId
+                            ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen">👁 Ausnahmeregelung</button>`
+                            : ''}
                     </div>
                 </div>
                 <div id="nwEdit_${emp.id}" class="nw-edit" style="display:none">

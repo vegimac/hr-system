@@ -3646,9 +3646,10 @@
                direkt unter Anstellung/Nacht; freier Platz darunter. */
             height: 100%;
             align-content: start;
-            /* Zeile 2: Anstellung | Nachtarbeit kompakt (2 Zeilen).
+            /* Zeile 2: Anstellung | Nachtarbeit kompakt
+               (Top-Daten · Warnungen · Buttons unten fix).
                196px: KTG inkl. «Bei Absenzen…». */
-            grid-template-rows: auto 168px 196px;
+            grid-template-rows: auto 148px 196px;
         }
         .ov-wrap {
             display: grid;
@@ -3782,15 +3783,17 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            gap: 4px;
-            padding-top: 10px;
-            padding-bottom: 8px;
+            gap: 2px;
+            padding-top: 8px;
+            padding-bottom: 6px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .nw-card-body {
-            flex: 0 1 auto;
+            flex: 1 1 auto;
             min-height: 0;
-            overflow: visible;
+            overflow: hidden;
             padding-top: 0;
+            display: flex;
+            flex-direction: column;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-card-h {
             flex: 0 0 auto;
@@ -3849,7 +3852,7 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: auto 158px 158px 196px;
+                grid-template-rows: auto 148px 148px 196px;
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
@@ -8080,27 +8083,37 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         }
 
 
-        /* ── Nachtarbeit-Karte: kompakt 2 Zeilen (Walter 19.07.2026) ──
-           Z1: Badge · Nächte · Datum · ⋮
-           Z2: Warn-Chips · Buttons */
+        /* ── Nachtarbeit-Karte (Walter 19.07.2026) ──
+           Z1 Topbox: Badge · Nächte · Datum · ⋮  (wichtigste Infos)
+           Z2 Warn-Chips (volle Breite)
+           Z3 Actions unten fix */
         .nw-card-body { padding: 0; box-sizing: border-box; }
         .nw-layout {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 4px;
+            flex: 1 1 auto;
             min-height: 0;
-            justify-content: flex-start; /* direkt unter dem Titel, kein Leerraum */
+            height: 100%;
+            justify-content: flex-start;
         }
         .nw-row1,
-        .nw-row2 {
+        .nw-row2,
+        .nw-row3 {
             display: flex;
             align-items: center;
             gap: 8px;
             flex-wrap: nowrap;
             min-width: 0;
+            flex: 0 0 auto;
         }
         .nw-row1 { gap: 8px; }
-        .nw-row2 { gap: 8px; justify-content: space-between; }
+        .nw-row2 { gap: 6px; }
+        .nw-row3.nw-actions {
+            margin-top: auto; /* Buttons immer am Kartenboden */
+            justify-content: flex-end;
+            gap: 5px;
+        }
         .nw-col-menu {
             margin-left: auto;
             flex: 0 0 auto;
@@ -8170,13 +8183,14 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         .nw-dates-empty { font-style: italic; }
         .nw-warns {
             display: flex;
-            gap: 6px;
+            gap: 5px;
             flex-wrap: wrap;
             align-items: center;
             min-width: 0;
             flex: 1 1 auto;
-            min-height: 26px;
+            min-height: 0;
         }
+        .nw-warns:empty { display: none; }
         .nw-warn-chip {
             display: inline-flex;
             align-items: center;
@@ -8209,12 +8223,13 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             background: rgba(255,255,255,0.55);
             border: 1px solid rgba(90,80,65,0.14);
             border-radius: 8px;
-            padding: 3px 8px;
+            padding: 2px 7px;
             cursor: pointer;
             color: #525252;
             font-size: 10.5px;
             font-weight: 600;
             white-space: nowrap;
+            line-height: 1.25;
         }
         .nw-act-btn:hover { background: rgba(255,255,255,0.85); }
         .nw-act-btn.nw-act-view {
@@ -8263,7 +8278,7 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             font-weight: 600;
         }
         @media (max-width: 900px) {
-            .nw-row1, .nw-row2 { flex-wrap: wrap; }
+            .nw-row1, .nw-row2, .nw-row3 { flex-wrap: wrap; }
             .nw-col-menu { margin-left: 0; }
             .nw-actions { flex-wrap: wrap; }
         }
