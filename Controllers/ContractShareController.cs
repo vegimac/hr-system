@@ -333,11 +333,12 @@ public class ContractShareController : ControllerBase
                 var briefanrede = !string.IsNullOrWhiteSpace(emp?.LetterSalutation)
                     ? emp!.LetterSalutation!
                     : (vorname.Length > 0 ? $"Hallo {vorname}" : "Hallo");
+                // {SenderName} = nur Vorname (Du-Ton / Moments-Konvention).
                 var senderName = "";
                 if (t.CreatedBy.HasValue)
                 {
                     var u = await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == t.CreatedBy.Value);
-                    senderName = u?.DisplayName ?? "";
+                    senderName = (u?.FirstName ?? "").Trim();
                 }
                 bodyHtml = RenderTemplateBody(tpl.BodyText, briefanrede, vorname, senderName,
                                               t.ExpiresAt.ToString("dd.MM.yyyy"), pdfHref);

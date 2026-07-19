@@ -577,14 +577,13 @@ public class EmployeePermitHistoryController : ControllerBase
             ? emp.LetterSalutation!.Trim()
             : (vorname.Length > 0 ? $"Hallo {vorname}" : "Hallo");
 
+        // {SenderName} = nur Vorname (Du-Ton / Moments-Konvention).
         var senderName = "";
         var uid = GetCurrentUserId();
         if (uid.HasValue)
         {
             var u = await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == uid.Value);
-            senderName = (u?.DisplayName ?? "").Trim();
-            if (senderName.Length == 0)
-                senderName = $"{u?.FirstName} {u?.LastName}".Trim();
+            senderName = (u?.FirstName ?? "").Trim();
         }
 
         var tpl = await _db.MomentTexts
