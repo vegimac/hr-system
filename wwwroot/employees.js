@@ -1148,8 +1148,8 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
 
-<!-- TAB KTG/UVG entfernt 17.07.2026 (Walter): Inhalt lebt bei Absenzen
-     (rechts) + Übersicht-Kompaktkarte. loadKtgTab / Override bleiben. -->
+<!-- TAB KTG/UVG entfernt 17.07.2026 (Walter): Tagessatz nur noch bei Absenzen
+     (Sidebar). Übersicht zeigt seit 19.07.2026 die Saldi-Tabelle. -->
 
 <!-- Mutterschafts-Tab entfernt am 11.06.2026 (Walter-Vorgabe): Modul lebt
      jetzt komplett im Familie-Tab. Die mts*-Funktionen + renderPregnancyCard
@@ -9112,9 +9112,8 @@ function _ovSaldiNum(v, { signed = false, dashIfNull = false } = {}) {
         return '<td class="ov-saldi-dash">–</td>';
     const n = Number(v);
     if (!Number.isFinite(n)) return '<td class="ov-saldi-dash">–</td>';
-    const abs = Math.abs(n) < 0.005;
     const txt = (signed && n > 0.005 ? '+' : '') + n.toLocaleString('de-CH', {
-        minimumFractionDigits: abs && !signed ? 1 : 2,
+        minimumFractionDigits: 1,
         maximumFractionDigits: 2
     });
     let cls = 'ov-saldi-n';
