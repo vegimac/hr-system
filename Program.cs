@@ -577,34 +577,32 @@ using (var scope = app.Services.CreateScope())
             ('night_work_exam_mismatch','Nachtarbeit-Enddatum in easy@work falsch', TRUE, NULL, NULL, 'critical', NULL,   FALSE, 15),
             ('availability_missing',   'Verfügbarkeit fehlt',                    TRUE, NULL, NULL, 'warning',  NULL,       FALSE, 16),
             ('permit_missing',         'Aufenthaltsbewilligung fehlt',           TRUE, NULL, NULL, 'critical', NULL,       FALSE, 17),
-            ('permit_expired',         'Bewilligung ist abgelaufen',             TRUE, NULL, NULL, 'critical', NULL,       FALSE, 18),
-            ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt',              TRUE, NULL, NULL, 'critical', NULL,       FALSE, 19)
+            ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt',              TRUE, NULL, NULL, 'critical', NULL,       FALSE, 18)
         ON CONFLICT (category) DO NOTHING;
     ");
     // Priorität + Warnfarbe (Walter 19.07.2026) — editierbar in System → Warnungen.
-    // UPDATE nur wenn noch Default (100/none), damit manuelle Änderungen erhalten bleiben.
+    // «Bewilligung/Nacht läuft ab» decken auch den Abgelaufen-Fall ab (Titel + red_overdue).
+    // permit_expired entfällt wieder (konsolidiert in permit_expiring).
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE dashboard_warning_config
             ADD COLUMN IF NOT EXISTS todo_priority INT  NOT NULL DEFAULT 100,
             ADD COLUMN IF NOT EXISTS warn_color    TEXT NOT NULL DEFAULT 'none';
+        DELETE FROM dashboard_warning_config WHERE category = 'permit_expired';
         INSERT INTO dashboard_warning_config
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
         VALUES
-            ('permit_expired', 'Bewilligung ist abgelaufen', TRUE, NULL, NULL, 'critical', NULL, FALSE, 18, 20, 'red'),
-            ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt', TRUE, NULL, NULL, 'critical', NULL, FALSE, 19, 30, 'red')
+            ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt', TRUE, NULL, NULL, 'critical', NULL, FALSE, 18, 30, 'red')
         ON CONFLICT (category) DO NOTHING;
         UPDATE dashboard_warning_config SET todo_priority = 10,  warn_color = 'red'
             WHERE category = 'permit_missing' AND todo_priority = 100 AND warn_color = 'none';
-        UPDATE dashboard_warning_config SET todo_priority = 20,  warn_color = 'red'
-            WHERE category = 'permit_expired' AND todo_priority = 100 AND warn_color = 'none';
+        UPDATE dashboard_warning_config SET todo_priority = 20,  warn_color = 'red_overdue'
+            WHERE category = 'permit_expiring' AND todo_priority = 100 AND warn_color = 'none';
         UPDATE dashboard_warning_config SET todo_priority = 30,  warn_color = 'red'
             WHERE category = 'night_work_untersuch_fehlt' AND todo_priority = 100 AND warn_color = 'none';
         UPDATE dashboard_warning_config SET todo_priority = 40,  warn_color = 'red_overdue'
             WHERE category = 'night_work_exam_expiring' AND todo_priority = 100 AND warn_color = 'none';
         UPDATE dashboard_warning_config SET todo_priority = 50,  warn_color = 'none'
             WHERE category = 'night_work_exam_fehlt' AND todo_priority = 100 AND warn_color = 'none';
-        UPDATE dashboard_warning_config SET todo_priority = 60,  warn_color = 'none'
-            WHERE category = 'permit_expiring' AND todo_priority = 100 AND warn_color = 'none';
         UPDATE dashboard_warning_config SET todo_priority = 15,  warn_color = 'red'
             WHERE category = 'minimum_wage_violation' AND todo_priority = 100 AND warn_color = 'none';
     ");

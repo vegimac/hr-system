@@ -179,37 +179,28 @@ public class DashboardService
                 return true;
             })
             .ToList();
-        // Abgelaufen vs. läuft ab = zwei konfigurierbare Kategorien
-        // (Walter 19.07.2026): «Bewilligung ist abgelaufen» / «Bewilligung läuft ab».
-        bool permitExpiringOn = Enabled("permit_expiring");
-        bool permitExpiredOn  = Enabled("permit_expired");
-        foreach (var h in (permitExpiringOn || permitExpiredOn) ? youngestPerMa : new List<EmployeePermitHistory>())
+        // Eine Kategorie «Bewilligung läuft ab»: Titel wechselt bei Ablauf auf
+        // «seit X Tagen abgelaufen», Warnfarbe red_overdue → rot (Walter 19.07.2026).
+        foreach (var h in Enabled("permit_expiring") ? youngestPerMa : new List<EmployeePermitHistory>())
         {
             if (!maById.TryGetValue(h.EmployeeId, out var emp)) continue;
             var dueDate = h.ValidTo!.Value.ToDateTime(TimeOnly.MinValue);
             var days = (dueDate - now).Days;
-            var isExpired = days < 0;
-            if (isExpired && !permitExpiredOn) continue;
-            if (!isExpired && !permitExpiringOn) continue;
-
-            var cat = isExpired ? "permit_expired" : "permit_expiring";
-            // Severity: abgelaufen → Basis der Expired-Kategorie (meist critical);
-            // sonst Zwei-Stufen-Eskalation der Expiring-Kategorie.
-            string severity = isExpired
-                ? SeverityState("permit_expired", "critical")
-                : Severity("permit_expiring", days, "warning", "critical");
+            // Severity konfigurierbar: eskaliert bei days ≤ escalate_days → critical.
+            // Abgelaufen (days < 0) ≤ jeder positiven Schwelle → bleibt critical.
+            string severity = Severity("permit_expiring", days, "warning", "critical");
             var permitCode = h.PermitType?.Code ?? "?";
             alerts.Add(new DashboardAlert
             {
-                Category = cat,
+                Category = "permit_expiring",
                 Severity = severity,
                 // Abgelaufene Warnungen laufen WEITER als «seit X Tagen abgelaufen»
                 // (Walter-Vorgabe 12.07.2026) — sie verschwinden nie von selbst.
-                Title    = isExpired
+                Title    = days < 0
                     ? $"Bewilligung {permitCode} seit {-days} Tag(en) abgelaufen"
                     : $"Bewilligung {permitCode} läuft ab in {days} Tagen",
-                TitleKey = isExpired ? "alert.permit.expired" : "alert.permit.expires_in_days",
-                TitleArgs = new Dictionary<string, object> { ["code"] = permitCode, ["days"] = isExpired ? -days : days },
+                TitleKey = days < 0 ? "alert.permit.expired" : "alert.permit.expires_in_days",
+                TitleArgs = new Dictionary<string, object> { ["code"] = permitCode, ["days"] = days < 0 ? -days : days },
                 Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}",
                 SubtitleKey  = "subtitle.maPersonalnr",
                 SubtitleArgs = new Dictionary<string, object> {
@@ -1137,6 +1128,8 @@ public class DashboardService
                                 Severity = Severity("night_work_exam_expiring", tage, "warning", "critical"),
                                 Title    = "Nachtarbeit-Bewilligung läuft ab",
                                 Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · Bewilligung {phrase}{hinweis45}",
+                                DueDate   = emp.NightWorkExamValidUntil,
+                                DaysUntil = tage,   // ≥ 0 → noch nicht rot bei red_overdue
                                 EmployeeId     = emp.Id,
                                 EmployeeNumber = emp.EmployeeNumber,
                                 EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()

@@ -79,7 +79,6 @@ const DASH_CATEGORY_META = {
     minimum_wage_violation: { i18nKey: 'dash.cat.minWageViolation', label: 'Mindestlohn-Verletzung', icon: '⚠️', color: '#b91c1c' },
     minimum_wage_ok:        { i18nKey: 'dash.cat.minWageOk',        label: 'Mindestlohn ok',         icon: '✅', color: '#15803d' },
     permit_expiring:        { i18nKey: 'dash.cat.permitExpiring',   label: 'Bewilligung läuft ab',   icon: '🪪', color: '#b91c1c' },
-    permit_expired:         { label: 'Bewilligung ist abgelaufen',  icon: '🪪', color: '#b91c1c' },
     permit_missing:         { i18nKey: 'dash.cat.permitMissing',    label: 'Bewilligung fehlt',      icon: '🪪', color: '#b91c1c' },
     probation_end:          { i18nKey: 'dash.cat.probationEnding',  label: 'Probezeit',              icon: '📋', color: '#92400e' },
     contract_end:           { i18nKey: 'dash.cat.contractEnding',   label: 'Vertragsende',           icon: '📅', color: '#92400e' },
@@ -334,7 +333,7 @@ function dashIsRedAlert(a) {
     if (wc === 'none') return false;
     // Legacy-Fallback falls Backend noch kein warnColor liefert
     if (a.category === 'minimum_wage_violation') return true;
-    if (a.category === 'permit_missing' || a.category === 'permit_expired') return true;
+    if (a.category === 'permit_missing') return true;
     if (a.category === 'night_work_untersuch_fehlt') return true;
     return a.daysUntil != null && a.daysUntil < 0
         && (a.category === 'permit_expiring'
@@ -358,7 +357,7 @@ function renderDashTodoRow(a) {
                     ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                     : a.category === 'schwangerschaft'
                         ? `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`
-                        : (a.category === 'permit_expiring' || a.category === 'permit_expired' || a.category === 'permit_missing')
+                        : (a.category === 'permit_expiring' || a.category === 'permit_missing')
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
@@ -369,6 +368,7 @@ function renderDashTodoRow(a) {
                                    || a.category === 'anniversary'
                                    || a.category === 'night_work_untersuch_fehlt'
                                    || a.category === 'night_work_exam_fehlt'
+                                   || a.category === 'night_work_exam_expiring'
                                    || a.category === 'night_work_exam_mismatch')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
@@ -495,7 +495,6 @@ function dashTodoOnClick(a) {
             case 'employee_doku_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'schwangerschaft':     return `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`;
             case 'permit_expiring':
-            case 'permit_expired':
             case 'permit_missing':      return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'contract_end':        return `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`;
             case 'exit_pending_active':
@@ -606,7 +605,7 @@ function renderDashAlertRow(a) {
                     ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                     : a.category === 'schwangerschaft'
                         ? `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`
-                        : (a.category === 'permit_expiring' || a.category === 'permit_expired' || a.category === 'permit_missing')
+                        : (a.category === 'permit_expiring' || a.category === 'permit_missing')
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
@@ -617,6 +616,7 @@ function renderDashAlertRow(a) {
                                    || a.category === 'anniversary'
                                    || a.category === 'night_work_untersuch_fehlt'
                                    || a.category === 'night_work_exam_fehlt'
+                                   || a.category === 'night_work_exam_expiring'
                                    || a.category === 'night_work_exam_mismatch')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
