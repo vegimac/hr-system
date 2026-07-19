@@ -2380,12 +2380,17 @@ function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso, hasArztDoc)
     return html;
 }
 
-// Rote «fehlt»-Hinweise, wenn ArGV1 Art. 30 greift (>18 Nächte / 42 Tage)
-// und Arztzeugnis bzw. Ausnahmeregelung fehlen (Walter 19.07.2026).
-// Vollständig = verknüpftes Arztzeugnis-Dokument + aktuelle Gültigkeit + Ausnahmeregelung
-// (Kontroll-Liste / Payroll gleich). Nur easy@work-Datum ohne Scan zählt NICHT.
+// Rote «fehlt»-Hinweise auf der Nachtarbeit-Karte (Walter 19.07.2026):
+//  • Arztzeugnis: sobald ein Datum hinterlegt ist ODER ArGV1 Art. 30 greift
+//    (>18 Nächte / 42 Tage) — Datum allein zählt NICHT ohne verknüpften Scan.
+//  • Ausnahmeregelung: nur bei Dokumentationspflicht (ArGV1).
 function _nwMissingDocsHtml(emp) {
-    if (!emp || !emp.nightWorkRequiresDocuments) return '';
+    if (!emp) return '';
+    const requires = !!emp.nightWorkRequiresDocuments;
+    const hasDates = !!(emp.nightWorkExamValidUntil || emp.nightWorkExamIssued);
+    // Ohne Pflicht und ohne hinterlegtes Datum → keine Hinweise.
+    if (!requires && !hasDates) return '';
+
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const validUntil = emp.nightWorkExamValidUntil ? new Date(emp.nightWorkExamValidUntil) : null;
     if (validUntil) validUntil.setHours(0, 0, 0, 0);
@@ -2394,16 +2399,21 @@ function _nwMissingDocsHtml(emp) {
         || (hasArztDoc && !emp.nightWorkExamValidUntil);
     const hasAusnahme = !!emp.nightWorkAusnahmeDokumentId;
     const parts = [];
-    const tip = `${emp.nightWorkMaxNightsInSixWeeks || '?'} Nächte in 6 Wochen — Nachweise Pflicht (ArGV1 Art. 30)`;
+    const tip = requires
+        ? `${emp.nightWorkMaxNightsInSixWeeks || '?'} Nächte in 6 Wochen — Nachweise Pflicht (ArGV1 Art. 30)`
+        : 'Datum hinterlegt — gilt erst mit verknüpftem Arztzeugnis';
+
+    // Arztzeugnis-Status immer prüfen, wenn Pflicht ODER Datum vorhanden.
     if (validUntil && validUntil < today) {
         parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Nachtbew. abgelaufen</span>`);
     } else if (!hasArztDoc) {
-        // Auch wenn easy@work ein Gültig-bis liefert: Scan muss im Dossier hängen.
         parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Arztzeugnis fehlt</span>`);
-    } else if (!examCurrent) {
+    } else if (requires && !examCurrent) {
         parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Nacht Untersuch fehlt</span>`);
     }
-    if (!hasAusnahme) {
+
+    // Ausnahmeregelung nur bei ArGV1-Dokumentationspflicht.
+    if (requires && !hasAusnahme) {
         parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Ausn. Regel fehlt</span>`);
     }
     if (!parts.length) return '';
