@@ -258,14 +258,7 @@ function renderDokumenteUi() {
             <div class="dok-list-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>${header} <span style="color:#94a3b8;font-weight:400">(${filtered.length})</span></div>
                 <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                    <!-- Walter-Vorgabe 14.06.2026: Direkt-Shortcut zur d.velop-Import-Page
-                         für ALLE Benutzer (nicht nur Admin/Superuser). Klick führt zum
-                         Bulk-Importer (Metadaten-CSV + ZIP). -->
-                    <button class="btn btn-outline" onclick="window._dvelopReturnEmpId = _dokState.empId; showPage('dvelop-import')"
-                            style="padding:6px 12px;font-size:12.5px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px"
-                            title="d.velop-Bulk-Import (CSV/XLSX + ZIP) — kehrt nach dem Import zu diesem MA zurück">
-                        📦 d.velop Import
-                    </button>
+                    <!-- d.velop Import nur noch unter System (Walter 19.07.2026). -->
                     <button class="btn btn-primary" onclick="openDokUploadModal()"
                             style="padding:6px 14px;font-size:13px;white-space:nowrap">
                         + Dokument hochladen
