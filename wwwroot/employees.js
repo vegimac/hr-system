@@ -1300,9 +1300,12 @@ function loadUebersichtTab() {
     //    keine DOM-ID-Dubletten): Status mit Ablauf-Warnung, Drucken-Buttons,
     //    Zeugnis-/Ausnahme-Anzeige, ⋮-Menue (Datum bearbeiten, verknuepfen,
     //    loesen) + Inline-Datum-Edit. ──
+    // Pflicht-Badge im Kartenkopf: grün = keine Untersuch-Pflicht, rot = Pflicht
+    // (ArGV1 Art. 30, >18 Nächte / 42 Tage) — Walter 19.07.2026.
     const kNacht = _ovCard('Nachtarbeit', null, '', `
             <div style="padding:6px 2px 2px">
                 <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    ${_nwDutyBadgeHtml(emp)}
                     <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</span>
                     ${_nwMissingDocsHtml(emp)}
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
@@ -2378,6 +2381,21 @@ function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso, hasArztDoc)
         html += ` &nbsp; <span style="color:#991b1b;font-size:11px;font-weight:700" title="Das Enddatum in easy@work stimmt nicht mit der Regel überein und muss dort korrigiert werden">⚠ easy@work-Enddatum korrigieren (Soll: ${soll})</span>`;
     }
     return html;
+}
+
+// Status-Pille: fällt der MA unter die Nacht-Untersuch-Regel (ArGV1 Art. 30)?
+// Grün = keine Pflicht (≤18 Nächte / 6 Wochen), Rot = Untersuch-Pflicht.
+function _nwDutyBadgeHtml(emp) {
+    if (!emp) return '';
+    const req = !!emp.nightWorkRequiresDocuments;
+    const n = emp.nightWorkMaxNightsInSixWeeks != null ? emp.nightWorkMaxNightsInSixWeeks : 0;
+    const tip = req
+        ? `${n} Nächte in 6 Wochen — Untersuch-Pflicht (ArGV1 Art. 30, >18)`
+        : `${n} Nächte in 6 Wochen — keine Untersuch-Pflicht (≤18)`;
+    if (req) {
+        return `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#fef2f2;color:#991b1b;border:1px solid #fecaca"><span style="width:7px;height:7px;border-radius:50%;background:#dc2626;flex-shrink:0"></span>Untersuch-Pflicht</span>`;
+    }
+    return `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#ecfdf5;color:#166534;border:1px solid #bbf7d0"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>Keine Untersuch-Pflicht</span>`;
 }
 
 // Rote «fehlt»-Hinweise auf der Nachtarbeit-Karte (Walter 19.07.2026):
