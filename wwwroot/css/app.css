@@ -3800,8 +3800,10 @@
             margin-bottom: 0;
             line-height: 1.2;
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-anst-row {
-            margin-bottom: 0;
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-anst-grid {
+            flex: 1 1 auto;
+            min-height: 0;
+            align-content: start;
         }
         /* Vertraege breit + Tagessatz schmal (Walter 17.07.2026) — nicht 50/50. */
         .ov-vertraege-ktg {
@@ -3998,7 +4000,32 @@
             align-items: flex-start; margin-bottom: 8px;
             overflow: hidden; min-width: 0;
         }
-        /* Anstellung: 2 Zeilen statt 6 Felder in einer Halbbreiten-Zeile */
+        /* Anstellung: 2×2 Daten | Toggles rechts untereinander */
+        .ov-anst-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+            grid-template-rows: auto auto;
+            gap: 6px 14px;
+            align-items: start;
+            min-width: 0;
+        }
+        .ov-anst-grid > .ov-pf {
+            margin-bottom: 0;
+            min-width: 0;
+        }
+        .ov-anst-grid .ov-anst-date .ov-softin {
+            width: 100%;
+            min-width: 0;
+            max-width: 160px;
+            box-sizing: border-box;
+        }
+        .ov-anst-grid .ov-anst-tog {
+            justify-self: end;
+        }
+        .ov-anst-grid .ov-anst-tog .ov-pfv {
+            min-height: 28px;
+        }
+        /* Legacy-Klassen (falls noch referenziert) */
         .ov-anst-row { margin-bottom: 8px; gap: 10px 20px; }
         .ov-anst-row:last-child { margin-bottom: 2px; }
         .ov-anst-kuend .ov-anst-date { flex: 1 1 0; min-width: 0; max-width: 220px; }
