@@ -858,7 +858,7 @@ using (var scope = app.Services.CreateScope())
           ('CareHeatNotice','Fürsorge-Hinweis','Kurzer Hinweis bei Hitze oder ähnlicher Belastung','care',6,true),
           ('WelcomeBackNeutral','Schön, dass du wieder da bist','Neutrale Willkommensnachricht ohne Angabe des Grundes','care',7,true),
           ('VERTRAG_LINK','Arbeitsvertrag-Link','SMS-Vorlage für den öffentlichen Vertrags-Link. Platzhalter (in geschweiften Klammern): Vorname, Firma, Link, GueltigBis','appreciation',8,true),
-          ('BEWILLIGUNG_ABGELAUFEN','Bewilligung abgelaufen','SMS-Erinnerung bei abgelaufener Aufenthaltsbewilligung. Platzhalter (in geschweiften Klammern): Vorname, PermitCode, GueltigBis','appreciation',9,true)
+          ('BEWILLIGUNG_ABGELAUFEN','Bewilligung abgelaufen','Kurz-SMS + Link-Seite bei abgelaufener Bewilligung. SMS max. 160 Zeichen (Vorname); Mitteilung: Briefanrede, PermitCode, GueltigBis, SenderName','appreciation',9,true)
         ON CONFLICT (code) DO UPDATE SET
           name = EXCLUDED.name, description = EXCLUDED.description,
           consent_category = EXCLUDED.consent_category, sort_order = EXCLUDED.sort_order, is_active = EXCLUDED.is_active;

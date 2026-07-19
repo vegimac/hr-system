@@ -728,6 +728,7 @@ function momTextNew() {
     document.getElementById('momTextMsg').textContent = '';
     document.getElementById('momTextForm').style.display = 'block';
     momTextTypeChanged();
+    momTextSmsCount();
 }
 
 // Platzhalter-Hinweis für SMS-Vorlagen (VERTRAG_LINK / BEWILLIGUNG_ABGELAUFEN).
