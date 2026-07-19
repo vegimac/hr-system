@@ -1233,8 +1233,8 @@ function loadUebersichtTab() {
     // Personalien & Adresse (Walter 19.07.2026):
     // Ein gemeinsames 5-Spalten-Raster über Z1–Z3:
     //   Strasse | PLZ | Ort+Kt. | Telefon 2 | AHV
-    //   Briefanrede | Nickname | Ledigname | Sex | —
-    //   Zivilstand | seit | Konfession | Nationalität | ZEMIS
+    //   Briefanrede | Nickname | Sex | Konfession | —
+    //   Zivilstand | seit | Ledigname | Nationalität | ZEMIS
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-pers-body">
         <div class="ov-pers-aligned">
@@ -1271,20 +1271,10 @@ function loadUebersichtTab() {
                 <div class="ov-pfl">${_t('ma.field.shortName','Nickname')}</div>
                 <div class="ov-pfv">${esc(emp.shortName) || '<span class="ov-empty">–</span>'}</div>
             </div>
-            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maidenName','Ledigname')}</div>
-            <input id="ov-maidenName" class="ov-softin" type="text" value="${esc(emp.maidenName)}" oninput="ovDirty()"></div>
             <div class="ov-pf ov-pf-sex">
                 <div class="ov-pfl">Sex</div>
                 <div class="ov-pfv">${gKurz2 || '<span class="ov-empty">–</span>'}</div>
             </div>
-            <div class="ov-pf ov-pf-z2-empty" aria-hidden="true"></div>
-
-            <div class="ov-pf">
-                <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
-                <div class="ov-pfv">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}</div>
-            </div>
-            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
-            <input id="ov-maritalStatusSince" class="ov-softin" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="ovDirty()"></div>
             <div class="ov-pf ov-pf-konf"><div class="ov-pfl">${_t('ma.field.religion','Konfession')}</div>
             <select id="ov-religion" class="ov-softin" onchange="ovDirty()">
                 <option value="">–</option>
@@ -1294,6 +1284,16 @@ function loadUebersichtTab() {
                 ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
                 ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
             </select></div>
+            <div class="ov-pf ov-pf-z2-empty" aria-hidden="true"></div>
+
+            <div class="ov-pf">
+                <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
+                <div class="ov-pfv">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}</div>
+            </div>
+            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
+            <input id="ov-maritalStatusSince" class="ov-softin" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="ovDirty()"></div>
+            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maidenName','Ledigname')}</div>
+            <input id="ov-maidenName" class="ov-softin" type="text" value="${esc(emp.maidenName)}" oninput="ovDirty()"></div>
             <div class="ov-pf">
                 <div class="ov-pfl">${_t('ma.field.nationality','Nationalität')}</div>
                 <div class="ov-pfv">${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${linkedDocButton('passport')}</div>

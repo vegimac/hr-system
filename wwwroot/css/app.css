@@ -3687,8 +3687,8 @@
         }
         /* Personalien: ein 5-Spalten-Raster über Z1–Z3 (Walter 19.07.2026)
            Z1: Strasse | PLZ | Ort+Kt. | Telefon 2 | AHV
-           Z2: Briefanrede | Nickname | Ledigname | Sex | —
-           Z3: Zivilstand | seit | Konfession | Nationalität | ZEMIS */
+           Z2: Briefanrede | Nickname | Sex | Konfession | —
+           Z3: Zivilstand | seit | Ledigname | Nationalität | ZEMIS */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned {
             display: grid;
             grid-template-columns:
