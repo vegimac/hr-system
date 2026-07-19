@@ -591,18 +591,16 @@ async function pfxSend() {
 }
 
 // ════════════════ Vorlagen-Verwaltung (Emotionsgrade + Texte) ════════════════
+// Walter 19.07.2026: eigene Seite Systemeinstellungen → Moments-Texte
+// (nicht mehr als Overlay in Moments).
 let _momTypesAll = [], _momTonesAll = [], _momTextsAll = [], _momMgmtLoaded = false;
 
+/** @deprecated Zugang ist Systemeinstellungen → Moments-Texte. */
 function momMgmtOpen() {
-    const ov = document.getElementById('momMgmtOverlay');
-    if (!ov) return;
-    ov.style.display = 'block';
-    ov.scrollTop = 0;
-    if (!_momMgmtLoaded) momMgmtLoad();
+    if (typeof showPage === 'function') showPage('moment-texte');
 }
 function momMgmtClose() {
-    const ov = document.getElementById('momMgmtOverlay');
-    if (ov) ov.style.display = 'none';
+    if (typeof showPage === 'function') showPage('admin-hub');
 }
 
 async function momMgmtLoad() {

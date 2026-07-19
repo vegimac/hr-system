@@ -25,7 +25,7 @@ Auf der Seite steht fest: *„Dieser Vertrag dient zur Vorbereitung. Die Unterze
 
 ### Text der Vertrags-SMS anpassen
 
-Der SMS-Text und der Text auf der Link-Seite kommen aus der Moments-Vorlage **VERTRAG_LINK** (Moments → Texte verwalten). Platzhalter: `{Vorname}`, `{Firma}`, `{Link}`, `{GueltigBis}`, `{Briefanrede}`, `{SenderName}`.
+Der SMS-Text und der Text auf der Link-Seite kommen aus der Moments-Vorlage **VERTRAG_LINK** (Systemeinstellungen → Moments-Texte). Platzhalter: `{Vorname}`, `{Firma}`, `{Link}`, `{GueltigBis}`, `{Briefanrede}`, `{SenderName}`.
 
 ## Bewilligung abgelaufen — Erinnerung per SMS
 
@@ -39,7 +39,7 @@ Klick auf **SMS**:
 
 Standardtext (anpassbar): *«Hallo {Vorname}, deine Bewilligung ({PermitCode}) ist am {GueltigBis} abgelaufen. Kannst du bitte die neue Bewilligung so bald wie möglich bei HR nachreichen? Danke!»*
 
-Vorlage **BEWILLIGUNG_ABGELAUFEN** unter Moments → Texte verwalten. Platzhalter: `{Vorname}`, `{PermitCode}`, `{GueltigBis}`.
+Vorlage **BEWILLIGUNG_ABGELAUFEN** unter Systemeinstellungen → Moments-Texte. Platzhalter: `{Vorname}`, `{PermitCode}`, `{GueltigBis}`.
 
 ## Test-Umleitung — gefahrlos testen
 

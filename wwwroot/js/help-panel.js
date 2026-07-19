@@ -61,6 +61,7 @@ const HELP_PAGE_BY_APP_PAGE = {
     'benutzer':          'rollen',
     'admin-hub':         'index',
     'moments':           'moments',
+    'moment-texte':      'moments',
     'fibu':              'fibu',
     'ecall':             'sms',
 };

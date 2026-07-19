@@ -487,16 +487,10 @@
 
             <!-- POSTEINGANG (Mailbox pro Filiale) -->
             <div class="page" id="page-moments">
-                <div class="page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap"><div>
+                <div class="page-head"><div>
                     <h1 class="page-title">Moments</h1>
                     <p class="page-sub">Persönliche Anlässe per Einmal-Link ohne Login — nur für Mitarbeitende mit aktiver Moments-Freigabe.</p>
-                </div>
-                    <button onclick="momMgmtOpen()" title="Texte verwalten"
-                            style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:6px 12px 6px 6px;cursor:pointer;color:#0f172a;font-weight:600;font-size:13px;margin-top:58px">
-                        <img src="img/moments-icon.png?v=20260630c" alt="" style="width:34px;height:34px;object-fit:contain;mix-blend-mode:multiply">
-                        Texte verwalten
-                    </button>
-                </div>
+                </div></div>
                 <div class="page-body">
                     <div id="momentsAlert" style="margin-bottom:12px"></div>
 
@@ -574,72 +568,12 @@
                                 <div style="font-weight:700;color:#0f172a;margin-bottom:6px">So funktioniert's</div>
                                 <strong>Moment-Typ</strong> → <strong>Emotionsgrad</strong> → passende <strong>Vorlage</strong> füllt die Felder vor. Der MA erhält einen <strong>Einmal-Link ohne Login</strong> — nur wenn er OneCrew Moments freigegeben hat und der Typ erlaubt ist. Keine sensiblen Inhalte, keine Dokumente.
                                 <div style="height:8px"></div>
-                                Texte pflegst du oben rechts über <strong>Texte verwalten</strong>. Administrative/sensible Mitteilungen laufen über den <strong>Postfach</strong>-Bereich (Posteingang).
+                                Texte und Emotionsgrade pflegst du unter <strong>Systemeinstellungen → Moments-Texte</strong>. Administrative/sensible Mitteilungen laufen über den <strong>Postfach</strong>-Bereich (Posteingang).
                                 <div style="margin-top:12px;padding:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:12px">
                                     📲 Die SMS geht beim Senden direkt über eCall an die Mobilnummer des MA. Solange in den Systemeinstellungen → SMS (eCall) eine <strong>Test-Umleitung</strong> hinterlegt ist, gehen alle SMS an die Test-Nummer.
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Vorlagen-Verwaltung als Overlay — Zugang oben rechts (Moments-Icon „Texte verwalten") -->
-                    <div id="momMgmtOverlay" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(15,23,42,0.45);overflow-y:auto">
-                      <div style="max-width:840px;margin:40px auto;padding:0 16px">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-                          <div style="display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;font-size:18px">
-                            <img src="img/moments-icon.png?v=20260630c" alt="" style="width:38px;height:38px;object-fit:contain"> Moments-Texte verwalten
-                          </div>
-                          <button onclick="momMgmtClose()" title="Schliessen" style="background:rgba(255,255,255,0.92);border:0;border-radius:10px;width:38px;height:38px;font-size:20px;cursor:pointer;color:#0f172a">&times;</button>
-                        </div>
-                        <div id="momMgmt">
-
-                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px;margin-bottom:16px">
-                                <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:10px">Emotionsgrade</div>
-                                <div id="momToneList" style="margin-bottom:12px"></div>
-                                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-                                    <div><label class="f-label">Code</label><input id="momToneCode" class="f-input" style="width:140px" placeholder="z.B. herzlich"></div>
-                                    <div><label class="f-label">Name</label><input id="momToneName" class="f-input" style="width:180px" placeholder="z.B. Herzlich"></div>
-                                    <div><label class="f-label">Reihenfolge</label><input id="momToneSort" class="f-input" type="number" style="width:110px" value="0"></div>
-                                    <button class="btn btn-primary" onclick="momToneAdd()">+ Hinzufügen</button>
-                                </div>
-                                <div id="momToneMsg" style="font-size:12px;margin-top:8px"></div>
-                            </div>
-
-                            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
-                                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-                                    <div style="font-weight:700;font-size:15px;color:#0f172a">Text-Vorlagen</div>
-                                    <select id="momMgmtType" class="f-input" style="width:auto;min-width:180px" onchange="momTextLoadList()"><option value="">Alle Typen</option></select>
-                                    <select id="momMgmtTone" class="f-input" style="width:auto;min-width:160px" onchange="momTextLoadList()"><option value="">Alle Emotionsgrade</option></select>
-                                    <button class="btn btn-primary" style="margin-left:auto" onclick="momTextNew()">+ Neue Vorlage</button>
-                                </div>
-
-                                <div id="momTextForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px">
-                                    <input type="hidden" id="momTextId">
-                                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-                                        <div><label class="f-label">Moment-Typ</label><select id="momTextType" class="f-input" style="min-width:200px" onchange="momTextTypeChanged()"></select></div>
-                                        <div><label class="f-label">Emotionsgrad</label><select id="momTextTone" class="f-input" style="min-width:170px"></select></div>
-                                        <div style="flex:1;min-width:200px"><label class="f-label">Titel / Betreff</label><input id="momTextTitel" class="f-input" placeholder="z.B. Herzlichen Glückwunsch"></div>
-                                    </div>
-                                    <label class="f-label">SMS-Kurztext <span style="font-weight:400;color:#94a3b8">(bei Vertrag/Bewilligung = der SMS-Inhalt)</span></label>
-                                    <div id="momTextVertragHint" style="display:none;font-size:12px;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;margin-bottom:8px">Arbeitsvertrag-Link: verfügbare Platzhalter im SMS-Text: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Link}</b> · <b>{GueltigBis}</b></div>
-                                    <textarea id="momTextSms" class="f-input" rows="3" maxlength="480" style="margin-bottom:10px;resize:vertical" placeholder="z.B. Du hast eine neue Nachricht. Tippe auf den Link:"></textarea>
-                                    <label class="f-label">Mitteilung <span style="font-weight:400;color:#94a3b8">(beginnt mit {Briefanrede}; Platzhalter: {Briefanrede} · {Years} nur Jubiläum · {SenderName})</span></label>
-                                    <textarea id="momTextBody" class="f-input" rows="6" style="margin-bottom:10px;resize:vertical" placeholder="{Briefanrede}&#10;…"></textarea>
-                                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-                                        <label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="momTextActive" checked> Aktiv</label>
-                                        <div><label class="f-label" style="display:inline">Reihenfolge</label> <input id="momTextSort" class="f-input" type="number" style="width:90px;display:inline-block" value="0"></div>
-                                        <div style="margin-left:auto;display:flex;gap:8px">
-                                            <button class="btn btn-outline" onclick="momTextCancel()">Abbrechen</button>
-                                            <button class="btn btn-primary" onclick="momTextSave()">Speichern</button>
-                                        </div>
-                                    </div>
-                                    <div id="momTextMsg" style="font-size:12px;margin-top:8px"></div>
-                                </div>
-
-                                <div id="momTextList"></div>
-                            </div>
-                        </div>
-                      </div>
                     </div>
                 </div>
             </div>
@@ -1537,6 +1471,72 @@
                         </div>
                         <div class="admin-card-title">SMS (eCall)</div>
                         <div class="admin-card-desc">eCall-Zugangsdaten (F24 Schweiz) + Test-SMS</div>
+                    </div>
+                    <div class="admin-card" onclick="showPage('moment-texte')">
+                        <div class="admin-card-icon" style="background:#fce7f3;color:#9d174d">
+                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        </div>
+                        <div class="admin-card-title">Moments-Texte</div>
+                        <div class="admin-card-desc">Vorlagen für Moments, Vertrags-Link &amp; Bewilligungs-SMS</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Moments-Texte — Vorlagen + Emotionsgrade (Walter 19.07.2026, aus Moments-Seite hierher) -->
+            <div class="page" id="page-moment-texte">
+                <div class="sticky-page-head">
+                    <div class="page-head" style="margin-bottom:0">
+                        <div>
+                            <h1 class="page-title">Moments-Texte</h1>
+                            <p class="page-sub">Emotionsgrade und Text-Vorlagen für Moments, Arbeitsvertrag-Link und Bewilligungs-Erinnerung.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="page-body" id="momMgmt" style="max-width:840px">
+                    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px;margin-bottom:16px">
+                        <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:10px">Emotionsgrade</div>
+                        <div id="momToneList" style="margin-bottom:12px"></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                            <div><label class="f-label">Code</label><input id="momToneCode" class="f-input" style="width:140px" placeholder="z.B. herzlich"></div>
+                            <div><label class="f-label">Name</label><input id="momToneName" class="f-input" style="width:180px" placeholder="z.B. Herzlich"></div>
+                            <div><label class="f-label">Reihenfolge</label><input id="momToneSort" class="f-input" type="number" style="width:110px" value="0"></div>
+                            <button class="btn btn-primary" onclick="momToneAdd()">+ Hinzufügen</button>
+                        </div>
+                        <div id="momToneMsg" style="font-size:12px;margin-top:8px"></div>
+                    </div>
+
+                    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
+                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+                            <div style="font-weight:700;font-size:15px;color:#0f172a">Text-Vorlagen</div>
+                            <select id="momMgmtType" class="f-input" style="width:auto;min-width:180px" onchange="momTextLoadList()"><option value="">Alle Typen</option></select>
+                            <select id="momMgmtTone" class="f-input" style="width:auto;min-width:160px" onchange="momTextLoadList()"><option value="">Alle Emotionsgrade</option></select>
+                            <button class="btn btn-primary" style="margin-left:auto" onclick="momTextNew()">+ Neue Vorlage</button>
+                        </div>
+
+                        <div id="momTextForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px">
+                            <input type="hidden" id="momTextId">
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+                                <div><label class="f-label">Moment-Typ</label><select id="momTextType" class="f-input" style="min-width:200px" onchange="momTextTypeChanged()"></select></div>
+                                <div><label class="f-label">Emotionsgrad</label><select id="momTextTone" class="f-input" style="min-width:170px"></select></div>
+                                <div style="flex:1;min-width:200px"><label class="f-label">Titel / Betreff</label><input id="momTextTitel" class="f-input" placeholder="z.B. Herzlichen Glückwunsch"></div>
+                            </div>
+                            <label class="f-label">SMS-Kurztext <span style="font-weight:400;color:#94a3b8">(bei Vertrag/Bewilligung = der SMS-Inhalt)</span></label>
+                            <div id="momTextVertragHint" style="display:none;font-size:12px;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;margin-bottom:8px">Arbeitsvertrag-Link: verfügbare Platzhalter im SMS-Text: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Link}</b> · <b>{GueltigBis}</b></div>
+                            <textarea id="momTextSms" class="f-input" rows="3" maxlength="480" style="margin-bottom:10px;resize:vertical" placeholder="z.B. Du hast eine neue Nachricht. Tippe auf den Link:"></textarea>
+                            <label class="f-label">Mitteilung <span style="font-weight:400;color:#94a3b8">(beginnt mit {Briefanrede}; Platzhalter: {Briefanrede} · {Years} nur Jubiläum · {SenderName})</span></label>
+                            <textarea id="momTextBody" class="f-input" rows="6" style="margin-bottom:10px;resize:vertical" placeholder="{Briefanrede}&#10;…"></textarea>
+                            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                                <label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="momTextActive" checked> Aktiv</label>
+                                <div><label class="f-label" style="display:inline">Reihenfolge</label> <input id="momTextSort" class="f-input" type="number" style="width:90px;display:inline-block" value="0"></div>
+                                <div style="margin-left:auto;display:flex;gap:8px">
+                                    <button class="btn btn-outline" onclick="momTextCancel()">Abbrechen</button>
+                                    <button class="btn btn-primary" onclick="momTextSave()">Speichern</button>
+                                </div>
+                            </div>
+                            <div id="momTextMsg" style="font-size:12px;margin-top:8px"></div>
+                        </div>
+
+                        <div id="momTextList"></div>
                     </div>
                 </div>
             </div>
@@ -6728,7 +6728,7 @@
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260718b"></script>
+<script src="js/app-core.js?v=20260719a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260718b"></script>
@@ -6765,7 +6765,7 @@
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260708flex"></script>
 <script src="js/dok-struktur.js?v=20260719a"></script>
-<script src="js/moments.js?v=20260719b"></script>
+<script src="js/moments.js?v=20260719c"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260718a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
@@ -6786,8 +6786,8 @@
 <script src="js/ferien-report.js?v=20260708flex"></script>
 <script src="js/alters-report.js?v=20260708h"></script>
 <script src="js/audit-log.js?v=20260704p"></script>
-<script src="js/global-search.js?v=20260718a"></script>
-<script src="js/help-panel.js?v=20260718e"></script>
+<script src="js/global-search.js?v=20260719a"></script>
+<script src="js/help-panel.js?v=20260719a"></script>
 <script src="js/lohn-edit-lock.js?v=20260704p"></script>
 <script src="js/i18n.js?v=20260718c"></script>
 <!-- FAMILIEN MODAL -->

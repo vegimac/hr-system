@@ -869,7 +869,7 @@ function roleName(r) {
 const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne','kontoplan','warnungen',
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
-                         'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','smtp-settings','ecall','filial-onboarding','postfach-backfill',
+                         'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','smtp-settings','ecall','moment-texte','filial-onboarding','postfach-backfill',
                          'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','aerzte'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
@@ -960,6 +960,7 @@ function showPage(name) {
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
     if (name === 'moments') momInit();
+    if (name === 'moment-texte' && typeof momMgmtLoad === 'function') momMgmtLoad();
     if (name === 'qst-anmeldung') qstaInit();
     if (name === 'lohnausweis') laInit();
     if (name === 'kuendigung') kuendigungInit();

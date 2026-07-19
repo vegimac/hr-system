@@ -38,7 +38,7 @@ Moments sind für **schöne, persönliche** Nachrichten. Das System blockt Texte
 
 ## Vorlagen pflegen
 
-Oben rechts **„Texte verwalten"** — pro Moment-Typ und Emotionsgrad ein Titel, SMS-Kurztext und die vollständige Mitteilung. Deaktivierte Vorlagen erscheinen nicht mehr in der Auswahl.
+Unter **Systemeinstellungen → Moments-Texte** — Emotionsgrade und Text-Vorlagen (pro Moment-Typ und Emotionsgrad: Titel, SMS-Kurztext, Mitteilung). Dort liegen auch die SMS-Vorlagen für Arbeitsvertrag-Link und Bewilligungs-Erinnerung. Deaktivierte Vorlagen erscheinen nicht mehr in der Auswahl.
 
 ## Häufige Fragen
 
