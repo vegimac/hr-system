@@ -620,9 +620,9 @@
                                         <div><label class="f-label">Emotionsgrad</label><select id="momTextTone" class="f-input" style="min-width:170px"></select></div>
                                         <div style="flex:1;min-width:200px"><label class="f-label">Titel / Betreff</label><input id="momTextTitel" class="f-input" placeholder="z.B. Herzlichen Glückwunsch"></div>
                                     </div>
-                                    <label class="f-label">SMS-Kurztext <span style="font-weight:400;color:#94a3b8">(optional)</span></label>
+                                    <label class="f-label">SMS-Kurztext <span style="font-weight:400;color:#94a3b8">(bei Vertrag/Bewilligung = der SMS-Inhalt)</span></label>
                                     <div id="momTextVertragHint" style="display:none;font-size:12px;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;margin-bottom:8px">Arbeitsvertrag-Link: verfügbare Platzhalter im SMS-Text: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Link}</b> · <b>{GueltigBis}</b></div>
-                                    <textarea id="momTextSms" class="f-input" rows="2" maxlength="160" style="margin-bottom:10px;resize:vertical" placeholder="z.B. Du hast eine neue Nachricht. Tippe auf den Link:"></textarea>
+                                    <textarea id="momTextSms" class="f-input" rows="3" maxlength="480" style="margin-bottom:10px;resize:vertical" placeholder="z.B. Du hast eine neue Nachricht. Tippe auf den Link:"></textarea>
                                     <label class="f-label">Mitteilung <span style="font-weight:400;color:#94a3b8">(beginnt mit {Briefanrede}; Platzhalter: {Briefanrede} · {Years} nur Jubiläum · {SenderName})</span></label>
                                     <textarea id="momTextBody" class="f-input" rows="6" style="margin-bottom:10px;resize:vertical" placeholder="{Briefanrede}&#10;…"></textarea>
                                     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
@@ -6765,7 +6765,7 @@
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260708flex"></script>
 <script src="js/dok-struktur.js?v=20260719a"></script>
-<script src="js/moments.js?v=20260719a"></script>
+<script src="js/moments.js?v=20260719b"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260718a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>

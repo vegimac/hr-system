@@ -693,7 +693,14 @@ function momRenderTextList() {
     const el = document.getElementById('momTextList');
     if (!el) return;
     if (!_momTextsAll.length) { el.innerHTML = '<div style="color:#94a3b8;font-size:13px">Keine Vorlagen für diese Auswahl.</div>'; return; }
-    el.innerHTML = _momTextsAll.map(x => `
+    el.innerHTML = _momTextsAll.map(x => {
+        // SMS-Vorlagen (Vertrag / Bewilligung): Kurztext ist der relevante Inhalt —
+        // Mitteilung nur zusätzlich zeigen, falls vorhanden (Walter 19.07.2026).
+        const parts = [];
+        if (x.smsText) parts.push('📲 ' + x.smsText);
+        if (x.bodyText) parts.push(x.bodyText);
+        const preview = (parts.join('\n\n') || '').slice(0, 280);
+        return `
         <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:10px;${x.isActive ? '' : 'opacity:0.6'}">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span style="font-size:12px;background:#f1efe9;color:#5a5348;border-radius:6px;padding:2px 8px">${escapeHtml(x.typeName || '')}</span>
@@ -706,8 +713,9 @@ function momRenderTextList() {
                     <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;color:#b91c1c" onclick="momTextDelete(${x.id})">Löschen</button>
                 </span>
             </div>
-            <div style="font-size:12px;color:#64748b;margin-top:6px;white-space:pre-wrap;max-height:60px;overflow:hidden">${escapeHtml((x.bodyText || '').slice(0, 220))}</div>
-        </div>`).join('');
+            <div style="font-size:12px;color:#64748b;margin-top:6px;white-space:pre-wrap;max-height:72px;overflow:hidden">${escapeHtml(preview)}</div>
+        </div>`;
+    }).join('');
 }
 
 function momTextNew() {
