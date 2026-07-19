@@ -51,11 +51,9 @@ function renderLiquidCatGroups(list) {
             </div>`;
         }
         const open = _dashExpandedCats.has(cat);
-        // Innerhalb der Aufgabe nach Vorname sortiert (Walter 13.07.2026).
-        const rows = [...items]
-            .sort((a, b) => String(a.employeeName || a.title || '')
-                .localeCompare(String(b.employeeName || b.title || ''), 'de', { sensitivity: 'base' }))
-            .map(a => renderDashTodoRow(a)).join('');
+        // Innerhalb: Nacht Untersuch fehlt → abgelaufen → Rest, dann Vorname
+        // (Walter 13.07.2026 / 19.07.2026).
+        const rows = dashTodoSort(items).map(a => renderDashTodoRow(a)).join('');
         return `<div class="liquid-todo-group ${open ? 'open' : ''}" data-cat="${_e(cat)}">
             <div class="liquid-todo-group-head" onclick="dashToggleCat('${_e(cat)}')">
                 <span class="ltg-icon">${meta.icon || '•'}</span>
@@ -324,21 +322,33 @@ function renderDashAlerts() {
     }).join('');
 }
 
+// «Nacht Untersuch fehlt» — kein Datum / kein aktueller Untersuch bei
+// doku-pflichtigem MA (Walter 19.07.2026: fast schlimmer als abgelaufen).
+function dashIsNachtUntersuchFehlt(a) {
+    return a.category === 'night_work_exam_fehlt'
+        && String(a.title || '').startsWith('Nacht Untersuch fehlt');
+}
+function dashIsNachtAbgelaufen(a) {
+    return a.daysUntil != null && a.daysUntil < 0
+        && (a.category === 'night_work_exam_expiring'
+            || a.category === 'night_work_exam_fehlt');
+}
+
 // ROTE Schrift NUR für die von Walter definierten Fälle (12.07.2026, final;
-// Nachtarbeit-fehlt + abgelaufen: 19.07.2026):
+// Nachtarbeit 19.07.2026):
 // - Mindestlohn unterschritten (immer)
 // - Bewilligung ABGELAUFEN oder FEHLT komplett
-// - Nachtarbeit-Arztzeugnis ABGELAUFEN (expiring-Karte ODER fehlt-Karte mit
-//   daysUntil < 0 — doku-pflichtige MA mit abgelaufenem Zeugnis)
+// - Nacht Untersuch fehlt (ganz oben + rot)
+// - Nachtarbeit-Arztzeugnis ABGELAUFEN (expiring- oder fehlt-Karte)
 // «Nachtarbeit-Nachweise fehlen» ohne Ablauf bleibt SCHWARZ, ebenso QST usw.
 // daysUntil < 0 = abgelaufen; «läuft ab in X Tagen» bleibt schwarz.
 function dashIsRedAlert(a) {
     if (a.category === 'minimum_wage_violation') return true;
     if (a.category === 'permit_missing') return true;
+    if (dashIsNachtUntersuchFehlt(a)) return true;
+    if (dashIsNachtAbgelaufen(a)) return true;
     const abgelaufen = a.daysUntil != null && a.daysUntil < 0;
-    return abgelaufen && (a.category === 'permit_expiring'
-                       || a.category === 'night_work_exam_expiring'
-                       || a.category === 'night_work_exam_fehlt');
+    return abgelaufen && a.category === 'permit_expiring';
 }
 
 function renderDashTodoRow(a) {
@@ -535,16 +545,23 @@ function renderTodosColumn(list) {
     return list.map(a => renderTodoSketchRow(a)).join('');
 }
 
-// Sortierung der ToDo-Listen (Walter-Vorgabe 13.07.2026): zuerst nach
-// AUFGABE (Kategorie-Label — gleiche Aufgaben stehen beisammen), innerhalb
-// der Aufgabe nach VORNAME des MA (employeeName = «Vorname Nachname»).
+// Sortierung der ToDo-Listen (Walter-Vorgabe 13.07.2026 / 19.07.2026):
+// 1) «Nacht Untersuch fehlt» ganz oben (rot, wichtiger als abgelaufen)
+// 2) abgelaufenes Nacht-Arztzeugnis
+// 3) sonst nach AUFGABE (Kategorie-Label), innerhalb nach VORNAME.
+function dashTodoPriority(a) {
+    if (dashIsNachtUntersuchFehlt(a)) return 0;
+    if (dashIsNachtAbgelaufen(a)) return 1;
+    return 2;
+}
 function dashTodoSort(list) {
     const catLabel = a => {
         const meta = DASH_CATEGORY_META[a.category] || {};
         return String(dashMetaLabel(meta) || a.category || '');
     };
     return [...list].sort((a, b) =>
-        catLabel(a).localeCompare(catLabel(b), 'de', { sensitivity: 'base' })
+        dashTodoPriority(a) - dashTodoPriority(b)
+        || catLabel(a).localeCompare(catLabel(b), 'de', { sensitivity: 'base' })
         || String(a.employeeName || a.title || '').localeCompare(String(b.employeeName || b.title || ''), 'de', { sensitivity: 'base' }));
 }
 
