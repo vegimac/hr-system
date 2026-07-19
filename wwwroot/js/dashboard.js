@@ -322,8 +322,20 @@ function renderDashAlerts() {
     }).join('');
 }
 
-// «Nacht Untersuch fehlt» — kein Datum / kein aktueller Untersuch bei
-// doku-pflichtigem MA (Walter 19.07.2026: fast schlimmer als abgelaufen).
+// Rot + Sortier-Priorität (Walter 19.07.2026, final):
+// 1) Bewilligung fehlt
+// 2) Bewilligung abgelaufen
+// 3) Nacht Untersuch fehlt
+// 4) Nacht abgelaufen
+// Danach: fehlende Belege (Ausnahmeregelung, Ausweis-Doku, «Nachweise fehlen»
+// ohne Ablauf usw.) bleiben SCHWARZ. «läuft in X Tagen ab» auch schwarz.
+function dashIsBewilligungFehlt(a) {
+    return a.category === 'permit_missing';
+}
+function dashIsBewilligungAbgelaufen(a) {
+    return a.category === 'permit_expiring'
+        && a.daysUntil != null && a.daysUntil < 0;
+}
 function dashIsNachtUntersuchFehlt(a) {
     return a.category === 'night_work_exam_fehlt'
         && String(a.title || '').startsWith('Nacht Untersuch fehlt');
@@ -334,21 +346,13 @@ function dashIsNachtAbgelaufen(a) {
             || a.category === 'night_work_exam_fehlt');
 }
 
-// ROTE Schrift NUR für die von Walter definierten Fälle (12.07.2026, final;
-// Nachtarbeit 19.07.2026):
-// - Mindestlohn unterschritten (immer)
-// - Bewilligung ABGELAUFEN oder FEHLT komplett
-// - Nacht Untersuch fehlt (ganz oben + rot)
-// - Nachtarbeit-Arztzeugnis ABGELAUFEN (expiring- oder fehlt-Karte)
-// «Nachtarbeit-Nachweise fehlen» ohne Ablauf bleibt SCHWARZ, ebenso QST usw.
-// daysUntil < 0 = abgelaufen; «läuft ab in X Tagen» bleibt schwarz.
 function dashIsRedAlert(a) {
+    // Mindestlohn bleibt rot (Walter 12.07.2026) — eigene Kategorie.
     if (a.category === 'minimum_wage_violation') return true;
-    if (a.category === 'permit_missing') return true;
-    if (dashIsNachtUntersuchFehlt(a)) return true;
-    if (dashIsNachtAbgelaufen(a)) return true;
-    const abgelaufen = a.daysUntil != null && a.daysUntil < 0;
-    return abgelaufen && a.category === 'permit_expiring';
+    return dashIsBewilligungFehlt(a)
+        || dashIsBewilligungAbgelaufen(a)
+        || dashIsNachtUntersuchFehlt(a)
+        || dashIsNachtAbgelaufen(a);
 }
 
 function renderDashTodoRow(a) {
@@ -545,14 +549,14 @@ function renderTodosColumn(list) {
     return list.map(a => renderTodoSketchRow(a)).join('');
 }
 
-// Sortierung der ToDo-Listen (Walter-Vorgabe 13.07.2026 / 19.07.2026):
-// 1) «Nacht Untersuch fehlt» ganz oben (rot, wichtiger als abgelaufen)
-// 2) abgelaufenes Nacht-Arztzeugnis
-// 3) sonst nach AUFGABE (Kategorie-Label), innerhalb nach VORNAME.
+// Sortierung (Walter 19.07.2026): die 4 kritischen Status zuerst in fester
+// Reihenfolge, danach nach Aufgabe + Vorname. Fehlende Belege nicht priorisiert.
 function dashTodoPriority(a) {
-    if (dashIsNachtUntersuchFehlt(a)) return 0;
-    if (dashIsNachtAbgelaufen(a)) return 1;
-    return 2;
+    if (dashIsBewilligungFehlt(a)) return 0;
+    if (dashIsBewilligungAbgelaufen(a)) return 1;
+    if (dashIsNachtUntersuchFehlt(a)) return 2;
+    if (dashIsNachtAbgelaufen(a)) return 3;
+    return 4;
 }
 function dashTodoSort(list) {
     const catLabel = a => {
