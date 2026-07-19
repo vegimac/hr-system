@@ -267,7 +267,10 @@ public class PayrollController : HrControllerBase
     [HttpGet("sollstunden-report")]
     public async Task<IActionResult> SollstundenReport(
         [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month,
-        [FromQuery] string? stichtag = null)
+        [FromQuery] string? stichtag = null,
+        // Optional: nur ein MA (Übersicht-Karte) — gleiche Stichtag-Logik, ohne
+        // die ganze Filiale durchzurechnen.
+        [FromQuery] int? employeeId = null)
     {
         if (!await CanAccessBranchAsync(companyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
@@ -297,6 +300,7 @@ public class PayrollController : HrControllerBase
                && models.Contains(emp.EmploymentModel)
                && emp.ContractStartDate <= pTo
                && (emp.ContractEndDate == null || emp.ContractEndDate >= pFrom)
+               && (employeeId == null || emp.EmployeeId == employeeId.Value)
             orderby emp.ContractStartDate descending
             select new { emp.EmployeeId, emp.EmploymentModel, e.FirstName, e.LastName, Number = e.EmployeeNumber,
                          emp.EmploymentPercentage, emp.GuaranteedHoursPerWeek,

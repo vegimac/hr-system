@@ -9126,30 +9126,30 @@ function _ovSaldiNum(v, { signed = false, dashIfNull = false } = {}) {
 
 function _ovSaldiDash() { return '<td class="ov-saldi-dash">–</td>'; }
 
-function renderOvSaldiHtml(s) {
+function renderOvSaldiHtml(s, stRow) {
     if (!s) return _ovSaldiSkeletonHtml();
-    const model = (s.employmentModel || '').toUpperCase();
+    const model = (s.employmentModel || (stRow && stRow.model) || '').toUpperCase();
     const isFlex = model === 'FLEX' || model === 'UTP';
-    const isMtp  = model === 'MTP';
     const isFix  = model === 'FIX' || model === 'FIX-M';
 
-    // Stunden — Spalten müssen aufgehen:
-    //   Saldo = Vorm. + gearb. + Absenz − Soll
-    // Bei MTP zeigt «Soll» das Brutto-Soll (sollStundenVoll) und «Absenz»
-    // die Soll-Reduktion (Ferien/Krank) + Zeitgutschriften. neuerHourSaldo
-    // ist bei MTP oft 0 (Mehrstunden ausbezahlt) — deshalb NICHT übernehmen,
-    // sondern aus den angezeigten Spalten rechnen (wie Sollstunden-Report).
-    const sollVoll = Number(s.sollStundenVoll ?? s.sollStunden ?? 0);
-    const soll     = Number(s.sollStunden ?? 0);
-    const worked   = Number(s.workedHours ?? 0);
-    const absGut   = Number(s.absenzGutschrift ?? 0);
-    const reduktion = Math.max(0, sollVoll - soll); // MTP Ferien/Krank am Soll
-    const absenzH  = absGut + (isMtp ? reduktion : 0);
-    const vorH     = Number(s.vormonatHourSaldo ?? 0);
-    const sollShow = isMtp ? sollVoll : soll;
-    const saldoH   = Math.round((vorH + worked + absenzH - sollShow) * 100) / 100;
+    // Stunden = Sollstunden-Report Stichtag-Block (identische Zahlen).
+    // Spalten: Soll (= stSoll) · gearb. · Absenz · Vorm. · Saldo
+    let rowStunden;
+    if (isFlex) {
+        const worked = Number(s.workedHours ?? 0);
+        rowStunden = `<tr><td>Stunden</td>${_ovSaldiDash()}${_ovSaldiNum(worked)}${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}</tr>`;
+    } else if (stRow) {
+        const sollH  = Number(stRow.stSoll ?? 0);
+        const gearbH = Number(stRow.stGearb ?? 0);
+        const absH   = Number(stRow.stAbsenz ?? 0);
+        const vorH   = Number(stRow.stSaldoVor ?? 0);
+        const saldoH = Number(stRow.stSaldo ?? 0);
+        rowStunden = `<tr><td>Stunden</td>${_ovSaldiNum(sollH)}${_ovSaldiNum(gearbH)}${_ovSaldiNum(absH)}${_ovSaldiNum(vorH, { signed: true })}${_ovSaldiNum(saldoH, { signed: true })}</tr>`;
+    } else {
+        rowStunden = `<tr><td>Stunden</td>${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}</tr>`;
+    }
 
-    // Ferien (Tage)
+    // Ferien (Tage) — aus Calculate (Monats-/Jahressicht)
     const ferSoll  = Number(s.ferienTageAccrual ?? 0);
     const ferAbs   = Number(s.ferienTageGenommen ?? 0);
     const ferVor   = Number(s.vormonatFerienTage ?? 0);
@@ -9166,10 +9166,6 @@ function renderOvSaldiHtml(s) {
     const nachtAbs   = Number(s.nachtKompStunden ?? 0);
     const nachtVor   = Number(s.vormonatNachtSaldo ?? 0);
     const nachtSaldo = Number(s.neuerNachtSaldo ?? 0);
-
-    const rowStunden = isFlex
-        ? `<tr><td>Stunden</td>${_ovSaldiDash()}${_ovSaldiNum(worked)}${_ovSaldiNum(absenzH)}${_ovSaldiDash()}${_ovSaldiDash()}</tr>`
-        : `<tr><td>Stunden</td>${_ovSaldiNum(isMtp ? sollVoll : soll)}${_ovSaldiNum(worked)}${_ovSaldiNum(absenzH)}${_ovSaldiNum(vorH, { signed: true })}${_ovSaldiNum(saldoH, { signed: true })}</tr>`;
 
     const rowFerien = `<tr><td>Ferien</td>${_ovSaldiNum(ferSoll)}${_ovSaldiDash()}${_ovSaldiNum(ferAbs)}${_ovSaldiNum(ferVor, { signed: true })}${_ovSaldiNum(ferSaldo, { signed: true })}</tr>`;
 
@@ -9205,25 +9201,34 @@ async function loadOvSaldi(employeeId) {
     const now = new Date();
     const year  = parseInt(document.getElementById('lohnYearSelect')?.value  || now.getFullYear(), 10);
     const month = parseInt(document.getElementById('lohnMonthSelect')?.value || (now.getMonth() + 1), 10);
+    const hdr = typeof ah === 'function' ? ah() : { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` };
+    const ts = Date.now();
 
     try {
-        const ts = Date.now();
-        const res = await fetch(
-            `/api/payroll/calculate?employeeId=${employeeId}&year=${year}&month=${month}&companyProfileId=${cid}&_=${ts}`,
-            { headers: typeof ah === 'function' ? ah() : { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` }, cache: 'no-store' }
-        );
+        // Calculate → Ferien/Feiertag/Nacht; Sollstunden-Report (1 MA) → Stunden Stichtag
+        const [calcRes, stRes] = await Promise.all([
+            fetch(`/api/payroll/calculate?employeeId=${employeeId}&year=${year}&month=${month}&companyProfileId=${cid}&_=${ts}`,
+                { headers: hdr, cache: 'no-store' }),
+            fetch(`/api/payroll/sollstunden-report?companyProfileId=${cid}&year=${year}&month=${month}&employeeId=${employeeId}&_=${ts}`,
+                { headers: hdr, cache: 'no-store' })
+        ]);
         if (gen !== window._ovSaldiLoadGen) return;
-        if (res.status === 404) {
+        if (calcRes.status === 404) {
             el.innerHTML = `<div class="ov-saldi-msg">Kein Vertrag in dieser Periode.</div>`;
             return;
         }
-        if (!res.ok) {
-            el.innerHTML = `<div class="ov-saldi-msg ov-saldi-err">Fehler ${res.status}</div>`;
+        if (!calcRes.ok) {
+            el.innerHTML = `<div class="ov-saldi-msg ov-saldi-err">Fehler ${calcRes.status}</div>`;
             return;
         }
-        const s = await res.json();
+        const s = await calcRes.json();
+        let stRow = null;
+        if (stRes.ok) {
+            const st = await stRes.json();
+            stRow = (st.rows || []).find(r => r.employeeId === employeeId) || null;
+        }
         if (gen !== window._ovSaldiLoadGen) return;
-        el.innerHTML = renderOvSaldiHtml(s);
+        el.innerHTML = renderOvSaldiHtml(s, stRow);
     } catch (e) {
         if (gen !== window._ovSaldiLoadGen) return;
         el.innerHTML = `<div class="ov-saldi-msg ov-saldi-err">Fehler: ${esc(e.message || String(e))}</div>`;
