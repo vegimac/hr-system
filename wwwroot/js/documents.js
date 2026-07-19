@@ -1437,6 +1437,11 @@ function openDokEditModal(id) {
             <div class="ma-grid cols-1">
               <div class="ma-field">
                 <div class="ma-field-label">Mitarbeiter <span class="opt">(zum Verschieben — leer lassen wenn beim aktuellen MA bleiben soll)</span></div>
+                <div id="dokEditEmpFilter" style="display:inline-flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;margin-bottom:8px">
+                  <button type="button" id="dokEditFilterAktiv"   onclick="dokEditSetEmpFilter('aktiv')">Aktive</button>
+                  <button type="button" id="dokEditFilterInaktiv" onclick="dokEditSetEmpFilter('inaktiv')">Inaktive</button>
+                  <button type="button" id="dokEditFilterAlle"    onclick="dokEditSetEmpFilter('alle')">Alle</button>
+                </div>
                 <input type="text" id="dokEditEmpInput" class="ma-input" list="dokEditEmpList"
                        placeholder="Aktuell zugeordnet · Hier suchen um zu verschieben"
                        oninput="dokEditEmpInputChanged(this.value)"
@@ -1500,6 +1505,48 @@ function openDokEditModal(id) {
 // MA-Liste fürs Reassignment-Datalist. Cached, weil pro Modal-Öffnung
 // nicht neu geladen werden muss; bei Filialwechsel wird der Cache invalidiert.
 let _dokEditEmployees = [];
+// Default «aktive» — Inaktive nur optional über den Filter (wie Moments/MA-Maske).
+let _dokEditEmpFilter = 'aktiv'; // 'aktiv' | 'inaktiv' | 'alle'
+
+function dokEditIsActiveEmp(e) {
+    const archived = (e.employeeNumber || '').toLowerCase().endsWith('alt');
+    return e.isActive !== false && !archived;
+}
+
+function dokEditSetEmpFilter(mode) {
+    _dokEditEmpFilter = mode || 'aktiv';
+    dokEditRenderEmpFilterButtons();
+    dokEditRenderEmpList();
+    // Auswahl zurücksetzen wenn der gewählte MA nicht mehr im Filter ist.
+    const input = document.getElementById('dokEditEmpInput');
+    if (input && input.value.trim()) dokEditEmpInputChanged(input.value);
+}
+
+function dokEditRenderEmpFilterButtons() {
+    const on  = 'border:0;padding:6px 12px;font-size:12px;cursor:pointer;background:#1a1a1a;color:#fff;font-weight:600';
+    const off = 'border:0;padding:6px 12px;font-size:12px;cursor:pointer;background:#fff;color:#475569';
+    const a  = document.getElementById('dokEditFilterAktiv');
+    const i  = document.getElementById('dokEditFilterInaktiv');
+    const al = document.getElementById('dokEditFilterAlle');
+    if (a)  a.style.cssText  = (_dokEditEmpFilter === 'aktiv'   ? on : off);
+    if (i)  i.style.cssText  = (_dokEditEmpFilter === 'inaktiv' ? on : off) + ';border-left:1px solid #cbd5e1';
+    if (al) al.style.cssText = (_dokEditEmpFilter === 'alle'    ? on : off) + ';border-left:1px solid #cbd5e1';
+}
+
+function dokEditFilteredEmployees() {
+    let list = (_dokEditEmployees || []).slice();
+    if (_dokEditEmpFilter === 'aktiv')   list = list.filter(dokEditIsActiveEmp);
+    if (_dokEditEmpFilter === 'inaktiv') list = list.filter(e => !dokEditIsActiveEmp(e));
+    return list;
+}
+
+function dokEditRenderEmpList() {
+    const list = document.getElementById('dokEditEmpList');
+    if (!list) return;
+    list.innerHTML = dokEditFilteredEmployees().map(e =>
+        `<option value="${dokEditEmpLabel(e)}"></option>`
+    ).join('');
+}
 
 async function dokEditLoadEmployees() {
     try {
@@ -1507,16 +1554,14 @@ async function dokEditLoadEmployees() {
         // statt eigenes _dokEditEmployees-Array. Sortierung kommt schon
         // vom Backend (firstName, lastName).
         _dokEditEmployees = await loadEmployeeLookup();
-        const list = document.getElementById('dokEditEmpList');
-        if (!list) return;
-        list.innerHTML = _dokEditEmployees.map(e =>
-            `<option value="${dokEditEmpLabel(e)}"></option>`
-        ).join('');
+        _dokEditEmpFilter = 'aktiv'; // immer mit Aktiven starten
+        dokEditRenderEmpFilterButtons();
+        dokEditRenderEmpList();
     } catch (err) { console.warn('MA-Liste laden fehlgeschlagen:', err); }
 }
 
 function dokEditEmpLabel(e) {
-    return `${e.firstName} ${e.lastName} — ${e.employeeNumber}${!e.isActive ? ' (inaktiv)' : ''}`;
+    return `${e.firstName} ${e.lastName} — ${e.employeeNumber}${!dokEditIsActiveEmp(e) ? ' (inaktiv)' : ''}`;
 }
 
 function dokEditEmpInputChanged(val) {
@@ -1527,7 +1572,9 @@ function dokEditEmpInputChanged(val) {
         status.textContent = '';
         return;
     }
-    const matched = _dokEditEmployees.find(e => dokEditEmpLabel(e) === val);
+    // Match gegen gefilterte Liste — so kann man keinen inaktiven MA wählen,
+    // solange der Filter auf «Aktive» steht.
+    const matched = dokEditFilteredEmployees().find(e => dokEditEmpLabel(e) === val);
     if (matched) {
         hiddenId.value = matched.id;
         status.innerHTML = `<span style="color:#15803d">✓ Verschieben zu: <b>${matched.firstName} ${matched.lastName}</b> (${matched.employeeNumber})</span>`;
