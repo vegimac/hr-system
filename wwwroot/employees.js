@@ -1300,8 +1300,8 @@ function loadUebersichtTab() {
             </div>
             ${istCH
                 ? `<div class="ov-pf ov-pf-zemis-empty" aria-hidden="true"></div>`
-                : `<div class="ov-pf"><div class="ov-pfl">ZEMIS-Nr.</div>
-            <input id="ov-zemisNumber" class="ov-softin" type="text" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" oninput="ovDirty()"></div>`}
+                : `<div class="ov-pf ov-pf-zemis"><div class="ov-pfl">ZEMIS-Nr.</div>
+            <input id="ov-zemisNumber" class="ov-softin" type="text" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" maxlength="14" oninput="ovDirty()"></div>`}
         </div>
         ${emp.isPayrollExcluded ? '' : `
         <div class="ov-addrsep">

@@ -3749,6 +3749,11 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-sex {
             max-width: 44px;
         }
+        /* ZEMIS-Nr. ist kurz (z.B. 22295241.0) — Feld nicht auf Spaltenbreite strecken */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-zemis .ov-softin {
+            width: 118px;
+            max-width: 118px;
+        }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-slot > .ov-pf {
             width: 100%;
             margin-bottom: 0;
