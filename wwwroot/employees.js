@@ -2394,7 +2394,7 @@ function _nwDutyBadgeHtml(emp) {
         ? `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#fef2f2;color:#991b1b;border:1px solid #fecaca"><span style="width:7px;height:7px;border-radius:50%;background:#dc2626;flex-shrink:0"></span>Untersuch-Pflicht</span>`
         : `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#ecfdf5;color:#166534;border:1px solid #bbf7d0"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>Keine Untersuch-Pflicht</span>`;
     const countColor = req ? '#991b1b' : '#475569';
-    const count = `<span title="${tip}" style="font-size:12px;font-weight:600;color:${countColor};white-space:nowrap">${n} Nacht${n === 1 ? '' : 'e'} / 6 Wochen</span>`;
+    const count = `<span title="${tip}" style="font-size:12px;font-weight:600;color:${countColor};white-space:nowrap">${n === 1 ? '1 Nacht' : n + ' Nächte'} / 6 Wochen</span>`;
     return `<span style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">${badge}${count}</span>`;
 }
 
