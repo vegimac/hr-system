@@ -1300,37 +1300,42 @@ function loadUebersichtTab() {
     //    keine DOM-ID-Dubletten): Status mit Ablauf-Warnung, Drucken-Buttons,
     //    Zeugnis-/Ausnahme-Anzeige, ⋮-Menue (Datum bearbeiten, verknuepfen,
     //    loesen) + Inline-Datum-Edit. ──
-    // Pflicht-Badge im Kartenkopf: grün = keine Untersuch-Pflicht, rot = Pflicht
-    // (ArGV1 Art. 30, >18 Nächte / 42 Tage) — Walter 19.07.2026.
+    // Pflicht-Badge: grün/rot (ArGV1 Art. 30). Layout in festen Zeilen
+    // (Walter 19.07.2026), damit Badge/Nächte/Datum/Warnungen/Buttons
+    // nicht je nach Inhalt springen.
     const kNacht = _ovCard('Nachtarbeit', null, '', `
-            <div style="padding:6px 2px 2px">
-                <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    ${_nwDutyBadgeHtml(emp)}
-                    <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</span>
-                    ${_nwMissingDocsHtml(emp)}
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
-                        <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
-                        <button onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Ausnahmeregelung</button>
-                        ${emp.nightWorkExamDokumentId
-                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Arztzeugnis</button>`
-                            : ''}
-                        ${emp.nightWorkAusnahmeDokumentId
-                            ? `<button onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:3px 9px;cursor:pointer;color:#334155;font-size:11px;font-weight:600;white-space:nowrap">👁 Ausnahmeregelung</button>`
-                            : ''}
-                    </div>
-                    <div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
-                        <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
-                        <!-- Position via nwToggleMenu (fixed) — Karte hat overflow:hidden -->
-                        <div class="dok-menu" id="nwMenu-${emp.id}">
-                            <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
-                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'ArztZeug. ersetzen' : 'ArztZeug. verknüpfen'}</button>
-                            ${emp.nightWorkExamDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_exam','Arztzeugnis')">ArztZeug. lösen</button>` : ''}
-                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausn.Reg. ersetzen' : 'Ausn.Reg. verknüpfen'}</button>
-                            ${emp.nightWorkAusnahmeDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_ausnahme','Ausnahmeregelung')">Ausn.Reg. lösen</button>` : ''}
+            <div class="nw-card-body">
+                <div id="nwView_${emp.id}" class="nw-layout">
+                    <div class="nw-row nw-row-status">
+                        <div class="nw-col-duty">${_nwDutyBadgeOnlyHtml(emp)}</div>
+                        <div class="nw-col-count">${_nwDutyCountHtml(emp)}</div>
+                        <div class="nw-col-dates" id="nwViewText_${emp.id}">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</div>
+                        <div class="nw-col-menu">
+                            <div class="dok-menu-wrap">
+                                <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
+                                <div class="dok-menu" id="nwMenu-${emp.id}">
+                                    <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
+                                    <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'ArztZeug. ersetzen' : 'ArztZeug. verknüpfen'}</button>
+                                    ${emp.nightWorkExamDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_exam','Arztzeugnis')">ArztZeug. lösen</button>` : ''}
+                                    <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausn.Reg. ersetzen' : 'Ausn.Reg. verknüpfen'}</button>
+                                    ${emp.nightWorkAusnahmeDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_ausnahme','Ausnahmeregelung')">Ausn.Reg. lösen</button>` : ''}
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    <div class="nw-row nw-row-warn">${_nwMissingDocsHtml(emp) || '<span class="nw-warn-empty"></span>'}</div>
+                    <div class="nw-row nw-row-actions">
+                        <button class="nw-act-btn" onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken">🖨 Arztformular</button>
+                        <button class="nw-act-btn" onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken">🖨 Ausnahmeregelung</button>
+                        ${emp.nightWorkExamDokumentId
+                            ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen">👁 Arztzeugnis</button>`
+                            : `<span class="nw-act-slot" aria-hidden="true"></span>`}
+                        ${emp.nightWorkAusnahmeDokumentId
+                            ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen">👁 Ausnahmeregelung</button>`
+                            : `<span class="nw-act-slot" aria-hidden="true"></span>`}
+                    </div>
                 </div>
-                <div id="nwEdit_${emp.id}" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+                <div id="nwEdit_${emp.id}" class="nw-edit" style="display:none">
                     <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
                     <input type="date" id="nwDateInput_${emp.id}" value="${emp.nightWorkExamIssued ? String(emp.nightWorkExamIssued).slice(0,10) : (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : '')}"
                            oninput="nwPreview(${emp.id}, this.value)"
@@ -2383,19 +2388,26 @@ function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso, hasArztDoc)
     return html;
 }
 
-// Status-Pille + Nächte-Zähler (ArGV1 Art. 30): Max. Nacht-Tage in einem
-// rollierenden 6-Wochen-Fenster (42 Tage). Grün ≤18, Rot >18 (= Untersuch-Pflicht).
-function _nwDutyBadgeHtml(emp) {
+// Status-Pille allein (feste Spalte im nw-layout). Grün ≤18, Rot >18.
+function _nwDutyBadgeOnlyHtml(emp) {
     if (!emp) return '';
     const req = !!emp.nightWorkRequiresDocuments;
     const n = emp.nightWorkMaxNightsInSixWeeks != null ? emp.nightWorkMaxNightsInSixWeeks : 0;
     const tip = `Max. ${n} Nacht-Tage in einem rollierenden 6-Wochen-Fenster (42 Tage, ArGV1 Art. 30 — Pflicht ab >18)`;
-    const badge = req
-        ? `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#fef2f2;color:#991b1b;border:1px solid #fecaca"><span style="width:7px;height:7px;border-radius:50%;background:#dc2626;flex-shrink:0"></span>Untersuch-Pflicht</span>`
-        : `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#ecfdf5;color:#166534;border:1px solid #bbf7d0"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>Keine Untersuch-Pflicht</span>`;
-    const countColor = req ? '#991b1b' : '#475569';
-    const count = `<span title="${tip}" style="font-size:12px;font-weight:600;color:${countColor};white-space:nowrap">${n === 1 ? '1 Nacht' : n + ' Nächte'} / 6 Wochen</span>`;
-    return `<span style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">${badge}${count}</span>`;
+    if (req) {
+        return `<span class="nw-duty-badge nw-duty-on" title="${tip}"><span class="nw-duty-dot"></span>Untersuch-Pflicht</span>`;
+    }
+    return `<span class="nw-duty-badge nw-duty-off" title="${tip}"><span class="nw-duty-dot"></span>Keine Untersuch-Pflicht</span>`;
+}
+
+// Nächte-Zähler allein (feste Spalte). Max. im rollierenden 6-Wochen-Fenster.
+function _nwDutyCountHtml(emp) {
+    if (!emp) return '';
+    const req = !!emp.nightWorkRequiresDocuments;
+    const n = emp.nightWorkMaxNightsInSixWeeks != null ? emp.nightWorkMaxNightsInSixWeeks : 0;
+    const tip = `Max. ${n} Nacht-Tage in einem rollierenden 6-Wochen-Fenster (42 Tage, ArGV1 Art. 30 — Pflicht ab >18)`;
+    const label = n === 1 ? '1 Nacht' : n + ' Nächte';
+    return `<span class="nw-duty-count${req ? ' nw-duty-count-on' : ''}" title="${tip}">${label} / 6 Wochen</span>`;
 }
 
 // Rote «fehlt»-Hinweise auf der Nachtarbeit-Karte (Walter 19.07.2026):
@@ -2492,7 +2504,8 @@ function nwStartEdit(empId) {
 function nwCancelEdit(empId) {
     const v = document.getElementById('nwView_' + empId), e = document.getElementById('nwEdit_' + empId);
     if (e) e.style.display = 'none';
-    if (v) v.style.display = 'flex';
+    // Inline-Style weg → .nw-layout (CSS) übernimmt wieder die feste Zeilenstruktur.
+    if (v) v.style.display = '';
 }
 // Verknüpftes Nachtarbeit-Dokument (Arztzeugnis / Ausnahmeregelung) vom MA lösen —
 // nur die Verknüpfung wird entfernt, das Dokument selbst bleibt erhalten.
