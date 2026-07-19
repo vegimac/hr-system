@@ -3782,16 +3782,20 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            gap: 6px;
+            gap: 4px;
+            padding-top: 10px;
+            padding-bottom: 8px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .nw-card-body {
-            flex: 1 1 auto;
+            flex: 0 1 auto;
             min-height: 0;
-            overflow: auto;
+            overflow: visible;
+            padding-top: 0;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-card-h {
             flex: 0 0 auto;
             margin-bottom: 0;
+            line-height: 1.2;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-anst-row {
             margin-bottom: 0;
@@ -8079,14 +8083,13 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         /* ── Nachtarbeit-Karte: kompakt 2 Zeilen (Walter 19.07.2026) ──
            Z1: Badge · Nächte · Datum · ⋮
            Z2: Warn-Chips · Buttons */
-        .nw-card-body { padding: 2px 0 0; height: 100%; box-sizing: border-box; }
+        .nw-card-body { padding: 0; box-sizing: border-box; }
         .nw-layout {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            height: 100%;
+            gap: 6px;
             min-height: 0;
-            justify-content: center;
+            justify-content: flex-start; /* direkt unter dem Titel, kein Leerraum */
         }
         .nw-row1,
         .nw-row2 {
