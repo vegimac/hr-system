@@ -1423,6 +1423,12 @@ function loadUebersichtTab() {
     // KTG/UVG-Tagessatz bleibt im Absenzen-Tab (Sidebar) — nicht mehr hier.
     const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vList + vShare);
     const kSaldi = `<div class="ov-card ov-saldi-card">
+        <div class="ov-saldi-head">
+            <div class="ov-saldi-switch" role="group" aria-label="Saldi-Zeitraum">
+                <button type="button" class="ov-saldi-sw" data-mode="aktuell" onclick="ovSaldiSetMode('aktuell')">aktuell</button>
+                <button type="button" class="ov-saldi-sw" data-mode="monat" onclick="ovSaldiSetMode('monat')">Monat</button>
+            </div>
+        </div>
         <div id="ovSaldiContent" class="ov-saldi-slot">${_ovSaldiSkeletonHtml()}</div>
     </div>`;
 
@@ -9094,6 +9100,28 @@ function _ovKtgSkeletonHtml() {
 // Spalten einmal: Soll · gearb. · Absenz · Vorm. · Saldo
 // Zeilen: Stunden · Ferien · Feiertage · Nacht
 // Daten = dieselbe Calculate-Engine wie der Lohnlauf (kein eigener Report).
+function _ovSaldiMode() {
+    const m = localStorage.getItem('hrOvSaldiMode');
+    return m === 'monat' ? 'monat' : 'aktuell'; // Default: per heute
+}
+
+function ovSaldiSetMode(mode) {
+    const next = mode === 'monat' ? 'monat' : 'aktuell';
+    localStorage.setItem('hrOvSaldiMode', next);
+    _ovSaldiSyncSwitch();
+    const cache = window._ovSaldiCache;
+    const el = document.getElementById('ovSaldiContent');
+    if (el && cache && cache.s)
+        el.innerHTML = renderOvSaldiHtml(cache.s, cache.stRow, next);
+}
+
+function _ovSaldiSyncSwitch() {
+    const mode = _ovSaldiMode();
+    document.querySelectorAll('.ov-saldi-sw').forEach(btn => {
+        btn.classList.toggle('on', btn.getAttribute('data-mode') === mode);
+    });
+}
+
 function _ovSaldiSkeletonHtml() {
     const dash = '<td class="ov-saldi-dash">·</td>';
     return `<table class="ov-saldi-tbl" aria-busy="true">
@@ -9126,42 +9154,43 @@ function _ovSaldiNum(v, { signed = false, dashIfNull = false } = {}) {
 
 function _ovSaldiDash() { return '<td class="ov-saldi-dash">–</td>'; }
 
-function renderOvSaldiHtml(s, stRow) {
+function renderOvSaldiHtml(s, stRow, mode) {
     if (!s) return _ovSaldiSkeletonHtml();
+    mode = mode || _ovSaldiMode();
     const model = (s.employmentModel || (stRow && stRow.model) || '').toUpperCase();
     const isFlex = model === 'FLEX' || model === 'UTP';
     const isFix  = model === 'FIX' || model === 'FIX-M';
+    const isAktuell = mode !== 'monat';
 
-    // Stunden = Sollstunden-Report Stichtag-Block (identische Zahlen).
-    // Spalten: Soll (= stSoll) · gearb. · Absenz · Vorm. · Saldo
+    // Stunden: «aktuell» = Stichtag-Block (blau im Sollstunden-Report),
+    // «Monat» = Monats-Block — dieselben Felder wie dort.
     let rowStunden;
     if (isFlex) {
         const worked = Number(s.workedHours ?? 0);
         rowStunden = `<tr><td>Stunden</td>${_ovSaldiDash()}${_ovSaldiNum(worked)}${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}</tr>`;
     } else if (stRow) {
-        const sollH  = Number(stRow.stSoll ?? 0);
-        const gearbH = Number(stRow.stGearb ?? 0);
-        const absH   = Number(stRow.stAbsenz ?? 0);
-        const vorH   = Number(stRow.stSaldoVor ?? 0);
-        const saldoH = Number(stRow.stSaldo ?? 0);
+        const p = isAktuell ? 'st' : 'mt';
+        const sollH  = Number(stRow[p + 'Soll'] ?? 0);
+        const gearbH = Number(stRow[p + 'Gearb'] ?? 0);
+        const absH   = Number(stRow[p + 'Absenz'] ?? 0);
+        const vorH   = Number(stRow[p + 'SaldoVor'] ?? 0);
+        const saldoH = Number(stRow[p + 'Saldo'] ?? 0);
         rowStunden = `<tr><td>Stunden</td>${_ovSaldiNum(sollH)}${_ovSaldiNum(gearbH)}${_ovSaldiNum(absH)}${_ovSaldiNum(vorH, { signed: true })}${_ovSaldiNum(saldoH, { signed: true })}</tr>`;
     } else {
         rowStunden = `<tr><td>Stunden</td>${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}</tr>`;
     }
 
-    // Ferien (Tage) — aus Calculate (Monats-/Jahressicht)
+    // Ferien / Feiertage / Nacht — Monatswerte aus Calculate (kein Stichtag-Block)
     const ferSoll  = Number(s.ferienTageAccrual ?? 0);
     const ferAbs   = Number(s.ferienTageGenommen ?? 0);
     const ferVor   = Number(s.vormonatFerienTage ?? 0);
     const ferSaldo = Number(s.ferienTageSaldoNeu ?? 0);
 
-    // Feiertage (Tage) — nur FIX/FIX-M fachlich relevant
     const ftSoll  = Number(s.feiertagTageAccrual ?? 0);
     const ftAbs   = Number(s.feiertagTageGenommen ?? 0);
     const ftVor   = Number(s.vormonatFeiertagTage ?? 0);
     const ftSaldo = Number(s.feiertagTageSaldoNeu ?? 0);
 
-    // Nacht (Stunden)
     const nachtGearb = Number(s.nightHours ?? 0);
     const nachtAbs   = Number(s.nachtKompStunden ?? 0);
     const nachtVor   = Number(s.vormonatNachtSaldo ?? 0);
@@ -9187,6 +9216,7 @@ async function loadOvSaldi(employeeId) {
 
     const gen = (window._ovSaldiLoadGen = (window._ovSaldiLoadGen || 0) + 1);
     el.innerHTML = _ovSaldiSkeletonHtml();
+    _ovSaldiSyncSwitch();
 
     const cid = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
         ? fixedCompanyProfileId
@@ -9205,7 +9235,7 @@ async function loadOvSaldi(employeeId) {
     const ts = Date.now();
 
     try {
-        // Calculate → Ferien/Feiertag/Nacht; Sollstunden-Report (1 MA) → Stunden Stichtag
+        // Calculate → Ferien/Feiertag/Nacht; Sollstunden-Report (1 MA) → Stunden st/mt
         const [calcRes, stRes] = await Promise.all([
             fetch(`/api/payroll/calculate?employeeId=${employeeId}&year=${year}&month=${month}&companyProfileId=${cid}&_=${ts}`,
                 { headers: hdr, cache: 'no-store' }),
@@ -9228,7 +9258,9 @@ async function loadOvSaldi(employeeId) {
             stRow = (st.rows || []).find(r => r.employeeId === employeeId) || null;
         }
         if (gen !== window._ovSaldiLoadGen) return;
-        el.innerHTML = renderOvSaldiHtml(s, stRow);
+        window._ovSaldiCache = { empId: employeeId, s, stRow };
+        _ovSaldiSyncSwitch();
+        el.innerHTML = renderOvSaldiHtml(s, stRow, _ovSaldiMode());
     } catch (e) {
         if (gen !== window._ovSaldiLoadGen) return;
         el.innerHTML = `<div class="ov-saldi-msg ov-saldi-err">Fehler: ${esc(e.message || String(e))}</div>`;
