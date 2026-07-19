@@ -1005,19 +1005,12 @@ function renderEmployeeDetail(emp) {
         </div>
 
         <!-- TAB: Bewilligung QST Bank (Walter-Vorgabe 15.07.2026, final) —
-             Bewilligung + QST (quellensteuerContent) und darunter die
-             Bankverwaltung (ehem. eigener Bank-Tab). Tab-Key bleibt
-             'quellensteuer'. -->
+             Reihenfolge (Walter 19.07.2026): Bank zuoberst, dann Bewilligungen
+             + QST — die Bewilligungs-Liste kann lang werden und soll die
+             Bank nicht nach unten verdrängen. Tab-Key bleibt 'quellensteuer'. -->
         <div class="emp-tab-content" id="emp-tab-quellensteuer">
-            <div id="quellensteuerContent">
-                <div class="emp-placeholder">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                    <span>${_t('ma.loading','Wird geladen...')}</span>
-                </div>
-            </div>
-            <div style="margin-top:28px">
             ${!emp.isPayrollExcluded ? `
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0">
                 <span style="display:inline-flex;align-items:center;gap:8px">
                     ${_t('ma.section.bank','Bankverbindung')}
                     <button title="Verknüpfte Dokumente öffnen (Bankkarte / IBAN-Beleg)"
@@ -1033,9 +1026,7 @@ function renderEmployeeDetail(emp) {
                         <span>Doku${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? ' ✓' : ''}</span>
                     </button>
                 </span>
-                <!-- „+ Neue Bankverbindung" sitzt jetzt im Header (empTabActionBar,
-                     Walter-Vorgabe 01.06.2026) — Button hier ausgeblendet,
-                     bleibt für Layout-Rückwärtskompatibilität im DOM. -->
+                <!-- „+ Neue Bankverbindung" sitzt im Header (empTabActionBar). -->
                 <button class="btn-emp-add" onclick="openBankAccountModal(null)" style="display:none">
                     ${_t('ma.btn.newBank','Neue Bankverbindung')}
                 </button>
@@ -1043,14 +1034,16 @@ function renderEmployeeDetail(emp) {
             <div id="bankAccountsContent">
                 <div class="emp-placeholder"><span>Wird geladen…</span></div>
             </div>
-            <!-- Postfach-Zugang ist nicht mehr hier — der Passwort-Reset
-                 sitzt jetzt als Button oben im Detail-Header neben „Bearbeiten"
-                 (Walter-Vorgabe 14.05.2026). -->
             ` : `
-            <div style="margin:14px 0;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
+            <div style="margin:0 0 14px;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
                 <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.bankDesc','Phantom-MA für easy@work-Zugang. Bankverbindung wird nicht angezeigt — dieser MA hat keinen Vertrag und keine Lohnzahlung.')}
             </div>
             `}
+            <div id="quellensteuerContent" style="margin-top:28px">
+                <div class="emp-placeholder">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                    <span>${_t('ma.loading','Wird geladen...')}</span>
+                </div>
             </div>
         </div>
 
@@ -1576,8 +1569,9 @@ function switchEmpTab(tab) {
         if (tab === 'familie' && !isExcluded) {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openFamilyModal(null)">${plusIcon} ${_t('famTab.add','Familienmitglied')}</button>`;
         } else if (tab === 'quellensteuer') {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openQstFromTab(null)">${plusIcon} QST-Eintrag</button>`
-                + (!isExcluded ? `<button class="btn-emp-add" onclick="openBankAccountModal(null)" style="margin-left:8px">${plusIcon} ${_t('ma.btn.newBank','Bankverbindung')}</button>` : '');
+            // Bank-Button zuerst (Sektion steht zuoberst, Walter 19.07.2026).
+            tabBar.innerHTML = (!isExcluded ? `<button class="btn-emp-add" onclick="openBankAccountModal(null)">${plusIcon} ${_t('ma.btn.newBank','Bankverbindung')}</button>` : '')
+                + `<button class="btn-emp-add" onclick="openQstFromTab(null)" style="margin-left:${isExcluded ? '0' : '8px'}">${plusIcon} QST-Eintrag</button>`;
         } else if (tab === 'verwarnungen' && !isExcluded) {
             // Restaurant Admin: Aktionen als Icon-Kacheln IM Tab-Body (Walter
             // 15.07.2026) — oben rechts kollidierten die Buttons mit dem
@@ -3138,9 +3132,8 @@ async function qstBefreiungSpeichern() {
 function renderQuellensteuerTab(el, entries, pflicht) {
     // Walter-Vorgabe 26.05.2026: Pflicht-Banner OBEN (vor allem anderen).
     const banner = renderQstPflichtBanner(pflicht);
-    // Walter-Vorgabe 07.06.2026: Bewilligungs-Liste wohnt jetzt OBEN im
-    // Bewilligung/QST-Tab — direkt unter dem Pflicht-Banner, vor den
-    // QST-Einträgen. Eigene Sektion mit eigenem „+ Neue Bewilligung"-Button.
+    // Bewilligungen + QST unter dem Pflicht-Banner. Bank steht darüber
+    // (ausserhalb dieses Containers — Walter 19.07.2026).
     const permitsHtml = renderPermitListHtml(_permitHistoryCache || []);
     // Walter-Vorgabe 07.06.2026: Doku-Button neben „Bewilligungen" (analog
     // Bank-Tab) — öffnet die Dokumenten-Verwaltung gefiltert auf den
