@@ -3717,6 +3717,18 @@
             width: 100%;
             box-sizing: border-box;
             min-width: 0;
+            /* Wie .ov-pfv (Strasse): gleiche Schrift + linksbündig unter dem Label */
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #2a2a2a;
+            line-height: 30px;
+            min-height: 30px;
+            height: 30px;
+            padding: 0 28px 0 0; /* links 0 = bündig mit Strasse; rechts Platz für Datums-Icon */
+            border-radius: 8px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned select.ov-softin {
+            padding-right: 22px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-ortkt {
             display: flex;
@@ -3751,11 +3763,16 @@
             font-weight: 700;
             min-height: 30px;
             line-height: 30px;
+            color: #2a2a2a;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-softin {
-            font-size: 13.5px;
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #2a2a2a;
             min-height: 30px;
-            padding: 4px 9px;
+            height: 30px;
+            line-height: 30px;
+            padding: 0 28px 0 0;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfl {
             color: rgba(210, 220, 232, 0.78) !important;
