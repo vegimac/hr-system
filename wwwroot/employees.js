@@ -1419,25 +1419,26 @@ function loadUebersichtTab() {
     // SMS-/Link-Feedback-Container fuer die Uebersicht (Klasse statt ID —
     // der Personal-Strip hat seinen eigenen; siehe contractShareBox-Lookup).
     const vShare = '<div class="contractShareBox" style="margin:4px 0 0"></div>';
-    // Vertraege schmaler (Walter 17.07.2026): nicht mehr volle Breite —
-    // daneben die kompakte KTG/UVG-Tagessatz-Karte (vor allem MTP/FLEX).
+    // Verträge breit + rechts Stunden/Saldi-Tabelle (Walter 19.07.2026).
+    // KTG/UVG-Tagessatz bleibt im Absenzen-Tab (Sidebar) — nicht mehr hier.
     const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vList + vShare);
-    const kKtg = _ovCard('KTG/UVG-Tagessatz', 'absenzen', 'Zu Absenzen & Tagessatz',
-        `<div id="ovKtgContent" class="ov-ktg-slot">${_ovKtgSkeletonHtml()}</div>`);
+    const kSaldi = `<div class="ov-card ov-saldi-card">
+        <div id="ovSaldiContent" class="ov-saldi-slot">${_ovSaldiSkeletonHtml()}</div>
+    </div>`;
 
     // Dokumente-Karte entfernt (Walter 17.07.2026) — Dokumente haben wie
     // gehabt ihren eigenen Bereich (Tab «Dokumente»).
     // Weitere Adressen (Fussbereich der Personalien-Karte) nachladen.
 
     // Personalien & Adresse ueber die VOLLE Breite (wichtigster Block),
-    // darunter Anstellung | Nachtarbeit, dann Vertraege breit + Tagessatz schmal.
+    // darunter Anstellung | Nachtarbeit, dann Vertraege + Saldi-Tabelle.
     el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
         ? `<div class="ov-full">${kPers}</div>`
-        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kKtg}</div>`}</div>`;
+        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div>`}</div>`;
     if (!emp.isPayrollExcluded && typeof loadEmployeeAddressesTab === 'function')
         loadEmployeeAddressesTab(emp.id);
-    if (!emp.isPayrollExcluded && typeof loadKtgTab === 'function')
-        loadKtgTab(emp.id);
+    if (!emp.isPayrollExcluded)
+        loadOvSaldi(emp.id);
 }
 
 // Inline-Edit in der Uebersicht (Walter 17.07.2026): Speichern liest ov-*
@@ -8906,7 +8907,7 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
 // Walter 17.07.2026: gleiche Rechnung an drei Orten —
 //   full  = Tab «KTG/UVG»
 //   side  = Absenzen-Tab rechts (Arbeitsplatz Krank/Unfall)
-//   compact = Übersicht-Karte neben Verträge
+//   compact = Legacy (Übersicht nutzt Saldi-Tabelle seit 19.07.2026)
 function _ktgFmtChf(n, dec = 2) {
     return Number(n || 0).toLocaleString('de-CH', {
         minimumFractionDigits: dec, maximumFractionDigits: dec
@@ -9077,8 +9078,7 @@ function renderKtgTagessatzHtml(d, mode = 'full') {
 }
 
 function _ovKtgSkeletonHtml() {
-    // Gleiche Struktur/Höhe wie die fertige Kompaktkarte — verhindert
-    // Höhensprung der Verträge+KTG-Zeile beim asynchronen Nachladen.
+    // Absenzen-Sidebar-Fallback (Übersicht nutzt Saldi-Tabelle).
     return `<div class="ktg-compact ktg-compact-skel" aria-busy="true">
         <div class="ktg-compact-top"><span class="ktg-badge ktg-badge-a" style="opacity:.35">…</span></div>
         <div class="ktg-compact-meta" style="opacity:.45">— · — · —</div>
@@ -9087,20 +9087,151 @@ function _ovKtgSkeletonHtml() {
             <div class="r88"><span>88 %</span><strong>· · ·</strong></div>
             <div class="r80"><span>80 %</span><strong>· · ·</strong></div>
         </div>
-        <div class="ov-more" style="margin-top:4px;opacity:.4">Bei Absenzen anzeigen →</div>
     </div>`;
 }
 
+// ── Übersicht: Stunden & Saldi (Walter 19.07.2026) ─────────────────────
+// Spalten einmal: Soll · gearb. · Absenz · Vorm. · Saldo
+// Zeilen: Stunden · Ferien · Feiertage · Nacht
+// Daten = dieselbe Calculate-Engine wie der Lohnlauf (kein eigener Report).
+function _ovSaldiSkeletonHtml() {
+    const dash = '<td class="ov-saldi-dash">·</td>';
+    return `<table class="ov-saldi-tbl" aria-busy="true">
+        <thead><tr><th></th><th>Soll</th><th>gearb.</th><th>Absenz</th><th>Vorm.</th><th>Saldo</th></tr></thead>
+        <tbody>
+            <tr><td>Stunden</td>${dash}${dash}${dash}${dash}${dash}</tr>
+            <tr><td>Ferien</td>${dash}${dash}${dash}${dash}${dash}</tr>
+            <tr><td>Feiertage</td>${dash}${dash}${dash}${dash}${dash}</tr>
+            <tr><td>Nacht</td>${dash}${dash}${dash}${dash}${dash}</tr>
+        </tbody>
+    </table>`;
+}
+
+function _ovSaldiNum(v, { signed = false, dashIfNull = false } = {}) {
+    if (v == null || (dashIfNull && !Number.isFinite(Number(v))))
+        return '<td class="ov-saldi-dash">–</td>';
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '<td class="ov-saldi-dash">–</td>';
+    const abs = Math.abs(n) < 0.005;
+    const txt = (signed && n > 0.005 ? '+' : '') + n.toLocaleString('de-CH', {
+        minimumFractionDigits: abs && !signed ? 1 : 2,
+        maximumFractionDigits: 2
+    });
+    let cls = 'ov-saldi-n';
+    if (signed) {
+        if (n > 0.005) cls += ' ov-saldi-pos';
+        else if (n < -0.005) cls += ' ov-saldi-neg';
+    }
+    return `<td class="${cls}">${txt}</td>`;
+}
+
+function _ovSaldiDash() { return '<td class="ov-saldi-dash">–</td>'; }
+
+function renderOvSaldiHtml(s) {
+    if (!s) return _ovSaldiSkeletonHtml();
+    const model = (s.employmentModel || '').toUpperCase();
+    const isFlex = model === 'FLEX' || model === 'UTP';
+    const isMtp  = model === 'MTP';
+    const isFix  = model === 'FIX' || model === 'FIX-M';
+
+    // Stunden — analog Sollstunden-Report / renderStundenCard
+    const sollVoll = Number(s.sollStundenVoll ?? s.sollStunden ?? 0);
+    const soll     = Number(s.sollStunden ?? 0);
+    const worked   = Number(s.workedHours ?? 0);
+    const absGut   = Number(s.absenzGutschrift ?? 0);
+    const reduktion = Math.max(0, sollVoll - soll); // MTP Ferien/Krank am Soll
+    const absenzH  = absGut + (isMtp ? reduktion : 0);
+    const vorH     = Number(s.vormonatHourSaldo ?? 0);
+    const saldoH   = Number(s.neuerHourSaldo ?? 0);
+
+    // Ferien (Tage)
+    const ferSoll  = Number(s.ferienTageAccrual ?? 0);
+    const ferAbs   = Number(s.ferienTageGenommen ?? 0);
+    const ferVor   = Number(s.vormonatFerienTage ?? 0);
+    const ferSaldo = Number(s.ferienTageSaldoNeu ?? 0);
+
+    // Feiertage (Tage) — nur FIX/FIX-M fachlich relevant
+    const ftSoll  = Number(s.feiertagTageAccrual ?? 0);
+    const ftAbs   = Number(s.feiertagTageGenommen ?? 0);
+    const ftVor   = Number(s.vormonatFeiertagTage ?? 0);
+    const ftSaldo = Number(s.feiertagTageSaldoNeu ?? 0);
+
+    // Nacht (Stunden)
+    const nachtGearb = Number(s.nightHours ?? 0);
+    const nachtAbs   = Number(s.nachtKompStunden ?? 0);
+    const nachtVor   = Number(s.vormonatNachtSaldo ?? 0);
+    const nachtSaldo = Number(s.neuerNachtSaldo ?? 0);
+
+    const rowStunden = isFlex
+        ? `<tr><td>Stunden</td>${_ovSaldiDash()}${_ovSaldiNum(worked)}${_ovSaldiNum(absenzH)}${_ovSaldiDash()}${_ovSaldiDash()}</tr>`
+        : `<tr><td>Stunden</td>${_ovSaldiNum(isMtp ? sollVoll : soll)}${_ovSaldiNum(worked)}${_ovSaldiNum(absenzH)}${_ovSaldiNum(vorH, { signed: true })}${_ovSaldiNum(saldoH, { signed: true })}</tr>`;
+
+    const rowFerien = `<tr><td>Ferien</td>${_ovSaldiNum(ferSoll)}${_ovSaldiDash()}${_ovSaldiNum(ferAbs)}${_ovSaldiNum(ferVor, { signed: true })}${_ovSaldiNum(ferSaldo, { signed: true })}</tr>`;
+
+    const rowFeiertag = isFix
+        ? `<tr><td>Feiertage</td>${_ovSaldiNum(ftSoll)}${_ovSaldiDash()}${_ovSaldiNum(ftAbs)}${_ovSaldiNum(ftVor, { signed: true })}${_ovSaldiNum(ftSaldo, { signed: true })}</tr>`
+        : `<tr><td>Feiertage</td>${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}${_ovSaldiDash()}</tr>`;
+
+    const rowNacht = `<tr><td>Nacht</td>${_ovSaldiDash()}${_ovSaldiNum(nachtGearb)}${_ovSaldiNum(nachtAbs)}${_ovSaldiNum(nachtVor, { signed: true })}${_ovSaldiNum(nachtSaldo, { signed: true })}</tr>`;
+
+    return `<table class="ov-saldi-tbl">
+        <thead><tr><th></th><th>Soll</th><th>gearb.</th><th>Absenz</th><th>Vorm.</th><th>Saldo</th></tr></thead>
+        <tbody>${rowStunden}${rowFerien}${rowFeiertag}${rowNacht}</tbody>
+    </table>`;
+}
+
+async function loadOvSaldi(employeeId) {
+    const el = document.getElementById('ovSaldiContent');
+    if (!el || !employeeId) return;
+
+    const gen = (window._ovSaldiLoadGen = (window._ovSaldiLoadGen || 0) + 1);
+    el.innerHTML = _ovSaldiSkeletonHtml();
+
+    const cid = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+        ? fixedCompanyProfileId
+        : (typeof selectedCompanyProfile !== 'undefined' && selectedCompanyProfile?.id)
+        ? selectedCompanyProfile.id
+        : null;
+    if (!cid) {
+        el.innerHTML = `<div class="ov-saldi-msg">Bitte Filiale wählen.</div>`;
+        return;
+    }
+
+    const now = new Date();
+    const year  = parseInt(document.getElementById('lohnYearSelect')?.value  || now.getFullYear(), 10);
+    const month = parseInt(document.getElementById('lohnMonthSelect')?.value || (now.getMonth() + 1), 10);
+
+    try {
+        const ts = Date.now();
+        const res = await fetch(
+            `/api/payroll/calculate?employeeId=${employeeId}&year=${year}&month=${month}&companyProfileId=${cid}&_=${ts}`,
+            { headers: typeof ah === 'function' ? ah() : { 'Authorization': `Bearer ${localStorage.getItem('hrToken')}` }, cache: 'no-store' }
+        );
+        if (gen !== window._ovSaldiLoadGen) return;
+        if (res.status === 404) {
+            el.innerHTML = `<div class="ov-saldi-msg">Kein Vertrag in dieser Periode.</div>`;
+            return;
+        }
+        if (!res.ok) {
+            el.innerHTML = `<div class="ov-saldi-msg ov-saldi-err">Fehler ${res.status}</div>`;
+            return;
+        }
+        const s = await res.json();
+        if (gen !== window._ovSaldiLoadGen) return;
+        el.innerHTML = renderOvSaldiHtml(s);
+    } catch (e) {
+        if (gen !== window._ovSaldiLoadGen) return;
+        el.innerHTML = `<div class="ov-saldi-msg ov-saldi-err">Fehler: ${esc(e.message || String(e))}</div>`;
+    }
+}
+
 async function loadKtgTab(employeeId) {
-    // Tab «KTG/UVG» entfernt — nur noch Absenzen-Sidebar + Übersicht-Kompakt.
+    // Nur noch Absenzen-Sidebar (Übersicht = Saldi-Tabelle).
     const side = document.getElementById('ktgTagessatzSidebar');
-    const ov   = document.getElementById('ovKtgContent');
-    if ((!side && !ov) || !employeeId) return;
+    if (!side || !employeeId) return;
 
     const gen = (window._ktgLoadGen = (window._ktgLoadGen || 0) + 1);
-    // Übersicht: Skelett gleicher Höhe (kein Kollabieren). Sidebar: kurzer Loader ok.
-    if (ov) ov.innerHTML = _ovKtgSkeletonHtml();
-    if (side) side.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>';
+    side.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>';
 
     try {
         const cid = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
@@ -9108,14 +9239,9 @@ async function loadKtgTab(employeeId) {
             : (typeof selectedCompanyProfile !== 'undefined' && selectedCompanyProfile?.id)
             ? selectedCompanyProfile.id
             : null;
-        // Übersicht: Fehlermeldungen in gleicher Kartenhöhe halten (kein Kollabieren).
-        const ovMsg = (text, color = '#94a3b8') =>
-            `<div class="ktg-compact" style="display:flex;align-items:center;justify-content:center;color:${color};font-size:13px;text-align:center;padding:12px">${text}</div>`;
 
         if (!cid) {
-            const msg = '<div style="padding:16px;color:#94a3b8;font-size:13px">Bitte Filiale wählen.</div>';
-            if (ov) ov.innerHTML = ovMsg('Bitte Filiale wählen.');
-            if (side) side.innerHTML = msg;
+            side.innerHTML = '<div style="padding:16px;color:#94a3b8;font-size:13px">Bitte Filiale wählen.</div>';
             return;
         }
 
@@ -9125,27 +9251,20 @@ async function loadKtgTab(employeeId) {
         if (gen !== window._ktgLoadGen) return;
 
         if (res.status === 404) {
-            const miss = `<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Kein aktives Anstellungsverhältnis gefunden.</div>`;
-            if (ov) ov.innerHTML = ovMsg('Kein aktives Anstellungsverhältnis gefunden.');
-            if (side) side.innerHTML = miss;
+            side.innerHTML = `<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Kein aktives Anstellungsverhältnis gefunden.</div>`;
             return;
         }
         if (!res.ok) {
-            const err = `<div style="padding:16px;color:#dc2626;font-size:13px">Fehler ${res.status}</div>`;
-            if (ov) ov.innerHTML = ovMsg(`Fehler ${res.status}`, '#dc2626');
-            if (side) side.innerHTML = err;
+            side.innerHTML = `<div style="padding:16px;color:#dc2626;font-size:13px">Fehler ${res.status}</div>`;
             return;
         }
 
         const d = await res.json();
         if (gen !== window._ktgLoadGen) return;
-        if (side) side.innerHTML = `<div class="ktg-side-card">${renderKtgTagessatzHtml(d, 'side')}</div>`;
-        if (ov)   ov.innerHTML   = renderKtgTagessatzHtml(d, 'compact');
+        side.innerHTML = `<div class="ktg-side-card">${renderKtgTagessatzHtml(d, 'side')}</div>`;
     } catch (e) {
         if (gen !== window._ktgLoadGen) return;
-        const err = `<div style="padding:16px;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`;
-        if (ov) ov.innerHTML = `<div class="ktg-compact" style="display:flex;align-items:center;justify-content:center;color:#dc2626;font-size:13px;text-align:center;padding:12px">Fehler: ${e.message}</div>`;
-        if (side) side.innerHTML = err;
+        side.innerHTML = `<div style="padding:16px;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`;
     }
 }
 

@@ -3818,11 +3818,11 @@
             min-height: 0;
             align-content: start;
         }
-        /* Vertraege breit + Tagessatz schmal (Walter 17.07.2026) — nicht 50/50. */
+        /* Verträge + Saldi-Tabelle (Walter 19.07.2026) — Verträge breiter. */
         .ov-vertraege-ktg {
             grid-column: 1 / -1;
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
+            grid-template-columns: minmax(0, 1.5fr) minmax(340px, 400px);
             gap: 8px;
             min-width: 0;
             align-items: stretch;
@@ -3836,7 +3836,7 @@
             align-self: start; /* direkt unter Anstellung/Nacht — kein Luftspalt */
             contain: layout size;
         }
-        /* Feste Höhe = 3 Vertragszeilen — KTG-Nachladen darf nicht springen */
+        /* Feste Höhe = 3 Vertragszeilen — Saldi-Nachladen darf nicht springen */
         .ov-vertraege-ktg > .ov-card {
             min-height: 0;
             height: 100%;
@@ -3846,16 +3846,60 @@
         }
         .ov-vertraege-ktg > .ov-card > .ov-card-h { flex: 0 0 auto; }
         .ov-vertraege-ktg > .ov-card > .ov-vlist { flex: 1 1 auto; min-height: 0; }
-        .ov-vertraege-ktg > .ov-card > #ovKtgContent,
-        .ov-vertraege-ktg > .ov-card > .ov-ktg-slot {
+        .ov-vertraege-ktg > .ov-card > #ovSaldiContent,
+        .ov-vertraege-ktg > .ov-card > .ov-saldi-slot {
             flex: 1 1 auto; min-height: 0; overflow: hidden;
         }
-        #ovKtgContent.ov-ktg-slot,
-        #ovKtgContent .ktg-compact {
+        .ov-saldi-card { padding: 8px 10px !important; }
+        .ov-saldi-slot {
+            display: flex;
+            flex-direction: column;
             min-height: 0;
             height: 100%;
-            box-sizing: border-box;
         }
+        .ov-saldi-tbl {
+            width: 100%;
+            height: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 12.5px;
+        }
+        .ov-saldi-tbl th,
+        .ov-saldi-tbl td {
+            padding: 6px 5px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            border-bottom: 1px solid rgba(90, 80, 65, 0.10);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ov-saldi-tbl th:first-child,
+        .ov-saldi-tbl td:first-child {
+            text-align: left;
+            width: 72px;
+            font-weight: 760;
+            color: #3f3f3f;
+        }
+        .ov-saldi-tbl thead th {
+            font-size: 11px;
+            font-weight: 700;
+            color: #8b8b8b;
+            border-bottom: 1px solid rgba(90, 80, 65, 0.18);
+            padding-top: 2px;
+            padding-bottom: 7px;
+        }
+        .ov-saldi-tbl tbody tr:last-child td { border-bottom: none; }
+        .ov-saldi-tbl .ov-saldi-n { font-weight: 650; color: #3f3f3f; }
+        .ov-saldi-tbl .ov-saldi-pos { color: #166534; font-weight: 780; }
+        .ov-saldi-tbl .ov-saldi-neg { color: #9f1239; font-weight: 780; }
+        .ov-saldi-tbl .ov-saldi-dash { color: #b0b0b0; font-weight: 500; }
+        .ov-saldi-msg {
+            display: flex; align-items: center; justify-content: center;
+            height: 100%; min-height: 120px;
+            font-size: 13px; color: #8b8b8b; text-align: center; padding: 12px;
+        }
+        .ov-saldi-msg.ov-saldi-err { color: #dc2626; }
         /* Zusatzadressen: leer = kein Platz; sonst eine volle Zeile */
         #otherAddressesContent {
             max-height: 40px;
@@ -4347,7 +4391,7 @@
         .ktg-compact-rows .r88 strong { color: #92400e; }
         .ktg-compact-rows .r80 strong { color: #15803d; }
         .ktg-compact-rows .muted { color: #94a3b8; }
-        .ov-vertraege-ktg .ov-card:last-child { padding: 12px 14px; }
+        .ov-vertraege-ktg .ov-card:last-child:not(.ov-saldi-card) { padding: 12px 14px; }
         .ov-vertraege-ktg .ktg-badge { font-size: 10px; padding: 2px 7px; }
         .ktg-tab-hint {
             margin: 0 0 10px; padding: 8px 12px; border-radius: 10px;
