@@ -1057,18 +1057,30 @@ public class DashboardService
                     });
                 }
 
+                // Datum erfasst = Nachtarbeit geplant → Dokumente prüfen
+                // (Walter 19.07.2026). Zusätzlich ArGV1 Art. 30 (>18 Nächte/42 Tage).
+                bool hasPlannedDates = emp.NightWorkExamIssued.HasValue
+                                    || emp.NightWorkExamValidUntil.HasValue;
+
+                NightWorkComplianceService.Result nw;
                 if (!nightDatesByEmp.TryGetValue(emp.Id, out var dates) || dates.Count == 0)
                 {
-                    MeldeAbgelaufen();
-                    continue;
+                    if (!hasPlannedDates)
+                    {
+                        MeldeAbgelaufen(); // nur Ablauf, keine Doku-Pflicht
+                        continue;
+                    }
+                    // Datum erfasst = geplant → unten Dokumente prüfen (kein Doppel-Ablauf-Alert).
+                    nw = new NightWorkComplianceService.Result(0, null, null, false);
                 }
-
-                // NEUE Regel: > 18 Nächte in einem rollierenden 6-Wochen-Fenster.
-                var nw = NightWorkComplianceService.Evaluate(dates, today);
-                if (!nw.RequiresDocuments)
+                else
                 {
-                    MeldeAbgelaufen();
-                    continue;
+                    nw = NightWorkComplianceService.Evaluate(dates, today);
+                    if (!nw.RequiresDocuments && !hasPlannedDates)
+                    {
+                        MeldeAbgelaufen();
+                        continue;
+                    }
                 }
 
                 // Enddatum-Kontrolle (Walter-Vorgabe 05.07.2026): das aus easy@work
@@ -1149,7 +1161,9 @@ public class DashboardService
                 //    (Datum kann vorhanden sein — zählt erst mit verknüpftem Dokument)
                 string subtitleBase =
                     $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}"
-                    + $" · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen";
+                    + (nw.MaxNightsInSixWeeks > 0
+                        ? $" · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen"
+                        : " · Nachtarbeit geplant (Datum erfasst)");
 
                 // Fehlende-Nachweise-Suffix (Arztzeugnis-Scan und/oder Ausnahmeregelung).
                 string fehlendeNachweise =

@@ -2381,14 +2381,14 @@ function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso, hasArztDoc)
 }
 
 // Rote «fehlt»-Hinweise auf der Nachtarbeit-Karte (Walter 19.07.2026):
-//  • Arztzeugnis: sobald ein Datum hinterlegt ist ODER ArGV1 Art. 30 greift
-//    (>18 Nächte / 42 Tage) — Datum allein zählt NICHT ohne verknüpften Scan.
-//  • Ausnahmeregelung: nur bei Dokumentationspflicht (ArGV1).
+// Datum erfasst = Nachtarbeit geplant → Arztzeugnis UND Ausnahmeregelung prüfen.
+// Ohne verknüpfte Dokumente gilt der Nachweis NICHT (Datum allein reicht nie).
+// Zusätzlich bei ArGV1 Art. 30 (>18 Nächte / 42 Tage) auch ohne Datum.
 function _nwMissingDocsHtml(emp) {
     if (!emp) return '';
     const requires = !!emp.nightWorkRequiresDocuments;
     const hasDates = !!(emp.nightWorkExamValidUntil || emp.nightWorkExamIssued);
-    // Ohne Pflicht und ohne hinterlegtes Datum → keine Hinweise.
+    // Ohne geplante Nachtarbeit (kein Datum) und ohne ArGV1-Pflicht → keine Hinweise.
     if (!requires && !hasDates) return '';
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -2399,21 +2399,19 @@ function _nwMissingDocsHtml(emp) {
         || (hasArztDoc && !emp.nightWorkExamValidUntil);
     const hasAusnahme = !!emp.nightWorkAusnahmeDokumentId;
     const parts = [];
-    const tip = requires
-        ? `${emp.nightWorkMaxNightsInSixWeeks || '?'} Nächte in 6 Wochen — Nachweise Pflicht (ArGV1 Art. 30)`
-        : 'Datum hinterlegt — gilt erst mit verknüpftem Arztzeugnis';
+    const tip = hasDates
+        ? 'Nachtarbeit geplant (Datum erfasst) — gültig erst mit verknüpften Dokumenten'
+        : `${emp.nightWorkMaxNightsInSixWeeks || '?'} Nächte in 6 Wochen — Nachweise Pflicht (ArGV1 Art. 30)`;
 
-    // Arztzeugnis-Status immer prüfen, wenn Pflicht ODER Datum vorhanden.
     if (validUntil && validUntil < today) {
         parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Nachtbew. abgelaufen</span>`);
     } else if (!hasArztDoc) {
         parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Arztzeugnis fehlt</span>`);
-    } else if (requires && !examCurrent) {
+    } else if (!examCurrent) {
         parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Nacht Untersuch fehlt</span>`);
     }
 
-    // Ausnahmeregelung nur bei ArGV1-Dokumentationspflicht.
-    if (requires && !hasAusnahme) {
+    if (!hasAusnahme) {
         parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Ausn. Regel fehlt</span>`);
     }
     if (!parts.length) return '';
