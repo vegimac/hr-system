@@ -101,6 +101,7 @@ function helpContextLabel(ctx) {
         'benutzer': 'Benutzer',
         'admin-hub': 'Systemeinstellungen',
         'moments': 'Moments',
+        'moment-texte': 'Moments-Texte',
         'fibu': 'Buchhaltung (Fibu)',
         'ecall': 'SMS (eCall)',
     };
