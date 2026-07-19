@@ -1562,12 +1562,13 @@ function switchEmpTab(tab) {
         t.classList.toggle('active', t.dataset.tab === tab));
     document.querySelectorAll('.emp-tab-content').forEach(c =>
         c.classList.toggle('active', c.id === 'emp-tab-' + tab));
-    // Übersicht + Dokumente: Detail-Body ohne Scroll (Walter 17./19.07.2026) —
-    // Maske fix; bei Dokumenten scrollt nur die Liste (Titel bleibt).
-    // Andere Tabs brauchen Overflow (Stempelzeiten, Absenzen, …).
+    // Übersicht / Dokumente / Stempelzeiten: Detail-Body ohne Scroll
+    // (Walter 17./19.07.2026) — Maske fix; nur die jeweilige Liste scrollt.
+    // Andere Tabs behalten Overflow (Absenzen, …).
     document.querySelectorAll('#page-mitarbeiter .emp-detail-body').forEach(b => {
         b.classList.toggle('ov-noscroll', tab === 'uebersicht');
         b.classList.toggle('dok-noscroll', tab === 'dokumente');
+        b.classList.toggle('stempel-noscroll', tab === 'stempelzeiten');
     });
     // Header-Actions (Inline-Speichern) — Übersicht speichert über ov-savebtn
     // in den Karten; andere Tabs haben eigene Edit-Buttons.
@@ -8080,42 +8081,56 @@ async function loadStempelzeitenTab(employeeId) {
         <select id="stempelYearSel" class="f-input stempel-period-sel stempel-period-year" onchange="stempelChangePeriod()">${yearOpts}</select>
         <select id="stempelMonthSel" class="f-input stempel-period-sel stempel-period-month" onchange="stempelChangePeriod()">${monthOpts}</select>`;
 
-    // Walter 17.06.2026: nur die Zeiteinträge scrollen — Filter + Tabellen-Header
-    // bleiben oben kleben. Realisiert über sticky relativ zum .emp-detail-body
-    // (DAS ist der äussere Scroll-Container). KEIN innerer overflow → der
-    // äussere scrollt, und die zwei sticky-Bereiche bleiben gestaffelt oben.
-    // Walter 17.06.2026: padding:0 am Wrap damit die sticky-Filter-Row bündig
-    // an der Top-Kante des Scroll-Containers klebt — sonst scrollt der
-    // 16px-Padding-Bereich darüber durch (transparent → Daten schimmern durch).
-    // box-shadow nach OBEN als „weisser Schild" deckt etwaige restliche
-    // .emp-detail-body-padding ab.
-    // Look: Liquid Glass / Kohle (Walter 18.07.2026) — Klassen in app.css.
+    // Walter 19.07.2026 (final): Filter + Spaltenköpfe AUSSERHALB des Scrolls
+    // (kein sticky mehr) — sonst hüpfen sie am Listenanfang/-ende.
+    // Look: Liquid Glass / Kohle — Klassen in app.css.
     el.innerHTML = `
         <div class="stempel-tab-wrap">
-            <!-- 1. sticky-Block: Periode-Filter + Count (klebt ganz oben) -->
             <div id="stempelFilterRow" class="stempel-filter-row">
                 ${filterHtml}
                 <div id="stempelCount" class="stempel-count"></div>
             </div>
-            <!-- 2. Liste: Tabelle, <thead> wird drinnen sticky mit top = Höhe von Filter-Row. -->
-            <div id="stempelListe" class="stempel-liste">
-                <div class="stempel-loading">Lade…</div>
+            <div class="stempel-table-card">
+                <div id="stempelCols" class="stempel-cols"></div>
+                <div id="stempelListe" class="stempel-liste">
+                    <div class="stempel-loading">Lade…</div>
+                </div>
             </div>
         </div>`;
-    stempelUpdateFilterStickyOffset();
+    stempelBindScrollIsolation();
 
     await stempelLadeEintraege(employeeId);
 }
 
-/** Sticky-Offset: Tabellen-Header klebt unter der Filter-Row (emp-detail-body scrollt). */
-function stempelUpdateFilterStickyOffset() {
-    requestAnimationFrame(() => {
-        const filterEl = document.getElementById('stempelFilterRow');
-        if (!filterEl) return;
-        const h = Math.ceil(filterEl.getBoundingClientRect().height);
-        document.documentElement.style.setProperty('--stempel-filter-h', h + 'px');
-    });
+/** Wheel-Isolation am Listenrand — Filter/Titel springen nicht (Walter 19.07.2026). */
+function stempelBindScrollIsolation() {
+    const wrap = document.querySelector('#stempelzeitenContent .stempel-tab-wrap');
+    const sc = document.getElementById('stempelListe');
+    if (!wrap || !sc || sc.dataset.scrollLock === '1') return;
+    sc.dataset.scrollLock = '1';
+
+    wrap.addEventListener('wheel', (e) => {
+        e.stopPropagation();
+        const maxScroll = sc.scrollHeight - sc.clientHeight;
+        if (maxScroll <= 0) {
+            e.preventDefault();
+            return;
+        }
+        const atTop = sc.scrollTop <= 0;
+        const atBottom = sc.scrollTop >= maxScroll - 1;
+        if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
+            e.preventDefault();
+            return;
+        }
+        if (!sc.contains(e.target)) {
+            sc.scrollTop = Math.min(maxScroll, Math.max(0, sc.scrollTop + e.deltaY));
+            e.preventDefault();
+        }
+    }, { passive: false });
 }
+
+/** @deprecated Sticky-Offset entfällt — Spaltenköpfe liegen ausserhalb des Scrolls. */
+function stempelUpdateFilterStickyOffset() { /* no-op, Alt-Aufrufer */ }
 
 function stempelFmtDateShort(iso) {
     if (!iso) return '';
@@ -8508,35 +8523,47 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
         </td></tr>`
         : '';
 
-    // Sticky-Header: klebt UNTER der Filter-Row (--stempel-filter-h).
-    // Look + sticky-Schatten in app.css (.stempel-table th).
+    // Spaltenköpfe FIX ausserhalb Scroll; nur Zeilen + Summe scrollen.
+    const headHtml = `
+        <table class="stempel-table stempel-table-head">
+            <colgroup>
+                <col class="stempel-col-date"><col class="stempel-col-time"><col class="stempel-col-time">
+                <col class="stempel-col-num"><col class="stempel-col-num"><col class="stempel-col-num">
+                <col class="stempel-col-comment">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th class="stempel-th stempel-th-left">Datum</th>
+                    <th class="stempel-th stempel-th-left">In</th>
+                    <th class="stempel-th stempel-th-left">Out</th>
+                    <th class="stempel-th stempel-th-right">Tag</th>
+                    <th class="stempel-th stempel-th-right">Nacht</th>
+                    <th class="stempel-th stempel-th-right">Total</th>
+                    <th class="stempel-th stempel-th-left">Kommentar / Woche</th>
+                </tr>
+            </thead>
+        </table>`;
+    const colsEl = document.getElementById('stempelCols');
+    if (colsEl) colsEl.innerHTML = headHtml;
+
     listEl.innerHTML = `
-        <div class="stempel-table-card">
-            <table class="stempel-table">
-                <thead>
-                    <tr>
-                        <th class="stempel-th stempel-th-left">Datum</th>
-                        <th class="stempel-th stempel-th-left">In</th>
-                        <th class="stempel-th stempel-th-left">Out</th>
-                        <th class="stempel-th stempel-th-right">Tag</th>
-                        <th class="stempel-th stempel-th-right">Nacht</th>
-                        <th class="stempel-th stempel-th-right">Total</th>
-                        <th class="stempel-th stempel-th-left">Kommentar / Woche</th>
-                    </tr>
-                </thead>
-                <tbody>${trs}${empty}</tbody>
-                ${sorted.length > 0 ? `<tfoot>
-                    <tr class="stempel-foot-row">
-                        <td colspan="3" class="stempel-ft stempel-ft-label">Summe</td>
-                        <td class="stempel-ft stempel-ft-num">${stempelFmtHours(sumH)}</td>
-                        <td class="stempel-ft stempel-ft-num">${stempelFmtHours(sumN)}</td>
-                        <td class="stempel-ft stempel-ft-num stempel-ft-total">${stempelFmtHours((sumH||0) + (sumN||0))}</td>
-                        <td class="stempel-ft"></td>
-                    </tr>
-                </tfoot>` : ''}
-            </table>
-        </div>`;
-    stempelUpdateFilterStickyOffset();
+        <table class="stempel-table stempel-table-body">
+            <colgroup>
+                <col class="stempel-col-date"><col class="stempel-col-time"><col class="stempel-col-time">
+                <col class="stempel-col-num"><col class="stempel-col-num"><col class="stempel-col-num">
+                <col class="stempel-col-comment">
+            </colgroup>
+            <tbody>${trs}${empty}</tbody>
+            ${sorted.length > 0 ? `<tfoot>
+                <tr class="stempel-foot-row">
+                    <td colspan="3" class="stempel-ft stempel-ft-label">Summe</td>
+                    <td class="stempel-ft stempel-ft-num">${stempelFmtHours(sumH)}</td>
+                    <td class="stempel-ft stempel-ft-num">${stempelFmtHours(sumN)}</td>
+                    <td class="stempel-ft stempel-ft-num stempel-ft-total">${stempelFmtHours((sumH||0) + (sumN||0))}</td>
+                    <td class="stempel-ft"></td>
+                </tr>
+            </tfoot>` : ''}
+        </table>`;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
