@@ -1230,38 +1230,50 @@ function loadUebersichtTab() {
     const _g = (emp.gender || '').toLowerCase();
     const gKurz2 = _g.startsWith('m') ? 'M' : (_g.startsWith('f') || _g === 'w' || _g === 'weiblich') ? 'W' : (emp.gender ? 'D' : null);
     const istCH = (emp.nationalityCode || '').toUpperCase() === 'CH';
-    // Personalien & Adresse (Walter 19.07.2026, Mockup final):
-    // Z1 Adresse: PLZ · Ort · Kt. · Strasse
-    // Z2∥Z3 gemeinsames 5-Spalten-Raster:
-    //   Ledigname | Briefanrede | Kurzname+Sex | Telefon 2 | AHV
-    //   Zivilstand | seit        | Konfession   | Nationalität | ZEMIS
+    // Personalien & Adresse (Walter 19.07.2026):
+    // Ein gemeinsames 5-Spalten-Raster über Z1–Z3:
+    //   Strasse | PLZ | Ort+Kt. | Telefon 2 | —
+    //   Ledigname | Briefanrede | Kurzname | Sex | AHV
+    //   Zivilstand | seit | Konfession | Nationalität | ZEMIS
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-pers-body">
-        <div class="ov-frow ov-frow-addr">
-            <div class="ov-pf-slot ov-pf-plz">${_pf('PLZ', esc(emp.zipCode))}</div>
-            <div class="ov-pf ov-pf-city" title="${esc(emp.city || '')}"><div class="ov-pfl">${_t('ma.field.city','Ort')}</div><div class="ov-pfv">${esc(emp.city) || '<span class="ov-empty">–</span>'}</div></div>
-            <div class="ov-pf-slot ov-pf-kt">${_pf('Kt.', esc(emp.cantonCode))}</div>
-            <div class="ov-pf ov-pf-street" title="${esc(emp.street || '')}"><div class="ov-pfl">${_t('ma.field.street','Strasse')}</div><div class="ov-pfv">${esc(emp.street) || '<span class="ov-empty">–</span>'}</div></div>
-        </div>
         <div class="ov-pers-aligned">
-            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maidenName','Ledigname')}</div>
-            <input id="ov-maidenName" class="ov-softin" type="text" value="${esc(emp.maidenName)}" oninput="ovDirty()"></div>
-            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.letterSalutation','Briefanrede')}</div>
-            <input id="ov-letterSalutation" class="ov-softin" type="text" value="${esc(emp.letterSalutation)}" oninput="ovDirty()"></div>
-            <div class="ov-pf ov-pf-kurzsex">
-                <div class="ov-kurzsex">
-                    <div class="ov-pf" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">
-                        <div class="ov-pfl">${_t('ma.field.shortName','Kurzname')}</div>
-                        <div class="ov-pfv">${esc(emp.shortName) || '<span class="ov-empty">–</span>'}</div>
+            <div class="ov-pf ov-pf-street" title="${esc(emp.street || '')}">
+                <div class="ov-pfl">${_t('ma.field.street','Strasse')}</div>
+                <div class="ov-pfv">${esc(emp.street) || '<span class="ov-empty">–</span>'}</div>
+            </div>
+            <div class="ov-pf ov-pf-plz">
+                <div class="ov-pfl">PLZ</div>
+                <div class="ov-pfv">${esc(emp.zipCode) || '<span class="ov-empty">–</span>'}</div>
+            </div>
+            <div class="ov-pf ov-pf-ortkt">
+                <div class="ov-ortkt">
+                    <div class="ov-pf ov-pf-city" title="${esc(emp.city || '')}">
+                        <div class="ov-pfl">${_t('ma.field.city','Ort')}</div>
+                        <div class="ov-pfv">${esc(emp.city) || '<span class="ov-empty">–</span>'}</div>
                     </div>
-                    <div class="ov-pf ov-pf-sex">
-                        <div class="ov-pfl">Sex</div>
-                        <div class="ov-pfv">${gKurz2 || '<span class="ov-empty">–</span>'}</div>
+                    <div class="ov-pf ov-pf-kt">
+                        <div class="ov-pfl">Kt.</div>
+                        <div class="ov-pfv">${esc(emp.cantonCode) || '<span class="ov-empty">–</span>'}</div>
                     </div>
                 </div>
             </div>
             <div class="ov-pf ov-pf-tel2"><div class="ov-pfl">Telefon 2</div>
             <input id="ov-phone2" class="ov-softin" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div>
+            <div class="ov-pf ov-pf-z1-empty" aria-hidden="true"></div>
+
+            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maidenName','Ledigname')}</div>
+            <input id="ov-maidenName" class="ov-softin" type="text" value="${esc(emp.maidenName)}" oninput="ovDirty()"></div>
+            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.letterSalutation','Briefanrede')}</div>
+            <input id="ov-letterSalutation" class="ov-softin" type="text" value="${esc(emp.letterSalutation)}" oninput="ovDirty()"></div>
+            <div class="ov-pf" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">
+                <div class="ov-pfl">${_t('ma.field.shortName','Kurzname')}</div>
+                <div class="ov-pfv">${esc(emp.shortName) || '<span class="ov-empty">–</span>'}</div>
+            </div>
+            <div class="ov-pf ov-pf-sex">
+                <div class="ov-pfl">Sex</div>
+                <div class="ov-pfv">${gKurz2 || '<span class="ov-empty">–</span>'}</div>
+            </div>
             <div class="ov-pf ov-pf-ahv">
                 <div class="ov-pfl">AHV-Nr.</div>
                 <div class="ov-pfv">${esc(emp.ahvNumber ?? emp.socialSecurityNumber) || '<span class="ov-empty">–</span>'}</div>
