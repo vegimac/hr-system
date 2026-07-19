@@ -1324,17 +1324,17 @@ function loadUebersichtTab() {
                             </div>
                         </div>
                         <div class="nw-row nw-row-dates" id="nwViewText_${emp.id}">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</div>
-                    </div>
-                    <div class="nw-row nw-row-warn">${_nwMissingDocsHtml(emp) || '<span class="nw-warn-empty"></span>'}</div>
-                    <div class="nw-row nw-row-actions">
-                        <button class="nw-act-btn" onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken">🖨 Arztformular</button>
-                        <button class="nw-act-btn" onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken">🖨 Ausnahmeregelung</button>
-                        ${emp.nightWorkExamDokumentId
-                            ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen">👁 Arztzeugnis</button>`
-                            : `<span class="nw-act-slot" aria-hidden="true"></span>`}
-                        ${emp.nightWorkAusnahmeDokumentId
-                            ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen">👁 Ausnahmeregelung</button>`
-                            : `<span class="nw-act-slot" aria-hidden="true"></span>`}
+                        <div class="nw-row nw-row-warn">${_nwMissingDocsHtml(emp) || '<span class="nw-warn-empty"></span>'}</div>
+                        <div class="nw-row nw-row-actions">
+                            <button class="nw-act-btn" onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken">🖨 Arztformular</button>
+                            <button class="nw-act-btn" onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken">🖨 Ausnahmeregelung</button>
+                            ${emp.nightWorkExamDokumentId
+                                ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen">👁 Arztzeugnis</button>`
+                                : `<span class="nw-act-slot" aria-hidden="true"></span>`}
+                            ${emp.nightWorkAusnahmeDokumentId
+                                ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen">👁 Ausnahmeregelung</button>`
+                                : `<span class="nw-act-slot" aria-hidden="true"></span>`}
+                        </div>
                     </div>
                 </div>
                 <div id="nwEdit_${emp.id}" class="nw-edit" style="display:none">
