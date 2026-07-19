@@ -1562,10 +1562,13 @@ function switchEmpTab(tab) {
         t.classList.toggle('active', t.dataset.tab === tab));
     document.querySelectorAll('.emp-tab-content').forEach(c =>
         c.classList.toggle('active', c.id === 'emp-tab-' + tab));
-    // Übersicht: Detail-Body ohne Scroll (Walter 17.07.2026) — Maske fix.
-    // Andere Tabs brauchen Overflow (Stempelzeiten, Dokumente, Absenzen).
-    document.querySelectorAll('#page-mitarbeiter .emp-detail-body').forEach(b =>
-        b.classList.toggle('ov-noscroll', tab === 'uebersicht'));
+    // Übersicht + Dokumente: Detail-Body ohne Scroll (Walter 17./19.07.2026) —
+    // Maske fix; bei Dokumenten scrollt nur die Liste (Titel bleibt).
+    // Andere Tabs brauchen Overflow (Stempelzeiten, Absenzen, …).
+    document.querySelectorAll('#page-mitarbeiter .emp-detail-body').forEach(b => {
+        b.classList.toggle('ov-noscroll', tab === 'uebersicht');
+        b.classList.toggle('dok-noscroll', tab === 'dokumente');
+    });
     // Header-Actions (Inline-Speichern) — Übersicht speichert über ov-savebtn
     // in den Karten; andere Tabs haben eigene Edit-Buttons.
     const headerActions = document.getElementById('empHeaderActions');

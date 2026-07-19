@@ -259,7 +259,7 @@ function renderDokumenteUi() {
                     </button>
                 </div>
             </div>
-            ${listHtml}
+            <div class="dok-list-scroll">${listHtml}</div>
         </div>
     </div>`;
 }
