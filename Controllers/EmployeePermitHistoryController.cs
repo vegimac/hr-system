@@ -33,9 +33,15 @@ public class EmployeePermitHistoryController : ControllerBase
 {
     private readonly AppDbContext        _db;
     private readonly LohnEditLockService _editLock;
-    public EmployeePermitHistoryController(AppDbContext db, LohnEditLockService editLock)
+    private readonly EcallSmsService     _sms;
+
+    // Fallback wenn keine Moments-Vorlage BEWILLIGUNG_ABGELAUFEN gepflegt ist.
+    private const string DefaultPermitExpiredSms =
+        "Hallo {Vorname}, deine Bewilligung ({PermitCode}) ist am {GueltigBis} abgelaufen. Kannst du bitte die neue Bewilligung so bald wie möglich bei HR nachreichen? Danke!";
+
+    public EmployeePermitHistoryController(AppDbContext db, LohnEditLockService editLock, EcallSmsService sms)
     {
-        _db = db; _editLock = editLock;
+        _db = db; _editLock = editLock; _sms = sms;
     }
 
     private Task<int?> GetEmployeeBranchAsync(int employeeId)
@@ -405,6 +411,117 @@ public class EmployeePermitHistoryController : ControllerBase
                 return o;
         }
         return null;
+    }
+
+    // ── SMS-Erinnerung bei abgelaufener Bewilligung (Walter 19.07.2026) ──
+    // Direktversand über eCall, analog Vertrags-SMS. Text aus Moments-Vorlage
+    // BEWILLIGUNG_ABGELAUFEN (SmsText) mit Platzhaltern {Vorname}/{PermitCode}/
+    // {GueltigBis}. Kein Lohn-Edit — EditLock greift hier nicht.
+    [HttpGet("{id:int}/sms-preview")]
+    [Authorize(Roles = "admin,superuser,user,buchhaltung")]
+    public async Task<IActionResult> SmsPreview(int employeeId, int id)
+    {
+        var built = await BuildPermitExpiredSmsAsync(employeeId, id);
+        if (built.Error != null) return built.Error;
+
+        var lastSms = await _db.SmsLogs.AsNoTracking()
+            .Where(l => l.EmployeeId == employeeId && l.Purpose == "BEWILLIGUNG" && l.Ok)
+            .OrderByDescending(l => l.CreatedAt)
+            .Select(l => (DateTime?)l.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        return Ok(new
+        {
+            ok = true,
+            phone = built.Phone,
+            smsText = built.SmsText,
+            permitCode = built.PermitCode,
+            validTo = built.ValidTo?.ToString("yyyy-MM-dd"),
+            lastSmsSentAt = lastSms,
+        });
+    }
+
+    [HttpPost("{id:int}/send-sms")]
+    [Authorize(Roles = "admin,superuser,user,buchhaltung")]
+    public async Task<IActionResult> SendSms(int employeeId, int id)
+    {
+        var built = await BuildPermitExpiredSmsAsync(employeeId, id);
+        if (built.Error != null) return built.Error;
+
+        var res = await _sms.SendSmsAsync(built.Phone!, built.SmsText!, purpose: "BEWILLIGUNG", employeeId: employeeId);
+        if (!res.Ok)
+            return StatusCode(502, new { error = $"SMS-Versand fehlgeschlagen: {res.Error}" });
+
+        var redirect = await _db.EcallSettings.AsNoTracking()
+            .Where(r => r.Id == 1).Select(r => r.TestRedirectTo).FirstOrDefaultAsync();
+
+        return Ok(new
+        {
+            ok = true,
+            to = built.Phone,
+            redirectedTo = string.IsNullOrWhiteSpace(redirect) ? null : redirect!.Trim(),
+            messageId = res.MessageId,
+        });
+    }
+
+    private sealed class PermitSmsBuild
+    {
+        public IActionResult? Error { get; init; }
+        public string? Phone { get; init; }
+        public string? SmsText { get; init; }
+        public string? PermitCode { get; init; }
+        public DateOnly? ValidTo { get; init; }
+    }
+
+    private async Task<PermitSmsBuild> BuildPermitExpiredSmsAsync(int employeeId, int id)
+    {
+        var emp = await _db.Employees.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == employeeId);
+        if (emp == null)
+            return new PermitSmsBuild { Error = NotFound(new { error = "Mitarbeiter nicht gefunden." }) };
+
+        var entry = await _db.EmployeePermitHistories.AsNoTracking()
+            .Include(h => h.PermitType)
+            .FirstOrDefaultAsync(h => h.Id == id && h.EmployeeId == employeeId);
+        if (entry == null)
+            return new PermitSmsBuild { Error = NotFound(new { error = "Bewilligungs-Eintrag nicht gefunden." }) };
+
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        if (entry.ValidTo == null || entry.ValidTo >= today)
+            return new PermitSmsBuild { Error = Conflict(new { error = "BEWILLIGUNG_NICHT_ABGELAUFEN", message = "SMS nur bei abgelaufener Bewilligung möglich." }) };
+
+        var phone = (emp.PhoneMobile ?? "").Trim();
+        if (phone.Length == 0)
+            return new PermitSmsBuild { Error = BadRequest(new { error = "Für diesen Mitarbeitenden ist keine Handynummer hinterlegt." }) };
+
+        var vorname = (emp.FirstName ?? "").Trim();
+        var code = (entry.PermitType?.Code ?? "").Trim();
+        if (code.Length == 0) code = "Bewilligung";
+        var gueltigBis = entry.ValidTo!.Value.ToString("dd.MM.yyyy");
+
+        string template;
+        var tpl = await _db.MomentTexts
+            .Include(t => t.MomentType)
+            .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "BEWILLIGUNG_ABGELAUFEN")
+            .OrderBy(t => t.SortOrder).ThenBy(t => t.Id)
+            .FirstOrDefaultAsync();
+        if (tpl != null && !string.IsNullOrWhiteSpace(tpl.SmsText))
+            template = tpl.SmsText;
+        else
+            template = DefaultPermitExpiredSms;
+
+        var smsText = template
+            .Replace("{Vorname}", vorname)
+            .Replace("{PermitCode}", code)
+            .Replace("{GueltigBis}", gueltigBis);
+
+        return new PermitSmsBuild
+        {
+            Phone = phone,
+            SmsText = smsText,
+            PermitCode = code,
+            ValidTo = entry.ValidTo,
+        };
     }
 
     [HttpDelete("{id:int}")]

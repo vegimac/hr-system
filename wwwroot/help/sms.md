@@ -1,6 +1,6 @@
 # SMS-Versand & Vertrags-Link
 
-OneCrew verschickt SMS über den Schweizer Anbieter **eCall (F24)** — für Moments, Postfach-Hinweise und den **Arbeitsvertrag-Link**. Diese Seite erklärt beides: den Versand und den sicheren Vertrags-Link.
+OneCrew verschickt SMS über den Schweizer Anbieter **eCall (F24)** — für Moments, Postfach-Hinweise, den **Arbeitsvertrag-Link** und die **Bewilligungs-Erinnerung**. Diese Seite erklärt den Versand und den sicheren Vertrags-Link.
 
 ## Arbeitsvertrag per SMS senden
 
@@ -27,9 +27,23 @@ Auf der Seite steht fest: *„Dieser Vertrag dient zur Vorbereitung. Die Unterze
 
 Der SMS-Text und der Text auf der Link-Seite kommen aus der Moments-Vorlage **VERTRAG_LINK** (Moments → Texte verwalten). Platzhalter: `{Vorname}`, `{Firma}`, `{Link}`, `{GueltigBis}`, `{Briefanrede}`, `{SenderName}`.
 
+## Bewilligung abgelaufen — Erinnerung per SMS
+
+Im Tab **Bewilligung QST Bank** zeigt jede **abgelaufene** Bewilligung einen **SMS**-Button (gleicher Look wie bei den Verträgen).
+
+Klick auf **SMS**:
+
+1. Rückfrage mit Handynummer und dem fertigen SMS-Text.
+2. Bei OK geht die Erinnerung über eCall an die Mobilnummer des MA.
+3. Ohne Handynummer ist der Button grau/gesperrt — Nummer zuerst im Personal-Tab erfassen.
+
+Standardtext (anpassbar): *«Hallo {Vorname}, deine Bewilligung ({PermitCode}) ist am {GueltigBis} abgelaufen. Kannst du bitte die neue Bewilligung so bald wie möglich bei HR nachreichen? Danke!»*
+
+Vorlage **BEWILLIGUNG_ABGELAUFEN** unter Moments → Texte verwalten. Platzhalter: `{Vorname}`, `{PermitCode}`, `{GueltigBis}`.
+
 ## Test-Umleitung — gefahrlos testen
 
-Solange in **Systemeinstellungen → SMS (eCall)** im Feld **„Test-Umleitung"** eine Nummer steht, gehen **alle** SMS (Moments, Vertrag, Postfach-Hinweis) an diese Nummer statt an die MA — im Text steht `[TEST → Originalnummer]`. Die Erfolgsmeldung im Programm weist mit ⚠ darauf hin.
+Solange in **Systemeinstellungen → SMS (eCall)** im Feld **„Test-Umleitung"** eine Nummer steht, gehen **alle** SMS (Moments, Vertrag, Bewilligung, Postfach-Hinweis) an diese Nummer statt an die MA — im Text steht `[TEST → Originalnummer]`. Die Erfolgsmeldung im Programm weist mit ⚠ darauf hin.
 
 Für den **Echtbetrieb**: Feld leeren und speichern.
 

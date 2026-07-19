@@ -10802,6 +10802,17 @@ function renderPermitListHtml(entries) {
                    style="flex-shrink:0;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:4px 10px;border-radius:6px;font-size:11.5px;cursor:pointer">
                    🔗 Doku verknüpfen
                </button>`;
+        // Walter 19.07.2026: bei abgelaufener Bewilligung SMS-Erinnerung an den MA
+        // (eCall, analog Vertrags-SMS). Ohne Handynummer grau/disabled.
+        const phone = (selectedEmployee?.phoneMobile || '').trim();
+        const smsBtn = isExpired
+            ? (phone
+                ? `<button type="button" class="emp-contract-btn" style="flex-shrink:0"
+                       title="Erinnerung per SMS: Bewilligung abgelaufen — bitte neue nachreichen"
+                       onclick="permitExpiredSendSms(selectedEmployeeId, ${h.id})">SMS</button>`
+                : `<button type="button" class="emp-contract-btn" style="flex-shrink:0;opacity:.45;cursor:not-allowed"
+                       title="Keine Handynummer hinterlegt — bitte im Personal-Tab erfassen" disabled>SMS</button>`)
+            : '';
         return `
         <div style="${rowStyle}">
             <div style="flex:1;min-width:0">
@@ -10812,6 +10823,7 @@ function renderPermitListHtml(entries) {
                 ${noteTxt}
             </div>
             ${dokBtn}
+            ${smsBtn}
             ${isAdmin ? `
             <div class="dok-menu-wrap" style="flex-shrink:0">
                 <button class="dok-menu-btn" onclick="permitToggleMenu(event, ${h.id})" title="Aktionen">⋮</button>
@@ -10841,7 +10853,69 @@ function renderPermitListHtml(entries) {
         ${list.length > 3 ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:4px">${list.length} Bewilligungen · ↕ scrollbar</div>` : ''}
         <div style="${scrollWrap}">
             ${rowsHtml}
-        </div>`;
+        </div>
+        <div class="permitSmsBox" style="margin-top:8px"></div>`;
+}
+
+// HR: Erinnerungs-SMS bei abgelaufener Bewilligung (Walter 19.07.2026).
+// Text aus Moments-Vorlage BEWILLIGUNG_ABGELAUFEN; Versand über eCall.
+async function permitExpiredSendSms(employeeId, historyId) {
+    if (!employeeId || !historyId) return;
+    const box = document.querySelector('.emp-tab-content.active .permitSmsBox')
+        || document.querySelector('.permitSmsBox');
+
+    let preview = null;
+    try {
+        const pr = await fetch(`/api/employees/${employeeId}/permit-history/${historyId}/sms-preview`, { headers: ah() });
+        preview = await pr.json().catch(() => ({}));
+        if (!pr.ok) {
+            alert(preview.message || preview.error || ('Vorschau fehlgeschlagen (HTTP ' + pr.status + ')'));
+            return;
+        }
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+        return;
+    }
+
+    const nr = (preview.phone || '').trim();
+    if (!nr) {
+        alert('Für diesen Mitarbeitenden ist keine Handynummer hinterlegt.\n\nBitte zuerst im Personal-Tab die Telefonnummer erfassen.');
+        return;
+    }
+
+    let hint = '';
+    if (preview.lastSmsSentAt) {
+        const d = new Date(preview.lastSmsSentAt);
+        hint += `\n\nBereits gesendet am ${d.toLocaleDateString('de-CH')} ${d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}.`;
+    }
+    const textPreview = (preview.smsText || '').trim();
+    const confirmMsg = `Bewilligungs-Erinnerung per SMS an ${nr} wirklich senden?${hint}`
+        + (textPreview ? `\n\nText:\n${textPreview}` : '');
+    if (!(await liquidConfirm(confirmMsg))) return;
+
+    if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0">📲 SMS wird gesendet …</div>';
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/permit-history/${historyId}/send-sms`, {
+            method: 'POST',
+            headers: ah(),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok) {
+            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">✗ ${esc(j.error || j.message || ('Fehler HTTP ' + res.status))}</div>`;
+            return;
+        }
+        const redirectNote = j.redirectedTo
+            ? `<div style="margin-top:6px;color:#6b5a1f">⚠ Test-Umleitung aktiv — die SMS ging an ${esc(j.redirectedTo)}.</div>`
+            : '';
+        if (box) box.innerHTML = `
+            <div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55">
+                ✓ Bewilligungs-SMS gesendet an ${esc(j.to || nr)}.
+                ${redirectNote}
+            </div>`;
+        box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) {
+        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${esc(e.message)}</div>`;
+    }
 }
 
 function renderPermitHistory(entries) {

@@ -857,7 +857,8 @@ using (var scope = app.Services.CreateScope())
           ('WelcomeBackVacation','Willkommen zurück','Rückkehr aus den Ferien','care',5,true),
           ('CareHeatNotice','Fürsorge-Hinweis','Kurzer Hinweis bei Hitze oder ähnlicher Belastung','care',6,true),
           ('WelcomeBackNeutral','Schön, dass du wieder da bist','Neutrale Willkommensnachricht ohne Angabe des Grundes','care',7,true),
-          ('VERTRAG_LINK','Arbeitsvertrag-Link','SMS-Vorlage für den öffentlichen Vertrags-Link. Platzhalter (in geschweiften Klammern): Vorname, Firma, Link, GueltigBis','appreciation',8,true)
+          ('VERTRAG_LINK','Arbeitsvertrag-Link','SMS-Vorlage für den öffentlichen Vertrags-Link. Platzhalter (in geschweiften Klammern): Vorname, Firma, Link, GueltigBis','appreciation',8,true),
+          ('BEWILLIGUNG_ABGELAUFEN','Bewilligung abgelaufen','SMS-Erinnerung bei abgelaufener Aufenthaltsbewilligung. Platzhalter (in geschweiften Klammern): Vorname, PermitCode, GueltigBis','appreciation',9,true)
         ON CONFLICT (code) DO UPDATE SET
           name = EXCLUDED.name, description = EXCLUDED.description,
           consent_category = EXCLUDED.consent_category, sort_order = EXCLUDED.sort_order, is_active = EXCLUDED.is_active;
@@ -940,6 +941,25 @@ using (var scope = app.Services.CreateScope())
                     Titel = "Arbeitsvertrag-Link",
                     SmsText = "Hallo {Vorname}, hier ist dein Arbeitsvertrag bei {Firma}: {Link}",
                     BodyText = "Vorlage für den SMS-Text des öffentlichen Vertrags-Links. Platzhalter: {Vorname}, {Firma}, {Link}, {GueltigBis}.",
+                    LanguageCode = "de", Version = "1.0", RequiresReview = false,
+                    IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
+            }
+        }
+
+        // BEWILLIGUNG_ABGELAUFEN (Walter 19.07.2026): SMS-Erinnerung bei abgelaufener
+        // Aufenthaltsbewilligung. SmsText wird von EmployeePermitHistoryController ersetzt
+        // ({Vorname}/{PermitCode}/{GueltigBis}). Nur einfügen wenn noch kein Text existiert.
+        if (_mtTypeIds.TryGetValue("BEWILLIGUNG_ABGELAUFEN", out var _baTypeId))
+        {
+            var _baToneId = _mtToneIds.TryGetValue("Calm", out var _bc) ? _bc
+                          : db.MomentTones.OrderBy(t => t.SortOrder).ThenBy(t => t.Id).Select(t => t.Id).FirstOrDefault();
+            if (_baToneId != 0 && !db.MomentTexts.Any(x => x.MomentTypeId == _baTypeId))
+            {
+                db.MomentTexts.Add(new MomentText {
+                    MomentTypeId = _baTypeId, MomentToneId = _baToneId,
+                    Titel = "Bewilligung abgelaufen",
+                    SmsText = "Hallo {Vorname}, deine Bewilligung ({PermitCode}) ist am {GueltigBis} abgelaufen. Kannst du bitte die neue Bewilligung so bald wie möglich bei HR nachreichen? Danke!",
+                    BodyText = "SMS-Vorlage bei abgelaufener Bewilligung. Platzhalter: {Vorname}, {PermitCode}, {GueltigBis}.",
                     LanguageCode = "de", Version = "1.0", RequiresReview = false,
                     IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
             }

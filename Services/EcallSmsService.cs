@@ -43,8 +43,8 @@ public class EcallSmsService
     /// <summary>
     /// SMS senden. <paramref name="purpose"/> + <paramref name="employeeId"/>
     /// sind reine Protokoll-Metadaten (sms_log): VERTRAG / MOMENT / POSTFACH /
-    /// TEST. JEDER Versandversuch wird geloggt (best-effort) — auch
-    /// Fehlschläge; die Test-Umleitung landet in redirected_to.
+    /// BEWILLIGUNG / TEST. JEDER Versandversuch wird geloggt (best-effort) —
+    /// auch Fehlschläge; die Test-Umleitung landet in redirected_to.
     /// </summary>
     public async Task<EcallSendResult> SendSmsAsync(string toPhone, string text,
         string? purpose = null, int? employeeId = null, CancellationToken ct = default)

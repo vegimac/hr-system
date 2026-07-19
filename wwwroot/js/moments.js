@@ -724,13 +724,21 @@ function momTextNew() {
     momTextTypeChanged();
 }
 
-// Platzhalter-Hinweis für den Typ „Arbeitsvertrag-Link" (Code VERTRAG_LINK) ein-/ausblenden.
+// Platzhalter-Hinweis für SMS-Vorlagen (VERTRAG_LINK / BEWILLIGUNG_ABGELAUFEN).
 function momTextTypeChanged() {
     const hint = document.getElementById('momTextVertragHint');
     if (!hint) return;
     const typeId = parseInt(document.getElementById('momTextType')?.value, 10);
     const t = _momTypesAll.find(x => x.id === typeId);
-    hint.style.display = (t && t.code === 'VERTRAG_LINK') ? 'block' : 'none';
+    if (t && t.code === 'VERTRAG_LINK') {
+        hint.style.display = 'block';
+        hint.innerHTML = 'Arbeitsvertrag-Link: verfügbare Platzhalter im SMS-Text: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Link}</b> · <b>{GueltigBis}</b>';
+    } else if (t && t.code === 'BEWILLIGUNG_ABGELAUFEN') {
+        hint.style.display = 'block';
+        hint.innerHTML = 'Bewilligung abgelaufen: verfügbare Platzhalter im SMS-Text: <b>{Vorname}</b> · <b>{PermitCode}</b> · <b>{GueltigBis}</b>';
+    } else {
+        hint.style.display = 'none';
+    }
 }
 
 function momTextEdit(id) {
