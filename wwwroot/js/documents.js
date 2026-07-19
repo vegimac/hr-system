@@ -140,7 +140,9 @@ function renderDokumenteUi() {
     // ── Liste / Tabelle (gefiltert) ──────────────────────────────────
     let filtered = docs;
     let header   = (window._t ? _t('docs.allDocs','Alle Dokumente') : 'Alle Dokumente');
-    let listHtml = '';
+    // Spaltenköpfe ausserhalb des Scrolls (listHeadHtml), Zeilen darin (listBodyHtml).
+    let listHeadHtml = '';
+    let listBodyHtml = '';
 
     if (_dokState.selectedPostfach) {
         // Persönliches Postfach — Dokumente mit TargetType="EMPLOYEE" und
@@ -150,7 +152,7 @@ function renderDokumenteUi() {
         filtered = [];
         const pfDocs = _dokState.postfachDocs || [];
         if (pfDocs.length === 0) {
-            listHtml = `
+            listBodyHtml = `
                 <div style="padding:32px 28px;text-align:center;color:#64748b;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px;margin:8px 0">
                     <div style="font-size:32px;margin-bottom:8px">📭</div>
                     <div style="font-weight:600;color:#0f172a;font-size:14px;margin-bottom:6px">Postfach noch leer</div>
@@ -167,34 +169,38 @@ function renderDokumenteUi() {
                 if (b < 1024*1024) return (b/1024).toFixed(0) + ' KB';
                 return (b/1024/1024).toFixed(1) + ' MB';
             };
-            listHtml = `
-                <table style="width:100%;border-collapse:collapse;font-size:13px">
+            listHeadHtml = `
+                <table class="dok-table dok-table-head" style="width:100%">
                     <thead>
-                        <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em">
-                            <th style="padding:8px 12px;text-align:left;font-weight:600">Dokument</th>
-                            <th style="padding:8px 12px;text-align:left;font-weight:600">Bemerkung</th>
-                            <th style="padding:8px 12px;text-align:left;font-weight:600">Hochgeladen</th>
-                            <th style="padding:8px 12px;text-align:right;font-weight:600">Grösse</th>
-                            <th style="padding:8px 12px"></th>
+                        <tr>
+                            <th>Dokument</th>
+                            <th>Bemerkung</th>
+                            <th>Hochgeladen</th>
+                            <th style="text-align:right">Grösse</th>
+                            <th></th>
                         </tr>
                     </thead>
+                </table>`;
+            listBodyHtml = `
+                <table class="dok-table dok-table-body" style="width:100%">
                     <tbody>
                         ${pfDocs.map(d => `
-                            <tr style="border-bottom:1px solid #f1f5f9">
-                                <td style="padding:10px 12px;color:#0f172a">
+                            <tr>
+                                <td>
                                     <span style="margin-right:6px">📄</span>
                                     <a href="javascript:void(0)" onclick="postfachDocPreview(${d.id})" style="color:#6b7280;text-decoration:none;font-weight:500">${esc(d.originalFilename || '–')}</a>
                                 </td>
-                                <td style="padding:10px 12px;color:#475569">${esc(d.bemerkung || '')}</td>
-                                <td style="padding:10px 12px;color:#64748b;font-size:12px">${fmtDt(d.uploadedAt)}</td>
-                                <td style="padding:10px 12px;text-align:right;color:#64748b;font-variant-numeric:tabular-nums;font-size:12px">${fmtSize(d.fileSizeBytes)}</td>
-                                <td style="padding:10px 12px;text-align:right">
+                                <td style="color:#475569">${esc(d.bemerkung || '')}</td>
+                                <td style="color:#64748b;font-size:12px">${fmtDt(d.uploadedAt)}</td>
+                                <td style="text-align:right;color:#64748b;font-variant-numeric:tabular-nums;font-size:12px">${fmtSize(d.fileSizeBytes)}</td>
+                                <td style="text-align:right">
                                     <a href="/api/mailbox/${d.id}/download" target="_blank" style="font-size:12.5px;color:#475569;text-decoration:none">⬇ Download</a>
                                 </td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>`;
+            filtered = pfDocs;
         }
     } else {
         if (selectedTypId !== null)             filtered = filtered.filter(d => d.dokumentTypId === selectedTypId);
@@ -217,9 +223,14 @@ function renderDokumenteUi() {
             header = findKategorie(selectedKategorieId)?.name || header;
         }
 
-        listHtml = filtered.length === 0
-            ? `<div class="dok-list-empty">Keine Dokumente${selectedTypId ? ' in diesem Typ' : selectedKategorieId ? ' in dieser Kategorie' : ''}.</div>`
-            : renderDokTable(filtered, /* showCategoryColumns */ selectedTypId === null);
+        if (filtered.length === 0) {
+            listHeadHtml = '';
+            listBodyHtml = `<div class="dok-list-empty">Keine Dokumente${selectedTypId ? ' in diesem Typ' : selectedKategorieId ? ' in dieser Kategorie' : ''}.</div>`;
+        } else {
+            const tbl = renderDokTable(filtered, /* showCategoryColumns */ selectedTypId === null);
+            listHeadHtml = tbl.head;
+            listBodyHtml = tbl.body;
+        }
     }
 
     // Massen-Import nur für Admin/Superuser — normale Benutzer brauchen das nicht
@@ -229,6 +240,8 @@ function renderDokumenteUi() {
     //   • „← Mitarbeiter" entfernt (Tab-Wechsel oben übernimmt Navigation).
     //   • „+ Dokument hochladen" wandert in den Header (empTabActionBar) —
     //     wird in employees.js switchEmpTab('dokumente') gesetzt.
+    // Walter 19.07.2026: Spaltenköpfe AUSSERHALB des Scroll-Containers (kein
+    // sticky-thead) — sonst springen sie am Listenanfang/-ende.
     panel.innerHTML = `
     <div class="dok-toolbar">
         <div style="flex:1;display:flex;gap:6px;align-items:stretch">
@@ -259,9 +272,11 @@ function renderDokumenteUi() {
                     </button>
                 </div>
             </div>
-            <div class="dok-list-scroll">${listHtml}</div>
+            ${listHeadHtml ? `<div class="dok-list-cols">${listHeadHtml}</div>` : ''}
+            <div class="dok-list-scroll">${listBodyHtml}</div>
         </div>
     </div>`;
+    dokBindListScrollIsolation();
 }
 
 function findKategorie(id) { return _dokState.taxonomy.find(k => k.id === id); }
@@ -277,6 +292,7 @@ function renderDokTable(docs, showCategoryColumns) {
     // Walter-Vorgabe 06.06.2026: separate Spalten für Erstellt / Geändert /
     // Geöffnet, klickbare Sortierung. Default = Erstellt absteigend (neueste
     // zuerst). Leere Daten landen am Ende, egal in welcher Richtung.
+    // Walter 19.07.2026: head + body getrennt — Spaltenköpfe ausserhalb Scroll.
     const sorted = [...docs].sort((a, b) => dokCompare(a, b, _dokState.sortCol, _dokState.sortDir));
     const rows = sorted.map(d => renderDokTableRow(d, showCategoryColumns)).join('');
     const sortArrow = (col) => _dokState.sortCol === col
@@ -287,10 +303,84 @@ function renderDokTable(docs, showCategoryColumns) {
     const colHeaders = showCategoryColumns
         ? `<th>Kategorie</th><th>Typ</th>${sortableHead('beschreibung','Beschreibung')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}${sortableHead('zugriff','Geöffnet')}<th></th>`
         : `${sortableHead('beschreibung','Beschreibung')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}${sortableHead('zugriff','Geöffnet')}<th></th>`;
-    return `<table class="dok-table">
-        <thead><tr>${colHeaders}</tr></thead>
-        <tbody>${rows}</tbody>
-    </table>`;
+    return {
+        head: `<table class="dok-table dok-table-head"><thead><tr>${colHeaders}</tr></thead></table>`,
+        body: `<table class="dok-table dok-table-body"><tbody>${rows}</tbody></table>`
+    };
+}
+
+/**
+ * Verhindert Scroll-Chaining / Rubber-Band am Listenanfang/-ende (Walter 19.07.2026).
+ * Spaltenköpfe liegen ausserhalb von .dok-list-scroll und bewegen sich nicht mehr.
+ */
+function dokBindListScrollIsolation() {
+    const list = document.querySelector('#empTabDokumente .dok-list');
+    const sc = document.querySelector('#empTabDokumente .dok-list-scroll');
+    const cols = document.querySelector('#empTabDokumente .dok-list-cols');
+    if (!list || !sc) return;
+
+    const onWheel = (e) => {
+        // Immer vom Parent fernhalten — sonst springt der Listen-Titel.
+        e.stopPropagation();
+        const maxScroll = sc.scrollHeight - sc.clientHeight;
+        if (maxScroll <= 0) {
+            e.preventDefault();
+            return;
+        }
+        const atTop = sc.scrollTop <= 0;
+        const atBottom = sc.scrollTop >= maxScroll - 1;
+        if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
+            e.preventDefault();
+            return;
+        }
+        // Wheel auf Titel/Spaltenköpfe (ausserhalb .dok-list-scroll) → Liste scrollen.
+        if (!sc.contains(e.target)) {
+            sc.scrollTop = Math.min(maxScroll, Math.max(0, sc.scrollTop + e.deltaY));
+            e.preventDefault();
+        }
+    };
+
+    list.addEventListener('wheel', onWheel, { passive: false });
+
+    // Horizontal: Spaltenköpfe mit der Liste mitziehen.
+    if (cols) {
+        sc.addEventListener('scroll', () => { cols.scrollLeft = sc.scrollLeft; }, { passive: true });
+        requestAnimationFrame(() => dokSyncDokColWidths());
+    }
+}
+
+/** Spaltenbreiten Kopf/Body angleichen (zwei Tabellen). */
+function dokSyncDokColWidths() {
+    const headTbl = document.querySelector('#empTabDokumente .dok-table-head');
+    const bodyTbl = document.querySelector('#empTabDokumente .dok-table-body');
+    if (!headTbl || !bodyTbl) return;
+    const ths = headTbl.querySelectorAll('thead th');
+    const row = bodyTbl.querySelector('tbody tr');
+    if (!ths.length || !row) return;
+    const tds = row.children;
+    const n = Math.min(ths.length, tds.length);
+    for (let i = 0; i < n; i++) {
+        ths[i].style.width = '';
+        ths[i].style.minWidth = '';
+        tds[i].style.width = '';
+        tds[i].style.minWidth = '';
+    }
+    const widths = [];
+    for (let i = 0; i < n; i++) {
+        widths.push(Math.ceil(Math.max(
+            ths[i].getBoundingClientRect().width,
+            tds[i].getBoundingClientRect().width
+        )));
+    }
+    for (let i = 0; i < n; i++) {
+        const w = widths[i] + 'px';
+        ths[i].style.width = w;
+        ths[i].style.minWidth = w;
+        // Alle Body-Zellen der Spalte (erste Zeile reicht als Template + table-layout)
+        tds[i].style.width = w;
+        tds[i].style.minWidth = w;
+    }
+    headTbl.style.width = bodyTbl.style.width = widths.reduce((a, b) => a + b, 0) + 'px';
 }
 
 function dokSort(col) {
