@@ -2383,19 +2383,19 @@ function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso, hasArztDoc)
     return html;
 }
 
-// Status-Pille: fällt der MA unter die Nacht-Untersuch-Regel (ArGV1 Art. 30)?
-// Grün = keine Pflicht (≤18 Nächte / 6 Wochen), Rot = Untersuch-Pflicht.
+// Status-Pille + Nächte-Zähler (ArGV1 Art. 30): Max. Nacht-Tage in einem
+// rollierenden 6-Wochen-Fenster (42 Tage). Grün ≤18, Rot >18 (= Untersuch-Pflicht).
 function _nwDutyBadgeHtml(emp) {
     if (!emp) return '';
     const req = !!emp.nightWorkRequiresDocuments;
     const n = emp.nightWorkMaxNightsInSixWeeks != null ? emp.nightWorkMaxNightsInSixWeeks : 0;
-    const tip = req
-        ? `${n} Nächte in 6 Wochen — Untersuch-Pflicht (ArGV1 Art. 30, >18)`
-        : `${n} Nächte in 6 Wochen — keine Untersuch-Pflicht (≤18)`;
-    if (req) {
-        return `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#fef2f2;color:#991b1b;border:1px solid #fecaca"><span style="width:7px;height:7px;border-radius:50%;background:#dc2626;flex-shrink:0"></span>Untersuch-Pflicht</span>`;
-    }
-    return `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#ecfdf5;color:#166534;border:1px solid #bbf7d0"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>Keine Untersuch-Pflicht</span>`;
+    const tip = `Max. ${n} Nacht-Tage in einem rollierenden 6-Wochen-Fenster (42 Tage, ArGV1 Art. 30 — Pflicht ab >18)`;
+    const badge = req
+        ? `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#fef2f2;color:#991b1b;border:1px solid #fecaca"><span style="width:7px;height:7px;border-radius:50%;background:#dc2626;flex-shrink:0"></span>Untersuch-Pflicht</span>`
+        : `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#ecfdf5;color:#166534;border:1px solid #bbf7d0"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>Keine Untersuch-Pflicht</span>`;
+    const countColor = req ? '#991b1b' : '#475569';
+    const count = `<span title="${tip}" style="font-size:12px;font-weight:600;color:${countColor};white-space:nowrap">${n} Nacht${n === 1 ? '' : 'e'} / 6 Wochen</span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">${badge}${count}</span>`;
 }
 
 // Rote «fehlt»-Hinweise auf der Nachtarbeit-Karte (Walter 19.07.2026):
