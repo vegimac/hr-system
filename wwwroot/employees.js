@@ -1303,7 +1303,7 @@ function loadUebersichtTab() {
     const kNacht = _ovCard('Nachtarbeit', null, '', `
             <div style="padding:6px 2px 2px">
                 <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis)}</span>
+                    <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</span>
                     ${_nwMissingDocsHtml(emp)}
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
                         <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
@@ -1333,7 +1333,7 @@ function loadUebersichtTab() {
                            oninput="nwPreview(${emp.id}, this.value)"
                            title="Ausstellungsdatum des Arztzeugnisses"
                            style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
-                    <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil)}</span>
+                    <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil, emp.nightWorkExamDokumentId)}</span>
                     <button onclick="nwSaveEdit(${emp.id})" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 12px;cursor:pointer;color:#15803d;font-size:12px;font-weight:600">Speichern</button>
                     <button onclick="nwCancelEdit(${emp.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;cursor:pointer;color:#64748b;font-size:12px;font-weight:600">Abbrechen</button>
                 </div>
@@ -2351,19 +2351,28 @@ function _nwAddYears(iso, n) {
 }
 
 // „gültig bis"-Anzeige (inneres HTML der id'd Span) — wird in-place aktualisiert.
-function _nwGueltigBisHtml(validUntil) {
+// Gültig-bis-Anzeige. Grün = akzeptiert NUR mit verknüpftem Arztzeugnis-Dokument
+// (Walter 19.07.2026): Datum allein (easy@work/manuell) zählt nicht als Nachweis.
+function _nwGueltigBisHtml(validUntil, hasArztDoc) {
     if (!validUntil) return '<span style="color:#94a3b8;font-size:11.5px">gültig bis —</span>';
     const t = new Date(); t.setHours(0, 0, 0, 0);
     const exp = new Date(validUntil) < t;
-    const c = exp ? '#991b1b' : '#166534';
-    return `<span style="color:${c};font-size:11.5px;font-weight:600">gültig bis ${formatDate(validUntil)}${exp ? ' · abgelaufen' : ''}</span>`;
+    if (exp) {
+        return `<span style="color:#991b1b;font-size:11.5px;font-weight:600">gültig bis ${formatDate(validUntil)} · abgelaufen</span>`;
+    }
+    if (hasArztDoc) {
+        return `<span style="color:#166534;font-size:11.5px;font-weight:600">gültig bis ${formatDate(validUntil)}</span>`;
+    }
+    // Datum vorhanden, Scan fehlt → neutral (noch nicht akzeptiert).
+    return `<span style="color:#64748b;font-size:11.5px;font-weight:600" title="Datum hinterlegt — gilt erst mit verknüpftem Arztzeugnis">gültig bis ${formatDate(validUntil)}</span>`;
 }
 
 // Read-only Anzeige der Nachtarbeit-Zeile (Walter 21.06.2026 / 05.07.2026).
 // mismatch = das (aus easy@work übernommene) Enddatum weicht von der Regel ab.
-function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso) {
+// hasArztDoc = verknüpftes Arztzeugnis-Dokument (ohne Scan kein Grün).
+function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso, hasArztDoc) {
     if (!validUntil && !issueIso) return '<span style="color:#94a3b8;font-size:12.5px;font-style:italic">Keine Untersuchung erfasst</span>';
-    let html = `<span style="font-size:12px;color:#64748b">Ausgestellt:</span> <strong style="font-size:13px;color:#334155">${formatDate(issueIso)}</strong> &nbsp;·&nbsp; ${_nwGueltigBisHtml(validUntil)}`;
+    let html = `<span style="font-size:12px;color:#64748b">Ausgestellt:</span> <strong style="font-size:13px;color:#334155">${formatDate(issueIso)}</strong> &nbsp;·&nbsp; ${_nwGueltigBisHtml(validUntil, !!hasArztDoc)}`;
     if (mismatch) {
         const soll = sollBisIso ? formatDate(sollBisIso) : '—';
         html += ` &nbsp; <span style="color:#991b1b;font-size:11px;font-weight:700" title="Das Enddatum in easy@work stimmt nicht mit der Regel überein und muss dort korrigiert werden">⚠ easy@work-Enddatum korrigieren (Soll: ${soll})</span>`;
@@ -2477,11 +2486,17 @@ async function nwUnlinkDoku(empId, kind, label) {
         if (typeof selectEmployee === 'function') selectEmployee(empId);
     } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
+function _nwHasArztDoc(empId) {
+    const emp = (typeof selectedEmployee !== 'undefined' && selectedEmployee && selectedEmployee.id === empId)
+        ? selectedEmployee : null;
+    return !!(emp && emp.nightWorkExamDokumentId);
+}
+
 // Live-Vorschau „gültig bis" während des Tippens (+2 Jahre).
 function nwPreview(empId, val) {
     const v = val ? _nwAddYears(val, 2) : null;
     const s = document.getElementById('nwGueltigBis_' + empId);
-    if (s) s.innerHTML = _nwGueltigBisHtml(v);
+    if (s) s.innerHTML = _nwGueltigBisHtml(v, _nwHasArztDoc(empId));
 }
 // Speichern aus dem Editiermodus — danach zurück in die Read-only-Ansicht.
 async function nwSaveEdit(empId) {
@@ -2506,7 +2521,8 @@ async function nwSaveEdit(empId) {
         const validUntil = data.nightWorkExamValidUntil || null;
         const vt = document.getElementById('nwViewText_' + empId);
         // Manuell erfasst = immer regelkonform → keine Abweichungswarnung.
-        if (vt) vt.innerHTML = _nwViewTextHtml(issueVal || null, validUntil, false, validUntil);
+        // Grün erst mit verknüpftem Scan (hasArztDoc).
+        if (vt) vt.innerHTML = _nwViewTextHtml(issueVal || null, validUntil, false, validUntil, _nwHasArztDoc(empId));
         nwCancelEdit(empId);
     } catch (e) { alert('Netzwerkfehler beim Speichern.'); }
 }
@@ -2536,7 +2552,7 @@ async function saveNightExamDate(empId, issueVal) {
         const data = await res.json().catch(() => ({}));
         // In-place aktualisieren statt selectEmployee → Fokus/Cursor bleibt im Feld.
         const span = document.getElementById('nwGueltigBis_' + empId);
-        if (span) span.innerHTML = _nwGueltigBisHtml(data.nightWorkExamValidUntil || null);
+        if (span) span.innerHTML = _nwGueltigBisHtml(data.nightWorkExamValidUntil || null, _nwHasArztDoc(empId));
     } catch (e) { alert('Netzwerkfehler beim Speichern.'); }
 }
 

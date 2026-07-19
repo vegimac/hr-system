@@ -1096,18 +1096,19 @@ public class DashboardService
                 }
 
                 // Nachtarbeit ist obligatorisch — KEIN Verzicht mehr (Walter-Vorgabe
-                // 30.06.2026, HQ-Entscheid). Es braucht ein AKTUELLES Arztzeugnis
-                // (verknüpftes Dokument + Gültigkeit) UND die Ausnahmeregelung.
-                // „Gültigkeit aktuell" = easy@work/Cowork-Ende in der Zukunft.
-                // Nur Datum ohne Scan zählt NICHT als vollständig (Walter 19.07.2026).
-                bool hasArztDoc   = emp.NightWorkExamDokumentId.HasValue;
-                bool examCurrent  = (emp.NightWorkExamValidUntil.HasValue
-                                     && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) >= today)
-                                  || (hasArztDoc && !emp.NightWorkExamValidUntil.HasValue);
+                // 30.06.2026, HQ-Entscheid). Akzeptiert erst mit verknüpftem
+                // Arztzeugnis-Dokument + aktueller Gültigkeit + Ausnahmeregelung.
+                // Datum allein (easy@work/manuell) zählt NICHT (Walter 19.07.2026).
+                bool hasArztDoc  = emp.NightWorkExamDokumentId.HasValue;
+                bool dateCurrent = (emp.NightWorkExamValidUntil.HasValue
+                                    && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) >= today)
+                                 || (hasArztDoc && !emp.NightWorkExamValidUntil.HasValue);
+                // Akzeptiert = Scan verknüpft UND Datum aktuell (Datum allein genügt nie).
+                bool examAccepted = hasArztDoc && dateCurrent;
                 bool examExpired  = emp.NightWorkExamValidUntil.HasValue
                                     && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) < today;
                 bool hasChecklist = emp.NightWorkAusnahmeDokumentId.HasValue;
-                bool nachweiseVoll = hasArztDoc && examCurrent && hasChecklist;
+                bool nachweiseVoll = examAccepted && hasChecklist;
 
                 // Ablauf-Warnung der Bewilligung (Walter-Vorgabe 05.07.2026):
                 // ≤ 7 Tage vor Ablauf → KRITISCH; ≤ 1 Monat → WICHTIG.
@@ -1119,7 +1120,7 @@ public class DashboardService
                     if (emp.NightWorkExamValidUntil.HasValue && Enabled("night_work_exam_expiring"))
                     {
                         var bis = DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value);
-                        int tage = bis.DayNumber - today.DayNumber;   // >= 0, weil examCurrent
+                        int tage = bis.DayNumber - today.DayNumber;   // >= 0, weil dateCurrent
                         if (tage <= WarnDays("night_work_exam_expiring", 30))
                         {
                             string phrase = tage == 0 ? $"läuft heute ab ({bis:dd.MM.yyyy})"
@@ -1142,9 +1143,10 @@ public class DashboardService
                 }
 
                 // Drei konfigurierbare Kategorien (Walter 19.07.2026):
-                //  • night_work_untersuch_fehlt — kein/aktueller Untersuch
+                //  • night_work_untersuch_fehlt — kein aktuelles Datum (kein Untersuch)
                 //  • night_work_exam_expiring   — Zeugnis abgelaufen (auch doku-pflichtig)
-                //  • night_work_exam_fehlt      — Dokumente fehlen (Arztzeugnis und/oder Ausnahme)
+                //  • night_work_exam_fehlt      — Scan und/oder Ausnahmeregelung fehlen
+                //    (Datum kann vorhanden sein — zählt erst mit verknüpftem Dokument)
                 string subtitleBase =
                     $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}"
                     + $" · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen";
@@ -1176,7 +1178,9 @@ public class DashboardService
                     continue;
                 }
 
-                if (!examCurrent)
+                // Weder aktuelles Datum noch akzeptierter Scan → Untersuch fehlt.
+                // (Datum ohne Scan → unten «Arztzeugnis fehlt», nicht hier.)
+                if (!dateCurrent && !hasArztDoc)
                 {
                     if (!Enabled("night_work_untersuch_fehlt")) continue;
                     string? extra = hasChecklist ? null : "Ausnahmeregelung fehlt";
@@ -1193,7 +1197,8 @@ public class DashboardService
                     continue;
                 }
 
-                // Gültigkeit aktuell, aber Scan und/oder Ausnahmeregelung fehlen
+                // Datum und/oder Scan vorhanden, aber Nachweis unvollständig
+                // (typisch: easy@work-Datum ohne verknüpften Scan).
                 if (!Enabled("night_work_exam_fehlt")) continue;
                 alerts.Add(new DashboardAlert
                 {
