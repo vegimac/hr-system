@@ -9133,7 +9133,12 @@ function renderOvSaldiHtml(s) {
     const isMtp  = model === 'MTP';
     const isFix  = model === 'FIX' || model === 'FIX-M';
 
-    // Stunden — analog Sollstunden-Report / renderStundenCard
+    // Stunden — Spalten müssen aufgehen:
+    //   Saldo = Vorm. + gearb. + Absenz − Soll
+    // Bei MTP zeigt «Soll» das Brutto-Soll (sollStundenVoll) und «Absenz»
+    // die Soll-Reduktion (Ferien/Krank) + Zeitgutschriften. neuerHourSaldo
+    // ist bei MTP oft 0 (Mehrstunden ausbezahlt) — deshalb NICHT übernehmen,
+    // sondern aus den angezeigten Spalten rechnen (wie Sollstunden-Report).
     const sollVoll = Number(s.sollStundenVoll ?? s.sollStunden ?? 0);
     const soll     = Number(s.sollStunden ?? 0);
     const worked   = Number(s.workedHours ?? 0);
@@ -9141,7 +9146,8 @@ function renderOvSaldiHtml(s) {
     const reduktion = Math.max(0, sollVoll - soll); // MTP Ferien/Krank am Soll
     const absenzH  = absGut + (isMtp ? reduktion : 0);
     const vorH     = Number(s.vormonatHourSaldo ?? 0);
-    const saldoH   = Number(s.neuerHourSaldo ?? 0);
+    const sollShow = isMtp ? sollVoll : soll;
+    const saldoH   = Math.round((vorH + worked + absenzH - sollShow) * 100) / 100;
 
     // Ferien (Tage)
     const ferSoll  = Number(s.ferienTageAccrual ?? 0);
