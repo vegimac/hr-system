@@ -1309,8 +1309,6 @@ function loadUebersichtTab() {
                     <div class="nw-row nw-row1">
                         ${_nwDutyBadgeOnlyHtml(emp)}
                         ${_nwDutyCountHtml(emp)}
-                        <span class="nw-dotsep" aria-hidden="true">·</span>
-                        <div class="nw-dates" id="nwViewText_${emp.id}">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</div>
                         <div class="nw-col-menu">
                             <div class="dok-menu-wrap">
                                 <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
@@ -1324,13 +1322,16 @@ function loadUebersichtTab() {
                             </div>
                         </div>
                     </div>
+                    <div class="nw-row nw-row2">
+                        <div class="nw-dates" id="nwViewText_${emp.id}">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</div>
+                    </div>
                     ${(() => {
                         const warns = _nwMissingDocsHtml(emp);
                         return warns
-                            ? `<div class="nw-row nw-row2"><div class="nw-warns">${warns}</div></div>`
+                            ? `<div class="nw-row nw-row3"><div class="nw-warns">${warns}</div></div>`
                             : '';
                     })()}
-                    <div class="nw-row nw-row3 nw-actions">
+                    <div class="nw-row nw-row4 nw-actions">
                         <button class="nw-act-btn" onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken">🖨 Arztformular</button>
                         <button class="nw-act-btn" onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken">🖨 Ausnahmeregelung</button>
                         ${emp.nightWorkExamDokumentId

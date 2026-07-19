@@ -8084,14 +8084,15 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
 
 
         /* ── Nachtarbeit-Karte (Walter 19.07.2026) ──
-           Z1 Topbox: Badge · Nächte · Datum · ⋮  (wichtigste Infos)
-           Z2 Warn-Chips (volle Breite)
-           Z3 Actions unten fix */
+           Z1: Badge · Nächte · ⋮
+           Z2: Ausgestellt · gültig bis
+           Z3: Warn-Chips
+           Z4: Actions unten fix — Kartenhöhe unverändert */
         .nw-card-body { padding: 0; box-sizing: border-box; }
         .nw-layout {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 3px;
             flex: 1 1 auto;
             min-height: 0;
             height: 100%;
@@ -8099,7 +8100,8 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         }
         .nw-row1,
         .nw-row2,
-        .nw-row3 {
+        .nw-row3,
+        .nw-row4 {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -8109,7 +8111,8 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         }
         .nw-row1 { gap: 8px; }
         .nw-row2 { gap: 6px; }
-        .nw-row3.nw-actions {
+        .nw-row3 { gap: 5px; }
+        .nw-row4.nw-actions {
             margin-top: auto; /* Buttons immer am Kartenboden */
             justify-content: flex-end;
             gap: 5px;
@@ -8169,6 +8172,11 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             overflow: hidden;
             text-overflow: ellipsis;
             color: #57534e;
+            line-height: 1.25;
+        }
+        .nw-row2 .nw-dates {
+            /* Eigene Zeile: Daten vollständig lesbar, kein Abschneiden durch Badge */
+            white-space: nowrap;
         }
         .nw-inline-lbl { color: #8b8b8b; font-weight: 550; }
         .nw-inline-val { color: #3f3f3f; font-weight: 650; }
@@ -8278,7 +8286,7 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             font-weight: 600;
         }
         @media (max-width: 900px) {
-            .nw-row1, .nw-row2, .nw-row3 { flex-wrap: wrap; }
+            .nw-row1, .nw-row2, .nw-row3, .nw-row4 { flex-wrap: wrap; }
             .nw-col-menu { margin-left: 0; }
             .nw-actions { flex-wrap: wrap; }
         }
