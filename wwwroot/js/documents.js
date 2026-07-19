@@ -1437,10 +1437,14 @@ function openDokEditModal(id) {
             <div class="ma-grid cols-1">
               <div class="ma-field">
                 <div class="ma-field-label">Mitarbeiter <span class="opt">(zum Verschieben — leer lassen wenn beim aktuellen MA bleiben soll)</span></div>
-                <div id="dokEditEmpFilter" style="display:inline-flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;margin-bottom:8px">
-                  <button type="button" id="dokEditFilterAktiv"   onclick="dokEditSetEmpFilter('aktiv')">Aktive</button>
-                  <button type="button" id="dokEditFilterInaktiv" onclick="dokEditSetEmpFilter('inaktiv')">Inaktive</button>
-                  <button type="button" id="dokEditFilterAlle"    onclick="dokEditSetEmpFilter('alle')">Alle</button>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">
+                  <select id="dokEditBranchSelect" class="ma-select" style="flex:1;min-width:180px;margin:0"
+                          onchange="dokEditBranchChanged()"></select>
+                  <div id="dokEditEmpFilter" style="display:inline-flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;flex-shrink:0">
+                    <button type="button" id="dokEditFilterAktiv"   onclick="dokEditSetEmpFilter('aktiv')">Aktive</button>
+                    <button type="button" id="dokEditFilterInaktiv" onclick="dokEditSetEmpFilter('inaktiv')">Inaktive</button>
+                    <button type="button" id="dokEditFilterAlle"    onclick="dokEditSetEmpFilter('alle')">Alle</button>
+                  </div>
                 </div>
                 <input type="text" id="dokEditEmpInput" class="ma-input" list="dokEditEmpList"
                        placeholder="Aktuell zugeordnet · Hier suchen um zu verschieben"
@@ -1507,10 +1511,64 @@ function openDokEditModal(id) {
 let _dokEditEmployees = [];
 // Default «aktive» — Inaktive nur optional über den Filter (wie Moments/MA-Maske).
 let _dokEditEmpFilter = 'aktiv'; // 'aktiv' | 'inaktiv' | 'alle'
+// Filiale für die MA-Suche — Default = Sidebar-Selektor (meist Verschieben in derselben Filiale).
+let _dokEditBranchId = null; // number | null (= alle Filialen)
 
 function dokEditIsActiveEmp(e) {
     const archived = (e.employeeNumber || '').toLowerCase().endsWith('alt');
     return e.isActive !== false && !archived;
+}
+
+function dokEditAccessibleBranches() {
+    const branches = (typeof allBranches !== 'undefined' ? allBranches : []) || [];
+    const role = (typeof currentUser !== 'undefined' ? currentUser?.role : '') || '';
+    const list = (role === 'admin' || role === 'superuser')
+        ? branches.slice()
+        : branches.filter(b => (currentUser?.branches || []).some(ub => ub.id === b.id));
+    return list.sort((a, b) => parseInt(a.restaurantCode || '9999', 10) - parseInt(b.restaurantCode || '9999', 10));
+}
+
+function dokEditFillBranchSelect() {
+    const sel = document.getElementById('dokEditBranchSelect');
+    if (!sel) return;
+    const branches = dokEditAccessibleBranches();
+    // Default = globale Sidebar-Filiale (Walter: meist Verschieben innerhalb der Filiale).
+    const preferred = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+        ? Number(fixedCompanyProfileId) : null;
+    _dokEditBranchId = preferred && branches.some(b => b.id === preferred)
+        ? preferred
+        : (branches[0]?.id ?? null);
+    sel.innerHTML = '<option value="">Alle Filialen</option>'
+        + branches.map(b => {
+            const label = `${b.restaurantCode ? b.restaurantCode + ' – ' : ''}${b.branchName || b.companyName || ''}`;
+            return `<option value="${b.id}">${label}</option>`;
+        }).join('');
+    sel.value = _dokEditBranchId != null ? String(_dokEditBranchId) : '';
+}
+
+function dokEditBranchChanged() {
+    const sel = document.getElementById('dokEditBranchSelect');
+    const v = sel?.value || '';
+    _dokEditBranchId = v ? Number(v) : null;
+    dokEditRenderEmpList();
+    const input = document.getElementById('dokEditEmpInput');
+    if (input && input.value.trim()) dokEditEmpInputChanged(input.value);
+}
+
+function dokEditMatchesBranch(e) {
+    const cpid = _dokEditBranchId != null ? Number(_dokEditBranchId) : null;
+    if (!cpid) return true; // «Alle Filialen»
+    const emps = e.employments || [];
+    // Legacy: alle Verträge ohne Filial-Zuordnung → in jeder Filiale zeigen.
+    if (emps.length && emps.every(v => !v.companyProfileId)) return true;
+    // MA ohne Verträge: über Personalnummer-Präfix der Filiale zuordnen.
+    if (!emps.length) {
+        const branch = dokEditAccessibleBranches().find(b => b.id === cpid)
+            || ((typeof allBranches !== 'undefined' ? allBranches : []) || []).find(b => b.id === cpid);
+        const restCode = (branch?.restaurantCode || '').replace(/^0+/, '');
+        return !!restCode && (e.employeeNumber || '').replace(/alt$/i, '').startsWith(restCode);
+    }
+    return emps.some(v => Number(v.companyProfileId) === cpid);
 }
 
 function dokEditSetEmpFilter(mode) {
@@ -1535,6 +1593,7 @@ function dokEditRenderEmpFilterButtons() {
 
 function dokEditFilteredEmployees() {
     let list = (_dokEditEmployees || []).slice();
+    list = list.filter(dokEditMatchesBranch);
     if (_dokEditEmpFilter === 'aktiv')   list = list.filter(dokEditIsActiveEmp);
     if (_dokEditEmpFilter === 'inaktiv') list = list.filter(e => !dokEditIsActiveEmp(e));
     return list;
@@ -1555,6 +1614,7 @@ async function dokEditLoadEmployees() {
         // vom Backend (firstName, lastName).
         _dokEditEmployees = await loadEmployeeLookup();
         _dokEditEmpFilter = 'aktiv'; // immer mit Aktiven starten
+        dokEditFillBranchSelect();   // Default = Sidebar-Filiale
         dokEditRenderEmpFilterButtons();
         dokEditRenderEmpList();
     } catch (err) { console.warn('MA-Liste laden fehlgeschlagen:', err); }
@@ -1573,7 +1633,7 @@ function dokEditEmpInputChanged(val) {
         return;
     }
     // Match gegen gefilterte Liste — so kann man keinen inaktiven MA wählen,
-    // solange der Filter auf «Aktive» steht.
+    // solange der Filter auf «Aktive» steht (analog Filiale).
     const matched = dokEditFilteredEmployees().find(e => dokEditEmpLabel(e) === val);
     if (matched) {
         hiddenId.value = matched.id;
