@@ -3692,9 +3692,9 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned {
             display: grid;
             grid-template-columns:
-                minmax(140px, 1.4fr)   /* Strasse / Ledigname / Zivilstand */
-                minmax(64px, 0.7fr)    /* PLZ / Briefanrede / seit — PLZ schmal */
-                minmax(120px, 1.15fr)  /* Ort+Kt / Kurzname / Konfession */
+                minmax(150px, 1.35fr)  /* Strasse / Ledigname / Zivilstand */
+                minmax(120px, 1.2fr)   /* PLZ / Briefanrede / seit */
+                minmax(120px, 1.1fr)   /* Ort+Kt / Kurzname / Konfession */
                 minmax(140px, 1.2fr)   /* Tel2 / Sex / Nationalität */
                 minmax(150px, 1.25fr); /* — / AHV / ZEMIS */
             column-gap: 12px;
