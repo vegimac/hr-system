@@ -3585,8 +3585,6 @@
         body.theme-dark .emp-hfact-act:hover {
             background: rgba(255,255,255,0.14); color: #fff;
         }
-        .emp-hfact-v-PLACEHOLDER-REMOVE {
-        }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header {
             background: var(--dlg-fill-strong) !important;
             border-color: transparent !important;
