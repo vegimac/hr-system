@@ -1304,6 +1304,7 @@ function loadUebersichtTab() {
             <div style="padding:6px 2px 2px">
                 <div id="nwView_${emp.id}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                     <span id="nwViewText_${emp.id}" style="flex-shrink:0">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis)}</span>
+                    ${_nwMissingDocsHtml(emp)}
                     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:6px">
                         <button onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Arztformular</button>
                         <button onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:6px;padding:3px 9px;cursor:pointer;color:#6b7280;font-size:11px;font-weight:600;white-space:nowrap">🖨 Ausnahmeregelung</button>
@@ -2368,6 +2369,32 @@ function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso) {
         html += ` &nbsp; <span style="color:#991b1b;font-size:11px;font-weight:700" title="Das Enddatum in easy@work stimmt nicht mit der Regel überein und muss dort korrigiert werden">⚠ easy@work-Enddatum korrigieren (Soll: ${soll})</span>`;
     }
     return html;
+}
+
+// Rote «fehlt»-Hinweise, wenn ArGV1 Art. 30 greift (>18 Nächte / 42 Tage)
+// und Arztzeugnis bzw. Ausnahmeregelung fehlen (Walter 19.07.2026).
+// Status-Logik identisch zum Dashboard (examCurrent / hasChecklist).
+function _nwMissingDocsHtml(emp) {
+    if (!emp || !emp.nightWorkRequiresDocuments) return '';
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const validUntil = emp.nightWorkExamValidUntil ? new Date(emp.nightWorkExamValidUntil) : null;
+    if (validUntil) validUntil.setHours(0, 0, 0, 0);
+    const examCurrent = (validUntil && validUntil >= today)
+        || (!!emp.nightWorkExamDokumentId && !emp.nightWorkExamValidUntil);
+    const hasAusnahme = !!emp.nightWorkAusnahmeDokumentId;
+    const parts = [];
+    const tip = `${emp.nightWorkMaxNightsInSixWeeks || '?'} Nächte in 6 Wochen — Nachweise Pflicht (ArGV1 Art. 30)`;
+    if (!examCurrent) {
+        const txt = !emp.nightWorkExamIssued ? 'Arztzeugnis fehlt'
+                  : (validUntil && validUntil < today) ? 'Arztzeugnis abgelaufen'
+                  : 'Arztzeugnis fehlt';
+        parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ ${txt}</span>`);
+    }
+    if (!hasAusnahme) {
+        parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Ausn. Regel fehlt</span>`);
+    }
+    if (!parts.length) return '';
+    return `<span style="display:inline-flex;gap:8px;flex-wrap:wrap;align-items:center">${parts.join('')}</span>`;
 }
 
 // ⋮-Menü + Edit-Toggle für die Nachtarbeit-Zeile.

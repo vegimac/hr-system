@@ -237,6 +237,35 @@ public class EmployeesController : ControllerBase
         var active = employee.Employments.FirstOrDefault(c => c.ContractEndDate == null)
                   ?? employee.Employments.FirstOrDefault();
 
+        // Nachtarbeit-Compliance (ArGV1 Art. 30): >18 Nächte in 42 Tagen →
+        // Arztzeugnis + Ausnahmeregelung Pflicht. Für die Übersicht-Karte,
+        // damit fehlende Nachweise dort rot erscheinen (Walter 19.07.2026).
+        // Gleiche Regel wie Dashboard / Kontroll-Liste. MA mit Austritt ≤ 30 Tage
+        // werden nicht mehr als dokumentationspflichtig markiert.
+        var todayNw = DateOnly.FromDateTime(DateTime.Today);
+        bool nightWorkRequiresDocuments = false;
+        int nightWorkMaxNights = 0;
+        bool exitingSoon = employee.ExitDate.HasValue
+            && DateOnly.FromDateTime(employee.ExitDate.Value) <= todayNw.AddDays(30);
+        if (!exitingSoon)
+        {
+            var rollStart = new DateOnly(todayNw.Year, todayNw.Month, 1).AddMonths(-11);
+            var nightDates = await _context.EmployeeTimeEntries.AsNoTracking()
+                .Where(t => t.EmployeeId == employee.Id
+                         && t.EntryDate >= rollStart
+                         && t.EntryDate <= todayNw
+                         && (t.NightHours ?? 0m) > 0m)
+                .Select(t => t.EntryDate)
+                .Distinct()
+                .ToListAsync();
+            if (nightDates.Count > 0)
+            {
+                var nw = NightWorkComplianceService.Evaluate(nightDates, todayNw);
+                nightWorkRequiresDocuments = nw.RequiresDocuments;
+                nightWorkMaxNights = nw.MaxNightsInSixWeeks;
+            }
+        }
+
         // Flache Felder des aktiven Vertrags direkt in die Antwort einbauen
         // damit das bestehende UI (emp.employmentModel, emp.employmentPercentage usw.)
         // ohne Änderung weiter funktioniert
@@ -291,6 +320,9 @@ public class EmployeesController : ControllerBase
                            employee.DateOfBirth.HasValue ? DateOnly.FromDateTime(employee.DateOfBirth.Value) : (DateOnly?)null)),
             employee.NightWorkExamDokumentId,
             employee.NightWorkAusnahmeDokumentId,
+            // ArGV1 Art. 30 — für rote «fehlt»-Hinweise auf der Nachtarbeit-Karte
+            nightWorkRequiresDocuments,
+            nightWorkMaxNightsInSixWeeks = nightWorkMaxNights,
             // Walter-Vorgabe 07.06.2026: permitType + Code/Beschreibung kommen
             // aus der „neuesten" History-Bewilligung (siehe oben latestPermitType),
             // nicht aus dem denormalisierten employee.PermitType — damit Frontend
