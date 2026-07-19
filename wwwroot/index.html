@@ -6961,7 +6961,7 @@
 <!-- Versionierte Zulage pro Familienmitglied: Von, Bis, Monatsbetrag.
      Walter legt für jede Lebensstufen-Änderung einen neuen Eintrag an.
      Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
-<div id="allowanceModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3500;align-items:center;justify-content:center;padding:16px">
+<div id="allowanceModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3500;align-items:center;justify-content:center;padding:16px;gap:14px">
     <div class="ma-modal-box narrow">
         <div class="ma-modal-head">
             <div>
@@ -7002,6 +7002,19 @@
             <input type="hidden" id="alAllowanceType" value="">
             <input type="hidden" id="alTarifSatzNr"   value="">
 
+            <div class="emp-section-title">Entscheidungsdokument</div>
+            <div class="ma-grid cols-1">
+                <div class="ma-field">
+                    <div class="ma-field-label">FAK-Entscheid / Beleg <span class="opt">(aus MA-Dokumenten)</span></div>
+                    <select id="alDokumentId" class="ma-select" onchange="alShowEntscheidDoc(parseInt(this.value,10)||null)">
+                        <option value="">– kein Dokument –</option>
+                    </select>
+                    <div style="font-size:11px;color:#8b8b8b;margin-top:6px;line-height:1.4">
+                        Wähle den FAK-Entscheid aus dem Dossier — Vorschau erscheint daneben als Info.
+                    </div>
+                </div>
+            </div>
+
             <div class="emp-section-title">Bemerkung</div>
             <div class="ma-grid cols-1">
                 <div class="ma-field">
@@ -7017,6 +7030,14 @@
             <button class="btn btn-outline" onclick="closeAllowanceModal()">Abbrechen</button>
             <button class="btn btn-primary" onclick="saveAllowance()">Speichern</button>
         </div>
+    </div>
+    <!-- Side-Panel: Entscheidungsdokument als Info (Walter 19.07.2026) -->
+    <div id="al-docpanel" style="display:none;background:#fff;border-radius:14px;flex:1;min-width:360px;max-width:44vw;max-height:92vh;padding:14px;flex-direction:column;gap:8px;box-shadow:0 24px 48px rgba(0,0,0,0.25)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div id="al-docname" style="font-size:12.5px;font-weight:700;color:#3f3f3f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0"></div>
+            <button id="al-doczoom" style="display:none;background:rgba(255,255,255,0.6);border:1px solid #e2ddd3;color:#3f3f3f;border-radius:10px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0" title="Im grossen Vorschaufenster öffnen">⤢ Vergrössern</button>
+        </div>
+        <div id="al-docview" style="flex:1;min-height:320px;overflow:auto;display:flex;align-items:flex-start;justify-content:center;background:#f6f3ee;border-radius:10px"></div>
     </div>
 </div>
 

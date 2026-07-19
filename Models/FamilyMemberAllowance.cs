@@ -51,6 +51,13 @@ public class FamilyMemberAllowance
     /// <summary>Optionale Bemerkung.</summary>
     public string? Note { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    /// <summary>
+    /// Walter-Vorgabe 19.07.2026: FAK-/Entscheidungsdokument aus dem MA-Dossier
+    /// (z.B. Typ «Kinderzulagen»). NULL = kein Beleg verknüpft.
+    /// </summary>
+    public int? DokumentId { get; set; }
+    public EmployeeDokument? Dokument { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
 }

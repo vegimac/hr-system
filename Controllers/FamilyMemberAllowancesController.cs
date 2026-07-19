@@ -195,6 +195,9 @@ public class FamilyMemberAllowancesController : ControllerBase
             });
         }
 
+        var (dokOk, dokId, dokErr) = await ResolveDokumentIdAsync(familyMemberId, dto.DokumentId);
+        if (!dokOk) return BadRequest(new { error = dokErr });
+
         var entry = new FamilyMemberAllowance
         {
             FamilyMemberId = familyMemberId,
@@ -204,8 +207,9 @@ public class FamilyMemberAllowancesController : ControllerBase
             AllowanceType  = NormalizeAllowanceType(dto.AllowanceType),
             TarifSatzNr    = dto.TarifSatzNr,
             Note           = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note.Trim(),
-            CreatedAt      = DateTime.UtcNow,
-            UpdatedAt      = DateTime.UtcNow
+            DokumentId     = dokId,
+            CreatedAt      = DateTime.Now,
+            UpdatedAt      = DateTime.Now
         };
         _db.FamilyMemberAllowances.Add(entry);
         await _db.SaveChangesAsync();
@@ -235,13 +239,17 @@ public class FamilyMemberAllowancesController : ControllerBase
             });
         }
 
+        var (dokOkU, dokIdU, dokErrU) = await ResolveDokumentIdAsync(familyMemberId, dto.DokumentId);
+        if (!dokOkU) return BadRequest(new { error = dokErrU });
+
         entry.ValidFrom     = dto.ValidFrom!.Value;
         entry.ValidTo       = dto.ValidTo;
         entry.MonthlyAmount = dto.MonthlyAmount ?? 0m;
         entry.AllowanceType = NormalizeAllowanceType(dto.AllowanceType);
         entry.TarifSatzNr   = dto.TarifSatzNr;
         entry.Note          = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note.Trim();
-        entry.UpdatedAt     = DateTime.UtcNow;
+        entry.DokumentId    = dokIdU;
+        entry.UpdatedAt     = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(MapToDto(entry, firstAllowedU));
     }
@@ -292,10 +300,32 @@ public class FamilyMemberAllowancesController : ControllerBase
         allowanceType   = a.AllowanceType,
         tarifSatzNr     = a.TarifSatzNr,
         note            = a.Note,
+        dokumentId      = a.DokumentId,
         createdAt       = a.CreatedAt,
         updatedAt       = a.UpdatedAt,
         inLohnVerwendet = firstAllowed.HasValue && a.ValidFrom < firstAllowed.Value
     };
+
+    /// <summary>
+    /// Prüft, dass das Entscheidungsdokument (falls gesetzt) zum gleichen MA
+    /// gehört wie das Familienmitglied. null = kein Dokument verknüpft.
+    /// </summary>
+    private async Task<(bool ok, int? dokId, string? error)> ResolveDokumentIdAsync(
+        int familyMemberId, int? dokumentId)
+    {
+        if (dokumentId is null or <= 0) return (true, null, null);
+        var empId = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(m => m.Id == familyMemberId)
+            .Select(m => (int?)m.EmployeeId)
+            .FirstOrDefaultAsync();
+        if (empId is null)
+            return (false, null, "Familienmitglied nicht gefunden.");
+        var belongs = await _db.EmployeeDokumente.AsNoTracking()
+            .AnyAsync(d => d.Id == dokumentId.Value && d.EmployeeId == empId.Value);
+        if (!belongs)
+            return (false, null, "Dokument gehört nicht zu diesem Mitarbeiter.");
+        return (true, dokumentId.Value, null);
+    }
 
     /// <summary>
     /// Normalisiert die Zulagenart-Schreibweise. KZ/AZ/GZ als Grossbuchstaben,
@@ -319,5 +349,7 @@ public record AllowanceDto(
     // Walter-Vorgabe 28.05.2026: konkreter Tarif-Satz (1/2) den der User wählt.
     // NULL für Pauschal-Zulagen (GZ/AdoptZ).
     int?      TarifSatzNr,
-    string?   Note
+    string?   Note,
+    // Walter-Vorgabe 19.07.2026: FAK-/Entscheidungsdokument aus dem MA-Dossier.
+    int?      DokumentId
 );

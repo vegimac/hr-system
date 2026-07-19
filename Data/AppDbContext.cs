@@ -839,13 +839,21 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AllowanceType).HasColumnName("allowance_type").HasMaxLength(20);
             entity.Property(e => e.TarifSatzNr).HasColumnName("tarif_satz_nr");
             entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(500);
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.FamilyMember)
                   .WithMany(m => m.Allowances)
                   .HasForeignKey(e => e.FamilyMemberId)
                   .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Dokument)
+                  .WithMany()
+                  .HasForeignKey(e => e.DokumentId)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => e.FamilyMemberId);
+            entity.HasIndex(e => e.DokumentId);
         });
 
         // ── EmployeeTimeEntry ──────────────────────────────────────────────

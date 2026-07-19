@@ -3623,11 +3623,12 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                         const artShort = a.allowanceType || 'Zulage';
                         const bisShort = a.validTo ? formatDate(a.validTo) : 'offen';
                         const locked = a.inLohnVerwendet === true;
+                        const hasDok = !!a.dokumentId;
                         const aJson = JSON.stringify(a).replace(/"/g, '&quot;');
                         return `<button type="button" class="fam-tile-chip${locked ? ' is-locked' : ''}"
-                            title="${esc(artShort)} · CHF ${Number(a.monthlyAmount).toFixed(2)} · bis ${bisShort}${locked ? ' · in Lohn verwendet' : ''}"
+                            title="${esc(artShort)} · CHF ${Number(a.monthlyAmount).toFixed(2)} · bis ${bisShort}${hasDok ? ' · mit Entscheid-Doku' : ''}${locked ? ' · in Lohn verwendet' : ''}"
                             onclick="event.stopPropagation();openAllowanceFromCard(${m.id}, ${aJson})">
-                            ${locked ? '🔒 ' : ''}${esc(artShort)} · ${Number(a.monthlyAmount).toFixed(0)}
+                            ${locked ? '🔒 ' : ''}${hasDok ? '📄 ' : ''}${esc(artShort)} · ${Number(a.monthlyAmount).toFixed(0)}
                         </button>`;
                     }).join('');
                     kindAllowancesBlock = `
@@ -5386,7 +5387,123 @@ async function openAllowanceModal(existing) {
         vfInp.addEventListener('change', () => alLoadTarifOptionsAndPreselect());
         vfInp.dataset.alBound = '1';
     }
-    await alLoadTarifOptionsAndPreselect();
+    await Promise.all([
+        alLoadTarifOptionsAndPreselect(),
+        alLoadEntscheidDocs(d.dokumentId ?? null)
+    ]);
+}
+
+/** FAK-/Entscheidungsdokumente aus dem MA-Dossier für den Zulage-Picker. */
+async function alLoadEntscheidDocs(selectedDokId) {
+    const sel = document.getElementById('alDokumentId');
+    const panel = document.getElementById('al-docpanel');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">– Dokumente laden … –</option>';
+    if (panel) panel.style.display = 'none';
+    window._alDocs = [];
+
+    if (!selectedEmployeeId) {
+        sel.innerHTML = '<option value="">– kein Mitarbeiter –</option>';
+        return;
+    }
+    try {
+        // Bevorzugt Typen mit linked_field_code=family_allowance, sonst alle
+        // Dokus — FAK-Entscheide (Name enthält Kinderzulage/FAK/…) oben.
+        let preferred = [];
+        try {
+            const rf = await fetch(
+                `/api/documents/by-field?employeeId=${selectedEmployeeId}&code=family_allowance&all=true`,
+                { headers: ah() });
+            if (rf.ok) preferred = await rf.json();
+            if (!Array.isArray(preferred)) preferred = [];
+        } catch (_) { preferred = []; }
+
+        const rAll = await fetch(`/api/documents/by-employee/${selectedEmployeeId}`, { headers: ah() });
+        let alle = rAll.ok ? await rAll.json() : [];
+        if (!Array.isArray(alle)) alle = [];
+
+        const prefIds = new Set(preferred.map(d => d.id));
+        const isFakLike = (d) => {
+            const t = ((d.dokumentTypName || '') + ' ' + (d.kategorieName || '') + ' ' + (d.bemerkung || '')).toLowerCase();
+            return /kinderzulage|familienzulage|ausbildungszulage|fak|entscheid|bescheid/.test(t)
+                || prefIds.has(d.id);
+        };
+        const sorted = [...alle].sort((a, b) => {
+            const af = isFakLike(a) ? 0 : 1;
+            const bf = isFakLike(b) ? 0 : 1;
+            if (af !== bf) return af - bf;
+            return String(b.erstelltAm || b.hochgeladenAm || '')
+                .localeCompare(String(a.erstelltAm || a.hochgeladenAm || ''));
+        });
+        window._alDocs = sorted;
+
+        if (sorted.length === 0) {
+            sel.innerHTML = '<option value="">– keine Dokumente im Dossier –</option>';
+            return;
+        }
+        const selId = selectedDokId != null ? Number(selectedDokId) : null;
+        sel.innerHTML = '<option value="">– kein Dokument –</option>' +
+            sorted.map(d => {
+                const typ = d.dokumentTypName ? `${d.dokumentTypName} · ` : '';
+                const name = d.bemerkung || d.filenameOriginal || 'Dokument';
+                const dt = d.erstelltAm || d.hochgeladenAm
+                    ? ' · ' + formatDate(d.erstelltAm || d.hochgeladenAm) : '';
+                const mark = isFakLike(d) ? '★ ' : '';
+                return `<option value="${d.id}" ${selId === d.id ? 'selected' : ''}>${mark}${esc(typ + name)}${dt}</option>`;
+            }).join('');
+        if (selId && sorted.some(d => d.id === selId)) {
+            await alShowEntscheidDoc(selId);
+        }
+    } catch (e) {
+        sel.innerHTML = '<option value="">– Fehler beim Laden –</option>';
+    }
+}
+
+/** Entscheidungsdokument neben dem Zulage-Modal als Info öffnen. */
+async function alShowEntscheidDoc(docId) {
+    const panel = document.getElementById('al-docpanel');
+    const nameEl = document.getElementById('al-docname');
+    const view = document.getElementById('al-docview');
+    const zoomBtn = document.getElementById('al-doczoom');
+    if (!panel || !view) return;
+    if (!docId) {
+        panel.style.display = 'none';
+        view.innerHTML = '';
+        if (nameEl) nameEl.textContent = '';
+        if (zoomBtn) zoomBtn.style.display = 'none';
+        return;
+    }
+    const doc = (window._alDocs || []).find(d => d.id === docId);
+    if (nameEl) {
+        nameEl.textContent = doc
+            ? (doc.bemerkung || doc.filenameOriginal || 'Entscheidungsdokument')
+            : 'Entscheidungsdokument';
+    }
+    panel.style.display = 'flex';
+    view.innerHTML = '<div style="padding:24px;color:#8b8b8b;font-size:13px">Lade Vorschau…</div>';
+    if (zoomBtn) {
+        zoomBtn.style.display = 'inline-flex';
+        zoomBtn.onclick = () => previewUrlFetch(
+            `/api/documents/preview/${docId}`,
+            (doc && (doc.bemerkung || doc.filenameOriginal)) || 'entscheid',
+            ah());
+    }
+    try {
+        const pr = await fetch(`/api/documents/preview/${docId}`, { headers: ah() });
+        if (!pr.ok) {
+            view.innerHTML = '<div style="padding:24px;color:#b91c1c;font-size:13px">Vorschau nicht verfügbar.</div>';
+            return;
+        }
+        const blob = await pr.blob();
+        const url = URL.createObjectURL(blob);
+        if ((blob.type || '').startsWith('image/')) {
+            view.innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain">`;
+        } else {
+            view.innerHTML = `<iframe src="${url}" style="width:100%;height:100%;border:none;min-height:480px"></iframe>`;
+        }
+    } catch (_) {
+        view.innerHTML = '<div style="padding:24px;color:#b91c1c;font-size:13px">Vorschau fehlgeschlagen.</div>';
+    }
 }
 
 // Holt die verfügbaren Tarif-Sätze (KZ Satz 1/2, AZ Satz 1/2, GZ, AdoptZ —
@@ -5492,6 +5609,12 @@ async function alRefreshResolvePreview() {
 
 function closeAllowanceModal() {
     document.getElementById('allowanceModal').style.display = 'none';
+    const panel = document.getElementById('al-docpanel');
+    if (panel) {
+        panel.style.display = 'none';
+        const view = document.getElementById('al-docview');
+        if (view) view.innerHTML = '';
+    }
 }
 
 async function saveAllowance() {
@@ -5505,6 +5628,8 @@ async function saveAllowance() {
     const satzRaw   = document.getElementById('alTarifSatzNr').value;
     const tarifSatzNr = satzRaw === '' ? null : parseInt(satzRaw, 10);
     const note      = document.getElementById('alNote').value.trim() || null;
+    const dokRaw    = document.getElementById('alDokumentId')?.value || '';
+    const dokumentId = dokRaw === '' ? null : parseInt(dokRaw, 10);
 
     if (!validFrom)        { err.textContent = 'Gültig ab ist Pflicht.';        return; }
     if (!Number.isFinite(monthly) || monthly < 0) {
@@ -5524,6 +5649,7 @@ async function saveAllowance() {
         allowanceType,
         tarifSatzNr,
         note,
+        dokumentId: Number.isFinite(dokumentId) ? dokumentId : null,
     };
 
     try {

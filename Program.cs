@@ -1504,6 +1504,12 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE INDEX IF NOT EXISTS ix_family_member_allowance_member
             ON family_member_allowance(family_member_id);
+        -- Walter 19.07.2026: FAK-/Entscheidungsdokument an Zulage
+        ALTER TABLE family_member_allowance
+            ADD COLUMN IF NOT EXISTS dokument_id INTEGER
+            REFERENCES employee_dokument(id) ON DELETE SET NULL;
+        CREATE INDEX IF NOT EXISTS ix_family_member_allowance_dokument
+            ON family_member_allowance(dokument_id);
     ");
 
     // SSL-Nummern pro (Filiale, Kanton) — eigene Tabelle, weil ein Arbeitgeber

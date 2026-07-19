@@ -83,7 +83,9 @@ function renderDokstrukturTypen() {
         // Walter-Vorgabe 07.06.2026: Verknüpfung zum Ehegatten unter Familie.
         'spouse':          'Ehegatte (Familie)',
         // Walter-Vorgabe 07.06.2026: Mitarbeiterfoto in der MA-Maske.
-        'employee_photo':  'Mitarbeiterfoto'
+        'employee_photo':  'Mitarbeiterfoto',
+        // Walter-Vorgabe 19.07.2026: FAK-Entscheid bei Kinderzulage.
+        'family_allowance': 'FAK-Entscheid (Kinderzulage)'
     };
     el.innerHTML = kat.typen.map(t => {
         const link = t.linkedFieldCode
@@ -241,6 +243,7 @@ function dokstrukturEditTyp(id) {
               <option value="social_decision" ${t?.linkedFieldCode === 'social_decision' ? 'selected' : ''}>Bescheid Sozialamt</option>
               <option value="spouse"          ${t?.linkedFieldCode === 'spouse'          ? 'selected' : ''}>Ehegatte (Familie)</option>
               <option value="employee_photo"  ${t?.linkedFieldCode === 'employee_photo'  ? 'selected' : ''}>Mitarbeiterfoto</option>
+              <option value="family_allowance" ${t?.linkedFieldCode === 'family_allowance' ? 'selected' : ''}>FAK-Entscheid (Kinderzulage)</option>
             </select>
             <div style="font-size:11px;color:#94a3b8;margin-top:3px">
               Wenn gesetzt, erscheint neben dem Stammdaten-Feld in der MA-Maske ein 📎-Button.
