@@ -2,7 +2,7 @@
 //  Warnungsverwaltung (Walter-Vorgabe 06.07.2026 / Priorität+Farbe 19.07.2026)
 //  Globale Konfiguration der Dashboard-/ToDo-Warnungen. Pro Warnung:
 //    • an/aus
-//    • Reihenfolge per ▲/▼ (= ToDo-Reihenfolge)
+//    • Reihenfolge per Drag-and-Drop (Vierpfeil-Griff = ToDo-Reihenfolge)
 //    • Warnfarbe (Standard / immer rot / rot wenn abgelaufen)
 //    • Vorlauf / Eskalation / Schweregrad
 //  Liquid-Glass-Optik, ein globaler Speichern-Button (Bulk-PUT).
@@ -52,12 +52,49 @@ function wcSyncPriorities() {
     _wcRows.forEach((c, i) => { c.todoPriority = (i + 1) * 10; });
 }
 
-function wcMove(idx, delta) {
-    const j = idx + delta;
-    if (j < 0 || j >= _wcRows.length) return;
-    const tmp = _wcRows[idx];
-    _wcRows[idx] = _wcRows[j];
-    _wcRows[j] = tmp;
+let _wcDragFrom = null;
+
+function wcDragStart(ev, idx) {
+    _wcDragFrom = idx;
+    ev.dataTransfer.effectAllowed = 'move';
+    ev.dataTransfer.setData('text/plain', String(idx));
+    const tr = ev.target.closest('tr');
+    if (tr) {
+        // Kurzer Delay, damit der Drag-Ghost die Zeile noch sichtbar hat.
+        setTimeout(() => { tr.style.opacity = '0.45'; }, 0);
+    }
+}
+function wcDragEnd(ev) {
+    _wcDragFrom = null;
+    document.querySelectorAll('#wcContainer tr[data-wc-idx]').forEach(tr => {
+        tr.style.opacity = '';
+        tr.style.background = '';
+        tr.style.outline = '';
+    });
+}
+function wcDragOver(ev, idx) {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('#wcContainer tr[data-wc-idx]').forEach(tr => {
+        tr.style.background = '';
+        tr.style.outline = '';
+    });
+    const tr = ev.currentTarget;
+    if (tr) {
+        tr.style.background = 'rgba(59,130,246,0.08)';
+        tr.style.outline = '1px dashed #93c5fd';
+    }
+}
+function wcDrop(ev, toIdx) {
+    ev.preventDefault();
+    const from = _wcDragFrom != null ? _wcDragFrom : parseInt(ev.dataTransfer.getData('text/plain'), 10);
+    if (!Number.isFinite(from) || from === toIdx || from < 0 || toIdx < 0
+        || from >= _wcRows.length || toIdx >= _wcRows.length) {
+        wcDragEnd();
+        return;
+    }
+    const [row] = _wcRows.splice(from, 1);
+    _wcRows.splice(toIdx, 0, row);
     wcSyncPriorities();
     wcRender();
 }
@@ -74,11 +111,17 @@ function wcColorOptions(selected) {
     ).join('');
 }
 
-function wcMoveBtn(idx, delta, label, title) {
-    const disabled = (delta < 0 && idx === 0) || (delta > 0 && idx === _wcRows.length - 1);
-    return `<button type="button" onclick="wcMove(${idx},${delta})" title="${title}"
-        ${disabled ? 'disabled' : ''}
-        style="width:26px;height:22px;padding:0;border:1px solid #d9d3ca;border-radius:6px;background:${disabled ? '#f0ebe4' : '#faf8f5'};color:${disabled ? '#c4bdb3' : '#3f3f3f'};font-size:11px;font-weight:700;cursor:${disabled ? 'default' : 'pointer'};line-height:1">${label}</button>`;
+/** Vierpfeil-Griff (Move-Symbol) — Zeile ziehen. */
+function wcDragHandle(idx) {
+    return `<span class="wc-drag-handle" draggable="true"
+        ondragstart="wcDragStart(event,${idx})" ondragend="wcDragEnd(event)"
+        title="Ziehen zum Sortieren (ToDo-Reihenfolge)"
+        style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #d9d3ca;border-radius:8px;background:#faf8f5;cursor:grab;user-select:none;touch-action:none"
+        onmousedown="this.style.cursor='grabbing'" onmouseup="this.style.cursor='grab'">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="#475569">
+            <path d="M12 2 L15.5 6.5 H13 V10.5 H17 V8.5 L21.5 12 L17 15.5 V13.5 H13 V17.5 H15.5 L12 22 L8.5 17.5 H11 V13.5 H7 V15.5 L2.5 12 L7 8.5 V10.5 H11 V6.5 H8.5 Z"/>
+        </svg>
+    </span>`;
 }
 
 function wcRender() {
@@ -110,13 +153,9 @@ function wcRender() {
         const color = c.warnColor || 'none';
 
         return `
-        <tr style="border-bottom:1px solid #ece7df">
-            <td style="${WC_TD};width:56px;text-align:center">
-                <div style="display:inline-flex;flex-direction:column;gap:2px">
-                    ${wcMoveBtn(i, -1, '▲', 'Nach oben (weiter vorne in ToDo)')}
-                    ${wcMoveBtn(i, 1, '▼', 'Nach unten (weiter hinten in ToDo)')}
-                </div>
-            </td>
+        <tr data-wc-idx="${i}" style="border-bottom:1px solid #ece7df"
+            ondragover="wcDragOver(event,${i})" ondrop="wcDrop(event,${i})">
+            <td style="${WC_TD};width:40px;text-align:center">${wcDragHandle(i)}</td>
             <td style="${WC_TD};color:#3f3f3f;font-weight:600;white-space:nowrap">
                 <span style="color:#b8b0a4;font-weight:500;font-size:11px;margin-right:6px">${i + 1}.</span>${escapeHtml(c.label || c.category)}
             </td>
@@ -148,7 +187,7 @@ function wcRender() {
         <table style="width:100%;border-collapse:collapse;min-width:880px">
             <thead>
                 <tr style="background:#f6f3ee;text-align:left">
-                    <th style="${WC_TH};text-align:center" title="Reihenfolge = ToDo-Liste">↕</th>
+                    <th style="${WC_TH};text-align:center" title="Ziehen zum Sortieren">✥</th>
                     <th style="${WC_TH}">Warnung</th>
                     <th style="${WC_TH};text-align:center">Aktiv</th>
                     <th style="${WC_TH};text-align:center" title="Titel-Farbe in der ToDo-Liste">Warnfarbe</th>
@@ -162,7 +201,7 @@ function wcRender() {
         </table>
     </div>
     <p style="margin-top:10px;font-size:12px;color:#8b8b8b;line-height:1.45">
-        Mit ▲/▼ verschieben — <b>diese Reihenfolge ist die ToDo-Reihenfolge</b> (nach Speichern).
+        Am Vierpfeil-Griff ziehen — <b>diese Reihenfolge ist die ToDo-Reihenfolge</b> (nach Speichern).
         Warnfarbe: Standard (schwarz) · Immer rot · Rot wenn abgelaufen.
     </p>`;
 }
