@@ -7019,72 +7019,108 @@ function absBindScrollIsolation() {
 // ══════════════════════════════════════════════════════════════════
 // SPERRFRIST-PANEL (Kündigungsschutz nach Art. 336c OR)
 // ══════════════════════════════════════════════════════════════════
-// Zeigt ob/bis wann dem MA bei durchgehender Krankheit oder Unfall
-// NICHT gekündigt werden darf. Sperrfrist-Dauer je Dienstjahr:
-// 1. DJ = 30 Tage, 2.-5. DJ = 90 Tage, ab 6. DJ = 180 Tage.
+// Schutz gilt nur solange tatsächlich AU besteht — höchstens 30/90/180
+// Tage (je Dienstjahr). Erster AU-Tag = Sperrtag 1 (inklusiv).
 function renderSperrfristPanel(info) {
     if (!info) return '';
 
-    const wrap = (color, bg, border, title, body, extra = '') => `
-        <div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:10px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13.5px">
-            <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">Kündigungsschutz · 336c OR</div>
-            <div style="font-weight:700;color:#0f172a;font-size:14px">${title}</div>
-            <div style="color:#475569;flex:1;min-width:220px">${body}</div>
-            ${extra}
+    const wrap = (color, bg, border, inner) => `
+        <div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:12px 16px;margin-bottom:8px;font-size:13.5px">
+            <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Kündigungsschutz · Art. 336c OR</div>
+            ${inner}
         </div>`;
 
     const status = info.status;
     const djText = info.dienstjahrAmStichtag ? `${info.dienstjahrAmStichtag}. Dienstjahr` : '–';
+    const isMts  = info.auGrund === 'MUTTERSCHAFT';
 
     if (status === 'KEIN_EINTRITT') {
         return wrap('#64748b', '#f8fafc', '#e2e8f0',
-            'Kein Eintrittsdatum hinterlegt',
-            'Ohne Eintrittsdatum kann die Sperrfrist nicht berechnet werden. Bitte Vertragsdaten ergänzen.');
+            `<div style="font-weight:700;color:#0f172a">Kein Eintrittsdatum hinterlegt</div>
+             <div style="color:#475569;margin-top:4px">Ohne Eintrittsdatum kann die Sperrfrist nicht berechnet werden. Bitte Vertragsdaten ergänzen.</div>`);
     }
     if (status === 'IN_PROBEZEIT') {
         return wrap('#7c3aed', '#faf5ff', '#e9d5ff',
-            info.statusText,
-            `${djText} · Eintritt ${fmtDate(info.entryDate)}${info.probezeitEndDate ? ` · Probezeit bis ${fmtDate(info.probezeitEndDate)}` : ''}. ${info.hinweis ?? ''}`);
+            `<div style="font-weight:700;color:#0f172a">${esc(info.statusText || '')}</div>
+             <div style="color:#475569;margin-top:4px">${djText} · Eintritt ${fmtDate(info.entryDate)}${info.probezeitEndDate ? ` · Probezeit bis ${fmtDate(info.probezeitEndDate)}` : ''}. ${esc(info.hinweis || '')}</div>`);
     }
     if (status === 'KEINE_AU') {
         return wrap('#16a34a', '#f0fdf4', '#bbf7d0',
-            'Kein Kündigungsschutz aktiv',
-            `${djText} · Ordentliche Kündigung ist möglich. Sperrfristen nach Art. 336c OR greifen erst bei durchgehender Krankheit oder Unfall.`);
+            `<div style="font-weight:700;color:#0f172a">Kein Kündigungsschutz aktiv</div>
+             <div style="color:#475569;margin-top:4px">${djText} · Ordentliche Kündigung ist möglich. Sperrfristen nach Art. 336c OR greifen nur bei durchgehender Krankheit oder Unfall (und nur solange die AU andauert).</div>`);
     }
 
-    // GESCHUETZT / SPERRFRIST_ABGELAUFEN — volles Datenbild anzeigen
     const isGeschuetzt = status === 'GESCHUETZT';
-    const color    = isGeschuetzt ? '#b91c1c' : '#16a34a';
-    const bg       = isGeschuetzt ? '#fef2f2' : '#f0fdf4';
-    const border   = isGeschuetzt ? '#fecaca' : '#bbf7d0';
+    const color  = isGeschuetzt ? '#b91c1c' : '#16a34a';
+    const bg     = isGeschuetzt ? '#fef2f2' : '#f0fdf4';
+    const border = isGeschuetzt ? '#fecaca' : '#bbf7d0';
+
+    // Mutterschaft: festes Ende (Geburt + 16 Wochen) — eigene Formulierung
+    if (isMts) {
+        return wrap(color, bg, border, `
+            <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+                <div style="flex:1;min-width:240px">
+                    <div style="font-weight:700;color:#0f172a;font-size:14px;line-height:1.35">
+                        Kündigungsschutz wegen Schwangerschaft/Mutterschaft
+                    </div>
+                    <div style="color:#475569;margin-top:6px;line-height:1.45">
+                        Geschützt bis <b>${fmtDate(info.sperrfristEnde)}</b> —
+                        Kündigung frühestens ab <b style="color:${color}">${fmtDate(info.kuendigungAbDatum)}</b>.
+                        ${info.hinweis ? `<div style="margin-top:6px;font-size:12px">${esc(info.hinweis)}</div>` : ''}
+                    </div>
+                </div>
+                ${isGeschuetzt ? `<div style="text-align:right;min-width:120px">
+                    <div style="font-size:22px;font-weight:700;color:${color}">${info.verbleibendeTage ?? '–'}</div>
+                    <div style="font-size:11px;color:#64748b">Tage bis kündbar</div>
+                </div>` : `<div style="font-size:13px;font-weight:700;color:${color}">✓ Schutz abgelaufen</div>`}
+            </div>`);
+    }
 
     const grundLabel = info.auGrund === 'UNFALL' ? 'Unfall'
-                    : info.auGrund === 'KRANK+UNFALL' ? 'Krankheit + Unfall (gemischt)'
+                    : info.auGrund === 'KRANK+UNFALL' ? 'Krankheit + Unfall'
                     : 'Krankheit';
+    const maxTage = info.sperrfristTage || 180;
+    const sperrTag = info.auDauerTage || 0;
+    const aktuellBis = info.aktuellGeschuetztBis || info.auEnde;
+    const maxBis = info.sperrfristEnde;
+    const kuendAb = info.kuendigungAbDatum;
 
-    const sperrTagesText = info.sperrfristTageHoechstenfalls
-        ? `${info.sperrfristTage} Tage <span style="color:#94a3b8">(erhöht wegen Dienstjahr-Übergang)</span>`
-        : `${info.sperrfristTage} Tage`;
+    if (!isGeschuetzt) {
+        return wrap(color, bg, border, `
+            <div style="font-weight:700;color:#0f172a;font-size:14px">
+                Maximale Sperrfrist am ${fmtDate(maxBis)} abgelaufen — Kündigung jetzt möglich
+            </div>
+            <div style="color:#475569;margin-top:6px;line-height:1.45">
+                AU seit ${fmtDate(info.auBeginn)} (${grundLabel}) · ${djText} · max. ${maxTage} Tage.
+            </div>`);
+    }
 
-    const title = isGeschuetzt
-        ? `Kündigung gesperrt bis ${fmtDate(info.sperrfristEnde)} — frühestens kündbar am <b style="color:${color}">${fmtDate(info.kuendigungAbDatum)}</b>`
-        : `Sperrfrist am ${fmtDate(info.sperrfristEnde)} abgelaufen — Kündigung jetzt möglich`;
-
-    const body = `
-        Arbeitsunfähig seit <b>${fmtDate(info.auBeginn)}</b> (${grundLabel}, ${info.auDauerTage} Tag${info.auDauerTage === 1 ? '' : 'e'} am Stück) ·
-        ${djText} · Sperrfrist ${sperrTagesText}.
-        ${info.hinweis ? `<div style="margin-top:6px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;color:#78350f;font-size:11px">⚠︎ ${info.hinweis}</div>` : ''}`;
-
-    const badge = isGeschuetzt
-        ? `<div style="text-align:right;min-width:130px">
-               <div style="font-size:24px;font-weight:700;color:${color}">${info.verbleibendeTage}</div>
-               <div style="font-size:11px;color:#64748b">Tag${info.verbleibendeTage === 1 ? '' : 'e'} bis Kündigung möglich</div>
-           </div>`
-        : `<div style="text-align:right;min-width:130px">
-               <div style="font-size:13px;font-weight:700;color:${color}">✓ Schutz abgelaufen</div>
-           </div>`;
-
-    return wrap(color, bg, border, title, body, badge);
+    // GESCHUETZT (Krankheit/Unfall): aktuell vs. maximal klar trennen
+    return wrap(color, bg, border, `
+        <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+            <div style="flex:1;min-width:260px">
+                <div style="font-weight:700;color:#0f172a;font-size:14px;line-height:1.35">
+                    Aktuell kündigungsgeschützt aufgrund Arbeitsunfähigkeit
+                </div>
+                <div style="color:#334155;margin-top:8px;line-height:1.5">
+                    Ärztlich bestätigte Arbeitsunfähigkeit bis <b>${fmtDate(aktuellBis)}</b>
+                    (${grundLabel}, seit ${fmtDate(info.auBeginn)}).
+                </div>
+                <div style="color:#475569;margin-top:6px;line-height:1.5;font-size:13px">
+                    Bei durchgehender Arbeitsunfähigkeit maximale Sperrfrist bis <b>${fmtDate(maxBis)}</b>
+                    — Kündigung frühestens ab <b style="color:${color}">${fmtDate(kuendAb)}</b>
+                    (${djText}, max. ${maxTage} Tage).
+                </div>
+                <div style="color:#94a3b8;margin-top:6px;font-size:11.5px;line-height:1.4">
+                    Hinweis: Krankheits-Karenz / Lohnfortzahlung ist eine separate Berechnung und beendet den Kündigungsschutz nicht.
+                </div>
+                ${info.hinweis ? `<div style="margin-top:6px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;color:#78350f;font-size:11px">⚠︎ ${esc(info.hinweis)}</div>` : ''}
+            </div>
+            <div style="text-align:right;min-width:130px">
+                <div style="font-size:22px;font-weight:700;color:${color}">${sperrTag}<span style="font-size:14px;font-weight:600;color:#94a3b8"> / ${maxTage}</span></div>
+                <div style="font-size:11px;color:#64748b">Sperrtag von maximal ${maxTage}</div>
+            </div>
+        </div>`);
 }
 
 // ══════════════════════════════════════════════════════════════════

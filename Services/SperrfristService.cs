@@ -16,7 +16,11 @@ namespace HrSystem.Services;
 ///   (Werte gemäss GastroSuisse-Merkblatt / Art. 336c Abs. 1 Bst. b OR)
 ///
 /// Kernregeln:
-///   • Sperrfrist läuft ab BEGINN der durchgängigen Arbeitsunfähigkeit.
+///   • Schutz gilt NUR solange tatsächlich AU besteht — höchstens für die
+///     Sperrfrist-Tage. Endet die erfasste AU früher, endet der Schutz mit
+///     dem letzten AU-Tag (nicht erst am Maximaldatum).
+///   • Der erste AU-Tag zählt als Sperrtag 1 (inklusiv). Beispiel BS:
+///     Krankheit ab 04.01., 90. Sperrtag = 03.04., kündbar ab 04.04.
 ///   • Teilarbeitsunfähigkeit (z.B. 50%) zählt voll als Sperrfristtag.
 ///   • Kalendertage, nicht Arbeitstage.
 ///   • Bei NEUEM Grund (z.B. erst Krank, dann Unfall) → neue Sperrfrist.
@@ -64,15 +68,19 @@ public class SperrfristService
 
         // AU-Kontext
         DateOnly? AuBeginn,
-        string?   AuGrund,              // "KRANK", "UNFALL", "KRANK+UNFALL"
-        int?      AuDauerTage,
+        DateOnly? AuEnde,               // dokumentiertes Ende der AU-Kette
+        string?   AuGrund,              // "KRANK", "UNFALL", "KRANK+UNFALL", "MUTTERSCHAFT"
+        int?      AuDauerTage,          // Sperrtag-Nr. am Stichtag (1-basiert inkl.)
 
         // Sperrfrist
         int?      SperrfristTage,       // 30 / 90 / 180
         int?      SperrfristTageHoechstenfalls,  // wenn Dienstjahr-Übergang
+        /// <summary>Maximaler letzter Sperrtag bei fortdauernder AU (inklusiv).</summary>
         DateOnly? SperrfristEnde,
-        DateOnly? KuendigungAbDatum,    // SperrfristEnde + 1 Tag
-        int?      VerbleibendeTage      // Tage bis Kündigung wieder möglich
+        /// <summary>Aktuell geschützt bis = min(AuEnde, SperrfristEnde).</summary>
+        DateOnly? AktuellGeschuetztBis,
+        DateOnly? KuendigungAbDatum,    // früheste Kündigung bei max. Sperrfrist = SperrfristEnde + 1
+        int?      VerbleibendeTage      // Tage bis KuendigungAbDatum (Maximal-Fall)
     );
 
     // ── Public API ─────────────────────────────────────────────────────────
@@ -82,21 +90,8 @@ public class SperrfristService
         var employee = await _db.Employees.FindAsync(employeeId);
         if (employee is null || !employee.EntryDate.HasValue)
         {
-            return new SperrfristInfo(
-                Status:                "KEIN_EINTRITT",
-                StatusText:            "Kein Eintrittsdatum hinterlegt — Sperrfrist nicht berechenbar.",
-                Hinweis:               null,
-                EntryDate:             null,
-                DienstjahrAmStichtag:  null,
-                ProbezeitEndDate:      null,
-                AuBeginn:              null,
-                AuGrund:               null,
-                AuDauerTage:           null,
-                SperrfristTage:        null,
-                SperrfristTageHoechstenfalls: null,
-                SperrfristEnde:        null,
-                KuendigungAbDatum:     null,
-                VerbleibendeTage:      null);
+            return Empty("KEIN_EINTRITT",
+                "Kein Eintrittsdatum hinterlegt — Sperrfrist nicht berechenbar.");
         }
 
         var entryDate = DateOnly.FromDateTime(employee.EntryDate.Value);
@@ -133,11 +128,13 @@ public class SperrfristService
                 DienstjahrAmStichtag:  dienstjahr,
                 ProbezeitEndDate:      probezeitEnde,
                 AuBeginn:              null,
+                AuEnde:                null,
                 AuGrund:               null,
                 AuDauerTage:           null,
                 SperrfristTage:        null,
                 SperrfristTageHoechstenfalls: null,
                 SperrfristEnde:        null,
+                AktuellGeschuetztBis:  null,
                 KuendigungAbDatum:     null,
                 VerbleibendeTage:      null);
         }
@@ -164,7 +161,7 @@ public class SperrfristService
                 var kuendigungAbMts = schutzEnde.AddDays(1);
                 return new SperrfristInfo(
                     Status:               "GESCHUETZT",
-                    StatusText:           $"Kündigungsschutz wegen Schwangerschaft/Mutterschaft (OR Art. 336c Abs. 1 Bst. c) — frühestens am {kuendigungAbMts:dd.MM.yyyy} kündbar ({verbleibendMts} Tag{(verbleibendMts == 1 ? "" : "e")} verbleibend).",
+                    StatusText:           $"Kündigungsschutz wegen Schwangerschaft/Mutterschaft (OR Art. 336c Abs. 1 Bst. c) — frühestens am {kuendigungAbMts:dd.MM.yyyy} kündbar.",
                     Hinweis:              pregnancy.Geburtsdatum.HasValue
                         ? $"Schutz ab Beginn der Schwangerschaft ({schutzBeginn:dd.MM.yyyy}, ET − 280 Tage) bis 16 Wochen nach Geburt ({pregnancy.Geburtsdatum.Value:dd.MM.yyyy})."
                         : $"Schutz ab Beginn der Schwangerschaft ({schutzBeginn:dd.MM.yyyy}, ET − 280 Tage) bis 16 Wochen nach errechnetem Termin ({pregnancy.ErrechneterTermin:dd.MM.yyyy}) — wird mit dem effektiven Geburtsdatum aktualisiert.",
@@ -172,13 +169,15 @@ public class SperrfristService
                     DienstjahrAmStichtag: dienstjahr,
                     ProbezeitEndDate:     probezeitEnde,
                     AuBeginn:             schutzBeginn,
+                    AuEnde:               schutzEnde,
                     AuGrund:              "MUTTERSCHAFT",
                     AuDauerTage:          stichtag.DayNumber - schutzBeginn.DayNumber + 1,
                     SperrfristTage:       schutzEnde.DayNumber - schutzBeginn.DayNumber + 1,
                     SperrfristTageHoechstenfalls: null,
                     SperrfristEnde:       schutzEnde,
+                    AktuellGeschuetztBis: schutzEnde,
                     KuendigungAbDatum:    kuendigungAbMts,
-                    VerbleibendeTage:     verbleibendMts);
+                    VerbleibendeTage:     Math.Max(0, kuendigungAbMts.DayNumber - stichtag.DayNumber));
             }
         }
 
@@ -194,11 +193,13 @@ public class SperrfristService
                 DienstjahrAmStichtag:  dienstjahr,
                 ProbezeitEndDate:      probezeitEnde,
                 AuBeginn:              null,
+                AuEnde:                null,
                 AuGrund:               null,
                 AuDauerTage:           null,
                 SperrfristTage:        null,
                 SperrfristTageHoechstenfalls: null,
                 SperrfristEnde:        null,
+                AktuellGeschuetztBis:  null,
                 KuendigungAbDatum:     null,
                 VerbleibendeTage:      null);
         }
@@ -209,10 +210,12 @@ public class SperrfristService
         // Tag die längere Sperrfrist (PDF Ziff. 9.2), weitergezählt ab AU-
         // Beginn. Wir geben beide Werte aus — KuendigungAbDatum basiert auf
         // dem Maximum.
+        //
+        // Inklusiv-Zählung: 1. Sperrtag = AU-Beginn, n-ter = Beginn+(n-1).
         int dienstjahrBeiAu = ComputeDienstjahr(entryDate, auKette.Beginn);
         int sperrfristAmBeginn = SperrfristTageFuerDienstjahr(dienstjahrBeiAu);
 
-        DateOnly sperrfristEnde = auKette.Beginn.AddDays(sperrfristAmBeginn);
+        DateOnly sperrfristEnde = auKette.Beginn.AddDays(sperrfristAmBeginn - 1);
 
         int? sperrfristHoechstens = null;
         // Liegt der berechnete Sperrfrist-Endpunkt in einem höheren Dienstjahr?
@@ -223,20 +226,22 @@ public class SperrfristService
             if (hoehere > sperrfristAmBeginn)
             {
                 sperrfristHoechstens = hoehere;
-                sperrfristEnde = auKette.Beginn.AddDays(hoehere);
+                sperrfristEnde = auKette.Beginn.AddDays(hoehere - 1);
             }
         }
 
-        var kuendigungAb = sperrfristEnde.AddDays(1);
-        int verbleibend  = Math.Max(0, sperrfristEnde.DayNumber - stichtag.DayNumber);
+        int sperrTageMax = sperrfristHoechstens ?? sperrfristAmBeginn;
+        var kuendigungAb = sperrfristEnde.AddDays(1); // Tag nach letztem Sperrtag
         int dauer        = stichtag.DayNumber - auKette.Beginn.DayNumber + 1;
+        // Aktuell geschützt nur bis zum dokumentierten AU-Ende (höchstens Max).
+        var aktuellBis   = auKette.Ende < sperrfristEnde ? auKette.Ende : sperrfristEnde;
 
         bool abgelaufen = stichtag > sperrfristEnde;
 
         string status     = abgelaufen ? "SPERRFRIST_ABGELAUFEN" : "GESCHUETZT";
         string statusText = abgelaufen
-            ? $"Sperrfrist ist am {sperrfristEnde:dd.MM.yyyy} abgelaufen — Kündigung jetzt möglich (Art. 336c OR)."
-            : $"Kündigungsschutz aktiv — frühestens am {kuendigungAb:dd.MM.yyyy} kündbar ({verbleibend} Tag{(verbleibend == 1 ? "" : "e")} verbleibend).";
+            ? $"Maximale Sperrfrist ist am {sperrfristEnde:dd.MM.yyyy} abgelaufen — Kündigung jetzt möglich (Art. 336c OR)."
+            : $"Aktuell kündigungsgeschützt aufgrund Arbeitsunfähigkeit (ärztlich erfasst bis {auKette.Ende:dd.MM.yyyy}). Bei durchgehender AU maximale Sperrfrist bis {sperrfristEnde:dd.MM.yyyy} — Kündigung frühestens ab {kuendigungAb:dd.MM.yyyy}.";
 
         string? hinweis = null;
         if (auKette.GruendeGemischt)
@@ -256,16 +261,26 @@ public class SperrfristService
             DienstjahrAmStichtag:  dienstjahr,
             ProbezeitEndDate:      probezeitEnde,
             AuBeginn:              auKette.Beginn,
+            AuEnde:                auKette.Ende,
             AuGrund:               auKette.Grund,
             AuDauerTage:           dauer,
-            SperrfristTage:        sperrfristHoechstens ?? sperrfristAmBeginn,
+            SperrfristTage:        sperrTageMax,
             SperrfristTageHoechstenfalls: sperrfristHoechstens,
             SperrfristEnde:        sperrfristEnde,
+            AktuellGeschuetztBis:  abgelaufen ? null : aktuellBis,
             KuendigungAbDatum:     kuendigungAb,
-            VerbleibendeTage:      abgelaufen ? 0 : verbleibend);
+            VerbleibendeTage:      abgelaufen ? 0 : Math.Max(0, kuendigungAb.DayNumber - stichtag.DayNumber));
     }
 
     // ── Hilfsfunktionen ────────────────────────────────────────────────────
+
+    private static SperrfristInfo Empty(string status, string text) => new(
+        Status: status, StatusText: text, Hinweis: null,
+        EntryDate: null, DienstjahrAmStichtag: null, ProbezeitEndDate: null,
+        AuBeginn: null, AuEnde: null, AuGrund: null, AuDauerTage: null,
+        SperrfristTage: null, SperrfristTageHoechstenfalls: null,
+        SperrfristEnde: null, AktuellGeschuetztBis: null,
+        KuendigungAbDatum: null, VerbleibendeTage: null);
 
     /// <summary>
     /// Dienstjahr am gegebenen Datum (1-basiert). Volle 12 Monate seit
