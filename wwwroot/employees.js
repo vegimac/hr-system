@@ -1562,13 +1562,13 @@ function switchEmpTab(tab) {
         t.classList.toggle('active', t.dataset.tab === tab));
     document.querySelectorAll('.emp-tab-content').forEach(c =>
         c.classList.toggle('active', c.id === 'emp-tab-' + tab));
-    // Übersicht / Dokumente / Stempelzeiten: Detail-Body ohne Scroll
+    // Übersicht / Dokumente / Stempelzeiten / Absenzen: Detail-Body ohne Scroll
     // (Walter 17./19.07.2026) — Maske fix; nur die jeweilige Liste scrollt.
-    // Andere Tabs behalten Overflow (Absenzen, …).
     document.querySelectorAll('#page-mitarbeiter .emp-detail-body').forEach(b => {
         b.classList.toggle('ov-noscroll', tab === 'uebersicht');
         b.classList.toggle('dok-noscroll', tab === 'dokumente');
         b.classList.toggle('stempel-noscroll', tab === 'stempelzeiten');
+        b.classList.toggle('abs-noscroll', tab === 'absenzen');
     });
     // Header-Actions (Inline-Speichern) — Übersicht speichert über ov-savebtn
     // in den Karten; andere Tabs haben eigene Edit-Buttons.
@@ -6819,19 +6819,68 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
         });
     }
 
+    // Walter 19.07.2026: Info-Panels + Spaltenköpfe FIX ausserhalb Scroll
+    // (kein sticky) — nur Datenzeilen scrollen (analog Stempelzeiten/Dokumente).
+    const colgroup = `
+        <colgroup>
+            <col class="abs-col-type"><col class="abs-col-period"><col class="abs-col-days">
+            <col class="abs-col-hours"><col class="abs-col-notes"><col class="abs-col-actions">
+        </colgroup>`;
     el.innerHTML = `
-    ${sperrHtml}
-    ${karenzHtml}
-    <!-- „Absenz erfassen" sitzt jetzt im Header (empTabActionBar) — Walter 01.06.2026 -->
-    <div class="abs-toolbar" style="display:none">
-        <button class="btn-emp-add" onclick="openAbsenceModal(null)">Absenz erfassen</button>
-    </div>
-    <table class="abs-table">
-        <thead><tr>
-            <th>Typ</th><th>Zeitraum</th><th>Tage</th><th>Stunden</th><th>Bemerkung</th><th></th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-    </table>`;
+    <div class="abs-list-shell">
+        <div class="abs-list-fixed">
+            <div class="abs-info-panels">
+                ${sperrHtml}
+                ${karenzHtml}
+            </div>
+            <!-- „Absenz erfassen" sitzt jetzt im Header (empTabActionBar) — Walter 01.06.2026 -->
+            <div class="abs-toolbar" style="display:none">
+                <button class="btn-emp-add" onclick="openAbsenceModal(null)">Absenz erfassen</button>
+            </div>
+            <div class="abs-cols">
+                <table class="abs-table abs-table-head">
+                    ${colgroup}
+                    <thead><tr>
+                        <th>Typ</th><th>Zeitraum</th><th>Tage</th><th>Stunden</th><th>Bemerkung</th><th></th>
+                    </tr></thead>
+                </table>
+            </div>
+        </div>
+        <div class="abs-list-scroll" id="absListScroll">
+            <table class="abs-table abs-table-body">
+                ${colgroup}
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    </div>`;
+    absBindScrollIsolation();
+}
+
+/** Wheel-Isolation am Listenrand — Titel/Spaltenköpfe springen nicht (Walter 19.07.2026). */
+function absBindScrollIsolation() {
+    const wrap = document.querySelector('#absenzenContent .abs-list-shell');
+    const sc = document.getElementById('absListScroll');
+    if (!wrap || !sc || sc.dataset.scrollLock === '1') return;
+    sc.dataset.scrollLock = '1';
+
+    wrap.addEventListener('wheel', (e) => {
+        e.stopPropagation();
+        const maxScroll = sc.scrollHeight - sc.clientHeight;
+        if (maxScroll <= 0) {
+            e.preventDefault();
+            return;
+        }
+        const atTop = sc.scrollTop <= 0;
+        const atBottom = sc.scrollTop >= maxScroll - 1;
+        if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
+            e.preventDefault();
+            return;
+        }
+        if (!sc.contains(e.target)) {
+            sc.scrollTop = Math.min(maxScroll, Math.max(0, sc.scrollTop + e.deltaY));
+            e.preventDefault();
+        }
+    }, { passive: false });
 }
 
 // ══════════════════════════════════════════════════════════════════
