@@ -1103,10 +1103,10 @@ public class DashboardService
                 bool hasChecklist = emp.NightWorkAusnahmeDokumentId.HasValue;
 
                 // Ablauf-Warnung der Bewilligung (Walter-Vorgabe 05.07.2026):
-                // abgelaufen oder ≤ 7 Tage vor Ablauf → KRITISCH; ≤ 1 Monat → WICHTIG.
-                // Der „abgelaufen"-Fall ist über den „Nachweise fehlen"-Alert unten
-                // (examCurrent=false → kritisch) bereits abgedeckt; hier fangen wir
-                // die noch GÜLTIGE, aber bald ablaufende Bewilligung ab.
+                // ≤ 7 Tage vor Ablauf → KRITISCH; ≤ 1 Monat → WICHTIG.
+                // Abgelaufen bei doku-pflichtigen MA: Titel-Priorität unten
+                // («Arztzeugnis seit N Tagen abgelaufen», nicht «Nachweise fehlen»).
+                // Hier nur noch GÜLTIGE, aber bald ablaufende Bewilligung.
                 if (examCurrent && hasChecklist)
                 {
                     if (emp.NightWorkExamValidUntil.HasValue && Enabled("night_work_exam_expiring"))
@@ -1132,29 +1132,46 @@ public class DashboardService
                     continue;   // Nachweise vollständig + aktuell (Ablauf ggf. oben gemeldet)
                 }
 
-                // Wortwahl (Walter-Vorgabe 14.07.2026): OHNE Beginndatum wurde nie
-                // ein Untersuch gemacht → «Untersuch fehlt»; MIT Beginndatum ist das
-                // Zeugnis schlicht abgelaufen → «Zeugnis (seit N Tagen) abgelaufen».
-                string examTxt = examCurrent ? null
-                               : !emp.NightWorkExamIssued.HasValue ? "Untersuch fehlt"
-                               : examExpired ? $"Zeugnis seit {abgelaufenSeit ?? 0} Tag(en) abgelaufen"
-                               : "Zeugnis abgelaufen";
-                string grund =
-                      (examTxt != null && !hasChecklist) ? $"{examTxt} und Ausnahmeregelung fehlt"
-                    : (examTxt != null)                  ? examTxt
-                    :                                       "Ausnahmeregelung fehlt";
+                // Titel-Priorität (Walter-Vorgabe 19.07.2026): abgelaufene
+                // Nachtbewilligung ist WICHTIGER als «Nachweise fehlen». Ohne
+                // eingetragenes Datum (oder Untersuch sonst nicht aktuell) →
+                // «Nacht Untersuch fehlt». Nur wenn der Untersuch aktuell ist
+                // und bloss die Ausnahmeregelung fehlt, bleibt der generische
+                // Titel «Nachtarbeit-Nachweise fehlen».
+                string title;
+                string? grundExtra;
+                if (examExpired)
+                {
+                    title = $"Nachtarbeit-Arztzeugnis seit {abgelaufenSeit ?? 0} Tag(en) abgelaufen";
+                    grundExtra = hasChecklist ? null : "Ausnahmeregelung fehlt";
+                }
+                else if (!examCurrent)
+                {
+                    title = "Nacht Untersuch fehlt";
+                    grundExtra = hasChecklist ? null : "Ausnahmeregelung fehlt";
+                }
+                else
+                {
+                    // Untersuch aktuell → nur Ausnahmeregelung fehlt
+                    title = "Nachtarbeit-Nachweise fehlen";
+                    grundExtra = "Ausnahmeregelung fehlt";
+                }
                 if (!Enabled("night_work_exam_fehlt")) continue;
+                string subtitle =
+                    $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}"
+                    + $" · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen"
+                    + (grundExtra != null ? $" · {grundExtra}" : "")
+                    + hinweis45;
                 alerts.Add(new DashboardAlert
                 {
                     Category = "night_work_exam_fehlt",
-                    // Nachtarbeit-Nachweise fehlen = IMMER KRITISCH (Walter-Vorgabe
-                    // 04.07.2026): egal ob Arztzeugnis oder Ausnahmeregelung fehlt —
-                    // Nachtarbeit ist obligatorisch dokumentationspflichtig.
+                    // IMMER KRITISCH (Walter-Vorgabe 04.07.2026): Nachtarbeit ist
+                    // obligatorisch dokumentationspflichtig.
                     Severity = SeverityState("night_work_exam_fehlt", "critical"),
-                    Title    = "Nachtarbeit-Nachweise fehlen",
-                    Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen · {grund}{hinweis45}",
-                    // Abgelaufenes Zeugnis (statt nie erfasst) → negativ markieren,
-                    // damit die ToDo-Liste die Zeile ROT zeichnet (Walter 12.07.2026).
+                    Title    = title,
+                    Subtitle = subtitle,
+                    // Abgelaufenes Zeugnis → negativ markieren (ToDo-Zeile ROT).
+                    DueDate   = examExpired ? emp.NightWorkExamValidUntil : null,
                     DaysUntil = examExpired && abgelaufenSeit != null ? -abgelaufenSeit.Value : (int?)null,
                     EmployeeId     = emp.Id,
                     EmployeeNumber = emp.EmployeeNumber,

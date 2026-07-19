@@ -2385,9 +2385,9 @@ function _nwMissingDocsHtml(emp) {
     const parts = [];
     const tip = `${emp.nightWorkMaxNightsInSixWeeks || '?'} Nächte in 6 Wochen — Nachweise Pflicht (ArGV1 Art. 30)`;
     if (!examCurrent) {
-        const txt = !emp.nightWorkExamIssued ? 'Arztzeugnis fehlt'
-                  : (validUntil && validUntil < today) ? 'Arztzeugnis abgelaufen'
-                  : 'Arztzeugnis fehlt';
+        // Priorität wie ToDo (Walter 19.07.2026): abgelaufen / kein Datum → klarer Text.
+        const txt = (validUntil && validUntil < today) ? 'Nachtbew. abgelaufen'
+                  : 'Nacht Untersuch fehlt';
         parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ ${txt}</span>`);
     }
     if (!hasAusnahme) {
