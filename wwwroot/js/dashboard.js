@@ -324,18 +324,21 @@ function renderDashAlerts() {
     }).join('');
 }
 
-// ROTE Schrift NUR für die von Walter definierten Fälle (12.07.2026, final):
+// ROTE Schrift NUR für die von Walter definierten Fälle (12.07.2026, final;
+// Nachtarbeit-fehlt + abgelaufen: 19.07.2026):
 // - Mindestlohn unterschritten (immer)
 // - Bewilligung ABGELAUFEN oder FEHLT komplett
-// - Nachtarbeit-Arztzeugnis ABGELAUFEN (eigene «seit X Tagen»-Karte)
-// «Nachtarbeit-Nachweise fehlen» bleibt wie immer SCHWARZ, ebenso QST usw.
+// - Nachtarbeit-Arztzeugnis ABGELAUFEN (expiring-Karte ODER fehlt-Karte mit
+//   daysUntil < 0 — doku-pflichtige MA mit abgelaufenem Zeugnis)
+// «Nachtarbeit-Nachweise fehlen» ohne Ablauf bleibt SCHWARZ, ebenso QST usw.
 // daysUntil < 0 = abgelaufen; «läuft ab in X Tagen» bleibt schwarz.
 function dashIsRedAlert(a) {
     if (a.category === 'minimum_wage_violation') return true;
     if (a.category === 'permit_missing') return true;
     const abgelaufen = a.daysUntil != null && a.daysUntil < 0;
     return abgelaufen && (a.category === 'permit_expiring'
-                       || a.category === 'night_work_exam_expiring');
+                       || a.category === 'night_work_exam_expiring'
+                       || a.category === 'night_work_exam_fehlt');
 }
 
 function renderDashTodoRow(a) {
