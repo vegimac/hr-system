@@ -4801,8 +4801,38 @@
             color: var(--emp-text-strong) !important;
             padding: 12px 14px !important;
         }
+        /* Tabelle nicht auf volle Panel-Breite strecken — sonst klafft zwischen
+           Beschreibung und den Datumsspalten eine riesige Lücke (neue Detail-Breite). */
         #page-mitarbeiter.liquid-employee .dok-list .dok-table {
-            flex: 1 1 auto;
+            width: max-content;
+            max-width: 100%;
+            table-layout: auto;
+        }
+        #page-mitarbeiter.liquid-employee .dok-name-line {
+            max-width: min(28rem, 52vw);
+        }
+        #page-mitarbeiter.liquid-employee .dok-date-cell {
+            width: 4.6rem;
+            min-width: 4.6rem;
+            max-width: 4.6rem;
+            padding: 5px 6px !important;
+            box-sizing: border-box;
+        }
+        #page-mitarbeiter.liquid-employee .dok-table thead th.dok-sort-th[onclick*="erstellt"],
+        #page-mitarbeiter.liquid-employee .dok-table thead th.dok-sort-th[onclick*="geaendert"],
+        #page-mitarbeiter.liquid-employee .dok-table thead th.dok-sort-th[onclick*="zugriff"] {
+            width: 4.6rem;
+            min-width: 4.6rem;
+            max-width: 4.6rem;
+            padding: 6px 6px !important;
+            box-sizing: border-box;
+        }
+        #page-mitarbeiter.liquid-employee .dok-table tbody td {
+            padding: 5px 8px;
+        }
+        #page-mitarbeiter.liquid-employee .dok-td-actions {
+            padding-left: 10px !important;
+            padding-right: 10px !important;
         }
         #page-mitarbeiter.liquid-employee .dok-list-empty {
             color: #8b8b8b !important;
@@ -5317,7 +5347,9 @@
         .dok-list-empty {
             padding:36px; text-align:center; color:#cbd5e1; font-size:13px;
         }
-        .dok-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+        /* width:max-content — Tabelle folgt dem Inhalt, nicht der Panel-Breite.
+           Sonst zieht die Beschreibungsspalte alles auseinander (Walter 19.07.2026). */
+        .dok-table { width:max-content; max-width:100%; border-collapse:collapse; font-size:12.5px; }
         .dok-table thead th {
             background:#f8fafc; color:#64748b; font-weight:600;
             text-transform:uppercase; font-size:10px; letter-spacing:0.03em;
@@ -5325,7 +5357,7 @@
             white-space:nowrap;
         }
         .dok-table tbody td {
-            padding:3px 8px; border-bottom:1px solid #f1f5f9; vertical-align:middle;
+            padding:5px 8px; border-bottom:1px solid #f1f5f9; vertical-align:middle;
             color:#0f172a; line-height:1.25;
         }
         /* Datumszeile dichter an den Dateinamen rücken (Walter 24.05.2026) */
@@ -5350,31 +5382,29 @@
         .dok-cat-pill.cat-aemter-behoerden         { background:#efece5; color:#5a5348; }
         .dok-meta-inline { font-size:11.5px; color:#64748b; }
         /* Dateiname/Beschreibung: immer EINE Zeile, abschneiden mit … (Walter 24.05.2026)
-           Walter 06.06.2026 final: kompakter, damit die 3 Datums-Spalten + Actions
-           garantiert noch ins .dok-list (overflow:hidden) passen. */
-        .dok-name-line { display:inline-block; max-width:18vw; overflow:hidden;
+           max-width in rem (nicht vw) — sonst wirkt die Liste auf breiten Panels
+           wie auseinandergezogen (Walter 19.07.2026). */
+        .dok-name-line { display:inline-block; max-width:28rem; overflow:hidden;
                          text-overflow:ellipsis; white-space:nowrap; vertical-align:middle;
                          font-size:12.5px; }
         .dok-bemerkung-line { font-size:11.5px; color:#64748b; font-style:italic; margin-top:3px; }
         .dok-td-date { white-space:nowrap; color:#475569; font-size:12px; }
-        /* Walter-Vorgabe 09.06.2026: ⋮ ganz rechts an den Tabellenrand —
-           breiter Abstand zur Datums-Spalte davor, kleiner Abstand zum
-           rechten Listen-Rand. */
-        .dok-td-actions { white-space:nowrap; text-align:right; width:1%; padding-left:18px !important; padding-right:14px !important; }
-        /* Datums-Spalten ganz eng aneinander rücken — minimaler Padding, kein
-           tabellarisches Strecken (text-align:right damit alle Datumsspalten an
-           der gleichen Stelle enden, die Lücke zwischen ihnen ist die Header-Breite). */
+        /* ⋮ direkt nach den Datumsspalten (Tabelle ist max-content, kein Stretch). */
+        .dok-td-actions { white-space:nowrap; text-align:right; width:1%; padding-left:10px !important; padding-right:10px !important; }
+        /* Feste Datums-Spaltenbreite — Header und Werte stehen übereinander,
+           eng aneinander, ohne Lücke zur Beschreibung. */
         .dok-date-cell {
             white-space:nowrap; color:#475569; font-size:11.5px;
-            font-variant-numeric:tabular-nums; padding:3px 3px !important;
-            width:1%; text-align:right;
+            font-variant-numeric:tabular-nums; padding:5px 6px !important;
+            width:4.6rem; min-width:4.6rem; max-width:4.6rem;
+            text-align:right; box-sizing:border-box;
         }
-        /* Sort-Header für Datums-Spalten: rechtsbündig + ganz schmal,
-           damit die Datums-Spalten optisch zusammenrücken (Walter 06.06.2026). */
         .dok-table thead th.dok-sort-th[onclick*="erstellt"],
         .dok-table thead th.dok-sort-th[onclick*="geaendert"],
         .dok-table thead th.dok-sort-th[onclick*="zugriff"] {
-            text-align:right; padding:6px 3px !important;
+            text-align:right; padding:6px 6px !important;
+            width:4.6rem; min-width:4.6rem; max-width:4.6rem;
+            box-sizing:border-box;
         }
         .dok-table thead th.dok-sort-th:hover { background:#f6f3ee; color:#6b7280; }
         .dok-icon { font-size:16px; margin-right:6px; vertical-align:middle; }
