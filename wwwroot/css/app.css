@@ -3540,7 +3540,7 @@
            festen X-Positionen, springt bei keinem MA. Spart eine Zeile. */
         .emp-hfacts {
             display: grid;
-            grid-template-columns: 150px 250px 210px minmax(0, 1fr);
+            grid-template-columns: 150px 250px 230px minmax(0, 1fr);
             margin-top: 10px;
         }
         .emp-hfact { min-width: 0; padding: 0 16px 0 0; }
@@ -3557,9 +3557,9 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             max-width: 340px;
         }
-        /* Direkt-Anruf / E-Mail-Icon neben Telefon/E-Mail (Walter 19.07.2026) */
+        /* Direkt-Anruf / E-Mail-Icon VOR dem Wert, kohle-gefüllt (Walter 19.07.2026) */
         .emp-hfact-with-act {
-            display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0;
+            display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-width: 0;
         }
         .emp-hfact-with-act .emp-hfact-txt {
             overflow: hidden; text-overflow: ellipsis; min-width: 0;
@@ -3567,23 +3567,26 @@
         .emp-hfact-act {
             flex-shrink: 0;
             display: inline-flex; align-items: center; justify-content: center;
-            width: 26px; height: 26px; border-radius: 8px;
-            color: #3f3f3f; background: rgba(255,255,255,0.55);
-            border: 1px solid rgba(60,55,48,0.12);
+            width: 28px; height: 28px; border-radius: 9px;
+            color: #fff; background: #3f3f3f;
+            border: 1px solid #3f3f3f;
+            box-shadow: 0 2px 8px rgba(60,55,48,0.18);
             text-decoration: none; transition: background .15s, transform .15s, box-shadow .15s;
         }
         .emp-hfact-act:hover {
-            background: rgba(255,255,255,0.85);
-            box-shadow: 0 2px 8px rgba(60,55,48,0.12);
+            background: #1a1a1a;
+            border-color: #1a1a1a;
+            box-shadow: 0 4px 12px rgba(60,55,48,0.22);
             transform: translateY(-1px);
-            color: #1a1a1a;
+            color: #fff;
         }
         body.theme-dark .emp-hfact-act {
-            color: #e8eef5; background: rgba(255,255,255,0.08);
-            border-color: rgba(150,200,255,0.18);
+            color: #0f172a; background: #e8eef5;
+            border-color: rgba(232,238,245,0.9);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.28);
         }
         body.theme-dark .emp-hfact-act:hover {
-            background: rgba(255,255,255,0.14); color: #fff;
+            background: #fff; border-color: #fff; color: #0a0a0a;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-header {
             background: var(--dlg-fill-strong) !important;
