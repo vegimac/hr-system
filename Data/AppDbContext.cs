@@ -646,6 +646,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SeverityEscalated).HasColumnName("severity_escalated");
             entity.Property(e => e.IsDateBased).HasColumnName("is_date_based");
             entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.TodoPriority).HasColumnName("todo_priority");
+            entity.Property(e => e.WarnColor).HasColumnName("warn_color");
             entity.HasIndex(e => e.Category).IsUnique();
         });
 

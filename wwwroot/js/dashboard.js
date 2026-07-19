@@ -322,37 +322,21 @@ function renderDashAlerts() {
     }).join('');
 }
 
-// Rot + Sortier-Priorität (Walter 19.07.2026, final):
-// 1) Bewilligung fehlt
-// 2) Bewilligung abgelaufen
-// 3) Nacht Untersuch fehlt
-// 4) Nacht abgelaufen
-// Danach: fehlende Belege (Ausnahmeregelung, Ausweis-Doku, «Nachweise fehlen»
-// ohne Ablauf usw.) bleiben SCHWARZ. «läuft in X Tagen ab» auch schwarz.
-function dashIsBewilligungFehlt(a) {
-    return a.category === 'permit_missing';
-}
-function dashIsBewilligungAbgelaufen(a) {
-    return a.category === 'permit_expiring'
-        && a.daysUntil != null && a.daysUntil < 0;
-}
-function dashIsNachtUntersuchFehlt(a) {
-    return a.category === 'night_work_exam_fehlt'
-        && String(a.title || '').startsWith('Nacht Untersuch fehlt');
-}
-function dashIsNachtAbgelaufen(a) {
-    return a.daysUntil != null && a.daysUntil < 0
-        && (a.category === 'night_work_exam_expiring'
-            || a.category === 'night_work_exam_fehlt');
-}
-
+// Rot aus Warnungs-Konfig (Systemeinstellungen → Warnungen):
+// warnColor = none | red | red_overdue (nur wenn daysUntil < 0).
+// Fallback ohne Server-Feld: frühere Hardcoded-Regeln.
 function dashIsRedAlert(a) {
-    // Mindestlohn bleibt rot (Walter 12.07.2026) — eigene Kategorie.
+    const wc = String(a.warnColor || '').toLowerCase();
+    if (wc === 'red') return true;
+    if (wc === 'red_overdue') return a.daysUntil != null && a.daysUntil < 0;
+    if (wc === 'none') return false;
+    // Legacy-Fallback falls Backend noch kein warnColor liefert
     if (a.category === 'minimum_wage_violation') return true;
-    return dashIsBewilligungFehlt(a)
-        || dashIsBewilligungAbgelaufen(a)
-        || dashIsNachtUntersuchFehlt(a)
-        || dashIsNachtAbgelaufen(a);
+    if (a.category === 'permit_missing') return true;
+    return a.daysUntil != null && a.daysUntil < 0
+        && (a.category === 'permit_expiring'
+            || a.category === 'night_work_exam_expiring'
+            || a.category === 'night_work_exam_fehlt');
 }
 
 function renderDashTodoRow(a) {
@@ -549,23 +533,12 @@ function renderTodosColumn(list) {
     return list.map(a => renderTodoSketchRow(a)).join('');
 }
 
-// Sortierung (Walter 19.07.2026): die 4 kritischen Status zuerst in fester
-// Reihenfolge, danach nach Aufgabe + Vorname. Fehlende Belege nicht priorisiert.
-function dashTodoPriority(a) {
-    if (dashIsBewilligungFehlt(a)) return 0;
-    if (dashIsBewilligungAbgelaufen(a)) return 1;
-    if (dashIsNachtUntersuchFehlt(a)) return 2;
-    if (dashIsNachtAbgelaufen(a)) return 3;
-    return 4;
-}
+// Sortierung aus Warnungs-Konfig (todoPriority), dann DaysUntil (stärker
+// überfällig zuerst), dann Vorname. Konfigurierbar unter Systemeinstellungen → Warnungen.
 function dashTodoSort(list) {
-    const catLabel = a => {
-        const meta = DASH_CATEGORY_META[a.category] || {};
-        return String(dashMetaLabel(meta) || a.category || '');
-    };
     return [...list].sort((a, b) =>
-        dashTodoPriority(a) - dashTodoPriority(b)
-        || catLabel(a).localeCompare(catLabel(b), 'de', { sensitivity: 'base' })
+        (a.todoPriority ?? 100) - (b.todoPriority ?? 100)
+        || (a.daysUntil ?? 999999) - (b.daysUntil ?? 999999)
         || String(a.employeeName || a.title || '').localeCompare(String(b.employeeName || b.title || ''), 'de', { sensitivity: 'base' }));
 }
 

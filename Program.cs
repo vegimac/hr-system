@@ -579,6 +579,23 @@ using (var scope = app.Services.CreateScope())
             ('permit_missing',         'Aufenthaltsbewilligung fehlt',           TRUE, NULL, NULL, 'critical', NULL,       FALSE, 17)
         ON CONFLICT (category) DO NOTHING;
     ");
+    // Priorität + Warnfarbe (Walter 19.07.2026) — editierbar in Systemeinstellungen → Warnungen.
+    // UPDATE nur wenn noch Default (100/none), damit manuelle Änderungen erhalten bleiben.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE dashboard_warning_config
+            ADD COLUMN IF NOT EXISTS todo_priority INT  NOT NULL DEFAULT 100,
+            ADD COLUMN IF NOT EXISTS warn_color    TEXT NOT NULL DEFAULT 'none';
+        UPDATE dashboard_warning_config SET todo_priority = 10,  warn_color = 'red'
+            WHERE category = 'permit_missing' AND todo_priority = 100 AND warn_color = 'none';
+        UPDATE dashboard_warning_config SET todo_priority = 20,  warn_color = 'red_overdue'
+            WHERE category = 'permit_expiring' AND todo_priority = 100 AND warn_color = 'none';
+        UPDATE dashboard_warning_config SET todo_priority = 30,  warn_color = 'red_overdue'
+            WHERE category = 'night_work_exam_fehlt' AND todo_priority = 100 AND warn_color = 'none';
+        UPDATE dashboard_warning_config SET todo_priority = 40,  warn_color = 'red_overdue'
+            WHERE category = 'night_work_exam_expiring' AND todo_priority = 100 AND warn_color = 'none';
+        UPDATE dashboard_warning_config SET todo_priority = 50,  warn_color = 'red'
+            WHERE category = 'minimum_wage_violation' AND todo_priority = 100 AND warn_color = 'none';
+    ");
 
     // Seed: Kader-Flag + Mirus-Aliases (idempotent — UPDATE auch bei bestehenden)
     db.Database.ExecuteSqlRaw(@"

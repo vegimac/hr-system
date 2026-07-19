@@ -7,10 +7,11 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 // ============================================================================
-// Warnungsverwaltung (Walter-Vorgabe 06.07.2026).
+// Warnungsverwaltung (Walter-Vorgabe 06.07.2026, Priorität/Farbe 19.07.2026).
 // Globale Konfiguration der Dashboard-/ToDo-Warnungen — pro Kategorie:
 // an/aus, Vorlauf (Tage), Eskalations-Schwelle (Tage), Schweregrad
-// (Basis + eskaliert). GLOBAL, nicht pro Filiale.
+// (Basis + eskaliert), ToDo-Priorität, Warnfarbe.
+// GLOBAL, nicht pro Filiale.
 //
 // Lohn-Edit-Lock (LohnEditLockService): NICHT relevant — reine Katalog-/
 // Anzeige-Konfiguration, keine MA-/Lohndaten. Im Audit-Test whitelisted.
@@ -29,13 +30,17 @@ public class DashboardWarningConfigController : ControllerBase
     private static readonly HashSet<string> ValidSeverities =
         new() { "critical", "warning", "info" };
 
-    // GET /api/dashboard-warning-config → alle Zeilen nach sort_order
+    private static readonly HashSet<string> ValidWarnColors =
+        new() { "none", "red", "red_overdue" };
+
+    // GET /api/dashboard-warning-config → alle Zeilen nach todo_priority, dann sort_order
     [HttpGet]
     public async Task<IActionResult> Get()
     {
         var rows = await _db.DashboardWarningConfigs
             .AsNoTracking()
-            .OrderBy(c => c.SortOrder)
+            .OrderBy(c => c.TodoPriority)
+            .ThenBy(c => c.SortOrder)
             .ToListAsync();
 
         var result = rows.Select(c => new
@@ -49,7 +54,9 @@ public class DashboardWarningConfigController : ControllerBase
             c.SeverityBase,
             c.SeverityEscalated,
             c.IsDateBased,
-            c.SortOrder
+            c.SortOrder,
+            c.TodoPriority,
+            c.WarnColor
         });
         return Ok(result);
     }
@@ -62,18 +69,17 @@ public class DashboardWarningConfigController : ControllerBase
         public int? EscalateDays { get; set; }
         public string SeverityBase { get; set; } = "warning";
         public string? SeverityEscalated { get; set; }
+        public int TodoPriority { get; set; } = 100;
+        public string WarnColor { get; set; } = "none";
     }
 
     // PUT /api/dashboard-warning-config → Bulk-Update (Liste von Zeilen)
-    // Aktualisiert enabled/warn_days/escalate_days/severity_base/severity_escalated.
-    // Kategorie/Label/is_date_based/sort_order bleiben unverändert (Katalog-Felder).
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] List<WarnConfigUpdateDto> updates)
     {
         if (updates == null || updates.Count == 0)
             return BadRequest(new { error = "NO_ROWS", message = "Keine Zeilen übermittelt." });
 
-        // Validierung vorab (alles-oder-nichts).
         foreach (var u in updates)
         {
             if (!ValidSeverities.Contains(u.SeverityBase))
@@ -86,6 +92,13 @@ public class DashboardWarningConfigController : ControllerBase
                     error = "INVALID_SEVERITY",
                     message = $"Ungültiger eskalierter Schweregrad «{u.SeverityEscalated}» (erlaubt: critical/warning/info)."
                 });
+            var color = (u.WarnColor ?? "none").Trim().ToLowerInvariant();
+            if (!ValidWarnColors.Contains(color))
+                return BadRequest(new {
+                    error = "INVALID_WARN_COLOR",
+                    message = $"Ungültige Warnfarbe «{u.WarnColor}» (erlaubt: none/red/red_overdue)."
+                });
+            u.WarnColor = color;
             if (u.WarnDays.HasValue && u.WarnDays.Value < 0)
                 return BadRequest(new {
                     error = "INVALID_DAYS",
@@ -95,6 +108,11 @@ public class DashboardWarningConfigController : ControllerBase
                 return BadRequest(new {
                     error = "INVALID_DAYS",
                     message = "Eskalations-Schwelle (Tage) darf nicht negativ sein."
+                });
+            if (u.TodoPriority < 0 || u.TodoPriority > 9999)
+                return BadRequest(new {
+                    error = "INVALID_PRIORITY",
+                    message = "Priorität muss zwischen 0 und 9999 liegen (kleinere Zahl = weiter oben)."
                 });
         }
 
@@ -112,6 +130,8 @@ public class DashboardWarningConfigController : ControllerBase
             row.EscalateDays      = u.EscalateDays;
             row.SeverityBase      = u.SeverityBase;
             row.SeverityEscalated = u.SeverityEscalated;
+            row.TodoPriority      = u.TodoPriority;
+            row.WarnColor         = u.WarnColor;
         }
 
         await _db.SaveChangesAsync();

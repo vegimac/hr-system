@@ -43,4 +43,12 @@ public class DashboardWarningConfig
 
     /// <summary>Sortier-Reihenfolge in der Verwaltungs-Tabelle.</summary>
     public int SortOrder { get; set; }
+
+    /// <summary>ToDo-Priorität (Walter 19.07.2026): kleinere Zahl = weiter oben.
+    /// Unabhängig von SortOrder (Admin-Tabelle).</summary>
+    public int TodoPriority { get; set; } = 100;
+
+    /// <summary>Warnfarbe im ToDo-Titel: none | red | red_overdue
+    /// (rot nur wenn DaysUntil &lt; 0).</summary>
+    public string WarnColor { get; set; } = "none";
 }

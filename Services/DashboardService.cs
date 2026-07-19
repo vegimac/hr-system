@@ -54,6 +54,10 @@ public class DashboardService
         public string? EmployeeNumber { get; set; }
         public string? EmployeeName   { get; set; }
         public int? PeriodeId         { get; set; }      // optional: Klick zum Lohnlauf
+        /// <summary>Aus dashboard_warning_config.todo_priority — Frontend sortiert danach.</summary>
+        public int TodoPriority { get; set; } = 100;
+        /// <summary>Aus dashboard_warning_config.warn_color: none | red | red_overdue.</summary>
+        public string WarnColor { get; set; } = "none";
     }
 
     public class DashboardData
@@ -1162,6 +1166,12 @@ public class DashboardService
                     + $" · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen"
                     + (grundExtra != null ? $" · {grundExtra}" : "")
                     + hinweis45;
+                // «Nacht Untersuch fehlt» → sehr negativer DaysUntil, damit
+                // warn_color=red_overdue greift und die Zeile vor «abgelaufen»
+                // sortiert (Walter 19.07.2026). «Nachweise fehlen» bleibt null.
+                int? daysUntil = examExpired && abgelaufenSeit != null
+                    ? -abgelaufenSeit.Value
+                    : (!examCurrent ? -100000 : (int?)null);
                 alerts.Add(new DashboardAlert
                 {
                     Category = "night_work_exam_fehlt",
@@ -1170,9 +1180,8 @@ public class DashboardService
                     Severity = SeverityState("night_work_exam_fehlt", "critical"),
                     Title    = title,
                     Subtitle = subtitle,
-                    // Abgelaufenes Zeugnis → negativ markieren (ToDo-Zeile ROT).
                     DueDate   = examExpired ? emp.NightWorkExamValidUntil : null,
-                    DaysUntil = examExpired && abgelaufenSeit != null ? -abgelaufenSeit.Value : (int?)null,
+                    DaysUntil = daysUntil,
                     EmployeeId     = emp.Id,
                     EmployeeNumber = emp.EmployeeNumber,
                     EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
@@ -1270,21 +1279,24 @@ public class DashboardService
             }
         }
 
-        // Sortieren:
-        //   1. Mindestlohn-Verletzungen IMMER ganz oben (Walter-Priorität)
-        //   2. Mindestlohn-OK direkt danach
-        //   3. Restliche Alerts nach Severity (critical → warning → info)
-        //   4. Innerhalb nach Datum
-        int CategoryPriority(string cat) => cat switch
+        // Konfig auf jede Alert-Zeile stempeln (Priorität + Warnfarbe).
+        foreach (var a in alerts)
         {
-            "minimum_wage_violation" => 0,
-            "minimum_wage_ok"        => 1,
-            _                        => 2
-        };
+            if (warnCfg.TryGetValue(a.Category, out var cfg))
+            {
+                a.TodoPriority = cfg.TodoPriority;
+                a.WarnColor    = string.IsNullOrWhiteSpace(cfg.WarnColor) ? "none" : cfg.WarnColor;
+            }
+        }
+
+        // Sortieren (Walter 19.07.2026): konfigurierbare TodoPriority, dann
+        // DaysUntil (stärker überfällig zuerst; null zuletzt), dann Name.
+        // Mindestlohn-OK bleibt ganz unten in der eigenen Kategorie-Gruppe.
         alerts = alerts
-            .OrderBy(a => CategoryPriority(a.Category))
-            .ThenBy(a => a.Severity == "critical" ? 0 : a.Severity == "warning" ? 1 : 2)
-            .ThenBy(a => a.DueDate ?? DateTime.MaxValue)
+            .OrderBy(a => a.Category == "minimum_wage_ok" ? 1 : 0)
+            .ThenBy(a => a.TodoPriority)
+            .ThenBy(a => a.DaysUntil ?? int.MaxValue)
+            .ThenBy(a => a.EmployeeName ?? a.Title ?? "", StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var result = new DashboardData { Alerts = alerts };
