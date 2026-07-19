@@ -1540,9 +1540,12 @@ function _empContractIsHistorisch(c, allContracts) {
 function _empContractActionsHtml(emp, c, allContracts) {
     const cid = c.id ?? c.employmentId;
     if (!cid) return '';
+    // Unsichtbare Platzhalter halten die Spaltenbreite — «Anschauen» bleibt
+    // unter der Anschauen-Spalte der laufenden Zeile (Walter 19.07.2026).
+    const ph = (label) => `<button type="button" class="emp-contract-btn" tabindex="-1" aria-hidden="true" disabled style="visibility:hidden;pointer-events:none">${label}</button>`;
     const viewBtn = `<button type="button" class="emp-contract-btn" title="Vertrag im Vorschaufenster öffnen — Drucken/Herunterladen direkt dort" onclick="openEmpContractPdf(${cid}, false)">Anschauen</button>`;
     if (_empContractIsHistorisch(c, allContracts)) {
-        return `<span style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">${viewBtn}</span>`;
+        return `<span style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">${ph('Bearbeiten')}${viewBtn}${ph('SMS')}${ph('Link ⊘')}</span>`;
     }
     return `<span style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">
         <button type="button" class="emp-contract-btn" title="Vertrag bearbeiten (z.B. vertraulichen Lohn erfassen) — öffnet die Vertrags-Maske mit Mindestlohn-Prüfung" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
