@@ -10892,7 +10892,7 @@ async function permitExpiredSendSms(employeeId, historyId) {
     const confirmMsg = `Bewilligungs-Erinnerung per SMS an ${nr} wirklich senden?${hint}`
         + (textPreview ? `\n\nSMS-Kurztext (${preview.smsChars || textPreview.length}/${preview.smsMaxChars || 160}):\n${textPreview}` : '')
         + '\n\n(+ Link zur ausführlichen Mitteilung wird angehängt)';
-    if (!(await liquidConfirm(confirmMsg))) return;
+    if (!(await liquidConfirm(confirmMsg, { yesLabel: 'Senden', noLabel: 'Abbruch' }))) return;
 
     if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0">📲 SMS wird gesendet …</div>';
     try {
