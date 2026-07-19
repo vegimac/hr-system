@@ -3777,6 +3777,9 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfl {
             color: rgba(210, 220, 232, 0.78) !important;
         }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow-addr {
+            border-bottom-color: rgba(255, 255, 255, 0.10);
+        }
         /* Anstellung / Nachtarbeit = mittlere Zeile (kompakt, 2 Zeilen) */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
             grid-row: 2;
