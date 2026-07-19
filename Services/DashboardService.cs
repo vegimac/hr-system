@@ -1097,22 +1097,24 @@ public class DashboardService
 
                 // Nachtarbeit ist obligatorisch — KEIN Verzicht mehr (Walter-Vorgabe
                 // 30.06.2026, HQ-Entscheid). Es braucht ein AKTUELLES Arztzeugnis
-                // UND die Ausnahmeregelung. „Aktuell" = die Gültigkeit (aus easy@work
-                // cf_night_work_doctors_note.to ODER aus Cowork) liegt in der Zukunft.
-                // Ein verknüpftes Cowork-Dokument ohne Gültigkeitsdatum zählt auch.
+                // (verknüpftes Dokument + Gültigkeit) UND die Ausnahmeregelung.
+                // „Gültigkeit aktuell" = easy@work/Cowork-Ende in der Zukunft.
+                // Nur Datum ohne Scan zählt NICHT als vollständig (Walter 19.07.2026).
+                bool hasArztDoc   = emp.NightWorkExamDokumentId.HasValue;
                 bool examCurrent  = (emp.NightWorkExamValidUntil.HasValue
                                      && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) >= today)
-                                  || (emp.NightWorkExamDokumentId.HasValue && !emp.NightWorkExamValidUntil.HasValue);
+                                  || (hasArztDoc && !emp.NightWorkExamValidUntil.HasValue);
                 bool examExpired  = emp.NightWorkExamValidUntil.HasValue
                                     && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) < today;
                 bool hasChecklist = emp.NightWorkAusnahmeDokumentId.HasValue;
+                bool nachweiseVoll = hasArztDoc && examCurrent && hasChecklist;
 
                 // Ablauf-Warnung der Bewilligung (Walter-Vorgabe 05.07.2026):
                 // ≤ 7 Tage vor Ablauf → KRITISCH; ≤ 1 Monat → WICHTIG.
                 // Abgelaufen bei doku-pflichtigen MA: Titel-Priorität unten
                 // («Arztzeugnis seit N Tagen abgelaufen», nicht «Nachweise fehlen»).
                 // Hier nur noch GÜLTIGE, aber bald ablaufende Bewilligung.
-                if (examCurrent && hasChecklist)
+                if (nachweiseVoll)
                 {
                     if (emp.NightWorkExamValidUntil.HasValue && Enabled("night_work_exam_expiring"))
                     {
@@ -1142,14 +1144,22 @@ public class DashboardService
                 // Drei konfigurierbare Kategorien (Walter 19.07.2026):
                 //  • night_work_untersuch_fehlt — kein/aktueller Untersuch
                 //  • night_work_exam_expiring   — Zeugnis abgelaufen (auch doku-pflichtig)
-                //  • night_work_exam_fehlt      — nur Ausnahmeregelung/Nachweise fehlen
+                //  • night_work_exam_fehlt      — Dokumente fehlen (Arztzeugnis und/oder Ausnahme)
                 string subtitleBase =
                     $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}"
                     + $" · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen";
 
+                // Fehlende-Nachweise-Suffix (Arztzeugnis-Scan und/oder Ausnahmeregelung).
+                string fehlendeNachweise =
+                      (!hasArztDoc && !hasChecklist) ? "Arztzeugnis und Ausnahmeregelung fehlen"
+                    : (!hasArztDoc)                  ? "Arztzeugnis fehlt"
+                    : (!hasChecklist)                ? "Ausnahmeregelung fehlt"
+                    :                                  "";
+
                 if (examExpired)
                 {
                     if (!Enabled("night_work_exam_expiring")) continue;
+                    // Abgelaufen: Scan-Hinweis redundant; Ausnahme zusätzlich nennen.
                     string? extra = hasChecklist ? null : "Ausnahmeregelung fehlt";
                     alerts.Add(new DashboardAlert
                     {
@@ -1183,14 +1193,14 @@ public class DashboardService
                     continue;
                 }
 
-                // Untersuch aktuell → nur Ausnahmeregelung / Nachweise fehlen
+                // Gültigkeit aktuell, aber Scan und/oder Ausnahmeregelung fehlen
                 if (!Enabled("night_work_exam_fehlt")) continue;
                 alerts.Add(new DashboardAlert
                 {
                     Category = "night_work_exam_fehlt",
                     Severity = SeverityState("night_work_exam_fehlt", "critical"),
                     Title    = "Nachtarbeit-Nachweise fehlen",
-                    Subtitle = subtitleBase + " · Ausnahmeregelung fehlt" + hinweis45,
+                    Subtitle = subtitleBase + " · " + fehlendeNachweise + hinweis45,
                     EmployeeId     = emp.Id,
                     EmployeeNumber = emp.EmployeeNumber,
                     EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()

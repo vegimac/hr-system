@@ -2373,22 +2373,26 @@ function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso) {
 
 // Rote «fehlt»-Hinweise, wenn ArGV1 Art. 30 greift (>18 Nächte / 42 Tage)
 // und Arztzeugnis bzw. Ausnahmeregelung fehlen (Walter 19.07.2026).
-// Status-Logik identisch zum Dashboard (examCurrent / hasChecklist).
+// Vollständig = verknüpftes Arztzeugnis-Dokument + aktuelle Gültigkeit + Ausnahmeregelung
+// (Kontroll-Liste / Payroll gleich). Nur easy@work-Datum ohne Scan zählt NICHT.
 function _nwMissingDocsHtml(emp) {
     if (!emp || !emp.nightWorkRequiresDocuments) return '';
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const validUntil = emp.nightWorkExamValidUntil ? new Date(emp.nightWorkExamValidUntil) : null;
     if (validUntil) validUntil.setHours(0, 0, 0, 0);
+    const hasArztDoc = !!emp.nightWorkExamDokumentId;
     const examCurrent = (validUntil && validUntil >= today)
-        || (!!emp.nightWorkExamDokumentId && !emp.nightWorkExamValidUntil);
+        || (hasArztDoc && !emp.nightWorkExamValidUntil);
     const hasAusnahme = !!emp.nightWorkAusnahmeDokumentId;
     const parts = [];
     const tip = `${emp.nightWorkMaxNightsInSixWeeks || '?'} Nächte in 6 Wochen — Nachweise Pflicht (ArGV1 Art. 30)`;
-    if (!examCurrent) {
-        // Priorität wie ToDo (Walter 19.07.2026): abgelaufen / kein Datum → klarer Text.
-        const txt = (validUntil && validUntil < today) ? 'Nachtbew. abgelaufen'
-                  : 'Nacht Untersuch fehlt';
-        parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ ${txt}</span>`);
+    if (validUntil && validUntil < today) {
+        parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Nachtbew. abgelaufen</span>`);
+    } else if (!hasArztDoc) {
+        // Auch wenn easy@work ein Gültig-bis liefert: Scan muss im Dossier hängen.
+        parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Arztzeugnis fehlt</span>`);
+    } else if (!examCurrent) {
+        parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Nacht Untersuch fehlt</span>`);
     }
     if (!hasAusnahme) {
         parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Ausn. Regel fehlt</span>`);
