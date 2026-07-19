@@ -78,7 +78,8 @@ let _dashActiveSeverityFilter = null;  // null = alle Stufen
 const DASH_CATEGORY_META = {
     minimum_wage_violation: { i18nKey: 'dash.cat.minWageViolation', label: 'Mindestlohn-Verletzung', icon: '⚠️', color: '#b91c1c' },
     minimum_wage_ok:        { i18nKey: 'dash.cat.minWageOk',        label: 'Mindestlohn ok',         icon: '✅', color: '#15803d' },
-    permit_expiring:        { i18nKey: 'dash.cat.permitExpiring',   label: 'Bewilligungen',          icon: '🪪', color: '#b91c1c' },
+    permit_expiring:        { i18nKey: 'dash.cat.permitExpiring',   label: 'Bewilligung läuft ab',   icon: '🪪', color: '#b91c1c' },
+    permit_expired:         { label: 'Bewilligung ist abgelaufen',  icon: '🪪', color: '#b91c1c' },
     permit_missing:         { i18nKey: 'dash.cat.permitMissing',    label: 'Bewilligung fehlt',      icon: '🪪', color: '#b91c1c' },
     probation_end:          { i18nKey: 'dash.cat.probationEnding',  label: 'Probezeit',              icon: '📋', color: '#92400e' },
     contract_end:           { i18nKey: 'dash.cat.contractEnding',   label: 'Vertragsende',           icon: '📅', color: '#92400e' },
@@ -87,6 +88,7 @@ const DASH_CATEGORY_META = {
     spouse_doku_fehlt:      { i18nKey: 'dash.cat.spouseDokuFehlt',  label: 'Ausweis Ehepartner',     icon: '🪪', color: '#b91c1c' },
     employee_doku_fehlt:    { i18nKey: 'dash.cat.employeeDokuFehlt',label: 'Ausweis Mitarbeiter',    icon: '🪪', color: '#b91c1c' },
     schwangerschaft:        { i18nKey: 'dash.cat.pregnancy',        label: 'Mutterschaft',           icon: '🤰', color: '#be185d' },
+    night_work_untersuch_fehlt: { label: 'Nacht Untersuch fehlt', icon: '🌙', color: '#991b1b' },
     night_work_exam_fehlt:  { i18nKey: 'dash.cat.nightWorkExam',    label: 'Nachtarbeit-Nachweise', icon: '🌙', color: '#92400e' },
     night_work_exam_expiring: { i18nKey: 'dash.cat.nightWorkExpiring', label: 'Nachtarbeit-Bewilligung läuft ab', icon: '🌙', color: '#92400e' },
     night_work_exam_mismatch: { label: 'Nachtarbeit-Enddatum in easy@work falsch', icon: '🌙', color: '#991b1b' },
@@ -332,11 +334,11 @@ function dashIsRedAlert(a) {
     if (wc === 'none') return false;
     // Legacy-Fallback falls Backend noch kein warnColor liefert
     if (a.category === 'minimum_wage_violation') return true;
-    if (a.category === 'permit_missing') return true;
+    if (a.category === 'permit_missing' || a.category === 'permit_expired') return true;
+    if (a.category === 'night_work_untersuch_fehlt') return true;
     return a.daysUntil != null && a.daysUntil < 0
         && (a.category === 'permit_expiring'
-            || a.category === 'night_work_exam_expiring'
-            || a.category === 'night_work_exam_fehlt');
+            || a.category === 'night_work_exam_expiring');
 }
 
 function renderDashTodoRow(a) {
@@ -356,7 +358,7 @@ function renderDashTodoRow(a) {
                     ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                     : a.category === 'schwangerschaft'
                         ? `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`
-                        : (a.category === 'permit_expiring' || a.category === 'permit_missing')
+                        : (a.category === 'permit_expiring' || a.category === 'permit_expired' || a.category === 'permit_missing')
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
@@ -365,6 +367,7 @@ function renderDashTodoRow(a) {
                                 : (a.category === 'exit_pending_active'
                                    || a.category === 'birthday'
                                    || a.category === 'anniversary'
+                                   || a.category === 'night_work_untersuch_fehlt'
                                    || a.category === 'night_work_exam_fehlt'
                                    || a.category === 'night_work_exam_mismatch')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
@@ -491,12 +494,14 @@ function dashTodoOnClick(a) {
             case 'spouse_doku_fehlt':   return `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`;
             case 'employee_doku_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'schwangerschaft':     return `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`;
-            case 'permit_expiring':     return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
+            case 'permit_expiring':
+            case 'permit_expired':
             case 'permit_missing':      return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'contract_end':        return `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`;
             case 'exit_pending_active':
             case 'birthday':
             case 'anniversary':
+            case 'night_work_untersuch_fehlt':
             case 'night_work_exam_fehlt':
             case 'night_work_exam_expiring':
             case 'night_work_exam_mismatch': return `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`;
@@ -601,7 +606,7 @@ function renderDashAlertRow(a) {
                     ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                     : a.category === 'schwangerschaft'
                         ? `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`
-                        : (a.category === 'permit_expiring' || a.category === 'permit_missing')
+                        : (a.category === 'permit_expiring' || a.category === 'permit_expired' || a.category === 'permit_missing')
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
@@ -610,6 +615,7 @@ function renderDashAlertRow(a) {
                                 : (a.category === 'exit_pending_active'
                                    || a.category === 'birthday'
                                    || a.category === 'anniversary'
+                                   || a.category === 'night_work_untersuch_fehlt'
                                    || a.category === 'night_work_exam_fehlt'
                                    || a.category === 'night_work_exam_mismatch')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`

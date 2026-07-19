@@ -179,27 +179,37 @@ public class DashboardService
                 return true;
             })
             .ToList();
-        foreach (var h in Enabled("permit_expiring") ? youngestPerMa : new List<EmployeePermitHistory>())
+        // Abgelaufen vs. läuft ab = zwei konfigurierbare Kategorien
+        // (Walter 19.07.2026): «Bewilligung ist abgelaufen» / «Bewilligung läuft ab».
+        bool permitExpiringOn = Enabled("permit_expiring");
+        bool permitExpiredOn  = Enabled("permit_expired");
+        foreach (var h in (permitExpiringOn || permitExpiredOn) ? youngestPerMa : new List<EmployeePermitHistory>())
         {
             if (!maById.TryGetValue(h.EmployeeId, out var emp)) continue;
             var dueDate = h.ValidTo!.Value.ToDateTime(TimeOnly.MinValue);
             var days = (dueDate - now).Days;
-            // Severity konfigurierbar (Walter 06.07.2026): eskaliert bei
-            // days ≤ escalate_days (Default 30) → critical, sonst warning.
-            // Abgelaufen (days < 0) ≤ jeder positiven Schwelle → bleibt critical.
-            string severity = Severity("permit_expiring", days, "warning", "critical");
+            var isExpired = days < 0;
+            if (isExpired && !permitExpiredOn) continue;
+            if (!isExpired && !permitExpiringOn) continue;
+
+            var cat = isExpired ? "permit_expired" : "permit_expiring";
+            // Severity: abgelaufen → Basis der Expired-Kategorie (meist critical);
+            // sonst Zwei-Stufen-Eskalation der Expiring-Kategorie.
+            string severity = isExpired
+                ? SeverityState("permit_expired", "critical")
+                : Severity("permit_expiring", days, "warning", "critical");
             var permitCode = h.PermitType?.Code ?? "?";
             alerts.Add(new DashboardAlert
             {
-                Category = "permit_expiring",
+                Category = cat,
                 Severity = severity,
                 // Abgelaufene Warnungen laufen WEITER als «seit X Tagen abgelaufen»
                 // (Walter-Vorgabe 12.07.2026) — sie verschwinden nie von selbst.
-                Title    = days < 0
+                Title    = isExpired
                     ? $"Bewilligung {permitCode} seit {-days} Tag(en) abgelaufen"
                     : $"Bewilligung {permitCode} läuft ab in {days} Tagen",
-                TitleKey = days < 0 ? "alert.permit.expired" : "alert.permit.expires_in_days",
-                TitleArgs = new Dictionary<string, object> { ["code"] = permitCode, ["days"] = days < 0 ? -days : days },
+                TitleKey = isExpired ? "alert.permit.expired" : "alert.permit.expires_in_days",
+                TitleArgs = new Dictionary<string, object> { ["code"] = permitCode, ["days"] = isExpired ? -days : days },
                 Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}",
                 SubtitleKey  = "subtitle.maPersonalnr",
                 SubtitleArgs = new Dictionary<string, object> {
@@ -1136,52 +1146,58 @@ public class DashboardService
                     continue;   // Nachweise vollständig + aktuell (Ablauf ggf. oben gemeldet)
                 }
 
-                // Titel-Priorität (Walter-Vorgabe 19.07.2026): abgelaufene
-                // Nachtbewilligung ist WICHTIGER als «Nachweise fehlen». Ohne
-                // eingetragenes Datum (oder Untersuch sonst nicht aktuell) →
-                // «Nacht Untersuch fehlt». Nur wenn der Untersuch aktuell ist
-                // und bloss die Ausnahmeregelung fehlt, bleibt der generische
-                // Titel «Nachtarbeit-Nachweise fehlen».
-                string title;
-                string? grundExtra;
+                // Drei konfigurierbare Kategorien (Walter 19.07.2026):
+                //  • night_work_untersuch_fehlt — kein/aktueller Untersuch
+                //  • night_work_exam_expiring   — Zeugnis abgelaufen (auch doku-pflichtig)
+                //  • night_work_exam_fehlt      — nur Ausnahmeregelung/Nachweise fehlen
+                string subtitleBase =
+                    $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}"
+                    + $" · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen";
+
                 if (examExpired)
                 {
-                    title = $"Nachtarbeit-Arztzeugnis seit {abgelaufenSeit ?? 0} Tag(en) abgelaufen";
-                    grundExtra = hasChecklist ? null : "Ausnahmeregelung fehlt";
+                    if (!Enabled("night_work_exam_expiring")) continue;
+                    string? extra = hasChecklist ? null : "Ausnahmeregelung fehlt";
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "night_work_exam_expiring",
+                        Severity = Severity("night_work_exam_expiring", -(abgelaufenSeit ?? 0), "warning", "critical"),
+                        Title    = $"Nachtarbeit-Arztzeugnis seit {abgelaufenSeit ?? 0} Tag(en) abgelaufen",
+                        Subtitle = subtitleBase + (extra != null ? $" · {extra}" : "") + hinweis45,
+                        DueDate   = emp.NightWorkExamValidUntil,
+                        DaysUntil = abgelaufenSeit != null ? -abgelaufenSeit.Value : -1,
+                        EmployeeId     = emp.Id,
+                        EmployeeNumber = emp.EmployeeNumber,
+                        EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                    });
+                    continue;
                 }
-                else if (!examCurrent)
+
+                if (!examCurrent)
                 {
-                    title = "Nacht Untersuch fehlt";
-                    grundExtra = hasChecklist ? null : "Ausnahmeregelung fehlt";
+                    if (!Enabled("night_work_untersuch_fehlt")) continue;
+                    string? extra = hasChecklist ? null : "Ausnahmeregelung fehlt";
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "night_work_untersuch_fehlt",
+                        Severity = SeverityState("night_work_untersuch_fehlt", "critical"),
+                        Title    = "Nacht Untersuch fehlt",
+                        Subtitle = subtitleBase + (extra != null ? $" · {extra}" : "") + hinweis45,
+                        EmployeeId     = emp.Id,
+                        EmployeeNumber = emp.EmployeeNumber,
+                        EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                    });
+                    continue;
                 }
-                else
-                {
-                    // Untersuch aktuell → nur Ausnahmeregelung fehlt
-                    title = "Nachtarbeit-Nachweise fehlen";
-                    grundExtra = "Ausnahmeregelung fehlt";
-                }
+
+                // Untersuch aktuell → nur Ausnahmeregelung / Nachweise fehlen
                 if (!Enabled("night_work_exam_fehlt")) continue;
-                string subtitle =
-                    $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}"
-                    + $" · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen"
-                    + (grundExtra != null ? $" · {grundExtra}" : "")
-                    + hinweis45;
-                // «Nacht Untersuch fehlt» → sehr negativer DaysUntil, damit
-                // warn_color=red_overdue greift und die Zeile vor «abgelaufen»
-                // sortiert (Walter 19.07.2026). «Nachweise fehlen» bleibt null.
-                int? daysUntil = examExpired && abgelaufenSeit != null
-                    ? -abgelaufenSeit.Value
-                    : (!examCurrent ? -100000 : (int?)null);
                 alerts.Add(new DashboardAlert
                 {
                     Category = "night_work_exam_fehlt",
-                    // IMMER KRITISCH (Walter-Vorgabe 04.07.2026): Nachtarbeit ist
-                    // obligatorisch dokumentationspflichtig.
                     Severity = SeverityState("night_work_exam_fehlt", "critical"),
-                    Title    = title,
-                    Subtitle = subtitle,
-                    DueDate   = examExpired ? emp.NightWorkExamValidUntil : null,
-                    DaysUntil = daysUntil,
+                    Title    = "Nachtarbeit-Nachweise fehlen",
+                    Subtitle = subtitleBase + " · Ausnahmeregelung fehlt" + hinweis45,
                     EmployeeId     = emp.Id,
                     EmployeeNumber = emp.EmployeeNumber,
                     EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
