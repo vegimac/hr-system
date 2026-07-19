@@ -1306,22 +1306,24 @@ function loadUebersichtTab() {
     const kNacht = _ovCard('Nachtarbeit', null, '', `
             <div class="nw-card-body">
                 <div id="nwView_${emp.id}" class="nw-layout">
-                    <div class="nw-row nw-row-status">
-                        <div class="nw-col-duty">${_nwDutyBadgeOnlyHtml(emp)}</div>
-                        <div class="nw-col-count">${_nwDutyCountHtml(emp)}</div>
-                        <div class="nw-col-dates" id="nwViewText_${emp.id}">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</div>
-                        <div class="nw-col-menu">
-                            <div class="dok-menu-wrap">
-                                <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
-                                <div class="dok-menu" id="nwMenu-${emp.id}">
-                                    <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
-                                    <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'ArztZeug. ersetzen' : 'ArztZeug. verknüpfen'}</button>
-                                    ${emp.nightWorkExamDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_exam','Arztzeugnis')">ArztZeug. lösen</button>` : ''}
-                                    <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausn.Reg. ersetzen' : 'Ausn.Reg. verknüpfen'}</button>
-                                    ${emp.nightWorkAusnahmeDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_ausnahme','Ausnahmeregelung')">Ausn.Reg. lösen</button>` : ''}
+                    <div class="nw-panel">
+                        <div class="nw-row nw-row-status">
+                            <div class="nw-col-duty">${_nwDutyBadgeOnlyHtml(emp)}</div>
+                            <div class="nw-col-count">${_nwDutyCountHtml(emp)}</div>
+                            <div class="nw-col-menu">
+                                <div class="dok-menu-wrap">
+                                    <button class="dok-menu-btn" onclick="nwToggleMenu(event, ${emp.id})" title="Aktionen">⋮</button>
+                                    <div class="dok-menu" id="nwMenu-${emp.id}">
+                                        <button class="dok-menu-item" onclick="nwStartEdit(${emp.id})">Ausstellungsdatum bearbeiten</button>
+                                        <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_exam')">${emp.nightWorkExamDokumentId ? 'ArztZeug. ersetzen' : 'ArztZeug. verknüpfen'}</button>
+                                        ${emp.nightWorkExamDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_exam','Arztzeugnis')">ArztZeug. lösen</button>` : ''}
+                                        <button class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'night_work_ausnahme')">${emp.nightWorkAusnahmeDokumentId ? 'Ausn.Reg. ersetzen' : 'Ausn.Reg. verknüpfen'}</button>
+                                        ${emp.nightWorkAusnahmeDokumentId ? `<button class="dok-menu-item" onclick="nwUnlinkDoku(${emp.id},'night_work_ausnahme','Ausnahmeregelung')">Ausn.Reg. lösen</button>` : ''}
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <div class="nw-row nw-row-dates" id="nwViewText_${emp.id}">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</div>
                     </div>
                     <div class="nw-row nw-row-warn">${_nwMissingDocsHtml(emp) || '<span class="nw-warn-empty"></span>'}</div>
                     <div class="nw-row nw-row-actions">
@@ -1336,14 +1338,14 @@ function loadUebersichtTab() {
                     </div>
                 </div>
                 <div id="nwEdit_${emp.id}" class="nw-edit" style="display:none">
-                    <span style="font-size:12px;color:#64748b">Ausgestellt:</span>
+                    <span class="nw-edit-label">Ausgestellt</span>
                     <input type="date" id="nwDateInput_${emp.id}" value="${emp.nightWorkExamIssued ? String(emp.nightWorkExamIssued).slice(0,10) : (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : '')}"
                            oninput="nwPreview(${emp.id}, this.value)"
                            title="Ausstellungsdatum des Arztzeugnisses"
-                           style="width:auto;min-width:135px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                           class="nw-edit-input">
                     <span id="nwGueltigBis_${emp.id}">${_nwGueltigBisHtml(emp.nightWorkExamValidUntil, emp.nightWorkExamDokumentId)}</span>
-                    <button onclick="nwSaveEdit(${emp.id})" style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:4px 12px;cursor:pointer;color:#15803d;font-size:12px;font-weight:600">Speichern</button>
-                    <button onclick="nwCancelEdit(${emp.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;cursor:pointer;color:#64748b;font-size:12px;font-weight:600">Abbrechen</button>
+                    <button onclick="nwSaveEdit(${emp.id})" class="nw-edit-save">Speichern</button>
+                    <button onclick="nwCancelEdit(${emp.id})" class="nw-edit-cancel">Abbrechen</button>
                 </div>
             </div>
 `);
@@ -2359,31 +2361,35 @@ function _nwAddYears(iso, n) {
 }
 
 // „gültig bis"-Anzeige (inneres HTML der id'd Span) — wird in-place aktualisiert.
-// Gültig-bis-Anzeige. Grün = akzeptiert NUR mit verknüpftem Arztzeugnis-Dokument
-// (Walter 19.07.2026): Datum allein (easy@work/manuell) zählt nicht als Nachweis.
+// Gültig-bis-Zelle. Grün = akzeptiert NUR mit verknüpftem Arztzeugnis-Dokument
+// (Walter 19.07.2026): Datum allein zählt nicht als Nachweis.
 function _nwGueltigBisHtml(validUntil, hasArztDoc) {
-    if (!validUntil) return '<span style="color:#94a3b8;font-size:11.5px">gültig bis —</span>';
+    if (!validUntil) {
+        return `<div class="nw-date-cell"><span class="nw-date-lbl">Gültig bis</span><span class="nw-date-val nw-date-muted">—</span></div>`;
+    }
     const t = new Date(); t.setHours(0, 0, 0, 0);
     const exp = new Date(validUntil) < t;
-    if (exp) {
-        return `<span style="color:#991b1b;font-size:11.5px;font-weight:600">gültig bis ${formatDate(validUntil)} · abgelaufen</span>`;
-    }
-    if (hasArztDoc) {
-        return `<span style="color:#166534;font-size:11.5px;font-weight:600">gültig bis ${formatDate(validUntil)}</span>`;
-    }
-    // Datum vorhanden, Scan fehlt → neutral (noch nicht akzeptiert).
-    return `<span style="color:#64748b;font-size:11.5px;font-weight:600" title="Datum hinterlegt — gilt erst mit verknüpftem Arztzeugnis">gültig bis ${formatDate(validUntil)}</span>`;
+    let cls = 'nw-date-val';
+    let extra = '';
+    if (exp) { cls += ' nw-date-expired'; extra = '<span class="nw-date-tag">abgelaufen</span>'; }
+    else if (hasArztDoc) { cls += ' nw-date-ok'; }
+    else { cls += ' nw-date-pending'; }
+    const tip = hasArztDoc ? '' : ' title="Datum hinterlegt — gilt erst mit verknüpftem Arztzeugnis"';
+    return `<div class="nw-date-cell"${tip}><span class="nw-date-lbl">Gültig bis</span><span class="${cls}">${formatDate(validUntil)}</span>${extra}</div>`;
 }
 
-// Read-only Anzeige der Nachtarbeit-Zeile (Walter 21.06.2026 / 05.07.2026).
-// mismatch = das (aus easy@work übernommene) Enddatum weicht von der Regel ab.
-// hasArztDoc = verknüpftes Arztzeugnis-Dokument (ohne Scan kein Grün).
+// Datum-Zeile: zwei feste Zellen (Ausgestellt | Gültig bis) — springt nicht.
 function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso, hasArztDoc) {
-    if (!validUntil && !issueIso) return '<span style="color:#94a3b8;font-size:12.5px;font-style:italic">Keine Untersuchung erfasst</span>';
-    let html = `<span style="font-size:12px;color:#64748b">Ausgestellt:</span> <strong style="font-size:13px;color:#334155">${formatDate(issueIso)}</strong> &nbsp;·&nbsp; ${_nwGueltigBisHtml(validUntil, !!hasArztDoc)}`;
+    if (!validUntil && !issueIso) {
+        return `<div class="nw-dates-empty">Keine Untersuchung erfasst</div>`;
+    }
+    let html = `<div class="nw-dates-grid">
+        <div class="nw-date-cell"><span class="nw-date-lbl">Ausgestellt</span><span class="nw-date-val">${formatDate(issueIso)}</span></div>
+        ${_nwGueltigBisHtml(validUntil, !!hasArztDoc)}
+    </div>`;
     if (mismatch) {
         const soll = sollBisIso ? formatDate(sollBisIso) : '—';
-        html += ` &nbsp; <span style="color:#991b1b;font-size:11px;font-weight:700" title="Das Enddatum in easy@work stimmt nicht mit der Regel überein und muss dort korrigiert werden">⚠ easy@work-Enddatum korrigieren (Soll: ${soll})</span>`;
+        html += `<span class="nw-warn-chip" title="Das Enddatum in easy@work stimmt nicht mit der Regel überein und muss dort korrigiert werden">easy@work-Ende korrigieren (Soll: ${soll})</span>`;
     }
     return html;
 }
@@ -2434,18 +2440,18 @@ function _nwMissingDocsHtml(emp) {
         : `${emp.nightWorkMaxNightsInSixWeeks || '?'} Nächte in 6 Wochen — Nachweise Pflicht (ArGV1 Art. 30)`;
 
     if (validUntil && validUntil < today) {
-        parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Nachtbew. abgelaufen</span>`);
+        parts.push(`<span class="nw-warn-chip" title="${tip}">Nachtbew. abgelaufen</span>`);
     } else if (!hasArztDoc) {
-        parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Arztzeugnis fehlt</span>`);
+        parts.push(`<span class="nw-warn-chip" title="${tip}">Arztzeugnis fehlt</span>`);
     } else if (!examCurrent) {
-        parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Nacht Untersuch fehlt</span>`);
+        parts.push(`<span class="nw-warn-chip" title="${tip}">Nacht Untersuch fehlt</span>`);
     }
 
     if (!hasAusnahme) {
-        parts.push(`<span style="color:#991b1b;font-size:11px;font-weight:700;white-space:nowrap" title="${tip}">⚠ Ausn. Regel fehlt</span>`);
+        parts.push(`<span class="nw-warn-chip" title="${tip}">Ausn. Regel fehlt</span>`);
     }
     if (!parts.length) return '';
-    return `<span style="display:inline-flex;gap:8px;flex-wrap:wrap;align-items:center">${parts.join('')}</span>`;
+    return parts.join('');
 }
 
 // ⋮-Menü + Edit-Toggle für die Nachtarbeit-Zeile.

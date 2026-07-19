@@ -8070,30 +8070,31 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         }
 
 
-        /* ── Nachtarbeit-Karte: festes Zeilen-Layout (Walter 19.07.2026) ──
-           Badge | Nächte | Datum | ⋮
-           Warnungen (reservierte Höhe)
-           Aktions-Buttons (feste Slots) */
-        .nw-card-body { padding: 6px 2px 2px; }
+        /* ── Nachtarbeit-Karte: ruhiges festes Layout (Walter 19.07.2026) ── */
+        .nw-card-body { padding: 4px 2px 2px; }
         .nw-layout {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
+        }
+        .nw-panel {
+            background: rgba(255,255,255,0.42);
+            border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 14px;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.55) inset, 0 6px 18px rgba(60,55,48,0.06);
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
         .nw-row-status {
             display: grid;
-            grid-template-columns: minmax(178px, max-content) minmax(128px, max-content) minmax(0, 1fr) 32px;
-            gap: 8px 12px;
+            grid-template-columns: minmax(170px, max-content) minmax(0, 1fr) 32px;
+            gap: 10px 14px;
             align-items: center;
         }
-        .nw-col-duty { min-width: 178px; }
-        .nw-col-count { min-width: 128px; }
-        .nw-col-dates {
-            min-width: 0;
-            font-size: 12.5px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        .nw-col-duty { min-width: 170px; }
+        .nw-col-count { min-width: 0; }
         .nw-col-menu {
             display: flex;
             justify-content: flex-end;
@@ -8102,11 +8103,12 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         .nw-duty-badge {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 3px 10px;
+            gap: 6px;
+            padding: 5px 12px;
             border-radius: 999px;
-            font-size: 11px;
+            font-size: 11.5px;
             font-weight: 700;
+            letter-spacing: 0.01em;
             white-space: nowrap;
         }
         .nw-duty-dot {
@@ -8115,62 +8117,179 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             flex-shrink: 0;
         }
         .nw-duty-on {
-            background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;
+            background: rgba(220, 38, 38, 0.08);
+            color: #9f1239;
+            border: 1px solid rgba(244, 63, 94, 0.28);
         }
-        .nw-duty-on .nw-duty-dot { background: #dc2626; }
+        .nw-duty-on .nw-duty-dot { background: #e11d48; }
         .nw-duty-off {
-            background: #ecfdf5; color: #166534; border: 1px solid #bbf7d0;
+            background: rgba(22, 163, 74, 0.09);
+            color: #166534;
+            border: 1px solid rgba(34, 197, 94, 0.28);
         }
         .nw-duty-off .nw-duty-dot { background: #16a34a; }
         .nw-duty-count {
-            font-size: 12px;
-            font-weight: 600;
-            color: #475569;
+            font-size: 13px;
+            font-weight: 650;
+            color: #3f3f3f;
             white-space: nowrap;
+            letter-spacing: -0.01em;
         }
-        .nw-duty-count-on { color: #991b1b; }
+        .nw-duty-count-on { color: #9f1239; }
+        .nw-row-dates { min-height: 38px; }
+        .nw-dates-grid {
+            display: grid;
+            grid-template-columns: minmax(120px, 1fr) minmax(140px, 1.2fr);
+            gap: 8px 18px;
+            align-items: start;
+        }
+        .nw-date-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .nw-date-lbl {
+            font-size: 10.5px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #8b8b8b;
+        }
+        .nw-date-val {
+            font-size: 13.5px;
+            font-weight: 650;
+            color: #3f3f3f;
+            letter-spacing: -0.01em;
+        }
+        .nw-date-muted { color: #a3a3a3; font-weight: 500; }
+        .nw-date-ok { color: #166534; }
+        .nw-date-pending { color: #57534e; }
+        .nw-date-expired { color: #9f1239; }
+        .nw-date-tag {
+            display: inline-block;
+            margin-top: 2px;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #9f1239;
+            letter-spacing: 0.02em;
+        }
+        .nw-dates-empty {
+            font-size: 12.5px;
+            font-style: italic;
+            color: #8b8b8b;
+            padding: 4px 0;
+        }
         .nw-row-warn {
-            min-height: 22px;
+            min-height: 28px;
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
             align-items: center;
         }
-        .nw-warn-empty { display: block; min-height: 22px; width: 1px; }
+        .nw-warn-empty { display: block; min-height: 28px; width: 1px; }
+        .nw-warn-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 650;
+            white-space: nowrap;
+            color: #9f1239;
+            background: rgba(244, 63, 94, 0.08);
+            border: 1px solid rgba(244, 63, 94, 0.22);
+        }
+        .nw-warn-chip::before {
+            content: '';
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #e11d48;
+            flex-shrink: 0;
+        }
         .nw-row-actions {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             flex-wrap: wrap;
             align-items: center;
-            min-height: 28px;
+            min-height: 32px;
+            padding-top: 2px;
         }
         .nw-act-btn {
-            background: #f6f3ee;
-            border: 1px solid #e5e0d6;
-            border-radius: 6px;
-            padding: 3px 9px;
+            background: rgba(255,255,255,0.48);
+            border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 12px;
+            padding: 6px 12px;
             cursor: pointer;
-            color: #6b7280;
-            font-size: 11px;
+            color: #525252;
+            font-size: 11.5px;
             font-weight: 600;
             white-space: nowrap;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 2px 8px rgba(60,55,48,0.05);
+            transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+        }
+        .nw-act-btn:hover {
+            transform: translateY(-1px);
+            background: rgba(255,255,255,0.72);
+            box-shadow: 0 1px 0 rgba(255,255,255,0.55) inset, 0 4px 12px rgba(60,55,48,0.08);
         }
         .nw-act-btn.nw-act-view {
-            background: #f1f5f9;
-            border-color: #cbd5e1;
-            color: #334155;
+            background: rgba(63,63,63,0.06);
+            border-color: rgba(63,63,63,0.12);
+            color: #3f3f3f;
         }
         .nw-act-slot {
             display: inline-block;
-            min-width: 110px;
-            height: 26px;
+            min-width: 118px;
+            height: 30px;
             visibility: hidden;
         }
         .nw-edit {
             display: none;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             flex-wrap: wrap;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.42);
+            border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 14px;
+        }
+        .nw-edit-label {
+            font-size: 11px;
+            font-weight: 650;
+            color: #8b8b8b;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .nw-edit-input {
+            width: auto;
+            min-width: 140px;
+            padding: 6px 10px;
+            border: 1px solid #e5e0d6;
+            border-radius: 10px;
+            font-size: 13px;
+            background: rgba(255,255,255,0.75);
+        }
+        .nw-edit-save {
+            background: #3f3f3f;
+            border: 0;
+            border-radius: 12px;
+            padding: 6px 14px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .nw-edit-cancel {
+            background: rgba(255,255,255,0.55);
+            border: 1px solid #e5e0d6;
+            border-radius: 12px;
+            padding: 6px 14px;
+            cursor: pointer;
+            color: #646464;
+            font-size: 12px;
+            font-weight: 600;
         }
         @media (max-width: 720px) {
             .nw-row-status {
@@ -8179,16 +8298,31 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             .nw-col-duty { grid-column: 1; }
             .nw-col-menu { grid-column: 2; grid-row: 1; }
             .nw-col-count { grid-column: 1; }
-            .nw-col-dates { grid-column: 1 / -1; }
+            .nw-dates-grid { grid-template-columns: 1fr 1fr; }
+        }
+        body.theme-dark .nw-panel,
+        body.theme-dark .nw-edit {
+            background: var(--dlg-glass, rgba(255,255,255,.08));
+            border-color: var(--dlg-glass-border, rgba(255,255,255,.18));
+            box-shadow: none;
         }
         body.theme-dark .nw-act-btn {
             background: var(--dlg-glass-field, rgba(255,255,255,.08));
             border-color: var(--dlg-glass-border, rgba(255,255,255,.18));
             color: var(--dlg-text, #e2e8f0);
+            box-shadow: none;
         }
         body.theme-dark .nw-act-btn.nw-act-view {
             background: rgba(148,163,184,.15);
             border-color: rgba(148,163,184,.35);
             color: #e2e8f0;
         }
-        body.theme-dark .nw-duty-count { color: #cbd5e1; }
+        body.theme-dark .nw-duty-count,
+        body.theme-dark .nw-date-val { color: #e2e8f0; }
+        body.theme-dark .nw-date-lbl,
+        body.theme-dark .nw-dates-empty,
+        body.theme-dark .nw-edit-label { color: #94a3b8; }
+        body.theme-dark .nw-date-ok { color: #86efac; }
+        body.theme-dark .nw-date-expired,
+        body.theme-dark .nw-date-tag,
+        body.theme-dark .nw-duty-count-on { color: #fda4af; }
