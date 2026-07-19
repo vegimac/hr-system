@@ -1324,9 +1324,12 @@ function loadUebersichtTab() {
                             </div>
                         </div>
                     </div>
-                    <div class="nw-row nw-row2">
-                        <div class="nw-warns">${_nwMissingDocsHtml(emp)}</div>
-                    </div>
+                    ${(() => {
+                        const warns = _nwMissingDocsHtml(emp);
+                        return warns
+                            ? `<div class="nw-row nw-row2"><div class="nw-warns">${warns}</div></div>`
+                            : '';
+                    })()}
                     <div class="nw-row nw-row3 nw-actions">
                         <button class="nw-act-btn" onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken">🖨 Arztformular</button>
                         <button class="nw-act-btn" onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken">🖨 Ausnahmeregelung</button>
