@@ -99,7 +99,7 @@ function helpContextLabel(ctx) {
         'posteingang': 'Posteingang',
         'audit-log': 'Aktivitäts-Log',
         'benutzer': 'Benutzer',
-        'admin-hub': 'Systemeinstellungen',
+        'admin-hub': 'System',
         'moments': 'Moments',
         'moment-texte': 'Moments-Texte',
         'fibu': 'Buchhaltung (Fibu)',

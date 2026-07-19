@@ -23,7 +23,7 @@ const GS_PAGES = [
     { title: 'Fibu-Journal',             page: 'fibu',              tags: 'buchhaltung, fibu, abacus' },
     { title: 'BFS-LSE-Export',           page: 'bfs-lse',           tags: 'lse, statistik, bfs' },
     { title: 'Benutzerverwaltung',       page: 'users',             tags: 'user, rollen, passwort' },
-    { title: 'Systemeinstellungen',      page: 'admin-hub',         tags: 'admin, einstellungen, system' },
+    { title: 'System',                   page: 'admin-hub',         tags: 'admin, einstellungen, system, systemeinstellungen' },
     { title: 'Moments-Texte',            page: 'moment-texte',      tags: 'moments, vorlagen, sms, bewilligung, vertrag, texte' },
     { title: 'SMS (eCall)',              page: 'ecall',             tags: 'sms, ecall, twilio, handy' },
     { title: 'SV-Sätze',                 page: 'sv-saetze',         tags: 'sv, ahv, alv, nbu, bvg, sozialversicherung' },

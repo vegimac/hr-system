@@ -56,7 +56,7 @@ window.i18n = (function () {
         'side.dvelopImport':         { de: 'd.velop Dokumente',   en: 'd.velop documents' },
         'side.familyImport':         { de: 'Familienzulagen-Kontrolle', en: 'Family allowance check' },
         'side.newBranch':            { de: 'Neue Filiale importieren', en: 'Import new branch' },
-        'side.settings':             { de: 'Systemeinstellungen', en: 'Settings' },
+        'side.settings':             { de: 'System',              en: 'System' },
         'side.users':                { de: 'Benutzer',            en: 'Users' },
         'side.smtp':                 { de: 'E-Mail-Server',       en: 'Email server' },
 
