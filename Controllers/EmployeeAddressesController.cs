@@ -38,8 +38,8 @@ public class EmployeeAddressesController : ControllerBase
 
         dto.Id = 0;
         dto.EmployeeId = employeeId;
-        dto.CreatedAt = DateTime.UtcNow;
-        dto.UpdatedAt = DateTime.UtcNow;
+        dto.CreatedAt = DateTime.Now;
+        dto.UpdatedAt = DateTime.Now;
         if (string.IsNullOrWhiteSpace(dto.AddressType))
             dto.AddressType = "Korrespondenzadresse";
         // Land-Standard systemweit: ISO-Code „CH" (Walter-Vorgabe 13.05.2026).
@@ -74,7 +74,7 @@ public class EmployeeAddressesController : ControllerBase
         existing.Phone2           = dto.Phone2;
         existing.Email            = dto.Email;
         existing.IncamailDisabled = dto.IncamailDisabled;
-        existing.UpdatedAt        = DateTime.UtcNow;
+        existing.UpdatedAt        = DateTime.Now;
 
         await _db.SaveChangesAsync();
         return Ok(existing);
@@ -87,6 +87,13 @@ public class EmployeeAddressesController : ControllerBase
             .FirstOrDefaultAsync(a => a.Id == addressId && a.EmployeeId == employeeId);
         if (existing == null)
             return NotFound(new { error = "Adresse nicht gefunden." });
+
+        // Familienmitglieder, die diese Zusatzadresse als «andere Adresse»
+        // nutzen, auf NULL setzen — sonst bleibt die Referenz hängen
+        // (oder ein DB-FK blockiert das Löschen → Modal/Felder bleiben sichtbar).
+        await _db.EmployeeFamilyMembers
+            .Where(m => m.EmployeeId == employeeId && m.AlternativeAddressId == addressId)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.AlternativeAddressId, (int?)null));
 
         _db.EmployeeAddresses.Remove(existing);
         await _db.SaveChangesAsync();

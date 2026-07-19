@@ -9741,22 +9741,30 @@ async function plzLookupGeneric(rawPlz, cityId, cantonId, bfsId, hintId) {
     bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint);
 }
 
+function _otherAddressesContainers() {
+    // Alle Treffer (Fallback falls jemals doppelte IDs im DOM sind).
+    return Array.from(document.querySelectorAll('#otherAddressesContent'));
+}
+
 async function loadEmployeeAddressesTab(employeeId) {
-    const el = document.getElementById('otherAddressesContent');
-    if (!el) return;
+    const els = _otherAddressesContainers();
+    if (!els.length) return;
     // Kein «Wird geladen…»-Platzhalter (Walter 18.07.2026): der würde die
     // Personalien-Karte kurz aufblasen und Verträge+KTG nach unten schieben.
     const gen = (window._addrLoadGen = (window._addrLoadGen || 0) + 1);
     try {
         const res = await fetch(`/api/employees/${employeeId}/addresses`, { headers: ah() });
         if (gen !== window._addrLoadGen) return;
-        if (!res.ok) { el.innerHTML = ''; return; }
+        if (!res.ok) {
+            els.forEach(el => { el.innerHTML = ''; });
+            return;
+        }
         const list = await res.json();
         if (gen !== window._addrLoadGen) return;
-        renderEmployeeAddressesList(el, list);
+        els.forEach(el => renderEmployeeAddressesList(el, list));
     } catch {
         if (gen !== window._addrLoadGen) return;
-        el.innerHTML = '';
+        els.forEach(el => { el.innerHTML = ''; });
     }
 }
 
@@ -9768,6 +9776,7 @@ function renderEmployeeAddressesList(el, list) {
     }
     const fmtDate = d => d ? new Date(d).toLocaleDateString('de-CH') : '';
     const rows = list.map(a => {
+        const id = a.id ?? a.Id;
         const lines = [];
         if (a.description) lines.push(a.description);
         if (a.street)      lines.push(a.street + (a.street2 ? ' / ' + a.street2 : ''));
@@ -9782,15 +9791,15 @@ function renderEmployeeAddressesList(el, list) {
 
         // Kompakte EIN-Zeilen-Darstellung (Walter 17.07.2026): Typ-Pille ·
         // Adresse in der Breite mit «·»-Trennern · gueltig ab · Aktionen.
-        return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 14px;margin-bottom:7px;background:#fafafa;display:flex;align-items:center;gap:12px;min-width:0">
-            <span style="flex-shrink:0;font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#ece9e2;color:#6b7280">${a.addressType || 'Adresse'}</span>
+        return `<div class="emp-addr-row" data-addr-id="${id}" style="border:1px solid #e2e8f0;border-radius:10px;padding:6px 12px;margin-bottom:0;background:#fafafa;display:flex;align-items:center;gap:12px;min-width:0">
+            <span style="flex-shrink:0;font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#ece9e2;color:#6b7280">${a.addressType || a.AddressType || 'Adresse'}</span>
             <span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                 ${lines.length ? lines.join(' · ') : '<span style="color:#94a3b8;font-style:italic;font-weight:400">Keine Detail-Angaben</span>'}
             </span>
             ${a.validFrom ? `<span style="flex-shrink:0;font-size:11.5px;color:#64748b;white-space:nowrap">gültig ab ${fmtDate(a.validFrom)}</span>` : ''}
             <span style="flex-shrink:0;display:flex;gap:6px">
                 <button class="btn-stamp-edit" onclick='openEmployeeAddressModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>✎</button>
-                <button class="btn-stamp-edit" style="color:#b91c1c" onclick="deleteEmployeeAddress(${a.id})">🗑</button>
+                <button class="btn-stamp-edit" style="color:#b91c1c" onclick="deleteEmployeeAddress(${id})">🗑</button>
             </span>
         </div>`;
     }).join('');
@@ -9864,8 +9873,11 @@ function openEmployeeAddressModal(existing) {
 }
 
 function closeEmployeeAddressModal() {
+    // Modal komplett aus dem DOM entfernen — sonst bleiben die Formular-
+    // Felder der gelöschten Adresse unsichtbar im Hintergrund hängen und
+    // können bei einem erneuten Öffnen/Z-Index-Glitch wieder auftauchen.
     const m = document.getElementById('empAddressModal');
-    if (m) m.style.display = 'none';
+    if (m) m.remove();
     _empAddrEditing = null;
 }
 
@@ -10761,15 +10773,34 @@ function showInitialPasswordModal(username, password) {
 async function deleteEmployeeAddress(addrId) {
     if (!selectedEmployeeId || !addrId) return;
     if (!(await liquidConfirm('Adresse wirklich löschen?'))) return;
+
+    // Sofort aus der Liste nehmen — kein «Geister»-Eintrag bis der Reload fertig ist.
+    document.querySelectorAll(`.emp-addr-row[data-addr-id="${addrId}"]`)
+        .forEach(row => row.remove());
+    _otherAddressesContainers().forEach(el => {
+        if (!el.querySelector('.emp-addr-row')) el.innerHTML = '';
+    });
+    closeEmployeeAddressModal();
+
     try {
         const res = await fetch(`/api/employees/${selectedEmployeeId}/addresses/${addrId}`, {
             method: 'DELETE', headers: ah()
         });
-        if (!res.ok) { alert('Fehler beim Löschen.'); return; }
-        closeEmployeeAddressModal();
-        loadEmployeeAddressesTab(selectedEmployeeId);
+        if (!res.ok) {
+            let msg = 'Fehler beim Löschen.';
+            try { const j = await res.json(); msg = j.error || j.message || msg; } catch {}
+            alert(msg);
+            await loadEmployeeAddressesTab(selectedEmployeeId);
+            return;
+        }
+        await loadEmployeeAddressesTab(selectedEmployeeId);
+        // Familie-Modal: Dropdown/Felder aktualisieren, falls offen.
+        if (document.getElementById('fmAddrAlt') && typeof fmRefreshAddressUi === 'function') {
+            try { await fmRefreshAddressUi(null); } catch {}
+        }
     } catch(e) {
         alert('Verbindungsfehler: ' + e.message);
+        await loadEmployeeAddressesTab(selectedEmployeeId);
     }
 }
 

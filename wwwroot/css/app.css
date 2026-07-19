@@ -3841,9 +3841,9 @@
             height: 100%;
             box-sizing: border-box;
         }
-        /* Zusatzadressen: leer = kein Platz; sonst max. 1 Zeile */
+        /* Zusatzadressen: leer = kein Platz; sonst eine volle Zeile */
         #otherAddressesContent {
-            max-height: 28px;
+            max-height: 40px;
             overflow-x: hidden;
             overflow-y: auto;
             min-height: 0;
