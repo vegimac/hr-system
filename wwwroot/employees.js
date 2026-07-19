@@ -1232,8 +1232,8 @@ function loadUebersichtTab() {
     const istCH = (emp.nationalityCode || '').toUpperCase() === 'CH';
     // Personalien & Adresse (Walter 19.07.2026):
     // Ein gemeinsames 5-Spalten-Raster über Z1–Z3:
-    //   Strasse | PLZ | Ort+Kt. | Telefon 2 | —
-    //   Ledigname | Briefanrede | Kurzname | Sex | AHV
+    //   Strasse | PLZ | Ort+Kt. | Telefon 2 | AHV
+    //   Briefanrede | Nickname | Ledigname | Sex | —
     //   Zivilstand | seit | Konfession | Nationalität | ZEMIS
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-pers-body">
@@ -1260,24 +1260,24 @@ function loadUebersichtTab() {
             </div>
             <div class="ov-pf ov-pf-tel2"><div class="ov-pfl">Telefon 2</div>
             <input id="ov-phone2" class="ov-softin" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div>
-            <div class="ov-pf ov-pf-z1-empty" aria-hidden="true"></div>
-
-            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maidenName','Ledigname')}</div>
-            <input id="ov-maidenName" class="ov-softin" type="text" value="${esc(emp.maidenName)}" oninput="ovDirty()"></div>
-            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.letterSalutation','Briefanrede')}</div>
-            <input id="ov-letterSalutation" class="ov-softin" type="text" value="${esc(emp.letterSalutation)}" oninput="ovDirty()"></div>
-            <div class="ov-pf" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">
-                <div class="ov-pfl">${_t('ma.field.shortName','Kurzname')}</div>
-                <div class="ov-pfv">${esc(emp.shortName) || '<span class="ov-empty">–</span>'}</div>
-            </div>
-            <div class="ov-pf ov-pf-sex">
-                <div class="ov-pfl">Sex</div>
-                <div class="ov-pfv">${gKurz2 || '<span class="ov-empty">–</span>'}</div>
-            </div>
             <div class="ov-pf ov-pf-ahv">
                 <div class="ov-pfl">AHV-Nr.</div>
                 <div class="ov-pfv">${esc(emp.ahvNumber ?? emp.socialSecurityNumber) || '<span class="ov-empty">–</span>'}</div>
             </div>
+
+            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.letterSalutation','Briefanrede')}</div>
+            <input id="ov-letterSalutation" class="ov-softin" type="text" value="${esc(emp.letterSalutation)}" oninput="ovDirty()"></div>
+            <div class="ov-pf" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">
+                <div class="ov-pfl">${_t('ma.field.shortName','Nickname')}</div>
+                <div class="ov-pfv">${esc(emp.shortName) || '<span class="ov-empty">–</span>'}</div>
+            </div>
+            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maidenName','Ledigname')}</div>
+            <input id="ov-maidenName" class="ov-softin" type="text" value="${esc(emp.maidenName)}" oninput="ovDirty()"></div>
+            <div class="ov-pf ov-pf-sex">
+                <div class="ov-pfl">Sex</div>
+                <div class="ov-pfv">${gKurz2 || '<span class="ov-empty">–</span>'}</div>
+            </div>
+            <div class="ov-pf ov-pf-z2-empty" aria-hidden="true"></div>
 
             <div class="ov-pf">
                 <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
