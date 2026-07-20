@@ -8455,8 +8455,28 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         body.theme-dark .nw-inline-val { color: #e2e8f0; }
         body.theme-dark .nw-inline-lbl,
         body.theme-dark .nw-inline-muted,
-        body.theme-dark .nw-edit-label { color: #94a3b8; }
+        body.theme-dark .nw-edit-label,
+        body.theme-dark .nw-dates { color: #94a3b8; }
         body.theme-dark .nw-date-ok { color: #86efac !important; }
         body.theme-dark .nw-date-expired,
         body.theme-dark .nw-date-tag,
         body.theme-dark .nw-duty-count-on { color: #fda4af !important; }
+        /* Pflicht-Pillen: dunkles Grün/Rot auf dunklem Glas war unlesbar (Walter 20.07.2026). */
+        body.theme-dark .nw-duty-off {
+            background: rgba(16, 185, 129, 0.16);
+            color: #86efac;
+            border-color: rgba(52, 211, 153, 0.45);
+        }
+        body.theme-dark .nw-duty-off .nw-duty-dot { background: #4ade80; }
+        body.theme-dark .nw-duty-on {
+            background: rgba(244, 63, 94, 0.16);
+            color: #fda4af;
+            border-color: rgba(251, 113, 133, 0.45);
+        }
+        body.theme-dark .nw-duty-on .nw-duty-dot { background: #fb7185; }
+        body.theme-dark .nw-warn-chip {
+            color: #fda4af;
+            background: rgba(244, 63, 94, 0.16);
+            border-color: rgba(251, 113, 133, 0.40);
+        }
+        body.theme-dark .nw-warn-chip::before { background: #fb7185; }
