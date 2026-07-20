@@ -132,15 +132,14 @@ public class ProbezeitberichtPdfService
 
                     col.Item().Element(SectionRule);
 
-                    // 5. Zielvereinbarung — gleicher Zeilenabstand wie Begründung (WriteSpace).
+                    // 5. Zielvereinbarung (Walter 20.07.2026): Massnahmen 3 Zeilen,
+                    // Überprüfung am/durch nebeneinander auf einer Zeile — keine Leerzeilen unten.
                     col.Item().PaddingTop(12).Text("5.  Zielvereinbarung für die laufende Beurteilungsperiode")
                         .Bold().FontSize(11.5f);
                     col.Item().PaddingTop(4).Element(e => WriteField(e, "Ziel", ""));
-                    col.Item().Element(e => WriteField(e, "Massnahmen", ""));
-                    col.Item().Element(e => WriteField(e, "Überprüfung am", ""));
-                    col.Item().Element(e => WriteField(e, "Überprüfung durch", ""));
-                    // Wie zwischen zwei WriteFields: Label-Zeile + HandLinePitch bis Trenner
-                    col.Item().PaddingTop(12).Element(SectionRule);
+                    col.Item().Element(e => WriteFieldMulti(e, "Massnahmen", 3));
+                    col.Item().Element(e => WriteFieldPair(e,
+                        "Überprüfung am", "", "Überprüfung durch", ""));
 
                     // 6. Gespräch — keine Unterschriftsstriche (Walter 20.07.2026):
                     // rechts Vor-/Nachname MA (kein «Unterschrift Mitarbeitende»).
@@ -247,6 +246,28 @@ public class ProbezeitberichtPdfService
         {
             col.Item().Text(label).FontSize(10f).FontColor(Soft);
             col.Item().Element(e => HandLineSlot(e, value));
+        });
+    }
+
+    /// <summary>Label + mehrere gleiche Schreibzeilen (z.B. Massnahmen-Beschreibung).</summary>
+    private static void WriteFieldMulti(IContainer c, string label, int lines)
+    {
+        c.Column(col =>
+        {
+            col.Item().Text(label).FontSize(10f).FontColor(Soft);
+            for (var i = 0; i < lines; i++)
+                col.Item().Element(e => HandLineSlot(e));
+        });
+    }
+
+    /// <summary>Zwei Felder nebeneinander auf einer Schreibzeile.</summary>
+    private static void WriteFieldPair(IContainer c, string labelL, string valueL, string labelR, string valueR)
+    {
+        c.Row(r =>
+        {
+            r.RelativeItem().Element(e => WriteField(e, labelL, valueL));
+            r.ConstantItem(18);
+            r.RelativeItem().Element(e => WriteField(e, labelR, valueR));
         });
     }
 
