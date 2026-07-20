@@ -132,15 +132,17 @@ public class ProbezeitberichtPdfService
 
                     col.Item().PaddingTop(14).LineHorizontal(0.7f).LineColor(Line);
 
-                    // 5. Zielvereinbarung
+                    // 5. Zielvereinbarung — gleiche Schreibraum-Logik wie Begründung
+                    // (Luft über der Linie, unterste Zeile nicht enger).
                     col.Item().PaddingTop(12).Text("5.  Zielvereinbarung für die laufende Beurteilungsperiode")
                         .Bold().FontSize(11.5f);
-                    col.Item().PaddingTop(12).Element(e => WriteField(e, "Ziel", ""));
-                    col.Item().PaddingTop(14).Element(e => WriteField(e, "Massnahmen", ""));
-                    col.Item().PaddingTop(14).Element(e => WriteField(e, "Überprüfung am", ""));
-                    col.Item().PaddingTop(14).Element(e => WriteField(e, "Überprüfung durch", ""));
+                    col.Item().PaddingTop(4).Element(e => WriteField(e, "Ziel", ""));
+                    col.Item().Element(e => WriteField(e, "Massnahmen", ""));
+                    col.Item().Element(e => WriteField(e, "Überprüfung am", ""));
+                    col.Item().Element(e => WriteField(e, "Überprüfung durch", ""));
+                    col.Item().Height(26f); // unterste Zeile: gleicher Abstand nach unten
 
-                    col.Item().PaddingTop(16).LineHorizontal(0.7f).LineColor(Line);
+                    col.Item().PaddingTop(14).LineHorizontal(0.7f).LineColor(Line);
 
                     // 6. Gespräch — keine Unterschriftsstriche (Walter 20.07.2026):
                     // rechts Vor-/Nachname MA (kein «Unterschrift Mitarbeitende»).
@@ -205,15 +207,20 @@ public class ProbezeitberichtPdfService
         });
     }
 
-    /// <summary>Handschrift-Feld mit grosszügiger Zeilenhöhe (Walter 20.07.2026).</summary>
+    /// <summary>
+    /// Handschrift-Feld wie WriteSpace: Label, dann Luft, dann Linie unten
+    /// (Walter 20.07.2026 — nicht eng am Label kleben).
+    /// </summary>
     private static void WriteField(IContainer c, string label, string value)
     {
-        c.Row(r =>
+        const float handHeight = 26f;
+        c.Column(col =>
         {
-            r.ConstantItem(100).AlignMiddle().Text(label).FontSize(10f).FontColor(Soft);
-            r.RelativeItem().AlignMiddle().BorderBottom(0.7f).BorderColor(Line)
-                .PaddingBottom(4).MinHeight(26)
-                .Text(value ?? "").FontSize(11f).Bold();
+            col.Item().Text(label).FontSize(10f).FontColor(Soft);
+            col.Item().Height(handHeight).AlignBottom()
+                .Text(string.IsNullOrWhiteSpace(value) ? " " : value)
+                .FontSize(11f).Bold();
+            col.Item().LineHorizontal(0.55f).LineColor(Line);
         });
     }
 
