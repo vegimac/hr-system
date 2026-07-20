@@ -263,6 +263,14 @@ public class Employee
     [Column("place_of_origin")]
     public string? PlaceOfOrigin { get; set; }
 
+    /// <summary>
+    /// Laufende Schwangerschaft / Mutterschutz (Walter 20.07.2026) — nur für
+    /// List-Anzeige; wird in GetAll aus employee_pregnancy gesetzt (bis 16
+    /// Wochen nach Geburt/ET). Keine DB-Spalte.
+    /// </summary>
+    [NotMapped]
+    public bool IsPregnant { get; set; }
+
     // Hinweis: LivesInKonkubinat, HasJointParentalCare, PaysAlimonyAdultChildren,
     // HasHigherIncomeThanPartner, IsGrenzgaenger, IsWochenaufenthalter sind in
     // EmployeeQuellensteuer (zeitlich versionierter QST-Eintrag) gewandert,

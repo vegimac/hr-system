@@ -3511,6 +3511,15 @@
         .emp-hbadge.hb-ok    { background: #e7f0e4; color: #2f7d32; }
         .emp-hbadge.hb-inak  { background: #f1f5f9; color: #64748b; }
         .emp-hbadge.hb-mut   { background: #fde7ef; color: #be185d; }
+        /* MA-Liste: Schwangerschaft / Mutterschutz (Walter 20.07.2026) */
+        .emp-schwanger-badge {
+            font-size: 10px; font-weight: 700; padding: 2px 7px;
+            border-radius: 8px; flex-shrink: 0; align-self: center;
+            background: #fde7ef; color: #be185d; white-space: nowrap;
+        }
+        body.theme-dark .emp-schwanger-badge {
+            background: rgba(190, 24, 93, 0.28); color: #f9a8d4;
+        }
         .emp-hbadge.hb-kuend { background: #fee2e2; color: #b91c1c; }
         .emp-hbadge.hb-prob,
         .emp-hbadge.hb-exit  { background: #fdf1dc; color: #96690f; }

@@ -40,6 +40,25 @@ public class EmployeesController : ControllerBase
             .OrderBy(e => ((e.FirstName ?? "") + " " + (e.LastName ?? "")).Trim())
             .ToListAsync();
 
+        // Schwangerschafts-/Mutterschutz-Marker für die MA-Liste (Walter 20.07.2026):
+        // gleiche Fenster-Logik wie Header-Badge (bis 16 Wochen nach Geburt/ET).
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var pregnantIds = await _context.EmployeePregnancies
+            .AsNoTracking()
+            .Where(p => p.IsActive)
+            .Select(p => new { p.EmployeeId, p.Geburtsdatum, p.ErrechneterTermin })
+            .ToListAsync();
+        var pregnantSet = pregnantIds
+            .Where(p =>
+            {
+                var basis = p.Geburtsdatum ?? p.ErrechneterTermin;
+                return basis.AddDays(16 * 7) >= today;
+            })
+            .Select(p => p.EmployeeId)
+            .ToHashSet();
+        foreach (var e in employees)
+            e.IsPregnant = pregnantSet.Contains(e.Id);
+
         return Ok(employees);
     }
 
