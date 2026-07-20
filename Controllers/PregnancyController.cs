@@ -131,8 +131,7 @@ public class PregnancyController : HrControllerBase
             Bemerkung                  = dto.Bemerkung,
             ArztbestaetigungDokumentId = dto.ArztbestaetigungDokumentId,
             IsActive                   = true,
-            // employee_pregnancy.created_at ist TIMESTAMPTZ → nur UTC (Npgsql).
-            CreatedAt                  = DateTime.UtcNow,
+            CreatedAt                  = DateTime.Now,
         };
         _db.EmployeePregnancies.Add(p);
         try { await _db.SaveChangesAsync(); }
@@ -160,8 +159,7 @@ public class PregnancyController : HrControllerBase
             if (dokErr is not null) return dokErr;
             p.ArztbestaetigungDokumentId = dto.ArztbestaetigungDokumentId;
         }
-        // employee_pregnancy.updated_at ist TIMESTAMPTZ → nur UTC (Npgsql).
-        p.UpdatedAt = DateTime.UtcNow;
+        p.UpdatedAt = DateTime.Now;
         try { await _db.SaveChangesAsync(); }
         catch (Exception ex) { return PregnancySaveError(ex); }
         // Kein Ok(p) — Entity-Serialisierung (Navigations) soll den Client nicht killen.

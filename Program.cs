@@ -1877,13 +1877,19 @@ using (var scope = app.Services.CreateScope())
             geburtsdatum           DATE,
             bemerkung              TEXT,
             is_active              BOOLEAN DEFAULT true,
-            created_at             TIMESTAMPTZ DEFAULT NOW(),
-            updated_at             TIMESTAMPTZ
+            created_at             timestamp without time zone DEFAULT NOW(),
+            updated_at             timestamp without time zone
         );
         CREATE INDEX IF NOT EXISTS idx_pregnancy_employee ON employee_pregnancy(employee_id);
         -- Walter 10.06.2026: Altlast aus erster Version droppen (Arztzeugnisse
         -- werden über den Absenzen-Tab als KRANK erfasst, nicht doppelt hier).
         ALTER TABLE employee_pregnancy DROP COLUMN IF EXISTS arztzeugnis_vorhanden;
+        -- Walter 20.07.2026: TIMESTAMPTZ → timestamp without time zone (System-Standard).
+        ALTER TABLE employee_pregnancy
+            ALTER COLUMN created_at TYPE timestamp without time zone
+                USING (created_at AT TIME ZONE 'Europe/Zurich'),
+            ALTER COLUMN updated_at TYPE timestamp without time zone
+                USING (updated_at AT TIME ZONE 'Europe/Zurich');
         -- ISO alpha-3 (Ausweis-Kürzel BGR/MKD/…, Walter 12.07.2026) — Seed
         -- unten in C# aus der statischen Tabelle CountryIso3 (nur wo leer).
         ALTER TABLE nationality ADD COLUMN IF NOT EXISTS code3 text;

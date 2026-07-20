@@ -1285,8 +1285,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.ArztbestaetigungDokumentId).HasColumnName("arztbestaetigung_dokument_id");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            // Walter 20.07.2026: wie Rest des Systems — timestamp without time zone + DateTime.Now
+            // (vorher TIMESTAMPTZ → Npgsql-Fehler «Cannot write DateTime with Kind=Local»).
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.ArztbestaetigungDokument).WithMany()
                 .HasForeignKey(e => e.ArztbestaetigungDokumentId)
