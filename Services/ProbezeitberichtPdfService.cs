@@ -167,7 +167,6 @@ public class ProbezeitberichtPdfService
                         {
                             c.Item().MinHeight(36).AlignBottom()
                                 .Text(maName).FontSize(12f).Bold();
-                            c.Item().PaddingTop(4).Text("Vor- und Nachname MA").FontSize(9.5f).FontColor(Soft);
                         });
                     });
                 });
