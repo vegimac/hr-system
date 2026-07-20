@@ -1884,14 +1884,25 @@ using (var scope = app.Services.CreateScope())
         -- Walter 10.06.2026: Altlast aus erster Version droppen (Arztzeugnisse
         -- werden über den Absenzen-Tab als KRANK erfasst, nicht doppelt hier).
         ALTER TABLE employee_pregnancy DROP COLUMN IF EXISTS arztzeugnis_vorhanden;
-        -- Walter 20.07.2026: Arztbestätigung errechneter Termin (Dokument-FK).
-        ALTER TABLE employee_pregnancy
-            ADD COLUMN IF NOT EXISTS arztbestaetigung_dokument_id INTEGER
-                REFERENCES employee_dokument(id) ON DELETE SET NULL;
         -- ISO alpha-3 (Ausweis-Kürzel BGR/MKD/…, Walter 12.07.2026) — Seed
         -- unten in C# aus der statischen Tabelle CountryIso3 (nur wo leer).
         ALTER TABLE nationality ADD COLUMN IF NOT EXISTS code3 text;
     ");
+
+    // Walter 20.07.2026: Arztbestätigung errechneter Termin — eigener Batch,
+    // damit ein Fehler hier nicht den gesamten Startup-SQL-Block abbricht.
+    try
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employee_pregnancy
+                ADD COLUMN IF NOT EXISTS arztbestaetigung_dokument_id INTEGER
+                    REFERENCES employee_dokument(id) ON DELETE SET NULL;
+        ");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("WARN: arztbestaetigung_dokument_id Migration: " + ex.Message);
+    }
 
     // ISO alpha-3 nachrüsten (Walter 12.07.2026): Ausweise drucken den
     // Dreibuchstaben-Code — idempotent nur füllen, wo code3 noch leer ist

@@ -45,18 +45,27 @@ public class PregnancyController : HrControllerBase
 
     public record KuendigungsschutzDto(DateOnly Von, DateOnly Bis);
 
-    public record CreatePregnancyDto(
-        int EmployeeId, DateOnly Meldedatum, DateOnly ErrechneterTermin,
-        string? Bemerkung,
-        int? ArztbestaetigungDokumentId);
+    public class CreatePregnancyDto
+    {
+        public int EmployeeId { get; set; }
+        public DateOnly Meldedatum { get; set; }
+        public DateOnly ErrechneterTermin { get; set; }
+        public string? Bemerkung { get; set; }
+        public int? ArztbestaetigungDokumentId { get; set; }
+    }
 
-    public record UpdatePregnancyDto(
-        DateOnly? Meldedatum, DateOnly? ErrechneterTermin, DateOnly? Geburtsdatum,
-        string? Bemerkung, bool? IsActive,
+    public class UpdatePregnancyDto
+    {
+        public DateOnly? Meldedatum { get; set; }
+        public DateOnly? ErrechneterTermin { get; set; }
+        public DateOnly? Geburtsdatum { get; set; }
+        public string? Bemerkung { get; set; }
+        public bool? IsActive { get; set; }
         // Nur setzen wenn true — sonst bleibt die Verknüpfung (Geburt-PUT
         // sendet kein Dokument und darf die FK nicht löschen).
-        bool? SetArztbestaetigungDokument,
-        int? ArztbestaetigungDokumentId);
+        public bool? SetArztbestaetigungDokument { get; set; }
+        public int? ArztbestaetigungDokumentId { get; set; }
+    }
 
     // ─── Endpoints ─────────────────────────────────────────────────────────
     [HttpGet]
@@ -105,8 +114,9 @@ public class PregnancyController : HrControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreatePregnancyDto dto)
+    public async Task<IActionResult> Create([FromBody] CreatePregnancyDto? dto)
     {
+        if (dto is null) return BadRequest(new { error = "Leerer Request." });
         var empExists = await _db.Employees.AnyAsync(e => e.Id == dto.EmployeeId);
         if (!empExists) return BadRequest(new { error = "Mitarbeiter nicht gefunden." });
 
@@ -124,14 +134,18 @@ public class PregnancyController : HrControllerBase
             CreatedAt                  = DateTime.Now,
         };
         _db.EmployeePregnancies.Add(p);
-        await _db.SaveChangesAsync();
+        try { await _db.SaveChangesAsync(); }
+        catch (Exception ex) { return PregnancySaveError(ex); }
         return Ok(new { p.Id });
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdatePregnancyDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdatePregnancyDto? dto)
     {
-        var p = await _db.EmployeePregnancies.FindAsync(id);
+        if (dto is null) return BadRequest(new { error = "Leerer Request." });
+        EmployeePregnancy? p;
+        try { p = await _db.EmployeePregnancies.FindAsync(id); }
+        catch (Exception ex) { return PregnancySaveError(ex); }
         if (p is null) return NotFound();
 
         if (dto.Meldedatum           is not null) p.Meldedatum           = dto.Meldedatum.Value;
@@ -146,8 +160,26 @@ public class PregnancyController : HrControllerBase
             p.ArztbestaetigungDokumentId = dto.ArztbestaetigungDokumentId;
         }
         p.UpdatedAt = DateTime.Now;
-        await _db.SaveChangesAsync();
-        return Ok(p);
+        try { await _db.SaveChangesAsync(); }
+        catch (Exception ex) { return PregnancySaveError(ex); }
+        // Kein Ok(p) — Entity-Serialisierung (Navigations) soll den Client nicht killen.
+        return Ok(new { id = p.Id, arztbestaetigungDokumentId = p.ArztbestaetigungDokumentId });
+    }
+
+    private ObjectResult PregnancySaveError(Exception ex)
+    {
+        var msg = ex.InnerException?.Message ?? ex.Message;
+        if (msg.Contains("arztbestaetigung_dokument_id", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("does not exist", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("existiert nicht", StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(500, new
+            {
+                error = "MIGRATION_FEHLT",
+                message = "DB-Spalte «arztbestaetigung_dokument_id» fehlt. Bitte Migration in TablePlus ausführen und Server neu starten."
+            });
+        }
+        return StatusCode(500, new { error = "SAVE_FAILED", message = msg });
     }
 
     [HttpGet("{id:int}/pdf")]

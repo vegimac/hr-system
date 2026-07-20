@@ -6356,7 +6356,16 @@ async function mtsSaveForm() {
         headers: { ...ah(), 'Content-Type': 'application/json' },
         body: JSON.stringify(dto)
     });
-    if (!r.ok) return alert('Fehler: ' + await r.text());
+    if (!r.ok) {
+        let t = '';
+        try { t = await r.text(); } catch (_) {}
+        let msg = t;
+        try {
+            const j = JSON.parse(t);
+            msg = j.message || j.error || t;
+        } catch (_) {}
+        return alert('Fehler beim Speichern: ' + (msg || ('HTTP ' + r.status)));
+    }
     mtsCloseForm();
     loadFamilieTab(employeeId);
     // MA-Listen-Marker «Schwanger» aktualisieren
