@@ -44,7 +44,7 @@ public class WageAdjustmentController : ControllerBase
 
     // POST /api/wage-adjustment/apply
     [HttpPost("apply")]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> Apply([FromBody] WageAdjustmentApplyDto dto)
     {
         if (dto.CompanyProfileId <= 0)

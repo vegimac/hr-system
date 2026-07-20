@@ -16,7 +16,7 @@ namespace HrSystem.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/employees/{employeeId:int}/bvg-zusatz-member")]
-[Authorize(Roles = "admin,superuser")]
+[Authorize(Roles = "admin,superuser,user")]
 public class EmployeeBvgZusatzMemberController : ControllerBase
 {
     private readonly AppDbContext _db;

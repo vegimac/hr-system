@@ -299,6 +299,15 @@ function doLogout() {
 
 function ah() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
 
+/** Ops-Rolle auf GF-sichtbaren Screens (Walter 20.07.2026): admin/superuser/
+ *  user(GF)/buchhaltung — alles freigeben, was der GF sehen und bedienen soll.
+ *  Nicht für Systemeinstellungen, MA löschen, HR-4-Augen-Lohnaktionen. */
+function isOpsRole(role) {
+    const r = role || (typeof currentUser !== 'undefined' ? currentUser?.role : '');
+    return r === 'admin' || r === 'superuser' || r === 'user' || r === 'buchhaltung';
+}
+window.isOpsRole = isOpsRole;
+
 function updateDashboardShellState(name) {
     const page = document.getElementById('page-' + name);
     document.body.classList.toggle('liquid-shell-active', !!page?.classList.contains('liquid-ui'));

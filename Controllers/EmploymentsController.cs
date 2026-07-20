@@ -576,7 +576,7 @@ public class EmploymentsController : ControllerBase
     // offenen / provisorisch_abgeschlossenen Perioden sind frei löschbar —
     // dort hängt nichts Finales dran. ?force=true bleibt als Notfall-Knopf
     // erhalten, falls Walter doch mal eine abgeschlossene Periode wegräumt.
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, [FromQuery] bool force = false)
     {
@@ -619,7 +619,7 @@ public class EmploymentsController : ControllerBase
     // GET /api/employments/{id}/can-delete — Frontend-Vorab-Check.
     // Liefert { canDelete, reason? } damit der Löschen-Button im Vertrags-
     // Modal nur erscheint wenn er auch wirklich klickbar ist.
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     [HttpGet("{id:int}/can-delete")]
     public async Task<IActionResult> CanDelete(int id)
     {

@@ -12,9 +12,10 @@ namespace HrSystem.Controllers;
 /// Kündigungsschreiben (Walter-Vorgabe 22.06.2026). Liefert (a) die vor-
 /// berechneten Brief-Daten inkl. Kündigungsfrist, letztem Arbeitstag und
 /// Sperrfrist-Prüfung (GET …/info) und (b) das fertige PDF (POST …/pdf).
-/// HR-Bereich → admin/superuser.
+/// GF (user) inkl. — Kündigung während Probezeit aus Restaurant-Admin
+/// (Walter 20.07.2026: auf GF-sichtbaren Screens alles freigeben).
 /// </summary>
-[Authorize(Roles = "admin,superuser")]
+[Authorize(Roles = "admin,superuser,user")]
 [ApiController]
 [Route("api/kuendigung")]
 public class KuendigungController : ControllerBase

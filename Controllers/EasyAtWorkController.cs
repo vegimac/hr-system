@@ -14,12 +14,12 @@ namespace HrSystem.Controllers;
 /// Status anzeigen, Verbindung testen, Branch-Mapping pflegen.
 /// Phase 2+ (Sync) baut auf diesen Endpoints auf.
 ///
-/// Zugriff nur admin/superuser — der Connector enthält OAuth-Secrets und
-/// hängt direkt am System-Setup.
+/// Schreib-/Massen-Sync bleibt admin (Methoden-Attribute).
+/// Einzel-MA-Sync + Lesen: auch GF (user) — Walter 20.07.2026.
 /// </summary>
 [ApiController]
 [Route("api/easywork")]
-[Authorize(Roles = "admin,superuser")]
+[Authorize(Roles = "admin,superuser,user")]
 public class EasyAtWorkController : ControllerBase
 {
     private readonly EasyAtWorkClient _client;

@@ -7,7 +7,8 @@
 // ══════════════════════════════════════════════
 async function deleteContract(employeeId, contractId, startDateIso) {
     const _t = (k, args) => (window.i18n ? (args ? window.i18n.tFormat(k, args) : window.i18n.t(k)) : k);
-    if (currentUser?.role !== 'admin' && currentUser?.role !== 'superuser') {
+    if (typeof isOpsRole === 'function' ? !isOpsRole()
+        : (currentUser?.role !== 'admin' && currentUser?.role !== 'superuser' && currentUser?.role !== 'user')) {
         alert(_t('vt.err.notAuthorized'));
         return;
     }

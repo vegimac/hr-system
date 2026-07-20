@@ -221,7 +221,7 @@ public class EmployeePermitHistoryController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> Create(int employeeId, [FromBody] PermitHistoryUpsertDto dto)
     {
         var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
@@ -300,7 +300,7 @@ public class EmployeePermitHistoryController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> Update(int employeeId, int id, [FromBody] PermitHistoryUpsertDto dto)
     {
         var entry = await _db.EmployeePermitHistories
@@ -670,7 +670,7 @@ public class EmployeePermitHistoryController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> Delete(int employeeId, int id)
     {
         var entry = await _db.EmployeePermitHistories

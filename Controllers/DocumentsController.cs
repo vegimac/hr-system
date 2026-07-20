@@ -401,7 +401,7 @@ public class DocumentsController : ControllerBase
     /// aber keine Datei lokal speichern (Missbrauchsschutz).
     /// </summary>
     [HttpGet("download/{id:int}")]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> Download(int id) => await ServeFile(id, asAttachment: true);
 
     /// <summary>Datei inline anzeigen (für PDF-Vorschau im Browser).</summary>
@@ -1116,7 +1116,7 @@ public class DocumentsController : ControllerBase
     /// Datenverlust durch normale Benutzer.
     /// </summary>
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> Delete(int id)
     {
         var doc = await _db.EmployeeDokumente.FindAsync(id);

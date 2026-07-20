@@ -233,10 +233,11 @@ public class EmployeeVerwarnungController : ControllerBase
         }
     }
 
-    /// <summary>Echtes Löschen (Walter-Entscheid 15.07.2026) — admin/superuser.
-    /// Das verknüpfte Dokument bleibt in der Personalakte erhalten.</summary>
+    /// <summary>Echtes Löschen (Walter-Entscheid 15.07.2026).
+    /// Das verknüpfte Dokument bleibt in der Personalakte erhalten.
+    /// GF (user) inkl. (Walter 20.07.2026).</summary>
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> Delete(int id)
     {
         var v = await _db.EmployeeVerwarnungen.FirstOrDefaultAsync(x => x.Id == id);

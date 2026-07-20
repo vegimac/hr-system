@@ -487,7 +487,7 @@ public class MailboxController : ControllerBase
 
     // ── POST: In MA-Personalakte verschieben (admin/superuser) ────────────
     [HttpPost("{id}/move-to-employee")]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> MoveToEmployee(int id, [FromBody] MoveToEmployeeDto dto)
     {
         var doc = await _db.MailboxDocuments.FindAsync(id);

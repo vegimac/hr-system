@@ -31,8 +31,9 @@ function waFmtInput(v) {
 }
 function waParseAmt(v) { return parseFloat(String(v ?? '').replace(',', '.').replace(/[^0-9.\-]/g, '')); }
 function waCanApply() {
+    if (typeof isOpsRole === 'function') return isOpsRole();
     const r = (typeof currentUser !== 'undefined' && currentUser?.role) ? currentUser.role : '';
-    return r === 'admin' || r === 'superuser';
+    return r === 'admin' || r === 'superuser' || r === 'user' || r === 'buchhaltung';
 }
 function waEsc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

@@ -235,7 +235,7 @@ public class WebAuthnController : ControllerBase
 
     // ── HR/Admin: alle Passkeys eines MA löschen (z.B. bei Geräteverlust) ──
     [HttpGet("admin/by-employee/{employeeId:int}")]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> AdminListByEmployee(int employeeId)
     {
         var count = await _db.WebAuthnCredentials
@@ -245,7 +245,7 @@ public class WebAuthnController : ControllerBase
     }
 
     [HttpDelete("admin/by-employee/{employeeId:int}")]
-    [Authorize(Roles = "admin,superuser")]
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> AdminDeleteByEmployee(int employeeId)
     {
         var creds = await _db.WebAuthnCredentials

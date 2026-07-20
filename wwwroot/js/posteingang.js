@@ -198,7 +198,9 @@ async function pbLoadList() {
             list.innerHTML = '<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;background:#f8fafc;border-radius:10px">Posteingang ist leer 📭</div>';
             return;
         }
-        const isAdmin = (currentUser?.role === 'admin' || currentUser?.role === 'superuser');
+        // Walter 20.07.2026: GF darf Posteingang in Personalakte ablegen.
+        const isAdmin = typeof isOpsRole === 'function' ? isOpsRole()
+            : (currentUser?.role === 'admin' || currentUser?.role === 'superuser' || currentUser?.role === 'user');
         // Sortierung nach ABSENDER (Walter-Vorgabe 13.07.2026), innerhalb
         // desselben Absenders neueste zuerst — so bleiben z.B. alle
         // Genius-Scan-Uploads einer Person beisammen.

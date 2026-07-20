@@ -3373,7 +3373,7 @@ function renderQuellensteuerTab(el, entries, pflicht) {
                 ${permitDocBtn}
                 ${selectedEmployee?.zemisNumber ? `<span style="font-size:11px;font-weight:600;color:#6b7280;background:#ece9e2;border-radius:999px;padding:2px 10px;text-transform:none;letter-spacing:0" title="ZEMIS-Nummer (Ausländerregister) — von der Ausweis-Rückseite">ZEMIS ${esc(selectedEmployee.zemisNumber)}</span>` : ''}
             </span>
-            ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser') ? `
+            ${isOpsRole() ? `
             <button class="btn-emp-add" onclick="openPermitHistoryModal(null)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Neue Bewilligung
@@ -11433,7 +11433,9 @@ function renderPermitListHtml(entries) {
         return `<div style="padding:12px;color:#94a3b8;font-style:italic;font-size:12.5px">Keine Bewilligung erfasst.</div>`;
     }
 
-    const isAdmin = (currentUser?.role === 'admin' || currentUser?.role === 'superuser');
+    // Walter 20.07.2026: GF (user) darf Bewilligungen voll pflegen.
+    const isAdmin = typeof isOpsRole === 'function' ? isOpsRole()
+        : (currentUser?.role === 'admin' || currentUser?.role === 'superuser' || currentUser?.role === 'user' || currentUser?.role === 'buchhaltung');
     // Schweizer Lokaldatum (nicht UTC) — sonst kann um Mitternacht das Datum kippen.
     const _n = new Date();
     const todayIso = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-${String(_n.getDate()).padStart(2, '0')}`;
@@ -12236,7 +12238,7 @@ function renderVerwarnungenTab(el) {
                 <button class="dok-menu-btn" onclick="vwToggleMenu(event, ${v.id})">⋮</button>
                 <div class="dok-menu" id="vwMenu${v.id}" style="display:none;position:absolute;right:0;top:32px;z-index:50;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:180px">
                     ${!v.storniert ? `<div class="dok-menu-item" onclick="openVerwarnungModal(${v.id})">✎ Bearbeiten / Scan nachreichen</div><div class="dok-menu-item" onclick="vwPrintFormular(${v.id})">🖨 Formular drucken</div>` : ''}
-                    ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser')
+                    ${isOpsRole()
                         ? `<div class="dok-menu-item danger" onclick="vwDelete(${v.id})">🗑 Löschen</div>` : ''}
                 </div>
             </div>`;

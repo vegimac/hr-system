@@ -634,7 +634,8 @@ async function renderVtDetail(emp) {
                         return `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick='openContractEditModal(${JSON.stringify(c).replace(/"/g,"&quot;")})'>${_t('vt.btn.editIcon')}</button>
                                 ${isActive ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px;border-color:#fca5a5;color:#b91c1c" onclick="openTerminateModal(${emp.id}, ${c.id}, '${c.contractStartDate}')">${_t('vt.btn.terminateIcon')}</button>` : ''}
                                 <button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick="downloadContractPdfById(${emp.id}, ${c.id})">${_t('vt.btn.pdf')}</button>
-                                ${(currentUser?.role === 'admin' || currentUser?.role === 'superuser')
+                                ${(typeof isOpsRole === 'function' ? isOpsRole()
+                                    : (currentUser?.role === 'admin' || currentUser?.role === 'superuser' || currentUser?.role === 'user'))
                                     ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px;border-color:#fca5a5;color:#b91c1c;background:#fef2f2" onclick="deleteContract(${emp.id}, ${c.id}, '${c.contractStartDate}')" title="${_t('vt.btn.deleteTitle')}">${_t('vt.btn.deleteIcon')}</button>`
                                     : ''}`;
                     })()}

@@ -234,7 +234,8 @@ function renderDokumenteUi() {
     }
 
     // Massen-Import nur für Admin/Superuser — normale Benutzer brauchen das nicht
-    const canBulk = currentUser?.role === 'admin' || currentUser?.role === 'superuser';
+    const canBulk = typeof isOpsRole === 'function' ? isOpsRole()
+        : (currentUser?.role === 'admin' || currentUser?.role === 'superuser' || currentUser?.role === 'user');
     const tt = window._t || ((k,f) => f);
     // Walter-Vorgabe 01.06.2026:
     //   • „← Mitarbeiter" entfernt (Tab-Wechsel oben übernimmt Navigation).
@@ -489,8 +490,10 @@ function renderDokTableRow(d, showCategoryColumns) {
     // Download + Löschen nur für Admin/Superuser. Normaler Benutzer kann
     // Vorschau, Einzel-Upload, Bearbeiten — aber keine Datei lokal ziehen
     // und nichts löschen (Missbrauchs- und Datenverlust-Schutz).
-    const canDownload  = currentUser?.role === 'admin' || currentUser?.role === 'superuser';
-    const canDelete    = currentUser?.role === 'admin' || currentUser?.role === 'superuser';
+    const canDownload  = typeof isOpsRole === 'function' ? isOpsRole()
+        : (currentUser?.role === 'admin' || currentUser?.role === 'superuser' || currentUser?.role === 'user');
+    const canDelete    = typeof isOpsRole === 'function' ? isOpsRole()
+        : (currentUser?.role === 'admin' || currentUser?.role === 'superuser' || currentUser?.role === 'user');
     // Walter-Vorgabe 20.06.2026: Dokumente, die an einer wirksamen FK-Stelle
     // verknüpft sind (Ehepartner-Bewilligung, C-Ausweis/Pass mit QST-Wirkung,
     // Behörden-Befreiung, Bewilligung), bekommen KEINE Löschen-Option — erst die
@@ -708,7 +711,8 @@ async function dokOpenPreviewPanel(id, opts) {
     const zoomBtns = '';
     // Herunterladen direkt aus der Vorschau (admin/superuser) — der Download ist
     // aus der Listen-Zeile rausgenommen (Walter 24.05.2026).
-    const _canDl = currentUser?.role === 'admin' || currentUser?.role === 'superuser';
+    const _canDl = typeof isOpsRole === 'function' ? isOpsRole()
+        : (currentUser?.role === 'admin' || currentUser?.role === 'superuser' || currentUser?.role === 'user');
     const dlBtn = _canDl ? `
                 <button onclick="dokDownload(${doc.id})" title="Herunterladen"
                         style="background:none;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:14px;color:#475569;padding:1px 8px">⬇</button>` : '';
