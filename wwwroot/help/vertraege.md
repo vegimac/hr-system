@@ -123,7 +123,7 @@ Der Vertrag wurde in mindestens einer abgeschlossenen oder laufenden Periode ben
 Neuer Vertrag mit Funktion „Shift Leader 1–6 Mt." (oder „Shift Leader 7+ Mt." je nach Erfahrung). Vertragsmodell wird automatisch auf FIX-M gesetzt — Shift Manager sind immer Management.
 
 **Mein MA macht eine Probezeit. Wie?**
-Bei der Vertragserfassung das Feld **„Probezeit (Monate)"** ausfüllen, z.B. 3. Das ist informativ — die Probezeit hat keine direkte Wirkung auf den Lohn.
+Bei der Vertragserfassung das Feld **„Probezeit (Monate)"** ausfüllen, z.B. 3 — daraus berechnet das System **Probezeit bis**. Die Gespräche und das Protokoll führst du im MA-Tab **Restaurant Admin → Probezeit** (Formular blanko, 1./2. Gespräch mit Dokument-Verknüpfung). Details: [Mitarbeiter](#mitarbeiter), Abschnitt „Restaurant Admin".
 
 **Was ist das „garantierte Monat"-Feld bei MTP?**
 Eine reine Anzeige zur Plausibilitäts-Prüfung: `garantierte Wochenstunden × Stundenlohn × 52 / 12`. So siehst du sofort, ob das ungefähr dem Mindesteinkommen entspricht das du dem MA versprochen hast.

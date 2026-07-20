@@ -8,7 +8,7 @@ Hier landen alle PDFs, Bilder, Word-Dateien und Excel-Tabellen. Pro MA seine eig
 |---|---|---|
 | **Wo?** | MA-Detail → Tab „Dokumente" | Sidebar → „Posteingang" |
 | **Was drin?** | Persönliche Akte: Verträge, Stempelkarten, Arztzeugnisse, AHV-Bestätigung … | Eingangs-Schale für Filiale / HR / Buchhaltung |
-| **Wer kann hochladen?** | Admin / Superuser | Alle eingeloggten User mit Filial-Zugang |
+| **Wer kann hochladen?** | Admin / Superuser / GF (user) / Buchhaltung | Alle eingeloggten User mit Filial-Zugang |
 | **Was ist die Idee?** | Endgültige Ablage pro Person | Sammelstelle bevor sortiert wird |
 
 Typischer Ablauf: GF lädt das Arztzeugnis ins **Posteingang** seiner Filiale → HR sieht es, sortiert es dem MA zu → es wandert in die **MA-Dokumente** rein.
@@ -48,7 +48,7 @@ Wenn du nur EINE bestimmte Seite drehen willst (z.B. Seite 3 eines 5-seitigen PD
 
 ## Dokument bearbeiten
 
-In der Liste **✎ Bleistift-Icon** rechts der Zeile → Edit-Modal öffnet sich. Du kannst:
+In der Liste das **⋮-Menü** rechts der Zeile → **Bearbeiten**. Du kannst:
 
 - **Mitarbeiter wechseln** — Datei wird physisch in den neuen MA-Ordner verschoben.
 - **Kategorie und Typ** umsortieren.

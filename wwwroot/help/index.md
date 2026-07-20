@@ -9,6 +9,7 @@ Schön, dass du da bist. Diese Hilfe ist deine Anlaufstelle, wenn du irgendwo ni
 Die häufigsten Aufgaben — Klick führt direkt zur passenden Hilfe-Seite:
 
 - **Einen neuen Mitarbeiter anlegen** → [Mitarbeiter](#mitarbeiter)
+- **Probezeitgespräch / Verwarnung / Zeugnis** → [Mitarbeiter](#mitarbeiter) (Tab Restaurant Admin)
 - **Den monatlichen Lohnlauf machen** → [Lohnlauf](#lohnlauf)
 - **Einen Vertrag ändern (Lohn, Pensum, Beendigung)** → [Verträge](#vertraege)
 - **Arbeitsvertrag per SMS an den MA schicken** → [SMS & Vertrags-Link](#sms)
@@ -30,7 +31,7 @@ Die häufigsten Aufgaben — Klick führt direkt zur passenden Hilfe-Seite:
 
 ## So funktioniert das Programm — der grosse Überblick
 
-**Mitarbeiter** sind der Mittelpunkt: jede Person hat Stammdaten, Verträge, Familie, Bank, Dokumente. Du verwaltest sie über den **Mitarbeiter-Tab**.
+**Mitarbeiter** sind der Mittelpunkt: jede Person hat Stammdaten, Verträge, Familie, Bank, Dokumente. Du verwaltest sie über den **Mitarbeiter-Tab**. Praxis-Aktionen (Probezeit, Verwarnung, Zeugnisse, Postfach-Passwort, Onboarding-QR, Face ID) liegen im Tab **Restaurant Admin**. Schwangerschaft/Mutterschaft steckt unter **Familie / Schwanger**.
 
 **Verträge** definieren, wie viel ein MA verdient. Pro MA gibt's eine Versionsgeschichte — wenn der Lohn steigt, legst du einen neuen Vertrag an, statt den alten zu überschreiben. So kann das System rückwirkend Lohnzettel korrekt nachrechnen.
 
@@ -50,7 +51,9 @@ Beides folgt dem **4-Augen-Prinzip**: zuerst gibt der Geschäftsführer pro MA f
 
 **SMS-Versand** — läuft über eCall (F24 Schweiz). Damit gehen Moments, Postfach-Hinweise und der Arbeitsvertrag-Link direkt aufs Handy. Solange die Test-Umleitung aktiv ist, landen alle SMS auf der Test-Nummer.
 
-**Stempelzeiten** kommen ausschliesslich über die **easy@work-Schnittstelle** (automatischer täglicher Sync + manueller Sync). Im Programm sind sie nur lesbar — Korrekturen macht man in easy@work.
+**Stempelzeiten** kommen ausschliesslich über die **easy@work-Schnittstelle** (automatischer täglicher Sync + manueller Sync). Im Programm sind sie nur lesbar — Korrekturen macht man in easy@work. **Verfügbarkeit** (wann der MA einsetzbar ist) wird ebenfalls aus easy@work gespiegelt.
+
+**Auswertungen** — unter HR findest du u.a. den **Altersstruktur-Report** über alle Filialen (PDF).
 
 **Aktivitäts-Log** (nur Admin) — zeigt alle Änderungen mit User, Zeit und Detail. Dein Sicherheitsnetz.
 
@@ -76,4 +79,4 @@ Beides folgt dem **4-Augen-Prinzip**: zuerst gibt der Geschäftsführer pro MA f
 
 ---
 
-> Diese Hilfe-Texte liegen als Markdown-Dateien unter `wwwroot/help/`. Wenn du etwas siehst, das verbessert werden sollte — sag Bescheid, ich passe es an.
+> Diese Hilfe-Texte liegen als Markdown-Dateien unter `wwwroot/help/`. Stand: Juli 2026 (Restaurant Admin, Probezeitgespräche, Verfügbarkeit, Mutterschaft, GF-Rechte, Altersstruktur). Wenn du etwas siehst, das verbessert werden sollte — sag Bescheid.

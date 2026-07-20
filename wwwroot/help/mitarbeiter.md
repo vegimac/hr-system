@@ -4,11 +4,12 @@ Hier verwaltest du alle Mitarbeiter:innen deiner Filialen. Stammdaten, Verträge
 
 ## Wo finde ich was?
 
-Wenn du links in der Sidebar auf **Mitarbeiter** klickst, siehst du drei Bereiche:
+Wenn du links in der Sidebar auf **Mitarbeiter** klickst, siehst du:
 
 - **Links: Mitarbeiter-Liste** mit Suchfeld und den Filtern *Aktive · Inaktive · Alle*. Filiale wird oben durch den Sidebar-Selektor bestimmt.
-- **Mitte/Rechts: Mitarbeiter-Detail** — wechselnde Inhalte je nach gewähltem Tab.
-- **Oben rechts: Postfach-Passwort · Bearbeiten · Austritt**
+- **Rechts: Mitarbeiter-Detail** — wechselnde Inhalte je nach gewähltem Tab.
+- **Aktionen** (Passwort, Zeugnis, Probezeit, Face ID …) sitzen im Tab **Restaurant Admin** als Icon-Kacheln — nicht mehr im Detail-Header.
+- **easy@work synchronisieren** (einzelner MA) sitzt oben rechts neben Sprache/Theme.
 
 ## Wie lege ich einen neuen Mitarbeiter an?
 
@@ -18,9 +19,9 @@ Wenn du links in der Sidebar auf **Mitarbeiter** klickst, siehst du drei Bereich
 2. In der Mitarbeiter-Liste auf **„＋ Neuer MA aus easy@work"** klicken. Es öffnet sich ein Fenster mit allem, was sich für deine Filiale geändert hat: **NEU** (noch nicht im System) und **UPDATE** (aktive MA mit Änderungen). Inaktive MA (Austritt in easy@work) werden **nie** angefasst.
 3. Alles ist vorangehakt — abwählen, was (noch) nicht übernommen werden soll, dann **„Ausgewählte importieren"**. Stammdaten, Vertrag, Funktion und Lohnmodell kommen mit; der neue MA erscheint sofort in der Liste links.
 
-Der Button steht allen HR-Rollen zur Verfügung (GF sieht nur seine Filialen). Der frühere **CSV-Import ist Vergangenheit** — bitte nicht mehr verwenden.
+Der Button steht allen HR-/GF-Rollen zur Verfügung (GF sieht nur seine Filialen). Der frühere **CSV-Import ist Vergangenheit** — bitte nicht mehr verwenden.
 
-💡 **Vertraulicher Lohn (z.B. GF):** Ist in easy@work bewusst kein Lohn erfasst, importierst du den MA trotzdem und erfässt den Lohn danach **direkt im OneCrew-Vertrag** — der Import verändert solche Verträge nie. Details: [Verträge](#vertraege), Abschnitt „Vertraulicher Lohn".
+💡 **Vertraulicher Lohn (z.B. GF):** Ist in easy@work bewusst kein Lohn erfasst, importierst du den MA trotzdem und erfasst den Lohn danach **direkt im OneCrew-Vertrag** — der Import verändert solche Verträge nie. Details: [Verträge](#vertraege), Abschnitt „Vertraulicher Lohn".
 
 **Stammdaten anreichern:** Bestehende MA bekommen über die Importer **GastroSocial-XLSX** und **Bewilligungsliste** zusätzlich AHV-Nr, Zivilstand, Sprache, Bewilligung etc.
 
@@ -36,75 +37,91 @@ Der Button steht allen HR-Rollen zur Verfügung (GF sieht nur seine Filialen). D
 ## Die Tabs im MA-Detail
 
 ### Übersicht
-Stammdaten auf einen Blick: Briefanrede, Kurzname, Ledigname, Adresse, AHV, Zivilstand, Konfession, Nationalität, ZEMIS (Nicht-CH), Telefon 2, Eintritt/Austritt, L-GAV / &lt;8h, Kündigung, Nachtarbeit, Verträge und kompakte KTG/UVG-Tagessatz-Karte. Editierbare Felder speichern direkt in der Karte.
+Stammdaten auf einen Blick in Karten:
 
-**Weitere Adressen** sitzen in der Personalien-Karte. Bewilligung und Bank sind im Tab «Bewilligung QST Bank».
+- **Personalien & Adresse** — Strasse, PLZ, Ort, Kanton, Telefon 2, AHV, Briefanrede, Kurzname, Sex, Konfession, Zivilstand, Ledigname, Nationalität, ZEMIS (Nicht-CH). Editierbare Felder speichern direkt in der Karte.
+- **Anstellung** — Eintritt, Austritt, L-GAV, Kündigung am/per, &lt; 8 h/Wo., sowie **Probezeit bis** und **Probezeitgespräch**-Status (offen / 1. erledigt / beide erledigt).
+- **Nachtarbeit** — Pflicht-Badge, Nächte-Zähler, Arztzeugnis / Ausnahme-Regelung verknüpfen, Formulare drucken.
+- **Verträge** — kompakte Liste mit Lohn/Pensum; darunter **Saldi** der aktuellen Periode.
+- **Weitere Adressen** — falls vorhanden, unten in der Personalien-Karte.
 
-### Familie
+### Familie / Schwanger
 Ehepartner und Kinder. Jedes Kind hat eine eigene Karte mit Geburtsdatum und Alter. **Kinderzulagen** sind direkt unter dem Kind versioniert (z.B. 215 CHF/Monat ab 1.6.2025).
+
+**Schwangerschaft / Mutterschaft** lebt ebenfalls hier (nur bei Frauen sichtbar): Schwangerschaft erfassen, errechneter Termin, Fahrplan (Arztbrief, Bestätigung, Geburt …), Fristen-Liste und Formulare. Aktive Schwangerschaft zeigt zusätzlich einen roten Badge **„🤰 Schwanger"** neben dem Namen im Header.
 
 💡 **Wichtig für QST:** wenn der MA verheiratet ist, hat der Ehepartner direkten Einfluss auf den QST-Tarif (C statt A). Trag also Ehepartner sauber ein.
 
-### Bank
-Versionierte Bankverbindungen für die Lohnzahlung. Eine ist die **Hauptbank** (Rest geht dahin), zusätzlich kann der MA aufteilen (fixer Betrag, Prozent, „Netto abzüglich").
+### Bewilligung QST Bank
+Drei Blöcke in einem Tab (Reihenfolge: Bank oben, dann Bewilligung + QST):
 
-Auch hier sitzt das Feld **Postfach-Passwort** (oben im Header) — Klick setzt es auf die Personalnummer zurück und entsperrt einen evtl. gesperrten Login.
+1. **Bankverbindung** — versioniert, eine **Hauptbank**, optional Aufteilung (fixer Betrag / Prozent / „Netto abzüglich").
+2. **Bewilligungen** — Verlauf mit Gültigkeit; abgelaufene Bewilligung kann per **SMS**-Erinnerung an den MA gehen (siehe [SMS & Vertrags-Link](#sms)).
+3. **Quellensteuer** — Status-Banner + Erfassung / Behörden-Befreiung (siehe [Quellensteuer](#qst)).
 
-### Quellensteuer
-**Tab erkennt automatisch**, ob der MA QST-pflichtig ist. Wenn ja und keine Erfassung vorhanden:
+### Restaurant Admin
+Icon-Kacheln für den Filial-Alltag (GF, HR und Admin). Hier liegen die Aktionen, die früher im Header standen:
 
-- 🔴 **„Höchsten Tarif erfassen"** legt sofort den maximalen Tarif an (A0Y für Ledige, C0Y für Verheiratete). Lieber zu viel abziehen — zu wenig ist ein Verstoss.
-- 📄 **„Behörden-Befreiung erfassen"** falls der MA ein offizielles Befreiungs-Schreiben der Steuerbehörde hat. Du lädst es als Dokument hoch und gibst den Gültigkeitsbereich an.
+| Kachel | Was sie tut |
+|---|---|
+| **Verwarnung** | Verwarnung erfassen, Formular, Liste der bisherigen Verwarnungen |
+| **Probezeit** | Probezeitbericht-PDF blanko; 1. und 2. Gespräch mit Datum + Protokoll-Verknüpfung; Kündigung während der Probezeit |
+| **Arbeitszeugnis / Zwischenzeugnis / Arbeitsbestätigung** | Zeugnis-Modal öffnen und PDF erzeugen |
+| **Postfach-Passwort** | Setzt das MA-Postfach-Passwort auf die Personalnummer zurück und hebt eine Login-Sperre auf |
+| **Onboarding-QR** | QR-Code für den ersten Postfach-Login des MA |
+| **Face ID zurücksetzen** | Löscht alle Passkeys/Face-ID-Geräte des MA — er meldet sich wieder mit Passwort an |
 
-💡 **Lohnlauf-Sperre:** Wenn QST-pflichtig aber nicht erfasst → der Lohn lässt sich nicht abschliessen. Das Dashboard warnt dich rechtzeitig.
+#### Probezeit — Ablauf
+
+1. Kachel **Probezeit** öffnen.
+2. **Formular blanko** drucken → Gespräch führen → unterschriebenes Protokoll scannen und als Dokument (Typ Probezeitgespräch) ablegen.
+3. Im Modal **1. Gespräch** bzw. **2. Gespräch**: Datum setzen und das Protokoll verknüpfen.
+4. In der Übersicht siehst du danach den Status unter **Probezeitgespräch**.
+5. Bei Bedarf: **Kündigung während Probezeit** direkt aus dem Modal.
 
 ### Stempelzeiten
-Anzeige der gestempelten Zeiten aus easy@work. **Nur lesend** — Korrekturen passieren in easy@work und kommen mit dem nächsten Sync automatisch rein (täglicher Auto-Sync über die easy@work-Schnittstelle; manueller Sync in den Systemeinstellungen). Pro Woche siehst du das Total. Wenn das Wochentotal die Filial-Max-Stunden überschreitet, erscheint ein rotes ⚠.
+Anzeige der gestempelten Zeiten aus easy@work. **Nur lesend** — Korrekturen passieren in easy@work und kommen mit dem nächsten Sync automatisch rein (täglicher Auto-Sync; manueller Sync pro MA oben rechts oder in den Systemeinstellungen). Pro Woche siehst du das Total. Wenn das Wochentotal die Filial-Max-Stunden überschreitet, erscheint ein rotes ⚠.
 
-### Absenzen
-Krankheit, Unfall, Ferien, Feiertag (ausbezahlt), Schulung, Militär, Nacht-Kompensation. Pro Eintrag wählst du Tage und Ausfall-Prozent. Berechnete Stunden werden automatisch angezeigt.
+### Absenzen / KTG/UVG
+Krankheit, Unfall, Ferien, Feiertag, Schulung, Militär, Nacht-Kompensation. Pro Eintrag wählst du Tage und Ausfall-Prozent. Berechnete Stunden werden automatisch angezeigt.
 
-💡 **Karenz-Visualisierung:** bei Krankheit/Unfall siehst du, wie viele Tage in der Karenzfrist liegen.
+💡 **Karenz-Visualisierung:** bei Krankheit/Unfall siehst du, wie viele Tage in der Karenzfrist liegen. Der **KTG/UVG-Tagessatz** wird automatisch nach Regel A oder B berechnet und erscheint hier sowie kompakt in der Übersicht.
 
-### Zulagen & Abzüge
-Drei Bereiche in einem Tab:
+### Verfügbarkeit
+Wann der MA grundsätzlich einsetzbar ist (L-GAV-Anlage). Die Daten kommen aus **easy@work** und werden beim Einzel-MA-Sync («easy@work synchronisieren») gespiegelt — Anzeige read-only. Manuell erfasste Versionen bleiben unangetastet.
+
+### Zulagen Abzüge Abtretung BVG
+Vier Bereiche in einem Tab:
 - **BVG-Zusatz-Mitgliedschaft** — versioniert. Pro MA einzeln (nicht automatisch FIX-M-gekoppelt).
 - **Wiederkehrende Zulagen/Abzüge** — z.B. Diensthandy, Fahrpauschale, Vorschuss-Rückzahlung.
 - **Lohnabtretungen** — Pfändung oder Sozialamt-Abtretung mit Freigrenze und Zielbetrag.
 
-### KTG/UVG
-Tagessatz-Berechnung für Krankentaggeld und Unfall — wird vom System automatisch nach Regel A oder B berechnet (12-Monats-Durchschnitt).
-
 ### Dokumente
-**Alle PDFs, Bilder, Word-Dateien** zum MA. Links siehst du die Kategorien-Sidebar (Persönliche Angaben, Vertragsunterlagen, Lohn/Arbeitszeit, Absenzen, Mitarbeiterentwicklung, Ämter & Behörden).
+**Alle PDFs, Bilder, Word-Dateien** zum MA. Links die Kategorien-Sidebar (Persönliche Angaben, Vertragsunterlagen, Lohn/Arbeitszeit, Absenzen, Mitarbeiterentwicklung, Ämter & Behörden).
 
-- **Klick auf eine Datei** → Vorschau-Panel schiebt von rechts rein. Klick ausserhalb schliesst es.
-- **Bleistift ✎** öffnet die Bearbeiten-Maske (Kategorie wechseln, Beschreibung, gültig-bis, anderen MA zuordnen).
+- **Klick auf eine Datei** → Vorschau-Panel von rechts (PDF/Bild direkt; Word/Excel werden serverseitig nach PDF gewandelt).
+- **⋮-Menü** pro Zeile → Bearbeiten, Herunterladen, Löschen (kein separater Stift/Mülleimer).
 - **PDF drehen** ↺ ↻ direkt im Vorschau-Panel — wird gespeichert.
-- **Office-Dateien** (Word/Excel/PowerPoint) werden serverseitig nach PDF konvertiert und im selben Panel angezeigt.
 
 ## Verträge-Leiste im MA-Detail
 
-Unter dem MA-Kopf siehst du alle Verträge als Leiste. Pro Vertrag: **Bearbeiten** (öffnet die Vertrags-Maske — z.B. um einen vertraulichen Lohn zu erfassen, Mindestlohn-Prüfung inklusive), **Anschauen** (PDF-Vorschau), **Drucken**, **SMS** (Arbeitsvertrag als sicheren Link aufs Handy des MA — mit Rückfrage) und **Link ⊘** (verschickte Links widerrufen). Details: [SMS & Vertrags-Link](#sms) und [Verträge](#vertraege).
+In der Übersicht (Verträge-Karte) bzw. im Verträge-Modul siehst du alle Verträge. Pro Vertrag: **Bearbeiten**, **Anschauen** (PDF-Vorschau), **SMS** (Arbeitsvertrag als sicheren Link aufs Handy — mit Rückfrage) und **Link ⊘** (verschickte Links widerrufen). Details: [SMS & Vertrags-Link](#sms) und [Verträge](#vertraege).
 
-## Wie trage ich einen Austritt ein?
+## Wie trage ich einen Austritt / eine Kündigung ein?
 
-Oben im MA-Header der 🛑-Button. Du gibst das **Austrittsdatum** ein. Das System rechnet automatisch:
-
-- **Kurzperiode** falls der Austritt mitten im Monat liegt (Tagessatz × Kalendertage).
-- **Ferien-Restanspruch** — was wird in der letzten Periode noch ausbezahlt.
-- **Schweizer Standard:** Arbeitsverhältnis endet in der Regel auf Monatsende — das System schlägt dir „Ende aktueller Monat" / „Ende nächster Monat" als Schnellwahl vor.
+- **Kündigung am / Kündigung per** — direkt in der Übersicht → Anstellung-Karte (Datumsfelder).
+- **Vollständiger Austritt** — über den Kündigungs-/Austritts-Flow (u.a. aus Restaurant Admin / Probezeit oder dem Kündigungs-Modul). Das System rechnet Kurzperiode und Ferien-Restanspruch.
 
 ⚠️ **Achtung:** Setze den MA nicht selbst auf inaktiv, solange der Austrittsmonat noch nicht durch den Lohnlauf gelaufen ist. Das System verwaltet das selbst.
 
 ## Phantom-MA (Supervisor ohne Lohn)
 
-Wenn jemand nur einen easy@work-Zugang braucht aber **kein Lohn** über euch läuft (z.B. ein Bezirks-Supervisor), setze beim Erfassen das Häkchen **„MA ohne Lohn"**. Dann werden Bank, persönliches Postfach, Familie und Bewilligungs-Verlauf ausgeblendet. Im Lohnlauf taucht der MA gar nicht erst auf.
+Wenn jemand nur einen easy@work-Zugang braucht aber **kein Lohn** über euch läuft (z.B. ein Bezirks-Supervisor), setze beim Erfassen das Häkchen **„MA ohne Lohn"**. Dann werden Bank, persönliches Postfach, Familie und Bewilligungs-Verlauf ausgeblendet. Im Lohnlauf taucht der MA gar nicht erst auf. Im Restaurant-Admin-Tab fehlen die Lohn-/Konto-Kacheln.
 
 ## Häufige Fragen
 
 **Wo trage ich die Nationalität ein?**
-Im Edit-Modus auf der Personalien-Seite. Wähle aus der Liste — das System speichert den ISO-Code (CH, DE, MK …) und zeigt überall den Volltext.
+In der Übersicht → Personalien (Edit-Felder). Wähle aus der Liste — das System speichert den ISO-Code (CH, DE, MK …) und zeigt überall den Volltext.
 
 **Was bedeuten die farbigen Punkte vor dem Namen?**
 - 🟢 Aktiv
@@ -114,17 +131,18 @@ Im Edit-Modus auf der Personalien-Seite. Wähle aus der Liste — das System spe
 **Kann ich einen Mitarbeiter löschen?**
 Nein — und das ist Absicht. Stattdessen markierst du ihn als inaktiv. Lohnzettel, Verträge, Dokumente bleiben für mindestens 10 Jahre erhalten (gesetzliche Aufbewahrungspflicht).
 
-**Warum darf ich plötzlich keine Stempelzeit oder Absenz mehr bearbeiten?**
-Sobald der Akonto- oder Definitivlauf der entsprechenden Periode läuft, sind alle lohnrelevanten Daten **gesperrt** — damit nichts unter den Füssen des Lohnlaufs wegrutscht. Erst wenn der Lauf abgeschlossen ist (oder du den Akonto-Lauf zurücksetzt), kannst du wieder editieren.
+**Warum darf ich plötzlich keine Absenz mehr bearbeiten?**
+Sobald der Akonto- oder Definitivlauf der entsprechenden Periode läuft, sind alle lohnrelevanten Daten **gesperrt** — damit nichts unter den Füssen des Lohnlaufs wegrutscht. Stempelzeiten sind ohnehin immer read-only (nur via easy@work). Erst wenn der Lauf abgeschlossen ist (oder du den Akonto-Lauf zurücksetzt), kannst du wieder editieren.
 
 **Wer hat was geändert?**
-Admin-Funktion: Sidebar → Systemeinstellungen → **Aktivitäts-Log**. Filterbar nach Person, Zeitraum, Tabelle.
+Admin-Funktion: Sidebar → System → **Aktivitäts-Log**. Filterbar nach Person, Zeitraum, Tabelle.
 
 ## Häufige Stolpersteine
 
 - **„Lohnlauf gesperrt — Mindestlohn unterschritten":** Vertrag öffnen, Lohn auf den L-GAV-Mindestsatz anheben.
-- **„QST-Pflicht offen":** im QST-Tab den Höchsten Tarif setzen (3 Sekunden) — Lohnlauf läuft danach durch.
-- **„Bankverbindung fehlt":** im Bank-Tab eine IBAN erfassen, sonst kann die DTA-Datei keine Zahlung an die Bank schicken.
+- **„QST-Pflicht offen":** im Tab Bewilligung QST Bank den Höchsten Tarif setzen (3 Sekunden) — Lohnlauf läuft danach durch.
+- **„Bankverbindung fehlt":** im selben Tab eine IBAN erfassen, sonst kann die DTA-Datei keine Zahlung an die Bank schicken.
+- **Probezeitgespräch „offen" trotz Gespräch:** Datum *und* Protokoll-Dokument müssen verknüpft sein — nur eines von beiden reicht nicht.
 - **Geburtsdatum oder AHV-Nr im falschen Format:** AHV ist `756.xxxx.xxxx.xx`, Datum `TT.MM.JJJJ`.
 
 ---

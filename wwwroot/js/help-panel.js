@@ -64,6 +64,7 @@ const HELP_PAGE_BY_APP_PAGE = {
     'moment-texte':      'moments',
     'fibu':              'fibu',
     'ecall':             'sms',
+    'alter-report':      'index',
 };
 
 // Tab-spezifisches Mapping: wenn auf Mitarbeiter-Seite ein bestimmter
@@ -75,9 +76,11 @@ const HELP_PAGE_BY_EMP_TAB = {
     'familie':        'mitarbeiter',
     'bank':           'mitarbeiter',
     'quellensteuer':  'qst',
+    'verwarnungen':   'mitarbeiter', // Restaurant Admin
     'stempelzeiten':  'mitarbeiter',
     'absenzen':       'mitarbeiter',
     'zeiten':         'mitarbeiter', // Kurzzeit-Alias → Absenzen
+    'verfuegbarkeit': 'mitarbeiter',
     'zulagen':        'mitarbeiter',
     'ktg':            'mitarbeiter', // Alias → Absenzen (Tab entfernt)
     'dokumente':      'dokumente',
@@ -108,13 +111,15 @@ function helpContextLabel(ctx) {
     const tabLabels = {
         'uebersicht': 'Übersicht',
         'personal': 'Übersicht', // Tab entfernt → Alias
-        'familie': 'Familie',
+        'familie': 'Familie / Schwanger',
         'bank': 'Bank',
-        'quellensteuer': 'Quellensteuer',
+        'quellensteuer': 'Bewilligung QST Bank',
+        'verwarnungen': 'Restaurant Admin',
         'stempelzeiten': 'Stempelzeiten',
         'absenzen': 'Absenzen / KTG/UVG',
         'zeiten': 'Absenzen / KTG/UVG', // Kurzzeit-Alias
-        'zulagen': 'Zulagen & Abzüge',
+        'verfuegbarkeit': 'Verfügbarkeit',
+        'zulagen': 'Zulagen Abzüge Abtretung BVG',
         'ktg': 'Absenzen / KTG/UVG', // Tab entfernt → Alias
         'dokumente': 'Dokumente',
     };

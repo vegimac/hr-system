@@ -90,15 +90,15 @@ Sobald der Definitivlauf mindestens **provisorisch abgeschlossen** ist, stehen i
 
 - **Nacht-Saldo** (in Stunden) — Nachtstunden werden gesammelt, kein direkter Geld-Wert. Der MA kompensiert sie irgendwann mit Ruhetag.
 - **Ferien-Saldo (Tage)** — wie viele Ferientage hat der MA noch offen.
-- **Ferien-Geld (CHF)** — bei FLEX: Ferienanspruch in CHF auf den Brutto. Beim Austritt wird das ausbezahlt.
+- **Ferien-Geld (CHF)** — bei FLEX/MTP: Ferienanspruch in CHF (Saldo). Beim Bezug bzw. Austritt wird das ausbezahlt — nicht monatlich bei FLEX.
 - **Rückstellung 13. ML** — bei MTP/FIX/FIX-M wird der 13. monatlich angesammelt und am Auszahlungsmonat (meist November oder Dezember) komplett ausbezahlt. FLEX-MA kriegen den 13. monatlich anteilig.
 
 ## Häufige Fragen
 
 **Wer kriegt was und wann?**
-- FLEX: Ferien-Geld monatlich, 13. ML monatlich.
-- MTP: Feiertag monatlich, 13. ML nach Vorgabe (meist November/Dezember).
-- FIX/FIX-M: Ferien akkumulieren (Auszahlung beim Austritt), 13. ML nach Vorgabe.
+- FLEX: Ferien-Geld als **Saldo** (CHF, Auszahlung typisch beim Austritt), Feiertag und 13. ML **monatlich**.
+- MTP: Ferien als Tage-Saldo (Auszahlung bei Bezug aus dem Pott), Feiertag monatlich, 13. ML nach Vorgabe (meist November/Dezember).
+- FIX/FIX-M: Ferien- und Feiertag-Tage akkumulieren (keine monatliche Auszahlung), 13. ML nach Vorgabe.
 
 **Was ist der „Jahresausgleich" im Dezember-Lohnzettel?**
 ALV und NBU sind nur bis CHF 148'200/Jahr beitragspflichtig. Damit das auch bei schwankenden Monatslöhnen passt, rechnet das System im Dezember die SV-Beiträge nochmal aufs ganze Jahr nach. Steht im Lohnzettel als „(Jahresausgleich)" hinter der Position.

@@ -16,9 +16,9 @@ In allen anderen Fällen → **QST-pflichtig**.
 
 ## Wo erfasse ich das?
 
-Sidebar **Mitarbeiter → MA wählen → Tab Quellensteuer**.
+Sidebar **Mitarbeiter → MA wählen → Tab „Bewilligung QST Bank"**.
 
-Oben siehst du einen **Banner mit dem Status**:
+Oben im QST-Block siehst du einen **Banner mit dem Status**:
 
 - 🟢 **Grün — „Nicht QST-pflichtig"** mit Begründung (z.B. „C-Ausweis seit 1.1.2020"). Du musst nichts tun.
 - 🔵 **Blau — „QST-pflichtig, Erfassung vorhanden"** — alles in Ordnung, Lohnlauf läuft durch.

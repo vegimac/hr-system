@@ -10,7 +10,7 @@ Im Programm gibt es **sechs Rollen**. Jede sieht eine andere Welt — vom komple
 |---|---|---|
 | **admin** | Walter (Geschäftsinhaber) | ALLES. Über alle Filialen. Auch Systemeinstellungen, Audit-Log, Benutzerverwaltung. |
 | **superuser** | HR-Verantwortliche | Wie admin, aber ohne Systemeinstellungen. Über alle Filialen. |
-| **user** | Filial-Geschäftsführer | Nur die zugewiesenen Filialen. Kein HR-Modul, kein Admin-Bereich. |
+| **user** | Filial-Geschäftsführer | Nur die zugewiesenen Filialen. Voller Filial-Betrieb (Mitarbeiter inkl. Restaurant Admin, Verträge, Lohn-Vorbereitung, Posteingang, Bewilligung, Dokumente). Kein System-Admin, kein HR-4-Augen-Abschluss allein. |
 | **buchhaltung** | Buchhaltungs-Personal | Wie superuser PLUS Fibu-Bereich. Aber auf zugewiesene Filialen beschränkt. |
 | **lowuser** | Eingeschränkter Benutzer | Nur Dashboard, Mitarbeiter und Verträge. Kein Lohnlauf, kein HR-Bereich, keine Systemeinstellungen, kein Datenimport. |
 | **employee** | Mitarbeiter selbst | Nur das eigene Postfach + eigene Lohnzettel. Kein Programm-Zugang. |
@@ -35,7 +35,7 @@ Das 4-Augen-Prinzip: GF bereitet vor und gibt frei, HR bestätigt und sendet. Ad
 
 **superuser** — Dashboard, Mitarbeiter, Verträge, Lohn, Lohnperioden, Posteingang, HR-Modul (RAV, QST-Anmeldung, Lohnausweis, BFS-LSE), aber **keine** Systemeinstellungen.
 
-**user** (GF) — Dashboard, Mitarbeiter, Verträge, Lohn, Posteingang. Filtert automatisch auf die zugeteilten Filialen.
+**user** (GF) — Dashboard, Mitarbeiter (inkl. Restaurant Admin: Verwarnung, Probezeit, Zeugnisse, Face ID, Onboarding-QR), Verträge, Lohn (GF-Schritte), Posteingang, Bewilligungen, Dokumente ablegen/löschen. Filtert automatisch auf die zugeteilten Filialen. Systemeinstellungen und HR-Abschluss (DTA) bleiben HR/Admin.
 
 **buchhaltung** — wie superuser, plus zusätzlich der **Buchhaltungs-Bereich** (Fibu-Journal, Saldo-Listen). Filtert ebenfalls auf zugeteilte Filialen.
 
@@ -82,7 +82,7 @@ Damit greifen alle bestehenden HR-Berechtigungen automatisch, und zusätzlich de
 
 Wenn ein MA seine Lohnzettel selber abrufen können soll:
 
-1. **Im MA-Detail** oben rechts auf **„Postfach-Passwort"** klicken.
+1. **Im MA-Detail → Tab Restaurant Admin → Kachel „Postfach-Passwort"** (oder Onboarding-QR für den Erst-Login).
 2. Das System setzt das Passwort auf die **Personalnummer** des MA und merkt sich, dass der MA es beim ersten Login ändern muss.
 3. Der MA logt sich auf `https://test.hr-srgmbh.ch/postfach` mit seiner Personalnummer + dem Initial-Passwort ein.
 4. Beim ersten Login: zwingender Passwort-Wechsel.
@@ -93,7 +93,7 @@ Was der MA sieht: seine Lohnzettel (PDF) + Mitteilungen von HR (z.B. „Dein Loh
 
 **Eigenes Passwort:** Benutzerverwaltung → eigener Eintrag → „Passwort ändern".
 
-**MA-Postfach-Passwort:** im MA-Detail oben → 🔓-Knopf „Postfach-Passwort". Setzt es zurück auf die Personalnummer + hebt eine evtl. Login-Sperre (zu viele falsche Versuche) gleich mit auf.
+**MA-Postfach-Passwort:** MA-Detail → Restaurant Admin → **Postfach-Passwort**. Setzt es zurück auf die Personalnummer + hebt eine evtl. Login-Sperre (zu viele falsche Versuche) gleich mit auf.
 
 **User-Passwort eines anderen Users (admin only):** Benutzerverwaltung → User wählen → „Passwort setzen".
 

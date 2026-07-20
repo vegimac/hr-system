@@ -4,7 +4,7 @@ OneCrew verschickt SMS über den Schweizer Anbieter **eCall (F24)** — für Mom
 
 ## Arbeitsvertrag per SMS senden
 
-Im **Mitarbeiter-Detail** hat jeder Vertrag in der Vertrags-Leiste drei Aktionen: **Anschauen · Drucken · SMS**.
+Im **Mitarbeiter-Detail** (Übersicht / Verträge) hat jeder Vertrag die Aktionen **Anschauen · SMS · Link ⊘** (Drucken und Herunterladen im Vorschaufenster von „Anschauen").
 
 Klick auf **SMS**:
 
