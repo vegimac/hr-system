@@ -3655,10 +3655,10 @@
                direkt unter Anstellung/Nacht; freier Platz darunter. */
             height: 100%;
             align-content: start;
-            /* Zeile 2: Anstellung | Nachtarbeit kompakt
-               (Top-Daten · Warnungen · Buttons unten fix).
+            /* Zeile 2: Anstellung | Nachtarbeit — 3 Datenzeilen
+               (Eintritt/Austritt · Kündigung · Probezeit bis/Gespräch).
                196px: KTG inkl. «Bei Absenzen…». */
-            grid-template-rows: auto 148px 196px;
+            grid-template-rows: auto 186px 196px;
         }
         .ov-wrap {
             display: grid;
@@ -3794,7 +3794,7 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf:nth-child(-n+5) {
             border-bottom-color: rgba(255, 255, 255, 0.10);
         }
-        /* Anstellung / Nachtarbeit = mittlere Zeile (kompakt, 2 Zeilen) */
+        /* Anstellung / Nachtarbeit = mittlere Zeile (3 Datenzeilen inkl. Probezeit) */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
             grid-row: 2;
             min-height: 0;
@@ -3958,7 +3958,7 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: auto 148px 148px 196px;
+                grid-template-rows: auto 186px 186px 196px;
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
