@@ -6193,36 +6193,34 @@ function renderPregnancyCard(d) {
             ${dateBlock}
         </div>`;
     }).join('');
-    // Walter 20.07.2026: Infotext links; rechts «Brief an Arzt» prominent
-    // (war im Fahrplan-Menü leicht übersehen / durch overflow abgeschnitten),
-    // daneben Fahrplan ▾ + ⋮.
+    // Walter 20.07.2026: Fahrplan-Menü (fixed, damit nichts abgeschnitten wird).
+    // Nummerierung: 5 · Brief an Arzt, 6 · Geburt eintragen.
     const geburtsInfo = p.geburtsdatum
         ? `<span style="color:#16a34a;font-size:12px;font-weight:600">Geburt: ${fmt(p.geburtsdatum)}</span>`
         : '';
     return `
     <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;background:white">
-        <div style="padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px">
             <div style="min-width:0;flex:1">
                 <div style="font-weight:700;color:#0f172a;font-size:14px">Errechneter Termin: ${fmt(p.errechneterTermin)}</div>
                 <div style="font-size:12px;color:#9d174d;margin-top:2px;font-weight:600">Beginn Schwangerschaft: ${fmt(p.schwangerschaftsBeginn)} <span style="color:#94a3b8;font-weight:400">(ET − 280 Tage)</span></div>
                 <div style="font-size:12px;color:#64748b;margin-top:2px">Gemeldet: ${fmt(p.meldedatum)}${p.bemerkung ? ' · ' + esc(p.bemerkung) : ''}</div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
                 ${geburtsInfo}
-                <button type="button" onclick="abOpen(${p.id})" title="Brief an den behandelnden Arzt"
-                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700">🩺 Brief an Arzt</button>
                 <div class="dok-menu-wrap" style="display:inline-block">
                     <button onclick="mtsToggleMenu(event, ${p.id})" title="Alle Schritte des Mutterschafts-Prozesses"
-                            style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700">🧭 Fahrplan ▾</button>
+                            style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:700">🧭 Fahrplan ▾</button>
                     <div class="dok-menu" id="mtsMenu-${p.id}" style="min-width:290px">
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mtsDownloadPdf(${p.id})">Übersicht als PDF</button>
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mvCheckliste(${p.id})">1 · Gesprächs-Checkliste (PDF)</button>
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mvOpen(${p.id})">2 · Mutterschaftsvereinbarung…</button>
-                        <button class="dok-menu-item" style="white-space:nowrap" onclick="abOpen(${p.id})">3 · Brief an behandelnden Arzt…</button>
-                        <button class="dok-menu-item" style="white-space:nowrap" onclick="abRisiko(${p.id})">4 · Risikobeurteilung (PDF)</button>
+                        <button class="dok-menu-item" style="white-space:nowrap" onclick="abRisiko(${p.id})">3 · Risikobeurteilung (PDF)</button>
+                        <button class="dok-menu-item" style="white-space:nowrap" onclick="abEignungMenu(${p.id})">4 · Eignungsbeurteilung (PDF)</button>
+                        <button class="dok-menu-item" style="white-space:nowrap" onclick="abOpen(${p.id})">5 · Brief an behandelnden Arzt…</button>
                         ${p.geburtsdatum
-                            ? `<button class="dok-menu-item" style="white-space:nowrap" onclick="mbOpen(${p.id}, '${String(p.geburtsdatum).slice(0,10)}')">5 · Mutterschaftsbestätigung…</button>`
-                            : `<button class="dok-menu-item" style="white-space:nowrap" onclick="mtsOpenGeburt(${p.id})">5 · Geburt eintragen</button>`}
+                            ? `<button class="dok-menu-item" style="white-space:nowrap" onclick="mbOpen(${p.id}, '${String(p.geburtsdatum).slice(0,10)}')">6 · Mutterschaftsbestätigung…</button>`
+                            : `<button class="dok-menu-item" style="white-space:nowrap" onclick="mtsOpenGeburt(${p.id})">6 · Geburt eintragen</button>`}
                     </div>
                 </div>
                 <div class="dok-menu-wrap">
@@ -6956,6 +6954,23 @@ async function abEignung() {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ arztId })
+        });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
+        const blob = await r.blob();
+        previewFileModal(blob, 'Eignungsbeurteilung.pdf');
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+// Fahrplan-Punkt 4: Eignung auch ohne geöffnetes Arztbrief-Modal.
+async function abEignungMenu(pregId) {
+    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    if (pregId) _abPregId = pregId;
+    if (!_abPregId) return;
+    try {
+        const r = await fetch(`/api/mutterschaft-vereinbarung/${_abPregId}/eignung-pdf`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ arztId: 0 })
         });
         if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
         const blob = await r.blob();
