@@ -10,8 +10,10 @@ namespace HrSystem.Controllers;
 /// Ärzte-Verzeichnis (Walter-Vorgabe 16.07.2026): CRUD für behandelnde
 /// Ärztinnen/Ärzte — Katalogdaten, kein Lohnbezug. Verwendet im
 /// Mutterschafts-Modul («Brief an den behandelnden Arzt»).
+/// Rollen inkl. user (GF) — Walter 20.07.2026: Geschäftsführer nutzt
+/// das Mutterschafts-Modul vollständig.
 /// </summary>
-[Authorize(Roles = "admin,superuser")]
+[Authorize(Roles = "admin,superuser,user")]
 [ApiController]
 [Route("api/aerzte")]
 public class AerzteController : ControllerBase

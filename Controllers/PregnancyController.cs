@@ -12,9 +12,11 @@ namespace HrSystem.Controllers;
 /// Schwangerschaften werden gespeichert; Fristen werden bei jedem GET aus
 /// dem Regelwerk berechnet (nicht gecached) — so wirken Regeländerungen
 /// sofort auf alle laufenden Schwangerschaften.
+/// Rollen: admin/superuser/user (GF) — Walter 20.07.2026: Geschäftsführer
+/// muss Schwangerschaft/Mutterschutz voll sehen und pflegen können.
 /// </summary>
 [ApiController]
-[Authorize(Roles = "admin,superuser")]
+[Authorize(Roles = "admin,superuser,user")]
 [Route("api/pregnancies")]
 public class PregnancyController : HrControllerBase
 {

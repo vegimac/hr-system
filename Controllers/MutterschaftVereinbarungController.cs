@@ -12,9 +12,10 @@ namespace HrSystem.Controllers;
 /// Mutterschafts-Gespräch (Walter-Vorgabe 16.07.2026): Checkliste fürs
 /// Gespräch mit der Mitarbeiterin + daraus die Mutterschaftsvereinbarung
 /// (nach Word-Vorlage, Du-Form, Varianten Verlängerung/Rückkehr).
-/// Beides read-only PDF — schreibt nichts. Rollen wie Mutterschafts-Modul.
+/// Beides read-only PDF — schreibt nichts. Rollen wie Mutterschafts-Modul
+/// (admin/superuser/user — GF muss alles sehen, Walter 20.07.2026).
 /// </summary>
-[Authorize(Roles = "admin,superuser")]
+[Authorize(Roles = "admin,superuser,user")]
 [ApiController]
 [Route("api/mutterschaft-vereinbarung")]
 public class MutterschaftVereinbarungController : ControllerBase
