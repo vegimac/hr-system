@@ -1,11 +1,26 @@
 -- Mutterschaft: created_at/updated_at auf System-Standard (Walter 20.07.2026)
--- timestamp without time zone + DateTime.Now — wie der Rest der App.
--- Verhindert Npgsql-Fehler «Cannot write DateTime with Kind=Local to … timestamptz».
--- In TablePlus ausführen.
+-- timestamp without time zone + DateTime.Now — lokal, wie der Rest der App.
+-- Verhindert Npgsql «Cannot write DateTime with Kind=Local to … timestamptz».
+-- In TablePlus ausführen (idempotent).
 
-ALTER TABLE employee_pregnancy
-    ALTER COLUMN created_at TYPE timestamp without time zone
-        USING (created_at AT TIME ZONE 'Europe/Zurich'),
-    ALTER COLUMN updated_at TYPE timestamp without time zone
-        USING (CASE WHEN updated_at IS NULL THEN NULL
-                    ELSE updated_at AT TIME ZONE 'Europe/Zurich' END);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'employee_pregnancy' AND column_name = 'created_at'
+          AND udt_name = 'timestamptz'
+    ) THEN
+        ALTER TABLE employee_pregnancy
+            ALTER COLUMN created_at TYPE timestamp without time zone
+                USING (created_at AT TIME ZONE 'Europe/Zurich');
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'employee_pregnancy' AND column_name = 'updated_at'
+          AND udt_name = 'timestamptz'
+    ) THEN
+        ALTER TABLE employee_pregnancy
+            ALTER COLUMN updated_at TYPE timestamp without time zone
+                USING (updated_at AT TIME ZONE 'Europe/Zurich');
+    END IF;
+END $$;

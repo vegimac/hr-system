@@ -1885,11 +1885,28 @@ using (var scope = app.Services.CreateScope())
         -- werden über den Absenzen-Tab als KRANK erfasst, nicht doppelt hier).
         ALTER TABLE employee_pregnancy DROP COLUMN IF EXISTS arztzeugnis_vorhanden;
         -- Walter 20.07.2026: TIMESTAMPTZ → timestamp without time zone (System-Standard).
-        ALTER TABLE employee_pregnancy
-            ALTER COLUMN created_at TYPE timestamp without time zone
-                USING (created_at AT TIME ZONE 'Europe/Zurich'),
-            ALTER COLUMN updated_at TYPE timestamp without time zone
-                USING (updated_at AT TIME ZONE 'Europe/Zurich');
+        -- Nur umstellen wenn noch timestamptz (idempotent).
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'employee_pregnancy' AND column_name = 'created_at'
+                  AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE employee_pregnancy
+                    ALTER COLUMN created_at TYPE timestamp without time zone
+                        USING (created_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'employee_pregnancy' AND column_name = 'updated_at'
+                  AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE employee_pregnancy
+                    ALTER COLUMN updated_at TYPE timestamp without time zone
+                        USING (updated_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+        END $$;
         -- ISO alpha-3 (Ausweis-Kürzel BGR/MKD/…, Walter 12.07.2026) — Seed
         -- unten in C# aus der statischen Tabelle CountryIso3 (nur wo leer).
         ALTER TABLE nationality ADD COLUMN IF NOT EXISTS code3 text;

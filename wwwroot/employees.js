@@ -6160,28 +6160,18 @@ function renderPregnancyCard(d) {
             ${dateBlock}
         </div>`;
     }).join('');
-    // Walter-Vorgabe 16.07.2026: KEINE Einzelbuttons mehr auf der Karte —
-    // ein einziger «Fahrplan»-Button (Kohle-Pille) buendelt den ganzen
-    // Mutterschafts-Prozess in Ablauf-Reihenfolge. Geburtsdatum bleibt als
-    // gruene Info sichtbar, sobald erfasst.
+    // Walter 20.07.2026: Fahrplan links (Prozess-Schritte), ⋮ rechts
+    // (Bearbeiten/Löschen) — wie überall im Programm.
     const geburtsInfo = p.geburtsdatum
         ? `<span style="color:#16a34a;font-size:12px;font-weight:600">Geburt: ${fmt(p.geburtsdatum)}</span>`
         : '';
     return `
     <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;background:white">
-        <div style="padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:10px">
-            <div>
-                <div style="font-weight:700;color:#0f172a;font-size:14px">Errechneter Termin: ${fmt(p.errechneterTermin)}</div>
-                <div style="font-size:12px;color:#9d174d;margin-top:2px;font-weight:600">Beginn Schwangerschaft: ${fmt(p.schwangerschaftsBeginn)} <span style="color:#94a3b8;font-weight:400">(ET − 280 Tage)</span></div>
-                <div style="font-size:12px;color:#64748b;margin-top:2px">Gemeldet: ${fmt(p.meldedatum)}${p.bemerkung ? ' · ' + esc(p.bemerkung) : ''}</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px">
-                ${geburtsInfo}
-                <div class="dok-menu-wrap" style="display:inline-block">
+        <div style="padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px">
+            <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1">
+                <div class="dok-menu-wrap" style="display:inline-block;flex-shrink:0">
                     <button onclick="mtsToggleMenu(event, ${p.id})" title="Alle Schritte des Mutterschafts-Prozesses"
                             style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:700">🧭 Fahrplan ▾</button>
-                    <!-- Walter 16.07.2026: Uebersicht zuoberst, kein Dokumente-
-                         Eintrag, jeder Punkt auf EINER Zeile (nowrap + Breite). -->
                     <div class="dok-menu" id="mtsMenu-${p.id}" style="min-width:290px">
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mtsDownloadPdf(${p.id})">Übersicht als PDF</button>
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mvCheckliste(${p.id})">1 · Gesprächs-Checkliste (PDF)</button>
@@ -6191,8 +6181,21 @@ function renderPregnancyCard(d) {
                         ${p.geburtsdatum
                             ? `<button class="dok-menu-item" style="white-space:nowrap" onclick="mbOpen(${p.id}, '${String(p.geburtsdatum).slice(0,10)}')">5 · Mutterschaftsbestätigung…</button>`
                             : `<button class="dok-menu-item" style="white-space:nowrap" onclick="mtsOpenGeburt(${p.id})">5 · Geburt eintragen</button>`}
-                        <button class="dok-menu-item" style="white-space:nowrap" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
-                        <button class="dok-menu-item danger" style="white-space:nowrap" onclick="mtsDelete(${p.id})">Löschen</button>
+                    </div>
+                </div>
+                <div style="min-width:0">
+                    <div style="font-weight:700;color:#0f172a;font-size:14px">Errechneter Termin: ${fmt(p.errechneterTermin)}</div>
+                    <div style="font-size:12px;color:#9d174d;margin-top:2px;font-weight:600">Beginn Schwangerschaft: ${fmt(p.schwangerschaftsBeginn)} <span style="color:#94a3b8;font-weight:400">(ET − 280 Tage)</span></div>
+                    <div style="font-size:12px;color:#64748b;margin-top:2px">Gemeldet: ${fmt(p.meldedatum)}${p.bemerkung ? ' · ' + esc(p.bemerkung) : ''}</div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+                ${geburtsInfo}
+                <div class="dok-menu-wrap">
+                    <button class="dok-menu-btn" onclick="mtsActToggleMenu(event, ${p.id})" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="mtsActMenu-${p.id}">
+                        <button class="dok-menu-item" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
+                        <button class="dok-menu-item danger" onclick="mtsDelete(${p.id})">Löschen</button>
                     </div>
                 </div>
             </div>
@@ -6207,6 +6210,7 @@ function esc(s) {
 }
 
 function mtsToggleMenu(event, id) { rowMenuToggle(event, 'mts', id); }
+function mtsActToggleMenu(event, id) { rowMenuToggle(event, 'mtsAct', id); }
 
 // Walter 11.06.2026: Sprung in den Dokumente-Tab + Filter auf
 // „Absenzen → Mutter-/Vaterschaft". Analog openAbsenceArztzeugnis().
