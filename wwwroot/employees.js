@@ -12274,11 +12274,10 @@ function _raTilesHtml() {
     // Sketch-Icon oben, Beschriftung darunter.
     const tile = (img, title, onclick) => `
         <button type="button" class="ra-tile" onclick="${onclick}">
-            <img src="img/${img}?v=20260715f" alt="" loading="lazy">
+            <img src="img/${encodeURI(img)}?v=20260720ra" alt="" loading="lazy">
             <span>${title}</span>
         </button>`;
-    // Emoji-Kachel (Walter 17.07.2026): fuer Aktionen ohne Sketch-Icon —
-    // Postfach-Passwort / Onboarding-QR / Face ID (aus dem Kopf hierher).
+    // Emoji-Fallback nur noch fuer Aktionen ohne Sketch-Icon.
     const etile = (emoji, title, onclick) => `
         <button type="button" class="ra-tile" onclick="${onclick}">
             <span style="font-size:36px;line-height:52px" aria-hidden="true">${emoji}</span>
@@ -12286,11 +12285,11 @@ function _raTilesHtml() {
         </button>`;
     const kontoTiles = selectedEmployee?.isPayrollExcluded ? '' : `
         ${etile('🔐', 'Postfach-Passwort', 'postfachResetPassword(selectedEmployeeId)')}
-        ${etile('▦', 'Onboarding-QR', 'postfachSetupQr(selectedEmployeeId)')}
-        ${etile('🙂', 'Face ID zurücksetzen', 'faceIdAdminReset(selectedEmployeeId)')}`;
+        ${tile('onboarding qr.png', 'Onboarding-QR', 'postfachSetupQr(selectedEmployeeId)')}
+        ${tile('face id zurück.png', 'Face ID zurücksetzen', 'faceIdAdminReset(selectedEmployeeId)')}`;
     return `<div class="ra-tile-row">
         ${tile('verwarnung.png', 'Verwarnung', 'openVerwarnungModal(null)')}
-        ${etile('⏳', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
+        ${tile('probezeit.png', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
         ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
