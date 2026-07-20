@@ -120,13 +120,13 @@ public class ProbezeitberichtPdfService
                 page.Footer().AlignRight().Text("2/2").FontSize(9f).FontColor(Soft);
                 page.Content().PaddingTop(10).Column(col =>
                 {
-                    // 4. Erste Beurteilung
+                    // 4. Erste Beurteilung — alle Zeilen gleiche Spalten (Walter 20.07.2026)
                     col.Item().Text("4.  Erste Beurteilung").Bold().FontSize(11.5f);
                     col.Item().PaddingTop(10).Element(e => BeurteilungsZeile(e, "a)  Arbeitsleistung: – Qualität", ratings));
                     col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "– Quantität", ratings, indent: true));
                     col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "b)  Persönliches Verhalten", ratings));
                     col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "c)  Integration ins Team", ratings));
-                    col.Item().PaddingTop(10).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
+                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
                     col.Item().PaddingTop(12).Text("Bemerkungen:").FontSize(10f).Bold();
                     col.Item().Element(e => WriteSpace(e, 3));
 
@@ -261,6 +261,7 @@ public class ProbezeitberichtPdfService
 
     private static void RatingRow(IContainer c, string[] ratings)
     {
+        // Gleiche Spaltenbreiten → Checkboxen aller Zeilen übereinander ausgerichtet.
         c.Row(r =>
         {
             foreach (var label in ratings)
@@ -298,12 +299,18 @@ public class ProbezeitberichtPdfService
         });
     }
 
+    /// <summary>
+    /// Beurteilungszeile: feste Label-Spalte + Rating-Spalten (nie mit einrücken),
+    /// damit «sehr gut / gut / …» in allen Zeilen vertikal fluchten.
+    /// </summary>
     private static void BeurteilungsZeile(IContainer c, string title, string[] ratings, bool indent = false)
     {
-        c.Column(col =>
+        const float labelW = 200f;
+        c.Row(r =>
         {
-            col.Item().PaddingLeft(indent ? 18 : 0).Text(title).FontSize(10.5f).Bold();
-            col.Item().PaddingTop(5).PaddingLeft(indent ? 18 : 0).Element(e => RatingRow(e, ratings));
+            r.ConstantItem(labelW).AlignMiddle().PaddingLeft(indent ? 14 : 0)
+                .Text(title).FontSize(10.5f).Bold();
+            r.RelativeItem().AlignMiddle().Element(e => RatingRow(e, ratings));
         });
     }
 }
