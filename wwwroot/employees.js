@@ -6212,7 +6212,7 @@ function renderPregnancyCard(d) {
                     <button onclick="mtsToggleMenu(event, ${p.id})" title="Alle Schritte des Mutterschafts-Prozesses"
                             style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:700">🧭 Fahrplan ▾</button>
                     <div class="dok-menu" id="mtsMenu-${p.id}" style="min-width:290px">
-                        <button class="dok-menu-item" style="white-space:nowrap" onclick="mtsDownloadPdf(${p.id})">Übersicht als PDF</button>
+                        <button class="dok-menu-item" style="white-space:nowrap" onclick="mtsDownloadPdf(${p.id})">Fristen-Liste drucken (PDF)</button>
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mvCheckliste(${p.id})">1 · Gesprächs-Checkliste (PDF)</button>
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mvOpen(${p.id})">2 · Mutterschaftsvereinbarung…</button>
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="abRisiko(${p.id})">3 · Risikobeurteilung (PDF)</button>
@@ -6226,6 +6226,7 @@ function renderPregnancyCard(d) {
                 <div class="dok-menu-wrap">
                     <button class="dok-menu-btn" onclick="mtsActToggleMenu(event, ${p.id})" title="Aktionen">⋮</button>
                     <div class="dok-menu" id="mtsActMenu-${p.id}">
+                        <button class="dok-menu-item" onclick="mtsDownloadPdf(${p.id})">Fristen-Liste drucken</button>
                         <button class="dok-menu-item" onclick="mtsOpenEdit(${p.id})">Bearbeiten</button>
                         <button class="dok-menu-item danger" onclick="mtsDelete(${p.id})">Löschen</button>
                     </div>
@@ -6233,6 +6234,11 @@ function renderPregnancyCard(d) {
             </div>
         </div>
         ${banner}
+        <div style="padding:8px 12px 0;display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="font-size:11.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em">Schutzfristen</div>
+            <button type="button" onclick="mtsDownloadPdf(${p.id})" title="Fristen-Liste als PDF öffnen und drucken"
+                    style="background:none;border:none;color:#3f3f3f;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0">🖨 Liste drucken</button>
+        </div>
         <div style="padding:6px 0 10px">${fristenRows}</div>
     </div>`;
 }
@@ -7131,12 +7137,20 @@ async function mvGenerate() {
 }
 
 async function mtsDownloadPdf(id) {
-    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    document.querySelectorAll('.dok-menu.show').forEach(m => {
+        m.classList.remove('show');
+        if (typeof _mtsClearMenuPos === 'function') _mtsClearMenuPos(m);
+    });
     try {
         const r = await fetch(`/api/pregnancies/${id}/pdf`, { headers: ah() });
-        if (!r.ok) return alert('PDF-Fehler: ' + r.status);
+        if (!r.ok) {
+            let msg = 'PDF-Fehler: ' + r.status;
+            try { const j = await r.json(); if (j.message) msg = j.message; } catch {}
+            return alert(msg);
+        }
         const blob = await r.blob();
-        const fname = `Mutterschaft_${id}.pdf`;
+        const fname = `Mutterschaft_Fristen_${id}.pdf`;
+        // Vorschau mit Drucken / Herunterladen (Walter 20.07.2026).
         if (typeof previewFileModal === 'function') previewFileModal(blob, fname);
         else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, fname);
     } catch (e) {
