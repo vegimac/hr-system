@@ -161,18 +161,21 @@ async function azLoadDokHint() {
         }
         _azDokEmpId = empId;
         _azDokId = p.arztbestaetigungDokumentId || null;
-        const name = p.arztbestaetigungDokumentName
-            || (p.arztbestaetigungDokument && (p.arztbestaetigungDokument.bemerkung || p.arztbestaetigungDokument.filenameOriginal))
-            || (_azDokId ? ('Dokument #' + _azDokId) : null);
-        const empLabel = [p.employeeFirstName || p.firstName, p.employeeLastName || p.lastName].filter(Boolean).join(' ')
-            || `MA #${empId}`;
+        const name = p.arztbestaetigungDokumentName || (_azDokId ? ('Dokument #' + _azDokId) : null);
+        const emp = (typeof allEmployees !== 'undefined' && Array.isArray(allEmployees))
+            ? allEmployees.find(e => e.id === empId)
+            : null;
+        const empLabel = emp
+            ? [emp.firstName, emp.lastName].filter(Boolean).join(' ')
+            : `MA #${empId}`;
+        const escAttr = s => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         if (_azDokId) {
             box.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${String(name || '').replace(/"/g, '&quot;')}">📄 ${name || 'Arztbestätigung'} <span style="color:#8b8b8b;font-weight:500">(${empLabel})</span></span>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(name)}">📄 ${escAttr(name || 'Arztbestätigung')} <span style="color:#8b8b8b;font-weight:500">(${escAttr(empLabel)})</span></span>
                 <button type="button" onclick="azOpenDokument()" style="flex-shrink:0;background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">Anschauen</button>
             </div>`;
         } else {
-            box.innerHTML = `<span style="color:#8b8b8b">Bei ${empLabel} ist noch keine Arztbestätigung verknüpft — bitte bei der Schwangerschaftserfassung verbinden.</span>`;
+            box.innerHTML = `<span style="color:#8b8b8b">Bei ${escAttr(empLabel)} ist noch keine Arztbestätigung verknüpft — bitte bei der Schwangerschaftserfassung verbinden.</span>`;
         }
     } catch (e) {
         box.innerHTML = `<span style="color:#b91c1c">Laden fehlgeschlagen: ${e.message}</span>`;
