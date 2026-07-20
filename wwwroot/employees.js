@@ -6160,16 +6160,22 @@ function renderPregnancyCard(d) {
             ${dateBlock}
         </div>`;
     }).join('');
-    // Walter 20.07.2026: Fahrplan links (Prozess-Schritte), ⋮ rechts
-    // (Bearbeiten/Löschen) — wie überall im Programm.
+    // Walter 20.07.2026: Infotext links; rechts Fahrplan, direkt davor die ⋮
+    // (Bearbeiten/Löschen) — Fahrplan steht links vor den 3 Punkten.
     const geburtsInfo = p.geburtsdatum
         ? `<span style="color:#16a34a;font-size:12px;font-weight:600">Geburt: ${fmt(p.geburtsdatum)}</span>`
         : '';
     return `
     <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;background:white">
         <div style="padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px">
-            <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1">
-                <div class="dok-menu-wrap" style="display:inline-block;flex-shrink:0">
+            <div style="min-width:0;flex:1">
+                <div style="font-weight:700;color:#0f172a;font-size:14px">Errechneter Termin: ${fmt(p.errechneterTermin)}</div>
+                <div style="font-size:12px;color:#9d174d;margin-top:2px;font-weight:600">Beginn Schwangerschaft: ${fmt(p.schwangerschaftsBeginn)} <span style="color:#94a3b8;font-weight:400">(ET − 280 Tage)</span></div>
+                <div style="font-size:12px;color:#64748b;margin-top:2px">Gemeldet: ${fmt(p.meldedatum)}${p.bemerkung ? ' · ' + esc(p.bemerkung) : ''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+                ${geburtsInfo}
+                <div class="dok-menu-wrap" style="display:inline-block">
                     <button onclick="mtsToggleMenu(event, ${p.id})" title="Alle Schritte des Mutterschafts-Prozesses"
                             style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:700">🧭 Fahrplan ▾</button>
                     <div class="dok-menu" id="mtsMenu-${p.id}" style="min-width:290px">
@@ -6183,14 +6189,6 @@ function renderPregnancyCard(d) {
                             : `<button class="dok-menu-item" style="white-space:nowrap" onclick="mtsOpenGeburt(${p.id})">5 · Geburt eintragen</button>`}
                     </div>
                 </div>
-                <div style="min-width:0">
-                    <div style="font-weight:700;color:#0f172a;font-size:14px">Errechneter Termin: ${fmt(p.errechneterTermin)}</div>
-                    <div style="font-size:12px;color:#9d174d;margin-top:2px;font-weight:600">Beginn Schwangerschaft: ${fmt(p.schwangerschaftsBeginn)} <span style="color:#94a3b8;font-weight:400">(ET − 280 Tage)</span></div>
-                    <div style="font-size:12px;color:#64748b;margin-top:2px">Gemeldet: ${fmt(p.meldedatum)}${p.bemerkung ? ' · ' + esc(p.bemerkung) : ''}</div>
-                </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
-                ${geburtsInfo}
                 <div class="dok-menu-wrap">
                     <button class="dok-menu-btn" onclick="mtsActToggleMenu(event, ${p.id})" title="Aktionen">⋮</button>
                     <div class="dok-menu" id="mtsActMenu-${p.id}">
