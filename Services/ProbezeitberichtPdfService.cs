@@ -231,12 +231,12 @@ public class ProbezeitberichtPdfService
 
     /// <summary>
     /// Schreibzeilen für Handschrift: jede Zeile = Luft (Schreiben) + Linie unten.
-    /// Gleicher Abstand überall — erste Linie nicht unter dem Label kleben,
-    /// letzte nicht enger als die übrigen (Walter 20.07.2026).
+    /// Nach der untersten Linie dieselbe Luft wie oberhalb — sonst wirkt der
+    /// Abschluss eng (Walter 20.07.2026).
     /// </summary>
     private static void WriteSpace(IContainer c, int lines)
     {
-        const float handHeight = 26f; // Schreibraum oberhalb der Linie
+        const float handHeight = 26f; // Schreibraum oberhalb / unterhalb der Linie
         c.Column(col =>
         {
             for (var i = 0; i < lines; i++)
@@ -247,6 +247,8 @@ public class ProbezeitberichtPdfService
                     slot.Item().LineHorizontal(0.55f).LineColor(Line);
                 });
             }
+            // Unterste Zeile: gleicher Abstand nach unten wie oben
+            col.Item().Height(handHeight);
         });
     }
 
