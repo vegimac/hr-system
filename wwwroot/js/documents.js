@@ -468,9 +468,10 @@ function renderDokTableRow(d, showCategoryColumns) {
         : (dokExt ? dokExt.slice(1).toUpperCase().slice(0, 4) : 'FILE');
     const icon = `<span class="dok-ft ${ftClass}">${ftLabel}</span>`;
     const typeTag = '';   // Tag entfällt — Pille zeigt schon den Typ
+    // Walter 20.07.2026: Bemerkung ist aussagekräftig; Filename nur Fallback.
     const beschreibungInner = d.bemerkung
-        ? `<b>${d.bemerkung}</b>`
-        : '<span style="color:#cbd5e1">–</span>';
+        ? `<b>${esc(d.bemerkung)}</b>`
+        : `<span style="color:#64748b">${esc(d.filenameOriginal || '–')}</span>`;
     // Walter-Vorgabe 06.06.2026: Daten kommen nicht mehr unter den Namen, sondern
     // in eigene Spalten (Erstellt / Geändert / Geöffnet) — sortierbar im Header.
     // Walter 06.06.2026 (final): 2-stelliges Jahr (`26` statt `2026`) damit die

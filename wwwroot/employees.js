@@ -5219,7 +5219,7 @@ async function famLoadSpouseDocs(member) {
         if (docs.length > 1) {
             nameEl.innerHTML = `<select onchange="famShowSpouseDoc(parseInt(this.value))"
                 style="max-width:100%;background:rgba(255,255,255,0.7);border:1px solid #e2ddd3;border-radius:10px;padding:5px 9px;font-size:12.5px;font-weight:600;color:#3f3f3f;cursor:pointer">
-                ${docs.map(d => `<option value="${d.id}">${esc(d.filenameOriginal || 'Dokument')}${d.hochgeladenAm ? ' · ' + formatDate(d.hochgeladenAm) : ''}</option>`).join('')}
+                ${docs.map(d => `<option value="${d.id}">${esc((d.bemerkung || '').trim() || d.filenameOriginal || 'Dokument')}${d.hochgeladenAm ? ' · ' + formatDate(d.hochgeladenAm) : ''}</option>`).join('')}
             </select>`;
         }
         await famShowSpouseDoc(docs[0].id);
@@ -5231,7 +5231,7 @@ async function famShowSpouseDoc(docId) {
     if (!doc) return;
     if ((window._famDocs || []).length <= 1) {
         const nameEl = document.getElementById('fam-docname');
-        if (nameEl) nameEl.textContent = doc.filenameOriginal || 'Ausweis Ehepartner';
+        if (nameEl) nameEl.textContent = (doc.bemerkung || '').trim() || doc.filenameOriginal || 'Ausweis Ehepartner';
     }
     const zoomBtn = document.getElementById('fam-doczoom');
     if (zoomBtn) {
@@ -6290,7 +6290,8 @@ async function mtsLoadDokumentOptions(employeeId, selectedDokId) {
             const o = document.createElement('option');
             o.value = d.id;
             const typ = d.dokumentTypName || 'Dokument';
-            const name = d.filenameOriginal || ('#' + d.id);
+            // Bemerkung vor Filename (Walter 20.07.2026) — Dateinamen oft nicht sagend.
+            const name = (d.bemerkung || '').trim() || d.filenameOriginal || ('#' + d.id);
             o.textContent = `${typ}: ${name}`;
             sel.appendChild(o);
         }
@@ -11849,7 +11850,7 @@ async function phfLoadPermitDoc(empId) {
         if (docs.length > 1) {
             nameEl.innerHTML = `<select id="phf-docselect" onchange="phfShowPermitDoc(parseInt(this.value))"
                 style="max-width:100%;background:rgba(255,255,255,0.7);border:1px solid #e2ddd3;border-radius:10px;padding:5px 9px;font-size:12.5px;font-weight:600;color:#3f3f3f;cursor:pointer">
-                ${docs.map(d => `<option value="${d.id}">${esc(d.filenameOriginal || 'Dokument')}${d.hochgeladenAm ? ' · ' + formatDate(d.hochgeladenAm) : ''}</option>`).join('')}
+                ${docs.map(d => `<option value="${d.id}">${esc((d.bemerkung || '').trim() || d.filenameOriginal || 'Dokument')}${d.hochgeladenAm ? ' · ' + formatDate(d.hochgeladenAm) : ''}</option>`).join('')}
             </select>`;
         }
         await phfShowPermitDoc(docs[0].id);
@@ -11861,7 +11862,7 @@ async function phfShowPermitDoc(docId) {
     const doc = (window._phfDocs || []).find(d => d.id === docId);
     if (!doc) return;
     if ((window._phfDocs || []).length <= 1)
-        document.getElementById('phf-docname').textContent = doc.filenameOriginal || 'Ausweis';
+        document.getElementById('phf-docname').textContent = (doc.bemerkung || '').trim() || doc.filenameOriginal || 'Ausweis';
     const res = document.getElementById('phf-ocrresult');
     if (res) res.style.display = 'none';   // OCR-Ergebnis gehört zum vorherigen Scan
     const ocrBtn = document.getElementById('phf-ocrbtn');
@@ -12191,7 +12192,7 @@ async function _vwFillExistingDocs(sel) {
         const docs = await r.json();
         sel.innerHTML = '<option value="">– Dokument wählen –</option>' +
             (Array.isArray(docs) ? docs : []).map(d =>
-                `<option value="${d.id}">${esc(d.filenameOriginal || ('Dokument #' + d.id))}${d.geaendertAm || d.hochgeladenAm ? ' (' + new Date(d.geaendertAm || d.hochgeladenAm).toLocaleDateString('de-CH') + ')' : ''}</option>`).join('');
+                `<option value="${d.id}">${esc((d.bemerkung || '').trim() || d.filenameOriginal || ('Dokument #' + d.id))}${d.geaendertAm || d.hochgeladenAm ? ' (' + new Date(d.geaendertAm || d.hochgeladenAm).toLocaleDateString('de-CH') + ')' : ''}</option>`).join('');
     } catch {}
 }
 

@@ -241,7 +241,10 @@ public class PregnancyController : HrControllerBase
         p.CreatedAt, p.UpdatedAt,
         PregnancyFristCalculator.SchwangerschaftsBeginn(p),
         p.ArztbestaetigungDokumentId,
-        p.ArztbestaetigungDokument?.FilenameOriginal);
+        // Anzeige: Bemerkung vor Filename (Walter 20.07.2026).
+        string.IsNullOrWhiteSpace(p.ArztbestaetigungDokument?.Bemerkung)
+            ? p.ArztbestaetigungDokument?.FilenameOriginal
+            : p.ArztbestaetigungDokument!.Bemerkung!.Trim());
 
     private async Task<IActionResult?> ValidateDokAsync(int employeeId, int? dokId)
     {
