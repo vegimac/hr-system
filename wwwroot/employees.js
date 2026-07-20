@@ -12283,11 +12283,11 @@ function pzRefreshModal() {
             <div style="font-size:15px;font-weight:750;color:#3f3f3f">${ende}${inPz ? ' <span style="font-size:11.5px;font-weight:650;color:#a16207">(läuft)</span>' : ''}</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-            <button type="button" onclick="pzOpenFormular(true)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">📋 Formular (PDF)</button>
-            <button type="button" onclick="pzOpenFormular(false)" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">⬇ Excel blanko</button>
+            <button type="button" onclick="pzGenerateBericht(1)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">📋 1. Gesprächsprotokoll</button>
+            <button type="button" onclick="pzGenerateBericht(2)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">📋 2. Gesprächsprotokoll</button>
             <button type="button" onclick="pzOpenKuendigung(${emp.id})" style="background:rgba(255,255,255,0.55);color:#9f1239;border:1px solid rgba(251,113,133,0.40);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">Kündigung während Probezeit</button>
         </div>
-        <div style="font-size:12px;color:#646464;margin-bottom:10px">Nach dem Gespräch: Datum bestätigen und das ausgefüllte Protokoll unter Dokus → Mitarbeiterentwicklung → Probezeitgespräch verknüpfen.</div>
+        <div style="font-size:12px;color:#646464;margin-bottom:10px">Protokoll generieren → ausdrucken/ausfüllen → unterschreiben → Scan unter Dokus → Mitarbeiterentwicklung → Probezeitgespräch verknüpfen und Datum bestätigen.</div>
         ${row(1)}
         ${row(2)}`;
 }
@@ -12308,26 +12308,25 @@ async function pzSaveDate(empId, nr, iso) {
     } catch (e) { alert('Fehler: ' + e.message); }
 }
 
-async function pzOpenFormular(asPdf) {
-    const url = `/api/employees/probezeit-gespraech-formular${asPdf ? '?pdf=true' : ''}`;
+async function pzGenerateBericht(nr) {
+    const emp = selectedEmployee;
+    if (!emp?.id) return;
+    const n = nr === 2 ? 2 : 1;
+    const url = `/api/employees/${emp.id}/probezeitbericht-pdf?nr=${n}`;
+    const fname = `PZ-${emp.employeeNumber || emp.id}-${emp.firstName || 'MA'}.pdf`;
     try {
-        if (asPdf && typeof previewUrlFetch === 'function') {
-            await previewUrlFetch(url, 'Probezeitgespraech_1_und_2.pdf', ah());
+        if (typeof previewUrlFetch === 'function') {
+            await previewUrlFetch(url, fname, ah());
             return;
         }
         const r = await fetch(url, { headers: ah() });
         if (!r.ok) {
             let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){}
-            return alert('Formular nicht verfügbar: ' + t);
+            return alert('PDF-Fehler: ' + t);
         }
         const blob = await r.blob();
-        if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, 'Probezeitgespraech_1_und_2.xlsx');
-        else {
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'Probezeitgespraech_1_und_2.xlsx';
-            a.click();
-        }
+        if (typeof previewFileModal === 'function') await previewFileModal(blob, fname);
+        else if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, fname);
     } catch (e) { alert('Fehler: ' + e.message); }
 }
 

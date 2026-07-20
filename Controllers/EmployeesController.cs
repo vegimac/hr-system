@@ -1005,29 +1005,91 @@ public class EmployeesController : ControllerBase
     /// Blanko-Formular «1. und 2. Gespräch» (Probezeit) — XLSX aus Assets,
     /// optional als PDF-Vorschau via LibreOffice (Walter 20.07.2026).
     /// </summary>
+    /// <summary>
+    /// Probezeitbericht / Gesprächsprotokoll als PDF (Walter 20.07.2026) —
+    /// Vorlage PZ-… (2 Seiten). MA + Ersteller vorausgefüllt; Beurteilungen
+    /// und Unterschriften auf Papier. Speichert nichts.
+    /// </summary>
+    [HttpGet("{id:int}/probezeitbericht-pdf")]
+    public async Task<IActionResult> GetProbezeitberichtPdf(
+        int id,
+        [FromQuery] int nr = 1,
+        [FromServices] ProbezeitberichtPdfService pdf = null!)
+    {
+        if (nr != 1 && nr != 2) nr = 1;
+        var e = await _context.Employees.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id);
+        if (e == null) return NotFound(new { error = "EMP_NOT_FOUND" });
+
+        var emp = await _context.Employments.AsNoTracking()
+            .Include(em => em.JobGroup)
+            .Include(em => em.CompanyProfile)
+            .Where(em => em.EmployeeId == id && em.CompanyProfileId != null)
+            .OrderByDescending(em => em.IsActive)
+            .ThenByDescending(em => em.ContractStartDate)
+            .FirstOrDefaultAsync();
+        var cp = emp?.CompanyProfile;
+
+        // Ersteller = eingeloggter User (Klarname); Telefon = Filiale (Walter).
+        var uidStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        AppUser? user = null;
+        if (int.TryParse(uidStr, out var uid))
+            user = await _context.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == uid);
+
+        string RolleLabel(string? role) => role switch
+        {
+            "admin" => "Admin",
+            "superuser" => "HR",
+            "buchhaltung" => "Buchhaltung",
+            "user" => "GF / Restaurant",
+            _ => role ?? ""
+        };
+
+        var gespraechAm = nr == 1 ? e.ProbezeitGespraech1Am : e.ProbezeitGespraech2Am;
+        var abteilung = !string.IsNullOrWhiteSpace(emp?.JobTitle)
+            ? emp!.JobTitle
+            : (emp?.JobGroup?.Code ?? "");
+
+        try
+        {
+            var input = new ProbezeitberichtInput(
+                CompanyName: cp?.CompanyName ?? "Schaub Restaurants GmbH",
+                RestaurantName: cp?.BranchName ?? cp?.FullDisplayName,
+                MaNachname: e.LastName ?? "",
+                MaVorname: e.FirstName ?? "",
+                Abteilung: abteilung,
+                Eintritt: e.EntryDate ?? emp?.ContractStartDate,
+                ErstellerNachname: user?.LastName ?? "",
+                ErstellerVorname: user?.FirstName ?? "",
+                ErstellerFunktion: RolleLabel(user?.Role),
+                ErstellerTelefon: cp?.Phone, // Filial-Telefon, nie persönliche Nummer
+                GespraechAm: gespraechAm,
+                GespraechOrt: cp?.City,
+                GespraechNr: nr
+            );
+            var bytes = pdf.Generate(input);
+            var fname = $"PZ-{(e.EmployeeNumber ?? id.ToString())}-{e.FirstName}.pdf"
+                .Replace(" ", "_");
+            return File(bytes, "application/pdf", fname);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                error = "PROBEZEITBERICHT_FEHLGESCHLAGEN",
+                message = ex.GetBaseException().Message
+            });
+        }
+    }
+
+    /// <summary>Legacy blanko Excel «1. und 2. Gespräch» — optionaler Download.</summary>
     [HttpGet("probezeit-gespraech-formular")]
-    public async Task<IActionResult> GetProbezeitGespraechFormular(
-        [FromQuery] bool pdf = false,
-        [FromServices] OfficeToPdfService? officePdf = null)
+    public async Task<IActionResult> GetProbezeitGespraechFormular()
     {
         var path = Path.Combine(Directory.GetCurrentDirectory(), "Assets", "Forms", "Probezeitgespraech_1_und_2.xlsx");
         if (!System.IO.File.Exists(path))
             return NotFound(new { error = "FORMULAR_FEHLT", message = "Probezeitgespräch-Formular nicht auf dem Server gefunden." });
         var bytes = await System.IO.File.ReadAllBytesAsync(path);
-        if (pdf && officePdf != null && OfficeToPdfService.CanConvert("Probezeitgespraech_1_und_2.xlsx"))
-        {
-            try
-            {
-                var pdfBytes = await officePdf.ConvertToPdfAsync(bytes, "Probezeitgespraech_1_und_2.xlsx");
-                if (pdfBytes == null || pdfBytes.Length == 0)
-                    return StatusCode(500, new { error = "PDF_CONVERT_FAILED", message = "PDF-Umwandlung lieferte kein Ergebnis." });
-                return File(pdfBytes, "application/pdf", "Probezeitgespraech_1_und_2.pdf");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { error = "PDF_CONVERT_FAILED", message = ex.Message });
-            }
-        }
         return File(bytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "Probezeitgespraech_1_und_2.xlsx");
