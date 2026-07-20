@@ -27,7 +27,10 @@ public class PregnancyController : HrControllerBase
         DateOnly? Geburtsdatum, string? Bemerkung, bool IsActive,
         DateTime CreatedAt, DateTime? UpdatedAt,
         // Walter 16.07.2026: Beginn Schwangerschaft = ET − 280 Tage (berechnet).
-        DateOnly SchwangerschaftsBeginn);
+        DateOnly SchwangerschaftsBeginn,
+        // Walter 20.07.2026: verknüpfte Arztbestätigung (errechneter Termin).
+        int? ArztbestaetigungDokumentId,
+        string? ArztbestaetigungDokumentName);
 
     public record FristDto(
         string Code, string Bezeichnung, string? Beschreibung, string? Gesetz,
@@ -44,11 +47,16 @@ public class PregnancyController : HrControllerBase
 
     public record CreatePregnancyDto(
         int EmployeeId, DateOnly Meldedatum, DateOnly ErrechneterTermin,
-        string? Bemerkung);
+        string? Bemerkung,
+        int? ArztbestaetigungDokumentId);
 
     public record UpdatePregnancyDto(
         DateOnly? Meldedatum, DateOnly? ErrechneterTermin, DateOnly? Geburtsdatum,
-        string? Bemerkung, bool? IsActive);
+        string? Bemerkung, bool? IsActive,
+        // Nur setzen wenn true — sonst bleibt die Verknüpfung (Geburt-PUT
+        // sendet kein Dokument und darf die FK nicht löschen).
+        bool? SetArztbestaetigungDokument,
+        int? ArztbestaetigungDokumentId);
 
     // ─── Endpoints ─────────────────────────────────────────────────────────
     [HttpGet]
@@ -57,23 +65,22 @@ public class PregnancyController : HrControllerBase
         // Datums-Regelwerk 13.07.2026: erst roh laden, DANN im Speicher mappen
         // (AddDays für den Schwangerschafts-Beginn gehört nicht in die EF-Projektion).
         var rows = await _db.EmployeePregnancies
+            .AsNoTracking()
+            .Include(p => p.ArztbestaetigungDokument)
             // Alt-Datenbestand: früher soft-gelöschte (IsActive=false) nicht mehr zeigen.
             .Where(p => p.EmployeeId == employeeId && p.IsActive)
             .OrderByDescending(p => p.ErrechneterTermin)
             .ToListAsync();
-        var list = rows.Select(p => new PregnancyListDto(
-                p.Id, p.EmployeeId, p.Meldedatum, p.ErrechneterTermin,
-                p.Geburtsdatum, p.Bemerkung, p.IsActive,
-                p.CreatedAt, p.UpdatedAt,
-                PregnancyFristCalculator.SchwangerschaftsBeginn(p)))
-            .ToList();
+        var list = rows.Select(ToListDto).ToList();
         return Ok(list);
     }
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var p = await _db.EmployeePregnancies.FindAsync(id);
+        var p = await _db.EmployeePregnancies
+            .Include(x => x.ArztbestaetigungDokument)
+            .FirstOrDefaultAsync(x => x.Id == id);
         if (p is null) return NotFound();
         var rules = await _db.PregnancyRules
             .Where(r => r.Aktiv)
@@ -93,13 +100,7 @@ public class PregnancyController : HrControllerBase
             PregnancyFristCalculator.SchwangerschaftsBeginn(p),
             PregnancyFristCalculator.KuendigungsschutzEnde(p));
 
-        var dto = new PregnancyDetailDto(
-            new PregnancyListDto(p.Id, p.EmployeeId, p.Meldedatum, p.ErrechneterTermin,
-                p.Geburtsdatum, p.Bemerkung, p.IsActive,
-                p.CreatedAt, p.UpdatedAt,
-                PregnancyFristCalculator.SchwangerschaftsBeginn(p)),
-            fristen,
-            ks);
+        var dto = new PregnancyDetailDto(ToListDto(p), fristen, ks);
         return Ok(dto);
     }
 
@@ -109,14 +110,18 @@ public class PregnancyController : HrControllerBase
         var empExists = await _db.Employees.AnyAsync(e => e.Id == dto.EmployeeId);
         if (!empExists) return BadRequest(new { error = "Mitarbeiter nicht gefunden." });
 
+        var dokErr = await ValidateDokAsync(dto.EmployeeId, dto.ArztbestaetigungDokumentId);
+        if (dokErr is not null) return dokErr;
+
         var p = new EmployeePregnancy
         {
-            EmployeeId        = dto.EmployeeId,
-            Meldedatum        = dto.Meldedatum,
-            ErrechneterTermin = dto.ErrechneterTermin,
-            Bemerkung         = dto.Bemerkung,
-            IsActive          = true,
-            CreatedAt         = DateTime.UtcNow,
+            EmployeeId                 = dto.EmployeeId,
+            Meldedatum                 = dto.Meldedatum,
+            ErrechneterTermin          = dto.ErrechneterTermin,
+            Bemerkung                  = dto.Bemerkung,
+            ArztbestaetigungDokumentId = dto.ArztbestaetigungDokumentId,
+            IsActive                   = true,
+            CreatedAt                  = DateTime.Now,
         };
         _db.EmployeePregnancies.Add(p);
         await _db.SaveChangesAsync();
@@ -134,7 +139,13 @@ public class PregnancyController : HrControllerBase
         if (dto.Geburtsdatum         is not null) p.Geburtsdatum         = dto.Geburtsdatum;
         if (dto.Bemerkung            is not null) p.Bemerkung            = dto.Bemerkung;
         if (dto.IsActive             is not null) p.IsActive             = dto.IsActive.Value;
-        p.UpdatedAt = DateTime.UtcNow;
+        if (dto.SetArztbestaetigungDokument == true)
+        {
+            var dokErr = await ValidateDokAsync(p.EmployeeId, dto.ArztbestaetigungDokumentId);
+            if (dokErr is not null) return dokErr;
+            p.ArztbestaetigungDokumentId = dto.ArztbestaetigungDokumentId;
+        }
+        p.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(p);
     }
@@ -190,5 +201,23 @@ public class PregnancyController : HrControllerBase
             f.Datum, f.DatumEnde,
             r.LohnersatzPct, r.MaxBetragProTag, r.StaffelText,
             f.Status, r.IstArbeitsverbot, r.SortOrder);
+    }
+
+    private static PregnancyListDto ToListDto(EmployeePregnancy p) => new(
+        p.Id, p.EmployeeId, p.Meldedatum, p.ErrechneterTermin,
+        p.Geburtsdatum, p.Bemerkung, p.IsActive,
+        p.CreatedAt, p.UpdatedAt,
+        PregnancyFristCalculator.SchwangerschaftsBeginn(p),
+        p.ArztbestaetigungDokumentId,
+        p.ArztbestaetigungDokument?.FilenameOriginal);
+
+    private async Task<IActionResult?> ValidateDokAsync(int employeeId, int? dokId)
+    {
+        if (dokId is null) return null;
+        var ok = await _db.EmployeeDokumente
+            .AnyAsync(d => d.Id == dokId.Value && d.EmployeeId == employeeId);
+        if (!ok)
+            return BadRequest(new { error = "Dokument gehört nicht zu diesem Mitarbeiter." });
+        return null;
     }
 }

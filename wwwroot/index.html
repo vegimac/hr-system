@@ -7081,7 +7081,7 @@
     </div>
 </div>
 
-<script src="employees.js?v=20260720m"></script>
+<script src="employees.js?v=20260720n"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -7102,6 +7102,16 @@
             <div>
                 <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Errechneter Termin *</label>
                 <input type="date" id="mtsFormET" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+            </div>
+            <div>
+                <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Arztbestätigung errechneter Termin</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <select id="mtsFormDokumentId" style="flex:1;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white">
+                        <option value="">— Dokument wählen —</option>
+                    </select>
+                    <button type="button" class="btn btn-secondary" onclick="mtsPreviewDokument()" title="Gewähltes Dokument anzeigen" style="flex-shrink:0;padding:8px 12px;font-size:12.5px">👁</button>
+                </div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:4px">Dokument zuerst im Tab «Dokumente» hochladen (z.B. Absenzen → Mutter-/Vaterschaft).</div>
             </div>
             <div>
                 <label style="font-size:11.5px;font-weight:600;color:#64748b;display:block;margin-bottom:4px">Bemerkung</label>

@@ -6254,6 +6254,47 @@ async function mtsOpenDokuTab() {
     } catch {}
 }
 
+async function mtsLoadDokumentOptions(employeeId, selectedDokId) {
+    const sel = document.getElementById('mtsFormDokumentId');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Dokumente laden … —</option>';
+    try {
+        const r = await fetch(`/api/documents/by-employee/${employeeId}`, { headers: ah() });
+        let alle = r.ok ? await r.json() : [];
+        if (!Array.isArray(alle)) alle = [];
+        const isEtLike = (d) => {
+            const t = ((d.dokumentTypName || '') + ' ' + (d.kategorieName || '') + ' ' + (d.bemerkung || '') + ' ' + (d.filenameOriginal || '')).toLowerCase();
+            return /mutter|vater|schwanger|arztbest|errechnet|termin|arztzeugnis/.test(t);
+        };
+        const sorted = [...alle].sort((a, b) => {
+            const af = isEtLike(a) ? 0 : 1;
+            const bf = isEtLike(b) ? 0 : 1;
+            if (af !== bf) return af - bf;
+            return String(b.erstelltAm || b.hochgeladenAm || '')
+                .localeCompare(String(a.erstelltAm || a.hochgeladenAm || ''));
+        });
+        sel.innerHTML = '<option value="">— kein Dokument —</option>';
+        for (const d of sorted) {
+            const o = document.createElement('option');
+            o.value = d.id;
+            const typ = d.dokumentTypName || 'Dokument';
+            const name = d.filenameOriginal || ('#' + d.id);
+            o.textContent = `${typ}: ${name}`;
+            sel.appendChild(o);
+        }
+        if (selectedDokId) sel.value = String(selectedDokId);
+    } catch (_) {
+        sel.innerHTML = '<option value="">— Laden fehlgeschlagen —</option>';
+    }
+}
+
+function mtsPreviewDokument() {
+    const empId = parseInt(document.getElementById('mtsFormEmployeeId')?.value || '0', 10);
+    const dokId = parseInt(document.getElementById('mtsFormDokumentId')?.value || '0', 10);
+    if (!dokId) return alert('Bitte zuerst ein Dokument wählen.');
+    if (typeof qstOpenBefreiungsDok === 'function') qstOpenBefreiungsDok(empId, dokId);
+}
+
 function mtsOpenNew(employeeId) {
     document.getElementById('mtsFormId').value = '';
     document.getElementById('mtsFormEmployeeId').value = employeeId;
@@ -6262,6 +6303,7 @@ function mtsOpenNew(employeeId) {
     document.getElementById('mtsFormMeldedatum').value = today;
     document.getElementById('mtsFormET').value = '';
     document.getElementById('mtsFormBemerkung').value = '';
+    mtsLoadDokumentOptions(employeeId, null);
     document.getElementById('mtsFormModal').style.display = 'flex';
 }
 
@@ -6276,6 +6318,7 @@ async function mtsOpenEdit(id) {
     document.getElementById('mtsFormMeldedatum').value = p.meldedatum;
     document.getElementById('mtsFormET').value = p.errechneterTermin;
     document.getElementById('mtsFormBemerkung').value = p.bemerkung || '';
+    await mtsLoadDokumentOptions(p.employeeId, p.arztbestaetigungDokumentId || null);
     document.getElementById('mtsFormModal').style.display = 'flex';
 }
 
@@ -6284,11 +6327,15 @@ function mtsCloseForm() { document.getElementById('mtsFormModal').style.display 
 async function mtsSaveForm() {
     const id = document.getElementById('mtsFormId').value;
     const employeeId = parseInt(document.getElementById('mtsFormEmployeeId').value);
+    const dokRaw = document.getElementById('mtsFormDokumentId')?.value || '';
+    const dokId = dokRaw ? parseInt(dokRaw, 10) : null;
     const dto = {
         employeeId,
         meldedatum:        document.getElementById('mtsFormMeldedatum').value,
         errechneterTermin: document.getElementById('mtsFormET').value,
         bemerkung:         document.getElementById('mtsFormBemerkung').value.trim() || null,
+        arztbestaetigungDokumentId: dokId,
+        setArztbestaetigungDokument: true,
     };
     if (!dto.meldedatum || !dto.errechneterTermin) {
         alert('Meldedatum und errechneter Termin sind Pflicht.');
@@ -6506,6 +6553,9 @@ async function mbGenerate() {
 let _abPregId = null;
 
 function _abEnsureModal() {
+    // Altes Modal ohne Dok-Block nach Deploy neu aufbauen.
+    const existing = document.getElementById('abModal');
+    if (existing && !document.getElementById('abDokBlock')) existing.remove();
     if (document.getElementById('abModal')) return;
     const div = document.createElement('div');
     div.id = 'abModal';
@@ -6517,6 +6567,10 @@ function _abEnsureModal() {
             <button onclick="abClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
         </div>
         <div style="font-size:12px;color:#646464;margin-bottom:14px">Medizinische Eignungsuntersuchung Mutterschutz — Beilagen: Risikobeurteilung + Eignungsbeurteilung. Ärzte werden in den Systemeinstellungen → Ärzte gepflegt.</div>
+        <div id="abDokBlock" style="margin-bottom:14px;padding:10px 12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:10px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:4px">Arztbestätigung errechneter Termin</div>
+            <div id="abDokContent" style="font-size:12.5px;color:#3f3f3f">—</div>
+        </div>
         <div style="display:flex;align-items:center;justify-content:space-between">
             <label style="font-size:11.5px;font-weight:700;color:#646464">Behandelnde Ärztin / behandelnder Arzt</label>
             <button onclick="abToggleNeu()" style="background:none;border:none;color:#3f3f3f;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">+ Neuer Arzt</button>
@@ -6558,12 +6612,46 @@ function _abEnsureModal() {
     document.body.appendChild(div);
 }
 
+let _abEmpId = null;
+let _abDokId = null;
+
+function _abRenderDokBlock(p) {
+    const box = document.getElementById('abDokContent');
+    if (!box) return;
+    _abEmpId = p?.employeeId || null;
+    _abDokId = p?.arztbestaetigungDokumentId || null;
+    if (_abDokId) {
+        const name = p.arztbestaetigungDokumentName || ('Dokument #' + _abDokId);
+        box.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(name)}">📄 ${esc(name)}</span>
+            <button type="button" onclick="abOpenDokument()" style="flex-shrink:0;background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">Anschauen</button>
+        </div>`;
+    } else {
+        box.innerHTML = `<span style="color:#8b8b8b">Noch nicht verknüpft — bitte bei der Schwangerschaftserfassung die Arztbestätigung verbinden.</span>`;
+    }
+}
+
+function abOpenDokument() {
+    if (!_abDokId || !_abEmpId) return;
+    if (typeof qstOpenBefreiungsDok === 'function') qstOpenBefreiungsDok(_abEmpId, _abDokId);
+}
+
 async function abOpen(pregId) {
     document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
     _abEnsureModal();
     _abPregId = pregId;
     const neu = document.getElementById('abNeuBlock');
     if (neu) neu.style.display = 'none';
+    // Arztbestätigung aus der Schwangerschaft laden (Walter 20.07.2026).
+    try {
+        const r = await fetch(`/api/pregnancies/${pregId}`, { headers: ah() });
+        if (r.ok) {
+            const d = await r.json();
+            _abRenderDokBlock(d.pregnancy || null);
+        } else {
+            _abRenderDokBlock(null);
+        }
+    } catch (_) { _abRenderDokBlock(null); }
     await abLoadAerzte();
     document.getElementById('abModal').style.display = 'flex';
 }

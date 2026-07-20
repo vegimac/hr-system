@@ -31,6 +31,13 @@ public class EmployeePregnancy
     public string?  Bemerkung             { get; set; }
     public bool     IsActive              { get; set; } = true;
 
+    /// <summary>
+    /// Arztbestätigung zum errechneten Termin (Walter 20.07.2026) —
+    /// FK auf employee_dokument; angezeigt im Arztbrief-Dialog.
+    /// </summary>
+    public int?     ArztbestaetigungDokumentId { get; set; }
+    public EmployeeDokument? ArztbestaetigungDokument { get; set; }
+
     public DateTime  CreatedAt            { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt            { get; set; }
 }
