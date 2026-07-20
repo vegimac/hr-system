@@ -1326,6 +1326,16 @@ function loadUebersichtTab() {
     //    untereinander ganz rechts —
     //    Eintritt | Austritt | L-GAV
     //    Gekündigt am | Kündigung per | < 8 h / Wo. ──
+    const pzEnde = emp.probationEndDate ? formatDate(emp.probationEndDate) : null;
+    const pz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
+    const pz2Ok = !!(emp.probezeitGespraech2Am && emp.probezeitGespraech2DokumentId);
+    const pzStatus = !pzEnde
+        ? null
+        : (pz1Ok && pz2Ok)
+            ? `<span style="color:#166534;font-weight:650">✓ 1. + 2. Gespräch erledigt</span>`
+            : pz1Ok
+                ? `<span style="color:#a16207;font-weight:650">1. erledigt · 2. offen</span>`
+                : `<span style="color:#9f1239;font-weight:650">Gespräch offen</span>`;
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
@@ -1336,6 +1346,7 @@ function loadUebersichtTab() {
             <div class="ov-pf ov-anst-date"><div class="ov-pfl">Kündigung per</div>
             <input id="ov-kuendPer" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
             <div class="ov-pf ov-anst-tog"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
+            ${pzEnde ? `${_pf('Probezeit bis', pzEnde)}${_pf('Probezeitgespräch', pzStatus)}` : ''}
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
@@ -1992,7 +2003,9 @@ async function openAusweisDokuModal(empId, kind, extra) {
         alert('Mitarbeiter-ID fehlt. Bitte den MA links erneut anklicken.');
         return;
     }
-    if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history', 'night_work_exam', 'night_work_ausnahme'].includes(kind)) return;
+    if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history',
+          'night_work_exam', 'night_work_ausnahme',
+          'probezeit_gespraech1', 'probezeit_gespraech2'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -2009,13 +2022,17 @@ async function openAusweisDokuModal(empId, kind, extra) {
                       : kind === 'c_ausweis'           ? ['permit']
                       : kind === 'permit_history'      ? ['permit']
                       : kind === 'spouse'              ? ['spouse', 'spouse_permit']
-                      :                                  []; // behoerden_befreiung: nur Name-Match
+                      : kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2'
+                          ? ['probezeitgespraech', 'probezeit_gespraech']
+                          :                                  []; // behoerden_befreiung: nur Name-Match
     const wantedNamesRx = kind === 'id_pass'           ? /(ident|pass|reisepass|id[\s-]?karte|ausweis)/i
                        : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
                        : kind === 'permit_history'     ? /(aufenthalt|bewilligung|permit|ausweis)/i
                        : kind === 'spouse'             ? /(ehegatt|ehepartner|spouse|partner)/i
                        : kind === 'night_work_exam'    ? /(arzt|zeugnis|eignung|nacht|verzicht|untersuch)/i
                        : kind === 'night_work_ausnahme' ? /(ausnahme|nacht|tag.{0,3}nacht|anlage)/i
+                       : kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2'
+                           ? /(probezeit)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -2059,6 +2076,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'spouse'              ? 'Ausweis Ehepartner verknüpfen'
                    : kind === 'night_work_exam'     ? 'Nachtarbeit: Arztzeugnis verknüpfen'
                    : kind === 'night_work_ausnahme' ? 'Nachtarbeit: Ausnahmeregelung verknüpfen'
+                   : kind === 'probezeit_gespraech1' ? 'Probezeitgespräch 1: Protokoll verknüpfen'
+                   : kind === 'probezeit_gespraech2' ? 'Probezeitgespräch 2: Protokoll verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -2070,6 +2089,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                     ? 'Wähle das ärztliche Eignungszeugnis (Arztzeugnis) des MA. Oder lade ein neues Dokument hoch.'
                     : kind === 'night_work_ausnahme'
                         ? 'Wähle die unterschriebene Ausnahmeregelung Tag-/Nachtarbeit des MA. Oder lade ein neues Dokument hoch.'
+                        : (kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2')
+                            ? 'Wähle das ausgefüllte Probezeitgespräch-Protokoll (Typ «Probezeitgespräch» unter Mitarbeiterentwicklung). Oder lade ein neues hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -2307,6 +2328,11 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         }
         // Nachtarbeit-Belege: MA-Detail neu laden (Anzeige-Buttons im Nachtarbeit-Block).
         if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme') && typeof selectEmployee === 'function') selectEmployee(empId);
+        // Probezeitgespräch: Modal + Anstellung neu zeichnen.
+        if (kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2') {
+            if (typeof selectEmployee === 'function') await selectEmployee(empId);
+            if (typeof pzRefreshModal === 'function') pzRefreshModal();
+        }
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -2331,7 +2357,14 @@ async function ausweisDokuUnlink(empId, kind) {
             alert(j?.message || `Fehler (${res.status})`);
             return;
         }
-        loadQuellensteuerTab(empId);
+        if (typeof loadQuellensteuerTab === 'function') loadQuellensteuerTab(empId);
+        if ((kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2'
+             || kind === 'night_work_exam' || kind === 'night_work_ausnahme')
+            && typeof selectEmployee === 'function') {
+            await selectEmployee(empId);
+        }
+        if ((kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2')
+            && typeof pzRefreshModal === 'function') pzRefreshModal();
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -12161,11 +12194,160 @@ function _raTilesHtml() {
         ${etile('🙂', 'Face ID zurücksetzen', 'faceIdAdminReset(selectedEmployeeId)')}`;
     return `<div class="ra-tile-row">
         ${tile('verwarnung.png', 'Verwarnung', 'openVerwarnungModal(null)')}
+        ${etile('⏳', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
         ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
         ${kontoTiles}
     </div>`;
+}
+
+// ── Probezeit (Restaurant Admin, Walter 20.07.2026) ──────────────────────
+// Formular blanko · 1./2. Gespräch mit Datum + Protokoll-Verknüpfung
+// (Dokumenttyp Probezeitgespräch) · Kündigung während Probezeit.
+function openProbezeitModal(empId) {
+    const emp = selectedEmployee;
+    if (!empId || !emp || emp.id !== empId) {
+        if (typeof selectEmployee === 'function' && empId) selectEmployee(empId);
+    }
+    _pzEnsureModal();
+    pzRefreshModal();
+    document.getElementById('pzModal').style.display = 'flex';
+}
+
+function _pzEnsureModal() {
+    if (document.getElementById('pzModal')) return;
+    const div = document.createElement('div');
+    div.id = 'pzModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
+    div.innerHTML = `
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:560px;width:94%;max-height:92vh;overflow-y:auto;padding:22px 24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div style="font-size:16px;font-weight:800;color:#3f3f3f">Probezeit</div>
+            <button type="button" onclick="pzClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+        </div>
+        <div id="pzBody" style="font-size:13px;color:#3f3f3f"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:18px">
+            <button type="button" onclick="pzClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Schliessen</button>
+        </div>
+    </div>`;
+    document.body.appendChild(div);
+}
+
+function pzClose() {
+    const m = document.getElementById('pzModal');
+    if (m) m.style.display = 'none';
+}
+
+function pzRefreshModal() {
+    const body = document.getElementById('pzBody');
+    const emp = selectedEmployee;
+    if (!body || !emp) return;
+    const ende = emp.probationEndDate ? formatDate(emp.probationEndDate) : '–';
+    const inPz = emp.probationEndDate && new Date(emp.probationEndDate) >= new Date(new Date().toDateString());
+    const row = (nr) => {
+        const am = nr === 1 ? emp.probezeitGespraech1Am : emp.probezeitGespraech2Am;
+        const dokId = nr === 1 ? emp.probezeitGespraech1DokumentId : emp.probezeitGespraech2DokumentId;
+        const kind = nr === 1 ? 'probezeit_gespraech1' : 'probezeit_gespraech2';
+        const amIso = am ? String(am).slice(0, 10) : '';
+        const amTxt = am ? formatDate(am) : null;
+        const ok = !!(am && dokId);
+        return `<div style="padding:12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:12px;margin-bottom:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+                <div style="font-weight:750;color:#3f3f3f">${nr}. Probezeitgespräch</div>
+                <span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;${ok
+                    ? 'background:rgba(22,163,74,0.12);color:#166534;border:1px solid rgba(34,197,94,0.35)'
+                    : 'background:rgba(244,63,94,0.10);color:#9f1239;border:1px solid rgba(251,113,133,0.35)'}">${ok ? '✓ erledigt' : 'offen'}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+                <label style="font-size:11.5px;font-weight:700;color:#646464">Durchgeführt am</label>
+                <input type="date" id="pzAm${nr}" value="${amIso}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white"
+                       onchange="pzSaveDate(${emp.id}, ${nr}, this.value)">
+                ${amTxt ? `<span style="font-size:12px;color:#646464">${amTxt}</span>` : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                ${dokId
+                    ? `<button type="button" onclick="qstOpenBefreiungsDok(${emp.id}, ${dokId}, {sticky:true})" style="background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">👁 Protokoll</button>
+                       <button type="button" onclick="openAusweisDokuModal(${emp.id},'${kind}')" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">Protokoll ersetzen</button>
+                       <button type="button" onclick="ausweisDokuUnlink(${emp.id},'${kind}')" style="background:none;border:none;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">lösen</button>`
+                    : `<button type="button" onclick="openAusweisDokuModal(${emp.id},'${kind}')" style="background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">📄 Protokoll verknüpfen</button>
+                       <span style="font-size:11.5px;color:#8b8b8b">→ Dokus · Mitarbeiterentwicklung · Probezeitgespräch</span>`}
+            </div>
+            ${am && !dokId ? `<div style="margin-top:8px;font-size:11.5px;color:#9f1239;font-weight:650">Datum gesetzt — bitte noch das ausgefüllte Protokoll verknüpfen.</div>` : ''}
+            ${!am && dokId ? `<div style="margin-top:8px;font-size:11.5px;color:#a16207;font-weight:650">Protokoll verknüpft — bitte noch das Durchführungsdatum setzen.</div>` : ''}
+        </div>`;
+    };
+    body.innerHTML = `
+        <div style="margin-bottom:14px;padding:10px 12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:10px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:2px">Probezeit bis</div>
+            <div style="font-size:15px;font-weight:750;color:#3f3f3f">${ende}${inPz ? ' <span style="font-size:11.5px;font-weight:650;color:#a16207">(läuft)</span>' : ''}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+            <button type="button" onclick="pzOpenFormular(true)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">📋 Formular (PDF)</button>
+            <button type="button" onclick="pzOpenFormular(false)" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">⬇ Excel blanko</button>
+            <button type="button" onclick="pzOpenKuendigung(${emp.id})" style="background:rgba(255,255,255,0.55);color:#9f1239;border:1px solid rgba(251,113,133,0.40);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">Kündigung während Probezeit</button>
+        </div>
+        <div style="font-size:12px;color:#646464;margin-bottom:10px">Nach dem Gespräch: Datum bestätigen und das ausgefüllte Protokoll unter Dokus → Mitarbeiterentwicklung → Probezeitgespräch verknüpfen.</div>
+        ${row(1)}
+        ${row(2)}`;
+}
+
+async function pzSaveDate(empId, nr, iso) {
+    try {
+        const r = await fetch(`/api/employees/${empId}/probezeit-gespraech`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nr, am: iso || null })
+        });
+        if (!r.ok) {
+            let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){}
+            return alert('Speichern fehlgeschlagen: ' + t);
+        }
+        if (typeof selectEmployee === 'function') await selectEmployee(empId);
+        pzRefreshModal();
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+async function pzOpenFormular(asPdf) {
+    const url = `/api/employees/probezeit-gespraech-formular${asPdf ? '?pdf=true' : ''}`;
+    try {
+        if (asPdf && typeof previewUrlFetch === 'function') {
+            await previewUrlFetch(url, 'Probezeitgespraech_1_und_2.pdf', ah());
+            return;
+        }
+        const r = await fetch(url, { headers: ah() });
+        if (!r.ok) {
+            let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){}
+            return alert('Formular nicht verfügbar: ' + t);
+        }
+        const blob = await r.blob();
+        if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, 'Probezeitgespraech_1_und_2.xlsx');
+        else {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'Probezeitgespraech_1_und_2.xlsx';
+            a.click();
+        }
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+async function pzOpenKuendigung(empId) {
+    pzClose();
+    if (typeof showPage === 'function') showPage('kuendigung');
+    // Picker nach Init setzen (kuendigungInit läuft in showPage).
+    const trySelect = () => {
+        const sel = document.getElementById('kuEmpSelect');
+        if (!sel || !sel.options.length) return false;
+        sel.value = String(empId);
+        if (typeof kuOnEmpChange === 'function') kuOnEmpChange();
+        const gt = document.getElementById('kuGrundType');
+        if (gt) gt.value = 'probezeit';
+        return true;
+    };
+    if (!trySelect()) {
+        let n = 0;
+        const t = setInterval(() => { if (trySelect() || ++n > 20) clearInterval(t); }, 100);
+    }
 }
 
 function vwToggleMenu(ev, id) {

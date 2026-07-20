@@ -180,7 +180,11 @@ public class DocumentsController : ControllerBase
         // gelöscht werden → das Frontend blendet die „Löschen"-Option aus.
         var emp = await _db.Employees.AsNoTracking()
             .Where(e => e.Id == employeeId)
-            .Select(e => new { e.IdPassDokumentId, e.CAusweisDokumentId, e.QstBefreiungDokumentId, e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId })
+            .Select(e => new {
+                e.IdPassDokumentId, e.CAusweisDokumentId, e.QstBefreiungDokumentId,
+                e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId,
+                e.ProbezeitGespraech1DokumentId, e.ProbezeitGespraech2DokumentId
+            })
             .FirstOrDefaultAsync();
         var permitDocIds = await _db.EmployeePermitHistories.AsNoTracking()
             .Where(h => h.EmployeeId == employeeId && h.DokumentId != null)
@@ -204,6 +208,8 @@ public class DocumentsController : ControllerBase
         AddLink(emp?.QstBefreiungDokumentId,  "QST-Behörden-Befreiung");
         AddLink(emp?.NightWorkExamDokumentId, "Nachtarbeit: Arztbericht / Verzicht");
         AddLink(emp?.NightWorkAusnahmeDokumentId, "Nachtarbeit: Ausnahmeregelung");
+        AddLink(emp?.ProbezeitGespraech1DokumentId, "Probezeitgespräch 1");
+        AddLink(emp?.ProbezeitGespraech2DokumentId, "Probezeitgespräch 2");
         foreach (var pid in permitDocIds) AddLink(pid, "Bewilligung (Aufenthalt)");
         foreach (var fid in familyDocIds) AddLink(fid, "Ehepartner-Beleg");
         foreach (var mid in pregnancyDokIds) AddLink(mid, "Arztbestätigung errechneter Termin");
@@ -1132,6 +1138,10 @@ public class DocumentsController : ControllerBase
             blockers.Add("Nachtarbeit: Arztbericht / Verzicht");
         if (await _db.Employees.AnyAsync(e => e.NightWorkAusnahmeDokumentId == id))
             blockers.Add("Nachtarbeit: Ausnahmeregelung");
+        if (await _db.Employees.AnyAsync(e => e.ProbezeitGespraech1DokumentId == id))
+            blockers.Add("Probezeitgespräch 1");
+        if (await _db.Employees.AnyAsync(e => e.ProbezeitGespraech2DokumentId == id))
+            blockers.Add("Probezeitgespräch 2");
         if (await _db.EmployeePermitHistories.AnyAsync(h => h.DokumentId == id))
             blockers.Add("Bewilligungs-Eintrag (Aufenthalt)");
         if (await _db.EmployeeFamilyMembers.AnyAsync(f => f.DokumentId == id))

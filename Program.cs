@@ -1869,6 +1869,11 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_dokument_id INTEGER REFERENCES employee_dokument(id) ON DELETE SET NULL;
         -- Zweiter Nachtarbeit-Beleg: unterschriebene Ausnahmeregelung (Walter 22.06.2026)
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_ausnahme_dokument_id INTEGER REFERENCES employee_dokument(id) ON DELETE SET NULL;
+        -- Probezeitgespräch 1/2 (Walter 20.07.2026, Restaurant Admin)
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_gespraech1_am DATE;
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_gespraech1_dokument_id INTEGER REFERENCES employee_dokument(id) ON DELETE SET NULL;
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_gespraech2_am DATE;
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_gespraech2_dokument_id INTEGER REFERENCES employee_dokument(id) ON DELETE SET NULL;
         CREATE TABLE IF NOT EXISTS employee_pregnancy (
             id                     SERIAL PRIMARY KEY,
             employee_id            INTEGER NOT NULL REFERENCES employee(id),

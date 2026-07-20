@@ -339,6 +339,11 @@ public class EmployeesController : ControllerBase
                            employee.DateOfBirth.HasValue ? DateOnly.FromDateTime(employee.DateOfBirth.Value) : (DateOnly?)null)),
             employee.NightWorkExamDokumentId,
             employee.NightWorkAusnahmeDokumentId,
+            // Probezeitgespräch 1/2 (Walter 20.07.2026, Restaurant Admin)
+            employee.ProbezeitGespraech1Am,
+            employee.ProbezeitGespraech1DokumentId,
+            employee.ProbezeitGespraech2Am,
+            employee.ProbezeitGespraech2DokumentId,
             // ArGV1 Art. 30 — für rote «fehlt»-Hinweise auf der Nachtarbeit-Karte
             nightWorkRequiresDocuments,
             nightWorkMaxNightsInSixWeeks = nightWorkMaxNights,
@@ -931,8 +936,10 @@ public class EmployeesController : ControllerBase
         if (emp == null) return NotFound();
 
         var kind = (dto.Kind ?? "").Trim().ToLowerInvariant();
-        if (kind != "id_pass" && kind != "c_ausweis" && kind != "night_work_exam" && kind != "night_work_ausnahme")
-            return BadRequest(new { error = "KIND_INVALID", message = "kind muss 'id_pass', 'c_ausweis', 'night_work_exam' oder 'night_work_ausnahme' sein." });
+        if (kind != "id_pass" && kind != "c_ausweis" && kind != "night_work_exam"
+            && kind != "night_work_ausnahme"
+            && kind != "probezeit_gespraech1" && kind != "probezeit_gespraech2")
+            return BadRequest(new { error = "KIND_INVALID", message = "kind ungültig." });
 
         if (dto.DokumentId.HasValue)
         {
@@ -943,10 +950,12 @@ public class EmployeesController : ControllerBase
                     message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
         }
 
-        if (kind == "id_pass")                 emp.IdPassDokumentId            = dto.DokumentId;
-        else if (kind == "c_ausweis")          emp.CAusweisDokumentId          = dto.DokumentId;
-        else if (kind == "night_work_ausnahme") emp.NightWorkAusnahmeDokumentId = dto.DokumentId;
-        else                                    emp.NightWorkExamDokumentId     = dto.DokumentId;
+        if (kind == "id_pass")                      emp.IdPassDokumentId               = dto.DokumentId;
+        else if (kind == "c_ausweis")               emp.CAusweisDokumentId             = dto.DokumentId;
+        else if (kind == "night_work_ausnahme")     emp.NightWorkAusnahmeDokumentId    = dto.DokumentId;
+        else if (kind == "probezeit_gespraech1")    emp.ProbezeitGespraech1DokumentId  = dto.DokumentId;
+        else if (kind == "probezeit_gespraech2")    emp.ProbezeitGespraech2DokumentId  = dto.DokumentId;
+        else                                        emp.NightWorkExamDokumentId        = dto.DokumentId;
 
         await _context.SaveChangesAsync();
         return Ok(new
@@ -956,8 +965,72 @@ public class EmployeesController : ControllerBase
             idPassDokumentId            = emp.IdPassDokumentId,
             cAusweisDokumentId          = emp.CAusweisDokumentId,
             nightWorkExamDokumentId     = emp.NightWorkExamDokumentId,
-            nightWorkAusnahmeDokumentId = emp.NightWorkAusnahmeDokumentId
+            nightWorkAusnahmeDokumentId = emp.NightWorkAusnahmeDokumentId,
+            probezeitGespraech1DokumentId = emp.ProbezeitGespraech1DokumentId,
+            probezeitGespraech2DokumentId = emp.ProbezeitGespraech2DokumentId
         });
+    }
+
+    /// <summary>
+    /// Probezeitgespräch 1 oder 2: Durchführungsdatum setzen/löschen
+    /// (Walter 20.07.2026). Das ausgefüllte Protokoll wird separat via
+    /// ausweis-doku (kind=probezeit_gespraech1|2) verknüpft.
+    /// </summary>
+    [HttpPatch("{id:int}/probezeit-gespraech")]
+    public async Task<IActionResult> SetProbezeitGespraech(int id, [FromBody] ProbezeitGespraechDto dto)
+    {
+        var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Id == id);
+        if (emp == null) return NotFound();
+        var nr = dto.Nr;
+        if (nr != 1 && nr != 2)
+            return BadRequest(new { error = "NR_INVALID", message = "nr muss 1 oder 2 sein." });
+        if (nr == 1) emp.ProbezeitGespraech1Am = dto.Am?.Date;
+        else         emp.ProbezeitGespraech2Am = dto.Am?.Date;
+        await _context.SaveChangesAsync();
+        return Ok(new
+        {
+            id = emp.Id,
+            nr,
+            probezeitGespraech1Am = emp.ProbezeitGespraech1Am,
+            probezeitGespraech2Am = emp.ProbezeitGespraech2Am
+        });
+    }
+    public class ProbezeitGespraechDto
+    {
+        public int Nr { get; set; }          // 1 oder 2
+        public DateTime? Am { get; set; }    // null = zurücksetzen
+    }
+
+    /// <summary>
+    /// Blanko-Formular «1. und 2. Gespräch» (Probezeit) — XLSX aus Assets,
+    /// optional als PDF-Vorschau via LibreOffice (Walter 20.07.2026).
+    /// </summary>
+    [HttpGet("probezeit-gespraech-formular")]
+    public async Task<IActionResult> GetProbezeitGespraechFormular(
+        [FromQuery] bool pdf = false,
+        [FromServices] OfficeToPdfService? officePdf = null)
+    {
+        var path = Path.Combine(Directory.GetCurrentDirectory(), "Assets", "Forms", "Probezeitgespraech_1_und_2.xlsx");
+        if (!System.IO.File.Exists(path))
+            return NotFound(new { error = "FORMULAR_FEHLT", message = "Probezeitgespräch-Formular nicht auf dem Server gefunden." });
+        var bytes = await System.IO.File.ReadAllBytesAsync(path);
+        if (pdf && officePdf != null && OfficeToPdfService.CanConvert("Probezeitgespraech_1_und_2.xlsx"))
+        {
+            try
+            {
+                var pdfBytes = await officePdf.ConvertToPdfAsync(bytes, "Probezeitgespraech_1_und_2.xlsx");
+                if (pdfBytes == null || pdfBytes.Length == 0)
+                    return StatusCode(500, new { error = "PDF_CONVERT_FAILED", message = "PDF-Umwandlung lieferte kein Ergebnis." });
+                return File(pdfBytes, "application/pdf", "Probezeitgespraech_1_und_2.pdf");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "PDF_CONVERT_FAILED", message = ex.Message });
+            }
+        }
+        return File(bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "Probezeitgespraech_1_und_2.xlsx");
     }
 
     public class AusweisDokuDto

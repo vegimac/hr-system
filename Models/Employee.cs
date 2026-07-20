@@ -151,6 +151,17 @@ public class Employee
     public int? NightWorkAusnahmeDokumentId { get; set; }
 
     /// <summary>
+    /// Probezeitgespräch 1/2 (Walter 20.07.2026, Restaurant Admin): Datum der
+    /// Durchführung + verknüpftes ausgefülltes Protokoll (Dokumenttyp
+    /// «Probezeitgespräch» unter Mitarbeiterentwicklung). Formular-Blanko:
+    /// Assets/Forms/Probezeitgespraech_1_und_2.xlsx.
+    /// </summary>
+    public DateTime? ProbezeitGespraech1Am { get; set; }
+    public int? ProbezeitGespraech1DokumentId { get; set; }
+    public DateTime? ProbezeitGespraech2Am { get; set; }
+    public int? ProbezeitGespraech2DokumentId { get; set; }
+
+    /// <summary>
     /// Interne easy@work-Employee-ID (Walter 17.06.2026). Wird beim MA-Sync
     /// gesetzt und erlaubt das Auflösen von edited_by_id-Verweisen aus den
     /// Stempelzeit-Audits zum Manager-Namen.

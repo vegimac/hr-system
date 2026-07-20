@@ -4108,7 +4108,7 @@
         .ov-anst-grid {
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-            grid-template-rows: auto auto;
+            grid-template-rows: auto auto auto;
             gap: 6px 14px;
             align-items: start;
             min-width: 0;

@@ -144,6 +144,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NightWorkExamIssued).HasColumnName("night_work_exam_issued").HasColumnType("date");
             entity.Property(e => e.NightWorkExamDokumentId).HasColumnName("night_work_exam_dokument_id");
             entity.Property(e => e.NightWorkAusnahmeDokumentId).HasColumnName("night_work_ausnahme_dokument_id");
+            entity.Property(e => e.ProbezeitGespraech1Am).HasColumnName("probezeit_gespraech1_am").HasColumnType("date");
+            entity.Property(e => e.ProbezeitGespraech1DokumentId).HasColumnName("probezeit_gespraech1_dokument_id");
+            entity.Property(e => e.ProbezeitGespraech2Am).HasColumnName("probezeit_gespraech2_am").HasColumnType("date");
+            entity.Property(e => e.ProbezeitGespraech2DokumentId).HasColumnName("probezeit_gespraech2_dokument_id");
             entity.Property(e => e.EasyAtWorkEmployeeId).HasColumnName("easyatwork_employee_id");
             // GLOBALER QUERY FILTER: ALLE Employee-Queries blenden hidden MA
             // automatisch aus — kein manuelles WHERE in jedem Controller nötig.
