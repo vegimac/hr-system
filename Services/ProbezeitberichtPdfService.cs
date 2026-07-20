@@ -148,9 +148,12 @@ public class ProbezeitberichtPdfService
                     // rechts Vor-/Nachname MA (kein «Unterschrift Mitarbeitende»).
                     col.Item().PaddingTop(14).Text("6.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
                         .Bold().FontSize(11.5f);
+                    // Ort ohne Titel-Label (Walter 20.07.2026) — nur der Ortsname.
                     col.Item().PaddingTop(14).Row(r =>
                     {
-                        r.RelativeItem().Element(e => SoftField(e, "Ort", d.GespraechOrt ?? ""));
+                        r.RelativeItem().PaddingTop(4).MinHeight(22)
+                            .Text(string.IsNullOrWhiteSpace(d.GespraechOrt) ? " " : d.GespraechOrt)
+                            .FontSize(12f).Bold();
                         r.ConstantItem(20);
                         r.RelativeItem().Element(e => SoftField(e, "Datum",
                             d.GespraechAm.HasValue ? d.GespraechAm.Value.ToString("dd.MM.yyyy") : ""));
