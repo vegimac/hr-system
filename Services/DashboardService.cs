@@ -1009,15 +1009,18 @@ public class DashboardService
                 .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
                                    e.NightWorkExamDokumentId, e.NightWorkExamValidUntil,
                                    e.NightWorkExamIssued, e.DateOfBirth,
-                                   e.NightWorkAusnahmeDokumentId, e.ExitDate })
+                                   e.NightWorkAusnahmeDokumentId, e.ExitDate, e.KuendigungPer })
                 .ToListAsync();
-            // MA, die innerhalb der nächsten 30 Tage austreten, NICHT mehr melden
-            // (Kein Austrittsdatum = bleibt → melden). Walter-Vorgabe 20.06.2026.
+            // MA mit Austritt ODER Kündigung per (innerhalb 30 Tage / bereits
+            // vorbei) NICHT mehr melden — Zeugnis erneuern lohnt nicht mehr
+            // (Walter 20.06.2026 / präzisiert 20.07.2026: KuendigungPer zählt
+            // auch wenn ExitDate noch leer ist).
             var nwExitCutoff = today.AddDays(30);
             foreach (var emp in nwExam)
             {
-                if (emp.ExitDate.HasValue
-                    && DateOnly.FromDateTime(emp.ExitDate.Value) <= nwExitCutoff) continue;
+                var leaveAt = emp.ExitDate ?? emp.KuendigungPer;
+                if (leaveAt.HasValue
+                    && DateOnly.FromDateTime(leaveAt.Value) <= nwExitCutoff) continue;
 
                 // Abgelaufenes Arztzeugnis IMMER melden (Walter-Vorgabe 12.07.2026):
                 // auch wenn der MA aktuell nicht dokumentationspflichtig viele Nächte
