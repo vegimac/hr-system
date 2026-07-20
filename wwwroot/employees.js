@@ -12274,17 +12274,11 @@ function _raTilesHtml() {
     // Sketch-Icon oben, Beschriftung darunter.
     const tile = (img, title, onclick) => `
         <button type="button" class="ra-tile" onclick="${onclick}">
-            <img src="img/${encodeURI(img)}?v=20260720ra" alt="" loading="lazy">
-            <span>${title}</span>
-        </button>`;
-    // Emoji-Fallback nur noch fuer Aktionen ohne Sketch-Icon.
-    const etile = (emoji, title, onclick) => `
-        <button type="button" class="ra-tile" onclick="${onclick}">
-            <span style="font-size:36px;line-height:52px" aria-hidden="true">${emoji}</span>
+            <img src="img/${encodeURI(img)}?v=20260720rb" alt="" loading="lazy">
             <span>${title}</span>
         </button>`;
     const kontoTiles = selectedEmployee?.isPayrollExcluded ? '' : `
-        ${etile('🔐', 'Postfach-Passwort', 'postfachResetPassword(selectedEmployeeId)')}
+        ${tile('Postfach passwort.png', 'Postfach-Passwort', 'postfachResetPassword(selectedEmployeeId)')}
         ${tile('onboarding qr.png', 'Onboarding-QR', 'postfachSetupQr(selectedEmployeeId)')}
         ${tile('face id zurück.png', 'Face ID zurücksetzen', 'faceIdAdminReset(selectedEmployeeId)')}`;
     return `<div class="ra-tile-row">
