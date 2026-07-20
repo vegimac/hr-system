@@ -148,10 +148,10 @@ public class ProbezeitberichtPdfService
                         .Bold().FontSize(11.5f);
                     col.Item().PaddingTop(14).Row(r =>
                     {
+                        r.RelativeItem().Element(e => SoftField(e, "Ort", d.GespraechOrt ?? ""));
+                        r.ConstantItem(20);
                         r.RelativeItem().Element(e => SoftField(e, "Datum",
                             d.GespraechAm.HasValue ? d.GespraechAm.Value.ToString("dd.MM.yyyy") : ""));
-                        r.ConstantItem(20);
-                        r.RelativeItem().Element(e => SoftField(e, "Ort", d.GespraechOrt ?? ""));
                     });
 
                     var maName = $"{d.MaVorname} {d.MaNachname}".Trim();
