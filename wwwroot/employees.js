@@ -6193,24 +6193,27 @@ function renderPregnancyCard(d) {
             ${dateBlock}
         </div>`;
     }).join('');
-    // Walter 20.07.2026: Infotext links; rechts Fahrplan, direkt davor die ⋮
-    // (Bearbeiten/Löschen) — Fahrplan steht links vor den 3 Punkten.
+    // Walter 20.07.2026: Infotext links; rechts «Brief an Arzt» prominent
+    // (war im Fahrplan-Menü leicht übersehen / durch overflow abgeschnitten),
+    // daneben Fahrplan ▾ + ⋮.
     const geburtsInfo = p.geburtsdatum
         ? `<span style="color:#16a34a;font-size:12px;font-weight:600">Geburt: ${fmt(p.geburtsdatum)}</span>`
         : '';
     return `
     <div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;background:white">
-        <div style="padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div style="padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
             <div style="min-width:0;flex:1">
                 <div style="font-weight:700;color:#0f172a;font-size:14px">Errechneter Termin: ${fmt(p.errechneterTermin)}</div>
                 <div style="font-size:12px;color:#9d174d;margin-top:2px;font-weight:600">Beginn Schwangerschaft: ${fmt(p.schwangerschaftsBeginn)} <span style="color:#94a3b8;font-weight:400">(ET − 280 Tage)</span></div>
                 <div style="font-size:12px;color:#64748b;margin-top:2px">Gemeldet: ${fmt(p.meldedatum)}${p.bemerkung ? ' · ' + esc(p.bemerkung) : ''}</div>
             </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
                 ${geburtsInfo}
+                <button type="button" onclick="abOpen(${p.id})" title="Brief an den behandelnden Arzt"
+                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700">🩺 Brief an Arzt</button>
                 <div class="dok-menu-wrap" style="display:inline-block">
                     <button onclick="mtsToggleMenu(event, ${p.id})" title="Alle Schritte des Mutterschafts-Prozesses"
-                            style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:700">🧭 Fahrplan ▾</button>
+                            style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700">🧭 Fahrplan ▾</button>
                     <div class="dok-menu" id="mtsMenu-${p.id}" style="min-width:290px">
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mtsDownloadPdf(${p.id})">Übersicht als PDF</button>
                         <button class="dok-menu-item" style="white-space:nowrap" onclick="mvCheckliste(${p.id})">1 · Gesprächs-Checkliste (PDF)</button>
@@ -6240,7 +6243,51 @@ function esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function mtsToggleMenu(event, id) { rowMenuToggle(event, 'mts', id); }
+// Fixed-Position wie Nachtarbeit-Menü: emp-detail-panel clippt absolute
+// Menüs (overflow:hidden) — sonst fehlen Fahrplan-Punkte 3–5 (Arztbrief).
+function _mtsClearMenuPos(menu) {
+    if (!menu) return;
+    menu.style.position = '';
+    menu.style.top = '';
+    menu.style.left = '';
+    menu.style.right = '';
+    menu.style.bottom = '';
+    menu.style.zIndex = '';
+}
+function mtsToggleMenu(event, id) {
+    event.stopPropagation();
+    const menu = document.getElementById('mtsMenu-' + id);
+    const wasOpen = menu?.classList.contains('show');
+    document.querySelectorAll('.dok-menu.show').forEach(m => {
+        m.classList.remove('show');
+        _mtsClearMenuPos(m);
+    });
+    if (wasOpen || !menu) return;
+    const btn = event.currentTarget;
+    const r = btn.getBoundingClientRect();
+    menu.classList.add('show');
+    const mh = menu.offsetHeight || 280;
+    const spaceBelow = window.innerHeight - r.bottom;
+    menu.style.position = 'fixed';
+    menu.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+    menu.style.left = 'auto';
+    menu.style.zIndex = '6000';
+    if (spaceBelow < mh + 8) {
+        menu.style.top = 'auto';
+        menu.style.bottom = Math.max(8, window.innerHeight - r.top + 4) + 'px';
+    } else {
+        menu.style.top = (r.bottom + 4) + 'px';
+        menu.style.bottom = 'auto';
+    }
+    setTimeout(() => {
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.dok-menu.show').forEach(m => {
+                m.classList.remove('show');
+                _mtsClearMenuPos(m);
+            });
+        }, { once: true });
+    }, 10);
+}
 function mtsActToggleMenu(event, id) { rowMenuToggle(event, 'mtsAct', id); }
 
 // Walter 11.06.2026: Sprung in den Dokumente-Tab + Filter auf
