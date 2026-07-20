@@ -6676,8 +6676,8 @@ async function abOpen(pregId) {
     document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
     _abEnsureModal();
     _abPregId = pregId;
-    const neu = document.getElementById('abNeuBlock');
-    if (neu) neu.style.display = 'none';
+    _abEditId = null;
+    abNeuAbbrechen();
     // Arztbestätigung aus der Schwangerschaft laden (Walter 20.07.2026).
     try {
         const r = await fetch(`/api/pregnancies/${pregId}`, { headers: ah() });
