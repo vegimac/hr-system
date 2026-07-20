@@ -6574,10 +6574,15 @@ async function mbGenerate() {
 // direkt per E-Mail an die Praxis (mit Liquid-Bestätigung).
 let _abPregId = null;
 
+let _abAerzteListe = [];
+let _abEditId = null; // null = neuer Arzt, sonst PUT auf bestehenden
+
 function _abEnsureModal() {
-    // Altes Modal ohne Dok-Block nach Deploy neu aufbauen.
+    // Altes Modal ohne Dok-/Edit-Actions nach Deploy neu aufbauen.
     const existing = document.getElementById('abModal');
-    if (existing && !document.getElementById('abDokBlock')) existing.remove();
+    if (existing && (!document.getElementById('abDokBlock') || !document.getElementById('abEditArztBtn'))) {
+        existing.remove();
+    }
     if (document.getElementById('abModal')) return;
     const div = document.createElement('div');
     div.id = 'abModal';
@@ -6593,14 +6598,18 @@ function _abEnsureModal() {
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:4px">Arztbestätigung errechneter Termin</div>
             <div id="abDokContent" style="font-size:12.5px;color:#3f3f3f">—</div>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
             <label style="font-size:11.5px;font-weight:700;color:#646464">Behandelnde Ärztin / behandelnder Arzt</label>
-            <button onclick="abToggleNeu()" style="background:none;border:none;color:#3f3f3f;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">+ Neuer Arzt</button>
+            <div style="display:flex;align-items:center;gap:12px">
+                <button type="button" onclick="abToggleNeu()" style="background:none;border:none;color:#3f3f3f;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">+ Neuer Arzt</button>
+                <button type="button" id="abEditArztBtn" onclick="abEditArzt()" style="background:none;border:none;color:#3f3f3f;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">Bearbeiten</button>
+                <button type="button" id="abDeleteArztBtn" onclick="abDeleteArzt()" style="background:none;border:none;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">Löschen</button>
+            </div>
         </div>
         <select id="abArzt" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:16px"></select>
-        <!-- Schnell-Erfassung neuer Arzt (Walter 16.07.2026) — landet im
-             Ärzte-Verzeichnis und wird direkt vorselektiert. -->
+        <!-- Schnell-Erfassung / Bearbeiten (Walter 16.07.2026 / 20.07.2026) -->
         <div id="abNeuBlock" style="display:none;margin:-6px 0 16px;padding:12px;background:rgba(255,255,255,0.5);border:1px solid rgba(139,139,139,0.25);border-radius:10px">
+            <div id="abNeuBlockTitle" style="font-size:12px;font-weight:700;color:#3f3f3f;margin-bottom:8px">Neuer Arzt</div>
             <div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:8px">
                 <input type="text" id="abNeuTitel" placeholder="Titel" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
                 <input type="text" id="abNeuVorname" placeholder="Vorname" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
@@ -6619,8 +6628,9 @@ function _abEnsureModal() {
                 <input type="text" id="abNeuTelefon" placeholder="Telefon" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
                 <input type="text" id="abNeuEmail" placeholder="E-Mail" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
             </div>
-            <div style="display:flex;justify-content:flex-end;margin-top:10px">
-                <button onclick="abNeuSpeichern()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:700">Arzt speichern</button>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:10px">
+                <button type="button" onclick="abNeuAbbrechen()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700">Abbrechen</button>
+                <button type="button" id="abNeuSaveBtn" onclick="abNeuSpeichern()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:700">Arzt speichern</button>
             </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap">
@@ -6684,12 +6694,14 @@ async function abOpen(pregId) {
 
 async function abLoadAerzte(selectId) {
     const sel = document.getElementById('abArzt');
+    if (!sel) return;
     sel.innerHTML = '<option value="">— Arzt wählen —</option>';
+    _abAerzteListe = [];
     try {
         const r = await fetch('/api/aerzte', { headers: ah() });
         if (r.ok) {
-            const list = await r.json();
-            for (const a of list) {
+            _abAerzteListe = await r.json();
+            for (const a of _abAerzteListe) {
                 const name = [a.titel, a.vorname, a.nachname].filter(Boolean).join(' ');
                 const extra = [a.praxisName, a.ort].filter(Boolean).join(', ');
                 const o = document.createElement('option');
@@ -6703,13 +6715,80 @@ async function abLoadAerzte(selectId) {
     if (selectId) { sel.value = String(selectId); sel.dispatchEvent(new Event('change')); }
 }
 
-function abToggleNeu() {
-    const b = document.getElementById('abNeuBlock');
-    if (b) b.style.display = b.style.display === 'none' ? 'block' : 'none';
+function _abClearNeuForm() {
+    ['abNeuTitel','abNeuVorname','abNeuNachname','abNeuFach','abNeuPraxis','abNeuStrasse','abNeuPlz','abNeuOrt','abNeuTelefon','abNeuEmail']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 }
 
-// Schnell-Erfassung: speichert ins Ärzte-Verzeichnis und selektiert den
-// neuen Arzt direkt im Dropdown.
+function _abShowNeuBlock(editMode) {
+    const b = document.getElementById('abNeuBlock');
+    const title = document.getElementById('abNeuBlockTitle');
+    const btn = document.getElementById('abNeuSaveBtn');
+    if (!b) return;
+    b.style.display = 'block';
+    if (title) title.textContent = editMode ? 'Arzt bearbeiten' : 'Neuer Arzt';
+    if (btn) btn.textContent = editMode ? 'Änderungen speichern' : 'Arzt speichern';
+}
+
+function abNeuAbbrechen() {
+    _abEditId = null;
+    _abClearNeuForm();
+    const b = document.getElementById('abNeuBlock');
+    if (b) b.style.display = 'none';
+}
+
+function abToggleNeu() {
+    const b = document.getElementById('abNeuBlock');
+    if (!b) return;
+    // Wenn schon offen im Neu-Modus → einklappen; sonst Neu-Formular zeigen.
+    if (b.style.display !== 'none' && !_abEditId) {
+        abNeuAbbrechen();
+        return;
+    }
+    _abEditId = null;
+    _abClearNeuForm();
+    _abShowNeuBlock(false);
+}
+
+function abEditArzt() {
+    const id = +(document.getElementById('abArzt')?.value || 0);
+    if (!id) return alert('Bitte zuerst einen Arzt in der Liste wählen.');
+    const a = _abAerzteListe.find(x => x.id === id);
+    if (!a) return alert('Arzt nicht gefunden — Liste bitte neu laden.');
+    _abEditId = id;
+    const set = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val || ''; };
+    set('abNeuTitel', a.titel);
+    set('abNeuVorname', a.vorname);
+    set('abNeuNachname', a.nachname);
+    set('abNeuFach', a.fachgebiet);
+    set('abNeuPraxis', a.praxisName);
+    set('abNeuStrasse', a.strasse);
+    set('abNeuPlz', a.plz);
+    set('abNeuOrt', a.ort);
+    set('abNeuTelefon', a.telefon);
+    set('abNeuEmail', a.email);
+    _abShowNeuBlock(true);
+}
+
+async function abDeleteArzt() {
+    const id = +(document.getElementById('abArzt')?.value || 0);
+    if (!id) return alert('Bitte zuerst einen Arzt in der Liste wählen.');
+    const a = _abAerzteListe.find(x => x.id === id);
+    const name = [a?.titel, a?.vorname, a?.nachname].filter(Boolean).join(' ') || ('#' + id);
+    const ja = typeof liquidConfirm === 'function'
+        ? await liquidConfirm(`Arzt «${name}» wirklich löschen?`, { title: 'Arzt löschen?', yesLabel: 'Ja, löschen', noLabel: 'Nein' })
+        : confirm(`Arzt «${name}» wirklich löschen?`);
+    if (!ja) return;
+    try {
+        const r = await fetch(`/api/aerzte/${id}`, { method: 'DELETE', headers: ah() });
+        if (!r.ok) return alert('Löschen fehlgeschlagen: ' + r.status);
+        if (_abEditId === id) abNeuAbbrechen();
+        await abLoadAerzte();
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+// Speichert neu (POST) oder Änderungen (PUT) ins Ärzte-Verzeichnis und
+// selektiert den Arzt danach im Dropdown.
 async function abNeuSpeichern() {
     const v = id => (document.getElementById(id)?.value || '').trim();
     const dto = {
@@ -6725,19 +6804,19 @@ async function abNeuSpeichern() {
         email: v('abNeuEmail') || null
     };
     if (!dto.nachname) return alert('Bitte mindestens den Nachnamen erfassen.');
+    const editId = _abEditId;
     try {
-        const r = await fetch('/api/aerzte', {
-            method: 'POST',
+        const url = editId ? `/api/aerzte/${editId}` : '/api/aerzte';
+        const r = await fetch(url, {
+            method: editId ? 'PUT' : 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(dto)
         });
         if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('Speichern fehlgeschlagen: ' + t); }
-        const neu = await r.json();
-        ['abNeuTitel','abNeuVorname','abNeuNachname','abNeuFach','abNeuPraxis','abNeuStrasse','abNeuPlz','abNeuOrt','abNeuTelefon','abNeuEmail']
-            .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-        document.getElementById('abNeuBlock').style.display = 'none';
+        const saved = await r.json();
+        abNeuAbbrechen();
         if (typeof dokClosePreviewPanel === 'function') dokClosePreviewPanel();
-        await abLoadAerzte(neu.id);
+        await abLoadAerzte(saved.id);
     } catch (e) { alert('Fehler: ' + e.message); }
 }
 
