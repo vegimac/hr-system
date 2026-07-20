@@ -2689,7 +2689,7 @@ async function qstBefreiungAufheben(empId) {
 // Banner heraus im Vorschau-Side-Panel öffnen. dokOpenPreviewPanel kommt aus
 // documents.js und erwartet das Dokument in _dokState.docs. Wenn die Dokumenten-
 // Tab dieses MA noch nie geöffnet wurde, ist die Liste leer → erst lazy laden.
-async function qstOpenBefreiungsDok(empId, dokId) {
+async function qstOpenBefreiungsDok(empId, dokId, opts) {
     if (!dokId) return;
     try {
         const needsLoad = !_dokState || !_dokState.docs ||
@@ -2704,7 +2704,7 @@ async function qstOpenBefreiungsDok(empId, dokId) {
         }
     } catch { /* best-effort; dokOpenPreviewPanel rendert sonst nichts */ }
     if (typeof dokOpenPreviewPanel === 'function') {
-        dokOpenPreviewPanel(dokId);
+        dokOpenPreviewPanel(dokId, opts);
     } else {
         alert('Vorschau-Modul nicht geladen.');
     }
@@ -6655,7 +6655,11 @@ function _abRenderDokBlock(p) {
 
 function abOpenDokument() {
     if (!_abDokId || !_abEmpId) return;
-    if (typeof qstOpenBefreiungsDok === 'function') qstOpenBefreiungsDok(_abEmpId, _abDokId);
+    // sticky: neben dem Arztbrief tippen ohne dass die Meldung verschwindet
+    // (Walter 20.07.2026) — schliesst nur via × oder bei Speichern/Abbrechen.
+    if (typeof qstOpenBefreiungsDok === 'function') {
+        qstOpenBefreiungsDok(_abEmpId, _abDokId, { sticky: true });
+    }
 }
 
 async function abOpen(pregId) {
@@ -6732,6 +6736,7 @@ async function abNeuSpeichern() {
         ['abNeuTitel','abNeuVorname','abNeuNachname','abNeuFach','abNeuPraxis','abNeuStrasse','abNeuPlz','abNeuOrt','abNeuTelefon','abNeuEmail']
             .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         document.getElementById('abNeuBlock').style.display = 'none';
+        if (typeof dokClosePreviewPanel === 'function') dokClosePreviewPanel();
         await abLoadAerzte(neu.id);
     } catch (e) { alert('Fehler: ' + e.message); }
 }
@@ -6739,6 +6744,7 @@ async function abNeuSpeichern() {
 function abClose() {
     const m = document.getElementById('abModal');
     if (m) m.style.display = 'none';
+    if (typeof dokClosePreviewPanel === 'function') dokClosePreviewPanel();
 }
 
 function _abArztId() {

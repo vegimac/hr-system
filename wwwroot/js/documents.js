@@ -649,7 +649,11 @@ function dokPreview(id) {
 // Side-Panel-Preview für ein Server-Dokument — gleiche UX wie Massen-Import
 let _dokPreviewUrl = null;
 
-async function dokOpenPreviewPanel(id) {
+// opts.sticky = true → kein Auto-Schliessen bei Klick ausserhalb (Walter 20.07.2026:
+// neben dem Arztbrief-Modal muss die Meldung offen bleiben, während man Felder tippt).
+// Schliessen dann nur via × / Schliessen oder explizit dokClosePreviewPanel().
+async function dokOpenPreviewPanel(id, opts) {
+    const sticky = !!(opts && opts.sticky);
     const doc = _dokState.docs.find(d => d.id === id);
     if (!doc) return;
 
@@ -779,27 +783,21 @@ async function dokOpenPreviewPanel(id) {
     dokPreviewMakeResizable();
     // Linker Rand → reine Breiten-Resize (gegen die Verankerung rechts).
     dokPreviewMakeLeftResizable();
-    // Walter-Vorgabe 27.05.2026: Klick AUSSERHALB des Panels schliesst es.
-    // Wichtig: setTimeout(0) wartet bis der initiale Klick (der das Panel
-    // geoeffnet hat) durchgelaufen ist, sonst wuerde derselbe Klick sofort
-    // wieder schliessen. Den Listener-Reference wird auf dem Panel-Element
-    // abgelegt, damit dokClosePreviewPanel ihn entfernen kann.
-    setTimeout(() => {
-        const p = document.getElementById('dokPreviewPanel');
-        if (!p) return;
-        const handler = (e) => {
-            // Klick innerhalb des Panels selbst → nicht schliessen.
-            if (p.contains(e.target)) return;
-            // Klick auf ein anderes Dokument in der Liste → das andere
-            // Dokument oeffnet ein neues Panel und ersetzt das alte (siehe
-            // dokOpenPreviewPanel → dokClosePreviewPanel() ganz oben).
-            // Hier vorsorglich schliessen — der Listen-Klick startet danach
-            // ohnehin ein neues Panel.
-            dokClosePreviewPanel();
-        };
-        document.addEventListener('mousedown', handler, true);
-        p._dokOutsideClickHandler = handler;
-    }, 0);
+    // Walter-Vorgabe 27.05.2026: Klick AUSSERHALB des Panels schliesst es —
+    // AUSSER sticky (z.B. Arztbrief: Tippen im Modal darf die Meldung nicht
+    // wegdrücken). setTimeout(0) wartet bis der initiale Öffnen-Klick durch ist.
+    if (!sticky) {
+        setTimeout(() => {
+            const p = document.getElementById('dokPreviewPanel');
+            if (!p) return;
+            const handler = (e) => {
+                if (p.contains(e.target)) return;
+                dokClosePreviewPanel();
+            };
+            document.addEventListener('mousedown', handler, true);
+            p._dokOutsideClickHandler = handler;
+        }, 0);
+    }
 
     try {
         const ext = ((doc.filenameOriginal || '').toLowerCase().match(/\.[^.]+$/) || [''])[0];
