@@ -87,9 +87,9 @@ public class ProbezeitberichtPdfService
                         .FontSize(9.5f).FontColor(Soft);
                     col.Item().PaddingTop(8).Element(e => RatingRow(e, ratings));
                     col.Item().PaddingTop(10).Text("Begründung:").FontSize(10f).Bold();
-                    col.Item().PaddingTop(6).Element(e => WriteSpace(e, 3));
+                    col.Item().Element(e => WriteSpace(e, 3));
 
-                    col.Item().PaddingTop(12).LineHorizontal(0.7f).LineColor(Line);
+                    col.Item().PaddingTop(14).LineHorizontal(0.7f).LineColor(Line);
 
                     // 2. Zielsetzungen
                     col.Item().PaddingTop(10).Text("2.  Wurden die Zielsetzungen für die Einführungszeit erfüllt?")
@@ -98,9 +98,9 @@ public class ProbezeitberichtPdfService
                     col.Item().PaddingTop(10).Element(e => CheckboxRow(e,
                         new[] { "erfüllt", "teilweise erfüllt", "nicht erfüllt" }));
                     col.Item().PaddingTop(10).Text("Begründung:").FontSize(10f).Bold();
-                    col.Item().PaddingTop(6).Element(e => WriteSpace(e, 3));
+                    col.Item().Element(e => WriteSpace(e, 3));
 
-                    col.Item().PaddingTop(10).LineHorizontal(0.7f).LineColor(Line);
+                    col.Item().PaddingTop(14).LineHorizontal(0.7f).LineColor(Line);
 
                     // 3. Module
                     col.Item().PaddingTop(10).Text("3.  abgeschlossene Module").Bold().FontSize(11.5f);
@@ -128,7 +128,7 @@ public class ProbezeitberichtPdfService
                     col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "c)  Integration ins Team", ratings));
                     col.Item().PaddingTop(10).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
                     col.Item().PaddingTop(12).Text("Bemerkungen:").FontSize(10f).Bold();
-                    col.Item().PaddingTop(6).Element(e => WriteSpace(e, 3));
+                    col.Item().Element(e => WriteSpace(e, 3));
 
                     col.Item().PaddingTop(14).LineHorizontal(0.7f).LineColor(Line);
 
@@ -230,15 +230,23 @@ public class ProbezeitberichtPdfService
         });
     }
 
-    /// <summary>Mehrere weite Schreibzeilen (Handschrift, nicht eng).</summary>
+    /// <summary>
+    /// Schreibzeilen für Handschrift: jede Zeile = Luft (Schreiben) + Linie unten.
+    /// Gleicher Abstand überall — erste Linie nicht unter dem Label kleben,
+    /// letzte nicht enger als die übrigen (Walter 20.07.2026).
+    /// </summary>
     private static void WriteSpace(IContainer c, int lines)
     {
+        const float handHeight = 26f; // Schreibraum oberhalb der Linie
         c.Column(col =>
         {
             for (var i = 0; i < lines; i++)
             {
-                if (i > 0) col.Item().PaddingTop(22);
-                col.Item().LineHorizontal(0.55f).LineColor(Line);
+                col.Item().Column(slot =>
+                {
+                    slot.Item().Height(handHeight);
+                    slot.Item().LineHorizontal(0.55f).LineColor(Line);
+                });
             }
         });
     }
