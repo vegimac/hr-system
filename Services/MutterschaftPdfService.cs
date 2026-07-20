@@ -686,6 +686,9 @@ public class MutterschaftPdfService
         else if (o.VerlUnbezahlt > 0)
             punkte.Add($"Entsprechend deinem Antrag wird deine Mutterschaft um {o.VerlUnbezahlt} unbezahlte Urlaubstage verlängert.");
 
+        // Rückkehr — alle drei Word-Varianten als eigener Punkt (Walter 20.07.2026:
+        // «keine Rückkehr» darf nicht nur in der Einleitung stecken und im
+        // nummerierten Text fehlen).
         if (o.Rueckkehr == "GLEICH")
             punkte.Add("Für deine Rückkehr an den Arbeitsplatz nach der Mutterschaft bleiben die Vertragsbedingungen dieselben wie vor der Geburt eures Kindes.");
         else if (o.Rueckkehr == "ANDERS")
@@ -694,15 +697,15 @@ public class MutterschaftPdfService
             var rest   = string.IsNullOrWhiteSpace(o.RueckkehrRestaurant) ? d.RestaurantName : o.RueckkehrRestaurant;
             punkte.Add($"Für deine Rückkehr an den Arbeitsplatz nach der Mutterschaft ändern sich die Vertragsbedingungen wie vereinbart mit einer Beschäftigungszeit in Höhe von {pensum} entsprechend den beigelegten neuen Verfügbarkeitszeiten. Dein zukünftiger Arbeitsplatz befindet sich im Restaurant {rest}. Dein entsprechender Stundenlohn bleibt unverändert.");
         }
+        else // KEINE — Word-Variante als eigener Nummerpunkt (nicht nur Einleitung)
+            punkte.Add($"Im Anschluss an unser Gespräch vom {o.GespraechsDatum:dd.MM.yyyy} nehmen wir zur Kenntnis, dass du deine Beschäftigung nach deinem Mutterschaftsurlaub nicht wieder aufnehmen möchtest.");
 
         punkte.Add(keineRueckkehr
             ? "Selbstverständlich gilt das Datum der Geburt als massgebend für die Schlussberechnung der Tage und des Datums der Beendigung des Arbeitsverhältnisses."
             : "Selbstverständlich gilt das Datum der Geburt als massgebend für die Schlussberechnung der Tage und des Datums der Wiederaufnahme deiner Beschäftigung.");
         punkte.Add("Sobald wir von der Geburt eures Kindes benachrichtigt werden, senden wir dir die Unterlagen zur Beantragung der Mutterschaftsentschädigung sowie der Familien- und/oder Kinderzulagen per Post nach Hause.");
 
-        string einleitung = keineRueckkehr
-            ? $"Im Anschluss an unser Gespräch vom {o.GespraechsDatum:dd.MM.yyyy} nehmen wir zur Kenntnis, dass du deine Beschäftigung nach deinem Mutterschaftsurlaub nicht wieder aufnehmen möchtest. Wir bestätigen dir nachfolgend die gemeinsam getroffene Vereinbarung:"
-            : $"Im Anschluss an unser Gespräch vom {o.GespraechsDatum:dd.MM.yyyy} bestätigen wir dir nachfolgend die gemeinsam getroffene Vereinbarung:";
+        string einleitung = $"Im Anschluss an unser Gespräch vom {o.GespraechsDatum:dd.MM.yyyy} bestätigen wir dir nachfolgend die gemeinsam getroffene Vereinbarung:";
 
         var firmaLines = new[] { d.FirmaName, d.FirmaStrasse, d.FirmaPlzOrt }
             .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList();

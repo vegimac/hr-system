@@ -7014,6 +7014,11 @@ async function abEmail() {
 let _mvPregId = null;
 
 function _mvEnsureModal() {
+    // Altes Modal ohne vollständige Rückkehr-Optionen nach Deploy neu aufbauen.
+    const existing = document.getElementById('mvModal');
+    if (existing && !document.querySelector('input[name="mvRueck"][value="KEINE"]')) {
+        existing.remove();
+    }
     if (document.getElementById('mvModal')) return;
     const div = document.createElement('div');
     div.id = 'mvModal';
@@ -7024,7 +7029,7 @@ function _mvEnsureModal() {
             <div style="font-size:16px;font-weight:800;color:#3f3f3f">Mutterschaftsvereinbarung</div>
             <button onclick="mvClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
         </div>
-        <div style="font-size:12px;color:#646464;margin-bottom:14px">Zuerst die Checkliste mit der Mitarbeiterin durcharbeiten — danach hier die vereinbarten Varianten wählen.</div>
+        <div style="font-size:12px;color:#646464;margin-bottom:14px">Zuerst die Checkliste mit der Mitarbeiterin durcharbeiten — danach hier die vereinbarten Varianten wählen (Verlängerung + Rückkehr kommen in den Brieftext).</div>
 
         <button onclick="mvCheckliste()" style="width:100%;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 14px;cursor:pointer;font-size:13px;font-weight:700;margin-bottom:16px">📋 Gesprächs-Checkliste drucken</button>
 
@@ -7043,12 +7048,12 @@ function _mvEnsureModal() {
             </div>
         </div>
 
-        <div style="margin-top:14px">
-            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Rückkehr nach der Mutterschaft</div>
-            <label style="display:block;font-size:13px;margin-bottom:3px"><input type="radio" name="mvRueck" value="GLEICH" checked onchange="mvRueckChanged()"> dieselben Vertragsbedingungen</label>
-            <label style="display:block;font-size:13px;margin-bottom:3px"><input type="radio" name="mvRueck" value="ANDERS" onchange="mvRueckChanged()"> geänderte Bedingungen</label>
-            <label style="display:block;font-size:13px"><input type="radio" name="mvRueck" value="KEINE" onchange="mvRueckChanged()"> keine Rückkehr (Wunsch der Mitarbeiterin)</label>
-            <div id="mvAndersFields" style="display:none;margin-top:8px;padding:10px;background:rgba(255,255,255,0.5);border:1px solid rgba(139,139,139,0.25);border-radius:10px">
+        <div style="margin-top:14px;padding:12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:12px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:8px">Rückkehr nach der Mutterschaft <span style="color:#b91c1c">*</span></div>
+            <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;margin-bottom:8px;cursor:pointer"><input type="radio" name="mvRueck" value="GLEICH" checked onchange="mvRueckChanged()" style="margin-top:2px"> <span>dieselben Vertragsbedingungen wie vor der Geburt</span></label>
+            <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;margin-bottom:8px;cursor:pointer"><input type="radio" name="mvRueck" value="ANDERS" onchange="mvRueckChanged()" style="margin-top:2px"> <span>geänderte Bedingungen (Pensum / Restaurant / Verfügbarkeit)</span></label>
+            <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer"><input type="radio" name="mvRueck" value="KEINE" onchange="mvRueckChanged()" style="margin-top:2px"> <span><b>keine Rückkehr</b> nach dem Mutterschaftsurlaub (Wunsch der Mitarbeiterin)</span></label>
+            <div id="mvAndersFields" style="display:none;margin-top:10px;padding:10px;background:rgba(255,255,255,0.5);border:1px solid rgba(139,139,139,0.25);border-radius:10px">
                 <div style="display:grid;grid-template-columns:120px 1fr;gap:10px">
                     <div>
                         <label style="font-size:11.5px;font-weight:700;color:#646464">Pensum %</label>
@@ -7061,6 +7066,7 @@ function _mvEnsureModal() {
                 </div>
                 <div style="font-size:11px;color:#8b8b8b;margin-top:6px">Neue Verfügbarkeitszeiten der Vereinbarung beilegen.</div>
             </div>
+            <div id="mvKeineHint" style="display:none;margin-top:10px;padding:8px 10px;background:#fce7f3;border:1px solid #f9a8d4;border-radius:8px;font-size:12px;color:#9d174d;font-weight:600">Im Brief steht dann die Kenntnisnahme: keine Wiederaufnahme der Beschäftigung nach dem Mutterschaftsurlaub.</div>
         </div>
 
         <div style="margin-top:14px">
@@ -7084,6 +7090,11 @@ function mvOpen(pregId) {
     const heute = new Date();
     document.getElementById('mvGespraech').value =
         `${heute.getFullYear()}-${String(heute.getMonth()+1).padStart(2,'0')}-${String(heute.getDate()).padStart(2,'0')}`;
+    document.getElementById('mvVerlBez').value = 0;
+    document.getElementById('mvVerlUnbez').value = 0;
+    const g = document.querySelector('input[name="mvRueck"][value="GLEICH"]');
+    if (g) g.checked = true;
+    mvRueckChanged();
     document.getElementById('mvModal').style.display = 'flex';
 }
 
@@ -7094,7 +7105,10 @@ function mvClose() {
 
 function mvRueckChanged() {
     const v = document.querySelector('input[name="mvRueck"]:checked')?.value;
-    document.getElementById('mvAndersFields').style.display = v === 'ANDERS' ? 'block' : 'none';
+    const anders = document.getElementById('mvAndersFields');
+    const hint = document.getElementById('mvKeineHint');
+    if (anders) anders.style.display = v === 'ANDERS' ? 'block' : 'none';
+    if (hint) hint.style.display = v === 'KEINE' ? 'block' : 'none';
 }
 
 async function mvCheckliste(pregId) {
@@ -7111,13 +7125,17 @@ async function mvCheckliste(pregId) {
 
 async function mvGenerate() {
     if (!_mvPregId) return;
+    const rueckkehr = document.querySelector('input[name="mvRueck"]:checked')?.value;
+    if (!rueckkehr) {
+        return alert('Bitte die Rückkehr nach der Mutterschaft wählen (dieselben Bedingungen / geändert / keine Rückkehr).');
+    }
     const dto = {
         gespraechsDatum: document.getElementById('mvGespraech').value || null,
         verlBezahlt:     +(document.getElementById('mvVerlBez').value || 0),
         verlUnbezahlt:   +(document.getElementById('mvVerlUnbez').value || 0),
-        rueckkehr:       document.querySelector('input[name="mvRueck"]:checked')?.value || 'GLEICH',
-        pensumProzent:   document.getElementById('mvPensum').value ? +document.getElementById('mvPensum').value : null,
-        rueckkehrRestaurant: document.getElementById('mvRestaurant').value || null,
+        rueckkehr,
+        pensumProzent:   document.getElementById('mvPensum')?.value ? +document.getElementById('mvPensum').value : null,
+        rueckkehrRestaurant: document.getElementById('mvRestaurant')?.value || null,
         eingeschrieben:  document.querySelector('input[name="mvZustell"]:checked')?.value === 'E'
     };
     if (dto.rueckkehr === 'ANDERS' && !dto.pensumProzent) {
