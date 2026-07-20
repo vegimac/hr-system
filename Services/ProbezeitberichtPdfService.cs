@@ -132,15 +132,13 @@ public class ProbezeitberichtPdfService
 
                     col.Item().PaddingTop(14).LineHorizontal(0.7f).LineColor(Line);
 
-                    // 5. Zielvereinbarung — gleiche Schreibraum-Logik wie Begründung
-                    // (Luft über der Linie, unterste Zeile nicht enger).
+                    // 5. Zielvereinbarung — gleicher Zeilenabstand wie Begründung (WriteSpace).
                     col.Item().PaddingTop(12).Text("5.  Zielvereinbarung für die laufende Beurteilungsperiode")
                         .Bold().FontSize(11.5f);
                     col.Item().PaddingTop(4).Element(e => WriteField(e, "Ziel", ""));
                     col.Item().Element(e => WriteField(e, "Massnahmen", ""));
                     col.Item().Element(e => WriteField(e, "Überprüfung am", ""));
                     col.Item().Element(e => WriteField(e, "Überprüfung durch", ""));
-                    col.Item().Height(26f); // unterste Zeile: gleicher Abstand nach unten
 
                     col.Item().PaddingTop(14).LineHorizontal(0.7f).LineColor(Line);
 
@@ -211,16 +209,22 @@ public class ProbezeitberichtPdfService
     }
 
     /// <summary>
+    /// Einheitlicher Schreibzeilen-Abstand (Walter 20.07.2026):
+    /// Luft oberhalb jeder Linie — ohne Extra-Luft unter der letzten Linie
+    /// (sonst wirkt die unterste Linie zu tief).
+    /// </summary>
+    private const float HandLinePitch = 22f;
+
+    /// <summary>
     /// Handschrift-Feld wie WriteSpace: Label, dann Luft, dann Linie unten
     /// (Walter 20.07.2026 — nicht eng am Label kleben).
     /// </summary>
     private static void WriteField(IContainer c, string label, string value)
     {
-        const float handHeight = 26f;
         c.Column(col =>
         {
             col.Item().Text(label).FontSize(10f).FontColor(Soft);
-            col.Item().Height(handHeight).AlignBottom()
+            col.Item().Height(HandLinePitch).AlignBottom()
                 .Text(string.IsNullOrWhiteSpace(value) ? " " : value)
                 .FontSize(11f).Bold();
             col.Item().LineHorizontal(0.55f).LineColor(Line);
@@ -240,25 +244,18 @@ public class ProbezeitberichtPdfService
     }
 
     /// <summary>
-    /// Schreibzeilen für Handschrift: jede Zeile = Luft (Schreiben) + Linie unten.
-    /// Nach der untersten Linie dieselbe Luft wie oberhalb — sonst wirkt der
-    /// Abschluss eng (Walter 20.07.2026).
+    /// Schreibzeilen für Handschrift: jede Zeile = gleicher Abstand (HandLinePitch)
+    /// + Linie. Keine Extra-Luft nach der letzten Linie.
     /// </summary>
     private static void WriteSpace(IContainer c, int lines)
     {
-        const float handHeight = 26f; // Schreibraum oberhalb / unterhalb der Linie
         c.Column(col =>
         {
             for (var i = 0; i < lines; i++)
             {
-                col.Item().Column(slot =>
-                {
-                    slot.Item().Height(handHeight);
-                    slot.Item().LineHorizontal(0.55f).LineColor(Line);
-                });
+                col.Item().Height(HandLinePitch);
+                col.Item().LineHorizontal(0.55f).LineColor(Line);
             }
-            // Unterste Zeile: gleicher Abstand nach unten wie oben
-            col.Item().Height(handHeight);
         });
     }
 
