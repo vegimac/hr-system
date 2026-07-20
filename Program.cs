@@ -1884,6 +1884,10 @@ using (var scope = app.Services.CreateScope())
         -- Walter 10.06.2026: Altlast aus erster Version droppen (Arztzeugnisse
         -- werden über den Absenzen-Tab als KRANK erfasst, nicht doppelt hier).
         ALTER TABLE employee_pregnancy DROP COLUMN IF EXISTS arztzeugnis_vorhanden;
+        -- Walter 20.07.2026: Arztbestätigung errechneter Termin (Dokument-FK).
+        ALTER TABLE employee_pregnancy
+            ADD COLUMN IF NOT EXISTS arztbestaetigung_dokument_id INTEGER
+                REFERENCES employee_dokument(id) ON DELETE SET NULL;
         -- ISO alpha-3 (Ausweis-Kürzel BGR/MKD/…, Walter 12.07.2026) — Seed
         -- unten in C# aus der statischen Tabelle CountryIso3 (nur wo leer).
         ALTER TABLE nationality ADD COLUMN IF NOT EXISTS code3 text;

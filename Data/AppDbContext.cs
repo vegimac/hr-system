@@ -1284,9 +1284,13 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Geburtsdatum).HasColumnName("geburtsdatum").HasColumnType("date");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.ArztbestaetigungDokumentId).HasColumnName("arztbestaetigung_dokument_id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasOne(e => e.ArztbestaetigungDokument).WithMany()
+                .HasForeignKey(e => e.ArztbestaetigungDokumentId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => e.EmployeeId).HasDatabaseName("idx_pregnancy_employee");
         });
 
