@@ -6580,7 +6580,7 @@ let _abEditId = null; // null = neuer Arzt, sonst PUT auf bestehenden
 function _abEnsureModal() {
     // Altes Modal ohne Dok-/Edit-Actions nach Deploy neu aufbauen.
     const existing = document.getElementById('abModal');
-    if (existing && (!document.getElementById('abDokBlock') || !document.getElementById('abEditArztBtn'))) {
+    if (existing && (!document.getElementById('abDokBlock') || !document.getElementById('abEditArztBtn') || !document.getElementById('abPlzHint'))) {
         existing.remove();
     }
     if (document.getElementById('abModal')) return;
@@ -6621,9 +6621,13 @@ function _abEnsureModal() {
             </div>
             <div style="display:grid;grid-template-columns:2fr 80px 1fr;gap:8px;margin-top:8px">
                 <input type="text" id="abNeuStrasse" placeholder="Strasse Nr." style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
-                <input type="text" id="abNeuPlz" placeholder="PLZ" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
-                <input type="text" id="abNeuOrt" placeholder="Ort" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+                <input type="text" id="abNeuPlz" placeholder="PLZ" inputmode="numeric" maxlength="4" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white"
+                       oninput="validateZip(this);if(this.value.length===4)plzLookupGeneric(this.value,'abNeuOrt',null,null,'abPlzHint')"
+                       onblur="plzLookupGeneric(this.value,'abNeuOrt',null,null,'abPlzHint')">
+                <input type="text" id="abNeuOrt" placeholder="Ort" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white"
+                       oninput="validateCity(this)">
             </div>
+            <div id="abPlzHint" style="font-size:11.5px;margin-top:4px;min-height:16px"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
                 <input type="text" id="abNeuTelefon" placeholder="Telefon" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
                 <input type="text" id="abNeuEmail" placeholder="E-Mail" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
@@ -10157,13 +10161,15 @@ async function baKontoinhaberPlzLookup(rawPlz) {
 }
 
 // Generischer PLZ-Lookup für beliebige Field-IDs (Hauptadresse hat eigene Funktion).
+// cantonId/bfsId/hintId optional — z.B. Ärzte-Formular hat nur PLZ+Ort
+// (Walter 20.07.2026: gleiche Auswahlliste bei mehreren Orten pro PLZ).
 async function plzLookupGeneric(rawPlz, cityId, cantonId, bfsId, hintId) {
     const plz = (rawPlz ?? '').toString().trim();
     const cityEl   = document.getElementById(cityId);
-    const cantonEl = document.getElementById(cantonId);
+    const cantonEl = cantonId ? document.getElementById(cantonId) : null;
     const bfsEl    = bfsId ? document.getElementById(bfsId) : null;
-    const hint     = document.getElementById(hintId);
-    if (!cityEl || !cantonEl) return;
+    const hint     = hintId ? document.getElementById(hintId) : null;
+    if (!cityEl) return;
 
     if (!/^\d{4}$/.test(plz)) { if (hint) hint.innerHTML = ''; return; }
 
@@ -10183,8 +10189,8 @@ async function plzLookupGeneric(rawPlz, cityId, cantonId, bfsId, hintId) {
     }
     if (locs.length === 1) {
         const l = locs[0];
-        cityEl.value   = l.gemeindename;
-        cantonEl.value = l.kantonskuerzel;
+        cityEl.value = l.gemeindename;
+        if (cantonEl) cantonEl.value = l.kantonskuerzel;
         if (bfsEl) bfsEl.value = l.bfsNr ?? l.bfsNumber ?? l.bfs_number ?? '';
         if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${l.gemeindename} (${l.kantonskuerzel})</span>`;
         return;

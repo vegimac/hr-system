@@ -77,17 +77,19 @@ document.addEventListener('click', () => document.querySelectorAll('.dok-menu.sh
 let _azEditId = null;
 
 function _azEnsureModal() {
-    // Altes Modal ohne Arztbestätigungs-Block nach Deploy neu aufbauen.
+    // Altes Modal ohne Dok-/PLZ-Block nach Deploy neu aufbauen.
     const existing = document.getElementById('azModal');
-    if (existing && !document.getElementById('azDokBlock')) existing.remove();
+    if (existing && (!document.getElementById('azDokBlock') || !document.getElementById('azPlzHint'))) {
+        existing.remove();
+    }
     if (document.getElementById('azModal')) return;
     const div = document.createElement('div');
     div.id = 'azModal';
     div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
-    const fld = (id, label, ph = '') => `
+    const fld = (id, label, ph = '', extra = '') => `
         <div>
             <label style="font-size:11.5px;font-weight:700;color:#646464">${label}</label>
-            <input type="text" id="${id}" placeholder="${ph}" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
+            <input type="text" id="${id}" placeholder="${ph}" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white" ${extra}>
         </div>`;
     div.innerHTML = `
     <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:600px;width:94%;max-height:92vh;overflow-y:auto;padding:22px 24px">
@@ -110,9 +112,10 @@ function _azEnsureModal() {
         </div>
         <div style="display:grid;grid-template-columns:2fr 90px 1fr;gap:10px 12px;margin-top:10px">
             ${fld('azStrasse', 'Strasse Nr.')}
-            ${fld('azPlz', 'PLZ')}
-            ${fld('azOrt', 'Ort')}
+            ${fld('azPlz', 'PLZ', '', 'inputmode="numeric" maxlength="4" oninput="validateZip(this);if(this.value.length===4)plzLookupGeneric(this.value,\'azOrt\',null,null,\'azPlzHint\')" onblur="plzLookupGeneric(this.value,\'azOrt\',null,null,\'azPlzHint\')"')}
+            ${fld('azOrt', 'Ort', '', 'oninput="validateCity(this)"')}
         </div>
+        <div id="azPlzHint" style="font-size:11.5px;margin-top:4px;min-height:16px"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-top:10px">
             ${fld('azTelefon', 'Telefon', '+41 41 …')}
             ${fld('azEmail', 'E-Mail')}
