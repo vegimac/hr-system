@@ -86,19 +86,19 @@ public class ProbezeitberichtPdfService
                             "Wie beurteilen Sie den Zufriedenheitsgrad des/der neuen Mitarbeitenden nach den ersten 2 Monaten seit Eintritt in ihren Verantwortungsbereich?")
                         .FontSize(9.5f).FontColor(Soft);
                     col.Item().PaddingTop(8).Element(e => RatingRow(e, ratings));
-                    col.Item().PaddingTop(8).Text("Begründung:").FontSize(10f).Bold();
-                    col.Item().PaddingTop(4).Element(BlankLines);
+                    col.Item().PaddingTop(10).Text("Begründung:").FontSize(10f).Bold();
+                    col.Item().PaddingTop(6).Element(e => WriteSpace(e, 3));
 
-                    col.Item().PaddingTop(10).LineHorizontal(0.7f).LineColor(Line);
+                    col.Item().PaddingTop(12).LineHorizontal(0.7f).LineColor(Line);
 
                     // 2. Zielsetzungen
                     col.Item().PaddingTop(10).Text("2.  Wurden die Zielsetzungen für die Einführungszeit erfüllt?")
                         .Bold().FontSize(11.5f);
-                    col.Item().PaddingTop(8).Element(e => FieldLine(e, "Zielsetzung", ""));
-                    col.Item().PaddingTop(8).Element(e => CheckboxRow(e,
+                    col.Item().PaddingTop(10).Element(e => WriteField(e, "Zielsetzung", ""));
+                    col.Item().PaddingTop(10).Element(e => CheckboxRow(e,
                         new[] { "erfüllt", "teilweise erfüllt", "nicht erfüllt" }));
-                    col.Item().PaddingTop(8).Text("Begründung:").FontSize(10f).Bold();
-                    col.Item().PaddingTop(4).Element(BlankLines);
+                    col.Item().PaddingTop(10).Text("Begründung:").FontSize(10f).Bold();
+                    col.Item().PaddingTop(6).Element(e => WriteSpace(e, 3));
 
                     col.Item().PaddingTop(10).LineHorizontal(0.7f).LineColor(Line);
 
@@ -126,45 +126,48 @@ public class ProbezeitberichtPdfService
                     col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "– Quantität", ratings, indent: true));
                     col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "b)  Persönliches Verhalten", ratings));
                     col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "c)  Integration ins Team", ratings));
-                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
-                    col.Item().PaddingTop(10).Text("Bemerkungen:").FontSize(10f).Bold();
-                    col.Item().PaddingTop(4).Element(BlankLines);
+                    col.Item().PaddingTop(10).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
+                    col.Item().PaddingTop(12).Text("Bemerkungen:").FontSize(10f).Bold();
+                    col.Item().PaddingTop(6).Element(e => WriteSpace(e, 3));
 
-                    col.Item().PaddingTop(12).LineHorizontal(0.7f).LineColor(Line);
+                    col.Item().PaddingTop(14).LineHorizontal(0.7f).LineColor(Line);
 
                     // 5. Zielvereinbarung
                     col.Item().PaddingTop(12).Text("5.  Zielvereinbarung für die laufende Beurteilungsperiode")
                         .Bold().FontSize(11.5f);
-                    col.Item().PaddingTop(10).Element(e => FieldLine(e, "Ziel", ""));
-                    col.Item().PaddingTop(8).Element(e => FieldLine(e, "Massnahmen", ""));
-                    col.Item().PaddingTop(8).Element(e => FieldLine(e, "Überprüfung am", ""));
-                    col.Item().PaddingTop(8).Element(e => FieldLine(e, "Überprüfung durch", ""));
+                    col.Item().PaddingTop(12).Element(e => WriteField(e, "Ziel", ""));
+                    col.Item().PaddingTop(14).Element(e => WriteField(e, "Massnahmen", ""));
+                    col.Item().PaddingTop(14).Element(e => WriteField(e, "Überprüfung am", ""));
+                    col.Item().PaddingTop(14).Element(e => WriteField(e, "Überprüfung durch", ""));
 
-                    col.Item().PaddingTop(14).LineHorizontal(0.7f).LineColor(Line);
+                    col.Item().PaddingTop(16).LineHorizontal(0.7f).LineColor(Line);
 
-                    // 6. Gespräch
-                    col.Item().PaddingTop(12).Text("6.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
+                    // 6. Gespräch — keine Unterschriftsstriche (Walter 20.07.2026):
+                    // rechts Vor-/Nachname MA (kein «Unterschrift Mitarbeitende»).
+                    col.Item().PaddingTop(14).Text("6.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
                         .Bold().FontSize(11.5f);
-                    col.Item().PaddingTop(10).Row(r =>
+                    col.Item().PaddingTop(14).Row(r =>
                     {
-                        r.RelativeItem().Element(e => FieldLine(e, "Datum",
+                        r.RelativeItem().Element(e => SoftField(e, "Datum",
                             d.GespraechAm.HasValue ? d.GespraechAm.Value.ToString("dd.MM.yyyy") : ""));
-                        r.ConstantItem(16);
-                        r.RelativeItem().Element(e => FieldLine(e, "Ort", d.GespraechOrt ?? ""));
+                        r.ConstantItem(20);
+                        r.RelativeItem().Element(e => SoftField(e, "Ort", d.GespraechOrt ?? ""));
                     });
 
-                    col.Item().PaddingTop(36).Row(r =>
+                    var maName = $"{d.MaVorname} {d.MaNachname}".Trim();
+                    col.Item().PaddingTop(40).Row(r =>
                     {
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Width(220).LineHorizontal(0.9f).LineColor(Dark);
-                            c.Item().PaddingTop(4).Text("Unterschrift der/des Vorgesetzten").FontSize(9.5f).FontColor(Soft);
+                            c.Item().MinHeight(36);
+                            c.Item().Text("Unterschrift der/des Vorgesetzten").FontSize(9.5f).FontColor(Soft);
                         });
-                        r.ConstantItem(24);
+                        r.ConstantItem(28);
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Width(220).LineHorizontal(0.9f).LineColor(Dark);
-                            c.Item().PaddingTop(4).Text("Unterschrift der/des Mitarbeitenden").FontSize(9.5f).FontColor(Soft);
+                            c.Item().MinHeight(36).AlignBottom()
+                                .Text(maName).FontSize(12f).Bold();
+                            c.Item().PaddingTop(4).Text("Vor- und Nachname MA").FontSize(9.5f).FontColor(Soft);
                         });
                     });
                 });
@@ -203,12 +206,40 @@ public class ProbezeitberichtPdfService
         });
     }
 
-    private static void BlankLines(IContainer c)
+    /// <summary>Handschrift-Feld mit grosszügiger Zeilenhöhe (Walter 20.07.2026).</summary>
+    private static void WriteField(IContainer c, string label, string value)
+    {
+        c.Row(r =>
+        {
+            r.ConstantItem(100).AlignMiddle().Text(label).FontSize(10f).FontColor(Soft);
+            r.RelativeItem().AlignMiddle().BorderBottom(0.7f).BorderColor(Line)
+                .PaddingBottom(4).MinHeight(26)
+                .Text(value ?? "").FontSize(11f).Bold();
+        });
+    }
+
+    /// <summary>Freitext-Bereich ohne Unterschriftsstriche — nur Luft zum Schreiben.</summary>
+    private static void SoftField(IContainer c, string label, string value)
     {
         c.Column(col =>
         {
-            col.Item().PaddingTop(2).LineHorizontal(0.6f).LineColor(Line);
-            col.Item().PaddingTop(14).LineHorizontal(0.6f).LineColor(Line);
+            col.Item().Text(label).FontSize(10f).FontColor(Soft);
+            col.Item().PaddingTop(4).MinHeight(22)
+                .Text(string.IsNullOrWhiteSpace(value) ? " " : value)
+                .FontSize(12f).Bold();
+        });
+    }
+
+    /// <summary>Mehrere weite Schreibzeilen (Handschrift, nicht eng).</summary>
+    private static void WriteSpace(IContainer c, int lines)
+    {
+        c.Column(col =>
+        {
+            for (var i = 0; i < lines; i++)
+            {
+                if (i > 0) col.Item().PaddingTop(22);
+                col.Item().LineHorizontal(0.55f).LineColor(Line);
+            }
         });
     }
 
