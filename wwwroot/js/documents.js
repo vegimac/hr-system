@@ -783,15 +783,21 @@ async function dokOpenPreviewPanel(id, opts) {
     dokPreviewMakeResizable();
     // Linker Rand → reine Breiten-Resize (gegen die Verankerung rechts).
     dokPreviewMakeLeftResizable();
-    // Walter-Vorgabe 27.05.2026: Klick AUSSERHALB des Panels schliesst es —
-    // AUSSER sticky (z.B. Arztbrief: Tippen im Modal darf die Meldung nicht
-    // wegdrücken). setTimeout(0) wartet bis der initiale Öffnen-Klick durch ist.
+    // Walter-Vorgabe 27.05.2026: Klick AUSSERHALB schliesst — AUSSER sticky
+    // und AUSSER Klick in Arztbrief-/Admin-Ärzte-Modal (Tippen zum Abschreiben
+    // aus der Arztbestätigung, Walter 20.07.2026). setTimeout(0) wartet den
+    // initialen Öffnen-Klick ab.
     if (!sticky) {
         setTimeout(() => {
             const p = document.getElementById('dokPreviewPanel');
             if (!p) return;
             const handler = (e) => {
                 if (p.contains(e.target)) return;
+                // Tippen in Erfassungs-Modals darf die Meldung nicht wegdrücken.
+                const t = e.target;
+                if (t && typeof t.closest === 'function') {
+                    if (t.closest('#abModal') || t.closest('#azModal')) return;
+                }
                 dokClosePreviewPanel();
             };
             document.addEventListener('mousedown', handler, true);

@@ -77,6 +77,9 @@ document.addEventListener('click', () => document.querySelectorAll('.dok-menu.sh
 let _azEditId = null;
 
 function _azEnsureModal() {
+    // Altes Modal ohne Arztbestätigungs-Block nach Deploy neu aufbauen.
+    const existing = document.getElementById('azModal');
+    if (existing && !document.getElementById('azDokBlock')) existing.remove();
     if (document.getElementById('azModal')) return;
     const div = document.createElement('div');
     div.id = 'azModal';
@@ -91,6 +94,10 @@ function _azEnsureModal() {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
             <div id="azModalTitle" style="font-size:16px;font-weight:800;color:#3f3f3f">Arzt erfassen</div>
             <button onclick="azClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+        </div>
+        <div id="azDokBlock" style="margin-bottom:14px;padding:10px 12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:10px;font-size:12.5px;color:#3f3f3f">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:4px">Arztbestätigung (zum Abschreiben)</div>
+            <div id="azDokContent">—</div>
         </div>
         <div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:10px 12px">
             ${fld('azTitel', 'Titel', 'Dr. med.')}
@@ -124,6 +131,65 @@ function _azEnsureModal() {
     document.body.appendChild(div);
 }
 
+let _azDokEmpId = null;
+let _azDokId = null;
+
+async function azLoadDokHint() {
+    const box = document.getElementById('azDokContent');
+    if (!box) return;
+    _azDokEmpId = null;
+    _azDokId = null;
+    const empId = window.activeEmpId || window.selectedEmployeeId || null;
+    if (!empId) {
+        box.innerHTML = `<span style="color:#8b8b8b">Kein Mitarbeiter fokussiert — zuerst beim MA die Mutterschaft öffnen, dann erscheint hier die Arztbestätigung zum Abschreiben.</span>`;
+        return;
+    }
+    box.innerHTML = `<span style="color:#8b8b8b">Lade…</span>`;
+    try {
+        const r = await fetch(`/api/pregnancies?employeeId=${empId}`, { headers: ah() });
+        if (!r.ok) {
+            box.innerHTML = `<span style="color:#8b8b8b">Keine Schwangerschaft für den fokussierten MA gefunden.</span>`;
+            return;
+        }
+        const list = await r.json();
+        const p = (list || []).find(x => x.arztbestaetigungDokumentId)
+               || (list || [])[0]
+               || null;
+        if (!p) {
+            box.innerHTML = `<span style="color:#8b8b8b">Keine Schwangerschaft für den fokussierten MA gefunden.</span>`;
+            return;
+        }
+        _azDokEmpId = empId;
+        _azDokId = p.arztbestaetigungDokumentId || null;
+        const name = p.arztbestaetigungDokumentName
+            || (p.arztbestaetigungDokument && (p.arztbestaetigungDokument.bemerkung || p.arztbestaetigungDokument.filenameOriginal))
+            || (_azDokId ? ('Dokument #' + _azDokId) : null);
+        const empLabel = [p.employeeFirstName || p.firstName, p.employeeLastName || p.lastName].filter(Boolean).join(' ')
+            || `MA #${empId}`;
+        if (_azDokId) {
+            box.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${String(name || '').replace(/"/g, '&quot;')}">📄 ${name || 'Arztbestätigung'} <span style="color:#8b8b8b;font-weight:500">(${empLabel})</span></span>
+                <button type="button" onclick="azOpenDokument()" style="flex-shrink:0;background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">Anschauen</button>
+            </div>`;
+        } else {
+            box.innerHTML = `<span style="color:#8b8b8b">Bei ${empLabel} ist noch keine Arztbestätigung verknüpft — bitte bei der Schwangerschaftserfassung verbinden.</span>`;
+        }
+    } catch (e) {
+        box.innerHTML = `<span style="color:#b91c1c">Laden fehlgeschlagen: ${e.message}</span>`;
+    }
+}
+
+function azOpenDokument() {
+    if (!_azDokId || !_azDokEmpId) return;
+    if (typeof qstOpenBefreiungsDok === 'function') {
+        qstOpenBefreiungsDok(_azDokEmpId, _azDokId, { sticky: true });
+    } else if (typeof dokOpenPreviewPanel === 'function') {
+        dokOpenPreviewPanel(_azDokId, { sticky: true });
+    } else {
+        alert('Vorschau-Modul nicht geladen.');
+    }
+}
+
 function azOpenNew() {
     _azEnsureModal();
     _azEditId = null;
@@ -132,6 +198,7 @@ function azOpenNew() {
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.getElementById('azAktiv').checked = true;
     document.getElementById('azModal').style.display = 'flex';
+    azLoadDokHint();
 }
 
 function azOpenEdit(id) {
@@ -154,11 +221,13 @@ function azOpenEdit(id) {
     document.getElementById('azBemerkung').value  = a.bemerkung || '';
     document.getElementById('azAktiv').checked    = a.aktiv !== false;
     document.getElementById('azModal').style.display = 'flex';
+    azLoadDokHint();
 }
 
 function azClose() {
     const m = document.getElementById('azModal');
     if (m) m.style.display = 'none';
+    if (typeof dokClosePreviewPanel === 'function') dokClosePreviewPanel();
 }
 
 async function azSave() {
