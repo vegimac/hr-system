@@ -91,24 +91,15 @@ public class ProbezeitberichtPdfService
 
                     col.Item().Element(SectionRule);
 
-                    // 2. Zielsetzungen
-                    col.Item().PaddingTop(10).Text("2.  Wurden die Zielsetzungen für die Einführungszeit erfüllt?")
-                        .Bold().FontSize(11.5f);
-                    col.Item().PaddingTop(10).Element(e => WriteField(e, "Zielsetzung", ""));
-                    col.Item().PaddingTop(10).Element(e => CheckboxRow(e,
-                        new[] { "erfüllt", "teilweise erfüllt", "nicht erfüllt" }));
-                    col.Item().PaddingTop(10).Text("Begründung:").FontSize(10f).Bold();
+                    // 2. Erste Beurteilung (früher Punkt 4 — Punkte 2/3 entfernt, Walter 21.07.2026)
+                    col.Item().PaddingTop(10).Text("2.  Erste Beurteilung").Bold().FontSize(11.5f);
+                    col.Item().PaddingTop(10).Element(e => BeurteilungsZeile(e, "a)  Arbeitsleistung: – Qualität", ratings));
+                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "– Quantität", ratings, indent: true));
+                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "b)  Persönliches Verhalten", ratings));
+                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "c)  Integration ins Team", ratings));
+                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
+                    col.Item().PaddingTop(12).Text("Bemerkungen:").FontSize(10f).Bold();
                     col.Item().Element(e => WriteSpace(e, 3));
-
-                    col.Item().Element(SectionRule);
-
-                    // 3. Module
-                    col.Item().PaddingTop(10).Text("3.  abgeschlossene Module").Bold().FontSize(11.5f);
-                    col.Item().PaddingTop(8).Element(e => ModuleLine(e, "Sicherheitsinformationsblatt"));
-                    col.Item().PaddingTop(6).Element(e => ModuleLine(e, "Lebensmittelhygiene"));
-                    col.Item().PaddingTop(6).Element(e => ModuleLine(e, "Diskriminierung & Arbeitssicherheit"));
-                    col.Item().PaddingTop(8).Text("Die aufgeführten Module müssen zwingend abgeschlossen sein.")
-                        .FontSize(9f).Italic().FontColor(Soft);
                 });
             });
 
@@ -120,30 +111,10 @@ public class ProbezeitberichtPdfService
                 page.Footer().AlignRight().Text("2/2").FontSize(9f).FontColor(Soft);
                 page.Content().PaddingTop(10).Column(col =>
                 {
-                    // 4. Erste Beurteilung — alle Zeilen gleiche Spalten (Walter 20.07.2026)
-                    col.Item().Text("4.  Erste Beurteilung").Bold().FontSize(11.5f);
-                    col.Item().PaddingTop(10).Element(e => BeurteilungsZeile(e, "a)  Arbeitsleistung: – Qualität", ratings));
-                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "– Quantität", ratings, indent: true));
-                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "b)  Persönliches Verhalten", ratings));
-                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "c)  Integration ins Team", ratings));
-                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
-                    col.Item().PaddingTop(12).Text("Bemerkungen:").FontSize(10f).Bold();
-                    col.Item().Element(e => WriteSpace(e, 3));
-
-                    col.Item().Element(SectionRule);
-
-                    // 5. Zielvereinbarung (Walter 20.07.2026): Massnahmen 3 Zeilen,
-                    // Überprüfung am/durch nebeneinander auf einer Zeile — keine Leerzeilen unten.
-                    col.Item().PaddingTop(12).Text("5.  Zielvereinbarung für die laufende Beurteilungsperiode")
-                        .Bold().FontSize(11.5f);
-                    col.Item().PaddingTop(4).Element(e => WriteField(e, "Ziel", ""));
-                    col.Item().Element(e => WriteFieldMulti(e, "Massnahmen", 3));
-                    col.Item().Element(e => WriteFieldPair(e,
-                        "Überprüfung am", "", "Überprüfung durch", ""));
-
-                    // 6. Gespräch — keine Unterschriftsstriche (Walter 20.07.2026):
+                    // 3. Gespräch — keine Unterschriftsstriche (Walter 20.07.2026):
                     // rechts Vor-/Nachname MA (kein «Unterschrift Mitarbeitende»).
-                    col.Item().PaddingTop(14).Text("6.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
+                    // Punkte 2/3/5 (Zielsetzung, Module, Zielvereinbarung) entfernt (Walter 21.07.2026).
+                    col.Item().Text("3.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
                         .Bold().FontSize(11.5f);
                     // Ort ohne Titel-Label (Walter 20.07.2026) — nur der Ortsname.
                     col.Item().PaddingTop(14).Row(r =>
@@ -236,41 +207,6 @@ public class ProbezeitberichtPdfService
         c.PaddingTop(HandLinePitch).LineHorizontal(0.7f).LineColor(Line);
     }
 
-    /// <summary>
-    /// Handschrift-Feld: Label, dann Schreibslot mit Linie unten
-    /// (Walter 20.07.2026 — nicht eng am Label kleben).
-    /// </summary>
-    private static void WriteField(IContainer c, string label, string value)
-    {
-        c.Column(col =>
-        {
-            col.Item().Text(label).FontSize(10f).FontColor(Soft);
-            col.Item().Element(e => HandLineSlot(e, value));
-        });
-    }
-
-    /// <summary>Label + mehrere gleiche Schreibzeilen (z.B. Massnahmen-Beschreibung).</summary>
-    private static void WriteFieldMulti(IContainer c, string label, int lines)
-    {
-        c.Column(col =>
-        {
-            col.Item().Text(label).FontSize(10f).FontColor(Soft);
-            for (var i = 0; i < lines; i++)
-                col.Item().Element(e => HandLineSlot(e));
-        });
-    }
-
-    /// <summary>Zwei Felder nebeneinander auf einer Schreibzeile.</summary>
-    private static void WriteFieldPair(IContainer c, string labelL, string valueL, string labelR, string valueR)
-    {
-        c.Row(r =>
-        {
-            r.RelativeItem().Element(e => WriteField(e, labelL, valueL));
-            r.ConstantItem(18);
-            r.RelativeItem().Element(e => WriteField(e, labelR, valueR));
-        });
-    }
-
     /// <summary>Freitext-Bereich ohne Unterschriftsstriche — nur Luft zum Schreiben.</summary>
     private static void SoftField(IContainer c, string label, string value)
     {
@@ -307,15 +243,6 @@ public class ProbezeitberichtPdfService
         });
     }
 
-    private static void CheckboxRow(IContainer c, string[] labels)
-    {
-        c.Row(r =>
-        {
-            foreach (var label in labels)
-                r.RelativeItem().Element(e => CheckboxLabel(e, label));
-        });
-    }
-
     private static void CheckboxLabel(IContainer c, string label)
     {
         c.Row(r =>
@@ -323,15 +250,6 @@ public class ProbezeitberichtPdfService
             r.ConstantItem(16).AlignMiddle().Element(box =>
                 box.Width(11).Height(11).Border(1.0f).BorderColor(Dark));
             r.RelativeItem().AlignMiddle().PaddingLeft(4).Text(label).FontSize(10f);
-        });
-    }
-
-    private static void ModuleLine(IContainer c, string name)
-    {
-        c.Row(r =>
-        {
-            r.RelativeItem().AlignMiddle().Text(name).FontSize(10.5f);
-            r.ConstantItem(110).AlignMiddle().Element(e => CheckboxLabel(e, "abgeschlossen"));
         });
     }
 
