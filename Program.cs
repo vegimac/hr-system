@@ -562,7 +562,7 @@ using (var scope = app.Services.CreateScope())
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order)
         VALUES
             ('minimum_wage_violation', 'Mindestlohn unterschritten',            TRUE, NULL, NULL, 'critical', NULL,       FALSE,  1),
-            ('permit_expiring',        'Bewilligung läuft ab',                  TRUE,   60,   30, 'warning',  'critical', TRUE,   2),
+            ('permit_expiring',        'Aufenthaltsbewilligung läuft ab',       TRUE,   60,   30, 'warning',  'critical', TRUE,   2),
             ('probation_end',          'Probezeit endet',                       TRUE,   14,    7, 'info',     'warning',  TRUE,   3),
             ('contract_end',           'Befristeter Vertrag endet',             TRUE,   30,   14, 'info',     'warning',  TRUE,   4),
             ('exit_pending_active',    'Austritt erfasst, MA noch aktiv',       TRUE, NULL,   30, 'warning',  'critical', FALSE,  5),
@@ -602,6 +602,8 @@ using (var scope = app.Services.CreateScope())
             WHERE category = 'permit_missing' AND todo_priority = 100 AND warn_color = 'none';
         UPDATE dashboard_warning_config SET todo_priority = 20,  warn_color = 'red_overdue'
             WHERE category = 'permit_expiring' AND todo_priority = 100 AND warn_color = 'none';
+        UPDATE dashboard_warning_config SET label = 'Aufenthaltsbewilligung läuft ab'
+            WHERE category = 'permit_expiring' AND label = 'Bewilligung läuft ab';
         UPDATE dashboard_warning_config SET todo_priority = 30,  warn_color = 'red'
             WHERE category = 'night_work_untersuch_fehlt' AND todo_priority = 100 AND warn_color = 'none';
         UPDATE dashboard_warning_config SET todo_priority = 40,  warn_color = 'red_overdue'

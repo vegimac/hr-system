@@ -71,8 +71,8 @@ window.i18n = (function () {
 
         'dash.cat.minWageViolation': { de: 'Mindestlohn-Verstoss',  en: 'Minimum wage violation' },
         'dash.cat.minWageOk':        { de: 'Mindestlohn ok',        en: 'Minimum wage ok' },
-        'dash.cat.permitExpiring':   { de: 'Bewilligungen laufen ab', en: 'Permits expiring' },
-        'dash.cat.permitMissing':    { de: 'Bewilligung fehlt',       en: 'Permit missing' },
+        'dash.cat.permitExpiring':   { de: 'Aufenthaltsbewilligung läuft ab', en: 'Residence permit expiring' },
+        'dash.cat.permitMissing':    { de: 'Aufenthaltsbewilligung fehlt',     en: 'Residence permit missing' },
         'dash.cat.qstMissing':       { de: 'QST-Anmeldung fehlt',   en: 'Withholding tax filing missing' },
         'dash.cat.contractEnding':   { de: 'Vertrag läuft aus',     en: 'Contract ending' },
         'dash.cat.exitPendingActive':{ de: 'Austritt offen — MA noch aktiv', en: 'Exit pending — employee still active' },
@@ -111,10 +111,10 @@ window.i18n = (function () {
         'common.search':             { de: 'Suchen…',        en: 'Search…' },
 
         // ── Dashboard Alert-Titel (mit {placeholder}-Substitution) ──
-        'alert.permit.expired':           { de: 'Bewilligung {code} seit {days} Tag(en) abgelaufen',
-                                             en: 'Permit {code} expired {days} day(s) ago' },
-        'alert.permit.expires_in_days':   { de: 'Bewilligung {code} läuft ab in {days} Tagen',
-                                             en: 'Permit {code} expires in {days} days' },
+        'alert.permit.expired':           { de: 'Aufenthaltsbewilligung {code} seit {days} Tag(en) abgelaufen',
+                                             en: 'Residence permit {code} expired {days} day(s) ago' },
+        'alert.permit.expires_in_days':   { de: 'Aufenthaltsbewilligung {code} läuft ab in {days} Tagen',
+                                             en: 'Residence permit {code} expires in {days} days' },
         'alert.permitMissing':            { de: 'Aufenthaltsbewilligung fehlt',
                                              en: 'Residence permit missing' },
         'alert.probation.ends_in_days':   { de: 'Probezeit endet in {days} Tagen',

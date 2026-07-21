@@ -179,8 +179,8 @@ public class DashboardService
                 return true;
             })
             .ToList();
-        // Eine Kategorie «Bewilligung läuft ab»: Titel wechselt bei Ablauf auf
-        // «seit X Tagen abgelaufen», Warnfarbe red_overdue → rot (Walter 19.07.2026).
+        // Eine Kategorie «Aufenthaltsbewilligung läuft ab»: Titel wechselt bei
+        // Ablauf auf «seit X Tagen abgelaufen», Warnfarbe red_overdue → rot.
         foreach (var h in Enabled("permit_expiring") ? youngestPerMa : new List<EmployeePermitHistory>())
         {
             if (!maById.TryGetValue(h.EmployeeId, out var emp)) continue;
@@ -197,8 +197,8 @@ public class DashboardService
                 // Abgelaufene Warnungen laufen WEITER als «seit X Tagen abgelaufen»
                 // (Walter-Vorgabe 12.07.2026) — sie verschwinden nie von selbst.
                 Title    = days < 0
-                    ? $"Bewilligung {permitCode} seit {-days} Tag(en) abgelaufen"
-                    : $"Bewilligung {permitCode} läuft ab in {days} Tagen",
+                    ? $"Aufenthaltsbewilligung {permitCode} seit {-days} Tag(en) abgelaufen"
+                    : $"Aufenthaltsbewilligung {permitCode} läuft ab in {days} Tagen",
                 TitleKey = days < 0 ? "alert.permit.expired" : "alert.permit.expires_in_days",
                 TitleArgs = new Dictionary<string, object> { ["code"] = permitCode, ["days"] = days < 0 ? -days : days },
                 Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}",

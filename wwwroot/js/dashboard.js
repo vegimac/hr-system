@@ -78,7 +78,7 @@ let _dashActiveSeverityFilter = null;  // null = alle Stufen
 const DASH_CATEGORY_META = {
     minimum_wage_violation: { i18nKey: 'dash.cat.minWageViolation', label: 'Mindestlohn-Verletzung', icon: '⚠️', color: '#b91c1c' },
     minimum_wage_ok:        { i18nKey: 'dash.cat.minWageOk',        label: 'Mindestlohn ok',         icon: '✅', color: '#15803d' },
-    permit_expiring:        { i18nKey: 'dash.cat.permitExpiring',   label: 'Bewilligung läuft ab',   icon: '🪪', color: '#b91c1c' },
+    permit_expiring:        { i18nKey: 'dash.cat.permitExpiring',   label: 'Aufenthaltsbewilligung läuft ab', icon: '🪪', color: '#b91c1c' },
     permit_missing:         { i18nKey: 'dash.cat.permitMissing',    label: 'Bewilligung fehlt',      icon: '🪪', color: '#b91c1c' },
     probation_end:          { i18nKey: 'dash.cat.probationEnding',  label: 'Probezeit',              icon: '📋', color: '#92400e' },
     probezeit_gespraech_offen: { i18nKey: 'dash.cat.probationTalkOpen', label: 'Probezeitgespräch offen', icon: '📋', color: '#92400e' },
