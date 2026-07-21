@@ -29,7 +29,7 @@ public class KuendigungPdfService
         DateOnly LetzterArbeitstag,
         string? Grund,                // optional, sonst null
         string? UnterzeichnerName,
-        bool    Eingeschrieben = false,    // «EINSCHREIBEN» ueber der MA-Adresse
+        bool    Eingeschrieben = false,    // true = EINSCHREIBEN; false = Übergeben (Aushändigung)
         string? UnterzeichnerFunktion = null);  // z.B. «HR-Verantwortliche» (user_branch_access.FunctionTitle)
 
     /// <summary>
@@ -233,11 +233,13 @@ public class KuendigungPdfService
                     // fixer Abstandhalter schiebt den Block in die C5-Fensterzone
                     // (~4.5 cm ab Papierkante).
                     col.Item().Height(40);
-                    if (d.Eingeschrieben)
-                        col.Item().Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f).FontSize(9.5f);
+                    // Zustellung: Einschreiben ODER persönliche Übergabe
+                    // (oft am Probezeitgespräch, Walter 21.07.2026).
+                    col.Item().Text(d.Eingeschrieben ? "EINSCHREIBEN" : "PERSÖNLICHE AUSHÄNDIGUNG")
+                        .Bold().LetterSpacing(0.06f).FontSize(9.5f);
 
                     // Empfänger-Adressblock.
-                    col.Item().PaddingTop(d.Eingeschrieben ? 3 : 16).Column(c =>
+                    col.Item().PaddingTop(3).Column(c =>
                     {
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
@@ -272,24 +274,65 @@ public class KuendigungPdfService
                         "Wir wünschen Ihnen für Ihre berufliche und private Zukunft alles Gute.");
                 });
 
-                // Gruss + Unterschrift als FOOTER — am Seitenende verankert,
-                // der Brief verteilt sich damit ueber die ganze Seite
-                // (Walter 15.07.2026, gleiches Muster wie die Zeugnisse).
+                // Gruss + Unterschriften als FOOTER — am Seitenende verankert
+                // (Walter 15.07.2026). Bei persönlicher Übergabe: AG | Zeuge | MA
+                // (Walter 21.07.2026 — Zeuge der Übergabe zwischen den beiden).
                 page.Footer().Column(col =>
                 {
                     col.Item().Text("Freundliche Grüsse");
                     if (!string.IsNullOrWhiteSpace(d.FirmaName))
                         col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
 
-                    // Unterschrift (Bild des eingeloggten Users) + Klarname.
-                    if (signaturePng is { Length: > 0 })
-                        col.Item().PaddingTop(8).Height(48).AlignLeft().Image(signaturePng).FitHeight();
-                    else
-                        col.Item().PaddingTop(8).Height(40); // Freiraum zum Unterschreiben
+                    if (d.Eingeschrieben)
+                    {
+                        // Einschreiben: nur AG-Unterschrift (wie bisher).
+                        if (signaturePng is { Length: > 0 })
+                            col.Item().PaddingTop(8).Height(48).AlignLeft().Image(signaturePng).FitHeight();
+                        else
+                            col.Item().PaddingTop(8).Height(40);
 
-                    col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
-                    if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
-                        col.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
+                        col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
+                        if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
+                            col.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
+                    }
+                    else
+                    {
+                        // Persönliche Aushändigung: drei Unterschriften nebeneinander —
+                        // AG · Zeuge der Übergabe · Mitarbeiter (Empfang).
+                        col.Item().PaddingTop(10).Text("Original persönlich übergeben:").FontSize(9f).FontColor("#475569");
+                        col.Item().PaddingTop(28).Row(r =>
+                        {
+                            r.RelativeItem().Column(c =>
+                            {
+                                if (signaturePng is { Length: > 0 })
+                                    c.Item().Height(36).AlignLeft().Image(signaturePng).FitHeight();
+                                else
+                                    c.Item().Height(36);
+                                c.Item().Width(150).LineHorizontal(0.8f).LineColor(Dark);
+                                c.Item().PaddingTop(3).Text(d.UnterzeichnerName ?? "Arbeitgeber").FontSize(8.5f).FontColor("#475569");
+                                if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
+                                    c.Item().Text(d.UnterzeichnerFunktion!).FontSize(8f).FontColor("#475569");
+                            });
+                            r.ConstantItem(16);
+                            r.RelativeItem().Column(c =>
+                            {
+                                c.Item().Height(36);
+                                c.Item().Width(150).LineHorizontal(0.8f).LineColor(Dark);
+                                c.Item().PaddingTop(3).Text("Zeuge der Übergabe").FontSize(8.5f).FontColor("#475569");
+                            });
+                            r.ConstantItem(16);
+                            r.RelativeItem().Column(c =>
+                            {
+                                c.Item().Height(36);
+                                c.Item().Width(150).LineHorizontal(0.8f).LineColor(Dark);
+                                c.Item().PaddingTop(3)
+                                    .Text(string.IsNullOrWhiteSpace(d.MaName)
+                                        ? "Mitarbeiter (Empfang)"
+                                        : d.MaName!)
+                                    .FontSize(8.5f).FontColor("#475569");
+                            });
+                        });
+                    }
                 });
             });
         }).GeneratePdf();

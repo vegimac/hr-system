@@ -40,7 +40,10 @@ public class KuendigungController : ControllerBase
         public string?   Grund { get; set; }               // optional (Freitext / Auswahl)
         /// <summary>ordentlich | probezeit | fristlos — steuert die Frist-Rechnung (Walter 21.07.2026).</summary>
         public string?   GrundType { get; set; }
-        /// <summary>true = Versand per Einschreiben («EINSCHREIBEN» ueber der Adresse).</summary>
+        /// <summary>
+        /// true = Einschreiben («EINSCHREIBEN» über der Adresse);
+        /// false = persönlich übergeben (PDF: Zeuge der Übergabe zwischen AG- und MA-Unterschrift).
+        /// </summary>
         public bool      Eingeschrieben { get; set; }
     }
 

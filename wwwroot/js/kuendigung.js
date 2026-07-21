@@ -467,7 +467,9 @@ async function kuGenerate() {
         ort:               (document.getElementById('kuOrt')?.value || '').trim() || null,
         grund,
         grundType,
-        eingeschrieben:    document.getElementById('kuEingeschrieben')?.checked ?? false
+        // U = persönlich übergeben (Default, oft am Probezeitgespräch);
+        // E = Einschreiben (Walter 21.07.2026).
+        eingeschrieben:    document.querySelector('input[name="kuZustell"]:checked')?.value === 'E'
     };
     try {
         const r = await fetch(`/api/kuendigung/${id}/pdf`, {
