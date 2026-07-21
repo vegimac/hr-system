@@ -83,19 +83,19 @@ public class ProbezeitberichtPdfService
                         .FontSize(9f).FontColor(Soft);
                     col.Item().PaddingTop(6).Element(e => RatingRow(e, ratings));
                     col.Item().PaddingTop(8).Text("Begründung:").FontSize(9.5f).Bold();
-                    col.Item().Element(e => WriteSpace(e, 2));
+                    // Grosszügiger Zeilenabstand — unten ist Platz (Walter 21.07.2026).
+                    col.Item().Element(e => WriteSpace(e, 3));
 
                     col.Item().Element(SectionRule);
 
-                    // 2. Erste Beurteilung (früher Punkt 4 — Punkte 2/3/5 entfernt, Walter 21.07.2026)
+                    // 2. Erste Beurteilung — Arbeitsleistung ohne Qualität/Quantität (Walter 21.07.2026)
                     col.Item().PaddingTop(8).Text("2.  Erste Beurteilung").Bold().FontSize(11f);
-                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "a)  Arbeitsleistung: – Qualität", ratings));
-                    col.Item().PaddingTop(6).Element(e => BeurteilungsZeile(e, "– Quantität", ratings, indent: true));
+                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "a)  Arbeitsleistung", ratings));
                     col.Item().PaddingTop(6).Element(e => BeurteilungsZeile(e, "b)  Persönliches Verhalten", ratings));
                     col.Item().PaddingTop(6).Element(e => BeurteilungsZeile(e, "c)  Integration ins Team", ratings));
                     col.Item().PaddingTop(6).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
                     col.Item().PaddingTop(8).Text("Bemerkungen:").FontSize(9.5f).Bold();
-                    col.Item().Element(e => WriteSpace(e, 2));
+                    col.Item().Element(e => WriteSpace(e, 3));
 
                     col.Item().Element(SectionRule);
 
@@ -103,30 +103,35 @@ public class ProbezeitberichtPdfService
                     // rechts Vor-/Nachname MA (kein «Unterschrift Mitarbeitende»).
                     col.Item().PaddingTop(8).Text("3.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
                         .Bold().FontSize(11f);
-                    // Ort ohne Titel-Label (Walter 20.07.2026) — nur der Ortsname.
+                    // Ort links oben; Datum rechts daneben, eine Zeile tiefer (Walter 21.07.2026).
                     col.Item().PaddingTop(10).Row(r =>
                     {
-                        r.RelativeItem().PaddingTop(4).MinHeight(20)
+                        r.RelativeItem().PaddingTop(4)
                             .Text(string.IsNullOrWhiteSpace(d.GespraechOrt) ? " " : d.GespraechOrt)
                             .FontSize(11.5f).Bold();
                         r.ConstantItem(20);
-                        r.RelativeItem().Element(e => SoftField(e, "Datum",
+                        r.RelativeItem().PaddingTop(18).Element(e => SoftField(e, "Datum",
                             d.GespraechAm.HasValue ? d.GespraechAm.Value.ToString("dd.MM.yyyy") : ""));
                     });
 
+                    // Unterschrift + MA-Name auf gleicher Höhe (Walter 21.07.2026).
                     var maName = $"{d.MaVorname} {d.MaNachname}".Trim();
-                    col.Item().PaddingTop(22).Row(r =>
+                    col.Item().PaddingTop(28).Row(r =>
                     {
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().MinHeight(28);
-                            c.Item().Text("Unterschrift der/des Vorgesetzten").FontSize(9f).FontColor(Soft);
+                            c.Item().Height(22).AlignBottom()
+                                .Text(" ").FontSize(11.5f);
+                            c.Item().PaddingTop(4)
+                                .Text("Unterschrift der/des Vorgesetzten").FontSize(9f).FontColor(Soft);
                         });
                         r.ConstantItem(28);
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().MinHeight(28).AlignBottom()
+                            c.Item().Height(22).AlignBottom()
                                 .Text(maName).FontSize(11.5f).Bold();
+                            c.Item().PaddingTop(4)
+                                .Text(" ").FontSize(9f); // gleiche Zeilenhöhe wie Label links
                         });
                     });
                 });
@@ -158,7 +163,8 @@ public class ProbezeitberichtPdfService
     /// Einheitlicher Schreibzeilen-Abstand (Walter 20.07.2026):
     /// Jede Zeile = genau HandLinePitch Schreibraum mit Linie am unteren Rand.
     /// </summary>
-    private const float HandLinePitch = 20f;
+    // Begründung/Bemerkungen: grosszügiger Abstand (Walter 21.07.2026).
+    private const float HandLinePitch = 28f;
 
     /// <summary>
     /// Eine Schreibzeile: fester Slot (HandLinePitch) mit Linie unten —
@@ -230,12 +236,12 @@ public class ProbezeitberichtPdfService
     /// Beurteilungszeile: feste Label-Spalte + Rating-Spalten (nie mit einrücken),
     /// damit «sehr gut / gut / …» in allen Zeilen vertikal fluchten.
     /// </summary>
-    private static void BeurteilungsZeile(IContainer c, string title, string[] ratings, bool indent = false)
+    private static void BeurteilungsZeile(IContainer c, string title, string[] ratings)
     {
         const float labelW = 200f;
         c.Row(r =>
         {
-            r.ConstantItem(labelW).AlignMiddle().PaddingLeft(indent ? 14 : 0)
+            r.ConstantItem(labelW).AlignMiddle()
                 .Text(title).FontSize(10f).Bold();
             r.RelativeItem().AlignMiddle().Element(e => RatingRow(e, ratings));
         });
