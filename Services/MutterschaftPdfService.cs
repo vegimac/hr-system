@@ -410,18 +410,17 @@ public class MutterschaftPdfService
 
                 page.Footer().Column(col =>
                 {
-                    col.Item().Row(r =>
+                    // Kein Unterschrifts-Strich (Walter 21.07.2026).
+                    col.Item().PaddingTop(28).Row(r =>
                     {
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text("Ort und Datum").FontSize(9f);
+                            c.Item().Text("Ort und Datum").FontSize(9f);
                         });
                         r.ConstantItem(40);
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Width(220).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text("Unterschrift und Stempel Ärztin / Arzt").FontSize(9f);
+                            c.Item().Text("Unterschrift und Stempel Ärztin / Arzt").FontSize(9f);
                         });
                     });
                     col.Item().PaddingTop(6).Text("Der Entscheid geht an die untersuchte Frau und deren Arbeitgeber.")
@@ -636,19 +635,15 @@ public class MutterschaftPdfService
                     col.Item().PaddingTop(6).Text("Bemerkungen:").Bold().FontSize(10f);
                 });
 
-                // Unterschriften: Arbeitgeber (Name der Geschäftsführerin) LINKS,
-                // Mitarbeiterin RECHTS — Walter-Vorgabe 16.07.2026, gilt für
-                // JEDES Formular mit zwei Unterschriften.
+                // Unterschriften: Arbeitgeber LINKS, Mitarbeiterin RECHTS —
+                // ohne Strich (Walter 21.07.2026).
                 page.Footer().Column(col =>
                 {
-                    col.Item().Row(r =>
+                    col.Item().PaddingTop(28).Row(r =>
                     {
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            // Wie beim Arbeitsvertrag: Name + Funktion der
-                            // Unterschriftsberechtigten (Walter 16.07.2026).
-                            c.Item().PaddingTop(3).Text(string.IsNullOrWhiteSpace(d.UnterzeichnerName)
+                            c.Item().Text(string.IsNullOrWhiteSpace(d.UnterzeichnerName)
                                 ? "Arbeitgeber"
                                 : d.UnterzeichnerName!).FontSize(9f);
                             if (!string.IsNullOrWhiteSpace(d.UnterzeichnerTitel))
@@ -657,8 +652,7 @@ public class MutterschaftPdfService
                         r.ConstantItem(40);
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text($"{d.MaVorname} {d.MaName}").FontSize(9f);
+                            c.Item().Text($"{d.MaVorname} {d.MaName}").FontSize(9f);
                         });
                     });
                 });

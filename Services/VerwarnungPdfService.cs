@@ -117,19 +117,19 @@ public class VerwarnungPdfService
                     });
 
                     // Unterschriften: Arbeitgeber-Seite LINKS, Mitarbeiter RECHTS
-                    // (Walter-Vorgabe 16.07.2026, gilt fuer jedes 2-Unterschriften-Formular).
-                    col.Item().PaddingTop(46).Row(r =>
+                    // (Walter-Vorgabe 16.07.2026). Kein Strich (Walter 21.07.2026).
+                    col.Item().PaddingTop(56).Row(r =>
                     {
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text("Schichtführer / Vorgesetzter").FontSize(10f);
+                            c.Item().Height(36);
+                            c.Item().Text("Schichtführer / Vorgesetzter").FontSize(10f);
                         });
                         r.ConstantItem(40);
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                            c.Item().PaddingTop(3).Text("Mitarbeiter").FontSize(10f);
+                            c.Item().Height(36);
+                            c.Item().Text("Mitarbeiter").FontSize(10f);
                         });
                     });
 

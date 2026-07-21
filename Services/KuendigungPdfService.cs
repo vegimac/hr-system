@@ -179,18 +179,16 @@ public class KuendigungPdfService
                     if (!d.NichtigSchwangerschaft)
                     {
                         col.Item().PaddingTop(18).Text("Mit dem Rückzug der Kündigung einverstanden:").FontSize(9f).FontColor("#475569");
-                        col.Item().PaddingTop(16).Row(r =>
+                        col.Item().PaddingTop(36).Row(r =>
                         {
                             r.RelativeItem().Column(c =>
                             {
-                                c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                                c.Item().PaddingTop(3).Text("Ort und Datum").FontSize(8.5f).FontColor("#475569");
+                                c.Item().Text("Ort und Datum").FontSize(8.5f).FontColor("#475569");
                             });
                             r.ConstantItem(40);
                             r.RelativeItem().Column(c =>
                             {
-                                c.Item().Width(190).LineHorizontal(0.8f).LineColor(Dark);
-                                c.Item().PaddingTop(3).Text($"Unterschrift {d.MaName}").FontSize(8.5f).FontColor("#475569");
+                                c.Item().Text($"Unterschrift {d.MaName}").FontSize(8.5f).FontColor("#475569");
                             });
                         });
                     }
@@ -284,16 +282,16 @@ public class KuendigungPdfService
 
                         col.Item().PaddingTop(10).Text("Original persönlich übergeben:")
                             .FontSize(9f).FontColor("#475569");
-                        col.Item().PaddingTop(22).Row(r =>
+                        // Kein Unterschrifts-Strich (Walter 21.07.2026) — nur Freiraum + Label.
+                        col.Item().PaddingTop(28).Row(r =>
                         {
                             r.RelativeItem().Column(c =>
                             {
                                 if (signaturePng is { Length: > 0 })
-                                    c.Item().Height(32).AlignLeft().Image(signaturePng).FitHeight();
+                                    c.Item().Height(44).AlignLeft().Image(signaturePng).FitHeight();
                                 else
-                                    c.Item().Height(32);
-                                c.Item().LineHorizontal(0.8f).LineColor(Dark);
-                                c.Item().PaddingTop(3)
+                                    c.Item().Height(44);
+                                c.Item().PaddingTop(6)
                                     .Text(d.UnterzeichnerName ?? "Arbeitgeber")
                                     .FontSize(8.5f).FontColor("#475569");
                                 if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
@@ -302,17 +300,15 @@ public class KuendigungPdfService
                             r.ConstantItem(12);
                             r.RelativeItem().Column(c =>
                             {
-                                c.Item().Height(32);
-                                c.Item().LineHorizontal(0.8f).LineColor(Dark);
-                                c.Item().PaddingTop(3).Text("Zeuge der Übergabe")
+                                c.Item().Height(44);
+                                c.Item().PaddingTop(6).Text("Zeuge der Übergabe")
                                     .FontSize(8.5f).FontColor("#475569");
                             });
                             r.ConstantItem(12);
                             r.RelativeItem().Column(c =>
                             {
-                                c.Item().Height(32);
-                                c.Item().LineHorizontal(0.8f).LineColor(Dark);
-                                c.Item().PaddingTop(3)
+                                c.Item().Height(44);
+                                c.Item().PaddingTop(6)
                                     .Text(string.IsNullOrWhiteSpace(d.MaName)
                                         ? "Mitarbeiter (Empfang)"
                                         : d.MaName!)
