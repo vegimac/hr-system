@@ -1359,12 +1359,18 @@ function loadUebersichtTab() {
     // Probezeitgespräch nur solange die Probezeit läuft (Walter 21.07.2026).
     const pzAktiv = !!(emp.probationEndDate &&
         new Date(String(emp.probationEndDate).slice(0, 10)) >= new Date(new Date().toDateString()));
+    // Erledigt nur mit Gesprächsdatum UND Protokoll-Verknüpfung
+    // (Walter 21.07.2026). Kein Direkt-Upload hier — Scan erst nach
+    // Hand-Unterschrift, Verknüpfung im Probezeit-Modal (Restaurant Admin).
     const pz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
     const pzStatus = !pzAktiv
         ? null
         : pz1Ok
             ? `<span style="color:#166534;font-weight:650">✓ erledigt</span>`
-            : `<span style="color:#9f1239;font-weight:650">offen</span>`;
+            : `<span style="color:#9f1239;font-weight:650">offen</span>
+               <button type="button" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
+                 title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen"
+                 style="margin-left:8px;background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700">→ eintragen</button>`;
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}

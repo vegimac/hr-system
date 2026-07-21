@@ -578,7 +578,8 @@ using (var scope = app.Services.CreateScope())
             ('night_work_exam_mismatch','Nachtarbeit-Enddatum in easy@work falsch', TRUE, NULL, NULL, 'critical', NULL,   FALSE, 15),
             ('availability_missing',   'Verfügbarkeit fehlt',                    TRUE, NULL, NULL, 'warning',  NULL,       FALSE, 16),
             ('permit_missing',         'Aufenthaltsbewilligung fehlt',           TRUE, NULL, NULL, 'critical', NULL,       FALSE, 17),
-            ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt',              TRUE, NULL, NULL, 'critical', NULL,       FALSE, 18)
+            ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt',              TRUE, NULL, NULL, 'critical', NULL,       FALSE, 18),
+            ('probezeit_gespraech_offen',  'Probezeitgespräch offen',            TRUE, NULL,   14, 'warning',  'critical', TRUE,  19)
         ON CONFLICT (category) DO NOTHING;
     ");
     // Priorität + Warnfarbe (Walter 19.07.2026) — editierbar in System → Warnungen.
@@ -592,7 +593,8 @@ using (var scope = app.Services.CreateScope())
         INSERT INTO dashboard_warning_config
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
         VALUES
-            ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt', TRUE, NULL, NULL, 'critical', NULL, FALSE, 18, 30, 'red')
+            ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt', TRUE, NULL, NULL, 'critical', NULL, FALSE, 18, 30, 'red'),
+            ('probezeit_gespraech_offen', 'Probezeitgespräch offen', TRUE, NULL, 14, 'warning', 'critical', TRUE, 19, 45, 'none')
         ON CONFLICT (category) DO NOTHING;
         UPDATE dashboard_warning_config SET todo_priority = 10,  warn_color = 'red'
             WHERE category = 'permit_missing' AND todo_priority = 100 AND warn_color = 'none';

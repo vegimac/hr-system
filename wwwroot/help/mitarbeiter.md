@@ -40,7 +40,7 @@ Der Button steht allen HR-/GF-Rollen zur Verfügung (GF sieht nur seine Filialen
 Stammdaten auf einen Blick in Karten:
 
 - **Personalien & Adresse** — Strasse, PLZ, Ort, Kanton, Telefon 2, AHV, Briefanrede, Kurzname, Sex, Konfession, Zivilstand, Ledigname, Nationalität, ZEMIS (Nicht-CH). Editierbare Felder speichern direkt in der Karte.
-- **Anstellung** — Eintritt, Austritt, L-GAV, Kündigung am/per, &lt; 8 h/Wo., sowie **Probezeit bis** und **Probezeitgespräch**-Status (offen / erledigt).
+- **Anstellung** — Eintritt, Austritt, L-GAV, Kündigung am/per, &lt; 8 h/Wo., sowie **Probezeit bis** und **Probezeitgespräch**-Status (offen / erledigt). Bei «offen» öffnet **→ eintragen** das Probezeit-Modal — kein Direkt-Upload in der Karte (Protokoll erst nach Hand-Unterschrift scannen).
 - **Nachtarbeit** — Pflicht-Badge, Nächte-Zähler, Arztzeugnis / Ausnahme-Regelung verknüpfen, Formulare drucken.
 - **Verträge** — kompakte Liste mit Lohn/Pensum; darunter **Saldi** der aktuellen Periode.
 - **Weitere Adressen** — falls vorhanden, unten in der Personalien-Karte.
@@ -73,10 +73,10 @@ Icon-Kacheln für den Filial-Alltag (GF, HR und Admin). Hier liegen die Aktionen
 
 #### Probezeit — Ablauf
 
-1. Kachel **Probezeit** öffnen.
+1. Kachel **Probezeit** öffnen (oder in der Anstellung bei «offen» → **eintragen**).
 2. **Probezeit Gespräch** generieren/drucken → Gespräch führen → unterschriebenes Protokoll scannen und als Dokument (Typ Probezeitgespräch) ablegen.
-3. Im Modal: Datum setzen und das Protokoll verknüpfen.
-4. In der Übersicht siehst du danach den Status unter **Probezeitgespräch**.
+3. Im Modal: **Gesprächsdatum** setzen und das Protokoll **verknüpfen** (beides nötig).
+4. Erst dann: Status **erledigt** in der Anstellung, und das Todo «Probezeitgespräch offen» verschwindet.
 5. Bei Bedarf: **Kündigung während Probezeit** direkt aus dem Modal.
 
 ### Stempelzeiten

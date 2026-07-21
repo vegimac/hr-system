@@ -81,6 +81,7 @@ const DASH_CATEGORY_META = {
     permit_expiring:        { i18nKey: 'dash.cat.permitExpiring',   label: 'Bewilligung läuft ab',   icon: '🪪', color: '#b91c1c' },
     permit_missing:         { i18nKey: 'dash.cat.permitMissing',    label: 'Bewilligung fehlt',      icon: '🪪', color: '#b91c1c' },
     probation_end:          { i18nKey: 'dash.cat.probationEnding',  label: 'Probezeit',              icon: '📋', color: '#92400e' },
+    probezeit_gespraech_offen: { i18nKey: 'dash.cat.probationTalkOpen', label: 'Probezeitgespräch offen', icon: '📋', color: '#92400e' },
     contract_end:           { i18nKey: 'dash.cat.contractEnding',   label: 'Vertragsende',           icon: '📅', color: '#92400e' },
     exit_pending_active:    { i18nKey: 'dash.cat.exitPendingActive',label: 'Austritt offen',         icon: '🚪', color: '#b91c1c' },
     qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },
@@ -361,6 +362,8 @@ function renderDashTodoRow(a) {
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
+                                : a.category === 'probezeit_gespraech_offen'
+                                ? `onclick="dashOpenEmployeeProbezeit(${a.employeeId})"`
                                 : a.category === 'availability_missing'
                                 ? `onclick="dashOpenEmployeeVerfuegbarkeit(${a.employeeId})"`
                                 : (a.category === 'exit_pending_active'
@@ -369,7 +372,8 @@ function renderDashTodoRow(a) {
                                    || a.category === 'night_work_untersuch_fehlt'
                                    || a.category === 'night_work_exam_fehlt'
                                    || a.category === 'night_work_exam_expiring'
-                                   || a.category === 'night_work_exam_mismatch')
+                                   || a.category === 'night_work_exam_mismatch'
+                                   || a.category === 'probation_end')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
@@ -609,6 +613,8 @@ function renderDashAlertRow(a) {
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
+                                : a.category === 'probezeit_gespraech_offen'
+                                ? `onclick="dashOpenEmployeeProbezeit(${a.employeeId})"`
                                 : a.category === 'availability_missing'
                                 ? `onclick="dashOpenEmployeeVerfuegbarkeit(${a.employeeId})"`
                                 : (a.category === 'exit_pending_active'
@@ -617,7 +623,8 @@ function renderDashAlertRow(a) {
                                    || a.category === 'night_work_untersuch_fehlt'
                                    || a.category === 'night_work_exam_fehlt'
                                    || a.category === 'night_work_exam_expiring'
-                                   || a.category === 'night_work_exam_mismatch')
+                                   || a.category === 'night_work_exam_mismatch'
+                                   || a.category === 'probation_end')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
@@ -673,6 +680,22 @@ function dashOpenEmployeeVerfuegbarkeit(employeeId) { dashOpenEmployee(employeeI
 // Walter-Vorgabe 12.07.2026 / 17.07.2026: Verträge stehen in der Übersicht
 // (Block «Verträge»). Sprung in die MA-Maske statt auf page-vertraege.
 function dashOpenEmployeeVertrag(employeeId) { dashOpenEmployee(employeeId, 'uebersicht'); }
+
+// Probezeitgespräch offen → Restaurant Admin + Probezeit-Modal
+// (Datum + Protokoll verknüpfen; kein Direkt-Upload, Walter 21.07.2026).
+function dashOpenEmployeeProbezeit(employeeId) {
+    if (!employeeId) return;
+    window.activeEmpId = employeeId;
+    try { activeEmpTab = 'verwarnungen'; } catch (_) {}
+    showPage('mitarbeiter');
+    setTimeout(async () => {
+        try {
+            if (typeof selectEmployee === 'function') await selectEmployee(employeeId);
+            if (typeof switchEmpTab === 'function') switchEmpTab('verwarnungen');
+            if (typeof openProbezeitModal === 'function') openProbezeitModal(employeeId);
+        } catch (_) {}
+    }, 400);
+}
 
 function dashOpenLohnlauf() { showPage('lohnlauf'); }
 

@@ -296,6 +296,58 @@ public class DashboardService
             });
         }
 
+        // ── 2b) Probezeitgespräch offen (Walter 21.07.2026) ────────────────
+        // Während laufender Probezeit: Todo bleibt, bis Gesprächsdatum UND
+        // Protokoll-Verknüpfung gesetzt sind. Kein Direkt-Upload in der
+        // Anstellung — Scan erst nach Hand-Unterschrift, dann im Probezeit-Modal.
+        if (Enabled("probezeit_gespraech_offen"))
+        {
+            var pzGespQ = _db.Employments
+                .Include(em => em.Employee)
+                .Where(em => em.IsActive
+                          && em.ProbationEndDate.HasValue
+                          && em.ProbationEndDate >= now
+                          && em.Employee != null
+                          && em.Employee.IsActive
+                          && !em.Employee.EmployeeNumber.ToLower().EndsWith("alt")
+                          && (em.Employee.ProbezeitGespraech1Am == null
+                              || em.Employee.ProbezeitGespraech1DokumentId == null));
+            if (companyProfileId.HasValue)
+                pzGespQ = pzGespQ.Where(em => em.CompanyProfileId == companyProfileId.Value);
+            var pzGespList = await pzGespQ.ToListAsync();
+            foreach (var em in pzGespList
+                .GroupBy(e => e.EmployeeId)
+                .Select(g => g.OrderBy(x => x.ProbationEndDate).First()))
+            {
+                var dueDate = em.ProbationEndDate!.Value;
+                var days = (dueDate.Date - now).Days;
+                var fehltDatum = em.Employee!.ProbezeitGespraech1Am == null;
+                var fehltDok = !em.Employee.ProbezeitGespraech1DokumentId.HasValue;
+                var fehltTxt = fehltDatum && fehltDok ? "Gesprächsdatum + Protokoll"
+                    : fehltDatum ? "Gesprächsdatum"
+                    : "Protokoll";
+                var name = $"{em.Employee.FirstName} {em.Employee.LastName}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "probezeit_gespraech_offen",
+                    Severity = Severity("probezeit_gespraech_offen", days, "warning", "critical"),
+                    Title    = "Probezeitgespräch offen",
+                    TitleKey = "alert.probation.gespraech_offen",
+                    Subtitle = $"{name} · fehlt: {fehltTxt}",
+                    SubtitleKey  = "alert.probation.gespraech_fehlt",
+                    SubtitleArgs = new Dictionary<string, object> {
+                        ["name"] = name,
+                        ["fehlt"] = fehltTxt
+                    },
+                    DueDate  = dueDate,
+                    DaysUntil = days,
+                    EmployeeId     = em.EmployeeId,
+                    EmployeeNumber = em.Employee.EmployeeNumber,
+                    EmployeeName   = name
+                });
+            }
+        }
+
         // ── 3) Befristete Verträge enden in 30 Tagen ──────────────────────
         // Walter-Vorgabe 12.07.2026: die Warnung läuft nach dem Ablauf WEITER
         // («seit X Tagen abgelaufen») — ein aktiver MA ohne laufenden Vertrag
