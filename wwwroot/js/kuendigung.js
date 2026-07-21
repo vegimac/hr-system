@@ -471,19 +471,12 @@ async function kuAbbrechen() {
     if (typeof showPage === 'function') showPage(ret.page || 'hr-hub');
 }
 
-async function kuGenerate() {
-    const id = +(document.getElementById('kuEmpSelect')?.value || 0);
-    if (!id) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }
-    // Sperrfrist: warnen, aber die Erstellung bleibt HR-Entscheid (nicht hart sperren).
-    if (_kuInfo?.sperrfrist?.blocked &&
-        !confirm('Achtung: Für diesen MA läuft eine Sperrfrist (Kündigung wäre evtl. nichtig). Trotzdem ein Schreiben erstellen?')) return;
-
+function _kuFormBody() {
     const grundType = document.getElementById('kuGrundType')?.value || 'ordentlich';
     const grundText = (document.getElementById('kuGrundText')?.value || '').trim();
     const grundMap = { ordentlich: '', probezeit: 'Kündigung während der Probezeit', fristlos: 'Fristlose Kündigung' };
     const grund = [grundMap[grundType], grundText].filter(Boolean).join(' — ') || null;
-
-    const body = {
+    return {
         kuendigungsDatum:  document.getElementById('kuDatum')?.value || null,
         letzterArbeitstag: document.getElementById('kuLetzter')?.value || null,
         ort:               (document.getElementById('kuOrt')?.value || '').trim() || null,
@@ -493,6 +486,50 @@ async function kuGenerate() {
         // E = Einschreiben (Walter 21.07.2026).
         eingeschrieben:    document.querySelector('input[name="kuZustell"]:checked')?.value === 'E'
     };
+}
+
+/// Schreibt «Gekündigt am» / «Kündigung per» am MA — bewusst getrennt vom PDF
+/// (Walter 21.07.2026).
+async function kuEintragen() {
+    const id = +(document.getElementById('kuEmpSelect')?.value || 0);
+    if (!id) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }
+    const body = _kuFormBody();
+    const am = body.kuendigungsDatum
+        ? body.kuendigungsDatum.slice(8, 10) + '.' + body.kuendigungsDatum.slice(5, 7) + '.' + body.kuendigungsDatum.slice(0, 4)
+        : '–';
+    const per = body.letzterArbeitstag
+        ? body.letzterArbeitstag.slice(8, 10) + '.' + body.letzterArbeitstag.slice(5, 7) + '.' + body.letzterArbeitstag.slice(0, 4)
+        : '–';
+    if (!confirm(`Kündigung beim Mitarbeiter eintragen?\n\nGekündigt am: ${am}\nKündigung per: ${per}`)) return;
+    try {
+        const r = await fetch(`/api/kuendigung/${id}/eintragen`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                kuendigungsDatum: body.kuendigungsDatum,
+                letzterArbeitstag: body.letzterArbeitstag,
+                grundType: body.grundType
+            })
+        });
+        if (!r.ok) {
+            let m = `Fehler (${r.status})`;
+            try { const j = await r.json(); if (j?.message) m = j.message; } catch (_) {}
+            return alert('Eintragen fehlgeschlagen.\n' + m);
+        }
+        if (typeof selectEmployee === 'function' && window.activeEmpId === id)
+            await selectEmployee(id);
+        alert('Kündigung beim Mitarbeiter eingetragen.');
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}
+
+async function kuGenerate() {
+    const id = +(document.getElementById('kuEmpSelect')?.value || 0);
+    if (!id) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }
+    // Sperrfrist: warnen, aber die Erstellung bleibt HR-Entscheid (nicht hart sperren).
+    if (_kuInfo?.sperrfrist?.blocked &&
+        !confirm('Achtung: Für diesen MA läuft eine Sperrfrist (Kündigung wäre evtl. nichtig). Trotzdem ein Schreiben erstellen?')) return;
+
+    const body = _kuFormBody();
     try {
         const r = await fetch(`/api/kuendigung/${id}/pdf`, {
             method: 'POST',

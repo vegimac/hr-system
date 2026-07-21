@@ -132,22 +132,48 @@ public class KuendigungController : ControllerBase
             UnterzeichnerFunktion: signerFunktion);
 
         var bytes = _pdf.Generate(data, sigPng);
-
-        // Kündigungs-Daten am MA persistieren (Walter-Vorgabe 16.07.2026):
-        // «ausgesprochen am» + «per» werden beim Erstellen des Schreibens
-        // gesetzt (Anzeige in der Anstellungs-Zeile; ToDo 2 Wochen vor Ablauf).
-        // Das Austrittsdatum wird bewusst NICHT gesetzt — es kann früher liegen
-        // und wird beim effektiven Vertragsende erfasst.
-        var tracked = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
-        if (tracked != null)
-        {
-            // Kind=Unspecified — nie UTC in timestamp without time zone (Walter 30.06.2026).
-            tracked.KuendigungAusgesprochenAm = new DateTime(kdat.Year, kdat.Month, kdat.Day);
-            tracked.KuendigungPer             = new DateTime(letzter.Year, letzter.Month, letzter.Day);
-            await _db.SaveChangesAsync();
-        }
-
+        // PDF allein speichert nichts am MA (Walter 21.07.2026) —
+        // Eintrag «Gekündigt am / per» nur via POST …/eintragen.
         return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Kuendigung.pdf");
+    }
+
+    public class KuendigungEintragenDto
+    {
+        public DateOnly? KuendigungsDatum { get; set; }
+        public DateOnly? LetzterArbeitstag { get; set; }
+        public string?   GrundType { get; set; }
+    }
+
+    /// <summary>
+    /// Schreibt «Gekündigt am» + «Kündigung per» am MA (Walter 21.07.2026).
+    /// Bewusst getrennt vom PDF — Schreiben erstellen ≠ in Stammdaten eintragen.
+    /// Austrittsdatum wird nicht gesetzt.
+    /// </summary>
+    [HttpPost("{empId:int}/eintragen")]
+    public async Task<IActionResult> Eintragen(int empId, [FromBody] KuendigungEintragenDto dto)
+    {
+        var tracked = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
+        if (tracked is null) return NotFound(new { error = "EMP_NOT_FOUND" });
+
+        var ctx = await LoadContextAsync(empId);
+        if (ctx is null) return NotFound(new { error = "EMP_NOT_FOUND" });
+        var (e, emp, cp) = ctx.Value;
+
+        var kdat = dto.KuendigungsDatum ?? DateOnly.FromDateTime(DateTime.Today);
+        var notice = ComputeNotice(e, emp, cp, kdat, dto.GrundType);
+        var letzter = dto.LetzterArbeitstag ?? notice.LetzterArbeitstag;
+
+        // Kind=Unspecified — nie UTC in timestamp without time zone (Walter 30.06.2026).
+        tracked.KuendigungAusgesprochenAm = new DateTime(kdat.Year, kdat.Month, kdat.Day);
+        tracked.KuendigungPer             = new DateTime(letzter.Year, letzter.Month, letzter.Day);
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            ok = true,
+            kuendigungAusgesprochenAm = kdat.ToString("yyyy-MM-dd"),
+            kuendigungPer = letzter.ToString("yyyy-MM-dd")
+        });
     }
 
     public class RueckzugPdfDto

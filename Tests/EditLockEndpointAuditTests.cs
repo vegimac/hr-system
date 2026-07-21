@@ -96,7 +96,7 @@ public class EditLockEndpointAuditTests
         ["AkontoTerminController"]         = "Akonto-Termin-Konfig — admin only",
         ["LohnlaufController"]             = "Definitivlauf-Workflow — admin only",
         ["LohnausweisController"]          = "Lohnausweis-PDF generieren — read-only",
-        ["KuendigungController"]           = "Kündigungsschreiben-PDF generieren — read-only, keine Lohndaten",
+        ["KuendigungController"]           = "Kündigungsschreiben-PDF + optionales Eintragen von Gekündigt-am/per am MA — keine Lohndaten/Lohnedit",
         ["ArbeitszeugnisController"]       = "Arbeitszeugnis-PDF generieren — read-only, keine Lohndaten",
         ["EmployeeVerwarnungController"]   = "Verwarnungs-Verlauf — Personalakte, kein Lohnbezug (Storno statt Löschen)",
         ["MutterschaftVereinbarungController"] = "Mutterschafts-Checkliste + Vereinbarung als PDF — read-only, keine Lohndaten",
