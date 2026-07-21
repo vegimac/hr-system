@@ -176,14 +176,17 @@ function _empNationalityCode(e) {
 // `predicate` liefert true für MA, die im Resultat bleiben sollen.
 // `prepare`  optional: async Initialisierung (z.B. Cache befüllen).
 const EMP_SPECIAL_FILTERS = {
-    // MA mit laufender Probezeit (Walter 21.07.2026) — probationEndDate vom
-    // aktiven Vertrag in der Listen-API; rein clientseitig.
+    // MA mit laufender Probezeit (Walter 21.07.2026).
+    // Listen-API (/api/employees) liefert probationEndDate am Employment,
+    // nicht flach am MA — gleiche Quelle wie Header-Badge «Probezeit bis».
     'in-probezeit': {
         predicate: (e) => {
-            if (!e.probationEndDate) return false;
-            const ende = String(e.probationEndDate).slice(0, 10);
             const today = new Date().toISOString().slice(0, 10);
-            return ende >= today;
+            const active = (e.employments || []).filter(c => c.isActive)
+                .sort((a, b) => String(b.contractStartDate || '')
+                    .localeCompare(String(a.contractStartDate || '')))[0] || null;
+            const ende = active?.probationEndDate || e.probationEndDate;
+            return !!(ende && String(ende).slice(0, 10) >= today);
         }
     },
     // Aktuelle Krank-/Unfall-/Mutterschafts-Absenz (heute im Zeitraum).
