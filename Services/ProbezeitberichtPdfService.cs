@@ -116,8 +116,10 @@ public class ProbezeitberichtPdfService
                         });
                     });
 
-                    // Unterschrift-Titel weiter unten — darüber Platz zum Unterschreiben
-                    // (Walter 21.07.2026). Links Vorgesetzter, rechts MA-Name.
+                    // Unterschriften wie Vertrag: Platz darüber, dann Name(+Funktion),
+                    // keine Titel/Striche (Walter 21.07.2026).
+                    // Links = Rest. Unterzeichner + Funktion, rechts = MA-Name.
+                    var unterzeichner = $"{d.ErstellerVorname} {d.ErstellerNachname}".Trim();
                     var maName = $"{d.MaVorname} {d.MaNachname}".Trim();
                     col.Item().PaddingTop(56).Column(c =>
                     {
@@ -126,16 +128,14 @@ public class ProbezeitberichtPdfService
                         {
                             r.RelativeItem().Column(colR =>
                             {
-                                colR.Item().Text("Unterschrift der/des Vorgesetzten")
-                                    .FontSize(9f).FontColor(Soft);
+                                colR.Item().Text(unterzeichner).FontSize(10f);
+                                if (!string.IsNullOrWhiteSpace(d.ErstellerFunktion))
+                                    colR.Item().Text(d.ErstellerFunktion).FontSize(9.5f).FontColor(Soft);
                             });
                             r.ConstantItem(28);
                             r.RelativeItem().Column(colR =>
                             {
-                                colR.Item().Text("Unterschrift Mitarbeiterin/Mitarbeiter")
-                                    .FontSize(9f).FontColor(Soft);
-                                colR.Item().PaddingTop(2)
-                                    .Text(maName).FontSize(9f).FontColor(Soft);
+                                colR.Item().Text(maName).FontSize(10f);
                             });
                         });
                     });
