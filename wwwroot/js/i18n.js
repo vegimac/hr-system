@@ -184,6 +184,8 @@ window.i18n = (function () {
         'ma.filter.inactive':        { de: 'Inaktive',                     en: 'Inactive' },
         'ma.filter.all':             { de: 'Alle',                         en: 'All' },
         'ma.filter.allEmployees':    { de: 'Alle Mitarbeiter (kein Spezialfilter)', en: 'All employees (no special filter)' },
+        'ma.filter.inProbation':     { de: 'In Probezeit',                 en: 'In probation' },
+        'ma.filter.inAbsence':       { de: 'Krank / Unfall / Mutterschaft (aktuell)', en: 'Sick / accident / maternity (current)' },
         'ma.filter.noBank':          { de: 'Ohne Bankverbindung',          en: 'Without bank account' },
 
         // Header über dem Detail-Panel

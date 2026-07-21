@@ -141,6 +141,7 @@ let _empIdsWithActiveBank   = null;   // MA-IDs mit aktiver Bankverbindung
 let _empIdsWithActiveQst    = null;   // MA-IDs mit aktivem QST-Tarif
 let _empIdsWithPermitHistory = null;  // MA-IDs mit MINDESTENS einem Permit-History-Eintrag
 let _empIdsWithExpiredPermit = null;  // MA-IDs mit abgelaufener massgebender Bewilligung
+let _empIdsCurrentlyAbsent  = null;   // MA-IDs mit aktueller KRANK/UNFALL/MUTT_VATER-Absenz
 
 // Hilfsfunktion: hat der MA aktuell einen gültigen Vertrag?
 // = mindestens ein Employment mit ContractStartDate <= heute und
@@ -175,6 +176,31 @@ function _empNationalityCode(e) {
 // `predicate` liefert true für MA, die im Resultat bleiben sollen.
 // `prepare`  optional: async Initialisierung (z.B. Cache befüllen).
 const EMP_SPECIAL_FILTERS = {
+    // MA mit laufender Probezeit (Walter 21.07.2026) — probationEndDate vom
+    // aktiven Vertrag in der Listen-API; rein clientseitig.
+    'in-probezeit': {
+        predicate: (e) => {
+            if (!e.probationEndDate) return false;
+            const ende = String(e.probationEndDate).slice(0, 10);
+            const today = new Date().toISOString().slice(0, 10);
+            return ende >= today;
+        }
+    },
+    // Aktuelle Krank-/Unfall-/Mutterschafts-Absenz (heute im Zeitraum).
+    // Cache bei jedem Öffnen neu laden («nur aktuelle»).
+    'in-absence': {
+        prepare: async () => {
+            try {
+                const r = await fetch('/api/absences/employee-ids-current',
+                                       { headers: ah(), cache: 'no-store' });
+                _empIdsCurrentlyAbsent = r.ok
+                    ? new Set((await r.json()).map(Number))
+                    : new Set();
+            } catch { _empIdsCurrentlyAbsent = new Set(); }
+        },
+        predicate: (e) => _empIdsCurrentlyAbsent
+            && _empIdsCurrentlyAbsent.has(Number(e.id))
+    },
     'no-bank': {
         prepare: async () => {
             if (_empIdsWithActiveBank !== null) return;

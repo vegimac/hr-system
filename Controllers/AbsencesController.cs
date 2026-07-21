@@ -64,6 +64,25 @@ public class AbsencesController : ControllerBase
         return Ok(list);
     }
 
+    /// <summary>
+    /// MA-IDs mit heute laufender Absenz KRANK / UNFALL / MUTT_VATER
+    /// (Listen-Filter «Krank / Unfall / Mutterschaft (aktuell)», Walter 21.07.2026).
+    /// </summary>
+    [HttpGet("employee-ids-current")]
+    public async Task<IActionResult> GetEmployeeIdsCurrentlyAbsent()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var types = new[] { "KRANK", "UNFALL", "MUTT_VATER" };
+        var ids = await _db.Absences.AsNoTracking()
+            .Where(a => types.Contains(a.AbsenceType)
+                        && a.DateFrom <= today
+                        && a.DateTo >= today)
+            .Select(a => a.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+        return Ok(ids);
+    }
+
     // ── POST /api/absences ────────────────────────────────────────────────
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AbsenceDto dto)
