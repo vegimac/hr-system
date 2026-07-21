@@ -3,8 +3,18 @@
 // prüft die Sperrfrist (Art. 336c OR). PDF kommt aus /api/kuendigung/{id}/pdf.
 let _kuAllEmployees = [];
 let _kuInfo = null;
+// Rücksprung nach Abbrechen (Walter 21.07.2026): von Probezeit/Restaurant Admin
+// zurück dorthin; sonst HR-Hub. Wird vor showPage('kuendigung') gesetzt.
+let _kuReturnTo = null;
+let _kuReturnPending = null;
+
+function kuSetReturnTo(opts) {
+    _kuReturnPending = opts || null;
+}
 
 async function kuendigungInit() {
+    _kuReturnTo = _kuReturnPending || { page: 'hr-hub' };
+    _kuReturnPending = null;
     const d = document.getElementById('kuDatum');
     if (d && !d.value) d.value = new Date().toISOString().slice(0, 10);
     try { _kuAllEmployees = await loadEmployeeLookup(); }
@@ -433,8 +443,9 @@ async function krGenerate() {
     } catch (e) { alert('Fehler: ' + e.message); }
 }
 
-// Abbrechen (Walter 15.07.2026): Formular zuruecksetzen + zurueck zum HR-Hub.
-function kuAbbrechen() {
+// Abbrechen (Walter 15.07.2026 / 21.07.2026): Formular zurücksetzen +
+// Rücksprung — von Probezeit → Restaurant Admin, sonst HR-Hub.
+async function kuAbbrechen() {
     const sel = document.getElementById('kuEmpSelect');
     if (sel) sel.value = '';
     const det = document.getElementById('kuDetails');
@@ -446,7 +457,18 @@ function kuAbbrechen() {
     const back = document.getElementById('kuBackRow');
     if (back) back.style.display = 'flex';
     _kuInfo = null;
-    if (typeof showPage === 'function') showPage('hr-hub');
+
+    const ret = _kuReturnTo || { page: 'hr-hub' };
+    _kuReturnTo = null;
+    if (ret.page === 'mitarbeiter' && ret.empId && typeof showPage === 'function') {
+        showPage('mitarbeiter');
+        if (typeof selectEmployee === 'function') await selectEmployee(ret.empId);
+        if (typeof switchEmpTab === 'function') switchEmpTab(ret.tab || 'verwarnungen');
+        if (ret.reopenProbezeit && typeof openProbezeitModal === 'function')
+            openProbezeitModal(ret.empId);
+        return;
+    }
+    if (typeof showPage === 'function') showPage(ret.page || 'hr-hub');
 }
 
 async function kuGenerate() {

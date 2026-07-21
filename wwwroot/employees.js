@@ -12446,6 +12446,16 @@ async function pzGenerateBericht() {
 
 async function pzOpenKuendigung(empId) {
     pzClose();
+    // Rücksprung: Restaurant Admin + Probezeit-Modal (nicht HR-Hub) —
+    // GF kommt von hier (Walter 21.07.2026).
+    if (typeof kuSetReturnTo === 'function') {
+        kuSetReturnTo({
+            page: 'mitarbeiter',
+            empId,
+            tab: 'verwarnungen',
+            reopenProbezeit: true
+        });
+    }
     if (typeof showPage === 'function') showPage('kuendigung');
     // Picker nach Init setzen (kuendigungInit läuft in showPage).
     // Grund «probezeit» VOR kuLoadInfo setzen — sonst rechnet die Frist
