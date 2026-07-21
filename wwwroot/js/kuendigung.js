@@ -84,7 +84,11 @@ async function kuLoadInfo() {
     const id = +(document.getElementById('kuEmpSelect')?.value || 0);
     if (!id) return;
     const datum = document.getElementById('kuDatum')?.value || '';
-    const url = `/api/kuendigung/${id}/info` + (datum ? `?datum=${datum}` : '');
+    const grundType = document.getElementById('kuGrundType')?.value || 'ordentlich';
+    const qs = new URLSearchParams();
+    if (datum) qs.set('datum', datum);
+    if (grundType) qs.set('grundType', grundType);
+    const url = `/api/kuendigung/${id}/info` + (qs.toString() ? `?${qs}` : '');
     try {
         const r = await fetch(url, { headers: ah() });
         if (!r.ok) { document.getElementById('kuSperr').innerHTML = ''; return; }
@@ -95,15 +99,21 @@ async function kuLoadInfo() {
         if (lt) lt.value = info.letzterArbeitstag || '';
         const ort = document.getElementById('kuOrt');
         if (ort && !ort.value) ort.value = info.company?.ort || '';
-        // Grund-Typ automatisch auf „Probezeit" stellen, wenn in Probezeit.
+        // Grund-Typ automatisch auf «Probezeit» stellen, wenn datumsbasiert in Probezeit
+        // und noch «ordentlich» gewählt — dann Frist neu laden (Walter 21.07.2026).
         const gt = document.getElementById('kuGrundType');
-        if (gt && info.inProbation && gt.value === 'ordentlich') gt.value = 'probezeit';
+        if (gt && info.inProbation && gt.value === 'ordentlich' && grundType === 'ordentlich') {
+            gt.value = 'probezeit';
+            return kuLoadInfo();
+        }
 
         const hint = document.getElementById('kuFristHint');
         if (hint) {
-            const kopf = info.inProbation
+            const kopf = (grundType === 'probezeit' || info.inProbation)
                 ? `Probezeit · Frist ${info.noticeText}`
-                : `${info.dienstjahr}. Dienstjahr · Frist ${info.noticeText}`;
+                : grundType === 'fristlos'
+                    ? `Fristlos · letzter Arbeitstag = Kündigungsdatum`
+                    : `${info.dienstjahr}. Dienstjahr · Frist ${info.noticeText}`;
             // Regel-Herkunft (Walter 15.07.2026): WARUM gilt diese Frist?
             hint.innerHTML = `${escapeHtml(kopf)}${info.noticeRule
                 ? `<br><span style="color:#8b8b8b">${escapeHtml(info.noticeRule)}</span>` : ''}`;
@@ -456,6 +466,7 @@ async function kuGenerate() {
         letzterArbeitstag: document.getElementById('kuLetzter')?.value || null,
         ort:               (document.getElementById('kuOrt')?.value || '').trim() || null,
         grund,
+        grundType,
         eingeschrieben:    document.getElementById('kuEingeschrieben')?.checked ?? false
     };
     try {

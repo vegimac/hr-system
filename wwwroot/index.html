@@ -2415,7 +2415,7 @@
                             <div style="font-size:13px;font-weight:700;color:#0f172a;margin:14px 0 8px">2. Kündigungsdetails</div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                                 <label style="font-size:12.5px;color:#334155">Kündigungsgrund
-                                    <select id="kuGrundType" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white">
+                                    <select id="kuGrundType" onchange="kuLoadInfo()" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white">
                                         <option value="ordentlich">Ordentliche Kündigung</option>
                                         <option value="probezeit">Kündigung in der Probezeit</option>
                                         <option value="fristlos">Fristlose Kündigung</option>
@@ -7081,7 +7081,7 @@
     </div>
 </div>
 
-<script src="employees.js?v=20260721a"></script>
+<script src="employees.js?v=20260721b"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -7805,7 +7805,7 @@
 <script src="js/hr-saldi-lohnlauf.js?v=20260708flex"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
-<script src="js/kuendigung.js?v=20260716h"></script>
+<script src="js/kuendigung.js?v=20260721a"></script>
 <script src="js/aerzte.js?v=20260720b"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>

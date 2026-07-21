@@ -38,19 +38,24 @@ public class KuendigungController : ControllerBase
         public DateOnly? LetzterArbeitstag { get; set; }   // optionaler Override
         public string?   Ort { get; set; }
         public string?   Grund { get; set; }               // optional (Freitext / Auswahl)
+        /// <summary>ordentlich | probezeit | fristlos — steuert die Frist-Rechnung (Walter 21.07.2026).</summary>
+        public string?   GrundType { get; set; }
         /// <summary>true = Versand per Einschreiben («EINSCHREIBEN» ueber der Adresse).</summary>
         public bool      Eingeschrieben { get; set; }
     }
 
     [HttpGet("{empId:int}/info")]
-    public async Task<IActionResult> GetInfo(int empId, [FromQuery] DateOnly? datum = null)
+    public async Task<IActionResult> GetInfo(
+        int empId,
+        [FromQuery] DateOnly? datum = null,
+        [FromQuery] string? grundType = null)
     {
         var ctx = await LoadContextAsync(empId);
         if (ctx is null) return NotFound(new { error = "EMP_NOT_FOUND" });
         var (e, emp, cp) = ctx.Value;
 
         var kdat = datum ?? DateOnly.FromDateTime(DateTime.Today);
-        var notice = ComputeNotice(e, emp, cp, kdat);
+        var notice = ComputeNotice(e, emp, cp, kdat, grundType);
         var sperr = await _sperrfrist.ComputeAsync(empId, kdat);
 
         return Ok(new
@@ -98,7 +103,7 @@ public class KuendigungController : ControllerBase
         var (e, emp, cp) = ctx.Value;
 
         var kdat   = dto.KuendigungsDatum ?? DateOnly.FromDateTime(DateTime.Today);
-        var notice = ComputeNotice(e, emp, cp, kdat);
+        var notice = ComputeNotice(e, emp, cp, kdat, dto.GrundType);
         // Letzter Arbeitstag: Override (falls HR angepasst) sonst berechnet.
         var letzter = dto.LetzterArbeitstag ?? notice.LetzterArbeitstag;
         var ort     = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
@@ -246,7 +251,14 @@ public class KuendigungController : ControllerBase
         return (e, emp, cp);
     }
 
-    private NoticeInfo ComputeNotice(Employee e, Employment? emp, CompanyProfile? cp, DateOnly kdat)
+    /// <summary>
+    /// Kündigungsfrist. <paramref name="grundType"/>:
+    /// «probezeit» → immer Tagesfrist (Filial-Einstellung, Default 3 Kalendertage —
+    /// wie Arbeitsvertrag; Walter 21.07.2026); «fristlos» → letzter Tag = Kündigungsdatum;
+    /// sonst datumsbasiert (Probezeit-Ende bzw. Monatsfrist OR Art. 335c).
+    /// </summary>
+    private NoticeInfo ComputeNotice(
+        Employee e, Employment? emp, CompanyProfile? cp, DateOnly kdat, string? grundType = null)
     {
         DateOnly? entry = e.EntryDate.HasValue ? DateOnly.FromDateTime(e.EntryDate.Value) : null;
 
@@ -258,17 +270,37 @@ public class KuendigungController : ControllerBase
             probeEnde = entry.Value.AddMonths(emp!.ProbationPeriodMonths!.Value);
 
         int dienstjahr = entry.HasValue ? ComputeDienstjahr(entry.Value, kdat) : 1;
+        var gt = (grundType ?? "").Trim().ToLowerInvariant();
 
-        if (probeEnde.HasValue && kdat <= probeEnde.Value)
+        // Fristlose Kündigung: sofort — letzter Arbeitstag = Kündigungsdatum.
+        if (gt == "fristlos")
         {
-            int days = cp?.NoticePeriodDuringProbationDays ?? 7;   // OR Art. 335b
-            string probeRule = $"Regel: waehrend der Probezeit (bis {probeEnde:dd.MM.yyyy}) "
-                + $"gilt eine Frist von {days} Tagen"
-                + (cp?.NoticePeriodDuringProbationDays != null
-                    ? " gemaess Arbeitsvertrag/Filial-Einstellung (OR Art. 335b laesst Verkuerzung zu)."
-                    : " (OR Art. 335b: 7 Tage).");
+            return new NoticeInfo(false, dienstjahr, null, 0,
+                "fristlos (sofort)", kdat,
+                "Regel: fristlose Kündigung — kein Fristlauf, letzter Arbeitstag = Kündigungsdatum.");
+        }
+
+        // Probezeit-Kündigung: immer die hinterlegte Tagesfrist (auch wenn
+        // das Probezeit-Ende-Datum schon vorbei ist — die Auswahl im UI gilt).
+        // Default 3 Kalendertage = Arbeitsvertrags-Text (ContractPdfService).
+        bool forceProbezeit = gt == "probezeit";
+        bool inProbezeitByDate = probeEnde.HasValue && kdat <= probeEnde.Value;
+        if (forceProbezeit || inProbezeitByDate)
+        {
+            int days = cp?.NoticePeriodDuringProbationDays ?? 3;
+            string probeRule = forceProbezeit && !inProbezeitByDate
+                ? $"Regel: Kündigung in der Probezeit — Frist {days} Kalendertage "
+                  + (cp?.NoticePeriodDuringProbationDays != null
+                      ? "gemäss Arbeitsvertrag/Filial-Einstellung."
+                      : "gemäss Arbeitsvertrag (Standard 3 Kalendertage).")
+                : $"Regel: während der Probezeit"
+                  + (probeEnde.HasValue ? $" (bis {probeEnde:dd.MM.yyyy})" : "")
+                  + $" gilt eine Frist von {days} Kalendertagen"
+                  + (cp?.NoticePeriodDuringProbationDays != null
+                      ? " gemäss Arbeitsvertrag/Filial-Einstellung (OR Art. 335b lässt Verkürzung zu)."
+                      : " gemäss Arbeitsvertrag (Standard 3 Kalendertage; OR Art. 335b).");
             return new NoticeInfo(true, dienstjahr, null, days,
-                $"{days} Tagen", kdat.AddDays(days), probeRule);
+                $"{days} Kalendertagen", kdat.AddDays(days), probeRule);
         }
 
         // Nach der Probezeit: Monatsfrist auf Ende eines Monats (OR Art. 335c).
@@ -281,16 +313,16 @@ public class KuendigungController : ControllerBase
         // Regel-Herkunft transparent machen (Walter 15.07.2026): WARUM diese Frist?
         string rule;
         if (dienstjahr >= 10 && cp?.NoticePeriodFromTenthYearMonths != null)
-            rule = $"Regel: ab 10. Dienstjahr {months} Monate gemaess Arbeitsvertrag/Filial-Einstellung (OR Art. 335c: 3 Monate).";
+            rule = $"Regel: ab 10. Dienstjahr {months} Monate gemäss Arbeitsvertrag/Filial-Einstellung (OR Art. 335c: 3 Monate).";
         else if (dienstjahr >= 10)
             rule = "Regel: ab 10. Dienstjahr 3 Monate (OR Art. 335c).";
         else if (cp?.NoticePeriodAfterProbationMonths != null)
-            rule = $"Regel: nach der Probezeit {months} Monat{(months == 1 ? "" : "e")} gemaess Arbeitsvertrag/Filial-Einstellung "
+            rule = $"Regel: nach der Probezeit {months} Monat{(months == 1 ? "" : "e")} gemäss Arbeitsvertrag/Filial-Einstellung "
                  + $"(gilt bis zum 9. Dienstjahr; L-GAV/OR Art. 335c).";
         else if (dienstjahr <= 1)
             rule = "Regel: im 1. Dienstjahr 1 Monat (OR Art. 335c).";
         else
-            rule = "Regel: im 2.-9. Dienstjahr 2 Monate (OR Art. 335c).";
+            rule = "Regel: im 2.–9. Dienstjahr 2 Monate (OR Art. 335c).";
         return new NoticeInfo(false, dienstjahr, months, null, txt, letzter, rule);
     }
 

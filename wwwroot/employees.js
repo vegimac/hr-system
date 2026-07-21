@@ -12417,13 +12417,15 @@ async function pzOpenKuendigung(empId) {
     pzClose();
     if (typeof showPage === 'function') showPage('kuendigung');
     // Picker nach Init setzen (kuendigungInit läuft in showPage).
+    // Grund «probezeit» VOR kuLoadInfo setzen — sonst rechnet die Frist
+    // noch als ordentlich (Walter 21.07.2026).
     const trySelect = () => {
         const sel = document.getElementById('kuEmpSelect');
         if (!sel || !sel.options.length) return false;
         sel.value = String(empId);
-        if (typeof kuOnEmpChange === 'function') kuOnEmpChange();
         const gt = document.getElementById('kuGrundType');
         if (gt) gt.value = 'probezeit';
+        if (typeof kuOnEmpChange === 'function') kuOnEmpChange();
         return true;
     };
     if (!trySelect()) {
