@@ -608,6 +608,8 @@ using (var scope = app.Services.CreateScope())
             WHERE category = 'night_work_exam_fehlt' AND todo_priority = 100 AND warn_color = 'none';
         UPDATE dashboard_warning_config SET todo_priority = 15,  warn_color = 'red'
             WHERE category = 'minimum_wage_violation' AND todo_priority = 100 AND warn_color = 'none';
+        UPDATE dashboard_warning_config SET todo_priority = 45,  warn_color = 'none'
+            WHERE category = 'probezeit_gespraech_offen' AND todo_priority = 100;
     ");
 
     // Seed: Kader-Flag + Mirus-Aliases (idempotent — UPDATE auch bei bestehenden)
