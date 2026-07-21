@@ -259,7 +259,8 @@ public class ArbeitszeugnisPdfService
         if (zw) absaetze.AddRange(new[] { zwArbeitsmittel, zwBeurteilung, zwAbschluss });
         else    absaetze.AddRange(new[] { beurteilung, austritt, dank });
 
-        float lh = 1.22f, padAbs = 12f, padDatum = 20f, padTitel = 18f, padGruss = 12f;
+        // padGruss ≈ 2 Zeilen Abstand Text → «Freundliche Grüsse» (Walter 21.07.2026).
+        float lh = 1.22f, padAbs = 12f, padDatum = 20f, padTitel = 18f, padGruss = 28f;
         float bulletPad = 2f;
         float rest = 0f;
         float[] lhOpts = { 1.3f, 1.22f, 1.14f, 1.07f };
@@ -272,7 +273,8 @@ public class ArbeitszeugnisPdfService
             foreach (var a in absaetze) est += padAbs + LinesFor(a, contentW) * lineH;
             est += 6f;                                              // Bullets-Einstieg
             foreach (var b in aufgaben) est += LinesFor(b, contentW - 28f) * lineH + bulletPad;
-            float footerH = padGruss + 56f + 5f * lineH;            // Gruss + Firma + Unterschrift
+            // Gruss + Firma + grosszuegiger Unterschriftsraum (ohne Strich).
+            float footerH = padGruss + 78f + 5f * lineH;
             if (est + footerH <= availH || tryLh == lhOpts[^1])
             {
                 lh = tryLh;
@@ -287,6 +289,7 @@ public class ArbeitszeugnisPdfService
         padDatum += extra;
         padTitel += extra;
         padGruss += extra;
+        if (padGruss < 28f) padGruss = 28f;                         // mind. ≈ 2 Zeilen
         float padIntro = padAbs;
 
         // Arbeitsbestaetigung (nur 1 Satz): grosszuegige feste Abstaende.
@@ -384,9 +387,9 @@ public class ArbeitszeugnisPdfService
                 });
 
                 // ── Gruss + Firma + Unterschrift als FOOTER (Walter 15.07.2026):
-                // sauber am Seitenende verankert, der Freiraum geht automatisch
-                // zwischen Text und Gruss auf. (Extend im Content schob den
-                // Gruss-Block faelschlich auf Seite 2 — daher Footer.)
+                // sauber am Seitenende verankert. Kein Unterschrifts-Strich mehr
+                // (Walter 21.07.2026 — «old fashion» raus); mehr Platz zum
+                // Unterschreiben; ≈ 2 Zeilen vor «Freundliche Grüsse».
                 page.Footer().Column(col =>
                 {
                     col.Item().PaddingTop(padGruss).Text("Freundliche Grüsse");
@@ -399,15 +402,14 @@ public class ArbeitszeugnisPdfService
 
                     // Unterschrift des EINGELOGGTEN Users (Konvention: nie die
                     // Unterschrift einer anderen Person — Urkundenfälschung).
-                    col.Item().PaddingTop(6).Column(c =>
+                    col.Item().PaddingTop(16).Column(c =>
                     {
                         if (d.SignaturePng is { Length: > 0 })
-                            c.Item().MaxHeight(42).AlignLeft().Image(d.SignaturePng).FitHeight();
+                            c.Item().MaxHeight(52).AlignLeft().Image(d.SignaturePng).FitHeight();
                         else
-                            c.Item().PaddingTop(26); // Platz für handschriftliche Unterschrift
+                            c.Item().Height(48); // Platz für handschriftliche Unterschrift
 
-                        c.Item().PaddingTop(2).Width(180).LineHorizontal(0.8f).LineColor(Dark);
-                        c.Item().Text(d.SignatoryName);
+                        c.Item().PaddingTop(6).Text(d.SignatoryName);
                         if (!string.IsNullOrWhiteSpace(d.SignatoryTitle))
                             c.Item().Text(d.SignatoryTitle);
                     });
