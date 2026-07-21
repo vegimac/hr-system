@@ -81,6 +81,7 @@ window.i18n = (function () {
         'dash.cat.employeeDokuFehlt':{ de: 'Ausweis Mitarbeiter',   en: 'Employee ID document' },
         'dash.cat.probationEnding':  { de: 'Probezeit endet',       en: 'Probation ending' },
         'dash.cat.probationTalkOpen':{ de: 'Probezeitgespräch offen', en: 'Probation talk open' },
+        'dash.cat.terminationEnding':{ de: 'Vertragsende Kündigung', en: 'Termination contract end' },
         'dash.cat.birthday':         { de: 'Geburtstage',           en: 'Birthdays' },
         'dash.cat.anniversary':      { de: 'Dienstjubiläen',        en: 'Service anniversaries' },
         'dash.cat.payrollOpen':      { de: 'Lohnlauf offen',        en: 'Payroll run open' },

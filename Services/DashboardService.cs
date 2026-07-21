@@ -1351,7 +1351,7 @@ public class DashboardService
         // AUSNAHME: die Karten, die GENAU vom Austritt/Vertragsende handeln —
         // die sollen ja gerade erscheinen.
         {
-            var keepCats = new HashSet<string> { "contract_end", "exit_pending_active" };
+            var keepCats = new HashSet<string> { "contract_end", "exit_pending_active", "kuendigung_ablauf" };
             var filterIds = alerts
                 .Where(a => a.EmployeeId.HasValue && !keepCats.Contains(a.Category))
                 .Select(a => a.EmployeeId!.Value).Distinct().ToList();
