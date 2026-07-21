@@ -115,18 +115,27 @@ public class ProbezeitberichtPdfService
                         });
                     });
 
-                    // Unterschrift-Label + MA Vor-/Nachname auf gleicher Höhe, Name nicht fett.
+                    // Unterschrift-Titel weiter unten — darüber Platz zum Unterschreiben
+                    // (Walter 21.07.2026). Links Vorgesetzter, rechts MA-Name.
                     var maName = $"{d.MaVorname} {d.MaNachname}".Trim();
-                    col.Item().PaddingTop(28).Column(c =>
+                    col.Item().PaddingTop(56).Column(c =>
                     {
-                        c.Item().Height(36); // Schreibraum für Unterschrift
+                        c.Item().Height(78); // Schreibraum für beide Unterschriften
                         c.Item().Row(r =>
                         {
-                            r.RelativeItem()
-                                .Text("Unterschrift der/des Vorgesetzten").FontSize(9f).FontColor(Soft);
+                            r.RelativeItem().Column(colR =>
+                            {
+                                colR.Item().Text("Unterschrift der/des Vorgesetzten")
+                                    .FontSize(9f).FontColor(Soft);
+                            });
                             r.ConstantItem(28);
-                            r.RelativeItem()
-                                .Text(maName).FontSize(9f).FontColor(Soft);
+                            r.RelativeItem().Column(colR =>
+                            {
+                                colR.Item().Text("Unterschrift Mitarbeiterin/Mitarbeiter")
+                                    .FontSize(9f).FontColor(Soft);
+                                colR.Item().PaddingTop(2)
+                                    .Text(maName).FontSize(9f).FontColor(Soft);
+                            });
                         });
                     });
                 });
