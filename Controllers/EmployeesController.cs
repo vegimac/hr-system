@@ -1006,8 +1006,8 @@ public class EmployeesController : ControllerBase
     /// optional als PDF-Vorschau via LibreOffice (Walter 20.07.2026).
     /// </summary>
     /// <summary>
-    /// Probezeitbericht / Gesprächsprotokoll als PDF (Walter 20.07.2026) —
-    /// Vorlage PZ-… (2 Seiten). MA + Ersteller vorausgefüllt; Beurteilungen
+    /// Probezeit Gespräch / Gesprächsprotokoll als PDF (Walter 20.07.2026,
+    /// 1 Seite ab 21.07.2026). MA + Ersteller vorausgefüllt; Beurteilungen
     /// und Unterschriften auf Papier. Speichert nichts.
     /// </summary>
     [HttpGet("{id:int}/probezeitbericht-pdf")]
