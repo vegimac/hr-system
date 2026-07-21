@@ -2357,8 +2357,17 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         }
         // Nachtarbeit-Belege: MA-Detail neu laden (Anzeige-Buttons im Nachtarbeit-Block).
         if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme') && typeof selectEmployee === 'function') selectEmployee(empId);
-        // Probezeitgespräch: Modal + Anstellung neu zeichnen.
+        // Probezeitgespräch: vorgeschlagene Datum übernehmen falls noch leer,
+        // dann Modal + Anstellung neu zeichnen (Walter 21.07.2026).
         if (kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2') {
+            const nr = kind === 'probezeit_gespraech2' ? 2 : 1;
+            const empNow = typeof selectedEmployee !== 'undefined' ? selectedEmployee : null;
+            const hasAm = nr === 1 ? empNow?.probezeitGespraech1Am : empNow?.probezeitGespraech2Am;
+            if (!hasAm && typeof pzSaveDate === 'function') {
+                const inp = document.getElementById('pzAm' + nr);
+                const iso = (inp && inp.value) || '';
+                if (iso) await pzSaveDate(empId, nr, iso);
+            }
             if (typeof selectEmployee === 'function') await selectEmployee(empId);
             if (typeof pzRefreshModal === 'function') pzRefreshModal();
         }
@@ -12367,7 +12376,10 @@ function pzRefreshModal() {
     const am = emp.probezeitGespraech1Am;
     const dokId = emp.probezeitGespraech1DokumentId;
     const kind = 'probezeit_gespraech1';
-    const amIso = am ? String(am).slice(0, 10) : '';
+    // Leer → heutiges Datum vorschlagen (Walter 21.07.2026); speichern erst bei Änderung.
+    const _td = new Date();
+    const todayIso = `${_td.getFullYear()}-${String(_td.getMonth() + 1).padStart(2, '0')}-${String(_td.getDate()).padStart(2, '0')}`;
+    const amIso = am ? String(am).slice(0, 10) : todayIso;
     const amTxt = am ? formatDate(am) : null;
     const ok = !!(am && dokId);
     const gespraechRow = `<div style="padding:12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:12px;margin-bottom:10px">
