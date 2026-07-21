@@ -5,8 +5,8 @@ using QuestPDF.Infrastructure;
 namespace HrSystem.Services;
 
 /// <summary>
-/// Probezeitbericht / Gesprächsprotokoll (Walter 20.07.2026) — 2-seitiges
-/// Formular nach Vorlage «PZ-… Probezeitbericht» (Schaub Restaurants GmbH).
+/// Probezeit Gespräch / Gesprächsprotokoll (Walter 20.07.2026, gekürzt 21.07.2026) —
+/// 1-seitiges Formular (Schaub Restaurants GmbH).
 /// Ablauf: generieren → ausfüllen/unterschreiben → Scan als Dokument
 /// «Probezeitgespräch» verknüpfen.
 /// </summary>
@@ -39,107 +39,94 @@ public class ProbezeitberichtPdfService
 
         return Document.Create(container =>
         {
-            // ── Seite 1 ────────────────────────────────────────────────
+            // ── Eine Seite (Walter 21.07.2026) ─────────────────────────
             container.Page(page =>
             {
                 SetupPage(page);
-                page.Header().Element(h => PageHeader(h, d));
-                page.Footer().AlignRight().Text("1/2").FontSize(9f).FontColor(Soft);
-                page.Content().PaddingTop(10).Column(col =>
+                page.Content().Column(col =>
                 {
-                    col.Item().AlignCenter().Text("Probezeitbericht")
-                        .FontSize(18f).Bold().FontColor(Dark);
+                    col.Item().AlignCenter().Text("Probezeit Gespräch")
+                        .FontSize(16f).Bold().FontColor(Dark);
                     if (d.GespraechNr is 1 or 2)
                         col.Item().AlignCenter().PaddingTop(2)
                             .Text($"{d.GespraechNr}. Gespräch")
-                            .FontSize(11f).FontColor(Soft);
+                            .FontSize(10.5f).FontColor(Soft);
 
                     // MA | Ersteller
-                    col.Item().PaddingTop(14).Row(r =>
+                    col.Item().PaddingTop(10).Row(r =>
                     {
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Text("Mitarbeiterin / Mitarbeiter").Bold().FontSize(10.5f);
-                            c.Item().PaddingTop(6).Element(e => FieldLine(e, "Name", d.MaNachname));
-                            c.Item().PaddingTop(5).Element(e => FieldLine(e, "Vorname", d.MaVorname));
-                            c.Item().PaddingTop(5).Element(e => FieldLine(e, "Abteilung", d.Abteilung ?? ""));
-                            c.Item().PaddingTop(5).Element(e => FieldLine(e, "Eintritt am",
+                            c.Item().Text("Mitarbeiterin / Mitarbeiter").Bold().FontSize(10f);
+                            c.Item().PaddingTop(4).Element(e => FieldLine(e, "Name", d.MaNachname));
+                            c.Item().PaddingTop(3).Element(e => FieldLine(e, "Vorname", d.MaVorname));
+                            c.Item().PaddingTop(3).Element(e => FieldLine(e, "Abteilung", d.Abteilung ?? ""));
+                            c.Item().PaddingTop(3).Element(e => FieldLine(e, "Eintritt am",
                                 d.Eintritt.HasValue ? d.Eintritt.Value.ToString("dd.MM.yyyy") : ""));
                         });
                         r.ConstantItem(18);
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Text("Bericht wurde erstellt von").Bold().FontSize(10.5f);
-                            c.Item().PaddingTop(6).Element(e => FieldLine(e, "Name", d.ErstellerNachname));
-                            c.Item().PaddingTop(5).Element(e => FieldLine(e, "Vorname", d.ErstellerVorname));
-                            c.Item().PaddingTop(5).Element(e => FieldLine(e, "Funktion", d.ErstellerFunktion ?? ""));
-                            c.Item().PaddingTop(5).Element(e => FieldLine(e, "Tel.", d.ErstellerTelefon ?? ""));
+                            c.Item().Text("Bericht wurde erstellt von").Bold().FontSize(10f);
+                            c.Item().PaddingTop(4).Element(e => FieldLine(e, "Name", d.ErstellerNachname));
+                            c.Item().PaddingTop(3).Element(e => FieldLine(e, "Vorname", d.ErstellerVorname));
+                            c.Item().PaddingTop(3).Element(e => FieldLine(e, "Funktion", d.ErstellerFunktion ?? ""));
+                            c.Item().PaddingTop(3).Element(e => FieldLine(e, "Tel.", d.ErstellerTelefon ?? ""));
                         });
                     });
 
-                    col.Item().PaddingTop(12).LineHorizontal(0.8f).LineColor(Line);
-
-                    // 1. Zufriedenheit
-                    col.Item().PaddingTop(10).Text("1.  Zufriedenheitsgrad des/der Mitarbeitenden")
-                        .Bold().FontSize(11.5f);
-                    col.Item().PaddingTop(4).Text(
+                    // 1. Zufriedenheit — kein Trennstrich darüber (Walter 21.07.2026)
+                    col.Item().PaddingTop(12).Text("1.  Zufriedenheitsgrad des/der Mitarbeitenden")
+                        .Bold().FontSize(11f);
+                    col.Item().PaddingTop(3).Text(
                             "Wie beurteilen Sie den Zufriedenheitsgrad des/der neuen Mitarbeitenden nach den ersten 2 Monaten seit Eintritt in ihren Verantwortungsbereich?")
-                        .FontSize(9.5f).FontColor(Soft);
-                    col.Item().PaddingTop(8).Element(e => RatingRow(e, ratings));
-                    col.Item().PaddingTop(10).Text("Begründung:").FontSize(10f).Bold();
-                    col.Item().Element(e => WriteSpace(e, 3));
+                        .FontSize(9f).FontColor(Soft);
+                    col.Item().PaddingTop(6).Element(e => RatingRow(e, ratings));
+                    col.Item().PaddingTop(8).Text("Begründung:").FontSize(9.5f).Bold();
+                    col.Item().Element(e => WriteSpace(e, 2));
 
                     col.Item().Element(SectionRule);
 
-                    // 2. Erste Beurteilung (früher Punkt 4 — Punkte 2/3 entfernt, Walter 21.07.2026)
-                    col.Item().PaddingTop(10).Text("2.  Erste Beurteilung").Bold().FontSize(11.5f);
-                    col.Item().PaddingTop(10).Element(e => BeurteilungsZeile(e, "a)  Arbeitsleistung: – Qualität", ratings));
-                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "– Quantität", ratings, indent: true));
-                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "b)  Persönliches Verhalten", ratings));
-                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "c)  Integration ins Team", ratings));
-                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
-                    col.Item().PaddingTop(12).Text("Bemerkungen:").FontSize(10f).Bold();
-                    col.Item().Element(e => WriteSpace(e, 3));
-                });
-            });
+                    // 2. Erste Beurteilung (früher Punkt 4 — Punkte 2/3/5 entfernt, Walter 21.07.2026)
+                    col.Item().PaddingTop(8).Text("2.  Erste Beurteilung").Bold().FontSize(11f);
+                    col.Item().PaddingTop(8).Element(e => BeurteilungsZeile(e, "a)  Arbeitsleistung: – Qualität", ratings));
+                    col.Item().PaddingTop(6).Element(e => BeurteilungsZeile(e, "– Quantität", ratings, indent: true));
+                    col.Item().PaddingTop(6).Element(e => BeurteilungsZeile(e, "b)  Persönliches Verhalten", ratings));
+                    col.Item().PaddingTop(6).Element(e => BeurteilungsZeile(e, "c)  Integration ins Team", ratings));
+                    col.Item().PaddingTop(6).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
+                    col.Item().PaddingTop(8).Text("Bemerkungen:").FontSize(9.5f).Bold();
+                    col.Item().Element(e => WriteSpace(e, 2));
 
-            // ── Seite 2 ────────────────────────────────────────────────
-            container.Page(page =>
-            {
-                SetupPage(page);
-                page.Header().Element(h => PageHeader(h, d));
-                page.Footer().AlignRight().Text("2/2").FontSize(9f).FontColor(Soft);
-                page.Content().PaddingTop(10).Column(col =>
-                {
+                    col.Item().Element(SectionRule);
+
                     // 3. Gespräch — keine Unterschriftsstriche (Walter 20.07.2026):
                     // rechts Vor-/Nachname MA (kein «Unterschrift Mitarbeitende»).
-                    // Punkte 2/3/5 (Zielsetzung, Module, Zielvereinbarung) entfernt (Walter 21.07.2026).
-                    col.Item().Text("3.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
-                        .Bold().FontSize(11.5f);
+                    col.Item().PaddingTop(8).Text("3.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
+                        .Bold().FontSize(11f);
                     // Ort ohne Titel-Label (Walter 20.07.2026) — nur der Ortsname.
-                    col.Item().PaddingTop(14).Row(r =>
+                    col.Item().PaddingTop(10).Row(r =>
                     {
-                        r.RelativeItem().PaddingTop(4).MinHeight(22)
+                        r.RelativeItem().PaddingTop(4).MinHeight(20)
                             .Text(string.IsNullOrWhiteSpace(d.GespraechOrt) ? " " : d.GespraechOrt)
-                            .FontSize(12f).Bold();
+                            .FontSize(11.5f).Bold();
                         r.ConstantItem(20);
                         r.RelativeItem().Element(e => SoftField(e, "Datum",
                             d.GespraechAm.HasValue ? d.GespraechAm.Value.ToString("dd.MM.yyyy") : ""));
                     });
 
                     var maName = $"{d.MaVorname} {d.MaNachname}".Trim();
-                    col.Item().PaddingTop(40).Row(r =>
+                    col.Item().PaddingTop(22).Row(r =>
                     {
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().MinHeight(36);
-                            c.Item().Text("Unterschrift der/des Vorgesetzten").FontSize(9.5f).FontColor(Soft);
+                            c.Item().MinHeight(28);
+                            c.Item().Text("Unterschrift der/des Vorgesetzten").FontSize(9f).FontColor(Soft);
                         });
                         r.ConstantItem(28);
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().MinHeight(36).AlignBottom()
-                                .Text(maName).FontSize(12f).Bold();
+                            c.Item().MinHeight(28).AlignBottom()
+                                .Text(maName).FontSize(11.5f).Bold();
                         });
                     });
                 });
@@ -150,41 +137,28 @@ public class ProbezeitberichtPdfService
     private static void SetupPage(PageDescriptor page)
     {
         page.Size(PageSizes.A4);
-        page.MarginTop(1.2f, Unit.Centimetre);
-        page.MarginBottom(1.2f, Unit.Centimetre);
-        page.MarginHorizontal(1.8f, Unit.Centimetre);
-        page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).LineHeight(1.25f).FontColor(Dark));
-    }
-
-    private static void PageHeader(IContainer c, ProbezeitberichtInput d)
-    {
-        var rest = string.IsNullOrWhiteSpace(d.RestaurantName) ? "" : $" · {d.RestaurantName}";
-        c.Column(col =>
-        {
-            col.Item().Text($"Probezeitbericht / {d.CompanyName}{rest}")
-                .FontSize(9.5f).FontColor(Soft);
-            col.Item().PaddingTop(3).LineHorizontal(0.9f).LineColor(Dark);
-        });
+        page.MarginTop(1.0f, Unit.Centimetre);
+        page.MarginBottom(1.0f, Unit.Centimetre);
+        page.MarginHorizontal(1.6f, Unit.Centimetre);
+        page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10f).LineHeight(1.2f).FontColor(Dark));
     }
 
     private static void FieldLine(IContainer c, string label, string value)
     {
         c.Row(r =>
         {
-            r.ConstantItem(88).AlignMiddle().Text(label).FontSize(10f).FontColor(Soft);
+            r.ConstantItem(88).AlignMiddle().Text(label).FontSize(9.5f).FontColor(Soft);
             r.RelativeItem().AlignMiddle().BorderBottom(0.7f).BorderColor(Line)
-                .PaddingBottom(2).MinHeight(16)
-                .Text(value ?? "").FontSize(11f).Bold();
+                .PaddingBottom(2).MinHeight(15)
+                .Text(value ?? "").FontSize(10.5f).Bold();
         });
     }
 
     /// <summary>
     /// Einheitlicher Schreibzeilen-Abstand (Walter 20.07.2026):
     /// Jede Zeile = genau HandLinePitch Schreibraum mit Linie am unteren Rand.
-    /// Der Abstand zur nächsten Linie (auch Abschnitts-Trenner danach) ist
-    /// derselbe — sonst wirkt die unterste Linie eng oder zu tief.
     /// </summary>
-    private const float HandLinePitch = 22f;
+    private const float HandLinePitch = 20f;
 
     /// <summary>
     /// Eine Schreibzeile: fester Slot (HandLinePitch) mit Linie unten —
@@ -195,12 +169,11 @@ public class ProbezeitberichtPdfService
         c.Height(HandLinePitch).AlignBottom()
             .BorderBottom(0.55f).BorderColor(Line)
             .Text(string.IsNullOrWhiteSpace(value) ? " " : value)
-            .FontSize(11f).Bold();
+            .FontSize(10.5f).Bold();
     }
 
     /// <summary>
-    /// Abschnitts-Trenner im gleichen Raster wie Schreibzeilen
-    /// (Padding = HandLinePitch → unterste Linie nicht enger/weiter).
+    /// Abschnitts-Trenner im gleichen Raster wie Schreibzeilen.
     /// </summary>
     private static void SectionRule(IContainer c)
     {
@@ -212,10 +185,10 @@ public class ProbezeitberichtPdfService
     {
         c.Column(col =>
         {
-            col.Item().Text(label).FontSize(10f).FontColor(Soft);
-            col.Item().PaddingTop(4).MinHeight(22)
+            col.Item().Text(label).FontSize(9.5f).FontColor(Soft);
+            col.Item().PaddingTop(3).MinHeight(20)
                 .Text(string.IsNullOrWhiteSpace(value) ? " " : value)
-                .FontSize(12f).Bold();
+                .FontSize(11.5f).Bold();
         });
     }
 
@@ -249,7 +222,7 @@ public class ProbezeitberichtPdfService
         {
             r.ConstantItem(16).AlignMiddle().Element(box =>
                 box.Width(11).Height(11).Border(1.0f).BorderColor(Dark));
-            r.RelativeItem().AlignMiddle().PaddingLeft(4).Text(label).FontSize(10f);
+            r.RelativeItem().AlignMiddle().PaddingLeft(4).Text(label).FontSize(9.5f);
         });
     }
 
@@ -263,7 +236,7 @@ public class ProbezeitberichtPdfService
         c.Row(r =>
         {
             r.ConstantItem(labelW).AlignMiddle().PaddingLeft(indent ? 14 : 0)
-                .Text(title).FontSize(10.5f).Bold();
+                .Text(title).FontSize(10f).Bold();
             r.RelativeItem().AlignMiddle().Element(e => RatingRow(e, ratings));
         });
     }
