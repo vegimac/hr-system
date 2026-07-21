@@ -153,13 +153,16 @@ public class ProbezeitberichtPdfService
         page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10f).LineHeight(1.2f).FontColor(Dark));
     }
 
+    /// <summary>
+    /// Stammdaten-Zeile ohne Unterstrich — Label + Wert linksbündig
+    /// unter dem Spaltentitel (Walter 21.07.2026).
+    /// </summary>
     private static void FieldLine(IContainer c, string label, string value)
     {
         c.Row(r =>
         {
-            r.ConstantItem(88).AlignMiddle().Text(label).FontSize(9.5f).FontColor(Soft);
-            r.RelativeItem().AlignMiddle().BorderBottom(0.7f).BorderColor(Line)
-                .PaddingBottom(2).MinHeight(15)
+            r.ConstantItem(78).AlignMiddle().Text(label).FontSize(9.5f).FontColor(Soft);
+            r.RelativeItem().AlignMiddle()
                 .Text(value ?? "").FontSize(10.5f).Bold();
         });
     }
