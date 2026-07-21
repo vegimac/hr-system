@@ -1327,9 +1327,11 @@ function loadUebersichtTab() {
     //    Eintritt | Austritt | L-GAV
     //    Gekündigt am | Kündigung per | < 8 h / Wo. ──
     const pzEnde = emp.probationEndDate ? formatDate(emp.probationEndDate) : null;
-    // Ein Probezeitgespräch reicht (Walter 21.07.2026) — Feld 1 nutzen.
+    // Probezeitgespräch nur solange die Probezeit läuft (Walter 21.07.2026).
+    const pzAktiv = !!(emp.probationEndDate &&
+        new Date(String(emp.probationEndDate).slice(0, 10)) >= new Date(new Date().toDateString()));
     const pz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
-    const pzStatus = !pzEnde
+    const pzStatus = !pzAktiv
         ? null
         : pz1Ok
             ? `<span style="color:#166534;font-weight:650">✓ erledigt</span>`
@@ -1344,7 +1346,7 @@ function loadUebersichtTab() {
             <div class="ov-pf ov-anst-date"><div class="ov-pfl">Kündigung per</div>
             <input id="ov-kuendPer" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
             <div class="ov-pf ov-anst-tog"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
-            ${pzEnde ? `${_pf('Probezeit bis', pzEnde)}${_pf('Probezeitgespräch', pzStatus)}` : ''}
+            ${pzEnde ? `${_pf('Probezeit bis', pzEnde)}${pzAktiv ? _pf('Probezeitgespräch', pzStatus) : ''}` : ''}
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
