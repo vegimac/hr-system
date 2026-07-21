@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260721b">
+    <link rel="stylesheet" href="css/app.css?v=20260721c">
 </head>
 <body>
 
@@ -1485,29 +1485,30 @@
             </div>
 
             <!-- Moments-Texte — Vorlagen + Emotionsgrade (Walter 19.07.2026, aus Moments-Seite hierher) -->
-            <!-- Kopf verdichtet + fix, Daten darunter scrollen (Walter 21.07.2026). -->
+            <!-- Titel + Emotionsgrade fix; nur Text-Vorlagen scrollen (Walter 21.07.2026). -->
             <div class="page" id="page-moment-texte">
-                <div class="sticky-page-head mom-texte-head">
-                    <div class="page-head" style="margin-bottom:0;padding:14px 32px 0">
+                <div class="mom-texte-head">
+                    <div class="page-head" style="margin-bottom:0;padding:10px 32px 0">
                         <div>
                             <h1 class="page-title" style="font-size:19px">Moments-Texte</h1>
                             <p class="page-sub" style="margin-top:2px">Emotionsgrade und Text-Vorlagen für Moments, Arbeitsvertrag-Link und Bewilligungs-Erinnerung.</p>
                         </div>
                     </div>
+                    <div class="page-body" style="padding:10px 32px 8px;max-width:840px">
+                        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px">
+                            <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:8px">Emotionsgrade</div>
+                            <div id="momToneList" style="margin-bottom:8px"></div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                                <div><label class="f-label">Code</label><input id="momToneCode" class="f-input" style="width:140px" placeholder="z.B. herzlich"></div>
+                                <div><label class="f-label">Name</label><input id="momToneName" class="f-input" style="width:180px" placeholder="z.B. Herzlich"></div>
+                                <div><label class="f-label">Reihenfolge</label><input id="momToneSort" class="f-input" type="number" style="width:110px" value="0"></div>
+                                <button class="btn btn-primary" onclick="momToneAdd()">+ Hinzufügen</button>
+                            </div>
+                            <div id="momToneMsg" style="font-size:12px;margin-top:6px"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="page-body mom-texte-scroll" id="momMgmt" style="max-width:840px">
-                    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px;margin-bottom:16px">
-                        <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:10px">Emotionsgrade</div>
-                        <div id="momToneList" style="margin-bottom:12px"></div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-                            <div><label class="f-label">Code</label><input id="momToneCode" class="f-input" style="width:140px" placeholder="z.B. herzlich"></div>
-                            <div><label class="f-label">Name</label><input id="momToneName" class="f-input" style="width:180px" placeholder="z.B. Herzlich"></div>
-                            <div><label class="f-label">Reihenfolge</label><input id="momToneSort" class="f-input" type="number" style="width:110px" value="0"></div>
-                            <button class="btn btn-primary" onclick="momToneAdd()">+ Hinzufügen</button>
-                        </div>
-                        <div id="momToneMsg" style="font-size:12px;margin-top:8px"></div>
-                    </div>
-
                     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
                         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
                             <div style="font-weight:700;font-size:15px;color:#0f172a">Text-Vorlagen</div>
