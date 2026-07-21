@@ -183,10 +183,10 @@ function wcRender() {
     }).join('');
 
     cont.innerHTML = `
-    <div style="background:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.62);border-radius:14px;box-shadow:0 6px 20px rgba(60,55,48,0.14);overflow:hidden;overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;min-width:880px">
+    <div class="wc-table-wrap">
+        <table class="wc-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:880px">
             <thead>
-                <tr style="background:#f6f3ee;text-align:left">
+                <tr style="text-align:left">
                     <th style="${WC_TH};text-align:center" title="Ziehen zum Sortieren">✥</th>
                     <th style="${WC_TH}">Warnung</th>
                     <th style="${WC_TH};text-align:center">Aktiv</th>
