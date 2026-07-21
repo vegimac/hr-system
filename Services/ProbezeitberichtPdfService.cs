@@ -111,7 +111,8 @@ public class ProbezeitberichtPdfService
                         r.RelativeItem().PaddingTop(16).Column(c =>
                         {
                             c.Item().Text("Datum").FontSize(9.5f).FontColor(Soft);
-                            c.Item().Element(e => HandLineSlot(e)); // leer — handschriftlich
+                            // Kein Datumsstrich — Platz zum Ausfüllen bleibt (Walter 21.07.2026).
+                            c.Item().Height(HandLinePitch);
                         });
                     });
 
