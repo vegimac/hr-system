@@ -47,10 +47,6 @@ public class ProbezeitberichtPdfService
                 {
                     col.Item().AlignCenter().Text("Probezeit Gespräch")
                         .FontSize(16f).Bold().FontColor(Dark);
-                    if (d.GespraechNr is 1 or 2)
-                        col.Item().AlignCenter().PaddingTop(2)
-                            .Text($"{d.GespraechNr}. Gespräch")
-                            .FontSize(10.5f).FontColor(Soft);
 
                     // MA | Ersteller
                     col.Item().PaddingTop(10).Row(r =>
@@ -99,39 +95,38 @@ public class ProbezeitberichtPdfService
 
                     col.Item().Element(SectionRule);
 
-                    // 3. Gespräch — keine Unterschriftsstriche (Walter 20.07.2026):
-                    // rechts Vor-/Nachname MA (kein «Unterschrift Mitarbeitende»).
-                    col.Item().PaddingTop(8).Text("3.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
-                        .Bold().FontSize(11f);
-                    // Ort links oben; Datum rechts daneben, eine Zeile tiefer (Walter 21.07.2026).
-                    col.Item().PaddingTop(10).Row(r =>
+                    // 3. Gespräch — Datum linksbündig mit Ende von «geführt am:»,
+                    // eine Zeile tiefer zum Ausfüllen von Hand (Walter 21.07.2026).
+                    // AutoItem = Textbreite der Überschrift → RelativeItem startet genau dort.
+                    col.Item().PaddingTop(8).Row(r =>
                     {
-                        r.RelativeItem().PaddingTop(4)
-                            .Text(string.IsNullOrWhiteSpace(d.GespraechOrt) ? " " : d.GespraechOrt)
-                            .FontSize(11.5f).Bold();
-                        r.ConstantItem(20);
-                        r.RelativeItem().PaddingTop(18).Element(e => SoftField(e, "Datum",
-                            d.GespraechAm.HasValue ? d.GespraechAm.Value.ToString("dd.MM.yyyy") : ""));
+                        r.AutoItem().Column(c =>
+                        {
+                            c.Item().Text("3.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
+                                .Bold().FontSize(11f);
+                            c.Item().PaddingTop(16)
+                                .Text(string.IsNullOrWhiteSpace(d.GespraechOrt) ? " " : d.GespraechOrt)
+                                .FontSize(11.5f).Bold();
+                        });
+                        r.RelativeItem().PaddingTop(16).Column(c =>
+                        {
+                            c.Item().Text("Datum").FontSize(9.5f).FontColor(Soft);
+                            c.Item().Element(e => HandLineSlot(e)); // leer — handschriftlich
+                        });
                     });
 
-                    // Unterschrift + MA-Name auf gleicher Höhe (Walter 21.07.2026).
+                    // Unterschrift-Label + MA Vor-/Nachname auf gleicher Höhe, Name nicht fett.
                     var maName = $"{d.MaVorname} {d.MaNachname}".Trim();
-                    col.Item().PaddingTop(28).Row(r =>
+                    col.Item().PaddingTop(28).Column(c =>
                     {
-                        r.RelativeItem().Column(c =>
+                        c.Item().Height(36); // Schreibraum für Unterschrift
+                        c.Item().Row(r =>
                         {
-                            c.Item().Height(22).AlignBottom()
-                                .Text(" ").FontSize(11.5f);
-                            c.Item().PaddingTop(4)
+                            r.RelativeItem()
                                 .Text("Unterschrift der/des Vorgesetzten").FontSize(9f).FontColor(Soft);
-                        });
-                        r.ConstantItem(28);
-                        r.RelativeItem().Column(c =>
-                        {
-                            c.Item().Height(22).AlignBottom()
-                                .Text(maName).FontSize(11.5f).Bold();
-                            c.Item().PaddingTop(4)
-                                .Text(" ").FontSize(9f); // gleiche Zeilenhöhe wie Label links
+                            r.ConstantItem(28);
+                            r.RelativeItem()
+                                .Text(maName).FontSize(9f).FontColor(Soft);
                         });
                     });
                 });
@@ -184,18 +179,6 @@ public class ProbezeitberichtPdfService
     private static void SectionRule(IContainer c)
     {
         c.PaddingTop(HandLinePitch).LineHorizontal(0.7f).LineColor(Line);
-    }
-
-    /// <summary>Freitext-Bereich ohne Unterschriftsstriche — nur Luft zum Schreiben.</summary>
-    private static void SoftField(IContainer c, string label, string value)
-    {
-        c.Column(col =>
-        {
-            col.Item().Text(label).FontSize(9.5f).FontColor(Soft);
-            col.Item().PaddingTop(3).MinHeight(20)
-                .Text(string.IsNullOrWhiteSpace(value) ? " " : value)
-                .FontSize(11.5f).Bold();
-        });
     }
 
     /// <summary>

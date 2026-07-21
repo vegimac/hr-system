@@ -40,7 +40,7 @@ Der Button steht allen HR-/GF-Rollen zur Verfügung (GF sieht nur seine Filialen
 Stammdaten auf einen Blick in Karten:
 
 - **Personalien & Adresse** — Strasse, PLZ, Ort, Kanton, Telefon 2, AHV, Briefanrede, Kurzname, Sex, Konfession, Zivilstand, Ledigname, Nationalität, ZEMIS (Nicht-CH). Editierbare Felder speichern direkt in der Karte.
-- **Anstellung** — Eintritt, Austritt, L-GAV, Kündigung am/per, &lt; 8 h/Wo., sowie **Probezeit bis** und **Probezeitgespräch**-Status (offen / 1. erledigt / beide erledigt).
+- **Anstellung** — Eintritt, Austritt, L-GAV, Kündigung am/per, &lt; 8 h/Wo., sowie **Probezeit bis** und **Probezeitgespräch**-Status (offen / erledigt).
 - **Nachtarbeit** — Pflicht-Badge, Nächte-Zähler, Arztzeugnis / Ausnahme-Regelung verknüpfen, Formulare drucken.
 - **Verträge** — kompakte Liste mit Lohn/Pensum; darunter **Saldi** der aktuellen Periode.
 - **Weitere Adressen** — falls vorhanden, unten in der Personalien-Karte.
@@ -65,7 +65,7 @@ Icon-Kacheln für den Filial-Alltag (GF, HR und Admin). Hier liegen die Aktionen
 | Kachel | Was sie tut |
 |---|---|
 | **Verwarnung** | Verwarnung erfassen, Formular, Liste der bisherigen Verwarnungen |
-| **Probezeit** | Probezeitbericht-PDF blanko; 1. und 2. Gespräch mit Datum + Protokoll-Verknüpfung; Kündigung während der Probezeit |
+| **Probezeit** | **Probezeit Gespräch**-PDF blanko; ein Gespräch mit Datum + Protokoll-Verknüpfung; Kündigung während der Probezeit |
 | **Arbeitszeugnis / Zwischenzeugnis / Arbeitsbestätigung** | Zeugnis-Modal öffnen und PDF erzeugen |
 | **Postfach-Passwort** | Setzt das MA-Postfach-Passwort auf die Personalnummer zurück und hebt eine Login-Sperre auf |
 | **Onboarding-QR** | QR-Code für den ersten Postfach-Login des MA |
@@ -74,8 +74,8 @@ Icon-Kacheln für den Filial-Alltag (GF, HR und Admin). Hier liegen die Aktionen
 #### Probezeit — Ablauf
 
 1. Kachel **Probezeit** öffnen.
-2. **Formular blanko** drucken → Gespräch führen → unterschriebenes Protokoll scannen und als Dokument (Typ Probezeitgespräch) ablegen.
-3. Im Modal **1. Gespräch** bzw. **2. Gespräch**: Datum setzen und das Protokoll verknüpfen.
+2. **Probezeit Gespräch** generieren/drucken → Gespräch führen → unterschriebenes Protokoll scannen und als Dokument (Typ Probezeitgespräch) ablegen.
+3. Im Modal: Datum setzen und das Protokoll verknüpfen.
 4. In der Übersicht siehst du danach den Status unter **Probezeitgespräch**.
 5. Bei Bedarf: **Kündigung während Probezeit** direkt aus dem Modal.
 

@@ -1327,15 +1327,13 @@ function loadUebersichtTab() {
     //    Eintritt | Austritt | L-GAV
     //    Gekündigt am | Kündigung per | < 8 h / Wo. ──
     const pzEnde = emp.probationEndDate ? formatDate(emp.probationEndDate) : null;
+    // Ein Probezeitgespräch reicht (Walter 21.07.2026) — Feld 1 nutzen.
     const pz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
-    const pz2Ok = !!(emp.probezeitGespraech2Am && emp.probezeitGespraech2DokumentId);
     const pzStatus = !pzEnde
         ? null
-        : (pz1Ok && pz2Ok)
-            ? `<span style="color:#166534;font-weight:650">✓ 1. + 2. Gespräch erledigt</span>`
-            : pz1Ok
-                ? `<span style="color:#a16207;font-weight:650">1. erledigt · 2. offen</span>`
-                : `<span style="color:#9f1239;font-weight:650">Gespräch offen</span>`;
+        : pz1Ok
+            ? `<span style="color:#166534;font-weight:650">✓ erledigt</span>`
+            : `<span style="color:#9f1239;font-weight:650">offen</span>`;
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
@@ -12292,7 +12290,7 @@ function _raTilesHtml() {
 }
 
 // ── Probezeit (Restaurant Admin, Walter 20.07.2026) ──────────────────────
-// Formular blanko · 1./2. Gespräch mit Datum + Protokoll-Verknüpfung
+// Formular blanko · ein Gespräch mit Datum + Protokoll-Verknüpfung
 // (Dokumenttyp Probezeitgespräch) · Kündigung während Probezeit.
 function openProbezeitModal(empId) {
     const emp = selectedEmployee;
@@ -12334,24 +12332,24 @@ function pzRefreshModal() {
     if (!body || !emp) return;
     const ende = emp.probationEndDate ? formatDate(emp.probationEndDate) : '–';
     const inPz = emp.probationEndDate && new Date(emp.probationEndDate) >= new Date(new Date().toDateString());
-    const row = (nr) => {
-        const am = nr === 1 ? emp.probezeitGespraech1Am : emp.probezeitGespraech2Am;
-        const dokId = nr === 1 ? emp.probezeitGespraech1DokumentId : emp.probezeitGespraech2DokumentId;
-        const kind = nr === 1 ? 'probezeit_gespraech1' : 'probezeit_gespraech2';
-        const amIso = am ? String(am).slice(0, 10) : '';
-        const amTxt = am ? formatDate(am) : null;
-        const ok = !!(am && dokId);
-        return `<div style="padding:12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:12px;margin-bottom:10px">
+    // Ein Gespräch (Walter 21.07.2026) — Backend-Feld nr=1.
+    const am = emp.probezeitGespraech1Am;
+    const dokId = emp.probezeitGespraech1DokumentId;
+    const kind = 'probezeit_gespraech1';
+    const amIso = am ? String(am).slice(0, 10) : '';
+    const amTxt = am ? formatDate(am) : null;
+    const ok = !!(am && dokId);
+    const gespraechRow = `<div style="padding:12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:12px;margin-bottom:10px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
-                <div style="font-weight:750;color:#3f3f3f">${nr}. Probezeitgespräch</div>
+                <div style="font-weight:750;color:#3f3f3f">Probezeitgespräch</div>
                 <span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;${ok
                     ? 'background:rgba(22,163,74,0.12);color:#166534;border:1px solid rgba(34,197,94,0.35)'
                     : 'background:rgba(244,63,94,0.10);color:#9f1239;border:1px solid rgba(251,113,133,0.35)'}">${ok ? '✓ erledigt' : 'offen'}</span>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
                 <label style="font-size:11.5px;font-weight:700;color:#646464">Durchgeführt am</label>
-                <input type="date" id="pzAm${nr}" value="${amIso}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white"
-                       onchange="pzSaveDate(${emp.id}, ${nr}, this.value)">
+                <input type="date" id="pzAm1" value="${amIso}" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white"
+                       onchange="pzSaveDate(${emp.id}, 1, this.value)">
                 ${amTxt ? `<span style="font-size:12px;color:#646464">${amTxt}</span>` : ''}
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -12365,20 +12363,17 @@ function pzRefreshModal() {
             ${am && !dokId ? `<div style="margin-top:8px;font-size:11.5px;color:#9f1239;font-weight:650">Datum gesetzt — bitte noch das ausgefüllte Protokoll verknüpfen.</div>` : ''}
             ${!am && dokId ? `<div style="margin-top:8px;font-size:11.5px;color:#a16207;font-weight:650">Protokoll verknüpft — bitte noch das Durchführungsdatum setzen.</div>` : ''}
         </div>`;
-    };
     body.innerHTML = `
         <div style="margin-bottom:14px;padding:10px 12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:10px">
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:2px">Probezeit bis</div>
             <div style="font-size:15px;font-weight:750;color:#3f3f3f">${ende}${inPz ? ' <span style="font-size:11.5px;font-weight:650;color:#a16207">(läuft)</span>' : ''}</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-            <button type="button" onclick="pzGenerateBericht(1)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">📋 1. Gesprächsprotokoll</button>
-            <button type="button" onclick="pzGenerateBericht(2)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">📋 2. Gesprächsprotokoll</button>
+            <button type="button" onclick="pzGenerateBericht()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">📋 Probezeit Gespräch</button>
             <button type="button" onclick="pzOpenKuendigung(${emp.id})" style="background:rgba(255,255,255,0.55);color:#9f1239;border:1px solid rgba(251,113,133,0.40);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">Kündigung während Probezeit</button>
         </div>
         <div style="font-size:12px;color:#646464;margin-bottom:10px">Protokoll generieren → ausdrucken/ausfüllen → unterschreiben → Scan unter Dokus → Mitarbeiterentwicklung → Probezeitgespräch verknüpfen und Datum bestätigen.</div>
-        ${row(1)}
-        ${row(2)}`;
+        ${gespraechRow}`;
 }
 
 async function pzSaveDate(empId, nr, iso) {
@@ -12397,11 +12392,10 @@ async function pzSaveDate(empId, nr, iso) {
     } catch (e) { alert('Fehler: ' + e.message); }
 }
 
-async function pzGenerateBericht(nr) {
+async function pzGenerateBericht() {
     const emp = selectedEmployee;
     if (!emp?.id) return;
-    const n = nr === 2 ? 2 : 1;
-    const url = `/api/employees/${emp.id}/probezeitbericht-pdf?nr=${n}`;
+    const url = `/api/employees/${emp.id}/probezeitbericht-pdf`;
     const fname = `PZ-${emp.employeeNumber || emp.id}-${emp.firstName || 'MA'}.pdf`;
     try {
         if (typeof previewUrlFetch === 'function') {
