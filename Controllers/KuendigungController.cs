@@ -141,8 +141,9 @@ public class KuendigungController : ControllerBase
         var tracked = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
         if (tracked != null)
         {
-            tracked.KuendigungAusgesprochenAm = kdat.ToDateTime(TimeOnly.MinValue);
-            tracked.KuendigungPer             = letzter.ToDateTime(TimeOnly.MinValue);
+            // Kind=Unspecified — nie UTC in timestamp without time zone (Walter 30.06.2026).
+            tracked.KuendigungAusgesprochenAm = new DateTime(kdat.Year, kdat.Month, kdat.Day);
+            tracked.KuendigungPer             = new DateTime(letzter.Year, letzter.Month, letzter.Day);
             await _db.SaveChangesAsync();
         }
 

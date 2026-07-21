@@ -272,59 +272,46 @@ public class KuendigungPdfService
 
                     col.Item().PaddingTop(14).Text(
                         "Wir wünschen Ihnen für Ihre berufliche und private Zukunft alles Gute.");
-                });
 
-                // Gruss + Unterschriften als FOOTER — am Seitenende verankert
-                // (Walter 15.07.2026). Bei persönlicher Übergabe: AG | Zeuge | MA
-                // (Walter 21.07.2026 — Zeuge der Übergabe zwischen den beiden).
-                page.Footer().Column(col =>
-                {
-                    col.Item().Text("Freundliche Grüsse");
-                    if (!string.IsNullOrWhiteSpace(d.FirmaName))
-                        col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
-
-                    if (d.Eingeschrieben)
+                    // Persönliche Übergabe: Unterschriften IM Content (nicht Footer) —
+                    // drei Spalten brauchen zu viel Höhe für den Footer-Slot
+                    // (QuestPDF LayoutException, Walter 21.07.2026).
+                    if (!d.Eingeschrieben)
                     {
-                        // Einschreiben: nur AG-Unterschrift (wie bisher).
-                        if (signaturePng is { Length: > 0 })
-                            col.Item().PaddingTop(8).Height(48).AlignLeft().Image(signaturePng).FitHeight();
-                        else
-                            col.Item().PaddingTop(8).Height(40);
+                        col.Item().PaddingTop(28).Text("Freundliche Grüsse");
+                        if (!string.IsNullOrWhiteSpace(d.FirmaName))
+                            col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
 
-                        col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
-                        if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
-                            col.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
-                    }
-                    else
-                    {
-                        // Persönliche Aushändigung: drei Unterschriften nebeneinander —
-                        // AG · Zeuge der Übergabe · Mitarbeiter (Empfang).
-                        col.Item().PaddingTop(10).Text("Original persönlich übergeben:").FontSize(9f).FontColor("#475569");
-                        col.Item().PaddingTop(28).Row(r =>
+                        col.Item().PaddingTop(10).Text("Original persönlich übergeben:")
+                            .FontSize(9f).FontColor("#475569");
+                        col.Item().PaddingTop(22).Row(r =>
                         {
                             r.RelativeItem().Column(c =>
                             {
                                 if (signaturePng is { Length: > 0 })
-                                    c.Item().Height(36).AlignLeft().Image(signaturePng).FitHeight();
+                                    c.Item().Height(32).AlignLeft().Image(signaturePng).FitHeight();
                                 else
-                                    c.Item().Height(36);
-                                c.Item().Width(150).LineHorizontal(0.8f).LineColor(Dark);
-                                c.Item().PaddingTop(3).Text(d.UnterzeichnerName ?? "Arbeitgeber").FontSize(8.5f).FontColor("#475569");
+                                    c.Item().Height(32);
+                                c.Item().LineHorizontal(0.8f).LineColor(Dark);
+                                c.Item().PaddingTop(3)
+                                    .Text(d.UnterzeichnerName ?? "Arbeitgeber")
+                                    .FontSize(8.5f).FontColor("#475569");
                                 if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
                                     c.Item().Text(d.UnterzeichnerFunktion!).FontSize(8f).FontColor("#475569");
                             });
-                            r.ConstantItem(16);
+                            r.ConstantItem(12);
                             r.RelativeItem().Column(c =>
                             {
-                                c.Item().Height(36);
-                                c.Item().Width(150).LineHorizontal(0.8f).LineColor(Dark);
-                                c.Item().PaddingTop(3).Text("Zeuge der Übergabe").FontSize(8.5f).FontColor("#475569");
+                                c.Item().Height(32);
+                                c.Item().LineHorizontal(0.8f).LineColor(Dark);
+                                c.Item().PaddingTop(3).Text("Zeuge der Übergabe")
+                                    .FontSize(8.5f).FontColor("#475569");
                             });
-                            r.ConstantItem(16);
+                            r.ConstantItem(12);
                             r.RelativeItem().Column(c =>
                             {
-                                c.Item().Height(36);
-                                c.Item().Width(150).LineHorizontal(0.8f).LineColor(Dark);
+                                c.Item().Height(32);
+                                c.Item().LineHorizontal(0.8f).LineColor(Dark);
                                 c.Item().PaddingTop(3)
                                     .Text(string.IsNullOrWhiteSpace(d.MaName)
                                         ? "Mitarbeiter (Empfang)"
@@ -334,6 +321,26 @@ public class KuendigungPdfService
                         });
                     }
                 });
+
+                // Einschreiben: Gruss + AG-Unterschrift als Footer (wie bisher).
+                if (d.Eingeschrieben)
+                {
+                    page.Footer().Column(col =>
+                    {
+                        col.Item().Text("Freundliche Grüsse");
+                        if (!string.IsNullOrWhiteSpace(d.FirmaName))
+                            col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
+
+                        if (signaturePng is { Length: > 0 })
+                            col.Item().PaddingTop(8).Height(48).AlignLeft().Image(signaturePng).FitHeight();
+                        else
+                            col.Item().PaddingTop(8).Height(40);
+
+                        col.Item().PaddingTop(2).Text(d.UnterzeichnerName ?? "");
+                        if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
+                            col.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
+                    });
+                }
             });
         }).GeneratePdf();
     }
