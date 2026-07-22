@@ -629,10 +629,10 @@ function momRenderToneList() {
     if (!el) return;
     if (!_momTonesAll.length) { el.innerHTML = '<div style="color:#94a3b8;font-size:13px">Noch keine Emotionsgrade.</div>'; return; }
     el.innerHTML = _momTonesAll.map(t => `
-        <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f1f5f9">
-            <div style="flex:1"><strong>${escapeHtml(t.name)}</strong> <span style="color:#94a3b8;font-size:12px">· ${escapeHtml(t.code)}</span>${t.isActive ? '' : ' <span style="color:#b91c1c;font-size:12px">inaktiv</span>'}</div>
-            <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="momToneRename(${t.id})">Umbenennen</button>
-            <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="momToneToggle(${t.id})">${t.isActive ? 'Deaktivieren' : 'Aktivieren'}</button>
+        <div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid #f1f5f9">
+            <div style="flex:1;font-size:13px;line-height:1.25"><strong>${escapeHtml(t.name)}</strong> <span style="color:#94a3b8;font-size:12px">· ${escapeHtml(t.code)}</span>${t.isActive ? '' : ' <span style="color:#b91c1c;font-size:12px">inaktiv</span>'}</div>
+            <button class="btn btn-outline" style="padding:2px 8px;font-size:11.5px" onclick="momToneRename(${t.id})">Umbenennen</button>
+            <button class="btn btn-outline" style="padding:2px 8px;font-size:11.5px" onclick="momToneToggle(${t.id})">${t.isActive ? 'Deaktivieren' : 'Aktivieren'}</button>
         </div>`).join('');
 }
 

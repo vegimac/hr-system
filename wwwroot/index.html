@@ -9,7 +9,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<<<<<<< HEAD
     <link rel="stylesheet" href="css/app.css?v=20260722e">
+=======
+    <link rel="stylesheet" href="css/app.css?v=20260721d">
+>>>>>>> 51a0dfc5e210740bd5feebef64130e4b5a62c97e
 </head>
 <body>
 
@@ -1485,41 +1489,40 @@
             </div>
 
             <!-- Moments-Texte — Vorlagen + Emotionsgrade (Walter 19.07.2026, aus Moments-Seite hierher) -->
-            <!-- Titel + Emotionsgrade fix; nur Text-Vorlagen scrollen (Walter 21.07.2026). -->
+            <!-- Fix: Titel + Emotionsgrade + Vorlagen-Toolbar; scroll: nur Liste/Form (Walter 21.07.2026). -->
             <div class="page" id="page-moment-texte">
                 <div class="mom-texte-head">
-                    <div class="page-head" style="margin-bottom:0;padding:10px 32px 0">
+                    <div class="page-head mom-texte-title">
                         <div>
-                            <h1 class="page-title" style="font-size:19px">Moments-Texte</h1>
-                            <p class="page-sub" style="margin-top:2px">Emotionsgrade und Text-Vorlagen für Moments, Arbeitsvertrag-Link und Bewilligungs-Erinnerung.</p>
+                            <h1 class="page-title">Moments-Texte</h1>
+                            <p class="page-sub">Emotionsgrade und Text-Vorlagen für Moments, Arbeitsvertrag-Link und Bewilligungs-Erinnerung.</p>
                         </div>
                     </div>
-                    <div class="page-body" style="padding:10px 32px 8px;max-width:840px">
-                        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px">
-                            <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:8px">Emotionsgrade</div>
-                            <div id="momToneList" style="margin-bottom:8px"></div>
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-                                <div><label class="f-label">Code</label><input id="momToneCode" class="f-input" style="width:140px" placeholder="z.B. herzlich"></div>
-                                <div><label class="f-label">Name</label><input id="momToneName" class="f-input" style="width:180px" placeholder="z.B. Herzlich"></div>
-                                <div><label class="f-label">Reihenfolge</label><input id="momToneSort" class="f-input" type="number" style="width:110px" value="0"></div>
+                    <div class="mom-texte-head-body">
+                        <div class="mom-texte-card">
+                            <div class="mom-texte-card-title">Emotionsgrade</div>
+                            <div id="momToneList" class="mom-tone-list"></div>
+                            <div class="mom-tone-add">
+                                <div><label class="f-label">Code</label><input id="momToneCode" class="f-input" style="width:130px" placeholder="z.B. herzlich"></div>
+                                <div><label class="f-label">Name</label><input id="momToneName" class="f-input" style="width:160px" placeholder="z.B. Herzlich"></div>
+                                <div><label class="f-label">Reihenfolge</label><input id="momToneSort" class="f-input" type="number" style="width:90px" value="0"></div>
                                 <button class="btn btn-primary" onclick="momToneAdd()">+ Hinzufügen</button>
                             </div>
-                            <div id="momToneMsg" style="font-size:12px;margin-top:6px"></div>
+                            <div id="momToneMsg" style="font-size:12px;margin-top:4px"></div>
+                        </div>
+                        <div class="mom-texte-card mom-texte-toolbar">
+                            <div class="mom-texte-card-title">Text-Vorlagen</div>
+                            <select id="momMgmtType" class="f-input" style="width:auto;min-width:160px" onchange="momTextLoadList()"><option value="">Alle Typen</option></select>
+                            <select id="momMgmtTone" class="f-input" style="width:auto;min-width:150px" onchange="momTextLoadList()"><option value="">Alle Emotionsgrade</option></select>
+                            <button class="btn btn-primary" style="margin-left:auto" onclick="momTextNew()">+ Neue Vorlage</button>
                         </div>
                     </div>
                 </div>
-                <div class="page-body mom-texte-scroll" id="momMgmt" style="max-width:840px">
-                    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
-                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-                            <div style="font-weight:700;font-size:15px;color:#0f172a">Text-Vorlagen</div>
-                            <select id="momMgmtType" class="f-input" style="width:auto;min-width:180px" onchange="momTextLoadList()"><option value="">Alle Typen</option></select>
-                            <select id="momMgmtTone" class="f-input" style="width:auto;min-width:160px" onchange="momTextLoadList()"><option value="">Alle Emotionsgrade</option></select>
-                            <button class="btn btn-primary" style="margin-left:auto" onclick="momTextNew()">+ Neue Vorlage</button>
-                        </div>
-
-                        <div id="momTextForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px">
+                <div class="page-body mom-texte-scroll" id="momMgmt">
+                    <div class="mom-texte-card mom-texte-list-card">
+                        <div id="momTextForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:12px">
                             <input type="hidden" id="momTextId">
-                            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
                                 <div><label class="f-label">Moment-Typ</label><select id="momTextType" class="f-input" style="min-width:200px" onchange="momTextTypeChanged()"></select></div>
                                 <div><label class="f-label">Emotionsgrad</label><select id="momTextTone" class="f-input" style="min-width:170px"></select></div>
                                 <div style="flex:1;min-width:200px"><label class="f-label">Titel / Betreff</label><input id="momTextTitel" class="f-input" placeholder="z.B. Herzlichen Glückwunsch"></div>
@@ -1528,10 +1531,10 @@
                             <div id="momTextVertragHint" style="display:none;font-size:12px;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 10px;margin-bottom:8px">Arbeitsvertrag-Link: verfügbare Platzhalter im SMS-Text: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Link}</b> · <b>{GueltigBis}</b></div>
                             <textarea id="momTextSms" class="f-input" rows="2" maxlength="160" oninput="momTextSmsCount()"
                                       style="margin-bottom:2px;resize:vertical" placeholder="z.B. Hallo {Vorname}, tippe auf den Link:"></textarea>
-                            <div id="momTextSmsCount" style="font-size:11px;color:#94a3b8;margin-bottom:10px">0 / 160 Zeichen</div>
+                            <div id="momTextSmsCount" style="font-size:11px;color:#94a3b8;margin-bottom:8px">0 / 160 Zeichen</div>
                             <label class="f-label">Mitteilung <span style="font-weight:400;color:#94a3b8">(lange Nachricht auf der Link-Seite; Platzhalter: {Briefanrede} · {Years} · {SenderName})</span></label>
-                            <textarea id="momTextBody" class="f-input" rows="6" style="margin-bottom:10px;resize:vertical" placeholder="{Briefanrede}&#10;…"></textarea>
-                            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                            <textarea id="momTextBody" class="f-input" rows="6" style="margin-bottom:8px;resize:vertical" placeholder="{Briefanrede}&#10;…"></textarea>
+                            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                                 <label style="display:flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="momTextActive" checked> Aktiv</label>
                                 <div><label class="f-label" style="display:inline">Reihenfolge</label> <input id="momTextSort" class="f-input" type="number" style="width:90px;display:inline-block" value="0"></div>
                                 <div style="margin-left:auto;display:flex;gap:8px">
@@ -1539,7 +1542,7 @@
                                     <button class="btn btn-primary" onclick="momTextSave()">Speichern</button>
                                 </div>
                             </div>
-                            <div id="momTextMsg" style="font-size:12px;margin-top:8px"></div>
+                            <div id="momTextMsg" style="font-size:12px;margin-top:6px"></div>
                         </div>
 
                         <div id="momTextList"></div>
@@ -6795,7 +6798,11 @@
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260708flex"></script>
 <script src="js/dok-struktur.js?v=20260720a"></script>
+<<<<<<< HEAD
 <script src="js/moments.js?v=20260722a"></script>
+=======
+<script src="js/moments.js?v=20260721a"></script>
+>>>>>>> 51a0dfc5e210740bd5feebef64130e4b5a62c97e
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
