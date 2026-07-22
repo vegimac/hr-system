@@ -72,7 +72,7 @@ function vfRender(box, list) {
                 <span class="vf-title">${zeitraum}</span>${badges}
             </div>
             ${inhalt}
-            ${a.bemerkung ? `<div class="vf-foot" style="margin-top:6px">${a.bemerkung}</div>` : ''}
+            ${a.bemerkung ? `<div class="vf-foot" style="margin-top:6px">${esc(a.bemerkung)}</div>` : ''}
         </div>`;
     }
 

@@ -500,7 +500,8 @@ async function kuEintragen() {
     const per = body.letzterArbeitstag
         ? body.letzterArbeitstag.slice(8, 10) + '.' + body.letzterArbeitstag.slice(5, 7) + '.' + body.letzterArbeitstag.slice(0, 4)
         : '–';
-    if (!confirm(`Kündigung beim Mitarbeiter eintragen?\n\nGekündigt am: ${am}\nKündigung per: ${per}`)) return;
+    if (!(await liquidConfirm(`Gekündigt am: ${am}\nKündigung per: ${per}`,
+        { title: 'Kündigung beim Mitarbeiter eintragen?', yesLabel: 'Ja, eintragen', noLabel: 'Abbrechen' }))) return;
     try {
         const r = await fetch(`/api/kuendigung/${id}/eintragen`, {
             method: 'POST',
@@ -527,7 +528,8 @@ async function kuGenerate() {
     if (!id) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }
     // Sperrfrist: warnen, aber die Erstellung bleibt HR-Entscheid (nicht hart sperren).
     if (_kuInfo?.sperrfrist?.blocked &&
-        !confirm('Achtung: Für diesen MA läuft eine Sperrfrist (Kündigung wäre evtl. nichtig). Trotzdem ein Schreiben erstellen?')) return;
+        !(await liquidConfirm('Für diesen MA läuft eine Sperrfrist — eine Kündigung wäre evtl. nichtig. Trotzdem ein Schreiben erstellen?',
+            { title: 'Achtung: Sperrfrist', yesLabel: 'Trotzdem erstellen', noLabel: 'Abbrechen' }))) return;
 
     const body = _kuFormBody();
     try {
