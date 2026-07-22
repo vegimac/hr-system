@@ -5656,7 +5656,8 @@
         .page.fixhead .page-body { padding-top: 0 !important; }
         /* Seiten mit .page-header (statt page-head): Header bekommt beim
            fixhead-Wrap einen zum page-body passenden Innenabstand. */
-        .page.fixhead > .page-header { padding: 20px 14px 0; }
+        .page.fixhead > .page-header,
+        .page.fixhead .fh-page-head > .page-header { padding: 20px 32px 0; }
         /* Toolbars im scrollenden page-body (.sticky-section-head) — auf den
            Liquid-Seiten warmes Halbtransparent statt hartem Weiss. */
         .page.fixhead .page-body > .sticky-section-head {
