@@ -5649,10 +5649,11 @@
         .page.fixhead .page-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
         /* KEIN padding-top am scrollenden page-body (Walter-Bug 22.07.2026:
            Daten scrollten im Padding-Streifen SICHTBAR ÜBER die klebende
-           Kopfzeile — sticky pinnt erst unterhalb des Paddings). Stattdessen
-           mitscrollender Abstand via ::before. */
+           Kopfzeile — sticky pinnt erst unterhalb des Paddings). Auch KEIN
+           Ersatz-Spacer: jeder Abstand über dem klebenden Element wäre
+           Anlauf-Weg → die Kopfzeile «hüpft» beim Andocken (Walter-Feedback
+           22.07.2026 v2). Inhalt startet bündig an der Pinn-Position. */
         .page.fixhead .page-body { padding-top: 0 !important; }
-        .page.fixhead .page-body::before { content: ''; display: block; height: 12px; }
         /* Seiten mit .page-header (statt page-head): Header bekommt beim
            fixhead-Wrap einen zum page-body passenden Innenabstand. */
         .page.fixhead > .page-header { padding: 20px 14px 0; }
