@@ -981,6 +981,7 @@ function showPage(name) {
     if (name === 'sollstunden') sollInit();
     if (name === 'ferien') ferienInit();
     if (name === 'alter-report') alterInit();
+    if (name === 'absenz-kalender') akalInit();
     if (name === 'smtp-settings') smtpLoad();
     if (name === 'ecall') ecallLoad();
     if (name === 'lse-export')   lseInit();
@@ -1063,6 +1064,9 @@ function onBranchChange() {
         }
     } else if (currentPageName === 'lse-export') {
         lseUpdateBranchInfo();
+    } else if (currentPageName === 'absenz-kalender') {
+        // Kalender folgt der globalen Filial-Auswahl.
+        if (typeof akalLoad === 'function') akalLoad();
     } else if (currentPageName === 'dashboard') {
         loadDashboard();
     } else if (currentPageName === 'todos') {

@@ -8529,3 +8529,102 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             border-color: rgba(251, 113, 133, 0.40);
         }
         body.theme-dark .nw-warn-chip::before { background: #fb7185; }
+
+/* ═══ Absenz- & Ferienkalender pro Filiale (Walter 22.07.2026) ═══ */
+        .akal-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+        .akal-monthnav {
+            display: flex; align-items: center; gap: 4px;
+            background: rgba(255,255,255,0.48); border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 12px; padding: 4px 6px;
+            box-shadow: 0 8px 22px rgba(60,55,48,0.10);
+        }
+        .akal-monthnav button {
+            border: none; background: transparent; font-size: 15px; color: #646464;
+            cursor: pointer; padding: 4px 9px; border-radius: 8px;
+        }
+        .akal-monthnav button:hover { background: rgba(255,255,255,0.6); }
+        .akal-monthnav .cur { font-size: 13.5px; font-weight: 800; color: #3f3f3f; padding: 0 8px; min-width: 118px; text-align: center; }
+        .akal-btn-heute {
+            background: #3f3f3f; color: #fff; border: none; border-radius: 12px;
+            padding: 8px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 8px 20px rgba(60,55,48,0.18);
+        }
+        .akal-filterrow { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .akal-fpill {
+            font-size: 12px; font-weight: 700; color: #646464; cursor: pointer;
+            background: rgba(255,255,255,0.46); border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 999px; padding: 5px 13px; user-select: none;
+        }
+        .akal-fpill.on { background: #3f3f3f; color: #fff; border-color: #3f3f3f; }
+        .akal-legend { display: flex; gap: 14px; margin-left: auto; flex-wrap: wrap; }
+        .akal-legend span { font-size: 11.5px; color: #646464; display: flex; align-items: center; gap: 5px; }
+        .akal-dot { width: 11px; height: 11px; border-radius: 4px; display: inline-block; }
+        .akal-card {
+            background: rgba(255,255,255,0.44);
+            border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 18px;
+            box-shadow: 0 18px 50px rgba(60,55,48,0.14), inset 0 1px 0 rgba(255,255,255,0.7);
+            padding: 14px 14px 10px;
+            overflow-x: auto;
+        }
+        .akal-table { border-collapse: collapse; width: 100%; min-width: 1080px; }
+        .akal-table th, .akal-table td { padding: 0; }
+        .akal-table thead .dnum { font-size: 10.5px; font-weight: 700; color: #646464; text-align: center; padding-bottom: 1px; }
+        .akal-table thead .dwd  { font-size: 9px; font-weight: 600; color: #a8a29a; text-align: center; padding-bottom: 6px; }
+        .akal-table thead .we .dnum, .akal-table thead .we .dwd { color: #c2b8a8; }
+        .akal-table thead .today .dnum { background: #3f3f3f; color: #fff; border-radius: 7px; width: 22px; margin: 0 auto; }
+        .akal-namecol {
+            text-align: left; font-size: 12.5px; font-weight: 700; color: #3f3f3f;
+            padding: 0 10px 0 6px; white-space: nowrap; width: 190px; min-width: 190px;
+            position: sticky; left: 0; background: rgba(250,248,245,0.94); z-index: 2; cursor: pointer;
+        }
+        tbody .akal-namecol:hover { text-decoration: underline; text-underline-offset: 3px; }
+        .akal-namecol .mod { font-size: 10px; font-weight: 700; color: #8b8b8b; margin-left: 6px; }
+        .akal-namecol .saldo { display: block; font-size: 10px; font-weight: 500; color: #a8a29a; margin-top: 1px; }
+        .akal-table tbody tr { height: 40px; }
+        .akal-table tbody tr + tr td { border-top: 1px solid rgba(90,80,65,0.07); }
+        td.akal-day { width: 30px; min-width: 30px; position: relative; }
+        td.akal-day.we    { background: rgba(90,80,65,0.045); }
+        td.akal-day.today { background: rgba(63,63,63,0.06); }
+        .akal-seg {
+            position: absolute; top: 8px; bottom: 8px; left: 0; right: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.92); cursor: pointer;
+        }
+        .akal-seg.start { left: 3px; border-radius: 8px 0 0 8px; }
+        .akal-seg.end   { right: 3px; border-radius: 0 8px 8px 0; }
+        .akal-seg.start.end { border-radius: 8px; }
+        .akal-seg.halb { top: 14px; }
+        .akal-ferien   { background: linear-gradient(180deg,#7fb08a,#5f9970); }
+        .akal-krank    { background: linear-gradient(180deg,#d98a8a,#c96a6a); }
+        .akal-unfall   { background: linear-gradient(180deg,#e0a468,#d18b45); }
+        .akal-mutter   { background: linear-gradient(180deg,#a48ec4,#8a70b0); }
+        .akal-militaer { background: linear-gradient(180deg,#8fa3b8,#71879e); }
+        .akal-frei     { background: repeating-linear-gradient(135deg,#cfc8bc 0 4px,#dfd9cf 4px 8px); color: #646464; }
+        .akal-seg .tip {
+            display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+            transform: translateX(-50%); background: #3f3f3f; color: #fff;
+            font-size: 10.5px; font-weight: 600; padding: 5px 9px; border-radius: 8px;
+            white-space: nowrap; z-index: 5; box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+        }
+        .akal-seg:hover .tip { display: block; }
+        .akal-table tfoot td { border-top: 2px solid rgba(90,80,65,0.14); padding-top: 6px; padding-bottom: 4px; }
+        .akal-table tfoot .akal-namecol { font-size: 11px; color: #8b8b8b; font-weight: 700; cursor: default; }
+        .akal-cnt { font-size: 10.5px; font-weight: 800; color: #a8a29a; text-align: center; }
+        .akal-cnt.mid  { color: #b07940; }
+        .akal-cnt.warn { color: #fff; background: #c96a6a; border-radius: 7px; width: 22px; margin: 0 auto; }
+        .akal-footnote {
+            display: flex; gap: 10px; align-items: center; margin-top: 12px;
+            font-size: 12px; color: #646464;
+            background: rgba(255,246,240,0.7); border: 1px solid rgba(201,106,106,0.25);
+            border-radius: 12px; padding: 9px 13px;
+        }
+        .akal-footnote b { color: #b05555; }
+        /* Dark-Mode */
+        body.theme-dark .akal-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.10); }
+        body.theme-dark .akal-namecol { background: rgba(38,36,33,0.96); color: #d6d3cc; }
+        body.theme-dark .akal-monthnav, body.theme-dark .akal-fpill { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); color: #d6d3cc; }
+        body.theme-dark .akal-fpill.on { background: #d6d3cc; color: #26241f; border-color: #d6d3cc; }
+        body.theme-dark .akal-monthnav .cur, body.theme-dark .akal-table thead .dnum { color: #d6d3cc; }
+        body.theme-dark td.akal-day.we { background: rgba(255,255,255,0.04); }
+        body.theme-dark .akal-table thead .today .dnum { background: #d6d3cc; color: #26241f; }

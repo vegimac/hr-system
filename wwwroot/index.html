@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260722a">
+    <link rel="stylesheet" href="css/app.css?v=20260722b">
 </head>
 <body>
 
@@ -3743,6 +3743,16 @@
                 </div>
             </div>
             <!-- ═══ ALTERSSTRUKTUR alle Filialen (Walter-Vorgabe 08.07.2026) ═══ -->
+            <!-- ═══ ABSENZ- & FERIENKALENDER pro Filiale (Walter 22.07.2026) ═══ -->
+            <div class="page" id="page-absenz-kalender">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Absenzen &amp; Ferien — Kalender</h1>
+                    <p class="page-sub">Monatsübersicht aller aktiven Mitarbeitenden der gewählten Filiale: Ferien, Krankheit, Unfall, Mutterschaft und weitere Absenzen als Balken. Unten die Anzahl Abwesender pro Tag mit Engpass-Warnung. Klick auf Name oder Balken springt in den Absenzen-Tab.</p>
+                </div></div>
+                <div class="page-body">
+                    <div id="akalResult"></div>
+                </div>
+            </div>
             <div class="page" id="page-alter-report">
                 <div class="page-head"><div>
                     <h1 class="page-title">Altersstruktur — alle Filialen</h1>
@@ -6748,7 +6758,7 @@
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260722b"></script>
+<script src="js/app-core.js?v=20260722c"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260722a"></script>
@@ -6805,6 +6815,7 @@
 <script src="js/sollstunden-report.js?v=20260720j"></script>
 <script src="js/ferien-report.js?v=20260708flex"></script>
 <script src="js/alters-report.js?v=20260708h"></script>
+<script src="js/absenz-kalender.js?v=20260722a"></script>
 <script src="js/audit-log.js?v=20260704p"></script>
 <script src="js/global-search.js?v=20260719b"></script>
 <script src="js/help-panel.js?v=20260720a"></script>
@@ -7099,7 +7110,7 @@
     </div>
 </div>
 
-<script src="employees.js?v=20260722c"></script>
+<script src="employees.js?v=20260722d"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

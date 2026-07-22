@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280">
+    <!-- Kohle-Skizzen-Icon «Absenz- & Ferienkalender» (Vorschlag Claude 22.07.2026)
+         Stil angelehnt an Walters Sketch-Icons (probezeit.png etc.):
+         wacklige Doppelstriche, Schraffur, kleine Sonne als Ferien-Akzent. -->
+    <g fill="none" stroke="#4a4a4a" stroke-linecap="round" stroke-linejoin="round">
+
+        <!-- Kalender-Korpus: leicht wackliger Rahmen, doppelt nachgezogen -->
+        <path d="M46 78 C44 130 45 180 47 228 C110 231 190 230 233 227 C235 175 234 124 232 80 C170 76 100 76 46 78 Z"
+              stroke-width="6"/>
+        <path d="M50 82 C48 130 49 178 51 224 C112 227 186 226 228 223 C230 174 229 126 227 84"
+              stroke-width="2.5" opacity="0.45"/>
+
+        <!-- Kopfbalken (wie die Balken beim Sanduhr-Icon: rau gefüllt) -->
+        <path d="M44 78 C110 73 175 73 234 77 C235 88 235 96 234 104 C168 108 108 108 45 105 C43 96 43 87 44 78 Z"
+              fill="#4a4a4a" stroke-width="4"/>
+        <path d="M48 82 L230 80 M47 92 L231 91 M46 101 L232 100"
+              stroke="#5f5f5f" stroke-width="2" opacity="0.5"/>
+
+        <!-- Bindungs-Ringe -->
+        <path d="M88 76 C87 62 88 52 90 44" stroke-width="7"/>
+        <path d="M190 75 C189 61 190 51 192 43" stroke-width="7"/>
+        <ellipse cx="89" cy="42" rx="7" ry="6" stroke-width="4.5"/>
+        <ellipse cx="191" cy="41" rx="7" ry="6" stroke-width="4.5"/>
+
+        <!-- Raster: 2 wacklige Querlinien, 3 Senkrechte -->
+        <path d="M50 145 C110 142 180 143 229 145" stroke-width="3.5"/>
+        <path d="M49 186 C112 183 178 184 230 186" stroke-width="3.5"/>
+        <path d="M93 108 C94 148 93 190 94 224" stroke-width="3.5"/>
+        <path d="M139 108 C140 150 139 188 140 225" stroke-width="3.5"/>
+        <path d="M185 107 C186 149 185 189 186 224" stroke-width="3.5"/>
+
+        <!-- Ferien-Balken: eine Zeile quer schraffiert (Absenz über mehrere Tage) -->
+        <path d="M97 152 L136 180 M112 150 L152 180 M128 150 L168 181 M144 150 L182 180 M160 150 L182 167"
+              stroke-width="4"/>
+        <path d="M96 151 C124 150 156 150 182 151 C183 160 183 170 182 180 C152 182 122 182 96 181 C95 171 95 160 96 151 Z"
+              stroke-width="4.5"/>
+
+        <!-- Häkchen im letzten Feld unten rechts (erledigt/anwesend) -->
+        <path d="M196 202 C201 208 204 211 207 214 C213 204 218 197 224 191" stroke-width="5"/>
+
+        <!-- Kleine Sonne oben rechts (Ferien-Akzent, wie die Strichel-Akzente
+             beim Sanduhr-Icon) -->
+        <circle cx="247" cy="34" r="12" stroke-width="4.5"/>
+        <path d="M247 12 L247 5 M263 20 L268 15 M269 36 L276 36 M262 50 L267 55 M231 19 L226 14 M225 36 L218 36"
+              stroke-width="4"/>
+    </g>
+</svg>

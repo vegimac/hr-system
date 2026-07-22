@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Absenz- &amp; Ferienkalender (Filiale)</title>
+<style>
+    /* ── Liquid-Glass-Basis (Mockup, unverbindlich) ─────────────────── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(165deg, #f6f3ee 0%, #efe9df 55%, #f3efe8 100%);
+        min-height: 100vh; padding: 26px 30px; color: #3f3f3f;
+    }
+    .hint {
+        max-width: 1240px; margin: 0 auto 14px; font-size: 12px; color: #8b8b8b;
+        background: rgba(255,255,255,0.42); border: 1px solid rgba(255,255,255,0.62);
+        border-radius: 10px; padding: 7px 12px;
+    }
+    .wrap { max-width: 1240px; margin: 0 auto; }
+
+    /* Kopfzeile: Titel + Monat + Legende */
+    .head {
+        display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+        margin-bottom: 14px;
+    }
+    .head h1 { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+    .head .sub { font-size: 12.5px; color: #8b8b8b; margin-top: 2px; }
+    .monthnav {
+        display: flex; align-items: center; gap: 4px; margin-left: auto;
+        background: rgba(255,255,255,0.48); border: 1px solid rgba(255,255,255,0.62);
+        border-radius: 12px; padding: 4px 6px;
+        box-shadow: 0 8px 22px rgba(60,55,48,0.10);
+    }
+    .monthnav button {
+        border: none; background: transparent; font-size: 15px; color: #646464;
+        cursor: pointer; padding: 4px 9px; border-radius: 8px;
+    }
+    .monthnav button:hover { background: rgba(255,255,255,0.6); }
+    .monthnav .cur { font-size: 13.5px; font-weight: 800; padding: 0 8px; min-width: 108px; text-align: center; }
+    .btn-heute {
+        background: #3f3f3f; color: #fff; border: none; border-radius: 12px;
+        padding: 8px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+        box-shadow: 0 8px 20px rgba(60,55,48,0.18);
+    }
+    .filterrow { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .fpill {
+        font-size: 12px; font-weight: 700; color: #646464; cursor: pointer;
+        background: rgba(255,255,255,0.46); border: 1px solid rgba(255,255,255,0.62);
+        border-radius: 999px; padding: 5px 13px;
+    }
+    .fpill.on { background: #3f3f3f; color: #fff; border-color: #3f3f3f; }
+    .legend { display: flex; gap: 14px; margin-left: auto; flex-wrap: wrap; }
+    .legend span { font-size: 11.5px; color: #646464; display: flex; align-items: center; gap: 5px; }
+    .dot { width: 11px; height: 11px; border-radius: 4px; display: inline-block; }
+
+    /* ── Kalender-Karte ─────────────────────────────────────────────── */
+    .card {
+        background: rgba(255,255,255,0.44);
+        border: 1px solid rgba(255,255,255,0.62);
+        border-radius: 18px;
+        box-shadow: 0 18px 50px rgba(60,55,48,0.14), inset 0 1px 0 rgba(255,255,255,0.7);
+        padding: 14px 14px 10px;
+        overflow-x: auto;
+    }
+    table { border-collapse: collapse; width: 100%; min-width: 1120px; }
+    th, td { padding: 0; }
+
+    /* Tages-Kopf */
+    thead .dnum { font-size: 10.5px; font-weight: 700; color: #646464; text-align: center; padding-bottom: 1px; }
+    thead .dwd  { font-size: 9px; font-weight: 600; color: #a8a29a; text-align: center; padding-bottom: 6px; }
+    thead .we .dnum, thead .we .dwd { color: #c2b8a8; }
+    thead .today .dnum {
+        background: #3f3f3f; color: #fff; border-radius: 7px; width: 22px; margin: 0 auto;
+    }
+
+    .namecol {
+        text-align: left; font-size: 12.5px; font-weight: 700; color: #3f3f3f;
+        padding: 0 10px 0 6px; white-space: nowrap; width: 190px; min-width: 190px;
+        position: sticky; left: 0; background: rgba(250,248,245,0.92); z-index: 2;
+    }
+    .namecol .mod { font-size: 10px; font-weight: 700; color: #8b8b8b; margin-left: 6px; }
+    .namecol .saldo { display: block; font-size: 10px; font-weight: 500; color: #a8a29a; margin-top: 1px; }
+
+    tbody tr { height: 40px; }
+    tbody tr + tr td { border-top: 1px solid rgba(90,80,65,0.07); }
+    td.day { width: 30px; min-width: 30px; position: relative; }
+    td.day.we   { background: rgba(90,80,65,0.045); }
+    td.day.today{ background: rgba(63,63,63,0.06); }
+
+    /* Absenz-Balken: eine Zelle pro Tag, Segmente wachsen optisch zusammen */
+    .seg {
+        position: absolute; top: 8px; bottom: 8px; left: 0; right: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.92);
+        cursor: default;
+    }
+    .seg.start { left: 3px; border-radius: 8px 0 0 8px; }
+    .seg.end   { right: 3px; border-radius: 0 8px 8px 0; }
+    .seg.start.end { border-radius: 8px; }
+    .seg.halb { top: 14px; }   /* Halbtag: flacherer Balken */
+
+    .t-ferien  { background: linear-gradient(180deg,#7fb08a,#5f9970); }
+    .t-krank   { background: linear-gradient(180deg,#d98a8a,#c96a6a); }
+    .t-unfall  { background: linear-gradient(180deg,#e0a468,#d18b45); }
+    .t-mutter  { background: linear-gradient(180deg,#a48ec4,#8a70b0); }
+    .t-militaer{ background: linear-gradient(180deg,#8fa3b8,#71879e); }
+    .t-frei    { background: repeating-linear-gradient(135deg,#cfc8bc 0 4px,#dfd9cf 4px 8px); color:#646464; }
+
+    .seg .tip {
+        display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+        transform: translateX(-50%); background: #3f3f3f; color: #fff;
+        font-size: 10.5px; font-weight: 600; padding: 5px 9px; border-radius: 8px;
+        white-space: nowrap; z-index: 5; box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    }
+    .seg:hover .tip { display: block; }
+
+    /* Summenzeile «Abwesend» */
+    tfoot td { border-top: 2px solid rgba(90,80,65,0.14); padding-top: 6px; padding-bottom: 4px; }
+    tfoot .namecol { font-size: 11px; color: #8b8b8b; font-weight: 700; }
+    .cnt { font-size: 10.5px; font-weight: 800; color: #a8a29a; text-align: center; }
+    .cnt.warn {
+        color: #fff; background: #c96a6a; border-radius: 7px; width: 22px; margin: 0 auto;
+    }
+    .cnt.mid { color: #b07940; }
+
+    /* Fusszeile Engpass-Hinweis */
+    .footnote {
+        display: flex; gap: 10px; align-items: center; margin-top: 12px;
+        font-size: 12px; color: #646464;
+        background: rgba(255,246,240,0.7); border: 1px solid rgba(201,106,106,0.25);
+        border-radius: 12px; padding: 9px 13px;
+    }
+    .footnote b { color: #b05555; }
+</style>
+</head>
+<body>
+<div class="hint">MOCKUP · unverbindlicher Design-Vorschlag «Absenz- &amp; Ferienkalender pro Filiale» — Daten fiktiv, nichts ist verdrahtet</div>
+<div class="wrap">
+
+    <div class="head">
+        <div>
+            <h1>Absenzen &amp; Ferien — Kalender</h1>
+            <div class="sub">Filiale Sursee · 14 aktive Mitarbeitende · Stand 22.07.2026</div>
+        </div>
+        <div class="monthnav">
+            <button>‹</button>
+            <span class="cur">Juli 2026</span>
+            <button>›</button>
+        </div>
+        <button class="btn-heute">Heute</button>
+    </div>
+
+    <div class="filterrow">
+        <span class="fpill on">Alle</span>
+        <span class="fpill">Nur Ferien</span>
+        <span class="fpill">Nur Krank/Unfall</span>
+        <span class="fpill">Nur mit Absenz</span>
+        <div class="legend">
+            <span><i class="dot t-ferien"></i>Ferien</span>
+            <span><i class="dot t-krank"></i>Krankheit</span>
+            <span><i class="dot t-unfall"></i>Unfall</span>
+            <span><i class="dot t-mutter"></i>Mutterschaft</span>
+            <span><i class="dot t-militaer"></i>Militär/Schule</span>
+            <span><i class="dot t-frei"></i>Wunschfrei</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <table id="cal"></table>
+    </div>
+
+    <div class="footnote">
+        ⚠ <span><b>Engpass am Fr 24.07. und Sa 25.07.:</b> 5 von 14 MA abwesend (3× Ferien, 1× Krankheit, 1× Mutterschaft). Schwelle konfigurierbar pro Filiale.</span>
+    </div>
+
+</div>
+
+<script>
+/* ───────────────────────── fiktive Demo-Daten ─────────────────────────
+   type: ferien | krank | unfall | mutter | militaer | frei
+   halb: true = Halbtag (flacher Balken)                                  */
+const YEAR = 2026, MONTH = 7, DAYS = 31, TODAY = 22;
+const WD = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+const MA = [
+    { n:'Alma Hodzic',        mod:'MTP 34h', saldo:'Ferien: 6.5 Tage',  abs:[ {f:6,  t:10, type:'ferien',  lbl:'Ferien 06.–10.07.'} ] },
+    { n:'Altina Baftija',     mod:'FLEX',    saldo:'Feriengeld: CHF 512', abs:[ {f:20, t:26, type:'krank',   lbl:'Krankheit ab 20.07. (AU bis 26.07.)'} ] },
+    { n:'Andrea Meier',       mod:'FIX 80%', saldo:'Ferien: 11 Tage',   abs:[ {f:22, t:31, type:'ferien',  lbl:'Ferien 22.07.–02.08. (läuft in August weiter)'} ] },
+    { n:'Anita Djonlagic',    mod:'FIX-M',   saldo:'Ferien: 14 Tage',   abs:[] },
+    { n:'Aurelio Costa',      mod:'FLEX',    saldo:'Feriengeld: CHF 233', abs:[ {f:13, t:13, type:'frei',   lbl:'Wunschfrei 13.07.', halb:false}, {f:24, t:25, type:'ferien', lbl:'Ferien 24.–25.07.'} ] },
+    { n:'Chiara Bernasconi',  mod:'MTP 25h', saldo:'Ferien: 3 Tage',    abs:[ {f:1,  t:3,  type:'ferien',  lbl:'Ferien 29.06.–03.07. (aus Juni)'}, {f:17, t:17, type:'krank', lbl:'Krankheit 17.07. (Halbtag)', halb:true} ] },
+    { n:'Dario Kaufmann',     mod:'FIX 100%',saldo:'Ferien: 18 Tage',   abs:[ {f:27, t:31, type:'militaer',lbl:'Militär WK 27.07.–14.08.'} ] },
+    { n:'Elif Yilmaz',        mod:'FLEX',    saldo:'Feriengeld: CHF 890', abs:[ {f:9,  t:9,  type:'unfall', lbl:'Unfall 09.07. (Arztbesuch)'}, {f:10, t:19, type:'unfall', lbl:'Unfall — arbeitsunfähig bis 19.07.'} ] },
+    { n:'Jasmina Colic',      mod:'MTP 30h', saldo:'Ferien: 8 Tage',    abs:[ {f:1,  t:31, type:'mutter',  lbl:'Mutterschaftsurlaub bis 12.09.2026'} ] },
+    { n:'Luca Ferrari',       mod:'FLEX',    saldo:'Feriengeld: CHF 147', abs:[] },
+    { n:'Martina Steiner',    mod:'FIX-M',   saldo:'Ferien: 9.5 Tage',  abs:[ {f:24, t:31, type:'ferien',  lbl:'Ferien 24.07.–09.08.'} ] },
+    { n:'Nikola Petrovic',    mod:'MTP 34h', saldo:'Ferien: 12 Tage',   abs:[ {f:3,  t:3,  type:'frei',    lbl:'Wunschfrei 03.07.'} ] },
+    { n:'Sara Brunner',       mod:'FLEX',    saldo:'Feriengeld: CHF 405', abs:[ {f:14, t:16, type:'krank',  lbl:'Krankheit 14.–16.07. (ohne AU, < 3 Tage)'} ] },
+    { n:'Zeljka Pajic',       mod:'FIX 60%', saldo:'Ferien: 7 Tage',    abs:[ {f:30, t:31, type:'ferien',  lbl:'Ferien 30.07.–07.08.'} ] },
+];
+
+function wd(d) { return WD[new Date(YEAR, MONTH - 1, d).getDay()]; }
+function isWe(d) { const g = new Date(YEAR, MONTH - 1, d).getDay(); return g === 0 || g === 6; }
+
+let h = '<thead><tr><th class="namecol"></th>';
+for (let d = 1; d <= DAYS; d++)
+    h += `<th class="${isWe(d) ? 'we' : ''} ${d === TODAY ? 'today' : ''}"><div class="dnum">${d}</div><div class="dwd">${wd(d)}</div></th>`;
+h += '</tr></thead><tbody>';
+
+const perDay = Array(DAYS + 1).fill(0);
+for (const m of MA) {
+    h += `<tr><td class="namecol">${m.n}<span class="mod">${m.mod}</span><span class="saldo">${m.saldo}</span></td>`;
+    for (let d = 1; d <= DAYS; d++) {
+        const a = m.abs.find(x => d >= x.f && d <= x.t);
+        let seg = '';
+        if (a) {
+            if (a.type !== 'frei') perDay[d]++;
+            const cls = ['seg', 't-' + a.type];
+            if (d === a.f) cls.push('start');
+            if (d === a.t) cls.push('end');
+            if (a.halb) cls.push('halb');
+            const mid = Math.floor((Math.max(a.f, 1) + Math.min(a.t, DAYS)) / 2);
+            const icon = { ferien:'F', krank:'K', unfall:'U', mutter:'M', militaer:'W', frei:'·' }[a.type];
+            seg = `<div class="${cls.join(' ')}">${d === mid ? icon : ''}<span class="tip">${a.lbl}</span></div>`;
+        }
+        h += `<td class="day ${isWe(d) ? 'we' : ''} ${d === TODAY ? 'today' : ''}">${seg}</td>`;
+    }
+    h += '</tr>';
+}
+h += '</tbody><tfoot><tr><td class="namecol">Abwesend</td>';
+for (let d = 1; d <= DAYS; d++) {
+    const c = perDay[d];
+    const cls = c >= 5 ? 'warn' : (c >= 3 ? 'mid' : '');
+    h += `<td class="day ${isWe(d) ? 'we' : ''}"><div class="cnt ${cls}">${c || ''}</div></td>`;
+}
+h += '</tr></tfoot>';
+document.getElementById('cal').innerHTML = h;
+</script>
+</body>
+</html>

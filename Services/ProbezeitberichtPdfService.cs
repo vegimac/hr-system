@@ -98,23 +98,16 @@ public class ProbezeitberichtPdfService
                     // 3. Gespräch — Datum linksbündig mit Ende von «geführt am:»,
                     // eine Zeile tiefer zum Ausfüllen von Hand (Walter 21.07.2026).
                     // AutoItem = Textbreite der Überschrift → RelativeItem startet genau dort.
-                    col.Item().PaddingTop(8).Row(r =>
-                    {
-                        r.AutoItem().Column(c =>
-                        {
-                            c.Item().Text("3.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
-                                .Bold().FontSize(11f);
-                            c.Item().PaddingTop(16)
-                                .Text(string.IsNullOrWhiteSpace(d.GespraechOrt) ? " " : d.GespraechOrt)
-                                .FontSize(11.5f).Bold();
-                        });
-                        r.RelativeItem().PaddingTop(16).Column(c =>
-                        {
-                            c.Item().Text("Datum").FontSize(9.5f).FontColor(Soft);
-                            // Kein Datumsstrich — Platz zum Ausfüllen bleibt (Walter 21.07.2026).
-                            c.Item().Height(HandLinePitch);
-                        });
-                    });
+                    col.Item().PaddingTop(8)
+                        .Text("3.  Gespräch mit der Mitarbeiterin/dem Mitarbeiter geführt am:")
+                        .Bold().FontSize(11f);
+                    // Ort, darunter linksbündig das «Datum»-Label — das Datum wird von
+                    // Hand ÜBER dem Label (rechts neben dem Ort) eingetragen (Walter 22.07.2026).
+                    col.Item().PaddingTop(16)
+                        .Text(string.IsNullOrWhiteSpace(d.GespraechOrt) ? " " : d.GespraechOrt)
+                        .FontSize(11.5f).Bold();
+                    col.Item().PaddingTop(HandLinePitch)
+                        .Text("Datum").FontSize(9.5f).FontColor(Soft);
 
                     // Unterschriften wie Vertrag: Platz darüber, dann Name(+Funktion),
                     // keine Titel/Striche (Walter 21.07.2026).

@@ -12360,6 +12360,7 @@ function _raTilesHtml() {
         ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
+        ${tile('absenzkalender.svg', 'Absenzkalender', "showPage('absenz-kalender')")}
         ${kontoTiles}
     </div>`;
 }
