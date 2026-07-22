@@ -116,6 +116,17 @@ async function kuLoadInfo() {
             gt.value = 'probezeit';
             return kuLoadInfo();
         }
+        // Umgekehrt (Walter 22.07.2026): ist der MA NICHT (mehr) in der
+        // Probezeit, die Option «Kündigung in der Probezeit» gar nicht
+        // anbieten — und eine allfällige Alt-Auswahl auf «ordentlich» drehen.
+        if (gt) {
+            const probOpt = gt.querySelector('option[value="probezeit"]');
+            if (probOpt) probOpt.hidden = probOpt.disabled = !info.inProbation;
+            if (!info.inProbation && gt.value === 'probezeit') {
+                gt.value = 'ordentlich';
+                return kuLoadInfo();
+            }
+        }
 
         const hint = document.getElementById('kuFristHint');
         if (hint) {

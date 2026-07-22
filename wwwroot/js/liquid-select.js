@@ -81,6 +81,7 @@
         }
         new MutationObserver(renderBtn).observe(sel, { attributes: true, attributeFilter: ['disabled'] });
         const optHtml = (o) =>
+            o.hidden ? '' :
             `<div class="lqsel-opt${o.value === sel.value ? ' sel' : ''}${o.disabled ? ' dis' : ''}" data-v="${lqEsc(o.value)}">${lqEsc(o.textContent.trim())}</div>`;
         function renderPanel() {
             let html = '';
