@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
@@ -28,14 +29,42 @@ public class EmployeesController : ControllerBase
     /// </summary>
     private bool IsAdminUser() => User.IsInRole("admin");
 
+    /// <summary>
+    /// Erlaubte Filialen des eingeloggten Users (Walter 22.07.2026 —
+    /// Riesen-Bock-Fix: GF sah via «Alle Filialen» ALLE MA). null =
+    /// unbeschraenkt (admin + reiner superuser). buchhaltung (Doppel-Claim
+    /// ZUERST pruefen, CLAUDE.md) sowie user/lowuser sind serverseitig auf
+    /// ihre user_branch_access-Filialen beschraenkt.
+    /// </summary>
+    private async Task<List<int>?> GetAllowedBranchIdsAsync()
+    {
+        if (User.IsInRole("admin")) return null;
+        var restricted = User.IsInRole("buchhaltung") || !User.IsInRole("superuser");
+        if (!restricted) return null;
+        var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idStr, out var uid)) return new List<int>();
+        return await _context.UserBranchAccesses.AsNoTracking()
+            .Where(a => a.UserId == uid)
+            .Select(a => a.CompanyProfileId)
+            .ToListAsync();
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         // Walter-Vorgabe 12.06.2026: IsHidden ausblenden (Soft-Delete).
         // Walter-Vorgabe 13.06.2026: Phantom-MA nur für admin sichtbar.
         var isAdmin = IsAdminUser();
-        var employees = await _context.Employees
-            .Where(e => !e.IsHidden && (isAdmin || !e.IsPayrollExcluded))
+        // Serverseitige Filial-Beschraenkung (Walter 22.07.2026): GF/
+        // buchhaltung/lowuser sehen NUR MA mit Vertrag in ihren Filialen —
+        // unabhaengig davon, was das Frontend anfragt.
+        var allowed = await GetAllowedBranchIdsAsync();
+        var query = _context.Employees
+            .Where(e => !e.IsHidden && (isAdmin || !e.IsPayrollExcluded));
+        if (allowed != null)
+            query = query.Where(e => e.Employments.Any(em =>
+                em.CompanyProfileId != null && allowed.Contains(em.CompanyProfileId.Value)));
+        var employees = await query
             .Include(e => e.Employments).ThenInclude(em => em.JobGroup)   // FK-Code für Frontend (Walter 26.05.2026)
             .Include(e => e.NationalityRef)  // für no-permit-Filter: Code CH statt nur Legacy-Freitext «Schweiz»
             .OrderBy(e => ((e.FirstName ?? "") + " " + (e.LastName ?? "")).Trim())
@@ -86,9 +115,14 @@ public class EmployeesController : ControllerBase
     public async Task<IActionResult> GetLookup()
     {
         var isAdmin = IsAdminUser();
-        var employees = await _context.Employees
+        var allowed = await GetAllowedBranchIdsAsync();   // Filial-Schranke (22.07.2026)
+        var q = _context.Employees
             .AsNoTracking()
-            .Where(e => e.IsActive && !e.IsHidden && (isAdmin || !e.IsPayrollExcluded))
+            .Where(e => e.IsActive && !e.IsHidden && (isAdmin || !e.IsPayrollExcluded));
+        if (allowed != null)
+            q = q.Where(e => e.Employments.Any(em =>
+                em.CompanyProfileId != null && allowed.Contains(em.CompanyProfileId.Value)));
+        var employees = await q
             .OrderBy(e => ((e.FirstName ?? "") + " " + (e.LastName ?? "")).Trim())
             .Select(e => new
             {
@@ -119,9 +153,14 @@ public class EmployeesController : ControllerBase
     public async Task<IActionResult> GetLookupFull()
     {
         var isAdmin = IsAdminUser();
-        var employees = await _context.Employees
+        var allowed = await GetAllowedBranchIdsAsync();   // Filial-Schranke (22.07.2026)
+        var qf = _context.Employees
             .AsNoTracking()
-            .Where(e => !e.IsHidden && (isAdmin || !e.IsPayrollExcluded))
+            .Where(e => !e.IsHidden && (isAdmin || !e.IsPayrollExcluded));
+        if (allowed != null)
+            qf = qf.Where(e => e.Employments.Any(em =>
+                em.CompanyProfileId != null && allowed.Contains(em.CompanyProfileId.Value)));
+        var employees = await qf
             .OrderBy(e => (e.FirstName ?? "")).ThenBy(e => (e.LastName ?? ""))
             .Select(e => new
             {
@@ -151,6 +190,9 @@ public class EmployeesController : ControllerBase
     [HttpGet("lookup/company/{companyId:int}")]
     public async Task<IActionResult> GetEmployeesForCompany(int companyId)
     {
+        var allowedC = await GetAllowedBranchIdsAsync();   // Filial-Schranke (22.07.2026)
+        if (allowedC != null && !allowedC.Contains(companyId))
+            return StatusCode(403, new { error = "BRANCH_FORBIDDEN", message = "Kein Zugriff auf diese Filiale." });
         var company = await _context.CompanyProfiles
             .FirstOrDefaultAsync(c => c.Id == companyId);
 
@@ -190,6 +232,14 @@ public class EmployeesController : ControllerBase
 
         if (employee == null)
             return NotFound();
+
+        // Filial-Schranke (Walter 22.07.2026): beschraenkte Rollen kommen
+        // nicht an MA fremder Filialen (auch nicht per direkter URL).
+        var allowedG = await GetAllowedBranchIdsAsync();
+        if (allowedG != null && !employee.Employments.Any(em =>
+                em.CompanyProfileId != null && allowedG.Contains(em.CompanyProfileId.Value)))
+            return StatusCode(403, new { error = "BRANCH_FORBIDDEN",
+                message = "Kein Zugriff auf Mitarbeitende anderer Filialen." });
 
         // Klartext-Name der Nationalität (Walter-Vorgabe 14.05.2026, präzisiert
         // 13.06.2026): immer Volltext anzeigen, nie nur den ISO-Code. Quelle:

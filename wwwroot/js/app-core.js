@@ -1003,10 +1003,14 @@ async function loadAllBranches() {
 
 function populateBranchSelector() {
     const sel = document.getElementById('branchSelect');
-    // Walter-Vorgabe 14.06.2026 (Korrektur): lowuser bekommt den Filial-
-    // Selektor 1:1 wie superuser — inkl. „Alle Filialen". Die Einschränkungen
-    // wirken nur auf den Menü-Umfang (Dashboard + Mitarbeiter + Verträge).
-    sel.innerHTML = '<option value="">Alle Filialen</option>';
+    // Walter-Vorgabe 22.07.2026 (ersetzt die lowuser-Korrektur vom
+    // 14.06.2026): «Alle Filialen» gibt es NUR fuer unbeschraenkte Rollen
+    // (branches === 'all', d.h. admin/superuser). GF/lowuser/buchhaltung
+    // sehen ausschliesslich ihre zugeteilten Filialen — der Server filtert
+    // seit 22.07.2026 ohnehin hart (EmployeesController), das UI bietet die
+    // Auswahl gar nicht mehr an.
+    const unrestricted = currentUser.branches === 'all';
+    sel.innerHTML = unrestricted ? '<option value="">Alle Filialen</option>' : '';
     const visible = (currentUser.branches === 'all'
         ? allBranches
         : allBranches.filter(b => currentUser.branches?.some(ub => ub.id === b.id))
