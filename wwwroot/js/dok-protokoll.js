@@ -5,6 +5,12 @@
 // Zeigt wer wann welches Dokument in die MA-Akte hochgeladen hat.
 // Seit Unterlagen direkt in OneCrew landen (nicht mehr über BommerBox),
 // braucht die Buchhaltung diese Übersicht + CSV-Export.
+//
+// Filiale: NUR der globale Sidebar-Selektor (Walter 22.07.2026).
+//   • konkrete Filiale → nur diese
+//   • «Alle Filialen» (nur admin/superuser) → alle erlaubten
+//   • buchhaltung/user: Sidebar zeigt nur zugeteilte Filialen; Server
+//     prüft zusätzlich hart über user_branch_access.
 // ══════════════════════════════════════════════════════════════════════
 
 let _dpRows = [];
@@ -25,14 +31,6 @@ function dpInit() {
     if (fromEl && !fromEl.value) fromEl.value = iso(monthAgo);
     if (toEl && !toEl.value) toEl.value = iso(today);
 
-    // Filiale folgt dem globalen Selektor (optionaler Filter).
-    const bSel = document.getElementById('dpBranchMode');
-    if (bSel && !bSel.dataset.ready) {
-        bSel.dataset.ready = '1';
-        bSel.innerHTML =
-            '<option value="current">Aktuelle Filiale (Sidebar)</option>'
-          + '<option value="all">Alle meine Filialen</option>';
-    }
     dpSyncBranchLabel();
     dpLoad();
 }
@@ -40,7 +38,6 @@ function dpInit() {
 function dpSyncBranchLabel() {
     const lbl = document.getElementById('dpBranchLabel');
     if (!lbl) return;
-    // Sidebar «Alle Filialen» → fixedCompanyProfileId = null → alle zeigen.
     if (!fixedCompanyProfileId) {
         lbl.textContent = 'Alle Filialen';
         return;
@@ -50,14 +47,6 @@ function dpSyncBranchLabel() {
     lbl.textContent = b
         ? `${b.restaurantCode ? b.restaurantCode + ' – ' : ''}${b.branchName || b.companyName}`
         : 'Alle Filialen';
-}
-
-/** true = eine konkrete Filiale filtern; false = alle erlaubten Filialen. */
-function dpWantsSingleBranch() {
-    const mode = document.getElementById('dpBranchMode')?.value || 'current';
-    if (mode === 'all') return false;
-    // mode=current: Sidebar-Filiale — «Alle Filialen» in der Sidebar = alle.
-    return !!fixedCompanyProfileId;
 }
 
 function dpBuildParams() {
@@ -70,7 +59,8 @@ function dpBuildParams() {
     if (to) p.set('to', to);
     if (q) p.set('q', q);
     p.set('limit', lim);
-    if (dpWantsSingleBranch())
+    // Nur wenn Sidebar eine konkrete Filiale hat — sonst Server = erlaubte Filialen.
+    if (fixedCompanyProfileId)
         p.set('companyProfileId', String(fixedCompanyProfileId));
     return p;
 }

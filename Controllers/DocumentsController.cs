@@ -1740,8 +1740,9 @@ public class DocumentsController : ControllerBase
 
     /// <summary>
     /// Erlaubte Filial-Codes für den Aufrufer.
-    /// null = kein Zugriff; leere Liste = Admin (alle); sonst Positiv-Liste.
-    /// Buchhaltung wird ZUERST geprüft (Doppel-Claim superuser, CLAUDE.md).
+    /// null = kein Zugriff; leere Liste = Admin/Superuser (alle); sonst Positiv-Liste.
+    /// Buchhaltung wird ZUERST geprüft (Doppel-Claim superuser, CLAUDE.md) —
+    /// ohne user_branch_access → kein Zugriff (nicht «alle»).
     /// </summary>
     private async Task<List<string>?> GetAllowedBranchCodesAsync()
     {
@@ -1759,12 +1760,14 @@ public class DocumentsController : ControllerBase
             select c.RestaurantCode!
         ).Distinct().ToListAsync();
 
+        if (codes.Count > 0) return codes;
+
         // Superuser OHNE buchhaltung-Claim und OHNE Filial-Zuordnung: alle
-        // (wie historische HR-Praxis). Buchhaltung ohne Zuordnung → leer/gesperrt.
-        if (codes.Count == 0 && User.IsInRole("superuser") && !User.IsInRole("buchhaltung"))
+        // (historische HR-Praxis). Buchhaltung/user ohne Zuordnung → gesperrt.
+        if (User.IsInRole("superuser") && !User.IsInRole("buchhaltung"))
             return new List<string>();
 
-        return codes;
+        return null;
     }
 
     // ──────────────────────────────────────────────────────────────────────
