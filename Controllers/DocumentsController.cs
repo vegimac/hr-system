@@ -1632,14 +1632,10 @@ public class DocumentsController : ControllerBase
             filterCode = cp.RestaurantCode;
         }
 
-        // Lokalzeit (Kind=Local) — DateOnly.ToDateTime liefert Unspecified,
-        // und gegen timestamptz/Npgsql knallt das (Walter: immer Lokalzeit).
-        DateTime? fromDt = from.HasValue
-            ? DateTime.SpecifyKind(from.Value.ToDateTime(TimeOnly.MinValue), DateTimeKind.Local)
-            : null;
-        DateTime? toDt = to.HasValue
-            ? DateTime.SpecifyKind(to.Value.ToDateTime(new TimeOnly(23, 59, 59)), DateTimeKind.Local)
-            : null;
+        // Datumsfilter NUR über Year/Month/Day (int-Parameter) — niemals
+        // DateTime an Postgres binden. Sonst knallt Npgsql, solange die Spalte
+        // noch timestamptz ist («Kind=Unspecified/Local»). Lokalzeit-Kalendertag
+        // ist genau das, was Walter will (Vorgabe: Lokalzeit, kein UTC).
         var search = string.IsNullOrWhiteSpace(q) ? null : q.Trim().ToLowerInvariant();
 
         var query =
@@ -1651,10 +1647,22 @@ public class DocumentsController : ControllerBase
             from u in uj.DefaultIfEmpty()
             select new { d, e, t, k, u };
 
-        if (fromDt.HasValue)
-            query = query.Where(x => x.d.HochgeladenAm >= fromDt.Value);
-        if (toDt.HasValue)
-            query = query.Where(x => x.d.HochgeladenAm <= toDt.Value);
+        if (from.HasValue)
+        {
+            var fy = from.Value.Year; var fm = from.Value.Month; var fd = from.Value.Day;
+            query = query.Where(x =>
+                x.d.HochgeladenAm.Year > fy
+                || (x.d.HochgeladenAm.Year == fy && x.d.HochgeladenAm.Month > fm)
+                || (x.d.HochgeladenAm.Year == fy && x.d.HochgeladenAm.Month == fm && x.d.HochgeladenAm.Day >= fd));
+        }
+        if (to.HasValue)
+        {
+            var ty = to.Value.Year; var tm = to.Value.Month; var td = to.Value.Day;
+            query = query.Where(x =>
+                x.d.HochgeladenAm.Year < ty
+                || (x.d.HochgeladenAm.Year == ty && x.d.HochgeladenAm.Month < tm)
+                || (x.d.HochgeladenAm.Year == ty && x.d.HochgeladenAm.Month == tm && x.d.HochgeladenAm.Day <= td));
+        }
 
         if (!string.IsNullOrEmpty(filterCode))
             query = query.Where(x => x.d.BranchCode == filterCode);
