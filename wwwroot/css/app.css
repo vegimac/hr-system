@@ -5659,6 +5659,16 @@
             padding-top: 6px;
             box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.12);
         }
+        /* Benutzerverwaltung: Spaltentitel (BENUTZER/E-MAIL/…) bleiben stehen.
+           tbl-wrap/card dürfen kein overflow haben (bricht sticky) — live
+           verifiziert 22.07.2026. */
+        #page-benutzer .page-body .tbl-wrap { overflow: visible; }
+        #page-benutzer .page-body .card { overflow: visible; }
+        #page-benutzer .page-body table thead th {
+            position: sticky; top: 0; z-index: 4;
+            background: #f1f5f9;
+        }
+        body.theme-dark #page-benutzer .page-body table thead th { background: #2a3446; }
         /* Lohnperioden: auch die Tabellen-Kopfzeile bleibt stehen (sticky im
            scrollenden page-body; die Card darf dafür kein overflow:hidden haben). */
         #page-perioden .data-table thead th {
