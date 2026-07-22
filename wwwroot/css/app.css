@@ -5647,6 +5647,12 @@
         .page.fixhead.active { display: flex !important; flex-direction: column; flex: 1 1 auto !important; min-height: 0; }
         .page.fixhead .sticky-page-head { position: static; background: transparent !important; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; border-bottom: none; }
         .page.fixhead .page-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+        /* KEIN padding-top am scrollenden page-body (Walter-Bug 22.07.2026:
+           Daten scrollten im Padding-Streifen SICHTBAR ÜBER die klebende
+           Kopfzeile — sticky pinnt erst unterhalb des Paddings). Stattdessen
+           mitscrollender Abstand via ::before. */
+        .page.fixhead .page-body { padding-top: 0 !important; }
+        .page.fixhead .page-body::before { content: ''; display: block; height: 12px; }
         /* Seiten mit .page-header (statt page-head): Header bekommt beim
            fixhead-Wrap einen zum page-body passenden Innenabstand. */
         .page.fixhead > .page-header { padding: 20px 14px 0; }
