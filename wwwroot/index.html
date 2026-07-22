@@ -1634,14 +1634,16 @@
             </div>
 
             <!-- DOKUMENT-UPLOAD-PROTOKOLL (Walter 22.07.2026 — Bommer/Buchhaltung;
-                 Einstieg auch über HR-Hub → Kontrolle) -->
+                 Einstieg über HR-Hub → Kontrolle) -->
             <div class="page liquid-mask fixhead" id="page-dok-protokoll">
                 <div class="sticky-page-head fh-page-head">
-                    <div class="page-head" style="margin-bottom:0">
+                    <div class="page-head" style="margin-bottom:0;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
                         <div>
                             <h1 class="page-title">Dokument-Upload-Protokoll</h1>
-                            <p class="page-sub">Wer hat wann welches Dokument in die MA-Akte hochgeladen — für Buchhaltung / Bommer + Partner
-                                · <a href="#" onclick="event.preventDefault();showPage('hr-hub')" style="color:#6b7280">← HR-Hub / Kontrolle</a></p>
+                            <p class="page-sub">Wer hat wann welches Dokument in die MA-Akte hochgeladen — für Buchhaltung / Bommer + Partner</p>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                            <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
                         </div>
                     </div>
                     <div class="fh-toolbar" style="gap:12px">
@@ -1664,7 +1666,7 @@
                             <option value="5000">5000</option>
                         </select>
                         <span id="dpInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
-                        <button class="btn btn-outline" onclick="dpLoad()">Aktualisieren</button>
+                        <button class="btn btn-outline" onclick="dpLoad()">↻ Aktualisieren</button>
                         <button class="btn btn-primary" onclick="dpExportCsv()">CSV exportieren</button>
                     </div>
                 </div>
@@ -2309,12 +2311,20 @@
             <!-- ═══════════════ KONTROLLE (HR-Modul) ═══════════════ -->
             <!-- Walter-Vorgabe 07.06.2026: proaktive Lücken-Erkennung in den
                  Personalakten. Erste Liste: MA mit QST-Bezug auf Ehegatten
-                 ohne hinterlegtes Spouse-Dokument. -->
+                 ohne hinterlegtes Spouse-Dokument.
+                 Walter 22.07.2026: EIN globaler Aktionsblock rechts
+                 (Excel/PDF/Aktualisieren für ALLE Punkte) + Zurück. -->
             <div class="page" id="page-kontrolle">
-                <div class="page-head">
+                <div class="page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
                     <div>
                         <h1 class="page-title" style="color:#991b1b">⚠ Kontrolle</h1>
                         <p class="page-sub">Proaktive Lücken-Erkennung in den Personalakten — HR sieht hier, wo Dokumente oder Daten fehlen.</p>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                        <button type="button" class="btn btn-outline" onclick="kontrolleExportExcel()" style="font-size:12px">📊 Excel</button>
+                        <button type="button" class="btn btn-outline" onclick="kontrolleExportPdf()" style="font-size:12px">📄 PDF</button>
+                        <button type="button" class="btn btn-outline" onclick="kontrolleRefreshAll()" style="font-size:12px">↻ Aktualisieren</button>
                     </div>
                 </div>
                 <div id="kontrolleAlert" style="margin-bottom:12px"></div>
@@ -2323,20 +2333,11 @@
                      Ehegatten-Ausweis darunter. -->
                 <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
                     <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
-                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-                            <div>
-                                <div style="font-size:15px;font-weight:700;color:#991b1b">Ausweis Mitarbeiter fehlt</div>
-                                <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
-                                    Aktive MA, deren QST-Befreiung auf dem eigenen Ausweis beruht:
-                                    <b>CH-Bürger ohne Pass/ID-Beleg</b> oder <b>C-Ausweis-Inhaber ohne Bewilligungs-Beleg</b>.
-                                    MA mit Behörden-Befreiung sind ausgeblendet.
-                                </div>
-                            </div>
-                            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportExcel()" style="font-size:12px">📊 Excel</button>
-                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportPdf()"   style="font-size:12px">📄 PDF</button>
-                                <button class="btn btn-outline" onclick="kontrolleEmployeeRefresh()"    style="font-size:12px">↻ Aktualisieren</button>
-                            </div>
+                        <div style="font-size:15px;font-weight:700;color:#991b1b">Ausweis Mitarbeiter fehlt</div>
+                        <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
+                            Aktive MA, deren QST-Befreiung auf dem eigenen Ausweis beruht:
+                            <b>CH-Bürger ohne Pass/ID-Beleg</b> oder <b>C-Ausweis-Inhaber ohne Bewilligungs-Beleg</b>.
+                            MA mit Behörden-Befreiung sind ausgeblendet.
                         </div>
                     </div>
                     <div id="kontrolleEmployeeList" style="padding:0">
@@ -2346,19 +2347,10 @@
 
                 <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
                     <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
-                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-                            <div>
-                                <div style="font-size:15px;font-weight:700;color:#991b1b">Ausweis Ehegatte fehlt</div>
-                                <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
-                                    Aktive MA <b>ohne CH-Bürgerschaft</b> und <b>ohne C-Bewilligung</b>, deren <b>Ehepartner CH-Bürger oder C-Inhaber</b> ist —
-                                    aber noch <b>kein Ausweis-Dokument</b> des Ehepartners hinterlegt ist.
-                                </div>
-                            </div>
-                            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                <button class="btn btn-outline" onclick="kontrolleSpouseExportExcel()" style="font-size:12px">📊 Excel</button>
-                                <button class="btn btn-outline" onclick="kontrolleSpouseExportPdf()"   style="font-size:12px">📄 PDF</button>
-                                <button class="btn btn-outline" onclick="kontrolleSpouseRefresh()"    style="font-size:12px">↻ Aktualisieren</button>
-                            </div>
+                        <div style="font-size:15px;font-weight:700;color:#991b1b">Ausweis Ehegatte fehlt</div>
+                        <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
+                            Aktive MA <b>ohne CH-Bürgerschaft</b> und <b>ohne C-Bewilligung</b>, deren <b>Ehepartner CH-Bürger oder C-Inhaber</b> ist —
+                            aber noch <b>kein Ausweis-Dokument</b> des Ehepartners hinterlegt ist.
                         </div>
                     </div>
                     <div id="kontrolleSpouseList" style="padding:0">
@@ -2370,19 +2362,10 @@
                      laufen ab" — analog Dashboard-Card permit_expiring. -->
                 <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
                     <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
-                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-                            <div>
-                                <div style="font-size:15px;font-weight:700;color:#991b1b">Bewilligungen laufen ab</div>
-                                <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
-                                    Aktive MA, deren <b>jüngste Bewilligung</b> bereits <b>abgelaufen</b> ist oder in den
-                                    nächsten <b>90 Tagen abläuft</b>. Bei Austritt vor Ablauf wird der Eintrag ausgeblendet.
-                                </div>
-                            </div>
-                            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportExcel()" style="font-size:12px">📊 Excel</button>
-                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportPdf()"   style="font-size:12px">📄 PDF</button>
-                                <button class="btn btn-outline" onclick="kontrollePermitRefresh()"      style="font-size:12px">↻ Aktualisieren</button>
-                            </div>
+                        <div style="font-size:15px;font-weight:700;color:#991b1b">Bewilligungen laufen ab</div>
+                        <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
+                            Aktive MA, deren <b>jüngste Bewilligung</b> bereits <b>abgelaufen</b> ist oder in den
+                            nächsten <b>90 Tagen abläuft</b>. Bei Austritt vor Ablauf wird der Eintrag ausgeblendet.
                         </div>
                     </div>
                     <div id="kontrollePermitList" style="padding:0">
@@ -2395,20 +2378,11 @@
                      vollständige Nachweise. Logik analog Dashboard night_work_exam_fehlt. -->
                 <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
                     <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
-                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-                            <div>
-                                <div style="font-size:15px;font-weight:700;color:#991b1b">Nachtarbeit-Nachweise fehlen</div>
-                                <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
-                                    Aktive MA mit <b>mehr als 18 gearbeiteten Nächten in einem rollierenden 6-Wochen-Fenster</b>
-                                    (42 Tage) <b>ohne vollständige Nachweise</b> — Arztzeugnis/Verzicht <b>und</b> Ausnahmeregelung
-                                    (Checkliste) müssen im MA-Dossier hinterlegt sein (ArGV1 Art. 30).
-                                </div>
-                            </div>
-                            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportExcel()" style="font-size:12px">📊 Excel</button>
-                                <button class="btn btn-outline" onclick="kontrolleEmployeeExportPdf()"   style="font-size:12px">📄 PDF</button>
-                                <button class="btn btn-outline" onclick="kontrolleNachtRefresh()"        style="font-size:12px">↻ Aktualisieren</button>
-                            </div>
+                        <div style="font-size:15px;font-weight:700;color:#991b1b">Nachtarbeit-Nachweise fehlen</div>
+                        <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
+                            Aktive MA mit <b>mehr als 18 gearbeiteten Nächten in einem rollierenden 6-Wochen-Fenster</b>
+                            (42 Tage) <b>ohne vollständige Nachweise</b> — Arztzeugnis/Verzicht <b>und</b> Ausnahmeregelung
+                            (Checkliste) müssen im MA-Dossier hinterlegt sein (ArGV1 Art. 30).
                         </div>
                     </div>
                     <div id="kontrolleNachtList" style="padding:0">
@@ -6973,7 +6947,7 @@
 <script src="js/permit-import.js?v=20260704p"></script>
 <script src="js/hr-review-import.js?v=20260704p"></script>
 <script src="js/qst-import.js?v=20260704p"></script>
-<script src="js/kontrolle.js?v=20260718a"></script>
+<script src="js/kontrolle.js?v=20260722a"></script>
 <script src="js/nationen.js?v=20260704p"></script>
 <script src="js/swiss-locations.js?v=20260704p"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>

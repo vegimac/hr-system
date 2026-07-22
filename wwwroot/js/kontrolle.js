@@ -12,11 +12,20 @@ let _kontrollePermitCache   = [];
 let _kontrolleNachtCache    = [];
 
 function kontrolleInit() {
+    kontrolleRefreshAll();
+}
+
+/** Alle Kontroll-Listen neu laden (globaler Knopf, Walter 22.07.2026). */
+function kontrolleRefreshAll() {
     kontrolleEmployeeRefresh();
     kontrolleSpouseRefresh();
     kontrollePermitRefresh();
     kontrolleNachtRefresh();
 }
+
+/** Excel/PDF für ALLE Punkte zusammen (nicht pro Sektion). */
+function kontrolleExportExcel() { _kontrolleExportCombiExcel(); }
+function kontrolleExportPdf()   { _kontrolleExportCombiPdf(); }
 
 // ══════════════════════════════════════════════════════════════════════
 // Walter-Vorgabe 22.06.2026 (ArGV1 Art. 30): Liste „Nachtarbeit-Nachweise fehlen"
