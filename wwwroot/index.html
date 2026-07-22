@@ -2884,22 +2884,23 @@
                         Benutzer erstellen
                     </button>
                 </div>
+                <!-- View-as / Testmodus (nur Superadmin, Backend erzwingt IsSuperAdmin) —
+                     im FIXEN Kopfbereich, scrollt nicht mit der Liste (Walter 22.07.2026). -->
+                <div class="card" id="impersonateCard" style="display:none;margin:12px 32px 4px;border:1px solid #fcd34d;background:#fffbeb">
+                    <div style="padding:16px 18px">
+                        <div style="font-weight:700;color:#92400e;font-size:14px;margin-bottom:4px">🧪 Als Benutzer testen (View-as)</div>
+                        <div style="font-size:12.5px;color:#78716c;margin-bottom:12px">Gib einen Benutzernamen (oder E-Mail) und <b>dein eigenes</b> Passwort ein, um die App aus Sicht dieses Benutzers zu sehen. Oben erscheint dann ein Hinweis-Balken mit „Zurück zu meinem Konto".</div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                            <input id="impUsername" type="text" placeholder="Benutzername oder E-Mail" autocomplete="off" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px">
+                            <input id="impPassword" type="password" placeholder="Dein Passwort" autocomplete="off" style="flex:1;min-width:160px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px" onkeydown="if(event.key==='Enter')impersonateUser()">
+                            <button class="btn btn-primary" onclick="impersonateUser()">In Benutzer wechseln →</button>
+                        </div>
+                        <div id="impError" style="display:none;color:#b91c1c;font-size:12.5px;margin-top:8px"></div>
+                    </div>
+                </div>
                 </div><!-- /.sticky-page-head -->
                 <div class="page-body">
                     <div id="userPageAlert"></div>
-                    <!-- View-as / Testmodus (nur Superadmin). Backend erzwingt IsSuperAdmin. -->
-                    <div class="card" id="impersonateCard" style="display:none;margin-bottom:16px;border:1px solid #fcd34d;background:#fffbeb">
-                        <div style="padding:16px 18px">
-                            <div style="font-weight:700;color:#92400e;font-size:14px;margin-bottom:4px">🧪 Als Benutzer testen (View-as)</div>
-                            <div style="font-size:12.5px;color:#78716c;margin-bottom:12px">Gib einen Benutzernamen (oder E-Mail) und <b>dein eigenes</b> Passwort ein, um die App aus Sicht dieses Benutzers zu sehen. Oben erscheint dann ein Hinweis-Balken mit „Zurück zu meinem Konto".</div>
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                                <input id="impUsername" type="text" placeholder="Benutzername oder E-Mail" autocomplete="off" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px">
-                                <input id="impPassword" type="password" placeholder="Dein Passwort" autocomplete="off" style="flex:1;min-width:160px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px" onkeydown="if(event.key==='Enter')impersonateUser()">
-                                <button class="btn btn-primary" onclick="impersonateUser()">In Benutzer wechseln →</button>
-                            </div>
-                            <div id="impError" style="display:none;color:#b91c1c;font-size:12.5px;margin-top:8px"></div>
-                        </div>
-                    </div>
                     <div class="card">
                         <div class="tbl-wrap"><table>
                             <thead><tr><th>Benutzer</th><th>E-Mail</th><th>Rolle</th><th>Filialen</th><th>Status</th><th>Erstellt</th><th>Letzter Login</th><th></th></tr></thead>
