@@ -1068,6 +1068,10 @@ function onBranchChange() {
         if (typeof fibuInit === 'function') fibuInit();
     } else if (currentPageName === 'dok-protokoll') {
         if (typeof dpInit === 'function') dpInit();
+    } else if (currentPageName === 'kontrolle') {
+        // Kontroll-Listen folgen der Sidebar-Filiale (Walter 22.07.2026).
+        if (typeof kontrolleRefreshAll === 'function') kontrolleRefreshAll();
+        else if (typeof kontrolleInit === 'function') kontrolleInit();
     } else if (currentPageName === 'lohnlauf') {
         // Lohnlauf folgt der globalen Filial-Auswahl — kein eigener Picker mehr.
         llSyncFromGlobalBranch();
