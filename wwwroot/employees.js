@@ -2385,6 +2385,25 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
 function closeAusweisDokuModal() {
     document.getElementById('ausweisDokuModal')?.remove();
     // Context NICHT löschen — wird vom Upload-Callback noch gebraucht.
+    // Kam der Waehler aus dem Probezeit-Modal: dieses wieder oeffnen und
+    // mit frischen MA-Daten rendern (Walter 22.07.2026).
+    if (window._pzReopenAfterDoku) {
+        const empId = window._pzReopenAfterDoku;
+        window._pzReopenAfterDoku = null;
+        (async () => {
+            try {
+                const r = await fetch(`/api/employees/${empId}`, { headers: ah(), cache: 'no-store' });
+                if (r.ok) {
+                    selectedEmployee = await r.json();
+                    window.selectedEmployeeId = empId;
+                }
+            } catch {}
+            _pzEnsureModal();
+            pzRefreshModal();
+            const m = document.getElementById('pzModal');
+            if (m) m.style.display = 'flex';
+        })();
+    }
 }
 
 async function ausweisDokuUnlink(empId, kind) {
@@ -12372,6 +12391,16 @@ function pzClose() {
     if (m) m.style.display = 'none';
 }
 
+// Dokument-Waehler AUS dem Probezeit-Modal (Walter 22.07.2026): das
+// pzModal (z-index 9000) lag ueber dem Waehler (2400) — Dokumente waren
+// nicht anklickbar. Darum: pzModal zu, Waehler auf, danach pzModal
+// wieder oeffnen (Flag wird in closeAusweisDokuModal ausgewertet).
+function pzOpenDokuPicker(empId, kind) {
+    pzClose();
+    window._pzReopenAfterDoku = empId;
+    openAusweisDokuModal(empId, kind);
+}
+
 function pzRefreshModal() {
     const body = document.getElementById('pzBody');
     const emp = selectedEmployee;
@@ -12404,9 +12433,9 @@ function pzRefreshModal() {
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 ${dokId
                     ? `<button type="button" onclick="qstOpenBefreiungsDok(${emp.id}, ${dokId}, {sticky:true})" style="background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">👁 Protokoll</button>
-                       <button type="button" onclick="openAusweisDokuModal(${emp.id},'${kind}')" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">Protokoll ersetzen</button>
+                       <button type="button" onclick="pzOpenDokuPicker(${emp.id},'${kind}')" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">Protokoll ersetzen</button>
                        <button type="button" onclick="ausweisDokuUnlink(${emp.id},'${kind}')" style="background:none;border:none;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">lösen</button>`
-                    : `<button type="button" onclick="openAusweisDokuModal(${emp.id},'${kind}')" style="background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">📄 Protokoll verknüpfen</button>
+                    : `<button type="button" onclick="pzOpenDokuPicker(${emp.id},'${kind}')" style="background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">📄 Protokoll verknüpfen</button>
                        <span style="font-size:11.5px;color:#8b8b8b">→ Dokus · Mitarbeiterentwicklung · Probezeitgespräch</span>`}
             </div>
             ${am && !dokId ? `<div style="margin-top:8px;font-size:11.5px;color:#9f1239;font-weight:650">Datum gesetzt — bitte noch das ausgefüllte Protokoll verknüpfen.</div>` : ''}
