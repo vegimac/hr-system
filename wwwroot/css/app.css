@@ -5672,22 +5672,59 @@
            mitklebenden Filter-Toolbar (Versatz --ssh wird in app-core.js
            gemessen). Overflow-Wrapper um die Tabellen brechen sticky und sind
            auf den betroffenen Seiten entfernt. */
+        .page.fixhead .page-body table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
         .page.fixhead .page-body table thead th {
             position: sticky; top: var(--ssh, 0px); z-index: 4;
-            background: #f1f5f9;
+            background: #f1f5f9 !important;
+            box-shadow: 0 1px 0 #e2e8f0;
         }
-        body.theme-dark .page.fixhead .page-body table thead th { background: #2a3446; }
+        body.theme-dark .page.fixhead .page-body table thead th {
+            background: #2a3446 !important;
+            box-shadow: 0 1px 0 var(--dlg-glass-border);
+        }
         .page.fixhead .page-body .tbl-wrap { overflow: visible; }
+        .main:has(.page.fixhead.active) { overflow: hidden !important; }
         /* Benutzerverwaltung: Spaltentitel (BENUTZER/E-MAIL/…) bleiben stehen.
-           tbl-wrap/card dürfen kein overflow haben (bricht sticky) — live
-           verifiziert 22.07.2026. */
-        #page-benutzer .page-body .tbl-wrap { overflow: visible; }
-        #page-benutzer .page-body .card { overflow: visible; }
-        #page-benutzer .page-body table thead th {
-            position: sticky; top: 0; z-index: 4;
-            background: #f1f5f9;
+           Eigenes Scroll-Fenster um die Tabelle (nicht page-body) + 
+           border-collapse:separate — sonst «hüpft» thead mit (Walter 22.07.2026). */
+        #page-benutzer .page-body.um-body {
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 16px !important;
         }
-        body.theme-dark #page-benutzer .page-body table thead th { background: #2a3446; }
+        #page-benutzer .um-list-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #page-benutzer .um-list-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+        }
+        #page-benutzer .um-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13.5px;
+        }
+        #page-benutzer .um-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            background: #f1f5f9 !important;
+            box-shadow: 0 1px 0 #e2e8f0;
+        }
+        body.theme-dark #page-benutzer .um-table thead th {
+            background: #2a3446 !important;
+            box-shadow: 0 1px 0 var(--dlg-glass-border);
+        }
         /* Lohnperioden: auch die Tabellen-Kopfzeile bleibt stehen (sticky im
            scrollenden page-body; die Card darf dafür kein overflow:hidden haben). */
         #page-perioden .data-table thead th {

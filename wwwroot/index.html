@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260722q">
+    <link rel="stylesheet" href="css/app.css?v=20260722r">
 </head>
 <body>
 
@@ -2903,13 +2903,17 @@
                     </div>
                 </div>
                 </div><!-- /.sticky-page-head -->
-                <div class="page-body">
+                <!-- page-body scrollt nicht selbst — nur .um-list-scroll, damit
+                     thead sticky zuverlässig pinnt (Walter 22.07.2026). -->
+                <div class="page-body um-body">
                     <div id="userPageAlert"></div>
-                    <div class="card">
-                        <div class="tbl-wrap"><table>
-                            <thead><tr><th>Benutzer</th><th>E-Mail</th><th>Rolle</th><th>Filialen</th><th>Status</th><th>Erstellt</th><th>Letzter Login</th><th></th></tr></thead>
-                            <tbody id="userTbody"><tr><td colspan="8" style="text-align:center;padding:28px;color:#94a3b8">Lade...</td></tr></tbody>
-                        </table></div>
+                    <div class="card um-list-card">
+                        <div class="um-list-scroll">
+                            <table class="um-table">
+                                <thead><tr><th>Benutzer</th><th>E-Mail</th><th>Rolle</th><th>Filialen</th><th>Status</th><th>Erstellt</th><th>Letzter Login</th><th></th></tr></thead>
+                                <tbody id="userTbody"><tr><td colspan="8" style="text-align:center;padding:28px;color:#94a3b8">Lade...</td></tr></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
