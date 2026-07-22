@@ -2194,7 +2194,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
         body.theme-dark #ausweisDokuModal .ausweis-doku-row.relevant { background: #064e3b; }
         body.theme-dark #ausweisDokuModal .ausweis-doku-row:hover    { background: #5a5348; }
     </style>
-    <div id="ausweisDokuModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2400;display:flex;align-items:center;justify-content:center;padding:20px"
+    <div id="ausweisDokuModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9600;display:flex;align-items:center;justify-content:center;padding:20px"
          onclick="if(event.target===this)closeAusweisDokuModal()">
         <div style="background:#fff;border-radius:12px;width:880px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 14px 56px rgba(0,0,0,0.28)">
             <div style="padding:16px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
@@ -2278,9 +2278,14 @@ function ausweisDokuUploadNew() {
     if (typeof _dokState === 'undefined') return;
     _dokState.selectedKategorieId = ctx.defaultKatId;
     _dokState.selectedTypId       = ctx.defaultTypId;
+    // Probezeit-Reopen-Flag AUFSCHIEBEN (Walter 22.07.2026): sonst wuerde
+    // closeAusweisDokuModal das pzModal sofort ueber das Upload-Modal legen.
+    const pzFlag = window._pzReopenAfterDoku;
+    window._pzReopenAfterDoku = null;
     _dokState.afterUpload = async (newDokId, _raw, formInfo) => {
-        if (!newDokId) return;
+        if (!newDokId) { if (pzFlag) { window._pzReopenAfterDoku = pzFlag; pzReopenIfFlagged(); } return; }
         await ausweisDokuVerknuepfen(ctx.empId, ctx.kind, newDokId, formInfo);
+        if (pzFlag) { window._pzReopenAfterDoku = pzFlag; pzReopenIfFlagged(); }
     };
     closeAusweisDokuModal();
     if (typeof openDokUploadModal === 'function') openDokUploadModal();
@@ -2385,25 +2390,30 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
 function closeAusweisDokuModal() {
     document.getElementById('ausweisDokuModal')?.remove();
     // Context NICHT löschen — wird vom Upload-Callback noch gebraucht.
-    // Kam der Waehler aus dem Probezeit-Modal: dieses wieder oeffnen und
-    // mit frischen MA-Daten rendern (Walter 22.07.2026).
-    if (window._pzReopenAfterDoku) {
-        const empId = window._pzReopenAfterDoku;
-        window._pzReopenAfterDoku = null;
-        (async () => {
-            try {
-                const r = await fetch(`/api/employees/${empId}`, { headers: ah(), cache: 'no-store' });
-                if (r.ok) {
-                    selectedEmployee = await r.json();
-                    window.selectedEmployeeId = empId;
-                }
-            } catch {}
-            _pzEnsureModal();
-            pzRefreshModal();
-            const m = document.getElementById('pzModal');
-            if (m) m.style.display = 'flex';
-        })();
-    }
+    // Kam der Waehler aus dem Probezeit-Modal: dieses wieder oeffnen
+    // (Walter 22.07.2026) — gilt fuer Auswahl UND Abbrechen.
+    pzReopenIfFlagged();
+}
+
+// Probezeit-Modal nach dem Dokument-Waehler wieder oeffnen — mit frisch
+// geladenen MA-Daten, damit Verknuepfung/Status sofort stimmen.
+function pzReopenIfFlagged() {
+    if (!window._pzReopenAfterDoku) return;
+    const empId = window._pzReopenAfterDoku;
+    window._pzReopenAfterDoku = null;
+    (async () => {
+        try {
+            const r = await fetch(`/api/employees/${empId}`, { headers: ah(), cache: 'no-store' });
+            if (r.ok) {
+                selectedEmployee = await r.json();
+                window.selectedEmployeeId = empId;
+            }
+        } catch {}
+        _pzEnsureModal();
+        pzRefreshModal();
+        const m = document.getElementById('pzModal');
+        if (m) m.style.display = 'flex';
+    })();
 }
 
 async function ausweisDokuUnlink(empId, kind) {
