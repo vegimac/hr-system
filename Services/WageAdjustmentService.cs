@@ -255,7 +255,7 @@ public class WageAdjustmentService
                 {
                     CompanyProfileId = companyProfileId,
                     UploadedBy       = actorUserId,
-                    UploadedAt       = DateTime.UtcNow,
+                    UploadedAt       = DateTime.Now,
                     OriginalFilename = $"Lohnanpassung per {effectiveDate:dd.MM.yyyy}",
                     // Reine Text-Mitteilung (keine Datei). storage_filename ist UNIQUE →
                     // leerer String kollidiert ab der 2. Notiz. Eindeutiger Platzhalter.

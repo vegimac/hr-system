@@ -1106,7 +1106,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.GueltigVon).HasColumnName("gueltig_von").HasColumnType("date");
             entity.Property(e => e.GueltigBis).HasColumnName("gueltig_bis").HasColumnType("date");
             entity.Property(e => e.HochgeladenVon).HasColumnName("hochgeladen_von");
-            entity.Property(e => e.HochgeladenAm).HasColumnName("hochgeladen_am");
+            // Lokalzeit — wie alle anderen timestamp-Spalten (Walter-Vorgabe 30.06.2026).
+            // Ohne explizites ColumnType mappt Npgsql auf timestamptz → 500 bei Kind=Unspecified.
+            entity.Property(e => e.HochgeladenAm).HasColumnName("hochgeladen_am")
+                  .HasColumnType("timestamp without time zone");
             entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am").HasColumnType("timestamp without time zone");
             entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am").HasColumnType("timestamp without time zone");
             entity.Property(e => e.DateiGeaendertAm).HasColumnName("datei_geaendert_am").HasColumnType("timestamp without time zone");
@@ -1126,7 +1129,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
             entity.Property(e => e.UploadedBy).HasColumnName("uploaded_by");
-            entity.Property(e => e.UploadedAt).HasColumnName("uploaded_at");
+            entity.Property(e => e.UploadedAt).HasColumnName("uploaded_at")
+                  .HasColumnType("timestamp without time zone");
             entity.Property(e => e.OriginalFilename).HasColumnName("original_filename");
             entity.Property(e => e.StorageFilename).HasColumnName("storage_filename");
             entity.Property(e => e.MimeType).HasColumnName("mime_type");

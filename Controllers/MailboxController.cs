@@ -295,7 +295,7 @@ public class MailboxController : ControllerBase
         {
             CompanyProfileId  = effectiveBranchId,
             UploadedBy        = GetCurrentUserId(),
-            UploadedAt        = DateTime.UtcNow,
+            UploadedAt       = DateTime.Now,
             OriginalFilename  = file.FileName,
             StorageFilename   = storageName,
             MimeType          = file.ContentType,
@@ -433,7 +433,7 @@ public class MailboxController : ControllerBase
         {
             CompanyProfileId = branchId.Value,
             UploadedBy       = uid,
-            UploadedAt       = DateTime.UtcNow,
+            UploadedAt       = DateTime.Now,
             OriginalFilename = origName,
             StorageFilename  = storageName,
             MimeType         = file.ContentType,

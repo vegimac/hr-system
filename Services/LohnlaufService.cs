@@ -495,7 +495,7 @@ public class LohnlaufService
             {
                 CompanyProfileId = periode.CompanyProfileId,
                 UploadedBy       = senderUserId == 0 ? null : senderUserId,
-                UploadedAt       = DateTime.UtcNow,
+                UploadedAt       = DateTime.Now,
                 OriginalFilename = origFileName,
                 StorageFilename  = storageName,
                 MimeType         = "application/pdf",
@@ -594,7 +594,7 @@ public class LohnlaufService
                     {
                         CompanyProfileId = periode.CompanyProfileId,
                         UploadedBy       = senderUserId == 0 ? null : senderUserId,
-                        UploadedAt       = DateTime.UtcNow,
+                        UploadedAt       = DateTime.Now,
                         OriginalFilename = origFileName,
                         StorageFilename  = storageName,
                         MimeType         = "application/pdf",

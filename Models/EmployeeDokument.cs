@@ -40,7 +40,8 @@ public class EmployeeDokument
     public DateOnly? GueltigBis { get; set; }
 
     public int? HochgeladenVon { get; set; }
-    public DateTime HochgeladenAm { get; set; } = DateTime.UtcNow;
+    /// <summary>Lokalzeit (timestamp without time zone) — nie UTC (Walter 30.06.2026).</summary>
+    public DateTime HochgeladenAm { get; set; } = DateTime.Now;
 
     // ── Dokument-Metadaten (Walter-Vorgabe 24.05.2026) ──────────────────────
     // Übernommen aus d.velop bzw. gepflegt durch das System.

@@ -498,6 +498,40 @@ using (var scope = app.Services.CreateScope())
         END $$;
     ");
 
+    // Dokument-Zeitstempel → Lokalzeit (Walter 22.07.2026 / Vorgabe 30.06.2026).
+    // employee_dokument.hochgeladen_am und mailbox_document.uploaded_at waren
+    // als timestamptz angelegt → Npgsql verlangt UTC und das Upload-Protokoll
+    // knallte mit Kind=Unspecified. Systemweit gilt: timestamp without time zone
+    // + DateTime.Now (Lokalzeit). Idempotent.
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'employee_dokument'
+                  AND column_name = 'hochgeladen_am'
+                  AND data_type = 'timestamp with time zone'
+            ) THEN
+                ALTER TABLE employee_dokument
+                    ALTER COLUMN hochgeladen_am TYPE timestamp without time zone
+                    USING hochgeladen_am AT TIME ZONE 'Europe/Zurich';
+            END IF;
+
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'mailbox_document'
+                  AND column_name = 'uploaded_at'
+                  AND data_type = 'timestamp with time zone'
+            ) THEN
+                ALTER TABLE mailbox_document
+                    ALTER COLUMN uploaded_at TYPE timestamp without time zone
+                    USING uploaded_at AT TIME ZONE 'Europe/Zurich';
+            END IF;
+        END $$;
+    ");
+
     // Nachtstunden-Grenzen im Firmenstamm
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE company_profile

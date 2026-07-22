@@ -332,7 +332,7 @@ public class DocumentsController : ControllerBase
             GueltigVon       = gueltigVon,
             GueltigBis       = gueltigBis,
             HochgeladenVon   = GetCurrentUserId(),
-            HochgeladenAm    = DateTime.UtcNow,
+            HochgeladenAm    = DateTime.Now,
             // Optionale d.velop-Metadaten (Walter 06.06.2026) — Kind=Unspecified
             // damit Postgres `timestamp without time zone` (siehe DbContext-Mapping
             // in der Backfill-Migration) sie ohne UTC-Konvertierung übernimmt.
@@ -1632,8 +1632,14 @@ public class DocumentsController : ControllerBase
             filterCode = cp.RestaurantCode;
         }
 
-        var fromDt = from?.ToDateTime(TimeOnly.MinValue);
-        var toDt   = to?.ToDateTime(new TimeOnly(23, 59, 59));
+        // Lokalzeit (Kind=Local) — DateOnly.ToDateTime liefert Unspecified,
+        // und gegen timestamptz/Npgsql knallt das (Walter: immer Lokalzeit).
+        DateTime? fromDt = from.HasValue
+            ? DateTime.SpecifyKind(from.Value.ToDateTime(TimeOnly.MinValue), DateTimeKind.Local)
+            : null;
+        DateTime? toDt = to.HasValue
+            ? DateTime.SpecifyKind(to.Value.ToDateTime(new TimeOnly(23, 59, 59)), DateTimeKind.Local)
+            : null;
         var search = string.IsNullOrWhiteSpace(q) ? null : q.Trim().ToLowerInvariant();
 
         var query =

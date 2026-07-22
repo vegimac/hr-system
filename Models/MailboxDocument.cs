@@ -16,7 +16,8 @@ public class MailboxDocument
     public int? UploadedBy { get; set; }
     public AppUser? Uploader { get; set; }
 
-    public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+    /// <summary>Lokalzeit (timestamp without time zone) — nie UTC (Walter 30.06.2026).</summary>
+    public DateTime UploadedAt { get; set; } = DateTime.Now;
 
     public string OriginalFilename { get; set; } = "";
     public string StorageFilename  { get; set; } = "";

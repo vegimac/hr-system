@@ -481,7 +481,7 @@ public class DvelopImportController : ControllerBase
                     Bemerkung = string.IsNullOrWhiteSpace(row.Bemerkung) ? null : row.Bemerkung,
                     GueltigVon = row.GueltigVon,
                     HochgeladenVon = GetCurrentUserId(),
-                    HochgeladenAm = DateTime.UtcNow,
+                    HochgeladenAm    = DateTime.Now,
                     // d.velop-Metadaten 1:1 übernehmen (Walter-Vorgabe 24.05.2026).
                     ErstelltAm        = ParseDateTime(F(colErstelltAm)),
                     GeaendertAm       = ParseDateTime(F(colGeaendertAm)),
@@ -642,7 +642,7 @@ public class DvelopImportController : ControllerBase
             },
             GroesseBytes = bytes.LongLength,
             HochgeladenVon = GetCurrentUserId(),
-            HochgeladenAm = DateTime.UtcNow,
+            HochgeladenAm    = DateTime.Now,
             DvelopDokumentId = xg.Length > 0 ? xg : null,
         });
         await _db.SaveChangesAsync();
@@ -821,7 +821,7 @@ public class DvelopImportController : ControllerBase
             Bemerkung = string.IsNullOrWhiteSpace(beschreibung) ? null : beschreibung,
             GueltigVon = ParseDate(M("Erstellt am")),
             HochgeladenVon = GetCurrentUserId(),
-            HochgeladenAm = DateTime.UtcNow,
+            HochgeladenAm    = DateTime.Now,
             ErstelltAm = ParseDateTime(M("Erstellt am")),
             GeaendertAm = ParseDateTime(M("Geändert am")),
             DateiGeaendertAm = ParseDateTime(M("Datei geändert am")),

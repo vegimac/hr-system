@@ -297,7 +297,7 @@ public class WebDavController : ControllerBase
         {
             CompanyProfileId = companyProfileId,
             UploadedBy       = user.Id,
-            UploadedAt       = DateTime.UtcNow,
+            UploadedAt       = DateTime.Now,
             OriginalFilename = fname,
             StorageFilename  = storageName,
             MimeType         = GuessMimeType(fname),

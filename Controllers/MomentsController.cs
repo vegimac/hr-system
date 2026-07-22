@@ -214,7 +214,7 @@ public class MomentsController : ControllerBase
                 {
                     CompanyProfileId = cpId.Value,
                     UploadedBy       = UserId(),
-                    UploadedAt       = DateTime.UtcNow,
+                    UploadedAt       = DateTime.Now,
                     OriginalFilename = titel,
                     // Reine Text-Mitteilung (keine Datei). storage_filename hat einen
                     // UNIQUE-Constraint → leerer String kollidiert ab der 2. Notiz.
