@@ -5769,15 +5769,85 @@
             text-overflow: ellipsis;
         }
         body.theme-dark #page-benutzer .um-table-body td { border-bottom-color: var(--dlg-glass-border); }
-        /* Lohnperioden: auch die Tabellen-Kopfzeile bleibt stehen (sticky im
-           scrollenden page-body; die Card darf dafür kein overflow:hidden haben). */
-        #page-perioden .data-table thead th {
-            position: sticky; top: 0; z-index: 5;
-            background: #f1f5f9;
+        /* Lohnperioden: Spaltentitel SITZEN IM fixen Kopf (Walter 22.07.2026) —
+           gleiches Muster wie Benutzerverwaltung. */
+        #page-perioden .per-page-head {
+            flex: 0 0 auto;
+            box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.14);
+            z-index: 5;
         }
-        #page-perioden .data-table thead th:first-child { border-top-left-radius: 12px; }
-        #page-perioden .data-table thead th:last-child  { border-top-right-radius: 12px; }
-        body.theme-dark #page-perioden .data-table thead th { background: #2a3446; }
+        #page-perioden .per-cols-head-wrap {
+            margin: 10px 14px 0;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+        }
+        body.theme-dark #page-perioden .per-cols-head-wrap {
+            background: #2a3446;
+            border-color: var(--dlg-glass-border);
+        }
+        #page-perioden .page-body.per-body {
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+            padding-top: 0 !important;
+            padding-bottom: 16px !important;
+        }
+        #page-perioden .per-list-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            margin-top: 0;
+            padding: 0;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+        }
+        #page-perioden .per-list-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            scrollbar-gutter: stable;
+        }
+        #page-perioden .per-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+        #page-perioden .per-c-label { width: 14%; }
+        #page-perioden .per-c-range { width: 10%; }
+        #page-perioden .per-c-slip { width: 8%; }
+        #page-perioden .per-c-final { width: 8%; }
+        #page-perioden .per-c-status { width: 14%; }
+        #page-perioden .per-c-done { width: 14%; }
+        #page-perioden .per-c-actions { width: 32%; }
+        #page-perioden .per-table-head thead th {
+            position: static !important;
+            top: auto !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            white-space: nowrap;
+        }
+        #page-perioden .per-table-head thead th.per-th-center { text-align: center; }
+        body.theme-dark #page-perioden .per-table-head thead th { color: #94a3b8; }
+        #page-perioden .per-table-body td {
+            padding: 12px 14px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        body.theme-dark #page-perioden .per-table-body td { border-bottom-color: var(--dlg-glass-border); }
 
         /* Warnungen: Kopf fix, nur Datenzeilen scrollen (Walter 21.07.2026).
            display:flex !important — sonst .page.active { display:block }. */

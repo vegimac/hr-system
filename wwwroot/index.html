@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260722s">
+    <link rel="stylesheet" href="css/app.css?v=20260722t">
 </head>
 <body>
 
@@ -1159,15 +1159,16 @@
             </div>
 
             <!-- LOHNPERIODEN -->
+            <!-- Spaltentitel im fixen Kopf (wie Benutzerverwaltung) —
+                 Titel + Filter + Spaltenköpfe = ein Block; nur Datenzeilen scrollen
+                 (Walter 22.07.2026). -->
             <div class="page liquid-mask fixhead" id="page-perioden">
-                <!-- Kopf fix, nur die Perioden-Liste scrollt (Walter 22.07.2026,
-                     gleiches Muster wie page-benutzer). -->
-                <div class="sticky-page-head">
+                <div class="sticky-page-head per-page-head">
                 <div class="page-head" style="padding-right:32px;margin-bottom:0">
                     <div><h1 class="page-title">Lohnperioden</h1><p class="page-sub">Abrechnungsperioden verwalten und abschliessen</p></div>
                 </div>
                 <!-- Toolbar (im fixen Kopf) -->
-                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 32px 4px">
+                <div class="per-toolbar" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 32px 4px">
                     <select id="perBranchSelect" class="f-input" style="max-width:220px" onchange="perBranchChanged()">
                         <option value="">Filiale wählen…</option>
                     </select>
@@ -1175,25 +1176,38 @@
                     <button class="btn btn-primary" onclick="perOpenNewModal()">+ Periode(n) öffnen</button>
                     <button class="btn btn-outline" onclick="perLoadPerioden()" style="margin-left:auto">&#8635;</button>
                 </div>
+                <!-- Spaltenköpfe = Teil des fixen Kopfs -->
+                <div class="per-cols-head-wrap">
+                    <table class="per-table per-table-head" aria-hidden="true">
+                        <colgroup>
+                            <col class="per-c-label"><col class="per-c-range"><col class="per-c-slip">
+                            <col class="per-c-final"><col class="per-c-status"><col class="per-c-done"><col class="per-c-actions">
+                        </colgroup>
+                        <thead><tr>
+                            <th>Periode</th>
+                            <th>Zeitraum</th>
+                            <th class="per-th-center">Lohnzettel</th>
+                            <th class="per-th-center">Finalisiert</th>
+                            <th>Status</th>
+                            <th>Abgeschlossen am</th>
+                            <th></th>
+                        </tr></thead>
+                    </table>
+                </div>
                 </div><!-- /.sticky-page-head -->
-                <div class="page-body">
-                    <!-- Perioden-Tabelle. KEIN overflow:hidden auf der Card —
-                         das bräche position:sticky der Kopfzeile (22.07.2026). -->
-                    <div class="card" style="padding:0">
-                        <table class="data-table">
-                            <thead><tr>
-                                <th>Periode</th>
-                                <th>Zeitraum</th>
-                                <th style="text-align:center">Lohnzettel</th>
-                                <th style="text-align:center">Finalisiert</th>
-                                <th>Status</th>
-                                <th>Abgeschlossen am</th>
-                                <th></th>
-                            </tr></thead>
-                            <tbody id="perTbody">
-                                <tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:28px">Filiale wählen</td></tr>
-                            </tbody>
-                        </table>
+                <div class="page-body per-body">
+                    <div class="card per-list-card">
+                        <div class="per-list-scroll">
+                            <table class="per-table per-table-body">
+                                <colgroup>
+                                    <col class="per-c-label"><col class="per-c-range"><col class="per-c-slip">
+                                    <col class="per-c-final"><col class="per-c-status"><col class="per-c-done"><col class="per-c-actions">
+                                </colgroup>
+                                <tbody id="perTbody">
+                                    <tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:28px">Filiale wählen</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
