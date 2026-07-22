@@ -2649,13 +2649,8 @@
         #page-mitarbeiter.liquid-employee .liquid-employee-detail {
             overflow: hidden;
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-header {
-            padding: 12px 14px 7px;
-            border-bottom: 1px solid rgba(90, 80, 65, 0.10);
-            background: linear-gradient(180deg, rgba(255, 252, 248, 0.92) 0%, rgba(244, 240, 232, 0.88) 100%);
-            backdrop-filter: none;
-            -webkit-backdrop-filter: none;
-        }
+        /* .emp-detail-header (Gradient-Variante) entfernt 22.07.2026 — Gewinner ist der
+           Karten-Block weiter unten (padding/background/border dort, border-bottom:0 !important). */
         #page-mitarbeiter.liquid-employee #empDetailPhoto {
             width: 112px !important;
             height: 112px !important;
@@ -2729,12 +2724,7 @@
             background: rgba(255,255,255,.38);
             color: var(--emp-text-strong);
         }
-        #page-mitarbeiter.liquid-employee .emp-tab.active {
-            background: rgba(255,255,255,.72);
-            border-color: rgba(255,255,255,.64);
-            color: #3f3f3f;
-            box-shadow: 0 8px 22px rgba(72,63,53,.10), inset 0 1px 0 rgba(255,255,255,.74);
-        }
+        /* .emp-tab.active (weisse Pille) entfernt 22.07.2026 — Gewinner: Kohle-Pille (!important) weiter unten. */
         #page-mitarbeiter.liquid-employee .emp-detail-body {
             padding: 8px 12px 12px;
             background: transparent;
@@ -4672,13 +4662,7 @@
             border-color: transparent !important;
             box-shadow: none !important;
         }
-        #page-mitarbeiter.liquid-employee .emp-tab.active {
-            background: transparent !important;
-            color: var(--emp-text-strong) !important;
-            text-decoration: underline;
-            text-underline-offset: 6px;
-            text-decoration-thickness: 2px;
-        }
+        /* .emp-tab.active (Underline-Variante) entfernt 22.07.2026 — Gewinner: Kohle-Pille (!important) weiter unten. */
         #page-mitarbeiter.liquid-employee .emp-contract-row {
             padding-left: 0;
             padding-right: 0;
@@ -4752,7 +4736,8 @@
                 inset 0 1px 0 rgba(255, 255, 255, 0.94) !important;
         }
         #page-mitarbeiter.liquid-employee .emp-tab.active {
-            /* Weiche Kohle-Aktiv-Pille — Verlauf + Pearl-Rim, kein Flachblock */
+            /* EINZIGE .emp-tab.active-Regel (Gewinner; Dubletten am 22.07.2026 entfernt).
+               Weiche Kohle-Aktiv-Pille — Verlauf + Pearl-Rim, kein Flachblock */
             background-color: #4a4640 !important;
             background-image:
                 linear-gradient(160deg, #6a655c 0%, #4a4640 42%, #35322d 100%),

@@ -1148,3 +1148,40 @@ function liquidConfirm(message, opts = {}) {
     });
 }
 window.liquidConfirm = liquidConfirm;
+
+// Liquid-Ersatz für natives prompt(): Text-Eingabe im Liquid-Glass-Look.
+// Promise<string|null> — null bei Abbrechen/ESC/Klick daneben, sonst der Text (getrimmt).
+function liquidPrompt(message, opts = {}) {
+    return new Promise(resolve => {
+        const old = document.getElementById('liquidPromptModal');
+        if (old) old.remove();
+        const wrap = document.createElement('div');
+        wrap.id = 'liquidPromptModal';
+        wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+        const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        wrap.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:460px;width:92%;padding:22px 24px">
+            <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:8px">${esc(opts.title || 'Eingabe')}</div>
+            <div style="font-size:13.5px;color:#646464;line-height:1.5;white-space:pre-line">${esc(message)}</div>
+            <input id="lpInput" type="text" value="${esc(opts.value ?? '')}"
+                   style="width:100%;box-sizing:border-box;margin-top:14px;background:rgba(255,255,255,0.58);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 12px;font-size:13.5px;color:#3f3f3f;outline:none">
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+                <button id="lpNo" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">${esc(opts.noLabel || 'Abbrechen')}</button>
+                <button id="lpYes" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">${esc(opts.yesLabel || 'OK')}</button>
+            </div>
+        </div>`;
+        document.body.appendChild(wrap);
+        const input = wrap.querySelector('#lpInput');
+        const done = v => { wrap.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+        const ok = () => done(input.value.trim());
+        const onKey = e => { if (e.key === 'Escape') done(null); };
+        document.addEventListener('keydown', onKey);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ok(); } });
+        wrap.addEventListener('click', e => { if (e.target === wrap) done(null); });
+        wrap.querySelector('#lpNo').onclick  = () => done(null);
+        wrap.querySelector('#lpYes').onclick = ok;
+        input.focus();
+        input.select();
+    });
+}
+window.liquidPrompt = liquidPrompt;

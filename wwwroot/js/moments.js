@@ -652,7 +652,7 @@ async function momToneAdd() {
 
 async function momToneRename(id) {
     const t = _momTonesAll.find(x => x.id === id); if (!t) return;
-    const name = prompt('Neuer Name für „' + t.name + '":', t.name);
+    const name = await liquidPrompt('Neuer Name für «' + t.name + '»:', { title: 'Ton umbenennen', value: t.name, yesLabel: 'Speichern' });
     if (name == null || !name.trim()) return;
     const r = await fetch('/api/moment-content/tones/' + id, { method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify({ code: t.code, name: name.trim(), sortOrder: t.sortOrder, isActive: t.isActive }) });
     if (r.ok) await momMgmtReloadTones();
@@ -811,7 +811,7 @@ async function momTextToggle(id) {
 }
 
 async function momTextDelete(id) {
-    if (!confirm('Diese Vorlage wirklich löschen?')) return;
+    if (!(await liquidConfirm('Diese Vorlage wirklich löschen?', { title: 'Vorlage löschen', yesLabel: 'Löschen' }))) return;
     const r = await fetch('/api/moment-content/texts/' + id, { method: 'DELETE', headers: ah() });
     if (r.ok) await momTextLoadList();
 }

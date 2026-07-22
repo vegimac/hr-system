@@ -4770,7 +4770,7 @@ function eField(label, inputHtml, hint) {
     </div>`;
 }
 
-function esc(v) { return (v ?? '').toString().replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+// (schwache esc()-Dublette entfernt 22.07.2026 — die vollständige Definition weiter unten gilt)
 
 // Schweizer Kantone — 2-Zeichen-Codes mit deutschem Namen, alphabetisch.
 const SWISS_KANTONE = [

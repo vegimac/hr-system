@@ -1193,7 +1193,7 @@ function dokDownload(id) {
 }
 
 async function dokDelete(id) {
-    if (!confirm('Dokument wirklich löschen?')) return;
+    if (!(await liquidConfirm('Dokument wirklich löschen?', { title: 'Dokument löschen', yesLabel: 'Löschen' }))) return;
     try {
         const r = await fetch(`/api/documents/${id}`, { method:'DELETE', headers: ah() });
         if (!r.ok) {
@@ -2007,9 +2007,9 @@ function openDokBulkModal() {
     });
 }
 
-function closeDokBulkModal() {
+async function closeDokBulkModal() {
     if (_dokBulk.uploading) {
-        if (!confirm('Upload läuft noch. Wirklich abbrechen?')) return;
+        if (!(await liquidConfirm('Upload läuft noch. Wirklich abbrechen?', { title: 'Upload abbrechen', yesLabel: 'Abbrechen', noLabel: 'Weiter hochladen' }))) return;
     }
     dokBulkClosePreview();  // Preview-Panel auch zumachen
     document.getElementById('dokBulkOverlay')?.remove();
