@@ -127,6 +127,19 @@ public class UserBranchController : ControllerBase
         var uba = await _context.UserBranchAccesses.FindAsync(id);
         if (uba is null) return NotFound();
 
+        // Benutzer-Wechsel in der Zuweisung (Walter-Bug 22.07.2026): der im
+        // Formular gewählte Benutzer wurde beim Bearbeiten bisher IGNORIERT.
+        // Jetzt übernehmen — mit Dubletten-Schutz (User hat schon eine eigene
+        // Zuweisung für diese Filiale → 409 statt Doppel-Eintrag).
+        if (req.UserId > 0 && req.UserId != uba.UserId)
+        {
+            bool doppelt = await _context.UserBranchAccesses.AnyAsync(x =>
+                x.Id != id && x.UserId == req.UserId && x.CompanyProfileId == uba.CompanyProfileId);
+            if (doppelt)
+                return Conflict(new { error = "UBA_DUPLICATE", message = "Dieser Benutzer ist der Filiale bereits zugewiesen — bitte dessen bestehende Zuweisung bearbeiten." });
+            uba.UserId = req.UserId;
+        }
+
         uba.Role          = req.Role;
         uba.FunctionTitle = req.FunctionTitle;
         uba.IsDefault     = req.IsDefault;

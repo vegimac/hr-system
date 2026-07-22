@@ -904,28 +904,38 @@ function closeSignatoryForm() {
 }
 
 async function saveSignatory() {
-    if (!selectedBranch) return;
-    const userId = parseInt(document.getElementById('sig-userId').value);
+    if (!selectedBranch) { alert('Keine Filiale ausgewählt — bitte links eine Filiale anklicken.'); return; }
+    const userId = parseInt(document.getElementById('sig-userId')?.value || '');
     if (!userId) { alert('Bitte einen Benutzer auswählen.'); return; }
-    const payload = {
-        userId,
-        companyProfileId: selectedBranch.id,
-        functionTitle: document.getElementById('sig-function').value.trim() || null,
-        role:          document.getElementById('sig-role').value             || null,
-        isDefault:     document.getElementById('sig-isDefault').checked,
-    };
     try {
+        const payload = {
+            userId,
+            companyProfileId: selectedBranch.id,
+            functionTitle: (document.getElementById('sig-function')?.value || '').trim() || null,
+            role:          document.getElementById('sig-role')?.value               || null,
+            isDefault:     !!document.getElementById('sig-isDefault')?.checked,
+        };
         const url    = editingSignatoryId ? `/api/userbranch/${editingSignatoryId}` : '/api/userbranch';
         const method = editingSignatoryId ? 'PUT' : 'POST';
         const res = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!res.ok) { alert('Fehler beim Speichern.'); return; }
+        if (!res.ok) {
+            // Echten Grund zeigen statt Pauschal-Meldung (Walter-Bug 22.07.2026).
+            let msg = '';
+            try { const j = await res.json(); msg = j.message || j.error || ''; } catch {}
+            if (!msg && res.status === 403) msg = 'Keine Berechtigung — Filial-Zuweisungen kann nur ein Admin ändern (nicht im Testmodus/als GF).';
+            if (!msg && res.status === 401) msg = 'Sitzung abgelaufen — bitte neu anmelden.';
+            alert(`Fehler beim Speichern (${res.status})${msg ? ':\n' + msg : '.'}`);
+            return;
+        }
         closeSignatoryForm();
         await loadSignatories(selectedBranch.id);
-    } catch { alert('Verbindungsfehler.'); }
+    } catch (e) {
+        alert('Speichern fehlgeschlagen: ' + (e?.message || 'Verbindungsfehler'));
+    }
 }
 
 async function deleteSignatory(id) {
-    if (!confirm('Zuweisung wirklich entfernen?')) return;
+    if (!(await liquidConfirm('Zuweisung wirklich entfernen?', { title: 'Zuweisung entfernen', yesLabel: 'Entfernen' }))) return;
     try {
         const res = await fetch(`/api/userbranch/${id}`, { method: 'DELETE', headers: ah() });
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
