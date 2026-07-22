@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260722r">
+    <link rel="stylesheet" href="css/app.css?v=20260722s">
 </head>
 <body>
 
@@ -2875,9 +2875,11 @@
             </div>
 
             <!-- BENUTZER -->
+            <!-- Spaltentitel SITZEN IM fixen Kopf (kein sticky-thead) —
+                 Titel + View-as + Spaltenköpfe = ein Block; nur Datenzeilen scrollen
+                 (Walter 22.07.2026). -->
             <div class="page liquid-mask fixhead" id="page-benutzer">
-                <!-- Titelbereich eingefroren (Walter-Vorgabe 22.07.2026, Sticky-Konvention 15.05.2026) -->
-                <div class="sticky-page-head">
+                <div class="sticky-page-head um-page-head">
                 <div class="page-head" style="padding-right:32px;margin-bottom:0">
                     <div>
                         <h1 class="page-title">Benutzerverwaltung</h1>
@@ -2888,8 +2890,7 @@
                         Benutzer erstellen
                     </button>
                 </div>
-                <!-- View-as / Testmodus (nur Superadmin, Backend erzwingt IsSuperAdmin) —
-                     im FIXEN Kopfbereich, scrollt nicht mit der Liste (Walter 22.07.2026). -->
+                <!-- View-as / Testmodus (nur Superadmin, Backend erzwingt IsSuperAdmin) -->
                 <div class="card" id="impersonateCard" style="display:none;margin:12px 32px 4px;border:1px solid #fcd34d;background:#fffbeb">
                     <div style="padding:16px 18px">
                         <div style="font-weight:700;color:#92400e;font-size:14px;margin-bottom:4px">🧪 Als Benutzer testen (View-as)</div>
@@ -2902,15 +2903,29 @@
                         <div id="impError" style="display:none;color:#b91c1c;font-size:12.5px;margin-top:8px"></div>
                     </div>
                 </div>
+                <!-- Spaltenköpfe = Teil des fixen Kopfs (nicht im Scroll-Bereich) -->
+                <div class="um-cols-head-wrap">
+                    <table class="um-table um-table-head" aria-hidden="true">
+                        <colgroup>
+                            <col class="um-c-user"><col class="um-c-email"><col class="um-c-role"><col class="um-c-branch">
+                            <col class="um-c-status"><col class="um-c-created"><col class="um-c-login"><col class="um-c-actions">
+                        </colgroup>
+                        <thead><tr>
+                            <th>Benutzer</th><th>E-Mail</th><th>Rolle</th><th>Filialen</th>
+                            <th>Status</th><th>Erstellt</th><th>Letzter Login</th><th></th>
+                        </tr></thead>
+                    </table>
+                </div>
                 </div><!-- /.sticky-page-head -->
-                <!-- page-body scrollt nicht selbst — nur .um-list-scroll, damit
-                     thead sticky zuverlässig pinnt (Walter 22.07.2026). -->
                 <div class="page-body um-body">
                     <div id="userPageAlert"></div>
                     <div class="card um-list-card">
                         <div class="um-list-scroll">
-                            <table class="um-table">
-                                <thead><tr><th>Benutzer</th><th>E-Mail</th><th>Rolle</th><th>Filialen</th><th>Status</th><th>Erstellt</th><th>Letzter Login</th><th></th></tr></thead>
+                            <table class="um-table um-table-body">
+                                <colgroup>
+                                    <col class="um-c-user"><col class="um-c-email"><col class="um-c-role"><col class="um-c-branch">
+                                    <col class="um-c-status"><col class="um-c-created"><col class="um-c-login"><col class="um-c-actions">
+                                </colgroup>
                                 <tbody id="userTbody"><tr><td colspan="8" style="text-align:center;padding:28px;color:#94a3b8">Lade...</td></tr></tbody>
                             </table>
                         </div>

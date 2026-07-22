@@ -5687,13 +5687,33 @@
         }
         .page.fixhead .page-body .tbl-wrap { overflow: visible; }
         .main:has(.page.fixhead.active) { overflow: hidden !important; }
-        /* Benutzerverwaltung: Spaltentitel (BENUTZER/E-MAIL/…) bleiben stehen.
-           Eigenes Scroll-Fenster um die Tabelle (nicht page-body) + 
-           border-collapse:separate — sonst «hüpft» thead mit (Walter 22.07.2026). */
+        /* Benutzerverwaltung: Spaltentitel SITZEN IM fixen Kopf (Walter 22.07.2026).
+           Kein position:sticky mehr — Titel/View-as/Spaltenköpfe = ein Block,
+           darunter scrollen nur die Datenzeilen. */
+        #page-benutzer .um-page-head {
+            flex: 0 0 auto;
+            box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.14);
+            z-index: 5;
+        }
+        /* Spaltenkopf + Datenkarte teilen denselben 14px-Inset wie .liquid-mask .page-body */
+        #page-benutzer .um-cols-head-wrap {
+            margin: 10px 14px 0;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+        }
+        body.theme-dark #page-benutzer .um-cols-head-wrap {
+            background: #2a3446;
+            border-color: var(--dlg-glass-border);
+        }
         #page-benutzer .page-body.um-body {
             overflow: hidden !important;
             display: flex;
             flex-direction: column;
+            padding-top: 0 !important;
             padding-bottom: 16px !important;
         }
         #page-benutzer .um-list-card {
@@ -5702,29 +5722,53 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            margin-top: 0;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
         }
         #page-benutzer .um-list-scroll {
             flex: 1 1 auto;
             min-height: 0;
             overflow: auto;
+            scrollbar-gutter: stable;
         }
         #page-benutzer .um-table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
+            table-layout: fixed;
+            border-collapse: collapse;
             font-size: 13.5px;
         }
-        #page-benutzer .um-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 5;
-            background: #f1f5f9 !important;
-            box-shadow: 0 1px 0 #e2e8f0;
+        #page-benutzer .um-c-user { width: 22%; }
+        #page-benutzer .um-c-email { width: 18%; }
+        #page-benutzer .um-c-role { width: 12%; }
+        #page-benutzer .um-c-branch { width: 12%; }
+        #page-benutzer .um-c-status { width: 9%; }
+        #page-benutzer .um-c-created { width: 10%; }
+        #page-benutzer .um-c-login { width: 12%; }
+        #page-benutzer .um-c-actions { width: 5%; }
+        #page-benutzer .um-table-head thead th {
+            position: static !important;
+            top: auto !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            white-space: nowrap;
         }
-        body.theme-dark #page-benutzer .um-table thead th {
-            background: #2a3446 !important;
-            box-shadow: 0 1px 0 var(--dlg-glass-border);
+        body.theme-dark #page-benutzer .um-table-head thead th { color: #94a3b8; }
+        #page-benutzer .um-table-body td {
+            padding: 12px 14px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        body.theme-dark #page-benutzer .um-table-body td { border-bottom-color: var(--dlg-glass-border); }
         /* Lohnperioden: auch die Tabellen-Kopfzeile bleibt stehen (sticky im
            scrollenden page-body; die Card darf dafür kein overflow:hidden haben). */
         #page-perioden .data-table thead th {
