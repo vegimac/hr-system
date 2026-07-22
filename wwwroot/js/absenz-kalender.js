@@ -158,6 +158,8 @@ function akalRender(data) {
 
     const fpill = (key, label) =>
         `<span class="akal-fpill ${_akalFilter === key ? 'on' : ''}" onclick="akalSetFilter('${key}')">${label}</span>`;
+    const spill = (key, label) =>
+        `<span class="akal-fpill ${_akalStatus === key ? 'on' : ''}" onclick="akalSetStatus('${key}')">${label}</span>`;
     const legende = ['akal-ferien|Ferien', 'akal-krank|Krankheit', 'akal-unfall|Unfall',
                      'akal-mutter|Mutterschaft', 'akal-militaer|Militär/Schulung', 'akal-frei|Kompensation/Frei']
         .map(x => { const [c, l] = x.split('|'); return `<span><i class="akal-dot ${c}"></i>${l}</span>`; }).join('');
@@ -174,9 +176,7 @@ function akalRender(data) {
         <button class="akal-btn-heute" onclick="akalToday()">Heute</button>
         <span style="font-size:11.5px;color:#a8a29a">Tipp: mit dem Trackpad seitlich wischen</span>
         <span style="font-size:12px;color:#8b8b8b;margin-left:auto">${list.length} MA</span>
-    </div>
-    const spill = (key, label) =>
-        `<span class="akal-fpill ${_akalStatus === key ? 'on' : ''}" onclick="akalSetStatus('${key}')">${label}</span>`;
+    </div>`;
     h += `
     <div class="akal-filterrow">
         ${fpill('alle', 'Alle')}${fpill('ferien', 'Nur Ferien')}${fpill('krankunfall', 'Nur Krank/Unfall')}${fpill('mitabsenz', 'Nur mit Absenz')}
@@ -207,8 +207,9 @@ function akalRender(data) {
         prevRank = r;
         const absList = (m.absenzen || []).filter(_akalMatchesFilter);
         const saldo = _akalSaldoLabel(m);
-        h += `<tr><td class="akal-namecol" onclick="akalOpenMa(${m.id})" title="Zum Absenzen-Tab von ${esc(m.name)}">` +
+        h += `<tr><td class="akal-namecol${m.isActive === false ? ' akal-inaktiv' : ''}" onclick="akalOpenMa(${m.id})" title="Zum Absenzen-Tab von ${esc(m.name)}">` +
              `${esc(m.name)}<span class="mod">${esc(_akalModellLabel(m))}</span>` +
+             `${m.isActive === false ? '<span class="mod akal-inaktiv-chip">inaktiv</span>' : ''}` +
              `${saldo ? `<span class="mod saldo">${esc(saldo)}</span>` : ''}</td>`;
         for (let i = 0; i < AKAL_WIN; i++) {
             const dt = _akalDate(i);
@@ -248,8 +249,8 @@ function akalRender(data) {
     }
     h += '</tr></tfoot></table></div>';
 
-    // Engpass-Hinweis
-    const total = (data.mitarbeiter || []).length;
+    // Engpass-Hinweis (Basis = Status-Filter, aber vor «Nur mit Absenz»)
+    const total = totalBase;
     const engpass = [];
     for (let i = 0; i < AKAL_WIN; i++)
         if (perDay[i] >= AKAL_WARN_HIGH) {
