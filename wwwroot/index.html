@@ -220,15 +220,13 @@
                         <span>HR-Hub</span>
                     </div>
                 </div>
-                <!-- Buchhaltung: nur Rolle buchhaltung + admin. -->
+                <!-- Buchhaltung: nur Rolle buchhaltung + admin.
+                     Dok.-Protokoll bewusst NICHT hier — Einstieg über HR-Hub → Kontrolle
+                     (Walter 22.07.2026). -->
                 <div class="nav-section buchhaltung-section" style="display:none">
                     <div class="nav-item" data-page="fibu" onclick="showPage('fibu')">
                         <img class="nav-icon-img" src="img/fibu-icon.png?v=20260628a" alt="">
                         <span>FIBU</span>
-                    </div>
-                    <div class="nav-item" data-page="dok-protokoll" onclick="showPage('dok-protokoll')">
-                        <svg class="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6M9 16h6M8 4h5l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M13 4v5h5"/></svg>
-                        <span>Dok.-Protokoll</span>
                     </div>
                 </div>
                 <!-- Systemeinstellungen: nur Admin -->
@@ -1633,11 +1631,6 @@
                     </div>
                     <div id="fibuStatus" style="font-size:13px;color:#64748b;margin-top:12px;min-height:18px"></div>
                 </div>
-
-                <div class="card" style="padding:20px 24px;max-width:680px;margin-top:16px;cursor:pointer" onclick="showPage('dok-protokoll')">
-                    <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px">Dokument-Upload-Protokoll</div>
-                    <div style="font-size:13px;color:#64748b;line-height:1.45">Wer hat wann welches Dokument in die MA-Akte hochgeladen? Übersicht + CSV für die Buchhaltung (seit Unterlagen direkt in OneCrew landen).</div>
-                </div>
             </div>
 
             <!-- DOKUMENT-UPLOAD-PROTOKOLL (Walter 22.07.2026 — Bommer/Buchhaltung;
@@ -1762,8 +1755,8 @@
 
                     <!-- Walter-Vorgabe 07.06.2026: Kontroll-Listen — proaktive
                          Lücken-Erkennung. Card BEWUSST in Rot, damit HR sie sieht.
-                         Walter 22.07.2026: Dokument-Upload-Protokoll hier unter Kontrolle
-                         (nicht nur Buchhaltung) — Menü wie Kündigung/Zeugnisse. -->
+                         Walter 22.07.2026: Dokument-Upload-Protokoll aus FIBU hierher
+                         (Menü wie Kündigung/Zeugnisse). -->
                     <div class="hr-card" style="opacity:1;background:#fef2f2;border-color:#fca5a5">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#fee2e2;color:#991b1b">
@@ -1771,7 +1764,7 @@
                             </div>
                             <div>
                                 <div class="hr-card-title" style="color:#991b1b">Kontrolle</div>
-                                <div class="hr-card-status" style="color:#991b1b">⚠ Lücken &amp; Upload-Protokoll</div>
+                                <div class="hr-card-status" style="color:#991b1b">⚠ Lücken &amp; Doku-Protokoll</div>
                             </div>
                         </div>
                         <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
@@ -1779,8 +1772,8 @@
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('dok-protokoll')">2&nbsp;·&nbsp;Dokument-Upload-Protokoll</button>
                         </div>
                         <ul style="margin-top:10px">
-                            <li><b>Lücken</b> — Ausweis MA/Ehegatte, Bewilligungen, Nachtarbeit-Nachweise</li>
-                            <li><b>Protokoll</b> — wer hat wann welches Dokument in die Akte gelegt (+ CSV)</li>
+                            <li><b>Ausweis Ehegatte fehlt</b> — MA mit QST-Bezug ohne Beleg-Dokument</li>
+                            <li><b>Dokument-Upload-Protokoll</b> — wer hat wann welches Dokument hochgeladen (+ CSV)</li>
                         </ul>
                     </div>
 
