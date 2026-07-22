@@ -141,7 +141,7 @@ public class AbsencesController : ControllerBase
                 && (x.ContractEndDate == null || x.ContractEndDate >= fromDt)))
             .Select(e => new
             {
-                e.Id, e.FirstName, e.LastName,
+                e.Id, e.FirstName, e.LastName, e.IsActive,
                 Contract = e.Employments
                     .Where(x => x.CompanyProfileId == companyProfileId
                         && x.ContractStartDate <= toDt
@@ -178,6 +178,7 @@ public class AbsencesController : ControllerBase
             {
                 id = e.Id,
                 name = $"{e.FirstName} {e.LastName}".Trim(),
+                isActive = e.IsActive,
                 modell = e.Contract?.EmploymentModel,
                 pensum = e.Contract?.EmploymentPercentage,
                 garantierteStunden = e.Contract?.GuaranteedHoursPerWeek,

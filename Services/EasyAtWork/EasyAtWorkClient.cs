@@ -529,13 +529,25 @@ public class EasyAtWorkClient
         { return null; }
     }
 
-    public virtual Task<EawPaginated<EawContract>> GetContractsAsync(int customerId, int employeeId, CancellationToken ct = default)
-        => GetJsonAsync<EawPaginated<EawContract>>(
+    // Gelöschte Verträge/Tarife (Soft-Delete deleted_at) werden ZENTRAL hier
+    // herausgefiltert (Walter-Vorgabe 22.07.2026): easy@work liefert sie mit,
+    // ein gelöschter offener Vertrag überlappt sonst alles → STRICT-Skip und
+    // der aktuelle Vertrag wird nie importiert. Kein Consumer will Gelöschte.
+    public virtual async Task<EawPaginated<EawContract>> GetContractsAsync(int customerId, int employeeId, CancellationToken ct = default)
+    {
+        var res = await GetJsonAsync<EawPaginated<EawContract>>(
             $"customers/{customerId}/employees/{employeeId}/contracts", ct);
+        if (res?.Data != null) res.Data = res.Data.Where(c => !c.IsDeleted).ToList();
+        return res!;
+    }
 
-    public virtual Task<EawPaginated<EawPayRate>> GetPayRatesAsync(int customerId, int employeeId, CancellationToken ct = default)
-        => GetJsonAsync<EawPaginated<EawPayRate>>(
+    public virtual async Task<EawPaginated<EawPayRate>> GetPayRatesAsync(int customerId, int employeeId, CancellationToken ct = default)
+    {
+        var res = await GetJsonAsync<EawPaginated<EawPayRate>>(
             $"customers/{customerId}/employees/{employeeId}/pay_rates", ct);
+        if (res?.Data != null) res.Data = res.Data.Where(r => !r.IsDeleted).ToList();
+        return res!;
+    }
 
     /// <summary>Funktionen/Positionen eines MA (Name = job_group.code). Walter 22.06.2026.</summary>
     public virtual Task<EawPaginated<EawPosition>> GetPositionsAsync(int customerId, int employeeId, CancellationToken ct = default)

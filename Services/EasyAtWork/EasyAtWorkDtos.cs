@@ -147,6 +147,12 @@ public class EawContract
     // Space-Format-Timestamp → string-backed (sonst wirft STJ und die ganze
     // Contract-Deserialisierung scheitert → leere Liste → timeline=0).
     [JsonPropertyName("updated_at")]   public string?  UpdatedAtRaw { get; set; }
+    // Soft-Delete (Walter-Vorgabe 22.07.2026): easy@work liefert auch GELÖSCHTE
+    // Verträge mit («Include deleted contracts») — die dürfen NIE in die Timeline
+    // (ein gelöschter offener Vertrag überlappt sonst alles → STRICT-Skip,
+    // der aktuelle Vertrag wird nicht importiert; Fall Ceng Ozan 104800alt).
+    [JsonPropertyName("deleted_at")]   public string?  DeletedAtRaw { get; set; }
+    [JsonIgnore] public bool IsDeleted => !string.IsNullOrWhiteSpace(DeletedAtRaw);
     [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
     [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
     [JsonIgnore] public DateTime? UpdatedAt => EawDateUtil.ParseTimestamp(UpdatedAtRaw);
@@ -176,6 +182,9 @@ public class EawPayRate
     // Space-Format-Timestamp → string-backed (sonst wirft STJ und die ganze
     // PayRate-Deserialisierung scheitert → leere Liste → kein Lohn, timeline=0).
     [JsonPropertyName("updated_at")]   public string?  UpdatedAtRaw { get; set; }
+    // Soft-Delete: gelöschte Tarife («INCLUDE_DELETED_PAYRATE») nie verwenden.
+    [JsonPropertyName("deleted_at")]   public string?  DeletedAtRaw { get; set; }
+    [JsonIgnore] public bool IsDeleted => !string.IsNullOrWhiteSpace(DeletedAtRaw);
     [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
     [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
     [JsonIgnore] public DateTime? UpdatedAt => EawDateUtil.ParseTimestamp(UpdatedAtRaw);

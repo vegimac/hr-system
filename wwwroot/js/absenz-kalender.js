@@ -11,6 +11,7 @@
 let _akalStart = null;                     // Date = erster Tag des Fensters
 const AKAL_WIN = 31;                       // Fensterbreite in Tagen
 let _akalFilter = 'alle';                  // alle | ferien | krankunfall | mitabsenz
+let _akalStatus = 'alle';                  // alle | aktive | inaktive (Employee.IsActive heute)
 let _akalData = null;                      // letzter Server-Response
 let _akalWheelAcc = 0;                     // Trackpad-Wisch-Akkumulator
 let _akalLoadTimer = null;                 // Debounce fürs Nachladen beim Wischen
@@ -62,6 +63,10 @@ function akalToday() {
 }
 function akalSetFilter(f) {
     _akalFilter = f;
+    if (_akalData) akalRender(_akalData);
+}
+function akalSetStatus(s) {
+    _akalStatus = s;
     if (_akalData) akalRender(_akalData);
 }
 
@@ -141,6 +146,9 @@ function akalRender(data) {
     if (!box) return;
 
     let list = (data.mitarbeiter || []).slice();
+    if (_akalStatus === 'aktive')   list = list.filter(m => m.isActive !== false);
+    if (_akalStatus === 'inaktive') list = list.filter(m => m.isActive === false);
+    const totalBase = list.length;   // Basis für den Engpass-Hinweis (vor «Nur mit Absenz»)
     if (_akalFilter === 'mitabsenz') list = list.filter(m => (m.absenzen || []).length > 0);
 
     // Sortierung (Walter 22.07.2026): Gruppen FIX-M → FIX → MTP → FLEX,
@@ -167,8 +175,13 @@ function akalRender(data) {
         <span style="font-size:11.5px;color:#a8a29a">Tipp: mit dem Trackpad seitlich wischen</span>
         <span style="font-size:12px;color:#8b8b8b;margin-left:auto">${list.length} MA</span>
     </div>
+    const spill = (key, label) =>
+        `<span class="akal-fpill ${_akalStatus === key ? 'on' : ''}" onclick="akalSetStatus('${key}')">${label}</span>`;
+    h += `
     <div class="akal-filterrow">
         ${fpill('alle', 'Alle')}${fpill('ferien', 'Nur Ferien')}${fpill('krankunfall', 'Nur Krank/Unfall')}${fpill('mitabsenz', 'Nur mit Absenz')}
+        <span class="akal-fsep"></span>
+        ${spill('alle', 'Alle MA')}${spill('aktive', 'Nur aktive')}${spill('inaktive', 'Nur inaktive')}
         <div class="akal-legend">${legende}</div>
     </div>`;
 

@@ -285,6 +285,16 @@ public class EasyAtWorkEmployeeSyncService
             result.Errors.Add("Es ist keine Filiale mit easy@work verknüpft.");
             return result;
         }
+        // Performance (Walter 22.07.2026): die Filiale des MA ZUERST probieren —
+        // der GetEmployeeById-Loop trifft dann fast immer beim 1. Call statt
+        // alle gemappten Filialen sequenziell durchzuprobieren.
+        var homeBranchId = emp.Employments
+            .OrderByDescending(x => x.ContractStartDate)
+            .Select(x => x.CompanyProfileId)
+            .FirstOrDefault();
+        if (homeBranchId.HasValue)
+            mappings = mappings.OrderBy(m => m.CompanyProfileId == homeBranchId.Value ? 0 : 1)
+                               .ThenBy(m => m.CompanyProfileId).ToList();
 
         EawEmployee? eaw = null;
         int? matchedCustomerId = null;
@@ -614,12 +624,18 @@ public class EasyAtWorkEmployeeSyncService
             var custId = matchedCustomerId!.Value;
             var cpId   = mappings.First(m => m.EasyAtWorkCustomerId == custId).CompanyProfileId;
 
-            var contracts = (await _client.GetContractsAsync(custId, eaw.Id, ct))?.Data ?? new();
-            var rates     = (await _client.GetPayRatesAsync(custId, eaw.Id, ct))?.Data ?? new();
+            // Performance (Walter 22.07.2026): die drei unabhängigen API-Calls
+            // parallel laden statt sequenziell (HttpClient ist thread-sicher;
+            // _db wird hier nicht berührt).
+            var contractsTask = _client.GetContractsAsync(custId, eaw.Id, ct);
+            var ratesTask     = _client.GetPayRatesAsync(custId, eaw.Id, ct);
+            var positionsTask = _client.GetPositionsAsync(custId, eaw.Id, ct);
+            var contracts = (await contractsTask)?.Data ?? new();
+            var rates     = (await ratesTask)?.Data ?? new();
 
             // Funktion/JobGroup (Kader-Flag → Modell) aus /positions.
             string? posName = null;
-            try { posName = (await _client.GetPositionsAsync(custId, eaw.Id, ct))?.Data?.FirstOrDefault()?.Name; }
+            try { posName = (await positionsTask)?.Data?.FirstOrDefault()?.Name; }
             catch (Exception ex) { result.Notes.Add($"Position aus easy@work nicht abrufbar ({ex.Message})."); }
             int? jgId = null; string? jgCode = null; bool isKader = false;
             if (!string.IsNullOrWhiteSpace(posName))
