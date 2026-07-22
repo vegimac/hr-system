@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260722k">
+    <link rel="stylesheet" href="css/app.css?v=20260722l">
 </head>
 <body>
 
@@ -2674,7 +2674,7 @@
                  Jahre für Stichproben-Betriebe erhoben (Erhebungsmonat = Oktober).
                  Phase 1 (dieser Entwurf): Vorschau + CSV-Export aller Felder die
                  wir direkt aus den Daten haben. ISCO-/ISCED-Mapping in Phase 2. -->
-            <div class="page" id="page-lse-export">
+            <div class="page fixhead" id="page-lse-export">
                 <div class="page-head">
                     <div>
                         <h1 class="page-title" data-i18n="lse.pageTitle">BFS-Lohnstrukturerhebung</h1>
@@ -2761,7 +2761,7 @@
                 </div>
             </div>
 
-            <div class="page liquid-mask" id="page-saldo-vortrag">
+            <div class="page liquid-mask fixhead" id="page-saldo-vortrag">
                 <div class="page-head">
                     <div>
                         <h1 class="page-title">Saldi-Vortrag</h1>
@@ -2944,7 +2944,7 @@
             </div>
 
             <!-- QST TARIFE ADMIN -->
-            <div class="page liquid-mask" id="page-qst-tarife">
+            <div class="page liquid-mask fixhead" id="page-qst-tarife">
                 <div class="page-head">
                     <div>
                         <h1 class="page-title">Quellensteuer-Tarife</h1>
@@ -3030,7 +3030,7 @@
             </div>
 
             <!-- ═══ FAMILIENZULAGEN-TARIFE ═══ -->
-            <div class="page liquid-mask" id="page-fz-tarife">
+            <div class="page liquid-mask fixhead" id="page-fz-tarife">
                 <div class="page-head">
                     <div>
                         <h1 class="page-title">Familienzulagen-Tarife</h1>
@@ -3041,7 +3041,7 @@
                 <div class="page-body">
 
                     <!-- Filter -->
-                    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+                    <div class="sticky-section-head" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
                         <select id="fzFilterKanton" onchange="fzRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
                             <option value="">Alle Kantone</option>
                         </select>
@@ -3253,7 +3253,7 @@
             </div>
 
             <!-- ═══ SOZIALVERSICHERUNGSSÄTZE ═══ -->
-            <div class="page liquid-mask" id="page-sv-saetze">
+            <div class="page liquid-mask fixhead" id="page-sv-saetze">
                 <div class="page-head"><div>
                     <h1 class="page-title">SV-Sätze</h1>
                     <p class="page-sub">Globale Sozialversicherungssätze (AHV, ALV, NBUV, BVG) — gelten für alle Filialen</p>
@@ -3264,7 +3264,7 @@
                     <!-- Filter + Aktion (Walter-Vorgabe 18.05.2026: „Neu"-Button hierher,
                          weil im page-head der globale langSwitcher (top:14,right:18,z:1500)
                          den ursprünglichen Button überdeckte). -->
-                    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+                    <div class="sticky-section-head" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
                         <select id="svFilterCode" onchange="svRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
                             <option value="">Alle Typen</option>
                             <option value="AHV">AHV / IV / EO</option>
@@ -3482,13 +3482,13 @@
                 </div>
             </div>
 
-            <div class="page liquid-mask" id="page-mindestloehne">
+            <div class="page liquid-mask fixhead" id="page-mindestloehne">
                 <div class="page-head"><div>
                     <h1 class="page-title">Mindestlöhne</h1>
                     <p class="page-sub">L-GAV Mindestlöhne nach Funktion, Modell und Ausbildung — versioniert (Änderung an beliebigem Stichtag)</p>
                 </div></div>
                 <div class="page-body">
-                    <div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+                    <div class="sticky-section-head" style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
                         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;cursor:pointer">
                             <input type="checkbox" id="mwShowAll" onchange="mwRender()" style="cursor:pointer"> Versionen mit Gültigkeit (aktuell + nächste)
                         </label>
@@ -3502,13 +3502,13 @@
                 </div>
             </div>
             <!-- ═══ KONTOPLAN (Lohnart→Konten-Mapping, Fibu/Abacus) ═══ -->
-            <div class="page liquid-mask" id="page-kontoplan">
+            <div class="page liquid-mask fixhead" id="page-kontoplan">
                 <div class="page-head"><div>
                     <h1 class="page-title">Kontoplan (Fibu)</h1>
                     <p class="page-sub">Lohnart→Konten-Mapping aus dem Mirus/McD-Buchungsschema — Grundlage für Fibu-Journal und Abacus-Export</p>
                 </div></div>
                 <div class="page-body">
-                    <div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+                    <div class="sticky-section-head" style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
                         <input type="text" id="kpSearch" oninput="kpRender()" placeholder="Suchen (Konto, Position, Text)…" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
                         <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px">Kostenstelle
                             <select id="kpKstFilter" onchange="kpRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
@@ -3526,7 +3526,7 @@
             </div>
             <!-- ═══ WARNUNGSVERWALTUNG (Walter 06.07.2026) ═══ -->
             <!-- Kopf fix (Titel + Speichern), nur Tabellendaten scrollen (Walter 21.07.2026). -->
-            <div class="page liquid-mask" id="page-warnungen">
+            <div class="page liquid-mask fixhead" id="page-warnungen">
                 <div class="sticky-page-head wc-page-head">
                     <div class="page-head" style="margin-bottom:0"><div>
                         <h1 class="page-title">Warnungen</h1>
@@ -3751,7 +3751,7 @@
             </div>
             <!-- ═══ ALTERSSTRUKTUR alle Filialen (Walter-Vorgabe 08.07.2026) ═══ -->
             <!-- ═══ ABSENZ- & FERIENKALENDER pro Filiale (Walter 22.07.2026) ═══ -->
-            <div class="page" id="page-absenz-kalender">
+            <div class="page fixhead" id="page-absenz-kalender">
                 <div class="page-head"><div>
                     <h1 class="page-title">Absenzen &amp; Ferien — Kalender</h1>
                     <p class="page-sub">Monatsübersicht aller aktiven Mitarbeitenden der gewählten Filiale: Ferien, Krankheit, Unfall, Mutterschaft und weitere Absenzen als Balken. Unten die Anzahl Abwesender pro Tag mit Engpass-Warnung. Klick auf Name oder Balken springt in den Absenzen-Tab.</p>
@@ -3760,13 +3760,13 @@
                     <div id="akalResult"></div>
                 </div>
             </div>
-            <div class="page" id="page-alter-report">
+            <div class="page fixhead" id="page-alter-report">
                 <div class="page-head"><div>
                     <h1 class="page-title">Altersstruktur — alle Filialen</h1>
                     <p class="page-sub">Alterskategorien: unter 16, 16–17, 18–29, 30–44, 45–49, 50 und älter sowie alle mit AHV-Pension in einem Jahr oder weniger — namentlich, ausser 18–29 und 30–44 (nur Anzahl). Filialen als Spalten, jeder aktive Mitarbeiter mit laufendem Vertrag erscheint genau einmal; unten das Total pro Filiale.</p>
                 </div></div>
                 <div class="page-body">
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+                    <div class="sticky-section-head" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
                         <button class="btn-primary" onclick="alterLoad()">🔄 Aktualisieren</button>
                         <button onclick="alterPdf()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(60,55,48,0.18)">📄 PDF (A4 hoch)</button>
                         <span style="font-size:12px;color:#8b8b8b">Stichtag = heute · immer über alle Filialen (unabhängig vom Sidebar-Filter)</span>
@@ -3775,7 +3775,7 @@
                 </div>
             </div>
             <!-- ═══ AUDIT-LOG (Walter-Vorgabe 27.05.2026, admin-only) ═══ -->
-            <div class="page" id="page-audit-log">
+            <div class="page fixhead" id="page-audit-log">
                 <div class="page-head"><div>
                     <h1 class="page-title">Aktivitäts-Log</h1>
                     <p class="page-sub">Wer hat wann was geändert, erstellt oder gelöscht — admin-only. Filterbar nach Datum, User, Entität, Aktion.</p>
@@ -3838,7 +3838,7 @@
                 </div>
             </div>
 
-            <div class="page liquid-mask" id="page-lohnpositionen">
+            <div class="page liquid-mask fixhead" id="page-lohnpositionen">
                 <div class="page-head"><div>
                     <h1 class="page-title">Lohnpositionen</h1>
                     <p class="page-sub">Lohnraster — definiert für jede Lohnart, welche Sozialversicherungsabzüge anfallen</p>
@@ -3849,7 +3849,7 @@
                     <div id="lpAlert"></div>
 
                     <!-- Filter-Leiste -->
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+                    <div class="sticky-section-head" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
                         <select id="lpFilterKat" onchange="lpRender()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
                             <option value="">Alle Kategorien</option>
                             <option value="Festlohn">Festlohn</option>
@@ -4035,7 +4035,7 @@
             </div>
 
             <!-- ═══ ZULAGEN/ABZÜGE TYPEN ADMIN ═══ -->
-            <div class="page liquid-mask" id="page-zulag-typen">
+            <div class="page liquid-mask fixhead" id="page-zulag-typen">
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Zulagen &amp; Abzüge</h1>
@@ -4043,6 +4043,7 @@
                     </div>
                     <button class="btn btn-primary" onclick="openZulagTypForm()">+ Neuer Typ</button>
                 </div>
+                <div class="page-body">
 
                 <div id="zulagTypAlert" style="display:none;margin-bottom:12px"></div>
 
@@ -4119,13 +4120,14 @@
                     </thead>
                     <tbody id="zulagTypTable"></tbody>
                 </table>
+                </div><!-- /.page-body (fixhead-Wrapper 22.07.2026) -->
             </div>
 
             <!-- (Vertragstypen-Admin entfernt — UI war Theater, weil PayrollController
                   die Tabelle nicht liest. Lohnzettel-Aufbau bleibt hardcoded.) -->
 
             <!-- ═══ ABSENZ-TYPEN ADMIN ═══ -->
-            <div class="page liquid-mask" id="page-absenz-typen">
+            <div class="page liquid-mask fixhead" id="page-absenz-typen">
                 <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
                     <div>
                         <h1 class="page-title">Absenz-Typen</h1>
@@ -4133,6 +4135,7 @@
                     </div>
                     <button id="atNewBtn" onclick="openAbsenzTypForm({})" style="display:none;flex:none;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 6px 16px rgba(60,55,48,0.18)">+ Neuer Absenz-Typ</button>
                 </div>
+                <div class="page-body">
 
                 <div id="absenzTypAlert" style="display:none;margin-bottom:12px"></div>
 
@@ -4276,10 +4279,11 @@
                         </label>
                     </div>
                 </div>
+                </div><!-- /.page-body (fixhead-Wrapper 22.07.2026) -->
             </div>
 
             <!-- BEHÖRDEN -->
-            <div class="page liquid-mask" id="page-behoerden">
+            <div class="page liquid-mask fixhead" id="page-behoerden">
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Behörden</h1>
@@ -4287,6 +4291,7 @@
                     </div>
                     <button class="btn btn-primary" onclick="openBehoerdeModal(null)">+ Neue Behörde</button>
                 </div>
+                <div class="page-body">
 
                 <div id="behoerdenAlert" style="display:none;margin-bottom:12px"></div>
 
@@ -4305,6 +4310,7 @@
                         <tbody id="behoerdenTableBody"></tbody>
                     </table>
                 </div>
+                </div><!-- /.page-body (fixhead-Wrapper 22.07.2026) -->
             </div>
 
             <!-- ═══════════════ SMTP-EINSTELLUNGEN ═══════════════ -->
@@ -5543,7 +5549,7 @@
             </div>
 
             <!-- ═══════════════ BANKEN ═══════════════ -->
-            <div class="page liquid-mask" id="page-banken">
+            <div class="page liquid-mask fixhead" id="page-banken">
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Banken</h1>
@@ -5557,6 +5563,7 @@
                         <button class="btn btn-primary" onclick="openBankEditModal(null)">+ Neuer Eintrag</button>
                     </div>
                 </div>
+                <div class="page-body">
 
                 <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
                     <input type="text" id="banksSearch" placeholder="Suchen (IID, Name, BIC, Ort)…" oninput="loadBanks()"
@@ -5580,6 +5587,7 @@
                     <a href="https://www.six-group.com/interbank-clearing/de/home/bank-master-data/download-bc-bank-master.html" target="_blank" style="color:#3f3f3f">SIX Interbank Clearing Bank Master</a>.
                     Import-Format: Semikolon-getrennt mit Header <code>iid;bic;name;ort;strasse;plz</code>.
                 </p>
+                </div><!-- /.page-body (fixhead-Wrapper 22.07.2026) -->
             </div>
 
         </main>

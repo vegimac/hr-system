@@ -5647,6 +5647,18 @@
         .page.fixhead.active { display: flex !important; flex-direction: column; flex: 1 1 auto !important; min-height: 0; }
         .page.fixhead .sticky-page-head { position: static; background: transparent !important; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; border-bottom: none; }
         .page.fixhead .page-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+        /* Seiten mit .page-header (statt page-head): Header bekommt beim
+           fixhead-Wrap einen zum page-body passenden Innenabstand. */
+        .page.fixhead > .page-header { padding: 20px 14px 0; }
+        /* Toolbars im scrollenden page-body (.sticky-section-head) — auf den
+           Liquid-Seiten warmes Halbtransparent statt hartem Weiss. */
+        .page.fixhead .page-body > .sticky-section-head {
+            background: rgba(246, 243, 238, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding-top: 6px;
+            box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.12);
+        }
         /* Lohnperioden: auch die Tabellen-Kopfzeile bleibt stehen (sticky im
            scrollenden page-body; die Card darf dafür kein overflow:hidden haben). */
         #page-perioden .data-table thead th {
