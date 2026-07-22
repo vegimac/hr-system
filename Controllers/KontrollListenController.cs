@@ -179,12 +179,17 @@ public class KontrollListenController : ControllerBase
 
     /// <summary>
     /// Walter-Vorgabe 13.06.2026: MA, deren QST-Befreiung an einem eigenen
-    /// Ausweis hängt, aber das Beleg-Dokument noch nicht am MA verknüpft ist.
+    /// Ausweis hängt, aber das Beleg-Dokument noch nicht verknüpft ist.
     ///
     /// Zwei Varianten:
     ///   • CH-Bürger (NationalityRef.Code = "CH") ohne `id_pass_dokument_id`
-    ///   • C-Ausweis-Inhaber (jüngster PermitHistory-Eintrag = "C") ohne
-    ///     `c_ausweis_dokument_id`
+    ///   • C-Ausweis-Inhaber ohne Beleg-Doku am C-Eintrag
+    ///     (`PermitHistory.DokumentId`, Fallback `c_ausweis_dokument_id`)
+    ///
+    /// Walter-Bug 22.07.2026: die Liste prüfte nur noch das alte Feld
+    /// `employee.c_ausweis_dokument_id`. Seit 14.06.2026 hängt das Beleg-Doku
+    /// an der Permit-History — MA mit grünem «👁 Doku» landeten fälschlich
+    /// in der Liste. Logik jetzt identisch zu QstPflichtCheckService.
     ///
     /// Skip:
     ///   - IsActive=false, IsHidden=true, IsPayrollExcluded=true (Phantom)
@@ -229,19 +234,21 @@ public class KontrollListenController : ControllerBase
         var empIds = emps.Select(e => e.Id).ToList();
         if (empIds.Count == 0) return Ok(Array.Empty<object>());
 
-        // Neueste Bewilligung pro MA — gleiche „neueste"-Logik wie überall:
-        // max(ValidTo) → bei Gleichheit min(ValidFrom).
-        var maxDate = new DateOnly(9999, 12, 31);
-        var histAll = await _db.EmployeePermitHistories
+        // C-Einträge pro MA — gleiche Regel wie QstPflichtCheckService
+        // («einmal C immer C»): irgend ein C-Eintrag reicht; Beleg-Doku am
+        // jüngsten C-Eintrag (ValidFrom desc), Fallback altes Employee-Feld.
+        var cHistAll = await _db.EmployeePermitHistories
+            .AsNoTracking()
             .Include(h => h.PermitType)
-            .Where(h => empIds.Contains(h.EmployeeId) && h.PermitTypeId != null)
+            .Where(h => empIds.Contains(h.EmployeeId)
+                     && h.PermitType != null
+                     && h.PermitType.Code == "C")
             .ToListAsync();
-        var newestPermitByEmp = histAll
+        var cEintragByEmp = cHistAll
             .GroupBy(h => h.EmployeeId)
             .ToDictionary(g => g.Key, g => g
-                .OrderByDescending(x => x.ValidTo ?? maxDate)
-                .ThenBy(x => x.ValidFrom)
-                .ThenBy(x => x.Id)
+                .OrderByDescending(x => x.ValidFrom)
+                .ThenByDescending(x => x.Id)
                 .First());
 
         var result = new List<object>();
@@ -264,12 +271,11 @@ public class KontrollListenController : ControllerBase
                 continue;
             }
 
-            // Nicht-CH → prüfen ob aktiver C-Ausweis vorliegt
-            if (!newestPermitByEmp.TryGetValue(e.Id, out var p)) continue;
-            bool isC = string.Equals(p.PermitType?.Code, "C", StringComparison.OrdinalIgnoreCase);
-            if (!isC) continue;
+            // Nicht-CH → C-Ausweis-Inhaber ohne verknüpftes Beleg-Dokument
+            if (!cEintragByEmp.TryGetValue(e.Id, out var cEintrag)) continue;
+            int? belegDokId = cEintrag.DokumentId ?? e.CAusweisDokumentId;
+            if (belegDokId.HasValue) continue;
 
-            if (e.CAusweisDokumentId.HasValue) continue;
             result.Add(new {
                 employeeId      = e.Id,
                 employeeNumber  = e.EmployeeNumber,
