@@ -985,7 +985,26 @@ function showPage(name) {
     if (name === 'smtp-settings') smtpLoad();
     if (name === 'ecall') ecallLoad();
     if (name === 'lse-export')   lseInit();
+
+    // fixhead-Seiten: Versatz für sticky Spaltentitel messen (Walter 22.07.2026).
+    fixheadSyncStickyOffset();
+    setTimeout(fixheadSyncStickyOffset, 400);   // nach async Renderern nochmal
 }
+
+// Misst auf aktiven fixhead-Seiten die Höhe einer mitklebenden Filter-Toolbar
+// (.page-body > .sticky-section-head) und setzt sie als CSS-Var --ssh — die
+// Tabellen-Kopfzeilen (thead th, sticky) starten dann exakt darunter statt
+// hinter der Toolbar zu verschwinden. Ohne Toolbar bleibt --ssh 0.
+function fixheadSyncStickyOffset() {
+    document.querySelectorAll('.page.fixhead.active .page-body').forEach(b => {
+        const t = b.querySelector(':scope > .sticky-section-head');
+        b.style.setProperty('--ssh', t ? (t.offsetHeight + 'px') : '0px');
+    });
+}
+window.addEventListener('resize', () => {
+    clearTimeout(window._fixheadRsz);
+    window._fixheadRsz = setTimeout(fixheadSyncStickyOffset, 150);
+});
 
 // PDF-Stempelzeiten-Import entfernt (Walter-Vorgabe 19.06.2026):
 // Stempelzeiten kommen ausschliesslich über die easy@work-API. Die früheren
