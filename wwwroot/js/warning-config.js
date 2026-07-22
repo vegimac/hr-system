@@ -28,12 +28,12 @@ const WC_TD  = 'padding:4px 8px;font-size:12.5px;vertical-align:middle';
 const WC_TH  = 'padding:6px 8px;font-size:11px;color:#646464;font-weight:600';
 
 async function wcInit() {
-    const cont = document.getElementById('wcContainer');
-    if (cont) cont.innerHTML = '<div style="padding:24px;color:#8b8b8b;font-size:13px">Lade Warnungen…</div>';
+    const tbody = document.getElementById('wcTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="padding:24px;color:#8b8b8b;font-size:13px;text-align:center">Lade Warnungen…</td></tr>';
     try {
         const r = await fetch('/api/dashboard-warning-config', { headers: ah() });
         if (!r.ok) {
-            cont.innerHTML = `<div style="padding:24px;color:#dc2626;font-size:13px">Konnte Warnungs-Konfiguration nicht laden (HTTP ${r.status}). Wurde die Migration <code>add_dashboard_warning_priority_color.sql</code> ausgeführt?</div>`;
+            if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="padding:24px;color:#dc2626;font-size:13px">Konnte Warnungs-Konfiguration nicht laden (HTTP ${r.status}).</td></tr>`;
             return;
         }
         _wcRows = await r.json() || [];
@@ -43,7 +43,7 @@ async function wcInit() {
         wcSyncPriorities();
         wcRender();
     } catch (e) {
-        if (cont) cont.innerHTML = `<div style="padding:24px;color:#dc2626;font-size:13px">Verbindungsfehler: ${escapeHtml(e.message)}</div>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="padding:24px;color:#dc2626;font-size:13px">Verbindungsfehler: ${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
@@ -125,17 +125,18 @@ function wcDragHandle(idx) {
 }
 
 function wcRender() {
-    const cont = document.getElementById('wcContainer');
-    if (!cont) return;
+    // Spaltenköpfe sitzen im fixen Kopf (HTML); hier nur Datenzeilen (Walter 22.07.2026).
+    const tbody = document.getElementById('wcTableBody');
+    if (!tbody) return;
     const info = document.getElementById('wcInfo');
     if (info) info.textContent = `${_wcRows.length} Warnungen · Reihenfolge = ToDo`;
 
     if (!_wcRows.length) {
-        cont.innerHTML = '<div style="padding:24px;color:#8b8b8b;font-size:13px">Keine Warnungen konfiguriert.</div>';
+        tbody.innerHTML = '<tr><td colspan="8" style="padding:24px;color:#8b8b8b;font-size:13px;text-align:center">Keine Warnungen konfiguriert.</td></tr>';
         return;
     }
 
-    const rowsHtml = _wcRows.map((c, i) => {
+    tbody.innerHTML = _wcRows.map((c, i) => {
         const dateBased = !!c.isDateBased;
         const warnCell = dateBased
             ? `<input type="number" min="0" value="${c.warnDays == null ? '' : c.warnDays}"
@@ -155,7 +156,7 @@ function wcRender() {
         return `
         <tr data-wc-idx="${i}" style="border-bottom:1px solid #ece7df"
             ondragover="wcDragOver(event,${i})" ondrop="wcDrop(event,${i})">
-            <td style="${WC_TD};width:40px;text-align:center">${wcDragHandle(i)}</td>
+            <td style="${WC_TD};text-align:center">${wcDragHandle(i)}</td>
             <td style="${WC_TD};color:#3f3f3f;font-weight:600;white-space:nowrap">
                 <span style="color:#b8b0a4;font-weight:500;font-size:11px;margin-right:6px">${i + 1}.</span>${escapeHtml(c.label || c.category)}
             </td>
@@ -181,29 +182,6 @@ function wcRender() {
             <td style="${WC_TD};text-align:center">${dateBased ? escSevSel : '<span style="color:#b8b0a4;font-size:11px">—</span>'}</td>
         </tr>`;
     }).join('');
-
-    cont.innerHTML = `
-    <div class="wc-table-wrap">
-        <table class="wc-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:880px">
-            <thead>
-                <tr style="text-align:left">
-                    <th style="${WC_TH};text-align:center" title="Ziehen zum Sortieren">✥</th>
-                    <th style="${WC_TH}">Warnung</th>
-                    <th style="${WC_TH};text-align:center">Aktiv</th>
-                    <th style="${WC_TH};text-align:center" title="Titel-Farbe in der ToDo-Liste">Warnfarbe</th>
-                    <th style="${WC_TH};text-align:center" title="Vorlauf in Tagen">Vorlauf</th>
-                    <th style="${WC_TH};text-align:center" title="Ab diesem Rest-Tageswert eskaliert">Kritisch ab</th>
-                    <th style="${WC_TH};text-align:center">Schweregrad</th>
-                    <th style="${WC_TH};text-align:center">Eskaliert</th>
-                </tr>
-            </thead>
-            <tbody>${rowsHtml}</tbody>
-        </table>
-    </div>
-    <p style="margin-top:10px;font-size:12px;color:#8b8b8b;line-height:1.45">
-        Am Vierpfeil-Griff ziehen — <b>diese Reihenfolge ist die ToDo-Reihenfolge</b> (nach Speichern).
-        Warnfarbe: Standard (schwarz) · Immer rot · Rot wenn abgelaufen.
-    </p>`;
 }
 
 function wcSet(idx, field, value) {

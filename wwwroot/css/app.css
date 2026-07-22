@@ -5687,6 +5687,88 @@
         }
         .page.fixhead .page-body .tbl-wrap { overflow: visible; }
         .main:has(.page.fixhead.active) { overflow: hidden !important; }
+        /* ── Fixhead + Spaltenköpfe im Kopf (Walter 22.07.2026) ───────────
+           Generisches Muster: Titel/Filter + Spaltenköpfe = EIN fixer Block,
+           darunter scrollen NUR die Datenzeilen. Kein position:sticky thead. */
+        .page.fixhead .fh-page-head {
+            flex: 0 0 auto;
+            box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.14);
+            z-index: 5;
+        }
+        .page.fixhead .fh-toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 10px 32px 4px;
+        }
+        .page.fixhead .fh-cols-head-wrap {
+            margin: 10px 14px 0;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+        }
+        body.theme-dark .page.fixhead .fh-cols-head-wrap {
+            background: #2a3446;
+            border-color: var(--dlg-glass-border);
+        }
+        .page.fixhead .fh-body {
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+            padding-top: 0 !important;
+            padding-bottom: 16px !important;
+        }
+        .page.fixhead .fh-list-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            margin-top: 0;
+            padding: 0;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+        }
+        .page.fixhead .fh-list-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            scrollbar-gutter: stable;
+        }
+        .page.fixhead .fh-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .page.fixhead .fh-table-head thead th {
+            position: static !important;
+            top: auto !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            white-space: nowrap;
+        }
+        .page.fixhead .fh-table-head thead th.fh-th-center { text-align: center; }
+        .page.fixhead .fh-table-head thead th.fh-th-right { text-align: right; }
+        body.theme-dark .page.fixhead .fh-table-head thead th { color: #94a3b8; }
+        .page.fixhead .fh-table-body td {
+            padding: 10px 12px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        body.theme-dark .page.fixhead .fh-table-body td { border-bottom-color: var(--dlg-glass-border); }
+
         /* Benutzerverwaltung: Spaltentitel SITZEN IM fixen Kopf (Walter 22.07.2026).
            Kein position:sticky mehr — Titel/View-as/Spaltenköpfe = ein Block,
            darunter scrollen nur die Datenzeilen. */
@@ -5849,44 +5931,103 @@
         }
         body.theme-dark #page-perioden .per-table-body td { border-bottom-color: var(--dlg-glass-border); }
 
-        /* Warnungen: Kopf fix, nur Datenzeilen scrollen (Walter 21.07.2026).
-           display:flex !important — sonst .page.active { display:block }. */
-        .main:has(#page-warnungen.active) { overflow: hidden !important; }
-        #page-warnungen.active {
-            height: 100% !important; max-height: 100% !important;
-            overflow: hidden !important; min-height: 0 !important;
-            display: flex !important; flex-direction: column !important;
+        /* Spaltenbreiten pro Admin-Liste (fh-Muster) */
+        #page-sv-saetze .sv-c-nr { width: 4%; }
+        #page-sv-saetze .sv-c-typ { width: 7%; }
+        #page-sv-saetze .sv-c-name { width: 13%; }
+        #page-sv-saetze .sv-c-an { width: 8%; }
+        #page-sv-saetze .sv-c-ag { width: 8%; }
+        #page-sv-saetze .sv-c-basis { width: 7%; }
+        #page-sv-saetze .sv-c-alter { width: 7%; }
+        #page-sv-saetze .sv-c-vertrag { width: 9%; }
+        #page-sv-saetze .sv-c-fibu { width: 10%; }
+        #page-sv-saetze .sv-c-ab { width: 8%; }
+        #page-sv-saetze .sv-c-bis { width: 8%; }
+        #page-sv-saetze .sv-c-status { width: 7%; }
+        #page-sv-saetze .sv-c-act { width: 4%; }
+
+        #page-lohnpositionen .lp-c-code { width: 7%; }
+        #page-lohnpositionen .lp-c-name { width: 15%; }
+        #page-lohnpositionen .lp-c-kat { width: 10%; }
+        #page-lohnpositionen .lp-c-flag { width: 4.5%; }
+        #page-lohnpositionen .lp-c-fei,
+        #page-lohnpositionen .lp-c-fer,
+        #page-lohnpositionen .lp-c-ml { width: 4.5%; }
+        #page-lohnpositionen .lp-c-la { width: 7%; }
+        #page-lohnpositionen .lp-c-typ { width: 8%; }
+        #page-lohnpositionen .lp-c-act { width: 5%; }
+        #page-lohnpositionen .fh-table-head thead th.lp-th-green {
+            color: #166534;
+            background: #f0fdf4 !important;
         }
+        #page-lohnpositionen .fh-table-head thead th.lp-th-green-l { border-left: 2px solid #86efac; }
+        #page-lohnpositionen .fh-table-head thead th.lp-th-green-r { border-right: 2px solid #86efac; }
+
+        #page-warnungen .wc-c-drag { width: 5%; }
+        #page-warnungen .wc-c-label { width: 28%; }
+        #page-warnungen .wc-c-aktiv { width: 7%; }
+        #page-warnungen .wc-c-farbe { width: 14%; }
+        #page-warnungen .wc-c-vorlauf { width: 10%; }
+        #page-warnungen .wc-c-krit { width: 12%; }
+        #page-warnungen .wc-c-sev { width: 12%; }
+        #page-warnungen .wc-c-esk { width: 12%; }
+
+        #page-kontoplan .kp-c-sub { width: 62px; }
+        #page-kontoplan .kp-c-kst { width: 172px; }
+        #page-kontoplan .kp-c-bez { width: auto; }
+        #page-kontoplan .kp-c-soll { width: 74px; }
+        #page-kontoplan .kp-c-gegen { width: 74px; }
+        #page-kontoplan .kp-c-typ { width: 120px; }
+        #page-kontoplan .kp-c-act { width: 92px; }
+
+        #page-absenz-typen .at-c-code { width: 8%; }
+        #page-absenz-typen .at-c-name { width: 15%; }
+        #page-absenz-typen .at-c-zg { width: 10%; }
+        #page-absenz-typen .at-c-modus { width: 7%; }
+        #page-absenz-typen .at-c-basis { width: 8%; }
+        #page-absenz-typen .at-c-flex { width: 8%; }
+        #page-absenz-typen .at-c-verl { width: 10%; }
+        #page-absenz-typen .at-c-red { width: 10%; }
+        #page-absenz-typen .at-c-sort { width: 6%; }
+        #page-absenz-typen .at-c-status { width: 8%; }
+        #page-absenz-typen .at-c-act { width: 5%; }
+        #page-absenz-typen .at-info-box {
+            margin: 8px 32px 0;
+            background: #f6f3ee;
+            border: 1px solid #e5e0d6;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12.5px;
+            color: #6b6152;
+        }
+
+        #page-behoerden .bh-c-name { width: 22%; }
+        #page-behoerden .bh-c-typ { width: 14%; }
+        #page-behoerden .bh-c-addr { width: 28%; }
+        #page-behoerden .bh-c-iban { width: 20%; }
+        #page-behoerden .bh-c-status { width: 10%; }
+        #page-behoerden .bh-c-act { width: 6%; }
+
+        /* Warnungen: Spaltenköpfe im fixen Kopf (Walter 22.07.2026, fh-Muster). */
         #page-warnungen .wc-page-head {
-            flex: 0 0 auto;
             background:
                 radial-gradient(ellipse 70% 50% at 85% -5%, rgba(255, 255, 255, 0.70) 0%, transparent 55%),
                 linear-gradient(160deg, #f6f3ee 0%, #efebe3 48%, #faf8f5 100%);
-            box-shadow: 0 6px 8px -6px rgba(60, 55, 48, 0.18);
-            z-index: 5;
         }
         body.theme-dark #page-warnungen .wc-page-head {
             background: rgba(26, 36, 51, 0.96) !important;
         }
-        #page-warnungen .wc-scroll-body {
-            flex: 1 1 auto; min-height: 0; overflow: auto;
-            padding-top: 8px !important;
-        }
-        #page-warnungen .wc-table-wrap {
-            background: rgba(255,255,255,0.5);
-            border: 1px solid rgba(255,255,255,0.62);
-            border-radius: 14px;
-            box-shadow: 0 6px 20px rgba(60,55,48,0.14);
-            overflow: visible;
-        }
-        #page-warnungen .wc-table thead th {
-            position: sticky; top: 0; z-index: 3;
+        #page-warnungen .fh-cols-head-wrap {
             background: #f6f3ee;
-            box-shadow: 0 1px 0 #ece7df;
+            border-color: #ece7df;
         }
-        body.theme-dark #page-warnungen .wc-table thead th {
-            background: #2a3340;
-            box-shadow: 0 1px 0 var(--dlg-glass-border);
+        body.theme-dark #page-warnungen .fh-cols-head-wrap { background: #2a3340; }
+        #page-warnungen .wc-hint {
+            flex: 0 0 auto;
+            margin: 8px 0 0;
+            font-size: 12px;
+            color: #8b8b8b;
+            line-height: 1.45;
         }
 
         /* Moments-Texte: Titel + Emotionsgrade + Vorlagen-Toolbar fix;

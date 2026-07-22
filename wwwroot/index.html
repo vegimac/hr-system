@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260722t">
+    <link rel="stylesheet" href="css/app.css?v=20260722u">
 </head>
 <body>
 
@@ -3287,60 +3287,61 @@
 
             <!-- ═══ SOZIALVERSICHERUNGSSÄTZE ═══ -->
             <div class="page liquid-mask fixhead" id="page-sv-saetze">
+                <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
                     <h1 class="page-title">SV-Sätze</h1>
                     <p class="page-sub">Globale Sozialversicherungssätze (AHV, ALV, NBUV, BVG) — gelten für alle Filialen</p>
                 </div>
                 </div>
-                <div class="page-body">
-
-                    <!-- Filter + Aktion (Walter-Vorgabe 18.05.2026: „Neu"-Button hierher,
-                         weil im page-head der globale langSwitcher (top:14,right:18,z:1500)
-                         den ursprünglichen Button überdeckte). -->
-                    <div class="sticky-section-head" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-                        <select id="svFilterCode" onchange="svRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
-                            <option value="">Alle Typen</option>
-                            <option value="AHV">AHV / IV / EO</option>
-                            <option value="ALV">ALV</option>
-                            <option value="NBUV">NBUV / NBU</option>
-                            <option value="KTG">KTG Krankentaggeld</option>
-                            <option value="BVG">BVG Uno Basis</option>
-                            <option value="BVG_ZUSATZ">BVG Zusatz (Kader)</option>
-                        </select>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;cursor:pointer">
-                            <input type="checkbox" id="svShowInactive" onchange="svRender()" style="cursor:pointer"> Inaktive anzeigen
-                        </label>
-                        <span id="svInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
-                        <button class="btn-primary" onclick="svOpenForm(null)">+ Neuer Satz</button>
-                    </div>
-
-                    <!-- Tabelle. overflow:visible — sonst beschneidet die Card
-                         das ⋮-Menü der letzten Zeilen (Walter 09.06.2026). -->
-                    <div class="card" style="overflow:visible">
-                        <table style="width:100%;border-collapse:collapse;font-size:13px">
-                            <thead>
-                                <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;white-space:nowrap">
-                                    <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569" title="Reihenfolge auf dem Lohnzettel">#</th>
-                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Typ</th>
-                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Bezeichnung</th>
-                                    <th style="padding:10px 14px;text-align:right;font-weight:600;color:#475569">Satz AN %</th>
-                                    <th style="padding:10px 14px;text-align:right;font-weight:600;color:#475569" title="Arbeitgeber-Anteil für die AG-Sozialbeiträge im Fibu-Journal (leer = nicht gebucht)">Satz AG %</th>
-                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Basis</th>
-                                    <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569">Alter</th>
-                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Vertragstyp</th>
-                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569" title="Fibu-Position (Mirus-Lohnart) → Konto aus Kontoplan">Fibu → Konto</th>
-                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Gültig ab</th>
-                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Gültig bis</th>
-                                    <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569">Status</th>
-                                    <!-- Aktions-Spalte: width:1% + text-align:right → hart rechtsbündig,
-                                         alle anderen Spalten teilen sich die Restbreite. -->
-                                    <th style="padding:10px 14px;width:1%;text-align:right"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="svTableBody">
-                                <tr><td colspan="13" style="padding:30px;text-align:center;color:#94a3b8">Lade...</td></tr>
-                            </tbody>
-                        </table>
+                <div class="fh-toolbar">
+                    <select id="svFilterCode" onchange="svRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
+                        <option value="">Alle Typen</option>
+                        <option value="AHV">AHV / IV / EO</option>
+                        <option value="ALV">ALV</option>
+                        <option value="NBUV">NBUV / NBU</option>
+                        <option value="KTG">KTG Krankentaggeld</option>
+                        <option value="BVG">BVG Uno Basis</option>
+                        <option value="BVG_ZUSATZ">BVG Zusatz (Kader)</option>
+                    </select>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;cursor:pointer">
+                        <input type="checkbox" id="svShowInactive" onchange="svRender()" style="cursor:pointer"> Inaktive anzeigen
+                    </label>
+                    <span id="svInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
+                    <button class="btn-primary" onclick="svOpenForm(null)">+ Neuer Satz</button>
+                </div>
+                <div class="fh-cols-head-wrap">
+                    <table class="fh-table fh-table-head" aria-hidden="true">
+                        <colgroup>
+                            <col class="sv-c-nr"><col class="sv-c-typ"><col class="sv-c-name"><col class="sv-c-an"><col class="sv-c-ag">
+                            <col class="sv-c-basis"><col class="sv-c-alter"><col class="sv-c-vertrag"><col class="sv-c-fibu">
+                            <col class="sv-c-ab"><col class="sv-c-bis"><col class="sv-c-status"><col class="sv-c-act">
+                        </colgroup>
+                        <thead><tr>
+                            <th class="fh-th-center" title="Reihenfolge auf dem Lohnzettel">#</th>
+                            <th>Typ</th><th>Bezeichnung</th>
+                            <th class="fh-th-right">Satz AN %</th>
+                            <th class="fh-th-right" title="Arbeitgeber-Anteil für die AG-Sozialbeiträge im Fibu-Journal (leer = nicht gebucht)">Satz AG %</th>
+                            <th>Basis</th><th class="fh-th-center">Alter</th><th>Vertragstyp</th>
+                            <th title="Fibu-Position (Mirus-Lohnart) → Konto aus Kontoplan">Fibu → Konto</th>
+                            <th>Gültig ab</th><th>Gültig bis</th><th class="fh-th-center">Status</th><th></th>
+                        </tr></thead>
+                    </table>
+                </div>
+                </div><!-- /.fh-page-head -->
+                <div class="page-body fh-body">
+                    <div class="card fh-list-card">
+                        <div class="fh-list-scroll">
+                            <table class="fh-table fh-table-body">
+                                <colgroup>
+                                    <col class="sv-c-nr"><col class="sv-c-typ"><col class="sv-c-name"><col class="sv-c-an"><col class="sv-c-ag">
+                                    <col class="sv-c-basis"><col class="sv-c-alter"><col class="sv-c-vertrag"><col class="sv-c-fibu">
+                                    <col class="sv-c-ab"><col class="sv-c-bis"><col class="sv-c-status"><col class="sv-c-act">
+                                </colgroup>
+                                <tbody id="svTableBody">
+                                    <tr><td colspan="13" style="padding:30px;text-align:center;color:#94a3b8">Lade...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -3536,44 +3537,99 @@
             </div>
             <!-- ═══ KONTOPLAN (Lohnart→Konten-Mapping, Fibu/Abacus) ═══ -->
             <div class="page liquid-mask fixhead" id="page-kontoplan">
+                <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
                     <h1 class="page-title">Kontoplan (Fibu)</h1>
                     <p class="page-sub">Lohnart→Konten-Mapping aus dem Mirus/McD-Buchungsschema — Grundlage für Fibu-Journal und Abacus-Export</p>
                 </div></div>
-                <div class="page-body">
-                    <div class="sticky-section-head" style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-                        <input type="text" id="kpSearch" oninput="kpRender()" placeholder="Suchen (Konto, Position, Text)…" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
-                        <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px">Kostenstelle
-                            <select id="kpKstFilter" onchange="kpRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
-                                <option value="">alle</option>
-                                <option value="100">100 Crew Fix (MTP/FIX)</option>
-                                <option value="200">200 Crew Flex (FLEX)</option>
-                                <option value="300">300 Management</option>
-                                <option value="400">400 Gerant</option>
-                            </select>
-                        </label>
-                        <span id="kpInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
+                <div class="fh-toolbar" style="gap:14px">
+                    <input type="text" id="kpSearch" oninput="kpRender()" placeholder="Suchen (Konto, Position, Text)…" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+                    <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px">Kostenstelle
+                        <select id="kpKstFilter" onchange="kpRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
+                            <option value="">alle</option>
+                            <option value="100">100 Crew Fix (MTP/FIX)</option>
+                            <option value="200">200 Crew Flex (FLEX)</option>
+                            <option value="300">300 Management</option>
+                            <option value="400">400 Gerant</option>
+                        </select>
+                    </label>
+                    <span id="kpInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
+                </div>
+                <div class="fh-cols-head-wrap">
+                    <table class="fh-table fh-table-head" aria-hidden="true">
+                        <colgroup>
+                            <col class="kp-c-sub"><col class="kp-c-kst"><col class="kp-c-bez">
+                            <col class="kp-c-soll"><col class="kp-c-gegen"><col class="kp-c-typ"><col class="kp-c-act">
+                        </colgroup>
+                        <thead><tr>
+                            <th>SubPos</th><th>Kostenstelle</th><th>Bezeichnung</th>
+                            <th>Soll</th><th>Gegen</th><th>Typ</th><th class="fh-th-right">Aktion</th>
+                        </tr></thead>
+                    </table>
+                </div>
+                </div><!-- /.fh-page-head -->
+                <div class="page-body fh-body">
+                    <div class="card fh-list-card" id="kpContainer">
+                        <div class="fh-list-scroll">
+                            <table class="fh-table fh-table-body">
+                                <colgroup>
+                                    <col class="kp-c-sub"><col class="kp-c-kst"><col class="kp-c-bez">
+                                    <col class="kp-c-soll"><col class="kp-c-gegen"><col class="kp-c-typ"><col class="kp-c-act">
+                                </colgroup>
+                                <tbody id="kpTableBody">
+                                    <tr><td colspan="7" style="padding:24px;color:#94a3b8;font-size:13px;text-align:center">Lade Kontoplan…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div id="kpContainer"></div>
                 </div>
             </div>
             <!-- ═══ WARNUNGSVERWALTUNG (Walter 06.07.2026) ═══ -->
-            <!-- Kopf fix (Titel + Speichern), nur Tabellendaten scrollen (Walter 21.07.2026). -->
+            <!-- Spaltenköpfe im fixen Kopf (Walter 22.07.2026). -->
             <div class="page liquid-mask fixhead" id="page-warnungen">
-                <div class="sticky-page-head wc-page-head">
+                <div class="sticky-page-head wc-page-head fh-page-head">
                     <div class="page-head" style="margin-bottom:0"><div>
                         <h1 class="page-title">Warnungen</h1>
                         <p class="page-sub">Dashboard-/ToDo-Warnungen — Zeilen am Vierpfeil-Griff ziehen = ToDo-Reihenfolge. Plus Warnfarbe, Vorlauf und Schweregrad. Gilt global (alle Filialen).</p>
                     </div></div>
-                    <div class="page-body" style="padding-top:12px;padding-bottom:10px">
-                        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:flex-end">
-                            <span id="wcInfo" style="font-size:12px;color:#8b8b8b;margin-right:auto"></span>
-                            <button id="wcSaveBtn" onclick="wcSave()" style="padding:9px 18px;background:#3f3f3f;color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer">Speichern</button>
-                        </div>
+                    <div class="fh-toolbar" style="justify-content:flex-end;gap:14px">
+                        <span id="wcInfo" style="font-size:12px;color:#8b8b8b;margin-right:auto"></span>
+                        <button id="wcSaveBtn" onclick="wcSave()" style="padding:9px 18px;background:#3f3f3f;color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer">Speichern</button>
+                    </div>
+                    <div class="fh-cols-head-wrap">
+                        <table class="fh-table fh-table-head" aria-hidden="true">
+                            <colgroup>
+                                <col class="wc-c-drag"><col class="wc-c-label"><col class="wc-c-aktiv"><col class="wc-c-farbe">
+                                <col class="wc-c-vorlauf"><col class="wc-c-krit"><col class="wc-c-sev"><col class="wc-c-esk">
+                            </colgroup>
+                            <thead><tr>
+                                <th class="fh-th-center" title="Ziehen zum Sortieren">✥</th>
+                                <th>Warnung</th>
+                                <th class="fh-th-center">Aktiv</th>
+                                <th class="fh-th-center" title="Titel-Farbe in der ToDo-Liste">Warnfarbe</th>
+                                <th class="fh-th-center" title="Vorlauf in Tagen">Vorlauf</th>
+                                <th class="fh-th-center" title="Ab diesem Rest-Tageswert eskaliert">Kritisch ab</th>
+                                <th class="fh-th-center">Schweregrad</th>
+                                <th class="fh-th-center">Eskaliert</th>
+                            </tr></thead>
+                        </table>
                     </div>
                 </div>
-                <div class="page-body wc-scroll-body">
-                    <div id="wcContainer"></div>
+                <div class="page-body fh-body">
+                    <div class="card fh-list-card" id="wcContainer">
+                        <div class="fh-list-scroll">
+                            <table class="fh-table fh-table-body">
+                                <colgroup>
+                                    <col class="wc-c-drag"><col class="wc-c-label"><col class="wc-c-aktiv"><col class="wc-c-farbe">
+                                    <col class="wc-c-vorlauf"><col class="wc-c-krit"><col class="wc-c-sev"><col class="wc-c-esk">
+                                </colgroup>
+                                <tbody id="wcTableBody">
+                                    <tr><td colspan="8" style="padding:24px;color:#8b8b8b;font-size:13px;text-align:center">Lade Warnungen…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <p class="wc-hint">Am Vierpfeil-Griff ziehen — <b>diese Reihenfolge ist die ToDo-Reihenfolge</b> (nach Speichern). Warnfarbe: Standard (schwarz) · Immer rot · Rot wenn abgelaufen.</p>
                 </div>
             </div>
             <!-- ═══ EASY@WORK API (Walter 17.06.2026, Phase 1 Foundation) ═══ -->
@@ -3872,65 +3928,77 @@
             </div>
 
             <div class="page liquid-mask fixhead" id="page-lohnpositionen">
+                <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
                     <h1 class="page-title">Lohnpositionen</h1>
                     <p class="page-sub">Lohnraster — definiert für jede Lohnart, welche Sozialversicherungsabzüge anfallen</p>
                 </div>
                 <button class="btn-primary" onclick="lpOpenForm(null)" style="margin-top:4px">+ Neue Position</button>
                 </div>
-                <div class="page-body">
+                <div class="fh-toolbar">
+                    <select id="lpFilterKat" onchange="lpRender()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
+                        <option value="">Alle Kategorien</option>
+                        <option value="Festlohn">Festlohn</option>
+                        <option value="Stundenlohn">Stundenlohn</option>
+                        <option value="Überstunden">Überstunden</option>
+                        <option value="Taggelder">Taggelder</option>
+                        <option value="13. ML">13. Monatslohn</option>
+                        <option value="Familienzulagen">Familienzulagen</option>
+                        <option value="Ferienentsch.">Ferienentschädigung</option>
+                        <option value="Bonus">Bonus</option>
+                        <option value="Spesen">Spesen</option>
+                        <option value="Abzüge">Abzüge</option>
+                    </select>
+                    <select id="lpFilterTyp" onchange="lpRender()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
+                        <option value="">Zulage + Abzug</option>
+                        <option value="ZULAGE">Nur Zulagen</option>
+                        <option value="ABZUG">Nur Abzüge</option>
+                    </select>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#64748b">
+                        <input type="checkbox" id="lpShowInactive" onchange="lpRender()"> Inaktive anzeigen
+                    </label>
+                </div>
+                <div class="fh-cols-head-wrap">
+                    <table class="fh-table fh-table-head" aria-hidden="true">
+                        <colgroup>
+                            <col class="lp-c-code"><col class="lp-c-name"><col class="lp-c-kat">
+                            <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag">
+                            <col class="lp-c-fei"><col class="lp-c-fer"><col class="lp-c-ml">
+                            <col class="lp-c-la"><col class="lp-c-typ"><col class="lp-c-act">
+                        </colgroup>
+                        <thead><tr>
+                            <th>Code</th><th>Bezeichnung</th><th>Kategorie</th>
+                            <th class="fh-th-center" title="AHV/ALV">AHV</th>
+                            <th class="fh-th-center" title="NBUV">NBU</th>
+                            <th class="fh-th-center" title="KTG">KTG</th>
+                            <th class="fh-th-center" title="BVG">BVG</th>
+                            <th class="fh-th-center" title="Quellensteuer">QST</th>
+                            <th class="fh-th-center lp-th-green lp-th-green-l" title="Basis für Feiertagsentschädigung">FEI</th>
+                            <th class="fh-th-center lp-th-green" title="Basis für Ferienentschädigung">FER</th>
+                            <th class="fh-th-center lp-th-green lp-th-green-r" title="Basis für 13. Monatslohn">13.ML</th>
+                            <th class="fh-th-center">LA-Code</th>
+                            <th class="fh-th-center">Typ</th>
+                            <th></th>
+                        </tr></thead>
+                    </table>
+                </div>
+                </div><!-- /.fh-page-head -->
+                <div class="page-body fh-body">
                     <div id="lpAlert"></div>
-
-                    <!-- Filter-Leiste -->
-                    <div class="sticky-section-head" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
-                        <select id="lpFilterKat" onchange="lpRender()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
-                            <option value="">Alle Kategorien</option>
-                            <option value="Festlohn">Festlohn</option>
-                            <option value="Stundenlohn">Stundenlohn</option>
-                            <option value="Überstunden">Überstunden</option>
-                            <option value="Taggelder">Taggelder</option>
-                            <option value="13. ML">13. Monatslohn</option>
-                            <option value="Familienzulagen">Familienzulagen</option>
-                            <option value="Ferienentsch.">Ferienentschädigung</option>
-                            <option value="Bonus">Bonus</option>
-                            <option value="Spesen">Spesen</option>
-                            <option value="Abzüge">Abzüge</option>
-                        </select>
-                        <select id="lpFilterTyp" onchange="lpRender()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
-                            <option value="">Zulage + Abzug</option>
-                            <option value="ZULAGE">Nur Zulagen</option>
-                            <option value="ABZUG">Nur Abzüge</option>
-                        </select>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#64748b">
-                            <input type="checkbox" id="lpShowInactive" onchange="lpRender()"> Inaktive anzeigen
-                        </label>
-                    </div>
-
-                    <!-- Tabelle -->
-                    <div class="card" style="padding:0;overflow:visible"><!-- overflow:visible für sticky Spaltentitel (22.07.2026) -->
-                        <table style="width:100%;border-collapse:collapse;font-size:13px">
-                            <thead>
-                                <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
-                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;white-space:nowrap">Code</th>
-                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Bezeichnung</th>
-                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Kategorie</th>
-                                    <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569" title="AHV/ALV">AHV</th>
-                                    <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569" title="NBUV">NBU</th>
-                                    <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569" title="KTG">KTG</th>
-                                    <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569" title="BVG">BVG</th>
-                                    <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569" title="Quellensteuer">QST</th>
-                                    <th style="padding:10px 8px;text-align:center;font-weight:600;color:#166534;background:#f0fdf4;border-left:2px solid #86efac" title="Basis für Feiertagsentschädigung">FEI</th>
-                                    <th style="padding:10px 8px;text-align:center;font-weight:600;color:#166534;background:#f0fdf4" title="Basis für Ferienentschädigung">FER</th>
-                                    <th style="padding:10px 8px;text-align:center;font-weight:600;color:#166534;background:#f0fdf4;border-right:2px solid #86efac" title="Basis für 13. Monatslohn">13.ML</th>
-                                    <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569">LA-Code</th>
-                                    <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569">Typ</th>
-                                    <th style="padding:10px 14px;text-align:right;font-weight:600;color:#475569"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="lpTableBody">
-                                <tr><td colspan="14" style="padding:32px;text-align:center;color:#94a3b8">Wird geladen…</td></tr>
-                            </tbody>
-                        </table>
+                    <div class="card fh-list-card">
+                        <div class="fh-list-scroll">
+                            <table class="fh-table fh-table-body">
+                                <colgroup>
+                                    <col class="lp-c-code"><col class="lp-c-name"><col class="lp-c-kat">
+                                    <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag">
+                                    <col class="lp-c-fei"><col class="lp-c-fer"><col class="lp-c-ml">
+                                    <col class="lp-c-la"><col class="lp-c-typ"><col class="lp-c-act">
+                                </colgroup>
+                                <tbody id="lpTableBody">
+                                    <tr><td colspan="14" style="padding:32px;text-align:center;color:#94a3b8">Wird geladen…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -4161,6 +4229,7 @@
 
             <!-- ═══ ABSENZ-TYPEN ADMIN ═══ -->
             <div class="page liquid-mask fixhead" id="page-absenz-typen">
+                <div class="sticky-page-head fh-page-head">
                 <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
                     <div>
                         <h1 class="page-title">Absenz-Typen</h1>
@@ -4168,12 +4237,7 @@
                     </div>
                     <button id="atNewBtn" onclick="openAbsenzTypForm({})" style="display:none;flex:none;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 6px 16px rgba(60,55,48,0.18)">+ Neuer Absenz-Typ</button>
                 </div>
-                <div class="page-body">
-
-                <div id="absenzTypAlert" style="display:none;margin-bottom:12px"></div>
-
-                <!-- Info-Box -->
-                <div style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:#6b6152">
+                <div class="at-info-box">
                     <strong>Hinweis:</strong> Bei <strong>FIX/MTP</strong> wirkt die <em>Zeitgutschrift</em> (Stunden werden zu den Sollstunden addiert).
                     Bei <strong>FLEX</strong> wirkt der separate Schalter <em>FLEX — als Stundenlohn auszahlen</em>: nur Absenz-Typen mit gesetztem Flag (z.B. Nacht-Kompensation, Schulung) bekommen die Stunden als Lohn ausbezahlt.
                     <span style="display:block;margin-top:4px;color:#6b7280">
@@ -4181,28 +4245,45 @@
                         <strong>1/7</strong> = Wochenstunden ÷ 7 pro Kalendertag
                     </span>
                 </div>
-
-                <table class="data-table" style="margin-top:0">
-                    <thead>
-                        <tr>
-                            <th>Code</th>
-                            <th>Bezeichnung</th>
-                            <th style="text-align:center">Zeitgutschrift</th>
-                            <th style="text-align:center">Modus</th>
-                            <th style="text-align:center" title="Basis für 1/5- und 1/7-Rechnung">Basis</th>
-                            <th style="text-align:center" title="Bei FLEX als Stundenlohn auszahlen">FLEX Ausz.</th>
-                            <th style="text-align:center" title="Verlängert die Probezeit um die Absenztage, wenn die Absenz in der Probezeit liegt">Verl. Probezeit</th>
-                            <th style="text-align:center" title="Welcher Saldo wird reduziert">Reduziert</th>
-                            <th style="text-align:center">Sort</th>
-                            <th style="text-align:center">Status</th>
+                <div class="fh-cols-head-wrap">
+                    <table class="fh-table fh-table-head" aria-hidden="true">
+                        <colgroup>
+                            <col class="at-c-code"><col class="at-c-name"><col class="at-c-zg"><col class="at-c-modus"><col class="at-c-basis">
+                            <col class="at-c-flex"><col class="at-c-verl"><col class="at-c-red"><col class="at-c-sort"><col class="at-c-status"><col class="at-c-act">
+                        </colgroup>
+                        <thead><tr>
+                            <th>Code</th><th>Bezeichnung</th>
+                            <th class="fh-th-center">Zeitgutschrift</th>
+                            <th class="fh-th-center">Modus</th>
+                            <th class="fh-th-center" title="Basis für 1/5- und 1/7-Rechnung">Basis</th>
+                            <th class="fh-th-center" title="Bei FLEX als Stundenlohn auszahlen">FLEX Ausz.</th>
+                            <th class="fh-th-center" title="Verlängert die Probezeit um die Absenztage, wenn die Absenz in der Probezeit liegt">Verl. Probezeit</th>
+                            <th class="fh-th-center" title="Welcher Saldo wird reduziert">Reduziert</th>
+                            <th class="fh-th-center">Sort</th>
+                            <th class="fh-th-center">Status</th>
                             <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="absenzTypTable"></tbody>
-                </table>
+                        </tr></thead>
+                    </table>
+                </div>
+                </div><!-- /.fh-page-head -->
+                <div class="page-body fh-body">
+
+                <div id="absenzTypAlert" style="display:none;margin-bottom:12px"></div>
+
+                <div class="card fh-list-card">
+                    <div class="fh-list-scroll">
+                        <table class="fh-table fh-table-body">
+                            <colgroup>
+                                <col class="at-c-code"><col class="at-c-name"><col class="at-c-zg"><col class="at-c-modus"><col class="at-c-basis">
+                                <col class="at-c-flex"><col class="at-c-verl"><col class="at-c-red"><col class="at-c-sort"><col class="at-c-status"><col class="at-c-act">
+                            </colgroup>
+                            <tbody id="absenzTypTable"></tbody>
+                        </table>
+                    </div>
+                </div>
 
                 <!-- Inline Edit-Formular -->
-                <div id="absenzTypForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-top:20px">
+                <div id="absenzTypForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-top:12px;flex:0 0 auto">
                     <div style="font-weight:600;margin-bottom:14px" id="absenzTypFormTitle">Absenz-Typ bearbeiten</div>
                     <input type="hidden" id="atId">
                     <div style="display:grid;grid-template-columns:120px 1fr 80px;gap:12px;margin-bottom:14px">
@@ -4317,6 +4398,7 @@
 
             <!-- BEHÖRDEN -->
             <div class="page liquid-mask fixhead" id="page-behoerden">
+                <div class="sticky-page-head fh-page-head">
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Behörden</h1>
@@ -4324,26 +4406,36 @@
                     </div>
                     <button class="btn btn-primary" onclick="openBehoerdeModal(null)">+ Neue Behörde</button>
                 </div>
-                <div class="page-body">
+                <div class="fh-cols-head-wrap">
+                    <table class="fh-table fh-table-head" aria-hidden="true">
+                        <colgroup>
+                            <col class="bh-c-name"><col class="bh-c-typ"><col class="bh-c-addr">
+                            <col class="bh-c-iban"><col class="bh-c-status"><col class="bh-c-act">
+                        </colgroup>
+                        <thead><tr>
+                            <th>Name</th><th>Typ</th><th>Adresse</th>
+                            <th>IBAN / Sachbearbeiter</th>
+                            <th class="fh-th-center">Status</th><th></th>
+                        </tr></thead>
+                    </table>
+                </div>
+                </div><!-- /.fh-page-head -->
+                <div class="page-body fh-body">
 
                 <div id="behoerdenAlert" style="display:none;margin-bottom:12px"></div>
 
-                <div class="card" style="padding:0;overflow:visible"><!-- overflow:visible für sticky Spaltentitel (22.07.2026) -->
-                    <table style="width:100%;border-collapse:collapse;font-size:13px">
-                        <thead>
-                            <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Name</th>
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Typ</th>
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Adresse</th>
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">IBAN / Sachbearbeiter</th>
-                                <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569">Status</th>
-                                <th style="padding:10px 14px;text-align:right;font-weight:600;color:#475569"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="behoerdenTableBody"></tbody>
-                    </table>
+                <div class="card fh-list-card">
+                    <div class="fh-list-scroll">
+                        <table class="fh-table fh-table-body">
+                            <colgroup>
+                                <col class="bh-c-name"><col class="bh-c-typ"><col class="bh-c-addr">
+                                <col class="bh-c-iban"><col class="bh-c-status"><col class="bh-c-act">
+                            </colgroup>
+                            <tbody id="behoerdenTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
-                </div><!-- /.page-body (fixhead-Wrapper 22.07.2026) -->
+                </div><!-- /.page-body -->
             </div>
 
             <!-- ═══════════════ SMTP-EINSTELLUNGEN ═══════════════ -->
@@ -6856,8 +6948,8 @@
 <script src="js/admin-settings.js?v=20260708flex"></script>
 <script src="js/pregnancy-rules.js?v=20260704p"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>
-<script src="js/kontoplan.js?v=20260704p"></script>
-<script src="js/warning-config.js?v=20260721a"></script>
+<script src="js/kontoplan.js?v=20260722u"></script>
+<script src="js/warning-config.js?v=20260722u"></script>
 <script src="js/easyatwork.js?v=20260718a"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260720j"></script>
