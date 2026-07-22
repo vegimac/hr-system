@@ -140,8 +140,13 @@ function akalRender(data) {
     const box = document.getElementById('akalResult');
     if (!box) return;
 
-    let list = data.mitarbeiter || [];
+    let list = (data.mitarbeiter || []).slice();
     if (_akalFilter === 'mitabsenz') list = list.filter(m => (m.absenzen || []).length > 0);
+
+    // Sortierung (Walter 22.07.2026): Gruppen FIX-M → FIX → MTP → FLEX,
+    // innerhalb der Gruppe nach Vorname; kleine Lücke zwischen den Gruppen.
+    const rank = m => ({ 'FIX-M': 0, 'FIX': 1, 'MTP': 2, 'FLEX': 3 })[modelDisplay(m.modell)] ?? 4;
+    list.sort((a, b) => rank(a) - rank(b) || (a.name || '').localeCompare(b.name || ''));
 
     const fpill = (key, label) =>
         `<span class="akal-fpill ${_akalFilter === key ? 'on' : ''}" onclick="akalSetFilter('${key}')">${label}</span>`;
@@ -181,7 +186,12 @@ function akalRender(data) {
     h += '</tr></thead><tbody>';
 
     const perDay = Array(AKAL_WIN).fill(0);
+    let prevRank = null;
     for (const m of list) {
+        const r = rank(m);
+        if (prevRank !== null && r !== prevRank)
+            h += `<tr class="akal-gap"><td colspan="${AKAL_WIN + 1}"></td></tr>`;
+        prevRank = r;
         const absList = (m.absenzen || []).filter(_akalMatchesFilter);
         const saldo = _akalSaldoLabel(m);
         h += `<tr><td class="akal-namecol" onclick="akalOpenMa(${m.id})" title="Zum Absenzen-Tab von ${esc(m.name)}">` +

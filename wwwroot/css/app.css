@@ -8586,6 +8586,9 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         .akal-namecol .saldo { color: #a8a29a; font-weight: 500; }
         .akal-table tbody tr { height: 26px; }
         .akal-table tbody tr + tr td { border-top: 1px solid rgba(90,80,65,0.07); }
+        /* kleine Lücke zwischen den Modell-Gruppen (FIX-M | FIX | MTP | FLEX) */
+        .akal-table tbody tr.akal-gap { height: 8px; }
+        .akal-table tbody tr.akal-gap td { border-top: none !important; }
         td.akal-day { position: relative; }
         td.akal-day.we,   th.we    { background: rgba(90,80,65,0.045); }
         td.akal-day.today { background: rgba(63,63,63,0.06); }
