@@ -102,24 +102,28 @@ public class AbsencesController : ControllerBase
             .ToListAsync();
     }
 
-    // ── GET /api/absences/kalender?companyProfileId&year&month ────────────
+    // ── GET /api/absences/kalender?companyProfileId&from&to ───────────────
     // Filial-Kalender (Walter 22.07.2026): alle aktiven MA der Filiale mit
-    // im Monat laufendem Vertrag + deren Absenzen, die den Monat ueberlappen.
-    // Dazu best-effort der letzte Ferien-Saldo (payroll_saldo) pro MA.
+    // im Zeitfenster laufendem Vertrag + deren Absenzen, die das Fenster
+    // ueberlappen. Freies von/bis-Fenster (max. 100 Tage) statt fixem
+    // Kalendermonat — das Frontend schiebt ein 31-Tage-Fenster frei nach
+    // links/rechts. Dazu best-effort der letzte Ferien-Saldo (payroll_saldo).
     [HttpGet("kalender")]
-    public async Task<IActionResult> GetKalender(int companyProfileId, int year, int month)
+    public async Task<IActionResult> GetKalender(int companyProfileId, string? from, string? to)
     {
-        if (companyProfileId <= 0 || year < 2000 || year > 2100 || month < 1 || month > 12)
+        if (companyProfileId <= 0
+            || !DateOnly.TryParse(from, out var fromD)
+            || !DateOnly.TryParse(to, out var toD)
+            || toD < fromD
+            || toD.DayNumber - fromD.DayNumber > 100)
             return BadRequest(new { error = "INVALID_PARAMS" });
 
         var allowed = await GetAllowedBranchIdsAsync();
         if (allowed != null && !allowed.Contains(companyProfileId))
             return StatusCode(403, new { error = "BRANCH_FORBIDDEN", message = "Kein Zugriff auf diese Filiale." });
 
-        var from   = new DateOnly(year, month, 1);
-        var to     = from.AddMonths(1).AddDays(-1);
-        var fromDt = from.ToDateTime(TimeOnly.MinValue);
-        var toDt   = to.ToDateTime(TimeOnly.MinValue);
+        var fromDt = fromD.ToDateTime(TimeOnly.MinValue);
+        var toDt   = toD.ToDateTime(TimeOnly.MinValue);
 
         // MA mit im Monat laufendem Vertrag in dieser Filiale (Roh laden,
         // Konvertierungen im Speicher — CLAUDE.md Datum-Regelwerk Pkt. 1).
@@ -146,7 +150,7 @@ public class AbsencesController : ControllerBase
         var empIds = emps.Select(e => e.Id).ToList();
 
         var abs = await _db.Absences.AsNoTracking()
-            .Where(a => empIds.Contains(a.EmployeeId) && a.DateFrom <= to && a.DateTo >= from)
+            .Where(a => empIds.Contains(a.EmployeeId) && a.DateFrom <= toD && a.DateTo >= fromD)
             .Select(a => new { a.EmployeeId, a.AbsenceType, a.DateFrom, a.DateTo, a.Prozent, a.Notes })
             .ToListAsync();
         var absByEmp = abs.ToLookup(a => a.EmployeeId);   // Lookup: fehlender Key = leere Sequenz
@@ -156,7 +160,7 @@ public class AbsencesController : ControllerBase
         var saldiRaw = await _db.PayrollSaldos.AsNoTracking()
             .Where(s => s.CompanyProfileId == companyProfileId
                 && empIds.Contains(s.EmployeeId)
-                && s.PeriodYear >= year - 1)
+                && s.PeriodYear >= fromD.Year - 1)
             .Select(s => new { s.EmployeeId, s.PeriodYear, s.PeriodMonth, s.FerienTageSaldo, s.FerienGeldSaldo })
             .ToListAsync();
         var saldoByEmp = saldiRaw
@@ -186,7 +190,7 @@ public class AbsencesController : ControllerBase
                     }),
             });
 
-        return Ok(new { year, month, mitarbeiter = result });
+        return Ok(new { from = fromD.ToString("yyyy-MM-dd"), to = toD.ToString("yyyy-MM-dd"), mitarbeiter = result });
     }
 
     // ── POST /api/absences ────────────────────────────────────────────────

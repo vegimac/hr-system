@@ -8567,34 +8567,38 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             padding: 14px 14px 10px;
             overflow-x: auto;
         }
-        .akal-table { border-collapse: collapse; width: 100%; min-width: 1080px; }
+        /* table-layout fixed: Fenster (31 Tage) wird IMMER auf volle Breite
+           eingepasst — kein horizontaler Scroll (Walter 22.07.2026 v2). */
+        .akal-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
         .akal-table th, .akal-table td { padding: 0; }
-        .akal-table thead .dnum { font-size: 10.5px; font-weight: 700; color: #646464; text-align: center; padding-bottom: 1px; }
-        .akal-table thead .dwd  { font-size: 9px; font-weight: 600; color: #a8a29a; text-align: center; padding-bottom: 6px; }
+        .akal-table thead .dmon { font-size: 8.5px; font-weight: 800; color: #b07940; text-align: center; text-transform: uppercase; letter-spacing: .04em; }
+        .akal-table thead .dnum { font-size: 10px; font-weight: 700; color: #646464; text-align: center; padding-bottom: 1px; }
+        .akal-table thead .dwd  { font-size: 8.5px; font-weight: 600; color: #a8a29a; text-align: center; padding-bottom: 5px; }
         .akal-table thead .we .dnum, .akal-table thead .we .dwd { color: #c2b8a8; }
-        .akal-table thead .today .dnum { background: #3f3f3f; color: #fff; border-radius: 7px; width: 22px; margin: 0 auto; }
+        .akal-table thead .today .dnum { background: #3f3f3f; color: #fff; border-radius: 6px; width: 20px; margin: 0 auto; }
         .akal-namecol {
-            text-align: left; font-size: 12.5px; font-weight: 700; color: #3f3f3f;
-            padding: 0 10px 0 6px; white-space: nowrap; width: 190px; min-width: 190px;
-            position: sticky; left: 0; background: rgba(250,248,245,0.94); z-index: 2; cursor: pointer;
+            text-align: left; font-size: 12px; font-weight: 700; color: #3f3f3f;
+            padding: 0 8px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            width: 205px; cursor: pointer;
         }
         tbody .akal-namecol:hover { text-decoration: underline; text-underline-offset: 3px; }
-        .akal-namecol .mod { font-size: 10px; font-weight: 700; color: #8b8b8b; margin-left: 6px; }
-        .akal-namecol .saldo { display: block; font-size: 10px; font-weight: 500; color: #a8a29a; margin-top: 1px; }
-        .akal-table tbody tr { height: 40px; }
+        .akal-namecol .mod { font-size: 9.5px; font-weight: 700; color: #8b8b8b; margin-left: 5px; }
+        .akal-namecol .saldo { color: #a8a29a; font-weight: 500; }
+        .akal-table tbody tr { height: 26px; }
         .akal-table tbody tr + tr td { border-top: 1px solid rgba(90,80,65,0.07); }
-        td.akal-day { width: 30px; min-width: 30px; position: relative; }
-        td.akal-day.we    { background: rgba(90,80,65,0.045); }
+        td.akal-day { position: relative; }
+        td.akal-day.we,   th.we    { background: rgba(90,80,65,0.045); }
         td.akal-day.today { background: rgba(63,63,63,0.06); }
+        td.akal-day.mstart, .akal-table thead th.mstart { border-left: 2px solid rgba(90,80,65,0.22); }
         .akal-seg {
-            position: absolute; top: 8px; bottom: 8px; left: 0; right: 0;
+            position: absolute; top: 4px; bottom: 4px; left: 0; right: 0;
             display: flex; align-items: center; justify-content: center;
             font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.92); cursor: pointer;
         }
-        .akal-seg.start { left: 3px; border-radius: 8px 0 0 8px; }
-        .akal-seg.end   { right: 3px; border-radius: 0 8px 8px 0; }
-        .akal-seg.start.end { border-radius: 8px; }
-        .akal-seg.halb { top: 14px; }
+        .akal-seg.start { left: 2px; border-radius: 7px 0 0 7px; }
+        .akal-seg.end   { right: 2px; border-radius: 0 7px 7px 0; }
+        .akal-seg.start.end { border-radius: 7px; }
+        .akal-seg.halb { top: 9px; }
         .akal-ferien   { background: linear-gradient(180deg,#7fb08a,#5f9970); }
         .akal-krank    { background: linear-gradient(180deg,#d98a8a,#c96a6a); }
         .akal-unfall   { background: linear-gradient(180deg,#e0a468,#d18b45); }
@@ -8622,7 +8626,7 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         .akal-footnote b { color: #b05555; }
         /* Dark-Mode */
         body.theme-dark .akal-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.10); }
-        body.theme-dark .akal-namecol { background: rgba(38,36,33,0.96); color: #d6d3cc; }
+        body.theme-dark .akal-namecol { color: #d6d3cc; }
         body.theme-dark .akal-monthnav, body.theme-dark .akal-fpill { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); color: #d6d3cc; }
         body.theme-dark .akal-fpill.on { background: #d6d3cc; color: #26241f; border-color: #d6d3cc; }
         body.theme-dark .akal-monthnav .cur, body.theme-dark .akal-table thead .dnum { color: #d6d3cc; }
