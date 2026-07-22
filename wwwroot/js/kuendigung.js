@@ -184,6 +184,8 @@ function kuRenderSperr(s) {
     if (s.blocked) {
         const ab = s.kuendigungAbDatum ? ` (frühestens ab ${_kuFmt(s.kuendigungAbDatum)})` : '';
         el.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600">⛔ Kündigung aktuell nicht zulässig — ${escapeHtml(s.statusText || 'Sperrfrist aktiv')}${ab}.</div>`;
+    } else if (s.warn) {
+        el.innerHTML = `<div style="background:#fdf6e7;border:1px solid #f5e3b8;color:#7a5c14;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600">⚠ ${escapeHtml(s.statusText || 'AU-Ende unbestätigt — bitte prüfen')}</div>`;
     } else {
         el.innerHTML = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:8px 14px;border-radius:8px;font-size:12.5px">✓ Keine Sperrfrist — ${escapeHtml(s.statusText || 'Kündigung möglich')}</div>`;
     }
@@ -530,6 +532,9 @@ async function kuGenerate() {
     if (_kuInfo?.sperrfrist?.blocked &&
         !(await liquidConfirm('Für diesen MA läuft eine Sperrfrist — eine Kündigung wäre evtl. nichtig. Trotzdem ein Schreiben erstellen?',
             { title: 'Achtung: Sperrfrist', yesLabel: 'Trotzdem erstellen', noLabel: 'Abbrechen' }))) return;
+    if (_kuInfo?.sperrfrist?.warn &&
+        !(await liquidConfirm((_kuInfo.sperrfrist.statusText || 'Die dokumentierte AU endete erst kürzlich — dauert sie noch an, läuft die Sperrfrist weiter.') + '\n\nTrotzdem ein Schreiben erstellen?',
+            { title: 'AU-Ende unbestätigt', yesLabel: 'Trotzdem erstellen', noLabel: 'Abbrechen' }))) return;
 
     const body = _kuFormBody();
     try {

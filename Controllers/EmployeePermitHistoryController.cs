@@ -424,10 +424,45 @@ public class EmployeePermitHistoryController : ControllerBase
     // Kurz-SMS (≤ 160) + Token-Link zur langen Mitteilung — analog Moments/
     // Gratulation. Vorlage BEWILLIGUNG_ABGELAUFEN: SmsText = Push, BodyText =
     // Landing-Page. Kein Lohn-Edit — EditLock greift hier nicht.
+    /// <summary>
+    /// Filial-Zugriffs-Check fuer die SMS-Endpoints (Walter 22.07.2026,
+    /// Review-Fix): admin/reiner superuser frei; buchhaltung (Doppel-Claim
+    /// ZUERST pruefen) und user (GF) nur auf user_branch_access-Filialen.
+    /// Loest echte SMS-Kosten + PII-Link aus — darum hart geprueft.
+    /// </summary>
+    private async Task<IActionResult?> GuardBranchAsync(int employeeId)
+    {
+        if (User.IsInRole("admin")) return null;
+        var restricted = User.IsInRole("buchhaltung") || !User.IsInRole("superuser");
+        if (!restricted) return null;
+
+        var cpId = await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == employeeId)
+            .OrderByDescending(em => em.IsActive)
+            .ThenByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfileId)
+            .FirstOrDefaultAsync();
+        if (cpId == null)
+            return StatusCode(403, new { error = "BRANCH_REQUIRED",
+                message = "Dieser Mitarbeiter hat keine Filial-Zuordnung — Versand nur für Admin/HR." });
+
+        var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(idStr, out var uid))
+            return StatusCode(403, new { error = "NO_USER" });
+        var ok = await _db.UserBranchAccesses
+            .AnyAsync(a => a.UserId == uid && a.CompanyProfileId == cpId.Value);
+        if (!ok)
+            return StatusCode(403, new { error = "BRANCH_FORBIDDEN",
+                message = "Kein Zugriff auf die Filiale dieses Mitarbeiters." });
+        return null;
+    }
+
     [HttpGet("{id:int}/sms-preview")]
     [Authorize(Roles = "admin,superuser,user,buchhaltung")]
     public async Task<IActionResult> SmsPreview(int employeeId, int id)
     {
+        var guard = await GuardBranchAsync(employeeId);
+        if (guard != null) return guard;
         var built = await BuildPermitExpiredSmsAsync(employeeId, id);
         if (built.Error != null) return built.Error;
 
@@ -456,6 +491,8 @@ public class EmployeePermitHistoryController : ControllerBase
     [Authorize(Roles = "admin,superuser,user,buchhaltung")]
     public async Task<IActionResult> SendSms(int employeeId, int id)
     {
+        var guard = await GuardBranchAsync(employeeId);
+        if (guard != null) return guard;
         var built = await BuildPermitExpiredSmsAsync(employeeId, id);
         if (built.Error != null) return built.Error;
 

@@ -185,6 +185,45 @@ public class SperrfristService
         var auKette = await FindeAuKetteAsync(employeeId, stichtag);
         if (auKette is null)
         {
+            // Review-Fix 22.07.2026 (Art. 336c, konservativ): endete die
+            // dokumentierte AU erst KUERZLICH und laeuft die theoretische
+            // Sperrfrist (ab AU-Beginn) noch, ist unklar, ob die AU wirklich
+            // vorbei ist (Zeugnis-Verlaengerung evtl. noch nicht erfasst).
+            // Dann WEICHE Warnung statt «Kuendigung moeglich».
+            var letzte = await FindeLetzteBeendeteAuAsync(employeeId, stichtag);
+            if (letzte is not null)
+            {
+                int djLetzte = ComputeDienstjahr(entryDate, letzte.Beginn);
+                int tageLetzte = SperrfristTageFuerDienstjahr(djLetzte);
+                var sperrEndeLetzte = letzte.Beginn.AddDays(tageLetzte - 1);
+                int djEnde = ComputeDienstjahr(entryDate, sperrEndeLetzte);
+                if (djEnde > djLetzte)
+                {
+                    int hoeher = SperrfristTageFuerDienstjahr(djEnde);
+                    if (hoeher > tageLetzte) sperrEndeLetzte = letzte.Beginn.AddDays(hoeher - 1);
+                }
+                if (stichtag <= sperrEndeLetzte)
+                {
+                    return new SperrfristInfo(
+                        Status:                "AU_ENDE_UNBESTAETIGT",
+                        StatusText:            $"Die dokumentierte Arbeitsunfähigkeit endete am {letzte.Ende:dd.MM.yyyy}. Dauert die AU tatsächlich noch an (z.B. Zeugnis-Verlängerung noch nicht erfasst), läuft die Sperrfrist bis {sperrEndeLetzte:dd.MM.yyyy} — vor einer Kündigung das AU-Ende ärztlich bestätigen lassen (Art. 336c OR).",
+                        Hinweis:               "Weiche Warnung — blockiert nicht. Bei bestätigtem AU-Ende ist die Kündigung zulässig.",
+                        EntryDate:             entryDate,
+                        DienstjahrAmStichtag:  dienstjahr,
+                        ProbezeitEndDate:      probezeitEnde,
+                        AuBeginn:              letzte.Beginn,
+                        AuEnde:                letzte.Ende,
+                        AuGrund:               letzte.Grund,
+                        AuDauerTage:           letzte.Ende.DayNumber - letzte.Beginn.DayNumber + 1,
+                        SperrfristTage:        null,
+                        SperrfristTageHoechstenfalls: null,
+                        SperrfristEnde:        sperrEndeLetzte,
+                        AktuellGeschuetztBis:  null,
+                        KuendigungAbDatum:     sperrEndeLetzte.AddDays(1),
+                        VerbleibendeTage:      null);
+                }
+            }
+
             return new SperrfristInfo(
                 Status:                "KEINE_AU",
                 StatusText:            "Kein aktiver Kündigungsschutz — der Mitarbeiter ist am Stichtag nicht arbeitsunfähig. Ordentliche Kündigung möglich.",
@@ -353,5 +392,46 @@ public class SperrfristService
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Letzte VOR dem Stichtag beendete AU-Kette (Bloecke wie in
+    /// FindeAuKetteAsync zusammengefasst) — fuer die weiche Warnung
+    /// «AU-Ende unbestaetigt» (Review-Fix 22.07.2026).
+    /// </summary>
+    private async Task<AuKette?> FindeLetzteBeendeteAuAsync(int employeeId, DateOnly stichtag)
+    {
+        var absenzen = await _db.Absences
+            .Where(a => a.EmployeeId == employeeId
+                     && (a.AbsenceType == "KRANK" || a.AbsenceType == "UNFALL"))
+            .OrderBy(a => a.DateFrom)
+            .ThenBy(a => a.DateTo)
+            .ToListAsync();
+        if (absenzen.Count == 0) return null;
+
+        var bloecke = new List<(DateOnly Von, DateOnly Bis, HashSet<string> Typen)>();
+        foreach (var a in absenzen)
+        {
+            if (bloecke.Count == 0 || a.DateFrom.DayNumber > bloecke[^1].Bis.DayNumber + 1)
+                bloecke.Add((a.DateFrom, a.DateTo, new HashSet<string> { a.AbsenceType }));
+            else
+            {
+                var last = bloecke[^1];
+                var bis = a.DateTo > last.Bis ? a.DateTo : last.Bis;
+                last.Typen.Add(a.AbsenceType);
+                bloecke[^1] = (last.Von, bis, last.Typen);
+            }
+        }
+
+        AuKette? result = null;
+        foreach (var b in bloecke)
+        {
+            if (b.Bis < stichtag)
+            {
+                string grund = b.Typen.Count == 1 ? b.Typen.First() : "KRANK+UNFALL";
+                result = new AuKette(b.Von, b.Bis, grund, b.Typen.Count > 1);
+            }
+        }
+        return result;
     }
 }

@@ -53,6 +53,8 @@ public class KuendigungController : ControllerBase
         [FromQuery] DateOnly? datum = null,
         [FromQuery] string? grundType = null)
     {
+        var guard = await GuardBranchAsync(empId);
+        if (guard != null) return guard;
         var ctx = await LoadContextAsync(empId);
         if (ctx is null) return NotFound(new { error = "EMP_NOT_FOUND" });
         var (e, emp, cp) = ctx.Value;
@@ -94,6 +96,9 @@ public class KuendigungController : ControllerBase
                 kuendigungAbDatum = sperr.KuendigungAbDatum?.ToString("yyyy-MM-dd"),
                 // GESCHUETZT = Sperrfrist aktiv → Kündigung aktuell unzulässig.
                 blocked    = sperr.Status == "GESCHUETZT",
+                // AU_ENDE_UNBESTAETIGT = dokumentierte AU endete kürzlich,
+                // theoretische Sperrfrist läuft noch → weiche Warnung.
+                warn       = sperr.Status == "AU_ENDE_UNBESTAETIGT",
             }
         });
     }
@@ -101,6 +106,8 @@ public class KuendigungController : ControllerBase
     [HttpPost("{empId:int}/pdf")]
     public async Task<IActionResult> GetPdf(int empId, [FromBody] KuendigungPdfDto dto)
     {
+        var guard = await GuardBranchAsync(empId);
+        if (guard != null) return guard;
         var ctx = await LoadContextAsync(empId);
         if (ctx is null) return NotFound(new { error = "EMP_NOT_FOUND" });
         var (e, emp, cp) = ctx.Value;
@@ -152,6 +159,8 @@ public class KuendigungController : ControllerBase
     [HttpPost("{empId:int}/eintragen")]
     public async Task<IActionResult> Eintragen(int empId, [FromBody] KuendigungEintragenDto dto)
     {
+        var guard = await GuardBranchAsync(empId);
+        if (guard != null) return guard;
         var tracked = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
         if (tracked is null) return NotFound(new { error = "EMP_NOT_FOUND" });
 
@@ -199,6 +208,8 @@ public class KuendigungController : ControllerBase
     [HttpPost("{empId:int}/rueckzug-pdf")]
     public async Task<IActionResult> GetRueckzugPdf(int empId, [FromBody] RueckzugPdfDto dto)
     {
+        var guard = await GuardBranchAsync(empId);
+        if (guard != null) return guard;
         var ctx = await LoadContextAsync(empId);
         if (ctx is null) return NotFound(new { error = "EMP_NOT_FOUND" });
         var (e, _, cp) = ctx.Value;
@@ -252,6 +263,8 @@ public class KuendigungController : ControllerBase
     [HttpPost("{empId:int}/kuendigung-aufheben")]
     public async Task<IActionResult> KuendigungAufheben(int empId)
     {
+        var guard = await GuardBranchAsync(empId);
+        if (guard != null) return guard;
         var tracked = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
         if (tracked == null) return NotFound(new { error = "EMP_NOT_FOUND" });
         tracked.KuendigungAusgesprochenAm = null;
@@ -261,6 +274,42 @@ public class KuendigungController : ControllerBase
     }
 
     // ── Helfer ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Filial-Zugriffs-Check (Walter 22.07.2026, Review-Fix): admin sieht
+    /// alles; reiner superuser sieht alles; buchhaltung (Doppel-Claim!) und
+    /// user (GF) sind auf ihre user_branch_access-Filialen beschraenkt —
+    /// Filiale des MA = juengster Vertrag (analog LoadContextAsync). MA ohne
+    /// Filial-Zuordnung ist fuer beschraenkte Rollen tabu.
+    /// </summary>
+    private async Task<IActionResult?> GuardBranchAsync(int empId)
+    {
+        if (User.IsInRole("admin")) return null;
+        // buchhaltung ZUERST pruefen — hat via Doppel-Claim auch superuser
+        // (CLAUDE.md: Filial-Beschraenkung trotz superuser-Claim).
+        var restricted = User.IsInRole("buchhaltung") || !User.IsInRole("superuser");
+        if (!restricted) return null;
+
+        var cpId = await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == empId)
+            .OrderByDescending(em => em.IsActive)
+            .ThenByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfileId)
+            .FirstOrDefaultAsync();
+        if (cpId == null)
+            return StatusCode(403, new { error = "BRANCH_REQUIRED",
+                message = "Dieser Mitarbeiter hat keine Filial-Zuordnung — Zugriff nur für Admin/HR." });
+
+        var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idStr, out var uid))
+            return StatusCode(403, new { error = "NO_USER" });
+        var ok = await _db.UserBranchAccesses
+            .AnyAsync(a => a.UserId == uid && a.CompanyProfileId == cpId.Value);
+        if (!ok)
+            return StatusCode(403, new { error = "BRANCH_FORBIDDEN",
+                message = "Kein Zugriff auf die Filiale dieses Mitarbeiters." });
+        return null;
+    }
 
     private async Task<(Employee e, Employment? emp, CompanyProfile? cp)?> LoadContextAsync(int empId)
     {

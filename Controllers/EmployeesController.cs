@@ -1,6 +1,7 @@
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
@@ -977,6 +978,9 @@ public class EmployeesController : ControllerBase
     /// ausweis-doku (kind=probezeit_gespraech1|2) verknüpft.
     /// </summary>
     [HttpPatch("{id:int}/probezeit-gespraech")]
+    // Review-Fix 22.07.2026: ohne eigenes Authorize galt die FallbackPolicy
+    // inkl. lowuser (Nur-Lese-Rolle) — Schreiben jetzt explizit HR/GF.
+    [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> SetProbezeitGespraech(int id, [FromBody] ProbezeitGespraechDto dto)
     {
         var emp = await _context.Employees.FirstOrDefaultAsync(e => e.Id == id);
