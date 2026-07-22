@@ -1522,30 +1522,40 @@ public class DocumentsController : ControllerBase
         [FromQuery] string? q = null,
         [FromQuery] int limit = 500)
     {
-        if (limit > 5000) limit = 5000;
-        var built = await BuildUploadProtocolAsync(from, to, companyProfileId, q, limit);
-        if (built.ErrorResult != null) return built.ErrorResult;
-        return Ok(new {
-            total = built.Items.Count,
-            limit,
-            items = built.Items.Select(x => new {
-                id = x.Id,
-                hochgeladenAm = x.HochgeladenAm,
-                hochgeladenVonId = x.HochgeladenVonId,
-                hochgeladenVon = x.HochgeladenVon,
-                filename = x.Filename,
-                groesseBytes = x.GroesseBytes,
-                mimeType = x.MimeType,
-                bemerkung = x.Bemerkung,
-                kategorie = x.Kategorie,
-                dokumentTyp = x.DokumentTyp,
-                branchCode = x.BranchCode,
-                employeeId = x.EmployeeId,
-                employeeNumber = x.EmployeeNumber,
-                firstName = x.FirstName,
-                lastName = x.LastName
-            })
-        });
+        try
+        {
+            if (limit > 5000) limit = 5000;
+            var built = await BuildUploadProtocolAsync(from, to, companyProfileId, q, limit);
+            if (built.ErrorResult != null) return built.ErrorResult;
+            return Ok(new {
+                total = built.Items.Count,
+                limit,
+                items = built.Items.Select(x => new {
+                    id = x.Id,
+                    hochgeladenAm = x.HochgeladenAm,
+                    hochgeladenVonId = x.HochgeladenVonId,
+                    hochgeladenVon = x.HochgeladenVon,
+                    filename = x.Filename,
+                    groesseBytes = x.GroesseBytes,
+                    mimeType = x.MimeType,
+                    bemerkung = x.Bemerkung,
+                    kategorie = x.Kategorie,
+                    dokumentTyp = x.DokumentTyp,
+                    branchCode = x.BranchCode,
+                    employeeId = x.EmployeeId,
+                    employeeNumber = x.EmployeeNumber,
+                    firstName = x.FirstName,
+                    lastName = x.LastName
+                })
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new {
+                error = "UPLOAD_PROTOCOL_FAILED",
+                message = "Upload-Protokoll konnte nicht geladen werden: " + ex.Message
+            });
+        }
     }
 
     /// <summary>CSV-Export desselben Upload-Protokolls (Excel-tauglich mit BOM).</summary>
@@ -1647,43 +1657,69 @@ public class DocumentsController : ControllerBase
 
         if (search != null)
         {
+            // Keine null-Checks auf Left-Join-User in SQL — Uploader-Suche
+            // nachladen wir best-effort über Username/Name-Felder (EF-sicher).
             query = query.Where(x =>
-                (x.d.FilenameOriginal != null && x.d.FilenameOriginal.ToLower().Contains(search))
+                x.d.FilenameOriginal.ToLower().Contains(search)
                 || (x.e.FirstName != null && x.e.FirstName.ToLower().Contains(search))
                 || (x.e.LastName != null && x.e.LastName.ToLower().Contains(search))
                 || (x.e.EmployeeNumber != null && x.e.EmployeeNumber.ToLower().Contains(search))
-                || (x.t.Name != null && x.t.Name.ToLower().Contains(search))
-                || (x.k.Name != null && x.k.Name.ToLower().Contains(search))
-                || (x.u != null && (
-                       (x.u.FirstName != null && x.u.FirstName.ToLower().Contains(search))
-                    || (x.u.LastName != null && x.u.LastName.ToLower().Contains(search))
-                    || (x.u.Username != null && x.u.Username.ToLower().Contains(search)))));
+                || x.t.Name.ToLower().Contains(search)
+                || x.k.Name.ToLower().Contains(search)
+                || (x.u != null && x.u.Username.ToLower().Contains(search))
+                || (x.u != null && x.u.FirstName != null && x.u.FirstName.ToLower().Contains(search))
+                || (x.u != null && x.u.LastName != null && x.u.LastName.ToLower().Contains(search)));
         }
 
-        var rows = await query
+        // Flache Projektion (EF-übersetzbar) — Display-Name des Uploaders
+        // danach in Memory zusammenbauen (sonst 500 durch Trim/Ternary in SQL).
+        var raw = await query
             .OrderByDescending(x => x.d.HochgeladenAm)
             .Take(limit)
-            .Select(x => new UploadProtocolRow(
+            .Select(x => new {
                 x.d.Id,
                 x.d.HochgeladenAm,
                 x.d.HochgeladenVon,
-                x.u == null ? null
-                    : ((x.u.FirstName ?? "") + " " + (x.u.LastName ?? "")).Trim() == ""
-                        ? x.u.Username
-                        : ((x.u.FirstName ?? "") + " " + (x.u.LastName ?? "")).Trim(),
+                UploaderFirst = x.u != null ? x.u.FirstName : null,
+                UploaderLast  = x.u != null ? x.u.LastName : null,
+                UploaderUser  = x.u != null ? x.u.Username : null,
                 x.d.FilenameOriginal,
                 x.d.GroesseBytes,
                 x.d.MimeType,
                 x.d.Bemerkung,
-                x.k.Name,
-                x.t.Name,
+                Kategorie = x.k.Name,
+                DokumentTyp = x.t.Name,
                 x.d.BranchCode,
-                x.e.Id,
+                EmployeeId = x.e.Id,
                 x.e.EmployeeNumber,
                 x.e.FirstName,
                 x.e.LastName
-            ))
+            })
             .ToListAsync();
+
+        static string? UploaderDisplay(string? first, string? last, string? username)
+        {
+            var name = ((first ?? "") + " " + (last ?? "")).Trim();
+            return string.IsNullOrEmpty(name) ? username : name;
+        }
+
+        var rows = raw.Select(x => new UploadProtocolRow(
+            x.Id,
+            x.HochgeladenAm,
+            x.HochgeladenVon,
+            UploaderDisplay(x.UploaderFirst, x.UploaderLast, x.UploaderUser),
+            x.FilenameOriginal,
+            x.GroesseBytes,
+            x.MimeType,
+            x.Bemerkung,
+            x.Kategorie,
+            x.DokumentTyp,
+            x.BranchCode,
+            x.EmployeeId,
+            x.EmployeeNumber,
+            x.FirstName,
+            x.LastName
+        )).ToList();
 
         return new UploadProtocolBuild(rows, null);
     }

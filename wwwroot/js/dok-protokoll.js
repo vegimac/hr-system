@@ -78,8 +78,13 @@ async function dpLoad() {
         const r = await fetch('/api/documents/upload-protocol?' + dpBuildParams().toString(), { headers: ah() });
         if (!r.ok) {
             let msg = 'HTTP ' + r.status;
-            try { const j = await r.json(); if (j?.error || j?.message) msg = j.error || j.message; } catch (_) {}
-            if (mount) mount.innerHTML = `<div style="padding:28px;text-align:center;color:#dc2626">${esc(msg)}</div>`;
+            try {
+                const j = await r.json();
+                if (j?.message) msg = j.message;
+                else if (j?.error) msg = j.error;
+                else if (j?.title) msg = j.title + (j.detail ? ': ' + j.detail : '');
+            } catch (_) {}
+            if (mount) mount.innerHTML = `<div style="padding:28px;text-align:center;color:#dc2626">${dpEsc(msg)}</div>`;
             return;
         }
         const data = await r.json();
