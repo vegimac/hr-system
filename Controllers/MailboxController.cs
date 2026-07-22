@@ -515,6 +515,8 @@ public class MailboxController : ControllerBase
         if (System.IO.File.Exists(srcPath))
             System.IO.File.Move(srcPath, destPath);
 
+        // Original-Uploader aus dem Posteingang behalten (Walter 22.07.2026 —
+        // Upload-Protokoll für Buchhaltung/Bommer). Fallback = wer jetzt ablegt.
         var empDoc = new EmployeeDokument
         {
             EmployeeId       = emp.Id,
@@ -525,8 +527,8 @@ public class MailboxController : ControllerBase
             MimeType         = doc.MimeType ?? "application/octet-stream",
             GroesseBytes     = doc.FileSizeBytes ?? 0,
             Bemerkung        = string.IsNullOrWhiteSpace(dto.Bemerkung) ? doc.Bemerkung : dto.Bemerkung,
-            HochgeladenVon   = GetCurrentUserId(),
-            HochgeladenAm    = DateTime.UtcNow,
+            HochgeladenVon   = doc.UploadedBy ?? GetCurrentUserId(),
+            HochgeladenAm    = doc.UploadedAt != default ? doc.UploadedAt : DateTime.Now,
         };
         _db.EmployeeDokumente.Add(empDoc);
         _db.MailboxDocuments.Remove(doc);

@@ -1503,6 +1503,221 @@ public class DocumentsController : ControllerBase
     }
 
     // ──────────────────────────────────────────────────────────────────────
+    // UPLOAD-PROTOKOLL (Walter 22.07.2026 — Bommer/Buchhaltung)
+    // Wer hat wann welches Dokument in die MA-Akte gelegt?
+    // Ersetzt die frühere BommerBox-Sicht, seit Unterlagen direkt in OneCrew
+    // (dieses System) landen.
+    // ──────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Liste der hochgeladenen MA-Dokumente (Akte) mit Uploader, Datum, MA, Filiale.
+    /// Rollen: admin, superuser, buchhaltung. Buchhaltung ist filial-beschränkt.
+    /// </summary>
+    [HttpGet("upload-protocol")]
+    [Authorize(Roles = "admin,superuser,buchhaltung")]
+    public async Task<IActionResult> UploadProtocol(
+        [FromQuery] DateOnly? from = null,
+        [FromQuery] DateOnly? to = null,
+        [FromQuery] int? companyProfileId = null,
+        [FromQuery] string? q = null,
+        [FromQuery] int limit = 500)
+    {
+        if (limit > 5000) limit = 5000;
+        var built = await BuildUploadProtocolAsync(from, to, companyProfileId, q, limit);
+        if (built.ErrorResult != null) return built.ErrorResult;
+        return Ok(new {
+            total = built.Items.Count,
+            limit,
+            items = built.Items.Select(x => new {
+                id = x.Id,
+                hochgeladenAm = x.HochgeladenAm,
+                hochgeladenVonId = x.HochgeladenVonId,
+                hochgeladenVon = x.HochgeladenVon,
+                filename = x.Filename,
+                groesseBytes = x.GroesseBytes,
+                mimeType = x.MimeType,
+                bemerkung = x.Bemerkung,
+                kategorie = x.Kategorie,
+                dokumentTyp = x.DokumentTyp,
+                branchCode = x.BranchCode,
+                employeeId = x.EmployeeId,
+                employeeNumber = x.EmployeeNumber,
+                firstName = x.FirstName,
+                lastName = x.LastName
+            })
+        });
+    }
+
+    /// <summary>CSV-Export desselben Upload-Protokolls (Excel-tauglich mit BOM).</summary>
+    [HttpGet("upload-protocol/export")]
+    [Authorize(Roles = "admin,superuser,buchhaltung")]
+    public async Task<IActionResult> UploadProtocolExport(
+        [FromQuery] DateOnly? from = null,
+        [FromQuery] DateOnly? to = null,
+        [FromQuery] int? companyProfileId = null,
+        [FromQuery] string? q = null)
+    {
+        var built = await BuildUploadProtocolAsync(from, to, companyProfileId, q, 10000);
+        if (built.ErrorResult != null) return built.ErrorResult;
+
+        static string Csv(string? s)
+        {
+            var v = (s ?? "").Replace("\"", "\"\"");
+            return "\"" + v + "\"";
+        }
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Datum;Uploader;Personalnr;Mitarbeiter;Filiale;Kategorie;Typ;Dateiname;GroesseBytes;Bemerkung");
+        foreach (var it in built.Items)
+        {
+            sb.Append(Csv(it.HochgeladenAm.ToString("dd.MM.yyyy HH:mm"))).Append(';')
+              .Append(Csv(it.HochgeladenVon)).Append(';')
+              .Append(Csv(it.EmployeeNumber)).Append(';')
+              .Append(Csv(((it.FirstName ?? "") + " " + (it.LastName ?? "")).Trim())).Append(';')
+              .Append(Csv(it.BranchCode)).Append(';')
+              .Append(Csv(it.Kategorie)).Append(';')
+              .Append(Csv(it.DokumentTyp)).Append(';')
+              .Append(Csv(it.Filename)).Append(';')
+              .Append(it.GroesseBytes.ToString()).Append(';')
+              .Append(Csv(it.Bemerkung))
+              .AppendLine();
+        }
+
+        var bytes = System.Text.Encoding.UTF8.GetPreamble()
+            .Concat(System.Text.Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+        var name = $"dokument-upload-protokoll_{DateTime.Now:yyyy-MM-dd}.csv";
+        return File(bytes, "text/csv; charset=utf-8", name);
+    }
+
+    private sealed record UploadProtocolRow(
+        int Id, DateTime HochgeladenAm, int? HochgeladenVonId, string? HochgeladenVon,
+        string Filename, long GroesseBytes, string? MimeType, string? Bemerkung,
+        string? Kategorie, string? DokumentTyp, string? BranchCode,
+        int EmployeeId, string? EmployeeNumber, string? FirstName, string? LastName);
+
+    private sealed record UploadProtocolBuild(List<UploadProtocolRow> Items, IActionResult? ErrorResult);
+
+    private async Task<UploadProtocolBuild> BuildUploadProtocolAsync(
+        DateOnly? from, DateOnly? to, int? companyProfileId, string? q, int limit)
+    {
+        if (limit < 1) limit = 1;
+        if (limit > 10000) limit = 10000;
+
+        var allowedCodes = await GetAllowedBranchCodesAsync();
+        if (allowedCodes is null)
+            return new UploadProtocolBuild(new(), StatusCode(403, new { error = "Kein Filial-Zugriff." }));
+
+        string? filterCode = null;
+        if (companyProfileId.HasValue)
+        {
+            var cp = await _db.CompanyProfiles.AsNoTracking()
+                .Where(c => c.Id == companyProfileId.Value)
+                .Select(c => new { c.Id, c.RestaurantCode })
+                .FirstOrDefaultAsync();
+            if (cp is null)
+                return new UploadProtocolBuild(new(), BadRequest(new { error = "Filiale nicht gefunden." }));
+            if (allowedCodes.Count > 0 && (string.IsNullOrEmpty(cp.RestaurantCode)
+                || !allowedCodes.Contains(cp.RestaurantCode)))
+                return new UploadProtocolBuild(new(), StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." }));
+            filterCode = cp.RestaurantCode;
+        }
+
+        var fromDt = from?.ToDateTime(TimeOnly.MinValue);
+        var toDt   = to?.ToDateTime(new TimeOnly(23, 59, 59));
+        var search = string.IsNullOrWhiteSpace(q) ? null : q.Trim().ToLowerInvariant();
+
+        var query =
+            from d in _db.EmployeeDokumente.AsNoTracking()
+            join e in _db.Employees.AsNoTracking() on d.EmployeeId equals e.Id
+            join t in _db.DokumentTypen.AsNoTracking() on d.DokumentTypId equals t.Id
+            join k in _db.DokumentKategorien.AsNoTracking() on t.KategorieId equals k.Id
+            join u in _db.AppUsers.AsNoTracking() on d.HochgeladenVon equals u.Id into uj
+            from u in uj.DefaultIfEmpty()
+            select new { d, e, t, k, u };
+
+        if (fromDt.HasValue)
+            query = query.Where(x => x.d.HochgeladenAm >= fromDt.Value);
+        if (toDt.HasValue)
+            query = query.Where(x => x.d.HochgeladenAm <= toDt.Value);
+
+        if (!string.IsNullOrEmpty(filterCode))
+            query = query.Where(x => x.d.BranchCode == filterCode);
+        else if (allowedCodes.Count > 0)
+            query = query.Where(x => x.d.BranchCode != null && allowedCodes.Contains(x.d.BranchCode));
+
+        if (search != null)
+        {
+            query = query.Where(x =>
+                (x.d.FilenameOriginal != null && x.d.FilenameOriginal.ToLower().Contains(search))
+                || (x.e.FirstName != null && x.e.FirstName.ToLower().Contains(search))
+                || (x.e.LastName != null && x.e.LastName.ToLower().Contains(search))
+                || (x.e.EmployeeNumber != null && x.e.EmployeeNumber.ToLower().Contains(search))
+                || (x.t.Name != null && x.t.Name.ToLower().Contains(search))
+                || (x.k.Name != null && x.k.Name.ToLower().Contains(search))
+                || (x.u != null && (
+                       (x.u.FirstName != null && x.u.FirstName.ToLower().Contains(search))
+                    || (x.u.LastName != null && x.u.LastName.ToLower().Contains(search))
+                    || (x.u.Username != null && x.u.Username.ToLower().Contains(search)))));
+        }
+
+        var rows = await query
+            .OrderByDescending(x => x.d.HochgeladenAm)
+            .Take(limit)
+            .Select(x => new UploadProtocolRow(
+                x.d.Id,
+                x.d.HochgeladenAm,
+                x.d.HochgeladenVon,
+                x.u == null ? null
+                    : ((x.u.FirstName ?? "") + " " + (x.u.LastName ?? "")).Trim() == ""
+                        ? x.u.Username
+                        : ((x.u.FirstName ?? "") + " " + (x.u.LastName ?? "")).Trim(),
+                x.d.FilenameOriginal,
+                x.d.GroesseBytes,
+                x.d.MimeType,
+                x.d.Bemerkung,
+                x.k.Name,
+                x.t.Name,
+                x.d.BranchCode,
+                x.e.Id,
+                x.e.EmployeeNumber,
+                x.e.FirstName,
+                x.e.LastName
+            ))
+            .ToListAsync();
+
+        return new UploadProtocolBuild(rows, null);
+    }
+
+    /// <summary>
+    /// Erlaubte Filial-Codes für den Aufrufer.
+    /// null = kein Zugriff; leere Liste = Admin (alle); sonst Positiv-Liste.
+    /// Buchhaltung wird ZUERST geprüft (Doppel-Claim superuser, CLAUDE.md).
+    /// </summary>
+    private async Task<List<string>?> GetAllowedBranchCodesAsync()
+    {
+        if (User.IsInRole("admin"))
+            return new List<string>(); // leer = alle
+
+        var uid = GetCurrentUserId();
+        if (uid is null) return null;
+
+        // buchhaltung und normale User/Superuser: nur user_branch_access
+        var codes = await (
+            from a in _db.UserBranchAccesses.AsNoTracking()
+            join c in _db.CompanyProfiles.AsNoTracking() on a.CompanyProfileId equals c.Id
+            where a.UserId == uid && c.RestaurantCode != null && c.RestaurantCode != ""
+            select c.RestaurantCode!
+        ).Distinct().ToListAsync();
+
+        // Superuser OHNE buchhaltung-Claim und OHNE Filial-Zuordnung: alle
+        // (wie historische HR-Praxis). Buchhaltung ohne Zuordnung → leer/gesperrt.
+        if (codes.Count == 0 && User.IsInRole("superuser") && !User.IsInRole("buchhaltung"))
+            return new List<string>();
+
+        return codes;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
     // HELPER
     // ──────────────────────────────────────────────────────────────────────
 

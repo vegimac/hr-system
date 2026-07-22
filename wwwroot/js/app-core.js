@@ -920,6 +920,7 @@ function showPage(name) {
     if (name === 'dashboard') loadDashboard();
     if (name === 'todos' && typeof renderTodosPage === 'function') renderTodosPage();
     if (name === 'fibu') fibuInit();
+    if (name === 'dok-protokoll' && typeof dpInit === 'function') dpInit();
     if (name === 'benutzer') loadUsers();
     if (name === 'datenaufbewahrung' && typeof loadRetentionYears === 'function') loadRetentionYears();
     if (name === 'filialen') loadFilialen();
@@ -1065,6 +1066,8 @@ function onBranchChange() {
     } else if (currentPageName === 'fibu') {
         // Fibu-Bereich folgt der globalen Filial-Auswahl.
         if (typeof fibuInit === 'function') fibuInit();
+    } else if (currentPageName === 'dok-protokoll') {
+        if (typeof dpInit === 'function') dpInit();
     } else if (currentPageName === 'lohnlauf') {
         // Lohnlauf folgt der globalen Filial-Auswahl — kein eigener Picker mehr.
         llSyncFromGlobalBranch();

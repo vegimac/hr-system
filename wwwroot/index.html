@@ -226,6 +226,10 @@
                         <img class="nav-icon-img" src="img/fibu-icon.png?v=20260628a" alt="">
                         <span>FIBU</span>
                     </div>
+                    <div class="nav-item" data-page="dok-protokoll" onclick="showPage('dok-protokoll')">
+                        <svg class="nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6M9 16h6M8 4h5l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M13 4v5h5"/></svg>
+                        <span>Dok.-Protokoll</span>
+                    </div>
                 </div>
                 <!-- Systemeinstellungen: nur Admin -->
                 <div class="nav-section admin-only-section" style="display:none">
@@ -1628,6 +1632,49 @@
                         <button class="btn btn-outline" onclick="fibuSaldoListe()">📊 Buchhaltung Saldo-Liste</button>
                     </div>
                     <div id="fibuStatus" style="font-size:13px;color:#64748b;margin-top:12px;min-height:18px"></div>
+                </div>
+
+                <div class="card" style="padding:20px 24px;max-width:680px;margin-top:16px;cursor:pointer" onclick="showPage('dok-protokoll')">
+                    <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px">Dokument-Upload-Protokoll</div>
+                    <div style="font-size:13px;color:#64748b;line-height:1.45">Wer hat wann welches Dokument in die MA-Akte hochgeladen? Übersicht + CSV für die Buchhaltung (seit Unterlagen direkt in OneCrew landen).</div>
+                </div>
+            </div>
+
+            <!-- DOKUMENT-UPLOAD-PROTOKOLL (Walter 22.07.2026 — Bommer/Buchhaltung) -->
+            <div class="page liquid-mask fixhead" id="page-dok-protokoll">
+                <div class="sticky-page-head fh-page-head">
+                    <div class="page-head" style="margin-bottom:0">
+                        <div>
+                            <h1 class="page-title">Dokument-Upload-Protokoll</h1>
+                            <p class="page-sub">Wer hat wann welches Dokument in die MA-Akte hochgeladen — für Buchhaltung / Bommer + Partner</p>
+                        </div>
+                    </div>
+                    <div class="fh-toolbar" style="gap:12px">
+                        <div style="font-size:12px;color:#64748b">
+                            Filiale Sidebar:<br>
+                            <strong id="dpBranchLabel" style="color:#0f172a;font-size:13px">–</strong>
+                        </div>
+                        <select id="dpBranchMode" onchange="dpLoad()" class="f-input" style="max-width:220px"></select>
+                        <label style="font-size:12px;color:#475569">Von
+                            <input type="date" id="dpFrom" class="f-input" style="margin-top:3px" onchange="dpLoad()">
+                        </label>
+                        <label style="font-size:12px;color:#475569">Bis
+                            <input type="date" id="dpTo" class="f-input" style="margin-top:3px" onchange="dpLoad()">
+                        </label>
+                        <input type="text" id="dpSearch" class="f-input" placeholder="Suche (MA, Datei, Uploader…)" style="min-width:180px;flex:1" onkeydown="if(event.key==='Enter')dpLoad()">
+                        <select id="dpLimit" class="f-input" style="max-width:110px" onchange="dpLoad()">
+                            <option value="200">200</option>
+                            <option value="500" selected>500</option>
+                            <option value="1000">1000</option>
+                            <option value="5000">5000</option>
+                        </select>
+                        <span id="dpInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
+                        <button class="btn btn-outline" onclick="dpLoad()">Aktualisieren</button>
+                        <button class="btn btn-primary" onclick="dpExportCsv()">CSV exportieren</button>
+                    </div>
+                </div>
+                <div class="page-body fh-body" style="overflow:auto !important;padding-top:10px !important">
+                    <div id="dpResults"></div>
                 </div>
             </div>
 
@@ -6943,6 +6990,7 @@
 <script src="js/contracts-edit.js?v=20260720a"></script>
 <script src="js/payroll.js?v=20260708flex"></script>
 <script src="js/fibu.js?v=20260704p"></script>
+<script src="js/dok-protokoll.js?v=20260722a"></script>
 <script src="js/payroll-perioden.js?v=20260704p"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
 <script src="js/admin-settings.js?v=20260708flex"></script>
