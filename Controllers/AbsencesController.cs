@@ -125,20 +125,25 @@ public class AbsencesController : ControllerBase
         var fromDt = fromD.ToDateTime(TimeOnly.MinValue);
         var toDt   = toD.ToDateTime(TimeOnly.MinValue);
 
-        // MA mit im Monat laufendem Vertrag in dieser Filiale (Roh laden,
-        // Konvertierungen im Speicher — CLAUDE.md Datum-Regelwerk Pkt. 1).
+        // MA mit im Zeitfenster LAUFENDEM Vertrag in dieser Filiale. Bewusst
+        // KEIN IsActive-Filter (weder Employment noch Employee): fuer die
+        // Vergangenheit zaehlt allein der Datums-Overlap — alte Vertrags-
+        // versionen stehen auf is_active=false (cleanup_old_contracts_
+        // inactive.sql) und ausgetretene MA sind inaktiv, waren im damaligen
+        // Monat aber da (Walter-Bug 22.07.2026: beim Zurueckblaettern wurden
+        // die MA immer weniger). Roh laden, Konvertierungen im Speicher —
+        // CLAUDE.md Datum-Regelwerk Pkt. 1.
         var emps = await _db.Employees.AsNoTracking()
-            .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded)
-            .Where(e => e.Employments.Any(x => x.IsActive
-                && x.CompanyProfileId == companyProfileId
+            .Where(e => !e.IsHidden && !e.IsPayrollExcluded)
+            .Where(e => e.Employments.Any(x =>
+                x.CompanyProfileId == companyProfileId
                 && x.ContractStartDate <= toDt
                 && (x.ContractEndDate == null || x.ContractEndDate >= fromDt)))
             .Select(e => new
             {
                 e.Id, e.FirstName, e.LastName,
                 Contract = e.Employments
-                    .Where(x => x.IsActive
-                        && x.CompanyProfileId == companyProfileId
+                    .Where(x => x.CompanyProfileId == companyProfileId
                         && x.ContractStartDate <= toDt
                         && (x.ContractEndDate == null || x.ContractEndDate >= fromDt))
                     .OrderByDescending(x => x.ContractStartDate)
