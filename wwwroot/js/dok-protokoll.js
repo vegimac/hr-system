@@ -39,11 +39,25 @@ function dpInit() {
 
 function dpSyncBranchLabel() {
     const lbl = document.getElementById('dpBranchLabel');
+    if (!lbl) return;
+    // Sidebar «Alle Filialen» → fixedCompanyProfileId = null → alle zeigen.
+    if (!fixedCompanyProfileId) {
+        lbl.textContent = 'Alle Filialen';
+        return;
+    }
     const b = (typeof allBranches !== 'undefined' ? allBranches : [])
         .find(x => x.id === fixedCompanyProfileId);
-    if (lbl) lbl.textContent = b
+    lbl.textContent = b
         ? `${b.restaurantCode ? b.restaurantCode + ' – ' : ''}${b.branchName || b.companyName}`
-        : 'keine Filiale gewählt';
+        : 'Alle Filialen';
+}
+
+/** true = eine konkrete Filiale filtern; false = alle erlaubten Filialen. */
+function dpWantsSingleBranch() {
+    const mode = document.getElementById('dpBranchMode')?.value || 'current';
+    if (mode === 'all') return false;
+    // mode=current: Sidebar-Filiale — «Alle Filialen» in der Sidebar = alle.
+    return !!fixedCompanyProfileId;
 }
 
 function dpBuildParams() {
@@ -51,26 +65,18 @@ function dpBuildParams() {
     const from = document.getElementById('dpFrom')?.value;
     const to = document.getElementById('dpTo')?.value;
     const q = document.getElementById('dpSearch')?.value?.trim();
-    const mode = document.getElementById('dpBranchMode')?.value || 'current';
     const lim = document.getElementById('dpLimit')?.value || '500';
     if (from) p.set('from', from);
     if (to) p.set('to', to);
     if (q) p.set('q', q);
     p.set('limit', lim);
-    if (mode === 'current' && fixedCompanyProfileId)
+    if (dpWantsSingleBranch())
         p.set('companyProfileId', String(fixedCompanyProfileId));
     return p;
 }
 
 async function dpLoad() {
     dpSyncBranchLabel();
-    const mode = document.getElementById('dpBranchMode')?.value || 'current';
-    if (mode === 'current' && !fixedCompanyProfileId) {
-        const mount = document.getElementById('dpResults');
-        if (mount) mount.innerHTML = '<div style="padding:28px;text-align:center;color:#94a3b8">Bitte oben eine Filiale wählen — oder «Alle meine Filialen».</div>';
-        _dpRows = [];
-        return;
-    }
     const mount = document.getElementById('dpResults');
     const info = document.getElementById('dpInfo');
     if (mount) mount.innerHTML = '<div style="padding:28px;text-align:center;color:#94a3b8">Lade…</div>';
@@ -170,11 +176,6 @@ function dpOpenEmployee(empId) {
 }
 
 async function dpExportCsv() {
-    const mode = document.getElementById('dpBranchMode')?.value || 'current';
-    if (mode === 'current' && !fixedCompanyProfileId) {
-        alert('Bitte oben eine Filiale wählen — oder «Alle meine Filialen».');
-        return;
-    }
     try {
         const p = dpBuildParams();
         p.delete('limit');
