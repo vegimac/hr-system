@@ -5640,7 +5640,11 @@
            page-body scrollt intern. Toolbars, die im page-body liegen und
            mitfixiert werden sollen, bekommen .sticky-section-head (sticky
            innerhalb des scrollenden page-body — das greift dort zuverlässig). */
-        .page.fixhead.active { display: flex !important; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+        /* !important auf flex: die Regel `.main > .page.liquid-mask.active
+           { flex: 1 0 auto }` (Z.~2065) hat 4-Klassen-Spezifität und gewann
+           sonst — Seite konnte nicht schrumpfen, .main scrollte samt Titel
+           (Walter-Bug 22.07.2026, Benutzerverwaltung). */
+        .page.fixhead.active { display: flex !important; flex-direction: column; flex: 1 1 auto !important; min-height: 0; }
         .page.fixhead .sticky-page-head { position: static; background: transparent !important; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; border-bottom: none; }
         .page.fixhead .page-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
