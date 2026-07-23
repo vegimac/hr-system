@@ -200,6 +200,7 @@ function openUserModal(userId = null) {
             document.getElementById('umRole').value      = u.role;
             document.getElementById('umActive').value    = u.isActive.toString();
             document.getElementById('umIsHrTeam').checked = !!u.isHrTeam;
+            document.getElementById('umMirusDigest').checked = !!u.receivesMirusChangeDigest;
             document.getElementById('umIdleTimeout').value = u.idleTimeoutMinutes ?? '';
             document.getElementById('umMaxSession').value  = u.maxSessionMinutes ?? '';
             const ids = u.branches?.map(b => b.id) || [];
@@ -218,6 +219,7 @@ function openUserModal(userId = null) {
         document.getElementById('umRole').value      = 'user';
         document.getElementById('umActive').value    = 'true';
         document.getElementById('umIsHrTeam').checked = false;
+        document.getElementById('umMirusDigest').checked = false;
         document.getElementById('umIdleTimeout').value = '';
         document.getElementById('umMaxSession').value  = '';
         umSetAreas(null);   // neuer User: standardmässig alle Bereiche sichtbar
@@ -370,6 +372,7 @@ async function saveUser() {
     const role      = document.getElementById('umRole').value;
     const isActive  = document.getElementById('umActive').value === 'true';
     const isHrTeam  = document.getElementById('umIsHrTeam').checked;
+    const receivesMirusChangeDigest = document.getElementById('umMirusDigest').checked;
     const branchIds = Array.from(document.querySelectorAll('#umBranches input:checked')).map(cb => parseInt(cb.value));
     const username  = `${firstName} ${lastName}`.trim() || email;
 
@@ -399,7 +402,8 @@ async function saveUser() {
     if (!idleP.ok) { showErr(`${idleP.label} muss zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).`); return; }
     if (!maxP.ok)  { showErr(`${maxP.label} muss zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).`); return; }
 
-    const body = { username, firstName, lastName, phone, email, password: password || null, role, isActive, isHrTeam, branchIds,
+    const body = { username, firstName, lastName, phone, email, password: password || null, role, isActive, isHrTeam,
+                   receivesMirusChangeDigest, branchIds,
                    idleTimeoutMinutes: idleP.value, maxSessionMinutes: maxP.value,
                    allowedAreas: umGetAreas() };
 

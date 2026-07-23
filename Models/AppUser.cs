@@ -54,6 +54,14 @@ public class AppUser
     public bool IsHrTeam { get; set; } = false;
 
     /// <summary>
+    /// Empfänger des täglichen Mirus-Änderungsdigests (Walter 23.07.2026).
+    /// Jeden Morgen 06:00 Europe/Zurich: Mail mit lohnkritischen OneCrew-
+    /// Änderungen der letzten 24 h (Stammdaten/Vertrag/Bank/QST/…), gefiltert
+    /// auf die Filialen des Users. Unabhängig von Role/IsHrTeam.
+    /// </summary>
+    public bool ReceivesMirusChangeDigest { get; set; } = false;
+
+    /// <summary>
     /// Super-Admin (Walter-Vorgabe 15.05.2026): Schutzstatus oberhalb von admin.
     /// Wirkt UNABHÄNGIG von der Role:
     ///   • Kann NIEMALS gelöscht werden (auch nicht vom Super-Admin selbst).

@@ -110,6 +110,7 @@ public class EditLockEndpointAuditTests
         ["DashboardController"]            = "Dashboard-Daten — read-only",
         ["AuditLogController"]             = "Audit-Log — read-only Admin-Sicht (kein Edit)",
         ["SearchController"]               = "Globale Suche — read-only über mehrere Quellen",
+        ["MirusChangeDigestController"]    = "Mirus-Änderungsdigest Trigger — nur Mail-Versand, kein Lohn-Edit",
 
         // Dokumente / Mailbox / Posteingang — Lohn-orthogonal
         ["DocumentsController"]            = "MA-Dokumente — Files, kein Lohn",

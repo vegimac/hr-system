@@ -49,6 +49,7 @@ public class UsersController : ControllerBase
                 u.Role,
                 u.IsActive,
                 u.IsHrTeam,
+                u.ReceivesMirusChangeDigest,
                 u.IsSuperAdmin,
                 u.CreatedAt,
                 u.LastLoginAt,
@@ -75,6 +76,7 @@ public class UsersController : ControllerBase
         string Username, string? FirstName, string? LastName,
         string Email, string? Phone, string Password, string Role,
         List<int> BranchIds, bool? IsHrTeam = false,
+        bool? ReceivesMirusChangeDigest = false,
         int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null,
         List<string>? AllowedAreas = null);
 
@@ -83,6 +85,7 @@ public class UsersController : ControllerBase
         string Email, string? Phone, string? Password,
         string Role, bool IsActive, List<int> BranchIds,
         bool? IsHrTeam = false,
+        bool? ReceivesMirusChangeDigest = false,
         int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null,
         List<string>? AllowedAreas = null);
 
@@ -129,6 +132,7 @@ public class UsersController : ControllerBase
             Role      = req.Role,
             IsActive  = true,
             IsHrTeam  = req.IsHrTeam ?? false,
+            ReceivesMirusChangeDigest = req.ReceivesMirusChangeDigest ?? false,
             IdleTimeoutMinutes = req.IdleTimeoutMinutes,
             MaxSessionMinutes  = req.MaxSessionMinutes,
             AllowedAreas = JoinAreas(req.AllowedAreas),
@@ -194,6 +198,7 @@ public class UsersController : ControllerBase
         user.Role      = req.Role;
         user.IsActive  = req.IsActive;
         user.IsHrTeam  = req.IsHrTeam ?? false;
+        user.ReceivesMirusChangeDigest = req.ReceivesMirusChangeDigest ?? false;
         user.IdleTimeoutMinutes = req.IdleTimeoutMinutes;
         user.MaxSessionMinutes  = req.MaxSessionMinutes;
         user.AllowedAreas       = JoinAreas(req.AllowedAreas);
