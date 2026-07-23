@@ -114,8 +114,10 @@ public class MirusChangeDigestService
 
     public async Task<DigestRunResult> RunAsync(CancellationToken ct = default, DateTime? sinceUtc = null, DateTime? untilUtc = null)
     {
-        var until = untilUtc ?? DateTime.UtcNow;
-        var since = sinceUtc ?? until.AddHours(-24);
+        // audit_log.created_at = timestamp without time zone (UTC-Wanduhr vom Interceptor).
+        // Npgsql wirft 500 bei Kind=Utc als Filter-Parameter → Unspecified (Walter-Datum-Falle).
+        var until = AsDbTimestamp(untilUtc ?? DateTime.UtcNow);
+        var since = AsDbTimestamp(sinceUtc ?? until.AddHours(-24));
 
         var recipients = await _db.AppUsers.AsNoTracking()
             .Where(u => u.IsActive
@@ -189,8 +191,8 @@ public class MirusChangeDigestService
         string? restaurantCode = null,
         string recipientName = "Vorschau")
     {
-        var until = DateTime.UtcNow;
-        var since = until.AddHours(-24);
+        var until = AsDbTimestamp(DateTime.UtcNow);
+        var since = AsDbTimestamp(until.AddHours(-24));
         var (changes, branchMeta, localFrom, localTo) = await LoadDigestAsync(since, until, ct);
 
         int? filterCpId = companyProfileId;
@@ -668,8 +670,17 @@ public class MirusChangeDigestService
         }
     }
 
+    /// <summary>
+    /// Für Parameter gegen <c>timestamp without time zone</c>: Kind=Utc/Local
+    /// auf Unspecified normalisieren (Npgsql-Falle). Wert bleibt die UTC-Wanduhr
+    /// wie im Audit-Interceptor geschrieben.
+    /// </summary>
+    private static DateTime AsDbTimestamp(DateTime dt) =>
+        DateTime.SpecifyKind(dt.Kind == DateTimeKind.Local ? dt.ToUniversalTime() : dt, DateTimeKind.Unspecified);
+
     private static DateTime ToZurich(DateTime utc)
     {
+        // DB liefert Unspecified, inhaltlich aber UTC (Interceptor schreibt UtcNow).
         var u = utc.Kind == DateTimeKind.Unspecified
             ? DateTime.SpecifyKind(utc, DateTimeKind.Utc)
             : utc.ToUniversalTime();
