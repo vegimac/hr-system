@@ -76,6 +76,9 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
 
     public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
     {
+        // Nach Insert: Identity-PKs sind jetzt gesetzt → EntityId «0» korrigieren
+        // (sonst findet der Mirus-Digest CREATE-Einträge wie QST nicht).
+        RefreshNewEntityIds(eventData.Context as AppDbContext);
         TryPersist(eventData.Context as AppDbContext);
         return base.SavedChanges(eventData, result);
     }
@@ -84,6 +87,7 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
         SaveChangesCompletedEventData eventData, int result,
         CancellationToken cancellationToken = default)
     {
+        RefreshNewEntityIds(eventData.Context as AppDbContext);
         TryPersist(eventData.Context as AppDbContext);
         return base.SavedChangesAsync(eventData, result, cancellationToken);
     }
@@ -188,6 +192,10 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 }
                 catch { }
 
+                // CREATE + Identity: PK ist hier oft noch 0 → später in RefreshNewEntityIds setzen
+                if (entry.State == EntityState.Added && (pk == null || pk == "0"))
+                    pk = null;
+
                 string? changesJson;
                 try { changesJson = JsonSerializer.Serialize(changes); }
                 catch { changesJson = "{}"; }
@@ -205,7 +213,8 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
                     Action:     action,
                     ChangesJson: changesJson,
                     Route:       route,
-                    IpAddress:   ip));
+                    IpAddress:   ip,
+                    EntityRef:   entry.State == EntityState.Added ? entry.Entity : null));
             }
 
             _pending.Value = pendings.Count > 0 ? pendings : null;
@@ -215,6 +224,36 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
             // NIE den User-Write killen — Audit-Collection-Fehler still ignorieren.
             _log.LogWarning(ex, "Audit-Collect fehlgeschlagen — User-Write laeuft normal weiter.");
             _pending.Value = null;
+        }
+    }
+
+    /// <summary>
+    /// Nach dem Insert die echten Identity-IDs auf die Pending-CREATE-Zeilen schreiben.
+    /// </summary>
+    private void RefreshNewEntityIds(AppDbContext? ctx)
+    {
+        var list = _pending.Value;
+        if (ctx == null || list == null || list.Count == 0) return;
+        for (var i = 0; i < list.Count; i++)
+        {
+            var a = list[i];
+            if (a.Action != "CREATE" || a.EntityRef == null) continue;
+            if (!string.IsNullOrEmpty(a.EntityId) && a.EntityId != "0") continue;
+            try
+            {
+                var entry = ctx.Entry(a.EntityRef);
+                var pkValues = entry.Properties
+                    .Where(p => p.Metadata.IsPrimaryKey())
+                    .Select(p => p.CurrentValue)
+                    .Where(v => v != null)
+                    .ToList();
+                string? pk = null;
+                if (pkValues.Count == 1) pk = pkValues[0]?.ToString();
+                else if (pkValues.Count > 1) pk = string.Join("|", pkValues);
+                if (!string.IsNullOrEmpty(pk) && pk != "0")
+                    list[i] = a with { EntityId = pk, EntityRef = null };
+            }
+            catch { /* best-effort */ }
         }
     }
 
@@ -301,5 +340,6 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
         string    Action,
         string?   ChangesJson,
         string?   Route,
-        string?   IpAddress);
+        string?   IpAddress,
+        object?   EntityRef = null);
 }

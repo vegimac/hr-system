@@ -65,6 +65,7 @@ public class MirusChangeDigestService
         ["QstBefreiungGueltigAb"] = "Befreiung ab", ["QstBefreiungGueltigBis"] = "Befreiung bis",
         ["LgavPflichtig"] = "L-GAV pflichtig", ["TeilzeitUnter8hWoche"] = "Teilzeit &lt;8h/Wo",
         ["IdPassDokumentId"] = "Pass/ID-Dokument", ["CAusweisDokumentId"] = "C-Ausweis-Dokument",
+        ["DokumentId"] = "Dokument",
         ["BirthDate"] = "Geburtsdatum", ["PhoneMobile"] = "Mobile", ["Email"] = "E-Mail",
         ["Gender"] = "Geschlecht", ["Salutation"] = "Anrede",
         ["EmploymentModelCode"] = "Vertragsmodell", ["HourlyRate"] = "Stundenlohn",
@@ -449,76 +450,87 @@ public class MirusChangeDigestService
             }
         }
 
+        // Dokument-Namen für lesbare Texte (statt nackter IDs)
+        var docIds = CollectDokumentIds(raw);
+        var docNames = docIds.Count == 0
+            ? new Dictionary<int, string>()
+            : (await _db.EmployeeDokumente.AsNoTracking()
+                .Where(d => docIds.Contains(d.Id))
+                .Select(d => new { d.Id, Name = d.FilenameOriginal })
+                .ToListAsync(ct))
+              .ToDictionary(d => d.Id, d => string.IsNullOrWhiteSpace(d.Name) ? ("Dokument #" + d.Id) : d.Name);
+
         var result = new List<DigestChange>();
         foreach (var a in raw)
         {
-            if (!int.TryParse(a.EntityId, out var entityId)) continue;
-            var summary = BuildSummary(a);
+            // EntityId «0»/null = CREATE vor Identity-Fix — Maps überspringen, JSON/Route nutzen
+            var hasEntityId = int.TryParse(a.EntityId, out var entityId) && entityId > 0;
+            if (!hasEntityId) entityId = 0;
+
+            var flatEarly = TryReadFlat(a.ChangesJson);
+            var summary = BuildSummary(a, flatEarly, docNames);
             if (summary == null) continue;
 
             int? employeeId = null;
             int? cpId = null;
-            switch (a.EntityType)
-            {
-                case "Employee":
-                    employeeId = entityId;
-                    empBranch.TryGetValue(entityId, out cpId);
-                    break;
-                case "Employment":
-                    if (employments.TryGetValue(entityId, out var em))
-                    {
-                        employeeId = em.EmployeeId;
-                        cpId = em.CompanyProfileId;
-                    }
-                    // Fallback aus ChangesJson bei DELETE
-                    if (employeeId == null)
-                    {
-                        var flat = TryReadFlat(a.ChangesJson);
-                        if (flat != null && flat.TryGetValue("EmployeeId", out var eid) && int.TryParse(eid, out var eidI))
-                            employeeId = eidI;
-                        if (flat != null && flat.TryGetValue("CompanyProfileId", out var cid) && int.TryParse(cid, out var cidI))
-                            cpId = cidI;
-                    }
-                    break;
-                case "EmployeeBankAccount":
-                    if (bankMap.TryGetValue(entityId, out var be)) employeeId = be;
-                    break;
-                case "EmployeeQuellensteuer":
-                    if (qstMap.TryGetValue(entityId, out var qe)) employeeId = qe;
-                    break;
-                case "EmployeePermitHistory":
-                    if (permitMap.TryGetValue(entityId, out var pe)) employeeId = pe;
-                    break;
-                case "EmployeeRecurringWage":
-                    if (recMap.TryGetValue(entityId, out var re)) employeeId = re;
-                    break;
-                case "EmployeeLohnAssignment":
-                    if (assignMap.TryGetValue(entityId, out var ae)) employeeId = ae;
-                    break;
-                case "EmployeeFamilyMember":
-                    if (famMap.TryGetValue(entityId, out var fe)) employeeId = fe;
-                    break;
-                case "FamilyMemberAllowance":
-                    if (allowMap.TryGetValue(entityId, out var ale)) employeeId = ale;
-                    break;
-                case "EmployeeBvgZusatzMember":
-                    if (bvgMap.TryGetValue(entityId, out var bve)) employeeId = bve;
-                    break;
-                case "LohnZulage":
-                    if (zulMap.TryGetValue(entityId, out var ze)) employeeId = ze;
-                    break;
-            }
 
-            // Fallback: ChangesJson + Route («POST /api/employees/3504/quellensteuer»)
-            if (employeeId == null)
-            {
-                var flat = TryReadFlat(a.ChangesJson);
-                if (flat != null && flat.TryGetValue("EmployeeId", out var eid) && int.TryParse(eid, out var eidI))
-                    employeeId = eidI;
-            }
+            // Zuerst stabil aus JSON/Route (überlebt EntityId=0)
+            if (flatEarly != null && flatEarly.TryGetValue("EmployeeId", out var eid0)
+                && int.TryParse(eid0, out var eid0i) && eid0i > 0)
+                employeeId = eid0i;
             if (employeeId == null)
                 employeeId = TryParseEmployeeIdFromRoute(a.Route);
-            if (employeeId == null) continue;
+
+            if (hasEntityId)
+            {
+                switch (a.EntityType)
+                {
+                    case "Employee":
+                        employeeId ??= entityId;
+                        empBranch.TryGetValue(entityId, out cpId);
+                        break;
+                    case "Employment":
+                        if (employments.TryGetValue(entityId, out var em))
+                        {
+                            employeeId ??= em.EmployeeId;
+                            cpId = em.CompanyProfileId;
+                        }
+                        break;
+                    case "EmployeeBankAccount":
+                        if (bankMap.TryGetValue(entityId, out var be)) employeeId ??= be;
+                        break;
+                    case "EmployeeQuellensteuer":
+                        if (qstMap.TryGetValue(entityId, out var qe)) employeeId ??= qe;
+                        break;
+                    case "EmployeePermitHistory":
+                        if (permitMap.TryGetValue(entityId, out var pe)) employeeId ??= pe;
+                        break;
+                    case "EmployeeRecurringWage":
+                        if (recMap.TryGetValue(entityId, out var re)) employeeId ??= re;
+                        break;
+                    case "EmployeeLohnAssignment":
+                        if (assignMap.TryGetValue(entityId, out var ae)) employeeId ??= ae;
+                        break;
+                    case "EmployeeFamilyMember":
+                        if (famMap.TryGetValue(entityId, out var fe)) employeeId ??= fe;
+                        break;
+                    case "FamilyMemberAllowance":
+                        if (allowMap.TryGetValue(entityId, out var ale)) employeeId ??= ale;
+                        break;
+                    case "EmployeeBvgZusatzMember":
+                        if (bvgMap.TryGetValue(entityId, out var bve)) employeeId ??= bve;
+                        break;
+                    case "LohnZulage":
+                        if (zulMap.TryGetValue(entityId, out var ze)) employeeId ??= ze;
+                        break;
+                }
+            }
+
+            if (flatEarly != null && flatEarly.TryGetValue("CompanyProfileId", out var cid)
+                && int.TryParse(cid, out var cidI) && cidI > 0)
+                cpId ??= cidI;
+
+            if (employeeId == null || employeeId <= 0) continue;
             if (cpId == null) empBranch.TryGetValue(employeeId.Value, out cpId);
 
             string empName, empNr;
@@ -540,19 +552,77 @@ public class MirusChangeDigestService
         return result;
     }
 
-    private static string? BuildSummary(AuditLog a)
+    private static HashSet<int> CollectDokumentIds(List<AuditLog> raw)
+    {
+        var ids = new HashSet<int>();
+        foreach (var a in raw)
+        {
+            var flat = TryReadFlat(a.ChangesJson);
+            if (flat == null) continue;
+            foreach (var key in new[] { "DokumentId", "IdPassDokumentId", "CAusweisDokumentId" })
+            {
+                if (flat.TryGetValue(key, out var v) && int.TryParse(v, out var id) && id > 0)
+                    ids.Add(id);
+                // UPDATE: TryReadFlat flacht {old,new} nicht — extra parsen
+            }
+            try
+            {
+                using var doc = JsonDocument.Parse(a.ChangesJson ?? "{}");
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    if (prop.Name is not ("DokumentId" or "IdPassDokumentId" or "CAusweisDokumentId"))
+                        continue;
+                    if (prop.Value.ValueKind == JsonValueKind.Object)
+                    {
+                        if (prop.Value.TryGetProperty("new", out var n) && n.ValueKind == JsonValueKind.Number
+                            && n.TryGetInt32(out var ni) && ni > 0) ids.Add(ni);
+                        if (prop.Value.TryGetProperty("old", out var o) && o.ValueKind == JsonValueKind.Number
+                            && o.TryGetInt32(out var oi) && oi > 0) ids.Add(oi);
+                    }
+                    else if (prop.Value.ValueKind == JsonValueKind.Number
+                             && prop.Value.TryGetInt32(out var id) && id > 0)
+                        ids.Add(id);
+                }
+            }
+            catch { /* ignore */ }
+        }
+        return ids;
+    }
+
+    private static string? BuildSummary(AuditLog a, Dictionary<string, string>? flat, Dictionary<int, string> docNames)
     {
         var title = EntityTitles.TryGetValue(a.EntityType, out var t) ? t : a.EntityType;
         if (a.Action == "CREATE")
         {
-            // QST neu: Tarif mitnehmen, falls im Snapshot vorhanden
             if (a.EntityType == "EmployeeQuellensteuer")
             {
-                var flat = TryReadFlat(a.ChangesJson);
-                if (flat != null && flat.TryGetValue("QstCode", out var code) && !string.IsNullOrWhiteSpace(code))
-                    return $"{title}: neu angelegt (Tarif {code})";
+                var bits = new List<string>();
+                if (flat != null)
+                {
+                    if (flat.TryGetValue("QstCode", out var code) && !string.IsNullOrWhiteSpace(code))
+                        bits.Add($"Tarif {code}");
+                    if (flat.TryGetValue("Steuerkanton", out var kt) && !string.IsNullOrWhiteSpace(kt))
+                        bits.Add($"Kanton {kt}");
+                    if (flat.TryGetValue("ValidFrom", out var vf) && !string.IsNullOrWhiteSpace(vf))
+                        bits.Add($"gültig ab {Fmt(vf)}");
+                }
+                return bits.Count > 0
+                    ? $"{title}: neu erfasst ({string.Join(", ", bits)})"
+                    : $"{title}: neu erfasst";
             }
-            return $"{title}: neu angelegt";
+            if (a.EntityType == "EmployeePermitHistory")
+            {
+                if (flat != null && flat.TryGetValue("DokumentId", out var did)
+                    && int.TryParse(did, out var docId) && docId > 0)
+                {
+                    var name = docNames.TryGetValue(docId, out var dn) ? dn : null;
+                    return string.IsNullOrEmpty(name)
+                        ? $"{title}: Dokument hinterlegt"
+                        : $"{title}: Dokument hinterlegt («{name}»)";
+                }
+                return $"{title}: neu erfasst";
+            }
+            return $"{title}: neu erfasst";
         }
         if (a.Action == "DELETE")
             return $"{title}: gelöscht";
@@ -586,6 +656,15 @@ public class MirusChangeDigestService
                     newV = JsonVal(prop.Value);
                 }
                 if (oldV == newV) continue;
+
+                // Dokument-IDs → Klartext statt «— → 7401»
+                if (field is "DokumentId" or "IdPassDokumentId" or "CAusweisDokumentId")
+                {
+                    var human = DescribeDokumentChange(field, oldV, newV, docNames);
+                    if (human != null) parts.Add(human);
+                    continue;
+                }
+
                 var label = FieldLabels.TryGetValue(field, out var fl) ? fl : field;
                 parts.Add($"{label}: {Fmt(oldV)} → {Fmt(newV)}");
             }
@@ -597,6 +676,34 @@ public class MirusChangeDigestService
         if (parts.Count > 6)
             parts = parts.Take(6).Append($"… +{parts.Count - 6} weitere").ToList();
         return $"{title}: " + string.Join("; ", parts);
+    }
+
+    private static string? DescribeDokumentChange(string field, string? oldV, string? newV, Dictionary<int, string> docNames)
+    {
+        var label = field switch
+        {
+            "IdPassDokumentId" => "Pass/ID-Dokument",
+            "CAusweisDokumentId" => "C-Ausweis-Dokument",
+            _ => "Dokument"
+        };
+        var oldEmpty = string.IsNullOrWhiteSpace(oldV) || oldV == "0";
+        var newEmpty = string.IsNullOrWhiteSpace(newV) || newV == "0";
+        if (oldEmpty && newEmpty) return null;
+        if (oldEmpty && !newEmpty)
+        {
+            var name = int.TryParse(newV, out var id) && docNames.TryGetValue(id, out var dn) ? dn : null;
+            return string.IsNullOrEmpty(name)
+                ? $"{label} hinterlegt"
+                : $"{label} hinterlegt («{name}»)";
+        }
+        if (!oldEmpty && newEmpty)
+            return $"{label} entfernt";
+        {
+            var name = int.TryParse(newV, out var id) && docNames.TryGetValue(id, out var dn) ? dn : null;
+            return string.IsNullOrEmpty(name)
+                ? $"{label} ersetzt"
+                : $"{label} ersetzt («{name}»)";
+        }
     }
 
     private static bool IsNoiseField(string field) =>
