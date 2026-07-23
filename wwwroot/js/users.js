@@ -9,6 +9,9 @@ async function loadUsers() {
     // View-as/Testmodus-Karte nur für den Superadmin zeigen (Backend erzwingt es zusätzlich).
     const impCard = document.getElementById('impersonateCard');
     if (impCard) impCard.style.display = (currentUser?.isSuperAdmin && !localStorage.getItem('hrImpersonating')) ? '' : 'none';
+    // Mirus-Mail-Vorschau nur für admin (Endpoint ist admin-only).
+    const mirusBtn = document.getElementById('mirusDigestPreviewBtn');
+    if (mirusBtn) mirusBtn.style.display = (currentUser?.role === 'admin') ? '' : 'none';
     const tbody = document.getElementById('userTbody');
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:28px;color:#94a3b8">Lade...</td></tr>`;
     try {
@@ -453,5 +456,78 @@ function showPageAlert(elId, msg, type) {
     const el = document.getElementById(elId);
     el.innerHTML = `<div class="alert alert-${type}" style="margin-bottom:16px">${msg}</div>`;
     setTimeout(() => el.innerHTML = '', 4000);
+}
+
+// ── Mirus-Änderungsmail: 1:1 Vorschau (ohne Versand) ───────────────────
+let _mirusDigestBlobUrl = null;
+
+function openMirusDigestPreview() {
+    const modal = document.getElementById('mirusDigestPreviewModal');
+    if (!modal) return;
+    const sel = document.getElementById('mirusDigestBranch');
+    const branches = (typeof allBranches !== 'undefined' && Array.isArray(allBranches))
+        ? [...allBranches].sort((a, b) =>
+            String(a.restaurantCode || '').localeCompare(String(b.restaurantCode || ''), 'de')
+            || String(a.branchName || a.companyName || '').localeCompare(String(b.branchName || b.companyName || ''), 'de'))
+        : [];
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Alle Filialen</option>' + branches.map(b => {
+        const code = b.restaurantCode || '';
+        const name = b.branchName || b.companyName || ('Filiale ' + b.id);
+        const label = code ? `${code} – ${name}` : name;
+        return `<option value="${String(code).replace(/"/g, '')}">${label.replace(/</g, '&lt;')}</option>`;
+    }).join('');
+    // Sidebar-Filiale vorwählen, falls bekannt
+    if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+    else if (typeof fixedCompanyProfileId === 'number') {
+        const br = branches.find(b => b.id === fixedCompanyProfileId);
+        if (br?.restaurantCode) sel.value = br.restaurantCode;
+    }
+    modal.style.display = 'flex';
+    loadMirusDigestPreview();
+}
+
+function closeMirusDigestPreview() {
+    const modal = document.getElementById('mirusDigestPreviewModal');
+    if (modal) modal.style.display = 'none';
+    const iframe = document.getElementById('mirusDigestFrame');
+    if (iframe) iframe.src = 'about:blank';
+    if (_mirusDigestBlobUrl) {
+        URL.revokeObjectURL(_mirusDigestBlobUrl);
+        _mirusDigestBlobUrl = null;
+    }
+}
+
+async function loadMirusDigestPreview() {
+    const iframe = document.getElementById('mirusDigestFrame');
+    const hint = document.getElementById('mirusDigestPreviewHint');
+    const sel = document.getElementById('mirusDigestBranch');
+    if (!iframe) return;
+    const code = (sel?.value || '').trim();
+    const url = code
+        ? `/api/mirus-change-digest/preview?restaurantCode=${encodeURIComponent(code)}`
+        : '/api/mirus-change-digest/preview';
+    if (hint) hint.textContent = 'Lade Vorschau…';
+    iframe.src = 'about:blank';
+    try {
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${authToken}` } });
+        const html = await res.text();
+        if (!res.ok) {
+            if (hint) hint.textContent = `Fehler ${res.status} — Vorschau nicht geladen.`;
+            iframe.srcdoc = `<p style="font-family:sans-serif;padding:24px;color:#991b1b">Fehler ${res.status}</p>`;
+            return;
+        }
+        if (_mirusDigestBlobUrl) URL.revokeObjectURL(_mirusDigestBlobUrl);
+        _mirusDigestBlobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+        iframe.src = _mirusDigestBlobUrl;
+        if (hint) {
+            hint.textContent = code
+                ? `Vorschau für Filiale ${code} — letzte 24 h, wird nicht gesendet.`
+                : 'Vorschau für alle Filialen — letzte 24 h, wird nicht gesendet.';
+        }
+    } catch (err) {
+        if (hint) hint.textContent = 'Verbindungsfehler.';
+        iframe.srcdoc = `<p style="font-family:sans-serif;padding:24px;color:#991b1b">Verbindungsfehler</p>`;
+    }
 }
 
