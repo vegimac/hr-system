@@ -192,8 +192,11 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 try { changesJson = JsonSerializer.Serialize(changes); }
                 catch { changesJson = "{}"; }
 
+                // created_at = timestamp without time zone (UTC-Wanduhr).
+                // Kind=Utc → Npgsql 500 → Audit wird für die ganze Session deaktiviert
+                // (Walter-Datum-Falle). Deshalb Unspecified mit UTC-Zahlen.
                 pendings.Add(new PendingAudit(
-                    CreatedAt: DateTime.UtcNow,
+                    CreatedAt: DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
                     UserId:    userId,
                     UserName:  userName,
                     UserRole:  userRole,

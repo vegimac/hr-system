@@ -23,13 +23,15 @@ public class MirusChangeDigestService
     private readonly EmailService _email;
     private readonly ILogger<MirusChangeDigestService> _log;
 
-    private static readonly HashSet<string> WatchedEntities = new(StringComparer.Ordinal)
+    // Array (nicht HashSet): EF Core übersetzt local.Contains(column) zuverlässig zu SQL IN.
+    private static readonly string[] WatchedEntityList =
     {
         "Employee", "Employment", "EmployeeBankAccount", "EmployeeQuellensteuer",
         "EmployeePermitHistory", "EmployeeRecurringWage", "EmployeeLohnAssignment",
         "EmployeeFamilyMember", "FamilyMemberAllowance", "EmployeeBvgZusatzMember",
         "LohnZulage"
     };
+    private static readonly HashSet<string> WatchedEntities = new(WatchedEntityList, StringComparer.Ordinal);
 
     private static readonly HashSet<string> EmployeeFields = new(StringComparer.Ordinal)
     {
@@ -76,8 +78,10 @@ public class MirusChangeDigestService
         ["Iban"] = "IBAN", ["Bic"] = "BIC", ["IsPrimary"] = "Hauptbank",
         ["ValidFrom"] = "Gültig ab", ["ValidTo"] = "Gültig bis",
         ["AufteilungTyp"] = "Aufteilung Typ", ["AufteilungWert"] = "Aufteilung Wert",
-        ["QstCode"] = "QST-Tarif", ["TaxCanton"] = "Steuerkanton", ["TaxMunicipality"] = "Gemeinde",
-        ["NumberOfChildren"] = "Kinder", ["ChurchTax"] = "Kirchensteuer",
+        ["QstCode"] = "QST-Tarif", ["Steuerkanton"] = "Steuerkanton",
+        ["SteuerkantonName"] = "Steuerkanton", ["QstGemeinde"] = "Gemeinde",
+        ["TarifCode"] = "Tarif", ["AnzahlKinder"] = "Kinder",
+        ["Kirchensteuer"] = "Kirchensteuer", ["Kategorie"] = "Kategorie",
         ["PermitTypeId"] = "Bewilligungstyp", ["Amount"] = "Betrag",
         ["Code"] = "Code", ["Betrag"] = "Betrag", ["Periode"] = "Periode",
         ["MonthlyAmount"] = "Monatsbetrag", ["AllowanceType"] = "Zulagenart",
@@ -214,11 +218,28 @@ public class MirusChangeDigestService
         }
 
         if (filterCpId != null)
-            changes = changes.Where(c => c.CompanyProfileId == filterCpId).ToList();
+        {
+            // MA zählt zur Filiale, wenn irgendein Vertrag dort liegt (nicht nur «Hauptfiliale»).
+            var empAtBranch = (await _db.Employments.AsNoTracking()
+                    .Where(e => e.CompanyProfileId == filterCpId)
+                    .Select(e => e.EmployeeId)
+                    .Distinct()
+                    .ToListAsync(ct))
+                .ToHashSet();
+            changes = changes.Where(c =>
+                    c.CompanyProfileId == filterCpId
+                    || (c.EmployeeId.HasValue && empAtBranch.Contains(c.EmployeeId.Value)))
+                .ToList();
+        }
 
         var subjectDate = localTo.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("de-CH"));
         if (changes.Count == 0)
         {
+            // Diagnose: wie viele Audit-Zeilen überhaupt im Fenster?
+            var watched = WatchedEntityList;
+            var rawCount = await _db.AuditLogs.AsNoTracking()
+                .CountAsync(a => a.CreatedAt >= since && a.CreatedAt < until
+                              && watched.Contains(a.EntityType), ct);
             var emptyHtml =
                 "<div style=\"font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;color:#1e293b;line-height:1.45\">"
                 + $"<p>Guten Morgen {Esc(recipientName)},</p>"
@@ -226,11 +247,15 @@ public class MirusChangeDigestService
                 + (filterCpId != null ? " für diese Filiale" : "")
                 + " — deshalb würde <b>keine Mail</b> gesendet.</p>"
                 + $"<p style=\"color:#64748b\">Zeitraum: {Esc(localFrom.ToString("dd.MM.yyyy HH:mm", CultureInfo.GetCultureInfo("de-CH")))} – {Esc(localTo.ToString("dd.MM.yyyy HH:mm", CultureInfo.GetCultureInfo("de-CH")))} (Europe/Zurich)</p>"
-                + "</div>";
+                + $"<p style=\"color:#94a3b8;font-size:12px\">Audit-Zeilen im Zeitraum (lohnkritisch): {rawCount}"
+                + (rawCount == 0
+                    ? " — Hinweis: wenn du gerade etwas gespeichert hast und hier 0 steht, war das Audit vermutlich wegen eines Datum-Fehlers stumm. Nach dem Fix bitte die Quellensteuer nochmals speichern."
+                    : " — es gibt Einträge, aber keiner gehört zu dieser Filiale.")
+                + "</p></div>";
             return new DigestPreviewResult(
                 $"OneCrew → Mirus: Änderungen {subjectDate} (0)",
                 emptyHtml, "Keine lohnkritischen Änderungen.", 0, since, until,
-                "Keine lohnkritischen Änderungen.");
+                $"Keine lohnkritischen Änderungen (Audit roh: {rawCount}).");
         }
 
         var (html, text) = RenderMail(changes, branchMeta, localFrom, localTo, recipientName);
@@ -242,9 +267,11 @@ public class MirusChangeDigestService
     private async Task<(List<DigestChange> Changes, Dictionary<int, (string Code, string Name)> BranchMeta, DateTime LocalFrom, DateTime LocalTo)>
         LoadDigestAsync(DateTime since, DateTime until, CancellationToken ct)
     {
+        // lokale Variable — EF Core Capturing für IN-Liste
+        var watched = WatchedEntityList;
         var raw = await _db.AuditLogs.AsNoTracking()
             .Where(a => a.CreatedAt >= since && a.CreatedAt < until
-                     && WatchedEntities.Contains(a.EntityType))
+                     && watched.Contains(a.EntityType))
             .OrderBy(a => a.CreatedAt)
             .ToListAsync(ct);
 
@@ -259,6 +286,8 @@ public class MirusChangeDigestService
             kv => (kv.Value.RestaurantCode ?? "", kv.Value.Name ?? ("Filiale " + kv.Key)));
         return (changes, meta, ToZurich(since), ToZurich(until));
     }
+
+    private sealed record EmpName(string Number, string FirstName, string LastName);
 
     private sealed record DigestChange(
         DateTime CreatedAtUtc,
@@ -305,67 +334,64 @@ public class MirusChangeDigestService
             }
         }
 
-        var employees = await _db.Employees.AsNoTracking()
-            .Where(e => empIds.Contains(e.Id))
-            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
-            .ToDictionaryAsync(e => e.Id, ct);
+        var empDict = empIds.Count == 0
+            ? new Dictionary<int, EmpName>()
+            : (await _db.Employees.AsNoTracking()
+                .Where(e => empIds.Contains(e.Id))
+                .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
+                .ToListAsync(ct))
+              .ToDictionary(e => e.Id, e => new EmpName(e.EmployeeNumber ?? "", e.FirstName ?? "", e.LastName ?? ""));
 
-        var employments = await _db.Employments.AsNoTracking()
-            .Where(e => emplIds.Contains(e.Id))
-            .Select(e => new { e.Id, e.EmployeeId, e.CompanyProfileId })
-            .ToDictionaryAsync(e => e.Id, ct);
+        var employments = emplIds.Count == 0
+            ? new Dictionary<int, (int EmployeeId, int? CompanyProfileId)>()
+            : (await _db.Employments.AsNoTracking()
+                .Where(e => emplIds.Contains(e.Id))
+                .Select(e => new { e.Id, e.EmployeeId, e.CompanyProfileId })
+                .ToListAsync(ct))
+              .ToDictionary(e => e.Id, e => (e.EmployeeId, e.CompanyProfileId));
 
-        // Für Employee-Zeilen: Filiale aus ältestem aktivem Vertrag
-        var empBranch = await _db.Employments.AsNoTracking()
-            .Where(e => empIds.Contains(e.EmployeeId) && e.IsActive && e.CompanyProfileId != null)
-            .GroupBy(e => e.EmployeeId)
-            .Select(g => new {
-                EmployeeId = g.Key,
-                CompanyProfileId = g.OrderBy(x => x.ContractStartDate).Select(x => x.CompanyProfileId).FirstOrDefault()
-            })
-            .ToDictionaryAsync(x => x.EmployeeId, x => x.CompanyProfileId, ct);
+        // Child-Entities → EmployeeId (leere ID-Mengen überspringen)
+        var bankMap = bankIds.Count == 0 ? new Dictionary<int, int>()
+            : (await _db.EmployeeBankAccounts.AsNoTracking()
+                .Where(b => bankIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
+              .ToDictionary(b => b.Id, b => b.EmployeeId);
+        var qstMap = qstIds.Count == 0 ? new Dictionary<int, int>()
+            : (await _db.EmployeeQuellensteuer.AsNoTracking()
+                .Where(b => qstIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
+              .ToDictionary(b => b.Id, b => b.EmployeeId);
+        var permitMap = permitIds.Count == 0 ? new Dictionary<int, int>()
+            : (await _db.EmployeePermitHistories.AsNoTracking()
+                .Where(b => permitIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
+              .ToDictionary(b => b.Id, b => b.EmployeeId);
+        var recMap = recIds.Count == 0 ? new Dictionary<int, int>()
+            : (await _db.EmployeeRecurringWages.AsNoTracking()
+                .Where(b => recIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
+              .ToDictionary(b => b.Id, b => b.EmployeeId);
+        var assignMap = assignIds.Count == 0 ? new Dictionary<int, int>()
+            : (await _db.EmployeeLohnAssignments.AsNoTracking()
+                .Where(b => assignIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
+              .ToDictionary(b => b.Id, b => b.EmployeeId);
+        var famMap = famIds.Count == 0 ? new Dictionary<int, int>()
+            : (await _db.EmployeeFamilyMembers.AsNoTracking()
+                .Where(b => famIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
+              .ToDictionary(b => b.Id, b => b.EmployeeId);
+        var allowMap = allowIds.Count == 0 ? new Dictionary<int, int>()
+            : (await (
+                from a in _db.FamilyMemberAllowances.AsNoTracking()
+                join f in _db.EmployeeFamilyMembers.AsNoTracking() on a.FamilyMemberId equals f.Id
+                where allowIds.Contains(a.Id)
+                select new { a.Id, EmpId = f.EmployeeId }
+            ).ToListAsync(ct)).ToDictionary(b => b.Id, b => b.EmpId);
+        var bvgMap = bvgIds.Count == 0 ? new Dictionary<int, int>()
+            : (await _db.EmployeeBvgZusatzMembers.AsNoTracking()
+                .Where(b => bvgIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
+              .ToDictionary(b => b.Id, b => b.EmployeeId);
+        var zulMap = zulIds.Count == 0 ? new Dictionary<int, int>()
+            : (await _db.LohnZulagen.AsNoTracking()
+                .Where(b => zulIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
+              .ToDictionary(b => b.Id, b => b.EmployeeId);
 
-        // Child-Entities → EmployeeId
-        var bankMap = await _db.EmployeeBankAccounts.AsNoTracking()
-            .Where(b => bankIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.EmployeeId })
-            .ToDictionaryAsync(b => b.Id, b => b.EmployeeId, ct);
-        var qstMap = await _db.EmployeeQuellensteuer.AsNoTracking()
-            .Where(b => qstIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.EmployeeId })
-            .ToDictionaryAsync(b => b.Id, b => b.EmployeeId, ct);
-        var permitMap = await _db.EmployeePermitHistories.AsNoTracking()
-            .Where(b => permitIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.EmployeeId })
-            .ToDictionaryAsync(b => b.Id, b => b.EmployeeId, ct);
-        var recMap = await _db.EmployeeRecurringWages.AsNoTracking()
-            .Where(b => recIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.EmployeeId })
-            .ToDictionaryAsync(b => b.Id, b => b.EmployeeId, ct);
-        var assignMap = await _db.EmployeeLohnAssignments.AsNoTracking()
-            .Where(b => assignIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.EmployeeId })
-            .ToDictionaryAsync(b => b.Id, b => b.EmployeeId, ct);
-        var famMap = await _db.EmployeeFamilyMembers.AsNoTracking()
-            .Where(b => famIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.EmployeeId })
-            .ToDictionaryAsync(b => b.Id, b => b.EmployeeId, ct);
-        var allowMap = await (
-            from a in _db.FamilyMemberAllowances.AsNoTracking()
-            join f in _db.EmployeeFamilyMembers.AsNoTracking() on a.FamilyMemberId equals f.Id
-            where allowIds.Contains(a.Id)
-            select new { a.Id, EmpId = f.EmployeeId }
-        ).ToDictionaryAsync(b => b.Id, b => b.EmpId, ct);
-        var bvgMap = await _db.EmployeeBvgZusatzMembers.AsNoTracking()
-            .Where(b => bvgIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.EmployeeId })
-            .ToDictionaryAsync(b => b.Id, b => b.EmployeeId, ct);
-        var zulMap = await _db.LohnZulagen.AsNoTracking()
-            .Where(b => zulIds.Contains(b.Id))
-            .Select(b => new { b.Id, b.EmployeeId })
-            .ToDictionaryAsync(b => b.Id, b => b.EmployeeId, ct);
-
-        // Alle betroffenen MA nachladen (für Anzeige)
+        // Alle betroffenen MA
         var allEmpIds = new HashSet<int>(empIds);
         foreach (var e in employments.Values) allEmpIds.Add(e.EmployeeId);
         foreach (var id in bankMap.Values) allEmpIds.Add(id);
@@ -378,30 +404,32 @@ public class MirusChangeDigestService
         foreach (var id in bvgMap.Values) allEmpIds.Add(id);
         foreach (var id in zulMap.Values) allEmpIds.Add(id);
 
-        var missingEmp = allEmpIds.Where(id => !employees.ContainsKey(id)).ToList();
+        var missingEmp = allEmpIds.Where(id => !empDict.ContainsKey(id)).ToList();
         if (missingEmp.Count > 0)
         {
             var extra = await _db.Employees.AsNoTracking()
                 .Where(e => missingEmp.Contains(e.Id))
                 .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
                 .ToListAsync(ct);
-            foreach (var e in extra) employees[e.Id] = e;
+            foreach (var e in extra)
+                empDict[e.Id] = new EmpName(e.EmployeeNumber ?? "", e.FirstName ?? "", e.LastName ?? "");
         }
 
-        var missingBranchEmp = allEmpIds.Where(id => !empBranch.ContainsKey(id)).ToList();
-        if (missingBranchEmp.Count > 0)
+        // Filiale pro MA — in Memory (kein EF-GroupBy+OrderBy), aktiv bevorzugt
+        var empBranch = new Dictionary<int, int?>();
+        if (allEmpIds.Count > 0)
         {
-            var more = await _db.Employments.AsNoTracking()
-                .Where(e => missingBranchEmp.Contains(e.EmployeeId) && e.CompanyProfileId != null)
-                .GroupBy(e => e.EmployeeId)
-                .Select(g => new {
-                    EmployeeId = g.Key,
-                    CompanyProfileId = g.OrderByDescending(x => x.IsActive)
-                        .ThenByDescending(x => x.ContractStartDate)
-                        .Select(x => x.CompanyProfileId).FirstOrDefault()
-                })
+            var branchRows = await _db.Employments.AsNoTracking()
+                .Where(e => allEmpIds.Contains(e.EmployeeId) && e.CompanyProfileId != null)
+                .Select(e => new { e.EmployeeId, e.CompanyProfileId, e.IsActive, e.ContractStartDate })
                 .ToListAsync(ct);
-            foreach (var x in more) empBranch[x.EmployeeId] = x.CompanyProfileId;
+            foreach (var g in branchRows.GroupBy(x => x.EmployeeId))
+            {
+                var pick = g.OrderByDescending(x => x.IsActive)
+                    .ThenByDescending(x => x.ContractStartDate)
+                    .First();
+                empBranch[g.Key] = pick.CompanyProfileId;
+            }
         }
 
         var result = new List<DigestChange>();
@@ -474,11 +502,17 @@ public class MirusChangeDigestService
             if (employeeId == null) continue;
             if (cpId == null) empBranch.TryGetValue(employeeId.Value, out cpId);
 
-            employees.TryGetValue(employeeId.Value, out var emp);
-            var empName = emp != null
-                ? $"{emp.FirstName} {emp.LastName}".Trim()
-                : $"MA #{employeeId}";
-            var empNr = emp?.EmployeeNumber ?? "";
+            string empName, empNr;
+            if (empDict.TryGetValue(employeeId.Value, out var emp))
+            {
+                empName = $"{emp.FirstName} {emp.LastName}".Trim();
+                empNr = emp.Number;
+            }
+            else
+            {
+                empName = $"MA #{employeeId}";
+                empNr = "";
+            }
 
             result.Add(new DigestChange(
                 a.CreatedAt, cpId, employeeId, empNr, empName,
@@ -491,7 +525,16 @@ public class MirusChangeDigestService
     {
         var title = EntityTitles.TryGetValue(a.EntityType, out var t) ? t : a.EntityType;
         if (a.Action == "CREATE")
+        {
+            // QST neu: Tarif mitnehmen, falls im Snapshot vorhanden
+            if (a.EntityType == "EmployeeQuellensteuer")
+            {
+                var flat = TryReadFlat(a.ChangesJson);
+                if (flat != null && flat.TryGetValue("QstCode", out var code) && !string.IsNullOrWhiteSpace(code))
+                    return $"{title}: neu angelegt (Tarif {code})";
+            }
             return $"{title}: neu angelegt";
+        }
         if (a.Action == "DELETE")
             return $"{title}: gelöscht";
 
