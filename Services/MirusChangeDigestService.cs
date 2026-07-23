@@ -320,7 +320,7 @@ public class MirusChangeDigestService
 
     private async Task<List<DigestChange>> BuildChangesAsync(List<AuditLog> raw, CancellationToken ct)
     {
-        // IDs vorsammeln für Batch-Lookups
+        // IDs vorsammeln für Batch-Lookups (EntityId ≤ 0 = CREATE vor Identity-Refresh → überspringen)
         var empIds = new HashSet<int>();
         var emplIds = new HashSet<int>();
         var bankIds = new HashSet<int>();
@@ -332,10 +332,15 @@ public class MirusChangeDigestService
         var allowIds = new HashSet<int>();
         var bvgIds = new HashSet<int>();
         var zulIds = new HashSet<int>();
+        // EmployeeIds aus JSON/Route — nötig wenn EntityId=0 und Child-Maps leer sind
+        var empIdsFromAudit = new HashSet<int>();
 
         foreach (var a in raw)
         {
-            if (!int.TryParse(a.EntityId, out var id)) continue;
+            var fromAudit = TryResolveEmployeeIdFromAudit(a);
+            if (fromAudit is > 0) empIdsFromAudit.Add(fromAudit.Value);
+
+            if (!int.TryParse(a.EntityId, out var id) || id <= 0) continue;
             switch (a.EntityType)
             {
                 case "Employee": empIds.Add(id); break;
@@ -351,14 +356,6 @@ public class MirusChangeDigestService
                 case "LohnZulage": zulIds.Add(id); break;
             }
         }
-
-        var empDict = empIds.Count == 0
-            ? new Dictionary<int, EmpName>()
-            : (await _db.Employees.AsNoTracking()
-                .Where(e => empIds.Contains(e.Id))
-                .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
-                .ToListAsync(ct))
-              .ToDictionary(e => e.Id, e => new EmpName(e.EmployeeNumber ?? "", e.FirstName ?? "", e.LastName ?? ""));
 
         var employments = emplIds.Count == 0
             ? new Dictionary<int, (int EmployeeId, int? CompanyProfileId)>()
@@ -409,8 +406,9 @@ public class MirusChangeDigestService
                 .Where(b => zulIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
               .ToDictionary(b => b.Id, b => b.EmployeeId);
 
-        // Alle betroffenen MA
+        // Alle betroffenen MA — inkl. JSON/Route (CREATE mit EntityId=0)
         var allEmpIds = new HashSet<int>(empIds);
+        foreach (var id in empIdsFromAudit) allEmpIds.Add(id);
         foreach (var e in employments.Values) allEmpIds.Add(e.EmployeeId);
         foreach (var id in bankMap.Values) allEmpIds.Add(id);
         foreach (var id in qstMap.Values) allEmpIds.Add(id);
@@ -421,17 +419,16 @@ public class MirusChangeDigestService
         foreach (var id in allowMap.Values) allEmpIds.Add(id);
         foreach (var id in bvgMap.Values) allEmpIds.Add(id);
         foreach (var id in zulMap.Values) allEmpIds.Add(id);
+        allEmpIds.Remove(0);
 
-        var missingEmp = allEmpIds.Where(id => !empDict.ContainsKey(id)).ToList();
-        if (missingEmp.Count > 0)
-        {
-            var extra = await _db.Employees.AsNoTracking()
-                .Where(e => missingEmp.Contains(e.Id))
+        // Personalnummer + Name + Filiale erst NACH vollständiger ID-Auflösung laden
+        var empDict = allEmpIds.Count == 0
+            ? new Dictionary<int, EmpName>()
+            : (await _db.Employees.AsNoTracking()
+                .Where(e => allEmpIds.Contains(e.Id))
                 .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
-                .ToListAsync(ct);
-            foreach (var e in extra)
-                empDict[e.Id] = new EmpName(e.EmployeeNumber ?? "", e.FirstName ?? "", e.LastName ?? "");
-        }
+                .ToListAsync(ct))
+              .ToDictionary(e => e.Id, e => new EmpName(e.EmployeeNumber ?? "", e.FirstName ?? "", e.LastName ?? ""));
 
         // Filiale pro MA — in Memory (kein EF-GroupBy+OrderBy), aktiv bevorzugt
         var empBranch = new Dictionary<int, int?>();
@@ -471,15 +468,8 @@ public class MirusChangeDigestService
             var summary = BuildSummary(a, flatEarly, docNames);
             if (summary == null) continue;
 
-            int? employeeId = null;
+            int? employeeId = TryResolveEmployeeIdFromAudit(a);
             int? cpId = null;
-
-            // Zuerst stabil aus JSON/Route (überlebt EntityId=0)
-            if (flatEarly != null && flatEarly.TryGetValue("EmployeeId", out var eid0)
-                && int.TryParse(eid0, out var eid0i) && eid0i > 0)
-                employeeId = eid0i;
-            if (employeeId == null)
-                employeeId = TryParseEmployeeIdFromRoute(a.Route);
 
             if (hasEntityId)
             {
@@ -541,7 +531,8 @@ public class MirusChangeDigestService
             }
             else
             {
-                empName = $"MA #{employeeId}";
+                // Fallback nur wenn MA gelöscht — nie interne DB-Id als «MA #…»
+                empName = "unbekannter MA";
                 empNr = "";
             }
 
@@ -550,6 +541,42 @@ public class MirusChangeDigestService
                 a.EntityType, a.Action, summary, a.UserName));
         }
         return result;
+    }
+
+    /// <summary>
+    /// EmployeeId aus ChangesJson oder Route — unabhängig von EntityId
+    /// (CREATE hatte früher EntityId=0 bevor die Identity geschrieben war).
+    /// </summary>
+    private static int? TryResolveEmployeeIdFromAudit(AuditLog a)
+    {
+        var flat = TryReadFlat(a.ChangesJson);
+        if (flat != null && flat.TryGetValue("EmployeeId", out var eid)
+            && int.TryParse(eid, out var eidI) && eidI > 0)
+            return eidI;
+        // UPDATE-Form {old,new}: TryReadFlat speichert oft «old → new» — zusätzlich roh parsen
+        try
+        {
+            using var doc = JsonDocument.Parse(a.ChangesJson ?? "{}");
+            if (doc.RootElement.TryGetProperty("EmployeeId", out var prop))
+            {
+                if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var n) && n > 0)
+                    return n;
+                if (prop.ValueKind == JsonValueKind.Object)
+                {
+                    if (prop.TryGetProperty("new", out var neu) && neu.ValueKind == JsonValueKind.Number
+                        && neu.TryGetInt32(out var ni) && ni > 0) return ni;
+                    if (prop.TryGetProperty("old", out var alt) && alt.ValueKind == JsonValueKind.Number
+                        && alt.TryGetInt32(out var oi) && oi > 0) return oi;
+                }
+            }
+        }
+        catch { /* ignore */ }
+
+        if (a.EntityType == "Employee"
+            && int.TryParse(a.EntityId, out var selfId) && selfId > 0)
+            return selfId;
+
+        return TryParseEmployeeIdFromRoute(a.Route);
     }
 
     private static HashSet<int> CollectDokumentIds(List<AuditLog> raw)
@@ -789,17 +816,20 @@ public class MirusChangeDigestService
             html.Append($"<h2 style=\"font-size:15px;margin:22px 0 8px;color:#0f172a;border-bottom:1px solid #e2e8f0;padding-bottom:4px\">{Esc(brTitle)}</h2>");
             text.AppendLine($"══ {brTitle} ══");
 
+            // Sortierung nach Personalnummer (104…), dann Vorname — so wie im Alltag
             var byEmp = br
                 .GroupBy(c => c.EmployeeId)
-                .OrderBy(g => g.First().EmployeeName.Split(' ').FirstOrDefault() ?? "")
+                .OrderBy(g => g.First().EmployeeNumber ?? "")
+                .ThenBy(g => g.First().EmployeeName.Split(' ').FirstOrDefault() ?? "")
                 .ThenBy(g => g.First().EmployeeName);
 
             foreach (var empG in byEmp)
             {
                 var sample = empG.First();
+                // Personalnummer zuerst (Walter: im Umgang nur 104… / 750… / …)
                 var empHead = string.IsNullOrEmpty(sample.EmployeeNumber)
                     ? sample.EmployeeName
-                    : $"{sample.EmployeeName} (Nr. {sample.EmployeeNumber})";
+                    : $"{sample.EmployeeNumber} — {sample.EmployeeName}";
                 html.Append($"<div style=\"margin:10px 0 4px;font-weight:700\">{Esc(empHead)}</div><ul style=\"margin:0 0 12px 18px;padding:0\">");
                 text.AppendLine($"  · {empHead}");
 
