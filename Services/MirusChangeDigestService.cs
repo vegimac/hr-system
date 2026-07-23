@@ -35,7 +35,8 @@ public class MirusChangeDigestService
 
     private static readonly HashSet<string> EmployeeFields = new(StringComparer.Ordinal)
     {
-        "FirstName", "LastName", "AhvNumber", "Street", "HouseNumber", "Zip", "City",
+        // FirstName/LastName bewusst NICHT — Mirus-Mail enthält nie MA-Namen (Walter 23.07.2026)
+        "AhvNumber", "Street", "HouseNumber", "Zip", "City",
         "CantonCode", "Country", "Nationality", "NationalityId", "MaritalStatus",
         "SeparatedSince", "Religion", "EntryDate", "ExitDate", "KuendigungPer",
         "IsActive", "IsPayrollExcluded", "QstBefreitDurchBehoerde",
