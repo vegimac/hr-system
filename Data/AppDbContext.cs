@@ -723,6 +723,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.IsHrTeam).HasColumnName("is_hr_team");
+            entity.Property(e => e.ReceivesMirusChangeDigest).HasColumnName("receives_mirus_change_digest").HasDefaultValue(false);
             entity.Property(e => e.IsSuperAdmin).HasColumnName("is_super_admin").HasDefaultValue(false);
             entity.Property(e => e.AllowedAreas).HasColumnName("allowed_areas");
             entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");

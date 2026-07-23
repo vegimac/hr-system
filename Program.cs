@@ -189,6 +189,9 @@ builder.Services.AddScoped<LseExportService>();
 builder.Services.AddScoped<DashboardService>();
 // SMTP-Versand für MA-Postfach-Benachrichtigungen (Lohnzettel-Bereit etc.)
 builder.Services.AddScoped<EmailService>();
+// Täglicher Mirus-Änderungsdigest 06:00 (Walter 23.07.2026)
+builder.Services.AddScoped<MirusChangeDigestService>();
+builder.Services.AddHostedService<MirusChangeDigestBackgroundService>();
 // SMS-Versand über eCall (F24 Schweiz, REST). DB-gekoppelt → Scoped;
 // nutzt IHttpClientFactory (via AddHttpClient unten registriert).
 builder.Services.AddHttpClient();
@@ -1721,6 +1724,10 @@ using (var scope = app.Services.CreateScope())
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE app_user
             ADD COLUMN IF NOT EXISTS is_hr_team BOOLEAN NOT NULL DEFAULT false;
+
+        -- Walter 23.07.2026: Empfänger-Flag für täglichen Mirus-Änderungsdigest
+        ALTER TABLE app_user
+            ADD COLUMN IF NOT EXISTS receives_mirus_change_digest BOOLEAN NOT NULL DEFAULT false;
 
         ALTER TABLE mailbox_document
             ADD COLUMN IF NOT EXISTS target_type TEXT NOT NULL DEFAULT 'BRANCH';
