@@ -1144,6 +1144,12 @@ function onBranchChange() {
         // die zentrale Dimension des Akonto-Laufs).
         if (typeof akOnBranchChange === 'function') akOnBranchChange();
     }
+
+    // Mirus-Digest-Vorschau folgt der Sidebar-Filiale (Walter 23.07.2026).
+    if (typeof mirusDigestIsOpen === 'function' && mirusDigestIsOpen()
+        && typeof loadMirusDigestPreview === 'function') {
+        loadMirusDigestPreview();
+    }
 }
 
 // ── liquidConfirm (Walter-Vorgabe 16.07.2026, gilt fuer ALLE kuenftigen
