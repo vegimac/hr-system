@@ -816,20 +816,18 @@ public class MirusChangeDigestService
             html.Append($"<h2 style=\"font-size:15px;margin:22px 0 8px;color:#0f172a;border-bottom:1px solid #e2e8f0;padding-bottom:4px\">{Esc(brTitle)}</h2>");
             text.AppendLine($"══ {brTitle} ══");
 
-            // Sortierung nach Personalnummer (104…), dann Vorname — so wie im Alltag
+            // Nur Personalnummer — nie Vor-/Nachname in der Mirus-Mail (Datenschutz / Alltag)
             var byEmp = br
                 .GroupBy(c => c.EmployeeId)
                 .OrderBy(g => g.First().EmployeeNumber ?? "")
-                .ThenBy(g => g.First().EmployeeName.Split(' ').FirstOrDefault() ?? "")
-                .ThenBy(g => g.First().EmployeeName);
+                .ThenBy(g => g.Key);
 
             foreach (var empG in byEmp)
             {
                 var sample = empG.First();
-                // Personalnummer zuerst (Walter: im Umgang nur 104… / 750… / …)
                 var empHead = string.IsNullOrEmpty(sample.EmployeeNumber)
-                    ? sample.EmployeeName
-                    : $"{sample.EmployeeNumber} — {sample.EmployeeName}";
+                    ? "ohne Personalnummer"
+                    : sample.EmployeeNumber;
                 html.Append($"<div style=\"margin:10px 0 4px;font-weight:700\">{Esc(empHead)}</div><ul style=\"margin:0 0 12px 18px;padding:0\">");
                 text.AppendLine($"  · {empHead}");
 
