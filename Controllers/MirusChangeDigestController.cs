@@ -1,3 +1,4 @@
+using System.Text;
 using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -5,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Manueller Trigger für den Mirus-Änderungsdigest (Walter 23.07.2026).
+/// Manueller Trigger + HTML-Vorschau für den Mirus-Änderungsdigest (Walter 23.07.2026).
 /// Nur admin — zum Testen / Nachholen ohne auf 06:00 zu warten.
 /// </summary>
 [ApiController]
@@ -29,5 +30,39 @@ public class MirusChangeDigestController : ControllerBase
             changeCount = result.ChangeCount,
             message = result.Message
         });
+    }
+
+    /// <summary>
+    /// 1:1 HTML-Vorschau der Digest-Mail (keine Zustellung).
+    /// Optional: ?restaurantCode=129 (Reinach) oder ?companyProfileId=…
+    /// </summary>
+    [HttpGet("preview")]
+    public async Task<IActionResult> Preview(
+        [FromQuery] int? companyProfileId,
+        [FromQuery] string? restaurantCode,
+        CancellationToken ct)
+    {
+        var name = User.Identity?.Name ?? "Vorschau";
+        var result = await _svc.PreviewAsync(ct, companyProfileId, restaurantCode, name);
+
+        // Vollständiges HTML-Dokument — direkt im Browser anzeigbar.
+        var doc = new StringBuilder();
+        doc.Append("<!DOCTYPE html><html lang=\"de\"><head><meta charset=\"utf-8\">");
+        doc.Append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
+        doc.Append($"<title>{System.Net.WebUtility.HtmlEncode(result.Subject)}</title>");
+        doc.Append("<style>body{margin:0;background:#f1f5f9;padding:24px}");
+        doc.Append(".wrap{max-width:720px;margin:0 auto;background:#fff;padding:8px 28px 28px;");
+        doc.Append("border:1px solid #e2e8f0;border-radius:8px}");
+        doc.Append(".bar{font:13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;color:#64748b;");
+        doc.Append("margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #e2e8f0}");
+        doc.Append(".bar b{color:#0f172a}</style></head><body><div class=\"wrap\">");
+        doc.Append("<div class=\"bar\">");
+        doc.Append($"<div><b>Betreff:</b> {System.Net.WebUtility.HtmlEncode(result.Subject)}</div>");
+        doc.Append($"<div>{System.Net.WebUtility.HtmlEncode(result.Message)} — nicht gesendet</div>");
+        doc.Append("</div>");
+        doc.Append(result.Html);
+        doc.Append("</div></body></html>");
+
+        return Content(doc.ToString(), "text/html", Encoding.UTF8);
     }
 }
