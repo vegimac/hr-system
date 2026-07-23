@@ -459,31 +459,38 @@ function showPageAlert(elId, msg, type) {
 }
 
 // ── Mirus-Änderungsmail: 1:1 Vorschau (ohne Versand) ───────────────────
+// Filiale = immer Sidebar links oben (fixedCompanyProfileId) — kein eigenes Dropdown.
 let _mirusDigestBlobUrl = null;
+
+function mirusDigestIsOpen() {
+    const modal = document.getElementById('mirusDigestPreviewModal');
+    return !!(modal && modal.style.display === 'flex');
+}
+
+function mirusDigestCurrentBranch() {
+    const id = (typeof fixedCompanyProfileId === 'number') ? fixedCompanyProfileId : null;
+    if (!id || typeof allBranches === 'undefined') return null;
+    return allBranches.find(b => b.id === id) || null;
+}
+
+function mirusDigestSyncBranchLabel() {
+    const el = document.getElementById('mirusDigestBranchLabel');
+    if (!el) return;
+    const br = mirusDigestCurrentBranch();
+    if (!br) {
+        el.textContent = 'Filiale: in der Sidebar links oben wählen';
+        return;
+    }
+    const code = br.restaurantCode || '';
+    const name = br.branchName || br.companyName || ('Filiale ' + br.id);
+    el.textContent = code ? `Filiale: ${code} – ${name}` : `Filiale: ${name}`;
+}
 
 function openMirusDigestPreview() {
     const modal = document.getElementById('mirusDigestPreviewModal');
     if (!modal) return;
-    const sel = document.getElementById('mirusDigestBranch');
-    const branches = (typeof allBranches !== 'undefined' && Array.isArray(allBranches))
-        ? [...allBranches].sort((a, b) =>
-            String(a.restaurantCode || '').localeCompare(String(b.restaurantCode || ''), 'de')
-            || String(a.branchName || a.companyName || '').localeCompare(String(b.branchName || b.companyName || ''), 'de'))
-        : [];
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">Alle Filialen</option>' + branches.map(b => {
-        const code = b.restaurantCode || '';
-        const name = b.branchName || b.companyName || ('Filiale ' + b.id);
-        const label = code ? `${code} – ${name}` : name;
-        return `<option value="${String(code).replace(/"/g, '')}">${label.replace(/</g, '&lt;')}</option>`;
-    }).join('');
-    // Sidebar-Filiale vorwählen, falls bekannt
-    if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
-    else if (typeof fixedCompanyProfileId === 'number') {
-        const br = branches.find(b => b.id === fixedCompanyProfileId);
-        if (br?.restaurantCode) sel.value = br.restaurantCode;
-    }
     modal.style.display = 'flex';
+    mirusDigestSyncBranchLabel();
     loadMirusDigestPreview();
 }
 
@@ -501,12 +508,15 @@ function closeMirusDigestPreview() {
 async function loadMirusDigestPreview() {
     const iframe = document.getElementById('mirusDigestFrame');
     const hint = document.getElementById('mirusDigestPreviewHint');
-    const sel = document.getElementById('mirusDigestBranch');
     if (!iframe) return;
-    const code = (sel?.value || '').trim();
-    const url = code
-        ? `/api/mirus-change-digest/preview?restaurantCode=${encodeURIComponent(code)}`
-        : '/api/mirus-change-digest/preview';
+    mirusDigestSyncBranchLabel();
+    const br = mirusDigestCurrentBranch();
+    const code = (br?.restaurantCode || '').trim();
+    const cpId = br?.id;
+    // Prefer companyProfileId (stabil); restaurantCode als Fallback.
+    let url = '/api/mirus-change-digest/preview';
+    if (cpId) url += `?companyProfileId=${encodeURIComponent(cpId)}`;
+    else if (code) url += `?restaurantCode=${encodeURIComponent(code)}`;
     if (hint) hint.textContent = 'Lade Vorschau…';
     iframe.src = 'about:blank';
     try {
@@ -521,9 +531,8 @@ async function loadMirusDigestPreview() {
         _mirusDigestBlobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
         iframe.src = _mirusDigestBlobUrl;
         if (hint) {
-            hint.textContent = code
-                ? `Vorschau für Filiale ${code} — letzte 24 h, wird nicht gesendet.`
-                : 'Vorschau für alle Filialen — letzte 24 h, wird nicht gesendet.';
+            const label = code || (cpId ? ('#' + cpId) : 'alle Filialen');
+            hint.textContent = `Vorschau für ${label} — letzte 24 h, wird nicht gesendet. Filiale links in der Sidebar wechseln.`;
         }
     } catch (err) {
         if (hint) hint.textContent = 'Verbindungsfehler.';
