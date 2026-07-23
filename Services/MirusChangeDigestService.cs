@@ -108,6 +108,10 @@ public class MirusChangeDigestService
 
     public record DigestRunResult(int RecipientCount, int MailsSent, int ChangeCount, string Message);
 
+    public record DigestPreviewResult(
+        string Subject, string Html, string Text, int ChangeCount,
+        DateTime SinceUtc, DateTime UntilUtc, string Message);
+
     public async Task<DigestRunResult> RunAsync(CancellationToken ct = default, DateTime? sinceUtc = null, DateTime? untilUtc = null)
     {
         var until = untilUtc ?? DateTime.UtcNow;
@@ -124,13 +128,7 @@ public class MirusChangeDigestService
         if (recipients.Count == 0)
             return new DigestRunResult(0, 0, 0, "Keine Empfänger mit Flag «Mirus-Änderungsmail».");
 
-        var raw = await _db.AuditLogs.AsNoTracking()
-            .Where(a => a.CreatedAt >= since && a.CreatedAt < until
-                     && WatchedEntities.Contains(a.EntityType))
-            .OrderBy(a => a.CreatedAt)
-            .ToListAsync(ct);
-
-        var changes = await BuildChangesAsync(raw, ct);
+        var (changes, branchMeta, localFrom, localTo) = await LoadDigestAsync(since, until, ct);
         if (changes.Count == 0)
         {
             // Keine Mail bei leerem Digest — Sachbearbeiter nicht mit Leermails spammen.
@@ -139,19 +137,11 @@ public class MirusChangeDigestService
             return new DigestRunResult(recipients.Count, 0, 0, "Keine lohnkritischen Änderungen — keine Mails gesendet.");
         }
 
-        var allBranchIds = changes.Select(c => c.CompanyProfileId).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
-        var branchMeta = await _db.CompanyProfiles.AsNoTracking()
-            .Where(c => allBranchIds.Contains(c.Id))
-            .Select(c => new { c.Id, c.RestaurantCode, Name = c.BranchName ?? c.CompanyName })
-            .ToDictionaryAsync(c => c.Id, ct);
-
         var ubaByUser = await _db.UserBranchAccesses.AsNoTracking()
             .Where(a => recipients.Select(r => r.Id).Contains(a.UserId))
             .GroupBy(a => a.UserId)
             .ToDictionaryAsync(g => g.Key, g => g.Select(x => x.CompanyProfileId).ToHashSet(), ct);
 
-        var localFrom = ToZurich(since);
-        var localTo = ToZurich(until);
         var subjectDate = localTo.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("de-CH"));
         var sent = 0;
 
@@ -176,13 +166,10 @@ public class MirusChangeDigestService
 
             var name = $"{r.FirstName} {r.LastName}".Trim();
             if (string.IsNullOrWhiteSpace(name)) name = r.Username;
-            var (html, text) = RenderMail(forUser, branchMeta.ToDictionary(
-                kv => kv.Key,
-                kv => (kv.Value.RestaurantCode ?? "", kv.Value.Name ?? ("Filiale " + kv.Key))),
-                localFrom, localTo, name);
+            var (html, text) = RenderMail(forUser, branchMeta, localFrom, localTo, name);
 
             var subject = $"OneCrew → Mirus: Änderungen {subjectDate} ({forUser.Count})";
-            var ok = await _email.SendAsync(r.Email, name, subject, html, text);
+            var ok = await _email.SendAsync(r.Email!, name, subject, html, text);
             if (ok) sent++;
         }
 
@@ -190,6 +177,85 @@ public class MirusChangeDigestService
             changes.Count, recipients.Count, sent);
         return new DigestRunResult(recipients.Count, sent, changes.Count,
             $"{sent} Mail(s) an {recipients.Count} Empfänger, {changes.Count} Änderungszeilen.");
+    }
+
+    /// <summary>
+    /// Vorschau der Mail-HTML (keine Zustellung). Optional auf eine Filiale filtern
+    /// (companyProfileId oder restaurantCode, z.B. «129» für Reinach).
+    /// </summary>
+    public async Task<DigestPreviewResult> PreviewAsync(
+        CancellationToken ct = default,
+        int? companyProfileId = null,
+        string? restaurantCode = null,
+        string recipientName = "Vorschau")
+    {
+        var until = DateTime.UtcNow;
+        var since = until.AddHours(-24);
+        var (changes, branchMeta, localFrom, localTo) = await LoadDigestAsync(since, until, ct);
+
+        int? filterCpId = companyProfileId;
+        if (filterCpId == null && !string.IsNullOrWhiteSpace(restaurantCode))
+        {
+            var code = restaurantCode.Trim();
+            filterCpId = await _db.CompanyProfiles.AsNoTracking()
+                .Where(c => c.RestaurantCode == code)
+                .Select(c => (int?)c.Id)
+                .FirstOrDefaultAsync(ct);
+            if (filterCpId == null)
+            {
+                return new DigestPreviewResult(
+                    "OneCrew → Mirus: Vorschau",
+                    $"<p>Keine Filiale mit Restaurant-Code «{Esc(code)}» gefunden.</p>",
+                    $"Keine Filiale mit Restaurant-Code «{code}» gefunden.",
+                    0, since, until, "Filiale nicht gefunden.");
+            }
+        }
+
+        if (filterCpId != null)
+            changes = changes.Where(c => c.CompanyProfileId == filterCpId).ToList();
+
+        var subjectDate = localTo.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("de-CH"));
+        if (changes.Count == 0)
+        {
+            var emptyHtml =
+                "<div style=\"font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;color:#1e293b;line-height:1.45\">"
+                + $"<p>Guten Morgen {Esc(recipientName)},</p>"
+                + "<p>In den letzten 24 Stunden gibt es <b>keine</b> lohnkritischen OneCrew-Änderungen"
+                + (filterCpId != null ? " für diese Filiale" : "")
+                + " — deshalb würde <b>keine Mail</b> gesendet.</p>"
+                + $"<p style=\"color:#64748b\">Zeitraum: {Esc(localFrom.ToString("dd.MM.yyyy HH:mm", CultureInfo.GetCultureInfo("de-CH")))} – {Esc(localTo.ToString("dd.MM.yyyy HH:mm", CultureInfo.GetCultureInfo("de-CH")))} (Europe/Zurich)</p>"
+                + "</div>";
+            return new DigestPreviewResult(
+                $"OneCrew → Mirus: Änderungen {subjectDate} (0)",
+                emptyHtml, "Keine lohnkritischen Änderungen.", 0, since, until,
+                "Keine lohnkritischen Änderungen.");
+        }
+
+        var (html, text) = RenderMail(changes, branchMeta, localFrom, localTo, recipientName);
+        var subject = $"OneCrew → Mirus: Änderungen {subjectDate} ({changes.Count})";
+        return new DigestPreviewResult(subject, html, text, changes.Count, since, until,
+            $"{changes.Count} Änderungszeilen (Vorschau, nicht gesendet).");
+    }
+
+    private async Task<(List<DigestChange> Changes, Dictionary<int, (string Code, string Name)> BranchMeta, DateTime LocalFrom, DateTime LocalTo)>
+        LoadDigestAsync(DateTime since, DateTime until, CancellationToken ct)
+    {
+        var raw = await _db.AuditLogs.AsNoTracking()
+            .Where(a => a.CreatedAt >= since && a.CreatedAt < until
+                     && WatchedEntities.Contains(a.EntityType))
+            .OrderBy(a => a.CreatedAt)
+            .ToListAsync(ct);
+
+        var changes = await BuildChangesAsync(raw, ct);
+        var allBranchIds = changes.Select(c => c.CompanyProfileId).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+        var branchMeta = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => allBranchIds.Contains(c.Id))
+            .Select(c => new { c.Id, c.RestaurantCode, Name = c.BranchName ?? c.CompanyName })
+            .ToDictionaryAsync(c => c.Id, ct);
+        var meta = branchMeta.ToDictionary(
+            kv => kv.Key,
+            kv => (kv.Value.RestaurantCode ?? "", kv.Value.Name ?? ("Filiale " + kv.Key)));
+        return (changes, meta, ToZurich(since), ToZurich(until));
     }
 
     private sealed record DigestChange(
