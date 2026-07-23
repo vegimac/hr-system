@@ -192,11 +192,11 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 try { changesJson = JsonSerializer.Serialize(changes); }
                 catch { changesJson = "{}"; }
 
-                // created_at = timestamp without time zone (UTC-Wanduhr).
-                // Kind=Utc → Npgsql 500 → Audit wird für die ganze Session deaktiviert
-                // (Walter-Datum-Falle). Deshalb Unspecified mit UTC-Zahlen.
+                // created_at = timestamp without time zone, Schweizer Wanduhr
+                // (Europe/Zurich). Kind=Utc → Npgsql 500 / stummes Audit
+                // (Walter-Datum-Falle). Unspecified + Zurich-Lokalzeit.
                 pendings.Add(new PendingAudit(
-                    CreatedAt: DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                    CreatedAt: SwissNowUnspecified(),
                     UserId:    userId,
                     UserName:  userName,
                     UserRole:  userRole,
@@ -272,6 +272,23 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
         if (v is DateOnly d)  return d.ToString("yyyy-MM-dd");
         if (v is TimeOnly t)  return t.ToString("HH:mm:ss");
         return v;
+    }
+
+    private static readonly TimeZoneInfo SwissTz = FindSwissTz();
+    private static TimeZoneInfo FindSwissTz()
+    {
+        try { return TimeZoneInfo.FindSystemTimeZoneById("Europe/Zurich"); }
+        catch
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById("W. Europe Standard Time"); }
+            catch { return TimeZoneInfo.Utc; }
+        }
+    }
+
+    private static DateTime SwissNowUnspecified()
+    {
+        var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, SwissTz);
+        return DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
     }
 
     private record PendingAudit(
