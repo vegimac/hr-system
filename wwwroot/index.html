@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260722u">
+    <link rel="stylesheet" href="css/app.css?v=20260723a">
 </head>
 <body>
 
@@ -5537,39 +5537,51 @@
             <!-- Walter-Vorgabe 10.06.2026: globales Regelwerk für die
                  Schwangerschaftsfristen (ArG/ArGV/OR). Wird vom Mutterschafts-
                  Tab im MA-Modul gelesen, um pro MA die Fristen-Timeline zu
-                 berechnen. Schreibrechte: admin. -->
-            <div class="page liquid-mask" id="page-pregnancy-rules">
-                <div class="sticky-page-head">
-                <div class="page-header">
-                    <div>
-                        <h1 class="page-title">Mutterschafts-Regeln</h1>
-                        <p class="page-sub">Gesetzliche Fristen und Arbeitseinschränkungen bei Schwangerschaft (ArG Art. 35/35a, ArGV 1, OR Art. 336c). Gilt global für alle Betriebe.</p>
+                 berechnen. Schreibrechte: admin.
+                 Walter 23.07.2026: Spaltenköpfe fest im Kopf (fixhead). -->
+            <div class="page liquid-mask fixhead" id="page-pregnancy-rules">
+                <div class="sticky-page-head fh-page-head">
+                    <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                        <div>
+                            <h1 class="page-title">Mutterschafts-Regeln</h1>
+                            <p class="page-sub">Gesetzliche Fristen und Arbeitseinschränkungen bei Schwangerschaft (ArG Art. 35/35a, ArGV 1, OR Art. 336c). Gilt global für alle Betriebe.</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="prOpenNew()" style="margin-top:58px;flex:none">+ Neue Regel</button>
                     </div>
-                </div>
-                <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
-                    <button class="btn btn-primary" onclick="prOpenNew()">+ Neue Regel</button>
-                </div>
-                </div><!-- /.sticky-page-head -->
-
-                <div class="card" style="overflow:visible">
-                    <table style="width:100%;border-collapse:collapse;font-size:13px">
-                        <thead>
-                            <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;white-space:nowrap">
-                                <th style="padding:10px 14px;text-align:center;font-weight:600;color:#475569">#</th>
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Code</th>
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Bezeichnung</th>
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Beschreibung</th>
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Gesetz</th>
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Phase</th>
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Lohn / max.</th>
-                                <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569">Status</th>
-                                <th style="padding:10px 14px;width:1%;text-align:right"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="prTableBody">
-                            <tr><td colspan="11" style="padding:24px;text-align:center;color:#94a3b8">Lade…</td></tr>
-                        </tbody>
-                    </table>
+                    <div class="fh-cols-head-wrap">
+                        <table class="fh-table fh-table-head" aria-hidden="true">
+                            <colgroup>
+                                <col class="pr-c-sort"><col class="pr-c-code"><col class="pr-c-bez"><col class="pr-c-besch">
+                                <col class="pr-c-gesetz"><col class="pr-c-phase"><col class="pr-c-lohn"><col class="pr-c-status"><col class="pr-c-act">
+                            </colgroup>
+                            <thead><tr>
+                                <th class="fh-th-center">#</th>
+                                <th>Code</th>
+                                <th>Bezeichnung</th>
+                                <th>Beschreibung</th>
+                                <th>Gesetz</th>
+                                <th>Phase</th>
+                                <th>Lohn / max.</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr></thead>
+                        </table>
+                    </div>
+                </div><!-- /.fh-page-head -->
+                <div class="page-body fh-body">
+                    <div class="card fh-list-card">
+                        <div class="fh-list-scroll">
+                            <table class="fh-table fh-table-body">
+                                <colgroup>
+                                    <col class="pr-c-sort"><col class="pr-c-code"><col class="pr-c-bez"><col class="pr-c-besch">
+                                    <col class="pr-c-gesetz"><col class="pr-c-phase"><col class="pr-c-lohn"><col class="pr-c-status"><col class="pr-c-act">
+                                </colgroup>
+                                <tbody id="prTableBody">
+                                    <tr><td colspan="9" style="padding:24px;text-align:center;color:#94a3b8">Lade…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -6981,7 +6993,7 @@
 <script src="js/payroll-perioden.js?v=20260704p"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
 <script src="js/admin-settings.js?v=20260708flex"></script>
-<script src="js/pregnancy-rules.js?v=20260704p"></script>
+<script src="js/pregnancy-rules.js?v=20260723a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>
 <script src="js/kontoplan.js?v=20260722u"></script>
 <script src="js/warning-config.js?v=20260722u"></script>

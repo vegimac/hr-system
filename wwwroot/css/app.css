@@ -5981,6 +5981,17 @@
         #page-kontoplan .kp-c-typ { width: 120px; }
         #page-kontoplan .kp-c-act { width: 92px; }
 
+        /* Mutterschafts-Regeln — Spaltenbreiten (fixhead, Walter 23.07.2026) */
+        #page-pregnancy-rules .pr-c-sort { width: 48px; }
+        #page-pregnancy-rules .pr-c-code { width: 110px; }
+        #page-pregnancy-rules .pr-c-bez { width: 16%; }
+        #page-pregnancy-rules .pr-c-besch { width: auto; }
+        #page-pregnancy-rules .pr-c-gesetz { width: 140px; }
+        #page-pregnancy-rules .pr-c-phase { width: 150px; }
+        #page-pregnancy-rules .pr-c-lohn { width: 130px; }
+        #page-pregnancy-rules .pr-c-status { width: 150px; }
+        #page-pregnancy-rules .pr-c-act { width: 52px; }
+
         #page-absenz-typen .at-c-code { width: 8%; }
         #page-absenz-typen .at-c-name { width: 15%; }
         #page-absenz-typen .at-c-zg { width: 10%; }

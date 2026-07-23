@@ -13,17 +13,17 @@ async function prInit() {
 async function prLoad() {
     const tbody = document.getElementById('prTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="11" style="padding:24px;text-align:center;color:#94a3b8">Lade…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:#94a3b8">Lade…</td></tr>';
     try {
         const r = await fetch('/api/pregnancy-rules', { headers: ah() });
         if (!r.ok) {
-            tbody.innerHTML = '<tr><td colspan="11" style="padding:24px;color:#dc2626">Fehler beim Laden (' + r.status + ')</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;color:#dc2626">Fehler beim Laden (' + r.status + ')</td></tr>';
             return;
         }
         _prAllRules = await r.json();
         prRender();
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="11" style="padding:24px;color:#dc2626">Verbindungsfehler: ' + e.message + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;color:#dc2626">Verbindungsfehler: ' + e.message + '</td></tr>';
     }
 }
 
@@ -33,7 +33,7 @@ function prRender() {
     const tbody = document.getElementById('prTableBody');
     if (!tbody) return;
     if (!_prAllRules.length) {
-        tbody.innerHTML = '<tr><td colspan="11" style="padding:24px;text-align:center;color:#94a3b8;font-style:italic">Keine Regeln — mit „+ Neue Regel" eine erste anlegen.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="padding:24px;text-align:center;color:#94a3b8;font-style:italic">Keine Regeln — mit «+ Neue Regel» eine erste anlegen.</td></tr>';
         return;
     }
     tbody.innerHTML = _prAllRules.map(r => {
@@ -54,20 +54,20 @@ function prRender() {
         const statusPill = r.aktiv
             ? '<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px">Aktiv</span>'
             : '<span style="background:#f1f5f9;color:#64748b;font-size:11px;padding:2px 8px;border-radius:8px">Inaktiv</span>';
-        return `<tr style="border-bottom:1px solid #f1f5f9;${r.aktiv ? '' : 'opacity:0.55;'}">
-            <td style="padding:10px 14px;text-align:center;color:#64748b;font-variant-numeric:tabular-nums">${r.sortOrder}</td>
-            <td style="padding:10px 14px"><code style="font-size:12px;font-weight:600;background:#f1f5f9;padding:2px 6px;border-radius:4px">${prEsc(r.code)}</code></td>
-            <td style="padding:10px 14px;font-weight:500;color:#1e293b">${prEsc(r.bezeichnung)}${staffel}</td>
-            <td style="padding:10px 14px;color:#64748b;font-size:12.5px">${prEsc(r.beschreibung || '')}</td>
-            <td style="padding:10px 14px;color:#64748b;font-size:12px;white-space:nowrap">${prEsc(r.gesetz || '–')}</td>
-            <td style="padding:10px 14px;color:#475569;font-size:12.5px;white-space:nowrap">
+        return `<tr style="${r.aktiv ? '' : 'opacity:0.55;'}">
+            <td style="text-align:center;color:#64748b;font-variant-numeric:tabular-nums">${r.sortOrder}</td>
+            <td><code style="font-size:12px;font-weight:600;background:#f1f5f9;padding:2px 6px;border-radius:4px">${prEsc(r.code)}</code></td>
+            <td style="font-weight:500;color:#1e293b">${prEsc(r.bezeichnung)}${staffel}</td>
+            <td style="color:#64748b;font-size:12.5px">${prEsc(r.beschreibung || '')}</td>
+            <td style="color:#64748b;font-size:12px;white-space:nowrap">${prEsc(r.gesetz || '–')}</td>
+            <td style="color:#475569;font-size:12.5px;white-space:nowrap">
                 <div>${_prBasisLabel[r.berechnungBasis] || r.berechnungBasis}</div>
                 <div style="font-size:11px;color:#64748b;margin-top:2px">${startTxt}</div>
                 ${endeTxt}
             </td>
-            <td style="padding:10px 14px;color:#0f172a;font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums">${lohnTxt || '<span style="color:#cbd5e1">–</span>'}</td>
-            <td style="padding:10px 14px">${verbotPill} ${statusPill}</td>
-            <td style="padding:10px 14px;width:1%;text-align:right;white-space:nowrap">
+            <td style="color:#0f172a;font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums">${lohnTxt || '<span style="color:#cbd5e1">–</span>'}</td>
+            <td>${verbotPill} ${statusPill}</td>
+            <td style="text-align:right;white-space:nowrap">
                 <div class="dok-menu-wrap" style="display:inline-block">
                     <button class="dok-menu-btn" onclick="prToggleMenu(event, ${r.id})" title="Aktionen">⋮</button>
                     <div class="dok-menu" id="prMenu-${r.id}">
