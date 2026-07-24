@@ -222,13 +222,14 @@ async function pbLoadList() {
     const list = document.getElementById('pbList');
     const pf = pbParsePostfach(val);
     if (!pf) { list.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px">Bitte Postfach wählen</div>'; return; }
+    let docs = null;
     try {
         let url = `/api/mailbox?type=${pf.type}`;
         if (pf.type === 'BRANCH') url += `&companyProfileId=${pf.companyProfileId}`;
         if (pf.type === 'EMPLOYEE') url += `&employeeId=${pf.employeeId}`;
         const r = await fetch(url, { headers: ah() });
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        const docs = await r.json();
+        docs = await r.json();
         if (!docs.length) {
             list.innerHTML = '<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;background:#f8fafc;border-radius:10px">Posteingang ist leer 📭</div>';
             pbUpdateBadge();
