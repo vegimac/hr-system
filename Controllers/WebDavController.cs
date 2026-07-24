@@ -609,7 +609,7 @@ public class WebDavController : ControllerBase
     {
         var name = $"{u.FirstName} {u.LastName}".Trim();
         if (string.IsNullOrEmpty(name)) name = u.Username ?? "";
-        var nameSlug =Slugify(name);
+        var nameSlug = Slugify(name);
         return string.IsNullOrEmpty(nameSlug) ? u.Id.ToString() : $"{u.Id}-{nameSlug}";
     }
 
