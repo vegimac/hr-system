@@ -46,12 +46,20 @@ public class MailboxDocument
 
     /// <summary>
     /// In welches Postfach landet das Dokument:
-    ///   "BRANCH" → Filial-Postfach (alle mit Zugriff auf CompanyProfileId sehen's)
-    ///   "HR"     → gemeinsames HR-Postfach (nur AppUser.IsHrTeam + Admin sehen's)
-    ///   "ADMIN"  → Admin-Postfach (nur Admin sieht's)
-    /// CompanyProfileId bleibt immer gesetzt (Filiale des Senders) als Herkunft —
-    /// dadurch weiss der Empfänger, woher das Dokument kommt, und es kann später
-    /// in eine MA-Personalakte der richtigen Filiale verschoben werden.
+    ///   "BRANCH"   → Filial-Postfach (alle mit Zugriff auf CompanyProfileId sehen's)
+    ///   "HR"       → gemeinsames HR-Postfach (nur AppUser.IsHrTeam + Admin sehen's)
+    ///   "ADMIN"    → Admin-Postfach (nur Admin sieht's)
+    ///   "BUCH"     → Buchhaltungs-Postfach
+    ///   "EMPLOYEE" → persönliches MA-Postfach (EmployeeId = Empfänger)
+    ///   "USER"     → persönliches Benutzer-Postfach (TargetUserId = Empfänger)
+    /// CompanyProfileId bleibt immer gesetzt (Filiale des Senders/MA) als Herkunft.
     /// </summary>
     public string TargetType { get; set; } = "BRANCH";
+
+    /// <summary>
+    /// Empfänger bei TargetType=USER — persönliches AppUser-Postfach
+    /// (Walter 24.07.2026: User→User Mitteilungen).
+    /// </summary>
+    public int? TargetUserId { get; set; }
+    public AppUser? TargetUser { get; set; }
 }

@@ -1757,6 +1757,14 @@ using (var scope = app.Services.CreateScope())
          WHERE md.notify_user_id = u.id
            AND u.is_hr_team = true
            AND md.target_type = 'BRANCH';
+
+        -- Walter 24.07.2026: persönliches Benutzer-Postfach (User→User)
+        ALTER TABLE mailbox_document
+            ADD COLUMN IF NOT EXISTS target_user_id integer NULL
+                REFERENCES app_user(id) ON DELETE SET NULL;
+        CREATE INDEX IF NOT EXISTS ix_mailbox_document_target_user
+            ON mailbox_document (target_type, target_user_id)
+            WHERE target_user_id IS NOT NULL;
     ");
 
     // Seed: Default-Kürzel basierend auf Code (idempotent — nur wenn NULL)

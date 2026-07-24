@@ -1141,11 +1141,15 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.NotifyUserId).HasColumnName("notify_user_id");
             entity.Property(e => e.TargetType).HasColumnName("target_type");
+            entity.Property(e => e.TargetUserId).HasColumnName("target_user_id");
             entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
             entity.HasOne(e => e.Uploader).WithMany().HasForeignKey(e => e.UploadedBy);
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.NotifyUser).WithMany().HasForeignKey(e => e.NotifyUserId);
+            entity.HasOne(e => e.TargetUser).WithMany().HasForeignKey(e => e.TargetUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => new { e.CompanyProfileId, e.UploadedAt });
+            entity.HasIndex(e => new { e.TargetType, e.TargetUserId });
         });
 
         // ── BranchMinWage (kommunaler Mindestlohn pro Filiale) ───────────────

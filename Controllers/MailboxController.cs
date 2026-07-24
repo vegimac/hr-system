@@ -98,6 +98,14 @@ public class MailboxController : ControllerBase
             if (!selfAccess && !branchAccess) return Forbid();
             q = q.Where(m => m.TargetType == "EMPLOYEE" && m.EmployeeId == employeeId.Value);
         }
+        else if (t == "USER")
+        {
+            // Persönliches Benutzer-Postfach — nur eigene Inbox (Sender sieht
+            // eigene Sendungen ohnehin via UserCanViewDocumentAsync).
+            var uid = GetCurrentUserId();
+            if (uid is null) return Unauthorized();
+            q = q.Where(m => m.TargetType == "USER" && m.TargetUserId == uid.Value);
+        }
         else
         {
             return BadRequest(new { error = "Unbekannter Postfach-Typ." });
@@ -115,13 +123,15 @@ public class MailboxController : ControllerBase
                 m.UploadedAt,
                 m.TargetType,
                 m.CompanyProfileId,
+                m.TargetUserId,
                 CompanyProfile = m.CompanyProfile == null ? null : new {
                     m.CompanyProfile.Id, m.CompanyProfile.RestaurantCode,
                     name = m.CompanyProfile.BranchName ?? m.CompanyProfile.CompanyName
                 },
-                Uploader   = m.Uploader == null ? null : new { m.Uploader.Id, name = (m.Uploader.FirstName ?? "") + " " + (m.Uploader.LastName ?? ""), m.Uploader.Username },
-                Employee   = m.Employee == null ? null : new { m.Employee.Id, name = m.Employee.FirstName + " " + m.Employee.LastName, m.Employee.EmployeeNumber },
-                NotifyUser = m.NotifyUser == null ? null : new { m.NotifyUser.Id, name = (m.NotifyUser.FirstName ?? "") + " " + (m.NotifyUser.LastName ?? ""), m.NotifyUser.Username },
+                Uploader   = m.Uploader == null ? null : new { m.Uploader.Id, name = ((m.Uploader.FirstName ?? "") + " " + (m.Uploader.LastName ?? "")).Trim(), m.Uploader.Username },
+                Employee   = m.Employee == null ? null : new { m.Employee.Id, name = ((m.Employee.FirstName ?? "") + " " + (m.Employee.LastName ?? "")).Trim(), m.Employee.EmployeeNumber },
+                TargetUser = m.TargetUser == null ? null : new { m.TargetUser.Id, name = ((m.TargetUser.FirstName ?? "") + " " + (m.TargetUser.LastName ?? "")).Trim(), m.TargetUser.Username },
+                NotifyUser = m.NotifyUser == null ? null : new { m.NotifyUser.Id, name = ((m.NotifyUser.FirstName ?? "") + " " + (m.NotifyUser.LastName ?? "")).Trim(), m.NotifyUser.Username },
             })
             .ToListAsync();
 
@@ -146,6 +156,21 @@ public class MailboxController : ControllerBase
             .ToListAsync();
 
         var result = new List<object>();
+        var uid = GetCurrentUserId();
+        if (uid.HasValue)
+        {
+            var myCount = await _db.MailboxDocuments
+                .CountAsync(m => m.TargetType == "USER" && m.TargetUserId == uid.Value);
+            result.Add(new
+            {
+                type = "USER",
+                companyProfileId = (int?)null,
+                targetUserId = uid.Value,
+                code = (string?)null,
+                name = "Meine Mitteilungen",
+                count = myCount,
+            });
+        }
         foreach (var b in branches)
         {
             result.Add(new
@@ -215,7 +240,12 @@ public class MailboxController : ControllerBase
             ? await _db.MailboxDocuments.Where(m => m.TargetType == "ADMIN").CountAsync()
             : 0;
 
-        return Ok(new { count = branchCount + hrCount + buchCount + adminCount });
+        var uid = GetCurrentUserId();
+        var userCount = uid.HasValue
+            ? await _db.MailboxDocuments.CountAsync(m => m.TargetType == "USER" && m.TargetUserId == uid.Value)
+            : 0;
+
+        return Ok(new { count = branchCount + hrCount + buchCount + adminCount + userCount });
     }
 
     // ── GET: Empfänger-Dropdown (Admin/Superuser für Email-Benachrichtigung) ──
@@ -224,7 +254,8 @@ public class MailboxController : ControllerBase
     {
         var users = await _db.AppUsers
             .Where(u => u.IsActive && (u.Role == "admin" || u.Role == "superuser"))
-            .OrderBy(u => u.LastName ?? u.Username)
+            .OrderBy(u => u.FirstName ?? "")
+            .ThenBy(u => u.LastName ?? u.Username)
             .Select(u => new {
                 u.Id,
                 Name = ((u.FirstName ?? "") + " " + (u.LastName ?? "")).Trim(),
@@ -234,11 +265,38 @@ public class MailboxController : ControllerBase
         return Ok(users);
     }
 
+    /// <summary>
+    /// Aktive App-Benutzer (ohne Rolle employee) für User→User-Versand.
+    /// Sortiert nach Vorname (Walter-Konvention).
+    /// </summary>
+    [HttpGet("user-recipients")]
+    public async Task<IActionResult> GetUserRecipients()
+    {
+        var uid = GetCurrentUserId();
+        var users = await _db.AppUsers.AsNoTracking()
+            .Where(u => u.IsActive
+                     && u.Role != "employee"
+                     && (uid == null || u.Id != uid.Value))
+            .OrderBy(u => u.FirstName ?? "")
+            .ThenBy(u => u.LastName ?? u.Username)
+            .Select(u => new {
+                u.Id,
+                name = ((u.FirstName ?? "") + " " + (u.LastName ?? "")).Trim(),
+                u.Username,
+                u.Email,
+                u.Role,
+                u.IsHrTeam
+            })
+            .ToListAsync();
+        return Ok(users);
+    }
+
     // ── POST: Dokument hochladen ──────────────────────────────────────────
-    // targetType: BRANCH (default) | HR | ADMIN
-    //   BRANCH benötigt companyProfileId (Filial-Postfach)
-    //   HR/ADMIN: companyProfileId optional — wenn leer, wird die erste Filiale
-    //   des Uploaders verwendet (für Herkunfts-Information)
+    // targetType: BRANCH | HR | ADMIN | BUCH | USER | EMPLOYEE
+    //   BRANCH   → companyProfileId Pflicht (Filial-Postfach)
+    //   HR/ADMIN/BUCH → companyProfileId optional (Herkunft)
+    //   USER     → targetUserId Pflicht (persönliches Benutzer-Postfach)
+    //   EMPLOYEE → employeeId Pflicht (MA-Postfach; Filialrecht nötig)
     [HttpPost("upload")]
     [DisableRequestSizeLimit]
     [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)] // 100 MB
@@ -248,24 +306,24 @@ public class MailboxController : ControllerBase
         [FromForm] string? bemerkung,
         [FromForm] int? employeeId,
         [FromForm] int? notifyUserId,
-        [FromForm] string? targetType)
+        [FromForm] string? targetType,
+        [FromForm] int? targetUserId)
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { error = "Keine Datei hochgeladen." });
 
         var t = (targetType ?? "BRANCH").ToUpperInvariant();
         int effectiveBranchId;
+        int? resolvedEmployeeId = employeeId;
+        int? resolvedTargetUserId = null;
 
         if (t == "BRANCH")
         {
             if (companyProfileId == null) return BadRequest(new { error = "companyProfileId fehlt." });
-            // Senden ist offen — auch ohne Lese-Zugriff auf die Filiale ist
-            // Reinschicken erlaubt. Lese-Berechtigung wird beim Anzeigen geprüft.
             effectiveBranchId = companyProfileId.Value;
         }
         else if (t == "HR" || t == "ADMIN" || t == "BUCH")
         {
-            // Filial-ID = Sender-Filiale (für Herkunfts-Info)
             if (companyProfileId.HasValue)
             {
                 effectiveBranchId = companyProfileId.Value;
@@ -276,6 +334,55 @@ public class MailboxController : ControllerBase
                 if (allowed.Count == 0) return BadRequest(new { error = "Keine Filial-Zuordnung." });
                 effectiveBranchId = allowed.First();
             }
+        }
+        else if (t == "USER")
+        {
+            if (targetUserId is null or <= 0)
+                return BadRequest(new { error = "targetUserId fehlt." });
+            var target = await _db.AppUsers.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == targetUserId.Value);
+            if (target == null || !target.IsActive)
+                return BadRequest(new { error = "Empfänger-Benutzer nicht gefunden." });
+            if (target.Role == "employee")
+                return BadRequest(new { error = "An MA bitte über Ziel «Mitarbeiter» senden." });
+            var me = GetCurrentUserId();
+            if (me.HasValue && target.Id == me.Value)
+                return BadRequest(new { error = "Du kannst nicht an dich selbst senden." });
+            resolvedTargetUserId = target.Id;
+            if (companyProfileId.HasValue)
+                effectiveBranchId = companyProfileId.Value;
+            else
+            {
+                var allowed = await GetUserAllowedBranchIdsAsync();
+                if (allowed.Count == 0) return BadRequest(new { error = "Keine Filial-Zuordnung." });
+                effectiveBranchId = allowed.First();
+            }
+            resolvedEmployeeId = null; // Bezug-MA bei User→User nicht setzen
+        }
+        else if (t == "EMPLOYEE")
+        {
+            if (employeeId is null or <= 0)
+                return BadRequest(new { error = "employeeId fehlt." });
+            var emp = await _db.Employees.AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Id == employeeId.Value);
+            if (emp == null || !emp.IsActive)
+                return BadRequest(new { error = "Mitarbeiter nicht gefunden." });
+
+            // Filiale des MA + Recht des Senders
+            var empBranchId = await _db.Employments.AsNoTracking()
+                .Where(e => e.EmployeeId == employeeId.Value
+                         && e.IsActive
+                         && e.CompanyProfileId != null)
+                .OrderByDescending(e => e.ContractStartDate)
+                .Select(e => e.CompanyProfileId)
+                .FirstOrDefaultAsync();
+            if (empBranchId == null)
+                return BadRequest(new { error = "Mitarbeiter hat keine aktive Filial-Zuordnung." });
+            if (!await UserHasBranchAccessAsync(empBranchId.Value))
+                return Forbid();
+
+            effectiveBranchId = empBranchId.Value;
+            resolvedEmployeeId = employeeId.Value;
         }
         else
         {
@@ -293,22 +400,21 @@ public class MailboxController : ControllerBase
 
         var doc = new MailboxDocument
         {
-            CompanyProfileId  = effectiveBranchId,
-            UploadedBy        = GetCurrentUserId(),
+            CompanyProfileId = effectiveBranchId,
+            UploadedBy       = GetCurrentUserId(),
             UploadedAt       = DateTime.Now,
-            OriginalFilename  = file.FileName,
-            StorageFilename   = storageName,
-            MimeType          = file.ContentType,
-            FileSizeBytes     = file.Length,
-            Bemerkung         = string.IsNullOrWhiteSpace(bemerkung) ? null : bemerkung.Trim(),
-            EmployeeId        = employeeId,
-            NotifyUserId      = notifyUserId,
-            TargetType        = t,
+            OriginalFilename = file.FileName,
+            StorageFilename  = storageName,
+            MimeType         = file.ContentType,
+            FileSizeBytes    = file.Length,
+            Bemerkung        = string.IsNullOrWhiteSpace(bemerkung) ? null : bemerkung.Trim(),
+            EmployeeId       = resolvedEmployeeId,
+            NotifyUserId     = notifyUserId,
+            TargetType       = t,
+            TargetUserId     = resolvedTargetUserId,
         };
         _db.MailboxDocuments.Add(doc);
         await _db.SaveChangesAsync();
-
-        // TODO Phase 2: Email-Benachrichtigung an notifyUserId senden
 
         return Ok(new { id = doc.Id });
     }
@@ -595,6 +701,7 @@ public class MailboxController : ControllerBase
             "BUCH"     => UserCanSeeBuchhaltung(),
             "ADMIN"    => false, // Admin schon oben gehandhabt
             "EMPLOYEE" => await UserCanSeeEmployeeMailboxAsync(doc),
+            "USER"     => uid.HasValue && doc.TargetUserId == uid.Value,
             _          => false,
         };
     }
