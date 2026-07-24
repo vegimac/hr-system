@@ -19,7 +19,7 @@ namespace HrSystem.Controllers;
 ///   /webdav/hr/                     ← gemeinsames HR-Postfach (sichtbar: AppUser.IsHrTeam + Admin)
 ///   /webdav/admin/                  ← Admin-Postfach (sichtbar: nur Admin)
 ///   /webdav/benutzer/               ← App-Benutzer (User→User; nur reinlegen, Inbox fremder User unsichtbar)
-///   /webdav/meine-mitteilungen/     ← eigene USER-Inbox (lesen/löschen)
+///   /webdav/meine-mitteilungen/     ← eigene USER-Inbox (lesen/löschen/reinlegen «An mich»)
 ///
 /// Senden ist offen: jeder authentifizierte App-User (nicht MA-Rolle) kann an
 /// Filiale/HR/Admin/Benutzer senden. Lesen folgt dem Berechtigungs-Schema oben.
@@ -247,27 +247,49 @@ public class WebDavController : ControllerBase
                 foreach (var r in recipients)
                 {
                     var slug = UserSlug(r);
+                    var label = r.Id == user.Id ? "An mich" : UserDisplay(r);
                     AppendCollection(sb,
                         $"/webdav/{F_BENUTZER}/{Uri.EscapeDataString(slug)}/",
-                        UserDisplay(r), DateTime.UtcNow);
+                        label, DateTime.UtcNow);
                 }
             }
         }
-        // ── /webdav/benutzer/{slug}/ — Dropbox: Inhalt fremder User unsichtbar ──
+        // ── /webdav/benutzer/{slug}/ — Dropbox; eigene Inbox lesbar, fremde nicht ──
         else if (segments.Length == 2 && segments[0] == F_BENUTZER)
         {
             if (!IsAppUser(user)) return StatusCode(403);
             var target = await FindUserBySlugAsync(segments[1]);
             if (target == null || !IsAppUser(target)) return StatusCode(404);
+            var display = target.Id == user.Id ? "An mich" : UserDisplay(target);
             AppendCollection(sb,
                 $"/webdav/{F_BENUTZER}/{Uri.EscapeDataString(segments[1])}/",
-                UserDisplay(target), DateTime.UtcNow);
-            // Keine Dateiliste — fremde Inbox bleibt privat (nur PUT erlaubt).
+                display, DateTime.UtcNow);
+            if (depth != "0" && target.Id == user.Id)
+            {
+                var docs = await _db.MailboxDocuments
+                    .Where(d => d.TargetType == "USER" && d.TargetUserId == user.Id)
+                    .OrderByDescending(d => d.UploadedAt)
+                    .ToListAsync();
+                foreach (var d in docs)
+                {
+                    var fname = MakeListingFilename(d);
+                    AppendFile(sb,
+                        $"/webdav/{F_BENUTZER}/{Uri.EscapeDataString(segments[1])}/{Uri.EscapeDataString(fname)}",
+                        d.OriginalFilename, d.MimeType, d.FileSizeBytes ?? 0, d.UploadedAt);
+                }
+            }
+            // Fremde Inbox: keine Dateiliste (nur PUT).
         }
         else if (segments.Length == 3 && segments[0] == F_BENUTZER)
         {
-            // Einzeldatei unter fremdem Benutzer-Ordner: nicht lesbar.
-            return StatusCode(404);
+            if (!IsAppUser(user)) return StatusCode(403);
+            var target = await FindUserBySlugAsync(segments[1]);
+            if (target == null || target.Id != user.Id) return StatusCode(404);
+            var doc = await FindUserInboxDocumentAsync(user.Id, segments[2]);
+            if (doc == null) return StatusCode(404);
+            AppendFile(sb,
+                $"/webdav/{F_BENUTZER}/{Uri.EscapeDataString(segments[1])}/{Uri.EscapeDataString(segments[2])}",
+                doc.OriginalFilename, doc.MimeType, doc.FileSizeBytes ?? 0, doc.UploadedAt);
         }
         // ── /webdav/meine-mitteilungen/ — eigene USER-Inbox ──
         else if (segments.Length == 1 && segments[0] == F_MEINE)
@@ -346,14 +368,24 @@ public class WebDavController : ControllerBase
             var target = await FindUserBySlugAsync(segments[1]);
             if (target == null || !target.IsActive || !IsAppUser(target))
                 return StatusCode(404);
-            if (target.Id == user.Id)
-                return StatusCode(403); // nicht an sich selbst
+            // Selbst-Zustellung erlaubt (Walter 24.07.2026) — eigene Ablage-Box
             targetType = "USER";
             targetUserId = target.Id;
             var senderBranch = await ResolveSenderBranchAsync(user);
             if (senderBranch == null) return StatusCode(403);
             companyProfileId = senderBranch.Value;
             fname = segments[2];
+        }
+        else if (segments.Length == 2 && segments[0] == F_MEINE)
+        {
+            // Direkt in «Meine Mitteilungen» scannen (An mich)
+            if (!IsAppUser(user)) return StatusCode(403);
+            targetType = "USER";
+            targetUserId = user.Id;
+            var senderBranch = await ResolveSenderBranchAsync(user);
+            if (senderBranch == null) return StatusCode(403);
+            companyProfileId = senderBranch.Value;
+            fname = segments[1];
         }
         else
         {
@@ -430,6 +462,13 @@ public class WebDavController : ControllerBase
             if (!IsAppUser(user)) return StatusCode(403);
             doc = await FindUserInboxDocumentAsync(user.Id, segments[1]);
         }
+        else if (segments.Length == 3 && segments[0] == F_BENUTZER)
+        {
+            if (!IsAppUser(user)) return StatusCode(403);
+            var target = await FindUserBySlugAsync(segments[1]);
+            if (target == null || target.Id != user.Id) return StatusCode(403);
+            doc = await FindUserInboxDocumentAsync(user.Id, segments[2]);
+        }
 
         if (doc == null) return StatusCode(404);
 
@@ -475,6 +514,13 @@ public class WebDavController : ControllerBase
         {
             if (!IsAppUser(user)) return StatusCode(403);
             doc = await FindUserInboxDocumentAsync(user.Id, segments[1]);
+        }
+        else if (segments.Length == 3 && segments[0] == F_BENUTZER)
+        {
+            if (!IsAppUser(user)) return StatusCode(403);
+            var target = await FindUserBySlugAsync(segments[1]);
+            if (target == null || target.Id != user.Id) return StatusCode(403);
+            doc = await FindUserInboxDocumentAsync(user.Id, segments[2]);
         }
 
         if (doc == null) return StatusCode(404);
@@ -586,13 +632,20 @@ public class WebDavController : ControllerBase
     // Format: "{id}-{name-slug}" — Id ist stabil, Name nur Anzeige.
     private async Task<List<AppUser>> ListUserRecipientsAsync(AppUser sender)
     {
-        return await _db.AppUsers.AsNoTracking()
+        // Eigener User zuerst («An mich»), danach die anderen alphabetisch.
+        var others = await _db.AppUsers.AsNoTracking()
             .Where(u => u.IsActive
                      && u.Role != "employee"
                      && u.Id != sender.Id)
             .OrderBy(u => u.FirstName ?? "")
             .ThenBy(u => u.LastName ?? u.Username)
             .ToListAsync();
+        var me = await _db.AppUsers.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == sender.Id);
+        var list = new List<AppUser>();
+        if (me != null) list.Add(me);
+        list.AddRange(others);
+        return list;
     }
 
     private async Task<AppUser?> FindUserBySlugAsync(string slug)

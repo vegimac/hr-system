@@ -221,7 +221,7 @@ async function pbLoadList() {
             return;
         }
         // Walter 20.07.2026: GF darf Posteingang in Personalakte ablegen.
-        // Persönliche User→User-Mitteilungen: kein Ablegen in die Akte.
+        // Auch aus «Meine Mitteilungen» (Selbst-Scans zum späteren Ablegen).
         const isOps = typeof isOpsRole === 'function' ? isOpsRole()
             : (currentUser?.role === 'admin' || currentUser?.role === 'superuser' || currentUser?.role === 'user');
         const isPersonalInbox = pf.type === 'USER';
@@ -245,7 +245,8 @@ async function pbLoadList() {
             const title = d.messageBody
                 ? (d.originalFilename || 'Mitteilung')
                 : (d.originalFilename || 'Dokument');
-            const canAblage = isOps && !isPersonalInbox && d.targetType !== 'USER' && d.targetType !== 'EMPLOYEE';
+            // Ablegen: geteilte Postfächer + eigene Box; nicht aus fremdem MA-Postfach-Kontext
+            const canAblage = isOps && d.targetType !== 'EMPLOYEE' && !d.messageBody;
             const hasFile = !!(d.originalFilename && !d.messageBody) || (d.fileSizeBytes > 0 && !d.messageBody);
             const previewBtn = d.messageBody
                 ? `<span style="font-weight:600;color:#3f3f3f">💬 ${title}</span>`
@@ -344,17 +345,26 @@ async function pbOpenUpload() {
             adminOpts.forEach(() => { html += `<option value="ADMIN">Admin-Postfach</option>`; });
             html += '</optgroup>';
         }
-        if (userRecipients.length) {
-            html += '<optgroup label="Benutzer">';
-            html += userRecipients.map(u => {
-                const label = (u.name || u.username || ('User #' + u.id)).trim();
-                const role = u.role === 'admin' ? 'Admin'
-                    : u.role === 'superuser' ? 'Superuser'
-                    : u.role === 'buchhaltung' ? 'Buchhaltung'
-                    : 'Benutzer';
-                return `<option value="USER:${u.id}">${label} (${role})</option>`;
-            }).join('');
-            html += '</optgroup>';
+        {
+            // «An mich» zuerst — eigene Box zum späteren Ablegen (Walter 24.07.2026)
+            const myId = currentUser?.id;
+            if (myId || userRecipients.length) {
+                html += '<optgroup label="Benutzer">';
+                if (myId) {
+                    html += `<option value="USER:${myId}">An mich — Meine Mitteilungen</option>`;
+                }
+                html += userRecipients
+                    .filter(u => !myId || Number(u.id) !== Number(myId))
+                    .map(u => {
+                        const label = (u.name || u.username || ('User #' + u.id)).trim();
+                        const role = u.role === 'admin' ? 'Admin'
+                            : u.role === 'superuser' ? 'Superuser'
+                            : u.role === 'buchhaltung' ? 'Buchhaltung'
+                            : 'Benutzer';
+                        return `<option value="USER:${u.id}">${label} (${role})</option>`;
+                    }).join('');
+                html += '</optgroup>';
+            }
         }
         if (empsForSend.length) {
             html += '<optgroup label="Mitarbeiter">';

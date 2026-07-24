@@ -345,9 +345,8 @@ public class MailboxController : ControllerBase
                 return BadRequest(new { error = "Empfänger-Benutzer nicht gefunden." });
             if (target.Role == "employee")
                 return BadRequest(new { error = "An MA bitte über Ziel «Mitarbeiter» senden." });
-            var me = GetCurrentUserId();
-            if (me.HasValue && target.Id == me.Value)
-                return BadRequest(new { error = "Du kannst nicht an dich selbst senden." });
+            // Selbst-Zustellung erlaubt (Walter 24.07.2026): Scan/Upload in die
+            // eigene Box «Meine Mitteilungen», z.B. zum späteren Ablegen.
             resolvedTargetUserId = target.Id;
             if (companyProfileId.HasValue)
                 effectiveBranchId = companyProfileId.Value;
