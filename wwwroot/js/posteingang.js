@@ -151,7 +151,7 @@ async function pbInit() {
 // leer. Aktualisiert NUR die Options-Texte, Auswahl bleibt erhalten.
 async function pbRefreshPostfachCounts() {
     const sel = document.getElementById('pbBranchSelect');
-    if (!sel || sel.options.length <= 1) return;
+    if (!sel || sel.options.length === 0) return;
     try {
         const r = await fetch('/api/mailbox/postfaecher', { headers: ah(), cache: 'no-store' });
         if (!r.ok) return;
@@ -164,7 +164,20 @@ async function pbRefreshPostfachCounts() {
             const cnt = p.count > 0 ? ` (${p.count})` : '';
             o.textContent = `${pbPostfachLabel(p)}${cnt}`;
         });
+        // Liquid-Select-Button neu zeichnen — sonst bleibt z.B. «(1)» stehen,
+        // obwohl die <option>-Texte schon stimmen (Walter-Bug 24.07.2026).
+        sel._lqRefresh?.();
     } catch { /* reine Anzeige */ }
+}
+
+/** Zähler der aktuellen Auswahl an die geladene Listenlänge anbinden. */
+function pbPatchSelectedCount(n) {
+    const sel = document.getElementById('pbBranchSelect');
+    const o = sel?.selectedOptions?.[0];
+    if (!o) return;
+    const base = (o.textContent || '').replace(/\s*\(\d+\)\s*$/, '').trim() || o.textContent;
+    o.textContent = n > 0 ? `${base} (${n})` : base;
+    sel._lqRefresh?.();
 }
 
 function pbPostfachValue(p) {
@@ -218,6 +231,9 @@ async function pbLoadList() {
         const docs = await r.json();
         if (!docs.length) {
             list.innerHTML = '<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;background:#f8fafc;border-radius:10px">Posteingang ist leer 📭</div>';
+            pbUpdateBadge();
+            await pbRefreshPostfachCounts();
+            pbPatchSelectedCount(0);
             return;
         }
         // Walter 20.07.2026: GF darf Posteingang in Personalakte ablegen.
@@ -277,7 +293,9 @@ async function pbLoadList() {
         list.innerHTML = `<div style="padding:16px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:13px">Fehler: ${err.message}</div>`;
     }
     pbUpdateBadge();
-    pbRefreshPostfachCounts();   // Dropdown-Zähler mitziehen (Walter 13.07.2026)
+    await pbRefreshPostfachCounts();   // Dropdown-Zähler mitziehen (Walter 13.07.2026)
+    // Aktuelles Postfach: Zähler = echte Listenlänge (verhindert hängendes «(1)»)
+    if (Array.isArray(docs)) pbPatchSelectedCount(docs.length);
 }
 
 async function pbUpdateBadge() {
