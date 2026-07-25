@@ -227,7 +227,7 @@ public class SperrfristService
                     var kuendAbTheo = sperrEndeMax.AddDays(1);
                     return new SperrfristInfo(
                         Status:                "AU_ENDE_UNBESTAETIGT",
-                        StatusText:            $"Die dokumentierte Arbeitsunfähigkeit endete am {letzte.Ende:dd.MM.yyyy}. Dauert die AU tatsächlich noch an (z.B. Zeugnis-Verlängerung noch nicht erfasst), läuft die Sperrfrist bis {sperrEndeMax:dd.MM.yyyy} — vor einer Kündigung das AU-Ende ärztlich bestätigen lassen (Art. 336c OR).",
+                        StatusText:            $"Die dokumentierte Arbeitsunfähigkeit endete am {letzte.Ende:dd.MM.yyyy}. Dauert die AU tatsächlich noch an (z.B. Zeugnis-Verlängerung noch nicht erfasst), läuft die Sperrfrist bis {sperrEndeMax:dd.MM.yyyy} — vor einer Kündigung das AU-Ende ärztlich bestätigen lassen.",
                         Hinweis:               "Weiche Warnung — blockiert nicht. Bei bestätigtem AU-Ende gelten normale Kündigungsfristen.",
                         EntryDate:             entryDate,
                         DienstjahrAmStichtag:  dienstjahr,
@@ -252,7 +252,7 @@ public class SperrfristService
                     return new SperrfristInfo(
                         Status:                "KUENDIGUNG_MOEGLICH",
                         StatusText:            $"Kündigung jetzt möglich — Sperrfrist ({tageMax} Tage) endete am {sperrEndeMax:dd.MM.yyyy} während der AU. Letzte durchgehende AU {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy}.",
-                        Hinweis:               "Ordentliche Kündigung ist zulässig (Art. 336c OR). Prüfen, ob die AU wirklich beendet ist (Zeugnis).",
+                        Hinweis:               "Prüfen, ob die AU wirklich beendet ist (Zeugnis).",
                         EntryDate:             entryDate,
                         DienstjahrAmStichtag:  dienstjahr,
                         ProbezeitEndDate:      probezeitEnde,
@@ -346,7 +346,7 @@ public class SperrfristService
 
         string status     = abgelaufen ? "SPERRFRIST_ABGELAUFEN" : "GESCHUETZT";
         string statusText = abgelaufen
-            ? $"Maximale Sperrfrist ist am {sperrfristEnde:dd.MM.yyyy} abgelaufen — Kündigung jetzt möglich (Art. 336c OR)."
+            ? $"Maximale Sperrfrist ist am {sperrfristEnde:dd.MM.yyyy} abgelaufen — Kündigung jetzt möglich."
             : $"Aktuell kündigungsgeschützt aufgrund Arbeitsunfähigkeit (ärztlich erfasst bis {auKette.Ende:dd.MM.yyyy}). Bei durchgehender AU maximale Sperrfrist bis {sperrfristEnde:dd.MM.yyyy} — Kündigung frühestens ab {kuendigungAb:dd.MM.yyyy}.";
 
         string? hinweis = null;
