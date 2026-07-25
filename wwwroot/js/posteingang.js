@@ -122,8 +122,13 @@ async function pbInit() {
         }
         branchSel.innerHTML = html;
 
-        // Vorauswahl: vorherige Wahl behalten, sonst Filial-Filter, sonst erstes mit Inhalt
-        if (prevVal && [...branchSel.options].some(o => o.value === prevVal)) {
+        // Vorauswahl (Walter 25.07.2026): eigenes Benutzer-Postfach zuerst,
+        // sonst vorherige Wahl / Filial-Filter / erstes mit Inhalt.
+        const ownUser = userOpts.find(p => p.isSelf)
+            || (currentUser?.id ? userOpts.find(p => Number(p.targetUserId) === Number(currentUser.id)) : null);
+        if (ownUser) {
+            branchSel.value = pbPostfachValue(ownUser);
+        } else if (prevVal && [...branchSel.options].some(o => o.value === prevVal)) {
             branchSel.value = prevVal;
         } else if (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId
             && branchOpts.find(p => p.companyProfileId === fixedCompanyProfileId)) {
@@ -774,10 +779,7 @@ async function pbDoTransfer(mode) {
             '<div style="padding:8px;background:#fef2f2;color:#b91c1c;border-radius:6px;font-size:12px">Bitte Ziel wählen.</div>';
         return;
     }
-    const label = mode === 'move' ? 'Verschieben' : 'Weiterleiten';
-    if (!confirm(`${label} nach «${document.getElementById('pbTransferTarget').selectedOptions[0]?.textContent || targetVal}»?`))
-        return;
-
+    // Kein zweites confirm — Modal + Aktion genügt (Walter 25.07.2026).
     const body = {
         mode,
         targetType: pf.type,
@@ -802,6 +804,14 @@ async function pbDoTransfer(mode) {
             throw new Error(msg);
         }
         pbCloseTransfer();
+        // Nach Verschieben: ins Ziel-Postfach springen
+        if (mode === 'move' && targetVal) {
+            const sel = document.getElementById('pbBranchSelect');
+            if (sel && [...sel.options].some(o => o.value === targetVal)) {
+                sel.value = targetVal;
+                sel._lqRefresh?.();
+            }
+        }
         await pbLoadList();
         await pbUpdateBadge();
     } catch (err) {
