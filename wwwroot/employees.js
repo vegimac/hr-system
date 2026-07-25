@@ -7528,19 +7528,19 @@ function renderSperrfristPanel(info) {
             </div>`);
     }
     if (status === 'KEINE_AU') {
-        // Mit abgelaufener Sperrfrist aus letzter Kette → gleicher Klartext wie «kündbar»
-        if (info.auBeginn && info.sperrfristEnde && info.kuendigungAbDatum) {
-            return wrap('#166534', '#ecfdf5', '#6ee7b7', `
-                <div style="font-weight:800;color:#14532d;font-size:15px;line-height:1.4">${heroKuendbar}</div>
-                <div style="color:#475569;margin-top:8px;font-size:12.5px;line-height:1.45">
-                    ${djText} · Sperrfrist (${maxTage || '–'} Tage) endete am ${fmtDate(info.sperrfristEnde)}
-                    · kündbar seit ${fmtDate(info.kuendigungAbDatum)}
-                    · Kündigungsfrist ${kuendPerInfo.months} Monat(e) auf Ende Monat (L-GAV).
-                </div>`);
-        }
+        // Walter 25.07.2026: ohne laufende AU = normale Kündigungsfristen.
+        // Kein «KÜNDBAR / Sperrfrist»-Sonderbanner für gesunde MA.
+        const hinweis = info.hinweis
+            ? `<div style="color:#64748b;margin-top:6px;font-size:12px;line-height:1.45">${esc(info.hinweis)}</div>`
+            : `<div style="color:#64748b;margin-top:4px;font-size:12px">Sperrfristen nach Art. 336c OR greifen nur während durchgehender Krankheit oder Unfall.</div>`;
         return wrap('#16a34a', '#f0fdf4', '#bbf7d0',
             `<div style="font-weight:700;color:#0f172a">Kein Kündigungsschutz aktiv</div>
-             <div style="color:#475569;margin-top:4px">${djText} · Ordentliche Kündigung ist möglich. Sperrfristen greifen nur bei durchgehender Krankheit/Unfall.</div>`);
+             <div style="color:#475569;margin-top:4px;line-height:1.45">
+                ${djText} · Ordentliche Kündigung mit normalen Fristen möglich
+                (L-GAV: ${kuendPerInfo.months} Monat${kuendPerInfo.months === 1 ? '' : 'e'} auf Ende Monat
+                → bei Kündigung heute per <b>${kuendPerTxt}</b>).
+             </div>
+             ${hinweis}`);
     }
 
     const isGeschuetzt = status === 'GESCHUETZT';
