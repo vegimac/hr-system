@@ -196,27 +196,39 @@ public class SperrfristService
             if (letzte is not null)
             {
                 int djLetzte = ComputeDienstjahr(entryDate, letzte.Beginn);
-                int tageLetzte = SperrfristTageFuerDienstjahr(djLetzte);
-                var sperrEndeLetzte = letzte.Beginn.AddDays(tageLetzte - 1);
-                int djEnde = ComputeDienstjahr(entryDate, sperrEndeLetzte);
+                int tageMax = SperrfristTageFuerDienstjahr(djLetzte);
+                var sperrEndeMax = letzte.Beginn.AddDays(tageMax - 1);
+                int djEnde = ComputeDienstjahr(entryDate, sperrEndeMax);
                 if (djEnde > djLetzte)
                 {
                     int hoeher = SperrfristTageFuerDienstjahr(djEnde);
-                    if (hoeher > tageLetzte)
+                    if (hoeher > tageMax)
                     {
-                        tageLetzte = hoeher;
-                        sperrEndeLetzte = letzte.Beginn.AddDays(hoeher - 1);
+                        tageMax = hoeher;
+                        sperrEndeMax = letzte.Beginn.AddDays(hoeher - 1);
                     }
                 }
-                var kuendAbLetzte = sperrEndeLetzte.AddDays(1);
                 int auDauer = letzte.Ende.DayNumber - letzte.Beginn.DayNumber + 1;
+                int tageSeitAuEnde = stichtag.DayNumber - letzte.Ende.DayNumber;
 
-                if (stichtag <= sperrEndeLetzte)
+                // Effektives Schutz-Ende = min(AU-Ende, max. Sperrfrist).
+                // Endet die AU VOR dem max. Sperrfrist-Tag, endet der Schutz
+                // mit dem letzten AU-Tag — danach normale Kündigungsfristen
+                // (Walter 25.07.2026: kein «KÜNDBAR wegen Sperrfrist» bei
+                // gesunden MA mit kurzer abgeschlossener Krankheit).
+                var schutzEndeEffektiv = letzte.Ende < sperrEndeMax ? letzte.Ende : sperrEndeMax;
+                bool sperrfristWaehrendAuAusgeschoepft = letzte.Ende >= sperrEndeMax;
+
+                // Weiche Warnung nur wenn AU-Ende SEHR kürzlich und die
+                // maximale Sperrfrist bei fortdauernder AU noch liefe
+                // (Zeugnis-Verlängerung evtl. noch nicht erfasst).
+                if (tageSeitAuEnde <= 14 && stichtag <= sperrEndeMax && !sperrfristWaehrendAuAusgeschoepft)
                 {
+                    var kuendAbTheo = sperrEndeMax.AddDays(1);
                     return new SperrfristInfo(
                         Status:                "AU_ENDE_UNBESTAETIGT",
-                        StatusText:            $"Die dokumentierte Arbeitsunfähigkeit endete am {letzte.Ende:dd.MM.yyyy}. Dauert die AU tatsächlich noch an (z.B. Zeugnis-Verlängerung noch nicht erfasst), läuft die Sperrfrist bis {sperrEndeLetzte:dd.MM.yyyy} — vor einer Kündigung das AU-Ende ärztlich bestätigen lassen (Art. 336c OR).",
-                        Hinweis:               "Weiche Warnung — blockiert nicht. Bei bestätigtem AU-Ende ist die Kündigung zulässig.",
+                        StatusText:            $"Die dokumentierte Arbeitsunfähigkeit endete am {letzte.Ende:dd.MM.yyyy}. Dauert die AU tatsächlich noch an (z.B. Zeugnis-Verlängerung noch nicht erfasst), läuft die Sperrfrist bis {sperrEndeMax:dd.MM.yyyy} — vor einer Kündigung das AU-Ende ärztlich bestätigen lassen (Art. 336c OR).",
+                        Hinweis:               "Weiche Warnung — blockiert nicht. Bei bestätigtem AU-Ende gelten normale Kündigungsfristen.",
                         EntryDate:             entryDate,
                         DienstjahrAmStichtag:  dienstjahr,
                         ProbezeitEndDate:      probezeitEnde,
@@ -224,24 +236,22 @@ public class SperrfristService
                         AuEnde:                letzte.Ende,
                         AuGrund:               letzte.Grund,
                         AuDauerTage:           auDauer,
-                        SperrfristTage:        tageLetzte,
+                        SperrfristTage:        tageMax,
                         SperrfristTageHoechstenfalls: null,
-                        SperrfristEnde:        sperrEndeLetzte,
+                        SperrfristEnde:        sperrEndeMax,
                         AktuellGeschuetztBis:  null,
-                        KuendigungAbDatum:     kuendAbLetzte,
-                        VerbleibendeTage:      Math.Max(0, kuendAbLetzte.DayNumber - stichtag.DayNumber));
+                        KuendigungAbDatum:     kuendAbTheo,
+                        VerbleibendeTage:      Math.Max(0, kuendAbTheo.DayNumber - stichtag.DayNumber));
                 }
 
-                // Walter 25.07.2026: Sperrfrist schon abgelaufen + AU kürzlich
-                // beendet → klarer Status inkl. Ketten-Daten (Anzeige + ToDo).
-                // «Kürzlich» = AU-Ende innerhalb der letzten 90 Tage (ToDo-Fenster
-                // steuert DashboardService separat über warn_days).
-                int tageSeitAuEnde = stichtag.DayNumber - letzte.Ende.DayNumber;
-                if (tageSeitAuEnde <= 90)
+                // Langzeit-AU: Sperrfrist wurde WÄHREND der Krankheit
+                // ausgeschöpft, AU kürzlich beendet → spezieller Hinweis/ToDo.
+                if (sperrfristWaehrendAuAusgeschoepft && tageSeitAuEnde <= 90)
                 {
+                    var kuendAb = sperrEndeMax.AddDays(1);
                     return new SperrfristInfo(
                         Status:                "KUENDIGUNG_MOEGLICH",
-                        StatusText:            $"Kündigung jetzt möglich — Sperrfrist ({tageLetzte} Tage) endete am {sperrEndeLetzte:dd.MM.yyyy}. Letzte durchgehende AU {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy}.",
+                        StatusText:            $"Kündigung jetzt möglich — Sperrfrist ({tageMax} Tage) endete am {sperrEndeMax:dd.MM.yyyy} während der AU. Letzte durchgehende AU {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy}.",
                         Hinweis:               "Ordentliche Kündigung ist zulässig (Art. 336c OR). Prüfen, ob die AU wirklich beendet ist (Zeugnis).",
                         EntryDate:             entryDate,
                         DienstjahrAmStichtag:  dienstjahr,
@@ -250,37 +260,40 @@ public class SperrfristService
                         AuEnde:                letzte.Ende,
                         AuGrund:               letzte.Grund,
                         AuDauerTage:           auDauer,
-                        SperrfristTage:        tageLetzte,
+                        SperrfristTage:        tageMax,
                         SperrfristTageHoechstenfalls: null,
-                        SperrfristEnde:        sperrEndeLetzte,
+                        SperrfristEnde:        sperrEndeMax,
                         AktuellGeschuetztBis:  null,
-                        KuendigungAbDatum:     kuendAbLetzte,
+                        KuendigungAbDatum:     kuendAb,
                         VerbleibendeTage:      0);
                 }
 
-                // Ältere Episode: kein Alarm-Status, aber Ketten-Daten für die Anzeige.
+                // Gesunder MA (kurze AU vorbei oder Langzeit-AU lange her):
+                // kein Sperrfrist-Sonderstatus — normale Kündigungsfristen.
                 return new SperrfristInfo(
                     Status:                "KEINE_AU",
-                    StatusText:            "Kein aktiver Kündigungsschutz — am Stichtag keine Arbeitsunfähigkeit.",
-                    Hinweis:               $"Letzte AU-Kette {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy}: Sperrfrist ({tageLetzte} Tage) endete am {sperrEndeLetzte:dd.MM.yyyy}, kündbar ab {kuendAbLetzte:dd.MM.yyyy}.",
+                    StatusText:            "Kein Kündigungsschutz aktiv — am Stichtag keine Arbeitsunfähigkeit. Ordentliche Kündigung mit normalen Fristen (L-GAV) möglich.",
+                    Hinweis:               letzte.Ende < sperrEndeMax
+                        ? $"Letzte AU {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy} ({auDauer} Tage): Schutz endete mit dem letzten AU-Tag ({schutzEndeEffektiv:dd.MM.yyyy})."
+                        : $"Letzte AU {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy}: Sperrfrist war während der AU am {sperrEndeMax:dd.MM.yyyy} ausgeschöpft.",
                     EntryDate:             entryDate,
                     DienstjahrAmStichtag:  dienstjahr,
                     ProbezeitEndDate:      probezeitEnde,
-                    AuBeginn:              letzte.Beginn,
-                    AuEnde:                letzte.Ende,
-                    AuGrund:               letzte.Grund,
-                    AuDauerTage:           auDauer,
-                    SperrfristTage:        tageLetzte,
+                    AuBeginn:              null,
+                    AuEnde:                null,
+                    AuGrund:               null,
+                    AuDauerTage:           null,
+                    SperrfristTage:        null,
                     SperrfristTageHoechstenfalls: null,
-                    SperrfristEnde:        sperrEndeLetzte,
+                    SperrfristEnde:        null,
                     AktuellGeschuetztBis:  null,
-                    KuendigungAbDatum:     kuendAbLetzte,
-                    VerbleibendeTage:      0);
+                    KuendigungAbDatum:     null,
+                    VerbleibendeTage:      null);
             }
 
             return new SperrfristInfo(
                 Status:                "KEINE_AU",
-                StatusText:            "Kein aktiver Kündigungsschutz — der Mitarbeiter ist am Stichtag nicht arbeitsunfähig. Ordentliche Kündigung möglich.",
+                StatusText:            "Kein Kündigungsschutz aktiv — am Stichtag keine Arbeitsunfähigkeit. Ordentliche Kündigung mit normalen Fristen (L-GAV) möglich.",
                 Hinweis:               null,
                 EntryDate:             entryDate,
                 DienstjahrAmStichtag:  dienstjahr,
