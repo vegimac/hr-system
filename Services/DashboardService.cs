@@ -28,10 +28,12 @@ public class DashboardService
 {
     private readonly AppDbContext _db;
     private readonly QstPflichtCheckService _qstCheck;
-    public DashboardService(AppDbContext db, QstPflichtCheckService qstCheck)
+    private readonly SperrfristService _sperrfrist;
+    public DashboardService(AppDbContext db, QstPflichtCheckService qstCheck, SperrfristService sperrfrist)
     {
         _db = db;
         _qstCheck = qstCheck;
+        _sperrfrist = sperrfrist;
     }
 
     public class DashboardAlert
@@ -467,6 +469,78 @@ public class DashboardService
                     EmployeeId     = e.Id,
                     EmployeeNumber = e.EmployeeNumber,
                     EmployeeName   = $"{e.FirstName} {e.LastName}".Trim()
+                });
+            }
+        }
+
+        // ── Kündigung nach Sperrfrist möglich (Walter 25.07.2026) ─────────
+        // Sobald Art. 336c-Sperrfrist bei durchgehender Krankheit/Unfall
+        // ausgeschöpft ist → ToDo «Wichtig». Verschwindet bei erfasster
+        // Kündigung (KuendigungPer) oder Austritt.
+        if (Enabled("kuendigung_sperrfrist_ende"))
+        {
+            int sperrLookback = WarnDays("kuendigung_sperrfrist_ende", 90);
+            var lookbackFrom = today.AddDays(-sperrLookback);
+            var recentAuEmpIds = await _db.Absences.AsNoTracking()
+                .Where(a => (a.AbsenceType == "KRANK" || a.AbsenceType == "UNFALL")
+                         && a.DateTo >= lookbackFrom)
+                .Select(a => a.EmployeeId)
+                .Distinct()
+                .ToListAsync();
+            var sperrCandQ = _db.Employees.AsNoTracking()
+                .Where(e => recentAuEmpIds.Contains(e.Id)
+                         && e.IsActive
+                         && e.EntryDate != null
+                         && !e.KuendigungPer.HasValue
+                         && !e.ExitDate.HasValue
+                         && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+            if (companyProfileId.HasValue)
+            {
+                sperrCandQ = sperrCandQ.Where(e =>
+                    e.Employments.Any(em => em.IsActive && em.CompanyProfileId == companyProfileId.Value)
+                    || (!e.Employments.Any(em => em.IsActive)
+                        && e.Employments.OrderByDescending(em => em.ContractStartDate)
+                            .Select(em => em.CompanyProfileId).FirstOrDefault() == companyProfileId.Value));
+            }
+            var sperrCands = await sperrCandQ
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+                .ToListAsync();
+            foreach (var e in sperrCands)
+            {
+                var info = await _sperrfrist.ComputeAsync(e.Id, today);
+                if (info.Status != "SPERRFRIST_ABGELAUFEN" && info.Status != "KUENDIGUNG_MOEGLICH")
+                    continue;
+                // Nur im konfigurierten Fenster nach «kündbar ab» behalten
+                if (info.KuendigungAbDatum.HasValue)
+                {
+                    int daysSinceKuendbar = today.DayNumber - info.KuendigungAbDatum.Value.DayNumber;
+                    if (daysSinceKuendbar > sperrLookback) continue;
+                }
+                var name = $"{e.FirstName} {e.LastName}".Trim();
+                string auTxt = (info.AuBeginn.HasValue && info.AuEnde.HasValue)
+                    ? $"AU {info.AuBeginn:dd.MM.yyyy} – {info.AuEnde:dd.MM.yyyy}"
+                    : "durchgehende AU";
+                string sperrTxt = info.SperrfristEnde.HasValue
+                    ? $"Sperrfrist bis {info.SperrfristEnde:dd.MM.yyyy}"
+                    : "Sperrfrist abgelaufen";
+                int? daysUntil = info.KuendigungAbDatum.HasValue
+                    ? info.KuendigungAbDatum.Value.DayNumber - today.DayNumber
+                    : 0;
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "kuendigung_sperrfrist_ende",
+                    Severity = SeverityState("kuendigung_sperrfrist_ende", "warning"),
+                    Title    = "Kündigung jetzt möglich (Sperrfrist Art. 336c abgelaufen)",
+                    Subtitle = $"{name} · Personalnr. {e.EmployeeNumber} · {auTxt} · {sperrTxt}"
+                             + (info.KuendigungAbDatum.HasValue
+                                 ? $" · kündbar seit {info.KuendigungAbDatum:dd.MM.yyyy}"
+                                 : ""),
+                    TitleKey = "alert.kuendigung.sperrfrist_ende",
+                    DueDate   = info.KuendigungAbDatum?.ToDateTime(TimeOnly.MinValue),
+                    DaysUntil = daysUntil,
+                    EmployeeId     = e.Id,
+                    EmployeeNumber = e.EmployeeNumber,
+                    EmployeeName   = name
                 });
             }
         }
@@ -1351,7 +1425,7 @@ public class DashboardService
         // AUSNAHME: die Karten, die GENAU vom Austritt/Vertragsende handeln —
         // die sollen ja gerade erscheinen.
         {
-            var keepCats = new HashSet<string> { "contract_end", "exit_pending_active", "kuendigung_ablauf" };
+            var keepCats = new HashSet<string> { "contract_end", "exit_pending_active", "kuendigung_ablauf", "kuendigung_sperrfrist_ende" };
             var filterIds = alerts
                 .Where(a => a.EmployeeId.HasValue && !keepCats.Contains(a.Category))
                 .Select(a => a.EmployeeId!.Value).Distinct().ToList();

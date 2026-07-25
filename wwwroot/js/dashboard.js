@@ -84,6 +84,7 @@ const DASH_CATEGORY_META = {
     probezeit_gespraech_offen: { i18nKey: 'dash.cat.probationTalkOpen', label: 'Probezeitgespräch offen', icon: '📋', color: '#92400e' },
     contract_end:           { i18nKey: 'dash.cat.contractEnding',   label: 'Vertragsende',           icon: '📅', color: '#92400e' },
     kuendigung_ablauf:      { i18nKey: 'dash.cat.terminationEnding', label: 'Vertragsende Kündigung', icon: '🚪', color: '#b91c1c' },
+    kuendigung_sperrfrist_ende: { i18nKey: 'dash.cat.terminationSperrfrist', label: 'Kündigung möglich (Sperrfrist)', icon: '⚖️', color: '#166534' },
     exit_pending_active:    { i18nKey: 'dash.cat.exitPendingActive',label: 'Austritt offen',         icon: '🚪', color: '#b91c1c' },
     qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },
     spouse_doku_fehlt:      { i18nKey: 'dash.cat.spouseDokuFehlt',  label: 'Ausweis Ehepartner',     icon: '🪪', color: '#b91c1c' },
@@ -367,6 +368,8 @@ function renderDashTodoRow(a) {
                                 ? `onclick="dashOpenEmployeeProbezeit(${a.employeeId})"`
                                 : a.category === 'availability_missing'
                                 ? `onclick="dashOpenEmployeeVerfuegbarkeit(${a.employeeId})"`
+                                : a.category === 'kuendigung_sperrfrist_ende'
+                                ? `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`
                                 : (a.category === 'exit_pending_active'
                                    || a.category === 'kuendigung_ablauf'
                                    || a.category === 'birthday'
@@ -503,6 +506,7 @@ function dashTodoOnClick(a) {
             case 'permit_expiring':
             case 'permit_missing':      return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'contract_end':        return `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`;
+            case 'kuendigung_sperrfrist_ende': return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'kuendigung_ablauf':
             case 'exit_pending_active':
             case 'birthday':
@@ -620,6 +624,8 @@ function renderDashAlertRow(a) {
                                 ? `onclick="dashOpenEmployeeProbezeit(${a.employeeId})"`
                                 : a.category === 'availability_missing'
                                 ? `onclick="dashOpenEmployeeVerfuegbarkeit(${a.employeeId})"`
+                                : a.category === 'kuendigung_sperrfrist_ende'
+                                ? `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`
                                 : (a.category === 'exit_pending_active'
                                    || a.category === 'kuendigung_ablauf'
                                    || a.category === 'birthday'

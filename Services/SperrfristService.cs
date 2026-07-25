@@ -56,7 +56,9 @@ public class SperrfristService
         /// "KEIN_EMPLOYMENT" – keine aktive Anstellung gefunden.
         /// "KEINE_AU"      – Stichtag: kein durchgehender AU-Block aktiv.
         /// "GESCHUETZT"    – aktuell Sperrfrist läuft noch; Kündigung unzulässig.
-        /// "SPERRFRIST_ABGELAUFEN" – Sperrfrist ist vorbei, Kündigung möglich.
+        /// "SPERRFRIST_ABGELAUFEN" – AU noch dokumentiert, max. Sperrfrist vorbei → Kündigung möglich.
+        /// "KUENDIGUNG_MOEGLICH" – AU kürzlich beendet, Sperrfrist schon abgelaufen → Kündigung möglich (ToDo).
+        /// "AU_ENDE_UNBESTAETIGT" – dokumentierte AU endete kürzlich, theoretische Sperrfrist läuft noch.
         /// </summary>
         string    Status,
         string    StatusText,
@@ -200,8 +202,15 @@ public class SperrfristService
                 if (djEnde > djLetzte)
                 {
                     int hoeher = SperrfristTageFuerDienstjahr(djEnde);
-                    if (hoeher > tageLetzte) sperrEndeLetzte = letzte.Beginn.AddDays(hoeher - 1);
+                    if (hoeher > tageLetzte)
+                    {
+                        tageLetzte = hoeher;
+                        sperrEndeLetzte = letzte.Beginn.AddDays(hoeher - 1);
+                    }
                 }
+                var kuendAbLetzte = sperrEndeLetzte.AddDays(1);
+                int auDauer = letzte.Ende.DayNumber - letzte.Beginn.DayNumber + 1;
+
                 if (stichtag <= sperrEndeLetzte)
                 {
                     return new SperrfristInfo(
@@ -214,14 +223,59 @@ public class SperrfristService
                         AuBeginn:              letzte.Beginn,
                         AuEnde:                letzte.Ende,
                         AuGrund:               letzte.Grund,
-                        AuDauerTage:           letzte.Ende.DayNumber - letzte.Beginn.DayNumber + 1,
-                        SperrfristTage:        null,
+                        AuDauerTage:           auDauer,
+                        SperrfristTage:        tageLetzte,
                         SperrfristTageHoechstenfalls: null,
                         SperrfristEnde:        sperrEndeLetzte,
                         AktuellGeschuetztBis:  null,
-                        KuendigungAbDatum:     sperrEndeLetzte.AddDays(1),
-                        VerbleibendeTage:      null);
+                        KuendigungAbDatum:     kuendAbLetzte,
+                        VerbleibendeTage:      Math.Max(0, kuendAbLetzte.DayNumber - stichtag.DayNumber));
                 }
+
+                // Walter 25.07.2026: Sperrfrist schon abgelaufen + AU kürzlich
+                // beendet → klarer Status inkl. Ketten-Daten (Anzeige + ToDo).
+                // «Kürzlich» = AU-Ende innerhalb der letzten 90 Tage (ToDo-Fenster
+                // steuert DashboardService separat über warn_days).
+                int tageSeitAuEnde = stichtag.DayNumber - letzte.Ende.DayNumber;
+                if (tageSeitAuEnde <= 90)
+                {
+                    return new SperrfristInfo(
+                        Status:                "KUENDIGUNG_MOEGLICH",
+                        StatusText:            $"Kündigung jetzt möglich — Sperrfrist ({tageLetzte} Tage) endete am {sperrEndeLetzte:dd.MM.yyyy}. Letzte durchgehende AU {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy}.",
+                        Hinweis:               "Ordentliche Kündigung ist zulässig (Art. 336c OR). Prüfen, ob die AU wirklich beendet ist (Zeugnis).",
+                        EntryDate:             entryDate,
+                        DienstjahrAmStichtag:  dienstjahr,
+                        ProbezeitEndDate:      probezeitEnde,
+                        AuBeginn:              letzte.Beginn,
+                        AuEnde:                letzte.Ende,
+                        AuGrund:               letzte.Grund,
+                        AuDauerTage:           auDauer,
+                        SperrfristTage:        tageLetzte,
+                        SperrfristTageHoechstenfalls: null,
+                        SperrfristEnde:        sperrEndeLetzte,
+                        AktuellGeschuetztBis:  null,
+                        KuendigungAbDatum:     kuendAbLetzte,
+                        VerbleibendeTage:      0);
+                }
+
+                // Ältere Episode: kein Alarm-Status, aber Ketten-Daten für die Anzeige.
+                return new SperrfristInfo(
+                    Status:                "KEINE_AU",
+                    StatusText:            "Kein aktiver Kündigungsschutz — am Stichtag keine Arbeitsunfähigkeit.",
+                    Hinweis:               $"Letzte AU-Kette {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy}: Sperrfrist ({tageLetzte} Tage) endete am {sperrEndeLetzte:dd.MM.yyyy}, kündbar ab {kuendAbLetzte:dd.MM.yyyy}.",
+                    EntryDate:             entryDate,
+                    DienstjahrAmStichtag:  dienstjahr,
+                    ProbezeitEndDate:      probezeitEnde,
+                    AuBeginn:              letzte.Beginn,
+                    AuEnde:                letzte.Ende,
+                    AuGrund:               letzte.Grund,
+                    AuDauerTage:           auDauer,
+                    SperrfristTage:        tageLetzte,
+                    SperrfristTageHoechstenfalls: null,
+                    SperrfristEnde:        sperrEndeLetzte,
+                    AktuellGeschuetztBis:  null,
+                    KuendigungAbDatum:     kuendAbLetzte,
+                    VerbleibendeTage:      0);
             }
 
             return new SperrfristInfo(

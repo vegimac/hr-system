@@ -617,7 +617,8 @@ using (var scope = app.Services.CreateScope())
             ('permit_missing',         'Aufenthaltsbewilligung fehlt',           TRUE, NULL, NULL, 'critical', NULL,       FALSE, 17),
             ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt',              TRUE, NULL, NULL, 'critical', NULL,       FALSE, 18),
             ('probezeit_gespraech_offen',  'Probezeitgespräch offen',            TRUE, NULL,   14, 'warning',  'critical', TRUE,  19),
-            ('kuendigung_ablauf',          'Vertragsende wegen Kündigung',       TRUE,   14,    0, 'warning',  'critical', TRUE,  20)
+            ('kuendigung_ablauf',          'Vertragsende wegen Kündigung',       TRUE,   14,    0, 'warning',  'critical', TRUE,  20),
+            ('kuendigung_sperrfrist_ende', 'Kündigung möglich (Sperrfrist Ende)', TRUE,   90, NULL, 'warning',  NULL,       TRUE,  21)
         ON CONFLICT (category) DO NOTHING;
     ");
     // Priorität + Warnfarbe (Walter 19.07.2026) — editierbar in System → Warnungen.
@@ -633,7 +634,8 @@ using (var scope = app.Services.CreateScope())
         VALUES
             ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt', TRUE, NULL, NULL, 'critical', NULL, FALSE, 18, 30, 'red'),
             ('probezeit_gespraech_offen', 'Probezeitgespräch offen', TRUE, NULL, 14, 'warning', 'critical', TRUE, 19, 45, 'none'),
-            ('kuendigung_ablauf', 'Vertragsende wegen Kündigung', TRUE, 14, 0, 'warning', 'critical', TRUE, 20, 55, 'red_overdue')
+            ('kuendigung_ablauf', 'Vertragsende wegen Kündigung', TRUE, 14, 0, 'warning', 'critical', TRUE, 20, 55, 'red_overdue'),
+            ('kuendigung_sperrfrist_ende', 'Kündigung möglich (Sperrfrist Ende)', TRUE, 90, NULL, 'warning', NULL, TRUE, 21, 25, 'red')
         ON CONFLICT (category) DO NOTHING;
         UPDATE dashboard_warning_config SET todo_priority = 10,  warn_color = 'red'
             WHERE category = 'permit_missing' AND todo_priority = 100 AND warn_color = 'none';
@@ -653,6 +655,9 @@ using (var scope = app.Services.CreateScope())
             WHERE category = 'probezeit_gespraech_offen' AND todo_priority = 100;
         UPDATE dashboard_warning_config SET todo_priority = 55,  warn_color = 'red_overdue'
             WHERE category = 'kuendigung_ablauf' AND todo_priority = 100;
+        UPDATE dashboard_warning_config SET todo_priority = 25, warn_color = 'red',
+               label = 'Kündigung möglich (Sperrfrist Ende)', warn_days = 90, severity_base = 'warning'
+            WHERE category = 'kuendigung_sperrfrist_ende' AND todo_priority = 100;
     ");
 
     // Seed: Kader-Flag + Mirus-Aliases (idempotent — UPDATE auch bei bestehenden)
