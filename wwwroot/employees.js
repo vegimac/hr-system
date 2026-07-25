@@ -7445,6 +7445,21 @@ function absBindScrollIsolation() {
 // ══════════════════════════════════════════════════════════════════
 // Schutz gilt nur solange tatsächlich AU besteht — höchstens 30/90/180
 // Tage (je Dienstjahr). Erster AU-Tag = Sperrtag 1 (inklusiv).
+/** Frühester letzter Arbeitstag bei Kündigung heute (OR 335c: n Monate auf Monatsende). */
+function _sperrKuendPerEndeMonat(dienstjahr, kuendAbIso) {
+    const months = (dienstjahr || 1) >= 10 ? 3 : ((dienstjahr || 1) <= 1 ? 1 : 2);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let kdat = today;
+    if (kuendAbIso) {
+        const ab = new Date(String(kuendAbIso).slice(0, 10) + 'T00:00:00');
+        if (!isNaN(ab) && ab > today) kdat = ab;
+    }
+    // 1. des Monats + months + 1 Monat − 1 Tag = Monatsende nach Frist
+    const per = new Date(kdat.getFullYear(), kdat.getMonth() + months + 1, 0);
+    return { per, months };
+}
+
 function renderSperrfristPanel(info) {
     if (!info) return '';
 
@@ -7455,6 +7470,7 @@ function renderSperrfristPanel(info) {
         </div>`;
 
     const status = info.status;
+    const dj = info.dienstjahrAmStichtag || 1;
     const djText = info.dienstjahrAmStichtag ? `${info.dienstjahrAmStichtag}. Dienstjahr` : '–';
     const isMts  = info.auGrund === 'MUTTERSCHAFT';
     const grundLabel = info.auGrund === 'UNFALL' ? 'Unfall'
@@ -7462,10 +7478,22 @@ function renderSperrfristPanel(info) {
                     : info.auGrund === 'MUTTERSCHAFT' ? 'Mutterschaft'
                     : (info.auGrund ? 'Krankheit' : '');
     const maxTage = info.sperrfristTage || null;
-    const chainLine = (info.auBeginn && info.auEnde)
-        ? `Durchgehende AU-Kette <b>${fmtDate(info.auBeginn)}</b> – <b>${fmtDate(info.auEnde)}</b>`
-          + (grundLabel ? ` (${grundLabel})` : '')
+    let auTage = info.auDauerTage || 0;
+    if (!auTage && info.auBeginn && info.auEnde) {
+        const a = new Date(String(info.auBeginn).slice(0, 10) + 'T00:00:00');
+        const b = new Date(String(info.auEnde).slice(0, 10) + 'T00:00:00');
+        if (!isNaN(a) && !isNaN(b)) auTage = Math.round((b - a) / 86400000) + 1;
+    }
+    const chainKurz = (info.auBeginn && info.auEnde)
+        ? `${fmtDate(info.auBeginn)} – ${fmtDate(info.auEnde)}`
         : '';
+    // Walter 25.07.2026: Leitsatz «X Tage ununterbrochen krank · Kündigung per Ende Monat»
+    const kuendPerInfo = _sperrKuendPerEndeMonat(dj, info.kuendigungAbDatum);
+    const kuendPerTxt = fmtDate(kuendPerInfo.per.toISOString().slice(0, 10));
+    const heroKuendbar = auTage > 0
+        ? `<b>${auTage} Tage</b> ununterbrochen krank${chainKurz ? ` (${chainKurz})` : ''}.
+           Kündigung per <b>${kuendPerTxt}</b> (Ende Monat) möglich.`
+        : `Kündigung per <b>${kuendPerTxt}</b> (Ende Monat) möglich.`;
 
     if (status === 'KEIN_EINTRITT') {
         return wrap('#64748b', '#f8fafc', '#e2e8f0',
@@ -7480,31 +7508,32 @@ function renderSperrfristPanel(info) {
     if (status === 'AU_ENDE_UNBESTAETIGT') {
         return wrap('#b45309', '#fffbeb', '#fde68a', `
             <div style="font-weight:700;color:#0f172a;font-size:14px">⚠ AU-Ende unbestätigt — Sperrfrist kann noch laufen</div>
-            <div style="color:#334155;margin-top:8px;line-height:1.5">
-                ${chainLine || esc(info.statusText || '')}.
+            <div style="color:#334155;margin-top:8px;line-height:1.5;font-size:14px">
+                ${auTage > 0 ? `<b>${auTage} Tage</b> ununterbrochen krank${chainKurz ? ` (${chainKurz})` : ''}.` : (chainKurz || esc(info.statusText || ''))}
             </div>
             <div style="color:#475569;margin-top:6px;line-height:1.5">
-                ${djText}${maxTage ? ` · max. ${maxTage} Tage` : ''}
-                ${info.sperrfristEnde ? ` · theoretische Sperrfrist bis <b>${fmtDate(info.sperrfristEnde)}</b>` : ''}
-                ${info.kuendigungAbDatum ? ` — kündbar ab <b>${fmtDate(info.kuendigungAbDatum)}</b>` : ''}.
+                ${djText}${maxTage ? ` · max. ${maxTage} Tage Sperrfrist` : ''}
+                ${info.sperrfristEnde ? ` bis <b>${fmtDate(info.sperrfristEnde)}</b>` : ''}
+                ${info.kuendigungAbDatum ? ` — frühestens kündbar ab <b>${fmtDate(info.kuendigungAbDatum)}</b>` : ''}.
             </div>
             <div style="color:#92400e;margin-top:6px;font-size:12px;line-height:1.4">
                 Vor einer Kündigung das AU-Ende ärztlich bestätigen lassen (Art. 336c OR).
             </div>`);
     }
     if (status === 'KEINE_AU') {
-        const hist = (info.auBeginn && info.sperrfristEnde)
-            ? `<div style="color:#475569;margin-top:6px;line-height:1.5;font-size:12.5px">
-                    Letzte AU-Kette ${fmtDate(info.auBeginn)} – ${fmtDate(info.auEnde)}
-                    ${maxTage ? ` · Sperrfrist ${maxTage} Tage` : ''}
-                    endete am <b>${fmtDate(info.sperrfristEnde)}</b>
-                    ${info.kuendigungAbDatum ? ` · kündbar ab ${fmtDate(info.kuendigungAbDatum)}` : ''}.
-               </div>`
-            : `<div style="color:#475569;margin-top:4px">Sperrfristen greifen nur bei durchgehender Krankheit oder Unfall (und nur solange die AU andauert).</div>`;
+        // Mit abgelaufener Sperrfrist aus letzter Kette → gleicher Klartext wie «kündbar»
+        if (info.auBeginn && info.sperrfristEnde && info.kuendigungAbDatum) {
+            return wrap('#166534', '#ecfdf5', '#6ee7b7', `
+                <div style="font-weight:800;color:#14532d;font-size:15px;line-height:1.4">${heroKuendbar}</div>
+                <div style="color:#475569;margin-top:8px;font-size:12.5px;line-height:1.45">
+                    ${djText} · Sperrfrist (${maxTage || '–'} Tage) endete am ${fmtDate(info.sperrfristEnde)}
+                    · kündbar seit ${fmtDate(info.kuendigungAbDatum)}
+                    · Kündigungsfrist ca. ${kuendPerInfo.months} Monat(e) auf Ende Monat (OR 335c).
+                </div>`);
+        }
         return wrap('#16a34a', '#f0fdf4', '#bbf7d0',
             `<div style="font-weight:700;color:#0f172a">Kein Kündigungsschutz aktiv</div>
-             <div style="color:#475569;margin-top:4px">${djText} · Ordentliche Kündigung ist möglich.</div>
-             ${hist}`);
+             <div style="color:#475569;margin-top:4px">${djText} · Ordentliche Kündigung ist möglich. Sperrfristen greifen nur bei durchgehender Krankheit/Unfall.</div>`);
     }
 
     const isGeschuetzt = status === 'GESCHUETZT';
@@ -7534,38 +7563,33 @@ function renderSperrfristPanel(info) {
             </div>`);
     }
 
-    const sperrTag = info.auDauerTage || 0;
+    const sperrTag = info.auDauerTage || auTage || 0;
     const aktuellBis = info.aktuellGeschuetztBis || info.auEnde;
     const maxBis = info.sperrfristEnde;
     const kuendAb = info.kuendigungAbDatum;
+    const chainLine = chainKurz
+        ? `Durchgehende AU-Kette <b>${chainKurz}</b>` + (grundLabel ? ` (${grundLabel})` : '')
+        : '';
 
-    // Walter 25.07.2026: sobald kündbar → klarer Entscheid + Ketten-Daten
+    // Walter 25.07.2026: Leitsatz mit Tagen + Kündigung per Monatsende
     if (isKuendbar) {
-        const auNochDokumentiert = status === 'SPERRFRIST_ABGELAUFEN';
         return wrap('#166534', '#ecfdf5', '#6ee7b7', `
             <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
                 <div style="flex:1;min-width:260px">
-                    <div style="font-weight:800;color:#14532d;font-size:15px;line-height:1.35">
-                        ✓ Kündigung jetzt möglich
+                    <div style="font-weight:800;color:#14532d;font-size:15px;line-height:1.4">
+                        ${heroKuendbar}
                     </div>
-                    <div style="color:#166534;margin-top:4px;font-weight:600;font-size:13px">
-                        Maximale Sperrfrist am ${fmtDate(maxBis)} abgelaufen
-                        ${kuendAb ? ` — kündbar seit ${fmtDate(kuendAb)}` : ''}.
-                    </div>
-                    <div style="color:#334155;margin-top:8px;line-height:1.5">
-                        ${chainLine || `AU seit ${fmtDate(info.auBeginn)}`}.
-                        ${auNochDokumentiert
-                            ? ' AU ist noch dokumentiert, die gesetzliche Sperrfrist ist aber bereits ausgeschöpft.'
-                            : ' Dokumentierte AU ist beendet; kein Kündigungsschutz mehr aktiv.'}
-                    </div>
-                    <div style="color:#64748b;margin-top:6px;font-size:12px;line-height:1.45">
-                        ${djText}${maxTage ? ` · max. ${maxTage} Kalendertage Sperrfrist` : ''} (Art. 336c OR).
-                        Krankheits-Karenz / Lohnfortzahlung ist davon unabhängig.
+                    <div style="color:#475569;margin-top:8px;line-height:1.5;font-size:12.5px">
+                        ${djText} · Sperrfrist Art. 336c (${maxTage || '–'} Tage) endete am ${fmtDate(maxBis)}
+                        ${kuendAb ? ` · kündbar seit ${fmtDate(kuendAb)}` : ''}
+                        · Kündigungsfrist ca. ${kuendPerInfo.months} Monat(e) auf Ende Monat (OR 335c).
+                        Karenz/Lohnfortzahlung ist davon unabhängig.
                     </div>
                     ${info.hinweis ? `<div style="margin-top:6px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;color:#78350f;font-size:11px">⚠︎ ${esc(info.hinweis)}</div>` : ''}
                 </div>
                 <div style="text-align:right;min-width:120px">
                     <div style="font-size:13px;font-weight:800;color:#14532d;background:#bbf7d0;padding:8px 10px;border-radius:8px">KÜNDBAR</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:6px">per ${kuendPerTxt}</div>
                 </div>
             </div>`);
     }
