@@ -474,9 +474,9 @@ public class DashboardService
         }
 
         // ── Kündigung nach Sperrfrist möglich (Walter 25.07.2026) ─────────
-        // Sobald Art. 336c-Sperrfrist bei durchgehender Krankheit/Unfall
-        // ausgeschöpft ist → ToDo «Wichtig». Verschwindet bei erfasster
-        // Kündigung (KuendigungPer) oder Austritt.
+        // Nur bei DURCHGEHENDER Krankheit/Unfall (Absenz-Kette ohne Lücke),
+        // sobald die Art.-336c-Sperrfrist ausgeschöpft ist → ToDo «Kritisch».
+        // Verschwindet bei erfasster Kündigung (KuendigungPer) oder Austritt.
         if (Enabled("kuendigung_sperrfrist_ende"))
         {
             int sperrLookback = WarnDays("kuendigung_sperrfrist_ende", 90);
@@ -529,8 +529,8 @@ public class DashboardService
                 alerts.Add(new DashboardAlert
                 {
                     Category = "kuendigung_sperrfrist_ende",
-                    Severity = SeverityState("kuendigung_sperrfrist_ende", "warning"),
-                    Title    = "Kündigung jetzt möglich (Sperrfrist Art. 336c abgelaufen)",
+                    Severity = SeverityState("kuendigung_sperrfrist_ende", "critical"),
+                    Title    = "Kündigung jetzt möglich (durchgehende AU, Sperrfrist Art. 336c abgelaufen)",
                     Subtitle = $"{name} · Personalnr. {e.EmployeeNumber} · {auTxt} · {sperrTxt}"
                              + (info.KuendigungAbDatum.HasValue
                                  ? $" · kündbar seit {info.KuendigungAbDatum:dd.MM.yyyy}"

@@ -618,7 +618,7 @@ using (var scope = app.Services.CreateScope())
             ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt',              TRUE, NULL, NULL, 'critical', NULL,       FALSE, 18),
             ('probezeit_gespraech_offen',  'Probezeitgespräch offen',            TRUE, NULL,   14, 'warning',  'critical', TRUE,  19),
             ('kuendigung_ablauf',          'Vertragsende wegen Kündigung',       TRUE,   14,    0, 'warning',  'critical', TRUE,  20),
-            ('kuendigung_sperrfrist_ende', 'Kündigung möglich (Sperrfrist Ende)', TRUE,   90, NULL, 'warning',  NULL,       TRUE,  21)
+            ('kuendigung_sperrfrist_ende', 'Kündigung möglich (Sperrfrist Ende)', TRUE,   90, NULL, 'critical', NULL,       TRUE,  21)
         ON CONFLICT (category) DO NOTHING;
     ");
     // Priorität + Warnfarbe (Walter 19.07.2026) — editierbar in System → Warnungen.
@@ -635,7 +635,7 @@ using (var scope = app.Services.CreateScope())
             ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt', TRUE, NULL, NULL, 'critical', NULL, FALSE, 18, 30, 'red'),
             ('probezeit_gespraech_offen', 'Probezeitgespräch offen', TRUE, NULL, 14, 'warning', 'critical', TRUE, 19, 45, 'none'),
             ('kuendigung_ablauf', 'Vertragsende wegen Kündigung', TRUE, 14, 0, 'warning', 'critical', TRUE, 20, 55, 'red_overdue'),
-            ('kuendigung_sperrfrist_ende', 'Kündigung möglich (Sperrfrist Ende)', TRUE, 90, NULL, 'warning', NULL, TRUE, 21, 25, 'red')
+            ('kuendigung_sperrfrist_ende', 'Kündigung möglich (Sperrfrist Ende)', TRUE, 90, NULL, 'critical', NULL, TRUE, 21, 12, 'red')
         ON CONFLICT (category) DO NOTHING;
         UPDATE dashboard_warning_config SET todo_priority = 10,  warn_color = 'red'
             WHERE category = 'permit_missing' AND todo_priority = 100 AND warn_color = 'none';
@@ -658,6 +658,12 @@ using (var scope = app.Services.CreateScope())
         UPDATE dashboard_warning_config SET todo_priority = 25, warn_color = 'red',
                label = 'Kündigung möglich (Sperrfrist Ende)', warn_days = 90, severity_base = 'warning'
             WHERE category = 'kuendigung_sperrfrist_ende' AND todo_priority = 100;
+        -- Walter 25.07.2026: ToDo immer «Kritisch» (durchgehende AU, Sperrfrist ausgeschöpft)
+        UPDATE dashboard_warning_config
+            SET severity_base = 'critical', warn_color = 'red',
+                label = 'Kündigung möglich (durchgehende AU / Sperrfrist)',
+                todo_priority = CASE WHEN todo_priority > 20 THEN 12 ELSE todo_priority END
+            WHERE category = 'kuendigung_sperrfrist_ende';
     ");
 
     // Seed: Kader-Flag + Mirus-Aliases (idempotent — UPDATE auch bei bestehenden)

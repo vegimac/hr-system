@@ -152,8 +152,8 @@ window.i18n = (function () {
                                              en: 'Minimum wage violation · CHF {amount} missing' },
         'alert.minWage.ok':               { de: 'Alle Mindestlöhne ok',
                                              en: 'All minimum wages ok' },
-        'alert.kuendigung.sperrfrist_ende': { de: 'Kündigung jetzt möglich (Sperrfrist Art. 336c abgelaufen)',
-                                             en: 'Termination now possible (Art. 336c blocking period expired)' },
+        'alert.kuendigung.sperrfrist_ende': { de: 'Kündigung jetzt möglich (durchgehende AU, Sperrfrist Art. 336c abgelaufen)',
+                                             en: 'Termination now possible (continuous incapacity, Art. 336c blocking period expired)' },
 
         // ── Dashboard Alert-Subtitel ──
         'subtitle.maPersonalnr':          { de: '{name} · Personalnr. {empNr}',
