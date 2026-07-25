@@ -710,6 +710,184 @@ public class MailboxController : ControllerBase
         return Ok();
     }
 
+    /// <summary>
+    /// Dokument in ein anderes Postfach verschieben oder weiterleiten
+    /// (Walter 25.07.2026). mode: «move» = verschieben, «forward» = Kopie.
+    /// Ziel = dieselben Rechte wie beim Hochladen.
+    /// </summary>
+    [HttpPost("{id}/transfer")]
+    public async Task<IActionResult> Transfer(int id, [FromBody] MailboxTransferDto dto)
+    {
+        var doc = await _db.MailboxDocuments.FindAsync(id);
+        if (doc is null) return NotFound();
+        if (!await UserCanViewDocumentAsync(doc)) return Forbid();
+
+        var mode = (dto.Mode ?? "move").Trim().ToLowerInvariant();
+        if (mode != "move" && mode != "forward")
+            return BadRequest(new { error = "mode muss «move» oder «forward» sein." });
+
+        var resolved = await ResolveMailboxTargetAsync(
+            dto.TargetType, dto.CompanyProfileId, dto.TargetUserId, dto.EmployeeId);
+        if (resolved.Error != null) return resolved.Error;
+
+        // Gleiches Postfach = sinnlos
+        var same = string.Equals(doc.TargetType, resolved.TargetType, StringComparison.OrdinalIgnoreCase);
+        if (same && resolved.TargetType == "BRANCH")
+            same = doc.CompanyProfileId == resolved.CompanyProfileId;
+        else if (same && resolved.TargetType == "USER")
+            same = doc.TargetUserId == resolved.TargetUserId;
+        else if (same && resolved.TargetType == "EMPLOYEE")
+            same = doc.EmployeeId == resolved.EmployeeId;
+        if (same)
+            return BadRequest(new { error = "Ziel ist dasselbe Postfach." });
+
+        var srcPath = string.IsNullOrEmpty(doc.StorageFilename)
+            ? null
+            : Path.Combine(_storagePath, "mailbox", doc.CompanyProfileId.ToString(), doc.StorageFilename);
+
+        if (mode == "move")
+        {
+            // Datei in neuen Storage-Ordner legen, falls Filiale wechselt
+            var newStorageName = doc.StorageFilename;
+            if (!string.IsNullOrEmpty(doc.StorageFilename)
+                && doc.CompanyProfileId != resolved.CompanyProfileId
+                && srcPath != null
+                && System.IO.File.Exists(srcPath))
+            {
+                var ext = Path.GetExtension(doc.StorageFilename);
+                newStorageName = Guid.NewGuid().ToString("N") + ext;
+                var destDir = Path.Combine(_storagePath, "mailbox", resolved.CompanyProfileId.ToString());
+                Directory.CreateDirectory(destDir);
+                var destPath = Path.Combine(destDir, newStorageName);
+                System.IO.File.Move(srcPath, destPath);
+            }
+
+            doc.TargetType = resolved.TargetType;
+            doc.CompanyProfileId = resolved.CompanyProfileId;
+            doc.TargetUserId = resolved.TargetUserId;
+            doc.EmployeeId = resolved.EmployeeId;
+            if (!string.IsNullOrEmpty(newStorageName))
+                doc.StorageFilename = newStorageName;
+            await _db.SaveChangesAsync();
+            return Ok(new { id = doc.Id, mode = "move" });
+        }
+
+        // forward = Kopie
+        string? newStorage = null;
+        if (!string.IsNullOrEmpty(doc.StorageFilename) && srcPath != null && System.IO.File.Exists(srcPath))
+        {
+            var ext = Path.GetExtension(doc.StorageFilename);
+            newStorage = Guid.NewGuid().ToString("N") + ext;
+            var destDir = Path.Combine(_storagePath, "mailbox", resolved.CompanyProfileId.ToString());
+            Directory.CreateDirectory(destDir);
+            System.IO.File.Copy(srcPath, Path.Combine(destDir, newStorage));
+        }
+
+        var copy = new MailboxDocument
+        {
+            CompanyProfileId = resolved.CompanyProfileId,
+            UploadedBy       = GetCurrentUserId(),
+            UploadedAt       = DateTime.Now,
+            OriginalFilename = doc.OriginalFilename,
+            StorageFilename  = newStorage ?? "",
+            MimeType         = doc.MimeType,
+            FileSizeBytes    = doc.FileSizeBytes,
+            Bemerkung        = doc.Bemerkung,
+            MessageBody      = doc.MessageBody,
+            EmployeeId       = resolved.EmployeeId,
+            TargetType       = resolved.TargetType,
+            TargetUserId     = resolved.TargetUserId,
+        };
+        _db.MailboxDocuments.Add(copy);
+        await _db.SaveChangesAsync();
+        return Ok(new { id = copy.Id, mode = "forward" });
+    }
+
+    /// <summary>Ziel-Postfach auflösen — gleiche Regeln wie Upload.</summary>
+    private async Task<(IActionResult? Error, string TargetType, int CompanyProfileId, int? TargetUserId, int? EmployeeId)>
+        ResolveMailboxTargetAsync(string? targetType, int? companyProfileId, int? targetUserId, int? employeeId)
+    {
+        var t = (targetType ?? "").Trim().ToUpperInvariant();
+        if (string.IsNullOrEmpty(t))
+            return (BadRequest(new { error = "targetType fehlt." }), "", 0, null, null);
+
+        if (t == "BRANCH")
+        {
+            if (companyProfileId is null or <= 0)
+                return (BadRequest(new { error = "companyProfileId fehlt." }), t, 0, null, null);
+            if (!await UserHasBranchAccessAsync(companyProfileId.Value))
+                return (Forbid(), t, 0, null, null);
+            return (null, t, companyProfileId.Value, null, null);
+        }
+
+        if (t is "HR" or "ADMIN" or "BUCH")
+        {
+            if (t == "ADMIN" && !UserIsAdmin())
+                return (Forbid(), t, 0, null, null);
+            if (t == "BUCH" && !UserCanSeeBuchhaltung())
+                return (Forbid(), t, 0, null, null);
+            // HR: jeder App-User darf hinsenden (wie Upload)
+            int branchId;
+            if (companyProfileId.HasValue)
+                branchId = companyProfileId.Value;
+            else
+            {
+                var allowed = await GetUserAllowedBranchIdsAsync();
+                if (allowed.Count == 0)
+                    return (BadRequest(new { error = "Keine Filial-Zuordnung." }), t, 0, null, null);
+                branchId = allowed.First();
+            }
+            return (null, t, branchId, null, null);
+        }
+
+        if (t == "USER")
+        {
+            if (targetUserId is null or <= 0)
+                return (BadRequest(new { error = "targetUserId fehlt." }), t, 0, null, null);
+            var target = await _db.AppUsers.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == targetUserId.Value);
+            if (target == null || !target.IsActive)
+                return (BadRequest(new { error = "Empfänger-Benutzer nicht gefunden." }), t, 0, null, null);
+            if (target.Role == "employee")
+                return (BadRequest(new { error = "An MA bitte über Ziel «Mitarbeiter» senden." }), t, 0, null, null);
+            int branchId;
+            if (companyProfileId.HasValue)
+                branchId = companyProfileId.Value;
+            else
+            {
+                var allowed = await GetUserAllowedBranchIdsAsync();
+                if (allowed.Count == 0)
+                    return (BadRequest(new { error = "Keine Filial-Zuordnung." }), t, 0, null, null);
+                branchId = allowed.First();
+            }
+            return (null, t, branchId, target.Id, null);
+        }
+
+        if (t == "EMPLOYEE")
+        {
+            if (employeeId is null or <= 0)
+                return (BadRequest(new { error = "employeeId fehlt." }), t, 0, null, null);
+            var emp = await _db.Employees.AsNoTracking()
+                .FirstOrDefaultAsync(e => e.Id == employeeId.Value);
+            if (emp == null || !emp.IsActive)
+                return (BadRequest(new { error = "Mitarbeiter nicht gefunden." }), t, 0, null, null);
+            var empBranchId = await _db.Employments.AsNoTracking()
+                .Where(e => e.EmployeeId == employeeId.Value
+                         && e.IsActive
+                         && e.CompanyProfileId != null)
+                .OrderByDescending(e => e.ContractStartDate)
+                .Select(e => e.CompanyProfileId)
+                .FirstOrDefaultAsync();
+            if (empBranchId == null)
+                return (BadRequest(new { error = "Mitarbeiter hat keine aktive Filial-Zuordnung." }), t, 0, null, null);
+            if (!await UserHasBranchAccessAsync(empBranchId.Value))
+                return (Forbid(), t, 0, null, null);
+            return (null, t, empBranchId.Value, null, employeeId.Value);
+        }
+
+        return (BadRequest(new { error = "Unbekannter Postfach-Typ." }), t, 0, null, null);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
     private int? GetCurrentUserId()
     {
@@ -835,3 +1013,11 @@ public class MailboxController : ControllerBase
 }
 
 public record MoveToEmployeeDto(int EmployeeId, int DokumentTypId, string? Bemerkung);
+
+/// <summary>mode: move | forward — Ziel analog Upload.</summary>
+public record MailboxTransferDto(
+    string Mode,
+    string TargetType,
+    int? CompanyProfileId,
+    int? TargetUserId,
+    int? EmployeeId);

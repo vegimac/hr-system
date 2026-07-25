@@ -23,9 +23,11 @@ const PB_REFRESH_MS = 20000;
 function pbAnyModalOpen() {
     const u = document.getElementById('pbUploadModal');
     const m = document.getElementById('pbMoveModal');
+    const t = document.getElementById('pbTransferModal');
     const p = document.getElementById('pbPreviewPanel');   // dynamisch, nur wenn Preview offen
     if (u && u.style.display === 'block') return true;
     if (m && m.style.display === 'block') return true;
+    if (t && t.style.display === 'block') return true;
     if (p) return true;   // Preview-Panel wird beim Öffnen ans DOM gehängt
     return false;
 }
@@ -277,6 +279,7 @@ async function pbLoadList() {
             const previewBtn = d.messageBody
                 ? `<span style="font-weight:600;color:#3f3f3f">💬 ${title}</span>`
                 : `<span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">👁 ${title}</span>`;
+            const docJson = JSON.stringify(d).replace(/'/g, '&#39;');
             return `<div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start">
                 <div style="flex:1;min-width:0">
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -292,9 +295,10 @@ async function pbLoadList() {
                         ${empInfo ? ` · ${empInfo}` : ''} · ${dateStr}
                     </div>
                 </div>
-                <div style="display:flex;gap:6px;flex-shrink:0">
+                <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
                     ${!d.messageBody ? `<button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="pbDownload(${d.id})">⬇ Download</button>` : ''}
-                    ${canAblage ? `<button class="btn btn-success" style="font-size:12px;padding:6px 12px" onclick='pbOpenMove(${JSON.stringify(d).replace(/'/g, "&#39;")})'>📁 Ablegen</button>` : ''}
+                    <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick='pbOpenTransfer(${docJson})' title="Verschieben oder weiterleiten">↪ Weiterleiten</button>
+                    ${canAblage ? `<button class="btn btn-success" style="font-size:12px;padding:6px 12px" onclick='pbOpenMove(${docJson})'>📁 Ablegen</button>` : ''}
                     <button class="btn btn-danger" style="font-size:12px;padding:6px 12px" onclick="pbDelete(${d.id})" title="Löschen">🗑</button>
                 </div>
             </div>`;
@@ -319,6 +323,90 @@ async function pbUpdateBadge() {
     } catch {}
 }
 
+/** Ziel-Optionen für Upload / Weiterleiten (Filiale, Geteilt, Benutzer, MA). */
+async function pbBuildSendTargetHtml(excludeVal) {
+    const [rPf, rUsers] = await Promise.all([
+        fetch('/api/mailbox/postfaecher', { headers: ah() }),
+        fetch('/api/mailbox/user-recipients', { headers: ah() }),
+    ]);
+    const postfaecher = rPf.ok ? await rPf.json() : [];
+    const userRecipients = rUsers.ok ? await rUsers.json() : [];
+    const branchOpts = postfaecher.filter(p => p.type === 'BRANCH');
+    const hrOpts     = postfaecher.filter(p => p.type === 'HR');
+    const buchOpts   = postfaecher.filter(p => p.type === 'BUCH');
+    const adminOpts  = postfaecher.filter(p => p.type === 'ADMIN');
+
+    const allowedBranchIds = new Set(branchOpts.map(p => Number(p.companyProfileId)));
+    let empsForSend = (_pbAllEmployees || []).filter(e => e.isActive);
+    if (allowedBranchIds.size) {
+        empsForSend = empsForSend.filter(e =>
+            (e.employments || []).some(em => allowedBranchIds.has(Number(em.companyProfileId))));
+    }
+    empsForSend.sort((a, b) =>
+        (a.firstName || '').localeCompare(b.firstName || '', 'de')
+        || (a.lastName || '').localeCompare(b.lastName || '', 'de'));
+
+    let html = '';
+    if (branchOpts.length) {
+        html += '<optgroup label="Filialen">';
+        html += branchOpts.map(p => {
+            const v = `BRANCH:${p.companyProfileId}`;
+            if (excludeVal && v === excludeVal) return '';
+            return `<option value="${v}">${p.code || ''} ${p.name || ''}</option>`;
+        }).join('');
+        html += '</optgroup>';
+    }
+    if (hrOpts.length || buchOpts.length || adminOpts.length) {
+        html += '<optgroup label="Geteilt">';
+        hrOpts.forEach(() => {
+            if (excludeVal === 'HR') return;
+            html += `<option value="HR">HR-Postfach</option>`;
+        });
+        buchOpts.forEach(() => {
+            if (excludeVal === 'BUCH') return;
+            html += `<option value="BUCH">Buchhaltungs-Postfach</option>`;
+        });
+        adminOpts.forEach(() => {
+            if (excludeVal === 'ADMIN') return;
+            html += `<option value="ADMIN">Admin-Postfach</option>`;
+        });
+        html += '</optgroup>';
+    }
+    {
+        const myId = currentUser?.id;
+        if (myId || userRecipients.length) {
+            html += '<optgroup label="Benutzer">';
+            if (myId && excludeVal !== `USER:${myId}`) {
+                const myName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ').trim()
+                    || currentUser?.username || 'mich';
+                html += `<option value="USER:${myId}">An mich — ${myName}</option>`;
+            }
+            html += userRecipients
+                .filter(u => !myId || Number(u.id) !== Number(myId))
+                .filter(u => excludeVal !== `USER:${u.id}`)
+                .map(u => {
+                    const label = (u.name || u.username || ('User #' + u.id)).trim();
+                    const role = u.role === 'admin' ? 'Admin'
+                        : u.role === 'superuser' ? 'Superuser'
+                        : u.role === 'buchhaltung' ? 'Buchhaltung'
+                        : 'Benutzer';
+                    return `<option value="USER:${u.id}">${label} (${role})</option>`;
+                }).join('');
+            html += '</optgroup>';
+        }
+    }
+    if (empsForSend.length) {
+        html += '<optgroup label="Mitarbeiter">';
+        html += empsForSend.map(e => {
+            const v = `EMPLOYEE:${e.id}`;
+            if (excludeVal && v === excludeVal) return '';
+            return `<option value="${v}">${e.firstName || ''} ${e.lastName || ''} (${e.employeeNumber || ''})</option>`;
+        }).join('');
+        html += '</optgroup>';
+    }
+    return html || '<option value="">– keine Ziele –</option>';
+}
+
 async function pbOpenUpload() {
     const currentVal = document.getElementById('pbBranchSelect').value;
     if (!currentVal) { alert('Bitte erst Postfach wählen.'); return; }
@@ -333,79 +421,10 @@ async function pbOpenUpload() {
         if (e.target.files.length > 0) pbShowFile(e.target.files[0]);
     };
 
-    // Postfach-Dropdown: Filiale / Geteilt / Benutzer / Mitarbeiter
     const targetSel = document.getElementById('pbUploadTarget');
     try {
-        const [rPf, rUsers] = await Promise.all([
-            fetch('/api/mailbox/postfaecher', { headers: ah() }),
-            fetch('/api/mailbox/user-recipients', { headers: ah() }),
-        ]);
-        const postfaecher = rPf.ok ? await rPf.json() : [];
-        const userRecipients = rUsers.ok ? await rUsers.json() : [];
-        const branchOpts = postfaecher.filter(p => p.type === 'BRANCH');
-        const hrOpts     = postfaecher.filter(p => p.type === 'HR');
-        const buchOpts   = postfaecher.filter(p => p.type === 'BUCH');
-        const adminOpts  = postfaecher.filter(p => p.type === 'ADMIN');
-
-        // MA der eigenen Filialen (für Direktzustellung)
-        const allowedBranchIds = new Set(branchOpts.map(p => Number(p.companyProfileId)));
-        let empsForSend = (_pbAllEmployees || []).filter(e => e.isActive);
-        if (allowedBranchIds.size) {
-            empsForSend = empsForSend.filter(e =>
-                (e.employments || []).some(em => allowedBranchIds.has(Number(em.companyProfileId))));
-        }
-        empsForSend.sort((a, b) =>
-            (a.firstName || '').localeCompare(b.firstName || '', 'de')
-            || (a.lastName || '').localeCompare(b.lastName || '', 'de'));
-
-        let html = '';
-        if (branchOpts.length) {
-            html += '<optgroup label="Filialen">';
-            html += branchOpts.map(p =>
-                `<option value="BRANCH:${p.companyProfileId}">${p.code || ''} ${p.name || ''}</option>`
-            ).join('');
-            html += '</optgroup>';
-        }
-        if (hrOpts.length || buchOpts.length || adminOpts.length) {
-            html += '<optgroup label="Geteilt">';
-            hrOpts.forEach(() => { html += `<option value="HR">HR-Postfach</option>`; });
-            buchOpts.forEach(() => { html += `<option value="BUCH">Buchhaltungs-Postfach</option>`; });
-            adminOpts.forEach(() => { html += `<option value="ADMIN">Admin-Postfach</option>`; });
-            html += '</optgroup>';
-        }
-        {
-            // «An mich» zuerst — eigene Box zum späteren Ablegen (Walter 24.07.2026)
-            const myId = currentUser?.id;
-            if (myId || userRecipients.length) {
-                html += '<optgroup label="Benutzer">';
-                if (myId) {
-                    const myName = [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ').trim()
-                        || currentUser?.username || 'mich';
-                    html += `<option value="USER:${myId}">An mich — ${myName}</option>`;
-                }
-                html += userRecipients
-                    .filter(u => !myId || Number(u.id) !== Number(myId))
-                    .map(u => {
-                        const label = (u.name || u.username || ('User #' + u.id)).trim();
-                        const role = u.role === 'admin' ? 'Admin'
-                            : u.role === 'superuser' ? 'Superuser'
-                            : u.role === 'buchhaltung' ? 'Buchhaltung'
-                            : 'Benutzer';
-                        return `<option value="USER:${u.id}">${label} (${role})</option>`;
-                    }).join('');
-                html += '</optgroup>';
-            }
-        }
-        if (empsForSend.length) {
-            html += '<optgroup label="Mitarbeiter">';
-            html += empsForSend.map(e =>
-                `<option value="EMPLOYEE:${e.id}">${e.firstName || ''} ${e.lastName || ''} (${e.employeeNumber || ''})</option>`
-            ).join('');
-            html += '</optgroup>';
-        }
-        targetSel.innerHTML = html || `<option value="">– keine Ziele –</option>`;
+        targetSel.innerHTML = await pbBuildSendTargetHtml(null);
         // Default: aktuelles Postfach — nicht das eigene Benutzer-Postfach als Ziel
-        // (sonst würde man versehentlich an sich selbst senden statt an die Filiale)
         const isOwnUserInbox = currentVal && currentVal.startsWith('USER:')
             && currentUser?.id && currentVal === `USER:${currentUser.id}`;
         if (currentVal && !isOwnUserInbox && [...targetSel.options].some(o => o.value === currentVal)) {
@@ -702,6 +721,79 @@ async function pbDelete(id) {
         await pbLoadList();
         await pbUpdateBadge();
     } catch (err) { alert('Lösch-Fehler: ' + err.message); }
+}
+
+// ── Weiterleiten / Verschieben in anderes Postfach ───────────────────
+let _pbTransferDoc = null;
+
+async function pbOpenTransfer(d) {
+    _pbTransferDoc = d;
+    document.getElementById('pbTransferAlert').innerHTML = '';
+    const title = d.messageBody
+        ? (d.originalFilename || 'Mitteilung')
+        : (d.originalFilename || 'Dokument');
+    document.getElementById('pbTransferFileInfo').textContent = title
+        + (d.bemerkung ? ' — ' + d.bemerkung : '');
+
+    // Aktuelles Postfach als Ziel ausschliessen
+    const currentVal = document.getElementById('pbBranchSelect').value;
+    const sel = document.getElementById('pbTransferTarget');
+    try {
+        sel.innerHTML = await pbBuildSendTargetHtml(currentVal || null);
+    } catch {
+        sel.innerHTML = '<option value="">– keine Ziele –</option>';
+    }
+    document.getElementById('pbTransferModal').style.display = 'block';
+}
+
+function pbCloseTransfer() {
+    document.getElementById('pbTransferModal').style.display = 'none';
+    _pbTransferDoc = null;
+}
+
+async function pbDoTransfer(mode) {
+    if (!_pbTransferDoc) return;
+    const targetVal = document.getElementById('pbTransferTarget').value;
+    const pf = pbParsePostfach(targetVal);
+    if (!pf) {
+        document.getElementById('pbTransferAlert').innerHTML =
+            '<div style="padding:8px;background:#fef2f2;color:#b91c1c;border-radius:6px;font-size:12px">Bitte Ziel wählen.</div>';
+        return;
+    }
+    const label = mode === 'move' ? 'Verschieben' : 'Weiterleiten';
+    if (!confirm(`${label} nach «${document.getElementById('pbTransferTarget').selectedOptions[0]?.textContent || targetVal}»?`))
+        return;
+
+    const body = {
+        mode,
+        targetType: pf.type,
+        companyProfileId: pf.companyProfileId ?? null,
+        targetUserId: pf.targetUserId ?? null,
+        employeeId: pf.employeeId ?? null,
+    };
+    try {
+        const r = await fetch(`/api/mailbox/${_pbTransferDoc.id}/transfer`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!r.ok) {
+            let msg = 'HTTP ' + r.status;
+            try {
+                const j = await r.json();
+                msg = j.message || j.error || msg;
+            } catch {
+                msg = await r.text() || msg;
+            }
+            throw new Error(msg);
+        }
+        pbCloseTransfer();
+        await pbLoadList();
+        await pbUpdateBadge();
+    } catch (err) {
+        document.getElementById('pbTransferAlert').innerHTML =
+            `<div style="padding:8px;background:#fef2f2;color:#b91c1c;border-radius:6px;font-size:12px">Fehler: ${err.message}</div>`;
+    }
 }
 
 // ── Preview (PDF/Bilder direkt anzeigen, sonst Download) ─────────────
