@@ -726,15 +726,27 @@ async function pbDelete(id) {
 
 // ── Weiterleiten / Verschieben in anderes Postfach ───────────────────
 let _pbTransferDoc = null;
+let _pbTransferMode = 'move';
 
-async function pbOpenTransfer(d) {
+async function pbOpenTransfer(d, mode) {
     _pbTransferDoc = d;
+    _pbTransferMode = (mode === 'forward') ? 'forward' : 'move';
     document.getElementById('pbTransferAlert').innerHTML = '';
     const title = d.messageBody
         ? (d.originalFilename || 'Mitteilung')
         : (d.originalFilename || 'Dokument');
     document.getElementById('pbTransferFileInfo').textContent = title
         + (d.bemerkung ? ' — ' + d.bemerkung : '');
+
+    const isMove = _pbTransferMode === 'move';
+    document.getElementById('pbTransferTitle').textContent = isMove
+        ? 'Verschieben an anderes Postfach'
+        : 'Weiterleiten an anderes Postfach';
+    document.getElementById('pbTransferHint').textContent = isMove
+        ? 'Wird aus diesem Postfach entfernt und ins Ziel gelegt. Nur Postfächer mit Zugriff.'
+        : 'Legt eine Kopie ins Ziel — Original bleibt hier. Nur Postfächer mit Zugriff.';
+    const actionBtn = document.getElementById('pbTransferActionBtn');
+    actionBtn.textContent = isMove ? '↗ Verschieben' : '↪ Weiterleiten';
 
     // Aktuelles Postfach als Ziel ausschliessen
     const currentVal = document.getElementById('pbBranchSelect').value;
@@ -754,6 +766,7 @@ function pbCloseTransfer() {
 
 async function pbDoTransfer(mode) {
     if (!_pbTransferDoc) return;
+    mode = mode || _pbTransferMode || 'move';
     const targetVal = document.getElementById('pbTransferTarget').value;
     const pf = pbParsePostfach(targetVal);
     if (!pf) {
