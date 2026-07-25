@@ -205,6 +205,22 @@ public class KarenzService
             ));
         }
 
+        // Aktuelles Karenzjahr immer liefern — auch ohne Absenzen (UI zeigt
+        // dann «0 Krankheiten/Unfälle» + offene Grenze).
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var (curVon, curBis) = ComputeKarenzjahr(today, employee, profile);
+        if (!result.Any(r => r.Info.Von == curVon))
+        {
+            result.Add(new KarenzHistoryJahr(
+                Info: new KarenzjahrInfo(
+                    Von:             curVon,
+                    Bis:             curBis,
+                    TageMax:         tageMax,
+                    TageVerbraucht:  0m,
+                    GrenzErreichtAm: null),
+                Krankheiten: new()));
+        }
+
         // Absteigend sortieren — neueste Jahre zuerst (UI-freundlich).
         result.Sort((a, b) => b.Info.Von.CompareTo(a.Info.Von));
         return result;

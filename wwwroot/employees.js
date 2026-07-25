@@ -7275,10 +7275,13 @@ async function loadAbsenzenTab(employeeId) {
         // gewählten Filial-Selektor — sonst greift die Sperre nicht.
         const cpIdForLock = cpId || (typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
 
-        const [absRes, karenzRes, sperrRes, lockState] = await Promise.all([
+        const [absRes, karenzKrankRes, karenzUnfallRes, sperrRes, lockState] = await Promise.all([
             fetch(`/api/absences/employee/${employeeId}`, { headers: ah() }),
             cpId
-                ? fetch(`/api/absences/employee/${employeeId}/karenz-history?companyProfileId=${cpId}`, { headers: ah() })
+                ? fetch(`/api/absences/employee/${employeeId}/karenz-history?companyProfileId=${cpId}&absenceType=KRANK`, { headers: ah() })
+                : Promise.resolve(null),
+            cpId
+                ? fetch(`/api/absences/employee/${employeeId}/karenz-history?companyProfileId=${cpId}&absenceType=UNFALL`, { headers: ah() })
                 : Promise.resolve(null),
             fetch(`/api/absences/employee/${employeeId}/sperrfrist`, { headers: ah() }),
             // Lohnlauf-Sperre: pro Filiale FirstAllowedDate holen — pro Absenz
@@ -7288,22 +7291,24 @@ async function loadAbsenzenTab(employeeId) {
                 : Promise.resolve(null),
         ]);
         if (!absRes.ok) throw new Error();
-        const absences      = await absRes.json();
-        const karenzHistory = karenzRes && karenzRes.ok ? await karenzRes.json() : [];
-        const sperrfrist    = sperrRes && sperrRes.ok ? await sperrRes.json() : null;
-        renderAbsenzenList(el, absences, employeeId, karenzHistory, sperrfrist, lockState);
+        const absences         = await absRes.json();
+        const karenzKrankHist  = karenzKrankRes  && karenzKrankRes.ok  ? await karenzKrankRes.json()  : [];
+        const karenzUnfallHist = karenzUnfallRes && karenzUnfallRes.ok ? await karenzUnfallRes.json() : [];
+        const sperrfrist       = sperrRes && sperrRes.ok ? await sperrRes.json() : null;
+        renderAbsenzenList(el, absences, employeeId, karenzKrankHist, sperrfrist, lockState, karenzUnfallHist);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>';
     }
 }
 
-function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrfrist = null, lockState = null) {
+function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sperrfrist = null, lockState = null, karenzUnfallHist = []) {
     const empModel = selectedEmployee?.employmentModel ?? '';
     const noHours  = empModel === 'FLEX';
     const sperrHtml  = renderSperrfristPanel(sperrfrist);
-    // Karenz sitzt rechts unter dem Tagessatz (Walter 25.07.2026).
+    // Karenz sitzt rechts unter dem Tagessatz (Walter 25.07.2026) —
+    // Krankheit + Unfall getrennt (eigene Grenzen, z.B. 14 / 2 Tage).
     const karenzSide = document.getElementById('karenzSidebar');
-    if (karenzSide) karenzSide.innerHTML = renderKarenzPanel(karenzHistory);
+    if (karenzSide) karenzSide.innerHTML = renderKarenzSidebar(karenzKrankHist, karenzUnfallHist);
 
     let rows = '';
     if (absences.length === 0) {
@@ -7635,31 +7640,45 @@ function renderSperrfristPanel(info) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// KARENZ-PANEL
+// KARENZ-PANEL (Krankheit + Unfall)
 // ══════════════════════════════════════════════════════════════════
-// Walter 25.07.2026: kompakt in der rechten Sidebar unter dem Tagessatz —
-// Arbeitsjahr + Anzahl Krankheiten + ob die 14 Tage erreicht sind.
-// Keine Vorjahre, keine Krankheitstabelle.
-function renderKarenzPanel(history) {
-    if (!Array.isArray(history) || history.length === 0) return '';
+// Walter 25.07.2026: kompakt rechts unter dem Tagessatz — Arbeitsjahr,
+// Anzahl Fälle, ob die jeweilige Grenze erreicht ist. Krank und Unfall
+// getrennt (z.B. 14 bzw. 2 Tage). Keine Vorjahre, keine Detailtabelle.
+function renderKarenzSidebar(krankHist, unfallHist) {
+    return [
+        renderKarenzCard(krankHist,  { label: 'Krankheits-Karenz', singular: 'Krankheit', plural: 'Krankheiten', defaultMax: 14 }),
+        renderKarenzCard(unfallHist, { label: 'Unfall-Karenz',     singular: 'Unfall',    plural: 'Unfälle',    defaultMax: 2  }),
+    ].join('');
+}
 
-    const current = history[0];  // GetHistoryAsync liefert absteigend (aktuell zuerst)
+function _pickCurrentKarenzJahr(history) {
+    if (!Array.isArray(history) || history.length === 0) return null;
+    const today = new Date();
+    const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return history.find(h => h.info && h.info.von <= iso && h.info.bis >= iso) || history[0];
+}
+
+function renderKarenzCard(history, cfg) {
+    const current = _pickCurrentKarenzJahr(history);
+    if (!current?.info) return '';
+
     const curInfo = current.info;
-    const max  = Number(curInfo.tageMax) || 14;
+    const max  = Number(curInfo.tageMax) || cfg.defaultMax;
     const used = Number(curInfo.tageVerbraucht) || 0;
-    const krankCount = Array.isArray(current.krankheiten) ? current.krankheiten.length : 0;
+    const count = Array.isArray(current.krankheiten) ? current.krankheiten.length : 0;
     const erreicht = !!curInfo.grenzErreichtAm;
     const statusTxt = erreicht
-        ? `14 Tage erreicht (${fmtDate(curInfo.grenzErreichtAm)})`
+        ? `${max} Tage erreicht (${fmtDate(curInfo.grenzErreichtAm)})`
         : `${used.toFixed(0)} / ${max} Tage — Grenze offen`;
 
     return `
     <div class="karenz-side-card ${erreicht ? 'karenz-reached' : 'karenz-ok'}">
-        <div class="karenz-side-label">Krankheits-Karenz</div>
+        <div class="karenz-side-label">${cfg.label}</div>
         <div class="karenz-side-year">${fmtDate(curInfo.von)} – ${fmtDate(curInfo.bis)}</div>
         <div class="karenz-side-count">
-            <strong>${krankCount}</strong>
-            <span>${krankCount === 1 ? 'Krankheit' : 'Krankheiten'} in diesem Arbeitsjahr</span>
+            <strong>${count}</strong>
+            <span>${count === 1 ? cfg.singular : cfg.plural} in diesem Arbeitsjahr</span>
         </div>
         <div class="karenz-side-status">${statusTxt}</div>
     </div>`;

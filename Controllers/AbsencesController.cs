@@ -265,33 +265,49 @@ public class AbsencesController : ControllerBase
     }
 
     // ── GET /api/absences/employee/{id}/karenz-history ────────────────────
-    // Liefert die Krankheits-History gruppiert nach Karenzjahren — pro Jahr
-    // Metadaten (Von/Bis, TageMax, verbraucht, Grenz-Datum) und die Liste der
-    // Krank-Absenzen mit kumulierten Karenztagen.
+    // Liefert die Absenz-History (Krank ODER Unfall) gruppiert nach
+    // Karenzjahren — pro Jahr Metadaten (Von/Bis, TageMax, verbraucht,
+    // Grenz-Datum) und die Liste der Absenzen mit kumulierten Karenztagen.
+    // absenceType: KRANK (Default) | UNFALL — getrennte Kumulation.
     [HttpGet("employee/{employeeId:int}/karenz-history")]
     public async Task<IActionResult> GetKarenzHistory(
         int employeeId,
-        [FromQuery] int companyProfileId)
+        [FromQuery] int companyProfileId,
+        [FromQuery] string absenceType = "KRANK")
     {
-        var list = await _karenz.GetHistoryAsync(employeeId, companyProfileId);
+        var typ = NormalizeKarenzAbsenceType(absenceType);
+        if (typ is null)
+            return BadRequest(new { message = "absenceType muss KRANK oder UNFALL sein." });
+        var list = await _karenz.GetHistoryAsync(employeeId, companyProfileId, typ);
         return Ok(list);
     }
 
     // ── GET /api/absences/employee/{id}/karenz-current ────────────────────
     // Aktuelles Karenzjahr zu einem Stichdatum (Default: heute). Liefert
     // nur die Zusammenfassung, keine Detail-Absenzen.
+    // absenceType: KRANK (Default) | UNFALL.
     [HttpGet("employee/{employeeId:int}/karenz-current")]
     public async Task<IActionResult> GetKarenzCurrent(
         int employeeId,
         [FromQuery] int companyProfileId,
-        [FromQuery] string? datum = null)
+        [FromQuery] string? datum = null,
+        [FromQuery] string absenceType = "KRANK")
     {
+        var typ = NormalizeKarenzAbsenceType(absenceType);
+        if (typ is null)
+            return BadRequest(new { message = "absenceType muss KRANK oder UNFALL sein." });
         DateOnly d = DateOnly.TryParse(datum, out var parsed)
             ? parsed
             : DateOnly.FromDateTime(DateTime.Today);
-        var info = await _karenz.GetCurrentAsync(employeeId, companyProfileId, d);
+        var info = await _karenz.GetCurrentAsync(employeeId, companyProfileId, d, typ);
         if (info is null) return NotFound();
         return Ok(info);
+    }
+
+    private static string? NormalizeKarenzAbsenceType(string? absenceType)
+    {
+        var t = (absenceType ?? "KRANK").Trim().ToUpperInvariant();
+        return t is "KRANK" or "UNFALL" ? t : null;
     }
 
     // ── GET /api/absences/employee/{id}/sperrfrist ────────────────────────
