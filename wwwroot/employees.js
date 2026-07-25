@@ -7482,7 +7482,7 @@ function renderSperrfristPanel(info) {
 
     const wrap = (color, bg, border, inner) => `
         <div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:12px 16px;margin-bottom:8px;font-size:13.5px">
-            <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Kündigungsschutz · Art. 336c OR</div>
+            <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Kündigungsschutz</div>
             ${inner}
         </div>`;
 
