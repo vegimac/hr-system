@@ -44,6 +44,7 @@ public class MailboxController : ControllerBase
     public async Task<IActionResult> GetForPostfach(
         [FromQuery] int? companyProfileId,
         [FromQuery] int? employeeId,
+        [FromQuery] int? targetUserId,
         [FromQuery] string? type)
     {
         var t = (type ?? "BRANCH").ToUpperInvariant();
@@ -100,11 +101,15 @@ public class MailboxController : ControllerBase
         }
         else if (t == "USER")
         {
-            // Persönliches Benutzer-Postfach — nur eigene Inbox (Sender sieht
-            // eigene Sendungen ohnehin via UserCanViewDocumentAsync).
+            // Persönliches Benutzer-Postfach. Ohne targetUserId = eigene Inbox.
+            // Admin/Superuser dürfen fremde Benutzer-Postfächer öffnen
+            // (Walter 25.07.2026).
             var uid = GetCurrentUserId();
             if (uid is null) return Unauthorized();
-            q = q.Where(m => m.TargetType == "USER" && m.TargetUserId == uid.Value);
+            var inboxUserId = targetUserId is > 0 ? targetUserId.Value : uid.Value;
+            if (inboxUserId != uid.Value && !await UserCanBrowseAllUserInboxesAsync())
+                return Forbid();
+            q = q.Where(m => m.TargetType == "USER" && m.TargetUserId == inboxUserId);
         }
         else
         {
@@ -157,19 +162,54 @@ public class MailboxController : ControllerBase
 
         var result = new List<object>();
         var uid = GetCurrentUserId();
+        // Benutzer-Postfächer: eigener Eintrag mit Klarnamen; Admin/Superuser
+        // sehen zusätzlich alle anderen App-User (Walter 25.07.2026).
         if (uid.HasValue)
         {
-            var myCount = await _db.MailboxDocuments
-                .CountAsync(m => m.TargetType == "USER" && m.TargetUserId == uid.Value);
-            result.Add(new
+            var userCounts = await _db.MailboxDocuments
+                .Where(m => m.TargetType == "USER" && m.TargetUserId != null)
+                .GroupBy(m => m.TargetUserId!.Value)
+                .Select(g => new { UserId = g.Key, Count = g.Count() })
+                .ToListAsync();
+            var countByUser = userCounts.ToDictionary(x => x.UserId, x => x.Count);
+
+            var me = await _db.AppUsers.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == uid.Value);
+            if (me != null && me.Role != "employee")
             {
-                type = "USER",
-                companyProfileId = (int?)null,
-                targetUserId = uid.Value,
-                code = (string?)null,
-                name = "Meine Mitteilungen",
-                count = myCount,
-            });
+                result.Add(new
+                {
+                    type = "USER",
+                    companyProfileId = (int?)null,
+                    targetUserId = me.Id,
+                    code = (string?)null,
+                    name = FormatUserMailboxName(me),
+                    isSelf = true,
+                    count = countByUser.GetValueOrDefault(me.Id),
+                });
+            }
+
+            if (await UserCanBrowseAllUserInboxesAsync())
+            {
+                var others = await _db.AppUsers.AsNoTracking()
+                    .Where(u => u.IsActive && u.Role != "employee" && u.Id != uid.Value)
+                    .OrderBy(u => u.FirstName ?? "")
+                    .ThenBy(u => u.LastName ?? u.Username)
+                    .ToListAsync();
+                foreach (var u in others)
+                {
+                    result.Add(new
+                    {
+                        type = "USER",
+                        companyProfileId = (int?)null,
+                        targetUserId = u.Id,
+                        code = (string?)null,
+                        name = FormatUserMailboxName(u),
+                        isSelf = false,
+                        count = countByUser.GetValueOrDefault(u.Id),
+                    });
+                }
+            }
         }
         foreach (var b in branches)
         {
@@ -241,9 +281,17 @@ public class MailboxController : ControllerBase
             : 0;
 
         var uid = GetCurrentUserId();
-        var userCount = uid.HasValue
-            ? await _db.MailboxDocuments.CountAsync(m => m.TargetType == "USER" && m.TargetUserId == uid.Value)
-            : 0;
+        int userCount;
+        if (await UserCanBrowseAllUserInboxesAsync())
+        {
+            userCount = await _db.MailboxDocuments.CountAsync(m => m.TargetType == "USER");
+        }
+        else if (uid.HasValue)
+        {
+            userCount = await _db.MailboxDocuments
+                .CountAsync(m => m.TargetType == "USER" && m.TargetUserId == uid.Value);
+        }
+        else userCount = 0;
 
         return Ok(new { count = branchCount + hrCount + buchCount + adminCount + userCount });
     }
@@ -677,10 +725,33 @@ public class MailboxController : ControllerBase
         => UserIsAdmin() || User.IsInRole("buchhaltung");
 
     /// <summary>
+    /// Alle Benutzer-Postfächer durchsuchen: Admin + Superuser (DB-Rolle).
+    /// Buchhaltung bewusst nicht — nur echte HR/Admin-Rollen.
+    /// </summary>
+    private async Task<bool> UserCanBrowseAllUserInboxesAsync()
+    {
+        if (UserIsAdmin()) return true;
+        var uid = GetCurrentUserId();
+        if (uid is null) return false;
+        var role = await _db.AppUsers.AsNoTracking()
+            .Where(u => u.Id == uid.Value)
+            .Select(u => u.Role)
+            .FirstOrDefaultAsync();
+        return string.Equals(role, "superuser", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FormatUserMailboxName(AppUser u)
+    {
+        var name = $"{u.FirstName} {u.LastName}".Trim();
+        return string.IsNullOrEmpty(name) ? (u.Username ?? $"User {u.Id}") : name;
+    }
+
+    /// <summary>
     /// Darf der aktuelle User das Dokument sehen?
     ///   BRANCH → Filial-Zugriff via UserBranchAccess (oder Admin)
     ///   HR     → IsHrTeam (oder Admin)
     ///   ADMIN  → nur Admin
+    ///   USER   → eigener Empfänger, oder Admin/Superuser (alle Postfächer)
     /// </summary>
     private async Task<bool> UserCanViewDocumentAsync(MailboxDocument doc)
     {
@@ -700,7 +771,8 @@ public class MailboxController : ControllerBase
             "BUCH"     => UserCanSeeBuchhaltung(),
             "ADMIN"    => false, // Admin schon oben gehandhabt
             "EMPLOYEE" => await UserCanSeeEmployeeMailboxAsync(doc),
-            "USER"     => uid.HasValue && doc.TargetUserId == uid.Value,
+            "USER"     => (uid.HasValue && doc.TargetUserId == uid.Value)
+                          || await UserCanBrowseAllUserInboxesAsync(),
             _          => false,
         };
     }
