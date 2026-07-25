@@ -96,9 +96,8 @@ public class KuendigungController : ControllerBase
                 kuendigungAbDatum = sperr.KuendigungAbDatum?.ToString("yyyy-MM-dd"),
                 // GESCHUETZT = Sperrfrist aktiv → Kündigung aktuell unzulässig.
                 blocked    = sperr.Status == "GESCHUETZT",
-                // AU_ENDE_UNBESTAETIGT = dokumentierte AU endete kürzlich,
-                // theoretische Sperrfrist läuft noch → weiche Warnung.
-                warn       = sperr.Status == "AU_ENDE_UNBESTAETIGT",
+                // Nach AU-Ende keine Soft-Warnung mehr — normale L-GAV-Frist.
+                warn       = false,
             }
         });
     }

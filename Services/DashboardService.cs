@@ -508,7 +508,9 @@ public class DashboardService
             foreach (var e in sperrCands)
             {
                 var info = await _sperrfrist.ComputeAsync(e.Id, today);
-                if (info.Status != "SPERRFRIST_ABGELAUFEN" && info.Status != "KUENDIGUNG_MOEGLICH")
+                // Nur bei laufender AU mit ausgeschöpfter Sperrfrist.
+                // Nach AU-Ende gilt normale L-GAV-Kündigung — kein ToDo.
+                if (info.Status != "SPERRFRIST_ABGELAUFEN")
                     continue;
                 // Nur im konfigurierten Fenster nach «kündbar ab» behalten
                 if (info.KuendigungAbDatum.HasValue)
@@ -530,7 +532,7 @@ public class DashboardService
                 {
                     Category = "kuendigung_sperrfrist_ende",
                     Severity = SeverityState("kuendigung_sperrfrist_ende", "warning"),
-                    Title    = "Kündigung jetzt möglich (Sperrfrist Art. 336c abgelaufen)",
+                    Title    = "Kündigung jetzt möglich (Sperrfrist abgelaufen, AU läuft noch)",
                     Subtitle = $"{name} · Personalnr. {e.EmployeeNumber} · {auTxt} · {sperrTxt}"
                              + (info.KuendigungAbDatum.HasValue
                                  ? $" · kündbar seit {info.KuendigungAbDatum:dd.MM.yyyy}"
