@@ -342,16 +342,8 @@ async function pbBuildSendTargetHtml(excludeVal) {
     const buchOpts   = postfaecher.filter(p => p.type === 'BUCH');
     const adminOpts  = postfaecher.filter(p => p.type === 'ADMIN');
 
-    const allowedBranchIds = new Set(branchOpts.map(p => Number(p.companyProfileId)));
-    let empsForSend = (_pbAllEmployees || []).filter(e => e.isActive);
-    if (allowedBranchIds.size) {
-        empsForSend = empsForSend.filter(e =>
-            (e.employments || []).some(em => allowedBranchIds.has(Number(em.companyProfileId))));
-    }
-    empsForSend.sort((a, b) =>
-        (a.firstName || '').localeCompare(b.firstName || '', 'de')
-        || (a.lastName || '').localeCompare(b.lastName || '', 'de'));
-
+    // Walter 25.07.2026: Posteingang = Austausch Filialen / Abteilungen / Benutzer.
+    // MA-Zustellung bewusst NICHT hier — Moments oder später Postfach-Button im MA-Detail.
     let html = '';
     if (branchOpts.length) {
         html += '<optgroup label="Filialen">';
@@ -363,7 +355,7 @@ async function pbBuildSendTargetHtml(excludeVal) {
         html += '</optgroup>';
     }
     if (hrOpts.length || buchOpts.length || adminOpts.length) {
-        html += '<optgroup label="Geteilt">';
+        html += '<optgroup label="Abteilungen">';
         hrOpts.forEach(() => {
             if (excludeVal === 'HR') return;
             html += `<option value="HR">HR-Postfach</option>`;
@@ -400,15 +392,6 @@ async function pbBuildSendTargetHtml(excludeVal) {
                 }).join('');
             html += '</optgroup>';
         }
-    }
-    if (empsForSend.length) {
-        html += '<optgroup label="Mitarbeiter">';
-        html += empsForSend.map(e => {
-            const v = `EMPLOYEE:${e.id}`;
-            if (excludeVal && v === excludeVal) return '';
-            return `<option value="${v}">${e.firstName || ''} ${e.lastName || ''} (${e.employeeNumber || ''})</option>`;
-        }).join('');
-        html += '</optgroup>';
     }
     return html || '<option value="">– keine Ziele –</option>';
 }
@@ -468,12 +451,12 @@ async function pbOpenUpload() {
     document.getElementById('pbUploadModal').style.display = 'block';
 }
 
-/** Bezug-MA ausblenden wenn Ziel bereits ein Benutzer oder MA ist. */
+/** Bezug-MA ausblenden wenn Ziel ein persönliches Benutzer-Postfach ist. */
 function pbUploadTargetChanged() {
     const pf = pbParsePostfach(document.getElementById('pbUploadTarget').value);
     const bezug = document.getElementById('pbEmpBezugBlock');
     if (!bezug) return;
-    const hide = pf && (pf.type === 'USER' || pf.type === 'EMPLOYEE');
+    const hide = pf && pf.type === 'USER';
     bezug.style.display = hide ? 'none' : '';
     if (hide) document.getElementById('pbEmpInput').value = '';
 }
@@ -748,8 +731,8 @@ async function pbOpenTransfer(d, mode) {
         ? 'Verschieben an anderes Postfach'
         : 'Weiterleiten an anderes Postfach';
     document.getElementById('pbTransferHint').textContent = isMove
-        ? 'Wird aus diesem Postfach entfernt und ins Ziel gelegt. Nur Postfächer mit Zugriff.'
-        : 'Legt eine Kopie ins Ziel — Original bleibt hier. Nur Postfächer mit Zugriff.';
+        ? 'Wird aus diesem Postfach entfernt und ins Ziel gelegt. Filialen, Abteilungen oder Benutzer.'
+        : 'Legt eine Kopie ins Ziel — Original bleibt hier. Filialen, Abteilungen oder Benutzer.';
     const actionBtn = document.getElementById('pbTransferActionBtn');
     actionBtn.textContent = isMove ? '↗ Verschieben' : '↪ Weiterleiten';
 
