@@ -7617,8 +7617,8 @@ function renderSperrfristPanel(info) {
 // Krank und Unfall getrennt, nie zusammengezählt. Keine Vorjahre/Details.
 function renderKarenzSidebar(krankHist, unfallHist) {
     return [
-        renderKarenzCard(krankHist,  { label: 'Krankheits-Karenz', singular: 'Krankheit', plural: 'Krankheiten', defaultMax: 14 }),
-        renderKarenzCard(unfallHist, { label: 'Unfall-Karenz',     singular: 'Unfall',    plural: 'Unfälle',    defaultMax: 2  }),
+        renderKarenzCard(krankHist,  { label: 'Krankheits-Karenz', dayLabel: 'Kranktage',  defaultMax: 14 }),
+        renderKarenzCard(unfallHist, { label: 'Unfall-Karenz',     dayLabel: 'Unfalltage', defaultMax: 2  }),
     ].join('');
 }
 
@@ -7640,19 +7640,23 @@ function renderKarenzCard(history, cfg) {
     const curInfo = current.info;
     const max  = Number(curInfo.tageMax) || cfg.defaultMax;
     const used = Number(curInfo.tageVerbraucht) || 0;
-    const count = Array.isArray(current.krankheiten) ? current.krankheiten.length : 0;
     const erreicht = !!curInfo.grenzErreichtAm;
+    // Walter 25.07.2026: Tage im Arbeitsjahr (nicht Anzahl Fälle).
+    const usedTxt = used.toLocaleString('de-CH', {
+        minimumFractionDigits: Number.isInteger(used) ? 0 : 2,
+        maximumFractionDigits: 2,
+    });
     const statusTxt = erreicht
-        ? `${max} Tage erreicht (${fmtDate(curInfo.grenzErreichtAm)})`
-        : `${used.toFixed(0)} / ${max} Tage — Grenze offen`;
+        ? `Grenze ${max} Tage erreicht (${fmtDate(curInfo.grenzErreichtAm)})`
+        : `Grenze offen (${usedTxt} / ${max} Tage)`;
 
     return `
     <div class="karenz-side-card ${erreicht ? 'karenz-reached' : 'karenz-ok'}">
         <div class="karenz-side-label">${cfg.label}</div>
         <div class="karenz-side-year">${fmtDate(curInfo.von)} – ${fmtDate(curInfo.bis)}</div>
         <div class="karenz-side-count">
-            <strong>${count}</strong>
-            <span>${count === 1 ? cfg.singular : cfg.plural} in diesem Arbeitsjahr</span>
+            <strong>${usedTxt}</strong>
+            <span>${cfg.dayLabel} in diesem Arbeitsjahr</span>
         </div>
         <div class="karenz-side-status">${statusTxt}</div>
     </div>`;
