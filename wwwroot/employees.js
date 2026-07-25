@@ -7632,99 +7632,40 @@ function renderSperrfristPanel(info) {
 // ══════════════════════════════════════════════════════════════════
 // KARENZ-PANEL
 // ══════════════════════════════════════════════════════════════════
-// Rendert eine Übersicht der Karenzjahre: aktuelles Jahr prominent mit
-// Progress-Balken + verbrauchte Tage, ältere Jahre zusammenklappbar.
+// Walter 25.07.2026: bewusst schlank — nur ob die 14 Tage im aktuellen
+// Arbeitsjahr erreicht sind. Keine Vorjahre, keine Krankheitstabelle.
 function renderKarenzPanel(history) {
     if (!Array.isArray(history) || history.length === 0) return '';
 
-    const [current, ...older] = history;  // GetHistoryAsync liefert absteigend
+    const current = history[0];  // GetHistoryAsync liefert absteigend (aktuell zuerst)
     const curInfo = current.info;
-    const max     = Number(curInfo.tageMax) || 14;
-    const used    = Number(curInfo.tageVerbraucht) || 0;
-    const pct     = Math.min(100, Math.round((used / max) * 100));
-    const remaining = Math.max(0, max - used);
-    const grenzTxt  = curInfo.grenzErreichtAm
-        ? `<span style="color:#b91c1c;font-weight:600">Grenze am ${fmtDate(curInfo.grenzErreichtAm)} erreicht → reduzierte Lohnfortzahlung</span>`
-        : `<span style="color:#16a34a">Innerhalb der Karenz — volle Lohnfortzahlung</span>`;
-
-    const barColor = curInfo.grenzErreichtAm ? '#dc2626' : (pct > 75 ? '#f59e0b' : '#3f3f3f');
-
-    const olderBlocks = older.map(j => {
-        const jInfo = j.info;
-        const jUsed = Number(jInfo.tageVerbraucht) || 0;
-        const jMax  = Number(jInfo.tageMax) || max;
-        const reached = jInfo.grenzErreichtAm
-            ? `<span style="color:#b91c1c">Grenze am ${fmtDate(jInfo.grenzErreichtAm)}</span>`
-            : `<span style="color:#64748b">nicht erreicht</span>`;
-        const rows = j.krankheiten.map(k => `
-            <tr style="line-height:1.2">
-                <td style="padding:2px 4px">${fmtDate(k.dateFrom)} – ${fmtDate(k.dateTo)}</td>
-                <td style="padding:2px 4px;text-align:center">${k.tageImJahr}</td>
-                <td style="padding:2px 4px;text-align:center">${Number(k.prozent).toFixed(0)}%</td>
-                <td style="padding:2px 4px;text-align:right">${Number(k.karenztageInDiesemJahr).toFixed(2)}</td>
-                <td style="padding:2px 4px;text-align:right;color:#64748b">${Number(k.kumuliertNach).toFixed(2)}</td>
-                <td style="padding:2px 4px;color:#94a3b8;font-size:11px">${k.notes ?? ''}</td>
-            </tr>`).join('');
-        return `
-        <details style="margin-top:8px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc">
-            <summary style="padding:10px 14px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;align-items:center">
-                <span><b>${fmtDate(jInfo.von)} – ${fmtDate(jInfo.bis)}</b></span>
-                <span style="color:#475569">${jUsed.toFixed(2)} / ${jMax} Tage · ${reached}</span>
-            </summary>
-            <div style="padding:0 14px 12px">
-                <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:4px">
-                    <thead><tr style="color:#64748b;text-align:left">
-                        <th style="padding:2px 4px">Zeitraum</th>
-                        <th style="padding:2px 4px;text-align:center">Tage</th>
-                        <th style="padding:2px 4px;text-align:center">%</th>
-                        <th style="padding:2px 4px;text-align:right">Karenztage</th>
-                        <th style="padding:2px 4px;text-align:right">Kumuliert</th>
-                        <th style="padding:2px 4px">Bemerkung</th>
-                    </tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </div>
-        </details>`;
-    }).join('');
-
-    const currentRows = current.krankheiten.map(k => `
-        <tr style="line-height:1.2">
-            <td style="padding:2px 4px">${fmtDate(k.dateFrom)} – ${fmtDate(k.dateTo)}</td>
-            <td style="padding:2px 4px;text-align:center">${k.tageImJahr}</td>
-            <td style="padding:2px 4px;text-align:center">${Number(k.prozent).toFixed(0)}%</td>
-            <td style="padding:2px 4px;text-align:right">${Number(k.karenztageInDiesemJahr).toFixed(2)}</td>
-            <td style="padding:2px 4px;text-align:right;color:#64748b">${Number(k.kumuliertNach).toFixed(2)}</td>
-        </tr>`).join('');
-
-    const currentTable = current.krankheiten.length > 0 ? `
-        <details style="margin-top:6px" open>
-            <summary style="cursor:pointer;font-size:11px;color:#475569">Krankheiten in diesem Karenzjahr (${current.krankheiten.length})</summary>
-            <table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:3px">
-                <thead><tr style="color:#64748b;text-align:left">
-                    <th style="padding:2px 4px">Zeitraum</th>
-                    <th style="padding:2px 4px;text-align:center">Tage</th>
-                    <th style="padding:2px 4px;text-align:center">%</th>
-                    <th style="padding:2px 4px;text-align:right">Karenztage</th>
-                    <th style="padding:2px 4px;text-align:right">Kumuliert</th>
-                </tr></thead>
-                <tbody>${currentRows}</tbody>
-            </table>
-        </details>` : '';
+    const max  = Number(curInfo.tageMax) || 14;
+    const used = Number(curInfo.tageVerbraucht) || 0;
+    const pct  = Math.min(100, Math.round((used / max) * 100));
+    const erreicht = !!curInfo.grenzErreichtAm;
+    const color = erreicht ? '#b91c1c' : '#166534';
+    const bg    = erreicht ? '#fef2f2' : '#f0fdf4';
+    const border = erreicht ? '#fecaca' : '#bbf7d0';
+    const statusTxt = erreicht
+        ? `14-Tage-Grenze erreicht am ${fmtDate(curInfo.grenzErreichtAm)} — reduzierte Lohnfortzahlung`
+        : `14-Tage-Grenze noch nicht erreicht — volle Lohnfortzahlung`;
 
     return `
-    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 16px;margin-bottom:8px;font-size:13.5px">
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">Krankheits-Karenz</div>
-            <div style="font-weight:700;color:#0f172a;white-space:nowrap;font-size:14px">${fmtDate(curInfo.von)} – ${fmtDate(curInfo.bis)}</div>
-            <div style="flex:1;min-width:220px;font-weight:600">${grenzTxt}</div>
-            <div style="font-weight:700;color:${barColor};white-space:nowrap;font-size:16px">${used.toFixed(2)} <span style="color:#94a3b8;font-weight:500;font-size:12px">/ ${max} Tage</span></div>
-            <div style="color:#64748b;white-space:nowrap;font-size:12px">Noch ${remaining.toFixed(2)} Tage erhöhte Fortzahlung</div>
+    <div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:12px 16px;margin-bottom:8px;font-size:13.5px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between">
+            <div style="min-width:200px">
+                <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Krankheits-Karenz · Arbeitsjahr</div>
+                <div style="font-weight:700;color:#0f172a;font-size:14px;line-height:1.35">${statusTxt}</div>
+                <div style="color:#64748b;font-size:12px;margin-top:4px">${fmtDate(curInfo.von)} – ${fmtDate(curInfo.bis)}</div>
+            </div>
+            <div style="text-align:right">
+                <div style="font-size:22px;font-weight:800;color:${color}">${used.toFixed(0)}<span style="font-size:14px;font-weight:600;color:#94a3b8"> / ${max}</span></div>
+                <div style="font-size:11px;color:#64748b">Karenztage</div>
+            </div>
         </div>
-        <div style="margin-top:8px;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden">
-            <div style="width:${pct}%;height:100%;background:${barColor};transition:width 0.3s"></div>
+        <div style="margin-top:10px;height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${erreicht ? '#dc2626' : '#3f3f3f'}"></div>
         </div>
-        ${currentTable}
-        ${older.length ? `<div style="margin-top:10px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em">Frühere Karenzjahre</div>${olderBlocks}` : ''}
     </div>`;
 }
 
