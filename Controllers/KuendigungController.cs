@@ -382,26 +382,30 @@ public class KuendigungController : ControllerBase
                 $"{days} Kalendertagen", kdat.AddDays(days), probeRule);
         }
 
-        // Nach der Probezeit: Monatsfrist auf Ende eines Monats (OR Art. 335c).
-        int months = dienstjahr >= 10
-            ? (cp?.NoticePeriodFromTenthYearMonths ?? 3)
-            : (cp?.NoticePeriodAfterProbationMonths ?? (dienstjahr <= 1 ? 1 : 2));
+        // Nach der Probezeit: Monatsfrist auf Ende eines Monats.
+        // Walter 25.07.2026 — L-GAV Gastgewerbe (Default, nicht OR-335c-Staffel):
+        //   1.–5. Dienstjahr → 1 Monat auf Monatsende
+        //   ab 6. Dienstjahr → 2 Monate auf Monatsende
+        // Filial-Override: notice_period_after_probation_months (1.–5.),
+        // notice_period_from_tenth_year_months (ab 6.; Feldname historisch).
+        int months;
+        if (dienstjahr >= 6)
+            months = cp?.NoticePeriodFromTenthYearMonths ?? 2;
+        else
+            months = cp?.NoticePeriodAfterProbationMonths ?? 1;
         var letzter = new DateOnly(kdat.Year, kdat.Month, 1).AddMonths(months + 1).AddDays(-1);
         string txt = $"{months} Monat{(months == 1 ? "" : "en")} auf Ende eines Monats";
 
-        // Regel-Herkunft transparent machen (Walter 15.07.2026): WARUM diese Frist?
+        // Regel-Herkunft transparent machen (Walter 15.07.2026 / L-GAV 25.07.2026).
         string rule;
-        if (dienstjahr >= 10 && cp?.NoticePeriodFromTenthYearMonths != null)
-            rule = $"Regel: ab 10. Dienstjahr {months} Monate gemäss Arbeitsvertrag/Filial-Einstellung (OR Art. 335c: 3 Monate).";
-        else if (dienstjahr >= 10)
-            rule = "Regel: ab 10. Dienstjahr 3 Monate (OR Art. 335c).";
+        if (dienstjahr >= 6 && cp?.NoticePeriodFromTenthYearMonths != null)
+            rule = $"Regel: ab 6. Dienstjahr {months} Monate gemäss Arbeitsvertrag/Filial-Einstellung (L-GAV).";
+        else if (dienstjahr >= 6)
+            rule = "Regel: ab 6. Dienstjahr 2 Monate auf Monatsende (L-GAV Gastgewerbe).";
         else if (cp?.NoticePeriodAfterProbationMonths != null)
-            rule = $"Regel: nach der Probezeit {months} Monat{(months == 1 ? "" : "e")} gemäss Arbeitsvertrag/Filial-Einstellung "
-                 + $"(gilt bis zum 9. Dienstjahr; L-GAV/OR Art. 335c).";
-        else if (dienstjahr <= 1)
-            rule = "Regel: im 1. Dienstjahr 1 Monat (OR Art. 335c).";
+            rule = $"Regel: 1.–5. Dienstjahr {months} Monat{(months == 1 ? "" : "e")} gemäss Arbeitsvertrag/Filial-Einstellung (L-GAV).";
         else
-            rule = "Regel: im 2.–9. Dienstjahr 2 Monate (OR Art. 335c).";
+            rule = "Regel: 1.–5. Dienstjahr 1 Monat auf Monatsende (L-GAV Gastgewerbe).";
         return new NoticeInfo(false, dienstjahr, months, null, txt, letzter, rule);
     }
 
