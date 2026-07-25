@@ -297,7 +297,8 @@ async function pbLoadList() {
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
                     ${!d.messageBody ? `<button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="pbDownload(${d.id})">⬇ Download</button>` : ''}
-                    <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick='pbOpenTransfer(${docJson})' title="Verschieben oder weiterleiten">↪ Weiterleiten</button>
+                    <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick='pbOpenTransfer(${docJson}, "move")' title="In anderes Postfach verschieben">↗ Verschieben</button>
+                    <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick='pbOpenTransfer(${docJson}, "forward")' title="Kopie in anderes Postfach">↪ Weiterleiten</button>
                     ${canAblage ? `<button class="btn btn-success" style="font-size:12px;padding:6px 12px" onclick='pbOpenMove(${docJson})'>📁 Ablegen</button>` : ''}
                     <button class="btn btn-danger" style="font-size:12px;padding:6px 12px" onclick="pbDelete(${d.id})" title="Löschen">🗑</button>
                 </div>
