@@ -9528,11 +9528,12 @@ function renderKtgTagessatzHtml(d, mode = 'full') {
     const vs = d.vertragsStart ? new Date(d.vertragsStart).toLocaleDateString('de-CH') : '—';
     const badge = _ktgBadgeHtml(d.regel, mode === 'compact' || mode === 'side');
     const woLabel = _ktgMetaWochenstunden(d);
-    // «0 Per.» war Anzahl Lohnperioden (Regel A/B) — unverständlich.
-    // Sidebar: Modell · Vertragsstart · garantierte/relevante Wochenstunden.
+    const nPer = Number(d.anzahlPerioden) || 0;
+    const perLabel = `${nPer} Lohnperiode${nPer === 1 ? '' : 'n'}`;
+    // Modell · Vertragsstart · Wochenstunden · Anzahl Lohnperioden (Regel A/B).
     const meta = (mode === 'compact' || mode === 'side')
-        ? `<b>${d.vertragsModell || '?'}</b> · ${vs} · ${woLabel}`
-        : `Vertrag <b>${d.vertragsModell || '?'}</b> seit ${vs} · ${woLabel}`;
+        ? `<b>${d.vertragsModell || '?'}</b> · ${vs} · ${woLabel} · ${perLabel}`
+        : `Vertrag <b>${d.vertragsModell || '?'}</b> seit ${vs} · ${woLabel} · ${perLabel}`;
 
     if (mode === 'compact') {
         return `
