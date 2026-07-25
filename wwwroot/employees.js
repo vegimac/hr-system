@@ -7457,7 +7457,9 @@ function _sperrKuendPerEndeMonat(dienstjahr, kuendAbIso) {
     }
     // 1. des Monats + months + 1 Monat − 1 Tag = Monatsende nach Frist
     const per = new Date(kdat.getFullYear(), kdat.getMonth() + months + 1, 0);
-    return { per, months };
+    const dd = String(per.getDate()).padStart(2, '0');
+    const mm = String(per.getMonth() + 1).padStart(2, '0');
+    return { per, months, perTxt: `${dd}.${mm}.${per.getFullYear()}` };
 }
 
 function renderSperrfristPanel(info) {
@@ -7489,10 +7491,9 @@ function renderSperrfristPanel(info) {
         : '';
     // Walter 25.07.2026: Leitsatz «X Tage ununterbrochen krank · Kündigung per Ende Monat»
     const kuendPerInfo = _sperrKuendPerEndeMonat(dj, info.kuendigungAbDatum);
-    const kuendPerTxt = fmtDate(kuendPerInfo.per.toISOString().slice(0, 10));
+    const kuendPerTxt = kuendPerInfo.perTxt;
     const heroKuendbar = auTage > 0
-        ? `<b>${auTage} Tage</b> ununterbrochen krank${chainKurz ? ` (${chainKurz})` : ''}.
-           Kündigung per <b>${kuendPerTxt}</b> (Ende Monat) möglich.`
+        ? `<b>${auTage} Tage</b> ununterbrochen krank${chainKurz ? ` (${chainKurz})` : ''}. Kündigung per <b>${kuendPerTxt}</b> (Ende Monat) möglich.`
         : `Kündigung per <b>${kuendPerTxt}</b> (Ende Monat) möglich.`;
 
     if (status === 'KEIN_EINTRITT') {
