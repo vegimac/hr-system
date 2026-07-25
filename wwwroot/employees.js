@@ -1118,7 +1118,8 @@ function renderEmployeeDetail(emp) {
              „Absenzen Zulagen Abzüge"-Tab abgetrennt; Zulagen/Abzüge sind
              jetzt ein eigener Tab.
              Walter 17.07.2026: zweispaltig — Absenzen links scrollen,
-             KTG/UVG-Tagessatz schmal rechts (Arbeitsplatz Krank/Unfall). -->
+             KTG/UVG-Tagessatz schmal rechts (Arbeitsplatz Krank/Unfall).
+             Walter 25.07.2026: Karenz kompakt unter dem Tagessatz (gleiche Breite). -->
         <div class="emp-tab-content" id="emp-tab-absenzen">
             <div class="abs-ktg-layout">
                 <div class="abs-ktg-main">
@@ -1130,10 +1131,11 @@ function renderEmployeeDetail(emp) {
                         </div>
                     </div>
                 </div>
-                <aside class="abs-ktg-side" aria-label="KTG/UVG-Tagessatz">
+                <aside class="abs-ktg-side" aria-label="Tagessatz und Karenz">
                     <div id="ktgTagessatzSidebar">
                         <div class="emp-placeholder" style="padding:24px 12px"><span>${_t('ma.loading','Wird geladen...')}</span></div>
                     </div>
+                    <div id="karenzSidebar"></div>
                 </aside>
             </div>
         </div>
@@ -7297,7 +7299,9 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
     const empModel = selectedEmployee?.employmentModel ?? '';
     const noHours  = empModel === 'FLEX';
     const sperrHtml  = renderSperrfristPanel(sperrfrist);
-    const karenzHtml = renderKarenzPanel(karenzHistory);
+    // Karenz sitzt rechts unter dem Tagessatz (Walter 25.07.2026).
+    const karenzSide = document.getElementById('karenzSidebar');
+    if (karenzSide) karenzSide.innerHTML = renderKarenzPanel(karenzHistory);
 
     let rows = '';
     if (absences.length === 0) {
@@ -7388,7 +7392,6 @@ function renderAbsenzenList(el, absences, employeeId, karenzHistory = [], sperrf
         <div class="abs-list-fixed">
             <div class="abs-info-panels">
                 ${sperrHtml}
-                ${karenzHtml}
             </div>
             <!-- „Absenz erfassen" sitzt jetzt im Header (empTabActionBar) — Walter 01.06.2026 -->
             <div class="abs-toolbar" style="display:none">
@@ -7632,8 +7635,9 @@ function renderSperrfristPanel(info) {
 // ══════════════════════════════════════════════════════════════════
 // KARENZ-PANEL
 // ══════════════════════════════════════════════════════════════════
-// Walter 25.07.2026: bewusst schlank — nur ob die 14 Tage im aktuellen
-// Arbeitsjahr erreicht sind. Keine Vorjahre, keine Krankheitstabelle.
+// Walter 25.07.2026: kompakt in der rechten Sidebar unter dem Tagessatz —
+// Arbeitsjahr + Anzahl Krankheiten + ob die 14 Tage erreicht sind.
+// Keine Vorjahre, keine Krankheitstabelle.
 function renderKarenzPanel(history) {
     if (!Array.isArray(history) || history.length === 0) return '';
 
@@ -7641,31 +7645,21 @@ function renderKarenzPanel(history) {
     const curInfo = current.info;
     const max  = Number(curInfo.tageMax) || 14;
     const used = Number(curInfo.tageVerbraucht) || 0;
-    const pct  = Math.min(100, Math.round((used / max) * 100));
+    const krankCount = Array.isArray(current.krankheiten) ? current.krankheiten.length : 0;
     const erreicht = !!curInfo.grenzErreichtAm;
-    const color = erreicht ? '#b91c1c' : '#166534';
-    const bg    = erreicht ? '#fef2f2' : '#f0fdf4';
-    const border = erreicht ? '#fecaca' : '#bbf7d0';
     const statusTxt = erreicht
-        ? `14-Tage-Grenze erreicht am ${fmtDate(curInfo.grenzErreichtAm)} — reduzierte Lohnfortzahlung`
-        : `14-Tage-Grenze noch nicht erreicht — volle Lohnfortzahlung`;
+        ? `14 Tage erreicht (${fmtDate(curInfo.grenzErreichtAm)})`
+        : `${used.toFixed(0)} / ${max} Tage — Grenze offen`;
 
     return `
-    <div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:12px 16px;margin-bottom:8px;font-size:13.5px">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between">
-            <div style="min-width:200px">
-                <div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Krankheits-Karenz · Arbeitsjahr</div>
-                <div style="font-weight:700;color:#0f172a;font-size:14px;line-height:1.35">${statusTxt}</div>
-                <div style="color:#64748b;font-size:12px;margin-top:4px">${fmtDate(curInfo.von)} – ${fmtDate(curInfo.bis)}</div>
-            </div>
-            <div style="text-align:right">
-                <div style="font-size:22px;font-weight:800;color:${color}">${used.toFixed(0)}<span style="font-size:14px;font-weight:600;color:#94a3b8"> / ${max}</span></div>
-                <div style="font-size:11px;color:#64748b">Karenztage</div>
-            </div>
+    <div class="karenz-side-card ${erreicht ? 'karenz-reached' : 'karenz-ok'}">
+        <div class="karenz-side-label">Krankheits-Karenz</div>
+        <div class="karenz-side-year">${fmtDate(curInfo.von)} – ${fmtDate(curInfo.bis)}</div>
+        <div class="karenz-side-count">
+            <strong>${krankCount}</strong>
+            <span>${krankCount === 1 ? 'Krankheit' : 'Krankheiten'} in diesem Arbeitsjahr</span>
         </div>
-        <div style="margin-top:10px;height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden">
-            <div style="width:${pct}%;height:100%;background:${erreicht ? '#dc2626' : '#3f3f3f'}"></div>
-        </div>
+        <div class="karenz-side-status">${statusTxt}</div>
     </div>`;
 }
 
@@ -9525,8 +9519,8 @@ function _ktgOverrideBtnHtml(d) {
 function renderKtgTagessatzHtml(d, mode = 'full') {
     const fmt = _ktgFmtChf;
     const vs = d.vertragsStart ? new Date(d.vertragsStart).toLocaleDateString('de-CH') : '—';
-    const badge = _ktgBadgeHtml(d.regel, mode === 'compact');
-    const meta = mode === 'compact'
+    const badge = _ktgBadgeHtml(d.regel, mode === 'compact' || mode === 'side');
+    const meta = (mode === 'compact' || mode === 'side')
         ? `<b>${d.vertragsModell || '?'}</b> · ${vs} · ${d.anzahlPerioden} Per.`
         : `Vertrag <b>${d.vertragsModell || '?'}</b> seit ${vs} · ${d.anzahlPerioden} Periode${d.anzahlPerioden === 1 ? '' : 'n'}`;
 
@@ -9547,16 +9541,34 @@ function renderKtgTagessatzHtml(d, mode = 'full') {
             </div>`;
     }
 
-    // Absenzen-Sidebar (side): Formel IMMER sichtbar (Walter 17.07.2026) —
-    // kein Aufklappen noetig. Full-Tab ebenfalls offen.
-    const breakdown = _ktgBreakdownHtml(d);
-    const pad = mode === 'side' ? '12px 14px' : '20px';
-    const title = mode === 'side' ? 'KTG/UVG-Tagessatz' : '📊 KTG/UVG-Tagessatz';
+    // Absenzen-Sidebar (side): Walter 25.07.2026 kompakt — Sätze + Override,
+    // Formel nur aufklappen. Platz für Karenz darunter.
+    if (mode === 'side') {
+        const breakdown = _ktgBreakdownHtml(d);
+        return `
+            <div class="ktg-panel ktg-panel-side">
+                <div class="ktg-panel-h">
+                    <div class="ktg-panel-title">Tagessatz</div>
+                    ${badge}
+                </div>
+                <div class="ktg-panel-meta">${meta}</div>
+                <div class="ktg-compact-rows">
+                    <div><span>100 %</span><strong>CHF ${fmt(d.tagessatz100)}</strong></div>
+                    ${d.karenzAbgeschlossen
+                        ? `<div class="muted"><span>88 %</span><strong>übersprungen</strong></div>`
+                        : `<div class="r88"><span>88 %</span><strong>CHF ${fmt(d.tagessatz88)}</strong></div>`}
+                    <div class="r80"><span>80 %</span><strong>CHF ${fmt(d.tagessatz80)}</strong></div>
+                </div>
+                <div class="ktg-panel-actions">${_ktgOverrideBtnHtml(d)}</div>
+                ${breakdown ? `<details class="ktg-details"><summary>Berechnung</summary>${breakdown}</details>` : ''}
+            </div>`;
+    }
 
+    const breakdown = _ktgBreakdownHtml(d);
     return `
-        <div class="ktg-panel ktg-panel-${mode}" style="padding:${pad}">
+        <div class="ktg-panel ktg-panel-full" style="padding:20px">
             <div class="ktg-panel-h">
-                <div class="ktg-panel-title">${title}</div>
+                <div class="ktg-panel-title">📊 KTG/UVG-Tagessatz</div>
                 ${badge}
             </div>
             <div class="ktg-panel-meta">${meta}</div>
