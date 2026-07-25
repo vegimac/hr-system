@@ -7264,6 +7264,8 @@ async function loadAbsenzenTab(employeeId) {
     const el = document.getElementById('absenzenContent');
     if (!el) return;
     el.innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
+    const karenzSide = document.getElementById('karenzSidebar');
+    if (karenzSide) karenzSide.innerHTML = '';
     try {
         const activeEmp = selectedEmployee?.employments?.find(e => e.isActive)
                        ?? selectedEmployee?.employments?.[0];
