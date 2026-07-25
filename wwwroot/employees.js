@@ -9511,13 +9511,29 @@ function _ktgOverrideBtnHtml(d) {
     return `<button class="btn btn-outline ktg-ov-btn" onclick="openKtgOverrideModal(${empId}, ${d.tagessatz100 || 0}, ${d.karenzAbgeschlossen ? 'true' : 'false'}, '${manuell}')">✎ Tagessatz übersteuern…</button>`;
 }
 
+/** Wochenstunden für Tagessatz-Meta (statt «N Per.» — Walter 25.07.2026). */
+function _ktgMetaWochenstunden(d) {
+    const wo = d?.breakdown?.wochenStunden;
+    if (wo == null || !Number.isFinite(Number(wo))) return '— h/Wo.';
+    const n = Number(wo);
+    const txt = n.toLocaleString('de-CH', {
+        minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+        maximumFractionDigits: 2,
+    });
+    return `${txt} h/Wo.`;
+}
+
 function renderKtgTagessatzHtml(d, mode = 'full') {
     const fmt = _ktgFmtChf;
     const vs = d.vertragsStart ? new Date(d.vertragsStart).toLocaleDateString('de-CH') : '—';
     const badge = _ktgBadgeHtml(d.regel, mode === 'compact' || mode === 'side');
+    const woLabel = _ktgMetaWochenstunden(d);
+    const nPer = Number(d.anzahlPerioden) || 0;
+    const perLabel = `${nPer} Lohnperiode${nPer === 1 ? '' : 'n'}`;
+    // Modell · Vertragsstart · Wochenstunden · Anzahl Lohnperioden (Regel A/B).
     const meta = (mode === 'compact' || mode === 'side')
-        ? `<b>${d.vertragsModell || '?'}</b> · ${vs} · ${d.anzahlPerioden} Per.`
-        : `Vertrag <b>${d.vertragsModell || '?'}</b> seit ${vs} · ${d.anzahlPerioden} Periode${d.anzahlPerioden === 1 ? '' : 'n'}`;
+        ? `<b>${d.vertragsModell || '?'}</b> · ${vs} · ${woLabel} · ${perLabel}`
+        : `Vertrag <b>${d.vertragsModell || '?'}</b> seit ${vs} · ${woLabel} · ${perLabel}`;
 
     if (mode === 'compact') {
         return `
