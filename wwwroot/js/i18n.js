@@ -82,6 +82,7 @@ window.i18n = (function () {
         'dash.cat.probationEnding':  { de: 'Probezeit endet',       en: 'Probation ending' },
         'dash.cat.probationTalkOpen':{ de: 'Probezeitgespräch offen', en: 'Probation talk open' },
         'dash.cat.terminationEnding':{ de: 'Vertragsende Kündigung', en: 'Termination contract end' },
+        'dash.cat.terminationSperrfrist':{ de: 'Kündigung möglich (Sperrfrist)', en: 'Termination possible (blocking period)' },
         'dash.cat.birthday':         { de: 'Geburtstage',           en: 'Birthdays' },
         'dash.cat.anniversary':      { de: 'Dienstjubiläen',        en: 'Service anniversaries' },
         'dash.cat.payrollOpen':      { de: 'Lohnlauf offen',        en: 'Payroll run open' },
@@ -151,6 +152,8 @@ window.i18n = (function () {
                                              en: 'Minimum wage violation · CHF {amount} missing' },
         'alert.minWage.ok':               { de: 'Alle Mindestlöhne ok',
                                              en: 'All minimum wages ok' },
+        'alert.kuendigung.sperrfrist_ende': { de: 'Kündigung jetzt möglich (Sperrfrist Art. 336c abgelaufen)',
+                                             en: 'Termination now possible (Art. 336c blocking period expired)' },
 
         // ── Dashboard Alert-Subtitel ──
         'subtitle.maPersonalnr':          { de: '{name} · Personalnr. {empNr}',

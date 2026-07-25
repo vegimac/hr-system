@@ -197,6 +197,9 @@ function kuRenderSperr(s) {
         el.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600">⛔ Kündigung aktuell nicht zulässig — ${escapeHtml(s.statusText || 'Sperrfrist aktiv')}${ab}.</div>`;
     } else if (s.warn) {
         el.innerHTML = `<div style="background:#fdf6e7;border:1px solid #f5e3b8;color:#7a5c14;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600">⚠ ${escapeHtml(s.statusText || 'AU-Ende unbestätigt — bitte prüfen')}</div>`;
+    } else if (s.status === 'SPERRFRIST_ABGELAUFEN' || s.status === 'KUENDIGUNG_MOEGLICH') {
+        const ab = s.kuendigungAbDatum ? ` — kündbar seit ${_kuFmt(s.kuendigungAbDatum)}` : '';
+        el.innerHTML = `<div style="background:#ecfdf5;border:1px solid #6ee7b7;color:#14532d;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700">✓ Kündigung jetzt möglich${ab}. ${escapeHtml(s.statusText || '')}</div>`;
     } else {
         el.innerHTML = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:8px 14px;border-radius:8px;font-size:12.5px">✓ Keine Sperrfrist — ${escapeHtml(s.statusText || 'Kündigung möglich')}</div>`;
     }
