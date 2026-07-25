@@ -96,11 +96,17 @@
             panel.innerHTML = html || '<div class="lqsel-group">— leer —</div>';
         }
 
-        function onDocDown(e) { if (!wrap.contains(e.target)) close(); }
+        // Panel am body → nicht von Modal-transform als Containing-Block
+        // eingefangen (Walter-Bug 25.07.2026: Dropdown «zu weit unten»).
+        function onDocDown(e) {
+            if (!wrap.contains(e.target) && !panel.contains(e.target)) close();
+        }
         function onScroll(e) { if (!panel.contains(e.target)) close(); }
         function open()  {
             renderPanel();
+            if (panel.parentNode !== document.body) document.body.appendChild(panel);
             panel.style.display = 'block';
+            panel.style.zIndex = '10050'; // über Posteingang-Modals (z-index 300)
             // FIXED unter/ueber dem Button positionieren — so wird das Panel
             // in scrollenden Modals/Containern nie abgeschnitten (16.07.2026).
             const r = btn.getBoundingClientRect();
