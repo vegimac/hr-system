@@ -7305,10 +7305,9 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
     const empModel = selectedEmployee?.employmentModel ?? '';
     const noHours  = empModel === 'FLEX';
     const sperrHtml  = renderSperrfristPanel(sperrfrist);
-    // Karenz sitzt rechts unter dem Tagessatz (Walter 25.07.2026) —
-    // nur bei laufender Krankheit bzw. laufendem Unfall, getrennt.
+    // Karenz sitzt rechts unter dem Tagessatz — immer, Krank/Unfall getrennt.
     const karenzSide = document.getElementById('karenzSidebar');
-    if (karenzSide) karenzSide.innerHTML = renderKarenzSidebar(karenzKrankHist, karenzUnfallHist, absences);
+    if (karenzSide) karenzSide.innerHTML = renderKarenzSidebar(karenzKrankHist, karenzUnfallHist);
 
     let rows = '';
     if (absences.length === 0) {
@@ -7512,46 +7511,18 @@ function renderSperrfristPanel(info) {
         ? `<b>${auTage} Tage</b> ununterbrochen krank${chainKurz ? ` (${chainKurz})` : ''}. Kündigung per <b>${kuendPerTxt}</b> (Ende Monat) möglich.`
         : `Kündigung per <b>${kuendPerTxt}</b> (Ende Monat) möglich.`;
 
-    if (status === 'KEIN_EINTRITT') {
-        return wrap('#64748b', '#f8fafc', '#e2e8f0',
-            `<div style="font-weight:700;color:#0f172a">Kein Eintrittsdatum hinterlegt</div>
-             <div style="color:#475569;margin-top:4px">Ohne Eintrittsdatum kann die Sperrfrist nicht berechnet werden. Bitte Vertragsdaten ergänzen.</div>`);
-    }
-    if (status === 'IN_PROBEZEIT') {
-        return wrap('#7c3aed', '#faf5ff', '#e9d5ff',
-            `<div style="font-weight:700;color:#0f172a">${esc(info.statusText || '')}</div>
-             <div style="color:#475569;margin-top:4px">${djText} · Eintritt ${fmtDate(info.entryDate)}${info.probezeitEndDate ? ` · Probezeit bis ${fmtDate(info.probezeitEndDate)}` : ''}. ${esc(info.hinweis || '')}</div>`);
-    }
-    if (status === 'AU_ENDE_UNBESTAETIGT') {
-        return wrap('#b45309', '#fffbeb', '#fde68a', `
-            <div style="font-weight:700;color:#0f172a;font-size:14px">⚠ AU-Ende unbestätigt — Sperrfrist kann noch laufen</div>
-            <div style="color:#334155;margin-top:8px;line-height:1.5;font-size:14px">
-                ${auTage > 0 ? `<b>${auTage} Tage</b> ununterbrochen krank${chainKurz ? ` (${chainKurz})` : ''}.` : (chainKurz || esc(info.statusText || ''))}
-            </div>
-            <div style="color:#475569;margin-top:6px;line-height:1.5">
-                ${djText}${maxTage ? ` · max. ${maxTage} Tage Sperrfrist` : ''}
-                ${info.sperrfristEnde ? ` bis <b>${fmtDate(info.sperrfristEnde)}</b>` : ''}
-                ${info.kuendigungAbDatum ? ` — frühestens kündbar ab <b>${fmtDate(info.kuendigungAbDatum)}</b>` : ''}.
-            </div>
-            <div style="color:#92400e;margin-top:6px;font-size:12px;line-height:1.4">
-                Vor einer Kündigung das AU-Ende ärztlich bestätigen lassen (Art. 336c OR).
-            </div>`);
-    }
-    if (status === 'KEINE_AU') {
-        // Walter 25.07.2026: ohne laufende AU = normale Kündigungsfristen.
-        // Kein «KÜNDBAR / Sperrfrist»-Sonderbanner für gesunde MA.
-        const hinweis = info.hinweis
-            ? `<div style="color:#64748b;margin-top:6px;font-size:12px;line-height:1.45">${esc(info.hinweis)}</div>`
-            : `<div style="color:#64748b;margin-top:4px;font-size:12px">Sperrfristen nach Art. 336c OR greifen nur während durchgehender Krankheit oder Unfall.</div>`;
-        return wrap('#16a34a', '#f0fdf4', '#bbf7d0',
-            `<div style="font-weight:700;color:#0f172a">Kein Kündigungsschutz aktiv</div>
-             <div style="color:#475569;margin-top:4px;line-height:1.45">
-                ${djText} · Ordentliche Kündigung mit normalen Fristen möglich
-                (L-GAV: ${kuendPerInfo.months} Monat${kuendPerInfo.months === 1 ? '' : 'e'} auf Ende Monat
-                → bei Kündigung heute per <b>${kuendPerTxt}</b>).
-             </div>
-             ${hinweis}`);
-    }
+    // Walter 25.07.2026: Kündigungsschutz-Banner NUR bei Krank/Unfall und erst
+    // wenn die durchgehende AU die Sperrfrist-Dauer erreicht hat (30/90/180).
+    // Kein Banner für gesunde MA («Kein Kündigungsschutz aktiv»).
+    // Mutterschaft bleibt sichtbar (eigener Art.-336c-Fall).
+    if (status === 'KEINE_AU' || status === 'KEIN_EINTRITT' || status === 'IN_PROBEZEIT'
+        || status === 'AU_ENDE_UNBESTAETIGT')
+        return '';
+    if (!isMts
+        && status !== 'KUENDIGUNG_MOEGLICH'
+        && status !== 'SPERRFRIST_ABGELAUFEN'
+        && !(status === 'GESCHUETZT' && maxTage && auTage >= maxTage))
+        return '';
 
     const isGeschuetzt = status === 'GESCHUETZT';
     const isKuendbar = status === 'SPERRFRIST_ABGELAUFEN' || status === 'KUENDIGUNG_MOEGLICH';
@@ -7642,31 +7613,13 @@ function renderSperrfristPanel(info) {
 // ══════════════════════════════════════════════════════════════════
 // KARENZ-PANEL (Krankheit + Unfall)
 // ══════════════════════════════════════════════════════════════════
-// Walter 25.07.2026: kompakt rechts unter dem Tagessatz.
-// Anzeige NUR bei laufender (heute abgedeckter) Krankheit bzw. Unfall —
-// getrennte Karten, nie zusammengezählt. Keine Vorjahre/Detailtabelle.
-function renderKarenzSidebar(krankHist, unfallHist, absences = []) {
-    const parts = [];
-    if (_hasOngoingAbsence(absences, 'KRANK')) {
-        parts.push(renderKarenzCard(krankHist, {
-            label: 'Krankheits-Karenz', singular: 'Krankheit', plural: 'Krankheiten', defaultMax: 14,
-        }));
-    }
-    if (_hasOngoingAbsence(absences, 'UNFALL')) {
-        parts.push(renderKarenzCard(unfallHist, {
-            label: 'Unfall-Karenz', singular: 'Unfall', plural: 'Unfälle', defaultMax: 2,
-        }));
-    }
-    return parts.join('');
-}
-
-/** Heute liegt in einer Absenz des Typs (laufende AU). Lücken zählen nicht. */
-function _hasOngoingAbsence(absences, type) {
-    if (!Array.isArray(absences) || absences.length === 0) return false;
-    const today = _todayIsoLocal();
-    return absences.some(a =>
-        a && a.absenceType === type && a.dateFrom && a.dateTo
-        && a.dateFrom <= today && a.dateTo >= today);
+// Walter 25.07.2026: Karenz IMMER zeigen (kompakt rechts unter Tagessatz).
+// Krank und Unfall getrennt, nie zusammengezählt. Keine Vorjahre/Details.
+function renderKarenzSidebar(krankHist, unfallHist) {
+    return [
+        renderKarenzCard(krankHist,  { label: 'Krankheits-Karenz', singular: 'Krankheit', plural: 'Krankheiten', defaultMax: 14 }),
+        renderKarenzCard(unfallHist, { label: 'Unfall-Karenz',     singular: 'Unfall',    plural: 'Unfälle',    defaultMax: 2  }),
+    ].join('');
 }
 
 function _todayIsoLocal() {
