@@ -17,8 +17,10 @@ namespace HrSystem.Services;
 ///
 /// Kernregeln:
 ///   • Schutz gilt NUR solange tatsächlich AU besteht — höchstens für die
-///     Sperrfrist-Tage. Endet die erfasste AU früher, endet der Schutz mit
-///     dem letzten AU-Tag (nicht erst am Maximaldatum).
+///     Sperrfrist-Tage. Endet die erfasste AU, gilt sofort die normale
+///     Kündigung (L-GAV) — kein Sonderstatus «KÜNDBAR nach beendeter AU».
+///   • Ein einziger AU-freier Kalendertag bricht die Kette → bei neuer AU
+///     beginnt die Sperrfrist wieder bei Tag 1 (0 zurückgesetzt).
 ///   • Der erste AU-Tag zählt als Sperrtag 1 (inklusiv). Beispiel BS:
 ///     Krankheit ab 04.01., 90. Sperrtag = 03.04., kündbar ab 04.04.
 ///   • Teilarbeitsunfähigkeit (z.B. 50%) zählt voll als Sperrfristtag.
@@ -54,11 +56,9 @@ public class SperrfristService
         /// "IN_PROBEZEIT"  – Stichtag liegt in der Probezeit; keine Sperrfrist.
         /// "KEIN_EINTRITT" – Employee hat kein Eintrittsdatum hinterlegt.
         /// "KEIN_EMPLOYMENT" – keine aktive Anstellung gefunden.
-        /// "KEINE_AU"      – Stichtag: kein durchgehender AU-Block aktiv.
-        /// "GESCHUETZT"    – aktuell Sperrfrist läuft noch; Kündigung unzulässig.
-        /// "SPERRFRIST_ABGELAUFEN" – AU noch dokumentiert, max. Sperrfrist vorbei → Kündigung möglich.
-        /// "KUENDIGUNG_MOEGLICH" – AU kürzlich beendet, Sperrfrist schon abgelaufen → Kündigung möglich (ToDo).
-        /// "AU_ENDE_UNBESTAETIGT" – dokumentierte AU endete kürzlich, theoretische Sperrfrist läuft noch.
+        /// "KEINE_AU"      – Stichtag: kein durchgehender AU-Block aktiv → normale L-GAV-Frist.
+        /// "GESCHUETZT"    – laufende AU, Sperrfrist noch nicht ausgeschöpft.
+        /// "SPERRFRIST_ABGELAUFEN" – laufende AU, max. Sperrfrist vorbei → Kündigung möglich.
         /// </summary>
         string    Status,
         string    StatusText,
@@ -187,110 +187,8 @@ public class SperrfristService
         var auKette = await FindeAuKetteAsync(employeeId, stichtag);
         if (auKette is null)
         {
-            // Review-Fix 22.07.2026 (Art. 336c, konservativ): endete die
-            // dokumentierte AU erst KUERZLICH und laeuft die theoretische
-            // Sperrfrist (ab AU-Beginn) noch, ist unklar, ob die AU wirklich
-            // vorbei ist (Zeugnis-Verlaengerung evtl. noch nicht erfasst).
-            // Dann WEICHE Warnung statt «Kuendigung moeglich».
-            var letzte = await FindeLetzteBeendeteAuAsync(employeeId, stichtag);
-            if (letzte is not null)
-            {
-                int djLetzte = ComputeDienstjahr(entryDate, letzte.Beginn);
-                int tageMax = SperrfristTageFuerDienstjahr(djLetzte);
-                var sperrEndeMax = letzte.Beginn.AddDays(tageMax - 1);
-                int djEnde = ComputeDienstjahr(entryDate, sperrEndeMax);
-                if (djEnde > djLetzte)
-                {
-                    int hoeher = SperrfristTageFuerDienstjahr(djEnde);
-                    if (hoeher > tageMax)
-                    {
-                        tageMax = hoeher;
-                        sperrEndeMax = letzte.Beginn.AddDays(hoeher - 1);
-                    }
-                }
-                int auDauer = letzte.Ende.DayNumber - letzte.Beginn.DayNumber + 1;
-                int tageSeitAuEnde = stichtag.DayNumber - letzte.Ende.DayNumber;
-
-                // Effektives Schutz-Ende = min(AU-Ende, max. Sperrfrist).
-                // Endet die AU VOR dem max. Sperrfrist-Tag, endet der Schutz
-                // mit dem letzten AU-Tag — danach normale Kündigungsfristen
-                // (Walter 25.07.2026: kein «KÜNDBAR wegen Sperrfrist» bei
-                // gesunden MA mit kurzer abgeschlossener Krankheit).
-                var schutzEndeEffektiv = letzte.Ende < sperrEndeMax ? letzte.Ende : sperrEndeMax;
-                bool sperrfristWaehrendAuAusgeschoepft = letzte.Ende >= sperrEndeMax;
-
-                // Weiche Warnung nur wenn AU-Ende SEHR kürzlich und die
-                // maximale Sperrfrist bei fortdauernder AU noch liefe
-                // (Zeugnis-Verlängerung evtl. noch nicht erfasst).
-                if (tageSeitAuEnde <= 14 && stichtag <= sperrEndeMax && !sperrfristWaehrendAuAusgeschoepft)
-                {
-                    var kuendAbTheo = sperrEndeMax.AddDays(1);
-                    return new SperrfristInfo(
-                        Status:                "AU_ENDE_UNBESTAETIGT",
-                        StatusText:            $"Die dokumentierte Arbeitsunfähigkeit endete am {letzte.Ende:dd.MM.yyyy}. Dauert die AU tatsächlich noch an (z.B. Zeugnis-Verlängerung noch nicht erfasst), läuft die Sperrfrist bis {sperrEndeMax:dd.MM.yyyy} — vor einer Kündigung das AU-Ende ärztlich bestätigen lassen.",
-                        Hinweis:               "Weiche Warnung — blockiert nicht. Bei bestätigtem AU-Ende gelten normale Kündigungsfristen.",
-                        EntryDate:             entryDate,
-                        DienstjahrAmStichtag:  dienstjahr,
-                        ProbezeitEndDate:      probezeitEnde,
-                        AuBeginn:              letzte.Beginn,
-                        AuEnde:                letzte.Ende,
-                        AuGrund:               letzte.Grund,
-                        AuDauerTage:           auDauer,
-                        SperrfristTage:        tageMax,
-                        SperrfristTageHoechstenfalls: null,
-                        SperrfristEnde:        sperrEndeMax,
-                        AktuellGeschuetztBis:  null,
-                        KuendigungAbDatum:     kuendAbTheo,
-                        VerbleibendeTage:      Math.Max(0, kuendAbTheo.DayNumber - stichtag.DayNumber));
-                }
-
-                // Langzeit-AU: Sperrfrist wurde WÄHREND der Krankheit
-                // ausgeschöpft, AU kürzlich beendet → spezieller Hinweis/ToDo.
-                if (sperrfristWaehrendAuAusgeschoepft && tageSeitAuEnde <= 90)
-                {
-                    var kuendAb = sperrEndeMax.AddDays(1);
-                    return new SperrfristInfo(
-                        Status:                "KUENDIGUNG_MOEGLICH",
-                        StatusText:            $"Kündigung jetzt möglich — Sperrfrist ({tageMax} Tage) endete am {sperrEndeMax:dd.MM.yyyy} während der AU. Letzte durchgehende AU {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy}.",
-                        Hinweis:               "Prüfen, ob die AU wirklich beendet ist (Zeugnis).",
-                        EntryDate:             entryDate,
-                        DienstjahrAmStichtag:  dienstjahr,
-                        ProbezeitEndDate:      probezeitEnde,
-                        AuBeginn:              letzte.Beginn,
-                        AuEnde:                letzte.Ende,
-                        AuGrund:               letzte.Grund,
-                        AuDauerTage:           auDauer,
-                        SperrfristTage:        tageMax,
-                        SperrfristTageHoechstenfalls: null,
-                        SperrfristEnde:        sperrEndeMax,
-                        AktuellGeschuetztBis:  null,
-                        KuendigungAbDatum:     kuendAb,
-                        VerbleibendeTage:      0);
-                }
-
-                // Gesunder MA (kurze AU vorbei oder Langzeit-AU lange her):
-                // kein Sperrfrist-Sonderstatus — normale Kündigungsfristen.
-                return new SperrfristInfo(
-                    Status:                "KEINE_AU",
-                    StatusText:            "Kein Kündigungsschutz aktiv — am Stichtag keine Arbeitsunfähigkeit. Ordentliche Kündigung mit normalen Fristen (L-GAV) möglich.",
-                    Hinweis:               letzte.Ende < sperrEndeMax
-                        ? $"Letzte AU {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy} ({auDauer} Tage): Schutz endete mit dem letzten AU-Tag ({schutzEndeEffektiv:dd.MM.yyyy})."
-                        : $"Letzte AU {letzte.Beginn:dd.MM.yyyy} – {letzte.Ende:dd.MM.yyyy}: Sperrfrist war während der AU am {sperrEndeMax:dd.MM.yyyy} ausgeschöpft.",
-                    EntryDate:             entryDate,
-                    DienstjahrAmStichtag:  dienstjahr,
-                    ProbezeitEndDate:      probezeitEnde,
-                    AuBeginn:              null,
-                    AuEnde:                null,
-                    AuGrund:               null,
-                    AuDauerTage:           null,
-                    SperrfristTage:        null,
-                    SperrfristTageHoechstenfalls: null,
-                    SperrfristEnde:        null,
-                    AktuellGeschuetztBis:  null,
-                    KuendigungAbDatum:     null,
-                    VerbleibendeTage:      null);
-            }
-
+            // Walter 25.07.2026: ohne laufende AU immer normale L-GAV-Kündigung.
+            // Kein Sonderstatus nach beendeter AU (auch nicht nach Langzeit-AU).
             return new SperrfristInfo(
                 Status:                "KEINE_AU",
                 StatusText:            "Kein Kündigungsschutz aktiv — am Stichtag keine Arbeitsunfähigkeit. Ordentliche Kündigung mit normalen Fristen (L-GAV) möglich.",
@@ -412,10 +310,11 @@ public class SperrfristService
     private record AuKette(DateOnly Beginn, DateOnly Ende, string Grund, bool GruendeGemischt);
 
     /// <summary>
-    /// Sucht die längste durchgängige Arbeitsunfähigkeits-Kette (KRANK/UNFALL)
-    /// die am Stichtag aktiv ist. "Durchgängig" heißt: keine AU-freien
-    /// Kalendertage dazwischen — eine Absenz endet, die nächste beginnt am
-    /// selben oder am folgenden Tag.
+    /// Sucht die durchgängige Arbeitsunfähigkeits-Kette (KRANK/UNFALL), die
+    /// am Stichtag aktiv ist. «Durchgängig» = keine AU-freien Kalendertage
+    /// dazwischen (Absenz endet, nächste beginnt am selben oder Folgetag).
+    /// Schon EIN AU-freier Tag bricht die Kette — neue AU startet Sperrfrist
+    /// wieder bei Tag 1 (Walter 25.07.2026).
     /// </summary>
     private async Task<AuKette?> FindeAuKetteAsync(int employeeId, DateOnly stichtag)
     {
@@ -429,7 +328,8 @@ public class SperrfristService
 
         if (absenzen.Count == 0) return null;
 
-        // Absenzen zu durchgehenden Blöcken zusammenfassen
+        // Absenzen zu durchgehenden Blöcken zusammenfassen.
+        // Lücke: DateFrom > vorheriges Bis + 1 → neuer Block (Sperrfrist ab 0).
         var bloecke = new List<(DateOnly Von, DateOnly Bis, HashSet<string> Typen)>();
         foreach (var a in absenzen)
         {
@@ -459,46 +359,5 @@ public class SperrfristService
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Letzte VOR dem Stichtag beendete AU-Kette (Bloecke wie in
-    /// FindeAuKetteAsync zusammengefasst) — fuer die weiche Warnung
-    /// «AU-Ende unbestaetigt» (Review-Fix 22.07.2026).
-    /// </summary>
-    private async Task<AuKette?> FindeLetzteBeendeteAuAsync(int employeeId, DateOnly stichtag)
-    {
-        var absenzen = await _db.Absences
-            .Where(a => a.EmployeeId == employeeId
-                     && (a.AbsenceType == "KRANK" || a.AbsenceType == "UNFALL"))
-            .OrderBy(a => a.DateFrom)
-            .ThenBy(a => a.DateTo)
-            .ToListAsync();
-        if (absenzen.Count == 0) return null;
-
-        var bloecke = new List<(DateOnly Von, DateOnly Bis, HashSet<string> Typen)>();
-        foreach (var a in absenzen)
-        {
-            if (bloecke.Count == 0 || a.DateFrom.DayNumber > bloecke[^1].Bis.DayNumber + 1)
-                bloecke.Add((a.DateFrom, a.DateTo, new HashSet<string> { a.AbsenceType }));
-            else
-            {
-                var last = bloecke[^1];
-                var bis = a.DateTo > last.Bis ? a.DateTo : last.Bis;
-                last.Typen.Add(a.AbsenceType);
-                bloecke[^1] = (last.Von, bis, last.Typen);
-            }
-        }
-
-        AuKette? result = null;
-        foreach (var b in bloecke)
-        {
-            if (b.Bis < stichtag)
-            {
-                string grund = b.Typen.Count == 1 ? b.Typen.First() : "KRANK+UNFALL";
-                result = new AuKette(b.Von, b.Bis, grund, b.Typen.Count > 1);
-            }
-        }
-        return result;
     }
 }

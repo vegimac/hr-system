@@ -152,8 +152,8 @@ window.i18n = (function () {
                                              en: 'Minimum wage violation · CHF {amount} missing' },
         'alert.minWage.ok':               { de: 'Alle Mindestlöhne ok',
                                              en: 'All minimum wages ok' },
-        'alert.kuendigung.sperrfrist_ende': { de: 'Kündigung jetzt möglich (Sperrfrist abgelaufen)',
-                                             en: 'Termination now possible (blocking period expired)' },
+        'alert.kuendigung.sperrfrist_ende': { de: 'Kündigung jetzt möglich (Sperrfrist abgelaufen, AU läuft noch)',
+                                             en: 'Termination now possible (blocking period expired, incapacity ongoing)' },
 
         // ── Dashboard Alert-Subtitel ──
         'subtitle.maPersonalnr':          { de: '{name} · Personalnr. {empNr}',
