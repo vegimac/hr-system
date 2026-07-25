@@ -70,6 +70,8 @@ public class KtgTagessatzService
         {
             var vertragsStartM = DateOnly.FromDateTime(employment.ContractStartDate);
             var s100 = Math.Round(manuell.Value, 2);
+            var companyM = employment.CompanyProfile
+                        ?? await _db.CompanyProfiles.FirstOrDefaultAsync(c => c.Id == companyProfileId);
             return new KtgTagessatzResult(
                 Regel:          "MANUELL",
                 VertragsModell: (employment.EmploymentModel ?? "").ToUpperInvariant(),
@@ -79,7 +81,10 @@ public class KtgTagessatzService
                 Tagessatz88:    karenzAbgeschlossen ? 0m : Math.Round(s100 * 0.88m, 2),
                 Tagessatz80:    Math.Round(s100 * 0.80m, 2),
                 KarenzAbgeschlossen: karenzAbgeschlossen,
-                Breakdown:      new KtgBreakdown { Hinweis = "Manueller Tagessatz — übersteuert die Auto-Berechnung (z.B. aus altem Lohnsystem übernommen)." }
+                Breakdown:      new KtgBreakdown {
+                    Hinweis = "Manueller Tagessatz — übersteuert die Auto-Berechnung (z.B. aus altem Lohnsystem übernommen).",
+                    WochenStunden = ResolveWochenStunden(employment, companyM),
+                }
             );
         }
 
@@ -177,23 +182,47 @@ public class KtgTagessatzService
             {
                 decimal monatsLohn = emp.MonthlySalary ?? 0m;
                 b.MonatsLohn = monatsLohn;
+                b.WochenStunden = ResolveWochenStunden(emp, company);
                 return monatsLohn * 12m / 365m;
             }
 
             case "MTP":
             {
-                decimal wo = emp.GuaranteedHoursPerWeek ?? 0m;
+                decimal wo = ResolveWochenStunden(emp, company) ?? 0m;
                 b.WochenStunden = wo;
                 return wo * stdLohnBrutto * 52m / 365m;
             }
 
             default: // UTP, FLEX, leer → FLEX-Logik
             {
-                decimal wo = company.MaxPartTimeHoursPerWeek ?? 17m;
+                decimal wo = ResolveWochenStunden(emp, company) ?? 0m;
                 b.WochenStunden = wo;
                 return wo * stdLohnBrutto * 52m / 365m;
             }
         }
+    }
+
+    /// <summary>
+    /// Wochenstunden für UI/Meta: MTP = garantiert, FIX = Vertrag/Pensum,
+    /// FLEX = Filial-Default.
+    /// </summary>
+    private static decimal? ResolveWochenStunden(Employment emp, CompanyProfile? company)
+    {
+        var modell = (emp.EmploymentModel ?? "").ToUpperInvariant();
+        if (modell is "MTP")
+            return emp.GuaranteedHoursPerWeek ?? emp.WeeklyHours;
+        if (modell is "FIX" or "FIX-M")
+        {
+            if (emp.WeeklyHours.HasValue) return emp.WeeklyHours;
+            if (emp.GuaranteedHoursPerWeek.HasValue) return emp.GuaranteedHoursPerWeek;
+            // Pensum % × normale Wochenstunden der Filiale
+            var normal = company?.NormalWeeklyHours ?? 42m;
+            if (emp.EmploymentPercentage.HasValue)
+                return Math.Round(normal * emp.EmploymentPercentage.Value / 100m, 2);
+            return null;
+        }
+        // FLEX / UTP
+        return company?.MaxPartTimeHoursPerWeek ?? 17m;
     }
 
     // ── Regel B ────────────────────────────────────────────────────────────
@@ -211,7 +240,7 @@ public class KtgTagessatzService
         if (modell == "MTP")
         {
             // Garantie-Anteil (wie Regel A)
-            decimal wo = emp.GuaranteedHoursPerWeek ?? 0m;
+            decimal wo = ResolveWochenStunden(emp, company) ?? 0m;
             b.WochenStunden     = wo;
             b.StundenlohnBasis  = emp.HourlyRate;
             b.StundenlohnBrutto = Math.Round(stdLohnBrutto, 4);
@@ -245,6 +274,7 @@ public class KtgTagessatzService
         else
         {
             // FIX / FIX-M / UTP: reiner AHV-Brutto-Durchschnitt
+            b.WochenStunden = ResolveWochenStunden(emp, company);
             decimal avg = n > 0 ? summeAhv / n : 0m;
             return avg * 12m / 365m;
         }
