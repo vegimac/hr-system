@@ -7306,9 +7306,9 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
     const noHours  = empModel === 'FLEX';
     const sperrHtml  = renderSperrfristPanel(sperrfrist);
     // Karenz sitzt rechts unter dem Tagessatz (Walter 25.07.2026) —
-    // Krankheit + Unfall getrennt (eigene Grenzen, z.B. 14 / 2 Tage).
+    // nur bei laufender Krankheit bzw. laufendem Unfall, getrennt.
     const karenzSide = document.getElementById('karenzSidebar');
-    if (karenzSide) karenzSide.innerHTML = renderKarenzSidebar(karenzKrankHist, karenzUnfallHist);
+    if (karenzSide) karenzSide.innerHTML = renderKarenzSidebar(karenzKrankHist, karenzUnfallHist, absences);
 
     let rows = '';
     if (absences.length === 0) {
@@ -7642,20 +7642,41 @@ function renderSperrfristPanel(info) {
 // ══════════════════════════════════════════════════════════════════
 // KARENZ-PANEL (Krankheit + Unfall)
 // ══════════════════════════════════════════════════════════════════
-// Walter 25.07.2026: kompakt rechts unter dem Tagessatz — Arbeitsjahr,
-// Anzahl Fälle, ob die jeweilige Grenze erreicht ist. Krank und Unfall
-// getrennt (z.B. 14 bzw. 2 Tage). Keine Vorjahre, keine Detailtabelle.
-function renderKarenzSidebar(krankHist, unfallHist) {
-    return [
-        renderKarenzCard(krankHist,  { label: 'Krankheits-Karenz', singular: 'Krankheit', plural: 'Krankheiten', defaultMax: 14 }),
-        renderKarenzCard(unfallHist, { label: 'Unfall-Karenz',     singular: 'Unfall',    plural: 'Unfälle',    defaultMax: 2  }),
-    ].join('');
+// Walter 25.07.2026: kompakt rechts unter dem Tagessatz.
+// Anzeige NUR bei laufender (heute abgedeckter) Krankheit bzw. Unfall —
+// getrennte Karten, nie zusammengezählt. Keine Vorjahre/Detailtabelle.
+function renderKarenzSidebar(krankHist, unfallHist, absences = []) {
+    const parts = [];
+    if (_hasOngoingAbsence(absences, 'KRANK')) {
+        parts.push(renderKarenzCard(krankHist, {
+            label: 'Krankheits-Karenz', singular: 'Krankheit', plural: 'Krankheiten', defaultMax: 14,
+        }));
+    }
+    if (_hasOngoingAbsence(absences, 'UNFALL')) {
+        parts.push(renderKarenzCard(unfallHist, {
+            label: 'Unfall-Karenz', singular: 'Unfall', plural: 'Unfälle', defaultMax: 2,
+        }));
+    }
+    return parts.join('');
+}
+
+/** Heute liegt in einer Absenz des Typs (laufende AU). Lücken zählen nicht. */
+function _hasOngoingAbsence(absences, type) {
+    if (!Array.isArray(absences) || absences.length === 0) return false;
+    const today = _todayIsoLocal();
+    return absences.some(a =>
+        a && a.absenceType === type && a.dateFrom && a.dateTo
+        && a.dateFrom <= today && a.dateTo >= today);
+}
+
+function _todayIsoLocal() {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
 }
 
 function _pickCurrentKarenzJahr(history) {
     if (!Array.isArray(history) || history.length === 0) return null;
-    const today = new Date();
-    const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const iso = _todayIsoLocal();
     return history.find(h => h.info && h.info.von <= iso && h.info.bis >= iso) || history[0];
 }
 
