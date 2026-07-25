@@ -7515,30 +7515,15 @@ function renderSperrfristPanel(info) {
     // wenn die durchgehende AU die Sperrfrist-Dauer erreicht hat (30/90/180).
     // Kein Banner für gesunde MA («Kein Kündigungsschutz aktiv»).
     // Mutterschaft bleibt sichtbar (eigener Art.-336c-Fall).
-    if (status === 'KEINE_AU' || status === 'KEIN_EINTRITT' || status === 'IN_PROBEZEIT')
+    if (status === 'KEINE_AU' || status === 'KEIN_EINTRITT' || status === 'IN_PROBEZEIT'
+        || status === 'AU_ENDE_UNBESTAETIGT')
         return '';
     if (!isMts
         && status !== 'KUENDIGUNG_MOEGLICH'
         && status !== 'SPERRFRIST_ABGELAUFEN'
-        && status !== 'AU_ENDE_UNBESTAETIGT'
         && !(status === 'GESCHUETZT' && maxTage && auTage >= maxTage))
         return '';
 
-    if (status === 'AU_ENDE_UNBESTAETIGT') {
-        return wrap('#b45309', '#fffbeb', '#fde68a', `
-            <div style="font-weight:700;color:#0f172a;font-size:14px">⚠ AU-Ende unbestätigt — Sperrfrist kann noch laufen</div>
-            <div style="color:#334155;margin-top:8px;line-height:1.5;font-size:14px">
-                ${auTage > 0 ? `<b>${auTage} Tage</b> ununterbrochen krank${chainKurz ? ` (${chainKurz})` : ''}.` : (chainKurz || esc(info.statusText || ''))}
-            </div>
-            <div style="color:#475569;margin-top:6px;line-height:1.5">
-                ${djText}${maxTage ? ` · max. ${maxTage} Tage Sperrfrist` : ''}
-                ${info.sperrfristEnde ? ` bis <b>${fmtDate(info.sperrfristEnde)}</b>` : ''}
-                ${info.kuendigungAbDatum ? ` — frühestens kündbar ab <b>${fmtDate(info.kuendigungAbDatum)}</b>` : ''}.
-            </div>
-            <div style="color:#92400e;margin-top:6px;font-size:12px;line-height:1.4">
-                Vor einer Kündigung das AU-Ende ärztlich bestätigen lassen (Art. 336c OR).
-            </div>`);
-    }
     const isGeschuetzt = status === 'GESCHUETZT';
     const isKuendbar = status === 'SPERRFRIST_ABGELAUFEN' || status === 'KUENDIGUNG_MOEGLICH';
     const color  = isGeschuetzt ? '#b91c1c' : '#166534';
