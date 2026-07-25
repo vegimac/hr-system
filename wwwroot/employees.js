@@ -6223,7 +6223,7 @@ function renderPregnancyCard(d) {
     const fmt = iso => iso ? `${iso.slice(8,10)}.${iso.slice(5,7)}.${iso.slice(0,4)}` : '–';
     const banner = d.kuendigungsschutz
         ? `<div style="margin:8px 0 12px;padding:10px 14px;background:#fce7f3;border:1px solid #f9a8d4;border-radius:8px;color:#9d174d;font-size:13px;font-weight:600">
-              ⚖ Kündigungsschutz aktiv: ${fmt(d.kuendigungsschutz.von)} – ${fmt(d.kuendigungsschutz.bis)} (OR 336c)
+              ⚖ Kündigungsschutz aktiv: ${fmt(d.kuendigungsschutz.von)} – ${fmt(d.kuendigungsschutz.bis)}
            </div>`
         : '';
     // Walter 10.06.2026: aufsteigend nach Datum sortieren — chronologisch
@@ -7568,7 +7568,7 @@ function renderSperrfristPanel(info) {
                         ${heroKuendbar}
                     </div>
                     <div style="color:#475569;margin-top:8px;line-height:1.5;font-size:12.5px">
-                        ${djText} · Sperrfrist Art. 336c (${maxTage || '–'} Tage) endete am ${fmtDate(maxBis)}
+                        ${djText} · Sperrfrist (${maxTage || '–'} Tage) endete am ${fmtDate(maxBis)}
                         ${kuendAb ? ` · kündbar seit ${fmtDate(kuendAb)}` : ''}
                         · Kündigungsfrist ${kuendPerInfo.months} Monat(e) auf Ende Monat (L-GAV).
                         Karenz/Lohnfortzahlung ist davon unabhängig.
