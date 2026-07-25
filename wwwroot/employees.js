@@ -7445,9 +7445,15 @@ function absBindScrollIsolation() {
 // ══════════════════════════════════════════════════════════════════
 // Schutz gilt nur solange tatsächlich AU besteht — höchstens 30/90/180
 // Tage (je Dienstjahr). Erster AU-Tag = Sperrtag 1 (inklusiv).
-/** Frühester letzter Arbeitstag bei Kündigung heute (OR 335c: n Monate auf Monatsende). */
+/**
+ * Frühester letzter Arbeitstag bei Kündigung heute.
+ * L-GAV Gastgewerbe (Walter 25.07.2026): 1.–5. Dienstjahr = 1 Monat,
+ * ab 6. Dienstjahr = 2 Monate — jeweils auf Monatsende.
+ * (Nicht OR 335c mit 2 Monaten ab 2. Jahr.)
+ */
 function _sperrKuendPerEndeMonat(dienstjahr, kuendAbIso) {
-    const months = (dienstjahr || 1) >= 10 ? 3 : ((dienstjahr || 1) <= 1 ? 1 : 2);
+    const dj = dienstjahr || 1;
+    const months = dj >= 6 ? 2 : 1;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     let kdat = today;
@@ -7529,7 +7535,7 @@ function renderSperrfristPanel(info) {
                 <div style="color:#475569;margin-top:8px;font-size:12.5px;line-height:1.45">
                     ${djText} · Sperrfrist (${maxTage || '–'} Tage) endete am ${fmtDate(info.sperrfristEnde)}
                     · kündbar seit ${fmtDate(info.kuendigungAbDatum)}
-                    · Kündigungsfrist ca. ${kuendPerInfo.months} Monat(e) auf Ende Monat (OR 335c).
+                    · Kündigungsfrist ${kuendPerInfo.months} Monat(e) auf Ende Monat (L-GAV).
                 </div>`);
         }
         return wrap('#16a34a', '#f0fdf4', '#bbf7d0',
@@ -7583,7 +7589,7 @@ function renderSperrfristPanel(info) {
                     <div style="color:#475569;margin-top:8px;line-height:1.5;font-size:12.5px">
                         ${djText} · Sperrfrist Art. 336c (${maxTage || '–'} Tage) endete am ${fmtDate(maxBis)}
                         ${kuendAb ? ` · kündbar seit ${fmtDate(kuendAb)}` : ''}
-                        · Kündigungsfrist ca. ${kuendPerInfo.months} Monat(e) auf Ende Monat (OR 335c).
+                        · Kündigungsfrist ${kuendPerInfo.months} Monat(e) auf Ende Monat (L-GAV).
                         Karenz/Lohnfortzahlung ist davon unabhängig.
                     </div>
                     ${info.hinweis ? `<div style="margin-top:6px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;color:#78350f;font-size:11px">⚠︎ ${esc(info.hinweis)}</div>` : ''}
