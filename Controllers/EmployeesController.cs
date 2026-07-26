@@ -225,13 +225,21 @@ public class EmployeesController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var employee = await _context.Employees
-            .Include(e => e.Employments.OrderByDescending(c => c.ContractStartDate)).ThenInclude(em => em.JobGroup)
             .Include(e => e.PermitType)
             .Include(e => e.NationalityRef)
             .FirstOrDefaultAsync(e => e.Id == id);
 
         if (employee == null)
             return NotFound();
+
+        // Verträge separat AsNoTracking laden (Walter-Bug 26.07.2026): nach
+        // easy@work-Sync immer frischer DB-Stand — kein veralteter Include-
+        // Graph aus dem Change-Tracker. Sortierung wie bisher (neueste zuerst).
+        employee.Employments = await _context.Employments.AsNoTracking()
+            .Include(em => em.JobGroup)
+            .Where(em => em.EmployeeId == id)
+            .OrderByDescending(em => em.ContractStartDate)
+            .ToListAsync();
 
         // Filial-Schranke (Walter 22.07.2026): beschraenkte Rollen kommen
         // nicht an MA fremder Filialen (auch nicht per direkter URL).
