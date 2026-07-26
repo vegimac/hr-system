@@ -10808,15 +10808,15 @@ function renderEmployeeAddressesList(el, list) {
         const contactLine = [a.phone, a.email].filter(Boolean).join(' · ');
         if (contactLine) lines.push(contactLine);
 
-        // Kompakte EIN-Zeilen-Darstellung (Walter 17.07.2026): Typ-Pille ·
-        // Adresse in der Breite mit «·»-Trennern · gueltig ab · Aktionen.
-        return `<div class="emp-addr-row" data-addr-id="${id}" style="border:1px solid #e2e8f0;border-radius:10px;padding:6px 12px;margin-bottom:0;background:#fafafa;display:flex;align-items:center;gap:12px;min-width:0">
-            <span style="flex-shrink:0;font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:#ece9e2;color:#6b7280">${a.addressType || a.AddressType || 'Adresse'}</span>
-            <span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                ${lines.length ? lines.join(' · ') : '<span style="color:#94a3b8;font-style:italic;font-weight:400">Keine Detail-Angaben</span>'}
+        // Kompakte EIN-Zeilen-Darstellung (Walter 17.07.2026 / 26.07.2026):
+        // feste 40px-Zeile — max. 2 sichtbar inkl. Scroll (CSS).
+        return `<div class="emp-addr-row" data-addr-id="${id}">
+            <span class="emp-addr-type">${a.addressType || a.AddressType || 'Adresse'}</span>
+            <span class="emp-addr-text">
+                ${lines.length ? lines.join(' · ') : '<span class="emp-addr-empty">Keine Detail-Angaben</span>'}
             </span>
-            ${a.validFrom ? `<span style="flex-shrink:0;font-size:11.5px;color:#64748b;white-space:nowrap">gültig ab ${fmtDate(a.validFrom)}</span>` : ''}
-            <span style="flex-shrink:0;display:flex;gap:6px">
+            ${a.validFrom ? `<span class="emp-addr-valid">gültig ab ${fmtDate(a.validFrom)}</span>` : ''}
+            <span class="emp-addr-actions">
                 <button class="btn-stamp-edit" onclick='openEmployeeAddressModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>✎</button>
                 <button class="btn-stamp-edit" style="color:#b91c1c" onclick="deleteEmployeeAddress(${id})">🗑</button>
             </span>
