@@ -3974,8 +3974,25 @@
             overflow-x: hidden;
             overflow-y: auto;
             min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
         #otherAddressesContent:empty { display: none; margin: 0; padding: 0; }
+        .emp-addr-row {
+            flex: 0 0 40px;
+            height: 40px;
+            box-sizing: border-box;
+            margin-bottom: 0;
+            padding: 0 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fafafa;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
         .emp-addr-type {
             flex-shrink: 0;
             font-size: 11px; font-weight: 700;
