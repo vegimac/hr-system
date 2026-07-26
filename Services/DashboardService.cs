@@ -307,16 +307,20 @@ public class DashboardService
         }
 
         // ── 2b) Probezeitgespräch offen (Walter 21.07.2026) ────────────────
-        // Während laufender Probezeit: Todo bleibt, bis Gesprächsdatum UND
-        // Protokoll-Verknüpfung gesetzt sind. Kein Direkt-Upload in der
-        // Anstellung — Scan erst nach Hand-Unterschrift, dann im Probezeit-Modal.
+        // Todo, bis Gesprächsdatum UND Protokoll-Verknüpfung gesetzt sind.
+        // Walter-Bug 23.07.2026: Vorlauf (warn_days, Default 14) wurde ignoriert
+        // → ToDos erschienen die ganze Probezeit (Monate zu früh). Jetzt wie
+        // «Probezeit endet»: nur innerhalb des Vorlauf-Fensters + weiterhin
+        // sichtbar wenn Probezeit schon vorbei und Gespräch noch fehlt.
         if (Enabled("probezeit_gespraech_offen"))
         {
+            var pzGespVorlauf = WarnDays("probezeit_gespraech_offen", 14);
+            var pzGespWindow = now.AddDays(pzGespVorlauf);
             var pzGespQ = _db.Employments
                 .Include(em => em.Employee)
                 .Where(em => em.IsActive
                           && em.ProbationEndDate.HasValue
-                          && em.ProbationEndDate >= now
+                          && em.ProbationEndDate <= pzGespWindow
                           && em.Employee != null
                           && em.Employee.IsActive
                           && !em.Employee.EmployeeNumber.ToLower().EndsWith("alt")
