@@ -1490,7 +1490,12 @@ public class DashboardService
         return result;
     }
 
-    /// <summary>Wochentag + Datum für Probezeit-Todos, z.B. «Freitag, 31.07.2026».</summary>
+    /// <summary>Wochentag kurz + Datum für Probezeit-Todos, z.B. «Fr, 31.07.2026»
+    /// (Walter 26.07.2026: nicht «Freitag» — spart Platz in der To-do-Zeile).</summary>
     private static string FormatWeekdayDateDe(DateTime d)
-        => d.ToString("dddd, dd.MM.yyyy", CultureInfo.GetCultureInfo("de-CH"));
+    {
+        var cult = CultureInfo.GetCultureInfo("de-CH");
+        var wd = d.ToString("ddd", cult).TrimEnd('.');
+        return wd + ", " + d.ToString("dd.MM.yyyy", cult);
+    }
 }

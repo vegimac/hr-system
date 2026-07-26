@@ -515,7 +515,7 @@ function dashTodoOnClick(a) {
     return a.periodeId ? `onclick="dashOpenLohnlauf()"` : '';
 }
 
-/** Wochentag + Datum (z.B. «Freitag, 31.07.2026») — Probezeit-Todos. */
+/** Wochentag kurz + Datum (z.B. «Fr, 31.07.2026») — Probezeit-Todos. */
 function dashFormatWeekdayDate(isoOrDate) {
     if (!isoOrDate) return '';
     const iso = String(isoOrDate).slice(0, 10);
@@ -523,9 +523,10 @@ function dashFormatWeekdayDate(isoOrDate) {
     const d = new Date(iso + 'T12:00:00');
     if (Number.isNaN(d.getTime())) return '';
     const isEn = window.i18n && i18n.getLang() === 'en';
-    return d.toLocaleDateString(isEn ? 'en-CH' : 'de-CH', {
-        weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric'
-    });
+    const loc = isEn ? 'en-CH' : 'de-CH';
+    const wd = d.toLocaleDateString(loc, { weekday: 'short' }).replace(/\.$/, '');
+    const rest = d.toLocaleDateString(loc, { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return wd + ', ' + rest;
 }
 
 /** Title/Subtitle inkl. Probezeit-Ende mit Wochentag (Walter 26.07.2026). */
