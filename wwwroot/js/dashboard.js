@@ -345,12 +345,7 @@ function dashIsRedAlert(a) {
 
 function renderDashTodoRow(a) {
     const meta = DASH_CATEGORY_META[a.category] || { icon: '•' };
-    const title = (a.titleKey && window.i18n)
-        ? i18n.tFormat(a.titleKey, a.titleArgs || {})
-        : (a.title || dashMetaLabel(meta) || '');
-    const subtitle = (a.subtitleKey && window.i18n)
-        ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {})
-        : (a.subtitle || '');
+    const { title, subtitle } = dashResolveAlertTexts(a);
     const onClick = a.employeeId
         ? (a.category === 'qst_pflicht_offen'
             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
@@ -434,8 +429,7 @@ function buildTodosPrintHtml(anonym = false) {
         const items = bySev[sev];
         const rows = items.length
             ? items.map(a => {
-                let title = (a.titleKey && window.i18n) ? i18n.tFormat(a.titleKey, a.titleArgs || {}) : (a.title || '');
-                let sub   = (a.subtitleKey && window.i18n) ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {}) : (a.subtitle || '');
+                let { title, subtitle: sub } = dashResolveAlertTexts(a);
                 if (anonym) { title = _tpAnon(title, a); sub = _tpAnon(sub, a); }
                 // ROT nur für Walters definierte Fälle (12.07.2026), auch im Druck.
                 const critCls = dashIsRedAlert(a) ? ' tp-crit' : '';
@@ -521,15 +515,51 @@ function dashTodoOnClick(a) {
     return a.periodeId ? `onclick="dashOpenLohnlauf()"` : '';
 }
 
-// Pendenz-Zeile im Liquid-Glass-Look (sauberer Kreis + Text + Chevron).
-function renderTodoSketchRow(a) {
+/** Wochentag + Datum (z.B. «Freitag, 31.07.2026») — Probezeit-Todos. */
+function dashFormatWeekdayDate(isoOrDate) {
+    if (!isoOrDate) return '';
+    const iso = String(isoOrDate).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+    const d = new Date(iso + 'T12:00:00');
+    if (Number.isNaN(d.getTime())) return '';
+    const isEn = window.i18n && i18n.getLang() === 'en';
+    return d.toLocaleDateString(isEn ? 'en-CH' : 'de-CH', {
+        weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+}
+
+/** Title/Subtitle inkl. Probezeit-Ende mit Wochentag (Walter 26.07.2026). */
+function dashResolveAlertTexts(a) {
     const meta = DASH_CATEGORY_META[a.category] || {};
-    const title = (a.titleKey && window.i18n)
-        ? i18n.tFormat(a.titleKey, a.titleArgs || {})
+    const titleArgs = { ...(a.titleArgs || {}) };
+    const subtitleArgs = { ...(a.subtitleArgs || {}) };
+    if ((a.category === 'probation_end' || a.category === 'probezeit_gespraech_offen') && a.dueDate) {
+        const ende = dashFormatWeekdayDate(a.dueDate);
+        if (ende) {
+            titleArgs.ende = ende;
+            subtitleArgs.ende = ende;
+        }
+    }
+
+    let titleKey = a.titleKey;
+    if (a.category === 'probation_end') {
+        if (a.daysUntil === 0) titleKey = 'alert.probation.ends_today';
+        else if (a.daysUntil === 1) titleKey = 'alert.probation.ends_tomorrow';
+        else titleKey = 'alert.probation.ends_in_days';
+    }
+
+    const title = (titleKey && window.i18n)
+        ? i18n.tFormat(titleKey, titleArgs)
         : (a.title || dashMetaLabel(meta) || '');
     const subtitle = (a.subtitleKey && window.i18n)
-        ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {})
+        ? i18n.tFormat(a.subtitleKey, subtitleArgs)
         : (a.subtitle || '');
+    return { title, subtitle };
+}
+
+// Pendenz-Zeile im Liquid-Glass-Look (sauberer Kreis + Text + Chevron).
+function renderTodoSketchRow(a) {
+    const { title, subtitle } = dashResolveAlertTexts(a);
     const tip = subtitle ? `${title} — ${subtitle}` : title;
     const critCls = dashIsRedAlert(a) ? ' td-crit' : '';
     return `<div class="td-row" ${dashTodoOnClick(a)} title="${_e(tip)}">
@@ -575,17 +605,14 @@ function renderDashAlertRow(a) {
     const isEn = window.i18n && i18n.getLang() === 'en';
     const dateLocale = isEn ? 'en-CH' : 'de-CH';
     const dueTxt = a.dueDate
-        ? new Date(a.dueDate).toLocaleDateString(dateLocale, {day:'2-digit',month:'2-digit',year:'numeric'})
+        ? ((a.category === 'probation_end' || a.category === 'probezeit_gespraech_offen')
+            ? dashFormatWeekdayDate(a.dueDate)
+            : new Date(a.dueDate).toLocaleDateString(dateLocale, {day:'2-digit',month:'2-digit',year:'numeric'}))
         : '';
 
     // Title + Subtitle: bevorzugt via i18n.tFormat(key, args), Fallback auf
     // server-rendered DE-Strings wenn Key fehlt oder i18n noch nicht geladen.
-    const title = (a.titleKey && window.i18n)
-        ? i18n.tFormat(a.titleKey, a.titleArgs || {})
-        : (a.title || '');
-    const subtitle = (a.subtitleKey && window.i18n)
-        ? i18n.tFormat(a.subtitleKey, a.subtitleArgs || {})
-        : (a.subtitle || '');
+    const { title, subtitle } = dashResolveAlertTexts(a);
 
     // Relative Datums-Phrase: heute / in X Tagen / X Tage überfällig
     let relTxt = '';
