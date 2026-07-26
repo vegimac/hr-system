@@ -9624,8 +9624,8 @@ function renderKtgTagessatzHtml(d, mode = 'full') {
             </div>`;
     }
 
-    // Absenzen-Sidebar (side): Walter 25.07.2026 kompakt — Sätze + Override,
-    // Formel nur aufklappen. Platz für Karenz darunter.
+    // Absenzen-Sidebar (side): Walter 26.07.2026 — Berechnung immer sichtbar
+    // (genug Platz), kein Aufklappen mehr.
     if (mode === 'side') {
         const breakdown = _ktgBreakdownHtml(d);
         return `
@@ -9643,7 +9643,7 @@ function renderKtgTagessatzHtml(d, mode = 'full') {
                     <div class="r80"><span>80 %</span><strong>CHF ${fmt(d.tagessatz80)}</strong></div>
                 </div>
                 <div class="ktg-panel-actions">${_ktgOverrideBtnHtml(d)}</div>
-                ${breakdown ? `<details class="ktg-details"><summary>Berechnung</summary>${breakdown}</details>` : ''}
+                ${breakdown ? `<div class="ktg-side-berechnung"><div class="ktg-side-berechnung-label">Berechnung</div>${breakdown}</div>` : ''}
             </div>`;
     }
 
