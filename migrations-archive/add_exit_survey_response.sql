@@ -4,6 +4,7 @@
 CREATE TABLE IF NOT EXISTS exit_survey_response (
     id                bigserial PRIMARY KEY,
     created_at        timestamp without time zone NOT NULL DEFAULT now(),
+    company_profile_id integer,
     reasons_json      text NOT NULL DEFAULT '[]',
     reason_other      text,
     atmosphere_detail text,
@@ -14,3 +15,7 @@ CREATE TABLE IF NOT EXISTS exit_survey_response (
 
 CREATE INDEX IF NOT EXISTS ix_exit_survey_response_created_at
     ON exit_survey_response (created_at DESC);
+
+-- Nachzieh-Migration falls Tabelle schon ohne Filiale existiert:
+ALTER TABLE exit_survey_response
+ADD COLUMN IF NOT EXISTS company_profile_id integer;

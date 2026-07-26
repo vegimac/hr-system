@@ -779,6 +779,7 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
             entity.Property(e => e.ReasonsJson).HasColumnName("reasons_json");
             entity.Property(e => e.ReasonOther).HasColumnName("reason_other");
             entity.Property(e => e.AtmosphereDetail).HasColumnName("atmosphere_detail");
