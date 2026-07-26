@@ -35,12 +35,23 @@ public class FluktuationReportController : ControllerBase
             b => b.Id,
             b => $"{b.RestaurantCode} {(!string.IsNullOrWhiteSpace(b.City) ? b.City : (b.BranchName ?? b.CompanyName))}".Trim());
 
+        // Personalnummer-Präfix → Filiale (058→58, 075→75, 104, 230 …).
+        // Längster Treffer zuerst (230 vor 23, 104 vor 10).
+        var prefixBranches = branchesRaw
+            .Select(b => new { Prefix = NormalizeRestaurantPrefix(b.RestaurantCode), b.Id })
+            .Where(x => x.Prefix.Length > 0)
+            .GroupBy(x => x.Prefix, StringComparer.Ordinal)
+            .Select(g => g.First())
+            .OrderByDescending(x => x.Prefix.Length)
+            .ToList();
+
         // Pool: alle MA ausser Phantom — Eintritt/Austritt steuern die Periode.
         var emps = await _db.Employees.AsNoTracking()
             .Where(e => !e.IsPayrollExcluded)
             .Select(e => new
             {
                 e.Id,
+                e.EmployeeNumber,
                 e.FirstName,
                 e.LastName,
                 e.EntryDate,
@@ -51,8 +62,9 @@ public class FluktuationReportController : ControllerBase
             })
             .ToListAsync();
 
-        // Hauptfiliale = Filiale des ältesten Vertrags (wie Altersreport) — in Memory,
-        // damit auch ausgetretene MA mit abgelaufenem Vertrag eine Filiale haben.
+        // 1) Hauptfiliale = Filiale des ältesten Vertrags (wie Altersreport).
+        // 2) Fallback: Personalnummer-Präfix (Walter 26.07.2026) — MA ohne
+        //    Vertrag/ohne company_profile_id (z.B. nur Personaldossier).
         var empBranchRaw = await _db.Employments.AsNoTracking()
             .Where(e => e.CompanyProfileId != null)
             .Select(e => new { e.EmployeeId, BranchId = e.CompanyProfileId!.Value, e.ContractStartDate })
@@ -62,6 +74,26 @@ public class FluktuationReportController : ControllerBase
             .ToDictionary(
                 g => g.Key,
                 g => g.OrderBy(x => x.ContractStartDate).First().BranchId);
+
+        int? ResolveBranchId(int empId, string? employeeNumber)
+        {
+            if (branchByEmp.TryGetValue(empId, out var bid)) return bid;
+            var nr = NormalizeEmployeeNumberDigits(employeeNumber);
+            if (nr.Length == 0) return null;
+            foreach (var p in prefixBranches)
+            {
+                if (nr.StartsWith(p.Prefix, StringComparison.Ordinal))
+                    return p.Id;
+            }
+            return null;
+        }
+
+        string ResolveBranchName(int empId, string? employeeNumber)
+        {
+            var bid = ResolveBranchId(empId, employeeNumber);
+            if (bid.HasValue && branchName.TryGetValue(bid.Value, out var bn)) return bn;
+            return "—";
+        }
 
         static DateOnly? AsDate(DateTime? dt) =>
             dt.HasValue ? DateOnly.FromDateTime(dt.Value) : null;
@@ -87,8 +119,8 @@ public class FluktuationReportController : ControllerBase
                 lastName = e.LastName ?? "",
                 name = $"{e.FirstName} {e.LastName}".Trim(),
                 entryDate = AsDate(e.EntryDate)!.Value.ToString("yyyy-MM-dd"),
-                branchId = branchByEmp.GetValueOrDefault(e.Id),
-                branchName = branchByEmp.TryGetValue(e.Id, out var bid) && branchName.TryGetValue(bid, out var bn) ? bn : "—",
+                branchId = ResolveBranchId(e.Id, e.EmployeeNumber),
+                branchName = ResolveBranchName(e.Id, e.EmployeeNumber),
             })
             // Filiale → Eintrittsdatum absteigend → Vorname/Name (Walter 26.07.2026)
             .OrderBy(x => x.branchName, StringComparer.OrdinalIgnoreCase)
@@ -133,8 +165,8 @@ public class FluktuationReportController : ControllerBase
                     austrittsgrundCode = grundCode,
                     austrittsgrund = grundCode == null ? "ohne Angabe" : AustrittsgrundCodes.LabelOf(grundCode),
                     verbleibMonate = monate,
-                    branchId = branchByEmp.GetValueOrDefault(e.Id),
-                    branchName = branchByEmp.TryGetValue(e.Id, out var bid) && branchName.TryGetValue(bid, out var bn) ? bn : "—",
+                    branchId = ResolveBranchId(e.Id, e.EmployeeNumber),
+                    branchName = ResolveBranchName(e.Id, e.EmployeeNumber),
                 };
             })
             // Filiale → Austrittsdatum absteigend → Vorname/Name (Walter 26.07.2026)
@@ -191,5 +223,24 @@ public class FluktuationReportController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(s)) return null;
         return DateOnly.TryParse(s.Trim(), out var d) ? d : null;
+    }
+
+    /// <summary>RestaurantCode «075» / «058» / «104» → Präfix «75» / «58» / «104».</summary>
+    private static string NormalizeRestaurantPrefix(string? restaurantCode)
+    {
+        if (string.IsNullOrWhiteSpace(restaurantCode)) return "";
+        var digits = new string(restaurantCode.Where(char.IsDigit).ToArray());
+        digits = digits.TrimStart('0');
+        return digits;
+    }
+
+    /// <summary>Personalnummer für Präfix-Match: Leerzeichen weg, «alt»-Suffix weg, nur Ziffern.</summary>
+    private static string NormalizeEmployeeNumberDigits(string? employeeNumber)
+    {
+        if (string.IsNullOrWhiteSpace(employeeNumber)) return "";
+        var s = employeeNumber.Trim();
+        if (s.EndsWith("alt", StringComparison.OrdinalIgnoreCase))
+            s = s[..^3];
+        return new string(s.Where(char.IsDigit).ToArray());
     }
 }
