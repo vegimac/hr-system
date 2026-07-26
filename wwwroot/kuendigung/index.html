@@ -263,6 +263,82 @@
             center / contain no-repeat;
     }
 
+    /* Freiwillige Rückblick-Note 1–6 — leicht, kein Pflicht-Charakter */
+    .rate {
+        margin: 28px 0 8px;
+    }
+    .rate-title {
+        margin: 0 0 6px;
+        font-family: var(--serif);
+        font-size: 1.18rem;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+        line-height: 1.25;
+    }
+    .rate-sub {
+        margin: 0 0 16px;
+        font-size: 0.92rem;
+        color: var(--muted);
+        line-height: 1.4;
+    }
+    .rate-row {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 4px;
+        margin: 0 0 10px;
+    }
+    .rate-btn {
+        appearance: none;
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: 52px;
+        aspect-ratio: 1;
+        margin: 0 auto;
+        padding: 0;
+        border-radius: 50%;
+        border: 1.4px solid rgba(70, 64, 56, 0.32);
+        background: rgba(255, 255, 255, 0.35);
+        color: var(--ink);
+        font-family: var(--serif);
+        font-size: clamp(0.95rem, 3.6vw, 1.15rem);
+        font-weight: 500;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow:
+            inset 0 0 0 1px rgba(255, 255, 255, 0.4),
+            0 0 0 0.5px rgba(60, 55, 48, 0.06);
+        transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+    }
+    .rate-btn:hover {
+        border-color: rgba(40, 36, 32, 0.48);
+        background: rgba(255, 255, 255, 0.55);
+    }
+    .rate-btn.on {
+        background: #1a1a1a;
+        border-color: #1a1a1a;
+        color: #fff;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.12),
+            0 1px 2px rgba(40, 36, 32, 0.18);
+    }
+    .rate-btn:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 3px;
+    }
+    .rate-legend {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 0.72rem;
+        color: var(--muted);
+        line-height: 1.35;
+    }
+    .rate-legend span:last-child { text-align: right; }
+
     .branch-pick { margin: 0 0 18px; }
     .branch-pick select {
         width: 100%;
@@ -425,6 +501,23 @@
                 </div>
             </div>
 
+            <div class="rate" id="rateBlock">
+                <h2 class="rate-title">Wie blickst du auf deine Zeit bei uns zurück?</h2>
+                <p class="rate-sub">Ganz spontan – eine Zahl genügt.</p>
+                <div class="rate-row" id="rateRow" role="radiogroup" aria-label="Bewertung von 1 bis 6, freiwillig">
+                    <button type="button" class="rate-btn" data-n="1" aria-pressed="false">1</button>
+                    <button type="button" class="rate-btn" data-n="2" aria-pressed="false">2</button>
+                    <button type="button" class="rate-btn" data-n="3" aria-pressed="false">3</button>
+                    <button type="button" class="rate-btn" data-n="4" aria-pressed="false">4</button>
+                    <button type="button" class="rate-btn" data-n="5" aria-pressed="false">5</button>
+                    <button type="button" class="rate-btn" data-n="6" aria-pressed="false">6</button>
+                </div>
+                <div class="rate-legend">
+                    <span>1 = eher schwierig</span>
+                    <span>6 = richtig gute Zeit</span>
+                </div>
+            </div>
+
             <label class="hp" aria-hidden="true">Website <input type="text" id="website" tabindex="-1" autocomplete="off"></label>
             <div class="err" id="err" role="alert"></div>
 
@@ -491,6 +584,7 @@ let filialeCode = (qs.get('f') || '').trim();
 const selectedQ1 = new Set();
 let improveAnswer = null;
 const selectedThemes = new Set();
+let rating = null;
 
 function renderOpts(el, items) {
     el.innerHTML = items.map(r => `
@@ -566,6 +660,23 @@ optsThemes.addEventListener('click', (e) => {
     syncThemes();
 });
 
+function syncRating() {
+    document.querySelectorAll('#rateRow .rate-btn').forEach(btn => {
+        const on = rating != null && String(rating) === btn.dataset.n;
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+}
+
+document.getElementById('rateRow').addEventListener('click', (e) => {
+    const btn = e.target.closest('.rate-btn');
+    if (!btn) return;
+    const n = parseInt(btn.dataset.n, 10);
+    if (n < 1 || n > 6) return;
+    rating = rating === n ? null : n;
+    syncRating();
+});
+
 (async function initBranch() {
     const meta = document.getElementById('branchMeta');
     const note = document.getElementById('branchNote');
@@ -620,7 +731,7 @@ document.getElementById('f').addEventListener('submit', async (ev) => {
     const codeFromSelect = document.getElementById('filialeSelect')?.value || '';
     const themes = improveAnswer === 'JA' ? [...selectedThemes] : [];
 
-    if (!reasons.length && !improveAnswer && !comment) {
+    if (!reasons.length && !improveAnswer && !comment && rating == null) {
         err.textContent = 'Wähl etwas aus oder schreib uns kurz etwas — oder überspringe.';
         return;
     }
@@ -634,6 +745,7 @@ document.getElementById('f').addEventListener('submit', async (ev) => {
         improveAnswer,
         improveThemes: themes,
         comment: comment || null,
+        rating: rating,
         filialeCode: filialeCode || codeFromSelect || null,
         website: document.getElementById('website').value || null,
     };
