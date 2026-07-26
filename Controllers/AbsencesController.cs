@@ -199,27 +199,89 @@ public class AbsencesController : ControllerBase
         return Ok(new { from = fromD.ToString("yyyy-MM-dd"), to = toD.ToString("yyyy-MM-dd"), mitarbeiter = result });
     }
 
+    /// <summary>
+    /// Walter 26.07.2026: Pro Kalendertag höchstens EINE Absenz — egal welcher Typ.
+    /// Krank/Unfall/Mutterschaft dürfen keine Ferien/Nachtkomp/etc. überlappen;
+    /// umgekehrt genauso. Erlaubt ist nur Aufteilen (z.B. Ferien 2.–6.,
+    /// Nachtkomp 7., Ferien 8.–9.).
+    /// </summary>
+    private async Task<IActionResult?> CheckOverlapAsync(
+        int employeeId, DateOnly from, DateOnly to, int? excludeId = null)
+    {
+        if (to < from)
+            return BadRequest(new { error = "INVALID_RANGE", message = "Datum bis darf nicht vor Datum von liegen." });
+
+        var q = _db.Absences.AsNoTracking()
+            .Where(a => a.EmployeeId == employeeId
+                     && a.DateFrom <= to
+                     && a.DateTo >= from);
+        if (excludeId is int xid)
+            q = q.Where(a => a.Id != xid);
+
+        var conflict = await q
+            .OrderBy(a => a.DateFrom)
+            .Select(a => new { a.Id, a.AbsenceType, a.DateFrom, a.DateTo })
+            .FirstOrDefaultAsync();
+        if (conflict is null) return null;
+
+        var label = AbsenceTypeLabel(conflict.AbsenceType);
+        var fromCh = conflict.DateFrom.ToString("dd.MM.yyyy");
+        var toCh   = conflict.DateTo.ToString("dd.MM.yyyy");
+        return Conflict(new
+        {
+            error = "ABSENCE_OVERLAP",
+            message = $"Überlappung mit «{label}» vom {fromCh}–{toCh}. "
+                    + "Pro Tag ist nur eine Absenz erlaubt — bei Bedarf die bestehende Absenz aufteilen "
+                    + "(z.B. Ferien vor/nach einem einzelnen Kompensationstag).",
+            conflictingId = conflict.Id,
+            conflictingType = conflict.AbsenceType,
+            conflictingDateFrom = conflict.DateFrom.ToString("yyyy-MM-dd"),
+            conflictingDateTo = conflict.DateTo.ToString("yyyy-MM-dd"),
+        });
+    }
+
+    private static string AbsenceTypeLabel(string? code) => (code ?? "").ToUpperInvariant() switch
+    {
+        "KRANK" => "Krankheit",
+        "UNFALL" => "Unfall",
+        "FERIEN" => "Ferien",
+        "NACHT_KOMP" => "Nacht-Kompensation",
+        "FREI_KOMP" => "Frei-Kompensation",
+        "FEIERTAG" => "Feiertag",
+        "SCHULUNG" => "Schulung",
+        "MILITAER" => "Militär",
+        "MUTT_VATER" => "Mutter-/Vaterschaftsurlaub",
+        "BEZ_ABSENZ" => "Bezahlte Absenz",
+        "UNBEZ_URLAUB" => "Unbezahlter Urlaub",
+        _ => string.IsNullOrWhiteSpace(code) ? "Absenz" : code,
+    };
+
     // ── POST /api/absences ────────────────────────────────────────────────
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AbsenceDto dto)
     {
         // Lohnlauf-Sperre: keine Absenz in einer Periode anlegen, die bei HR
         // liegt oder bereits ausbezahlt/abgeschlossen ist.
-        var locked = await CheckLohnLockAsync(dto.EmployeeId, DateOnly.Parse(dto.DateFrom), DateOnly.Parse(dto.DateTo));
+        var from = DateOnly.Parse(dto.DateFrom);
+        var to   = DateOnly.Parse(dto.DateTo);
+        var locked = await CheckLohnLockAsync(dto.EmployeeId, from, to);
         if (locked != null) return locked;
+
+        var overlap = await CheckOverlapAsync(dto.EmployeeId, from, to);
+        if (overlap != null) return overlap;
 
         var absence = new Absence
         {
             EmployeeId    = dto.EmployeeId,
             AbsenceType   = dto.AbsenceType.ToUpper(),
-            DateFrom      = DateOnly.Parse(dto.DateFrom),
-            DateTo        = DateOnly.Parse(dto.DateTo),
+            DateFrom      = from,
+            DateTo        = to,
             WorkedDays    = dto.WorkedDays,
             HoursCredited = dto.HoursCredited,
             Prozent       = ClampProzent(dto.Prozent),
             Notes         = dto.Notes,
-            CreatedAt     = DateTime.UtcNow,
-            UpdatedAt     = DateTime.UtcNow,
+            CreatedAt     = DateTime.Now,
+            UpdatedAt     = DateTime.Now,
         };
 
         _db.Absences.Add(absence);
@@ -251,14 +313,17 @@ public class AbsencesController : ControllerBase
         var lockError = await CheckNotInConfirmedPeriodAsync(absence, dto.WorkedDays, dto.DateFrom, dto.DateTo);
         if (lockError != null) return StatusCode(403, new { message = lockError });
 
+        var overlap = await CheckOverlapAsync(absence.EmployeeId, newFrom, newTo, excludeId: id);
+        if (overlap != null) return overlap;
+
         absence.AbsenceType   = dto.AbsenceType.ToUpper();
-        absence.DateFrom      = DateOnly.Parse(dto.DateFrom);
-        absence.DateTo        = DateOnly.Parse(dto.DateTo);
+        absence.DateFrom      = newFrom;
+        absence.DateTo        = newTo;
         absence.WorkedDays    = dto.WorkedDays;
         absence.HoursCredited = dto.HoursCredited;
         absence.Prozent       = ClampProzent(dto.Prozent);
         absence.Notes         = dto.Notes;
-        absence.UpdatedAt     = DateTime.UtcNow;
+        absence.UpdatedAt     = DateTime.Now;
 
         await _db.SaveChangesAsync();
         return Ok(MapToDto(absence));

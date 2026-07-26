@@ -7260,6 +7260,9 @@ async function mtsDelete(id) {
     if (typeof loadMitarbeiterList === 'function') loadMitarbeiterList();
 }
 
+// Cache für Überlappungs-Check im Absenz-Modal (Walter 26.07.2026).
+window._absencesCache = window._absencesCache || { employeeId: null, list: [] };
+
 async function loadAbsenzenTab(employeeId) {
     const el = document.getElementById('absenzenContent');
     if (!el) return;
@@ -7292,6 +7295,7 @@ async function loadAbsenzenTab(employeeId) {
         ]);
         if (!absRes.ok) throw new Error();
         const absences         = await absRes.json();
+        window._absencesCache = { employeeId, list: Array.isArray(absences) ? absences : [] };
         const karenzKrankHist  = karenzKrankRes  && karenzKrankRes.ok  ? await karenzKrankRes.json()  : [];
         const karenzUnfallHist = karenzUnfallRes && karenzUnfallRes.ok ? await karenzUnfallRes.json() : [];
         const sperrfrist       = sperrRes && sperrRes.ok ? await sperrRes.json() : null;
@@ -7299,6 +7303,32 @@ async function loadAbsenzenTab(employeeId) {
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>';
     }
+}
+
+/** Pro Kalendertag nur eine Absenz — Client-Vorabcheck (Server blockt hart). */
+function findAbsenceOverlap(employeeId, dateFrom, dateTo, excludeId) {
+    const cache = window._absencesCache;
+    const list = (cache && cache.employeeId === employeeId && Array.isArray(cache.list))
+        ? cache.list
+        : [];
+    return list.find(a => {
+        if (excludeId && String(a.id) === String(excludeId)) return false;
+        return a.dateFrom <= dateTo && a.dateTo >= dateFrom;
+    }) || null;
+}
+
+function formatAbsenceOverlapMsg(conflict) {
+    const meta = ABSENCE_LABELS[conflict.absenceType] || { label: conflict.absenceType || 'Absenz' };
+    const from = conflict.dateFrom
+        ? conflict.dateFrom.slice(8, 10) + '.' + conflict.dateFrom.slice(5, 7) + '.' + conflict.dateFrom.slice(0, 4)
+        : '?';
+    const to = conflict.dateTo
+        ? conflict.dateTo.slice(8, 10) + '.' + conflict.dateTo.slice(5, 7) + '.' + conflict.dateTo.slice(0, 4)
+        : '?';
+    return `Überlappung mit «${meta.label}» vom ${from}–${to}.\n\n`
+        + `Pro Tag ist nur eine Absenz erlaubt.\n`
+        + `Während Krankheit / Unfall / Mutterschaft sind keine weiteren Absenzen möglich.\n`
+        + `Bei Bedarf die bestehende Absenz aufteilen (z.B. Ferien vor und nach einem Kompensationstag).`;
 }
 
 function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sperrfrist = null, lockState = null, karenzUnfallHist = []) {
@@ -8164,6 +8194,13 @@ async function saveAbsence() {
         }
     }
 
+    // Überlappung: Client-Warnung vor dem Speichern (Server blockt zusätzlich hart).
+    const overlap = findAbsenceOverlap(selectedEmployeeId, dateFrom, dateTo, editId || null);
+    if (overlap) {
+        alert(formatAbsenceOverlapMsg(overlap));
+        return;
+    }
+
     const workedDays   = getAbsWorkedDays();
     const hoursPreview = document.getElementById('absHoursPreview');
     const hours        = parseFloat(hoursPreview?.dataset.hours ?? '0');
@@ -8195,7 +8232,11 @@ async function saveAbsence() {
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             let msg = 'Fehler beim Speichern.';
-            try { const j = await res.json(); if (j.message) msg = j.message; } catch {}
+            try {
+                const j = await res.json();
+                if (j.error === 'ABSENCE_OVERLAP' && j.message) msg = j.message;
+                else if (j.message) msg = j.message;
+            } catch {}
             alert(msg);
             return;
         }
