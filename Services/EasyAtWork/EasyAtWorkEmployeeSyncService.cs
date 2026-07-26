@@ -528,13 +528,6 @@ public class EasyAtWorkEmployeeSyncService
             var entry = master.EntryDate.Value.ToDateTime(TimeOnly.MinValue);
             if (emp.EntryDate?.Date != entry.Date) { emp.EntryDate = entry; result.UpdatedFields.Add("Eintrittsdatum"); }
         }
-        else if (IsEntryDateEqualsBirth(emp))
-        {
-            // Altlast Eintritt=Geburtstag entfernen, wenn easy@work keinen
-            // plausiblen Ersatz liefert (sonst bleibt der Müll stehen).
-            emp.EntryDate = null;
-            result.UpdatedFields.Add("Eintrittsdatum");
-        }
         if (emp.EasyAtWorkEmployeeId != eaw.Id)
         {
             emp.EasyAtWorkEmployeeId = eaw.Id;
@@ -877,9 +870,9 @@ public class EasyAtWorkEmployeeSyncService
             ZipCode = string.IsNullOrWhiteSpace(eaw.PostalCode) ? null : eaw.PostalCode.Trim(),
             Phone = NormalizePhone(eaw.Phone),
             Email = string.IsNullOrWhiteSpace(eaw.Email) ? null : eaw.Email.Trim().ToLowerInvariant(),
-            // From nur wenn plausibel (≠ Geburtstag); sonst null — Detail-Call
-            // kann Seniorität nachliefern.
-            EntryDate = IsPlausibleEntryDate(eaw.From, eaw.BirthDate) ? eaw.From : null,
+            // Fallback «Eingestellt seit» (employee.from) — Primärquelle ist
+            // «Datum der Betriebszugehörigkeit» aus den Properties (unten).
+            EntryDate = eaw.From,
             ExitDate = eaw.To,
             LanguageCode = "de",
         };
@@ -905,13 +898,10 @@ public class EasyAtWorkEmployeeSyncService
                 : await FetchPropsInfoAsync(customerId, eaw.Id, ct);
             data.MaritalStatus = propsInfo.Marital;
             data.Ahv = propsInfo.Ahv;
-            // Eintritt = Betriebszugehörigkeit/Seniorität aus easy@work (für die
-            // Dienstjubiläen); fällt auf den Anstellungs-Beginn (from) zurück, wenn keine
-            // Seniorität hinterlegt ist. Walter-Vorgabe 05.07.2026.
-            // Sanity (Walter 26.07.2026): Seniorität/From = Geburtstag (oder vor dem
-            // 14. Geburtstag) ist Datenmüll — nicht übernehmen, sonst bleibt Eintritt
-            // ewig auf dem Geburtsdatum hängen (Beispiel Crystal Tyra Raubald).
-            if (IsPlausibleEntryDate(propsInfo.SeniorityDate, data.DateOfBirth))
+            // Eintritt = «Datum der Betriebszugehörigkeit» (easy@work Custom Field /
+            // cf_seniority_date) — Walter 05.07.2026 + Klarstellung 26.07.2026.
+            // «Eingestellt seit» (employee.from) ist nur Fallback (Filial-/Anstellungsbeginn).
+            if (propsInfo.SeniorityDate.HasValue)
                 data.EntryDate = propsInfo.SeniorityDate;
             // Funktionen (Positionen) aus easy@work — für die Mehrdeutigkeits-Prüfung:
             // mehr als eine distinct Funktion → MA wird nicht importiert (Walter 05.07.2026).
@@ -3322,33 +3312,28 @@ public class EasyAtWorkEmployeeSyncService
                 case "Austritt":     emp.ExitDate     = DateTime.TryParse(d.Easy, out var xd) ? xd : emp.ExitDate; break;
             }
         }
-        // Altlast: Eintritt = Geburtstag nie stehen lassen (Walter 26.07.2026).
-        if (IsEntryDateEqualsBirth(emp))
-        {
-            if (data.EntryDate.HasValue)
-                emp.EntryDate = data.EntryDate.Value.ToDateTime(TimeOnly.MinValue);
-            else
-                emp.EntryDate = null;
-        }
     }
 
     /// <summary>
-    /// Eintrittsdatum ist brauchbar, wenn gesetzt und nicht gleich dem Geburtstag
-    /// und nicht vor dem 14. Geburtstag (McD/Gastronomie — unter 14 nie).
+    /// Datum aus easy@work-Property-Wert: ISO/UTC via <see cref="EawDateUtil"/>,
+    /// sonst de-CH («3. Juli 2026», «03.07.2026»).
     /// </summary>
-    private static bool IsPlausibleEntryDate(DateOnly? entry, DateOnly? birth)
+    private static DateOnly? ParsePropertyDate(string? raw)
     {
-        if (!entry.HasValue) return false;
-        if (!birth.HasValue) return true;
-        if (entry.Value == birth.Value) return false;
-        if (entry.Value < birth.Value.AddYears(14)) return false;
-        return true;
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var s = raw.Trim();
+        var swiss = EawDateUtil.ParseSwissDate(s);
+        if (swiss.HasValue) return swiss;
+        var de = System.Globalization.CultureInfo.GetCultureInfo("de-CH");
+        if (DateOnly.TryParse(s, de, System.Globalization.DateTimeStyles.None, out var d1))
+            return d1;
+        if (DateTime.TryParse(s, de, System.Globalization.DateTimeStyles.None, out var d2))
+            return DateOnly.FromDateTime(d2);
+        if (DateOnly.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var d3))
+            return d3;
+        return null;
     }
-
-    private static bool IsEntryDateEqualsBirth(Employee emp)
-        => emp.EntryDate.HasValue
-           && emp.DateOfBirth.HasValue
-           && emp.EntryDate.Value.Date == emp.DateOfBirth.Value.Date;
 
     // ─────────────────────────── Helpers ────────────────────────────
 
@@ -3662,19 +3647,22 @@ public class EasyAtWorkEmployeeSyncService
                 .FirstOrDefault();
             if (nwProp != null) { nwFrom = nwProp.From; nwToRaw = nwProp.ToRaw; }
 
-            // Betriebszugehörigkeit / Seniorität (cf_seniority_date, Walter-Vorgabe
-            // 05.07.2026): das ist der FIRMEN-Eintritt für Dienstjubiläen — überdauert
-            // Filialwechsel (im Gegensatz zum Anstellungs-«from», das nur den aktuellen
-            // Filial-Start ist).
+            // «Datum der Betriebszugehörigkeit» (Walter 05.07. / 26.07.2026):
+            // FIRMEN-Eintritt für Dienstjubiläen — überdauert Filialwechsel.
+            // UI-Label in easy@work; API-Key typisch cf_seniority_date.
+            // «Eingestellt seit» = employee.from = nur Anstellungs-/Filialbeginn.
             DateOnly? seniority = null;
-            var seniorRaw = Pick("seniority_date", "betriebszugeh");
+            var seniorRaw = Pick(
+                "seniority_date", "betriebszugeh", "betriebszugehörigkeit",
+                "zugehörigkeit", "zugehorigkeit", "dienstalter_datum",
+                "length_of_service", "company_seniority");
             if (!string.IsNullOrWhiteSpace(seniorRaw))
             {
-                var s = seniorRaw.Trim();
-                if (DateOnly.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var sd))
-                    seniority = sd;
-                else if (DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var sdt))
-                    seniority = DateOnly.FromDateTime(sdt);
+                seniority = ParsePropertyDate(seniorRaw);
+                if (!seniority.HasValue)
+                    _log.LogWarning(
+                        "easy@work-MA {Id}: Betriebszugehörigkeit-Wert «{Raw}» nicht als Datum lesbar",
+                        eawEmployeeId, seniorRaw);
             }
 
             return (marital, ahv, nwFrom, nwToRaw, seniority);

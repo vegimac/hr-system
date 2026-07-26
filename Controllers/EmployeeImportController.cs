@@ -172,14 +172,12 @@ public class EmployeeImportController : ControllerBase
                         GetValue(fields, headerMap, "Nationality"),
                         "CH"
                     ),
-                    // Walter-Vorgabe 13.05.2026: «Von» IST das Eintrittsdatum.
-                    // Kein Rückgriff mehr auf Betriebszugehörigkeit/Eintrittsdatum
-                    // (waren zu dünn/falsch befüllt — z.B. Geburtstag). Leer → null
-                    // (Frontend-Import setzt dann 01.01.2024).
+                    // Eintritt = «Datum der Betriebszugehörigkeit» (Walter 26.07.2026,
+                    // analog easy@work-Sync). Fallback «Von» / «Eintrittsdatum».
                     EntryDate = ParseDate(FirstNonEmpty(
+                        GetValue(fields, headerMap, "Datum der Betriebszugehörigkeit"),
                         GetValue(fields, headerMap, "Von"),
-                        GetValue(fields, headerMap, "Eintrittsdatum"),
-                        GetValue(fields, headerMap, "Datum der Betriebszugehörigkeit")
+                        GetValue(fields, headerMap, "Eintrittsdatum")
                     )),
                     // ContractStartDate = "Pay rate from" (echter Lohn-Beginn
                     // bei Lohnänderungen). Fallback "Von" wenn Pay-rate-Feld
@@ -432,9 +430,8 @@ public class EmployeeImportController : ControllerBase
             if (!string.IsNullOrWhiteSpace(row.MaritalStatus))
                 employee.MaritalStatus = row.MaritalStatus;
 
-            // Eintrittsdatum: «Von» aus dem CSV nachführen (Walter 13.05.2026 /
-            // 26.07.2026). Früherer Leer-Guard verhinderte Korrekturen (z.B.
-            // Eintritt = Geburtstag blieb ewig stehen). Re-Import überschreibt.
+            // Eintritt nachführen (Betriebszugehörigkeit / Von) — Re-Import
+            // überschreibt (früherer Leer-Guard entfernt, Walter 26.07.2026).
             if (row.EntryDate.HasValue)
                 employee.EntryDate = row.EntryDate;
 
@@ -1044,7 +1041,7 @@ public class EmployeeImportController : ControllerBase
         public string? Email { get; set; }
         public string? Phone { get; set; }
         public string? Nationality { get; set; }
-        // EntryDate = Firmen-Eintritt aus «Von» (Walter 13.05.2026).
+        // EntryDate = Firmen-Eintritt aus «Datum der Betriebszugehörigkeit».
         // ContractStartDate = «Pay rate from» (Lohn-Beginn pro Vertrag).
         public DateTime? EntryDate { get; set; }
         public DateTime? ContractStartDate { get; set; }
