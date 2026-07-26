@@ -1,10 +1,13 @@
+using System.Data;
+using System.Data.Common;
+using System.Security.Claims;
+using System.Text.Json;
 using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using System.Security.Claims;
-using System.Text.Json;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace HrSystem.Services;
 
@@ -23,8 +26,8 @@ namespace HrSystem.Services;
 /// Walter-Bug 26.07.2026: nach EINEM fehlgeschlagenen Batch-Insert wurde
 /// <c>_auditDisabled</c> dauerhaft true → Import + manuelle Edits ab dann
 /// unsichtbar im Aktivitäts-Log (Liste blieb bei 23.07. stehen). Neu:
-/// kein permanentes Disable mehr; Chunks + Einzel-Fallback; nur bei
-/// «Tabelle fehlt» kurz pausieren.
+/// kein permanentes Disable; Insert per ADO.NET Named-Params (kein
+/// ExecuteSqlRaw/::jsonb); nur bei «Tabelle fehlt» kurz pausieren.
 /// </summary>
 public class AuditSaveChangesInterceptor : SaveChangesInterceptor
 {
@@ -37,8 +40,6 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
     /// </summary>
     private static DateTime _pauseUntilUtc = DateTime.MinValue;
     private static readonly object _pauseLock = new();
-
-    private const int ChunkSize = 40; // 40 × 10 Params = 400 — sicher unter Limits
 
     private static readonly HashSet<string> _skipTypes = new()
     {
@@ -255,76 +256,86 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
         _pending.Value = null;
         if (ctx == null || list == null || list.Count == 0 || IsPaused()) return;
 
-        // Chunks — grosse Massen-Imports (easy@work) sonst ein Riesen-INSERT.
-        for (int offset = 0; offset < list.Count; offset += ChunkSize)
+        // ADO.NET mit Named-Params — robuster als ExecuteSqlRaw({0}…)+DBNull
+        // (Walter 26.07.2026: nach Deploy immer noch stumm → Insert-Pfad gehärtet).
+        try
         {
-            var chunk = list.Skip(offset).Take(ChunkSize).ToList();
-            if (!TryInsertChunk(ctx, chunk))
+            var conn = ctx.Database.GetDbConnection();
+            if (conn.State != ConnectionState.Open)
+                ctx.Database.OpenConnection(); // EF verwaltet Close/Dispose
+            var tx = ctx.Database.CurrentTransaction?.GetDbTransaction();
+
+            foreach (var row in list)
             {
-                // Fallback: Zeile für Zeile — eine kaputte Zeile killt nicht den Rest.
-                foreach (var row in chunk)
+                if (!TryInsertRow(conn, tx, row))
                 {
-                    if (!TryInsertChunk(ctx, new List<PendingAudit> { row }))
-                    {
-                        _log.LogWarning(
-                            "Audit-Zeile übersprungen: {Action} {Entity} #{Id} (Route {Route})",
-                            row.Action, row.EntityType, row.EntityId, row.Route);
-                    }
+                    _log.LogWarning(
+                        "Audit-Zeile übersprungen: {Action} {Entity} #{Id} (Route {Route})",
+                        row.Action, row.EntityType, row.EntityId, row.Route);
                 }
             }
         }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Audit-Persist fehlgeschlagen — User-Write bleibt erhalten.");
+            MaybePauseIfTableMissing(ex);
+        }
     }
 
-    private bool TryInsertChunk(AppDbContext ctx, List<PendingAudit> chunk)
+    private bool TryInsertRow(DbConnection conn, DbTransaction? tx, PendingAudit a)
     {
-        if (chunk.Count == 0) return true;
         try
         {
-            // changes_json ist TEXT — KEIN ::jsonb-Cast (Cast-Fehler → früher
-            // permanentes Disable und damit stummes Audit ab dem Fehler).
-            var sql = new System.Text.StringBuilder();
-            sql.Append("INSERT INTO audit_log (created_at,user_id,user_name,user_role,entity_type,entity_id,action,changes_json,route,ip_address) VALUES ");
-            var args = new List<object?>();
-            for (int i = 0; i < chunk.Count; i++)
-            {
-                if (i > 0) sql.Append(',');
-                int b = i * 10;
-                sql.Append($"({{{b}}},{{{b+1}}},{{{b+2}}},{{{b+3}}},{{{b+4}}},{{{b+5}}},{{{b+6}}},{{{b+7}}},{{{b+8}}},{{{b+9}}})");
-                var a = chunk[i];
-                args.Add(a.CreatedAt);
-                args.Add((object?)a.UserId    ?? DBNull.Value);
-                args.Add((object?)a.UserName  ?? DBNull.Value);
-                args.Add((object?)a.UserRole  ?? DBNull.Value);
-                args.Add(a.EntityType);
-                args.Add((object?)a.EntityId    ?? DBNull.Value);
-                args.Add(a.Action);
-                args.Add((object?)a.ChangesJson ?? DBNull.Value);
-                args.Add((object?)a.Route       ?? DBNull.Value);
-                args.Add((object?)a.IpAddress   ?? DBNull.Value);
-            }
+            using var cmd = conn.CreateCommand();
+            if (tx != null) cmd.Transaction = tx;
+            // changes_json = TEXT (kein ::jsonb) — Cast-Fehler hat Audit früher killt.
+            cmd.CommandText =
+                "INSERT INTO audit_log (created_at,user_id,user_name,user_role,entity_type,entity_id,action,changes_json,route,ip_address) "
+                + "VALUES (@created_at,@user_id,@user_name,@user_role,@entity_type,@entity_id,@action,@changes_json,@route,@ip_address)";
 
-            ctx.Database.ExecuteSqlRaw(sql.ToString(), args.ToArray());
+            AddParam(cmd, "@created_at", a.CreatedAt);
+            AddParam(cmd, "@user_id", a.UserId);
+            AddParam(cmd, "@user_name", a.UserName);
+            AddParam(cmd, "@user_role", a.UserRole);
+            AddParam(cmd, "@entity_type", a.EntityType);
+            AddParam(cmd, "@entity_id", a.EntityId);
+            AddParam(cmd, "@action", a.Action);
+            AddParam(cmd, "@changes_json", a.ChangesJson);
+            AddParam(cmd, "@route", a.Route);
+            AddParam(cmd, "@ip_address", a.IpAddress);
+
+            cmd.ExecuteNonQuery();
             return true;
         }
         catch (Exception ex)
         {
-            var msg = ex.GetBaseException().Message ?? "";
-            if (msg.Contains("audit_log", StringComparison.OrdinalIgnoreCase)
-                && (msg.Contains("does not exist", StringComparison.OrdinalIgnoreCase)
-                    || msg.Contains("existiert nicht", StringComparison.OrdinalIgnoreCase)
-                    || msg.Contains("42P01", StringComparison.OrdinalIgnoreCase)))
-            {
-                PauseFor(TimeSpan.FromMinutes(30));
-                _log.LogWarning(ex,
-                    "Audit-Tabelle fehlt — Audit 30 Min pausiert. Migration add_audit_log.sql ausfuehren.");
-            }
-            else
-            {
-                _log.LogWarning(ex,
-                    "Audit-Insert fehlgeschlagen ({Count} Zeilen) — Fallback/naechster Chunk wird versucht. KEIN permanentes Disable mehr.",
-                    chunk.Count);
-            }
+            _log.LogWarning(ex,
+                "Audit-Insert fehlgeschlagen: {Action} {Entity} #{Id} — {Msg}",
+                a.Action, a.EntityType, a.EntityId, ex.GetBaseException().Message);
+            MaybePauseIfTableMissing(ex);
             return false;
+        }
+    }
+
+    private static void AddParam(DbCommand cmd, string name, object? value)
+    {
+        var p = cmd.CreateParameter();
+        p.ParameterName = name;
+        p.Value = value ?? DBNull.Value;
+        cmd.Parameters.Add(p);
+    }
+
+    private void MaybePauseIfTableMissing(Exception ex)
+    {
+        var msg = ex.GetBaseException().Message ?? "";
+        if (msg.Contains("audit_log", StringComparison.OrdinalIgnoreCase)
+            && (msg.Contains("does not exist", StringComparison.OrdinalIgnoreCase)
+                || msg.Contains("existiert nicht", StringComparison.OrdinalIgnoreCase)
+                || msg.Contains("42P01", StringComparison.OrdinalIgnoreCase)))
+        {
+            PauseFor(TimeSpan.FromMinutes(30));
+            _log.LogWarning(
+                "Audit-Tabelle fehlt — Audit 30 Min pausiert. Migration add_audit_log.sql ausfuehren.");
         }
     }
 
