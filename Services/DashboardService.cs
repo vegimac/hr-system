@@ -342,18 +342,20 @@ public class DashboardService
                     : fehltDatum ? "Gesprächsdatum"
                     : "Protokoll";
                 var name = $"{em.Employee.FirstName} {em.Employee.LastName}".Trim();
+                // Walter 26.07.2026: Probezeit-Ende fett im Titel (auch bei
+                // kritisch — gleiche Title-Zeile, nur Spalte/Farbe anders).
                 alerts.Add(new DashboardAlert
                 {
                     Category = "probezeit_gespraech_offen",
                     Severity = Severity("probezeit_gespraech_offen", days, "warning", "critical"),
-                    Title    = "Probezeitgespräch offen",
+                    Title    = $"Probezeitgespräch offen · Probezeit bis {endeTxt}",
                     TitleKey = "alert.probation.gespraech_offen",
-                    Subtitle = $"{name} · Probezeit bis {endeTxt} · fehlt: {fehltTxt}",
+                    TitleArgs = new Dictionary<string, object> { ["ende"] = endeTxt },
+                    Subtitle = $"{name} · fehlt: {fehltTxt}",
                     SubtitleKey  = "alert.probation.gespraech_fehlt",
                     SubtitleArgs = new Dictionary<string, object> {
                         ["name"] = name,
-                        ["fehlt"] = fehltTxt,
-                        ["ende"] = endeTxt
+                        ["fehlt"] = fehltTxt
                     },
                     DueDate  = dueDate,
                     DaysUntil = days,
