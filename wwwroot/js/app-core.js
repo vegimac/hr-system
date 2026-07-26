@@ -982,6 +982,7 @@ function showPage(name) {
     if (name === 'sollstunden') sollInit();
     if (name === 'ferien') ferienInit();
     if (name === 'alter-report') alterInit();
+    if (name === 'fluktuation-report' && typeof flukInit === 'function') flukInit();
     if (name === 'absenz-kalender') akalInit();
     if (name === 'smtp-settings') smtpLoad();
     if (name === 'ecall') ecallLoad();

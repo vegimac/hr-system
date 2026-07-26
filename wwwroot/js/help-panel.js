@@ -65,6 +65,8 @@ const HELP_PAGE_BY_APP_PAGE = {
     'fibu':              'fibu',
     'ecall':             'sms',
     'alter-report':      'index',
+    'hr-reports':        'index',
+    'fluktuation-report':'index',
 };
 
 // Tab-spezifisches Mapping: wenn auf Mitarbeiter-Seite ein bestimmter
