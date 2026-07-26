@@ -375,6 +375,7 @@ public class EmployeesController : ControllerBase
             employee.KuendigungAusgesprochenAm,
             employee.KuendigungPer,
             employee.KuendigungDurch,
+            employee.Austrittsgrund,
             employee.IsActive,
             employee.IsPayrollExcluded,
             employee.LgavPflichtig,
@@ -581,6 +582,17 @@ public class EmployeesController : ControllerBase
                 return BadRequest(new { error = "KUENDIGUNG_DURCH_INVALID",
                     message = "Kündigung durch muss «AG» (durch uns) oder «AN» (durch Mitarbeiter) sein." });
             employee.KuendigungDurch = durch;
+            // Austrittsgrund: leer = löschen; ungültiger Code → 400.
+            if (string.IsNullOrWhiteSpace(dto.Austrittsgrund))
+                employee.Austrittsgrund = null;
+            else
+            {
+                var ag = AustrittsgrundCodes.Normalize(dto.Austrittsgrund);
+                if (ag == null)
+                    return BadRequest(new { error = "AUSTRITTSGRUND_INVALID",
+                        message = "Ungültiger Austrittsgrund." });
+                employee.Austrittsgrund = ag;
+            }
         }
 
         // ── Nachtarbeit-Untersuchung gültig bis (Walter 20.06.2026) ──────────
@@ -1496,6 +1508,8 @@ public class EmployeeUpdateDto
     public DateTime? KuendigungPer { get; set; }
     /// <summary>«AG» = durch uns, «AN» = durch Mitarbeiter, null/leer = löschen.</summary>
     public string?   KuendigungDurch { get; set; }
+    /// <summary>Austrittsgrund-Code (siehe AustrittsgrundCodes), null/leer = löschen.</summary>
+    public string?   Austrittsgrund { get; set; }
 
     // Nachtarbeit-Untersuchung gültig bis (Walter 20.06.2026)
     public bool      NightWorkExamValidUntilSet { get; set; } = false;

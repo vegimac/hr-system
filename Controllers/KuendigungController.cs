@@ -150,11 +150,13 @@ public class KuendigungController : ControllerBase
         public string?   GrundType { get; set; }
         /// <summary>«AG» = durch uns (Default beim Schreiben), «AN» = durch Mitarbeiter.</summary>
         public string?   KuendigungDurch { get; set; }
+        /// <summary>Austrittsgrund-Code (AustrittsgrundCodes), optional.</summary>
+        public string?   Austrittsgrund { get; set; }
     }
 
     /// <summary>
-    /// Schreibt «Gekündigt am» + «Kündigung per» + «Kündigung durch» am MA
-    /// (Walter 21.07.2026 / erweitert 26.07.2026).
+    /// Schreibt «Gekündigt am» + «Kündigung per» + «Kündigung durch» +
+    /// optional Austrittsgrund am MA (Walter 21.07.2026 / 26.07.2026).
     /// Bewusst getrennt vom PDF — Schreiben erstellen ≠ in Stammdaten eintragen.
     /// Austrittsdatum wird nicht gesetzt.
     /// </summary>
@@ -181,10 +183,21 @@ public class KuendigungController : ControllerBase
             return BadRequest(new { error = "KUENDIGUNG_DURCH_INVALID",
                 message = "Kündigung durch muss «AG» (durch uns) oder «AN» (durch Mitarbeiter) sein." });
 
+        string? austrittsgrund = null;
+        if (!string.IsNullOrWhiteSpace(dto.Austrittsgrund))
+        {
+            austrittsgrund = AustrittsgrundCodes.Normalize(dto.Austrittsgrund);
+            if (austrittsgrund == null)
+                return BadRequest(new { error = "AUSTRITTSGRUND_INVALID",
+                    message = "Ungültiger Austrittsgrund." });
+        }
+
         // Kind=Unspecified — nie UTC in timestamp without time zone (Walter 30.06.2026).
         tracked.KuendigungAusgesprochenAm = new DateTime(kdat.Year, kdat.Month, kdat.Day);
         tracked.KuendigungPer             = new DateTime(letzter.Year, letzter.Month, letzter.Day);
         tracked.KuendigungDurch           = durch;
+        if (austrittsgrund != null)
+            tracked.Austrittsgrund = austrittsgrund;
         await _db.SaveChangesAsync();
 
         return Ok(new
@@ -192,7 +205,8 @@ public class KuendigungController : ControllerBase
             ok = true,
             kuendigungAusgesprochenAm = kdat.ToString("yyyy-MM-dd"),
             kuendigungPer = letzter.ToString("yyyy-MM-dd"),
-            kuendigungDurch = durch
+            kuendigungDurch = durch,
+            austrittsgrund = tracked.Austrittsgrund
         });
     }
 

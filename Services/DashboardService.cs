@@ -479,6 +479,8 @@ public class DashboardService
                              + (e.KuendigungAusgesprochenAm.HasValue ? $" · gekündigt am {e.KuendigungAusgesprochenAm:dd.MM.yyyy}" : "")
                              + (e.KuendigungDurch == "AN" ? " · durch Mitarbeiter"
                                 : e.KuendigungDurch == "AG" ? " · durch uns" : "")
+                             + (!string.IsNullOrWhiteSpace(e.Austrittsgrund)
+                                 ? $" · {AustrittsgrundCodes.LabelOf(e.Austrittsgrund)}" : "")
                              + (abgelaufen
                                  ? $" — seit {-daysUntil} Tag(en) überfällig: Austrittsdatum erfassen oder Kündigung aufheben"
                                  : " — Austrittsdatum erfassen und Vertrag beenden"),

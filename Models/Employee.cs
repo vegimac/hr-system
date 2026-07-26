@@ -59,6 +59,10 @@ public class Employee
     /// Mitarbeiter (Arbeitnehmer). Null = nicht gesetzt. Walter 26.07.2026.</summary>
     public string? KuendigungDurch { get; set; }
 
+    /// <summary>Austrittsgrund (Code, siehe <see cref="AustrittsgrundCodes"/>).
+    /// Für Statistik — kurz gehalten. Walter 26.07.2026.</summary>
+    public string? Austrittsgrund { get; set; }
+
     public int? PermitTypeId { get; set; }
     // PermitExpiryDate (denormalisierte Kopie) entfernt 01.06.2026 — Dashboard-Warnung
     // läuft jetzt über EmployeePermitHistory.ValidTo des jüngsten Eintrags.
