@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  Austritts-Feedback (anonym) — Walter 26.07.2026
 //  HR-Hub → Auswertungen / Reporting → Austritts-Feedback
-//  Endpoint: GET /api/exit-survey?from=&to=&take=
+//  Endpoint: GET /api/exit-survey?from=&to=&companyProfileId=&take=
+//  Filiale = Sidebar (fixedCompanyProfileId) — keine zweite Filialwahl auf der Page.
 //  Insights: Ø Note · Gründe · Themen · Noten-Trend (Zeitraum Von–Bis)
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -88,12 +89,23 @@ function esEnsureDefaultDates() {
     _esDefaultsSet = true;
 }
 
+function esSidebarBranchId() {
+    if (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+        return fixedCompanyProfileId;
+    return null;
+}
+
 async function esLoad() {
     const box = document.getElementById('esResult');
     if (!box) return;
     esEnsureDefaultDates();
     const from = document.getElementById('esFrom')?.value || '';
     const to = document.getElementById('esTo')?.value || '';
+    const branchId = esSidebarBranchId();
+    if (!branchId) {
+        box.innerHTML = '<div class="es-empty">Bitte zuerst eine Filiale oben links in der Sidebar wählen.</div>';
+        return;
+    }
     if (from && to && from > to) {
         box.innerHTML = '<div class="es-empty">«Von» muss vor oder gleich «Bis» liegen.</div>';
         return;
@@ -103,6 +115,7 @@ async function esLoad() {
         const qs = new URLSearchParams({ take: '2000' });
         if (from) qs.set('from', from);
         if (to) qs.set('to', to);
+        qs.set('companyProfileId', String(branchId));
         const res = await fetch('/api/exit-survey?' + qs.toString(), { headers: ah() });
         if (!res.ok) {
             box.innerHTML = `<div style="padding:20px;color:#b91c1c">Fehler beim Laden (${res.status}).</div>`;
@@ -110,29 +123,10 @@ async function esLoad() {
         }
         _esRows = await res.json();
         if (!Array.isArray(_esRows)) _esRows = [];
-        esFillFilialeFilter();
         esRender();
     } catch {
         box.innerHTML = '<div style="padding:20px;color:#b91c1c">Netzwerkfehler beim Laden.</div>';
     }
-}
-
-function esFillFilialeFilter() {
-    const sel = document.getElementById('esFiliale');
-    if (!sel) return;
-    const cur = sel.value || '';
-    const codes = new Map();
-    for (const r of _esRows) {
-        const key = r.filialeCode || r.FilialeCode || '';
-        if (!key) continue;
-        if (!codes.has(key)) codes.set(key, r.filiale || r.Filiale || key);
-    }
-    const sorted = [...codes.entries()].sort((a, b) =>
-        String(a[1]).localeCompare(String(b[1]), 'de'));
-    sel.innerHTML = '<option value="">— alle Filialen —</option>'
-        + sorted.map(([c, lbl]) =>
-            `<option value="${esEsc(c)}">${esEsc(lbl)}</option>`).join('');
-    if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
 }
 
 function esEsc(s) {
@@ -216,10 +210,8 @@ function esBemerkungText(r) {
 }
 
 function esFilteredRows() {
-    const filter = document.getElementById('esFiliale')?.value || '';
-    return filter
-        ? _esRows.filter(r => (r.filialeCode || r.FilialeCode || '') === filter)
-        : _esRows;
+    // Filiale kommt bereits serverseitig aus der Sidebar — hier keine zweite Filterung.
+    return _esRows;
 }
 
 function esCountByCode(rows, getCodes) {
@@ -430,7 +422,6 @@ function esRender() {
     const box = document.getElementById('esResult');
     if (!box) return;
     const rows = esFilteredRows();
-    const filter = document.getElementById('esFiliale')?.value || '';
 
     let html = esInsightsHtml(rows);
 
@@ -438,7 +429,7 @@ function esRender() {
         <div class="es-kpi">
             <div class="es-kpi-label">Antworten</div>
             <div class="es-kpi-value">${rows.length}</div>
-            <div class="es-kpi-hint">${filter ? 'gefiltert' : 'im Zeitraum'}</div>
+            <div class="es-kpi-hint">Sidebar-Filiale · Zeitraum</div>
         </div>
         <div class="es-kpi">
             <div class="es-kpi-label">Mit Themen</div>
@@ -446,15 +437,18 @@ function esRender() {
             <div class="es-kpi-hint">«Ja, da gibt es etwas»</div>
         </div>
         <div class="es-kpi">
-            <div class="es-kpi-label">Mit Filiale</div>
-            <div class="es-kpi-value">${rows.filter(r => r.companyProfileId || r.CompanyProfileId || r.filialeCode || r.FilialeCode).length}</div>
-            <div class="es-kpi-hint">aus QR / Auswahl</div>
+            <div class="es-kpi-label">Mit Note</div>
+            <div class="es-kpi-value">${rows.filter(r => {
+                const n = r.rating ?? r.Rating;
+                return n != null && n >= 1 && n <= 6;
+            }).length}</div>
+            <div class="es-kpi-hint">Bewertung 1–6</div>
         </div>
     </div>`;
 
     if (!rows.length) {
         html += `<div class="es-empty">
-            Noch keine anonymen Feedbacks${filter ? ' für diese Filiale' : ''} in diesem Zeitraum.<br>
+            Noch keine anonymen Feedbacks für diese Filiale in diesem Zeitraum.<br>
             <span>Sie entstehen, wenn austretende MA den QR auf der Kündigungsbestätigung scannen.</span>
         </div>`;
         box.innerHTML = html;

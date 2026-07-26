@@ -198,7 +198,8 @@ public class ExitSurveyController : ControllerBase
     public async Task<IActionResult> List(
         [FromQuery] int take = 500,
         [FromQuery] DateOnly? from = null,
-        [FromQuery] DateOnly? to = null)
+        [FromQuery] DateOnly? to = null,
+        [FromQuery] int? companyProfileId = null)
     {
         take = Math.Clamp(take, 1, 2000);
 
@@ -220,6 +221,9 @@ public class ExitSurveyController : ControllerBase
             query = query.Where(t => t.x.CreatedAt >= fromDt.Value);
         if (toExclusive.HasValue)
             query = query.Where(t => t.x.CreatedAt < toExclusive.Value);
+        // Filiale = globaler Sidebar-Selektor (Walter 26.07.2026) — keine zweite Wahl auf der Page.
+        if (companyProfileId is > 0)
+            query = query.Where(t => t.x.CompanyProfileId == companyProfileId.Value);
 
         var raw = await query
             .OrderByDescending(t => t.x.CreatedAt)

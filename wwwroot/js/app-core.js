@@ -1148,6 +1148,9 @@ function onBranchChange() {
     } else if (currentPageName === 'fluktuation-report') {
         // Fluktuation: bei Scope «Sidebar-Filiale» neu laden (Walter 26.07.2026).
         if (typeof flukLoad === 'function') flukLoad();
+    } else if (currentPageName === 'exit-survey-report') {
+        // Austritts-Feedback folgt der Sidebar-Filiale (Walter 26.07.2026).
+        if (typeof esLoad === 'function') esLoad();
     }
 
     // Mirus-Digest-Vorschau folgt der Sidebar-Filiale (Walter 23.07.2026).
