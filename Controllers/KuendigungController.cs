@@ -148,10 +148,13 @@ public class KuendigungController : ControllerBase
         public DateOnly? KuendigungsDatum { get; set; }
         public DateOnly? LetzterArbeitstag { get; set; }
         public string?   GrundType { get; set; }
+        /// <summary>«AG» = durch uns (Default beim Schreiben), «AN» = durch Mitarbeiter.</summary>
+        public string?   KuendigungDurch { get; set; }
     }
 
     /// <summary>
-    /// Schreibt «Gekündigt am» + «Kündigung per» am MA (Walter 21.07.2026).
+    /// Schreibt «Gekündigt am» + «Kündigung per» + «Kündigung durch» am MA
+    /// (Walter 21.07.2026 / erweitert 26.07.2026).
     /// Bewusst getrennt vom PDF — Schreiben erstellen ≠ in Stammdaten eintragen.
     /// Austrittsdatum wird nicht gesetzt.
     /// </summary>
@@ -171,16 +174,25 @@ public class KuendigungController : ControllerBase
         var notice = ComputeNotice(e, emp, cp, kdat, dto.GrundType);
         var letzter = dto.LetzterArbeitstag ?? notice.LetzterArbeitstag;
 
+        var durch = string.IsNullOrWhiteSpace(dto.KuendigungDurch)
+            ? "AG" // Kündigungsschreiben = durch uns
+            : dto.KuendigungDurch.Trim().ToUpperInvariant();
+        if (durch != "AG" && durch != "AN")
+            return BadRequest(new { error = "KUENDIGUNG_DURCH_INVALID",
+                message = "Kündigung durch muss «AG» (durch uns) oder «AN» (durch Mitarbeiter) sein." });
+
         // Kind=Unspecified — nie UTC in timestamp without time zone (Walter 30.06.2026).
         tracked.KuendigungAusgesprochenAm = new DateTime(kdat.Year, kdat.Month, kdat.Day);
         tracked.KuendigungPer             = new DateTime(letzter.Year, letzter.Month, letzter.Day);
+        tracked.KuendigungDurch           = durch;
         await _db.SaveChangesAsync();
 
         return Ok(new
         {
             ok = true,
             kuendigungAusgesprochenAm = kdat.ToString("yyyy-MM-dd"),
-            kuendigungPer = letzter.ToString("yyyy-MM-dd")
+            kuendigungPer = letzter.ToString("yyyy-MM-dd"),
+            kuendigungDurch = durch
         });
     }
 
@@ -268,6 +280,7 @@ public class KuendigungController : ControllerBase
         if (tracked == null) return NotFound(new { error = "EMP_NOT_FOUND" });
         tracked.KuendigungAusgesprochenAm = null;
         tracked.KuendigungPer             = null;
+        tracked.KuendigungDurch           = null;
         await _db.SaveChangesAsync();
         return Ok(new { ok = true });
     }

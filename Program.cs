@@ -362,6 +362,11 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS kuendigung_ausgesprochen_am date,
         ADD COLUMN IF NOT EXISTS kuendigung_per date;
     ");
+    // Kündigung durch uns (AG) oder durch Mitarbeiter (AN) — Walter 26.07.2026.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee
+        ADD COLUMN IF NOT EXISTS kuendigung_durch text;
+    ");
 
     // Ärzte-Verzeichnis (Walter 16.07.2026) — fuer den Brief an den
     // behandelnden Arzt (Eignungsuntersuchung Mutterschutz).

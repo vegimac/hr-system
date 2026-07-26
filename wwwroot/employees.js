@@ -943,8 +943,11 @@ function renderEmployeeDetail(emp) {
             : (_p.errechneterTermin ? `Mutterschaft — ET ${formatDate(_p.errechneterTermin)}` : 'Mutterschaft');
         _hcBadges.push(`<span class="emp-hbadge hb-mut" style="cursor:pointer" title="Zur Schwangerschaft im Familie-Tab" onclick="switchEmpTab('familie')">🤰 ${_mutTxt}</span>`);
     }
-    if (emp.kuendigungPer)
-        _hcBadges.push(`<span class="emp-hbadge hb-kuend">✕ Gekündigt per ${formatDate(emp.kuendigungPer)}</span>`);
+    if (emp.kuendigungPer) {
+        const _kd = (emp.kuendigungDurch || '').toUpperCase();
+        const _kdLbl = _kd === 'AN' ? ' · durch MA' : _kd === 'AG' ? ' · durch uns' : '';
+        _hcBadges.push(`<span class="emp-hbadge hb-kuend">✕ Gekündigt per ${formatDate(emp.kuendigungPer)}${_kdLbl}</span>`);
+    }
     if (_hcActive?.probationEndDate && String(_hcActive.probationEndDate).slice(0, 10) >= _hcToday)
         _hcBadges.push(`<span class="emp-hbadge hb-prob">⏳ Probezeit bis ${formatDate(_hcActive.probationEndDate)}</span>`);
     if (emp.isPayrollExcluded)
@@ -1383,7 +1386,14 @@ function loadUebersichtTab() {
             <div class="ov-pf ov-anst-date"><div class="ov-pfl">Kündigung per</div>
             <input id="ov-kuendPer" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
             <div class="ov-pf ov-anst-tog"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
-            ${pzEnde ? `${_pf('Probezeit bis', pzEnde)}${pzAktiv ? _pf('Probezeitgespräch', pzStatus) : ''}` : ''}
+            ${pzEnde ? _pf('Probezeit bis', pzEnde) : ''}
+            <div class="ov-pf ov-anst-date"><div class="ov-pfl">Kündigung durch</div>
+            <select id="ov-kuendDurch" class="ov-softin" onchange="ovDirty()">
+                <option value="">—</option>
+                <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
+                <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
+            </select></div>
+            ${pzAktiv ? _pf('Probezeitgespräch', pzStatus) : ''}
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
@@ -4726,6 +4736,13 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
         ${eField('Kündigung per',
             `<input id="ef-kuendPer" class="ef-input" type="date" value="${toDateInput(emp.kuendigungPer)}">`,
             'Letzter Arbeitstag gemäss Kündigung')}
+        ${eField('Kündigung durch',
+            `<select id="ef-kuendDurch" class="ef-input">
+                <option value="">—</option>
+                <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
+                <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
+             </select>`,
+            'Wer die Kündigung ausgesprochen hat')}
         ${eField('L-GAV',
             `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
                  <input id="ef-lgavPflichtig" type="checkbox" ${emp.lgavPflichtig ? 'checked' : ''}
@@ -5104,6 +5121,7 @@ async function saveEmpEdit() {
         kuendigungSet: true,
         kuendigungAusgesprochenAm: formVal('ef-kuendAm', 'ov-kuendAm') || null,
         kuendigungPer:             formVal('ef-kuendPer', 'ov-kuendPer') || null,
+        kuendigungDurch:           formVal('ef-kuendDurch', 'ov-kuendDurch') || null,
         // Walter-Vorgabe 18.05.2026: Aktiv-Flag bewusst gesetzt vom UI,
         // KEIN Auto-Sync mehr aus ExitDate (Backend nimmt diesen Wert 1:1).
         isActive:     isActiveInput ? isActiveInput.checked === true : !!emp.isActive,
