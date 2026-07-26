@@ -505,18 +505,49 @@ function closeMirusDigestPreview() {
     }
 }
 
+function mirusDigestPreviewQuery() {
+    const br = mirusDigestCurrentBranch();
+    const code = (br?.restaurantCode || '').trim();
+    const cpId = br?.id;
+    const p = new URLSearchParams();
+    if (cpId) p.set('companyProfileId', String(cpId));
+    else if (code) p.set('restaurantCode', code);
+    const q = p.toString();
+    return { br, code, cpId, qs: q ? ('?' + q) : '' };
+}
+
+/** Vorschau per SMTP an die eigene Admin-Mail (oder walter.schaub@gmail.com). */
+async function sendMirusDigestPreviewToMe() {
+    const hint = document.getElementById('mirusDigestPreviewHint');
+    const { qs } = mirusDigestPreviewQuery();
+    let url = '/api/mirus-change-digest/send-preview-to-me' + qs;
+    // Falls am User keine Mail hängt: feste Test-Adresse Walter.
+    if (url.indexOf('?') >= 0) url += '&to=' + encodeURIComponent('walter.schaub@gmail.com');
+    else url += '?to=' + encodeURIComponent('walter.schaub@gmail.com');
+    if (hint) hint.textContent = 'Sende Vorschau-Mail…';
+    try {
+        const res = await fetch(url, { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` } });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            if (hint) hint.textContent = data.message || (`Versand fehlgeschlagen (HTTP ${res.status}).`);
+            alert(data.message || ('Versand fehlgeschlagen (HTTP ' + res.status + ').'));
+            return;
+        }
+        if (hint) hint.textContent = data.message || 'Vorschau gesendet.';
+        alert(data.message || 'Vorschau-Mail gesendet.');
+    } catch (e) {
+        if (hint) hint.textContent = 'Netzwerkfehler beim Versand.';
+        alert('Netzwerkfehler beim Versand.');
+    }
+}
+
 async function loadMirusDigestPreview() {
     const iframe = document.getElementById('mirusDigestFrame');
     const hint = document.getElementById('mirusDigestPreviewHint');
     if (!iframe) return;
     mirusDigestSyncBranchLabel();
-    const br = mirusDigestCurrentBranch();
-    const code = (br?.restaurantCode || '').trim();
-    const cpId = br?.id;
-    // Prefer companyProfileId (stabil); restaurantCode als Fallback.
-    let url = '/api/mirus-change-digest/preview';
-    if (cpId) url += `?companyProfileId=${encodeURIComponent(cpId)}`;
-    else if (code) url += `?restaurantCode=${encodeURIComponent(code)}`;
+    const { code, cpId, qs } = mirusDigestPreviewQuery();
+    const url = '/api/mirus-change-digest/preview' + qs;
     if (hint) hint.textContent = 'Lade Vorschau…';
     iframe.src = 'about:blank';
     try {
@@ -531,8 +562,7 @@ async function loadMirusDigestPreview() {
         _mirusDigestBlobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
         iframe.src = _mirusDigestBlobUrl;
         if (hint) {
-            const label = code || (cpId ? ('#' + cpId) : 'alle Filialen');
-            hint.textContent = `Vorschau für ${label} — letzte 24 h, wird nicht gesendet. Filiale links in der Sidebar wechseln.`;
+            const label = code || (cpId ? ('#' + cpId) : 'alle Filialen');            hint.textContent = `Vorschau für ${label} — letzte 24 h, wird nicht gesendet. Filiale links in der Sidebar wechseln.`;
         }
     } catch (err) {
         if (hint) hint.textContent = 'Verbindungsfehler.';

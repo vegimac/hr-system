@@ -1,7 +1,10 @@
+using System.Security.Claims;
 using System.Text;
+using HrSystem.Data;
 using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Controllers;
 
@@ -15,8 +18,13 @@ namespace HrSystem.Controllers;
 public class MirusChangeDigestController : ControllerBase
 {
     private readonly MirusChangeDigestService _svc;
+    private readonly AppDbContext _db;
 
-    public MirusChangeDigestController(MirusChangeDigestService svc) => _svc = svc;
+    public MirusChangeDigestController(MirusChangeDigestService svc, AppDbContext db)
+    {
+        _svc = svc;
+        _db = db;
+    }
 
     /// <summary>Sofort-Lauf: letzte 24 h → Mails an alle Empfänger mit Flag.</summary>
     [HttpPost("run-now")]
@@ -57,6 +65,53 @@ public class MirusChangeDigestController : ControllerBase
                      + $"<p>{msg}</p></body></html>";
             return Content(html, "text/html", Encoding.UTF8);
         }
+    }
+
+    /// <summary>
+    /// Vorschau per SMTP an die E-Mail des eingeloggten Admins senden
+    /// (Walter 26.07.2026). Optional ?to=… nur an dieselbe Domain / eigene
+    /// Adresse — Standard = User.Email aus der DB.
+    /// </summary>
+    [HttpPost("send-preview-to-me")]
+    public async Task<IActionResult> SendPreviewToMe(
+        [FromQuery] int? companyProfileId,
+        [FromQuery] string? restaurantCode,
+        [FromQuery] string? to,
+        CancellationToken ct)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var me = await _db.AppUsers.AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => new { u.Email, u.FirstName, u.LastName, u.Username })
+            .FirstOrDefaultAsync(ct);
+        if (me == null) return NotFound(new { error = "USER_NOT_FOUND" });
+
+        var target = string.IsNullOrWhiteSpace(to) ? me.Email : to.Trim();
+        if (string.IsNullOrWhiteSpace(target))
+            return BadRequest(new { error = "NO_EMAIL", message = "Keine E-Mail am Benutzer hinterlegt." });
+
+        // Nur eigene Adresse oder explizit erlaubte Test-Adresse (Walter).
+        var myEmail = (me.Email ?? "").Trim();
+        if (!string.Equals(target, myEmail, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(target, "walter.schaub@gmail.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new
+            {
+                error = "TO_NOT_ALLOWED",
+                message = "Vorschau darf nur an die eigene Benutzer-E-Mail oder walter.schaub@gmail.com."
+            });
+        }
+
+        var name = $"{me.FirstName} {me.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(name)) name = me.Username ?? "Walter";
+
+        var (ok, message, subject) = await _svc.SendPreviewAsync(
+            target!, name, companyProfileId, restaurantCode, ct);
+        if (!ok) return StatusCode(502, new { error = "SEND_FAILED", message, subject });
+        return Ok(new { ok = true, to = target, subject, message });
     }
 
     private static string WrapPreviewHtml(string subject, string message, string bodyHtml)
