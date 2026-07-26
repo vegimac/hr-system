@@ -40,6 +40,7 @@ public class AppDbContext : DbContext
     public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<UserBranchAccess> UserBranchAccesses => Set<UserBranchAccess>();
     public DbSet<Arzt> Aerzte => Set<Arzt>();
+    public DbSet<ExitSurveyResponse> ExitSurveyResponses => Set<ExitSurveyResponse>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<EmployeeFamilyMember> EmployeeFamilyMembers => Set<EmployeeFamilyMember>();
     public DbSet<EmployeeAddress> EmployeeAddresses => Set<EmployeeAddress>();
@@ -770,6 +771,20 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.Aktiv).HasColumnName("aktiv");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+        });
+
+        modelBuilder.Entity<ExitSurveyResponse>(entity =>
+        {
+            entity.ToTable("exit_survey_response");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ReasonsJson).HasColumnName("reasons_json");
+            entity.Property(e => e.ReasonOther).HasColumnName("reason_other");
+            entity.Property(e => e.AtmosphereDetail).HasColumnName("atmosphere_detail");
+            entity.Property(e => e.Rating).HasColumnName("rating");
+            entity.Property(e => e.Comment).HasColumnName("comment");
+            entity.Property(e => e.IpHash).HasColumnName("ip_hash");
         });
 
         modelBuilder.Entity<UserBranchAccess>(entity =>
