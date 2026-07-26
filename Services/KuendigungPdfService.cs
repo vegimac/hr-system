@@ -377,47 +377,51 @@ public class KuendigungPdfService
             {
                 form.SetNeedAppearances(true);
 
-                SetAcro(form, "Name", d.MaNachname);
-                SetAcro(form, "Vorname", d.MaVorname);
-                SetAcro(form, "AHV-Nummer", FormatAhvForPkForm(d.MaAhvNummer));
+                // Datenfelder deutlich groesser (Vorlage hat Arial 0 = Auto-Shrink).
+                // AHV bewusst ausgenommen — feste Ziffern-Box mit MaxLen 10.
+                const float dataFont = 14f;
+                SetAcro(form, "Name", d.MaNachname, dataFont);
+                SetAcro(form, "Vorname", d.MaVorname, dataFont);
+                SetAcro(form, "AHV-Nummer", FormatAhvForPkForm(d.MaAhvNummer)); // kleine Schrift
                 if (d.MaGeburtsdatum.HasValue)
-                    SetAcro(form, "Geburtsdatum", d.MaGeburtsdatum.Value.ToString("dd.MM.yyyy"));
-                SetAcro(form, "Strasse_Nummer", d.MaStrasse);
-                SetAcro(form, "PLZ, Ort", d.MaPlzOrt);
-                SetAcro(form, "Land", FormatLandForPkForm(d.MaLand));
-                SetAcro(form, "Telefon", d.MaTelefon);
-                SetAcro(form, "E-Mail", d.MaEmail);
+                    SetAcro(form, "Geburtsdatum", d.MaGeburtsdatum.Value.ToString("dd.MM.yyyy"), dataFont);
+                SetAcro(form, "Strasse_Nummer", d.MaStrasse, dataFont);
+                SetAcro(form, "PLZ, Ort", d.MaPlzOrt, dataFont);
+                SetAcro(form, "Land", FormatLandForPkForm(d.MaLand), dataFont);
+                SetAcro(form, "Telefon", d.MaTelefon, dataFont);
+                SetAcro(form, "E-Mail", d.MaEmail, dataFont);
 
                 var (zivilCode, eheDatum, partnerDatum) = MapZivilstandForPkForm(
                     d.MaZivilstand, d.MaZivilstandSeit);
                 if (zivilCode != null)
                     SetAcroRadio(form, "Zivilstand", zivilCode);
-                SetAcro(form, "Datum_Eheschliessung", eheDatum);
-                SetAcro(form, "Datum_Partnerschaft", partnerDatum);
+                SetAcro(form, "Datum_Eheschliessung", eheDatum, dataFont);
+                SetAcro(form, "Datum_Partnerschaft", partnerDatum, dataFont);
 
-                SetAcro(form, "Letzter_Arbeitgeber_Name", d.FirmaName);
-                // Adresse: Filiale (Restaurant) auf Zeile 1, sonst Strasse;
-                // Zeile 2 = Strasse+PLZ wenn Restaurant gesetzt, sonst nur PLZ/Ort.
+                SetAcro(form, "Letzter_Arbeitgeber_Name", d.FirmaName, dataFont);
+                // Filial-Adresse untereinander:
+                // Zeile 1 = Filiale · Zeile 2 = Strasse · (PLZ Ort folgt auf Zeile 2
+                // mit Komma — nur 2 Adress-Felder im Formular).
                 if (!string.IsNullOrWhiteSpace(d.RestaurantName))
                 {
-                    SetAcro(form, "Letzter_Arbeitgeber_Adresse", d.RestaurantName);
-                    var adr2 = string.Join(", ", new[] { d.FirmaStrasse, d.FirmaPlzOrt }
-                        .Where(s => !string.IsNullOrWhiteSpace(s)));
-                    SetAcro(form, "Letzter_Arbeitgeber_Adresse_2", adr2);
+                    SetAcro(form, "Letzter_Arbeitgeber_Adresse", d.RestaurantName!.Trim(), dataFont);
+                    var street = (d.FirmaStrasse ?? "").Trim();
+                    var plzOrt = (d.FirmaPlzOrt ?? "").Trim();
+                    var adr2 = !string.IsNullOrWhiteSpace(street) && !string.IsNullOrWhiteSpace(plzOrt)
+                        ? $"{street}, {plzOrt}"
+                        : (string.IsNullOrWhiteSpace(street) ? plzOrt : street);
+                    SetAcro(form, "Letzter_Arbeitgeber_Adresse_2", adr2, dataFont);
                 }
                 else
                 {
-                    SetAcro(form, "Letzter_Arbeitgeber_Adresse", d.FirmaStrasse);
-                    SetAcro(form, "Letzter_Arbeitgeber_Adresse_2", d.FirmaPlzOrt);
+                    SetAcro(form, "Letzter_Arbeitgeber_Adresse", d.FirmaStrasse, dataFont);
+                    SetAcro(form, "Letzter_Arbeitgeber_Adresse_2", d.FirmaPlzOrt, dataFont);
                 }
 
-                SetAcro(form, "Austrittsdatum", d.KuendigungAuf.ToString("dd.MM.yyyy"));
+                SetAcro(form, "Austrittsdatum", d.KuendigungAuf.ToString("dd.MM.yyyy"), dataFont);
 
-                // Ort/Datum auf Seite 2 — Unterschrift bleibt handschriftlich.
-                var ortDatum = string.IsNullOrWhiteSpace(d.Ort)
-                    ? d.Datum.ToString("dd.MM.yyyy")
-                    : $"{d.Ort.Trim()}, {d.Datum:dd.MM.yyyy}";
-                SetAcro(form, "Ort_Datum", ortDatum);
+                // Ort/Datum unten LEER — der MA fuellt es beim Unterschreiben aus
+                // (Walter 26.07.2026).
 
                 try { form.FlattenFields(); }
                 catch { /* kein Showstopper — Merge funktioniert trotzdem */ }
@@ -478,11 +482,16 @@ public class KuendigungPdfService
         };
     }
 
-    private static void SetAcro(PdfAcroForm form, string fieldName, string? value)
+    private static void SetAcro(PdfAcroForm form, string fieldName, string? value, float? fontSize = null)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
         var field = form.GetField(fieldName);
         if (field is null) return;
+        if (fontSize.HasValue)
+        {
+            try { field.SetFontSize(fontSize.Value); }
+            catch { /* Fallback: Vorlagen-Default */ }
+        }
         field.SetValue(value.Trim());
     }
 
