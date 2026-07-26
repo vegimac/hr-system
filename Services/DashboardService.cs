@@ -477,6 +477,8 @@ public class DashboardService
                         : $"Vertragsende wegen Kündigung per {per:dd.MM.yyyy}",
                     Subtitle = $"{e.FirstName} {e.LastName} · Personalnr. {e.EmployeeNumber}"
                              + (e.KuendigungAusgesprochenAm.HasValue ? $" · gekündigt am {e.KuendigungAusgesprochenAm:dd.MM.yyyy}" : "")
+                             + (e.KuendigungDurch == "AN" ? " · durch Mitarbeiter"
+                                : e.KuendigungDurch == "AG" ? " · durch uns" : "")
                              + (abgelaufen
                                  ? $" — seit {-daysUntil} Tag(en) überfällig: Austrittsdatum erfassen oder Kündigung aufheben"
                                  : " — Austrittsdatum erfassen und Vertrag beenden"),

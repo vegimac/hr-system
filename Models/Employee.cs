@@ -55,6 +55,10 @@ public class Employee
     /// 2 Wochen vor Ablauf erscheint eine ToDo «Vertragsende wegen Kündigung».</summary>
     public DateTime? KuendigungPer { get; set; }
 
+    /// <summary>Kündigung durch: «AG» = durch uns (Arbeitgeber), «AN» = durch
+    /// Mitarbeiter (Arbeitnehmer). Null = nicht gesetzt. Walter 26.07.2026.</summary>
+    public string? KuendigungDurch { get; set; }
+
     public int? PermitTypeId { get; set; }
     // PermitExpiryDate (denormalisierte Kopie) entfernt 01.06.2026 — Dashboard-Warnung
     // läuft jetzt über EmployeePermitHistory.ValidTo des jüngsten Eintrags.

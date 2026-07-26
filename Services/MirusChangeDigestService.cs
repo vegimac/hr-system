@@ -39,6 +39,7 @@ public class MirusChangeDigestService
         "AhvNumber", "Street", "HouseNumber", "Zip", "City",
         "CantonCode", "Country", "Nationality", "NationalityId", "MaritalStatus",
         "SeparatedSince", "Religion", "EntryDate", "ExitDate", "KuendigungPer",
+        "KuendigungDurch",
         "IsActive", "IsPayrollExcluded", "QstBefreitDurchBehoerde",
         "QstBefreiungGueltigAb", "QstBefreiungGueltigBis", "LgavPflichtig",
         "TeilzeitUnter8hWoche", "IdPassDokumentId", "CAusweisDokumentId",
@@ -61,6 +62,7 @@ public class MirusChangeDigestService
         ["NationalityId"] = "Nationalität", ["MaritalStatus"] = "Zivilstand",
         ["SeparatedSince"] = "Getrennt seit", ["Religion"] = "Konfession",
         ["EntryDate"] = "Eintritt", ["ExitDate"] = "Austritt", ["KuendigungPer"] = "Kündigung per",
+        ["KuendigungDurch"] = "Kündigung durch",
         ["IsActive"] = "Aktiv", ["IsPayrollExcluded"] = "MA ohne Lohn",
         ["QstBefreitDurchBehoerde"] = "QST Behörden-Befreiung",
         ["QstBefreiungGueltigAb"] = "Befreiung ab", ["QstBefreiungGueltigBis"] = "Befreiung bis",
@@ -715,6 +717,11 @@ public class MirusChangeDigestService
                 }
 
                 var label = FieldLabels.TryGetValue(field, out var fl) ? fl : field;
+                if (field == "KuendigungDurch")
+                {
+                    parts.Add($"{label}: {FmtKuendigungDurch(oldV)} → {FmtKuendigungDurch(newV)}");
+                    continue;
+                }
                 parts.Add($"{label}: {Fmt(oldV)} → {Fmt(newV)}");
             }
         }
@@ -784,6 +791,14 @@ public class MirusChangeDigestService
         if (v.Length > 80) return v[..77] + "…";
         return v;
     }
+
+    private static string FmtKuendigungDurch(string? v) =>
+        (v ?? "").Trim().ToUpperInvariant() switch
+        {
+            "AG" => "durch uns",
+            "AN" => "durch Mitarbeiter",
+            _ => "—"
+        };
 
     private static Dictionary<string, string>? TryReadFlat(string? json)
     {

@@ -498,6 +498,8 @@ function _kuFormBody() {
         ort:               (document.getElementById('kuOrt')?.value || '').trim() || null,
         grund,
         grundType,
+        // AG = durch uns (Default beim Schreiben), AN = durch Mitarbeiter.
+        kuendigungDurch:   document.getElementById('kuDurch')?.value || 'AG',
         // U = persönlich übergeben (Default, oft am Probezeitgespräch);
         // E = Einschreiben (Walter 21.07.2026).
         eingeschrieben:    document.querySelector('input[name="kuZustell"]:checked')?.value === 'E'
@@ -516,7 +518,8 @@ async function kuEintragen() {
     const per = body.letzterArbeitstag
         ? body.letzterArbeitstag.slice(8, 10) + '.' + body.letzterArbeitstag.slice(5, 7) + '.' + body.letzterArbeitstag.slice(0, 4)
         : '–';
-    if (!(await liquidConfirm(`Gekündigt am: ${am}\nKündigung per: ${per}`,
+    const durchLbl = body.kuendigungDurch === 'AN' ? 'durch Mitarbeiter' : 'durch uns';
+    if (!(await liquidConfirm(`Gekündigt am: ${am}\nKündigung per: ${per}\nKündigung durch: ${durchLbl}`,
         { title: 'Kündigung beim Mitarbeiter eintragen?', yesLabel: 'Ja, eintragen', noLabel: 'Abbrechen' }))) return;
     try {
         const r = await fetch(`/api/kuendigung/${id}/eintragen`, {
@@ -525,7 +528,8 @@ async function kuEintragen() {
             body: JSON.stringify({
                 kuendigungsDatum: body.kuendigungsDatum,
                 letzterArbeitstag: body.letzterArbeitstag,
-                grundType: body.grundType
+                grundType: body.grundType,
+                kuendigungDurch: body.kuendigungDurch
             })
         });
         if (!r.ok) {

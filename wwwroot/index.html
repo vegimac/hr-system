@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260726e">
+    <link rel="stylesheet" href="css/app.css?v=20260726f">
 </head>
 <body>
 
@@ -2497,6 +2497,12 @@
                                 </label>
                                 <label style="font-size:12.5px;color:#334155">Kündigungsdatum
                                     <input type="date" id="kuDatum" onchange="kuLoadInfo()" style="width:100%;margin-top:4px;padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </label>
+                                <label style="font-size:12.5px;color:#334155">Kündigung durch
+                                    <select id="kuDurch" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white">
+                                        <option value="AG" selected>durch uns</option>
+                                        <option value="AN">durch Mitarbeiter</option>
+                                    </select>
                                 </label>
                             </div>
                             <label style="display:block;margin-top:10px;font-size:12.5px;color:#334155">Grund-Text (optional — erscheint im Brief)
@@ -7366,7 +7372,7 @@
     </div>
 </div>
 
-<script src="employees.js?v=20260726g"></script>
+<script src="employees.js?v=20260726h"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -8090,7 +8096,7 @@
 <script src="js/hr-saldi-lohnlauf.js?v=20260708flex"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
-<script src="js/kuendigung.js?v=20260725g"></script>
+<script src="js/kuendigung.js?v=20260726a"></script>
 <script src="js/aerzte.js?v=20260720b"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>

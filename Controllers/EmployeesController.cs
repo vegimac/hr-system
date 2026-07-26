@@ -366,6 +366,7 @@ public class EmployeesController : ControllerBase
             // gesetzt, vom Rückzug gelöscht; in der Anstellungs-Zeile editierbar.
             employee.KuendigungAusgesprochenAm,
             employee.KuendigungPer,
+            employee.KuendigungDurch,
             employee.IsActive,
             employee.IsPayrollExcluded,
             employee.LgavPflichtig,
@@ -564,6 +565,14 @@ public class EmployeesController : ControllerBase
         {
             employee.KuendigungAusgesprochenAm = dto.KuendigungAusgesprochenAm;
             employee.KuendigungPer             = dto.KuendigungPer;
+            // AG = durch uns, AN = durch Mitarbeiter; leer/null = zurücksetzen.
+            var durch = string.IsNullOrWhiteSpace(dto.KuendigungDurch)
+                ? null
+                : dto.KuendigungDurch.Trim().ToUpperInvariant();
+            if (durch != null && durch != "AG" && durch != "AN")
+                return BadRequest(new { error = "KUENDIGUNG_DURCH_INVALID",
+                    message = "Kündigung durch muss «AG» (durch uns) oder «AN» (durch Mitarbeiter) sein." });
+            employee.KuendigungDurch = durch;
         }
 
         // ── Nachtarbeit-Untersuchung gültig bis (Walter 20.06.2026) ──────────
@@ -1477,6 +1486,8 @@ public class EmployeeUpdateDto
     public bool      KuendigungSet { get; set; } = false;
     public DateTime? KuendigungAusgesprochenAm { get; set; }
     public DateTime? KuendigungPer { get; set; }
+    /// <summary>«AG» = durch uns, «AN» = durch Mitarbeiter, null/leer = löschen.</summary>
+    public string?   KuendigungDurch { get; set; }
 
     // Nachtarbeit-Untersuchung gültig bis (Walter 20.06.2026)
     public bool      NightWorkExamValidUntilSet { get; set; } = false;

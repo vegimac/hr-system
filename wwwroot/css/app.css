@@ -4133,6 +4133,11 @@
             font-weight: 700;
             text-align: left;
         }
+        .ov-anst-grid .ov-anst-date select.ov-softin {
+            padding-right: 22px;
+            max-width: 180px;
+            cursor: pointer;
+        }
         .ov-anst-grid .ov-anst-tog {
             justify-self: end;
         }
