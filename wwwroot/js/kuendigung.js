@@ -291,7 +291,13 @@ async function _krDokumentAblegen(empId, blob, kuendigungVomIso) {
         fd.append('dokumentTypId', typ.id);
         fd.append('branchCode', branchCode);
         fd.append('bemerkung', titel);
-        const ru = await fetch('/api/documents/upload', { method: 'POST', headers: ah(), body: fd });
+        // KEIN ah() — setzt Content-Type:application/json und zerstoert
+        // den multipart-Boundary → Server: «The file field is required».
+        const ru = await fetch('/api/documents/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: fd
+        });
         if (!ru.ok) {
             let t = await ru.text(); try { t = JSON.parse(t).message || JSON.parse(t).error || t; } catch (_) {}
             alert('Ablage fehlgeschlagen: ' + t);
@@ -648,7 +654,13 @@ async function _kbDokumentAblegen(empId, blob, kuendigungAufIso) {
         fd.append('dokumentTypId', typ.id);
         fd.append('branchCode', branchCode);
         fd.append('bemerkung', titel);
-        const ru = await fetch('/api/documents/upload', { method: 'POST', headers: ah(), body: fd });
+        // KEIN ah() — setzt Content-Type:application/json und zerstoert
+        // den multipart-Boundary → Server: «The file field is required».
+        const ru = await fetch('/api/documents/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: fd
+        });
         if (!ru.ok) {
             let t = await ru.text(); try { t = JSON.parse(t).message || JSON.parse(t).error || t; } catch (_) {}
             alert('Ablage fehlgeschlagen: ' + t);
