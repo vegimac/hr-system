@@ -3641,14 +3641,12 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
             flex: 1 1 auto; min-height: 0; overflow: hidden;
-            /* Walter 18.07.2026: Blöcke oben dicht gestapelt — Verträge
-               direkt unter Anstellung/Nacht; freier Platz darunter. */
+            /* Walter 26.07.2026: gesamten Viewport nutzen — Personalien
+               inkl. Zusatzadresse nach Inhalt (auto), Anstellung mittig,
+               Verträge/Saldi füllen den Rest bis Bildschirmende (1fr). */
             height: 100%;
-            align-content: start;
-            /* Zeile 2: Anstellung | Nachtarbeit — kompakt (Walter 26.07.2026):
-               Eintritt/Austritt/Probezeit · Kündigung (kleiner) · Toggles.
-               Personalien bleibt der Hauptblock (auto). */
-            grid-template-rows: auto 158px 196px;
+            align-content: stretch;
+            grid-template-rows: auto minmax(172px, auto) minmax(220px, 1fr);
         }
         .ov-wrap {
             display: grid;
@@ -3663,15 +3661,24 @@
             grid-row: 1;
             min-height: 0;
             overflow: visible;
-            align-self: start; /* Karte nicht in die 1fr-Lücke strecken */
+            align-self: start; /* Inhaltshöhe — Zusatzadresse darf mitwachsen */
         }
+        /* MA-Daten: Hauptblock — genug Platz für Felder + Zusatzadresse */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card {
             min-height: 0;
             box-sizing: border-box;
-        }
-        /* MA-Daten: Hauptblock — luftiger, 3 Themen-Zeilen, klarere Typo */
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card {
             padding: 12px 14px 10px !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-addrsep {
+            margin-top: 6px;
+            padding-top: 6px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent {
+            min-height: 0;
+            max-height: 72px; /* ~1–2 Adresszeilen, kein 40px-Schnitt mehr */
+            overflow-x: hidden;
+            overflow-y: auto;
+            margin-top: 4px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card > .ov-card-h {
             font-size: 15px;
@@ -3829,14 +3836,13 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
             grid-row: 3;
-            height: 196px;
-            min-height: 196px;
-            max-height: 196px;
+            height: 100%;
+            min-height: 220px;
+            max-height: none;
             overflow: hidden;
-            align-self: start; /* direkt unter Anstellung/Nacht — kein Luftspalt */
-            contain: layout size;
+            align-self: stretch; /* füllt Restplatz bis Bildschirmende */
         }
-        /* Feste Höhe = 3 Vertragszeilen — Saldi-Nachladen darf nicht springen */
+        /* Verträge/Saldi: Karten füllen die Zeile; Liste scrollt innen */
         .ov-vertraege-ktg > .ov-card {
             min-height: 0;
             height: 100%;
@@ -3845,7 +3851,11 @@
             flex-direction: column;
         }
         .ov-vertraege-ktg > .ov-card > .ov-card-h { flex: 0 0 auto; }
-        .ov-vertraege-ktg > .ov-card > .ov-vlist { flex: 1 1 auto; min-height: 0; }
+        .ov-vertraege-ktg > .ov-card > .ov-vlist {
+            flex: 1 1 auto;
+            min-height: calc(3 * 36px + 2 * 3px);
+            height: auto;
+        }
         .ov-vertraege-ktg > .ov-card > #ovSaldiContent,
         .ov-vertraege-ktg > .ov-card > .ov-saldi-slot {
             flex: 1 1 auto; min-height: 0; overflow: hidden;
@@ -3938,9 +3948,9 @@
             font-size: 13px; color: #8b8b8b; text-align: center; padding: 12px;
         }
         .ov-saldi-msg.ov-saldi-err { color: #dc2626; }
-        /* Zusatzadressen: leer = kein Platz; sonst eine volle Zeile */
+        /* Zusatzadressen: leer = kein Platz; sonst Rest der Personalien-Zeile */
         #otherAddressesContent {
-            max-height: 40px;
+            max-height: none;
             overflow-x: hidden;
             overflow-y: auto;
             min-height: 0;
@@ -3949,7 +3959,7 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: auto 158px 158px 196px;
+                grid-template-rows: auto minmax(172px, auto) minmax(172px, auto) minmax(220px, 1fr);
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
@@ -3957,10 +3967,10 @@
             .ov-vertraege-ktg { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
                 grid-row: 4;
-                height: 196px;
-                min-height: 196px;
-                max-height: 196px;
-                align-self: start;
+                height: 100%;
+                min-height: 220px;
+                max-height: none;
+                align-self: stretch;
             }
         }
         .ov-card {
@@ -4097,12 +4107,12 @@
         }
         /* Anstellung (Walter 26.07.2026):
            Zeile 1 Eintritt|Austritt|Probezeit · Zeile 2 Kündigung · Zeile 3 Toggles.
-           Kündigung bewusst kompakter/kleiner — Personalien bleibt dominant. */
+           Kündigung etwas kompakter als Personalien, aber gut bedienbar. */
         .ov-anst-grid {
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto);
             grid-template-rows: auto auto auto;
-            gap: 3px 12px;
+            gap: 4px 12px;
             align-items: start;
             min-width: 0;
         }
@@ -4115,9 +4125,9 @@
             margin-bottom: 1px;
         }
         .ov-anst-grid > .ov-pf:nth-child(-n+3) .ov-pfv {
-            font-size: 13.5px;
-            line-height: 26px;
-            min-height: 26px;
+            font-size: 14px;
+            line-height: 28px;
+            min-height: 28px;
         }
         .ov-anst-grid .ov-anst-date .ov-softin {
             width: 100%;
@@ -4149,38 +4159,38 @@
             max-width: 200px;
             cursor: pointer;
         }
-        /* Kündigung + Austrittsgrund: kleinere Typo, dichtere Inputs */
+        /* Kündigung + Austrittsgrund: etwas kleiner als Personalien, gut lesbar */
         .ov-anst-grid .ov-anst-kuend .ov-pfl {
-            font-size: 9.5px;
+            font-size: 10px;
             letter-spacing: 0.03em;
             margin-bottom: 0;
             color: #9a9a9a;
         }
         .ov-anst-grid .ov-anst-kuend .ov-softin {
-            font-size: 12.5px;
+            font-size: 13px;
             font-weight: 600;
-            line-height: 24px;
-            min-height: 24px;
-            height: 24px;
-            max-width: 148px;
-            padding: 0 22px 0 0;
+            line-height: 26px;
+            min-height: 26px;
+            height: 26px;
+            max-width: 152px;
+            padding: 0 24px 0 0;
             border-radius: 7px;
         }
         .ov-anst-grid .ov-anst-kuend .ov-softin::placeholder {
-            font-size: 12.5px;
+            font-size: 13px;
             font-weight: 600;
         }
         .ov-anst-grid .ov-anst-kuend select.ov-softin {
-            max-width: 168px;
+            max-width: 172px;
             padding-right: 18px;
         }
         /* L-GAV + < 8 h kompakt auf der untersten Zeile */
         .ov-anst-grid .ov-anst-tog .ov-pfl {
-            font-size: 9.5px;
+            font-size: 10px;
             margin-bottom: 0;
         }
         .ov-anst-grid .ov-anst-tog .ov-pfv {
-            min-height: 24px;
+            min-height: 26px;
         }
         /* Legacy-Klassen (falls noch referenziert) */
         .ov-anst-row { margin-bottom: 8px; gap: 10px 20px; }
