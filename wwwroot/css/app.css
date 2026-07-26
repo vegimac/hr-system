@@ -5798,13 +5798,13 @@
         .yp-menu {
             position: fixed;
             z-index: 10050;
-            width: 248px;
+            width: 200px;
             max-width: calc(100vw - 16px);
             background: #fff;
             border: 1px solid #d8d1c4;
-            border-radius: 10px;
-            box-shadow: 0 8px 24px rgba(60, 55, 48, 0.16);
-            padding: 6px 6px 4px;
+            border-radius: 8px;
+            box-shadow: 0 6px 18px rgba(60, 55, 48, 0.14);
+            padding: 4px 4px 2px;
             display: none;
             color: #3f3f3f;
             font-family: inherit;
@@ -5813,48 +5813,48 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 6px;
-            margin-bottom: 4px;
-            padding: 0 2px 2px;
+            gap: 4px;
+            margin-bottom: 2px;
+            padding: 0 1px 1px;
         }
         .yp-menu-title, .yp-back {
-            font-size: 12.5px;
+            font-size: 11.5px;
             font-weight: 700;
             color: #1a1a1a;
             background: none;
             border: none;
             cursor: pointer;
-            padding: 2px 0;
+            padding: 1px 0;
         }
         .yp-back:hover { color: #3f3f3f; }
         .yp-menu-close {
-            width: 24px; height: 24px;
-            border-radius: 6px;
+            width: 20px; height: 20px;
+            border-radius: 5px;
             border: 1px solid #e2ddd3;
             background: #fff;
             color: #8b8b8b;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
             line-height: 1;
         }
         .yp-menu-close:hover { background: #f6f3ee; color: #3f3f3f; }
         .yp-year-list {
             overflow-y: auto;
-            max-height: 260px;
-            border-radius: 6px;
+            max-height: 200px;
+            border-radius: 5px;
             border: 1px solid #efeae2;
         }
         .yp-year-row {
             display: block;
             width: 100%;
             text-align: left;
-            padding: 7px 10px;
+            padding: 5px 8px;
             border: none;
             border-bottom: 1px solid #f0ebe3;
             border-radius: 0;
             background: #f5f3ef;
             color: #3f3f3f;
-            font-size: 12.5px;
+            font-size: 11.5px;
             font-weight: 600;
             cursor: pointer;
         }
@@ -5868,18 +5868,18 @@
         .yp-months {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 2px;
-            padding: 6px 6px 8px;
+            gap: 1px;
+            padding: 4px 4px 5px;
             background: #fff;
             border-bottom: 1px solid #f0ebe3;
         }
         .yp-month {
-            padding: 7px 2px;
-            border-radius: 6px;
+            padding: 5px 1px;
+            border-radius: 5px;
             border: none;
             background: transparent;
             color: #3f3f3f;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
         }
@@ -5892,9 +5892,9 @@
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             gap: 1px;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
             text-align: center;
-            font-size: 10.5px;
+            font-size: 10px;
             font-weight: 700;
             color: #8b8b8b;
         }
@@ -5904,12 +5904,12 @@
             gap: 1px;
         }
         .yp-day {
-            height: 28px;
+            height: 24px;
             border: none;
-            border-radius: 6px;
+            border-radius: 5px;
             background: transparent;
             color: #3f3f3f;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
         }
@@ -5923,18 +5923,18 @@
         .yp-menu-foot {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-top: 4px;
-            padding: 2px 2px 0;
+            gap: 6px;
+            margin-top: 2px;
+            padding: 1px 1px 0;
         }
         .yp-link {
             background: none;
             border: none;
             color: #64748b;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
-            padding: 4px 2px;
+            padding: 3px 2px;
         }
         .yp-link:hover { color: #1a1a1a; }
         body.theme-dark .yp-menu {
