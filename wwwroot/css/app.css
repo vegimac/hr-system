@@ -5879,17 +5879,25 @@
             background: #2a3446 !important;
             box-shadow: 0 1px 0 var(--dlg-glass-border);
         }
-        /* Fluktuation-Report: kein sticky-thead — sonst klebt der Spaltentitel
-           mitten in den Austritts-/Eintrittszeilen (Walter-Bug 26.07.2026). */
+        /* Fluktuation-Report: Spaltentitel kleben unter der Filter-Toolbar
+           (Walter 26.07.2026) — kein overflow-x-Wrapper um die Tabelle
+           (bricht sticky). Warmton statt Standard-Blau-Grau. */
         #page-fluktuation-report.page.fixhead .page-body table.fluk-table thead th {
-            position: static !important;
-            top: auto !important;
-            box-shadow: none !important;
+            position: sticky !important;
+            top: var(--ssh, 0px) !important;
+            z-index: 5;
             background: #efeae2 !important;
-            z-index: auto;
+            box-shadow: 0 1px 0 #d8d1c4;
+            text-transform: uppercase;
+            font-size: 10.5px !important;
+            letter-spacing: 0.04em;
+            font-weight: 700;
+            color: #475569;
         }
         body.theme-dark #page-fluktuation-report.page.fixhead .page-body table.fluk-table thead th {
             background: #2a3446 !important;
+            box-shadow: 0 1px 0 var(--dlg-glass-border);
+            color: #94a3b8;
         }
 
         /* Aktivitäts-Log: Spaltentitel im sticky Filter-Kopf (kein sticky-thead).
