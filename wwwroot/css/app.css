@@ -6243,6 +6243,222 @@
             #page-exit-survey-report .es-td-gruende { white-space: normal; width: auto; }
         }
 
+        /* Austritts-Feedback Insights (Walter 26.07.2026) — Ø Note, Gründe %, Themen, Trend */
+        #page-exit-survey-report .es-insights {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        #page-exit-survey-report .es-insight-card {
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid #e7e1d8;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(60, 55, 48, 0.06);
+            padding: 18px 20px 16px;
+        }
+        #page-exit-survey-report .es-insight-q,
+        #page-exit-survey-report .es-insight-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+            letter-spacing: -0.01em;
+            margin: 0 0 14px;
+        }
+        #page-exit-survey-report .es-insight-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        #page-exit-survey-report .es-insight-title-row .es-insight-title { margin: 0; }
+        #page-exit-survey-report .es-insight-rating-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+        #page-exit-survey-report .es-avg-num {
+            font-size: 42px;
+            font-weight: 760;
+            letter-spacing: -0.03em;
+            color: #1a1a1a;
+            line-height: 1;
+        }
+        #page-exit-survey-report .es-avg-of {
+            font-size: 16px;
+            font-weight: 600;
+            color: #646464;
+            margin-left: 6px;
+        }
+        #page-exit-survey-report .es-avg-label {
+            margin-top: 6px;
+            font-size: 12.5px;
+            color: #8b8b8b;
+        }
+        #page-exit-survey-report .es-score-circles {
+            display: flex;
+            gap: 8px;
+            flex-wrap: nowrap;
+        }
+        #page-exit-survey-report .es-score-circle {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #3f3f3f;
+            background: rgba(255, 255, 255, 0.45);
+            border: 1.4px solid rgba(70, 64, 56, 0.28);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+        }
+        #page-exit-survey-report .es-score-circle.is-mid {
+            border-color: rgba(40, 36, 32, 0.45);
+            background: rgba(63, 63, 63, 0.08);
+        }
+        #page-exit-survey-report .es-score-circle.is-strong {
+            background: #1a1a1a;
+            border-color: #1a1a1a;
+            color: #fff;
+        }
+        #page-exit-survey-report .es-scale-legend {
+            margin-top: 14px;
+            font-size: 12px;
+            color: #8b8b8b;
+        }
+        #page-exit-survey-report .es-insight-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        #page-exit-survey-report .es-bars { display: flex; flex-direction: column; gap: 10px; }
+        #page-exit-survey-report .es-bar-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.4fr) 42px;
+            align-items: center;
+            gap: 10px;
+        }
+        #page-exit-survey-report .es-bar-label {
+            font-size: 12.5px;
+            color: #3f3f3f;
+            line-height: 1.3;
+        }
+        #page-exit-survey-report .es-bar-track {
+            height: 11px;
+            border-radius: 999px;
+            background: #efeae2;
+            overflow: hidden;
+        }
+        #page-exit-survey-report .es-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background:
+                repeating-linear-gradient(
+                    -18deg,
+                    rgba(26, 26, 26, 0.92) 0 3px,
+                    rgba(55, 52, 48, 0.78) 3px 5px
+                );
+            min-width: 6px;
+        }
+        #page-exit-survey-report .es-bar-val {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #1a1a1a;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+        #page-exit-survey-report .es-bars-empty {
+            font-size: 13px;
+            color: #8b8b8b;
+            padding: 8px 0 4px;
+        }
+        #page-exit-survey-report .es-trend-badge {
+            font-size: 11.5px;
+            font-weight: 650;
+            color: #646464;
+            background: #efeae2;
+            border: 1px solid #e2ddd3;
+            border-radius: 999px;
+            padding: 4px 10px;
+            white-space: nowrap;
+        }
+        #page-exit-survey-report .es-trend-badge.is-up { color: #1a1a1a; }
+        #page-exit-survey-report .es-trend-badge.is-down { color: #6b4f3a; }
+        #page-exit-survey-report .es-trend-svg {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin-top: 4px;
+        }
+        #page-exit-survey-report .es-trend-line {
+            stroke: #2a2a2a;
+            stroke-width: 2.2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        #page-exit-survey-report .es-trend-dot { fill: #1a1a1a; }
+        #page-exit-survey-report .es-trend-val {
+            fill: #1a1a1a;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: inherit;
+        }
+        #page-exit-survey-report .es-trend-lbl {
+            fill: #8b8b8b;
+            font-size: 11px;
+            font-family: inherit;
+        }
+        #page-exit-survey-report .es-trend-axis {
+            fill: #a3a3a3;
+            font-size: 10px;
+            font-family: inherit;
+        }
+        #page-exit-survey-report .es-trend-grid {
+            stroke: #ebe4da;
+            stroke-width: 1;
+        }
+        body.theme-dark #page-exit-survey-report .es-insight-card {
+            background: var(--dlg-glass);
+            border-color: var(--dlg-glass-border);
+            box-shadow: none;
+        }
+        body.theme-dark #page-exit-survey-report .es-insight-q,
+        body.theme-dark #page-exit-survey-report .es-insight-title,
+        body.theme-dark #page-exit-survey-report .es-avg-num,
+        body.theme-dark #page-exit-survey-report .es-bar-val { color: #e8e6e1; }
+        body.theme-dark #page-exit-survey-report .es-bar-label { color: #c9c4bb; }
+        body.theme-dark #page-exit-survey-report .es-bar-track { background: rgba(255, 255, 255, 0.06); }
+        body.theme-dark #page-exit-survey-report .es-score-circle {
+            color: #e8e6e1;
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(232, 230, 225, 0.28);
+        }
+        body.theme-dark #page-exit-survey-report .es-score-circle.is-strong {
+            background: #e8e6e1;
+            border-color: #e8e6e1;
+            color: #1a1a1a;
+        }
+        body.theme-dark #page-exit-survey-report .es-trend-line { stroke: #e8e6e1; }
+        body.theme-dark #page-exit-survey-report .es-trend-dot { fill: #e8e6e1; }
+        body.theme-dark #page-exit-survey-report .es-trend-val { fill: #e8e6e1; }
+        body.theme-dark #page-exit-survey-report .es-trend-grid { stroke: rgba(255, 255, 255, 0.08); }
+        body.theme-dark #page-exit-survey-report .es-trend-badge {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--dlg-glass-border);
+            color: #c9c4bb;
+        }
+        @media (max-width: 960px) {
+            #page-exit-survey-report .es-insight-grid { grid-template-columns: 1fr; }
+            #page-exit-survey-report .es-bar-row {
+                grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 40px;
+            }
+        }
+
         /* Aktivitäts-Log: Spaltentitel im sticky Filter-Kopf (kein sticky-thead).
            Sonst rutscht der thead beim Scrollen mitten zwischen die Zeilen
            (Walter-Bug 26.07.2026). */
