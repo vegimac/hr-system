@@ -92,11 +92,14 @@ function flukRender(data) {
     box.innerHTML = html;
 }
 
+// Klar unterscheidbare Farben (kein Schlammgrau-Satz mehr).
+// «ohne Angabe» → immer gedämpftes Slate; echte Gründe → kräftige Palette.
 const _FLUK_PIE_COLORS = [
-    '#3f3f3f', '#6b7280', '#8b7355', '#5c6b5a', '#7a6a58',
-    '#4a5568', '#9a8470', '#5a6d7a', '#7d6b7d', '#6a7a5c',
-    '#8a6a5a', '#5a5a6a', '#7a7a5a', '#6a5a5a', '#b8b0a4',
+    '#0ea5e9', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444',
+    '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#6366f1',
+    '#14b8a6', '#eab308', '#a855f7', '#fb7185', '#3b82f6',
 ];
+const _FLUK_PIE_NO_REASON = '#94a3b8';
 
 function flukPieHtml(gruende) {
     const total = gruende.reduce((s, g) => s + (g.count || 0), 0);
@@ -105,9 +108,15 @@ function flukPieHtml(gruende) {
             Keine Austritte im Zeitraum</div>`;
     }
     const R = 78, CX = 100, CY = 100, W = 200, H = 200;
+    // Farbindex nur über echte Gründe zählen, damit «ohne Angabe» die Palette nicht verschiebt.
+    let reasonIdx = 0;
+    const colored = gruende.map(g => {
+        const col = (!g.code) ? _FLUK_PIE_NO_REASON : _FLUK_PIE_COLORS[(reasonIdx++) % _FLUK_PIE_COLORS.length];
+        return { g, col };
+    });
     let angle = -Math.PI / 2;
     let paths = '';
-    gruende.forEach((g, i) => {
+    colored.forEach(({ g, col }) => {
         const frac = (g.count || 0) / total;
         const a0 = angle;
         const a1 = angle + frac * Math.PI * 2;
@@ -116,7 +125,6 @@ function flukPieHtml(gruende) {
         const x0 = CX + R * Math.cos(a0), y0 = CY + R * Math.sin(a0);
         const x1 = CX + R * Math.cos(a1), y1 = CY + R * Math.sin(a1);
         const large = frac > 0.5 ? 1 : 0;
-        const col = _FLUK_PIE_COLORS[i % _FLUK_PIE_COLORS.length];
         if (frac >= 0.999) {
             paths += `<circle cx="${CX}" cy="${CY}" r="${R}" fill="${col}"/>`;
         } else {
@@ -135,10 +143,11 @@ function flukGruendeLegend(gruende, austritteTotal) {
         return '<div style="color:#8b8b8b;font-size:13px;padding:12px 0">Keine Daten</div>';
     }
     const total = gruende.reduce((s, g) => s + (g.count || 0), 0) || 1;
+    let reasonIdx = 0;
     return `<div style="display:flex;flex-direction:column;gap:6px">` +
-        gruende.map((g, i) => {
+        gruende.map(g => {
             const pct = Math.round((g.count || 0) / total * 100);
-            const col = _FLUK_PIE_COLORS[i % _FLUK_PIE_COLORS.length];
+            const col = (!g.code) ? _FLUK_PIE_NO_REASON : _FLUK_PIE_COLORS[(reasonIdx++) % _FLUK_PIE_COLORS.length];
             return `<div style="display:flex;align-items:center;gap:10px;font-size:13px">
                 <span style="width:10px;height:10px;border-radius:3px;background:${col};flex-shrink:0"></span>
                 <span style="flex:1;color:#3f3f3f;font-weight:600">${flukEsc(g.label)}</span>

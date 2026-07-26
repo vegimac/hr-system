@@ -5879,6 +5879,19 @@
             background: #2a3446 !important;
             box-shadow: 0 1px 0 var(--dlg-glass-border);
         }
+        /* Fluktuation-Report: kein sticky-thead — sonst klebt der Spaltentitel
+           mitten in den Austritts-/Eintrittszeilen (Walter-Bug 26.07.2026). */
+        #page-fluktuation-report.page.fixhead .page-body table.fluk-table thead th {
+            position: static !important;
+            top: auto !important;
+            box-shadow: none !important;
+            background: #efeae2 !important;
+            z-index: auto;
+        }
+        body.theme-dark #page-fluktuation-report.page.fixhead .page-body table.fluk-table thead th {
+            background: #2a3446 !important;
+        }
+
         /* Aktivitäts-Log: Spaltentitel im sticky Filter-Kopf (kein sticky-thead).
            Sonst rutscht der thead beim Scrollen mitten zwischen die Zeilen
            (Walter-Bug 26.07.2026). */
