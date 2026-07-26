@@ -983,6 +983,7 @@ function showPage(name) {
     if (name === 'ferien') ferienInit();
     if (name === 'alter-report') alterInit();
     if (name === 'fluktuation-report' && typeof flukInit === 'function') flukInit();
+    if (name === 'exit-survey-report' && typeof esInit === 'function') esInit();
     if (name === 'absenz-kalender') akalInit();
     if (name === 'smtp-settings') smtpLoad();
     if (name === 'ecall') ecallLoad();
