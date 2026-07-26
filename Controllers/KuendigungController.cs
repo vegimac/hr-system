@@ -321,6 +321,7 @@ public class KuendigungController : ControllerBase
             FirmaPlzOrt:     Join(cp?.ZipCode, cp?.City),
             MaName:          ($"{e.FirstName} {e.LastName}").Trim(),
             MaVorname:       (e.FirstName ?? "").Trim(),
+            MaNachname:      (e.LastName ?? "").Trim(),
             MaStrasse:       e.Street,
             MaPlzOrt:        Join(e.ZipCode, e.City),
             DuAnrede:        DuAnrede(e),
