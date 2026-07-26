@@ -226,8 +226,8 @@
         panel.style.display = 'block';
         panel.style.visibility = 'hidden';
         const r = input.getBoundingClientRect();
-        const pw = panel.offsetWidth || 248;
-        const ph = panel.offsetHeight || 300;
+        const pw = panel.offsetWidth || 200;
+        const ph = panel.offsetHeight || 250;
         let left = r.left;
         let top = r.bottom + 4;
         if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
