@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f7f4ee">
+<title>OneCrew · Schulung Geschäftsführer</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #f7f4ee;
+    --ink: #141414;
+    --ink-soft: #3d3a35;
+    --muted: #8a847a;
+    --line: #ddd6ca;
+    --line-soft: #e8e2d8;
+    --card: #fffcf7;
+    --tan: #f0ebe3;
+    --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --sans: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+}
+.screen-bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 22px;
+    background: rgba(247, 244, 238, 0.92);
+    border-bottom: 1px solid var(--line-soft);
+    backdrop-filter: blur(10px);
+}
+.screen-bar p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+}
+.btn-print {
+    appearance: none;
+    border: 0;
+    cursor: pointer;
+    background: #1a1a1a;
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 12px;
+}
+.sheet {
+    width: min(820px, 100%);
+    margin: 0 auto;
+    padding: 28px 28px 64px;
+}
+.cover {
+    padding: 18px 0 8px;
+    margin-bottom: 28px;
+}
+.brand-logo {
+    display: block;
+    height: 46px;
+    width: auto;
+    max-width: 210px;
+    object-fit: contain;
+    margin-bottom: 28px;
+}
+.eyebrow {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+h1 {
+    margin: 0 0 12px;
+    font-family: var(--serif);
+    font-size: clamp(2rem, 4vw, 2.55rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.12;
+}
+.lede {
+    margin: 0 0 22px;
+    max-width: 34em;
+    font-size: 1.05rem;
+    color: var(--ink-soft);
+}
+.meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    font-size: 13.5px;
+    color: var(--muted);
+}
+.meta-row strong { color: var(--ink-soft); font-weight: 650; }
+
+.agenda {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 26px 0 8px;
+}
+.agenda-item {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 6px 18px rgba(60, 55, 48, 0.05);
+}
+.agenda-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1.3px solid rgba(70, 64, 56, 0.35);
+    font-family: var(--serif);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.agenda-item h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 700;
+}
+.agenda-item p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.35;
+}
+
+.divider {
+    height: 10px;
+    margin: 28px 0;
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='10' viewBox='0 0 240 10' fill='none'%3E%3Cpath d='M2 6C40 3 90 2 140 4C180 5.5 215 7 238 3.5' stroke='%23222222' stroke-width='1.15' stroke-linecap='round'/%3E%3C/svg%3E")
+        center / min(100%, 420px) 100% no-repeat;
+}
+
+.section { margin: 0 0 8px; }
+.section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.section-num {
+    font-family: var(--serif);
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+.section h2 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 1.55rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+.section > .intro {
+    margin: 0 0 16px;
+    color: var(--ink-soft);
+    font-size: 15px;
+    max-width: 40em;
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 8px 22px rgba(60, 55, 48, 0.05);
+}
+.card h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 750;
+    letter-spacing: 0.01em;
+}
+.card p { margin: 0 0 8px; font-size: 14px; color: var(--ink-soft); }
+.card p:last-child { margin-bottom: 0; }
+
+ol.steps, ul.clean {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+ol.steps { counter-reset: step; }
+ol.steps li {
+    position: relative;
+    padding: 0 0 12px 36px;
+    font-size: 14.5px;
+    color: var(--ink-soft);
+}
+ol.steps li:last-child { padding-bottom: 0; }
+ol.steps li::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+ul.clean li {
+    position: relative;
+    padding: 0 0 8px 16px;
+    font-size: 14.5px;
+    color: var(--ink-soft);
+}
+ul.clean li:last-child { padding-bottom: 0; }
+ul.clean li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #1a1a1a;
+}
+
+.kv {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 8px 14px;
+    font-size: 14px;
+}
+.kv dt {
+    margin: 0;
+    color: var(--muted);
+    font-weight: 650;
+}
+.kv dd {
+    margin: 0;
+    color: var(--ink);
+    font-weight: 550;
+    word-break: break-word;
+}
+code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    background: var(--tan);
+    padding: 1px 6px;
+    border-radius: 6px;
+}
+
+.tip {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--tan);
+    border: 1px solid var(--line);
+    font-size: 13.5px;
+    color: var(--ink-soft);
+}
+.tip strong { color: var(--ink); }
+
+.two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.checklist {
+    display: grid;
+    gap: 8px;
+}
+.check {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 10px;
+    align-items: start;
+    font-size: 14px;
+    color: var(--ink-soft);
+}
+.check i {
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    border: 1.4px solid rgba(70, 64, 56, 0.45);
+    border-radius: 4px;
+    display: block;
+}
+
+.footer-note {
+    margin-top: 36px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 700px) {
+    .agenda, .two { grid-template-columns: 1fr; }
+    .kv { grid-template-columns: 1fr; gap: 2px 0; }
+    .kv dt { margin-top: 6px; }
+    .sheet { padding: 18px 16px 48px; }
+}
+
+@media print {
+    .screen-bar { display: none !important; }
+    body { background: #fff; }
+    .sheet { width: 100%; max-width: none; padding: 0; }
+    .card, .agenda-item {
+        box-shadow: none;
+        break-inside: avoid;
+    }
+    .section { break-inside: avoid; }
+    .page-break { break-before: page; }
+    a { color: inherit; text-decoration: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="screen-bar">
+    <p>OneCrew · Handout Schulung Geschäftsführer · zum Ausdrucken oder als PDF speichern</p>
+    <button type="button" class="btn-print" onclick="window.print()">Drucken / PDF</button>
+</div>
+
+<main class="sheet">
+
+    <header class="cover">
+        <img class="brand-logo" src="/img/onecrew-logo.png" alt="OneCrew">
+        <p class="eyebrow">Schulung · Geschäftsführer</p>
+        <h1>Die wichtigsten Grundfunktionen</h1>
+        <p class="lede">
+            Kurz und klar: Dokumente scannen, Posteingang nutzen, Mitarbeitende aus easy@work holen,
+            Verträge drucken und den Schwangerschafts-Prozess begleiten.
+        </p>
+        <div class="meta-row">
+            <span><strong>Für</strong> Geschäftsführerinnen &amp; Geschäftsführer</span>
+            <span><strong>System</strong> OneCrew · onecrew.ch</span>
+            <span><strong>Stand</strong> Juli 2026</span>
+        </div>
+
+        <div class="agenda" aria-label="Agenda">
+            <div class="agenda-item">
+                <div class="agenda-num">1</div>
+                <h3>Genius Scan &amp; WebDAV</h3>
+                <p>Dokumente vom Handy direkt ins Postfach</p>
+            </div>
+            <div class="agenda-item">
+                <div class="agenda-num">2</div>
+                <h3>Posteingang</h3>
+                <p>Anschauen, zuordnen, weiterleiten</p>
+            </div>
+            <div class="agenda-item">
+                <div class="agenda-num">3</div>
+                <h3>easy@work → OneCrew</h3>
+                <p>Erfassen, ändern, importieren</p>
+            </div>
+            <div class="agenda-item">
+                <div class="agenda-num">4</div>
+                <h3>Verträge &amp; Schwangerschaft</h3>
+                <p>PDF drucken und den Fahrplan nutzen</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="divider" aria-hidden="true"></div>
+
+    <!-- 1 -->
+    <section class="section">
+        <div class="section-head">
+            <span class="section-num">01</span>
+            <h2>Dokumente scannen mit Genius Scan</h2>
+        </div>
+        <p class="intro">
+            Papier wird zum digitalen Dokument — direkt in den OneCrew-Posteingang.
+            Dafür verbindet Genius Scan einmalig den WebDAV-Zugang.
+        </p>
+
+        <div class="card">
+            <h3>Einmalig einrichten (Genius Scan)</h3>
+            <ol class="steps">
+                <li>In Genius Scan einen <strong>WebDAV-Export</strong> / Cloud-Ziel hinzufügen.</li>
+                <li>Als Server-Adresse eintragen:<br>
+                    <span class="mono">https://onecrew.ch/webdav/</span></li>
+                <li>Benutzername = deine OneCrew-<strong>E-Mail</strong> oder dein <strong>Benutzername</strong>.</li>
+                <li>Passwort = dasselbe wie beim OneCrew-Login.</li>
+                <li>Als Zielordner z.&nbsp;B. deine Filiale wählen:<br>
+                    <span class="mono">filialen/058-oftringen/</span>
+                    <span style="color:var(--muted)">(Code + Name deiner Filiale)</span></li>
+            </ol>
+            <div class="tip">
+                <strong>Tipp:</strong> Scanne immer in den Ordner deiner Filiale.
+                Dann landet das Dokument im richtigen Posteingang — sichtbar für dich und HR.
+            </div>
+        </div>
+
+        <div class="two">
+            <div class="card">
+                <h3>Wichtige Ordner</h3>
+                <ul class="clean">
+                    <li><strong>filialen/…</strong> — Posteingang deiner Filiale</li>
+                    <li><strong>hr/</strong> — an HR senden</li>
+                    <li><strong>benutzer/…</strong> — an eine konkrete Person</li>
+                    <li><strong>meine-mitteilungen/</strong> — an dich selbst</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Alltag</h3>
+                <ol class="steps">
+                    <li>Dokument fotografieren / scannen.</li>
+                    <li>In Genius Scan speichern / exportieren.</li>
+                    <li>In OneCrew unter <strong>Posteingang</strong> prüfen.</li>
+                </ol>
+            </div>
+        </div>
+    </section>
+
+    <div class="divider" aria-hidden="true"></div>
+
+    <!-- 2 -->
+    <section class="section">
+        <div class="section-head">
+            <span class="section-num">02</span>
+            <h2>Posteingang anschauen &amp; weitergeben</h2>
+        </div>
+        <p class="intro">
+            Der Posteingang ist die Eingangs-Schale. Hier landen Scans und Uploads,
+            bevor sie in die Personalakte gehören.
+        </p>
+
+        <div class="card">
+            <h3>So findest du den Posteingang</h3>
+            <ol class="steps">
+                <li>Oben links die richtige <strong>Filiale</strong> wählen.</li>
+                <li>In der Sidebar auf <strong>Posteingang</strong> klicken.</li>
+                <li>Im Dropdown das gewünschte Postfach wählen (deine Filiale, ggf. «An mich»).</li>
+            </ol>
+        </div>
+
+        <div class="two">
+            <div class="card">
+                <h3>Was du mit einem Dokument tun kannst</h3>
+                <ul class="clean">
+                    <li><strong>Anschauen</strong> — Vorschau öffnen</li>
+                    <li><strong>Zu MA zuordnen / Ablegen</strong> — in die Personalakte</li>
+                    <li><strong>Weiterleiten / Verschieben</strong> — z.&nbsp;B. an HR oder eine andere Person</li>
+                    <li><strong>Herunterladen</strong> — lokal speichern</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Anderen etwas zukommen lassen</h3>
+                <ul class="clean">
+                    <li><strong>Hochladen</strong> im Posteingang und Ziel wählen (Filiale / HR / Benutzer)</li>
+                    <li>oder per Genius Scan in den passenden Ordner scannen</li>
+                    <li><strong>Nachricht ans MA-Postfach</strong> für Mitteilungen an Mitarbeitende (mit SMS-Hinweis)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tip">
+            <strong>Merksatz:</strong> Posteingang = noch nicht abgelegt.
+            Personalakte (MA → Dokumente) = endgültige Ablage beim Mitarbeitenden.
+        </div>
+    </section>
+
+    <div class="divider page-break" aria-hidden="true"></div>
+
+    <!-- 3 -->
+    <section class="section">
+        <div class="section-head">
+            <span class="section-num">03</span>
+            <h2>Erfassen &amp; ändern: easy@work → OneCrew</h2>
+        </div>
+        <p class="intro">
+            Neue Mitarbeitende und Vertragsänderungen gehören zuerst nach easy@work.
+            OneCrew holt die Daten danach ab — so bleibt die Personalnummer und die Stempelwelt konsistent.
+        </p>
+
+        <div class="card">
+            <h3>Ablauf für neue MA</h3>
+            <ol class="steps">
+                <li>In <strong>easy@work</strong> anlegen (Personalnummer entsteht dort).</li>
+                <li>In OneCrew: Sidebar <strong>Mitarbeiter</strong>.</li>
+                <li>Button <strong>＋ Neuer MA aus easy@work</strong>.</li>
+                <li>Vorschau prüfen: <strong>NEU</strong> und <strong>UPDATE</strong>.</li>
+                <li><strong>Ausgewählte importieren</strong> — fertig, der MA erscheint in der Liste.</li>
+            </ol>
+        </div>
+
+        <div class="two">
+            <div class="card">
+                <h3>Änderungen später</h3>
+                <ul class="clean">
+                    <li>Korrekturen zuerst in <strong>easy@work</strong></li>
+                    <li>Dann wieder «Neuer MA aus easy@work» — UPDATE-Zeilen übernehmen</li>
+                    <li>Oder im MA-Detail: <strong>easy@work synchronisieren</strong></li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Was läuft automatisch?</h3>
+                <ul class="clean">
+                    <li>Täglicher Abgleich (Stempelzeiten + Verträge)</li>
+                    <li>Stempelzeiten sind in OneCrew <strong>nur lesbar</strong> — Korrekturen immer in easy@work</li>
+                    <li>Vertraulichen Lohn (z.&nbsp;B. FIX-M) bei Bedarf danach direkt in OneCrew pflegen</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <div class="divider" aria-hidden="true"></div>
+
+    <!-- 4 -->
+    <section class="section">
+        <div class="section-head">
+            <span class="section-num">04</span>
+            <h2>Verträge drucken</h2>
+        </div>
+        <p class="intro">
+            Den Arbeitsvertrag erzeugst du als PDF — zum Anschauen, Drucken oder Speichern.
+        </p>
+
+        <div class="two">
+            <div class="card">
+                <h3>Weg A — über den Mitarbeitenden</h3>
+                <ol class="steps">
+                    <li>Mitarbeiter wählen</li>
+                    <li>Tab <strong>Übersicht</strong> → Block Verträge</li>
+                    <li><strong>Anschauen</strong> → Vorschau</li>
+                    <li>Dort <strong>Drucken</strong> oder <strong>Herunterladen</strong></li>
+                </ol>
+            </div>
+            <div class="card">
+                <h3>Weg B — über Verträge</h3>
+                <ol class="steps">
+                    <li>Sidebar <strong>Verträge</strong></li>
+                    <li>MA / Vertrag wählen</li>
+                    <li>Button <strong>📄 PDF</strong></li>
+                </ol>
+            </div>
+        </div>
+    </section>
+
+    <div class="divider" aria-hidden="true"></div>
+
+    <!-- 5 -->
+    <section class="section">
+        <div class="section-head">
+            <span class="section-num">05</span>
+            <h2>Prozess bei Schwangerschaft</h2>
+        </div>
+        <p class="intro">
+            Alles läuft beim Mitarbeitenden unter dem Tab <strong>Familie / Schwanger</strong>.
+            OneCrew führt dich mit einem klaren Fahrplan durch die nächsten Schritte.
+        </p>
+
+        <div class="card">
+            <h3>Schritt melden</h3>
+            <ol class="steps">
+                <li>Arztbestätigung im Posteingang scannen oder unter Dokumente ablegen
+                    (Kategorie Absenzen → Mutter-/Vaterschaft).</li>
+                <li>MA öffnen → Tab <strong>Familie / Schwanger</strong>.</li>
+                <li><strong>+ Schwangerschaft erfassen</strong>: Meldedatum, errechneter Termin, optional die Arztbestätigung verknüpfen.</li>
+                <li>Das System berechnet Beginn und Fristen — inkl. Hinweis zum Kündigungsschutz.</li>
+            </ol>
+        </div>
+
+        <div class="card">
+            <h3>Fahrplan (🧭) — der Reihe nach</h3>
+            <ul class="clean">
+                <li>Gesprächs-Checkliste</li>
+                <li>Mutterschaftsvereinbarung</li>
+                <li>Risikobeurteilung</li>
+                <li>Eignungsbeurteilung</li>
+                <li>Brief an den behandelnden Arzt</li>
+                <li>Geburt eintragen → danach Mutterschaftsbestätigung</li>
+            </ul>
+            <div class="tip">
+                <strong>Wichtig:</strong> Formulare und PDFs entstehen aus dem Fahrplan heraus.
+                Du musst den Prozess nicht auswendig wissen — dem Menü folgen genügt.
+            </div>
+        </div>
+    </section>
+
+    <div class="divider page-break" aria-hidden="true"></div>
+
+    <!-- Checklist -->
+    <section class="section">
+        <div class="section-head">
+            <span class="section-num">✓</span>
+            <h2>Kurz-Checkliste für den Alltag</h2>
+        </div>
+
+        <div class="card">
+            <div class="checklist">
+                <div class="check"><i></i><span>Genius Scan einmal mit <span class="mono">https://onecrew.ch/webdav/</span> verbunden</span></div>
+                <div class="check"><i></i><span>Scans landen im Ordner meiner Filiale</span></div>
+                <div class="check"><i></i><span>Posteingang regelmässig öffnen und Dokumente zuordnen oder weiterleiten</span></div>
+                <div class="check"><i></i><span>Neue MA zuerst in easy@work, dann in OneCrew importieren</span></div>
+                <div class="check"><i></i><span>Stempelzeiten nur in easy@work korrigieren</span></div>
+                <div class="check"><i></i><span>Verträge über Anschauen / PDF drucken</span></div>
+                <div class="check"><i></i><span>Schwangerschaft unter Familie / Schwanger erfassen und dem Fahrplan folgen</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Zugangsdaten — WebDAV (zum Notieren)</h3>
+            <dl class="kv">
+                <dt>Server</dt>
+                <dd><span class="mono">https://onecrew.ch/webdav/</span></dd>
+                <dt>Benutzer</dt>
+                <dd>________________________________</dd>
+                <dt>Passwort</dt>
+                <dd>dein OneCrew-Login-Passwort</dd>
+                <dt>Filial-Ordner</dt>
+                <dd><span class="mono">filialen/___-________________/</span></dd>
+            </dl>
+        </div>
+    </section>
+
+    <footer class="footer-note">
+        <span>OneCrew · Schaub Restaurants GmbH</span>
+        <span>Bei Fragen: HR / Walter · Handbuch im System über «?»</span>
+    </footer>
+
+</main>
+
+</body>
+</html>
