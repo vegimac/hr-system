@@ -172,15 +172,12 @@ public class EmployeeImportController : ControllerBase
                         GetValue(fields, headerMap, "Nationality"),
                         "CH"
                     ),
-                    // Walter-Vorgabe (10.05.2026): "Von" ist DEFINITIV das
-                    // Eintrittsdatum ins Unternehmen → direkt als EntryDate.
-                    // "Datum der Betriebszugehörigkeit" / "Eintrittsdatum"
-                    // bleiben als zusätzliche Quellen, falls befüllt — sie
-                    // gewinnen wenn vorhanden (sollten ohnehin = "Von" sein).
+                    // Eintritt = «Datum der Betriebszugehörigkeit» (Walter 26.07.2026,
+                    // analog easy@work-Sync). Fallback «Von» / «Eintrittsdatum».
                     EntryDate = ParseDate(FirstNonEmpty(
                         GetValue(fields, headerMap, "Datum der Betriebszugehörigkeit"),
-                        GetValue(fields, headerMap, "Eintrittsdatum"),
-                        GetValue(fields, headerMap, "Von")
+                        GetValue(fields, headerMap, "Von"),
+                        GetValue(fields, headerMap, "Eintrittsdatum")
                     )),
                     // ContractStartDate = "Pay rate from" (echter Lohn-Beginn
                     // bei Lohnänderungen). Fallback "Von" wenn Pay-rate-Feld
@@ -433,13 +430,9 @@ public class EmployeeImportController : ControllerBase
             if (!string.IsNullOrWhiteSpace(row.MaritalStatus))
                 employee.MaritalStatus = row.MaritalStatus;
 
-            // Eintrittsdatum: "Von" aus dem CSV ist Walter-vorgabegemäss
-            // das Eintrittsdatum (siehe Parse-Logik oben). Wir setzen es
-            // nur wenn DB noch leer ist — damit ein manuell durch Walter
-            // gepflegter abweichender Eintritt nicht überschrieben wird.
-            // Für die meisten MAs werden CSV-"Von" und DB-Wert ohnehin
-            // identisch sein.
-            if (row.EntryDate.HasValue && !employee.EntryDate.HasValue)
+            // Eintritt nachführen (Betriebszugehörigkeit / Von) — Re-Import
+            // überschreibt (früherer Leer-Guard entfernt, Walter 26.07.2026).
+            if (row.EntryDate.HasValue)
                 employee.EntryDate = row.EntryDate;
 
             employee.ExitDate = row.ExitDate;
@@ -1048,10 +1041,8 @@ public class EmployeeImportController : ControllerBase
         public string? Email { get; set; }
         public string? Phone { get; set; }
         public string? Nationality { get; set; }
-        // EntryDate = echtes Eintrittsdatum aus „Datum der Betriebszugehörigkeit".
-        // ContractStartDate = „Von" (nur Vertragsbeginn). Beide werden separat
-        // gehalten, damit der Eintrittsdatum-Schutz im Update einen vorhandenen
-        // DB-Wert nicht durch den schwächeren „Von"-Wert überschreibt.
+        // EntryDate = Firmen-Eintritt aus «Datum der Betriebszugehörigkeit».
+        // ContractStartDate = «Pay rate from» (Lohn-Beginn pro Vertrag).
         public DateTime? EntryDate { get; set; }
         public DateTime? ContractStartDate { get; set; }
         public DateTime? ExitDate { get; set; }
