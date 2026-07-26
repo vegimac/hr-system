@@ -1380,14 +1380,15 @@ function loadUebersichtTab() {
                <button type="button" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
                  title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen"
                  style="margin-left:8px;background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700">→ eintragen</button>`;
-    // Layout (Walter 26.07.2026): Kündigung-Felder zusammen —
-    // Gekündigt am | Kündigung per | Kündigung durch; < 8 h eine Zeile tiefer
-    // rechts bei den Toggles (neben Probezeit).
+    // Layout (Walter 26.07.2026): 
+    //   Zeile 1: Eintritt | Austritt | Probezeit bis
+    //   Zeile 2: Gekündigt am | Kündigung per | Kündigung durch
+    //   Zeile 3: L-GAV | < 8 h / Wo. | (Probezeitgespräch falls aktiv)
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
             ${_pf(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
-            <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
+            ${pzEnde ? _pf('Probezeit bis', pzEnde) : '<div class="ov-pf" aria-hidden="true"></div>'}
             <div class="ov-pf ov-anst-date"><div class="ov-pfl">Gekündigt am</div>
             <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
             <div class="ov-pf ov-anst-date"><div class="ov-pfl">Kündigung per</div>
@@ -1398,9 +1399,9 @@ function loadUebersichtTab() {
                 <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
                 <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
             </select></div>
-            ${pzEnde ? _pf('Probezeit bis', pzEnde) : ''}
-            ${pzAktiv ? _pf('Probezeitgespräch', pzStatus) : ''}
+            <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             <div class="ov-pf ov-anst-tog"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
+            ${pzAktiv ? _pf('Probezeitgespräch', pzStatus) : ''}
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 

@@ -4094,7 +4094,8 @@
             align-items: flex-start; margin-bottom: 8px;
             overflow: hidden; min-width: 0;
         }
-        /* Anstellung: Kündigung-Zeile zusammen | Toggles rechts (col 3) */
+        /* Anstellung (Walter 26.07.2026):
+           Zeile 1 Eintritt|Austritt|Probezeit · Zeile 2 Kündigung · Zeile 3 Toggles */
         .ov-anst-grid {
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(160px, auto);
@@ -4138,12 +4139,7 @@
             max-width: 180px;
             cursor: pointer;
         }
-        /* Toggles immer in Spalte 3 — < 8 h bleibt rechts unter L-GAV,
-           auch wenn Probezeitgespräch fehlt (Walter 26.07.2026). */
-        .ov-anst-grid .ov-anst-tog {
-            grid-column: 3;
-            justify-self: end;
-        }
+        /* L-GAV + < 8 h nebeneinander auf der untersten Zeile */
         .ov-anst-grid .ov-anst-tog .ov-pfv {
             min-height: 28px;
         }
