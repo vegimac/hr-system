@@ -282,6 +282,27 @@ public class MirusChangeDigestService
             $"{changes.Count} Änderungszeilen (Vorschau, nicht gesendet).");
     }
 
+    /// <summary>
+    /// Vorschau-Mail wirklich senden (Walter 26.07.2026) — gleiche HTML wie
+    /// Preview/06:00-Lauf, an eine Adresse (typisch der eingeloggte Admin).
+    /// Optional Filial-Filter wie bei Preview.
+    /// </summary>
+    public async Task<(bool Ok, string Message, string? Subject)> SendPreviewAsync(
+        string toEmail, string recipientName,
+        int? companyProfileId = null, string? restaurantCode = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(toEmail))
+            return (false, "Keine E-Mail-Adresse.", null);
+
+        var preview = await PreviewAsync(ct, companyProfileId, restaurantCode, recipientName);
+        var subject = "[Vorschau] " + preview.Subject;
+        var ok = await _email.SendAsync(toEmail.Trim(), recipientName, subject, preview.Html, preview.Text);
+        return ok
+            ? (true, $"Vorschau an {toEmail.Trim()} gesendet ({preview.ChangeCount} Änderungszeilen).", subject)
+            : (false, $"Versand an {toEmail.Trim()} fehlgeschlagen (SMTP prüfen).", subject);
+    }
+
     private async Task<(List<DigestChange> Changes, Dictionary<int, (string Code, string Name)> BranchMeta, DateTime LocalFrom, DateTime LocalTo)>
         LoadDigestAsync(DateTime since, DateTime until, CancellationToken ct)
     {
