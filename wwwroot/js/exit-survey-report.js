@@ -184,7 +184,7 @@ function esRender() {
                 <tr>
                     <th>Datum</th>
                     <th>Filiale</th>
-                    <th>Note</th>
+                    <th class="es-th-note">Note</th>
                     <th>Entscheid</th>
                     <th>Besser werden</th>
                     <th>Feedback</th>
