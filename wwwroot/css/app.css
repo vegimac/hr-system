@@ -5767,6 +5767,56 @@
             background: #2a3446 !important;
             box-shadow: 0 1px 0 var(--dlg-glass-border);
         }
+        /* Aktivitäts-Log: Spaltentitel im sticky Filter-Kopf (kein sticky-thead).
+           Sonst rutscht der thead beim Scrollen mitten zwischen die Zeilen
+           (Walter-Bug 26.07.2026). */
+        #page-audit-log.page.fixhead .page-body > .al-sticky-head {
+            padding: 10px 0 0;
+            margin-bottom: 0;
+        }
+        #page-audit-log.page.fixhead .page-body table.al-cols-head {
+            width: 100%;
+            margin-top: 8px;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
+            font-size: 12px;
+        }
+        #page-audit-log.page.fixhead .page-body table.al-cols-head thead th {
+            position: static !important;
+            top: auto !important;
+            text-align: left;
+            padding: 6px 8px;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            white-space: nowrap;
+            background: #f1f5f9 !important;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: none;
+        }
+        #page-audit-log.page.fixhead .page-body #alResults table.al-data {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 12px;
+        }
+        #page-audit-log.page.fixhead .page-body #alResults table.al-data thead {
+            display: none; /* Spaltentitel leben im sticky Kopf */
+        }
+        #page-audit-log .al-col-zeit { width: 9.5rem; }
+        #page-audit-log .al-col-user { width: 14rem; }
+        #page-audit-log .al-col-aktion { width: 5.5rem; }
+        #page-audit-log .al-col-entity { width: 11rem; }
+        #page-audit-log .al-col-changes { width: auto; }
+        #page-audit-log .al-col-detail { width: 4.5rem; }
+        body.theme-dark #page-audit-log.page.fixhead .page-body table.al-cols-head thead th {
+            background: #2a3446 !important;
+            color: #94a3b8;
+            border-bottom-color: var(--dlg-glass-border);
+        }
         .page.fixhead .page-body .tbl-wrap { overflow: visible; }
         .main:has(.page.fixhead.active) { overflow: hidden !important; }
         /* ── Fixhead + Spaltenköpfe im Kopf (Walter 22.07.2026) ───────────
