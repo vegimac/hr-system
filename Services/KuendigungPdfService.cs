@@ -332,29 +332,31 @@ public class KuendigungPdfService
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
             float pageH = page.GetPageSize().GetHeight();
 
-            // Labels sitzen LINKS auf der Unterlinie (pdfplumber top-basiert):
-            // Name 678.4 / x1≈75 · Vorname 706.4 / x1≈88 · Datum 734.4 / x1≈79 ·
-            // Unterschrift 762.4 · Betrieb («Name des versicherten Betriebes»)
-            // 790.4 / x1≈181. Werte rechts vom Label, gleiche Baseline;
-            // Unterschrift bleibt leer (handschriftlich).
-            void Text(string? t, float labelTop, float x, float size = 10.5f)
+            // Unterlinien (top vom oberen Rand): Name 687.8 · Vorname 715.8 ·
+            // Datum 743.8 · Unterschrift 771.8 · Betrieb 799.8.
+            // Werte rechts vom Label, knapp UEBER der Linie (Walter 26.07.2026:
+            // etwas weiter nach oben). Unterschrift bleibt leer.
+            void Text(string? t, float lineTop, float x, float size = 10.5f)
             {
                 if (string.IsNullOrWhiteSpace(t)) return;
                 canvas.BeginText()
                       .SetFontAndSize(font, size)
                       .SetColor(ColorConstants.BLACK, true)
-                      .MoveText(x, pageH - labelTop - 9f)
+                      .MoveText(x, pageH - lineTop + 7f)
                       .ShowText(t.Trim())
                       .EndText();
             }
 
-            Text(d.MaNachname, 678.4f, 95f);
-            Text(d.MaVorname, 706.4f, 105f);
-            Text(d.Datum.ToString("dd.MM.yyyy"), 734.4f, 100f);
-            var betrieb = !string.IsNullOrWhiteSpace(d.FirmaName)
-                ? d.FirmaName!
-                : (d.RestaurantName ?? "");
-            Text(betrieb, 790.4f, 195f);
+            Text(d.MaNachname, 687.8f, 95f);
+            Text(d.MaVorname, 715.8f, 105f);
+            Text(d.Datum.ToString("dd.MM.yyyy"), 743.8f, 100f);
+            // Volle Betriebsangabe: Firma · Filiale · Strasse · PLZ Ort
+            var betrieb = string.Join(", ", new[]
+            {
+                d.FirmaName, d.RestaurantName, d.FirmaStrasse, d.FirmaPlzOrt
+            }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()));
+            // Etwas kleiner, damit Firma + Filiale + Adresse auf die Zeile passen.
+            Text(betrieb, 799.8f, 195f, 8.5f);
         }
         return ms.ToArray();
     }
