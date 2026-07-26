@@ -3646,7 +3646,8 @@
                Verträge/Saldi füllen den Rest bis Bildschirmende (1fr). */
             height: 100%;
             align-content: stretch;
-            grid-template-rows: auto minmax(172px, auto) minmax(220px, 1fr);
+            /* Unterste Zeile etwas knapper (min 176) — Platz für 2 Adresszeilen */
+            grid-template-rows: auto minmax(168px, auto) minmax(176px, 1fr);
         }
         .ov-wrap {
             display: grid;
@@ -3673,12 +3674,31 @@
             margin-top: 6px;
             padding-top: 6px;
         }
+        /* Max. 2 Zusatzadressen sichtbar (Walter 26.07.2026) — beide Zeilen
+           vollständig; ab der 3. nur noch Scroll. */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent {
             min-height: 0;
-            max-height: 72px; /* ~1–2 Adresszeilen, kein 40px-Schnitt mehr */
+            max-height: calc(2 * 40px + 4px); /* 2 Zeilen à 40px + 4px Gap */
             overflow-x: hidden;
             overflow-y: auto;
             margin-top: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent .emp-addr-row {
+            flex: 0 0 40px;
+            height: 40px;
+            box-sizing: border-box;
+            margin-bottom: 0;
+            padding: 0 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fafafa;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card > .ov-card-h {
             font-size: 15px;
@@ -3837,7 +3857,7 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
             grid-row: 3;
             height: 100%;
-            min-height: 220px;
+            min-height: 176px; /* etwas kompakter → Platz für 2 Adresszeilen oben */
             max-height: none;
             overflow: hidden;
             align-self: stretch; /* füllt Restplatz bis Bildschirmende */
@@ -3853,7 +3873,7 @@
         .ov-vertraege-ktg > .ov-card > .ov-card-h { flex: 0 0 auto; }
         .ov-vertraege-ktg > .ov-card > .ov-vlist {
             flex: 1 1 auto;
-            min-height: calc(3 * 36px + 2 * 3px);
+            min-height: calc(2 * 36px + 3px); /* 2 Vertragszeilen sichtbar */
             height: auto;
         }
         .ov-vertraege-ktg > .ov-card > #ovSaldiContent,
@@ -3948,18 +3968,42 @@
             font-size: 13px; color: #8b8b8b; text-align: center; padding: 12px;
         }
         .ov-saldi-msg.ov-saldi-err { color: #dc2626; }
-        /* Zusatzadressen: leer = kein Platz; sonst Rest der Personalien-Zeile */
+        /* Zusatzadressen: leer = kein Platz; sonst max. 2 sichtbare Zeilen */
         #otherAddressesContent {
-            max-height: none;
+            max-height: calc(2 * 40px + 4px);
             overflow-x: hidden;
             overflow-y: auto;
             min-height: 0;
         }
         #otherAddressesContent:empty { display: none; margin: 0; padding: 0; }
+        .emp-addr-type {
+            flex-shrink: 0;
+            font-size: 11px; font-weight: 700;
+            padding: 2px 10px; border-radius: 10px;
+            background: #ece9e2; color: #6b7280;
+        }
+        .emp-addr-text {
+            flex: 1; min-width: 0;
+            font-size: 13.5px; font-weight: 600; color: #0f172a;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .emp-addr-empty { color: #94a3b8; font-style: italic; font-weight: 400; }
+        .emp-addr-valid {
+            flex-shrink: 0;
+            font-size: 11.5px; color: #64748b; white-space: nowrap;
+        }
+        .emp-addr-actions { flex-shrink: 0; display: flex; gap: 6px; }
+        body.theme-dark .emp-addr-type { background: rgba(255,255,255,.10); color: #cbd5e1; }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent .emp-addr-row {
+            background: rgba(255,255,255,.04);
+            border-color: rgba(255,255,255,.12);
+        }
+        body.theme-dark .emp-addr-text { color: #f1f5f9; }
+        body.theme-dark .emp-addr-valid { color: #94a3b8; }
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: auto minmax(172px, auto) minmax(172px, auto) minmax(220px, 1fr);
+                grid-template-rows: auto minmax(168px, auto) minmax(168px, auto) minmax(176px, 1fr);
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
@@ -3968,7 +4012,7 @@
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
                 grid-row: 4;
                 height: 100%;
-                min-height: 220px;
+                min-height: 176px;
                 max-height: none;
                 align-self: stretch;
             }
