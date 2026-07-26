@@ -1,3 +1,4 @@
+using QRCoder;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -53,6 +54,121 @@ public class KuendigungPdfService
         // Arbeitsverhaeltnisses», KEIN Einverstaendnis-Block noetig.
         bool    NichtigSchwangerschaft = false,
         DateOnly? SchwangerschaftGemeldetAm = null);
+
+    /// <summary>
+    /// Kündigungsbestätigung (Walter 26.07.2026) — wenn der MA kündigt,
+    /// bestätigt der AG den Erhalt und das Vertragsende. Vorlage:
+    /// «Kündigungsbestätigung» (Du-Form, inkl. Austritts-Fragebogen-QR).
+    /// </summary>
+    public record BestaetigungData(
+        string? FirmaName, string? RestaurantName, string? FirmaStrasse, string? FirmaPlzOrt,
+        string? MaName, string  MaVorname, string? MaStrasse, string? MaPlzOrt,
+        string  DuAnrede,                 // «Liebe Tiyara» / «Lieber Max»
+        string  Ort, DateOnly Datum,      // Briefdatum
+        DateOnly KuendigungsDatumMa,      // Kündigungsdatum des Mitarbeitenden
+        DateOnly KuendigungAuf,           // Kündigung auf Datum (= letzter Tag)
+        string? UnterzeichnerName,
+        string? UnterzeichnerFunktion = null,
+        bool    Eingeschrieben = false);
+
+    /// <summary>McDonald's-Austritts-Fragebogen (QR aus der Word-Vorlage Sursee).</summary>
+    public const string ExitSurveyUrl =
+        "https://docs.google.com/forms/d/e/1FAIpQLScke4V3Dw8ezGCRfrTuya0T0QdpqM3w8SDaUySxnE39G8qqRQ/viewform";
+
+    public byte[] GenerateBestaetigung(BestaetigungData d)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        var firmaLines = new[] { d.FirmaName, d.RestaurantName, d.FirmaStrasse, d.FirmaPlzOrt }
+            .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList();
+        var maLines = new[] { d.MaName, d.MaStrasse, d.MaPlzOrt }
+            .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList();
+
+        byte[] qrPng;
+        using (var qrGen = new QRCodeGenerator())
+        using (var qrData = qrGen.CreateQrCode(ExitSurveyUrl, QRCodeGenerator.ECCLevel.Q))
+            qrPng = new PngByteQRCode(qrData).GetGraphic(5);
+
+        return Document.Create(doc =>
+        {
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(1.3f, Unit.Centimetre);
+                page.MarginHorizontal(2.2f, Unit.Centimetre);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).FontColor(Dark).LineHeight(1.35f));
+
+                page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
+
+                page.Content().PaddingTop(14).Column(col =>
+                {
+                    foreach (var ln in firmaLines)
+                        col.Item().Text(ln).FontSize(8.5f).FontColor("#475569");
+
+                    col.Item().Height(40);
+                    if (d.Eingeschrieben)
+                        col.Item().Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f).FontSize(9.5f);
+                    col.Item().PaddingTop(d.Eingeschrieben ? 3 : 16).Column(c =>
+                    {
+                        foreach (var ln in maLines) c.Item().Text(ln);
+                    });
+
+                    col.Item().PaddingTop(30).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+
+                    col.Item().PaddingTop(28).Text("Kündigungsbestätigung").Bold().FontSize(12.5f);
+
+                    col.Item().PaddingTop(22).Text($"{d.DuAnrede},");
+
+                    col.Item().PaddingTop(14).Text(t =>
+                    {
+                        t.Span("Hiermit bestätigen wir den Erhalt deiner Kündigung vom ");
+                        t.Span($"{d.KuendigungsDatumMa:dd.MM.yyyy}").Bold();
+                        t.Span(" und das Ende unseres Arbeitsverhältnisses gemäss Kündigungsfrist auf den ");
+                        t.Span($"{d.KuendigungAuf:dd.MM.yyyy}").Bold();
+                        t.Span(".");
+                    });
+
+                    col.Item().PaddingTop(12).Text(
+                        "Alle Gegenstände, die in deinem Besitz sind und dem Unternehmen gehören, müssen vor deinem Austreten deinem Vorgesetzten überreicht werden. Wir erinnern dich ebenfalls daran, dass du an die Geheimhaltungspflicht gebunden bist.");
+
+                    col.Item().PaddingTop(12).Text(t =>
+                    {
+                        t.Span("Im Anhang senden wir dir von der Swica das Informationsblatt «Taggeldversicherung und Unfallversicherung». Wenn du dieses Formular nicht zurücksendest, gehen wir davon aus, dass du von uns in Kenntnis gesetzt wurdest und wir von jeglicher Verantwortlichkeit entlassen sind.");
+                    });
+
+                    col.Item().PaddingTop(12).Text(t =>
+                    {
+                        t.Span("Um dein BVG-Guthaben (2. Säule) an die Kasse deines neuen Arbeitgebers oder auf ein Freizügigkeitskonto zu überweisen, fülle bitte das beiliegende Formular «Überweisung Pensionskassenguthaben» aus und sende es direkt an GastroSocial.");
+                    });
+
+                    col.Item().PaddingTop(12).Text(
+                        "Dein Arbeitszeugnis erhältst du so bald wie möglich.");
+
+                    col.Item().PaddingTop(12).Text(
+                        "Damit wir uns als Arbeitgeber weiterhin verbessern können, sind wir auf deine Hilfe angewiesen. Um deine Gründe für die Kündigung besser zu verstehen, wären wir dir sehr dankbar, wenn du den kurzen Fragebogen mit folgendem QR-Code ausfüllen würdest. Deine Antworten bleiben anonym.");
+
+                    col.Item().PaddingTop(10).AlignCenter().Width(78).Height(78).Image(qrPng).FitArea();
+                    col.Item().PaddingTop(4).AlignCenter()
+                        .Text("Scanne den QR-Code mit deinem Smartphone")
+                        .FontSize(9f).FontColor("#475569");
+
+                    col.Item().PaddingTop(14).Text(
+                        "Wir wünschen dir einen guten Abschluss bei McDonald's und viel Erfolg und Zufriedenheit in deiner Zukunft. Wir danken dir herzlich für deinen Einsatz in unserem McDonald's.");
+
+                    col.Item().PaddingTop(28).Text("Freundliche Grüsse");
+                    if (!string.IsNullOrWhiteSpace(d.FirmaName))
+                        col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
+                    if (!string.IsNullOrWhiteSpace(d.RestaurantName))
+                        col.Item().Text(d.RestaurantName!);
+                    col.Item().PaddingTop(6).Height(48);
+                    col.Item().Text(d.UnterzeichnerName ?? "");
+                    if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
+                        col.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
+                });
+            });
+        }).GeneratePdf();
+    }
 
     public byte[] GenerateRueckzug(RueckzugData d, byte[]? signaturePng)
     {

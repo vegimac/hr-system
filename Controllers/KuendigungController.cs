@@ -279,6 +279,69 @@ public class KuendigungController : ControllerBase
         }
     }
 
+    public class BestaetigungPdfDto
+    {
+        /// <summary>Kündigungsdatum des Mitarbeitenden (wann die Kündigung eingegangen ist).</summary>
+        public DateOnly KuendigungsDatumMa { get; set; }
+        /// <summary>Kündigung auf Datum (= letzter Arbeitstag / Vertragsende).</summary>
+        public DateOnly KuendigungAuf { get; set; }
+        public DateOnly? Datum { get; set; }   // Briefdatum, Default heute
+        public string?   Ort { get; set; }
+        public bool      Eingeschrieben { get; set; }
+    }
+
+    /// <summary>
+    /// Kündigungsbestätigung (Walter 26.07.2026) — AG bestätigt den Erhalt
+    /// der MA-Kündigung und das Vertragsende. Zwei Pflicht-Daten:
+    /// Kündigungsdatum des Mitarbeitenden + Kündigung auf Datum.
+    /// </summary>
+    [HttpPost("{empId:int}/bestaetigung-pdf")]
+    public async Task<IActionResult> GetBestaetigungPdf(int empId, [FromBody] BestaetigungPdfDto dto)
+    {
+        var guard = await GuardBranchAsync(empId);
+        if (guard != null) return guard;
+        var ctx = await LoadContextAsync(empId);
+        if (ctx is null) return NotFound(new { error = "EMP_NOT_FOUND" });
+        var (e, _, cp) = ctx.Value;
+
+        if (dto.KuendigungsDatumMa == default)
+            return BadRequest(new { error = "KUENDIGUNG_DATUM_MA_FEHLT", message = "Bitte das Kündigungsdatum des Mitarbeitenden angeben." });
+        if (dto.KuendigungAuf == default)
+            return BadRequest(new { error = "KUENDIGUNG_AUF_FEHLT", message = "Bitte das «Kündigung auf»-Datum angeben." });
+
+        var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
+        var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
+        var (_, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
+
+        var data = new KuendigungPdfService.BestaetigungData(
+            FirmaName:       cp?.CompanyName,
+            RestaurantName:  cp?.BranchName,
+            FirmaStrasse:    Join(cp?.Street, cp?.HouseNumber),
+            FirmaPlzOrt:     Join(cp?.ZipCode, cp?.City),
+            MaName:          ($"{e.FirstName} {e.LastName}").Trim(),
+            MaVorname:       (e.FirstName ?? "").Trim(),
+            MaStrasse:       e.Street,
+            MaPlzOrt:        Join(e.ZipCode, e.City),
+            DuAnrede:        DuAnrede(e),
+            Ort:             ort,
+            Datum:           datum,
+            KuendigungsDatumMa: dto.KuendigungsDatumMa,
+            KuendigungAuf:   dto.KuendigungAuf,
+            UnterzeichnerName: signerName,
+            UnterzeichnerFunktion: signerFunktion,
+            Eingeschrieben:  dto.Eingeschrieben);
+
+        try
+        {
+            var bytes = _pdf.GenerateBestaetigung(data);
+            return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Kuendigungsbestaetigung.pdf");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "PDF_FEHLER", message = ex.GetBaseException().Message });
+        }
+    }
+
     /// <summary>
     /// Hebt die am MA erfasste Kuendigung auf (Walter-Vorgabe 16.07.2026):
     /// loescht «gekuendigt am» + «Kuendigung per» — die ToDo «Vertragsende
@@ -456,6 +519,31 @@ public class KuendigungController : ControllerBase
         if (anrede == "Frau") return $"Sehr geehrte Frau {ln}".Trim();
         if (anrede == "Herr") return $"Sehr geehrter Herr {ln}".Trim();
         return "Sehr geehrte Damen und Herren";
+    }
+
+    /// <summary>
+    /// Du-Anrede für die Kündigungsbestätigung (Walter-Vorlage): «Liebe Vorname»
+    /// / «Lieber Vorname». Nutzt LetterSalutation wenn sie schon Du-Form ist.
+    /// </summary>
+    private static string DuAnrede(Employee e)
+    {
+        var ls = (e.LetterSalutation ?? "").Trim();
+        if (ls.StartsWith("Liebe ", StringComparison.OrdinalIgnoreCase)
+            || ls.StartsWith("Lieber ", StringComparison.OrdinalIgnoreCase)
+            || ls.StartsWith("Hallo ", StringComparison.OrdinalIgnoreCase))
+            return ls;
+
+        var fn = (e.FirstName ?? "").Trim();
+        if (fn.Length == 0) return "Hallo";
+
+        var g = (e.Gender ?? "").Trim().ToLowerInvariant();
+        if (g is "female" or "w" or "f") return $"Liebe {fn}";
+        if (g is "male" or "m") return $"Lieber {fn}";
+
+        var anrede = (e.Salutation ?? "").Trim();
+        if (string.Equals(anrede, "Frau", StringComparison.OrdinalIgnoreCase)) return $"Liebe {fn}";
+        if (string.Equals(anrede, "Herr", StringComparison.OrdinalIgnoreCase)) return $"Lieber {fn}";
+        return $"Hallo {fn}";
     }
 
     private static string? Join(string? a, string? b)
