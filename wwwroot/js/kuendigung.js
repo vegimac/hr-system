@@ -214,7 +214,8 @@ const _ZD_TITEL = {
     zwischen:       'Zwischenzeugnis',
     best:           'Arbeitsbestätigung',
     verwarnung:     'Verwarnung',
-    rueckzug:       'Kündigungsrückzug'
+    rueckzug:       'Kündigungsrückzug',
+    bestaetigung:   'Kündigungsbestätigung'
 };
 
 async function zdOpen(art) {
@@ -248,6 +249,7 @@ function kuOpenDoc(art, empId) {
     try { selectedEmployeeId = id; selectedEmployee = null; } catch (_) {}
     if (art === 'verwarnung') { openVerwarnungModal(null); return; }
     if (art === 'rueckzug')   { krOpen(id); return; }
+    if (art === 'bestaetigung') { kbOpen(id); return; }
     openZeugnisModal(id, art === 'zwischen', art === 'best');
 }
 
@@ -457,6 +459,135 @@ async function krGenerate() {
             });
         }
     } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+// ── Kuendigungsbestaetigung (Walter 26.07.2026): wenn der MA kuendigt,
+// bestaetigt der AG den Erhalt + das Vertragsende. Zwei Pflicht-Daten.
+let _kbEmpId = null;
+
+function _kbEnsureModal() {
+    if (document.getElementById('kbModal')) return;
+    const div = document.createElement('div');
+    div.id = 'kbModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
+    div.innerHTML = `
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:480px;width:94%;padding:22px 24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:16px;font-weight:800;color:#3f3f3f">Kündigungsbestätigung</div>
+            <button onclick="kbClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+        </div>
+        <div style="font-size:12px;color:#646464;margin-bottom:14px">Bestätigung an den Mitarbeitenden, wenn er/sie selbst gekündigt hat — inkl. Hinweise zu Zeugnis, BVG und Austritts-Fragebogen.</div>
+        <label style="font-size:11.5px;font-weight:700;color:#646464">Kündigungsdatum des Mitarbeitenden</label>
+        <input type="date" id="kbKuendigungVom" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
+        <label style="font-size:11.5px;font-weight:700;color:#646464">Kündigung auf Datum</label>
+        <input type="date" id="kbKuendigungAuf" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
+        <div style="margin-bottom:16px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
+            <label style="font-size:13px;margin-right:16px"><input type="radio" name="kbZustell" value="P" checked> persönliche Aushändigung</label>
+            <label style="font-size:13px"><input type="radio" name="kbZustell" value="E"> per Einschreiben</label>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px">
+            <button onclick="kbClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button onclick="kbGenerate()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Bestätigung erstellen</button>
+        </div>
+    </div>`;
+    document.body.appendChild(div);
+}
+
+async function kbOpen(empId) {
+    _kbEnsureModal();
+    _kbEmpId = empId;
+    document.getElementById('kbKuendigungVom').value = '';
+    document.getElementById('kbKuendigungAuf').value = '';
+    document.getElementById('kbModal').style.display = 'flex';
+    // Vorbelegen aus den MA-Feldern «Gekündigt am» / «Kündigung per»
+    try {
+        const r = await fetch(`/api/employees/${empId}`, { headers: ah() });
+        if (r.ok) {
+            const e = await r.json();
+            if (e?.kuendigungAusgesprochenAm)
+                document.getElementById('kbKuendigungVom').value =
+                    String(e.kuendigungAusgesprochenAm).slice(0, 10);
+            if (e?.kuendigungPer)
+                document.getElementById('kbKuendigungAuf').value =
+                    String(e.kuendigungPer).slice(0, 10);
+        }
+    } catch (_) {}
+}
+
+function kbClose() {
+    const m = document.getElementById('kbModal');
+    if (m) m.style.display = 'none';
+}
+
+async function kbGenerate() {
+    if (!_kbEmpId) return;
+    const vom = document.getElementById('kbKuendigungVom').value;
+    const auf = document.getElementById('kbKuendigungAuf').value;
+    if (!vom) return alert('Bitte das Kündigungsdatum des Mitarbeitenden angeben.');
+    if (!auf) return alert('Bitte das «Kündigung auf»-Datum angeben.');
+    const dto = {
+        kuendigungsDatumMa: vom,
+        kuendigungAuf:      auf,
+        eingeschrieben: document.querySelector('input[name="kbZustell"]:checked')?.value === 'E'
+    };
+    try {
+        const r = await fetch(`/api/kuendigung/${_kbEmpId}/bestaetigung-pdf`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(dto)
+        });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
+        const blob = await r.blob();
+        kbClose();
+        const empId = _kbEmpId;
+        const aufIso = auf;
+        previewFileModal(blob, 'Kuendigungsbestaetigung.pdf');
+        if (typeof filePreviewOnClose === 'function') {
+            filePreviewOnClose(async () => {
+                const ablegen = await liquidConfirm(
+                    'Soll die Kündigungsbestätigung beim Mitarbeiter abgelegt werden?\n\nAblage: Vertragsunterlagen › Kündigung als «Kündigungsbestätigung per ' + _krFmtCh(aufIso) + '».',
+                    { title: 'Dokument ablegen?', yesLabel: 'Ja, ablegen', noLabel: 'Nein' });
+                if (ablegen) await _kbDokumentAblegen(empId, blob, aufIso);
+            });
+        }
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+async function _kbDokumentAblegen(empId, blob, kuendigungAufIso) {
+    try {
+        const rt = await fetch('/api/documents/taxonomie', { headers: ah() });
+        if (!rt.ok) return alert('Ablage fehlgeschlagen: Dokument-Struktur nicht ladbar.');
+        const taxonomy = await rt.json();
+        let typ = null;
+        const isKuend = t => (t.name || '').toLowerCase().startsWith('kündigung')
+                          || (t.name || '').toLowerCase().startsWith('kuendigung');
+        for (const k of taxonomy) {
+            const t = (k.typen || []).find(isKuend);
+            if (t && (k.name || '').toLowerCase().includes('vertrag')) { typ = t; break; }
+            if (t && !typ) typ = t;
+        }
+        if (!typ) return alert('Ablage fehlgeschlagen: kein Dokument-Typ «Kündigung» in der Dokument-Struktur gefunden.');
+
+        const branch = (typeof allBranches !== 'undefined' ? allBranches : [])
+            .find(b => b.id === Number(typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : 0))
+            || (typeof allBranches !== 'undefined' ? allBranches[0] : null);
+        const branchCode = branch?.restaurantCode || '';
+        if (!branchCode) return alert('Ablage fehlgeschlagen: keine Filiale gewählt.');
+
+        const titel = `Kündigungsbestätigung per ${_krFmtCh(kuendigungAufIso)}`;
+        const fd = new FormData();
+        fd.append('file', new File([blob], `${titel.replace(/[^A-Za-z0-9äöüÄÖÜ ._-]/g, '')}.pdf`, { type: 'application/pdf' }));
+        fd.append('employeeId', empId);
+        fd.append('dokumentTypId', typ.id);
+        fd.append('branchCode', branchCode);
+        fd.append('bemerkung', titel);
+        const ru = await fetch('/api/documents/upload', { method: 'POST', headers: ah(), body: fd });
+        if (!ru.ok) {
+            let t = await ru.text(); try { t = JSON.parse(t).message || JSON.parse(t).error || t; } catch (_) {}
+            alert('Ablage fehlgeschlagen: ' + t);
+        }
+    } catch (e) { alert('Ablage fehlgeschlagen: ' + e.message); }
 }
 
 // Abbrechen (Walter 15.07.2026 / 21.07.2026): Formular zurücksetzen +
