@@ -607,7 +607,7 @@ using (var scope = app.Services.CreateScope())
             ('permit_expiring',        'Aufenthaltsbewilligung läuft ab',       TRUE,   60,   30, 'warning',  'critical', TRUE,   2),
             ('probation_end',          'Probezeit endet',                       TRUE,   14,    7, 'info',     'warning',  TRUE,   3),
             ('contract_end',           'Befristeter Vertrag endet',             TRUE,   30,   14, 'info',     'warning',  TRUE,   4),
-            ('exit_pending_active',    'Austritt erfasst, MA noch aktiv',       TRUE, NULL,   30, 'warning',  'critical', FALSE,  5),
+            ('exit_pending_active',    'Austritt steht bevor',                  TRUE,   30,    7, 'warning',  'critical', TRUE,   5),
             ('qst_pflicht_offen',      'QST-Pflicht offen (Lohnlauf gesperrt)', TRUE, NULL, NULL, 'critical', NULL,       FALSE,  6),
             ('spouse_doku_fehlt',      'Ausweis Ehepartner fehlt (QST)',        TRUE, NULL, NULL, 'critical', NULL,       FALSE,  7),
             ('employee_doku_fehlt',    'Ausweis Mitarbeiter fehlt (QST)',       TRUE, NULL, NULL, 'critical', NULL,       FALSE,  8),
@@ -668,6 +668,18 @@ using (var scope = app.Services.CreateScope())
               AND escalate_days = 14;
         UPDATE dashboard_warning_config SET todo_priority = 55,  warn_color = 'red_overdue'
             WHERE category = 'kuendigung_ablauf' AND todo_priority = 100;
+        -- Walter 26.07.2026: Austritt-ToDo bis zum Austrittstag (nicht mehr danach).
+        UPDATE dashboard_warning_config
+           SET label = 'Austritt steht bevor',
+               warn_days = 30,
+               escalate_days = 7,
+               severity_base = 'warning',
+               severity_escalated = 'critical',
+               is_date_based = TRUE
+         WHERE category = 'exit_pending_active'
+           AND (label = 'Austritt erfasst, MA noch aktiv'
+                OR warn_days IS NULL
+                OR is_date_based = FALSE);
         UPDATE dashboard_warning_config SET todo_priority = 25, warn_color = 'red',
                label = 'Kündigung möglich (Sperrfrist Ende)', warn_days = 90, severity_base = 'warning'
             WHERE category = 'kuendigung_sperrfrist_ende' AND todo_priority = 100;
