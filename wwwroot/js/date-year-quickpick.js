@@ -82,6 +82,10 @@
         inp.value = toIso(y, m, d);
         inp.dispatchEvent(new Event('input', { bubbles: true }));
         inp.dispatchEvent(new Event('change', { bubbles: true }));
+        // Kündigungsbestätigung: Frist-Vorschlag nach Datumswahl (Walter 26.07.2026)
+        if (inp.id === 'kbKuendigungVom' && typeof window.kbSuggestPer === 'function') {
+            try { window.kbSuggestPer(); } catch { /* ignore */ }
+        }
         closeMenu();
     }
 

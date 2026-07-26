@@ -466,7 +466,8 @@ async function krGenerate() {
 let _kbEmpId = null;
 
 function _kbEnsureModal() {
-    if (document.getElementById('kbModal')) return;
+    const old = document.getElementById('kbModal');
+    if (old) old.remove();
     const div = document.createElement('div');
     div.id = 'kbModal';
     div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
@@ -478,7 +479,8 @@ function _kbEnsureModal() {
         </div>
         <div style="font-size:12px;color:#646464;margin-bottom:14px">Bestätigung an den Mitarbeitenden, wenn er/sie selbst gekündigt hat — inkl. Hinweise zu Zeugnis, BVG und Austritts-Fragebogen.</div>
         <label style="font-size:11.5px;font-weight:700;color:#646464">Kündigungsdatum des Mitarbeitenden</label>
-        <input type="date" id="kbKuendigungVom" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
+        <input type="date" id="kbKuendigungVom" onchange="kbSuggestPer()" oninput="kbSuggestPer()" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:4px">
+        <div id="kbFristHint" style="font-size:11.5px;color:#64748b;margin:0 0 12px;min-height:16px"></div>
         <label style="font-size:11.5px;font-weight:700;color:#646464">Kündigung auf Datum</label>
         <input type="date" id="kbKuendigungAuf" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
         <div style="margin-bottom:16px">
@@ -492,6 +494,52 @@ function _kbEnsureModal() {
         </div>
     </div>`;
     document.body.appendChild(div);
+    // Explizit verdrahten (zuverlässiger als nur onchange=…, auch wenn das
+    // Custom-Datumsmenü den Wert per dispatchEvent setzt).
+    const vomEl = div.querySelector('#kbKuendigungVom');
+    if (vomEl) {
+        vomEl.addEventListener('change', () => { kbSuggestPer(); });
+        vomEl.addEventListener('input',  () => { kbSuggestPer(); });
+    }
+}
+
+/** «Kündigung auf» gemäss L-GAV-/Vertragsfrist vorschlagen (wie kuLoadInfo). */
+window.kbSuggestPer = async function kbSuggestPer() {
+    if (!_kbEmpId) return;
+    const vom = document.getElementById('kbKuendigungVom')?.value || '';
+    const hint = document.getElementById('kbFristHint');
+    const auf = document.getElementById('kbKuendigungAuf');
+    if (!vom) {
+        if (hint) hint.textContent = '';
+        return;
+    }
+    try {
+        const qs = new URLSearchParams({ datum: vom, grundType: 'ordentlich' });
+        const r = await fetch(`/api/kuendigung/${_kbEmpId}/info?${qs}`, { headers: ah() });
+        if (!r.ok) { if (hint) hint.textContent = ''; return; }
+        const info = await r.json();
+        // Probezeit-Frist, falls am Kündigungsdatum noch in Probezeit
+        if (info.inProbation) {
+            const r2 = await fetch(`/api/kuendigung/${_kbEmpId}/info?${new URLSearchParams({ datum: vom, grundType: 'probezeit' })}`, { headers: ah() });
+            if (r2.ok) {
+                const info2 = await r2.json();
+                if (auf) auf.value = info2.letzterArbeitstag || '';
+                if (hint) {
+                    const rule = info2.noticeRule ? ` — ${info2.noticeRule}` : '';
+                    hint.textContent = `Vorschlag gemäss Frist: Probezeit · ${info2.noticeText || ''}${rule}`.trim();
+                }
+                return;
+            }
+        }
+        if (auf) auf.value = info.letzterArbeitstag || '';
+        if (hint) {
+            const kopf = `${info.dienstjahr}. Dienstjahr · Frist ${info.noticeText || ''}`.trim();
+            const rule = info.noticeRule ? ` — ${info.noticeRule}` : '';
+            hint.textContent = `Vorschlag gemäss Frist: ${kopf}${rule}`.trim();
+        }
+    } catch (_) {
+        if (hint) hint.textContent = '';
+    }
 }
 
 async function kbOpen(empId) {
@@ -499,8 +547,11 @@ async function kbOpen(empId) {
     _kbEmpId = empId;
     document.getElementById('kbKuendigungVom').value = '';
     document.getElementById('kbKuendigungAuf').value = '';
+    const hint = document.getElementById('kbFristHint');
+    if (hint) hint.textContent = '';
     document.getElementById('kbModal').style.display = 'flex';
     // Vorbelegen aus den MA-Feldern «Gekündigt am» / «Kündigung per»
+    let hadPer = false;
     try {
         const r = await fetch(`/api/employees/${empId}`, { headers: ah() });
         if (r.ok) {
@@ -508,11 +559,26 @@ async function kbOpen(empId) {
             if (e?.kuendigungAusgesprochenAm)
                 document.getElementById('kbKuendigungVom').value =
                     String(e.kuendigungAusgesprochenAm).slice(0, 10);
-            if (e?.kuendigungPer)
+            if (e?.kuendigungPer) {
                 document.getElementById('kbKuendigungAuf').value =
                     String(e.kuendigungPer).slice(0, 10);
+                hadPer = true;
+            }
         }
     } catch (_) {}
+    // Wie bei Kündigung: sobald ein Kündigungsdatum da ist → «per» gemäss Frist
+    // vorschlagen (bestehendes «Kündigung per» am MA behalten, nur Hinweis laden)
+    if (document.getElementById('kbKuendigungVom').value) {
+        if (hadPer) {
+            // Nur Frist-Hinweis, Datum nicht überschreiben
+            const vom = document.getElementById('kbKuendigungVom').value;
+            const saved = document.getElementById('kbKuendigungAuf').value;
+            await kbSuggestPer();
+            document.getElementById('kbKuendigungAuf').value = saved;
+        } else {
+            await kbSuggestPer();
+        }
+    }
 }
 
 function kbClose() {
