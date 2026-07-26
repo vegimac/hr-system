@@ -36,12 +36,11 @@ public static class EawDateUtil
     }
 
     /// <summary>
-    /// Intervall-«to» aus easy@work Custom Fields (has_interval): oft als
-    /// exklusives Mitternacht gespeichert. UI zeigt z.B. Bis 6.8.2027,
-    /// API liefert «2027-08-06 22:00:00» UTC = 7.8.2027 00:00 Zürich.
-    /// Bei Zürich-Mitternacht → Vortag als letzter inklusiver Gültigkeitstag
-    /// (Walter 26.07.2026, Nachtarbeit-Arztzeugnis). End-of-day (21:59:59)
-    /// bleibt das Kalenderdatum unverändert.
+    /// Intervall-«to» als exklusives Mitternacht lesen: Zürich 00:00 → Vortag
+    /// (UI-Bis). End-of-day (21:59:59) bleibt das Kalenderdatum.
+    /// ACHTUNG: easy@work speichert «to» inkonsistent (mal inklusiv, mal
+    /// exklusiv) — für Nachtarbeit-Ende NICHT blind verwenden; dort gilt
+    /// <see cref="IntervalEndMatchesSoll"/>.
     /// </summary>
     public static DateOnly? ParseSwissInclusiveEndDate(string? s)
     {
@@ -54,6 +53,21 @@ public static class EawDateUtil
         if (local.TimeOfDay == TimeSpan.Zero && date > DateOnly.MinValue)
             return date.AddDays(-1);
         return date;
+    }
+
+    /// <summary>
+    /// Prüft ob das easy@work-Intervall-«to» (roh) zum Soll-Datum passt —
+    /// akzeptiert BEIDE UTC-Interpretationen (Kalendertag Zürich ODER
+    /// exklusives Mitternacht → Vortag). Walter 26.07.2026: easy speichert
+    /// dasselbe UI-Bis mal als 28.5. 00:00, mal als 29.5. 00:00 Zürich.
+    /// </summary>
+    public static bool IntervalEndMatchesSoll(string? toRaw, DateOnly soll)
+    {
+        if (string.IsNullOrWhiteSpace(toRaw)) return false;
+        var plain = ParseSwissDate(toRaw);
+        var exclusive = ParseSwissInclusiveEndDate(toRaw);
+        return (plain.HasValue && plain.Value == soll)
+            || (exclusive.HasValue && exclusive.Value == soll);
     }
 
     /// <summary>
@@ -253,15 +267,14 @@ public class EawProperty
     [JsonPropertyName("object_id")]   public int?      ObjectId   { get; set; }
     [JsonPropertyName("key")]         public string?   Key        { get; set; }
     [JsonPropertyName("value")]       public string?   Value      { get; set; }
-    // from/to kommen als UTC-Datetime-Strings (z.B. "2027-05-22 22:00:00") — ein
-    // direktes DateOnly würde das falsch/gar nicht parsen. Daher roh lesen und mit
-    // EawDateUtil auflösen. «from» = inklusiver Tagesbeginn; «to» oft exklusives
-    // Mitternacht → ParseSwissInclusiveEndDate (Walter 26.07.2026).
+    // from/to = UTC-Datetime-Strings. «from» via ParseSwissDate (Tagesbeginn Zürich).
+    // «to» ebenfalls ParseSwissDate als Default — für Nachtarbeit-Bis gilt die
+    // ArG-Regel aus dem Beginn, nicht dieses To (UTC inkonsistent, Walter 26.07.2026).
     [JsonPropertyName("from")]        public string?   FromRaw    { get; set; }
     [JsonPropertyName("to")]          public string?   ToRaw      { get; set; }
     [JsonPropertyName("updated_at")]  public DateTime? UpdatedAt  { get; set; }
     [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
-    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissInclusiveEndDate(ToRaw);
+    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
 }
 
 /// <summary>Einzelner Kommentar (aus dem `comments`-Array eines Timepunch).</summary>

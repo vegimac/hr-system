@@ -111,20 +111,25 @@ public class Employee
     public int? CAusweisDokumentId { get; set; }
 
     /// <summary>
-    /// Nachtarbeit-Untersuchung (Walter-Vorgabe 20.06.2026, ArG): Gültig-bis-Datum
-    /// der ärztlichen Eignungsbestätigung bzw. des hinterlegten Verzichts (meist 2
-    /// Jahre). NULL = nicht erfasst. Bei ≥25 Nächten/Jahr ohne gültigen Eintrag →
-    /// Compliance-Warnung im Ferien/Feier/Nacht-Report.
+    /// Nachtarbeit-Untersuchung (Walter-Vorgabe 20.06.2026 / 26.07.2026): Gültig-bis
+    /// IMMER selbst gerechnet aus <see cref="NightWorkExamIssued"/> (Beginn + 2 Jahre
+    /// − 1 Tag, ab Alter 45: + 1 Jahr − 1 Tag). easy@work-«to» ist UTC-inkonsistent
+    /// und wird NICHT als Quelle übernommen — nur zur Kontrolle
+    /// (<see cref="NightWorkExamEasyMismatch"/>).
     /// </summary>
     public DateTime? NightWorkExamValidUntil { get; set; }
 
     /// <summary>
-    /// Ausstellungs-/Beginndatum des Nachtarbeit-Arztzeugnisses (Walter-Vorgabe
-    /// 05.07.2026). Beim easy@work-Sync wird das easy-«from» 1:1 übernommen; das
-    /// Soll-Ende rechnen WIR daraus (Beginn + 1 bzw. 2 Jahre − 1 Tag, je Alter).
-    /// Weicht das easy-«to» davon ab, kommt eine Meldung + ToDo. NULL = nicht erfasst.
+    /// Ausstellungs-/Beginndatum — beim Sync 1:1 aus easy@work «from» (UTC→Zürich).
     /// </summary>
     public DateTime? NightWorkExamIssued { get; set; }
+
+    /// <summary>
+    /// true = easy@work-«to» fehlt oder entspricht keiner UTC-Lesart dem Soll-Ende
+    /// (Walter 26.07.2026). OneCrew speichert trotzdem das korrekte gerechnete Ende;
+    /// Chip/ToDo fordern Korrektur in easy@work.
+    /// </summary>
+    public bool NightWorkExamEasyMismatch { get; set; }
 
     /// <summary>
     /// Zentrale Nachtarbeit-Regel (ArG): gültig bis = Beginn + N Jahre − 1 Tag,

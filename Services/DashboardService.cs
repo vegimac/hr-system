@@ -1136,7 +1136,7 @@ public class DashboardService
                 .Where(e => maIds.Contains(e.Id))
                 .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
                                    e.NightWorkExamDokumentId, e.NightWorkExamValidUntil,
-                                   e.NightWorkExamIssued, e.DateOfBirth,
+                                   e.NightWorkExamIssued, e.NightWorkExamEasyMismatch, e.DateOfBirth,
                                    e.NightWorkAusnahmeDokumentId, e.ExitDate, e.KuendigungPer })
                 .ToListAsync();
             // MA mit Austritt ODER Kündigung per (innerhalb 30 Tage / bereits
@@ -1214,28 +1214,24 @@ public class DashboardService
                     }
                 }
 
-                // Enddatum-Kontrolle (Walter-Vorgabe 05.07.2026): das aus easy@work
-                // übernommene Ende muss der Regel (Beginn + 1/2 Jahre − 1 Tag) entsprechen.
-                // Weicht es ab — oder fehlt bei vorhandenem Beginn — muss es in easy@work
-                // korrigiert werden. Kritische ToDo, bis die Eingabe in easy stimmt.
-                if (emp.NightWorkExamIssued.HasValue)
+                // Enddatum-Kontrolle (Walter 26.07.2026): OneCrew speichert das
+                // gerechnete Soll-Ende; Flag kommt vom Sync wenn easy-«to» abweicht.
+                if (emp.NightWorkExamIssued.HasValue && emp.NightWorkExamEasyMismatch
+                    && Enabled("night_work_exam_mismatch"))
                 {
                     var nwIssued = DateOnly.FromDateTime(emp.NightWorkExamIssued.Value);
                     var nwDob = emp.DateOfBirth.HasValue ? DateOnly.FromDateTime(emp.DateOfBirth.Value) : (DateOnly?)null;
                     var nwSoll = Employee.NightWorkValidUntil(nwIssued, nwDob);
-                    bool endeStimmt = emp.NightWorkExamValidUntil.HasValue
-                                      && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) == nwSoll;
-                    if (!endeStimmt && Enabled("night_work_exam_mismatch"))
-                        alerts.Add(new DashboardAlert
-                        {
-                            Category = "night_work_exam_mismatch",
-                            Severity = SeverityState("night_work_exam_mismatch", "critical"),
-                            Title    = "Nachtarbeit-Enddatum in easy@work falsch",
-                            Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · Beginn {nwIssued:dd.MM.yyyy} → Soll-Ende {nwSoll:dd.MM.yyyy}. Bitte in easy@work korrigieren.",
-                            EmployeeId     = emp.Id,
-                            EmployeeNumber = emp.EmployeeNumber,
-                            EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
-                        });
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "night_work_exam_mismatch",
+                        Severity = SeverityState("night_work_exam_mismatch", "critical"),
+                        Title    = "Nachtarbeit-Enddatum in easy@work falsch",
+                        Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · Beginn {nwIssued:dd.MM.yyyy} → Soll-Ende {nwSoll:dd.MM.yyyy}. Bitte in easy@work korrigieren.",
+                        EmployeeId     = emp.Id,
+                        EmployeeNumber = emp.EmployeeNumber,
+                        EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                    });
                 }
 
                 // Nachtarbeit ist obligatorisch — KEIN Verzicht mehr (Walter-Vorgabe
