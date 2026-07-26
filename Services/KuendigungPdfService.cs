@@ -59,10 +59,11 @@ public class KuendigungPdfService
     /// Kündigungsbestätigung (Walter 26.07.2026) — wenn der MA kündigt,
     /// bestätigt der AG den Erhalt und das Vertragsende. Vorlage:
     /// «Kündigungsbestätigung» (Du-Form, inkl. Austritts-Fragebogen-QR).
+    /// Seite 2 = Referenzangaben-Formular (ausgefüllt wo möglich).
     /// </summary>
     public record BestaetigungData(
         string? FirmaName, string? RestaurantName, string? FirmaStrasse, string? FirmaPlzOrt,
-        string? MaName, string  MaVorname, string? MaStrasse, string? MaPlzOrt,
+        string? MaName, string  MaVorname, string MaNachname, string? MaStrasse, string? MaPlzOrt,
         string  DuAnrede,                 // «Liebe Tiyara» / «Lieber Max»
         string  Ort, DateOnly Datum,      // Briefdatum
         DateOnly KuendigungsDatumMa,      // Kündigungsdatum des Mitarbeitenden
@@ -177,7 +178,94 @@ public class KuendigungPdfService
                         col.Item().Text(d.UnterzeichnerFunktion!).FontSize(9.5f).FontColor("#475569");
                 });
             });
+
+            // Seite 2: Referenzangaben — Haus-Layout, vorausgefüllte Stammdaten
+            // (Walter 26.07.2026). Ankreuzen + Unterschrift macht der MA.
+            doc.Page(page => ComposeReferenzangabenPage(page, d));
         }).GeneratePdf();
+    }
+
+    /// <summary>
+    /// Seite 2 der Kündigungsbestätigung: Formular «Referenzangaben»
+    /// im gelben Briefkopf-Stil. Name/Vorname des MA sowie Vertreter
+    /// (Unterzeichner + Funktion) sind vorausgefüllt; Checkboxen und
+    /// MA-Unterschrift bleiben leer.
+    /// </summary>
+    private static void ComposeReferenzangabenPage(PageDescriptor page, BestaetigungData d)
+    {
+        page.Size(PageSizes.A4);
+        page.MarginTop(0.85f, Unit.Centimetre);
+        page.MarginBottom(1.2f, Unit.Centimetre);
+        page.MarginHorizontal(2.0f, Unit.Centimetre);
+        page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).FontColor(Dark).LineHeight(1.35f));
+
+        page.Header().PaddingTop(8).Image(BannerBytes).FitWidth();
+
+        page.Content().PaddingTop(22).Column(col =>
+        {
+            col.Item().Text("Referenzangaben").Bold().FontSize(14f);
+
+            col.Item().PaddingTop(22).Text("Der/die Unterzeichnende").FontSize(11f);
+
+            col.Item().PaddingTop(16).Element(e => FormField(e, "Name", d.MaNachname));
+            col.Item().PaddingTop(10).Element(e => FormField(e, "Vorname", d.MaVorname));
+
+            // Option A: Referenzen erlaubt
+            col.Item().PaddingTop(28).Row(r =>
+            {
+                r.ConstantItem(22).Element(CheckBox);
+                r.RelativeItem().Column(c =>
+                {
+                    c.Item().Text("erlaubt McDonald's Schweiz, vertreten durch");
+                    c.Item().PaddingTop(12).Element(e =>
+                        FormField(e, "Name, Vorname", (d.UnterzeichnerName ?? "").Trim()));
+                    c.Item().PaddingTop(10).Element(e =>
+                        FormField(e, "Funktion", (d.UnterzeichnerFunktion ?? "").Trim()));
+                    c.Item().PaddingTop(12).Text("Referenzen über ihn/sie zu geben.");
+                });
+            });
+
+            // Option B: Referenzen nicht erlaubt
+            col.Item().PaddingTop(22).Row(r =>
+            {
+                r.ConstantItem(22).Element(CheckBox);
+                r.RelativeItem().Text("erlaubt nicht, dass McDonald's Schweiz Referenzen über ihn/sie gibt.");
+            });
+
+            // Ort/Datum + Unterschrift — leer für den MA
+            col.Item().PaddingTop(48).Row(r =>
+            {
+                r.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(0.8f).BorderColor(Dark).Height(22);
+                    c.Item().PaddingTop(4).Text("Ort, Datum").FontSize(8.5f).FontColor("#475569");
+                });
+                r.ConstantItem(36);
+                r.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(0.8f).BorderColor(Dark).Height(22);
+                    c.Item().PaddingTop(4).Text("Unterschrift").FontSize(8.5f).FontColor("#475569");
+                });
+            });
+        });
+    }
+
+    private static void CheckBox(IContainer e) =>
+        e.PaddingTop(1).Width(13).Height(13).Border(1.1f).BorderColor(Dark);
+
+    private static void FormField(IContainer e, string label, string value)
+    {
+        e.Row(r =>
+        {
+            r.ConstantItem(110).AlignMiddle()
+                .Text(label + " :").FontSize(10.5f).FontColor("#475569");
+            r.RelativeItem().AlignMiddle().Column(c =>
+            {
+                c.Item().MinHeight(16).Text(string.IsNullOrWhiteSpace(value) ? " " : value)
+                    .FontSize(10.5f).FontColor(Dark);
+                c.Item().BorderBottom(0.7f).BorderColor("#94a3b8");
+            });
+        });
     }
 
     public byte[] GenerateRueckzug(RueckzugData d, byte[]? signaturePng)
