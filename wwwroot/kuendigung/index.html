@@ -48,11 +48,12 @@
     .opt:has(input:checked) { border-color:#3f3f3f; background:#fff; }
     .opt input { width:18px; height:18px; margin-top:1px; flex-shrink:0; accent-color:#1a1a1a; }
     .opt.disabled { opacity:.45; pointer-events:none; }
-    textarea, input[type=text] {
+    textarea, input[type=text], select {
         width:100%; font:inherit; font-size:15px;
         border:1px solid #d8d2c8; border-radius:14px; padding:12px 14px; background:#fff; color:#1a1a1a;
     }
     textarea { min-height:90px; resize:vertical; }
+    .filiale-note { font-size:12.5px; color:#64748b; margin:0 0 14px; }
     .stars { display:flex; gap:8px; flex-wrap:wrap; }
     .star {
         appearance:none; border:1px solid #d8d2c8; background:#fff; color:#1a1a1a;
@@ -88,8 +89,13 @@
     <div class="card" id="card">
         <div class="greet">Schade, dass du uns verlässt!</div>
         <div class="sub">Um uns zu helfen, die Gründe für deine Kündigung besser zu verstehen, wären wir dir dankbar, wenn du den folgenden Fragebogen ausfüllen würdest. Deine Antworten sind anonym und der Fragebogen ist völlig freiwillig.</div>
+        <div class="filiale-note" id="filialeNote"></div>
 
         <form id="f" onsubmit="return submitForm(event)">
+            <div id="filialePick" style="display:none">
+                <div class="q">In welchem Restaurant hast du gearbeitet?</div>
+                <select id="filialeSelect"><option value="">— bitte wählen —</option></select>
+            </div>
             <div class="q">Aus welchem/n Hauptgrund/en hast du dich entschieden, McDonald’s zu verlassen?</div>
             <div class="hint">Wähle maximal 3 Antworten.</div>
             <div id="reasons"></div>
@@ -132,6 +138,9 @@ const REASONS = [
 ];
 
 let rating = null;
+const qs = new URLSearchParams(location.search);
+let filialeCode = (qs.get('f') || '').trim();
+
 const box = document.getElementById('reasons');
 box.innerHTML = REASONS.map(r =>
     `<label class="opt"><input type="checkbox" name="reason" value="${r.code}" onchange="onReasonChange()"> <span>${r.label}</span></label>`
@@ -141,6 +150,34 @@ const stars = document.getElementById('stars');
 stars.innerHTML = [1,2,3,4,5,6].map(n =>
     `<button type="button" class="star" data-n="${n}" onclick="setRating(${n})">${n}</button>`
 ).join('');
+
+(async function initFiliale() {
+    const note = document.getElementById('filialeNote');
+    const pick = document.getElementById('filialePick');
+    const sel = document.getElementById('filialeSelect');
+    try {
+        const r = await fetch('/api/exit-survey/branches');
+        const list = r.ok ? await r.json() : [];
+        if (filialeCode) {
+            const hit = (list || []).find(b => String(b.code) === filialeCode);
+            note.textContent = hit
+                ? 'Dein Feedback wird anonym dem Restaurant «' + hit.label.trim() + '» zugeordnet.'
+                : 'Dein Feedback wird anonym deinem Restaurant zugeordnet.';
+            return;
+        }
+        // Ohne QR: Filiale manuell wählbar (weiterhin ohne Name des MA)
+        pick.style.display = 'block';
+        note.textContent = 'Deine Antwort bleibt anonym — wir speichern nur das Restaurant, nicht deinen Namen.';
+        for (const b of (list || [])) {
+            const o = document.createElement('option');
+            o.value = b.code;
+            o.textContent = b.label.trim();
+            sel.appendChild(o);
+        }
+    } catch (_) {
+        if (!filialeCode) pick.style.display = 'block';
+    }
+})();
 
 function selectedReasons() {
     return [...document.querySelectorAll('input[name="reason"]:checked')].map(x => x.value);
@@ -167,12 +204,14 @@ async function submitForm(ev) {
     const err = document.getElementById('err');
     err.textContent = '';
     const reasons = selectedReasons();
+    const codeFromSelect = document.getElementById('filialeSelect')?.value || '';
     const dto = {
         reasons,
         reasonOther: document.getElementById('reasonOther').value || null,
         atmosphereDetail: document.getElementById('atmosphere').value || null,
         rating,
         comment: document.getElementById('comment').value || null,
+        filialeCode: filialeCode || codeFromSelect || null,
         website: document.getElementById('website').value || null,
     };
     if (!reasons.length && !dto.comment && rating == null && !dto.reasonOther) {

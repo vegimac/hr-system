@@ -312,7 +312,7 @@ public class KuendigungController : ControllerBase
         var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
         var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
         var (_, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
-        var exitSurveyUrl = await ResolveExitSurveyUrlAsync();
+        var exitSurveyUrl = await ResolveExitSurveyUrlAsync(cp);
 
         var data = new KuendigungPdfService.BestaetigungData(
             FirmaName:       cp?.CompanyName,
@@ -526,15 +526,21 @@ public class KuendigungController : ControllerBase
     /// <summary>
     /// Öffentliche URL des eigenen Austritts-Fragebogens (Walter 26.07.2026) —
     /// aus smtp_setting.site_url, Fallback onecrew.ch/kuendigung/.
+    /// Mit Filial-Code im Query (?f=075), damit die Antwort anonym der Filiale
+    /// zugeordnet werden kann — ohne den MA zu identifizieren.
     /// </summary>
-    private async Task<string> ResolveExitSurveyUrlAsync()
+    private async Task<string> ResolveExitSurveyUrlAsync(CompanyProfile? cp)
     {
         var siteRow = await _db.SmtpSettings.AsNoTracking().FirstOrDefaultAsync();
         var baseUrl = (siteRow != null && !string.IsNullOrWhiteSpace(siteRow.SiteUrl))
             ? siteRow.SiteUrl.Trim()
             : "https://onecrew.ch/";
         if (!baseUrl.EndsWith('/')) baseUrl += "/";
-        return baseUrl + "kuendigung/";
+        var url = baseUrl + "kuendigung/";
+        var code = (cp?.RestaurantCode ?? "").Trim();
+        if (code.Length > 0)
+            url += "?f=" + Uri.EscapeDataString(code);
+        return url;
     }
 
     /// <summary>

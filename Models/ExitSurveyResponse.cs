@@ -11,6 +11,12 @@ public class ExitSurveyResponse
     /// <summary>ISO-Zeitstempel der Abgabe (lokal).</summary>
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
+    /// <summary>
+    /// Filiale der Kündigung (Walter 26.07.2026) — anonym, kein MA-Bezug.
+    /// Kommt aus dem QR-Parameter der Kündigungsbestätigung (?f=RestaurantCode).
+    /// </summary>
+    public int? CompanyProfileId { get; set; }
+
     /// <summary>Gewählte Hauptgründe (Codes), max. 3, als JSON-Array.</summary>
     public string ReasonsJson { get; set; } = "[]";
 
