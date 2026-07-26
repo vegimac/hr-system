@@ -348,7 +348,7 @@ public class DashboardService
                 {
                     Category = "probezeit_gespraech_offen",
                     Severity = Severity("probezeit_gespraech_offen", days, "warning", "critical"),
-                    Title    = $"Probezeitgespräch offen · Probezeit bis {endeTxt}",
+                    Title    = $"Probezeitgespräch offen · {endeTxt}",
                     TitleKey = "alert.probation.gespraech_offen",
                     TitleArgs = new Dictionary<string, object> { ["ende"] = endeTxt },
                     Subtitle = $"{name} · fehlt: {fehltTxt}",
