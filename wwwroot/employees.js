@@ -1540,6 +1540,7 @@ const _AUSTRITTSGRUND = [
     ['VERFUEGBARKEIT', 'Verfügbarkeit'],
     ['VERHALTEN', 'Verhalten'],
     ['BEFRISTUNG', 'Befristung'],
+    ['PERS_GRUENDE', 'pers. Gründe'],
     ['DIVERS', 'Divers'],
 ];
 function _austrittsgrundOptionsHtml(selected) {
