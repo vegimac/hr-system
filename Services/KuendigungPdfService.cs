@@ -334,9 +334,12 @@ public class KuendigungPdfService
 
             // Unterlinien (top vom oberen Rand): Name 687.8 · Vorname 715.8 ·
             // Datum 743.8 · Unterschrift 771.8 · Betrieb 799.8.
-            // Werte rechts vom Label, knapp UEBER der Linie (Walter 26.07.2026:
-            // etwas weiter nach oben). Unterschrift bleibt leer.
-            void Text(string? t, float lineTop, float x, float size = 10.5f)
+            // Werte in EINER linken Spalte (gleiche X), knapp UEBER der Linie.
+            // Vorher versetzt (95/105/100) → wirkte schief (Walter 26.07.2026).
+            // valueX nach dem breitesten Kurz-Label «Vorname» (endet ~88).
+            // Unterschrift bleibt leer. Schrift 10pt = Label-Grösse der Vorlage.
+            const float valueX = 110f;
+            void Text(string? t, float lineTop, float x, float size = 10f)
             {
                 if (string.IsNullOrWhiteSpace(t)) return;
                 canvas.BeginText()
@@ -347,15 +350,15 @@ public class KuendigungPdfService
                       .EndText();
             }
 
-            Text(d.MaNachname, 687.8f, 95f);
-            Text(d.MaVorname, 715.8f, 105f);
-            Text(d.Datum.ToString("dd.MM.yyyy"), 743.8f, 100f);
+            Text(d.MaNachname, 687.8f, valueX);
+            Text(d.MaVorname, 715.8f, valueX);
+            Text(d.Datum.ToString("dd.MM.yyyy"), 743.8f, valueX);
             // Volle Betriebsangabe: Firma · Filiale · Strasse · PLZ Ort
+            // (x weiter rechts — langes Label «Name des versicherten Betriebes»).
             var betrieb = string.Join(", ", new[]
             {
                 d.FirmaName, d.RestaurantName, d.FirmaStrasse, d.FirmaPlzOrt
             }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()));
-            // Etwas kleiner, damit Firma + Filiale + Adresse auf die Zeile passen.
             Text(betrieb, 799.8f, 195f, 8.5f);
         }
         return ms.ToArray();
