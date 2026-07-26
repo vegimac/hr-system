@@ -310,6 +310,40 @@ code, .mono {
     display: block;
 }
 
+.frist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    margin: 0;
+}
+.frist-table th {
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 10px 8px 0;
+    border-bottom: 1px solid var(--line);
+}
+.frist-table td {
+    padding: 9px 10px 9px 0;
+    vertical-align: top;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--line-soft);
+}
+.frist-table tr:last-child td { border-bottom: none; }
+.frist-table .phase {
+    white-space: nowrap;
+    font-weight: 700;
+    color: var(--ink);
+    width: 28%;
+}
+.frist-table .ban {
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
 .footer-note {
     margin-top: 36px;
     padding-top: 18px;
@@ -698,6 +732,25 @@ code, .mono {
         </p>
 
         <div class="card">
+            <h3>Warum wir diesen Prozess machen</h3>
+            <p>
+                Der Ablauf ist kein Papierkram — er ist unser <strong>Schutzkonzept Mutterschutz</strong>.
+                Ziel ist, gesundheitliche Belastungen für Mutter und Kind zu vermeiden und dem
+                behandelnden Arzt <strong>klare, betriebliche Anweisungen</strong> zu geben.
+            </p>
+            <ul class="clean">
+                <li>Risiken am Arbeitsplatz früh erkennen (gerade in den ersten Monaten ist das ungeborene Kind besonders empfindlich).</li>
+                <li>Mit der Risikobeurteilung zeigen wir dem Arzt, was im Restaurant konkret anfällt — und welche Schutzmassnahmen wir umsetzen.</li>
+                <li>Der Arzt kann so eine saubere Eignungsbeurteilung machen: vorbehaltlos, mit Auflagen oder Beschäftigungsverbot.</li>
+                <li>Greifen Schutzmassnahmen nicht, darf die MA in diesem Bereich <strong>nicht weiterarbeiten</strong> — Krankheit und Gefährdung sollen verhindert werden.</li>
+            </ul>
+            <div class="tip">
+                <strong>Merksatz:</strong> Melden → beurteilen → Arzt informieren → Massnahmen umsetzen.
+                So schützen wir die Mitarbeiterin und halten uns an Gesetz und unser Schutzkonzept.
+            </div>
+        </div>
+
+        <div class="card">
             <h3>Schritt melden</h3>
             <ol class="steps">
                 <li>Arztbestätigung im Posteingang scannen oder unter Dokumente ablegen
@@ -713,14 +766,104 @@ code, .mono {
             <ul class="clean">
                 <li>Gesprächs-Checkliste</li>
                 <li>Mutterschaftsvereinbarung</li>
-                <li>Risikobeurteilung</li>
+                <li>Risikobeurteilung <span style="color:var(--muted)">(Basis für den Arztbrief)</span></li>
                 <li>Eignungsbeurteilung</li>
                 <li>Brief an den behandelnden Arzt</li>
                 <li>Geburt eintragen → danach Mutterschaftsbestätigung</li>
             </ul>
             <div class="tip">
                 <strong>Wichtig:</strong> Formulare und PDFs entstehen aus dem Fahrplan heraus.
-                Du musst den Prozess nicht auswendig wissen — dem Menü folgen genügt.
+                Zusätzlich: <strong>Fristen-Liste drucken (PDF)</strong> — zeigt für diese MA live,
+                was ab wann gilt. Du musst die Fristen nicht auswendig wissen.
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Was eine Schwangere darf — und was nicht</h3>
+            <p style="margin-bottom:12px">
+                Kurzüberblick aus unserem Mutterschutz-Regelwerk (ArG / ArGV&nbsp;1 / OR).
+                Die komplette, persönliche Liste steht in OneCrew unter
+                <strong>Fristen-Liste drucken</strong>.
+            </p>
+            <table class="frist-table">
+                <thead>
+                    <tr>
+                        <th>Phase</th>
+                        <th>Darf / darf nicht</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="phase">Ab Meldung</td>
+                        <td>
+                            Risiko-Assessment am Arbeitsplatz ·
+                            <span class="ban">kein Heben &gt; 5&nbsp;kg</span> ·
+                            <span class="ban">max. 9&nbsp;h/Tag</span> ·
+                            Beschäftigung nur mit Einverständnis ·
+                            Recht fernzubleiben ·
+                            <span class="ban">kein Einsatz in Raucherbetrieb/Fumoir</span> ·
+                            auf Verlangen keine Nachtarbeit 20–06
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="phase">Ab ca. 4. Monat</td>
+                        <td>
+                            Bei stehender Tätigkeit: Ruhezeit 12&nbsp;h ·
+                            Kurzpause 10&nbsp;Min alle 2&nbsp;h ·
+                            <span class="ban">stehend max. 4&nbsp;h/Tag</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="phase">Ab ca. 6. Monat</td>
+                        <td>
+                            Stehend weiterhin max. 4&nbsp;h/Tag —
+                            Restzeit gleichwertige <strong>sitzende</strong> Tätigkeit anbieten
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="phase">Ab ca. 8. Monat</td>
+                        <td><span class="ban">Keine Überstunden</span></td>
+                    </tr>
+                    <tr>
+                        <td class="phase">Letzte 8 Wochen vor ET</td>
+                        <td>
+                            <span class="ban">Verpflichtendes Nachtverbot 20–06</span> ·
+                            AG muss Tagesarbeit anbieten ·
+                            sonst Lohnersatz 80&nbsp;%
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="phase">Geburt bis +8 Wochen</td>
+                        <td>
+                            <span class="ban">Absolutes Arbeitsverbot</span> —
+                            auch wenn die MA arbeiten möchte
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="phase">Woche 9–16 nach Geburt</td>
+                        <td>
+                            MA <strong>darf</strong> freiwillig arbeiten —
+                            AG <strong>darf es nicht verlangen</strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="phase">Ab Woche 17</td>
+                        <td>Wiederaufnahme im gewohnten Umfang (Pensum-Änderung nur schriftlich)</td>
+                    </tr>
+                    <tr>
+                        <td class="phase">Durchgehend</td>
+                        <td>
+                            <strong>Kündigungsschutz</strong> von Beginn der Schwangerschaft
+                            bis 16 Wochen nach Geburt ·
+                            bezahlte Stillzeit im 1. Lebensjahr
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="tip">
+                <strong>Hinweis:</strong> Die Liste ersetzt keine ärztliche Beurteilung.
+                Im Einzelfall entscheiden Arzt und Mitarbeiterin — unser Prozess liefert dem Arzt
+                die nötigen betrieblichen Informationen aus dem Schutzkonzept.
             </div>
         </div>
     </section>
@@ -745,7 +888,7 @@ code, .mono {
                 <div class="check"><i></i><span>Neue MA zuerst in easy@work, dann in OneCrew importieren</span></div>
                 <div class="check"><i></i><span>Stempelzeiten nur in easy@work korrigieren</span></div>
                 <div class="check"><i></i><span>Verträge über Anschauen / PDF drucken</span></div>
-                <div class="check"><i></i><span>Schwangerschaft unter Familie / Schwanger erfassen und dem Fahrplan folgen</span></div>
+                <div class="check"><i></i><span>Schwangerschaft: Schutzkonzept befolgen — melden, Risiko, Arztbrief, Fristen-Liste</span></div>
             </div>
         </div>
 
