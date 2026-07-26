@@ -88,43 +88,47 @@ public class KuendigungPdfService
             ? DefaultExitSurveyUrl
             : d.ExitSurveyUrl!.Trim();
 
+        // Etwas dichterer QR (weniger Quiet-Zone-Pixel) — besser auf 1 Seite.
         byte[] qrPng;
         using (var qrGen = new QRCodeGenerator())
-        using (var qrData = qrGen.CreateQrCode(surveyUrl, QRCodeGenerator.ECCLevel.Q))
-            qrPng = new PngByteQRCode(qrData).GetGraphic(5);
+        using (var qrData = qrGen.CreateQrCode(surveyUrl, QRCodeGenerator.ECCLevel.M))
+            qrPng = new PngByteQRCode(qrData).GetGraphic(4);
 
         return Document.Create(doc =>
         {
             doc.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginTop(1.0f, Unit.Centimetre);
-                page.MarginBottom(1.3f, Unit.Centimetre);
-                page.MarginHorizontal(2.2f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).FontColor(Dark).LineHeight(1.35f));
+                // Kompakter Brief: Bestätigung + QR müssen auf EINER Seite bleiben
+                // (Walter 26.07.2026).
+                page.MarginTop(0.85f, Unit.Centimetre);
+                page.MarginBottom(1.0f, Unit.Centimetre);
+                page.MarginHorizontal(2.0f, Unit.Centimetre);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10f).FontColor(Dark).LineHeight(1.28f));
 
-                page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
+                page.Header().PaddingTop(8).Image(BannerBytes).FitWidth();
 
-                page.Content().PaddingTop(14).Column(col =>
+                page.Content().PaddingTop(10).Column(col =>
                 {
                     foreach (var ln in firmaLines)
-                        col.Item().Text(ln).FontSize(8.5f).FontColor("#475569");
+                        col.Item().Text(ln).FontSize(8f).FontColor("#475569");
 
-                    col.Item().Height(40);
+                    // C5-Fensterzone beibehalten, aber knapper als zuvor.
+                    col.Item().Height(34);
                     if (d.Eingeschrieben)
-                        col.Item().Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f).FontSize(9.5f);
-                    col.Item().PaddingTop(d.Eingeschrieben ? 3 : 16).Column(c =>
+                        col.Item().Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f).FontSize(9f);
+                    col.Item().PaddingTop(d.Eingeschrieben ? 2 : 12).Column(c =>
                     {
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
 
-                    col.Item().PaddingTop(30).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+                    col.Item().PaddingTop(18).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
 
-                    col.Item().PaddingTop(28).Text("Kündigungsbestätigung").Bold().FontSize(12.5f);
+                    col.Item().PaddingTop(16).Text("Kündigungsbestätigung").Bold().FontSize(12f);
 
-                    col.Item().PaddingTop(22).Text($"{d.DuAnrede},");
+                    col.Item().PaddingTop(12).Text($"{d.DuAnrede},");
 
-                    col.Item().PaddingTop(14).Text(t =>
+                    col.Item().PaddingTop(8).Text(t =>
                     {
                         t.Span("Hiermit bestätigen wir den Erhalt deiner Kündigung vom ");
                         t.Span($"{d.KuendigungsDatumMa:dd.MM.yyyy}").Bold();
@@ -133,42 +137,44 @@ public class KuendigungPdfService
                         t.Span(".");
                     });
 
-                    col.Item().PaddingTop(12).Text(
+                    col.Item().PaddingTop(7).Text(
                         "Alle Gegenstände, die in deinem Besitz sind und dem Unternehmen gehören, müssen vor deinem Austreten deinem Vorgesetzten überreicht werden. Wir erinnern dich ebenfalls daran, dass du an die Geheimhaltungspflicht gebunden bist.");
 
-                    col.Item().PaddingTop(12).Text(t =>
-                    {
-                        t.Span("Im Anhang senden wir dir von der Swica das Informationsblatt «Taggeldversicherung und Unfallversicherung». Wenn du dieses Formular nicht zurücksendest, gehen wir davon aus, dass du von uns in Kenntnis gesetzt wurdest und wir von jeglicher Verantwortlichkeit entlassen sind.");
-                    });
+                    col.Item().PaddingTop(7).Text(
+                        "Im Anhang senden wir dir von der Swica das Informationsblatt «Taggeldversicherung und Unfallversicherung». Wenn du dieses Formular nicht zurücksendest, gehen wir davon aus, dass du von uns in Kenntnis gesetzt wurdest und wir von jeglicher Verantwortlichkeit entlassen sind.");
 
-                    col.Item().PaddingTop(12).Text(t =>
-                    {
-                        t.Span("Um dein BVG-Guthaben (2. Säule) an die Kasse deines neuen Arbeitgebers oder auf ein Freizügigkeitskonto zu überweisen, fülle bitte das beiliegende Formular «Überweisung Pensionskassenguthaben» aus und sende es direkt an GastroSocial.");
-                    });
+                    col.Item().PaddingTop(7).Text(
+                        "Um dein BVG-Guthaben (2. Säule) an die Kasse deines neuen Arbeitgebers oder auf ein Freizügigkeitskonto zu überweisen, fülle bitte das beiliegende Formular «Überweisung Pensionskassenguthaben» aus und sende es direkt an GastroSocial.");
 
-                    col.Item().PaddingTop(12).Text(
+                    col.Item().PaddingTop(7).Text(
                         "Dein Arbeitszeugnis erhältst du so bald wie möglich.");
 
-                    col.Item().PaddingTop(12).Text(
-                        "Damit wir uns als Arbeitgeber weiterhin verbessern können, sind wir auf deine Hilfe angewiesen. Um deine Gründe für die Kündigung besser zu verstehen, wären wir dir sehr dankbar, wenn du den kurzen Fragebogen mit folgendem QR-Code ausfüllen würdest. Deine Antworten bleiben anonym.");
+                    // Fragebogen-Text + QR nebeneinander → spart Höhe, bleibt 1 Seite.
+                    col.Item().PaddingTop(9).Row(r =>
+                    {
+                        r.RelativeItem().PaddingRight(12).AlignMiddle().Text(
+                            "Damit wir uns als Arbeitgeber weiterhin verbessern können, sind wir auf deine Hilfe angewiesen. Um deine Gründe für die Kündigung besser zu verstehen, wären wir dir sehr dankbar, wenn du den kurzen Fragebogen mit dem QR-Code ausfüllen würdest. Deine Antworten bleiben anonym. Scanne den Code mit deinem Smartphone.");
+                        r.ConstantItem(68).Column(c =>
+                        {
+                            c.Item().Width(64).Height(64).Image(qrPng).FitArea();
+                            c.Item().PaddingTop(2).AlignCenter()
+                                .Text("Fragebogen")
+                                .FontSize(7.5f).FontColor("#475569");
+                        });
+                    });
 
-                    col.Item().PaddingTop(10).AlignCenter().Width(78).Height(78).Image(qrPng).FitArea();
-                    col.Item().PaddingTop(4).AlignCenter()
-                        .Text("Scanne den QR-Code mit deinem Smartphone")
-                        .FontSize(9f).FontColor("#475569");
-
-                    col.Item().PaddingTop(14).Text(
+                    col.Item().PaddingTop(8).Text(
                         "Wir wünschen dir einen guten Abschluss bei McDonald's und viel Erfolg und Zufriedenheit in deiner Zukunft. Wir danken dir herzlich für deinen Einsatz in unserem McDonald's.");
 
-                    col.Item().PaddingTop(28).Text("Freundliche Grüsse");
+                    col.Item().PaddingTop(14).Text("Freundliche Grüsse");
                     if (!string.IsNullOrWhiteSpace(d.FirmaName))
-                        col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
+                        col.Item().PaddingTop(1).Text(d.FirmaName!).Bold();
                     if (!string.IsNullOrWhiteSpace(d.RestaurantName))
                         col.Item().Text(d.RestaurantName!);
-                    col.Item().PaddingTop(6).Height(48);
+                    col.Item().PaddingTop(4).Height(36);
                     col.Item().Text(d.UnterzeichnerName ?? "");
                     if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
-                        col.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
+                        col.Item().Text(d.UnterzeichnerFunktion!).FontSize(9.5f).FontColor("#475569");
                 });
             });
         }).GeneratePdf();
