@@ -917,11 +917,10 @@ public class EasyAtWorkEmployeeSyncService
                 catch { /* Positionen nicht abrufbar → keine Mehrdeutigkeits-Prüfung */ }
             }
             // Nachtarbeit-Arztzeugnis (Walter-Vorgabe 05.07.2026): BEIDE Daten (Beginn
-            // + Ende) werden 1:1 aus easy@work übernommen. Das Soll-Ende rechnen WIR aus
-            // dem Beginn (Alter ≥ 45 → +1 Jahr − 1 Tag, sonst +2 Jahre − 1 Tag). Weicht
-            // das easy@work-Ende von unserem Soll ab, kommt eine Import-Meldung + eine
-            // ToDo (siehe DashboardService), damit die GF das Ende in easy@work
-            // korrigieren — denn die GF prüfen die Gültigkeit BEIDES in Cowork UND easy.
+            // + Ende) aus easy@work. «to» ist im Custom-Field oft exklusives Mitternacht
+            // → EawProperty.To = inklusiver letzter Tag (ParseSwissInclusiveEndDate).
+            // Soll-Ende: Beginn + 1/2 Jahre − 1 Tag. Weicht easy@work-Ende vom Soll ab
+            // → Import-Meldung + ToDo (DashboardService), Korrektur in easy@work.
             if (propsInfo.NightWorkFrom.HasValue)
             {
                 var von = propsInfo.NightWorkFrom.Value;
