@@ -1,18 +1,17 @@
 // ══════════════════════════════════════════════════════════════════════
 // date-year-quickpick.js — Jahr-Schnellauswahl für native Datumsfelder
 // ──────────────────────────────────────────────────────────────────────
-// Walter-Vorgabe 21.06.2026 / verschärft 26.07.2026: Der native Browser-
-// Kalender lässt sich nicht umgestalten — Scrollen aufs Vorjahr ist mühsam.
+// Walter-Vorgabe 21.06.2026 / präzisiert 26.07.2026:
+// Der native Browser-Kalender lässt sich nicht umgestalten (Jahre-Liste
+// 2027/2028… steuert der Browser). Deshalb:
 //
-// 1) Kleine Jahr-Knöpfe DIREKT unter jedem <input type="date">
-//    (Vorjahr zuerst, dann aktuelles Jahr). Klick setzt das Jahr, Monat/Tag
-//    bleiben.
-// 2) Leere Felder: beim Fokus auf Vorjahr (gleicher Monat/Tag) setzen, damit
-//    der native Kalender dort öffnet — genau der häufige Fall.
+// 1) Leeres Feld → beim Fokus HEUTE vorschlagen (aktuelles Datum).
+// 2) Jahr-Knöpfe UNTER dem Feld: Vorjahr · aktuelles Jahr · nächstes Jahr
+//    (z.B. 2025 · 2026 · 2027) — Vorjahr oben/links zum schnellen Wechsel.
 //
-//   window.YearPick.attach(inputEl[, { years:[2025,2026] }])
+//   window.YearPick.attach(inputEl[, { years:[2025,2026,2027] }])
 //   window.YearPick.attachById('eawSyncFrom')
-//   window.YearPick.scan()          — alle Felder im Dokument
+//   window.YearPick.scan()
 //
 // Opt-out: data-yp="off" am Input. Mehrfach-Attach ist sicher.
 // ══════════════════════════════════════════════════════════════════════
@@ -22,11 +21,6 @@
     function todayIsoLocal() {
         const t = new Date();
         return `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
-    }
-
-    function prevYearIsoLocal() {
-        const t = new Date();
-        return `${t.getFullYear() - 1}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
     }
 
     function setYear(input, year) {
@@ -46,8 +40,13 @@
         input._ypAttached = true;
         opts = opts || {};
         const curY  = new Date().getFullYear();
-        // Vorjahr zuerst — das ist der häufige Fall (Walter 26.07.2026).
-        const years = opts.years || [curY - 1, curY];
+        // Vorjahr · aktuell · nächstes — Vorjahr zuerst zum Anklicken (Walter 26.07.2026).
+        const years = opts.years || [curY - 1, curY, curY + 1];
+        const titles = {
+            [curY - 1]: 'Vorjahr',
+            [curY]: 'Aktuelles Jahr',
+            [curY + 1]: 'Nächstes Jahr',
+        };
 
         const row = document.createElement('div');
         row.className = 'yp-row';
@@ -60,7 +59,7 @@
                 const b = document.createElement('button');
                 b.type = 'button';
                 b.textContent = y;
-                b.title = idx === 0 ? 'Vorjahr' : 'Aktuelles Jahr';
+                b.title = titles[y] || String(y);
                 const active = String(y) === sel;
                 b.className = 'yp-btn' + (active ? ' yp-btn-active' : '') + (idx === 0 ? ' yp-btn-prev' : '');
                 b.addEventListener('click', (ev) => {
@@ -78,14 +77,12 @@
         input.addEventListener('change', render);
         input.addEventListener('input', render);
 
-        // Leeres Feld → Kalender im Vorjahr öffnen (Walter 26.07.2026).
-        // Felder mit bewusstem Heute-Default (Absenz, Auszahlung …) haben
-        // beim Fokus bereits einen Wert und werden nicht angefasst.
+        // Leeres Feld → heutiges Datum vorschlagen (Walter 26.07.2026).
+        // Felder mit bewusstem Default haben beim Fokus bereits einen Wert.
         input.addEventListener('focus', () => {
             if (input.value) return;
             if (input.readOnly || input.disabled) return;
-            input.value = prevYearIsoLocal();
-            delete input.dataset.ypSeeded;
+            input.value = todayIsoLocal();
             input.dispatchEvent(new Event('input', { bubbles: true }));
             render();
         });
