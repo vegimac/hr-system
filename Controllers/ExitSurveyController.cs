@@ -195,31 +195,52 @@ public class ExitSurveyController : ControllerBase
 
     [Authorize(Roles = "admin,superuser")]
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] int take = 100)
+    public async Task<IActionResult> List(
+        [FromQuery] int take = 500,
+        [FromQuery] DateOnly? from = null,
+        [FromQuery] DateOnly? to = null)
     {
-        take = Math.Clamp(take, 1, 500);
-        var raw = await (
+        take = Math.Clamp(take, 1, 2000);
+
+        // Zeitraum inklusiv (Walter 26.07.2026): von 00:00 bis Ende des Bis-Tages.
+        DateTime? fromDt = from.HasValue
+            ? from.Value.ToDateTime(TimeOnly.MinValue)
+            : null;
+        DateTime? toExclusive = to.HasValue
+            ? to.Value.AddDays(1).ToDateTime(TimeOnly.MinValue)
+            : null;
+
+        var query =
             from x in _db.ExitSurveyResponses.AsNoTracking()
             join c in _db.CompanyProfiles.AsNoTracking() on x.CompanyProfileId equals c.Id into gj
             from c in gj.DefaultIfEmpty()
-            orderby x.CreatedAt descending
-            select new
+            select new { x, c };
+
+        if (fromDt.HasValue)
+            query = query.Where(t => t.x.CreatedAt >= fromDt.Value);
+        if (toExclusive.HasValue)
+            query = query.Where(t => t.x.CreatedAt < toExclusive.Value);
+
+        var raw = await query
+            .OrderByDescending(t => t.x.CreatedAt)
+            .Take(take)
+            .Select(t => new
             {
-                x.Id,
-                x.CreatedAt,
-                x.CompanyProfileId,
-                FilialeCode = c != null ? c.RestaurantCode : null,
-                Filiale = c == null ? null
-                    : ((c.RestaurantCode ?? "") + " " + (c.City ?? c.BranchName ?? c.CompanyName ?? "")).Trim(),
-                x.ReasonsJson,
-                x.ReasonOther,
-                x.AtmosphereDetail,
-                x.Rating,
-                x.Comment,
-                x.ImproveAnswer,
-                x.ImproveThemesJson,
-            }
-        ).Take(take).ToListAsync();
+                t.x.Id,
+                t.x.CreatedAt,
+                t.x.CompanyProfileId,
+                FilialeCode = t.c != null ? t.c.RestaurantCode : null,
+                Filiale = t.c == null ? null
+                    : ((t.c.RestaurantCode ?? "") + " " + (t.c.City ?? t.c.BranchName ?? t.c.CompanyName ?? "")).Trim(),
+                t.x.ReasonsJson,
+                t.x.ReasonOther,
+                t.x.AtmosphereDetail,
+                t.x.Rating,
+                t.x.Comment,
+                t.x.ImproveAnswer,
+                t.x.ImproveThemesJson,
+            })
+            .ToListAsync();
 
         var rows = raw.Select(x =>
         {
