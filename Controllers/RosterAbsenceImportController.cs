@@ -247,12 +247,20 @@ public class RosterAbsenceImportController : ControllerBase
             var df = DateOnly.Parse(r.DateFrom);
             var dt = DateOnly.Parse(r.DateTo);
 
-            // Duplikat-Check: gleiche Absenz (MA + Typ + überlappender Zeitraum)
+            // Überlappung: pro Tag nur EINE Absenz — egal welcher Typ
+            // (Walter 26.07.2026). Auch gegen bereits in diesem Commit
+            // vorgemerkte Zeilen prüfen (Batch).
             bool dup = await _db.Absences.AnyAsync(a =>
-                   a.EmployeeId  == emp.Id
-                && a.AbsenceType == r.AbsenceType
-                && a.DateFrom    <= dt
-                && a.DateTo      >= df);
+                   a.EmployeeId == emp.Id
+                && a.DateFrom   <= dt
+                && a.DateTo     >= df);
+            if (!dup)
+            {
+                dup = _db.Absences.Local.Any(a =>
+                       a.EmployeeId == emp.Id
+                    && a.DateFrom   <= dt
+                    && a.DateTo     >= df);
+            }
             if (dup) { duplicates++; continue; }
 
             // Per-Periode-Sperre (Walter-Vorgabe 27.06.2026): KEINE Absenz in eine
@@ -354,7 +362,9 @@ public class RosterAbsenceImportController : ControllerBase
                                        typCfg, profile, activeEmp, r.WorkedDays.Count);
     }
 
-    // Markiert Spans die sich mit einer bereits erfassten Absenz überschneiden.
+    // Markiert Spans die sich mit einer bereits erfassten Absenz überschneiden
+    // ODER innerhalb der Import-Datei denselben Kalendertag doppelt belegen
+    // (Walter 26.07.2026: pro Tag nur eine Absenz, typ-unabhängig).
     private async Task FlagDuplicatesAsync(List<PreviewRow> spans)
     {
         var matched = spans.Where(s => s.EmployeeId != null && s.Status == "OK").ToList();
@@ -366,18 +376,36 @@ public class RosterAbsenceImportController : ControllerBase
             .Select(a => new { a.EmployeeId, a.AbsenceType, a.DateFrom, a.DateTo })
             .ToListAsync();
 
-        foreach (var r in matched)
+        // Innerhalb der Datei: frühere OK-Zeilen blockieren spätere Überlappungen.
+        var accepted = new List<(int EmpId, DateOnly From, DateOnly To, string Type)>();
+
+        foreach (var r in matched.OrderBy(x => x.RowNum))
         {
             var df = DateOnly.Parse(r.DateFrom);
             var dt = DateOnly.Parse(r.DateTo);
-            bool dup = existing.Any(a => a.EmployeeId == r.EmployeeId!.Value
-                                      && a.AbsenceType == r.AbsenceType
-                                      && a.DateFrom <= dt && a.DateTo >= df);
-            if (dup)
+            var empId = r.EmployeeId!.Value;
+
+            var dbHit = existing.FirstOrDefault(a => a.EmployeeId == empId
+                                                  && a.DateFrom <= dt && a.DateTo >= df);
+            if (dbHit != null)
             {
                 r.Status = "DUPLICATE";
-                r.Note   = "Für diesen MA existiert bereits eine Absenz dieses Typs in diesem Zeitraum.";
+                r.Note   = $"Überlappung mit bestehender Absenz «{dbHit.AbsenceType}» "
+                         + $"{dbHit.DateFrom:dd.MM.yyyy}–{dbHit.DateTo:dd.MM.yyyy} — pro Tag nur eine Absenz.";
+                continue;
             }
+
+            var fileHit = accepted.FirstOrDefault(a => a.EmpId == empId
+                                                    && a.From <= dt && a.To >= df);
+            if (fileHit.EmpId != 0)
+            {
+                r.Status = "DUPLICATE";
+                r.Note   = $"Überlappung mit anderer Zeile in dieser Datei («{fileHit.Type}» "
+                         + $"{fileHit.From:dd.MM.yyyy}–{fileHit.To:dd.MM.yyyy}) — pro Tag nur eine Absenz.";
+                continue;
+            }
+
+            accepted.Add((empId, df, dt, r.AbsenceType ?? "?"));
         }
     }
 
