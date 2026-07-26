@@ -86,7 +86,7 @@ function flukRender(data) {
     html += `<div style="font-size:11.5px;color:#8b8b8b;margin-top:10px">
         Alle Filialen · Phantom-MA (ohne Lohn) ausgenommen ·
         Eintritt = Firmen-Eintrittsdatum · Austritt = Austrittsdatum am MA ·
-        Filiale = ältester Vertrag (Hauptfiliale).
+        Filiale = ältester Vertrag, sonst Personalnummer-Präfix.
     </div>`;
 
     box.innerHTML = html;
