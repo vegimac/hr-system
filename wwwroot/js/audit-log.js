@@ -164,12 +164,15 @@ function alRenderResults() {
     const lim = document.getElementById('alLimit')?.value || '200';
     const toFilter = document.getElementById('alTo')?.value || '';
     const newestDay = newest ? String(newest).slice(0, 10) : '';
+    // Sortierung = neueste zuerst: die erste Zeile IST das neueste Audit in der DB
+    // (für diesen Filter). Fehlt heute/gestern, wurde nichts geschrieben — das Limit
+    // versteckt keine neueren Tage (Walter-Bug-Warnung 26.07.2026 korrigiert).
     let countTxt = `${_alState.rows.length} Einträge — neueste zuerst`
         + ` · in Liste: ${alFmtDay(newest)} → ${alFmtDay(oldest)}`;
-    if (toFilter && newestDay && newestDay < toFilter && String(_alState.rows.length) === String(lim)) {
-        countTxt += ` · ⚠ Limit ${lim} erreicht — neuere Tage ggf. nicht sichtbar; Limit erhöhen oder Volltext/Entität filtern`;
-    } else if (toFilter && newestDay && newestDay < toFilter) {
-        countTxt += ` · neuestes Audit im Filter: ${alFmtDay(newest)} (keine neueren UPDATE/Treffer)`;
+    if (toFilter && newestDay && newestDay < toFilter) {
+        countTxt += ` · ⚠ Neuestes Audit erst ${alFmtDay(newest)} — danach wurde nichts mehr protokolliert (nicht das Limit)`;
+    } else if (String(_alState.rows.length) === String(lim)) {
+        countTxt += ` · Limit ${lim} — ältere Einträge ausgeblendet (Filter/Limit erhöhen)`;
     }
     if (countEl) countEl.textContent = countTxt;
 

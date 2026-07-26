@@ -2,7 +2,6 @@ using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json;
@@ -18,37 +17,35 @@ namespace HrSystem.Services;
 ///     Liste (kein ChangeTracker-Add, kein zusaetzlicher INSERT).
 ///  2) NACH erfolgreichem SaveChanges (SavedChanges) schreiben wir die
 ///     gesammelten Audit-Eintraege per RAW SQL in einer eigenen
-///     try/catch-Klammer. Wenn audit_log fehlt oder etwas schief geht,
-///     wird der Fehler nur geloggt — der User-Write ist schon committet.
-///  3) Wenn AuditDisabled-Flag gesetzt ist (z.B. Tabelle existiert nicht),
-///     ueberspringen wir das ganz still.
+///     try/catch-Klammer. Wenn etwas schief geht, wird der Fehler nur
+///     geloggt — der User-Write ist schon committet.
 ///
-/// Spezialfaelle:
-///  - AuditLog selbst wird NIE geloggt (sonst Endlosschleife).
-///  - PayrollPeriodeAudit wird ebenfalls nicht geloggt (eigene Audit-Quelle).
-///  - „kosmetische" Property-Updates ohne echte Wertaenderung werden
-///    von EF eigentlich nicht als Modified markiert (Standard-Verhalten);
-///    sicherheitshalber filtern wir Modified ohne tatsaechliche Aenderung raus.
+/// Walter-Bug 26.07.2026: nach EINEM fehlgeschlagenen Batch-Insert wurde
+/// <c>_auditDisabled</c> dauerhaft true → Import + manuelle Edits ab dann
+/// unsichtbar im Aktivitäts-Log (Liste blieb bei 23.07. stehen). Neu:
+/// kein permanentes Disable mehr; Chunks + Einzel-Fallback; nur bei
+/// «Tabelle fehlt» kurz pausieren.
 /// </summary>
 public class AuditSaveChangesInterceptor : SaveChangesInterceptor
 {
     private readonly IHttpContextAccessor _http;
     private readonly ILogger<AuditSaveChangesInterceptor> _log;
 
-    // Wird auf true gesetzt, sobald ein DB-Fehler beim Audit-Insert auftritt
-    // (z.B. Tabelle audit_log existiert nicht). Verhindert Spam.
-    private static bool _auditDisabled = false;
+    /// <summary>
+    /// Nur bei «audit_log fehlt»: Pause bis <see cref="_pauseUntilUtc"/>.
+    /// Transiente Fehler (JSON, Param-Limit, Timeout) deaktivieren NICHT mehr.
+    /// </summary>
+    private static DateTime _pauseUntilUtc = DateTime.MinValue;
+    private static readonly object _pauseLock = new();
 
-    // Entitaeten, die NICHT geloggt werden (sonst rekursiv oder reines Rauschen).
+    private const int ChunkSize = 40; // 40 × 10 Params = 400 — sicher unter Limits
+
     private static readonly HashSet<string> _skipTypes = new()
     {
         nameof(AuditLog),
         nameof(PayrollPeriodeAudit),
     };
 
-    // Pending-Audits werden zwischen SavingChanges und SavedChanges
-    // pro DbContext-Instanz im AsyncLocal abgelegt — KEIN Singleton-State,
-    // sonst klauen sich parallele Requests die Listen.
     private static readonly System.Threading.AsyncLocal<List<PendingAudit>?> _pending = new();
 
     public AuditSaveChangesInterceptor(
@@ -76,8 +73,6 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
 
     public override int SavedChanges(SaveChangesCompletedEventData eventData, int result)
     {
-        // Nach Insert: Identity-PKs sind jetzt gesetzt → EntityId «0» korrigieren
-        // (sonst findet der Mirus-Digest CREATE-Einträge wie QST nicht).
         RefreshNewEntityIds(eventData.Context as AppDbContext);
         TryPersist(eventData.Context as AppDbContext);
         return base.SavedChanges(eventData, result);
@@ -94,7 +89,6 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
 
     public override void SaveChangesFailed(DbContextErrorEventData eventData)
     {
-        // User-Write war fehlerhaft → pending Audits wegwerfen, NICHT loggen.
         _pending.Value = null;
         base.SaveChangesFailed(eventData);
     }
@@ -105,10 +99,9 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
         return base.SaveChangesFailedAsync(eventData, cancellationToken);
     }
 
-    // ── Phase 1: Aenderungen sammeln, NICHT in den ChangeTracker schreiben ──
     private void Collect(AppDbContext ctx)
     {
-        if (_auditDisabled) return;
+        if (IsPaused()) return;
         try
         {
             var entries = ctx.ChangeTracker.Entries()
@@ -120,7 +113,6 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 .ToList();
             if (entries.Count == 0) { _pending.Value = null; return; }
 
-            // User-Kontext
             int?    userId   = null;
             string? userName = null;
             string? userRole = null;
@@ -137,6 +129,13 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 try { route = http.Request.Method + " " + http.Request.Path.Value; } catch { }
                 try { ip    = http.Connection?.RemoteIpAddress?.ToString(); } catch { }
             }
+            else
+            {
+                // Background-Services (Auto-Sync 05:00, Cleanup …) — trotzdem loggen.
+                userName = "System";
+                userRole = "system";
+                route = "(background)";
+            }
 
             var pendings = new List<PendingAudit>();
             foreach (var entry in entries)
@@ -149,6 +148,7 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
                     EntityState.Deleted  => "DELETE",
                     _ => "OTHER"
                 };
+                if (action == "OTHER") continue;
 
                 var changes = new Dictionary<string, object?>();
                 if (entry.State == EntityState.Modified)
@@ -192,7 +192,6 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 }
                 catch { }
 
-                // CREATE + Identity: PK ist hier oft noch 0 → später in RefreshNewEntityIds setzen
                 if (entry.State == EntityState.Added && (pk == null || pk == "0"))
                     pk = null;
 
@@ -200,9 +199,6 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 try { changesJson = JsonSerializer.Serialize(changes); }
                 catch { changesJson = "{}"; }
 
-                // created_at = timestamp without time zone, Schweizer Wanduhr
-                // (Europe/Zurich). Kind=Utc → Npgsql 500 / stummes Audit
-                // (Walter-Datum-Falle). Unspecified + Zurich-Lokalzeit.
                 pendings.Add(new PendingAudit(
                     CreatedAt: SwissNowUnspecified(),
                     UserId:    userId,
@@ -221,15 +217,11 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
         }
         catch (Exception ex)
         {
-            // NIE den User-Write killen — Audit-Collection-Fehler still ignorieren.
             _log.LogWarning(ex, "Audit-Collect fehlgeschlagen — User-Write laeuft normal weiter.");
             _pending.Value = null;
         }
     }
 
-    /// <summary>
-    /// Nach dem Insert die echten Identity-IDs auf die Pending-CREATE-Zeilen schreiben.
-    /// </summary>
     private void RefreshNewEntityIds(AppDbContext? ctx)
     {
         var list = _pending.Value;
@@ -257,24 +249,48 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
         }
     }
 
-    // ── Phase 2: nach erfolgreichem SaveChanges audit_log via Raw-SQL fuellen ──
     private void TryPersist(AppDbContext? ctx)
     {
         var list = _pending.Value;
         _pending.Value = null;
-        if (ctx == null || list == null || list.Count == 0 || _auditDisabled) return;
+        if (ctx == null || list == null || list.Count == 0 || IsPaused()) return;
+
+        // Chunks — grosse Massen-Imports (easy@work) sonst ein Riesen-INSERT.
+        for (int offset = 0; offset < list.Count; offset += ChunkSize)
+        {
+            var chunk = list.Skip(offset).Take(ChunkSize).ToList();
+            if (!TryInsertChunk(ctx, chunk))
+            {
+                // Fallback: Zeile für Zeile — eine kaputte Zeile killt nicht den Rest.
+                foreach (var row in chunk)
+                {
+                    if (!TryInsertChunk(ctx, new List<PendingAudit> { row }))
+                    {
+                        _log.LogWarning(
+                            "Audit-Zeile übersprungen: {Action} {Entity} #{Id} (Route {Route})",
+                            row.Action, row.EntityType, row.EntityId, row.Route);
+                    }
+                }
+            }
+        }
+    }
+
+    private bool TryInsertChunk(AppDbContext ctx, List<PendingAudit> chunk)
+    {
+        if (chunk.Count == 0) return true;
         try
         {
-            // EINE Multi-Row-INSERT pro SaveChanges (statt N Roundtrips).
+            // changes_json ist TEXT — KEIN ::jsonb-Cast (Cast-Fehler → früher
+            // permanentes Disable und damit stummes Audit ab dem Fehler).
             var sql = new System.Text.StringBuilder();
             sql.Append("INSERT INTO audit_log (created_at,user_id,user_name,user_role,entity_type,entity_id,action,changes_json,route,ip_address) VALUES ");
             var args = new List<object?>();
-            for (int i = 0; i < list.Count; i++)
+            for (int i = 0; i < chunk.Count; i++)
             {
                 if (i > 0) sql.Append(',');
                 int b = i * 10;
-                sql.Append($"({{{b}}},{{{b+1}}},{{{b+2}}},{{{b+3}}},{{{b+4}}},{{{b+5}}},{{{b+6}}},{{{b+7}}}::jsonb,{{{b+8}}},{{{b+9}}})");
-                var a = list[i];
+                sql.Append($"({{{b}}},{{{b+1}}},{{{b+2}}},{{{b+3}}},{{{b+4}}},{{{b+5}}},{{{b+6}}},{{{b+7}}},{{{b+8}}},{{{b+9}}})");
+                var a = chunk[i];
                 args.Add(a.CreatedAt);
                 args.Add((object?)a.UserId    ?? DBNull.Value);
                 args.Add((object?)a.UserName  ?? DBNull.Value);
@@ -286,20 +302,40 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 args.Add((object?)a.Route       ?? DBNull.Value);
                 args.Add((object?)a.IpAddress   ?? DBNull.Value);
             }
-            // ExecuteSqlRaw — geht NICHT durch den SaveChanges-Lifecycle,
-            // also kein rekursives „Audit fuer Audit".
+
             ctx.Database.ExecuteSqlRaw(sql.ToString(), args.ToArray());
+            return true;
         }
         catch (Exception ex)
         {
-            // Tabelle fehlt? Schema-Mismatch? → Audit fuer den Rest der
-            // Laufzeit deaktivieren. User-Write ist schon erfolgreich
-            // gespeichert — der Fehler bleibt fuer den User unsichtbar.
-            _auditDisabled = true;
-            _log.LogWarning(ex,
-                "Audit-Log konnte nicht geschrieben werden — Audit fuer diese Session deaktiviert. " +
-                "Hinweis: Migration migrations-archive/add_audit_log.sql in TablePlus ausfuehren.");
+            var msg = ex.GetBaseException().Message ?? "";
+            if (msg.Contains("audit_log", StringComparison.OrdinalIgnoreCase)
+                && (msg.Contains("does not exist", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("existiert nicht", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("42P01", StringComparison.OrdinalIgnoreCase)))
+            {
+                PauseFor(TimeSpan.FromMinutes(30));
+                _log.LogWarning(ex,
+                    "Audit-Tabelle fehlt — Audit 30 Min pausiert. Migration add_audit_log.sql ausfuehren.");
+            }
+            else
+            {
+                _log.LogWarning(ex,
+                    "Audit-Insert fehlgeschlagen ({Count} Zeilen) — Fallback/naechster Chunk wird versucht. KEIN permanentes Disable mehr.",
+                    chunk.Count);
+            }
+            return false;
         }
+    }
+
+    private static bool IsPaused()
+    {
+        lock (_pauseLock) return DateTime.UtcNow < _pauseUntilUtc;
+    }
+
+    private static void PauseFor(TimeSpan duration)
+    {
+        lock (_pauseLock) _pauseUntilUtc = DateTime.UtcNow.Add(duration);
     }
 
     private static object? Sanitize(object? v)
