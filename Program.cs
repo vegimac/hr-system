@@ -367,6 +367,11 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE employee
         ADD COLUMN IF NOT EXISTS kuendigung_durch text;
     ");
+    // Austrittsgrund (kurze Codes, Statistik) — Walter 26.07.2026.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee
+        ADD COLUMN IF NOT EXISTS austrittsgrund text;
+    ");
 
     // Ärzte-Verzeichnis (Walter 16.07.2026) — fuer den Brief an den
     // behandelnden Arzt (Eignungsuntersuchung Mutterschutz).

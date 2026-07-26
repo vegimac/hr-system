@@ -39,7 +39,7 @@ public class MirusChangeDigestService
         "AhvNumber", "Street", "HouseNumber", "Zip", "City",
         "CantonCode", "Country", "Nationality", "NationalityId", "MaritalStatus",
         "SeparatedSince", "Religion", "EntryDate", "ExitDate", "KuendigungPer",
-        "KuendigungDurch",
+        "KuendigungDurch", "Austrittsgrund",
         "IsActive", "IsPayrollExcluded", "QstBefreitDurchBehoerde",
         "QstBefreiungGueltigAb", "QstBefreiungGueltigBis", "LgavPflichtig",
         "TeilzeitUnter8hWoche", "IdPassDokumentId", "CAusweisDokumentId",
@@ -63,6 +63,7 @@ public class MirusChangeDigestService
         ["SeparatedSince"] = "Getrennt seit", ["Religion"] = "Konfession",
         ["EntryDate"] = "Eintritt", ["ExitDate"] = "Austritt", ["KuendigungPer"] = "Kündigung per",
         ["KuendigungDurch"] = "Kündigung durch",
+        ["Austrittsgrund"] = "Austrittsgrund",
         ["IsActive"] = "Aktiv", ["IsPayrollExcluded"] = "MA ohne Lohn",
         ["QstBefreitDurchBehoerde"] = "QST Behörden-Befreiung",
         ["QstBefreiungGueltigAb"] = "Befreiung ab", ["QstBefreiungGueltigBis"] = "Befreiung bis",
@@ -720,6 +721,11 @@ public class MirusChangeDigestService
                 if (field == "KuendigungDurch")
                 {
                     parts.Add($"{label}: {FmtKuendigungDurch(oldV)} → {FmtKuendigungDurch(newV)}");
+                    continue;
+                }
+                if (field == "Austrittsgrund")
+                {
+                    parts.Add($"{label}: {AustrittsgrundCodes.LabelOf(oldV)} → {AustrittsgrundCodes.LabelOf(newV)}");
                     continue;
                 }
                 parts.Add($"{label}: {Fmt(oldV)} → {Fmt(newV)}");

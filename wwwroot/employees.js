@@ -1381,14 +1381,17 @@ function loadUebersichtTab() {
                  title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen"
                  style="margin-left:8px;background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700">→ eintragen</button>`;
     // Layout (Walter 26.07.2026): 
-    //   Zeile 1: Eintritt | Austritt | Probezeit bis
+    //   Zeile 1: Eintritt | Austritt | Probezeit bis (+ Gespräch falls aktiv)
     //   Zeile 2: Gekündigt am | Kündigung per | Kündigung durch
-    //   Zeile 3: L-GAV | < 8 h / Wo. | (Probezeitgespräch falls aktiv)
+    //   Zeile 3: L-GAV | < 8 h / Wo. | Austrittsgrund
+    const pzCell = pzEnde
+        ? _pf('Probezeit bis', pzEnde + (pzAktiv && pzStatus ? `<div style="margin-top:4px;font-size:12px">${pzStatus}</div>` : ''))
+        : '<div class="ov-pf" aria-hidden="true"></div>';
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
             ${_pf(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
-            ${pzEnde ? _pf('Probezeit bis', pzEnde) : '<div class="ov-pf" aria-hidden="true"></div>'}
+            ${pzCell}
             <div class="ov-pf ov-anst-date"><div class="ov-pfl">Gekündigt am</div>
             <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
             <div class="ov-pf ov-anst-date"><div class="ov-pfl">Kündigung per</div>
@@ -1401,7 +1404,8 @@ function loadUebersichtTab() {
             </select></div>
             <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             <div class="ov-pf ov-anst-tog"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
-            ${pzAktiv ? _pf('Probezeitgespräch', pzStatus) : ''}
+            <div class="ov-pf ov-anst-date"><div class="ov-pfl">Austrittsgrund</div>
+            <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
@@ -1521,6 +1525,30 @@ function loadUebersichtTab() {
 
 // Inline-Edit in der Uebersicht (Walter 17.07.2026): Speichern liest ov-*
 // direkt (Personal-Tab entfernt — kein Spiegeln mehr auf ef-*).
+// Austrittsgrund — kurze Labels (Walter 26.07.2026). Codes = Backend AustrittsgrundCodes.
+const _AUSTRITTSGRUND = [
+    ['AUSBILDUNG', 'Ausbildung'],
+    ['ANDERER_JOB', 'Anderer Job'],
+    ['UMZUG', 'Umzug'],
+    ['FAMILIE', 'Familie'],
+    ['GESUNDHEIT', 'Gesundheit'],
+    ['ARBEITSZEITEN', 'Arbeitszeiten'],
+    ['LOHN', 'Lohn/Pensum'],
+    ['TEAM', 'Team/Führung'],
+    ['PROBEZEIT', 'Probezeit'],
+    ['LEISTUNG', 'Leistung'],
+    ['VERFUEGBARKEIT', 'Verfügbarkeit'],
+    ['VERHALTEN', 'Verhalten'],
+    ['BEFRISTUNG', 'Befristung'],
+    ['DIVERS', 'Divers'],
+];
+function _austrittsgrundOptionsHtml(selected) {
+    const cur = (selected || '').toUpperCase();
+    let h = '<option value="">—</option>';
+    for (const [code, lbl] of _AUSTRITTSGRUND)
+        h += `<option value="${code}"${cur === code ? ' selected' : ''}>${lbl}</option>`;
+    return h;
+}
 function ovDirty() {
     document.querySelectorAll('.ov-savebtn').forEach(b => b.style.display = 'inline-flex');
 }
@@ -4763,6 +4791,9 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
                 <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
              </select>`,
             'Wer die Kündigung ausgesprochen hat')}
+        ${eField('Austrittsgrund',
+            `<select id="ef-austrittsgrund" class="ef-input">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select>`,
+            'Für Statistik')}
         ${eField('L-GAV',
             `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
                  <input id="ef-lgavPflichtig" type="checkbox" ${emp.lgavPflichtig ? 'checked' : ''}
@@ -5142,6 +5173,7 @@ async function saveEmpEdit() {
         kuendigungAusgesprochenAm: formVal('ef-kuendAm', 'ov-kuendAm') || null,
         kuendigungPer:             formVal('ef-kuendPer', 'ov-kuendPer') || null,
         kuendigungDurch:           formVal('ef-kuendDurch', 'ov-kuendDurch') || null,
+        austrittsgrund:            formVal('ef-austrittsgrund', 'ov-austrittsgrund') || null,
         // Walter-Vorgabe 18.05.2026: Aktiv-Flag bewusst gesetzt vom UI,
         // KEIN Auto-Sync mehr aus ExitDate (Backend nimmt diesen Wert 1:1).
         isActive:     isActiveInput ? isActiveInput.checked === true : !!emp.isActive,
