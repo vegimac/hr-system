@@ -292,8 +292,9 @@ public class KuendigungController : ControllerBase
 
     /// <summary>
     /// Kündigungsbestätigung (Walter 26.07.2026) — AG bestätigt den Erhalt
-    /// der MA-Kündigung und das Vertragsende. Zwei Pflicht-Daten:
+    /// der MA-Kündigung und das Vertragsende. Pflicht-Daten:
     /// Kündigungsdatum des Mitarbeitenden + Kündigung auf Datum.
+    /// PDF: Seite 1 Brief · Seite 2 Referenzangaben · Seite 3 Swica-Blatt.
     /// </summary>
     [HttpPost("{empId:int}/bestaetigung-pdf")]
     public async Task<IActionResult> GetBestaetigungPdf(int empId, [FromBody] BestaetigungPdfDto dto)
