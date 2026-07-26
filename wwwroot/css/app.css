@@ -8952,6 +8952,13 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             border: 1px solid rgba(244, 63, 94, 0.28);
         }
         .nw-duty-on .nw-duty-dot { background: #e11d48; }
+        /* Pflicht besteht, Nachweise aber vollständig — ruhiges Grün, kein Alarm. */
+        .nw-duty-met {
+            background: rgba(22, 163, 74, 0.09);
+            color: #166534;
+            border: 1px solid rgba(34, 197, 94, 0.28);
+        }
+        .nw-duty-met .nw-duty-dot { background: #16a34a; }
         .nw-duty-off {
             background: rgba(22, 163, 74, 0.09);
             color: #166534;
@@ -9027,6 +9034,26 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             flex-shrink: 0;
         }
         .nw-warn-chip-sm { font-size: 10px; padding: 1px 7px; }
+        .nw-ok-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            font-weight: 650;
+            white-space: nowrap;
+            color: #166534;
+            background: rgba(22, 163, 74, 0.09);
+            border: 1px solid rgba(34, 197, 94, 0.28);
+        }
+        .nw-ok-chip::before {
+            content: '';
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: #16a34a;
+            flex-shrink: 0;
+        }
         .nw-actions {
             display: flex;
             gap: 5px;
@@ -9118,12 +9145,14 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         body.theme-dark .nw-date-tag,
         body.theme-dark .nw-duty-count-on { color: #fda4af !important; }
         /* Pflicht-Pillen: dunkles Grün/Rot auf dunklem Glas war unlesbar (Walter 20.07.2026). */
-        body.theme-dark .nw-duty-off {
+        body.theme-dark .nw-duty-off,
+        body.theme-dark .nw-duty-met {
             background: rgba(16, 185, 129, 0.16);
             color: #86efac;
             border-color: rgba(52, 211, 153, 0.45);
         }
-        body.theme-dark .nw-duty-off .nw-duty-dot { background: #4ade80; }
+        body.theme-dark .nw-duty-off .nw-duty-dot,
+        body.theme-dark .nw-duty-met .nw-duty-dot { background: #4ade80; }
         body.theme-dark .nw-duty-on {
             background: rgba(244, 63, 94, 0.16);
             color: #fda4af;
@@ -9136,6 +9165,12 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
             border-color: rgba(251, 113, 133, 0.40);
         }
         body.theme-dark .nw-warn-chip::before { background: #fb7185; }
+        body.theme-dark .nw-ok-chip {
+            color: #86efac;
+            background: rgba(16, 185, 129, 0.16);
+            border-color: rgba(52, 211, 153, 0.45);
+        }
+        body.theme-dark .nw-ok-chip::before { background: #4ade80; }
 
 /* ═══ Absenz- & Ferienkalender pro Filiale (Walter 22.07.2026) ═══ */
         .akal-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }

@@ -1418,9 +1418,11 @@ function loadUebersichtTab() {
                         <div class="nw-dates" id="nwViewText_${emp.id}">${_nwViewTextHtml(emp.nightWorkExamIssued || (emp.nightWorkExamValidUntil ? _nwAddYears(emp.nightWorkExamValidUntil, -2) : null), emp.nightWorkExamValidUntil, emp.nightWorkExamMismatch, emp.nightWorkExamSollBis, emp.nightWorkExamDokumentId)}</div>
                     </div>
                     ${(() => {
-                        const warns = _nwMissingDocsHtml(emp);
-                        return warns
-                            ? `<div class="nw-row nw-row3"><div class="nw-warns">${warns}</div></div>`
+                        // Fehlende Docs = rot; vollständig + gültig = grüne «Alles in Ordnung»
+                        // (Walter 26.07.2026 — Alarm-Rot nur wenn wirklich etwas fehlt).
+                        const status = _nwStatusChipsHtml(emp);
+                        return status
+                            ? `<div class="nw-row nw-row3"><div class="nw-warns">${status}</div></div>`
                             : '';
                     })()}
                     <div class="nw-row nw-row4 nw-actions">
@@ -2575,29 +2577,59 @@ function _nwViewTextHtml(issueIso, validUntil, mismatch, sollBisIso, hasArztDoc)
     return html;
 }
 
-// Status-Pille allein (feste Spalte im nw-layout). Grün ≤18, Rot >18.
+// true = Pflicht/Planung aktiv UND Arztzeugnis + Ausnahmeregelung + Datum ok.
+function _nwNachweiseOk(emp) {
+    if (!emp) return false;
+    const requires = !!emp.nightWorkRequiresDocuments;
+    const hasDates = !!(emp.nightWorkExamValidUntil || emp.nightWorkExamIssued);
+    if (!requires && !hasDates) return false;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const validUntil = emp.nightWorkExamValidUntil ? new Date(emp.nightWorkExamValidUntil) : null;
+    if (validUntil) validUntil.setHours(0, 0, 0, 0);
+    if (validUntil && validUntil < today) return false;
+    const hasArztDoc = !!emp.nightWorkExamDokumentId;
+    if (!hasArztDoc) return false;
+    const examCurrent = (validUntil && validUntil >= today)
+        || (hasArztDoc && !emp.nightWorkExamValidUntil);
+    if (!examCurrent) return false;
+    if (!emp.nightWorkAusnahmeDokumentId) return false;
+    return true;
+}
+
+// Status-Pille allein (feste Spalte im nw-layout).
+// ≤18: grün «Keine Untersuch-Pflicht».
+// >18 + Nachweise fehlen: rot «Untersuch-Pflicht».
+// >18 + Nachweise vollständig: ruhiges Grün «Untersuch-Pflicht» (Pflicht bleibt,
+// aber kein Alarm-Rot — Walter 26.07.2026).
 function _nwDutyBadgeOnlyHtml(emp) {
     if (!emp) return '';
     const req = !!emp.nightWorkRequiresDocuments;
     const n = emp.nightWorkMaxNightsInSixWeeks != null ? emp.nightWorkMaxNightsInSixWeeks : 0;
     const tip = `Max. ${n} Nacht-Tage in einem rollierenden 6-Wochen-Fenster (42 Tage, ArGV1 Art. 30 — Pflicht ab >18)`;
     if (req) {
-        return `<span class="nw-duty-badge nw-duty-on" title="${tip}"><span class="nw-duty-dot"></span>Untersuch-Pflicht</span>`;
+        const ok = _nwNachweiseOk(emp);
+        const cls = ok ? 'nw-duty-met' : 'nw-duty-on';
+        const tip2 = ok
+            ? tip + ' — Nachweise vollständig, alles in Ordnung'
+            : tip + ' — Nachweise noch unvollständig';
+        return `<span class="nw-duty-badge ${cls}" title="${tip2}"><span class="nw-duty-dot"></span>Untersuch-Pflicht</span>`;
     }
     return `<span class="nw-duty-badge nw-duty-off" title="${tip}"><span class="nw-duty-dot"></span>Keine Untersuch-Pflicht</span>`;
 }
 
 // Nächte-Zähler allein (feste Spalte). Max. im rollierenden 6-Wochen-Fenster.
+// Rot nur wenn Pflicht besteht UND Nachweise fehlen (sonst neutrales Schwarz).
 function _nwDutyCountHtml(emp) {
     if (!emp) return '';
     const req = !!emp.nightWorkRequiresDocuments;
     const n = emp.nightWorkMaxNightsInSixWeeks != null ? emp.nightWorkMaxNightsInSixWeeks : 0;
     const tip = `Max. ${n} Nacht-Tage in einem rollierenden 6-Wochen-Fenster (42 Tage, ArGV1 Art. 30 — Pflicht ab >18)`;
     const label = n === 1 ? '1 Nacht' : n + ' Nächte';
-    return `<span class="nw-duty-count${req ? ' nw-duty-count-on' : ''}" title="${tip}">${label} / 6 Wochen</span>`;
+    const alarm = req && !_nwNachweiseOk(emp);
+    return `<span class="nw-duty-count${alarm ? ' nw-duty-count-on' : ''}" title="${tip}">${label} / 6 Wochen</span>`;
 }
 
-// Rote «fehlt»-Hinweise auf der Nachtarbeit-Karte (Walter 19.07.2026):
+// Rote «fehlt»-Hinweise ODER grünes «Alles in Ordnung» (Walter 19./26.07.2026).
 // Datum erfasst = Nachtarbeit geplant → Arztzeugnis UND Ausnahmeregelung prüfen.
 // Ohne verknüpfte Dokumente gilt der Nachweis NICHT (Datum allein reicht nie).
 // Zusätzlich bei ArGV1 Art. 30 (>18 Nächte / 42 Tage) auch ohne Datum.
@@ -2633,6 +2665,16 @@ function _nwMissingDocsHtml(emp) {
     }
     if (!parts.length) return '';
     return parts.join('');
+}
+
+/** Warn-Chips ODER grünes «Alles in Ordnung» wenn Pflicht erfüllt. */
+function _nwStatusChipsHtml(emp) {
+    const missing = _nwMissingDocsHtml(emp);
+    if (missing) return missing;
+    if (_nwNachweiseOk(emp)) {
+        return `<span class="nw-ok-chip" title="Arztzeugnis und Ausnahmeregelung verknüpft, Gültigkeit ok">Alles in Ordnung</span>`;
+    }
+    return '';
 }
 
 // ⋮-Menü + Edit-Toggle für die Nachtarbeit-Zeile.
