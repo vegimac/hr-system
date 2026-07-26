@@ -370,24 +370,17 @@ public class EmployeesController : ControllerBase
             employee.IsPayrollExcluded,
             employee.LgavPflichtig,
             employee.TeilzeitUnter8hWoche,
-            // Nachtarbeit-Untersuchung (Walter 20.06.2026, ArG)
+            // Nachtarbeit (Walter 26.07.2026): gültig-bis ist immer das gerechnete
+            // Soll; nightWorkExamMismatch = easy@work-Bis weicht ab (Sync-Flag).
             employee.NightWorkExamValidUntil,
             employee.NightWorkExamIssued,
-            // Soll-Ende gemäss Regel (Beginn + 1/2 Jahre − 1 Tag) + Abweichungs-Flag
-            // (Walter 05.07.2026): weicht das gespeicherte (aus easy) Ende vom Soll ab,
-            // muss es in easy@work korrigiert werden.
             nightWorkExamSollBis = employee.NightWorkExamIssued.HasValue
                 ? Employee.NightWorkValidUntil(
                     DateOnly.FromDateTime(employee.NightWorkExamIssued.Value),
                     employee.DateOfBirth.HasValue ? DateOnly.FromDateTime(employee.DateOfBirth.Value) : (DateOnly?)null)
                   .ToDateTime(TimeOnly.MinValue)
                 : (DateTime?)null,
-            nightWorkExamMismatch = employee.NightWorkExamIssued.HasValue
-                && (!employee.NightWorkExamValidUntil.HasValue
-                    || DateOnly.FromDateTime(employee.NightWorkExamValidUntil.Value)
-                       != Employee.NightWorkValidUntil(
-                           DateOnly.FromDateTime(employee.NightWorkExamIssued.Value),
-                           employee.DateOfBirth.HasValue ? DateOnly.FromDateTime(employee.DateOfBirth.Value) : (DateOnly?)null)),
+            nightWorkExamMismatch = employee.NightWorkExamEasyMismatch,
             employee.NightWorkExamDokumentId,
             employee.NightWorkAusnahmeDokumentId,
             // Probezeitgespräch 1/2 (Walter 20.07.2026, Restaurant Admin)
@@ -969,11 +962,13 @@ public class EmployeesController : ControllerBase
             var dob = emp.DateOfBirth.HasValue ? DateOnly.FromDateTime(emp.DateOfBirth.Value) : (DateOnly?)null;
             emp.NightWorkExamIssued     = dto.Issued.Value.Date;
             emp.NightWorkExamValidUntil = Employee.NightWorkValidUntil(issued, dob).ToDateTime(TimeOnly.MinValue);
+            emp.NightWorkExamEasyMismatch = false; // manuell → keine easy-Abweichung mehr anzeigen
         }
         else
         {
             emp.NightWorkExamIssued     = null;
             emp.NightWorkExamValidUntil = null;
+            emp.NightWorkExamEasyMismatch = false;
         }
         await _context.SaveChangesAsync();
         return Ok(new { id = emp.Id, nightWorkExamIssued = emp.NightWorkExamIssued, nightWorkExamValidUntil = emp.NightWorkExamValidUntil });

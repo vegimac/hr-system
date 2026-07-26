@@ -230,12 +230,12 @@ public class EasyAtWorkEmployeeSyncService
         public DateOnly? EntryDate { get; set; }
         public DateOnly? ExitDate { get; set; }
         public string? Iban { get; set; }
-        /// <summary>Gültig-bis des Nachtarbeit-Arztzeugnisses aus easy@work
-        /// (cf_night_work_doctors_note.to), 1:1 übernommen. NULL = kein Enddatum.</summary>
+        /// <summary>Gültig-bis — IMMER gerechnet aus Beginn (nie easy-«to»).</summary>
         public DateOnly? NightWorkExamValidUntil { get; set; }
-        /// <summary>Ausstellungs-/Beginndatum des Nachtarbeit-Arztzeugnisses aus
-        /// easy@work (cf_night_work_doctors_note.from), 1:1 übernommen.</summary>
+        /// <summary>Beginn 1:1 aus easy@work «from».</summary>
         public DateOnly? NightWorkExamIssued { get; set; }
+        /// <summary>easy-«to» fehlt oder ≠ Soll (beide UTC-Lesarten geprüft).</summary>
+        public bool NightWorkExamEasyMismatch { get; set; }
         /// <summary>Alle in easy@work erfassten Funktionen/Positionen (distinct).
         /// Mehr als eine = mehrdeutig → MA wird nicht importiert (Walter 05.07.2026).</summary>
         public List<string> Functions { get; set; } = new();
@@ -248,7 +248,7 @@ public class EasyAtWorkEmployeeSyncService
     /// Walter-Vorgabe 05.07.2026.</summary>
     private sealed class DetailCache
     {
-        public System.Collections.Concurrent.ConcurrentDictionary<int, (string? Marital, string? Ahv, DateOnly? NightWorkFrom, DateOnly? NightWorkTo, DateOnly? SeniorityDate)> Props { get; } = new();
+        public System.Collections.Concurrent.ConcurrentDictionary<int, (string? Marital, string? Ahv, DateOnly? NightWorkFrom, string? NightWorkToRaw, DateOnly? SeniorityDate)> Props { get; } = new();
         public System.Collections.Concurrent.ConcurrentDictionary<int, List<string>> Functions { get; } = new();
         public System.Collections.Concurrent.ConcurrentDictionary<int, string?> Iban { get; } = new();
         // STRICT-Import (Walter 08.07.2026): Verträge + Tarife schon in der
@@ -566,19 +566,20 @@ public class EasyAtWorkEmployeeSyncService
             if (changed) result.UpdatedFields.Add("IBAN");
         }
 
-        // Nachtarbeit-Arztzeugnis: Beginn + Ende aus easy@work übernehmen (Walter
-        // 05.07.2026) — der Einzel-Sync hat das bisher nicht angefasst.
-        if (master.NightWorkExamValidUntil.HasValue
-            && emp.NightWorkExamValidUntil?.Date != master.NightWorkExamValidUntil.Value.ToDateTime(TimeOnly.MinValue).Date)
+        // Nachtarbeit: Beginn aus easy, Ende gerechnet, Mismatch-Flag (Walter 26.07.2026).
+        if (master.NightWorkExamIssued.HasValue)
         {
-            emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil.Value.ToDateTime(TimeOnly.MinValue);
-            if (!result.UpdatedFields.Contains("Nachtarbeit")) result.UpdatedFields.Add("Nachtarbeit");
-        }
-        if (master.NightWorkExamIssued.HasValue
-            && emp.NightWorkExamIssued?.Date != master.NightWorkExamIssued.Value.ToDateTime(TimeOnly.MinValue).Date)
-        {
-            emp.NightWorkExamIssued = master.NightWorkExamIssued.Value.ToDateTime(TimeOnly.MinValue);
-            if (!result.UpdatedFields.Contains("Nachtarbeit")) result.UpdatedFields.Add("Nachtarbeit");
+            var issuedDt = master.NightWorkExamIssued.Value.ToDateTime(TimeOnly.MinValue);
+            var untilDt  = master.NightWorkExamValidUntil!.Value.ToDateTime(TimeOnly.MinValue);
+            if (emp.NightWorkExamIssued?.Date != issuedDt.Date
+                || emp.NightWorkExamValidUntil?.Date != untilDt.Date
+                || emp.NightWorkExamEasyMismatch != master.NightWorkExamEasyMismatch)
+            {
+                emp.NightWorkExamIssued = issuedDt;
+                emp.NightWorkExamValidUntil = untilDt;
+                emp.NightWorkExamEasyMismatch = master.NightWorkExamEasyMismatch;
+                if (!result.UpdatedFields.Contains("Nachtarbeit")) result.UpdatedFields.Add("Nachtarbeit");
+            }
         }
 
         // Austritt / Aktiv aus easy@work (Walter-Vorgabe 05.07.2026): der Einzel-Sync
@@ -916,30 +917,33 @@ public class EasyAtWorkEmployeeSyncService
                 }
                 catch { /* Positionen nicht abrufbar → keine Mehrdeutigkeits-Prüfung */ }
             }
-            // Nachtarbeit-Arztzeugnis (Walter-Vorgabe 05.07.2026): BEIDE Daten (Beginn
-            // + Ende) aus easy@work. «to» ist im Custom-Field oft exklusives Mitternacht
-            // → EawProperty.To = inklusiver letzter Tag (ParseSwissInclusiveEndDate).
-            // Soll-Ende: Beginn + 1/2 Jahre − 1 Tag. Weicht easy@work-Ende vom Soll ab
-            // → Import-Meldung + ToDo (DashboardService), Korrektur in easy@work.
+            // Nachtarbeit-Arztzeugnis (Walter 05.07.2026, präzisiert 26.07.2026):
+            // BEGINN 1:1 aus easy@work (from, UTC→Zürich). ENDE IMMER selbst rechnen
+            // (Beginn + 2 Jahre − 1 Tag, ab Alter 45: + 1 Jahr − 1 Tag) — easy-«to»
+            // ist UTC-inkonsistent und darf NICHT als Quelle für gültig-bis dienen.
+            // Kontrolle: wenn easy ein «to» hat und KEINE der beiden UTC-Lesarten
+            // dem Soll entspricht → Hinweis/ToDo (GF korrigiert in easy@work).
             if (propsInfo.NightWorkFrom.HasValue)
             {
                 var von = propsInfo.NightWorkFrom.Value;
-                data.NightWorkExamIssued     = von;                        // Beginn 1:1
-                data.NightWorkExamValidUntil = propsInfo.NightWorkTo;      // Ende 1:1 (kann null sein)
+                var sollBis = Employee.NightWorkValidUntil(von, data.DateOfBirth);
+                data.NightWorkExamIssued     = von;
+                data.NightWorkExamValidUntil = sollBis; // immer gerechnet, nie easy-«to»
 
-                // Ausgetretene MA NICHT mehr melden — die Nacht-Gültigkeit muss bei
-                // Personen, die nicht mehr da sind, nicht nachgeführt werden
-                // (Walter-Vorgabe 05.07.2026). eaw.To in der Vergangenheit = ausgetreten.
+                var toRaw = propsInfo.NightWorkToRaw;
+                bool easyOk = !string.IsNullOrWhiteSpace(toRaw)
+                              && EawDateUtil.IntervalEndMatchesSoll(toRaw, sollBis);
+                data.NightWorkExamEasyMismatch = !easyOk;
+
                 bool maAusgetreten = eaw.To.HasValue && eaw.To.Value < DateOnly.FromDateTime(DateTime.Today);
-                if (!maAusgetreten)
+                if (!maAusgetreten && !easyOk)
                 {
-                    var sollBis = Employee.NightWorkValidUntil(von, data.DateOfBirth);
                     var nwName = $"{data.FirstName} {data.LastName}".Trim();
-                    if (!propsInfo.NightWorkTo.HasValue)
+                    if (string.IsNullOrWhiteSpace(toRaw))
                         data.Notes.Add($"⚠ Nachtarbeit-Arztzeugnis {nwName}: in easy@work fehlt das Enddatum. "
                                       + $"Soll gemäss Regel: {sollBis:dd.MM.yyyy} (Beginn {von:dd.MM.yyyy}). Bitte in easy@work nachtragen.");
-                    else if (propsInfo.NightWorkTo.Value != sollBis)
-                        data.Notes.Add($"⚠ Nachtarbeit-Arztzeugnis {nwName}: easy@work-Enddatum {propsInfo.NightWorkTo:dd.MM.yyyy} stimmt nicht mit der Regel überein "
+                    else
+                        data.Notes.Add($"⚠ Nachtarbeit-Arztzeugnis {nwName}: easy@work-Enddatum stimmt nicht mit der Regel überein "
                                       + $"(Beginn {von:dd.MM.yyyy} → Soll {sollBis:dd.MM.yyyy}). Bitte das Enddatum in easy@work auf {sollBis:dd.MM.yyyy} korrigieren.");
                 }
             }
@@ -1856,13 +1860,13 @@ public class EasyAtWorkEmployeeSyncService
                     };
                     var master = masterByEaw[row.EawEmployeeId];
                     ApplyDiffs(emp, row.Diffs, master);
-                    // Nachtarbeit-Arztzeugnis-Gültigkeit aus easy@work übernehmen
-                    // (Walter 30.06.2026): easy@work ist die Quelle; nur setzen wenn
-                    // vorhanden, nie leeren (manuell Gepflegtes bleibt sonst stehen).
-                    if (master.NightWorkExamValidUntil.HasValue)
-                        emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil.Value.ToDateTime(TimeOnly.MinValue);
+                    // Nachtarbeit: Beginn aus easy, Ende gerechnet (Walter 26.07.2026).
                     if (master.NightWorkExamIssued.HasValue)
+                    {
                         emp.NightWorkExamIssued = master.NightWorkExamIssued.Value.ToDateTime(TimeOnly.MinValue);
+                        emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil!.Value.ToDateTime(TimeOnly.MinValue);
+                        emp.NightWorkExamEasyMismatch = master.NightWorkExamEasyMismatch;
+                    }
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
                     if (string.IsNullOrWhiteSpace(emp.CantonCode)) emp.CantonCode = await LookupCantonAsync(emp.ZipCode, ct);
@@ -1891,13 +1895,13 @@ public class EasyAtWorkEmployeeSyncService
                         emp.EasyAtWorkEmployeeId = newEawId;
                     var master = masterByEaw[row.EawEmployeeId];
                     ApplyDiffs(emp, row.Diffs, master);
-                    // Nachtarbeit-Arztzeugnis-Gültigkeit aus easy@work übernehmen
-                    // (Walter 30.06.2026): easy@work ist die Quelle; nur setzen wenn
-                    // vorhanden, nie leeren (manuell Gepflegtes bleibt sonst stehen).
-                    if (master.NightWorkExamValidUntil.HasValue)
-                        emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil.Value.ToDateTime(TimeOnly.MinValue);
+                    // Nachtarbeit: Beginn aus easy, Ende gerechnet (Walter 26.07.2026).
                     if (master.NightWorkExamIssued.HasValue)
+                    {
                         emp.NightWorkExamIssued = master.NightWorkExamIssued.Value.ToDateTime(TimeOnly.MinValue);
+                        emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil!.Value.ToDateTime(TimeOnly.MinValue);
+                        emp.NightWorkExamEasyMismatch = master.NightWorkExamEasyMismatch;
+                    }
                     if (!string.IsNullOrWhiteSpace(row.NumberChangeTo))
                     {
                         // Nur ein AKTIVER Datensatz darf die Hauptnummer setzen
@@ -3553,7 +3557,7 @@ public class EasyAtWorkEmployeeSyncService
     /// Zivilstand (cf_marital_status) UND AHV-Nummer (cf_swiss_national_id).
     /// Unbekannt/Fehlschlag → null (bleibt manuell). Walter-Vorgabe 22.06.2026.
     /// </summary>
-    private async Task<(string? Marital, string? Ahv, DateOnly? NightWorkFrom, DateOnly? NightWorkTo, DateOnly? SeniorityDate)> FetchPropsInfoAsync(int customerId, int eawEmployeeId, CancellationToken ct)
+    private async Task<(string? Marital, string? Ahv, DateOnly? NightWorkFrom, string? NightWorkToRaw, DateOnly? SeniorityDate)> FetchPropsInfoAsync(int customerId, int eawEmployeeId, CancellationToken ct)
     {
         try
         {
@@ -3575,7 +3579,8 @@ public class EasyAtWorkEmployeeSyncService
             // boolean (value "1" = vorhanden) + Gültigkeit von/bis (UTC → Zürich-Datum).
             // Wir geben Von UND Bis zurück; die Gültigkeit rechnen WIR aus dem Von
             // nach unserer Regel, und das easy@work-Bis dient als Prüfwert.
-            DateOnly? nwFrom = null, nwTo = null;
+            DateOnly? nwFrom = null;
+            string? nwToRaw = null;
             // Benutzerdefinierte Felder sind in easy@work VERSIONIERT (mehrere
             // Zeilen mit Von/Bis). Massgebend ist die NEUESTE Version (jüngstes
             // Von, dann jüngste Änderung) — NICHT die mit dem spätesten Bis
@@ -3594,20 +3599,29 @@ public class EasyAtWorkEmployeeSyncService
             // daher NUR Versionen mit Wert «Ja»: davon die heute gültige,
             // sonst die JÜNGSTE (auch wenn abgelaufen) — deren Von/Bis ist die
             // historische Wahrheit («ausgestellt … gültig bis … · abgelaufen»).
+            // «to» für Gültigkeit: beide UTC-Lesarten akzeptieren (Walter 26.07.2026).
             var nwToday = DateOnly.FromDateTime(DateTime.Today);
             static bool NwJa(EawProperty p)
             {
                 var v = (p.Value ?? "").Trim().ToLowerInvariant();
                 return v == "1" || v == "true" || v == "yes" || v == "ja";
             }
+            static bool NwToCoversToday(EawProperty p, DateOnly today)
+            {
+                if (string.IsNullOrWhiteSpace(p.ToRaw)) return true; // offen
+                var plain = EawDateUtil.ParseSwissDate(p.ToRaw);
+                var excl  = EawDateUtil.ParseSwissInclusiveEndDate(p.ToRaw);
+                return (plain.HasValue && plain.Value >= today)
+                    || (excl.HasValue && excl.Value >= today);
+            }
             var nwProp = props
                 .Where(p => (p.Key ?? "").ToLowerInvariant().Contains("night_work_doctors_note"))
                 .Where(NwJa)
                 .OrderByDescending(p => (p.From ?? DateOnly.MinValue) <= nwToday
-                                     && (!p.To.HasValue || p.To.Value >= nwToday) ? 1 : 0)
+                                     && NwToCoversToday(p, nwToday) ? 1 : 0)
                 .ThenByDescending(p => p.From ?? DateOnly.MinValue)
                 .FirstOrDefault();
-            if (nwProp != null) { nwFrom = nwProp.From; nwTo = nwProp.To; }
+            if (nwProp != null) { nwFrom = nwProp.From; nwToRaw = nwProp.ToRaw; }
 
             // Betriebszugehörigkeit / Seniorität (cf_seniority_date, Walter-Vorgabe
             // 05.07.2026): das ist der FIRMEN-Eintritt für Dienstjubiläen — überdauert
@@ -3624,7 +3638,7 @@ public class EasyAtWorkEmployeeSyncService
                     seniority = DateOnly.FromDateTime(sdt);
             }
 
-            return (marital, ahv, nwFrom, nwTo, seniority);
+            return (marital, ahv, nwFrom, nwToRaw, seniority);
         }
         catch (Exception ex) { _log.LogDebug(ex, "Properties (Zivilstand/AHV/Nachtarbeit/Seniorität) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); return (null, null, null, null, null); }
     }
