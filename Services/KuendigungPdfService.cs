@@ -1,3 +1,9 @@
+using iText.IO.Font.Constants;
+using iText.Kernel.Colors;
+using iText.Kernel.Font;
+using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Canvas;
+using iText.Kernel.Utils;
 using QRCoder;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -59,7 +65,8 @@ public class KuendigungPdfService
     /// Kündigungsbestätigung (Walter 26.07.2026) — wenn der MA kündigt,
     /// bestätigt der AG den Erhalt und das Vertragsende. Vorlage:
     /// «Kündigungsbestätigung» (Du-Form, inkl. Austritts-Fragebogen-QR).
-    /// Seite 2 = Referenzangaben-Formular (ausgefüllt wo möglich).
+    /// Seite 2 = Referenzangaben · Seite 3 = Swica-Informationsblatt
+    /// (Original-PDF mit vorausgefüllten Feldern).
     /// </summary>
     public record BestaetigungData(
         string? FirmaName, string? RestaurantName, string? FirmaStrasse, string? FirmaPlzOrt,
@@ -75,6 +82,9 @@ public class KuendigungPdfService
 
     /// <summary>Fallback, falls SiteUrl nicht geladen werden kann.</summary>
     public const string DefaultExitSurveyUrl = "https://onecrew.ch/kuendigung/";
+
+    private static readonly string SwicaTemplatePath =
+        Path.Combine(AppContext.BaseDirectory, "Assets", "Forms", "Swica_Obligatorische_Mitarbeiter_Information.pdf");
 
     public byte[] GenerateBestaetigung(BestaetigungData d)
     {
@@ -94,7 +104,9 @@ public class KuendigungPdfService
         using (var qrData = qrGen.CreateQrCode(surveyUrl, QRCodeGenerator.ECCLevel.M))
             qrPng = new PngByteQRCode(qrData).GetGraphic(4);
 
-        return Document.Create(doc =>
+        // Seiten 1–2 im Haus-Briefstil (QuestPDF), Seite 3 = offizielles
+        // Swica-Original mit Overlay-Stamping (kein AcroForm).
+        var briefPages = Document.Create(doc =>
         {
             doc.Page(page =>
             {
@@ -190,89 +202,168 @@ public class KuendigungPdfService
             // (Walter 26.07.2026). Ankreuzen + Unterschrift macht der MA.
             doc.Page(page => ComposeReferenzangabenPage(page, d));
         }).GeneratePdf();
+
+        var swicaPage = StampSwicaPage(d);
+        return MergePdfs(new[] { briefPages, swicaPage });
     }
 
     /// <summary>
     /// Seite 2 der Kündigungsbestätigung: Formular «Referenzangaben»
     /// im gelben Briefkopf-Stil. Name/Vorname des MA sowie Vertreter
     /// (Unterzeichner + Funktion) sind vorausgefüllt; Checkboxen und
-    /// MA-Unterschrift bleiben leer.
+    /// MA-Unterschrift bleiben leer. Abschnitte gleichmässig verteilt,
+    /// Ort/Datum + Unterschrift im Footer ganz unten.
     /// </summary>
     private static void ComposeReferenzangabenPage(PageDescriptor page, BestaetigungData d)
     {
         page.Size(PageSizes.A4);
-        page.MarginTop(0.85f, Unit.Centimetre);
-        page.MarginBottom(1.2f, Unit.Centimetre);
-        page.MarginHorizontal(2.0f, Unit.Centimetre);
-        page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).FontColor(Dark).LineHeight(1.35f));
+        page.MarginTop(1.0f, Unit.Centimetre);
+        page.MarginBottom(1.4f, Unit.Centimetre);
+        page.MarginHorizontal(2.2f, Unit.Centimetre);
+        page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).FontColor(Dark).LineHeight(1.38f));
 
-        page.Header().PaddingTop(8).Image(BannerBytes).FitWidth();
+        page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
 
-        page.Content().PaddingTop(22).Column(col =>
+        page.Content().PaddingTop(24).Column(col =>
         {
-            col.Item().Text("Referenzangaben").Bold().FontSize(14f);
+            col.Item().Text("Referenzangaben").Bold().FontSize(15f);
+            col.Item().PaddingTop(6).Text("Bitte eine Option ankreuzen und unterschreiben.")
+                .FontSize(9.5f).FontColor("#64748b");
 
-            col.Item().PaddingTop(22).Text("Der/die Unterzeichnende").FontSize(11f);
-
-            col.Item().PaddingTop(16).Element(e => FormField(e, "Name", d.MaNachname));
-            col.Item().PaddingTop(10).Element(e => FormField(e, "Vorname", d.MaVorname));
-
-            // Option A: Referenzen erlaubt
-            col.Item().PaddingTop(28).Row(r =>
+            // Block 1 — Person
+            col.Item().PaddingTop(30).BorderBottom(0.6f).BorderColor("#cbd5e1").PaddingBottom(18).Column(c =>
             {
-                r.ConstantItem(22).Element(CheckBox);
+                c.Item().Text("Der/die Unterzeichnende").SemiBold().FontSize(11f);
+                c.Item().PaddingTop(16).Element(e => FormField(e, "Name", d.MaNachname));
+                c.Item().PaddingTop(12).Element(e => FormField(e, "Vorname", d.MaVorname));
+            });
+
+            // Block 2 — Option A
+            col.Item().PaddingTop(28).Border(0.7f).BorderColor("#cbd5e1").Padding(16).Row(r =>
+            {
+                r.ConstantItem(26).Element(CheckBox);
                 r.RelativeItem().Column(c =>
                 {
                     c.Item().Text("erlaubt McDonald's Schweiz, vertreten durch");
-                    c.Item().PaddingTop(12).Element(e =>
+                    c.Item().PaddingTop(14).Element(e =>
                         FormField(e, "Name, Vorname", (d.UnterzeichnerName ?? "").Trim()));
                     c.Item().PaddingTop(10).Element(e =>
                         FormField(e, "Funktion", (d.UnterzeichnerFunktion ?? "").Trim()));
-                    c.Item().PaddingTop(12).Text("Referenzen über ihn/sie zu geben.");
+                    c.Item().PaddingTop(14).Text("Referenzen über ihn/sie zu geben.");
                 });
             });
 
-            // Option B: Referenzen nicht erlaubt
-            col.Item().PaddingTop(22).Row(r =>
+            // Block 3 — Option B
+            col.Item().PaddingTop(18).Border(0.7f).BorderColor("#cbd5e1").Padding(16).Row(r =>
             {
-                r.ConstantItem(22).Element(CheckBox);
-                r.RelativeItem().Text("erlaubt nicht, dass McDonald's Schweiz Referenzen über ihn/sie gibt.");
+                r.ConstantItem(26).Element(CheckBox);
+                r.RelativeItem().PaddingTop(1)
+                    .Text("erlaubt nicht, dass McDonald's Schweiz Referenzen über ihn/sie gibt.");
             });
+        });
 
-            // Ort/Datum + Unterschrift — leer für den MA
-            col.Item().PaddingTop(48).Row(r =>
+        // Ort/Datum + Unterschrift ganz unten — Seite wirkt ausgewogen.
+        page.Footer().PaddingTop(8).Column(col =>
+        {
+            col.Item().PaddingBottom(10).Text("Ort / Datum und Unterschrift des/der Mitarbeitenden")
+                .FontSize(9f).FontColor("#64748b");
+            col.Item().Row(r =>
             {
                 r.RelativeItem().Column(c =>
                 {
-                    c.Item().BorderBottom(0.8f).BorderColor(Dark).Height(22);
-                    c.Item().PaddingTop(4).Text("Ort, Datum").FontSize(8.5f).FontColor("#475569");
+                    c.Item().BorderBottom(0.8f).BorderColor(Dark).Height(30);
+                    c.Item().PaddingTop(5).Text("Ort, Datum").FontSize(8.5f).FontColor("#64748b");
                 });
-                r.ConstantItem(36);
+                r.ConstantItem(40);
                 r.RelativeItem().Column(c =>
                 {
-                    c.Item().BorderBottom(0.8f).BorderColor(Dark).Height(22);
-                    c.Item().PaddingTop(4).Text("Unterschrift").FontSize(8.5f).FontColor("#475569");
+                    c.Item().BorderBottom(0.8f).BorderColor(Dark).Height(30);
+                    c.Item().PaddingTop(5).Text("Unterschrift").FontSize(8.5f).FontColor("#64748b");
                 });
             });
         });
     }
 
     private static void CheckBox(IContainer e) =>
-        e.PaddingTop(1).Width(13).Height(13).Border(1.1f).BorderColor(Dark);
+        e.PaddingTop(1).Width(14).Height(14).Border(1.15f).BorderColor(Dark);
 
     private static void FormField(IContainer e, string label, string value)
     {
         e.Row(r =>
         {
-            r.ConstantItem(110).AlignMiddle()
-                .Text(label + " :").FontSize(10.5f).FontColor("#475569");
+            r.ConstantItem(118).AlignMiddle()
+                .Text(label + " :").FontSize(10.5f).FontColor("#64748b");
             r.RelativeItem().AlignMiddle().Column(c =>
             {
-                c.Item().MinHeight(16).Text(string.IsNullOrWhiteSpace(value) ? " " : value)
-                    .FontSize(10.5f).FontColor(Dark);
-                c.Item().BorderBottom(0.7f).BorderColor("#94a3b8");
+                c.Item().MinHeight(18).Text(string.IsNullOrWhiteSpace(value) ? " " : value)
+                    .FontSize(11f).FontColor(Dark);
+                c.Item().BorderBottom(0.75f).BorderColor("#94a3b8");
             });
         });
+    }
+
+    /// <summary>
+    /// Offizielles Swica-Blatt «Obligatorische Mitarbeiter-Information»
+    /// als Seite 3 — Original-PDF unverändert, Felder per Overlay vorausgefüllt
+    /// (Name, Vorname, Datum, Name des versicherten Betriebes). Unterschrift leer.
+    /// Koordinaten aus der Vorlage vermessen (pdfplumber, top-basiert).
+    /// </summary>
+    private static byte[] StampSwicaPage(BestaetigungData d)
+    {
+        using var ms = new MemoryStream();
+        using (var pdf = new PdfDocument(new PdfReader(SwicaTemplatePath), new PdfWriter(ms)))
+        {
+            var page = pdf.GetPage(1);
+            var canvas = new PdfCanvas(page);
+            var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+            float pageH = page.GetPageSize().GetHeight();
+
+            // Labels sitzen LINKS auf der Unterlinie (pdfplumber top-basiert):
+            // Name 678.4 / x1≈75 · Vorname 706.4 / x1≈88 · Datum 734.4 / x1≈79 ·
+            // Unterschrift 762.4 · Betrieb («Name des versicherten Betriebes»)
+            // 790.4 / x1≈181. Werte rechts vom Label, gleiche Baseline;
+            // Unterschrift bleibt leer (handschriftlich).
+            void Text(string? t, float labelTop, float x, float size = 10.5f)
+            {
+                if (string.IsNullOrWhiteSpace(t)) return;
+                canvas.BeginText()
+                      .SetFontAndSize(font, size)
+                      .SetColor(ColorConstants.BLACK, true)
+                      .MoveText(x, pageH - labelTop - 9f)
+                      .ShowText(t.Trim())
+                      .EndText();
+            }
+
+            Text(d.MaNachname, 678.4f, 95f);
+            Text(d.MaVorname, 706.4f, 105f);
+            Text(d.Datum.ToString("dd.MM.yyyy"), 734.4f, 100f);
+            var betrieb = !string.IsNullOrWhiteSpace(d.FirmaName)
+                ? d.FirmaName!
+                : (d.RestaurantName ?? "");
+            Text(betrieb, 790.4f, 195f);
+        }
+        return ms.ToArray();
+    }
+
+    private static byte[] MergePdfs(IEnumerable<byte[]> pdfBytesList)
+    {
+        var list = pdfBytesList.Where(b => b is { Length: > 0 }).ToList();
+        if (list.Count == 0) return Array.Empty<byte>();
+        if (list.Count == 1) return list[0];
+
+        using var output = new MemoryStream();
+        var writer = new PdfWriter(output);
+        using (var target = new PdfDocument(writer))
+        {
+            var merger = new PdfMerger(target);
+            foreach (var bytes in list)
+            {
+                using var src = new MemoryStream(bytes);
+                using var srcDoc = new PdfDocument(new PdfReader(src));
+                merger.Merge(srcDoc, 1, srcDoc.GetNumberOfPages());
+            }
+        }
+        return output.ToArray();
     }
 
     public byte[] GenerateRueckzug(RueckzugData d, byte[]? signaturePng)
