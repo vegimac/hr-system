@@ -6072,6 +6072,177 @@
             color: #94a3b8;
         }
 
+        /* Austritts-Feedback: eine Zeile pro Antwort (Walter 26.07.2026).
+           Gründe-Spalte schrumpft auf max. Inhaltsbreite (width:1% + nowrap),
+           Bemerkung liegt direkt rechts davon. */
+        #page-exit-survey-report .es-kpi-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        #page-exit-survey-report .es-kpi {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(60, 55, 48, 0.06);
+            padding: 14px 16px;
+        }
+        #page-exit-survey-report .es-kpi-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #8b8b8b;
+        }
+        #page-exit-survey-report .es-kpi-value {
+            font-size: 26px;
+            font-weight: 760;
+            color: #1a1a1a;
+            margin-top: 4px;
+            letter-spacing: -0.02em;
+        }
+        #page-exit-survey-report .es-kpi-hint {
+            font-size: 11.5px;
+            color: #8b8b8b;
+            margin-top: 4px;
+        }
+        #page-exit-survey-report .es-empty {
+            padding: 28px 18px;
+            text-align: center;
+            color: #8b8b8b;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid #e7e1d8;
+            border-radius: 14px;
+            line-height: 1.5;
+        }
+        #page-exit-survey-report .es-empty span { font-size: 12.5px; }
+        #page-exit-survey-report .es-table-card {
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid #e7e1d8;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(60, 55, 48, 0.06);
+            padding: 4px 0 2px;
+        }
+        #page-exit-survey-report .es-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: auto;
+            font-size: 13px;
+        }
+        #page-exit-survey-report.page.fixhead .page-body table.es-table thead th {
+            position: sticky;
+            top: var(--ssh, 0px);
+            z-index: 5;
+            background: #efeae2 !important;
+            box-shadow: 0 1px 0 #d8d1c4;
+            text-transform: uppercase;
+            font-size: 10.5px !important;
+            letter-spacing: 0.04em;
+            font-weight: 700;
+            color: #475569;
+            text-align: left;
+            padding: 10px 14px;
+            white-space: nowrap;
+        }
+        #page-exit-survey-report.page.fixhead .page-body table.es-table thead th.es-th-note {
+            text-align: center;
+        }
+        body.theme-dark #page-exit-survey-report.page.fixhead .page-body table.es-table thead th {
+            background: #2a3446 !important;
+            box-shadow: 0 1px 0 var(--dlg-glass-border);
+            color: #94a3b8;
+        }
+        #page-exit-survey-report .es-table tbody td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f0ebe3;
+            color: #3f3f3f;
+            vertical-align: top;
+            background: transparent;
+        }
+        #page-exit-survey-report .es-table tbody tr:last-child td { border-bottom: none; }
+        #page-exit-survey-report .es-table tbody tr:hover td { background: rgba(246, 243, 238, 0.65); }
+        #page-exit-survey-report .es-td-date {
+            white-space: nowrap;
+            color: #646464;
+            font-variant-numeric: tabular-nums;
+        }
+        #page-exit-survey-report .es-td-filiale {
+            white-space: nowrap;
+            font-weight: 650;
+            color: #1a1a1a;
+        }
+        #page-exit-survey-report .es-td-note {
+            text-align: center;
+            white-space: nowrap;
+            width: 1%;
+        }
+        #page-exit-survey-report .es-note {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            padding: 0 8px;
+            border-radius: 9px;
+            background: #3f3f3f;
+            color: #fff;
+            font-weight: 760;
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+        }
+        /* Max. Breite aller Gründe: Spalte so schmal wie möglich, so breit wie nötig */
+        #page-exit-survey-report .es-td-gruende {
+            width: 1%;
+            white-space: nowrap;
+            padding-right: 22px;
+        }
+        #page-exit-survey-report .es-reason {
+            line-height: 1.45;
+            color: #1a1a1a;
+            font-weight: 550;
+        }
+        #page-exit-survey-report .es-reason + .es-reason { margin-top: 3px; }
+        #page-exit-survey-report .es-td-bemerkung {
+            width: auto;
+            line-height: 1.5;
+            color: #3f3f3f;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        #page-exit-survey-report .es-muted { color: #8b8b8b; }
+        #page-exit-survey-report .es-foot {
+            font-size: 11.5px;
+            color: #8b8b8b;
+            margin-top: 12px;
+        }
+        body.theme-dark #page-exit-survey-report .es-kpi,
+        body.theme-dark #page-exit-survey-report .es-table-card,
+        body.theme-dark #page-exit-survey-report .es-empty {
+            background: var(--dlg-glass);
+            border-color: var(--dlg-glass-border);
+            box-shadow: none;
+        }
+        body.theme-dark #page-exit-survey-report .es-kpi-value,
+        body.theme-dark #page-exit-survey-report .es-td-filiale,
+        body.theme-dark #page-exit-survey-report .es-reason { color: #e8e6e1; }
+        body.theme-dark #page-exit-survey-report .es-table tbody td {
+            border-bottom-color: var(--dlg-glass-border);
+            color: #c9c4bb;
+        }
+        body.theme-dark #page-exit-survey-report .es-table tbody tr:hover td {
+            background: rgba(125, 160, 205, 0.08);
+        }
+        body.theme-dark #page-exit-survey-report .es-note {
+            background: #e8e6e1;
+            color: #1a1a1a;
+        }
+        @media (max-width: 860px) {
+            #page-exit-survey-report .es-kpi-row { grid-template-columns: 1fr; }
+            #page-exit-survey-report .es-td-gruende { white-space: normal; width: auto; }
+        }
+
         /* Aktivitäts-Log: Spaltentitel im sticky Filter-Kopf (kein sticky-thead).
            Sonst rutscht der thead beim Scrollen mitten zwischen die Zeilen
            (Walter-Bug 26.07.2026). */
