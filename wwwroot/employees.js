@@ -10972,7 +10972,11 @@ async function saveEmployeeAddress() {
         });
         if (!res.ok) {
             let msg = 'Fehler beim Speichern (' + res.status + ').';
-            try { const j = await res.json(); msg = j.error || j.message || msg; } catch {}
+            try {
+                const j = await res.json();
+                msg = j.message || j.error || msg;
+                if (j.detail) msg += ' — ' + j.detail;
+            } catch {}
             errEl.textContent = msg;
             return;
         }
