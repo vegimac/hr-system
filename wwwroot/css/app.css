@@ -6834,6 +6834,59 @@
         .abs-hours-neg   { color:#dc2626; font-weight:700; }
         .abs-hours-label { font-size:11px; color:#64748b; margin-left:4px; }
 
+        /* Kritische Bestands-Absenzen: Überlappung / AU-Unterbrechung (Walter 26.07.2026) */
+        .abs-critical-banner {
+            margin: 0 0 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #7f1d1d;
+            font-size: 12.5px;
+            line-height: 1.45;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .abs-critical-banner strong { font-size: 13px; font-weight: 700; }
+        .abs-critical-banner span { color: #991b1b; }
+        .abs-table-body tr.abs-row-critical td {
+            background: #fef2f2 !important;
+            box-shadow: inset 3px 0 0 #dc2626;
+        }
+        .abs-critical-badge {
+            display: inline-block;
+            margin-left: 6px;
+            margin-top: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: #fff;
+            background: #b91c1c;
+            padding: 2px 7px;
+            border-radius: 99px;
+            vertical-align: middle;
+        }
+        .abs-critical-hint {
+            margin-top: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #b91c1c;
+            line-height: 1.35;
+        }
+        body.theme-dark .abs-critical-banner {
+            background: rgba(127, 29, 29, 0.35);
+            border-color: rgba(248, 113, 113, 0.45);
+            color: #fecaca;
+        }
+        body.theme-dark .abs-critical-banner span { color: #fca5a5; }
+        body.theme-dark .abs-table-body tr.abs-row-critical td {
+            background: rgba(127, 29, 29, 0.28) !important;
+            box-shadow: inset 3px 0 0 #f87171;
+        }
+        body.theme-dark .abs-critical-hint { color: #fca5a5; }
+
         /* Absenz-Modal */
         .abs-modal-box { background:#fff; border-radius:12px; width:100%; max-width:560px;
             box-shadow:0 20px 60px rgba(0,0,0,.2); }

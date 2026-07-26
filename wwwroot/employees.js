@@ -7331,6 +7331,76 @@ function formatAbsenceOverlapMsg(conflict) {
         + `Bei Bedarf die bestehende Absenz aufteilen (z.B. Ferien vor und nach einem Kompensationstag).`;
 }
 
+/** AU-Typen: Krankheit / Unfall / Mutter-/Vaterschaft — dürfen nicht unterbrochen werden. */
+const ABSENCE_AU_TYPES = new Set(['KRANK', 'UNFALL', 'MUTT_VATER']);
+
+function _absDayAfterIso(iso) {
+    if (!iso || iso.length < 10) return null;
+    const d = new Date(iso.slice(0, 10) + 'T00:00:00');
+    if (Number.isNaN(d.getTime())) return null;
+    d.setDate(d.getDate() + 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+/**
+ * Kritische Bestands-Absenzen (Walter 26.07.2026):
+ * 1) Überlappung am selben Kalendertag (Doppel-Eintrag)
+ * 2) AU → andere Absenz → direkt wieder AU (Unterbrechung, z.B. Ferien in einer Krankheit)
+ * Liefert Map absenzId → unique Gründe.
+ */
+function analyzeAbsenceCritical(absences) {
+    const reasonsById = new Map();
+    const mark = (id, reason) => {
+        if (id == null) return;
+        if (!reasonsById.has(id)) reasonsById.set(id, []);
+        const arr = reasonsById.get(id);
+        if (!arr.includes(reason)) arr.push(reason);
+    };
+
+    const list = Array.isArray(absences) ? absences.slice() : [];
+    list.sort((a, b) =>
+        String(a.dateFrom || '').localeCompare(String(b.dateFrom || ''))
+        || String(a.dateTo || '').localeCompare(String(b.dateTo || ''))
+        || (a.id - b.id));
+
+    for (let i = 0; i < list.length; i++) {
+        for (let j = i + 1; j < list.length; j++) {
+            const a = list[i], b = list[j];
+            if (!a.dateFrom || !a.dateTo || !b.dateFrom || !b.dateTo) continue;
+            if (a.dateFrom <= b.dateTo && a.dateTo >= b.dateFrom) {
+                mark(a.id, 'Überlappung am selben Tag');
+                mark(b.id, 'Überlappung am selben Tag');
+            }
+        }
+    }
+
+    for (const mid of list) {
+        if (!mid.dateFrom || !mid.dateTo) continue;
+        if (ABSENCE_AU_TYPES.has(mid.absenceType)) continue;
+
+        const prev = list.filter(a =>
+            ABSENCE_AU_TYPES.has(a.absenceType)
+            && a.dateTo
+            && _absDayAfterIso(a.dateTo) === mid.dateFrom);
+        const next = list.filter(a =>
+            ABSENCE_AU_TYPES.has(a.absenceType)
+            && a.dateFrom
+            && _absDayAfterIso(mid.dateTo) === a.dateFrom);
+
+        if (prev.length && next.length) {
+            const midLabel = (ABSENCE_LABELS[mid.absenceType] || {}).label || mid.absenceType || 'Absenz';
+            mark(mid.id, `Unterbricht Krankheit/Unfall («${midLabel}» dazwischen)`);
+            prev.forEach(p => mark(p.id, 'Unterbrochen durch andere Absenz'));
+            next.forEach(n => mark(n.id, 'Fortsetzung direkt nach Unterbrechung'));
+        }
+    }
+
+    return reasonsById;
+}
+
 function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sperrfrist = null, lockState = null, karenzUnfallHist = []) {
     const empModel = selectedEmployee?.employmentModel ?? '';
     const noHours  = empModel === 'FLEX';
@@ -7339,12 +7409,23 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
     const karenzSide = document.getElementById('karenzSidebar');
     if (karenzSide) karenzSide.innerHTML = renderKarenzSidebar(karenzKrankHist, karenzUnfallHist);
 
+    const criticalById = analyzeAbsenceCritical(absences);
+    const criticalCount = criticalById.size;
+    const criticalBanner = criticalCount > 0
+        ? `<div class="abs-critical-banner" role="alert">
+               <strong>⚠ Kritisch: ${criticalCount} Absenz${criticalCount === 1 ? '' : 'en'} bereinigen</strong>
+               <span>Doppelte Tage oder Krankheit/Unfall mit eingeschobener Absenz dazwischen (z.B. Ferien mitten in einer Krankheit). Pro Tag nur eine Absenz — bei Bedarf aufteilen.</span>
+           </div>`
+        : '';
+
     let rows = '';
     if (absences.length === 0) {
         rows = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">Keine Absenzen erfasst</td></tr>`;
     } else {
         absences.forEach(a => {
             const meta   = ABSENCE_LABELS[a.absenceType] ?? { label: a.absenceType, color: '' };
+            const critReasons = criticalById.get(a.id) || [];
+            const isCritical = critReasons.length > 0;
             const prozent = Number(a.prozent ?? 100);
             const typBadge = prozent < 100
                 ? `${meta.label} <span style="font-size:10px;opacity:0.85;font-weight:600">${prozent}%</span>`
@@ -7402,9 +7483,19 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                        </div>
                    </div>`;
 
-            rows += `<tr>
-                <td><span class="abs-type-badge ${meta.color}">${typBadge}</span></td>
-                <td>${fmtDate(a.dateFrom)} – ${fmtDate(a.dateTo)}</td>
+            const critBadge = isCritical
+                ? `<span class="abs-critical-badge" title="${esc(critReasons.join(' · '))}">⚠ Kritisch</span>`
+                : '';
+            const critHint = isCritical
+                ? `<div class="abs-critical-hint">${esc(critReasons.join(' · '))}</div>`
+                : '';
+
+            rows += `<tr class="${isCritical ? 'abs-row-critical' : ''}">
+                <td>
+                    <span class="abs-type-badge ${meta.color}">${typBadge}</span>
+                    ${critBadge}
+                </td>
+                <td>${fmtDate(a.dateFrom)} – ${fmtDate(a.dateTo)}${critHint}</td>
                 <td style="white-space:nowrap;color:#475569;font-variant-numeric:tabular-nums">${tageStr}</td>
                 <td>${hoursCell}</td>
                 <td class="abs-notes">${a.notes ?? ''}</td>
@@ -7427,6 +7518,7 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
     <div class="abs-list-shell">
         <div class="abs-list-fixed">
             <div class="abs-info-panels">
+                ${criticalBanner}
                 ${sperrHtml}
             </div>
             <!-- „Absenz erfassen" sitzt jetzt im Header (empTabActionBar) — Walter 01.06.2026 -->
