@@ -5792,6 +5792,178 @@
             color: var(--dlg-text-strong);
         }
 
+        /* Kompaktes Jahres-/Monats-Datumsmenü (Walter 26.07.2026):
+           Chrome-ähnlich klein, öffnet sofort die Jahresliste mit Vorjahr
+           (2025) sichtbar oberhalb des aktuellen Jahres (2026). */
+        .yp-menu {
+            position: fixed;
+            z-index: 10050;
+            width: 248px;
+            max-width: calc(100vw - 16px);
+            background: #fff;
+            border: 1px solid #d8d1c4;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(60, 55, 48, 0.16);
+            padding: 6px 6px 4px;
+            display: none;
+            color: #3f3f3f;
+            font-family: inherit;
+        }
+        .yp-menu-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            margin-bottom: 4px;
+            padding: 0 2px 2px;
+        }
+        .yp-menu-title, .yp-back {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #1a1a1a;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 0;
+        }
+        .yp-back:hover { color: #3f3f3f; }
+        .yp-menu-close {
+            width: 24px; height: 24px;
+            border-radius: 6px;
+            border: 1px solid #e2ddd3;
+            background: #fff;
+            color: #8b8b8b;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+        }
+        .yp-menu-close:hover { background: #f6f3ee; color: #3f3f3f; }
+        .yp-year-list {
+            overflow-y: auto;
+            max-height: 260px;
+            border-radius: 6px;
+            border: 1px solid #efeae2;
+        }
+        .yp-year-row {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 7px 10px;
+            border: none;
+            border-bottom: 1px solid #f0ebe3;
+            border-radius: 0;
+            background: #f5f3ef;
+            color: #3f3f3f;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .yp-year-row:hover { background: #ebe7df; }
+        .yp-year-row.is-open {
+            background: #ebe7df;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        .yp-year-row.is-prev { color: #1a1a1a; }
+        .yp-months {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2px;
+            padding: 6px 6px 8px;
+            background: #fff;
+            border-bottom: 1px solid #f0ebe3;
+        }
+        .yp-month {
+            padding: 7px 2px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: #3f3f3f;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .yp-month:hover { background: #f6f3ee; }
+        .yp-month.is-active {
+            background: #3f3f3f;
+            color: #fff;
+        }
+        .yp-dow {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            margin-bottom: 2px;
+            text-align: center;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #8b8b8b;
+        }
+        .yp-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+        }
+        .yp-day {
+            height: 28px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: #3f3f3f;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .yp-day.is-empty { cursor: default; }
+        .yp-day:not(.is-empty):hover { background: #f6f3ee; }
+        .yp-day.is-today { box-shadow: inset 0 0 0 1px #cbd5e1; }
+        .yp-day.is-active {
+            background: #3f3f3f;
+            color: #fff;
+        }
+        .yp-menu-foot {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+            padding: 2px 2px 0;
+        }
+        .yp-link {
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 4px 2px;
+        }
+        .yp-link:hover { color: #1a1a1a; }
+        body.theme-dark .yp-menu {
+            background: #1e2430;
+            border-color: var(--dlg-glass-border, #334155);
+            color: #e2e8f0;
+        }
+        body.theme-dark .yp-menu-title,
+        body.theme-dark .yp-back { color: #f1f5f9; }
+        body.theme-dark .yp-year-list { border-color: var(--dlg-glass-border, #334155); }
+        body.theme-dark .yp-year-row {
+            background: rgba(255,255,255,0.04);
+            border-bottom-color: var(--dlg-glass-border, #334155);
+            color: #e2e8f0;
+        }
+        body.theme-dark .yp-year-row:hover,
+        body.theme-dark .yp-year-row.is-open { background: rgba(255,255,255,0.08); }
+        body.theme-dark .yp-months {
+            background: #1e2430;
+            border-bottom-color: var(--dlg-glass-border, #334155);
+        }
+        body.theme-dark .yp-month:hover,
+        body.theme-dark .yp-day:not(.is-empty):hover { background: rgba(255,255,255,0.06); }
+        body.theme-dark .yp-menu-close {
+            background: rgba(255,255,255,0.04);
+            border-color: var(--dlg-glass-border, #334155);
+            color: #94a3b8;
+        }
+
         /* Sticky-Kopfzeile für lange Detail-/Tab-Ansichten (Walter-Vorgabe
            15.05.2026): Titel + Aktions-Buttons (Speichern, Übertragen …)
            bleiben beim Scrollen oben sichtbar — nie Buttons, die wegscrollen.
