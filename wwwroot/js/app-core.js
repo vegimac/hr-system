@@ -1145,6 +1145,9 @@ function onBranchChange() {
         // Bei Filial-Wechsel: Vorschau-Ergebnisse zurücksetzen (Filiale ist
         // die zentrale Dimension des Akonto-Laufs).
         if (typeof akOnBranchChange === 'function') akOnBranchChange();
+    } else if (currentPageName === 'fluktuation-report') {
+        // Fluktuation: bei Scope «Sidebar-Filiale» neu laden (Walter 26.07.2026).
+        if (typeof flukLoad === 'function') flukLoad();
     }
 
     // Mirus-Digest-Vorschau folgt der Sidebar-Filiale (Walter 23.07.2026).

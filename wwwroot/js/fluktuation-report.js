@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  FLUKTUATION / Ein- & Austritte (Walter 26.07.2026)
-//  Zeitraum frei · KPIs · Donut Austrittsgründe · namentliche Listen
-//  Endpoint: GET /api/reports/fluktuation?from=&to=
+//  Zeitraum frei · Filiale = Sidebar ODER alle · KPIs · Donut · Listen
+//  Endpoint: GET /api/reports/fluktuation?from=&to=&companyProfileId=
 // ═══════════════════════════════════════════════════════════════════════════
 
 function flukInit() {
@@ -15,22 +15,65 @@ function flukInit() {
         const t = new Date();
         toEl.value = t.toISOString().slice(0, 10);
     }
+    flukSyncScopeLabel();
     flukLoad();
+}
+
+function flukSyncScopeLabel() {
+    const sel = document.getElementById('flukScope');
+    if (!sel) return;
+    const branchOpt = sel.querySelector('option[value="branch"]');
+    if (!branchOpt) return;
+    let name = 'gewählte Filiale';
+    try {
+        const id = typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null;
+        const list = typeof allBranches !== 'undefined' ? allBranches : [];
+        if (id && Array.isArray(list)) {
+            const b = list.find(x => x.id === id || String(x.id) === String(id));
+            if (b) {
+                const code = b.restaurantCode || '';
+                const city = b.city || b.branchName || b.companyName || '';
+                name = `${code} ${city}`.trim() || name;
+            }
+        }
+    } catch { /* ignore */ }
+    branchOpt.textContent = `Sidebar-Filiale (${name})`;
+}
+
+function flukIsAllScope() {
+    return (document.getElementById('flukScope')?.value || 'branch') === 'all';
 }
 
 async function flukLoad() {
     const box = document.getElementById('flukResult');
     if (!box) return;
+    flukSyncScopeLabel();
     const from = document.getElementById('flukFrom')?.value || '';
     const to = document.getElementById('flukTo')?.value || '';
+    const all = flukIsAllScope();
+    const branchId = (!all && typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+        ? fixedCompanyProfileId
+        : null;
+
+    if (!all && !branchId) {
+        box.innerHTML = '<div style="padding:20px;color:#8b8b8b">Bitte zuerst eine Filiale in der Sidebar wählen — oder oben «Alle Filialen».</div>';
+        return;
+    }
+
     box.innerHTML = '<div style="padding:20px;color:#8b8b8b">Lade Auswertung…</div>';
     try {
         const q = new URLSearchParams();
         if (from) q.set('from', from);
         if (to) q.set('to', to);
+        if (branchId) q.set('companyProfileId', String(branchId));
         const res = await fetch('/api/reports/fluktuation?' + q.toString(), { headers: ah() });
         if (!res.ok) {
-            box.innerHTML = `<div style="padding:20px;color:#b91c1c">Fehler beim Laden (${res.status}).</div>`;
+            let msg = `Fehler beim Laden (${res.status}).`;
+            try {
+                const err = await res.json();
+                if (err?.message) msg = err.message;
+            } catch { /* ignore */ }
+            box.innerHTML = `<div style="padding:20px;color:#b91c1c">${flukEsc(msg)}</div>`;
             return;
         }
         flukRender(await res.json());
@@ -52,6 +95,7 @@ function flukRender(data) {
     const box = document.getElementById('flukResult');
     if (!box) return;
 
+    const scopeLbl = data.scopeLabel || (data.scope === 'all' ? 'Alle Filialen' : 'Filiale');
     const kpi = (label, value, hint) => `
         <div style="background:#fff;border:1px solid rgba(255,255,255,0.72);border-radius:14px;
                     box-shadow:0 8px 24px rgba(60,55,48,0.06);padding:14px 16px;min-width:0">
@@ -60,7 +104,12 @@ function flukRender(data) {
             ${hint ? `<div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">${hint}</div>` : ''}
         </div>`;
 
-    let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">
+    let html = `<div style="font-size:12.5px;font-weight:700;color:#3f3f3f;margin:0 0 10px">
+        Auswertung: <span style="color:#1a1a1a">${flukEsc(scopeLbl)}</span>
+        <span style="font-weight:500;color:#8b8b8b"> · ${flukFmtDate(data.from)} – ${flukFmtDate(data.to)}</span>
+    </div>`;
+
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">
         ${kpi('Eintritte', data.eintritteCount ?? 0, flukFmtDate(data.from) + ' – ' + flukFmtDate(data.to))}
         ${kpi('Austritte', data.austritteCount ?? 0, '')}
         ${kpi('Bestand Anfang', data.bestandAnfang ?? 0, 'am ' + flukFmtDate(data.from))}
@@ -84,7 +133,7 @@ function flukRender(data) {
     html += flukTableBlock('Eintritte', data.eintritte || [], false);
 
     html += `<div style="font-size:11.5px;color:#8b8b8b;margin-top:10px">
-        Alle Filialen · Phantom-MA (ohne Lohn) ausgenommen ·
+        ${flukEsc(scopeLbl)} · Phantom-MA (ohne Lohn) ausgenommen ·
         Eintritt = Firmen-Eintrittsdatum · Austritt = Austrittsdatum am MA ·
         Filiale = ältester Vertrag, sonst Personalnummer-Präfix.
     </div>`;

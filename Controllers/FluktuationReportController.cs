@@ -7,9 +7,10 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Fluktuation / Ein- &amp; Austritte über ALLE Filialen (Walter 26.07.2026).
-/// Zeitraum frei wählbar. Austrittsgründe als Donut + namentliche Listen.
-/// GET /api/reports/fluktuation?from=&amp;to= — rein lesend, kein LohnEditLock.
+/// Fluktuation / Ein- &amp; Austritte (Walter 26.07.2026, Filiale 26.07.2026).
+/// Zeitraum frei wählbar. Optional <c>companyProfileId</c> = eine Filiale,
+/// ohne/0 = alle Filialen. Austrittsgründe als Donut + namentliche Listen.
+/// GET /api/reports/fluktuation?from=&amp;to=&amp;companyProfileId= — rein lesend.
 /// </summary>
 [ApiController]
 [Route("api/reports/fluktuation")]
@@ -20,12 +21,16 @@ public class FluktuationReportController : ControllerBase
     public FluktuationReportController(AppDbContext db) => _db = db;
 
     [HttpGet]
-    public async Task<IActionResult> Get([FromQuery] string? from, [FromQuery] string? to)
+    public async Task<IActionResult> Get(
+        [FromQuery] string? from,
+        [FromQuery] string? to,
+        [FromQuery] int? companyProfileId = null)
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
         var fromD = ParseDate(from) ?? new DateOnly(today.Year, 1, 1);
         var toD = ParseDate(to) ?? today;
         if (toD < fromD) (fromD, toD) = (toD, fromD);
+        var filterBranchId = companyProfileId is > 0 ? companyProfileId : null;
 
         var branchesRaw = await _db.CompanyProfiles.AsNoTracking()
             .Where(b => b.IsActive)
@@ -93,6 +98,16 @@ public class FluktuationReportController : ControllerBase
             var bid = ResolveBranchId(empId, employeeNumber);
             if (bid.HasValue && branchName.TryGetValue(bid.Value, out var bn)) return bn;
             return "—";
+        }
+
+        // Filial-Filter (Walter 26.07.2026): Sidebar-Filiale ODER alle.
+        if (filterBranchId.HasValue)
+        {
+            if (!branchName.ContainsKey(filterBranchId.Value))
+                return BadRequest(new { error = "FILIALE_UNBEKANNT", message = "Unbekannte Filiale." });
+            emps = emps
+                .Where(e => ResolveBranchId(e.Id, e.EmployeeNumber) == filterBranchId.Value)
+                .ToList();
         }
 
         static DateOnly? AsDate(DateTime? dt) =>
@@ -202,10 +217,17 @@ public class FluktuationReportController : ControllerBase
             ? Math.Round(verbleibVals.Average(), 1)
             : null;
 
+        string? scopeLabel = null;
+        if (filterBranchId.HasValue && branchName.TryGetValue(filterBranchId.Value, out var fl))
+            scopeLabel = fl;
+
         return Ok(new
         {
             from = fromD.ToString("yyyy-MM-dd"),
             to = toD.ToString("yyyy-MM-dd"),
+            companyProfileId = filterBranchId,
+            scope = filterBranchId.HasValue ? "branch" : "all",
+            scopeLabel = scopeLabel ?? "Alle Filialen",
             bestandAnfang,
             bestandEnde,
             eintritteCount = eintritte.Count,
