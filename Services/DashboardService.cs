@@ -1,3 +1,4 @@
+using System.Globalization;
 using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -277,13 +278,20 @@ public class DashboardService
         {
             var dueDate = em.ProbationEndDate!.Value;
             var days = (dueDate.Date - now).Days;
+            var endeTxt = FormatWeekdayDateDe(dueDate);
             alerts.Add(new DashboardAlert
             {
                 Category = "probation_end",
                 Severity = Severity("probation_end", days, "info", "warning"),
-                Title    = $"Probezeit endet in {days} Tagen",
-                TitleKey = "alert.probation.ends_in_days",
-                TitleArgs = new Dictionary<string, object> { ["days"] = days },
+                Title    = days == 0
+                    ? $"Probezeit endet heute · {endeTxt}"
+                    : days == 1
+                        ? $"Probezeit endet morgen · {endeTxt}"
+                        : $"Probezeit endet {endeTxt} (in {days} Tagen)",
+                TitleKey = days == 0 ? "alert.probation.ends_today"
+                         : days == 1 ? "alert.probation.ends_tomorrow"
+                         : "alert.probation.ends_in_days",
+                TitleArgs = new Dictionary<string, object> { ["days"] = days, ["ende"] = endeTxt },
                 Subtitle = $"{em.Employee!.FirstName} {em.Employee.LastName} · Personalnr. {em.Employee.EmployeeNumber}",
                 SubtitleKey  = "subtitle.maPersonalnr",
                 SubtitleArgs = new Dictionary<string, object> {
@@ -323,6 +331,7 @@ public class DashboardService
             {
                 var dueDate = em.ProbationEndDate!.Value;
                 var days = (dueDate.Date - now).Days;
+                var endeTxt = FormatWeekdayDateDe(dueDate);
                 var fehltDatum = em.Employee!.ProbezeitGespraech1Am == null;
                 var fehltDok = !em.Employee.ProbezeitGespraech1DokumentId.HasValue;
                 var fehltTxt = fehltDatum && fehltDok ? "Gesprächsdatum + Protokoll"
@@ -335,11 +344,12 @@ public class DashboardService
                     Severity = Severity("probezeit_gespraech_offen", days, "warning", "critical"),
                     Title    = "Probezeitgespräch offen",
                     TitleKey = "alert.probation.gespraech_offen",
-                    Subtitle = $"{name} · fehlt: {fehltTxt}",
+                    Subtitle = $"{name} · Probezeit bis {endeTxt} · fehlt: {fehltTxt}",
                     SubtitleKey  = "alert.probation.gespraech_fehlt",
                     SubtitleArgs = new Dictionary<string, object> {
                         ["name"] = name,
-                        ["fehlt"] = fehltTxt
+                        ["fehlt"] = fehltTxt,
+                        ["ende"] = endeTxt
                     },
                     DueDate  = dueDate,
                     DaysUntil = days,
@@ -1473,4 +1483,8 @@ public class DashboardService
             .ToDictionary(g => g.Key, g => g.Count());
         return result;
     }
+
+    /// <summary>Wochentag + Datum für Probezeit-Todos, z.B. «Freitag, 31.07.2026».</summary>
+    private static string FormatWeekdayDateDe(DateTime d)
+        => d.ToString("dddd, dd.MM.yyyy", CultureInfo.GetCultureInfo("de-CH"));
 }
