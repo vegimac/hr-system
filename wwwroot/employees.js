@@ -713,7 +713,11 @@ async function selectEmployee(id) {
     // (sonst wartet der Screen auf Schwangerschaft/Linked-Docs → Flackern).
     const _selGen = (window._empSelectGen = (window._empSelectGen || 0) + 1);
     try {
-        const res = await fetch(`/api/employees/${id}`, { headers: ah() });
+        // cache:no-store + ts: nach easy@work-Sync nie eine veraltete
+        // Vertrags-Liste aus dem Browser-Cache zeigen (Walter 26.07.2026).
+        const res = await fetch(`/api/employees/${id}?_=${Date.now()}`, {
+            headers: ah(), cache: 'no-store'
+        });
         if (!res.ok || _selGen !== window._empSelectGen) return;
         const emp = await res.json();
         if (_selGen !== window._empSelectGen) return;
@@ -1669,13 +1673,25 @@ async function easyworkSyncSelectedEmployee(empId) {
             return;
         }
 
-        const fresh = await fetch(`/api/employees/${empId}`, { headers: ah(), cache: 'no-store' });
-        if (fresh.ok) {
-            selectedEmployee = await fresh.json();
+        // Nach Sync immer kanonisch neu laden (Walter-Bug 26.07.2026):
+        // Früher: eigener GET + renderEmployeeDetail — konnte von einem noch
+        // laufenden selectEmployee-Fetch mit ALTEN Verträgen überschrieben
+        // werden (nur Gen-Bump + selectEmployee ist race-sicher). Ausserdem
+        // aktualisiert selectEmployee Header/Übersicht/Verträge wie beim
+        // manuellen MA-Wechsel (den Workaround «MA vor und zurück»).
+        window._empSelectGen = (window._empSelectGen || 0) + 1;
+        if (typeof selectEmployee === 'function')
+            await selectEmployee(empId);
+        if (selectedEmployee && selectedEmployee.id === empId) {
             const idx = allEmployees.findIndex(e => e.id === empId);
-            if (idx >= 0) allEmployees[idx] = { ...allEmployees[idx], ...selectedEmployee };
-            renderEmployeeList(allEmployees);
-            renderEmployeeDetail(selectedEmployee);
+            if (idx >= 0) {
+                allEmployees[idx] = {
+                    ...allEmployees[idx],
+                    ...selectedEmployee,
+                    employments: [...(selectedEmployee.employments || [])]
+                };
+                renderEmployeeList(allEmployees);
+            }
         }
         // Rückmeldung (Walter-Vorgabe 09.07.2026): Erfolg nur als kurzer,
         // nicht-blockierender Toast. Nur übersprungene Verträge (geschlossene
