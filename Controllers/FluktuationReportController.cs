@@ -90,7 +90,10 @@ public class FluktuationReportController : ControllerBase
                 branchId = branchByEmp.GetValueOrDefault(e.Id),
                 branchName = branchByEmp.TryGetValue(e.Id, out var bid) && branchName.TryGetValue(bid, out var bn) ? bn : "—",
             })
-            .OrderBy(x => x.firstName, StringComparer.OrdinalIgnoreCase)
+            // Filiale → Eintrittsdatum absteigend → Vorname/Name (Walter 26.07.2026)
+            .OrderBy(x => x.branchName, StringComparer.OrdinalIgnoreCase)
+            .ThenByDescending(x => x.entryDate)
+            .ThenBy(x => x.firstName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.lastName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -134,7 +137,9 @@ public class FluktuationReportController : ControllerBase
                     branchName = branchByEmp.TryGetValue(e.Id, out var bid) && branchName.TryGetValue(bid, out var bn) ? bn : "—",
                 };
             })
-            .OrderByDescending(x => x.exitDate)
+            // Filiale → Austrittsdatum absteigend → Vorname/Name (Walter 26.07.2026)
+            .OrderBy(x => x.branchName, StringComparer.OrdinalIgnoreCase)
+            .ThenByDescending(x => x.exitDate)
             .ThenBy(x => x.firstName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.lastName, StringComparer.OrdinalIgnoreCase)
             .ToList();
