@@ -362,10 +362,12 @@ public class KuendigungPdfService
     }
 
     /// <summary>
-    /// GastroSocial «Überweisung Pensionskassenguthaben» als Seiten 4–5 —
-    /// Original-AcroForm, vorausgefüllt wo möglich. Ziel-PK / Freizügigkeit
-    /// und MA-Unterschrift bleiben leer (füllt der MA). Nach dem Füllen
-    /// Flatten, damit der Merge mit den Brief-Seiten sauber bleibt.
+    /// GastroSocial «Überweisung Pensionskassenguthaben» als Seiten 4–5.
+    /// AHV + Zivilstand-Checkboxen via AcroForm (Comb-Feld / Radios, AHV = 11pt).
+    /// Alle anderen Daten als Canvas-Overlay mit fester 11pt-Schrift —
+    /// die Textfelder der Vorlage haben DA «/Arial 0 Tf» (Auto-Size auf Feldhoehe
+    /// ≈ 15pt) und werden beim Flatten sonst riesig (Walter 26.07.2026).
+    /// Ziel-PK / Freizügigkeit und Ort/Datum/Unterschrift bleiben leer fuer den MA.
     /// </summary>
     private static byte[] FillPkUeberweisungPages(BestaetigungData d)
     {
@@ -375,55 +377,79 @@ public class KuendigungPdfService
             var form = PdfAcroForm.GetAcroForm(pdf, false);
             if (form != null)
             {
-                form.SetNeedAppearances(true);
+                form.SetNeedAppearances(false);
 
-                // Gleiche Schriftgroesse wie AHV-Feld der Vorlage (Arial 11).
-                const float dataFont = 11f;
-                SetAcro(form, "Name", d.MaNachname, dataFont);
-                SetAcro(form, "Vorname", d.MaVorname, dataFont);
-                SetAcro(form, "AHV-Nummer", FormatAhvForPkForm(d.MaAhvNummer)); // kleine Schrift
-                if (d.MaGeburtsdatum.HasValue)
-                    SetAcro(form, "Geburtsdatum", d.MaGeburtsdatum.Value.ToString("dd.MM.yyyy"), dataFont);
-                SetAcro(form, "Strasse_Nummer", d.MaStrasse, dataFont);
-                SetAcro(form, "PLZ, Ort", d.MaPlzOrt, dataFont);
-                SetAcro(form, "Land", FormatLandForPkForm(d.MaLand), dataFont);
-                SetAcro(form, "Telefon", d.MaTelefon, dataFont);
-                SetAcro(form, "E-Mail", d.MaEmail, dataFont);
+                // Auto-Size-Textfelder entfernen — sonst Flatten → Riesen-Schrift.
+                // Ort_Datum bewusst mitentfernen (MA fuellt handschriftlich).
+                foreach (var name in new[]
+                {
+                    "Name", "Vorname", "Geburtsdatum", "Strasse_Nummer", "PLZ, Ort", "Land",
+                    "Telefon", "E-Mail", "Datum_Eheschliessung", "Datum_Partnerschaft",
+                    "Letzter_Arbeitgeber_Name", "Letzter_Arbeitgeber_Adresse",
+                    "Letzter_Arbeitgeber_Adresse_2", "Austrittsdatum", "Ort_Datum"
+                })
+                {
+                    try { form.RemoveField(name); } catch { /* ignore */ }
+                }
 
+                // Nur Comb-/Radio-Felder ueber AcroForm (feste Appearance, AHV = 11pt).
+                SetAcro(form, "AHV-Nummer", FormatAhvForPkForm(d.MaAhvNummer));
                 var (zivilCode, eheDatum, partnerDatum) = MapZivilstandForPkForm(
                     d.MaZivilstand, d.MaZivilstandSeit);
                 if (zivilCode != null)
                     SetAcroRadio(form, "Zivilstand", zivilCode);
-                SetAcro(form, "Datum_Eheschliessung", eheDatum, dataFont);
-                SetAcro(form, "Datum_Partnerschaft", partnerDatum, dataFont);
 
-                SetAcro(form, "Letzter_Arbeitgeber_Name", d.FirmaName, dataFont);
-                // Filial-Adresse untereinander:
-                // Zeile 1 = Filiale · Zeile 2 = Strasse · (PLZ Ort folgt auf Zeile 2
-                // mit Komma — nur 2 Adress-Felder im Formular).
+                try { form.FlattenFields(); }
+                catch { /* kein Showstopper */ }
+
+                // Textfelder per Overlay — Widget-Koordinaten aus der Vorlage
+                // (Ursprung unten-links). Schrift 11pt = AHV-Feld der Vorlage.
+                var page = pdf.GetPage(1);
+                var canvas = new PdfCanvas(page);
+                var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+                const float size = 11f;
+
+                void Stamp(string? t, float x, float yBottom)
+                {
+                    if (string.IsNullOrWhiteSpace(t)) return;
+                    // Feldhoehe 15.5 → Baseline etwas ueber dem unteren Rand zentrieren.
+                    canvas.BeginText()
+                          .SetFontAndSize(font, size)
+                          .SetColor(ColorConstants.BLACK, true)
+                          .MoveText(x, yBottom + 2.8f)
+                          .ShowText(t.Trim())
+                          .EndText();
+                }
+
+                Stamp(d.MaNachname, 106.3f, 578.6f);
+                Stamp(d.MaVorname, 106.3f, 559.1f);
+                if (d.MaGeburtsdatum.HasValue)
+                    Stamp(d.MaGeburtsdatum.Value.ToString("dd.MM.yyyy"), 130.6f, 500.4f);
+                Stamp(d.MaStrasse, 131.9f, 444.3f);
+                Stamp(d.MaPlzOrt, 131.9f, 424.4f);
+                Stamp(FormatLandForPkForm(d.MaLand), 131.9f, 404.5f);
+                Stamp(d.MaTelefon, 98.1f, 360.4f);
+                Stamp(d.MaEmail, 98.1f, 340.4f);
+                Stamp(eheDatum, 229.0f, 280.4f);
+                Stamp(partnerDatum, 275.1f, 260.5f);
+
+                Stamp(d.FirmaName, 189.2f, 194.6f);
                 if (!string.IsNullOrWhiteSpace(d.RestaurantName))
                 {
-                    SetAcro(form, "Letzter_Arbeitgeber_Adresse", d.RestaurantName!.Trim(), dataFont);
+                    Stamp(d.RestaurantName!.Trim(), 189.2f, 174.7f);
                     var street = (d.FirmaStrasse ?? "").Trim();
                     var plzOrt = (d.FirmaPlzOrt ?? "").Trim();
                     var adr2 = !string.IsNullOrWhiteSpace(street) && !string.IsNullOrWhiteSpace(plzOrt)
                         ? $"{street}, {plzOrt}"
                         : (string.IsNullOrWhiteSpace(street) ? plzOrt : street);
-                    SetAcro(form, "Letzter_Arbeitgeber_Adresse_2", adr2, dataFont);
+                    Stamp(adr2, 56.6f, 154.5f);
                 }
                 else
                 {
-                    SetAcro(form, "Letzter_Arbeitgeber_Adresse", d.FirmaStrasse, dataFont);
-                    SetAcro(form, "Letzter_Arbeitgeber_Adresse_2", d.FirmaPlzOrt, dataFont);
+                    Stamp(d.FirmaStrasse, 189.2f, 174.7f);
+                    Stamp(d.FirmaPlzOrt, 56.6f, 154.5f);
                 }
-
-                SetAcro(form, "Austrittsdatum", d.KuendigungAuf.ToString("dd.MM.yyyy"), dataFont);
-
-                // Ort/Datum unten LEER — der MA fuellt es beim Unterschreiben aus
-                // (Walter 26.07.2026).
-
-                try { form.FlattenFields(); }
-                catch { /* kein Showstopper — Merge funktioniert trotzdem */ }
+                Stamp(d.KuendigungAuf.ToString("dd.MM.yyyy"), 189.2f, 134.5f);
             }
         }
         return ms.ToArray();
@@ -486,12 +512,27 @@ public class KuendigungPdfService
         if (string.IsNullOrWhiteSpace(value)) return;
         var field = form.GetField(fieldName);
         if (field is null) return;
+        // WICHTIG: SetFontAndSize (nicht nur SetFontSize) — die Vorlage hat
+        // DA «/Arial 0 Tf» (= Auto-Size auf Feldhoehe). Nur SetFontSize laesst
+        // die 0 stehen → nach Flatten riesige Schrift (Walter 26.07.2026).
+        // Reihenfolge: Font setzen → Value → Font nochmals + Regenerate,
+        // damit die Appearance wirklich mit fester Groesse gebacken wird.
+        var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
         if (fontSize.HasValue)
         {
-            try { field.SetFontSize(fontSize.Value); }
-            catch { /* Fallback: Vorlagen-Default */ }
+            try { field.SetFontAndSize(font, fontSize.Value); }
+            catch { try { field.SetFontSize(fontSize.Value); } catch { /* ignore */ } }
         }
         field.SetValue(value.Trim());
+        if (fontSize.HasValue)
+        {
+            try
+            {
+                field.SetFontAndSize(font, fontSize.Value);
+                field.RegenerateField();
+            }
+            catch { /* ignore */ }
+        }
     }
 
     private static void SetAcroRadio(PdfAcroForm form, string fieldName, string value)
