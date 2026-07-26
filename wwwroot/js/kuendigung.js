@@ -285,10 +285,12 @@ async function _krDokumentAblegen(empId, blob, kuendigungVomIso) {
         if (!branchCode) return alert('Ablage fehlgeschlagen: keine Filiale gewählt.');
 
         const titel = `Aufhebung Kündigung vom ${_krFmtCh(kuendigungVomIso)}`;
+        const filename = `${titel.replace(/[^A-Za-z0-9äöüÄÖÜ ._-]/g, '')}.pdf`;
         const fd = new FormData();
-        fd.append('file', new File([blob], `${titel.replace(/[^A-Za-z0-9äöüÄÖÜ ._-]/g, '')}.pdf`, { type: 'application/pdf' }));
-        fd.append('employeeId', empId);
-        fd.append('dokumentTypId', typ.id);
+        // 3. Argument = Dateiname (robuster als new File([...]))
+        fd.append('file', blob, filename);
+        fd.append('employeeId', String(empId));
+        fd.append('dokumentTypId', String(typ.id));
         fd.append('branchCode', branchCode);
         fd.append('bemerkung', titel);
         // KEIN ah() — setzt Content-Type:application/json und zerstoert
@@ -299,7 +301,11 @@ async function _krDokumentAblegen(empId, blob, kuendigungVomIso) {
             body: fd
         });
         if (!ru.ok) {
-            let t = await ru.text(); try { t = JSON.parse(t).message || JSON.parse(t).error || t; } catch (_) {}
+            let t = await ru.text();
+            try {
+                const j = JSON.parse(t);
+                t = j.message || j.error || (j.errors && JSON.stringify(j.errors)) || t;
+            } catch (_) {}
             alert('Ablage fehlgeschlagen: ' + t);
         }
     } catch (e) { alert('Ablage fehlgeschlagen: ' + e.message); }
@@ -648,10 +654,12 @@ async function _kbDokumentAblegen(empId, blob, kuendigungAufIso) {
         if (!branchCode) return alert('Ablage fehlgeschlagen: keine Filiale gewählt.');
 
         const titel = `Kündigungsbestätigung per ${_krFmtCh(kuendigungAufIso)}`;
+        const filename = `${titel.replace(/[^A-Za-z0-9äöüÄÖÜ ._-]/g, '')}.pdf`;
         const fd = new FormData();
-        fd.append('file', new File([blob], `${titel.replace(/[^A-Za-z0-9äöüÄÖÜ ._-]/g, '')}.pdf`, { type: 'application/pdf' }));
-        fd.append('employeeId', empId);
-        fd.append('dokumentTypId', typ.id);
+        // 3. Argument = Dateiname (robuster als new File([...]))
+        fd.append('file', blob, filename);
+        fd.append('employeeId', String(empId));
+        fd.append('dokumentTypId', String(typ.id));
         fd.append('branchCode', branchCode);
         fd.append('bemerkung', titel);
         // KEIN ah() — setzt Content-Type:application/json und zerstoert
@@ -662,7 +670,11 @@ async function _kbDokumentAblegen(empId, blob, kuendigungAufIso) {
             body: fd
         });
         if (!ru.ok) {
-            let t = await ru.text(); try { t = JSON.parse(t).message || JSON.parse(t).error || t; } catch (_) {}
+            let t = await ru.text();
+            try {
+                const j = JSON.parse(t);
+                t = j.message || j.error || (j.errors && JSON.stringify(j.errors)) || t;
+            } catch (_) {}
             alert('Ablage fehlgeschlagen: ' + t);
         }
     } catch (e) { alert('Ablage fehlgeschlagen: ' + e.message); }
