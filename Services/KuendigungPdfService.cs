@@ -334,8 +334,10 @@ public class KuendigungPdfService
 
             // Unterlinien (top vom oberen Rand): Name 687.8 · Vorname 715.8 ·
             // Datum 743.8 · Unterschrift 771.8 · Betrieb 799.8.
-            // Werte rechts vom Label, knapp UEBER der Linie (Walter 26.07.2026:
-            // etwas weiter nach oben). Unterschrift bleibt leer.
+            // Werte linksbündig in einer Spalte, knapp UEBER der Linie
+            // (Walter 26.07.2026). Unterschrift bleibt leer.
+            // Gemeinsame linke Kante direkt nach dem breitesten Kurz-Label («Vorname»).
+            const float valueX = 92f;
             void Text(string? t, float lineTop, float x, float size = 10.5f)
             {
                 if (string.IsNullOrWhiteSpace(t)) return;
@@ -347,15 +349,15 @@ public class KuendigungPdfService
                       .EndText();
             }
 
-            Text(d.MaNachname, 687.8f, 95f);
-            Text(d.MaVorname, 715.8f, 105f);
-            Text(d.Datum.ToString("dd.MM.yyyy"), 743.8f, 100f);
+            Text(d.MaNachname, 687.8f, valueX);
+            Text(d.MaVorname, 715.8f, valueX);
+            Text(d.Datum.ToString("dd.MM.yyyy"), 743.8f, valueX);
             // Volle Betriebsangabe: Firma · Filiale · Strasse · PLZ Ort
+            // (x etwas weiter rechts — langes Label «Name des versicherten Betriebes»).
             var betrieb = string.Join(", ", new[]
             {
                 d.FirmaName, d.RestaurantName, d.FirmaStrasse, d.FirmaPlzOrt
             }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.Trim()));
-            // Etwas kleiner, damit Firma + Filiale + Adresse auf die Zeile passen.
             Text(betrieb, 799.8f, 195f, 8.5f);
         }
         return ms.ToArray();
