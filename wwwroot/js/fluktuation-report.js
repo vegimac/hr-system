@@ -101,11 +101,6 @@ const _FLUK_PIE_COLORS = [
 ];
 const _FLUK_PIE_NO_REASON = '#94a3b8';
 
-function flukPieColor(g, i) {
-    if (!g || !g.code) return _FLUK_PIE_NO_REASON;
-    return _FLUK_PIE_COLORS[i % _FLUK_PIE_COLORS.length];
-}
-
 function flukPieHtml(gruende) {
     const total = gruende.reduce((s, g) => s + (g.count || 0), 0);
     if (!total) {
