@@ -7,8 +7,8 @@
 // 1) Kleine Jahr-Knöpfe DIREKT unter jedem <input type="date">
 //    (Vorjahr zuerst, dann aktuelles Jahr). Klick setzt das Jahr, Monat/Tag
 //    bleiben.
-// 2) Leere Felder: beim Fokus vorläufig auf Vorjahr setzen, damit der
-//    Kalender dort öffnet. Bei Abbruch (Blur ohne Auswahl) wieder leeren.
+// 2) Leere Felder: beim Fokus auf Vorjahr (gleicher Monat/Tag) setzen, damit
+//    der native Kalender dort öffnet — genau der häufige Fall.
 //
 //   window.YearPick.attach(inputEl[, { years:[2025,2026] }])
 //   window.YearPick.attachById('eawSyncFrom')
@@ -34,7 +34,6 @@
             ? input.value
             : todayIsoLocal();
         input.value = String(year) + cur.slice(4);   // Jahr ersetzen, -MM-DD behalten
-        delete input.dataset.ypSeeded;
         input.dispatchEvent(new Event('input',  { bubbles: true }));
         input.dispatchEvent(new Event('change', { bubbles: true }));
         if (typeof input._ypRender === 'function') input._ypRender();
@@ -76,30 +75,19 @@
 
         input._ypRender = render;
         render();
-        input.addEventListener('change', () => {
-            delete input.dataset.ypSeeded;
-            render();
-        });
+        input.addEventListener('change', render);
         input.addEventListener('input', render);
 
-        // Leeres Feld → Kalender im Vorjahr öffnen (Wert nur vorläufig).
+        // Leeres Feld → Kalender im Vorjahr öffnen (Walter 26.07.2026).
+        // Felder mit bewusstem Heute-Default (Absenz, Auszahlung …) haben
+        // beim Fokus bereits einen Wert und werden nicht angefasst.
         input.addEventListener('focus', () => {
             if (input.value) return;
             if (input.readOnly || input.disabled) return;
             input.value = prevYearIsoLocal();
-            input.dataset.ypSeeded = '1';
+            delete input.dataset.ypSeeded;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
             render();
-        });
-        input.addEventListener('blur', () => {
-            // Nach dem nativen Picker kommt oft erst change, dann blur —
-            // microtask: wenn weiterhin nur Seed → zurücksetzen.
-            setTimeout(() => {
-                if (input.dataset.ypSeeded === '1') {
-                    input.value = '';
-                    delete input.dataset.ypSeeded;
-                    render();
-                }
-            }, 0);
         });
 
         if (input.parentNode) input.parentNode.insertBefore(row, input.nextSibling);
