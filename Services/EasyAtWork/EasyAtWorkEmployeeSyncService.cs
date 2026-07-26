@@ -528,6 +528,13 @@ public class EasyAtWorkEmployeeSyncService
             var entry = master.EntryDate.Value.ToDateTime(TimeOnly.MinValue);
             if (emp.EntryDate?.Date != entry.Date) { emp.EntryDate = entry; result.UpdatedFields.Add("Eintrittsdatum"); }
         }
+        else if (IsEntryDateEqualsBirth(emp))
+        {
+            // Altlast Eintritt=Geburtstag entfernen, wenn easy@work keinen
+            // plausiblen Ersatz liefert (sonst bleibt der Müll stehen).
+            emp.EntryDate = null;
+            result.UpdatedFields.Add("Eintrittsdatum");
+        }
         if (emp.EasyAtWorkEmployeeId != eaw.Id)
         {
             emp.EasyAtWorkEmployeeId = eaw.Id;
@@ -870,7 +877,9 @@ public class EasyAtWorkEmployeeSyncService
             ZipCode = string.IsNullOrWhiteSpace(eaw.PostalCode) ? null : eaw.PostalCode.Trim(),
             Phone = NormalizePhone(eaw.Phone),
             Email = string.IsNullOrWhiteSpace(eaw.Email) ? null : eaw.Email.Trim().ToLowerInvariant(),
-            EntryDate = eaw.From,
+            // From nur wenn plausibel (≠ Geburtstag); sonst null — Detail-Call
+            // kann Seniorität nachliefern.
+            EntryDate = IsPlausibleEntryDate(eaw.From, eaw.BirthDate) ? eaw.From : null,
             ExitDate = eaw.To,
             LanguageCode = "de",
         };
@@ -899,7 +908,11 @@ public class EasyAtWorkEmployeeSyncService
             // Eintritt = Betriebszugehörigkeit/Seniorität aus easy@work (für die
             // Dienstjubiläen); fällt auf den Anstellungs-Beginn (from) zurück, wenn keine
             // Seniorität hinterlegt ist. Walter-Vorgabe 05.07.2026.
-            if (propsInfo.SeniorityDate.HasValue) data.EntryDate = propsInfo.SeniorityDate;
+            // Sanity (Walter 26.07.2026): Seniorität/From = Geburtstag (oder vor dem
+            // 14. Geburtstag) ist Datenmüll — nicht übernehmen, sonst bleibt Eintritt
+            // ewig auf dem Geburtsdatum hängen (Beispiel Crystal Tyra Raubald).
+            if (IsPlausibleEntryDate(propsInfo.SeniorityDate, data.DateOfBirth))
+                data.EntryDate = propsInfo.SeniorityDate;
             // Funktionen (Positionen) aus easy@work — für die Mehrdeutigkeits-Prüfung:
             // mehr als eine distinct Funktion → MA wird nicht importiert (Walter 05.07.2026).
             if (cache != null && cache.Functions.TryGetValue(eaw.Id, out var cf))
@@ -3309,7 +3322,33 @@ public class EasyAtWorkEmployeeSyncService
                 case "Austritt":     emp.ExitDate     = DateTime.TryParse(d.Easy, out var xd) ? xd : emp.ExitDate; break;
             }
         }
+        // Altlast: Eintritt = Geburtstag nie stehen lassen (Walter 26.07.2026).
+        if (IsEntryDateEqualsBirth(emp))
+        {
+            if (data.EntryDate.HasValue)
+                emp.EntryDate = data.EntryDate.Value.ToDateTime(TimeOnly.MinValue);
+            else
+                emp.EntryDate = null;
+        }
     }
+
+    /// <summary>
+    /// Eintrittsdatum ist brauchbar, wenn gesetzt und nicht gleich dem Geburtstag
+    /// und nicht vor dem 14. Geburtstag (McD/Gastronomie — unter 14 nie).
+    /// </summary>
+    private static bool IsPlausibleEntryDate(DateOnly? entry, DateOnly? birth)
+    {
+        if (!entry.HasValue) return false;
+        if (!birth.HasValue) return true;
+        if (entry.Value == birth.Value) return false;
+        if (entry.Value < birth.Value.AddYears(14)) return false;
+        return true;
+    }
+
+    private static bool IsEntryDateEqualsBirth(Employee emp)
+        => emp.EntryDate.HasValue
+           && emp.DateOfBirth.HasValue
+           && emp.EntryDate.Value.Date == emp.DateOfBirth.Value.Date;
 
     // ─────────────────────────── Helpers ────────────────────────────
 
