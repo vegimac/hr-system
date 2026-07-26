@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+using iText.Forms;
 using iText.IO.Font.Constants;
 using iText.Kernel.Colors;
 using iText.Kernel.Font;
@@ -65,8 +67,8 @@ public class KuendigungPdfService
     /// Kündigungsbestätigung (Walter 26.07.2026) — wenn der MA kündigt,
     /// bestätigt der AG den Erhalt und das Vertragsende. Vorlage:
     /// «Kündigungsbestätigung» (Du-Form, inkl. Austritts-Fragebogen-QR).
-    /// Seite 2 = Referenzangaben · Seite 3 = Swica-Informationsblatt
-    /// (Original-PDF mit vorausgefüllten Feldern).
+    /// Seite 2 = Referenzangaben · Seite 3 = Swica · Seiten 4–5 = GastroSocial
+    /// «Überweisung Pensionskassenguthaben» (AcroForm vorausgefüllt).
     /// </summary>
     public record BestaetigungData(
         string? FirmaName, string? RestaurantName, string? FirmaStrasse, string? FirmaPlzOrt,
@@ -78,13 +80,24 @@ public class KuendigungPdfService
         string? UnterzeichnerName,
         string? UnterzeichnerFunktion = null,
         bool    Eingeschrieben = false,
-        string? ExitSurveyUrl = null);   // öffentliche URL des eigenen Fragebogens (QR)
+        string? ExitSurveyUrl = null,     // öffentliche URL des eigenen Fragebogens (QR)
+        // PK-Überweisung (Seiten 4–5) — Stammdaten aus dem MA-Dossier
+        string? MaAhvNummer = null,
+        DateOnly? MaGeburtsdatum = null,
+        string? MaTelefon = null,
+        string? MaEmail = null,
+        string? MaLand = null,
+        string? MaZivilstand = null,
+        DateOnly? MaZivilstandSeit = null);
 
     /// <summary>Fallback, falls SiteUrl nicht geladen werden kann.</summary>
     public const string DefaultExitSurveyUrl = "https://onecrew.ch/kuendigung/";
 
     private static readonly string SwicaTemplatePath =
         Path.Combine(AppContext.BaseDirectory, "Assets", "Forms", "Swica_Obligatorische_Mitarbeiter_Information.pdf");
+
+    private static readonly string PkUeberweisungTemplatePath =
+        Path.Combine(AppContext.BaseDirectory, "Assets", "Forms", "Ueberweisung_PK_Guthaben.pdf");
 
     public byte[] GenerateBestaetigung(BestaetigungData d)
     {
@@ -104,8 +117,8 @@ public class KuendigungPdfService
         using (var qrData = qrGen.CreateQrCode(surveyUrl, QRCodeGenerator.ECCLevel.M))
             qrPng = new PngByteQRCode(qrData).GetGraphic(4);
 
-        // Seiten 1–2 im Haus-Briefstil (QuestPDF), Seite 3 = offizielles
-        // Swica-Original mit Overlay-Stamping (kein AcroForm).
+        // Seiten 1–2 im Haus-Briefstil (QuestPDF), Seite 3 = Swica-Original
+        // (Overlay), Seiten 4–5 = GastroSocial PK-Überweisung (AcroForm).
         var briefPages = Document.Create(doc =>
         {
             doc.Page(page =>
@@ -204,7 +217,8 @@ public class KuendigungPdfService
         }).GeneratePdf();
 
         var swicaPage = StampSwicaPage(d);
-        return MergePdfs(new[] { briefPages, swicaPage });
+        var pkPages = FillPkUeberweisungPages(d);
+        return MergePdfs(new[] { briefPages, swicaPage, pkPages });
     }
 
     /// <summary>
@@ -343,6 +357,138 @@ public class KuendigungPdfService
             Text(betrieb, 790.4f, 195f);
         }
         return ms.ToArray();
+    }
+
+    /// <summary>
+    /// GastroSocial «Überweisung Pensionskassenguthaben» als Seiten 4–5 —
+    /// Original-AcroForm, vorausgefüllt wo möglich. Ziel-PK / Freizügigkeit
+    /// und MA-Unterschrift bleiben leer (füllt der MA). Nach dem Füllen
+    /// Flatten, damit der Merge mit den Brief-Seiten sauber bleibt.
+    /// </summary>
+    private static byte[] FillPkUeberweisungPages(BestaetigungData d)
+    {
+        using var ms = new MemoryStream();
+        using (var pdf = new PdfDocument(new PdfReader(PkUeberweisungTemplatePath), new PdfWriter(ms)))
+        {
+            var form = PdfAcroForm.GetAcroForm(pdf, false);
+            if (form != null)
+            {
+                form.SetNeedAppearances(true);
+
+                SetAcro(form, "Name", d.MaNachname);
+                SetAcro(form, "Vorname", d.MaVorname);
+                SetAcro(form, "AHV-Nummer", FormatAhvForPkForm(d.MaAhvNummer));
+                if (d.MaGeburtsdatum.HasValue)
+                    SetAcro(form, "Geburtsdatum", d.MaGeburtsdatum.Value.ToString("dd.MM.yyyy"));
+                SetAcro(form, "Strasse_Nummer", d.MaStrasse);
+                SetAcro(form, "PLZ, Ort", d.MaPlzOrt);
+                SetAcro(form, "Land", FormatLandForPkForm(d.MaLand));
+                SetAcro(form, "Telefon", d.MaTelefon);
+                SetAcro(form, "E-Mail", d.MaEmail);
+
+                var (zivilCode, eheDatum, partnerDatum) = MapZivilstandForPkForm(
+                    d.MaZivilstand, d.MaZivilstandSeit);
+                if (zivilCode != null)
+                    SetAcroRadio(form, "Zivilstand", zivilCode);
+                SetAcro(form, "Datum_Eheschliessung", eheDatum);
+                SetAcro(form, "Datum_Partnerschaft", partnerDatum);
+
+                SetAcro(form, "Letzter_Arbeitgeber_Name", d.FirmaName);
+                // Adresse: Filiale (Restaurant) auf Zeile 1, sonst Strasse;
+                // Zeile 2 = Strasse+PLZ wenn Restaurant gesetzt, sonst nur PLZ/Ort.
+                if (!string.IsNullOrWhiteSpace(d.RestaurantName))
+                {
+                    SetAcro(form, "Letzter_Arbeitgeber_Adresse", d.RestaurantName);
+                    var adr2 = string.Join(", ", new[] { d.FirmaStrasse, d.FirmaPlzOrt }
+                        .Where(s => !string.IsNullOrWhiteSpace(s)));
+                    SetAcro(form, "Letzter_Arbeitgeber_Adresse_2", adr2);
+                }
+                else
+                {
+                    SetAcro(form, "Letzter_Arbeitgeber_Adresse", d.FirmaStrasse);
+                    SetAcro(form, "Letzter_Arbeitgeber_Adresse_2", d.FirmaPlzOrt);
+                }
+
+                SetAcro(form, "Austrittsdatum", d.KuendigungAuf.ToString("dd.MM.yyyy"));
+
+                // Ort/Datum auf Seite 2 — Unterschrift bleibt handschriftlich.
+                var ortDatum = string.IsNullOrWhiteSpace(d.Ort)
+                    ? d.Datum.ToString("dd.MM.yyyy")
+                    : $"{d.Ort.Trim()}, {d.Datum:dd.MM.yyyy}";
+                SetAcro(form, "Ort_Datum", ortDatum);
+
+                try { form.FlattenFields(); }
+                catch { /* kein Showstopper — Merge funktioniert trotzdem */ }
+            }
+        }
+        return ms.ToArray();
+    }
+
+    /// <summary>
+    /// AHV-Feld der GastroSocial-Vorlage beginnt NACH dem vorgedruckten «756»
+    /// und hat MaxLen=10 — also genau die 10 Rest-Ziffern ohne Punkte
+    /// (die Vorlage setzt die Trennzeichen optisch selbst).
+    /// </summary>
+    private static string? FormatAhvForPkForm(string? ahv)
+    {
+        if (string.IsNullOrWhiteSpace(ahv)) return null;
+        var digits = Regex.Replace(ahv, @"\D", "");
+        if (digits.Length == 13 && digits.StartsWith("756"))
+            digits = digits[3..];
+        if (digits.Length >= 10) return digits[..10];
+        return digits.Length > 0 ? digits : null;
+    }
+
+    private static string? FormatLandForPkForm(string? land)
+    {
+        if (string.IsNullOrWhiteSpace(land)) return "Schweiz";
+        var t = land.Trim();
+        if (t.Equals("CH", StringComparison.OrdinalIgnoreCase)
+            || t.Equals("Switzerland", StringComparison.OrdinalIgnoreCase)
+            || t.Equals("Suisse", StringComparison.OrdinalIgnoreCase)
+            || t.Equals("Svizzera", StringComparison.OrdinalIgnoreCase))
+            return "Schweiz";
+        return t;
+    }
+
+    /// <summary>
+    /// GastroSocial-Radio «Zivilstand»: 1 ledig · 2 geschieden · 3 verwitwet ·
+    /// 4 aufgelöste Partnerschaft · 5 verheiratet · 6 eingetragene Partnerschaft.
+    /// «getrennt» zählt rechtlich als verheiratet.
+    /// </summary>
+    private static (string? code, string? eheDatum, string? partnerDatum) MapZivilstandForPkForm(
+        string? zivilstand, DateOnly? seit)
+    {
+        var s = (zivilstand ?? "").Trim().ToLowerInvariant();
+        var seitTxt = seit?.ToString("dd.MM.yyyy");
+        return s switch
+        {
+            "ledig" => ("1", null, null),
+            "geschieden" => ("2", null, null),
+            "verwitwet" => ("3", null, null),
+            "aufgeloeste_partnerschaft" or "aufgelöste_partnerschaft"
+                or "aufgeloeste partnerschaft" or "aufgelöste partnerschaft"
+                => ("4", null, null),
+            "verheiratet" or "getrennt" => ("5", seitTxt, null),
+            "eingetragene_partnerschaft" or "eingetragene partnerschaft"
+                => ("6", null, seitTxt),
+            _ => (null, null, null)
+        };
+    }
+
+    private static void SetAcro(PdfAcroForm form, string fieldName, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        var field = form.GetField(fieldName);
+        if (field is null) return;
+        field.SetValue(value.Trim());
+    }
+
+    private static void SetAcroRadio(PdfAcroForm form, string fieldName, string value)
+    {
+        var field = form.GetField(fieldName);
+        if (field is null) return;
+        field.SetValue(value);
     }
 
     private static byte[] MergePdfs(IEnumerable<byte[]> pdfBytesList)

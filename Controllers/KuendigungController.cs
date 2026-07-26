@@ -294,7 +294,7 @@ public class KuendigungController : ControllerBase
     /// Kündigungsbestätigung (Walter 26.07.2026) — AG bestätigt den Erhalt
     /// der MA-Kündigung und das Vertragsende. Pflicht-Daten:
     /// Kündigungsdatum des Mitarbeitenden + Kündigung auf Datum.
-    /// PDF: Seite 1 Brief · Seite 2 Referenzangaben · Seite 3 Swica-Blatt.
+    /// PDF: Seite 1 Brief · 2 Referenzangaben · 3 Swica · 4–5 PK-Überweisung.
     /// </summary>
     [HttpPost("{empId:int}/bestaetigung-pdf")]
     public async Task<IActionResult> GetBestaetigungPdf(int empId, [FromBody] BestaetigungPdfDto dto)
@@ -315,6 +315,12 @@ public class KuendigungController : ControllerBase
         var (_, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
         var exitSurveyUrl = await ResolveExitSurveyUrlAsync(cp);
 
+        DateOnly? geburtsdatum = e.DateOfBirth.HasValue
+            ? DateOnly.FromDateTime(e.DateOfBirth.Value)
+            : null;
+        var telefon = !string.IsNullOrWhiteSpace(e.PhoneMobile) ? e.PhoneMobile
+            : e.Phone2;
+
         var data = new KuendigungPdfService.BestaetigungData(
             FirmaName:       cp?.CompanyName,
             RestaurantName:  cp?.BranchName,
@@ -333,7 +339,14 @@ public class KuendigungController : ControllerBase
             UnterzeichnerName: signerName,
             UnterzeichnerFunktion: signerFunktion,
             Eingeschrieben:  dto.Eingeschrieben,
-            ExitSurveyUrl:   exitSurveyUrl);
+            ExitSurveyUrl:   exitSurveyUrl,
+            MaAhvNummer:     e.SocialSecurityNumber,
+            MaGeburtsdatum:  geburtsdatum,
+            MaTelefon:       telefon,
+            MaEmail:         e.Email,
+            MaLand:          e.Country,
+            MaZivilstand:    e.MaritalStatus,
+            MaZivilstandSeit: e.MaritalStatusSince);
 
         try
         {
