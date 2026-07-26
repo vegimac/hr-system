@@ -90,6 +90,8 @@ function flukRender(data) {
     </div>`;
 
     box.innerHTML = html;
+    // Sticky-Spaltentitel: Versatz unter Filter-Toolbar neu messen.
+    if (typeof fixheadSyncStickyOffset === 'function') fixheadSyncStickyOffset();
 }
 
 // Klar unterscheidbare Farben (kein Schlammgrau-Satz mehr).
@@ -190,14 +192,14 @@ function flukTableBlock(title, rows, isExit) {
             </tr>`;
         }).join('');
     }
+    // KEIN overflow-x-Wrapper — der bricht position:sticky am thead
+    // (Walter-Vorgabe fixhead 22.07.2026 / Fluktuation 26.07.2026).
     return `
-    <div style="background:#fff;border:1px solid #e7e1d8;border-radius:14px;padding:12px 14px;margin-bottom:12px;box-shadow:0 8px 24px rgba(60,55,48,0.06)">
+    <div class="fluk-block" style="background:#fff;border:1px solid #e7e1d8;border-radius:14px;padding:12px 14px;margin-bottom:12px;box-shadow:0 8px 24px rgba(60,55,48,0.06)">
         <div style="font-size:13.5px;font-weight:760;color:#1a1a1a;margin-bottom:8px">${title} <span style="font-weight:600;color:#8b8b8b">(${rows.length})</span></div>
-        <div style="overflow-x:auto">
-            <table class="fluk-table" style="width:100%;border-collapse:collapse;font-size:13px">
-                <thead><tr style="background:#efeae2;color:#3f3f3f;text-align:left">${head.replace(/<th>/g, '<th style="padding:7px 8px;border-bottom:1px solid #d8d1c4;font-size:12px;white-space:nowrap">')}</tr></thead>
-                <tbody>${body.replace(/<td>/g, '<td style="padding:7px 8px;border-bottom:1px solid #f0ebe3;color:#3f3f3f">')}</tbody>
-            </table>
-        </div>
+        <table class="fluk-table" style="width:100%;font-size:13px">
+            <thead><tr>${head.replace(/<th>/g, '<th style="padding:7px 8px;white-space:nowrap;text-align:left">')}</tr></thead>
+            <tbody>${body.replace(/<td>/g, '<td style="padding:7px 8px;border-bottom:1px solid #f0ebe3;color:#3f3f3f;background:#fff">')}</tbody>
+        </table>
     </div>`;
 }
