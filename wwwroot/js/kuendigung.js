@@ -494,10 +494,17 @@ function _kbEnsureModal() {
         </div>
     </div>`;
     document.body.appendChild(div);
+    // Explizit verdrahten (zuverlässiger als nur onchange=…, auch wenn das
+    // Custom-Datumsmenü den Wert per dispatchEvent setzt).
+    const vomEl = div.querySelector('#kbKuendigungVom');
+    if (vomEl) {
+        vomEl.addEventListener('change', () => { kbSuggestPer(); });
+        vomEl.addEventListener('input',  () => { kbSuggestPer(); });
+    }
 }
 
 /** «Kündigung auf» gemäss L-GAV-/Vertragsfrist vorschlagen (wie kuLoadInfo). */
-async function kbSuggestPer() {
+window.kbSuggestPer = async function kbSuggestPer() {
     if (!_kbEmpId) return;
     const vom = document.getElementById('kbKuendigungVom')?.value || '';
     const hint = document.getElementById('kbFristHint');
