@@ -377,9 +377,8 @@ public class KuendigungPdfService
             {
                 form.SetNeedAppearances(true);
 
-                // Datenfelder deutlich groesser (Vorlage hat Arial 0 = Auto-Shrink).
-                // AHV bewusst ausgenommen — feste Ziffern-Box mit MaxLen 10.
-                const float dataFont = 14f;
+                // Gleiche Schriftgroesse wie AHV-Feld der Vorlage (Arial 11).
+                const float dataFont = 11f;
                 SetAcro(form, "Name", d.MaNachname, dataFont);
                 SetAcro(form, "Vorname", d.MaVorname, dataFont);
                 SetAcro(form, "AHV-Nummer", FormatAhvForPkForm(d.MaAhvNummer)); // kleine Schrift
