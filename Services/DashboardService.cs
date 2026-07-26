@@ -371,6 +371,10 @@ public class DashboardService
         // («seit X Tagen abgelaufen») — ein aktiver MA ohne laufenden Vertrag
         // ist ein echtes Problem und darf nicht aus der Liste fallen. Kein
         // Alarm, wenn ein Folge-/anderer Vertrag den heutigen Tag abdeckt.
+        // Walter-Vorgabe 26.07.2026: ist ein Kündigungsdatum gesetzt
+        // (Gekündigt am / Kündigung per), ist das KEIN befristeter Vertrag
+        // sondern ein Austritt → läuft über «kuendigung_ablauf» / Austritt,
+        // nicht über contract_end.
         var fixedWindow = now.AddDays(WarnDays("contract_end", 30));
         var fixedQ = _db.Employments
             .Include(em => em.Employee)
@@ -379,6 +383,8 @@ public class DashboardService
                       && em.ContractEndDate <= fixedWindow
                       && em.Employee != null
                       && em.Employee.IsActive
+                      && !em.Employee.KuendigungPer.HasValue
+                      && !em.Employee.KuendigungAusgesprochenAm.HasValue
                       && !em.Employee.EmployeeNumber.ToLower().EndsWith("alt"));
         if (companyProfileId.HasValue)
             fixedQ = fixedQ.Where(em => em.CompanyProfileId == companyProfileId.Value);
