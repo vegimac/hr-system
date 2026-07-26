@@ -125,33 +125,95 @@ public class ExitSurveyController : ControllerBase
         return Ok(new { ok = true });
     }
 
-    /// <summary>HR-Übersicht der anonymen Antworten (neueste zuerst), inkl. Filiale.</summary>
+    /// <summary>Klartext-Labels zu den Hauptgrund-Codes (HR-Ansicht).</summary>
+    private static readonly Dictionary<string, string> ReasonLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ANDERER_JOB"] = "Andere Stelle im Fachgebiet",
+        ["STUDIUM"] = "Studium",
+        ["ZU_VIELE_STUNDEN"] = "Zu viele Stunden",
+        ["ZU_WENIG_STUNDEN"] = "Zu wenig Stunden",
+        ["ARBEITSZEITEN"] = "Arbeitszeiten / Verfügbarkeit",
+        ["GASTRONOMIE"] = "Gastronomie nicht das Richtige",
+        ["ENTWICKLUNG"] = "Keine Entwicklungsmöglichkeiten",
+        ["FAMILIE"] = "Familiäre / nicht berufliche Gründe",
+        ["ATMOSPHAERE"] = "Atmosphäre / Organisation",
+        ["LOHN"] = "Gehalt",
+        ["ANDERES"] = "Anderer Grund",
+    };
+
+    /// <summary>HR-Übersicht der anonymen Antworten (neueste zuerst), inkl. Filiale + Gründe.</summary>
     [Authorize(Roles = "admin,superuser")]
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] int take = 100)
     {
         take = Math.Clamp(take, 1, 500);
-        var rows = await (
+        var raw = await (
             from x in _db.ExitSurveyResponses.AsNoTracking()
             join c in _db.CompanyProfiles.AsNoTracking() on x.CompanyProfileId equals c.Id into gj
             from c in gj.DefaultIfEmpty()
             orderby x.CreatedAt descending
             select new
             {
+                x.Id,
+                x.CreatedAt,
+                x.CompanyProfileId,
+                FilialeCode = c != null ? c.RestaurantCode : null,
+                Filiale = c == null ? null
+                    : ((c.RestaurantCode ?? "") + " " + (c.City ?? c.BranchName ?? c.CompanyName ?? "")).Trim(),
+                x.ReasonsJson,
+                x.ReasonOther,
+                x.AtmosphereDetail,
+                x.Rating,
+                x.Comment,
+            }
+        ).Take(take).ToListAsync();
+
+        // Gründe als Klartext-Array mitgeben — HR muss sie ohne JSON lesen können
+        // (Walter 26.07.2026). Anonym = kein MA-Name, Gründe/Bemerkung bleiben sichtbar.
+        var rows = raw.Select(x =>
+        {
+            var codes = ParseReasonCodes(x.ReasonsJson);
+            var labels = codes
+                .Select(c => ReasonLabels.TryGetValue(c, out var lbl) ? lbl : c)
+                .ToList();
+            if (!string.IsNullOrWhiteSpace(x.ReasonOther))
+                labels.Add(x.ReasonOther.Trim());
+            return new
+            {
                 id = x.Id,
                 createdAt = x.CreatedAt,
                 companyProfileId = x.CompanyProfileId,
-                filialeCode = c != null ? c.RestaurantCode : null,
-                filiale = c == null ? null
-                    : ((c.RestaurantCode ?? "") + " " + (c.City ?? c.BranchName ?? c.CompanyName ?? "")).Trim(),
+                filialeCode = x.FilialeCode,
+                filiale = x.Filiale,
                 reasonsJson = x.ReasonsJson,
+                reasons = labels,
+                reasonCodes = codes,
                 reasonOther = x.ReasonOther,
                 atmosphereDetail = x.AtmosphereDetail,
                 rating = x.Rating,
                 comment = x.Comment,
-            }
-        ).Take(take).ToListAsync();
+            };
+        }).ToList();
         return Ok(rows);
+    }
+
+    private static List<string> ParseReasonCodes(string? reasonsJson)
+    {
+        if (string.IsNullOrWhiteSpace(reasonsJson)) return new List<string>();
+        try
+        {
+            var arr = JsonSerializer.Deserialize<string[]>(reasonsJson);
+            if (arr == null || arr.Length == 0) return new List<string>();
+            return arr
+                .Select(r => (r ?? "").Trim().ToUpperInvariant())
+                .Where(r => r.Length > 0)
+                .Distinct()
+                .ToList();
+        }
+        catch
+        {
+            return new List<string>();
+        }
     }
 
     private async Task<int?> ResolveBranchIdAsync(string? filialeCode, int? companyProfileId)
