@@ -1,11 +1,20 @@
 // Walter-Vorgabe 27.05.2026: Admin-Sicht aufs zentrale Audit-Log.
 // Filterbar nach Datum, User, Entity-Typ, Aktion + Volltext + CSV-Export.
+// Spaltentitel sitzen im sticky Filter-Kopf (Walter 26.07.2026) — kein sticky-thead.
 
 let _alState = {
     rows: [],
     entityTypes: [],
     users: [],
 };
+
+/** Lokales Kalenderdatum yyyy-MM-dd — NICHT toISOString (UTC-Verschiebung). */
+function alLocalIsoDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
 
 async function alInit() {
     // User-Liste fuer Filter-Dropdown vorladen
@@ -18,12 +27,11 @@ async function alInit() {
         if (r.ok) _alState.entityTypes = await r.json();
     } catch (_) {}
     alRenderFilters();
-    // Default: letzte 7 Tage
+    // Default: letzte 7 Tage (Schweizer Lokaldatum)
     const today = new Date();
-    const weekAgo = new Date(today.getTime() - 7 * 86400000);
-    const iso = d => d.toISOString().slice(0, 10);
-    document.getElementById('alFrom').value = iso(weekAgo);
-    document.getElementById('alTo').value   = iso(today);
+    const weekAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+    document.getElementById('alFrom').value = alLocalIsoDate(weekAgo);
+    document.getElementById('alTo').value   = alLocalIsoDate(today);
     alLoad();
 }
 
@@ -46,7 +54,9 @@ function alRenderFilters() {
 async function alLoad() {
     const params = alBuildParams();
     const mount = document.getElementById('alResults');
+    const countEl = document.getElementById('alCount');
     if (mount) mount.innerHTML = '<div style="padding:30px;text-align:center;color:#94a3b8">Lade…</div>';
+    if (countEl) countEl.textContent = '';
     try {
         const r = await fetch('/api/audit-log?' + params.toString(), { headers: ah() });
         if (!r.ok) {
@@ -84,6 +94,13 @@ function alFmtTime(iso) {
     const d = new Date(iso);
     if (isNaN(d)) return iso;
     return d.toLocaleString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function alFmtDay(iso) {
+    if (!iso) return '–';
+    const d = new Date(iso);
+    if (isNaN(d)) return String(iso).slice(0, 10);
+    return d.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function alActionBadge(action) {
@@ -124,25 +141,40 @@ function alChangesSummary(changesJson, action) {
 
 function alRenderResults() {
     const mount = document.getElementById('alResults');
+    const countEl = document.getElementById('alCount');
     if (!mount) return;
+
     if (!_alState.rows.length) {
+        if (countEl) countEl.textContent = 'Keine Einträge für diesen Filter.';
         mount.innerHTML = '<div style="padding:30px;text-align:center;color:#94a3b8">Keine Einträge gefunden.</div>';
+        if (typeof fixheadSyncStickyOffset === 'function') fixheadSyncStickyOffset();
         return;
     }
+
+    const newest = _alState.rows[0]?.createdAt;
+    const oldest = _alState.rows[_alState.rows.length - 1]?.createdAt;
+    const lim = document.getElementById('alLimit')?.value || '200';
+    const toFilter = document.getElementById('alTo')?.value || '';
+    const newestDay = newest ? String(newest).slice(0, 10) : '';
+    let countTxt = `${_alState.rows.length} Einträge — neueste zuerst`
+        + ` · in Liste: ${alFmtDay(newest)} → ${alFmtDay(oldest)}`;
+    if (toFilter && newestDay && newestDay < toFilter && String(_alState.rows.length) === String(lim)) {
+        countTxt += ` · ⚠ Limit ${lim} erreicht — neuere Tage ggf. nicht sichtbar; Limit erhöhen oder Volltext/Entität filtern`;
+    } else if (toFilter && newestDay && newestDay < toFilter) {
+        countTxt += ` · neuestes Audit im Filter: ${alFmtDay(newest)} (keine neueren UPDATE/Treffer)`;
+    }
+    if (countEl) countEl.textContent = countTxt;
+
+    // Kein overflow-x Wrapper — bricht sticky/fixhead (Walter 26.07.2026).
     let html = `
-    <div style="padding:6px 12px;font-size:12px;color:#64748b">${_alState.rows.length} Einträge — neueste zuerst.</div>
-    <div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-            <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
-                <th style="text-align:left;padding:6px 8px;font-size:10.5px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Zeit</th>
-                <th style="text-align:left;padding:6px 8px;font-size:10.5px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em">User</th>
-                <th style="text-align:left;padding:6px 8px;font-size:10.5px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em">Aktion</th>
-                <th style="text-align:left;padding:6px 8px;font-size:10.5px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em">Entität</th>
-                <th style="text-align:left;padding:6px 8px;font-size:10.5px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em">Änderungen</th>
-                <th style="text-align:right;padding:6px 8px"></th>
-            </tr>
-        </thead>
+    <table class="al-data">
+        <colgroup>
+            <col class="al-col-zeit"><col class="al-col-user"><col class="al-col-aktion">
+            <col class="al-col-entity"><col class="al-col-changes"><col class="al-col-detail">
+        </colgroup>
+        <thead><tr>
+            <th>Zeit</th><th>User</th><th>Aktion</th><th>Entität</th><th>Änderungen</th><th></th>
+        </tr></thead>
         <tbody>`;
     _alState.rows.forEach(r => {
         html += `
@@ -150,7 +182,7 @@ function alRenderResults() {
             <td style="padding:6px 8px;white-space:nowrap;color:#0f172a">${alFmtTime(r.createdAt)}</td>
             <td style="padding:6px 8px">
                 <div style="font-weight:600;color:#0f172a">${esc(r.userName || ('#' + (r.userId ?? '?')))}</div>
-                <div style="font-size:11px;color:#94a3b8">${esc(r.userRole || '')}${r.route ? ' · ' + esc(r.route) : ''}</div>
+                <div style="font-size:11px;color:#94a3b8;word-break:break-all">${esc(r.userRole || '')}${r.route ? ' · ' + esc(r.route) : ''}</div>
             </td>
             <td style="padding:6px 8px;white-space:nowrap">${alActionBadge(r.action)}</td>
             <td style="padding:6px 8px;white-space:nowrap">
@@ -163,8 +195,9 @@ function alRenderResults() {
             </td>
         </tr>`;
     });
-    html += '</tbody></table></div>';
+    html += '</tbody></table>';
     mount.innerHTML = html;
+    if (typeof fixheadSyncStickyOffset === 'function') fixheadSyncStickyOffset();
 }
 
 function alShowDetail(id) {
@@ -214,7 +247,7 @@ async function alExportCsv() {
         const r = await fetch('/api/audit-log/export?' + params.toString(), { headers: ah() });
         if (!r.ok) { alert('Export fehlgeschlagen (HTTP ' + r.status + ')'); return; }
         const blob = await r.blob();
-        const filename = `audit-log_${new Date().toISOString().slice(0,10)}.csv`;
+        const filename = `audit-log_${alLocalIsoDate(new Date())}.csv`;
         if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, filename);
         else {
             const url = URL.createObjectURL(blob);
@@ -226,8 +259,10 @@ async function alExportCsv() {
 }
 
 function alReset() {
-    document.getElementById('alFrom').value = '';
-    document.getElementById('alTo').value   = '';
+    const today = new Date();
+    const weekAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+    document.getElementById('alFrom').value = alLocalIsoDate(weekAgo);
+    document.getElementById('alTo').value   = alLocalIsoDate(today);
     document.getElementById('alUserSel').value   = '';
     document.getElementById('alEntitySel').value = '';
     document.getElementById('alActionSel').value = '';
