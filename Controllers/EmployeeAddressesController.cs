@@ -38,17 +38,30 @@ public class EmployeeAddressesController : ControllerBase
 
         dto.Id = 0;
         dto.EmployeeId = employeeId;
+        // Lokalzeit (Walter 30.06.2026) — Spalten = timestamp without time zone.
         dto.CreatedAt = DateTime.Now;
         dto.UpdatedAt = DateTime.Now;
         if (string.IsNullOrWhiteSpace(dto.AddressType))
             dto.AddressType = "Korrespondenzadresse";
-        // Land-Standard systemweit: ISO-Code „CH" (Walter-Vorgabe 13.05.2026).
+        // Land-Standard systemweit: ISO-Code «CH» (Walter-Vorgabe 13.05.2026).
         if (string.IsNullOrWhiteSpace(dto.Country))
             dto.Country = "CH";
 
-        _db.EmployeeAddresses.Add(dto);
-        await _db.SaveChangesAsync();
-        return Ok(dto);
+        try
+        {
+            _db.EmployeeAddresses.Add(dto);
+            await _db.SaveChangesAsync();
+            return Ok(dto);
+        }
+        catch (DbUpdateException ex)
+        {
+            return StatusCode(500, new
+            {
+                error = "ADRESSE_SPEICHERN_FEHLER",
+                message = "Adresse konnte nicht gespeichert werden.",
+                detail = ex.InnerException?.Message ?? ex.Message
+            });
+        }
     }
 
     [HttpPut("{addressId:int}")]
@@ -76,8 +89,20 @@ public class EmployeeAddressesController : ControllerBase
         existing.IncamailDisabled = dto.IncamailDisabled;
         existing.UpdatedAt        = DateTime.Now;
 
-        await _db.SaveChangesAsync();
-        return Ok(existing);
+        try
+        {
+            await _db.SaveChangesAsync();
+            return Ok(existing);
+        }
+        catch (DbUpdateException ex)
+        {
+            return StatusCode(500, new
+            {
+                error = "ADRESSE_SPEICHERN_FEHLER",
+                message = "Adresse konnte nicht gespeichert werden.",
+                detail = ex.InnerException?.Message ?? ex.Message
+            });
+        }
     }
 
     [HttpDelete("{addressId:int}")]

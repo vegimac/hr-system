@@ -542,6 +542,31 @@ using (var scope = app.Services.CreateScope())
                     ALTER COLUMN uploaded_at TYPE timestamp without time zone
                     USING (uploaded_at AT TIME ZONE 'Europe/Zurich');
             END IF;
+
+            -- Zusatzadressen (Walter 26.07.2026): Speichern scheiterte mit 500,
+            -- wenn created_at/updated_at noch timestamptz waren (Npgsql + DateTime.Now).
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'employee_address'
+                  AND column_name = 'created_at'
+                  AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE employee_address
+                    ALTER COLUMN created_at TYPE timestamp without time zone
+                    USING (created_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'employee_address'
+                  AND column_name = 'updated_at'
+                  AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE employee_address
+                    ALTER COLUMN updated_at TYPE timestamp without time zone
+                    USING (updated_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
         END $$;
     ");
 
