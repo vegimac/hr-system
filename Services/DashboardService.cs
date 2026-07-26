@@ -308,10 +308,9 @@ public class DashboardService
 
         // ── 2b) Probezeitgespräch offen (Walter 21.07.2026) ────────────────
         // Todo, bis Gesprächsdatum UND Protokoll-Verknüpfung gesetzt sind.
-        // Walter-Bug 23.07.2026: Vorlauf (warn_days, Default 14) wurde ignoriert
-        // → ToDos erschienen die ganze Probezeit (Monate zu früh). Jetzt wie
-        // «Probezeit endet»: nur innerhalb des Vorlauf-Fensters + weiterhin
-        // sichtbar wenn Probezeit schon vorbei und Gespräch noch fehlt.
+        // Nur im Vorlauf-Fenster (warn_days, Default 14) — wie «Probezeit endet».
+        // Walter 26.07.2026: abgelaufene Probezeit NICHT mehr zeigen (nach dem
+        // Ende macht das Gesprächs-Todo keinen Sinn mehr).
         if (Enabled("probezeit_gespraech_offen"))
         {
             var pzGespVorlauf = WarnDays("probezeit_gespraech_offen", 14);
@@ -320,6 +319,7 @@ public class DashboardService
                 .Include(em => em.Employee)
                 .Where(em => em.IsActive
                           && em.ProbationEndDate.HasValue
+                          && em.ProbationEndDate >= now
                           && em.ProbationEndDate <= pzGespWindow
                           && em.Employee != null
                           && em.Employee.IsActive
