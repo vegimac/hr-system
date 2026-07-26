@@ -785,6 +785,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AtmosphereDetail).HasColumnName("atmosphere_detail");
             entity.Property(e => e.Rating).HasColumnName("rating");
             entity.Property(e => e.Comment).HasColumnName("comment");
+            entity.Property(e => e.ImproveAnswer).HasColumnName("improve_answer");
+            entity.Property(e => e.ImproveThemesJson).HasColumnName("improve_themes_json");
             entity.Property(e => e.IpHash).HasColumnName("ip_hash");
         });
 

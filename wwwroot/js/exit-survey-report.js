@@ -2,22 +2,47 @@
 //  Austritts-Feedback (anonym) — Walter 26.07.2026
 //  HR-Hub → Auswertungen / Reporting → Austritts-Feedback
 //  Endpoint: GET /api/exit-survey
-//  Anonym = kein MA-Name; Gründe + Bemerkung sichtbar.
-//  Layout: eine Zeile pro Feedback (Walter 26.07.2026).
 // ═══════════════════════════════════════════════════════════════════════════
 
 const _ES_REASON_LABELS = {
-    ANDERER_JOB:      'Andere Stelle im Fachgebiet',
-    STUDIUM:          'Studium',
-    ZU_VIELE_STUNDEN: 'Zu viele Stunden',
-    ZU_WENIG_STUNDEN: 'Zu wenig Stunden',
-    ARBEITSZEITEN:    'Arbeitszeiten / Verfügbarkeit',
-    GASTRONOMIE:      'Gastronomie nicht das Richtige',
-    ENTWICKLUNG:      'Keine Entwicklungsmöglichkeiten',
-    FAMILIE:          'Familiäre / nicht berufliche Gründe',
-    ATMOSPHAERE:      'Atmosphäre / Organisation',
-    LOHN:             'Gehalt',
-    ANDERES:          'Anderer Grund',
+    STARTE_NEUES:       'Ich starte etwas Neues',
+    SCHULE_PLAENE:      'Schule, Studium oder persönliche Pläne',
+    WENIGER_EINSAETZE:  'Ich wollte weniger Einsätze',
+    MEHR_EINSAETZE:     'Ich hätte gerne mehr Einsätze gehabt',
+    ARBEIT_PASST_NICHT: 'Etwas bei der Arbeit hat nicht mehr gepasst',
+    ETWAS_ANDERES:      'Etwas anderes',
+    NEUER_JOB:          'Neuer Job',
+    SCHULE_STUDIUM:     'Schule / Studium',
+    ZU_VIELE_EINSAETZE: 'Zu viele Einsätze',
+    ZU_WENIG_EINSAETZE: 'Zu wenig Einsätze',
+    PASST_NICHT_MEHR:   'Es hat für mich nicht mehr gepasst',
+    ANDERER_JOB:        'Andere Stelle im Fachgebiet',
+    STUDIUM:            'Studium',
+    ZU_VIELE_STUNDEN:   'Zu viele Stunden',
+    ZU_WENIG_STUNDEN:   'Zu wenig Stunden',
+    ARBEITSZEITEN:      'Arbeitszeiten / Verfügbarkeit',
+    GASTRONOMIE:        'Gastronomie nicht das Richtige',
+    ENTWICKLUNG:        'Keine Entwicklungsmöglichkeiten',
+    FAMILIE:            'Familiäre / nicht berufliche Gründe',
+    ATMOSPHAERE:        'Atmosphäre / Organisation',
+    LOHN:               'Gehalt',
+    ANDERES:            'Anderer Grund',
+};
+
+const _ES_IMPROVE_LABELS = {
+    JA:   'Ja, da gibt es etwas',
+    NEIN: 'Nein, für mich war es einfach Zeit für etwas Neues',
+};
+
+const _ES_THEME_LABELS = {
+    FUEHRUNG:         'Führung',
+    TEAMGEFUEHL:      'Teamgefühl',
+    PLANUNG_ORG:      'Planung und Organisation',
+    ARBEITSZEITEN:    'Arbeitszeiten',
+    UNTERSTUETZUNG:   'Unterstützung und Wertschätzung',
+    ENTWICKLUNG:      'Entwicklungsmöglichkeiten',
+    LOHN_BEDINGUNGEN: 'Lohn und Bedingungen',
+    THEMA_ANDERES:    'Etwas anderes',
 };
 
 let _esRows = [];
@@ -76,13 +101,9 @@ function esFmtDate(iso) {
     try { return new Date(d).toLocaleDateString('de-CH'); } catch { return d; }
 }
 
-/** Gründe als Klartext-Liste — API liefert `reasons[]`, Fallback über reasonsJson. */
 function esReasonsOf(r) {
     if (Array.isArray(r.reasons) && r.reasons.length) {
         return r.reasons.map(x => String(x || '').trim()).filter(Boolean);
-    }
-    if (Array.isArray(r.Reasons) && r.Reasons.length) {
-        return r.Reasons.map(x => String(x || '').trim()).filter(Boolean);
     }
     const json = r.reasonsJson ?? r.ReasonsJson ?? '[]';
     let codes = [];
@@ -94,6 +115,26 @@ function esReasonsOf(r) {
     const other = r.reasonOther || r.ReasonOther;
     if (other && String(other).trim()) labels.push(String(other).trim());
     return labels.filter(Boolean);
+}
+
+function esImproveOf(r) {
+    const label = r.improveAnswerLabel
+        || _ES_IMPROVE_LABELS[r.improveAnswer]
+        || _ES_IMPROVE_LABELS[r.ImproveAnswer]
+        || null;
+    let themes = [];
+    if (Array.isArray(r.improveThemes) && r.improveThemes.length) {
+        themes = r.improveThemes.map(x => String(x || '').trim()).filter(Boolean);
+    } else {
+        const json = r.improveThemesJson ?? r.ImproveThemesJson ?? '[]';
+        try {
+            const arr = typeof json === 'string' ? JSON.parse(json || '[]') : (json || []);
+            if (Array.isArray(arr)) {
+                themes = arr.map(c => _ES_THEME_LABELS[c] || _ES_THEME_LABELS[String(c).toUpperCase()] || c);
+            }
+        } catch { themes = []; }
+    }
+    return { label, themes };
 }
 
 function esBemerkungText(r) {
@@ -113,10 +154,7 @@ function esRender() {
         ? _esRows.filter(r => (r.filialeCode || r.FilialeCode || '') === filter)
         : _esRows;
 
-    const withRating = rows.filter(r => (r.rating ?? r.Rating) != null);
-    const avg = withRating.length
-        ? (withRating.reduce((s, r) => s + (+(r.rating ?? r.Rating) || 0), 0) / withRating.length)
-        : null;
+    const withImproveJa = rows.filter(r => (r.improveAnswer || r.ImproveAnswer) === 'JA').length;
 
     const kpi = (label, value, hint) => `
         <div class="es-kpi">
@@ -127,7 +165,7 @@ function esRender() {
 
     let html = `<div class="es-kpi-row">
         ${kpi('Antworten', rows.length, filter ? 'gefiltert' : 'gesamt')}
-        ${kpi('Ø Note', avg != null ? avg.toFixed(1) : '—', withRating.length ? `${withRating.length} mit Note` : 'keine Noten')}
+        ${kpi('Mit Themen', withImproveJa, '«Ja, da gibt es etwas»')}
         ${kpi('Mit Filiale', rows.filter(r => r.companyProfileId || r.CompanyProfileId || r.filialeCode || r.FilialeCode).length, 'aus QR / Auswahl')}
     </div>`;
 
@@ -140,42 +178,45 @@ function esRender() {
         return;
     }
 
-    // Eine Zeile pro Feedback. Gründe-Spalte: width:1% + nowrap → so breit wie
-    // der längste Grund über alle Zeilen; Bemerkung direkt rechts daneben.
-    // KEIN overflow-Wrapper (bricht sticky / verdeckt Zeilen).
     html += `<div class="es-table-card">
         <table class="es-table">
             <thead>
                 <tr>
                     <th>Datum</th>
                     <th>Filiale</th>
-                    <th class="es-th-note">Note</th>
-                    <th>Gründe</th>
-                    <th>Bemerkung</th>
+                    <th>Entscheid</th>
+                    <th>Besser werden</th>
+                    <th>Feedback</th>
                 </tr>
             </thead>
             <tbody>`;
 
     for (const r of rows) {
         const reasons = esReasonsOf(r);
+        const improve = esImproveOf(r);
         const bemerkung = esBemerkungText(r);
         const filiale = r.filiale || r.Filiale || '—';
-        const rating = r.rating ?? r.Rating;
         const created = esFmtDate(r.createdAt || r.CreatedAt);
 
         const reasonsHtml = reasons.length
             ? reasons.map(x => `<div class="es-reason">${esEsc(x)}</div>`).join('')
             : '<span class="es-muted">—</span>';
 
-        const noteHtml = rating != null
-            ? `<span class="es-note">${esEsc(rating)}</span>`
-            : '<span class="es-muted">—</span>';
+        let improveHtml = '<span class="es-muted">—</span>';
+        if (improve.label) {
+            improveHtml = `<div class="es-reason">${esEsc(improve.label)}</div>`;
+            if (improve.themes.length) {
+                improveHtml += improve.themes.map(x =>
+                    `<div class="es-reason" style="font-weight:500;color:#646464">· ${esEsc(x)}</div>`
+                ).join('');
+            }
+        }
 
         html += `<tr>
             <td class="es-td-date">${esEsc(created)}</td>
             <td class="es-td-filiale">${esEsc(filiale)}</td>
-            <td class="es-td-note">${noteHtml}</td>
             <td class="es-td-gruende">${reasonsHtml}</td>
+            <td class="es-td-gruende">${improveHtml}</td>
             <td class="es-td-bemerkung">${bemerkung ? esEsc(bemerkung) : '<span class="es-muted">—</span>'}</td>
         </tr>`;
     }

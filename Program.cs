@@ -394,6 +394,12 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE exit_survey_response
         ADD COLUMN IF NOT EXISTS company_profile_id integer;
     ");
+    // Frage 2 «besser werden» (Walter 26.07.2026) — JA/NEIN + Themen.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE exit_survey_response
+        ADD COLUMN IF NOT EXISTS improve_answer text,
+        ADD COLUMN IF NOT EXISTS improve_themes_json text NOT NULL DEFAULT '[]';
+    ");
 
     // Ärzte-Verzeichnis (Walter 16.07.2026) — fuer den Brief an den
     // behandelnden Arzt (Eignungsuntersuchung Mutterschutz).
