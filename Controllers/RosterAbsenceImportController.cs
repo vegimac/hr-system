@@ -382,9 +382,15 @@ public class RosterAbsenceImportController : ControllerBase
     }
 
     // ── Stunden- / Tagesberechnung ──────────────────────────────────────────
-    // Spiegelt renderAbsDayCheckboxes() in employees.js: bei KRANK/UNFALL/
-    // SCHULUNG werden Sa/So NICHT angerechnet, sofern die ganze Mo–So-Woche im
-    // Zeitraum liegt. Bei FERIEN/FEIERTAG/UNBEZ_URLAUB zählen alle Kalendertage.
+    // Spiegelt renderAbsDayCheckboxes() Default «Mo–Fr Muster» in employees.js:
+    // KRANK/UNFALL (1/5-Werktag) → immer Mo–Fr, Sa+So nie als Gutschrift.
+    // FERIEN/FEIERTAG/UNBEZ_URLAUB → alle Kalendertage (1/7).
+    //
+    // Walter 26.07.2026: Die frühere Heuristik «Sa/So nur bei voller Mo–So-Woche
+    // auslassen» war falsch bei Monatswechsel mitten in der Woche (z.B. Start Do):
+    // die unvollständige erste Woche markierte Sa+So mit — «erste 5 Tage voll»,
+    // danach erst Mo–Fr. Bei fortlaufender Krankheit muss das Mo–Fr-Muster
+    // aus dem Vormonat weitergehen, Sa+So immer frei.
     private static List<string> ComputeWorkedDays(string absenceType, List<string> allDays)
     {
         // Unbezahlter Urlaub wird wie Ferien kalenderbasiert (1/7) gezählt
@@ -392,25 +398,12 @@ public class RosterAbsenceImportController : ControllerBase
         if (absenceType == "FERIEN" || absenceType == "FEIERTAG" || absenceType == "UNBEZ_URLAUB")
             return new List<string>(allDays);
 
-        var daySet = new HashSet<DateOnly>();
-        foreach (var s in allDays)
-            if (DateOnly.TryParse(s, out var d)) daySet.Add(d);
-
-        bool FullWeekInRange(DateOnly day)
-        {
-            int delta   = ((int)day.DayOfWeek + 6) % 7;   // Montag = 0
-            var monday  = day.AddDays(-delta);
-            for (int i = 0; i < 7; i++)
-                if (!daySet.Contains(monday.AddDays(i))) return false;
-            return true;
-        }
-
         var result = new List<string>();
         foreach (var s in allDays)
         {
             if (!DateOnly.TryParse(s, out var d)) continue;
-            bool isSaSo = d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday;
-            if (isSaSo && FullWeekInRange(d)) continue;
+            if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday)
+                continue;
             result.Add(s);
         }
         return result;

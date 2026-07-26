@@ -7749,15 +7749,62 @@ async function openAbsenceModal(existing) {
 
     // Pre-select worked days if editing
     window._absEditWorkedDays = existing?.workedDays ? JSON.parse(existing.workedDays) : [];
+    window._absIsNew = isNewAbs;
+    window._absUserTouchedDays = false;
+    window._absContinuationHint = '';
+
+    // Neue Krank/Unfall direkt im Anschluss an Vormonat → Mo–Fr erzwingen
+    // (Sa/So frei), analog Import-Fix Walter 26.07.2026.
+    if (isNewAbs && (currentVal === 'KRANK' || currentVal === 'UNFALL')) {
+        await _absApplyContinuationMoFr(currentVal, document.getElementById('absDateFrom').value);
+    }
 
     renderAbsDayCheckboxes();
     calcAbsHoursPreview();
+}
+
+/** Fortlaufende AU: Absenz endet am Vortag von dateFrom → Mo–Fr vorwählen. */
+async function _absApplyContinuationMoFr(type, dateFrom) {
+    window._absContinuationHint = '';
+    const empId = typeof selectedEmployeeId !== 'undefined' ? selectedEmployeeId : null;
+    if (!empId || !dateFrom || !type) return;
+    try {
+        const res = await fetch(`/api/absences/employee/${empId}`, { headers: ah() });
+        if (!res.ok) return;
+        const list = await res.json();
+        const from = new Date(dateFrom + 'T00:00:00');
+        const prevDay = new Date(from);
+        prevDay.setDate(prevDay.getDate() - 1);
+        const prevIso = localIso(prevDay);
+        const prev = (list || []).find(a =>
+            a.absenceType === type
+            && a.dateTo
+            && String(a.dateTo).slice(0, 10) === prevIso);
+        if (!prev) return;
+        // Mo–Fr für den neuen Zeitraum vorwählen (Sa/So frei) — Muster Vormonat.
+        const toEl = document.getElementById('absDateTo');
+        const to = (toEl && toEl.value) || dateFrom;
+        const days = [];
+        let cur = new Date(dateFrom + 'T00:00:00');
+        const end = new Date(to + 'T00:00:00');
+        while (cur <= end) {
+            const dow = cur.getDay();
+            if (dow >= 1 && dow <= 5) days.push(localIso(cur));
+            cur.setDate(cur.getDate() + 1);
+        }
+        window._absEditWorkedDays = days;
+        window._absContinuationHint =
+            'Fortsetzung Vormonat erkannt — Mo–Fr markiert, Sa/So frei (wie lange Krankheit).';
+    } catch { /* ignore */ }
 }
 
 function closeAbsenceModal() {
     const modal = document.getElementById('absenceModal');
     if (modal) { modal.style.display = 'none'; modal.dataset.editId = ''; }
     window._absEditWorkedDays = [];
+    window._absIsNew = false;
+    window._absUserTouchedDays = false;
+    window._absContinuationHint = '';
 }
 
 // Wenn Von-Datum geändert wird: Bis-Datum automatisch auf dasselbe Datum
@@ -7779,6 +7826,24 @@ async function renderAbsDayCheckboxes() {
     if (!box) return;
 
     if (!from || !to || from > to) { box.innerHTML = ''; return; }
+
+    // Neue Krank/Unfall: bei Datums-/Typ-Wechsel Fortsetzung Vormonat neu prüfen
+    // (solange User kein eigenes Muster gewählt hat).
+    if (window._absIsNew && (type === 'KRANK' || type === 'UNFALL') && !window._absUserTouchedDays) {
+        await _absApplyContinuationMoFr(type, from);
+        // Zeitraum Bis kann länger sein als beim ersten Apply — Mo–Fr neu aufbauen.
+        if (window._absContinuationHint) {
+            const days = [];
+            let cur = new Date(from + 'T00:00:00');
+            const end = new Date(to + 'T00:00:00');
+            while (cur <= end) {
+                const dow = cur.getDay();
+                if (dow >= 1 && dow <= 5) days.push(localIso(cur));
+                cur.setDate(cur.getDate() + 1);
+            }
+            window._absEditWorkedDays = days;
+        }
+    }
 
     const dayNames = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
     const preselect = window._absEditWorkedDays ?? [];
@@ -7807,15 +7872,17 @@ async function renderAbsDayCheckboxes() {
     // KRANK / UNFALL: Tage auswählen (1/5).
     // Walter-Vorgabe 28.05.2026: 7-Spalten-Wochenraster Mo-So. Default-
     // Vorauswahl: Mo–Fr markiert, Sa+So NICHT markiert (typische 5-Tage-Woche).
-    // Walter-Vorgabe 30.05.2026: in der Gastro arbeiten viele auch am Wochenende
-    // — Sa+So gleichberechtigt klickbar (CSS) und Schnellauswahl-Buttons:
-    //   • "Mo–Fr Muster"        = Default (Sa+So frei)
-    //   • "5 gearbeitet / 2 frei" = ab Tag 1 der Periode: 5 markiert, 2 frei,
-    //     wiederholend — unabhängig vom Wochentag. Praktisch für Schichten mit
-    //     festem Rhythmus, der nicht Mo-Fr ist.
-    //   • "Alle Tage"           = jeder Tag markiert (7-Tage-Woche)
-    //   • "Keine"               = alle aus
-    let html = '<div class="abs-day-label">Welche Tage hätte der/die Mitarbeitende gearbeitet?</div>'
+    // Walter 26.07.2026: bei fortlaufender Krankheit (Anschluss Vormonat)
+    // immer Mo–Fr / Sa+So frei — nicht «erste 5 Tage ab Periodenstart».
+    // Walter-Vorgabe 30.05.2026: Sa+So klickbar + Schnellauswahl:
+    //   • "Mo–Fr Muster"        = Default / lange Krankheit (Sa+So frei)
+    //   • "5 gearbeitet / 2 frei" = Schicht-Rhythmus ab Tag 1 (nur manuell)
+    //   • "Alle Tage" / "Keine"
+    const contHint = window._absContinuationHint
+        ? `<div class="abs-day-info" style="margin-bottom:8px;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;padding:8px 10px;border-radius:8px;font-size:12px">${window._absContinuationHint}</div>`
+        : '';
+    let html = contHint
+             + '<div class="abs-day-label">Welche Tage hätte der/die Mitarbeitende gearbeitet?</div>'
              + '<div class="abs-day-quick">'
              + '<button type="button" onclick="absDayPreset(\'mofr\')">Mo–Fr Muster</button>'
              + '<button type="button" onclick="absDayPreset(\'5and2\')">5 gearbeitet / 2 frei</button>'
@@ -7846,7 +7913,7 @@ async function renderAbsDayCheckboxes() {
             ? (preselect.includes(iso) ? 'checked' : '')
             : (isSaSo ? '' : 'checked');
         html += `<label class="abs-day-item${isSaSo ? ' abs-day-weekend' : ''}">
-            <input type="checkbox" value="${iso}" ${chk} onchange="calcAbsHoursPreview()">
+            <input type="checkbox" value="${iso}" ${chk} onchange="window._absUserTouchedDays=true;calcAbsHoursPreview()">
             <span class="abs-day-name">${weekday}</span>
             <span class="abs-day-date">${dateStr}</span>
         </label>`;
@@ -7865,6 +7932,8 @@ async function renderAbsDayCheckboxes() {
 //   • all    = alle Tage markiert (7-Tage-Woche)
 //   • none   = alle Tage abgewählt (User klickt manuell)
 function absDayPreset(mode) {
+    window._absUserTouchedDays = true;
+    window._absContinuationHint = '';
     const boxes = document.querySelectorAll('#absDayCheckboxes input[type=checkbox]');
     let idx = 0;  // läuft nur über echte Tage (nicht über die abs-day-empty-Spacer)
     boxes.forEach(cb => {
@@ -7876,6 +7945,8 @@ function absDayPreset(mode) {
             cb.checked = (dow >= 1 && dow <= 5);
         } else if (mode === '5and2') {
             // Position im 7-Tage-Zyklus: Tage 1-5 markiert, Tage 6-7 frei
+            // Achtung: startet am Periodenanfang — bei Monatswechsel/Fortsetzung
+            // lieber «Mo–Fr Muster» nutzen (Walter 26.07.2026).
             cb.checked = (idx % 7) < 5;
         } else if (mode === 'all') {
             cb.checked = true;
