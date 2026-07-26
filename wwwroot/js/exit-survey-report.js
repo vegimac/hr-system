@@ -184,6 +184,7 @@ function esRender() {
                 <tr>
                     <th>Datum</th>
                     <th>Filiale</th>
+                    <th class="es-th-note">Note</th>
                     <th>Entscheid</th>
                     <th>Besser werden</th>
                     <th>Feedback</th>
@@ -197,6 +198,10 @@ function esRender() {
         const bemerkung = esBemerkungText(r);
         const filiale = r.filiale || r.Filiale || '—';
         const created = esFmtDate(r.createdAt || r.CreatedAt);
+        const note = r.rating ?? r.Rating;
+        const noteHtml = (note != null && note >= 1 && note <= 6)
+            ? `<span class="es-note">${esEsc(note)}</span>`
+            : '<span class="es-muted">—</span>';
 
         const reasonsHtml = reasons.length
             ? reasons.map(x => `<div class="es-reason">${esEsc(x)}</div>`).join('')
@@ -215,6 +220,7 @@ function esRender() {
         html += `<tr>
             <td class="es-td-date">${esEsc(created)}</td>
             <td class="es-td-filiale">${esEsc(filiale)}</td>
+            <td class="es-td-note">${noteHtml}</td>
             <td class="es-td-gruende">${reasonsHtml}</td>
             <td class="es-td-gruende">${improveHtml}</td>
             <td class="es-td-bemerkung">${bemerkung ? esEsc(bemerkung) : '<span class="es-muted">—</span>'}</td>
