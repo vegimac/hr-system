@@ -3645,10 +3645,10 @@
                direkt unter Anstellung/Nacht; freier Platz darunter. */
             height: 100%;
             align-content: start;
-            /* Zeile 2: Anstellung | Nachtarbeit — 3 Datenzeilen
-               (Eintritt/Austritt · Kündigung · Probezeit bis/Gespräch).
-               196px: KTG inkl. «Bei Absenzen…». */
-            grid-template-rows: auto 186px 196px;
+            /* Zeile 2: Anstellung | Nachtarbeit — kompakt (Walter 26.07.2026):
+               Eintritt/Austritt/Probezeit · Kündigung (kleiner) · Toggles.
+               Personalien bleibt der Hauptblock (auto). */
+            grid-template-rows: auto 158px 196px;
         }
         .ov-wrap {
             display: grid;
@@ -3784,7 +3784,7 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf:nth-child(-n+5) {
             border-bottom-color: rgba(255, 255, 255, 0.10);
         }
-        /* Anstellung / Nachtarbeit = mittlere Zeile (3 Datenzeilen inkl. Probezeit) */
+        /* Anstellung / Nachtarbeit = mittlere Zeile (kompakt, Walter 26.07.2026) */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
             grid-row: 2;
             min-height: 0;
@@ -3795,9 +3795,9 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            gap: 2px;
-            padding-top: 8px;
-            padding-bottom: 6px;
+            gap: 1px;
+            padding-top: 6px;
+            padding-bottom: 4px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .nw-card-body {
             flex: 1 1 auto;
@@ -3809,7 +3809,8 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-card-h {
             flex: 0 0 auto;
-            margin-bottom: 0;
+            font-size: 12.5px;
+            margin-bottom: 2px;
             line-height: 1.2;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-anst-grid {
@@ -3948,7 +3949,7 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: auto 186px 186px 196px;
+                grid-template-rows: auto 158px 158px 196px;
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
@@ -4095,12 +4096,13 @@
             overflow: hidden; min-width: 0;
         }
         /* Anstellung (Walter 26.07.2026):
-           Zeile 1 Eintritt|Austritt|Probezeit · Zeile 2 Kündigung · Zeile 3 Toggles */
+           Zeile 1 Eintritt|Austritt|Probezeit · Zeile 2 Kündigung · Zeile 3 Toggles.
+           Kündigung bewusst kompakter/kleiner — Personalien bleibt dominant. */
         .ov-anst-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(160px, auto);
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto);
             grid-template-rows: auto auto auto;
-            gap: 6px 14px;
+            gap: 3px 12px;
             align-items: start;
             min-width: 0;
         }
@@ -4108,12 +4110,20 @@
             margin-bottom: 0;
             min-width: 0;
         }
+        /* Zeile 1 (Eintritt/Austritt/Probezeit): normale Lesestärke */
+        .ov-anst-grid > .ov-pf:nth-child(-n+3) .ov-pfl {
+            margin-bottom: 1px;
+        }
+        .ov-anst-grid > .ov-pf:nth-child(-n+3) .ov-pfv {
+            font-size: 13.5px;
+            line-height: 26px;
+            min-height: 26px;
+        }
         .ov-anst-grid .ov-anst-date .ov-softin {
             width: 100%;
             min-width: 0;
             max-width: 160px;
             box-sizing: border-box;
-            /* Wie Adresse/Strasse: gleiche Schrift, linksbündig */
             font-size: 14.5px;
             font-weight: 700;
             color: #2a2a2a;
@@ -4139,15 +4149,42 @@
             max-width: 200px;
             cursor: pointer;
         }
-        /* L-GAV + < 8 h nebeneinander auf der untersten Zeile */
+        /* Kündigung + Austrittsgrund: kleinere Typo, dichtere Inputs */
+        .ov-anst-grid .ov-anst-kuend .ov-pfl {
+            font-size: 9.5px;
+            letter-spacing: 0.03em;
+            margin-bottom: 0;
+            color: #9a9a9a;
+        }
+        .ov-anst-grid .ov-anst-kuend .ov-softin {
+            font-size: 12.5px;
+            font-weight: 600;
+            line-height: 24px;
+            min-height: 24px;
+            height: 24px;
+            max-width: 148px;
+            padding: 0 22px 0 0;
+            border-radius: 7px;
+        }
+        .ov-anst-grid .ov-anst-kuend .ov-softin::placeholder {
+            font-size: 12.5px;
+            font-weight: 600;
+        }
+        .ov-anst-grid .ov-anst-kuend select.ov-softin {
+            max-width: 168px;
+            padding-right: 18px;
+        }
+        /* L-GAV + < 8 h kompakt auf der untersten Zeile */
+        .ov-anst-grid .ov-anst-tog .ov-pfl {
+            font-size: 9.5px;
+            margin-bottom: 0;
+        }
         .ov-anst-grid .ov-anst-tog .ov-pfv {
-            min-height: 28px;
+            min-height: 24px;
         }
         /* Legacy-Klassen (falls noch referenziert) */
         .ov-anst-row { margin-bottom: 8px; gap: 10px 20px; }
         .ov-anst-row:last-child { margin-bottom: 2px; }
-        .ov-anst-kuend .ov-anst-date { flex: 1 1 0; min-width: 0; max-width: 220px; }
-        .ov-anst-kuend .ov-softin { width: 100%; min-width: 0; box-sizing: border-box; }
         /* Fussbereich «Weitere Adressen» — kompakt (selten belegt) */
         .ov-addrsep {
             display: flex; align-items: center; justify-content: space-between;
