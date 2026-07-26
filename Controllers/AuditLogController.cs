@@ -1,9 +1,10 @@
+using System.Text;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Text;
 
 namespace HrSystem.Controllers;
 
@@ -78,6 +79,41 @@ public class AuditLogController : ControllerBase
             .OrderBy(t => t)
             .ToListAsync();
         return Ok(types);
+    }
+
+    /// <summary>
+    /// Health-Check: schreibt das Aktivitäts-Log noch?
+    /// Stille-Schwelle = dashboard_warning_config.warn_days für
+    /// «audit_log_stumm» (Default 1 Tag = 24 h).
+    /// </summary>
+    [HttpGet("health")]
+    public async Task<IActionResult> GetHealth()
+    {
+        var silenceDays = await _db.DashboardWarningConfigs.AsNoTracking()
+            .Where(c => c.Category == "audit_log_stumm" && c.WarnDays != null)
+            .Select(c => c.WarnDays!.Value)
+            .FirstOrDefaultAsync();
+        if (silenceDays <= 0) silenceDays = AuditLogHealth.DefaultSilenceDays;
+
+        var h = await AuditLogHealth.CheckAsync(_db, silenceDays);
+        var lastTxt = h.LastCreatedAt?.ToString("dd.MM.yyyy HH:mm");
+        var silentDaysFloor = h.LastCreatedAt.HasValue
+            ? (int)Math.Floor(h.SilentHours / 24.0)
+            : silenceDays;
+        return Ok(new {
+            ok = h.Ok,
+            lastCreatedAt = h.LastCreatedAt,
+            lastCreatedAtText = lastTxt,
+            silentHours = double.IsInfinity(h.SilentHours) ? (double?)null : Math.Round(h.SilentHours, 1),
+            silentDays = h.LastCreatedAt.HasValue ? silentDaysFloor : (int?)null,
+            thresholdHours = h.ThresholdHours,
+            silenceDaysConfig = h.SilenceDays,
+            message = h.Ok
+                ? "Aktivitäts-Log schreibt."
+                : (h.LastCreatedAt.HasValue
+                    ? $"Aktivitäts-Log schreibt nicht mehr — letzter Eintrag {lastTxt} (Stille ≥ {h.SilenceDays} Tag(e))."
+                    : "Aktivitäts-Log ist leer — es wurde noch nie protokolliert.")
+        });
     }
 
     /// <summary>

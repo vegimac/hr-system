@@ -32,7 +32,28 @@ async function alInit() {
     const weekAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
     document.getElementById('alFrom').value = alLocalIsoDate(weekAgo);
     document.getElementById('alTo').value   = alLocalIsoDate(today);
+    alLoadHealth();
     alLoad();
+}
+
+/** Roter Banner, wenn audit_log länger als die Schwelle nichts schreibt. */
+async function alLoadHealth() {
+    const el = document.getElementById('alHealthBanner');
+    if (!el) return;
+    try {
+        const r = await fetch('/api/audit-log/health', { headers: ah() });
+        if (!r.ok) { el.style.display = 'none'; return; }
+        const h = await r.json();
+        if (h && h.ok === false) {
+            el.style.display = '';
+            el.textContent = '⚠ ' + (h.message || 'Aktivitäts-Log schreibt nicht mehr.');
+        } else {
+            el.style.display = 'none';
+            el.textContent = '';
+        }
+    } catch (_) {
+        el.style.display = 'none';
+    }
 }
 
 function alRenderFilters() {
@@ -57,6 +78,7 @@ async function alLoad() {
     const countEl = document.getElementById('alCount');
     if (mount) mount.innerHTML = '<div style="padding:30px;text-align:center;color:#94a3b8">Lade…</div>';
     if (countEl) countEl.textContent = '';
+    alLoadHealth();
     try {
         const r = await fetch('/api/audit-log?' + params.toString(), { headers: ah() });
         if (!r.ok) {
