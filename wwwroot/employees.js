@@ -1392,11 +1392,11 @@ function loadUebersichtTab() {
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
             ${_pf(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
             ${pzCell}
-            <div class="ov-pf ov-anst-date"><div class="ov-pfl">Gekündigt am</div>
+            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Gekündigt am</div>
             <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
-            <div class="ov-pf ov-anst-date"><div class="ov-pfl">Kündigung per</div>
+            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung per</div>
             <input id="ov-kuendPer" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
-            <div class="ov-pf ov-anst-date"><div class="ov-pfl">Kündigung durch</div>
+            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung durch</div>
             <select id="ov-kuendDurch" class="ov-softin" onchange="ovDirty()">
                 <option value="">—</option>
                 <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
@@ -1404,7 +1404,7 @@ function loadUebersichtTab() {
             </select></div>
             <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             <div class="ov-pf ov-anst-tog"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
-            <div class="ov-pf ov-anst-date"><div class="ov-pfl">Austrittsgrund</div>
+            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Austrittsgrund</div>
             <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
