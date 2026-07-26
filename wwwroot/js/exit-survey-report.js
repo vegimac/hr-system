@@ -7,6 +7,14 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const _ES_REASON_LABELS = {
+    // OneCrew-Kurzliste (ab 26.07.2026)
+    NEUER_JOB:          'Neuer Job',
+    SCHULE_STUDIUM:     'Schule / Studium',
+    ZU_VIELE_EINSAETZE: 'Zu viele Einsätze',
+    ZU_WENIG_EINSAETZE: 'Zu wenig Einsätze',
+    PASST_NICHT_MEHR:   'Es hat für mich nicht mehr gepasst',
+    ETWAS_ANDERES:      'Etwas anderes',
+    // Historische Codes
     ANDERER_JOB:      'Andere Stelle im Fachgebiet',
     STUDIUM:          'Studium',
     ZU_VIELE_STUNDEN: 'Zu viele Stunden',

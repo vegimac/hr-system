@@ -7,167 +7,456 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>OneCrew · Austritts-Fragebogen</title>
+<meta name="theme-color" content="#f6f3ee">
+<title>OneCrew · Feedback</title>
 <style>
     @font-face { font-family:'Speedee'; font-weight:300; font-display:swap; src:url('/fonts/Speedee_Lt.woff2') format('woff2'); }
     @font-face { font-family:'Speedee'; font-weight:700; font-display:swap; src:url('/fonts/Speedee_Bd.woff2') format('woff2'); }
-    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-    html,body { margin:0; min-height:100%; }
+
+    :root {
+        --bg: #f6f3ee;
+        --bg-soft: #faf8f5;
+        --ink: #1a1a1a;
+        --ink-soft: #5c574f;
+        --muted: #8a847a;
+        --line: #e4ddd2;
+        --line-strong: #3f3f3f;
+        --card: rgba(255,255,255,0.78);
+        --card-sel: #ffffff;
+        --radius: 18px;
+        --shadow: 0 10px 28px rgba(60,55,48,0.07);
+        --max: 420px;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; min-height: 100%; }
     body {
-        font-family:'Speedee', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        color:#1a1a1a;
+        font-family: 'Speedee', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: var(--ink);
         background:
-            radial-gradient(circle at 58% 38%, rgba(255,255,255,0.80), transparent 26%),
-            radial-gradient(circle at 26% 52%, rgba(224,218,209,0.42), transparent 38%),
-            linear-gradient(135deg, #f7f4ef 0%, #efebe3 50%, #faf8f5 100%);
-        background-attachment:fixed; min-height:100vh;
-        display:flex; flex-direction:column; align-items:center;
-        padding:max(24px, env(safe-area-inset-top)) 18px 40px;
+            radial-gradient(ellipse 80% 50% at 80% -10%, rgba(60,55,48,0.06), transparent 55%),
+            radial-gradient(circle at 12% 18%, rgba(255,255,255,0.75), transparent 32%),
+            linear-gradient(180deg, #faf8f5 0%, #f6f3ee 48%, #f3efe8 100%);
+        background-attachment: fixed;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0 20px max(36px, env(safe-area-inset-bottom));
     }
-    .logo { display:block; width:auto; max-width:230px; max-height:74px; margin:14px auto 6px; }
-    .rule { width:min(320px,80%); height:1px; background:#cdc7bd; border:0; margin:14px auto 0; }
-    .tagline { margin:12px 0 0; font-size:10.5px; letter-spacing:0.28em; color:#6b6b6b; text-transform:uppercase; text-align:center; font-weight:500; }
-    .card {
-        width:100%; max-width:520px; margin:26px auto 0;
-        background:rgba(255,255,255,0.62);
-        border:1px solid rgba(255,255,255,0.7);
-        box-shadow:0 18px 50px rgba(60,55,48,0.16);
-        backdrop-filter:blur(18px) saturate(130%); -webkit-backdrop-filter:blur(18px) saturate(130%);
-        border-radius:22px; padding:24px 22px 28px;
+
+    /* ── Header ── */
+    .header {
+        position: relative;
+        width: 100%;
+        max-width: var(--max);
+        padding: max(28px, env(safe-area-inset-top)) 0 8px;
+        text-align: center;
+        overflow: hidden;
     }
-    .greet { font-size:21px; font-weight:700; color:#111; margin:0 0 8px; }
-    .sub { font-size:14px; color:#555; margin:0 0 18px; line-height:1.55; }
-    .q { font-size:14.5px; font-weight:700; color:#1a1a1a; margin:20px 0 10px; line-height:1.4; }
-    .hint { font-size:12px; color:#7a7367; margin:-4px 0 10px; }
+    .header-arch {
+        position: absolute;
+        right: -18%;
+        top: -8px;
+        width: 70%;
+        max-width: 260px;
+        aspect-ratio: 405 / 342;
+        background: url('/img/onecrew-arch.png') center / contain no-repeat;
+        filter: invert(1);
+        opacity: 0.10;
+        pointer-events: none;
+    }
+    .logo {
+        position: relative;
+        display: block;
+        width: auto;
+        max-width: 168px;
+        max-height: 52px;
+        margin: 0 auto 10px;
+    }
+    .brand-line {
+        position: relative;
+        width: 56px;
+        height: 1px;
+        margin: 0 auto 10px;
+        background: linear-gradient(90deg, transparent, #c9c2b6, transparent);
+    }
+    .brand-url {
+        position: relative;
+        margin: 0;
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 500;
+    }
+
+    /* ── Main ── */
+    .shell {
+        width: 100%;
+        max-width: var(--max);
+        margin-top: 22px;
+    }
+    .title {
+        margin: 0 0 12px;
+        font-size: clamp(26px, 7vw, 32px);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.18;
+        color: var(--ink);
+    }
+    .sub {
+        margin: 0 0 14px;
+        font-size: 15.5px;
+        line-height: 1.55;
+        color: var(--ink-soft);
+        font-weight: 300;
+    }
+    .anon {
+        margin: 0 0 8px;
+        font-size: 12.5px;
+        color: var(--muted);
+        line-height: 1.4;
+    }
+    .branch {
+        margin: 0 0 28px;
+        font-size: 12.5px;
+        color: var(--muted);
+        line-height: 1.4;
+    }
+    .branch strong { font-weight: 500; color: #6e685e; }
+
+    .q {
+        margin: 0 0 6px;
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        line-height: 1.35;
+        color: var(--ink);
+    }
+    .hint {
+        margin: 0 0 16px;
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    /* ── Selection cards ── */
+    .opts { display: flex; flex-direction: column; gap: 10px; margin: 0 0 28px; }
     .opt {
-        display:flex; gap:10px; align-items:flex-start;
-        padding:10px 12px; margin:0 0 6px;
-        background:rgba(255,255,255,0.72); border:1px solid #e2ddd3;
-        border-radius:12px; cursor:pointer; font-size:13.5px; line-height:1.4; color:#333;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        width: 100%;
+        padding: 16px 16px;
+        min-height: 56px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+        color: var(--ink);
+        transition: border-color .15s ease, background .15s ease, transform .08s ease, box-shadow .15s ease;
+        -webkit-appearance: none;
+        appearance: none;
     }
-    .opt:has(input:checked) { border-color:#3f3f3f; background:#fff; }
-    .opt input { width:18px; height:18px; margin-top:1px; flex-shrink:0; accent-color:#1a1a1a; }
-    .opt.disabled { opacity:.45; pointer-events:none; }
-    textarea, input[type=text], select {
-        width:100%; font:inherit; font-size:15px;
-        border:1px solid #d8d2c8; border-radius:14px; padding:12px 14px; background:#fff; color:#1a1a1a;
+    .opt:hover { border-color: #d0c8bb; background: #fff; }
+    .opt:active { transform: translateY(1px); }
+    .opt:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
     }
-    textarea { min-height:90px; resize:vertical; }
-    .filiale-note { font-size:12.5px; color:#64748b; margin:0 0 14px; }
-    .stars { display:flex; gap:8px; flex-wrap:wrap; }
-    .star {
-        appearance:none; border:1px solid #d8d2c8; background:#fff; color:#1a1a1a;
-        width:44px; height:44px; border-radius:12px; font:inherit; font-weight:700; font-size:16px;
-        cursor:pointer;
+    .opt.is-selected {
+        border-color: var(--line-strong);
+        background: var(--card-sel);
+        box-shadow: 0 8px 22px rgba(60,55,48,0.09);
     }
-    .star.on { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
-    .btn {
-        appearance:none; border:0; cursor:pointer; font:inherit; font-weight:700;
-        border-radius:14px; padding:15px 18px; font-size:16px; width:100%; margin-top:22px;
-        background:#1a1a1a; color:#fff;
+    .opt.is-disabled {
+        opacity: 0.42;
+        pointer-events: none;
     }
-    .btn[disabled] { opacity:.5; cursor:default; }
-    .err { color:#b91c1c; font-size:13.5px; margin-top:12px; min-height:18px; }
-    .state { text-align:center; padding:18px 0; }
-    .state .big { font-size:40px; line-height:1; }
-    .state .lead { font-size:17px; font-weight:700; margin:10px 0 4px; color:#111; }
-    .state .stxt { font-size:14px; color:#666; line-height:1.5; }
-    .hp { position:absolute; left:-9999px; opacity:0; height:0; width:0; overflow:hidden; }
+    .opt-mark {
+        flex-shrink: 0;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1.5px solid #c8c1b6;
+        background: #fff;
+        display: grid;
+        place-items: center;
+        transition: border-color .15s ease, background .15s ease;
+    }
+    .opt.is-selected .opt-mark {
+        border-color: var(--ink);
+        background: var(--ink);
+    }
+    .opt.is-selected .opt-mark::after {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #fff;
+    }
+    .opt-label {
+        font-size: 15px;
+        font-weight: 500;
+        line-height: 1.35;
+        color: var(--ink);
+    }
+
+    /* ── Freitext ── */
+    .field { margin: 0 0 28px; }
+    .field-label {
+        display: block;
+        margin: 0 0 10px;
+        font-size: 14.5px;
+        font-weight: 500;
+        color: var(--ink-soft);
+        line-height: 1.4;
+    }
+    textarea {
+        width: 100%;
+        min-height: 110px;
+        resize: vertical;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 300;
+        line-height: 1.5;
+        color: var(--ink);
+        background: rgba(255,255,255,0.7);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        box-shadow: var(--shadow);
+        transition: border-color .15s ease, background .15s ease;
+    }
+    textarea::placeholder { color: #a8a296; }
+    textarea:focus {
+        outline: none;
+        border-color: #b8b0a3;
+        background: #fff;
+    }
+
+    /* Manual branch pick (ohne QR) — dezent */
+    .branch-pick { margin: 0 0 22px; }
+    .branch-pick select {
+        width: 100%;
+        font: inherit;
+        font-size: 14px;
+        color: var(--ink-soft);
+        background: rgba(255,255,255,0.65);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px 14px;
+        appearance: none;
+        background-image: linear-gradient(45deg, transparent 50%, #9a948a 50%),
+                          linear-gradient(135deg, #9a948a 50%, transparent 50%);
+        background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px);
+        background-size: 6px 6px, 6px 6px;
+        background-repeat: no-repeat;
+    }
+    .branch-pick select:focus { outline: none; border-color: #b8b0a3; }
+
+    /* ── CTA ── */
+    .cta { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+    .btn-primary {
+        appearance: none;
+        border: 0;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        font-size: 16px;
+        letter-spacing: 0.01em;
+        border-radius: 16px;
+        padding: 16px 18px;
+        min-height: 54px;
+        background: var(--ink);
+        color: #fff;
+        transition: opacity .15s ease, transform .08s ease;
+    }
+    .btn-primary:active { transform: translateY(1px); }
+    .btn-primary:disabled { opacity: 0.45; cursor: default; }
+    .btn-primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+    .skip {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--muted);
+        padding: 8px;
+        text-align: center;
+        text-decoration: none;
+        transition: color .15s ease;
+    }
+    .skip:hover { color: var(--ink-soft); }
+    .skip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
+
+    .err {
+        margin: 0 0 12px;
+        min-height: 0;
+        font-size: 13.5px;
+        color: #9a3412;
+        text-align: center;
+    }
+
+    /* ── Done states ── */
+    .done {
+        text-align: center;
+        padding: 36px 8px 20px;
+    }
+    .done-mark {
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 18px;
+        border-radius: 50%;
+        border: 1.5px solid var(--ink);
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--ink);
+    }
+    .done-title {
+        margin: 0 0 8px;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+    }
+    .done-sub {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--ink-soft);
+        font-weight: 300;
+    }
+
+    .hp {
+        position: absolute;
+        left: -9999px;
+        opacity: 0;
+        height: 0;
+        width: 0;
+        overflow: hidden;
+    }
+
     .footer {
-        margin:30px auto max(20px, env(safe-area-inset-bottom)); padding:0 12px;
-        max-width:520px; text-align:center;
-        font-size:10px; letter-spacing:0.16em; line-height:1.9;
-        text-transform:uppercase; color:#7a7367; font-weight:500;
+        margin: 40px auto 0;
+        max-width: var(--max);
+        text-align: center;
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #a39c90;
+        font-weight: 500;
     }
 </style>
 </head>
 <body>
-    <img class="logo" src="/img/onecrew-logo.png?v=20260628a" alt="OneCrew">
-    <hr class="rule">
-    <p class="tagline">Hospitality starts with our Crew.</p>
+    <header class="header">
+        <div class="header-arch" aria-hidden="true"></div>
+        <img class="logo" src="/img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+        <div class="brand-line" aria-hidden="true"></div>
+        <p class="brand-url">onecrew.ch</p>
+    </header>
 
-    <div class="card" id="card">
-        <div class="greet">Schade, dass du uns verlässt!</div>
-        <div class="sub">Um uns zu helfen, die Gründe für deine Kündigung besser zu verstehen, wären wir dir dankbar, wenn du den folgenden Fragebogen ausfüllen würdest. Deine Antworten sind anonym und der Fragebogen ist völlig freiwillig.</div>
-        <div class="filiale-note" id="filialeNote"></div>
+    <main class="shell" id="main">
+        <h1 class="title">Schade, dass du weiterziehst.</h1>
+        <p class="sub">Wenn du magst, sag uns kurz, was bei deinem Entscheid am meisten mitgespielt hat.</p>
+        <p class="anon">Dein Feedback bleibt anonym.</p>
+        <p class="branch" id="branchNote" hidden></p>
 
-        <form id="f" onsubmit="return submitForm(event)">
-            <div id="filialePick" style="display:none">
-                <div class="q">In welchem Restaurant hast du gearbeitet?</div>
-                <select id="filialeSelect"><option value="">— bitte wählen —</option></select>
+        <div class="branch-pick" id="branchPick" hidden>
+            <select id="filialeSelect" aria-label="Restaurant">
+                <option value="">Restaurant wählen …</option>
+            </select>
+        </div>
+
+        <form id="f" novalidate>
+            <h2 class="q">Was hat bei deinem Entscheid am meisten mitgespielt?</h2>
+            <p class="hint">Wähle bis zu 3 Gründe.</p>
+
+            <div class="opts" id="opts" role="group" aria-label="Gründe"></div>
+
+            <div class="field">
+                <label class="field-label" for="comment">Wenn du magst: Was sollten wir noch wissen?</label>
+                <textarea id="comment" maxlength="4000" placeholder="Dein Feedback…" rows="4"></textarea>
             </div>
-            <div class="q">Aus welchem/n Hauptgrund/en hast du dich entschieden, McDonald’s zu verlassen?</div>
-            <div class="hint">Wähle maximal 3 Antworten.</div>
-            <div id="reasons"></div>
-            <div id="otherWrap" style="display:none;margin-top:8px">
-                <input type="text" id="reasonOther" placeholder="Anderer Grund …" maxlength="500">
-            </div>
-
-            <div id="atmWrap" style="display:none">
-                <div class="q">Du hast «Atmosphäre / Organisation» gewählt — kannst du erklären, warum?</div>
-                <textarea id="atmosphere" maxlength="2000" placeholder="Optional"></textarea>
-            </div>
-
-            <div class="q">Kannst du McDonald’s als Arbeitgeber eine Note von 1 (am schlechtesten) bis 6 (am besten) geben?</div>
-            <div class="stars" id="stars"></div>
-
-            <div class="q">Weitere Kommentare, Empfehlungen oder Feedback</div>
-            <textarea id="comment" maxlength="4000" placeholder="Optional"></textarea>
 
             <label class="hp" aria-hidden="true">Website <input type="text" id="website" tabindex="-1" autocomplete="off"></label>
 
-            <button class="btn" id="go" type="submit">Absenden</button>
-            <div class="err" id="err"></div>
+            <div class="err" id="err" role="alert"></div>
+
+            <div class="cta">
+                <button type="submit" class="btn-primary" id="go">Feedback senden</button>
+                <button type="button" class="skip" id="skip">Überspringen</button>
+            </div>
         </form>
-    </div>
-    <div class="footer">Antworten anonym · Schaub Restaurants GmbH</div>
+    </main>
+
+    <div class="footer">Schaub Restaurants GmbH</div>
 
 <script>
 const REASONS = [
-    { code: 'ANDERER_JOB',      label: 'Ich habe eine andere Stelle in meinem Fachgebiet gefunden' },
-    { code: 'STUDIUM',          label: 'Weil ich mich auf mein Studium konzentrieren möchte' },
-    { code: 'ZU_VIELE_STUNDEN', label: 'Ich hatte zu viele Stunden verplant' },
-    { code: 'ZU_WENIG_STUNDEN', label: 'Ich hatte nicht genügend Stunden eingeplant' },
-    { code: 'ARBEITSZEITEN',    label: 'Die Arbeitszeiten entsprachen nicht meiner Verfügbarkeit' },
-    { code: 'GASTRONOMIE',      label: 'Der Gastronomiebereich ist nicht das Richtige für mich (z. B. Rush, Aufgaben, Nacht-/Wochenendarbeit)' },
-    { code: 'ENTWICKLUNG',      label: 'Weil ich keine Entwicklungsmöglichkeiten hatte' },
-    { code: 'FAMILIE',          label: 'Aus familiären Gründen oder einer anderen nicht beruflichen Tätigkeit' },
-    { code: 'ATMOSPHAERE',      label: 'Die Atmosphäre und die Organisation am Arbeitsplatz waren nicht gut für mich' },
-    { code: 'LOHN',             label: 'Das Gehalt hat mir nicht gepasst' },
-    { code: 'ANDERES',          label: 'Anderer Grund' },
+    { code: 'NEUER_JOB',          label: 'Neuer Job' },
+    { code: 'SCHULE_STUDIUM',     label: 'Schule / Studium' },
+    { code: 'ZU_VIELE_EINSAETZE', label: 'Zu viele Einsätze' },
+    { code: 'ZU_WENIG_EINSAETZE', label: 'Zu wenig Einsätze' },
+    { code: 'PASST_NICHT_MEHR',   label: 'Es hat für mich nicht mehr gepasst' },
+    { code: 'ETWAS_ANDERES',      label: 'Etwas anderes' },
 ];
 
-let rating = null;
 const qs = new URLSearchParams(location.search);
 let filialeCode = (qs.get('f') || '').trim();
+const selected = new Set();
 
-const box = document.getElementById('reasons');
-box.innerHTML = REASONS.map(r =>
-    `<label class="opt"><input type="checkbox" name="reason" value="${r.code}" onchange="onReasonChange()"> <span>${r.label}</span></label>`
-).join('');
+const optsEl = document.getElementById('opts');
+optsEl.innerHTML = REASONS.map(r => `
+    <button type="button" class="opt" data-code="${r.code}" aria-pressed="false">
+        <span class="opt-mark" aria-hidden="true"></span>
+        <span class="opt-label">${r.label}</span>
+    </button>
+`).join('');
 
-const stars = document.getElementById('stars');
-stars.innerHTML = [1,2,3,4,5,6].map(n =>
-    `<button type="button" class="star" data-n="${n}" onclick="setRating(${n})">${n}</button>`
-).join('');
+function syncOpts() {
+    const full = selected.size >= 3;
+    optsEl.querySelectorAll('.opt').forEach(btn => {
+        const on = selected.has(btn.dataset.code);
+        btn.classList.toggle('is-selected', on);
+        btn.classList.toggle('is-disabled', full && !on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+}
 
-(async function initFiliale() {
-    const note = document.getElementById('filialeNote');
-    const pick = document.getElementById('filialePick');
+optsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.opt');
+    if (!btn || btn.classList.contains('is-disabled')) return;
+    const code = btn.dataset.code;
+    if (selected.has(code)) selected.delete(code);
+    else if (selected.size < 3) selected.add(code);
+    syncOpts();
+});
+
+(async function initBranch() {
+    const note = document.getElementById('branchNote');
+    const pick = document.getElementById('branchPick');
     const sel = document.getElementById('filialeSelect');
     try {
         const r = await fetch('/api/exit-survey/branches');
         const list = r.ok ? await r.json() : [];
         if (filialeCode) {
             const hit = (list || []).find(b => String(b.code) === filialeCode);
-            note.textContent = hit
-                ? 'Dein Feedback wird anonym dem Restaurant «' + hit.label.trim() + '» zugeordnet.'
-                : 'Dein Feedback wird anonym deinem Restaurant zugeordnet.';
+            note.hidden = false;
+            note.innerHTML = hit
+                ? 'Zugeordnet zu: <strong>' + esc(hit.label.trim()) + '</strong>'
+                : 'Zugeordnet zu: <strong>' + esc(filialeCode) + '</strong>';
             return;
         }
-        // Ohne QR: Filiale manuell wählbar (weiterhin ohne Name des MA)
-        pick.style.display = 'block';
-        note.textContent = 'Deine Antwort bleibt anonym — wir speichern nur das Restaurant, nicht deinen Namen.';
+        pick.hidden = false;
         for (const b of (list || [])) {
             const o = document.createElement('option');
             o.value = b.code;
@@ -175,49 +464,45 @@ stars.innerHTML = [1,2,3,4,5,6].map(n =>
             sel.appendChild(o);
         }
     } catch (_) {
-        if (!filialeCode) pick.style.display = 'block';
+        if (!filialeCode) pick.hidden = false;
     }
 })();
 
-function selectedReasons() {
-    return [...document.querySelectorAll('input[name="reason"]:checked')].map(x => x.value);
+function esc(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function onReasonChange() {
-    const sel = selectedReasons();
-    document.querySelectorAll('input[name="reason"]').forEach(inp => {
-        const lab = inp.closest('.opt');
-        if (!inp.checked && sel.length >= 3) lab.classList.add('disabled');
-        else lab.classList.remove('disabled');
-    });
-    document.getElementById('otherWrap').style.display = sel.includes('ANDERES') ? 'block' : 'none';
-    document.getElementById('atmWrap').style.display = sel.includes('ATMOSPHAERE') ? 'block' : 'none';
+function showDone(title, sub) {
+    document.getElementById('main').innerHTML = `
+        <div class="done">
+            <div class="done-mark" aria-hidden="true">✓</div>
+            <p class="done-title">${esc(title)}</p>
+            <p class="done-sub">${esc(sub)}</p>
+        </div>`;
 }
 
-function setRating(n) {
-    rating = n;
-    document.querySelectorAll('.star').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
-}
+document.getElementById('skip').addEventListener('click', () => {
+    showDone('Alles gut.', 'Danke — und alles Gute für dich.');
+});
 
-async function submitForm(ev) {
+document.getElementById('f').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const err = document.getElementById('err');
     err.textContent = '';
-    const reasons = selectedReasons();
+    const reasons = [...selected];
+    const comment = (document.getElementById('comment').value || '').trim();
     const codeFromSelect = document.getElementById('filialeSelect')?.value || '';
+    if (!reasons.length && !comment) {
+        err.textContent = 'Wähl einen Grund oder schreib uns kurz etwas — oder überspringe.';
+        return;
+    }
     const dto = {
         reasons,
-        reasonOther: document.getElementById('reasonOther').value || null,
-        atmosphereDetail: document.getElementById('atmosphere').value || null,
-        rating,
-        comment: document.getElementById('comment').value || null,
+        comment: comment || null,
         filialeCode: filialeCode || codeFromSelect || null,
         website: document.getElementById('website').value || null,
     };
-    if (!reasons.length && !dto.comment && rating == null && !dto.reasonOther) {
-        err.textContent = 'Bitte mindestens einen Grund, eine Note oder einen Kommentar angeben.';
-        return false;
-    }
     const btn = document.getElementById('go');
     btn.disabled = true;
     try {
@@ -227,29 +512,23 @@ async function submitForm(ev) {
             body: JSON.stringify(dto),
         });
         if (r.status === 429) {
-            err.textContent = 'Zu viele Antworten von diesem Gerät — bitte später erneut versuchen.';
+            err.textContent = 'Gerade etwas zu viel — bitte später nochmals.';
             btn.disabled = false;
-            return false;
+            return;
         }
         if (!r.ok) {
             let t = await r.text();
             try { t = JSON.parse(t).message || t; } catch (_) {}
-            err.textContent = t || 'Absenden fehlgeschlagen.';
+            err.textContent = t || 'Senden hat nicht geklappt.';
             btn.disabled = false;
-            return false;
+            return;
         }
-        document.getElementById('card').innerHTML = `
-            <div class="state">
-                <div class="big">✓</div>
-                <div class="lead">Danke für dein Feedback</div>
-                <div class="stxt">Deine Antwort wurde anonym gespeichert und hilft uns, besser zu werden.</div>
-            </div>`;
-    } catch (e) {
-        err.textContent = 'Netzwerkfehler — bitte später erneut versuchen.';
+        showDone('Danke.', 'Dein Feedback hilft uns weiter.');
+    } catch (_) {
+        err.textContent = 'Netzwerkfehler — bitte später nochmals.';
         btn.disabled = false;
     }
-    return false;
-}
+});
 </script>
 </body>
 </html>

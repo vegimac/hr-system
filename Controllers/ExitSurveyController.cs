@@ -21,20 +21,18 @@ public class ExitSurveyController : ControllerBase
 {
     private readonly AppDbContext _db;
 
-    /// <summary>Erlaubte Hauptgrund-Codes (max. 3 pro Antwort).</summary>
+    /// <summary>
+    /// Erlaubte Hauptgrund-Codes (max. 3) — OneCrew-Kurzliste Walter 26.07.2026.
+    /// Alte Codes bleiben in <see cref="ReasonLabels"/> für historische Antworten.
+    /// </summary>
     public static readonly string[] ReasonCodes =
     [
-        "ANDERER_JOB",
-        "STUDIUM",
-        "ZU_VIELE_STUNDEN",
-        "ZU_WENIG_STUNDEN",
-        "ARBEITSZEITEN",
-        "GASTRONOMIE",
-        "ENTWICKLUNG",
-        "FAMILIE",
-        "ATMOSPHAERE",
-        "LOHN",
-        "ANDERES",
+        "NEUER_JOB",
+        "SCHULE_STUDIUM",
+        "ZU_VIELE_EINSAETZE",
+        "ZU_WENIG_EINSAETZE",
+        "PASST_NICHT_MEHR",
+        "ETWAS_ANDERES",
     ];
 
     public ExitSurveyController(AppDbContext db) => _db = db;
@@ -92,7 +90,7 @@ public class ExitSurveyController : ControllerBase
 
         if (reasons.Count == 0 && string.IsNullOrWhiteSpace(dto.Comment)
             && dto.Rating is null && string.IsNullOrWhiteSpace(dto.ReasonOther))
-            return BadRequest(new { error = "LEER", message = "Bitte mindestens einen Grund, eine Note oder einen Kommentar angeben." });
+            return BadRequest(new { error = "LEER", message = "Wähl einen Grund oder schreib uns kurz etwas." });
 
         if (dto.Rating is < 1 or > 6)
             return BadRequest(new { error = "RATING", message = "Die Note muss zwischen 1 und 6 liegen." });
@@ -106,7 +104,7 @@ public class ExitSurveyController : ControllerBase
             var n = await _db.ExitSurveyResponses.AsNoTracking()
                 .CountAsync(x => x.IpHash == ipHash && x.CreatedAt >= since);
             if (n >= 8)
-                return StatusCode(429, new { error = "RATE_LIMIT", message = "Zu viele Antworten von diesem Gerät — bitte später erneut versuchen." });
+                return StatusCode(429, new { error = "RATE_LIMIT", message = "Gerade etwas zu viel — bitte später nochmals." });
         }
 
         var row = new ExitSurveyResponse
@@ -115,6 +113,7 @@ public class ExitSurveyController : ControllerBase
             CompanyProfileId = cpId,
             ReasonsJson = JsonSerializer.Serialize(reasons),
             ReasonOther = Clip(dto.ReasonOther, 500),
+            // Atmosphäre-Freitext nur noch bei Alt-Daten; neuer Fragebogen nutzt comment.
             AtmosphereDetail = reasons.Contains("ATMOSPHAERE") ? Clip(dto.AtmosphereDetail, 2000) : null,
             Rating = dto.Rating,
             Comment = Clip(dto.Comment, 4000),
@@ -125,9 +124,17 @@ public class ExitSurveyController : ControllerBase
         return Ok(new { ok = true });
     }
 
-    /// <summary>Klartext-Labels zu den Hauptgrund-Codes (HR-Ansicht).</summary>
+    /// <summary>Klartext-Labels zu den Hauptgrund-Codes (HR-Ansicht inkl. Alt-Codes).</summary>
     private static readonly Dictionary<string, string> ReasonLabels = new(StringComparer.OrdinalIgnoreCase)
     {
+        // OneCrew-Kurzliste (ab 26.07.2026)
+        ["NEUER_JOB"] = "Neuer Job",
+        ["SCHULE_STUDIUM"] = "Schule / Studium",
+        ["ZU_VIELE_EINSAETZE"] = "Zu viele Einsätze",
+        ["ZU_WENIG_EINSAETZE"] = "Zu wenig Einsätze",
+        ["PASST_NICHT_MEHR"] = "Es hat für mich nicht mehr gepasst",
+        ["ETWAS_ANDERES"] = "Etwas anderes",
+        // Historische Codes (alter Konzern-Fragebogen)
         ["ANDERER_JOB"] = "Andere Stelle im Fachgebiet",
         ["STUDIUM"] = "Studium",
         ["ZU_VIELE_STUNDEN"] = "Zu viele Stunden",
