@@ -7750,6 +7750,7 @@ async function openAbsenceModal(existing) {
     // Pre-select worked days if editing
     window._absEditWorkedDays = existing?.workedDays ? JSON.parse(existing.workedDays) : [];
     window._absIsNew = isNewAbs;
+    window._absUserTouchedDays = false;
     window._absContinuationHint = '';
 
     // Neue Krank/Unfall direkt im Anschluss an Vormonat → Mo–Fr erzwingen
