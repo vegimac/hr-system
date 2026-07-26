@@ -69,11 +69,11 @@ public class KuendigungPdfService
         DateOnly KuendigungAuf,           // Kündigung auf Datum (= letzter Tag)
         string? UnterzeichnerName,
         string? UnterzeichnerFunktion = null,
-        bool    Eingeschrieben = false);
+        bool    Eingeschrieben = false,
+        string? ExitSurveyUrl = null);   // öffentliche URL des eigenen Fragebogens (QR)
 
-    /// <summary>McDonald's-Austritts-Fragebogen (QR aus der Word-Vorlage Sursee).</summary>
-    public const string ExitSurveyUrl =
-        "https://docs.google.com/forms/d/e/1FAIpQLScke4V3Dw8ezGCRfrTuya0T0QdpqM3w8SDaUySxnE39G8qqRQ/viewform";
+    /// <summary>Fallback, falls SiteUrl nicht geladen werden kann.</summary>
+    public const string DefaultExitSurveyUrl = "https://onecrew.ch/kuendigung/";
 
     public byte[] GenerateBestaetigung(BestaetigungData d)
     {
@@ -84,9 +84,13 @@ public class KuendigungPdfService
         var maLines = new[] { d.MaName, d.MaStrasse, d.MaPlzOrt }
             .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList();
 
+        var surveyUrl = string.IsNullOrWhiteSpace(d.ExitSurveyUrl)
+            ? DefaultExitSurveyUrl
+            : d.ExitSurveyUrl!.Trim();
+
         byte[] qrPng;
         using (var qrGen = new QRCodeGenerator())
-        using (var qrData = qrGen.CreateQrCode(ExitSurveyUrl, QRCodeGenerator.ECCLevel.Q))
+        using (var qrData = qrGen.CreateQrCode(surveyUrl, QRCodeGenerator.ECCLevel.Q))
             qrPng = new PngByteQRCode(qrData).GetGraphic(5);
 
         return Document.Create(doc =>

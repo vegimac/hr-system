@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OneCrew · Austritts-Fragebogen</title>
+<style>
+    @font-face { font-family:'Speedee'; font-weight:300; font-display:swap; src:url('/fonts/Speedee_Lt.woff2') format('woff2'); }
+    @font-face { font-family:'Speedee'; font-weight:700; font-display:swap; src:url('/fonts/Speedee_Bd.woff2') format('woff2'); }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body { margin:0; min-height:100%; }
+    body {
+        font-family:'Speedee', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color:#1a1a1a;
+        background:
+            radial-gradient(circle at 58% 38%, rgba(255,255,255,0.80), transparent 26%),
+            radial-gradient(circle at 26% 52%, rgba(224,218,209,0.42), transparent 38%),
+            linear-gradient(135deg, #f7f4ef 0%, #efebe3 50%, #faf8f5 100%);
+        background-attachment:fixed; min-height:100vh;
+        display:flex; flex-direction:column; align-items:center;
+        padding:max(24px, env(safe-area-inset-top)) 18px 40px;
+    }
+    .logo { display:block; width:auto; max-width:230px; max-height:74px; margin:14px auto 6px; }
+    .rule { width:min(320px,80%); height:1px; background:#cdc7bd; border:0; margin:14px auto 0; }
+    .tagline { margin:12px 0 0; font-size:10.5px; letter-spacing:0.28em; color:#6b6b6b; text-transform:uppercase; text-align:center; font-weight:500; }
+    .card {
+        width:100%; max-width:520px; margin:26px auto 0;
+        background:rgba(255,255,255,0.62);
+        border:1px solid rgba(255,255,255,0.7);
+        box-shadow:0 18px 50px rgba(60,55,48,0.16);
+        backdrop-filter:blur(18px) saturate(130%); -webkit-backdrop-filter:blur(18px) saturate(130%);
+        border-radius:22px; padding:24px 22px 28px;
+    }
+    .greet { font-size:21px; font-weight:700; color:#111; margin:0 0 8px; }
+    .sub { font-size:14px; color:#555; margin:0 0 18px; line-height:1.55; }
+    .q { font-size:14.5px; font-weight:700; color:#1a1a1a; margin:20px 0 10px; line-height:1.4; }
+    .hint { font-size:12px; color:#7a7367; margin:-4px 0 10px; }
+    .opt {
+        display:flex; gap:10px; align-items:flex-start;
+        padding:10px 12px; margin:0 0 6px;
+        background:rgba(255,255,255,0.72); border:1px solid #e2ddd3;
+        border-radius:12px; cursor:pointer; font-size:13.5px; line-height:1.4; color:#333;
+    }
+    .opt:has(input:checked) { border-color:#3f3f3f; background:#fff; }
+    .opt input { width:18px; height:18px; margin-top:1px; flex-shrink:0; accent-color:#1a1a1a; }
+    .opt.disabled { opacity:.45; pointer-events:none; }
+    textarea, input[type=text] {
+        width:100%; font:inherit; font-size:15px;
+        border:1px solid #d8d2c8; border-radius:14px; padding:12px 14px; background:#fff; color:#1a1a1a;
+    }
+    textarea { min-height:90px; resize:vertical; }
+    .stars { display:flex; gap:8px; flex-wrap:wrap; }
+    .star {
+        appearance:none; border:1px solid #d8d2c8; background:#fff; color:#1a1a1a;
+        width:44px; height:44px; border-radius:12px; font:inherit; font-weight:700; font-size:16px;
+        cursor:pointer;
+    }
+    .star.on { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
+    .btn {
+        appearance:none; border:0; cursor:pointer; font:inherit; font-weight:700;
+        border-radius:14px; padding:15px 18px; font-size:16px; width:100%; margin-top:22px;
+        background:#1a1a1a; color:#fff;
+    }
+    .btn[disabled] { opacity:.5; cursor:default; }
+    .err { color:#b91c1c; font-size:13.5px; margin-top:12px; min-height:18px; }
+    .state { text-align:center; padding:18px 0; }
+    .state .big { font-size:40px; line-height:1; }
+    .state .lead { font-size:17px; font-weight:700; margin:10px 0 4px; color:#111; }
+    .state .stxt { font-size:14px; color:#666; line-height:1.5; }
+    .hp { position:absolute; left:-9999px; opacity:0; height:0; width:0; overflow:hidden; }
+    .footer {
+        margin:30px auto max(20px, env(safe-area-inset-bottom)); padding:0 12px;
+        max-width:520px; text-align:center;
+        font-size:10px; letter-spacing:0.16em; line-height:1.9;
+        text-transform:uppercase; color:#7a7367; font-weight:500;
+    }
+</style>
+</head>
+<body>
+    <img class="logo" src="/img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+    <hr class="rule">
+    <p class="tagline">Hospitality starts with our Crew.</p>
+
+    <div class="card" id="card">
+        <div class="greet">Schade, dass du uns verlässt!</div>
+        <div class="sub">Um uns zu helfen, die Gründe für deine Kündigung besser zu verstehen, wären wir dir dankbar, wenn du den folgenden Fragebogen ausfüllen würdest. Deine Antworten sind anonym und der Fragebogen ist völlig freiwillig.</div>
+
+        <form id="f" onsubmit="return submitForm(event)">
+            <div class="q">Aus welchem/n Hauptgrund/en hast du dich entschieden, McDonald’s zu verlassen?</div>
+            <div class="hint">Wähle maximal 3 Antworten.</div>
+            <div id="reasons"></div>
+            <div id="otherWrap" style="display:none;margin-top:8px">
+                <input type="text" id="reasonOther" placeholder="Anderer Grund …" maxlength="500">
+            </div>
+
+            <div id="atmWrap" style="display:none">
+                <div class="q">Du hast «Atmosphäre / Organisation» gewählt — kannst du erklären, warum?</div>
+                <textarea id="atmosphere" maxlength="2000" placeholder="Optional"></textarea>
+            </div>
+
+            <div class="q">Kannst du McDonald’s als Arbeitgeber eine Note von 1 (am schlechtesten) bis 6 (am besten) geben?</div>
+            <div class="stars" id="stars"></div>
+
+            <div class="q">Weitere Kommentare, Empfehlungen oder Feedback</div>
+            <textarea id="comment" maxlength="4000" placeholder="Optional"></textarea>
+
+            <label class="hp" aria-hidden="true">Website <input type="text" id="website" tabindex="-1" autocomplete="off"></label>
+
+            <button class="btn" id="go" type="submit">Absenden</button>
+            <div class="err" id="err"></div>
+        </form>
+    </div>
+    <div class="footer">Antworten anonym · Schaub Restaurants GmbH</div>
+
+<script>
+const REASONS = [
+    { code: 'ANDERER_JOB',      label: 'Ich habe eine andere Stelle in meinem Fachgebiet gefunden' },
+    { code: 'STUDIUM',          label: 'Weil ich mich auf mein Studium konzentrieren möchte' },
+    { code: 'ZU_VIELE_STUNDEN', label: 'Ich hatte zu viele Stunden verplant' },
+    { code: 'ZU_WENIG_STUNDEN', label: 'Ich hatte nicht genügend Stunden eingeplant' },
+    { code: 'ARBEITSZEITEN',    label: 'Die Arbeitszeiten entsprachen nicht meiner Verfügbarkeit' },
+    { code: 'GASTRONOMIE',      label: 'Der Gastronomiebereich ist nicht das Richtige für mich (z. B. Rush, Aufgaben, Nacht-/Wochenendarbeit)' },
+    { code: 'ENTWICKLUNG',      label: 'Weil ich keine Entwicklungsmöglichkeiten hatte' },
+    { code: 'FAMILIE',          label: 'Aus familiären Gründen oder einer anderen nicht beruflichen Tätigkeit' },
+    { code: 'ATMOSPHAERE',      label: 'Die Atmosphäre und die Organisation am Arbeitsplatz waren nicht gut für mich' },
+    { code: 'LOHN',             label: 'Das Gehalt hat mir nicht gepasst' },
+    { code: 'ANDERES',          label: 'Anderer Grund' },
+];
+
+let rating = null;
+const box = document.getElementById('reasons');
+box.innerHTML = REASONS.map(r =>
+    `<label class="opt"><input type="checkbox" name="reason" value="${r.code}" onchange="onReasonChange()"> <span>${r.label}</span></label>`
+).join('');
+
+const stars = document.getElementById('stars');
+stars.innerHTML = [1,2,3,4,5,6].map(n =>
+    `<button type="button" class="star" data-n="${n}" onclick="setRating(${n})">${n}</button>`
+).join('');
+
+function selectedReasons() {
+    return [...document.querySelectorAll('input[name="reason"]:checked')].map(x => x.value);
+}
+
+function onReasonChange() {
+    const sel = selectedReasons();
+    document.querySelectorAll('input[name="reason"]').forEach(inp => {
+        const lab = inp.closest('.opt');
+        if (!inp.checked && sel.length >= 3) lab.classList.add('disabled');
+        else lab.classList.remove('disabled');
+    });
+    document.getElementById('otherWrap').style.display = sel.includes('ANDERES') ? 'block' : 'none';
+    document.getElementById('atmWrap').style.display = sel.includes('ATMOSPHAERE') ? 'block' : 'none';
+}
+
+function setRating(n) {
+    rating = n;
+    document.querySelectorAll('.star').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
+}
+
+async function submitForm(ev) {
+    ev.preventDefault();
+    const err = document.getElementById('err');
+    err.textContent = '';
+    const reasons = selectedReasons();
+    const dto = {
+        reasons,
+        reasonOther: document.getElementById('reasonOther').value || null,
+        atmosphereDetail: document.getElementById('atmosphere').value || null,
+        rating,
+        comment: document.getElementById('comment').value || null,
+        website: document.getElementById('website').value || null,
+    };
+    if (!reasons.length && !dto.comment && rating == null && !dto.reasonOther) {
+        err.textContent = 'Bitte mindestens einen Grund, eine Note oder einen Kommentar angeben.';
+        return false;
+    }
+    const btn = document.getElementById('go');
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/exit-survey', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dto),
+        });
+        if (r.status === 429) {
+            err.textContent = 'Zu viele Antworten von diesem Gerät — bitte später erneut versuchen.';
+            btn.disabled = false;
+            return false;
+        }
+        if (!r.ok) {
+            let t = await r.text();
+            try { t = JSON.parse(t).message || t; } catch (_) {}
+            err.textContent = t || 'Absenden fehlgeschlagen.';
+            btn.disabled = false;
+            return false;
+        }
+        document.getElementById('card').innerHTML = `
+            <div class="state">
+                <div class="big">✓</div>
+                <div class="lead">Danke für dein Feedback</div>
+                <div class="stxt">Deine Antwort wurde anonym gespeichert und hilft uns, besser zu werden.</div>
+            </div>`;
+    } catch (e) {
+        err.textContent = 'Netzwerkfehler — bitte später erneut versuchen.';
+        btn.disabled = false;
+    }
+    return false;
+}
+</script>
+</body>
+</html>

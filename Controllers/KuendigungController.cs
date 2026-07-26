@@ -312,6 +312,7 @@ public class KuendigungController : ControllerBase
         var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
         var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
         var (_, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
+        var exitSurveyUrl = await ResolveExitSurveyUrlAsync();
 
         var data = new KuendigungPdfService.BestaetigungData(
             FirmaName:       cp?.CompanyName,
@@ -329,7 +330,8 @@ public class KuendigungController : ControllerBase
             KuendigungAuf:   dto.KuendigungAuf,
             UnterzeichnerName: signerName,
             UnterzeichnerFunktion: signerFunktion,
-            Eingeschrieben:  dto.Eingeschrieben);
+            Eingeschrieben:  dto.Eingeschrieben,
+            ExitSurveyUrl:   exitSurveyUrl);
 
         try
         {
@@ -519,6 +521,20 @@ public class KuendigungController : ControllerBase
         if (anrede == "Frau") return $"Sehr geehrte Frau {ln}".Trim();
         if (anrede == "Herr") return $"Sehr geehrter Herr {ln}".Trim();
         return "Sehr geehrte Damen und Herren";
+    }
+
+    /// <summary>
+    /// Öffentliche URL des eigenen Austritts-Fragebogens (Walter 26.07.2026) —
+    /// aus smtp_setting.site_url, Fallback onecrew.ch/kuendigung/.
+    /// </summary>
+    private async Task<string> ResolveExitSurveyUrlAsync()
+    {
+        var siteRow = await _db.SmtpSettings.AsNoTracking().FirstOrDefaultAsync();
+        var baseUrl = (siteRow != null && !string.IsNullOrWhiteSpace(siteRow.SiteUrl))
+            ? siteRow.SiteUrl.Trim()
+            : "https://onecrew.ch/";
+        if (!baseUrl.EndsWith('/')) baseUrl += "/";
+        return baseUrl + "kuendigung/";
     }
 
     /// <summary>
