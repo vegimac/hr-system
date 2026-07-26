@@ -2598,35 +2598,31 @@ function _nwNachweiseOk(emp) {
 
 // Status-Pille allein (feste Spalte im nw-layout).
 // ≤18: grün «Keine Untersuch-Pflicht».
-// >18 + Nachweise fehlen: rot «Untersuch-Pflicht».
-// >18 + Nachweise vollständig: ruhiges Grün «Untersuch-Pflicht» (Pflicht bleibt,
-// aber kein Alarm-Rot — Walter 26.07.2026).
+// >18: immer rot «Untersuch-Pflicht» (gesetzliche Pflicht — Walter 26.07.2026;
+// Erfüllungsstand steht separat im Chip «Alles in Ordnung» / fehlt-Chips).
 function _nwDutyBadgeOnlyHtml(emp) {
     if (!emp) return '';
     const req = !!emp.nightWorkRequiresDocuments;
     const n = emp.nightWorkMaxNightsInSixWeeks != null ? emp.nightWorkMaxNightsInSixWeeks : 0;
     const tip = `Max. ${n} Nacht-Tage in einem rollierenden 6-Wochen-Fenster (42 Tage, ArGV1 Art. 30 — Pflicht ab >18)`;
     if (req) {
-        const ok = _nwNachweiseOk(emp);
-        const cls = ok ? 'nw-duty-met' : 'nw-duty-on';
-        const tip2 = ok
+        const tip2 = _nwNachweiseOk(emp)
             ? tip + ' — Nachweise vollständig, alles in Ordnung'
             : tip + ' — Nachweise noch unvollständig';
-        return `<span class="nw-duty-badge ${cls}" title="${tip2}"><span class="nw-duty-dot"></span>Untersuch-Pflicht</span>`;
+        return `<span class="nw-duty-badge nw-duty-on" title="${tip2}"><span class="nw-duty-dot"></span>Untersuch-Pflicht</span>`;
     }
     return `<span class="nw-duty-badge nw-duty-off" title="${tip}"><span class="nw-duty-dot"></span>Keine Untersuch-Pflicht</span>`;
 }
 
 // Nächte-Zähler allein (feste Spalte). Max. im rollierenden 6-Wochen-Fenster.
-// Rot nur wenn Pflicht besteht UND Nachweise fehlen (sonst neutrales Schwarz).
+// Rot wenn Untersuch-Pflicht besteht (wie Badge).
 function _nwDutyCountHtml(emp) {
     if (!emp) return '';
     const req = !!emp.nightWorkRequiresDocuments;
     const n = emp.nightWorkMaxNightsInSixWeeks != null ? emp.nightWorkMaxNightsInSixWeeks : 0;
     const tip = `Max. ${n} Nacht-Tage in einem rollierenden 6-Wochen-Fenster (42 Tage, ArGV1 Art. 30 — Pflicht ab >18)`;
     const label = n === 1 ? '1 Nacht' : n + ' Nächte';
-    const alarm = req && !_nwNachweiseOk(emp);
-    return `<span class="nw-duty-count${alarm ? ' nw-duty-count-on' : ''}" title="${tip}">${label} / 6 Wochen</span>`;
+    return `<span class="nw-duty-count${req ? ' nw-duty-count-on' : ''}" title="${tip}">${label} / 6 Wochen</span>`;
 }
 
 // Rote «fehlt»-Hinweise ODER grünes «Alles in Ordnung» (Walter 19./26.07.2026).
