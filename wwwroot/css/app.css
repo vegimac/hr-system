@@ -5792,6 +5792,49 @@
             color: var(--dlg-text-strong);
         }
 
+        /* Jahr-Schnellwahl unter <input type="date"> (Walter 21.06./26.07.2026):
+           Vorjahr zuerst — native Kalender lassen sich nicht aufs Vorjahr öffnen. */
+        .yp-row {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .yp-btn {
+            font-size: 11px;
+            line-height: 1;
+            padding: 3px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #475569;
+        }
+        .yp-btn:hover { background: #f1f5f9; color: #1a1a1a; }
+        .yp-btn-prev {
+            border-color: #94a3b8;
+            background: #f8fafc;
+        }
+        .yp-btn-active {
+            border-color: #1a1a1a !important;
+            background: #1a1a1a !important;
+            color: #fff !important;
+        }
+        body.theme-dark .yp-btn {
+            border-color: var(--dlg-glass-border, #334155);
+            background: rgba(255,255,255,0.06);
+            color: #cbd5e1;
+        }
+        body.theme-dark .yp-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        body.theme-dark .yp-btn-prev { background: rgba(255,255,255,0.04); }
+        body.theme-dark .yp-btn-active {
+            border-color: #e2e8f0 !important;
+            background: #e2e8f0 !important;
+            color: #0f172a !important;
+        }
+
         /* Sticky-Kopfzeile für lange Detail-/Tab-Ansichten (Walter-Vorgabe
            15.05.2026): Titel + Aktions-Buttons (Speichern, Übertragen …)
            bleiben beim Scrollen oben sichtbar — nie Buttons, die wegscrollen.
