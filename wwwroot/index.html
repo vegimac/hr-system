@@ -3965,7 +3965,7 @@
                             </div>
                             <div class="ma-field" style="grid-column:span 2">
                                 <div class="ma-field-label">Volltext (User-Name, Route, Änderungs-JSON)</div>
-                                <input type="text" id="alSearch" placeholder="z.B. Street, Employee, /api/easywork…" onkeyup="if(event.key==='Enter')alLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                                <input type="text" id="alSearch" placeholder="Strasse, Personalnr., Vorname…" onkeyup="if(event.key==='Enter')alLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
                             </div>
                             <div class="ma-field">
                                 <div class="ma-field-label">Max. Einträge</div>
@@ -3980,7 +3980,8 @@
                         </div>
                         <div style="display:flex;gap:8px;margin-top:8px;align-items:center;justify-content:space-between;flex-wrap:wrap">
                             <div id="alCount" style="font-size:12px;color:#64748b;padding-left:2px"></div>
-                            <div style="display:flex;gap:8px">
+                            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                <button class="btn btn-outline" onclick="alFilterStreet()" style="font-size:12px" title="Employee + UPDATE + Strasse, Limit 1000">Nur Strasse</button>
                                 <button class="btn btn-outline" onclick="alReset()" style="font-size:12px">↺ Filter zurücksetzen</button>
                                 <button class="btn btn-outline" onclick="alLoad()" style="font-size:12px">🔄 Aktualisieren</button>
                                 <button class="btn btn-primary" onclick="alExportCsv()" style="font-size:12px">⬇ CSV-Export</button>
@@ -7070,7 +7071,7 @@
 <script src="js/ferien-report.js?v=20260708flex"></script>
 <script src="js/alters-report.js?v=20260708h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
-<script src="js/audit-log.js?v=20260726a"></script>
+<script src="js/audit-log.js?v=20260726b"></script>
 <script src="js/global-search.js?v=20260719b"></script>
 <script src="js/help-panel.js?v=20260720a"></script>
 <script src="js/lohn-edit-lock.js?v=20260704p"></script>

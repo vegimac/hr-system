@@ -118,7 +118,15 @@ function alChangesSummary(changesJson, action) {
     let obj;
     try { obj = JSON.parse(changesJson); } catch { return '<span style="color:#94a3b8">(unleserlich)</span>'; }
     if (!obj || typeof obj !== 'object') return '<span style="color:#94a3b8">–</span>';
-    const keys = Object.keys(obj);
+    // Adress-Felder zuerst — sonst verschwinden sie hinter «+ N weitere».
+    const prefer = ['Street', 'HouseNumber', 'Zip', 'ZipCode', 'City', 'CantonCode'];
+    const keys = Object.keys(obj).sort((a, b) => {
+        const ia = prefer.indexOf(a), ib = prefer.indexOf(b);
+        if (ia >= 0 && ib >= 0) return ia - ib;
+        if (ia >= 0) return -1;
+        if (ib >= 0) return 1;
+        return 0;
+    });
     if (action === 'UPDATE') {
         // Nur die geaenderten Felder anzeigen (jeder Wert ist { old, new })
         const parts = keys.slice(0, 4).map(k => {
@@ -185,9 +193,12 @@ function alRenderResults() {
                 <div style="font-size:11px;color:#94a3b8;word-break:break-all">${esc(r.userRole || '')}${r.route ? ' · ' + esc(r.route) : ''}</div>
             </td>
             <td style="padding:6px 8px;white-space:nowrap">${alActionBadge(r.action)}</td>
-            <td style="padding:6px 8px;white-space:nowrap">
+            <td style="padding:6px 8px">
                 <div style="font-weight:600;color:#0f172a">${esc(r.entityType)}</div>
-                <div style="font-size:11px;color:#64748b;font-family:ui-monospace,Menlo,Consolas,monospace">${esc(r.entityId || '–')}</div>
+                ${r.employeeNumber || r.employeeName
+                    ? `<div style="font-size:12px;font-weight:700;color:#0f172a">${esc(r.employeeNumber || '')}${r.employeeName ? ' · ' + esc(r.employeeName) : ''}</div>
+                       <div style="font-size:10.5px;color:#94a3b8;font-family:ui-monospace,Menlo,Consolas,monospace">id ${esc(r.entityId || '–')}</div>`
+                    : `<div style="font-size:11px;color:#64748b;font-family:ui-monospace,Menlo,Consolas,monospace">${esc(r.entityId || '–')}</div>`}
             </td>
             <td style="padding:6px 8px;line-height:1.5;color:#334155">${alChangesSummary(r.changesJson, r.action)}</td>
             <td style="padding:6px 8px;text-align:right">
@@ -268,5 +279,18 @@ function alReset() {
     document.getElementById('alActionSel').value = '';
     document.getElementById('alSearch').value    = '';
     document.getElementById('alLimit').value     = '200';
+    alLoad();
+}
+
+/** Schnellfilter: nur Strassen-Änderungen an MA (Walter 26.07.2026). */
+function alFilterStreet() {
+    const today = new Date();
+    const weekAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+    document.getElementById('alFrom').value = alLocalIsoDate(weekAgo);
+    document.getElementById('alTo').value   = alLocalIsoDate(today);
+    document.getElementById('alEntitySel').value = 'Employee';
+    document.getElementById('alActionSel').value = 'UPDATE';
+    document.getElementById('alSearch').value    = 'Strasse';
+    document.getElementById('alLimit').value     = '1000';
     alLoad();
 }
