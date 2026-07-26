@@ -618,7 +618,8 @@ using (var scope = app.Services.CreateScope())
             ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt',              TRUE, NULL, NULL, 'critical', NULL,       FALSE, 18),
             ('probezeit_gespraech_offen',  'Probezeitgespräch offen',            TRUE,   14,    7, 'warning',  'critical', TRUE,  19),
             ('kuendigung_ablauf',          'Vertragsende wegen Kündigung',       TRUE,   14,    0, 'warning',  'critical', TRUE,  20),
-            ('kuendigung_sperrfrist_ende', 'Kündigung möglich (Sperrfrist Ende)', TRUE,   90, NULL, 'warning',  NULL,       TRUE,  21)
+            ('kuendigung_sperrfrist_ende', 'Kündigung möglich (Sperrfrist Ende)', TRUE,   90, NULL, 'warning',  NULL,       TRUE,  21),
+            ('audit_log_stumm',            'Aktivitäts-Log schreibt nicht',      TRUE,    1, NULL, 'critical', NULL,       TRUE,  22)
         ON CONFLICT (category) DO NOTHING;
     ");
     // Priorität + Warnfarbe (Walter 19.07.2026) — editierbar in System → Warnungen.
@@ -635,7 +636,8 @@ using (var scope = app.Services.CreateScope())
             ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt', TRUE, NULL, NULL, 'critical', NULL, FALSE, 18, 30, 'red'),
             ('probezeit_gespraech_offen', 'Probezeitgespräch offen', TRUE, 14, 7, 'warning', 'critical', TRUE, 19, 45, 'none'),
             ('kuendigung_ablauf', 'Vertragsende wegen Kündigung', TRUE, 14, 0, 'warning', 'critical', TRUE, 20, 55, 'red_overdue'),
-            ('kuendigung_sperrfrist_ende', 'Kündigung möglich (Sperrfrist Ende)', TRUE, 90, NULL, 'warning', NULL, TRUE, 21, 25, 'red')
+            ('kuendigung_sperrfrist_ende', 'Kündigung möglich (Sperrfrist Ende)', TRUE, 90, NULL, 'warning', NULL, TRUE, 21, 25, 'red'),
+            ('audit_log_stumm', 'Aktivitäts-Log schreibt nicht', TRUE, 1, NULL, 'critical', NULL, TRUE, 22, 5, 'red')
         ON CONFLICT (category) DO NOTHING;
         UPDATE dashboard_warning_config SET todo_priority = 10,  warn_color = 'red'
             WHERE category = 'permit_missing' AND todo_priority = 100 AND warn_color = 'none';
@@ -664,6 +666,12 @@ using (var scope = app.Services.CreateScope())
         UPDATE dashboard_warning_config SET todo_priority = 25, warn_color = 'red',
                label = 'Kündigung möglich (Sperrfrist Ende)', warn_days = 90, severity_base = 'warning'
             WHERE category = 'kuendigung_sperrfrist_ende' AND todo_priority = 100;
+        -- Walter 26.07.2026: Warnung wenn audit_log zu lange nichts schreibt (Default 1 Tag).
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('audit_log_stumm', 'Aktivitäts-Log schreibt nicht', TRUE, 1, NULL, 'critical', NULL, TRUE, 22, 5, 'red')
+        ON CONFLICT (category) DO NOTHING;
     ");
 
     // Seed: Kader-Flag + Mirus-Aliases (idempotent — UPDATE auch bei bestehenden)

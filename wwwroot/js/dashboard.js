@@ -97,7 +97,8 @@ const DASH_CATEGORY_META = {
     lohn_provisorisch:      { i18nKey: 'dash.cat.payrollOpen',      label: 'Lohnlauf',               icon: '💰', color: '#6b6152' },
     birthday:               { i18nKey: 'dash.cat.birthday',         label: 'Geburtstage',            icon: '🎂', color: '#9333ea' },
     anniversary:            { i18nKey: 'dash.cat.anniversary',      label: 'Dienstjubiläen',         icon: '🎉', color: '#15803d' },
-    availability_missing:   { i18nKey: 'dash.cat.availabilityMissing', label: 'Verfügbarkeit fehlt', icon: '🕒', color: '#92400e' }
+    availability_missing:   { i18nKey: 'dash.cat.availabilityMissing', label: 'Verfügbarkeit fehlt', icon: '🕒', color: '#92400e' },
+    audit_log_stumm:        { i18nKey: 'dash.cat.auditSilent', label: 'Aktivitäts-Log stumm', icon: '🧾', color: '#b91c1c' }
 };
 
 const DASH_SEVERITY_META = {
@@ -376,7 +377,9 @@ function renderDashTodoRow(a) {
                                    || a.category === 'probation_end')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
-        : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
+        : (a.category === 'audit_log_stumm'
+            ? `onclick="showPage('audit-log')"`
+            : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : ''));
     const critCls = dashIsRedAlert(a) ? ' liquid-todo-crit' : '';
     return `<div class="liquid-todo-row" ${onClick}>
         <span>${meta.icon || '•'}</span>
@@ -512,6 +515,7 @@ function dashTodoOnClick(a) {
             default:                    return `onclick="dashOpenEmployee(${a.employeeId})"`;
         }
     }
+    if (a.category === 'audit_log_stumm') return `onclick="showPage('audit-log')"`;
     return a.periodeId ? `onclick="dashOpenLohnlauf()"` : '';
 }
 
@@ -665,7 +669,9 @@ function renderDashAlertRow(a) {
                                    || a.category === 'probation_end')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
-        : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : '');
+        : (a.category === 'audit_log_stumm'
+            ? `onclick="showPage('audit-log')"`
+            : (a.periodeId ? `onclick="dashOpenLohnlauf()"` : ''));
     const cursor = onClick ? 'cursor:pointer' : '';
     return `<div ${onClick} style="background:${sev.bg};border:1px solid ${sev.border};border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:14px;${cursor};transition:transform .08s">
         <div style="flex:1;min-width:0">

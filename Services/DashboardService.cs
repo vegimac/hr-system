@@ -1432,6 +1432,40 @@ public class DashboardService
             }
         }
 
+        // ── Audit-Log stumm (Walter 26.07.2026) ───────────────────────────
+        // Wenn länger als warn_days (Default 1 = 24 h) nichts in audit_log
+        // landet → kritische Admin-Warnung (DashboardController filtert
+        // Nicht-Admins). Verhindert den nächsten «stummen» Zeitraum wie 23.–26.07.
+        if (Enabled("audit_log_stumm"))
+        {
+            var silenceDays = Math.Max(1, WarnDays("audit_log_stumm", AuditLogHealth.DefaultSilenceDays));
+            var health = await AuditLogHealth.CheckAsync(_db, silenceDays);
+            if (!health.Ok)
+            {
+                var lastTxt = health.LastCreatedAt.HasValue
+                    ? health.LastCreatedAt.Value.ToString("dd.MM.yyyy HH:mm")
+                    : "nie";
+                var silentDaysShown = health.LastCreatedAt.HasValue
+                    ? Math.Max(1, (int)Math.Floor(health.SilentHours / 24.0))
+                    : silenceDays;
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "audit_log_stumm",
+                    Severity = SeverityState("audit_log_stumm", "critical"),
+                    Title    = "Aktivitäts-Log schreibt nicht mehr",
+                    TitleKey = "alert.audit.silent",
+                    Subtitle = $"Letzter Eintrag: {lastTxt} · seit {silentDaysShown} Tag(en) keine Protokollierung",
+                    SubtitleKey  = "alert.audit.silent_sub",
+                    SubtitleArgs = new Dictionary<string, object> {
+                        ["last"] = lastTxt,
+                        ["days"] = silentDaysShown
+                    },
+                    DueDate  = health.LastCreatedAt,
+                    DaysUntil = health.LastCreatedAt.HasValue ? -silentDaysShown : null
+                });
+            }
+        }
+
         // ── Globale Austritts-Bedingung (Walter-Vorgabe 21.06.2026) ──
         // Dieselbe Regel wie bei der Nachtarbeit-Untersuchung auf ALLE
         // MA-bezogenen Warnungen anwenden: MA, deren Austritt ≤ heute + 30 Tage
