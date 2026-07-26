@@ -36,6 +36,27 @@ public static class EawDateUtil
     }
 
     /// <summary>
+    /// Intervall-«to» aus easy@work Custom Fields (has_interval): oft als
+    /// exklusives Mitternacht gespeichert. UI zeigt z.B. Bis 6.8.2027,
+    /// API liefert «2027-08-06 22:00:00» UTC = 7.8.2027 00:00 Zürich.
+    /// Bei Zürich-Mitternacht → Vortag als letzter inklusiver Gültigkeitstag
+    /// (Walter 26.07.2026, Nachtarbeit-Arztzeugnis). End-of-day (21:59:59)
+    /// bleibt das Kalenderdatum unverändert.
+    /// </summary>
+    public static DateOnly? ParseSwissInclusiveEndDate(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        if (!DateTime.TryParse(s, CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var utc))
+            return null;
+        var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), SwissTz);
+        var date = DateOnly.FromDateTime(local);
+        if (local.TimeOfDay == TimeSpan.Zero && date > DateOnly.MinValue)
+            return date.AddDays(-1);
+        return date;
+    }
+
+    /// <summary>
     /// Parst einen easy@work-Timestamp (Space-Format "yyyy-MM-dd HH:mm:ss" ODER ISO-T)
     /// in einen Kind=Unspecified-DateTime — für `timestamp without time zone`-Spalten
     /// und als Versions-Marker. System.Text.Json würde am Space-Format scheitern und
@@ -234,12 +255,13 @@ public class EawProperty
     [JsonPropertyName("value")]       public string?   Value      { get; set; }
     // from/to kommen als UTC-Datetime-Strings (z.B. "2027-05-22 22:00:00") — ein
     // direktes DateOnly würde das falsch/gar nicht parsen. Daher roh lesen und mit
-    // EawDateUtil.ParseSwissDate (UTC → Europe/Zurich, kein Off-by-one) auflösen.
+    // EawDateUtil auflösen. «from» = inklusiver Tagesbeginn; «to» oft exklusives
+    // Mitternacht → ParseSwissInclusiveEndDate (Walter 26.07.2026).
     [JsonPropertyName("from")]        public string?   FromRaw    { get; set; }
     [JsonPropertyName("to")]          public string?   ToRaw      { get; set; }
     [JsonPropertyName("updated_at")]  public DateTime? UpdatedAt  { get; set; }
     [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
-    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
+    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissInclusiveEndDate(ToRaw);
 }
 
 /// <summary>Einzelner Kommentar (aus dem `comments`-Array eines Timepunch).</summary>
