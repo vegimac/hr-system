@@ -49,19 +49,18 @@
         overflow: hidden;
     }
 
-    /* Halber OneCrew-Bogen oben rechts (Mockup) */
+    /* Halber OneCrew-Bogen oben rechts (Mockup) — Inline-SVG Kohle */
     .arch {
         position: absolute;
-        right: -28px;
-        top: -18px;
-        width: 210px;
-        height: 176px;
-        background: url('/img/onecrew-arch.png') center / contain no-repeat;
-        filter: invert(1);
-        opacity: 0.32;
+        right: -36px;
+        top: -22px;
+        width: 220px;
+        height: 190px;
         pointer-events: none;
         z-index: 0;
+        opacity: 0.55;
     }
+    .arch svg { width: 100%; height: 100%; display: block; }
 
     .topbar {
         position: relative;
@@ -387,7 +386,15 @@
 </head>
 <body>
 <div class="page">
-    <div class="arch" aria-hidden="true"></div>
+    <div class="arch" aria-hidden="true">
+        <svg viewBox="0 0 220 190" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 180 C20 110, 55 35, 130 12 C165 2, 195 8, 215 28" stroke="#222" stroke-width="2.2" stroke-linecap="round" opacity="0.85"/>
+            <path d="M18 180 C28 114, 60 42, 132 20 C164 10, 192 16, 210 34" stroke="#222" stroke-width="1.3" stroke-linecap="round" opacity="0.45"/>
+            <path d="M26 180 C36 118, 66 50, 134 28 C160 18, 186 24, 204 40" stroke="#222" stroke-width="1.05" stroke-linecap="round" opacity="0.28"/>
+            <path d="M8 178 H70" stroke="#222" stroke-width="0.8" opacity="0.25"/>
+            <path d="M130 8 V48" stroke="#222" stroke-width="0.7" opacity="0.22"/>
+        </svg>
+    </div>
 
     <div class="topbar">
         <div>
