@@ -66,6 +66,7 @@ const HELP_PAGE_BY_APP_PAGE = {
     'ecall':             'sms',
     'alter-report':      'index',
     'fluktuation-report':'index',
+    'exit-survey-report':'index',
 };
 
 // Tab-spezifisches Mapping: wenn auf Mitarbeiter-Seite ein bestimmter
