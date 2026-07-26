@@ -21,6 +21,7 @@ public static class AustrittsgrundCodes
         ("VERFUEGBARKEIT", "Verfügbarkeit"),
         ("VERHALTEN", "Verhalten"),
         ("BEFRISTUNG", "Befristung"),
+        ("PERS_GRUENDE", "pers. Gründe"),
         ("DIVERS", "Divers"),
     ];
 
