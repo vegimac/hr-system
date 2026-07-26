@@ -435,19 +435,14 @@ public class DashboardService
             });
         }
 
-        // ── 3b) Austritt erfasst, aber MA noch aktiv (Walter 18.05.2026) ──
-        // Walter pflegt das Aktiv-Flag bewusst manuell — der Auto-Sync aus
-        // ExitDate wurde entfernt. Damit MA aus letzten Lohnzetteln nicht
-        // versehentlich aktiv bleiben, zeigen wir hier eine Reminder-Liste.
-        // Hinweis erscheint sobald ExitDate erreicht ist; Walter entscheidet
-        // wann er den Haken in der MA-Maske wegnimmt (typisch: nach der
-        // letzten Lohnabrechnung des Monats).
+        // ── 3b) Austritt in der ToDo (Walter 26.07.2026) ─────────────────
+        // Erfasster Austritt (ExitDate) erscheint in der ToDo bis INKLUSIVE
+        // Austrittstag — danach verschwindet die Karte (kein «noch aktiv»-
+        // Nachlauf mehr). Vorlauf wie contract_end (Default 30 Tage).
         // ── Kündigungs-Ablauf (Walter-Vorgabe 16.07.2026): am MA ist eine
-        // ausgesprochene Kündigung erfasst (kuendigung_per, vom Kündigungs-
-        // schreiben gesetzt). 2 Wochen VOR Ablauf erscheint die ToDo
-        // «Vertragsende wegen Kündigung per …» — als Erinnerung, Austritts-
-        // datum + Vertragsende zu erfassen. Ein Kündigungsrückzug löscht die
-        // Daten am MA → die ToDo verschwindet automatisch.
+        // ausgesprochene Kündigung erfasst (kuendigung_per), aber noch KEIN
+        // Austrittsdatum. 2 Wochen VOR Ablauf → ToDo «Vertragsende wegen
+        // Kündigung». Sobald ExitDate gesetzt ist, übernimmt exit_pending_active.
         if (Enabled("kuendigung_ablauf"))
         {
             var kuendQ = _db.Employees
@@ -463,8 +458,7 @@ public class DashboardService
             int kuendVorlauf = WarnDays("kuendigung_ablauf", 14);
             foreach (var e in kuendList)
             {
-                // Ist der Austritt bereits erfasst, braucht es keine Erinnerung
-                // mehr (die exit_pending_active-Karte übernimmt danach).
+                // Austritt bereits erfasst → exit_pending_active bis zum Austrittstag.
                 if (e.ExitDate.HasValue) continue;
                 var per = e.KuendigungPer!.Value.Date;
                 int daysUntil = (per - now).Days;
@@ -572,7 +566,7 @@ public class DashboardService
         var exitPendingQ = _db.Employees
             .Where(e => e.IsActive
                      && e.ExitDate.HasValue
-                     && e.ExitDate.Value.Date <= now
+                     && e.ExitDate.Value.Date >= now
                      && !e.EmployeeNumber.ToLower().EndsWith("alt"));
         if (companyProfileId.HasValue)
         {
@@ -586,39 +580,43 @@ public class DashboardService
         var exitPendingList = Enabled("exit_pending_active")
             ? await exitPendingQ.ToListAsync()
             : new List<Employee>();
-        // exit_pending_active zählt Tage SEIT dem Austritt — escalate_days ist
-        // hier die Schwelle NACH oben (≥ escalate_days → eskaliert), daher eigene
-        // Auswertung statt des Standard-Severity-Helfers (Walter 06.07.2026).
-        int exitEscalateDays = warnCfg.TryGetValue("exit_pending_active", out var exitCfg)
-                               && exitCfg.EscalateDays.HasValue ? exitCfg.EscalateDays.Value : 30;
-        string exitBaseSev = warnCfg.TryGetValue("exit_pending_active", out var exitCfg2)
-                             ? exitCfg2.SeverityBase : "warning";
-        string exitEscSev = warnCfg.TryGetValue("exit_pending_active", out var exitCfg3)
-                            ? (exitCfg3.SeverityEscalated ?? exitCfg3.SeverityBase) : "critical";
+        // Walter 26.07.2026: ToDo NUR bis zum Austrittstag (inkl.). Tage bis
+        // Austritt; escalate_days = kritisch kurz davor (wie contract_end).
+        int exitVorlauf = WarnDays("exit_pending_active", 30);
         foreach (var e in exitPendingList)
         {
             var exitDate = e.ExitDate!.Value;
-            var daysAfter = (now - exitDate.Date).Days;
+            var daysUntil = (exitDate.Date - now).Days;
+            if (daysUntil > exitVorlauf) continue; // noch zu früh
+            var name = $"{e.FirstName} {e.LastName}".Trim();
+            var wegenKuend = e.KuendigungPer.HasValue || e.KuendigungAusgesprochenAm.HasValue;
             alerts.Add(new DashboardAlert
             {
                 Category = "exit_pending_active",
-                // Nach escalate_days Tagen eskaliert — bis dahin nur Hinweis.
-                Severity = daysAfter > exitEscalateDays ? exitEscSev : exitBaseSev,
-                Title    = $"Austritt am {exitDate:dd.MM.yyyy} — MA noch aktiv",
-                TitleKey = "alert.exit.pending_active",
+                Severity = Severity("exit_pending_active", daysUntil, "warning", "critical"),
+                Title    = daysUntil == 0
+                    ? $"Austritt heute · {exitDate:dd.MM.yyyy}"
+                    : $"Austritt am {exitDate:dd.MM.yyyy}",
+                TitleKey = daysUntil == 0 ? "alert.exit.today" : "alert.exit.pending_active",
                 TitleArgs = new Dictionary<string, object> { ["date"] = exitDate.ToString("dd.MM.yyyy") },
-                Subtitle = $"{e.FirstName} {e.LastName} · Personalnr. {e.EmployeeNumber} · {daysAfter} Tag(e) nach Austritt",
+                Subtitle = $"{name} · Personalnr. {e.EmployeeNumber}"
+                         + (daysUntil > 0 ? $" · in {daysUntil} Tag(en)" : "")
+                         + (wegenKuend
+                             ? (e.KuendigungAusgesprochenAm.HasValue
+                                 ? $" · gekündigt am {e.KuendigungAusgesprochenAm:dd.MM.yyyy}"
+                                 : " · Kündigung")
+                             : ""),
                 SubtitleKey  = "subtitle.exitPendingActive",
                 SubtitleArgs = new Dictionary<string, object> {
-                    ["name"] = $"{e.FirstName} {e.LastName}".Trim(),
+                    ["name"] = name,
                     ["empNr"] = e.EmployeeNumber,
-                    ["days"] = daysAfter
+                    ["days"] = daysUntil
                 },
                 DueDate  = exitDate,
-                DaysUntil = -daysAfter,
+                DaysUntil = daysUntil,
                 EmployeeId     = e.Id,
                 EmployeeNumber = e.EmployeeNumber,
-                EmployeeName   = $"{e.FirstName} {e.LastName}".Trim()
+                EmployeeName   = name
             });
         }
 
