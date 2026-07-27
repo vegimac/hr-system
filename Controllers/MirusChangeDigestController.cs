@@ -28,9 +28,14 @@ public class MirusChangeDigestController : ControllerBase
 
     /// <summary>Sofort-Lauf: letzte 24 h → Mails an alle Empfänger mit Flag.</summary>
     [HttpPost("run-now")]
-    public async Task<IActionResult> RunNow(CancellationToken ct)
+    public async Task<IActionResult> RunNow(
+        [FromServices] IServiceProvider services,
+        CancellationToken ct)
     {
         var result = await _svc.RunAsync(ct);
+        // Zählt als heutiger Tageslauf — sonst würde der nächste Deploy
+        // denselben Digest nochmals nachholen (Walter 27.07.2026).
+        await MirusChangeDigestBackgroundService.MarkRanTodayAsync(services, ct);
         return Ok(new
         {
             recipientCount = result.RecipientCount,
