@@ -7330,10 +7330,28 @@
             display: flex; align-items: center; justify-content: center;
             height: 100%; color: #cbd5e1; font-size: 14px; flex-direction: column; gap: 8px;
         }
-        /* Familie Buttons. Walter-Vorgabe 01.06.2026: sticky an top:0 im
-           .emp-detail-body-Scroll-Container, damit „+ Familienmitglied" beim
-           Scrollen sichtbar bleibt. Selber Mechanismus für alle Tab-Toolbars
-           (Bank, Permit, Zulagen etc.) — siehe .emp-tab-toolbar. */
+        /* Familie: Leerzeile mit Text + Button in einer Zeile (Walter 27.07.2026). */
+        .emp-familie-empty-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 18px 4px 10px;
+            min-height: 56px;
+        }
+        .emp-familie-empty-msg {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #8b8b8b;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .emp-familie-empty-msg svg { color: #cbd5e1; flex-shrink: 0; }
+        body.theme-dark .emp-familie-empty-msg { color: #94a3b8; }
+        body.theme-dark .emp-familie-empty-msg svg { color: #64748b; }
+        /* Tab-Toolbars (Bank, Permit, Zulagen etc.) — sticky oben. */
         .emp-familie-toolbar,
         .emp-tab-toolbar {
             display: flex; justify-content: flex-end; margin-bottom: 16px;
