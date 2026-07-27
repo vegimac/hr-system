@@ -236,6 +236,11 @@ public class EasyAtWorkEmployeeSyncService
         public DateOnly? NightWorkExamIssued { get; set; }
         /// <summary>easy-«to» fehlt oder ≠ Soll (beide UTC-Lesarten geprüft).</summary>
         public bool NightWorkExamEasyMismatch { get; set; }
+        /// <summary>Schwanger aus easy@work: «from» = gemeldet am (Walter 27.07.2026).</summary>
+        public DateOnly? PregnantMeldedatum { get; set; }
+        /// <summary>Schwanger aus easy@work: «to» = errechneter Geburtstermin.
+        /// Schwangerschaftsbeginn = ET − 280 Tage (PregnancyFristCalculator).</summary>
+        public DateOnly? PregnantErrechneterTermin { get; set; }
         /// <summary>Alle in easy@work erfassten Funktionen/Positionen (distinct).
         /// Mehr als eine = mehrdeutig → MA wird nicht importiert (Walter 05.07.2026).</summary>
         public List<string> Functions { get; set; } = new();
@@ -243,12 +248,26 @@ public class EasyAtWorkEmployeeSyncService
         public List<string> Notes { get; set; } = new();
     }
 
+    /// <summary>Ergebnis von <see cref="FetchPropsInfoAsync"/> — Custom Fields
+    /// in EINER Properties-Abfrage (Zivilstand, AHV, Nachtarbeit, Seniorität,
+    /// Schwangerschaft).</summary>
+    private sealed class PropsInfo
+    {
+        public string? Marital { get; set; }
+        public string? Ahv { get; set; }
+        public DateOnly? NightWorkFrom { get; set; }
+        public string? NightWorkToRaw { get; set; }
+        public DateOnly? SeniorityDate { get; set; }
+        public DateOnly? PregnantMeldedatum { get; set; }
+        public DateOnly? PregnantErrechneterTermin { get; set; }
+    }
+
     /// <summary>Vorab PARALLEL geholte easy@work-Detail-Daten pro MA (nur _client-
     /// Calls), damit die Vorschau nicht 3 Calls pro MA sequenziell macht.
     /// Walter-Vorgabe 05.07.2026.</summary>
     private sealed class DetailCache
     {
-        public System.Collections.Concurrent.ConcurrentDictionary<int, (string? Marital, string? Ahv, DateOnly? NightWorkFrom, string? NightWorkToRaw, DateOnly? SeniorityDate)> Props { get; } = new();
+        public System.Collections.Concurrent.ConcurrentDictionary<int, PropsInfo> Props { get; } = new();
         public System.Collections.Concurrent.ConcurrentDictionary<int, List<string>> Functions { get; } = new();
         public System.Collections.Concurrent.ConcurrentDictionary<int, string?> Iban { get; } = new();
         // STRICT-Import (Walter 08.07.2026): Verträge + Tarife schon in der
@@ -708,6 +727,22 @@ public class EasyAtWorkEmployeeSyncService
             _log.LogWarning(ex, "Einzel-MA Verfügbarkeits-Sync für Employee {Id} fehlgeschlagen.", emp.Id);
         }
 
+        // ── Schwangerschaft aus easy@work (Walter-Vorgabe 27.07.2026) ──
+        // Custom Field «Schwanger»: from = gemeldet am, to = ET.
+        // Beginn = ET − 280 Tage (PregnancyFristCalculator). Best-effort.
+        try
+        {
+            if (await SyncPregnancyFromEasyAsync(
+                    emp, master.PregnantMeldedatum, master.PregnantErrechneterTermin,
+                    result.Notes, ct))
+                result.UpdatedFields.Add("Schwangerschaft");
+        }
+        catch (Exception ex)
+        {
+            result.Notes.Add($"Schwangerschafts-Sync übersprungen: {ex.Message}");
+            _log.LogWarning(ex, "Einzel-MA Schwangerschafts-Sync für Employee {Id} fehlgeschlagen.", emp.Id);
+        }
+
         result.Success = true;
         if (result.UpdatedFields.Count == 0 && result.SkippedContracts.Count == 0)
             result.Notes.Add("Keine Änderungen — Cowork war bereits aktuell.");
@@ -853,6 +888,67 @@ public class EasyAtWorkEmployeeSyncService
         return changed;
     }
 
+    /// <summary>
+    /// Schwangerschaft aus easy@work übernehmen (Walter 27.07.2026).
+    /// <paramref name="meldedatum"/> = Property «from», <paramref name="et"/> =
+    /// Property «to» (errechneter Geburtstermin). Beginn = ET − 280 Tage
+    /// (nicht gespeichert — <see cref="PregnancyFristCalculator"/>).
+    /// Kein Auto-Löschen wenn easy@work «Nein» zeigt (manueller Prozess).
+    /// </summary>
+    private async Task<bool> SyncPregnancyFromEasyAsync(
+        Employee emp,
+        DateOnly? meldedatum,
+        DateOnly? et,
+        List<string> notes,
+        CancellationToken ct)
+    {
+        if (!et.HasValue) return false;
+        var melde = meldedatum ?? DateOnly.FromDateTime(DateTime.Today);
+        if (melde > et.Value)
+        {
+            notes.Add($"⚠ Schwangerschaft in easy@work: gemeldet am ({melde:dd.MM.yyyy}) liegt nach dem ET ({et.Value:dd.MM.yyyy}) — nicht übernommen.");
+            return false;
+        }
+
+        var open = await _db.EmployeePregnancies
+            .Where(p => p.EmployeeId == emp.Id && p.IsActive && p.Geburtsdatum == null)
+            .OrderByDescending(p => p.ErrechneterTermin)
+            .ToListAsync(ct);
+
+        // Gleicher ET → Update; sonst offene Schwangerschaft (ET-Korrektur);
+        // sonst neu anlegen.
+        var match = open.FirstOrDefault(p => p.ErrechneterTermin == et.Value)
+                 ?? open.FirstOrDefault();
+
+        var beginn = et.Value.AddDays(-280);
+        if (match != null)
+        {
+            if (match.Meldedatum == melde && match.ErrechneterTermin == et.Value)
+                return false;
+            match.Meldedatum = melde;
+            match.ErrechneterTermin = et.Value;
+            match.UpdatedAt = DateTime.Now;
+            if (string.IsNullOrWhiteSpace(match.Bemerkung))
+                match.Bemerkung = "aus easy@work synchronisiert";
+            await _db.SaveChangesAsync(ct);
+            notes.Add($"Schwangerschaft aktualisiert (gemeldet {melde:dd.MM.yyyy}, ET {et.Value:dd.MM.yyyy}, Beginn {beginn:dd.MM.yyyy}).");
+            return true;
+        }
+
+        _db.EmployeePregnancies.Add(new EmployeePregnancy
+        {
+            EmployeeId = emp.Id,
+            Meldedatum = melde,
+            ErrechneterTermin = et.Value,
+            Bemerkung = "aus easy@work synchronisiert",
+            IsActive = true,
+            CreatedAt = DateTime.Now,
+        });
+        await _db.SaveChangesAsync(ct);
+        notes.Add($"Schwangerschaft übernommen (gemeldet {melde:dd.MM.yyyy}, ET {et.Value:dd.MM.yyyy}, Beginn {beginn:dd.MM.yyyy}).");
+        return true;
+    }
+
     private async Task<EmployeeMasterData> BuildMasterDataAsync(
         int customerId, EawEmployee eaw, Dictionary<string, int> natByCode,
         bool includeDetailCalls, CancellationToken ct, DetailCache? cache = null)
@@ -898,6 +994,10 @@ public class EasyAtWorkEmployeeSyncService
                 : await FetchPropsInfoAsync(customerId, eaw.Id, ct);
             data.MaritalStatus = propsInfo.Marital;
             data.Ahv = propsInfo.Ahv;
+            // Schwangerschaft (Walter 27.07.2026): Custom Field «Schwanger»
+            // value=Ja, from=gemeldet am, to=errechneter Geburtstermin.
+            data.PregnantMeldedatum = propsInfo.PregnantMeldedatum;
+            data.PregnantErrechneterTermin = propsInfo.PregnantErrechneterTermin;
             // Eintritt = «Datum der Betriebszugehörigkeit» (easy@work Custom Field /
             // cf_seniority_date) — Walter 05.07.2026 + Klarstellung 26.07.2026.
             // «Eingestellt seit» (employee.from) ist nur Fallback (Filial-/Anstellungsbeginn).
@@ -2066,6 +2166,25 @@ public class EasyAtWorkEmployeeSyncService
             await RevertDuplicateEawIdsAsync(res, ct);
 
             await _db.SaveChangesAsync(ct);
+
+            // Schwangerschaft aus easy@work (Walter 27.07.2026) — nach dem
+            // Employee-Save, damit neue MA eine Id haben. Best-effort.
+            foreach (var (pEmp, pEawId, _, _, _, _) in timelineWork)
+            {
+                if (pEmp.Id == 0) continue;
+                if (!masterByEaw.TryGetValue(pEawId, out var pMaster)) continue;
+                if (!pMaster.PregnantErrechneterTermin.HasValue) continue;
+                try
+                {
+                    await SyncPregnancyFromEasyAsync(
+                        pEmp, pMaster.PregnantMeldedatum, pMaster.PregnantErrechneterTermin,
+                        res.Notes, ct);
+                }
+                catch (Exception ex)
+                {
+                    res.Notes.Add($"Schwangerschafts-Sync {pEmp.FirstName} {pEmp.LastName} übersprungen: {ex.Message}");
+                }
+            }
 
             // Tiefenimport: keine Verträge, keine Bankverbindungen (Walter 08.07.2026).
             if (req.SkipContracts) { timelineWork.Clear(); bankWork.Clear(); }
@@ -3578,10 +3697,11 @@ public class EasyAtWorkEmployeeSyncService
     /// </summary>
     /// <summary>
     /// Best-effort aus den easy@work-Custom-Fields (Properties) in EINER Abfrage:
-    /// Zivilstand (cf_marital_status) UND AHV-Nummer (cf_swiss_national_id).
-    /// Unbekannt/Fehlschlag → null (bleibt manuell). Walter-Vorgabe 22.06.2026.
+    /// Zivilstand, AHV, Nachtarbeit, Seniorität, Schwangerschaft.
+    /// Unbekannt/Fehlschlag → null (bleibt manuell). Walter-Vorgabe 22.06.2026 /
+    /// Schwangerschaft 27.07.2026.
     /// </summary>
-    private async Task<(string? Marital, string? Ahv, DateOnly? NightWorkFrom, string? NightWorkToRaw, DateOnly? SeniorityDate)> FetchPropsInfoAsync(int customerId, int eawEmployeeId, CancellationToken ct)
+    private async Task<PropsInfo> FetchPropsInfoAsync(int customerId, int eawEmployeeId, CancellationToken ct)
     {
         try
         {
@@ -3596,15 +3716,16 @@ public class EasyAtWorkEmployeeSyncService
                 .Select(p => p.Value)
                 .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
 
-            var marital = MapMaritalStatus(Pick("marital", "civil", "zivil", "familienstand", "family_status"));
-            var ahv     = FormatAhv(Pick("swiss_national_id", "national_id", "ahv", "avs", "sozialvers"));
+            var info = new PropsInfo
+            {
+                Marital = MapMaritalStatus(Pick("marital", "civil", "zivil", "familienstand", "family_status")),
+                Ahv     = FormatAhv(Pick("swiss_national_id", "national_id", "ahv", "avs", "sozialvers")),
+            };
 
             // Nachtarbeit-Arztzeugnis (cf_night_work_doctors_note, Walter 30.06.2026):
             // boolean (value "1" = vorhanden) + Gültigkeit von/bis (UTC → Zürich-Datum).
             // Wir geben Von UND Bis zurück; die Gültigkeit rechnen WIR aus dem Von
             // nach unserer Regel, und das easy@work-Bis dient als Prüfwert.
-            DateOnly? nwFrom = null;
-            string? nwToRaw = null;
             // Benutzerdefinierte Felder sind in easy@work VERSIONIERT (mehrere
             // Zeilen mit Von/Bis). Massgebend ist die NEUESTE Version (jüngstes
             // Von, dann jüngste Änderung) — NICHT die mit dem spätesten Bis
@@ -3625,7 +3746,7 @@ public class EasyAtWorkEmployeeSyncService
             // historische Wahrheit («ausgestellt … gültig bis … · abgelaufen»).
             // «to» für Gültigkeit: beide UTC-Lesarten akzeptieren (Walter 26.07.2026).
             var nwToday = DateOnly.FromDateTime(DateTime.Today);
-            static bool NwJa(EawProperty p)
+            static bool PropJa(EawProperty p)
             {
                 var v = (p.Value ?? "").Trim().ToLowerInvariant();
                 return v == "1" || v == "true" || v == "yes" || v == "ja";
@@ -3640,34 +3761,45 @@ public class EasyAtWorkEmployeeSyncService
             }
             var nwProp = props
                 .Where(p => (p.Key ?? "").ToLowerInvariant().Contains("night_work_doctors_note"))
-                .Where(NwJa)
+                .Where(PropJa)
                 .OrderByDescending(p => (p.From ?? DateOnly.MinValue) <= nwToday
                                      && NwToCoversToday(p, nwToday) ? 1 : 0)
                 .ThenByDescending(p => p.From ?? DateOnly.MinValue)
                 .FirstOrDefault();
-            if (nwProp != null) { nwFrom = nwProp.From; nwToRaw = nwProp.ToRaw; }
+            if (nwProp != null) { info.NightWorkFrom = nwProp.From; info.NightWorkToRaw = nwProp.ToRaw; }
 
             // «Datum der Betriebszugehörigkeit» (Walter 05.07. / 26.07.2026):
             // FIRMEN-Eintritt für Dienstjubiläen — überdauert Filialwechsel.
             // UI-Label in easy@work; API-Key typisch cf_seniority_date.
             // «Eingestellt seit» = employee.from = nur Anstellungs-/Filialbeginn.
-            DateOnly? seniority = null;
             var seniorRaw = Pick(
                 "seniority_date", "betriebszugeh", "betriebszugehörigkeit",
                 "zugehörigkeit", "zugehorigkeit", "dienstalter_datum",
                 "length_of_service", "company_seniority");
             if (!string.IsNullOrWhiteSpace(seniorRaw))
             {
-                seniority = ParsePropertyDate(seniorRaw);
-                if (!seniority.HasValue)
+                info.SeniorityDate = ParsePropertyDate(seniorRaw);
+                if (!info.SeniorityDate.HasValue)
                     _log.LogWarning(
                         "easy@work-MA {Id}: Betriebszugehörigkeit-Wert «{Raw}» nicht als Datum lesbar",
                         eawEmployeeId, seniorRaw);
             }
 
-            return (marital, ahv, nwFrom, nwToRaw, seniority);
+            // Schwangerschaft (Walter 27.07.2026): Custom Field «Schwanger»
+            // (API-Key typisch cf_pregnant / schwanger). value=Ja,
+            // from = gemeldet am, to = errechneter Geburtstermin.
+            // Schwangerschaftsbeginn wird NICHT gespeichert (ET − 280 Tage live).
+            var (melde, et) = EasyAtWorkPregnancyMapper.PickDates(props);
+            info.PregnantMeldedatum = melde;
+            info.PregnantErrechneterTermin = et;
+
+            return info;
         }
-        catch (Exception ex) { _log.LogDebug(ex, "Properties (Zivilstand/AHV/Nachtarbeit/Seniorität) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); return (null, null, null, null, null); }
+        catch (Exception ex)
+        {
+            _log.LogDebug(ex, "Properties (Zivilstand/AHV/Nachtarbeit/Seniorität/Schwangerschaft) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId);
+            return new PropsInfo();
+        }
     }
 
     /// <summary>13-stellige AHV-Nr. (756…) → Format 756.XXXX.XXXX.XX. Sonst roh.</summary>
