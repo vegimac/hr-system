@@ -1782,8 +1782,10 @@ function switchEmpTab(tab) {
     if (tabBar) {
         const isExcluded = !!selectedEmployee?.isPayrollExcluded;
         const plusIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-        if (tab === 'familie' && !isExcluded) {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openFamilyModal(null)">${plusIcon} ${_t('famTab.add','Familienmitglied')}</button>`;
+        if (tab === 'familie') {
+            // Button lebt im Familie-Tab-Body (Leerzeile / Listen-Kopf),
+            // nicht oben rechts neben den Stammdaten (Walter 27.07.2026).
+            tabBar.innerHTML = '';
         } else if (tab === 'quellensteuer') {
             // Bank-Button zuerst (Sektion steht zuoberst, Walter 19.07.2026).
             tabBar.innerHTML = (!isExcluded ? `<button class="btn-emp-add" onclick="openBankAccountModal(null)">${plusIcon} ${_t('ma.btn.newBank','Bankverbindung')}</button>` : '')
@@ -3856,25 +3858,32 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
     // Cache für Detail-Popup-Lookup
     window._familyMembersCache = members;
 
-    // Walter-Vorgabe 01.06.2026: „+ Familienmitglied"-Button sitzt jetzt im
-    // Header-Bereich (empTabActionBar, von switchEmpTab befüllt) — nicht mehr
-    // hier im Body. Leere Toolbar bleibt für Layout-Konsistenz.
-    const toolbar = `
-    <div class="emp-familie-toolbar" style="display:none">
-        <button class="btn-emp-add" onclick="openFamilyModal(null)">
+    // Walter-Vorgabe 27.07.2026: „+ Familienmitglied" in der Leerzeile /
+    // im Listen-Kopf — NICHT oben rechts im Header (empTabActionBar).
+    const isExcluded = !!selectedEmployee?.isPayrollExcluded;
+    const addBtn = isExcluded ? '' : `
+        <button type="button" class="btn-emp-add" onclick="openFamilyModal(null)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            ${_t('famTab.add','Hinzufügen')}
-        </button>
-    </div>`;
+            ${_t('famTab.add','Familienmitglied')}
+        </button>`;
 
     if (!members.length) {
-        el.innerHTML = toolbar + `
-        <div class="emp-placeholder">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            <span>${_t('famTab.empty','Keine Familienangehörigen erfasst')}</span>
+        el.innerHTML = `
+        <div class="emp-familie-empty-row">
+            <div class="emp-familie-empty-msg">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>${_t('famTab.empty','Keine Familienmitglieder erfasst')}</span>
+            </div>
+            ${addBtn}
         </div>` + _familieMutterschaftHtml(employeeId, pregnancyDetails);
         return;
     }
+
+    const listHead = `
+    <div class="emp-section-title" style="margin-top:0;display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <span>${_t('famTab.listTitle','Familienmitglieder')}</span>
+        ${addBtn}
+    </div>`;
 
     // Gruppieren nach Typ
     const groups = {};
@@ -3907,7 +3916,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
         </div>`;
     }
 
-    let html = spouseTopBanner + toolbar;
+    let html = spouseTopBanner + listHead;
 
     // Display-Label für Mitglieds-Typen (mit Plural für „Kinder").
     const typeLabel = (type, count) => {

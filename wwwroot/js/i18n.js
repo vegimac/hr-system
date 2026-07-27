@@ -462,6 +462,7 @@ window.i18n = (function () {
 
         // Familie-Tab (Liste)
         'famTab.title':              { de: 'Familie',                 en: 'Family' },
+        'famTab.listTitle':          { de: 'Familienmitglieder',      en: 'Family members' },
         'famTab.empty':              { de: 'Keine Familienmitglieder erfasst',
                                         en: 'No family members recorded' },
         'famTab.add':                { de: 'Familienmitglied',       en: 'Family member' },
