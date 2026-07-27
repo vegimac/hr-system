@@ -6694,28 +6694,53 @@ async function mtsSaveForm() {
 // Geburt eintragen — Liquid-Dialog statt natives prompt() (Walter 16.07.2026).
 // Gespeichert wird in employee_pregnancy.geburtsdatum (PUT /api/pregnancies/{id});
 // davon haengen Kuendigungsschutz-Ende (Geburt + 16 Wochen) und Fristen ab.
+// Walter 27.07.2026: zugleich Kind in der Familie anlegen (Vorname/Name/Geschlecht).
 let _mtsGeburtPregId = null;
 
 function _mtsGeburtEnsureModal() {
-    if (document.getElementById('mtsGeburtModal')) return;
-    const div = document.createElement('div');
-    div.id = 'mtsGeburtModal';
-    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
+    let div = document.getElementById('mtsGeburtModal');
+    if (!div) {
+        div = document.createElement('div');
+        div.id = 'mtsGeburtModal';
+        div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
+        document.body.appendChild(div);
+    }
+    const inp = 'width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;box-sizing:border-box';
+    const lbl = 'font-size:11.5px;font-weight:700;color:#646464;display:block;margin-bottom:4px';
     div.innerHTML = `
-    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:420px;width:92%;padding:22px 24px">
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:460px;width:92%;padding:22px 24px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
             <div style="font-size:16px;font-weight:800;color:#3f3f3f">Geburt eintragen</div>
             <button onclick="mtsGeburtClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
         </div>
-        <div style="font-size:12px;color:#646464;margin-bottom:14px">Das effektive Geburtsdatum präzisiert das Ende des Kündigungsschutzes (Geburt + 16 Wochen) und die Mutterschafts-Fristen.</div>
-        <label style="font-size:11.5px;font-weight:700;color:#646464">Geburtsdatum</label>
-        <input type="date" id="mtsGeburtDatum" data-yp="birth" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:18px">
+        <div style="font-size:12px;color:#646464;margin-bottom:14px">Geburtsdatum für die Mutterschafts-Fristen — und das Neugeborene wird als Kind in der Familie erfasst.</div>
+        <label style="${lbl}">Geburtsdatum *</label>
+        <input type="date" id="mtsGeburtDatum" data-yp="birth" style="${inp};margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:#3f3f3f;margin:4px 0 10px">Neugeborenes (Familie)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-bottom:18px">
+            <div>
+                <label style="${lbl}">Vorname *</label>
+                <input type="text" id="mtsGeburtVorname" autocomplete="off" style="${inp}">
+            </div>
+            <div>
+                <label style="${lbl}">Name *</label>
+                <input type="text" id="mtsGeburtNachname" autocomplete="off" style="${inp}">
+            </div>
+            <div style="grid-column:1 / -1">
+                <label style="${lbl}">Geschlecht *</label>
+                <select id="mtsGeburtGeschlecht" style="${inp}">
+                    <option value="">– bitte wählen –</option>
+                    <option value="Männlich">Männlich</option>
+                    <option value="Weiblich">Weiblich</option>
+                    <option value="Divers">Divers</option>
+                </select>
+            </div>
+        </div>
         <div style="display:flex;justify-content:flex-end;gap:10px">
             <button onclick="mtsGeburtClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
             <button onclick="mtsGeburtSpeichern()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
         </div>
     </div>`;
-    document.body.appendChild(div);
 }
 
 function mtsOpenGeburt(id) {
@@ -6725,7 +6750,13 @@ function mtsOpenGeburt(id) {
     const heute = new Date();
     document.getElementById('mtsGeburtDatum').value =
         `${heute.getFullYear()}-${String(heute.getMonth()+1).padStart(2,'0')}-${String(heute.getDate()).padStart(2,'0')}`;
+    document.getElementById('mtsGeburtVorname').value = '';
+    // Nachname der Mutter vorbefüllen (wie Familien-Modal bei Kind).
+    document.getElementById('mtsGeburtNachname').value =
+        (selectedEmployee?.lastName || '').trim();
+    document.getElementById('mtsGeburtGeschlecht').value = '';
     document.getElementById('mtsGeburtModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('mtsGeburtVorname')?.focus(), 30);
 }
 
 function mtsGeburtClose() {
@@ -6735,15 +6766,37 @@ function mtsGeburtClose() {
 
 async function mtsGeburtSpeichern() {
     const iso = document.getElementById('mtsGeburtDatum').value;
+    const vorname = (document.getElementById('mtsGeburtVorname')?.value || '').trim();
+    const nachname = (document.getElementById('mtsGeburtNachname')?.value || '').trim();
+    const geschlecht = (document.getElementById('mtsGeburtGeschlecht')?.value || '').trim();
     if (!iso) return alert('Bitte das Geburtsdatum wählen.');
+    if (!vorname) return alert('Bitte den Vornamen des Kindes angeben.');
+    if (!nachname) return alert('Bitte den Namen des Kindes angeben.');
+    if (!geschlecht) return alert('Bitte das Geschlecht des Kindes wählen.');
     const r = await fetch(`/api/pregnancies/${_mtsGeburtPregId}`, {
         method: 'PUT',
         headers: { ...ah(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ geburtsdatum: iso })
+        body: JSON.stringify({
+            geburtsdatum: iso,
+            kindVorname: vorname,
+            kindNachname: nachname,
+            kindGeschlecht: geschlecht,
+        })
     });
-    if (!r.ok) return alert('Fehler: ' + await r.text());
+    if (!r.ok) {
+        let msg = 'Fehler beim Speichern.';
+        try {
+            const j = await r.json();
+            if (j.message) msg = j.message;
+        } catch {
+            try { msg = await r.text(); } catch { /* ignore */ }
+        }
+        return alert(msg);
+    }
     mtsGeburtClose();
     loadFamilieTab(selectedEmployeeId);
+    if (typeof showToast === 'function')
+        showToast('Geburt eingetragen — Kind in der Familie erfasst', 'success');
 }
 
 // ── Mutterschaftsbestätigung nach der Geburt (Walter 16.07.2026, nach

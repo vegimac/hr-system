@@ -67,6 +67,16 @@ public class PregnancyController : HrControllerBase
         // sendet kein Dokument und darf die FK nicht löschen).
         public bool? SetArztbestaetigungDokument { get; set; }
         public int? ArztbestaetigungDokumentId { get; set; }
+
+        /// <summary>
+        /// Walter-Vorgabe 27.07.2026: beim Geburt-Eintragen optional Kind
+        /// als Familienmitglied anlegen (Vorname / Name / Geschlecht).
+        /// Alle drei Felder + Geburtsdatum nötig; sonst nur Schwangerschaft.
+        /// </summary>
+        public string? KindVorname { get; set; }
+        public string? KindNachname { get; set; }
+        /// <summary>Wie Familien-Modal: «Männlich» / «Weiblich» / «Divers».</summary>
+        public string? KindGeschlecht { get; set; }
     }
 
     // ─── Endpoints ─────────────────────────────────────────────────────────
@@ -162,10 +172,97 @@ public class PregnancyController : HrControllerBase
             p.ArztbestaetigungDokumentId = dto.ArztbestaetigungDokumentId;
         }
         p.UpdatedAt = DateTime.Now;
+
+        var kindPrep = await PrepareKindFromGeburtAsync(p, dto);
+        if (kindPrep.Error is not null) return kindPrep.Error;
+        if (kindPrep.Kind is not null)
+            _db.EmployeeFamilyMembers.Add(kindPrep.Kind);
+
         try { await _db.SaveChangesAsync(); }
         catch (Exception ex) { return PregnancySaveError(ex); }
         // Kein Ok(p) — Entity-Serialisierung (Navigations) soll den Client nicht killen.
-        return Ok(new { id = p.Id, arztbestaetigungDokumentId = p.ArztbestaetigungDokumentId });
+        return Ok(new
+        {
+            id = p.Id,
+            arztbestaetigungDokumentId = p.ArztbestaetigungDokumentId,
+            familyMemberId = kindPrep.Kind?.Id,
+        });
+    }
+
+    /// <summary>
+    /// Beim Geburt-Eintragen optional Kind in der Familie anlegen
+    /// (Walter 27.07.2026). Defaults wie Familien-Modal: CH, Nationalität/
+    /// Bewilligung der Mutter, QST ab Geburt bis 18. Geburtstag.
+    /// </summary>
+    private async Task<(IActionResult? Error, EmployeeFamilyMember? Kind)> PrepareKindFromGeburtAsync(
+        EmployeePregnancy p, UpdatePregnancyDto dto)
+    {
+        var hasAny = !string.IsNullOrWhiteSpace(dto.KindVorname)
+                  || !string.IsNullOrWhiteSpace(dto.KindNachname)
+                  || !string.IsNullOrWhiteSpace(dto.KindGeschlecht);
+        if (!hasAny) return (null, null);
+
+        var vorname = (dto.KindVorname ?? "").Trim();
+        var nachname = (dto.KindNachname ?? "").Trim();
+        var geschlecht = (dto.KindGeschlecht ?? "").Trim();
+        if (vorname.Length == 0 || nachname.Length == 0 || geschlecht.Length == 0)
+        {
+            return (BadRequest(new
+            {
+                error = "KIND_UNVOLLSTAENDIG",
+                message = "Für das Kind bitte Vorname, Name und Geschlecht angeben.",
+            }), null);
+        }
+        if (p.Geburtsdatum is null)
+        {
+            return (BadRequest(new
+            {
+                error = "GEBURTSDATUM_FEHLT",
+                message = "Geburtsdatum fehlt — Kind kann nicht angelegt werden.",
+            }), null);
+        }
+
+        var allowed = new[] { "Männlich", "Weiblich", "Divers" };
+        if (!allowed.Contains(geschlecht, StringComparer.Ordinal))
+        {
+            return (BadRequest(new
+            {
+                error = "GESCHLECHT_UNGULTIG",
+                message = "Geschlecht muss «Männlich», «Weiblich» oder «Divers» sein.",
+            }), null);
+        }
+
+        var dob = p.Geburtsdatum.Value.ToDateTime(TimeOnly.MinValue);
+        var already = await _db.EmployeeFamilyMembers.AnyAsync(m =>
+            m.EmployeeId == p.EmployeeId
+            && m.MemberType == "Kind"
+            && m.FirstName == vorname
+            && m.LastName == nachname
+            && m.DateOfBirth != null
+            && m.DateOfBirth.Value.Date == dob.Date);
+        if (already) return (null, null);
+
+        var emp = await _db.Employees.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == p.EmployeeId);
+        var qstUntil = p.Geburtsdatum.Value.AddYears(18).ToDateTime(TimeOnly.MinValue);
+        var kind = new EmployeeFamilyMember
+        {
+            EmployeeId = p.EmployeeId,
+            MemberType = "Kind",
+            FirstName = vorname,
+            LastName = nachname,
+            Gender = geschlecht,
+            DateOfBirth = dob,
+            LivesInSwitzerland = true,
+            NationalityId = emp?.NationalityId,
+            // Bewilligung wie Mutter (Ablauf liegt in der History — Kind oft CH/ohne).
+            PermitTypeId = emp?.PermitTypeId,
+            QstDeductibleFrom = dob,
+            QstDeductibleUntil = qstUntil,
+            CreatedAt = DateTime.Now,
+            UpdatedAt = DateTime.Now,
+        };
+        return (null, kind);
     }
 
     private ObjectResult PregnancySaveError(Exception ex)
