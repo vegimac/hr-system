@@ -10,6 +10,16 @@ namespace HrSystem.Services.EasyAtWork;
 /// </summary>
 public static class EasyAtWorkPregnancyMapper
 {
+    /// <summary>
+    /// Marker in <c>employee_pregnancy.bemerkung</c> für aus easy@work
+    /// übernommene Einträge — dient der Erkennung «in easy gelöscht».
+    /// </summary>
+    public const string SyncBemerkungMarker = "aus easy@work synchronisiert";
+
+    public static bool IsSyncedFromEasy(string? bemerkung) =>
+        !string.IsNullOrWhiteSpace(bemerkung)
+        && bemerkung.Contains(SyncBemerkungMarker, StringComparison.OrdinalIgnoreCase);
+
     public static (DateOnly? Meldedatum, DateOnly? ErrechneterTermin) PickDates(
         IEnumerable<EawProperty> props)
     {

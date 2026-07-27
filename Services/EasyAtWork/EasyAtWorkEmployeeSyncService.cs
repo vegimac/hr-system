@@ -201,6 +201,19 @@ public class EasyAtWorkEmployeeSyncService
         public List<string> Notes { get; set; } = new();
         /// <summary>Verträge, die wegen abgeschlossener Lohnperiode NICHT importiert wurden (Walter 29.06.2026).</summary>
         public List<string> SkippedContracts { get; set; } = new();
+        /// <summary>
+        /// Offene OneCrew-Schwangerschaften, die aus easy@work stammten, aber
+        /// dort nicht mehr als «Ja»+ET vorhanden sind. Frontend fragt nach dem
+        /// Löschen — kein Auto-Delete (Walter 27.07.2026).
+        /// </summary>
+        public List<OrphanedPregnancyInfo> OrphanedPregnancies { get; set; } = new();
+    }
+
+    public sealed class OrphanedPregnancyInfo
+    {
+        public int Id { get; set; }
+        public DateOnly Meldedatum { get; set; }
+        public DateOnly ErrechneterTermin { get; set; }
     }
 
     private sealed class EmployeeMasterData
@@ -730,11 +743,12 @@ public class EasyAtWorkEmployeeSyncService
         // ── Schwangerschaft aus easy@work (Walter-Vorgabe 27.07.2026) ──
         // Custom Field «Schwanger»: from = gemeldet am, to = ET.
         // Beginn = ET − 280 Tage (PregnancyFristCalculator). Best-effort.
+        // Wenn in easy gelöscht: Orphans melden, Frontend fragt nach Löschen.
         try
         {
             if (await SyncPregnancyFromEasyAsync(
                     emp, master.PregnantMeldedatum, master.PregnantErrechneterTermin,
-                    result.Notes, ct))
+                    result.Notes, result.OrphanedPregnancies, ct))
                 result.UpdatedFields.Add("Schwangerschaft");
         }
         catch (Exception ex)
@@ -893,16 +907,29 @@ public class EasyAtWorkEmployeeSyncService
     /// <paramref name="meldedatum"/> = Property «from», <paramref name="et"/> =
     /// Property «to» (errechneter Geburtstermin). Beginn = ET − 280 Tage
     /// (nicht gespeichert — <see cref="PregnancyFristCalculator"/>).
-    /// Kein Auto-Löschen wenn easy@work «Nein» zeigt (manueller Prozess).
+    /// Fehlt die Schwangerschaft in easy@work und existiert in OneCrew noch
+    /// ein aus easy synchronisierter offener Eintrag → Orphans melden
+    /// (Frontend: «In OneCrew löschen?» — kein Auto-Delete).
     /// </summary>
     private async Task<bool> SyncPregnancyFromEasyAsync(
         Employee emp,
         DateOnly? meldedatum,
         DateOnly? et,
         List<string> notes,
+        List<OrphanedPregnancyInfo>? orphanSink,
         CancellationToken ct)
     {
-        if (!et.HasValue) return false;
+        if (!et.HasValue)
+        {
+            var orphans = await FindEasySyncedOpenPregnanciesAsync(emp.Id, ct);
+            if (orphans.Count == 0) return false;
+            notes.Add(
+                $"Schwangerschaft in easy@work gelöscht — in OneCrew noch vorhanden " +
+                $"(ET {string.Join(", ", orphans.Select(o => o.ErrechneterTermin.ToString("dd.MM.yyyy")))}).");
+            orphanSink?.AddRange(orphans);
+            return false;
+        }
+
         var melde = meldedatum ?? DateOnly.FromDateTime(DateTime.Today);
         if (melde > et.Value)
         {
@@ -921,6 +948,7 @@ public class EasyAtWorkEmployeeSyncService
                  ?? open.FirstOrDefault();
 
         var beginn = et.Value.AddDays(-280);
+        var marker = EasyAtWorkPregnancyMapper.SyncBemerkungMarker;
         if (match != null)
         {
             if (match.Meldedatum == melde && match.ErrechneterTermin == et.Value)
@@ -929,7 +957,7 @@ public class EasyAtWorkEmployeeSyncService
             match.ErrechneterTermin = et.Value;
             match.UpdatedAt = DateTime.Now;
             if (string.IsNullOrWhiteSpace(match.Bemerkung))
-                match.Bemerkung = "aus easy@work synchronisiert";
+                match.Bemerkung = marker;
             await _db.SaveChangesAsync(ct);
             notes.Add($"Schwangerschaft aktualisiert (gemeldet {melde:dd.MM.yyyy}, ET {et.Value:dd.MM.yyyy}, Beginn {beginn:dd.MM.yyyy}).");
             return true;
@@ -940,13 +968,36 @@ public class EasyAtWorkEmployeeSyncService
             EmployeeId = emp.Id,
             Meldedatum = melde,
             ErrechneterTermin = et.Value,
-            Bemerkung = "aus easy@work synchronisiert",
+            Bemerkung = marker,
             IsActive = true,
             CreatedAt = DateTime.Now,
         });
         await _db.SaveChangesAsync(ct);
         notes.Add($"Schwangerschaft übernommen (gemeldet {melde:dd.MM.yyyy}, ET {et.Value:dd.MM.yyyy}, Beginn {beginn:dd.MM.yyyy}).");
         return true;
+    }
+
+    /// <summary>
+    /// Offene, aus easy@work synchronisierte Schwangerschaften ohne Geburt —
+    /// Kandidaten für «in easy gelöscht → in OneCrew löschen?».
+    /// </summary>
+    private async Task<List<OrphanedPregnancyInfo>> FindEasySyncedOpenPregnanciesAsync(
+        int employeeId, CancellationToken ct)
+    {
+        var open = await _db.EmployeePregnancies
+            .AsNoTracking()
+            .Where(p => p.EmployeeId == employeeId && p.IsActive && p.Geburtsdatum == null)
+            .OrderByDescending(p => p.ErrechneterTermin)
+            .ToListAsync(ct);
+        return open
+            .Where(p => EasyAtWorkPregnancyMapper.IsSyncedFromEasy(p.Bemerkung))
+            .Select(p => new OrphanedPregnancyInfo
+            {
+                Id = p.Id,
+                Meldedatum = p.Meldedatum,
+                ErrechneterTermin = p.ErrechneterTermin,
+            })
+            .ToList();
     }
 
     private async Task<EmployeeMasterData> BuildMasterDataAsync(
@@ -2169,16 +2220,16 @@ public class EasyAtWorkEmployeeSyncService
 
             // Schwangerschaft aus easy@work (Walter 27.07.2026) — nach dem
             // Employee-Save, damit neue MA eine Id haben. Best-effort.
+            // Auch ohne ET aufrufen: erkennt «in easy gelöscht» (Hinweis in Notes).
             foreach (var (pEmp, pEawId, _, _, _, _) in timelineWork)
             {
                 if (pEmp.Id == 0) continue;
                 if (!masterByEaw.TryGetValue(pEawId, out var pMaster)) continue;
-                if (!pMaster.PregnantErrechneterTermin.HasValue) continue;
                 try
                 {
                     await SyncPregnancyFromEasyAsync(
                         pEmp, pMaster.PregnantMeldedatum, pMaster.PregnantErrechneterTermin,
-                        res.Notes, ct);
+                        res.Notes, orphanSink: null, ct);
                 }
                 catch (Exception ex)
                 {

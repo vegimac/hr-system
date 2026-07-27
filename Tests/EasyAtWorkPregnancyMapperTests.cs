@@ -44,6 +44,17 @@ public class EasyAtWorkPregnancyMapperTests
     }
 
     [Fact]
+    public void IsSyncedFromEasy_RecognizesMarker()
+    {
+        Assert.True(EasyAtWorkPregnancyMapper.IsSyncedFromEasy(
+            EasyAtWorkPregnancyMapper.SyncBemerkungMarker));
+        Assert.True(EasyAtWorkPregnancyMapper.IsSyncedFromEasy(
+            "Hinweis — aus easy@work synchronisiert"));
+        Assert.False(EasyAtWorkPregnancyMapper.IsSyncedFromEasy(null));
+        Assert.False(EasyAtWorkPregnancyMapper.IsSyncedFromEasy("manuell erfasst"));
+    }
+
+    [Fact]
     public void PickDates_MissingEt_ReturnsNull()
     {
         var props = new[]

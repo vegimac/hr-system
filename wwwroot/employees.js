@@ -1738,6 +1738,37 @@ async function easyworkSyncSelectedEmployee(empId) {
             alert('⚠ Diese Verträge wurden NICHT importiert:\n' + skipped.map(s => '• ' + s).join('\n'));
         else if (typeof showToast === 'function')
             showToast(upd.length ? 'Daten aktualisiert' : 'Keine Änderungen', 'success');
+
+        // Schwangerschaft in easy@work gelöscht → in OneCrew nachfragen
+        // (Walter-Vorgabe 27.07.2026). Kein Auto-Delete.
+        const orphans = data.orphanedPregnancies || [];
+        if (orphans.length) {
+            const fmt = (iso) => {
+                if (!iso) return '—';
+                const s = String(iso).slice(0, 10);
+                return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4);
+            };
+            const etList = orphans.map(p => fmt(p.errechneterTermin)).join(', ');
+            const ja = typeof liquidConfirm === 'function'
+                ? await liquidConfirm(
+                    `Schwangerschaft in easy gelöscht.\n\nIn OneCrew löschen?\n(ET ${etList})`,
+                    { title: 'Schwangerschaft in easy gelöscht', yesLabel: 'Ja, löschen', noLabel: 'Nein, behalten' })
+                : confirm(`Schwangerschaft in easy gelöscht.\n\nIn OneCrew löschen?\n(ET ${etList})`);
+            if (ja) {
+                let okCount = 0;
+                for (const p of orphans) {
+                    const del = await fetch(`/api/pregnancies/${p.id}`, { method: 'DELETE', headers: ah() });
+                    if (del.ok) okCount++;
+                    else alert('Löschen fehlgeschlagen (Id ' + p.id + '): ' + (await del.text().catch(() => del.status)));
+                }
+                window._empSelectGen = (window._empSelectGen || 0) + 1;
+                if (typeof selectEmployee === 'function') await selectEmployee(empId);
+                if (typeof loadFamilieTab === 'function' && selectedEmployeeId === empId)
+                    loadFamilieTab(empId);
+                if (typeof showToast === 'function' && okCount)
+                    showToast(okCount === 1 ? 'Schwangerschaft gelöscht' : `${okCount} Schwangerschaften gelöscht`, 'success');
+            }
+        }
     } catch (e) {
         alert('easy@work-Abgleich fehlgeschlagen: ' + (e?.message || e));
     } finally {
