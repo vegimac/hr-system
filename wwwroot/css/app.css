@@ -1875,7 +1875,7 @@
            genauso schnell zwischen MA wechseln kann wie bei Stempelzeiten. */
 
         /* Linke Liste — Walter 06.06.2026: schlanker (230 statt 300 px), damit
-           die Dokumenten-Tabelle inkl. „Geöffnet"-Spalte rechts noch reinpasst. */
+           die Dokumenten-Tabelle rechts genug Platz behält. */
         .emp-list-panel {
             width: 230px; min-width: 230px; border-right: 1px solid #e2e8f0;
             display: flex; flex-direction: column; background: white; border-radius: 12px 0 0 12px;
