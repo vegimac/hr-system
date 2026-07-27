@@ -13,6 +13,59 @@
             height: 100vh; overflow: hidden;
         }
 
+        /* ══ UI-Skalierung schmale Bildschirme (Walter 27.07.2026) ══
+           McBooks / kleine GF-Laptops: die GESAMTE Oberfläche proportional
+           verkleinern (wie Browser-Zoom), damit Sidebar + Listen + ⋮ +
+           Detail gleichzeitig sichtbar bleiben — ohne Layout auf grossen
+           Monitoren umzubauen (keine schmaleren Spalten).
+           ≥1500 px Breite = 100 % (unverändert). */
+        @media (max-width: 1499px) {
+            html { zoom: 0.92; }
+        }
+        @media (max-width: 1360px) {
+            html { zoom: 0.88; }
+        }
+        @media (max-width: 1280px) {
+            html { zoom: 0.84; }
+        }
+        @media (max-width: 1180px) {
+            html { zoom: 0.78; }
+        }
+        /* Fallback ohne CSS-zoom (ältere Firefox): #app transformieren.
+           Chrome/Edge/Safari (McBook) nutzen zoom oben. */
+        @supports not (zoom: 1) {
+            @media (max-width: 1499px) {
+                html { zoom: unset; }
+                #app {
+                    transform: scale(0.92);
+                    transform-origin: top left;
+                    width: calc(100% / 0.92);
+                    height: calc(100vh / 0.92);
+                }
+            }
+            @media (max-width: 1360px) {
+                #app {
+                    transform: scale(0.88);
+                    width: calc(100% / 0.88);
+                    height: calc(100vh / 0.88);
+                }
+            }
+            @media (max-width: 1280px) {
+                #app {
+                    transform: scale(0.84);
+                    width: calc(100% / 0.84);
+                    height: calc(100vh / 0.84);
+                }
+            }
+            @media (max-width: 1180px) {
+                #app {
+                    transform: scale(0.78);
+                    width: calc(100% / 0.78);
+                    height: calc(100vh / 0.78);
+                }
+            }
+        }
+
         /* ── DARK MODE — Mittelweg mit Tiefe (Walter 18.07.2026) ──
            Karten schweben: dunklerer Grund + opaker Innen-Verlauf +
            heller Eisblau-Rim + gestaffelte Schatten. Text bleibt klar
@@ -4447,12 +4500,6 @@
             grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
             gap: 16px;
             align-items: start;
-        }
-        /* McBooks / schmale Laptops: KTG-Seite früher unter die Liste legen,
-           damit die Absenzen-Tabelle (inkl. ⋮) genug Breite behält. */
-        @media (max-width: 1400px) {
-            .abs-ktg-layout { grid-template-columns: 1fr; }
-            .abs-ktg-side { position: static; }
         }
         @media (max-width: 1100px) {
             .abs-ktg-layout { grid-template-columns: 1fr; }
@@ -10088,25 +10135,3 @@ body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
         body.theme-dark .akal-monthnav .cur, body.theme-dark .akal-table thead .dnum { color: #d6d3cc; }
         body.theme-dark td.akal-day.we { background: rgba(255,255,255,0.04); }
         body.theme-dark .akal-table thead .today .dnum { background: #d6d3cc; color: #26241f; }
-
-        /* ══ McBook / schmale GF-Laptops (≤1280): Platz für Detail + ⋮ ══
-           Sidebar bleibt, MA-Liste und Doku-Baum werden schmaler, damit die
-           rechte Aktions-Spalte (⋮) nicht aus dem Viewport fällt. */
-        @media (max-width: 1280px) {
-            #page-mitarbeiter.liquid-employee .emp-list-panel,
-            #page-mitarbeiter.liquid-employee .liquid-employee-list {
-                width: 220px;
-                min-width: 220px;
-            }
-            #page-mitarbeiter.liquid-employee #empTabDokumente > .dok-layout {
-                grid-template-columns: 170px minmax(0, 1fr);
-            }
-            /* Allgemeine Tabellen: immer horizontal scrollbar statt abschneiden */
-            .tbl-wrap {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-            .page.fixhead .page-body .tbl-wrap {
-                overflow-x: auto;
-            }
-        }
