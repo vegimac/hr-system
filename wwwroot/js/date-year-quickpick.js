@@ -7,7 +7,9 @@
 //   • Akkordeon: Jahr-Zeilen, aktives Jahr mit Monatsraster
 //   • Scroll-Start = Vorjahr oben
 //   • Monat-Klick → Tage, Tag-Klick → übernehmen
-// Leeres Feld startet bei HEUTE. Opt-out: data-yp="off"
+// Walter 27.07.2026: Feld bleibt tippbar (tt.mm.jjjj). Kalender nur über
+// den 📅-Button. Geburtsdaten: data-yp="birth" → Jahre 1920…heute.
+// Opt-out komplett: data-yp="off"
 // ══════════════════════════════════════════════════════════════════════
 (function () {
     const MONATE = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni',
@@ -41,10 +43,27 @@
         return `${y}-${pad2(m + 1)}-${pad2(d)}`;
     }
 
-    function yearRange() {
+    function isBirthField(input) {
+        if (!input) return false;
+        if ((input.getAttribute('data-yp') || '').toLowerCase() === 'birth') return true;
+        const id = (input.id || '').toLowerCase();
+        return /dob|birth|geburt|dateofbirth/.test(id);
+    }
+
+    function yearRange(input) {
         const cur = new Date().getFullYear();
-        const from = cur - 10;
-        const to = cur + 4;
+        let from, to;
+        if (isBirthField(input)) {
+            // Geburtsdaten: weit in die Vergangenheit (Ehepartner/Kinder/MA).
+            from = 1920;
+            to = cur;
+        } else {
+            from = cur - 10;
+            to = cur + 4;
+        }
+        // Gewähltes Jahr immer in der Liste halten (Edit alter Werte).
+        if (_y && _y < from) from = _y;
+        if (_y && _y > to) to = _y;
         const years = [];
         for (let y = from; y <= to; y++) years.push(y);
         return years;
@@ -61,7 +80,8 @@
         document.addEventListener('mousedown', (ev) => {
             if (!_panel || _panel.style.display === 'none') return;
             if (_panel.contains(ev.target)) return;
-            if (_activeInput && (ev.target === _activeInput || _activeInput.contains(ev.target))) return;
+            if (_activeInput && (ev.target === _activeInput || _activeInput.contains?.(ev.target))) return;
+            if (ev.target?.closest?.('.yp-cal-btn')) return;
             closeMenu();
         });
         document.addEventListener('keydown', (ev) => {
@@ -126,7 +146,7 @@
     }
 
     function renderYearMonth(panel) {
-        const years = yearRange();
+        const years = yearRange(_activeInput);
         const curY = new Date().getFullYear();
         const monthsHtml = MONATE.map((name, i) => {
             const cls = 'yp-month' + (i === _m ? ' is-active' : '');
@@ -155,7 +175,7 @@
             <div class="yp-year-list">${rows}</div>
             <div class="yp-menu-foot">
                 <button type="button" class="yp-link" data-act="clear">Löschen</button>
-                <button type="button" class="yp-link" data-act="today">Heute</button>
+                ${isBirthField(_activeInput) ? '' : '<button type="button" class="yp-link" data-act="today">Heute</button>'}
             </div>`;
 
         panel.querySelector('.yp-menu-close').onclick = closeMenu;
@@ -173,14 +193,26 @@
             };
         });
         panel.querySelector('[data-act="clear"]').onclick = clearValue;
-        panel.querySelector('[data-act="today"]').onclick = () => {
-            const t = todayParts();
-            commit(t.y, t.m, t.d);
-        };
+        const todayBtn = panel.querySelector('[data-act="today"]');
+        if (todayBtn) {
+            todayBtn.onclick = () => {
+                const t = todayParts();
+                commit(t.y, t.m, t.d);
+            };
+        }
 
-        // Nach Layout: Vorjahr oben sichtbar (Walter)
+        // Nach Layout: Vorjahr oben sichtbar (Walter) — bei Geburt am gewählten Jahr.
         requestAnimationFrame(() => {
-            scrollPrevYearVisible(panel.querySelector('.yp-year-list'));
+            const list = panel.querySelector('.yp-year-list');
+            if (isBirthField(_activeInput)) {
+                const open = list && list.querySelector('.yp-year-row.is-open');
+                if (open) {
+                    try { open.scrollIntoView({ block: 'center', inline: 'nearest' }); }
+                    catch { /* ignore */ }
+                }
+            } else {
+                scrollPrevYearVisible(list);
+            }
         });
     }
 
@@ -207,7 +239,7 @@
             <div class="yp-days">${cells}</div>
             <div class="yp-menu-foot">
                 <button type="button" class="yp-link" data-act="clear">Löschen</button>
-                <button type="button" class="yp-link" data-act="today">Heute</button>
+                ${isBirthField(_activeInput) ? '' : '<button type="button" class="yp-link" data-act="today">Heute</button>'}
             </div>`;
 
         panel.querySelector('.yp-menu-close').onclick = closeMenu;
@@ -219,17 +251,20 @@
             b.onclick = () => commit(_y, _m, +b.dataset.d);
         });
         panel.querySelector('[data-act="clear"]').onclick = clearValue;
-        panel.querySelector('[data-act="today"]').onclick = () => {
-            const t = todayParts();
-            commit(t.y, t.m, t.d);
-        };
+        const todayBtn = panel.querySelector('[data-act="today"]');
+        if (todayBtn) {
+            todayBtn.onclick = () => {
+                const t = todayParts();
+                commit(t.y, t.m, t.d);
+            };
+        }
     }
 
-    function positionPanel(input) {
+    function positionPanel(anchorEl) {
         const panel = ensurePanel();
         panel.style.display = 'block';
         panel.style.visibility = 'hidden';
-        const r = input.getBoundingClientRect();
+        const r = (anchorEl || _activeInput).getBoundingClientRect();
         const pw = panel.offsetWidth || 200;
         const ph = panel.offsetHeight || 250;
         let left = r.left;
@@ -242,7 +277,7 @@
         panel.style.visibility = 'visible';
     }
 
-    function openMenu(input) {
+    function openMenu(input, anchorEl) {
         const parts = parseIso(input.value);
         _y = parts.y;
         _m = parts.m;
@@ -250,15 +285,73 @@
         _view = 'yearmonth';
         _activeInput = input;
         if (!input.value) {
-            const t = todayParts();
-            _y = t.y; _m = t.m; _d = t.d;
+            if (isBirthField(input)) {
+                // Leeres Geburtsdatum: sinnvoller Start ~30 Jahre zurück
+                // (statt heute — sonst sieht man nur Zukunftsjahre).
+                const t = todayParts();
+                _y = t.y - 30;
+                _m = 0;
+                _d = 1;
+            } else {
+                const t = todayParts();
+                _y = t.y; _m = t.m; _d = t.d;
+            }
         }
         render();
-        positionPanel(input);
-        // Nochmal nach Positionierung scrollen (Layout fertig)
+        positionPanel(anchorEl || input);
         requestAnimationFrame(() => {
-            scrollPrevYearVisible(_panel && _panel.querySelector('.yp-year-list'));
+            const list = _panel && _panel.querySelector('.yp-year-list');
+            if (isBirthField(input)) {
+                const open = list && list.querySelector('.yp-year-row.is-open');
+                if (open) {
+                    try { open.scrollIntoView({ block: 'center', inline: 'nearest' }); }
+                    catch { /* ignore */ }
+                }
+            } else {
+                scrollPrevYearVisible(list);
+            }
         });
+    }
+
+    function ensureCalButton(input) {
+        if (input._ypBtn) return input._ypBtn;
+        const parent = input.parentElement;
+        if (!parent) return null;
+
+        // Wrapper, damit Input + Kalender-Button nebeneinander sitzen
+        // und Tippen im Feld ungestört bleibt.
+        let wrap = parent.classList.contains('yp-field-wrap')
+            ? parent
+            : null;
+        if (!wrap) {
+            wrap = document.createElement('div');
+            wrap.className = 'yp-field-wrap';
+            parent.insertBefore(wrap, input);
+            wrap.appendChild(input);
+        }
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'yp-cal-btn';
+        btn.title = 'Kalender öffnen';
+        btn.setAttribute('aria-label', 'Kalender öffnen');
+        btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+        btn.addEventListener('mousedown', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+        });
+        btn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (_activeInput === input && _panel && _panel.style.display !== 'none') {
+                closeMenu();
+            } else {
+                openMenu(input, btn);
+            }
+        });
+        wrap.appendChild(btn);
+        input._ypBtn = btn;
+        return btn;
     }
 
     function attach(input) {
@@ -270,20 +363,19 @@
         const next = input.nextElementSibling;
         if (next && next.getAttribute && next.getAttribute('data-yp-row') === '1') next.remove();
 
-        const open = (ev) => {
-            ev.preventDefault();
-            ev.stopPropagation();
-            openMenu(input);
-        };
-        input.addEventListener('mousedown', open);
-        input.addEventListener('click', open);
+        // Tippen bleibt möglich — Kalender nur über den Button.
+        // showPicker() (natives Kalender-Icon in manchen Browsern) → unser Menü.
+        ensureCalButton(input);
         input.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'ArrowDown') open(ev);
+            if (ev.key === 'ArrowDown' && (ev.altKey || ev.metaKey)) {
+                ev.preventDefault();
+                openMenu(input, input._ypBtn || input);
+            }
         });
         try {
             Object.defineProperty(input, 'showPicker', {
                 configurable: true,
-                value: function () { openMenu(input); },
+                value: function () { openMenu(input, input._ypBtn || input); },
             });
         } catch { /* ignore */ }
     }
