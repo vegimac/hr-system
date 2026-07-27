@@ -313,6 +313,9 @@ public class KuendigungController : ControllerBase
         var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
         var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
         var (_, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
+        // Referenzangaben: Standard-Unterzeichner der Filiale (wie Arbeitsvertrag),
+        // nicht der eingeloggte User — Walter 27.07.2026.
+        var (refName, refFunktion) = await GetDefaultSignatoryAsync(cp?.Id);
         var exitSurveyUrl = await ResolveExitSurveyUrlAsync(cp);
 
         DateOnly? geburtsdatum = e.DateOfBirth.HasValue
@@ -346,7 +349,9 @@ public class KuendigungController : ControllerBase
             MaEmail:         e.Email,
             MaLand:          e.Country,
             MaZivilstand:    e.MaritalStatus,
-            MaZivilstandSeit: e.MaritalStatusSince);
+            MaZivilstandSeit: e.MaritalStatusSince,
+            ReferenzVertreterName: refName,
+            ReferenzVertreterFunktion: refFunktion);
 
         try
         {
@@ -616,5 +621,37 @@ public class KuendigungController : ControllerBase
             }
         }
         return (null, null, null);
+    }
+
+    /// <summary>
+    /// Standard-Unterzeichner der Filiale — gleiche Quelle wie Arbeitsvertrag
+    /// (<c>user_branch_access.IsDefault</c>). Fallback: Rolle GESCHAEFTSFUEHRER.
+    /// Für Referenzangaben auf der Kündigungsbestätigung (Walter 27.07.2026).
+    /// </summary>
+    private async Task<(string? name, string? funktion)> GetDefaultSignatoryAsync(int? companyProfileId)
+    {
+        if (!companyProfileId.HasValue) return (null, null);
+
+        var signatory = await _db.UserBranchAccesses.AsNoTracking()
+            .Include(a => a.User)
+            .Where(a => a.CompanyProfileId == companyProfileId.Value && a.IsDefault)
+            .FirstOrDefaultAsync();
+        if (signatory?.User == null)
+        {
+            signatory = await _db.UserBranchAccesses.AsNoTracking()
+                .Include(a => a.User)
+                .Where(a => a.CompanyProfileId == companyProfileId.Value
+                         && a.Role == "GESCHAEFTSFUEHRER")
+                .OrderBy(a => a.Id)
+                .FirstOrDefaultAsync();
+        }
+        if (signatory?.User == null) return (null, null);
+
+        var full = $"{signatory.User.FirstName} {signatory.User.LastName}".Trim();
+        var name = string.IsNullOrWhiteSpace(full) ? signatory.User.Username : full;
+        var funktion = !string.IsNullOrWhiteSpace(signatory.FunctionTitle)
+            ? signatory.FunctionTitle
+            : (signatory.Role == "GESCHAEFTSFUEHRER" ? "Geschäftsführer/in" : null);
+        return (name, funktion);
     }
 }
