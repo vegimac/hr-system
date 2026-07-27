@@ -5442,29 +5442,17 @@
         #page-mitarbeiter.liquid-employee .dok-table tbody td {
             padding: 5px 8px;
         }
+        /* Aktionszelle = Teil der Zeile (kein sticky-Streifen mit eigener Farbe). */
         #page-mitarbeiter.liquid-employee .dok-td-actions,
         #page-mitarbeiter.liquid-employee .dok-th-actions {
             padding: 4px 12px 4px 8px !important;
-            position: sticky;
-            right: 0;
-            z-index: 3;
-            background: #faf8f5;
-            box-shadow: none;
+            position: static;
+            background: transparent !important;
+            box-shadow: none !important;
             width: 3rem;
             min-width: 3rem;
             text-align: center;
             vertical-align: middle;
-        }
-        #page-mitarbeiter.liquid-employee .dok-list-cols .dok-th-actions {
-            z-index: 4;
-            background: #f6f3ee !important;
-        }
-        body.theme-dark #page-mitarbeiter.liquid-employee .dok-td-actions,
-        body.theme-dark #page-mitarbeiter.liquid-employee .dok-th-actions {
-            background: #161e2a;
-        }
-        body.theme-dark #page-mitarbeiter.liquid-employee .dok-list-cols .dok-th-actions {
-            background: #1c2634 !important;
         }
         #page-mitarbeiter.liquid-employee .dok-list-empty {
             color: #8b8b8b !important;
