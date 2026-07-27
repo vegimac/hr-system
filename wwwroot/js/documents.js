@@ -283,10 +283,11 @@ function findTyp(id) {
 }
 
 function renderDokTable(docs, showCategoryColumns) {
-    // Walter-Vorgabe 06.06.2026: separate Spalten für Erstellt / Geändert /
-    // Geöffnet, klickbare Sortierung. Default = Erstellt absteigend (neueste
-    // zuerst). Leere Daten landen am Ende, egal in welcher Richtung.
+    // Walter-Vorgabe 06.06.2026: Spalten Erstellt / Geändert, klickbare Sortierung.
+    // «Geöffnet» entfällt in der Liste (Walter 27.07.2026) — bleibt nur in der
+    // Vorschau-Metadatenzeile. Default = Erstellt absteigend (neueste zuerst).
     // Walter 19.07.2026: head + body getrennt — Spaltenköpfe ausserhalb Scroll.
+    if (_dokState.sortCol === 'zugriff') _dokState.sortCol = 'erstellt';
     const sorted = [...docs].sort((a, b) => dokCompare(a, b, _dokState.sortCol, _dokState.sortDir));
     const rows = sorted.map(d => renderDokTableRow(d, showCategoryColumns)).join('');
     const sortArrow = (col) => _dokState.sortCol === col
@@ -295,8 +296,8 @@ function renderDokTable(docs, showCategoryColumns) {
     const sortableHead = (col, label) =>
         `<th class="dok-sort-th" onclick="dokSort('${col}')" style="cursor:pointer;user-select:none">${label}${sortArrow(col)}</th>`;
     const colHeaders = showCategoryColumns
-        ? `<th>Kategorie</th><th>Typ</th>${sortableHead('beschreibung','Beschreibung')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}${sortableHead('zugriff','Geöffnet')}<th></th>`
-        : `${sortableHead('beschreibung','Beschreibung')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}${sortableHead('zugriff','Geöffnet')}<th></th>`;
+        ? `<th>Kategorie</th><th>Typ</th>${sortableHead('beschreibung','Beschreibung')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}<th class="dok-th-actions"></th>`
+        : `${sortableHead('beschreibung','Beschreibung')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}<th class="dok-th-actions"></th>`;
     return {
         head: `<table class="dok-table dok-table-head"><thead><tr>${colHeaders}</tr></thead></table>`,
         body: `<table class="dok-table dok-table-body"><tbody>${rows}</tbody></table>`
@@ -473,10 +474,8 @@ function renderDokTableRow(d, showCategoryColumns) {
     const beschreibungInner = d.bemerkung
         ? `<b>${esc(d.bemerkung)}</b>`
         : `<span style="color:#64748b">${esc(d.filenameOriginal || '–')}</span>`;
-    // Walter-Vorgabe 06.06.2026: Daten kommen nicht mehr unter den Namen, sondern
-    // in eigene Spalten (Erstellt / Geändert / Geöffnet) — sortierbar im Header.
-    // Walter 06.06.2026 (final): 2-stelliges Jahr (`26` statt `2026`) damit die
-    // 3 Datumsspalten + Action-Buttons rechts ohne Cut-Off sichtbar bleiben.
+    // Walter-Vorgabe 06.06.2026: Daten in Spalten Erstellt / Geändert.
+    // Walter 27.07.2026: Spalte «Geöffnet» entfernt (Liste); 2-stelliges Jahr.
     const dateOptsShort = { day: '2-digit', month: '2-digit', year: '2-digit' };
     const fmtD = (iso) => iso ? new Date(iso).toLocaleDateString('de-CH', dateOptsShort) : '–';
     const erstelltIso = d.erstelltAm || d.gueltigVon || d.hochgeladenAm;
@@ -485,7 +484,7 @@ function renderDokTableRow(d, showCategoryColumns) {
     const description = clickable
         ? `<span class="dok-name-line" style="cursor:pointer;color:#6b7280;text-decoration:underline" title="Vorschau öffnen: ${titleAttr}" onclick="dokOpenPreviewPanel(${d.id})">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}`
         : `<span class="dok-name-line" title="${titleAttr}">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}`;
-    const dateCells = `<td class="dok-date-cell">${fmtD(erstelltIso)}</td><td class="dok-date-cell">${fmtD(d.geaendertAm)}</td><td class="dok-date-cell">${fmtD(d.zugriffAm)}</td>`;
+    const dateCells = `<td class="dok-date-cell">${fmtD(erstelltIso)}</td><td class="dok-date-cell">${fmtD(d.geaendertAm)}</td>`;
 
     // Download + Löschen nur für Admin/Superuser. Normaler Benutzer kann
     // Vorschau, Einzel-Upload, Bearbeiten — aber keine Datei lokal ziehen
@@ -508,7 +507,7 @@ function renderDokTableRow(d, showCategoryColumns) {
             : `<button class="dok-menu-item danger" onclick="dokDelete(${d.id})">Löschen</button>`;
     const actions = `<div class="dok-actions">
         <div class="dok-menu-wrap">
-            <button class="dok-menu-btn" onclick="dokToggleMenu(event, ${d.id})" title="Aktionen">⋮</button>
+            <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="dokToggleMenu(event, ${d.id})" title="Aktionen" aria-label="Aktionen"><span class="dok-menu-dots" aria-hidden="true"></span></button>
             <div class="dok-menu" id="dokMenu-${d.id}">
                 <button class="dok-menu-item" onclick="openDokEditModal(${d.id})">Bearbeiten</button>
                 ${canDownload ? `<button class="dok-menu-item" onclick="dokDownload(${d.id})">Herunterladen</button>` : ''}
