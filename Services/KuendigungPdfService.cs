@@ -88,7 +88,11 @@ public class KuendigungPdfService
         string? MaEmail = null,
         string? MaLand = null,
         string? MaZivilstand = null,
-        DateOnly? MaZivilstandSeit = null);
+        DateOnly? MaZivilstandSeit = null,
+        // Referenzangaben (Seite 2): Filial-GF wie Arbeitsvertrag (Walter 27.07.2026).
+        // Brief-Unterschrift bleibt UnterzeichnerName (eingeloggter User).
+        string? ReferenzVertreterName = null,
+        string? ReferenzVertreterFunktion = null);
 
     /// <summary>Fallback, falls SiteUrl nicht geladen werden kann.</summary>
     public const string DefaultExitSurveyUrl = "https://onecrew.ch/kuendigung/";
@@ -252,17 +256,26 @@ public class KuendigungPdfService
                 c.Item().PaddingTop(12).Element(e => FormField(e, "Vorname", d.MaVorname));
             });
 
+            // Walter 27.07.2026: Filiale (nicht «McDonald's Schweiz») + GF wie Vertrag.
+            var arbeitgeber = ArbeitgeberBezeichnung(d);
+            var vertreterName = !string.IsNullOrWhiteSpace(d.ReferenzVertreterName)
+                ? d.ReferenzVertreterName!.Trim()
+                : (d.UnterzeichnerName ?? "").Trim();
+            var vertreterFunk = !string.IsNullOrWhiteSpace(d.ReferenzVertreterFunktion)
+                ? d.ReferenzVertreterFunktion!.Trim()
+                : (d.UnterzeichnerFunktion ?? "").Trim();
+
             // Block 2 — Option A
             col.Item().PaddingTop(28).Border(0.7f).BorderColor("#cbd5e1").Padding(16).Row(r =>
             {
                 r.ConstantItem(26).Element(CheckBox);
                 r.RelativeItem().Column(c =>
                 {
-                    c.Item().Text("erlaubt McDonald's Schweiz, vertreten durch");
+                    c.Item().Text($"erlaubt {arbeitgeber}, vertreten durch");
                     c.Item().PaddingTop(14).Element(e =>
-                        FormField(e, "Name, Vorname", (d.UnterzeichnerName ?? "").Trim()));
+                        FormField(e, "Name, Vorname", vertreterName));
                     c.Item().PaddingTop(10).Element(e =>
-                        FormField(e, "Funktion", (d.UnterzeichnerFunktion ?? "").Trim()));
+                        FormField(e, "Funktion", vertreterFunk));
                     c.Item().PaddingTop(14).Text("Referenzen über ihn/sie zu geben.");
                 });
             });
@@ -272,7 +285,7 @@ public class KuendigungPdfService
             {
                 r.ConstantItem(26).Element(CheckBox);
                 r.RelativeItem().PaddingTop(1)
-                    .Text("erlaubt nicht, dass McDonald's Schweiz Referenzen über ihn/sie gibt.");
+                    .Text($"erlaubt nicht, dass {arbeitgeber} Referenzen über ihn/sie gibt.");
             });
         });
 
@@ -300,6 +313,19 @@ public class KuendigungPdfService
 
     private static void CheckBox(IContainer e) =>
         e.PaddingTop(1).Width(14).Height(14).Border(1.15f).BorderColor(Dark);
+
+    /// <summary>
+    /// «Schaub Restaurants GmbH Filiale …» — analog CompanyProfile.FullDisplayName.
+    /// </summary>
+    private static string ArbeitgeberBezeichnung(BestaetigungData d)
+    {
+        var firma = (d.FirmaName ?? "").Trim();
+        var filiale = (d.RestaurantName ?? "").Trim();
+        if (firma.Length > 0 && filiale.Length > 0) return $"{firma} {filiale}";
+        if (firma.Length > 0) return firma;
+        if (filiale.Length > 0) return filiale;
+        return "der Arbeitgeber";
+    }
 
     private static void FormField(IContainer e, string label, string value)
     {
