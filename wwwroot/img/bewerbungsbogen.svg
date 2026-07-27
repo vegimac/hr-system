@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280">
+    <!-- Kohle-Skizzen-Icon «Bewerbungsbogen» (27.07.2026)
+         Stil wie absenzkalender.svg / Walters Sketch-Icons. -->
+    <g fill="none" stroke="#4a4a4a" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Formular-Blatt, leicht schräg / doppelt nachgezogen -->
+        <path d="M62 42 C60 90 61 150 63 220 C120 224 175 223 218 218 C220 150 219 90 217 44 C160 40 110 40 62 42 Z"
+              stroke-width="6"/>
+        <path d="M66 46 C64 92 65 148 67 216 C122 220 172 219 213 214"
+              stroke-width="2.5" opacity="0.4"/>
+
+        <!-- Kopfzeile / Titelbalken -->
+        <path d="M78 62 C120 58 165 58 200 62" stroke-width="5"/>
+        <path d="M78 74 C125 71 160 71 198 74" stroke-width="3" opacity="0.55"/>
+
+        <!-- Ausfüll-Linien (Punkte-Charakter: kurze Striche) -->
+        <path d="M78 108 L198 106" stroke-width="3.5" stroke-dasharray="3 5"/>
+        <path d="M78 128 L198 126" stroke-width="3.5" stroke-dasharray="3 5"/>
+        <path d="M78 148 L160 146" stroke-width="3.5" stroke-dasharray="3 5"/>
+        <path d="M78 168 L190 166" stroke-width="3.5" stroke-dasharray="3 5"/>
+        <path d="M78 188 L170 186" stroke-width="3.5" stroke-dasharray="3 5"/>
+
+        <!-- Stift schräg unten rechts -->
+        <path d="M168 198 C185 185 205 168 222 152" stroke-width="7"/>
+        <path d="M222 152 L232 142 L238 158 Z" fill="#4a4a4a" stroke-width="3"/>
+        <path d="M168 198 L158 208" stroke-width="5"/>
+    </g>
+</svg>

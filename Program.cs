@@ -151,6 +151,7 @@ builder.Services.AddScoped<NachtAusnahmePdfService>();
 builder.Services.AddScoped<KuendigungPdfService>();
 builder.Services.AddScoped<ArbeitszeugnisPdfService>();
 builder.Services.AddScoped<VerwarnungPdfService>();
+builder.Services.AddScoped<BewerbungsbogenPdfService>();
 builder.Services.AddScoped<ProbezeitberichtPdfService>();
 builder.Services.AddScoped<MutterschaftPdfService>();
 builder.Services.AddScoped<RisikobeurteilungPdfService>();
