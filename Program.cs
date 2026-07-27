@@ -2275,6 +2275,8 @@ app.UseDefaultFiles();
 // "Datei zum Download" statt im Helper-Panel anzuzeigen.
 var mdMime = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
 mdMime.Mappings[".md"] = "text/markdown; charset=utf-8";
+// Scanbot Web SDK (WASM + Worker) — korrekte MIME, sonst laden die Engine-Files nicht.
+mdMime.Mappings[".wasm"] = "application/wasm";
 app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions {
     ContentTypeProvider = mdMime,
     // Walter-Vorgabe 27.06.2026: HTML-Dokumente (index.html, import.html) NIE aus
