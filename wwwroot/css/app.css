@@ -13,6 +13,59 @@
             height: 100vh; overflow: hidden;
         }
 
+        /* ══ UI-Skalierung schmale Bildschirme (Walter 27.07.2026) ══
+           McBooks / kleine GF-Laptops: die GESAMTE Oberfläche proportional
+           verkleinern (wie Browser-Zoom), damit Sidebar + Listen + ⋮ +
+           Detail gleichzeitig sichtbar bleiben — ohne Layout auf grossen
+           Monitoren umzubauen (keine schmaleren Spalten).
+           ≥1500 px Breite = 100 % (unverändert). */
+        @media (max-width: 1499px) {
+            html { zoom: 0.92; }
+        }
+        @media (max-width: 1360px) {
+            html { zoom: 0.88; }
+        }
+        @media (max-width: 1280px) {
+            html { zoom: 0.84; }
+        }
+        @media (max-width: 1180px) {
+            html { zoom: 0.78; }
+        }
+        /* Fallback ohne CSS-zoom (ältere Firefox): #app transformieren.
+           Chrome/Edge/Safari (McBook) nutzen zoom oben. */
+        @supports not (zoom: 1) {
+            @media (max-width: 1499px) {
+                html { zoom: unset; }
+                #app {
+                    transform: scale(0.92);
+                    transform-origin: top left;
+                    width: calc(100% / 0.92);
+                    height: calc(100vh / 0.92);
+                }
+            }
+            @media (max-width: 1360px) {
+                #app {
+                    transform: scale(0.88);
+                    width: calc(100% / 0.88);
+                    height: calc(100vh / 0.88);
+                }
+            }
+            @media (max-width: 1280px) {
+                #app {
+                    transform: scale(0.84);
+                    width: calc(100% / 0.84);
+                    height: calc(100vh / 0.84);
+                }
+            }
+            @media (max-width: 1180px) {
+                #app {
+                    transform: scale(0.78);
+                    width: calc(100% / 0.78);
+                    height: calc(100vh / 0.78);
+                }
+            }
+        }
+
         /* ── DARK MODE — Mittelweg mit Tiefe (Walter 18.07.2026) ──
            Karten schweben: dunklerer Grund + opaker Innen-Verlauf +
            heller Eisblau-Rim + gestaffelte Schatten. Text bleibt klar
@@ -5139,18 +5192,43 @@
             overflow: auto;
             overscroll-behavior: none;
         }
+        /* McBook-Fix: nicht mehr table-layout:fixed — sonst wird die Aktions-
+           Spalte (Doku+⋮) auf schmalen Panels abgeschnitten ohne Scroll.
+           Breite = Inhalt, min 100%; horizontal scrollen im .abs-list-scroll. */
         #page-mitarbeiter.liquid-employee .abs-table {
-            width: 100%;
-            table-layout: fixed;
+            width: max-content;
+            min-width: 100%;
+            table-layout: auto;
             border-collapse: separate;
             border-spacing: 0;
         }
-        #page-mitarbeiter.liquid-employee .abs-col-type { width: 12%; }
-        #page-mitarbeiter.liquid-employee .abs-col-period { width: 20%; }
-        #page-mitarbeiter.liquid-employee .abs-col-days { width: 9%; }
-        #page-mitarbeiter.liquid-employee .abs-col-hours { width: 18%; }
-        #page-mitarbeiter.liquid-employee .abs-col-notes { width: auto; }
-        #page-mitarbeiter.liquid-employee .abs-col-actions { width: 120px; }
+        #page-mitarbeiter.liquid-employee .abs-col-type { width: 7rem; }
+        #page-mitarbeiter.liquid-employee .abs-col-period { width: 11rem; }
+        #page-mitarbeiter.liquid-employee .abs-col-days { width: 5rem; }
+        #page-mitarbeiter.liquid-employee .abs-col-hours { width: 9rem; }
+        #page-mitarbeiter.liquid-employee .abs-col-notes { width: auto; min-width: 8rem; }
+        #page-mitarbeiter.liquid-employee .abs-col-actions { width: 168px; min-width: 168px; }
+        /* Aktions-Spalte sticky rechts — ⋮ bleibt sichtbar beim Horizontal-Scroll. */
+        #page-mitarbeiter.liquid-employee .abs-table th:last-child,
+        #page-mitarbeiter.liquid-employee .abs-table td.abs-actions {
+            position: sticky;
+            right: 0;
+            z-index: 3;
+            background: #faf8f5;
+            box-shadow: -8px 0 12px -8px rgba(60, 55, 48, 0.22);
+        }
+        #page-mitarbeiter.liquid-employee .abs-cols .abs-table th:last-child {
+            background: #f6f3ee;
+            z-index: 4;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .abs-table th:last-child,
+        body.theme-dark #page-mitarbeiter.liquid-employee .abs-table td.abs-actions {
+            background: #161e2a;
+            box-shadow: -8px 0 12px -8px rgba(0, 0, 0, 0.45);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .abs-cols .abs-table th:last-child {
+            background: #1c2634;
+        }
         #page-mitarbeiter.liquid-employee .abs-cols .abs-table thead th {
             position: static !important;
             top: auto !important;
@@ -5341,8 +5419,10 @@
             max-width: none;
             table-layout: auto;
         }
+        /* Nicht 52vw — das bezieht sich aufs ganze Fenster und drückt die
+           Aktions-Spalte auf McBooks aus dem sichtbaren Panel. */
         #page-mitarbeiter.liquid-employee .dok-name-line {
-            max-width: min(28rem, 52vw);
+            max-width: min(22rem, 100%);
         }
         #page-mitarbeiter.liquid-employee .dok-date-cell {
             width: 4.6rem;
@@ -5366,6 +5446,30 @@
         #page-mitarbeiter.liquid-employee .dok-td-actions {
             padding-left: 10px !important;
             padding-right: 10px !important;
+            position: sticky;
+            right: 0;
+            z-index: 3;
+            background: #faf8f5;
+            box-shadow: -8px 0 12px -8px rgba(60, 55, 48, 0.22);
+            width: 3.2rem;
+            min-width: 3.2rem;
+        }
+        #page-mitarbeiter.liquid-employee .dok-list-cols .dok-table thead th:last-child {
+            position: sticky;
+            right: 0;
+            z-index: 4;
+            background: #f6f3ee !important;
+            box-shadow: -8px 0 12px -8px rgba(60, 55, 48, 0.22);
+            width: 3.2rem;
+            min-width: 3.2rem;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .dok-td-actions {
+            background: #161e2a;
+            box-shadow: -8px 0 12px -8px rgba(0, 0, 0, 0.45);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .dok-list-cols .dok-table thead th:last-child {
+            background: #1c2634 !important;
+            box-shadow: -8px 0 12px -8px rgba(0, 0, 0, 0.45);
         }
         #page-mitarbeiter.liquid-employee .dok-list-empty {
             color: #8b8b8b !important;

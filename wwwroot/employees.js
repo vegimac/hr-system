@@ -7708,6 +7708,13 @@ function absBindScrollIsolation() {
     if (!wrap || !sc || sc.dataset.scrollLock === '1') return;
     sc.dataset.scrollLock = '1';
 
+    // Horizontal-Scroll: Spaltenköpfe mitziehen (wie Dokumente) — sonst laufen
+    // Kopf und Sticky-⋮-Spalte auf McBooks auseinander.
+    const cols = wrap.querySelector('.abs-cols');
+    if (cols) {
+        sc.addEventListener('scroll', () => { cols.scrollLeft = sc.scrollLeft; }, { passive: true });
+    }
+
     wrap.addEventListener('wheel', (e) => {
         e.stopPropagation();
         const maxScroll = sc.scrollHeight - sc.clientHeight;
@@ -8498,20 +8505,67 @@ async function saveAbsence() {
 
 // Walter-Vorgabe 09.06.2026: ⋮-Menü-Toggle für alle MA-Listen (Absenz, Permit,
 // QST, …). Generischer Helper mit ID-Prefix, damit Menüs aus verschiedenen
-// Tabellen sich nicht in die Quere kommen. Klick-Ausserhalb schließt alle.
+// Tabellen sich nicht in die Quere kommen.
+// McBook-Fix 27.07.2026: Menü wie dokToggleMenu an body + position:fixed —
+// sonst clipped overflow:hidden in .emp-detail / .abs-list die Popups.
+function rowMenuCloseAll() {
+    document.querySelectorAll('.dok-menu.show').forEach(m => {
+        m.classList.remove('show', 'up');
+        m.style.position = '';
+        m.style.top = '';
+        m.style.left = '';
+        m.style.right = '';
+        m.style.bottom = '';
+        const orig = m._rowOrigParent;
+        if (orig && orig !== m.parentElement && orig.isConnected) {
+            orig.appendChild(m);
+        }
+        m._rowOrigParent = null;
+    });
+}
 function rowMenuToggle(event, prefix, id) {
     event.stopPropagation();
     const menu = document.getElementById(`${prefix}Menu-${id}`);
+    const btn = event.currentTarget || event.target?.closest('button');
     const wasOpen = menu?.classList.contains('show');
-    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
-    if (!wasOpen && menu) {
-        menu.classList.add('show');
-        setTimeout(() => {
-            document.addEventListener('click', () => {
-                document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
-            }, { once: true });
-        }, 10);
+    rowMenuCloseAll();
+    if (typeof dokCloseAllMenus === 'function') {
+        try { dokCloseAllMenus(); } catch { /* optional */ }
     }
+    if (wasOpen || !menu || !btn) return;
+
+    if (menu.parentElement !== document.body) {
+        menu._rowOrigParent = menu.parentElement;
+        document.body.appendChild(menu);
+    }
+    menu.style.position = 'fixed';
+    menu.style.right = 'auto';
+    menu.style.bottom = 'auto';
+    menu.style.left = '-9999px';
+    menu.style.top = '0';
+    menu.classList.add('show');
+
+    const btnRect = btn.getBoundingClientRect();
+    const menuW = menu.offsetWidth;
+    const menuH = menu.offsetHeight;
+    const margin = 6;
+    let top = btnRect.bottom + 4;
+    if (top + menuH > window.innerHeight - margin) {
+        top = Math.max(margin, btnRect.top - menuH - 4);
+    }
+    let left = btnRect.right - menuW;
+    if (left < margin) left = margin;
+    if (left + menuW > window.innerWidth - margin) {
+        left = window.innerWidth - menuW - margin;
+    }
+    menu.style.top = top + 'px';
+    menu.style.left = left + 'px';
+
+    setTimeout(() => {
+        document.addEventListener('click', rowMenuCloseAll, { once: true });
+        window.addEventListener('scroll', rowMenuCloseAll, { once: true, capture: true });
+        window.addEventListener('resize', rowMenuCloseAll, { once: true });
+    }, 10);
 }
 function absToggleMenu(event, id)   { rowMenuToggle(event, 'abs',    id); }
 function permitToggleMenu(event, id){ rowMenuToggle(event, 'permit', id); }
@@ -8522,7 +8576,7 @@ function allowToggleMenu(event, id) { rowMenuToggle(event, 'allow',  id); }
 
 async function deleteAbsence(id) {
     // ⋮-Menü schließen bevor der Confirm-Dialog kommt
-    document.querySelectorAll('.dok-menu.show').forEach(m => m.classList.remove('show'));
+    rowMenuCloseAll();
     if (!(await liquidConfirm('Absenz wirklich löschen?'))) return;
     try {
         const res = await fetch(`/api/absences/${id}`, { method: 'DELETE', headers: ah() });
