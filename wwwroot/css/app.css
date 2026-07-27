@@ -5792,6 +5792,44 @@
             color: var(--dlg-text-strong);
         }
 
+        /* Datumsfeld tippbar + Kalender-Button daneben (Walter 27.07.2026).
+           Klick aufs Feld = Tippen; 📅 öffnet das Jahresmenü. */
+        .yp-field-wrap {
+            display: flex;
+            align-items: stretch;
+            gap: 6px;
+            width: 100%;
+            min-width: 0;
+        }
+        .yp-field-wrap > input[type="date"] {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .yp-cal-btn {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            min-height: 36px;
+            padding: 0;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.62);
+            background: rgba(255,255,255,.55);
+            color: #646464;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(72,63,53,.08), inset 0 1px 0 rgba(255,255,255,.62);
+        }
+        .yp-cal-btn:hover {
+            background: rgba(255,255,255,.72);
+            color: #3f3f3f;
+            transform: translateY(-1px);
+        }
+        body.theme-dark .yp-cal-btn {
+            background: rgba(255,255,255,.06);
+            border-color: rgba(255,255,255,.12);
+            color: #cbd5e1;
+        }
         /* Kompaktes Jahres-/Monats-Datumsmenü (Walter 26.07.2026):
            Chrome-ähnlich klein, öffnet sofort die Jahresliste mit Vorjahr
            (2025) sichtbar oberhalb des aktuellen Jahres (2026). */

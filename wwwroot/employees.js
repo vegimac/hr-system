@@ -6661,7 +6661,7 @@ function _mtsGeburtEnsureModal() {
         </div>
         <div style="font-size:12px;color:#646464;margin-bottom:14px">Das effektive Geburtsdatum präzisiert das Ende des Kündigungsschutzes (Geburt + 16 Wochen) und die Mutterschafts-Fristen.</div>
         <label style="font-size:11.5px;font-weight:700;color:#646464">Geburtsdatum</label>
-        <input type="date" id="mtsGeburtDatum" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:18px">
+        <input type="date" id="mtsGeburtDatum" data-yp="birth" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:18px">
         <div style="display:flex;justify-content:flex-end;gap:10px">
             <button onclick="mtsGeburtClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
             <button onclick="mtsGeburtSpeichern()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
