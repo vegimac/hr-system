@@ -152,10 +152,13 @@
         } catch (err) {
             console.error('pbScanDocument', err);
             const msg = (err && (err.message || err.toString())) || 'Unbekannter Fehler';
-            const licenseHint = /license|trial|expired/i.test(msg)
-                ? '<br><span style="font-size:12px;color:#64748b">Hinweis: Ohne Key gilt nur ~60s Trial. 7-Tage-Key unter scanbot.io/trial (Web SDK, Domain) → <code>localStorage.setItem(\'scanbotLicenseKey\', \'…\')</code></span>'
-                : '';
-            setBusy(`<div style="padding:10px 12px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:8px;font-size:13px">Scan fehlgeschlagen: ${msg}${licenseHint}</div>`);
+            let hint = '';
+            if (/license|trial|expired/i.test(msg)) {
+                hint = '<br><span style="font-size:12px;color:#64748b">Hinweis: Ohne Key gilt nur ~60s Trial. 7-Tage-Key unter scanbot.io/trial (Web SDK, Domain) → <code>localStorage.setItem(\'scanbotLicenseKey\', \'…\')</code></span>';
+            } else if (/enginePath|worker|WASM|Content Security|CSP/i.test(msg)) {
+                hint = '<br><span style="font-size:12px;color:#64748b">Hinweis: Server muss WASM + Worker erlauben (CSP: wasm-unsafe-eval, worker-src blob). Nach Deploy einmal Hard-Reload (Cache leeren).</span>';
+            }
+            setBusy(`<div style="padding:10px 12px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:8px;font-size:13px">Scan fehlgeschlagen: ${msg}${hint}</div>`);
         }
     }
 
