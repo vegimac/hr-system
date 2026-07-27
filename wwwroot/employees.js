@@ -12773,8 +12773,36 @@ function _raTilesHtml() {
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
         ${tile('absenzkalender.svg', 'Absenzkalender', "showPage('absenz-kalender')")}
+        ${tile('bewerbungsbogen.svg', 'Bewerbungsbogen', 'raBewerbungsbogenPdf()')}
         ${kontoTiles}
     </div>`;
+}
+
+// Blanko-Bewerbungsbogen der gewählten Filiale (Walter 27.07.2026).
+async function raBewerbungsbogenPdf() {
+    const cpId = fixedCompanyProfileId
+        || selectedEmployee?.employments?.find(e => e.isActive)?.companyProfileId
+        || selectedEmployee?.employments?.[0]?.companyProfileId;
+    if (!cpId) return alert('Bitte zuerst eine Filiale wählen.');
+    try {
+        if (typeof previewUrlFetch === 'function') {
+            await previewUrlFetch(
+                `/api/bewerbungsbogen/pdf?companyProfileId=${cpId}`,
+                'Bewerbungsbogen.pdf',
+                ah());
+            return;
+        }
+        const r = await fetch(`/api/bewerbungsbogen/pdf?companyProfileId=${cpId}`, { headers: ah() });
+        if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            return alert(err.message || err.error || ('PDF fehlgeschlagen: HTTP ' + r.status));
+        }
+        const blob = await r.blob();
+        if (typeof previewFileModal === 'function') await previewFileModal(blob, 'Bewerbungsbogen.pdf');
+        else if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, 'Bewerbungsbogen.pdf');
+    } catch (e) {
+        alert('Bewerbungsbogen fehlgeschlagen: ' + (e?.message || e));
+    }
 }
 
 // ── Probezeit (Restaurant Admin, Walter 20.07.2026) ──────────────────────
