@@ -3841,14 +3841,20 @@ async function loadFamilieTab(employeeId) {
 function _familieMutterschaftHtml(employeeId, pregnancyDetails) {
     const empF = selectedEmployee;
     if (!empF || !IstWeiblich(empF.gender)) return '';
+    const list = pregnancyDetails || [];
+    // Button nur wenn noch keine offene Schwangerschaft (ohne Geburt) —
+    // sonst «+ Schwangerschaft erfassen» weg (Walter 27.07.2026).
+    const hasOpen = list.some(d => d?.pregnancy && !d.pregnancy.geburtsdatum);
+    const addBtn = hasOpen ? '' : `
+            <button type="button" class="btn-emp-add" style="padding:6px 14px;font-size:12px;margin-left:auto" onclick="mtsOpenNew(${employeeId})">+ Schwangerschaft erfassen</button>`;
     return `
         <div class="emp-section-title" style="margin-top:24px;display:flex;align-items:center;justify-content:space-between">
             <span>Mutterschaft</span>
-            <button class="btn-emp-add" style="padding:6px 14px;font-size:12px;margin-left:auto" onclick="mtsOpenNew(${employeeId})">+ Schwangerschaft erfassen</button>
+            ${addBtn}
         </div>
         <div id="mutterschaftContent">
-            ${(pregnancyDetails && pregnancyDetails.length)
-                ? pregnancyDetails.map(d => renderPregnancyCard(d)).join('')
+            ${list.length
+                ? list.map(d => renderPregnancyCard(d)).join('')
                 : `<div class="emp-placeholder" style="padding:24px"><span>Keine Schwangerschaft erfasst.</span></div>`
             }
         </div>`;
@@ -6317,7 +6323,9 @@ async function loadMutterschaftTab(employeeId) {
 
 function renderMutterschaftTab(el, employeeId, details) {
     const today = new Date().toISOString().slice(0, 10);
-    const newBtn = `<button class="btn btn-primary" onclick="mtsOpenNew(${employeeId})" style="padding:8px 16px;font-size:13px">+ Schwangerschaft erfassen</button>`;
+    // Button nur ohne offene Schwangerschaft (Walter 27.07.2026).
+    const hasOpen = (details || []).some(d => d?.pregnancy && !d.pregnancy.geburtsdatum);
+    const newBtn = hasOpen ? '' : `<button class="btn btn-primary" onclick="mtsOpenNew(${employeeId})" style="padding:8px 16px;font-size:13px">+ Schwangerschaft erfassen</button>`;
     if (!details.length) {
         el.innerHTML = `
         <div style="padding:14px 0 10px;display:flex;justify-content:space-between;align-items:center">
