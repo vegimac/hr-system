@@ -1782,8 +1782,11 @@ function switchEmpTab(tab) {
     if (tabBar) {
         const isExcluded = !!selectedEmployee?.isPayrollExcluded;
         const plusIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-        if (tab === 'familie' && !isExcluded) {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openFamilyModal(null)">${plusIcon} ${_t('famTab.add','Familienmitglied')}</button>`;
+        if (tab === 'familie') {
+            // „+ Familienmitglied" sitzt im Familie-Tab-Body (emp-familie-toolbar),
+            // nicht oben rechts — sonst schwebt er neben E-Mail / langSwitcher
+            // (Walter 27.07.2026).
+            tabBar.innerHTML = '';
         } else if (tab === 'quellensteuer') {
             // Bank-Button zuerst (Sektion steht zuoberst, Walter 19.07.2026).
             tabBar.innerHTML = (!isExcluded ? `<button class="btn-emp-add" onclick="openBankAccountModal(null)">${plusIcon} ${_t('ma.btn.newBank','Bankverbindung')}</button>` : '')
@@ -3856,14 +3859,14 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
     // Cache für Detail-Popup-Lookup
     window._familyMembersCache = members;
 
-    // Walter-Vorgabe 01.06.2026: „+ Familienmitglied"-Button sitzt jetzt im
-    // Header-Bereich (empTabActionBar, von switchEmpTab befüllt) — nicht mehr
-    // hier im Body. Leere Toolbar bleibt für Layout-Konsistenz.
-    const toolbar = `
-    <div class="emp-familie-toolbar" style="display:none">
-        <button class="btn-emp-add" onclick="openFamilyModal(null)">
+    // Walter-Vorgabe 27.07.2026: „+ Familienmitglied" wieder im Familie-Bereich
+    // (Tab-Body), sticky oben — nicht mehr in empTabActionBar neben den Stammdaten.
+    const isExcluded = !!selectedEmployee?.isPayrollExcluded;
+    const toolbar = isExcluded ? '' : `
+    <div class="emp-familie-toolbar">
+        <button type="button" class="btn-emp-add" onclick="openFamilyModal(null)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            ${_t('famTab.add','Hinzufügen')}
+            ${_t('famTab.add','Familienmitglied')}
         </button>
     </div>`;
 

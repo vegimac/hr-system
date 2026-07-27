@@ -7292,18 +7292,27 @@
             display: flex; align-items: center; justify-content: center;
             height: 100%; color: #cbd5e1; font-size: 14px; flex-direction: column; gap: 8px;
         }
-        /* Familie Buttons. Walter-Vorgabe 01.06.2026: sticky an top:0 im
-           .emp-detail-body-Scroll-Container, damit „+ Familienmitglied" beim
-           Scrollen sichtbar bleibt. Selber Mechanismus für alle Tab-Toolbars
-           (Bank, Permit, Zulagen etc.) — siehe .emp-tab-toolbar. */
+        /* Familie Buttons. Sticky an top:0 im .emp-detail-body-Scroll-Container,
+           damit „+ Familienmitglied" beim Scrollen sichtbar bleibt (Walter).
+           Selber Mechanismus für alle Tab-Toolbars — siehe .emp-tab-toolbar. */
         .emp-familie-toolbar,
         .emp-tab-toolbar {
-            display: flex; justify-content: flex-end; margin-bottom: 16px;
+            display: flex; justify-content: flex-end; margin-bottom: 12px;
             position: sticky; top: 0; z-index: 5;
-            background: white; padding: 6px 0;
+            background: white; padding: 4px 0 8px;
         }
         body.theme-dark .emp-familie-toolbar,
         body.theme-dark .emp-tab-toolbar { background: var(--dlg-glass); }
+        #page-mitarbeiter.liquid-employee .emp-familie-toolbar,
+        #page-mitarbeiter.liquid-employee .emp-tab-toolbar {
+            background: rgba(246, 243, 238, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-familie-toolbar,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-tab-toolbar {
+            background: rgba(28, 28, 30, 0.88);
+        }
         .btn-emp-add {
             display: flex; align-items: center; gap: 6px;
             padding: 7px 14px; background: #3f3f3f; color: white;
