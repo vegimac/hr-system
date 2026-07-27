@@ -2237,16 +2237,21 @@ app.Use(async (context, next) =>
     h["X-Content-Type-Options"] = "nosniff";
     h["X-Frame-Options"]        = "SAMEORIGIN";
     h["Referrer-Policy"]        = "strict-origin-when-cross-origin";
-    h["Permissions-Policy"]     = "geolocation=(), microphone=(), camera=()";
+    // Kamera = (self): nötig für Scanbot-Dokument-Scan im Posteingang (getUserMedia).
+    // Mikrofon/Geolocation bleiben bewusst gesperrt.
+    h["Permissions-Policy"]     = "geolocation=(), microphone=(), camera=(self)";
     // HSTS: vom Browser nur über HTTPS beachtet, daher unbedingt setzen (nginx
     // terminiert TLS und proxyt HTTP an Kestrel — Request.IsHttps wäre hier false).
     h["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
     // Walter-Vorgabe 13.06.2026: CSP — erschwert XSS-Angriffe deutlich.
     //   • default-src 'self'                 — alles standardmäßig nur von eigener Domain
-    //   • script-src 'self' 'unsafe-inline' + cdnjs (SheetJS/xlsx-Library für Excel-Im-/Export)
+    //   • script-src 'self' 'unsafe-inline' + cdnjs (SheetJS/xlsx) + 'wasm-unsafe-eval'
+    //     (Scanbot Web SDK / WebAssembly — ohne wasm-unsafe-eval scheitert Worker-Init)
+    //   • worker-src 'self' blob: data:      — Scanbot WASM-Worker (blob:-URLs)
     //   • style-src 'self' 'unsafe-inline' + Google Fonts CSS
     //   • font-src  'self' + Google Fonts Files
     //   • img-src   'self' + data: + blob: (Foto-Preview, Doku-Vorschau)
+    //   • media-src 'self' blob:             — Kamera-Stream für Dokument-Scan
     //   • frame-src 'self' + blob:           — PDF-Vorschau im <iframe> mit
     //                                          URL.createObjectURL(blob) → blob:https://…
     //   • connect-src 'self'                 — API-Calls nur an eigene Domain
@@ -2254,10 +2259,12 @@ app.Use(async (context, next) =>
     // welche Direktive blockt → hier nachschärfen.
     h["Content-Security-Policy"] =
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
+        "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdnjs.cloudflare.com; " +
+        "worker-src 'self' blob: data:; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: blob:; " +
+        "media-src 'self' blob:; " +
         "frame-src 'self' blob:; " +
         "connect-src 'self'";
     await next();
