@@ -94,6 +94,34 @@ public class KuendigungPdfService
         string? ReferenzVertreterName = null,
         string? ReferenzVertreterFunktion = null);
 
+    /// <summary>
+    /// Aufhebungsvereinbarung (Walter 28.07.2026) — einvernehmliche Auflösung
+    /// des Arbeitsverhältnisses. Vorlage wie «Aufhebungsvereinbarung» (Du-Form,
+    /// Unterschrift AG + AN). Anhänge identisch zur Kündigungsbestätigung:
+    /// Referenzangaben · Swica · GastroSocial PK-Überweisung.
+    /// </summary>
+    public record AufhebungData(
+        string? FirmaName, string? RestaurantName, string? FirmaStrasse, string? FirmaPlzOrt,
+        string? MaName, string  MaVorname, string MaNachname, string? MaStrasse, string? MaPlzOrt,
+        string  DuAnrede,
+        string  Ort, DateOnly Datum,
+        DateOnly ArbeitsverhaeltnisVon,   // Eintritt / Vertragsbeginn
+        DateOnly AufhebungPer,            // Auflösung per (= letzter Arbeitstag)
+        DateOnly LetzterLohnBis,          // «Per Saldo … bis spätestens am …»
+        string? UnterzeichnerName,
+        string? UnterzeichnerFunktion = null,
+        string  ArbeitnehmerRolle = "Arbeitnehmer",  // «Arbeitnehmer» / «Arbeitnehmerin»
+        bool    Eingeschrieben = false,
+        string? MaAhvNummer = null,
+        DateOnly? MaGeburtsdatum = null,
+        string? MaTelefon = null,
+        string? MaEmail = null,
+        string? MaLand = null,
+        string? MaZivilstand = null,
+        DateOnly? MaZivilstandSeit = null,
+        string? ReferenzVertreterName = null,
+        string? ReferenzVertreterFunktion = null);
+
     /// <summary>Fallback, falls SiteUrl nicht geladen werden kann.</summary>
     public const string DefaultExitSurveyUrl = "https://onecrew.ch/kuendigung/";
 
@@ -224,6 +252,146 @@ public class KuendigungPdfService
         var pkPages = FillPkUeberweisungPages(d);
         return MergePdfs(new[] { briefPages, swicaPage, pkPages });
     }
+
+    /// <summary>
+    /// Aufhebungsvereinbarung (Walter 28.07.2026) — Brief + dieselben Anhänge
+    /// wie die Kündigungsbestätigung (Referenz · Swica · PK-Überweisung).
+    /// </summary>
+    public byte[] GenerateAufhebung(AufhebungData d)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        var firmaLines = new[] { d.FirmaName, d.RestaurantName, d.FirmaStrasse, d.FirmaPlzOrt }
+            .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList();
+        var maLines = new[] { d.MaName, d.MaStrasse, d.MaPlzOrt }
+            .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).ToList();
+
+        var briefPages = Document.Create(doc =>
+        {
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(1.0f, Unit.Centimetre);
+                page.MarginBottom(1.1f, Unit.Centimetre);
+                page.MarginHorizontal(2.2f, Unit.Centimetre);
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).FontColor(Dark).LineHeight(1.32f));
+
+                page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
+
+                page.Content().PaddingTop(14).Column(col =>
+                {
+                    foreach (var ln in firmaLines)
+                        col.Item().Text(ln).FontSize(8.5f).FontColor("#475569");
+
+                    col.Item().Height(40);
+                    if (d.Eingeschrieben)
+                        col.Item().Text("EINSCHREIBEN").Bold().LetterSpacing(0.06f).FontSize(9.5f);
+                    col.Item().PaddingTop(d.Eingeschrieben ? 3 : 16).Column(c =>
+                    {
+                        foreach (var ln in maLines) c.Item().Text(ln);
+                    });
+
+                    col.Item().PaddingTop(24).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+
+                    col.Item().PaddingTop(18).Text("Aufhebungsvereinbarung").Bold().FontSize(12.5f);
+
+                    col.Item().PaddingTop(14).Text($"{d.DuAnrede},");
+
+                    col.Item().PaddingTop(12).Text(t =>
+                    {
+                        t.Span("Hiermit lösen wir unser Arbeitsverhältnis vom ");
+                        t.Span($"{d.ArbeitsverhaeltnisVon:dd.MM.yyyy}").Bold();
+                        t.Span(" in gegenseitigem Einvernehmen per ");
+                        t.Span($"{d.AufhebungPer:dd.MM.yyyy}").Bold();
+                        t.Span(" auf.");
+                    });
+
+                    col.Item().PaddingTop(10).Text(
+                        "Alle Gegenstände, die sich in deinem Besitz befinden und dem Unternehmen gehören, müssen deinem Vorgesetzten vor dem Austreten überreicht werden. Wir erinnern dich daran, dass du an die Geheimhaltungspflicht gebunden bist.");
+
+                    col.Item().PaddingTop(10).Text(t =>
+                    {
+                        t.Span("Per Saldo aller Ansprüche wirst du bis spätestens am ");
+                        t.Span($"{d.LetzterLohnBis:dd.MM.yyyy}").Bold();
+                        t.Span(" deinen letzten Lohn empfangen.");
+                    });
+
+                    col.Item().PaddingTop(10).Text(
+                        "Im Anhang senden wir dir von der Swica das Informationsblatt «Taggeldversicherung und Unfallversicherung». Wenn du dieses Formular nicht zurücksendest, gehen wir davon aus, dass du von uns in Kenntnis gesetzt wurdest und wir von jeglicher Verantwortlichkeit entlassen sind.");
+
+                    col.Item().PaddingTop(10).Text(
+                        "Um dein BVG-Guthaben (2. Säule) an die Kasse deines neuen Arbeitgebers oder auf ein Freizügigkeitskonto zu überweisen, fülle bitte das beiliegende Formular «Überweisung Pensionskassenguthaben» aus und sende es direkt an GastroSocial (Adresse unten auf der letzten Seite).");
+
+                    col.Item().PaddingTop(10).Text(
+                        "Dein Arbeitszeugnis erhältst du so bald wie möglich.");
+                });
+
+                // Gruss + zwei Unterschrifts-Spalten (AG links, AN rechts) —
+                // wie Walter-Vorlage Aufhebungsvereinbarung.
+                page.Footer().Column(col =>
+                {
+                    col.Item().Text("Freundliche Grüsse");
+                    if (!string.IsNullOrWhiteSpace(d.FirmaName))
+                        col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
+                    if (!string.IsNullOrWhiteSpace(d.RestaurantName))
+                        col.Item().Text(d.RestaurantName!);
+
+                    col.Item().PaddingTop(10).Height(42);
+
+                    col.Item().Row(r =>
+                    {
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text(d.UnterzeichnerName ?? "");
+                            if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
+                                c.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
+                            c.Item().PaddingTop(28).BorderBottom(0.8f).BorderColor(Dark).Height(1);
+                            c.Item().PaddingTop(4).Text("Unterschrift").FontSize(8.5f).FontColor("#64748b");
+                        });
+                        r.ConstantItem(28);
+                        r.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text(d.MaName ?? "");
+                            c.Item().Text(d.ArbeitnehmerRolle).FontColor("#475569");
+                            c.Item().PaddingTop(28).BorderBottom(0.8f).BorderColor(Dark).Height(1);
+                            c.Item().PaddingTop(4).Text("Unterschrift").FontSize(8.5f).FontColor("#64748b");
+                        });
+                    });
+                });
+            });
+
+            // Anhänge: Referenzangaben über denselben Helper wie Bestätigung
+            // (Austrittsdatum = AufhebungPer).
+            doc.Page(page => ComposeReferenzangabenPage(page, ToBestaetigungAnhang(d)));
+        }).GeneratePdf();
+
+        var anhang = ToBestaetigungAnhang(d);
+        var swicaPage = StampSwicaPage(anhang);
+        var pkPages = FillPkUeberweisungPages(anhang);
+        return MergePdfs(new[] { briefPages, swicaPage, pkPages });
+    }
+
+    /// <summary>
+    /// Mappt Aufhebung → BestaetigungData nur für die gemeinsamen Anhänge
+    /// (Referenz / Swica / PK). Brief-Felder der Bestätigung werden nicht genutzt.
+    /// </summary>
+    private static BestaetigungData ToBestaetigungAnhang(AufhebungData d) =>
+        new(
+            FirmaName: d.FirmaName, RestaurantName: d.RestaurantName,
+            FirmaStrasse: d.FirmaStrasse, FirmaPlzOrt: d.FirmaPlzOrt,
+            MaName: d.MaName, MaVorname: d.MaVorname, MaNachname: d.MaNachname,
+            MaStrasse: d.MaStrasse, MaPlzOrt: d.MaPlzOrt,
+            DuAnrede: d.DuAnrede, Ort: d.Ort, Datum: d.Datum,
+            KuendigungsDatumMa: d.AufhebungPer,
+            KuendigungAuf: d.AufhebungPer,
+            UnterzeichnerName: d.UnterzeichnerName,
+            UnterzeichnerFunktion: d.UnterzeichnerFunktion,
+            Eingeschrieben: d.Eingeschrieben,
+            MaAhvNummer: d.MaAhvNummer, MaGeburtsdatum: d.MaGeburtsdatum,
+            MaTelefon: d.MaTelefon, MaEmail: d.MaEmail, MaLand: d.MaLand,
+            MaZivilstand: d.MaZivilstand, MaZivilstandSeit: d.MaZivilstandSeit,
+            ReferenzVertreterName: d.ReferenzVertreterName,
+            ReferenzVertreterFunktion: d.ReferenzVertreterFunktion);
 
     /// <summary>
     /// Seite 2 der Kündigungsbestätigung: Formular «Referenzangaben»

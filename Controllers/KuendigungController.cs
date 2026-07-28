@@ -364,6 +364,92 @@ public class KuendigungController : ControllerBase
         }
     }
 
+    public class AufhebungPdfDto
+    {
+        /// <summary>Beginn des Arbeitsverhältnisses (Vertragsbeginn / Eintritt).</summary>
+        public DateOnly ArbeitsverhaeltnisVon { get; set; }
+        /// <summary>Auflösung per (= letzter Arbeitstag).</summary>
+        public DateOnly AufhebungPer { get; set; }
+        /// <summary>Letzter Lohn bis spätestens am …</summary>
+        public DateOnly LetzterLohnBis { get; set; }
+        public DateOnly? Datum { get; set; }
+        public string?   Ort { get; set; }
+        public bool      Eingeschrieben { get; set; }
+    }
+
+    /// <summary>
+    /// Aufhebungsvereinbarung (Walter 28.07.2026) — einvernehmliche Auflösung.
+    /// Pflicht: Arbeitsverhältnis von · Auflösung per · letzter Lohn bis.
+    /// PDF: Seite 1 Brief (AG+AN-Unterschrift) · 2 Referenzangaben · 3 Swica · 4–5 PK.
+    /// </summary>
+    [HttpPost("{empId:int}/aufhebung-pdf")]
+    public async Task<IActionResult> GetAufhebungPdf(int empId, [FromBody] AufhebungPdfDto dto)
+    {
+        var guard = await GuardBranchAsync(empId);
+        if (guard != null) return guard;
+        var ctx = await LoadContextAsync(empId);
+        if (ctx is null) return NotFound(new { error = "EMP_NOT_FOUND" });
+        var (e, emp, cp) = ctx.Value;
+
+        if (dto.ArbeitsverhaeltnisVon == default)
+            return BadRequest(new { error = "AV_VON_FEHLT", message = "Bitte den Beginn des Arbeitsverhältnisses angeben." });
+        if (dto.AufhebungPer == default)
+            return BadRequest(new { error = "AUFHEBUNG_PER_FEHLT", message = "Bitte das «Auflösung per»-Datum angeben." });
+        if (dto.LetzterLohnBis == default)
+            return BadRequest(new { error = "LOHN_BIS_FEHLT", message = "Bitte das Datum «letzter Lohn bis spätestens» angeben." });
+
+        var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
+        var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
+        var (_, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
+        var (refName, refFunktion) = await GetDefaultSignatoryAsync(cp?.Id);
+
+        DateOnly? geburtsdatum = e.DateOfBirth.HasValue
+            ? DateOnly.FromDateTime(e.DateOfBirth.Value)
+            : null;
+        var telefon = !string.IsNullOrWhiteSpace(e.PhoneMobile) ? e.PhoneMobile
+            : e.Phone2;
+
+        var data = new KuendigungPdfService.AufhebungData(
+            FirmaName:       cp?.CompanyName,
+            RestaurantName:  cp?.BranchName,
+            FirmaStrasse:    Join(cp?.Street, cp?.HouseNumber),
+            FirmaPlzOrt:     Join(cp?.ZipCode, cp?.City),
+            MaName:          ($"{e.FirstName} {e.LastName}").Trim(),
+            MaVorname:       (e.FirstName ?? "").Trim(),
+            MaNachname:      (e.LastName ?? "").Trim(),
+            MaStrasse:       e.Street,
+            MaPlzOrt:        Join(e.ZipCode, e.City),
+            DuAnrede:        DuAnrede(e),
+            Ort:             ort,
+            Datum:           datum,
+            ArbeitsverhaeltnisVon: dto.ArbeitsverhaeltnisVon,
+            AufhebungPer:    dto.AufhebungPer,
+            LetzterLohnBis:  dto.LetzterLohnBis,
+            UnterzeichnerName: signerName,
+            UnterzeichnerFunktion: signerFunktion,
+            ArbeitnehmerRolle: ArbeitnehmerRolle(e),
+            Eingeschrieben:  dto.Eingeschrieben,
+            MaAhvNummer:     e.SocialSecurityNumber,
+            MaGeburtsdatum:  geburtsdatum,
+            MaTelefon:       telefon,
+            MaEmail:         e.Email,
+            MaLand:          e.Country,
+            MaZivilstand:    e.MaritalStatus,
+            MaZivilstandSeit: e.MaritalStatusSince,
+            ReferenzVertreterName: refName,
+            ReferenzVertreterFunktion: refFunktion);
+
+        try
+        {
+            var bytes = _pdf.GenerateAufhebung(data);
+            return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Aufhebungsvereinbarung.pdf");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "PDF_FEHLER", message = ex.GetBaseException().Message });
+        }
+    }
+
     /// <summary>
     /// Hebt die am MA erfasste Kuendigung auf (Walter-Vorgabe 16.07.2026):
     /// loescht «gekuendigt am» + «Kuendigung per» — die ToDo «Vertragsende
@@ -586,6 +672,17 @@ public class KuendigungController : ControllerBase
         if (string.Equals(anrede, "Frau", StringComparison.OrdinalIgnoreCase)) return $"Liebe {fn}";
         if (string.Equals(anrede, "Herr", StringComparison.OrdinalIgnoreCase)) return $"Lieber {fn}";
         return $"Hallo {fn}";
+    }
+
+    /// <summary>«Arbeitnehmer» / «Arbeitnehmerin» für die Unterschrifts-Spalte der Aufhebung.</summary>
+    private static string ArbeitnehmerRolle(Employee e)
+    {
+        var g = (e.Gender ?? "").Trim().ToLowerInvariant();
+        if (g is "female" or "w" or "f") return "Arbeitnehmerin";
+        if (g is "male" or "m") return "Arbeitnehmer";
+        var anrede = (e.Salutation ?? "").Trim();
+        if (string.Equals(anrede, "Frau", StringComparison.OrdinalIgnoreCase)) return "Arbeitnehmerin";
+        return "Arbeitnehmer";
     }
 
     private static string? Join(string? a, string? b)
