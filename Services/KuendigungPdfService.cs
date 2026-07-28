@@ -326,8 +326,9 @@ public class KuendigungPdfService
                         "Dein Arbeitszeugnis erhältst du so bald wie möglich.");
                 });
 
-                // Gruss + zwei Unterschrifts-Spalten (AG links, AN rechts) —
-                // wie Walter-Vorlage Aufhebungsvereinbarung.
+                // Gruss + zwei Unterschrifts-Spalten (AG = Filial-GF links, AN rechts).
+                // Walter 28.07.2026: nur Platz zum Unterschreiben — keine Linie,
+                // kein Label «Unterschrift».
                 page.Footer().Column(col =>
                 {
                     col.Item().Text("Freundliche Grüsse");
@@ -336,25 +337,21 @@ public class KuendigungPdfService
                     if (!string.IsNullOrWhiteSpace(d.RestaurantName))
                         col.Item().Text(d.RestaurantName!);
 
-                    col.Item().PaddingTop(10).Height(42);
-
-                    col.Item().Row(r =>
+                    col.Item().PaddingTop(14).Row(r =>
                     {
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Text(d.UnterzeichnerName ?? "");
                             if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
                                 c.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
-                            c.Item().PaddingTop(28).BorderBottom(0.8f).BorderColor(Dark).Height(1);
-                            c.Item().PaddingTop(4).Text("Unterschrift").FontSize(8.5f).FontColor("#64748b");
+                            c.Item().Height(48); // Platz für Hand-Unterschrift
                         });
                         r.ConstantItem(28);
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Text(d.MaName ?? "");
                             c.Item().Text(d.ArbeitnehmerRolle).FontColor("#475569");
-                            c.Item().PaddingTop(28).BorderBottom(0.8f).BorderColor(Dark).Height(1);
-                            c.Item().PaddingTop(4).Text("Unterschrift").FontSize(8.5f).FontColor("#64748b");
+                            c.Item().Height(48);
                         });
                     });
                 });

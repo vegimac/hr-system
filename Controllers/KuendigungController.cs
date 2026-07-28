@@ -400,8 +400,11 @@ public class KuendigungController : ControllerBase
 
         var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
         var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
-        var (_, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
-        var (refName, refFunktion) = await GetDefaultSignatoryAsync(cp?.Id);
+        // Walter 28.07.2026: Aufhebung immer mit Filial-Geschäftsführer
+        // (IsDefault / Rolle GESCHAEFTSFUEHRER) — nicht dem eingeloggten User.
+        var (gfName, gfFunktion) = await GetDefaultSignatoryAsync(cp?.Id);
+        if (string.IsNullOrWhiteSpace(gfFunktion))
+            gfFunktion = "Geschäftsführer";
 
         DateOnly? geburtsdatum = e.DateOfBirth.HasValue
             ? DateOnly.FromDateTime(e.DateOfBirth.Value)
@@ -425,8 +428,8 @@ public class KuendigungController : ControllerBase
             ArbeitsverhaeltnisVon: dto.ArbeitsverhaeltnisVon,
             AufhebungPer:    dto.AufhebungPer,
             LetzterLohnBis:  dto.LetzterLohnBis,
-            UnterzeichnerName: signerName,
-            UnterzeichnerFunktion: signerFunktion,
+            UnterzeichnerName: gfName,
+            UnterzeichnerFunktion: gfFunktion,
             ArbeitnehmerRolle: ArbeitnehmerRolle(e),
             Eingeschrieben:  dto.Eingeschrieben,
             MaAhvNummer:     e.SocialSecurityNumber,
@@ -436,8 +439,8 @@ public class KuendigungController : ControllerBase
             MaLand:          e.Country,
             MaZivilstand:    e.MaritalStatus,
             MaZivilstandSeit: e.MaritalStatusSince,
-            ReferenzVertreterName: refName,
-            ReferenzVertreterFunktion: refFunktion);
+            ReferenzVertreterName: gfName,
+            ReferenzVertreterFunktion: gfFunktion);
 
         try
         {
