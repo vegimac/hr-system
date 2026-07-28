@@ -40,41 +40,42 @@ public class BewerbungsbogenPdfService
     private static void ComposePage1(PageDescriptor page, BewerbungsbogenInput d)
     {
         page.Size(PageSizes.A4);
-        page.MarginTop(0.7f, Unit.Centimetre);
+        page.MarginTop(1.0f, Unit.Centimetre);
         page.MarginBottom(0.7f, Unit.Centimetre);
         page.MarginHorizontal(1.5f, Unit.Centimetre);
         page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark).LineHeight(1.2f));
 
-        page.Header().Image(BannerBytes).FitWidth();
+        // Titel auf dem gelben Banner — wie Arbeitsvertrag (Walter 28.07.2026).
+        page.Header().Height(38).Layers(layers =>
+        {
+            layers.Layer().Image(BannerBytes).FitWidth();
+            layers.PrimaryLayer()
+                .PaddingHorizontal(10)
+                .PaddingTop(10)
+                .Text("Bewerbungsbogen").Bold().FontSize(11f).FontColor(Dark);
+        });
 
         page.Content().PaddingTop(6).Column(col =>
         {
-            col.Item().AlignCenter().Text("Bewerbungsbogen").Bold().FontSize(14f);
             col.Item().AlignCenter().Text("Bitte in Blockschrift ausfüllen")
                 .FontSize(8.5f).FontColor(Muted).Italic();
 
-            col.Item().PaddingTop(6).Row(r =>
+            col.Item().PaddingTop(6).Column(c =>
             {
-                r.RelativeItem().Column(c =>
-                {
-                    var titel = string.IsNullOrWhiteSpace(d.RestaurantName)
-                        ? d.CompanyName
-                        : $"{d.CompanyName} · {d.RestaurantName}";
-                    c.Item().Text(titel).Bold().FontSize(9.5f);
-                    if (!string.IsNullOrWhiteSpace(d.Strasse))
-                        c.Item().Text(d.Strasse!).FontSize(9f);
-                    if (!string.IsNullOrWhiteSpace(d.PlzOrt))
-                        c.Item().Text(d.PlzOrt!).FontSize(9f);
-                    if (!string.IsNullOrWhiteSpace(d.Telefon))
-                        c.Item().Text(d.Telefon!).FontSize(9f);
-                });
-                r.ConstantItem(14);
-                r.ConstantItem(70).Height(78).Border(0.85f).BorderColor(Dark)
-                    .AlignCenter().AlignMiddle()
-                    .Text("FOTO").FontSize(8.5f).FontColor(Muted);
+                var titel = string.IsNullOrWhiteSpace(d.RestaurantName)
+                    ? d.CompanyName
+                    : $"{d.CompanyName} · {d.RestaurantName}";
+                c.Item().Text(titel).Bold().FontSize(9.5f);
+                if (!string.IsNullOrWhiteSpace(d.Strasse))
+                    c.Item().Text(d.Strasse!).FontSize(9f);
+                if (!string.IsNullOrWhiteSpace(d.PlzOrt))
+                    c.Item().Text(d.PlzOrt!).FontSize(9f);
+                if (!string.IsNullOrWhiteSpace(d.Telefon))
+                    c.Item().Text(d.Telefon!).FontSize(9f);
             });
 
-            col.Item().PaddingTop(8).Element(e => SectionTitle(e, "Personalien"));
+            // Personalien ohne Unterstrich (Walter 28.07.2026).
+            col.Item().PaddingTop(10).Text("Personalien").Bold().FontSize(10f);
             col.Item().PaddingTop(4).Element(e => TwoFields(e, "Name", "Vorname"));
             col.Item().PaddingTop(3).Element(e => TwoFields(e, "Adresse", "E-Mail"));
             col.Item().PaddingTop(3).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
@@ -142,12 +143,19 @@ public class BewerbungsbogenPdfService
     private static void ComposePage2(PageDescriptor page)
     {
         page.Size(PageSizes.A4);
-        page.MarginTop(0.7f, Unit.Centimetre);
+        page.MarginTop(1.0f, Unit.Centimetre);
         page.MarginBottom(0.7f, Unit.Centimetre);
         page.MarginHorizontal(1.5f, Unit.Centimetre);
         page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Dark).LineHeight(1.2f));
 
-        page.Header().Image(BannerBytes).FitWidth();
+        page.Header().Height(38).Layers(layers =>
+        {
+            layers.Layer().Image(BannerBytes).FitWidth();
+            layers.PrimaryLayer()
+                .PaddingHorizontal(10)
+                .PaddingTop(10)
+                .Text("Bewerbungsbogen").Bold().FontSize(11f).FontColor(Dark);
+        });
 
         page.Content().PaddingTop(8).Column(col =>
         {
