@@ -60,33 +60,49 @@ public class EmployeeVerwarnungController : ControllerBase
     [HttpGet("gruende")]
     public IActionResult GetGruende() => Ok(StandardGruende);
 
-    /// <summary>Find-or-create des Dokument-Typs «Verwarnung» — damit der
-    /// Upload aus dem Verwarnungs-Modal ohne manuelle Typ-Wahl läuft.</summary>
+    /// <summary>
+    /// Dokument-Typ für Verwarnungs-Uploads (Walter 28.07.2026):
+    /// «Mitarbeiterentwicklung › Abmahnung» — nicht mehr eigener Typ «Verwarnung».
+    /// Find-or-create, damit der Upload ohne manuelle Typ-Wahl läuft.
+    /// </summary>
     [HttpGet("dokument-typ")]
     public async Task<IActionResult> GetDokumentTyp()
     {
-        var typ = await _db.DokumentTypen
-            .FirstOrDefaultAsync(t => t.Name.ToLower().StartsWith("verwarnung"));
+        // 1) Bevorzugt Abmahnung unter Mitarbeiterentwicklung
+        var typ = await (
+            from t in _db.DokumentTypen.AsNoTracking()
+            join k in _db.DokumentKategorien.AsNoTracking() on t.KategorieId equals k.Id
+            where t.Name.ToLower() == "abmahnung"
+               && k.Name.ToLower().Contains("mitarbeiterentwicklung")
+            orderby t.Id
+            select t
+        ).FirstOrDefaultAsync();
+
+        // 2) Sonst irgendeine Abmahnung
+        if (typ == null)
+            typ = await _db.DokumentTypen.AsNoTracking()
+                .Where(t => t.Name.ToLower() == "abmahnung")
+                .OrderBy(t => t.Id)
+                .FirstOrDefaultAsync();
+
         if (typ == null)
         {
-            // Kategorie: bevorzugt eine bestehende «Personal…»-Kategorie,
-            // sonst die erste aktive.
             var kat = await _db.DokumentKategorien
-                          .Where(k => k.Aktiv)
-                          .OrderBy(k => k.Name.ToLower().Contains("personal") ? 0 : 1)
-                          .ThenBy(k => k.SortOrder)
-                          .FirstOrDefaultAsync();
+                .Where(k => k.Aktiv && k.Name.ToLower().Contains("mitarbeiterentwicklung"))
+                .OrderBy(k => k.SortOrder)
+                .FirstOrDefaultAsync();
             if (kat == null)
             {
-                kat = new DokumentKategorie { Name = "Personalakte", SortOrder = 50 };
+                kat = new DokumentKategorie { Name = "Mitarbeiterentwicklung", SortOrder = 50, Aktiv = true };
                 _db.DokumentKategorien.Add(kat);
                 await _db.SaveChangesAsync();
             }
-            typ = new DokumentTyp { KategorieId = kat.Id, Name = "Verwarnung", SortOrder = 60 };
+            typ = new DokumentTyp { KategorieId = kat.Id, Name = "Abmahnung", SortOrder = 10 };
             _db.DokumentTypen.Add(typ);
             await _db.SaveChangesAsync();
         }
-        return Ok(new { typ.Id, typ.Name });
+
+        return Ok(new { typ.Id, typ.Name, kategorieId = typ.KategorieId });
     }
 
     [HttpGet("by-employee/{empId:int}")]

@@ -13167,7 +13167,7 @@ async function vwSave() {
             const branchCode = branch?.restaurantCode || '';
             if (!branchCode) { showErr('Filiale nicht gewählt — bitte zuerst links eine Filiale wählen.'); return; }
             const typR = await fetch('/api/verwarnungen/dokument-typ', { headers: ah() });
-            if (!typR.ok) { showErr('Dokument-Typ «Verwarnung» konnte nicht ermittelt werden.'); return; }
+            if (!typR.ok) { showErr('Dokument-Typ «Abmahnung» (Mitarbeiterentwicklung) konnte nicht ermittelt werden.'); return; }
             const typ = await typR.json();
             const fd = new FormData();
             fd.append('file', file);
