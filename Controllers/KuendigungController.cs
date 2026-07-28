@@ -401,8 +401,8 @@ public class KuendigungController : ControllerBase
         var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
         var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
         // Walter 28.07.2026: Aufhebung immer mit Filial-Geschäftsführer
-        // (IsDefault / Rolle GESCHAEFTSFUEHRER) — nicht dem eingeloggten User.
-        var (gfName, gfFunktion) = await GetDefaultSignatoryAsync(cp?.Id);
+        // (Name + Funktion) — nicht dem eingeloggten User.
+        var (gfName, gfFunktion) = await GetGeschaeftsfuehrerAsync(cp?.Id);
         if (string.IsNullOrWhiteSpace(gfFunktion))
             gfFunktion = "Geschäftsführer";
 
@@ -752,6 +752,46 @@ public class KuendigungController : ControllerBase
         var funktion = !string.IsNullOrWhiteSpace(signatory.FunctionTitle)
             ? signatory.FunctionTitle
             : (signatory.Role == "GESCHAEFTSFUEHRER" ? "Geschäftsführer/in" : null);
+        return (name, funktion);
+    }
+
+    /// <summary>
+    /// Filial-Geschäftsführer für die Aufhebungsvereinbarung (Walter 28.07.2026).
+    /// Reihenfolge: Rolle GESCHAEFTSFUEHRER → IsDefault → FunctionTitle enthält
+    /// «Geschäftsführer» / «Restaurantleiter». Liefert immer Name + Funktion.
+    /// </summary>
+    private async Task<(string? name, string? funktion)> GetGeschaeftsfuehrerAsync(int? companyProfileId)
+    {
+        if (!companyProfileId.HasValue) return (null, null);
+
+        var list = await _db.UserBranchAccesses.AsNoTracking()
+            .Include(a => a.User)
+            .Where(a => a.CompanyProfileId == companyProfileId.Value && a.User != null)
+            .OrderBy(a => a.Id)
+            .ToListAsync();
+        if (list.Count == 0) return (null, null);
+
+        static bool TitleLooksLikeGf(string? t)
+        {
+            if (string.IsNullOrWhiteSpace(t)) return false;
+            var s = t.Trim().ToLowerInvariant();
+            return s.Contains("geschäftsführer") || s.Contains("geschaeftsfuehrer")
+                || s.Contains("restaurantleiter") || s.Contains("filialleiter");
+        }
+
+        var pick = list.FirstOrDefault(a => a.Role == "GESCHAEFTSFUEHRER" && a.User!.IsActive)
+                ?? list.FirstOrDefault(a => a.IsDefault && a.User!.IsActive)
+                ?? list.FirstOrDefault(a => TitleLooksLikeGf(a.FunctionTitle) && a.User!.IsActive)
+                ?? list.FirstOrDefault(a => a.Role == "GESCHAEFTSFUEHRER")
+                ?? list.FirstOrDefault(a => a.IsDefault)
+                ?? list.FirstOrDefault(a => TitleLooksLikeGf(a.FunctionTitle));
+        if (pick?.User == null) return (null, null);
+
+        var full = $"{pick.User.FirstName} {pick.User.LastName}".Trim();
+        var name = string.IsNullOrWhiteSpace(full) ? pick.User.Username : full;
+        var funktion = !string.IsNullOrWhiteSpace(pick.FunctionTitle)
+            ? pick.FunctionTitle!.Trim()
+            : "Geschäftsführer";
         return (name, funktion);
     }
 }
