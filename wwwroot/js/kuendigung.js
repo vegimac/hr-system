@@ -142,7 +142,37 @@ async function kuLoadInfo() {
 
         kuRenderSperr(info.sperrfrist);
         kuLoadVerwarnungen(id);
+        kuFillUnterzeichner(info.signatories || []);
     } catch (_) { /* still */ }
+}
+
+/** Unterzeichner-Dropdown aus Filial-Berechtigten füllen (Walter 28.07.2026). */
+function kuFillUnterzeichner(list) {
+    const sel = document.getElementById('kuUnterzeichner');
+    if (!sel) return;
+    const prev = sel.value;
+    const arr = Array.isArray(list) ? list.slice() : [];
+    // Konvention: Vorname Nachname; Backend liefert schon so sortiert.
+    sel.innerHTML = `<option value="">— bitte wählen —</option>` + arr.map(s => {
+        const name = (s.name || '').trim() || ('User #' + s.userId);
+        const funk = (s.functionTitle || '').trim();
+        const label = funk ? `${name} · ${funk}` : name;
+        const def = s.isDefault ? ' ★' : '';
+        return `<option value="${s.userId}">${escapeHtml(label)}${def}</option>`;
+    }).join('');
+
+    // Vorauswahl: bisherige Wahl → IsDefault → eingeloggter User → erste Option
+    let pick = prev && arr.some(s => String(s.userId) === String(prev)) ? prev : '';
+    if (!pick) {
+        const def = arr.find(s => s.isDefault);
+        if (def) pick = String(def.userId);
+    }
+    if (!pick) {
+        const meId = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.id || currentUser.userId) : null;
+        if (meId && arr.some(s => Number(s.userId) === Number(meId))) pick = String(meId);
+    }
+    if (!pick && arr.length) pick = String(arr[0].userId);
+    if (pick) sel.value = pick;
 }
 
 // Verwarnungs-Verlauf des MA (Walter 14.07.2026): zeigt beim Kündigungs-
@@ -908,7 +938,9 @@ function _kuFormBody() {
         austrittsgrund:    document.getElementById('kuAustrittsgrund')?.value || null,
         // U = persönlich übergeben (Default, oft am Probezeitgespräch);
         // E = Einschreiben (Walter 21.07.2026).
-        eingeschrieben:    document.querySelector('input[name="kuZustell"]:checked')?.value === 'E'
+        eingeschrieben:    document.querySelector('input[name="kuZustell"]:checked')?.value === 'E',
+        // Unterzeichner (Filial-Berechtigte) — Walter 28.07.2026.
+        unterzeichnerUserId: +(document.getElementById('kuUnterzeichner')?.value || 0) || null
     };
 }
 
@@ -955,6 +987,8 @@ async function kuEintragen() {
 async function kuGenerate() {
     const id = +(document.getElementById('kuEmpSelect')?.value || 0);
     if (!id) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }
+    if (!document.getElementById('kuUnterzeichner')?.value)
+        return alert('Bitte wählen, wer die Kündigung unterschreibt.');
     // Sperrfrist: warnen, aber die Erstellung bleibt HR-Entscheid (nicht hart sperren).
     if (_kuInfo?.sperrfrist?.blocked &&
         !(await liquidConfirm('Für diesen MA läuft eine Sperrfrist — eine Kündigung wäre evtl. nichtig. Trotzdem ein Schreiben erstellen?',

@@ -45,6 +45,11 @@ public class KuendigungController : ControllerBase
         /// false = persönlich übergeben (PDF: Zeuge der Übergabe zwischen AG- und MA-Unterschrift).
         /// </summary>
         public bool      Eingeschrieben { get; set; }
+        /// <summary>
+        /// User-Id des Unterzeichners (muss Filial-Zugang haben). Null = eingeloggter User.
+        /// Walter 28.07.2026: wählbar unter allen mit Berechtigung auf die Filiale.
+        /// </summary>
+        public int?      UnterzeichnerUserId { get; set; }
     }
 
     [HttpGet("{empId:int}/info")]
@@ -63,6 +68,29 @@ public class KuendigungController : ControllerBase
         var notice = ComputeNotice(e, emp, cp, kdat, grundType);
         var sperr = await _sperrfrist.ComputeAsync(empId, kdat);
 
+        // Unterzeichner-Kandidaten: alle aktiven User mit Filial-Zugang
+        // (Walter 28.07.2026). Sortiert nach Vorname.
+        object[] signatories = Array.Empty<object>();
+        if (cp != null)
+        {
+            var ubaList = await _db.UserBranchAccesses.AsNoTracking()
+                .Include(a => a.User)
+                .Where(a => a.CompanyProfileId == cp.Id && a.User != null && a.User.IsActive)
+                .ToListAsync();
+            signatories = ubaList
+                .OrderBy(a => a.User!.FirstName ?? "")
+                .ThenBy(a => a.User!.LastName ?? "")
+                .Select(a => (object)new
+                {
+                    userId = a.UserId,
+                    name = $"{a.User!.FirstName} {a.User.LastName}".Trim(),
+                    functionTitle = a.FunctionTitle,
+                    role = a.Role,
+                    isDefault = a.IsDefault,
+                })
+                .ToArray();
+        }
+
         return Ok(new
         {
             employee = new
@@ -75,11 +103,13 @@ public class KuendigungController : ControllerBase
             },
             company = new
             {
+                id      = cp?.Id,
                 name    = cp?.CompanyName,
                 strasse = Join(cp?.Street, cp?.HouseNumber),
                 plzOrt  = Join(cp?.ZipCode, cp?.City),
                 ort     = cp?.City,
             },
+            signatories,
             entryDate        = e.EntryDate.HasValue ? DateOnly.FromDateTime(e.EntryDate.Value).ToString("yyyy-MM-dd") : null,
             dienstjahr       = notice.Dienstjahr,
             inProbation      = notice.InProbation,
@@ -117,8 +147,11 @@ public class KuendigungController : ControllerBase
         var letzter = dto.LetzterArbeitstag ?? notice.LetzterArbeitstag;
         var ort     = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
 
-        // Unterschrift + Name des EINGELOGGTEN Users (nie eine andere Person).
-        var (sigPng, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
+        // Unterzeichner wählbar (Walter 28.07.2026): muss Filial-Zugang haben.
+        // Fallback = eingeloggter User. Signatur-PNG der gewählten Person.
+        var (sigPng, signerName, signerFunktion, signerErr) =
+            await ResolveKuendigungSignerAsync(cp?.Id, dto.UnterzeichnerUserId);
+        if (signerErr != null) return signerErr;
 
         var data = new KuendigungPdfService.KuendigungData(
             FirmaName:    cp?.CompanyName,
@@ -721,6 +754,46 @@ public class KuendigungController : ControllerBase
             }
         }
         return (null, null, null);
+    }
+
+    /// <summary>
+    /// Unterzeichner für das Kündigungsschreiben (Walter 28.07.2026):
+    /// gewählter Filial-User (Name + FunctionTitle + dessen Signatur-PNG),
+    /// sonst eingeloggter User. Fremde User-Ids ohne Filial-Zugang → 400.
+    /// </summary>
+    private async Task<(byte[]? png, string? name, string? funktion, IActionResult? error)>
+        ResolveKuendigungSignerAsync(int? companyProfileId, int? unterzeichnerUserId)
+    {
+        if (!unterzeichnerUserId.HasValue || unterzeichnerUserId.Value <= 0)
+        {
+            var (png, nm, funk) = await GetSignerAsync(companyProfileId);
+            return (png, nm, funk, null);
+        }
+
+        if (!companyProfileId.HasValue)
+            return (null, null, null, BadRequest(new {
+                error = "FILIALE_FEHLT",
+                message = "Mitarbeiter hat keine Filial-Zuordnung — Unterzeichner nicht wählbar."
+            }));
+
+        var uba = await _db.UserBranchAccesses.AsNoTracking()
+            .Include(a => a.User)
+            .Where(a => a.CompanyProfileId == companyProfileId.Value
+                     && a.UserId == unterzeichnerUserId.Value
+                     && a.User != null && a.User.IsActive)
+            .FirstOrDefaultAsync();
+        if (uba?.User == null)
+            return (null, null, null, BadRequest(new {
+                error = "UNTERZEICHNER_UNGUELTIG",
+                message = "Der gewählte Unterzeichner hat keinen Zugang zu dieser Filiale."
+            }));
+
+        var full = $"{uba.User.FirstName} {uba.User.LastName}".Trim();
+        var name = string.IsNullOrWhiteSpace(full) ? uba.User.Username : full;
+        var funktion = !string.IsNullOrWhiteSpace(uba.FunctionTitle)
+            ? uba.FunctionTitle
+            : (uba.Role == "GESCHAEFTSFUEHRER" ? "Geschäftsführer/in" : null);
+        return (uba.User.SignaturePng, name, funktion, null);
     }
 
     /// <summary>
