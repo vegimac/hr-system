@@ -264,14 +264,14 @@ public class BewerbungsbogenPdfService
         {
             c.Item().Text("Bewilligung / Ausweis (nur für Ausländer)")
                 .FontSize(8.5f).FontColor(Body);
-            c.Item().PaddingTop(6).Row(r =>
+            // Inlined wrappt sicher — kein horizontaler Row-Overflow (HTTP 500).
+            c.Item().PaddingTop(6).Inlined(i =>
             {
-                for (var i = 0; i < list.Count; i++)
-                {
-                    if (i > 0) r.ConstantItem(10);
-                    var code = list[i];
-                    r.AutoItem().Element(ch => CheckLabel(ch, code));
-                }
+                i.AlignLeft();
+                i.Spacing(10);
+                i.VerticalSpacing(6);
+                foreach (var code in list)
+                    i.Item().Element(ch => CheckLabel(ch, code));
             });
         });
     }
@@ -279,14 +279,16 @@ public class BewerbungsbogenPdfService
     /// <summary>Hohe Schreibzeile — genug Luft fuer Handschrift.</summary>
     private static void WriteLine(IContainer e)
     {
-        e.MinHeight(16).AlignBottom().PaddingBottom(1).Height(2.2f).Svg(size =>
-        {
-            var w = size.Width.ToString("0.###", CultureInfo.InvariantCulture);
-            return
-                $"<svg width=\"{w}\" height=\"3\" viewBox=\"0 0 {w} 3\" xmlns=\"http://www.w3.org/2000/svg\">" +
-                $"<line x1=\"0\" y1=\"2\" x2=\"{w}\" y2=\"2\" stroke=\"{Line}\" stroke-width=\"0.8\" " +
-                "stroke-dasharray=\"1 2\" stroke-linecap=\"round\"/></svg>";
-        });
+        // Wichtig: kein MinHeight+Height-Konflikt (QuestPDF DocumentLayoutException → HTTP 500).
+        e.Height(16).AlignBottom().Element(line =>
+            line.Height(2.2f).Svg(size =>
+            {
+                var w = size.Width.ToString("0.###", CultureInfo.InvariantCulture);
+                return
+                    $"<svg width=\"{w}\" height=\"3\" viewBox=\"0 0 {w} 3\" xmlns=\"http://www.w3.org/2000/svg\">" +
+                    $"<line x1=\"0\" y1=\"2\" x2=\"{w}\" y2=\"2\" stroke=\"{Line}\" stroke-width=\"0.8\" " +
+                    "stroke-dasharray=\"1 2\" stroke-linecap=\"round\"/></svg>";
+            }));
     }
 
     private static void LabeledLine(IContainer e, string label)
