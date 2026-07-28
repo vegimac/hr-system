@@ -324,34 +324,32 @@ public class KuendigungPdfService
 
                     col.Item().PaddingTop(10).Text(
                         "Dein Arbeitszeugnis erhältst du so bald wie möglich.");
-                });
 
-                // Gruss + zwei Unterschrifts-Spalten (AG = Filial-GF links, AN rechts).
-                // Walter 28.07.2026: nur Platz zum Unterschreiben — keine Linie,
-                // kein Label «Unterschrift».
-                page.Footer().Column(col =>
-                {
-                    col.Item().Text("Freundliche Grüsse");
+                    // Gruss direkt nach dem Text (nicht im Footer — sonst rutscht
+                    // er auf dem kurzen Brief ganz nach unten). Walter 28.07.2026:
+                    // Platz für Hand-Unterschrift ZWISCHEN Firma und Name/Funktion.
+                    col.Item().PaddingTop(22).Text("Freundliche Grüsse");
                     if (!string.IsNullOrWhiteSpace(d.FirmaName))
                         col.Item().PaddingTop(2).Text(d.FirmaName!).Bold();
                     if (!string.IsNullOrWhiteSpace(d.RestaurantName))
                         col.Item().Text(d.RestaurantName!);
 
-                    col.Item().PaddingTop(14).Row(r =>
+                    col.Item().Height(64); // Platz zum Unterschreiben
+
+                    col.Item().Row(r =>
                     {
                         r.RelativeItem().Column(c =>
                         {
-                            c.Item().Text(d.UnterzeichnerName ?? "");
+                            if (!string.IsNullOrWhiteSpace(d.UnterzeichnerName))
+                                c.Item().Text(d.UnterzeichnerName!);
                             if (!string.IsNullOrWhiteSpace(d.UnterzeichnerFunktion))
                                 c.Item().Text(d.UnterzeichnerFunktion!).FontColor("#475569");
-                            c.Item().Height(48); // Platz für Hand-Unterschrift
                         });
                         r.ConstantItem(28);
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Text(d.MaName ?? "");
                             c.Item().Text(d.ArbeitnehmerRolle).FontColor("#475569");
-                            c.Item().Height(48);
                         });
                     });
                 });
