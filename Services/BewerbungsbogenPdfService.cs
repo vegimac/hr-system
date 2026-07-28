@@ -220,7 +220,9 @@ public class BewerbungsbogenPdfService
 
     private static void SectionHead(IContainer e, string title, string? hint)
     {
-        e.BorderBottom(0.7f).BorderColor(Rule).PaddingBottom(3).Row(r =>
+        // Keine volle Unterstreich-Linie mehr (wirkte altmodisch) —
+        // ruhige Soft-Leiste im OneCrew-Stil (Walter 28.07.2026).
+        e.Background(Soft).PaddingVertical(5).PaddingHorizontal(8).Row(r =>
         {
             r.AutoItem().AlignMiddle().Text(title).SemiBold().FontSize(10f).FontColor(Ink);
             if (!string.IsNullOrWhiteSpace(hint))
