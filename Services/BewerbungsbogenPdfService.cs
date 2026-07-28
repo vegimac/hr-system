@@ -15,8 +15,7 @@ public record BewerbungsbogenInput(
     string? RestaurantName,
     string? Strasse,
     string? PlzOrt,
-    string? Telefon,
-    IReadOnlyList<string>? PermitCodes = null);
+    string? Telefon);
 
 public class BewerbungsbogenPdfService
 {
@@ -101,7 +100,8 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(12).Element(e => TwoFields(e, "Geschlecht", "Zivilstand"));
             col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Anzahl Kinder"));
             col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Namen, Geburtstag der Kinder"));
-            col.Item().PaddingTop(12).Element(e => PermitChecks(e, d.PermitCodes));
+            col.Item().PaddingTop(12).Element(e =>
+                LabeledLine(e, "Bewilligung / Ausweis (nur für Ausländer)"));
 
             col.Item().PaddingTop(16).Element(e => SectionHead(e, "Schulen / Berufserfahrung", null));
             col.Item().PaddingTop(10).Element(e =>
@@ -242,37 +242,6 @@ public class BewerbungsbogenPdfService
             r.AutoItem().Element(Check);
             r.ConstantItem(5);
             r.AutoItem().AlignMiddle().Text(label).FontSize(8.5f).FontColor(Body);
-        });
-    }
-
-    /// <summary>
-    /// Alle aktiven Bewilligungscodes aus permit_type (wie im Programm).
-    /// Fallback = Import-Mapping B/C/L/S/F/G/N.
-    /// </summary>
-    private static readonly string[] FallbackPermitCodes =
-        ["B", "C", "L", "S", "F", "G", "N"];
-
-    private static void PermitChecks(IContainer e, IReadOnlyList<string>? codes)
-    {
-        var list = (codes is { Count: > 0 } ? codes : FallbackPermitCodes)
-            .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Select(c => c.Trim().ToUpperInvariant())
-            .Distinct()
-            .ToList();
-
-        e.Column(c =>
-        {
-            c.Item().Text("Bewilligung / Ausweis (nur für Ausländer)")
-                .FontSize(8.5f).FontColor(Body);
-            // Inlined wrappt sicher — kein horizontaler Row-Overflow (HTTP 500).
-            c.Item().PaddingTop(6).Inlined(i =>
-            {
-                i.AlignLeft();
-                i.Spacing(10);
-                i.VerticalSpacing(6);
-                foreach (var code in list)
-                    i.Item().Element(ch => CheckLabel(ch, code));
-            });
         });
     }
 

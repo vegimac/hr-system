@@ -41,21 +41,6 @@ public class BewerbungsbogenController : ControllerBase
         var plzOrt = string.Join(" ", new[] { cp.ZipCode, cp.City }
             .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
 
-        List<string> permitCodes;
-        try
-        {
-            permitCodes = await _db.PermitTypes.AsNoTracking()
-                .Where(p => p.IsActive)
-                .OrderBy(p => p.Code)
-                .Select(p => p.Code)
-                .ToListAsync();
-        }
-        catch
-        {
-            // Katalog-Fehler darf den Bogen nicht blockieren — Fallback in der PDF-Engine.
-            permitCodes = new List<string>();
-        }
-
         byte[] bytes;
         try
         {
@@ -64,8 +49,7 @@ public class BewerbungsbogenController : ControllerBase
                 RestaurantName: cp.BranchName,
                 Strasse: string.IsNullOrWhiteSpace(street) ? null : street,
                 PlzOrt: string.IsNullOrWhiteSpace(plzOrt) ? null : plzOrt,
-                Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim(),
-                PermitCodes: permitCodes));
+                Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim()));
         }
         catch (Exception ex)
         {
