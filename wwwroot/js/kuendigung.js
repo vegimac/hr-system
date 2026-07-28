@@ -705,7 +705,7 @@ function _avEnsureModal() {
         <input type="date" id="avPer" onchange="avSuggestLohnBis()" oninput="avSuggestLohnBis()" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
         <label style="font-size:11.5px;font-weight:700;color:#646464">Letzter Lohn bis spätestens</label>
         <input type="date" id="avLohnBis" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:4px">
-        <div style="font-size:11.5px;color:#64748b;margin:0 0 12px">Vorschlag: 6 Tage nach Auflösung (anpassbar).</div>
+        <div style="font-size:11.5px;color:#64748b;margin:0 0 12px">Standard: Auflösung = Monatsende, letzter Lohn = 6. des Folgemonats (anpassbar).</div>
         <div style="margin-bottom:16px">
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
             <label style="font-size:13px;margin-right:16px"><input type="radio" name="avZustell" value="P" checked> persönliche Aushändigung</label>
@@ -724,38 +724,46 @@ function _avEnsureModal() {
     }
 }
 
-/** Letzter Lohn = Auflösung + 6 Tage (wie Walter-Vorlage 31.07 → 06.08). */
+/** Letzter Lohn = 6. des Monats nach der Auflösung (Walter 28.07.2026). */
 window.avSuggestLohnBis = function avSuggestLohnBis() {
     const per = document.getElementById('avPer')?.value || '';
     const bis = document.getElementById('avLohnBis');
     if (!per || !bis) return;
     const d = new Date(per + 'T00:00:00');
     if (isNaN(d.getTime())) return;
-    d.setDate(d.getDate() + 6);
+    // 6. des Folgemonats relativ zur Auflösung
     const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    bis.value = `${y}-${m}-${day}`;
+    const m = d.getMonth() + 1; // 0-basiert → nächster Monat = +1, bei 12 → Jahr+1
+    const nextY = m === 12 ? y + 1 : y;
+    const nextM = m === 12 ? 1 : m + 1;
+    bis.value = `${nextY}-${String(nextM).padStart(2, '0')}-06`;
 };
+
+/** Letzter Tag des Monats von «heute» als yyyy-mm-dd. */
+function _avLastDayOfCurrentMonth() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth(); // 0-basiert
+    const last = new Date(y, m + 1, 0); // Tag 0 des Folgemonats = letzter Tag
+    return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+}
 
 async function avOpen(empId) {
     _avEnsureModal();
     _avEmpId = empId;
     document.getElementById('avVon').value = '';
-    document.getElementById('avPer').value = '';
-    document.getElementById('avLohnBis').value = '';
+    // Walter 28.07.2026: Auflösung immer Monatsende (aktueller Monat),
+    // letzter Lohn immer 6. des Folgemonats — unabhängig von MA-Daten.
+    document.getElementById('avPer').value = _avLastDayOfCurrentMonth();
+    avSuggestLohnBis();
     document.getElementById('avModal').style.display = 'flex';
     try {
-        // Eintritt / Vertragsbeginn + ggf. bereits erfasste Kündigung per
         const [re, ri] = await Promise.all([
             fetch(`/api/employees/${empId}`, { headers: ah() }),
             fetch(`/api/kuendigung/${empId}/info`, { headers: ah() })
         ]);
         if (re.ok) {
             const e = await re.json();
-            if (e?.kuendigungPer)
-                document.getElementById('avPer').value = String(e.kuendigungPer).slice(0, 10);
-            // EntryDate als Fallback für «Arbeitsverhältnis seit»
             if (e?.entryDate)
                 document.getElementById('avVon').value = String(e.entryDate).slice(0, 10);
         }
@@ -763,8 +771,6 @@ async function avOpen(empId) {
             const info = await ri.json();
             if (info?.entryDate && !document.getElementById('avVon').value)
                 document.getElementById('avVon').value = String(info.entryDate).slice(0, 10);
-            // Aktiver Vertrag oft präziser als EntryDate — ContractStart wenn vorhanden
-            // (info liefert entryDate; Vertrag separat nur wenn Entry leer blieb)
         }
         // Vertrag-Startdatum bevorzugt (genaueres «Arbeitsverhältnis vom»)
         try {
@@ -778,8 +784,6 @@ async function avOpen(empId) {
                     document.getElementById('avVon').value = String(start).slice(0, 10);
             }
         } catch (_) {}
-        if (document.getElementById('avPer').value)
-            avSuggestLohnBis();
     } catch (_) {}
 }
 
