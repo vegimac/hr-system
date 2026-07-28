@@ -13169,12 +13169,28 @@ async function vwSave() {
             const typR = await fetch('/api/verwarnungen/dokument-typ', { headers: ah() });
             if (!typR.ok) { showErr('Dokument-Typ «Abmahnung» (Mitarbeiterentwicklung) konnte nicht ermittelt werden.'); return; }
             const typ = await typR.json();
+            const stufe = document.getElementById('vwStufe')?.value || 'VERWARNUNG_1';
+            const stufeLbl = ({
+                VERWARNUNG_1: '1. Verwarnung',
+                VERWARNUNG_2: '2. Verwarnung',
+                LETZTE: 'Letzte Verwarnung'
+            })[stufe] || 'Verwarnung';
+            const datumIso = document.getElementById('vwDatum')?.value || '';
+            const datumLbl = datumIso
+                ? `${datumIso.slice(8, 10)}.${datumIso.slice(5, 7)}.${datumIso.slice(0, 4)}`
+                : '';
+            // Walter 28.07.2026: Beschreibung = Stufe (+ Datum), landet in Abmahnung.
+            const bemerkung = datumLbl ? `${stufeLbl} vom ${datumLbl}` : stufeLbl;
+            const safeName = bemerkung.replace(/[\\/:*?"<>|]+/g, '').trim() || 'Verwarnung';
+            const ext = (file.name && file.name.includes('.'))
+                ? file.name.slice(file.name.lastIndexOf('.'))
+                : '.pdf';
             const fd = new FormData();
-            fd.append('file', file);
+            fd.append('file', file, `${safeName}${ext}`);
             fd.append('employeeId', selectedEmployeeId);
             fd.append('dokumentTypId', typ.id);
             fd.append('branchCode', branchCode);
-            fd.append('bemerkung', 'Verwarnungsschreiben');
+            fd.append('bemerkung', bemerkung);
             // WICHTIG: nur Authorization — ah() setzt Content-Type json und wuerde multipart brechen.
             const up = await fetch('/api/documents/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd });
             if (up.status === 409) {
