@@ -758,32 +758,22 @@ async function avOpen(empId) {
     avSuggestLohnBis();
     document.getElementById('avModal').style.display = 'flex';
     try {
-        const [re, ri] = await Promise.all([
-            fetch(`/api/employees/${empId}`, { headers: ah() }),
-            fetch(`/api/kuendigung/${empId}/info`, { headers: ah() })
-        ]);
+        // Walter 28.07.2026: «Arbeitsverhältnis seit» = Eintrittsdatum (MA-Kopf),
+        // nicht Vertragsbeginn — der kann bei Folgeverträgen später liegen.
+        const re = await fetch(`/api/employees/${empId}`, { headers: ah() });
         if (re.ok) {
             const e = await re.json();
             if (e?.entryDate)
                 document.getElementById('avVon').value = String(e.entryDate).slice(0, 10);
         }
-        if (ri.ok) {
-            const info = await ri.json();
-            if (info?.entryDate && !document.getElementById('avVon').value)
-                document.getElementById('avVon').value = String(info.entryDate).slice(0, 10);
-        }
-        // Vertrag-Startdatum bevorzugt (genaueres «Arbeitsverhältnis vom»)
-        try {
-            const rv = await fetch(`/api/employments/employee/${empId}`, { headers: ah() });
-            if (rv.ok) {
-                const list = await rv.json();
-                const arr = Array.isArray(list) ? list : (list?.items || list?.data || []);
-                const active = arr.find(x => x.isActive) || arr[0];
-                const start = active?.contractStartDate;
-                if (start)
-                    document.getElementById('avVon').value = String(start).slice(0, 10);
+        if (!document.getElementById('avVon').value) {
+            const ri = await fetch(`/api/kuendigung/${empId}/info`, { headers: ah() });
+            if (ri.ok) {
+                const info = await ri.json();
+                if (info?.entryDate)
+                    document.getElementById('avVon').value = String(info.entryDate).slice(0, 10);
             }
-        } catch (_) {}
+        }
     } catch (_) {}
 }
 
