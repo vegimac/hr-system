@@ -42,7 +42,7 @@ public class BewerbungsbogenPdfService
         }).GeneratePdf();
     }
 
-    private static void ApplyPageChrome(PageDescriptor page, string pageHint)
+    private static void ApplyPageChrome(PageDescriptor page)
     {
         page.Size(PageSizes.A4);
         page.PageColor(Colors.White);
@@ -58,17 +58,13 @@ public class BewerbungsbogenPdfService
             layers.PrimaryLayer()
                 .PaddingHorizontal(12)
                 .PaddingTop(9)
-                .Row(r =>
-                {
-                    r.RelativeItem().Text("Bewerbungsbogen").Bold().FontSize(11f).FontColor(Ink);
-                    r.AutoItem().AlignMiddle().Text(pageHint).FontSize(7.5f).FontColor(Muted);
-                });
+                .Text("Bewerbungsbogen").Bold().FontSize(11f).FontColor(Ink);
         });
     }
 
     private static void ComposePage1(PageDescriptor page, BewerbungsbogenInput d)
     {
-        ApplyPageChrome(page, "Seite 1 / 2");
+        ApplyPageChrome(page);
 
         page.Content().PaddingTop(6).Column(col =>
         {
@@ -119,7 +115,7 @@ public class BewerbungsbogenPdfService
 
     private static void ComposePage2(PageDescriptor page)
     {
-        ApplyPageChrome(page, "Seite 2 / 2");
+        ApplyPageChrome(page);
 
         page.Content().PaddingTop(8).Column(col =>
         {
@@ -130,16 +126,19 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(12).Element(e =>
                 TwoFields(e, "Frühestes Eintrittsdatum", "Für eine Dauer von mindestens"));
 
-            col.Item().PaddingTop(12).Element(e => SectionHead(e, "Angaben über den Ehepartner", null));
+            col.Item().PaddingTop(12).Element(e =>
+                SectionHead(e, "Angaben über den Ehepartner / die eingetragene Partnerschaft", null));
             col.Item().PaddingTop(8).Element(e => TwoFields(e, "Name", "Vorname"));
             col.Item().PaddingTop(10).Element(e => TwoFields(e, "Geburtsort", "Aufenthaltsort"));
             col.Item().PaddingTop(10).Row(r =>
             {
-                r.RelativeItem().Element(e => YesNoInline(e, "Arbeitet Ehemann / Ehefrau?"));
+                r.RelativeItem().Element(e =>
+                    YesNoInline(e, "Arbeitet Ehepartner / eingetragene Partnerschaft?"));
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Ausweis"));
             });
-            col.Item().PaddingTop(10).Element(e => LabeledLine(e, "Arbeitgeber des Ehepartners, Adresse"));
+            col.Item().PaddingTop(10).Element(e =>
+                LabeledLine(e, "Arbeitgeber Ehepartner / eingetragene Partnerschaft, Adresse"));
 
             col.Item().PaddingTop(12).Element(e => SectionHead(e, "Ergänzende Angaben", null));
             col.Item().PaddingTop(8).Element(e => LabeledLine(e, "Krankenkasse"));
@@ -368,7 +367,7 @@ public class BewerbungsbogenPdfService
 
     private static void AvailabilityTable(IContainer e)
     {
-        var days = new[] { "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So" };
+        var days = new[] { "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag" };
         e.Table(t =>
         {
             t.ColumnsDefinition(c =>
@@ -378,26 +377,27 @@ public class BewerbungsbogenPdfService
 
             foreach (var day in days)
             {
-                t.Cell().Padding(2).Element(cell =>
-                    cell.BorderBottom(0.6f).BorderColor(Rule).PaddingBottom(4)
-                        .AlignCenter().Text(day).SemiBold().FontSize(8f).FontColor(Ink));
+                t.Cell().Border(0.6f).BorderColor(Rule).Background(Soft)
+                    .PaddingVertical(4).PaddingHorizontal(2)
+                    .AlignCenter().Text(day).SemiBold().FontSize(7f).FontColor(Ink);
             }
 
             foreach (var _ in days)
             {
-                t.Cell().Padding(2).PaddingTop(6).Column(c =>
+                t.Cell().Border(0.6f).BorderColor(Rule).Padding(3).Row(r =>
                 {
-                    c.Item().Row(r =>
-                    {
-                        r.RelativeItem().AlignCenter().Text("von").FontSize(6.5f).FontColor(Muted);
-                        r.RelativeItem().AlignCenter().Text("bis").FontSize(6.5f).FontColor(Muted);
-                    });
-                    c.Item().PaddingTop(5).Row(r =>
-                    {
-                        r.RelativeItem().Element(WriteLine);
-                        r.ConstantItem(4);
-                        r.RelativeItem().Element(WriteLine);
-                    });
+                    r.RelativeItem().AlignCenter().Text("von").FontSize(6.5f).FontColor(Muted);
+                    r.RelativeItem().AlignCenter().Text("bis").FontSize(6.5f).FontColor(Muted);
+                });
+            }
+
+            foreach (var _ in days)
+            {
+                t.Cell().Border(0.6f).BorderColor(Rule).PaddingVertical(8).PaddingHorizontal(3).Row(r =>
+                {
+                    r.RelativeItem().Element(WriteLine);
+                    r.ConstantItem(3);
+                    r.RelativeItem().Element(WriteLine);
                 });
             }
         });
