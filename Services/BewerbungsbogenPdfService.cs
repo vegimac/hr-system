@@ -43,16 +43,18 @@ public class BewerbungsbogenPdfService
         }).GeneratePdf();
     }
 
-    private static void ApplyPageChrome(PageDescriptor page)
+    private static void ApplyPageChrome(PageDescriptor page, bool withBanner)
     {
         page.Size(PageSizes.A4);
         page.PageColor(Colors.White);
-        page.MarginTop(0.9f, Unit.Centimetre);
+        page.MarginTop(withBanner ? 0.9f : 1.2f, Unit.Centimetre);
         page.MarginBottom(0.7f, Unit.Centimetre);
         page.MarginHorizontal(1.5f, Unit.Centimetre);
         page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).FontColor(Ink).LineHeight(1.2f));
 
-        // Letterhead bleibt (Firmenbogen) — Formular selbst ohne Farbakzente.
+        // Gelber Logo-Balken nur auf Seite 1 (Walter 28.07.2026).
+        if (!withBanner) return;
+
         page.Header().Height(36).Layers(layers =>
         {
             layers.Layer().Image(BannerBytes).FitWidth();
@@ -65,7 +67,7 @@ public class BewerbungsbogenPdfService
 
     private static void ComposePage1(PageDescriptor page, BewerbungsbogenInput d)
     {
-        ApplyPageChrome(page);
+        ApplyPageChrome(page, withBanner: true);
 
         page.Content().PaddingTop(6).Column(col =>
         {
@@ -116,39 +118,39 @@ public class BewerbungsbogenPdfService
 
     private static void ComposePage2(PageDescriptor page)
     {
-        ApplyPageChrome(page);
+        ApplyPageChrome(page, withBanner: false);
 
-        page.Content().PaddingTop(8).Column(col =>
+        page.Content().PaddingTop(2).Column(col =>
         {
             col.Item().Element(e =>
                 SectionHead(e, "Verfügbarkeit & Eintritt",
                     "08.00–01.00 · Fr/Sa bis 03.00 Uhr"));
             col.Item().PaddingTop(6).Element(AvailabilityTable);
-            col.Item().PaddingTop(12).Element(e =>
+            col.Item().PaddingTop(10).Element(e =>
                 TwoFields(e, "Frühestes Eintrittsdatum", "Für eine Dauer von mindestens"));
 
-            col.Item().PaddingTop(12).Element(e =>
+            col.Item().PaddingTop(10).Element(e =>
                 SectionHead(e, "Angaben über Partner", null));
-            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Geschlecht Partner", "Geburtsort"));
-            col.Item().PaddingTop(10).Element(e => LabeledLine(e, "Aufenthaltsort"));
-            col.Item().PaddingTop(10).Row(r =>
+            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Name", "Vorname"));
+            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Geschlecht Partner", "Geburtsort"));
+            col.Item().PaddingTop(8).Element(e => LabeledLine(e, "Aufenthaltsort"));
+            col.Item().PaddingTop(8).Row(r =>
             {
                 r.RelativeItem().Element(e => YesNoInline(e, "Arbeitet Partner?"));
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Ausweis"));
             });
-            col.Item().PaddingTop(10).Element(e =>
+            col.Item().PaddingTop(8).Element(e =>
                 LabeledLine(e, "Arbeitgeber Partner, Adresse"));
 
-            col.Item().PaddingTop(12).Element(e => SectionHead(e, "Ergänzende Angaben", null));
-            col.Item().PaddingTop(8).Element(e => LabeledLine(e, "Krankenkasse"));
-            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
-            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
+            col.Item().PaddingTop(10).Element(e => SectionHead(e, "Ergänzende Angaben", null));
+            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Krankenkasse"));
+            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
+            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
 
-            col.Item().PaddingTop(10).Text("Haben Sie schon einmal bei McDonald's gearbeitet?")
+            col.Item().PaddingTop(8).Text("Haben Sie schon einmal bei McDonald's gearbeitet?")
                 .FontSize(8.5f).FontColor(Body);
-            col.Item().PaddingTop(5).Row(r =>
+            col.Item().PaddingTop(4).Row(r =>
             {
                 r.AutoItem().Element(e => CheckLabel(e, "Ja"));
                 r.ConstantItem(10);
@@ -159,12 +161,12 @@ public class BewerbungsbogenPdfService
                 r.AutoItem().Element(e => CheckLabel(e, "Nein"));
             });
 
-            col.Item().PaddingTop(10).Element(e => LabeledLine(e, "Welche Angestellten kennen Sie?"));
+            col.Item().PaddingTop(8).Element(e => LabeledLine(e, "Welche Angestellten kennen Sie?"));
 
-            col.Item().PaddingTop(10).Text(
+            col.Item().PaddingTop(8).Text(
                     "Leiden Sie an einer chronischen Krankheit oder an einem Hautleiden?")
                 .FontSize(8.5f).FontColor(Body);
-            col.Item().PaddingTop(5).Row(r =>
+            col.Item().PaddingTop(4).Row(r =>
             {
                 r.AutoItem().Element(e => CheckLabel(e, "Ja"));
                 r.ConstantItem(10);
@@ -173,13 +175,13 @@ public class BewerbungsbogenPdfService
                 r.AutoItem().Element(e => CheckLabel(e, "Nein"));
             });
 
-            col.Item().PaddingTop(9).Element(e => YesNoRow(e, "Besteht Schwangerschaft?"));
-            col.Item().PaddingTop(7).Element(e => YesNoRow(e, "Sind Sie vorbestraft?"));
-            col.Item().PaddingTop(7).Element(e => YesNoRow(e, "Sind Sie bevormundet?"));
-            col.Item().PaddingTop(9).Element(e => LabeledLine(e, "Nächste militärische Verpflichtung"));
+            col.Item().PaddingTop(7).Element(e => YesNoRow(e, "Besteht Schwangerschaft?"));
+            col.Item().PaddingTop(5).Element(e => YesNoRow(e, "Sind Sie vorbestraft?"));
+            col.Item().PaddingTop(5).Element(e => YesNoRow(e, "Sind Sie bevormundet?"));
+            col.Item().PaddingTop(7).Element(e => LabeledLine(e, "Nächste militärische Verpflichtung"));
 
-            col.Item().PaddingTop(10).Element(e => SectionHead(e, "Allgemeine Bedingungen", null));
-            col.Item().PaddingTop(4).Background(Soft).PaddingVertical(6).PaddingHorizontal(9).Column(c =>
+            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Allgemeine Bedingungen", null));
+            col.Item().PaddingTop(3).Background(Soft).PaddingVertical(5).PaddingHorizontal(9).Column(c =>
             {
                 foreach (var line in new[]
                 {
@@ -190,26 +192,27 @@ public class BewerbungsbogenPdfService
                     "Jugendliche bis zum vollendeten 18. Altersjahr dürfen bis spätestens 22.00 Uhr arbeiten.",
                 })
                 {
-                    c.Item().PaddingBottom(2).Row(r =>
+                    c.Item().PaddingBottom(1).Row(r =>
                     {
                         r.ConstantItem(10).AlignTop().Text("–").FontSize(8.5f).FontColor(Muted);
-                        r.RelativeItem().Text(line).FontSize(7f).FontColor(Body);
+                        r.RelativeItem().Text(line).FontSize(6.5f).FontColor(Body);
                     });
                 }
             });
 
-            col.Item().PaddingTop(5).Text(
+            col.Item().PaddingTop(4).Text(
                     "Der Bewerber / die Bewerberin nimmt zur Kenntnis, dass es sich beim vorliegenden Formular um kein Anstellungsversprechen handelt. Er / sie verpflichtet sich, den Bewerbungsbogen wahrheitsgetreu und nach bestem Wissen auszufüllen. Unwahre oder irreführende Angaben können die Ungültigkeit der Anstellung zur Folge haben.")
                 .FontSize(6.5f).FontColor(Muted).Italic();
 
-            col.Item().PaddingTop(12).Row(r =>
+            // Mehr Platz fuer Unterschrift (Walter 28.07.2026).
+            col.Item().PaddingTop(14).Row(r =>
             {
-                r.RelativeItem().Element(f => LabeledLine(f, "Ort, Datum"));
+                r.RelativeItem().Element(f => SignatureLine(f, "Ort, Datum"));
                 r.ConstantItem(20);
-                r.RelativeItem().Element(f => LabeledLine(f, "Unterschrift"));
+                r.RelativeItem().Element(f => SignatureLine(f, "Unterschrift"));
             });
-            col.Item().PaddingTop(12).Element(e =>
-                LabeledLine(e, "Unterschrift des gesetzlichen Vertreters"));
+            col.Item().PaddingTop(14).Element(e =>
+                SignatureLine(e, "Unterschrift des gesetzlichen Vertreters"));
         });
     }
 
@@ -246,10 +249,12 @@ public class BewerbungsbogenPdfService
     }
 
     /// <summary>Hohe Schreibzeile — genug Luft fuer Handschrift.</summary>
-    private static void WriteLine(IContainer e)
+    private static void WriteLine(IContainer e) => WriteLineAt(e, 16f);
+
+    private static void WriteLineAt(IContainer e, float height)
     {
         // Wichtig: kein MinHeight+Height-Konflikt (QuestPDF DocumentLayoutException → HTTP 500).
-        e.Height(16).AlignBottom().Element(line =>
+        e.Height(height).AlignBottom().Element(line =>
             line.Height(2.2f).Svg(size =>
             {
                 var w = size.Width.ToString("0.###", CultureInfo.InvariantCulture);
@@ -268,6 +273,18 @@ public class BewerbungsbogenPdfService
                 .Text(label).FontSize(8.5f).FontColor(Body);
             r.ConstantItem(8);
             r.RelativeItem().Element(WriteLine);
+        });
+    }
+
+    /// <summary>Extra-hohe Schreibzeile fuer Unterschriften.</summary>
+    private static void SignatureLine(IContainer e, string label)
+    {
+        e.Row(r =>
+        {
+            r.AutoItem().AlignBottom().PaddingBottom(2)
+                .Text(label).FontSize(8.5f).FontColor(Body);
+            r.ConstantItem(8);
+            r.RelativeItem().Element(f => WriteLineAt(f, 24f));
         });
     }
 
@@ -368,6 +385,7 @@ public class BewerbungsbogenPdfService
 
     private static void AvailabilityTable(IContainer e)
     {
+        // Etwas groesser (Walter 28.07.2026) — bessere Handausfuellung.
         var days = new[] { "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag" };
         e.Table(t =>
         {
@@ -379,26 +397,26 @@ public class BewerbungsbogenPdfService
             foreach (var day in days)
             {
                 t.Cell().Border(0.6f).BorderColor(Rule).Background(Soft)
-                    .PaddingVertical(4).PaddingHorizontal(2)
-                    .AlignCenter().Text(day).SemiBold().FontSize(7f).FontColor(Ink);
+                    .PaddingVertical(6).PaddingHorizontal(2)
+                    .AlignCenter().Text(day).SemiBold().FontSize(8f).FontColor(Ink);
             }
 
             foreach (var _ in days)
             {
-                t.Cell().Border(0.6f).BorderColor(Rule).Padding(3).Row(r =>
+                t.Cell().Border(0.6f).BorderColor(Rule).PaddingVertical(4).PaddingHorizontal(3).Row(r =>
                 {
-                    r.RelativeItem().AlignCenter().Text("von").FontSize(6.5f).FontColor(Muted);
-                    r.RelativeItem().AlignCenter().Text("bis").FontSize(6.5f).FontColor(Muted);
+                    r.RelativeItem().AlignCenter().Text("von").FontSize(7.5f).FontColor(Muted);
+                    r.RelativeItem().AlignCenter().Text("bis").FontSize(7.5f).FontColor(Muted);
                 });
             }
 
             foreach (var _ in days)
             {
-                t.Cell().Border(0.6f).BorderColor(Rule).PaddingVertical(8).PaddingHorizontal(3).Row(r =>
+                t.Cell().Border(0.6f).BorderColor(Rule).PaddingVertical(12).PaddingHorizontal(4).Row(r =>
                 {
-                    r.RelativeItem().Element(WriteLine);
-                    r.ConstantItem(3);
-                    r.RelativeItem().Element(WriteLine);
+                    r.RelativeItem().Element(f => WriteLineAt(f, 20f));
+                    r.ConstantItem(4);
+                    r.RelativeItem().Element(f => WriteLineAt(f, 20f));
                 });
             }
         });
