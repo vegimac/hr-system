@@ -49,7 +49,8 @@ public class BewerbungsbogenController : ControllerBase
                 RestaurantName: cp.BranchName,
                 Strasse: string.IsNullOrWhiteSpace(street) ? null : street,
                 PlzOrt: string.IsNullOrWhiteSpace(plzOrt) ? null : plzOrt,
-                Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim()));
+                Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim(),
+                Email: string.IsNullOrWhiteSpace(cp.Email) ? null : cp.Email.Trim()));
         }
         catch (Exception ex)
         {
