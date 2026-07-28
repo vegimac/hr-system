@@ -128,18 +128,18 @@ public class BewerbungsbogenPdfService
                 TwoFields(e, "Frühestes Eintrittsdatum", "Für eine Dauer von mindestens"));
 
             col.Item().PaddingTop(12).Element(e =>
-                SectionHead(e, "Angaben über den Ehepartner / die eingetragene Partnerschaft", null));
+                SectionHead(e, "Angaben über Partner", null));
             col.Item().PaddingTop(8).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Geburtsort", "Aufenthaltsort"));
+            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Geschlecht Partner", "Geburtsort"));
+            col.Item().PaddingTop(10).Element(e => LabeledLine(e, "Aufenthaltsort"));
             col.Item().PaddingTop(10).Row(r =>
             {
-                r.RelativeItem().Element(e =>
-                    YesNoInline(e, "Arbeitet Ehepartner / eingetragene Partnerschaft?"));
+                r.RelativeItem().Element(e => YesNoInline(e, "Arbeitet Partner?"));
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Ausweis"));
             });
             col.Item().PaddingTop(10).Element(e =>
-                LabeledLine(e, "Arbeitgeber Ehepartner / eingetragene Partnerschaft, Adresse"));
+                LabeledLine(e, "Arbeitgeber Partner, Adresse"));
 
             col.Item().PaddingTop(12).Element(e => SectionHead(e, "Ergänzende Angaben", null));
             col.Item().PaddingTop(8).Element(e => LabeledLine(e, "Krankenkasse"));
