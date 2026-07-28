@@ -108,7 +108,7 @@ public class BewerbungsbogenPdfService
                     new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 2));
             col.Item().PaddingTop(14).Element(e =>
                 OpenLinesTable(e, new[] { "Bisherige Arbeitgeber", "tätig als", "von", "bis" },
-                    new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 2));
+                    new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 2, strong: true));
             col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
 
             col.Item().PaddingTop(16).Element(e => SectionHead(e, "Sprachkenntnisse", null));
@@ -251,16 +251,18 @@ public class BewerbungsbogenPdfService
     /// <summary>Hohe Schreibzeile — genug Luft fuer Handschrift.</summary>
     private static void WriteLine(IContainer e) => WriteLineAt(e, 16f);
 
-    private static void WriteLineAt(IContainer e, float height)
+    private static void WriteLineAt(IContainer e, float height, bool strong = false)
     {
         // Wichtig: kein MinHeight+Height-Konflikt (QuestPDF DocumentLayoutException → HTTP 500).
+        var stroke = strong ? Body : Line;
+        var width = strong ? "1.35" : "0.8";
         e.Height(height).AlignBottom().Element(line =>
-            line.Height(2.2f).Svg(size =>
+            line.Height(2.6f).Svg(size =>
             {
                 var w = size.Width.ToString("0.###", CultureInfo.InvariantCulture);
                 return
                     $"<svg width=\"{w}\" height=\"3\" viewBox=\"0 0 {w} 3\" xmlns=\"http://www.w3.org/2000/svg\">" +
-                    $"<line x1=\"0\" y1=\"2\" x2=\"{w}\" y2=\"2\" stroke=\"{Line}\" stroke-width=\"0.8\" " +
+                    $"<line x1=\"0\" y1=\"2\" x2=\"{w}\" y2=\"2\" stroke=\"{stroke}\" stroke-width=\"{width}\" " +
                     "stroke-dasharray=\"1 2\" stroke-linecap=\"round\"/></svg>";
             }));
     }
@@ -323,7 +325,8 @@ public class BewerbungsbogenPdfService
         });
     }
 
-    private static void OpenLinesTable(IContainer e, string[] headers, float[] weights, int emptyRows)
+    private static void OpenLinesTable(IContainer e, string[] headers, float[] weights, int emptyRows,
+        bool strong = false)
     {
         e.Column(col =>
         {
@@ -332,8 +335,11 @@ public class BewerbungsbogenPdfService
                 for (var i = 0; i < headers.Length; i++)
                 {
                     if (i > 0) r.ConstantItem(12);
-                    r.RelativeItem(weights[i]).Text(headers[i])
-                        .FontSize(8f).FontColor(Muted);
+                    var cell = r.RelativeItem(weights[i]).Text(headers[i]);
+                    if (strong)
+                        cell.SemiBold().FontSize(9f).FontColor(Ink);
+                    else
+                        cell.FontSize(8f).FontColor(Muted);
                 }
             });
             for (var row = 0; row < emptyRows; row++)
@@ -344,7 +350,7 @@ public class BewerbungsbogenPdfService
                     for (var i = 0; i < headers.Length; i++)
                     {
                         if (i > 0) r.ConstantItem(12);
-                        r.RelativeItem(weights[i]).Element(WriteLine);
+                        r.RelativeItem(weights[i]).Element(f => WriteLineAt(f, 16f, strong));
                     }
                 });
             }
