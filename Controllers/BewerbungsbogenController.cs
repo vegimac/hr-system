@@ -41,19 +41,41 @@ public class BewerbungsbogenController : ControllerBase
         var plzOrt = string.Join(" ", new[] { cp.ZipCode, cp.City }
             .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
 
-        var permitCodes = await _db.PermitTypes.AsNoTracking()
-            .Where(p => p.IsActive)
-            .OrderBy(p => p.Code)
-            .Select(p => p.Code)
-            .ToListAsync();
+        List<string> permitCodes;
+        try
+        {
+            permitCodes = await _db.PermitTypes.AsNoTracking()
+                .Where(p => p.IsActive)
+                .OrderBy(p => p.Code)
+                .Select(p => p.Code)
+                .ToListAsync();
+        }
+        catch
+        {
+            // Katalog-Fehler darf den Bogen nicht blockieren — Fallback in der PDF-Engine.
+            permitCodes = new List<string>();
+        }
 
-        var bytes = _pdf.Generate(new BewerbungsbogenInput(
-            CompanyName: cp.CompanyName,
-            RestaurantName: cp.BranchName,
-            Strasse: string.IsNullOrWhiteSpace(street) ? null : street,
-            PlzOrt: string.IsNullOrWhiteSpace(plzOrt) ? null : plzOrt,
-            Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim(),
-            PermitCodes: permitCodes));
+        byte[] bytes;
+        try
+        {
+            bytes = _pdf.Generate(new BewerbungsbogenInput(
+                CompanyName: string.IsNullOrWhiteSpace(cp.CompanyName) ? "Schaub Restaurants GmbH" : cp.CompanyName,
+                RestaurantName: cp.BranchName,
+                Strasse: string.IsNullOrWhiteSpace(street) ? null : street,
+                PlzOrt: string.IsNullOrWhiteSpace(plzOrt) ? null : plzOrt,
+                Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim(),
+                PermitCodes: permitCodes));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                error = "BEWERBUNGSBOGEN_PDF_FEHLER",
+                message = "Bewerbungsbogen konnte nicht erzeugt werden.",
+                detail = ex.GetType().Name + ": " + ex.Message
+            });
+        }
 
         var safeCity = (cp.City ?? cp.BranchName ?? "Filiale")
             .Replace(" ", "_", StringComparison.Ordinal);
