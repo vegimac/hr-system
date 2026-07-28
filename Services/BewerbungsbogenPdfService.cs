@@ -15,7 +15,8 @@ public record BewerbungsbogenInput(
     string? RestaurantName,
     string? Strasse,
     string? PlzOrt,
-    string? Telefon);
+    string? Telefon,
+    string? Email = null);
 
 public class BewerbungsbogenPdfService
 {
@@ -73,7 +74,7 @@ public class BewerbungsbogenPdfService
                 ? d.CompanyName
                 : $"{d.CompanyName} · {d.RestaurantName}";
             col.Item().Text(titel).SemiBold().FontSize(9.5f).FontColor(Ink);
-            var meta = string.Join("  ·  ", new[] { d.Strasse, d.PlzOrt, d.Telefon }
+            var meta = string.Join("  ·  ", new[] { d.Strasse, d.PlzOrt, d.Telefon, d.Email }
                 .Where(s => !string.IsNullOrWhiteSpace(s)));
             if (!string.IsNullOrWhiteSpace(meta))
                 col.Item().PaddingTop(2).Text(meta).FontSize(8f).FontColor(Muted);
