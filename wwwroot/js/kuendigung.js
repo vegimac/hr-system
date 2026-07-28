@@ -215,7 +215,8 @@ const _ZD_TITEL = {
     best:           'Arbeitsbestätigung',
     verwarnung:     'Verwarnung',
     rueckzug:       'Kündigungsrückzug',
-    bestaetigung:   'Kündigungsbestätigung'
+    bestaetigung:   'Kündigungsbestätigung',
+    aufhebung:      'Aufhebungsvereinbarung'
 };
 
 async function zdOpen(art) {
@@ -250,6 +251,7 @@ function kuOpenDoc(art, empId) {
     if (art === 'verwarnung') { openVerwarnungModal(null); return; }
     if (art === 'rueckzug')   { krOpen(id); return; }
     if (art === 'bestaetigung') { kbOpen(id); return; }
+    if (art === 'aufhebung') { avOpen(id); return; }
     openZeugnisModal(id, art === 'zwischen', art === 'best');
 }
 
@@ -664,6 +666,194 @@ async function _kbDokumentAblegen(empId, blob, kuendigungAufIso) {
         fd.append('bemerkung', titel);
         // KEIN ah() — setzt Content-Type:application/json und zerstoert
         // den multipart-Boundary → Server: «The file field is required».
+        const ru = await fetch('/api/documents/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: fd
+        });
+        if (!ru.ok) {
+            let t = await ru.text();
+            try {
+                const j = JSON.parse(t);
+                t = j.message || j.error || (j.errors && JSON.stringify(j.errors)) || t;
+            } catch (_) {}
+            alert('Ablage fehlgeschlagen: ' + t);
+        }
+    } catch (e) { alert('Ablage fehlgeschlagen: ' + e.message); }
+}
+
+// ── Aufhebungsvereinbarung (Walter 28.07.2026): einvernehmliche Auflösung.
+// Gleicher Ablauf wie Kündigungsbestätigung: Modal → PDF → Vorschau → Ablage.
+let _avEmpId = null;
+
+function _avEnsureModal() {
+    const old = document.getElementById('avModal');
+    if (old) old.remove();
+    const div = document.createElement('div');
+    div.id = 'avModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
+    div.innerHTML = `
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:480px;width:94%;padding:22px 24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:16px;font-weight:800;color:#3f3f3f">Aufhebungsvereinbarung</div>
+            <button onclick="avClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+        </div>
+        <div style="font-size:12px;color:#646464;margin-bottom:14px">Einvernehmliche Auflösung des Arbeitsverhältnisses — inkl. Swica-Blatt, Referenzangaben und PK-Überweisung. Unterschrift AG und MA.</div>
+        <label style="font-size:11.5px;font-weight:700;color:#646464">Arbeitsverhältnis seit</label>
+        <input type="date" id="avVon" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
+        <label style="font-size:11.5px;font-weight:700;color:#646464">Auflösung per</label>
+        <input type="date" id="avPer" onchange="avSuggestLohnBis()" oninput="avSuggestLohnBis()" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
+        <label style="font-size:11.5px;font-weight:700;color:#646464">Letzter Lohn bis spätestens</label>
+        <input type="date" id="avLohnBis" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:4px">
+        <div style="font-size:11.5px;color:#64748b;margin:0 0 12px">Vorschlag: 6 Tage nach Auflösung (anpassbar).</div>
+        <div style="margin-bottom:16px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
+            <label style="font-size:13px;margin-right:16px"><input type="radio" name="avZustell" value="P" checked> persönliche Aushändigung</label>
+            <label style="font-size:13px"><input type="radio" name="avZustell" value="E"> per Einschreiben</label>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px">
+            <button onclick="avClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button onclick="avGenerate()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Vereinbarung erstellen</button>
+        </div>
+    </div>`;
+    document.body.appendChild(div);
+    const perEl = div.querySelector('#avPer');
+    if (perEl) {
+        perEl.addEventListener('change', () => { avSuggestLohnBis(); });
+        perEl.addEventListener('input',  () => { avSuggestLohnBis(); });
+    }
+}
+
+/** Letzter Lohn = Auflösung + 6 Tage (wie Walter-Vorlage 31.07 → 06.08). */
+window.avSuggestLohnBis = function avSuggestLohnBis() {
+    const per = document.getElementById('avPer')?.value || '';
+    const bis = document.getElementById('avLohnBis');
+    if (!per || !bis) return;
+    const d = new Date(per + 'T00:00:00');
+    if (isNaN(d.getTime())) return;
+    d.setDate(d.getDate() + 6);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    bis.value = `${y}-${m}-${day}`;
+};
+
+async function avOpen(empId) {
+    _avEnsureModal();
+    _avEmpId = empId;
+    document.getElementById('avVon').value = '';
+    document.getElementById('avPer').value = '';
+    document.getElementById('avLohnBis').value = '';
+    document.getElementById('avModal').style.display = 'flex';
+    try {
+        // Eintritt / Vertragsbeginn + ggf. bereits erfasste Kündigung per
+        const [re, ri] = await Promise.all([
+            fetch(`/api/employees/${empId}`, { headers: ah() }),
+            fetch(`/api/kuendigung/${empId}/info`, { headers: ah() })
+        ]);
+        if (re.ok) {
+            const e = await re.json();
+            if (e?.kuendigungPer)
+                document.getElementById('avPer').value = String(e.kuendigungPer).slice(0, 10);
+            // EntryDate als Fallback für «Arbeitsverhältnis seit»
+            if (e?.entryDate)
+                document.getElementById('avVon').value = String(e.entryDate).slice(0, 10);
+        }
+        if (ri.ok) {
+            const info = await ri.json();
+            if (info?.entryDate && !document.getElementById('avVon').value)
+                document.getElementById('avVon').value = String(info.entryDate).slice(0, 10);
+            // Aktiver Vertrag oft präziser als EntryDate — ContractStart wenn vorhanden
+            // (info liefert entryDate; Vertrag separat nur wenn Entry leer blieb)
+        }
+        // Vertrag-Startdatum bevorzugt (genaueres «Arbeitsverhältnis vom»)
+        try {
+            const rv = await fetch(`/api/employments/employee/${empId}`, { headers: ah() });
+            if (rv.ok) {
+                const list = await rv.json();
+                const arr = Array.isArray(list) ? list : (list?.items || list?.data || []);
+                const active = arr.find(x => x.isActive) || arr[0];
+                const start = active?.contractStartDate;
+                if (start)
+                    document.getElementById('avVon').value = String(start).slice(0, 10);
+            }
+        } catch (_) {}
+        if (document.getElementById('avPer').value)
+            avSuggestLohnBis();
+    } catch (_) {}
+}
+
+function avClose() {
+    const m = document.getElementById('avModal');
+    if (m) m.style.display = 'none';
+}
+
+async function avGenerate() {
+    if (!_avEmpId) return;
+    const von = document.getElementById('avVon').value;
+    const per = document.getElementById('avPer').value;
+    const lohnBis = document.getElementById('avLohnBis').value;
+    if (!von) return alert('Bitte den Beginn des Arbeitsverhältnisses angeben.');
+    if (!per) return alert('Bitte das «Auflösung per»-Datum angeben.');
+    if (!lohnBis) return alert('Bitte das Datum «letzter Lohn bis spätestens» angeben.');
+    const dto = {
+        arbeitsverhaeltnisVon: von,
+        aufhebungPer:          per,
+        letzterLohnBis:        lohnBis,
+        eingeschrieben: document.querySelector('input[name="avZustell"]:checked')?.value === 'E'
+    };
+    try {
+        const r = await fetch(`/api/kuendigung/${_avEmpId}/aufhebung-pdf`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(dto)
+        });
+        if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).message || t; } catch(_){} return alert('PDF-Fehler: ' + t); }
+        const blob = await r.blob();
+        avClose();
+        const empId = _avEmpId;
+        const perIso = per;
+        previewFileModal(blob, 'Aufhebungsvereinbarung.pdf');
+        if (typeof filePreviewOnClose === 'function') {
+            filePreviewOnClose(async () => {
+                const ablegen = await liquidConfirm(
+                    'Soll die Aufhebungsvereinbarung beim Mitarbeiter abgelegt werden?\n\nAblage: Vertragsunterlagen › Kündigung als «Aufhebungsvereinbarung per ' + _krFmtCh(perIso) + '».',
+                    { title: 'Dokument ablegen?', yesLabel: 'Ja, ablegen', noLabel: 'Nein' });
+                if (ablegen) await _avDokumentAblegen(empId, blob, perIso);
+            });
+        }
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+async function _avDokumentAblegen(empId, blob, aufhebungPerIso) {
+    try {
+        const rt = await fetch('/api/documents/taxonomie', { headers: ah() });
+        if (!rt.ok) return alert('Ablage fehlgeschlagen: Dokument-Struktur nicht ladbar.');
+        const taxonomy = await rt.json();
+        let typ = null;
+        const isKuend = t => (t.name || '').toLowerCase().startsWith('kündigung')
+                          || (t.name || '').toLowerCase().startsWith('kuendigung');
+        for (const k of taxonomy) {
+            const t = (k.typen || []).find(isKuend);
+            if (t && (k.name || '').toLowerCase().includes('vertrag')) { typ = t; break; }
+            if (t && !typ) typ = t;
+        }
+        if (!typ) return alert('Ablage fehlgeschlagen: kein Dokument-Typ «Kündigung» in der Dokument-Struktur gefunden.');
+
+        const branch = (typeof allBranches !== 'undefined' ? allBranches : [])
+            .find(b => b.id === Number(typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : 0))
+            || (typeof allBranches !== 'undefined' ? allBranches[0] : null);
+        const branchCode = branch?.restaurantCode || '';
+        if (!branchCode) return alert('Ablage fehlgeschlagen: keine Filiale gewählt.');
+
+        const titel = `Aufhebungsvereinbarung per ${_krFmtCh(aufhebungPerIso)}`;
+        const filename = `${titel.replace(/[^A-Za-z0-9äöüÄÖÜ ._-]/g, '')}.pdf`;
+        const fd = new FormData();
+        fd.append('file', blob, filename);
+        fd.append('employeeId', String(empId));
+        fd.append('dokumentTypId', String(typ.id));
+        fd.append('branchCode', branchCode);
+        fd.append('bemerkung', titel);
         const ru = await fetch('/api/documents/upload', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${authToken}` },
