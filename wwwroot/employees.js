@@ -12814,7 +12814,7 @@ function _raTilesHtml() {
     // Reihenfolge Bewerbung zuerst (Walter 28.07.2026).
     const tile = (img, title, onclick) => `
         <button type="button" class="ra-tile" onclick="${onclick}">
-            <img src="img/${encodeURI(img)}?v=20260728b" alt="" loading="lazy">
+            <img src="img/${encodeURI(img)}?v=20260728c" alt="" loading="lazy">
             <span>${title}</span>
         </button>`;
     const kontoTiles = selectedEmployee?.isPayrollExcluded ? '' : `

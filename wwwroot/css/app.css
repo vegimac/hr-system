@@ -9192,6 +9192,8 @@ body.theme-dark .kz-menu-item:hover { color: #ffffff; }
 .ra-tile img { width: 96px; height: 96px; object-fit: contain; display: block; }
 body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #d6d3cc; }
 body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
+/* Bewerbungsbogen-Icon kommt mit schwarzem Hintergrund 1:1 — nicht invertieren. */
+body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: none; }
 
         /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
         #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }
