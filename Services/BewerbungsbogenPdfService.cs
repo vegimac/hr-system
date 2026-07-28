@@ -97,7 +97,8 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "AHV-Nummer"));
             });
-            col.Item().PaddingTop(12).Element(e => TwoFields(e, "Zivilstand", "Anzahl Kinder"));
+            col.Item().PaddingTop(12).Element(e => TwoFields(e, "Geschlecht", "Zivilstand"));
+            col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Anzahl Kinder"));
             col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Namen, Geburtstag der Kinder"));
             col.Item().PaddingTop(12).Row(r =>
             {
