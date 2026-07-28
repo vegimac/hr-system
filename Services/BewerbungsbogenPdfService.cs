@@ -82,17 +82,17 @@ public class BewerbungsbogenPdfService
                     .FontSize(8f).FontColor(Muted).Italic();
             });
 
-            col.Item().PaddingTop(5).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Adresse", "E-Mail"));
-            col.Item().PaddingTop(4).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
-            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
-            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Geburtsort", "Heimatort"));
-            col.Item().PaddingTop(4).Row(r =>
+            col.Item().PaddingTop(7).Element(e => TwoFields(e, "Name", "Vorname"));
+            col.Item().PaddingTop(7).Element(e => TwoFields(e, "Adresse", "E-Mail"));
+            col.Item().PaddingTop(7).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
+            col.Item().PaddingTop(7).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
+            col.Item().PaddingTop(7).Element(e => TwoFields(e, "Geburtsort", "Heimatort"));
+            col.Item().PaddingTop(7).Row(r =>
             {
                 r.RelativeItem().Column(c =>
                 {
                     c.Item().Text("Quellensteuerpflichtig?").FontSize(8.5f);
-                    c.Item().PaddingTop(2).Row(x =>
+                    c.Item().PaddingTop(3).Row(x =>
                     {
                         x.AutoItem().Element(Check);
                         x.ConstantItem(5);
@@ -106,9 +106,9 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(10);
                 r.RelativeItem().Element(f => LabeledLine(f, "AHV-Nummer"));
             });
-            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Zivilstand", "Anzahl Kinder"));
-            col.Item().PaddingTop(4).Element(e => LabeledLine(e, "Namen, Geburtstag der Kinder"));
-            col.Item().PaddingTop(4).Row(r =>
+            col.Item().PaddingTop(7).Element(e => TwoFields(e, "Zivilstand", "Anzahl Kinder"));
+            col.Item().PaddingTop(7).Element(e => LabeledLine(e, "Namen, Geburtstag der Kinder"));
+            col.Item().PaddingTop(7).Row(r =>
             {
                 r.AutoItem().AlignMiddle().Text("Ausweis (nur für Ausländer)").FontSize(8.5f);
                 r.ConstantItem(12);
@@ -121,14 +121,14 @@ public class BewerbungsbogenPdfService
                 r.AutoItem().AlignMiddle().Text("C").FontSize(8.5f);
             });
 
-            col.Item().PaddingTop(8).Element(e => SectionTitle(e, "Schulen / Berufserfahrung"));
-            col.Item().PaddingTop(3).Element(e =>
-                SimpleTable(e, new[] { "Schule", "Ort", "von", "bis" },
-                    new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 2));
+            col.Item().PaddingTop(10).Element(e => SectionTitle(e, "Schulen / Berufserfahrung"));
             col.Item().PaddingTop(5).Element(e =>
-                SimpleTable(e, new[] { "Bisherige Arbeitgeber", "tätig als", "von", "bis" },
-                    new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 2));
-            col.Item().PaddingTop(4).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
+                OpenLinesTable(e, new[] { "Schule", "Ort", "von", "bis" },
+                    new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 3));
+            col.Item().PaddingTop(8).Element(e =>
+                OpenLinesTable(e, new[] { "Bisherige Arbeitgeber", "tätig als", "von", "bis" },
+                    new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 3));
+            col.Item().PaddingTop(7).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
 
             col.Item().PaddingTop(7).Text("Sprachkenntnisse").SemiBold().FontSize(9f);
             col.Item().PaddingTop(2).Element(LangGrid);
@@ -166,14 +166,14 @@ public class BewerbungsbogenPdfService
         page.Content().PaddingTop(8).Column(col =>
         {
             col.Item().Element(e => SectionTitle(e, "Angaben über den Ehepartner"));
-            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Geburtsort", "Aufenthaltsort"));
-            col.Item().PaddingTop(4).Row(r =>
+            col.Item().PaddingTop(7).Element(e => TwoFields(e, "Name", "Vorname"));
+            col.Item().PaddingTop(7).Element(e => TwoFields(e, "Geburtsort", "Aufenthaltsort"));
+            col.Item().PaddingTop(7).Row(r =>
             {
                 r.RelativeItem().Column(c =>
                 {
                     c.Item().Text("Arbeitet Ehemann / Ehefrau?").FontSize(8.5f);
-                    c.Item().PaddingTop(2).Row(x =>
+                    c.Item().PaddingTop(3).Row(x =>
                     {
                         x.AutoItem().Element(Check);
                         x.ConstantItem(5);
@@ -187,12 +187,12 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(10);
                 r.RelativeItem().Element(f => LabeledLine(f, "Ausweis"));
             });
-            col.Item().PaddingTop(4).Element(e => LabeledLine(e, "Arbeitgeber des Ehepartners, Adresse"));
+            col.Item().PaddingTop(7).Element(e => LabeledLine(e, "Arbeitgeber des Ehepartners, Adresse"));
 
-            col.Item().PaddingTop(10).Element(e => SectionTitle(e, "Ergänzende Angaben"));
-            col.Item().PaddingTop(4).Element(e => LabeledLine(e, "Krankenkasse"));
-            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
-            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
+            col.Item().PaddingTop(12).Element(e => SectionTitle(e, "Ergänzende Angaben"));
+            col.Item().PaddingTop(7).Element(e => LabeledLine(e, "Krankenkasse"));
+            col.Item().PaddingTop(7).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
+            col.Item().PaddingTop(7).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
 
             col.Item().PaddingTop(6).Text("Haben Sie schon einmal bei McDonald's gearbeitet?").FontSize(8.5f);
             col.Item().PaddingTop(2).Row(r =>
@@ -323,30 +323,33 @@ public class BewerbungsbogenPdfService
         });
     }
 
-    private static void SimpleTable(IContainer e, string[] headers, float[] weights, int emptyRows)
+    /// <summary>
+    /// Offene Spalten ohne Gitternetz: nur Spaltenköpfe + weit auseinander
+    /// liegende Punktlinien (Walter 28.07.2026 — viel weniger Striche).
+    /// </summary>
+    private static void OpenLinesTable(IContainer e, string[] headers, float[] weights, int emptyRows)
     {
-        e.Table(t =>
+        e.Column(col =>
         {
-            t.ColumnsDefinition(cols =>
+            col.Item().Row(r =>
             {
-                foreach (var w in weights)
-                    cols.RelativeColumn(w);
-            });
-            t.Header(h =>
-            {
-                foreach (var head in headers)
+                for (var i = 0; i < headers.Length; i++)
                 {
-                    h.Cell().Border(0.5f).BorderColor(Line).Background("#f6f3ee")
-                        .Padding(3).Text(head).FontSize(7.5f).SemiBold().FontColor(Muted);
+                    if (i > 0) r.ConstantItem(10);
+                    r.RelativeItem(weights[i]).Text(headers[i])
+                        .FontSize(8f).SemiBold().FontColor(Muted);
                 }
             });
-            for (var i = 0; i < emptyRows; i++)
+            for (var row = 0; row < emptyRows; row++)
             {
-                foreach (var _ in headers)
+                col.Item().PaddingTop(row == 0 ? 4 : 10).Row(r =>
                 {
-                    t.Cell().Border(0.5f).BorderColor(Line).PaddingVertical(7).PaddingHorizontal(3)
-                        .Element(DottedFill);
-                }
+                    for (var i = 0; i < headers.Length; i++)
+                    {
+                        if (i > 0) r.ConstantItem(10);
+                        r.RelativeItem(weights[i]).Element(DottedFill);
+                    }
+                });
             }
         });
     }
