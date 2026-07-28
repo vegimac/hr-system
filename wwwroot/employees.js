@@ -7632,9 +7632,7 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
             const actionsHtml  = isLocked
                 ? `<span title="Diese Absenz liegt in einer bereits verarbeiteten Lohnperiode und ist nicht mehr editierbar." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
                 : `<div class="dok-menu-wrap">
-                       <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="absToggleMenu(event, ${a.id})" title="Aktionen" aria-label="Aktionen">
-                           <span class="dok-menu-dots" aria-hidden="true"><span></span><span></span><span></span></span>
-                       </button>
+                       <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="absToggleMenu(event, ${a.id})" title="Aktionen" aria-label="Aktionen"><span class="dok-menu-dots" aria-hidden="true"></span></button>
                        <div class="dok-menu" id="absMenu-${a.id}">
                            <button class="dok-menu-item" onclick='openAbsenceModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>Bearbeiten</button>
                            <button class="dok-menu-item danger" onclick="deleteAbsence(${a.id})">Löschen</button>
