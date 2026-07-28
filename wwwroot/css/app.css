@@ -5206,28 +5206,74 @@
         #page-mitarbeiter.liquid-employee .abs-col-period { width: 11rem; }
         #page-mitarbeiter.liquid-employee .abs-col-days { width: 5rem; }
         #page-mitarbeiter.liquid-employee .abs-col-hours { width: 9rem; }
-        #page-mitarbeiter.liquid-employee .abs-col-notes { width: auto; min-width: 8rem; }
-        #page-mitarbeiter.liquid-employee .abs-col-actions { width: 168px; min-width: 168px; }
-        /* Aktions-Spalte sticky rechts — ⋮ bleibt sichtbar beim Horizontal-Scroll. */
+        #page-mitarbeiter.liquid-employee .abs-col-notes { width: auto; min-width: 6rem; }
+        #page-mitarbeiter.liquid-employee .abs-col-actions { width: 1%; min-width: 5.5rem; }
+        /* Aktionszelle = Teil der Zeile (kein sticky-Streifen mit eigener Farbe) —
+           gleiches Muster wie .dok-td-actions. Auf schmalen Macs überdeckte der
+           opaque Sticky-Streifen die Bemerkung und liess Doku/⋮ «schweben». */
         #page-mitarbeiter.liquid-employee .abs-table th:last-child,
         #page-mitarbeiter.liquid-employee .abs-table td.abs-actions {
-            position: sticky;
-            right: 0;
-            z-index: 3;
-            background: #faf8f5;
-            box-shadow: -8px 0 12px -8px rgba(60, 55, 48, 0.22);
+            position: static;
+            right: auto;
+            z-index: auto;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 6px 10px 6px 6px !important;
+            vertical-align: middle;
+            white-space: nowrap;
+            text-align: right;
         }
         #page-mitarbeiter.liquid-employee .abs-cols .abs-table th:last-child {
-            background: #f6f3ee;
-            z-index: 4;
+            background: transparent !important;
+            z-index: auto;
         }
-        body.theme-dark #page-mitarbeiter.liquid-employee .abs-table th:last-child,
-        body.theme-dark #page-mitarbeiter.liquid-employee .abs-table td.abs-actions {
-            background: #161e2a;
-            box-shadow: -8px 0 12px -8px rgba(0, 0, 0, 0.45);
+        #page-mitarbeiter.liquid-employee .abs-actions {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+            width: auto;
         }
-        body.theme-dark #page-mitarbeiter.liquid-employee .abs-cols .abs-table th:last-child {
-            background: #1c2634;
+        #page-mitarbeiter.liquid-employee .abs-actions > * + * { margin-left: 0; }
+        #page-mitarbeiter.liquid-employee .abs-dok-btn {
+            background: rgba(255, 255, 255, 0.55);
+            border: 1px solid rgba(90, 80, 65, 0.14);
+            color: #646464;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            line-height: 1;
+            height: 30px;
+            box-shadow: 0 1px 2px rgba(60, 55, 48, 0.06);
+            flex-shrink: 0;
+        }
+        #page-mitarbeiter.liquid-employee .abs-dok-btn:hover {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(90, 80, 65, 0.28);
+            color: #3f3f3f;
+            box-shadow: 0 2px 8px rgba(60, 55, 48, 0.10);
+        }
+        #page-mitarbeiter.liquid-employee .abs-notes {
+            max-width: 14rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .abs-dok-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(165, 215, 255, 0.22);
+            color: #cbd5e1;
+            box-shadow: none;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .abs-dok-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(165, 215, 255, 0.40);
+            color: #f1f5f9;
         }
         #page-mitarbeiter.liquid-employee .abs-cols .abs-table thead th {
             position: static !important;

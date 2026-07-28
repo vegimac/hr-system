@@ -7612,10 +7612,9 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
             // mit Text „Doku" — das ist eine eigene Aktion (Sprung in den Doku-
             // Tab), nicht „Edit/Delete dieser Zeile", deshalb NICHT ins ⋮-Menü.
             const docBtn = (a.absenceType === 'KRANK' || a.absenceType === 'UNFALL')
-                ? `<button title="Arztzeugnis im Dokumente-Tab öffnen"
-                           onclick="openAbsenceArztzeugnis()"
-                           style="background:#ece9e2;border:1px solid #d0c8b8;cursor:pointer;color:#6b7280;padding:5px 10px;border-radius:6px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
-                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                ? `<button type="button" class="abs-dok-btn" title="Arztzeugnis im Dokumente-Tab öffnen"
+                           onclick="openAbsenceArztzeugnis()">
+                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                          <polyline points="14 2 14 8 20 8"/>
                          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
@@ -7633,7 +7632,9 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
             const actionsHtml  = isLocked
                 ? `<span title="Diese Absenz liegt in einer bereits verarbeiteten Lohnperiode und ist nicht mehr editierbar." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
                 : `<div class="dok-menu-wrap">
-                       <button class="dok-menu-btn" onclick="absToggleMenu(event, ${a.id})" title="Aktionen">⋮</button>
+                       <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="absToggleMenu(event, ${a.id})" title="Aktionen" aria-label="Aktionen">
+                           <span class="dok-menu-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                       </button>
                        <div class="dok-menu" id="absMenu-${a.id}">
                            <button class="dok-menu-item" onclick='openAbsenceModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>Bearbeiten</button>
                            <button class="dok-menu-item danger" onclick="deleteAbsence(${a.id})">Löschen</button>
