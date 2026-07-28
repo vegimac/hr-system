@@ -1,4 +1,3 @@
-using System.Globalization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -25,7 +24,8 @@ public class BewerbungsbogenPdfService
     private const string Body = "#646464";
     private const string Muted = "#8b8b8b";
     private const string Soft = "#f6f3ee";
-    private const string Line = "#b8b4ac";
+    // Schreiblinien wie Probezeitgespräch (Walter 28.07.2026).
+    private const string Line = "#9a958c";
     private const string Rule = "#d4d0c8";
 
     private static byte[]? _bannerBytes;
@@ -108,7 +108,7 @@ public class BewerbungsbogenPdfService
                     new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 2));
             col.Item().PaddingTop(14).Element(e =>
                 OpenLinesTable(e, new[] { "Bisherige Arbeitgeber", "tätig als", "von", "bis" },
-                    new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 2, strong: true));
+                    new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 2));
             col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
 
             col.Item().PaddingTop(16).Element(e => SectionHead(e, "Sprachkenntnisse", null));
@@ -244,27 +244,22 @@ public class BewerbungsbogenPdfService
         {
             r.AutoItem().Element(Check);
             r.ConstantItem(5);
-            r.AutoItem().AlignMiddle().Text(label).FontSize(8.5f).FontColor(Body);
+            r.AutoItem().AlignMiddle().Text(label).FontSize(8.5f).FontColor(Ink);
         });
     }
 
-    /// <summary>Hohe Schreibzeile — genug Luft fuer Handschrift.</summary>
+    /// <summary>
+    /// Schreibzeile wie Probezeitgespräch: feste Hoehe, durchgezogene
+    /// BorderBottom-Linie (#9a958c, 0.55pt) — Walter 28.07.2026.
+    /// </summary>
     private static void WriteLine(IContainer e) => WriteLineAt(e, 16f);
 
-    private static void WriteLineAt(IContainer e, float height, bool strong = false)
+    private static void WriteLineAt(IContainer e, float height)
     {
-        // Wichtig: kein MinHeight+Height-Konflikt (QuestPDF DocumentLayoutException → HTTP 500).
-        var stroke = strong ? Body : Line;
-        var width = strong ? "1.35" : "0.8";
-        e.Height(height).AlignBottom().Element(line =>
-            line.Height(2.6f).Svg(size =>
-            {
-                var w = size.Width.ToString("0.###", CultureInfo.InvariantCulture);
-                return
-                    $"<svg width=\"{w}\" height=\"3\" viewBox=\"0 0 {w} 3\" xmlns=\"http://www.w3.org/2000/svg\">" +
-                    $"<line x1=\"0\" y1=\"2\" x2=\"{w}\" y2=\"2\" stroke=\"{stroke}\" stroke-width=\"{width}\" " +
-                    "stroke-dasharray=\"1 2\" stroke-linecap=\"round\"/></svg>";
-            }));
+        // Wie ProbezeitberichtPdfService.HandLineSlot — kein SVG-Punktmuster.
+        e.Height(height).AlignBottom()
+            .BorderBottom(0.55f).BorderColor(Line)
+            .Text(" ");
     }
 
     private static void LabeledLine(IContainer e, string label)
@@ -272,7 +267,7 @@ public class BewerbungsbogenPdfService
         e.Row(r =>
         {
             r.AutoItem().AlignBottom().PaddingBottom(2)
-                .Text(label).FontSize(8.5f).FontColor(Body);
+                .Text(label).FontSize(8.5f).FontColor(Ink);
             r.ConstantItem(8);
             r.RelativeItem().Element(WriteLine);
         });
@@ -284,7 +279,7 @@ public class BewerbungsbogenPdfService
         e.Row(r =>
         {
             r.AutoItem().AlignBottom().PaddingBottom(2)
-                .Text(label).FontSize(8.5f).FontColor(Body);
+                .Text(label).FontSize(8.5f).FontColor(Ink);
             r.ConstantItem(8);
             r.RelativeItem().Element(f => WriteLineAt(f, 24f));
         });
@@ -304,7 +299,7 @@ public class BewerbungsbogenPdfService
     {
         e.Column(c =>
         {
-            c.Item().Text(label).FontSize(8.5f).FontColor(Body);
+            c.Item().Text(label).FontSize(8.5f).FontColor(Ink);
             c.Item().PaddingTop(5).Row(x =>
             {
                 x.AutoItem().Element(ch => CheckLabel(ch, "ja"));
@@ -318,15 +313,14 @@ public class BewerbungsbogenPdfService
     {
         e.Row(r =>
         {
-            r.RelativeItem().AlignMiddle().Text(label).FontSize(8.5f).FontColor(Body);
+            r.RelativeItem().AlignMiddle().Text(label).FontSize(8.5f).FontColor(Ink);
             r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
             r.ConstantItem(14);
             r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
         });
     }
 
-    private static void OpenLinesTable(IContainer e, string[] headers, float[] weights, int emptyRows,
-        bool strong = false)
+    private static void OpenLinesTable(IContainer e, string[] headers, float[] weights, int emptyRows)
     {
         e.Column(col =>
         {
@@ -335,11 +329,8 @@ public class BewerbungsbogenPdfService
                 for (var i = 0; i < headers.Length; i++)
                 {
                     if (i > 0) r.ConstantItem(12);
-                    var cell = r.RelativeItem(weights[i]).Text(headers[i]);
-                    if (strong)
-                        cell.SemiBold().FontSize(9f).FontColor(Ink);
-                    else
-                        cell.FontSize(8f).FontColor(Muted);
+                    r.RelativeItem(weights[i]).Text(headers[i])
+                        .FontSize(8f).FontColor(Ink);
                 }
             });
             for (var row = 0; row < emptyRows; row++)
@@ -350,7 +341,7 @@ public class BewerbungsbogenPdfService
                     for (var i = 0; i < headers.Length; i++)
                     {
                         if (i > 0) r.ConstantItem(12);
-                        r.RelativeItem(weights[i]).Element(f => WriteLineAt(f, 16f, strong));
+                        r.RelativeItem(weights[i]).Element(WriteLine);
                     }
                 });
             }
@@ -371,14 +362,14 @@ public class BewerbungsbogenPdfService
 
             t.Cell().PaddingBottom(4).Text("");
             foreach (var h in new[] { "sehr gut", "gut", "Grundkenntnisse" })
-                t.Cell().PaddingBottom(4).AlignCenter().Text(h).FontSize(7.5f).FontColor(Muted);
+                t.Cell().PaddingBottom(4).AlignCenter().Text(h).FontSize(7.5f).FontColor(Ink);
 
             void LangRow(string name, bool free = false)
             {
                 if (free)
                     t.Cell().PaddingVertical(6).PaddingRight(8).Element(WriteLine);
                 else
-                    t.Cell().PaddingVertical(6).AlignMiddle().Text(name).FontSize(8.5f).FontColor(Body);
+                    t.Cell().PaddingVertical(6).AlignMiddle().Text(name).FontSize(8.5f).FontColor(Ink);
                 for (var i = 0; i < 3; i++)
                     t.Cell().PaddingVertical(6).AlignCenter().Element(Check);
             }
@@ -411,8 +402,8 @@ public class BewerbungsbogenPdfService
             {
                 t.Cell().Border(0.6f).BorderColor(Rule).PaddingVertical(4).PaddingHorizontal(3).Row(r =>
                 {
-                    r.RelativeItem().AlignCenter().Text("von").FontSize(7.5f).FontColor(Muted);
-                    r.RelativeItem().AlignCenter().Text("bis").FontSize(7.5f).FontColor(Muted);
+                    r.RelativeItem().AlignCenter().Text("von").FontSize(7.5f).FontColor(Ink);
+                    r.RelativeItem().AlignCenter().Text("bis").FontSize(7.5f).FontColor(Ink);
                 });
             }
 
