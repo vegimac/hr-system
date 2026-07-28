@@ -41,12 +41,19 @@ public class BewerbungsbogenController : ControllerBase
         var plzOrt = string.Join(" ", new[] { cp.ZipCode, cp.City }
             .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
 
+        var permitCodes = await _db.PermitTypes.AsNoTracking()
+            .Where(p => p.IsActive)
+            .OrderBy(p => p.Code)
+            .Select(p => p.Code)
+            .ToListAsync();
+
         var bytes = _pdf.Generate(new BewerbungsbogenInput(
             CompanyName: cp.CompanyName,
             RestaurantName: cp.BranchName,
             Strasse: string.IsNullOrWhiteSpace(street) ? null : street,
             PlzOrt: string.IsNullOrWhiteSpace(plzOrt) ? null : plzOrt,
-            Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim()));
+            Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim(),
+            PermitCodes: permitCodes));
 
         var safeCity = (cp.City ?? cp.BranchName ?? "Filiale")
             .Replace(" ", "_", StringComparison.Ordinal);
