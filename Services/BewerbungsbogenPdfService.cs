@@ -1,3 +1,4 @@
+using System.Globalization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -6,8 +7,8 @@ namespace HrSystem.Services;
 
 /// <summary>
 /// Blanko-Bewerbungsbogen als PDF (Walter 27.07.2026) — Inhalt aus dem
-/// bisherigen «Bewerbungsbogen neu.doc». Ausfüll-Linien als feine Linien
-/// (keine Unterstriche). Filialadresse aus CompanyProfile. 2 Seiten A4.
+/// bisherigen «Bewerbungsbogen neu.doc». Ausfüllfelder: Label + feine
+/// Punktlinie (Name ·····). Filialadresse aus CompanyProfile. 2 Seiten A4.
 /// </summary>
 public record BewerbungsbogenInput(
     string CompanyName,
@@ -55,12 +56,10 @@ public class BewerbungsbogenPdfService
                 .Text("Bewerbungsbogen").Bold().FontSize(11f).FontColor(Dark);
         });
 
-        page.Content().PaddingTop(6).Column(col =>
+        page.Content().PaddingTop(4).Column(col =>
         {
-            col.Item().AlignCenter().Text("Bitte in Blockschrift ausfüllen")
-                .FontSize(8.5f).FontColor(Muted).Italic();
-
-            col.Item().PaddingTop(6).Column(c =>
+            // Restaurant-Adresse direkt unter dem gelben Balken (Walter 28.07.2026).
+            col.Item().Column(c =>
             {
                 var titel = string.IsNullOrWhiteSpace(d.RestaurantName)
                     ? d.CompanyName
@@ -74,18 +73,25 @@ public class BewerbungsbogenPdfService
                     c.Item().Text(d.Telefon!).FontSize(9f);
             });
 
-            // Personalien ohne Unterstrich (Walter 28.07.2026).
-            col.Item().PaddingTop(10).Text("Personalien").Bold().FontSize(10f);
-            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(3).Element(e => TwoFields(e, "Adresse", "E-Mail"));
-            col.Item().PaddingTop(3).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
-            col.Item().PaddingTop(3).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
-            col.Item().PaddingTop(3).Element(e => TwoFields(e, "Geburtsort", "Heimatort"));
-            col.Item().PaddingTop(3).Row(r =>
+            // Personalien + Blockschrift-Hinweis in einer Zeile.
+            col.Item().PaddingTop(10).Row(r =>
+            {
+                r.AutoItem().AlignMiddle().Text("Personalien").Bold().FontSize(10f);
+                r.ConstantItem(10);
+                r.AutoItem().AlignMiddle().Text("Bitte in Blockschrift ausfüllen")
+                    .FontSize(8f).FontColor(Muted).Italic();
+            });
+
+            col.Item().PaddingTop(5).Element(e => TwoFields(e, "Name", "Vorname"));
+            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Adresse", "E-Mail"));
+            col.Item().PaddingTop(4).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
+            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
+            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Geburtsort", "Heimatort"));
+            col.Item().PaddingTop(4).Row(r =>
             {
                 r.RelativeItem().Column(c =>
                 {
-                    c.Item().Text("Quellensteuerpflichtig?").FontSize(8f).FontColor(Muted);
+                    c.Item().Text("Quellensteuerpflichtig?").FontSize(8.5f);
                     c.Item().PaddingTop(2).Row(x =>
                     {
                         x.AutoItem().Element(Check);
@@ -100,11 +106,11 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(10);
                 r.RelativeItem().Element(f => LabeledLine(f, "AHV-Nummer"));
             });
-            col.Item().PaddingTop(3).Element(e => TwoFields(e, "Zivilstand", "Anzahl Kinder"));
-            col.Item().PaddingTop(3).Element(e => LabeledLine(e, "Namen, Geburtstag der Kinder"));
-            col.Item().PaddingTop(3).Row(r =>
+            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Zivilstand", "Anzahl Kinder"));
+            col.Item().PaddingTop(4).Element(e => LabeledLine(e, "Namen, Geburtstag der Kinder"));
+            col.Item().PaddingTop(4).Row(r =>
             {
-                r.AutoItem().AlignMiddle().Text("Ausweis (nur für Ausländer)").FontSize(8f).FontColor(Muted);
+                r.AutoItem().AlignMiddle().Text("Ausweis (nur für Ausländer)").FontSize(8.5f);
                 r.ConstantItem(12);
                 r.AutoItem().Element(Check);
                 r.ConstantItem(4);
@@ -161,12 +167,12 @@ public class BewerbungsbogenPdfService
         {
             col.Item().Element(e => SectionTitle(e, "Angaben über den Ehepartner"));
             col.Item().PaddingTop(4).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(3).Element(e => TwoFields(e, "Geburtsort", "Aufenthaltsort"));
-            col.Item().PaddingTop(3).Row(r =>
+            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Geburtsort", "Aufenthaltsort"));
+            col.Item().PaddingTop(4).Row(r =>
             {
                 r.RelativeItem().Column(c =>
                 {
-                    c.Item().Text("Arbeitet Ehemann / Ehefrau?").FontSize(8f).FontColor(Muted);
+                    c.Item().Text("Arbeitet Ehemann / Ehefrau?").FontSize(8.5f);
                     c.Item().PaddingTop(2).Row(x =>
                     {
                         x.AutoItem().Element(Check);
@@ -181,12 +187,12 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(10);
                 r.RelativeItem().Element(f => LabeledLine(f, "Ausweis"));
             });
-            col.Item().PaddingTop(3).Element(e => LabeledLine(e, "Arbeitgeber des Ehepartners, Adresse"));
+            col.Item().PaddingTop(4).Element(e => LabeledLine(e, "Arbeitgeber des Ehepartners, Adresse"));
 
             col.Item().PaddingTop(10).Element(e => SectionTitle(e, "Ergänzende Angaben"));
             col.Item().PaddingTop(4).Element(e => LabeledLine(e, "Krankenkasse"));
-            col.Item().PaddingTop(3).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
-            col.Item().PaddingTop(3).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
+            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
+            col.Item().PaddingTop(4).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
 
             col.Item().PaddingTop(6).Text("Haben Sie schon einmal bei McDonald's gearbeitet?").FontSize(8.5f);
             col.Item().PaddingTop(2).Row(r =>
@@ -213,7 +219,7 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(4);
                 r.AutoItem().AlignMiddle().Text("Ja").FontSize(8.5f);
                 r.ConstantItem(6);
-                r.RelativeItem().Element(DottedFill);
+                r.RelativeItem().AlignMiddle().Element(DottedFill);
                 r.ConstantItem(8);
                 r.AutoItem().Element(Check);
                 r.ConstantItem(4);
@@ -267,16 +273,28 @@ public class BewerbungsbogenPdfService
     private static void Check(IContainer e) =>
         e.Width(10).Height(10).Border(0.9f).BorderColor(Dark);
 
-    /// <summary>Feine Ausfüll-Linie (ersetzt die alten Unterstriche).</summary>
-    private static void DottedFill(IContainer e) =>
-        e.Height(10).AlignBottom().BorderBottom(0.45f).BorderColor(Line);
+    /// <summary>Feine gepunktete Ausfüll-Linie (SVG stroke-dasharray).</summary>
+    private static void DottedFill(IContainer e)
+    {
+        e.Height(12).AlignBottom().Height(3).Svg(size =>
+        {
+            var w = size.Width.ToString("0.###", CultureInfo.InvariantCulture);
+            return
+                $"<svg width=\"{w}\" height=\"3\" viewBox=\"0 0 {w} 3\" xmlns=\"http://www.w3.org/2000/svg\">" +
+                $"<line x1=\"0\" y1=\"2\" x2=\"{w}\" y2=\"2\" stroke=\"{Line}\" stroke-width=\"0.9\" " +
+                "stroke-dasharray=\"1 1.7\" stroke-linecap=\"round\"/></svg>";
+        });
+    }
 
+    /// <summary>Label und Punktlinie in einer Zeile: «Name ·······».</summary>
     private static void LabeledLine(IContainer e, string label)
     {
-        e.Column(c =>
+        e.Row(r =>
         {
-            c.Item().Text(label).FontSize(8f).FontColor(Muted);
-            c.Item().PaddingTop(1).Element(DottedFill);
+            r.AutoItem().AlignBottom().PaddingBottom(1)
+                .Text(label).FontSize(8.5f).FontColor(Dark);
+            r.ConstantItem(6);
+            r.RelativeItem().Element(DottedFill);
         });
     }
 
@@ -285,7 +303,7 @@ public class BewerbungsbogenPdfService
         e.Row(r =>
         {
             r.RelativeItem().Element(f => LabeledLine(f, left));
-            r.ConstantItem(10);
+            r.ConstantItem(12);
             r.RelativeItem().Element(f => LabeledLine(f, right));
         });
     }
