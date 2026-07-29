@@ -364,6 +364,7 @@ window.i18n = (function () {
         'fam.field.maidenName':     { de: 'Ledigname',             en: 'Maiden name' },
         'fam.field.dob':            { de: 'Geburtsdatum',          en: 'Date of birth' },
         'fam.field.ahv':            { de: 'AHV-Nummer',            en: 'Social security #' },
+        'fam.field.phone':          { de: 'Telefon',               en: 'Phone' },
         'fam.field.livesInCh':      { de: 'In der Schweiz lebend', en: 'Lives in Switzerland' },
         'fam.field.livesInCh.short':{ de: 'Ja',                    en: 'Yes' },
         'fam.section.person':       { de: 'Person',                en: 'Person' },

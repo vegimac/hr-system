@@ -14,6 +14,13 @@ public class EmployeeFamilyMember
     public string? FirstName { get; set; }
 
     public string? SocialSecurityNumber { get; set; }
+
+    /// <summary>
+    /// Telefonnummer des Familienangehörigen (v.a. Ehepartner) —
+    /// gleiches Format wie beim MA (+41 79 333 44 55).
+    /// </summary>
+    public string? Phone { get; set; }
+
     public bool LivesInSwitzerland { get; set; } = false;
 
     public DateTime? DateOfBirth { get; set; }

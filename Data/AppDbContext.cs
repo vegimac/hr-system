@@ -818,6 +818,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MaidenName).HasColumnName("maiden_name");
             entity.Property(e => e.FirstName).HasColumnName("first_name");
             entity.Property(e => e.SocialSecurityNumber).HasColumnName("social_security_number");
+            entity.Property(e => e.Phone).HasColumnName("phone").HasMaxLength(50);
             entity.Property(e => e.LivesInSwitzerland).HasColumnName("lives_in_switzerland");
             entity.Property(e => e.DateOfBirth).HasColumnName("date_of_birth").HasColumnType("date");
             entity.Property(e => e.DateOfDeath).HasColumnName("date_of_death").HasColumnType("date");

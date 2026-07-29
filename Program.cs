@@ -1733,6 +1733,12 @@ using (var scope = app.Services.CreateScope())
             ON family_member_allowance(dokument_id);
     ");
 
+    // Walter 29.07.2026: Telefonnummer am Familienmitglied (v.a. Ehepartner).
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_family_member
+            ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+    ");
+
     // SSL-Nummern pro (Filiale, Kanton) — eigene Tabelle, weil ein Arbeitgeber
     // sich in jedem Kanton, in dem er QST-pflichtige MA beschäftigt, separat
     // anmelden muss und dort eine eigene Nummer erhält. Eine Filiale kann

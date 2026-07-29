@@ -77,6 +77,7 @@ public class EmployeeFamilyMembersController : ControllerBase
         m.MaidenName,
         m.FirstName,
         m.SocialSecurityNumber,
+        m.Phone,
         m.LivesInSwitzerland,
         m.DateOfBirth,
         m.DateOfDeath,
@@ -152,6 +153,7 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.MaidenName           = member.MaidenName;
         existing.FirstName            = member.FirstName;
         existing.SocialSecurityNumber = member.SocialSecurityNumber;
+        existing.Phone                = string.IsNullOrWhiteSpace(member.Phone) ? null : member.Phone.Trim();
         existing.LivesInSwitzerland   = member.LivesInSwitzerland;
         existing.DateOfBirth          = member.DateOfBirth;
         existing.DateOfDeath          = member.DateOfDeath;

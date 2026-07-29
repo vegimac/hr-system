@@ -3974,7 +3974,12 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             const name = ((m.firstName ?? '') + ' ' + (m.lastName ?? '')).trim() || '–';
             const dob  = m.dateOfBirth ? formatDate(m.dateOfBirth) : '';
             const age  = m.dateOfBirth ? calcAge(m.dateOfBirth) : null;
-            const meta = dob ? `${dob}${age !== null ? ' · ' + age + ' ' + yearsLabel : ''}` : '';
+            const phoneMeta = m.phone ? esc(m.phone) : '';
+            const metaParts = [
+                dob ? `${dob}${age !== null ? ' · ' + age + ' ' + yearsLabel : ''}` : '',
+                phoneMeta
+            ].filter(Boolean);
+            const meta = metaParts.join(' · ');
 
             // Walter-Vorgabe 07.06.2026: Beim EHEPARTNER (nicht bei Kindern!)
             // die Bewilligung + Ablaufdatum als Badge anzeigen, plus einen
@@ -4113,6 +4118,7 @@ function showFamilyDetailPopup(memberId) {
                 </div>
                 <div style="padding:14px 22px">
                     ${row(_t('fam.field.ahv','AHV-Nummer'),     m.socialSecurityNumber || '–')}
+                    ${row(_t('fam.field.phone','Telefon'),      m.phone || '–')}
                     ${row(_t('fam.field.livesInCh','In der Schweiz lebend'), m.livesInSwitzerland ? (i18n.getLang && i18n.getLang() === 'en' ? 'Yes' : 'Ja') : (i18n.getLang && i18n.getLang() === 'en' ? 'No' : 'Nein'))}
                     ${row(_t('fam.field.qstFrom','QST ab'),     m.qstDeductibleFrom  ? formatDate(m.qstDeductibleFrom)  : '–')}
                     ${row(_t('fam.field.qstUntil','QST bis'),   m.qstDeductibleUntil ? formatDate(m.qstDeductibleUntil) : '–')}
@@ -5369,6 +5375,7 @@ function openFamilyModal(member) {
     document.getElementById('fmDateOfBirth').value     = toDateInput(member?.dateOfBirth);
     updateFmAgeDisplay();
     document.getElementById('fmSocialSecurity').value  = member?.socialSecurityNumber ?? '';
+    document.getElementById('fmPhone').value           = member?.phone ?? '';
 
     // Walter-Vorgabe 14.06.2026: NEUE Familienmitglieder (vor allem Kinder)
     // bekommen sinnvolle Defaults vom MA:
@@ -5661,6 +5668,16 @@ async function saveFamilyMember() {
     const permitTypeId   = parseInt(document.getElementById('fmPermitTypeId').value, 10);
     const nationalityId  = parseInt(document.getElementById('fmNationalityId').value, 10);
 
+    // Telefon wie beim MA normalisieren (+41 79 333 44 55).
+    const phoneRaw = (document.getElementById('fmPhone')?.value || '').trim();
+    const phoneFmt = phoneRaw ? window.formatPhoneIntl(phoneRaw) : '';
+    if (phoneRaw && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(phoneFmt)) {
+        alert(_t('ma.error.phoneInvalid', 'Telefonnummer ungültig. Format: +41 79 333 44 55'));
+        document.getElementById('fmPhone')?.focus();
+        return;
+    }
+    if (phoneFmt) document.getElementById('fmPhone').value = phoneFmt;
+
     const payload = {
         memberType:             document.getElementById('fmMemberType').value         || 'Kind',
         gender:                 document.getElementById('fmGender').value             || null,
@@ -5669,6 +5686,7 @@ async function saveFamilyMember() {
         maidenName:             document.getElementById('fmMaidenName').value         || null,
         dateOfBirth:            document.getElementById('fmDateOfBirth').value        || null,
         socialSecurityNumber:   document.getElementById('fmSocialSecurity').value     || null,
+        phone:                  phoneFmt || null,
         livesInSwitzerland:     document.getElementById('fmLivesInSwitzerland').checked,
         alternativeAddressId,
         qstDeductibleFrom:      document.getElementById('fmQstFrom').value            || null,
