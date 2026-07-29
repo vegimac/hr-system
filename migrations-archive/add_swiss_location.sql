@@ -13,9 +13,10 @@
 --   automatisch vorgeschlagen; bei mehreren Treffern erscheint eine
 --   Auswahl.
 --
---   Aus dem Original-CSV werden nur 4 Spalten übernommen:
---     plz4, gemeindename, bfs_nr, kantonskuerzel
---   Dedupliziert auf unique (plz4, bfs_nr) — pro PLZ/Gemeinde ein Eintrag.
+--   HINWEIS Walter 29.07.2026: Erste Import-Version nahm nur die politische
+--   Gemeinde (gemeindename) und deduplizierte auf (plz4, bfs_nr) — dadurch
+--   fehlten Post-Ortschaften wie «Bützberg». Korrektur siehe
+--   reimport_swiss_location_ortschaft.sql (Ortschaftsname + Unique plz+ort).
 --
 -- Nach Schema-Migration den Daten-Import ausführen (siehe README-Block
 -- unten am Ende dieses Files).

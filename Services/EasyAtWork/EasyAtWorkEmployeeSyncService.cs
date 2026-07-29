@@ -3908,42 +3908,51 @@ public class EasyAtWorkEmployeeSyncService
         var p = plz.Trim();
         var locs = await _db.SwissLocations.AsNoTracking()
             .Where(l => l.Plz4 == p)
-            .Select(l => new { l.Gemeindename, l.Kantonskuerzel })
+            .Select(l => new { l.Ortschaftsname, l.Gemeindename, l.Kantonskuerzel })
             .ToListAsync(ct);
         return ResolveCityFromLocations(p, eawCity,
-            locs.Select(l => (l.Gemeindename, l.Kantonskuerzel)).ToList());
+            locs.Select(l => (l.Ortschaftsname, l.Gemeindename, l.Kantonskuerzel)).ToList());
     }
 
     /// <summary>
-    /// PLZ → Ort/Kanton. easy@work liefert oft die Post-Ortschaft («Bützberg»),
-    /// swiss_location die politische Gemeinde («Aarwangen»/«Thunstetten»).
-    /// Bei Treffer: BFS-Schreibweise. Bei fehlendem Treffer + eindeutigem Kanton:
-    /// easy@work-Ort behalten (Walter-Bug 29.07.2026). Alphabetischer Gemeinde-
-    /// Fallback nur wenn easy@work keinen Ort liefert.
+    /// PLZ → Ort/Kanton. Ort = Post-Ortschaft (<c>Ortschaftsname</c>), z.B. «Bützberg».
+    /// Match-Reihenfolge: Ortschaft exakt → Gemeinde exakt → normalisiert.
+    /// Kein Treffer + eindeutiger Kanton → easy@work-Ort behalten
+    /// (Walter-Bug 29.07.2026). Ohne easy-Ort → erste Ortschaft alphabetisch.
     /// </summary>
     public static (string? City, string? Canton, string? Error) ResolveCityFromLocations(
         string plz,
         string? eawCity,
-        IReadOnlyList<(string? Gemeindename, string? Kantonskuerzel)> locs)
+        IReadOnlyList<(string? Ortschaftsname, string? Gemeindename, string? Kantonskuerzel)> locs)
     {
         if (locs.Count == 0)
             return (null, null, $"PLZ {plz} wurde im Schweizer Ortschaftsverzeichnis nicht gefunden.");
 
-        // 1) exakter Treffer, 2) normalisierter Treffer — BFS führt mehrdeutige Orte
-        //    mit Kanton-Zusatz («Roggwil (BE)»), easy@work nur «Roggwil»
-        //    (Walter-Bug 08.07.2026, PLZ 4914 Murgenthal/Roggwil).
-        (string? Gemeindename, string? Kantonskuerzel)? match = null;
-        var exact = locs.FirstOrDefault(l =>
-            string.Equals(l.Gemeindename?.Trim(), eawCity?.Trim(), StringComparison.OrdinalIgnoreCase));
-        if (!string.IsNullOrWhiteSpace(exact.Gemeindename))
-            match = exact;
+        (string? Ortschaftsname, string? Gemeindename, string? Kantonskuerzel)? match = null;
+
+        var exactOrt = locs.FirstOrDefault(l =>
+            string.Equals(l.Ortschaftsname?.Trim(), eawCity?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(exactOrt.Ortschaftsname))
+            match = exactOrt;
         else
         {
-            var eawNorm = NormalizeCityName(eawCity);
-            if (eawNorm.Length > 0)
+            var exactGem = locs.FirstOrDefault(l =>
+                string.Equals(l.Gemeindename?.Trim(), eawCity?.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(exactGem.Ortschaftsname) || !string.IsNullOrWhiteSpace(exactGem.Gemeindename))
+                match = exactGem;
+            else
             {
-                var normMatches = locs.Where(l => NormalizeCityName(l.Gemeindename) == eawNorm).ToList();
-                if (normMatches.Count == 1) match = normMatches[0];
+                var eawNorm = NormalizeCityName(eawCity);
+                if (eawNorm.Length > 0)
+                {
+                    var normOrt = locs.Where(l => NormalizeCityName(l.Ortschaftsname) == eawNorm).ToList();
+                    if (normOrt.Count == 1) match = normOrt[0];
+                    else
+                    {
+                        var normGem = locs.Where(l => NormalizeCityName(l.Gemeindename) == eawNorm).ToList();
+                        if (normGem.Count == 1) match = normGem[0];
+                    }
+                }
             }
         }
 
@@ -3953,20 +3962,26 @@ public class EasyAtWorkEmployeeSyncService
             .ToList();
 
         if (match != null)
-            return (match.Value.Gemeindename, match.Value.Kantonskuerzel, null);
+        {
+            // Adress-Ort = Ortschaft (nicht politische Gemeinde)
+            var city = !string.IsNullOrWhiteSpace(match.Value.Ortschaftsname)
+                ? match.Value.Ortschaftsname
+                : match.Value.Gemeindename;
+            return (city, match.Value.Kantonskuerzel, null);
+        }
 
-        // easy@work-Ortschaft behalten (z.B. Bützberg ≠ Gemeinde Aarwangen/Thunstetten)
+        // easy@work-Ort behalten wenn Kanton aus PLZ eindeutig
         if (!string.IsNullOrWhiteSpace(eawCity) && cantons.Count == 1)
             return (eawCity.Trim(), cantons[0], null);
 
-        // Kein Ort aus easy@work → erste Gemeinde des eindeutigen Kantons
         if (cantons.Count == 1)
         {
-            var fallback = locs.OrderBy(l => l.Gemeindename).First();
-            return (fallback.Gemeindename, fallback.Kantonskuerzel, null);
+            var fallback = locs.OrderBy(l => l.Ortschaftsname ?? l.Gemeindename).First();
+            return (fallback.Ortschaftsname ?? fallback.Gemeindename, fallback.Kantonskuerzel, null);
         }
 
-        return (null, null, $"PLZ {plz} ist mehrdeutig ({string.Join(" / ", locs.Select(l => l.Gemeindename).OrderBy(n => n))}) und Ort '{eawCity}' konnte nicht zugeordnet werden.");
+        var names = locs.Select(l => l.Ortschaftsname ?? l.Gemeindename).OrderBy(n => n);
+        return (null, null, $"PLZ {plz} ist mehrdeutig ({string.Join(" / ", names)}) und Ort '{eawCity}' konnte nicht zugeordnet werden.");
     }
 
     private static string? MapMaritalStatus(string? v)

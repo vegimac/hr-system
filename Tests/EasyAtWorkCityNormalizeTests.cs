@@ -5,10 +5,7 @@ namespace HrSystem.Tests;
 
 /// <summary>
 /// Tests für <see cref="EasyAtWorkEmployeeSyncService.NormalizeCityName"/>
-/// (Walter-Bug 08.07.2026): PLZ 4914 hat zwei Ortschaften (Murgenthal AG,
-/// Roggwil BE). Das BFS-Verzeichnis führt den mehrdeutigen Ort als
-/// «Roggwil (BE)», easy@work liefert nur «Roggwil» — der Abgleich muss
-/// Klammer-Zusätze und angehängte Kantonskürzel ignorieren.
+/// und <see cref="EasyAtWorkEmployeeSyncService.ResolveCityFromLocations"/>.
 /// </summary>
 public class EasyAtWorkCityNormalizeTests
 {
@@ -31,21 +28,18 @@ public class EasyAtWorkCityNormalizeTests
             EasyAtWorkEmployeeSyncService.NormalizeCityName("Roggwil (BE)"),
             EasyAtWorkEmployeeSyncService.NormalizeCityName("Roggwil"));
 
-    // «St. Gallen» endet auf Wort > 2 Zeichen — darf nicht beschnitten werden.
     [Fact]
     public void StGallen_BleibtVollstaendig()
         => Assert.Equal("st. gallen", EasyAtWorkEmployeeSyncService.NormalizeCityName("St. Gallen"));
 
-    // Walter-Bug 29.07.2026: PLZ 4922 = Aarwangen + Thunstetten (beide BE).
-    // easy@work liefert Ortschaft «Bützberg» — darf NICHT durch alphabetischen
-    // Gemeinde-Fallback «Aarwangen» überschrieben werden.
+    // Walter-Bug 29.07.2026: nach Re-Import mit Ortschaftsname matcht Bützberg direkt.
     [Fact]
-    public void OrtBuetzberg_BleibtBeiPlz4922()
+    public void OrtBuetzberg_MatchtOrtschaft()
     {
-        var locs = new List<(string?, string?)>
+        var locs = new List<(string?, string?, string?)>
         {
-            ("Aarwangen", "BE"),
-            ("Thunstetten", "BE"),
+            ("Bützberg", "Thunstetten", "BE"),
+            ("Thunstetten", "Thunstetten", "BE"),
         };
         var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4922", "Bützberg", locs);
         Assert.Null(err);
@@ -54,40 +48,55 @@ public class EasyAtWorkCityNormalizeTests
     }
 
     [Fact]
-    public void GemeindeTreffer_NutztBfsSchreibweise()
+    public void GemeindeAlsEasyOrt_LiefertOrtschaft()
     {
-        var locs = new List<(string?, string?)>
+        // easy liefert Gemeinde-Namen → Ortschaft derselben Zeile als Adress-Ort
+        var locs = new List<(string?, string?, string?)>
         {
-            ("Aarwangen", "BE"),
-            ("Thunstetten", "BE"),
+            ("Bützberg", "Thunstetten", "BE"),
+            ("Thunstetten", "Thunstetten", "BE"),
         };
-        var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4922", "aarwangen", locs);
+        var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4922", "Thunstetten", locs);
         Assert.Null(err);
-        Assert.Equal("Aarwangen", city);
+        Assert.Equal("Thunstetten", city);
         Assert.Equal("BE", canton);
     }
 
     [Fact]
-    public void OhneEasyOrt_FallbackErsteGemeinde()
+    public void UnbekannteOrtschaft_BehaeltEasyBeiEindeutigemKanton()
     {
-        var locs = new List<(string?, string?)>
+        var locs = new List<(string?, string?, string?)>
         {
-            ("Aarwangen", "BE"),
-            ("Thunstetten", "BE"),
+            ("Aarwangen", "Aarwangen", "BE"),
+            ("Bannwil", "Bannwil", "BE"),
+        };
+        var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4912", "Irgendwo", locs);
+        Assert.Null(err);
+        Assert.Equal("Irgendwo", city);
+        Assert.Equal("BE", canton);
+    }
+
+    [Fact]
+    public void OhneEasyOrt_FallbackErsteOrtschaft()
+    {
+        var locs = new List<(string?, string?, string?)>
+        {
+            ("Bützberg", "Thunstetten", "BE"),
+            ("Thunstetten", "Thunstetten", "BE"),
         };
         var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4922", null, locs);
         Assert.Null(err);
-        Assert.Equal("Aarwangen", city);
+        Assert.Equal("Bützberg", city);
         Assert.Equal("BE", canton);
     }
 
     [Fact]
     public void MehrdeutigUeberKantone_OhneMatch_Fehler()
     {
-        var locs = new List<(string?, string?)>
+        var locs = new List<(string?, string?, string?)>
         {
-            ("Murgenthal", "AG"),
-            ("Roggwil (BE)", "BE"),
+            ("Murgenthal", "Murgenthal", "AG"),
+            ("Roggwil BE", "Roggwil (BE)", "BE"),
         };
         var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4914", "Irgendwo", locs);
         Assert.NotNull(err);

@@ -1358,19 +1358,22 @@ public class AppDbContext : DbContext
         });
 
         // ── SwissLocation (PLZ-Lookup) ─────────────────────────────────────
+        // Walter 29.07.2026: Ort = Ortschaftsname (Post), nicht politische Gemeinde.
+        // Unique (plz4, ortschaftsname) — siehe reimport_swiss_location_ortschaft.sql.
         modelBuilder.Entity<SwissLocation>(entity =>
         {
             entity.ToTable("swiss_location");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Plz4).HasColumnName("plz4").HasMaxLength(4);
+            entity.Property(e => e.Ortschaftsname).HasColumnName("ortschaftsname").HasMaxLength(80);
             entity.Property(e => e.Gemeindename).HasColumnName("gemeindename").HasMaxLength(80);
             entity.Property(e => e.BfsNr).HasColumnName("bfs_nr");
             entity.Property(e => e.Kantonskuerzel).HasColumnName("kantonskuerzel").HasMaxLength(2);
             entity.HasIndex(e => e.Plz4).HasDatabaseName("idx_swiss_location_plz");
-            entity.HasIndex(e => new { e.Plz4, e.BfsNr })
+            entity.HasIndex(e => new { e.Plz4, e.Ortschaftsname })
                   .IsUnique()
-                  .HasDatabaseName("swiss_location_plz_bfs_unique");
+                  .HasDatabaseName("swiss_location_plz_ortschaft_unique");
         });
 
         // ── CompanyProfileSsl ──────────────────────────────────────────────

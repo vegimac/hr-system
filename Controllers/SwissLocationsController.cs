@@ -6,12 +6,11 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Lookup-Endpoints für Schweizer PLZ/Gemeinden/Kanton-Stammdaten
-/// (Quelle: Amtliches Ortschaftenverzeichnis der Schweizerischen Post).
+/// Lookup-Endpoints für Schweizer PLZ/Ortschaft/Kanton-Stammdaten
+/// (Quelle: Amtliches Ortschaftenverzeichnis swisstopo / AMTOVZ).
 ///
-/// Wird vom Mitarbeiter-Stamm verwendet: User gibt PLZ ein → Gemeinde
-/// und Kanton werden vorgeschlagen. Bei PLZ mit mehreren Gemeinden
-/// zeigt das Frontend eine Auswahl.
+/// Adress-Ort = Ortschaftsname (z.B. «Bützberg»), nicht die politische
+/// Gemeinde («Thunstetten») — Walter 29.07.2026.
 /// </summary>
 [ApiController]
 [Route("api/swiss-locations")]
@@ -21,11 +20,11 @@ public class SwissLocationsController : ControllerBase
     private readonly AppDbContext _db;
     public SwissLocationsController(AppDbContext db) => _db = db;
 
-    // GET /api/swiss-locations/by-plz?plz=8580
-    //   → [{ plz4, gemeindename, bfsNr, kantonskuerzel }, …]
+    // GET /api/swiss-locations/by-plz?plz=4922
+    //   → [{ plz4, ortschaftsname, gemeindename, bfsNr, kantonskuerzel }, …]
     //
-    // Liefert alle Gemeinden zu einer PLZ, sortiert alphabetisch nach
-    // Gemeindename. Leere Liste wenn PLZ unbekannt.
+    // Liefert alle Ortschaften zu einer PLZ, sortiert alphabetisch.
+    // Frontend füllt das Ort-Feld mit ortschaftsname.
     [HttpGet("by-plz")]
     public async Task<IActionResult> GetByPlz([FromQuery] string plz)
     {
@@ -35,12 +34,16 @@ public class SwissLocationsController : ControllerBase
         var plzTrim = plz.Trim();
         var list = await _db.SwissLocations
             .Where(l => l.Plz4 == plzTrim)
-            .OrderBy(l => l.Gemeindename)
+            .OrderBy(l => l.Ortschaftsname)
             .Select(l => new {
-                plz4           = l.Plz4,
-                gemeindename   = l.Gemeindename,
-                bfsNr          = l.BfsNr,
-                kantonskuerzel = l.Kantonskuerzel
+                plz4             = l.Plz4,
+                ortschaftsname   = l.Ortschaftsname,
+                // Backward-compat: ältere Clients lasen «gemeindename» als Ort.
+                // Ab 29.07.2026 ist der Ort die Ortschaft — deshalb hier spiegeln.
+                gemeindename     = l.Ortschaftsname,
+                politischeGemeinde = l.Gemeindename,
+                bfsNr            = l.BfsNr,
+                kantonskuerzel   = l.Kantonskuerzel
             })
             .ToListAsync();
 
@@ -48,15 +51,6 @@ public class SwissLocationsController : ControllerBase
     }
 
     // GET /api/swiss-locations/cantons-by-plz?plzs=4900,6260,8580,…
-    //   → { "4900": "BE", "6260": "LU", "8580": "TG" }
-    //
-    // Bulk-Variante: nimmt eine kommaseparierte PLZ-Liste entgegen, liefert
-    // pro EINDEUTIG zuordbarer PLZ den Kantons-Code. Mehrdeutige PLZ (über
-    // Kantonsgrenze) sowie unbekannte PLZ erscheinen NICHT in der Antwort —
-    // konsistent mit EnrichAddressFromZipAsync, das auch nur bei Eindeutigkeit
-    // setzt. Walter-Vorgabe 06.06.2026: vom CSV-Importer benutzt, um die in
-    // easy@work hinterlegten Kantonsangaben gegen den amtlichen Lookup
-    // gegenzuprüfen und Diskrepanzen sichtbar zu machen.
     [HttpGet("cantons-by-plz")]
     public async Task<IActionResult> CantonsByPlz([FromQuery] string plzs)
     {
@@ -66,13 +60,12 @@ public class SwissLocationsController : ControllerBase
         var plzList = plzs.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(p => p.Length >= 3)
             .Distinct()
-            .Take(500)        // Schutz vor Missbrauch — Importer braucht selten >100
+            .Take(500)
             .ToList();
 
         if (plzList.Count == 0)
             return Ok(new Dictionary<string, string>());
 
-        // Pro PLZ alle DISTINCT Kantone holen — wenn genau 1 → in Result.
         var rows = await _db.SwissLocations
             .Where(l => plzList.Contains(l.Plz4))
             .Select(l => new { l.Plz4, l.Kantonskuerzel })
@@ -87,7 +80,6 @@ public class SwissLocationsController : ControllerBase
         return Ok(result);
     }
 
-    // GET /api/swiss-locations/count — nur für Admin-/Debug-Zwecke
     [HttpGet("count")]
     public async Task<IActionResult> Count()
     {
@@ -95,17 +87,13 @@ public class SwissLocationsController : ControllerBase
         return Ok(new { count = c });
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    // ADMIN-PFLEGE (Walter-Vorgabe 07.06.2026)
-    // Such-API + CRUD. Backend-Suche, weil 4'000+ PLZ-Einträge clientseitig
-    // unhandlich wären. Limit 100/Anfrage damit die Tabelle responsive bleibt.
-    // ════════════════════════════════════════════════════════════════════
     public class SwissLocationUpsertDto
     {
-        public string Plz4           { get; set; } = "";
-        public string Gemeindename   { get; set; } = "";
-        public int    BfsNr          { get; set; }
-        public string Kantonskuerzel { get; set; } = "";
+        public string Plz4             { get; set; } = "";
+        public string Ortschaftsname   { get; set; } = "";
+        public string Gemeindename     { get; set; } = "";
+        public int    BfsNr            { get; set; }
+        public string Kantonskuerzel   { get; set; } = "";
     }
 
     [HttpGet("admin")]
@@ -120,19 +108,18 @@ public class SwissLocationsController : ControllerBase
             query = query.Where(l =>
                 l.Plz4 == qt
              || l.Plz4.StartsWith(qt)
+             || l.Ortschaftsname.ToLower().Contains(qLower)
              || l.Gemeindename.ToLower().Contains(qLower)
              || l.Kantonskuerzel.ToLower() == qLower);
         }
-        // Walter-Vorgabe 07.06.2026: Ohne Suche ALLE Einträge zurück (rund
-        // 4'000) — Frontend macht Sortierung/Filter clientseitig. Mit Suche
-        // bleibt das Limit von 200 als Sicherheitsnetz.
         var hasQuery = !string.IsNullOrWhiteSpace(q);
-        var ordered = query.OrderBy(l => l.Plz4).ThenBy(l => l.Gemeindename);
+        var ordered = query.OrderBy(l => l.Plz4).ThenBy(l => l.Ortschaftsname);
         var listQuery = hasQuery ? ordered.Take(200) : (IQueryable<Models.SwissLocation>)ordered;
         var list = await listQuery
             .Select(l => new {
                 id             = l.Id,
                 plz4           = l.Plz4,
+                ortschaftsname = l.Ortschaftsname,
                 gemeindename   = l.Gemeindename,
                 bfsNr          = l.BfsNr,
                 kantonskuerzel = l.Kantonskuerzel
@@ -147,24 +134,22 @@ public class SwissLocationsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] SwissLocationUpsertDto dto)
     {
         if (!Validate(dto, out var err)) return BadRequest(new { error = err });
-        // Duplikate verhindern (PLZ + BFS-Gemeindenummer eindeutig).
+        var ort = ResolveOrtschaft(dto);
         var exists = await _db.SwissLocations
-            .AnyAsync(l => l.Plz4 == dto.Plz4.Trim() && l.BfsNr == dto.BfsNr);
-        if (exists) return Conflict(new { error = $"PLZ {dto.Plz4} mit BFS-Nr {dto.BfsNr} existiert bereits." });
+            .AnyAsync(l => l.Plz4 == dto.Plz4.Trim() && l.Ortschaftsname == ort);
+        if (exists) return Conflict(new { error = $"PLZ {dto.Plz4} mit Ortschaft «{ort}» existiert bereits." });
 
         var entry = new Models.SwissLocation
         {
             Plz4           = dto.Plz4.Trim(),
-            Gemeindename   = dto.Gemeindename.Trim(),
+            Ortschaftsname = ort,
+            Gemeindename   = string.IsNullOrWhiteSpace(dto.Gemeindename) ? ort : dto.Gemeindename.Trim(),
             BfsNr          = dto.BfsNr,
             Kantonskuerzel = dto.Kantonskuerzel.Trim().ToUpperInvariant()
         };
         _db.SwissLocations.Add(entry);
         await _db.SaveChangesAsync();
-        return Ok(new {
-            id = entry.Id, plz4 = entry.Plz4, gemeindename = entry.Gemeindename,
-            bfsNr = entry.BfsNr, kantonskuerzel = entry.Kantonskuerzel
-        });
+        return Ok(ToAdminDto(entry));
     }
 
     [HttpPut("admin/{id:int}")]
@@ -174,20 +159,18 @@ public class SwissLocationsController : ControllerBase
         if (!Validate(dto, out var err)) return BadRequest(new { error = err });
         var entry = await _db.SwissLocations.FirstOrDefaultAsync(l => l.Id == id);
         if (entry == null) return NotFound();
-        // Duplikat-Schutz beim Ändern (gleiche PLZ + BFS, aber andere ID).
+        var ort = ResolveOrtschaft(dto);
         var dup = await _db.SwissLocations
-            .AnyAsync(l => l.Plz4 == dto.Plz4.Trim() && l.BfsNr == dto.BfsNr && l.Id != id);
-        if (dup) return Conflict(new { error = $"Eine andere Zeile mit PLZ {dto.Plz4} und BFS-Nr {dto.BfsNr} existiert bereits." });
+            .AnyAsync(l => l.Plz4 == dto.Plz4.Trim() && l.Ortschaftsname == ort && l.Id != id);
+        if (dup) return Conflict(new { error = $"Eine andere Zeile mit PLZ {dto.Plz4} und Ortschaft «{ort}» existiert bereits." });
 
         entry.Plz4           = dto.Plz4.Trim();
-        entry.Gemeindename   = dto.Gemeindename.Trim();
+        entry.Ortschaftsname = ort;
+        entry.Gemeindename   = string.IsNullOrWhiteSpace(dto.Gemeindename) ? ort : dto.Gemeindename.Trim();
         entry.BfsNr          = dto.BfsNr;
         entry.Kantonskuerzel = dto.Kantonskuerzel.Trim().ToUpperInvariant();
         await _db.SaveChangesAsync();
-        return Ok(new {
-            id = entry.Id, plz4 = entry.Plz4, gemeindename = entry.Gemeindename,
-            bfsNr = entry.BfsNr, kantonskuerzel = entry.Kantonskuerzel
-        });
+        return Ok(ToAdminDto(entry));
     }
 
     [HttpDelete("admin/{id:int}")]
@@ -201,12 +184,20 @@ public class SwissLocationsController : ControllerBase
         return NoContent();
     }
 
+    private static object ToAdminDto(Models.SwissLocation entry) => new {
+        id = entry.Id, plz4 = entry.Plz4, ortschaftsname = entry.Ortschaftsname,
+        gemeindename = entry.Gemeindename, bfsNr = entry.BfsNr, kantonskuerzel = entry.Kantonskuerzel
+    };
+
+    private static string ResolveOrtschaft(SwissLocationUpsertDto dto)
+        => (string.IsNullOrWhiteSpace(dto.Ortschaftsname) ? dto.Gemeindename : dto.Ortschaftsname).Trim();
+
     private static bool Validate(SwissLocationUpsertDto dto, out string err)
     {
         if (string.IsNullOrWhiteSpace(dto.Plz4) || dto.Plz4.Trim().Length < 4)
         { err = "PLZ muss mindestens 4 Zeichen haben."; return false; }
-        if (string.IsNullOrWhiteSpace(dto.Gemeindename))
-        { err = "Gemeindename ist Pflicht."; return false; }
+        if (string.IsNullOrWhiteSpace(dto.Ortschaftsname) && string.IsNullOrWhiteSpace(dto.Gemeindename))
+        { err = "Ortschaftsname ist Pflicht."; return false; }
         if (dto.BfsNr <= 0)
         { err = "BFS-Gemeindenummer muss > 0 sein."; return false; }
         if (string.IsNullOrWhiteSpace(dto.Kantonskuerzel) || dto.Kantonskuerzel.Trim().Length != 2)

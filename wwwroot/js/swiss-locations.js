@@ -1,8 +1,8 @@
 // ══════════════════════════════════════════════════════════════════════
-// swiss-locations.js — PLZ-/Gemeinden-Pflege
+// swiss-locations.js — PLZ-/Ortschaften-Pflege
 // ──────────────────────────────────────────────────────────────────────
-// Initial werden ALLE Einträge geladen (rund 4'000). Suche + Sortierung
-// passieren clientseitig — Spalten-Header sind klickbar.
+// Ort = Post-Ortschaft (AMTOVZ), Gemeinde = politische Gemeinde (BFS).
+// Walter 29.07.2026: Ortschaft getrennt anzeigen (z.B. Bützberg ≠ Thunstetten).
 //
 // Backend: GET /api/swiss-locations/admin (alle, ohne q)
 //          POST/PUT/DELETE /api/swiss-locations/admin[/{id}]
@@ -44,6 +44,7 @@ function locRender() {
     if (search) {
         rows = rows.filter(l =>
             (l.plz4 || '').toLowerCase().includes(search)
+         || (l.ortschaftsname || '').toLowerCase().includes(search)
          || (l.gemeindename || '').toLowerCase().includes(search)
          || (l.kantonskuerzel || '').toLowerCase() === search
          || String(l.bfsNr || '').includes(search));
@@ -71,10 +72,11 @@ function locRender() {
             <table style="width:100%;border-collapse:collapse;font-size:13px">
                 <thead>
                     <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
-                        ${window.sortableHeader('PLZ',      'plz4',           _locSortState, '_locSortState', 'locRender', 'width:90px')}
-                        ${window.sortableHeader('Gemeinde', 'gemeindename',   _locSortState, '_locSortState', 'locRender')}
-                        ${window.sortableHeader('BFS-Nr',   'bfsNr',          _locSortState, '_locSortState', 'locRender', 'width:110px')}
-                        ${window.sortableHeader('Kanton',   'kantonskuerzel', _locSortState, '_locSortState', 'locRender', 'width:90px')}
+                        ${window.sortableHeader('PLZ',        'plz4',           _locSortState, '_locSortState', 'locRender', 'width:90px')}
+                        ${window.sortableHeader('Ortschaft',  'ortschaftsname', _locSortState, '_locSortState', 'locRender')}
+                        ${window.sortableHeader('Gemeinde',   'gemeindename',   _locSortState, '_locSortState', 'locRender')}
+                        ${window.sortableHeader('BFS-Nr',     'bfsNr',          _locSortState, '_locSortState', 'locRender', 'width:110px')}
+                        ${window.sortableHeader('Kanton',     'kantonskuerzel', _locSortState, '_locSortState', 'locRender', 'width:90px')}
                         ${isAdmin ? '<th style="padding:9px 12px;text-align:right;width:110px;color:#475569">Aktion</th>' : ''}
                     </tr>
                 </thead>
@@ -82,7 +84,8 @@ function locRender() {
                     ${shown.map(l => `
                         <tr style="border-bottom:1px solid #f1f5f9">
                             <td style="padding:8px 12px;font-family:monospace;font-weight:600;color:#0f172a">${_e(l.plz4)}</td>
-                            <td style="padding:8px 12px;color:#475569">${_e(l.gemeindename)}</td>
+                            <td style="padding:8px 12px;color:#0f172a;font-weight:600">${_e(l.ortschaftsname || l.gemeindename)}</td>
+                            <td style="padding:8px 12px;color:#64748b">${_e(l.gemeindename)}</td>
                             <td style="padding:8px 12px;font-family:monospace;color:#64748b">${l.bfsNr}</td>
                             <td style="padding:8px 12px;font-family:monospace;font-weight:600">${_e(l.kantonskuerzel)}</td>
                             ${isAdmin
@@ -134,7 +137,12 @@ function locOpenModal(entry) {
                            style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px;font-family:monospace">
                 </div>
                 <div style="grid-column:1 / -1">
-                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Gemeinde *</label>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Ortschaft (Adress-Ort) *</label>
+                    <input type="text" id="locF-ort" value="${entry ? _e(entry.ortschaftsname || entry.gemeindename) : ''}"
+                           style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                </div>
+                <div style="grid-column:1 / -1">
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Politische Gemeinde</label>
                     <input type="text" id="locF-gem" value="${entry ? _e(entry.gemeindename) : ''}"
                            style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
                 </div>
@@ -163,6 +171,7 @@ function locCloseModal() {
 async function locSave(id) {
     const dto = {
         plz4:           document.getElementById('locF-plz').value.trim(),
+        ortschaftsname: document.getElementById('locF-ort').value.trim(),
         gemeindename:   document.getElementById('locF-gem').value.trim(),
         bfsNr:          parseInt(document.getElementById('locF-bfs').value) || 0,
         kantonskuerzel: document.getElementById('locF-kt').value.trim().toUpperCase()
@@ -170,7 +179,8 @@ async function locSave(id) {
     const errEl = document.getElementById('locF-error');
     errEl.textContent = '';
     if (!dto.plz4 || dto.plz4.length < 4) { errEl.textContent = 'PLZ muss 4 Zeichen haben.'; return; }
-    if (!dto.gemeindename)                { errEl.textContent = 'Gemeinde ist Pflicht.'; return; }
+    if (!dto.ortschaftsname)               { errEl.textContent = 'Ortschaft ist Pflicht.'; return; }
+    if (!dto.gemeindename) dto.gemeindename = dto.ortschaftsname;
     if (!dto.bfsNr)                        { errEl.textContent = 'BFS-Nr muss > 0 sein.'; return; }
     if (dto.kantonskuerzel.length !== 2)   { errEl.textContent = 'Kanton-Kürzel = genau 2 Zeichen (z.B. ZH).'; return; }
 
@@ -193,7 +203,7 @@ async function locSave(id) {
         if (idx >= 0) _locCache[idx] = saved;
         else          _locCache.push(saved);
         locCloseModal();
-        showPageAlert('locAlert', '✓ ' + saved.plz4 + ' ' + saved.gemeindename + ' gespeichert.', 'success');
+        showPageAlert('locAlert', '✓ ' + saved.plz4 + ' ' + (saved.ortschaftsname || saved.gemeindename) + ' gespeichert.', 'success');
         locRender();
     } catch (e) {
         errEl.textContent = 'Verbindungsfehler: ' + e.message;
@@ -203,7 +213,7 @@ async function locSave(id) {
 async function locDelete(id) {
     const e = _locCache.find(x => x.id === id);
     if (!e) return;
-    if (!confirm(`Soll der Eintrag "${e.plz4} ${e.gemeindename}" wirklich gelöscht werden?`)) return;
+    if (!confirm(`Soll der Eintrag "${e.plz4} ${e.ortschaftsname || e.gemeindename}" wirklich gelöscht werden?`)) return;
     try {
         const r = await fetch(`/api/swiss-locations/admin/${id}`, { method: 'DELETE', headers: ah() });
         if (!r.ok && r.status !== 204) {
