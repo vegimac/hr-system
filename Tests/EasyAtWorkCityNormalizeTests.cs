@@ -93,8 +93,8 @@ public class EasyAtWorkCityNormalizeTests
     [InlineData("Roggwil")]
     public void RoggwilMitKantonSuffix_MatchtOrtschaft(string eawCity)
     {
-        // Echte AMTOVZ-Zeile: Ortschaft «Roggwil BE», Gemeinde «Roggwil (BE)» —
-        // gespeichert wird ohne Suffix: «Roggwil».
+        // AMTOVZ: Ortschaft «Roggwil BE» — easy liefert «Roggwil» ohne BE.
+        // Gespeichert wird der easy-Ort, nie das AMTOVZ-Suffix.
         var locs = new List<(string?, string?, string?)>
         {
             ("Roggwil BE", "Roggwil (BE)", "BE"),
@@ -103,6 +103,19 @@ public class EasyAtWorkCityNormalizeTests
         Assert.Null(err);
         Assert.Equal("Roggwil", city);
         Assert.Equal("BE", canton);
+    }
+
+    [Fact]
+    public void EasyOrtOhneBe_WirdNichtDurchAmtovzBeErsetzt()
+    {
+        var locs = new List<(string?, string?, string?)>
+        {
+            ("Roggwil BE", "Roggwil (BE)", "BE"),
+        };
+        var (city, _, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4914", "Roggwil", locs);
+        Assert.Null(err);
+        Assert.Equal("Roggwil", city);
+        Assert.DoesNotContain("BE", city!);
     }
 
     [Fact]
