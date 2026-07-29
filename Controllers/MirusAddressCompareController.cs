@@ -83,17 +83,21 @@ public class MirusAddressCompareController : ControllerBase
         public List<CompareRow> Rows { get; set; } = new();
     }
 
-    /// <summary>POST analyze — reine Auswertung, schreibt nichts.</summary>
+    /// <summary>POST analyze — reine Auswertung, schreibt nichts.
+    /// scope: «active» (Default) = nur aktive OneCrew-MA; «all» = inkl. Inaktive.</summary>
     [HttpPost("analyze")]
     public async Task<IActionResult> Analyze(
         [FromForm] IFormFile file,
         [FromForm] int companyProfileId = 0,
+        [FromForm] string scope = "active",
         CancellationToken ct = default)
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { error = "Datei fehlt." });
         if (companyProfileId <= 0)
             return BadRequest(new { error = "Bitte zuerst links eine Filiale wählen." });
+
+        var onlyActive = !string.Equals(scope?.Trim(), "all", StringComparison.OrdinalIgnoreCase);
 
         List<MirusRow> mirusRows;
         try
@@ -125,7 +129,10 @@ public class MirusAddressCompareController : ControllerBase
             .Distinct()
             .ToListAsync(ct);
         var branchSet = branchIds.ToHashSet();
-        var branchEmps = ocEmployees.Where(e => branchSet.Contains(e.Id)).ToList();
+        var branchEmps = ocEmployees
+            .Where(e => branchSet.Contains(e.Id))
+            .Where(e => !onlyActive || e.IsActive)
+            .ToList();
         var byNumber = branchEmps
             .Where(e => !string.IsNullOrWhiteSpace(e.EmployeeNumber))
             .GroupBy(e => NormNumber(e.EmployeeNumber!))
@@ -240,8 +247,8 @@ public class MirusAddressCompareController : ControllerBase
             rows.Add(cr);
         }
 
-        // OneCrew-Filial-MA ohne Mirus-Zeile
-        foreach (var oc in branchEmps.Where(e => e.IsActive && !matchedIds.Contains(e.Id))
+        // OneCrew-Filial-MA ohne Mirus-Zeile (Scope: active oder all)
+        foreach (var oc in branchEmps.Where(e => !matchedIds.Contains(e.Id))
                                      .OrderBy(e => e.FirstName).ThenBy(e => e.LastName))
         {
             var cr = new CompareRow
@@ -258,7 +265,9 @@ public class MirusAddressCompareController : ControllerBase
                 OcPhone = oc.PhoneMobile,
                 OcPhone2 = oc.Phone2,
                 OcEmail = oc.Email,
-                Note = "In OneCrew aktiv, fehlt in Mirus-Adressliste.",
+                Note = oc.IsActive
+                    ? "In OneCrew aktiv, fehlt in Mirus-Adressliste."
+                    : "In OneCrew (inaktiv), fehlt in Mirus-Adressliste.",
             };
             cr.PlzChecks.Add(CheckPlzOrt("OneCrew", oc.ZipCode, oc.City, ortMap));
             rows.Add(cr);

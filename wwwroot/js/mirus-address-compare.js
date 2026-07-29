@@ -54,9 +54,11 @@ async function macAnalyze() {
         return;
     }
     _macFile = inp.files[0];
+    const scope = document.getElementById('macScope')?.value || 'active';
     const fd = new FormData();
     fd.append('file', _macFile);
     fd.append('companyProfileId', String(cpId));
+    fd.append('scope', scope);
 
     const btn = document.getElementById('macAnalyzeBtn');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ analysiere…'; }

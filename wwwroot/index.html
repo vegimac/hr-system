@@ -5524,17 +5524,24 @@
 
                 <div class="card" style="padding:24px">
                     <div id="macBranchBanner" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#6b6152"></div>
-                    <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:flex-end">
+                    <div style="display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:flex-end">
                         <div>
                             <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Mirus Adressliste (XLS / XLSX)</label>
                             <input type="file" id="macFileInput" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                    style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
                         </div>
+                        <div>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">OneCrew-MA</label>
+                            <select id="macScope" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white;min-width:140px">
+                                <option value="active" selected>Aktive</option>
+                                <option value="all">Alle</option>
+                            </select>
+                        </div>
                         <button class="btn btn-primary" id="macAnalyzeBtn" onclick="macAnalyze()">Analysieren</button>
                     </div>
                     <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
                         <b>Erwartete Datei:</b> Mirus «Adressliste» mit Spalten <code>Pers. Nr. · Name · Vorname · Strasse · PLZ · Ort · Telefon 1 · Telefon 2 · E-Mail</code>.<br>
-                        <b>Match:</b> Personalnummer gegen MA der Sidebar-Filiale.<br>
+                        <b>Match:</b> Personalnummer gegen MA der Sidebar-Filiale — wählbar <b>Aktive</b> oder <b>Alle</b> (inkl. Inaktive).<br>
                         <b>PLZ-Check:</b> Ort muss eine bekannte Ortschaft zur PLZ sein (z.B. 4922 → Bützberg / Thunstetten).
                     </div>
                 </div>
@@ -7165,7 +7172,7 @@
 <script src="js/stammdaten-import.js?v=20260704p"></script>
 <script src="js/saldo-vortrag-import.js?v=20260704p"></script>
 <script src="js/saldo-vortrag-import-stunden.js?v=20260704p"></script>
-<script src="js/mirus-address-compare.js?v=20260729a"></script>
+<script src="js/mirus-address-compare.js?v=20260729b"></script>
 <script src="js/roster-absence-import.js?v=20260704p"></script>
 <script src="js/absence-report.js?v=20260704p"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
