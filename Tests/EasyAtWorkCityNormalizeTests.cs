@@ -35,4 +35,63 @@ public class EasyAtWorkCityNormalizeTests
     [Fact]
     public void StGallen_BleibtVollstaendig()
         => Assert.Equal("st. gallen", EasyAtWorkEmployeeSyncService.NormalizeCityName("St. Gallen"));
+
+    // Walter-Bug 29.07.2026: PLZ 4922 = Aarwangen + Thunstetten (beide BE).
+    // easy@work liefert Ortschaft «Bützberg» — darf NICHT durch alphabetischen
+    // Gemeinde-Fallback «Aarwangen» überschrieben werden.
+    [Fact]
+    public void OrtBuetzberg_BleibtBeiPlz4922()
+    {
+        var locs = new List<(string?, string?)>
+        {
+            ("Aarwangen", "BE"),
+            ("Thunstetten", "BE"),
+        };
+        var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4922", "Bützberg", locs);
+        Assert.Null(err);
+        Assert.Equal("Bützberg", city);
+        Assert.Equal("BE", canton);
+    }
+
+    [Fact]
+    public void GemeindeTreffer_NutztBfsSchreibweise()
+    {
+        var locs = new List<(string?, string?)>
+        {
+            ("Aarwangen", "BE"),
+            ("Thunstetten", "BE"),
+        };
+        var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4922", "aarwangen", locs);
+        Assert.Null(err);
+        Assert.Equal("Aarwangen", city);
+        Assert.Equal("BE", canton);
+    }
+
+    [Fact]
+    public void OhneEasyOrt_FallbackErsteGemeinde()
+    {
+        var locs = new List<(string?, string?)>
+        {
+            ("Aarwangen", "BE"),
+            ("Thunstetten", "BE"),
+        };
+        var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4922", null, locs);
+        Assert.Null(err);
+        Assert.Equal("Aarwangen", city);
+        Assert.Equal("BE", canton);
+    }
+
+    [Fact]
+    public void MehrdeutigUeberKantone_OhneMatch_Fehler()
+    {
+        var locs = new List<(string?, string?)>
+        {
+            ("Murgenthal", "AG"),
+            ("Roggwil (BE)", "BE"),
+        };
+        var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations("4914", "Irgendwo", locs);
+        Assert.NotNull(err);
+        Assert.Null(city);
+        Assert.Null(canton);
+    }
 }

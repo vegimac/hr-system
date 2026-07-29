@@ -3910,15 +3910,34 @@ public class EasyAtWorkEmployeeSyncService
             .Where(l => l.Plz4 == p)
             .Select(l => new { l.Gemeindename, l.Kantonskuerzel })
             .ToListAsync(ct);
-        if (locs.Count == 0)
-            return (null, null, $"PLZ {p} wurde im Schweizer Ortschaftsverzeichnis nicht gefunden.");
+        return ResolveCityFromLocations(p, eawCity,
+            locs.Select(l => (l.Gemeindename, l.Kantonskuerzel)).ToList());
+    }
 
-        // 1) exakter Treffer, 2) normalisierter Treffer — das BFS-Verzeichnis führt
-        //    mehrdeutige Orte mit Kanton-Zusatz («Roggwil (BE)»), easy@work liefert
-        //    aber nur «Roggwil» (Walter-Bug 08.07.2026, PLZ 4914 Murgenthal/Roggwil).
-        var match = locs.FirstOrDefault(l =>
+    /// <summary>
+    /// PLZ → Ort/Kanton. easy@work liefert oft die Post-Ortschaft («Bützberg»),
+    /// swiss_location die politische Gemeinde («Aarwangen»/«Thunstetten»).
+    /// Bei Treffer: BFS-Schreibweise. Bei fehlendem Treffer + eindeutigem Kanton:
+    /// easy@work-Ort behalten (Walter-Bug 29.07.2026). Alphabetischer Gemeinde-
+    /// Fallback nur wenn easy@work keinen Ort liefert.
+    /// </summary>
+    public static (string? City, string? Canton, string? Error) ResolveCityFromLocations(
+        string plz,
+        string? eawCity,
+        IReadOnlyList<(string? Gemeindename, string? Kantonskuerzel)> locs)
+    {
+        if (locs.Count == 0)
+            return (null, null, $"PLZ {plz} wurde im Schweizer Ortschaftsverzeichnis nicht gefunden.");
+
+        // 1) exakter Treffer, 2) normalisierter Treffer — BFS führt mehrdeutige Orte
+        //    mit Kanton-Zusatz («Roggwil (BE)»), easy@work nur «Roggwil»
+        //    (Walter-Bug 08.07.2026, PLZ 4914 Murgenthal/Roggwil).
+        (string? Gemeindename, string? Kantonskuerzel)? match = null;
+        var exact = locs.FirstOrDefault(l =>
             string.Equals(l.Gemeindename?.Trim(), eawCity?.Trim(), StringComparison.OrdinalIgnoreCase));
-        if (match == null)
+        if (!string.IsNullOrWhiteSpace(exact.Gemeindename))
+            match = exact;
+        else
         {
             var eawNorm = NormalizeCityName(eawCity);
             if (eawNorm.Length > 0)
@@ -3927,11 +3946,27 @@ public class EasyAtWorkEmployeeSyncService
                 if (normMatches.Count == 1) match = normMatches[0];
             }
         }
-        if (match == null && locs.Select(l => l.Kantonskuerzel).Distinct().Count() == 1)
-            match = locs.OrderBy(l => l.Gemeindename).First();
-        if (match == null)
-            return (null, null, $"PLZ {p} ist mehrdeutig ({string.Join(" / ", locs.Select(l => l.Gemeindename).OrderBy(n => n))}) und Ort '{eawCity}' konnte nicht zugeordnet werden.");
-        return (match.Gemeindename, match.Kantonskuerzel, null);
+
+        var cantons = locs.Select(l => l.Kantonskuerzel)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (match != null)
+            return (match.Value.Gemeindename, match.Value.Kantonskuerzel, null);
+
+        // easy@work-Ortschaft behalten (z.B. Bützberg ≠ Gemeinde Aarwangen/Thunstetten)
+        if (!string.IsNullOrWhiteSpace(eawCity) && cantons.Count == 1)
+            return (eawCity.Trim(), cantons[0], null);
+
+        // Kein Ort aus easy@work → erste Gemeinde des eindeutigen Kantons
+        if (cantons.Count == 1)
+        {
+            var fallback = locs.OrderBy(l => l.Gemeindename).First();
+            return (fallback.Gemeindename, fallback.Kantonskuerzel, null);
+        }
+
+        return (null, null, $"PLZ {plz} ist mehrdeutig ({string.Join(" / ", locs.Select(l => l.Gemeindename).OrderBy(n => n))}) und Ort '{eawCity}' konnte nicht zugeordnet werden.");
     }
 
     private static string? MapMaritalStatus(string? v)
