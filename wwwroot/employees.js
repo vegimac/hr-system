@@ -5672,7 +5672,7 @@ async function saveFamilyMember() {
     const phoneRaw = (document.getElementById('fmPhone')?.value || '').trim();
     const phoneFmt = phoneRaw ? window.formatPhoneIntl(phoneRaw) : '';
     if (phoneRaw && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(phoneFmt)) {
-        alert(_t('ma.error.phoneInvalid', 'Telefonnummer ungültig. Format: +41 79 333 44 55'));
+        alert('Telefon-Format ungültig (erwartet +99 99 999 99 99, z.B. +41 79 409 43 33).');
         document.getElementById('fmPhone')?.focus();
         return;
     }
