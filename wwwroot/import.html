@@ -1235,15 +1235,61 @@ function mapRegionToCantonCode(raw) {
 // Globaler PLZ→Kanton-Lookup-Cache (gefüllt nach CSV-Parse, einmaliger Bulk-Call).
 // Mehrdeutige/unbekannte PLZ sind NICHT im Map → Diff zeigt dann keine Warnung.
 let plzKantonMap = new Map();
+/** PLZ → [Ortschaftsname, …] aus AMTOVZ — für Ort-Validierung beim easy-Import. */
+let plzOrteMap = new Map();
 async function loadPlzKantonMap(plzs) {
     const unique = [...new Set(plzs.map(p => String(p || '').trim()).filter(Boolean))];
-    if (unique.length === 0) { plzKantonMap = new Map(); return; }
+    if (unique.length === 0) { plzKantonMap = new Map(); plzOrteMap = new Map(); return; }
     try {
         const res = await fetch('/api/swiss-locations/cantons-by-plz?plzs=' + encodeURIComponent(unique.join(',')), { headers: ah() });
-        if (!res.ok) { plzKantonMap = new Map(); return; }
-        const obj = await res.json();
-        plzKantonMap = new Map(Object.entries(obj));
+        if (!res.ok) { plzKantonMap = new Map(); }
+        else {
+            const obj = await res.json();
+            plzKantonMap = new Map(Object.entries(obj));
+        }
     } catch { plzKantonMap = new Map(); }
+
+    // Ortschaften pro PLZ (parallel, gecacht) — Walter 29.07.2026.
+    plzOrteMap = new Map();
+    await Promise.all(unique.map(async plz => {
+        try {
+            const r = await fetch('/api/swiss-locations/by-plz?plz=' + encodeURIComponent(plz), { headers: ah() });
+            if (!r.ok) { plzOrteMap.set(plz, []); return; }
+            const locs = await r.json();
+            plzOrteMap.set(plz, (locs || []).map(l => l.ortschaftsname || l.gemeindename).filter(Boolean));
+        } catch { plzOrteMap.set(plz, []); }
+    }));
+}
+
+/** «Roggwil (BE)» / «Roggwil BE» → «Roggwil» */
+function stripCityCantonSuffix(s) {
+    let t = String(s || '').trim();
+    const i = t.indexOf('(');
+    if (i > 0) t = t.slice(0, i).trim();
+    const parts = t.split(/\s+/).filter(Boolean);
+    if (parts.length > 1 && parts[parts.length - 1].length === 2)
+        t = parts.slice(0, -1).join(' ');
+    return t;
+}
+function normalizeCityName(s) {
+    return stripCityCantonSuffix(s).toLowerCase();
+}
+/** Auflösung CSV-Stadt → amtliche Ortschaft; error wenn PLZ/Ort nicht passen. */
+function resolveCityForImport(plz, cityRaw) {
+    const p = String(plz || '').trim();
+    const stripped = stripCityCantonSuffix(cityRaw);
+    if (!stripped) return { city: null, error: null };
+    if (!p) return { city: stripped, error: null };
+    const orte = plzOrteMap.get(p) || [];
+    if (!orte.length)
+        return { city: null, error: `PLZ ${p} wurde im Ortschaftsverzeichnis nicht gefunden.` };
+    const norm = normalizeCityName(stripped);
+    const hit = orte.find(o => normalizeCityName(o) === norm);
+    if (hit) return { city: hit, error: null };
+    return {
+        city: null,
+        error: `Ort «${stripped}» passt nicht zu PLZ ${p}. Bekannt: ${orte.join(', ')}`
+    };
 }
 
 // Kompatibilitäts-Wrapper: easy@work liefert Strasse + Hausnummer bereits
@@ -3283,10 +3329,12 @@ function renderAddrRow(a) {
     const csvRegionCode = mapRegionToCantonCode(get(row,'Region'));
     const plzCanton    = plzKantonMap.get(csvPlz) || '';
     const cantonMismatch = !!(plzCanton && csvRegionCode && plzCanton !== csvRegionCode);
+    const cityResolved = resolveCityForImport(csvPlz, get(row, 'Stadt'));
+    const cityMismatch = !!cityResolved.error;
     const fields = [
         { label: 'Strasse',      csv: csvAddr.street,            db: existingEmp?.street || '' },
         { label: 'PLZ',          csv: get(row,'Postleitzahl'),   db: existingEmp?.zipCode || '' },
-        { label: 'Stadt',        csv: get(row,'Stadt'),          db: existingEmp?.city || '' },
+        { label: 'Stadt',        csv: cityResolved.city || stripCityCantonSuffix(get(row,'Stadt')), db: existingEmp?.city || '' },
         { label: 'E-Mail',       csv: get(row,'E-Mail'),         db: existingEmp?.email || '' },
         { label: 'Telefon',      csv: formatPhone(get(row,'Telefon')),  db: existingEmp?.phoneMobile || '' },
     ];
@@ -3309,11 +3357,17 @@ function renderAddrRow(a) {
             <div class="row-badges">
                 ${diffCount ? `<span class="badge" style="background:#fef3c7;color:#92400e">${diffCount} Änderung${diffCount>1?'en':''}</span>` : '<span class="badge badge-addr">Keine Änderung</span>'}
                 ${cantonMismatch ? `<span class="badge" style="background:#fee2e2;color:#b91c1c" title="easy@work-Region (${get(row,'Region')}) passt nicht zur PLZ ${csvPlz} → Kanton ${plzCanton}">⚠ Kanton easy@work falsch</span>` : ''}
-                <span class="badge badge-addr" id="addrBadge-${idx}">Wird importiert</span>
+                ${cityMismatch ? `<span class="badge" style="background:#fee2e2;color:#b91c1c" title="${escHtml(cityResolved.error)}">⚠ Ort/PLZ</span>` : ''}
+                <span class="badge badge-addr" id="addrBadge-${idx}">${cityMismatch ? 'Gesperrt' : 'Wird importiert'}</span>
             </div>
             <span class="row-chevron" id="chev-${idx}">›</span>
         </div>
         <div class="row-detail" id="detail-${idx}">
+            ${cityMismatch ? `
+            <div style="margin-bottom:10px;padding:8px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;font-size:12.5px;color:#7f1d1d;line-height:1.45">
+                <b>⚠ Ortschaft passt nicht zur PLZ.</b> ${escHtml(cityResolved.error)}
+                Bitte in easy@work korrigieren — Import dieser Adresse ist gesperrt.
+            </div>` : ''}
             ${cantonMismatch ? `
             <div style="margin-bottom:10px;padding:8px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;font-size:12.5px;color:#7f1d1d;line-height:1.45">
                 <b>⚠ Kanton in easy@work falsch.</b>
@@ -3727,7 +3781,13 @@ function buildPersonPayload(row) {
         // Backend-Property heisst PhoneMobile (Employee-Model + EmployeeUpdateDto).
         phoneMobile:     formatPhone(get(row, 'Telefon')) || null,
         street:          addr.street || null,
-        city:            get(row, 'Stadt') || null,
+        // Walter 29.07.2026: ohne Kantons-Suffix; amtliche Ortschaft wenn bekannt.
+        // Bei Mismatch: null → Backend ORT_PLZ_MISMATCH bzw. Auto-Import skippt.
+        city:            (() => {
+            const r = resolveCityForImport(get(row, 'Postleitzahl'), get(row, 'Stadt'));
+            if (r.error) return null;
+            return r.city;
+        })(),
         zipCode:         get(row, 'Postleitzahl') || null,
         // Walter-Vorgabe 06.06.2026: CSV-Region (z.B. „Aargau") wird NICHT mehr
         // übernommen — easy@work hat dort teilweise falsche Kantone hinterlegt
@@ -4272,11 +4332,16 @@ async function runAutoImportAll() {
         barEl.style.width    = ((stepIdx / Math.max(totalSteps, 1)) * 100).toFixed(0) + '%';
 
         try {
+            const cityCheck = resolveCityForImport(get(r.row, 'Postleitzahl'), get(r.row, 'Stadt'));
+            if (cityCheck.error) throw new Error(cityCheck.error);
             const payload = buildPersonPayload(r.row);
             const res = await fetch(`/api/employees/${r.state.employeeId}`, {
                 method: 'PUT', headers: ah(), body: JSON.stringify(payload)
             });
-            if (!res.ok) throw new Error(await res.text());
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                throw new Error(j.message || j.error || await res.text().catch(() => res.status));
+            }
 
             // IBAN aus CSV → Bankverbindung (falls neu, sonst skip).
             await maybeCreateBankAccountFromCsv(r.state.employeeId, r.row);
@@ -4291,6 +4356,8 @@ async function runAutoImportAll() {
             addrDone++;
         } catch (e) {
             console.error('Adress-Import-Fehler bei idx', r.idx, e);
+            const status = document.getElementById(`rowStatus-${r.idx}`);
+            if (status) status.innerHTML = `<span style="color:#b91c1c">⚠ ${escHtml(e.message || e)}</span>`;
             errors++;
         }
     }

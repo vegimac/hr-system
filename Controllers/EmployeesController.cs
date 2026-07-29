@@ -2,6 +2,7 @@ using System.Security.Claims;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.EasyAtWork;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -540,7 +541,9 @@ public class EmployeesController : ControllerBase
         var zipBefore = employee.ZipCode?.Trim();
         if (dto.Street      is not null) employee.Street      = dto.Street      == "" ? null : dto.Street;
         if (dto.ZipCode     is not null) employee.ZipCode     = dto.ZipCode     == "" ? null : dto.ZipCode;
-        if (dto.City        is not null) employee.City        = dto.City        == "" ? null : dto.City;
+        // Kantons-Suffix («(BE)» / « BE») nie speichern — Walter 29.07.2026.
+        if (dto.City        is not null) employee.City        = dto.City        == "" ? null
+            : EasyAtWorkEmployeeSyncService.StripCityCantonSuffix(dto.City);
         if (dto.Country     is not null) employee.Country     = dto.Country     == "" ? null : dto.Country;
         if (dto.CantonCode  is not null) employee.CantonCode  = dto.CantonCode  == "" ? null : dto.CantonCode.ToUpperInvariant();
 
@@ -557,7 +560,32 @@ public class EmployeesController : ControllerBase
         // PLZ-Lookup wird ALWAYS ausgeführt (korrigiert frühere CSV-Region-Fehler).
         // Nur unterdrückt, wenn der Aufrufer explizit selbst einen Kanton mitschickt.
         var forceRefresh = (zipChanged || dto.ForceCantonFromZip) && !cantonExplicit;
-        await EnrichAddressFromZipAsync(employee, forceCantonRefresh: forceRefresh);
+
+        // easy-Import: Ort muss zur PLZ passen — sonst 400 mit Klartext
+        // (Walter 29.07.2026). Manuelles Editieren bleibt tolerant.
+        if (dto.ForceCantonFromZip
+            && !string.IsNullOrWhiteSpace(employee.ZipCode)
+            && !string.IsNullOrWhiteSpace(employee.City))
+        {
+            var locs = await _context.SwissLocations.AsNoTracking()
+                .Where(l => l.Plz4 == employee.ZipCode)
+                .Select(l => new { l.Ortschaftsname, l.Gemeindename, l.Kantonskuerzel })
+                .ToListAsync();
+            var (city, canton, err) = EasyAtWorkEmployeeSyncService.ResolveCityFromLocations(
+                employee.ZipCode!,
+                employee.City,
+                locs.Select(l => (l.Ortschaftsname, l.Gemeindename, l.Kantonskuerzel)).ToList());
+            if (err != null)
+                return BadRequest(new { error = "ORT_PLZ_MISMATCH", message = err });
+            if (!string.IsNullOrWhiteSpace(city)) employee.City = city;
+            if (!string.IsNullOrWhiteSpace(canton) && !cantonExplicit)
+                employee.CantonCode = canton;
+            await EnrichAddressFromZipAsync(employee, forceCantonRefresh: false);
+        }
+        else
+        {
+            await EnrichAddressFromZipAsync(employee, forceCantonRefresh: forceRefresh);
+        }
 
         // ── Aufenthalt ────────────────────────────────────────────────────
         if (dto.PermitTypeId.HasValue)     employee.PermitTypeId     = dto.PermitTypeId == 0 ? null : dto.PermitTypeId;

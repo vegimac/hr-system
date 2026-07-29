@@ -1031,7 +1031,11 @@ public class EasyAtWorkEmployeeSyncService
             data.NationalityId = natId;
 
         var loc = await ResolveSwissLocationAsync(data.ZipCode, eaw.City, ct);
-        data.City = loc.City ?? (string.IsNullOrWhiteSpace(eaw.City) ? null : eaw.City.Trim());
+        // Mit PLZ: nur der aufgelöste Ortschaftsname (ohne «(BE)»/« BE»).
+        // Ohne PLZ: Suffix strippen, Rohwert mit Kantonskürzel nie speichern.
+        data.City = !string.IsNullOrWhiteSpace(data.ZipCode)
+            ? loc.City
+            : StripCityCantonSuffix(eaw.City);
         data.CantonCode = loc.Canton;
         data.Country = string.IsNullOrWhiteSpace(data.ZipCode)
             ? (eaw.CountryKey ?? eaw.Country)?.ToUpperInvariant()
@@ -3892,14 +3896,23 @@ public class EasyAtWorkEmployeeSyncService
     /// («Roggwil (BE)» → «roggwil»), angehängtes Kantonskürzel («Roggwil BE»)
     /// und Gross-/Kleinschreibung entfernen.</summary>
     public static string NormalizeCityName(string? s)
+        => (StripCityCantonSuffix(s) ?? "").ToLowerInvariant();
+
+    /// <summary>
+    /// Kantons-Suffix vom Ortsnamen entfernen, Schreibweise sonst belassen.
+    /// «Roggwil (BE)» / «Roggwil BE» → «Roggwil». Walter 29.07.2026.
+    /// </summary>
+    public static string? StripCityCantonSuffix(string? s)
     {
-        var t = (s ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var t = s.Trim();
         var i = t.IndexOf('(');
         if (i > 0) t = t[..i].Trim();
         var parts = t.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length > 1 && parts[^1].Length == 2 && parts[^1] == parts[^1].ToUpperInvariant())
+        // Angehängtes 2-Buchstaben-Kürzel (CH-Kanton), egal ob Gross/Klein.
+        if (parts.Length > 1 && parts[^1].Length == 2)
             t = string.Join(' ', parts[..^1]);
-        return t.ToLowerInvariant();
+        return string.IsNullOrWhiteSpace(t) ? null : t;
     }
 
     private async Task<(string? City, string? Canton, string? Error)> ResolveSwissLocationAsync(string? plz, string? eawCity, CancellationToken ct)
@@ -3916,9 +3929,10 @@ public class EasyAtWorkEmployeeSyncService
 
     /// <summary>
     /// PLZ → Ort/Kanton. Ort = Post-Ortschaft (<c>Ortschaftsname</c>), z.B. «Bützberg».
-    /// Match-Reihenfolge: Ortschaft exakt → Gemeinde exakt → normalisiert.
-    /// Kein Treffer + eindeutiger Kanton → easy@work-Ort behalten
-    /// (Walter-Bug 29.07.2026). Ohne easy-Ort → erste Ortschaft alphabetisch.
+    /// Match-Reihenfolge: Ortschaft exakt → Gemeinde exakt → normalisiert
+    /// (inkl. Strip von «(BE)» / « BE»).
+    /// Kein Treffer bei geliefertem easy-Ort → Fehler (Walter 29.07.2026) —
+    /// kein stilles Behalten von «Roggwil BE». Ohne easy-Ort → erste Ortschaft.
     /// </summary>
     public static (string? City, string? Canton, string? Error) ResolveCityFromLocations(
         string plz,
@@ -3929,15 +3943,18 @@ public class EasyAtWorkEmployeeSyncService
             return (null, null, $"PLZ {plz} wurde im Schweizer Ortschaftsverzeichnis nicht gefunden.");
 
         (string? Ortschaftsname, string? Gemeindename, string? Kantonskuerzel)? match = null;
+        var eawClean = StripCityCantonSuffix(eawCity);
 
         var exactOrt = locs.FirstOrDefault(l =>
-            string.Equals(l.Ortschaftsname?.Trim(), eawCity?.Trim(), StringComparison.OrdinalIgnoreCase));
+            string.Equals(l.Ortschaftsname?.Trim(), eawClean, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(l.Ortschaftsname?.Trim(), eawCity?.Trim(), StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(exactOrt.Ortschaftsname))
             match = exactOrt;
         else
         {
             var exactGem = locs.FirstOrDefault(l =>
-                string.Equals(l.Gemeindename?.Trim(), eawCity?.Trim(), StringComparison.OrdinalIgnoreCase));
+                string.Equals(l.Gemeindename?.Trim(), eawClean, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(l.Gemeindename?.Trim(), eawCity?.Trim(), StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrWhiteSpace(exactGem.Ortschaftsname) || !string.IsNullOrWhiteSpace(exactGem.Gemeindename))
                 match = exactGem;
             else
@@ -3963,25 +3980,36 @@ public class EasyAtWorkEmployeeSyncService
 
         if (match != null)
         {
-            // Adress-Ort = Ortschaft (nicht politische Gemeinde)
+            // Adress-Ort = Ortschaft (nicht politische Gemeinde), ohne Kantons-Suffix
             var city = !string.IsNullOrWhiteSpace(match.Value.Ortschaftsname)
                 ? match.Value.Ortschaftsname
                 : match.Value.Gemeindename;
-            return (city, match.Value.Kantonskuerzel, null);
+            return (StripCityCantonSuffix(city) ?? city, match.Value.Kantonskuerzel, null);
         }
 
-        // easy@work-Ort behalten wenn Kanton aus PLZ eindeutig
-        if (!string.IsNullOrWhiteSpace(eawCity) && cantons.Count == 1)
-            return (eawCity.Trim(), cantons[0], null);
+        // easy lieferte einen Ort, der zu dieser PLZ nicht passt → Fehler
+        if (!string.IsNullOrWhiteSpace(eawCity))
+        {
+            var known = string.Join(", ", locs
+                .Select(l => l.Ortschaftsname ?? l.Gemeindename)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => n));
+            var shown = eawClean ?? eawCity.Trim();
+            return (null,
+                cantons.Count == 1 ? cantons[0] : null,
+                $"Ort «{shown}» passt nicht zu PLZ {plz}. Bekannt: {known}");
+        }
 
         if (cantons.Count == 1)
         {
             var fallback = locs.OrderBy(l => l.Ortschaftsname ?? l.Gemeindename).First();
-            return (fallback.Ortschaftsname ?? fallback.Gemeindename, fallback.Kantonskuerzel, null);
+            var city = fallback.Ortschaftsname ?? fallback.Gemeindename;
+            return (StripCityCantonSuffix(city) ?? city, fallback.Kantonskuerzel, null);
         }
 
         var names = locs.Select(l => l.Ortschaftsname ?? l.Gemeindename).OrderBy(n => n);
-        return (null, null, $"PLZ {plz} ist mehrdeutig ({string.Join(" / ", names)}) und Ort '{eawCity}' konnte nicht zugeordnet werden.");
+        return (null, null, $"PLZ {plz} ist mehrdeutig ({string.Join(" / ", names)}) und Ort konnte nicht zugeordnet werden.");
     }
 
     private static string? MapMaritalStatus(string? v)

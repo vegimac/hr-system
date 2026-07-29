@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Services;
+using HrSystem.Services.EasyAtWork;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -33,20 +34,33 @@ public class SwissLocationsController : ControllerBase
             return BadRequest(new { error = "plz ist erforderlich." });
 
         var plzTrim = plz.Trim();
-        var list = await _db.SwissLocations
+        var raw = await _db.SwissLocations
             .Where(l => l.Plz4 == plzTrim)
             .OrderBy(l => l.Ortschaftsname)
             .Select(l => new {
-                plz4             = l.Plz4,
-                ortschaftsname   = l.Ortschaftsname,
-                // Backward-compat: ältere Clients lasen «gemeindename» als Ort.
-                // Ab 29.07.2026 ist der Ort die Ortschaft — deshalb hier spiegeln.
-                gemeindename     = l.Ortschaftsname,
-                politischeGemeinde = l.Gemeindename,
-                bfsNr            = l.BfsNr,
-                kantonskuerzel   = l.Kantonskuerzel
+                l.Plz4,
+                l.Ortschaftsname,
+                l.Gemeindename,
+                l.BfsNr,
+                l.Kantonskuerzel
             })
             .ToListAsync();
+
+        // Walter 29.07.2026: Adress-Ort ohne Kantons-Suffix («Roggwil BE» → «Roggwil»).
+        // Rohname bleibt in der Admin-Tabelle ( /admin ).
+        var list = raw.Select(l => {
+            var ort = EasyAtWorkEmployeeSyncService.StripCityCantonSuffix(l.Ortschaftsname)
+                      ?? l.Ortschaftsname;
+            return new {
+                plz4               = l.Plz4,
+                ortschaftsname     = ort,
+                // Backward-compat: ältere Clients lasen «gemeindename» als Ort.
+                gemeindename       = ort,
+                politischeGemeinde = l.Gemeindename,
+                bfsNr              = l.BfsNr,
+                kantonskuerzel     = l.Kantonskuerzel
+            };
+        }).ToList();
 
         return Ok(list);
     }

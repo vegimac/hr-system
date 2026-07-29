@@ -262,7 +262,7 @@ public class MirusAddressCompareController : ControllerBase
 
             AddDiff(cr, "Strasse", oc.Street, m.Street, compareStreet: true);
             AddDiff(cr, "PLZ", oc.ZipCode, m.Zip, comparePlz: true);
-            AddDiff(cr, "Ort", oc.City, m.City);
+            AddDiff(cr, "Ort", oc.City, m.City, compareCity: true);
             AddDiff(cr, "Telefon", oc.PhoneMobile, m.Phone1, comparePhone: true);
             if (!IsBlank(m.Phone2) || !IsBlank(oc.Phone2))
                 AddDiff(cr, "Telefon 2", oc.Phone2, m.Phone2, comparePhone: true);
@@ -566,7 +566,8 @@ public class MirusAddressCompareController : ControllerBase
     // ─────────────────────────── Diff / PLZ ───────────────────────────
 
     private static void AddDiff(CompareRow cr, string field, string? oc, string? mirus,
-        bool compareStreet = false, bool comparePlz = false, bool comparePhone = false, bool compareEmail = false)
+        bool compareStreet = false, bool comparePlz = false, bool comparePhone = false,
+        bool compareEmail = false, bool compareCity = false)
     {
         if (IsBlank(oc) && IsBlank(mirus)) return;
 
@@ -575,6 +576,12 @@ public class MirusAddressCompareController : ControllerBase
         else if (compareEmail) same = EqEmail(oc, mirus);
         else if (comparePlz) same = NormPlz(oc) == NormPlz(mirus) && NormPlz(oc).Length > 0;
         else if (compareStreet) same = EqStreet(oc, mirus);
+        else if (compareCity)
+        {
+            var na = NormCity(oc);
+            var nb = NormCity(mirus);
+            same = na.Length > 0 && na == nb;
+        }
         else same = EqLoose(oc, mirus);
 
         if (same) return;
@@ -623,13 +630,14 @@ public class MirusAddressCompareController : ControllerBase
         var i = t.IndexOf('(');
         if (i > 0) t = t[..i].Trim();
         var parts = t.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length > 1 && parts[^1].Length == 2 && parts[^1] == parts[^1].ToUpperInvariant())
-            t = string.Join(' ', parts[..^1]);
-        // «Roggwil BE» → nach ToLower ist «be» nicht == ToUpper — extra:
+        // Angehängtes 2-Buchstaben-Kürzel (nach ToLower: «be»)
         if (parts.Length > 1 && parts[^1].Length == 2)
             t = string.Join(' ', parts[..^1]);
         return t;
     }
+
+    /// <summary>Test-Hook für NormCity (Kantons-Suffix-Toleranz).</summary>
+    public static string NormCityForTest(string? s) => NormCity(s);
 
     private static bool EqLoose(string? a, string? b)
     {
