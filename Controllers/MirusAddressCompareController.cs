@@ -6,6 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace HrSystem.Controllers;
 
@@ -92,10 +95,51 @@ public class MirusAddressCompareController : ControllerBase
         [FromForm] string scope = "active",
         CancellationToken ct = default)
     {
+        var (err, res) = await BuildCompareAsync(file, companyProfileId, scope, ct);
+        if (err != null) return err;
+        return Ok(res);
+    }
+
+    /// <summary>
+    /// PDF der Abweichungen (Walter 29.07.2026) — Vor-/Nachname anonymisiert
+    /// (Initialen), Personalnummer bleibt. Zum Versand per E-Mail.
+    /// </summary>
+    [HttpPost("pdf")]
+    public async Task<IActionResult> Pdf(
+        [FromForm] IFormFile file,
+        [FromForm] int companyProfileId = 0,
+        [FromForm] string scope = "active",
+        CancellationToken ct = default)
+    {
+        var (err, res) = await BuildCompareAsync(file, companyProfileId, scope, ct);
+        if (err != null) return err;
+
+        var branch = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == companyProfileId)
+            .Select(c => new { c.RestaurantCode, c.City })
+            .FirstOrDefaultAsync(ct);
+        var branchLabel = branch == null
+            ? $"Filiale {companyProfileId}"
+            : $"{branch.RestaurantCode} {branch.City}".Trim();
+
+        var diffs = (res!.Rows ?? new())
+            .Where(r => r.Status == "DIFF" && r.Diffs.Count > 0)
+            .ToList();
+
+        QuestPDF.Settings.License = LicenseType.Community;
+        var bytes = BuildDiffPdf(diffs, res, branchLabel, scope);
+        var fn = $"Adress-Abweichungen_{branch?.RestaurantCode ?? "Filiale"}_{DateTime.Now:yyyyMMdd}.pdf"
+            .Replace(' ', '_');
+        return File(bytes, "application/pdf", fn);
+    }
+
+    private async Task<(IActionResult? Error, CompareResponse? Result)> BuildCompareAsync(
+        IFormFile? file, int companyProfileId, string? scope, CancellationToken ct)
+    {
         if (file == null || file.Length == 0)
-            return BadRequest(new { error = "Datei fehlt." });
+            return (BadRequest(new { error = "Datei fehlt." }), null);
         if (companyProfileId <= 0)
-            return BadRequest(new { error = "Bitte zuerst links eine Filiale wählen." });
+            return (BadRequest(new { error = "Bitte zuerst links eine Filiale wählen." }), null);
 
         var onlyActive = !string.Equals(scope?.Trim(), "all", StringComparison.OrdinalIgnoreCase);
 
@@ -107,11 +151,11 @@ public class MirusAddressCompareController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { error = $"Datei konnte nicht gelesen werden: {ex.Message}" });
+            return (BadRequest(new { error = $"Datei konnte nicht gelesen werden: {ex.Message}" }), null);
         }
 
         if (mirusRows.Count == 0)
-            return BadRequest(new { error = "Keine Datenzeilen gefunden. Erwartet: Mirus «Adressliste» mit Spalte Pers. Nr." });
+            return (BadRequest(new { error = "Keine Datenzeilen gefunden. Erwartet: Mirus «Adressliste» mit Spalte Pers. Nr." }), null);
 
         var ocEmployees = await _db.Employees.AsNoTracking()
             .Where(e => e.Employments.Any(em => em.CompanyProfileId == companyProfileId)
@@ -122,7 +166,6 @@ public class MirusAddressCompareController : ControllerBase
                 e.PhoneMobile, e.Phone2, e.Email))
             .ToListAsync(ct);
 
-        // Filial-MA bevorzugen; Personaldossiers ohne Vertrag als Fallback-Pool
         var branchIds = await _db.Employments.AsNoTracking()
             .Where(em => em.CompanyProfileId == companyProfileId)
             .Select(em => em.EmployeeId)
@@ -138,7 +181,6 @@ public class MirusAddressCompareController : ControllerBase
             .GroupBy(e => NormNumber(e.EmployeeNumber!))
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // PLZ → Ortschaften einmal laden (nur benötigte)
         var allPlz = mirusRows.Select(r => NormPlz(r.Zip))
             .Concat(branchEmps.Select(e => NormPlz(e.ZipCode)))
             .Where(p => p.Length == 4)
@@ -189,7 +231,6 @@ public class MirusAddressCompareController : ControllerBase
                 if (cands.Count == 1) oc = cands[0];
                 else
                 {
-                    // Bei Nummern-Kollision Namen als Tie-Break
                     var byName = cands.Where(c =>
                         string.Equals(NormName(c.FirstName), NormName(m.FirstName), StringComparison.OrdinalIgnoreCase)
                      && string.Equals(NormName(c.LastName), NormName(m.LastName), StringComparison.OrdinalIgnoreCase)).ToList();
@@ -223,11 +264,9 @@ public class MirusAddressCompareController : ControllerBase
             AddDiff(cr, "PLZ", oc.ZipCode, m.Zip, comparePlz: true);
             AddDiff(cr, "Ort", oc.City, m.City);
             AddDiff(cr, "Telefon", oc.PhoneMobile, m.Phone1, comparePhone: true);
-            // Telefon 2: Mirus vs OneCrew Phone2 (wenn Mirus leer und OC leer → kein Diff)
             if (!IsBlank(m.Phone2) || !IsBlank(oc.Phone2))
                 AddDiff(cr, "Telefon 2", oc.Phone2, m.Phone2, comparePhone: true);
             AddDiff(cr, "E-Mail", oc.Email, m.Email, compareEmail: true);
-            // E-Mail Kontaktdaten: nur Hinweis wenn gesetzt und ≠ Haupt-E-Mail
             if (!IsBlank(m.EmailKontakt)
                 && !EqEmail(m.EmailKontakt, m.Email)
                 && !EqEmail(m.EmailKontakt, oc.Email))
@@ -247,7 +286,6 @@ public class MirusAddressCompareController : ControllerBase
             rows.Add(cr);
         }
 
-        // OneCrew-Filial-MA ohne Mirus-Zeile (Scope: active oder all)
         foreach (var oc in branchEmps.Where(e => !matchedIds.Contains(e.Id))
                                      .OrderBy(e => e.FirstName).ThenBy(e => e.LastName))
         {
@@ -273,7 +311,6 @@ public class MirusAddressCompareController : ControllerBase
             rows.Add(cr);
         }
 
-        // Sort: Diffs zuerst, dann NO_MATCH, ONLY_ONECREW, OK — innerhalb Vorname
         int Rank(string s) => s switch
         {
             "DIFF" => 0,
@@ -296,7 +333,124 @@ public class MirusAddressCompareController : ControllerBase
         res.OnlyOneCrew = rows.Count(r => r.Status == "ONLY_ONECREW");
         res.PlzIssues = rows.Count(r => r.PlzChecks.Any(p => p.Status is "PLZ_UNKNOWN" or "ORT_MISMATCH"));
 
-        return Ok(res);
+        return (null, res);
+    }
+
+    /// <summary>Vor-/Nachname → Initialen («Teresa Maria Aiello» → «T. M. A.»).</summary>
+    public static string AnonymizePerson(string? firstName, string? lastName)
+    {
+        static string Inits(string? s)
+        {
+            var parts = (s ?? "").Split(new[] { ' ', '-', '\'' }, StringSplitOptions.RemoveEmptyEntries);
+            return string.Join(" ", parts.Select(p => char.ToUpperInvariant(p[0]) + "."));
+        }
+        var a = $"{Inits(firstName)} {Inits(lastName)}".Trim();
+        return a.Length > 0 ? a : "—";
+    }
+
+    private static byte[] BuildDiffPdf(List<CompareRow> diffs, CompareResponse summary, string branchLabel, string? scope)
+    {
+        var scopeLbl = string.Equals(scope?.Trim(), "all", StringComparison.OrdinalIgnoreCase) ? "Alle MA" : "Aktive MA";
+        var created = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+
+        return Document.Create(doc =>
+        {
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(28);
+                page.MarginBottom(28);
+                page.MarginHorizontal(32);
+                page.DefaultTextStyle(t => t.FontSize(9).FontColor("#222"));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().Text("Adress-/Kontakt-Abweichungen OneCrew ↔ Mirus")
+                        .SemiBold().FontSize(14).FontColor("#1a1a1a");
+                    col.Item().PaddingTop(2).Text($"{branchLabel}  ·  {scopeLbl}  ·  erstellt {created}")
+                        .FontSize(9).FontColor("#555");
+                    col.Item().PaddingTop(2).Text("Namen anonymisiert (Initialen). Personalnummer bleibt zur Zuordnung.")
+                        .FontSize(8).FontColor("#777").Italic();
+                    col.Item().PaddingTop(8).LineHorizontal(0.8f).LineColor("#ccc");
+                });
+
+                page.Footer().AlignCenter().Text(t =>
+                {
+                    t.Span("Seite ");
+                    t.CurrentPageNumber();
+                    t.Span(" / ");
+                    t.TotalPages();
+                    t.Span("  ·  vertraulich");
+                });
+
+                page.Content().PaddingTop(10).Column(col =>
+                {
+                    col.Item().Text(
+                        $"Mirus {summary.TotalMirus}  ·  gematcht {summary.Matched}  ·  identisch {summary.Identical}  ·  " +
+                        $"Abweichungen {summary.WithDiffs}  ·  kein Match {summary.NoMatch}  ·  nur OneCrew {summary.OnlyOneCrew}")
+                        .FontSize(8.5f).FontColor("#444");
+
+                    col.Item().PaddingTop(10).Text($"Feld-Abweichungen ({diffs.Count})")
+                        .SemiBold().FontSize(11);
+
+                    if (diffs.Count == 0)
+                    {
+                        col.Item().PaddingTop(12).Text("Keine Feld-Abweichungen für diesen Lauf.")
+                            .FontColor("#166534");
+                        return;
+                    }
+
+                    foreach (var r in diffs)
+                    {
+                        var anon = AnonymizePerson(r.FirstName, r.LastName);
+                        var nr = string.IsNullOrWhiteSpace(r.EmployeeNumber) ? "—" : r.EmployeeNumber!;
+                        col.Item().PaddingTop(10).BorderBottom(0.5f).BorderColor("#e5e5e5").PaddingBottom(8).Column(block =>
+                        {
+                            block.Item().Row(row =>
+                            {
+                                row.RelativeItem().Text($"{anon}  ·  Pers. {nr}")
+                                    .SemiBold().FontSize(10);
+                                if (r.IsActive == false)
+                                    row.ConstantItem(50).AlignRight().Text("inaktiv").FontSize(8).FontColor("#888");
+                            });
+
+                            block.Item().PaddingTop(4).Table(table =>
+                            {
+                                table.ColumnsDefinition(c =>
+                                {
+                                    c.ConstantColumn(90);
+                                    c.RelativeColumn();
+                                    c.RelativeColumn();
+                                });
+                                table.Header(h =>
+                                {
+                                    h.Cell().Background("#f3f3f3").Padding(3).Text("Feld").SemiBold().FontSize(8);
+                                    h.Cell().Background("#f3f3f3").Padding(3).Text("OneCrew").SemiBold().FontSize(8);
+                                    h.Cell().Background("#f3f3f3").Padding(3).Text("Mirus").SemiBold().FontSize(8);
+                                });
+                                foreach (var d in r.Diffs)
+                                {
+                                    table.Cell().BorderBottom(0.3f).BorderColor("#eee").Padding(3)
+                                        .Text(d.Field).FontSize(8.5f);
+                                    table.Cell().BorderBottom(0.3f).BorderColor("#eee").Padding(3)
+                                        .Text(d.OneCrew ?? "—").FontSize(8.5f);
+                                    table.Cell().BorderBottom(0.3f).BorderColor("#eee").Padding(3)
+                                        .Text(d.Mirus ?? "—").FontSize(8.5f).FontColor("#9a3412");
+                                }
+                            });
+
+                            var plzNotes = (r.PlzChecks ?? new())
+                                .Where(p => p.Status is "PLZ_UNKNOWN" or "ORT_MISMATCH")
+                                .Select(p => $"{p.Source}: {p.Message}")
+                                .ToList();
+                            if (plzNotes.Count > 0)
+                                block.Item().PaddingTop(3).Text(string.Join(" · ", plzNotes))
+                                    .FontSize(7.5f).FontColor("#9f1239");
+                        });
+                    }
+                });
+            });
+        }).GeneratePdf();
     }
 
     // ─────────────────────────── Parsing ───────────────────────────

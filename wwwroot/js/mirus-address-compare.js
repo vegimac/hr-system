@@ -96,22 +96,69 @@ function macRender(data) {
         </div>`;
 
     const filterSel = `
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 10px">
-            <span style="font-size:12px;color:#64748b;font-weight:600">Filter:</span>
-            <select id="macFilter" onchange="macRenderRows()"
-                    style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:#fff">
-                <option value="DIFF">Nur Abweichungen</option>
-                <option value="PLZ">Nur PLZ/Ort-Probleme</option>
-                <option value="NO_MATCH">Kein Match</option>
-                <option value="ONLY_ONECREW">Nur in OneCrew</option>
-                <option value="OK">Identisch</option>
-                <option value="ALL">Alle</option>
-            </select>
-            <span id="macFilterCount" style="font-size:12px;color:#64748b"></span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 10px;justify-content:space-between">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <span style="font-size:12px;color:#64748b;font-weight:600">Filter:</span>
+                <select id="macFilter" onchange="macRenderRows()"
+                        style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:#fff">
+                    <option value="DIFF">Nur Abweichungen</option>
+                    <option value="PLZ">Nur PLZ/Ort-Probleme</option>
+                    <option value="NO_MATCH">Kein Match</option>
+                    <option value="ONLY_ONECREW">Nur in OneCrew</option>
+                    <option value="OK">Identisch</option>
+                    <option value="ALL">Alle</option>
+                </select>
+                <span id="macFilterCount" style="font-size:12px;color:#64748b"></span>
+            </div>
+            <button type="button" id="macPdfBtn" onclick="macPdf()"
+                    style="padding:8px 14px;border:none;border-radius:12px;background:#3f3f3f;color:#fff;font-size:13px;font-weight:600;cursor:pointer"
+                    title="PDF der Abweichungen (Namen anonymisiert) für E-Mail">📄 PDF Abweichungen</button>
         </div>`;
 
     document.getElementById('macPreview').innerHTML = filterSel + `<div id="macRows"></div>`;
     macRenderRows();
+}
+
+async function macPdf() {
+    if (!_macFile) {
+        showPageAlert('macAlert', 'Bitte zuerst analysieren (Datei wählen).', 'error');
+        return;
+    }
+    const cpId = typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId ? fixedCompanyProfileId : 0;
+    if (!cpId) {
+        showPageAlert('macAlert', 'Bitte zuerst links eine Filiale wählen.', 'error');
+        return;
+    }
+    const scope = document.getElementById('macScope')?.value || 'active';
+    const fd = new FormData();
+    fd.append('file', _macFile);
+    fd.append('companyProfileId', String(cpId));
+    fd.append('scope', scope);
+
+    const btn = document.getElementById('macPdfBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ PDF…'; }
+    try {
+        const r = await fetch('/api/imports/mirus-address-compare/pdf', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + (typeof authToken !== 'undefined' ? authToken : localStorage.hrToken) },
+            body: fd
+        });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            showPageAlert('macAlert', 'PDF fehlgeschlagen: ' + (j.error || j.message || r.status), 'error');
+            return;
+        }
+        const blob = await r.blob();
+        const cd = r.headers.get('Content-Disposition') || '';
+        const m = /filename\*?=(?:UTF-8''|")?([^\";]+)/i.exec(cd);
+        const fn = m ? decodeURIComponent(m[1].replace(/"/g, '')) : 'Adress-Abweichungen.pdf';
+        if (typeof previewFileModal === 'function') await previewFileModal(blob, fn);
+        else if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, fn);
+    } catch (e) {
+        showPageAlert('macAlert', 'Netzwerkfehler: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '📄 PDF Abweichungen'; }
+    }
 }
 
 function macTile(n, label, bg, fg) {
