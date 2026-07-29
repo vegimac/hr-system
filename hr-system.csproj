@@ -19,6 +19,10 @@
     <None Update="Data\bank_master.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- AMTOVZ PLZ/Ortschaft — wird beim Start ggf. in swiss_location geladen. -->
+    <None Update="data_swiss_locations.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

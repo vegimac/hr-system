@@ -5695,16 +5695,20 @@
                 <div class="sticky-page-head">
                 <div class="page-header">
                     <div>
-                        <h1 class="page-title">PLZ / Gemeinden</h1>
-                        <p class="page-sub">Schweizer Ortschaftsverzeichnis (Quelle: amtliches Verzeichnis der Schweizerischen Post). Wird beim Adress-Erfassen für PLZ-→-Kanton-Lookup verwendet.</p>
+                        <h1 class="page-title">PLZ / Ortschaften</h1>
+                        <p class="page-sub">Amtliches Ortschaftenverzeichnis (AMTOVZ). Adress-Ort = Ortschaft (z.B. Bützberg), nicht politische Gemeinde. Wird beim Adress-Erfassen und im Mirus-Adressvergleich genutzt.</p>
                     </div>
                 </div>
                 <div id="locAlert" style="margin-bottom:12px"></div>
-                <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
-                    <input type="text" id="locSearch" placeholder="Suchen (PLZ, Gemeinde, Kanton)…"
+                <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
+                    <input type="text" id="locSearch" placeholder="Suchen (PLZ, Ortschaft, Gemeinde, Kanton)…"
                            oninput="locSearch()"
-                           style="flex:1;padding:9px 12px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
-                    <button class="btn btn-primary" onclick="locOpenAdd()">+ Neuer Eintrag</button>
+                           style="flex:1;min-width:200px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                    <button type="button" id="locReimportBtn" onclick="locReimport(true)"
+                            title="Tabelle aus data_swiss_locations.csv neu laden (AMTOVZ)"
+                            style="padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.62);background:rgba(255,255,255,0.45);color:#3f3f3f;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.12)">↻ AMTOVZ neu laden</button>
+                    <button type="button" class="btn btn-primary" onclick="locOpenAdd()"
+                            style="padding:9px 14px;border-radius:12px;border:none;background:#3f3f3f;color:#fff;font-size:13px;font-weight:600;cursor:pointer">+ Neuer Eintrag</button>
                 </div>
                 </div><!-- /.sticky-page-head -->
 
@@ -7167,7 +7171,7 @@
 <script src="js/qst-import.js?v=20260704p"></script>
 <script src="js/kontrolle.js?v=20260722a"></script>
 <script src="js/nationen.js?v=20260704p"></script>
-<script src="js/swiss-locations.js?v=20260729a"></script>
+<script src="js/swiss-locations.js?v=20260729b"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>
 <script src="js/stammdaten-import.js?v=20260704p"></script>
 <script src="js/saldo-vortrag-import.js?v=20260704p"></script>

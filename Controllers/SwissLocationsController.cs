@@ -1,4 +1,5 @@
 using HrSystem.Data;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -182,6 +183,53 @@ public class SwissLocationsController : ControllerBase
         _db.SwissLocations.Remove(entry);
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    /// <summary>
+    /// Walter 29.07.2026: AMTOVZ-CSV komplett neu laden (Truncate + Insert).
+    /// Repariert u.a. den alten Fehler «Thörigen unter PLZ 3360».
+    /// Body optional: { "force": true } — sonst nur wenn IsStale.
+    /// </summary>
+    [HttpPost("admin/reimport")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> Reimport([FromBody] ReimportDto? dto, CancellationToken ct)
+    {
+        var force = dto?.Force == true;
+        var contentRoot = HttpContext.RequestServices
+            .GetRequiredService<IWebHostEnvironment>().ContentRootPath;
+
+        if (!force && !await SwissLocationReimportService.IsStaleAsync(_db, ct))
+        {
+            var n = await _db.SwissLocations.CountAsync(ct);
+            return Ok(new {
+                reimported = false,
+                count = n,
+                message = $"Verzeichnis ist bereits aktuell ({n} Ortschaften)."
+            });
+        }
+
+        try
+        {
+            var (count, path) = await SwissLocationReimportService.ReimportAsync(_db, contentRoot, ct);
+            return Ok(new {
+                reimported = true,
+                count,
+                csvPath = path,
+                message = $"Neu geladen: {count} Ortschaften aus AMTOVZ."
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new {
+                error = "REIMPORT_FAILED",
+                message = ex.Message
+            });
+        }
+    }
+
+    public class ReimportDto
+    {
+        public bool Force { get; set; }
     }
 
     private static object ToAdminDto(Models.SwissLocation entry) => new {

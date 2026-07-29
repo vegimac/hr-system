@@ -2025,13 +2025,6 @@ using (var scope = app.Services.CreateScope())
             error         text
         );
         CREATE INDEX IF NOT EXISTS ix_sms_log_employee_purpose ON sms_log (employee_id, purpose);
-        -- PLZ-Ortschaft (Walter 29.07.2026): Adress-Ort = Post-Ortschaft, nicht
-        -- politische Gemeinde. Vollständiger Re-Import via TablePlus:
-        -- migrations-archive/reimport_swiss_location_ortschaft.sql
-        ALTER TABLE swiss_location ADD COLUMN IF NOT EXISTS ortschaftsname VARCHAR(80);
-        UPDATE swiss_location SET ortschaftsname = gemeindename
-         WHERE ortschaftsname IS NULL OR btrim(ortschaftsname) = '';
-
         -- Nachtarbeit-Untersuchung am MA (Walter 20.06.2026, ArG)
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_valid_until DATE;
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS night_work_exam_dokument_id INTEGER REFERENCES employee_dokument(id) ON DELETE SET NULL;
@@ -2356,6 +2349,15 @@ using (var scope = app.Services.CreateScope())
     var bankSvc = scope.ServiceProvider.GetRequiredService<BankLookupService>();
     await bankSvc.SeedFromCsvIfEmptyAsync();
     await bankSvc.ReloadAsync();
+}
+
+// PLZ/Ortschaft (AMTOVZ): bei altem/falschem Stand automatisch aus CSV neu laden
+// (Walter 29.07.2026 — TablePlus-Reimport wurde oft übersprungen; Sentinel z.B.
+// Thörigen unter PLZ 3360). CSV liegt neben der DLL (CopyToOutputDirectory).
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await SwissLocationReimportService.EnsureFreshAsync(db, app.Environment.ContentRootPath);
 }
 
 app.Run();

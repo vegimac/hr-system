@@ -16,6 +16,8 @@ async function locInit() {
     document.getElementById('locAlert').innerHTML = '';
     document.getElementById('locSearch').value = '';
     document.getElementById('locList').innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
+    const reBtn = document.getElementById('locReimportBtn');
+    if (reBtn) reBtn.style.display = currentUser?.role === 'admin' ? '' : 'none';
     try {
         const r = await fetch('/api/swiss-locations/admin', { headers: ah() });
         if (!r.ok) {
@@ -226,5 +228,36 @@ async function locDelete(id) {
         locRender();
     } catch (e) {
         showPageAlert('locAlert', 'Verbindungsfehler: ' + e.message, 'error');
+    }
+}
+
+/// Walter 29.07.2026: AMTOVZ aus CSV neu laden (repariert z.B. Thörigen≠3360).
+async function locReimport(force) {
+    const ok = await (typeof liquidConfirm === 'function'
+        ? liquidConfirm(force
+            ? 'PLZ-/Ortschaftsverzeichnis komplett aus AMTOVZ-CSV neu laden? Bestehende manuelle Einträge gehen verloren.'
+            : 'Verzeichnis nur neu laden, wenn der alte/falsche Stand erkannt wird. Fortfahren?')
+        : Promise.resolve(confirm('PLZ-/Ortschaftsverzeichnis neu laden?')));
+    if (!ok) return;
+
+    const btn = document.getElementById('locReimportBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Lädt…'; }
+    try {
+        const r = await fetch('/api/swiss-locations/admin/reimport', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ force: !!force })
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            showPageAlert('locAlert', 'Fehler: ' + (j.message || j.error || r.status), 'error');
+            return;
+        }
+        showPageAlert('locAlert', '✓ ' + (j.message || 'Fertig.'), 'success');
+        await locInit();
+    } catch (e) {
+        showPageAlert('locAlert', 'Verbindungsfehler: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '↻ AMTOVZ neu laden'; }
     }
 }
