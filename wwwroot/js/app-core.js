@@ -878,7 +878,7 @@ function roleName(r) {
 const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne','kontoplan','warnungen',
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
-                         'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','smtp-settings','ecall','moment-texte','filial-onboarding','postfach-backfill',
+                         'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','moment-texte','filial-onboarding','postfach-backfill',
                          'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','aerzte'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
@@ -953,6 +953,7 @@ function showPage(name) {
     if (name === 'stammdaten-import') stImportInit();
     if (name === 'saldo-vortrag-import') svImpInit();
     if (name === 'saldo-vortrag-import-stunden') svhImpInit();
+    if (name === 'mirus-address-compare') macInit();
     if (name === 'roster-absence-import') rosterImportInit();
     if (name === 'absence-report') arInit();
     if (name === 'akonto-lauf')    akInit();
@@ -1133,6 +1134,8 @@ function onBranchChange() {
         if (typeof svImpInit === 'function') svImpInit();
     } else if (currentPageName === 'saldo-vortrag-import-stunden') {
         if (typeof svhImpInit === 'function') svhImpInit();
+    } else if (currentPageName === 'mirus-address-compare') {
+        if (typeof macInit === 'function') macInit();
     } else if (currentPageName === 'roster-absence-import') {
         // Banner aktualisieren — File-Auswahl bleibt erhalten.
         if (typeof rosterImportRefreshBanner === 'function') rosterImportRefreshBanner();

@@ -135,6 +135,7 @@ public class EditLockEndpointAuditTests
         ["RosterAbsenceImportController"]       = "Schichtplan-Absenz-Import — admin",
         ["ImportController"]                    = "PDF-Stempelzeiten-Import ENTFERNT (Walter 19.06.2026) — Endpunkte liefern nur noch 410 Gone, kein Schreibpfad in employee_time_entry. Stempelzeiten kommen ausschliesslich über die easy@work-API.",
         ["SaldoVortragImportController"]        = "Saldo-Vortrag Bulk-Import (Mirus Saldomethode) — admin/superuser, einmalige Migration",
+        ["MirusAddressCompareController"]       = "Mirus Adressliste-Vergleich — read-only Auswertung, kein Schreibpfad",
 
         // QST-Formulare etc.
         ["QstAnmeldungController"]         = "QST-Anmeldung-PDF — read-only",
