@@ -26,9 +26,10 @@ async function aufforderungArbeitInit() {
 }
 
 function aaRenderEmpList() {
-    // Gemeinsamer Picker aus kuendigung.js (Filial-Regel + Vorname-Sort).
+    // Gemeinsamer Picker aus kuendigung.js — eigene MA-Liste übergeben
+    // (sonst leerer Picker, weil _kuAllEmployees noch nicht geladen ist).
     if (typeof _renderEmpPicker === 'function') {
-        _renderEmpPicker('aaEmpFilter', 'aaEmpSearch', 'aaEmpSelect');
+        _renderEmpPicker('aaEmpFilter', 'aaEmpSearch', 'aaEmpSelect', _aaAllEmployees);
         return;
     }
     // Fallback, falls kuendigung.js nicht geladen
@@ -88,6 +89,7 @@ async function aaOnEmpChange() {
         document.getElementById('aaKontaktName').value = _aaInfo.kontaktName || '';
         document.getElementById('aaKontaktFunktion').value = _aaInfo.kontaktFunktion || 'Restaurantleiter';
         document.getElementById('aaKontaktTel').value = _aaInfo.kontaktTelefon || '';
+        aaFillSignerSelect(_aaInfo.signers || [], _aaInfo.defaultSignerUserId);
         const hint = document.getElementById('aaEmpHint');
         if (hint) {
             const n = _aaInfo.employee?.name || '';
@@ -97,6 +99,31 @@ async function aaOnEmpChange() {
         if (det) det.style.display = 'block';
     } catch (e) {
         alert('Verbindungsfehler: ' + (e?.message || e));
+    }
+}
+
+function aaFillSignerSelect(signers, defaultId) {
+    const sel = document.getElementById('aaSignerUserId');
+    const hint = document.getElementById('aaSignerHint');
+    if (!sel) return;
+    if (!signers.length) {
+        sel.innerHTML = '<option value="">— keine Filial-Benutzer —</option>';
+        if (hint) hint.textContent = 'Keine Benutzer mit Filial-Zugang gefunden. Unterzeichner werden im Filial-Tab «Unterzeichner» gepflegt.';
+        return;
+    }
+    sel.innerHTML = signers.map(s => {
+        const fn = s.funktion ? ` · ${s.funktion}` : '';
+        const sig = s.hasSignature ? '' : ' · (keine Unterschrift)';
+        return `<option value="${s.userId}">${s.name}${fn}${sig}</option>`;
+    }).join('');
+    const def = defaultId != null ? String(defaultId) : '';
+    if (def && [...sel.options].some(o => o.value === def)) sel.value = def;
+    else sel.selectedIndex = 0;
+    const chosen = signers.find(s => String(s.userId) === sel.value);
+    if (hint) {
+        hint.textContent = chosen && !chosen.hasSignature
+            ? 'Hinweis: Diese Person hat noch keine Unterschrift hinterlegt — die Stelle im PDF bleibt leer.'
+            : 'Unterschrift + Klarname aus dem Benutzerprofil der gewählten Person.';
     }
 }
 
@@ -132,9 +159,11 @@ async function aaGenerate() {
     if (kontaktTel && typeof window.formatPhoneIntl === 'function')
         kontaktTel = window.formatPhoneIntl(kontaktTel);
     const eingeschrieben = document.querySelector('input[name="aaZustell"]:checked')?.value === 'E';
+    const signerUserId = parseInt(document.getElementById('aaSignerUserId')?.value || '0', 10) || null;
 
     if (!kontaktName) { alert('Bitte den Namen der Kontaktperson (Restaurantleiter) angeben.'); return; }
     if (!frist) { alert('Bitte die Meldefrist angeben.'); return; }
+    if (!signerUserId) { alert('Bitte einen Unterzeichner wählen.'); return; }
     if (datum && frist && frist < datum) {
         alert('Die Meldefrist darf nicht vor dem Briefdatum liegen.');
         return;
@@ -147,7 +176,8 @@ async function aaGenerate() {
         kontaktName,
         kontaktTelefon: kontaktTel || null,
         kontaktFunktion: kontaktFunktion || null,
-        eingeschrieben
+        eingeschrieben,
+        signerUserId
     };
 
     try {

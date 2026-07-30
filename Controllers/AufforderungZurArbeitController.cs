@@ -36,6 +36,8 @@ public class AufforderungZurArbeitController : ControllerBase
         public string?   KontaktTelefon { get; set; }
         public string?   KontaktFunktion { get; set; }
         public bool      Eingeschrieben { get; set; }
+        /// <summary>User-Id des Unterzeichners (Filial-Zugang). Null = eingeloggter User.</summary>
+        public int?      SignerUserId { get; set; }
     }
 
     [HttpGet("{empId:int}/info")]
@@ -49,6 +51,13 @@ public class AufforderungZurArbeitController : ControllerBase
 
         var today = DateOnly.FromDateTime(DateTime.Today);
         var (kontaktName, kontaktFunktion, kontaktTel) = await ResolveKontaktAsync(cp?.Id);
+        var signers = await ListSignersAsync(cp?.Id);
+        var loggedInId = CurrentUserId();
+        var defaultSignerId = signers
+            .Select(s => (int?)s.UserId)
+            .FirstOrDefault(id => id == loggedInId)
+            ?? signers.FirstOrDefault(s => s.IsDefault)?.UserId
+            ?? signers.FirstOrDefault()?.UserId;
 
         return Ok(new
         {
@@ -75,6 +84,15 @@ public class AufforderungZurArbeitController : ControllerBase
             kontaktName,
             kontaktFunktion,
             kontaktTelefon = kontaktTel,
+            signers = signers.Select(s => new
+            {
+                userId = s.UserId,
+                name = s.Name,
+                funktion = s.Funktion,
+                hasSignature = s.HasSignature,
+                isDefault = s.IsDefault,
+            }),
+            defaultSignerUserId = defaultSignerId,
         });
     }
 
@@ -105,7 +123,10 @@ public class AufforderungZurArbeitController : ControllerBase
             ? (defFunktion ?? "Restaurantleiter")
             : dto.KontaktFunktion!.Trim();
 
-        var (sigPng, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
+        var (sigPng, signerName, signerFunktion) = await ResolveSignerAsync(cp?.Id, dto.SignerUserId);
+        if (string.IsNullOrWhiteSpace(signerName))
+            return BadRequest(new { error = "SIGNER_FEHLT",
+                message = "Bitte einen Unterzeichner wählen (Filial-Zugang mit Name)." });
 
         var data = new AufforderungZurArbeitPdfService.AufforderungData(
             FirmaName: cp?.CompanyName,
@@ -240,27 +261,92 @@ public class AufforderungZurArbeitController : ControllerBase
         return (name, funktion, tel);
     }
 
-    private async Task<(byte[]? png, string? name, string? funktion)> GetSignerAsync(int? companyProfileId)
-    {
-        var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!int.TryParse(idStr, out var uid)) return (null, null, null);
+    private sealed record SignerOption(int UserId, string Name, string? Funktion, bool HasSignature, bool IsDefault);
 
+    private async Task<List<SignerOption>> ListSignersAsync(int? companyProfileId)
+    {
+        if (!companyProfileId.HasValue) return new List<SignerOption>();
+
+        var rows = await _db.UserBranchAccesses.AsNoTracking()
+            .Include(a => a.User)
+            .Where(a => a.CompanyProfileId == companyProfileId.Value
+                     && a.User != null && a.User.IsActive)
+            .OrderByDescending(a => a.IsDefault)
+            .ThenBy(a => a.User!.FirstName)
+            .ThenBy(a => a.User!.LastName)
+            .ToListAsync();
+
+        // Ein User kann mehrfach zugewiesen sein — einmal pro User.
+        var seen = new HashSet<int>();
+        var list = new List<SignerOption>();
+        foreach (var a in rows)
+        {
+            if (a.User == null || !seen.Add(a.UserId)) continue;
+            var full = $"{a.User.FirstName} {a.User.LastName}".Trim();
+            var name = string.IsNullOrWhiteSpace(full) ? a.User.Username : full;
+            var funktion = !string.IsNullOrWhiteSpace(a.FunctionTitle)
+                ? a.FunctionTitle!.Trim()
+                : (a.Role == "GESCHAEFTSFUEHRER" ? "Geschäftsführer/in"
+                    : a.Role == "HR_VERANTWORTLICH" ? "HR-Verantwortliche/r" : null);
+            list.Add(new SignerOption(
+                a.UserId,
+                name,
+                funktion,
+                a.User.SignaturePng is { Length: > 0 },
+                a.IsDefault));
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// Unterzeichner wählen: explizite User-Id (muss Filial-Zugang haben)
+    /// oder Fallback eingeloggter User.
+    /// </summary>
+    private async Task<(byte[]? png, string? name, string? funktion)> ResolveSignerAsync(
+        int? companyProfileId, int? signerUserId)
+    {
+        var uid = signerUserId ?? CurrentUserId();
+        if (!uid.HasValue) return (null, null, null);
+
+        if (companyProfileId.HasValue)
+        {
+            var uba = await _db.UserBranchAccesses.AsNoTracking()
+                .Include(a => a.User)
+                .Where(a => a.CompanyProfileId == companyProfileId.Value
+                         && a.UserId == uid.Value
+                         && a.User != null && a.User.IsActive)
+                .OrderByDescending(a => a.IsDefault)
+                .FirstOrDefaultAsync();
+            if (uba?.User == null)
+            {
+                // Gewählter User hat keinen Zugang zu dieser Filiale.
+                if (signerUserId.HasValue)
+                    return (null, null, null);
+            }
+            else
+            {
+                var full = $"{uba.User.FirstName} {uba.User.LastName}".Trim();
+                var name = string.IsNullOrWhiteSpace(full) ? uba.User.Username : full;
+                var funktion = !string.IsNullOrWhiteSpace(uba.FunctionTitle)
+                    ? uba.FunctionTitle!.Trim() : null;
+                return (uba.User.SignaturePng, name, funktion);
+            }
+        }
+
+        // Fallback: eingeloggter User ohne Filial-Match (admin/HR global).
         var u = await _db.AppUsers.AsNoTracking()
-            .Where(x => x.Id == uid)
+            .Where(x => x.Id == uid.Value)
             .Select(x => new { x.SignaturePng, x.FirstName, x.LastName, x.Username })
             .FirstOrDefaultAsync();
         if (u == null) return (null, null, null);
+        var fullName = $"{u.FirstName} {u.LastName}".Trim();
+        return (u.SignaturePng, string.IsNullOrWhiteSpace(fullName) ? u.Username : fullName, null);
+    }
 
-        string? funktion = null;
-        if (companyProfileId.HasValue)
-            funktion = await _db.UserBranchAccesses.AsNoTracking()
-                .Where(a => a.UserId == uid && a.CompanyProfileId == companyProfileId.Value
-                         && a.FunctionTitle != null && a.FunctionTitle != "")
-                .Select(a => a.FunctionTitle)
-                .FirstOrDefaultAsync();
-
-        var full = $"{u.FirstName} {u.LastName}".Trim();
-        return (u.SignaturePng, string.IsNullOrWhiteSpace(full) ? u.Username : full, funktion);
+    private int? CurrentUserId()
+    {
+        var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(idStr, out var uid) ? uid : null;
     }
 
     private static string? ResolveAnrede(Employee e)
