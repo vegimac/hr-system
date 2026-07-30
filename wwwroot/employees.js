@@ -1514,59 +1514,14 @@ function loadUebersichtTab() {
 
     // Personalien & Adresse ueber die VOLLE Breite (wichtigster Block),
     // darunter Anstellung | Nachtarbeit, dann Vertraege + Saldi-Tabelle.
-    // Walter 30.07.2026: ov-fit-host/scaler — Layout starr, bei kleinem
-    // Viewport einheitlich verkleinern (ovApplyFitScale).
-    el.innerHTML = `<div class="ov-fit-host"><div class="ov-fit-scaler"><div class="ov-wrap">${emp.isPayrollExcluded
+    el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
         ? `<div class="ov-full">${kPers}</div>`
-        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div>`}</div></div></div>`;
+        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div>`}</div>`;
     if (!emp.isPayrollExcluded && typeof loadEmployeeAddressesTab === 'function')
         loadEmployeeAddressesTab(emp.id);
     if (!emp.isPayrollExcluded)
         loadOvSaldi(emp.id);
-    ovApplyFitScale();
-    requestAnimationFrame(() => ovApplyFitScale());
 }
-
-/** Design-Fläche der MA-Übersicht — alles bleibt an Ort, Viewport skaliert. */
-const OV_FIT_DESIGN_W = 1180;
-const OV_FIT_DESIGN_H = 780;
-
-function ovApplyFitScale() {
-    const host = document.querySelector('#uebersichtContent .ov-fit-host');
-    const scaler = host?.querySelector('.ov-fit-scaler');
-    const wrap = host?.querySelector('.ov-wrap');
-    if (!host || !scaler || !wrap) return;
-    const availW = host.clientWidth;
-    const availH = host.clientHeight;
-    if (availW < 80 || availH < 80) return;
-
-    const designW = OV_FIT_DESIGN_W;
-    const designH = OV_FIT_DESIGN_H;
-    const s = Math.min(availW / designW, availH / designH);
-
-    scaler.style.width = designW + 'px';
-    scaler.style.height = designH + 'px';
-    wrap.style.width = designW + 'px';
-    wrap.style.height = designH + 'px';
-    scaler.style.transform = `scale(${s})`;
-    // Zentrieren in der verfügbaren Fläche
-    const ox = Math.max(0, (availW - designW * s) / 2);
-    const oy = Math.max(0, (availH - designH * s) / 2);
-    scaler.style.marginLeft = ox + 'px';
-    scaler.style.marginTop = oy + 'px';
-}
-
-let _ovFitResizeBound = false;
-function ovEnsureFitScaleListener() {
-    if (_ovFitResizeBound) return;
-    _ovFitResizeBound = true;
-    let t = 0;
-    window.addEventListener('resize', () => {
-        clearTimeout(t);
-        t = setTimeout(() => ovApplyFitScale(), 80);
-    });
-}
-ovEnsureFitScaleListener();
 
 // Inline-Edit in der Uebersicht (Walter 17.07.2026): Speichern liest ov-*
 // direkt (Personal-Tab entfernt — kein Spiegeln mehr auf ef-*).
@@ -10946,11 +10901,9 @@ async function loadEmployeeAddressesTab(employeeId) {
         const list = await res.json();
         if (gen !== window._addrLoadGen) return;
         els.forEach(el => renderEmployeeAddressesList(el, list));
-        if (typeof ovApplyFitScale === 'function') ovApplyFitScale();
     } catch {
         if (gen !== window._addrLoadGen) return;
         els.forEach(el => { el.innerHTML = ''; });
-        if (typeof ovApplyFitScale === 'function') ovApplyFitScale();
     }
 }
 
@@ -10975,8 +10928,7 @@ function renderEmployeeAddressesList(el, list) {
         const contactLine = [a.phone, a.email].filter(Boolean).join(' · ');
         if (contactLine) lines.push(contactLine);
 
-        // Kompakte EIN-Zeilen-Darstellung (Walter 17.07.2026 / 30.07.2026):
-        // starr einzeilig — schmale Screens skalieren die ganze Übersicht.
+        // Kompakte EIN-Zeilen-Darstellung (Walter 17.07.2026 / 26.07.2026).
         return `<div class="emp-addr-row" data-addr-id="${id}">
             <span class="emp-addr-type">${a.addressType || a.AddressType || 'Adresse'}</span>
             <span class="emp-addr-text">

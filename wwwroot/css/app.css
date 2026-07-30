@@ -3692,29 +3692,16 @@
             flex: 1 1 auto; min-height: 0; overflow: hidden;
             display: flex; flex-direction: column;
         }
-        /* Walter 30.07.2026: Übersicht = starre Design-Fläche, bei kleinem
-           Viewport einheitlich verkleinern (Scale) — kein Umbruch/Abschneiden. */
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-fit-host {
-            flex: 1 1 auto;
-            min-height: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            position: relative;
-        }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-fit-scaler {
-            transform-origin: top left;
-            will-change: transform;
-        }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-            /* feste Design-Grösse setzt JS (ovApplyFitScale); Grid füllt sie */
-            box-sizing: border-box;
-            overflow: hidden;
+            flex: 1 1 auto; min-height: 0;
+            /* Walter 26.07.2026: Viewport füllen. Walter 30.07.2026: Zeile 1
+               (Personalien+Weitere Adressen) = max-content — darf nicht unter
+               Anstellung/Nachtarbeit schrumpfen. Kein Teil-Scale (wirkt uneinheitlich). */
+            overflow-x: hidden;
+            overflow-y: auto;
             height: 100%;
-            width: 100%;
             align-content: stretch;
-            /* Personalien inkl. Zusatzadresse nach Inhalt; Rest füllt Design-Höhe */
-            grid-template-rows: max-content minmax(150px, auto) minmax(180px, 1fr);
+            grid-template-rows: max-content minmax(150px, auto) minmax(160px, 1fr);
         }
         .ov-wrap {
             display: grid;
@@ -3745,7 +3732,7 @@
             padding-top: 6px;
             flex-shrink: 0;
         }
-        /* Max. 2 Zusatzadressen — einzeilig starr (Scale verkleinert bei Bedarf) */
+        /* Max. 2 Zusatzadressen sichtbar — einzeilig; Abschnitt nie überdeckt */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent {
             min-height: 0;
             max-height: calc(2 * 40px + 4px);
@@ -4090,8 +4077,23 @@
         }
         body.theme-dark .emp-addr-text { color: #f1f5f9; }
         body.theme-dark .emp-addr-valid { color: #94a3b8; }
-        /* Kein Layout-Umbau bei schmalem Fenster — Scale (ovApplyFitScale) behält
-           die 2-Spalten-Ansicht und verkleinert alles proportional. */
+        @media (max-width: 1100px) {
+            .ov-wrap { grid-template-columns: 1fr; }
+            #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
+                grid-template-rows: max-content minmax(150px, auto) minmax(150px, auto) minmax(160px, 1fr);
+            }
+            #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
+                grid-row: auto;
+            }
+            .ov-vertraege-ktg { grid-template-columns: 1fr; }
+            #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
+                grid-row: 4;
+                height: 100%;
+                min-height: 160px;
+                max-height: none;
+                align-self: stretch;
+            }
+        }
         .ov-card {
             background: #ffffff;
             border: 1px solid rgba(255, 255, 255, 0.72);
