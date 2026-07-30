@@ -73,9 +73,13 @@ function _renderEmpPicker(filterId, searchId, selectId) {
         return `<option value="${e.id}">${escapeHtml(name)}${escapeHtml(nr)}${tag}</option>`;
     }).join('');
     if (cur) sel.value = cur;
-    // Wenn die aktuelle Auswahl rausgefiltert wurde, Details ausblenden (nur Kuendigung).
-    if (selectId === 'kuEmpSelect' && sel.value !== cur) {
-        const det = document.getElementById('kuDetails'); if (det) det.style.display = 'none';
+    // Wenn die aktuelle Auswahl rausgefiltert wurde, Details ausblenden.
+    if (sel.value !== cur) {
+        if (selectId === 'kuEmpSelect') {
+            const det = document.getElementById('kuDetails'); if (det) det.style.display = 'none';
+        } else if (selectId === 'aaEmpSelect') {
+            const det = document.getElementById('aaDetails'); if (det) det.style.display = 'none';
+        }
     }
 }
 

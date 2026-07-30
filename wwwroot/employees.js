@@ -12843,6 +12843,7 @@ function _raTilesHtml() {
         ${tile('probezeit.png', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
         ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
         ${tile('verwarnung.png', 'Verwarnung', 'openVerwarnungModal(null)')}
+        ${tile('arbeitsbestaetigung.png', 'Aufforderung zur Arbeit', 'raOpenAufforderungArbeit(selectedEmployeeId)')}
         ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('absenzkalender.svg', 'Absenzkalender', "showPage('absenz-kalender')")}
