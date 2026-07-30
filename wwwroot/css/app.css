@@ -3693,14 +3693,19 @@
             display: flex; flex-direction: column;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-            flex: 1 1 auto; min-height: 0; overflow: hidden;
+            flex: 1 1 auto; min-height: 0;
+            /* Walter 30.07.2026: nie «Weitere Adressen» unter Anstellung/Nachtarbeit
+               verstecken — bei zu knappem Viewport lieber leicht scrollen. */
+            overflow-x: hidden;
+            overflow-y: auto;
             /* Walter 26.07.2026: gesamten Viewport nutzen — Personalien
-               inkl. Zusatzadresse nach Inhalt (auto), Anstellung mittig,
-               Verträge/Saldi füllen den Rest bis Bildschirmende (1fr). */
+               inkl. Zusatzadresse nach Inhalt, Anstellung mittig,
+               Verträge/Saldi füllen den Rest bis Bildschirmende (1fr).
+               Zeile 1 = min-content: darf bei Höhenkampf NICHT unter die
+               Adress-Sektion schrumpfen (Bug: Anstellung überdeckte Header). */
             height: 100%;
             align-content: stretch;
-            /* Unterste Zeile etwas knapper (min 176) — Platz für 2 Adresszeilen */
-            grid-template-rows: auto minmax(168px, auto) minmax(176px, 1fr);
+            grid-template-rows: minmax(min-content, auto) minmax(140px, auto) minmax(140px, 1fr);
         }
         .ov-wrap {
             display: grid;
@@ -3713,33 +3718,40 @@
         .ov-full { grid-column: 1 / -1; min-width: 0; }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full {
             grid-row: 1;
-            min-height: 0;
+            /* min-content: Grid-Zelle = volle Personalien+Adressen-Höhe */
+            min-height: min-content;
+            height: auto;
             overflow: visible;
-            align-self: start; /* Inhaltshöhe — Zusatzadresse darf mitwachsen */
+            align-self: start;
         }
         /* MA-Daten: Hauptblock — genug Platz für Felder + Zusatzadresse */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card {
-            min-height: 0;
+            min-height: min-content;
+            height: auto;
+            overflow: visible;
             box-sizing: border-box;
             padding: 12px 14px 10px !important;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-addrsep {
             margin-top: 6px;
             padding-top: 6px;
+            flex-shrink: 0;
         }
         /* Max. 2 Zusatzadressen sichtbar (Walter 26.07.2026) — beide Zeilen
            vollständig; ab der 3. nur noch Scroll.
-           Walter 30.07.2026: Zeilenhöhe auto (Text umbrechen) — bei schmalem
-           Viewport nicht mehr abschneiden. */
+           Walter 30.07.2026: Zeilenhöhe auto + Abschnitt nie unter Anstellung. */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent {
-            min-height: 0;
-            max-height: calc(2 * 64px + 4px); /* 2 Zeilen inkl. Wrap-Puffer */
+            min-height: min-content;
+            /* 2 Adresszeilen sichtbar; ab 3. intern scrollen — der Block selbst
+               bleibt aber Teil der Grid-Zeile 1 (kein Overlap darunter). */
+            max-height: calc(2 * 72px + 8px);
             overflow-x: hidden;
             overflow-y: auto;
             margin-top: 4px;
             display: flex;
             flex-direction: column;
             gap: 4px;
+            flex-shrink: 0;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent .emp-addr-row {
             flex: 0 0 auto;
@@ -3914,7 +3926,7 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
             grid-row: 3;
             height: 100%;
-            min-height: 176px; /* etwas kompakter → Platz für 2 Adresszeilen oben */
+            min-height: 140px; /* knapper — Platz für Personalien+Weitere Adressen */
             max-height: none;
             overflow: hidden;
             align-self: stretch; /* füllt Restplatz bis Bildschirmende */
@@ -4027,10 +4039,10 @@
         .ov-saldi-msg.ov-saldi-err { color: #dc2626; }
         /* Zusatzadressen: leer = kein Platz; sonst max. 2 sichtbare Zeilen */
         #otherAddressesContent {
-            max-height: calc(2 * 64px + 4px);
+            max-height: calc(2 * 72px + 8px);
             overflow-x: hidden;
             overflow-y: auto;
-            min-height: 0;
+            min-height: min-content;
             display: flex;
             flex-direction: column;
             gap: 4px;
@@ -4080,10 +4092,15 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: auto minmax(168px, auto) minmax(168px, auto) minmax(176px, 1fr);
+                /* Zeile 1 (Personalien+Adressen) immer min-content — nie von
+                   Anstellung/Nachtarbeit überdecken */
+                grid-template-rows: minmax(min-content, auto) minmax(140px, auto) minmax(140px, auto) minmax(140px, 1fr);
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
+            }
+            #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full {
+                min-height: min-content;
             }
             /* Weitere Adressen: auf schmalen Screens voll sichtbar, Zeile umbrechen */
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent,
@@ -4105,7 +4122,7 @@
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
                 grid-row: 4;
                 height: 100%;
-                min-height: 176px;
+                min-height: 140px;
                 max-height: none;
                 align-self: stretch;
             }
