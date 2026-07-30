@@ -2,6 +2,7 @@ using System.Security.Claims;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.EasyAtWork;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -76,7 +77,8 @@ public class AufforderungZurArbeitController : ControllerBase
                 restaurant = cp?.BranchName,
                 strasse = Join(cp?.Street, cp?.HouseNumber),
                 plzOrt = Join(cp?.ZipCode, cp?.City),
-                ort = cp?.City,
+                // Brief-Ort ohne Kantons-Suffix («Reinach (AG)» → «Reinach»).
+                ort = EasyAtWorkEmployeeSyncService.StripCityCantonSuffix(cp?.City) ?? cp?.City,
                 phone = cp?.Phone,
             },
             datum = today.ToString("yyyy-MM-dd"),
@@ -112,7 +114,9 @@ public class AufforderungZurArbeitController : ControllerBase
             return BadRequest(new { error = "FRIST_VOR_DATUM",
                 message = "Die Meldefrist darf nicht vor dem Briefdatum liegen." });
 
-        var ort = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
+        // Walter 30.07.2026: «Reinach (AG)» → «Reinach» auf dem Brief.
+        var ortRaw = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
+        var ort = EasyAtWorkEmployeeSyncService.StripCityCantonSuffix(ortRaw) ?? ortRaw;
         var (defName, defFunktion, defTel) = await ResolveKontaktAsync(cp?.Id);
         var kontaktName = string.IsNullOrWhiteSpace(dto.KontaktName) ? (defName ?? "") : dto.KontaktName!.Trim();
         if (string.IsNullOrWhiteSpace(kontaktName))
