@@ -2,6 +2,8 @@
 
 Solange die Lohnverarbeitung noch in **Mirus** läuft, pflegt OneCrew die Stammdaten — Mirus braucht morgens eine Liste der lohnkritischen Änderungen. Dafür gibt es die **Mirus-Änderungsmail**.
 
+💡 Diese Mail entfällt, sobald Mirus abgelöst ist und der Lohn nur noch in OneCrew läuft.
+
 ## Wann geht die Mail raus?
 
 - **Mo–Fr um 06:00** (Europe/Zurich)
