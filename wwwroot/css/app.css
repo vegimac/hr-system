@@ -9242,8 +9242,6 @@ body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #d6d3cc; }
 body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
 /* Bewerbungsbogen-Icon 1:1 — nicht invertieren (Walter 28.07.2026). */
 body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: none; }
-/* Aufforderung-Icon 1:1 — ebenfalls nicht invertieren (Walter 30.07.2026). */
-body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: none; }
 
         /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
         #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }
