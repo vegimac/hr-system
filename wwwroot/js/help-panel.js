@@ -24,6 +24,7 @@ const HELP_PAGES = [
     { slug: 'dokumente',     title: 'Dokumente & Posteingang',     roles: ['admin', 'superuser', 'user', 'buchhaltung'] },
     { slug: 'fibu',          title: 'Buchhaltung (Fibu)',          roles: ['admin', 'buchhaltung'] },
     { slug: 'audit',         title: 'Aktivitäts-Log',              roles: ['admin'] },
+    { slug: 'mirus-digest',  title: 'Mirus-Änderungsmail',         roles: ['admin', 'superuser'] },
     { slug: 'suche',         title: 'Globale Suche (⌘K)' },
     { slug: 'rollen',        title: 'Rollen & Berechtigungen',     roles: ['admin'] },
 ];

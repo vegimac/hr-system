@@ -18,6 +18,7 @@ Die häufigsten Aufgaben — Klick führt direkt zur passenden Hilfe-Seite:
 - **Ein Dokument hochladen oder anschauen** → [Dokumente & Posteingang](#dokumente)
 - **Fibu-Journal / Saldo-Liste ziehen** → [Buchhaltung (Fibu)](#fibu)
 - **Wer hat wann was geändert?** → [Aktivitäts-Log](#audit)
+- **Mirus-Änderungsmail an Sachbearbeiter** → [Mirus-Änderungsmail](#mirus-digest)
 - **Einen Mitarbeiter oder ein Dokument blitzschnell finden** → [Globale Suche](#suche)
 - **Wer darf was im Programm?** → [Rollen & Berechtigungen](#rollen)
 
@@ -57,6 +58,8 @@ Beides folgt dem **4-Augen-Prinzip**: zuerst gibt der Geschäftsführer pro MA f
 
 **Aktivitäts-Log** (nur Admin) — zeigt alle Änderungen mit User, Zeit und Detail. Dein Sicherheitsnetz.
 
+**Mirus-Änderungsmail** — Mo–Fr 06:00 geht an Sachbearbeiter mit dem Flag «Mirus-Änderungsmail» eine Liste lohnkritischer Änderungen (Adresse, Vertrag, Lohn, Bewilligung, QST, Familie …). Details: [Mirus-Änderungsmail](#mirus-digest).
+
 ## Wichtige Konzepte in 30 Sekunden
 
 **Vertragsmodelle:**
@@ -79,4 +82,4 @@ Beides folgt dem **4-Augen-Prinzip**: zuerst gibt der Geschäftsführer pro MA f
 
 ---
 
-> Diese Hilfe-Texte liegen als Markdown-Dateien unter `wwwroot/help/`. Stand: Juli 2026 (Restaurant Admin, Probezeitgespräche, Verfügbarkeit, Mutterschaft, GF-Rechte, Altersstruktur). Wenn du etwas siehst, das verbessert werden sollte — sag Bescheid.
+> Diese Hilfe-Texte liegen als Markdown-Dateien unter `wwwroot/help/`. Stand: Juli 2026 (Mirus-Änderungsmail Mo–Fr, Restaurant Admin inkl. Arbeits Aufforderung, Probezeit, Verfügbarkeit, Mutterschaft, Altersstruktur). Wenn du etwas siehst, das verbessert werden sollte — sag Bescheid.
