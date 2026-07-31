@@ -1380,18 +1380,19 @@ function loadUebersichtTab() {
                <button type="button" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
                  title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen"
                  style="margin-left:8px;background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700">→ eintragen</button>`;
-    // Layout (Walter 26.07.2026): 
-    //   Zeile 1: Eintritt | Austritt | Probezeit bis (+ Gespräch falls aktiv)
-    //   Zeile 2: Gekündigt am | Kündigung per | Kündigung durch
-    //   Zeile 3: L-GAV | < 8 h / Wo. | Austrittsgrund
-    const pzCell = pzEnde
-        ? _pf('Probezeit bis', pzEnde + (pzAktiv && pzStatus ? `<div style="margin-top:4px;font-size:12px">${pzStatus}</div>` : ''))
-        : '<div class="ov-pf" aria-hidden="true"></div>';
+    // Layout (Walter 31.07.2026): 2 Zeilen — Anstellung breiter, Nachtarbeit schmaler.
+    //   Zeile 1: Eintritt | Austritt | L-GAV | < 8 h / Wo.
+    //   Zeile 2: Gekündigt am | Kündigung per | Kündigung durch | Austrittsgrund
+    // Probezeit kompakt im Kartenkopf (spart die 3. Zeile → Platz für Weitere Adressen).
+    const pzHeader = pzEnde
+        ? `<span class="ov-anst-pz" title="Probezeit">Probezeit bis ${pzEnde}${pzAktiv && pzStatus ? ` · ${pzStatus}` : ''}</span>`
+        : '';
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
             ${_pf(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
-            ${pzCell}
+            <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
+            <div class="ov-pf ov-anst-tog"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
             <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Gekündigt am</div>
             <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
             <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung per</div>
@@ -1402,12 +1403,10 @@ function loadUebersichtTab() {
                 <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
                 <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
             </select></div>
-            <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
-            <div class="ov-pf ov-anst-tog"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
             <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Austrittsgrund</div>
             <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
         </div>`,
-        `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
+        `${pzHeader}<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
     // ── Karte Nachtarbeit (Walter 17.07.2026): der VOLLE Funktions-Block
     //    aus dem frueheren Personal-Tab lebt jetzt HIER (einzige Instanz,

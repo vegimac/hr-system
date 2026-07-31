@@ -3699,12 +3699,13 @@
                Verträge/Saldi füllen den Rest bis Bildschirmende (1fr). */
             height: 100%;
             align-content: stretch;
-            /* Unterste Zeile etwas knapper (min 176) — Platz für 2 Adresszeilen */
-            grid-template-rows: auto minmax(168px, auto) minmax(176px, 1fr);
+            /* Anstellung/Nachtarbeit kompakter (2 Zeilen) — 1 Adresszeile fix reserviert oben */
+            grid-template-rows: auto minmax(118px, auto) minmax(176px, 1fr);
         }
         .ov-wrap {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            /* Anstellung breiter, Nachtarbeit schmaler (Walter 31.07.2026) */
+            grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
             gap: 7px;
             padding: 2px 2px 4px;
         }
@@ -3727,11 +3728,11 @@
             margin-top: 6px;
             padding-top: 6px;
         }
-        /* Max. 2 Zusatzadressen sichtbar (Walter 26.07.2026) — beide Zeilen
-           vollständig; ab der 3. nur noch Scroll. */
+        /* Weitere Adressen: 1 Zeile immer reserviert (Walter 31.07.2026);
+           max. 2 sichtbar, ab der 3. Scroll. */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent {
-            min-height: 0;
-            max-height: calc(2 * 40px + 4px); /* 2 Zeilen à 40px + 4px Gap */
+            min-height: 40px; /* 1 Zeile fix — Layout springt nicht */
+            max-height: calc(2 * 40px + 4px);
             overflow-x: hidden;
             overflow-y: auto;
             margin-top: 4px;
@@ -4021,17 +4022,28 @@
             font-size: 13px; color: #8b8b8b; text-align: center; padding: 12px;
         }
         .ov-saldi-msg.ov-saldi-err { color: #dc2626; }
-        /* Zusatzadressen: leer = kein Platz; sonst max. 2 sichtbare Zeilen */
+        /* Zusatzadressen: 1 Zeile immer reserviert; max. 2 sichtbar (Walter 31.07.2026) */
         #otherAddressesContent {
             max-height: calc(2 * 40px + 4px);
             overflow-x: hidden;
             overflow-y: auto;
-            min-height: 0;
+            min-height: 40px;
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
-        #otherAddressesContent:empty { display: none; margin: 0; padding: 0; }
+        /* Leer: Platz bleibt (kein Zusammenklappen) — dezenter Platzhalter-Rahmen */
+        #otherAddressesContent:empty {
+            display: flex;
+            border: 1px dashed #e5e0d6;
+            border-radius: 10px;
+            background: rgba(250, 248, 245, 0.55);
+            box-sizing: border-box;
+        }
+        body.theme-dark #otherAddressesContent:empty {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.03);
+        }
         .emp-addr-row {
             flex: 0 0 40px;
             height: 40px;
@@ -4073,7 +4085,7 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: auto minmax(168px, auto) minmax(168px, auto) minmax(176px, 1fr);
+                grid-template-rows: auto minmax(118px, auto) minmax(118px, auto) minmax(176px, 1fr);
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
@@ -4219,14 +4231,13 @@
             align-items: flex-start; margin-bottom: 8px;
             overflow: hidden; min-width: 0;
         }
-        /* Anstellung (Walter 26.07.2026):
-           Zeile 1 Eintritt|Austritt|Probezeit · Zeile 2 Kündigung · Zeile 3 Toggles.
-           Kündigung etwas kompakter als Personalien, aber gut bedienbar. */
+        /* Anstellung (Walter 31.07.2026): 2 Zeilen × 4 Spalten.
+           Z1 Eintritt|Austritt|L-GAV|<8h · Z2 Kündigung + Austrittsgrund. */
         .ov-anst-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto);
-            grid-template-rows: auto auto auto;
-            gap: 4px 12px;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(110px, auto) minmax(110px, auto);
+            grid-template-rows: auto auto;
+            gap: 6px 14px;
             align-items: start;
             min-width: 0;
         }
@@ -4234,14 +4245,29 @@
             margin-bottom: 0;
             min-width: 0;
         }
-        /* Zeile 1 (Eintritt/Austritt/Probezeit): normale Lesestärke */
-        .ov-anst-grid > .ov-pf:nth-child(-n+3) .ov-pfl {
+        /* Zeile 1 (Eintritt/Austritt): normale Lesestärke */
+        .ov-anst-grid > .ov-pf:nth-child(-n+2) .ov-pfl {
             margin-bottom: 1px;
         }
-        .ov-anst-grid > .ov-pf:nth-child(-n+3) .ov-pfv {
+        .ov-anst-grid > .ov-pf:nth-child(-n+2) .ov-pfv {
             font-size: 14px;
             line-height: 28px;
             min-height: 28px;
+        }
+        /* Probezeit kompakt im Anstellung-Kartenkopf */
+        .ov-anst-pz {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px 6px;
+            max-width: min(340px, 42vw);
+            line-height: 1.25;
+        }
+        .ov-anst-pz button {
+            flex-shrink: 0;
         }
         .ov-anst-grid .ov-anst-date .ov-softin {
             width: 100%;
@@ -4295,16 +4321,18 @@
             font-weight: 600;
         }
         .ov-anst-grid .ov-anst-kuend select.ov-softin {
-            max-width: 172px;
+            max-width: 100%;
             padding-right: 18px;
         }
-        /* L-GAV + < 8 h kompakt auf der untersten Zeile */
+        /* L-GAV + < 8 h rechts neben Austritt */
         .ov-anst-grid .ov-anst-tog .ov-pfl {
             font-size: 10px;
             margin-bottom: 0;
         }
         .ov-anst-grid .ov-anst-tog .ov-pfv {
-            min-height: 26px;
+            min-height: 28px;
+            display: flex;
+            align-items: center;
         }
         /* Legacy-Klassen (falls noch referenziert) */
         .ov-anst-row { margin-bottom: 8px; gap: 10px 20px; }
