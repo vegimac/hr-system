@@ -205,9 +205,9 @@ public class ZwischenverdienistController : ControllerBase
         }
 
         // ── Lohnberechnung ────────────────────────────────────────────────
-        // Anzahl Stunden = gearbeitete Stempel-Stunden + bezahlte Absenz-Stunden
-        // (Krank, Unfall, Mutterschaft, Ferien-Bezug etc.). Damit entspricht der
-        // Grundlohn dem AHV-pflichtigen Lohnersatz, den der MA effektiv erhält.
+        // Anzahl Stunden = Stempel + bezahlte Absenzen OHNE ALK-Kürzel
+        // (z.B. BEZ_ABSENZ). Ferien/Militär/… mit Buchstabe A–G zählen hier
+        // nicht — die stehen nur im Tagesraster (Walter 31.07.2026).
         decimal stempelStunden = timeEntries.Sum(t => t.TotalHours ?? t.DurationHours ?? 0);
 
         // ── UTP-Logik: Ferien/Mutterschaft etc. werden NICHT als Stunden zugeschlagen.
@@ -237,11 +237,19 @@ public class ZwischenverdienistController : ControllerBase
                 continue;
             }
 
-            // Bei UTP: alle anderen bezahlten Absenzen NICHT zum Lohn addieren —
-            // Ferien-Entschädigung ist bereits über die 10.64% im Grundlohn enthalten.
+            // Walter 31.07.2026: Absenzen mit ALK-Kürzel A/D/E/F/G stehen im
+            // Tagesraster als Buchstabe — NICHT zusätzlich als Stunden im
+            // Total/Grundlohn. Sonst Doppelzählung (v.a. Ferien «A» bei MTP:
+            // Tage × Std/7 + Ferien-% auf denselben Betrag). Formular-Text:
+            // «Für andere bezahlte Absenzen … Stunden eintragen» = nur Typen
+            // OHNE Kürzel (z.B. BEZ_ABSENZ).
+            if (!string.IsNullOrEmpty(kuerzel)) continue;
+
+            // Bei UTP: bezahlte Absenzen ohne Kürzel ebenfalls nicht zum Lohn —
+            // Ferien-Entschädigung steckt schon in den %-Zuschlägen / Stundenlohn.
             if (isUtp) continue;
 
-            // FIX/MTP: bezahlte Absenz-Stunden zum Lohn (Lohnersatz)
+            // FIX/MTP: bezahlte Absenz-Stunden zum Lohn (Lohnersatz) — nur ohne Kürzel
             bool bezahlt = !string.IsNullOrEmpty(typ.LohnpositionAuszahlungCode)
                         || (typ.Zeitgutschrift && !string.IsNullOrEmpty(typ.GutschriftModus));
             if (!bezahlt) continue;
