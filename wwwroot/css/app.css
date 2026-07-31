@@ -4232,21 +4232,21 @@
             overflow: hidden; min-width: 0;
         }
         /* Anstellung (Walter 31.07.2026): 2 Zeilen.
-           Z1 Eintritt|Austritt|L-GAV · Z2 Kündigung + Austrittsgrund (4 Spalten).
+           Z1 Eintritt|Austritt|L-GAV+Probezeit · Z2 Kündigung + Austrittsgrund.
            < 8 h gehört zum FLEX-Vertrag, nicht hier. */
         .ov-anst-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(96px, auto) minmax(110px, auto);
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(200px, 1.35fr) minmax(110px, auto);
             grid-template-rows: auto auto;
             gap: 6px 14px;
             align-items: start;
             min-width: 0;
         }
-        /* L-GAV eng neben Austritt (Spalte 3); Spalte 4 in Zeile 1 bleibt leer */
-        .ov-anst-grid > .ov-anst-lgav {
-            grid-column: 3;
+        /* L-GAV + Probezeit: Spalte 3–4 in Zeile 1 */
+        .ov-anst-grid > .ov-anst-lgav-pz {
+            grid-column: 3 / 5;
             grid-row: 1;
-            justify-self: start;
+            min-width: 0;
         }
         /* Kündigung + Austrittsgrund immer Zeile 2, ganz links → rechts */
         .ov-anst-grid > .ov-anst-kuend {
@@ -4265,24 +4265,51 @@
             line-height: 28px;
             min-height: 28px;
         }
-        /* Probezeit im Anstellung-Kartenkopf: Titel → Status → Button */
-        .ov-card-h:has(.ov-anst-pz) {
-            align-items: flex-start;
+        /* L-GAV + Probezeit nebeneinander (Walter 31.07.2026):
+           Titelzeile: L-GAV | Probezeit bis Datum
+           Wertzeile:  Toggle | offen + Button (gleiche Zeile) */
+        .ov-anst-lgav-pz-head {
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+            margin-bottom: 1px;
+            min-width: 0;
         }
-        .ov-anst-pz {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 3px;
-            max-width: min(200px, 38vw);
-            line-height: 1.2;
-            text-align: right;
+        .ov-anst-lgav-pz-head .ov-pfl {
+            flex: 0 0 auto;
+            margin-bottom: 0;
         }
         .ov-anst-pz-title {
-            font-size: 11px;
+            flex: 1 1 auto;
+            min-width: 0;
+            font-size: 10px;
             font-weight: 700;
-            color: #64748b;
-            letter-spacing: 0.01em;
+            color: #9a9a9a;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ov-anst-lgav-pz-body {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 28px;
+            min-width: 0;
+        }
+        .ov-anst-lgav-pz-body > .ov-pfv {
+            flex: 0 0 auto;
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+        }
+        .ov-anst-pz-line {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            flex-wrap: nowrap;
         }
         .ov-anst-pz-status {
             font-size: 12px;
@@ -4363,15 +4390,10 @@
             max-width: 100%;
             padding-right: 18px;
         }
-        /* L-GAV rechts neben Austritt */
-        .ov-anst-grid .ov-anst-tog .ov-pfl {
+        /* L-GAV-Label in der Kombi-Zelle */
+        .ov-anst-grid .ov-anst-lgav-pz .ov-pfl {
             font-size: 10px;
             margin-bottom: 0;
-        }
-        .ov-anst-grid .ov-anst-tog .ov-pfv {
-            min-height: 28px;
-            display: flex;
-            align-items: center;
         }
         .ov-vmenu { align-self: center; }
         /* Legacy-Klassen (falls noch referenziert) */
