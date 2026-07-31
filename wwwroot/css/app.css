@@ -4231,8 +4231,9 @@
             align-items: flex-start; margin-bottom: 8px;
             overflow: hidden; min-width: 0;
         }
-        /* Anstellung (Walter 31.07.2026): 2 Zeilen × 4 Spalten.
-           Z1 Eintritt|Austritt|L-GAV|<8h · Z2 Kündigung + Austrittsgrund. */
+        /* Anstellung (Walter 31.07.2026): 2 Zeilen.
+           Z1 Eintritt|Austritt|L-GAV · Z2 Kündigung + Austrittsgrund (4 Spalten).
+           < 8 h gehört zum FLEX-Vertrag, nicht hier. */
         .ov-anst-grid {
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(110px, auto) minmax(110px, auto);
@@ -4240,6 +4241,9 @@
             gap: 6px 14px;
             align-items: start;
             min-width: 0;
+        }
+        .ov-anst-grid > .ov-anst-lgav {
+            grid-column: 3 / 5;
         }
         .ov-anst-grid > .ov-pf {
             margin-bottom: 0;
@@ -4324,7 +4328,7 @@
             max-width: 100%;
             padding-right: 18px;
         }
-        /* L-GAV + < 8 h rechts neben Austritt */
+        /* L-GAV rechts neben Austritt */
         .ov-anst-grid .ov-anst-tog .ov-pfl {
             font-size: 10px;
             margin-bottom: 0;
@@ -4334,6 +4338,7 @@
             display: flex;
             align-items: center;
         }
+        .ov-vmenu { align-self: center; }
         /* Legacy-Klassen (falls noch referenziert) */
         .ov-anst-row { margin-bottom: 8px; gap: 10px 20px; }
         .ov-anst-row:last-child { margin-bottom: 2px; }

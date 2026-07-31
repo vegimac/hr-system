@@ -64,6 +64,13 @@ public class Employment
     public decimal? WeeklyHours { get; set; }
     public decimal? GuaranteedHoursPerWeek { get; set; }
 
+    /// <summary>
+    /// UVG Art. 1a Abs. 6: Arbeitszeit &lt; 8 h/Woche → NBU-befreit.
+    /// Nur bei FLEX-Verträgen sinnvoll/editierbar (Walter 31.07.2026 —
+    /// gehört zum Vertrag, nicht zur Anstellung am MA).
+    /// </summary>
+    public bool TeilzeitUnter8hWoche { get; set; }
+
     public decimal? MonthlySalaryFte { get; set; }   // 100%-Lohn (Vollpensum-Referenz)
     public decimal? MonthlySalary { get; set; }       // tatsächlicher Lohn (nach Pensum)
     public decimal? HourlyRate { get; set; }

@@ -130,6 +130,7 @@ public class EmploymentsController : ControllerBase
                 e.EducationLevelCode,
                 e.EmploymentPercentage,
                 e.WeeklyHours, e.GuaranteedHoursPerWeek,
+                e.TeilzeitUnter8hWoche,
                 e.MonthlySalaryFte, e.MonthlySalary, e.HourlyRate,
                 e.EasyAtWorkManualOverride,
                 e.VacationPaymentMode, e.ProbationPeriodMonths, e.ProbationEndDate,
@@ -228,6 +229,12 @@ public class EmploymentsController : ControllerBase
             employment.MonthlySalary = Math.Round(
                 employment.MonthlySalaryFte.Value * employment.EmploymentPercentage.Value / 100m, 2);
 
+        // < 8 h / Wo. nur bei FLEX (Walter 31.07.2026).
+        var isFlexCreate = string.Equals(employment.EmploymentModel, "FLEX", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(employment.EmploymentModel, "UTP", StringComparison.OrdinalIgnoreCase);
+        if (!isFlexCreate)
+            employment.TeilzeitUnter8hWoche = false;
+
         // JobGroupId aus JobGroupCode resolven, falls nur der Code übermittelt
         // wurde (Frontend-Dropdown liefert den Code). JobTitle (Stellenbezeichnung)
         // bleibt unverändert — das ist Free-Text und hat nichts mit der
@@ -238,6 +245,14 @@ public class EmploymentsController : ControllerBase
                 .Where(g => g.Code == employment.JobGroupCode)
                 .Select(g => (int?)g.Id)
                 .FirstOrDefaultAsync();
+        }
+
+        // MA-Flag mit neuem FLEX-Vertrag synchron (Digest/Legacy).
+        if (isFlexCreate)
+        {
+            var empRow = await _context.Employees.FindAsync(employment.EmployeeId);
+            if (empRow != null)
+                empRow.TeilzeitUnter8hWoche = employment.TeilzeitUnter8hWoche;
         }
 
         _context.Employments.Add(employment);
@@ -552,6 +567,10 @@ public class EmploymentsController : ControllerBase
         existing.EmploymentPercentage   = dto.EmploymentPercentage;
         existing.WeeklyHours            = dto.WeeklyHours;
         existing.GuaranteedHoursPerWeek = dto.GuaranteedHoursPerWeek;
+        // < 8 h / Wo. nur bei FLEX (Walter 31.07.2026); andere Modelle immer false.
+        var isFlexModel = string.Equals(dto.EmploymentModel, "FLEX", StringComparison.OrdinalIgnoreCase)
+                       || string.Equals(dto.EmploymentModel, "UTP", StringComparison.OrdinalIgnoreCase);
+        existing.TeilzeitUnter8hWoche   = isFlexModel && dto.TeilzeitUnter8hWoche;
         existing.MonthlySalaryFte       = dto.MonthlySalaryFte;
         // Tatsächlicher Lohn = FTE-Lohn × Pensum%; Fallback auf direkt übermittelten Wert
         existing.MonthlySalary = dto.MonthlySalaryFte.HasValue && dto.EmploymentPercentage.HasValue
@@ -563,6 +582,16 @@ public class EmploymentsController : ControllerBase
         existing.ProbationEndDate       = dto.ProbationEndDate;
         existing.IsActive               = dto.IsActive;
         existing.EasyAtWorkManualOverride = dto.EasyAtWorkManualOverride;
+
+        // MA-Flag mit aktivem FLEX-Vertrag synchron halten (Digest/Legacy-Leser).
+        if (isFlexModel
+            && (existing.ContractEndDate == null
+                || existing.ContractEndDate.Value.Date >= DateTime.Today))
+        {
+            var empRow = await _context.Employees.FindAsync(existing.EmployeeId);
+            if (empRow != null)
+                empRow.TeilzeitUnter8hWoche = existing.TeilzeitUnter8hWoche;
+        }
 
         await _context.SaveChangesAsync();
         return Ok(existing);

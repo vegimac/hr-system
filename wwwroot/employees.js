@@ -1381,8 +1381,9 @@ function loadUebersichtTab() {
                  title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen"
                  style="margin-left:8px;background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700">→ eintragen</button>`;
     // Layout (Walter 31.07.2026): 2 Zeilen — Anstellung breiter, Nachtarbeit schmaler.
-    //   Zeile 1: Eintritt | Austritt | L-GAV | < 8 h / Wo.
+    //   Zeile 1: Eintritt | Austritt | L-GAV
     //   Zeile 2: Gekündigt am | Kündigung per | Kündigung durch | Austrittsgrund
+    // < 8 h / Wo. gehört zum FLEX-Vertrag (Vertragsmaske), nicht zur Anstellung.
     // Probezeit kompakt im Kartenkopf (spart die 3. Zeile → Platz für Weitere Adressen).
     const pzHeader = pzEnde
         ? `<span class="ov-anst-pz" title="Probezeit">Probezeit bis ${pzEnde}${pzAktiv && pzStatus ? ` · ${pzStatus}` : ''}</span>`
@@ -1391,8 +1392,7 @@ function loadUebersichtTab() {
         <div class="ov-anst-grid">
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
             ${_pf(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
-            <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
-            <div class="ov-pf ov-anst-tog"><div class="ov-pfl">&lt; 8 h / Wo.</div><div class="ov-pfv">${yesNoToggle('ov-teilzeitUnter8h', !!emp.teilzeitUnter8hWoche)}</div></div>
+            <div class="ov-pf ov-anst-tog ov-anst-lgav"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Gekündigt am</div>
             <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
             <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung per</div>
@@ -1644,20 +1644,20 @@ function _empContractIsHistorisch(c, allContracts) {
 function _empContractActionsHtml(emp, c, allContracts) {
     const cid = c.id ?? c.employmentId;
     if (!cid) return '';
-    // Unsichtbare Platzhalter halten die Spaltenbreite — «Anschauen» bleibt
-    // unter der Anschauen-Spalte der laufenden Zeile (Walter 19.07.2026).
-    const ph = (label) => `<button type="button" class="emp-contract-btn" tabindex="-1" aria-hidden="true" disabled style="visibility:hidden;pointer-events:none">${label}</button>`;
-    const viewBtn = `<button type="button" class="emp-contract-btn" title="Vertrag im Vorschaufenster öffnen — Drucken/Herunterladen direkt dort" onclick="openEmpContractPdf(${cid}, false)">Anschauen</button>`;
-    if (_empContractIsHistorisch(c, allContracts)) {
-        return `<span style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">${ph('Bearbeiten')}${viewBtn}${ph('SMS')}${ph('Link ⊘')}</span>`;
-    }
-    return `<span style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">
-        <button type="button" class="emp-contract-btn" title="Vertrag bearbeiten (z.B. vertraulichen Lohn erfassen) — öffnet die Vertrags-Maske mit Mindestlohn-Prüfung" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
-        ${viewBtn}
-        <button type="button" class="emp-contract-btn" title="Vertrags-Link (14 Tage) per SMS direkt an den MA senden" onclick="contractShareSendSms(${emp.id}, ${cid}, '${esc(emp.phoneMobile || '')}')">SMS</button>
-        <button type="button" class="emp-contract-btn" title="Alle aktiven Vertrags-Links dieses Vertrags sofort ungültig machen" onclick="contractShareRevoke(${cid})">Link ⊘</button>
-    </span>`;
+    // ⋮-Menü wie überall (Walter 31.07.2026) — statt vier Text-Buttons.
+    const historisch = _empContractIsHistorisch(c, allContracts);
+    const items = historisch
+        ? `<button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>`
+        : `<button type="button" class="dok-menu-item" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
+           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>
+           <button type="button" class="dok-menu-item" onclick="contractShareSendSms(${emp.id}, ${cid}, '${esc(emp.phoneMobile || '')}')">SMS</button>
+           <button type="button" class="dok-menu-item danger" onclick="contractShareRevoke(${cid})">Link löschen</button>`;
+    return `<div class="dok-menu-wrap ov-vmenu" style="margin-left:auto;flex-shrink:0">
+        <button type="button" class="dok-menu-btn" onclick="ctrToggleMenu(event, ${cid})" title="Aktionen" aria-label="Aktionen">⋮</button>
+        <div class="dok-menu" id="ctrMenu-${cid}">${items}</div>
+    </div>`;
 }
+function ctrToggleMenu(event, id) { rowMenuToggle(event, 'ctr', id); }
 
 async function openEmpContractPdf(contractId, printAfterOpen) {
     const filename = `Arbeitsvertrag_${contractId}.pdf`;
@@ -4365,7 +4365,8 @@ function empSetYesNo(id, value) {
             btn.classList.toggle('active', isYes === value);
         });
     }
-    empInlineDirty();
+    // Vertrags-Modal (ce-*) speichert über «Speichern» — kein Inline-Dirty.
+    if (!String(id || '').startsWith('ce-')) empInlineDirty();
     if (id.startsWith('ov-') && typeof ovDirty === 'function') ovDirty();
 }
 
@@ -4853,13 +4854,6 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
                  <span style="font-size:12px;color:#475569">pflichtig</span>
              </label>`,
             _t('ma.field.lgavPflichtigHint','Jährlicher Abzug im Lohnlauf'))}
-        ${eField('&lt; 8 h / Wo.',
-            `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
-                 <input id="ef-teilzeitUnter8h" type="checkbox" ${emp.teilzeitUnter8hWoche ? 'checked' : ''}
-                        style="width:16px;height:16px;cursor:pointer;margin:0">
-                 <span style="font-size:12px;color:#475569">keine NBU</span>
-             </label>`,
-            _t('ma.field.teilzeitUnter8hHint','Befreit von der NBU-Pflicht'))}
     </div>
     <div style="margin:6px 0 0;font-size:11px;color:#94a3b8">Nachtarbeit-Untersuchung (Ausstellungsdatum + Dokument) wird in der Ansicht direkt erfasst.</div>
     <div style="margin:4px 0 16px;font-size:11.5px;color:#64748b;line-height:1.45">
@@ -5231,7 +5225,7 @@ async function saveEmpEdit() {
         isActive:     isActiveInput ? isActiveInput.checked === true : !!emp.isActive,
         // Walter-Vorgabe 07.06.2026: Anstellungs-Booleans (Übersicht ov-*).
         lgavPflichtig:        boolVal('ef-lgavPflichtig', 'ov-lgavPflichtig', emp.lgavPflichtig),
-        teilzeitUnter8hWoche: boolVal('ef-teilzeitUnter8h', 'ov-teilzeitUnter8h', emp.teilzeitUnter8hWoche),
+        // < 8 h / Wo. gehört zum FLEX-Vertrag (Walter 31.07.2026) — hier nicht mehr schreiben.
         socialSecurityNumber: easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
         ahvNummer:    easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
         maidenName:   formVal('ef-maidenName', 'ov-maidenName') || null,

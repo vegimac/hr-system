@@ -167,6 +167,13 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('cePensum').value             = c.employmentPercentage ?? '';
     document.getElementById('ceWeeklyHours').value        = c.weeklyHours ?? '';
     document.getElementById('ceGuaranteedHours').value    = c.guaranteedHoursPerWeek ?? '';
+    // < 8 h / Wo. nur FLEX — Toggle-Wert setzen (empSetYesNo aktualisiert ja/nein).
+    const unter8 = !!(c.teilzeitUnter8hWoche);
+    if (typeof empSetYesNo === 'function') empSetYesNo('ceTeilzeitUnter8h', unter8);
+    else {
+        const u8 = document.getElementById('ceTeilzeitUnter8h');
+        if (u8) u8.value = unter8 ? 'true' : 'false';
+    }
     const overrideEl = document.getElementById('ceEasyAtWorkManualOverride');
     if (overrideEl) overrideEl.checked = c.easyAtWorkManualOverride === true;
     // Walter-Vorgabe 26.05.2026: Vorbelegung aus Filial-Defaults wenn leer.
@@ -221,6 +228,10 @@ function onCeModelChange() {
     // automatisch = GuaranteedHoursPerWeek gesetzt.
     show('ceWeeklyWrap',     isUtp);
     show('ceGuaranteedWrap', isMtp);
+    // < 8 h / Wo. nur bei FLEX (Walter 31.07.2026) — sitzt in ceWeeklyWrap.
+    show('ceTeilzeitUnter8hWrap', isUtp);
+    if (!isUtp && typeof empSetYesNo === 'function')
+        empSetYesNo('ceTeilzeitUnter8h', false);
     checkCeMinimumWage();
 }
 
@@ -519,6 +530,9 @@ async function saveContractEdit() {
                                 : !isFix ? (parseFloat(document.getElementById('ceWeeklyHours').value) || null)
                                 : null,
         guaranteedHoursPerWeek:  parseFloat(document.getElementById('ceGuaranteedHours').value) || null,
+        // < 8 h / Wo. nur FLEX (Walter 31.07.2026) — NBU-Befreiung am Vertrag.
+        teilzeitUnter8hWoche:    employmentModel === 'FLEX'
+                                    && document.getElementById('ceTeilzeitUnter8h')?.value === 'true',
         hourlyRate:              !isFix ? hourly : null,
         monthlySalaryFte:        isFix ? fte : null,
         monthlySalary:           isFix ? monthly : null,
