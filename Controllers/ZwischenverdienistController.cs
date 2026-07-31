@@ -149,24 +149,49 @@ public class ZwischenverdienistController : ControllerBase
                 t => t.ZwischenverdienstKuerzel!,
                 StringComparer.OrdinalIgnoreCase);
 
+        // Wochenstunden: Vertrag (für MTP) sonst Filiale — vor Tagesraster,
+        // damit bezahlte Absenzen ohne ALK-Kürzel (z.B. BEZ_ABSENZ) Stunden
+        // statt Buchstaben eintragen können.
+        decimal wochenStunden = employment?.GuaranteedHoursPerWeek
+                                ?? employment?.WeeklyHours
+                                ?? company.NormalWeeklyHours
+                                ?? 42m;
+
         // ── Tagesraster aufbauen ──────────────────────────────────────────
         // Offizielle ALK-Kürzel (steuerbar pro Absenztyp in der Admin-UI):
         //   A=Ferien, B=Krankheit/Schwangerschaft, C=Unfall,
         //   D=Mutterschaftsurlaub etc., E=Militär/Zivildienst,
         //   F=Betriebsferien, G=Unbezahlte Absenzen
+        // Walter 31.07.2026: bezahlte Absenz OHNE Kürzel (BEZ_ABSENZ) →
+        // Stundenzahl im Raster (kein Buchstabe im offiziellen Formular).
         var tagesEintraege = new Dictionary<int, string>();
 
-        // Absenzen als Codes eintragen (DB-driven via absenz_typ-Tabelle)
         foreach (var abs in absences)
         {
             if (string.IsNullOrEmpty(abs.AbsenceType)) continue;
-            if (!absenzKuerzel.TryGetValue(abs.AbsenceType.ToUpperInvariant(), out var code))
-                continue; // kein Kürzel hinterlegt → nicht eintragen
-
-            // Tage aus WorkedDays JSON oder Datumsbereich
+            var typeKey = abs.AbsenceType.ToUpperInvariant();
             var days = GetAbsenceDays(abs, firstDay, lastDay);
+            if (days.Count == 0) continue;
+
+            if (absenzKuerzel.TryGetValue(typeKey, out var code))
+            {
+                foreach (int day in days)
+                    tagesEintraege[day] = code;
+                continue;
+            }
+
+            // Kein ALK-Kürzel: nur bezahlte Typen (Zeitgutschrift + Modus) als
+            // Stunden zeigen — z.B. Bezahlte Absenz (Arzt/Behörde/Trauer).
+            if (!absenzTypByCode.TryGetValue(typeKey, out var typBez)) continue;
+            bool alsStunden = typBez.Zeitgutschrift
+                           && !string.IsNullOrEmpty(typBez.GutschriftModus);
+            if (!alsStunden) continue;
+
+            decimal stundenProTag = HoursPerAbsenceDay(abs, typBez, wochenStunden, days.Count);
+            if (stundenProTag <= 0) continue;
+            string hStr = stundenProTag.ToString("G");
             foreach (int day in days)
-                tagesEintraege[day] = code;
+                tagesEintraege[day] = hStr;
         }
 
         // Gearbeitete Stunden eintragen (überschreiben Absenzen)
@@ -182,12 +207,6 @@ public class ZwischenverdienistController : ControllerBase
         // (Krank, Unfall, Mutterschaft, Ferien-Bezug etc.). Damit entspricht der
         // Grundlohn dem AHV-pflichtigen Lohnersatz, den der MA effektiv erhält.
         decimal stempelStunden = timeEntries.Sum(t => t.TotalHours ?? t.DurationHours ?? 0);
-
-        // Wochenstunden: Vertrag (für MTP) sonst Filiale
-        decimal wochenStunden = employment?.GuaranteedHoursPerWeek
-                                ?? employment?.WeeklyHours
-                                ?? company.NormalWeeklyHours
-                                ?? 42m;
 
         // ── UTP-Logik: Ferien/Mutterschaft etc. werden NICHT als Stunden zugeschlagen.
         // Bei UTP ist die Ferien-Entschädigung schon im Stundenlohn (10.64% etc.)
@@ -225,12 +244,10 @@ public class ZwischenverdienistController : ControllerBase
                         || (typ.Zeitgutschrift && !string.IsNullOrEmpty(typ.GutschriftModus));
             if (!bezahlt) continue;
 
-            decimal stundenProTag = typ.GutschriftModus switch
-            {
-                "1/7" => Math.Round(wochenStunden / 7m, 4),
-                _     => Math.Round(wochenStunden / 5m, 4),
-            };
-            absenzStunden += tageImMonat * stundenProTag;
+            // Bevorzugt gespeicherte HoursCredited (Absenzen-Tab), sonst Formel.
+            var dayList = days as List<int> ?? days.ToList();
+            decimal stundenProTag = HoursPerAbsenceDay(abs, typ, wochenStunden, dayList.Count);
+            absenzStunden += dayList.Count * stundenProTag;
         }
         absenzStunden = Math.Round(absenzStunden, 2);
 
@@ -500,5 +517,34 @@ public class ZwischenverdienistController : ControllerBase
             days.Add(d.Day);
 
         return days;
+    }
+
+    /// <summary>
+    /// Stunden pro Absenz-Tag für Tagesraster / TotalStunden.
+    /// Preferiert absence.hours_credited (gleicher Wert wie Absenzen-Tab),
+    /// sonst 1/5 bzw. 1/7 der Wochenstunden × Ausfall-Prozent.
+    /// </summary>
+    private static decimal HoursPerAbsenceDay(
+        Absence abs, AbsenzTyp typ, decimal wochenStunden, int daysInMonth)
+    {
+        if (daysInMonth <= 0) return 0m;
+
+        decimal pFactor = abs.Prozent > 0 ? abs.Prozent / 100m : 1m;
+
+        if (abs.HoursCredited > 0)
+        {
+            // Gesamt-Tage der Absenz (nicht nur Monat) für faire Aufteilung
+            // bei monatsübergreifenden Einträgen.
+            var allDays = GetAbsenceDays(abs, abs.DateFrom, abs.DateTo);
+            int totalDays = allDays.Count > 0 ? allDays.Count : daysInMonth;
+            return Math.Round(abs.HoursCredited / totalDays, 4);
+        }
+
+        decimal basePerDay = typ.GutschriftModus switch
+        {
+            "1/7" => Math.Round(wochenStunden / 7m, 4),
+            _     => Math.Round(wochenStunden / 5m, 4),
+        };
+        return Math.Round(basePerDay * pFactor, 4);
     }
 }
