@@ -260,10 +260,15 @@ public class AbsencesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AbsenceDto dto)
     {
+        if (dto is null || dto.EmployeeId <= 0)
+            return BadRequest(new { error = "INVALID_DTO", message = "Mitarbeiter fehlt." });
+        if (string.IsNullOrWhiteSpace(dto.AbsenceType))
+            return BadRequest(new { error = "INVALID_TYPE", message = "Abwesenheitstyp fehlt." });
+        if (!DateOnly.TryParse(dto.DateFrom, out var from) || !DateOnly.TryParse(dto.DateTo, out var to))
+            return BadRequest(new { error = "INVALID_DATE", message = "Ungültiges Datum." });
+
         // Lohnlauf-Sperre: keine Absenz in einer Periode anlegen, die bei HR
         // liegt oder bereits ausbezahlt/abgeschlossen ist.
-        var from = DateOnly.Parse(dto.DateFrom);
-        var to   = DateOnly.Parse(dto.DateTo);
         var locked = await CheckLohnLockAsync(dto.EmployeeId, from, to);
         if (locked != null) return locked;
 
@@ -273,7 +278,7 @@ public class AbsencesController : ControllerBase
         var absence = new Absence
         {
             EmployeeId    = dto.EmployeeId,
-            AbsenceType   = dto.AbsenceType.ToUpper(),
+            AbsenceType   = dto.AbsenceType.Trim().ToUpperInvariant(),
             DateFrom      = from,
             DateTo        = to,
             WorkedDays    = dto.WorkedDays,
