@@ -222,8 +222,13 @@ public class ZwischenverdienistController : ControllerBase
         //          Ist = Stempel + Absenzen mit Zeitgutschrift (z.B. BEZ_ABSENZ)
         // Ferienbezug zählt weder als Stunden noch im Raster — die
         // Ferienentschädigung-% (und Feiertag-%) kommen auf den Grundlohn.
-        decimal stempelStunden = Math.Round(
-            timeEntries.Sum(t => t.TotalHours ?? t.DurationHours ?? 0), 2);
+        //
+        // WICHTIG (Walter 31.07.2026): Ist-Stunden EXAKT wie Lohnlauf
+        // (PayrollCalculationEngine) — gleiche Stempel-Summe, gleiche
+        // Absenz-Tageszählung (CountAbsenceDaysInPeriod), gleiche Rundung
+        // EINMAL auf das Perioden-Total (NICHT pro Tag × Tage, sonst Drift
+        // z.B. 10 × Round(30/7,2)=42.90 statt Round(10×30/7,2)=42.86).
+        decimal stempelStunden = timeEntries.Sum(t => t.TotalHours ?? 0);
 
         decimal absenzStunden = 0;
         int krankUnfallTage   = 0;
@@ -234,16 +239,16 @@ public class ZwischenverdienistController : ControllerBase
             if (!absenzTypByCode.TryGetValue(typeKey, out var typ))
                 continue;
 
-            var days = GetAbsenceDays(abs, firstDay, lastDay);
-            int tageImMonat = days.Count;
-            if (tageImMonat == 0) continue;
+            // Krank/Unfall-Taggeld: Kalendertage im Formular-Monat (Raster-Logik)
+            var daysForRaster = GetAbsenceDays(abs, firstDay, lastDay);
+            int tageRaster = daysForRaster.Count;
 
             var kuerzel = (typ.ZwischenverdienstKuerzel ?? "").ToUpperInvariant();
 
             // Krank/Unfall (B/C): immer Taggeldleistungen via KTG-Tagessatz
             if (kuerzel == "B" || kuerzel == "C")
             {
-                krankUnfallTage += tageImMonat;
+                if (tageRaster > 0) krankUnfallTage += tageRaster;
                 continue;
             }
 
@@ -259,8 +264,12 @@ public class ZwischenverdienistController : ControllerBase
                                   && !string.IsNullOrEmpty(typ.GutschriftModus);
             if (!mitZeitgutschrift) continue;
 
-            decimal stundenProTag = HoursPerAbsenceDay(abs, typ, wochenStunden, tageImMonat);
-            absenzStunden += tageImMonat * stundenProTag;
+            // Lohn-identisch: Tage via CountAbsenceDaysInPeriod, Rundung einmal
+            int tageImMonat = PayrollCalculations.CountAbsenceDaysInPeriod(
+                abs, firstDay, lastDay);
+            if (tageImMonat == 0) continue;
+            absenzStunden += ComputeAbsenzStundenLikeLohn(
+                abs, typ, wochenStunden, tageImMonat);
         }
         absenzStunden = Math.Round(absenzStunden, 2);
 
@@ -683,9 +692,8 @@ public class ZwischenverdienistController : ControllerBase
     }
 
     /// <summary>
-    /// Stunden pro Absenz-Tag für Tagesraster / TotalStunden.
-    /// Preferiert absence.hours_credited (gleicher Wert wie Absenzen-Tab),
-    /// sonst 1/5 bzw. 1/7 der Wochenstunden × Ausfall-Prozent.
+    /// Stunden pro Absenz-Tag NUR fürs Tagesraster (Anzeige).
+    /// Total/Ist nutzt ComputeAbsenzStundenLikeLohn — nicht diese Methode.
     /// </summary>
     private static decimal HoursPerAbsenceDay(
         Absence abs, AbsenzTyp typ, decimal wochenStunden, int daysInMonth)
@@ -709,6 +717,21 @@ public class ZwischenverdienistController : ControllerBase
             _     => Math.Round(wochenStunden / 5m, 2),
         };
         return Math.Round(basePerDay * pFactor, 2);
+    }
+
+    /// <summary>
+    /// Absenz-Stunden wie PayrollCalculationEngine.ComputeAbsenzHours:
+    /// einmal aufs Perioden-Total runden (Tage × WoStd / 5|7 × Prozent).
+    /// Kein HoursCredited, keine Pro-Tag-Zwischenrundung.
+    /// </summary>
+    private static decimal ComputeAbsenzStundenLikeLohn(
+        Absence abs, AbsenzTyp typ, decimal wochenStunden, int daysInPeriod)
+    {
+        if (daysInPeriod <= 0) return 0m;
+        string modus = typ.GutschriftModus ?? "1/5";
+        decimal divisor = modus == "1/7" ? 7m : 5m;
+        decimal prozent = abs.Prozent > 0 ? abs.Prozent : 100m;
+        return Math.Round(daysInPeriod * wochenStunden / divisor * prozent / 100m, 2);
     }
 
     /// <summary>Tagesraster-Stunden immer mit 2 Nachkommastellen (Punkt).</summary>
