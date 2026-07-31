@@ -1,11 +1,12 @@
+using System.Globalization;
+using System.Security.Claims;
+using System.Text.Json;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using System.Text.Json;
 
 namespace HrSystem.Controllers;
 
@@ -189,7 +190,8 @@ public class ZwischenverdienistController : ControllerBase
 
             decimal stundenProTag = HoursPerAbsenceDay(abs, typBez, wochenStunden, days.Count);
             if (stundenProTag <= 0) continue;
-            string hStr = stundenProTag.ToString("G");
+            // Walter 31.07.2026: Tagesraster immer 2 Nachkommastellen (nicht 4.857).
+            string hStr = FormatTagesStunden(stundenProTag);
             foreach (int day in days)
                 tagesEintraege[day] = hStr;
         }
@@ -199,7 +201,7 @@ public class ZwischenverdienistController : ControllerBase
         {
             decimal h = te.TotalHours ?? te.DurationHours ?? 0;
             if (h > 0)
-                tagesEintraege[te.EntryDate.Day] = h.ToString("G");
+                tagesEintraege[te.EntryDate.Day] = FormatTagesStunden(h);
         }
 
         // ── Lohnberechnung ────────────────────────────────────────────────
@@ -536,14 +538,18 @@ public class ZwischenverdienistController : ControllerBase
             // bei monatsübergreifenden Einträgen.
             var allDays = GetAbsenceDays(abs, abs.DateFrom, abs.DateTo);
             int totalDays = allDays.Count > 0 ? allDays.Count : daysInMonth;
-            return Math.Round(abs.HoursCredited / totalDays, 4);
+            return Math.Round(abs.HoursCredited / totalDays, 2);
         }
 
         decimal basePerDay = typ.GutschriftModus switch
         {
-            "1/7" => Math.Round(wochenStunden / 7m, 4),
-            _     => Math.Round(wochenStunden / 5m, 4),
+            "1/7" => Math.Round(wochenStunden / 7m, 2),
+            _     => Math.Round(wochenStunden / 5m, 2),
         };
-        return Math.Round(basePerDay * pFactor, 4);
+        return Math.Round(basePerDay * pFactor, 2);
     }
+
+    /// <summary>Tagesraster-Stunden immer mit 2 Nachkommastellen (Punkt).</summary>
+    private static string FormatTagesStunden(decimal hours)
+        => Math.Round(hours, 2).ToString("0.00", CultureInfo.InvariantCulture);
 }
