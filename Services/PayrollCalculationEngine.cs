@@ -530,6 +530,9 @@ public class PayrollCalculationEngine
         // statt aus dem gespeicherten HoursCredited. So passen sich historische
         // Absenzen automatisch an Regeländerungen an (z.B. Wochensoll für
         // FIX/FIX-M Ferien/Feiertag pensum-adjustiert).
+        //
+        // Walter 31.07.2026: EXAKT zurückgeben — keine Zwischenrundung.
+        // Runden erst am Schluss (Anzeige / CHF / Saldo-Felder).
         decimal ComputeAbsenzHours(Absence a, AbsenzTyp typCfg)
         {
             int daysInPeriod = CountAbsenceDaysInPeriod(a, periodFrom, periodTo);
@@ -560,8 +563,8 @@ public class PayrollCalculationEngine
                     // (1/7-Modus). Krank/Unfall/Schulung etc. weiter Betriebs-Wochen.
                     if (a.AbsenceType == "FERIEN" || a.AbsenceType == "FEIERTAG")
                     {
-                        // Pensum-adjustierte Wochensoll (33.6 h bei 80% × 42 h Betrieb)
-                        weeklyH = Math.Round(betriebWeekly * pct / 100m, 2);
+                        // Pensum-adjustierte Wochensoll (exakt; Rundung erst am Schluss)
+                        weeklyH = betriebWeekly * pct / 100m;
                     }
                     // sonst: weeklyH = betriebWeekly (Default)
                 }
@@ -571,7 +574,7 @@ public class PayrollCalculationEngine
             string modus = typCfg.GutschriftModus ?? "1/5";
             decimal divisor = modus == "1/7" ? 7m : 5m;
             decimal prozent = a.Prozent > 0 ? a.Prozent : 100m;
-            return Math.Round(daysInPeriod * weeklyH / divisor * prozent / 100m, 2);
+            return daysInPeriod * weeklyH / divisor * prozent / 100m;
         }
 
         foreach (var a in absences)
@@ -1472,15 +1475,16 @@ public class PayrollCalculationEngine
             if (sollStundenExakt < 0m) sollStundenExakt = 0m;
             // Toleranz-Clamp für Rundungs-Drift aus decimal-Arithmetik.
             if (Math.Abs(sollStundenExakt) < 0.01m) sollStundenExakt = 0m;
-            decimal sollStunden = Math.Round(sollStundenExakt, 2);
+            decimal sollStunden = Math.Round(sollStundenExakt, 2); // nur Anzeige
             decimal festlohnArbeitStunden = sollStunden;
             // Festlohn-Arbeit-Betrag direkt aus exakten Stunden × Stundenlohn —
             // unabhängig von den gerundeten Anzeige-Kürzungen.
             decimal festlohnArbeitBetrag = Math.Round(sollStundenExakt * hourlyRate, 2);
 
-            // Stunden-Saldo inkl. Vormonat (Ferien wurden bereits durch sollStunden
-            // abgebildet, absenzGutschrift enthält nur noch Krank/Schulung/etc.)
-            decimal nettoH         = workedHours + absenzGutschrift - sollStunden + vormonatHourSaldo;
+            // Stunden-Saldo inkl. Vormonat — EXAKT (Walter 31.07.2026:
+            // Zwischenwerte nicht runden; sollStundenExakt, nicht gerundetes Soll).
+            // absenzGutschrift enthält nur noch Krank/Schulung/BEZ_ABSENZ/etc.
+            decimal nettoH         = workedHours + absenzGutschrift - sollStundenExakt + vormonatHourSaldo;
             decimal mehrstundenAus = Math.Round(Math.Max(0, nettoH), 2);
             decimal neuerSaldo     = Math.Round(Math.Min(0, nettoH), 2);
 
@@ -1542,7 +1546,8 @@ public class PayrollCalculationEngine
 
             if (feiertagAusz > 0)
             {
-                lohnLines.Add(new { bezeichnung = $"{Math.Round(feiertagStunden,2)} Ausbezahlte Feiertage", anzahl = (decimal?)feiertagStunden, prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
+                decimal feiertagStdAnzeige = Math.Round(feiertagStunden, 2);
+                lohnLines.Add(new { bezeichnung = $"{feiertagStdAnzeige} Ausbezahlte Feiertage", anzahl = (decimal?)feiertagStdAnzeige, prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
                 totalLohn += feiertagAusz;
             }
 
@@ -1550,8 +1555,9 @@ public class PayrollCalculationEngine
             {
                 // Walter-Vorgabe 30.05.2026: Label transparent machen — Walter
                 // soll im Label sehen WIE die Mehrstunden entstehen.
-                // Formel: nettoH = workedHours + absenzGutschrift - sollStunden + vormonatHourSaldo
-                decimal istStunden = workedHours + absenzGutschrift;
+                // Formel: nettoH = workedHours + absenzGutschrift - sollStundenExakt + vormonat
+                // Anzeige: Ist/Soll gerundet (Rechnung blieb exakt).
+                decimal istStunden = Math.Round(workedHours + absenzGutschrift, 2);
                 string mtpStdLabel = $"MTP + Stunden ({istStunden:0.00}h Ist − {sollStunden:0.00}h Soll";
                 if (vormonatHourSaldo > 0) mtpStdLabel += $" + {vormonatHourSaldo:0.00}h Vormonat";
                 else if (vormonatHourSaldo < 0) mtpStdLabel += $" − {Math.Abs(vormonatHourSaldo):0.00}h Vormonat";
@@ -1950,8 +1956,10 @@ public class PayrollCalculationEngine
                     WorkedHours:          workedHours,
                     SollStunden:          sollStunden,
                     Mehrstunden:          mehrstundenAus,
-                    AbsenzGutschrift:     absenzGutschrift,
-                    AbsenzBreakdown:      absenzBreakdown,
+                    // Anzeige gerundet — Rechnung lief exakt bis Mehrstunden/CHF
+                    AbsenzGutschrift:     Math.Round(absenzGutschrift, 2),
+                    AbsenzBreakdown:      absenzBreakdown.ToDictionary(
+                                             kv => kv.Key, kv => Math.Round(kv.Value, 2)),
                     SollStundenVoll:        sollStundenVoll,
                     SollFerienReduktion:    Math.Round(ferienStundenAequivalent, 2),
                     SollKrankReduktion:     Math.Round(krankStundenAequivalent, 2),
@@ -1962,7 +1970,7 @@ public class PayrollCalculationEngine
                     FerienKuerzungVorschlagTage: kuerzungVorschlagTage,
                     NightHours:           nightHours,
                     NightBonus:           nightBonus,
-                    NachtKompStunden:     nachtKompStunden,
+                    NachtKompStunden:     Math.Round(nachtKompStunden, 2),
                     VormonatNachtSaldo:   vormonatNachtSaldo,
                     NeuerNachtSaldo:      neuerNachtSaldo,
                     VacationWeeks:        vacationWeeks,
@@ -2015,7 +2023,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new {
                     bezeichnung = "Nacht-Kompensation",
-                    anzahl  = (decimal?)utpAuszahlungStunden,
+                    anzahl  = (decimal?)Math.Round(utpAuszahlungStunden, 2),
                     prozent = (decimal?)null,
                     basis   = (decimal?)hourlyRate,
                     betrag  = nachtKompBrutto,
@@ -2026,7 +2034,7 @@ public class PayrollCalculationEngine
 
             if (feiertagAusz > 0)
             {
-                lohnLines.Add(new { bezeichnung = "Ausbezahlte Feiertage", anzahl = (decimal?)feiertagStunden, prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
+                lohnLines.Add(new { bezeichnung = "Ausbezahlte Feiertage", anzahl = (decimal?)Math.Round(feiertagStunden, 2), prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
                 totalLohn += feiertagAusz;
             }
             if (feiertagEnt > 0)
@@ -2609,14 +2617,16 @@ public class PayrollCalculationEngine
             // entspricht der gleichen Logik, die bei Absenzberechnungen im
             // Frontend schon verwendet wird.
             decimal normalWeekly = company.NormalWeeklyHours ?? 42m;
-            decimal weeklySoll   = emp.WeeklyHours ?? Math.Round(normalWeekly * pct / 100m, 2);
+            // Exakt rechnen (Walter 31.07.2026); Anzeige-Soll erst danach runden.
+            decimal weeklySoll   = emp.WeeklyHours ?? (normalWeekly * pct / 100m);
             int periodDays       = periodTo.DayNumber - periodFrom.DayNumber + 1;
-            decimal sollStundenFix = Math.Round(weeklySoll / 7m * periodDays, 2);
+            decimal sollStundenFixExakt = weeklySoll / 7m * periodDays;
+            decimal sollStundenFix = Math.Round(sollStundenFixExakt, 2);
 
-            // Ist-/Saldo-Berechnung (wie MTP, aber ohne Payout):
+            // Ist-/Saldo-Berechnung (wie MTP, aber ohne Payout) — exaktes Soll:
             //   Netto = Worked + AbsenzGutschrift − Soll + Vormonat-Saldo
             //   → Neuer Saldo (kann positiv oder negativ sein; keine Auszahlung).
-            decimal nettoHFix      = workedHours + absenzGutschrift - sollStundenFix + vormonatHourSaldo;
+            decimal nettoHFix      = workedHours + absenzGutschrift - sollStundenFixExakt + vormonatHourSaldo;
             decimal neuerHourSaldoFix = Math.Round(nettoHFix, 2);
 
             decimal neuerNachtSaldoFix = Math.Round(vormonatNachtSaldo + nightBonus - nachtKompStunden, 2);
@@ -2767,11 +2777,12 @@ public class PayrollCalculationEngine
                     WorkedHours:          workedHours,
                     SollStunden:          sollStundenFix,
                     Mehrstunden:          0,
-                    AbsenzGutschrift:     absenzGutschrift,
-                    AbsenzBreakdown:      absenzBreakdown,
+                    AbsenzGutschrift:     Math.Round(absenzGutschrift, 2),
+                    AbsenzBreakdown:      absenzBreakdown.ToDictionary(
+                                             kv => kv.Key, kv => Math.Round(kv.Value, 2)),
                     NightHours:           nightHours,
                     NightBonus:           nightBonus,
-                    NachtKompStunden:     nachtKompStunden,
+                    NachtKompStunden:     Math.Round(nachtKompStunden, 2),
                     VormonatNachtSaldo:   vormonatNachtSaldo,
                     NeuerNachtSaldo:      neuerNachtSaldoFix,
                     VacationWeeks:        vacationWeeks,
