@@ -383,38 +383,46 @@ public class SaldoVortragImportController : ControllerBase
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // STUNDEN-SALDI Import (Mirus „Monatsblatt", Walter-Vorgabe 26.05.2026)
+    // STUNDEN-/TAGE-SALDI Import (Mirus „Monatsblatt", Walter-Vorgabe 26.05.2026,
+    // Spalten-Layout präzisiert 31.07.2026)
     //
-    // Quelle: Mirus „Monatsblatt <Monat> <Jahr>" (JasperReports-XLS). Format
-    // pro MA: Header-Block + Tagesliste + Summary-Block. Pro MA werden zwei
-    // Saldo-Werte extrahiert (jeweils col 63 = letzte Summary-Spalte „Saldo"):
-    //   • Zeile mit col 1 = „Überstunden"  → Stunden-Saldo  (Vortrag-Code 901)
-    //   • Zeile mit col 1 = „Zeitzuschlag" → Nacht-Saldo    (Vortrag-Code 904)
+    // Quelle: Mirus „Monatsblatt <Monat> <Jahr>" bzw. „Abrechnung individuelle
+    // Position" (JasperReports-XLS). Format pro MA: Header + Tage-Block +
+    // Tagesliste + Stunden-Summary. Pro MA extrahiert:
+    //   • „Überstunden"  Saldo → Zeitsaldo     (901)  — Dezimalstunden
+    //   • „Zeitzuschlag" Saldo → Nacht-Saldo   (904)  — Dezimalstunden
+    //   • „Ferien"       Saldo → Ferien-Tage   (903)
+    //   • „Feier"        Saldo → Feiertag-Tage (902)
     //
-    // Werte sind reine DEZIMALSTUNDEN (Mirus-Konvention 1/100, nicht hh:mm).
-    // Match: per Personalnummer (col 12 der „Personalnummer:"-Zeile) — robuster
-    // als Namen-Match. Vertragsmodell-Relevanz: 901+904 nur für MTP/FIX/FIX-M
-    // (UTP führt keinen Stunden- oder Nacht-Saldo; ein bestehender Eintrag
-    // würde wie im CHF-Pfad entfernt). Bestehende Vortrag-Codes 902/903/905/906
-    // bleiben UNANGETASTET.
+    // Spalten sind NICHT fest verdrahtet: JasperReports verschiebt Zellen je
+    // nach Export (ältere Exporte: Name/PNr col 12, Stunden-Saldo col 63;
+    // Sursee Juni-2026: Name/PNr col 14, Stunden-Saldo col 71, Tage-Saldo
+    // col 61). Der Parser findet Anker + Saldo-Spalte dynamisch.
+    // „Stunden" (FLEX-Ist) ≠ „Überstunden" — wird bewusst ignoriert.
+    // Match per Personalnummer. Relevanz: 901/904 MTP/FIX/FIX-M; 902 FIX/FIX-M;
+    // 903 alle Modelle. Codes 905/906 (CHF) bleiben unangetastet.
     // ══════════════════════════════════════════════════════════════════════════
 
     public record ParsedStundenRow(
-        string  EmployeeNumber,
-        string  Name,
-        decimal? StundenSaldo,    // null = Zeile „Überstunden" im Block nicht vorhanden
-        decimal? NachtSaldo       // null = Zeile „Zeitzuschlag" im Block nicht vorhanden
+        string   EmployeeNumber,
+        string   Name,
+        decimal? StundenSaldo,      // null = Zeile „Überstunden" fehlt
+        decimal? NachtSaldo,        // null = Zeile „Zeitzuschlag" fehlt
+        decimal? FerienTageSaldo,   // null = Zeile „Ferien" fehlt
+        decimal? FeiertagTageSaldo  // null = Zeile „Feier" fehlt
     );
 
     public record StundenAnalyzeRow(
-        string  EmployeeNumber,
-        string  Name,
+        string   EmployeeNumber,
+        string   Name,
         decimal? StundenSaldo,
         decimal? NachtSaldo,
-        int?    EmployeeId,
-        string? EmployeeMatchedName,
-        string? EmploymentModel,
-        string  Status   // MATCH / NO_MATCH
+        decimal? FerienTageSaldo,
+        decimal? FeiertagTageSaldo,
+        int?     EmployeeId,
+        string?  EmployeeMatchedName,
+        string?  EmploymentModel,
+        string   Status   // MATCH / NO_MATCH
     );
 
     public record StundenAnalyzeResult(
@@ -431,6 +439,8 @@ public class SaldoVortragImportController : ControllerBase
         int      EmployeeId,
         decimal? StundenSaldo,
         decimal? NachtSaldo,
+        decimal? FerienTageSaldo,
+        decimal? FeiertagTageSaldo,
         string?  OriginalName
     );
 
@@ -480,7 +490,8 @@ public class SaldoVortragImportController : ControllerBase
         {
             byNumber.TryGetValue(r.EmployeeNumber, out var emp);
             analyzeRows.Add(new StundenAnalyzeRow(
-                r.EmployeeNumber, r.Name, r.StundenSaldo, r.NachtSaldo,
+                r.EmployeeNumber, r.Name,
+                r.StundenSaldo, r.NachtSaldo, r.FerienTageSaldo, r.FeiertagTageSaldo,
                 emp?.Id,
                 emp != null ? $"{emp.FirstName} {emp.LastName}".Trim() : null,
                 emp?.EmploymentModel,
@@ -509,13 +520,15 @@ public class SaldoVortragImportController : ControllerBase
         if (dto.Rows is null || dto.Rows.Count == 0)
             return BadRequest(new { error = "Keine Zeilen zum Speichern." });
 
-        // Vortrag-Lohnpositionen 901 (Stunden) + 904 (Nacht).
+        // Vortrag-Lohnpositionen 901/902/903/904 (Stunden, Feiertag-Tage, Ferien-Tage, Nacht).
+        var codes = new[] { "901", "902", "903", "904" };
         var lps = await _db.Lohnpositionen
-            .Where(l => l.Kategorie == "Saldo-Vortrag" && (l.Code == "901" || l.Code == "904"))
+            .Where(l => l.Kategorie == "Saldo-Vortrag" && codes.Contains(l.Code))
             .ToDictionaryAsync(l => l.Code, l => l);
 
-        if (!lps.ContainsKey("901") || !lps.ContainsKey("904"))
-            return Problem("Vortrag-Lohnpositionen 901/904 fehlen. Bitte add_saldo_vortrag.sql ausführen.", statusCode: 500);
+        foreach (var c in codes)
+            if (!lps.ContainsKey(c))
+                return Problem($"Vortrag-Lohnposition {c} fehlt. Bitte add_saldo_vortrag.sql ausführen.", statusCode: 500);
 
         var empIds = dto.Rows.Select(r => r.EmployeeId).Distinct().ToList();
         var emps = await _db.Employees
@@ -527,7 +540,7 @@ public class SaldoVortragImportController : ControllerBase
             .Include(z => z.Lohnposition)
             .Where(z => empIds.Contains(z.EmployeeId)
                      && z.Lohnposition!.Kategorie == "Saldo-Vortrag"
-                     && (z.Lohnposition.Code == "901" || z.Lohnposition.Code == "904"))
+                     && codes.Contains(z.Lohnposition.Code))
             .ToListAsync();
 
         int created = 0, updated = 0, skipped = 0;
@@ -542,10 +555,12 @@ public class SaldoVortragImportController : ControllerBase
                 .OrderByDescending(e => e.ContractStartDate).FirstOrDefault();
             var model = (activeEmp?.EmploymentModel ?? "").ToUpperInvariant();
 
-            UpsertHours("901", lps["901"], row.StundenSaldo, IsRelevant901(model));
-            UpsertHours("904", lps["904"], row.NachtSaldo,    IsRelevant904(model));
+            UpsertSaldo("901", lps["901"], row.StundenSaldo,       IsRelevant901(model));
+            UpsertSaldo("904", lps["904"], row.NachtSaldo,         IsRelevant904(model));
+            UpsertSaldo("903", lps["903"], row.FerienTageSaldo,    IsRelevant903(model));
+            UpsertSaldo("902", lps["902"], row.FeiertagTageSaldo,  IsRelevant902(model));
 
-            void UpsertHours(string code, Lohnposition lp, decimal? value, bool relevant)
+            void UpsertSaldo(string code, Lohnposition lp, decimal? value, bool relevant)
             {
                 var ex = existing.FirstOrDefault(e =>
                     e.EmployeeId == row.EmployeeId && e.Lohnposition!.Code == code);
@@ -553,7 +568,7 @@ public class SaldoVortragImportController : ControllerBase
                 if (!relevant)
                 {
                     // Modell hat diesen Saldo nicht → bestehenden Eintrag entfernen
-                    // (z.B. UTP hat keinen Stunden-/Nacht-Saldo).
+                    // (z.B. FLEX hat keinen Stunden-/Nacht-/Feiertag-Saldo).
                     if (ex != null) _db.LohnZulagen.Remove(ex);
                     return;
                 }
@@ -561,7 +576,7 @@ public class SaldoVortragImportController : ControllerBase
                 {
                     // Block hatte diese Zeile nicht — Wert NICHT setzen (bestehenden
                     // Eintrag intakt lassen). Anders als bei `!relevant`, wo wir
-                    // löschen, ist `value==null` ein „keine Info, nicht anfassen".
+                    // löschen, ist `value==null` ein «keine Info, nicht anfassen».
                     return;
                 }
 
@@ -574,9 +589,9 @@ public class SaldoVortragImportController : ControllerBase
                         Periode        = dto.Periode,
                         LohnpositionId = lp.Id,
                         Betrag         = betrag,
-                        Bemerkung      = "Migrations-Vortrag aus Mirus Monatsblatt (Stunden)",
-                        CreatedAt      = DateTime.UtcNow,
-                        UpdatedAt      = DateTime.UtcNow
+                        Bemerkung      = "Migrations-Vortrag aus Mirus Monatsblatt",
+                        CreatedAt      = DateTime.Now,
+                        UpdatedAt      = DateTime.Now
                     });
                     created++;
                 }
@@ -584,7 +599,7 @@ public class SaldoVortragImportController : ControllerBase
                 {
                     ex.Periode   = dto.Periode;
                     ex.Betrag    = betrag;
-                    ex.UpdatedAt = DateTime.UtcNow;
+                    ex.UpdatedAt = DateTime.Now;
                     updated++;
                 }
             }
@@ -595,20 +610,17 @@ public class SaldoVortragImportController : ControllerBase
     }
 
     private static bool IsRelevant901(string model) =>    // Zeitsaldo (Stunden)
-        model == "MTP" || model == "FIX" || model == "FIX-M";
+        model is "MTP" or "FIX" or "FIX-M";
     private static bool IsRelevant904(string model) =>    // Nacht-Saldo
-        model == "MTP" || model == "FIX" || model == "FIX-M";
+        model is "MTP" or "FIX" or "FIX-M";
+    private static bool IsRelevant902(string model) =>    // Feiertag-Tage
+        model is "FIX" or "FIX-M";
+    private static bool IsRelevant903(string model) =>    // Ferien-Tage
+        model is "FLEX" or "MTP" or "FIX" or "FIX-M";
 
     /// <summary>
-    /// Parser für das Mirus „Monatsblatt" (JasperReports-XLS). Layout pro MA:
-    ///   Anker-Zeile: col 2 == „Personalnummer:" → Name in (row-1, col 12),
-    ///                Nummer in (row, col 12), Kostenstelle in (row+1, col 12).
-    ///   Innerhalb des Blocks (bis zum nächsten Personalnummer:-Anker oder
-    ///   Dateiende) suchen wir zwei Zeilen mit Label in col 1:
-    ///     • „Überstunden"  → Saldo in col 63 → Stunden-Saldo
-    ///     • „Zeitzuschlag" → Saldo in col 63 → Nacht-Saldo
-    /// Fehlt eine der Label-Zeilen, ist der jeweilige Saldo null (UTP-MA haben
-    /// typischerweise keine Überstunden-Zeile).
+    /// Parser für das Mirus «Monatsblatt» / «Abrechnung individuelle Position»
+    /// (JasperReports-XLS). Spalten dynamisch — siehe Klassenkommentar oben.
     /// </summary>
     private static List<ParsedStundenRow> ParseMonatsblatt(IFormFile file)
     {
@@ -627,45 +639,179 @@ public class SaldoVortragImportController : ControllerBase
         }
         var sh = wb.GetSheetAt(0);
 
-        // 1) Alle MA-Block-Anker finden.
+        // 1) Alle MA-Block-Anker finden (Label «Personalnummer:» irgendwo in der Zeile).
         var anchors = new List<(int Row, string Name, string Number)>();
         for (int r = 0; r <= sh.LastRowNum; r++)
         {
             var row = sh.GetRow(r);
             if (row is null) continue;
-            var label = (row.GetCell(2)?.ToString() ?? "").Trim();
-            if (label != "Personalnummer:") continue;
+            if (!TryFindLabelCell(row, "Personalnummer:", out int labelCol)) continue;
 
-            var name  = (sh.GetRow(r - 1)?.GetCell(12)?.ToString() ?? "").Trim();
-            var nrCell = row.GetCell(12);
-            string nr;
-            if (nrCell?.CellType == CellType.Numeric)
-                nr = ((long)nrCell.NumericCellValue).ToString();
-            else
-                nr = (nrCell?.ToString() ?? "").Trim();
+            var nr = ReadPersonalNumber(row, labelCol);
+            if (string.IsNullOrEmpty(nr)) continue;
 
-            if (!string.IsNullOrEmpty(nr)) anchors.Add((r, name, nr));
+            var name = ReadNameAbove(sh, r, labelCol);
+            anchors.Add((r, name, nr));
         }
 
-        // 2) Pro Anker im Block-Bereich Überstunden + Zeitzuschlag suchen.
+        // 2) Pro Anker Saldi im Block suchen.
         var result = new List<ParsedStundenRow>();
         for (int i = 0; i < anchors.Count; i++)
         {
             var (start, name, nr) = anchors[i];
             var end = (i + 1 < anchors.Count) ? anchors[i + 1].Row : sh.LastRowNum + 1;
 
-            decimal? stunden = null, nacht = null;
+            decimal? stunden = null, nacht = null, ferien = null, feier = null;
+            int? hoursSaldoCol = null, daysSaldoCol = null;
+
             for (int r = start; r < end; r++)
             {
                 var row = sh.GetRow(r);
                 if (row is null) continue;
-                var lab = (row.GetCell(1)?.ToString() ?? "").Trim();
-                if (lab == "Überstunden")  stunden = ReadDecimalNullable(row.GetCell(63));
-                else if (lab == "Zeitzuschlag") nacht = ReadDecimalNullable(row.GetCell(63));
+
+                // Saldo-Spalte aus Header-Zeilen merken (Tage- und Stunden-Block).
+                // Beide Header haben «Vortr.» — Unterscheidung:
+                //   Tage:   enthält «Soll» und/oder «Zus. Tage»
+                //   Stunden: enthält «(Abw.)» / «Komp.» und KEIN «Soll»
+                if (TryFindLabelCell(row, "Saldo", out int saldoCol))
+                {
+                    bool looksLikeDays = CellTextEquals(row, "Soll")
+                                      || CellTextEquals(row, "Zus. Tage");
+                    bool looksLikeHours = !looksLikeDays
+                                      && (CellTextEquals(row, "(Abw.)")
+                                          || CellTextEquals(row, "Komp.")
+                                          || CellTextEquals(row, "Komp"));
+                    if (looksLikeDays) hoursSaldoCol = saldoCol;
+                    else if (looksLikeDays) daysSaldoCol = saldoCol;
+                    else
+                    {
+                        // Unklare Header-Zeile: erste = Tage, spätere = Stunden
+                        // (Tage-Block steht in beiden bekannten Layouts oben).
+                        if (daysSaldoCol is null) daysSaldoCol = saldoCol;
+                        else hoursSaldoCol = saldoCol;
+                    }
+                }
+
+                // Label in den ersten Spalten (Jasper legt «Überstunden»/«Ferien» oft in col 1 bzw. 4).
+                var lab = FirstNonEmptyLabel(row);
+                if (string.IsNullOrEmpty(lab)) continue;
+
+                if (lab == "Überstunden")
+                    stunden = ReadSaldo(row, hoursSaldoCol ?? daysSaldoCol, preferredFallback: 71, altFallback: 63);
+                else if (lab == "Zeitzuschlag")
+                    nacht = ReadSaldo(row, hoursSaldoCol ?? daysSaldoCol, preferredFallback: 71, altFallback: 63);
+                else if (lab == "Ferien")
+                    ferien = ReadSaldo(row, daysSaldoCol, preferredFallback: 61, altFallback: 63);
+                else if (lab == "Feier" || lab.StartsWith("Feier", StringComparison.Ordinal))
+                    feier = ReadSaldo(row, daysSaldoCol, preferredFallback: 61, altFallback: 63);
             }
-            result.Add(new ParsedStundenRow(nr, name, stunden, nacht));
+
+            result.Add(new ParsedStundenRow(nr, name, stunden, nacht, ferien, feier));
         }
         return result;
+    }
+
+    /// <summary>Sucht eine Zelle deren Trim-Text exakt <paramref name="label"/> ist.</summary>
+    private static bool TryFindLabelCell(IRow row, string label, out int col)
+    {
+        col = -1;
+        short last = row.LastCellNum;
+        if (last < 0) return false;
+        for (int c = 0; c < last; c++)
+        {
+            var t = (row.GetCell(c)?.ToString() ?? "").Trim();
+            if (t == label) { col = c; return true; }
+        }
+        return false;
+    }
+
+    private static bool CellTextEquals(IRow row, string text)
+    {
+        short last = row.LastCellNum;
+        if (last < 0) return false;
+        for (int c = 0; c < last; c++)
+        {
+            if ((row.GetCell(c)?.ToString() ?? "").Trim() == text) return true;
+        }
+        return false;
+    }
+
+    private static string FirstNonEmptyLabel(IRow row)
+    {
+        // Labels stehen in den linken Spalten (0–6); Zahlen/Daten weiter rechts.
+        for (int c = 0; c <= 6; c++)
+        {
+            var t = (row.GetCell(c)?.ToString() ?? "").Trim();
+            if (string.IsNullOrEmpty(t)) continue;
+            // Excel-Datums-Seriennummern / reine Zahlen überspringen
+            if (double.TryParse(t, NumberStyles.Any, CultureInfo.InvariantCulture, out _)) continue;
+            return t;
+        }
+        return "";
+    }
+
+    private static string ReadPersonalNumber(IRow row, int labelCol)
+    {
+        // Wert steht rechts vom Label — typisch gleiche «Wert-Spalte» wie Name (12 oder 14).
+        short last = row.LastCellNum;
+        for (int c = labelCol + 1; c < Math.Max(last, labelCol + 20); c++)
+        {
+            var cell = row.GetCell(c);
+            if (cell is null) continue;
+            if (cell.CellType == CellType.Numeric)
+            {
+                var n = cell.NumericCellValue;
+                if (n <= 0) continue;
+                return Math.Abs(n % 1) < 0.0000001
+                    ? ((long)Math.Round(n)).ToString(CultureInfo.InvariantCulture)
+                    : n.ToString(CultureInfo.InvariantCulture);
+            }
+            var s = (cell.ToString() ?? "").Trim();
+            if (string.IsNullOrEmpty(s)) continue;
+            // «Personalnummer:750009» falls Label+Wert in einer Zelle
+            if (s.Contains(':')) s = s.Split(':').Last().Trim();
+            if (!string.IsNullOrEmpty(s)) return s;
+        }
+        return "";
+    }
+
+    private static string ReadNameAbove(ISheet sh, int personalNrRow, int labelCol)
+    {
+        var above = sh.GetRow(personalNrRow - 1);
+        if (above is null) return "";
+
+        // Bevorzugt: Zeile mit Label «Name / Vorname» / «Name» → Wert rechts daneben.
+        if (TryFindLabelCell(above, "Name / Vorname", out int nameLabel)
+            || TryFindLabelCell(above, "Name", out nameLabel))
+        {
+            short last = above.LastCellNum;
+            for (int c = nameLabel + 1; c < Math.Max(last, nameLabel + 20); c++)
+            {
+                var s = (above.GetCell(c)?.ToString() ?? "").Trim();
+                if (!string.IsNullOrEmpty(s)) return s;
+            }
+        }
+
+        // Fallback: gleiche Wert-Spalte wie die Personalnummer (historisch 12).
+        foreach (int c in new[] { 14, 12, labelCol + 12, labelCol + 10 })
+        {
+            var s = (above.GetCell(c)?.ToString() ?? "").Trim();
+            if (!string.IsNullOrEmpty(s) && !s.StartsWith("Name", StringComparison.OrdinalIgnoreCase))
+                return s;
+        }
+        return "";
+    }
+
+    private static decimal? ReadSaldo(IRow row, int? detectedCol, int preferredFallback, int altFallback)
+    {
+        if (detectedCol is int dc)
+        {
+            var v = ReadDecimalNullable(row.GetCell(dc));
+            if (v is not null) return v;
+        }
+        var a = ReadDecimalNullable(row.GetCell(preferredFallback));
+        if (a is not null) return a;
+        return ReadDecimalNullable(row.GetCell(altFallback));
     }
 
     private static decimal? ReadDecimalNullable(ICell? cell)

@@ -1,7 +1,11 @@
-// Stunden-Saldi Import — Mirus „Monatsblatt" (Walter-Vorgabe 26.05.2026)
-// Liest pro MA-Block die Zeile „Überstunden" (Saldo → Code 901) + „Zeitzuschlag"
-// (Saldo → Code 904). Werte sind Dezimalstunden. Match per Personalnummer.
-// Backend: /api/saldo-vortrag-import/stunden/analyze + /stunden/commit.
+// Stunden-/Tage-Saldi Import — Mirus „Monatsblatt" (Walter-Vorgabe 26.05.2026,
+// Spalten flexibel + Ferien/Feier-Tage seit 31.07.2026)
+// Liest pro MA-Block:
+//   «Überstunden»  → Code 901 (Zeitsaldo, Std)
+//   «Zeitzuschlag» → Code 904 (Nacht, Std)
+//   «Ferien»       → Code 903 (Ferien-Tage)
+//   «Feier»        → Code 902 (Feiertag-Tage)
+// Match per Personalnummer. Backend: /api/saldo-vortrag-import/stunden/*
 
 let _svhImpAnalyzeResult = null;
 let _svhImpManualPicks   = {};
@@ -108,6 +112,8 @@ function svhImpRenderPreview() {
             <td style="padding:6px 8px;font-size:12.5px"><b>${esc(r.name)}</b></td>
             <td style="padding:6px 8px;font-size:12px;font-family:monospace;text-align:right">${fmt(r.stundenSaldo)}</td>
             <td style="padding:6px 8px;font-size:12px;font-family:monospace;text-align:right">${fmt(r.nachtSaldo)}</td>
+            <td style="padding:6px 8px;font-size:12px;font-family:monospace;text-align:right">${fmt(r.ferienTageSaldo)}</td>
+            <td style="padding:6px 8px;font-size:12px;font-family:monospace;text-align:right">${fmt(r.feiertagTageSaldo)}</td>
             <td style="padding:6px 8px">${statusBadge(r.status)}</td>
             <td style="padding:6px 8px;min-width:220px">${pickerHtml}</td>
         </tr>`;
@@ -115,17 +121,21 @@ function svhImpRenderPreview() {
 
     document.getElementById('svhImpPreview').innerHTML = `
         <div class="card" style="padding:0;overflow:hidden">
-            <table style="width:100%;border-collapse:collapse;background:#fff">
+            <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;background:#fff;min-width:860px">
                 <thead><tr style="background:#f8fafc">
                     <th style="padding:8px 8px;text-align:left;font-size:11px;color:#64748b;font-weight:600">PNR</th>
                     <th style="padding:8px 8px;text-align:left;font-size:11px;color:#64748b;font-weight:600">NAME (MIRUS)</th>
-                    <th style="padding:8px 8px;text-align:right;font-size:11px;color:#64748b;font-weight:600">STUNDEN-SALDO</th>
-                    <th style="padding:8px 8px;text-align:right;font-size:11px;color:#64748b;font-weight:600">NACHT-SALDO</th>
+                    <th style="padding:8px 8px;text-align:right;font-size:11px;color:#64748b;font-weight:600">ZEITSALDO H</th>
+                    <th style="padding:8px 8px;text-align:right;font-size:11px;color:#64748b;font-weight:600">NACHT H</th>
+                    <th style="padding:8px 8px;text-align:right;font-size:11px;color:#64748b;font-weight:600">FERIEN TAGE</th>
+                    <th style="padding:8px 8px;text-align:right;font-size:11px;color:#64748b;font-weight:600">FEIERTAG TAGE</th>
                     <th style="padding:8px 8px;text-align:left;font-size:11px;color:#64748b;font-weight:600">STATUS</th>
                     <th style="padding:8px 8px;text-align:left;font-size:11px;color:#64748b;font-weight:600">MA IN DB</th>
                 </tr></thead>
-                <tbody>${rowsHtml || '<tr><td colspan="6" style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">Keine MA-Blöcke.</td></tr>'}</tbody>
+                <tbody>${rowsHtml || '<tr><td colspan="8" style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">Keine MA-Blöcke.</td></tr>'}</tbody>
             </table>
+            </div>
         </div>
     `;
 }
@@ -152,10 +162,12 @@ function svhImpEffectiveCommitRows() {
         let empId = r.status === 'MATCH' ? r.employeeId : (_svhImpManualPicks[r.employeeNumber] || null);
         if (!empId) return null;
         return {
-            employeeId:   empId,
-            stundenSaldo: r.stundenSaldo,
-            nachtSaldo:   r.nachtSaldo,
-            originalName: r.name
+            employeeId:        empId,
+            stundenSaldo:      r.stundenSaldo,
+            nachtSaldo:        r.nachtSaldo,
+            ferienTageSaldo:   r.ferienTageSaldo,
+            feiertagTageSaldo: r.feiertagTageSaldo,
+            originalName:      r.name
         };
     }).filter(Boolean);
 }
@@ -166,7 +178,7 @@ async function svhImpCommit() {
     const rows = svhImpEffectiveCommitRows();
     if (rows.length === 0) { svhImpShowAlert('Keine MA zum Speichern.', 'err'); return; }
 
-    if (!confirm(`Stunden-/Nacht-Saldi für ${rows.length} MA in Periode ${data.periode} speichern? Bestehende Vortrag-Werte für 901/904 dieser MA werden überschrieben.`)) return;
+    if (!confirm(`Saldi (Zeit/Nacht/Ferien-Tage/Feiertag-Tage) für ${rows.length} MA in Periode ${data.periode} speichern? Bestehende Vortrag-Werte für 901/902/903/904 dieser MA werden überschrieben.`)) return;
 
     svhImpShowAlert('⏳ Wird gespeichert…', 'warn');
     document.getElementById('svhImpCommitBtn').disabled = true;
