@@ -42,8 +42,8 @@ public class ZwischenverdienistController : ControllerBase
     public async Task<IActionResult> CreateArbeitslosigkeit([FromBody] EmployeeArbeitslosigkeit dto)
     {
         dto.Id = 0;
-        dto.CreatedAt = DateTime.UtcNow;
-        dto.UpdatedAt = DateTime.UtcNow;
+        dto.CreatedAt = DateTime.Now;
+        dto.UpdatedAt = DateTime.Now;
         _db.EmployeeArbeitslosigkeiten.Add(dto);
         await _db.SaveChangesAsync();
         return Ok(dto);
@@ -60,7 +60,7 @@ public class ZwischenverdienistController : ControllerBase
         existing.RavKundennummer  = dto.RavKundennummer;
         existing.Arbeitslosenkasse = dto.Arbeitslosenkasse;
         existing.Bemerkung        = dto.Bemerkung;
-        existing.UpdatedAt        = DateTime.UtcNow;
+        existing.UpdatedAt        = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(existing);
     }
@@ -213,12 +213,18 @@ public class ZwischenverdienistController : ControllerBase
         }
 
         // ── Lohnberechnung ────────────────────────────────────────────────
-        // Walter 31.07.2026 (final): dem RAV nur effektive Stunden zeigen =
-        // Stempel + Absenzen mit Zeitgutschrift (ohne ALK-Kürzel, z.B. BEZ_ABSENZ).
+        // Walter 31.07.2026 / präzisiert 31.07.2026 (Anzahl Std. auf dem RAV):
+        //   FLEX → nur Stempelzeiten
+        //   MTP  → ausbezahlte Stunden = max(garantierte Festlohn-Stunden, Ist)
+        //          Ist = Stempel + Absenzen mit Zeitgutschrift (z.B. BEZ_ABSENZ)
+        //          Garantie = MTP-Soll nach Ferien/Krank/Unfall/UU-Kürzung
+        //          (wie PayrollCalculationEngine festlohnArbeitStunden).
+        //          Bei Minus-Stunden (Ist < Garantie) → Garantie + Hinweis
+        //          «garantierte Stunden» auf dem Formular.
         // Ferienbezug zählt weder als Stunden noch im Raster — die
-        // Ferienentschädigung-% (und Feiertag-%) kommen auf diesen Grundlohn.
-        // Gilt für MTP und FLEX gleich.
-        decimal stempelStunden = timeEntries.Sum(t => t.TotalHours ?? t.DurationHours ?? 0);
+        // Ferienentschädigung-% (und Feiertag-%) kommen auf den Grundlohn.
+        decimal stempelStunden = Math.Round(
+            timeEntries.Sum(t => t.TotalHours ?? t.DurationHours ?? 0), 2);
 
         decimal absenzStunden = 0;
         int krankUnfallTage   = 0;
@@ -242,14 +248,14 @@ public class ZwischenverdienistController : ControllerBase
                 continue;
             }
 
-            // Ferienbezug: nie in die Stunden (MTP + FLEX)
+            // Ferienbezug: nie in die Ist-Stunden
             if (typeKey is "FERIEN" or "BETRIEBSFERIEN" || kuerzel is "A" or "F")
                 continue;
 
             // Andere ALK-Kürzel (D/E/G): Buchstabe im Raster, keine Stunden
             if (!string.IsNullOrEmpty(kuerzel)) continue;
 
-            // Nur Absenzen mit Zeitgutschrift (z.B. BEZ_ABSENZ) — MTP und FLEX
+            // Nur Absenzen mit Zeitgutschrift (z.B. BEZ_ABSENZ)
             bool mitZeitgutschrift = typ.Zeitgutschrift
                                   && !string.IsNullOrEmpty(typ.GutschriftModus);
             if (!mitZeitgutschrift) continue;
@@ -258,6 +264,34 @@ public class ZwischenverdienistController : ControllerBase
             absenzStunden += tageImMonat * stundenProTag;
         }
         absenzStunden = Math.Round(absenzStunden, 2);
+
+        string empModel = NormalizeEmploymentModel(employment);
+        decimal totalStunden;
+        string? stundenHinweis = null;
+        if (empModel == "MTP")
+        {
+            decimal guaranteedH = employment?.GuaranteedHoursPerWeek
+                               ?? employment?.WeeklyHours
+                               ?? 0m;
+            var (pFrom, pTo) = MtpPeriodBounds(employment, firstDay, lastDay);
+            decimal garantiert = CalcMtpGarantierteFestlohnStunden(
+                guaranteedH, pFrom, pTo, absences);
+            decimal ist = Math.Round(stempelStunden + absenzStunden, 2);
+            if (garantiert >= ist)
+            {
+                totalStunden   = garantiert;
+                stundenHinweis = "garantierte Stunden";
+            }
+            else
+            {
+                totalStunden = ist;
+            }
+        }
+        else
+        {
+            // FLEX (und übrige Stundenlohn-Fälle): nur Stempelzeiten
+            totalStunden = stempelStunden;
+        }
 
         // Krank/Unfall-Karenz via KTG-Tagessatz → Feld "Taggeldleistungen"
         decimal krankUnfallCHF = 0;
@@ -290,7 +324,6 @@ public class ZwischenverdienistController : ControllerBase
             bvgKoordinationsabzug = bvgRate?.CoordinationDeduction ?? 0m;
         }
 
-        decimal totalStunden = stempelStunden + absenzStunden;
         decimal? stundenlohn  = employment?.HourlyRate;
         decimal? monatslohn   = employment?.MonthlySalary;
         // Ferienprozent: immer aus CompanyProfile berechnen (Alter im Abrechnungsmonat)
@@ -369,10 +402,13 @@ public class ZwischenverdienistController : ControllerBase
             // Abschnitt 2–7
             // 2: immer JA (schriftlicher Vertrag vorhanden)
             SchriftlicherArbeitsvertrag = true,
-            // 3: JA nur bei Festanstellung (FIX) oder MTP, sonst NEIN
-            WoechentlicheAzVereinbart   = employment?.ContractType is "FIX" or "MTP",
-            VereinbarteStundenProWoche   = employment?.ContractType is "FIX" or "MTP"
-                                            ? employment.WeeklyHours : null,
+            // 3: JA nur bei Festanstellung (FIX/FIX-M) oder MTP, sonst NEIN
+            WoechentlicheAzVereinbart   = empModel is "FIX" or "FIX-M" or "MTP",
+            VereinbarteStundenProWoche   = empModel is "FIX" or "FIX-M" or "MTP"
+                                            ? (empModel == "MTP"
+                                                ? employment?.GuaranteedHoursPerWeek ?? employment?.WeeklyHours
+                                                : employment?.WeeklyHours)
+                                            : null,
             NormalarbeitszeitProWoche    = company.NormalWeeklyHours,
             // 5: immer JA, L-GAV
             IstGav                       = true,
@@ -410,6 +446,7 @@ public class ZwischenverdienistController : ControllerBase
                 : null,
             MonatslohnCHF        = monatslohn,
             TotalStunden         = stundenlohn.HasValue ? totalStunden : null,
+            StundenHinweis       = stundenHinweis,
             BruttolohnTotal      = bruttolohnTotal,
             Grundlohn            = grundlohn,
 
@@ -485,6 +522,126 @@ public class ZwischenverdienistController : ControllerBase
 
     // MapAbsenzCode entfernt — Kürzel-Mapping läuft jetzt DB-driven via
     // absenz_typ.zwischenverdienst_kuerzel (siehe oben in Lookup-Dictionary).
+
+    /// <summary>EmploymentModel bevorzugt; ContractType als Legacy-Fallback (UTP→FLEX).</summary>
+    private static string NormalizeEmploymentModel(Employment? employment)
+    {
+        string model = (employment?.EmploymentModel ?? "").Trim().ToUpperInvariant();
+        if (model is "FLEX" or "MTP" or "FIX" or "FIX-M") return model;
+        if (model is "UTP") return "FLEX";
+
+        string ct = (employment?.ContractType ?? "").Trim().ToUpperInvariant();
+        if (ct is "FLEX" or "UTP" or "FLEXIBEL") return "FLEX";
+        if (ct is "MTP" or "MTP/TPM" or "TPM") return "MTP";
+        if (ct is "FIX-M" or "FIXM") return "FIX-M";
+        if (ct is "FIX") return "FIX";
+        return model;
+    }
+
+    /// <summary>MTP-Periode = Kalendermonat, gekürzt bei Ein-/Austritt mitten im Monat.</summary>
+    private static (DateOnly From, DateOnly To) MtpPeriodBounds(
+        Employment? employment, DateOnly firstDay, DateOnly lastDay)
+    {
+        var from = firstDay;
+        var to   = lastDay;
+        if (employment is null) return (from, to);
+
+        var start = DateOnly.FromDateTime(employment.ContractStartDate);
+        if (start > from) from = start;
+        if (employment.ContractEndDate.HasValue)
+        {
+            var end = DateOnly.FromDateTime(employment.ContractEndDate.Value);
+            if (end < to) to = end;
+        }
+        if (to < from) to = from;
+        return (from, to);
+    }
+
+    /// <summary>
+    /// MTP ausbezahlte Festlohn-Stunden (= Soll nach Kürzungen), analog
+    /// PayrollCalculationEngine festlohnArbeitStunden:
+    /// garantierte WoStd/7 × Periodentage − Ferien 1/7 − Krank/Unfall 1/5 Werktage − UU 1/7.
+    /// </summary>
+    private static decimal CalcMtpGarantierteFestlohnStunden(
+        decimal guaranteedH,
+        DateOnly periodFrom,
+        DateOnly periodTo,
+        List<Absence> absences)
+    {
+        if (guaranteedH <= 0) return 0m;
+        int periodDays = periodTo.DayNumber - periodFrom.DayNumber + 1;
+        if (periodDays <= 0) return 0m;
+
+        decimal sollVoll = guaranteedH / 7m * periodDays;
+        decimal ferienTage = 0m;
+        decimal uuTage = 0m;
+        decimal krankWerktage = 0m;
+        decimal unfallWerktage = 0m;
+
+        foreach (var a in absences)
+        {
+            string type = (a.AbsenceType ?? "").ToUpperInvariant();
+            var dates = GetAbsenceDates(a, periodFrom, periodTo);
+            if (dates.Count == 0) continue;
+            decimal p = a.Prozent > 0 ? a.Prozent / 100m : 1m;
+
+            if (type == "FERIEN")
+            {
+                ferienTage += dates.Count * p;
+            }
+            else if (type == "UNBEZ_URLAUB")
+            {
+                uuTage += dates.Count;
+            }
+            else if (type == "KRANK")
+            {
+                krankWerktage += dates.Count(d =>
+                    d.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday) * p;
+            }
+            else if (type == "UNFALL")
+            {
+                unfallWerktage += dates.Count(d =>
+                    d.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday) * p;
+            }
+        }
+
+        decimal exakt = sollVoll
+            - ferienTage * guaranteedH / 7m
+            - krankWerktage * guaranteedH / 5m
+            - unfallWerktage * guaranteedH / 5m
+            - uuTage * guaranteedH / 7m;
+        if (exakt < 0m) exakt = 0m;
+        if (Math.Abs(exakt) < 0.01m) exakt = 0m;
+        return Math.Round(exakt, 2);
+    }
+
+    private static List<DateOnly> GetAbsenceDates(Absence abs, DateOnly firstDay, DateOnly lastDay)
+    {
+        var days = new List<DateOnly>();
+        if (!string.IsNullOrEmpty(abs.WorkedDays))
+        {
+            try
+            {
+                var dates = JsonSerializer.Deserialize<List<string>>(abs.WorkedDays);
+                if (dates != null)
+                {
+                    foreach (var ds in dates)
+                    {
+                        if (DateOnly.TryParse(ds, out var d) && d >= firstDay && d <= lastDay)
+                            days.Add(d);
+                    }
+                    return days;
+                }
+            }
+            catch { /* fallback */ }
+        }
+
+        var from = abs.DateFrom > firstDay ? abs.DateFrom : firstDay;
+        var to   = abs.DateTo   < lastDay  ? abs.DateTo   : lastDay;
+        for (var d = from; d <= to; d = d.AddDays(1))
+            days.Add(d);
+        return days;
+    }
 
     private static string FormatZivilstand(string? code) => code switch
     {

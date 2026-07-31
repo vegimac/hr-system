@@ -158,6 +158,10 @@ public class ZwischenverdienistPdfService
 
         // ── Seite 2: Abschnitt 9 – Zusammensetzung des Bruttoeinkommens ──────
         SetRight(form, "1.85", FormatNum(d.TotalStunden));
+        // MTP mit Minus-Stunden: Wert = Garantie — Hinweis neben dem Feld
+        // (AcroForm hat kein eigenes Label-Feld dafür).
+        if (!string.IsNullOrWhiteSpace(d.StundenHinweis))
+            DrawTextNextToField(pdf, form, "1.85", d.StundenHinweis!, 6f, 4f, 7.5f);
 
         SetRight(form, "4.141", FormatChf2(d.Grundlohn));
 
@@ -309,6 +313,60 @@ public class ZwischenverdienistPdfService
 
     // ── Hilfsmethoden ────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Kleiner Text rechts neben einem AcroForm-Feld (z.B. «garantierte Stunden»
+    /// neben Anzahl Std.). Offset relativ zur rechten/unteren Feldkante.
+    /// </summary>
+    private static void DrawTextNextToField(
+        PdfDocument pdf, PdfAcroForm form, string fieldName,
+        string text, float offsetX, float offsetY, float fontSize)
+    {
+        PdfFormField? field = null;
+        try { field = form.GetField(fieldName); } catch { }
+        if (field is null) return;
+
+        var widgets = field.GetWidgets();
+        if (widgets == null || widgets.Count == 0) return;
+
+        var widget = widgets[0];
+        var rectArr = widget.GetRectangle();
+        if (rectArr == null) return;
+        var rect = rectArr.ToRectangle();
+
+        PdfPage? widgetPage = null;
+        for (int i = 1; i <= pdf.GetNumberOfPages(); i++)
+        {
+            var page = pdf.GetPage(i);
+            foreach (var an in page.GetAnnotations())
+            {
+                if (an.GetPdfObject() == widget.GetPdfObject())
+                {
+                    widgetPage = page;
+                    break;
+                }
+            }
+            if (widgetPage != null) break;
+        }
+        if (widgetPage == null) return;
+
+        try
+        {
+            var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+            float x = rect.GetRight() + offsetX;
+            float y = rect.GetBottom() + offsetY;
+            var canvas = new PdfCanvas(widgetPage);
+            canvas.SaveState();
+            canvas.SetFillColor(ColorConstants.BLACK);
+            canvas.BeginText()
+                  .SetFontAndSize(font, fontSize)
+                  .MoveText(x, y)
+                  .ShowText(text)
+                  .EndText();
+            canvas.RestoreState();
+        }
+        catch { /* Hinweis ist optional — PDF trotzdem nutzbar */ }
+    }
+
     private static void Set(PdfAcroForm form, string fieldName, string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
@@ -386,6 +444,11 @@ public class ZwischenverdienistData
 
     public decimal? MonatslohnCHF               { get; set; }
     public decimal? TotalStunden                { get; set; }
+    /// <summary>
+    /// Optionaler Hinweis neben «Anzahl Std.» — z.B. «garantierte Stunden»
+    /// wenn MTP-Festlohn-Garantie greift (Ist &lt; Garantie).
+    /// </summary>
+    public string? StundenHinweis               { get; set; }
     public decimal? BruttolohnTotal             { get; set; }
     public decimal? Grundlohn                   { get; set; }
     public string? FeiertagsprozentString       { get; set; }
