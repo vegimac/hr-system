@@ -21,8 +21,8 @@ public class LohnZulage
     /// <summary>Optionale Bemerkung, z.B. "312 km × CHF 0.70"</summary>
     public string? Bemerkung { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
     public Employee? Employee { get; set; }
     public Lohnposition? Lohnposition { get; set; }

@@ -199,8 +199,12 @@ async function svhImpCommit() {
         if (!r.ok) {
             const txt = await r.text().catch(() => '');
             let msg = `HTTP ${r.status}`;
-            try { const j = JSON.parse(txt); if (j && (j.error || j.message)) msg = j.error || j.message; } catch (_) {}
+            try {
+                const j = JSON.parse(txt);
+                if (j) msg = j.error || j.message || j.detail || j.title || msg;
+            } catch (_) { if (txt) msg += ': ' + String(txt).slice(0, 240); }
             svhImpShowAlert('Fehler beim Speichern: ' + msg, 'err');
+            document.getElementById('svhImpCommitBtn').disabled = false;
             return;
         }
         const result = await r.json();

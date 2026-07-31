@@ -247,8 +247,8 @@ public class SaldoVortragImportController : ControllerBase
                         LohnpositionId = lp.Id,
                         Betrag         = betrag,
                         Bemerkung      = "Migrations-Vortrag aus Mirus Saldomethode (CHF)",
-                        CreatedAt      = DateTime.UtcNow,
-                        UpdatedAt      = DateTime.UtcNow
+                        CreatedAt      = DateTime.Now,
+                        UpdatedAt      = DateTime.Now
                     });
                     created++;
                 }
@@ -256,13 +256,19 @@ public class SaldoVortragImportController : ControllerBase
                 {
                     ex.Periode   = dto.Periode;
                     ex.Betrag    = betrag;
-                    ex.UpdatedAt = DateTime.UtcNow;
+                    ex.UpdatedAt = DateTime.Now;
                     updated++;
                 }
             }
         }
 
-        await _db.SaveChangesAsync();
+        try { await _db.SaveChangesAsync(); }
+        catch (Exception ex)
+        {
+            var root = ex;
+            while (root.InnerException != null) root = root.InnerException;
+            return BadRequest(new { error = "Speichern fehlgeschlagen: " + root.Message });
+        }
         return Ok(new CommitResult(created, updated, skipped, hinweise));
     }
 
@@ -522,13 +528,28 @@ public class SaldoVortragImportController : ControllerBase
 
         // Vortrag-Lohnpositionen 901/902/903/904 (Stunden, Feiertag-Tage, Ferien-Tage, Nacht).
         var codes = new[] { "901", "902", "903", "904" };
-        var lps = await _db.Lohnpositionen
-            .Where(l => l.Kategorie == "Saldo-Vortrag" && codes.Contains(l.Code))
-            .ToDictionaryAsync(l => l.Code, l => l);
+        Dictionary<string, Lohnposition> lps;
+        try
+        {
+            var lpList = await _db.Lohnpositionen
+                .Where(l => codes.Contains(l.Code))
+                .ToListAsync();
+            // Kategorie nachziehen falls Alt-Daten ohne «Saldo-Vortrag»
+            foreach (var lp in lpList.Where(l => l.Kategorie != "Saldo-Vortrag"))
+                lp.Kategorie = "Saldo-Vortrag";
+            lps = lpList.GroupBy(l => l.Code).ToDictionary(g => g.Key, g => g.First());
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = "Vortrag-Lohnpositionen konnten nicht geladen werden: " + ex.Message });
+        }
 
-        foreach (var c in codes)
-            if (!lps.ContainsKey(c))
-                return Problem($"Vortrag-Lohnposition {c} fehlt. Bitte add_saldo_vortrag.sql ausführen.", statusCode: 500);
+        var missing = codes.Where(c => !lps.ContainsKey(c)).ToList();
+        if (missing.Count > 0)
+            return BadRequest(new {
+                error = $"Vortrag-Lohnpositionen fehlen in der DB: {string.Join(", ", missing)}. " +
+                        "Bitte Server neu starten (Seed) oder add_saldo_vortrag.sql ausführen."
+            });
 
         var empIds = dto.Rows.Select(r => r.EmployeeId).Distinct().ToList();
         var emps = await _db.Employees
@@ -539,7 +560,7 @@ public class SaldoVortragImportController : ControllerBase
         var existing = await _db.LohnZulagen
             .Include(z => z.Lohnposition)
             .Where(z => empIds.Contains(z.EmployeeId)
-                     && z.Lohnposition!.Kategorie == "Saldo-Vortrag"
+                     && z.Lohnposition != null
                      && codes.Contains(z.Lohnposition.Code))
             .ToListAsync();
 
@@ -553,7 +574,7 @@ public class SaldoVortragImportController : ControllerBase
 
             var activeEmp = emp.Employments.Where(e => e.IsActive)
                 .OrderByDescending(e => e.ContractStartDate).FirstOrDefault();
-            var model = (activeEmp?.EmploymentModel ?? "").ToUpperInvariant();
+            var model = NormalizeModel(activeEmp?.EmploymentModel);
 
             UpsertSaldo("901", lps["901"], row.StundenSaldo,       IsRelevant901(model));
             UpsertSaldo("904", lps["904"], row.NachtSaldo,         IsRelevant904(model));
@@ -605,8 +626,25 @@ public class SaldoVortragImportController : ControllerBase
             }
         }
 
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            var root = ex;
+            while (root.InnerException != null) root = root.InnerException;
+            return BadRequest(new { error = "Speichern fehlgeschlagen: " + root.Message });
+        }
+
         return Ok(new CommitResult(created, updated, skipped, hinweise));
+    }
+
+    /// <summary>Legacy «UTP» → FLEX (Rename 08.07.2026).</summary>
+    private static string NormalizeModel(string? model)
+    {
+        var m = (model ?? "").Trim().ToUpperInvariant();
+        return m == "UTP" ? "FLEX" : m;
     }
 
     private static bool IsRelevant901(string model) =>    // Zeitsaldo (Stunden)
