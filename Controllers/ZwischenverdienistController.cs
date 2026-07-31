@@ -213,14 +213,13 @@ public class ZwischenverdienistController : ControllerBase
         }
 
         // ── Lohnberechnung ────────────────────────────────────────────────
-        // Walter 31.07.2026 / präzisiert 31.07.2026 (Anzahl Std. auf dem RAV):
+        // Walter 31.07.2026 (Anzahl Std. auf dem RAV):
         //   FLEX → nur Stempelzeiten
-        //   MTP  → ausbezahlte Stunden = max(garantierte Festlohn-Stunden, Ist)
+        //   MTP  → Aufschlüsselung auf dem Formular:
+        //          garantierte Festlohn-Stunden (nach Ferien/Krank/Unfall/UU)
+        //          + darüber hinaus geleistete Stunden (max(0, Ist − Garantie))
+        //          Totalfeld = Summe beider (= max(Garantie, Ist))
         //          Ist = Stempel + Absenzen mit Zeitgutschrift (z.B. BEZ_ABSENZ)
-        //          Garantie = MTP-Soll nach Ferien/Krank/Unfall/UU-Kürzung
-        //          (wie PayrollCalculationEngine festlohnArbeitStunden).
-        //          Bei Minus-Stunden (Ist < Garantie) → Garantie + Hinweis
-        //          «garantierte Stunden» auf dem Formular.
         // Ferienbezug zählt weder als Stunden noch im Raster — die
         // Ferienentschädigung-% (und Feiertag-%) kommen auf den Grundlohn.
         decimal stempelStunden = Math.Round(
@@ -267,7 +266,8 @@ public class ZwischenverdienistController : ControllerBase
 
         string empModel = NormalizeEmploymentModel(employment);
         decimal totalStunden;
-        string? stundenHinweis = null;
+        decimal? stundenGarantiert = null;
+        decimal? stundenDarueber   = null;
         if (empModel == "MTP")
         {
             decimal guaranteedH = employment?.GuaranteedHoursPerWeek
@@ -277,15 +277,10 @@ public class ZwischenverdienistController : ControllerBase
             decimal garantiert = CalcMtpGarantierteFestlohnStunden(
                 guaranteedH, pFrom, pTo, absences);
             decimal ist = Math.Round(stempelStunden + absenzStunden, 2);
-            if (garantiert >= ist)
-            {
-                totalStunden   = garantiert;
-                stundenHinweis = "garantierte Stunden";
-            }
-            else
-            {
-                totalStunden = ist;
-            }
+            decimal darueber = Math.Round(Math.Max(0m, ist - garantiert), 2);
+            stundenGarantiert = garantiert;
+            stundenDarueber   = darueber;
+            totalStunden      = Math.Round(garantiert + darueber, 2);
         }
         else
         {
@@ -446,7 +441,8 @@ public class ZwischenverdienistController : ControllerBase
                 : null,
             MonatslohnCHF        = monatslohn,
             TotalStunden         = stundenlohn.HasValue ? totalStunden : null,
-            StundenHinweis       = stundenHinweis,
+            StundenGarantiert    = stundenlohn.HasValue ? stundenGarantiert : null,
+            StundenDarueber      = stundenlohn.HasValue ? stundenDarueber : null,
             BruttolohnTotal      = bruttolohnTotal,
             Grundlohn            = grundlohn,
 

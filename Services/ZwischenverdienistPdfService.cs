@@ -1,3 +1,4 @@
+using System.Globalization;
 using HrSystem.Models;
 using iText.Forms;
 using iText.Forms.Fields;
@@ -157,11 +158,16 @@ public class ZwischenverdienistPdfService
         }
 
         // ── Seite 2: Abschnitt 9 – Zusammensetzung des Bruttoeinkommens ──────
+        // Anzahl Std. = Total. Bei MTP daneben Aufschlüsselung
+        // (garantierte + darüber hinaus); Summe steht im Feld 1.85.
         SetRight(form, "1.85", FormatNum(d.TotalStunden));
-        // MTP mit Minus-Stunden: Wert = Garantie — Hinweis neben dem Feld
-        // (AcroForm hat kein eigenes Label-Feld dafür).
-        if (!string.IsNullOrWhiteSpace(d.StundenHinweis))
-            DrawTextNextToField(pdf, form, "1.85", d.StundenHinweis!, 6f, 4f, 7.5f);
+        if (d.StundenGarantiert.HasValue)
+        {
+            DrawMtpStundenAufschluesselung(
+                pdf, form, "1.85",
+                d.StundenGarantiert.Value,
+                d.StundenDarueber ?? 0m);
+        }
 
         SetRight(form, "4.141", FormatChf2(d.Grundlohn));
 
@@ -314,12 +320,12 @@ public class ZwischenverdienistPdfService
     // ── Hilfsmethoden ────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Kleiner Text rechts neben einem AcroForm-Feld (z.B. «garantierte Stunden»
-    /// neben Anzahl Std.). Offset relativ zur rechten/unteren Feldkante.
+    /// MTP-Aufschlüsselung rechts neben «Anzahl Std.»:
+    /// Zeile 1 garantierte Std., Zeile 2 darüber hinaus — Total bleibt im Feld.
     /// </summary>
-    private static void DrawTextNextToField(
+    private static void DrawMtpStundenAufschluesselung(
         PdfDocument pdf, PdfAcroForm form, string fieldName,
-        string text, float offsetX, float offsetY, float fontSize)
+        decimal garantiert, decimal darueber)
     {
         PdfFormField? field = null;
         try { field = form.GetField(fieldName); } catch { }
@@ -349,22 +355,30 @@ public class ZwischenverdienistPdfService
         }
         if (widgetPage == null) return;
 
+        // Labels ohne Umlaute: Helvetica (WinAnsi) hat kein zuverlässiges «ü».
+        string gStr = garantiert.ToString("0.00", CultureInfo.InvariantCulture);
+        string dStr = darueber.ToString("0.00", CultureInfo.InvariantCulture);
+        string line1 = $"garantierte Std. {gStr}";
+        string line2 = $"+ Mehrstunden {dStr}";
         try
         {
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
-            float x = rect.GetRight() + offsetX;
-            float y = rect.GetBottom() + offsetY;
+            float x = rect.GetRight() + 8f;
+            float yTop = rect.GetTop() - 2f;
+            float lineH = 9f;
             var canvas = new PdfCanvas(widgetPage);
             canvas.SaveState();
             canvas.SetFillColor(ColorConstants.BLACK);
             canvas.BeginText()
-                  .SetFontAndSize(font, fontSize)
-                  .MoveText(x, y)
-                  .ShowText(text)
+                  .SetFontAndSize(font, 7f)
+                  .MoveText(x, yTop - lineH)
+                  .ShowText(line1)
+                  .MoveText(0, -lineH)
+                  .ShowText(line2)
                   .EndText();
             canvas.RestoreState();
         }
-        catch { /* Hinweis ist optional — PDF trotzdem nutzbar */ }
+        catch { /* Aufschlüsselung optional — Total im Feld bleibt */ }
     }
 
     private static void Set(PdfAcroForm form, string fieldName, string? value)
@@ -444,11 +458,10 @@ public class ZwischenverdienistData
 
     public decimal? MonatslohnCHF               { get; set; }
     public decimal? TotalStunden                { get; set; }
-    /// <summary>
-    /// Optionaler Hinweis neben «Anzahl Std.» — z.B. «garantierte Stunden»
-    /// wenn MTP-Festlohn-Garantie greift (Ist &lt; Garantie).
-    /// </summary>
-    public string? StundenHinweis               { get; set; }
+    /// <summary>MTP: garantierte Festlohn-Stunden (Aufschlüsselung neben Anzahl Std.).</summary>
+    public decimal? StundenGarantiert           { get; set; }
+    /// <summary>MTP: Stunden über der Garantie (Ist − Garantie, min. 0).</summary>
+    public decimal? StundenDarueber             { get; set; }
     public decimal? BruttolohnTotal             { get; set; }
     public decimal? Grundlohn                   { get; set; }
     public string? FeiertagsprozentString       { get; set; }
