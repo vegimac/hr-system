@@ -9876,7 +9876,9 @@ body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: none; }
             flex: 0 0 auto;
         }
         .nw-row1 { gap: 8px; }
-        .nw-row2 { gap: 6px; }
+        .nw-row2 { gap: 6px; flex-wrap: wrap; }
+        /* Schmalere Nachtarbeit-Karte: Aktions-Buttons umbrechen (Walter 31.07.2026) */
+        .nw-row4.nw-actions { flex-wrap: wrap; gap: 5px; }
         .nw-row3 { gap: 5px; }
         .nw-row4.nw-actions {
             margin-top: auto; /* Buttons immer am Kartenboden */
