@@ -1372,21 +1372,30 @@ function loadUebersichtTab() {
     // (Walter 21.07.2026). Kein Direkt-Upload hier — Scan erst nach
     // Hand-Unterschrift, Verknüpfung im Probezeit-Modal (Restaurant Admin).
     const pz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
-    const pzStatus = !pzAktiv
-        ? null
-        : pz1Ok
-            ? `<span style="color:#166534;font-weight:650">✓ erledigt</span>`
-            : `<span style="color:#9f1239;font-weight:650">offen</span>
-               <button type="button" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
-                 title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen"
-                 style="margin-left:8px;background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700">→ eintragen</button>`;
+    // Probezeit im Kartenkopf gestapelt (Walter 31.07.2026):
+    //   Titel «Probezeit bis TT.MM.JJJJ»
+    //   darunter Status (offen / ✓ erledigt)
+    //   darunter Button «→ eintragen» (nur wenn offen)
+    let pzBody = '';
+    if (pzAktiv) {
+        if (pz1Ok) {
+            pzBody = `<span class="ov-anst-pz-status ok">✓ erledigt</span>`;
+        } else {
+            pzBody = `<span class="ov-anst-pz-status open">offen</span>
+                <button type="button" class="ov-anst-pz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
+                  title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen">→ eintragen</button>`;
+        }
+    }
     // Layout (Walter 31.07.2026): 2 Zeilen — Anstellung breiter, Nachtarbeit schmaler.
     //   Zeile 1: Eintritt | Austritt | L-GAV
     //   Zeile 2: Gekündigt am | Kündigung per | Kündigung durch | Austrittsgrund
     // < 8 h / Wo. gehört zum FLEX-Vertrag (Vertragsmaske), nicht zur Anstellung.
     // Probezeit kompakt im Kartenkopf (spart die 3. Zeile → Platz für Weitere Adressen).
     const pzHeader = pzEnde
-        ? `<span class="ov-anst-pz" title="Probezeit">Probezeit bis ${pzEnde}${pzAktiv && pzStatus ? ` · ${pzStatus}` : ''}</span>`
+        ? `<span class="ov-anst-pz" title="Probezeit">
+               <span class="ov-anst-pz-title">Probezeit bis ${pzEnde}</span>
+               ${pzBody}
+           </span>`
         : '';
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">

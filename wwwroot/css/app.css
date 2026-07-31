@@ -4236,14 +4236,16 @@
            < 8 h gehört zum FLEX-Vertrag, nicht hier. */
         .ov-anst-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(110px, auto) minmax(110px, auto);
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(96px, auto) minmax(110px, auto);
             grid-template-rows: auto auto;
             gap: 6px 14px;
             align-items: start;
             min-width: 0;
         }
+        /* L-GAV eng neben Austritt (Spalte 3), nicht nach rechts gestreckt */
         .ov-anst-grid > .ov-anst-lgav {
-            grid-column: 3 / 5;
+            grid-column: 3;
+            justify-self: start;
         }
         .ov-anst-grid > .ov-pf {
             margin-bottom: 0;
@@ -4258,21 +4260,49 @@
             line-height: 28px;
             min-height: 28px;
         }
-        /* Probezeit kompakt im Anstellung-Kartenkopf */
-        .ov-anst-pz {
-            font-size: 11.5px;
-            font-weight: 600;
-            color: #64748b;
-            display: inline-flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 4px 6px;
-            max-width: min(340px, 42vw);
-            line-height: 1.25;
+        /* Probezeit im Anstellung-Kartenkopf: Titel → Status → Button */
+        .ov-card-h:has(.ov-anst-pz) {
+            align-items: flex-start;
         }
-        .ov-anst-pz button {
+        .ov-anst-pz {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+            max-width: min(200px, 38vw);
+            line-height: 1.2;
+            text-align: right;
+        }
+        .ov-anst-pz-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            letter-spacing: 0.01em;
+        }
+        .ov-anst-pz-status {
+            font-size: 12px;
+            font-weight: 650;
+            line-height: 1.2;
+        }
+        .ov-anst-pz-status.open { color: #9f1239; }
+        .ov-anst-pz-status.ok { color: #166534; }
+        .ov-anst-pz-btn {
+            margin: 0;
+            background: #3f3f3f;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 3px 9px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
             flex-shrink: 0;
         }
+        .ov-anst-pz-btn:hover { background: #1a1a1a; }
+        body.theme-dark .ov-anst-pz-title { color: #94a3b8; }
+        body.theme-dark .ov-anst-pz-btn { background: #e9ecf0; color: #1a1a1a; }
+        body.theme-dark .ov-anst-pz-btn:hover { background: #fff; }
         .ov-anst-grid .ov-anst-date .ov-softin {
             width: 100%;
             min-width: 0;
