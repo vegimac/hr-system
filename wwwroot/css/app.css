@@ -3704,8 +3704,10 @@
         }
         .ov-wrap {
             display: grid;
-            /* Anstellung breiter, Nachtarbeit schmaler (Walter 31.07.2026) */
-            grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
+            /* Anstellung / Nachtarbeit — Nachtarbeit etwas breiter, damit
+               4 Aktions-Buttons (mit Ausn. Reg.) in einer Zeile bleiben
+               (Walter 31.07.2026). */
+            grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1.15fr);
             gap: 7px;
             padding: 2px 2px 4px;
         }
@@ -9945,13 +9947,14 @@ body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: none; }
         }
         .nw-row1 { gap: 8px; }
         .nw-row2 { gap: 6px; flex-wrap: wrap; }
-        /* Schmalere Nachtarbeit-Karte: Aktions-Buttons umbrechen (Walter 31.07.2026) */
-        .nw-row4.nw-actions { flex-wrap: wrap; gap: 5px; }
         .nw-row3 { gap: 5px; }
+        /* Aktions-Buttons in einer Zeile (Kürzel «Ausn. Reg.» + breitere Karte) */
         .nw-row4.nw-actions {
             margin-top: auto; /* Buttons immer am Kartenboden */
             justify-content: flex-end;
-            gap: 5px;
+            flex-wrap: nowrap;
+            gap: 4px;
+            min-width: 0;
         }
         .nw-col-menu {
             margin-left: auto;

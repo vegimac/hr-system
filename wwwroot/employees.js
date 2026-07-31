@@ -1465,12 +1465,12 @@ function loadUebersichtTab() {
                     })()}
                     <div class="nw-row nw-row4 nw-actions">
                         <button class="nw-act-btn" onclick="openNachtEignungPdf(${emp.id})" title="Ärztliches Untersuchungsformular (SECO) drucken">🖨 Arztformular</button>
-                        <button class="nw-act-btn" onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken">🖨 Ausnahmeregelung</button>
+                        <button class="nw-act-btn" onclick="openNachtAusnahmePdf(${emp.id})" title="Ausnahmeregelung Tag-/Nachtarbeit drucken">🖨 Ausn. Reg.</button>
                         ${emp.nightWorkExamDokumentId
                             ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkExamDokumentId})" title="Hinterlegtes Arztzeugnis anzeigen">👁 Arztzeugnis</button>`
                             : ''}
                         ${emp.nightWorkAusnahmeDokumentId
-                            ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen">👁 Ausnahmeregelung</button>`
+                            ? `<button class="nw-act-btn nw-act-view" onclick="qstOpenBefreiungsDok(${emp.id}, ${emp.nightWorkAusnahmeDokumentId})" title="Hinterlegte Ausnahmeregelung anzeigen">👁 Ausn. Reg.</button>`
                             : ''}
                     </div>
                 </div>
