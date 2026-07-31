@@ -228,7 +228,7 @@ function onCeModelChange() {
     // automatisch = GuaranteedHoursPerWeek gesetzt.
     show('ceWeeklyWrap',     isUtp);
     show('ceGuaranteedWrap', isMtp);
-    // < 8 h / Wo. nur bei FLEX (Walter 31.07.2026) — sitzt in ceWeeklyWrap.
+    // < 8 h / Wo. nur bei FLEX — eigene Grid-Zelle rechts neben Max. h/Woche.
     show('ceTeilzeitUnter8hWrap', isUtp);
     if (!isUtp && typeof empSetYesNo === 'function')
         empSetYesNo('ceTeilzeitUnter8h', false);

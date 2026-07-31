@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260731i">
+    <link rel="stylesheet" href="css/app.css?v=20260731j">
 </head>
 <body>
 
@@ -7279,7 +7279,7 @@
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260715e"></script>
-<script src="js/contracts-edit.js?v=20260731b"></script>
+<script src="js/contracts-edit.js?v=20260731j"></script>
 <script src="js/payroll.js?v=20260708flex"></script>
 <script src="js/fibu.js?v=20260704p"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
@@ -8232,19 +8232,17 @@
                     <label class="ce-lbl" data-i18n="vt.modal.field.pensumPct">Pensum (%)</label>
                     <input type="number" id="cePensum" class="ce-inp" min="0" max="100" oninput="onCePensumChange()">
                 </div>
-                <div id="ceWeeklyWrap" style="display:flex;gap:12px;align-items:flex-end;grid-column:span 2;min-width:0">
-                    <div style="flex:1;min-width:0">
-                        <label class="ce-lbl" data-i18n="vt.modal.field.weeklyHours">Max. h/Woche</label>
-                        <input type="number" id="ceWeeklyHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
-                    </div>
-                    <!-- < 8 h nur bei FLEX (Walter 31.07.2026) — NBU-Befreiung UVG Art. 1a -->
-                    <div id="ceTeilzeitUnter8hWrap" style="flex:0 0 auto;min-width:110px">
-                        <label class="ce-lbl" title="NBU-Befreiung bei Arbeitszeit unter 8 h/Woche (UVG Art. 1a)">&lt; 8 h / Wo.</label>
-                        <div class="emp-yesno-toggle" data-target="ceTeilzeitUnter8h">
-                            <input type="hidden" id="ceTeilzeitUnter8h" value="false">
-                            <button type="button" onclick="empSetYesNo('ceTeilzeitUnter8h', true)">ja</button>
-                            <button type="button" class="active" onclick="empSetYesNo('ceTeilzeitUnter8h', false)">nein</button>
-                        </div>
+                <div id="ceWeeklyWrap">
+                    <label class="ce-lbl" data-i18n="vt.modal.field.weeklyHours">Max. h/Woche</label>
+                    <input type="number" id="ceWeeklyHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
+                </div>
+                <!-- < 8 h nur bei FLEX (Walter 31.07.2026) — rechts neben Max. h/Woche, Schieber wie L-GAV -->
+                <div id="ceTeilzeitUnter8hWrap">
+                    <label class="ce-lbl" title="NBU-Befreiung bei Arbeitszeit unter 8 h/Woche (UVG Art. 1a)">&lt; 8 h / Wo.</label>
+                    <div class="emp-yesno-toggle" data-target="ceTeilzeitUnter8h">
+                        <input type="hidden" id="ceTeilzeitUnter8h" value="false">
+                        <button type="button" onclick="empSetYesNo('ceTeilzeitUnter8h', true)">ja</button>
+                        <button type="button" class="active" onclick="empSetYesNo('ceTeilzeitUnter8h', false)">nein</button>
                     </div>
                 </div>
                 <div id="ceGuaranteedWrap" style="display:none">
@@ -8294,6 +8292,54 @@
     font-weight: 760 !important;
     padding: 0 0 0 3px !important;
     margin: 14px 0 5px !important;
+}
+/* < 8 h-Schieber wie L-GAV (emp-yesno-toggle) — Modal liegt ausserhalb
+   #page-mitarbeiter, daher eigene Regeln (Walter 31.07.2026). */
+#contractEditModal #ceTeilzeitUnter8hWrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-width: 0;
+}
+#contractEditModal .emp-yesno-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid rgba(60,55,48,.16);
+    border-radius: 15px;
+    background: #f0ece4;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+    min-height: 27px;
+    box-sizing: border-box;
+}
+#contractEditModal .emp-yesno-toggle button {
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #8b8b8b;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 760;
+    line-height: 1;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+#contractEditModal .emp-yesno-toggle button.active {
+    background: #3f3f3f;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(60,55,48,.18);
+}
+body.theme-dark #contractEditModal .emp-yesno-toggle {
+    background: rgba(255,255,255,.08);
+    border-color: rgba(122,145,165,.28);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+body.theme-dark #contractEditModal .emp-yesno-toggle button { color: #94a3b8; }
+body.theme-dark #contractEditModal .emp-yesno-toggle button.active {
+    background: #e8e4dc;
+    color: #1a1a1a;
+    box-shadow: 0 4px 12px rgba(0,0,0,.22);
 }
 </style>
 
