@@ -956,8 +956,13 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HoursCredited).HasColumnName("hours_credited").HasColumnType("numeric(8,2)");
             entity.Property(e => e.Prozent).HasColumnName("prozent").HasColumnType("numeric(5,2)").HasDefaultValue(100m);
             entity.Property(e => e.Notes).HasColumnName("notes");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            // Walter-Vorgabe 30.06.2026 / Fix 31.07.2026: Lokalzeit + timestamp
+            // without time zone. Ohne HasColumnType mappt Npgsql 8 DateTime als
+            // timestamptz und lehnt DateTime.Now (Kind=Local) ab → 500 beim Speichern.
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
         });
 
