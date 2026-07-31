@@ -1475,20 +1475,22 @@ public class PayrollCalculationEngine
             if (sollStundenExakt < 0m) sollStundenExakt = 0m;
             // Toleranz-Clamp für Rundungs-Drift aus decimal-Arithmetik.
             if (Math.Abs(sollStundenExakt) < 0.01m) sollStundenExakt = 0m;
-            decimal sollStunden = Math.Round(sollStundenExakt, 2); // nur Anzeige
+            // Stunden zuerst auf Anzeige runden, dann CHF = Anzeige-Stunden × Satz
+            // (Walter 31.07.2026): 81.43 × 21.66 = 1763.7738 → 1763.77 — nicht
+            // aus ungerundetem Soll (81.42857… × 21.66 → 1763.74). Sonst weicht
+            // der Grundlohn vom RAV ab (92.44 × 21.66 = 2002.25).
+            decimal sollStunden = Math.Round(sollStundenExakt, 2);
             decimal festlohnArbeitStunden = sollStunden;
-            // Festlohn-Arbeit-Betrag direkt aus exakten Stunden × Stundenlohn —
-            // unabhängig von den gerundeten Anzeige-Kürzungen.
-            decimal festlohnArbeitBetrag = Math.Round(sollStundenExakt * hourlyRate, 2);
+            decimal festlohnArbeitBetrag = Math.Round(sollStunden * hourlyRate, 2);
 
-            // Stunden-Saldo inkl. Vormonat — EXAKT (Walter 31.07.2026:
-            // Zwischenwerte nicht runden; sollStundenExakt, nicht gerundetes Soll).
+            // Stunden-Saldo inkl. Vormonat — EXAKT gegen sollStundenExakt
+            // (Mehrstunden-Anzahl); CHF unten aus gerundeter Mehrstunden-Anzahl.
             // absenzGutschrift enthält nur noch Krank/Schulung/BEZ_ABSENZ/etc.
             decimal nettoH         = workedHours + absenzGutschrift - sollStundenExakt + vormonatHourSaldo;
             decimal mehrstundenAus = Math.Round(Math.Max(0, nettoH), 2);
             decimal neuerSaldo     = Math.Round(Math.Min(0, nettoH), 2);
 
-            // Mehrstunden-Betrag: Zwischenbetrag auf 2 Dezimalen
+            // Mehrstunden-CHF aus gerundeter Anzahl (11.01 × 21.66 = 238.4766 → 238.48)
             decimal mtpBasis    = Math.Round(mehrstundenAus * hourlyRate, 2);
 
             // Ausbezahlte Feiertage (eigene Stunden-Auszahlung)
