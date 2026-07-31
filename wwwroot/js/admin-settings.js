@@ -809,7 +809,20 @@ async function saveAbsenzTyp() {
         const method = id ? 'PUT' : 'POST';
         const res    = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (!res.ok) { const e = await res.text(); showAbsenzAlert('Fehler: ' + e, 'err'); return; }
-        showAbsenzAlert('Gespeichert.', 'ok');
+        let msg = 'Gespeichert.';
+        try {
+            const j = await res.json();
+            if (id && typeof j.recalcUpdated === 'number') {
+                const u = j.recalcUpdated|0;
+                const l = j.recalcSkippedLocked|0;
+                if (u > 0 || l > 0) {
+                    msg = `Gespeichert. ${u} Absenz(en) neu gerechnet`
+                        + (l > 0 ? `, ${l} übersprungen (bereits im Lohn verwendet)` : '')
+                        + '.';
+                }
+            }
+        } catch { /* ok */ }
+        showAbsenzAlert(msg, 'ok');
         closeAbsenzTypForm();
         loadAbsenzTypen();
     } catch { showAbsenzAlert('Verbindungsfehler.', 'err'); }
