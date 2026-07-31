@@ -1387,14 +1387,18 @@ function loadUebersichtTab() {
             </div>`;
         }
     }
+    // Probezeit nur anzeigen solange noch aktiv (Ende ≥ heute) — abgelaufen
+    // komplett ausblenden (Walter 31.07.2026; war vorher oft sichtbar weil
+    // nur der Status an pzAktiv hing, der Titel aber am Datum).
+    const pzVisible = !!(pzEnde && pzAktiv);
     const lgavPzCell = `<div class="ov-pf ov-anst-lgav-pz">
             <div class="ov-anst-lgav-pz-head">
                 <div class="ov-pfl">L-GAV</div>
-                ${pzEnde ? `<div class="ov-anst-pz-title" title="Probezeit">Probezeit bis ${pzEnde}</div>` : ''}
+                ${pzVisible ? `<div class="ov-anst-pz-title" title="Probezeit">Probezeit bis ${pzEnde}</div>` : ''}
             </div>
             <div class="ov-anst-lgav-pz-body">
                 <div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div>
-                ${pzStatusLine}
+                ${pzVisible ? pzStatusLine : ''}
             </div>
         </div>`;
     // Layout (Walter 31.07.2026): 2 Zeilen — Anstellung breiter, Nachtarbeit schmaler.
