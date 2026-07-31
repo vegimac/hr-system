@@ -223,7 +223,7 @@ public class ZwischenverdienistController : ControllerBase
                 continue;
 
             var days = GetAbsenceDays(abs, firstDay, lastDay);
-            int tageImMonat = days.Count();
+            int tageImMonat = days.Count;
             if (tageImMonat == 0) continue;
 
             var kuerzel = (typ.ZwischenverdienstKuerzel ?? "").ToUpperInvariant();
@@ -245,9 +245,8 @@ public class ZwischenverdienistController : ControllerBase
             if (!bezahlt) continue;
 
             // Bevorzugt gespeicherte HoursCredited (Absenzen-Tab), sonst Formel.
-            var dayList = days as List<int> ?? days.ToList();
-            decimal stundenProTag = HoursPerAbsenceDay(abs, typ, wochenStunden, dayList.Count);
-            absenzStunden += dayList.Count * stundenProTag;
+            decimal stundenProTag = HoursPerAbsenceDay(abs, typ, wochenStunden, tageImMonat);
+            absenzStunden += tageImMonat * stundenProTag;
         }
         absenzStunden = Math.Round(absenzStunden, 2);
 
