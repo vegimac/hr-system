@@ -107,15 +107,28 @@ public class AbsenzTypenController : ControllerBase
         await _db.SaveChangesAsync();
 
         AbsenceHoursRecalcService.RecalcResult? recalc = null;
+        string? recalcError = null;
         if (needsRecalc)
-            recalc = await _recalc.RecalcForTypeAsync(typ);
+        {
+            try
+            {
+                recalc = await _recalc.RecalcForTypeAsync(typ);
+            }
+            catch (Exception ex)
+            {
+                // Typ ist bereits gespeichert — Nachrechnung getrennt melden
+                // (häufig: timestamp-Konflikt vor Migration).
+                recalcError = ex.InnerException?.Message ?? ex.Message;
+            }
+        }
 
         return Ok(new {
             typ.Id, typ.Code, typ.Bezeichnung, typ.Zeitgutschrift, typ.GutschriftModus,
             typ.UtpAuszahlung, typ.VerlaengertProbezeit, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv, typ.ZwischenverdienstKuerzel,
             recalcUpdated = recalc?.Updated ?? 0,
             recalcSkippedLocked = recalc?.SkippedLocked ?? 0,
-            recalcSkippedNoChange = recalc?.SkippedNoChange ?? 0
+            recalcSkippedNoChange = recalc?.SkippedNoChange ?? 0,
+            recalcError
         });
     }
 
