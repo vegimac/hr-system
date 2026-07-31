@@ -223,14 +223,14 @@ public class ZwischenverdienistController : ControllerBase
         // Ferienbezug zählt weder als Stunden noch im Raster — die
         // Ferienentschädigung-% (und Feiertag-%) kommen auf den Grundlohn.
         //
-        // WICHTIG (Walter 31.07.2026): Ist-Stunden EXAKT wie Lohnlauf
-        // (PayrollCalculationEngine) — gleiche Stempel-Summe, gleiche
-        // Absenz-Tageszählung (CountAbsenceDaysInPeriod), gleiche Rundung
-        // EINMAL auf das Perioden-Total (NICHT pro Tag × Tage, sonst Drift
-        // z.B. 10 × Round(30/7,2)=42.90 statt Round(10×30/7,2)=42.86).
+        // WICHTIG (Walter 31.07.2026): Zwischenwerte EXAKT rechnen —
+        // gar nicht runden, und wenn, dann erst ganz am Schluss auf die
+        // Anzeigewerte (2 Dezimalen). Keine Pro-Tag- / Pro-Absenz-Zwischen-
+        // rundung (sonst Drift vs. Lohn, z.B. 10×4.29 statt 10×30/7).
+        // Tage wie Lohnlauf: CountAbsenceDaysInPeriod.
         decimal stempelStunden = timeEntries.Sum(t => t.TotalHours ?? 0);
 
-        decimal absenzStunden = 0;
+        decimal absenzStundenExakt = 0;
         int krankUnfallTage   = 0;
         foreach (var abs in absences)
         {
@@ -264,14 +264,12 @@ public class ZwischenverdienistController : ControllerBase
                                   && !string.IsNullOrEmpty(typ.GutschriftModus);
             if (!mitZeitgutschrift) continue;
 
-            // Lohn-identisch: Tage via CountAbsenceDaysInPeriod, Rundung einmal
             int tageImMonat = PayrollCalculations.CountAbsenceDaysInPeriod(
                 abs, firstDay, lastDay);
             if (tageImMonat == 0) continue;
-            absenzStunden += ComputeAbsenzStundenLikeLohn(
+            absenzStundenExakt += ComputeAbsenzStundenExakt(
                 abs, typ, wochenStunden, tageImMonat);
         }
-        absenzStunden = Math.Round(absenzStunden, 2);
 
         string empModel = NormalizeEmploymentModel(employment);
         decimal totalStunden;
@@ -283,18 +281,22 @@ public class ZwischenverdienistController : ControllerBase
                                ?? employment?.WeeklyHours
                                ?? 0m;
             var (pFrom, pTo) = MtpPeriodBounds(employment, firstDay, lastDay);
-            decimal garantiert = CalcMtpGarantierteFestlohnStunden(
+            decimal garantiertExakt = CalcMtpGarantierteFestlohnStunden(
                 guaranteedH, pFrom, pTo, absences);
-            decimal ist = Math.Round(stempelStunden + absenzStunden, 2);
-            decimal darueber = Math.Round(Math.Max(0m, ist - garantiert), 2);
-            stundenGarantiert = garantiert;
-            stundenDarueber   = darueber;
-            totalStunden      = Math.Round(garantiert + darueber, 2);
+            decimal istExakt = stempelStunden + absenzStundenExakt;
+            decimal darueberExakt = Math.Max(0m, istExakt - garantiertExakt);
+            decimal totalExakt = garantiertExakt + darueberExakt;
+
+            // Erst hier runden — Anzeigewerte auf dem Formular
+            stundenGarantiert = Math.Round(garantiertExakt, 2);
+            totalStunden      = Math.Round(totalExakt, 2);
+            // Mehrstunden so, dass Garantie + Mehrstunden = Total (kein 0.01-Drift)
+            stundenDarueber   = Math.Round(totalStunden - stundenGarantiert.Value, 2);
         }
         else
         {
             // FLEX (und übrige Stundenlohn-Fälle): nur Stempelzeiten
-            totalStunden = stempelStunden;
+            totalStunden = Math.Round(stempelStunden, 2);
         }
 
         // Krank/Unfall-Karenz via KTG-Tagessatz → Feld "Taggeldleistungen"
@@ -616,8 +618,9 @@ public class ZwischenverdienistController : ControllerBase
             - unfallWerktage * guaranteedH / 5m
             - uuTage * guaranteedH / 7m;
         if (exakt < 0m) exakt = 0m;
+        // Toleranz-Clamp wie Lohnlauf — noch ungerundet zurückgeben
         if (Math.Abs(exakt) < 0.01m) exakt = 0m;
-        return Math.Round(exakt, 2);
+        return exakt;
     }
 
     private static List<DateOnly> GetAbsenceDates(Absence abs, DateOnly firstDay, DateOnly lastDay)
@@ -720,18 +723,17 @@ public class ZwischenverdienistController : ControllerBase
     }
 
     /// <summary>
-    /// Absenz-Stunden wie PayrollCalculationEngine.ComputeAbsenzHours:
-    /// einmal aufs Perioden-Total runden (Tage × WoStd / 5|7 × Prozent).
-    /// Kein HoursCredited, keine Pro-Tag-Zwischenrundung.
+    /// Absenz-Stunden EXAKT (Tage × WoStd / 5|7 × Prozent) — ohne Rundung.
+    /// Rundung erst am Schluss auf die Formular-Anzeigewerte.
     /// </summary>
-    private static decimal ComputeAbsenzStundenLikeLohn(
+    private static decimal ComputeAbsenzStundenExakt(
         Absence abs, AbsenzTyp typ, decimal wochenStunden, int daysInPeriod)
     {
         if (daysInPeriod <= 0) return 0m;
         string modus = typ.GutschriftModus ?? "1/5";
         decimal divisor = modus == "1/7" ? 7m : 5m;
         decimal prozent = abs.Prozent > 0 ? abs.Prozent : 100m;
-        return Math.Round(daysInPeriod * wochenStunden / divisor * prozent / 100m, 2);
+        return daysInPeriod * wochenStunden / divisor * prozent / 100m;
     }
 
     /// <summary>Tagesraster-Stunden immer mit 2 Nachkommastellen (Punkt).</summary>
