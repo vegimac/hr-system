@@ -4242,10 +4242,15 @@
             align-items: start;
             min-width: 0;
         }
-        /* L-GAV eng neben Austritt (Spalte 3), nicht nach rechts gestreckt */
+        /* L-GAV eng neben Austritt (Spalte 3); Spalte 4 in Zeile 1 bleibt leer */
         .ov-anst-grid > .ov-anst-lgav {
             grid-column: 3;
+            grid-row: 1;
             justify-self: start;
+        }
+        /* Kündigung + Austrittsgrund immer Zeile 2, ganz links → rechts */
+        .ov-anst-grid > .ov-anst-kuend {
+            grid-row: 2;
         }
         .ov-anst-grid > .ov-pf {
             margin-bottom: 0;
