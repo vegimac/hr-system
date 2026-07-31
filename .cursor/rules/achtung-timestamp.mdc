@@ -1,0 +1,30 @@
+---
+description: ABSOLUT — PostgreSQL timestamps + DateTime.Now (wiederkehrender 500-Bug)
+alwaysApply: true
+---
+
+# ⚠ ACHTUNG TIME — vor JEDEM C#/DB-Edit lesen
+
+**Wiederkehrender Produktions-Bug:** Speichern liefert HTTP 500 / leeres «Fehler:», Ursache fast immer Timestamps.
+
+## Regel (Walter, ABSOLUT)
+
+1. **Schreiben:** immer `DateTime.Now` — **NIEMALS** `DateTime.UtcNow`
+2. **DB-Spalte:** immer `timestamp without time zone` (NICHT `timestamptz`)
+3. **EF-Mapping:** bei jedem neuen/angepassten `DateTime`-Feld:
+   ```csharp
+   .HasColumnType("timestamp without time zone")
+   ```
+4. **Model-Default:** `= DateTime.Now` (nie UtcNow)
+5. **Neue Tabelle / Migration:** Spalten von Anfang an als `timestamp without time zone` anlegen
+6. **Alte `timestamptz`-Spalte gefunden:** Startup-Migration in `Program.cs` (idempotent, wie `employee_address` / `absence`) + EF-Mapping nachziehen
+
+## Warum
+
+Npgsql 8 lehnt `DateTime` mit `Kind=Local` (`DateTime.Now`) für `timestamptz` ab → 500 beim Speichern. Das System speichert durchgängig Lokalzeit in `timestamp without time zone`.
+
+## Check vor Commit
+
+- [ ] Kein neues `DateTime.UtcNow` in Write-Pfaden
+- [ ] Jedes neue `DateTime`-Property hat `HasColumnType("timestamp without time zone")`
+- [ ] SQL-Migrationen nutzen `timestamp without time zone`, nicht `TIMESTAMPTZ`
