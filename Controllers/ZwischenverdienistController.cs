@@ -174,15 +174,23 @@ public class ZwischenverdienistController : ControllerBase
             var days = GetAbsenceDays(abs, firstDay, lastDay);
             if (days.Count == 0) continue;
 
+            // Walter 31.07.2026 (final): Ferienbezug (A / FERIEN / Betriebsferien)
+            // NICHT im Tagesraster — die Ferienentschädigung-% auf den
+            // effektiven Stunden (Stempel + Zeitgutschrift) deckt das ab.
+            // Sonst Doppeldeklaration gegenüber dem RAV.
+            if (typeKey is "FERIEN" or "BETRIEBSFERIEN")
+                continue;
+
             if (absenzKuerzel.TryGetValue(typeKey, out var code))
             {
+                if (code is "A" or "F") continue;
                 foreach (int day in days)
                     tagesEintraege[day] = code;
                 continue;
             }
 
-            // Kein ALK-Kürzel: nur bezahlte Typen (Zeitgutschrift + Modus) als
-            // Stunden zeigen — z.B. Bezahlte Absenz (Arzt/Behörde/Trauer).
+            // Kein ALK-Kürzel: Typen mit Zeitgutschrift als Stunden —
+            // z.B. Bezahlte Absenz (Arzt/Behörde/Trauer).
             if (!absenzTypByCode.TryGetValue(typeKey, out var typBez)) continue;
             bool alsStunden = typBez.Zeitgutschrift
                            && !string.IsNullOrEmpty(typBez.GutschriftModus);
@@ -205,23 +213,20 @@ public class ZwischenverdienistController : ControllerBase
         }
 
         // ── Lohnberechnung ────────────────────────────────────────────────
-        // Anzahl Stunden = Stempel + bezahlte Absenzen OHNE ALK-Kürzel
-        // (z.B. BEZ_ABSENZ). Ferien/Militär/… mit Buchstabe A–G zählen hier
-        // nicht — die stehen nur im Tagesraster (Walter 31.07.2026).
+        // Walter 31.07.2026 (final): dem RAV nur effektive Stunden zeigen =
+        // Stempel + Absenzen mit Zeitgutschrift (ohne ALK-Kürzel, z.B. BEZ_ABSENZ).
+        // Ferienbezug zählt weder als Stunden noch im Raster — die
+        // Ferienentschädigung-% (und Feiertag-%) kommen auf diesen Grundlohn.
+        // Gilt für MTP und FLEX gleich.
         decimal stempelStunden = timeEntries.Sum(t => t.TotalHours ?? t.DurationHours ?? 0);
-
-        // ── UTP-Logik: Ferien/Mutterschaft etc. werden NICHT als Stunden zugeschlagen.
-        // Bei UTP ist die Ferien-Entschädigung schon im Stundenlohn (10.64% etc.)
-        // enthalten. Nur Krank/Unfall werden separat als "Taggeldleistungen"
-        // ausgewiesen (per KTG-Tagessatz, nicht im Bruttolohn).
-        bool isUtp = string.Equals(employment?.EmploymentModel, "FLEX", StringComparison.OrdinalIgnoreCase);
 
         decimal absenzStunden = 0;
         int krankUnfallTage   = 0;
         foreach (var abs in absences)
         {
             if (string.IsNullOrEmpty(abs.AbsenceType)) continue;
-            if (!absenzTypByCode.TryGetValue(abs.AbsenceType.ToUpperInvariant(), out var typ))
+            var typeKey = abs.AbsenceType.ToUpperInvariant();
+            if (!absenzTypByCode.TryGetValue(typeKey, out var typ))
                 continue;
 
             var days = GetAbsenceDays(abs, firstDay, lastDay);
@@ -237,24 +242,18 @@ public class ZwischenverdienistController : ControllerBase
                 continue;
             }
 
-            // Walter 31.07.2026: Absenzen mit ALK-Kürzel A/D/E/F/G stehen im
-            // Tagesraster als Buchstabe — NICHT zusätzlich als Stunden im
-            // Total/Grundlohn. Sonst Doppelzählung (v.a. Ferien «A» bei MTP:
-            // Tage × Std/7 + Ferien-% auf denselben Betrag). Formular-Text:
-            // «Für andere bezahlte Absenzen … Stunden eintragen» = nur Typen
-            // OHNE Kürzel (z.B. BEZ_ABSENZ).
+            // Ferienbezug: nie in die Stunden (MTP + FLEX)
+            if (typeKey is "FERIEN" or "BETRIEBSFERIEN" || kuerzel is "A" or "F")
+                continue;
+
+            // Andere ALK-Kürzel (D/E/G): Buchstabe im Raster, keine Stunden
             if (!string.IsNullOrEmpty(kuerzel)) continue;
 
-            // Bei UTP: bezahlte Absenzen ohne Kürzel ebenfalls nicht zum Lohn —
-            // Ferien-Entschädigung steckt schon in den %-Zuschlägen / Stundenlohn.
-            if (isUtp) continue;
+            // Nur Absenzen mit Zeitgutschrift (z.B. BEZ_ABSENZ) — MTP und FLEX
+            bool mitZeitgutschrift = typ.Zeitgutschrift
+                                  && !string.IsNullOrEmpty(typ.GutschriftModus);
+            if (!mitZeitgutschrift) continue;
 
-            // FIX/MTP: bezahlte Absenz-Stunden zum Lohn (Lohnersatz) — nur ohne Kürzel
-            bool bezahlt = !string.IsNullOrEmpty(typ.LohnpositionAuszahlungCode)
-                        || (typ.Zeitgutschrift && !string.IsNullOrEmpty(typ.GutschriftModus));
-            if (!bezahlt) continue;
-
-            // Bevorzugt gespeicherte HoursCredited (Absenzen-Tab), sonst Formel.
             decimal stundenProTag = HoursPerAbsenceDay(abs, typ, wochenStunden, tageImMonat);
             absenzStunden += tageImMonat * stundenProTag;
         }
@@ -318,11 +317,13 @@ public class ZwischenverdienistController : ControllerBase
             ? Math.Round(totalStunden * stundenlohn.Value, 2)
             : monatslohn ?? 0;
 
+        // Ferien-% und Feiertag-% nur auf den effektiven Stunden (Grundlohn =
+        // Stempel + Zeitgutschrift-Absenzen). Ferienbezug-Tage sind nicht
+        // im Grundlohn — deshalb hier die %-Zeilen zeigen (Walter 31.07.2026).
         decimal? ferienCHF   = ferienPct.HasValue   ? Math.Round(grundlohn * ferienPct.Value   / 100m, 2) : null;
         decimal? feiertagCHF = feiertagPct.HasValue  ? Math.Round(grundlohn * feiertagPct.Value / 100m, 2) : null;
 
-        // 13. ML-Basis = Stundenlohn + Feiertag + Ferien (analog Lohnzettel-Logik
-        // mit ZaehltAlsBasis13ml-Flag — alle drei Positionen tragen für 13. ML).
+        // 13. ML-Basis = Grundlohn + Feiertag + Ferien
         decimal basis13ml = grundlohn + (feiertagCHF ?? 0) + (ferienCHF ?? 0);
         decimal? dreizehnCHF = dreizehnPct.HasValue
             ? Math.Round(basis13ml * dreizehnPct.Value / 100m, 2)
