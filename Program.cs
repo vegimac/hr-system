@@ -132,6 +132,7 @@ builder.Services.AddScoped<KarenzService>();
 builder.Services.AddScoped<FerienKuerzungService>();
 // PDF-Generator für Lohnabrechnung
 builder.Services.AddScoped<PayrollPdfService>();
+builder.Services.AddScoped<StundenkontrollePdfService>();
 // Lohnlauf-Orchestrator (Vorab-PDF, DTA-Generierung, Vorbedingungen-Check)
 builder.Services.AddScoped<LohnlaufService>();
 // Akonto-Lohn-Berechnung (Vorab-Auszahlung Mitte Monat — Walter-Vorgabe).

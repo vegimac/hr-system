@@ -26,6 +26,7 @@ public class PayrollController : HrControllerBase
     private readonly LgavBeitragService _lgav;
     private readonly FerienKuerzungService _ferienKuerzung;
     private readonly PayrollPdfService _payrollPdf;
+    private readonly StundenkontrollePdfService _stundenkontrollePdf;
     private readonly PayrollCalculationEngine _calcEngine;
     private readonly MinimumWageCheckService _minWage;
     private readonly QstPflichtCheckService _qstCheck;
@@ -42,6 +43,7 @@ public class PayrollController : HrControllerBase
         LgavBeitragService lgav,
         FerienKuerzungService ferienKuerzung,
         PayrollPdfService payrollPdf,
+        StundenkontrollePdfService stundenkontrollePdf,
         PayrollCalculationEngine calcEngine,
         MinimumWageCheckService minWage,
         QstPflichtCheckService qstCheck,
@@ -56,6 +58,7 @@ public class PayrollController : HrControllerBase
         _lgav           = lgav;
         _ferienKuerzung = ferienKuerzung;
         _payrollPdf     = payrollPdf;
+        _stundenkontrollePdf = stundenkontrollePdf;
         _calcEngine     = calcEngine;
         _minWage        = minWage;
         _qstCheck       = qstCheck;
@@ -908,6 +911,69 @@ public class PayrollController : HrControllerBase
             ? $"{employee.FirstName}_{employee.LastName}".Replace(" ", "_")
             : $"Mitarbeiter_{employeeId}";
         var fileName = $"Lohnabrechnung_{name}_{year}-{month:D2}.pdf";
+        return File(pdf, "application/pdf", fileName);
+    }
+
+    // GET /api/payroll/stundenkontrolle-pdf?employeeId&year&month&companyProfileId
+    // Monatsblatt zur Stundenkontrolle + Unterschrift (Walter 01.08.2026).
+    // Geht beim Definitiv-Versand zusammen mit dem Lohnzettel ins MA-Postfach.
+    [HttpGet("stundenkontrolle-pdf")]
+    public async Task<IActionResult> GetStundenkontrollePdf(
+        [FromQuery] int employeeId,
+        [FromQuery] int year,
+        [FromQuery] int month,
+        [FromQuery] int companyProfileId)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId
+                                   && p.Year == year
+                                   && p.Month == month);
+        PayrollSnapshot? snapshot = null;
+        if (periode != null)
+        {
+            snapshot = await _db.PayrollSnapshots
+                .FirstOrDefaultAsync(s => s.PayrollPeriodeId == periode.Id
+                                       && s.EmployeeId == employeeId);
+        }
+
+        System.Text.Json.JsonElement? slip = null;
+        if (snapshot != null && periode != null
+            && (periode.Status == "abgeschlossen" || periode.Status == "provisorisch_abgeschlossen"))
+        {
+            var node = System.Text.Json.Nodes.JsonNode.Parse(snapshot.SlipJson)!.AsObject();
+            DateTime? frozenDate = periode.Status == "abgeschlossen"
+                ? periode.AbgeschlossenAm
+                : periode.ProvisorischAbgeschlossenAm;
+            if (frozenDate.HasValue)
+                node["printDate"] = frozenDate.Value.ToLocalTime().ToString("dd.MM.yyyy");
+            slip = System.Text.Json.JsonSerializer.SerializeToElement(node);
+        }
+        else
+        {
+            var calcResult = await _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId);
+            if (calcResult is OkObjectResult ok && ok.Value is not null)
+                slip = System.Text.Json.JsonSerializer.SerializeToElement(ok.Value);
+            // Ohne Slip trotzdem Monatsblatt aus Stempelzeiten/Saldi erzeugen.
+        }
+
+        byte[] pdf;
+        try
+        {
+            pdf = await _stundenkontrollePdf.GenerateAsync(employeeId, year, month, companyProfileId, slip);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+
+        var employee = await _db.Employees.FindAsync(employeeId);
+        var name = employee != null
+            ? $"{employee.FirstName}_{employee.LastName}".Replace(" ", "_")
+            : $"Mitarbeiter_{employeeId}";
+        var fileName = $"Stundenkontrolle_{name}_{year}-{month:D2}.pdf";
         return File(pdf, "application/pdf", fileName);
     }
 

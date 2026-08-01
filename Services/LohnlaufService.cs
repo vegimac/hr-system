@@ -22,6 +22,7 @@ public class LohnlaufService
 {
     private readonly AppDbContext _db;
     private readonly PayrollPdfService _pdfSvc;
+    private readonly StundenkontrollePdfService _stundenkontrollePdf;
     private readonly Iso20022PainService _painSvc;
     private readonly EmailService _emailSvc;
     private readonly IConfiguration _config;
@@ -29,6 +30,7 @@ public class LohnlaufService
 
     public LohnlaufService(AppDbContext db,
                            PayrollPdfService pdfSvc,
+                           StundenkontrollePdfService stundenkontrollePdf,
                            Iso20022PainService painSvc,
                            EmailService emailSvc,
                            IConfiguration config,
@@ -36,6 +38,7 @@ public class LohnlaufService
     {
         _db = db;
         _pdfSvc = pdfSvc;
+        _stundenkontrollePdf = stundenkontrollePdf;
         _painSvc = painSvc;
         _emailSvc = emailSvc;
         _config = config;
@@ -588,7 +591,8 @@ public class LohnlaufService
 
                     // Filename: "Lohnzettel_2026-03_750009.pdf" — die Periode-
                     // Komponente ist der Idempotenz-Marker oben.
-                    var origFileName = $"Lohnzettel_{periode.Year}-{periode.Month:D2}_{snap.Employee?.EmployeeNumber ?? snap.EmployeeId.ToString()}.pdf";
+                    var empNr = snap.Employee?.EmployeeNumber ?? snap.EmployeeId.ToString();
+                    var origFileName = $"Lohnzettel_{periode.Year}-{periode.Month:D2}_{empNr}.pdf";
 
                     _db.MailboxDocuments.Add(new MailboxDocument
                     {
@@ -604,6 +608,41 @@ public class LohnlaufService
                         NotifyUserId     = null,
                         TargetType       = "EMPLOYEE",
                     });
+
+                    // Monatsblatt Stundenkontrolle (Walter 01.08.2026): mit dem
+                    // Lohnzettel, damit der MA seine Stunden kontrolliert und
+                    // unterschreibt. Best-effort — Fehler blockieren den Lohnzettel nicht.
+                    try
+                    {
+                        var skBytes = await _stundenkontrollePdf.GenerateAsync(
+                            snap.EmployeeId, periode.Year, periode.Month,
+                            periode.CompanyProfileId, element);
+                        if (skBytes.Length > 0)
+                        {
+                            var skStorage = Guid.NewGuid().ToString("N") + ".pdf";
+                            var skPath = Path.Combine(branchDir, skStorage);
+                            await File.WriteAllBytesAsync(skPath, skBytes);
+                            _db.MailboxDocuments.Add(new MailboxDocument
+                            {
+                                CompanyProfileId = periode.CompanyProfileId,
+                                UploadedBy       = senderUserId == 0 ? null : senderUserId,
+                                UploadedAt       = DateTime.Now,
+                                OriginalFilename = $"Stundenkontrolle_{periode.Year}-{periode.Month:D2}_{empNr}.pdf",
+                                StorageFilename  = skStorage,
+                                MimeType         = "application/pdf",
+                                FileSizeBytes    = skBytes.Length,
+                                Bemerkung        = $"Stundenkontrolle {monatLabel} — bitte kontrollieren und unterschreiben",
+                                EmployeeId       = snap.EmployeeId,
+                                NotifyUserId     = null,
+                                TargetType       = "EMPLOYEE",
+                            });
+                        }
+                    }
+                    catch (Exception exSk)
+                    {
+                        Console.Error.WriteLine($"[LohnlaufService] Stundenkontrolle für MA {snap.EmployeeId} fehlgeschlagen: {exSk.Message}");
+                    }
+
                     erfolgreich++;
                 }
                 catch (Exception exMa)
@@ -709,15 +748,19 @@ public class LohnlaufService
     /// <summary>
     /// Interner Helper: löscht alle MailboxDocuments mit TargetType=EMPLOYEE
     /// für die gegebene (Filiale, Periode), und entfernt die zugehörigen
-    /// Storage-Dateien. Marker im OriginalFilename: "Lohnzettel_{Year}-{Month:D2}".
+    /// Storage-Dateien. Marker im OriginalFilename:
+    /// «Lohnzettel_{Year}-{Month:D2}» und «Stundenkontrolle_{Year}-{Month:D2}».
     /// </summary>
     private async Task DeleteLohnzettelFromMaPostfaecherInternalAsync(int companyProfileId, int year, int month)
     {
+        var lohnMarker = $"Lohnzettel_{year}-{month:D2}";
+        var skMarker   = $"Stundenkontrolle_{year}-{month:D2}";
         var altePostfachLohnzettel = await _db.MailboxDocuments
             .Where(m => m.TargetType == "EMPLOYEE"
                      && m.CompanyProfileId == companyProfileId
                      && m.OriginalFilename != null
-                     && m.OriginalFilename.Contains($"Lohnzettel_{year}-{month:D2}"))
+                     && (m.OriginalFilename.Contains(lohnMarker)
+                      || m.OriginalFilename.Contains(skMarker)))
             .ToListAsync();
         foreach (var alt in altePostfachLohnzettel)
         {
