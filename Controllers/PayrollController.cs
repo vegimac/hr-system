@@ -298,16 +298,20 @@ public class PayrollController : HrControllerBase
                     .OrderByDescending(x => x.ContractStartDate)
                     .Select(x => new { x.EmploymentModel, x.ContractStartDate, x.ContractEndDate })
                     .FirstOrDefault(),
-                HasOverlap = e.Employments.Any(x =>
-                    x.CompanyProfileId == companyProfileId
-                    && x.ContractStartDate <= periodToDt
+                // Noch irgendwo im Unternehmen angestellt (inkl. Filialwechsel /
+                // GF anderer Filiale) → KEIN Korrekturlohn-Kandidat.
+                // Sonst taucht z.B. Alaa (GF Langenthal, früher Oftringen) in
+                // der Oftringen-Liste als «Korr.» auf.
+                HasOverlapAnywhere = e.Employments.Any(x =>
+                    x.ContractStartDate <= periodToDt
                     && (x.ContractEndDate == null || x.ContractEndDate >= periodFromDt)),
             })
             .ToListAsync();
 
-        // Nur MA ohne laufenden Vertrag in der Periode (= Kandidaten)
+        // Nur wirklich Ausgetretene: hatten Vertrag in dieser Filiale, und in
+        // der Periode nirgends mehr einen laufenden Vertrag.
         var candidates = emps
-            .Where(e => e.LastEmp != null && !e.HasOverlap)
+            .Where(e => e.LastEmp != null && !e.HasOverlapAnywhere)
             .ToList();
 
         var candIds = candidates.Select(c => c.Id).ToList();

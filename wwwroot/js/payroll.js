@@ -163,8 +163,13 @@ async function lzLoad() {
                     ${bemEsc ? `<div style="font-size:11px;color:#64748b">${bemEsc}</div>` : ''}
                 </div>
                 <div style="font-weight:600;font-size:13px;font-family:monospace;color:${isAbzug ? '#dc2626' : '#059669'}">${isAbzug ? '−' : '+'} CHF ${Number(z.betrag).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-                <button onclick="lzEditById(${z.id})" style="border:none;background:#f1f5f9;color:#374151;padding:3px 9px;border-radius:6px;font-size:12px;cursor:pointer">✏️</button>
-                <button onclick="lzDelete(${z.id})" style="border:none;background:#fee2e2;color:#dc2626;padding:3px 9px;border-radius:6px;font-size:12px;cursor:pointer">🗑</button>
+                <div class="dok-menu-wrap" style="position:relative;flex-shrink:0">
+                    <button type="button" class="dok-menu-btn" onclick="dokToggleMenu(event, 'lz-${z.id}')" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="dokMenu-lz-${z.id}">
+                        <button type="button" class="dok-menu-item" onclick="dokCloseAllMenus();lzEditById(${z.id})">Bearbeiten</button>
+                        <button type="button" class="dok-menu-item danger" onclick="dokCloseAllMenus();lzDelete(${z.id})">Löschen</button>
+                    </div>
+                </div>
             </div>`;
         }).join('');
         setHtml(rowsHtml);
@@ -718,6 +723,11 @@ async function loadLohnList() {
                 { headers: ah() });
             if (cRes.ok) {
                 const cands = await cRes.json();
+                // Session-IDs aufräumen: nur noch echte Kandidaten (API filtert
+                // Filialwechsler / aktive GF anderer Filialen heraus).
+                const candById = new Map(cands.map(c => [c.id, c]));
+                _lohnCorrectionIds = new Set(
+                    [..._lohnCorrectionIds].filter(id => candById.has(id)));
                 const activeIds = new Set(active.map(a => a.id));
                 for (const c of cands) {
                     const auto = c.hasZulagen || c.hasPendingDepotRefund;
