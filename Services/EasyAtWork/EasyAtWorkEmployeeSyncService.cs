@@ -4016,17 +4016,22 @@ public class EasyAtWorkEmployeeSyncService
         return (null, null, $"PLZ {plz} ist mehrdeutig ({string.Join(" / ", names)}) und Ort konnte nicht zugeordnet werden.");
     }
 
-    private static string? MapMaritalStatus(string? v)
+    /// <summary>
+    /// easy@work cf_marital_status → unser Code. Buchstaben: M/S/D/W/E/P
+    /// (E = Getrennt — fehlte bis 01.08.2026 und liess Sync still leer).
+    /// </summary>
+    public static string? MapMaritalStatus(string? v)
     {
         if (string.IsNullOrWhiteSpace(v)) return null;
         var s = v.Trim().ToLowerInvariant();
-        // easy@work-Einzelbuchstaben-Codes (cf_marital_status): M/S/D/W/P.
+        // easy@work-Einzelbuchstaben-Codes (cf_marital_status): M/S/D/W/E/P.
         switch (s)
         {
             case "m": return "verheiratet";
             case "s": return "ledig";
             case "d": return "geschieden";
             case "w": return "verwitwet";
+            case "e": return "getrennt";
             case "p": return "eingetragene_partnerschaft";
         }
         if (s.Contains("ledig") || s.Contains("single") || s.Contains("celibat")) return "ledig";

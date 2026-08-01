@@ -1358,21 +1358,9 @@ public class EasyAtWorkController : ControllerBase
             if (s is "divers" or "diverse" or "andere" or "other" or "nonbinary" or "non-binary" or "x" or "d") return null;
             return null;
         }
+        // Gemeinsamer Mapper mit dem echten Sync (Walter 01.08.2026: E=Getrennt).
         static string? Marital(string? v)
-        {
-            var s = (v ?? "").Trim().ToLowerInvariant();
-            return s switch
-            {
-                "" or "unbekannt" or "unknown" => null,
-                "s" or "ledig" or "single" => "ledig",
-                "m" or "verheiratet" or "married" => "verheiratet",
-                "d" or "geschieden" or "divorced" => "geschieden",
-                "w" or "verwitwet" or "widowed" => "verwitwet",
-                "e" or "getrennt" or "separated" => "getrennt",
-                "p" or "eingetragene partnerschaft" or "eingetr. partnerschaft" or "registered partnership" => "eingetragene_partnerschaft",
-                _ => null
-            };
-        }
+            => Services.EasyAtWork.EasyAtWorkEmployeeSyncService.MapMaritalStatus(v);
         static string Fmt(DateOnly? d) => d?.ToString("yyyy-MM-dd") ?? "";
 
         var today = DateOnly.FromDateTime(DateTime.Today);
