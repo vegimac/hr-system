@@ -3681,7 +3681,8 @@
             display: flex; flex-direction: column;
             min-height: 0;
             flex: 1 1 auto;
-            padding-bottom: 6px;
+            /* Platz für tieferen Schatten der untersten Übersicht-Karten */
+            padding-bottom: 14px;
             background: transparent !important;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll #emp-tab-uebersicht.active {
@@ -3708,7 +3709,8 @@
             /* Anstellung breiter, Nachtarbeit schmaler (Walter 31.07.2026) */
             grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
             gap: 7px;
-            padding: 2px 2px 4px;
+            /* Unten Platz für Drop-Shadow der untersten Karten (Walter Aug 2026) */
+            padding: 2px 2px 18px;
         }
         /* Volle Breite (Walter 17.07.2026): Personalien & Adresse spannt
            ueber beide Spalten. */
@@ -3920,8 +3922,10 @@
             height: 100%;
             min-height: 180px;
             max-height: none;
-            overflow: hidden;
+            /* visible: Schatten der untersten Karten nicht abschneiden */
+            overflow: visible;
             align-self: stretch;
+            padding-bottom: 2px;
         }
         /* Verträge/Saldi: Karten füllen die Zeile; Liste scrollt innen */
         .ov-vertraege-ktg > .ov-card {
@@ -3930,6 +3934,16 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+        }
+        /* Unterste Karten: Schatten etwas tiefer → Rundung hebt sich ab */
+        #page-mitarbeiter.liquid-employee .ov-vertraege-ktg > .ov-card {
+            box-shadow:
+                0 0 0 1px rgba(90, 80, 65, 0.12),
+                0 0 22px rgba(90, 80, 65, 0.08),
+                0 8px 18px rgba(60, 55, 48, 0.12),
+                0 28px 52px rgba(60, 55, 48, 0.20),
+                inset 0 1px 0 rgba(255, 255, 255, 0.92),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.08);
         }
         .ov-vertraege-ktg > .ov-card > .ov-card-h { flex: 0 0 auto; }
         .ov-vertraege-ktg > .ov-card > .ov-vlist {
