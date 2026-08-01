@@ -1395,9 +1395,11 @@ function loadUebersichtTab() {
             : `<span class="ov-anst-pz-status open">offen</span>
                <button type="button" class="ov-anst-pz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
                  title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen">→ eintragen</button>`;
+    // Platz immer reservieren (auch ohne aktive Probezeit) — sonst springt
+    // die Anstellung-Karte beim MA-Wechsel (Walter Aug 2026).
     const pzRow = (pzEnde && pzAktiv)
         ? `<div class="ov-anst-pz-row"><span class="ov-anst-pz" title="Probezeit">Probezeit bis ${pzEnde}${pzStatus ? ` · ${pzStatus}` : ''}</span></div>`
-        : '';
+        : `<div class="ov-anst-pz-row ov-anst-pz-row-empty" aria-hidden="true"></div>`;
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}

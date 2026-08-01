@@ -4251,15 +4251,21 @@
             line-height: 28px;
             min-height: 28px;
         }
-        /* Probezeit unter Kündigung (volle Breite) */
+        /* Probezeit unter Kündigung — Höhe immer reserviert (kein Springen) */
         .ov-anst-pz-row {
             grid-column: 1 / -1;
             display: flex;
             align-items: center;
             flex-wrap: wrap;
             gap: 6px 8px;
-            min-height: 22px;
+            min-height: 26px;
+            height: 26px;
             padding-top: 1px;
+            box-sizing: border-box;
+        }
+        .ov-anst-pz-row-empty {
+            visibility: hidden;
+            pointer-events: none;
         }
         .ov-anst-pz {
             font-size: 11.5px;
