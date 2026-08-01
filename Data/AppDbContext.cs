@@ -1244,8 +1244,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LohnpositionId).HasColumnName("lohnposition_id");
             entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(10,2)");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.Lohnposition).WithMany().HasForeignKey(e => e.LohnpositionId);
             entity.HasIndex(e => new { e.EmployeeId, e.Periode }).HasDatabaseName("IX_lohn_zulage_emp_periode");
