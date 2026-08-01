@@ -21,17 +21,19 @@ public class UniformDepotService
     /// <summary>
     /// Beim ersten Lohn: CHF 50 als ABZUG (LohnZulage) + Depot EINBEHALTEN.
     /// Idempotent. Backfill-Depots werden nicht nochmals belastet.
+    /// Returns true wenn in dieser Periode neu ein Abzug angelegt wurde
+    /// (Snapshot muss ggf. neu gerechnet werden — Feature kam oft NACH Confirm).
     /// </summary>
-    public async Task EnsureChargeAsync(Employee employee, int year, int month)
+    public async Task<bool> EnsureChargeAsync(Employee employee, int year, int month)
     {
-        if (employee is null || employee.IsPayrollExcluded) return;
+        if (employee is null || employee.IsPayrollExcluded) return false;
 
         var existing = await _db.EmployeeUniformDepots
             .FirstOrDefaultAsync(d => d.EmployeeId == employee.Id);
-        if (existing != null) return; // schon EINBEHALTEN / zurück / verfallen
+        if (existing != null) return false; // schon EINBEHALTEN / zurück / verfallen
 
         var lpId = await ResolveLpIdAsync();
-        if (lpId is null) return;
+        if (lpId is null) return false;
 
         // Schon jemals belastet (manuell oder früherer Lauf)?
         bool alreadyCharged = await _db.LohnZulagen
@@ -50,13 +52,40 @@ public class UniformDepotService
                 UpdatedAt      = DateTime.Now,
             });
             await _db.SaveChangesAsync();
-            return;
+            return false;
         }
 
-        // Erster Lohn = noch kein nicht-stornierter Snapshot
-        bool hadPayroll = await _db.PayrollSnapshots
-            .AnyAsync(s => s.EmployeeId == employee.Id && s.Status != "STORNIERT");
-        if (hadPayroll) return;
+        // Eintritt vor 01.07.2026: historisch schon abgezogen → nur Depot-Zeile
+        // (kein neuer Lohnabzug), analog BackfillAsync.
+        if (employee.EntryDate.HasValue
+            && DateOnly.FromDateTime(employee.EntryDate.Value) < BackfillEntryBefore)
+        {
+            _db.EmployeeUniformDepots.Add(new EmployeeUniformDepot
+            {
+                EmployeeId     = employee.Id,
+                Balance        = DepotBetrag,
+                Status         = "EINBEHALTEN",
+                ChargedPeriode = "BACKFILL",
+                Bemerkung      = "Backfill: Eintritt vor 01.07.2026",
+                CreatedAt      = DateTime.Now,
+                UpdatedAt      = DateTime.Now,
+            });
+            await _db.SaveChangesAsync();
+            return false;
+        }
+
+        // Erster Lohn = kein Snapshot in einer FRÜHEREN Periode.
+        // Snapshots der AKTUELLEN Periode dürfen nicht blockieren — das Depot-
+        // Feature kam oft erst nach der Lohnbestätigung (Walter Aug 2026).
+        bool hadEarlierPayroll = await (
+            from s in _db.PayrollSnapshots
+            join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+            where s.EmployeeId == employee.Id
+               && s.Status != "STORNIERT"
+               && (p.Year < year || (p.Year == year && p.Month < month))
+            select s.Id
+        ).AnyAsync();
+        if (hadEarlierPayroll) return false;
 
         var periode = $"{year:D4}-{month:D2}";
         _db.LohnZulagen.Add(new LohnZulage
@@ -80,6 +109,38 @@ public class UniformDepotService
             UpdatedAt      = DateTime.Now,
         });
         await _db.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Alle Eintritte / Erst-Löhne einer Filiale+Periode: Depot-Abzug nachziehen
+    /// (auch wenn die Periode schon provisorisch bestätigt ist).
+    /// </summary>
+    public async Task<(int Charged, List<int> EmployeeIds)> EnsureChargesForPeriodAsync(
+        int companyProfileId, int year, int month)
+    {
+        var periodFrom = new DateTime(year, month, 1);
+        var periodTo   = periodFrom.AddMonths(1).AddDays(-1);
+
+        var empIds = await _db.Employments.AsNoTracking()
+            .Where(em => em.CompanyProfileId == companyProfileId
+                      && em.ContractStartDate <= periodTo
+                      && (em.ContractEndDate == null || em.ContractEndDate >= periodFrom))
+            .Select(em => em.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+
+        var employees = await _db.Employees
+            .Where(e => empIds.Contains(e.Id) && !e.IsHidden && !e.IsPayrollExcluded)
+            .ToListAsync();
+
+        var charged = new List<int>();
+        foreach (var emp in employees)
+        {
+            if (await EnsureChargeAsync(emp, year, month))
+                charged.Add(emp.Id);
+        }
+        return (charged.Count, charged);
     }
 
     /// <summary>

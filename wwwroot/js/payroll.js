@@ -609,6 +609,31 @@ async function loadLohnList() {
     const y   = parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
     const m   = parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth()+1));
 
+    // Uniformen-Depot nachziehen (Walter Aug 2026): Feature kam oft erst NACH
+    // der Lohnbestätigung — einmal pro Filiale+Periode/Session alle Eintritte
+    // belasten und Snapshots neu rechnen (idempotent).
+    try {
+        const depotKey = `lohnDepotEnsured_${cid}_${y}_${m}`;
+        if (!sessionStorage.getItem(depotKey)
+            && (typeof currentUser !== 'undefined')
+            && currentUser
+            && ['admin', 'superuser', 'buchhaltung'].includes(currentUser.role)) {
+            const dr = await fetch(
+                `/api/payroll/ensure-uniform-depots?companyProfileId=${cid}&year=${y}&month=${m}`,
+                { method: 'POST', headers: ah() });
+            if (dr.ok) {
+                const dd = await dr.json();
+                sessionStorage.setItem(depotKey, '1');
+                if (dd.charged > 0 && typeof showToast === 'function') {
+                    showToast(`Uniformen-Depot: ${dd.charged} Eintritt(e) nachgezogen`, 'success');
+                }
+            } else if (dr.status !== 409) {
+                // 409 = Periode abgeschlossen — ok, nicht nochmals versuchen
+                sessionStorage.setItem(depotKey, '1');
+            }
+        }
+    } catch { /* best-effort */ }
+
     try {
         // Snapshots für diese Periode laden — der Snapshot-Status entscheidet
         // über die Häkchen-Anzeige (Walter 19.05.2026):

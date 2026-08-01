@@ -215,6 +215,47 @@ public class PayrollController : HrControllerBase
         return Ok(new { updated, total });
     }
 
+    /// <summary>
+    /// Uniformen-Depot CHF 50 für alle Erst-Löhne / Eintritte der Periode
+    /// nachziehen (Walter Aug 2026). Feature kam oft erst NACH der
+    /// Lohnbestätigung — legt LohnZulage 600.32 an und rechnet betroffene
+    /// Snapshots neu (Status bleibt). Idempotent.
+    /// </summary>
+    [HttpPost("ensure-uniform-depots")]
+    [Authorize(Roles = "admin,superuser,buchhaltung")]
+    public async Task<IActionResult> EnsureUniformDepots(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId && p.Year == year && p.Month == month);
+        if (periode != null && string.Equals(periode.Status, "abgeschlossen", StringComparison.OrdinalIgnoreCase))
+        {
+            return Conflict(new
+            {
+                error = "PERIODE_ABGESCHLOSSEN",
+                message = "Periode ist definitiv abgeschlossen — Depot-Nachzug nicht mehr möglich."
+            });
+        }
+
+        var (charged, employeeIds) = await _uniformDepot.EnsureChargesForPeriodAsync(companyProfileId, year, month);
+        int recomputed = 0;
+        if (charged > 0)
+            recomputed = await _snapshotRecompute.RecomputeAsync(companyProfileId, year, month);
+
+        return Ok(new
+        {
+            charged,
+            employeeIds,
+            recomputed,
+            message = charged > 0
+                ? $"Uniformen-Depot: {charged} Eintritt(e) nachgezogen, {recomputed} Snapshot(s) neu gerechnet."
+                : "Keine neuen Depot-Abzüge nötig."
+        });
+    }
+
     // ── Saldo-Listen zum Definitiv-Abschluss (Walter-Vorgabe 21.05.2026) ──────
     // Zwei PDFs pro Filiale + Periode, on-demand aus den persistierten
     // PayrollSaldo-Zeilen. „buchhaltung" = alle Saldi + Brutto/Netto + IBAN;
