@@ -3708,8 +3708,8 @@
             /* Anstellung breiter, Nachtarbeit schmaler (Walter 31.07.2026) */
             grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
             gap: 7px;
-            /* Unten Platz für Drop-Shadow der untersten Karten (Walter Aug 2026) */
-            padding: 2px 2px 18px;
+            /* Knappes Boden-Padding — Schatten knapp sichtbar, ohne Leerraum */
+            padding: 2px 2px 8px;
         }
         /* Volle Breite (Walter 17.07.2026): Personalien & Adresse spannt
            ueber beide Spalten. */
@@ -3921,10 +3921,8 @@
             height: 100%;
             min-height: 180px;
             max-height: none;
-            /* visible: Schatten der untersten Karten nicht abschneiden */
             overflow: visible;
             align-self: stretch;
-            padding-bottom: 2px;
         }
         /* Verträge/Saldi: Karten füllen die Zeile; Liste scrollt innen */
         .ov-vertraege-ktg > .ov-card {
@@ -3934,13 +3932,13 @@
             display: flex;
             flex-direction: column;
         }
-        /* Unterste Karten: Schatten etwas tiefer → Rundung hebt sich ab */
+        /* Unterste Karten: Schatten nur leicht tiefer als Standard-Lift */
         #page-mitarbeiter.liquid-employee .ov-vertraege-ktg > .ov-card {
             box-shadow:
                 0 0 0 1px rgba(90, 80, 65, 0.12),
-                0 0 22px rgba(90, 80, 65, 0.08),
-                0 8px 18px rgba(60, 55, 48, 0.12),
-                0 28px 52px rgba(60, 55, 48, 0.20),
+                0 0 20px rgba(90, 80, 65, 0.07),
+                0 6px 14px rgba(60, 55, 48, 0.10),
+                0 14px 28px rgba(60, 55, 48, 0.14),
                 inset 0 1px 0 rgba(255, 255, 255, 0.92),
                 inset 0 -1px 0 rgba(90, 80, 65, 0.08);
         }
