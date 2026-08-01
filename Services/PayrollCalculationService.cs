@@ -44,32 +44,34 @@ public static class PayrollCalculations
         _ = vacationPct;
         _ = basis;
 
-        decimal pottChf  = Math.Round(prevGeld + accrual, 2);
-        decimal pottTage = prevTage + tageAccrual;
-        decimal ausz = 0;
+        // Pott inkl. aktueller Monat (01.08.2026) — EXAKT rechnen, runden erst am Schluss
+        // (Zwischenrundungen entfernt, Walter 31.07.2026).
+        decimal pottChfExakt = prevGeld + accrual;
+        decimal pottTage     = prevTage + tageAccrual;
+        decimal auszExakt    = 0m;
 
-        if (tageGenommen > 0 && pottTage > 0 && pottChf > 0)
+        if (tageGenommen > 0 && pottTage > 0 && pottChfExakt > 0)
         {
-            decimal tagessatz = pottChf / pottTage;
-            ausz = Math.Round(tagessatz * tageGenommen, 2);
-            if (ausz > pottChf) ausz = pottChf; // Cap: kein Vorbezug über den Pott
-            if (ausz > 0)
+            decimal tagessatz = pottChfExakt / pottTage;
+            auszExakt = tagessatz * tageGenommen;
+            if (auszExakt > pottChfExakt) auszExakt = pottChfExakt; // Cap: kein Vorbezug
+            if (auszExakt > 0)
             {
+                decimal auszLine = Math.Round(auszExakt, 2);
                 lohnLines.Add(new
                 {
                     bezeichnung = $"Ferienentschädigung-Auszahlung ({tageGenommen:F1} Tage)",
                     anzahl      = (decimal?)tageGenommen,
                     prozent     = (decimal?)null,
                     basis       = (decimal?)null,
-                    betrag      = ausz,
+                    betrag      = auszLine,
                     accrued     = (decimal?)0m    // reine Saldo-Auszahlung, keine neue Akkumulation
                 });
-                totalLohn += ausz;
+                totalLohn += auszLine;
             }
         }
 
-        decimal neu = Math.Round(pottChf - ausz, 2);
-        return (ausz, neu);
+        return (Math.Round(auszExakt, 2), Math.Round(pottChfExakt - auszExakt, 2));
     }
 
     public static object BuildResult(
@@ -765,8 +767,9 @@ public static class PayrollCalculations
         if (daysInPeriod == 0) return 0;
         if (daysInPeriod == allDays.Length) return a.HoursCredited;   // komplett in Periode
 
+        // Exakt — Aufrufer rundet erst am Schluss (Walter 31.07.2026)
         decimal proTag = a.HoursCredited / allDays.Length;
-        return Math.Round(proTag * daysInPeriod, 2);
+        return proTag * daysInPeriod;
     }
 
     /// <summary>
